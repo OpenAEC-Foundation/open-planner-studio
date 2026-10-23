@@ -13,11 +13,13 @@ import { relationVerdict } from '../relationRules';
 import { generateId } from '@/utils/id';
 import { localTodayIso } from '@/utils/dateUtils';
 import {
-  buildNewTask, createDefaultTaskTime, mergeTaskTime, mergeTaskUpdate, taskTriggerChanges,
+  buildNewTask, createDefaultTaskTime, deriveScheduleDurationFromMinutes, mergeTaskTime, mergeTaskUpdate, taskTriggerChanges,
   taskCalendarHoursPerDay, taskWorkMinutesOf, invalidateForTimeBaseChange, clearLevelingGaps,
   writeLevelingResult, clearLevelingOutput, applyDurationChangeRules,
   contourKeepsWork, hourInputFinishBasis, reconcileHourInputFinish, seedNewHourTaskFinish, type HourInputFinishBasis,
 } from '@/utils/taskDefaults';
+import { effHoursPerDay } from '@/utils/taskDuration';
+import { newTaskTimeUnit, settleNewTaskMeasure } from '../newTaskMeasure';
 import { sameValue } from '@/utils/sameValue';
 import { applyWbsNumbering } from '@/utils/wbs';
 import { assignInsertedWbsCodes } from '../insertedBranch';
@@ -169,12 +171,19 @@ function createMcpDraft(
       // Zelfde veld-afleiding (incl. taaktype-overerving) als de store-`addTask`: `buildNewTask`.
       // De typecontractvelden zijn niet via de `taskFields.ts`-allowlist zetbaar (REJECT_HINTS);
       // ze gaan alleen mee voor aanroepers die een `Partial<Task>` rechtstreeks doorgeven.
+      // Tweeling van taskSlice.ts addTask: de standaardmaat voor nieuwe taken (B1a, `newTaskMeasure.ts`).
+      // Een agent die zelf een duur geeft, geeft ook de maat (`taskFields.ts`); alleen vast werk maakt
+      // die dan nog urenmaat.
+      const newCalendar = resolveCalendar(partial.calendarId, s.calendars, s.calendar);
+      const time = mergeTaskTime(createDefaultTaskTime(now, partial.isMilestone ? 0 : 5, newTaskTimeUnit(s.project), newCalendar), partial.time);
+      deriveScheduleDurationFromMinutes(time, effHoursPerDay(newCalendar));
       const task = buildNewTask(partial, {
-        id, parentId, parentTask, constructionMode: s.ui.constructionMode,
-        time: mergeTaskTime(createDefaultTaskTime(now, partial.isMilestone ? 0 : 5), partial.time),
+        id, parentId, parentTask, constructionMode: s.ui.constructionMode, time,
       });
+      const madeHours = settleNewTaskMeasure(task, s.project, partial.time?.durationUnit !== undefined,
+        taskCalendarHoursPerDay(task, s.calendars, s.calendar));
       // Tweeling van taskSlice.ts addTask: het ingevoerde einde van een nieuwe urentaak.
-      seedNewHourTaskFinish(task, partial.time, resolveCalendar(task.calendarId, s.calendars, s.calendar));
+      seedNewHourTaskFinish(task, madeHours ? undefined : partial.time, resolveCalendar(task.calendarId, s.calendars, s.calendar));
       if (partial.workRule !== undefined) s.taskTypesVisible = true; // een gezette regel ontsluit de UI
 
       s.tasks.push(normalizeTaskDates(task, s));

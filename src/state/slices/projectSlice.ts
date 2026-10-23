@@ -2,7 +2,7 @@ import type { IfcSchemaId, Project, ProgressMode, ProjectSchedulingOptions, Sche
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Task } from '@/types/task';
-import { createDefaultTaskTime, deriveScheduleDurationFromMinutes } from '@/utils/taskDefaults';
+import { createDefaultTaskTime, deriveScheduleDurationFromMinutes, seedNewHourTaskFinish } from '@/utils/taskDefaults';
 import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
@@ -41,6 +41,7 @@ import type { XerSourceArchive } from '@/services/xerSourceArchive';
 // De fabriek woont in de bladmodule `../defaults` (breekt de import-cyclus met
 // documentContract/snapshot). Hier alleen doorgegeven voor bestaande importers.
 import { createDefaultProject } from '../defaults';
+import { newTaskTimeUnit, settleNewTaskMeasure } from '../newTaskMeasure';
 import { removeSessionHistoryForDocumentFromState } from '../sessionHistory';
 import { copyProfile, normalizeOptions, normalizeProfile } from '../schedulingProfileDraft';
 export { createDefaultProject };
@@ -537,10 +538,12 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       payload.project = proj;
       payload.calendar = opts.calendar;
       const phaseHoursPerDay = effHoursPerDay(opts.calendar);
-      payload.tasks = opts.phaseNames.map((name, i) => {
-        const time = createDefaultTaskTime(proj.startDate, 5, proj.defaultTaskDurationUnit, opts.calendar); // uur-einde op de echte kalender
+      payload.tasks = opts.phaseNames.map((name, i): Task => {
+        // Standaardmaat voor nieuwe taken (B1a, `newTaskMeasure.ts`): de tijd ontstaat in de gekozen
+        // maat, en wordt urenmaat onder een profiel dat geen dagenmaat telt. Uur-einde op de echte kalender.
+        const time = createDefaultTaskTime(proj.startDate, 5, newTaskTimeUnit(proj), opts.calendar);
         deriveScheduleDurationFromMinutes(time, phaseHoursPerDay);
-        return {
+        const task: Task = {
           id: generateId('task'),
           name,
           description: '',
@@ -556,6 +559,8 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
           time,
           resourceIds: [],
         };
+        if (settleNewTaskMeasure(task, proj, false, phaseHoursPerDay)) seedNewHourTaskFinish(task, undefined, opts.calendar);
+        return task;
       });
       // Ook de wizard is een invoergrens: hydratePayload verwacht al D1/D2-momenten.
       payload.tasks = payload.tasks.map(task => normalizeTaskDates(task, { calendar: opts.calendar, calendars: [opts.calendar] }));

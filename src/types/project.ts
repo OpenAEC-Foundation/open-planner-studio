@@ -540,7 +540,11 @@ export interface Project {
   modifiedAt: string;
   author: string;
   company: string;
-  /** Standaardmaat voor handmatig aangemaakte taken. */
+  /** "Standaardmaat voor nieuwe taken" (spec "alleen uren" §3.2, besluit B1a): dagenmaat of urenmaat.
+   *  Afwezig ⇒ de standaard van het profiel: dagenmaat in het OPS-profiel. Telt het profiel geen dagenmaat
+   *  (conventie `workdayDurationMeasure` uit: P6, MS Project), dan staat de standaardmaat vast op urenmaat;
+   *  dit veld blijft dan bewaard voor een wissel terug. Een taak met vast werk is altijd urenmaat. De
+   *  regel staat in `state/newTaskMeasure.ts`. */
   defaultTaskDurationUnit?: import('@/types/task').TaskDurationUnit;
   /** Projectstandaard-werkregel voor elke taak zonder eigen `workRule`. Afwezig ⇒ FIXED_DURATION_RATE.
    *  Round-tript via `OPS_ProjectSettings` (`DefaultWorkRule`). */

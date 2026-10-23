@@ -637,15 +637,26 @@ export function routeFixedWorkDurationToHours(
 ): boolean {
   if (effectiveWorkRule(task, defaultWorkRule) !== 'FIXED_WORK') return false;
   if (!workRuleApplies({ ...task, time: after })) return false;
-  if (!(Number.isFinite(hoursPerDay) && hoursPerDay > 0)) return false;
   const daysInput = after.durationUnit === 'days'
     ? before.durationUnit !== 'days' || after.scheduleDuration !== before.scheduleDuration
     : after.durationMinutes === before.durationMinutes && after.scheduleDuration !== before.scheduleDuration;
-  if (!daysInput || !Number.isFinite(after.scheduleDuration) || after.scheduleDuration < 0) return false;
+  if (!daysInput) return false;
+  return writeDaysAsHours(after, hoursPerDay);
+}
+
+/**
+ * Zet een duur in werkdagen om naar de urenmaat: minuten = werkdagen × werktijd per dag × 60 (T14), en
+ * `scheduleDuration` blijft het afgeleide dagengetal. Muteert `time`. Geeft `false` (en verandert niets)
+ * bij een ongeldige werktijd per dag of een ongeldige duur. Gedeeld door de B1a-routering hierboven en
+ * de standaardmaat van een nieuwe taak (`state/newTaskMeasure.ts`).
+ */
+export function writeDaysAsHours(time: TaskTime, hoursPerDay: number): boolean {
+  if (!(Number.isFinite(hoursPerDay) && hoursPerDay > 0)) return false;
+  if (!Number.isFinite(time.scheduleDuration) || time.scheduleDuration < 0) return false;
   const slot = hoursPerDay * 60;
-  after.durationUnit = 'hours';
-  after.durationMinutes = after.scheduleDuration * slot;
-  after.scheduleDuration = after.durationMinutes / slot;
+  time.durationUnit = 'hours';
+  time.durationMinutes = time.scheduleDuration * slot;
+  time.scheduleDuration = time.durationMinutes / slot;
   return true;
 }
 

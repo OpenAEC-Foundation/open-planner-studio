@@ -48,6 +48,7 @@ import {
   hourSourceOf, routeFixedWorkDurationToHours,
 } from '@/engine/work/workRuleApply';
 import { mergeStepRecomputedWork, remainingWorkRecomputedNotice } from '../remainingWorkNotice';
+import { newTaskTimeUnit, settleNewTaskMeasure } from '../newTaskMeasure';
 import type { WorkRule } from '@/types/workRule';
 import type { AppSlice, AppSliceFactory, NotifyInput, PhaseAssignmentQuestion, SiblingDirection } from './types';
 import type { AppState } from '../appStore';
@@ -1020,11 +1021,12 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
 
       const now = s.project.startDate || localTodayIso();
       const effectiveNewTaskCalendar = resolveCalendar(partial.calendarId, s.calendars, s.calendar);
-      const defaultDurationUnit = s.project.defaultTaskDurationUnit ?? 'days';
+      // Standaardmaat voor nieuwe taken (B1a, `newTaskMeasure.ts`): de tijd ontstaat in de gekozen
+      // maat, en `settleNewTaskMeasure` maakt hem urenmaat onder vast werk of een vaste urenmaat.
       const initialTime = mergeTaskTime(createDefaultTaskTime(
         now,
         partial.isMilestone ? 0 : 5,
-        defaultDurationUnit,
+        newTaskTimeUnit(s.project),
         effectiveNewTaskCalendar,
       ), partial.time);
       deriveScheduleDurationFromMinutes(initialTime, effHoursPerDay(effectiveNewTaskCalendar));
@@ -1034,9 +1036,11 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       const task = buildNewTask(partial, {
         id, parentId, parentTask, constructionMode: s.ui.constructionMode, time: initialTime,
       });
+      const madeHours = settleNewTaskMeasure(task, s.project, partial.time?.durationUnit !== undefined, effHoursPerDay(effectiveNewTaskCalendar));
       // De solve schrijft `scheduleFinish` niet terug, dus een nieuwe urentaak krijgt
       // hier haar ingevoerde einde (start + duur op de echte kalender), zie `seedNewHourTaskFinish`.
-      seedNewHourTaskFinish(task, partial.time, effectiveNewTaskCalendar);
+      // Werd de taak hierboven urenmaat, dan hoorde een meegegeven einde bij de dagenmaat: opnieuw zaaien.
+      seedNewHourTaskFinish(task, madeHours ? undefined : partial.time, effectiveNewTaskCalendar);
       Object.assign(task, normalizeTaskDates(task, s));
       if (partial.workRule !== undefined) s.taskTypesVisible = true; // een gezette regel ontsluit de UI
 

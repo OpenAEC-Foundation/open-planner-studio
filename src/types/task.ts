@@ -75,11 +75,20 @@ export interface ExternalLink {
 export type DurationType = 'WORKTIME' | 'ELAPSEDTIME';
 
 /**
- * De door de gebruiker gekozen, blijvende eenheid van een taakduur.
+ * De MAAT van een taak (spec "alleen uren" §3.2, besluit B1): de blijvende keuze hoe haar duur telt.
+ *  - `'days'` = dagenmaat. Bron: `scheduleDuration`, in werkdagen van de taakkalender; een breuk mag
+ *    (2,5). Of het profiel die dagenmaat ook in werkdagen telt, zegt de conventie
+ *    `workdayDurationMeasure` (`taskCountsInWorkdays`): onder P6 en MS Project telt hij als uren
+ *    (werkdagen × werktijd per dag × 60).
+ *  - `'hours'` = urenmaat. Bron: `durationMinutes`, in werkminuten; `scheduleDuration` is daarvan
+ *    afgeleid (minuten ÷ werktijd per dag × 60).
+ * Een taak met vast werk (`FIXED_WORK`) is altijd urenmaat (B1a). Een nieuwe taak krijgt de
+ * standaardmaat van het project (`Project.defaultTaskDurationUnit`, `state/newTaskMeasure.ts`).
  *
  * INVARIANT: bij `days` is `scheduleDuration` de enige invoerbron; bij `hours` is
  * `durationMinutes` de enige invoerbron. Een kalender bepaalt uitsluitend waar die hoeveelheid
- * past en mag deze identiteit nooit afleiden, converteren of overschrijven.
+ * past en mag deze identiteit nooit afleiden, converteren of overschrijven. Alleen een
+ * planningsbewerking verandert de maat (een maatwissel, of vast werk; spec §5.2 geval 11c).
  */
 export type TaskDurationUnit = 'days' | 'hours';
 
@@ -184,7 +193,9 @@ export type MilestoneKind = 'START' | 'FINISH';
 export interface TaskTime {
   durationType: DurationType;
   durationUnit: TaskDurationUnit;
-  /** Canonieke invoerbron wanneer `durationUnit === 'days'`: gehele werkbare kalenderdagen. */
+  /** Duur in werkdagen. Bron bij de dagenmaat (`durationUnit === 'days'`): werkdagen op de taakkalender,
+   *  een breuk mag (2,5). Bij de urenmaat afgeleid van `durationMinutes` (minuten ÷ werktijd per dag × 60).
+   *  Bij kalendertijd (`ELAPSEDTIME`) kalenderdagen van 24 u. */
   scheduleDuration: number;
   /** Canonieke invoerbron wanneer `durationUnit === 'hours'`: exacte werkminuten. Oude data zonder
    *  `durationUnit` migreert deterministisch naar uren zodra dit veld aanwezig is; minuutprecisie
