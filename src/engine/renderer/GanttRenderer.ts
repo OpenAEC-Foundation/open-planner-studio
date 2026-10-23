@@ -1412,8 +1412,11 @@ export class GanttRenderer {
     // hieronder-volgende `else`-tak (kalender-necking, puur weergave, uur-modus-only).
     if (task.splitGaps && task.splitGaps.length > 0) {
       const eng = this.engineForAnyMode(task);
-      // T16 verandert de datumvorm, niet de maat van een dagsplit.
-      const segments = computeSplitSegments(task.splitGaps, geo.start, geo.end, taskDurationUnit(task) === 'hours', eng);
+      // De maat van de taak kiest de wandeling (alleen uren §3.14): een urentaak in werkminuten, een
+      // dagtaak met tijden in werkdagen met een breuk (dezelfde telling als de motor), een dagtaak met
+      // alleen datums in hele werkdagen.
+      const measure = taskDurationUnit(task) === 'hours' ? true : geo.hourMode ? 'workdays' : false;
+      const segments = computeSplitSegments(task.splitGaps, geo.start, geo.end, measure, eng);
       if (segments.length > 1) {
         // Eerste/laatste grens hergebruikt de AL BEKENDE volle-extent `x1`/`x2` (dezelfde waarden
         // als de cull-test bovenaan deze functie): die dragen dag-modus' "+zoom voor de inclusieve

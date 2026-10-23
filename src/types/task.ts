@@ -214,6 +214,10 @@ export interface TaskTime {
   lateFinish: string;
   freeFloat: number;   // work days (fractioneel in uur-modus)
   totalFloat: number;  // work days (fractioneel in uur-modus)
+  /** Totale speling in werkminuten op de taakkalender; bij kalendertijd klokminuten. Berekend (§3.4). */
+  totalFloatMinutes?: number;
+  /** Vrije speling in werkminuten op de taakkalender; bij kalendertijd klokminuten. Berekend (§3.4). */
+  freeFloatMinutes?: number;
   isCritical: boolean;
   /** Interfererende speling = totalFloat − freeFloat (getekend, fractioneel in uur-modus). Afwezig
    *  zolang er niet is doorgerekend. */
@@ -265,10 +269,12 @@ export type TaskTimeComputed = Pick<
 
 /** ANALYSE — afgeleiden bovenop de CPM-output. `interferingFloat` (= tf − ff) wordt
  *  ALTIJD elke `runCPM` (her)berekend en teruggeschreven; `isNearCritical`/`floatPath` alleen wanneer
- *  de bijbehorende optie/drempel draait (anders gewist, om stale markering te voorkomen). */
+ *  de bijbehorende optie/drempel draait (anders gewist, om stale markering te voorkomen).
+ *  `totalFloatMinutes`/`freeFloatMinutes` (alleen uren §3.4) staan hier en niet in `TaskTimeComputed`:
+ *  ze zijn optioneel, en `TaskTimeComputed` is gekoppeld aan de IFC-rekenslots (`RECORDED_SLOT_KEYS`). */
 export type TaskTimeAnalysis = Pick<
   TaskTime,
-  'interferingFloat' | 'isNearCritical' | 'floatPath'
+  'interferingFloat' | 'isNearCritical' | 'floatPath' | 'totalFloatMinutes' | 'freeFloatMinutes'
 >;
 
 /** TRACKING — voortgang/actuals; door de gebruiker geschreven, niet door de solver. */

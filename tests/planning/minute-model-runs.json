@@ -14,9 +14,7 @@
     "hours-blokgrenzen": [],
     "hours-relations": [],
     "kalenders": [],
-    "lag-advanced": [
-      "lagadv-pct-fs50-odd-roundup"
-    ],
+    "lag-advanced": [],
     "milestone-kinds": [],
     "milestones": [],
     "move-project": [],
@@ -38,9 +36,7 @@
     "driving": [],
     "edge": [],
     "float": [],
-    "hours": [
-      "durmin-on-daycal-withdm"
-    ],
+    "hours": [],
     "hours-blokgrenzen": [],
     "hours-relations": [],
     "kalenders": [],
@@ -48,14 +44,12 @@
       "lagadv-ff-lead-ed"
     ],
     "milestone-kinds": [
-      "mk-05a",
-      "mk-14"
+      "mk-05a"
     ],
     "milestones": [],
     "move-project": [],
     "msp-pariteit": [
-      "msp-20-t8-review-elapsed-keten",
-      "msp-56-z9a-manual-anchor-raw-no-snap"
+      "msp-20-t8-review-elapsed-keten"
     ],
     "probes": [],
     "progress": [],

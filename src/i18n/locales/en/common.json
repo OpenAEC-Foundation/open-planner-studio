@@ -1479,6 +1479,10 @@
     "milestoneWithoutPredecessorAtDayEnd": {
       "label": "Isolated milestones at the end of the workday",
       "help": "An isolated milestone or a finish milestone without a predecessor is placed at the end of its workday."
+    },
+    "workdayDurationMeasure": {
+      "label": "Duration in working days",
+      "help": "A duration, lag or remaining duration in days counts in working days: each working day counts as 1, however long that day is. Off: a day counts as the number of working hours per day of the calendar. A percentage lag follows the measure of the predecessor. Elapsed time never counts in working days."
     }
   },
   "profiles": {
@@ -1517,6 +1521,7 @@
       "float": "Float and late dates",
       "instants": "Dates and moments from the file",
       "msproject": "Progress as in Microsoft Project",
+      "durations": "Duration and measure",
       "ownProfilesOnly": "Custom profiles only"
     },
     "ownProfilesOnlyNote": "These conventions are off in every built-in profile, including Primavera P6. Only a custom profile can switch them on: choose New profile for that.",

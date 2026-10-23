@@ -142,8 +142,8 @@ if (UPDATE) {
   console.log(`OK  voorbeeldensnapshot bijgewerkt: ${files.length} voorbeelden, ${n} taken.`);
 }
 
-// F2-tussenstand; F3 → onderstaande exacte momenten (§3.14).
-// De dagen zijn per kalender even lang; de bestaande urenloper toetst de doelen onafhankelijk.
+// Exacte dagenmaat-momenten (§3.14) die de snapshot hierboven sinds F3c ook bevat. De dagen zijn per
+// kalender even lang; de bestaande urenloper toetst de doelen hier onafhankelijk van de dagenmaat.
 const f3Goals = [
   ["05-brugvervanging-n279", "3.1", "2027-03-17T08:36", "2027-03-31T08:36"],
   ["08-zorgcentrum-de-linde", "3.1", "2027-03-15T14:24", "2027-04-02T14:24"],

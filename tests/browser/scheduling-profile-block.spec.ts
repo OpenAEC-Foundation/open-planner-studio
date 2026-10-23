@@ -87,19 +87,19 @@ test('profielblok: P6 ingeklapt en alleen-lezen, Nieuw profiel bewerkt en rekent
   // Ingeklapt: alleen de kop met het aantal regels, geen rijen.
   const toggle = page.locator('[data-ops-conventions-toggle]');
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  await expect(page.locator('[data-ops-conventions-count]')).toHaveText('(28)');
+  await expect(page.locator('[data-ops-conventions-count]')).toHaveText('(29)');
   await expect(page.locator('[data-ops-convention-row]')).toHaveCount(0);
   await expect(page.locator('[data-ops-conventions-deviating]')).toHaveCount(0);
   await shoot(page, section, 'p6-ingeklapt', true);
 
-  // Uitklappen: 28 regels, alleen-lezen — waarde als label, geen vinkje, geen "terug naar basis".
+  // Uitklappen: 29 regels (28 plus de dagenmaat uit F3, `workdayDurationMeasure`), alleen-lezen — waarde als label, geen vinkje, geen "terug naar basis".
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-  await expect(page.locator('[data-ops-convention-row]')).toHaveCount(28);
+  await expect(page.locator('[data-ops-convention-row]')).toHaveCount(29);
   await expect(page.locator('[data-ops-convention]')).toHaveCount(0);
   await expect(page.locator('input[type="checkbox"][data-ops-convention]')).toHaveCount(0);
   await expect(page.locator('[data-ops-convention-reset]')).toHaveCount(0);
-  await expect(page.locator('[data-ops-convention-value]')).toHaveCount(28);
+  await expect(page.locator('[data-ops-convention-value]')).toHaveCount(29);
   await expect(page.locator('[data-ops-conventions-readonly-note]')).toBeVisible();
   const a19 = page.locator('[data-ops-convention-row="p6UseRemainingStartForProgress"]');
   await expect(a19.locator('[data-ops-convention-value]')).toHaveAttribute('data-value', 'on');
@@ -121,10 +121,10 @@ test('profielblok: P6 ingeklapt en alleen-lezen, Nieuw profiel bewerkt en rekent
   await expect(tooltip(page)).toHaveText(a19Help!);
   await shoot(page, section, 'p6-uitgeklapt-tooltip');
 
-  // Tab langs ALLE 27 i-iconen vanaf de kop van het deel, zonder voorbereiding: twee echte klikken op de
+  // Tab langs ALLE 29 i-iconen vanaf de kop van het deel, zonder voorbereiding: twee echte klikken op de
   // kop (dicht, open), de muis blijft daar staan, dan Tab. Elk icoon toont zijn eigen uitleg, ook als de
   // focus de lijst laat scrollen en de inhoud onder de muis wegschuift (review #350, punten 2 en 3).
-  expect(helps).toHaveLength(28);
+  expect(helps).toHaveLength(29);
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
   await toggle.click();
@@ -209,7 +209,7 @@ test('profielblok: P6 ingeklapt en alleen-lezen, Nieuw profiel bewerkt en rekent
   await expect(page.locator('[data-ops-scheduling-profile-name]')).toHaveValue('Aannemer zonder statusdatum');
   // Het deel staat open, met vinkjes: dezelfde waarden als P6.
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-  await expect(page.locator('input[type="checkbox"][data-ops-convention]')).toHaveCount(28);
+  await expect(page.locator('input[type="checkbox"][data-ops-convention]')).toHaveCount(29);
   await expect(page.locator('[data-ops-conventions-readonly-note]')).toHaveCount(0);
   await expect(page.locator('[data-ops-convention="p6UseRemainingStartForProgress"]')).toBeChecked();
   // Nog niets in de store: pas Toepassen telt.

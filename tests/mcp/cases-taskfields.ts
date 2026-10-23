@@ -19,6 +19,8 @@ import { readTools } from '@/services/mcp/tools/readTools';
 import { registerToolModules } from '@/services/mcp/toolRegistry';
 import { TASK_FIELD_SCHEMA_PROPERTIES } from '@/services/mcp/tools/taskFields';
 import type { McpContext, McpToolResult, McpToolOk, McpToolErr } from '@/services/mcp/contracts';
+import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { parseInstant } from '@/utils/dateUtils';
 
 const store = useAppStore;
 
@@ -367,10 +369,16 @@ test('duration in dagen: een fractie wordt geaccepteerd en exact bewaard, en de 
   const id = created.created['tmp-f'];
   assertEq(taskById(id)!.time.scheduleDuration, 2.5, 'add_tasks bewaart 2.5 dag exact (niet afgerond)');
   assertEq(taskById(id)!.time.durationUnit, 'days', 'het blijft een dagtaak');
-  // De schemabeschrijving belooft "een WORKTIME-dagtaak beslaat in de datums hele werkdagen (2.5 ⇒ 3)".
+  // F3 (alleen uren §3.4/§3.14, B1): de dagenmaat telt het halve dagdeel mee. 2.5 dag begint op dezelfde
+  // dag als een taak van 3 en eindigt halverwege de derde werkdag, niet aan het einde ervan. (De
+  // schemabeschrijving "2.5 ⇒ 3" in `taskFields.ts` hoort bij F3c deel 2; gemeld.)
   const drie = taskById(created.created['tmp-3'])!.time;
-  assertEq([taskById(id)!.time.earlyStart, taskById(id)!.time.earlyFinish], [drie.earlyStart, drie.earlyFinish],
-    '2.5 dag beslaat in de datums dezelfde 3 werkdagen als een taak van 3');
+  const fractie = taskById(id)!.time;
+  assertEq(fractie.earlyStart, drie.earlyStart, '2.5 dag begint op dezelfde dag als een taak van 3');
+  assertEq(fractie.earlyFinish.slice(0, 10), drie.earlyFinish.slice(0, 10), '2.5 dag eindigt op de derde werkdag');
+  const eng = new CalendarEngine(store.getState().calendar);
+  assertEq(eng.workMinutesBetween(parseInstant(fractie.earlyFinish), parseInstant(drie.earlyFinish)), eng.hoursPerDay * 30,
+    '2.5 dag eindigt een halve werkdag vóór de taak van 3');
   okData(await call('planner_update_tasks', { updates: [{ id, fields: { duration: 0.5 } }] }));
   assertEq(taskById(id)!.time.scheduleDuration, 0.5, 'update_tasks bewaart 0.5 dag exact');
 

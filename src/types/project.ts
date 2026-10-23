@@ -422,10 +422,18 @@ export interface SchedulingOptions {
    *  - OPS: uit (de gewone stap: de vroege datums schuiven in hele werkdagen op met de vrije speling, in
    *    topologische volgorde, ook bij een gestarte taak). */
   p6AlapPositionedFromSuccessors?: boolean;
+  /** Dagenmaat (spec alleen-uren §3.14): telt een taak, lag of rest in de dagenmaat (`durationUnit: 'days'`,
+   *  `lagDays` zonder `lagMinutes`) als werkdagen op de kalender, en niet als uren?
+   *  - Primavera P6: uit. Een dagenmaat telt als uren: dagen × werktijd per dag × 60 minuten.
+   *  - MS Project: uit, idem.
+   *  - OPS: aan. Elke werkdag telt als 1, hoe lang ook.
+   *  Kalendertijd (`ELAPSEDTIME`) en een procentlag tellen nooit in de dagenmaat. De vraag "telt dit in de
+   *  dagenmaat?" stel je via `conventions/durationMeasure.ts`. Nog niet gelezen door de solver (F3c). */
+  workdayDurationMeasure?: boolean;
 }
 
 /**
- * Rekenprofielen (tweelagenmodel): de zevenentwintig PAKKETCONVENTIES — regels die per planningspakket
+ * Rekenprofielen (tweelagenmodel): de negenentwintig PAKKETCONVENTIES — regels die per planningspakket
  * verschillen en niet per bestand. Ze leven in het profiel (`Project.schedulingProfile`), niet in
  * `Project.schedulingOptions`; die draagt de per-bestand projectinstellingen. De twee
  * sleutelverzamelingen zijn disjunct (compile-time bewaakt in `conventions/registry.ts`).
@@ -458,7 +466,8 @@ export type ConventionKey =
   | 'p6LateFinishOnOwnCalendar'
   | 'p6ProgressOverrideIgnoresStartedSuccessor'
   | 'p6FinishNotBeforeFinishFinishBound'
-  | 'p6AlapPositionedFromSuccessors';
+  | 'p6AlapPositionedFromSuccessors'
+  | 'workdayDurationMeasure';
 
 /** De elf per-bestand projectinstellingen: alles in `SchedulingOptions` behalve de conventies. */
 export type ProjectOptionKey = Exclude<keyof SchedulingOptions, ConventionKey>;

@@ -213,6 +213,7 @@ export function expectedXerScheduleOptions(
   // 2026-09-24 gewoon aan (eigenaarsbesluit "a"; PROJECT.rem_target_link_flag stuurt niets meer). Onafhankelijke raw-scan: nooit de productie-afleiding hergebruiken.
   const conventions: Record<ConventionKey, boolean> = {
     milestoneWithoutPredecessorAtDayEnd: false,
+    workdayDurationMeasure: false,
     preserveActualDatesInBackwardPass: true,
     clampNegativeFreeFloat: true,
     p6ZeroDurationUsesPlannedBoundary: true,

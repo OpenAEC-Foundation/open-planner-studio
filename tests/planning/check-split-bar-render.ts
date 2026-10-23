@@ -38,6 +38,7 @@ import { computeSplitSegments } from '@/engine/renderer/splitBarGeometry';
 import { doneBarTones, readGanttPalette } from '@/engine/renderer/themePalette';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { parseInstant, formatInstant } from '@/utils/dateUtils';
+import { taskDurationUnit } from '@/engine/scheduler/duration';
 
 const S = () => useAppStore.getState();
 
@@ -245,12 +246,11 @@ console.log('-- split-bar-render: 2 gaten ⇒ 3 segmenten op de juiste x-positie
     { afterMinutes: 120, gapMinutes: 60 },
     { afterMinutes: 300, gapMinutes: 60 },
   ];
-  // F2 (spec §8 B1, een maat per taak): de renderer kiest de splitmaat op de maat van de taak, niet
-  // meer op de kalender (`GanttRenderer`, "T16 verandert de datumvorm, niet de maat van een dagsplit").
-  // Deze case bedoelt een urentaak, dus de taak krijgt de urenmaat, zoals de jaar-2-case hieronder.
-  // Fixronde 1 deel B, B1; de verwachte x-posities blijven gelijk.
+  // F3 (alleen uren §3.14): dit is weer het oorspronkelijke scenario, een DAGtaak (1 d) op een kalender met
+  // werkblokken. De renderer wandelt haar pauzes in de dagenmaat, net als de motor, dus een pauze van een
+  // uur blijft een uur (B3, knownbug 242: in F2 werden de gaten hele dagen en de stukken 2 px breed).
   const twoGapTask = hourTask('row0', '2026-06-01T08:00', '2026-06-01T16:00', twoGaps);
-  twoGapTask.time = { ...twoGapTask.time, durationUnit: 'hours', durationMinutes: 480 };
+  eq('geval 1 is een dagtaak (de dagenmaat)', taskDurationUnit(twoGapTask), 'days');
   const rows: ViewRow[] = [
     { kind: 'task', rowKey: 'row0', task: twoGapTask, depth: 0, dimmed: false },
   ];

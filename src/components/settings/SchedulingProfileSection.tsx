@@ -75,7 +75,7 @@ const noticeKey = (documentId: string, signature: string) => `${documentId}\u000
 /**
  * Rekenprofielen. Bovenaan het profiel (ingebouwd,
  * eigen sjablonen, of het eigen profiel van dit project) met de knop "Nieuw profiel", daaronder de
- * zevenentwintig conventies in één inklapbaar deel (standaard dicht; per thema uit het register, met de
+ * negenentwintig conventies in één inklapbaar deel (standaard dicht; per thema uit het register, met de
  * basiswaarde en uitleg via het i-icoon). Een ingebouwd profiel is alleen-lezen: de conventies staan er ter
  * informatie, met aan/uit als label. Alleen een eigen profiel (via "Nieuw profiel" of een sjabloon) heeft
  * vinkjes en "terug naar basis" (eigenaar, review #169 op 2026-10-14). Daarna zeven van de

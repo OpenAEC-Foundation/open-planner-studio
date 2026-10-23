@@ -1479,6 +1479,10 @@
     "milestoneWithoutPredecessorAtDayEnd": {
       "label": "Losse mijlpalen aan het werkeinde",
       "help": "Een losse mijlpaal of een eindmijlpaal zonder voorganger staat aan het einde van haar werkdag."
+    },
+    "workdayDurationMeasure": {
+      "label": "Duur in werkdagen",
+      "help": "Een duur, lag of restduur in dagen telt in werkdagen: elke werkdag telt als 1, hoe lang die dag ook is. Uit: een dag telt als het aantal werkuren per dag van de kalender. Een lag in procenten volgt de maat van de voorganger. Kalendertijd telt nooit in werkdagen."
     }
   },
   "profiles": {
@@ -1517,6 +1521,7 @@
       "float": "Speling en late datums",
       "instants": "Datums en tijdstippen uit het bestand",
       "msproject": "Voortgang zoals Microsoft Project",
+      "durations": "Duur en maat",
       "ownProfilesOnly": "Alleen voor eigen profielen"
     },
     "ownProfilesOnlyNote": "Deze conventies staan in elk ingebouwd profiel uit, ook onder Primavera P6. Alleen een eigen profiel kan ze aanzetten: kies daarvoor Nieuw profiel.",

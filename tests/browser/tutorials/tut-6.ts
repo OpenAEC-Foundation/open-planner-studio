@@ -1,4 +1,4 @@
-// F2-tussenstand; F3 → einde 2027-08-31T12:00 en de vaste urenreferentie (§3.14).
+// De dagenmaat (§3.14): einde di 31 aug 12:00, zoals de urenreferentie (minute-model-tutorial-f3.json).
 // Tutorial 6 — Voortgang en afwijking (`tut-6-uitvoering`): baseline, statusdatum, voortgang in de tabel,
 // rekenen en de afwijking lezen.
 import { l, same, type Action, type Check, type L, type Snap, type TutorialScript } from './dsl';
@@ -130,10 +130,10 @@ export const TUTORIAL_6: TutorialScript = {
       do: [{ ribbon: 'table:calc', label: l('Bereken', 'Calculate') }],
       expect: [
         notStale,
-        status('Einde: 30-08-2027', 'End: 30-08-2027'),
-        status('Kritiek pad: 11 taken, 46 werkdagen', 'Critical path: 11 tasks, 46 work days'),
+        status('Einde: 31-08-2027', 'End: 31-08-2027'),
+        status('Kritiek pad: 11 taken, 47 werkdagen', 'Critical path: 11 tasks, 47 work days'),
         { state: (s, lang) => [
-          ...taskIs(s, lang, T.handover, { earlyFinish: '2027-08-30' }),
+          ...taskIs(s, lang, T.handover, { earlyFinish: '2027-08-31T12:00' }),
           ...taskIs(s, lang, PHASES.prep, { completion: 1 }),
           ...taskIs(s, lang, T.excavate, { critical: false }),
         ] },
@@ -159,7 +159,7 @@ export const TUTORIAL_6: TutorialScript = {
       expect: [
         { see: { cell: { task: T.setout, column: l('Basisplanning — Eindafwijking', 'Baseline — Finish variance') } }, text: '0' },
         { see: { cell: { task: T.excavate, column: l('Basisplanning — Eindafwijking', 'Baseline — Finish variance') } }, text: '1' },
-        { see: { cell: { task: T.handover, column: l('Basisplanning — Eindafwijking', 'Baseline — Finish variance') } }, text: '0' },
+        { see: { cell: { task: T.handover, column: l('Basisplanning — Eindafwijking', 'Baseline — Finish variance') } }, text: '1' },
       ],
     },
   ],

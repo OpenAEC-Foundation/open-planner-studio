@@ -108,6 +108,7 @@ function sanitizeLeveling(value: unknown): LevelingSettings | undefined {
 type HandledKeys =
   | (typeof BOOLEAN_KEYS)[number]
   | 'milestoneWithoutPredecessorAtDayEnd' // In oude opties bewust genegeerd; uitsluitend profieldata.
+  | 'workdayDurationMeasure' // Idem (§3.14): oudere versies kennen geen maat.
   | 'p6Source' | 'lagCalendar' | 'criticalDefinition' | 'totalFloatMode'
   | 'nearCriticalThreshold' | 'floatPaths' | 'startToStartLagFrom' | 'leveling';
 type MissingKeys = Exclude<keyof LegacySchedulingOptions, HandledKeys>;
@@ -243,7 +244,7 @@ export function sanitizeSchedulingProfile(input: unknown): SchedulingProfile | u
 }
 
 /** Het JSON-object dat de IFC-schrijver voor een profiel wegschrijft (spiegel van de sanitizer):
- *  alle zevenentwintig conventies OPGELOST, zodat een bestand overal gelijk rekent, ook waar het eigen
+ *  alle negenentwintig conventies OPGELOST, zodat een bestand overal gelijk rekent, ook waar het eigen
  *  profiel ontbreekt. `name` alleen voor eigen profielen (ingebouwde nooit vertaald wegschrijven). */
 export function schedulingProfileToJson(profile: SchedulingProfile): {
   id: string; baseId: BuiltInProfileId; conventions: SchedulingConventions;

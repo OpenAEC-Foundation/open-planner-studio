@@ -335,6 +335,9 @@ export function mergeTaskTime(base: TaskTime, partial: Partial<TaskTime> | undef
     // Optioneel — sleutel-aanwezigheid, zie docstring hierboven ('in' i.p.v. '??').
     durationMinutes: 'durationMinutes' in partial ? partial.durationMinutes : base.durationMinutes,
     interferingFloat: 'interferingFloat' in partial ? partial.interferingFloat : base.interferingFloat,
+    // Alleen uren §3.4: de speling in minuten (berekend, zoals interferingFloat).
+    totalFloatMinutes: 'totalFloatMinutes' in partial ? partial.totalFloatMinutes : base.totalFloatMinutes,
+    freeFloatMinutes: 'freeFloatMinutes' in partial ? partial.freeFloatMinutes : base.freeFloatMinutes,
     isNearCritical: 'isNearCritical' in partial ? partial.isNearCritical : base.isNearCritical,
     floatPath: 'floatPath' in partial ? partial.floatPath : base.floatPath,
     actualStart: 'actualStart' in partial ? partial.actualStart : base.actualStart,

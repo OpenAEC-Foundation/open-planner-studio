@@ -200,7 +200,7 @@
     },
     {
       "id": "s7a-day-to-hour",
-      "title": "Scenario 7 — cross-modus dag→uur (fwd+bwd). D(DagMV,2d) ma→di; predDoneAt=wo00:00; H(H8,4u) wo08:00→wo12:00. projectkalender=dag.",
+      "title": "Scenario 7 — cross-modus dag→uur (fwd+bwd). D(DagMV,2d) ma→di; H(H8,4u) wo08:00→wo12:00. projectkalender=dag. F3 (§3.14): D telt in de dagenmaat en mag tot wo 08:00 lopen (ma 08:00 + 2 werkdagen), dus 1 u = 0,125 d speling.",
       "anchor": "2026-07-06",
       "calendars": [{ "name": "H8", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } }],
       "tasks": [
@@ -210,7 +210,7 @@
       "links": [{ "pred": "D", "succ": "H", "type": "FINISH_START" }],
       "expect": {
         "tasks": {
-          "D": { "es": "2026-07-06", "ef": "2026-07-07", "ls": "2026-07-06", "lf": "2026-07-07", "tf": 0, "crit": true },
+          "D": { "es": "2026-07-06", "ef": "2026-07-07", "ls": "2026-07-06T08:00", "lf": "2026-07-08T08:00", "tf": 0.125, "crit": false },
           "H": { "es": "2026-07-08T08:00", "ef": "2026-07-08T12:00", "ls": "2026-07-08T08:00", "lf": "2026-07-08T12:00", "tf": 0, "crit": true }
         },
         "projectEnd": "2026-07-08",
@@ -219,7 +219,7 @@
     },
     {
       "id": "s7b-hour-to-day",
-      "title": "F2-tussenstand; F3 → D2 ma 13:00–di 12:00 (§3.14). H2 houdt in F2 +0,125 d speling; de gerichte grenscontrole toetst het F3-einde.",
+      "title": "Scenario 7b — cross-modus uur→dag. H2(H8,4u) ma 08:00–12:00; D2(1d) begint ma 13:00 en telt in de dagenmaat: de rest van maandag plus 5 u van dinsdag, einde di 12:00 (§3.14). H2 houdt 1 u = 0,125 d speling tot het begin van D2.",
       "anchor": "2026-07-06",
       "calendars": [{ "name": "H8", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } }],
       "tasks": [
@@ -239,14 +239,14 @@
           },
           "D2": {
             "es": "2026-07-06T13:00",
-            "ef": "2026-07-06T16:00",
+            "ef": "2026-07-07T12:00",
             "ls": "2026-07-06T13:00",
-            "lf": "2026-07-06T16:00",
+            "lf": "2026-07-07T12:00",
             "tf": 0,
             "crit": true
           }
         },
-        "projectEnd": "2026-07-06T16:00",
+        "projectEnd": "2026-07-07T12:00",
         "error": false
       }
     },

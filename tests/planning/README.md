@@ -165,7 +165,10 @@ Fase F0 van "alleen uren" (spec `docs/superpowers/specs/2026-10-20-alleen-uren-d
 De volledige `run.sh` draait de harness daarna nog twee keer, niet in de tijdzone-matrix:
 
 - `OPS_MINUTE_MODEL_RUN=1`: run 1, de dagenmaat. Taken, lags en nivelleervertraging blijven in dagen.
-- `OPS_MINUTE_MODEL_RUN=2`: run 2, de urenmaat. Duur en lag gaan bij de invoer naar minuten.
+- `OPS_MINUTE_MODEL_RUN=2`: run 2, de urenmaat. Dezelfde invoer, met alleen de conventie dagenmaat
+  (`workdayDurationMeasure`) uit, als afwijking op het profiel van de case (spec §6.1, vanaf F3). Een duur
+  of lag in dagen telt dan als dagen × werktijd per dag × 60 minuten. Vóór F3 zette run 2 de duur en de
+  lag bij de invoer om naar minuten.
 
 Beide runs zetten elke dagcase om naar de tijdas in minuten, met de productiefunctie
 `migrateToMinuteModel` (`src/state/migrations/minuteModel.ts`), en vergelijken op dagniveau met de

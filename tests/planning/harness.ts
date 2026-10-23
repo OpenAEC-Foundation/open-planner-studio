@@ -93,8 +93,10 @@ const CLEAN_WORKDAYS = [1, 2, 3, 4, 5];
 //  vergelijkt hij op dagniveau. Zonder de variabele verandert er niets.
 //
 //  - Run 1 (dagenmaat, het OPS-profiel na besluit B1): taken, lags en nivelleervertraging blijven in
-//    dagen. Run 2 (urenmaat, zoals de conventie dagenmaat "uit" na F3): duur en lag gaan bij de invoer
-//    naar minuten (werktijd per dag van de taak- of voorgangerkalender; kalendertijd × 1440).
+//    dagen. Run 2 (urenmaat, vanaf F3): dezelfde invoer, met alleen de conventie dagenmaat
+//    (`workdayDurationMeasure`) uit, als afwijking op het profiel van de case (zonder profiel de
+//    OPS-basis). Een dagenmaat-duur, -lag en -rest telt dan als dagen × werktijd per dag × 60 (§3.2).
+//    Tot F3 zette run 2 de duur en de lag bij de invoer om naar minuten.
 //  - Laadgrens: de case wordt gebouwd zoals altijd. Vlak voor de eerste berekening loopt de
 //    productiefunctie `migrateToMinuteModel` over de payload (een oud bestand: normalisatie D1–D7 en T1),
 //    krijgt elke kalender zijn werkblokken (`calendarForEngine`, wat de motor na F2 zelf doet), en leest
@@ -119,13 +121,11 @@ if (MM_RUN_ENV !== undefined && MM_RUN_ENV !== '' && MM_RUN === 0) {
   console.log(`XX OPS_MINUTE_MODEL_RUN="${MM_RUN_ENV}": verwacht 1 of 2`);
   process.exit(1);
 }
-/** Run 2: dagduur en daglag gaan bij de invoer naar minuten. */
+/** Run 2: de conventie dagenmaat staat uit (zie `minuteModelHoursProfile`). */
 const MM_HOURS = MM_RUN === 2;
 const MM_LABEL = MM_RUN === 1 ? 'run 1 (dagenmaat)' : 'run 2 (urenmaat)';
 /** Hulpmiddel bij het analyseren: zet per afwijkende case de motordatums in de uitvoer. */
 const MM_DEBUG = process.env.OPS_MINUTE_MODEL_DEBUG === '1';
-/** De case kan niet naar het minutenmodel (bijv. een duur die geen geheel aantal minuten is). */
-class NotConvertible extends Error {}
 const MM_DATETIME_RE = /\d{4}-\d\d-\d\dT\d\d:\d\d/;
 
 /** Reden waarom een case al een URENcase is (dan hoort hij niet bij de runs), of null. Dezelfde
@@ -148,9 +148,18 @@ function hourCaseReason(c: Case): string | null {
   return null;
 }
 
-function intMinutes(v: number, label: string): number {
-  if (Math.abs(v - Math.round(v)) > 1e-9) throw new NotConvertible(`${label}: ${v} min is geen geheel aantal minuten`);
-  return Math.round(v);
+/** Run 2 (spec §6.1, vanaf F3): alleen de conventie dagenmaat uit, als afwijking op het profiel van de
+ *  case. Zonder profiel is de basis OPS; een case met een eigen profiel houdt zijn andere conventies. */
+function minuteModelHoursProfile(): void {
+  const profile = S().project.schedulingProfile;
+  S().setProject({
+    schedulingProfile: {
+      baseId: profile?.baseId ?? 'ops',
+      id: 'minutenmodel-run-2',
+      name: 'run 2 (urenmaat)',
+      overrides: { ...(profile?.overrides ?? {}), workdayDurationMeasure: false },
+    },
+  });
 }
 
 /** De laadgrens van het minutenmodel (zie boven): migratie, werkblokken voor elke kalender, en de
@@ -611,15 +620,6 @@ function buildAndSolve(c: Case): {
     } else {
       durDays = t.dur ?? 1;
     }
-    // Minutenmodel, run 2 (urenmaat): dagduur ⇒ minuten (werktijd per dag van de taakkalender;
-    // kalendertijd × 1440). `durationMinutesRaw` test juist een dagtaak met een vreemd minuutveld.
-    if (MM_HOURS && durMinutes === undefined) {
-      if (t.durationMinutesRaw !== undefined) {
-        throw new NotConvertible(`taak "${t.name}": durationMinutesRaw test juist een dagtaak met een vreemd minuutveld`);
-      }
-      const factor = t.durationType === 'ELAPSEDTIME' ? 1440 : effHoursPerDayFor(t.calendar) * 60;
-      durMinutes = intMinutes(durDays * factor, `taak "${t.name}" duur`);
-    }
     // De case-DSL vertegenwoordigt de twee native invoervormen expliciet. Dit is ook de
     // deterministische legacy-migratie die de productiecode toepast (minuten aanwezig => uren);
     // de kalender bepaalt deze identiteit nooit. `durationMinutesRaw` blijft juist een expliciete
@@ -648,9 +648,6 @@ function buildAndSolve(c: Case): {
           relType: e.relType,
           ...(e.lag !== undefined ? { lagDays: e.lag } : {}),
           ...(e.lagMinutes !== undefined ? { lagMinutes: e.lagMinutes } : {}),
-          // Minutenmodel, run 2: daglag ⇒ minuten in de taakkalender.
-          ...(MM_HOURS && e.lag && e.lagMinutes === undefined
-            ? { lagMinutes: intMinutes(e.lag * effHoursPerDayFor(t.calendar) * 60, `externe lag ${t.name}`) } : {}),
           anchorDate: e.anchorDate,
           sourceRef: {
             projectId: e.sourceProject ?? 'ext-project',
@@ -693,13 +690,6 @@ function buildAndSolve(c: Case): {
       const mins = parseDuration(l.lag, predHpd);
       if (mins == null) throw new Error(`relatie ${l.pred}->${l.succ}: onparseerbare lag "${l.lag}"`);
       lagMinutes = mins;
-    }
-    // Minutenmodel, run 2: daglag ⇒ minuten, in de VOORGANGER-kalender (LAG_CALENDAR); kalendertijd
-    // × 1440. `lagDays` blijft staan (zoals de IFC-lezer beide velden vult); een procentlag blijft.
-    if (MM_HOURS && lagMinutes === undefined && lagDaysVal) {
-      const predCalName = c.tasks.find((t) => t.name === l.pred)?.calendar;
-      const factor = l.lagUnit === 'ELAPSEDTIME' ? 1440 : effHoursPerDayFor(predCalName) * 60;
-      lagMinutes = intMinutes(lagDaysVal * factor, `lag ${l.pred}->${l.succ}`);
     }
     const seqInput = {
       predecessorId: ids[l.pred], successorId: ids[l.succ], type: l.type as any,
@@ -803,19 +793,10 @@ function buildAndSolve(c: Case): {
     }
   }
 
-  // Minutenmodel: run 2 houdt een latere duurwijziging in dagen ook in minuten bij (de taak is een
-  // urentaak geworden).
-  const mmDurPatch = (taskName: string, dur: number): { durationMinutes?: number } => {
-    if (!MM_HOURS) return {};
-    const tk = S().tasks.find((x) => x.id === ids[taskName]);
-    if (!tk || tk.time.durationUnit !== 'hours') return {};
-    const ct = c.tasks.find((x) => x.name === taskName);
-    const factor = ct?.durationType === 'ELAPSEDTIME' ? 1440 : effHoursPerDayFor(ct?.calendar) * 60;
-    return { durationMinutes: intMinutes(dur * factor, `setDuration ${taskName}`) };
-  };
-
-  // Minutenmodel: de laadgrens, vlak voor de eerste berekening (zie minuteModelLoad).
+  // Minutenmodel: de laadgrens, vlak voor de eerste berekening (zie minuteModelLoad). Run 2 zet daarbij
+  // de conventie dagenmaat uit.
   if (MM_RUN) minuteModelLoad();
+  if (MM_HOURS) minuteModelHoursProfile();
 
   S().runCPM();
 
@@ -827,7 +808,7 @@ function buildAndSolve(c: Case): {
         const tid = ids[m.setDuration.task];
         if (!tid) throw new Error(`varianceMutations.setDuration: onbekende taak "${m.setDuration.task}"`);
         const task = S().tasks.find((t) => t.id === tid)!;
-        S().updateTask(tid, { time: { ...task.time, scheduleDuration: m.setDuration.dur, ...mmDurPatch(m.setDuration.task, m.setDuration.dur) } });
+        S().updateTask(tid, { time: { ...task.time, scheduleDuration: m.setDuration.dur } });
       } else if ('deleteTask' in m) {
         const tid = ids[m.deleteTask.task];
         if (!tid) throw new Error(`varianceMutations.deleteTask: onbekende taak "${m.deleteTask.task}"`);
@@ -837,13 +818,9 @@ function buildAndSolve(c: Case): {
         if (ids[a.name]) throw new Error(`varianceMutations.addTask: dubbele taaknaam "${a.name}"`);
         const start = a.start ?? (c.anchor ?? '2026-06-01');
         const dur = a.milestone ? 0 : (a.dur ?? 1);
-        // Minutenmodel, run 2: een nieuwe taak is een urentaak (werktijd per dag van het project).
-        const addTime = MM_HOURS
-          ? { ...createDefaultTaskTime(start, dur, 'hours'), durationMinutes: intMinutes(dur * effHoursPerDayFor(undefined) * 60, `varianceMutations ${a.name}`) }
-          : createDefaultTaskTime(start, dur);
         const nid = S().addTask({
           name: a.name, isMilestone: !!a.milestone, parentId: null,
-          time: addTime,
+          time: createDefaultTaskTime(start, dur),
         });
         ids[a.name] = nid;
         for (const l of a.links ?? []) {
@@ -851,7 +828,6 @@ function buildAndSolve(c: Case): {
           if (!ids[l.succ]) throw new Error(`varianceMutations.addTask.links: onbekende opvolger "${l.succ}"`);
           S().addSequence({
             predecessorId: ids[l.pred], successorId: ids[l.succ], type: l.type as any, lagDays: l.lag ?? 0,
-            ...(MM_HOURS && l.lag ? { lagMinutes: intMinutes(l.lag * effHoursPerDayFor(undefined) * 60, 'varianceMutations lag') } : {}),
           });
         }
       }
@@ -899,7 +875,7 @@ function buildAndSolve(c: Case): {
       const tid = ids[op.setDuration.task];
       if (!tid) throw new Error(`afterCPM.setDuration: onbekende taak "${op.setDuration.task}"`);
       const task = S().tasks.find(t => t.id === tid)!;
-      S().updateTask(tid, { time: { ...task.time, scheduleDuration: op.setDuration.dur, ...mmDurPatch(op.setDuration.task, op.setDuration.dur) } });
+      S().updateTask(tid, { time: { ...task.time, scheduleDuration: op.setDuration.dur } });
     } else if ('assign' in op) {
       const tid = ids[op.assign.task];
       if (!tid) throw new Error(`afterCPM.assign: onbekende taak "${op.assign.task}"`);
@@ -931,15 +907,7 @@ function buildAndSolve(c: Case): {
     } else if ('setLevelingDelay' in op) {
       const tid = ids[op.setLevelingDelay.task];
       if (!tid) throw new Error(`afterCPM.setLevelingDelay: onbekende taak "${op.setLevelingDelay.task}"`);
-      // Minutenmodel, run 2: kalendertijdvertraging telt 24 uur per dag, werktijd de taakkalender.
-      S().updateTask(tid, MM_HOURS
-        ? {
-            levelingDelay: op.setLevelingDelay.days,
-            levelingDelayMinutes: intMinutes(op.setLevelingDelay.days
-              * (c.tasks.find((x) => x.name === op.setLevelingDelay.task)?.durationType === 'ELAPSEDTIME'
-                ? 24 : effHoursPerDayFor(c.tasks.find((x) => x.name === op.setLevelingDelay.task)?.calendar)) * 60, 'levelingDelay'),
-          }
-        : { levelingDelay: op.setLevelingDelay.days });
+      S().updateTask(tid, { levelingDelay: op.setLevelingDelay.days });
     }
   }
 
@@ -1143,9 +1111,6 @@ function runMinuteCase(c: Case): CaseResult {
   try {
     built = buildAndSolve(c);
   } catch (e) {
-    if (e instanceof NotConvertible) {
-      return { id: c.id, title: c.title, pass: false, diffs: [`niet omzetbaar: ${e.message}`], status: 'NIET_OMZETBAAR', rawRed: true };
-    }
     return { id: c.id, title: c.title, pass: false, diffs: [`THREW: ${String(e)}`], status: 'ROOD', rawRed: true };
   }
   const cmp = minuteComparer(built.ids);
@@ -1654,8 +1619,8 @@ type ReasonCode = keyof typeof REASON_RUNS;
 /** Status van een dagcase in een minutenmodel-run. GELIJK = gelijk op dagniveau; ROOD = niet gelijk,
  *  zonder redencode; BEWUST = met redencode gelijk aan `minuteModel.expect`; BEWUST_ROOD = de redencode
  *  geldt, maar de uitkomst is ook niet `minuteModel.expect` (het doel is nog niet gehaald);
- *  NIET_OMZETBAAR = de case past niet in het minutenmodel; UREN = urencase, telt niet mee. */
-type MinuteStatus = 'GELIJK' | 'ROOD' | 'BEWUST' | 'BEWUST_ROOD' | 'NIET_OMZETBAAR' | 'UREN';
+ *  UREN = urencase, telt niet mee. (NIET_OMZETBAAR verviel in F3: run 2 zet de invoer niet meer om.) */
+type MinuteStatus = 'GELIJK' | 'ROOD' | 'BEWUST' | 'BEWUST_ROOD' | 'UREN';
 
 function activeReason(c: Case): ReasonCode | null {
   const mm = c.minuteModel;
@@ -1833,9 +1798,9 @@ function validateExpectKeys(where: string, label: string, exp: unknown, errs: st
 // ── Minutenmodel: uitvoer per batterij en het vangnet ──────────────────────────────────────────
 const MM_RUNS_FILE = join(dirname(fileURLToPath(import.meta.url)), 'minute-model-runs.json');
 const MM_VERBOSE = process.env.OPS_MINUTE_MODEL_VERBOSE === '1';
-/** Batterij → de dagcases die na de redencodes niet gelijk zijn (ROOD, BEWUST_ROOD, NIET_OMZETBAAR). */
+/** Batterij → de dagcases die na de redencodes niet gelijk zijn (ROOD, BEWUST_ROOD). */
 const mmNotEqual: Record<string, string[]> = {};
-const mmTotals = { day: 0, rawRed: 0, GELIJK: 0, ROOD: 0, BEWUST: 0, BEWUST_ROOD: 0, NIET_OMZETBAAR: 0, UREN: 0 };
+const mmTotals = { day: 0, rawRed: 0, GELIJK: 0, ROOD: 0, BEWUST: 0, BEWUST_ROOD: 0, UREN: 0 };
 
 function reportMinuteBattery(name: string, results: CaseResult[]): void {
   const n = (st: MinuteStatus) => results.filter((r) => r.status === st).length;
@@ -1843,10 +1808,10 @@ function reportMinuteBattery(name: string, results: CaseResult[]): void {
   const rawRed = dayResults.filter((r) => r.rawRed).length;
   mmTotals.day += dayResults.length;
   mmTotals.rawRed += rawRed;
-  for (const st of ['GELIJK', 'ROOD', 'BEWUST', 'BEWUST_ROOD', 'NIET_OMZETBAAR', 'UREN'] as const) mmTotals[st] += n(st);
+  for (const st of ['GELIJK', 'ROOD', 'BEWUST', 'BEWUST_ROOD', 'UREN'] as const) mmTotals[st] += n(st);
   console.log(`MM ${MM_LABEL} ${name}: dagcases ${dayResults.length}, rood zonder redencodes ${rawRed}; `
-    + `na redencodes gelijk ${n('GELIJK')}, rood ${n('ROOD')}, bewust ${n('BEWUST')}, bewust maar rood ${n('BEWUST_ROOD')}, `
-    + `niet omzetbaar ${n('NIET_OMZETBAAR')}; urencases overgeslagen ${n('UREN')}`);
+    + `na redencodes gelijk ${n('GELIJK')}, rood ${n('ROOD')}, bewust ${n('BEWUST')}, bewust maar rood ${n('BEWUST_ROOD')}; `
+    + `urencases overgeslagen ${n('UREN')}`);
   for (const r of dayResults) {
     // Machineleesbaar: run, batterij, case, status, rood zonder redencodes, redencode.
     if (r.status !== 'GELIJK' || r.rawRed) {
@@ -1858,7 +1823,7 @@ function reportMinuteBattery(name: string, results: CaseResult[]): void {
     for (const note of r.notes ?? []) console.log(`   ~ [${r.id}] ${note}`);
   }
   mmNotEqual[name] = dayResults
-    .filter((r) => r.status === 'ROOD' || r.status === 'BEWUST_ROOD' || r.status === 'NIET_OMZETBAAR')
+    .filter((r) => r.status === 'ROOD' || r.status === 'BEWUST_ROOD')
     .map((r) => r.id)
     .sort();
 }
@@ -1868,8 +1833,7 @@ function reportMinuteBattery(name: string, results: CaseResult[]): void {
 function finishMinuteRun(): boolean {
   const t = mmTotals;
   console.log(`MM ${MM_LABEL} TOTAAL: dagcases ${t.day}, rood zonder redencodes ${t.rawRed}; na redencodes gelijk ${t.GELIJK}, `
-    + `rood ${t.ROOD}, bewust ${t.BEWUST}, bewust maar rood ${t.BEWUST_ROOD}, niet omzetbaar ${t.NIET_OMZETBAAR}; `
-    + `urencases overgeslagen ${t.UREN}`);
+    + `rood ${t.ROOD}, bewust ${t.BEWUST}, bewust maar rood ${t.BEWUST_ROOD}; urencases overgeslagen ${t.UREN}`);
   const key = `run${MM_RUN}`;
   let file: Record<string, unknown> = {};
   try {
@@ -1940,13 +1904,9 @@ for (const file of files) {
   const results = cases.map(runCase);
   if (MM_RUN) {
     reportMinuteBattery(name, results);
-    // §7.2, besluit orkestrator 23 oktober: uitsluitend dit eindverschil wacht op de F3-loper.
-    // Ook een tweede fout BINNEN dezelfde gepinde B7-case moet run 1 rood maken.
-    const pendingF3DayRunner = (result: CaseResult): boolean => result.id === 'lagadv-pct-fs50-odd-roundup'
-      && result.status === 'BEWUST_ROOD' && result.reason === 'PCT-LAG-EXACT'
-      && result.diffs.length === 1
-      && result.diffs[0] === 'B.ef: verwacht "2026-06-11T11:00", kreeg "2026-06-10T16:00"';
-    if (MM_RUN === 1 && results.some(result => !result.pass && !pendingF3DayRunner(result))) anyFail = true;
+    // Run 1 is de productiegrens: elke rode dagcase maakt hem rood, ook een die in het vangnet staat.
+    // F3 haalde het laatste wachtende doel (B7, lagadv-pct-fs50-odd-roundup) met de dagenmaat-lopers.
+    if (MM_RUN === 1 && results.some(result => !result.pass)) anyFail = true;
     continue;
   }
   const passed = results.filter((r) => r.pass).length;

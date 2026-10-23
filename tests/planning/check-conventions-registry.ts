@@ -31,11 +31,14 @@ const canon = (value: unknown): string => JSON.stringify(value, (_k, v: unknown)
     ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : 1)))
     : v);
 const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got), canon(want));
+/** De conventies die in het OPS-profiel aan staan: B6 en de dagenmaat (alleen uren §3.14). Beide zijn
+ *  profieldata zonder plek in het oude optieblok. */
+const OPS_ON: ReadonlySet<ConventionKey> = new Set<ConventionKey>(['milestoneWithoutPredecessorAtDayEnd', 'workdayDurationMeasure']);
 
 // ── 1) Register ⇔ ConventionKey, unieke id's, domein van de ingebouwde waarden ─────────────────
 {
   const ids = CONVENTIONS.map(d => d.id);
-  eq('01 achtentwintig conventies', ids.length, 28);
+  eq('01 negenentwintig conventies', ids.length, 29);
   eq('02 unieke id\'s', new Set(ids).size, ids.length);
   same('03 register-lijst == CONVENTION_KEYS (compile-time Record)', [...ids].sort(), [...CONVENTION_KEYS].sort());
   for (const d of CONVENTIONS) {
@@ -75,6 +78,7 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   // C3 blijft aan (C5 leunt erop: uit = 640 exacte cellen minder).
   const P6_OFF_GROUP_C: ReadonlySet<ConventionKey> = new Set<ConventionKey>([
     'p6CompletedPredecessorAtDataDate', 'p6CompletedOutOfSequenceWindow', 'milestoneWithoutPredecessorAtDayEnd',
+    'workdayDurationMeasure', // alleen uren §3.14: alleen in OPS aan
     // Eigenaarsvraag §1d-7 (2026-09-23): A17, B3 en B4 idem — 0 cellen op de P6-doorgerekende populatie.
     'p6FinishMilestoneBoundaryWindow', 'p6CompletedDataDateWindow', 'p6CompletedLoeActualFinish',
   ]);
@@ -83,7 +87,7 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
     // A19 staat sinds 2026-09-24 aan in P6 (eigenaarsbesluit "a"); daarvoor was de basis uit en kwam hij per bestand.
     eq(`09 p6.${key}`, P6[key], !mspOnly && !P6_OFF_GROUP_C.has(key));
     eq(`10 msproject.${key}`, MSP[key], mspOnly);
-    eq(`11 ops.${key}`, OPS[key], key === 'milestoneWithoutPredecessorAtDayEnd');
+    eq(`11 ops.${key}`, OPS[key], OPS_ON.has(key));
   }
   same('12 legacyConventions == ops', legacyConventions(), OPS);
 }
@@ -162,7 +166,7 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   const eff = effectiveSchedulingOptions({ schedulingProfile: builtInProfile('msproject'), schedulingOptions: { lagCalendar: '24hour' } });
   eq('46 effective: conventie uit profiel', eff.resumeFromActualElapsed, true);
   eq('47 effective: optie uit project', eff.lagCalendar, '24hour');
-  eq('48 effective: alle zevenentwintig conventies aanwezig', CONVENTION_KEYS.every(k => typeof eff[k] === 'boolean'), true);
+  eq('48 effective: alle negenentwintig conventies aanwezig', CONVENTION_KEYS.every(k => typeof eff[k] === 'boolean'), true);
   // Conventies worden als LAATSTE gespreid: een conventiesleutel die in de overgang nog in het
   // projectblok staat, verliest van het profiel.
   const effWins = effectiveSchedulingOptions({ schedulingProfile: builtInProfile('ops'), schedulingOptions: { clampNegativeFreeFloat: true } as unknown as ProjectSchedulingOptions });
@@ -365,7 +369,7 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   eq('99g een hypothetische zevende groep-C-conventie gaat NIET stil aan', legacyXerDefault(hypotheticalC), false);
   // Recept stap 2a: elke conventie staat in BOOLEAN_KEYS van de IFC-sanitizer (anders valt hij stil weg).
   for (const key of CONVENTION_KEYS) {
-    eq(`99d sanitizer kent ${key}`, sanitizeSchedulingOptions({ [key]: true })?.[key], key === 'milestoneWithoutPredecessorAtDayEnd' ? undefined : true);
+    eq(`99d sanitizer kent ${key}`, sanitizeSchedulingOptions({ [key]: true })?.[key], OPS_ON.has(key) ? undefined : true);
   }
   // Projectoptie `startToStartLagFrom` (de variant van C6): alleen de twee bekende waarden komen door.
   eq('99k sanitizer: startToStartLagFrom actualStart/earlyStart blijven, onzin valt weg', [

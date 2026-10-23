@@ -637,8 +637,9 @@ export function buildTutorialProject(lang: TutorialLang): TutorialBuild {
   checkProgressAgainstBaseline(b);
   b.calculate('tut-6');
   const f6 = b.facts();
-  // F2-tussenstand; F3 → 2027-08-31T12:00 (§3.14): de dagenloper telt het dagdeel nog niet.
-  if (f6.finish !== '2027-08-30T16:00') fail(lang, `tut-6: onverwacht F2-einde ${f6.finish}`);
+  // Alleen uren §3.14: de dagenmaat telt het deel van een dag, dus de uitloop van een halve dag bij het
+  // ontgraven geeft een einde op di 31 augustus 12:00 (F2 hield hier nog hele dagen: ma 30 aug 16:00).
+  if (f6.finish !== '2027-08-31T12:00') fail(lang, `tut-6: onverwacht einde ${f6.finish}`);
   if (f6.counts.baselines !== 1) fail(lang, 'tut-6: geen basisplanning');
   const s6 = b.snapshot('na-tut-6');
   stages.push(s6);
