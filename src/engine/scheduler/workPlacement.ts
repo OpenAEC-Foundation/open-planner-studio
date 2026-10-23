@@ -134,14 +134,17 @@ export function placementFollowsSpan(task: Task): boolean {
  * of een tijdstip in de datum. Dagenmaat: `scheduleDuration` werkdagen (een breuk mag); urenmaat:
  * `durationMinutesOf` (bij een dagtaak onder P6/MSP: dagen × werktijd per dag × 60).
  *
- * Bij een spanne (zie `placementFollowsSpan`) schuift het einde mee met de kandidaat. Kalendertijd en
- * een voltooide taak krijgen hun bewaarde splits NIET opnieuw: de spanne bevat ze al (acceptatie-eis
- * 5 van F3b, dezelfde uitzondering als `taskWorkDayIsos`). Een einde zonder tijd hoort bij die werkdag
- * zelf (D2, zie `spanFinish`).
+ * Bij een spanne (zie `placementFollowsSpan`) schuift de kandidaat de spanne mee. Kalendertijd schuift
+ * in kalendertijd, zoals de solver een vertraging in klokminuten toepast. Werktijd (handmatig gepland,
+ * hamer) houdt bij een andere start dezelfde hoeveelheid werk: een verschuiving in kalendertijd zou een
+ * weekend in of uit de spanne schuiven en werk winnen of verliezen. Kalendertijd en een voltooide taak
+ * krijgen hun bewaarde splits NIET opnieuw: de spanne bevat ze al (acceptatie-eis 5 van F3b, dezelfde
+ * uitzondering als `taskWorkDayIsos`). Een einde zonder tijd hoort bij die werkdag zelf (D2, zie
+ * `spanFinish`).
  */
 export function taskWorkPlacement(
   task: Task,
-  engine: Pick<CalendarEngine, 'hoursPerDay' | 'isHourMode' | 'effectiveBandsOn' | 'typicalWorkdayBands'>,
+  engine: CalendarEngine,
   options: PlacementOptions,
   start?: Date,
 ): WorkPlacement | null {
@@ -151,13 +154,16 @@ export function taskWorkPlacement(
   if (!Number.isFinite(from.getTime())) return null;
   const measure: PlacementMeasure = taskCountsInWorkdays(task, options) ? 'workdays' : 'minutes';
   if (placementFollowsSpan(task)) {
-    const finish = spanFinish(t.earlyFinish ?? '', engine, t.durationType === 'ELAPSEDTIME');
+    const elapsed = t.durationType === 'ELAPSEDTIME';
+    const finish = spanFinish(t.earlyFinish ?? '', engine, elapsed);
     if (!Number.isFinite(anchor.getTime()) || !Number.isFinite(finish.getTime())) return null;
-    const keepsGaps = t.durationType !== 'ELAPSEDTIME' && !isPinnedComplete(t);
-    return {
-      start: from, finish: new Date(finish.getTime() + from.getTime() - anchor.getTime()), measure,
-      ...(keepsGaps && task.splitGaps ? { gaps: task.splitGaps } : {}),
-    };
+    const keepsGaps = !elapsed && !isPinnedComplete(t);
+    const gaps = keepsGaps && task.splitGaps ? { gaps: task.splitGaps } : {};
+    const shift = from.getTime() - anchor.getTime();
+    if (shift === 0 || elapsed) return { start: from, finish: new Date(finish.getTime() + shift), measure, ...gaps };
+    const span = workPlacement(engine, { start: anchor, finish, measure, ...gaps });
+    const amount = span.days.reduce((sum, d) => sum + (measure === 'workdays' ? d.share : d.minutes), 0);
+    return { start: from, duration: amount, measure, ...gaps };
   }
   const duration = measure === 'workdays' ? t.scheduleDuration : durationMinutesOf(task, engine);
   return { start: from, duration, measure, ...(task.splitGaps ? { gaps: task.splitGaps } : {}) };
