@@ -79,7 +79,11 @@
       "XX R4 msproject START_FINISH +18eu: relatiegrens: \"2026-06-04T10:00\" != \"2026-06-04T12:00\"",
       "F1 reviewrondes 1 t/m 4: 439 controles, 21 fouten",
       "EINDOORDEEL planningssuite: ROOD (exit 1) — zoek hierboven naar regels met 'XX' of 'ROOD'"
-    ]
+    ],
+    "herstelde_bron_sha256": {
+      "CPMSolver": "34606ac013539e97fffcbf2b89646c4e32918de37f21c268120b26f2912358c1",
+      "relationMath": "e493b88fabe81091f2e1630258c921817d8d30e7ca7914ff8eed9cb0300a548a"
+    }
   },
   "reviewbatterij": {
     "commando": "bash tests/planning/run.sh check-hours-f1-review.ts",
