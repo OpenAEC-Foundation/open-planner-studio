@@ -129,7 +129,9 @@ export const TUTORIAL_5: TutorialScript = {
           return t?.workRule?.includes('FIXED_WORK') ? [] : [`werkregel ${t?.workRule}`];
         } },
         { see: props, text: l('Vast werk', 'Fixed work') },
-        { state: (s, lang) => [...taskIs(s, lang, T.plaster, { days: 4 }), ...(s.stale ? ['verouderd'] : [])] },
+        // B1 (spec "alleen uren" §3.2 B1a, §5.2 geval 11c): vast werk is altijd urenmaat. Het stucwerk van
+        // 4 d wordt 4 × 8 u = 32 u, en die maatwissel is planning: de planning is verouderd.
+        { state: (s, lang) => [...taskIs(s, lang, T.plaster, { minutes: 32 * 60 }), ...(s.stale ? [] : ['niet verouderd'])] },
       ],
       shots: [{
         name: 'tut-5-werkregel',
@@ -145,7 +147,8 @@ export const TUTORIAL_5: TutorialScript = {
         { press: 'Enter' },
       ],
       expect: [
-        { state: (s, lang) => [...assignmentsPresent([has(T.plaster, R.plasterer, 2)])(s, lang), ...taskIs(s, lang, T.plaster, { days: 2 })] },
+        // B1 (B1a): de urenmaat-taak van 32 u wordt met inzet 2 16 u (2 werkdagen van 8 u).
+        { state: (s, lang) => [...assignmentsPresent([has(T.plaster, R.plasterer, 2)])(s, lang), ...taskIs(s, lang, T.plaster, { minutes: 16 * 60 })] },
         status('Verouderd — herbereken (F5)', 'Out of date — recalculate (F5)'),
       ],
     },
