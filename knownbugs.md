@@ -219,6 +219,15 @@ en noem het in je rapport of PR-tekst.
      eigenaar kiest welke dag geldt; daarna volgt de plaatsing dezelfde regel als de solver (of andersom).
      Gevonden bij de integratie van F3c. — B
 
+255. **Bij een split op een dagenmaat-taak wijkt de gedeelde plaatsing per dag tot 2 minuten af van de
+     Gantt-stukken.** Sinds F3c-fix-split heeft de split-as één betekenis: dagslots voor de dagenmaat
+     (`workPlacement.ts`). Een steekproef van 6000 gevallen geeft per dag een verschil van hoogstens
+     2 minuten tussen de plaatsing (histogram, nivelleerder) en de stukken in de Gantt. Bij een gelijkspel
+     gaat hoogstens een halve minuut werk verloren. `measuredSpanDays` in `workPlacement.ts` herhaalt de
+     formule van `splitTotalSpanDays` (`duration.ts`); `check-split-solver-placement.ts` vangt een solver
+     die afwijkt wel, maar niet een tweede kopie die mee verandert. Voorstel: één gedeelde functie voor de
+     spanwijdte, en de afronding per dag gelijk aan die van de Gantt. Gevonden in F3c-fix-split. — B
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
@@ -542,6 +551,12 @@ en noem het in je rapport of PR-tekst.
      in `check-docs-resources-voorbeelden.ts`), niet 2 per dag. Hangt samen met 240.
      Voorstel: de voorbeelden herschrijven in dezelfde ronde als 240, met de uitkomsten uit
      `check-work-rule-*.ts`. Gevonden in F3c-winkel. — B
+254. **De gidsen over de werkregel zeggen niet dat een wissel naar vast werk de taken omzet naar uren.**
+     Sinds F3c-fix-winkel zet een wissel van de projectstandaard naar *Vast werk* (`setProject`,
+     `planner_update_project`, `settleDefaultWorkRuleSwitch` in `src/state/defaultWorkRuleSwitch.ts`) de
+     taken die hem erven om naar de urenmaat. `public/docs/{nl,en}/howto-werkregel-kiezen.md` en
+     `public/docs/{nl,en}/ref-ai-tools.md` zeggen dat nog niet. Hangt samen met 240 en 252. Voorstel: de
+     zin toevoegen in dezelfde ronde als 252. Gevonden in F3c-fix-winkel. — B
 
 ## Tests
 
