@@ -128,12 +128,14 @@ export const TUTORIAL_6: TutorialScript = {
     {
       id: 'berekenen',
       do: [{ ribbon: 'table:calc', label: l('Bereken', 'Calculate') }],
+      // F3c-tussenstand (B2, F3c-motor → doel einde 2027-08-31T12:00, §3.14): de nivelleervertraging uit
+      // tutorial 5 geeft één werkdag later (`tussen-tut-6-metselwerk` in check-tutorial-project).
       expect: [
         notStale,
-        status('Einde: 30-08-2027', 'End: 30-08-2027'),
-        status('Kritiek pad: 11 taken, 46 werkdagen', 'Critical path: 11 tasks, 46 work days'),
+        status('Einde: 31-08-2027', 'End: 31-08-2027'),
+        status('Kritiek pad: 11 taken, 47 werkdagen', 'Critical path: 11 tasks, 47 work days'),
         { state: (s, lang) => [
-          ...taskIs(s, lang, T.handover, { earlyFinish: '2027-08-30' }),
+          ...taskIs(s, lang, T.handover, { earlyFinish: '2027-08-31' }),
           ...taskIs(s, lang, PHASES.prep, { completion: 1 }),
           ...taskIs(s, lang, T.excavate, { critical: false }),
         ] },
@@ -159,7 +161,9 @@ export const TUTORIAL_6: TutorialScript = {
       expect: [
         { see: { cell: { task: T.setout, column: l('Basisplanning — Eindafwijking', 'Baseline — Finish variance') } }, text: '0' },
         { see: { cell: { task: T.excavate, column: l('Basisplanning — Eindafwijking', 'Baseline — Finish variance') } }, text: '1' },
-        { see: { cell: { task: T.handover, column: l('Basisplanning — Eindafwijking', 'Baseline — Finish variance') } }, text: '0' },
+        // F3c-tussenstand (B2, F3c-motor → doel, §3.14): de oplevering ligt één werkdag na de baseline,
+        // zie tutorial 6 › berekenen.
+        { see: { cell: { task: T.handover, column: l('Basisplanning — Eindafwijking', 'Baseline — Finish variance') } }, text: '1' },
       ],
     },
   ],

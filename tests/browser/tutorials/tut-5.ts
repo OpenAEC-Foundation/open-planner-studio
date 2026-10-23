@@ -180,8 +180,9 @@ export const TUTORIAL_5: TutorialScript = {
         { click: { text: R.bricklayer, within: { anchor: 'rail:warnings' }, exact: false } },
       ],
       expect: [
-        // F2-tussenstand; F3 → 6 dagen, 28-06 t/m 05-07 (§3.14; getoetste plaatsingskern).
-        { see: { anchor: 'rail:warnings' }, text: l('Overbezet op 5 dag(en) (25-06-2027 – 01-07-2027)', 'Overallocated on 5 day(s) (25-06-2027 – 01-07-2027)') },
+        // F3c-tussenstand (B2, F3c-motor → doel 6 dagen, 28-06 t/m 05-07, §3.14): de belasting telt het
+        // dagdeel al, de motor plaatst dagtaken nog als hele dagen (`metselaarOver` in check-tutorial-project).
+        { see: { anchor: 'rail:warnings' }, text: l('Overbezet op 6 dag(en) (25-06-2027 – 02-07-2027)', 'Overallocated on 6 day(s) (25-06-2027 – 02-07-2027)') },
         { state: (s, lang) => (s.ui.histogramResource === R.bricklayer[lang] ? [] : [`histogram toont ${s.ui.histogramResource}`]) },
       ],
       shots: [{ name: 'tut-5-overbezetting', of: [{ anchor: 'gantt-panel' }, { anchor: 'histogram-strip' }], pad: 0 }],
@@ -199,8 +200,10 @@ export const TUTORIAL_5: TutorialScript = {
       ],
       expect: [
         { gone: dialog },
+        // F3c-tussenstand (B2, F3c-motor → doel buitenspouwblad +5 werkdagen, §3.14): de nivelleerder
+        // geeft nu +6 (en binnenspouwblad +1), zie check-docs-resources-voorbeelden.
         { state: (s, lang) => [
-          ...taskIs(s, lang, T.outerLeaf, { earlyStart: '2027-07-02T13:00', earlyFinish: '2027-07-09T16:00', totalFloat: 2, critical: false }),
+          ...taskIs(s, lang, T.outerLeaf, { earlyStart: '2027-07-05T13:00', earlyFinish: '2027-07-12T16:00', totalFloat: 1, critical: false }),
           ...(s.overallocated.length === 0 ? [] : [`nog overbezet: ${s.overallocated.join(', ')}`]),
         ] },
         { notSee: statusBar, text: l('overbezet', 'overallocated') },

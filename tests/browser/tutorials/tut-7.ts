@@ -19,7 +19,8 @@ export const TUTORIAL_7: TutorialScript = {
     {
       id: 'startpunt',
       do: [],
-      expect: [notStale, status('Einde: 30-08-2027', 'End: 30-08-2027'), status('Kritiek pad: 11 taken, 46 werkdagen', 'Critical path: 11 tasks, 46 work days')],
+      // F3c-tussenstand (B2, F3c-motor → doel einde 2027-08-31T12:00, §3.14), zie tutorial 6 › berekenen.
+      expect: [notStale, status('Einde: 31-08-2027', 'End: 31-08-2027'), status('Kritiek pad: 11 taken, 47 werkdagen', 'Critical path: 11 tasks, 47 work days')],
     },
     {
       id: 'rapport-openen',
@@ -32,7 +33,8 @@ export const TUTORIAL_7: TutorialScript = {
     {
       id: 'variance',
       do: [{ select: reportType, option: l('Variance', 'Variance') }],
-      expect: [see('Projecteinde: 0 werkdagen', 'Project end: 0 work days')],
+      // F3c-tussenstand (B2, F3c-motor → doel, §3.14): één werkdag na de baseline, zie tutorial 6.
+      expect: [see('Projecteinde: +1 werkdagen', 'Project end: +1 work days')],
       shots: [{ name: 'tut-7-variance', of: report, pad: 0, maxHeight: 660, viewport: { width: 1000, height: 1050 } }],
     },
     {
