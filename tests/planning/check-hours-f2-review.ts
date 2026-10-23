@@ -73,18 +73,20 @@ for (const bands of [
   eq(`uitzondering ${JSON.stringify(bands)}: LS ≤ LF`, ls <= lf, true);
   eq(`uitzondering ${JSON.stringify(bands)}: late start op werkmoment`, engine.isWorkInstant(ls), true);
   eq(`uitzondering ${JSON.stringify(bands)}: dagtaak heeft resterende werktijd`, engine.workMinutesBetween(ls, lf) > 0, true);
+  // F3 (§3.14, B1): een werkende uitzondering telt als één werkdag, ook met andere blokken. De late
+  // dagtaak vult die hele dag; F2 bewaarde nog de positie binnen de dag (16:00–17:00).
   eq(`uitzondering ${JSON.stringify(bands)}: hele-dagvenster`,
     [result.lateStart, result.lateFinish], bands.length === 1
-      ? ['2026-06-02T07:00', '2026-06-02T11:00'] : ['2026-06-02T16:00', '2026-06-02T17:00']);
+      ? ['2026-06-02T07:00', '2026-06-02T11:00'] : ['2026-06-02T08:00', '2026-06-02T17:00']);
   // Vanaf de gevonden late start moet de echte voorwaartse berekening dit venster uitvoeren.
   const replay = new CPMSolver([task('A', 1, result.lateStart)], [], c, [], options).solve().tasks.get('A')!;
   eq(`uitzondering ${JSON.stringify(bands)}: laat venster uitvoerbaar`,
     [replay.earlyStart, replay.earlyFinish], [result.lateStart, result.lateFinish]);
 }
-// Gelijke werkblokken bewaren de middagstart; de pauze telt niet als werktijd.
+// F3 (§3.14, B1): één werkdag vóór di 16:00 begint di 07:00; F2 bewaarde de middagstart (di 13:00).
 const unchanged = new CPMSolver([task('A', 1, '2026-06-01T13:00'), task('B', 1, '2026-06-02T07:00')],
   [], calendar, [], options).solve().tasks.get('A')!;
-eq('gelijke werkblokken bewaren de middagstart', unchanged.lateStart, '2026-06-02T13:00');
+eq('dagenmaat: één werkdag vóór di 16:00 begint di 07:00', unchanged.lateStart, '2026-06-02T07:00');
 
 // Dezelfde eindwerkdagbepaling herstelt vanzelf het bestaande nachtvenster.
 const nightBand = [{ start: 1320, end: 1800 }];
