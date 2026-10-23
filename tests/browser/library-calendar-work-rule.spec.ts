@@ -2,15 +2,21 @@ import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures/ops';
 
 // H6 (eigenaarsbesluit 2026-09-26, "zelfde regel als de dialoog"): een kalenderwijziging die via de
-// resourcebibliotheek binnenkomt, volgt de werkregel van de taken erop — Vast werk 32 u op 8 → 6 u/d
-// wordt 6 d, met de melding "1 taak aangepast". Fixture via de brug (bibliotheek, gekoppelde
-// projectkalender, taak onder Vast werk); de geteste handelingen zijn echte klikken en toetsen in het
-// afwijkingenscherm en in de bibliotheekkalenderdialoog. Asserties op de store en de zichtbare melding.
+// resourcebibliotheek binnenkomt, volgt de werkregel van de taken erop — Vaste inzet met 32 u werk op
+// 8 → 6 u/d wordt 16/3 d (T14, exacte breuk), met de melding "1 taak aangepast". Fixture via de brug
+// (bibliotheek, gekoppelde projectkalender, taak onder Vaste inzet); de geteste handelingen zijn echte
+// klikken en toetsen in het afwijkingenscherm en in de bibliotheekkalenderdialoog. Asserties op de store
+// en de zichtbare melding.
+//
+// B1 (spec "alleen uren" §3.2, besluit B1a): de taak stond op Vast werk. Vast werk is nu altijd urenmaat
+// en houdt bij een kalenderwissel zijn minuten; de regel verandert dan geen duur en meldt niets. De
+// regel, de melding en de nazorg worden daarom met Vaste inzet getoetst, net als in
+// `tests/library/check-library-slice.ts` (H6) en `check-work-rule-library.ts`.
 
 interface Fixture { taskId: string; companyId: string; poolCalendarId: string }
 
 /** Project met een projectkalender (07:00–16:00, pauze 60 min = 8 u) die aan de bibliotheek hangt,
- *  en één taak van 4 d onder Vast werk (32 u). */
+ *  en één taak van 4 d onder Vaste inzet (32 u werk). */
 async function seedLinkedFixedWorkTask(page: Page): Promise<Fixture> {
   return page.evaluate(() => {
     const s = () => window.__OPS__!.store.getState();
@@ -26,7 +32,7 @@ async function seedLinkedFixedWorkTask(page: Page): Promise<Fixture> {
     s().assignResource(taskId, resourceId, 1);
     const task = s().tasks.find(t => t.id === taskId)!;
     s().updateTask(taskId, { time: { ...task.time, scheduleDuration: 4 } });
-    s().setTaskWorkRule(taskId, 'FIXED_WORK');
+    s().setTaskWorkRule(taskId, 'FIXED_RATE');
     s().runCPM();
     return { taskId, companyId, poolCalendarId };
   });
@@ -43,7 +49,7 @@ function taskState(page: Page, taskId: string): Promise<{ duration: number; work
 
 const durationNotice = (page: Page) => page.locator('.ops-toast').filter({ hasText: /1 (task|taak)\b/ });
 
-test('afwijkingenscherm: "Bibliotheekwaarden gebruiken" op een kalender laat Vast werk meebewegen (4 → 6 d) met melding', async ({ page, ops: _ops }) => {
+test('afwijkingenscherm: "Bibliotheekwaarden gebruiken" op een kalender laat Vaste inzet meebewegen (4 → 16/3 d) met melding', async ({ page, ops: _ops }) => {
   const { taskId, companyId, poolCalendarId } = await seedLinkedFixedWorkTask(page);
   // Fixture: de bibliotheek werkt voortaan tot 14:00 (6 u); de projectkopie is lokaal op 8 u gebleven
   // en wijkt dus af. De afwijking laten we het afwijkingenscherm tonen (navigatie via de brug).
@@ -66,7 +72,7 @@ test('afwijkingenscherm: "Bibliotheekwaarden gebruiken" op een kalender laat Vas
 
   st = await taskState(page, taskId);
   expect(st.hoursPerDay).toBe(6);
-  expect(st.duration).toBe(6);
+  expect(st.duration).toBeCloseTo(16 / 3, 12);
   expect(st.work).toBe(32 * 60);
   // Niet-undoable verversing (spec §3): geen isDirty, wel herberekenen nodig.
   expect(st.dirty).toBe(false);
@@ -74,7 +80,7 @@ test('afwijkingenscherm: "Bibliotheekwaarden gebruiken" op een kalender laat Vas
   await expect(durationNotice(page)).toHaveCount(1);
 });
 
-test('bibliotheekkalender bewerken: werkdag tot 14:00 ververst de gekoppelde projectkalender en Vast werk wordt 6 d, met melding', async ({ page, ops: _ops }) => {
+test('bibliotheekkalender bewerken: werkdag tot 14:00 ververst de gekoppelde projectkalender en Vaste inzet wordt 16/3 d, met melding', async ({ page, ops: _ops }) => {
   const { taskId, companyId, poolCalendarId } = await seedLinkedFixedWorkTask(page);
   // Een bibliotheekresource die de bibliotheekkalender gebruikt: haar potlood in de Bibliotheekweergave
   // is de UI-ingang voor het bewerken van die kalender.
@@ -104,7 +110,7 @@ test('bibliotheekkalender bewerken: werkdag tot 14:00 ververst de gekoppelde pro
 
   const st = await taskState(page, taskId);
   expect(st.hoursPerDay).toBe(6);
-  expect(st.duration).toBe(6);
+  expect(st.duration).toBeCloseTo(16 / 3, 12);
   expect(st.work).toBe(32 * 60);
   expect(st.dirty).toBe(false);
   expect(st.stale).toBe(true);

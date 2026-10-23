@@ -466,6 +466,16 @@ en noem het in je rapport of PR-tekst.
      `tests/planning/fixtures/minute-model-tutorial-f3.json`. Voorstel: de verhalende tutorial-
      en gidsteksten en eventuele schermbeelden bijwerken zodra de definitieve F3-uitkomsten
      zijn gehaald, met behoud van de afzonderlijk getoetste einddoelen. — B
+252. **De gidsen over taaktypes zeggen nog dat de app een duur op hele werkdagen afrondt.**
+     Sinds de werkdriehoek exact rekent (T14, B3) en vast werk de urenmaat is (B1a), klopt dat niet meer.
+     `public/docs/{nl,en}/uitleg-werkregels.md` r.42 ("rondt naar boven af … hele werkdagen"), r.94
+     (1,33 → 2 werkdagen, met het waarschuwingsteken *Wijkt af van inzet × duur*), r.102 (5,33 → 6
+     werkdagen) en r.106 (restduur 1,5 → 2); `howto-werkregel-kiezen.md` r.59; `uitleg-kalenders.md`
+     r.97 (nl; "een taak in dagen telt hele werkdagen" klopt nog, maar vast werk is nu altijd een taak in
+     uren). Uit de code afgeleid (niet in de app nagespeeld): r.94 wordt nu 32 ÷ 3 = 10 u 40 min, zonder
+     waarschuwingsteken. Hangt samen met 240.
+     Voorstel: de voorbeelden herschrijven in dezelfde ronde als 240, met de uitkomsten uit
+     `check-work-rule-*.ts`. Gevonden in F3c-winkel. — B
 
 ## Tests
 
