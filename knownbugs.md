@@ -289,6 +289,14 @@ en noem het in je rapport of PR-tekst.
      (`workPlacement.ts:7`) en het ongebruikte argument `placed` (`ResourceLoad.ts:262`).
      Review F3b r2. — B
 
+272. **Een al geplande verlaatberekening van `useExitRecordedDates` wordt niet geannuleerd bij
+     historieherstel.** `src/hooks/useExitRecordedDates.ts:47`: een wijziging die de modus niet verlaat,
+     keert terug zonder de lopende timer te stoppen. Reproductie: B5 terugdraaien → planningsbewerking →
+     undo → undo, in dezelfde JavaScript-beurt. Direct daarna staat B op 16 maart met
+     `minuteModelPending: true`; na de timer staat B op 9 maart en is de vlag uit. Alleen met synchrone
+     oproepen gereproduceerd. Richting: annuleer de lopende verlaatberekening bij historieherstel.
+     Review ronde 2 van PR #559, deel B. — B
+
 ## Bestanden en herstel
 
 35. **Showcase-voorbeelden openen als gewijzigd** (`applyDemoLibraryToShowcaseProject`). — S
