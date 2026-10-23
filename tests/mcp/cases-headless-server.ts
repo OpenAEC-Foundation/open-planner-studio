@@ -11,7 +11,7 @@
 //      Over HTTP: tools/list, fout token, ontbrekende sessie-id, Origin, en de startweigeringen.
 import { test, assert, assertEq, run } from './harness';
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -25,7 +25,11 @@ import { AGENT_GUIDE_PATH, AGENT_SKILLS, skillAssetPath } from '@/services/mcp/t
 import { createHeadlessHost, headlessInstructions } from '../../headless/mcp-server/src/host';
 import { startHttpTransport } from '../../headless/mcp-server/src/http';
 import { parseOptions, isLoopbackHost } from '../../headless/mcp-server/src/options';
-import { createNodeFileFs } from '../../headless/mcp-server/src/nodeFs';
+import { createNodeFileFs, isInside, ScopeEscapeError } from '../../headless/mcp-server/src/nodeFs';
+import { readIFC } from '@/services/ifc/ifcReader';
+import { writeMSPDI } from '@/services/msproject/mspdiWriter';
+import { writeP6XML } from '@/services/p6/p6xmlWriter';
+import { writeCSV } from '@/services/csv/csvWriter';
 import { externalClientChecks, connectClient, type AppProbe } from './externalClient';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -132,10 +136,90 @@ test('A: opties — standaard stdio, werkmap = huidige map, env werkt, CLI wint,
 });
 
 test('A: slot-haak — een bestand dat in de app open staat, wordt geweigerd; standaard staat niets open', async () => {
-  const locked = createNodeFileFs(host.root, async () => true);
+  const locked = await createNodeFileFs(host.root, async () => true);
   const reason = await locked.confine!(join(host.root, 'plan.ifc'));
   assert(reason !== null && reason.includes('is open in Open Planner Studio'), `slotmelding: ${reason}`);
-  assertEq(await createNodeFileFs(host.root).confine!(join(host.root, 'plan.ifc')), null, 'zonder register: vrij');
+  assertEq(await (await createNodeFileFs(host.root)).confine!(join(host.root, 'plan.ifc')), null, 'zonder register: vrij');
+});
+
+// --- A2. Bestandstoegang met haken (review PR #572, bevindingen 1, 2 en 4) ---------------------------
+// Fouten en mapwissels op een exact moment zijn alleen met een haak in hetzelfde proces te maken. Het
+// is dezelfde module die in `server.mjs` gebundeld zit (`headless/mcp-server/src/nodeFs.ts`).
+
+const fsRoot = join(tmp, 'fs-root');
+const fsOutside = join(tmp, 'fs-buiten');
+const ORIGINAL = 'ISO-10303-21;\n/* origineel */\n';
+const tmpFiles = (dir: string) => readdirSync(dir).filter((f) => f.endsWith('.tmp'));
+
+async function expectReject(promise: Promise<unknown>, label: string, isScope = false): Promise<void> {
+  let caught: unknown = null;
+  try { await promise; } catch (e) { caught = e; }
+  assert(caught !== null, `${label}: verwacht een fout`);
+  if (isScope) assert(caught instanceof ScopeEscapeError, `${label}: verwacht een scopeweigering, kreeg ${String(caught)}`);
+}
+
+test('A2 bevinding 1: schrijf- en rename-fout laten het origineel byte-gelijk, ook via een link binnen de werkmap', async () => {
+  mkdirSync(fsRoot, { recursive: true });
+  writeFileSync(join(fsRoot, 'plan.ifc'), ORIGINAL);
+  symlinkSync(join(fsRoot, 'plan.ifc'), join(fsRoot, 'link.ifc'));
+  for (const phase of ['write', 'rename'] as const) {
+    for (const name of ['plan.ifc', 'link.ifc']) {
+      const fs = await createNodeFileFs(fsRoot, undefined, {
+        fault: (p) => { if (p === phase) throw new Error(`nagebootste ${p}-fout`); },
+      });
+      await expectReject(fs.writeTextFile(join(fsRoot, name), 'NIEUW'), `${phase}-fout via ${name}`);
+      assertEq(readFileSync(join(fsRoot, 'plan.ifc'), 'utf8'), ORIGINAL, `${phase}-fout via ${name}: origineel byte-gelijk`);
+      assertEq(tmpFiles(fsRoot), [], `${phase}-fout via ${name}: halffabricaat opgeruimd`);
+    }
+  }
+  // Zonder fout: via de link wordt het ECHTE doel atomair vervangen en blijft de link een link.
+  const fs = await createNodeFileFs(fsRoot);
+  await fs.writeTextFile(join(fsRoot, 'link.ifc'), 'NIEUW');
+  assert(lstatSync(join(fsRoot, 'link.ifc')).isSymbolicLink(), 'de link blijft een link');
+  assertEq(readFileSync(join(fsRoot, 'plan.ifc'), 'utf8'), 'NIEUW', 'het echte doel is vervangen');
+  writeFileSync(join(fsRoot, 'plan.ifc'), ORIGINAL);
+});
+
+test('A2 bevinding 2: een map die tussen controle en operatie een link naar buiten wordt, wordt geweigerd', async () => {
+  mkdirSync(fsOutside, { recursive: true });
+  writeFileSync(join(fsOutside, 'plan.ifc'), 'GEHEIM');
+  /** Vervang `<root>/sub` door een link naar buiten, op het gekozen moment. */
+  const swapAt = (when: 'open' | 'create' | 'rename') => async (phase: string) => {
+    if (phase !== when) return;
+    renameSync(join(fsRoot, 'sub'), join(fsRoot, `sub-weg-${when}`));
+    symlinkSync(fsOutside, join(fsRoot, 'sub'), 'dir');
+  };
+  const reset = () => {
+    rmSync(join(fsRoot, 'sub'), { recursive: true, force: true });
+    mkdirSync(join(fsRoot, 'sub'));
+    writeFileSync(join(fsRoot, 'sub', 'plan.ifc'), ORIGINAL);
+  };
+  reset();
+  const reader = await createNodeFileFs(fsRoot, undefined, { afterCheck: swapAt('open') });
+  await expectReject(reader.readTextFile(join(fsRoot, 'sub', 'plan.ifc')), 'lezen na mapwissel', true);
+  for (const when of ['create', 'rename'] as const) {
+    reset();
+    const writer = await createNodeFileFs(fsRoot, undefined, { afterCheck: swapAt(when) });
+    await expectReject(writer.writeTextFile(join(fsRoot, 'sub', 'plan.ifc'), 'NIEUW'), `schrijven na mapwissel (${when})`, true);
+    assertEq(readFileSync(join(fsOutside, 'plan.ifc'), 'utf8'), 'GEHEIM', `${when}: het bestand buiten is niet overschreven`);
+    assertEq(readdirSync(fsOutside), ['plan.ifc'], `${when}: buiten de werkmap staat niets nieuws`);
+  }
+  rmSync(join(fsRoot, 'sub'), { recursive: true, force: true });
+});
+
+test('A2 bevinding 4: paden die alleen in hoofdletters verschillen tellen niet als binnen', async () => {
+  assertEq([isInside('/data/Plans', '/data/Plans/x.ifc'), isInside('/data/Plans', '/data/plans/x.ifc'),
+    isInside('/data/Plans', '/data/PlansX/x.ifc'), isInside('C:\\Plans', 'c:\\plans\\x.ifc', '\\')],
+  [true, false, false, false], 'exacte vergelijking, ook in Windows-vorm');
+  const upper = join(tmp, 'Hoofd');
+  const lower = join(tmp, 'hoofd');
+  mkdirSync(upper);
+  mkdirSync(lower);
+  writeFileSync(join(lower, 'geheim.ifc'), 'GEHEIM');
+  symlinkSync(lower, join(upper, 'naar-kleine-letters'), 'dir');
+  const fs = await createNodeFileFs(upper);
+  const reason = await fs.confine!(join(upper, 'naar-kleine-letters', 'geheim.ifc'));
+  assert(reason !== null && reason.includes('outside the working folder'), `link naar de map met kleine letters: ${reason}`);
 });
 
 test('A: afsluiten', async () => { await httpA.close(); });
@@ -182,12 +266,18 @@ class SpawnStdioTransport implements Transport {
   private child?: ChildProcessWithoutNullStreams;
   private buffer = new ReadBuffer();
   stderr = '';
-  constructor(private args: string[], private env: Record<string, string> = {}) {}
+  constructor(private args: string[], private env: Record<string, string> = {}, private fileSizeLimitKb?: number) {}
   async start(): Promise<void> {
-    this.child = spawn(process.execPath, [server, ...this.args], {
+    // Met een limiet start bash de server met `ulimit -f`: een te groot bestand schrijven breekt dan af,
+    // zoals een volle schijf of een crash midden in het schrijven.
+    const [cmd, argv] = this.fileSizeLimitKb === undefined
+      ? [process.execPath, [server, ...this.args]]
+      : ['/bin/bash', ['-c', `ulimit -f ${this.fileSizeLimitKb}; exec "$0" "$@"`, process.execPath, server, ...this.args]];
+    this.child = spawn(cmd, argv, {
       cwd: work, env: { PATH: process.env.PATH ?? '', HOME: tmp, ...this.env }, stdio: ['pipe', 'pipe', 'pipe'],
     });
     this.child.stderr.on('data', (d: Buffer) => { this.stderr += d.toString(); });
+    this.child.stdin.on('error', () => { /* een gestopte server sluit zijn stdin; dat is geen testfout */ });
     this.child.stdout.on('data', (d: Buffer) => {
       this.buffer.append(d);
       for (let m = this.buffer.readMessage(); m; m = this.buffer.readMessage()) this.onmessage?.(m);
@@ -200,12 +290,16 @@ class SpawnStdioTransport implements Transport {
   }
   async close(): Promise<void> {
     this.child?.stdin.end();
-    await new Promise<void>((res) => { if (!this.child || this.child.exitCode !== null) res(); else this.child.once('close', () => res()); });
+    // Ook een proces dat door een signaal stopte (exitCode null, signalCode gezet) is al dicht.
+    await new Promise<void>((res) => {
+      if (!this.child || this.child.exitCode !== null || this.child.signalCode !== null) res();
+      else this.child.once('close', () => res());
+    });
   }
 }
 
-async function stdioClient(args: string[], env: Record<string, string> = {}): Promise<{ client: Client; transport: SpawnStdioTransport }> {
-  const transport = new SpawnStdioTransport(args, env);
+async function stdioClient(args: string[], env: Record<string, string> = {}, fileSizeLimitKb?: number): Promise<{ client: Client; transport: SpawnStdioTransport }> {
+  const transport = new SpawnStdioTransport(args, env, fileSizeLimitKb);
   const client = new Client({ name: 'ops-headless-test', version: '1.0.0' });
   try {
     await client.connect(transport);
@@ -308,9 +402,97 @@ test('B stdio: padbeveiliging — buiten de werkmap, .., symlink, dode link en r
   assert(existsSync(join(work, 'sub', 'kopie.ifc')), 'export in een submap van de werkmap');
 });
 
+test('B stdio bevinding 1: opslaan via een link binnen de werkmap vervangt het echte doel atomair; de link blijft', async () => {
+  cpSync(EXAMPLE, join(work, 'doel.ifc'));
+  symlinkSync(join(work, 'doel.ifc'), join(work, 'link-binnen.ifc'));
+  await ok(stdio, 'planner_import_schedule', { path: '~/doel.ifc' });
+  const saved = await ok(stdio, 'planner_export_ifc', { path: '~/link-binnen.ifc', overwrite: true });
+  assertEq(saved.overwritten, true, 'bestaand doel vervangen');
+  assert(lstatSync(join(work, 'link-binnen.ifc')).isSymbolicLink(), 'de link is nog een link');
+  assert(readFileSync(join(work, 'doel.ifc'), 'utf8').startsWith('ISO-10303-21;'), 'het echte doel is een volledig IFC-bestand');
+  assertEq(readdirSync(work).filter((f) => f.endsWith('.tmp')), [], 'geen halffabricaat');
+});
+
+test('B stdio bevinding 4: een link naar een map die alleen in hoofdletters verschilt geeft SCOPE', async () => {
+  // De werkmap heet `werkmap`; ernaast staat `Werkmap` met een bestand. Een link ernaartoe is buiten.
+  const sibling = join(tmp, 'Werkmap');
+  mkdirSync(sibling);
+  cpSync(EXAMPLE, join(sibling, 'geheim.ifc'));
+  symlinkSync(sibling, join(work, 'naar-hoofdletters'), 'dir');
+  await refused(stdio, 'planner_import_schedule', { path: '~/naar-hoofdletters/geheim.ifc' }, 'SCOPE', 'lezen via de link');
+  await refused(stdio, 'planner_export_ifc', { path: '~/naar-hoofdletters/nieuw.ifc' }, 'SCOPE', 'schrijven via de link');
+  assertEq(readdirSync(sibling), ['geheim.ifc'], 'naast de werkmap is niets geschreven');
+});
+
+/** Bladtaken als gesorteerde `naam|startdatum`-regels, voor een vergelijking tussen formaten. */
+async function leafSchedule(client: Client): Promise<string[]> {
+  const rows = (await ok(client, 'planner_list_tasks', { limit: 1000 })).tasks as Array<{ name: string; start: string; summary?: boolean }>;
+  return rows.filter((t) => !t.summary).map((t) => `${t.name}|${String(t.start).slice(0, 10)}`).sort();
+}
+
+test('B stdio bevinding 3: MSPDI, P6 XML, CSV en XER openen in de losse server, met taken en datums', async () => {
+  const source = readFileSync(EXAMPLE, 'utf8');
+  const src = readIFC(source);
+  writeFileSync(join(work, 'bron.ifc'), source);
+  writeFileSync(join(work, 'bron-mspdi.xml'), writeMSPDI(src.project, src.calendar, src.tasks, src.sequences, src.resources,
+    src.assignments, src.resourceCalendars ?? [], src.baselines ?? [], src.activeBaselineId ?? null, src.customTaskTypes ?? []));
+  writeFileSync(join(work, 'bron-p6.xml'), writeP6XML(src.project, src.calendar, src.tasks, src.sequences, src.resources,
+    src.assignments, src.resourceCalendars ?? [], src.customTaskTypes ?? []));
+  writeFileSync(join(work, 'bron.csv'), writeCSV(src.project, src.calendar, src.tasks, src.sequences, src.resources, src.assignments));
+  cpSync(join(ROOT, 'tests/browser/fixtures/xer/zonder-bijzonderheden.xer'), join(work, 'bron.xer'));
+
+  await ok(stdio, 'planner_import_schedule', { path: '~/bron.ifc' });
+  const fromIfc = await leafSchedule(stdio);
+  assert(fromIfc.length > 5, `bladtaken uit IFC: ${fromIfc.length}`);
+
+  for (const [file, format] of [['bron-mspdi.xml', 'MSPDI-XML'], ['bron-p6.xml', 'P6-XML']] as const) {
+    const opened = await ok(stdio, 'planner_import_schedule', { path: `~/${file}` });
+    assertEq(opened.format, format, `${file}: formaat`);
+    assertEq(await leafSchedule(stdio), fromIfc, `${file}: dezelfde bladtaken met dezelfde startdatum als het IFC`);
+  }
+  const csv = await ok(stdio, 'planner_import_schedule', { path: '~/bron.csv' });
+  assertEq(csv.format, 'CSV', 'CSV: formaat');
+  const csvLeaves = await leafSchedule(stdio);
+  assertEq(csvLeaves.map((l) => l.split('|')[0]), fromIfc.map((l) => l.split('|')[0]), 'CSV: dezelfde bladtaken');
+  assert(csvLeaves.every((l) => /\|\d{4}-\d\d-\d\d$/.test(l)), 'CSV: elke bladtaak heeft een startdatum');
+
+  const xer = await ok(stdio, 'planner_import_schedule', { path: '~/bron.xer' });
+  assertEq(xer.format, 'XER', 'XER: formaat');
+  const xerLeaves = await leafSchedule(stdio);
+  assert(xerLeaves.length > 0 && xerLeaves.every((l) => /\|\d{4}-\d\d-\d\d$/.test(l)), `XER: taken met datums: ${xerLeaves.join(', ')}`);
+
+  // Kapotte XML en een DOCTYPE met eigen entiteiten geven een nette weigering, geen crash.
+  writeFileSync(join(work, 'kapot.xml'), '<Project xmlns="http://schemas.microsoft.com/project"><Tasks></Project>');
+  const broken = await refused(stdio, 'planner_import_schedule', { path: '~/kapot.xml' }, 'VALIDATION', 'kapotte XML');
+  assert(String(broken.s.error).includes('Invalid XML'), `melding: ${broken.s.error}`);
+  writeFileSync(join(work, 'entiteit.xml'), '<?xml version="1.0"?><!DOCTYPE Project [<!ENTITY x "y">]><Project xmlns="http://schemas.microsoft.com/project"><Name>&x;</Name></Project>');
+  await refused(stdio, 'planner_import_schedule', { path: '~/entiteit.xml' }, 'VALIDATION', 'DOCTYPE met eigen entiteit');
+});
+
 test('B stdio: afsluiten', async () => {
   await stdio.close();
   await stdioTransport.close();
+});
+
+test('B stdio bevinding 1: afbreken midden in het opslaan (bestandsgrootte-limiet) laat het origineel byte-gelijk', async () => {
+  cpSync(EXAMPLE, join(work, 'crash.ifc'));
+  const before = readFileSync(join(work, 'crash.ifc'));
+  // 16 KB: het IFC (ongeveer 47 KB) past er niet in. Lezen raakt de limiet niet.
+  const { client, transport } = await stdioClient(['--no-backup', '--open', 'crash.ifc'], {}, 16);
+  try {
+    let outcome = 'geen fout';
+    try {
+      const r = await call(client, 'planner_export_ifc', { path: '~/crash.ifc', overwrite: true });
+      outcome = r.isError ? `toolfout ${r.s.code}` : 'gelukt';
+    } catch (e) {
+      outcome = `server afgebroken (${String(e).slice(0, 80)})`;
+    }
+    assert(outcome !== 'gelukt', `opslaan hoort niet te lukken onder de limiet (${outcome})`);
+  } finally {
+    await client.close().catch(() => {});
+    await transport.close();
+  }
+  assert(Buffer.compare(readFileSync(join(work, 'crash.ifc')), before) === 0, 'het origineel is byte-gelijk');
 });
 
 test('B stdio: OPS_MCP_READ_ONLY=1 weigert mutaties (READ_ONLY), lezen werkt', async () => {

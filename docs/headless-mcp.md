@@ -108,19 +108,43 @@ logging gaat naar stderr.
 
 1. Lexicaal (`checkScope` in `fileTools.ts`, dezelfde code als de app): het pad wordt
    genormaliseerd (`..`, `.`, `~`) en moet in de werkmap liggen.
-2. Fysiek (`confine` in `headless/mcp-server/src/nodeFs.ts`): de `realpath` van het pad, of van de
-   dichtstbijzijnde bestaande bovenmap, moet in de `realpath` van de werkmap liggen. De server weigert
-   met `SCOPE`: een symlink of junction naar buiten, een dode link, en een bestand met meer dan één
-   harde link (dan is niet te bewijzen dat elke naam in de werkmap ligt). Op Windows en macOS
-   vergelijkt hij zonder hoofdletters.
+2. Fysiek (`check` in `headless/mcp-server/src/nodeFs.ts`, vóór elke operatie): de `realpath` van het
+   pad, of van de dichtstbijzijnde bestaande bovenmap, moet in de `realpath` van de werkmap liggen. De
+   vergelijking is exact, teken voor teken. Er is geen aanname over hoofdletters per besturingssysteem:
+   een hoofdlettergevoelig volume op macOS bestaat, en een link naar `plans` naast `Plans` ligt buiten.
+   Een andere schrijfwijze van een bestaand pad wordt dus geweigerd, nooit toegelaten. De server weigert
+   met `SCOPE`: een symlink of junction naar buiten, een dode link, een bestand met meer dan één harde
+   link (dan is niet te bewijzen dat elke naam in de werkmap ligt), en een bestand dat in de app open
+   staat (slot-haak, nu altijd vrij).
 
-Elke bestandsoperatie herhaalt poort 2 vlak ervoor. Het is een controle, geen slot: een ander proces
-kan tussen controle en operatie een link plaatsen. Wie dat wil uitsluiten, draait de server als eigen
-gebruiker of in een container met alleen de werkmap.
+**Gebonden aan wat gecontroleerd is.** Een controle vooraf is nog geen grens: een ander proces kan daarna
+een map door een link vervangen. Daarom:
 
-Schrijven is atomair (`replaceUserFile`, #522): eerst een exclusief aangemaakt halffabricaat naast het
-doel, dan `fsync` en een `rename`. De bestaande controle tegen een stille schemawissel via
-bestandsaliassen (#519) werkt ook hier: de server levert `dev`/`ino` van het doel.
+- Lezen opent het echte pad met `O_NOFOLLOW` en vergelijkt daarna `dev`/`ino` van de geopende handle met
+  het gecontroleerde bestand. Wijkt dat af, dan leest de server niets.
+- Schrijven maakt een eigen halffabricaat exclusief aan (`O_CREAT | O_EXCL | O_NOFOLLOW`) in de
+  gecontroleerde echte map. Vóór het schrijven en vlak vóór de `rename` controleert de server dat die map
+  nog dezelfde `dev`/`ino` heeft en dat het pad van het halffabricaat nog naar de eigen handle wijst.
+
+Wat overblijft: Node kent geen `openat` of `renameat`. Tussen de laatste controle en de `rename` zit één
+systeemaanroep. Een proces dat precies dan een map wisselt, kan de `rename` naar een andere map sturen;
+dan landt hooguit het eigen halffabricaat daar. Wie dat ook wil uitsluiten, draait de server als eigen
+gebruiker of in een container met alleen de werkmap. Op Windows bestaat `O_NOFOLLOW` niet; daar blijft
+alleen de controle op `dev`/`ino`.
+
+**Opslaan is altijd atomair.** Eerst een eigen halffabricaat naast het echte doel, dan `fsync` en
+`rename`. Een link naar een bestand binnen de werkmap blijft een link: het echte doel wordt vervangen.
+Mislukt schrijven of `rename` (volle schijf, afgebroken proces), dan ruimt de server het halffabricaat
+op en geeft de tool een fout; het origineel blijft byte-gelijk. Anders dan in de app is er geen
+terugval op direct schrijven (die terugval in `replaceUserFile` blijft voor de desktop-app ongewijzigd).
+De bestaande controle tegen een stille schemawissel via bestandsaliassen (#519) werkt ook hier: de
+server levert `dev`/`ino` van het doel.
+
+**Importformaten.** Node heeft geen `DOMParser`. De MSPDI- en P6-XML-lezers van de app gebruiken hem;
+de server zet daarom een eigen kleine XML-parser als `DOMParser` (`headless/mcp-server/src/xmlDom.ts`),
+met precies wat de lezers gebruiken. Een DOCTYPE met eigen entiteiten weigert hij (geen
+entiteit-expansie, geen externe entiteiten). CSV, XER en `.mpp` gebruiken geen browserglobals die in
+Node 22 ontbreken (nagelopen: `TextDecoder`, `crypto.subtle` en `structuredClone` bestaan).
 
 **MCP-backups.** Vóór de eerste wijziging per document schrijft de server een IFC-backup naar
 `<data-dir>/ai-backups/<document>/`, met hetzelfde uitdunbeleid (`BACKUP_RETENTION`) als de app. De
@@ -157,6 +181,7 @@ bestaat geen tool, ook niet in de app.
 | ingang, opties | `headless/mcp-server/src/main.ts`, `options.ts` |
 | host: storecontext en host-functies | `headless/mcp-server/src/host.ts` |
 | bestandstoegang, slot-haak | `headless/mcp-server/src/nodeFs.ts`, `appLock.ts` |
+| XML-parser voor MSPDI en P6 XML | `headless/mcp-server/src/xmlDom.ts` |
 | MCP-backups | `headless/mcp-server/src/backupFs.ts` |
 | transports | `headless/mcp-server/src/stdio.ts`, `http.ts` |
 | bouw en grenscontrole | `scripts/build-mcp-server.mjs`, `scripts/lib/headless-bundle.mjs` |
@@ -169,6 +194,7 @@ naden die de app al had of die er voor deze server bij kwamen:
 |---|---|---|
 | `fileToolDeps.getFs` (`fileTools.ts`) | Tauri plugin-fs, scope `$HOME` | `nodeFs.ts`, scope = werkmap |
 | `McpFileFs.confine` (optioneel, nieuw) | ontbreekt: de Tauri-capability is de harde grens | `realpath`-controle |
+| `globalThis.DOMParser` | de browser of webview | `xmlDom.ts` |
 | `guideToolDeps.fetchImpl` (nieuw) | ontbreekt: `fetch` op de eigen bundel | ingebedde teksten |
 | `createAppBackupService(app, { getFs, autoBackupEnabled })` | `appDataDir` via Tauri | `backupFs.ts` |
 | `createRequestHandler` (`requestHandler.ts`) | via Tauri-events en Rust | `http.ts` |
@@ -215,5 +241,9 @@ Ontwerp op #570 (besluit eigenaar, 2026-10-23). Nog niet gebouwd; de server is e
 - Windows en macOS: CI draait de tests op Linux. De padregels voor Windows (stationsletters,
   hoofdletters) en junctions zijn niet op Windows zelf getest.
 - Claude Desktop en Claude Code zelf: de tests gebruiken de officiële SDK-client.
-- `.mpp`, XER, P6 XML, MSPDI en CSV openen via de server: dezelfde code als in de app, maar hier niet
-  apart getest.
+- `.mpp` openen via de server: de repo heeft geen `.mpp`-bestand om mee te testen. De lezer gebruikt
+  geen browserglobals; MSPDI, P6 XML, CSV en XER zijn wel getest.
+- De race tussen controle en bestandsoperatie is getest met een haak in hetzelfde proces (zelfde module
+  als in de bundel), niet tegen het losse bestand: een race is van buitenaf niet op het juiste moment te
+  maken.
+- UNC-werkmap op Windows (`\\server\share`): het lexicale pad wordt nu `/server/share/…`. Vervolgwerk.

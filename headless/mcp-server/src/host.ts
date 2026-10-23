@@ -8,6 +8,7 @@
 //   - gids en skills       `guideToolDeps.fetchImpl` → de in de bundel ingebedde teksten
 //   - veiligheidsvlaggen   `ui.aiReadOnly` uit `--read-only`; `ui.aiPaused` blijft uit (geen knop)
 //   - dialogen             bestaan niet: alle dialoogvlaggen in de ui-state blijven `false`
+//   - XML-import           `globalThis.DOMParser` → `xmlDom.ts` (Node heeft er geen)
 //
 // SCHAKELSTUK (later, ontwerp "één plugin, drie situaties" op #570): `handleMessage` is de enige naad
 // tussen de transports (stdio, HTTP) en de toolafhandeling: rauwe JSON-RPC in, rauwe JSON-RPC uit.
@@ -29,7 +30,8 @@ import { fileToolDeps } from '@/services/mcp/tools/fileTools';
 import { guideToolDeps } from '@/services/mcp/tools/guideTools';
 import type { TextAssetFetch } from '@/utils/textAsset';
 import type { McpContext } from '@/services/mcp/contracts';
-import { createNodeFileFs } from './nodeFs';
+import { createNodeFileFs, type NodeFsHooks } from './nodeFs';
+import { installXmlDomParser } from './xmlDom';
 import { createNodeBackupFs } from './backupFs';
 import type { IsPathOpenInApp } from './appLock';
 
@@ -47,6 +49,8 @@ export interface HostOptions {
   open?: string | null;
   /** Slot-haak; standaard `isPathOpenInApp` uit `appLock.ts` (nu altijd `false`). */
   isPathOpenInApp?: IsPathOpenInApp;
+  /** Alleen voor tests: haken in de bestandstoegang (`NodeFsHooks`). */
+  fsHooks?: NodeFsHooks;
 }
 
 /** De naad voor een later schakelstuk: één JSON-RPC-bericht (rauw) met zijn context → het rauwe antwoord. */
@@ -110,10 +114,13 @@ export async function createHeadlessHost(opts: HostOptions): Promise<HeadlessHos
   }
   if (!(await fsp.stat(root)).isDirectory()) throw new Error(`The working folder '${opts.root}' is not a folder`);
 
+  // Node heeft geen DOMParser; de MSPDI- en P6-XML-lezers van de app gebruiken hem (`xmlDom.ts`).
+  installXmlDomParser();
+
   // Eén document zonder opslagdoel, zoals een nieuwe app-start. Geen host-events: extensies bestaan hier niet.
   const app = createAppStoreContext({ emitHostEvents: false });
 
-  const fileFs = createNodeFileFs(root, opts.isPathOpenInApp);
+  const fileFs = await createNodeFileFs(root, opts.isPathOpenInApp, opts.fsHooks);
   fileToolDeps.getFs = async () => fileFs;
   guideToolDeps.fetchImpl = embeddedAssetFetch(opts.assets);
   registerAllTools();
