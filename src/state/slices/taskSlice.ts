@@ -1195,7 +1195,8 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         // mee met het duurverschil, het percentage volgt (`carryRemainingThroughDurationEdit`; de
         // weigering stond hierboven al). Vóór de driehoekstap, die de rest leest. Niet als de patch
         // zelf voortgang opgaf: die wint.
-        carryRemainingThroughDurationEdit(task, timeBefore, contourHpd, s.project.statusDate);
+        carryRemainingThroughDurationEdit(task, timeBefore, contourHpd, s.project.statusDate,
+          resolveCalendar(task.calendarId, s.calendars, s.calendar));
         // Duur-/datumwijziging: contour meeschalen (werkbehoud volgens de werkregel), gebruikersgaten
         // afknippen, laag 3/4 ontkoppelen en nivelleergaten wissen — de gevolgregels die
         // dit pad deelt met het taakraster en de MCP-draft, zie `applyDurationChangeRules` in

@@ -245,8 +245,14 @@ console.log('-- split-bar-render: 2 gaten ⇒ 3 segmenten op de juiste x-positie
     { afterMinutes: 120, gapMinutes: 60 },
     { afterMinutes: 300, gapMinutes: 60 },
   ];
+  // F2 (spec §8 B1, een maat per taak): de renderer kiest de splitmaat op de maat van de taak, niet
+  // meer op de kalender (`GanttRenderer`, "T16 verandert de datumvorm, niet de maat van een dagsplit").
+  // Deze case bedoelt een urentaak, dus de taak krijgt de urenmaat, zoals de jaar-2-case hieronder.
+  // Fixronde 1 deel B, B1; de verwachte x-posities blijven gelijk.
+  const twoGapTask = hourTask('row0', '2026-06-01T08:00', '2026-06-01T16:00', twoGaps);
+  twoGapTask.time = { ...twoGapTask.time, durationUnit: 'hours', durationMinutes: 480 };
   const rows: ViewRow[] = [
-    { kind: 'task', rowKey: 'row0', task: hourTask('row0', '2026-06-01T08:00', '2026-06-01T16:00', twoGaps), depth: 0, dimmed: false },
+    { kind: 'task', rowKey: 'row0', task: twoGapTask, depth: 0, dimmed: false },
   ];
   // barSplitMode:'never' — bewijst meteen mede dat de necking-instelling hier NIET aan te pas komt
   // (O5): met 'never' zou de kalender-necking nooit splitsen, maar `splitGaps` doet het toch.

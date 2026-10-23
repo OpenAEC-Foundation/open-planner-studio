@@ -464,7 +464,8 @@ function createMcpDraft(
       if (changes.timeBase) {
         // Tweeling van taskSlice.ts: de rest schuift mee, het
         // percentage volgt, tenzij de patch zelf voortgang opgaf (`carryRemainingThroughDurationEdit`).
-        const carried = carryRemainingThroughDurationEdit(task, timeBefore, contourHpd, s.project.statusDate);
+        const carried = carryRemainingThroughDurationEdit(task, timeBefore, contourHpd, s.project.statusDate,
+          resolveCalendar(task.calendarId, s.calendars, s.calendar));
         if (carried && !carried.refused) outcome = { progress: carried };
         // Duur-/datumwijziging: dezelfde gevolgregels als taskSlice.ts's `updateTask` en het taakraster,
         // zie `applyDurationChangeRules` in taskDefaults.ts (kern van `settleDurationAftermath`).
@@ -584,7 +585,8 @@ function createMcpDraft(
       if (changes.timeBase) {
         // Zelfde poort als `updateTaskFields`: `top.time` past in `Partial<Task>`,
         // dus een aanroeper kan de voortgang zelf zetten; die wint dan (`carryRemainingThroughDurationEdit`).
-        const carried = carryRemainingThroughDurationEdit(task, timeBefore, contourHpd, s.project.statusDate);
+        const carried = carryRemainingThroughDurationEdit(task, timeBefore, contourHpd, s.project.statusDate,
+          resolveCalendar(task.calendarId, s.calendars, s.calendar));
         if (carried && !carried.refused) outcome = { progress: carried };
         // Duurwijziging: dezelfde gevolgregels als `updateTaskFields` hierboven, zie
         // `applyDurationChangeRules` in taskDefaults.ts (inclusief het wissen van de nivelleergaten).
