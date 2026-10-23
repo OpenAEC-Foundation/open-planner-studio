@@ -131,9 +131,10 @@ const MM_DATETIME_RE = /\d{4}-\d\d-\d\dT\d\d:\d\d/;
 /** Reden waarom een case al een URENcase is (dan hoort hij niet bij de runs), of null. Dezelfde
  *  indeling als de meting in §10 (branch claude/uren-poc-meting): 422 dagcases en 138 urencases. */
 function hourCaseReason(c: Case): string | null {
-  // De hele case, zoals de meting; alleen de eigen sleutel `minuteModel` telt niet mee.
-  const { minuteModel: _mm, ...rest } = c;
-  void _mm;
+  // De invoer bepaalt de maat. Bijgewerkte datumverwachtingen en een toelichting met
+  // kloktijd mogen een dagcase niet uit het F0-vangnet laten verdwijnen (bouwronde 4).
+  const { minuteModel: _mm, expect: _expect, previewExpect: _preview, title: _title, note: _note, ...rest } = c;
+  void _mm; void _expect; void _preview; void _title; void _note;
   const s = JSON.stringify(rest);
   if (s.includes('"workTime"')) return 'workTime';
   if (MM_DATETIME_RE.test(s)) return 'datetime';
@@ -1111,8 +1112,9 @@ function runCase(c: Case): CaseResult {
     return { id: c.id, title: c.title, pass: false, diffs: [`THREW: ${String(e)}`] };
   }
   const dayCase = !hourCaseReason(c);
-  const reason = c.minuteModel && (REASON_RUNS[c.minuteModel.reason] as readonly number[]).includes(1);
-  const expected = dayCase && reason ? mergeExpect(c.expect ?? {}, c.minuteModel!.expect ?? {}) : c.expect ?? {};
+  // De gewone batterij bewaakt haar huidige uitkomst. Alleen het F0-vangnet leest de
+  // einddoelen met redencodes uit minuteModel.expect (besluit bouwronde 4, 2026-10-23).
+  const expected = c.expect ?? {};
   const minute = minuteComparer(built.ids);
   // Oude notatie van een dagveld mag naast uurvelden staan. Expliciete uurverwachtingen en
   // hun getallen blijven exact, zoals vóór F2.

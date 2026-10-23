@@ -1,3 +1,4 @@
+// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 // "Taak bewerken" → Opslaan, headless tegen de ECHTE store, via exact de functies die
 // `TaskDialog.tsx` gebruikt (`draftWith*` voor de concepttaak, `createTaskDialogSave` voor Opslaan).
 //
@@ -99,7 +100,7 @@ function progressOf(t: Task) {
   }
   eq('1.x paneel op 100%: voltooid, einde = statusdatum', {
     status: f.task(panel).status, actualFinish: f.task(panel).time.actualFinish, remainingTime: f.task(panel).time.remainingTime,
-  }, { status: 'COMPLETED', actualFinish: '2026-03-13', remainingTime: 0 });
+  }, { status: 'COMPLETED', actualFinish: "2026-03-13T16:00", remainingTime: 0 });
 }
 
 // ── 2. Voortgang alleen via de dialoog: de status volgt (gestart, voltooid) ─────────────────────────
@@ -229,7 +230,7 @@ function progressOf(t: Task) {
   eq('6a mijlpaal + werkelijke datum: opgeslagen', {
     isMilestone: f.task(dialog).isMilestone, duration: f.task(dialog).time.scheduleDuration,
     completion: f.task(dialog).time.completion, actualFinish: f.task(dialog).time.actualFinish ?? null, status: f.task(dialog).status,
-  }, { isMilestone: true, duration: 0, completion: 1, actualFinish: '2026-03-04', status: 'COMPLETED' });
+  }, { isMilestone: true, duration: 0, completion: 1, actualFinish: "2026-03-04T07:00", status: 'COMPLETED' });
   eq('6a mijlpaal + werkelijke datum: dialoog = paneel', progressOf(f.task(dialog)), progressOf(f.task(panel)));
 
   // 6b. Eerst voortgang, dan mijlpaal (de transitie op de draft neemt de voortgang mee).
@@ -248,7 +249,7 @@ function progressOf(t: Task) {
   }
   eq('6c mijlpaal + nieuwe start: anker = nieuwe start', {
     isMilestone: f.task(newStart).isMilestone, scheduleStart: f.task(newStart).time.scheduleStart,
-  }, { isMilestone: true, scheduleStart: '2026-03-09' });
+  }, { isMilestone: true, scheduleStart: "2026-03-09T07:00" });
 }
 
 // ── 7. Verzameltaak (#201 × #203): Opslaan schrijft geen verouderde fasevoortgang terug ─────────────

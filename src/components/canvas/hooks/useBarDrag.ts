@@ -306,9 +306,11 @@ export function useBarDrag({
     const undoKey = undoKeyRef.current;
     if (!undoKey) return;
 
-    // Een UUR-taak (datumstring met tijdcomponent) behoudt zijn minutenbron. Dag-taken houden het
-    // dag-pad hieronder letterlijk gescheiden.
-    const isHourDrag = dragState.originalStart.includes('T');
+    // Sinds F2 heeft ook een dagtaak momenten. Alleen haar eigen maat bepaalt of
+    // een randsleep de minutenbron of het dagaantal verandert.
+    const draggedTask = getTask(dragState.taskId);
+    if (!draggedTask) return;
+    const isHourDrag = taskDurationUnit(draggedTask) === 'hours';
 
     // Dag-resize: de nieuwe duur is de INCLUSIEVE werkdagen-telling via de taakkalender — exact
     // zoals CPM zelf rekent (CPMSolver: `scheduleDuration = cal.workDaysBetween(es, ef)`). Zo blijft
@@ -383,7 +385,7 @@ export function useBarDrag({
       updateTask(dragState.taskId, {
         time: {
           ...baseTime,
-          scheduleStart: nextStart,
+          scheduleStart: dragState.edge === 'right' ? baseTime.scheduleStart : nextStart,
           scheduleFinish: nextFinish,
           earlyStart: nextStart,
           earlyFinish: nextFinish,
@@ -495,15 +497,18 @@ export function useBarDrag({
         // duur exact). Toggle uit ⇒ `addCalendarDays`.
         const newStart = shiftByDisplayedColumns(axisCalEngine, origStart, daysDelta, compressed);
         const newFinish = shiftByDisplayedColumns(axisCalEngine, origFinish, daysDelta, compressed);
+        // Een dagsleep bewaart een bestaand moment binnen de werkdag (N0).
+        const start = `${formatDate(newStart)}${dragState.originalStart.slice(10)}`;
+        const finish = `${formatDate(newFinish)}${dragState.originalFinish.slice(10)}`;
         updateTask(dragState.taskId, {
           time: {
             ...currentTime,
-            scheduleStart: formatDate(newStart),
-            scheduleFinish: formatDate(newFinish),
-            earlyStart: formatDate(newStart),
-            earlyFinish: formatDate(newFinish),
+            scheduleStart: start,
+            scheduleFinish: finish,
+            earlyStart: start,
+            earlyFinish: finish,
           },
-          ...constraintForStart(formatDate(newStart)),
+          ...constraintForStart(start),
         }, { coalesceKey: undoKey });
       } else if (dragState.edge === 'right') {
         // Resize from right (change duration/finish). Bereken de duur uit de rauwe sleep-datum,

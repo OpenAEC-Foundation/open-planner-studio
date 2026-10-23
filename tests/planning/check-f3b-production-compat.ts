@@ -6,6 +6,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { normalizeTaskDates } from '@/state/migrations/minuteModel';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { createAppStoreContext } from '@/state/appStoreFactory';
 import { computeResourceLoad, computeHistogramReport, type DailyLoad } from '@/engine/scheduler/ResourceLoad';
@@ -162,7 +163,8 @@ levelFixture('kalendertijd met bewaarde split', [task('t', '2026-06-01T08:00', '
 const exampleLoads: Record<string, readonly [string, string]> = {
   '03-kantoorgebouw-zuidas.ifc': ['d33fbb996b53968f478f57ac84c09605c7fea856feb76f89d6bf072be2743fb1', 'd33fbb996b53968f478f57ac84c09605c7fea856feb76f89d6bf072be2743fb1'],
   '05-brugvervanging-n279.ifc': ['b2883cfc921ebd7adf8fb33aee775c39e746a685d7620a7429631bbf0c393e97', 'b2883cfc921ebd7adf8fb33aee775c39e746a685d7620a7429631bbf0c393e97'],
-  '08-zorgcentrum-de-linde.ifc': ['6f83e0166ef11f87211345896af693f606075ac41a1dc9fba05325d4766cd932', '6f83e0166ef11f87211345896af693f606075ac41a1dc9fba05325d4766cd932'],
+  // B7: alleen de exacte procentlag wijzigt dit berekende voorbeeld; de oude afronding herstelt de oude hash.
+  '08-zorgcentrum-de-linde.ifc': ['6f83e0166ef11f87211345896af693f606075ac41a1dc9fba05325d4766cd932', 'b566116abaedbb30d11d4cbd09c6b8f85c9143ccb1e66746cddafe505c8264c9'],
   '10-villa-wassenaar.ifc': ['449147be5e5c43624639830eaa2f049e299db7eb9f49ae1732563b1128f9920f', '449147be5e5c43624639830eaa2f049e299db7eb9f49ae1732563b1128f9920f'],
   '15-datacentrum-agriport.ifc': ['298620a7dad7ba9abeda28a0624a49916cfc77ac6329e927a8782b0acc3fe571', '298620a7dad7ba9abeda28a0624a49916cfc77ac6329e927a8782b0acc3fe571'],
   'showcase-appartementencomplex.ifc': ['ee92327743eca8637c8070529f732acc77b57f8f8f2ae15880168cf21d88519c', 'ee92327743eca8637c8070529f732acc77b57f8f8f2ae15880168cf21d88519c'],
@@ -185,9 +187,11 @@ for (const file of files) {
   const { tasks, assignments, resources, calendar: cal, resourceCalendars: calendars } = parsed;
   const before = computeResourceLoad(resources, assignments, tasks, cal, calendars ?? []);
   eq(`voorbeeld ${file}: vóór Bereken`, fingerprint(before), exampleLoads[file]?.[0]);
-  const solved = solveProject(opsSolveInput({ tasks, sequences: parsed.sequences, calendar: cal, calendars: calendars ?? [] }));
+  // D1/D2: de productieroute normaliseert de bron vóór de solvergrens.
+  const normalized = tasks.map(t => normalizeTaskDates(t, { calendar: cal, calendars: calendars ?? [] }));
+  const solved = solveProject(opsSolveInput({ tasks: normalized, sequences: parsed.sequences, calendar: cal, calendars: calendars ?? [] }));
   eq(`voorbeeld ${file}: doorrekening`, solved.error, undefined);
-  const after = computeResourceLoad(resources, assignments, tasks, cal, calendars ?? []);
+  const after = computeResourceLoad(resources, assignments, normalized, cal, calendars ?? []);
   eq(`voorbeeld ${file}: na Bereken`, fingerprint(after), exampleLoads[file]?.[1]);
 }
 

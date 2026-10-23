@@ -5657,8 +5657,8 @@ function z4MakeTask(id: string, scheduleStart: Date, childIds: string[] = []): T
     }
     truthy(`[Z4-her-check A] dag-modus gooit niet (${threw ?? ''})`, threw === null);
     truthy(
-      '[Z4-her-check A] dag-modus: taak-B krijgt shift 0 (ONgeschoven gat op 240, niet 720 zoals in de uur-modus-variant)',
-      z4GapsEqual(dayModeResult?.get('task-B') ?? [], [{ afterMinutes: 240, gapMinutes: 240 }]),
+      '[Z4-her-check A] F2: effectieve werkblokken geven dezelfde verschuiving als de expliciete blokken (T11)',
+      z4GapsEqual(dayModeResult?.get('task-B') ?? [], [{ afterMinutes: 720, gapMinutes: 240 }]),
     );
   }
 }

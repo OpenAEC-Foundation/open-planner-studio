@@ -2987,7 +2987,7 @@ export class CPMSolver {
     if (!c || !d) return null;
     const preserveMilestoneInstant =
       this.options.schedulingOptions?.p6PreserveZeroDurationConstraintInstants === true
-      && isZeroDurationMilestone(task) && eng.isHourMode && c.date?.includes('T');
+      && isZeroDurationMilestone(task) && eng.hasOwnWorkBlocks && c.date?.includes('T');
     const dW = preserveMilestoneInstant ? d : this.snapOnOrBefore(eng, d);
     if (c.type === 'FNLT' || c.type === 'MFO') return dW;
     if (c.type === 'SNLT' || c.type === 'MSO') {

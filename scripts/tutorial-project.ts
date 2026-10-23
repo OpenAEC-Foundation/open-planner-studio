@@ -1,3 +1,4 @@
+import { normalizeTaskDates } from '@/state/migrations/minuteModel';
 // Tutorialproject *Aanbouw woning* / *House extension* — de kern van de generator (zonder
 // side-effects). Bouwt het doorlopende project van de zeven tutorials (ontwerp
 // `docs/superpowers/specs/2026-09-28-gebruikersdocumentatie-diataxis-design.md`, §3.1 en §5) stap
@@ -621,8 +622,10 @@ export function buildTutorialProject(lang: TutorialLang): TutorialBuild {
         fail(lang, `tut-6: werkelijke start ${row.task} geweigerd (${row.start})`);
       }
       if (!S().setActualFinish(b.id(row.task), row.finish)) fail(lang, `tut-6: werkelijk einde ${row.task} geweigerd (${row.finish})`);
-      const t = b.task(row.task).time;
-      if (t.completion !== 1 || t.actualStart !== row.start || t.actualFinish !== row.finish) {
+      const source = b.task(row.task);
+      const expected = normalizeTaskDates({ ...source, time: { ...source.time, actualStart: row.start, actualFinish: row.finish } }, S()).time;
+      const t = source.time;
+      if (t.completion !== 1 || t.actualStart !== expected.actualStart || t.actualFinish !== expected.actualFinish) {
         fail(lang, `tut-6: voortgang ${row.task} is ${t.actualStart} – ${t.actualFinish} ${t.completion}`);
       }
     }
@@ -634,7 +637,8 @@ export function buildTutorialProject(lang: TutorialLang): TutorialBuild {
   checkProgressAgainstBaseline(b);
   b.calculate('tut-6');
   const f6 = b.facts();
-  if (f6.finish <= f5.finish) fail(lang, 'tut-6: de uitloop van het ontgraven verschuift de einddatum niet');
+  // F2-tussenstand; F3 → 2027-08-31T12:00 (§3.14): de dagenloper telt het dagdeel nog niet.
+  if (f6.finish !== '2027-08-30T16:00') fail(lang, `tut-6: onverwacht F2-einde ${f6.finish}`);
   if (f6.counts.baselines !== 1) fail(lang, 'tut-6: geen basisplanning');
   const s6 = b.snapshot('na-tut-6');
   stages.push(s6);
@@ -676,13 +680,20 @@ function checkProgressAgainstBaseline(b: Builder): void {
     const bt = planned(row.task);
     const extra = row.task === LATE_TASK.task ? LATE_TASK.extraWorkdays : 0;
     const want = { start: shift(bt.start, late), finish: shift(bt.finish, late + extra) };
-    if (row.start !== want.start || row.finish !== want.finish) {
+    const source = b.task(row.task);
+    const entered = normalizeTaskDates({ ...source, time: { ...source.time, actualStart: row.start, actualFinish: row.finish } }, st).time;
+    if (entered.actualStart !== want.start || entered.actualFinish !== want.finish) {
       fail(b.lang, `tut-6: ${row.task} ${row.start} – ${row.finish} wijkt af van baseline + uitloop (${want.start} – ${want.finish})`);
     }
     late += extra;
   }
-  const want = shift(planned(IN_PROGRESS.task).start, late);
-  if (IN_PROGRESS.start !== want) fail(b.lang, `tut-6: start ${IN_PROGRESS.task} ${IN_PROGRESS.start} ≠ baseline + uitloop (${want})`);
+  // T16: de exacte lag vanaf de urenstort geeft nu woensdag 14:00 als baselinestart.
+  // De geregistreerde start op vrijdag blijft een letterlijk feit (N0), ook na F3.
+  const baselineStart = planned(IN_PROGRESS.task).start;
+  const actualStart = normalizeTaskDates({ ...b.task(IN_PROGRESS.task), time: { ...b.task(IN_PROGRESS.task).time, actualStart: IN_PROGRESS.start } }, st).time.actualStart;
+  if (baselineStart !== '2027-06-23T14:00' || actualStart !== '2027-06-25T07:00') {
+    fail(b.lang, `tut-6: onverwachte baseline/werkelijke start ${baselineStart} / ${actualStart}`);
+  }
 }
 
 /** De datum `count` werkdagen ná `iso` op de projectkalender (werkdagen + feestdagen). */

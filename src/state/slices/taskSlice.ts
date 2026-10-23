@@ -823,6 +823,10 @@ function commitProgressEdit(
     calendar: resolveCalendar(task.calendarId, s.calendars, s.calendar) });
   if (!plan.ok) return plan;
   if (!plan.change) return { ok: true };
+  // D1/D2/D7 gelden vóór de waardevergelijking: dezelfde kalenderdatum invullen mag
+  // geen undo-stap of verlies van nivelleergaten veroorzaken.
+  const normalized = normalizeTaskDates(plan.change.task, s);
+  if (sameValue(task, normalized) && !plan.change.statusDateToday) return { ok: true };
   runtime.beginUndoable(s, opts); // `opts` = coalesceKey (slider-sleep / per-toetsaanslag-commits = 1 stap).
   // Voortgang verplaatst opgeslagen werk van rest naar verricht — momentopname op de ongewijzigde
   // taak, settle ná de mutatie. Ná de no-op-check, zodat een no-op ook het werk niet raakt.
@@ -832,7 +836,7 @@ function commitProgressEdit(
     s.project.statusDate = statusDateToday;
     s.project.modifiedAt = new Date().toISOString();
   }
-  task.time = normalizeTaskDates(plan.change.task, s).time;
+  task.time = normalized.time;
   task.status = plan.change.task.status;
   settleProgressWork(task, taskAssignmentDrafts(s, task.id), progressWork); // eigen toewijzingen, zonder proxy per stuk
   // Invalidatie van nivelleergaten, klasse voortgang. Voortgang loopt buiten `updateTask` om, dus
@@ -1657,7 +1661,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         if (index >= 0) {
           // Zelfde werkverplaatsing als `setTaskProgress`.
           const progressWork = captureProgressWork(s.tasks[index], s);
-          s.tasks[index] = row.plannedTask!;
+          s.tasks[index] = normalizeTaskDates(row.plannedTask!, s);
           settleProgressWork(s.tasks[index], s.assignments, progressWork);
         }
       }

@@ -193,14 +193,6 @@ function criticalPathTest(ctx: ReportContext, solve: ProjectSolveOptions): DcmaM
   const leaves0 = activityTasks(first);
   const end = completionTask(leaves0);
   if (!end) return na(12, 'criticalPathTest', norm, 'noTasks');
-  const candidates = leaves0
-    .map((t, i) => ({ t, i }))
-    .filter(({ t }) => t.time.isCritical && !t.isMilestone && t.id !== end.id && progressState(t) !== 'complete'
-      && !t.constraint?.hard && !t.constraint2?.hard)
-    .sort((a, b) => dayOf(taskStart(a.t)).localeCompare(dayOf(taskStart(b.t))) || a.i - b.i);
-  const pick = candidates[0]?.t;
-  if (!pick) return na(12, 'criticalPathTest', norm, 'noCandidate');
-
   const endPinned = !!end.constraint?.hard || !!end.constraint2?.hard;
   const unpin = (tasks: Task[]) => {
     const e = tasks.find(x => x.id === end.id);
@@ -208,7 +200,18 @@ function criticalPathTest(ctx: ReportContext, solve: ProjectSolveOptions): DcmaM
     if (e.constraint?.hard) e.constraint = { ...e.constraint, hard: false };
     if (e.constraint2?.hard) e.constraint2 = { ...e.constraint2, hard: false };
   };
+  // Dezelfde eindtaak zonder pin geldt ook bij de kandidaatkeuze. Een harde MFO op het
+  // einde van een latere werkdag kan anders alle activiteiten positieve speling geven (D2).
   const before = endPinned ? run(unpin) : first;
+  if (!before) return na(12, 'criticalPathTest', norm, 'notCalculated');
+  const candidates = activityTasks(before)
+    .map((t, i) => ({ t, i }))
+    .filter(({ t }) => t.time.isCritical && !t.isMilestone && t.id !== end.id && progressState(t) !== 'complete'
+      && !t.constraint?.hard && !t.constraint2?.hard)
+    .sort((a, b) => dayOf(taskStart(a.t)).localeCompare(dayOf(taskStart(b.t))) || a.i - b.i);
+  const pick = candidates[0]?.t;
+  if (!pick) return na(12, 'criticalPathTest', norm, 'noCandidate');
+
   const hpd = effHoursPerDay(effectiveCalendarOf(pick, ctx.calendar, ctx.calendars as WorkCalendar[]));
   const after = run(tasks => {
     if (endPinned) unpin(tasks);

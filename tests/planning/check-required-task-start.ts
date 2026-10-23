@@ -1,3 +1,4 @@
+// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 // Verplichte startdatum in de store — headless tegen de ECHTE Zustand-store en CPM-motor.
 //
 // Paneel, "Taak bewerken" en de extensie-API schreven een lege `scheduleStart` rechtstreeks via
@@ -53,7 +54,7 @@ eq('04c de start blijft staan', task(idA).time.scheduleStart, '2027-03-01T07:00'
 S().updateTask(idA, { time: { ...task(idA).time, scheduleStart: '2027-05-17T07:00' } });
 eq('05 een geldige start met tijd wordt vastgelegd', task(idA).time.scheduleStart, '2027-05-17T07:00');
 S().updateTask(idA, { time: { ...task(idA).time, scheduleStart: '2027-05-18' } });
-eq('05b een geldige kale datum wordt vastgelegd', task(idA).time.scheduleStart, '2027-05-18');
+eq('05b een geldige kale datum wordt vastgelegd', task(idA).time.scheduleStart, "2027-05-18T07:00");
 S().runCPM();
 eq('05c het project rekent', S().cpmResult?.error ?? null, null);
 

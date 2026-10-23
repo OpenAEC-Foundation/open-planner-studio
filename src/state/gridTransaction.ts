@@ -1,4 +1,6 @@
-import { normalizeTaskDates } from './migrations/minuteModel';
+import { constraintDateField, DayClockCache, normalizeTaskDate, normalizeTaskDates, taskDateContext, type TaskDateField } from './migrations/minuteModel';
+import { workdayBoundaryLabel } from '@/engine/calendar/workdayRules';
+import { normalizeActualDate } from '@/engine/taskMutationRules';
 import { isElapsedTask } from '@/engine/scheduler/duration';
 import { produce } from 'immer';
 import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
@@ -573,6 +575,9 @@ function applyCellEdits(
   const task = taskIndex >= 0 ? state.tasks[taskIndex] : undefined;
   if (!task) return { ok: false, errors: [validationError('taskNotFound', first, first.value)] };
   const validatedEdits: CellEditIntent[] = [];
+  const calendarWrite = edits.find(edit => String(edit.columnId) === 'task.calendarId');
+  const dateTask = calendarWrite ? { ...task, calendarId: calendarWrite.value as string | undefined } : task;
+  const dateContext = taskDateContext(dateTask, new DayClockCache(state.calendar, state.calendars));
   let skippedReadOnlyCount = 0;
   for (const edit of edits) {
     const descriptor = runtime.descriptors.get(String(edit.columnId));
@@ -588,6 +593,26 @@ function applyCellEdits(
       return { ok: false, errors: [validationError('readOnly', edit, edit.value)] };
     }
     let value = edit.value;
+    // Dezelfde datum heeft vóór validatie en de no-op-vergelijking dezelfde vorm als
+    // de opgeslagen taak (D1/D2/D7). Een ongewijzigde start mag geen nieuwe SNET maken.
+    if (typeof value === 'string') {
+      const column = String(edit.columnId);
+      let field: TaskDateField | null = null;
+      if (column === 'task.time.start') field = 'earlyStart';
+      else if (column === 'task.time.finish') field = 'earlyFinish';
+      else if (/^task\.time\.(scheduleStart|scheduleFinish|actualStart|actualFinish|resume|stop)$/.test(column)) {
+        field = column.slice('task.time.'.length) as TaskDateField;
+      } else if (column === 'task.deadline') field = 'deadline';
+      else if (column === 'task.constraint.date' || column === 'task.constraint2.date') {
+        const key = column === 'task.constraint.date' ? 'constraint' : 'constraint2';
+        const type = edits.find(candidate => String(candidate.columnId) === `task.${key}.type`)?.value ?? task[key]?.type;
+        if (typeof type === 'string') field = constraintDateField(type);
+      }
+      if (field === 'actualStart' || field === 'actualFinish') {
+        value = normalizeActualDate(dateTask, field, value, state.project.statusDate,
+          effectiveCalendarOf(dateTask, state.calendar, state.calendars)) ?? value;
+      } else if (field) value = normalizeTaskDate(value, field, dateContext) ?? value;
+    }
     if (descriptor.validate) {
       const validated = descriptor.validate(value, task, runtime.context);
       if (!validated.ok) {
@@ -809,9 +834,12 @@ function applyCellEdits(
   // constraint tegenhield — die laat de taak juist ongemoeid, dus daar geldt `changed` niet.
   const snet = planned.value.task.constraint;
   const startNotice: StartEditNotice | undefined = planned.value.startBlocked
-    ? { kind: 'blocked', name: planned.value.task.name, constraint: planned.value.startBlocked, taskId: planned.value.task.id }
+    ? { kind: 'blocked', name: planned.value.task.name, constraint: planned.value.startBlocked, taskId: planned.value.task.id,
+      dateLabel: planned.value.startBlocked.date ? workdayBoundaryLabel(dateContext.clock, planned.value.startBlocked.date,
+        constraintDateField(planned.value.startBlocked.type) === 'constraintFinish' ? 'end' : 'start') : undefined }
     : planned.value.changed && planned.value.startConstraint && snet?.date
-      ? { kind: 'snet', name: planned.value.task.name, date: snet.date, change: planned.value.startConstraint }
+      ? { kind: 'snet', name: planned.value.task.name, date: snet.date, change: planned.value.startConstraint,
+        dateLabel: workdayBoundaryLabel(dateContext.clock, snet.date, 'start') }
       : undefined;
   return {
     ok: true,

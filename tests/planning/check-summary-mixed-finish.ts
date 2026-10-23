@@ -87,8 +87,8 @@ function render() {
   const lateH = taskOf(H).time.lateFinish;
   const latestLate = finishInstant(lateD) >= finishInstant(lateH) ? lateD : lateH;
   eq('1b fase-Laatste einde = het laatste late einde als tijdstip', f.time.lateFinish, latestLate);
-  eq('1c afgeleide faseduur op werkblokken blijft 5d = 40u',
-    [f.time.durationUnit, f.time.scheduleDuration, f.time.durationMinutes], ['hours', 5, 2400]);
+  eq('1c F2: afgeleide blokken behouden de dagenmaat van de fase (T11)',
+    [f.time.durationUnit, f.time.scheduleDuration, f.time.durationMinutes], ['days', 5, undefined]);
   const { renderer, summaryRight } = render();
   near('1d fasebalk eindigt waar de balk van het dagkind eindigt', summaryRight, renderer.getTaskBarRect(D)?.right);
 }

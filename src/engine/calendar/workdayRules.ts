@@ -56,6 +56,14 @@ export function isInstant(value: string): boolean {
   return INSTANT_RE.test(value);
 }
 
+/** B4: een werkdaggrens toont alleen haar werkdag; een moment binnen de dag houdt zijn tijd. */
+export function workdayBoundaryLabel(clock: DayClock, value: string, side: InstantSide): string {
+  if (!isInstant(value)) return value;
+  const day = workdayOfInstant(clock, value, side);
+  const boundary = side === 'start' ? dayStartInstant(clock, day) : dayEndInstant(clock, day);
+  return boundary && parseInstant(boundary).getTime() === parseInstant(value).getTime() ? day : value;
+}
+
 function minuteOfDayIso(date: string, minutes: number): string {
   const ms = parseDate(date).getTime() + Math.round(minutes) * MS_PER_MIN;
   return formatInstant(new Date(ms), 'hour');

@@ -1,3 +1,4 @@
+// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 // check-value-based-triggers.ts — WANNEER een gevolgregel van een taakbewerking vuurt: alleen bij een
 // ECHT gewijzigde waarde, niet omdat de sleutel is meegestuurd (`taskTriggerChanges` in
 // taskDefaults.ts, structurele gelijkheid via `sameValue`).
@@ -87,7 +88,7 @@ function setup(kind: Kind, layer: Layer): Fixture {
     } else {
       t.timephasedDurationWalks = [{ anchor: '2026-06-01T08:00', resourceCalendarId: s.calendar.id, workMinutes: 900 }];
     }
-    t.constraint = { type: 'SNET', date: '2026-06-01' };
+    t.constraint = { type: 'SNET', date: kind === 'dag' ? '2026-06-01T07:00' : '2026-06-01T08:00' };
     t.time.remainingTime = Math.round(t.time.scheduleDuration * (1 - t.time.completion));
     t.splitGaps = [IMPORT_SPLIT, LEVELING_GAP];
     s.isDirty = false;
@@ -371,7 +372,7 @@ function expectProgressRules(label: string, f: Fixture, historyBefore: number, s
   const history = f.S().historyEvents.length;
   const steering = steeringOf(taskOf(f));
   eq('(g) opzet: voltooid', [taskOf(f).time.completion, taskOf(f).time.actualFinish, taskOf(f).status],
-    [1, '2026-06-05', 'COMPLETED']);
+    [1, "2026-06-05T16:00", 'COMPLETED']);
   eq('(g) setActualFinish(huidige datum) wordt geaccepteerd', f.S().setActualFinish(f.id, '2026-06-05'), true);
   expectUntouched('(g) setActualFinish(huidige datum) op een voltooide taak', f, history, steering);
   f.S().setTaskProgress(f.id, 1);

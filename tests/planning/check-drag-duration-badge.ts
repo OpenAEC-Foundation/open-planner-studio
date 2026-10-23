@@ -163,6 +163,7 @@ setDates(narrow.id, '2026-08-03', '2026-08-03', 1);
 const rowsOf = (...ids: string[]): ViewRow[] =>
   ids.map((id) => ({ kind: 'task', rowKey: id, task: S().tasks.find((t) => t.id === id)!, depth: 0, dimmed: false }) as ViewRow);
 
+// D1/D2: balkranden liggen op 07:00 en 16:00, niet op de middernachtgrens.
 // Kalender-as (geen compressie): x = TABLE_W + dagen-sinds-2026-08-01 × zoom − scrollX.
 const MS = 86400000;
 const dayX = (iso: string, zoom: number, scrollX: number) =>
@@ -177,7 +178,7 @@ const wOf = (label: string) => label.length * CHAR_W + PAD_X * 2;
 {
   const zoom = 30;
   const opts = baseOpts(rowsOf(wide.id), zoom, 0);
-  const x2 = dayX('2026-08-14', zoom, 0) + zoom;
+  const x2 = dayX('2026-08-14', zoom, 0) + 16 / 24 * zoom;
   const b = badge(opts, { taskId: wide.id, edge: 'right' }, 'breed/rechts');
   eq('breed/rechts: label', b.text.text, '10d');
   near('breed/rechts: rechterrand pil', b.rect.x + b.rect.w, x2 - GAP);
@@ -191,7 +192,7 @@ const wOf = (label: string) => label.length * CHAR_W + PAD_X * 2;
 {
   const zoom = 8; // 1 dag = 8px, het pilletje is breder dan de balk
   const opts = baseOpts(rowsOf(narrow.id), zoom, 0);
-  const x2 = dayX('2026-08-03', zoom, 0) + zoom;
+  const x2 = dayX('2026-08-03', zoom, 0) + 16 / 24 * zoom;
   const b = badge(opts, { taskId: narrow.id, edge: 'right' }, 'smal/rechts');
   eq('smal/rechts: label', b.text.text, '1d');
   near('smal/rechts: linkerrand pil', b.rect.x, x2 + GAP);
@@ -201,7 +202,7 @@ const wOf = (label: string) => label.length * CHAR_W + PAD_X * 2;
 {
   const zoom = 30;
   const opts = baseOpts(rowsOf(wide.id), zoom, 0);
-  const x1 = dayX('2026-08-03', zoom, 0);
+  const x1 = dayX('2026-08-03', zoom, 0) + 7 / 24 * zoom;
   const b = badge(opts, { taskId: wide.id, edge: 'left' }, 'breed/links');
   near('breed/links: rechterrand pil', b.rect.x + b.rect.w, x1 - GAP);
 }
@@ -220,7 +221,7 @@ const wOf = (label: string) => label.length * CHAR_W + PAD_X * 2;
 {
   const zoom = 30;
   // Schuif zo dat de rechterrand van de balk 10px BUITEN het canvas valt.
-  const scrollX = dayX('2026-08-14', zoom, 0) + zoom - (CANVAS_W + 10);
+  const scrollX = dayX('2026-08-14', zoom, 0) + 16 / 24 * zoom - (CANVAS_W + 10);
   const opts = baseOpts(rowsOf(wide.id), zoom, scrollX);
   const b = badge(opts, { taskId: wide.id, edge: 'right' }, 'rechterrand');
   checks++;

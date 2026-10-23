@@ -1,3 +1,4 @@
+// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 // check-leveler-splits.ts — de nivelleerder boekt en meet op de TAAKkalender, split-bewust
 // (B1c-W0.2/W0.3), met de plaatsings-as gelijkgetrokken aan de meet-as, een verse baseline-spanne
 // voor ELAPSEDTIME-boeking en guards op lege datums (kwaliteitsronde taak 4, C1/C2/I3/I4/I5/I6/M9).
@@ -171,7 +172,7 @@ console.log('-- leveler-splits: delay op de taakkalender, met capaciteitsdruk (g
   ok('solveProject rekent zonder fout door', !solved.error);
   const cResult = solvedTasks.find(t => t.id === 'c')!;
   eq("C's earlyStart landt op zaterdag 2026-06-06 — de dag die de preview-boeking beloofde",
-    cResult.time.earlyStart, '2026-06-06');
+    cResult.time.earlyStart, "2026-06-06T08:00");
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -271,7 +272,7 @@ console.log('-- leveler-splits: ELAPSEDTIME-delay in kalenderdagen + waarneembar
   ok('solveProject rekent zonder fout door', !solved.error);
   const eResult = solvedTasks.find(t => t.id === 'e4')!;
   eq("E's earlyStart landt op zaterdag 2026-06-06 — de dag waarop bookDemandAt haar al boekte",
-    eResult.time.earlyStart, '2026-06-06');
+    eResult.time.earlyStart, "2026-06-06T00:00");
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -571,7 +572,7 @@ console.log('-- leveler-splits: voltooide taak is onverplaatsbaar, boekt als vas
   const h1aBase = task('h1a', '2026-06-01', '2026-06-01', 1, { priority: 100 }); // laag — zie SCENARIOKEUZE
   const h1a: Task = {
     ...h1aBase,
-    time: { ...h1aBase.time, completion: 1, actualStart: '2026-06-01', actualFinish: '2026-06-01' },
+    time: { ...h1aBase.time, completion: 1, actualStart: '2026-06-01T08:00', actualFinish: '2026-06-01T16:00' },
   };
   const h2a = task('h2a', '2026-06-01', '2026-06-01', 1, { priority: 900 }); // hoog
 
@@ -595,7 +596,7 @@ console.log('-- leveler-splits: voltooide taak is onverplaatsbaar, boekt als vas
   const h1bBase = task('h1b', '2026-06-01', '2026-06-01', 1, { priority: 100 }); // laag
   const h1b: Task = {
     ...h1bBase,
-    time: { ...h1bBase.time, completion: 1, actualStart: '2026-06-01', actualFinish: '2026-06-01' },
+    time: { ...h1bBase.time, completion: 1, actualStart: '2026-06-01T08:00', actualFinish: '2026-06-01T16:00' },
   };
   const h3 = task('h3', '2026-06-01', '2026-06-01', 1, { priority: 900 }); // hoog
 
@@ -637,7 +638,7 @@ console.log('-- leveler-splits: taak IN UITVOERING is onverplaatsbaar, boekt als
   const bABase = task('b13a', '2026-06-01', '2026-06-01', 1, { priority: 100 }); // laag — zie SCENARIOKEUZE
   const b13a: Task = {
     ...bABase,
-    time: { ...bABase.time, completion: 0.5, actualStart: '2026-06-01' }, // in uitvoering, geen actualFinish
+    time: { ...bABase.time, completion: 0.5, actualStart: '2026-06-01T08:00' }, // in uitvoering, geen actualFinish
   };
   const z13a = task('z13a', '2026-06-01', '2026-06-01', 1, { priority: 900 }); // hoog
 
@@ -658,7 +659,7 @@ console.log('-- leveler-splits: taak IN UITVOERING is onverplaatsbaar, boekt als
   const bBBase = task('b13b', '2026-06-01', '2026-06-01', 1, { priority: 100 });
   const b13b: Task = {
     ...bBBase,
-    time: { ...bBBase.time, completion: 0.5, actualStart: '2026-06-01' },
+    time: { ...bBBase.time, completion: 0.5, actualStart: '2026-06-01T08:00' },
   };
   const z13b = task('z13b', '2026-06-01', '2026-06-01', 1, { priority: 900 });
 
@@ -705,7 +706,7 @@ console.log('-- leveler-splits: meerdaagse voltooide taak over een feestdagenblo
   const h1Base = task('h1-n2', '2026-04-29', '2026-05-04', 5, { priority: 500 }); // scheduleDuration=5: stale plan
   const h1n2: Task = {
     ...h1Base,
-    time: { ...h1Base.time, completion: 1, actualStart: '2026-04-29', actualFinish: '2026-05-04' },
+    time: { ...h1Base.time, completion: 1, actualStart: '2026-04-29T08:00', actualFinish: '2026-05-04T16:00' },
   };
   const tPhantom = task('t14-phantom', '2026-05-07', '2026-05-07', 1, { priority: 500 });
   const tReal = task('t14-real', '2026-05-04', '2026-05-04', 1, { priority: 500 });
@@ -770,7 +771,7 @@ console.log('-- leveler-splits: memoisatie van occurrenceFor sleutelt op (taak, 
   eq('memo-zuiverheid: Z wijkt 2 dagen om Y se ECHTE (3-daagse) bezetting van ry heen',
     run.delays, { z15: 2 });
   eq('memo-zuiverheid: Z se nieuwe start is 06-04, ná Y se volledige occurrence',
-    run.shifts['z15']?.newStart, '2026-06-04');
+    run.shifts['z15']?.newStart, "2026-06-04T08:00");
   eq('memo-zuiverheid: geen onopgeloste conflicten', run.unresolved, {});
 }
 

@@ -1,4 +1,5 @@
 import { Task, TaskConstraint } from '@/types/task';
+import { minuteModelWriteView } from '@/services/ifc/minuteModelWrite';
 import { isP6DialogDefaultLeveling } from '@/services/leveling/levelingInput';
 import { resolveConventions } from '@/engine/scheduler/conventions/registry';
 import { Sequence, SequenceType } from '@/types/sequence';
@@ -266,6 +267,12 @@ export function writeMSPDI(
   activeBaselineId: string | null = null,
   customTaskTypes: readonly CustomTaskType[] = [],
 ): string {
+  // Afleidbare D1/D2-momenten behouden de bestaande dagankers. Anders zouden alleen
+  // de genormaliseerde kloktijden een scalaire kalender na herimport promoveren.
+  const writeView = minuteModelWriteView({ tasks, calendar, resourceCalendars, baselines },
+    { literalAutomaticMilestones: true });
+  tasks = writeView.tasks;
+  baselines = writeView.baselines;
   const lines: string[] = [];
   const indent = (level: number) => '  '.repeat(level);
 

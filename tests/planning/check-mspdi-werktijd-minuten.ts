@@ -300,11 +300,13 @@ for (const shape of SHAPES) {
     project: PROJECT, calendar: { ...createDefaultCalendar(), holidays: [] },
     tasks: [dayTask('a', 'Dagtaak 20 d', 20, lib.id)], sequences: [], resources: [], assignments: [], resourceCalendars: [lib],
   });
-  same('§4c voorwaarde — geen effectieve blokken', effectiveWorkTimeBands(original.calendars.find((c) => c.name === 'Bouwdag')!), undefined);
+  // T1 herstelt de oude onmogelijke spanne: 07:30 + 9 u = 16:30.
+  same('§4c T1: effectieve blokken na kalenderherstel',
+    blocks(original.calendars.find((c) => c.name === 'Bouwdag'), 1), ['450-990']);
   const xml = exportMSPDI(original);
   const bouwdag = xml.slice(xml.indexOf('<Name>Bouwdag</Name>'));
-  same('§4c schrijver: één blok 07:30:00–16:00:00 op maandag',
-    bouwdag.match(/<FromTime>([^<]*)<\/FromTime>\s*<ToTime>([^<]*)<\/ToTime>/)?.slice(1), ['07:30:00', '16:00:00']);
+  same('§4c schrijver: één hersteld blok 07:30:00–16:30:00 op maandag',
+    bouwdag.match(/<FromTime>([^<]*)<\/FromTime>\s*<ToTime>([^<]*)<\/ToTime>/)?.slice(1), ['07:30:00', '16:30:00']);
 }
 
 // §4d Een dagkalender met pauze waar een URENtaak op staat, wordt na MSPDI een uurkalender (signaal (c),

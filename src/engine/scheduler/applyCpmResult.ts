@@ -64,7 +64,7 @@ function applyDerivedSummaryDuration(task: Task, engine: CalendarEngine): void {
   // `workDaysBetween` beide kalenderdagen inclusief, dus daar blijft het de dagstart.
   const ef = engine.isHourMode ? finishInstant(task.time.earlyFinish) : parseInstant(task.time.earlyFinish);
   if (Number.isNaN(es.getTime()) || Number.isNaN(ef.getTime())) return;
-  writeDerivedSpan(task, es, ef, engine);
+  writeDerivedSpan(task, es, ef, engine, true);
 }
 
 export function applyCpmResult(tasks: Task[], result: CPMResult, cals: ApplyCpmCalendars): void {

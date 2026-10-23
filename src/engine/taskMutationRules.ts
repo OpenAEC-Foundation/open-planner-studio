@@ -34,8 +34,7 @@ export function actualDateSide(task: Task, field: 'actualStart' | 'actualFinish'
     : field === 'actualFinish' ? 'end' : 'start';
 }
 
-/** D1/D2/D4/D6 op de statuswerkdag in het urenpad. Letterlijke tijden blijven rauw (N0).
- *  Algemene invoernormalisatie, ook vóór de statusdag, hoort bij F2. */
+/** D1/D2/D4/D6/D7 vóór validatie en vergelijking, op elke kalender. Letterlijke tijden blijven rauw (N0). */
 export function normalizeActualDate(
   task: Task,
   field: 'actualStart' | 'actualFinish',
@@ -43,11 +42,10 @@ export function normalizeActualDate(
   statusDate: string | undefined,
   calendar: WorkCalendar | undefined,
 ): string | undefined {
-  if (!value || !isDateOnly(value) || !statusDate || !calendar
-    || (!calendar.workTime && taskDurationUnit(task) !== 'hours')) return value;
+  // F2 normaliseert elke kalenderdatum vóór validatie en waardevergelijking (D1/D2/D7),
+  // ook buiten de statusdag en op een scalaire kalender.
+  if (!value || !isDateOnly(value) || !calendar) return value;
   const clock = isElapsedTask(task) ? ELAPSED_CLOCK : blocksClock(calendar);
-  const statusDay = statusDate.includes('T') ? workdayOfInstant(clock, statusDate, 'start') : statusDate;
-  if (value !== statusDay) return value;
   const side = actualDateSide(task, field);
   const moment = (side === 'end' ? dayEndInstant(clock, value) : dayStartInstant(clock, value)) ?? value;
   // Alleen een datumloze invoer op de statuswerkdag mag tot het expliciete statusmoment klemmen.

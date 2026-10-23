@@ -112,8 +112,14 @@
       },
       "expect": {
         "tasks": {
-          "B": { "es": "2026-06-05", "ef": "2026-06-08" },
-          "C": { "es": "2026-06-08", "ef": "2026-06-09" }
+          "B": {
+            "es": "2026-06-04",
+            "ef": "2026-06-08"
+          },
+          "C": {
+            "es": "2026-06-05",
+            "ef": "2026-06-08"
+          }
         }
       }
     },
@@ -178,7 +184,7 @@
     },
     {
       "id": "lagadv-pct-fs50-odd-roundup",
-      "title": "FS+50% van duur 5 = 2,5 dag, afgerond naar 3 (Math.round, halven omhoog)",
+      "title": "B7: FS+50% van 5 d = exact 2,5 d. F2-tussenstand; F3 → B do 11:00 (§3.14).",
       "tasks": [{ "name": "A", "dur": 5 }, { "name": "B", "dur": 1 }],
       "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START", "lagPercent": 50 }],
       "minuteModel": {
@@ -194,7 +200,12 @@
         }
       },
       "expect": {
-        "tasks": { "B": { "es": "2026-06-11", "ef": "2026-06-11" } }
+        "tasks": {
+          "B": {
+            "es": "2026-06-10T11:00",
+            "ef": "2026-06-10T16:00"
+          }
+        }
       }
     },
     {
@@ -223,7 +234,7 @@
     },
     {
       "id": "lagadv-pct-lead-halftie",
-      "title": "KANDIDAAT afrondingsconventie: FS-50% van duur 5 = -2,5 -> Math.round rondt halven naar +oneindig, dus lead 2 (niet 3)",
+      "title": "B7: FS-50% van 5 d = exact -2,5 d; B begint wo 11:00.",
       "tasks": [{ "name": "A", "dur": 5 }, { "name": "B", "dur": 1 }],
       "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START", "lagPercent": -50 }],
       "minuteModel": {
@@ -238,7 +249,11 @@
         }
       },
       "expect": {
-        "tasks": { "B": { "es": "2026-06-04" } }
+        "tasks": {
+          "B": {
+            "es": "2026-06-03"
+          }
+        }
       }
     },
     {
@@ -347,7 +362,7 @@
     },
     {
       "id": "lagadv-minutes-daypred-lagdays-wins",
-      "title": "REGRESSIE-ANKER: staan lagDays EN lagMinutes allebei (het IFC-pad -- parseDurationDays rondt PT4H naar boven op 1 dag naast lagMinutes 240), dan blijft lagDays leidend. E start 07-09, niet 07-08.",
+      "title": "§3.3/I11: lagMinutes draagt de urenmaat, ook naast het afgeleide lagDays; exact 240 min geeft wo 11:00. F2-tussenstand; F3 → E do 11:00 (§3.14).",
       "anchor": "2026-07-06",
       "tasks": [
         { "name": "D", "dur": 2 },
@@ -356,8 +371,22 @@
       "links": [{ "pred": "D", "succ": "E", "type": "FINISH_START", "lag": 1, "lagMinutes": 240 }],
       "expect": {
         "tasks": {
-          "D": { "es": "2026-07-06", "ef": "2026-07-07", "ls": "2026-07-06", "lf": "2026-07-07", "tf": 0, "crit": true },
-          "E": { "es": "2026-07-09", "ef": "2026-07-09", "ls": "2026-07-09", "lf": "2026-07-09", "tf": 0, "crit": true }
+          "D": {
+            "es": "2026-07-06",
+            "ef": "2026-07-07",
+            "ls": "2026-07-06",
+            "lf": "2026-07-07",
+            "tf": 0,
+            "crit": true
+          },
+          "E": {
+            "es": "2026-07-08T11:00",
+            "ef": "2026-07-08T16:00",
+            "ls": "2026-07-08T11:00",
+            "lf": "2026-07-08T16:00",
+            "tf": 0,
+            "crit": true
+          }
         },
         "error": false
       }

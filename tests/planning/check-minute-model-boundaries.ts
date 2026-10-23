@@ -109,6 +109,19 @@ function eq(label: string, got: unknown, want: unknown) {
     [exact.tasks.get('D')?.earlyStart, exact.tasks.get('D')?.earlyFinish],
     ['2026-07-06T13:00', '2026-07-07T12:00']);
 }
+{
+  // §3.3/I11: de minutenlag wint van zijn afgeronde dagen-equivalent.
+  // F2-tussenstand; F3 → E donderdag 11:00 (§3.14), getoetst via de urenloper.
+  const d = task('D', 2, '2026-07-06T07:00');
+  const e = task('E', 1, '2026-07-06T07:00');
+  e.time.durationUnit = 'hours'; e.time.durationMinutes = 480;
+  const result = new CPMSolver([d, e], [{ ...sf, predecessorId: 'D', successorId: 'E',
+    type: 'FINISH_START', lagDays: 1, lagMinutes: 240 }], calendar, [],
+    { ...options, projectStartDate: '2026-07-06' }).solve();
+  eq('minutenlag bij dagvoorganger: F3-referentie',
+    [result.tasks.get('E')?.earlyStart, result.tasks.get('E')?.earlyFinish],
+    ['2026-07-08T11:00', '2026-07-09T11:00']);
+}
 for (const error of errors) console.log(`XX ${error}`);
 console.log(`Minutenmodel-grenzen: ${checks - errors.length}/${checks} gelijk.`);
 if (errors.length) process.exitCode = 1;

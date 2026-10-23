@@ -12,6 +12,8 @@ import { addCalendarDays, formatDate, parseDate, parseInstant } from '@/utils/da
  * en het exclusieve kalendertijdeinde worden zo gespiegeld, zonder tijd af te kappen. */
 function anchor(value: string, field: TaskDateField, ctx: TaskDateContext): string | null {
   if (!value || isDateOnly(value)) return value;
+  // Onleesbare brondata blijft letterlijk; een ongeldig moment heeft geen daganker.
+  if (!Number.isFinite(parseInstant(value).getTime())) return null;
   const date = value.slice(0, 10);
   const days = new Set([date, workdayOfInstant(ctx.clock, value, taskDateFieldSide(field)),
     formatDate(addCalendarDays(parseDate(date), -1))]);
@@ -23,7 +25,8 @@ function anchor(value: string, field: TaskDateField, ctx: TaskDateContext): stri
 }
 
 /** T17 is een schrijfkeuze van dit document. Er komt geen vlag in een bibliotheekkalender. */
-export function minuteModelWriteView(input: Pick<ImportResult, 'tasks' | 'calendar' | 'resourceCalendars' | 'baselines'>) {
+export function minuteModelWriteView(input: Pick<ImportResult, 'tasks' | 'calendar' | 'resourceCalendars' | 'baselines'>,
+  options: { literalAutomaticMilestones?: boolean } = {}) {
   const calendars = input.resourceCalendars ?? [];
   const clocks = new DayClockCache(input.calendar, calendars);
   const literalCalendarIds = new Set<string>();
@@ -38,6 +41,8 @@ export function minuteModelWriteView(input: Pick<ImportResult, 'tasks' | 'calend
       const day = workdayOfInstant(ctx.clock, task.time.earlyFinish, 'end');
       if (dayEndInstant(ctx.clock, day) === task.time.earlyFinish) {
         atDayEnd.add(task.id);
+        // MSPDI heeft geen AtDayEnd-hint. Bewaar daar de momenten van deze hele kalender.
+        if (options.literalAutomaticMilestones) literalCalendarIds.add(effective(task).id);
         ctx = { ...ctx, milestoneKind: 'FINISH' };
       }
     }

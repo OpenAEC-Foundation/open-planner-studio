@@ -133,7 +133,8 @@ const rOld = readIFC(OLD);
 // ── 2. Lezen → schrijven (nieuwe ariteit) → lezen: identiek ────────────────────────────────────────
 const NEW = writeIFC(rOld);
 eq('2a de huidige writer schrijft de schema-ariteit', arities(NEW, CONTROL), NEW_ARITY);
-same('2b oud bestand en nieuw equivalent lezen identiek', readIFC(NEW), rOld);
+// T10: schrijven markeert het minutenmodel; alle overige gelezen velden blijven gelijk.
+same('2b oud bestand en nieuw equivalent lezen identiek op TimeModel na', readIFC(NEW), { ...rOld, timeModel: 'MINUTES-1' });
 
 // ── 3. Mechanisch omgezet naar de nieuwe ariteit: identiek ────────────────────────────────────────
 const converted = rewrite(

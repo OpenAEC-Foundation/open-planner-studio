@@ -63,7 +63,7 @@
     },
     {
       "id": "msp-01c-h1-uur-voorganger-dag-eindmijlpaal",
-      "title": "H1 (Opus-review): spiegel van msp-03 — UUR-voorganger A (H9) eindigt di 17:00 -> DAG-eindmijlpaal Mf via FS+0. Mf's datumSTRINGS zijn in de foutieve variant identiek aan de correcte (bug onzichtbaar in de datumweergave); de tf-assertie tegen de dag-referentie P(5d, projecteinde vrijdag) legt 'm wél vast.",
+      "title": "N1: het echte einde di 17:00 valt na de eindgrens 16:00 van de opvolgerkalender; de eindmijlpaal landt wo 07:00.",
       "note": "P is een onafhankelijke parallelle dagtaak zonder relatie naar A/Mf, uitsluitend om het projecteinde op vrijdag te zetten zodat Mf (sink, geen opvolger) een meetbare speling krijgt (LF = projectEnd via backwardPass). Rekenkern (`workDaysBetween`, CalendarEngine.ts): `totalDays = floor((endMs-startMs)/MS_PER_DAY)+1` — een spook-tijdscomponent van 17:00 op Mf.ef verkleint die ms-afstand met 17 uur t.o.v. de projecteinde-middernacht, genoeg om er een hele dag af te laten vallen (tf 3->2), ook al blijft `startIdx` (en dus de geformatteerde datum) hetzelfde.",
       "anchor": "2026-07-06",
       "calendars": [{ "name": "H9", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [], "7": [] } } }],
@@ -75,8 +75,20 @@
       "links": [{ "pred": "A", "succ": "Mf", "type": "FINISH_START" }],
       "expect": {
         "tasks": {
-          "Mf": { "es": "2026-07-07", "ef": "2026-07-07", "ls": "2026-07-10", "lf": "2026-07-10", "tf": 3, "crit": false },
-          "P": { "es": "2026-07-06", "ef": "2026-07-10", "tf": 0, "crit": true }
+          "Mf": {
+            "es": "2026-07-08T07:00",
+            "ef": "2026-07-08T07:00",
+            "ls": "2026-07-10",
+            "lf": "2026-07-10",
+            "tf": 3,
+            "crit": false
+          },
+          "P": {
+            "es": "2026-07-06",
+            "ef": "2026-07-10",
+            "tf": 0,
+            "crit": true
+          }
         },
         "projectEnd": "2026-07-10",
         "error": false
@@ -84,7 +96,7 @@
     },
     {
       "id": "msp-03-fs-crossmode-daypred-finishms-ongemoeid",
-      "title": "CONTROLE (crash-guard): FS+0 cross-modus, DAG-voorganger D(2d) -> uur-EINDmijlpaal Mf. `pe` is hier dag-modus (geen `workTime`) — de nieuwe nul-lag-kortsluiting moet dit pad NIET raken (anders crasht `nextWorkInstant` op de non-null assertion). Verwacht ongewijzigd: Mf op 07-07 08:00 (zusjes-case rr-fs-crossmode-daypred-hourfinishms in cases-hours-relations.json).",
+      "title": "N1: één minutenpad bewaart het echte voorgangereinde di 16:00 voor een FS-eindmijlpaal, zonder daganker 08:00.",
       "anchor": "2026-07-06",
       "calendars": [{ "name": "H9", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [], "7": [] } } }],
       "tasks": [
@@ -94,8 +106,18 @@
       "links": [{ "pred": "D", "succ": "Mf", "type": "FINISH_START" }],
       "expect": {
         "tasks": {
-          "D": { "es": "2026-07-06", "ef": "2026-07-07", "tf": 0, "crit": true },
-          "Mf": { "es": "2026-07-07T08:00", "ef": "2026-07-07T08:00", "tf": 0, "crit": true }
+          "D": {
+            "es": "2026-07-06",
+            "ef": "2026-07-07",
+            "tf": 0,
+            "crit": true
+          },
+          "Mf": {
+            "es": "2026-07-07T16:00",
+            "ef": "2026-07-07T16:00",
+            "tf": 0,
+            "crit": true
+          }
         },
         "error": false
       }
@@ -374,10 +396,25 @@
       },
       "expect": {
         "tasks": {
-          "A": { "es": "2026-07-06", "ef": "2026-07-08", "tf": 0, "ff": 0, "crit": true },
-          "B": { "es": "2026-07-06", "ef": "2026-07-08", "tf": 0, "ff": 0, "crit": true }
+          "A": {
+            "es": "2026-07-06",
+            "ef": "2026-07-08",
+            "tf": 0,
+            "ff": 0,
+            "crit": true
+          },
+          "B": {
+            "es": "2026-07-06",
+            "ef": "2026-07-08T16:00",
+            "tf": 0,
+            "ff": 0,
+            "crit": true
+          }
         },
-        "criticalPathSet": ["A", "B"],
+        "criticalPathSet": [
+          "A",
+          "B"
+        ],
         "projectEnd": "2026-07-08",
         "error": false
       }
@@ -430,10 +467,26 @@
       },
       "expect": {
         "tasks": {
-          "A": { "es": "2026-07-10", "ef": "2026-07-12", "ls": "2026-07-10", "lf": "2026-07-12", "tf": 0, "ff": 0, "crit": true },
-          "B": { "es": "2026-07-13", "ef": "2026-07-13", "tf": 0, "ff": 0, "crit": true }
+          "A": {
+            "es": "2026-07-10",
+            "ef": "2026-07-12",
+            "ls": "2026-07-11",
+            "lf": "2026-07-13",
+            "tf": 1.2916666666666667,
+            "ff": 0,
+            "crit": false
+          },
+          "B": {
+            "es": "2026-07-13",
+            "ef": "2026-07-13",
+            "tf": 0,
+            "ff": 0,
+            "crit": true
+          }
         },
-        "criticalPathSet": ["A", "B"],
+        "criticalPathSet": [
+          "B"
+        ],
         "projectEnd": "2026-07-13",
         "error": false
       }
@@ -491,11 +544,38 @@
       },
       "expect": {
         "tasks": {
-          "A": { "es": "2026-07-06", "ef": "2026-07-08", "ls": "2026-07-06", "lf": "2026-07-08", "tf": 0, "ff": 0, "crit": true },
-          "B": { "es": "2026-07-06", "ef": "2026-07-08", "ls": "2026-07-06", "lf": "2026-07-08", "tf": 0, "ff": 0, "crit": true },
-          "C": { "es": "2026-07-09", "ef": "2026-07-09", "ls": "2026-07-09", "lf": "2026-07-09", "tf": 0, "ff": 0, "crit": true }
+          "A": {
+            "es": "2026-07-06",
+            "ef": "2026-07-08",
+            "ls": "2026-07-06",
+            "lf": "2026-07-08",
+            "tf": 0,
+            "ff": 0,
+            "crit": true
+          },
+          "B": {
+            "es": "2026-07-06",
+            "ef": "2026-07-08T16:00",
+            "ls": "2026-07-07",
+            "lf": "2026-07-09",
+            "tf": 0.625,
+            "ff": 0,
+            "crit": false
+          },
+          "C": {
+            "es": "2026-07-09",
+            "ef": "2026-07-09",
+            "ls": "2026-07-09",
+            "lf": "2026-07-09",
+            "tf": 0,
+            "ff": 0,
+            "crit": true
+          }
         },
-        "criticalPathSet": ["A", "B", "C"],
+        "criticalPathSet": [
+          "A",
+          "C"
+        ],
         "projectEnd": "2026-07-09",
         "error": false
       }
@@ -528,11 +608,38 @@
       },
       "expect": {
         "tasks": {
-          "A": { "es": "2026-07-10", "ef": "2026-07-11", "ls": "2026-07-12", "lf": "2026-07-13", "tf": 2, "ff": 1, "crit": false },
-          "A2": { "es": "2026-07-10", "ef": "2026-07-13", "ls": "2026-07-10", "lf": "2026-07-13", "tf": 0, "ff": 0, "crit": true },
-          "C": { "es": "2026-07-14", "ef": "2026-07-14", "ls": "2026-07-14", "lf": "2026-07-14", "tf": 0, "ff": 0, "crit": true }
+          "A": {
+            "es": "2026-07-10",
+            "ef": "2026-07-11",
+            "ls": "2026-07-13",
+            "lf": "2026-07-14",
+            "tf": 3.2916666666666665,
+            "ff": 1,
+            "crit": false
+          },
+          "A2": {
+            "es": "2026-07-10",
+            "ef": "2026-07-13",
+            "ls": "2026-07-10",
+            "lf": "2026-07-13",
+            "tf": 0,
+            "ff": 0,
+            "crit": true
+          },
+          "C": {
+            "es": "2026-07-14",
+            "ef": "2026-07-14",
+            "ls": "2026-07-14",
+            "lf": "2026-07-14",
+            "tf": 0,
+            "ff": 0,
+            "crit": true
+          }
         },
-        "criticalPathSet": ["A2", "C"],
+        "criticalPathSet": [
+          "A2",
+          "C"
+        ],
         "projectEnd": "2026-07-14",
         "error": false
       }
@@ -575,8 +682,14 @@
       },
       "expect": {
         "tasks": {
-          "A": { "es": "2026-07-06", "ef": "2026-07-10" },
-          "B": { "es": "2026-07-04", "ef": "2026-07-10" }
+          "A": {
+            "es": "2026-07-06",
+            "ef": "2026-07-10"
+          },
+          "B": {
+            "es": "2026-07-04",
+            "ef": "2026-07-10T16:00"
+          }
         },
         "projectEnd": "2026-07-10",
         "error": false
@@ -625,8 +738,14 @@
       },
       "expect": {
         "tasks": {
-          "A": { "es": "2026-07-08", "ef": "2026-07-08" },
-          "B": { "es": "2026-07-05", "ef": "2026-07-08" }
+          "A": {
+            "es": "2026-07-08",
+            "ef": "2026-07-08"
+          },
+          "B": {
+            "es": "2026-07-05",
+            "ef": "2026-07-08T07:00"
+          }
         },
         "projectEnd": "2026-07-08",
         "error": false
@@ -634,7 +753,7 @@
     },
     {
       "id": "msp-26-t8-review-h2-crossmodus-bekende-beperking",
-      "title": "T8-hercheck, punt 3 (bekende-beperking-pin, GEEN fix): backwardHour's cross-modus-scanlus (dag-voorganger/uur-opvolger, arm (b) in relationMath.ts) doorzoekt uitsluitend WERKdagen van de dag-voorganger — voor een ELAPSEDTIME dag-voorganger A is dat een te smalle zoekruimte. Dit pint het HUIDIGE (bewust ongefixte) gedrag zodat een latere fix hem bewust omzet, niet stilzwijgend. A (ELAPSEDTIME, 2 dagen, vr->zo) -FS+0-> B (WORKTIME, 8u, op een uur-kalender H8). Verwacht (correct, MSP-pariteit, NIET wat deze case pint): A.tf zou 0 moeten zijn (A.ef=zo=B's vroegste mogelijke aanleiding, geen slappe). GEPIND (huidig, FOUT): de scanlus vindt de eerstvolgende WERKdag terug vanaf B's late start i.p.v. de eerstvolgende KALENDERdag ⇒ A.lf te vroeg (07-10 i.p.v. 07-12) ⇒ drie zichtbare symptomen: (1) A.ls (07-08) VÓÓR A's eigen anker (07-10) — schendt 'ls nooit vóór het eigen anker', (2) A.tf=-2 — NEGATIEF zonder enige constraint/deadline, (3) A.ff(0) > A.tf(-2) is weliswaar geen `ff>tf`-schending numeriek, maar A.ff=0 naast A.tf=-2 is zelf al onzinnig (geen enkele relatie zou hier moeten binden). Alle drie handmatig herleid uit de scanlus-semantiek en geverifieerd tegen de daadwerkelijke solver-uitvoer (niet gegist) — GEEN mutatiebewijs voor deze case (ze pint een bug, geen fix). Plan-registratie voor T13/T15: orkestrator.",
+      "title": "T16/N1: één minutenpad heft de oude crossmodus-scanbeperking op. Kalendertijd A houdt zo 00:00 als einde, met ma 08:00 als late finish: 32 uur speling.",
       "anchor": "2026-07-10",
       "calendars": [
         { "name": "H8", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } }
@@ -646,8 +765,18 @@
       "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
       "expect": {
         "tasks": {
-          "A": { "es": "2026-07-10", "ef": "2026-07-12", "ls": "2026-07-08", "lf": "2026-07-10", "tf": -2, "ff": 0 },
-          "B": { "es": "2026-07-13T08:00", "ef": "2026-07-13T16:00" }
+          "A": {
+            "es": "2026-07-10",
+            "ef": "2026-07-12",
+            "ls": "2026-07-11T08:00",
+            "lf": "2026-07-13T08:00",
+            "tf": 1.3333333333333333,
+            "ff": 0
+          },
+          "B": {
+            "es": "2026-07-13T08:00",
+            "ef": "2026-07-13T16:00"
+          }
         },
         "projectEnd": "2026-07-13",
         "error": false
@@ -762,8 +891,14 @@
       },
       "expect": {
         "tasks": {
-          "A": { "es": "2026-07-06", "ef": "2026-07-10" },
-          "B": { "es": "2026-07-04", "ef": "2026-07-10" }
+          "A": {
+            "es": "2026-07-06",
+            "ef": "2026-07-10"
+          },
+          "B": {
+            "es": "2026-07-04",
+            "ef": "2026-07-10T16:00"
+          }
         },
         "projectEnd": "2026-07-10",
         "error": false
@@ -1317,7 +1452,12 @@
         "expect": { "tasks": { "A": { "es": "2026-06-06T07:00", "ef": "2026-06-08T07:00" } } }
       },
       "expect": {
-        "tasks": { "A": { "es": "2026-06-06", "ef": "2026-06-08" } },
+        "tasks": {
+          "A": {
+            "es": "2026-06-06T07:00",
+            "ef": "2026-06-08T07:00"
+          }
+        },
         "error": false
       }
     },

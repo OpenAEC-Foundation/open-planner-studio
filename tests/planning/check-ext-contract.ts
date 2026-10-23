@@ -382,9 +382,9 @@ eq('X12 extensie leest de P6-relatievlag uit maar voert haar niet generiek terug
     tutorialRequested: 'host:tutorial-requested',
   });
   const custom = toExtProject(VOL_PROJECT).schedulingProfile;
-  eq('C8-05 eigen profiel: id, basis, naam en de zevenentwintig opgeloste conventies',
+  eq('C8-05 eigen profiel: id, basis, naam en de achtentwintig opgeloste conventies (B6)',
     [custom?.id, custom?.baseId, custom?.name, Object.keys(custom?.conventions ?? {}).length, custom?.conventions.clampNegativeFreeFloat],
-    ['eigen-1', 'msproject', 'Eigen', 27, true]);
+    ['eigen-1', 'msproject', 'Eigen', 28, true]);
 }
 
 {
@@ -1304,7 +1304,7 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
       s.resources = [{ ...VOL_RESOURCE, parentId: undefined, libraryOrigin: undefined, calendarId: 'cal-ploeg' }];
       const taak = s.tasks.find((t) => t.id === taakId);
       if (taak) taak.calendarId = 'cal-ploeg';
-      s.baselines = [{ id: 'bl-1', name: 'Start', createdAt: '2026-01-01T00:00:00Z', tasks: [], projectEnd: '2026-02-01', projectDuration: 20 }];
+      s.baselines = [{ id: 'bl-1', name: 'Start', createdAt: '2026-01-01T00:00:00Z', tasks: [], projectEnd: '2026-02-01T16:00', projectDuration: 20 }];
       s.activeBaselineId = 'bl-1';
       s.activityCodeTypes = [{ id: 'act-fase', name: 'Fase', values: [{ id: 'v-ruw', code: 'RUW' }] }];
       s.customFieldDefs = [{ id: 'cf-kosten', name: 'Kosten', type: 'cost' }];
