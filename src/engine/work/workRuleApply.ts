@@ -649,9 +649,10 @@ function writeHourMeasure(task: Task, totalMinutes: number, remainingMinutes: nu
  * Muteert `task.time`; geeft `true` als de taak is omgezet.
  */
 export function settleFixedWorkMeasure(task: Task, deps: WorkRuleDeps): boolean {
-  if (task.time.durationUnit === 'hours' || !workRuleApplies(task)) return false;
+  if (task.time.durationUnit === 'hours') return false;
+  // Eerst de regel: zonder vast werk leest de laadgrens verder niets van de taak.
+  if (effectiveWorkRule(task, deps.project.defaultWorkRule) !== 'FIXED_WORK' || !workRuleApplies(task)) return false;
   const ctx = workRuleContextOf(task, deps);
-  if (effectiveWorkRule(task, ctx.defaultWorkRule) !== 'FIXED_WORK') return false;
   writeHourMeasure(task, totalMinutesOf(task, ctx), remainingMinutesOf(task, ctx));
   return true;
 }

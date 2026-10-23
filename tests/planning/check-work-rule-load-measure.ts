@@ -136,6 +136,14 @@ const saveAndRead = (s: Store) => readIFC(writeIFC(buildWriteIFCInput(s.getState
   const withModel = readIFC(OLD_IFC);
   withModel.timeModel = 'MINUTES-1';
   eq('1 laadgrens met minutenmodel zet de vlag', payloadFromImport(withModel, null).minuteModelPending, true);
+  // Een beschadigde hersteldsnapshot (geen kinderlijst, zie check-recovery-integrity 8n): de laadgrens
+  // loopt er niet op stuk en laat de taak staan, ook onder vast werk.
+  const broken = { ...parsed.tasks.find(t => t.name === 'Eigen')!, childIds: null } as unknown as Task;
+  let brokenOut: unknown = 'gooit';
+  try {
+    brokenOut = migrateToMinuteModel({ ...loaded, tasks: [broken] }, { timeModel: 'MINUTES-1' }).payload.tasks[0] === broken;
+  } catch { /* blijft 'gooit' */ }
+  eq('1 beschadigde taak: geen fout en ongemoeid', brokenOut, true);
 }
 
 // 2. Openen (de echte laadroute), Bereken, opslaan en heropenen.

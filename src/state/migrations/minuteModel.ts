@@ -472,6 +472,9 @@ export function migrateToMinuteModel(payload: DocumentPayload, options: MinuteMo
   //    via B5: de vlag "omzetting open" gaat aan, ook in een bestand mét `TimeModel`.
   const deps: WorkRuleDeps = { calendar, calendars, project: payload.project, resources: payload.resources };
   const tasks = normalized.map((t) => {
+    // Een beschadigde hersteldsnapshot (geen kinderlijst) komt als gewone payload binnen en valt pas
+    // bij het doorrekenen om (`check-recovery-integrity.ts` 8n): de laadgrens mag er niet op stuklopen.
+    if (!Array.isArray(t.childIds)) return t;
     const copy: Task = { ...t, time: { ...t.time } };
     if (!settleFixedWorkMeasure(copy, deps)) return t;
     report.fixedWorkToHours.push(t.id);
