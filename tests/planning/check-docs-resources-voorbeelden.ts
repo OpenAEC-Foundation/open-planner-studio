@@ -116,20 +116,18 @@ async function main(): Promise<void> {
   console.log('-- docs-resources: nivelleren --');
   {
     await tutorialBase({ plasterRule: true });
-    // F2-tussenstand; F3 → 3.875 (§3.14).
-    eq('nivelleren: binnenspouwblad speling', task('innerLeaf').time.totalFloat, 6);
-    // F2-tussenstand; F3 → 5.625 (§3.14).
-    eq('nivelleren: buitenspouwblad speling', task('outerLeaf').time.totalFloat, 7);
+    // Alleen uren §3.4/§3.14: de speling in werkdagen telt het deel van een dag (F2: 6 en 7).
+    eq('nivelleren: binnenspouwblad speling', task('innerLeaf').time.totalFloat, 3.875);
+    eq('nivelleren: buitenspouwblad speling', task('outerLeaf').time.totalFloat, 5.625);
     eq('nivelleren: alleen de metselaar overbezet', Object.keys(S().resourceLoadResult!.overallocatedDays).filter(id => S().resourceLoadResult!.overallocatedDays[id].length > 0), [resIds.get('bricklayer')]);
     eq('nivelleren: oplevering voor', oplevering(), '2027-08-30');
     const r = level(false);
     eq('nivelleren: buitenspouwblad +5 werkdagen', delaysByName(r), { [name('outerLeaf')]: 5 });
     eq('nivelleren: niets onoplosbaar', Object.keys(r.unresolved).length, 0);
     S().applyLeveling(r);
-    // F2-tussenstand; F3 → 2027-07-05..2027-07-13 (§3.14).
-    eq('nivelleren: buitenspouwblad na nivelleren', span('outerLeaf'), '2027-07-02..2027-07-09');
-    // F2-tussenstand; F3 → 2027-06-28..2027-07-05 (§3.14).
-    eq('nivelleren: binnenspouwblad blijft', span('innerLeaf'), '2027-06-25..2027-07-01');
+    // §3.14: de dagenmaat (F2 hield hele dagen: 2–9 juli en 25 juni – 1 juli).
+    eq('nivelleren: buitenspouwblad na nivelleren', span('outerLeaf'), '2027-07-05..2027-07-13');
+    eq('nivelleren: binnenspouwblad blijft', span('innerLeaf'), '2027-06-28..2027-07-05');
     eq('nivelleren: oplevering na', oplevering(), '2027-08-30');
     eq('nivelleren: niemand meer overbezet', Object.values(S().resourceLoadResult!.overallocatedDays).flat().length, 0);
   }
@@ -141,8 +139,8 @@ async function main(): Promise<void> {
   }
   {
     await tutorialBase({ noConstraint: true, plasterRule: true });
-    // F2-tussenstand; F3 → 2027-08-25 (§3.14).
-    eq('zonder SNET: oplevering voor nivelleren', oplevering(), '2027-07-30');
+    // §3.14 (F2: 30 juli).
+    eq('zonder SNET: oplevering voor nivelleren', oplevering(), '2027-08-25');
     const smooth = level(true);
     eq('zonder SNET + smoothing: geen verschuiving', delaysByName(smooth), {});
     eq('zonder SNET + smoothing: conflict INSUFFICIENT_CAPACITY (5 dagen)',
@@ -151,19 +149,20 @@ async function main(): Promise<void> {
     const plain = level(false);
     eq('zonder SNET: buitenspouwblad +5', delaysByName(plain), { [name('outerLeaf')]: 5 });
     S().applyLeveling(plain);
-    // F2-tussenstand; F3 → 2027-08-30 (§3.14).
-    eq('zonder SNET: oplevering na nivelleren', oplevering(), '2027-08-26');
+    // §3.14 (F2: 26 aug).
+    eq('zonder SNET: oplevering na nivelleren', oplevering(), '2027-08-30');
   }
   {
     await tutorialBase({ plasterRule: true });
     S().updateTask(task('outerLeaf').id, { priority: 900 });
     const r = level(false);
     eq('prioriteit Hoog: binnenspouwblad wijkt 6 werkdagen', delaysByName(r), { [name('innerLeaf')]: 6 });
-    eq('prioriteit Hoog: oplevering voor -> na', [r.projectEndBefore, r.projectEndAfter].map(d => String(d).slice(0, 10)), ['2027-08-30', '2027-08-30']); // F2-tussenstand; F3 → 30 aug / 2 sep (§3.14).
+    // §3.14: de dagenmaat (F2: 30 aug / 30 aug, 5–9 juli, 25 juni – 2 juli, 30 aug).
+    eq('prioriteit Hoog: oplevering voor -> na', [r.projectEndBefore, r.projectEndAfter].map(d => String(d).slice(0, 10)), ['2027-08-30', '2027-09-02']);
     S().applyLeveling(r);
-    eq('prioriteit Hoog: binnenspouwblad', span('innerLeaf'), '2027-07-05..2027-07-09'); // F2-tussenstand; F3 → 6–13 juli (§3.14).
-    eq('prioriteit Hoog: buitenspouwblad blijft', span('outerLeaf'), '2027-06-25..2027-07-02'); // F2-tussenstand; F3 → 28 juni–6 juli (§3.14).
-    eq('prioriteit Hoog: oplevering', oplevering(), '2027-08-30'); // F2-tussenstand; F3 → 2 sep (§3.14).
+    eq('prioriteit Hoog: binnenspouwblad', span('innerLeaf'), '2027-07-06..2027-07-13');
+    eq('prioriteit Hoog: buitenspouwblad blijft', span('outerLeaf'), '2027-06-28..2027-07-06');
+    eq('prioriteit Hoog: oplevering', oplevering(), '2027-09-02');
   }
   {
     await tutorialBase({ plasterRule: true });
