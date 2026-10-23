@@ -399,7 +399,9 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   eq('restduur: voorwaarde urentaak 5 u op 40 %', rest(lopend), [180, 0.375]);
   eq('restduur: voorwaarde teruggezette urentaak', rest(terug), [300, 0.625]);
   // B1 (spec "alleen uren" §3.5, besluit B3): de rest van een dagtaak is exact, 5 d op 30 % = 3,5 d (was
-  // round = 4 d). De adapters schrijven die breuk: IFC P0Y0M3.5D, MSPDI en P6 28 u.
+  // round = 4 d). De adapters schrijven die breuk: MSPDI en P6 28 u, IFC ook 28 u als `PT…` met het record
+  // [3,5, 1680] (§3.10, T21: nooit een gebroken P…D, want v2026.9.0 leest die verkeerd, I10). De dagen komen
+  // terug uit het record (hieronder: dagtaak terug 3,5).
   eq('restduur: voorwaarde dagtaak 5 d op 30 %', rest(dag), [undefined, 3.5]);
   const efOf = (tk: Task[], cal: WorkCalendar, statusDate: string | undefined): string | undefined => {
     solveProject(opsSolveInput({ tasks: tk, sequences: [], calendar: cal, calendars: [], dataDate: statusDate, projectStartDate: projS.startDate }));
@@ -413,7 +415,7 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   const restSlot = (text: string, name: string) =>
     new RegExp(`IFCTASKTIME\\('${name} Time'.*,('[^']*'|\\$),[0-9.]+\\);`).exec(text)?.[1];
   eq('restduur IFC: geschreven slot urentaak', restSlot(ifc, 'Lopend'), "'PT3H0M0S'");
-  eq('restduur IFC: geschreven slot dagtaak', restSlot(ifc, 'Dagtaak'), "'P0Y0M3.5D'");
+  eq('restduur IFC: geschreven slot dagtaak (PT…, geen gebroken P…D)', restSlot(ifc, 'Dagtaak'), "'PT28H0M0S'");
   const mspdi = writeMSPDI(projS, H8, [lopend, terug, dag], [], [], [], []);
   const p6 = writeP6XML(projS, H8, [lopend, terug, dag], [], [], [], []);
   const remXml = (xml: string, name: string) =>
