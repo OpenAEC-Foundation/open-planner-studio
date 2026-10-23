@@ -28,6 +28,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { IfcParseError } from '@/services/ifc/ifcErrors';
+import { normalizeTaskDates } from '@/state/migrations/minuteModel';
 import type { ImportResult } from '@/services/importTypes';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
@@ -133,8 +134,20 @@ const rOld = readIFC(OLD);
 // ── 2. Lezen → schrijven (nieuwe ariteit) → lezen: identiek ────────────────────────────────────────
 const NEW = writeIFC(rOld);
 eq('2a de huidige writer schrijft de schema-ariteit', arities(NEW, CONTROL), NEW_ARITY);
-// T10: schrijven markeert het minutenmodel; alle overige gelezen velden blijven gelijk.
-same('2b oud bestand en nieuw equivalent lezen identiek op TimeModel na', readIFC(NEW), { ...rOld, timeModel: 'MINUTES-1' });
+// T10: schrijven markeert het minutenmodel; alle overige gelezen velden blijven gelijk. Sinds F3c is de
+// rest exact (B3): "Earthworks for extension" (3 d, 40 %) houdt 1,8 d rest. Een dagtaak met een gebroken
+// rest maakt haar kalender letterlijk (T21, §3.10), en een letterlijke kalender schrijft elke waarde zoals
+// hij is (§3.6). In de app passeert een gelezen bestand eerst de laadgrens (D1–D7) en pas daarna de writer;
+// deze ronde volgt die route. (De ruwe lezeruitvoer rechtstreeks schrijven zet een planningseinde zonder
+// tijd op het blokbegin: knownbugs 279.) Vergelijk daarom de momenten; al het andere blijft letterlijk
+// gelijk. `mapTaskDates` zet bij een gewijzigde taak lege sleutels als `undefined`; die laten we weg.
+const moments = (r: ImportResult): ImportResult => ({ ...r,
+  tasks: r.tasks.map(t => JSON.parse(JSON.stringify(normalizeTaskDates(t, { calendar: r.calendar, calendars: r.resourceCalendars ?? [] })))) });
+const rNew = readIFC(writeIFC(moments(rOld)));
+same('2b oud bestand en nieuw equivalent lezen dezelfde momenten op TimeModel na', moments(rNew), moments({ ...rOld, timeModel: 'MINUTES-1' }));
+eq('2c gebroken rest (B3) blijft bewaard', rNew.tasks.find(t => t.name === 'Earthworks for extension')?.time.remainingTime, 1.8);
+eq('2d een planningseinde zonder tijd komt terug als het einde van die werkdag',
+  [rOld.tasks[1].time.scheduleFinish, rNew.tasks[1].time.scheduleFinish], ['2027-05-12', '2027-05-12T16:00']);
 
 // ── 3. Mechanisch omgezet naar de nieuwe ariteit: identiek ────────────────────────────────────────
 const converted = rewrite(

@@ -496,6 +496,26 @@ en noem het in je rapport of PR-tekst.
      Richting: onderscheid een synthetisch 08:00-anker van een echte tijd. Zie ook 274. Gevonden in
      review F2 ronde 4. — B
 
+279. **De writer zet een planningseinde zonder tijd op een letterlijke kalender op het blokbegin.**
+     `minuteModelWriteView` (`minuteModelWrite.ts:78`) laat elke waarde op een letterlijke kalender staan. Een
+     `scheduleFinish`/`earlyFinish`/`lateFinish`/`actualFinish` zonder tijd gaat dan als `…T07:00:00` het
+     bestand in en leest terug als 07:00, een werkdag te vroeg. Sinds F3c maakt ook een dagtaak met een
+     gebroken rest haar kalender letterlijk (B3 met T21), dus dat gebeurt vaker. Nagespeeld: de oude fixture
+     `ifc-arity-oude-writer.ifc` rechtstreeks van `readIFC` naar `writeIFC` (zonder laadgrens) geeft
+     "1. Preparation" einde 12 mei 07:00 in plaats van 16:00 (`check-ifc-legacy-arity.ts` 2b/2d met de ruwe
+     route). Geen productieroute gevonden: alle `writeIFC`-aanroepen in `src/` krijgen een payload van na de
+     laadgrens; `services/benchmark/runner.ts` en `scripts/measure-large-plans-data.ts` schrijven eigen
+     data (niet nagekeken). Een algemene normalisatie in de view is fout: een beperking, deadline, extern
+     anker, stop/hervat en een kale werkelijke start blijven bewust zonder tijd (`check-ifc-datumvorm`,
+     `check-ifc-projectdatum-tijd`, `check-ifc-roundtrip` worden dan rood). Richting: normaliseer alleen de
+     planningsvelden, of eis in de writer dat ze een moment zijn. Gevonden bij de integratie van F3c. — B
+
+280. **`check-ifc-projectdatum-corpus.ts` is met het corpus rood op de integratiebranch.**
+     `p6_torture_test_v1.xer`, "projectstart en -einde per document": verwacht `2026-03-02T00:00`, kreeg
+     `2026-03-02` (1 van 463563 checks). Rood op `1e460cde6` (uren-integratie met F2) en op elk F3c-deel;
+     groen op `main` `d991788db` (463407 checks). Komt dus uit F2, niet uit F3c. Alleen met `OPS_XER_CORPUS`;
+     CI draait hem zonder corpus. Niet verder onderzocht. Gevonden bij de integratie van F3c. — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 62. **Melding schuift over de knoppen van het begeleidingspaneel** (1600×950, venster Baselines open):
