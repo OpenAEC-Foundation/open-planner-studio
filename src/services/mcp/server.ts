@@ -527,7 +527,7 @@ function sessionsFullResponse(rawBody: string): string {
     id,
     error: {
       code: -32000,
-      message: `Too many MCP sessions: all ${MCP_MAX_SESSIONS} are bound to a document. Close other AI connections, or generate a new token in Open Planner Studio (AI tab) to reset all connections.`,
+      message: `Too many MCP sessions: all ${MCP_MAX_SESSIONS} are bound to a document. Close other MCP connections, or generate a new token in Open Planner Studio (MCP tab) to reset all connections.`,
     },
   });
 }
