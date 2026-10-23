@@ -196,7 +196,7 @@ ingestelde projecteinde; drie profielen, P 1 en 2 d.
 |---|---|---|
 | Tegenproeven ronde 4 `regression24`, `store24` | 6/6; 0/3 profielen fout | 0 / 0 |
 | `next-boundary` | alleen de 3 foutregels anders dan de log van de reviewer, nu speling 0 | 0 |
-| Probes reviewer ronde 2 en 3 (22 stuks, zonder de prestatieprobe) | alle 0 afwijkende regels tegen de logs van de reviewer op de ronde-4-head; `randen` 12138/12138 | 0 |
+| Probes reviewer ronde 2 en 3 (23 stuks, zonder de prestatieprobe) | alle exit 0; de 13 met een log van de reviewer op de ronde-4-head: 0 afwijkende regels; `randen` 12138/12138 | 0 |
 | Eigen probes: `alletypen`, burenvergelijking, Q, ingesteld projecteinde | 144/144; 0 verschillen met ronde 2 | 0 |
 | `check-hours-f2-review.ts` | 641/641 | 0 |
 | `check-recorded-dates`, `-mark`, `-library` | 383, 52/52, 26/26 | 0 |
