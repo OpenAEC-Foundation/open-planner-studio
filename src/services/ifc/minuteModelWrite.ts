@@ -7,6 +7,7 @@ import { DayClockCache, mapTaskDates, normalizeTaskDate, taskDateContext, taskDa
   type TaskDateContext, type TaskDateField } from '@/state/migrations/minuteModel';
 import { dayEndInstant, workdayOfInstant, isDateOnly } from '@/engine/calendar/workdayRules';
 import { addCalendarDays, formatDate, parseDate, parseInstant } from '@/utils/dateUtils';
+import { taskDurationWritesMinutes } from './dayMeasureIo';
 
 /** Een moment is afleidbaar als D1–D7 exact hetzelfde moment teruggeeft. Ook nachtblokken
  * en het exclusieve kalendertijdeinde worden zo gespiegeld, zonder tijd af te kappen. */
@@ -48,7 +49,10 @@ export function minuteModelWriteView(input: Pick<ImportResult, 'tasks' | 'calend
     }
     contexts.set(task.id, ctx);
     const cal = effective(task);
-    if (task.time.durationUnit === 'hours') literalCalendarIds.add(cal.id);
+    // Een `PT`-duur maakt de kalender letterlijk (§3.6): een urentaak, en sinds F3 ook een dagenmaat-taak
+    // met een breuk (die gaat als `PT…` met een record, T21). v2026.9.0 promoveert zo'n kalender en leest
+    // elke tijd letterlijk; de nieuwe lezer houdt hem scalair via `IsHourCalendar = .F.`.
+    if (task.time.durationUnit === 'hours' || taskDurationWritesMinutes(task)) literalCalendarIds.add(cal.id);
     mapTaskDates(task, (value, field) => {
       if (anchor(value, field, ctx) === null) literalCalendarIds.add(cal.id);
       return value;
