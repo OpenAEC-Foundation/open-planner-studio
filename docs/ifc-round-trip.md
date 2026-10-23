@@ -286,6 +286,13 @@ dan een deel van een dag verloren. Zo'n taak maakt haar kalender letterlijk (`Li
 `IsHourCalendar = .F.`; `minuteModelWriteView`), net als een urentaak. Een scalaire kalender blijft na
 heropenen scalair.
 
+**Urenmaat met een breuk in minuten (T14).** De werkdriehoek schrijft de urenmaat zonder afronding: 1920 min
+werk bij inzet 7 geeft een duur van 274,2857… min. Het `PT…`-slot draagt hele minuten (`PT4H34M0S`). De
+exacte minuten van duur en rest staan als record `[exacte minuten, geschreven minuten]` in de eigenschap
+`ExactMinutes` van `OPS_WorkRule`, met de sleutels `ScheduleDuration` en `RemainingTime`. Hele minuten
+krijgen geen record. Zonder record kwam 274 min terug naast 1920 min werk, en sprak de driehoek zichzelf
+tegen. v2026.9.0 leest de hele minuten van het slot.
+
 **Lag (T21).** De vorm hangt af van de maat van de lag:
 
 - urenmaat: `PT…`;
@@ -318,8 +325,17 @@ urenmaat, 1,5 ed ⇒ 2160 kalenderminuten, duur 2,5 d ⇒ urentaak van 1200 min,
 werkelijke duur kent die versie alleen in hele dagen: 0,5 d ⇒ 1 d. De datums van alle taken zijn gelijk aan
 die van de nieuwe lezer.
 
+**Een eindveld zonder tijd op een letterlijke kalender.** Op een letterlijke kalender gaat elke taakdatum
+zoals hij is het bestand in. Een planningseinde zonder tijd (`scheduleFinish`, `earlyFinish`, `lateFinish`,
+`actualFinish`, en het eigen begin van een FINISH-mijlpaal) krijgt eerst het moment van de laadgrens: het
+einde van zijn werkdag (`minuteModelWriteView`, D1–D7). Anders ging het als `…T07:00:00` of `…T00:00:00`
+en las het terug als het begin van die dag. In de app passeert een gelezen bestand eerst de laadgrens; dit raakt
+de ruwe route `readIFC → writeIFC`. Een beperking, deadline, extern anker, stop/hervat en een kale start
+blijven zoals ze zijn.
+
 Toetsen: `check-ifc-dagenmaat.ts` (met `OPS_MINUTE_MODEL_OLD_READER` ook de lezer van v2026.9.0),
-`check-minute-model-compat.ts` (de bestanden D0 en D1) en blok (18a) van `check-ifc-roundtrip.ts`.
+`check-minute-model-compat.ts` (de bestanden D0 en D1), blok (18a) van `check-ifc-roundtrip.ts`, 2e van
+`check-ifc-legacy-arity.ts` (de ruwe route) en §7 van `check-ifc-projectdatum-tijd.ts`.
 
 ## Lopend op 100 %: `IfcTask.Status`
 

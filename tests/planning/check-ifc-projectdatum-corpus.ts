@@ -63,8 +63,11 @@ const TARGETS: Target[] = [
     projectDates: [['2013-08-01T00:00', '2013-08-01T16:00'], ['2012-06-04T08:00', '2014-07-24T00:00']], timedConstraintDates: 0 },
   // A3040 (lopende taak op 100 % zonder werkelijk einde) telt sinds `IfcTask.Status` = 'STARTED' gewoon
   // mee: hij blijft lopend en zijn datums blijven gelijk (eigenaarsbesluit 2026-10-14, check-ifc-lopend-100.ts).
+  // De bron draagt `plan_start_date` 2026-03-02 zonder tijd. Sinds F2 blijft een datum zonder tijd een
+  // datum (alleen uren §3.6: "Projectdatums blijven zoals ingevoerd"; `xerInstant.ts`); OPS maakte
+  // er eerst 00:00 van (knownbug 280, B1).
   { name: 'p6_torture_test_v1.xer', sha256: '2a7732b5b99de2a5f40aab40e0af52757fbe68e5d4eda404a9a060fdc1be1140',
-    projectDates: [['2026-03-02T00:00', '2026-03-02T00:00']], timedConstraintDates: 11 },
+    projectDates: [['2026-03-02', '2026-03-02']], timedConstraintDates: 11 },
 ];
 
 function findByName(dir: string, name: string): string[] {

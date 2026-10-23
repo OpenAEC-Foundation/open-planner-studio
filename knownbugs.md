@@ -496,12 +496,6 @@ en noem het in je rapport of PR-tekst.
      Richting: onderscheid een synthetisch 08:00-anker van een echte tijd. Zie ook 274. Gevonden in
      review F2 ronde 4. — B
 
-280. **`check-ifc-projectdatum-corpus.ts` is met het corpus rood op de integratiebranch.**
-     `p6_torture_test_v1.xer`, "projectstart en -einde per document": verwacht `2026-03-02T00:00`, kreeg
-     `2026-03-02` (1 van 463563 checks). Rood op `1e460cde6` (uren-integratie met F2) en op elk F3c-deel;
-     groen op `main` `d991788db` (463407 checks). Komt dus uit F2, niet uit F3c. Alleen met `OPS_XER_CORPUS`;
-     CI draait hem zonder corpus. Niet verder onderzocht. Gevonden bij de integratie van F3c. — B
-
 ## Rondleiding, Help en extensie-gidsen
 
 62. **Melding schuift over de knoppen van het begeleidingspaneel** (1600×950, venster Baselines open):

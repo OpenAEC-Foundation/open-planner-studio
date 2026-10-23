@@ -537,6 +537,11 @@ async function oldReaderChecks(): Promise<void> {
   p.tasks = [task('S1', '2026-06-01T07:00', '2026-06-01T16:00', 1, { totalFloat: 2.5, totalFloatMinutes: 1200, freeFloat: 0.75, freeFloatMinutes: 360 })];
   const s1 = byName(old.readIFC(writeIFC(buildWriteIFCInput(p))), 'S1')?.time;
   eq('(10) v2026.9.0: speling 2,5 d ⇒ 3 d, 0,75 d ⇒ 1 d (afgerond, geen 5)', [s1?.totalFloat, s1?.freeFloat], [3, 1]);
+  // (11) De exacte urenmaat: v2026.9.0 kent `ExactMinutes` niet en leest de hele minuten van het slot.
+  const exact = old.readIFC(exactHoursText);
+  eq('(10) v2026.9.0: exacte urenmaat ⇒ de hele minuten van het slot',
+    [byName(exact, 'Exact')?.time.durationMinutes, byName(exact, 'Lopend')?.time.durationMinutes, byName(exact, 'Lopend')?.time.remainingMinutes],
+    [274, 686, 206]);
 
   // Geen dag kwijt in de tijd: v2026.9.0 leest elke datum van elke taak gelijk aan de nieuwe lezer
   // (de kalender is letterlijk, §3.6). Zelfde vergelijking als check-minute-model-compat.ts.
