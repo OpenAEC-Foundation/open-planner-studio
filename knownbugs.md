@@ -162,6 +162,11 @@ en noem het in je rapport of PR-tekst.
      Voorstel: het restwerk begint niet vóór de vastgelegde start. Bestond al vóór F1.
      Review F1 r3–r5. — B
 
+242. **Een dagtaak met splitgaten korter dan een dag krijgt in de balk gaten van hele dagen.**
+     De renderer rondt de gaten af op hele dagen (`splitWalk.ts:104`), met stompjes van 2 px.
+     De motor telt dezelfde gaten mogelijk anders (VERMOED). Dit hoort bij F3 (§3.14).
+     Gevonden in fixronde 1 van F2 (laadfix). — B voor de renderer
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
@@ -169,6 +174,10 @@ en noem het in je rapport of PR-tekst.
 17. **Verwijderen zonder bevestiging**: `confirm.deleteTask` staat in de locales maar wordt nergens gebruikt. — S
 60. **Duur-kolom afgeknipt** in de standaard Gantt-weergave (WBS 60 + Taaknaam 240 + Duur 60 + de
     "+"-kolom): je leest "2c" in plaats van "2d", op 1600 én 1366 px breed. — B
+
+241. **Hetzelfde externe anker opnieuw invoeren als datum zonder tijd geeft een extra undo-stap en zet
+     de planning op verouderd.** `updateExternalLink` vergelijkt het ruwe anker, niet het genormaliseerde.
+     Gevonden in fixronde 1 van F2 (laadfix). — B
 
 ## Kalenders
 

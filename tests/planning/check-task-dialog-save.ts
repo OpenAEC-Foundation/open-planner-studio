@@ -1,6 +1,7 @@
 // F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
-// "Taak bewerken" → Opslaan, headless tegen de ECHTE store, via exact de functies die
-// `TaskDialog.tsx` gebruikt (`draftWith*` voor de concepttaak, `createTaskDialogSave` voor Opslaan).
+// "Taak bewerken" → Opslaan, headless tegen de ECHTE store. Opslaan loopt via `createTaskDialogSave`,
+// net als in `TaskDialog.tsx`. De dialoog zet voortgang op de concepttaak met `planProgressEntry`;
+// deze test bouwt de concepttaak met de `draftWith*`-helpers uit `taskDialogSave.ts`.
 //
 // Bevinding 4 (taakmutaties-audit): de dialoog schreef completion/actualStart/actualFinish kaal via
 // `updateTask` weg, zonder de voortgangsregels (`applyProgressInvariants`) die het paneel, het raster
