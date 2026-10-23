@@ -283,6 +283,11 @@ levelFixture('kalendertijd met bewaarde split', [task('t', '2026-06-01T08:00', '
 //    spanne 2 werkdagen, FRONT_LOADED). De basis liet dagen buiten de dagslots weg; nu krijgt elke
 //    werkdag van de gezaghebbende spanne inzet × deel, in de vorm van de curve. B1 (§3.11, eis 4/5).
 //    Na Bereken ook "Painting — House 1" (4 d, BACK_LOADED, start 08:36): B2 zoals hierboven.
+//    Data (scripts/showcases.ts, RUWBOUW_PROGRESS): het metselwerk van woning 2 en 3 start één dag
+//    later (04-16 en 04-26), zoals woning 4 al deed. Op de oude data stond de metselploeg op 04-15 en
+//    04-23 twee keer geboekt op VOLTOOID werk (verify:examples rood). Per dag t.o.v. de oude data:
+//    "Masonry crew" 04-15 en 04-23 2 → 1 (geen overbelasting meer), "Bricklayers" 04-15 4 → 2 en
+//    04-23 6 → 4; vóór en na Bereken gelijk. Geen andere resource of dag verandert.
 const exampleLoads: Record<string, readonly [string, string]> = {
   '03-kantoorgebouw-zuidas.ifc': ['d33fbb996b53968f478f57ac84c09605c7fea856feb76f89d6bf072be2743fb1', 'd33fbb996b53968f478f57ac84c09605c7fea856feb76f89d6bf072be2743fb1'],
   '05-brugvervanging-n279.ifc': ['b2883cfc921ebd7adf8fb33aee775c39e746a685d7620a7429631bbf0c393e97', '1905b396cb2d82587c141bef37ffd91718ab4c798f7192021f3de663c6da871a'],
@@ -291,7 +296,7 @@ const exampleLoads: Record<string, readonly [string, string]> = {
   '10-villa-wassenaar.ifc': ['449147be5e5c43624639830eaa2f049e299db7eb9f49ae1732563b1128f9920f', 'd07a2bdcec17bc0963147a2309cf4ddaa157f605252eb0307b4b03648f06cb52'],
   '15-datacentrum-agriport.ifc': ['298620a7dad7ba9abeda28a0624a49916cfc77ac6329e927a8782b0acc3fe571', '298620a7dad7ba9abeda28a0624a49916cfc77ac6329e927a8782b0acc3fe571'],
   'showcase-appartementencomplex.ifc': ['ee92327743eca8637c8070529f732acc77b57f8f8f2ae15880168cf21d88519c', 'ee92327743eca8637c8070529f732acc77b57f8f8f2ae15880168cf21d88519c'],
-  'showcase-rijwoningen-de-akkers.ifc': ['263f0536a68afa61679fa550a5e7cbb4a0e277a5de41a04dcd93c741794e1431', 'c03090d532507caf60e478947a11d176e2cde018d9b825ed09c4e029d2f44c3f'],
+  'showcase-rijwoningen-de-akkers.ifc': ['2ed597066a34b234b509ddb1435e9a655685dc46a17488312b4ac3ff8b59753a', 'f541c279e83e7d2892976f212bbd99737847af3bedc6d32c1e44e9058b6c7871'],
   'showcase-verbouwing-eengezinswoning.ifc': ['371824e48d67593eb34f8fc533c5de2921e6ae2e8f4c34abe5da5b6abb2f518f', '371824e48d67593eb34f8fc533c5de2921e6ae2e8f4c34abe5da5b6abb2f518f'],
 };
 function canonical(value: unknown): unknown {

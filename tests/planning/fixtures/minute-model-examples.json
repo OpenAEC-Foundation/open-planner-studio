@@ -1,5 +1,5 @@
 {
-  "toelichting": "Voorbeeldensnapshot F2 (spec 2026-10-20-alleen-uren-design.md §6.3): F0-dagniveau behouden, 322 bewezen B7-waarden ververst na herstel van 56 terugrekenwaarden. Verantwoording: artifacts/uren-f2/procentlag.md. F3 meet dagtaken die midden op een dag beginnen opnieuw.",
+  "toelichting": "Voorbeeldensnapshot F2 (spec 2026-10-20-alleen-uren-design.md §6.3): F0-dagniveau behouden, 322 bewezen B7-waarden ververst na herstel van 56 terugrekenwaarden. Verantwoording: artifacts/uren-f2/procentlag.md. F3 meet dagtaken die midden op een dag beginnen opnieuw. F3c deel 3: rijwoningen 4.5 en 4.9 starten één dag later door een wijziging in de brondata (scripts/showcases.ts, RUWBOUW_PROGRESS), niet door de motor.",
   "examples": {
     "01-grachtenpand-amsterdam": {
       "1 1. Preparation": { "es": "2027-03-01", "ef": "2027-04-05", "ls": "2027-03-01", "lf": "2028-01-12", "tf": 0 },
@@ -1171,11 +1171,11 @@
       "4.2 Upper floor slab — House 1": { "es": "2027-04-15", "ef": "2027-04-21", "ls": "2027-05-27", "lf": "2027-06-01", "tf": 25 },
       "4.3 Upper floor masonry — House 1": { "es": "2027-04-21", "ef": "2027-04-29", "ls": "2027-06-02", "lf": "2027-06-09", "tf": 26 },
       "4.4 Roof structure — House 1": { "es": "2027-04-29", "ef": "2027-05-04", "ls": "2027-06-10", "lf": "2027-06-16", "tf": 28 },
-      "4.5 Ground floor masonry — House 2": { "es": "2027-04-15", "ef": "2027-04-23", "ls": "2027-04-08", "lf": "2027-04-15", "tf": -6 },
+      "4.5 Ground floor masonry — House 2": { "es": "2027-04-16", "ef": "2027-04-23", "ls": "2027-04-08", "lf": "2027-04-15", "tf": -6 },
       "4.6 Upper floor slab — House 2": { "es": "2027-04-23", "ef": "2027-04-29", "ls": "2027-05-26", "lf": "2027-05-31", "tf": 19 },
       "4.7 Upper floor masonry — House 2": { "es": "2027-04-29", "ef": "2027-05-07", "ls": "2027-06-01", "lf": "2027-06-08", "tf": 21 },
       "4.8 Roof structure — House 2": { "es": "2027-05-07", "ef": "2027-05-14", "ls": "2027-06-09", "lf": "2027-06-15", "tf": 21 },
-      "4.9 Ground floor masonry — House 3": { "es": "2027-04-23", "ef": "2027-05-03", "ls": "2027-04-16", "lf": "2027-04-23", "tf": -5 },
+      "4.9 Ground floor masonry — House 3": { "es": "2027-04-26", "ef": "2027-05-03", "ls": "2027-04-16", "lf": "2027-04-23", "tf": -5 },
       "4.10 Upper floor slab — House 3": { "es": "2027-05-03", "ef": "2027-05-07", "ls": "2027-05-26", "lf": "2027-05-31", "tf": 15 },
       "4.11 Upper floor masonry — House 3": { "es": "2027-05-07", "ef": "2027-05-14", "ls": "2027-06-01", "lf": "2027-06-08", "tf": 16 },
       "4.12 Roof structure — House 3": { "es": "2027-05-17", "ef": "2027-05-20", "ls": "2027-06-09", "lf": "2027-06-15", "tf": 18 },
