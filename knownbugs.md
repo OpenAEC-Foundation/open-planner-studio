@@ -411,6 +411,14 @@ en noem het in je rapport of PR-tekst.
     runtime-repro of concreet dataverlies vastgesteld; bedoeling en gewenste foutafhandeling
     niet onderzocht. — S
 
+274. **Een werkelijk einde om precies 08:00 wordt na import uit P6 XML of MSPDI 16:00.** 08:00 is het
+     anker dat deze formaten schrijven voor een datum zonder tijd (ankerregel I8, spec
+     `2026-10-20-alleen-uren-design.md` §3.10, gepland voor F5b). De lezer kan een echte 08:00 daar niet
+     van onderscheiden. Een dagkalender blijft daardoor scalair, en het werkelijke einde wordt na laden het
+     dageinde 16:00. Gemeten op de eindmijlpaal uit review ronde 3 van PR #559 (`milestone-11.xml`, met een
+     werkelijk einde om 08:00), op alle vier stappen tot en met heropenen. Richting: lees 08:00 alleen als
+     anker in een bestand dat OPS zelf schreef. Fixronde 3 van de F2-laadfix. — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 62. **Melding schuift over de knoppen van het begeleidingspaneel** (1600×950, venster Baselines open):
