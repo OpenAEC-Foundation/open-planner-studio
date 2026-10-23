@@ -10,6 +10,7 @@ import type { EffectiveSchedulingOptions } from '@/types/project';
 import type { CalendarEngine } from './CalendarEngine';
 import { taskCountsInWorkdays } from './conventions/durationMeasure';
 import { durationMinutesOf, isPinnedComplete, isPinnedInProgress } from './duration';
+import { isDateOnly } from '@/engine/calendar/workdayRules';
 import { addCalendarDays, formatDate, parseInstant, utcDayStart } from '@/utils/dateUtils';
 
 /** De aanroeper lost het profiel op. `durationUnit` is geen maatbeleid. */
@@ -135,11 +136,12 @@ export function placementFollowsSpan(task: Task): boolean {
  *
  * Bij een spanne (zie `placementFollowsSpan`) schuift het einde mee met de kandidaat. Kalendertijd en
  * een voltooide taak krijgen hun bewaarde splits NIET opnieuw: de spanne bevat ze al (acceptatie-eis
- * 5 van F3b, dezelfde uitzondering als `taskWorkDayIsos`).
+ * 5 van F3b, dezelfde uitzondering als `taskWorkDayIsos`). Een einde zonder tijd hoort bij die werkdag
+ * zelf (D2, zie `spanFinish`).
  */
 export function taskWorkPlacement(
   task: Task,
-  engine: Pick<CalendarEngine, 'hoursPerDay' | 'isHourMode'>,
+  engine: Pick<CalendarEngine, 'hoursPerDay' | 'isHourMode' | 'effectiveBandsOn' | 'typicalWorkdayBands'>,
   options: PlacementOptions,
   start?: Date,
 ): WorkPlacement | null {
@@ -149,7 +151,7 @@ export function taskWorkPlacement(
   if (!Number.isFinite(from.getTime())) return null;
   const measure: PlacementMeasure = taskCountsInWorkdays(task, options) ? 'workdays' : 'minutes';
   if (placementFollowsSpan(task)) {
-    const finish = parseInstant(t.earlyFinish ?? '');
+    const finish = spanFinish(t.earlyFinish ?? '', engine, t.durationType === 'ELAPSEDTIME');
     if (!Number.isFinite(anchor.getTime()) || !Number.isFinite(finish.getTime())) return null;
     const keepsGaps = t.durationType !== 'ELAPSEDTIME' && !isPinnedComplete(t);
     return {
@@ -159,6 +161,27 @@ export function taskWorkPlacement(
   }
   const duration = measure === 'workdays' ? t.scheduleDuration : durationMinutesOf(task, engine);
   return { start: from, duration, measure, ...(task.splitGaps ? { gaps: task.splitGaps } : {}) };
+}
+
+/**
+ * Het exclusieve einde van een spanne. Een moment blijft zoals het is. Een datum zonder tijd is
+ * eindachtig en hoort bij die werkdag zelf (D2, `workdayRules.ts`): het einde van het laatste werkblok
+ * dat op die datum begint, zonder werkblok dat van de typische werkdag (D4). Kalendertijd: 24:00.
+ * Zonder D2 zou middernacht als exclusief einde de laatste dag weglaten.
+ */
+function spanFinish(
+  value: string,
+  engine: Pick<CalendarEngine, 'effectiveBandsOn' | 'typicalWorkdayBands'>,
+  elapsed: boolean,
+): Date {
+  const parsed = parseInstant(value);
+  if (!isDateOnly(value) || !Number.isFinite(parsed.getTime())) return parsed;
+  if (elapsed) return addCalendarDays(parsed, 1);
+  const own = engine.effectiveBandsOn(parsed);
+  const bands = own.length > 0 ? own : engine.typicalWorkdayBands();
+  return bands.length > 0
+    ? new Date(parsed.getTime() + bands[bands.length - 1].end * 60_000)
+    : addCalendarDays(parsed, 1);
 }
 
 /**

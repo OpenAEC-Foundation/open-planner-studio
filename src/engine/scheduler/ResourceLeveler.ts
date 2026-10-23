@@ -1118,7 +1118,7 @@ export function levelResources(
    *  Elke stap berekent de HELE kandidaat opnieuw met de gedeelde plaatsing (`computeDemand`, niet
    *  gecachet: de gaten veranderen per stap). Past hij niet, dan krijgt de eerste dag die niet past
    *  één hele effectieve werkdag pauze (de werkminuten van die dag) op de cumulatieve as; latere
-   *  gaten schuiven mee. Ligt die dag vóór het eerste werk, dan is dat uitstel en geen split met een
+   *  gaten schuiven mee, en een pauze direct na een eerdere nivelleerpauze verlengt die. Ligt die dag vóór het eerste werk, dan is dat uitstel en geen split met een
    *  openingsgat: de start gaat naar de volgende kandidaat. Een korte dag krijgt zo nooit de vraag
    *  van een eerdere plaatsing mee.
    *
@@ -1138,23 +1138,33 @@ export function levelResources(
       const candidate = computeDemand({ ...task, splitGaps: gaps.length > 0 ? gaps : undefined }, start);
       const placedCandidate = candidate.placed;
       if (!placedCandidate || candidate.days.length === 0) return { gaps: null, horizonExhausted: false };
-      // Venstergrens (het FINISH-plafond) — een gebruikerskeuze, GEEN horizon-uitputting.
-      if (finishLimit && placedCandidate.finish > finishLimit) return { gaps: null, horizonExhausted: false };
       // Past hij, dan is dit de plaatsing — ook als alleen de start verschoof (het einde bleef binnen
       // het plafond, terwijl de aaneengesloten scan op de STARTgrens stopte).
       // `dayFits` per dag in plaats van `fits`: dezelfde twee toetsen, maar zonder de reden-sturing
       // van `fits` (`poolBlockedOnly`) te raken — die beschrijft de aaneengesloten scan.
       const index = candidate.days.findIndex((iso, i) => !dayFits(candidate.byRes, i, iso));
-      if (index < 0) return { gaps, start, horizonExhausted: false };
+      // Venstergrens (het FINISH-plafond) — een gebruikerskeuze, GEEN horizon-uitputting. Past alles,
+      // dan telt het einde van de plaatsing. Past een dag niet, dan telt die dag: alleen daar kan de
+      // plaatsing nog veranderen, en elke pause schuift het einde verder op. Zo bereikt de scan de
+      // zoekhorizon op dezelfde dag als de aaneengesloten scan (bevinding B8 hierboven).
+      if (index < 0) {
+        if (finishLimit && placedCandidate.finish > finishLimit) return { gaps: null, horizonExhausted: false };
+        return { gaps, start, horizonExhausted: false };
+      }
       const day = placedCandidate.days[index];
+      if (finishLimit && parseDate(day.iso) > finishLimit) return { gaps: null, horizonExhausted: false };
       const axis = day.ranges[0].afterMinutes;
       if (axis === 0) {
         // Vóór het eerste werk: uitstel, geen split met een ongeldig openingsgat.
         start = nextCandidateAfterFor(task, start, candidate.days[0]);
       } else {
         const pause = engine.effectiveBandsOn(parseDate(day.iso)).reduce((sum, b) => sum + b.end - b.start, 0);
-        gaps = gaps.map(g => g.afterMinutes >= axis ? { ...g, afterMinutes: g.afterMinutes + pause } : g);
-        gaps.push({ afterMinutes: axis, gapMinutes: pause, source: 'leveling' });
+        // Een pauze direct na een eerdere nivelleerpauze verlengt die pauze: één gat per
+        // aaneengesloten pauze, zoals de gebruiker het ziet. Een importsplit blijft een eigen gat.
+        const before = gaps.find(g => g.source === 'leveling' && g.afterMinutes + g.gapMinutes === axis);
+        gaps = gaps.map(g => g.afterMinutes >= axis ? { ...g, afterMinutes: g.afterMinutes + pause }
+          : g === before ? { ...g, gapMinutes: g.gapMinutes + pause } : g);
+        if (!before) gaps.push({ afterMinutes: axis, gapMinutes: pause, source: 'leveling' });
         gaps.sort((a, b) => a.afterMinutes - b.afterMinutes);
       }
       // Zelfde tweetrapsgrens als `findSlot`: `scanLimit` is de gewone ondergrens, een
