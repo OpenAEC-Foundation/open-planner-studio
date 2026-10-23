@@ -214,3 +214,72 @@ ingestelde projecteinde; drie profielen, P 1 en 2 d.
 
 - **knownbugs 275**: één werkelijke datum met een tijd maakt van een importkalender een urenkalender (I8).
 - **knownbugs 276**: een FNET met een tijd buiten werktijd zet een START-mijlpaal op de volgende werkdag.
+
+## Ronde 5
+
+Review ronde 5 gaf één BLOKKEERT-punt in de fix van ronde 4. Commit `101137680`. Uitgevoerd door Claude Opus 5.5.
+
+### Het dagbegin van de laatste projectdag lag niet op de eigen taakkalender
+
+**Geval.** Kalender A ma–vr 07–16, kalender B ma–vr 08–16. P 1 d op maandag (A), FS+0 naar START M. R 1 d op
+maandag (B), SS+0 naar START Q met ALAP. M staat op di 07:00; dat is het projecteinde, en het opent dinsdag.
+`lastProjectDayStart` gaf in ronde 4 dan het klokmoment di 07:00 terug, ook voor Q op kalender B. Dat valt buiten
+de werktijd van Q. ALAP verplaatste Q daardoor niet: Q bleef op ma 08:00, speling 1, niet kritiek. Op `b4fb9dea5`
+en de basis: di 08:00, speling 0, kritiek. Fout onder OPS, P6 en MSP, via de solver en via `runCPM` in de store.
+
+**Fix (richting van de reviewer, nagemeten).** De vlag kiest alleen de laatste werkdag; het dagbegin komt uit de
+eigen kalender: `this.dayFirstBandStart(eng, projectEnd) ?? projectEnd` (`CPMSolver.ts:1178`). Nog steeds één
+predicaat, één vlag en één kalenderberekening.
+
+| Geval | Ronde 4 | Nu | `b4fb9dea5` | Basis |
+|---|---|---|---|---|
+| ALAP-START Q op 8–16, projecteinde di 07:00 | ma 08:00, speling 1 | di 08:00, speling 0, kritiek | idem nu | di, speling 0 |
+| START Q op 7–16 naast een 24-uursprojecteinde di 00:00 | laat di 00:00, speling 1 | laat di 07:00, speling 1 | laat ma 07:00, speling 0 | laat di, speling 1 |
+| idem op 8–16 | laat di 00:00, speling 1 | laat di 08:00, speling 1 | laat ma 08:00, speling 0 | laat di, speling 1 |
+
+**Probes van de reviewer (`edges`, 1164 gevallen; `focused`, 1224).** Tegenover ronde 4 veranderen 9 en 36
+gevallen. Alle 36 in `focused` en 3 in `edges` zijn weer gelijk aan `b4fb9dea5` en aan de basis. De andere 6 in
+`edges` zijn de gemengde 24-uursvariant uit de tabel: Q is nu gelijk aan de basis. Geen enkel geval wijkt nu van de
+basis af waar ronde 4 wel gelijk was.
+
+**Waarneming, niet gewijzigd.** In die gemengde variant heeft de gewone taak R (1 d op 7–16 of 8–16, ma) speling 0;
+op de basis 1. Dat is ook zo in ronde 4 en op `b4fb9dea5`; verder terug niet gemeten. Het projecteinde di 00:00 is
+voor een gewone taak het einde van maandag (`snapOnOrBefore` geeft ma 16:00). De dagregel geldt alleen voor
+mijlpalen; deze ronde raakt R niet.
+
+### Mutatiebewijs ronde 5
+
+| Mutatie | `check-hours-f2-review.ts` |
+|---|---|
+| R5-M1: de vlag geeft weer het klokmoment (ronde 4) | 641/653, exit 1 (3 solver, 3 store, 6 gemengd) |
+| R5-M2: de vlag weg (ronde 3) | 635/653, exit 1 |
+| R5-M3: een ingesteld projecteinde opent ook een dag | 650/653, exit 1 |
+| R5-M4: de oude A2-fout terug | 647/653, exit 1 |
+| R5-M5: geen FNET-controle | 629/653, exit 1 |
+
+### Gewijzigde verwachtingen ronde 5
+
+Geen bestaande. Nieuw (641 → 653), **B3**: 3 ALAP via de solver, 3 ALAP via `runCPM` in de store, 6 gemengd (7–16
+en 8–16 naast een 24-uurskalender); drie profielen. De A2-proef, de 24-uursketen en het ingestelde projecteinde
+blijven ongewijzigd in de check.
+
+### Controles ronde 5 (stand `101137680`)
+
+| Controle | Uitkomst | Exit |
+|---|---|---|
+| Tegenproef ronde 5 `blocker` | 6/6 (solver en store, drie profielen) | 0 |
+| Tegenproeven ronde 4 `regression24`, `store24` | 6/6; 0/3 profielen fout | 0 / 0 |
+| `next-boundary` | 0 afwijkende regels tegen de log van de reviewer | 0 |
+| Probes reviewer ronde 2 en 3 (23 stuks) | alle exit 0; de 13 met een log van de reviewer in ronde 5: 0 afwijkende regels | 0 |
+| Eigen probes `alletypen`, buren, Q, ingesteld projecteinde | 144/144; 0 verschillen met ronde 2 en 4 | 0 |
+| `check-hours-f2-review.ts` | 653/653 | 0 |
+| `check-recorded-dates`, `-mark`, `-library` | 383, 52/52, 26/26 | 0 |
+| `check-dcma.ts` | 41 | 0 |
+| `check-auto-actual-start.ts` | 135/135 | 0 |
+| `check-import-datum-zonder-tijd.ts` | 53/53 | 0 |
+| Profielvangrails | 57 en 141 | 0 |
+| Alle 24 casebatterijen | 608/608 | 0 |
+| F0 run 1 en run 2 | gelijk aan ronde 4; klopt met `minute-model-runs.json` | 0 / 0 |
+| `npm run lint:fast` | geen fouten | 0 |
+| `npm run typecheck` | geen fouten | 0 |
+| `npm run measure:profiles` (corpus) | P6 `nieuw=0 verslechterd=0 groter=0`, NULDOEL; MSP rood op `timephased-cost-rollup.mpp` (knownbugs 187) | 1 |
