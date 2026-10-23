@@ -2,7 +2,7 @@ import { Task, type TaskConstraint, type ExternalLink } from '@/types/task';
 import type { EffectiveSchedulingOptions } from '@/types/project';
 import { Sequence, LagUnit } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
-import { dayEndInstant, dayStartInstant, blocksClock } from '@/engine/calendar/workdayRules';
+import { dayEndInstant, dayStartInstant, blocksClock, workdayDateOfInstant } from '@/engine/calendar/workdayRules';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { CalendarEngine } from './CalendarEngine';
 import { LevelingQueue } from './levelingQueue';
@@ -221,9 +221,7 @@ export function snapWorkInstantOnOrAfter(eng: CalendarEngine, from: Date): Date 
 export function engineForTaskCalendar(
   cache: Map<string, CalendarEngine>,
   cal: WorkCalendar,
-  task: Task,
 ): CalendarEngine {
-  void task;
   let e = cache.get(cal.id);
   if (!e) {
     e = new CalendarEngine(calendarForEngine(cal));
@@ -510,17 +508,17 @@ export class CPMSolver {
   }
 
   /**
-   * Engine voor `task` op een concrete kalender. Instance-tunnel naar de gedeelde
-   * `engineForTaskCalendar` (top-level, zie daar de uur-/dagregel en de cache-sleutel) op deze
+   * Engine op een concrete kalender. Instance-tunnel naar de gedeelde
+   * `engineForTaskCalendar` (top-level, één engine per effectieve kalender) op deze
    * solver-cache — die de constructor al met de projectengine onder `projectCal.id` vult.
    */
-  private engineForCal(cal: WorkCalendar, task: Task): CalendarEngine {
-    return engineForTaskCalendar(this.engineCache, cal, task);
+  private engineForCal(cal: WorkCalendar): CalendarEngine {
+    return engineForTaskCalendar(this.engineCache, cal);
   }
 
   /** De kalender-engine waarin de duur/constraints/float van `task` rekenen. */
   private calendarFor(task: Task): CalendarEngine {
-    return this.engineForCal(resolveCalendar(task.calendarId, this.registry, this.projectCal), task);
+    return this.engineForCal(resolveCalendar(task.calendarId, this.registry, this.projectCal));
   }
 
   private p6CompletedDataDateWindowDecision(task: Task): P6CompletedWindowDecision {
@@ -899,7 +897,6 @@ export class CPMSolver {
     if (task.timephasedDurationWalks && task.timephasedDurationWalks.length === 1) {
       const candidate = this.engineForCal(
         resolveCalendar(task.timephasedDurationWalks[0].resourceCalendarId, this.registry, this.projectCal),
-        task,
       );
       if (candidate.isHourMode) progressCal = candidate;
     }
@@ -1307,15 +1304,18 @@ export class CPMSolver {
       // dag-taak die op een uur-kalender staat.
       const totalDays = splitTotalSpanDays(task, eng);
       if (totalDays <= 0) return new Date(end.getTime());
-      const firstDay = eng.subtractWorkDays(utcDayStart(end), totalDays);
+      const firstDay = eng.subtractWorkDays(workdayDateOfInstant(eng, end, 'end'), totalDays);
       const firstStart = this.dayFirstBandStart(eng, firstDay) ?? firstDay;
-      // F2 telt hele dagen vanaf de vroege startdag. Bewaar het startmoment binnen die dag
-      // ook achteruit; terugknippen naar 07:00 geeft anders negatieve speling op de voorganger.
+      // F2 telt hele dagen. Bewaar de positie in werkminuten binnen de eerste dag als
+      // die op de doelwerkdag past. Andere blokken of een korte uitzondering mogen geen
+      // start buiten werktijd of na het einde opleveren; gebruik dan het eerste blokbegin.
       if (actualEarlyStart) {
         const earlyDayStart = this.dayFirstBandStart(eng, actualEarlyStart);
         if (earlyDayStart) {
-          const offset = Math.max(0, actualEarlyStart.getTime() - earlyDayStart.getTime());
-          return new Date(firstStart.getTime() + offset);
+          const offset = Math.max(0, eng.workMinutesBetween(earlyDayStart, actualEarlyStart));
+          const candidate = eng.nextWorkInstant(eng.addWorkMinutes(firstStart, offset));
+          const firstEnd = this.dayLastBandEnd(eng, firstDay);
+          if (firstEnd && candidate < firstEnd && candidate <= end && eng.isWorkInstant(candidate)) return candidate;
         }
       }
       return firstStart;
@@ -1478,7 +1478,7 @@ export class CPMSolver {
       if (task.time.durationType === 'ELAPSEDTIME') return subtractElapsedMinutes(finish, elapsedMinutesOf(task, eng));
       const totalDays = splitTotalSpanDays(task, eng);
       if (totalDays <= 0) return new Date(finish.getTime());
-      const firstDay = eng.subtractWorkDays(utcDayStart(finish), totalDays);
+      const firstDay = eng.subtractWorkDays(workdayDateOfInstant(eng, finish, 'end'), totalDays);
       return this.dayFirstBandStart(eng, firstDay) ?? firstDay;
     }
     // `isZeroDurationMilestone` i.p.v. de kale vlag — anders valt een dag-modus mijlpaal-met-duur-ELAPSEDTIME-taak hier stil
@@ -2898,7 +2898,7 @@ export class CPMSolver {
       if (durMin != null) {
         for (const walk of task.timephasedDurationWalks) {
           const resCal = resolveCalendar(walk.resourceCalendarId, this.registry, this.projectCal);
-          const resEng = this.engineForCal(resCal, task);
+          const resEng = this.engineForCal(resCal);
           if (!resEng.isHourMode) continue;
           // Apportionering: `workMinutes` (alleen gezet bij >1 toewijzing) wint van de volle
           // taakduur — zie het docblok hierboven.
@@ -3631,7 +3631,9 @@ export class CPMSolver {
       // ten onrechte speling).
       const predCal = this.calendarFor(task);
       let lateFinish = isZeroDurationMilestone(task)
-        && (task.milestoneKind === 'START' || (!task.milestoneKind
+        && ((task.milestoneKind === 'START'
+          && (!this.options.schedulingOptions.milestoneWithoutPredecessorAtDayEnd
+            || (this.predecessors.get(taskId)?.length ?? 0) > 0 || succs.length > 0)) || (!task.milestoneKind
           && (this.predecessors.get(taskId)?.length ?? 0) > 0
           && !(this.predecessors.get(taskId) ?? []).some(seq => seq.type === 'FINISH_FINISH' || seq.type === 'START_FINISH')))
         && taskDurationUnit(task) !== 'hours' && !predCal.hasOwnWorkBlocks

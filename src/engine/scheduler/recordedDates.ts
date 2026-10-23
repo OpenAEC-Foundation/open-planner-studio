@@ -393,7 +393,7 @@ export function cpmResultFromRecorded(
     });
     if (rec.isCritical) criticalPath.push(task.id);
     if (task.deadline) {
-      const eng = engineForTaskCalendar(engines, resolveCalendar(task.calendarId, calendars, calendar), task);
+      const eng = engineForTaskCalendar(engines, resolveCalendar(task.calendarId, calendars, calendar));
       const bound = deadlineBound(task.deadline, eng);
       const finish = parseInstant(rec.finish);
       if (bound && !isNaN(finish.getTime()) && finish > bound) missedDeadlineTaskIds.push(task.id);

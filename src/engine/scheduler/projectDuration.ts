@@ -1,10 +1,11 @@
 import type { Task } from '@/types/task';
 import type { CalendarEngine } from './CalendarEngine';
+import { workdayDateOfInstant } from '@/engine/calendar/workdayRules';
 import { formatDate } from '@/utils/dateUtils';
 
 /**
  * Werkdagen-spanne van `projStart` tot `projEnd`, MET de mijlpaal-alleen-uitzondering: een project
- * dat op één dag valt (`projStart` === `projEnd`, kalenderdag-vergelijking) zonder échte werk-taken
+ * dat op één werkdag valt (begin- en eindkant volgens de werkblokken) zonder échte werk-taken
  * (uitsluitend mijlpalen, of taken met `scheduleDuration` 0) krijgt duur 0 in plaats van de 1 die de
  * inclusieve telling van `workDaysBetween` anders zou geven.
  *
@@ -21,8 +22,12 @@ export function projectDurationOf(
   tasks: Iterable<Task>,
 ): number {
   if (!projStart) return 0;
-  let duration = engine.workDaysBetween(projStart, projEnd);
-  if (formatDate(projStart) === formatDate(projEnd)) {
+  // Tel werkdagdatums inclusief: een eindmoment op 24:00 of na een nacht hoort nog
+  // bij het werkblok van de vorige dag, ongeacht de kloktijd van de projectstart.
+  const startDay = engine.isHourMode ? workdayDateOfInstant(engine, projStart, 'start') : projStart;
+  const endDay = engine.isHourMode ? workdayDateOfInstant(engine, projEnd, 'end') : projEnd;
+  let duration = engine.workDaysBetween(startDay, endDay);
+  if (formatDate(startDay) === formatDate(endDay)) {
     const anyRealWork = [...tasks].some((t) => !t.isMilestone && t.time.scheduleDuration > 0);
     if (!anyRealWork) duration = 0;
   }

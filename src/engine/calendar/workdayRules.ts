@@ -127,20 +127,31 @@ export function workdayOfInstant(clock: DayClock, value: string, side: InstantSi
   if (!isInstant(value)) return '';
   const t = parseInstant(value).getTime();
   if (Number.isNaN(t)) return '';
+  return formatDate(workdayDateOfInstant(clock.kind === 'blocks' ? clock.engine : null, new Date(t), side));
+}
+
+/** Dezelfde werkdagbepaling voor de motor, zonder omzetting van Date naar tekst en terug.
+ *  `null` als engine betekent kalendertijd; de eindkant houdt ook dan de 24:00-regel. */
+export function workdayDateOfInstant(
+  engine: Pick<CalendarEngine, 'effectiveBandsOn'> | null,
+  instant: Date,
+  side: InstantSide,
+): Date {
+  const t = instant.getTime();
   const day0 = utcDayIndex(t) * MS_PER_DAY;
-  if (clock.kind === 'blocks') {
+  if (engine) {
     // Een werkblok mag tot 2880 minuten na het begin van zijn dag lopen (canonieke wrap-band), dus het
     // blok dat `t` bevat, begint op de dag van `t` of op een van de twee dagen ervoor.
     for (let k = 0; k >= -2; k--) {
       const dayMs = day0 + k * MS_PER_DAY;
-      for (const band of clock.engine.effectiveBandsOn(new Date(dayMs))) {
+      for (const band of engine.effectiveBandsOn(new Date(dayMs))) {
         const start = dayMs + band.start * MS_PER_MIN;
         const end = dayMs + band.end * MS_PER_MIN;
         const inside = side === 'start' ? start <= t && t < end : start < t && t <= end;
-        if (inside) return formatDate(new Date(dayMs));
+        if (inside) return new Date(dayMs);
       }
     }
   }
-  if (side === 'end' && t === day0) return formatDate(new Date(day0 - MS_PER_DAY));
-  return formatDate(new Date(day0));
+  if (side === 'end' && t === day0) return new Date(day0 - MS_PER_DAY);
+  return new Date(day0);
 }

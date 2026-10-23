@@ -498,7 +498,7 @@
         { "name": "B", "dur": "4u" }
       ],
       "links": [{ "pred": "M", "succ": "B", "type": "START_START" }],
-      "note": "F2 §3.14 B6 en §4.2 D7: M di 16:00, B wo 08:00–12:00; tussen het vroegste begin en projecteinde liggen vier werkuren.",
+      "note": "F2 §3.14 B6 en §4.2 D7: M di 16:00, B wo 08:00–12:00; tussen het vroegste begin en projecteinde liggen vier werkuren op twee inclusief getelde werkdagen (di en wo).",
       "expect": {
         "tasks": {
           "M": {
@@ -520,7 +520,7 @@
           }
         },
         "projectEnd": "2026-07-08T12:00",
-        "projectDuration": 1,
+        "projectDuration": 2,
         "criticalPathSet": [
           "B",
           "M"
