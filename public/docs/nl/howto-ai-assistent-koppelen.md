@@ -75,6 +75,8 @@ Het token staat bewust in `env` en niet in `args`: op Windows breekt Claude Desk
 
 In de groep *Verbinding* staat ook het veld *Token*. Dat is een lange, willekeurige code die de app voor je maakt en op deze computer bewaart. In het venster staat *Dit token geeft toegang tot het geopende plan. Deel het niet met anderen.* Met het pictogram *Nieuw token* maak je een nieuw token. De app vraagt eerst *Een nieuw token maken verbreekt alle bestaande koppelingen. Doorgaan?* Draait de bridge, dan herstart hij met het nieuwe token en werkt het oude niet meer.
 
+**De app vindt zichzelf.** Zolang de bridge draait, schrijft de desktop-app de poort en het token in het bestand `mcp/runtime.json` in de gegevensmap van de app. Een MCP-plugin van Open Planner Studio leest dat bestand en vindt de app dan vanzelf; je hoeft geen token te plakken. Op Linux en macOS kan alleen jouw gebruikersaccount het bestand lezen. Op Windows beschermt de standaard-ACL van je profielmap het bestand; dat controleert de app niet apart. Stop je de bridge of zet je de MCP-koppeling uit, dan verwijdert de app het bestand. Daarnaast houdt de app in `mcp/open-files.json` bij welke bestanden open staan, ook als de MCP-koppeling uit staat. Zo schrijft de plugin nooit in een plan dat je in de app open hebt.
+
 ### 4. Zien wat de MCP-client doet
 
 1. Klik bij *Activiteit* op *Activiteitenpaneel*. In de zijkolom opent het paneel *MCP-activiteit*.

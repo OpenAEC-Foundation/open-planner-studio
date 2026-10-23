@@ -27,6 +27,7 @@ import { handleMcpMessage } from './dispatcher';
 import { record as recordActivity, capField } from './activityLog';
 import { createAppBackupService, ensureBackup, resetBackupSession, markDuplicateBorn } from './backup';
 import { registerAllTools } from './toolRegistry';
+import { getMcpDiscoveryWriter } from './discoveryFiles';
 import type { McpBackupBinding, McpContext, McpServerStatus, ActivityEntry } from './contracts';
 
 // --- Runtime-init ---------------------------------------------------------------------------------
@@ -667,6 +668,11 @@ export interface BridgeDeps {
   /** Sessietabel die alle starts van deze controller delen (echt: `appMcpSessions`). Ontbreekt hij, dan
    *  maakt de controller er één voor zijn hele levensduur. */
   sessions?: McpSessionTable;
+  /** De bridge draait nu op `port` met `token` (echt: `runtime.json` schrijven, zie `discoveryFiles.ts`).
+   *  Een fout hier stopt de bridge niet. */
+  onBridgeStarted?: (port: number, token: string) => void | Promise<void>;
+  /** Er draait geen bridge meer: na een stop of een mislukte start (echt: `runtime.json` verwijderen). */
+  onBridgeStopped?: () => void | Promise<void>;
 }
 
 export interface BridgeController {
@@ -694,6 +700,12 @@ export function createBridgeController(deps: BridgeDeps): BridgeController {
   const sessions = deps.sessions ?? createMcpSessionTable();
   let unlisteners: Array<() => void> = [];
   let starting = false;
+
+  /** Meld een start of stop aan de ontdekkingsbestanden; een fout daar raakt de bridge niet. */
+  async function notify(hook: (() => void | Promise<void>) | undefined): Promise<void> {
+    if (!hook) return;
+    try { await hook(); } catch (error) { console.warn('MCP: ontdekkingsbestand bijwerken mislukt:', error); }
+  }
 
   function cleanup(): void {
     for (const un of unlisteners) {
@@ -745,6 +757,9 @@ export function createBridgeController(deps: BridgeDeps): BridgeController {
         // (dat `mcp_bridge_start` vóór zijn Err emit) als nieuwe taak kan binnenkomen: dat event zou
         // anders via `mapRustState` de status naar 'error' zetten en onze 'port-busy' overschrijven.
         cleanup();
+        await notify(deps.onBridgeStopped);
+      } else {
+        await notify(deps.onBridgeStarted ? () => deps.onBridgeStarted!(port, token) : undefined);
       }
     } finally {
       starting = false;
@@ -757,6 +772,7 @@ export function createBridgeController(deps: BridgeDeps): BridgeController {
     cleanup();
     try { await deps.invoke('mcp_bridge_stop', {}); } catch { /* al gestopt / geen bridge — niet fataal */ }
     deps.setStatus({ state: 'off', port: deps.getPort() });
+    await notify(deps.onBridgeStopped);
   }
 
   async function restart(): Promise<void> {
@@ -787,6 +803,9 @@ async function buildLiveController(): Promise<BridgeController> {
     getPort: loadMcpPort,
     getToken: ensureMcpToken,
     sessions: appMcpSessions,
+    // `runtime.json` voor de MCP-plugin (issue #570); de writer is alleen in de desktop-app actief.
+    onBridgeStarted: (port, token) => getMcpDiscoveryWriter()?.bridgeStarted(port, token),
+    onBridgeStopped: () => getMcpDiscoveryWriter()?.bridgeStopped(),
   });
 }
 

@@ -79,3 +79,11 @@ wijzigende tool wordt na sessieverlies bewust niet herhaald (het drift-anker is 
 geweigerd tot een geslaagde `planner_switch_document` het anker opnieuw bindt; hernoem of verander je die tool, loop dan
 `DOCUMENT_CHOICE_TOOL` in `proxy.ts` na; welke tools lezen, haalt
 de bundel uit `readOnlyHint` in `tools/list`.
+
+**Ontdekkingsbestanden voor de MCP-plugin** (issue #570). `runtime.json` (zolang de bridge draait) en
+`open-files.json` (zolang de desktop-app draait, ook met de MCP-koppeling uit) in `<appDataDir>/mcp/`. Contract
+in `discoveryContract.ts` (importeert niets; de plugin bundelt hem), schrijver in `discoveryFiles.ts` (één
+wachtrij, atomair, `0600`), meldingen via `onBridgeStarted`/`onBridgeStopped` in `createBridgeController`,
+register via `src/hooks/useMcpDiscovery.ts`, opruimen bij afsluiten in `useAppCloseGuard`. Het proces-id komt
+uit het initialisatiescript `ops-process-info` in `main.rs` (geen command). Detail: `docs/mcp-ontdekking.md`;
+test `tests/mcp/cases-discovery.ts` en de echte-app-run.

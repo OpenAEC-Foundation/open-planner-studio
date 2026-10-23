@@ -170,6 +170,28 @@ en noem het in je rapport of PR-tekst.
     ontgrendeling alleen na succes; `planner_duplicate_document` niet, want die gebruikt het actieve document.
     — B
 
+209. **MCP-ontdekking: een schrijffout kan een tijdelijk bestand met het token laten liggen.**
+    `src/services/mcp/discoveryFiles.ts:95–105`: `writeNew` staat buiten de opruim-`try`; slaagt het aanmaken
+    maar faalt het schrijven (bijv. schijfquota), dan blijft het tijdelijke bestand achter, mogelijk al met
+    het volledige token. `bridgeStopped()` en `shutdown()` verwijderen alleen de definitieve namen; de test
+    injecteert alleen rename-fouten. Gevonden in review ronde 1 en 2 van PR #573 (GPT-6.1-Sol). Voorstel:
+    exclusief aanmaken en schrijven splitsen zoals `fileAccess/atomicWrite.ts`, zodat een schrijffout het
+    eigen bestand opruimt. — B
+
+210. **MCP-ontdekking: een update via de updater ruimt `runtime.json` en `open-files.json` niet op.** Alleen
+    `src/hooks/useAppCloseGuard.ts:33` roept `shutdown()` aan;
+    `src/services/updater/updaterService.ts:170–182` installeert en herstart rechtstreeks, en op Windows
+    beëindigt de installer de app. De lezer herkent de resten aan het dode pid. Gevonden in review ronde 1 en
+    2 van PR #573 (GPT-6.1-Sol). Voorstel: opruimen vóór de installatie, en opnieuw publiceren als de
+    installatie mislukt. — B
+
+211. **MCP-ontdekking: op Windows is niet bewezen dat alleen de gebruiker het tokenbestand kan lezen.**
+    `src/services/mcp/discoveryFiles.ts:237–253` vertrouwt op de geërfde ACL van de profielmap; `plugin-fs`
+    past `mode` alleen op Unix toe. Een bestaande of omgeleide gegevensmap met ruimere rechten maakt ook het
+    tijdelijke tokenbestand leesbaar. Doc en gids zeggen nu dat dit niet apart gecontroleerd is. Gevonden in
+    review ronde 1 van PR #573 (GPT-6.1-Sol). Voorstel: de ACL op Windows controleren (ook tijdelijk bestand
+    en bestaande map), of geen token publiceren als de bescherming onvoldoende is. — B
+
 ## Bestanden en herstel
 
 35. **Showcase-voorbeelden openen als gewijzigd** (`applyDemoLibraryToShowcaseProject`). — S
@@ -355,6 +377,12 @@ en noem het in je rapport of PR-tekst.
 208. **`scripts/build-core.mjs` bouwt de licentiegegevens onnodig om.** `scripts/build-core.mjs:138–148` zet
     de pakketnamen om in een `Map` en de sectietekst in een array met één element; `notices.packages.join(',
     ')` en `notices.sections` volstaan. Gevonden in review ronde 1 van PR #567 (GPT-6.1-Sol). — B
+
+212. **Real-app-test van de MCP-ontdekking bewijst minder dan zijn naam zegt.**
+    `tests/mcp/realApp/run-real-app.ts:141` heet "hetzelfde pid" maar vergelijkt de pids van beide bestanden
+    niet; echte openen-, Opslaan als- en afsluitroutes ontbreken (de storetest zet `filePath` rechtstreeks).
+    Gevonden in review ronde 1 en 2 van PR #573 (GPT-6.1-Sol). Voorstel: de pids vergelijken en de bestaande
+    echte-app-route uitbreiden met echte bestandsacties, inhoud en opruiming. — B
 
 ## Wensen en open taken (geen bug)
 
