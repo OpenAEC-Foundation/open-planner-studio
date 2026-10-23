@@ -4,9 +4,7 @@ import { nameWithProjectCode } from '@/utils/projectCodeName';
 import { documentProjectCode } from '@/utils/documentProjectCode';
 import { useTranslation } from 'react-i18next';
 import { isTauri } from '@/utils/platform';
-import {
-  Undo2, Redo2, Minus, Square, Copy, X, Settings,
-} from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { SwitcherPill } from '@/components/layout/DocumentChrome/SwitcherPill';
 import { canRedo, canUndo } from '@/state/sessionHistory';
 import { isGlobalShortcutFrozen } from '@/hooks/keyboard/shortcutRegistry';
@@ -176,7 +174,7 @@ export function TitleBar() {
             disabled={questionPending || !undoAvailable}
             onClick={() => { if (!isGlobalShortcutFrozen()) undo(); }}
           >
-            <Undo2 size={16} />
+            <B2Icon name="edit.undo" size={16} />
           </button>
           <button
             className="quick-access-btn"
@@ -184,7 +182,7 @@ export function TitleBar() {
             disabled={questionPending || !redoAvailable}
             onClick={() => { if (!isGlobalShortcutFrozen()) redo(); }}
           >
-            <Redo2 size={16} />
+            <B2Icon name="edit.redo" size={16} />
           </button>
 
           <div className="quick-access-separator" />
@@ -197,7 +195,7 @@ export function TitleBar() {
             disabled={questionPending}
             onClick={() => setUI({ showSettingsDialog: true })}
           >
-            <Settings size={16} />
+            <B2Icon name="ui.settings" size={16} />
           </button>
 
           <div className="quick-access-separator" />
@@ -238,13 +236,13 @@ export function TitleBar() {
       {isTauri() && (
         <div ref={rightRef} className="window-controls">
           <button className="window-btn" title={tCommon('window.minimize')} onClick={() => { void handleMinimize(); }}>
-            <Minus size={14} />
+            <B2Icon name="window.minimize" size={14} />
           </button>
           <button className="window-btn" title={maximized ? tCommon('window.restore') : tCommon('window.maximize')} onClick={() => { void handleMaximize(); }}>
-            {maximized ? <Copy size={11} /> : <Square size={11} />}
+            {maximized ? <B2Icon name="window.restore" size={11} /> : <B2Icon name="window.maximize" size={11} />}
           </button>
           <button className="window-btn window-btn-close" title={tCommon('close')} onClick={() => { void handleClose(); }}>
-            <X size={14} />
+            <B2Icon name="window.close" size={14} />
           </button>
         </div>
       )}

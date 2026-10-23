@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BookOpen, CircleCheck, CircleMinus, Save } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { useAppStore } from '@/state/appStore';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { openHelpArticleGuarded } from '@/components/common/HelpButton';
@@ -59,15 +59,15 @@ export function FormatNoticeDialog({ kind }: { kind: FormatNoticeKind }) {
 
       <div className="flex-1 overflow-y-auto px-4 pb-4 pt-2 flex flex-col">
         <div className="ops-note ops-note--success !text-body text-text-primary" data-ops-format-notice-kept>
-          <CircleCheck size={14} aria-hidden />
+          <B2Icon name="status.success" size={14} aria-hidden />
           <span>{t(`formatNotice.formats.${kind}.kept`)}</span>
         </div>
         <div className="ops-note ops-note--warning !text-body text-text-primary" data-ops-format-notice-limited>
-          <CircleMinus size={14} aria-hidden />
+          <B2Icon name="status.warning" size={14} aria-hidden />
           <span>{t(`formatNotice.formats.${kind}.limited`)}</span>
         </div>
         <div className="ops-note ops-note--info !text-body text-text-primary" data-ops-format-notice-save>
-          <Save size={14} aria-hidden />
+          <B2Icon name="status.info" size={14} aria-hidden />
           <span>{t(`formatNotice.formats.${kind}.save`)}</span>
         </div>
         <button
@@ -76,7 +76,7 @@ export function FormatNoticeDialog({ kind }: { kind: FormatNoticeKind }) {
           className="mt-3 self-start inline-flex items-center gap-1 text-small leading-4 text-accent hover:underline"
           data-ops-format-notice-read-more
         >
-          <BookOpen size={13} aria-hidden />
+          <B2Icon name="ui.help" size={13} aria-hidden />
           {t('formatNotice.readMore')}
         </button>
       </div>

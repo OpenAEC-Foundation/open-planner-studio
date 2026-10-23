@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { ArrowDown, ArrowUp, ExternalLink, Download, Library, GitBranch, ListTree, Boxes, BookOpen } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
+import type { B2IconName } from '@/components/common/b2IconNames';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { getInstallKind } from '@/services/updater/updaterService';
 import { fetchReleaseComparison, type ReleaseComparison } from '@/services/updater/releaseInfo';
@@ -11,7 +12,7 @@ import { isTauri } from '@/utils/platform';
 import { openHelpArticleGuarded } from '@/components/common/HelpButton';
 
 const CHANGELOG_URL = 'https://github.com/OpenAEC-Foundation/open-planner-studio/wiki/Changelog';
-const ICONS: Record<HighlightIcon, typeof Download> = { import: Download, library: Library, relations: GitBranch, tasks: ListTree, examples: Boxes };
+const ICONS: Record<HighlightIcon, B2IconName> = { import: 'file.import', library: 'company.library', relations: 'planning.relations-menu', tasks: 'layout.task-tree', examples: 'file.examples' };
 
 async function openExternal(url: string): Promise<boolean> {
   try {
@@ -73,10 +74,9 @@ export function JustUpdatedDialog() {
   // Eerst deze dialoog sluiten, dan Help openen — anders opende Help áchter de dialoog.
   const openGuide = (docsId: string) => { close(); openHelpArticleGuarded(docsId); };
   const Highlight = ({ item, primary = false }: { item: ReleaseHighlight; primary?: boolean }) => {
-    const Icon = ICONS[item.icon];
     return <article className={primary ? 'border border-border bg-surface-hover rounded-[12px] p-5 flex gap-4 items-start' : 'border border-border rounded-[10px] p-3 flex gap-3 items-start'}>
-      <Icon aria-hidden="true" size={primary ? 30 : 18} className="text-accent shrink-0 mt-0.5" />
-      <div className="min-w-0 flex-1"><p className="!text-small tracking-[0.12em] font-semibold text-text-secondary">{item.category}</p><h2 className={primary ? 'text-large leading-6 font-semibold mt-1' : 'text-body leading-5 font-semibold'}>{item.title}</h2><p className="text-small leading-5 text-text-secondary mt-1">{item.description}</p>{primary && item.docsId && <button onClick={() => openGuide(item.docsId!)} className="mt-2 inline-flex items-center gap-1 text-small leading-4 text-accent hover:underline"><BookOpen size={13} />{t('updates.justUpdated.readGuide')}</button>}</div>
+      <B2Icon name={ICONS[item.icon]} aria-hidden="true" size={primary ? 30 : 18} className="text-accent shrink-0 mt-0.5" />
+      <div className="min-w-0 flex-1"><p className="!text-small tracking-[0.12em] font-semibold text-text-secondary">{item.category}</p><h2 className={primary ? 'text-large leading-6 font-semibold mt-1' : 'text-body leading-5 font-semibold'}>{item.title}</h2><p className="text-small leading-5 text-text-secondary mt-1">{item.description}</p>{primary && item.docsId && <button onClick={() => openGuide(item.docsId!)} className="mt-2 inline-flex items-center gap-1 text-small leading-4 text-accent hover:underline"><B2Icon name="ui.help" size={13} />{t('updates.justUpdated.readGuide')}</button>}</div>
     </article>;
   };
 
@@ -101,7 +101,7 @@ export function JustUpdatedDialog() {
           </div>
         )}
         {release && <><Highlight item={release.primary} primary /><div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{release.secondary.map(item => <Highlight key={item.title} item={item} />)}</div></>}
-        <button onClick={() => openLink(CHANGELOG_URL)} className="self-start inline-flex items-center gap-1 text-small leading-4 text-accent hover:underline">{t('updates.justUpdated.fullNotes')} <ExternalLink size={13} /></button>
+        <button onClick={() => openLink(CHANGELOG_URL)} className="self-start inline-flex items-center gap-1 text-small leading-4 text-accent hover:underline">{t('updates.justUpdated.fullNotes')} <B2Icon name="link.open-external" size={13} /></button>
         {openError && <p role="alert" className="text-small leading-4 text-danger">{t('updates.justUpdated.openFailed')}</p>}
         {(shownDays !== null || stats?.commitsSincePrevious || stats?.addedCodeLines || sizeDelta !== null) && (
           <section className="border-t border-border pt-4">
@@ -110,7 +110,7 @@ export function JustUpdatedDialog() {
               {shownDays !== null && <div><strong className="block text-large leading-6">{shownDays}</strong><span className="text-text-secondary">{t('updates.justUpdated.days')}</span></div>}
               {stats?.commitsSincePrevious && <div><strong className="block text-large leading-6">{stats.commitsSincePrevious}</strong><span className="text-text-secondary">{t('updates.justUpdated.commits')}</span></div>}
               {stats?.addedCodeLines && <div title={t('updates.justUpdated.codeLinesHint')}><strong className="block text-large leading-6">+{stats.addedCodeLines.toLocaleString()}</strong><span className="text-text-secondary">{t('updates.justUpdated.codeLines')}</span></div>}
-              {sizeDelta !== null && <div><strong className="block text-large leading-6 inline-flex gap-1 items-center">{showSmaller ? <ArrowDown size={14} /> : showLarger ? <ArrowUp size={14} /> : null}{formatBytes(Math.abs(sizeDelta))}</strong><span className="text-text-secondary">{showSmaller ? t('updates.justUpdated.smallerLabel') : showLarger ? t('updates.justUpdated.largerLabel') : t('updates.justUpdated.sameSize')}</span></div>}
+              {sizeDelta !== null && <div><strong className="block text-large leading-6 inline-flex gap-1 items-center">{showSmaller ? <B2Icon name="status.install-size-smaller" size={14} /> : showLarger ? <B2Icon name="status.install-size-larger" size={14} /> : null}{formatBytes(Math.abs(sizeDelta))}</strong><span className="text-text-secondary">{showSmaller ? t('updates.justUpdated.smallerLabel') : showLarger ? t('updates.justUpdated.largerLabel') : t('updates.justUpdated.sameSize')}</span></div>}
             </div>
           </section>
         )}

@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Link2, AlertCircle, ArrowRight } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { useAppStore } from '@/state/appStore';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { LIBRARY_LINK_HELP_ARTICLE_ID } from '@/state/helpArticles';
@@ -73,7 +73,7 @@ export function LibraryLinkDialog() {
               <h3 className="font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>{t('companyLibrary.recognizeHeading')}</h3>
               {withMatch.length > 1 && (
                 <button onClick={linkAll} className="btn btn--sm btn--secondary flex items-center gap-1">
-                  <Link2 size={12} /> {t('companyLibrary.linkAll')}
+                  <B2Icon name="library.link-recognized" size={12} /> {t('companyLibrary.linkAll')}
                 </button>
               )}
             </div>
@@ -84,7 +84,7 @@ export function LibraryLinkDialog() {
                   <span className="flex items-center gap-1.5">
                     <b>{c.projectName}</b>
                     {c.suggestedPoolName
-                      ? <span className="text-text-secondary flex items-center gap-1"><ArrowRight size={11} /> {t('companyLibrary.suggestedMatch', { name: c.suggestedPoolName })}</span>
+                      ? <span className="text-text-secondary flex items-center gap-1"><B2Icon name="status.library-suggestion" size={11} /> {t('companyLibrary.suggestedMatch', { name: c.suggestedPoolName })}</span>
                       : <span className="text-text-secondary italic">{t('companyLibrary.noMatch')}</span>}
                   </span>
                   {c.suggestedPoolId && (
@@ -92,7 +92,7 @@ export function LibraryLinkDialog() {
                       onClick={() => linkRecognizedItems([{ kind: c.kind, projectId: c.projectId, poolId: c.suggestedPoolId! }])}
                       className="btn btn--sm btn--secondary flex items-center gap-1"
                     >
-                      <Link2 size={12} /> {t('companyLibrary.linkThis')}
+                      <B2Icon name="library.link-recognized" size={12} /> {t('companyLibrary.linkThis')}
                     </button>
                   )}
                 </li>
@@ -113,7 +113,7 @@ export function LibraryLinkDialog() {
                   <div className="flex items-center justify-between">
                     <b>{d.name}</b>
                     <span className="badge badge--red flex items-center gap-1">
-                      <AlertCircle size={11} /> {d.status === 'removed' ? t('companyLibrary.notInCompany') : t('companyLibrary.deviates')}
+                      <B2Icon name={d.status === 'removed' ? 'status.library-item-missing' : 'status.library-item-deviated'} size={11} /> {d.status === 'removed' ? t('companyLibrary.notInCompany') : t('companyLibrary.deviates')}
                     </span>
                   </div>
                   {d.status === 'deviated' && (

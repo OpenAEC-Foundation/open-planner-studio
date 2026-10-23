@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 
 const TONES = {
   // Een echte waarschuwing: semantische --warning-token + per-thema --theme-warning-text, leesbaar
@@ -25,7 +25,7 @@ const TONES = {
 } as const;
 
 /**
- * Banner met driehoek-icoon boven een resourcetabel (Bibliotheek- en Bezettingsweergave).
+ * Banner met statusicoon (B2 waarschuwing of informatie) boven een resourcetabel (Bibliotheek- en Bezettingsweergave).
  * `warning` is een waarschuwing (`role="alert"`), `dim` een melding (`role="status"`).
  */
 export function StatusBanner({ tone, children, bannerProps, inline = false }: {
@@ -40,7 +40,7 @@ export function StatusBanner({ tone, children, bannerProps, inline = false }: {
   const classes = inline ? className.replace('mx-2 mt-2 ', '') : className;
   return (
     <div className={classes} style={style} role={role} {...bannerProps}>
-      <AlertTriangle size={14} className="shrink-0" aria-hidden />
+      <B2Icon name={tone === 'warning' ? 'status.warning' : 'status.info'} size={14} className="shrink-0" aria-hidden />
       <span>{children}</span>
     </div>
   );

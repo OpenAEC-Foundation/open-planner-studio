@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { useTimeNotation } from '@/hooks/displayDate';
 import { clockPlaceholder, formatClock, parseClock } from '@/utils/displayTime';
 
@@ -17,10 +17,10 @@ export function StepButtons({ onStep, increaseLabel, decreaseLabel, dataAttribut
 }) {
   return <span className="flex w-5 shrink-0 flex-col gap-0.5">
     <button type="button" className="flex flex-1 items-center justify-center rounded border border-[var(--theme-control-border)] text-text-secondary hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-accent" aria-label={increaseLabel} title={increaseLabel} onClick={() => onStep(TIME_STEP_MINUTES)} data-ops-scalar-time-step={`${dataAttribute}-up`}>
-      <ChevronUp size={11} aria-hidden="true" />
+      <B2Icon name="input.time-increase" size={11} aria-hidden="true" />
     </button>
     <button type="button" className="flex flex-1 items-center justify-center rounded border border-[var(--theme-control-border)] text-text-secondary hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-accent" aria-label={decreaseLabel} title={decreaseLabel} onClick={() => onStep(-TIME_STEP_MINUTES)} data-ops-scalar-time-step={`${dataAttribute}-down`}>
-      <ChevronDown size={11} aria-hidden="true" />
+      <B2Icon name="input.time-decrease" size={11} aria-hidden="true" />
     </button>
   </span>;
 }

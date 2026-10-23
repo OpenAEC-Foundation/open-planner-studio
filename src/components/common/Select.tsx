@@ -7,7 +7,7 @@ import {
   useState,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, Info } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import './Select.css';
 
 export type SelectOption = {
@@ -469,7 +469,7 @@ export function Select({
               aria-hidden="true"
               onClick={e => e.stopPropagation()}
             >
-              <Info size={14} aria-hidden="true" />
+              <B2Icon name="help.context-hint" size={14} aria-hidden="true" />
             </span>
           </>
         )}
@@ -572,7 +572,7 @@ export function Select({
             selectedLabel ?? placeholder ?? ''
           )}
         </span>
-        <ChevronDown size={16} className="ops-select__chevron" aria-hidden="true" />
+        <B2Icon name="ui.dropdown" size={16} className="ops-select__chevron" aria-hidden="true" />
       </button>
       {menu}
     </>

@@ -20,7 +20,7 @@
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CheckCircle2, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { useAppStore } from '@/state/appStore';
 import { renderMiniMarkdown } from '@/utils/miniMarkdown';
 import { helpImageLang, resolveHelpImagePath } from '@/utils/helpManifest';
@@ -194,9 +194,9 @@ export function GuidePanel() {
             aria-expanded={false}
             data-ops-guide-action="expand"
           >
-            <ChevronUp size={14} />
+            <B2Icon name="guide.compact" size={14} />
             <span data-ops-guide-progress>{progress}</span>
-            {view.done && <CheckCircle2 size={12} className="guide-panel-done" data-ops-guide-done-badge />}
+            {view.done && <B2Icon name="status.success" size={12} className="guide-panel-done" data-ops-guide-done-badge />}
           </button>
         </div>
       </>
@@ -225,7 +225,7 @@ export function GuidePanel() {
             aria-expanded={true}
             data-ops-guide-action="collapse"
           >
-            <ChevronDown size={14} />
+            <B2Icon name="guide.compact" size={14} />
           </button>
           <button
             type="button"
@@ -235,7 +235,7 @@ export function GuidePanel() {
             aria-label={t('extGuide.close')}
             data-ops-guide-action="close"
           >
-            <X size={14} />
+            <B2Icon name="ui.close" size={14} />
           </button>
         </div>
 
@@ -243,7 +243,7 @@ export function GuidePanel() {
           <span data-ops-guide-progress>{progress}</span>
           {view.done && (
             <span className="guide-panel-done" data-ops-guide-done-badge>
-              <CheckCircle2 size={12} /> {t('extGuide.stepDone')}
+              <B2Icon name="status.success" size={12} /> {t('extGuide.stepDone')}
             </span>
           )}
         </div>

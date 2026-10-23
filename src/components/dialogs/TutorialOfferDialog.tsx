@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { GraduationCap } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { useAppStore } from '@/state/appStore';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { saveTutorialOfferAnswered } from '@/utils/settingsStore';
@@ -121,7 +121,7 @@ export function TutorialOfferDialog() {
     >
       <DialogHeader
         title={<span id="ops-tutorial-offer-title">{t('tutorialOffer.title')}</span>}
-        icon={<GraduationCap size={16} aria-hidden />}
+        icon={<B2Icon name="guide.tutorials" size={16} aria-hidden />}
         onClose={decline}
         closeDisabled={busy}
       />

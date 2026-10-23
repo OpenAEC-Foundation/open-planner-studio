@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, ChevronRight, FileText, HardDrive, RefreshCw } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { useAppStore } from '@/state/appStore';
 import { formatLocalDateTime } from '@/utils/displayTime';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
@@ -116,7 +116,7 @@ function SiteOpenDialogBody({ extensions }: { extensions: string[] }) {
             <div className="text-text-secondary break-words">{files.message}</div>
             <div>
               <button className="btn btn--sm btn--secondary flex items-center gap-1.5" onClick={retry}>
-                <RefreshCw size={13} />
+                <B2Icon name="ui.refresh" size={13} />
                 {t('siteFiles.retry')}
               </button>
             </div>
@@ -148,7 +148,7 @@ function SiteOpenDialogBody({ extensions }: { extensions: string[] }) {
                         title={t(fileVersions ? 'siteFiles.hideVersions' : 'siteFiles.showVersions')}
                         data-ops-site-versions-toggle
                       >
-                        {fileVersions ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                        {fileVersions ? <B2Icon name="tree.collapse" size={14} /> : <B2Icon name="tree.expand" size={14} />}
                       </button>
                       <button
                         className="flex-1 min-w-0 flex items-start gap-2.5 p-2.5 text-left hover:bg-surface rounded-r-[8px]"
@@ -156,7 +156,7 @@ function SiteOpenDialogBody({ extensions }: { extensions: string[] }) {
                         title={t('siteFiles.open')}
                         data-ops-site-file-open
                       >
-                        <FileText size={15} className="text-accent mt-0.5 shrink-0" />
+                        <B2Icon name="file.type-other" size={15} className="text-accent mt-0.5 shrink-0" />
                         <span className="flex flex-col gap-0.5 min-w-0">
                           <span className="text-text-primary font-semibold !text-large truncate">{file.name}</span>
                           {modified && <span className="text-text-secondary">{modified}</span>}
@@ -224,7 +224,7 @@ function SiteOpenDialogBody({ extensions }: { extensions: string[] }) {
           onClick={() => answerSiteOpen({ kind: 'local' })}
           data-ops-site-open-local
         >
-          <HardDrive size={13} />
+          <B2Icon name="file.open" size={13} />
           {t('siteFiles.fromThisPc')}
         </button>
         <button className="btn btn--sm btn--secondary" onClick={cancel}>{t('cancel')}</button>

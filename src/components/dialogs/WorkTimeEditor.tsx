@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2, Copy } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import type { WorkTimeBands } from '@/types/calendar';
 import { ISO_WEEK_DAYS, orderedWeekDays } from '@/utils/weekDays';
 import { MinuteTimeInput } from '@/components/common/TimeInput';
@@ -109,12 +109,12 @@ export function WorkTimeEditor({
               <div className="flex-1" />
               <button type="button" onClick={() => addBand(wd)}
                 className="p-1 hover:bg-surface-hover rounded-[6px] text-text-secondary" title={tCommon('calendar.worktime.addBand')}>
-                <Plus size={12} />
+                <B2Icon name="calendar.work-band-add" size={12} />
               </button>
               {wd <= 5 && list.length > 0 && (
                 <button type="button" onClick={() => copyToAllWorkdays(wd)}
                   className="p-1 hover:bg-surface-hover rounded-[6px] text-text-secondary" title={tCommon('calendar.worktime.copyToAll')}>
-                  <Copy size={12} />
+                  <B2Icon name="calendar.copy-workdays" size={12} />
                 </button>
               )}
             </div>
@@ -153,7 +153,7 @@ export function WorkTimeEditor({
                     </label>
                     <button type="button" onClick={() => removeBand(wd, idx)}
                       className="p-1 hover:bg-surface-hover rounded-[6px] text-text-secondary" title={tCommon('delete')}>
-                      <Trash2 size={12} />
+                      <B2Icon name="edit.delete" size={12} />
                     </button>
                   </div>
                 );

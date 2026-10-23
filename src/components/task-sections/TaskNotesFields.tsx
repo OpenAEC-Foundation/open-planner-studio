@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Task } from '@/types/task';
 import { generateId } from '@/utils/id';
-import { Plus, Trash2 } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 
 /**
  * Aantekeningen/checklist per taak — gedeelde sectie, direct na de
@@ -104,7 +104,7 @@ export function TaskNotesFields({ task, onChange }: {
             className="mt-1"
             data-ops-note-remove
           >
-            <Trash2 size={10} />
+            <B2Icon name="edit.delete" size={10} />
           </button>
         </div>
       ))}
@@ -114,7 +114,7 @@ export function TaskNotesFields({ task, onChange }: {
         style={{ color: 'var(--theme-accent)' }}
         data-ops-note-add
       >
-        <Plus size={10} />
+        <B2Icon name="draw.note" size={10} />
         {t('properties.notes.add')}
       </button>
     </>

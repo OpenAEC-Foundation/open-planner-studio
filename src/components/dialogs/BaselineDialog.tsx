@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { Trash2 } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { displayDate } from '@/utils/displayDate';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -98,7 +98,7 @@ export function BaselineDialog() {
                     <td className="px-2 py-1">{displayDate(b.createdAt, notation) || '—'}</td>
                     <td className="px-2 py-1 text-center">
                       <button onClick={() => remove(b.id)} style={{ color: 'var(--error)' }} title={t('baseline.dialog.delete')}>
-                        <Trash2 size={12} />
+                        <B2Icon name="edit.delete" size={12} />
                       </button>
                     </td>
                   </tr>

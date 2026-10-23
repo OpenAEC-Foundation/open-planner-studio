@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2 } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { useAppStore } from '@/state/appStore';
 import { useDisplayDate } from '@/hooks/displayDate';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
@@ -161,7 +161,7 @@ export function TaskSplitsSection({ taskId }: { taskId: string }) {
           className="dependency-add-button"
           onClick={() => setTaskSplits(task.id, null)}
         >
-          <Trash2 size={10} />
+          <B2Icon name="planning.interruption-remove" size={10} />
           {t('properties.splits.removeAll')}
         </button>
       </>
@@ -236,7 +236,7 @@ export function TaskSplitsSection({ taskId }: { taskId: string }) {
                   style={{ color: 'var(--error)' }}
                   onClick={() => apply(removeGap(pieces, g.index))}
                 >
-                  <Trash2 size={10} />
+                  <B2Icon name="planning.interruption-remove" size={10} />
                 </button>
                 <span className="col-start-2 col-span-4 flex items-center gap-1 min-w-0">
                   {r && (
@@ -262,7 +262,7 @@ export function TaskSplitsSection({ taskId }: { taskId: string }) {
         className="dependency-add-button disabled:opacity-50 disabled:pointer-events-none"
         onClick={() => { if (addResult.ok) setTaskSplits(task.id, addResult.pieces); }}
       >
-        <Plus size={10} />
+        <B2Icon name="planning.interruption-add" size={10} />
         {t('properties.splits.add')}
       </button>
     </>

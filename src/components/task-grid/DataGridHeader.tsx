@@ -7,7 +7,7 @@ import {
   type PointerEvent,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { Minus } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { CONTEXT_MENU_CONTAINER_CLASS, CONTEXT_MENU_ITEM_CLASS } from '@/components/canvas/ContextMenu';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import type { TaskColumnId } from '@/types/taskGrid';
@@ -518,7 +518,7 @@ export function DataGridHeader({
                 onRemoveColumn?.(column.id);
               }}
             >
-              <Minus size={12} aria-hidden="true" />
+              <B2Icon name="table.column-hide" size={12} aria-hidden="true" />
             </button>
             <button
               type="button"

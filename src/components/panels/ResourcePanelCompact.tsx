@@ -1,6 +1,6 @@
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { UnitsInput } from '@/components/common/UnitsInput';
 import { scopeTaskResources } from '@/utils/taskResourceScope';
 import { ensureThemeVisible, resourceDisplayColor } from '@/engine/renderer/resourcePalette';
@@ -55,7 +55,7 @@ export function ResourcePanelCompact() {
                 className="flex items-center flex-shrink-0"
                 style={{ color: 'var(--error)' }}
             >
-                <AlertTriangle size={14} />
+                <B2Icon name="status.resource-overallocated" size={14} />
             </span>
             )}
             <UnitsInput

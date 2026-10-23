@@ -6,7 +6,7 @@ import type { ResourceCurve } from '@/types/resource';
 import { UnitsInput } from '@/components/common/UnitsInput';
 import { Select, type SelectOption } from '@/components/common/Select';
 import { decimalSeparatorOf, localizeDecimalPoint } from '@/utils/reportNumber';
-import { AlertTriangle, BarChart3, ChevronRight, Lock, Trash2 } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { RESOURCE_CURVES, CURVE_KEY } from './shared';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { assignmentCurveState, contouredAssignmentIds } from '@/engine/contour/curveState';
@@ -184,7 +184,7 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                   title={showWork && unitsProtected ? lockTitle : t('properties.assignments.unitsPerDay')}
                   data-ops-assignment-lock-units={showWork ? (unitsProtected ? 'locked' : 'free') : undefined}
                 >
-                  {showWork && unitsProtected && <Lock size={9} className="shrink-0" />}
+                  {showWork && unitsProtected && <B2Icon name="status.assignment-protected" size={9} className="shrink-0" />}
                   <span className="truncate">{t('properties.assignments.units')}</span>
                 </span>
                 {showWork && (
@@ -193,7 +193,7 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                     title={workProtected ? lockTitle : t('properties.assignments.workHint')}
                     data-ops-assignment-lock-work={workProtected ? 'locked' : 'free'}
                   >
-                    {workProtected && <Lock size={9} className="shrink-0" />}
+                    {workProtected && <B2Icon name="status.assignment-protected" size={9} className="shrink-0" />}
                     <span className="truncate">{t('properties.assignments.workHours')}</span>
                   </span>
                 )}
@@ -242,7 +242,7 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                       className="assignment-name flex min-w-0 items-center gap-1 rounded-[4px] py-0.5 text-start hover:bg-surface-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
                       data-ops-assignment-expand={open ? 'open' : 'closed'}
                     >
-                      <ChevronRight
+                      <B2Icon name="tree.expand"
                         size={12}
                         aria-hidden="true"
                         className={`shrink-0 text-text-secondary transition-transform ${open ? 'rotate-90' : 'rtl:-scale-x-100'}`}
@@ -260,7 +260,7 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                           title={`${t('properties.assignments.curve')}: ${curveLabel}`}
                           data-ops-assignment-curve-mark={curveValue}
                         >
-                          <BarChart3 size={11} aria-hidden="true" />
+                          <B2Icon name="assignment.hours-distribution" size={11} aria-hidden="true" />
                         </span>
                       )}
                     </button>
@@ -308,7 +308,7 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                             role="img"
                             data-ops-assignment-work-deviates={`${deviation.stored}/${deviation.derived}`}
                           >
-                            <AlertTriangle size={10} aria-hidden />
+                            <B2Icon name="status.warning" size={10} aria-hidden />
                           </span>
                         )}
                       </span>
@@ -322,7 +322,7 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                       aria-label={t('properties.assignments.remove')}
                       data-ops-assignment-remove
                     >
-                      <Trash2 size={12} />
+                      <B2Icon name="edit.delete" size={12} />
                     </button>
                     {open && (
                       <div
@@ -363,7 +363,7 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                           title={contoured ? t('properties.assignments.contouredHint') : t('properties.assignments.contour')}
                           data-ops-assignment-contour={contoured ? 'contoured' : 'formula'}
                         >
-                          <BarChart3 size={12} aria-hidden="true" className="shrink-0" />
+                          <B2Icon name="assignment.hours-distribution" size={12} aria-hidden="true" className="shrink-0" />
                           <span className="truncate">{t('properties.assignments.contour')}</span>
                         </button>
                         {canMove && (

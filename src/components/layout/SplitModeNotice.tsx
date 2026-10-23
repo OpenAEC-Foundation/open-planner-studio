@@ -1,5 +1,4 @@
 import { useTranslation } from 'react-i18next';
-import { Scissors } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { NoticeStrip } from './NoticeStrip';
 
@@ -19,7 +18,7 @@ export function SplitModeNotice() {
 
   return (
     <NoticeStrip
-      icon={Scissors}
+      icon="task.split-mode"
       text={t('view.splitModeHint')}
       actionLabel={t('view.splitModeStop')}
       onAction={() => setUI({ showSplitMode: false })}

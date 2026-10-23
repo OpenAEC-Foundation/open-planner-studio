@@ -1,6 +1,6 @@
 import { useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Trash2, X, Check, AlertTriangle, ChevronRight, ChevronDown } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import * as activityLog from '@/services/mcp/activityLog';
 import type { ActivityEntry } from '@/services/mcp/contracts';
 import { useAppStore } from '@/state/appStore';
@@ -38,11 +38,11 @@ function ActivityRow({ entry, depth = 0 }: { entry: ActivityEntry; depth?: numbe
         }}
       >
         <span style={{ width: 12, flexShrink: 0, color: 'var(--dashboard-text-dim)' }}>
-          {hasDetail ? (expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />) : null}
+          {hasDetail ? (expanded ? <B2Icon name="tree.collapse" size={12} /> : <B2Icon name="tree.expand" size={12} />) : null}
         </span>
         {entry.ok
-          ? <Check size={12} style={{ flexShrink: 0, color: 'var(--success)' }} />
-          : <AlertTriangle size={12} style={{ flexShrink: 0, color: '#f87171' }} />}
+          ? <B2Icon name="status.success" size={12} style={{ flexShrink: 0, color: 'var(--success)' }} />
+          : <B2Icon name="status.error" size={12} style={{ flexShrink: 0, color: '#f87171' }} />}
         <span style={{ color: 'var(--dashboard-text-dim)', flexShrink: 0 }}>{formatClockTime(entry.ts)}</span>
         <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {entry.summary || entry.tool}
@@ -101,10 +101,10 @@ export function AIActivityPanel() {
         </span>
         <div className="flex-1" />
         <DashboardIconButton onClick={() => activityLog.clear()} title={t('aiActivity.clear')}>
-          <Trash2 size={12} />
+          <B2Icon name="activity.clear" size={12} />
         </DashboardIconButton>
         <DashboardIconButton onClick={() => setUI({ aiActivityOpen: false })} title={t('close')}>
-          <X size={12} />
+          <B2Icon name="ui.close" size={12} />
         </DashboardIconButton>
       </>}
     >

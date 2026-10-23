@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, OctagonAlert, CheckCircle2, RefreshCw } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { useAppStore } from '@/state/appStore';
 import { useDisplayDate } from '@/hooks/displayDate';
 import { formatLagShort } from '@/utils/lagFormat';
@@ -155,7 +155,7 @@ export function WarningsPanel() {
             title={t('warnings.stale')}
             data-ops-warnings-stale
           >
-            <AlertTriangle size={12} />
+            <B2Icon name="status.warning" size={12} />
           </span>
         )}
         {(scheduleStale || !cpmResult) && (
@@ -164,7 +164,7 @@ export function WarningsPanel() {
             className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-surface-hover text-text-primary flex-shrink-0"
             title={tMenu('ribbon.calculateTitle')}
           >
-            <RefreshCw size={12} />
+            <B2Icon name="planning.calculate" size={12} />
             <span>{tMenu('ribbon.calculate')}</span>
           </button>
         )}
@@ -172,7 +172,7 @@ export function WarningsPanel() {
 
       {cpmResult && warnings.length === 0 ? (
         <div className="flex items-center gap-2 px-3 py-3 text-text-secondary" data-ops-warnings-empty>
-          <CheckCircle2 size={14} style={{ color: 'var(--success)' }} />
+          <B2Icon name="status.success" size={14} style={{ color: 'var(--success)' }} />
           <span>{t('warnings.empty')}</span>
         </div>
       ) : (
@@ -185,8 +185,8 @@ export function WarningsPanel() {
             const body = (
               <>
                 {error
-                  ? <OctagonAlert size={13} className="flex-shrink-0 mt-0.5" style={{ color: 'var(--error)' }} />
-                  : <AlertTriangle size={13} className="flex-shrink-0 mt-0.5" style={{ color: 'var(--theme-warning-text)' }} />}
+                  ? <B2Icon name="status.error" size={13} className="flex-shrink-0 mt-0.5" style={{ color: 'var(--error)' }} />
+                  : <B2Icon name="status.warning" size={13} className="flex-shrink-0 mt-0.5" style={{ color: 'var(--theme-warning-text)' }} />}
                 <span className="flex-1 min-w-0 flex flex-col gap-0.5">
                   <span className="text-text-primary font-medium truncate">{label}</span>
                   <span className="text-text-secondary whitespace-normal break-words">{describe(w)}</span>

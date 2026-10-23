@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { useAppStore } from '@/state/appStore';
 import { displayIsoTime } from '@/utils/displayTime';
 import type { TimeNotation } from '@/types/view';
@@ -352,14 +352,14 @@ export function ProgressImportDialog() {
                 aanwezig op de niet-ambiguous tak van `DateOrderDetection`, vandaar de guard. */}
             {detection && detection.order !== 'ambiguous' && detection.evidence === 'contradictoryNoSample' && (
               <div className="alert alert--warning flex items-center gap-2">
-                <AlertTriangle size={16} />
+                <B2Icon name="status.warning" size={16} />
                 {t('progressImport.dateOrderContradictory')}
               </div>
             )}
 
             {plan.ignoredOverrideRows.length > 0 && (
               <div className="alert alert--warning flex flex-col gap-1">
-                <AlertTriangle size={16} />
+                <B2Icon name="status.warning" size={16} />
                 {plan.ignoredOverrideRows.map(rowNumber => (
                   <span key={rowNumber}>{t('progressImport.overrideDropped', { row: rowNumber })}</span>
                 ))}

@@ -1,4 +1,4 @@
-import { FilePlus2, FolderOpen } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { useTranslation } from 'react-i18next';
 import { Dialog } from '@/components/common/Dialog';
 import { useAppStore } from '@/state/appStore';
@@ -28,10 +28,10 @@ export function NewOrOpenProjectDialog() {
       </div>
       <div className="p-3 flex flex-col gap-2">
         <button className="btn btn--primary justify-start gap-2" onClick={create} data-ops-new-project-choice>
-          <FilePlus2 size={16} />{t('documents.newProject')}
+          <B2Icon name="file.new" size={16} />{t('documents.newProject')}
         </button>
         <button className="btn btn--secondary justify-start gap-2" onClick={open} data-ops-open-project-choice>
-          <FolderOpen size={16} />{t('documents.openExistingProject')}
+          <B2Icon name="file.open" size={16} />{t('documents.openExistingProject')}
         </button>
       </div>
       <div className="flex justify-end px-4 py-3 border-t border-border">

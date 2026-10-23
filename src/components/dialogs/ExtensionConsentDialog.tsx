@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { ShieldAlert, HardDrive, Globe } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { useAppStore } from '@/state/appStore';
 import { Dialog } from '@/components/common/Dialog';
 import type { ExtensionConsentRequest } from '@/extensions';
@@ -53,7 +53,7 @@ export function ExtensionConsentDialog() {
       panelProps={{ 'data-ops-ext-consent': true }}
     >
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-        <ShieldAlert size={16} className="text-critical" />
+        <B2Icon name="status.warning" size={16} className="text-critical" />
         <span className="text-body leading-5 font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
           {t('extConsent.title')}
         </span>
@@ -89,12 +89,12 @@ export function ExtensionConsentDialog() {
         {/* De kern van de vraag. */}
         <div className="flex flex-col gap-2">
           <div className="font-semibold flex items-center gap-1.5">
-            <ShieldAlert size={13} className="text-critical" />
+            <B2Icon name="status.warning" size={13} className="text-critical" />
             {t('extConsent.riskHeading')}
           </div>
           <p className="text-text-secondary">{t('extConsent.riskBody')}</p>
           <p className="text-text-secondary flex items-start gap-1.5">
-            {pending.isDesktop ? <HardDrive size={13} className="shrink-0 mt-0.5" /> : <Globe size={13} className="shrink-0 mt-0.5" />}
+            {pending.isDesktop ? <B2Icon name="extension.runtime-desktop" size={13} className="shrink-0 mt-0.5" /> : <B2Icon name="extension.runtime-browser" size={13} className="shrink-0 mt-0.5" />}
             <span>{pending.isDesktop ? t('extConsent.riskDesktop') : t('extConsent.riskBrowser')}</span>
           </p>
         </div>

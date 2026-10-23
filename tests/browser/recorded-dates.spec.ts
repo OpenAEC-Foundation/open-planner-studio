@@ -151,7 +151,7 @@ test('datums zoals opgeslagen: een XER met restverschillen opent in de modus, me
   });
   await unknownDriving.scrollIntoViewIfNeeded();
   await expect(unknownDriving).toBeVisible();
-  await expect(dependencies.locator('.lucide-zap')).toHaveCount(0);
+  await expect(dependencies.locator('[data-b2-icon="planning.driving"]')).toHaveCount(0);
 
   // Echte bediening: richtingen aanzetten, selectie wisselen, dezelfde trace naar de Gantt meenemen.
   const beforeTrace = await state(page);
@@ -196,7 +196,7 @@ test('datums zoals opgeslagen: een XER met restverschillen opent in de modus, me
   // januari is daardoor bekend niet-driving: geen onbekend-badge of bliksem, wel de gewone trace.
   await expect(unknownDriving).toHaveCount(0);
   await expect(dependencies.locator('.dependency-wbs-link')).toHaveCount(1);
-  await expect(dependencies.locator('.lucide-zap')).toHaveCount(0);
+  await expect(dependencies.locator('[data-b2-icon="planning.driving"]')).toHaveCount(0);
   expect(await page.evaluate(() => {
     const cpm = window.__OPS__!.store.getState().cpmResult;
     return { unknown: cpm?.drivingUnknown === true, driving: cpm?.drivingSequenceIds };

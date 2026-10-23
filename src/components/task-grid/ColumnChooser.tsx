@@ -7,7 +7,7 @@ import {
   type CSSProperties,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronDown, Plus, RotateCcw, Search } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { TASK_COLUMN_CATEGORY_ORDER } from '@/engine/taskGrid/taskColumnRegistry';
 import { recentAvailableTaskColumnIds } from '@/engine/taskGrid/preferences';
@@ -253,7 +253,7 @@ export function ColumnChooser({
           onClick={() => choose(item)}
         >
           <span className="task-grid-column-chooser-check" aria-hidden="true">
-            {item.selected ? <Check size={13} /> : null}
+            {item.selected ? <B2Icon name="status.column-present" size={13} /> : null}
           </span>
           <span>{item.label}</span>
         </button>
@@ -284,7 +284,7 @@ export function ColumnChooser({
           </section>
         )}
         <label className="task-grid-column-chooser-search">
-          <Search size={14} aria-hidden="true" />
+          <B2Icon name="view.search" size={14} aria-hidden="true" />
           <input
             ref={searchRef}
             type="search"
@@ -316,7 +316,7 @@ export function ColumnChooser({
                 >
                   <span>{categoryLabel}</span>
                   <span className="task-grid-column-chooser-category-count">{group.items.length}</span>
-                  <ChevronDown size={14} aria-hidden="true" data-expanded={expanded ? 'true' : 'false'} />
+                  <B2Icon name={expanded ? 'tree.collapse' : 'tree.expand'} size={14} aria-hidden="true" data-expanded={expanded ? 'true' : 'false'} />
                 </button>
                 {expanded && itemList(group.items, `category:${group.category}`)}
               </section>
@@ -330,7 +330,7 @@ export function ColumnChooser({
             disabled={resetDisabled}
             onClick={reset}
           >
-            <RotateCcw size={13} aria-hidden="true" />
+            <B2Icon name="table.columns-reset" size={13} aria-hidden="true" />
             <span>{labels.resetDefault}</span>
           </button>
         </div>
@@ -350,7 +350,7 @@ export function ColumnChooser({
         aria-expanded={open}
         onClick={openChooser}
       >
-        <Plus size={15} aria-hidden="true" />
+        <B2Icon name="table.column-add-menu" size={15} aria-hidden="true" />
       </button>
       {panel}
     </div>

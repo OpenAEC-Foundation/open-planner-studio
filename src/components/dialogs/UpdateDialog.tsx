@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { Download, RefreshCw, AlertTriangle, CheckCircle2, RotateCw, Copy, Check, ExternalLink, PackageOpen } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { isTauri } from '@/utils/platform';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import {
@@ -169,14 +169,14 @@ export function UpdateDialog() {
           {/* Status-melding */}
           {busy && status?.kind === 'upToDate' && (
             <div className="flex items-center gap-2 text-text-secondary">
-              <RefreshCw size={14} className="animate-spin" />
+              <B2Icon name="status.busy" size={14} className="animate-spin" />
               <span>{t('updates.checking')}</span>
             </div>
           )}
 
           {!busy && status?.kind === 'upToDate' && (
             <div className="flex items-center gap-2 text-text-secondary">
-              <CheckCircle2 size={14} className="text-accent" />
+              <B2Icon name="status.success" size={14} className="text-accent" />
               <span>{t('updates.upToDate')}</span>
             </div>
           )}
@@ -184,7 +184,7 @@ export function UpdateDialog() {
           {status?.kind === 'available' && (
             <>
               <div className="flex items-center gap-2 text-text-primary font-medium">
-                <Download size={14} className="text-accent" />
+                <B2Icon name="status.update-available" size={14} className="text-accent" />
                 <span>{t('updates.available')}</span>
               </div>
               {status.info.body.trim().length > 0 && (
@@ -199,7 +199,7 @@ export function UpdateDialog() {
               {/* Snap: snapd/Snap Store werkt zelf bij — geen in-app installatie. */}
               {isSnap && (
                 <div className="flex items-start gap-2 text-text-secondary bg-surface-hover border border-border rounded-[8px] p-3">
-                  <PackageOpen size={14} className="text-accent mt-0.5 shrink-0" />
+                  <B2Icon name="status.info" size={14} className="text-accent mt-0.5 shrink-0" />
                   <span>{t('updates.snapNotice')}</span>
                 </div>
               )}
@@ -207,7 +207,7 @@ export function UpdateDialog() {
               {/* AUR: pacman beheert het pakket — bijwerken via yay/paru, geen in-app installatie. */}
               {isAur && (
                 <div className="flex items-start gap-2 text-text-secondary bg-surface-hover border border-border rounded-[8px] p-3" data-ops-update-package-manager-notice>
-                  <PackageOpen size={14} className="text-accent mt-0.5 shrink-0" />
+                  <B2Icon name="status.info" size={14} className="text-accent mt-0.5 shrink-0" />
                   <span>{t('updates.packageManagerNotice')}</span>
                 </div>
               )}
@@ -244,7 +244,7 @@ export function UpdateDialog() {
 
           {(isReadyToInstall || isInstalling || isRestarting) && (
             <div role="status" className="flex items-center gap-2 text-text-secondary">
-              <RefreshCw size={14} className="animate-spin" />
+              <B2Icon name="status.busy" size={14} className="animate-spin" />
               <span>{isReadyToInstall ? t('updates.preparingInstall') : isInstalling ? t('updates.installing') : t('updates.restarting')}</span>
             </div>
           )}
@@ -252,7 +252,7 @@ export function UpdateDialog() {
           {status?.kind === 'error' && (
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center gap-2 text-[var(--theme-danger,#e81123)] font-medium">
-                <AlertTriangle size={14} />
+                <B2Icon name="status.error" size={14} />
                 <span>{t('updates.error')}</span>
               </div>
               <span className="text-text-secondary break-words">{status.message}</span>
@@ -272,7 +272,7 @@ export function UpdateDialog() {
                     onClick={handleCopyCommand}
                     className="btn btn--sm btn--secondary flex items-center gap-1.5"
                   >
-                    {copied ? <Check size={13} className="text-accent" /> : <Copy size={13} />}
+                    {copied ? <B2Icon name="status.success" size={13} className="text-accent" /> : <B2Icon name="edit.copy" size={13} />}
                     {copied ? t('updates.copied') : t('updates.copyCommand')}
                   </button>
                 </div>
@@ -300,7 +300,7 @@ export function UpdateDialog() {
               disabled={busy}
               className="btn btn--sm btn--secondary flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <RotateCw size={13} />
+              <B2Icon name="ui.check-updates" size={13} />
               {t('updates.retry')}
             </button>
           )}
@@ -310,7 +310,7 @@ export function UpdateDialog() {
               onClick={handleOpenDownloads}
               className="btn btn--sm btn--secondary flex items-center gap-1.5"
             >
-              <ExternalLink size={13} />
+              <B2Icon name="link.open-external" size={13} />
               {t('updates.openDownloads')}
             </button>
           )}
@@ -321,7 +321,7 @@ export function UpdateDialog() {
               disabled={busy}
               className="btn btn--sm btn--primary shadow-[var(--shadow-glow)] flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <Download size={13} />
+              <B2Icon name="update.install" size={13} />
               {t('updates.downloadInstall')}
             </button>
           )}

@@ -15,7 +15,7 @@ import { milestoneRefusal } from '@/engine/taskMilestoneTransition';
 import { milestoneRefusalNotices } from '@/state/structuralTransition';
 import { Select } from '@/components/common/Select';
 import { DateTextInput } from '@/components/common/DateTextInput';
-import { X } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { Dialog, DialogHelpButton } from '@/components/common/Dialog';
 import { Field } from '@/components/task-sections/shared';
 import { TaskBasicFields } from '@/components/task-sections/TaskBasicFields';
@@ -292,7 +292,7 @@ export function TaskDialog() {
               aria-label={tCommon('close')}
               title={tCommon('close')}
             >
-              <X size={16} />
+              <B2Icon name="ui.close" size={16} />
             </button>
           </span>
         </div>

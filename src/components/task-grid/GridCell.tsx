@@ -1,5 +1,5 @@
 import { useCallback, useState, type MouseEvent } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { gridCellKey, useTaskGridContext, type DataGridCellModel, type DataGridColumnModel } from './taskGridContext';
 import { GRID_CLIP_ATTRIBUTE, isGridCellTruncated, resolveGridCellTitle } from '@/engine/taskGrid/cellTitle';
 import type { GridCellAddress } from '@/engine/taskGrid/selection';
@@ -103,7 +103,7 @@ export function GridCell({
           {...(model.warning.text.includes('\n') ? { 'data-tooltip-lead': '' } : {})}
           {...{ [`data-ops-${model.warning.kind}`]: 'true' }}
         >
-          <AlertTriangle size={11} aria-hidden />
+          <B2Icon name="status.warning" size={11} aria-hidden />
         </span>
       )}
       <span className="task-grid-cell-content" {...{ [GRID_CLIP_ATTRIBUTE]: 'true' }}>{model.content ?? model.text}</span>

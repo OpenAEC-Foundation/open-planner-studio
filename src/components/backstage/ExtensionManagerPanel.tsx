@@ -18,7 +18,7 @@ import type {
   CatalogEntry,
   ExtensionCategory,
 } from '@/extensions/types';
-import { AlertTriangle, Puzzle, FileArchive, FileCode, Plus } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { ExtensionIcon } from '@/components/common/ExtensionIcon';
 import './ExtensionManagerPanel.css';
 
@@ -79,10 +79,10 @@ export function ExtensionManagerPanel() {
 
         <div className="ext-manager-actions">
           <button className="ext-install-btn" onClick={() => void installLocal(installFromFile)} title={t('extensions.installFromZip')}>
-            <FileArchive size={14} /> ZIP
+            <B2Icon name="extension.install-file" size={14} /> ZIP
           </button>
           <button className="ext-install-btn" onClick={() => void installLocal(installFromJsFile)} title={t('extensions.installFromJs')}>
-            <FileCode size={14} /> JS
+            <B2Icon name="extension.install-file" size={14} /> JS
           </button>
         </div>
       </div>
@@ -174,7 +174,7 @@ function InstalledExtensionCard({ ext }: { ext: ReadyExtension }) {
       <div className="ext-card-icon">
         {/* Manifest-iconen komen ongefilterd uit de ZIP en worden al vóór elke poort
             geregistreerd (ook met status `disabled`) — dus altijd via de sanitizer. */}
-        <ExtensionIcon raw={ext.manifest.icon} fallback={<Puzzle size={24} />} />
+        <ExtensionIcon raw={ext.manifest.icon} fallback={<B2Icon name="extension.item" size={24} />} />
       </div>
 
       <div className="ext-card-body">
@@ -235,7 +235,7 @@ function QuarantinedExtensionCard({ ext }: { ext: QuarantinedExtension }) {
   return (
     <div data-testid="extension-quarantine-card" className="ext-card ext-card-quarantined">
       <div className="ext-card-icon ext-card-quarantine-icon" aria-hidden="true">
-        <AlertTriangle size={24} />
+        <B2Icon name="status.warning" size={24} />
       </div>
 
       <div className="ext-card-body">
@@ -350,7 +350,7 @@ function CatalogCard({ entry, isInstalled }: { entry: CatalogEntry; isInstalled:
     <div className="ext-card">
       {/* Catalogus-iconen bewust niet als HTML renderen vóór installatie (injectie via externe JSON). */}
       <div className="ext-card-icon">
-        <Plus size={24} />
+        <B2Icon name="extension.item" size={24} />
       </div>
 
       <div className="ext-card-body">

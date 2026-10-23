@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Info } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { useAppStore } from '@/state/appStore';
 import type { Task } from '@/types/task';
 import { DEFAULT_WORK_RULE, WORK_RULES, type WorkRule } from '@/types/workRule';
@@ -73,7 +73,7 @@ export function TaskWorkRuleField({ task, onChange }: {
             data-tooltip-lead="true"
             data-ops-work-rule-info={effective}
           >
-            <Info size={14} aria-hidden="true" />
+            <B2Icon name="help.context-hint" size={14} aria-hidden="true" />
           </button>
         </span>
       </div>

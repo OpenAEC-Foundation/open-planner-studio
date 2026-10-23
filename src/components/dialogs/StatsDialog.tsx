@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { BarChart3 } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { useAppStore } from '@/state/appStore';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { DownloadStatsSection } from '@/components/settings/DownloadStatsSection';
@@ -26,7 +26,7 @@ export function StatsDialog() {
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[560px] max-h-[88vh] flex flex-col overflow-hidden"
       panelProps={{ 'data-ops-stats-dialog': true }}
     >
-      <DialogHeader title={t('settings.statsTitle')} icon={<BarChart3 size={16} />} onClose={close} help={{ articleId: SETTINGS_HELP_ARTICLE_ID }} />
+      <DialogHeader title={t('settings.statsTitle')} icon={<B2Icon name="stats.downloads" size={16} />} onClose={close} help={{ articleId: SETTINGS_HELP_ARTICLE_ID }} />
       <div className="flex-1 overflow-y-auto p-4">
         <DownloadStatsSection />
       </div>

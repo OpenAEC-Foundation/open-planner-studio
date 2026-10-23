@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { HardDrive } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { useAppStore } from '@/state/appStore';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { answerSiteSave } from '@/state/siteDialogBridge';
@@ -86,7 +86,7 @@ function SiteSaveDialogBody({ defaultName }: { defaultName: string }) {
           onClick={() => answerSiteSave({ kind: 'local' })}
           data-ops-site-save-local
         >
-          <HardDrive size={13} />
+          <B2Icon name="file.save-as" size={13} />
           {t('siteFiles.toThisPc')}
         </button>
         <div className="flex gap-2">

@@ -862,10 +862,6 @@
   font-size: var(--text-small);
 }
 
-.task-grid-column-chooser-category svg[data-expanded="true"] {
-  transform: rotate(180deg);
-}
-
 .task-grid-column-chooser-empty {
   padding: 6px 7px;
   color: var(--theme-text-muted);
@@ -2254,6 +2250,19 @@ body {
 .ops-indeterminate-bar {
   animation: ops-indeterminate 1.2s ease-in-out infinite;
 }
+
+/* B2-iconen (OpenAEC-huisstijl, `B2Icon`): de hoofdkleur is `currentColor`, het accentdeel
+   `var(--icon-accent, currentColor)`. Het accent volgt het thema-accent; op een accentachtergrond
+   (actieve, primaire of gevulde knop) en bij uitgeschakelde bediening valt het terug op de
+   hoofdkleur, net als `.oa-icon` in het OpenAEC-webpakket. `.b2-icon--mono` dwingt dat af. */
+.b2-icon { flex: none; --icon-accent: var(--theme-accent); }
+.b2-icon--mono,
+.btn--primary .b2-icon,
+.btn--secondary:hover:not(:disabled) .b2-icon,
+.btn--ghost:hover:not(:disabled) .b2-icon,
+.btn:disabled .b2-icon,
+[disabled] .b2-icon,
+[aria-disabled="true"] .b2-icon { --icon-accent: currentColor; }
 
 /* ============================================================================
    OpenAEC Component Utility Classes

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Gauge, Copy, Check, Play, AlertTriangle } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { useAppStore } from '@/state/appStore';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import type { TFunction } from 'i18next';
@@ -101,7 +101,7 @@ export function BenchmarkDialog() {
       {/* Kop */}
       <DialogHeader
         title={t('benchmark.title')}
-        icon={<Gauge size={16} />}
+        icon={<B2Icon name="diagnostics.benchmark" size={16} />}
         onClose={close}
         closeDisabled={running}
       />
@@ -134,7 +134,7 @@ export function BenchmarkDialog() {
           </div>
           {size >= LARGE_SIZE_THRESHOLD && (
             <p className="mt-2 text-text-secondary flex items-start gap-1.5" data-ops-benchmark-warning>
-              <AlertTriangle size={13} className="text-critical shrink-0 mt-0.5" />
+              <B2Icon name="status.warning" size={13} className="text-critical shrink-0 mt-0.5" />
               <span>{t('benchmark.largeWarning')}</span>
             </p>
           )}
@@ -174,7 +174,7 @@ export function BenchmarkDialog() {
             className="btn btn--sm btn--primary flex items-center gap-1.5"
             data-ops-benchmark-run
           >
-            <Play size={13} />
+            <B2Icon name="diagnostics.run-benchmark" size={13} />
             {running ? t('benchmark.running') : t('benchmark.run')}
           </button>
           {running && progress && (
@@ -200,7 +200,7 @@ export function BenchmarkDialog() {
             <div className="flex items-center justify-between">
               <div className="font-semibold">{t('benchmark.resultsTitle')}</div>
               <button onClick={() => { void copy(); }} className="btn btn--sm btn--secondary flex items-center gap-1.5" data-ops-benchmark-copy>
-                {copied ? <Check size={13} /> : <Copy size={13} />}
+                {copied ? <B2Icon name="status.success" size={13} /> : <B2Icon name="edit.copy" size={13} />}
                 {copied ? t('benchmark.copied') : t('benchmark.copy')}
               </button>
             </div>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2 } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { CommitColorInput, CommitTextInput } from '@/components/common/CommitInput';
 import type { CustomFieldType } from '@/types/structure';
@@ -63,7 +63,7 @@ export function StructureDialog() {
                     title={t('structure.removeType')}
                     style={{ color: 'var(--error)' }}
                   >
-                    <Trash2 size={13} />
+                    <B2Icon name="edit.delete" size={13} />
                   </button>
                 </div>
                 {type.values.map(v => (
@@ -90,7 +90,7 @@ export function StructureDialog() {
                       onClick={() => removeActivityCodeValue(type.id, v.id)}
                       style={{ color: 'var(--error)' }}
                     >
-                      <Trash2 size={12} />
+                      <B2Icon name="edit.delete" size={12} />
                     </button>
                   </div>
                 ))}
@@ -98,7 +98,7 @@ export function StructureDialog() {
                   onClick={() => addActivityCodeValue(type.id, { code: `${t('structure.newValuePrefix')}${type.values.length + 1}` })}
                   className="btn btn--sm self-start flex items-center gap-1 !text-body"
                 >
-                  <Plus size={11} />
+                  <B2Icon name="planning.code-value-add" size={11} />
                   {t('structure.addValue')}
                 </button>
               </div>
@@ -120,7 +120,7 @@ export function StructureDialog() {
                 onClick={() => { if (newTypeName.trim()) { addActivityCodeType(newTypeName.trim()); setNewTypeName(''); } }}
                 className="btn btn--sm flex items-center gap-1 whitespace-nowrap"
               >
-                <Plus size={12} />
+                <B2Icon name="planning.code-type-add" size={12} />
                 {t('structure.addType')}
               </button>
             </div>
@@ -141,7 +141,7 @@ export function StructureDialog() {
                 />
                 <span className="text-text-secondary w-24 shrink-0">{t(`structure.fieldType.${def.type}`)}</span>
                 <button onClick={() => removeCustomField(def.id)} style={{ color: 'var(--error)' }}>
-                  <Trash2 size={13} />
+                  <B2Icon name="edit.delete" size={13} />
                 </button>
               </div>
             ))}
@@ -171,7 +171,7 @@ export function StructureDialog() {
                 onClick={() => { if (newFieldName.trim()) { addCustomField(newFieldName.trim(), newFieldType); setNewFieldName(''); } }}
                 className="btn btn--sm flex items-center gap-1 whitespace-nowrap"
               >
-                <Plus size={12} />
+                <B2Icon name="planning.custom-field-add" size={12} />
                 {t('structure.addField')}
               </button>
             </div>

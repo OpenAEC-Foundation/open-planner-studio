@@ -2,7 +2,7 @@ import { useCallback, useLayoutEffect, useRef, type RefObject } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { leaveBackstageGuarded } from '@/components/backstage/backstageLeaveGuard';
 import { useTranslation } from 'react-i18next';
-import { ChevronUp, ChevronDown } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { saveRibbonCompact } from '@/utils/settingsStore';
 import { RibbonTab } from '@/state/slices/types';
 import { RibbonTabContent } from './RibbonTabContent';
@@ -359,7 +359,7 @@ export function Ribbon() {
             aria-label={tMenu(ribbonCompact ? 'ribbon.expandRibbon' : 'ribbon.collapseRibbon')}
             onClick={() => applySetting('ribbonCompact', !ribbonCompact, saveRibbonCompact)}
           >
-            {ribbonCompact ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+            <B2Icon name="workspace.ribbon-compact" size={16} />
           </button>
         </div>
       )}

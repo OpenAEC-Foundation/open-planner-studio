@@ -20,7 +20,7 @@
 // gewoon (besluit B2); de releasepoort zorgt dat een release alles actueel heeft.
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { useAppStore } from '@/state/appStore';
 import { LANGUAGE_LABELS, localeDirection } from '@/i18n/config';
 import { renderMiniMarkdown, extractHeadings } from '@/utils/miniMarkdown';
@@ -392,7 +392,7 @@ export function HelpPanel() {
     <div className="help-panel">
       <aside ref={tocRef} className="help-toc" aria-label={tMenu('backstage.help')}>
         <div className="help-search-wrap">
-          <Search size={14} className="help-search-icon" aria-hidden />
+          <B2Icon name="view.search" size={14} className="help-search-icon" aria-hidden />
           <input
             className="help-search"
             type="search"

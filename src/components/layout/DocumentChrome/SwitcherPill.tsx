@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { ChevronDown } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { useDocumentCards, useDocumentActions } from './useDocumentCards';
 import './DocumentChrome.css';
 
@@ -22,7 +22,7 @@ export function SwitcherPill() {
       <span className="ops-dot" style={{ ['--doc-color' as string]: active.color } as React.CSSProperties} />
       <span className="ops-pill-name">{active.title}</span>
       {active.isDirty && <span className="ops-dirty-dot" />}
-      <ChevronDown size={12} style={{ opacity: 0.7 }} />
+      <B2Icon name="documents.overview" size={12} style={{ opacity: 0.7 }} />
       <span className="ops-pill-badge">{t('documents.openBadge', { count: cards.length })}</span>
     </button>
   );

@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { Info } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { useTranslation } from 'react-i18next';
 import { Select } from '@/components/common/Select';
 import { HoverTooltip } from '@/components/canvas/HoverTooltip';
@@ -229,7 +229,7 @@ export function TaskDurationField({ task, calendar, onChange }: {
                 onBlur={() => setInfoVisible(false)}
                 data-ops-duration-info
               >
-                <Info size={14} aria-hidden="true" />
+                <B2Icon name="help.context-hint" size={14} aria-hidden="true" />
               </button>
               {infoVisible && infoAnchor && (
                 <HoverTooltip

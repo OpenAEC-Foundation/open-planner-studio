@@ -3,7 +3,7 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Task } from '@/types/task';
 import { localTodayIso } from '@/utils/dateUtils';
-import { Trash2 } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { TaskBasicFields } from '@/components/task-sections/TaskBasicFields';
 import { TaskNotesFields } from '@/components/task-sections/TaskNotesFields';
 import { TaskMilestoneFields } from '@/components/task-sections/TaskMilestoneFields';
@@ -88,7 +88,7 @@ export function TaskPropertiesPanel() {
           style={{ color: 'var(--error)' }}
           title={t('properties.deleteTask')}
         >
-          <Trash2 size={14} />
+          <B2Icon name="edit.delete" size={14} />
         </button>
       </div>
 

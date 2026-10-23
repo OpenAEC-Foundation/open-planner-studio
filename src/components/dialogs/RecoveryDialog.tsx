@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { RotateCcw, FileText } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { RECOVERY_HELP_ARTICLE_ID } from '@/state/helpArticles';
 import { useTimeNotation } from '@/hooks/displayDate';
@@ -87,7 +87,7 @@ export function RecoveryDialog({ entries, onRestore, onDiscard, onClose, onHelp 
                 key={entry.id}
                 className="flex items-start gap-2.5 bg-surface-hover border border-border rounded-[8px] p-3"
               >
-                <FileText size={15} className="text-accent mt-0.5 shrink-0" />
+                <B2Icon name="file.type-project" size={15} className="text-accent mt-0.5 shrink-0" />
                 <div className="flex flex-col gap-0.5 min-w-0 flex-1">
                   <span className="text-text-primary font-semibold !text-large truncate">
                     {entry.name || t('project.untitled')}
@@ -118,7 +118,7 @@ export function RecoveryDialog({ entries, onRestore, onDiscard, onClose, onHelp 
             onClick={unreadableOnly ? onClose : onRestore}
             className="btn btn--sm btn--primary shadow-[var(--shadow-glow)] flex items-center gap-1.5"
           >
-            {!unreadableOnly && <RotateCcw size={13} />}
+            {!unreadableOnly && <B2Icon name="backup.recover" size={13} />}
             {t(unreadableOnly ? 'recovery.keepCopies' : 'recovery.restore')}
           </button>
         </div>

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { X, Trash2 } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import {
   filterFieldList, fieldOptions, fieldKind, operatorsForKind, selectOptions,
@@ -180,7 +180,7 @@ function RuleEditor({
       </select>
       <RuleValueEditor rule={rule} ctx={ctx} onChange={onChange} />
       <button onClick={onRemove} title={t('delete')} style={{ color: 'var(--error)' }} className="flex-shrink-0">
-        <Trash2 size={13} />
+        <B2Icon name="edit.delete" size={13} />
       </button>
     </div>
   );
@@ -216,7 +216,7 @@ export function GroupEditor({
         </select>
         {depth > 0 && onRemove && (
           <button onClick={onRemove} title={t('delete')} style={{ color: 'var(--error)' }}>
-            <X size={13} />
+            <B2Icon name="edit.delete" size={13} />
           </button>
         )}
       </div>
@@ -384,7 +384,7 @@ export function FilterDialog() {
               className="btn btn--sm btn--secondary"
               style={{ color: selectedSavedFilterId ? 'var(--error)' : undefined }}
             >
-              <Trash2 size={13} />
+              <B2Icon name="edit.delete" size={13} />
             </button>
             <input
               value={savedFilterName}

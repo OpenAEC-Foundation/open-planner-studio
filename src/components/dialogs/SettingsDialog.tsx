@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { X } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { SettingsPanelContent } from '@/components/settings/SettingsPanelContent';
 import { useDialogKeys } from '@/hooks/useDialogKeys';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
@@ -73,7 +73,7 @@ export function SettingsDialog() {
             {/* ?-knop: instellingen gelden meteen, er is niets onopgeslagen — sluiten en Help openen. */}
             <DialogHelpButton help={{ articleId: SETTINGS_HELP_ARTICLE_ID }} onClose={close} />
             <button className="modal-close-btn" onClick={close} aria-label={t('close')} title={t('close')}>
-              <X size={16} />
+              <B2Icon name="ui.close" size={16} />
             </button>
           </span>
         </div>

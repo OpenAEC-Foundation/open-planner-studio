@@ -55,7 +55,7 @@ test('AI-verbindingsgegevens maskeren de UI maar kopiëren elke bruikbare echte 
   await expect(tokenControl).toBeVisible();
   await page.evaluate(() => { (window as CopyLogWindow).__opsA1RejectNextCopy = true; });
   await tokenControl.getByRole('button', { name: /^(Copy|Kopiëren)$/ }).click();
-  await expect(tokenControl.locator('svg.lucide-check')).toHaveCount(0);
+  await expect(tokenControl.locator('[data-b2-icon="status.success"]')).toHaveCount(0);
   await tokenControl.getByRole('button', { name: /^(Copy|Kopiëren)$/ }).click();
 
   await page.getByRole('button', { name: /^(Connect|Verbinden)$/ }).click();

@@ -1,6 +1,6 @@
 import { useRef, useState, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { useDialogKeys } from '@/hooks/useDialogKeys';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { HelpButton } from '@/components/common/HelpButton';
@@ -182,7 +182,7 @@ export function DialogHeader({ title, icon, onClose, closeDisabled, closeIconSiz
           aria-label={closeLabel}
           title={closeLabel}
         >
-          <X size={closeIconSize} />
+          <B2Icon name="ui.close" size={closeIconSize} />
         </button>
       </span>
     </div>

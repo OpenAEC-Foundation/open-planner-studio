@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, ChevronRight, Menu, Plus } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { useAppStore } from '@/state/appStore';
 import { useDocumentCards, useDocumentActions } from './useDocumentCards';
 import { DocumentTabList } from './DocumentTabList';
@@ -170,7 +170,7 @@ export function DocumentTabBar() {
         title={t('documents.allProjects')}
         onClick={openOverview}
       >
-        <Menu size={17} />
+        <B2Icon name="documents.overview" size={17} />
       </button>
 
       <div className="ops-tabstrip-viewport" data-ops-tabstrip-viewport ref={viewportRef}>
@@ -205,7 +205,7 @@ export function DocumentTabBar() {
             onClick={() => scrollTabs('start')}
             data-ops-tabstrip-scroll-start
           >
-            {direction === 'rtl' ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+            <B2Icon name="tabs.scroll-start" size={16} flip={direction === 'rtl'} />
           </button>
           <button
             type="button"
@@ -217,7 +217,7 @@ export function DocumentTabBar() {
             onClick={() => scrollTabs('end')}
             data-ops-tabstrip-scroll-end
           >
-            {direction === 'rtl' ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+            <B2Icon name="tabs.scroll-end" size={16} flip={direction === 'rtl'} />
           </button>
         </div>
       )}
@@ -227,7 +227,7 @@ export function DocumentTabBar() {
         title={t('documents.newOrOpenTitle')}
         onClick={chooseNewOrOpenProject}
       >
-        <Plus size={15} />
+        <B2Icon name="documents.new-or-open" size={15} />
       </button>
     </div>
   );

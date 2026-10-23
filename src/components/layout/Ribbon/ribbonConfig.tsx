@@ -1,18 +1,6 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  Plus, Play, Undo2, Redo2, ZoomIn, ZoomOut,
-  FileText, FolderOpen, Save, Printer, Trash2,
-  Calendar, Settings, Info,
-  Eye, EyeOff, SaveAll,
-  Tags, ListOrdered, Hash,
-  IndentIncrease, IndentDecrease,
-  Users, BarChart3, Scale, Eraser, ChevronLeft, ChevronRight,
-  ArrowLeftToLine, ArrowRightToLine, LayoutGrid, Spline, TrendingUp, CalendarDays, Palette, MoveHorizontal,
-  Keyboard, PanelRight,
-  CalendarClock, ChevronsDownUp, ChevronsUpDown, Columns3, AlertTriangle,
-  FileDown, FileUp, Scissors,
-} from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { useAppStore } from '@/state/appStore';
 import { COMMANDS } from '@/state/commands';
 import { useCommandBinding } from './useCommandBinding';
@@ -119,7 +107,7 @@ function uiAction(patch: Partial<UIState>): () => RibbonButtonBinding {
 
 /** Bereken/CPM-knop (start/planning/relations/table). */
 const calcButton: RibbonButtonSpec = {
-  kind: 'button', id: 'calc', icon: <Play size={20} />, labelKey: 'menu:ribbon.calculate', primary: true,
+  kind: 'button', id: 'calc', icon: <B2Icon name="planning.calculate" size={24} />, labelKey: 'menu:ribbon.calculate', primary: true,
   use: () => {
     const runCPM = useAppStore(s => s.runCPM);
     return { onClick: () => runCPM() };
@@ -128,7 +116,7 @@ const calcButton: RibbonButtonSpec = {
 
 /** Taak-toevoegen-knop (start + table). */
 const addTaskButton: RibbonButtonSpec = {
-  kind: 'button', id: 'addTask', icon: <Plus size={20} />, labelKey: 'menu:ribbon.task',
+  kind: 'button', id: 'addTask', icon: <B2Icon name="task.add" size={24} />, labelKey: 'menu:ribbon.task',
   use: () => {
     const { t } = useTranslation('task');
     const { t: tMenu } = useTranslation('menu');
@@ -154,7 +142,7 @@ const relationDropdownItem: RibbonComponentSpec = {
  * planning en tabel; de uitleg van het gebaar staat uitsluitend in `SplitModeNotice`.
  */
 const splitTaskButton: RibbonButtonSpec = {
-  kind: 'button', id: 'splitTask', icon: <Scissors size={20} />, labelKey: 'menu:ribbon.splitTask',
+  kind: 'button', id: 'splitTask', icon: <B2Icon name="task.split-mode" size={24} />, labelKey: 'menu:ribbon.splitTask',
   use: () => {
     const { t } = useTranslation('menu');
     const splitMode = useAppStore(s => s.ui.showSplitMode);
@@ -173,13 +161,13 @@ const splitTaskButton: RibbonButtonSpec = {
 
 /** Kalender-knop (planning + instellingen). */
 const calendarButton: RibbonButtonSpec = {
-  kind: 'button', id: 'calendar', icon: <Calendar size={20} />, labelKey: 'menu:ribbon.calendar',
+  kind: 'button', id: 'calendar', icon: <B2Icon name="calendar.manage" size={24} />, labelKey: 'menu:ribbon.calendar',
   use: uiAction({ showCalendarDialog: true }),
 };
 
 /** Afdrukvoorbeeld-knop — opent de Rapport-tab. */
 const printPreviewButton: RibbonButtonSpec = {
-  kind: 'button', id: 'printPreview', icon: <Printer size={20} />, labelKey: 'menu:ribbon.printPreview',
+  kind: 'button', id: 'printPreview', icon: <B2Icon name="report.workspace" size={24} />, labelKey: 'menu:ribbon.printPreview',
   use: uiAction({ activeRibbonTab: 'report' }),
 };
 
@@ -203,7 +191,7 @@ const traceGroup: RibbonGroupSpec = {
   id: 'trace', labelKey: 'menu:ribbon.trace',
   items: [
     {
-      kind: 'button', id: 'tracePred', icon: <ArrowLeftToLine size={20} />, labelKey: 'menu:ribbon.tracePredecessors',
+      kind: 'button', id: 'tracePred', icon: <B2Icon name="planning.trace-predecessors" size={24} />, labelKey: 'menu:ribbon.tracePredecessors',
       use: () => {
         const traceMode = useAppStore(s => s.ui.traceMode);
         const setUI = useAppStore(s => s.setUI);
@@ -220,7 +208,7 @@ const traceGroup: RibbonGroupSpec = {
       },
     },
     {
-      kind: 'button', id: 'traceSucc', icon: <ArrowRightToLine size={20} />, labelKey: 'menu:ribbon.traceSuccessors',
+      kind: 'button', id: 'traceSucc', icon: <B2Icon name="planning.trace-successors" size={24} />, labelKey: 'menu:ribbon.traceSuccessors',
       use: () => {
         const traceMode = useAppStore(s => s.ui.traceMode);
         const setUI = useAppStore(s => s.setUI);
@@ -250,15 +238,15 @@ const fileGroup: RibbonGroupSpec = {
     {
       kind: 'stack', id: 'fileStack1', items: [
         {
-          kind: 'small', id: 'new', icon: <FileText size={14} />, labelKey: 'menu:ribbon.new',
+          kind: 'small', id: 'new', icon: <B2Icon name="file.new" size={16} />, labelKey: 'menu:ribbon.new',
           use: uiAction({ showNewProjectDialog: true }),
         },
         {
-          kind: 'small', id: 'save', icon: <Save size={14} />, labelKey: 'menu:ribbon.save',
+          kind: 'small', id: 'save', icon: <B2Icon name="file.save" size={16} />, labelKey: 'menu:ribbon.save',
           use: () => useCommandBinding(COMMANDS.save),
         },
         {
-          kind: 'small', id: 'open', icon: <FolderOpen size={14} />, labelKey: 'menu:ribbon.open',
+          kind: 'small', id: 'open', icon: <B2Icon name="file.open" size={16} />, labelKey: 'menu:ribbon.open',
           use: () => useCommandBinding(COMMANDS.open),
         },
       ],
@@ -268,7 +256,7 @@ const fileGroup: RibbonGroupSpec = {
       // horizontaal en wordt de groep ~2× zo breed).
       kind: 'stack', id: 'fileStack2', items: [
         {
-          kind: 'small', id: 'saveAs', icon: <SaveAll size={14} />, labelKey: 'menu:backstage.saveAs',
+          kind: 'small', id: 'saveAs', icon: <B2Icon name="file.save-as" size={16} />, labelKey: 'menu:backstage.saveAs',
           use: () => useCommandBinding(COMMANDS.saveAs),
         },
         { kind: 'component', id: 'recentFiles', Component: RecentFilesDropdown },
@@ -289,15 +277,15 @@ const editGroup: RibbonGroupSpec = {
     {
       kind: 'stack', id: 'editStack', items: [
         {
-          kind: 'small', id: 'undo', icon: <Undo2 size={14} />, labelKey: 'menu:ribbon.undo',
+          kind: 'small', id: 'undo', icon: <B2Icon name="edit.undo" size={16} />, labelKey: 'menu:ribbon.undo',
           use: () => useCommandBinding(COMMANDS.undo),
         },
         {
-          kind: 'small', id: 'redo', icon: <Redo2 size={14} />, labelKey: 'menu:ribbon.redo',
+          kind: 'small', id: 'redo', icon: <B2Icon name="edit.redo" size={16} />, labelKey: 'menu:ribbon.redo',
           use: () => useCommandBinding(COMMANDS.redo),
         },
         {
-          kind: 'small', id: 'delete', icon: <Trash2 size={14} />, labelKey: 'menu:ribbon.delete', danger: true,
+          kind: 'small', id: 'delete', icon: <B2Icon name="edit.delete" size={16} />, labelKey: 'menu:ribbon.delete', danger: true,
           use: () => useCommandBinding(COMMANDS.delete),
         },
       ],
@@ -319,7 +307,7 @@ const tableColumnsGroup: RibbonGroupSpec = {
   // `common:view.columns.title` bestaat al in alle veertien talen.
   id: 'tableColumns', labelKey: 'common:view.columns.title',
   items: [{
-    kind: 'button', id: 'tableColumns', icon: <Columns3 size={20} />, labelKey: 'menu:ribbon.columns',
+    kind: 'button', id: 'tableColumns', icon: <B2Icon name="table.columns" size={24} />, labelKey: 'menu:ribbon.columns',
     use: useColumnsButtonBinding,
   }],
 };
@@ -337,11 +325,11 @@ const startTab: RibbonTabConfig = [
       {
         kind: 'stack', id: 'zoomStack', items: [
           {
-            kind: 'small', id: 'zoomIn', icon: <ZoomIn size={14} />, labelKey: 'menu:ribbon.zoomIn',
+            kind: 'small', id: 'zoomIn', icon: <B2Icon name="view.zoom-in" size={16} />, labelKey: 'menu:ribbon.zoomIn',
             use: () => useCommandBinding(COMMANDS.zoomIn),
           },
           {
-            kind: 'small', id: 'zoomOut', icon: <ZoomOut size={14} />, labelKey: 'menu:ribbon.zoomOut',
+            kind: 'small', id: 'zoomOut', icon: <B2Icon name="view.zoom-out" size={16} />, labelKey: 'menu:ribbon.zoomOut',
             use: () => useCommandBinding(COMMANDS.zoomOut),
           },
         ],
@@ -354,7 +342,7 @@ const startTab: RibbonTabConfig = [
  *  Bereken; geen structuur-, kalender- of baseline-actie. Uitgeschakeld zonder projectstartdatum
  *  (die is het referentiepunt van de verschuiving). */
 const moveProjectButton: RibbonButtonSpec = {
-  kind: 'button', id: 'moveProject', icon: <CalendarClock size={20} />, labelKey: 'menu:ribbon.moveProject',
+  kind: 'button', id: 'moveProject', icon: <B2Icon name="planning.move-date" size={24} />, labelKey: 'menu:ribbon.moveProject',
   use: () => {
     const setUI = useAppStore(s => s.setUI);
     const hasStart = useAppStore(s => !!s.project.startDate);
@@ -366,7 +354,7 @@ const moveProjectButton: RibbonButtonSpec = {
  *  én Rapport (één bron, drie callsites; zelfde patroon als `openResourcePanelButton`/`calcButton`).
  *  Uitgeschakeld zonder taken: een blad kan dan sowieso niets koppelen (zelfde lijn als `moveProjectButton`). */
 const progressImportButton: RibbonButtonSpec = {
-  kind: 'small', id: 'progressImport', icon: <FileUp size={14} />, labelKey: 'menu:ribbon.progressImport',
+  kind: 'small', id: 'progressImport', icon: <B2Icon name="file.import" size={16} />, labelKey: 'menu:ribbon.progressImport',
   use: () => {
     const setUI = useAppStore(s => s.setUI);
     const hasTasks = useAppStore(s => s.tasks.length > 0);
@@ -382,7 +370,7 @@ const progressImportButton: RibbonButtonSpec = {
  *  exportkaart in Backstage → Exporteren en een leesbaar importformaat. Het knoplabel
  *  (`menu:ribbon.progressExport`) noemt bewust geen formaat. */
 const progressExportButton: RibbonButtonSpec = {
-  kind: 'small', id: 'progressExport', icon: <FileDown size={14} />, labelKey: 'menu:ribbon.progressExport',
+  kind: 'small', id: 'progressExport', icon: <B2Icon name="file.export" size={16} />, labelKey: 'menu:ribbon.progressExport',
   use: () => {
     const exportAs = useAppStore(s => s.exportAs);
     const hasTasks = useAppStore(s => s.tasks.length > 0);
@@ -404,7 +392,7 @@ const progressGroup: RibbonGroupSpec = {
 
 /** Waarschuwingenpaneel aan/uit — Beeld → Panelen én Planning → Planning, naast Bereken. */
 const warningsPanelButton: RibbonButtonSpec = {
-  kind: 'button', id: 'warningsPanel', icon: <AlertTriangle size={20} />, labelKey: 'menu:ribbon.warningsPanel',
+  kind: 'button', id: 'warningsPanel', icon: <B2Icon name="panel.warnings" size={24} />, labelKey: 'menu:ribbon.warningsPanel',
   // Zelfde vorm als de Eigenschappen-knop: actief ⇔ je ziet het paneel nu (rail niet ingeklapt en
   // niet verdrongen door het volledige resourcepaneel); aanzetten klapt de rail zo nodig uit
   // (`setUI`-invariant 1b). Het omzetten zelf zit in het commando.
@@ -434,13 +422,13 @@ const planningTab: RibbonTabConfig = [
     id: 'structure', labelKey: 'menu:ribbon.structure',
     items: [
       {
-        kind: 'button', id: 'codesFields', icon: <Tags size={20} />, labelKey: 'menu:ribbon.codesFields',
+        kind: 'button', id: 'codesFields', icon: <B2Icon name="planning.structure" size={24} />, labelKey: 'menu:ribbon.codesFields',
         use: uiAction({ showStructureDialog: true }),
       },
       {
         kind: 'stack', id: 'structureStack1', items: [
           {
-            kind: 'small', id: 'wbsAuto', icon: <Hash size={14} />, labelKey: 'menu:ribbon.wbsAuto',
+            kind: 'small', id: 'wbsAuto', icon: <B2Icon name="wbs.auto-number" size={16} />, labelKey: 'menu:ribbon.wbsAuto',
             use: () => {
               const wbsAutoNumber = useAppStore(s => !!s.project.wbsAutoNumber);
               const setWbsAutoNumber = useAppStore(s => s.setWbsAutoNumber);
@@ -448,7 +436,7 @@ const planningTab: RibbonTabConfig = [
             },
           },
           {
-            kind: 'small', id: 'renumberWbs', icon: <ListOrdered size={14} />, labelKey: 'menu:ribbon.renumberWbs',
+            kind: 'small', id: 'renumberWbs', icon: <B2Icon name="wbs.renumber" size={16} />, labelKey: 'menu:ribbon.renumberWbs',
             use: () => {
               const renumberWbs = useAppStore(s => s.renumberWbs);
               const wbsAutoNumber = useAppStore(s => !!s.project.wbsAutoNumber);
@@ -461,7 +449,7 @@ const planningTab: RibbonTabConfig = [
       {
         kind: 'stack', id: 'structureStack2', items: [
           {
-            kind: 'small', id: 'indent', icon: <IndentIncrease size={14} />, labelKey: 'menu:ribbon.indent',
+            kind: 'small', id: 'indent', icon: <B2Icon name="task.indent" size={16} />, labelKey: 'menu:ribbon.indent',
             // Aanvulling op de gedeelde binding: buiten boommodus krijgt de UITGESCHAKELDE knop
             // een tooltip die uitlegt waarom. De sneltoets kan dat niet en toont in plaats daarvan
             // een melding — zie de toelichting bij `COMMANDS.indent`.
@@ -473,7 +461,7 @@ const planningTab: RibbonTabConfig = [
             },
           },
           {
-            kind: 'small', id: 'outdent', icon: <IndentDecrease size={14} />, labelKey: 'menu:ribbon.outdent',
+            kind: 'small', id: 'outdent', icon: <B2Icon name="task.outdent" size={16} />, labelKey: 'menu:ribbon.outdent',
             use: () => {
               const binding = useCommandBinding(COMMANDS.outdent);
               const treeMode = useAppStore(s => isTreeMode(s.view));
@@ -507,7 +495,7 @@ const planningTab: RibbonTabConfig = [
 
 /** Het volledige resourcepaneel — Resources-tab én Beeld → Panelen (dezelfde spec, twee callsites). */
 const openResourcePanelButton: RibbonButtonSpec = {
-  kind: 'button', id: 'openResourcePanel', icon: <Users size={20} />, labelKey: 'menu:ribbon.openResourcePanel',
+  kind: 'button', id: 'openResourcePanel', icon: <B2Icon name="resource.workspace" size={24} />, labelKey: 'menu:ribbon.openResourcePanel',
   use: () => {
     const setUI = useAppStore(s => s.setUI);
     const showResourcePanel = useAppStore(s => s.ui.showResourcePanel);
@@ -531,7 +519,7 @@ const openResourcePanelButton: RibbonButtonSpec = {
  * spiegelt het glyph mee — zie `.ribbon-btn-icon .ops-icon-rail` in Ribbon.css.
  */
 const dockResourcePanelButton: RibbonButtonSpec = {
-  kind: 'button', id: 'dockResourcePanel', icon: <PanelRight size={20} className="ops-icon-rail" />,
+  kind: 'button', id: 'dockResourcePanel', icon: <B2Icon name="resource.dock" size={24} className="ops-icon-rail" />,
   labelKey: 'menu:ribbon.dockResourcePanel',
   use: () => {
     const setUI = useAppStore(s => s.setUI);
@@ -573,7 +561,7 @@ function histogramResourceStep(step: -1 | 1): () => RibbonButtonBinding {
 }
 
 const toggleHistogramButton: RibbonButtonSpec = {
-  kind: 'button', id: 'toggleHistogram', icon: <BarChart3 size={20} />, labelKey: 'menu:ribbon.toggleHistogram',
+  kind: 'button', id: 'toggleHistogram', icon: <B2Icon name="data.chart" size={24} />, labelKey: 'menu:ribbon.toggleHistogram',
   // Aanvulling op de gedeelde binding: een schakelaar toont zijn STAND. Het omzetten zelf
   // (inclusief het persisteren) zit in het commando, gedeeld met Ctrl+Shift+H.
   use: () => {
@@ -590,7 +578,7 @@ const resourcesTab: RibbonTabConfig = [
       openResourcePanelButton,
       dockResourcePanelButton,
       {
-        kind: 'button', id: 'newResource', icon: <Plus size={20} />, labelKey: 'menu:ribbon.newResource',
+        kind: 'button', id: 'newResource', icon: <B2Icon name="resource.new" size={24} />, labelKey: 'menu:ribbon.newResource',
         // Zelfde route als de "+ Nieuwe resource"-knop in het paneel (concept-rij, geen naamloze
         // resource + undo-stap): alleen een verzoek-vlag zetten, `ResourcePanel` opent de draft en
         // maakt pas bij een niet-lege naam écht een resource aan — in de bibliotheek of het project,
@@ -612,11 +600,11 @@ const resourcesTab: RibbonTabConfig = [
       {
         kind: 'stack', id: 'histogramStack', items: [
           {
-            kind: 'small', id: 'prevResource', icon: <ChevronLeft size={14} />, labelKey: 'menu:ribbon.prevResource',
+            kind: 'small', id: 'prevResource', icon: <B2Icon name="resource.previous" size={16} />, labelKey: 'menu:ribbon.prevResource',
             use: histogramResourceStep(-1),
           },
           {
-            kind: 'small', id: 'nextResource', icon: <ChevronRight size={14} />, labelKey: 'menu:ribbon.nextResource',
+            kind: 'small', id: 'nextResource', icon: <B2Icon name="resource.next" size={16} />, labelKey: 'menu:ribbon.nextResource',
             use: histogramResourceStep(1),
           },
         ],
@@ -627,11 +615,11 @@ const resourcesTab: RibbonTabConfig = [
     id: 'leveling', labelKey: 'menu:ribbon.leveling',
     items: [
       {
-        kind: 'button', id: 'levelResources', icon: <Scale size={20} />, labelKey: 'menu:ribbon.levelResourcesDialog',
+        kind: 'button', id: 'levelResources', icon: <B2Icon name="resource.level" size={24} />, labelKey: 'menu:ribbon.levelResourcesDialog',
         use: uiAction({ showLevelingDialog: true }),
       },
       {
-        kind: 'button', id: 'clearLeveling', icon: <Eraser size={20} />, labelKey: 'menu:ribbon.clearLeveling',
+        kind: 'button', id: 'clearLeveling', icon: <B2Icon name="resource.clear-level" size={24} />, labelKey: 'menu:ribbon.clearLeveling',
         use: () => {
           const clearLeveling = useAppStore(s => s.clearLeveling);
           // Houd deze conditie LETTERLIJK gelijk aan de no-op-guard in
@@ -668,7 +656,7 @@ const outlineGroup: RibbonGroupSpec = {
   items: [{
     kind: 'stack', id: 'outlineStack', items: [
       {
-        kind: 'small', id: 'collapseTasks', icon: <ChevronsDownUp size={14} />, labelKey: 'menu:ribbon.collapseTasks',
+        kind: 'small', id: 'collapseTasks', icon: <B2Icon name="tree.collapse-scope" size={16} />, labelKey: 'menu:ribbon.collapseTasks',
         use: () => {
           const collapseTasks = useAppStore(s => s.collapseTasks);
           const collapseAllGroups = useAppStore(s => s.collapseAllGroups);
@@ -682,7 +670,7 @@ const outlineGroup: RibbonGroupSpec = {
         },
       },
       {
-        kind: 'small', id: 'expandTasks', icon: <ChevronsUpDown size={14} />, labelKey: 'menu:ribbon.expandTasks',
+        kind: 'small', id: 'expandTasks', icon: <B2Icon name="tree.expand-scope" size={16} />, labelKey: 'menu:ribbon.expandTasks',
         use: () => {
           const expandTasks = useAppStore(s => s.expandTasks);
           const expandAllGroups = useAppStore(s => s.expandAllGroups);
@@ -715,7 +703,7 @@ const beeldTab: RibbonTabConfig = [
     id: 'panels', labelKey: 'menu:ribbon.panels',
     items: [
       {
-        kind: 'button', id: 'properties', icon: <Eye size={20} />, labelKey: 'menu:ribbon.properties',
+        kind: 'button', id: 'properties', icon: <B2Icon name="panel.right" size={24} />, labelKey: 'menu:ribbon.properties',
         // `!rightPanelCollapsed` is niet hetzelfde als "de rail staat er". Het
         // VOLLEDIGE resource-paneel vervangt de hele werkruimte (App.tsx `isFullPanel`); dan
         // bestaat de rail niet. De andere `isFullPanel`-termen (tabbladen
@@ -741,7 +729,7 @@ const beeldTab: RibbonTabConfig = [
           const railVisible = !rightPanelCollapsed && !(showResourcePanel && !resourcePanelDocked);
           const visible = railVisible && showPropertiesPanel;
           return {
-            icon: visible ? <Eye size={20} /> : <EyeOff size={20} />,
+            icon: visible ? <B2Icon name="panel.right" size={24} /> : <B2Icon name="panel.right" size={24} />,
             active: visible,
             onClick: () => setUI(visible ? { showPropertiesPanel: false } : { showPropertiesPanel: true }),
           };
@@ -763,7 +751,7 @@ const beeldTab: RibbonTabConfig = [
       {
         kind: 'stack', id: 'overlaysStack', items: [
           {
-            kind: 'small', id: 'toggleBaselineOverlay', icon: <LayoutGrid size={14} />, labelKey: 'menu:ribbon.toggleBaselineOverlay',
+            kind: 'small', id: 'toggleBaselineOverlay', icon: <B2Icon name="planning.baseline-overlay" size={16} />, labelKey: 'menu:ribbon.toggleBaselineOverlay',
             use: () => {
               const showBaselineOverlay = useAppStore(s => s.ui.showBaselineOverlay);
               const setOverlays = useAppStore(s => s.setOverlays);
@@ -771,7 +759,7 @@ const beeldTab: RibbonTabConfig = [
             },
           },
           {
-            kind: 'small', id: 'toggleProgressLine', icon: <TrendingUp size={14} />, labelKey: 'menu:ribbon.toggleProgressLine',
+            kind: 'small', id: 'toggleProgressLine', icon: <B2Icon name="planning.progress-line" size={16} />, labelKey: 'menu:ribbon.toggleProgressLine',
             use: () => {
               const showProgressLine = useAppStore(s => s.ui.showProgressLine);
               const setOverlays = useAppStore(s => s.setOverlays);
@@ -779,7 +767,7 @@ const beeldTab: RibbonTabConfig = [
             },
           },
           {
-            kind: 'small', id: 'toggleStatusDateLine', icon: <CalendarDays size={14} />, labelKey: 'menu:ribbon.toggleStatusDateLine',
+            kind: 'small', id: 'toggleStatusDateLine', icon: <B2Icon name="planning.status-date-line" size={16} />, labelKey: 'menu:ribbon.toggleStatusDateLine',
             use: () => {
               const showStatusDateLine = useAppStore(s => s.ui.showStatusDateLine);
               const setOverlays = useAppStore(s => s.setOverlays);
@@ -794,7 +782,7 @@ const beeldTab: RibbonTabConfig = [
         kind: 'stack', id: 'colorAccentStack', items: [
           { kind: 'component', id: 'screenColors', Component: ScreenColorsPopoverButton },
           {
-            kind: 'small', id: 'toggleResourceAccent', icon: <Palette size={14} />, labelKey: 'menu:ribbon.toggleResourceAccent',
+            kind: 'small', id: 'toggleResourceAccent', icon: <B2Icon name="planning.resource-accent" size={16} />, labelKey: 'menu:ribbon.toggleResourceAccent',
             use: () => {
               const showResourceAccent = useAppStore(s => s.ui.showResourceAccent);
               const setOverlays = useAppStore(s => s.setOverlays);
@@ -804,7 +792,7 @@ const beeldTab: RibbonTabConfig = [
           {
             // De groene speling-band ná niet-kritieke balken uit kunnen zetten. Derde knop
             // in deze kolom (drie per stack is de vaste linthoogte), naast de andere balk-overlays.
-            kind: 'small', id: 'toggleFloatBand', icon: <MoveHorizontal size={14} />, labelKey: 'menu:ribbon.toggleFloatBand',
+            kind: 'small', id: 'toggleFloatBand', icon: <B2Icon name="planning.float-band" size={16} />, labelKey: 'menu:ribbon.toggleFloatBand',
             use: () => {
               const showFloatBand = useAppStore(s => s.ui.showFloatBand);
               const setOverlays = useAppStore(s => s.setOverlays);
@@ -819,7 +807,7 @@ const beeldTab: RibbonTabConfig = [
           {
             // Schermtegenhanger van de rapportoptie "Afhankelijkheden". Per document
             // (view-state), en een layoutdeel: het resourcediagram zet de lijnen uit.
-            kind: 'small', id: 'toggleRelations', icon: <Spline size={14} />, labelKey: 'menu:ribbon.toggleRelations',
+            kind: 'small', id: 'toggleRelations', icon: <B2Icon name="planning.relations-visible" size={16} />, labelKey: 'menu:ribbon.toggleRelations',
             use: () => {
               const showRelations = useAppStore(s => s.view.showRelations ?? true);
               const setShowRelations = useAppStore(s => s.setShowRelations);
@@ -839,11 +827,11 @@ const instellingenTab: RibbonTabConfig = [
     // `projectInfo` = Projectinstellingen, `projectSettings` = App-instellingen.
     items: [
       {
-        kind: 'button', id: 'projectInfo', icon: <Info size={20} />, labelKey: 'menu:ribbon.projectInfo',
+        kind: 'button', id: 'projectInfo', icon: <B2Icon name="project.properties" size={24} />, labelKey: 'menu:ribbon.projectInfo',
         use: uiAction({ showProjectInfoDialog: true }),
       },
       {
-        kind: 'button', id: 'projectSettings', icon: <Settings size={20} />, labelKey: 'menu:ribbon.projectSettings',
+        kind: 'button', id: 'projectSettings', icon: <B2Icon name="ui.settings" size={24} />, labelKey: 'menu:ribbon.projectSettings',
         use: uiAction({ showSettingsDialog: true }),
       },
     ],
@@ -852,7 +840,7 @@ const instellingenTab: RibbonTabConfig = [
   {
     id: 'shortcuts', labelKey: 'common:shortcuts.title',
     items: [{
-      kind: 'small', id: 'shortcuts', icon: <Keyboard size={14} />, labelKey: 'common:shortcuts.title',
+      kind: 'small', id: 'shortcuts', icon: <B2Icon name="ui.shortcuts" size={16} />, labelKey: 'common:shortcuts.title',
       use: uiAction({ showShortcutsDialog: true }),
     }],
   },

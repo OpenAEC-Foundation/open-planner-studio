@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ParseKeys } from 'i18next';
-import { ChevronDown, ChevronRight, Info, Plus, X } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { useAppStore } from '@/state/appStore';
 import { Select } from '@/components/common/Select';
 import {
@@ -313,7 +313,7 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
           {select}
           <button type="button" className={`${btnCls} shrink-0 inline-flex items-center gap-1`}
             onClick={() => setNewProfileOpen(true)} data-ops-scheduling-new-profile>
-            <Plus size={14} aria-hidden />
+            <B2Icon name="planning.profile-new" size={14} aria-hidden />
             {t('schedulingProfile.newProfile')}
           </button>
         </div>
@@ -397,7 +397,7 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
         <button type="button" className="flex items-center gap-1.5 self-start text-left"
           aria-expanded={conventionsOpen} aria-controls="ops-scheduling-conventions-body"
           onClick={() => setConventionsOpen(open => !open)} data-ops-conventions-toggle>
-          {conventionsOpen ? <ChevronDown size={14} aria-hidden /> : <ChevronRight size={14} aria-hidden />}
+          {conventionsOpen ? <B2Icon name="tree.collapse" size={14} aria-hidden /> : <B2Icon name="tree.expand" size={14} aria-hidden />}
           <span className={labelCls}>{t('schedulingProfile.conventionsTitle')}</span>
           <span className="text-text-secondary" data-ops-conventions-count>({CONVENTIONS.length})</span>
           {deviatingTotal > 0 && (
@@ -472,7 +472,7 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
                           className="mt-0.5 shrink-0 inline-flex rounded-[4px] text-text-secondary hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
                           title={t(conventionHelpKey(c.id))} aria-label={t('schedulingProfile.showHelp', { name })}
                           data-tooltip-instant="true" data-ops-convention-help={c.id}>
-                          <Info size={14} aria-hidden />
+                          <B2Icon name="help.context-hint" size={14} aria-hidden />
                         </button>
                         <span className="flex-1" />
                         {/* Waar de motor de conventie op poort (`requires` in het register, N2): kort label
@@ -521,7 +521,7 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
           <div className="alert alert--info relative flex flex-col gap-1.5 pr-8" data-ops-options-deviate-notice>
             <button type="button" className="absolute top-1.5 right-1.5 inline-flex rounded-[4px] p-0.5 text-text-secondary hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
               aria-label={t('close')} title={t('close')} onClick={dismissOptionsNotice} data-ops-options-deviate-dismiss>
-              <X size={14} aria-hidden />
+              <B2Icon name="ui.close" size={14} aria-hidden />
             </button>
             <span>{optionsFromFile
               ? t('schedulingProfile.optionsDeviate.intro', { name: brand(baseId) })

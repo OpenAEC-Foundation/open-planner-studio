@@ -1,5 +1,4 @@
 import { useTranslation } from 'react-i18next';
-import { Clock } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { saveEnableHourPlanning } from '@/utils/settingsStore';
 import { NoticeStrip } from './NoticeStrip';
@@ -25,7 +24,7 @@ export function HourDataNotice() {
 
   return (
     <NoticeStrip
-      icon={Clock}
+      icon="status.hour-data"
       text={t('hourData.notice')}
       actionLabel={t('hourData.enable')}
       onAction={enable}

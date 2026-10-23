@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback, type KeyboardEvent } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2, Pencil, ChevronDown, ChevronRight, X, Check, Unlink2, Library } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import type { Resource, ResourceType, AvailabilityStep } from '@/types/resource';
 import { localTodayIso } from '@/utils/dateUtils';
 import { ResourceCalendarDialog } from '@/components/dialogs/ResourceCalendarDialog';
@@ -513,7 +513,7 @@ export function ResourcePanel() {
           {/* De Bezettingsweergave is een leesvenster — geen "+ Nieuwe resource" daar. */}
           {!inOccupancyView && (
             <button onClick={onAddClick} className="btn btn--sm btn--primary flex items-center gap-1" data-ops-resource-add>
-              <Plus size={13} /> {inPoolView ? t('resource.panel.addRowLibrary') : t('resource.panel.addRow')}
+              <B2Icon name="resource.new" size={13} /> {inPoolView ? t('resource.panel.addRowLibrary') : t('resource.panel.addRow')}
             </button>
           )}
           <button
@@ -521,7 +521,7 @@ export function ResourcePanel() {
             className="p-1 hover:bg-surface-hover rounded"
             title={t('close')}
           >
-            <X size={15} />
+            <B2Icon name="ui.close" size={15} />
           </button>
         </div>
       </div>
@@ -537,7 +537,7 @@ export function ResourcePanel() {
           </StatusBanner>
           {poolNotice && (
             <p className="flex items-center gap-1.5 px-2" style={{ color: 'var(--success)' }} data-ops-pool-assign-notice>
-              <Check size={13} /> {poolNotice}
+              <B2Icon name="status.success" size={13} /> {poolNotice}
             </p>
           )}
           {pool.resources.length === 0 && pendingNew?.variant !== 'pool' ? (
@@ -584,7 +584,7 @@ export function ResourcePanel() {
       <div className="flex-1 overflow-auto" ref={grid.gridRef}>
         {projectNotice && (
           <p className="flex items-center gap-1.5 px-2 pt-2" style={{ color: 'var(--success)' }} data-ops-project-promote-notice>
-            <Check size={13} /> {projectNotice}
+            <B2Icon name="status.success" size={13} /> {projectNotice}
           </p>
         )}
         {resources.length === 0 && pendingNew?.variant !== 'project' ? (
@@ -833,7 +833,7 @@ function ResourceRow({
                 title={t('resource.fromLibraryBadge')}
                 data-ops-resource-inherited
               >
-                <Library size={12} />
+                <B2Icon name="status.library-linked" size={12} />
               </span>
             )}
             {openStatus === 'deviated' && (
@@ -905,7 +905,7 @@ function ResourceRow({
               title={t('resource.availabilityStepsEditor.title')}
               className="p-0.5 rounded hover:bg-surface-hover text-text-secondary flex-shrink-0"
             >
-              {stepsOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+              {stepsOpen ? <B2Icon name="tree.collapse" size={13} /> : <B2Icon name="tree.expand" size={13} />}
               {stepCount > 0 && <span className="!text-caption ml-0.5">{stepCount}</span>}
             </button>
           </div>
@@ -942,7 +942,7 @@ function ResourceRow({
               title={t('resource.editCalendar')}
               className="p-0.5 rounded hover:bg-surface-hover text-text-secondary disabled:opacity-30 flex-shrink-0"
             >
-              <Pencil size={12} />
+              <B2Icon name="calendar.edit" size={12} />
             </button>
           </div>
         </td>
@@ -1039,7 +1039,7 @@ function ResourceRow({
                 className="p-1 rounded hover:bg-surface-hover text-text-secondary"
                 data-ops-resource-unlink
               >
-                <Unlink2 size={13} />
+                <B2Icon name="resource.unlink-library" size={13} />
               </button>
             )}
             {confirmingDelete ? (
@@ -1050,14 +1050,14 @@ function ResourceRow({
                   className="p-1 rounded hover:bg-surface-hover"
                   style={{ color: 'var(--error)' }}
                 >
-                  <Check size={13} />
+                  <B2Icon name="edit.delete" size={13} />
                 </button>
                 <button
                   onClick={onCancelRemove}
                   title={t('resource.panel.confirmDeleteNo')}
                   className="p-1 rounded hover:bg-surface-hover text-text-secondary"
                 >
-                  <X size={13} />
+                  <B2Icon name="ui.close" size={13} />
                 </button>
               </>
             ) : (
@@ -1067,7 +1067,7 @@ function ResourceRow({
                 className="p-1 rounded hover:bg-surface-hover"
                 style={{ color: 'var(--error)' }}
               >
-                <Trash2 size={13} />
+                <B2Icon name="edit.delete" size={13} />
               </button>
             )}
           </div>
@@ -1314,12 +1314,12 @@ function AvailabilityStepsEditor({ steps, onChange }: {
             className="input !text-body !px-1.5 !py-1 !w-20 text-right"
           />
           <button onClick={() => remove(i)} className="p-0.5 rounded hover:bg-surface-hover" style={{ color: 'var(--error)' }}>
-            <Trash2 size={12} />
+            <B2Icon name="edit.delete" size={12} />
           </button>
         </div>
       ))}
       <button onClick={add} className="btn btn--sm btn--secondary self-start flex items-center gap-1 mt-1">
-        <Plus size={12} /> {t('resource.availabilityStepsEditor.addStep')}
+        <B2Icon name="resource.availability-step-add" size={12} /> {t('resource.availabilityStepsEditor.addStep')}
       </button>
     </div>
   );

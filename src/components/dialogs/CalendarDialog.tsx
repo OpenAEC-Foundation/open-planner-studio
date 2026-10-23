@@ -1,7 +1,7 @@
 import { useCallback, useLayoutEffect, useState, type KeyboardEvent } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { Plus, Copy, Trash2, Star, AlertTriangle } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import type { WorkCalendar } from '@/types/calendar';
 import { createNewCalendar } from '@/engine/calendar/defaultCalendar';
 import { generateId } from '@/utils/id';
@@ -214,12 +214,12 @@ export function CalendarDialog() {
                     }
                     data-ops-calendar-row={cal.id}
                   >
-                    {isDefault && <Star size={11} className="shrink-0 text-accent" fill="currentColor" />}
+                    {isDefault && <B2Icon name="status.project-calendar" size={11} className="shrink-0 text-accent" />}
                     <span className="truncate flex-1">{cal.name || tCommon('calendar.library.new')}</span>
                     {calendarInvalid(cal) && (
                       <span role="img" className="shrink-0 text-red-600" title={tCommon('calendar.library.invalid')}
                         aria-label={tCommon('calendar.library.invalid')} data-ops-calendar-row-invalid>
-                        <AlertTriangle size={11} aria-hidden="true" />
+                        <B2Icon name="status.error" size={11} aria-hidden="true" />
                       </span>
                     )}
                   </button>
@@ -228,10 +228,10 @@ export function CalendarDialog() {
             </div>
             <div className="flex gap-1 p-2 border-t border-border">
               <button onClick={handleNew} className="btn btn--sm btn--secondary flex-1 flex items-center justify-center gap-1" title={tCommon('calendar.library.new')}>
-                <Plus size={12} />
+                <B2Icon name="calendar.new" size={12} />
               </button>
               <button onClick={handleDuplicate} disabled={!selected} className="btn btn--sm btn--secondary flex-1 flex items-center justify-center gap-1 disabled:opacity-40" title={tCommon('calendar.library.duplicate')}>
-                <Copy size={12} />
+                <B2Icon name="calendar.duplicate" size={12} />
               </button>
               <button
                 onClick={handleRemove}
@@ -239,7 +239,7 @@ export function CalendarDialog() {
                 className="btn btn--sm btn--secondary flex-1 flex items-center justify-center gap-1 disabled:opacity-40"
                 title={tCommon('delete')}
               >
-                <Trash2 size={12} />
+                <B2Icon name="edit.delete" size={12} />
               </button>
             </div>
           </div>
@@ -251,7 +251,7 @@ export function CalendarDialog() {
                 <div className="flex items-center justify-between px-4 pt-3">
                   {localProjectId === selected.id ? (
                     <span className="!text-body font-medium text-accent flex items-center gap-1">
-                      <Star size={11} fill="currentColor" />
+                      <B2Icon name="status.project-calendar" size={11} />
                       {tCommon('calendar.library.project')}
                     </span>
                   ) : (

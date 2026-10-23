@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { X } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import type { FieldRef, GroupLevel } from '@/types/view';
 import { decodeFieldRef, encodeFieldRef } from './fieldRefCodec';
 
@@ -49,7 +49,7 @@ export function LevelListEditor({
             <option value="desc">{t('view.sort.descending')}</option>
           </select>
           <button type="button" onClick={() => onChange(levels.filter((_, li) => li !== i))} style={{ color: 'var(--error)' }} title={t('delete')}>
-            <X size={13} />
+            <B2Icon name="edit.delete" size={13} />
           </button>
         </div>
       ))}

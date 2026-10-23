@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { useAppStore } from '@/state/appStore';
 import { readPoolIFC, resolveUniqueCompanyName, resolvePoolImportPreselection, classifyPoolImportIdentityHint } from '@/services/library';
 import { openFileDialog } from '@/services/fileAccess';
@@ -209,7 +209,7 @@ export function PoolImportDialog() {
                 <span className="text-text-secondary">{t('companyLibrary.importReplaces')}</span>
                 {action === 'replace' && newer && (
                   <span className="alert alert--warning flex items-center gap-2">
-                    <AlertTriangle size={16} /> {t('companyLibrary.dempingWarning')}
+                    <B2Icon name="status.warning" size={16} /> {t('companyLibrary.dempingWarning')}
                   </span>
                 )}
               </div>

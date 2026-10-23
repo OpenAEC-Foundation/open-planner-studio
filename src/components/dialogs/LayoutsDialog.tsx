@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import type { ParseKeys } from 'i18next';
 import { useTranslation } from 'react-i18next';
-import { Info } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { GroupEditor, defaultGroup, type GroupNode } from './FilterDialog';
 import { LevelListEditor } from '@/components/viewControls/LevelListEditor';
 import { groupFieldList, sortFieldList, filterFieldList, fieldOptions } from '@/components/viewControls/fieldCatalog';
@@ -154,7 +154,7 @@ export function LayoutsDialog() {
       data-tooltip-instant="true"
       style={{ color: 'var(--theme-text-dim)', display: 'inline-flex' }}
     >
-      <Info size={14} />
+      <B2Icon name="help.context-hint" size={14} />
     </span>
   );
 

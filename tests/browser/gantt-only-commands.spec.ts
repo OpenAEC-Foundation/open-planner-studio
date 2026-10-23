@@ -23,7 +23,7 @@ test('Tabel-tab: splitsen en relatie tekenen staan uit, en een lopende modus gaa
   expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.showSplitMode)).toBe(false);
 
   // De relatie-dropdown heeft geen spec-id; het schakelicoon is taalonafhankelijk.
-  await page.locator('.ribbon-btn[aria-haspopup="menu"]').filter({ has: page.locator('.lucide-link') }).click();
+  await page.locator('.ribbon-btn[aria-haspopup="menu"]').filter({ has: page.locator('[data-b2-icon="planning.relations-menu"]') }).click();
   const draw = page.locator('.ribbon-relation-menu-item').first();
   await expect(draw).toBeDisabled();
   await expect(page.locator('[data-ops-dependency-mode]')).toHaveCount(0);

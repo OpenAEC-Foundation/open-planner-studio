@@ -23,7 +23,7 @@ import { useEffect, useRef, useState, useCallback, type ReactNode } from 'react'
 import { createPortal } from 'react-dom';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { useTranslation } from 'react-i18next';
-import { ArrowUpRight, Square, Pen, Type, Undo2, Trash2, Pencil, EyeOff, RefreshCw, X } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import type { AnnotationShape, AnnotationPoint, AnnotationText } from '@/services/feedback/feedbackDraft';
 import './ScreenshotAnnotator.css';
 
@@ -454,15 +454,15 @@ export function ScreenshotAnnotator({
         </div>
         <div className="screenshot-annotator-actions">
           <button type="button" className="screenshot-annotator-action" onClick={openEditor} disabled={disabled} data-annotate-button>
-            <Pencil size={14} aria-hidden />
+            <B2Icon name="capture.annotate" size={14} aria-hidden />
             <span>{t('feedback.annotate')}</span>
           </button>
           <button type="button" className="screenshot-annotator-action" onClick={onRetake} disabled={disabled}>
-            <RefreshCw size={14} aria-hidden />
+            <B2Icon name="ui.refresh" size={14} aria-hidden />
             <span>{t('feedback.retake')}</span>
           </button>
           <button type="button" className="screenshot-annotator-action" onClick={onRemove} disabled={disabled}>
-            <X size={14} aria-hidden />
+            <B2Icon name="edit.delete" size={14} aria-hidden />
             <span>{t('feedback.removeScreenshot')}</span>
           </button>
         </div>
@@ -483,14 +483,14 @@ export function ScreenshotAnnotator({
                 title={t('feedback.tools.arrow')}
                 onClick={() => setActiveTool('arrow')}
               >
-                <ArrowUpRight size={16} />
+                <B2Icon name="draw.arrow" size={16} />
               </button>
               <button
                 className={`feedback-ann-btn${activeTool === 'rectangle' ? ' active' : ''}`}
                 title={t('feedback.tools.rectangle')}
                 onClick={() => setActiveTool('rectangle')}
               >
-                <Square size={16} />
+                <B2Icon name="draw.rectangle" size={16} />
               </button>
               <button
                 className={`feedback-ann-btn${activeTool === 'mask' ? ' active' : ''}`}
@@ -499,21 +499,21 @@ export function ScreenshotAnnotator({
                 aria-pressed={activeTool === 'mask'}
                 onClick={() => setActiveTool('mask')}
               >
-                <EyeOff size={16} />
+                <B2Icon name="annotate.redact" size={16} />
               </button>
               <button
                 className={`feedback-ann-btn${activeTool === 'pen' ? ' active' : ''}`}
                 title={t('feedback.tools.pen')}
                 onClick={() => setActiveTool('pen')}
               >
-                <Pen size={16} />
+                <B2Icon name="draw.freehand" size={16} />
               </button>
               <button
                 className={`feedback-ann-btn${activeTool === 'text' ? ' active' : ''}`}
                 title={t('feedback.tools.text')}
                 onClick={() => setActiveTool('text')}
               >
-                <Type size={16} />
+                <B2Icon name="draw.text" size={16} />
               </button>
 
               <div className="feedback-ann-sep" />
@@ -537,7 +537,7 @@ export function ScreenshotAnnotator({
                 onClick={handleUndo}
                 disabled={shapes.length === 0}
               >
-                <Undo2 size={16} />
+                <B2Icon name="edit.undo" size={16} />
               </button>
               <button
                 className="feedback-ann-btn"
@@ -545,7 +545,7 @@ export function ScreenshotAnnotator({
                 onClick={handleClear}
                 disabled={shapes.length === 0}
               >
-                <Trash2 size={16} />
+                <B2Icon name="capture.clear-annotations" size={16} />
               </button>
 
               <div className="annotator-toolbar-spacer" />

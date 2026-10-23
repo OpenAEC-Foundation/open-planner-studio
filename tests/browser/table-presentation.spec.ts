@@ -199,8 +199,8 @@ test('tabel: relatiechips krijgen één kleur per richting, sturend als sterkere
   const slackChip = predecessorsCell.locator('.task-grid-relation-chip:not(.task-grid-relation-chip--driving)');
   await expect(drivingChip).toHaveCount(1);
   await expect(slackChip).toHaveCount(1);
-  await expect(drivingChip.locator('.lucide-zap')).toHaveCount(1);
-  await expect(predecessorsCell.locator('.lucide-circle-help')).toHaveCount(0);
+  await expect(drivingChip.locator('[data-b2-icon="planning.driving"]')).toHaveCount(1);
+  await expect(predecessorsCell.locator('[data-b2-icon="help.context-hint"]')).toHaveCount(0);
   const drivingWbs = await page.evaluate(id => window.__OPS__!.store.getState().tasks.find(task => task.id === id)!.wbsCode, drivingPredId);
   const mainWbs = await page.evaluate(id => window.__OPS__!.store.getState().tasks.find(task => task.id === id)!.wbsCode, mainId);
   await expect(taskCell(page, mainId, 'relation.driving')).toHaveText(`← ${drivingWbs}`);

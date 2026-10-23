@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { displayDate } from '@/utils/displayDate';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { localTodayIso } from '@/utils/dateUtils';
@@ -206,7 +206,7 @@ export function MoveProjectDialog() {
                             className="flex items-start gap-2 rounded-[8px] p-2 !text-body"
                             style={{ color: 'var(--error)', background: 'color-mix(in srgb, var(--error) 12%, transparent)' }}
                           >
-                            <AlertTriangle size={14} className="shrink-0 mt-px" />
+                            <B2Icon name="status.warning" size={14} className="shrink-0 mt-px" />
                             <span>
                               {t(`moveProject.${interventionKey}`, {
                                 endDays: preview.endDeltaDays,

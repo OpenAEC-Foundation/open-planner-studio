@@ -523,6 +523,13 @@
   color: #ffffff;
 }
 
+/* B2-accent in het lint: op de gevulde (actieve, primaire, gevaar-hover) knop en op een
+   uitgeschakelde knop tekent het accentdeel in de hoofdkleur; zie `.b2-icon` in globals.css. */
+.ribbon-btn.active .b2-icon,
+.ribbon-btn.primary .b2-icon,
+.ribbon-btn.danger:hover .b2-icon,
+.ribbon-btn.disabled .b2-icon { --icon-accent: currentColor; }
+
 .ribbon-relation-menu-item {
   display: flex;
   align-items: center;

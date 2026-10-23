@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { useAppStore } from '@/state/appStore';
 import { Select } from '@/components/common/Select';
 import { HOLIDAY_SETS, type HolidayCountry } from '@/engine/calendar/holidays';
@@ -148,7 +148,7 @@ export function CalendarGeneratorFields({
           disabled={preview.holidays.length === 0}
         >
           {preview.holidays.length > 0 ? (
-            expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />
+            expanded ? <B2Icon name="tree.collapse" size={14} /> : <B2Icon name="tree.expand" size={14} />
           ) : null}
           <span>
             {preview.holidays.length === 0

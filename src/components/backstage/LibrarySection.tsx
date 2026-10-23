@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Building2, Plus, Trash2, Star, Download, Upload, ArrowUpFromLine, Pencil, Check, X } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { useAppStore } from '@/state/appStore';
 import { saveFileDialog } from '@/services/fileAccess';
 import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog';
@@ -109,15 +109,15 @@ export function LibrarySection() {
           <div className="library-companies-head">
             <span>{t('companyLibrary.companies')}</span>
             <button onClick={() => setSelectedId(addCompany(t('companyLibrary.newCompany')))} title={t('companyLibrary.addCompany')}>
-              <Plus size={14} />
+              <B2Icon name="company.new" size={14} />
             </button>
           </div>
           <ul>
             {companies.map(c => (
               <li key={c.id} className={c.id === selected.id ? 'active' : ''} onClick={() => setSelectedId(c.id)}>
-                <Building2 size={13} />
+                <B2Icon name="company.library" size={13} />
                 <span>{c.name}</span>
-                {c.id === defaultCompanyId && <Star size={12} className="default-star" />}
+                {c.id === defaultCompanyId && <B2Icon name="company.default-status" size={12} className="default-star" />}
               </li>
             ))}
           </ul>
@@ -135,20 +135,20 @@ export function LibrarySection() {
             />
             <div className="library-detail-actions">
               <button onClick={() => setDefaultCompany(selected.id)} disabled={selected.id === defaultCompanyId}>
-                <Star size={13} /> {t('companyLibrary.setDefault')}
+                <B2Icon name="company.default" size={13} /> {t('companyLibrary.setDefault')}
               </button>
-              <button onClick={() => { void onExport(); }}><Download size={13} /> {t('companyLibrary.export')}</button>
+              <button onClick={() => { void onExport(); }}><B2Icon name="file.export" size={13} /> {t('companyLibrary.export')}</button>
               {/* Importdoel = het GEOPENDE bedrijf (`selected.id`), niet stilzwijgend het
                   standaardbedrijf — anders overschrijft "Bibliotheek → Importeren" vanuit een ander
                   bedrijf dan het standaardbedrijf per ongeluk de verkeerde pool. */}
-              <button onClick={() => setUI({ showPoolImportDialog: true, poolImportCompanyId: selected.id })}><Upload size={13} /> {t('companyLibrary.import')}</button>
+              <button onClick={() => setUI({ showPoolImportDialog: true, poolImportCompanyId: selected.id })}><B2Icon name="file.import" size={13} /> {t('companyLibrary.import')}</button>
               <button
                 className="danger"
                 onClick={onRemoveCompany}
                 disabled={companies.length <= 1}
                 title={companies.length <= 1 ? t('companyLibrary.cannotRemoveLast') : ''}
               >
-                <Trash2 size={13} /> {t('companyLibrary.removeCompany')}
+                <B2Icon name="edit.delete" size={13} /> {t('companyLibrary.removeCompany')}
               </button>
             </div>
           </div>
@@ -157,7 +157,7 @@ export function LibrarySection() {
 
           {notice && (
             <p className="library-notice" data-ops-library-notice>
-              <Check size={13} /> {notice}
+              <B2Icon name="status.success" size={13} /> {notice}
             </p>
           )}
 
@@ -168,7 +168,7 @@ export function LibrarySection() {
                 className="library-promote-toggle"
                 onClick={() => { setPromotePanel(p => (p === 'calendar' ? null : 'calendar')); setNotice(null); }}
               >
-                <Plus size={12} /> {t('companyLibrary.promoteFromProject')}
+                <B2Icon name="calendar.promote-menu" size={12} /> {t('companyLibrary.promoteFromProject')}
               </button>
             </h3>
             {promotePanel === 'calendar' && (
@@ -183,7 +183,7 @@ export function LibrarySection() {
                           <span className="library-promote-linked">{t('companyLibrary.alreadyLinked')}</span>
                         ) : (
                           <button className="library-promote-item" onClick={() => onPromoteCalendar(cal)}>
-                            <ArrowUpFromLine size={12} />
+                            <B2Icon name="calendar.promote" size={12} />
                           </button>
                         )}
                       </li>
@@ -205,16 +205,16 @@ export function LibrarySection() {
                       autoFocus
                     />
                     <div className="library-pool-item-edit-actions">
-                      <button className="confirm-icon" onClick={saveEditCalendar} title={t('save')}><Check size={12} /></button>
-                      <button className="cancel-icon" onClick={() => setEditingCalendarId(null)} title={t('cancel')}><X size={12} /></button>
+                      <button className="confirm-icon" onClick={saveEditCalendar} title={t('save')}><B2Icon name="data.apply" size={12} /></button>
+                      <button className="cancel-icon" onClick={() => setEditingCalendarId(null)} title={t('cancel')}><B2Icon name="data.discard" size={12} /></button>
                     </div>
                   </li>
                 ) : (
                   <li key={cal.id}>
                     <span>{cal.name}</span>
                     <div className="library-pool-item-actions">
-                      <button className="edit-icon" onClick={() => startEditCalendar(cal)} title={t('companyLibrary.editItem')}><Pencil size={12} /></button>
-                      <button className="danger-icon" onClick={() => removePoolCalendar(selected.id, cal.id)}><Trash2 size={12} /></button>
+                      <button className="edit-icon" onClick={() => startEditCalendar(cal)} title={t('companyLibrary.editItem')}><B2Icon name="object.rename" size={12} /></button>
+                      <button className="danger-icon" onClick={() => removePoolCalendar(selected.id, cal.id)}><B2Icon name="edit.delete" size={12} /></button>
                     </div>
                   </li>
                 )
@@ -223,7 +223,7 @@ export function LibrarySection() {
           </div>
 
           <p className="library-promote-hint">
-            <ArrowUpFromLine size={13} /> {t('companyLibrary.promoteHint')}
+            <B2Icon name="calendar.promote" size={13} /> {t('companyLibrary.promoteHint')}
           </p>
         </section>
       </div>

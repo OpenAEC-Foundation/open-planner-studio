@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, type LucideIcon } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
+import type { B2IconName } from '@/components/common/b2IconNames';
 
 interface NoticeStripProps {
-  icon: LucideIcon;
+  icon: B2IconName;
   text: ReactNode;
   actionLabel: string;
   onAction: () => void;
@@ -24,7 +25,7 @@ interface NoticeStripProps {
  * RecordedDatesNotice.
  */
 export function NoticeStrip({
-  icon: Icon, text, actionLabel, onAction, onDismiss, role, tone = 'accent', stripProps, actionProps, dismissProps,
+  icon, text, actionLabel, onAction, onDismiss, role, tone = 'accent', stripProps, actionProps, dismissProps,
 }: NoticeStripProps) {
   const { t } = useTranslation('common');
   const error = tone === 'error';
@@ -42,7 +43,7 @@ export function NoticeStrip({
       data-ops-notice-tone={tone}
       {...stripProps}
     >
-      <Icon size={14} className={`shrink-0 ${error ? '' : 'text-accent'}`} style={error ? { color: 'var(--error)' } : undefined} />
+      <B2Icon name={icon} size={14} className={`shrink-0 ${error ? '' : 'text-accent'}`} style={error ? { color: 'var(--error)' } : undefined} />
       <span className="flex-1">{text}</span>
       <button onClick={() => onAction()} className="btn btn--sm btn--primary" {...actionProps}>
         {actionLabel}
@@ -54,7 +55,7 @@ export function NoticeStrip({
           title={t('close')}
           {...dismissProps}
         >
-          <X size={14} />
+          <B2Icon name="ui.close" size={14} />
         </button>
       )}
     </div>

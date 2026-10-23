@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { X, Link2, FileDown } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { Dialog, DialogHelpButton } from '@/components/common/Dialog';
 import type { Task, ExternalLink } from '@/types/task';
 import { externalSourceSide } from '@/engine/externalLinks';
@@ -234,7 +234,7 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
     >
         {/* Kop */}
         <div className="flex items-center justify-between px-4" style={{ minHeight: 44, borderBottom: '1px solid var(--theme-border)' }}>
-          <span className="ui-card-header flex items-center gap-2"><Link2 size={14} />{t('externalLinks.dialogTitle')}</span>
+          <span className="ui-card-header flex items-center gap-2"><B2Icon name="planning.external-relation" size={14} />{t('externalLinks.dialogTitle')}</span>
           <span className="flex items-center gap-1">
           {/* ?-knop: altijd eerst Opslaan / Annuleren / Terug — een nieuwe koppeling bestaat pas na Opslaan. */}
           <DialogHelpButton help={{ articleId: EXTERNAL_LINKS_HELP_ARTICLE_ID, confirmLeave: { onSave: submit } }} onClose={onClose} />
@@ -244,7 +244,7 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
             aria-label={tCommon('close')}
             title={tCommon('close')}
           >
-            <X size={16} />
+            <B2Icon name="ui.close" size={16} />
           </button>
           </span>
         </div>
@@ -273,7 +273,7 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
                   {recent.map((r) => <option key={r.id} value={r.path}>{r.name}</option>)}
                 </select>
               </label>
-              <p className="!text-small text-text-muted flex items-center gap-1"><FileDown size={11} />{t('externalLinks.readOnlyNote')}</p>
+              <p className="!text-small text-text-muted flex items-center gap-1"><B2Icon name="status.info" size={11} />{t('externalLinks.readOnlyNote')}</p>
               {loading && <span className="text-text-muted">{t('externalLinks.loadingTasks')}</span>}
               {source && (
                 <label className="flex flex-col gap-1">

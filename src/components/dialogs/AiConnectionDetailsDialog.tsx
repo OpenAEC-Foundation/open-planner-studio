@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Copy, Check, Eye, EyeOff, AlertTriangle } from 'lucide-react';
+import { B2Icon } from '@/components/common/B2Icon';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { getTools, TOOL_PREFIX } from '@/services/mcp/toolRegistry';
 import { useCopyFeedback } from '@/hooks/useCopyFeedback';
@@ -78,7 +78,7 @@ export function AiConnectionDetailsDialog({ port, token, onClose }: AiConnection
       aria-label={t('ai.copy')}
       className="shrink-0 p-1 border border-border rounded-[8px] hover:bg-surface-hover"
     >
-      {copied === key ? <Check size={14} /> : <Copy size={14} />}
+      {copied === key ? <B2Icon name="status.success" size={14} /> : <B2Icon name="edit.copy" size={14} />}
     </button>
   );
 
@@ -90,7 +90,7 @@ export function AiConnectionDetailsDialog({ port, token, onClose }: AiConnection
       aria-label={showToken ? t('ai.hideToken') : t('ai.showToken')}
       className="shrink-0 p-1 border border-border rounded-[8px] hover:bg-surface-hover"
     >
-      {showToken ? <EyeOff size={14} /> : <Eye size={14} />}
+      {showToken ? <B2Icon name="credential.hide" size={14} /> : <B2Icon name="credential.show" size={14} />}
     </button>
   );
 
@@ -164,7 +164,7 @@ export function AiConnectionDetailsDialog({ port, token, onClose }: AiConnection
         )}
 
         <div className="flex items-start gap-2 !text-body text-text-secondary">
-          <AlertTriangle size={14} className="shrink-0 mt-px" style={{ color: 'var(--theme-warning-text)' }} />
+          <B2Icon name="status.warning" size={14} className="shrink-0 mt-px" style={{ color: 'var(--theme-warning-text)' }} />
           <span>{t('ai.tokenWarning')}</span>
         </div>
       </div>
