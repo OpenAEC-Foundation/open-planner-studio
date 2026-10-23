@@ -184,6 +184,36 @@ for (const baseId of ['ops', 'p6', 'msproject'] as const) {
   }
 }
 
+// De late kant begint alleen op het begin van de projecteinddag als de mijlpaal zelf op het begin van zijn
+// werkdag staat. Eerder: onder P6/MSP op een scalaire kalender kreeg een START om 10:00 laat 07:00,
+// speling −0,375 (op be58ba356: 0), en een mijlpaal zonder soort na een voorganger met een zachte MFO
+// kreeg laat ma 07:00 bij vroeg ma 16:00, speling −1 (op be58ba356: 0).
+for (const baseId of ['ops', 'p6', 'msproject'] as const) {
+  const opts = { ...options, schedulingOptions: effectiveSchedulingOptions({ schedulingProfile: builtInProfile(baseId) }) };
+  for (const [calendarName, cal] of [['dagkalender', calendar], ['blokkenkalender', blockCalendar]] as const) {
+    const m = { ...task('M', 0, '2026-06-02T10:00'), milestoneKind: 'START' as const };
+    const r = new CPMSolver([m], [], cal, [], opts).solve().tasks.get('M')!;
+    eq(`${baseId}, ${calendarName}: losse START om 10:00 zonder constraint`,
+      [r.earlyStart, r.lateStart, r.totalFloat, r.freeFloat], ['2026-06-02T10:00', '2026-06-02T10:00', 0, 0]);
+
+    const n = { ...task('N', 0, '2026-09-07T07:00'), constraint: { type: 'MFO' as const, date: '2026-09-21' } };
+    const chain = new CPMSolver([task('P', 5, '2026-09-07T07:00'), task('Q', 5, '2026-09-07T07:00'), n], [
+      { ...fs, id: 'pq', predecessorId: 'P', successorId: 'Q' }, { ...fs, id: 'qn', predecessorId: 'Q', successorId: 'N' },
+    ], cal, [], { ...opts, projectStartDate: '2026-09-07' }).solve();
+    const rn = chain.tasks.get('N')!;
+    eq(`${baseId}, ${calendarName}: mijlpaal zonder soort na voorganger met zachte MFO`,
+      [rn.earlyStart, rn.lateStart, rn.totalFloat, rn.freeFloat, chain.violatedConstraintTaskIds],
+      ['2026-09-21T16:00', '2026-09-21T16:00', 0, 0, []]);
+  }
+  // Waarvoor de plaats bedoeld is blijft: een START op het begin van de laatste projectdag, terwijl een
+  // andere taak die dag tot 16:00 loopt, heeft speling nul.
+  const start = { ...task('M', 0, '2026-06-02T07:00'), milestoneKind: 'START' as const };
+  const last = new CPMSolver([task('A'), start, task('B', 2)], [{ ...fs, predecessorId: 'A', successorId: 'M' }],
+    calendar, [], opts).solve().tasks.get('M')!;
+  eq(`${baseId}, dagkalender: START op het begin van de laatste projectdag`,
+    [last.earlyStart, last.lateStart, last.totalFloat], ['2026-06-02T07:00', '2026-06-02T07:00', 0]);
+}
+
 // B6 blijft gelden voor een losse mijlpaal met een andere constraint (SNET): einde van de werkdag.
 {
   const m = { ...task('M', 0), milestoneKind: 'START' as const, constraint: { type: 'SNET' as const, date: '2026-06-02' } };

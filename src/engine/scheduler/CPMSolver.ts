@@ -1139,6 +1139,11 @@ export class CPMSolver {
     return new Date(utcDayStart(d).getTime() + bands[0].start * MS_PER_MIN);
   }
 
+  /** `d` valt precies op het eerste blokbegin van zijn eigen kalenderdag. */
+  private isAtDayFirstBandStart(eng: CalendarEngine, d: Date | undefined): boolean {
+    return !!d && this.dayFirstBandStart(eng, d)?.getTime() === d.getTime();
+  }
+
   /** Het LAATSTE band-EIND op `d`'s eigen kalenderdag (backward-spiegel van `dayFirstBandStart`
    *  hierboven — uitsluitend gebruikt door `subDuration`s float-bewuste band-eind-wacht). Zelfde
    *  onbereikbaarheids-redenering als `dayFirstBandStart`'s docblok voor de `bands.length===0`-tak. */
@@ -3661,11 +3666,10 @@ export class CPMSolver {
           && (this.predecessors.get(taskId)?.length ?? 0) > 0
           && !(this.predecessors.get(taskId) ?? []).some(seq => seq.type === 'FINISH_FINISH' || seq.type === 'START_FINISH')))
         && taskDurationUnit(task) !== 'hours' && !predCal.hasOwnWorkBlocks
-        // Het moment van een MSO/MFO gaat vóór deze standaardplaats aan het begin van de dag, bij een
-        // losse mijlpaal en bij een START. Een mijlpaal zonder soort mét voorganger houdt de oude plaats
-        // (de DCMA-kritiek-padtest, check-dcma s3, leunt daarop).
-        && !(((this.predecessors.get(taskId)?.length ?? 0) === 0 || task.milestoneKind === 'START')
-          && [task.constraint, task.constraint2].some(c => this.milestoneConstraintMoment(task, c, predCal)))
+        // Alleen voor een mijlpaal die zelf op het begin van zijn werkdag staat: dan telt hij, zoals in
+        // het dagmodel, op de laatste projectdag als op tijd. Staat hij later op de dag (eigen tijd, het
+        // moment van een MFO), dan zou deze plaats de late kant vóór de mijlpaal zelf leggen.
+        && this.isAtDayFirstBandStart(predCal, earlyDates.get(taskId)?.es)
         ? this.dayFirstBandStart(predCal, projectEnd) ?? projectEnd : projectEnd;
       let lateFinishSource: CpmLateFinishSource = 'projectEnd';
       for (const seq of succs) {
