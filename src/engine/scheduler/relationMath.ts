@@ -1,8 +1,8 @@
 import type { Task } from '@/types/task';
 import type { Sequence, LagUnit } from '@/types/sequence';
 import type { CalendarEngine } from './CalendarEngine';
-import { addCalendarDays, MS_PER_DAY, parseInstant } from '@/utils/dateUtils';
-import { isElapsedTask, isPinnedComplete, isZeroDurationMilestone, taskDurationUnit } from './duration';
+import { addCalendarDays, MS_PER_DAY } from '@/utils/dateUtils';
+import { isElapsedTask, isZeroDurationMilestone, taskDurationUnit } from './duration';
 
 /**
  * Relatie-wiskunde (FS/SS/FF/SF) voor `CPMSolver.ts`, forward/backward × dag-/uur-modus.
@@ -684,10 +684,7 @@ function forwardHour(
         // Anker is het voorgangereinde RECHTSTREEKS, NIET `predDone`: die dag-boundary-+1 is een
         // WORKTIME-concept en schuift een dag-pred-scenario een dag op (`elapsed-day-to-hour` in
         // cases-hours.json).
-        // Een werkelijke eindtijd is een feit: de eerdere kalendersnap mag geen kloktijdlag wegnemen.
-        const finish = pe.isHourMode && isPinnedComplete(predTask.time) && predTask.time.actualFinish.includes('T')
-          ? parseInstant(predTask.time.actualFinish) : predResult.ef;
-        const target = new Date(finish.getTime() + elapsedMin());
+        const target = new Date(predResult.ef.getTime() + elapsedMin());
         if (succIsFinishMs && pe.isHourMode && elapsedMin() === 0) {
           return landRawInstant(deps, se, target);
         }

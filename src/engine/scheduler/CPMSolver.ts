@@ -2350,6 +2350,10 @@ export class CPMSolver {
             : isZeroDurationMilestone(task)
               ? this.snapOnOrAfter(progressCal, actualFinish)
               : this.snapOnOrBefore(progressCal, actualFinish);
+          // Behoud de expliciete eindtijd bij een snap binnen dezelfde dag; weekend en bouwvak
+          // houden hun bestaande terugwaartse grens. Relatieconventies volgen pas na dit venster.
+          if (progressCal.isHourMode && t.actualFinish.includes('T')
+            && utcDayStart(ef).getTime() === utcDayStart(actualFinish).getTime()) ef = actualFinish;
           // Inversie-randgeval: het HELE geregistreerde venster valt in onwerkbare tijd (weekend,
           // bouwvak, feestdagenblok) — dan snapt de start vóóruit tot ná de finish, die achteruit
           // snapte. Er bestaat dan geen werkdag binnen het feit, dus één van beide moet wijken.
