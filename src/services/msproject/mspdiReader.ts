@@ -326,7 +326,10 @@ export function readMSPDI(content: string): ImportResult {
     if (!cal) continue;
     const durMin = mspDurationMinutes(getElementText(te, 'Duration'));
     const durSignal = durMin != null && isSubDayMinutes(durMin, cal.hoursPerDay);
-    const dateSignal = ['Start', 'Finish'].some(field => {
+    // Ook een werkelijke datum met een eigen tijd telt: een feit uit de bron. Anders blijft de kalender
+    // scalair, kapt de lezer "11:00" af tot de datum, en maakt de laadnormalisatie er het blokeinde van
+    // (review ronde 3 van PR #559, deel B).
+    const dateSignal = ['Start', 'Finish', 'ActualStart', 'ActualFinish'].some(field => {
       const raw = getElementText(te, field);
       return hasNonAnchorTime(raw, DAY_TIME_ANCHOR) && importDateTimeOrUndefined(raw, true) !== undefined;
     });
