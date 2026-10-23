@@ -627,7 +627,8 @@ Lokaal controleren: `node --test scripts/aur/render-pkgbuild.test.mjs` en
 
 - `run-ts.mjs` — de TypeScript-runner waarmee de `.ts`-scripts hierboven draaien (esbuild → Node).
   Alle `node scripts/run-ts.mjs scripts/x.ts`-aanroepen in `package.json` gaan hierlangs.
-- `generate-icon.mjs` — genereert het app-icoon uit code. **Draait niet zonder extra installatie:**
-  hij importeert `sharp`, en dat staat bewust niet in `package.json` (het is een zware native
-  dependency voor een handeling die je hooguit bij een rebranding doet). Wil je hem draaien:
-  `npm i --no-save sharp` en dan `node scripts/generate-icon.mjs`.
+- `generate-icon.py` — leidt alle app- en installer-iconen af uit het logopakket in
+  `docs/branding/open-planner-studio/` (alleen het beeldmerk): `app-icon.png`, `src-tauri/icons/*`
+  (via `npx tauri icon`), `snap/gui/icon.png`, en in `public/` het titelbalkicoon, de favicons en de
+  apple-touch-icon. Draai vanuit de root met `python3 -I scripts/generate-icon.py`; vraagt Pillow.
+  Het pakket zelf blijft ongewijzigd (SHA256SUMS). Uitleg per bestand staat bovenin het script.
