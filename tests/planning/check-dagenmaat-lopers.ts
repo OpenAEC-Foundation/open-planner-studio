@@ -11,9 +11,13 @@
 //   C. De foutgrens van T23: vooruit en dan achteruit verschilt hooguit ½ + ½ × (werkminuten van de
 //      begindag ÷ werkminuten van de einddag) minuut, en `measuredWorkdaysBetween` geeft de duur terug
 //      binnen dezelfde grens (omgerekend naar dagen).
+//   D. `workMinutesBetween` over lange spannes (de lopende som van F3c) is exact gelijk aan dag voor dag
+//      tellen, op elke kalender hierboven.
 //
-// Mutatiebewijs (zie de PR): `Math.round` → `Math.floor` in `addMeasuredWorkdaysChecked` maakt A en B
-// rood; de feestdag als werkdag tellen (`measureDay` zonder `bandsStartingOn`) maakt A rood.
+// Mutatiebewijs (gemeten 2026-10-23): `Math.round` → `Math.floor` in de vooruit-loper maakt A en B rood
+// (1204 afwijkingen); een feestdag op een weekdag de standaardblokken geven in `measureDay` maakt D rood
+// (11). A en B merken die tweede mutatie niet: op een kalender die als `isWorkDay` telt, slaan de lopers
+// de feestdag rekenkundig over (`measureLikeWorkDays`).
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { workdayDateOfInstant } from '@/engine/calendar/workdayRules';
 import { formatInstant, parseInstant, MS_PER_DAY } from '@/utils/dateUtils';
