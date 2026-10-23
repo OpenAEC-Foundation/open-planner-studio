@@ -119,3 +119,19 @@ Node 24.22.0 (`~/.local/bin`). Typecheck en `measure:profiles` via `flock /tmp/o
 
 - **knownbugs 273**: ALAP laat bij een losse mijlpaal een dagdeel vrije speling liggen (`applyAlap` telt hele
   werkdagen). Gemeten op de huidige stand en op `be58ba356` (blokkenkalender).
+
+## Merge van de laadfix, ronde 3
+
+`git merge origin/claude/uren-f2-laden2` (`22ad7bca9`), merge-commit `a3fd06cdb`: geen conflict. `npm run
+i18n:resolve`: exit 0, niets gewijzigd. Daarna `knownbugs.md` 274 (een werkelijk einde om 08:00 wordt na import uit
+P6 XML of MSPDI 16:00; ankerregel I8), commit `02a6a0357`.
+
+| Controle na de merge (stand `02a6a0357`) | Uitkomst | Exit |
+|---|---|---|
+| `check-import-datum-zonder-tijd.ts` | 53/53 | 0 |
+| `check-mpp-import.ts` | 3101 hard | 0 |
+| `check-hours-f2-review.ts` | 626/626 | 0 |
+| Groep 1 uit het laadverslag (alle `check-mspdi-*`, `check-p6xml-*`, `check-mpp-*`, `check-progress*`, `check-minute-model-input`, `check-minute-model-ifc`) | alleen `check-mpp-fidelity` rood: 3 afwijkingen op `timephased-cost-rollup.mpp` (knownbugs 187) | 1 |
+| Alle 24 casebatterijen | 608/608 | 0 |
+| `npm run typecheck` | geen fouten | 0 |
+| `npm run lint:fast` | geen fouten | 0 |
