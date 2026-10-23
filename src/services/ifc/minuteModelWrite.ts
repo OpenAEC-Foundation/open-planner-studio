@@ -25,6 +25,12 @@ function anchor(value: string, field: TaskDateField, ctx: TaskDateContext): stri
   return null;
 }
 
+/** De eindvelden van de planning (knownbug 279): op een letterlijke kalender krijgt zo'n veld zonder tijd
+ *  zijn moment. */
+const LITERAL_END_FIELDS: ReadonlySet<TaskDateField> = new Set(['scheduleFinish', 'earlyFinish', 'lateFinish', 'actualFinish']);
+/** Het eigen begin van een nulduur-mijlpaal (D7): bij een FINISH-mijlpaal ook een eindmoment. */
+const MILESTONE_OWN_STARTS: ReadonlySet<TaskDateField> = new Set(['scheduleStart', 'earlyStart', 'lateStart', 'actualStart']);
+
 /** T17 is een schrijfkeuze van dit document. Er komt geen vlag in een bibliotheekkalender. */
 export function minuteModelWriteView(input: Pick<ImportResult, 'tasks' | 'calendar' | 'resourceCalendars' | 'baselines'>,
   options: { literalAutomaticMilestones?: boolean } = {}) {
@@ -75,7 +81,19 @@ export function minuteModelWriteView(input: Pick<ImportResult, 'tasks' | 'calend
     const ctx = { clock: clocks.calendarClock(undefined), milestoneKind: null };
     if (anchor(b.projectEnd, 'deadline', ctx) === null) literalCalendarIds.add(input.calendar.id);
   }
-  const tasks = input.tasks.map(task => literalCalendarIds.has(effective(task).id) ? task
+  // Op een letterlijke kalender gaat elke waarde letterlijk het bestand in, op één na: een eindveld zonder
+  // tijd (knownbug 279). Dat ging als `…T07:00:00` (dagtaak) of `…T00:00:00` (urentaak) en las terug als
+  // het begin van die dag: een werkdag te vroeg. Zo'n veld krijgt hier zijn moment volgens D1–D7, met
+  // dezelfde regel als de laadgrens (`normalizeTaskDate`). Alleen de eindvelden van de planning, en bij
+  // een FINISH-mijlpaal ook zijn eigen begin (D7); een beperking, deadline, extern anker, stop/hervat en
+  // een kale start blijven zoals ze zijn.
+  const literalEndOf = (value: string, field: TaskDateField, ctx: TaskDateContext): string => {
+    if (!isDateOnly(value)) return value;
+    const endLike = LITERAL_END_FIELDS.has(field) || (ctx.milestoneKind === 'FINISH' && MILESTONE_OWN_STARTS.has(field));
+    return endLike ? normalizeTaskDate(value, field, ctx) ?? value : value;
+  };
+  const tasks = input.tasks.map(task => literalCalendarIds.has(effective(task).id)
+    ? mapTaskDates(task, (value, field) => literalEndOf(value, field, contexts.get(task.id)!))
     : mapTaskDates(task, (value, field) => anchor(value, field, contexts.get(task.id)!) ?? value));
   const baselines = (input.baselines ?? []).map(b => ({ ...b,
     projectEnd: literalCalendarIds.has(input.calendar.id) ? b.projectEnd
