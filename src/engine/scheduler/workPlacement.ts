@@ -9,7 +9,7 @@ import type { ResourceAssignment } from '@/types/resource';
 import type { EffectiveSchedulingOptions } from '@/types/project';
 import type { CalendarEngine } from './CalendarEngine';
 import { taskCountsInWorkdays } from './conventions/durationMeasure';
-import { durationMinutesOf, isPinnedComplete, isPinnedInProgress } from './duration';
+import { durationMinutesOf, isPinnedComplete, isPinnedInProgress, splitTotalSpanMinutes } from './duration';
 import { isDateOnly } from '@/engine/calendar/workdayRules';
 import { addCalendarDays, formatDate, parseInstant, utcDayStart } from '@/utils/dateUtils';
 
@@ -83,7 +83,15 @@ export function workPlacement(engine: CalendarEngine, placement: WorkPlacement):
   const gaps = (placement.gaps ?? []).filter(g => Number.isFinite(g.afterMinutes)
     && Number.isFinite(g.gapMinutes) && g.gapMinutes > 0)
     .slice().sort((a, b) => a.afterMinutes - b.afterMinutes);
-  if (measure === 'workdays') return measuredWorkdayWalk(engine, start, endMs, remaining, gaps);
+  if (measure === 'workdays') {
+    // Bij een duur ligt het einde vast zoals bij de solver (`addDurationChecked`): het werk plus de gaten
+    // in werkdagen (`splitTotalSpanDays`), met de dagenmaat-lopers vanaf de start. De wandeling boekt
+    // nooit voorbij dat einde; een afrondingsrest van minder dan een minuut valt weg.
+    const spanEnd = placement.duration !== undefined
+      ? engine.addMeasuredWorkdays(start, measuredSpanDays(placement.duration, gaps, engine)).getTime()
+      : undefined;
+    return measuredWorkdayWalk(engine, start, Math.min(endMs, spanEnd ?? Infinity), remaining, gaps, spanEnd);
+  }
   let gapIndex = 0;
   let axis = 0;
   let finish = start;
@@ -138,6 +146,7 @@ function measuredWorkdayWalk(
   endMs: number,
   durationDays: number,
   gaps: readonly TaskSplitGap[],
+  spanEnd: number | undefined,
 ): PlacementResult {
   const mpd = Math.max(1, engine.hoursPerDay * 60);
   const startMs = start.getTime();
@@ -187,7 +196,17 @@ function measuredWorkdayWalk(
     });
     day = addCalendarDays(day, 1);
   }
+  // Rondt de wandeling op een halve minuut net anders af dan de lopers, dan geldt het einde van de solver.
+  if (spanEnd !== undefined && days.length > 0) finish = new Date(spanEnd);
   return { days, finish };
+}
+
+/** Werk plus gaten in werkdagen, precies zoals de solver (`splitTotalSpanDays` in `duration.ts`): de duur
+ *  plus de gaten die vóór het einde van het werk vallen, omgerekend met `werktijd per dag × 60`. */
+function measuredSpanDays(durationDays: number, gaps: readonly TaskSplitGap[], engine: CalendarEngine): number {
+  if (gaps.length === 0) return durationDays;
+  const workMinutes = durationDays * engine.hoursPerDay * 60;
+  return durationDays + (splitTotalSpanMinutes(gaps, workMinutes) - workMinutes) / (engine.hoursPerDay * 60);
 }
 
 /** Werkminuten in de blokken van dag `dayMs` vóór het moment `tMs` (`Infinity` ⇒ de hele dag). */

@@ -189,6 +189,25 @@ measureCase('twee gaten vanaf wo 11:00', 'ops', task('g4', '2026-06-03T11:00', 3
   eq('nivelleren: projecteinde na = einde blokker', leveled.projectEndAfter, '2026-06-09T15:00');
 }
 
+// ── Geval 7: een halve minuut op de laatste dag. Kalender met middagpauze (ma–do 07–12 en 12:30–15:30,
+// vr 07–13). 5,625 d vanaf do 07:33, gat van 589 na 695: op de laatste dag (vr 12 jun) valt het einde op
+// 331,5 werkminuten. De solver rondt daar af op 12:31; de plaatsing neemt het einde van de solver over en
+// boekt niets erna. (Gevonden met een steekproef van 6000 willekeurige gevallen: zonder die regel lag het
+// einde in 55 van de 3000 gevallen met middagpauze een minuut later.) ─────────────────────────────────
+{
+  const lunch = [{ start: 420, end: 720 }, { start: 750, end: 930 }];
+  const lunchCal: WorkCalendar = { ...CAL, id: 'middagpauze', workTime: {
+    byWeekday: { 1: lunch, 2: lunch, 3: lunch, 4: lunch, 5: [{ start: 420, end: 780 }], 6: [], 7: [] },
+  } };
+  const t = task('tie', '2026-06-04T07:33', 5.625, [{ afterMinutes: 695, gapMinutes: 589 }]);
+  solveProject({ tasks: [t], sequences: [], calendar: lunchCal, calendars: [], schedulingOptions: OPS });
+  const eng = new CalendarEngine(lunchCal);
+  const placed = workPlacement(eng, taskWorkPlacement(t, eng, OPS)!);
+  eq('halve minuut: einde solver', t.time.earlyFinish, '2026-06-12T12:31');
+  eq('halve minuut: einde plaatsing = einde solver', placed.finish.getTime(), parseInstant(t.time.earlyFinish!).getTime());
+  eq('halve minuut: geen werkminuut na het einde (vr 07:00–12:31 = 331 min)', placed.days.at(-1)?.minutes, 331);
+}
+
 for (const f of failures) console.error(`XX ${f}`);
 console.log(`Split-as solver = plaatsing: ${checks} checks, ${failures.length} afwijkingen`);
 process.exit(failures.length ? 1 : 0);
