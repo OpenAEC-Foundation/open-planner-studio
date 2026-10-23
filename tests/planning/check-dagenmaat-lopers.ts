@@ -254,6 +254,47 @@ for (const c of ALL) {
   }
 }
 
+// ── D. `workMinutesBetween` over lange spannes (de lopende som, F3c prestatie) ──
+// De speling in minuten meet over maanden of jaren. Boven 14 volle dagen telt de engine de volle dagen
+// uit een lopende som op het kalender-object; dat moet exact gelijk zijn aan dag voor dag tellen, ook
+// met feestdagen, werkende uitzonderingen, nachtblokken, beide richtingen en een som die moet groeien.
+const refWorkMinutes = (e: CalendarEngine, a: number, b: number): number => {
+  const lo = Math.min(a, b);
+  const hi = Math.max(a, b);
+  let total = 0;
+  for (let dayMs = Math.floor(lo / MS_PER_DAY) * MS_PER_DAY - 2 * MS_PER_DAY; dayMs < hi; dayMs += MS_PER_DAY) {
+    for (const band of e.effectiveBandsOn(new Date(dayMs))) {
+      const s = Math.max(dayMs + band.start * MS_PER_MIN, lo);
+      const t = Math.min(dayMs + band.end * MS_PER_MIN, hi);
+      if (t > s) total += (t - s) / MS_PER_MIN;
+    }
+  }
+  return (b >= a ? 1 : -1) * total;
+};
+let spanSamples = 0;
+for (const c of ALL) {
+  const e = new CalendarEngine(c); // eigen engine, maar de som hangt aan het kalender-object
+  const base = at('2026-06-01T00:00').getTime();
+  // Eerst een korte en een lange spanne, dan een spanne ver ervóór (de som groeit naar links) en ver erna.
+  const fixed: Array<[number, number]> = [
+    [base + 9 * 3_600_000, base + 20 * MS_PER_DAY + 3_600_000],
+    [base - 400 * MS_PER_DAY + 7 * 3_600_000, base + 300 * MS_PER_DAY],
+    [base + 900 * MS_PER_DAY + 22 * 3_600_000, base + 1200 * MS_PER_DAY + 5 * 3_600_000],
+  ];
+  const pairs: Array<[number, number]> = [...fixed];
+  for (let i = 0; i < 40; i++) {
+    const a = base + Math.floor((rnd() * 1500 - 600) * 24 * 60) * MS_PER_MIN;
+    const len = Math.floor(rnd() * (i % 2 === 0 ? 40 : 1100) * 24 * 60) * MS_PER_MIN;
+    pairs.push(rnd() < 0.5 ? [a, a + len] : [a + len, a]);
+  }
+  for (const [a, b] of pairs) {
+    spanSamples++;
+    eq(`${c.id}: workMinutesBetween ${fmt(new Date(a))} → ${fmt(new Date(b))}`,
+      e.workMinutesBetween(new Date(a), new Date(b)), refWorkMinutes(e, a, b));
+  }
+}
+ok(`D: ${spanSamples} spannes getoetst`, spanSamples > 300);
+
 if (diffs.length > 0) {
   console.log(`XX dagenmaat-lopers: ${diffs.length} afwijking(en) van ${checks} checks`);
   for (const d of diffs.slice(0, 40)) console.log(`   - ${d}`);

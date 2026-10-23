@@ -18,6 +18,10 @@ interface BandCache {
   /** Dagenmaat (alleen uren §3.14): per werkdag de blokken op volgorde en de werkminuten. Afgeleid
    *  van `days`, dus net zo puur een functie van het kalender-object. */
   measure: Map<number, MeasureDay>;
+  /** Lopende som van de werkminuten per kalenderdag (de blokken die op die dag BEGINNEN), voor
+   *  `workMinutesBetween` over lange spannes. `cum[i]` = som van dag `firstDay` t/m `firstDay + i - 1`
+   *  (dagindex, UTC). Afgeleid van `measure`, dus net zo puur een functie van het kalender-object. */
+  minutePrefix?: { firstDay: number; cum: number[] };
 }
 
 /** Eén kalenderdag voor de dagenmaat: de blokken die op die dag BEGINNEN, op volgorde, en hun som in
@@ -873,9 +877,21 @@ export class CalendarEngine {
     const sign = bMs > aMs ? 1 : -1;
     const lo = Math.min(aMs, bMs);
     const hi = Math.max(aMs, bMs);
-    let total = 0;
     // Begin twee dagen vóór `lo`: een wrap-band (end ≤ +2880m) van een eerdere dag kan in [lo,hi) reiken.
-    let dayMs = this.dayStartMsOf(lo) - 2 * MS_PER_DAY;
+    const firstDayMs = this.dayStartMsOf(lo) - 2 * MS_PER_DAY;
+    // Snelle weg (F3c, speling in minuten over lange spannes): een dag `d` met `d ≥ lo` en `d + 2 dagen ≤ hi`
+    // ligt met al zijn blokken (ook een wrap-blok) binnen `[lo,hi)` en telt dus volledig mee; die dagen
+    // komen uit de lopende som. Alleen de randdagen worden blok voor blok geteld, zoals hieronder.
+    const fullFrom = Math.ceil(lo / MS_PER_DAY);
+    const fullTo = Math.floor(hi / MS_PER_DAY) - 2; // inclusief
+    const spanDays = (hi - firstDayMs) / MS_PER_DAY;
+    if (fullTo - fullFrom >= CalendarEngine.PREFIX_MIN_DAYS && spanDays <= CalendarEngine.MAX_DAYS) {
+      return sign * (this.bandMinutesOnDays(firstDayMs, fullFrom * MS_PER_DAY, lo, hi)
+        + this.fullDayMinutes(fullFrom, fullTo + 1)
+        + this.bandMinutesOnDays((fullTo + 1) * MS_PER_DAY, hi, lo, hi));
+    }
+    let total = 0;
+    let dayMs = firstDayMs;
     let steps = 0;
     while (dayMs < hi) {
       for (const band of this.bandsStartingOn(dayMs)) {
@@ -887,6 +903,40 @@ export class CalendarEngine {
       if (++steps > CalendarEngine.MAX_DAYS) break;
     }
     return sign * total;
+  }
+
+  /** Vanaf hoeveel volle dagen `physicalWorkMinutesBetween` de lopende som gebruikt. */
+  private static readonly PREFIX_MIN_DAYS = 14;
+
+  /** Bandminuten in `[lo,hi)` van de blokken die beginnen op de dagen `fromDayMs` ≤ dag < `toDayMs`. */
+  private bandMinutesOnDays(fromDayMs: number, toDayMs: number, lo: number, hi: number): number {
+    let total = 0;
+    for (let dayMs = fromDayMs; dayMs < toDayMs && dayMs < hi; dayMs += MS_PER_DAY) {
+      for (const band of this.bandsStartingOn(dayMs)) {
+        const s = Math.max(band.start, lo);
+        const e = Math.min(band.end, hi);
+        if (e > s) total += (e - s) / CalendarEngine.MS_PER_MIN;
+      }
+    }
+    return total;
+  }
+
+  /** Som van de volle werkminuten van de dagen met index `fromDay` ≤ d < `toDay` (UTC-dagindex), uit de
+   *  lopende som op het kalender-object. Groeit de som, dan ruim (minstens een jaar extra aan elke kant). */
+  private fullDayMinutes(fromDay: number, toDay: number): number {
+    const cache = this.bandCache!;
+    let prefix = cache.minutePrefix;
+    if (!prefix || fromDay < prefix.firstDay || toDay > prefix.firstDay + prefix.cum.length - 1) {
+      const pad = Math.max(366, prefix ? prefix.cum.length : 0);
+      const first = Math.min(fromDay, prefix ? prefix.firstDay : fromDay) - pad;
+      const last = Math.max(toDay, prefix ? prefix.firstDay + prefix.cum.length - 1 : toDay) + pad;
+      const cum = new Array<number>(last - first + 1);
+      cum[0] = 0;
+      for (let i = 1; i < cum.length; i++) cum[i] = cum[i - 1] + this.measureDay((first + i - 1) * MS_PER_DAY).minutes;
+      prefix = { firstDay: first, cum };
+      cache.minutePrefix = prefix;
+    }
+    return prefix.cum[toDay - prefix.firstDay] - prefix.cum[fromDay - prefix.firstDay];
   }
 
   /** Zuivere getekende offset over werkminuten (uur-tegenhanger van `addWorkingDaysSigned`, voor
