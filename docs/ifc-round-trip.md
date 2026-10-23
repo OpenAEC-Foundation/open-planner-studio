@@ -168,11 +168,12 @@ de bedoeling: het herinnert eraan de `skip`-cel weer een echte vergelijking te m
 schrappen, in plaats van de gap eeuwig te laten staan als een halve waarheid.
 
 Actuele gaps zijn bijvoorbeeld de afgeleide analysevelden `time.interferingFloat`/`isNearCritical`/
-`floatPath` (a): de writer schrijft `OPS_Analysis` bewust niet meer, omdat `runCPM` ze bij elk laadpad
-opnieuw berekent (`WRITTEN_PER_TASK_PSETS` in `ifcWriter.ts`); en `resource.availability` (b), een
-`@deprecated` migratie-alleen veld dat de writer bewust overslaat. De uur-modus-velden
-`durationMinutes`/`remainingMinutes` zijn géén gap meer: ze doen gewoon mee in de vergelijking, en
-blok (3) bevestigt nog los dat ze exact terugkomen.
+`floatPath` (a): de writer schrijft ze bewust niet meer in `OPS_Analysis`, omdat `runCPM` ze bij elk
+laadpad opnieuw berekent (`emitPerTaskPsets` in `ifcWriter.ts`). `OPS_Analysis` draagt alleen nog de
+exacte speling (`ExactFloat`, zie "Dagenmaat met een breuk, lagmaat en speling"). En `resource.availability`
+(b), een `@deprecated` migratie-alleen veld dat de writer bewust overslaat. De uur-modus-velden
+`durationMinutes`/`remainingMinutes` en de spelingminuten `totalFloatMinutes`/`freeFloatMinutes` zijn géén
+gap: ze doen gewoon mee in de vergelijking.
 
 ## Kalenders: werkblokken per weekdag
 
@@ -263,6 +264,62 @@ venster bepaalt dat één keer per sessie, op de stand bij het openen (na een pr
 één sessie tellen dus samen als één wissel, net als één MCP-call. Zonder die regel werd Late ploeg na *Za*
 aan stil 10, en schreef de writer dan geen `HoursPerDay` meer. Toetsen: `check-urenperdag-dagwissel.ts` en
 `tests/mcp/cases-urenperdag-dagwissel.ts`.
+
+## Dagenmaat met een breuk, lagmaat en speling
+
+Bron: `docs/superpowers/specs/2026-10-20-alleen-uren-design.md` §3.3, §3.4, §3.10 en §5.4 (T5, T21). Code:
+`src/services/ifc/dayMeasureIo.ts`, met de writer- en lezerkant in `ifcWriter.ts` en `ifcReader.ts`
+(`applyTaskTimeRecords`, `extractSequences`).
+
+Een hoeveelheid in dagen met een breuk gaat nooit als gebroken `P…D` naar het bestand. OPS v2026.9.0 leest
+in `P0.5D` alleen de cijfers vóór de `D`, dus 5 dagen. Hele dagen blijven `P{n}D`, zoals voorheen. Een breuk
+gaat als `PT…` in minuten, met een record `[dagen, geschreven minuten]` ernaast. Er is geen nieuwe pset.
+
+**Duur, rest en werkelijke duur.** Een taak in de dagenmaat (ook kalendertijd in dagen) met een breuk in de
+duur of de rest schrijft duur én rest als `PT…`. De minuten zijn dagen × de werktijd per dag van de
+taakkalender (`effHoursPerDay`), bij kalendertijd dagen × 1440. De records staan als JSON in de eigenschap
+`DayMeasureDurations` van `OPS_WorkRule`, met de sleutels `ScheduleDuration`, `RemainingTime` en
+`ActualDuration`. Een gebroken werkelijke duur gaat op dezelfde manier. De duur gaat ook als `PT…` als
+alleen de rest een breuk heeft. Reden: v2026.9.0 leest dan een urentaak met dezelfde lengte. Een `PT`-rest
+naast een `P{n}D`-duur leest die versie als `ceil(uren ÷ 8)` hele dagen, en op een korte kalender gaat er
+dan een deel van een dag verloren. Zo'n taak maakt haar kalender letterlijk (`LiteralTimes`, met
+`IsHourCalendar = .F.`; `minuteModelWriteView`), net als een urentaak. Een scalaire kalender blijft na
+heropenen scalair.
+
+**Lag (T21).** De vorm hangt af van de maat van de lag:
+
+- urenmaat: `PT…`;
+- hele dagen: `P{n}D`;
+- dagen met een breuk: `PT…` (dagen × de werktijd per dag van de lagkalender), plus een record;
+- kalendertijd in hele dagen: `P{n}D` met `ELAPSEDTIME`;
+- kalendertijd met een breuk: `PT…` (dagen × 1440) met `ELAPSEDTIME`, plus een record;
+- procent: `IFCRATIOMEASURE`.
+
+De lagkalender volgt `schedulingOptions.lagCalendar` (voorganger, opvolger, projectkalender of 24 uur),
+zoals de motor en de MSPDI-writer. De werktijd per dag is die van de motor (`CalendarEngine.hoursPerDay`:
+bij een blokkenkalender de modale dagsom van de blokken). De writer houdt de maat in elk rekenprofiel; onder
+P6 telt de motor een lag in dagen als uren, en `PT…` draagt precies die minuten. Alle lagrecords staan in één eigenschap `DayMeasureLags` in `OPS_Sequences` op het
+`IfcWorkSchedule`, met de GlobalId van de relatie als sleutel: `{"<GlobalId>":[0.5,240]}`.
+
+**Speling (T5).** `TotalFloat` en `FreeFloat` in `IfcTaskTime` dragen hele dagen (afgerond,
+`wholeFloatDays`). De exacte dagen en de minuten (`totalFloatMinutes`, `freeFloatMinutes`) staan in de
+eigenschap `ExactFloat` van `OPS_Analysis`. Die eigenschap komt er alleen als de taak spelingminuten draagt
+of als de speling een breuk heeft. De lezer neemt de minuten als ze er zijn en leidt ze nergens zelf af.
+
+**De leesregel.** Een record telt alleen als het standaardveld nog precies de geschreven minuten draagt (op
+de hele minuut); bij de speling: als het slot nog de afgeronde dagen van het record draagt. Wijzigde een
+ander programma de lengte, dan geldt het standaardveld. Een lag `PT4H0M0S` die `PT6H0M0S` werd, leest als
+360 min in de urenmaat (bij kalendertijd in kalenderminuten), zoals in v2026.9.0. Een duur wordt een
+urentaak; een rest of werkelijke duur van een dagtaak wordt minuten ÷ minuten per dag; een speling blijft
+het slot, zonder minuten. Corrupte JSON of een ongeldig record werkt als een bestand zonder record.
+
+**v2026.9.0** leest een nieuw bestand zonder dagen te verliezen of op te blazen: lag 0,5 d ⇒ 240 min
+urenmaat, 1,5 ed ⇒ 2160 kalenderminuten, duur 2,5 d ⇒ urentaak van 1200 min, speling 2,5 d ⇒ 3 d. Een
+werkelijke duur kent die versie alleen in hele dagen: 0,5 d ⇒ 1 d. De datums van alle taken zijn gelijk aan
+die van de nieuwe lezer.
+
+Toetsen: `check-ifc-dagenmaat.ts` (met `OPS_MINUTE_MODEL_OLD_READER` ook de lezer van v2026.9.0),
+`check-minute-model-compat.ts` (de bestanden D0 en D1) en blok (18a) van `check-ifc-roundtrip.ts`.
 
 ## Lopend op 100 %: `IfcTask.Status`
 

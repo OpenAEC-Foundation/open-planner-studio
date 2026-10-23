@@ -5,6 +5,10 @@ import type {
 import { WORK_RULES } from '@/types/workRule';
 import { hasValidP6SuspendResume } from '@/utils/p6SuspendResume';
 import { importStatusDate } from '@/services/importDates';
+import {
+  DAY_MEASURE_DURATIONS_PROP, DAY_MEASURE_DURATION_KEYS, EXACT_FLOAT_KEYS, EXACT_FLOAT_PROP,
+  parseDayMeasureDurations, parseExactFloat, type DayMeasureDurationRecords, type ExactFloatRecords,
+} from './dayMeasureIo';
 
 /**
  * IFC-pset-registry: het OPS_*-round-trip-contract met per pset één bron. Een typo in een naam of
@@ -303,6 +307,16 @@ export interface ReadProp {
 }
 
 /** Descriptor voor één per-taak-pset: NAAM + GUID-seeds + geco-lokeerde write/read. */
+/** Wat de writer per taak berekent en een descriptor niet zelf kan weten (kalender, schrijfvorm). */
+export interface PerTaskWriteOptions {
+  /** Losse mijlpaal op het einde van de werkdag (D7, `OPS_Milestone.AtDayEnd`). */
+  atDayEnd?: boolean;
+  /** Records `[dagen, geschreven minuten]` voor de IfcTaskTime-duren die als `PT…` gingen (T21). */
+  dayMeasureDurations?: DayMeasureDurationRecords;
+  /** Exacte speling naast de hele dagen in IfcTaskTime (T5). */
+  exactFloat?: ExactFloatRecords;
+}
+
 export interface PerTaskPset {
   name: string;
   /** ifcGuid-seed-prefix voor de IFCPROPERTYSET-GlobalId (writer appended `task.id`). */
@@ -310,7 +324,7 @@ export interface PerTaskPset {
   /** ifcGuid-seed-prefix voor de IFCRELDEFINESBYPROPERTIES-GlobalId. */
   relSeed: string;
   /** Golden rule: `null` of lege lijst ⇒ niets geschreven. */
-  write(task: Task, options?: { atDayEnd?: boolean }): PropSpec[] | null;
+  write(task: Task, options?: PerTaskWriteOptions): PropSpec[] | null;
   /** Zet de gelezen (reeds naar {name,value} geparste) IFCPROPERTYSINGLEVALUE-props terug op de taak. */
   apply(task: Task, props: ReadProp[]): void;
 }
@@ -325,6 +339,21 @@ const CONSTRAINT_VALID: ConstraintType[] = ['ASAP', 'ALAP', 'SNET', 'SNLT', 'FNE
 const milestonesAtDayEnd = new WeakSet<Task>();
 /** Alleen een leeshint van dit bestand; reist niet mee naar de store. */
 export const milestoneWasAtDayEnd = (task: Task): boolean => milestonesAtDayEnd.has(task);
+
+/** Gelezen records van de dagenmaat en de exacte speling. Alleen een leeshint van dit bestand, net als
+ *  `milestonesAtDayEnd`: de lezer past ze toe in een eigen pas (`applyTaskTimeRecords` in ifcReader),
+ *  omdat de leesregel de RUWE IfcTaskTime-slots en de kalender van de taak nodig heeft. */
+const dayMeasureDurationsRead = new WeakMap<Task, DayMeasureDurationRecords>();
+const exactFloatRead = new WeakMap<Task, ExactFloatRecords>();
+export const readDayMeasureDurations = (task: Task): DayMeasureDurationRecords | undefined => dayMeasureDurationsRead.get(task);
+export const readExactFloat = (task: Task): ExactFloatRecords | undefined => exactFloatRead.get(task);
+
+/** Records als JSON-object in een vaste sleutelvolgorde (byte-stabiel). */
+function recordsJson<K extends string>(keys: readonly K[], records: Partial<Record<K, unknown>>): Record<string, unknown> | null {
+  const out: Record<string, unknown> = {};
+  for (const key of keys) if (records[key] !== undefined) out[key] = records[key];
+  return Object.keys(out).length > 0 ? out : null;
+}
 
 export const PER_TASK_PSETS: PerTaskPset[] = [
   // 0. Stabiele taakidentiteit. De reader consumeert deze property al vóór `extractTasks`, omdat
@@ -491,22 +520,26 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       for (const { name, value } of props) if (name === 'Color' && typeof value === 'string' && value) task.color = value;
     },
   },
-  // 8. Analyse-uitvoer (interfererende float / bijna-kritiek / float-path).
+  // 8. Analyse-uitvoer. De writer schrijft hier alleen de exacte speling (`ExactFloat`, alleen uren
+  //    §3.4, T5): IfcTaskTime draagt de speling in hele dagen, dit record de exacte dagen en de minuten.
+  //    Interfererende float, bijna-kritiek en float-path schrijft hij bewust NIET meer (afgeleide
+  //    runCPM-uitvoer, zie `ifcWriter.ts` bij `emitPerTaskPsets`); de lezer leest ze nog uit oudere
+  //    bestanden. Golden rule: zonder record geen pset.
   {
     name: PSET.Analysis, psetSeed: 'pset_ana_', relSeed: 'rel_ana_',
-    write(task) {
-      const t = task.time;
-      const props: PropSpec[] = [];
-      if (t.interferingFloat !== undefined) props.push({ name: 'InterferingFloat', value: ifcTypedReal('IFCREAL', t.interferingFloat) });
-      if (t.isNearCritical !== undefined) props.push({ name: 'IsNearCritical', value: `IFCBOOLEAN(${ifcBool(t.isNearCritical)})` });
-      if (t.floatPath !== undefined) props.push({ name: 'FloatPath', value: `IFCINTEGER(${Math.round(t.floatPath)})` });
-      return props;
+    write(_task, options) {
+      const floats = options?.exactFloat && recordsJson(EXACT_FLOAT_KEYS, options.exactFloat);
+      return floats ? [{ name: EXACT_FLOAT_PROP, value: `IFCTEXT(${ifcJson(floats)})` }] : null;
     },
     apply(task, props) {
       for (const { name, value } of props) {
         if (name === 'InterferingFloat' && typeof value === 'number') task.time.interferingFloat = value;
         else if (name === 'IsNearCritical' && typeof value === 'boolean') task.time.isNearCritical = value;
         else if (name === 'FloatPath' && typeof value === 'number') task.time.floatPath = Math.round(value);
+        else if (name === EXACT_FLOAT_PROP) {
+          const floats = parseExactFloat(value);
+          if (floats) exactFloatRead.set(task, floats);
+        }
       }
     },
   },
@@ -715,15 +748,24 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   //     geldigheidscheck, een onbekende waarde blijft stil weg. Staat NAAST
   //     `OPS_MspTaskType` en `OPS_P6Progress`: de importvelden blijven onaangeraakt, de regel is
   //     een afgeleide die de gebruiker later los kan wijzigen.
+  //     Daarnaast de records van de dagenmaat voor duur, rest en werkelijke duur (`DayMeasureDurations`,
+  //     alleen uren §3.10, T21): de werkregelbrug beheert duur en werk, en er komt geen nieuwe pset.
   {
     name: PSET.WorkRule, psetSeed: 'pset_wrl_', relSeed: 'rel_wrl_',
-    write(task) {
-      return task.workRule ? [{ name: 'WorkRule', value: `IFCLABEL(${ifcStr(task.workRule)})` }] : null;
+    write(task, options) {
+      const props: PropSpec[] = [];
+      if (task.workRule) props.push({ name: 'WorkRule', value: `IFCLABEL(${ifcStr(task.workRule)})` });
+      const records = options?.dayMeasureDurations && recordsJson(DAY_MEASURE_DURATION_KEYS, options.dayMeasureDurations);
+      if (records) props.push({ name: DAY_MEASURE_DURATIONS_PROP, value: `IFCTEXT(${ifcJson(records)})` });
+      return props.length > 0 ? props : null;
     },
     apply(task, props) {
       for (const { name, value } of props) {
         if (name === 'WorkRule' && typeof value === 'string' && (WORK_RULES as readonly string[]).includes(value)) {
           task.workRule = value as WorkRule;
+        } else if (name === DAY_MEASURE_DURATIONS_PROP) {
+          const records = parseDayMeasureDurations(value);
+          if (records) dayMeasureDurationsRead.set(task, records);
         }
       }
     },

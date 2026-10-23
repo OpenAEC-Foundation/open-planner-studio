@@ -2,6 +2,7 @@ import type { Task, TaskTime, TaskTimeComputed, TaskTimeInput } from '@/types/ta
 import { ifcStr, ifcBool, stepReal } from './ifcPsets';
 import { DEFAULT_PRIORITY } from './ifcConstants';
 import { isSummaryTask } from '@/utils/taskHierarchy';
+import { wholeFloatDays } from './dayMeasureIo';
 
 /**
  * IFCTASK/IFCTASKTIME-slot-registry: de POSITIONELE slot-layout van de twee IFC-kern-entiteiten op
@@ -134,14 +135,17 @@ export const IFC_TASKTIME_SLOTS: TaskTimeSlot[] = [
     write: (w) => unlessWithheld(w, 'lateFinish', () => w.dt(w.task.time.lateFinish)),
     read: (t, arg, p) => { t.lateFinish = p.parseDate(arg); },
   },
+  // Speling als HELE dagen (alleen uren §3.4, technische keuze T5): v2026.9.0 leest een gebroken `P…D`
+  // verkeerd (`P0Y0M2.5D` ⇒ 5, I10). De exacte dagen en de minuten staan in `OPS_Analysis.ExactFloat`;
+  // de lezer zet ze terug zolang dit slot nog de afgeronde dagen draagt (`applyTaskTimeRecords`).
   {
     key: 'freeFloat',
-    write: (w) => unlessWithheld(w, 'freeFloat', () => w.ifcDuration(w.task.time.freeFloat)),
+    write: (w) => unlessWithheld(w, 'freeFloat', () => w.ifcDuration(wholeFloatDays(w.task.time.freeFloat))),
     read: (t, arg, p) => { t.freeFloat = p.parseDur(arg); },
   },
   {
     key: 'totalFloat',
-    write: (w) => unlessWithheld(w, 'totalFloat', () => w.ifcDuration(w.task.time.totalFloat)),
+    write: (w) => unlessWithheld(w, 'totalFloat', () => w.ifcDuration(wholeFloatDays(w.task.time.totalFloat))),
     read: (t, arg, p) => { t.totalFloat = p.parseDur(arg); },
   },
   {
