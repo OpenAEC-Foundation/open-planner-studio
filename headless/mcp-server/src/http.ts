@@ -19,7 +19,7 @@ import http from 'node:http';
 import { timingSafeEqual } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import {
-  createRequestHandler, createMcpSessionTable, type McpResponseEvent,
+  createRequestHandler, createMcpSessionTable, type McpResponseEvent, type McpSessionTable,
 } from '@/services/mcp/requestHandler';
 import type { McpContext } from '@/services/mcp/contracts';
 
@@ -38,6 +38,9 @@ export interface HttpTransportOptions {
   handleMessage: (body: string, ctx: McpContext) => Promise<string>;
   /** Eén regel per request (methode, pad, status, duur); nooit body of token. */
   log?: (line: string) => void;
+  /** Bestaande sessietabel (testhulp van `tests/mcp/bridgeMirror.ts`: Stop/Start van de bridge in de
+   *  app behoudt sessies en ankers). Ontbreekt hij, dan een nieuwe tabel. */
+  sessions?: McpSessionTable;
 }
 
 export interface HttpTransport {
@@ -74,7 +77,7 @@ export async function startHttpTransport(opts: HttpTransportOptions): Promise<Ht
   // Het `mcp://response`-kanaal van de app: correlatie op een oplopend id.
   const pending = new Map<number, (reply: McpResponseEvent) => void>();
   let nextId = 1;
-  const sessions = createMcpSessionTable();
+  const sessions = opts.sessions ?? createMcpSessionTable();
   const makeHandler = () => createRequestHandler({
     emit: (_event, payload) => {
       const reply = payload as McpResponseEvent;

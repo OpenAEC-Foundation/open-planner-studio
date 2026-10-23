@@ -599,12 +599,49 @@ jobs:
 
           Write-Host "Windows updater entries set to the .nsis.zip with matching signature"
 
+  # De Claude Desktop-bundel (`.mcpb`): een stekker naar de AI-bridge van de app, zonder signing.
+  # Bouwt met `npm run build:mcpb`, controleert het manifest met de officiële CLI (vaste versie,
+  # dezelfde als mcpb.yml) en zet het bestand als asset op de draft. Zie docs/mcp-verificatie.md.
+  build-mcpb:
+    needs: create-release
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies (npm ci)
+        run: npm ci
+
+      - name: Build and upload the Claude Desktop extension (.mcpb)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.create-release.outputs.version }}
+          REPO: ${{ github.repository }}
+          MCPB_CLI: '@anthropic-ai/mcpb@2.1.2'
+          npm_config_ignore_scripts: 'true'
+        run: |
+          set -euo pipefail
+          node scripts/build-mcpb.mjs --out "$RUNNER_TEMP/mcpb"
+          npx --yes "$MCPB_CLI" validate "$RUNNER_TEMP/mcpb/bundle/manifest.json"
+          ASSET="$RUNNER_TEMP/mcpb/open-planner-studio-${VERSION#v}.mcpb"
+          test -f "$ASSET"
+          gh release upload "$VERSION" "$ASSET" --clobber --repo "$REPO"
+
   publish-release:
     timeout-minutes: 20
     permissions:
       contents: write
     runs-on: ubuntu-latest
-    needs: [create-release, build-linux-mac, build-windows]
+    needs: [create-release, build-linux-mac, build-windows, build-mcpb]
 
     steps:
       - uses: actions/checkout@v5

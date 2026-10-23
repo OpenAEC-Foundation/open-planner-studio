@@ -26,8 +26,13 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..');
 
 const result = await esbuild.build({
-  // De app én de headless MCP-server (issue #570): die bundelt app-code buiten `main.tsx` om.
-  entryPoints: [join(root, 'src', 'main.tsx'), join(root, 'headless', 'mcp-server', 'src', 'main.ts')],
+  // De app, de headless MCP-server (issue #570: bundelt app-code buiten `main.tsx` om) en de proxy
+  // van de Claude Desktop-bundel (#567).
+  entryPoints: [
+    join(root, 'src', 'main.tsx'),
+    join(root, 'headless', 'mcp-server', 'src', 'main.ts'),
+    join(root, 'integrations', 'claude-desktop', 'src', 'main.ts'),
+  ],
   outdir: join(root, 'node_modules', '.cache', 'ops-verify-cycles'),
   bundle: true,
   write: false,
@@ -64,7 +69,8 @@ const result = await esbuild.build({
 });
 
 // Graaf beperken tot onze eigen bronbestanden.
-const isOwn = (p) => (p.startsWith('src/') || p.startsWith('headless/mcp-server/src/')) && !p.includes('node_modules');
+const isOwn = (p) => (p.startsWith('src/') || p.startsWith('headless/mcp-server/src/') || p.startsWith('integrations/'))
+  && !p.includes('node_modules');
 const graph = new Map();
 for (const [file, info] of Object.entries(result.metafile.inputs)) {
   if (!isOwn(file)) continue;

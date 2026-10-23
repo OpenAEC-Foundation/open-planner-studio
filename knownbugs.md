@@ -198,6 +198,43 @@ en noem het in je rapport of PR-tekst.
     absolute paden, dus geen bekende route naar verkeerd opgeslagen bestanden. Gevonden in review ronde 3 van
     PR #572 (GPT-6.1-Sol). Voorstel: de terugval documenteren en beide fouten bewaren of melden. — B
 
+206. **`.mcpb`-bundel: een annulering tijdens opnieuw verbinden valt weg.**
+    `integrations/claude-desktop/src/proxy.ts:445` haalt het request-id uit `queuedIds` voordat
+    `handleRequest()` op `connectUpstream()` wacht (`:394–403`); een `notifications/cancelled` in dat venster
+    wordt niet vastgelegd en de tool kan na het verbinden alsnog naar de bridge gaan. Gevonden in review ronde
+    2 en 3 van PR #567 (GPT-6.1-Sol). Voorstel: het request annuleerbaar houden tot de echte tool-POST en na
+    het verbinden opnieuw controleren, met een test voor dat venster. — B
+
+207. **`.mcpb`-bundel: na sessieverlies weigert de proxy ook een nieuw leeg plan en importeren.**
+    `integrations/claude-desktop/src/proxy.ts:389–392` blokkeert `planner_new_document` en
+    `planner_import_schedule` zolang de blokkade staat; Claude moet eerst een bestaand plan kiezen met
+    `planner_switch_document`. Veilig, maar een onnodige omweg. Gevonden in review ronde 3 van PR #567
+    (GPT-6.1-Sol). Voorstel: beide toestaan als losse herstelactie, zonder automatische herhaling en met
+    ontgrendeling alleen na succes; `planner_duplicate_document` niet, want die gebruikt het actieve document.
+    — B
+
+209. **MCP-ontdekking: een schrijffout kan een tijdelijk bestand met het token laten liggen.**
+    `src/services/mcp/discoveryFiles.ts:95–105`: `writeNew` staat buiten de opruim-`try`; slaagt het aanmaken
+    maar faalt het schrijven (bijv. schijfquota), dan blijft het tijdelijke bestand achter, mogelijk al met
+    het volledige token. `bridgeStopped()` en `shutdown()` verwijderen alleen de definitieve namen; de test
+    injecteert alleen rename-fouten. Gevonden in review ronde 1 en 2 van PR #573 (GPT-6.1-Sol). Voorstel:
+    exclusief aanmaken en schrijven splitsen zoals `fileAccess/atomicWrite.ts`, zodat een schrijffout het
+    eigen bestand opruimt. — B
+
+210. **MCP-ontdekking: een update via de updater ruimt `runtime.json` en `open-files.json` niet op.** Alleen
+    `src/hooks/useAppCloseGuard.ts:33` roept `shutdown()` aan;
+    `src/services/updater/updaterService.ts:170–182` installeert en herstart rechtstreeks, en op Windows
+    beëindigt de installer de app. De lezer herkent de resten aan het dode pid. Gevonden in review ronde 1 en
+    2 van PR #573 (GPT-6.1-Sol). Voorstel: opruimen vóór de installatie, en opnieuw publiceren als de
+    installatie mislukt. — B
+
+211. **MCP-ontdekking: op Windows is niet bewezen dat alleen de gebruiker het tokenbestand kan lezen.**
+    `src/services/mcp/discoveryFiles.ts:237–253` vertrouwt op de geërfde ACL van de profielmap; `plugin-fs`
+    past `mode` alleen op Unix toe. Een bestaande of omgeleide gegevensmap met ruimere rechten maakt ook het
+    tijdelijke tokenbestand leesbaar. Doc en gids zeggen nu dat dit niet apart gecontroleerd is. Gevonden in
+    review ronde 1 van PR #573 (GPT-6.1-Sol). Voorstel: de ACL op Windows controleren (ook tijdelijk bestand
+    en bestaande map), of geen token publiceren als de bescherming onvoldoende is. — B
+
 ## Bestanden en herstel
 
 35. **Showcase-voorbeelden openen als gewijzigd** (`applyDemoLibraryToShowcaseProject`). — S
@@ -371,6 +408,24 @@ en noem het in je rapport of PR-tekst.
     op `repository.pullRequest.projectCards`. De body is wel bijgewerkt via
     `gh api --method PATCH repos/OpenAEC-Foundation/open-planner-studio/pulls/479 -F body=@<bestand>`.
     Voorstel: de GitHub CLI op de host bijwerken; de repo zelf is niet aangepast hiervoor. — B
+
+204. **`headless-api.yml` meldt "token staat in de log" als het image niet bouwt.** De stap *Logs bevatten
+    geen token en geen IFC-inhoud* draait ook na een mislukte stap *Image bouwen*. Dan bestaat er geen
+    container, en `grep -qF "$OPS_API_TOKEN"` vindt een treffer in de foutmelding van Docker, zodat de job
+    een tweede, misleidende fout geeft. Gezien op PR #567, run 39950724242 (job *container + smoke-test*),
+    waar de echte oorzaak een ontbrekend bestand in de Dockerfile was. Voorstel: de stap alleen draaien als
+    de container bestaat, of eerst controleren dat het token niet leeg is. Niet onderzocht waarom het
+    token-grep matcht. — S
+
+208. **`scripts/build-core.mjs` bouwt de licentiegegevens onnodig om.** `scripts/build-core.mjs:138–148` zet
+    de pakketnamen om in een `Map` en de sectietekst in een array met één element; `notices.packages.join(',
+    ')` en `notices.sections` volstaan. Gevonden in review ronde 1 van PR #567 (GPT-6.1-Sol). — B
+
+212. **Real-app-test van de MCP-ontdekking bewijst minder dan zijn naam zegt.**
+    `tests/mcp/realApp/run-real-app.ts:141` heet "hetzelfde pid" maar vergelijkt de pids van beide bestanden
+    niet; echte openen-, Opslaan als- en afsluitroutes ontbreken (de storetest zet `filePath` rechtstreeks).
+    Gevonden in review ronde 1 en 2 van PR #573 (GPT-6.1-Sol). Voorstel: de pids vergelijken en de bestaande
+    echte-app-route uitbreiden met echte bestandsacties, inhoud en opruiming. — B
 
 ## Wensen en open taken (geen bug)
 

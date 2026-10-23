@@ -18,6 +18,7 @@ RUN npm ci --ignore-scripts --no-audit --no-fund
 COPY LICENSE LICENSE.GPL ./
 COPY scripts/build-core.mjs scripts/
 COPY scripts/lib/headless-bundle.mjs scripts/lib/
+COPY scripts/lib/third-party-notices.mjs scripts/lib/
 COPY src/ src/
 RUN node scripts/build-core.mjs --out /out/core
 

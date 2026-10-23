@@ -35,6 +35,7 @@ import { useAppCloseGuard } from '@/hooks/useAppCloseGuard';
 import { useRecoveryRestore } from '@/hooks/useRecoveryRestore';
 import { useUpdateCheck } from '@/hooks/useUpdateCheck';
 import { useAiAutostart } from '@/hooks/useAiAutostart';
+import { useMcpDiscovery } from '@/hooks/useMcpDiscovery';
 import { useFullscreenSync } from '@/hooks/useFullscreenSync';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useAppStore } from '@/state/appStore';
@@ -271,6 +272,10 @@ function AppContent() {
   // MCP-bridge automatisch starten wanneer AI-modus én autostart aanstaan (Tauri-only; de hook
   // wacht op de asynchrone instellingen-hydratatie en start hoogstens één keer per app-sessie).
   useAiAutostart();
+
+  // Register van open bestanden voor de MCP-plugin (`<appDataDir>/mcp/open-files.json`, Tauri-only,
+  // ook met de MCP-koppeling uit; zie docs/mcp-ontdekking.md).
+  useMcpDiscovery();
 
   // Determine if we should show the gantt canvas or a full-panel view.
   // Een GEDOCKT resource-paneel (`resourcePanelDocked`) sluit `showResourcePanel`

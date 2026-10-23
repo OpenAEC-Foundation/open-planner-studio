@@ -31,6 +31,7 @@ const DOWNLOADS = [
   '- **Windows**: Download the `.exe` setup file',
   '- **macOS**: Download the `.dmg` file (universal - supports Intel and Apple Silicon)',
   '- **Linux**: Download the `.deb` package or `.AppImage`',
+  '- **Claude Desktop**: Download the `.mcpb` file and double-click it to connect Claude to the running app',
 ].join('\n');
 
 /** Inline-markdown weghalen voor de updater-dialoog, die platte tekst toont. */

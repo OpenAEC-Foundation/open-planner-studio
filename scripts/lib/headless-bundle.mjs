@@ -1,8 +1,7 @@
 // Gedeelde bouwstenen voor de headless bundels: de kern (`scripts/build-core.mjs`) en de headless
 // MCP-server (`scripts/build-mcp-server.mjs`). Beide bundelen app-code voor Node zonder React, Tauri,
-// de app-singleton en de i18n-UI-config; deze module houdt die grens op één plek.
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+// de app-singleton en de i18n-UI-config; deze module houdt die grens op één plek. De licenties van
+// meegebundelde pakketten komen uit `third-party-notices.mjs` (gedeeld met `build-mcpb.mjs`).
 
 // Modules die een headless bundel niet nodig heeft en die alleen bereikbaar zijn via een dynamische
 // import of binnen een React-hook. De stub gooit pas bij GEBRUIK, niet bij het laden.
@@ -61,29 +60,4 @@ export function metafileInputs(metafile) {
 export function forbiddenInputs(inputs, extra = []) {
   const list = [...FORBIDDEN_INPUTS, ...extra];
   return inputs.filter((p) => list.some((f) => p.includes(f)));
-}
-
-/**
- * Licenties van de MEEGEBUNDELDE dependencies (afgeleid uit de metafile, niet uit een vaste lijst):
- * per pakket naam, versie, licentie en de volledige licentietekst uit node_modules. Gooit als een
- * gebundeld pakket geen licentiebestand heeft.
- */
-export function bundledLicenses(inputs) {
-  const bundledPackages = new Map();
-  for (const input of inputs) {
-    const m = /(?:^|\/)node_modules\/((?:@[^/]+\/)?[^/]+)\//.exec(input);
-    if (!m) continue;
-    const dir = resolve(process.cwd(), input.slice(0, m.index + m[0].length - 1));
-    if (!bundledPackages.has(m[1])) bundledPackages.set(m[1], dir);
-  }
-  const parts = [];
-  for (const [name, dir] of [...bundledPackages].sort(([a], [b]) => a.localeCompare(b))) {
-    const meta = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'));
-    const licenseFile = readdirSync(dir).find((f) => /^(licen[cs]e|copying)(\.(md|txt))?$/i.test(f));
-    if (!licenseFile || !existsSync(join(dir, licenseFile))) {
-      throw new Error(`gebundeld pakket ${name} heeft geen licentiebestand in ${dir}`);
-    }
-    parts.push(`## ${name} ${meta.version}\n\nLicense: ${meta.license ?? 'see below'}\n\n\`\`\`text\n${readFileSync(join(dir, licenseFile), 'utf8').trim()}\n\`\`\`\n`);
-  }
-  return { names: [...bundledPackages.keys()].sort(), text: parts.join('\n') };
 }

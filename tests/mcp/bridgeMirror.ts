@@ -15,6 +15,7 @@
 // Rust-HTTP-laag, pas dan `headless/mcp-server/src/http.ts` met de hand mee aan.
 import { startHttpTransport, HTTP_INTERNAL_BODY, HTTP_MAX_BODY_BYTES, HTTP_RESPONSE_TIMEOUT_SECS, HTTP_TIMEOUT_BODY } from '../../headless/mcp-server/src/http';
 import type { McpContext } from '@/services/mcp/contracts';
+import type { McpSessionTable } from '@/services/mcp/requestHandler';
 
 export const MIRROR_RESPONSE_TIMEOUT_SECS = HTTP_RESPONSE_TIMEOUT_SECS;
 export const MIRROR_MAX_BODY_BYTES = HTTP_MAX_BODY_BYTES;
@@ -27,6 +28,12 @@ export interface BridgeMirrorOptions {
   buildContext: () => McpContext;
   /** Verwerkt de rauwe JSON-RPC-body (echt: `handleMcpMessage`). */
   handleMessage: (body: string, ctx: McpContext) => Promise<string>;
+  /** Vaste poort (testhulp, geen Rust-contract): zo kan een test een app-herstart op dezelfde poort nadoen.
+   *  Ontbreekt hij, dan kiest het systeem een vrije poort. */
+  port?: number;
+  /** Bestaande sessietabel (testhulp): een nieuwe spiegel met dezelfde tabel doet Stop/Start van de bridge na,
+   *  waarbij de app (`appMcpSessions`) sessies en ankers behoudt. Ontbreekt hij, dan een nieuwe tabel (= app-herstart). */
+  sessions?: McpSessionTable;
 }
 
 export interface BridgeMirror {
@@ -39,5 +46,5 @@ export interface BridgeMirror {
 }
 
 export async function startBridgeMirror(opts: BridgeMirrorOptions): Promise<BridgeMirror> {
-  return startHttpTransport({ ...opts, host: '127.0.0.1', port: 0 });
+  return startHttpTransport({ ...opts, host: '127.0.0.1', port: opts.port ?? 0 });
 }
