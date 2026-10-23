@@ -228,6 +228,36 @@ for (const baseId of ['ops', 'p6', 'msproject'] as const) {
     ['2026-06-02T00:00', '2026-06-02T00:00', 0, true]);
 }
 
+// Ronde 4: de START staat zelf op het projecteinde. P (1 of 2 d vanaf ma 00:00), FS+0 naar M, zonder B. Het
+// projecteinde (di of wo 00:00) is dan ook het begin van de dag van M: M en P houden speling 0 (ronde 3: −1,
+// P met een late start vóór het projectbegin). Een tweede START Q via SS+0 op ma 00:00 houdt speling tot
+// die laatste dag (1 of 2 d), zoals op de basis. Een ingesteld projecteinde blijft een eindmoment: einde
+// di, M op wo 00:00 ⇒ speling −1, zoals op de basis.
+for (const baseId of ['ops', 'p6', 'msproject'] as const) {
+  const opts = { ...options, schedulingOptions: effectiveSchedulingOptions({ schedulingProfile: builtInProfile(baseId) }) };
+  const fullDay: WorkCalendar = { ...calendar, workDays: [1, 2, 3, 4, 5, 6, 7], workStartHour: 0, workEndHour: 24, hoursPerDay: 24 };
+  const m = { ...task('M', 0, '2026-06-01T00:00'), milestoneKind: 'START' as const };
+  const q = { ...task('Q', 0, '2026-06-01T00:00'), milestoneKind: 'START' as const };
+  for (const days of [1, 2]) {
+    const end = days === 1 ? '2026-06-02T00:00' : '2026-06-03T00:00';
+    const result = new CPMSolver([task('P', days, '2026-06-01T00:00'), m, q], [
+      { ...fs, predecessorId: 'P', successorId: 'M' },
+      { ...fs, id: 'ss', predecessorId: 'P', successorId: 'Q', type: 'START_START' },
+    ], fullDay, [], opts).solve();
+    const get = (id: string) => result.tasks.get(id)!;
+    eq(`${baseId}: START op het projecteinde na P van ${days} d`,
+      [get('M').earlyStart, get('M').lateStart, get('M').totalFloat, get('P').lateStart, get('P').totalFloat],
+      [end, end, 0, '2026-06-01T00:00', 0]);
+    eq(`${baseId}: tweede START op ma naast de START op het projecteinde (P ${days} d)`,
+      [get('Q').lateStart, get('Q').totalFloat], [end, days]);
+  }
+  const fixedEnd = new CPMSolver([task('P', 2, '2026-06-01T00:00'), m], [{ ...fs, predecessorId: 'P', successorId: 'M' }],
+    fullDay, [], { ...opts, projectEndDate: '2026-06-02',
+      schedulingOptions: { ...opts.schedulingOptions, useProjectEndDateForFloat: true } }).solve().tasks.get('M')!;
+  eq(`${baseId}: START op wo 00:00 na een ingesteld projecteinde di`,
+    [fixedEnd.earlyStart, fixedEnd.lateStart, fixedEnd.totalFloat], ['2026-06-03T00:00', '2026-06-02T00:00', -1]);
+}
+
 // Ronde 3A, punt 3: een SNLT is startachtig, ook op een mijlpaal. P op maandag, FS+0 naar M, SNLT di:
 // M staat vroeg en laat op di 07:00, zonder schending (eerder: laat ma 16:00 en een gemelde schending).
 for (const baseId of ['ops', 'p6', 'msproject'] as const) {
