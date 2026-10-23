@@ -40,7 +40,7 @@ const SECTION_HEADINGS: RegExp[][] = [
   [
     // Uitleg na het openen van een ander formaat dan IFC (FormatNoticeDialog), per formaat aan/uit.
     /^(Show an explanation after opening|Uitleg tonen na het openen van)$/,
-    /^(AI mode|AI-modus)$/,
+    /^(MCP connection|MCP-koppeling)$/,
     /^(Debug terminal|Debug-terminal)$/,
     /^Benchmark$/,
     /^(Statistics|Statistieken)$/,

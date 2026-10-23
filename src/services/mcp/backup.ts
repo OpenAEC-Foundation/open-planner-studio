@@ -1,4 +1,4 @@
-// AI-backup: de Tauri-gated appwrappers rond de app-singleton. De kern (uitdunbeleid, bestandsnamen,
+// MCP-backup: de Tauri-gated appwrappers rond de app-singleton. De kern (uitdunbeleid, bestandsnamen,
 // `createBackupService`, `createAppBackupService`) staat in `backupService.ts`, zonder app-singleton,
 // zodat de headless MCP-server hem kan bundelen (issue #570). Alles daaruit wordt hier opnieuw
 // geëxporteerd; bestaande imports blijven werken.
@@ -20,7 +20,7 @@ let warnedWeb = false;
 function warnWebOnce(): null {
   if (!warnedWeb) {
     warnedWeb = true;
-    console.warn('AI-backup: geen bridge in de web-build; backup overgeslagen (theoretisch pad).');
+    console.warn('MCP-backup: geen bridge in de web-build; backup overgeslagen (theoretisch pad).');
   }
   return null;
 }
@@ -31,7 +31,7 @@ export const ensureBackup: EnsureBackupFn = (docId, kind) =>
 
 /** "Nu backup maken". Web/niet-Tauri ⇒ reject (er is geen fs-bestemming). */
 export function makeManualBackup(): Promise<string> {
-  if (!isTauri()) return Promise.reject(new Error('AI-backup: alleen in de desktop-app beschikbaar'));
+  if (!isTauri()) return Promise.reject(new Error('MCP-backup: alleen in de desktop-app beschikbaar'));
   return service().makeManualBackup();
 }
 

@@ -1,10 +1,10 @@
-# AI-tools (planner_*)
+# MCP-tools (planner_*)
 
-Alle tools die een AI-assistent via de bridge kan aanroepen, per groep, met wat ze doen en wat ze weigeren. Ze beginnen allemaal met `planner_`. De koppelprompt in het venster *Verbindingsgegevens* noemt het actuele aantal, en de assistent krijgt de volledige lijst met beschrijvingen van de bridge zelf (`tools/list`). Waarom de koppeling zo werkt, staat in [Hoe de AI-koppeling werkt](docs://uitleg-ai-koppeling). Hoe je hem aanzet, staat in [Een AI-assistent koppelen (MCP)](docs://howto-ai-assistent-koppelen).
+Alle tools die een MCP-client via de bridge kan aanroepen, per groep, met wat ze doen en wat ze weigeren. Ze beginnen allemaal met `planner_`. De koppelprompt in het venster *Verbindingsgegevens* noemt het actuele aantal, en de MCP-client krijgt de volledige lijst met beschrijvingen van de bridge zelf (`tools/list`). Waarom de koppeling zo werkt, staat in [Hoe de MCP-koppeling werkt](docs://uitleg-ai-koppeling). Hoe je hem aanzet, staat in [Een MCP-client koppelen](docs://howto-ai-assistent-koppelen).
 
 ## Hoe je deze lijst leest
 
-**Lezen** betekent: de tool wijzigt niets. Dat werkt ook tijdens *Pauzeren* en *Alleen lezen*. Een open dialoog blokkeert wel (zie onder *Wanneer een tool wordt geweigerd*). Een leestool geeft altijd actuele datums: is de planning verouderd, dan rekent hij eerst door, ook tijdens *Pauzeren* en *Alleen lezen*: die houden wijzigingen tegen, niet het doorrekenen bij het lezen. Zit jij midden in een bewerking (een balk slepen, typen in een veld), dan rekent hij niet door; de assistent krijgt dan de datums van vóór jouw bewerking met een melding dat ze verouderd zijn. Staat het project in de weergave *Datums zoals opgeslagen*, dan rekent hij niet door; de assistent krijgt dan de opgeslagen datums met een melding dat ze niet zijn doorgerekend.
+**Lezen** betekent: de tool wijzigt niets. Dat werkt ook tijdens *Pauzeren* en *Alleen lezen*. Een open dialoog blokkeert wel (zie onder *Wanneer een tool wordt geweigerd*). Een leestool geeft altijd actuele datums: is de planning verouderd, dan rekent hij eerst door, ook tijdens *Pauzeren* en *Alleen lezen*: die houden wijzigingen tegen, niet het doorrekenen bij het lezen. Zit jij midden in een bewerking (een balk slepen, typen in een veld), dan rekent hij niet door; de MCP-client krijgt dan de datums van vóór jouw bewerking met een melding dat ze verouderd zijn. Staat het project in de weergave *Datums zoals opgeslagen*, dan rekent hij niet door; de MCP-client krijgt dan de opgeslagen datums met een melding dat ze niet zijn doorgerekend.
 
 **Wijzigen** betekent: de tool verandert je project. Hij wordt geweigerd tijdens *Pauzeren*, *Alleen lezen* en bij een open dialoog. Dat geldt ook voor de tools zonder label hieronder (`planner_undo`, `planner_redo`, de bestandstools en de documenttools, behalve `planner_list_documents`). Elke wijziging is één stap in je ongedaan-maakgeschiedenis. Verandert er projectdata, dan rekent de app de planning daarna zelf door; jij hoeft niet op *Bereken* te drukken. Vóór de eerste wijziging per document schrijft de app een backup, als *Auto-backup* aan staat.
 
@@ -43,15 +43,15 @@ Alle tools die een AI-assistent via de bridge kan aanroepen, per groep, met wat 
 
 ## Project en kalenders
 
-- `planner_update_project` (wijzigen) — naam, omschrijving, auteur, opdrachtgever, startdatum, einddatum, statusdatum, voortgangsmodus en de projectstandaard voor het taaktype. De startdatum is het anker voor nieuwe taken. Zet de assistent hem later, dan schuiven alleen losse taken mee (zonder voorganger en zonder constraint met een ondergrens, zoals *Start niet eerder dan*) en meldt het antwoord hoeveel als `anchorsClamped`; de rest van de planning blijft staan, zie [Nieuw project en Projectinstellingen](docs://ref-projectinfo). De statusdatum is geen label maar de peildatum van de berekening: op een planning zonder voortgang schuift alles mee. De einddatum is alleen metadata.
-- `planner_move_project` (wijzigen) — de hele bestaande planning naar een nieuwe startdatum verschuiven. De kalenders schuiven niet mee, dus het einde kan met een ander aantal dagen verspringen dan de start. Baselines blijven staan, tenzij de assistent ze uitdrukkelijk mee laat schuiven. Zie [Project verplaatsen](docs://howto-project-verplaatsen).
+- `planner_update_project` (wijzigen) — naam, omschrijving, auteur, opdrachtgever, startdatum, einddatum, statusdatum, voortgangsmodus en de projectstandaard voor het taaktype. De startdatum is het anker voor nieuwe taken. Zet de MCP-client hem later, dan schuiven alleen losse taken mee (zonder voorganger en zonder constraint met een ondergrens, zoals *Start niet eerder dan*) en meldt het antwoord hoeveel als `anchorsClamped`; de rest van de planning blijft staan, zie [Nieuw project en Projectinstellingen](docs://ref-projectinfo). De statusdatum is geen label maar de peildatum van de berekening: op een planning zonder voortgang schuift alles mee. De einddatum is alleen metadata.
+- `planner_move_project` (wijzigen) — de hele bestaande planning naar een nieuwe startdatum verschuiven. De kalenders schuiven niet mee, dus het einde kan met een ander aantal dagen verspringen dan de start. Baselines blijven staan, tenzij de MCP-client ze uitdrukkelijk mee laat schuiven. Zie [Project verplaatsen](docs://howto-project-verplaatsen).
 - `planner_update_calendar` (wijzigen, bulk) — kalenders wijzigen of aanmaken: werkdagen, werkuren, pauze, uurbanden, feestdagen (genereren voor een land en regio of letterlijk opgeven) en werkende uitzonderingen. Genereren voor een bestaande kalender dekt het jaar vóór de projectstart tot en met het jaar na het latere van de ingevoerde en berekende projecteinddatum. Zonder bekende einddatum, en altijd bij het aanmaken van een kalender, loopt het bereik tot drie jaar na het startjaar. Welke kalender de projectkalender is, kan hij niet wijzigen.
 
 ## Resources en inzet
 
-- `planner_manage_resources` (wijzigen, bulk) — resources aanmaken, wijzigen of verwijderen: naam, type (arbeid, materieel, materiaal, onderaannemer of ploeg), omschrijving, maximale inzet, kosten per uur, eenheid, kalender, ploeg en beschikbaarheid in de tijd. Verwijderen met toewijzingen weigert hij totdat de assistent het uitdrukkelijk bevestigt. Bij een resource uit een bibliotheek zijn naam, type, omschrijving, uurtarief en eenheid vast.
+- `planner_manage_resources` (wijzigen, bulk) — resources aanmaken, wijzigen of verwijderen: naam, type (arbeid, materieel, materiaal, onderaannemer of ploeg), omschrijving, maximale inzet, kosten per uur, eenheid, kalender, ploeg en beschikbaarheid in de tijd. Verwijderen met toewijzingen weigert hij totdat de MCP-client het uitdrukkelijk bevestigt. Bij een resource uit een bibliotheek zijn naam, type, omschrijving, uurtarief en eenheid vast.
 - `planner_manage_assignments` (wijzigen, bulk) — toewijzingen toevoegen, wijzigen, verplaatsen of verwijderen: inzet per werkdag, curve en resterend werk. Alleen op een bladtaak, en dezelfde resource maar één keer per taak. Wat een inzetwijziging met de duur doet, hangt af van het taaktype van de taak, zoals in [Taaktypes: duur, inzet en werk](docs://uitleg-werkregels).
-- `planner_level_resources` (wijzigen) — overbezetting nivelleren. Standaard binnen de speling, zodat de einddatum blijft staan; met `constrainToFloat: false` mag het einde opschuiven. Met een proefrun krijgt de assistent eerst een voorbeeld zonder iets te wijzigen. Materiaal slaat hij over. Zie [Nivelleren](docs://uitleg-nivelleren).
+- `planner_level_resources` (wijzigen) — overbezetting nivelleren. Standaard binnen de speling, zodat de einddatum blijft staan; met `constrainToFloat: false` mag het einde opschuiven. Met een proefrun krijgt de MCP-client eerst een voorbeeld zonder iets te wijzigen. Materiaal slaat hij over. Zie [Nivelleren](docs://uitleg-nivelleren).
 - `planner_clear_leveling` (wijzigen) — alle nivelleervertragingen wissen.
 
 ## Baselines beheren
@@ -70,14 +70,14 @@ Alle tools die een AI-assistent via de bridge kan aanroepen, per groep, met wat 
 - `planner_list_documents` (lezen) — alle geopende documenten met titel, of ze actief en gewijzigd zijn, het aantal taken, de projectstart en het berekende einde.
 - `planner_new_document` — een nieuw, leeg document in een eigen tabblad, zonder het venster *Nieuw project*.
 - `planner_duplicate_document` — het actieve document kopiëren naar een nieuw tabblad, voor een wat-als of een tendervariant. De kopie is losgekoppeld en heeft geen bestandspad.
-- `planner_switch_document` — een ander document actief maken. Ook de manier om na een wissel van tabblad door jou te bevestigen op welk document de assistent werkt.
+- `planner_switch_document` — een ander document actief maken. Ook de manier om na een wissel van tabblad door jou te bevestigen op welk document de MCP-client werkt.
 - `planner_import_schedule` — een planningsbestand van schijf openen als document: `.ifc`, `.xml` (Primavera P6 of MS Project, herkend op inhoud), `.csv`, `.xer` en `.mpp` (MS Project 2010 tot en met 2021). Er wordt niets samengevoegd met het huidige plan. Een CSV heeft geen kalender, dus datums kunnen verschuiven. Alleen binnen je gebruikersmap. Na een CSV-, XML- of `.mpp`-import heeft het document geen opslagdoel; alleen een IFC neemt zijn pad over.
 - `planner_export_ifc` — het actieve document als IFC-bestand wegschrijven, in het IFC-schema van het project (standaard IFC 4.3 ADD2). Alleen binnen je gebruikersmap, en een bestaand bestand wordt alleen overschreven op uitdrukkelijk verzoek. Is het document geopend als een schema dat de app niet kan schrijven (zoals IFC2X3), dan weigert de tool om over dat eigen bestand te schrijven, ook via een hoofdlettervariant of link naar hetzelfde bestand. Kan de tool niet vaststellen dat een bestaand doel werkelijk een ander bestand is, dan weigert hij ook. Dit gebeurt onder meer op Windows, waar de bestandslaag geen bestands-ID levert. Kies dan een nieuwe bestandsnaam, of sla zelf in de app op en beantwoord de schemavraag. De export verandert het opslagdoel en de open schemavraag van het document niet.
 
 ## Gids en bronherkomst
 
-- `planner_get_planning_guide` (lezen) — de Engelse gids voor assistenten (de principes van [Goed plannen](docs://gids-goed-plannen), met bij elk principe de tools), de twee skills *goed-plannen* (een planning opzetten) en *progress-update* (de voortgang bijwerken), of alles. Kies met `part`: `guide`, `skill` (beide skills) of `both`; standaard `both`. Geeft per skill de plekken waar hij hoort en de downloadadressen. De parameter `language` wordt nog geaccepteerd voor oudere assistenten, maar de tekst is altijd Engels. Raakt de planning niet aan.
-- `planner_inspect_xer_provenance` (lezen) — de bewaarde bronsemantiek van een geopend Primavera P6-bestand (`.xer`) inzien: wat het bestand bevatte, met tellingen van de import en diagnostiek. Standaard blijven vrije tekstvelden uit het bestand onzichtbaar; de assistent moet daar uitdrukkelijk om vragen. Ook resourcenamen blijven standaard verborgen, omdat een P6-resource meestal een persoon is; de resourcecodes blijven wel zichtbaar. De assistent moet je eerst om toestemming vragen voordat hij de namen opvraagt, want die gaan dan naar de AI-aanbieder. Kan niet in een draaiboek.
+- `planner_get_planning_guide` (lezen) — de Engelse gids voor MCP-clients (de principes van [Goed plannen](docs://gids-goed-plannen), met bij elk principe de tools), de twee skills *goed-plannen* (een planning opzetten) en *progress-update* (de voortgang bijwerken), of alles. Kies met `part`: `guide`, `skill` (beide skills) of `both`; standaard `both`. Geeft per skill de plekken waar hij hoort en de downloadadressen. De parameter `language` wordt nog geaccepteerd voor oudere MCP-clients, maar de tekst is altijd Engels. Raakt de planning niet aan.
+- `planner_inspect_xer_provenance` (lezen) — de bewaarde bronsemantiek van een geopend Primavera P6-bestand (`.xer`) inzien: wat het bestand bevatte, met tellingen van de import en diagnostiek. Standaard blijven vrije tekstvelden uit het bestand onzichtbaar; de MCP-client moet daar uitdrukkelijk om vragen. Ook resourcenamen blijven standaard verborgen, omdat een P6-resource meestal een persoon is; de resourcecodes blijven wel zichtbaar. De MCP-client moet je eerst om toestemming vragen voordat hij de namen opvraagt, want die gaan dan naar de AI-aanbieder. Kan niet in een draaiboek.
 
 ## Het draaiboek
 
@@ -85,12 +85,12 @@ Alle tools die een AI-assistent via de bridge kan aanroepen, per groep, met wat 
 
 ## Wanneer een tool wordt geweigerd
 
-De assistent krijgt dan een antwoord met een foutcode en een uitleg.
+De MCP-client krijgt dan een antwoord met een foutcode en een uitleg.
 
 - `PAUSED` — *Pauzeren* staat aan.
 - `READ_ONLY` — *Alleen lezen* staat aan.
 - `DIALOG_OPEN` — er staat een dialoog open. Dat telt ook voor lezen, behalve bij `planner_get_planning_guide`. Het antwoord noemt wat openstaat met de interne naam, bijvoorbeeld `showTaskDialog`.
-- `DOC_DRIFT` — jij wisselde van tabblad terwijl de assistent werkte. Hij moet met `planner_switch_document` bevestigen op welk document hij werkt.
+- `DOC_DRIFT` — jij wisselde van tabblad terwijl de MCP-client werkte. Hij moet met `planner_switch_document` bevestigen op welk document hij werkt.
 - `VALIDATION` — de argumenten kloppen niet met het schema, of de gevraagde wijziging mag niet. Het antwoord noemt het veld.
 - `NOT_FOUND` — een id of document bestaat niet.
 - `CYCLE` — de wijziging zou een kringverwijzing maken. Alles van die aanroep wordt teruggedraaid.
@@ -101,9 +101,9 @@ De assistent krijgt dan een antwoord met een foutcode en een uitleg.
 
 Een aanvraag die langer dan 110 seconden in de wachtrij stond, voert de app niet meer uit: de client heeft dan al een time-out gekregen, en uitvoeren zou bij een nieuwe poging dubbel wijzigen. Een aanroep die langer dan 120 seconden duurt, krijgt een time-out van de bridge.
 
-## Wat de assistent niet kan instellen
+## Wat de MCP-client niet kan instellen
 
-Per taak kan de assistent niet zetten: hammock, handmatig plannen, een tweede constraint, aantekeningen, kleur, activiteitcodes, eigen velden, externe koppelingen en nivelleervertraging met de hand. De WBS-code berekent de app zelf. Op projectniveau kan hij het rekenprofiel en de reken-opties niet wijzigen. Instellingen, thema, taal, extensies en updates zijn niet bereikbaar, en ook de resourcebibliotheek niet. Rapporten, layouts, filters en weergave heeft hij evenmin. Waarom, staat in [Hoe de AI-koppeling werkt](docs://uitleg-ai-koppeling).
+Per taak kan de MCP-client niet zetten: hammock, handmatig plannen, een tweede constraint, aantekeningen, kleur, activiteitcodes, eigen velden, externe koppelingen en nivelleervertraging met de hand. De WBS-code berekent de app zelf. Op projectniveau kan hij het rekenprofiel en de reken-opties niet wijzigen. Instellingen, thema, taal, extensies en updates zijn niet bereikbaar, en ook de resourcebibliotheek niet. Rapporten, layouts, filters en weergave heeft hij evenmin. Waarom, staat in [Hoe de MCP-koppeling werkt](docs://uitleg-ai-koppeling).
 
 ## Wat de app bewaart
 
@@ -115,7 +115,7 @@ Per taak kan de assistent niet zetten: hammock, handmatig plannen, een tweede co
 
 ## Zie ook
 
-- [Hoe de AI-koppeling werkt](docs://uitleg-ai-koppeling): waarom de bridge zo is ingericht en wat de assistent wel en niet mag.
-- [Een AI-assistent koppelen (MCP)](docs://howto-ai-assistent-koppelen): bridge starten, koppelen, skill installeren.
-- [App-instellingen](docs://ref-instellingen): de twee AI-schakelaars.
-- [Meldingen en waarschuwingen](docs://ref-meldingen): de AI-bol in de statusbalk.
+- [Hoe de MCP-koppeling werkt](docs://uitleg-ai-koppeling): waarom de bridge zo is ingericht en wat de MCP-client wel en niet mag.
+- [Een MCP-client koppelen](docs://howto-ai-assistent-koppelen): bridge starten, koppelen, skill installeren.
+- [App-instellingen](docs://ref-instellingen): de twee MCP-schakelaars.
+- [Meldingen en waarschuwingen](docs://ref-meldingen): de MCP-bol in de statusbalk.

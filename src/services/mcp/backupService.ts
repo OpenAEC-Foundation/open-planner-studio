@@ -209,7 +209,7 @@ export function createBackupService(deps: BackupDeps): BackupService {
   /** Schrijf één snapshot voor `docId`, ruim daarna op, en geef het pad terug. Rejec­t bij fs-fout. */
   async function writeSnapshot(docId: string): Promise<string> {
     const doc = deps.getDoc(docId);
-    if (!doc) throw new Error(`AI backup: document '${docId}' not found`);
+    if (!doc) throw new Error(`MCP backup: document '${docId}' not found`);
     const fs = await deps.getFs();
     const base = await fs.appDataDir();
     const bucket = backupBucket(docId, doc.filePath);
@@ -228,7 +228,7 @@ export function createBackupService(deps: BackupDeps): BackupService {
         await sweepOtherBuckets(fs, await fs.join(base, BACKUP_ROOT), bucket, now);
       }
     } catch (err) {
-      console.warn('AI-backup: opruimen mislukt', err);
+      console.warn('MCP-backup: opruimen mislukt', err);
     }
     return path;
   }
@@ -254,7 +254,7 @@ export function createBackupService(deps: BackupDeps): BackupService {
         const nonEmpty = await prune(fs, dir, keepYearly, now);
         if (!nonEmpty && !keepYearly) await fs.remove(dir);
       } catch (err) {
-        console.warn(`AI-backup: map '${entry.name}' opruimen mislukt`, err);
+        console.warn(`MCP-backup: map '${entry.name}' opruimen mislukt`, err);
       }
     }
   }
@@ -271,7 +271,7 @@ export function createBackupService(deps: BackupDeps): BackupService {
 
   async function makeManualBackup(): Promise<string> {
     const docId = deps.activeDocId();
-    if (!docId) throw new Error('AI-backup: geen actief document om te back-uppen');
+    if (!docId) throw new Error('MCP-backup: geen actief document om te back-uppen');
     const path = await writeSnapshot(docId);
     autoBackedUp.delete(docId); // reset de auto-teller voor dit document
     return path;

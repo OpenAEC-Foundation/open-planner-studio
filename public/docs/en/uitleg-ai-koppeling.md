@@ -1,14 +1,14 @@
-# How the AI link works
+# How the MCP link works
 
-What actually happens when an AI assistant works in your schedule? In this article you read what the link is, why it differs from exchanging a file, which limits the app guards itself, and how the assistant finds out how a schedule should be built. The example at the end shows with numbers what an assistant can do in one go and what you take back of it.
+What actually happens when an MCP client works in your schedule? In this article you read what the link is, why it differs from exchanging a file, which limits the app guards itself, and how the MCP client finds out how a schedule should be built. The example at the end shows with numbers what an MCP client can do in one go and what you take back of it.
 
 ## The concept
 
-An AI assistant, such as a chat program or a programming assistant, can operate another program through the **Model Context Protocol** (MCP). Open Planner Studio plays the server in that exchange. The desktop app runs a small server on your own computer, the **bridge**. The assistant connects to it and gets a list of **tools**: instruments with a name that starts with `planner_`, such as reading tasks, adding a relation or saving a baseline. Which ones there are is in [AI tools](docs://ref-ai-tools).
+An **MCP client** is an AI program, such as a chat program or a programming assistant, that can operate another program through the **Model Context Protocol** (MCP). Open Planner Studio plays the server in that exchange. The desktop app runs a small server on your own computer, the **bridge**. The MCP client connects to it and gets a list of **tools**: instruments with a name that starts with `planner_`, such as reading tasks, adding a relation or saving a baseline. Which ones there are is in [MCP tools](docs://ref-ai-tools).
 
-The remarkable part is that the assistant works in the project you have open at that moment, not in a copy. You export nothing, you import nothing, and there is no moment where you and the assistant look at two different versions. A task the assistant adds shows up in the Gantt straight away. The app is not naive about it: the assistant works with the same calculation, the same undo history and the same rules as you.
+The remarkable part is that the MCP client works in the project you have open at that moment, not in a copy. You export nothing, you import nothing, and there is no moment where you and the MCP client look at two different versions. A task the MCP client adds shows up in the Gantt straight away. The app is not naive about it: the MCP client works with the same calculation, the same undo history and the same rules as you.
 
-How you turn the link on is in [Connecting an AI assistant (MCP)](docs://howto-ai-assistent-koppelen). Below you read how it works.
+How you turn the link on is in [Connecting an MCP client](docs://howto-ai-assistent-koppelen). Below you read how it works.
 
 ## How the app handles it
 
@@ -16,78 +16,78 @@ How you turn the link on is in [Connecting an AI assistant (MCP)](docs://howto-a
 
 The bridge only listens on your own computer (`127.0.0.1`), on one port, 3877 by default. It only accepts requests at the address `/mcp`, and only with your **token** in the header `Authorization: Bearer`. It refuses a request without the right token. A request that comes from a browser it recognizes by an `Origin` header and refuses as well, so that a web page you happen to have open cannot talk to your schedule. It processes requests strictly one at a time.
 
-The connection is plain HTTP on your own computer; nothing leaves through the app itself. What an assistant does with the schedule it reads, for example what its provider does with it, is up to the assistant and falls outside the app.
+The connection is plain HTTP on your own computer; nothing leaves through the app itself. What an MCP client does with the schedule it reads, for example what its provider does with it, is up to the MCP client and falls outside the app.
 
-### The assistant works on one document
+### The MCP client works on one document
 
-At its first change, the bridge binds the connection to the document that is active then. If you switch tabs yourself afterwards, the app refuses the assistant's next change (code `DOC_DRIFT`) until it confirms with `planner_switch_document` which document it wants to work on. That way nothing ends up in the wrong project. An assistant that opens or duplicates a document itself works in that new document afterwards.
+At its first change, the bridge binds the connection to the document that is active then. If you switch tabs yourself afterwards, the app refuses the MCP client's next change (code `DOC_DRIFT`) until it confirms with `planner_switch_document` which document it wants to work on. That way nothing ends up in the wrong project. An MCP client that opens or duplicates a document itself works in that new document afterwards.
 
 ### Every change recalculates
 
-In the app you plan by hand: you change something, then you press *Calculate* (F5), unless *Calculate automatically* is on. That does not apply to a change by the assistant. Every write action of the assistant goes through one transaction. If project data changes in it, the app recalculates at the end by itself, once for a script. A read tool always gives current dates: if the schedule is stale, for example because you changed something yourself and have not pressed *Calculate* yet, the read tool recalculates first. There is one exception: if the project is in the *Dates as recorded* view (after an import), a read tool does not recalculate quietly, because that would replace those dates. The assistant then gets the recorded dates, with a notice that they have not been recalculated. A change by the assistant itself always recalculates, even then. You do not have to press *Calculate* after a change by the assistant. It then reads the result, such as the project end and the critical path, back with the read tools. See also [Dates as recorded](docs://uitleg-datums-zoals-opgeslagen).
+In the app you plan by hand: you change something, then you press *Calculate* (F5), unless *Calculate automatically* is on. That does not apply to a change by the MCP client. Every write action of the MCP client goes through one transaction. If project data changes in it, the app recalculates at the end by itself, once for a script. A read tool always gives current dates: if the schedule is stale, for example because you changed something yourself and have not pressed *Calculate* yet, the read tool recalculates first. There is one exception: if the project is in the *Dates as recorded* view (after an import), a read tool does not recalculate quietly, because that would replace those dates. The MCP client then gets the recorded dates, with a notice that they have not been recalculated. A change by the MCP client itself always recalculates, even then. You do not have to press *Calculate* after a change by the MCP client. It then reads the result, such as the project end and the critical path, back with the read tools. See also [Dates as recorded](docs://uitleg-datums-zoals-opgeslagen).
 
 ### A script is one step
 
-An assistant can submit a series of steps as one whole with `planner_batch`, a script of at most 100 steps. That gives you one undo step, one recalculation and one backup. If one step fails structurally, for example an unknown tool or a circular reference, the app rolls the whole script back. You never keep a half-finished schedule. A refusal of one item inside a bulk step, such as one invalid progress line out of twenty, is milder: that item stays out and the rest is carried out. The refusals are at the top of the response.
+An MCP client can submit a series of steps as one whole with `planner_batch`, a script of at most 100 steps. That gives you one undo step, one recalculation and one backup. If one step fails structurally, for example an unknown tool or a circular reference, the app rolls the whole script back. You never keep a half-finished schedule. A refusal of one item inside a bulk step, such as one invalid progress line out of twenty, is milder: that item stays out and the rest is carried out. The refusals are at the top of the response.
 
 ### Your limits
 
-You set four things yourself, in the *AI* tab:
+You set four things yourself, in the *MCP* tab:
 
-- *Pause* and *Read-only* leave the assistant connected, but refuse every change. Reading stays possible, including the recalculation of a stale schedule when reading: those are calculated fields, not project data, so no undo step is added and the project does not count as changed. If you are in the middle of an edit yourself, for example dragging a bar or typing in a field, a read tool does not recalculate: the assistant then gets the dates from before your edit, with a notice that they are stale.
-- An open dialog blocks everything. With a task dialog, the settings, presentation mode or the welcome window open, for example, the app refuses reading too, because you are in the middle of a manual action. The assistant gets the error code `DIALOG_OPEN`. The message names the internal name of what is open, for example `showTaskDialog` for the task dialog.
+- *Pause* and *Read-only* leave the MCP client connected, but refuse every change. Reading stays possible, including the recalculation of a stale schedule when reading: those are calculated fields, not project data, so no undo step is added and the project does not count as changed. If you are in the middle of an edit yourself, for example dragging a bar or typing in a field, a read tool does not recalculate: the MCP client then gets the dates from before your edit, with a notice that they are stale.
+- An open dialog blocks everything. With a task dialog, the settings, presentation mode or the welcome window open, for example, the app refuses reading too, because you are in the middle of a manual action. The MCP client gets the error code `DIALOG_OPEN`. The message names the internal name of what is open, for example `showTaskDialog` for the task dialog.
 - *Auto-backup* writes an IFC copy before the first change per document. If that backup fails, the app does not carry out the change.
 - The *Activity panel* shows every call, with arguments and response.
 
-On top of that comes your normal *Undo* (Ctrl+Z). The assistant shares that history with you and has `planner_undo` and `planner_redo` itself.
+On top of that comes your normal *Undo* (Ctrl+Z). The MCP client shares that history with you and has `planner_undo` and `planner_redo` itself.
 
-### What the assistant cannot do
+### What the MCP client cannot do
 
-The bridge is deliberately narrower than the app. What the assistant cannot do usually has one of three reasons.
+The bridge is deliberately narrower than the app. What the MCP client cannot do usually has one of three reasons.
 
-**It reaches further than the project.** An assistant cannot change the resource library. A library is shared by all your projects and falls outside the undo history; one rate change would then take effect in projects that are not even open. For a resource from a library, name, type, description, hourly rate and unit are fixed, just as in the resources panel. What the project decides stays with the assistant: maximum units, availability over time, calendar and crew. It also cannot choose which calendar is the project calendar. It can read the calculation profile and the calculation options but not change them; it can only set the progress mode and the project default for the task type. There are no tools for settings, theme, language, extensions or updates.
+**It reaches further than the project.** An MCP client cannot change the resource library. A library is shared by all your projects and falls outside the undo history; one rate change would then take effect in projects that are not even open. For a resource from a library, name, type, description, hourly rate and unit are fixed, just as in the resources panel. What the project decides stays with the MCP client: maximum units, availability over time, calendar and crew. It also cannot choose which calendar is the project calendar. It can read the calculation profile and the calculation options but not change them; it can only set the progress mode and the project default for the task type. There are no tools for settings, theme, language, extensions or updates.
 
-**It does not lend itself to reliable validation.** An assistant cannot set a hammock, schedule a task manually, set a second constraint, fill in notes, colors, activity codes, custom fields or external links, and it cannot set a leveling delay by hand. It does not choose a WBS code either; the app derives that itself.
+**It does not lend itself to reliable validation.** An MCP client cannot set a hammock, schedule a task manually, set a second constraint, fill in notes, colors, activity codes, custom fields or external links, and it cannot set a leveling delay by hand. It does not choose a WBS code either; the app derives that itself.
 
 **It touches something you must decide yourself.** It only records progress if there is a status date. It does not pick that itself: it is your reference date. If a task that has not started has a planned start after the status date, it has to supply the actual start. It reads and writes files only inside your user folder, and it only overwrites an existing file if it explicitly asks to. An export is not a *Save*: the project stays unsaved in the app.
 
-### How the assistant knows how to plan
+### How the MCP client knows how to plan
 
-An assistant that knows the tools can still build a schedule that no planner has any use for: tasks without relations, a fixed date on every task, or a breakdown that is far too fine. So the app gives it three things.
+An MCP client that knows the tools can still build a schedule that no planner has any use for: tasks without relations, a fixed date on every task, or a breakdown that is far too fine. So the app gives it three things.
 
 **The core rules in the handshake.** When connecting, the bridge sends a short text in the `instructions` field of the MCP handshake. Many clients put that text in their system prompt; whether yours does depends on the client. The rules: start at the milestones and the delivery date, build tasks of roughly a day to two weeks, drive the schedule with relations instead of fixed dates, use constraints only for hard external dates, fix a failed calculation first, use `planner_batch` for a coherent series, record progress only with your status date and the actual dates you give, and say at the end what you assumed and what you deliberately did not do.
 
-**The guide for assistants.** The tool `planner_get_planning_guide` returns a guide written specially for assistants. It follows the same principles as [Planning well](docs://gids-goed-plannen), but an assistant works differently from you: it does not press F5 or click in the ribbon, it calls tools and the app recalculates for it. So the guide names, for each principle, the tools the assistant uses for it, and explains what the assistant does with *Dates as recorded* or a failed calculation. The guide is in English, like everything the assistant reads through the link; the tool still accepts a language choice for older assistants, but that does not change the text. You can read it yourself at `https://open-planner-studio.open-aec.com/agent/planning-guide.md`. The connection prompt from the window *Connection details* asks the assistant to read the guide first. The tool also works while a dialog is open, while paused and in read-only mode, because it does not read your schedule.
+**The guide for MCP clients.** The tool `planner_get_planning_guide` returns a guide written specially for MCP clients. It follows the same principles as [Planning well](docs://gids-goed-plannen), but an MCP client works differently from you: it does not press F5 or click in the ribbon, it calls tools and the app recalculates for it. So the guide names, for each principle, the tools the MCP client uses for it, and explains what the MCP client does with *Dates as recorded* or a failed calculation. The guide is in English, like everything the MCP client reads through the link; the tool still accepts a language choice for older MCP clients, but that does not change the text. You can read it yourself at `https://open-planner-studio.open-aec.com/agent/planning-guide.md`. The connection prompt from the window *Connection details* asks the MCP client to read the guide first. The tool also works while a dialog is open, while paused and in read-only mode, because it does not read your schedule.
 
-**Two skills.** A skill is a small file of instructions that an assistant reads along in every session. There are two, because these are two kinds of work. Setting up a schedule is about logic; updating progress is about facts that only you know. The skill *goed-plannen* is for setting up or restructuring a schedule: the order in which the tools are used, the recalculation rule, `planner_batch` and the duty to report assumptions. The skill *progress-update* is for the weekly progress update: first your status date, then the actual start and finish dates and the percent complete, and afterwards a report of the variance against the baseline, the critical path and the new finish date. The planning principles themselves are in the guide. Both skills are in English. The tool returns both, with the place where they belong. How you install them is in [Connecting an AI assistant (MCP)](docs://howto-ai-assistent-koppelen).
+**Two skills.** A skill is a small file of instructions that an MCP client reads along in every session. There are two, because these are two kinds of work. Setting up a schedule is about logic; updating progress is about facts that only you know. The skill *goed-plannen* is for setting up or restructuring a schedule: the order in which the tools are used, the recalculation rule, `planner_batch` and the duty to report assumptions. The skill *progress-update* is for the weekly progress update: first your status date, then the actual start and finish dates and the percent complete, and afterwards a report of the variance against the baseline, the critical path and the new finish date. The planning principles themselves are in the guide. Both skills are in English. The tool returns both, with the place where they belong. How you install them is in [Connecting an MCP client](docs://howto-ai-assistent-koppelen).
 
 ## An example
 
-You ask an assistant: build an extension with foundation, brickwork and roof, in that order. Your project starts on Monday 2 March 2026. The assistant reads the guide first, and then submits one script:
+You ask an MCP client: build an extension with foundation, brickwork and roof, in that order. Your project starts on Monday 2 March 2026. The MCP client reads the guide first, and then submits one script:
 
 1. the project start on 2 March 2026;
 2. three tasks: Foundation of 5 working days, Brickwork of 10 and Roof of 4;
 3. two Finish-to-Start relations: Foundation to Brickwork, Brickwork to Roof.
 
-The app carries out the three steps and recalculates. If the assistant reads back afterwards, it finds: project end Thursday 26 March 2026, project duration 19 working days, all three tasks critical. That matches the sum: 5 + 10 + 4 is 19 working days, and 19 working days after Monday 2 March end on Thursday 26 March. The whole script is one step in your history. One *Undo* removes the three tasks, the two relations and the new project start.
+The app carries out the three steps and recalculates. If the MCP client reads back afterwards, it finds: project end Thursday 26 March 2026, project duration 19 working days, all three tasks critical. That matches the sum: 5 + 10 + 4 is 19 working days, and 19 working days after Monday 2 March end on Thursday 26 March. The whole script is one step in your history. One *Undo* removes the three tasks, the two relations and the new project start.
 
-Now the what-if. You then ask the assistant to update the progress, and for that it sets the status date to Monday 16 March. A status date is not a label: work that has not started may not lie before that date and moves up to it. Without a single line of progress, the whole schedule therefore moves along: Foundation runs from 16 to 20 March, Brickwork from 23 March to 7 April and Roof from 8 to 13 April. The project end jumps from 26 March to 13 April. The schedule moves up two working weeks, and the calendar in this example, *Bouwkalender NL*, has Good Friday (3 April) and Easter (5 and 6 April). Those two free weekdays push the end two more days. That is why the assistant only sets the status date at your request, and only when there is real progress to record.
+Now the what-if. You then ask the MCP client to update the progress, and for that it sets the status date to Monday 16 March. A status date is not a label: work that has not started may not lie before that date and moves up to it. Without a single line of progress, the whole schedule therefore moves along: Foundation runs from 16 to 20 March, Brickwork from 23 March to 7 April and Roof from 8 to 13 April. The project end jumps from 26 March to 13 April. The schedule moves up two working weeks, and the calendar in this example, *Bouwkalender NL*, has Good Friday (3 April) and Easter (5 and 6 April). Those two free weekdays push the end two more days. That is why the MCP client only sets the status date at your request, and only when there is real progress to record.
 
 ## Consequences for your schedule and common misconceptions
 
-**The assistant has no copy of its own.** What it changes, changes your project. With Auto-backup on, you have an IFC backup before its first change. With *Read-only* it can analyze without changing anything.
+**The MCP client has no copy of its own.** What it changes, changes your project. With Auto-backup on, you have an IFC backup before its first change. With *Read-only* it can analyze without changing anything.
 
-**A new token breaks all connections.** The token is the bridge's password. A new token invalidates the old one, even on a running bridge, and the assistant has to be given the new one.
+**A new token breaks all connections.** The token is the bridge's password. A new token invalidates the old one, even on a running bridge, and the MCP client has to be given the new one.
 
-**The assistant saying it worked is not proof.** The activity panel shows which tool it really called and what came back. A refusal almost always names the field that was wrong and the route that does work.
+**The MCP client saying it worked is not proof.** The activity panel shows which tool it really called and what came back. A refusal almost always names the field that was wrong and the route that does work.
 
-**The assistant cannot do a what-if with undo.** It shares undo with you, so for variants it duplicates the document with `planner_duplicate_document`. The copy is detached, has no file path and shows as unsaved. The assistant does not close variants; you decide that.
+**The MCP client cannot do a what-if with undo.** It shares undo with you, so for variants it duplicates the document with `planner_duplicate_document`. The copy is detached, has no file path and shows as unsaved. The MCP client does not close variants; you decide that.
 
-**An export by the assistant is not a save.** It writes an IFC file to a path it chooses itself, inside your user folder, and it only overwrites an existing file if it explicitly asks to. Your project stays unsaved in the app and keeps its own save target. If it imports a file, that opens in a new tab or in an empty, unchanged tab.
+**An export by the MCP client is not a save.** It writes an IFC file to a path it chooses itself, inside your user folder, and it only overwrites an existing file if it explicitly asks to. Your project stays unsaved in the app and keeps its own save target. If it imports a file, that opens in a new tab or in an empty, unchanged tab.
 
 ## See also
 
-- [Connecting an AI assistant (MCP)](docs://howto-ai-assistent-koppelen): the steps to start the bridge, connect an assistant and install the skill.
-- [AI tools](docs://ref-ai-tools): all tools by group, what they refuse and how long backups are kept.
-- [Planning well](docs://gids-goed-plannen): the planning principles; the assistant receives them in an English version with the tools added.
+- [Connecting an MCP client](docs://howto-ai-assistent-koppelen): the steps to start the bridge, connect an MCP client and install the skill.
+- [MCP tools](docs://ref-ai-tools): all tools by group, what they refuse and how long backups are kept.
+- [Planning well](docs://gids-goed-plannen): the planning principles; the MCP client receives them in an English version with the tools added.
 - [Progress, status date and baseline](docs://uitleg-voortgang): what the status date does to your schedule.

@@ -373,7 +373,7 @@ export async function runMutateTool(
   const preErr = preBackupGuards(ctx);
   if (preErr) return preErr;
 
-  // (4) AI-backup: async, VÓÓR de drift-check en de synchrone transactie (die zelf nooit een async
+  // (4) MCP-backup: async, VÓÓR de drift-check en de synchrone transactie (die zelf nooit een async
   //     grens kent). De backup keyt op het doc-id ZOALS HET NU is (pre-await): een
   //     eventuele tabwissel gebeurt pas tijdens de await hieronder, en de drift-check daarna vangt
   //     dat af. Mislukt de backup ⇒ weigeren vóór er iets gemuteerd is (geen rollback nodig).
