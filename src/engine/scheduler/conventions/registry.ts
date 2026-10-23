@@ -77,8 +77,10 @@ export interface ConventionDescriptor {
  * en als GEDRAG getoetst in `check-conventions-p6-flags` (sectie "`requires` als gedrag"):
  *  - `hourPlanning`: de conventie doet alleen iets bij uurplanning. De motor rekent een taak in uren
  *    als haar kalender werkblokken heeft (`workTime`) óf als de taak zelf in uren staat
- *    (`engineForTaskCalendar`); ook de interne 24-uurs lag-kalender is uurplanning. Zonder dat alles
- *    (dagkalender, taken in dagen) verandert aan/uit niets.
+ *    (`engineForTaskCalendar`); ook de interne 24-uurs lag-kalender is uurplanning. Sinds alleen uren
+ *    F3 telt ook een taak in dagen als uren wanneer de dagenmaat (`workdayDurationMeasure`) uit staat,
+ *    zoals onder P6 en MSP (§3.2). Zonder dat alles (dagkalender, taken in dagen met de dagenmaat aan)
+ *    verandert aan/uit niets.
  *  - `xerOrigin`: de conventie werkt alleen op taken (of relaties) met P6-herkomst uit een `.xer`
  *    (`p6ProjectId`/`p6TaskId` en verwante velden, of de B1-relatievlag).
  */
