@@ -4,7 +4,8 @@
 // van 5 u op 40 % kreeg zo restduur 0 (3 u werk ⇒ 0,375 dag ⇒ 0) en geen `remainingMinutes`; MSPDI en
 // P6 exporteerden dan `RemainingDuration` 0, en na teruglezen plande de solver de taak af op de
 // statusdatum. De regel is nu: de restduur staat in dezelfde vorm als de duur van de taak —
-//   - dagtaak: `remainingTime` in hele werkdagen, zoals `scheduleDuration` (ongewijzigd);
+//   - dagtaak: `remainingTime` in werkdagen, zoals `scheduleDuration`, exact (B3, spec "alleen uren"
+//     §3.5: een breuk mag; vroeger `Math.round` op hele werkdagen);
 //   - urentaak: `remainingMinutes` in hele minuten, zoals `durationMinutes`, en `remainingTime` als
 //     onafgeronde werkdagfractie, zoals `scheduleDuration` (minuten ÷ (uren per dag × 60)).
 // Eén functie (`applyRemainingDuration`) voor alle store-routes (paneel, raster, MCP) én de lezers
@@ -58,9 +59,10 @@ const rem = (t: Task) => ({ remainingMinutes: t.time.remainingMinutes, remaining
 const cell = (taskId: string, columnId: string, value: unknown): CellEditIntent =>
   ({ kind: 'cell-edit', taskId, columnId: columnId as CellEditIntent['columnId'], route: 'task-progress', value });
 
-// De verwachte waarden: 5 u op 40 % ⇒ 180 min rest = 180/480 dag; 5 d op 30 % ⇒ round(3,5) = 4 d.
+// De verwachte waarden: 5 u op 40 % ⇒ 180 min rest = 180/480 dag; 5 d op 30 % ⇒ exact 3,5 d.
+// B1 (spec "alleen uren" §3.5, besluit B3): de rest van een dagtaak was round(3,5) = 4 d.
 const HOUR_40 = { remainingMinutes: 180, remainingTime: 0.375 };
-const DAY_30 = { remainingMinutes: undefined, remainingTime: 4 };
+const DAY_30 = { remainingMinutes: undefined, remainingTime: 3.5 };
 
 // ── 1. Paneel/taakdialoog (`setTaskProgress`) ────────────────────────────────────────────────
 {
@@ -68,7 +70,7 @@ const DAY_30 = { remainingMinutes: undefined, remainingTime: 4 };
   S().setTaskProgress(u, 0.4);
   S().setTaskProgress(d, 0.3);
   eq('paneel: urentaak 5 u op 40 % houdt 3 u rest (minuten + werkdagfractie)', rem(task(u)), HOUR_40);
-  eq('paneel: dagtaak 5 d op 30 % blijft hele werkdagen', rem(task(d)), DAY_30);
+  eq('paneel: dagtaak 5 d op 30 % heeft exact 3,5 d rest (B3)', rem(task(d)), DAY_30);
   // De solver plande altijd al met `durationMinutes × (1 − c)`: de opgeslagen restduur verzet niets.
   S().runCPM();
   eq('paneel: einde urentaak ongewijzigd (statusdatum 10:00 + 3 u)', task(u).time.earlyFinish, '2026-06-01T13:00');
@@ -142,7 +144,7 @@ const DAY_30 = { remainingMinutes: undefined, remainingTime: 4 };
   normalizeImportedProgress([recorded, legacy, day, untouched], '2026-06-03');
   eq('lezer: vastgelegde restduur-minuten (T9) blijven staan', rem(recorded), { remainingMinutes: 1500, remainingTime: 3.125 });
   eq('lezer: urentaak zonder restduur-minuten krijgt ze afgeleid (40 % van 48 u)', rem(legacy), { remainingMinutes: 1728, remainingTime: 3.6 });
-  eq('lezer: dagtaak houdt hele werkdagen (afgeleid uit %)', rem(day), DAY_30);
+  eq('lezer: dagtaak krijgt de exacte rest (afgeleid uit %, B3)', rem(day), DAY_30);
   eq('lezer: taak zonder voortgang blijft ongemoeid', rem(untouched), { remainingMinutes: undefined, remainingTime: undefined });
 }
 

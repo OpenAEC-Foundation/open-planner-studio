@@ -242,8 +242,9 @@ export interface TaskTime {
   actualStart?: string;
   actualFinish?: string;
   actualDuration?: number;
-  /** Restduur in werkdagen, in de vorm van `scheduleDuration`: hele dagen bij een dagtaak, een
-   *  onafgeronde fractie (afgeleid van `remainingMinutes`) bij een urentaak (`applyRemainingDuration`). */
+  /** Restduur in werkdagen, in de vorm van `scheduleDuration`: bij de dagenmaat de bron, exact (een breuk
+   *  mag, besluit B3); bij de urenmaat een onafgeronde fractie, afgeleid van `remainingMinutes`
+   *  (`applyRemainingDuration`). */
   remainingTime?: number;
   /** Resterend werk in integer MINUTEN: de restduur van een urentaak, in de vorm van
    *  `durationMinutes`. */

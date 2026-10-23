@@ -182,11 +182,12 @@ export function applyProgressInvariants(task: Task, statusDate: string | undefin
 }
 
 /**
- * Restduur afgeleid uit `completion`, in dezelfde eenheid en vorm als de duur van de taak:
- *  - dagtaak: `remainingTime` in hele werkdagen, zoals `scheduleDuration`;
- *  - urentaak: `remainingMinutes` in hele minuten, zoals `durationMinutes`, met `remainingTime` als
- *    ONafgeronde werkdagfractie, zoals `scheduleDuration` ({@link hourRemainingDays}). Nooit
- *    `Math.round` op hele dagen voor een urentaak: 5 u op 40 % zou dan restduur 0 geven.
+ * Restduur afgeleid uit `completion`, in dezelfde maat en vorm als de duur van de taak. Exact, in elke
+ * maat (spec "alleen uren" §3.5, besluit B3): nooit `Math.round` op hele werkdagen.
+ *  - dagenmaat: `remainingTime` in werkdagen, een breuk mag (5 d op 32 % ⇒ 3,4 d). Alleen de ruis van
+ *    de drijvende komma gaat eraf ({@link exactWorkdays}): 4 × (1 − 0,9) is anders 0,3999…;
+ *  - urenmaat: `remainingMinutes` in hele minuten, zoals `durationMinutes`, met `remainingTime` als
+ *    ONafgeronde werkdagfractie, zoals `scheduleDuration` ({@link hourRemainingDays}).
  * Eén regel voor de store (`applyProgressInvariants`) en de lezers (`normalizeImportedProgress`).
  * `keepRecordedMinutes` (alleen de lezers): een uit het bestand gelezen `remainingMinutes` blijft
  * staan — MSP's eigen exacte restduur bij een afgeronde voortgang; de werkdagfractie volgt dan
@@ -195,7 +196,7 @@ export function applyProgressInvariants(task: Task, statusDate: string | undefin
 export function applyRemainingDuration(task: Task, keepRecordedMinutes = false): void {
   const time = task.time;
   if (taskDurationUnit(task) !== 'hours') {
-    time.remainingTime = Math.round(time.scheduleDuration * (1 - time.completion));
+    time.remainingTime = exactWorkdays(time.scheduleDuration * (1 - time.completion));
     return;
   }
   const minutes = keepRecordedMinutes && time.remainingMinutes != null
@@ -203,6 +204,15 @@ export function applyRemainingDuration(task: Task, keepRecordedMinutes = false):
     : Math.round((time.durationMinutes ?? 0) * (1 - time.completion));
   time.remainingMinutes = minutes;
   time.remainingTime = hourRemainingDays(time, minutes);
+}
+
+/**
+ * Een aantal werkdagen zonder de ruis van de drijvende komma: 15 significante cijfers. Een echte breuk
+ * (3,4 of 2,5) blijft staan; 0,3999999999999999 wordt 0,4. Zo geeft 10 % van 4 d bij inzet 7 precies
+ * 0,4 × 7 × 480 = 1344 werkminuten.
+ */
+export function exactWorkdays(days: number): number {
+  return Number.isFinite(days) ? Number(days.toPrecision(15)) : days;
 }
 
 /**

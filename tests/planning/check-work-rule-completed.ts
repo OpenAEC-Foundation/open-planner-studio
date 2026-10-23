@@ -94,6 +94,28 @@ for (const rule of WORK_RULES) {
   }
 }
 
+// B3 (spec "alleen uren" §3.5): de rest uit een percentage is exact, ook in de dagenmaat. Een taak van
+// 4 d op 100 % en dan 90 % heeft 0,4 d rest (was `Math.round(0,4)` = 0, en dan verdween dat werk). Inzet
+// 7 daarna: 1728 verricht + 0,4 × 7 × 480 = 1344 rest = 3072 werkminuten.
+{
+  const store = createAppStore();
+  const S = () => store.getState();
+  S().setProject({ startDate: '2026-06-01', statusDate: '2026-06-10' });
+  const id = S().addTask({ name: 'B3', time: createDefaultTaskTime('2026-06-01', 4) });
+  const rid = S().addResource({ name: 'Ploeg', description: '', type: 'LABOR', maxUnits: 7 });
+  S().assignResource(id, rid, 1);
+  S().runCPM();
+  const task = () => S().tasks.find(t => t.id === id)!;
+  const asg = () => S().assignments.find(a => a.taskId === id)!;
+  const total = () => assignmentDayUnits(task(), asg(), 480).reduce((sum, v) => sum + v, 0) * 480;
+  eq('B3 voltooien geaccepteerd', S().setTaskProgress(id, 1), true);
+  eq('B3 terug naar 90 % geaccepteerd', S().setTaskProgress(id, 0.9), true);
+  eq('B3 90 % van 4 d: rest exact 0,4 d', task().time.remainingTime, 0.4);
+  S().updateAssignment(asg().id, { unitsPerDay: 7 });
+  eq('B3 inzet 7: 1728 verricht + 1344 rest', [asg().actualWorkMinutes, asg().remainingWorkMinutes], [1728, 1344]);
+  eq('B3 inzet 7: totaal 3072 werkminuten', total(), 3072);
+}
+
 console.log(`${checks} checks, ${diffs.length} afwijkingen`);
 for (const d of diffs) console.log(`XX ${d}`);
 process.exit(diffs.length ? 1 : 0);
