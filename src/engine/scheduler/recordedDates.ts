@@ -437,12 +437,13 @@ export function cpmResultFromRecorded(
   // hem als UTC leest (zie `parseInstant`-docstring in dateUtils.ts) — bij een positieve offset (bv.
   // Pacific/Auckland, UTC+12/13) verschuift de dag-index en telt `workDaysBetween` een werkdag te
   // weinig of te veel (4 i.p.v. 5 onder TZ=Pacific/Auckland). `parseInstant` deelt de UTC-aanname met
-  // de rest van de engine (date-only delegeert intern gewoon aan `parseDate`).
+  // de rest van de engine. `projectDurationOf` krijgt de ruwe tekst en leest hem zelf met `parseInstant`;
+  // zo blijft een datum zonder tijd die werkdag zelf (D2) en schuift hij niet naar de vorige dag.
   let projectDuration = 0;
   if (projectStart && projectEnd) {
     // CalendarEngine neemt precies één kalender (zie zijn constructor) — de projectkalender.
     const engine = new CalendarEngine(calendar);
-    projectDuration = projectDurationOf(engine, parseInstant(projectStart), parseInstant(projectEnd), recorded);
+    projectDuration = projectDurationOf(engine, projectStart, projectEnd, recorded);
   }
 
   return {
