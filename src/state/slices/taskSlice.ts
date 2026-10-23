@@ -1,5 +1,5 @@
 import { changesOnlyDateNeutralFields } from '../taskDateChanges';
-import { normalizeTaskDates } from '../migrations/minuteModel';
+import { normalizeTaskDates, normalizeTaskPatch } from '../migrations/minuteModel';
 import { isElapsedTask } from '@/engine/scheduler/duration';
 import { Task, type ExternalLink } from '@/types/task';
 import { taskAssignmentDrafts, taskIndexById } from '@/state/immerDraft';
@@ -1048,7 +1048,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         const insertAt = partial.position!.where === 'above' ? anchorIdx : anchorIdx + 1;
         s.tasks.splice(insertAt, 0, task);
       } else {
-        s.tasks.push(normalizeTaskDates(task, s));
+        s.tasks.push(task); // al genormaliseerd hierboven, net als de taak die `splice` invoegt.
       }
 
       // Add to parent's children
@@ -1126,6 +1126,10 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // later op die lege plek. Zie
       // `mergeTaskTime` in taskDefaults.ts voor de ADD-vs-UPDATE-basissemantiek.
       const next = normalizeTaskDates(mergeTaskUpdate(task, updates), s);
+      // Eén genormaliseerde wijziging voor de no-op-toets, de gevolgregels en het schrijven: een
+      // opnieuw ingevoerde datum zonder tijd is dan gelijk aan het opgeslagen moment, en wist geen
+      // nivelleerpauze (`normalizeTaskPatch`).
+      updates = normalizeTaskPatch(updates, next);
       // Per saldo niets gewijzigd — "Taak bewerken" → OK zonder wijziging stuurt álle velden terug
       // (TaskDialog.handleSave) — ⇒ net als een onbekend id: geen snapshot, geen isDirty, geen
       // gevolgregel en dus ook geen melding.
@@ -1191,7 +1195,8 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         // mee met het duurverschil, het percentage volgt (`carryRemainingThroughDurationEdit`; de
         // weigering stond hierboven al). Vóór de driehoekstap, die de rest leest. Niet als de patch
         // zelf voortgang opgaf: die wint.
-        carryRemainingThroughDurationEdit(task, timeBefore, contourHpd, s.project.statusDate);
+        carryRemainingThroughDurationEdit(task, timeBefore, contourHpd, s.project.statusDate,
+          resolveCalendar(task.calendarId, s.calendars, s.calendar));
         // Duur-/datumwijziging: contour meeschalen (werkbehoud volgens de werkregel), gebruikersgaten
         // afknippen, laag 3/4 ontkoppelen en nivelleergaten wissen — de gevolgregels die
         // dit pad deelt met het taakraster en de MCP-draft, zie `applyDurationChangeRules` in

@@ -512,9 +512,11 @@ function planAndCommitPaste(
     eq(`Constraint type/datum/hard permutatie ${index} commit`,
       planAndCommitPaste(taskId, order.map(key => ids[key]), order.map(key => values[key]).join('\t')),
       { planned: true, committed: true });
+    // F2 (spec §3.6, invoer; §4.2 D1): een geplakte MSO-datum zonder tijd wordt het begin van de
+    // werkdag op de standaardkalender (07:00). Fixronde 1 deel B, B1.
     eq(`Constraint type/datum/hard permutatie ${index} eindtoestand`,
       S().tasks.find(candidate => candidate.id === taskId)?.constraint,
-      { type: 'MSO', date: '2026-08-27', hard: true });
+      { type: 'MSO', date: '2026-08-27T07:00', hard: true });
   }
 
   for (const reverse of [false, true]) {

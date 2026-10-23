@@ -31,6 +31,8 @@ export function useExitRecordedDates(): void {
         documentId: s.activeDocumentId,
         inMode: s.datesAsRecorded,
         scheduleStale: s.scheduleStale,
+        // Om undo en redo te herkennen: die verlaten de modus zonder bewerking (geval 6).
+        history: s.historyEvents,
       };
     };
 

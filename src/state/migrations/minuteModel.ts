@@ -343,6 +343,41 @@ export function normalizeTaskDates(task: Task, calendars: Pick<DocumentPayload, 
   });
 }
 
+/**
+ * De patch van een invoerroute met de momenten uit `next`: de genormaliseerde taak die de patch
+ * achterlaat (`normalizeTaskDates(merge(taak, patch))`). Zo gebruikt een route één genormaliseerde
+ * wijziging voor de no-op-toets, voor de gevolgregels (`taskTriggerChanges`) en voor het schrijven.
+ * Zonder deze stap zag de gevolgregel een opnieuw ingevoerde SNET "2026-06-01" als een andere waarde dan
+ * het opgeslagen "2026-06-01T07:00", en wiste hij de nivelleerpauze (review ronde 1 van PR #559, deel B,
+ * punt 1).
+ *
+ * Alleen waarden die de normalisatie veranderde, worden vervangen. Een top-level veld verandert alleen
+ * van referentie als `mapTaskDates` het omzette (de merge deelt de referentie). Een `time`-sleutel alleen
+ * als de patch er een tekst in had; een lege of `undefined`-waarde blijft precies zoals de aanroeper hem
+ * meegaf, zodat `mergeTaskTime` hem op dezelfde manier leest.
+ */
+export function normalizeTaskPatch(updates: Partial<Task>, next: Task): Partial<Task> {
+  let out: Partial<Task> | null = null;
+  for (const key of Object.keys(updates) as (keyof Task)[]) {
+    if (key === 'time' || next[key] === updates[key]) continue;
+    out ??= { ...updates };
+    (out as Record<string, unknown>)[key] = next[key];
+  }
+  const time = updates.time;
+  if (time) {
+    // Getypeerd als de patch zelf (`Partial<Task>['time']`); in de praktijk een deel van de tak.
+    let normalizedTime: TaskTime | null = null;
+    for (const field of TIME_FIELDS) {
+      const raw = time[field];
+      if (typeof raw !== 'string' || next.time[field] === raw) continue;
+      normalizedTime ??= { ...time };
+      (normalizedTime as unknown as Record<string, unknown>)[field] = next.time[field];
+    }
+    if (normalizedTime) (out ??= { ...updates }).time = normalizedTime;
+  }
+  return out ?? updates;
+}
+
 function migrateBaseline(
   baseline: Baseline,
   taskById: ReadonlyMap<string, Task>,

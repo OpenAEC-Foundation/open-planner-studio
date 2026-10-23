@@ -1,5 +1,5 @@
 import { normalizeTaskDates } from '../migrations/minuteModel';
-import { minuteModelTransition, minuteModelNotice, normalizeRecordedTimes, recordMinuteModelTransition } from '../minuteModelTransition';
+import { minuteModelTransition, minuteModelNotice, recordMinuteModelTransition } from '../minuteModelTransition';
 import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
 import { claimTaskTypesNotice, notifyTaskTypesUnlocked, notifyTaskTypesUnlockedClaimed, TASK_TYPES_DETAIL_LINE } from '../taskTypesNotice';
 import { taskTypesNeedNotice } from '../taskTypesVisibility';
@@ -892,8 +892,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         mode: opts.linkedOpen && !editing ? 'open-boundary' : 'silent-switch',
       });
       const conversion = opts.recompute && !editing
-        ? minuteModelTransition(payload, activation.payload, normalizeRecordedTimes(payload,
-            captureRecordedDates(payload.tasks, parsed.recordedFields, parsed.recordedTimes)))
+        // `minuteModelTransition` normaliseert de vastlegging zelf (één normalisatie per grens).
+        ? minuteModelTransition(payload, activation.payload,
+            captureRecordedDates(payload.tasks, parsed.recordedFields, parsed.recordedTimes))
         : null;
       if (conversion) activation.payload = conversion.after;
       set((s) => {

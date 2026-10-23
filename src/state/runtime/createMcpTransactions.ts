@@ -1,6 +1,6 @@
 import { changesOnlyDateNeutralFields } from '../taskDateChanges';
 import { beginRecordedDateEdit, endRecordedDateEdit, keepsRecordedDates, recordedDateRuleChange } from '../recordedDateEditGate';
-import { assertMinuteModelTaskDates, normalizeTaskDates } from '../migrations/minuteModel';
+import { assertMinuteModelTaskDates, normalizeTaskDates, normalizeTaskPatch } from '../migrations/minuteModel';
 import type { AppState, AppStoreContext } from '../appStore';
 import { attachToParent, isSelfOrDescendant, removeTaskSubtrees, reparentTask } from '@/state/taskTree';
 import {
@@ -421,6 +421,9 @@ function createMcpDraft(
       if (idx < 0) return;
       const task = s.tasks[idx];
       const next = normalizeTaskDates(mergeTaskUpdate(task, updates), s);
+      // Tweeling van taskSlice.ts's `updateTask`: één genormaliseerde wijziging voor de no-op-toets,
+      // de gevolgregels en het schrijven (`normalizeTaskPatch`).
+      updates = normalizeTaskPatch(updates, next);
       // Per saldo niets gewijzigd ⇒ no-op, net als taskSlice.ts's `updateTask`: geen mutatie, geen
       // gevolgregel en geen `isDirty`. (De undo-stap en de herberekening zijn van de transactie.)
       if (sameValue(task, next)) return;
@@ -461,7 +464,8 @@ function createMcpDraft(
       if (changes.timeBase) {
         // Tweeling van taskSlice.ts: de rest schuift mee, het
         // percentage volgt, tenzij de patch zelf voortgang opgaf (`carryRemainingThroughDurationEdit`).
-        const carried = carryRemainingThroughDurationEdit(task, timeBefore, contourHpd, s.project.statusDate);
+        const carried = carryRemainingThroughDurationEdit(task, timeBefore, contourHpd, s.project.statusDate,
+          resolveCalendar(task.calendarId, s.calendars, s.calendar));
         if (carried && !carried.refused) outcome = { progress: carried };
         // Duur-/datumwijziging: dezelfde gevolgregels als taskSlice.ts's `updateTask` en het taakraster,
         // zie `applyDurationChangeRules` in taskDefaults.ts (kern van `settleDurationAftermath`).
@@ -540,7 +544,11 @@ function createMcpDraft(
       // `updateTaskFields` hierboven (geen `isDirty`).
       // Vergelijk dezelfde momenten als de opgeslagen taak vóór de no-op- en gevolgregels.
       // Anders wist een opnieuw ingevoerde SNET-datum zonder tijd onterecht de nivelleergaten.
-      const next = normalizeTaskDates({ ...task, ...top, time: patchTime(task.time) }, s);
+      // `top.time` vervangt de hele tak (zie `patchedTime` hieronder), dus ook hier.
+      const next = normalizeTaskDates({ ...task, ...top, time: patchTime(top.time ?? task.time) }, s);
+      // Dezelfde genormaliseerde wijziging voor de gevolgregels en het schrijven hieronder, niet
+      // alleen voor deze vergelijking (`normalizeTaskPatch`, tweeling van `updateTaskFields`).
+      top = normalizeTaskPatch(top, next);
       if (sameValue(task, next)) return;
       const dateNeutralPatch = changesOnlyDateNeutralFields(task, next);
       // Duur korter dan het gedane werk, zie `updateTaskFields` hierboven: vóór enige mutatie.
@@ -577,7 +585,8 @@ function createMcpDraft(
       if (changes.timeBase) {
         // Zelfde poort als `updateTaskFields`: `top.time` past in `Partial<Task>`,
         // dus een aanroeper kan de voortgang zelf zetten; die wint dan (`carryRemainingThroughDurationEdit`).
-        const carried = carryRemainingThroughDurationEdit(task, timeBefore, contourHpd, s.project.statusDate);
+        const carried = carryRemainingThroughDurationEdit(task, timeBefore, contourHpd, s.project.statusDate,
+          resolveCalendar(task.calendarId, s.calendars, s.calendar));
         if (carried && !carried.refused) outcome = { progress: carried };
         // Duurwijziging: dezelfde gevolgregels als `updateTaskFields` hierboven, zie
         // `applyDurationChangeRules` in taskDefaults.ts (inclusief het wissen van de nivelleergaten).

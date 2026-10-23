@@ -191,7 +191,8 @@ function finishDurationEdit(
   const oldWorkMinutes = taskWorkMinutes(before, hoursPerDay);
   // De rest schuift mee met de duurwijziging, het percentage volgt;
   // korter dan het gedane werk wordt geweigerd.
-  if (usableHours && carryRemainingThroughDurationEdit(task, before, hoursPerDay, environment.statusDate)?.refused) {
+  const calendar = environment.calendarFor?.(task.calendarId) ?? environment.effectiveCalendar;
+  if (usableHours && carryRemainingThroughDurationEdit(task, before, hoursPerDay, environment.statusDate, calendar)?.refused) {
     return failure('durationBelowDoneWork', edit);
   }
   return {
