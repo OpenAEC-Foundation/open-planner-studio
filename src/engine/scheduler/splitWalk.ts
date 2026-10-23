@@ -11,11 +11,15 @@
 //
 // DAG- VS UUR-MODUS. `afterMinutes`/`gapMinutes` zijn ALTIJD werkminuten, ongeacht de
 // kalendermodus van de taak (ze komen uit de .mpp-timephased-decoder, die geen dag/uur-onderscheid
-// kent — zie `mppTimephased.ts`). In UUR-modus (`hourMode=true`) wandelt `computeSplitSegments`
-// daarom met `CalendarEngine.addWorkMinutes` (minuutprecisie). In DAG-modus bestaat die precisie
+// kent — zie `mppTimephased.ts`). Voor een URENTAAK (`measure=true`) wandelt `computeSplitSegments`
+// daarom met `CalendarEngine.addWorkMinutes` (minuutprecisie). Een DAGENMAAT-taak op een kalender met
+// werkblokken (`measure='workdays'`, alleen uren §3.14) wandelt in werkdagen: minuten ÷ werktijd per dag,
+// met `addMeasuredWorkdays`. Dat is dezelfde telling als de motor (`splitTotalSpanDays` in `duration.ts`
+// + `addMeasuredWorkdaysChecked` in `CPMSolver.addDurationChecked`), dus een pauze van een uur blijft een
+// uur, ook bij een dagtaak. In DAG-modus (`measure=false`) bestaat die precisie
 // niet: `addWorkMinutes` leunt op `calendar.workTime!.byWeekday` en GOOIT op een dag-kalender
-// (`workTime` is daar `undefined`). Dag-taken tekenen sowieso nooit binnen-de-dag, dus deze module
-// rondt in dag-modus elke minutenwaarde af op hele werkdagen (`Math.round(minuten /
+// (`workTime` is daar `undefined`). Op een dag-kalender (of met datums zonder tijd) tekent een taak nooit
+// binnen de dag, dus deze module rondt in dag-modus elke minutenwaarde af op hele werkdagen (`Math.round(minuten /
 // (hoursPerDay*60))`) en wandelt met `addWorkingDaysSigned` — de bestaande "zuivere offset"-
 // primitief (begindag telt NIET als "dag 1"). Een gat kleiner dan een halve werkdag rondt af naar
 // 0 werkdagen en levert dus geen zichtbaar/telbaar segment op in dag-modus — een gedocumenteerde
@@ -79,12 +83,17 @@ export interface SplitSegmentBounds {
  * gesorteerd te zijn (defensief gesorteerd op `afterMinutes`, zelfde conventie als
  * `splitTotalSpanMinutes`). `taskEnd <= taskStart` (corrupte input) kortsluit meteen naar één
  * segment, zonder de gaten-as aan te raken.
+ *
+ * `measure`: `true` = urenmaat (werkminuten), `'workdays'` = dagenmaat (werkdagen met een breuk, alleen
+ * op een kalender met werkblokken; anders als `false`), `false` = hele werkdagen (dag-modus of datums
+ * zonder tijd). In de dagenmaat ligt elke tussengrens op het eerstvolgende werkmoment: een stuk of pauze
+ * die op een blokeinde eindigt, grenst aan het volgende blokbegin (vr 16:00 ⇒ ma 07:00).
  */
 export function computeSplitSegments(
   gaps: TaskSplitGap[] | undefined,
   taskStart: Date,
   taskEnd: Date,
-  hourMode: boolean,
+  measure: boolean | 'workdays',
   eng: CalendarEngine,
 ): SplitSegmentBounds[] {
   if (!gaps || gaps.length === 0) return [{ start: taskStart, end: taskEnd }];
@@ -96,15 +105,26 @@ export function computeSplitSegments(
   // Klemt elke gewandelde grens op `taskEnd` — zie "GEEN GRENS VOORBIJ HET TAAKEINDE" hierboven:
   // corrupte/hostiele `gaps` (bv. een `afterMinutes` ver voorbij de taakspanne) mogen nooit een
   // segmentgrens ná het taakeinde opleveren, en al helemaal geen achterstevoren lopend segment.
+  const workdays = measure === 'workdays' && eng.isHourMode;
   const walk = (from: Date, minutes: number): Date => {
     if (minutes <= 0) return from;
-    const to = hourMode
-      ? eng.addWorkMinutes(from, minutes)
-      : (() => {
-          const days = Math.round(minutes / minutesPerDay);
-          return days > 0 ? eng.addWorkingDaysSigned(from, days) : from;
-        })();
+    const to = workdays
+      ? eng.addMeasuredWorkdays(from, minutes / minutesPerDay)
+      : measure === true
+        ? eng.addWorkMinutes(from, minutes)
+        : (() => {
+            const days = Math.round(minutes / minutesPerDay);
+            return days > 0 ? eng.addWorkingDaysSigned(from, days) : from;
+          })();
     return to.getTime() > endMs ? taskEnd : to;
+  };
+  // Dagenmaat: de wandeling geeft een eindmoment (`(start,end]`); de grens is EXCLUSIEF, dus het
+  // eerstvolgende werkmoment (een stuk dat een hele dag afsluit, eindigt op het begin van de volgende
+  // werkdag, zoals het dagslot van F4a), nooit voorbij het taakeinde.
+  const boundary = (at: Date): Date => {
+    if (!workdays) return at;
+    const next = eng.nextWorkInstant(at);
+    return next.getTime() > endMs ? taskEnd : next;
   };
 
   const segments: SplitSegmentBounds[] = [];
@@ -118,13 +138,13 @@ export function computeSplitSegments(
     if (gapEndAxis <= gapStartAxis) continue; // volledig al ingehaald/ontaard — geen segmentgrens
     const workBefore = gapStartAxis - axisPos;
     if (workBefore > 0 || segments.length === 0) {
-      const gapStart = walk(cursor, workBefore);
+      const gapStart = boundary(walk(cursor, workBefore));
       segments.push({ start: cursor, end: gapStart });
       cursor = gapStart;
     }
     // `workBefore === 0` mét al een segment op de lijst ⇒ dit gat sluit naadloos op het vorige aan
     // (overlap of aaneensluitend op de as) — geen extra nul-breed segment, het gat wordt verlengd.
-    cursor = walk(cursor, gapEndAxis - gapStartAxis); // alleen het niet al ingehaalde deel
+    cursor = boundary(walk(cursor, gapEndAxis - gapStartAxis)); // alleen het niet al ingehaalde deel
     axisPos = gapEndAxis; // het gat telt zichzelf mee op de as
   }
   segments.push({ start: cursor, end: taskEnd });

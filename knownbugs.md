@@ -145,10 +145,12 @@ en noem het in je rapport of PR-tekst.
     Dezelfde fout in een schone kopie van 12abaabf2 en tijdens de volledige F1b-suite, met het aanwezige
     corpus van 93 XER-bestanden. Geen pin of controle aangepast; oorzaak buiten F1b. — B
 
-230. **Een mijlpaal na een FF-relatie (mk-05a, M2) verliest zijn kritieke pad.**
-     A krijgt een late finish op vrijdag 13:00, speling 0,625 d, en is niet meer kritiek.
+230. **Een mijlpaal na een FF-relatie (mk-05a, M2) verliest zijn kritieke pad, als de voorganger in de
+     urenmaat telt.** A krijgt een late finish op vrijdag 13:00, speling 0,625 d, en is niet meer kritiek.
      Gemeld in review F1 r1 (#563). Een algemene verbreding van de grens maakt drie C7-controles
-     rood. Een gerichte oplossing vraagt een orakel. — B
+     rood. F3c repareert het voor een voorganger in de dagenmaat (OPS-profiel; `relationMath.ts`,
+     `isInsideBlock`, case `f3-startmijlpaal-ff-midden-in-blok`). Het blijft voor een urentaak en voor
+     een dagtaak onder P6/MSP (minutenmodel run 2, `mk-05a` in `minute-model-runs.json`). — B
 
 231. **FF vanaf een voltooide voorganger met een einde buiten werktijd laat de opvolger te vroeg eindigen.**
      Kalender 08:00–16:00, werkelijk einde wo 18:00, FF +0eu naar een opvolger van 2 u.
@@ -161,11 +163,6 @@ en noem het in je rapport of PR-tekst.
      wo 12:00 (`CPMSolver.ts:2564`; de inversiewacht geldt alleen bij een RESUME-override).
      Voorstel: het restwerk begint niet vóór de vastgelegde start. Bestond al vóór F1.
      Review F1 r3–r5. — B
-
-242. **Een dagtaak met splitgaten korter dan een dag krijgt in de balk gaten van hele dagen.**
-     De renderer rondt de gaten af op hele dagen (`splitWalk.ts:104`), met stompjes van 2 px.
-     De motor telt dezelfde gaten mogelijk anders (VERMOED). Dit hoort bij F3 (§3.14).
-     Gevonden in fixronde 1 van F2 (laadfix). — B voor de renderer
 
 271. **Een nachttaak die op zaterdag 06:00 eindigt, krijgt −1 speling bij een gelijk vroeg en laat venster.**
      Nachtkalender ma–vr 22:00–06:00. A 2 d vanaf ma 22:00, FS+1 naar B van 2 d. B loopt vroeg en laat
@@ -183,6 +180,14 @@ en noem het in je rapport of PR-tekst.
      eigen werkblokken. Op de basis `be58ba356` gebeurt het ook, met eigen werkblokken. Voorstel: laat
      de bestaande ALAP-verplaatsing ook het resterende dagdeel meenemen. Gevonden in review F2 ronde 3A. — B
 
+243. **Onder het P6- en MSP-profiel tekent de Gantt de pauzes van een dagtaak in de dagenmaat, de motor
+     rekent ze in werkminuten.** De renderer kent het rekenprofiel niet (`GanttRenderOptions`) en kiest de
+     splitwandeling op de maat van de taak (`GanttRenderer.ts`, `computeSplitSegments`, `'workdays'`). Onder
+     P6/MSP staat de conventie `workdayDurationMeasure` uit, dus telt de motor een dagtaak als uren. Op een
+     kalender met gelijke dagen is de uitkomst gelijk; bij ongelijke dagen (bv. vr 6 u) kan een tussengrens
+     een paar uur verschillen. Het taakeinde klopt altijd (de laatste grens is het taakeinde). Afgeleid uit de
+     code, niet nagespeeld. Voorstel: geef de renderer `workdayDurationMeasure` mee. Gevonden in F3c. — S
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
@@ -194,6 +199,20 @@ en noem het in je rapport of PR-tekst.
 241. **Hetzelfde externe anker opnieuw invoeren als datum zonder tijd geeft een extra undo-stap en zet
      de planning op verouderd.** `updateExternalLink` vergelijkt het ruwe anker, niet het genormaliseerde.
      Gevonden in fixronde 1 van F2 (laadfix). — B
+
+244. **Het paneel Onderbrekingen toont bij een dagtaak met een pauze korter dan een dag een verkeerd
+     van–tot.** `TaskSplitsSection.tsx:79-93` (`segmentRanges`) wandelt een dagtaak nog op hele werkdagen
+     (`computeSplitSegments(..., false, ...)`), terwijl de Gantt sinds F3c in de dagenmaat wandelt. Probe:
+     dagtaak ma 08:00–16:00 op een kalender 08–16, pauzes van 1 u na 2 u en na 5 u (as): het paneel geeft
+     "01-06 – 29-05" voor het eerste stuk na de pauze (einde vóór het begin), de Gantt tekent 11:00–13:00.
+     Zo'n pauze ontstaat bij splitsen op uurzoom (snap 60 of 15 min). Voorstel: geef `'workdays'` mee als
+     de taak tijden heeft en label zoals bij een urentaak (`workdayBoundaryLabel`). Gebied F4b. — B
+
+245. **Afdrukken tekent pauzes van een taak altijd in hele werkdagen.** `printPreview.ts:1424` roept
+     `computeSplitSegments(..., false, ...)` aan op datums zonder tijd, ook voor een urentaak. Een pauze
+     korter dan een dag valt weg; bij een taak van één dag tekent de afdruk geen onderbreking (probe:
+     start = einde ⇒ één stuk). Voorstel: dezelfde maatkeuze als de Gantt, als de afdruk tijden toont.
+     Gevonden in F3c. — B
 
 ## Kalenders
 
