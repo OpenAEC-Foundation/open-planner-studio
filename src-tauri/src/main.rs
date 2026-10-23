@@ -1,6 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod commands;
+#[cfg(target_os = "linux")]
+mod desktop_integration;
 mod mcp_bridge;
 
 use tauri::Manager;
@@ -45,6 +47,9 @@ fn main() {
     // Installatietype één keer per proces bepalen, vroeg en buiten de UI-thread (zie
     // `commands::install_kind`): later kan het programmapad al vervangen zijn door een pakketupdate.
     std::thread::spawn(commands::warm_install_kind);
+    // AppImage: menu-item en logo voor de gebruiker neerzetten (zie `desktop_integration`).
+    #[cfg(target_os = "linux")]
+    std::thread::spawn(desktop_integration::integrate_appimage);
 
     let mut builder = tauri::Builder::default();
 
