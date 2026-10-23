@@ -50,6 +50,7 @@ import {
 import { optionKeysOnly } from '@/services/ifc/schedulingProfileMigration';
 import { emptyMissingScheduleDates, importStatusDate, parseImportedInstant, resolveMissingScheduleDates } from '@/services/importDates';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
+import { isDateOnly } from '@/engine/calendar/workdayRules';
 import { seedScalarBands } from '@/utils/effectiveWorkTime';
 import { hourRemainingDays } from '@/engine/taskMutationRules';
 import {
@@ -1523,7 +1524,14 @@ function applyHourModeIFC(
     }
     const toHour = (raw: string | undefined): string | undefined => {
       const q = stripQuotes(raw || '');
-      return q && q !== '$' ? formatInstant(parseImportedInstant(q), 'hour') : undefined;
+      if (!q || q === '$') return undefined;
+      // Een datum zonder tijd (een ander programma, of een slot dat met de hand is ingekort) draagt
+      // geen moment. Hij blijft een datum, zodat de normalisatie op de laadgrens hem per veld en
+      // kalender omzet (T17, D1–D7; `payloadFromImport`). Als 00:00 gelezen werd een werkelijk einde
+      // het begin van die dag, en de normalisatie liet dat moment staan (review ronde 1 van PR #559,
+      // deel B, punt 3).
+      if (isDateOnly(q)) return q;
+      return formatInstant(parseImportedInstant(q), 'hour');
     };
     const ss = toHour(e.args[TASKTIME_SLOT.scheduleStart]); if (ss) t.time.scheduleStart = ss;
     const sf = toHour(e.args[TASKTIME_SLOT.scheduleFinish]); if (sf) t.time.scheduleFinish = sf;

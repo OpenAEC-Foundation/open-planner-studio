@@ -46,6 +46,7 @@ import { externIfc, taskArgs } from '../fixtures/recordedDatesIfc';
 import {
   leftRecordedDatesMode,
   needsExitRecompute,
+  restoredFromHistory,
   type RecordedDatesObservation,
 } from '@/state/recordedDatesExit';
 import { normalizeTaskDates } from '@/state/migrations/minuteModel';
@@ -1155,7 +1156,7 @@ const inMode = (ifcText: string): ImportResult => ({ ...offerOnly(ifcText), reco
 // getoetst worden.
 {
   const obs = (o: Partial<RecordedDatesObservation> = {}): RecordedDatesObservation =>
-    ({ documentId: 'doc-1', inMode: false, scheduleStale: false, ...o });
+    ({ documentId: 'doc-1', inMode: false, scheduleStale: false, history: [], ...o });
 
   truthy('10E-1 modus verlaten binnen hetzelfde document ⇒ inplannen',
     leftRecordedDatesMode(obs({ inMode: true }), obs({ inMode: false })));
@@ -1181,6 +1182,29 @@ const inMode = (ifcText: string): ImportResult => ({ ...offerOnly(ifcText), reco
     !needsExitRecompute('doc-1', obs({ inMode: true, scheduleStale: true })));
   truthy('10E-8 bij uitvoeren: intussen van document gewisseld ⇒ niet rekenen',
     !needsExitRecompute('doc-1', obs({ documentId: 'doc-2', scheduleStale: true })));
+
+  // Historieherstel (B5, spec §5.2 regressiegeval 6): een tweede Ctrl+Z gaat voorbij de modus naar de
+  // toestand van vóór een eerdere bewerking. Dat is geen bewerking; rekenen zou de opgeslagen datums
+  // overschrijven en de vlag "omzetting open" wissen. Undo en redo wisselen de status van een bestaand
+  // event; een bewerking voegt er een toe.
+  const applied = [{ id: 'e1', state: 'applied' as const }, { id: 'e2', state: 'applied' as const }];
+  const afterUndo = [applied[0], { id: 'e2', state: 'undone' as const }];
+  truthy('10E-9 undo verlaat de modus ⇒ niet inplannen',
+    !leftRecordedDatesMode(obs({ inMode: true, history: applied }), obs({ inMode: false, history: afterUndo })));
+  truthy('10E-10 redo verlaat de modus ⇒ niet inplannen',
+    !leftRecordedDatesMode(obs({ inMode: true, history: afterUndo }), obs({ inMode: false, history: applied })));
+  truthy('10E-11 bewerking met een nieuw event verlaat de modus ⇒ wel inplannen',
+    leftRecordedDatesMode(obs({ inMode: true, history: applied }),
+      obs({ inMode: false, history: [...applied, { id: 'e3', state: 'applied' }] })));
+  // Een bewerking ná een undo ruimt het undone event op: dat is geen statuswissel.
+  truthy('10E-12 bewerking die een undone event opruimt ⇒ wel inplannen',
+    leftRecordedDatesMode(obs({ inMode: true, history: afterUndo }),
+      obs({ inMode: false, history: [applied[0], { id: 'e3', state: 'applied' }] })));
+  // Een MCP- of bulkmutatie verlaat de modus vóór haar event bestaat: zelfde historie ⇒ bewerking.
+  truthy('10E-13 modus verlaten zonder historiewijziging ⇒ wel inplannen',
+    leftRecordedDatesMode(obs({ inMode: true, history: applied }), obs({ inMode: false, history: applied })));
+  truthy('10E-14 restoredFromHistory: dezelfde array is geen herstel',
+    !restoredFromHistory(applied, applied));
 }
 
 // ── (11) De invariant "modus ⇒ niet verouderd" automatisch bewaakt ───────────

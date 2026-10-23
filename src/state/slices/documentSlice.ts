@@ -1,4 +1,4 @@
-import { minuteModelTransition, minuteModelNotice, normalizeRecordedTimes, recordMinuteModelTransition, type MinuteModelTransition } from '../minuteModelTransition';
+import { minuteModelTransition, minuteModelNotice, recordMinuteModelTransition, type MinuteModelTransition } from '../minuteModelTransition';
 import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
 import { castDraft } from 'immer';
 import type { AppState } from '../appStore';
@@ -646,8 +646,9 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
         const a = materializeLibraryBoundary({
           payload: p, companies: state.companies, pools: state.pools, mode: 'open-boundary',
         });
-        conversion = minuteModelTransition(rawPayload, a.payload, normalizeRecordedTimes(rawPayload,
-          captureRecordedDates(rawPayload.tasks, candidate.recordedFields, candidate.recordedTimes)));
+        // `minuteModelTransition` normaliseert de vastlegging zelf (één normalisatie per grens).
+        conversion = minuteModelTransition(rawPayload, a.payload,
+          captureRecordedDates(rawPayload.tasks, candidate.recordedFields, candidate.recordedTimes));
         a.payload = conversion.after;
         active = candidate;
         prepared = conversion.after;
