@@ -32,7 +32,11 @@ import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { computeVariance } from '@/engine/variance';
 import { payloadFromImport } from '@/state/documentContract';
 import { solveProject } from '@/engine/scheduler/solveProject';
-import { solveInputFor } from '@/engine/scheduler/solveInput';
+import { solveInputFor, solveOptionsFor } from '@/engine/scheduler/solveInput';
+import { levelResources } from '@/engine/scheduler/ResourceLeveler';
+import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
+import { isLeafTask } from '@/utils/taskHierarchy';
+import { writeLevelingResult } from '@/utils/taskDefaults';
 import { effHoursPerDay, effectiveCalendarOf } from '@/utils/taskDuration';
 import { useAppStore } from '@/state/appStore';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -70,7 +74,13 @@ interface Pinned {
 
 /** F2-tussenstand; F3 → de vaste urenreferentie in minute-model-tutorial-f3.json (§3.14).
  *  De planning van na-tut-5: ook die van de tussenstanden van tutorial 6 in het BESTAND (daar is nog
- *  niet gerekend; de lezer rekent pas in stap 8). */
+ *  niet gerekend; de lezer rekent pas in stap 8).
+ *  F3c-tussenstand (B2, F3c-motor → doel): de belasting en de nivelleerder tellen het dagdeel al (F3c
+ *  deel 3), de motor plaatst een dagtaak nog als hele dagen. De belasting van een voorganger loopt
+ *  daardoor door in de eerste dag van zijn opvolger. De nivelleerder schuift het binnenspouwblad 1 en
+ *  het buitenspouwblad 6 werkdagen; met de dagenloper van de motor wordt dat weer alleen het
+ *  buitenspouwblad, 5 werkdagen (getoetst in `checkF3Reference`). Speling en datums vanaf het
+ *  binnenspouwblad volgen die tussenstand. */
 const NA_TUT_5_PLANNING: Pick<Pinned, 'finish' | 'projectFinish' | 'critical' | 'table'> = {
   finish: "2027-08-30T16:00", projectFinish: "2027-08-30T16:00",
   critical: [
@@ -84,20 +94,20 @@ const NA_TUT_5_PLANNING: Pick<Pinned, 'finish' | 'projectFinish' | 'critical' | 
       "msHandover"
     ],
   table: {
-      "msStart": "2027-06-07T07:00 2027-06-07T07:00 2",
-      "site": "2027-06-07T07:00 2027-06-08T16:00 2",
-      "garden": "2027-06-09T07:00 2027-06-09T16:00 2",
-      "setout": "2027-06-10T07:00 2027-06-10T16:00 2",
-      "excavate": "2027-06-11T07:00 2027-06-14T16:00 2",
-      "rebar": "2027-06-15T07:00 2027-06-17T16:00 2",
-      "inspection": "2027-06-17T16:00 2027-06-17T16:00 2",
-      "pour": "2027-06-18T07:00 2027-06-18T14:00 2",
-      "foundBrick": "2027-06-23T14:00 2027-06-24T16:00 2",
-      "floor": "2027-06-25T07:00 2027-06-25T12:00 2",
-      "innerLeaf": "2027-06-25T13:00 2027-07-01T16:00 6",
-      "outerLeaf": "2027-07-02T13:00 2027-07-09T16:00 2",
-      "roofElements": "2027-07-02T07:00 2027-07-02T14:00 6",
-      "roofing": "2027-07-02T14:00 2027-07-05T16:00 6",
+      "msStart": "2027-06-07T07:00 2027-06-07T07:00 1",
+      "site": "2027-06-07T07:00 2027-06-08T16:00 1",
+      "garden": "2027-06-09T07:00 2027-06-09T16:00 1",
+      "setout": "2027-06-10T07:00 2027-06-10T16:00 1",
+      "excavate": "2027-06-11T07:00 2027-06-14T16:00 1",
+      "rebar": "2027-06-15T07:00 2027-06-17T16:00 1",
+      "inspection": "2027-06-17T16:00 2027-06-17T16:00 1",
+      "pour": "2027-06-18T07:00 2027-06-18T14:00 1",
+      "foundBrick": "2027-06-23T14:00 2027-06-24T16:00 1",
+      "floor": "2027-06-25T07:00 2027-06-25T12:00 1",
+      "innerLeaf": "2027-06-28T13:00 2027-07-02T16:00 5",
+      "outerLeaf": "2027-07-05T13:00 2027-07-12T16:00 1",
+      "roofElements": "2027-07-05T07:00 2027-07-05T14:00 5",
+      "roofing": "2027-07-05T14:00 2027-07-06T16:00 5",
       "frames": "2027-07-14T07:00 2027-07-15T16:00 0",
       "breakThrough": "2027-07-16T07:00 2027-07-19T16:00 0",
       "services": "2027-07-20T07:00 2027-07-22T16:00 0",
@@ -449,11 +459,12 @@ const PINNED: Record<Exclude<StageId, 'na-tut-7'>, Pinned> = {
   },
   // Tutorial 5 stap 3–5: alle toewijzingen, berekend. De metselaar staat al dubbel (binnen- en
   // buitenspouwblad); het stucwerk duurt nog 4 wd met 1 stukadoor.
+  // F3c-tussenstand (B2, F3c-motor → doel): 6 overbezette dagen in plaats van 5, zie NA_TUT_5_PLANNING.
   'tussen-tut-5-toegewezen': {
     finish: "2027-09-01T16:00", projectFinish: "2027-09-01T16:00",
     statusDate: null, baselineFinish: null,
     overallocated: {
-      "bricklayer": 5
+      "bricklayer": 6
     },
     counts: {
       "tasks": 27,
@@ -505,7 +516,7 @@ const PINNED: Record<Exclude<StageId, 'na-tut-7'>, Pinned> = {
     finish: "2027-08-30T16:00", projectFinish: "2027-08-30T16:00",
     statusDate: null, baselineFinish: null,
     overallocated: {
-      "bricklayer": 5
+      "bricklayer": 6
     },
     counts: {
       "tasks": 27,
@@ -574,7 +585,7 @@ const PINNED: Record<Exclude<StageId, 'na-tut-7'>, Pinned> = {
   'tussen-tut-6-fundering': tut6File('2027-06-28'),
   'tussen-tut-6-metselwerk': tut6File('2027-06-28'),
   'na-tut-6': {
-    finish: "2027-08-30T16:00", projectFinish: "2027-08-30T16:00",
+    finish: "2027-08-31T16:00", projectFinish: "2027-08-31T16:00",
     statusDate: "2027-06-28", baselineFinish: "2027-08-30T16:00",
     overallocated: {},
     counts: {
@@ -609,19 +620,19 @@ const PINNED: Record<Exclude<StageId, 'na-tut-7'>, Pinned> = {
       "pour": "2027-06-21T07:00 2027-06-21T14:00 0.25",
       "foundBrick": "2027-06-25T07:00 2027-06-28T16:00 0",
       "floor": "2027-06-29T07:00 2027-06-29T12:00 0",
-      "innerLeaf": "2027-06-29T13:00 2027-07-05T16:00 4",
-      "outerLeaf": "2027-07-06T13:00 2027-07-13T16:00 0",
-      "roofElements": "2027-07-06T07:00 2027-07-06T14:00 4",
-      "roofing": "2027-07-06T14:00 2027-07-07T16:00 4",
-      "frames": "2027-07-14T07:00 2027-07-15T16:00 0",
-      "breakThrough": "2027-07-16T07:00 2027-07-19T16:00 0",
-      "services": "2027-07-20T07:00 2027-07-22T16:00 0",
-      "plaster": "2027-07-23T07:00 2027-07-26T16:00 0",
-      "screed": "2027-07-27T07:00 2027-07-27T16:00 0",
-      "tiling": "2027-08-25T07:00 2027-08-27T16:00 0",
-      "painting": "2027-07-27T07:00 2027-07-29T16:00 6",
-      "cleaning": "2027-08-30T07:00 2027-08-30T16:00 0",
-      "msHandover": "2027-08-30T16:00 2027-08-30T16:00 0"
+      "innerLeaf": "2027-06-30T13:00 2027-07-06T16:00 4",
+      "outerLeaf": "2027-07-07T13:00 2027-07-14T16:00 0",
+      "roofElements": "2027-07-07T07:00 2027-07-07T14:00 4",
+      "roofing": "2027-07-07T14:00 2027-07-08T16:00 4",
+      "frames": "2027-07-15T07:00 2027-07-16T16:00 0",
+      "breakThrough": "2027-07-19T07:00 2027-07-20T16:00 0",
+      "services": "2027-07-21T07:00 2027-07-23T16:00 0",
+      "plaster": "2027-07-26T07:00 2027-07-27T16:00 0",
+      "screed": "2027-07-28T07:00 2027-07-28T16:00 0",
+      "tiling": "2027-08-26T07:00 2027-08-30T16:00 0",
+      "painting": "2027-07-28T07:00 2027-07-30T16:00 6",
+      "cleaning": "2027-08-31T07:00 2027-08-31T16:00 0",
+      "msHandover": "2027-08-31T16:00 2027-08-31T16:00 0"
     },
   },
 };
@@ -633,11 +644,13 @@ const PINNED_EXTRA = {
   /** Tutorial 5: na toewijzen en werkregel, vóór nivelleren. */
   beforeLeveling: {
     finish: '2027-08-30T16:00',
-    overallocated: { bricklayer: 5 },
+    // F3c-tussenstand (B2, F3c-motor → doel { bricklayer: 6 } op andere dagen, zie metselaarOver).
+    overallocated: { bricklayer: 6 },
     critical: ['frames', 'breakThrough', 'services', 'plaster', 'screed', 'tiling', 'cleaning', 'msHandover'],
   },
   plasterDays: { before: 4, after: 2 },
-  levelingDelays: { outerLeaf: 5 },
+  // F3c-tussenstand (B2, F3c-motor → doel { outerLeaf: 5 }, zie NA_TUT_5_PLANNING en checkF3Reference).
+  levelingDelays: { innerLeaf: 1, outerLeaf: 6 },
 };
 
 /**
@@ -647,13 +660,14 @@ const PINNED_EXTRA = {
  * naar de statusdatum. `tussen-tut-6-baseline` opent ongewijzigd (geen pin hier) en `tussen-tut-6-metselwerk` opent
  * als na-tut-6: alle invoer is er, de berekening is die van stap 8.
  */
-// F2-tussenstand; F3 → dezelfde standen in de urenreferentie (§3.14).
+// F2-tussenstand; F3 → dezelfde standen in de urenreferentie (§3.14). Vanaf de nivellering een
+// F3c-tussenstand (B2, F3c-motor → doel), zie NA_TUT_5_PLANNING.
 const TUT6_OPENED: Partial<Record<StageId, Pinned>> = {
   // Stap 3 (Toon mij) / stap 4 (Opnieuw): statusdatum zonder voortgang. Alles wat niet begonnen is, ligt op of na
   // de statusdatum: Start bouw 28 juni, oplevering ma 20 sep, 23 kritieke taken, 1 deadline overschreden — wat
   // de tekst bij stap 3 voorspelt als je dan al zou rekenen.
   'tussen-tut-6-statusdatum': {
-    finish: "2027-09-16T16:00", projectFinish: "2027-09-16T16:00",
+    finish: "2027-09-17T16:00", projectFinish: "2027-09-17T16:00",
     statusDate: "2027-06-28", baselineFinish: "2027-08-30T16:00",
     overallocated: {},
     counts: {
@@ -689,35 +703,35 @@ const TUT6_OPENED: Partial<Record<StageId, Pinned>> = {
       "msHandover"
     ],
     table: {
-      "msStart": "2027-06-28T07:00 2027-06-28T07:00 -4",
-      "site": "2027-06-28T07:00 2027-06-29T16:00 -4",
-      "garden": "2027-06-30T07:00 2027-06-30T16:00 -4",
-      "setout": "2027-07-01T07:00 2027-07-01T16:00 -4",
-      "excavate": "2027-07-02T07:00 2027-07-05T16:00 -4",
-      "rebar": "2027-07-06T07:00 2027-07-08T16:00 -4",
-      "inspection": "2027-07-08T16:00 2027-07-08T16:00 -4",
-      "pour": "2027-07-09T07:00 2027-07-09T14:00 -4",
-      "foundBrick": "2027-07-14T14:00 2027-07-15T16:00 -4",
-      "floor": "2027-07-16T07:00 2027-07-16T12:00 -4",
-      "innerLeaf": "2027-07-16T13:00 2027-07-22T16:00 0",
-      "outerLeaf": "2027-07-23T13:00 2027-07-30T16:00 -4",
-      "roofElements": "2027-07-23T07:00 2027-07-23T14:00 0",
-      "roofing": "2027-07-23T14:00 2027-07-26T16:00 0",
-      "frames": "2027-08-23T07:00 2027-08-24T16:00 -4",
-      "breakThrough": "2027-08-25T07:00 2027-08-26T16:00 -4",
-      "services": "2027-08-27T07:00 2027-08-31T16:00 -4",
-      "plaster": "2027-09-01T07:00 2027-09-02T16:00 -4",
-      "screed": "2027-09-03T07:00 2027-09-03T16:00 -4",
-      "tiling": "2027-09-13T07:00 2027-09-15T16:00 -4",
-      "painting": "2027-09-03T07:00 2027-09-07T16:00 2",
-      "cleaning": "2027-09-16T07:00 2027-09-16T16:00 -4",
-      "msHandover": "2027-09-16T16:00 2027-09-16T16:00 -4"
+      "msStart": "2027-06-28T07:00 2027-06-28T07:00 -5",
+      "site": "2027-06-28T07:00 2027-06-29T16:00 -5",
+      "garden": "2027-06-30T07:00 2027-06-30T16:00 -5",
+      "setout": "2027-07-01T07:00 2027-07-01T16:00 -5",
+      "excavate": "2027-07-02T07:00 2027-07-05T16:00 -5",
+      "rebar": "2027-07-06T07:00 2027-07-08T16:00 -5",
+      "inspection": "2027-07-08T16:00 2027-07-08T16:00 -5",
+      "pour": "2027-07-09T07:00 2027-07-09T14:00 -5",
+      "foundBrick": "2027-07-14T14:00 2027-07-15T16:00 -5",
+      "floor": "2027-07-16T07:00 2027-07-16T12:00 -5",
+      "innerLeaf": "2027-07-19T13:00 2027-07-23T16:00 -1",
+      "outerLeaf": "2027-07-26T13:00 2027-08-23T16:00 -5",
+      "roofElements": "2027-07-26T07:00 2027-07-26T14:00 -1",
+      "roofing": "2027-07-26T14:00 2027-07-27T16:00 -1",
+      "frames": "2027-08-24T07:00 2027-08-25T16:00 -5",
+      "breakThrough": "2027-08-26T07:00 2027-08-27T16:00 -5",
+      "services": "2027-08-30T07:00 2027-09-01T16:00 -5",
+      "plaster": "2027-09-02T07:00 2027-09-03T16:00 -5",
+      "screed": "2027-09-06T07:00 2027-09-06T16:00 -5",
+      "tiling": "2027-09-14T07:00 2027-09-16T16:00 -5",
+      "painting": "2027-09-06T07:00 2027-09-08T16:00 1",
+      "cleaning": "2027-09-17T07:00 2027-09-17T16:00 -5",
+      "msHandover": "2027-09-17T16:00 2027-09-17T16:00 -5"
     },
   },
   // Stap 4 (Toon mij) / stap 5 (Opnieuw): de voorbereiding klaar; het ontgraven op de statusdatum.
   // Oplevering di 14 sep, deadline (10 sep) nog overschreden.
   'tussen-tut-6-voorbereiding': {
-    finish: "2027-09-10T16:00", projectFinish: "2027-09-10T16:00",
+    finish: "2027-09-13T16:00", projectFinish: "2027-09-13T16:00",
     statusDate: "2027-06-28", baselineFinish: "2027-08-30T16:00",
     overallocated: {},
     counts: {
@@ -746,35 +760,35 @@ const TUT6_OPENED: Partial<Record<StageId, Pinned>> = {
       "msHandover"
     ],
     table: {
-      "msStart": "2027-06-07T07:00 2027-06-07T07:00 11",
-      "site": "2027-06-07T07:00 2027-06-08T16:00 11",
-      "garden": "2027-06-09T07:00 2027-06-09T16:00 11",
-      "setout": "2027-06-10T07:00 2027-06-10T16:00 11",
-      "excavate": "2027-06-28T07:00 2027-06-29T16:00 0",
-      "rebar": "2027-06-30T07:00 2027-07-02T16:00 0",
-      "inspection": "2027-07-02T16:00 2027-07-02T16:00 0",
-      "pour": "2027-07-05T07:00 2027-07-05T14:00 0",
-      "foundBrick": "2027-07-08T14:00 2027-07-09T16:00 0",
-      "floor": "2027-07-12T07:00 2027-07-12T12:00 0",
-      "innerLeaf": "2027-07-12T13:00 2027-07-16T16:00 4",
-      "outerLeaf": "2027-07-19T13:00 2027-07-26T16:00 0",
-      "roofElements": "2027-07-19T07:00 2027-07-19T14:00 4",
-      "roofing": "2027-07-19T14:00 2027-07-20T16:00 4",
-      "frames": "2027-07-27T07:00 2027-07-28T16:00 0",
-      "breakThrough": "2027-07-29T07:00 2027-07-30T16:00 0",
-      "services": "2027-08-23T07:00 2027-08-25T16:00 0",
-      "plaster": "2027-08-26T07:00 2027-08-27T16:00 0",
-      "screed": "2027-08-30T07:00 2027-08-30T16:00 0",
-      "tiling": "2027-09-07T07:00 2027-09-09T16:00 0",
-      "painting": "2027-08-30T07:00 2027-09-01T16:00 6",
-      "cleaning": "2027-09-10T07:00 2027-09-10T16:00 0",
-      "msHandover": "2027-09-10T16:00 2027-09-10T16:00 0"
+      "msStart": "2027-06-07T07:00 2027-06-07T07:00 10",
+      "site": "2027-06-07T07:00 2027-06-08T16:00 10",
+      "garden": "2027-06-09T07:00 2027-06-09T16:00 10",
+      "setout": "2027-06-10T07:00 2027-06-10T16:00 10",
+      "excavate": "2027-06-28T07:00 2027-06-29T16:00 -1",
+      "rebar": "2027-06-30T07:00 2027-07-02T16:00 -1",
+      "inspection": "2027-07-02T16:00 2027-07-02T16:00 -1",
+      "pour": "2027-07-05T07:00 2027-07-05T14:00 -1",
+      "foundBrick": "2027-07-08T14:00 2027-07-09T16:00 -1",
+      "floor": "2027-07-12T07:00 2027-07-12T12:00 -1",
+      "innerLeaf": "2027-07-13T13:00 2027-07-19T16:00 3",
+      "outerLeaf": "2027-07-20T13:00 2027-07-27T16:00 -1",
+      "roofElements": "2027-07-20T07:00 2027-07-20T14:00 3",
+      "roofing": "2027-07-20T14:00 2027-07-21T16:00 3",
+      "frames": "2027-07-28T07:00 2027-07-29T16:00 -1",
+      "breakThrough": "2027-07-30T07:00 2027-08-23T16:00 -1",
+      "services": "2027-08-24T07:00 2027-08-26T16:00 -1",
+      "plaster": "2027-08-27T07:00 2027-08-30T16:00 -1",
+      "screed": "2027-08-31T07:00 2027-08-31T16:00 -1",
+      "tiling": "2027-09-08T07:00 2027-09-10T16:00 -1",
+      "painting": "2027-08-31T07:00 2027-09-02T16:00 5",
+      "cleaning": "2027-09-13T07:00 2027-09-13T16:00 -1",
+      "msHandover": "2027-09-13T16:00 2027-09-13T16:00 -1"
     },
   },
   // Stap 5 (Toon mij) / stap 6 (Opnieuw): het ontgraven klaar (15 juni); de wapening op de statusdatum.
   // Oplevering vr 10 sep, precies op de deadline.
   'tussen-tut-6-ontgraven': {
-    finish: "2027-09-08T16:00", projectFinish: "2027-09-08T16:00",
+    finish: "2027-09-09T16:00", projectFinish: "2027-09-09T16:00",
     statusDate: "2027-06-28", baselineFinish: "2027-08-30T16:00",
     overallocated: {},
     counts: {
@@ -812,25 +826,25 @@ const TUT6_OPENED: Partial<Record<StageId, Pinned>> = {
       "pour": "2027-07-01T07:00 2027-07-01T14:00 0",
       "foundBrick": "2027-07-06T14:00 2027-07-07T16:00 0",
       "floor": "2027-07-08T07:00 2027-07-08T12:00 0",
-      "innerLeaf": "2027-07-08T13:00 2027-07-14T16:00 4",
-      "outerLeaf": "2027-07-15T13:00 2027-07-22T16:00 0",
-      "roofElements": "2027-07-15T07:00 2027-07-15T14:00 4",
-      "roofing": "2027-07-15T14:00 2027-07-16T16:00 4",
-      "frames": "2027-07-23T07:00 2027-07-26T16:00 0",
-      "breakThrough": "2027-07-27T07:00 2027-07-28T16:00 0",
-      "services": "2027-07-29T07:00 2027-08-23T16:00 0",
-      "plaster": "2027-08-24T07:00 2027-08-25T16:00 0",
-      "screed": "2027-08-26T07:00 2027-08-26T16:00 0",
-      "tiling": "2027-09-03T07:00 2027-09-07T16:00 0",
-      "painting": "2027-08-26T07:00 2027-08-30T16:00 6",
-      "cleaning": "2027-09-08T07:00 2027-09-08T16:00 0",
-      "msHandover": "2027-09-08T16:00 2027-09-08T16:00 0"
+      "innerLeaf": "2027-07-09T13:00 2027-07-15T16:00 4",
+      "outerLeaf": "2027-07-16T13:00 2027-07-23T16:00 0",
+      "roofElements": "2027-07-16T07:00 2027-07-16T14:00 4",
+      "roofing": "2027-07-16T14:00 2027-07-19T16:00 4",
+      "frames": "2027-07-26T07:00 2027-07-27T16:00 0",
+      "breakThrough": "2027-07-28T07:00 2027-07-29T16:00 0",
+      "services": "2027-07-30T07:00 2027-08-24T16:00 0",
+      "plaster": "2027-08-25T07:00 2027-08-26T16:00 0",
+      "screed": "2027-08-27T07:00 2027-08-27T16:00 0",
+      "tiling": "2027-09-06T07:00 2027-09-08T16:00 0",
+      "painting": "2027-08-27T07:00 2027-08-31T16:00 6",
+      "cleaning": "2027-09-09T07:00 2027-09-09T16:00 0",
+      "msHandover": "2027-09-09T16:00 2027-09-09T16:00 0"
     },
   },
   // Stap 6 (Toon mij) / stap 7 (Opnieuw): wapening, keuring en stort klaar; het funderingsmetselwerk nog niet
   // begonnen, dus op de statusdatum (28–29 juni). Oplevering wo 1 sep.
   'tussen-tut-6-fundering': {
-    finish: "2027-08-31T16:00", projectFinish: "2027-08-31T16:00",
+    finish: "2027-09-01T16:00", projectFinish: "2027-09-01T16:00",
     statusDate: "2027-06-28", baselineFinish: "2027-08-30T16:00",
     overallocated: {},
     counts: {
@@ -865,19 +879,19 @@ const TUT6_OPENED: Partial<Record<StageId, Pinned>> = {
       "pour": "2027-06-21T07:00 2027-06-21T14:00 1.25",
       "foundBrick": "2027-06-28T07:00 2027-06-29T16:00 0",
       "floor": "2027-06-30T07:00 2027-06-30T12:00 0",
-      "innerLeaf": "2027-06-30T13:00 2027-07-06T16:00 4",
-      "outerLeaf": "2027-07-07T13:00 2027-07-14T16:00 0",
-      "roofElements": "2027-07-07T07:00 2027-07-07T14:00 4",
-      "roofing": "2027-07-07T14:00 2027-07-08T16:00 4",
-      "frames": "2027-07-15T07:00 2027-07-16T16:00 0",
-      "breakThrough": "2027-07-19T07:00 2027-07-20T16:00 0",
-      "services": "2027-07-21T07:00 2027-07-23T16:00 0",
-      "plaster": "2027-07-26T07:00 2027-07-27T16:00 0",
-      "screed": "2027-07-28T07:00 2027-07-28T16:00 0",
-      "tiling": "2027-08-26T07:00 2027-08-30T16:00 0",
-      "painting": "2027-07-28T07:00 2027-07-30T16:00 6",
-      "cleaning": "2027-08-31T07:00 2027-08-31T16:00 0",
-      "msHandover": "2027-08-31T16:00 2027-08-31T16:00 0"
+      "innerLeaf": "2027-07-01T13:00 2027-07-07T16:00 4",
+      "outerLeaf": "2027-07-08T13:00 2027-07-15T16:00 0",
+      "roofElements": "2027-07-08T07:00 2027-07-08T14:00 4",
+      "roofing": "2027-07-08T14:00 2027-07-09T16:00 4",
+      "frames": "2027-07-16T07:00 2027-07-19T16:00 0",
+      "breakThrough": "2027-07-20T07:00 2027-07-21T16:00 0",
+      "services": "2027-07-22T07:00 2027-07-26T16:00 0",
+      "plaster": "2027-07-27T07:00 2027-07-28T16:00 0",
+      "screed": "2027-07-29T07:00 2027-07-29T16:00 0",
+      "tiling": "2027-08-27T07:00 2027-08-31T16:00 0",
+      "painting": "2027-07-29T07:00 2027-08-23T16:00 6",
+      "cleaning": "2027-09-01T07:00 2027-09-01T16:00 0",
+      "msHandover": "2027-09-01T16:00 2027-09-01T16:00 0"
     },
   },
   'tussen-tut-6-metselwerk': PINNED['na-tut-6'],
@@ -922,6 +936,12 @@ function comparableBuild(b: TutorialBuild): unknown {
 function checkF3Reference(build: TutorialBuild): void {
   const goals = JSON.parse(readFileSync(new URL('./fixtures/minute-model-tutorial-f3.json', import.meta.url), 'utf8')) as
     Record<string, { finish: string; duration: number; critical: TaskKey[]; table: Record<TaskKey, string> }>;
+  const keyOfName = (name: string) => TASKS.find(d => d.name.nl === name)?.key;
+  // De nivellering van tutorial 5 op de urenreferentie (F3c deel 3, spec §3.11): dezelfde nivelleerder,
+  // dezelfde opties als de generator, maar op de doelplaatsing. Ze moet het doel geven: alleen het
+  // buitenspouwblad, 5 werkdagen = 5 × 480 werkminuten.
+  let referenceLeveling: { delays: Partial<Record<TaskKey, number>>; delayMinutes: Partial<Record<TaskKey, number>> } | null = null;
+  let leveled = false;
   for (const stage of build.stages) {
     if (stage.id === 'start-tut-1') continue;
     const payload = payloadFromImport(readIFC(stage.ifc), null);
@@ -934,6 +954,16 @@ function checkF3Reference(build: TutorialBuild): void {
         remainingMinutes: task.time.remainingTime === undefined ? undefined : task.time.remainingTime * minutesPerDay,
       } };
     });
+    if (leveled && referenceLeveling) {
+      // F3c-tussenstand (B2, F3c-motor → doel): het bestand draagt de vertraging die de generator met de
+      // huidige motor vond (binnenspouwblad 1, buitenspouwblad 6). De referentie gebruikt de vertraging
+      // van de nivelleerder op de doelplaatsing. Met de dagenloper van de motor zijn die gelijk; dan is
+      // deze vervanging een no-op.
+      const ids = new Map(tasks.map(t => [keyOfName(t.name), t.id]));
+      const byId = <V>(rec: Partial<Record<TaskKey, V>>) =>
+        Object.fromEntries(Object.entries(rec).map(([k, v]) => [ids.get(k as TaskKey)!, v as V]));
+      writeLevelingResult(tasks, { delays: byId(referenceLeveling.delays), delayMinutes: byId(referenceLeveling.delayMinutes), gaps: {} });
+    }
     const result = solveProject(solveInputFor(payload.project, tasks, payload.sequences, payload.calendar, payload.calendars));
     eq(`F3-referentie/${stage.id}: doorrekening`, result.error, undefined);
     eq(`F3-referentie/${stage.id}: einde`, result.projectEnd, goals[stage.id]?.finish);
@@ -944,6 +974,20 @@ function checkF3Reference(build: TutorialBuild): void {
       const t = tasks.find(task => task.name === definition.name.nl)!.time;
       eq(`F3-referentie/${stage.id}/${definition.key}`, `${t.earlyStart} ${t.earlyFinish} ${t.totalFloat}`,
         goals[stage.id]?.table[definition.key]);
+    }
+    if (stage.id === 'tussen-tut-5-werkregel') {
+      const { sequences } = expandSummaryRelations(tasks, payload.sequences);
+      const renewables = payload.resources.filter(r => r.type !== 'MATERIAL').map(r => r.id);
+      const lv = levelResources(tasks.filter(isLeafTask), sequences, payload.resources, payload.assignments,
+        payload.calendar, payload.calendars, result, { constrainToFloat: false, resourceIds: renewables },
+        solveOptionsFor(payload.project));
+      const byKey = (rec: Record<string, number>) => Object.fromEntries(Object.entries(rec)
+        .map(([id, v]) => [keyOfName(tasks.find(t => t.id === id)!.name)!, v])) as Partial<Record<TaskKey, number>>;
+      referenceLeveling = { delays: byKey(lv.delays), delayMinutes: byKey(lv.delayMinutes ?? {}) };
+      eq('F3-referentie/nivelleren: vertraging in werkdagen', referenceLeveling.delays, { outerLeaf: 5 });
+      eq('F3-referentie/nivelleren: vertraging in werkminuten', referenceLeveling.delayMinutes, { outerLeaf: 2400 });
+      eq('F3-referentie/nivelleren: geen onopgelost conflict', lv.unresolved, {});
+      leveled = true;
     }
     if (stage.id === 'na-tut-6') {
       const baseline = payload.baselines.find(b => b.id === payload.activeBaselineId) ?? null;
@@ -998,8 +1042,8 @@ async function main(): Promise<void> {
   ok('tut-5: vóór nivelleren is (alleen) de metselaar overbezet',
     JSON.stringify(Object.keys(nl.beforeLeveling.overallocated)) === JSON.stringify(['bricklayer']));
   ok('tut-5: na nivelleren is niemand overbezet', Object.keys(f('na-tut-5').overallocated).length === 0);
-  ok('tut-6: F2-tussenstand; F3 → 2027-08-31T12:00 (§3.14)',
-    f('na-tut-6').finish === '2027-08-30T16:00');
+  ok('tut-6: F3c-tussenstand (B2, F3c-motor → doel 2027-08-31T12:00, §3.14)',
+    f('na-tut-6').finish === '2027-08-31T16:00');
 
   // ── 3. en: identiek op de namen na ──
   console.log('-- tutorial-project: en, identiek aan nl --');
@@ -1137,8 +1181,9 @@ async function tut5Stages(nl: TutorialBuild): Promise<void> {
   const fiveResources = [
     'Timmerploeg CREW 1', 'Metselaar LABOR 1', 'Mobiele kraan EQUIPMENT 1', 'Stukadoor SUBCONTRACTOR 2', 'Beton MATERIAL 50 m³',
   ];
-  // F2-tussenstand; F3 → 6 overbezette dagen van 28 juni t/m 5 juli (§3.14; plaatsingsreferentie).
-  const metselaarOver = ['2027-06-25', '2027-06-28', '2027-06-29', '2027-06-30', '2027-07-01'];
+  // F3c-tussenstand (B2, F3c-motor → doel: 6 overbezette dagen van 28 juni t/m 5 juli, §3.14;
+  // plaatsingsreferentie). De belasting telt het dagdeel al, de motor nog hele dagen: 2 juli komt erbij.
+  const metselaarOver = ['2027-06-25', '2027-06-28', '2027-06-29', '2027-06-30', '2027-07-01', '2027-07-02'];
 
   await S().openExampleFromString(ifcOf('tussen-tut-5-resources'), 'tussen-tut-5-resources.ifc');
   eq('tut-5 resources: de vijf resources', resourceNames(), fiveResources);
@@ -1201,6 +1246,8 @@ async function tut6Stages(build: TutorialBuild): Promise<void> {
   };
   const metselwerk = { foundBrick: '0.5 2027-06-25T07:00 -' };
   const notStarted = { msStart: '0 - -', excavate: '0 - -', rebar: '0 - -', foundBrick: '0 - -' };
+  // F3c-tussenstand (B2, F3c-motor → doel) vanaf de statusdatum: één werkdag later en in de
+  // voorbereiding één overschreden deadline, door de nivelleervertraging uit NA_TUT_5_PLANNING.
   const expected: Record<string, {
     duration: number; critical: number; finish: string; missed: number; statusDate: string | null;
     progress: Partial<Record<TaskKey, string>>; phases: number[];
@@ -1210,23 +1257,23 @@ async function tut6Stages(build: TutorialBuild): Promise<void> {
       progress: notStarted, phases: [0, 0, 0, 0],
     },
     'tussen-tut-6-statusdatum': {
-      duration: 44, critical: 22, finish: "2027-09-16T16:00", missed: 1, statusDate: "2027-06-28",
+      duration: 45, critical: 22, finish: "2027-09-17T16:00", missed: 1, statusDate: "2027-06-28",
       progress: notStarted, phases: [0, 0, 0, 0],
     },
     'tussen-tut-6-voorbereiding': {
-      duration: 55, critical: 15, finish: "2027-09-10T16:00", missed: 0, statusDate: "2027-06-28",
+      duration: 56, critical: 15, finish: "2027-09-13T16:00", missed: 1, statusDate: "2027-06-28",
       progress: { ...notStarted, ...voorbereiding }, phases: [1, 0, 0, 0],
     },
     'tussen-tut-6-ontgraven': {
-      duration: 53, critical: 14, finish: "2027-09-08T16:00", missed: 0, statusDate: "2027-06-28",
+      duration: 54, critical: 14, finish: "2027-09-09T16:00", missed: 0, statusDate: "2027-06-28",
       progress: { ...notStarted, ...voorbereiding, ...ontgraven }, phases: [1, 0.238, 0, 0],
     },
     'tussen-tut-6-fundering': {
-      duration: 47, critical: 11, finish: "2027-08-31T16:00", missed: 0, statusDate: "2027-06-28",
+      duration: 48, critical: 11, finish: "2027-09-01T16:00", missed: 0, statusDate: "2027-06-28",
       progress: { ...notStarted, ...voorbereiding, ...ontgraven, ...fundering }, phases: [1, 0.69, 0, 0],
     },
     'tussen-tut-6-metselwerk': {
-      duration: 46, critical: 11, finish: "2027-08-30T16:00", missed: 0, statusDate: "2027-06-28",
+      duration: 47, critical: 11, finish: "2027-08-31T16:00", missed: 0, statusDate: "2027-06-28",
       progress: { ...voorbereiding, ...ontgraven, ...fundering, ...metselwerk }, phases: [1, 0.81, 0, 0],
     },
   };

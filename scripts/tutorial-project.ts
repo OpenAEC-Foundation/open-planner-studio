@@ -637,8 +637,11 @@ export function buildTutorialProject(lang: TutorialLang): TutorialBuild {
   checkProgressAgainstBaseline(b);
   b.calculate('tut-6');
   const f6 = b.facts();
-  // F2-tussenstand; F3 → 2027-08-31T12:00 (§3.14): de dagenloper telt het dagdeel nog niet.
-  if (f6.finish !== '2027-08-30T16:00') fail(lang, `tut-6: onverwacht F2-einde ${f6.finish}`);
+  // F3c-tussenstand (B2, F3c-motor → doel 2027-08-31T12:00, §3.14). De belasting en de nivelleerder
+  // tellen het dagdeel al (F3c deel 3); de motor plaatst een dagtaak nog als hele dagen. Daardoor
+  // overlapt de belasting van een voorganger met de eerste dag van zijn opvolger, en schuift de
+  // nivelleerder het buitenblad verder dan nodig. F2 gaf 2027-08-30T16:00.
+  if (f6.finish !== '2027-08-31T16:00') fail(lang, `tut-6: onverwacht F3c-einde ${f6.finish}`);
   if (f6.counts.baselines !== 1) fail(lang, 'tut-6: geen basisplanning');
   const s6 = b.snapshot('na-tut-6');
   stages.push(s6);

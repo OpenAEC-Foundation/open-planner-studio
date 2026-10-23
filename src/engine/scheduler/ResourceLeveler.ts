@@ -56,6 +56,7 @@ import {
 import { placementFollowsSpan, type PlacementResult } from './workPlacement';
 import { createTaskEngineCache } from './taskEngineCache';
 import { isPinnedComplete, isPinnedInProgress } from './duration';
+import { workdayDateOfInstant } from '@/engine/calendar/workdayRules';
 import { parseDate, parseInstant, formatDate, formatInstant, addCalendarDays, diffCalendarDays } from '@/utils/dateUtils';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
@@ -260,22 +261,54 @@ export function levelResources(
   //
   // MOMENTEN (spec §3.11): de eerste kandidaat is de PF zelf, genormaliseerd naar een werkmoment
   // (`nextWorkInstant`: een blokeinde ma 16:00 wordt di 08:00 — dat is geen capaciteitsvertraging).
-  // Elke volgende kandidaat is het eerste werkmoment van de volgende werkdag, gerekend vanaf de
-  // eerste dag waarop de vorige kandidaat werkt (een nachtblok hoort bij de dag waarop het begint).
-  // Nivelleren op uurniveau is niet nodig. Een kalender zonder werkblokken (dagmodus) houdt de
-  // dagstappen.
+  // Kandidaat k slaat k hele werkdagen over (`candidateAxis`). Nivelleren op uurniveau is niet nodig.
+  // Een kalender zonder werkblokken (dagmodus) houdt de dagstappen.
   const nextCandidateFor = (task: Task, d: Date): Date => {
     if (task.time.durationType === 'ELAPSEDTIME') return d;
     const eng = engineForTask(task);
     return eng.isHourMode ? eng.nextWorkInstant(d) : eng.nextWorkDay(parseDate(formatDate(d)));
   };
-  const nextCandidateAfterFor = (task: Task, d: Date, firstDayIso?: string): Date => {
-    if (task.time.durationType === 'ELAPSEDTIME') return addCalendarDays(d, 1);
+  /**
+   * De kandidaat-as vanaf PF: kandidaat k slaat k werkdagen over (spec §3.11: "de nivelleerder schrijft
+   * een vertraging als de werkminuten van de overgeslagen werkdagen op de taakkalender").
+   *  - Werktijd met werkblokken: de overgeslagen dagen zijn de werkdag van de eerste kandidaat en de
+   *    werkdagen erna, elk met zijn eigen werkminuten (een korte vrijdag telt 360). `minutes(k)` is hun
+   *    som; kandidaat k is de eerste kandidaat plus die werkminuten (`addWorkingMinutesSigned`), met N2:
+   *    een blokeinde wordt het volgende blokbegin. Dat is precies wat de solver met de opgeslagen
+   *    vertraging doet (`shiftByLevelingDelay` + `snapSuccessorEarlyStart`), dus kandidaat = opgeslagen
+   *    vertraging = toepassing (acceptatie-eis 1 van F3b). Voorbeeld korte vrijdag: wo 14:00 → do 14:00
+   *    (480) → ma 08:00 (960: do 14:00 + 480 = do 15:00, vr 6 u, ma 1 u).
+   *  - Kalendertijd: per kalenderdag; `minutes(k)` = k × 1440.
+   *  - Dagmodus: per werkdag (`nextWorkDayAfter`), zonder minuten.
+   */
+  const candidateAxis = (task: Task, pf: Date): { at: (k: number) => Date; minutes: (k: number) => number } => {
     const eng = engineForTask(task);
-    const day = eng.nextWorkDayAfter(parseDate(firstDayIso ?? formatDate(d)));
-    if (!eng.isHourMode) return day;
-    const bands = eng.effectiveBandsOn(day);
-    return bands.length > 0 ? new Date(day.getTime() + bands[0].start * 60_000) : eng.nextWorkInstant(day);
+    const elapsed = task.time.durationType === 'ELAPSEDTIME';
+    const first = nextCandidateFor(task, pf);
+    const starts: Date[] = [first];
+    const sums: number[] = [0];
+    let skip = !elapsed && eng.isHourMode ? workdayDateOfInstant(eng, first, 'start') : null;
+    const fill = (k: number): void => {
+      while (starts.length <= k) {
+        const prev = starts[starts.length - 1];
+        if (elapsed) {
+          starts.push(addCalendarDays(prev, 1));
+          sums.push(sums[sums.length - 1] + 1440);
+        } else if (skip === null) {
+          starts.push(eng.nextWorkDayAfter(prev));
+          sums.push(Number.NaN);
+        } else {
+          const sum = sums[sums.length - 1] + eng.effectiveBandsOn(skip).reduce((acc, b) => acc + b.end - b.start, 0);
+          skip = eng.nextWorkDayAfter(skip);
+          sums.push(sum);
+          starts.push(eng.nextWorkInstant(eng.addWorkingMinutesSigned(first, sum)));
+        }
+      }
+    };
+    return {
+      at: k => { fill(k); return starts[k]; },
+      minutes: k => { fill(k); return sums[k]; },
+    };
   };
 
   const capacityOf = (resId: string, iso: string): number => {
@@ -581,7 +614,7 @@ export function levelResources(
   // Dit is een ONDERGRENS-argument, geen exacte garantie. Twee
   // redenen waarom de kandidaat-scan méér STAPPEN kan nodig hebben dan `totalWork` (in werkdagen)
   // suggereert:
-  //  - ELAPSEDTIME-kandidaten stappen per KALENDERdag (`nextCandidateAfterFor`), niet per werkdag —
+  //  - ELAPSEDTIME-kandidaten stappen per KALENDERdag (`candidateAxis`), niet per werkdag —
   //    de horizon in KALENDERDAGEN is dus krapper dan in werkdagen (ruwweg 5/7 van `scanLimit`
   //    werkdagen-equivalent aan kalenderdagen-stappen, bij een ma-vr-kalender): elke week kost twee
   //    "verspilde" stappen (za/zo) die geen werkdag opleveren.
@@ -739,6 +772,7 @@ export function levelResources(
     const pickedTask = taskById.get(pick)!;
 
     let startDate: Date;
+    let skipped = 0;
     let slotUnresolved: string[] = [];
     let slotReason: LevelingReason | undefined;
     if (pinnedSet.has(pick)) {
@@ -756,6 +790,7 @@ export function levelResources(
       const limit = windowLimit(pick);
       const slot = findSlot(pick, pf, limit);
       startDate = slot.start;
+      skipped = slot.skipped;
       slotUnresolved = slot.unresolved;
       slotReason = slot.reason;
       // `findSlot` leverde een onderbroken plaatsing i.p.v. een aaneengesloten venster. De gaten
@@ -781,18 +816,14 @@ export function levelResources(
     // verdeler.
     bookDemandAt(pick, startDate, slotUnresolved.length === 0);
     placedStartIso.set(pick, formatInstant(startDate, 'hour'));
-    // De vertraging, gemeten zoals `CPMSolver.forwardPass`'s `shiftByLevelingDelay` haar straks
-    // TOEPAST (spec §3.11): `delayMinutes` gaat vóór `levelingDelay`.
-    //  - WORKTIME: de werkminuten tussen PF en het gekozen moment op de TAAKkalender — de werktijd van
-    //    de overgeslagen (deel)dagen. De solver telt ze op (`addWorkingMinutesSigned`) en zet een
-    //    blokeinde op het volgende blokbegin (N2), dus de toepassing landt exact op de kandidaat
-    //    (PF wo 14:00, kandidaat ma 07:00 op een korte vrijdag: 60 + 480 + 360 = 900 minuten).
-    //    Normalisatie van PF naar het volgende blok telt 0 minuten: geen capaciteitsvertraging.
-    //    `delays` blijft de afstand in hele werkdagen op dezelfde kalender (minimaal 1 zodra er
-    //    minuten zijn: de solver past de minuten bij een wortel-taak alleen toe naast een
-    //    `levelingDelay`); hij verdwijnt in F6.
-    //  - ELAPSEDTIME: kale KALENDERdagen, 24/7 — `diffCalendarDays` tussen pf en startDate, en dezelfde
-    //    afstand in klokminuten (`addElapsedMinutes`).
+    // De vertraging, zoals `CPMSolver.forwardPass`'s `shiftByLevelingDelay` haar straks TOEPAST
+    // (spec §3.11): `delayMinutes` gaat vóór `levelingDelay`. Beide komen van de kandidaat-as
+    // (`candidateAxis`): `skipped` overgeslagen werkdagen, en hun werkminuten op de TAAKkalender.
+    //  - WORKTIME met werkblokken: `delays` = het aantal overgeslagen werkdagen, `delayMinutes` = hun
+    //    werkminuten. De solver telt de minuten op (`addWorkingMinutesSigned`) en zet een blokeinde op
+    //    het volgende blokbegin (N2): hij landt exact op de kandidaat. Normalisatie van PF naar het
+    //    volgende blok telt niet: geen capaciteitsvertraging. `levelingDelay` verdwijnt in F6.
+    //  - ELAPSEDTIME: kale KALENDERdagen, 24/7, en dezelfde afstand in klokminuten (`addElapsedMinutes`).
     //  - Dagmodus (kalender zonder werkblokken): hele werkdagen, geen minuten.
     const pickEngine = engineForTask(pickedTask);
     let delay = 0;
@@ -801,12 +832,9 @@ export function levelResources(
       delay = diffCalendarDays(pf, startDate);
       delayMin = delay > 0 ? Math.round((startDate.getTime() - pf.getTime()) / 60_000) : undefined;
     } else if (pickEngine.isHourMode) {
-      const minutes = Math.round(pickEngine.workMinutesBetween(pf, startDate));
-      if (minutes > 0) {
-        delayMin = minutes;
-        const pfDay = demandAt(workById.get(pick)!, nextCandidateFor(pickedTask, pf)).days[0] ?? formatDate(pf);
-        const startDay = demandAt(workById.get(pick)!, startDate).days[0] ?? formatDate(startDate);
-        delay = Math.max(1, pickEngine.workDaysBetween(parseDate(pfDay), parseDate(startDay)) - 1);
+      if (skipped > 0) {
+        delay = skipped;
+        delayMin = Math.round(candidateAxis(pickedTask, pf).minutes(skipped));
       }
     } else {
       delay = pickEngine.workDaysBetween(parseDate(formatDate(pf)), parseDate(formatDate(startDate))) - 1;
@@ -880,7 +908,7 @@ export function levelResources(
    *  blijf op de gesnapte PF (mét conflict) en meld de conflictdagen + reden.
    *
    *  Twee assen moeten gelijk lopen met de rest van de nivelleerder:
-   *   - de kandidaat-AS (`cand`/`next`) loopt via `nextCandidateFor`/`nextCandidateAfterFor` —
+   *   - de kandidaat-AS (`cand`/`next`) loopt via `candidateAxis` (k overgeslagen werkdagen) —
    *     dezelfde taakkalender/ELAPSEDTIME-kalenderdagen-as als de delay-meting in de hoofdlus
    *     (anders een spookvertraging bij nul druk voor een taak op een afwijkende kalender);
    *   - de dagen én de vraag per kandidaat komen uit `demandAt`, GEDEELD met `bookDemandAt`, zodat
@@ -890,7 +918,7 @@ export function levelResources(
     taskId: string,
     pf: Date,
     limit: Date | null,
-  ): { start: Date; unresolved: string[]; reason?: LevelingReason; scatterGaps?: TaskSplitGap[] } {
+  ): { start: Date; skipped: number; unresolved: string[]; reason?: LevelingReason; scatterGaps?: TaskSplitGap[] } {
     // `task` komt uit `workById`, niet `taskById` — `findSlot` wordt uitsluitend
     // aangeroepen voor movable/vastgepinde (dus per definitie IN-SCOPE) taken, dus dit is precies de
     // GESTRIPTE baseline. Zonder deze wissel zou `demandAt` hieronder een leveling-gat uit een
@@ -904,7 +932,9 @@ export function levelResources(
     // `reasonFor` wordt nooit geraakt.
     poolBlockedOnly = ledger !== undefined;
 
-    let cand = nextCandidateFor(task, pf);
+    const axis = candidateAxis(task, pf);
+    let k = 0;
+    let cand = axis.at(0);
 
     // CEILING_UNREACHABLE: staat er een plafond, en ligt de EERSTE
     // kandidaat (= `cand` hierboven, dezelfde waarde als `nextCandidateFor(task, pf)`) er al
@@ -941,14 +971,15 @@ export function levelResources(
       // eist dat ELKE vraagdag een resource-werkdag heeft, wat geval 4's bewuste min-klem (een
       // vraag-array die langer is dan `occ`, `i < arr.length && i < occ.length`) ten onrechte zou laten
       // afketsen. `occ.length > 0` is de minimale, correcte voorwaarde: er moet gewoon IETS te boeken zijn.
-      if (occ.length > 0 && fits(byRes, occ)) return { start: cand, unresolved: [] };
-      const next = nextCandidateAfterFor(task, cand, occ[0]);
+      if (occ.length > 0 && fits(byRes, occ)) return { start: cand, skipped: k, unresolved: [] };
+      const next = axis.at(k + 1);
       if (limit && next > limit) break; // venstergrens (float/plafond) — geen slot, geen horizon-uitputting
       // De venstergrens (hierboven) wint van de horizon — een plafond is een gebruikerskeuze, de
       // horizon een rekengrens. Zonder grootboek-horizon (`horizonDate === null`) stopt dit exact bij
       // `guard === scanLimit`.
       if (guard >= scanLimit && !(horizonDate && next <= horizonDate)) { horizonExhausted = true; break; }
       cand = next;
+      k++;
     }
     if (guard >= HARD_SCAN_CAP) horizonExhausted = true; // vangrail: ook dít is een uitputting, geen venstergrens
 
@@ -961,9 +992,9 @@ export function levelResources(
     // plaatsing. Gebonden door `finishWindowLimit` (de FINISH-versie van het plafond, niet de
     // start-`limit` hierboven) — zie het docblok daar.
     if (splitEligible(task) && engineForTask(task).isHourMode) {
-      const scatter = scatterSlot(task, pf, finishWindowLimit(taskId));
+      const scatter = scatterSlot(task, axis, finishWindowLimit(taskId));
       if (scatter.gaps && scatter.start) {
-        return { start: scatter.start, unresolved: [], scatterGaps: scatter.gaps };
+        return { start: scatter.start, skipped: scatter.skipped, unresolved: [], scatterGaps: scatter.gaps };
       }
       // De scatter is de LAATSTE poging. Liep díé op de zoekhorizon
       // leeg — en niet op de venstergrens — dan is de horizon de eerlijke reden, ook wanneer de
@@ -974,7 +1005,7 @@ export function levelResources(
 
     // Geen slot: blijf op de gesnapte PF, verzamel de conflictdagen (waar de vraag de restcapaciteit
     // overschrijdt) — dezelfde dagen en vraag (`demandAt`) als de boeking straks gebruikt.
-    const snappedPf = nextCandidateFor(task, pf);
+    const snappedPf = axis.at(0);
     const { days: occ, byRes } = demandAt(task, snappedPf);
     const conflicts: string[] = [];
     for (const [resId, arr] of byRes) {
@@ -995,6 +1026,7 @@ export function levelResources(
     }
     return {
       start: snappedPf,
+      skipped: 0,
       unresolved: [...new Set(conflicts)].sort(),
       reason: reasonFor(byRes, calendarFeasibleSeen, ceilingSet, ceilingUnreachable, horizonExhausted),
     };
@@ -1128,16 +1160,17 @@ export function levelResources(
    *  evt. verlengd door de grootboekhorizon) in plaats van op de venstergrens, dan is dat een
    *  REKENgrens en geen capaciteits- of plafondprobleem. */
   function scatterSlot(
-    task: Task, pf: Date, finishLimit: Date | null,
-  ): { gaps: TaskSplitGap[] | null; start?: Date; horizonExhausted: boolean } {
+    task: Task, candidates: ReturnType<typeof candidateAxis>, finishLimit: Date | null,
+  ): { gaps: TaskSplitGap[] | null; start?: Date; skipped: number; horizonExhausted: boolean } {
     const engine = engineForTask(task);
-    let start = nextCandidateFor(task, pf);
+    let skipped = 0;
+    let start = candidates.at(0);
     let gaps: TaskSplitGap[] = [...(task.splitGaps ?? [])];
     const horizonDate = ledger?.horizonIso ? parseDate(ledger.horizonIso) : null;
     for (let scan = 0; scan < HARD_SCAN_CAP; scan++) {
       const candidate = computeDemand({ ...task, splitGaps: gaps.length > 0 ? gaps : undefined }, start);
       const placedCandidate = candidate.placed;
-      if (!placedCandidate || candidate.days.length === 0) return { gaps: null, horizonExhausted: false };
+      if (!placedCandidate || candidate.days.length === 0) return { gaps: null, skipped, horizonExhausted: false };
       // Past hij, dan is dit de plaatsing — ook als alleen de start verschoof (het einde bleef binnen
       // het plafond, terwijl de aaneengesloten scan op de STARTgrens stopte).
       // `dayFits` per dag in plaats van `fits`: dezelfde twee toetsen, maar zonder de reden-sturing
@@ -1148,15 +1181,15 @@ export function levelResources(
       // plaatsing nog veranderen, en elke pause schuift het einde verder op. Zo bereikt de scan de
       // zoekhorizon op dezelfde dag als de aaneengesloten scan (bevinding B8 hierboven).
       if (index < 0) {
-        if (finishLimit && placedCandidate.finish > finishLimit) return { gaps: null, horizonExhausted: false };
-        return { gaps, start, horizonExhausted: false };
+        if (finishLimit && placedCandidate.finish > finishLimit) return { gaps: null, skipped, horizonExhausted: false };
+        return { gaps, start, skipped, horizonExhausted: false };
       }
       const day = placedCandidate.days[index];
-      if (finishLimit && parseDate(day.iso) > finishLimit) return { gaps: null, horizonExhausted: false };
+      if (finishLimit && parseDate(day.iso) > finishLimit) return { gaps: null, skipped, horizonExhausted: false };
       const axis = day.ranges[0].afterMinutes;
       if (axis === 0) {
         // Vóór het eerste werk: uitstel, geen split met een ongeldig openingsgat.
-        start = nextCandidateAfterFor(task, start, candidate.days[0]);
+        start = candidates.at(++skipped);
       } else {
         const pause = engine.effectiveBandsOn(parseDate(day.iso)).reduce((sum, b) => sum + b.end - b.start, 0);
         // Een pauze direct na een eerdere nivelleerpauze verlengt die pauze: één gat per
@@ -1170,10 +1203,10 @@ export function levelResources(
       // Zelfde tweetrapsgrens als `findSlot`: `scanLimit` is de gewone ondergrens, een
       // grootboekhorizon mag hem verlengen. `HARD_SCAN_CAP` blijft uitsluitend de vangrail.
       if (scan + 1 >= scanLimit && !(horizonDate && parseDate(day.iso) <= horizonDate)) {
-        return { gaps: null, horizonExhausted: true };
+        return { gaps: null, skipped, horizonExhausted: true };
       }
     }
-    return { gaps: null, horizonExhausted: true };
+    return { gaps: null, skipped, horizonExhausted: true };
   }
 }
 

@@ -104,22 +104,24 @@ function levelFixture(label: string, source: Task[], cal: WorkCalendar, expected
 }
 
 // Eis 1, korte vrijdag (B1, §3.11 + eis 1). `fixed` bezet wo 14-15 (0,125) en heel do. `t` (8 u) past
-// niet op wo 14:00 en niet op do 07:00; vr 07:00 geeft vr 0,75 + ma 0,25 en past. De vertraging is de
-// werktijd wo 14:00 → vr 07:00 (1 u + 8 u = 540 min); de solver landt daarmee op do 15:00 en snapt
-// naar vr 07:00, precies de getoetste kandidaat. Vóór F3c: hele dagen, vertraging 1 en een
-// boeking die niet gelijk was aan het histogram.
+// niet op wo 14:00. Kandidaat k slaat k werkdagen over, elk met zijn eigen werkminuten: wo (480) geeft
+// do 14:00, botst; wo + do (960) geeft do 14:00 + 480 = do 15:00 + vr 6 u + ma 1 u = ma 08:00. Daar past
+// `t` (ma 0,875 + di 0,125). De solver telt dezelfde 960 minuten op en landt op ma 08:00: kandidaat =
+// opgeslagen vertraging = toepassing. `later` (lagere prioriteit) wijkt daarna één werkdag (480).
+// Gevolg van de regel: de vrije vrijdagochtend is geen kandidaat. Vóór F3c: hele dagen, vertraging 1
+// zonder minuten, en een boeking die niet gelijk was aan het histogram.
 levelFixture('korte vrijdag: kandidaat en solvertoepassing', [
   task('fixed', '2026-06-03T14:00', '2026-06-04T15:00', 1.125, { priority: 1000 }),
   task('t', '2026-06-03T14:00', '2026-06-04T14:00', 1, { priority: 600 }),
   task('later', '2026-06-09T07:00', '2026-06-09T15:00'),
 ], shortFriday, {
-  delays: { t: 2 }, delayMinutes: { t: 540 },
-  load: { '2026-06-03': 0.125, '2026-06-04': 1, '2026-06-05': 0.75, '2026-06-08': 0.25, '2026-06-09': 1 },
+  delays: { t: 2, later: 1 }, delayMinutes: { t: 960, later: 480 },
+  load: { '2026-06-03': 0.125, '2026-06-04': 1, '2026-06-08': 0.875, '2026-06-09': 0.125, '2026-06-10': 1 },
   final: [['fixed', '2026-06-03T14:00', '2026-06-04T15:00'],
-    ['t', '2026-06-05T07:00', '2026-06-08T09:00'], ['later', '2026-06-09T07:00', '2026-06-09T15:00']],
+    ['t', '2026-06-08T08:00', '2026-06-09T08:00'], ['later', '2026-06-10T07:00', '2026-06-10T15:00']],
 });
 // Eis 2, dagtaak onder OPS (dagenmaat): 1 werkdag is op vrijdag de hele korte dag (vr 07:00-13:00 = 1).
-// Alleen de minuten zijn nieuw (B1, §3.11): ma 07:00 → vr 07:00 = 4 × 480.
+// Alleen de minuten zijn nieuw (B1, §3.11): ma, di, wo en do overgeslagen = 4 × 480.
 levelFixture('dagtaak met tijdstippen', [
   task('fixed', '2026-06-01T07:00', '2026-06-04T15:00', 4, { priority: 1000 }),
   task('t', '2026-06-01T07:00', '2026-06-01T15:00', 1, { time: { durationUnit: 'days', durationMinutes: undefined } }),
@@ -165,10 +167,11 @@ levelFixture('lopende taak met berekende spanne', [
 
 // Vraag per kandidaat (§3.11, review ronde 2 punt 6; regressie uit de opdracht). `blok` bezet vr
 // (0,75), `last` ma 07:00-09:00 (0,25). `t` (8 u, inzet 1) wil vr 07:00. Vanaf vr: vr 0,75 + ma 0,25,
-// botst op vr. Vanaf ma 07:00: ma 1 + bestaande 0,25 = 1,25 > 1, dus geweigerd. Met de oude vorm
+// botst op vr. Vr overslaan (360) geeft vr 13:00, een blokeinde, dus ma 07:00 (N2). Vanaf ma 07:00:
+// ma 1 + bestaande 0,25 = 1,25 > 1, dus geweigerd. Met de oude vorm
 // (de vraag van de eerste kandidaat verschoven: ma 0,75 + di 0,25) keurde de toets ma 1,0 goed,
-// terwijl de geplaatste taak 1,25 boekt. Eerste passende kandidaat: di 07:00. Na toepassen zijn
-// boeking en histogram per dag gelijk.
+// terwijl de geplaatste taak 1,25 boekt. Eerste passende kandidaat: di 07:00 (vr + ma overgeslagen,
+// 360 + 480 = 840 minuten). Na toepassen zijn boeking en histogram per dag gelijk.
 levelFixture('vraag per kandidaat: ma 07:00 geweigerd', [
   task('blok', '2026-06-05T07:00', '2026-06-05T13:00', 0.75, { priority: 1000 }),
   task('last', '2026-06-08T07:00', '2026-06-08T09:00', 0.25, { priority: 1000 }),
