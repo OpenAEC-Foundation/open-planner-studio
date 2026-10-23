@@ -1511,6 +1511,7 @@
     "taskGrid.validation.calendarNotFound": "cc35a4f4049e2ba8",
     "taskGrid.validation.calendarHours": "0e4f9371df9ceea2",
     "taskGrid.validation.durationConversionNotExact": "0f8af8c25c438754",
+    "taskGrid.validation.fixedWorkIsHours": "8804d308ea3d1a69",
     "taskGrid.validation.milestoneRequired": "b1642a04049639e1",
     "taskGrid.validation.milestoneUnavailable": "05e01936d3bf1227",
     "taskGrid.validation.actualAfterStatusDate": "3b520c3b9238328d",

@@ -533,6 +533,8 @@ export function buildTaskEditPlanEnvironment(state: AppState, task: Task): TaskE
     // bouwer, zodat óók de voortgangsimport en de
     // store-`planTaskCellEdits`-paden hem krijgen — niet alleen de rastercelbewerking.
     contourKeepsWork: contourKeepsWork(task, state.project.defaultWorkRule),
+    // B1a: de effectieve werkregel (vast werk ⇒ urenmaat) ziet ook de projectstandaard.
+    defaultWorkRule: state.project.defaultWorkRule,
   };
 }
 
@@ -825,7 +827,11 @@ function applyCellEdits(
     // Een typewissel in het raster legt — net als
     // `setTaskWorkRule` — onder een werkbeschermende regel het huidige restwerk vast.
     if (state.tasks[taskIndex].workRule !== workRuleBefore) {
-      settleRuleChange(state.tasks[taskIndex], state.assignments, state, state.tasks[taskIndex].workRule);
+      // Een maatwijziging (B1a: vast werk maakt een dagenmaat-taak urenmaat) is planning: de modus
+      // "datums zoals opgeslagen" gaat uit en de planning wordt verouderd (spec §5.2, geval 11c).
+      if (settleRuleChange(state.tasks[taskIndex], state.assignments, state, state.tasks[taskIndex].workRule).durationUnitChanged) {
+        scheduleStale = true;
+      }
       state.taskTypesVisible = true;
     }
   }

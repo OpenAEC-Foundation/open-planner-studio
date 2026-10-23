@@ -182,7 +182,7 @@ for (const excluded of ['milestone', 'summary', 'hammock', 'elapsed'] as const) 
   task.time.completion = 0.32;
   const before = { ...task.time };
   task.time.scheduleDuration = 6;
-  carryRemainingThroughDurationEdit(task, before, 8, undefined);
+  carryRemainingThroughDurationEdit(task, before, 8, undefined, undefined);
   near('duurbewerking: rest 3,4 + 1', task.time.remainingTime, 4.4);
   near('duurbewerking: verricht 1,6d blijft', task.time.completion * 6, 1.6);
 }

@@ -1038,8 +1038,10 @@ const inMode = (ifcText: string): ImportResult => ({ ...offerOnly(ifcText), reco
     S().updateTask(bId, { taskType: huidig === 'LOGISTIC' ? 'MOVE' : 'LOGISTIC', customTaskTypeId: undefined });
     eq('9D-7a taaktype via updateTask: modus blijft, niet verouderd, datum blijft',
       [S().datesAsRecorded, S().scheduleStale, earlyStartOf(bId)], [true,false,"2026-03-16T07:00"]);
+    // Alleen uren B1a (spec §3.2): vast werk maakt een dagenmaat-taak urenmaat, en die maatwijziging is
+    // planning (§5.2, geval 11c). De datumneutrale wissel hier is daarom een regel zonder maatwijziging.
     const regel = S().tasks.find((t) => t.id === bId)!.workRule;
-    S().updateTask(bId, { workRule: regel === 'FIXED_WORK' ? 'FIXED_DURATION_WORK' : 'FIXED_WORK' });
+    S().updateTask(bId, { workRule: regel === 'FIXED_DURATION_WORK' ? 'FIXED_RATE' : 'FIXED_DURATION_WORK' });
     eq('9D-7b werkregel via updateTask: modus blijft, niet verouderd, datum blijft',
       [S().datesAsRecorded, S().scheduleStale, earlyStartOf(bId), S().tasks.find((t) => t.id === bId)!.workRule !== regel],
       [true,false,"2026-03-16T07:00",true]);

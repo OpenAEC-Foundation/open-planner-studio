@@ -575,8 +575,11 @@ export function settleAssignmentRemoved(
 }
 
 export interface RuleChangeWriteBack extends TriangleWriteBack {
-  /** Feitelijke maatwijziging (B1a). De aanroeper behandelt dit als planningsbewerking:
-   *  modus verlaten, planning verouderd, doorrekenen en undo vallen onder F3c (§5.2, geval 11c). */
+  /** Feitelijke maatwijziging (B1a). De aanroeper behandelt dit als planningsbewerking (spec §5.2,
+   *  geval 11c): de modus "datums zoals opgeslagen" gaat uit en de planning wordt verouderd, in
+   *  dezelfde undo-stap als de wissel (`markDateMutation` via `finishMutation`). Het doorrekenen volgt
+   *  daarna de gewone regel: in de UI `useExitRecordedDates` na het verlaten van de modus, in MCP de
+   *  transactie zelf (`recordedDateRuleChange` telt de wissel dan niet als datumneutraal). */
   durationUnitChanged: boolean;
 }
 
@@ -610,6 +613,46 @@ export function settleRuleChange(
     ? applyTriangleResult(task, assignments, captured.state, result.state, captured.ctx, { actualWork: captured.actualWork })
     : NO_CHANGE;
   return { ...written, durationUnitChanged };
+}
+
+/**
+ * B1a (spec §3.2, §3.12): vast werk is altijd urenmaat. Een duur in werkdagen op een taak onder vast
+ * werk gaat naar de urenbron: minuten = werkdagen × werktijd per dag van de taakkalender (T14), en de
+ * taak blijft (of wordt) urenmaat. "5d" geeft zo 5 × de werktijd per dag; geen invoer maakt de taak
+ * dagenmaat.
+ *
+ * Een duur in werkdagen is: de bewerking zet de maat op dagen, of verandert `scheduleDuration`
+ * zonder `durationMinutes`. Een bewerking die de duur niet raakt, verandert niets (een naam
+ * wijzigen zet een oude dagtaak onder vast werk dus niet om). `task` is de taak zoals de bewerking
+ * haar achterlaat (de regel en de mijlpaalvlag van ná de bewerking); `after` is haar nieuwe tijd en
+ * wordt hier gemuteerd, vóór het schrijven. Geeft `true` als de duur naar de urenbron ging.
+ * Eén regel voor store (`updateTask`), raster (`gridTransaction`) en de MCP-draft.
+ */
+export function routeFixedWorkDurationToHours(
+  task: Task,
+  before: TaskTime,
+  after: TaskTime,
+  defaultWorkRule: WorkRule | undefined,
+  hoursPerDay: number,
+): boolean {
+  if (effectiveWorkRule(task, defaultWorkRule) !== 'FIXED_WORK') return false;
+  if (!workRuleApplies({ ...task, time: after })) return false;
+  if (!(Number.isFinite(hoursPerDay) && hoursPerDay > 0)) return false;
+  const daysInput = after.durationUnit === 'days'
+    ? before.durationUnit !== 'days' || after.scheduleDuration !== before.scheduleDuration
+    : after.durationMinutes === before.durationMinutes && after.scheduleDuration !== before.scheduleDuration;
+  if (!daysInput || !Number.isFinite(after.scheduleDuration) || after.scheduleDuration < 0) return false;
+  const slot = hoursPerDay * 60;
+  after.durationUnit = 'hours';
+  after.durationMinutes = after.scheduleDuration * slot;
+  after.scheduleDuration = after.durationMinutes / slot;
+  return true;
+}
+
+/** De drie duurvelden van een tijd, om de urenbron van {@link routeFixedWorkDurationToHours} in een
+ *  patch over te nemen. */
+export function hourSourceOf(time: TaskTime): Pick<TaskTime, 'durationUnit' | 'durationMinutes' | 'scheduleDuration'> {
+  return { durationUnit: time.durationUnit, durationMinutes: time.durationMinutes, scheduleDuration: time.scheduleDuration };
 }
 
 /**
