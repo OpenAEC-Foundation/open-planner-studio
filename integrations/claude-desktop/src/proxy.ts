@@ -21,8 +21,9 @@
 //   - Sessieverlies (404: app herstart), ontdekt door welk bericht ook (ook een ping of notificatie):
 //     hij opent een nieuwe sessie met de oorspronkelijke `initialize`-parameters en herhaalt een
 //     leesrequest. Wijzigende tools blijven daarna geweigerd ("not carried out"), ook die al in de
-//     wachtrij stonden, tot een leestool het actieve plan heeft getoond: het drift-anker van de oude
-//     sessie is weg, dus een wijziging kon anders op een ander document landen.
+//     wachtrij stonden, tot een geslaagde `planner_switch_document` het anker van de nieuwe sessie
+//     expliciet vastlegt. Het drift-anker van de oude sessie is weg; een leestool bindt geen anker,
+//     dus zonder die keuze landde een wijziging op het document dat toevallig actief is.
 //   - Een annulering (`notifications/cancelled`) wordt direct bij ontvangst vastgelegd; een geannuleerde
 //     aanvraag die nog in de wachtrij stond, gaat nooit naar de bridge.
 //   - De toollijst wisselt tussen de plannertools en de statustool; bij elke wissel krijgt de client
@@ -75,17 +76,21 @@ export function failureMessage(failure: ProxyFailure, port: number, settings: st
 }
 
 /**
+ * De enige tool die na sessieverlies de blokkade opheft: hij kiest expliciet een document en bindt het
+ * drift-anker van de sessie daaraan (`bindExpectedDoc` in `src/services/mcp/tools/runtime.ts`). Een
+ * leestool bindt geen anker; de eerste wijziging zou het lege anker anders aan het dan actieve document binden.
+ */
+export const DOCUMENT_CHOICE_TOOL = 'planner_switch_document';
+
+/**
  * Fout voor een wijzigende tool na sessieverlies. Het drift-anker van de oude sessie is weg; een nieuwe
  * sessie zou een wijziging aan het document binden dat nu actief is, ook als het gesprek over een ander
- * document ging. Daarom blijven wijzigingen geblokkeerd tot het model het plan opnieuw heeft gelezen.
+ * document ging. Daarom blijven wijzigingen geblokkeerd tot het model expliciet een document kiest.
  */
 export const SESSION_RESET_MESSAGE =
   'The connection to Open Planner Studio was reset (the app or its MCP bridge restarted), so this change was NOT carried out. '
-  + 'Another plan may be active now. Changes stay blocked until you read the active plan again: call planner_get_project_info, '
-  + 'check that it is the plan you want to change, then send the change again.';
-
-/** Leestools die het actieve plan niet tonen en dus de blokkade na sessieverlies niet opheffen. */
-const NOT_A_PLAN_CHECK = new Set(['planner_get_planning_guide']);
+  + 'Another document may be active now. Changes stay blocked until you choose the document explicitly: call '
+  + `planner_list_documents, pick the document you mean, confirm it with ${DOCUMENT_CHOICE_TOOL}, then send the change again.`;
 
 export interface BridgeProxyOptions {
   port: number;
@@ -151,8 +156,9 @@ export function createBridgeProxy(opts: BridgeProxyOptions, send: (message: JSON
   let toolsShown: 'planner' | 'status' | null = null;
   /**
    * Gezet zodra een sessie verloren ging (404), ongeacht welk bericht dat ontdekte. Zolang hij staat,
-   * weigert de proxy elke wijzigende tool, ook aanvragen die al in de wachtrij stonden. Een geslaagde
-   * leestool die het actieve plan toont, heft hem op: dan heeft het model gezien welk plan actief is.
+   * weigert de proxy elke wijzigende tool, ook aanvragen die al in de wachtrij stonden. Alleen een
+   * geslaagde `planner_switch_document` heft hem op. Omdat de wachtrij strikt op volgorde loopt, zijn
+   * aanvragen die vóór die keuze binnenkwamen dan al geweigerd.
    */
   let documentCheckNeeded = false;
   /** Leestools volgens de laatste `tools/list` (`readOnlyHint`). Een onbekende tool telt als wijzigend. */
@@ -315,11 +321,11 @@ export function createBridgeProxy(opts: BridgeProxyOptions, send: (message: JSON
       rememberTools(json);
       toolsShown = 'planner';
     }
-    // Het model zag het actieve plan: wijzigingen mogen weer.
-    if (documentCheckNeeded && toolName !== null && readOnlyTools.has(toolName) && !NOT_A_PLAN_CHECK.has(toolName)
-      && isObject(json.result) && json.result.isError !== true) {
+    // Het model koos expliciet een document en de sessie is daaraan gebonden: wijzigingen mogen weer.
+    if (documentCheckNeeded && toolName === DOCUMENT_CHOICE_TOOL && isObject(json.result) && json.result.isError !== true
+      && !(isObject(json.result.structuredContent) && json.result.structuredContent.ok === false)) {
       documentCheckNeeded = false;
-      log(`active plan read with ${toolName}; changes are allowed again`);
+      log(`document chosen with ${DOCUMENT_CHOICE_TOOL}; changes are allowed again`);
     }
     await send(json as JSONRPCMessage);
   }
@@ -379,7 +385,8 @@ export function createBridgeProxy(opts: BridgeProxyOptions, send: (message: JSON
       await handleStatusTool(id);
       return;
     }
-    const mutates = toolName !== null && !readOnlyTools.has(toolName);
+    // De documentkeuze zelf mag altijd door (en na sessieverlies herhaald worden): zij heft de blokkade op.
+    const mutates = toolName !== null && !readOnlyTools.has(toolName) && toolName !== DOCUMENT_CHOICE_TOOL;
     if (mutates && documentCheckNeeded) {
       await toolError(id, SESSION_RESET_MESSAGE);
       return;

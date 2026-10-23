@@ -259,8 +259,12 @@ test('app-herstart (sessie kwijt): leestool wordt herhaald, schrijftool niet', a
     assertEq(app.store.getState().tasks.length, before, 'ook die wijziging is niet uitgevoerd');
     const info = await call(s, 'planner_get_project_info');
     assert(!info.isError && info.structured.ok === true, `plan lezen: ${info.text}`);
+    const stillBlocked = await call(s, 'planner_add_tasks', args);
+    assertEq(stillBlocked.text, SESSION_RESET_MESSAGE, 'lezen alleen heft de blokkade niet op (review r2)');
+    const chosen = await call(s, 'planner_switch_document', { documentId: app.store.getState().activeDocumentId });
+    assert(!chosen.isError && chosen.structured.ok === true, `document kiezen: ${chosen.text}`);
     const again = await call(s, 'planner_add_tasks', args);
-    assert(!again.isError && again.structured.ok === true, `schrijftool na het lezen: ${again.text}`);
+    assert(!again.isError && again.structured.ok === true, `schrijftool na de documentkeuze: ${again.text}`);
     assertEq(app.store.getState().tasks.length, before + 1, 'de herhaalde wijziging is één keer uitgevoerd');
     app.store.getState().undo();
   } finally {
@@ -293,14 +297,68 @@ test('app-herstart met een ander plan actief, ontdekt door een ping: wachtende e
     assertEq(app.store.getState().activeDocumentId, docB, 'plan B is actief');
     assertEq(app.store.getState().tasks.length, tasksB, 'niets op plan B gezet');
 
-    const info = await call(s, 'planner_get_project_info');
-    assert(!info.isError && info.structured.ok === true, `plan lezen: ${info.text}`);
+    const chosen = await call(s, 'planner_switch_document', { documentId: docB });
+    assert(!chosen.isError && chosen.structured.ok === true, `plan B kiezen: ${chosen.text}`);
     const allowed = await call(s, 'planner_add_tasks', { tasks: [{ tempId: 'tmp-c', name: 'Bewust op plan B', duration: 1 }] });
-    assert(!allowed.isError && allowed.structured.ok === true, `wijziging na het lezen: ${allowed.text}`);
+    assert(!allowed.isError && allowed.structured.ok === true, `wijziging na de documentkeuze: ${allowed.text}`);
     assertEq(app.store.getState().tasks.length, tasksB + 1, 'die ene wijziging staat op plan B');
   } finally {
     await s.client.close();
     if (docB !== null) app.store.getState().closeDocument(docB);
+    if (app.store.getState().activeDocumentId !== docA) app.store.getState().switchDocument(docA);
+  }
+});
+
+test('na sessieverlies: lezen heft niets op, alleen planner_switch_document; daarna houdt de drift-guard stand (review r2)', async () => {
+  const s = await startExtension(TOKEN, mirror.port);
+  const docA = app.store.getState().activeDocumentId;
+  const opened: string[] = [];
+  const count = () => app.store.getState().tasks.length;
+  const add = (name: string) => call(s, 'planner_add_tasks', { tasks: [{ tempId: `tmp-${name}`, name, duration: 1 }] });
+  try {
+    await toolNames(s);
+    const bind = await add('Op plan A');
+    assert(!bind.isError && bind.structured.ok === true, `sessie binden aan plan A: ${bind.text}`);
+
+    // App-herstart met plan B actief.
+    const port = mirror.port;
+    await mirror.close();
+    const docB = app.store.getState().newDocument();
+    opened.push(docB);
+    mirror = await startMirror(port);
+    const tasksB = count();
+
+    // (a) Een leesaanvraag ontdekt het verlies en wordt herhaald; de wijziging erachter wacht al.
+    const [read, waiting] = await Promise.all([call(s, 'planner_get_project_info'), add('Hoort bij plan A')]);
+    assert(!read.isError && read.structured.ok === true, `leesaanvraag na herstart: ${read.text}`);
+    assertEq(waiting.text, SESSION_RESET_MESSAGE, '(a) wachtende wijziging na een herhaalde lezing');
+    assertEq(count(), tasksB, '(a) niets op plan B');
+
+    // (b) De gebruiker opent plan C; zonder documentkeuze blijft elke wijziging geweigerd.
+    const docC = app.store.getState().newDocument();
+    opened.push(docC);
+    const tasksC = count();
+    const onC = await add('Zonder keuze');
+    assertEq(onC.text, SESSION_RESET_MESSAGE, '(b) wijziging na lezen en tabwissel');
+    assertEq(count(), tasksC, '(b) niets op plan C');
+
+    // (c) Expliciete keuze van plan B: de wijziging landt op B ...
+    const chosen = await call(s, 'planner_switch_document', { documentId: docB });
+    assert(!chosen.isError && chosen.structured.ok === true, `(c) plan B kiezen: ${chosen.text}`);
+    assertEq(app.store.getState().activeDocumentId, docB, '(c) plan B is actief');
+    assertEq(count(), tasksB, '(c) plan B is nog onaangeroerd');
+    const onB = await add('Bewust op plan B');
+    assert(!onB.isError && onB.structured.ok === true, `(c) wijziging op plan B: ${onB.text}`);
+    assertEq(count(), tasksB + 1, '(c) één taak op plan B');
+
+    // ... en wisselt de gebruiker daarna naar C, dan weigert de drift-guard van de app.
+    app.store.getState().switchDocument(docC);
+    const drift = await add('Na tabwissel');
+    assert(drift.isError && drift.structured.code === 'DOC_DRIFT', `(c) drift-guard: ${drift.text}`);
+    assertEq(count(), tasksC, '(c) niets op plan C');
+  } finally {
+    await s.client.close();
+    for (const id of opened) app.store.getState().closeDocument(id);
     if (app.store.getState().activeDocumentId !== docA) app.store.getState().switchDocument(docA);
   }
 });

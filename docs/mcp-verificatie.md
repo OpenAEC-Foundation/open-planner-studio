@@ -131,10 +131,13 @@ legt vast wat de app als MCP-server levert, wat niet, en welke test het bewijst.
    doet (`node server/index.mjs`, token en poort in `env`) en praat er met de SDK-client
    (`Client` over een eigen stdio-transport met de `ReadBuffer` van de SDK) tegen de spiegel uit punt 1: `initialize` met serverInfo en instructions van de
    bridge, `tools/list` met alle `planner_*`-tools, een leestool; een app-herstart op dezelfde poort (nieuwe
-   sessietabel): de leestool wordt herhaald en slaagt, `planner_add_tasks` wordt geweigerd tot een leestool het
-   plan heeft getoond, daarna slaagt hij één keer; een sessie gebonden aan plan A, app-herstart met plan B
-   actief, een `ping` ontdekt het verlies: de wachtende en de volgende wijziging worden geweigerd en er komt
-   niets op B; een geannuleerde wijziging achter een trage leesaanvraag bereikt de bridge nooit; Stop/Start van
+   sessietabel): de leestool wordt herhaald en slaagt, `planner_add_tasks` blijft geweigerd (ook na een
+   leestool) tot `planner_switch_document`, daarna slaagt hij één keer; een sessie gebonden aan plan A,
+   app-herstart met plan B actief, een `ping` ontdekt het verlies: de wachtende en de volgende wijziging worden
+   geweigerd en er komt niets op B; idem maar een leesaanvraag ontdekt het verlies: (a) de wijziging erachter
+   wordt geweigerd, (b) na lezen en een tabwissel naar plan C blijft elke wijziging geweigerd, (c) na
+   `planner_switch_document` naar B landt de wijziging op B en na een tabwissel weigert de drift-guard van de
+   app (`DOC_DRIFT`); een geannuleerde wijziging achter een trage leesaanvraag bereikt de bridge nooit; Stop/Start van
    de bridge met behouden sessie: statustool en terug, elk met `notifications/tools/list_changed`, en
    `initialize` kondigt altijd `listChanged` aan; fout token, geen token en een bridge die uit staat geven elk
    een heldere Engelse fout; start de app daarna, dan verbindt de bundel, stuurt
@@ -189,9 +192,12 @@ ook headless werkt en het token zelf uit `<appDataDir>/mcp/runtime.json` leest.
   niets wijzigt (alles behalve `tools/call`, en tools met `readOnlyHint: true` uit de laatste `tools/list`).
   Het drift-anker van de oude sessie is weg, dus een wijziging kon op een ander document landen. Daarom
   weigert de bundel daarna elke wijzigende tool (ook een onbekende, en ook aanvragen die al in de wachtrij
-  stonden) met "… this change was NOT carried out … call planner_get_project_info …", tot een geslaagde
-  leestool het actieve plan heeft getoond (`planner_get_planning_guide` telt niet). Na Stop/Start van de bridge
-  in de app blijft de sessie geldig; dan is er geen sessieverlies en geen blokkade.
+  stonden) met "… this change was NOT carried out … confirm it with planner_switch_document …", tot een
+  geslaagde `planner_switch_document` het anker van de nieuwe sessie expliciet vastlegt (`bindExpectedDoc`).
+  Een leestool heft niets op: hij bindt geen anker, en de eerste wijziging zou het lege anker anders aan het
+  document binden dat toevallig actief is (review ronde 2 van PR #567). `planner_switch_document` zelf mag
+  altijd door. Na Stop/Start van de bridge in de app blijft de sessie geldig; dan is er geen sessieverlies en
+  geen blokkade.
 - Annuleren (`notifications/cancelled`, ook na een time-out van de client): de bundel legt de annulering vast
   zodra hij binnenkomt, niet achter in de wachtrij. Een geannuleerde aanvraag die nog wachtte, gaat nooit naar
   de bridge en krijgt geen antwoord (MCP 2025-06-18, *cancellation*). Een aanvraag die al bij de bridge was,
