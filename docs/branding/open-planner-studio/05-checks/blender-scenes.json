@@ -1,0 +1,42 @@
+{
+  "open-planner-studio-wordmark.blend": {
+    "opens_successfully": true,
+    "objects": 37,
+    "camera": "ORTHO",
+    "dither": 0,
+    "texts": [
+      {
+        "body": "Open",
+        "font": "Space Grotesk Bold",
+        "font_packed": true
+      },
+      {
+        "body": "Planner",
+        "font": "Space Grotesk Bold",
+        "font_packed": true
+      },
+      {
+        "body": "STUDIO",
+        "font": "Space Grotesk Medium",
+        "font_packed": true
+      }
+    ],
+    "all_materials_emission": true,
+    "cube_dimensions_equal": true,
+    "one_corner_bar_closed_manifold": true,
+    "six_task_blocks": true,
+    "no_vertical_face_fill_mesh": true
+  },
+  "open-planner-studio.blend": {
+    "opens_successfully": true,
+    "objects": 34,
+    "camera": "ORTHO",
+    "dither": 0,
+    "texts": [],
+    "all_materials_emission": true,
+    "cube_dimensions_equal": true,
+    "one_corner_bar_closed_manifold": true,
+    "six_task_blocks": true,
+    "no_vertical_face_fill_mesh": true
+  }
+}
