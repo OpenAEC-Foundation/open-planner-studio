@@ -6,7 +6,7 @@ import { resolveEffectiveLagDays } from '@/engine/scheduler/CPMSolver';
 import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProject';
 import type { ProjectSolveOptions } from '@/engine/scheduler/solveInput';
 import { isElapsedTask, taskDurationUnit } from '@/engine/scheduler/duration';
-import { isActualPastStatusDate } from '@/engine/taskMutationRules';
+import { actualDateSide, isActualPastStatusDate } from '@/engine/taskMutationRules';
 import { effHoursPerDay, effectiveCalendarOf } from '@/utils/taskDuration';
 import { parseDate } from '@/utils/dateUtils';
 import { signedWorkDaysBetween } from '@/engine/variance';
@@ -385,8 +385,8 @@ export type InvalidDateReason = 'actualStartAfterStatusDate' | 'actualFinishAfte
 export function invalidDateReasons(t: Task, statusDate: string, statusDay: string, withForecast: boolean, calendar?: WorkCalendar): InvalidDateReason[] {
   const out: InvalidDateReason[] = [];
   const { actualStart, actualFinish } = t.time;
-  if (actualStart && isActualPastStatusDate(actualStart, statusDate, isElapsedTask(t) ? undefined : calendar, 'start')) out.push('actualStartAfterStatusDate');
-  if (actualFinish && isActualPastStatusDate(actualFinish, statusDate, isElapsedTask(t) ? undefined : calendar, 'end')) out.push('actualFinishAfterStatusDate');
+  if (actualStart && isActualPastStatusDate(actualStart, statusDate, isElapsedTask(t) ? undefined : calendar, actualDateSide(t, 'actualStart'))) out.push('actualStartAfterStatusDate');
+  if (actualFinish && isActualPastStatusDate(actualFinish, statusDate, isElapsedTask(t) ? undefined : calendar, actualDateSide(t, 'actualFinish'))) out.push('actualFinishAfterStatusDate');
   if (!withForecast) return out;
   const state = progressState(t);
   if (state === 'notStarted' && dayOf(taskStart(t)) < statusDay) out.push('forecastStartBeforeStatusDate');

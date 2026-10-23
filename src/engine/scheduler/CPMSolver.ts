@@ -2344,6 +2344,10 @@ export class CPMSolver {
           // D3/D7: kalendertijd en een voltooide mijlpaal bewaren het genormaliseerde feit.
           // Een eindmijlpaal op vrijdag 16:00 mag niet naar maandag 07:00 snappen.
           let ef = preserveActualInstants ? actualFinish : this.snapOnOrBefore(progressCal, actualFinish);
+          // Behoud de expliciete eindtijd bij een snap binnen dezelfde dag; weekend en bouwvak
+          // houden hun bestaande terugwaartse grens. Relatieconventies volgen pas na dit venster.
+          if (progressCal.isHourMode && t.actualFinish.includes('T')
+            && utcDayStart(ef).getTime() === utcDayStart(actualFinish).getTime()) ef = actualFinish;
           if (isZeroDurationMilestone(task)) es = ef;
           // Inversie-randgeval: het HELE geregistreerde venster valt in onwerkbare tijd (weekend,
           // bouwvak, feestdagenblok) — dan snapt de start vóóruit tot ná de finish, die achteruit

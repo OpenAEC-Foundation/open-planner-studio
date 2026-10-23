@@ -160,9 +160,10 @@ export function applyProgressInvariants(task: Task, statusDate: string | undefin
   } else if (time.completion >= 1) {
     // Eerst D6, dan pas de volgorde: een vastgelegde start om 10:00 blijft vóór het einde om 16:00.
     time.actualFinish = normalizeActualDate(task, 'actualFinish', defaultActualFinish(time, statusDate), statusDate, calendar);
-    if (!time.actualStart) time.actualStart = time.actualFinish;
-    // Afgeleid einde vóór een (vaak zelf afgeleide) start: zelfde regel als de lezers.
-    orderActualsAfterDerivedFinish(time, statusDate);
+    const startWasDerived = !time.actualStart;
+    if (startWasDerived) time.actualStart = time.actualFinish;
+    // Een aanwezige start blijft staan; alleen het afgeleide einde mag dan opschuiven.
+    orderActualsAfterDerivedFinish(time, statusDate, startWasDerived);
     task.status = 'COMPLETED';
   } else if (time.actualStart) {
     task.status = 'STARTED';

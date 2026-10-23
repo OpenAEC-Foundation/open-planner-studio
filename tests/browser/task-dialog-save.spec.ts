@@ -174,34 +174,45 @@ test('Taak bewerken: voortgang opslaan volgt dezelfde regels als het eigenschapp
     await recalculate(page);
     expect((await readTask(page, dialogId)).earlyFinish).toBe(finish);
   }
-  // Review #563: bij 100% blijft de eerder vastgelegde start op de statusdag om 10:00 staan.
-  await page.evaluate((ids) => {
-    const s = window.__OPS__!.store.getState();
-    s.setProject({ startDate: '2026-06-01', statusDate: '2026-06-03' });
-    for (const id of ids) {
-      const task = window.__OPS__!.store.getState().tasks.find(t => t.id === id)!;
-      s.updateTask(id, { status: 'STARTED', time: {
-        ...task.time, scheduleStart: '2026-06-03T08:00', durationUnit: 'hours',
-        durationMinutes: 480, scheduleDuration: 1, completion: 0.5,
-        actualStart: '2026-06-03T10:00', actualFinish: undefined,
-      } });
-    }
-    const after = window.__OPS__!.store.getState();
-    after.runCPM();
-    after.setViewStartDate('2026-06-01');
-    after.setScroll(0, 0);
-  }, [panelId, dialogId]);
-  const actualPanelPoint = await barPoint(page, panelId);
-  await page.mouse.click(actualPanelPoint.x, actualPanelPoint.y);
-  await pressSlider(page, page.locator('[data-ops-progress-slider]').first(), { end: true });
-  await expect.poll(() => readTask(page, panelId).then(t => t.completion)).toBe(1);
-  dialog = await openDialogByDoubleClick(page, dialogId);
-  await pressSlider(page, dialog.locator('[data-ops-progress-slider]'), { end: true });
-  await dialog.locator('[data-ops-task-save]').click();
-  await expect(dialog).toBeHidden();
-  for (const id of [panelId, dialogId]) expect(await readTask(page, id)).toMatchObject({
-    completion: 1, status: 'COMPLETED', actualStart: '2026-06-03T10:00', actualFinish: '2026-06-03T16:00',
-  });
+  // Review #563: bij 100% blijft een vastgelegde start staan, ook ná het afgeleide blokeinde.
+  for (const [actualStart, actualFinish] of [
+    ['2026-06-03T10:00', '2026-06-03T16:00'],
+    ['2026-06-03T18:00', '2026-06-03T18:00'],
+  ]) {
+    await page.evaluate(({ ids, actualStart }) => {
+      const s = window.__OPS__!.store.getState();
+      s.setProject({ startDate: '2026-06-01', statusDate: '2026-06-03' });
+      for (const id of ids) {
+        const task = window.__OPS__!.store.getState().tasks.find(t => t.id === id)!;
+        s.updateTask(id, { status: 'STARTED', time: {
+          ...task.time, scheduleStart: '2026-06-03T08:00', durationUnit: 'hours',
+          durationMinutes: 480, scheduleDuration: 1, completion: 0.5,
+          actualStart, actualFinish: undefined,
+        } });
+      }
+      const after = window.__OPS__!.store.getState();
+      after.runCPM();
+      after.setViewStartDate('2026-06-01');
+      after.setScroll(0, 0);
+    }, { ids: [panelId, dialogId], actualStart });
+    // Na de fixturewissel kan de vorige balkgeometrie nog staan; de rasterrij heeft een vaste plek.
+    await page.locator(`[data-grid-row-key="${panelId}"] [data-grid-column-id="task.name"]`).first().click();
+    await pressSlider(page, page.locator('[data-ops-progress-slider]').first(), { end: true });
+    await expect.poll(() => readTask(page, panelId).then(t => t.completion)).toBe(1);
+    await page.locator(`[data-grid-row-key="${dialogId}"] [data-grid-column-id="task.name"]`).first().click({ button: 'right' });
+    await page.getByRole('button', { name: /^(Edit|Bewerken)\.\.\.$/ }).click();
+    dialog = page.locator('[data-ops-task-dialog]');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.locator('[data-ops-task-name]')).toBeFocused();
+    await pressSlider(page, dialog.locator('[data-ops-progress-slider]'), { end: true });
+    await dialog.locator('[data-ops-task-save]').click();
+    await expect(dialog).toBeHidden();
+    for (const id of [panelId, dialogId]) expect(await readTask(page, id)).toMatchObject({
+      completion: 1, status: 'COMPLETED', actualStart, actualFinish,
+    });
+    await recalculate(page);
+    for (const id of [panelId, dialogId]) expect(await readTask(page, id)).toMatchObject({ actualStart, actualFinish });
+  }
   await page.screenshot({ path: 'qa/uren-f1b-status.png' });
 });
 

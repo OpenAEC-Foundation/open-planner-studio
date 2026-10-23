@@ -977,9 +977,10 @@ function readXerProject(
       if (!t.actualStart) t.actualStart = t.actualFinish;
       continue;
     }
-    if (!t.actualStart) t.actualStart = defaultActualStart(t);
+    const startWasDerived = !t.actualStart;
+    if (startWasDerived) t.actualStart = defaultActualStart(t);
     t.actualFinish = defaultActualFinish(t, statusDate);
-    orderActualsAfterDerivedFinish(t, statusDate);
+    orderActualsAfterDerivedFinish(t, statusDate, startWasDerived);
   }
 
   const wbsRows = stableWbsRows(rawWbsRows, projectId, localWbsIds);

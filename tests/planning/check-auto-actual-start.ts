@@ -8,7 +8,7 @@
 //   - daarna weigerde een meer-cellen-plak met voortgang over meerdere rijen het HELE blok zodra één
 //     rij zo'n kapot paar had (`actualFinishBeforeStart`).
 // De regel: ligt de in te vullen start later dan het werkelijke einde, dan wordt de werkelijke start
-// gelijk aan het einde — dagtaken op de dag, uurtaken exact op het einde-instant. Een expliciet
+// gelijk aan het genormaliseerde einde-instant, ook bij een dagtaak. Een expliciet
 // opgegeven werkelijke start wordt nooit stil aangepast. Eén gedeelde helper in
 // `taskMutationRules.ts` (`fillMissingActualStart`), gebruikt door raster, store, dialoog en MCP.
 //
@@ -68,12 +68,11 @@ function setup(kind: Kind, statusDate: string | undefined, rows = 1, withPredece
   return { S, ids, time$, status$ };
 }
 
-/** Voltooid op de gekozen werkdag: D1 voor de start, D2 voor het einde; momenten blijven letterlijk. */
-function expectClamped(label: string, time: TaskTime, status: string | undefined, finish: string): void {
-  const startInstant = finish.includes('T') ? finish : `${finish}T07:00`;
+/** De automatisch geklemde start is het genormaliseerde einde: D2/D6, daarna N0. */
+function expectClamped(label: string, time: TaskTime, status: string | undefined, finish: string, start?: string): void {
   const finishInstant = finish.includes('T') ? finish : `${finish}T16:00`;
-  eq(`${label}: afgeleide start en einde volgen D1/D2`,
-    { as: time.actualStart, af: time.actualFinish }, { as: startInstant, af: finishInstant });
+  eq(`${label}: werkelijke datums blijven op hun precieze momenten`,
+    { as: time.actualStart, af: time.actualFinish }, { as: start ?? finishInstant, af: finishInstant });
   eq(`${label}: geen einde vóór start`, isActualFinishBeforeStart(time), false);
   eq(`${label}: voltooid`, { completion: time.completion, status }, { completion: 1, status: 'COMPLETED' });
 }
@@ -272,12 +271,13 @@ for (const { kind, statusDate } of SCENARIOS) {
   eq('uur zelfde dag: percentage 100%', time$(t).completion, 1);
 }
 {
-  // Dagtaak op dezelfde dag: start = einde was al zo, er valt niets te klemmen.
+  // Dagtaak op dezelfde dag: de geplande start blijft vóór het afgeleide einde.
   const { S, ids, time$, status$ } = setup('dag', '2026-06-10', 1, false);
   const t = ids[0]!;
   eq('dag zelfde dag: vroege start volgt D1 van de statusdag', time$(t).earlyStart, '2026-06-10T07:00');
   S().setTaskProgress(t, 1);
-  expectClamped('dag zelfde dag: store setTaskProgress(1)', time$(t), status$(t), '2026-06-10');
+  // De start lag al vóór het afgeleide einde: D1 blijft 07:00, er is geen klem nodig.
+  expectClamped('dag zelfde dag: store setTaskProgress(1)', time$(t), status$(t), '2026-06-10', '2026-06-10T07:00');
 }
 
 // 10. Geen onnodige klem: zonder statusdatum is het afgeleide einde de eigen geplande finish, die ná

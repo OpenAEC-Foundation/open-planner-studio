@@ -684,7 +684,7 @@ function forwardHour(
         // MSP-pariteit: een ELAPSEDTIME-lag van exact 0 klok-minuten is dezelfde "geen échte
         // lag"-situatie als de WORKTIME-tak hieronder, zodat een elapsed-FS-eindmijlpaal op de rauwe
         // instant landt. Geen `lagIsZero`-vergelijking nodig: 0 klok-minuten is geen verschuiving.
-        // Anker is `predResult.ef` RECHTSTREEKS, NIET `predDone`: die dag-boundary-+1 is een
+        // Anker is het voorgangereinde RECHTSTREEKS, NIET `predDone`: die dag-boundary-+1 is een
         // WORKTIME-concept en schuift een dag-pred-scenario een dag op (`elapsed-day-to-hour` in
         // cases-hours.json).
         const target = new Date(predResult.ef.getTime() + elapsedMin());
@@ -693,10 +693,9 @@ function forwardHour(
         }
         if (succIsFinishMs && pe.isHourMode && se.isHourMode) {
           const back = deps.snapOnOrBefore(se, target);
-          // N1 geldt alleen voor dezelfde blokgrens; ma 18:00 mag niet naar ma 16:00.
-          if (back.getTime() === target.getTime()
-            || (se.nextWorkInstant(back).getTime() === target.getTime()
-              && lagEng.workMinutesBetween(back, target) === 0)) return back;
+          // Kalendertijd bewaart de kloktijdgrens: nul werkminuten maakt ma 16:00 en di 08:00
+          // niet gelijk. Een geldig eindmoment blijft staan, een later blokbegin gaat niet terug.
+          if (back.getTime() === target.getTime()) return back;
         }
         return se.availableStart(target);
       }
