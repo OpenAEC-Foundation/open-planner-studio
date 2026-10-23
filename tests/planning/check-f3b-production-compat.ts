@@ -10,6 +10,9 @@
 //  5. bewaarde splits gaan niet opnieuw op actuals of kalendertijd.
 // Daarnaast: de vraag per kandidaat (§3.11, regressie uit review ronde 2 punt 6) en de
 // contourkoppeling over alle toewijzingen bij een resourcefilter (knownbugs 233).
+// En de twee datagate-lezingen die F3c deel 3 toevoegt (verify:conventions): een handmatig geplande
+// taak volgt haar eigen spanne (`manuallyScheduled` in `placementFollowsSpan`), en een opvolger leest
+// de vertraging in minuten uit de werkkopie van de nivelleerder (`levelingDelayMinutes`).
 import './domStub';
 import { isDeepStrictEqual } from 'node:util';
 import { createHash } from 'node:crypto';
@@ -28,6 +31,7 @@ import { legacyCpmOptions, opsSolveInput } from './legacySolveOptions';
 import type { WorkCalendar } from '@/types/calendar';
 import type { EffectiveSchedulingOptions } from '@/types/project';
 import type { Task } from '@/types/task';
+import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 
 const calendar: WorkCalendar = {
@@ -73,14 +77,14 @@ function reportLoad(tasks: Task[], assignments: ResourceAssignment[], cal: WorkC
  *  boeking, belasting en histogram naast elkaar leggen. */
 function levelFixture(label: string, source: Task[], cal: WorkCalendar, expected: {
   delays: Record<string, number>; delayMinutes: Record<string, number>; load: DailyLoad; final: [string, string, string][];
-}, options: Partial<LevelingOptions> = {}, profile: EffectiveSchedulingOptions = OPS): void {
+}, options: Partial<LevelingOptions> = {}, profile: EffectiveSchedulingOptions = OPS, sequences: Sequence[] = []): void {
   const tasks = structuredClone(source);
   const assignments = tasks.map(t => assignment(t.id));
-  const input = { tasks, sequences: [], calendar: cal, calendars: [], schedulingOptions: profile };
+  const input = { tasks, sequences, calendar: cal, calendars: [], schedulingOptions: profile };
   const baseline = solveProject(input);
   eq(`${label}: oorspronkelijke doorrekening`, baseline.error, undefined);
   const booked: DailyLoad = {};
-  const leveled = levelResources(tasks, [], [resource], assignments, cal, [], baseline, {
+  const leveled = levelResources(tasks, sequences, [resource], assignments, cal, [], baseline, {
     constrainToFloat: false, ...options, poolLedger: {
       horizonIso: null, poolItemOf: () => 'r', residualOn: () => 100,
       book: (_id, iso, units) => { booked[iso] = (booked[iso] ?? 0) + units; },
@@ -120,6 +124,21 @@ levelFixture('korte vrijdag: kandidaat en solvertoepassing', [
   final: [['fixed', '2026-06-03T14:00', '2026-06-04T15:00'],
     ['t', '2026-06-08T08:00', '2026-06-09T08:00'], ['later', '2026-06-10T07:00', '2026-06-10T15:00']],
 });
+// Dezelfde korte vrijdag, nu met een opvolger `s` (FS) van `t` op dezelfde resource. De PF van `s` komt
+// uit de werkkopie van de nivelleerder; daar staat de vertraging van `t` óók in minuten (960), net als
+// straks in de solver. Dus `t` ma 08:00 → di 08:00 en `s` vanaf di 08:00: di 0,125 + 0,875 = 1, past.
+// Stond in de werkkopie alleen `levelingDelay` (2 werkdagen, `addWorkingDaysSigned`), dan las de lus
+// een andere PF voor `s` dan de solver na toepassen, en liepen boeking en histogram uiteen.
+levelFixture('korte vrijdag: opvolger leest de vertraging in minuten', [
+  task('fixed', '2026-06-03T14:00', '2026-06-04T15:00', 1.125, { priority: 1000 }),
+  task('t', '2026-06-03T14:00', '2026-06-04T14:00', 1, { priority: 600 }),
+  task('s', '2026-06-04T14:00', '2026-06-08T08:00'),
+], shortFriday, {
+  delays: { t: 2 }, delayMinutes: { t: 960 },
+  load: { '2026-06-03': 0.125, '2026-06-04': 1, '2026-06-08': 0.875, '2026-06-09': 1, '2026-06-10': 0.125 },
+  final: [['fixed', '2026-06-03T14:00', '2026-06-04T15:00'],
+    ['t', '2026-06-08T08:00', '2026-06-09T08:00'], ['s', '2026-06-09T08:00', '2026-06-10T08:00']],
+}, {}, OPS, [{ id: 'ts', predecessorId: 't', successorId: 's', type: 'FS', lagDays: 0 }]);
 // Eis 2, dagtaak onder OPS (dagenmaat): 1 werkdag is op vrijdag de hele korte dag (vr 07:00-13:00 = 1).
 // Alleen de minuten zijn nieuw (B1, §3.11): ma, di, wo en do overgeslagen = 4 × 480.
 levelFixture('dagtaak met tijdstippen', [
@@ -268,6 +287,15 @@ levelFixture('kalendertijd met bewaarde split', [task('t', '2026-06-01T08:00', '
   time: { durationType: 'ELAPSEDTIME', durationMinutes: 1440 }, splitGaps: [{ afterMinutes: 120, gapMinutes: 240 }],
 })], calendar, { delays: {}, delayMinutes: {}, load: { '2026-06-01': 1 },
   final: [['t', '2026-06-01T08:00', '2026-06-02T08:00']] });
+
+// Handmatig gepland (`placementFollowsSpan`): de solver houdt de eigen start en het eigen einde aan,
+// los van de duur (`CPMSolver`, tak "Handmatig gepland"). De balk loopt ma 08:00 → wo 16:00; boeking,
+// belasting en histogram volgen die spanne: elke werkdag inzet × deel (ma, di, wo 1). Liep de
+// plaatsing de duur van 8 u af vanaf de start, dan kwam alleen maandag in beeld (mutatiebewijs).
+levelFixture('handmatig gepland volgt de eigen spanne', [task('t', '2026-06-01T08:00', '2026-06-03T16:00', 1, {
+  manuallyScheduled: true,
+})], calendar, { delays: {}, delayMinutes: {}, load: { '2026-06-01': 1, '2026-06-02': 1, '2026-06-03': 1 },
+  final: [['t', '2026-06-01T08:00', '2026-06-03T16:00']] });
 
 // Exacte belastingvingerafdrukken van de acht meegeleverde IFC-bestanden, vóór en na Bereken: alle
 // resources, dagen, uren en capaciteitsmeldingen. De check raadpleegt geen Git-ref en leest geen
