@@ -132,9 +132,13 @@ function largestRemainderRound(values: number[], targetSum: number, unitsPerDay:
 }
 
 /**
- * Contour-engine — DE ENE verdeelfunctie per toewijzing: eenheden per werkdag-slot van de taak,
+ * Contour-engine — de verdeling per toewijzing in DAGSLOTS: eenheden per werkdag-slot van de taak,
  * index-uitgelijnd op `enumerateTaskWorkDays(task.splitGaps, …)` (slot i ⇒ i-de werkdag vanaf
- * `earlyStart`, pauzedagen overgeslagen). Vier bronnen, in deze volgorde:
+ * `earlyStart`, pauzedagen overgeslagen). Sinds F3c boeken histogram en nivelleerder op de plaatsing
+ * (`assignmentPlacementLoad` in `workPlacement.ts`); die leest deze slots als BRON voor een curve,
+ * een exacte importcurve of opgeslagen werk, en legt ze naar rato op de bezette dagdelen. Direct
+ * lezen deze slots nog: de contourdialoog (F4b) en een kalender zonder werkblokken (`dayslotLoad`).
+ * Vier bronnen, in deze volgorde:
  *   1. een OPGESLAGEN contour (`Task.timephasedContours`, gekoppeld via `resourceId` —
  *      `contourEngine.ts`'s `matchContoursToAssignments`): werkminuten per slot ÷ `mpd` = eenheden
  *      per dag. DATA, dus GEEN hele-eenheden-afronding (een fractie in een contour is bedoelde

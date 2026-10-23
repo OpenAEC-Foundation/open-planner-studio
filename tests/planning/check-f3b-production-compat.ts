@@ -212,6 +212,18 @@ levelFixture('vraag per kandidaat: ma 07:00 geweigerd', [
     computeResourceLoad([r1, r2], assignments, tasks, calendar, [], OPS).load, { r1: { '2026-06-01': 1 }, r2: { '2026-06-01': 1 } });
 }
 
+// Knownbugs 143 (B3): een urentaak die midden op een dag begint, boekt op de juiste dagen. Kalender ma-vr
+// 07-12 + 13-16, urentaak 24 u van wo 3 jun 11:00 tot ma 8 jun 11:00, inzet 1 ⇒ wo 0,5, do 1, vr 1,
+// ma 0,5. Vóór F3c: wo 1, do 1, vr 1 en niets op maandag.
+{
+  const lunch: WorkCalendar = { ...calendar, workStartHour: 7, workEndHour: 16,
+    workTime: makeBands([1, 2, 3, 4, 5], [{ start: 420, end: 720 }, { start: 780, end: 960 }]) };
+  const t = task('t', '2026-06-03T11:00', '2026-06-08T11:00', 3);
+  const want = { '2026-06-03': 0.5, '2026-06-04': 1, '2026-06-05': 1, '2026-06-08': 0.5 };
+  eq('knownbugs 143: belasting', computeResourceLoad([resource], [assignment('t')], [t], lunch, [], OPS).load.r, want);
+  eq('knownbugs 143: histogramrapport', reportLoad([t], [assignment('t')], lunch), want);
+}
+
 // Eis 3: echte storehandelingen: 8 uur doorrekenen → 16 uur → inzet 0,5, zonder nieuwe F5.
 const context = createAppStoreContext();
 const store = context.store;
