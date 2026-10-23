@@ -22,7 +22,7 @@ De balk onderaan toont van links naar rechts:
 - **Selectie: N taak/taken** — het aantal geselecteerde taken; alleen zichtbaar bij een selectie.
 - **Schaal:** en **Zoom: Npx/dag** — de tijdschaal van de tijdlijn en het zoomniveau. De schaal volgt uit de zoom.
 - **Niet opgeslagen** — zolang het document wijzigingen heeft die niet in het bestand staan.
-- **AI** — een gekleurde stip met het woord AI, alleen als de AI-modus aan staat. De tooltip zegt *AI-bridge:* met *Uit*, *Actief op poort N*, *Poort N bezet* of *Fout*. Een klik opent het tabblad *AI*.
+- **MCP** — een gekleurde stip met het woord MCP, alleen als de MCP-koppeling aan staat. De tooltip zegt *MCP-bridge:* met *Uit*, *Actief op poort N*, *Poort N bezet* of *Fout*. Een klik opent het tabblad *MCP*.
 - **Debugterminal** — een terminalknop, alleen als de debugterminal is ingeschakeld; hij toont of verbergt de terminal (*Debug-terminal tonen* / *Debug-terminal verbergen*).
 
 ## Het paneel Waarschuwingen
@@ -90,7 +90,7 @@ De lijst hieronder is een keuze, gegroepeerd naar onderwerp. Waar het niet staat
 - **Herstel** (fout) — *Hersteld bestand kon niet worden gelezen*, *Herstellen mislukt* en *N herstelbestanden konden niet worden geladen en zijn overgeslagen.* Bij het herstellen na een onverwachte afsluiting.
 - **Tak bewaard als sjabloon** (info) — *Tak bewaard als sjabloon '{naam}'*.
 - **Melding van een extensie** (info, of fout als de extensie een fout meldt) — *Extensie {naam}: {bericht}*. Een extensie mag er hoogstens drie nieuwe per 10 seconden tonen, zodat ze de stapel niet vult. Faalt een stap van de begeleiding van een extensie, dan staat er *Een stap van de extensie {naam} gaf een fout. De begeleiding gaat door.*, en kan een projectbestand van een extensie niet worden geopend, dan *Het projectbestand {bestand} van de extensie {naam} kon niet worden geopend.* Beide zijn fouten.
-- **Een wijziging kwam tussendoor** (fout) — *Een wijziging van de AI-assistent of een extensie kwam tussendoor. …* Als je de taakdialoog annuleert terwijl de AI of een extensie intussen iets wijzigde: de taakwijzigingen van vóór die wijziging worden dan niet teruggedraaid en staan als gewone stappen onder *Ongedaan maken*.
+- **Een wijziging kwam tussendoor** (fout) — *Een wijziging van de MCP-client of een extensie kwam tussendoor. …* Als je de taakdialoog annuleert terwijl de MCP-client of een extensie intussen iets wijzigde: de taakwijzigingen van vóór die wijziging worden dan niet teruggedraaid en staan als gewone stappen onder *Ongedaan maken*.
 
 ### Berekenen
 
