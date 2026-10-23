@@ -155,6 +155,21 @@ en noem het in je rapport of PR-tekst.
     dus naar een gids wijzen die tools beschrijft die hij niet heeft. De gids zegt nu dat de kopie van de tool
     voorgaat. Voorstel: een versiepad (bv. `/agent/<versie>/planning-guide.md`) of de versie in de gids. — S
 
+206. **`.mcpb`-bundel: een annulering tijdens opnieuw verbinden valt weg.**
+    `integrations/claude-desktop/src/proxy.ts:445` haalt het request-id uit `queuedIds` voordat
+    `handleRequest()` op `connectUpstream()` wacht (`:394–403`); een `notifications/cancelled` in dat venster
+    wordt niet vastgelegd en de tool kan na het verbinden alsnog naar de bridge gaan. Gevonden in review ronde
+    2 en 3 van PR #567 (GPT-6.1-Sol). Voorstel: het request annuleerbaar houden tot de echte tool-POST en na
+    het verbinden opnieuw controleren, met een test voor dat venster. — B
+
+207. **`.mcpb`-bundel: na sessieverlies weigert de proxy ook een nieuw leeg plan en importeren.**
+    `integrations/claude-desktop/src/proxy.ts:389–392` blokkeert `planner_new_document` en
+    `planner_import_schedule` zolang de blokkade staat; Claude moet eerst een bestaand plan kiezen met
+    `planner_switch_document`. Veilig, maar een onnodige omweg. Gevonden in review ronde 3 van PR #567
+    (GPT-6.1-Sol). Voorstel: beide toestaan als losse herstelactie, zonder automatische herhaling en met
+    ontgrendeling alleen na succes; `planner_duplicate_document` niet, want die gebruikt het actieve document.
+    — B
+
 ## Bestanden en herstel
 
 35. **Showcase-voorbeelden openen als gewijzigd** (`applyDemoLibraryToShowcaseProject`). — S
@@ -332,6 +347,10 @@ en noem het in je rapport of PR-tekst.
     waar de echte oorzaak een ontbrekend bestand in de Dockerfile was. Voorstel: de stap alleen draaien als
     de container bestaat, of eerst controleren dat het token niet leeg is. Niet onderzocht waarom het
     token-grep matcht. — S
+
+208. **`scripts/build-core.mjs` bouwt de licentiegegevens onnodig om.** `scripts/build-core.mjs:138–148` zet
+    de pakketnamen om in een `Map` en de sectietekst in een array met één element; `notices.packages.join(',
+    ')` en `notices.sections` volstaan. Gevonden in review ronde 1 van PR #567 (GPT-6.1-Sol). — B
 
 ## Wensen en open taken (geen bug)
 
