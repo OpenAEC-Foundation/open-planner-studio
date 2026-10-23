@@ -1,105 +1,127 @@
 # F2 — fixronde 2, motor, 23 oktober 2026
 
 Twee BLOKKEERT-punten uit review ronde 2, deel A, zijn hersteld in `CPMSolver.ts`. Op besluit van de
-orkestrator is daarna ook de zachte MSO/MFO op een losse mijlpaal hersteld (punt 3). De tegenproef van de reviewer
-gaat van 0/5 naar 5/5. Er is geen bestaande verwachting gewijzigd. Alleen de motor (`CPMSolver.ts`,
-`scheduleAnalysis.ts`) en de F2-reviewcheck zijn aangepast; laadkant, store en hooks zijn niet aangeraakt.
+orkestrator zijn daarna nog drie punten hersteld: de zachte en harde MSO/MFO op een losse mijlpaal (punt 3), de
+START-mijlpaal midden op de dag onder P6/MSP (punt 4) en de mijlpaal zonder soort na een voorganger met een zachte
+MFO (punt 5). Daarna is de laadfix `claude/uren-f2-laden2` gemerged. De tegenproef van de reviewer gaat van 0/5
+naar 5/5. Er is geen bestaande verwachting gewijzigd.
 
-Werkplek: `.claude/worktrees/uren-f2`, branch `claude/uren-f2-kern`, start op `99049810a` (schoon, gelijk met
-origin). Commits: `7513d5371` (punt 1 en 2), `28b028823` (notitie), daarna punt 3. Uitgevoerd door Claude Opus 5.5.
-Deze notitie is opgesteld door een AI-assistent.
+Gewijzigd: de motor (`CPMSolver.ts`, `scheduleAnalysis.ts`), één plek in de DCMA-module (`dcmaAssessment.ts`, punt
+5) en de F2-reviewcheck. Laadkant, store en hooks zijn niet aangeraakt (de laadfix komt uit een merge).
+
+Werkplek: `.claude/worktrees/uren-f2`, branch `claude/uren-f2-kern`, start op `99049810a`. Commits: `7513d5371`
+(punt 1 en 2), `3b4d71571` (punt 3), `ba401e2b2` (punt 4 en 5), `2f9148ee9` (merge laadfix `7876a78b2`), en deze
+notitie. Uitgevoerd door Claude Opus 5.5. Deze notitie is opgesteld door een AI-assistent.
 
 ## Punt 1 — de 24-uurswacht verliest een dag bij een opvolger
 
 **Oorzaak.** De wacht voor hele dagen in de late pass zocht het dageinde van de kalenderdag van de
 opvolgergrens. Zevendaagse kalender 00:00–24:00, A en B elk 1 d, FS+0: de grens is di 00:00. Dat is ook het
 geldige einde van maandag. De wacht nam toch dinsdag (einde wo 00:00), en sprong met
-`prevWorkInstantBefore(di 00:00)` naar ma 00:00. Zo verdween maandag. De eindzijdige terugrekening in
-`subDuration` maakte daar laat zo 00:00–ma 00:00 van, speling −1.
+`prevWorkInstantBefore(di 00:00)` naar ma 00:00. Zo verdween maandag; laat zo 00:00–ma 00:00, speling −1.
 
-**Fix.** `src/engine/scheduler/CPMSolver.ts:3761`: de wacht bepaalt eerst de werkdag aan de eindkant met de
-bestaande `workdayDateOfInstant(predCal, lateFinish, 'end')`, en zoekt daarop het eerste blokbegin en het laatste
-blokeinde. Een geldig blokeinde springt daardoor niet nog een keer terug. Voor een grens midden op de dag of op
-een blokbegin blijft de uitkomst gelijk.
+**Fix.** `CPMSolver.ts:3765`: de wacht bepaalt eerst de werkdag aan de eindkant met de bestaande
+`workdayDateOfInstant(predCal, lateFinish, 'end')`. Een geldig blokeinde springt niet nog een keer terug.
 
 ## Punt 2 — B6 overschrijft een harde mijlpaalpin
 
-**Oorzaak.** Een losse START- of FINISH-mijlpaal met een harde MSO op di 2 jun (zonder tijd of 07:00) kreeg
-via de pin di 07:00. Daarna schoof B6 de vroege datum naar 16:00. De late pass hield de pin (07:00). Gevolg:
-totale en vrije speling −1, zonder gemelde constraintschending.
+**Oorzaak.** Een losse mijlpaal met een harde MSO op di 2 jun kreeg via de pin di 07:00; B6 schoof de vroege kant
+daarna naar 16:00. De late pass hield 07:00: speling −1, zonder gemelde schending.
 
-**Fix.** Eerst `!hardFinishPin` in de B6-voorwaarde (`7513d5371`). In punt 3 is dat verbreed: B6 slaat elke
-mijlpaal met een MSO of MFO over (`CPMSolver.ts:2633`).
+**Fix.** B6 slaat elke mijlpaal met een MSO of MFO over (`CPMSolver.ts:2638`; eerst `!hardFinishPin`, in punt 3
+verbreed).
 
-## Punt 3 — zachte en harde MSO/MFO op een losse mijlpaal (orkestratorbesluit)
+## Punt 3 — zachte en harde MSO/MFO op een losse mijlpaal
 
-**Oorzaak.** Een MSO of MFO op een mijlpaal had aan de vroege en de late kant een ander moment:
+**Oorzaak.** Een MSO of MFO op een mijlpaal had aan de vroege en de late kant een ander moment. De late grens en
+de schendingstoets namen `snapOnOrBefore` (di 07:00 werd ma 16:00), B6 schoof een zachte MSO naar 16:00, een
+START met MFO werd her-gesnapt naar wo 07:00, en een harde MSO op 16:00 ging naar wo 07:00. Op `be58ba356` gaven
+dagkalenders geen fout (dag-modus); de blokkenkalender gaf er dezelfde fouten, ook de START met harde MFO zonder
+tijd (wo 07:00).
 
-- De late grens en de schendingstoets namen `snapOnOrBefore`; een grens op het blokbegin di 07:00 werd ma 16:00.
-  Gevolg: een gemelde schending, onder OPS ook speling −1 door B6.
-- B6 schoof de vroege kant van een zachte MSO naar 16:00.
-- Een START-mijlpaal met een MFO (di 16:00) werd her-gesnapt naar wo 07:00.
-- Onder P6 en MSP begon de late kant van een START-mijlpaal op een scalaire kalender bij het begin van de
-  projecteinddag (di 07:00), ook als de MFO di 16:00 zei.
-- Een harde MSO op een blokeinde (di 16:00) werd wo 07:00; de zachte variant hield 16:00 al vast.
-
-Op `be58ba356` gaven dagkalenders geen fout (dag-modus). De blokkenkalender gaf er dezelfde fouten; ook de
-START-mijlpaal met een harde MFO zonder tijd stond daar al op wo 07:00.
-
-**Fix: één moment per MSO/MFO op een nulduurmijlpaal.** `milestoneConstraintMoment` (`CPMSolver.ts:3003`)
-geeft in uur-modus de vroege grens uit de bestaande `forwardBoundOf`. Dat moment gebruiken:
+**Fix: één moment per MSO/MFO op een nulduurmijlpaal.** `milestoneConstraintMoment` (`CPMSolver.ts:3008`) geeft
+in uur-modus de vroege grens uit de bestaande `forwardBoundOf`. Zonder tijd is dat D1 voor een MSO (07:00) en D2
+voor een MFO (16:00); een tijd blijft staan.
 
 | Plek | Regel |
 |---|---|
-| late grens, zacht | `CPMSolver.ts:3015` (`backwardBoundOf`) |
-| harde pin | `CPMSolver.ts:2839` en `:2855` (`hardPinStart`, `hardPinFinish`) |
-| B6 | `CPMSolver.ts:2633`: geen B6 bij een MSO/MFO |
-| her-snap | `CPMSolver.ts:986` (`snapSuccessorEarlyStart`): een mijlpaal op dat moment blijft staan |
-| beginwaarde late kant bij het projecteinde | `CPMSolver.ts:3667–3668`: niet bij een losse mijlpaal of een START met een MSO/MFO |
-| schendingstoets | `scheduleAnalysis.ts:423`, via een nieuwe invoer `milestoneConstraintMoment` (`CPMSolver.ts:1753`) |
+| late grens, zacht | `CPMSolver.ts:3020` (`backwardBoundOf`) |
+| harde pin | `CPMSolver.ts:2844` en `:2860` |
+| B6 | `CPMSolver.ts:2638` |
+| her-snap | `CPMSolver.ts:986` (`snapSuccessorEarlyStart`) |
+| schendingstoets | `scheduleAnalysis.ts:423`, via een nieuwe invoer (`CPMSolver.ts:1758`) |
 
-Zonder tijd geeft dat D1 voor een MSO (di 07:00) en D2 voor een MFO (di 16:00); een tijd blijft staan. Het open
-eigenaarspunt (afgemelde mijlpaal zonder pin: B6 16:00 tegen D7 07:00) is niet aangeraakt.
+Het open eigenaarspunt (afgemelde mijlpaal zonder pin: B6 16:00 tegen D7 07:00) is niet aangeraakt.
 
-**Bewuste grens.** Een mijlpaal zonder soort mét voorganger houdt de oude beginwaarde bij het projecteinde. Daar
-leunt `check-dcma.ts` s3 op: de kritiek-padtest maakt de harde MFO zacht, en alleen die oude beginwaarde maakt Q
-kritiek. Met de verbrede regel werd s3 "na" in plaats van "pass". Zie de bijvangst hieronder.
+## Punt 4 en 5 — de standaardplaats van de late kant bij het projecteinde
 
-**Vergelijking met buren.** 1.944 netwerken (voorganger, opvolger of beide; drie soorten; zacht en hard; MSO en
-MFO; drie datums en drie tijden; OPS, P6, MSP; dag- en blokkenkalender) op `28b028823` en met de fix: 508 beter,
-44 anders, 0 slechter. Die 44 hebben allemaal hetzelfde patroon: een zachte MSO op ma terwijl de voorganger de
-mijlpaal naar di duwt. Speling −1 en de schending blijven terecht staan; alleen het late moment staat nu op ma
-07:00 in plaats van vr 29 mei 16:00.
+**Uitkomst op `be58ba356`.** Beide speling 0 (scalaire kalender in dag-modus). Nieuw in F2, dus BLOKKEERT.
+
+- Punt 4: onder P6/MSP op een scalaire kalender kreeg een losse START om 10:00 laat 07:00, speling −0,375, ook
+  zonder constraint.
+- Punt 5: P → Q → N, N zonder soort met een zachte MFO op ma: vroeg ma 16:00, laat ma 07:00, speling −1, zonder
+  schending.
+
+**Oorzaak.** De late kant van een START-mijlpaal (en een mijlpaal zonder soort na een FS/SS-voorganger) begint op
+een kalender zonder eigen werkblokken op het begin van de projecteinddag (`c6310b941`). Dat houdt het dagmodel
+vast: een START op de laatste projectdag heeft speling 0. Staat de mijlpaal later op de dag, dan ligt die late kant
+vóór de mijlpaal zelf.
+
+**Fix.** `CPMSolver.ts:3672`: die plaats geldt alleen als de mijlpaal zelf op het eerste blokbegin van zijn
+werkdag staat (`isAtDayFirstBandStart`, `CPMSolver.ts:1143`). Dat vervangt de constraint-uitzondering uit punt 3.
+Een START op het begin van de laatste projectdag houdt speling 0 (getoetst). Een losse START om 10:00 naast een
+taak tot 16:00 krijgt nu 0,625 d speling onder alle profielen; OPS gaf dat vóór deze ronde al.
+
+**DCMA-kritiek-padtest (`dcmaAssessment.ts:202–203`).** De bedoeling staat in het commentaar: "Een VERPLICHTE pin
+op de eindtaak gaat in de vergelijkingsruns uit … Zonder pin toetst de test precies de vraag of de logica de
+vertraging doorgeeft" (`b440d207a`), en de kandidaatkeuze gebruikt sinds `edfc829cf` die run zonder pin, zodat een
+MFO op het einde van een werkdag (D2) de activiteiten geen speling geeft. De code maakte de pin alleen zacht. Een
+zachte MFO legt in de motor hetzelfde moment vast; op de blokkenkalender gaf dat al op de basis Q speling 1, en na
+punt 5 ook op de scalaire kalender. Daarmee werd `check-dcma` s3 "na". **Aanpassing: de verplichte pin valt in de
+vergelijkingsruns weg in plaats van zacht te worden.** Zachte constraints op de eindtaak blijven ongemoeid.
+`check-dcma` 41/41, zonder gewijzigde verwachting.
+
+## Vergelijking met mijlpalen mét buren
+
+1.944 netwerken (voorganger, opvolger of beide; drie soorten; zacht en hard; MSO en MFO; drie datums en drie
+tijden; OPS, P6, MSP; dag- en blokkenkalender) op `28b028823` en met de eindstand: 544 beter, 44 anders, 0
+slechter. De 44 hebben hetzelfde patroon: een zachte MSO op ma terwijl de voorganger de mijlpaal naar di duwt.
+Speling −1 en de schending blijven terecht staan; het late moment staat nu op ma 07:00 in plaats van vr 29 mei 16:00.
 
 ## Mutatiebewijs
 
-Elke mutatie op een kopie, check gedraaid, teruggezet met `cp` en met `cmp` gecontroleerd. Check:
-`check-hours-f2-review.ts` (512 controles).
+Elke mutatie op een kopie, check gedraaid, teruggezet met `cp` en met `cmp` gecontroleerd.
 
-| Mutatie | Uitkomst |
-|---|---|
-| M0: 24-uurswacht op de kalenderdag (`const endDay = lateFinish`) | 500/512, exit 1 |
-| M1: late grens zonder het mijlpaalmoment | 490/512, exit 1 |
-| M2: B6 zonder uitzondering voor MSO/MFO | 472/512, exit 1 |
-| M3: her-snap zonder het mijlpaalmoment | 458/512, exit 1 |
-| M4: schendingstoets zonder het mijlpaalmoment | 488/512, exit 1 |
-| M5: geen uitzondering op de beginwaarde bij het projecteinde | 491/512, exit 1 |
-| M5b: uitzondering alleen voor losse mijlpalen (zonder het START-deel) | 509/512, exit 1 |
-| M6: harde pin zonder het mijlpaalmoment | 506/512, exit 1 |
+| Mutatie | Check | Uitkomst |
+|---|---|---|
+| M0: 24-uurswacht op de kalenderdag | `check-hours-f2-review.ts` | 515/527, exit 1 |
+| M1: late grens zonder het mijlpaalmoment | idem | 505/527, exit 1 |
+| M2: B6 zonder uitzondering voor MSO/MFO | idem | 487/527, exit 1 |
+| M3: her-snap zonder het mijlpaalmoment | idem | 473/527, exit 1 |
+| M4: schendingstoets zonder het mijlpaalmoment | idem | 503/527, exit 1 |
+| M6: harde pin zonder het mijlpaalmoment | idem | 521/527, exit 1 |
+| M7: projecteindplaats ook buiten het dagbegin | idem | 501/527, exit 1 (ook punt 4 en 5) |
+| M8: DCMA maakt de pin weer zacht | `check-dcma.ts` | s3 "na", exit 1 |
 
 ## Gewijzigde verwachtingen
 
-Geen. Alle bestaande cases en checks bleven groen zonder aanpassing. Nieuw in `check-hours-f2-review.ts`
-(43 → 512 controles), indeling **B3** (gerepareerde fout):
+Geen. Nieuw in `check-hours-f2-review.ts` (43 → 527 controles), indeling **B3** (gerepareerde fout):
 
 - 18: 24 uur FS+0 onder OPS, P6 en MSP, scalair en expliciet.
 - 432: losse START en FINISH, zacht en hard, MSO en MFO, zonder tijd, met de D1/D2-tijd en met 10:00, onder OPS,
-  P6 en MSP, op een dag- en een blokkenkalender: vier gelijke momenten, speling nul, geen schending.
+  P6 en MSP, op een dag- en een blokkenkalender.
 - 12: START met zachte en harde MSO di 16:00 blijft op dinsdag.
-- 6: START na voorganger met zachte MFO di blijft op di 16:00, speling nul.
+- 6: START na voorganger met zachte MFO di.
+- 12: losse START om 10:00 zonder constraint, en N zonder soort na voorganger met zachte MFO (punt 4 en 5).
+- 3: START op het begin van de laatste projectdag houdt speling 0.
 - 1: een losse START met SNET houdt B6.
 
-## Controles
+## Merge van de laadfix
+
+`git merge origin/claude/uren-f2-laden2` (`7876a78b2`): geen conflict; `knownbugs.md` heeft nu 271 en 272. Ingang
+273 is niet nodig: punt 5 was nieuw in F2 en is hersteld. `npm run i18n:resolve`: exit 0, niets gewijzigd.
+
+## Controles na de merge
 
 Node 24.22.0 (`~/.local/bin`). Typecheck en `measure:profiles` via `flock /tmp/ops-zwaar.lock`.
 
@@ -107,18 +129,22 @@ Node 24.22.0 (`~/.local/bin`). Typecheck en `measure:profiles` via `flock /tmp/o
 |---|---|---|
 | Tegenproef reviewer `blokkeerders.ts` | 5/5 (was 0/5) | 0 |
 | Ronde 1 `regressies.ts` | 7 GOED, 0 geschonden | 0 |
-| `check-hours-f2-review.ts` | 512/512 | 0 |
+| `check-import-datum-zonder-tijd.ts` | 26/26 | 0 |
+| `check-minute-model-input.ts` | 35/35 | 0 |
+| `check-minute-model-ifc.ts` | 63/63 | 0 |
+| `check-hours-f2-review.ts` | 527/527 | 0 |
 | `check-recorded-dates.ts` | 383 | 0 |
-| `check-auto-actual-start.ts` | 135/135 | 0 |
-| `check-xer-corpusless-fidelity-gate.ts` | 57 | 0 |
-| `check-fidelity-cells-gate.ts` | 141 | 0 |
 | `check-dcma.ts` | 41 | 0 |
-| 33 andere gerichte checks (mijlpalen, 24 uur, conventies, minutenmodel, tutorial, nivelleren, IFC, XER, constraints) | groen | 0 |
+| `check-auto-actual-start.ts` | 135/135 | 0 |
+| Profielvangrails (corpusloze fidelity-gate, cel-baselinepoort) | 57 en 141 | 0 |
 | Alle 24 casebatterijen via `run.sh` | 608/608 | 0 |
 | F0 minutenmodel run 1 en run 2 | elk 422 dagcases; klopt met `minute-model-runs.json` | 0 / 0 |
 | `npm run typecheck` | geen fouten | 0 |
 | `npm run lint:fast` | geen fouten | 0 |
 | `npm run measure:profiles` (corpus) | P6: `nieuw=0 verslechterd=0 groter=0`, NULDOEL (regel A gehouden); MSP rood, zie hieronder | 1 |
+
+Vóór de merge liepen ook 33 andere gerichte checks groen (mijlpalen, 24 uur, conventies, minutenmodel, tutorial,
+nivelleren, IFC, XER, constraints).
 
 **MSP-deel van `measure:profiles`.** `timephased-cost-rollup.mpp` geeft `finishDiff` 3 (verwacht 0). Dezelfde
 drie afwijkingen staan er op `99049810a` zonder deze ronde (`--only=msp`, identieke regels) en al in de
@@ -126,13 +152,5 @@ ronde-1-meting van de reviewer.
 
 ## Bijvangst (niet hersteld)
 
-- **knownbugs 271** toegevoegd: nachttaak tot za 06:00 krijgt −1 speling bij een gelijk vroeg en laat
-  venster (`CPMSolver.ts:1541`, ook op `be58ba356`).
-- **Mijlpaal zonder soort mét voorganger en een zachte MFO** (het DCMA-s3-netwerk: P → Q → N, MFO ma): vroeg ma
-  16:00, laat ma 07:00, speling −1 op N, zonder schending. Oorzaak: de beginwaarde bij het projecteinde
-  (`CPMSolver.ts:3657–3669`). Herstel maakt `check-dcma.ts` s3 "na", want de DCMA-proef maakt de pin zacht in plaats
-  van hem weg te halen (`src/engine/reports/dcmaAssessment.ts:196–201`). Met de harde pin heeft Q in het document
-  zelf al een dag speling (D2: MFO ma = ma 16:00). Nog geen nummer.
-- **START-mijlpaal midden op de dag onder P6 en MSP op een scalaire kalender**, ook zonder constraint (eigen
-  anker di 10:00): vroeg di 10:00, laat di 07:00, speling −0,375. Dezelfde beginwaarde bij het projecteinde.
-  Nieuw in F2: op de basis rekenden scalaire kalenders in dag-modus. Nog geen nummer.
+- **knownbugs 271**: nachttaak tot za 06:00 krijgt −1 speling bij een gelijk vroeg en laat venster
+  (`CPMSolver.ts:1541`, ook op `be58ba356`).
