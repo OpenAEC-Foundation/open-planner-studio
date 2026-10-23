@@ -214,6 +214,20 @@ for (const baseId of ['ops', 'p6', 'msproject'] as const) {
     [last.earlyStart, last.lateStart, last.totalFloat], ['2026-06-02T07:00', '2026-06-02T07:00', 0]);
 }
 
+// Ronde 3A, punt 2: op een scalaire 24-uurskalender is het projecteinde wo 00:00 het einde van dinsdag.
+// De START op het begin van die laatste werkdag (di 00:00) houdt speling 0 en blijft kritiek (eerder:
+// laat wo 00:00, speling +1; op be58ba356: speling 0).
+for (const baseId of ['ops', 'p6', 'msproject'] as const) {
+  const opts = { ...options, schedulingOptions: effectiveSchedulingOptions({ schedulingProfile: builtInProfile(baseId) }) };
+  const fullDay: WorkCalendar = { ...calendar, workDays: [1, 2, 3, 4, 5, 6, 7], workStartHour: 0, workEndHour: 24, hoursPerDay: 24 };
+  const m = { ...task('M', 0, '2026-06-01T00:00'), milestoneKind: 'START' as const };
+  const result = new CPMSolver([task('P', 1, '2026-06-01T00:00'), m, task('B', 2, '2026-06-01T00:00')],
+    [{ ...fs, predecessorId: 'P', successorId: 'M' }], fullDay, [], opts).solve();
+  const r = result.tasks.get('M')!;
+  eq(`${baseId}: START op de laatste 24-uurswerkdag`, [r.earlyStart, r.lateStart, r.totalFloat, r.isCritical],
+    ['2026-06-02T00:00', '2026-06-02T00:00', 0, true]);
+}
+
 // B6 blijft gelden voor een losse mijlpaal met een andere constraint (SNET): einde van de werkdag.
 {
   const m = { ...task('M', 0), milestoneKind: 'START' as const, constraint: { type: 'SNET' as const, date: '2026-06-02' } };

@@ -3670,7 +3670,9 @@ export class CPMSolver {
         // het dagmodel, op de laatste projectdag als op tijd. Staat hij later op de dag (eigen tijd, het
         // moment van een MFO), dan zou deze plaats de late kant vóór de mijlpaal zelf leggen.
         && this.isAtDayFirstBandStart(predCal, earlyDates.get(taskId)?.es)
-        ? this.dayFirstBandStart(predCal, projectEnd) ?? projectEnd : projectEnd;
+        // Het projecteinde is een eindmoment: neem het begin van zijn eigen werkdag (eindkant). Op een
+        // 24-uurskalender is wo 00:00 het einde van dinsdag, dus di 00:00 en niet wo 00:00.
+        ? this.dayFirstBandStart(predCal, workdayDateOfInstant(predCal, projectEnd, 'end')) ?? projectEnd : projectEnd;
       let lateFinishSource: CpmLateFinishSource = 'projectEnd';
       for (const seq of succs) {
         const succResult = results.get(seq.successorId);
