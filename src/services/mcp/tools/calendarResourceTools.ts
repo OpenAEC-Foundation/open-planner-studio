@@ -1854,7 +1854,7 @@ const PROJECT_REFUSED: Record<string, string> = {
   schedulingProfile:
     'the calculation profile (P6 / MS Project / OPS / custom) is NOT settable via the bridge: a switch ' +
     'shifts dates of the whole document. Choose it in the app under File → Project settings → Calculation ' +
-    'profile; `planner_get_project_info` shows the active profile with its twenty-seven resolved conventions.',
+    'profile; `planner_get_project_info` shows the active profile with its twenty-nine resolved conventions.',
   leveling:
     '`leveling` belongs in `project.schedulingOptions`: the leveling settings from the source file (P6 ' +
     'SCHEDOPTIONS/RSRCLEVELLIST) are read and kept, but NOT applied yet and not settable via the bridge. ' +

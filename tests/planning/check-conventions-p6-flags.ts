@@ -2044,8 +2044,11 @@ const lateOf = (input: ImportResult, id: string) => {
   });
   /** Niet gelabelde conventies zonder trigger in een variant: met reden, en een vermelding die niet meer
    *  nodig is, is rood (opruimen). */
-  const NO_DAY_TRIGGER: Partial<Record<ConventionKey, string>> = {};
-  const NO_PLAIN_TRIGGER: Partial<Record<ConventionKey, string>> = {};
+  // Alleen uren F3c: de basiscommit zet de dagenmaat in het register; de solver leest hem nog niet. Zodra de
+  // motor hem leest, maakt "nog nodig" deze twee regels rood: haal ze dan weg.
+  const NOT_YET_READ = 'workdayDurationMeasure: de solver leest de dagenmaat nog niet (alleen uren F3c)';
+  const NO_DAY_TRIGGER: Partial<Record<ConventionKey, string>> = { workdayDurationMeasure: NOT_YET_READ };
+  const NO_PLAIN_TRIGGER: Partial<Record<ConventionKey, string>> = { workdayDurationMeasure: NOT_YET_READ };
   const count = (key: ConventionKey, pick: (v: typeof variants[number]) => ImportResult) =>
     variants.filter(v => toggles(pick(v), key)).length;
   for (const d of CONVENTIONS) {

@@ -331,6 +331,7 @@ const TM = {
     scheduleStart: '2026-07-24T00:00', scheduleFinish: '2026-07-24T00:00',
     earlyStart: '2026-07-24T00:00', earlyFinish: '2026-07-24T00:00', lateStart: '2026-07-24T00:00', lateFinish: '2026-07-24T00:00',
     freeFloat: 2, totalFloat: 3, isCritical: true,
+    totalFloatMinutes: 1440, freeFloatMinutes: 960, // (a) nog geen IFC-veld (alleen uren §3.4, F3c)
     interferingFloat: 1.5, isNearCritical: true, floatPath: 1, // (a) analyse-gaps
     actualStart: '2026-07-24T00:00', actualFinish: '2026-07-24T00:00', actualDuration: 0,
     remainingTime: 0, remainingMinutes: 0, // remainingMinutes: (b) uur-modus-gap
@@ -601,6 +602,8 @@ const TIME_CANON = {
   // ifcWriter.WRITTEN_PER_TASK_PSETS). Ze staan als (a)-gap in KNOWN_GAPS; het verlies zelf wordt
   // in blok (3) apart geassserteerd. De LEESkant blijft bestaande bestanden gewoon accepteren.
   interferingFloat: { skip: '(a) afgeleid; OPS_Analysis wordt sinds pakket K niet meer geschreven' },
+  totalFloatMinutes: { skip: '(a) alleen uren §3.4: nog geen IFC-veld; F3c schrijft de minuten in de OPS-pset (T5)' },
+  freeFloatMinutes: { skip: '(a) alleen uren §3.4: nog geen IFC-veld; F3c schrijft de minuten in de OPS-pset (T5)' },
   isNearCritical: { skip: '(a) afgeleid; OPS_Analysis wordt sinds pakket K niet meer geschreven' },
   floatPath: { skip: '(a) afgeleid; OPS_Analysis wordt sinds pakket K niet meer geschreven' },
   actualStart: KEEP, actualFinish: KEEP, actualDuration: KEEP, remainingTime: KEEP,
@@ -1127,6 +1130,10 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   assert(tmOut.time.interferingFloat === undefined && def(TM.time.interferingFloat), '(a) time.interferingFloat — afgeleid, OPS_Analysis niet meer geschreven');
   assert(tmOut.time.isNearCritical === undefined && def(TM.time.isNearCritical), '(a) time.isNearCritical — afgeleid, OPS_Analysis niet meer geschreven');
   assert(tmOut.time.floatPath === undefined && def(TM.time.floatPath), '(a) time.floatPath — afgeleid, OPS_Analysis niet meer geschreven');
+  // (a) alleen uren §3.4: de speling in minuten heeft nog geen IFC-veld. F3c dicht deze gap: haal dan
+  // deze twee asserties en de skip-cellen in TIME_CANON weg.
+  assert(tmOut.time.totalFloatMinutes === undefined && def(TM.time.totalFloatMinutes), '(a) time.totalFloatMinutes — nog geen IFC-veld (F3c)');
+  assert(tmOut.time.freeFloatMinutes === undefined && def(TM.time.freeFloatMinutes), '(a) time.freeFloatMinutes — nog geen IFC-veld (F3c)');
   assert(tmOut.time.durationUnit === 'hours' && tmOut.time.durationMinutes === 480,
     '(b) time.durationUnit/durationMinutes blijven native uren met exacte minuten');
   assert(tmOut.time.remainingMinutes === 0, '(b) time.remainingMinutes blijft exact nul in uur-modus');
