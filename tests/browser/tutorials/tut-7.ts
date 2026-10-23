@@ -1,3 +1,4 @@
+// F2-tussenstand; F3 → einde 2027-08-31T12:00 en de vaste urenreferentie (§3.14).
 // Tutorial 7 — Rapporteren en delen (`tut-7-rapport`): Variance, Voortgangsrapport, papier, PDF en
 // Bestand › Exporteren. Het project verandert niet: de eindstand is `na-tut-7` (= `na-tut-6`).
 import { l, type Check, type Snap, type TutorialScript } from './dsl';
@@ -18,7 +19,7 @@ export const TUTORIAL_7: TutorialScript = {
     {
       id: 'startpunt',
       do: [],
-      expect: [notStale, status('Einde: 31-08-2027', 'End: 31-08-2027'), status('Kritiek pad: 10 taken, 47 werkdagen', 'Critical path: 10 tasks, 47 work days')],
+      expect: [notStale, status('Einde: 30-08-2027', 'End: 30-08-2027'), status('Kritiek pad: 11 taken, 46 werkdagen', 'Critical path: 11 tasks, 46 work days')],
     },
     {
       id: 'rapport-openen',
@@ -31,13 +32,13 @@ export const TUTORIAL_7: TutorialScript = {
     {
       id: 'variance',
       do: [{ select: reportType, option: l('Variance', 'Variance') }],
-      expect: [see('Projecteinde: +1 werkdagen', 'Project end: +1 work days')],
+      expect: [see('Projecteinde: 0 werkdagen', 'Project end: 0 work days')],
       shots: [{ name: 'tut-7-variance', of: report, pad: 0, maxHeight: 660, viewport: { width: 1000, height: 1050 } }],
     },
     {
       id: 'voortgangsrapport',
       do: [{ select: reportType, option: l('Voortgangsrapport', 'Progress report') }],
-      expect: [see('28-06-2027', '28-06-2027'), see('31-08-2027', '31-08-2027')],
+      expect: [see('28-06-2027', '28-06-2027'), see('30-08-2027', '30-08-2027')],
       shots: [{ name: 'tut-7-voortgangsrapport', of: report, pad: 0, maxHeight: 600, viewport: { width: 1000, height: 1050 } }],
     },
     {

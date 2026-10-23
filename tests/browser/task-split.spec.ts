@@ -1,3 +1,4 @@
+// F2: taakdatums worden op D1/D2/D7-momenten vergeleken (§4.2); de echte handeling blijft gelijk.
 // De splits-modus (issue #146, etappe 2): knop in het lint, gekleurd meldingsblok, en het gebaar
 // "klik op de dag waar de onderbreking begint, sleep naar rechts voor de lengte".
 //
@@ -128,7 +129,7 @@ test('Splits-modus: een door een voorganger opgeschoven taak splitst waar je kli
   await expect.poll(() => page.evaluate((id) => {
     const t = window.__OPS__!.store.getState().tasks.find(task => task.id === id)!;
     return [t.time.scheduleStart, t.time.earlyStart];
-  }, succId)).toEqual([START, '2026-06-15']);
+  }, succId)).toEqual([`${START}T07:00`, "2026-06-15T07:00"]);
   await enableSplitMode(page);
 
   const point = await barPoint(page, succId);
@@ -143,7 +144,7 @@ test('Splits-modus: een door een voorganger opgeschoven taak splitst waar je kli
   // Het voorlopige balkeinde telt vanaf de balkstart: 11 werkdagen spanne ⇒ maandag 29 juni.
   expect(await page.evaluate((id) => (
     window.__OPS__!.store.getState().tasks.find(task => task.id === id)!.time.earlyFinish
-  ), succId)).toBe('2026-06-29');
+  ), succId)).toBe("2026-06-29T16:00");
 });
 
 test('Splits-modus: Escape zet de modus uit en haalt het meldingsblok weg', async ({ page, ops: _ops }) => {
@@ -240,9 +241,9 @@ test('Stukrand slepen: stuk 1 één werkdag korter maakt de taak één werkdag k
   await seedSplit(page, taskId, [5, 3, 5]);
   const y = (await barPoint(page, taskId)).y;
   const zoom = (await state(page)).view.zoom;
-  // De rechterrand van stuk 1 ligt op de grens met de volgende werkdag (ma 06-08, na het weekend).
+  // D1: de exclusieve grens van het dagslot ligt op maandag 07:00, na het weekend.
+  // Naar vrijdag = één werkdag korter; de nieuwe datumvorm verandert de dagenmaat niet.
   const edgeX = (await barPoint(page, taskId, 'left')).x + 7 * zoom - 2;
-  // Naar vrijdag 06-05: één werkdag terug. Tijdens het slepen noemt het label de nieuwe stuklengte.
   await page.mouse.move(edgeX, y);
   await page.mouse.down();
   await page.mouse.move(await dayColumnX(page, taskId, 4), y, { steps: 8 });
@@ -545,8 +546,8 @@ test('F4a: splitsen en stukslepen bij dagzoom volgen de werkdag van de taakkalen
     return bounds;
   }, taskId);
   console.log('GETEKENDE GRENZEN', JSON.stringify(drawn));
-  expect(drawn[0].end).toBe('2026-06-22T00:00:00.000Z');
-  expect(drawn[1].start).toBe('2026-06-23T00:00:00.000Z');
+  expect(drawn[0].end).toBe('2026-06-22T07:00:00.000Z'); // D1: exclusieve dagslotgrens.
+  expect(drawn[1].start).toBe('2026-06-23T07:00:00.000Z'); // D1: de dagenmaat blijft leidend.
 
   // Tot F3/F4b bewaart een echte dagtaak (zonder tijdstippen) het bestaande dagslotcontract.
   await seed('short');

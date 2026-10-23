@@ -14,6 +14,10 @@
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { payloadFromImport } from '@/state/documentContract';
+import { solveProject } from '@/engine/scheduler/solveProject';
+import { solveInputFor } from '@/engine/scheduler/solveInput';
+import { effectiveCalendarOf, effHoursPerDay } from '@/utils/taskDuration';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { useAppStore } from '@/state/appStore';
 import {
@@ -138,11 +142,41 @@ if (UPDATE) {
   console.log(`OK  voorbeeldensnapshot bijgewerkt: ${files.length} voorbeelden, ${n} taken.`);
 }
 
+// F2-tussenstand; F3 → onderstaande exacte momenten (§3.14).
+// De dagen zijn per kalender even lang; de bestaande urenloper toetst de doelen onafhankelijk.
+const f3Goals = [
+  ["05-brugvervanging-n279", "3.1", "2027-03-17T08:36", "2027-03-31T08:36"],
+  ["08-zorgcentrum-de-linde", "3.1", "2027-03-15T14:24", "2027-04-02T14:24"],
+  ["10-villa-wassenaar", "3.1", "2027-03-09T08:36", "2027-03-25T08:36"],
+  ["18-station-uitbreiding-breda", "3.1", "2027-03-22T14:24", "2027-04-02T14:24"],
+  ["20-woonwijk-almere", "3.1", "2027-04-02T08:36", "2027-04-14T08:36"],
+  ["20-woonwijk-almere", "3.2", "2027-04-07T08:36", "2027-04-19T08:36"],
+  ["showcase-rijwoningen-de-akkers", "6.4", "2027-06-10T08:36", "2027-06-16T08:36"],
+] as const;
+for (const file of new Set(f3Goals.map(g => g[0]))) {
+  const payload = payloadFromImport(readIFC(readFileSync(join(EX_DIR, `${file}.ifc`), 'utf8')), null);
+  const tasks = payload.tasks.map(task => {
+    if (task.time.durationUnit !== 'days' || task.isMilestone || task.childIds.length > 0) return task;
+    const cal = effectiveCalendarOf(task, payload.calendar, payload.calendars);
+    if (cal.workTime || cal.workingExceptions?.length) failures.push(`${file}: F3-referentie vereist gelijke werkdagen`);
+    const minutesPerDay = task.time.durationType === 'ELAPSEDTIME' ? 1440 : effHoursPerDay(cal) * 60;
+    return { ...task, time: { ...task.time, durationUnit: 'hours' as const,
+      durationMinutes: Math.round(task.time.scheduleDuration * minutesPerDay),
+    } };
+  });
+  const result = solveProject(solveInputFor(payload.project, tasks, payload.sequences, payload.calendar, payload.calendars));
+  if (result.error) failures.push(`${file}: F3-referentie kan niet berekenen: ${result.error}`);
+  for (const [, key, start, finish] of f3Goals.filter(g => g[0] === file)) {
+    const t = tasks.find(task => task.wbsCode === key)?.time;
+    if (t?.earlyStart !== start || t?.earlyFinish !== finish) failures.push(`${file}/${key}: F3-referentie ${t?.earlyStart} – ${t?.earlyFinish} ≠ ${start} – ${finish}`);
+  }
+}
+
 if (failures.length > 0) {
   for (const f of failures.slice(0, 50)) console.log(`XX ${f}`);
   if (failures.length > 50) console.log(`XX … en nog ${failures.length - 50} afwijkingen`);
   console.log(`\n${failures.length} afwijking(en) van de voorbeeldensnapshot.`);
   process.exitCode = 1;
 } else if (!UPDATE) {
-  console.log(`OK  voorbeeldensnapshot: ${files.length} voorbeelden, ${compared} waarden gelijk op dagniveau.`);
+  console.log(`OK  voorbeeldensnapshot: ${files.length} voorbeelden, ${compared} waarden gelijk op dagniveau; ${f3Goals.length} exacte F3-doelen getoetst.`);
 }

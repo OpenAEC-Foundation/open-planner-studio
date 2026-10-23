@@ -1,3 +1,4 @@
+// F2: taakdatums worden op D1/D2/D7-momenten vergeleken (§4.2); de echte handeling blijft gelijk.
 // Rekenprofielen in de echte gebruikersflow (spec v3.1 §8; plan taak D6). Een .xer via de ribbonknop
 // Openen en de bestandskiezer; daarna alleen echte klikken. `window.__OPS__` wordt uitsluitend gebruikt
 // om de uitkomst te LEZEN (patroon `recorded-dates.spec.ts`).
@@ -356,10 +357,10 @@ test('rekenprofiel: conventies per thema met basiswaarde, terug naar basis en ui
 
   // Het conventiedeel staat standaard dicht; de kop toont het aantal regels.
   await expect(page.locator('[data-ops-convention-row]')).toHaveCount(0);
-  await expect(page.locator('[data-ops-conventions-count]')).toHaveText('(27)');
+  await expect(page.locator('[data-ops-conventions-count]')).toHaveText('(28)');
   await expandConventions(page);
-  // Alle 27 regels staan er, verdeeld over de groepen; A19 onder voortgang, C1 bij "alleen eigen profielen".
-  await expect(page.locator('[data-ops-convention-row]')).toHaveCount(27);
+  // Alle 28 regels staan er, verdeeld over de groepen; A19 onder voortgang, C1 bij "alleen eigen profielen".
+  await expect(page.locator('[data-ops-convention-row]')).toHaveCount(28);
   const a19 = page.locator('[data-ops-convention-group="completedWork"] [data-ops-convention-row="p6UseRemainingStartForProgress"]');
   await expect(a19).toHaveCount(1);
   await expect(page.locator('[data-ops-convention-group="ownProfilesOnly"] [data-ops-convention-row="p6CompletedPredecessorAtDataDate"]')).toHaveCount(1);

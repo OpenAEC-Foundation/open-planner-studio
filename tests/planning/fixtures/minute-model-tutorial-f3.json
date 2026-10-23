@@ -1,6 +1,8 @@
 {
   "na-tut-1": {
     "finish": "2027-06-14T16:00",
+    "duration": 6,
+    "critical": ["outerLeaf"],
     "table": {
       "msStart": "2027-06-07T16:00 2027-06-07T16:00 4",
       "site": "2027-06-07T07:00 2027-06-08T16:00 4",
@@ -29,6 +31,8 @@
   },
   "na-tut-2": {
     "finish": "2027-08-06T16:00",
+    "duration": 45,
+    "critical": ["msStart","site","garden","setout","excavate","rebar","inspection","pour","foundBrick","floor","innerLeaf","roofElements","roofing","frames","breakThrough","services","plaster","screed","tiling","cleaning","msHandover"],
     "table": {
       "msStart": "2027-06-07T07:00 2027-06-07T07:00 0",
       "site": "2027-06-07T07:00 2027-06-08T16:00 0",
@@ -57,6 +61,8 @@
   },
   "tussen-tut-3-bouwvak": {
     "finish": "2027-08-27T16:00",
+    "duration": 45,
+    "critical": ["msStart","site","garden","setout","excavate","rebar","inspection","pour","foundBrick","floor","innerLeaf","roofElements","roofing","frames","breakThrough","services","plaster","screed","tiling","cleaning","msHandover"],
     "table": {
       "msStart": "2027-06-07T07:00 2027-06-07T07:00 0",
       "site": "2027-06-07T07:00 2027-06-08T16:00 0",
@@ -85,6 +91,8 @@
   },
   "na-tut-3": {
     "finish": "2027-09-01T16:00",
+    "duration": 48,
+    "critical": ["frames","breakThrough","services","plaster","screed","tiling","cleaning","msHandover"],
     "table": {
       "msStart": "2027-06-07T07:00 2027-06-07T07:00 3",
       "site": "2027-06-07T07:00 2027-06-08T16:00 3",
@@ -113,6 +121,8 @@
   },
   "na-tut-4": {
     "finish": "2027-09-01T16:00",
+    "duration": 48,
+    "critical": ["frames","breakThrough","services","plaster","screed","tiling","cleaning","msHandover"],
     "table": {
       "msStart": "2027-06-07T07:00 2027-06-07T07:00 3.875",
       "site": "2027-06-07T07:00 2027-06-08T16:00 3.875",
@@ -141,6 +151,8 @@
   },
   "tussen-tut-5-resources": {
     "finish": "2027-09-01T16:00",
+    "duration": 48,
+    "critical": ["frames","breakThrough","services","plaster","screed","tiling","cleaning","msHandover"],
     "table": {
       "msStart": "2027-06-07T07:00 2027-06-07T07:00 3.875",
       "site": "2027-06-07T07:00 2027-06-08T16:00 3.875",
@@ -169,6 +181,8 @@
   },
   "tussen-tut-5-toegewezen": {
     "finish": "2027-09-01T16:00",
+    "duration": 48,
+    "critical": ["frames","breakThrough","services","plaster","screed","tiling","cleaning","msHandover"],
     "table": {
       "msStart": "2027-06-07T07:00 2027-06-07T07:00 3.875",
       "site": "2027-06-07T07:00 2027-06-08T16:00 3.875",
@@ -197,6 +211,8 @@
   },
   "tussen-tut-5-werkregel": {
     "finish": "2027-08-30T16:00",
+    "duration": 46,
+    "critical": ["frames","breakThrough","services","plaster","screed","tiling","cleaning","msHandover"],
     "table": {
       "msStart": "2027-06-07T07:00 2027-06-07T07:00 3.875",
       "site": "2027-06-07T07:00 2027-06-08T16:00 3.875",
@@ -225,6 +241,8 @@
   },
   "na-tut-5": {
     "finish": "2027-08-30T16:00",
+    "duration": 46,
+    "critical": ["frames","breakThrough","services","plaster","screed","tiling","cleaning","msHandover"],
     "table": {
       "msStart": "2027-06-07T07:00 2027-06-07T07:00 0.625",
       "site": "2027-06-07T07:00 2027-06-08T16:00 0.625",
@@ -253,6 +271,8 @@
   },
   "tussen-tut-6-baseline": {
     "finish": "2027-08-30T16:00",
+    "duration": 46,
+    "critical": ["frames","breakThrough","services","plaster","screed","tiling","cleaning","msHandover"],
     "table": {
       "msStart": "2027-06-07T07:00 2027-06-07T07:00 0.625",
       "site": "2027-06-07T07:00 2027-06-08T16:00 0.625",
@@ -281,6 +301,8 @@
   },
   "tussen-tut-6-statusdatum": {
     "finish": "2027-09-20T10:00",
+    "duration": 46,
+    "critical": ["msStart","site","garden","setout","excavate","rebar","inspection","pour","foundBrick","floor","innerLeaf","outerLeaf","roofElements","roofing","frames","breakThrough","services","plaster","screed","tiling","cleaning","msHandover"],
     "table": {
       "msStart": "2027-06-28T07:00 2027-06-28T07:00 -5.375",
       "site": "2027-06-28T07:00 2027-06-29T16:00 -5.375",
@@ -309,6 +331,8 @@
   },
   "tussen-tut-6-voorbereiding": {
     "finish": "2027-09-14T10:00",
+    "duration": 57,
+    "critical": ["excavate","rebar","inspection","pour","foundBrick","floor","outerLeaf","frames","breakThrough","services","plaster","screed","tiling","cleaning","msHandover"],
     "table": {
       "msStart": "2027-06-07T07:00 2027-06-07T07:00 9.625",
       "site": "2027-06-07T07:00 2027-06-08T16:00 9.625",
@@ -337,6 +361,8 @@
   },
   "tussen-tut-6-ontgraven": {
     "finish": "2027-09-10T10:00",
+    "duration": 55,
+    "critical": ["rebar","inspection","pour","foundBrick","floor","outerLeaf","frames","breakThrough","services","plaster","screed","tiling","cleaning","msHandover"],
     "table": {
       "msStart": "2027-06-07T07:00 2027-06-07T07:00 9",
       "site": "2027-06-07T07:00 2027-06-08T16:00 9",
@@ -365,6 +391,8 @@
   },
   "tussen-tut-6-fundering": {
     "finish": "2027-09-01T12:00",
+    "duration": 48,
+    "critical": ["foundBrick","floor","outerLeaf","frames","breakThrough","services","plaster","screed","tiling","cleaning","msHandover"],
     "table": {
       "msStart": "2027-06-07T07:00 2027-06-07T07:00 2.25",
       "site": "2027-06-07T07:00 2027-06-08T16:00 2.25",
@@ -393,6 +421,8 @@
   },
   "tussen-tut-6-metselwerk": {
     "finish": "2027-08-31T12:00",
+    "duration": 47,
+    "critical": ["foundBrick","floor","outerLeaf","frames","breakThrough","services","plaster","screed","tiling","cleaning","msHandover"],
     "table": {
       "msStart": "2027-06-07T07:00 2027-06-07T07:00 1.25",
       "site": "2027-06-07T07:00 2027-06-08T16:00 1.25",
@@ -421,6 +451,8 @@
   },
   "na-tut-6": {
     "finish": "2027-08-31T12:00",
+    "duration": 47,
+    "critical": ["foundBrick","floor","outerLeaf","frames","breakThrough","services","plaster","screed","tiling","cleaning","msHandover"],
     "table": {
       "msStart": "2027-06-07T07:00 2027-06-07T07:00 1.25",
       "site": "2027-06-07T07:00 2027-06-08T16:00 1.25",
@@ -449,6 +481,8 @@
   },
   "na-tut-7": {
     "finish": "2027-08-31T12:00",
+    "duration": 47,
+    "critical": ["foundBrick","floor","outerLeaf","frames","breakThrough","services","plaster","screed","tiling","cleaning","msHandover"],
     "table": {
       "msStart": "2027-06-07T07:00 2027-06-07T07:00 1.25",
       "site": "2027-06-07T07:00 2027-06-08T16:00 1.25",

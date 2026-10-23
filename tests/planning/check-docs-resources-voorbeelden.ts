@@ -13,7 +13,9 @@
 import './domStub';
 import { useAppStore } from '@/state/appStore';
 import { workDaySlotsToPeriods } from '@/engine/contour/contourEdit';
-import { distributeUnits } from '@/engine/scheduler/ResourceLoad';
+import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { parseInstant } from '@/utils/dateUtils';
+import { assignmentPlacementLoad, distributeUnits } from '@/engine/scheduler/ResourceLoad';
 import type { WorkRule } from '@/types/workRule';
 import { buildTutorialProject, ASSIGNMENTS, HOUR_TASKS, RESOURCES, TASKS, WORK_RULE, type ResourceKey, type TaskKey } from '../../scripts/tutorial-project';
 
@@ -273,6 +275,18 @@ async function main(): Promise<void> {
 
   // Dezelfde projecten met urenmaat houden de precieze F3-einddoelen groen.
   await tutorialBase({ plasterRule: true, hoursReference: true });
+  // F3b rekent de deeldagen al; F3c sluit deze kern op het productieoverzicht aan.
+  const futureLoads: Record<string, number> = {};
+  for (const key of ['innerLeaf', 'outerLeaf'] as const) {
+    const t = task(key);
+    const placement = assignmentPlacementLoad(t, asg(t.id, resIds.get('bricklayer')), new CalendarEngine(S().calendar), {
+      start: parseInstant(t.time.earlyStart), finish: parseInstant(t.time.earlyFinish), measure: 'workdays',
+    });
+    placement.days.forEach((day, index) => { futureLoads[day.iso] = (futureLoads[day.iso] ?? 0) + placement.units[index]; });
+  }
+  eq('F3-referentie: overbezetting telt ook de laatste gedeeltelijke werkdag',
+    Object.keys(futureLoads).filter(day => futureLoads[day] > 1 + 1e-9),
+    ['2027-06-28', '2027-06-29', '2027-06-30', '2027-07-01', '2027-07-02', '2027-07-05']);
   eq('F3-referentie: speling binnen/buiten', [task('innerLeaf').time.totalFloat, task('outerLeaf').time.totalFloat], [3.875, 5.625]);
   S().applyLeveling(level(false));
   eq('F3-referentie: genivelleerd binnen/buiten', [span('innerLeaf'), span('outerLeaf')], ['2027-06-28..2027-07-05', '2027-07-05..2027-07-13']);

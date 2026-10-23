@@ -1,3 +1,4 @@
+// F2: taakdatums worden op D1/D2/D7-momenten vergeleken (§4.2); de echte handeling blijft gelijk.
 import type { Page } from '@playwright/test';
 import { expect, seedProject, test } from './fixtures/ops';
 
@@ -106,7 +107,7 @@ test('fasen-editor: splitsen, inzet typen, grens slepen, toepassen, undo en losl
   await expect.poll(() => page.evaluate((id) => {
     const t = window.__OPS__!.store.getState().tasks.find(x => x.id === id)!;
     return [t.time.earlyStart, t.time.earlyFinish, t.splitGaps ?? null];
-  }, taskId)).toEqual(['2026-09-07', '2026-09-11', null]);
+  }, taskId)).toEqual(["2026-09-07T07:00", "2026-09-11T16:00", null]);
   await expect(contourButton).toHaveAttribute('data-ops-assignment-contour', 'contoured');
   await expect(row.locator('[data-ops-assignment-curve] button')).toBeDisabled();
   await expect(page.locator('[data-ops-task-timephased]')).toHaveAttribute('data-ops-task-timephased', 'contoured');

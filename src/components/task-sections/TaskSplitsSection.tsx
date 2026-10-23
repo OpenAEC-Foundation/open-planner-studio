@@ -76,9 +76,10 @@ function segmentRanges(task: Task, cal: WorkCalendar): { from: string; to: strin
   const startStr = shownStart(task) || '';
   const endStr = shownFinish(task) || '';
   if (!startStr || !endStr) return [];
-  const hourMode = startStr.includes('T') || endStr.includes('T');
-  const start = hourMode ? parseInstant(startStr) : parseDate(startStr);
-  const end = hourMode ? parseInstant(endStr) : parseDate(endStr);
+  const hasInstants = startStr.includes('T') || endStr.includes('T');
+  const hourMode = taskDurationUnit(task) === 'hours';
+  const start = hasInstants ? parseInstant(startStr) : parseDate(startStr);
+  const end = hasInstants ? parseInstant(endStr) : parseDate(endStr);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return [];
   const eng = new CalendarEngine(cal);
   const segments = computeSplitSegments(task.splitGaps, start, end, hourMode, eng);

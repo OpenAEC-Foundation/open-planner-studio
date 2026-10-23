@@ -28,6 +28,8 @@
 // Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { readFileSync } from 'node:fs';
+import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { computeVariance } from '@/engine/variance';
 import { payloadFromImport } from '@/state/documentContract';
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { solveInputFor } from '@/engine/scheduler/solveInput';
@@ -919,7 +921,7 @@ function comparableBuild(b: TutorialBuild): unknown {
  *  De vaste doelen blijven getoetst terwijl de gewone dagcases de F2-tussenstand bewaken. */
 function checkF3Reference(build: TutorialBuild): void {
   const goals = JSON.parse(readFileSync(new URL('./fixtures/minute-model-tutorial-f3.json', import.meta.url), 'utf8')) as
-    Record<string, { finish: string; table: Record<TaskKey, string> }>;
+    Record<string, { finish: string; duration: number; critical: TaskKey[]; table: Record<TaskKey, string> }>;
   for (const stage of build.stages) {
     if (stage.id === 'start-tut-1') continue;
     const payload = payloadFromImport(readIFC(stage.ifc), null);
@@ -935,10 +937,33 @@ function checkF3Reference(build: TutorialBuild): void {
     const result = solveProject(solveInputFor(payload.project, tasks, payload.sequences, payload.calendar, payload.calendars));
     eq(`F3-referentie/${stage.id}: doorrekening`, result.error, undefined);
     eq(`F3-referentie/${stage.id}: einde`, result.projectEnd, goals[stage.id]?.finish);
+    eq(`F3-referentie/${stage.id}: projectduur`, result.projectDuration, goals[stage.id]?.duration);
     for (const definition of TASKS) {
+      const referenceTask = tasks.find(task => task.name === definition.name.nl)!;
+      eq(`F3-referentie/${stage.id}/${definition.key}: kritiek`, referenceTask.time.isCritical, goals[stage.id]?.critical.includes(definition.key));
       const t = tasks.find(task => task.name === definition.name.nl)!.time;
       eq(`F3-referentie/${stage.id}/${definition.key}`, `${t.earlyStart} ${t.earlyFinish} ${t.totalFloat}`,
         goals[stage.id]?.table[definition.key]);
+    }
+    if (stage.id === 'na-tut-6') {
+      const baseline = payload.baselines.find(b => b.id === payload.activeBaselineId) ?? null;
+      eq('F3-referentie/na-tut-6: eindafwijking tegen de baseline',
+        computeVariance(tasks, baseline, new CalendarEngine(payload.calendar), result.projectEnd).projectEndDelta, 1);
+    }
+    if (stage.id === 'na-tut-4') {
+      // F2-tussenstand in de browservariant; F3 → deze exacte urenreferentie (§3.14).
+      const roof = tasks.find(task => task.name === TASKS.find(t => t.key === 'roofElements')!.name.nl)!;
+      roof.time.durationMinutes = 720;
+      roof.time.scheduleDuration = 1.5;
+      const longer = solveProject(solveInputFor(payload.project, tasks, payload.sequences, payload.calendar, payload.calendars));
+      eq('F3-referentie/langere-kraan: doorrekening', longer.error, undefined);
+      const key = (k: TaskKey) => tasks.find(task => task.name === TASKS.find(d => d.key === k)!.name.nl)!.time;
+      eq('F3-referentie/langere-kraan: dak',
+        [key('roofElements').earlyStart, key('roofElements').earlyFinish, key('roofElements').totalFloat],
+        ['2027-07-05T10:00', '2027-07-06T15:00', 3.125]);
+      eq('F3-referentie/langere-kraan: dakbedekking',
+        [key('roofing').earlyStart, key('roofing').earlyFinish, key('roofing').totalFloat, key('innerLeaf').totalFloat],
+        ['2027-07-06T15:00', '2027-07-08T15:00', 3.125, 3.125]);
     }
   }
 }
@@ -1112,7 +1137,7 @@ async function tut5Stages(nl: TutorialBuild): Promise<void> {
   const fiveResources = [
     'Timmerploeg CREW 1', 'Metselaar LABOR 1', 'Mobiele kraan EQUIPMENT 1', 'Stukadoor SUBCONTRACTOR 2', 'Beton MATERIAL 50 m³',
   ];
-  // F2-tussenstand; F3 → dagen vanaf 2027-06-29 volgens de urenreferentie (§3.14).
+  // F2-tussenstand; F3 → 6 overbezette dagen van 28 juni t/m 5 juli (§3.14; plaatsingsreferentie).
   const metselaarOver = ['2027-06-25', '2027-06-28', '2027-06-29', '2027-06-30', '2027-07-01'];
 
   await S().openExampleFromString(ifcOf('tussen-tut-5-resources'), 'tussen-tut-5-resources.ifc');

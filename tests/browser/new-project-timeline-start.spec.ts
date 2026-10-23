@@ -1,3 +1,4 @@
+// F2: taakdatums worden op D1/D2/D7-momenten vergeleken (§4.2); de echte handeling blijft gelijk.
 // Checkstap 14 (2026-10-15): na Home › Nieuw › Maken toonde de tijdlijn de vroegste feestdag van
 // de kalender in plaats van de projectstart. Hetzelfde gold voor de app-start, een nieuw document en
 // het sluiten van het laatste tabblad. De test leest de positie bij de renderer zelf
@@ -114,6 +115,8 @@ test('laatste tabblad sluiten en newDocument: het verse document begint bij de p
   // Het voorbeeld hergebruikt het lege tabblad; sluit dat ene tabblad met de echte sluitknop.
   expect((await state(page)).documentIds.length).toBe(1);
   await page.locator('[data-ops-tabstrip] .ops-tab-close').first().click();
+  // B5: de omzetting van een oud voorbeeld is een niet-opgeslagen bewerking.
+  await page.locator('[data-ops-close-choice="discard"]').click();
   await expect.poll(() => state(page).then(s => s.tasks.length)).toBe(0);
   await expectProjectStartAtOrigin(page);
 

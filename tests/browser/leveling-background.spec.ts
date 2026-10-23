@@ -1,3 +1,4 @@
+// F2: taakdatums worden op D1/D2/D7-momenten vergeleken (§4.2); de echte handeling blijft gelijk.
 import { expect, seedProject, test } from './fixtures/ops';
 import type { GeneratedProject } from '@/services/benchmark/generateProject';
 
@@ -46,7 +47,7 @@ test('nivelleer-dialoog: berekenen via de worker levert een voorstel; toepassen 
     const s = window.__OPS__!.store.getState();
     return [a, b].map(id => s.tasks.find(t => t.id === id)!.time.earlyStart).sort();
   }, [first, second]);
-  expect(starts[0]).toBe('2026-09-07');
+  expect(starts[0]).toBe("2026-09-07T07:00");
   expect(starts[1] > '2026-09-09').toBe(true);
 
   // Zonder smoothing kan een taak intrinsiek meer vragen dan de ploeg kan leveren.

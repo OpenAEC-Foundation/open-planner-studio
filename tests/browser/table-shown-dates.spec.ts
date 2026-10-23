@@ -105,7 +105,7 @@ test('tabel: Start/Einde tonen de datums van de Gantt-balk, Einde bewerken verze
   await expect.poll(() => page.evaluate(id => {
     const task = window.__OPS__!.store.getState().tasks.find(candidate => candidate.id === id)!;
     return task.time.earlyFinish || task.time.scheduleFinish;
-  }, target.id)).toBe(newFinish);
+  }, target.id)).toBe(`${newFinish}T16:00`); // D2: opslag draagt het laatste blokeinde.
   const after = (await shownTasks(page)).find(task => task.id === target.id)!;
   expect(after.start).toBe(target.start);
   // Het ingevoerde einde blijft invoer: de fix leidt het niet af uit de berekende planning.
