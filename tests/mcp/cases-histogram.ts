@@ -27,6 +27,7 @@ import { computeHistogramReport } from '@/engine/scheduler/ResourceLoad';
 import { ELAPSED_CLOCK, workdayOfInstant } from '@/engine/calendar/workdayRules';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import type { WorkCalendar } from '@/types/calendar';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 
 const S = () => useAppStore.getState();
 const CLEAN_WORKDAYS = [1, 2, 3, 4, 5];
@@ -50,6 +51,8 @@ function sources() {
     calendar: s.calendar,
     calendars: s.calendars,
     cpmResult: s.cpmResult,
+    // Zoals `planner_resource_histogram`: de maatconventie van het project.
+    schedulingOptions: effectiveSchedulingOptions(s.project),
   };
 }
 

@@ -347,13 +347,13 @@ eq('voorbeelden: dezelfde acht bestanden', files, Object.keys(exampleLoads).sort
 for (const file of files) {
   const parsed = readIFC(readFileSync(`${examples}/${file}`, 'utf8'));
   const { tasks, assignments, resources, calendar: cal, resourceCalendars: calendars } = parsed;
-  const before = computeResourceLoad(resources, assignments, tasks, cal, calendars ?? []);
+  const before = computeResourceLoad(resources, assignments, tasks, cal, calendars ?? [], OPS);
   eq(`voorbeeld ${file}: vóór Bereken`, fingerprint(before), exampleLoads[file]?.[0]);
   // D1/D2: de productieroute normaliseert de bron vóór de solvergrens.
   const normalized = tasks.map(t => normalizeTaskDates(t, { calendar: cal, calendars: calendars ?? [] }));
   const solved = solveProject(opsSolveInput({ tasks: normalized, sequences: parsed.sequences, calendar: cal, calendars: calendars ?? [] }));
   eq(`voorbeeld ${file}: doorrekening`, solved.error, undefined);
-  const after = computeResourceLoad(resources, assignments, normalized, cal, calendars ?? []);
+  const after = computeResourceLoad(resources, assignments, normalized, cal, calendars ?? [], OPS);
   eq(`voorbeeld ${file}: na Bereken`, fingerprint(after), exampleLoads[file]?.[1]);
 }
 

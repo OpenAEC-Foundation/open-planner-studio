@@ -362,18 +362,6 @@ en noem het in je rapport of PR-tekst.
      (`scheduleSlice.ts:243`) zegt nog dat de nivelleerder in hele werkdagen rekent. Voorstel: `'delayMinutes'`
      in beide types en het commentaar bijwerken. Gevonden bij F3c deel 3, alleen in de code gezien. — S
 
-258. **Histogram, rapport en bezetting lezen de maat van het OPS-profiel, ook onder P6 of MSP.** De
-     belastingfuncties (`computeResourceLoad`, `computeReliableResourceLoad`, `computeHistogramReport` in
-     `ResourceLoad.ts`) krijgen de maatconventie als optie; zonder optie gelden de OPS-conventies. Nog zonder
-     optie: `scheduleSlice.ts:93,109`, `documentActivation.ts:237`, `gridTransaction.ts:1101`,
-     `sessionHistory.ts:200`, `services/mcp/tools/readTools.ts:815,877`, `GanttCanvas.tsx:237` en
-     `services/library/occupancy.ts:293`. De nivelleerder krijgt het profiel wel (`solveOptionsFor`). Gevolg
-     onder P6: een dagtaak van 1 d vanaf vr 07:00 op een korte vrijdag (6 u) staat in het histogram als vr 1,
-     terwijl de nivelleerder vr 0,75 + ma 0,25 boekt (`check-f3b-production-compat.ts`, "dagtaak onder de
-     urenmaat (P6)"). Nagespeeld met een storeprobe: P6-profiel, `runCPM`, `resourceLoadResult` vr 1.
-     Voorstel: geef overal `effectiveSchedulingOptions(project)` mee; voor de bezetting een veld in
-     `OccupancyDocInput`. Gevonden bij F3c deel 3. — B
-
 259. **Een handmatig geplande taak krijgt een nivelleervertraging die de solver negeert.** De nivelleerder
      behandelt alleen voltooide en lopende taken als onverplaatsbaar (`ResourceLeveler.ts:445`). De solver houdt
      een handmatig geplande taak op haar eigen datums en leest geen nivelleervertraging (`CPMSolver.ts:2006`).

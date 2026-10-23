@@ -4,6 +4,7 @@ import { normalizeActualDate } from '@/engine/taskMutationRules';
 import { isElapsedTask } from '@/engine/scheduler/duration';
 import { produce } from 'immer';
 import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { resourceLoadInputsUnchanged } from './resourceLoadReuse';
 import { deriveViewRows } from './slices/viewSlice';
 import { buildTaskRelationIndex, type TaskRelationIndex } from '@/engine/taskGrid/relationIndex';
@@ -1111,6 +1112,7 @@ export function prepareGridMutation(
       isolated.tasks,
       isolated.calendar,
       isolated.calendars,
+      effectiveSchedulingOptions(isolated.project),
     );
   } catch (error) {
     return { ok: false, errors: [validationError('derivedCalculation', undefined, String(error))] };

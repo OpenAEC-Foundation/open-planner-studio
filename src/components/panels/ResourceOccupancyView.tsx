@@ -15,6 +15,7 @@ import {
 import { documentTitle, untitledOrdinals, displayDocumentTitle, DOC_PALETTE } from '@/utils/documents';
 import { documentProjectCode } from '@/utils/documentProjectCode';
 import { maxUnitsOn } from '@/engine/scheduler/ResourceLoad';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { parseDate, formatDate, addCalendarDays, diffDays } from '@/utils/dateUtils';
 import { StatusBanner } from './StatusBanner';
 
@@ -258,6 +259,7 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
         tasks: slice.tasks,
         calendar: payload.calendar,
         calendars: payload.calendars,
+        loadOptions: effectiveSchedulingOptions(payload.project),
         skipEphemeralSolve: isActive,
         // Invoer voor de efemere doorrekening van een stale document. Bewust de VOLLEDIGE
         // takenlijst en relaties van de payload (niet de bibliotheek-snit): een gesnoeide graaf zou

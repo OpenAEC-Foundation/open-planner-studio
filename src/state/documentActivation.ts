@@ -1,5 +1,6 @@
 import { normalizeRecordedTimes } from './minuteModelTransition';
 import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { cloneTasksForSolve, solveProject } from '@/engine/scheduler/solveProject';
 import { solveInputFor } from '@/engine/scheduler/solveInput';
 import {
@@ -241,6 +242,7 @@ export function materializeLibraryBoundary(input: {
     refreshed.payload.tasks,
     refreshed.payload.calendar,
     refreshed.payload.calendars,
+    effectiveSchedulingOptions(refreshed.payload.project),
   );
   refreshed.payload.resourceLoadResult = resourceLoadResult;
   return {

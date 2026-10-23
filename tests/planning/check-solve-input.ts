@@ -98,6 +98,7 @@ void bad; void missing; void good;
   const solved = ephemeralSolve({
     docId: 'd', title: '', scheduleStale: true, companyId: null, resources: [], assignments: [],
     tasks: S().tasks, calendar: S().calendar, calendars: S().calendars,
+    loadOptions: solveOptionsFor(S().project).schedulingOptions,
     solveInput: occupancySolveInputFor({ tasks: S().tasks, sequences: S().sequences, project: S().project }),
   });
   eq('C5-03 bezetting rekent met de projectstart-vloer zoals F5', solved?.find(t => t.id === b)?.time.earlyStart, f5);
