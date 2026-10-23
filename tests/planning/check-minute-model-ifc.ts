@@ -11,6 +11,7 @@ import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import type { Task } from '@/types/task';
 import { computeCalendarHash } from '@/services/library/libraryOps';
 import { migrateToMinuteModel } from '@/state/migrations/minuteModel';
+import { createAppStoreContext } from '@/state/appStoreFactory';
 
 let checks = 0;
 const errors: string[] = [];
@@ -97,5 +98,50 @@ for (const variant of ['W0', 'W1', 'W2']) {
     (parseInstant(normalized.tasks[0].time.actualFinish!).getTime() - parseInstant(normalized.baselines[0].tasks[0].finish).getTime()) / MS_PER_DAY, 2);
 
 }
+// Datumloze actuals op een minutenkalender (review ronde 1 van PR #559, deel B, punt 3; spec §3.6 en
+// §5.2 geval 9). Een ander programma (hier: de tijden met de hand uit het slot gehaald) schrijft een
+// voltooide dagtaak met werkelijk begin 1 juni en einde 2 juni zonder tijd. De lezer maakte daar 00:00
+// van, en de normalisatie liet dat moment staan; na opslaan bleef het fout. Nu blijft de datum een datum
+// tot de normalisatie: D1 voor het begin, D2 voor het einde, op de kalender van de taak.
+//  - `literal`: scalaire kalender met `LiteralTimes` (een urentaak maakt hem letterlijk), 07:00–16:00.
+//  - `blokken`: kalender met eigen werkblokken 08:00–17:00 (een urenkalender van een ander programma).
+for (const variant of ['literal', 'blokken'] as const) {
+  const p = freshPayload();
+  p.project = { ...p.project, startDate: '2026-06-01', statusDate: '2026-06-05' };
+  p.calendar = { ...p.calendar, holidays: [] };
+  if (variant === 'blokken') {
+    const band = [{ start: 480, end: 1020 }];
+    p.calendar = { ...p.calendar, workTime: { byWeekday: { 1: band, 2: band, 3: band, 4: band, 5: band, 6: [], 7: [] } } };
+    p.calendars = p.calendars.map(c => (c.id === p.calendar.id ? p.calendar : c));
+  }
+  const [begin, eind] = variant === 'blokken' ? ['08:00', '17:00'] : ['07:00', '16:00'];
+  const dag = task('Dag', `2026-06-01T${begin}`, `2026-06-02T${eind}`);
+  dag.status = 'COMPLETED';
+  dag.time = { ...dag.time, scheduleDuration: 2, completion: 1, actualStart: `2026-06-01T${begin}`, actualFinish: `2026-06-02T${eind}` };
+  const uur = task('Uur', `2026-06-01T${begin}`, `2026-06-01T${eind}`);
+  uur.time = { ...uur.time, durationUnit: 'hours', durationMinutes: 480 };
+  p.tasks = [dag, uur];
+  const own = writeIFC(buildWriteIFCInput(p));
+  if (variant === 'literal') eq('datumloze actuals: kalender is letterlijk', own.includes("'LiteralTimes'"), true);
+  // Alleen het tijdslot van de dagtaak verliest zijn tijden.
+  const external = own.replace(/^(#\d+=IFCTASKTIME\('Dag Time'.*)$/m,
+    line => line.replace(/'(\d{4}-\d{2}-\d{2})T\d{2}:\d{2}:\d{2}'/g, "'$1'"));
+  eq(`${variant} voorwaarde: het slot draagt datums zonder tijd`,
+    /IFCTASKTIME\('Dag Time'[^\n]*'2026-06-02'/.test(external) && !/IFCTASKTIME\('Dag Time'[^\n]*T\d{2}:/.test(external), true);
+  const read = readIFC(external);
+  const actuals = (tasks: readonly Task[]) => {
+    const t = tasks.find(x => x.name === 'Dag')!;
+    return [t.time.actualStart, t.time.actualFinish];
+  };
+  eq(`${variant} lezer houdt de datum tot de normalisatie`, actuals(read.tasks), ['2026-06-01', '2026-06-02']);
+  const want = [`2026-06-01T${begin}`, `2026-06-02T${eind}`];
+  eq(`${variant} normalisatie op de laadgrens: D1 en D2`, actuals(payloadFromImport(read, null).tasks), want);
+  const loaded = createAppStoreContext().store;
+  loaded.getState().applyLoadedProject(readIFC(external), { recompute: true });
+  eq(`${variant} na openen (met berekening)`, actuals(loaded.getState().tasks), want);
+  const reopened = payloadFromImport(readIFC(writeIFC(buildWriteIFCInput(loaded.getState()))), null);
+  eq(`${variant} na opslaan en heropenen`, actuals(reopened.tasks), want);
+}
+
 if (errors.length) { for (const e of errors) console.log(`XX ${e}`); process.exitCode = 1; }
 console.log(`minutenmodel IFC: ${checks - errors.length}/${checks} groen`);
