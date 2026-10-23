@@ -163,10 +163,15 @@ ok('4c2 afgekapt STEP ⇒ IFC_READ_FAILED', await codeOf(() => openIfc('ISO-1030
   // Dus een ontbrekende of voortijdig afgebroken rollup kan niet toevallig slagen.
   const expectedStart = '2026-03-18';
   const expectedFinish = '2026-03-23';
+  // D1/D2: de laadgrens geeft momenten; een afleidbare IFC-kalender schrijft ankerdatums.
+  const expectedStartInstant = `${expectedStart}T07:00`;
+  const expectedFinishInstant = `${expectedFinish}T16:00`;
+  const startMatches = (value: string) => value === expectedStart || value === expectedStartInstant;
+  const finishMatches = (value: string) => value === expectedFinish || value === expectedFinishInstant;
   const expectedDuration = 4;
   const hasExpectedSpan = (ts: readonly Task[]) => ts.length === N && ts.every(t =>
-    t.time.earlyStart === expectedStart && t.time.earlyFinish === expectedFinish
-      && t.time.lateStart === expectedStart && t.time.lateFinish === expectedFinish
+    startMatches(t.time.earlyStart) && finishMatches(t.time.earlyFinish)
+      && startMatches(t.time.lateStart) && finishMatches(t.time.lateFinish)
       && t.time.scheduleDuration === expectedDuration && t.time.totalFloat === 0 && t.time.freeFloat === 0);
   ok('4g fixture: alle fasen hebben de oude span; alleen het diepste blad heeft de nieuwe span',
     parsed.tasks.slice(0, -1).every(t => t.time.earlyStart === '2026-03-02'
@@ -188,8 +193,8 @@ ok('4c2 afgekapt STEP ⇒ IFC_READ_FAILED', await codeOf(() => openIfc('ISO-1030
       && summary.tasks.every((t, i) => t.id === tasks[i].id && t.parentId === tasks[i].parentId
         && t.wbs === tasks[i].wbsCode && t.summary === (i < N - 1)));
   ok('4g expliciete berekening geeft alle fasen en het blad de onafhankelijk vastgelegde datums',
-    summary.tasks.every(t => t.start === expectedStart && t.finish === expectedFinish
-      && t.lateStart === expectedStart && t.lateFinish === expectedFinish && t.totalFloat === 0));
+    summary.tasks.every(t => t.start === expectedStartInstant && t.finish === expectedFinishInstant
+      && t.lateStart === expectedStartInstant && t.lateFinish === expectedFinishInstant && t.totalFloat === 0));
   const last = summary.tasks[N - 1];
   ok('4g ook de buitenste fasen krijgen de berekende bladspan, geen gedeeltelijke rollup',
     summary.tasks.every(t => t.start === last.start && t.finish === last.finish

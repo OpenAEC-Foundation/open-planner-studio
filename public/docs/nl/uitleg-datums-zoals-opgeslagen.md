@@ -2,6 +2,8 @@
 
 Je opent een planning uit Primavera of MS Project, en de datums zijn anders dan je in dat pakket zag. Is de import mislukt? Meestal niet. In dit artikel lees je waarom de app zelf doorrekent, wanneer ze de datums uit het bestand laat zien, wat er dan leeg blijft en hoe je terugkeert naar de eigen berekening. Het voorbeeld aan het eind volgt twee taken door de hele cyclus.
 
+Een bestand uit een oudere versie van Open Planner Studio wordt bij het openen opnieuw berekend. Verschuiven taken, dan meldt de app hoeveel taken een ander begin of einde krijgen en wat de grootste verschuiving is. Met Ctrl+Z zie je de opgeslagen datums terug. Die blijven staan tot je Bereken kiest of een planningsbewerking doet, ook als Automatisch berekenen aan staat. Alleen een naam wijzigen laat de opgeslagen datums staan, ook via de AI-assistent.
+
 ## Het begrip
 
 Een planningsbestand bevat twee soorten gegevens. Ten eerste de logica: taken, duren, relaties, kalenders en constraints. Ten tweede de datums die het pakket daar zelf uit uitrekende. Open Planner Studio gebruikt bij het openen de logica en rekent zelf door. De datums uit het bestand zijn dus geen invoer.

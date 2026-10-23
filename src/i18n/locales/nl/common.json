@@ -221,7 +221,10 @@
     "msProjectLostFixedCosts_one": "De vaste kosten van {{count}} taak zijn niet overgenomen.",
     "msProjectLostFixedCosts_other": "De vaste kosten van {{count}} taken zijn niet overgenomen.",
     "msProjectLostResourceRates_one": "De tarieven van {{count}} resource zijn niet overgenomen.",
-    "msProjectLostResourceRates_other": "De tarieven van {{count}} resources zijn niet overgenomen."
+    "msProjectLostResourceRates_other": "De tarieven van {{count}} resources zijn niet overgenomen.",
+    "minuteModelConverted_one": "{{document}}: {{count}} taak heeft na de omzetting een ander begin of einde; de grootste verschuiving is {{days}} werkdagen. Ctrl+Z zet de opgeslagen datums terug.",
+    "minuteModelConverted_other": "{{document}}: {{count}} taken hebben na de omzetting een ander begin of einde; de grootste verschuiving is {{days}} werkdagen. Ctrl+Z zet de opgeslagen datums terug.",
+    "minuteModelCalendarRepaired": "Kalender '{{calendar}}' is hersteld: het einde of de pauze paste niet bij de opgeslagen werktijd."
   },
   "scheduleErrors": {
     "cycle": "Kringverwijzing tussen taken: {{path}}",
@@ -1472,6 +1475,10 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "ALAP-taken zo laat als de opvolgers toestaan",
       "help": "Alleen bij uurplanning, voor een niet-gestarte, niet handmatig geplande taak met de constraint ‘Zo laat mogelijk’ (ALAP). De vroege datums van haar opvolgers bepalen haar plaatsing tot op de minuut; opvolgers gaan eerst. Haar eigen geplande start telt niet; voorgangers, statusdatum en een tweede constraint blijven gelden. Zonder opvolger gebruikt ze haar late einde. De gewone ALAP-stap blijft in elk profiel beschikbaar."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Losse mijlpalen aan het werkeinde",
+      "help": "Een losse mijlpaal of een eindmijlpaal zonder voorganger staat aan het einde van haar werkdag."
     }
   },
   "profiles": {

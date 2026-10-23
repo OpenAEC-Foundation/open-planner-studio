@@ -71,7 +71,8 @@ test('later geplande taak mét actualStart: toegepast, zoals opgegeven', async (
   const { L } = setup('2026-06-10');
   const res = await rpc('planner_update_tasks', { updates: [{ id: L, progress: { completion: 40, actualStart: '2026-06-08' } }] });
   assertEq(reasons(res), [], 'geen weigering');
-  assertEq({ as: timeOf(L).actualStart, c: timeOf(L).completion }, { as: '2026-06-08', c: 0.4 }, 'start en voortgang');
+  // F2 (spec §3.6, invoer; §4.2 D1): de opgegeven datum wordt het begin van de werkdag. Fixronde 1 deel B, B1.
+  assertEq({ as: timeOf(L).actualStart, c: timeOf(L).completion }, { as: '2026-06-08T07:00', c: 0.4 }, 'start en voortgang');
 });
 
 test('later geplande taak: alleen actualFinish zonder actualStart is ook geweigerd', async () => {
@@ -86,7 +87,10 @@ test('later geplande mijlpaal met een werkelijke datum: gewoon toegepast (start 
   const { M } = setup('2026-06-10');
   const res = await rpc('planner_update_tasks', { updates: [{ id: M, progress: { actualFinish: '2026-06-09' } }] });
   assertEq(reasons(res), [], 'geen weigering');
-  assertEq({ as: timeOf(M).actualStart, af: timeOf(M).actualFinish }, { as: '2026-06-09', af: '2026-06-09' }, 'mijlpaal afgemeld');
+  // F2 (spec §4.2 D7): een mijlpaal heeft één moment; zonder soort (`milestoneKind`) is dat D1, het begin
+  // van de werkdag, net als in het paneel (`check-progress-entry.ts`, "3d mijlpaal"). B6 gaat over de
+  // berekende plaats van een losse mijlpaal, niet over een opgegeven werkelijke datum. Fixronde 1 deel B, B1.
+  assertEq({ as: timeOf(M).actualStart, af: timeOf(M).actualFinish }, { as: '2026-06-09T07:00', af: '2026-06-09T07:00' }, 'mijlpaal afgemeld');
 });
 
 test('taak die volgens plan al begonnen is: voortgang zonder actualStart werkt zoals altijd', async () => {

@@ -1,3 +1,4 @@
+// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 // check-contour-engine.ts — de contour-engine (2026-09): vijf lagen, elk headless tegen de echte
 // code (geen mocks van de engine of de adapters):
 //   (a) de pure kern (`src/engine/contour/contourEngine.ts`): 21-punts-tabellen, slotgewichten,
@@ -511,7 +512,7 @@ console.log('-- (g) store: setAssignmentContour zet/vervangt/laat los, met undo 
   const l2 = loadOf(r2);
   eq('g7 belasting van r2 blijft de formule (1/1/1)', r3(Object.keys(l2).sort().map((k) => l2[k])), [1, 1, 1]);
   ok('g8 isDirty gezet', S().isDirty);
-  eq('g9 geen taakdatum geraakt', [find().time.earlyStart, find().time.earlyFinish], ['2026-06-01', '2026-06-03']);
+  eq('g9 geen taakdatum geraakt', [find().time.earlyStart, find().time.earlyFinish], ["2026-06-01T07:00", "2026-06-03T16:00"]);
   ok('g10 planning niet stale (contour raakt geen datum)', !S().scheduleStale);
   // Vervangen: r1 opnieuw, r2 erbij — twee contouren, elk op de eigen toewijzing.
   S().setAssignmentContour(asg(r2).id, workDaySlotsToPeriods([480, 0, 480], undefined, mpdOf()));

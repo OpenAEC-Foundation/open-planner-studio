@@ -254,12 +254,12 @@ test('datums zoals opgeslagen: leestools rekenen niet door, melden de modus, de 
     assertEq(S().datesAsRecorded, true, `${read.tool}: de modus blijft aan`);
     assert(S().recordedDates !== null, `${read.tool}: de vastlegging blijft`);
     assert(S().cpmResult === cpm, `${read.tool}: cpmResult ongemoeid`);
-    assertEq(task(bId).time.earlyStart, '2026-03-16', `${read.tool}: B houdt zijn OPGESLAGEN start`);
+    assertEq(task(bId).time.earlyStart, '2026-03-16T07:00', `${read.tool}: B houdt zijn OPGESLAGEN start`);
     assertEq(applied(), before.applied, `${read.tool}: geen undo-stap`);
     assertEq(undone(), before.undone, `${read.tool}: redo-stapel intact`);
     assertEq(S().isDirty, before.dirty, `${read.tool}: isDirty ongewijzigd`);
     if (read.tool === 'planner_get_task') {
-      assertEq(res.data.schedule.earlyStart, '2026-03-16', 'get_task geeft de opgeslagen start terug');
+      assertEq(res.data.schedule.earlyStart, '2026-03-16T07:00', 'get_task geeft de opgeslagen start terug');
     }
     if (read.tool === 'planner_list_documents') {
       assertEq((res.data.documents as any[]).find((r) => r.isActive).datesAsRecorded, true,
@@ -276,7 +276,7 @@ test('datums zoals opgeslagen + (kunstmatig) verouderd: een leestool verlaat de 
   store.setState((s) => { s.scheduleStale = true; });
   const before = applied();
   const res = ok(await rpc('planner_get_task', { taskId: bId }), 'get_task');
-  assertEq(res.data.schedule.earlyStart, '2026-03-16', 'de opgeslagen start komt terug');
+  assertEq(res.data.schedule.earlyStart, '2026-03-16T07:00', 'de opgeslagen start komt terug');
   assertEq(S().datesAsRecorded, true, 'de modus blijft aan');
   assertEq(applied(), before, 'geen undo-stap (runCPM is niet aangeroepen)');
   store.setState((s) => { s.scheduleStale = false; });
@@ -285,11 +285,11 @@ test('datums zoals opgeslagen + (kunstmatig) verouderd: een leestool verlaat de 
 test('controle: de eerste echte mutatie in de modus rekent wél door en verlaat de modus (één undo-stap)', async () => {
   const { bId } = enterMode('fresh-mutate');
   const before = applied();
-  const res = ok(await rpc('planner_update_tasks', { updates: [{ id: bId, fields: { name: 'Anders' } }] }), 'update_tasks');
+  const res = ok(await rpc('planner_update_tasks', { updates: [{ id: bId, fields: { duration: 2 } }] }), 'update_tasks');
   assertEq(S().datesAsRecorded, false, 'de modus is verlaten');
   assertEq(res.envelope.datesAsRecorded, undefined, 'de envelop meldt de modus niet meer');
   assertEq(applied(), before + 1, 'één undo-stap');
-  assertEq(task(bId).time.earlyStart, '2026-03-09', 'B staat op zijn herberekende start');
+  assertEq(task(bId).time.earlyStart, '2026-03-09T07:00', 'B staat op zijn herberekende start');
 });
 
 // --- 6) Een lopende bewerking (sleepgebaar, typen) houdt het bijrekenen tegen ---------------------

@@ -812,6 +812,8 @@ export function levelResources(
     const delta = t.time.durationType === 'ELAPSEDTIME'
       ? diffCalendarDays(from, to)
       : eng.signedWorkDaysBetween(from, to);
+    // Alleen D1-normalisatie binnen dezelfde dag is geen verschuiving in deze dagpreview.
+    if (delta === 0) continue;
     shifts[t.id] = { oldStart: cur, newStart: tr, delta };
   }
 

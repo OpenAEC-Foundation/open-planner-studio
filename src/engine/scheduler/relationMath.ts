@@ -669,7 +669,10 @@ function forwardHour(
       // `reqFinish` (de geëiste finish zelf) wordt gedeeld met `sfReqFinishHour`
       // (`forwardFinishFloor`) — één bron.
       const reqFinish = sfReqFinishHour(deps, predResult, predTask, seq, successor, pe, se, flags);
-      return deps.startFromFinish(se, reqFinish, successor);
+      // T8: SF bindt aan een exclusieve startgrens. Een hele dagtaak telt de dag die
+      // op dat blokbegin begint niet mee in haar terugtelling; de finishvloer blijft rauw.
+      const durationFinish = isDayTaskOnBands(successor, se) ? se.prevWorkInstant(reqFinish) : reqFinish;
+      return deps.startFromFinish(se, durationFinish, successor);
     }
     case 'FINISH_START':
     default: {
@@ -795,14 +798,16 @@ function sfReqFinishHour(
   const elapsedMin = () => deps.resolveElapsedMinutes(seq, predTask) * MS_PER_MIN;
   const succElapsed = isElapsedTask(successor);
 
-  const startMoment = predStartsNextDay ? deps.snapStrictAfter(pe, predResult.es) : predResult.es;
+  // T8: een dagtaak bindt aan het echte startmoment, ook bij een eindmijlpaal.
+  const daySuccessor = isDayTaskOnBands(successor, se);
+  const startMoment = predStartsNextDay && !daySuccessor ? deps.snapStrictAfter(pe, predResult.es) : predResult.es;
   if (elapsed) {
     return succElapsed
       ? new Date(startMoment.getTime() + elapsedMin())
       : deps.snapOnOrAfter(se, new Date(startMoment.getTime() + elapsedMin()));
   }
   const lagged = deps.shiftLagPred(lagEng, startMoment, seq, predTask, 1);
-  if ((succIsFinishMs || succElapsed) && pe.isHourMode
+  if ((succIsFinishMs || succElapsed || daySuccessor) && pe.isHourMode
     && lagged.getTime() === deps.snapOnOrAfter(lagEng, startMoment).getTime()) {
     return landRawInstant(deps, se, startMoment, succElapsed);
   }

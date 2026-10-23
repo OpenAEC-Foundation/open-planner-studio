@@ -131,9 +131,10 @@ const MM_DATETIME_RE = /\d{4}-\d\d-\d\dT\d\d:\d\d/;
 /** Reden waarom een case al een URENcase is (dan hoort hij niet bij de runs), of null. Dezelfde
  *  indeling als de meting in §10 (branch claude/uren-poc-meting): 422 dagcases en 138 urencases. */
 function hourCaseReason(c: Case): string | null {
-  // De hele case, zoals de meting; alleen de eigen sleutel `minuteModel` telt niet mee.
-  const { minuteModel: _mm, ...rest } = c;
-  void _mm;
+  // De invoer bepaalt de maat. Bijgewerkte datumverwachtingen en een toelichting met
+  // kloktijd mogen een dagcase niet uit het F0-vangnet laten verdwijnen (bouwronde 4).
+  const { minuteModel: _mm, expect: _expect, previewExpect: _preview, title: _title, note: _note, ...rest } = c;
+  void _mm; void _expect; void _preview; void _title; void _note;
   const s = JSON.stringify(rest);
   if (s.includes('"workTime"')) return 'workTime';
   if (MM_DATETIME_RE.test(s)) return 'datetime';
@@ -1110,7 +1111,22 @@ function runCase(c: Case): CaseResult {
   } catch (e) {
     return { id: c.id, title: c.title, pass: false, diffs: [`THREW: ${String(e)}`] };
   }
-  const diffs = evaluateCase(c, c.expect ?? {}, built, EXACT);
+  const dayCase = !hourCaseReason(c);
+  // De gewone batterij bewaakt haar huidige uitkomst. Alleen het F0-vangnet leest de
+  // einddoelen met redencodes uit minuteModel.expect (besluit bouwronde 4, 2026-10-23).
+  const expected = c.expect ?? {};
+  const minute = minuteComparer(built.ids);
+  // Oude notatie van een dagveld mag naast uurvelden staan. Expliciete uurverwachtingen en
+  // hun getallen blijven exact, zoals vóór F2.
+  const cmp: Comparer = dayCase ? minute : { ...EXACT,
+    taskField: (name, key, got, want) => typeof want === 'string' && isDateOnly(want)
+      ? minute.taskField(name, key, got, want) : EXACT.taskField(name, key, got, want),
+    projectDate: (got, want, field) => typeof want === 'string' && isDateOnly(want)
+      ? minute.projectDate(got, want, field) : EXACT.projectDate(got, want, field),
+    taskDate: (name, got, want, field) => typeof want === 'string' && isDateOnly(want)
+      ? minute.taskDate(name, got, want, field) : EXACT.taskDate(name, got, want, field),
+  };
+  const diffs = evaluateCase(c, expected, built, cmp);
   return { id: c.id, title: c.title, pass: diffs.length === 0, diffs };
 }
 
@@ -1924,6 +1940,13 @@ for (const file of files) {
   const results = cases.map(runCase);
   if (MM_RUN) {
     reportMinuteBattery(name, results);
+    // §7.2, besluit orkestrator 23 oktober: uitsluitend dit eindverschil wacht op de F3-loper.
+    // Ook een tweede fout BINNEN dezelfde gepinde B7-case moet run 1 rood maken.
+    const pendingF3DayRunner = (result: CaseResult): boolean => result.id === 'lagadv-pct-fs50-odd-roundup'
+      && result.status === 'BEWUST_ROOD' && result.reason === 'PCT-LAG-EXACT'
+      && result.diffs.length === 1
+      && result.diffs[0] === 'B.ef: verwacht "2026-06-11T11:00", kreeg "2026-06-10T16:00"';
+    if (MM_RUN === 1 && results.some(result => !result.pass && !pendingF3DayRunner(result))) anyFail = true;
     continue;
   }
   const passed = results.filter((r) => r.pass).length;

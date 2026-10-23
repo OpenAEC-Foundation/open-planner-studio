@@ -220,6 +220,10 @@ export type RecordedTimesOrigin = 'xer' | 'xer-archive' | 'p6xml' | 'mspdi' | 'm
 export type RecordedSourceFormat = NonNullable<RecordedDatesState['sourceFormat']>;
 
 export interface ImportResult {
+  /** Markering van de opgeslagen rekenuitvoer; stuurt alleen de schemaovergang. */
+  timeModel?: string;
+  /** Tijdelijke leeshint D7, geen kalender- of taakdata in de store. */
+  milestonesAtDayEnd?: ReadonlySet<string>;
   // Kernvelden — door elk formaat geleverd.
   project: Project;
   calendar: WorkCalendar;

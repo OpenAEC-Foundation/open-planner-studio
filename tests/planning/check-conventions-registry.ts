@@ -35,7 +35,7 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
 // ── 1) Register ⇔ ConventionKey, unieke id's, domein van de ingebouwde waarden ─────────────────
 {
   const ids = CONVENTIONS.map(d => d.id);
-  eq('01 zevenentwintig conventies', ids.length, 27);
+  eq('01 achtentwintig conventies', ids.length, 28);
   eq('02 unieke id\'s', new Set(ids).size, ids.length);
   same('03 register-lijst == CONVENTION_KEYS (compile-time Record)', [...ids].sort(), [...CONVENTION_KEYS].sort());
   for (const d of CONVENTIONS) {
@@ -74,7 +74,7 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   // profiel uit — op de P6-doorgerekende bestanden 0 effect, alleen rehab-2 (P3-uitvoer) droeg ze.
   // C3 blijft aan (C5 leunt erop: uit = 640 exacte cellen minder).
   const P6_OFF_GROUP_C: ReadonlySet<ConventionKey> = new Set<ConventionKey>([
-    'p6CompletedPredecessorAtDataDate', 'p6CompletedOutOfSequenceWindow',
+    'p6CompletedPredecessorAtDataDate', 'p6CompletedOutOfSequenceWindow', 'milestoneWithoutPredecessorAtDayEnd',
     // Eigenaarsvraag §1d-7 (2026-09-23): A17, B3 en B4 idem — 0 cellen op de P6-doorgerekende populatie.
     'p6FinishMilestoneBoundaryWindow', 'p6CompletedDataDateWindow', 'p6CompletedLoeActualFinish',
   ]);
@@ -83,7 +83,7 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
     // A19 staat sinds 2026-09-24 aan in P6 (eigenaarsbesluit "a"); daarvoor was de basis uit en kwam hij per bestand.
     eq(`09 p6.${key}`, P6[key], !mspOnly && !P6_OFF_GROUP_C.has(key));
     eq(`10 msproject.${key}`, MSP[key], mspOnly);
-    eq(`11 ops.${key}`, OPS[key], false);
+    eq(`11 ops.${key}`, OPS[key], key === 'milestoneWithoutPredecessorAtDayEnd');
   }
   same('12 legacyConventions == ops', legacyConventions(), OPS);
 }
@@ -365,7 +365,7 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   eq('99g een hypothetische zevende groep-C-conventie gaat NIET stil aan', legacyXerDefault(hypotheticalC), false);
   // Recept stap 2a: elke conventie staat in BOOLEAN_KEYS van de IFC-sanitizer (anders valt hij stil weg).
   for (const key of CONVENTION_KEYS) {
-    eq(`99d sanitizer kent ${key}`, sanitizeSchedulingOptions({ [key]: true })?.[key], true);
+    eq(`99d sanitizer kent ${key}`, sanitizeSchedulingOptions({ [key]: true })?.[key], key === 'milestoneWithoutPredecessorAtDayEnd' ? undefined : true);
   }
   // Projectoptie `startToStartLagFrom` (de variant van C6): alleen de twee bekende waarden komen door.
   eq('99k sanitizer: startToStartLagFrom actualStart/earlyStart blijven, onzin valt weg', [

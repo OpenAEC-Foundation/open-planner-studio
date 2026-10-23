@@ -25,7 +25,7 @@ CLAUDE.md-inkorting van #176): laadt alleen wanneer Claude een bestand leest dat
 ### Rekenprofielen: benoemde conventies, geen formaatvlag
 
 Eén motor, drie scholen (Primavera P6, MS Project, OPS). Een **rekenprofiel** (`project.schedulingProfile`,
-basis `p6 | msproject | ops` + overrides) levert zevenentwintig **conventies** (`ConventionKey`, booleans);
+basis `p6 | msproject | ops` + overrides) levert achtentwintig **conventies** (`ConventionKey`, booleans);
 `project.schedulingOptions` draagt alleen de elf **projectopties** (`ProjectOptionKey`, per bestand) en
 `progressMode` blijft een eigen projectveld. De bron voor beide is `src/engine/scheduler/conventions/registry.ts`
 (`CONVENTIONS` met per conventie drie ingebouwde waarden, `legacyValue` en `gatedByP6Source`); de migratie
@@ -42,7 +42,7 @@ aanroeper die het profiel overslaat compileert niet. Lezers stellen het profiel 
 (`ImportResult.suggestedProfileId`: XER ⇒ p6, `.mpp` ⇒ msproject, MSPDI/P6-XML/CSV ⇒ ops deze etappe);
 openen meldt het profiel met een actie naar Projectinstellingen (`src/state/schedulingProfileNotice.ts`; bij een
 onbruikbaar XER-archief stapelt `withXerArchiveIssueNotice` er als buitenste laag omheen). IFC:
-`OPS_SchedulingProfile` (alle zevenentwintig opgelost plus de letterlijke afwijkingen, alleen ≠
+`OPS_SchedulingProfile` (alle achtentwintig opgelost plus de letterlijke afwijkingen, alleen ≠
 standaardprofiel) naast `OPS_SchedulingOptions` (opties + A22/A23 alleen als true) — door
 `writeIFC`/`readIFC` geschreven en gelezen. Eigen profielen zijn app-globale sjablonen
 (`ops-schedulingProfiles`, `services/schedulingProfiles/profileStore.ts`); een project draagt zijn eigen

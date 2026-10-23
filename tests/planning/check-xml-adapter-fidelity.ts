@@ -374,11 +374,12 @@ async function main(): Promise<void> {
     assert(asForeignLag(dXml, 1, 1) !== dXml, 'setup: dag-fixture bevat de te vervangen link');
     const d12 = readMSPDI(asForeignLag(dXml, 7200, 6));
     eq('#4 lezer dagproject "12 ehr" (LagFormat 6)', lagFields(lagInto(d12, 'B')), { lagDays: 0, lagMinutes: 720, lagUnit: 'ELAPSEDTIME' });
-    // Dagplanning identiek aan de oude lezing (hele elapsed dag, Math.round(0,5) = 1).
+    // §3.3/I11: de vroegere afronding van 12 klokuren naar een hele dag verdwijnt.
     const oldStyle = { tasks: structuredClone(dTasks), sequences: [seq('g-s', 'g-a', 'g-b', { lagDays: 1, lagUnit: 'ELAPSEDTIME' })], calendar: dcal };
     solve(oldStyle);
+    eq('#4 oude hele-dag-afronding blijft een dag later', byName(oldStyle, 'B')?.time.earlyStart, '2026-07-09T08:00');
     solve(d12);
-    eq('#4 planning dagproject "12 ehr": B.earlyStart gelijk aan de hele-dag-afronding', byName(d12, 'B')?.time.earlyStart, byName(oldStyle, 'B')?.time.earlyStart);
+    eq('#4 §3.3/I11: 12 ehr blijft exact, ook bij een dagenmaat-voorganger', byName(d12, 'B')?.time.earlyStart, '2026-07-08T08:00');
     const d8 = readMSPDI(asForeignLag(dXml, 4800, 6));
     eq('#4 lezer dagproject "8 ehr" (LagFormat 6)', lagFields(lagInto(d8, 'B')), { lagDays: 0, lagMinutes: 480, lagUnit: 'ELAPSEDTIME' });
   }
@@ -416,7 +417,7 @@ async function main(): Promise<void> {
       const sequences = [seq('m-s1', 'm-a', 'm-m'), seq('m-s2', 'm-m', 'm-b')];
       const back = readMSPDI(writeMSPDI(proj('Mijlpaal', cal.id, '2027-07-05'), cal, tasks, sequences, [], []));
       solve(back);
-      eq('#7 eindmijlpaal "Hoogste punt" na MSPDI-rondreis op vrijdag 2027-07-09', byName(back, 'Hoogste punt')?.time.earlyStart, '2027-07-09');
+      eq('#7 eindmijlpaal "Hoogste punt" na MSPDI-rondreis op vrijdag 2027-07-09', byName(back, 'Hoogste punt')?.time.earlyStart, '2027-07-09T16:00'); // D7/N1: het echte eindmoment.
     }
 
     // Uurmodus: een AUTOMATISCHE mijlpaal op een bandgrens (16:00) blijft automatisch — zonder de

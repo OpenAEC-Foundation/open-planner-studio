@@ -2,7 +2,7 @@
  * Rekenprofielen — het conventieregister.
  *
  * Twee lagen, disjuncte sleutels:
- *  - **Conventies** (`ConventionKey`, zevenentwintig booleans): regels die per planningspakket verschillen.
+ *  - **Conventies** (`ConventionKey`, achtentwintig booleans): regels die per planningspakket verschillen.
  *    Ze leven in het profiel (`Project.schedulingProfile`), als basis + afwijkingen.
  *  - **Projectopties** (`ProjectOptionKey`, elf sleutels): per-bestand projectinstellingen
  *    (lagCalendar, kritiek-definitie, TF-modus, SS-lag-variant, nivelleerinstellingen als data, …). Ze blijven in `Project.schedulingOptions`.
@@ -51,11 +51,13 @@ export interface ConventionDescriptor {
    *  motorgedrag; los van `group` (dat is de herkomst in het register, geen onderwerp). */
   theme: ConventionTheme;
   /** De waarde die geldt wanneer een bestand MÉT `OPS_SchedulingProfile` deze sleutel niet kent (een
-   *  bestand van vóór `since`). Per constructie de OPS-waarde (`builtIn.ops`, dus voor elke conventie
-   *  `false`): zo'n bestand rekende zonder de regel, en onder een P6-basis verschijnt de ontbrekende
-   *  sleutel dan eerlijk als afwijking. Nooit de waarde van de GEKOZEN basis. Geldt niet voor de
-   *  legacy-migratie van bestanden zonder die pset — daarvoor zie `legacyOptionsToProfile`. */
+   *  bestand van vóór `since`). Standaard de OPS-waarde (`builtIn.ops`): een oudere profielkeuze
+   *  blijft zo zichtbaar. Met `legacyFromBase` geldt de basiswaarde, omdat het oude bestand
+   *  over die nieuwe conventie niets koos (T12). Bestanden zonder profiel-pset gebruiken
+   *  `legacyOptionsToProfile`. */
   legacyValue: boolean;
+  /** Nieuwe regel: een ouder profiel koos hierover niets (T12). */
+  legacyFromBase?: true;
   /** Was deze conventie vóór de rekenprofielen alleen actief onder de XER-bronmarkering? Zo ja, dan
    *  was een losse vlag zonder die markering inert en gooit de legacy-migratie hem weg. */
   gatedByP6Source: boolean;
@@ -137,6 +139,7 @@ function convention(
 /** Het register, in vaste volgorde (die volgorde is ook de sleutelvolgorde in de IFC-JSON).
   *  Registernummers: A12, A13, A15–A20, A22, A23, B1–B5, C1–C9, C11, C12, C14 (C10 en C13 bestaan niet). */
 export const CONVENTIONS: readonly ConventionDescriptor[] = [
+  { ...convention('milestoneWithoutPredecessorAtDayEnd', 'C', 'milestones', { p6: false, msproject: false, ops: true }, false, '2026-10-23'), legacyFromBase: true },
   // A17, B3 en B4 staan in elk ingebouwd profiel uit: geen effect op P6-doorgerekende bestanden (ze
   // komen uit rehab-2, P3-uitvoer); aan of uit verandert geen enkele gemeten cel.
   // Thema per regel: het ONDERWERP van de conventie (zie `ConventionTheme`), met de reden erachter.
@@ -182,6 +185,7 @@ export const CONVENTIONS: readonly ConventionDescriptor[] = [
 // conventie is, is per constructie onmogelijk (`ProjectOptionKey` is het complement) — de assertie
 // hieronder maakt dat expliciet.
 const _everyConventionNamed: Record<ConventionKey, true> = {
+  milestoneWithoutPredecessorAtDayEnd: true,
   preserveActualDatesInBackwardPass: true, clampNegativeFreeFloat: true,
   p6ZeroDurationUsesPlannedBoundary: true, p6UseTaskPlannedStartFloor: true,
   p6FinishMilestoneBoundaryWindow: true, p6PreserveActualInstants: true,
@@ -236,7 +240,7 @@ export function displayNameKey(id: BuiltInProfileId): string {
   return `profiles.builtIn.${id}`;
 }
 
-/** Basis + afwijkingen ⇒ alle zevenentwintig conventies. Afwezig profiel ≡ `ops` zonder afwijkingen.
+/** Basis + afwijkingen ⇒ alle achtentwintig conventies. Afwezig profiel ≡ `ops` zonder afwijkingen.
  *  Alleen bekende conventiesleutels met een boolean tellen; de rest van `overrides` wordt genegeerd. */
 export function resolveConventions(profile: SchedulingProfile | undefined): SchedulingConventions {
   const out = builtInConventions(profile?.baseId ?? 'ops');

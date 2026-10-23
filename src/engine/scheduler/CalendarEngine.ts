@@ -1,3 +1,4 @@
+import { calendarForEngine, calendarHasOwnWorkBlocks } from '@/utils/effectiveWorkTime';
 import { holidayEndDate, isHourModeCalendar, WorkCalendar, type WorkTimeBands } from '@/types/calendar';
 import { parseDate, isoDayOfWeek, addCalendarDays, formatDate, diffCalendarDays, MS_PER_DAY, utcDayIndex } from '@/utils/dateUtils';
 
@@ -87,7 +88,12 @@ export class CalendarEngine {
   // banden heeft (bv. een werkende zaterdag in een ma-vr-uurkalender). Zie `computeStandardWorkdayBands`.
   private standardWorkdayBands: { start: number; end: number }[] = [];
 
+  /** T11: conventies houden hun bereik op de oorspronkelijk opgeslagen werkblokken. */
+  readonly hasOwnWorkBlocks: boolean;
+
   constructor(calendar: WorkCalendar) {
+    this.hasOwnWorkBlocks = calendarHasOwnWorkBlocks(calendar);
+    calendar = calendarForEngine(calendar);
     this.calendar = calendar;
     // Werkdag-masker + weekdag-som. Alleen indices 1..7 tellen mee; een out-of-range workDays-entry
     // raakt nooit een echte isoDayOfWeek (1..7) en verstoort dus niets (`workDays.includes`-semantiek).

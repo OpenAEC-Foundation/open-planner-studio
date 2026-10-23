@@ -183,6 +183,8 @@ export type NotificationSeverity = 'error' | 'info';
  * Een release vereist volledige, actuele UI-vertalingen in alle 28 talen (`verify:translations`).
  */
 export type NotificationMessageKey =
+  | 'notifications.minuteModelConverted'
+  | 'notifications.minuteModelCalendarRepaired'
   | 'notifications.openFailed'
   | 'notifications.csvInvalidDate'
   | 'notifications.extGuideCallbackFailed'

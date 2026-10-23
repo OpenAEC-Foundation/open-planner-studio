@@ -310,7 +310,7 @@ export interface PerTaskPset {
   /** ifcGuid-seed-prefix voor de IFCRELDEFINESBYPROPERTIES-GlobalId. */
   relSeed: string;
   /** Golden rule: `null` of lege lijst ⇒ niets geschreven. */
-  write(task: Task): PropSpec[] | null;
+  write(task: Task, options?: { atDayEnd?: boolean }): PropSpec[] | null;
   /** Zet de gelezen (reeds naar {name,value} geparste) IFCPROPERTYSINGLEVALUE-props terug op de taak. */
   apply(task: Task, props: ReadProp[]): void;
 }
@@ -322,6 +322,10 @@ const CONSTRAINT_VALID: ConstraintType[] = ['ASAP', 'ALAP', 'SNET', 'SNLT', 'FNE
  * De per-taak-psets. VOLGORDE IS BINDEND: de writer schrijft ze in deze volgorde, zodat de
  * STEP-uitvoer stabiel blijft. De reader dispatcht op naam en is volgorde-ongevoelig.
  */
+const milestonesAtDayEnd = new WeakSet<Task>();
+/** Alleen een leeshint van dit bestand; reist niet mee naar de store. */
+export const milestoneWasAtDayEnd = (task: Task): boolean => milestonesAtDayEnd.has(task);
+
 export const PER_TASK_PSETS: PerTaskPset[] = [
   // 0. Stabiele taakidentiteit. De reader consumeert deze property al vóór `extractTasks`, omdat
   //    relaties en alle latere psets meteen het definitieve taak-id nodig hebben. `apply` is daarom
@@ -412,9 +416,10 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   // 4. Mijlpaalsoort + verplicht-vlag (IfcTaskTypeEnum kent geen start/finish-onderscheid).
   {
     name: PSET.Milestone, psetSeed: 'pset_ms_', relSeed: 'rel_ms_',
-    write(task) {
+    write(task, options) {
       if (!task.isMilestone) return null;
       const props: PropSpec[] = [];
+      if (options?.atDayEnd) props.push({ name: 'AtDayEnd', value: 'IFCBOOLEAN(.T.)' });
       if (task.milestoneKind === 'START' || task.milestoneKind === 'FINISH') {
         props.push({ name: 'MilestoneKind', value: `IFCLABEL(${ifcStr(task.milestoneKind)})` });
       }
@@ -424,6 +429,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
     apply(task, props) {
       for (const { name, value } of props) {
         if (name === 'MilestoneKind' && (value === 'START' || value === 'FINISH')) task.milestoneKind = value;
+        else if (name === 'AtDayEnd' && value === true) milestonesAtDayEnd.add(task);
         else if (name === 'Mandatory' && value === true) task.mandatory = true;
       }
     },

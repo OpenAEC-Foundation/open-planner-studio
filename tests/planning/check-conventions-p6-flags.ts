@@ -1987,6 +1987,11 @@ const lateOf = (input: ImportResult, id: string) => {
     '%R\tM1\tP1\tC1\tM1\tUiterlijk\tTT_FinMile\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t0\t0\t2026-01-05 17:00\t2026-01-05 17:00\tCS_MEOB\t2026-01-07 08:00',
     ...relations('%R\tR1\tM1\tT1\tP1\tP1\tPR_FS\t0')]);
 
+  // B6: ook zonder herkomst en zonder expliciete blokken verschuift een losse mijlpaal.
+  pool.push([...header,
+    '%R\tM1\tP1\tC1\tM1\tLosse mijlpaal\tTT_Mile\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t0\t0\t2026-01-05 08:00\t2026-01-05 08:00\t\t',
+    ...relations()]);
+
   const readPlain = (lines: string[]): ImportResult => {
     const opened = readXER(new TextEncoder().encode(lines.join('\n')));
     if (isMultiDocumentImport(opened)) throw new Error('pool: één project verwacht');

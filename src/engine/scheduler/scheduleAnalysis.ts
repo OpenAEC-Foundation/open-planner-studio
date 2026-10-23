@@ -56,6 +56,8 @@ export interface ScheduleAnalysisInput {
   constraintInstant: (c: TaskConstraint | undefined, eng: CalendarEngine) => Date | null;
   snapOnOrAfter: (eng: CalendarEngine, d: Date) => Date;
   snapOnOrBefore: (eng: CalendarEngine, d: Date) => Date;
+  /** De late grens van een MSO/MFO/SNLT op een nulduurmijlpaal (`CPMSolver.milestoneLateMoment`), anders null. */
+  milestoneLateMoment: (task: Task, c: TaskConstraint | undefined, eng: CalendarEngine) => Date | null;
   modeOf: (eng: CalendarEngine) => DateMode;
   /** Optionele XER-diagnose die de post-pass op haar eigen beslisplekken aanvult. */
   backwardFloatTrace?: CpmBackwardFloatTrace;
@@ -74,7 +76,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     truncatedLeadIds, hardPinViolatedIds, hammockNoFinishDriverIds,
     projectEngine,
     calendarFor, progressCalendarFor, signedFloat,
-    constraintInstant, snapOnOrAfter, snapOnOrBefore, modeOf,
+    constraintInstant, snapOnOrAfter, snapOnOrBefore, milestoneLateMoment, modeOf,
     backwardFloatTrace, completedPhysicalPoints,
   } = input;
 
@@ -203,7 +205,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
       // regel "voltooide opvolger ⇒ ff = 0": alleen in rehab-2 (P3-uitvoer) gezien, geen effect op de
       // P6-populatie (zelfde criterium als C1/C4).
       const ownCalendarFreeFloat = so?.p6FreeFloatOnOwnCalendar === true
-        && cal.isHourMode && taskObj.time.completion < 1;
+        && cal.hasOwnWorkBlocks && taskObj.time.completion < 1;
       const lagOnOwnCalendar = so?.lagCalendar === undefined || so.lagCalendar === 'predecessor';
       const ownCalendarStarted = !!taskObj.time.actualStart || taskObj.time.completion > 0;
       for (const seq of succs) {
@@ -230,7 +232,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
         // lag telt de vrije speling in de eigen kalender tot de vroege FINISH van de opvolger (die C12 op de
         // relatiegrens kan leggen zonder haar start te verplaatsen), niet via de afgeleide startgrens.
         // Alleen vanuit een open voorganger (docblok).
-        if (so?.p6FinishNotBeforeFinishFinishBound === true && ff !== undefined && cal.isHourMode
+        if (so?.p6FinishNotBeforeFinishFinishBound === true && ff !== undefined && cal.hasOwnWorkBlocks
           && taskObj.time.completion < 1 && seq.type === 'FINISH_FINISH'
           && seq.lagPercent === undefined && (seq.lagMinutes ?? 0) === 0 && seq.lagDays === 0) {
           const succEarly = earlyDates.get(seq.successorId);
@@ -417,13 +419,15 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
         if (cc.hard && (cc.type === 'MSO' || cc.type === 'MFO')) continue;
         const cd = constraintInstant(cc, cal);
         if (!cd) continue;
-        const dW = snapOnOrBefore(cal, cd);
+        // Een MSO/MFO/SNLT op een nulduurmijlpaal toetst tegen hetzelfde moment als de late pass.
+        const moment = milestoneLateMoment(task, cc, cal);
+        const dW = moment ?? snapOnOrBefore(cal, cd);
         // N3: vergelijk de equivalente startgrens; dagenmaat gebruikt dezelfde grens (145).
         // Kalendertijd en nulduurmijlpalen houden hun letterlijke moment buiten werktijd.
-        const dS = cal.isHourMode
+        const dS = moment ?? (cal.isHourMode
           && !isElapsedTask(task) && !isZeroDurationMilestone(task)
           ? snapOnOrAfter(cal, cd)
-          : dW;
+          : dW);
         const ct = cc.type;
         if (((ct === 'SNLT' || ct === 'MSO') && early.es > dS)
           || ((ct === 'FNLT' || ct === 'MFO') && early.ef > dW)) {
@@ -570,7 +574,11 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
         }
         for (const id of chain) candidates.delete(id);
         const ids = [...chain].sort((a, b) => indexInOrder(a) - indexInOrder(b));
-        peeled.push({ ids, critical: ids.every((id) => taskResults.get(id)?.isCritical === true) });
+        // De driving-walk mag door gedeelde historie lopen. Voltooid werk is nooit kritiek,
+        // maar mag een actuele kritieke tak niet uit de padenlijst laten verdwijnen.
+        const openIds = ids.filter(id => !dataDate || (tasks.get(id)?.time.completion ?? 0) < 1);
+        peeled.push({ ids: openIds, critical: openIds.length > 0
+          && openIds.every((id) => taskResults.get(id)?.isCritical === true) });
       }
       // criticalPaths = alle gepeelde ketens die kritiek zijn. Pad 1 is (indien kritiek) al door
       // `criticalPath` gerepresenteerd op index 0; extra kritieke ketens (bij ties)

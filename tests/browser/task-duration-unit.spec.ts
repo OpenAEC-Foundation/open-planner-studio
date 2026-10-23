@@ -276,17 +276,17 @@ test('scalaire standaardkalender converteert naar uren met middagpauze; ongeldig
     state.runCPM();
     const task = state.tasks.find(candidate => candidate.id === id)!;
     return { unit: task.time.durationUnit, minutes: task.time.durationMinutes, finish: task.time.earlyFinish };
-  }, dayTaskId)).toEqual({ unit: 'hours', minutes: 720, finish: '2026-09-08T11:00' });
+  }, dayTaskId)).toEqual({ unit: 'hours', minutes: 720, finish: '2026-09-08T12:00' });
 
-  // De geplande start is 07:00. Acht uur eindigt alleen via de afgeleide 12:00-13:00-pauze op
-  // maandag 16:00; een ruwe 07:00-16:00-band zou ten onrechte maandag 15:00 opleveren.
+  // N0: kalenderwissel bewaart de oorspronkelijke start 08:00. Door de afgeleide
+  // pauze 12:00–13:00 eindigen acht werkuren dinsdag 08:00.
   await duration.locator('[data-ops-duration-value]').fill('8h');
   await duration.locator('[data-ops-duration-value]').blur();
   await expect.poll(() => page.evaluate((id) => {
     const state = window.__OPS__!.store.getState();
     state.runCPM();
     return state.tasks.find(candidate => candidate.id === id)!.time.earlyFinish;
-  }, dayTaskId)).toBe('2026-09-07T16:00');
+  }, dayTaskId)).toBe('2026-09-08T08:00');
 
   await page.evaluate(() => {
     const state = window.__OPS__!.store.getState();

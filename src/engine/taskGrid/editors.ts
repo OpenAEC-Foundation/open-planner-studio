@@ -3,6 +3,8 @@ import { formatClock, parseClock } from '@/utils/displayTime';
 import type { DateNotation, TimeNotation } from '@/types/view';
 import type { CellValidationError, GridResult, TaskColumnContext, TaskColumnDescriptor } from '@/types/taskGrid';
 import type { Task } from '@/types/task';
+import { blocksClock, ELAPSED_CLOCK, workdayBoundaryLabel } from '@/engine/calendar/workdayRules';
+import { isElapsedTask, isZeroDurationMilestone } from '@/engine/scheduler/duration';
 
 export interface TaskGridBooleanLabels {
   true: string;
@@ -90,7 +92,15 @@ export function copyGridEditorValue(
   }
   if (descriptor.valueKind === 'date' && typeof value === 'string') return formatGridDate(value, notation);
   if (descriptor.valueKind === 'datetime' && typeof value === 'string') {
-    return formatGridDateTime(value, notation, context.timeNotation ?? '24h');
+    const calendar = context.effectiveCalendar?.(task);
+    const column = String(descriptor.id);
+    const taskDate = /^task\.time\.(start|finish|scheduleStart|scheduleFinish|earlyStart|earlyFinish|lateStart|lateFinish|actualStart|actualFinish|resume|stop)$/.test(column);
+    const side = isZeroDurationMilestone(task)
+      ? task.milestoneKind === 'FINISH' ? 'end' : 'start'
+      : /finish|stop/i.test(column) ? 'end' : 'start';
+    const label = calendar && taskDate
+      ? workdayBoundaryLabel(isElapsedTask(task) ? ELAPSED_CLOCK : blocksClock(calendar), value, side) : value;
+    return formatGridDateTime(label, notation, context.timeNotation ?? '24h');
   }
   return descriptor.copy(task, context);
 }

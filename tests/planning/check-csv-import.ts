@@ -1,3 +1,4 @@
+// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 // CSV-lezer/-schrijver (audit import/export, 2026-09): vier gaten waar `readCSV`/`writeCSV` anders
 // deden dan de rest van de app. Alles hier loopt door de ECHTE `readCSV`/`writeCSV`.
 //
@@ -187,9 +188,9 @@ const lagsByLink = (r: ImportResult) => {
     ])), { filePath: null, fileHandle: null, recompute: true, fit: false, linkedOpen: true });
     return S().tasks.find(t => t.wbsCode === '2')?.time.earlyStart;
   };
-  eq('3e Openen: zonder lag start B na A (ma 9 mrt)', openCsv(''), '2026-03-09');
+  eq('3e Openen: zonder lag start B na A (ma 9 mrt)', openCsv(''), "2026-03-09T07:00");
   eq('3e Openen: "1FS+16u" ⇒ B start als bij "1FS+2d"', openCsv('+16u'), openCsv('+2d'));
-  eq('3e …en dat is woensdag 11 mrt', openCsv('+16u'), '2026-03-11');
+  eq('3e …en dat is woensdag 11 mrt', openCsv('+16u'), "2026-03-11T07:00");
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

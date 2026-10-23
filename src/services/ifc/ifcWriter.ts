@@ -1,3 +1,5 @@
+import { minuteModelWriteView } from './minuteModelWrite';
+import { MINUTE_MODEL_TIME_MODEL } from '@/state/migrations/minuteModel';
 import { Task } from '@/types/task';
 import { Sequence } from '@/types/sequence';
 import { Resource } from '@/types/resource';
@@ -193,6 +195,8 @@ function baselineStart(b: Baseline): string {
 }
 
 export interface WriteContext {
+  literalCalendarIds?: ReadonlySet<string>;
+  milestonesAtDayEnd?: ReadonlySet<string>;
   lines: string[];
   nextId: number;
   idMap: Map<string, number>; // our ID -> STEP #id
@@ -283,6 +287,7 @@ function addLine(ctx: WriteContext, key: string, line: string): number {
  * bestaande defaults (`[]` / `null`).
  */
 export type WriteIFCInput = ImportResult & {
+  minuteModelPending?: boolean;
   /**
    * "Datums zoals opgeslagen": per taak-id de rekenslots die de
    * writer als `$` moet schrijven, omdat `task.time` daar in de modus een weergave-terugval draagt
@@ -302,12 +307,12 @@ export type WriteIFCInput = ImportResult & {
 
 export function writeIFC(input: WriteIFCInput): string {
   const {
-    project, calendar, tasks, sequences, resources, assignments,
+    project, calendar, tasks: sourceTasks, sequences, resources, assignments,
     activityCodeTypes = [],
     customFieldDefs = [],
     customTaskTypes = [],
     resourceCalendars = [],
-    baselines = [],
+    baselines: sourceBaselines = [],
     activeBaselineId = null,
     libraryPool = undefined,
     xerSourceArchive = undefined,
@@ -319,8 +324,11 @@ export function writeIFC(input: WriteIFCInput): string {
     ifcGlobalIds = undefined,
     xerSourceArchiveStorage = 'embedded',
   } = input;
+  const writeView = minuteModelWriteView({ tasks: sourceTasks, calendar, resourceCalendars, baselines: sourceBaselines });
+  const { tasks, baselines } = writeView;
   const preservedGuids = new Map(Object.entries(ifcGlobalIds ?? {}));
   const ctx: WriteContext = {
+    literalCalendarIds: writeView.literalCalendarIds, milestonesAtDayEnd: writeView.atDayEnd,
     lines: [], nextId: 1, idMap: new Map(), guids: new Map(), usedGuids: new Set(),
     preservedGuids, reservedGuids: new Set(preservedGuids.values()), auxSalt: project.id,
   };
@@ -390,15 +398,17 @@ export function writeIFC(input: WriteIFCInput): string {
   // (geen verzonnen naam), omdat `IfcProject.HasName` (WHERE-regel) een Name eist. De lezer leest `''`
   // en `$` allebei als leeg.
   addLine(ctx, '_project', `IFCPROJECT(${ifcStr(objectGuid(ctx, 'proj', project.id))},#${ownerHistId},${ifcRequiredStr(project.name)},${ifcStr(project.description)},$,$,$,(#${ctxId}),#${unitAssId})`);
+  if (!input.minuteModelPending) {
+    const prop = addLine(ctx, '_time_model', `IFCPROPERTYSINGLEVALUE('TimeModel',$,IFCLABEL(${ifcStr(MINUTE_MODEL_TIME_MODEL)}),$)`);
+    const pset = addLine(ctx, '_time_model_pset', `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'time_model'))},#${ownerHistId},'OPS_Project',$,(#${prop}))`);
+    addLine(ctx, '_time_model_rel', `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'time_model_rel'))},#${ownerHistId},$,$,(${ref(ctx, '_project')}),#${pset})`);
+  }
   writeXerSourceArchive(ctx, ownerHistId, xerSourceArchive, xer?.sourceProjectId ?? xerSourceProjectId, xerSourceArchiveStorage);
 
   // Calendar (projectkalender — altijd de EERSTE IFCWORKCALENDAR in het bestand; vaste conventie
   // die de reader aanhoudt om 'm van de bibliotheek-kalenders hieronder te onderscheiden).
   const effCalByTask = effectiveCalendarByTask(tasks, calendar, resourceCalendars);
-  const hourTaskCalendarIds = new Set(tasks.flatMap((task) => {
-    const calendarId = taskDurationUnit(task) === 'hours' ? effCalByTask.get(task.id)?.id : undefined;
-    return calendarId ? [calendarId] : [];
-  }));
+  const hourTaskCalendarIds = writeView.literalCalendarIds;
   const projectCalWritten = writeCalendar(ctx, calendar, ownerHistId, '_calendar', hourTaskCalendarIds.has(calendar.id));
   writeCalendarGenerationMeta(ctx, calendar, ownerHistId, projectCalWritten);
 
@@ -878,7 +888,7 @@ const WRITTEN_PER_TASK_PSETS = PER_TASK_PSETS.filter(d => d.name !== PSET.Analys
 function emitPerTaskPsets(ctx: WriteContext, tasks: Task[], ownerHistId: number): void {
   for (const desc of WRITTEN_PER_TASK_PSETS) {
     for (const task of tasks) {
-      const specs = desc.write(task);
+      const specs = desc.write(task, { atDayEnd: ctx.milestonesAtDayEnd?.has(task.id) === true });
       if (!specs || specs.length === 0) continue;
       const propRefs = specs.map((s, i) =>
         `#${addLine(ctx, `_prop_${desc.name}_${task.id}_${i}`,
@@ -1301,6 +1311,7 @@ function writeCalendarGenerationMeta(
     readerHourCalendarHoursPerDay, scalarPeriodReadsAsHour,
   } = written;
   const markScalar = materializedScalarBands || scalarPeriodReadsAsHour;
+  const literalTimes = ctx.literalCalendarIds?.has(cal.id) === true;
   const gen = cal.generation;
   // De uren per dag die de lezer zonder deze eigenschap zou afleiden: bij een dagkalender
   // einde − begin, bij een uurkalender de modale dagsom van de geschreven blokken.
@@ -1324,8 +1335,9 @@ function writeCalendarGenerationMeta(
     && (perDayWeek || readerScalarHours?.end !== cal.workEndHour);
   if (!gen && !cal.libraryOrigin && !needsHoursPerDayOverride && !hasWorkingExceptions
     && !hasSimpleBreak && !isHourCalendar && !markScalar && !needsWorkStartHour && !needsWorkEndHour
-    && !hasP6Source && !hasRejectedPenaltyDiagnostic) return;
+    && !hasP6Source && !hasRejectedPenaltyDiagnostic && !literalTimes) return;
   const props: number[] = [];
+  if (literalTimes) props.push(addLine(ctx, `_opscal_literal_${cal.id}`, "IFCPROPERTYSINGLEVALUE('LiteralTimes',$,IFCBOOLEAN(.T.),$)"));
   if (gen) {
     props.push(addLine(ctx, `_opscal_ruleset_${cal.id}`,
       `IFCPROPERTYSINGLEVALUE('RuleSetId',$,IFCLABEL(${ifcStr(gen.ruleSetId)}),$)`));

@@ -102,15 +102,15 @@ for (const c of cases) for (const route of ['dialoog', 'paneel', 'raster', 'plak
     [task], f.calendar, [f.calendar]);
   eq('148 vastgelegde finish na deadline gemist', missed.missedDeadlineTaskIds, [f.id]);
 }
-// F1 normaliseert alleen op de statuswerkdag; algemene invoernormalisatie hoort bij F2.
+// F2 sluit de algemene normalisatie aan (D2); de F1-klem op het statusmoment blijft behouden.
 {
   const f = fixture('2026-06-10');
-  eq('vóór statusdag blijft datumvorm staan', normalizeActualDate(f.task(), 'actualFinish',
-    '2026-06-04', '2026-06-10', f.calendar), '2026-06-04');
-  eq('zonder statusdag blijft datumvorm staan', normalizeActualDate(f.task(), 'actualFinish',
-    '2026-06-04', undefined, f.calendar), '2026-06-04');
+  eq('D2 normaliseert ook vóór de statusdag', normalizeActualDate(f.task(), 'actualFinish',
+    '2026-06-04', '2026-06-10', f.calendar), '2026-06-04T16:00');
+  eq('D2 normaliseert ook zonder statusdag', normalizeActualDate(f.task(), 'actualFinish',
+    '2026-06-04', undefined, f.calendar), '2026-06-04T16:00');
   eq('paneel accepteert ouder feit', f.S().setActualFinish(f.id, '2026-06-04'), true);
-  eq('paneel bewaart ouder feit', f.task().time.actualFinish, '2026-06-04');
+  eq('F2-paneel normaliseert ouder feit met D2', f.task().time.actualFinish, '2026-06-04T16:00');
 }
 // Een gecombineerde MCP-invoer toetst het opgegeven einde vóór completion < 100 het wist.
 for (const [actualFinish, applied] of [

@@ -196,6 +196,11 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   `ui.autoCalcCPM`, runs it via `useAutoCalcCPM`). Always set `scheduleStale` via `markScheduleStale`
   (`state/transaction.ts`), never directly. `CPMSolver.ts` (~4k lines): grep the method, do not read it whole.
   Write-back: `applyCpmResult.ts`; relations/lag: `relationMath.ts`.
+- **Minute model.** Scheduling engines use effective work blocks for scalar and explicit calendars.
+  Task dates normalize to instants at load and input; project dates keep their entered form (D1/D5/D2
+  at calculation). `minuteModelPending` carries the undoable conversion of old documents; persistent
+  calculations inside an editing event call `runCPM({ withinEvent: true })`. IFC writes `TimeModel`
+  after conversion and chooses anchor dates or `LiteralTimes` per calendar and per document.
 - **Scheduling profiles, not a format flag.** P6/MSP/OPS behaviour runs through named conventions in
   `src/engine/scheduler/conventions/registry.ts`; the solver only gets `EffectiveSchedulingOptions` via
   `solveOptionsFor`/`solveInputFor`. Never an `if` on the source format in the engine (`verify:conventions`);

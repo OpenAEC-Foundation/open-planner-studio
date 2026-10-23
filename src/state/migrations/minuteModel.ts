@@ -24,8 +24,8 @@ import {
  * leest ze vanaf F2 met D1, D5 en D2. De vastlegging van "datums zoals opgeslagen" zit niet in de payload;
  * F2 normaliseert die bij `captureAllowed` met {@link normalizeTaskDate}.
  *
- * Fase F0: deze module is gebouwd en getest, maar nog niet aangesloten op een laadroute of de store.
- * F2 roept {@link migrateToMinuteModel} aan aan het einde van `payloadFromImport`.
+ * F0 leverde deze zuivere bouwsteen. Sinds F2 roept `payloadFromImport` hem vóór elke laadberekening
+ * aan; de invoerroutes delen {@link normalizeTaskDates}.
  */
 
 /** De markering `OPS_Project.TimeModel` van een bestand dat met het minutenmodel berekend is. */
@@ -253,7 +253,7 @@ function repairCalendar(cal: WorkCalendar, repairs: CalendarRepair[], unresolved
 
 // ── De migratie ──────────────────────────────────────────────────────────────────────────────
 
-const TIME_FIELDS = [
+export const TIME_FIELDS = [
   'scheduleStart', 'scheduleFinish', 'earlyStart', 'earlyFinish', 'lateStart', 'lateFinish',
   'actualStart', 'actualFinish', 'resume', 'stop',
 ] as const satisfies readonly (keyof TaskTime & TaskDateField)[];
@@ -283,24 +283,24 @@ class Normalizer {
   }
 }
 
-function migrateTask(task: Task, ctx: TaskDateContext, n: Normalizer): Task {
+export function mapTaskDates(task: Task, valueOf: (value: string, field: TaskDateField) => string): Task {
   let time: TaskTime | null = null;
   for (const field of TIME_FIELDS) {
     const v = task.time[field];
     if (typeof v !== 'string') continue;
-    const out = n.value(v, field, ctx, 'task', task.id);
+    const out = valueOf(v, field);
     if (out !== v) {
       time ??= { ...task.time };
       time[field] = out;
     }
   }
   let deadline = task.deadline;
-  if (typeof deadline === 'string') deadline = n.value(deadline, 'deadline', ctx, 'task', task.id);
+  if (typeof deadline === 'string') deadline = valueOf(deadline, 'deadline');
   const constraintOf = (c: Task['constraint']) => {
     if (!c || typeof c.date !== 'string') return c;
     const field = constraintDateField(c.type);
     if (!field) return c;
-    const date = n.value(c.date, field, ctx, 'task', task.id);
+    const date = valueOf(c.date, field);
     return date === c.date ? c : { ...c, date };
   };
   const constraint = constraintOf(task.constraint);
@@ -309,7 +309,7 @@ function migrateTask(task: Task, ctx: TaskDateContext, n: Normalizer): Task {
   if (externalLinks) {
     const mapped = externalLinks.map((e) => {
       if (typeof e.anchorDate !== 'string') return e;
-      const anchorDate = n.value(e.anchorDate, externalAnchorField(e.direction, e.relType), ctx, 'task', task.id);
+      const anchorDate = valueOf(e.anchorDate, externalAnchorField(e.direction, e.relType));
       return anchorDate === e.anchorDate ? e : { ...e, anchorDate };
     });
     if (mapped.some((e, i) => e !== externalLinks![i])) externalLinks = mapped;
@@ -326,6 +326,56 @@ function migrateTask(task: Task, ctx: TaskDateContext, n: Normalizer): Task {
     ...(constraint2 !== task.constraint2 ? { constraint2 } : {}),
     ...(externalLinks !== task.externalLinks ? { externalLinks } : {}),
   };
+}
+
+
+function migrateTask(task: Task, ctx: TaskDateContext, n: Normalizer): Task {
+  return mapTaskDates(task, (value, field) => n.value(value, field, ctx, 'task', task.id));
+}
+
+/** Dezelfde D1–D7 bij invoer, zonder schemamigratie of wijziging aan duur/werk. */
+export function normalizeTaskDates(task: Task, calendars: Pick<DocumentPayload, 'calendar' | 'calendars'>): Task {
+  let ctx: TaskDateContext | undefined;
+  return mapTaskDates(task, (value, field) => {
+    if (!isDateOnly(value)) return value;
+    ctx ??= taskDateContext(task, new DayClockCache(calendars.calendar, calendars.calendars));
+    return normalizeTaskDate(value, field, ctx) ?? value;
+  });
+}
+
+/**
+ * De patch van een invoerroute met de momenten uit `next`: de genormaliseerde taak die de patch
+ * achterlaat (`normalizeTaskDates(merge(taak, patch))`). Zo gebruikt een route één genormaliseerde
+ * wijziging voor de no-op-toets, voor de gevolgregels (`taskTriggerChanges`) en voor het schrijven.
+ * Zonder deze stap zag de gevolgregel een opnieuw ingevoerde SNET "2026-06-01" als een andere waarde dan
+ * het opgeslagen "2026-06-01T07:00", en wiste hij de nivelleerpauze (review ronde 1 van PR #559, deel B,
+ * punt 1).
+ *
+ * Alleen waarden die de normalisatie veranderde, worden vervangen. Een top-level veld verandert alleen
+ * van referentie als `mapTaskDates` het omzette (de merge deelt de referentie). Een `time`-sleutel alleen
+ * als de patch er een tekst in had; een lege of `undefined`-waarde blijft precies zoals de aanroeper hem
+ * meegaf, zodat `mergeTaskTime` hem op dezelfde manier leest.
+ */
+export function normalizeTaskPatch(updates: Partial<Task>, next: Task): Partial<Task> {
+  let out: Partial<Task> | null = null;
+  for (const key of Object.keys(updates) as (keyof Task)[]) {
+    if (key === 'time' || next[key] === updates[key]) continue;
+    out ??= { ...updates };
+    (out as Record<string, unknown>)[key] = next[key];
+  }
+  const time = updates.time;
+  if (time) {
+    // Getypeerd als de patch zelf (`Partial<Task>['time']`); in de praktijk een deel van de tak.
+    let normalizedTime: TaskTime | null = null;
+    for (const field of TIME_FIELDS) {
+      const raw = time[field];
+      if (typeof raw !== 'string' || next.time[field] === raw) continue;
+      normalizedTime ??= { ...time };
+      (normalizedTime as unknown as Record<string, unknown>)[field] = next.time[field];
+    }
+    if (normalizedTime) (out ??= { ...updates }).time = normalizedTime;
+  }
+  return out ?? updates;
 }
 
 function migrateBaseline(
@@ -419,4 +469,12 @@ export function migrateToMinuteModel(payload: DocumentPayload, options: MinuteMo
     payload: same ? payload : { ...payload, calendar, calendars, tasks, baselines },
     report,
   };
+}
+
+/** Ontwikkelcontrole op de laadinvariant; projectdatums vallen bewust buiten deze regel. */
+export function assertMinuteModelTaskDates(tasks: readonly Task[]): void {
+  for (const task of tasks) mapTaskDates(task, (value, field) => {
+    if (isDateOnly(value)) throw new Error(`Taak ${task.id}: ${field} mist een tijd na normalisatie`);
+    return value;
+  });
 }

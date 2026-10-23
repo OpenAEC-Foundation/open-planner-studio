@@ -790,13 +790,16 @@ export function durationEditRefusal(
  * store en MCP hebben al vooraf geweigerd via {@link durationEditRefusal}), anders het nieuwe
  * percentage en de nieuwe rest (de AI-koppeling meldt die als `progressAdjusted`). Bereikt het gedane
  * werk precies de nieuwe duur, dan is de taak voltooid en leiden de voortgangsinvarianten het
- * werkelijke einde af (`statusDate`).
+ * werkelijke einde af (`statusDate`). `calendar` is de effectieve kalender van de taak: daarmee wordt
+ * dat einde eerst een moment (D6: het einde van de statuswerkdag) en pas daarna vergeleken met de
+ * werkelijke start. Zonder kalender werd een start om 07:00 op de statusdag ook het einde.
  */
 export function carryRemainingThroughDurationEdit(
   task: Task,
   before: TaskTime,
   hoursPerDay: number,
   statusDate: string | undefined,
+  calendar: WorkCalendar | undefined,
 ): DurationEditProgress | null {
   const change = durationEditProgress(task, before, task.time, hoursPerDay);
   if (!change || change.refused) return change;
@@ -808,7 +811,7 @@ export function carryRemainingThroughDurationEdit(
   t.remainingTime = change.remainingTime;
   if (change.remainingMinutes !== undefined) t.remainingMinutes = change.remainingMinutes;
   else delete t.remainingMinutes;
-  if (change.completion >= 1) applyProgressInvariants(task, statusDate);
+  if (change.completion >= 1) applyProgressInvariants(task, statusDate, calendar);
   return change;
 }
 

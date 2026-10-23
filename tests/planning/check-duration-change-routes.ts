@@ -338,7 +338,7 @@ function runProgressCase(pc: ProgressCase): void {
     const afterDone = after.time.completion * (pc.kind === 'day' ? after.time.scheduleDuration : after.time.durationMinutes!);
     ok(`${pc.label} [${route}]: gedane werk exact gelijk (${beforeDone} → ${afterDone})`, Math.abs(afterDone - beforeDone) < 1e-9);
     if (pc.expect.status === 'COMPLETED') {
-      eq(`${pc.label} [${route}]: voltooid, werkelijk einde = statusdatum`, after.time.actualFinish, PROGRESS_STATUS_DATE);
+      eq(`${pc.label} [${route}]: voltooid, werkelijk einde = statusdatum`, after.time.actualFinish, `${PROGRESS_STATUS_DATE}T16:00`);
     }
   }
   if (pc.expect !== 'refused') {

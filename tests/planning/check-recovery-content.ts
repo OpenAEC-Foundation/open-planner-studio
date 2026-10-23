@@ -1,3 +1,4 @@
+// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 // Inhoudelijk crashherstel (issue #405 deel 2, derde criterium): komt een RIJK project na een crash
 // inhoudelijk compleet terug? Relaties, kalenders, resources, voortgang en baselines worden hier veld
 // voor veld vergeleken, niet alleen geteld.
@@ -245,7 +246,7 @@ eq('0h fixture: twee baselines, de eerste actief', [voor.baselines.length, voor.
 truthy('0i fixture: de tweede baseline bestaat ook', voor.baselines.some((b) => b.id === bHerzien));
 eq('0j fixture: statusdatum gezet', voor.project.statusDate, '2026-06-10');
 eq('0k fixture: voortgang A', [taak(A).time.completion, taak(A).time.actualStart, taak(A).time.actualFinish],
-  [1, '2026-06-01', '2026-06-04']);
+  [1, "2026-06-01T07:00", "2026-06-04T16:30"]);
 truthy('0l fixture: B en C zijn onderweg', taak(B).time.completion === 0.4 && !!taak(B).time.actualStart && !taak(B).time.actualFinish
   && taak(C).time.completion === 0.25 && !!taak(C).time.actualStart && !taak(C).time.actualFinish);
 eq('0m fixture: het document is gewijzigd en berekend', [voor.isDirty, voor.scheduleStale, voor.cpmResult !== null], [true, false, true]);

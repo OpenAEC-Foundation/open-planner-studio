@@ -177,9 +177,9 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   S().applyOpenedImport(reopened, { filePath: null, recompute: true });
   eq('6d heropend (ongewijzigd, optie B): weer in de modus', [S().datesAsRecorded, S().recordedDates?.origin], [true, 'ifc-own']);
   eq('6e B houdt na heropenen vier assen "niet vastgelegd"', unrecordedAxes(S().recordedDates?.times[idOf('1.2')]), ['ls', 'lf', 'tf', 'ff']);
-  // T15 maakt de taak urenmaat; de bestaande IFC-lezer vult bij datumloze urentaken 00:00 aan.
+  // D1/D2 normaliseren ook de vastgelegde assen op de echte laadgrens (§4.2).
   eq('6f A houdt zijn vastgelegde late datums en speling', S().recordedDates?.times[idOf('1.1')], {
-    start: '2026-03-02T00:00', finish: '2026-03-06T00:00', lateStart: '2026-03-09T00:00', lateFinish: '2026-03-13T00:00',
+    start: '2026-03-02T07:00', finish: '2026-03-06T16:00', lateStart: '2026-03-09T07:00', lateFinish: '2026-03-13T16:00',
     totalFloat: 5, freeFloat: 0, isCritical: false,
   });
   // Critreview PR #167, bevinding 2: heropenen van het eigen, ongewijzigde IFC gaat automatisch de
@@ -292,7 +292,7 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   const slaap = S().documents.find(d => d.id === 'rec-9-slaap')?.payload;
   eq('9c crashherstel (slapend, in de modus): ook 2 vastgelegd', [slaap?.recordedDates?.total, slaap?.datesAsRecorded], [2, true]);
   eq('9c2 …en C staat op zijn eigen anker, niet op "vandaag"',
-    slaap?.tasks.find(t => t.wbsCode === '1.3')?.time.earlyStart, cSchedule);
+    slaap?.tasks.find(t => t.wbsCode === '1.3')?.time.earlyStart, `${cSchedule}T07:00`);
   eq('9c3 crashherstel (actief, in de modus): ook 2 vastgelegd', [S().recordedDates?.total, S().datesAsRecorded], [2, true]);
 
   // Samenvattingen: een nieuwe fase "S" (MS Project schrijft ook daar EarlyStart) boven A en B; B

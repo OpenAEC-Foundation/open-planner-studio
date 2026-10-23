@@ -159,7 +159,7 @@ test('gesplitste taak: histogram-dagbuckets tonen geen last op de pauzedagen', (
   });
   S().assignResource(t1, rId, 1);
   S().runCPM();
-  assertEq(S().tasks.find(t => t.id === t1)!.time.earlyFinish, '2026-06-05', 'setup: CPM rekent de gaten mee in earlyFinish');
+  assertEq(S().tasks.find(t => t.id === t1)!.time.earlyFinish, '2026-06-05T16:00', 'setup: CPM rekent de gaten mee in earlyFinish');
 
   const report = computeHistogramReport({ ...sources(), bucket: 'dag' });
   const res = report.resources.find(r => r.resourceId === rId)!;
@@ -196,7 +196,7 @@ test('ELAPSEDTIME-taak: histogram-dagbuckets tonen geen last voorbij earlyFinish
   const report = computeHistogramReport({ ...sources(), bucket: 'dag', from: '2026-06-01', to: '2026-06-20' });
   const res = report.resources.find(r => r.resourceId === rId)!;
 
-  const onFinish = res.buckets.find(b => b.start === earlyFinish);
+  const onFinish = res.buckets.find(b => b.start === earlyFinish.slice(0, 10));
   assert(!!onFinish && onFinish.load === 1, `earlyFinish (${earlyFinish}) zelf draagt last 1 (sanity — kreeg ${JSON.stringify(onFinish)})`);
 
   const afterFinish = res.buckets.filter(b => b.start > earlyFinish);
@@ -224,7 +224,7 @@ test('taak met eigen (6-daagse) kalender: histogram-dagbucket op zaterdag toont 
   });
   S().assignResource(t1, rId, 1);
   S().runCPM();
-  assertEq(S().tasks.find(t => t.id === t1)!.time.earlyFinish, '2026-06-08', 'setup: CPM rekent 3 werkdagen op de 6-daagse kalender (vr/za/ma)');
+  assertEq(S().tasks.find(t => t.id === t1)!.time.earlyFinish, '2026-06-08T16:00', 'setup: CPM rekent 3 werkdagen op de 6-daagse kalender (vr/za/ma)');
 
   const report = computeHistogramReport({ ...sources(), bucket: 'dag' });
   const res = report.resources.find(r => r.resourceId === rId)!;

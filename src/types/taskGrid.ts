@@ -1,6 +1,7 @@
 import type { Baseline, BaselineTask } from '@/types/baseline';
 import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
 import type { Task } from '@/types/task';
+import type { WorkCalendar } from '@/types/calendar';
 import type { WorkRule } from '@/types/workRule';
 import type { DurationDisplay, TimeNotation } from '@/types/view';
 import type { TaskRelationIndex } from '@/engine/taskGrid/relationIndex';
@@ -144,6 +145,8 @@ export interface TaskColumnContext {
   /** Projectinstellingen die alleen de descriptorbewerkbaarheid/-parser sturen. */
   wbsAutoNumber?: boolean;
   effectiveHoursPerDay?: (task: Task) => number;
+  /** B4: de werkdaggrenzen voor datumweergave, ook op een scalaire kalender. */
+  effectiveCalendar?: (task: Task) => WorkCalendar;
   /** Instelling Duurweergave voor de weergavetekst van de Duur-kolom (edit- en kopieertekst blijven
    *  de eigen, parsebare eenheid); ontbreekt ⇒ `'auto'`. */
   durationDisplay?: DurationDisplay;

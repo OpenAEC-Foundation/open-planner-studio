@@ -394,8 +394,8 @@ test('update_tasks: constraint / deadline / calendarId — gevalideerd, niet bli
   okData(await call('planner_update_tasks', {
     updates: [{ id, fields: { constraint: { type: 'SNET', date: '2026-05-04' }, deadline: '2026-06-01' } }],
   }));
-  assertEq(taskById(id)!.constraint, { type: 'SNET', date: '2026-05-04' }, 'de constraint landde');
-  assertEq(taskById(id)!.deadline, '2026-06-01', 'de deadline landde');
+  assertEq(taskById(id)!.constraint, { type: 'SNET', date: '2026-05-04T07:00' }, 'de constraint landde');
+  assertEq(taskById(id)!.deadline, '2026-06-01T16:00', 'de deadline landde');
 
   // Wissen met null.
   okData(await call('planner_update_tasks', { updates: [{ id, fields: { constraint: null, deadline: null } }] }));

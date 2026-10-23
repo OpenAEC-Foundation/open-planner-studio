@@ -34,8 +34,7 @@ export function actualDateSide(task: Task, field: 'actualStart' | 'actualFinish'
     : field === 'actualFinish' ? 'end' : 'start';
 }
 
-/** D1/D2/D4/D6 op de statuswerkdag in het urenpad. Letterlijke tijden blijven rauw (N0).
- *  Algemene invoernormalisatie, ook vóór de statusdag, hoort bij F2. */
+/** D1/D2/D4/D6/D7 vóór validatie en vergelijking, op elke kalender. Letterlijke tijden blijven rauw (N0). */
 export function normalizeActualDate(
   task: Task,
   field: 'actualStart' | 'actualFinish',
@@ -43,11 +42,10 @@ export function normalizeActualDate(
   statusDate: string | undefined,
   calendar: WorkCalendar | undefined,
 ): string | undefined {
-  if (!value || !isDateOnly(value) || !statusDate || !calendar
-    || (!calendar.workTime && taskDurationUnit(task) !== 'hours')) return value;
+  // F2 normaliseert elke kalenderdatum vóór validatie en waardevergelijking (D1/D2/D7),
+  // ook buiten de statusdag en op een scalaire kalender.
+  if (!value || !isDateOnly(value) || !calendar) return value;
   const clock = isElapsedTask(task) ? ELAPSED_CLOCK : blocksClock(calendar);
-  const statusDay = statusDate.includes('T') ? workdayOfInstant(clock, statusDate, 'start') : statusDate;
-  if (value !== statusDay) return value;
   const side = actualDateSide(task, field);
   const moment = (side === 'end' ? dayEndInstant(clock, value) : dayStartInstant(clock, value)) ?? value;
   // Alleen een datumloze invoer op de statuswerkdag mag tot het expliciete statusmoment klemmen.
@@ -164,8 +162,16 @@ export function applyProgressInvariants(task: Task, statusDate: string | undefin
     time.actualFinish = normalizeActualDate(task, 'actualFinish', defaultActualFinish(time, statusDate), statusDate, calendar);
     const startWasDerived = !time.actualStart;
     if (startWasDerived) time.actualStart = time.actualFinish;
-    // Een aanwezige start blijft staan; alleen het afgeleide einde mag dan opschuiven.
-    orderActualsAfterDerivedFinish(time, statusDate, startWasDerived);
+    const finish = time.actualFinish!;
+    if (!startWasDerived && isDateOnly(finish)) {
+      // Zonder kalender blijft het afgeleide einde een datum; de store zet hem bij het schrijven om
+      // (D2/D6, `normalizeTaskDates`). Zo'n datum is de hele werkdag. Als 00:00 gelezen lag hij vóór
+      // een start om 07:00 op dezelfde dag, en werd het einde die start. Vergelijk daarom op dagniveau.
+      if (time.actualStart!.slice(0, 10) > finish) time.actualFinish = time.actualStart;
+    } else {
+      // Een aanwezige start blijft staan; alleen het afgeleide einde mag dan opschuiven.
+      orderActualsAfterDerivedFinish(time, statusDate, startWasDerived);
+    }
     task.status = 'COMPLETED';
   } else if (time.actualStart) {
     task.status = 'STARTED';

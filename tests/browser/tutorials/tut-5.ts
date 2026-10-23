@@ -1,3 +1,4 @@
+// F2-tussenstand; F3 → de vaste tutorial-urenreferentie (§3.14).
 // Tutorial 5 — Resources en nivelleren (`tut-5-resources`): vijf resources, twaalf toewijzingen, de werkregel
 // van het stucwerk, het histogram, overbezetting en nivelleren.
 import { l, same, type Action, type Check, type L, type Lang, type Snap, type TutorialScript } from './dsl';
@@ -179,7 +180,8 @@ export const TUTORIAL_5: TutorialScript = {
         { click: { text: R.bricklayer, within: { anchor: 'rail:warnings' }, exact: false } },
       ],
       expect: [
-        { see: { anchor: 'rail:warnings' }, text: l('Overbezet op 5 dag(en) (29-06-2027 – 05-07-2027)', 'Overallocated on 5 day(s) (29-06-2027 – 05-07-2027)') },
+        // F2-tussenstand; F3 → 6 dagen, 28-06 t/m 05-07 (§3.14; getoetste plaatsingskern).
+        { see: { anchor: 'rail:warnings' }, text: l('Overbezet op 5 dag(en) (25-06-2027 – 01-07-2027)', 'Overallocated on 5 day(s) (25-06-2027 – 01-07-2027)') },
         { state: (s, lang) => (s.ui.histogramResource === R.bricklayer[lang] ? [] : [`histogram toont ${s.ui.histogramResource}`]) },
       ],
       shots: [{ name: 'tut-5-overbezetting', of: [{ anchor: 'gantt-panel' }, { anchor: 'histogram-strip' }], pad: 0 }],
@@ -191,18 +193,18 @@ export const TUTORIAL_5: TutorialScript = {
         { waitFor: dialog },
         { click: { button: l('Berekenen', 'Calculate'), within: dialog } },
         { check: { see: dialog, text: l('Projecteinddatum: ongewijzigd (30-08-2027)', 'Project end date: unchanged (30-08-2027)') } },
-        { check: { see: dialog, text: same('06-07-2027') } },
+        { check: { see: dialog, text: same('02-07-2027') } },
         { shot: { name: 'tut-5-nivelleren', of: dialog, pad: 0 } },
         { click: { button: l('Toepassen', 'Apply'), within: dialog } },
       ],
       expect: [
         { gone: dialog },
         { state: (s, lang) => [
-          ...taskIs(s, lang, T.outerLeaf, { earlyStart: '2027-07-06', earlyFinish: '2027-07-13', totalFloat: 0, critical: true }),
+          ...taskIs(s, lang, T.outerLeaf, { earlyStart: '2027-07-02T13:00', earlyFinish: '2027-07-09T16:00', totalFloat: 2, critical: false }),
           ...(s.overallocated.length === 0 ? [] : [`nog overbezet: ${s.overallocated.join(', ')}`]),
         ] },
         { notSee: statusBar, text: l('overbezet', 'overallocated') },
-        status('Kritiek pad: 17 taken, 46 werkdagen', 'Critical path: 17 tasks, 46 work days'),
+        status('Kritiek pad: 8 taken, 46 werkdagen', 'Critical path: 8 tasks, 46 work days'),
         { see: { anchor: 'ribbon-group:resources:overallocationIndicator' }, text: l('Geen', 'None') },
       ],
     },

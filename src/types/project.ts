@@ -55,6 +55,8 @@ export interface LevelingSettings {
  * `rehab-2.xer` is P3-uitvoer en telt niet als P6-bewijs.
  */
 export interface SchedulingOptions {
+  /** B6: losse mijlpalen en FINISH zonder voorganger op het einde van de werkdag. */
+  milestoneWithoutPredecessorAtDayEnd?: boolean;
   /** Kalender waarin een relatie-lag telt (P6 4-way). Default 'predecessor'. Geldt voor elk formaat
    *  (`relDeps.lagEngine`, `CPMSolver.ts`). */
   lagCalendar?: 'predecessor' | 'successor' | '24hour' | 'projectDefault';
@@ -429,6 +431,7 @@ export interface SchedulingOptions {
  * sleutelverzamelingen zijn disjunct (compile-time bewaakt in `conventions/registry.ts`).
  */
 export type ConventionKey =
+  | 'milestoneWithoutPredecessorAtDayEnd'
   | 'preserveActualDatesInBackwardPass'
   | 'clampNegativeFreeFloat'
   | 'p6ZeroDurationUsesPlannedBoundary'

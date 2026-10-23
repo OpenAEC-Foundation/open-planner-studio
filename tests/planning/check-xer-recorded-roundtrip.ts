@@ -312,7 +312,7 @@ const recoveredFromInMode = await recoverSingleDocument('6a', basePayload);
 expect('6b hersteld document dat vóór de crash IN de modus stond, komt weer IN de modus terug (aan blijft aan)',
   recoveredFromInMode.datesAsRecorded === true);
 eq('6c hersteld-in-modus document draagt dezelfde vastlegging als het gewone openen',
-  recoveredFromInMode.recordedDates?.times, originalTimes);
+  recoveredFromInMode.recordedDates?.times, basePayload.recordedDates?.times);
 
 const recoveredFromOutsideMode = await recoverSingleDocument('6d', outsidePayload);
 expect('6e hersteld document dat vóór de crash UIT de modus stond, blijft UIT de modus (uit blijft uit)',
@@ -416,7 +416,7 @@ expect('6f ... en vergeet de opgeslagen datums (geen aanbod-stand meer, eigenaar
     Object.fromEntries((slapend?.tasks ?? [])
       .filter(task => originalTimes[task.id] !== undefined)
       .map(task => [task.id, task.time.earlyStart])),
-    Object.fromEntries(Object.entries(originalTimes).map(([id, time]) => [id, time.start])));
+    Object.fromEntries(Object.entries(basePayload.recordedDates!.times).map(([id, time]) => [id, time.start])));
 
   // Deze sectie opende bewust een TWEEDE document; de secties hierna gaan van één uit.
   store().closeDocument(firstId);

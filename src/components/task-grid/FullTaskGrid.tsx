@@ -438,6 +438,7 @@ export function TaskGridSurface({
     durationDisplay,
     numberLocale: taskI18n.language,
     effectiveHoursPerDay: task => effHoursPerDay(effectiveCalendarOf(task, calendar, calendars)),
+    effectiveCalendar: task => effectiveCalendarOf(task, calendar, calendars),
     signedWorkDaysBetween: (fromIso, toIso) => signedWorkDaysBetween(calendarEngine, fromIso, toIso),
     // ⚠ bij een baseline van een urentaak met de oude dagtelling (alleen weergave).
     baselineOldDay: createBaselineOldDayCheck(calendar, calendars),

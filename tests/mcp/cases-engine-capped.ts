@@ -80,10 +80,10 @@ test('normale CPM-solve: byte-identieke datums en géén cappedTaskIds', () => {
   const A = S().tasks.find(t => t.id === aId)!.time;
   const B = S().tasks.find(t => t.id === bId)!.time;
   // A: ma 06-01 .. wo 06-03 (dur 3). B (FS na A): do 06-04 .. vr 06-05 (dur 2).
-  assertEq(A.earlyStart, '2026-06-01', 'A.earlyStart');
-  assertEq(A.earlyFinish, '2026-06-03', 'A.earlyFinish');
-  assertEq(B.earlyStart, '2026-06-04', 'B.earlyStart');
-  assertEq(B.earlyFinish, '2026-06-05', 'B.earlyFinish');
+  assertEq(A.earlyStart, '2026-06-01T07:00', 'A.earlyStart');
+  assertEq(A.earlyFinish, '2026-06-03T16:00', 'A.earlyFinish');
+  assertEq(B.earlyStart, '2026-06-04T07:00', 'B.earlyStart');
+  assertEq(B.earlyFinish, '2026-06-05T16:00', 'B.earlyFinish');
   // Geen onwerkbaar venster ⇒ geen capped-lijst (byte-identiek resultaat: veld blijft ongezet/leeg).
   const capped = (cpm as any).cappedTaskIds;
   assert(
@@ -128,8 +128,8 @@ test('solve met één onwerkbare taak: cappedTaskIds bevat precies die taak, res
   assert(!cpm.error, `verwacht geen error, kreeg "${cpm.error}"`);
   // A (schone kalender) is gewoon normaal doorgerekend.
   const A = S().tasks.find(t => t.id === aId)!.time;
-  assertEq(A.earlyStart, '2026-06-01', 'A.earlyStart');
-  assertEq(A.earlyFinish, '2026-06-03', 'A.earlyFinish');
+  assertEq(A.earlyStart, '2026-06-01T07:00', 'A.earlyStart');
+  assertEq(A.earlyFinish, '2026-06-03T16:00', 'A.earlyFinish');
   // Precies B zit in de capped-lijst.
   const capped = (cpm as any).cappedTaskIds as string[] | undefined;
   assertEq(capped, [bId], 'cappedTaskIds');

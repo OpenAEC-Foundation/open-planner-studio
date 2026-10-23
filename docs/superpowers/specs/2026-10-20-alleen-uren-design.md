@@ -1510,6 +1510,7 @@ nodig heeft. B2, B4 en B8 zijn besloten (2026-10-20) en bepalen F4. B9 = optie 1
   in artifacts/uren-f1b.
 
 **F2 — Kern: motor op werkblokken voor elke kalender.**
+- Stand: in uitvoering op `claude/uren-f2-kern`, concept-PR #559. Motor, laadgrens, B5 en IFC aangesloten; profielmeting houdt dezelfde celstand als de basis. Dagcases en voorbeeldensnapshot zijn nog niet groen; geen integratie-akkoord.
 - Inhoud: elke engine via `calendarForEngine`; elke dagtaak loopt als urenpad-dagtaak, in hele dagen. De conventie
   dagenmaat bestaat dan nog niet; dat is het gedrag van nu op een urenkalender, in elk profiel. De migratie op de
   laadgrens met normalisatie (ook van de vastlegging), D7 en het baseline-einde (§4.2), T1 en de B5-overgang met twee

@@ -1,3 +1,4 @@
+// F2: taakdatums worden op D1/D2/D7-momenten vergeleken (§4.2); de echte handeling blijft gelijk.
 // Issue #27 etappe 2, T10: de voortgangsimportdialoog als echte gebruikershandeling — kiezen,
 // (indien nodig) de datumvolgorde-vraag (E5), de verplichte preview met handmatige koppelkiezer
 // (T7/E3), bevestigen + undo, de drie instappunten (T8/E2) en de documentwissel-blokkade (T6/E4).
@@ -370,7 +371,7 @@ test('de keuze werkt door in de preview', async ({ page, ops: _ops }) => {
   await expect(footerCloseButton(page)).toBeVisible();
 
   const after = await taskTime(page, idA);
-  expect(after.actualStart).toBe('2026-03-04');
+  expect(after.actualStart).toBe("2026-03-04T07:00");
 });
 
 test('de Tabel-tabknop opent dezelfde dialoog', async ({ page, ops: _ops }) => {
@@ -498,7 +499,7 @@ test('voortgangsblad-export: knop op Planning levert een leesbaar .xlsx in de do
   expect(row.wbsCode).toBeTruthy();
   expect(row.name).toBe('Fundering');
   expect(row.rawCompletion).toBeTruthy();
-  expect(row.rawActualStart).toBe('2026-09-07');
+  expect(row.rawActualStart).toBe("2026-09-07T07:00");
   expect(row.rawActualFinish === undefined || row.rawActualFinish === '').toBe(true);
   // …en de twee detectie-only kolommen (Start/Finish) in `detectionCells`.
   const detected = new Set(sheet.detectionCells.map(cell => cell.field));
@@ -555,7 +556,7 @@ test('exporteren en meteen terugimporteren geeft nul wijzigingen', async ({ page
   // En het document is ook echt onaangeraakt gebleven.
   const after = await taskTime(page, idA);
   expect(after.completion).toBeCloseTo(1 / 3, 4);
-  expect(after.actualStart).toBe('2026-09-07');
+  expect(after.actualStart).toBe("2026-09-07T07:00");
 });
 
 test('een gewijzigd .xlsx-blad komt zonder datumvraag terug het document in', async ({ page, ops: _ops }) => {

@@ -1689,7 +1689,7 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   const expected9a = 0.4 * full.scheduleDuration / 4;
   const afterPartial = S().tasks.find(t => t.id === id)!.time;
   assert(afterPartial.completion === expected9a, `(9a) een partiële time-update mag completion niet wissen (gedane werk blijft) — kreeg ${afterPartial.completion}, verwacht ${expected9a}`);
-  assert(afterPartial.scheduleStart === '2026-09-01', `(9a) de daadwerkelijk opgegeven scheduleStart moet wél doorkomen — kreeg ${afterPartial.scheduleStart}`);
+  assert(afterPartial.scheduleStart === '2026-09-01T07:00', `(9a) de daadwerkelijk opgegeven scheduleStart moet wél doorkomen — kreeg ${afterPartial.scheduleStart}`);
 
   let threw: unknown;
   let ifcOut = '';
@@ -1780,7 +1780,7 @@ const hasP6BoundarySequence = (input: ImportResult) =>
 
   const afterExt = S().tasks.find(t => t.id === id)!.time;
   assert(afterExt.completion === 0.4, `(9c) api.data.updateTask-pad mag completion niet wissen bij een partiële time-update — kreeg ${afterExt.completion}`);
-  assert(afterExt.scheduleStart === '2026-09-03', `(9c) de daadwerkelijk opgegeven scheduleStart moet wél doorkomen — kreeg ${afterExt.scheduleStart}`);
+  assert(afterExt.scheduleStart === '2026-09-03T07:00', `(9c) de daadwerkelijk opgegeven scheduleStart moet wél doorkomen — kreeg ${afterExt.scheduleStart}`);
 
   let threw: unknown;
   let ifcOut = '';
@@ -1934,13 +1934,13 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     const t = S().tasks.find(x => x.id === id)!.time;
     assert(t.completion === 0.4, `${label} completion moet 0.4 blijven — kreeg ${t.completion}`);
     assert(t.durationMinutes === 240, `${label} durationMinutes moet 240 blijven — kreeg ${t.durationMinutes}`);
-    assert(t.actualStart === '2026-08-01', `${label} actualStart moet blijven — kreeg ${t.actualStart}`);
-    assert(t.actualFinish === '2026-08-03', `${label} actualFinish moet blijven — kreeg ${t.actualFinish}`);
+    assert(t.actualStart === '2026-08-01T07:00', `${label} actualStart moet blijven — kreeg ${t.actualStart}`);
+    assert(t.actualFinish === '2026-08-03T16:00', `${label} actualFinish moet blijven — kreeg ${t.actualFinish}`);
     assert(t.remainingTime === 1, `${label} remainingTime moet blijven — kreeg ${t.remainingTime}`);
     assert(t.remainingMinutes === 60, `${label} remainingMinutes moet blijven — kreeg ${t.remainingMinutes}`);
     // Z14 — de twee nieuwe cases (zie setFullProgress hierboven).
-    assert(t.resume === '2026-08-02', `${label} resume moet blijven — kreeg ${t.resume}`);
-    assert(t.stop === '2026-08-02', `${label} stop moet blijven — kreeg ${t.stop}`);
+    assert(t.resume === '2026-08-02T07:00', `${label} resume moet blijven — kreeg ${t.resume}`);
+    assert(t.stop === '2026-08-02T16:00', `${label} stop moet blijven — kreeg ${t.stop}`);
   };
 
   // Pad 1: taskSlice.updateTask rechtstreeks.

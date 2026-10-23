@@ -1,3 +1,4 @@
+// F2: taakdatums worden op D1/D2/D7-momenten vergeleken (§4.2); de echte handeling blijft gelijk.
 // "Taak bewerken" → Opslaan, met echte events (dubbelklik op de balk, schuif via het toetsenbord,
 // klik op Opslaan, Ctrl+Z). Twee eigenschappen die de dialoog met het eigenschappenpaneel moet delen:
 //
@@ -140,7 +141,7 @@ test('Taak bewerken: voortgang opslaan volgt dezelfde regels als het eigenschapp
   await recalculate(page);
 
   const panelAt100 = await progressOf(page, panelId);
-  expect(panelAt100).toMatchObject({ completion: 1, status: 'COMPLETED', actualFinish: '2026-03-13', remainingTime: 0 });
+  expect(panelAt100).toMatchObject({ completion: 1, status: 'COMPLETED', actualFinish: "2026-03-13T16:00", remainingTime: 0 });
   expect(await progressOf(page, dialogId)).toEqual(panelAt100);
 
   // F1: een datumloos werkelijk einde op de statusdag krijgt het blokeinde of het statusmoment.
@@ -224,7 +225,7 @@ test('Taak bewerken: voortgang alleen via de dialoog zet de status (gestart, vol
   await expect(dialog).toBeHidden();
   expect(await readTask(page, taskId)).toMatchObject({
     // Onbegonnen werk staat na de statusdatum (6 maart) gepland; de afgeleide start volgt die.
-    completion: 0.4, status: 'STARTED', actualStart: '2026-03-06', actualFinish: null, remainingTime: 6,
+    completion: 0.4, status: 'STARTED', actualStart: "2026-03-06T07:00", actualFinish: null, remainingTime: 6,
   });
 
   dialog = await openDialogByDoubleClick(page, taskId);
@@ -232,7 +233,7 @@ test('Taak bewerken: voortgang alleen via de dialoog zet de status (gestart, vol
   await dialog.locator('[data-ops-task-save]').click();
   await expect(dialog).toBeHidden();
   expect(await readTask(page, taskId)).toMatchObject({
-    completion: 1, status: 'COMPLETED', actualStart: '2026-03-06', actualFinish: '2026-03-06', remainingTime: 0,
+    completion: 1, status: 'COMPLETED', actualStart: "2026-03-06T07:00", actualFinish: "2026-03-06T16:00", remainingTime: 0,
   });
 });
 

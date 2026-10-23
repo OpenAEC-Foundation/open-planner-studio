@@ -198,7 +198,7 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
   // heeft: de bijgewerkte payloads laten de teller vanzelf naar 0 lopen.
   const staleSleepingCount = useMemo(
     () => documents.reduce(
-      (n, d) => n + (d.id !== activeDocumentId && d.payload?.scheduleStale === true ? 1 : 0),
+      (n, d) => n + (d.id !== activeDocumentId && d.payload?.scheduleStale === true && !d.payload.minuteModelPending ? 1 : 0),
       0,
     ),
     [documents, activeDocumentId],

@@ -1,3 +1,6 @@
+import { normalizeTaskDates } from '../migrations/minuteModel';
+import { minuteModelTransition, minuteModelNotice, recordMinuteModelTransition } from '../minuteModelTransition';
+import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
 import { claimTaskTypesNotice, notifyTaskTypesUnlocked, notifyTaskTypesUnlockedClaimed, TASK_TYPES_DETAIL_LINE } from '../taskTypesNotice';
 import { taskTypesNeedNotice } from '../taskTypesVisibility';
 import { writeIFC, ifcObjectSeed } from '@/services/ifc/ifcWriter';
@@ -888,6 +891,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         pools: current.pools,
         mode: opts.linkedOpen && !editing ? 'open-boundary' : 'silent-switch',
       });
+      const conversion = opts.recompute && !editing
+        // `minuteModelTransition` normaliseert de vastlegging zelf (één normalisatie per grens).
+        ? minuteModelTransition(payload, activation.payload,
+            captureRecordedDates(payload.tasks, parsed.recordedFields, parsed.recordedTimes))
+        : null;
+      if (conversion) activation.payload = conversion.after;
       set((s) => {
         // Een nieuwe projectinhoud: de vorige weigeringen gaan weg, net als bij een documentwissel
         // of een bewerking (eigenaarsbesluit 2026-10-19 5b). Vóór de meldingen hieronder.
@@ -898,12 +907,22 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           invalidateDocumentRedo(s, s.activeDocumentId);
         }
         hydratePayload(s, activation.payload);
+        if (conversion) recordMinuteModelTransition(s, conversion);
         s.viewRows = [...activation.viewRows];
         s.resourceLoadResult = activation.resourceLoadResult;
         s.ui.showLibraryLinkDialog = activation.signals.showLibraryLinkDialog;
         s.ui.libraryRefreshNotice = activation.signals.libraryRefreshNotice;
         if (editing) runtime.finishMutation(s);
       });
+      for (const cal of [payload.calendar, ...payload.calendars].filter((cal, i, all) => all.findIndex(c => c.id === cal.id) === i)) {
+        const source = cal.id === parsed.calendar.id ? parsed.calendar : parsed.resourceCalendars?.find(c => c.id === cal.id);
+        if (source && (source.workEndHour !== cal.workEndHour || source.simpleBreakStartMinute !== cal.simpleBreakStartMinute
+          || source.simpleBreakDurationMinutes !== cal.simpleBreakDurationMinutes)) {
+          get().notify({ severity: 'info', messageKey: 'notifications.minuteModelCalendarRepaired', params: { calendar: cal.name }, sticky: true });
+        }
+      }
+      const conversionNotice = conversion && minuteModelNotice(conversion);
+      if (conversionNotice) get().notify(conversionNotice);
       // De open-grens ververste een achterlopende bibliotheekkalender en de werkregel paste taken
       // aan — dezelfde melding als de kalenderdialoog.
       notifyCalendarLibrarySettle(get().notify, get().activeDocumentId, activation.workRuleSettle);
@@ -1400,13 +1419,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           // ankers al ververst zijn. Deze verversing verandert taakdatums en draait meteen
           // `runCPM` — een gewone, zichtbare datamutatie dus, en die hoort ongedaan te kunnen.
           runtime.beginUndoable(s);
-          s.tasks = result.tasks;
+          s.tasks = result.tasks.map(task => normalizeTaskDates(task, s));
           runtime.finishMutation(s, { stale: true });
           applied = true;
         });
         if (applied) {
           get().recomputeViewRows();
-          get().runCPM();
+          get().runCPM({ withinEvent: true });
         }
       }
       return { refreshed: result.refreshed, missing: result.missing };
@@ -1503,13 +1522,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         set((s) => {
           if (s.activeDocumentId !== targetDocumentId) return;
           runtime.beginUndoable(s);
-          s.tasks = tasks;
+          s.tasks = tasks.map(task => normalizeTaskDates(task, s));
           runtime.finishMutation(s, { stale: true });
           applied = true;
         });
         if (applied) {
           get().recomputeViewRows();
-          get().runCPM();
+          get().runCPM({ withinEvent: true });
         }
       }
       return { refreshed, missing, sources: sourceDocs.length };

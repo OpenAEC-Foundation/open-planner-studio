@@ -4,6 +4,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { useDisplayDate } from '@/hooks/displayDate';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { blocksClock, workdayBoundaryLabel } from '@/engine/calendar/workdayRules';
 import { durationMinutesOf, taskDurationUnit } from '@/engine/scheduler/duration';
 import { isSummaryTask } from '@/engine/scheduler/relationRules';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
@@ -75,17 +76,20 @@ function segmentRanges(task: Task, cal: WorkCalendar): { from: string; to: strin
   const startStr = shownStart(task) || '';
   const endStr = shownFinish(task) || '';
   if (!startStr || !endStr) return [];
-  const hourMode = startStr.includes('T') || endStr.includes('T');
-  const start = hourMode ? parseInstant(startStr) : parseDate(startStr);
-  const end = hourMode ? parseInstant(endStr) : parseDate(endStr);
+  const hasInstants = startStr.includes('T') || endStr.includes('T');
+  const hourMode = taskDurationUnit(task) === 'hours';
+  const start = hasInstants ? parseInstant(startStr) : parseDate(startStr);
+  const end = hasInstants ? parseInstant(endStr) : parseDate(endStr);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return [];
   const eng = new CalendarEngine(cal);
   const segments = computeSplitSegments(task.splitGaps, start, end, hourMode, eng);
+  const clock = blocksClock(cal);
   return segments.slice(1).map((s, k) => {
     const last = k === segments.length - 2;
     const to = hourMode || last ? s.end : eng.prevWorkDayBefore(s.end);
     return hourMode
-      ? { from: formatInstant(s.start, 'hour'), to: formatInstant(to, 'hour') }
+      ? { from: workdayBoundaryLabel(clock, formatInstant(eng.nextWorkInstant(s.start), 'hour'), 'start'),
+        to: workdayBoundaryLabel(clock, formatInstant(to, 'hour'), 'end') }
       : { from: formatDate(s.start), to: formatDate(to) };
   });
 }

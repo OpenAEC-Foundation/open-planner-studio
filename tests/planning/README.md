@@ -209,7 +209,7 @@ De werkdagfunctie staat bij de gedeelde kalenderregels in `src/engine/calendar/w
 Een nachtblok di 22:00–wo 06:00 hoort bij dinsdag, ook voor een moment wo 02:00 en het einde wo 06:00.
 Buiten een echt werkblok geldt de klokdatum; de functie verzint geen blok op een vrije dag.
 Een eindmoment om 24:00 (00:00 van de volgende dag) hoort bij de vorige dag. De check bewaakt ook
-vrije dagen, een feestdag en kalendertijd. Deze regels zijn nog niet aangesloten op de app.
+vrije dagen, een feestdag en kalendertijd. Sinds F2 zijn deze regels aangesloten op de laadgrens en op de store-invoer.
 
 ## Een geval toevoegen
 
@@ -237,3 +237,20 @@ run 1 van 57 naar 12, run 2 van 30 naar 11. Die oude lijsten waren al achterhaal
 De echte nulmeting op 12abaabf2 gaf 34 en 21 afwijkende cases; F1b geeft er 12 en 11.
 Er zijn geen nieuwe afwijkingen toegestaan.
 De lege sleutel hours-blokgrenzen ontbrak nog na PR #402 en staat nu in beide runs.
+
+### F2: omzetting en bestandscompatibiliteit
+
+`check-minute-model-transition.ts` controleert de echte laadroute, undo/redo, opslaan en heropenen,
+slapend herstel en het echte MCP-oppervlak (naam, batch met leesstap, werkregel en de aansluitvoorwaarde).
+`check-minute-model-ifc.ts` toetst W0/W1/W2, de keuze per kalender, D7 en het baseline-einde.
+`check-minute-model-routes.ts` telt de rekenaanroepen uit de TypeScript-bron en bewaakt de gekozen route.
+
+De optionele lezervergelijking `check-minute-model-compat.ts` krijgt via `OPS_MINUTE_MODEL_OLD_READER`
+een uit tag v2026.9.0 gebundelde lezer en via `OPS_MINUTE_MODEL_COMPAT_OUT` de W0/W1/W2-bestanden die
+`check-minute-model-ifc.ts` in die map kan schrijven. Hij schrijft alle voorbeelden met de nieuwe schrijver
+in het geheugen en vergelijkt de geschreven datums en hoeveelheden met die oude lezer. Unieke WBS-codes
+koppelen de taken; de al bestaande tekstdecodering en kalenderverliezen van die versie vallen erbuiten.
+Zonder deze twee opties wordt de lezervergelijking niet uitgevoerd.
+
+`check-minute-model-scale.ts` meet vijf berekeningen van rehab-2 als `OPS_XER_CORPUS` beschikbaar is.
+Hij meldt de losse tijden en de mediaan; dit is een meting, geen vervanging van de profielpoort.

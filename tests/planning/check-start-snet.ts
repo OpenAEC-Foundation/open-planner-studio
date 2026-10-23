@@ -1,3 +1,5 @@
+import { normalizeTaskDates } from '@/state/migrations/minuteModel';
+// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 // Een getypte startdatum op een taak MET voorganger wordt een beperking "Start niet eerder dan"
 // (SNET), zoals in MS Project (besluit eigenaar, audit "weergaven" W2-vervolg). Vóór de fix schreef
 // een startbewerking alleen het anker `scheduleStart`; de solver leest dat anker alleen voor een taak
@@ -59,6 +61,7 @@ function adapter(): TaskGridAdapter {
     customTaskTypes: s.customTaskTypes, scheduleStale: s.scheduleStale,
     wbsAutoNumber: s.project.wbsAutoNumber === true, dateNotation: 'dmy',
     effectiveHoursPerDay: t => effHoursPerDay(effectiveCalendarOf(t, s.calendar, s.calendars)),
+    effectiveCalendar: t => effectiveCalendarOf(t, s.calendar, s.calendars),
     signedWorkDaysBetween: (a, b) => signedWorkDaysBetween(engine, a, b),
     labelForColumn: key => key,
     rows: s.viewRows,
@@ -102,23 +105,23 @@ function setup(): { a: string; b: string } {
 // ── 1. Tabel-kolom Start op een taak met voorganger: de getypte datum wordt SNET ────────────────
 {
   const { b } = setup();
-  eq('Opzet: B begint na A op 08-06', shownStart(task(b)), '2026-06-08');
+  eq('Opzet: B begint na A op 08-06', shownStart(task(b)), "2026-06-08T07:00");
   const typed = type(b, 'task.time.start', '15-06-2026');
   eq('Start → 15-06: commit slaagt', typed.ok, true);
-  eq('Start → 15-06: beperking SNET met de getypte datum', task(b).constraint, { type: 'SNET', date: '2026-06-15' });
-  eq('Start → 15-06: anker = getypte datum', task(b).time.scheduleStart, '2026-06-15');
+  eq('Start → 15-06: beperking SNET met de getypte datum', task(b).constraint, { type: 'SNET', date: "2026-06-15T07:00" });
+  eq('Start → 15-06: anker = getypte datum', task(b).time.scheduleStart, "2026-06-15T07:00");
   eq('Start → 15-06: melding via het ene meldkanaal', notices(),
     [{ key: 'notifications.startSnetCreated', params: { name: 'B', date: '15-06-2026' } }]);
   S().runCPM();
-  eq('Start na F5 = getypte datum (niet terug achter de voorganger)', shownStart(task(b)), '2026-06-15');
+  eq('Start na F5 = getypte datum (niet terug achter de voorganger)', shownStart(task(b)), "2026-06-15T07:00");
 
   // Undo: startbewerking + beperking zijn samen één stap.
   S().undo();
   eq('Undo (1×): beperking weg', task(b).constraint, undefined);
-  eq('Undo (1×): anker terug', task(b).time.scheduleStart, '2026-06-01');
+  eq('Undo (1×): anker terug', task(b).time.scheduleStart, "2026-06-01T07:00");
   S().redo();
   eq('Redo: beperking en anker samen terug', [task(b).constraint, task(b).time.scheduleStart],
-    [{ type: 'SNET', date: '2026-06-15' }, '2026-06-15']);
+    [{ type: 'SNET', date: "2026-06-15T07:00" }, "2026-06-15T07:00"]);
 }
 
 // ── 2. Een datum vóór wat de voorganger toelaat: de voorganger wint ─────────────────────────────
@@ -126,9 +129,9 @@ function setup(): { a: string; b: string } {
   const { b } = setup();
   const typed = type(b, 'task.time.start', '03-06-2026');
   eq('Start → 03-06 (vóór A klaar is): commit slaagt', typed.ok, true);
-  eq('Start → 03-06: toch SNET 03-06', task(b).constraint, { type: 'SNET', date: '2026-06-03' });
+  eq('Start → 03-06: toch SNET 03-06', task(b).constraint, { type: 'SNET', date: "2026-06-03T07:00" });
   S().runCPM();
-  eq('Start → 03-06 na F5: de voorganger wint (08-06)', shownStart(task(b)), '2026-06-08');
+  eq('Start → 03-06 na F5: de voorganger wint (08-06)', shownStart(task(b)), "2026-06-08T07:00");
 }
 
 // ── 3. Taak heeft al een SNET: de datum schuift mee ──────────────────────────────────────────────
@@ -137,14 +140,14 @@ function setup(): { a: string; b: string } {
   S().updateTask(b, { constraint: { type: 'SNET', date: '2026-06-10' } });
   S().runCPM();
   clearNotices();
-  eq('Opzet: SNET 10-06 bepaalt de start', shownStart(task(b)), '2026-06-10');
+  eq('Opzet: SNET 10-06 bepaalt de start', shownStart(task(b)), "2026-06-10T07:00");
   const typed = type(b, 'task.time.start', '17-06-2026');
   eq('Start → 17-06: commit slaagt', typed.ok, true);
-  eq('Start → 17-06: SNET-datum bijgewerkt', task(b).constraint, { type: 'SNET', date: '2026-06-17' });
+  eq('Start → 17-06: SNET-datum bijgewerkt', task(b).constraint, { type: 'SNET', date: "2026-06-17T07:00" });
   eq('Start → 17-06: melding "bijgewerkt"', notices(),
     [{ key: 'notifications.startSnetUpdated', params: { name: 'B', date: '17-06-2026' } }]);
   S().runCPM();
-  eq('Start na F5 = nieuwe SNET-datum', shownStart(task(b)), '2026-06-17');
+  eq('Start na F5 = nieuwe SNET-datum', shownStart(task(b)), "2026-06-17T07:00");
 }
 
 // ── 4. Ander constrainttype: de start heeft geen effect ⇒ melden, constraint laten staan ─────────
@@ -189,7 +192,7 @@ for (const constraint of OTHER_CONSTRAINTS) {
     clearNotices();
     const typed = type(b, column, '17-06-2026');
     eq(`${label} via ${column}: commit slaagt (geen celfout)`, typed.ok, true);
-    eq(`${label} via ${column}: constraint onaangeroerd`, task(b).constraint, constraint);
+    eq(`${label} via ${column}: constraint onaangeroerd`, task(b).constraint, normalizeTaskDates({ ...task(b), constraint }, S()).constraint);
     eq(`${label} via ${column}: geen dood anker weggeschreven`, task(b).time.scheduleStart, before.anchor);
     eq(`${label} via ${column}: planning niet verouderd`, S().scheduleStale, false);
     eq(`${label} via ${column}: melding met type en datum`, notices(), expected);
@@ -202,10 +205,10 @@ for (const constraint of OTHER_CONSTRAINTS) {
   const typed = type(a, 'task.time.start', '03-06-2026');
   eq('Zonder voorganger: commit slaagt', typed.ok, true);
   eq('Zonder voorganger: geen beperking', task(a).constraint, undefined);
-  eq('Zonder voorganger: anker = getypte datum', task(a).time.scheduleStart, '2026-06-03');
+  eq('Zonder voorganger: anker = getypte datum', task(a).time.scheduleStart, "2026-06-03T07:00");
   eq('Zonder voorganger: geen SNET-melding', notices(), []);
   S().runCPM();
-  eq('Zonder voorganger na F5: start = anker', shownStart(task(a)), '2026-06-03');
+  eq('Zonder voorganger na F5: start = anker', shownStart(task(a)), "2026-06-03T07:00");
 }
 
 // ── 6. Ongewijzigd teruggetypt: niets, ook geen beperking ───────────────────────────────────────
@@ -214,7 +217,7 @@ for (const constraint of OTHER_CONSTRAINTS) {
   const typed = type(b, 'task.time.start', '08-06-2026');
   eq('Zelfde datum teruggetypt: commit slaagt', typed.ok, true);
   eq('Zelfde datum teruggetypt: geen beperking', task(b).constraint, undefined);
-  eq('Zelfde datum teruggetypt: anker blijft', task(b).time.scheduleStart, '2026-06-01');
+  eq('Zelfde datum teruggetypt: anker blijft', task(b).time.scheduleStart, '2026-06-01T07:00');
   eq('Zelfde datum teruggetypt: niet verouderd', S().scheduleStale, false);
 }
 
@@ -227,11 +230,11 @@ for (const constraint of OTHER_CONSTRAINTS) {
   S().addSequence({ predecessorId: a, successorId: phase, type: 'FINISH_START', lagDays: 0 });
   S().runCPM();
   clearNotices();
-  eq('Opzet: C wacht via de fase op A', shownStart(task(c)), '2026-06-08');
+  eq('Opzet: C wacht via de fase op A', shownStart(task(c)), "2026-06-08T07:00");
   type(c, 'task.time.start', '15-06-2026');
-  eq('Kind van fase met voorganger: SNET', task(c).constraint, { type: 'SNET', date: '2026-06-15' });
+  eq('Kind van fase met voorganger: SNET', task(c).constraint, { type: 'SNET', date: "2026-06-15T07:00" });
   S().runCPM();
-  eq('Kind van fase na F5 = getypte datum', shownStart(task(c)), '2026-06-15');
+  eq('Kind van fase na F5 = getypte datum', shownStart(task(c)), "2026-06-15T07:00");
 }
 
 // ── 8. Handmatig gepland: het anker IS de planning, geen beperking nodig ────────────────────────
@@ -242,7 +245,7 @@ for (const constraint of OTHER_CONSTRAINTS) {
   clearNotices();
   type(b, 'task.time.start', '04-06-2026');
   eq('Handmatig gepland: geen beperking', task(b).constraint, undefined);
-  eq('Handmatig gepland: anker = getypte datum', task(b).time.scheduleStart, '2026-06-04');
+  eq('Handmatig gepland: anker = getypte datum', task(b).time.scheduleStart, "2026-06-04T07:00");
 }
 
 // ── 9. Kiesbare kolom Geplande start: dezelfde regel ────────────────────────────────────────────
@@ -250,9 +253,9 @@ for (const constraint of OTHER_CONSTRAINTS) {
   const { b } = setup();
   const typed = type(b, 'task.time.scheduleStart', '16-06-2026');
   eq('Geplande start → 16-06: commit slaagt', typed.ok, true);
-  eq('Geplande start → 16-06: SNET', task(b).constraint, { type: 'SNET', date: '2026-06-16' });
+  eq('Geplande start → 16-06: SNET', task(b).constraint, { type: 'SNET', date: "2026-06-16T07:00" });
   S().runCPM();
-  eq('Geplande start na F5 = getypte datum', shownStart(task(b)), '2026-06-16');
+  eq('Geplande start na F5 = getypte datum', shownStart(task(b)), "2026-06-16T07:00");
 }
 
 // ── 10. Plakken over meerdere taken: één transactie, één melding met aantal ─────────────────────
@@ -268,7 +271,7 @@ for (const constraint of OTHER_CONSTRAINTS) {
   const pasted = S().runGridMutation([{ kind: 'paste', writes: [edit(b, '2026-06-15'), edit(c, '2026-06-16')] }]);
   eq('Plakken: slaagt', pasted.ok, true);
   eq('Plakken: beide taken SNET', [task(b).constraint, task(c).constraint],
-    [{ type: 'SNET', date: '2026-06-15' }, { type: 'SNET', date: '2026-06-16' }]);
+    [{ type: 'SNET', date: "2026-06-15T07:00" }, { type: 'SNET', date: "2026-06-16T07:00" }]);
   eq('Plakken: één melding met aantal', notices(), [{ key: 'notifications.startSnetMany', params: { count: 2 } }]);
   S().undo();
   eq('Plakken: één undo-stap haalt beide beperkingen weg', [task(b).constraint, task(c).constraint], [undefined, undefined]);
@@ -301,7 +304,7 @@ for (const constraint of OTHER_CONSTRAINTS) {
   const pasted = S().runGridMutation([{ kind: 'paste', writes: [edit(b, '2026-06-15'), edit(c, '2026-06-16')] }]);
   eq('Plakken gemengd: slaagt', pasted.ok, true);
   eq('Plakken gemengd: B SNET, C onaangeroerd', [task(b).constraint, task(c).constraint, task(c).time.scheduleStart],
-    [{ type: 'SNET', date: '2026-06-15' }, { type: 'MSO', date: '2026-06-10' }, cAnchor]);
+    [{ type: 'SNET', date: '2026-06-15T07:00' }, { type: 'MSO', date: '2026-06-10T07:00' }, cAnchor]);
   eq('Plakken gemengd: één SNET-melding en één blokkeermelding', notices(), [
     { key: 'notifications.startSnetCreated', params: { name: 'B', date: '15-06-2026' } },
     { key: 'notifications.startBlockedByConstraint', params: { name: 'C', type: 'MSO', date: '10-06-2026' } },

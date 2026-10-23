@@ -221,7 +221,10 @@
     "msProjectLostFixedCosts_one": "The fixed cost of {{count}} task was not imported.",
     "msProjectLostFixedCosts_other": "The fixed costs of {{count}} tasks were not imported.",
     "msProjectLostResourceRates_one": "The rates of {{count}} resource were not imported.",
-    "msProjectLostResourceRates_other": "The rates of {{count}} resources were not imported."
+    "msProjectLostResourceRates_other": "The rates of {{count}} resources were not imported.",
+    "minuteModelConverted_one": "{{document}}: {{count}} task has a different start or finish after conversion; the largest shift is {{days}} workdays. Undo restores the recorded dates.",
+    "minuteModelConverted_other": "{{document}}: {{count}} tasks have a different start or finish after conversion; the largest shift is {{days}} workdays. Undo restores the recorded dates.",
+    "minuteModelCalendarRepaired": "Calendar '{{calendar}}' was repaired: its finish or break did not match the stored working time."
   },
   "scheduleErrors": {
     "cycle": "Circular dependency between tasks: {{path}}",
@@ -1472,6 +1475,10 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "ALAP tasks as late as the successors allow",
       "help": "Hour planning only, for an unstarted task that is not manually scheduled and has the “As late as possible” (ALAP) constraint. Its successors’ early dates determine its position to the minute; successors go first. Its own planned start does not count; predecessors, status date and a second constraint still apply. Without a successor, it uses its late finish. The ordinary ALAP step remains available in every profile."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Isolated milestones at the end of the workday",
+      "help": "An isolated milestone or a finish milestone without a predecessor is placed at the end of its workday."
     }
   },
   "profiles": {

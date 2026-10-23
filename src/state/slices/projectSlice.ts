@@ -25,6 +25,7 @@ import {
 } from '@/engine/moveProject';
 import { syncProjectCalendar, promoteProjectCalendarToLibrary } from '../syncProjectCalendar';
 import { freshPayload, hydratePayload } from '../documentContract';
+import { normalizeTaskDates } from '../migrations/minuteModel';
 import { HOST_EVENTS } from '@/services/extensionEvents';
 import { clearTimephasedLossNoticeForDoc } from '../timephasedLossNotice';
 import { clearTaskTypesNoticeForDoc, notifyWorkRuleDurationsChanged } from '../taskTypesNotice';
@@ -251,7 +252,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       // maar early/late-datums en het kritieke pad zijn nog niet bijgewerkt). Buiten `setProject`'s
       // gebruikelijke "scheduling is handmatig"-regel (AGENTS.md) — bewust smal: alleen wanneer er
       // écht iets geklemd is, niet bij elke `setProject`-aanroep.
-      get().runCPM();
+      get().runCPM({ withinEvent: true });
       get().notify({
         severity: 'info',
         messageKey: 'notifications.projectStartAnchorsClamped',
@@ -373,7 +374,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       out = { moved: true, deltaDays: delta, taskCount: s.tasks.length };
     });
     if (out.moved) {
-      get().runCPM();
+      get().runCPM({ withinEvent: true });
       // "Toon het verplaatste project" — één definitie van in-beeld (computeFitToProject),
       // niet een tweede die view.viewStartDate met Δ zou schuiven (fout zodra het einde verspringt).
       get().requestFitToProject();
@@ -556,6 +557,8 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
           resourceIds: [],
         };
       });
+      // Ook de wizard is een invoergrens: hydratePayload verwacht al D1/D2-momenten.
+      payload.tasks = payload.tasks.map(task => normalizeTaskDates(task, { calendar: opts.calendar, calendars: [opts.calendar] }));
       // Een leeg project (template 'Leeg') is nog niet 'dirty'; met fasen wél.
       payload.isDirty = opts.phaseNames.length > 0;
       // De tijdlijn begint bij de projectstart (de verse view staat op vandaag). Ook bij een

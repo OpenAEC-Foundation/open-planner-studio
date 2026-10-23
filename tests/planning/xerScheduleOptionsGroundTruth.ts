@@ -212,6 +212,7 @@ export function expectedXerScheduleOptions(
   // MS Project-conventies en C1/C4/A17/B3/B4 (sinds 2026-09-23 uit: alleen P6-doorgerekende orakels); A19 sinds
   // 2026-09-24 gewoon aan (eigenaarsbesluit "a"; PROJECT.rem_target_link_flag stuurt niets meer). Onafhankelijke raw-scan: nooit de productie-afleiding hergebruiken.
   const conventions: Record<ConventionKey, boolean> = {
+    milestoneWithoutPredecessorAtDayEnd: false,
     preserveActualDatesInBackwardPass: true,
     clampNegativeFreeFloat: true,
     p6ZeroDurationUsesPlannedBoundary: true,

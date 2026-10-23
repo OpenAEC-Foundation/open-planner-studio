@@ -218,7 +218,11 @@ for (const [start, end] of [
   same(`§4 ${label}: taakdatums na een tweede round-trip`, taskDates(again), taskDates(before));
   // Controle: zonder de tijd van het einde (wat main na heropenen had) rekent de motor anders.
   const dateOnly = openInStore(buildProject(start.slice(0, 10), end.slice(0, 10)));
-  differs(`§4 ${label}: controle, de tijd van het einde verandert de late kant`, taskDates(dateOnly), taskDates(before));
+  if (end.endsWith('T16:00')) {
+    same(`§4 ${label}: D2 leest het datumloze projecteinde op het laatste blokeinde`, taskDates(dateOnly), taskDates(before));
+  } else {
+    differs(`§4 ${label}: controle, de tijd van het einde verandert de late kant`, taskDates(dateOnly), taskDates(before));
+  }
 
   const lines = projectExportLines(before);
   same(`§5 ${label}: controle, de export heeft de projectregels`, lines.map((l) => l.split('=')[0]),

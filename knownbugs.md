@@ -145,6 +145,61 @@ en noem het in je rapport of PR-tekst.
     Dezelfde fout in een schone kopie van 12abaabf2 en tijdens de volledige F1b-suite, met het aanwezige
     corpus van 93 XER-bestanden. Geen pin of controle aangepast; oorzaak buiten F1b. — B
 
+230. **Een mijlpaal na een FF-relatie (mk-05a, M2) verliest zijn kritieke pad.**
+     A krijgt een late finish op vrijdag 13:00, speling 0,625 d, en is niet meer kritiek.
+     Gemeld in review F1 r1 (#563). Een algemene verbreding van de grens maakt drie C7-controles
+     rood. Een gerichte oplossing vraagt een orakel. — B
+
+231. **FF vanaf een voltooide voorganger met een einde buiten werktijd laat de opvolger te vroeg eindigen.**
+     Kalender 08:00–16:00, werkelijk einde wo 18:00, FF +0eu naar een opvolger van 2 u.
+     De opvolger eindigt wo 16:00, vóór het voorgangereinde. Dat geldt onder OPS, P6 en MSP.
+     `relationMath.ts:255` sluit FF uit van de aparte eindondergrens. Voorstel: behoud die
+     ondergrens, zoals het SF-pad doet. Bestond al vóór F1 (`12abaabf2`). Review F1 r5. — B
+
+232. **Een lopende taak met een werkelijke start na werktijd krijgt een einde vóór die start.**
+     Start wo 18:00, duur 8 u, 50%, statusdatum wo. Onder OPS en P6 wordt het berekende einde
+     wo 12:00 (`CPMSolver.ts:2564`; de inversiewacht geldt alleen bij een RESUME-override).
+     Voorstel: het restwerk begint niet vóór de vastgelegde start. Bestond al vóór F1.
+     Review F1 r3–r5. — B
+
+242. **Een dagtaak met splitgaten korter dan een dag krijgt in de balk gaten van hele dagen.**
+     De renderer rondt de gaten af op hele dagen (`splitWalk.ts:104`), met stompjes van 2 px.
+     De motor telt dezelfde gaten mogelijk anders (VERMOED). Dit hoort bij F3 (§3.14).
+     Gevonden in fixronde 1 van F2 (laadfix). — B voor de renderer
+
+271. **Een nachttaak die op zaterdag 06:00 eindigt, krijgt −1 speling bij een gelijk vroeg en laat venster.**
+     Nachtkalender ma–vr 22:00–06:00. A 2 d vanaf ma 22:00, FS+1 naar B van 2 d. B loopt vroeg en laat
+     van do 4 jun 22:00 tot za 6 jun 06:00, maar krijgt totale speling −1 onder OPS, P6 en MSP (vrije
+     speling −1 onder OPS en MSP). `CPMSolver.ts:1541` telt de dagspeling met `utcDayStart`; dat legt
+     het eindmoment op zaterdag, en `signedWorkDaysBetween(za, za)` is −1. Ook op de integratiebasis
+     `be58ba356`. Voorstel: neem bij een eindmoment de bijbehorende werkdag (`workdayDateOfInstant`,
+     eindkant). Gevonden in review F2 ronde 2A. — B
+
+273. **ALAP laat bij een losse mijlpaal een dagdeel vrije speling liggen.** Een START-mijlpaal M op
+     ma 10:00 met ALAP, naast een taak A van 3 d (ma 07:00 tot wo 16:00). ALAP zet M op wo 10:00, met
+     0,625 d totale en vrije speling; de late start is wo 16:00. `applyAlap` in `CPMSolver.ts` meet de
+     vrije speling in hele werkdagen (`signedWorkDaysBetween`) en schuift ook alleen hele werkdagen
+     (`addWorkingDaysSigned`); het dagdeel blijft liggen. Gemeten op een kalender 7–16 met en zonder
+     eigen werkblokken. Op de basis `be58ba356` gebeurt het ook, met eigen werkblokken. Voorstel: laat
+     de bestaande ALAP-verplaatsing ook het resterende dagdeel meenemen. Gevonden in review F2 ronde 3A. — B
+
+276. **Een FNET met een tijd buiten werktijd zet een START-mijlpaal op de volgende werkdag.** P 1 d op
+     maandag, FS+0 naar START-mijlpaal M, FNET di 18:00 (kalender 7–16). M komt op wo 07:00, ook een
+     mijlpaal zonder soort. `forwardBoundOf` laat de tijd 18:00 staan (geen snap voor een mijlpaal met
+     tijd); de her-snap in `snapSuccessorEarlyStart` zet een moment buiten werktijd door naar het volgende
+     blokbegin. De controle op het FNET-eindmoment daar geldt alleen binnen werktijd of op een blokeinde.
+     Met eigen werkblokken gebeurt dit ook op `be58ba356`. Richting: puntsgewijze semantiek voor
+     mijlpalen. Gevonden in review F2 ronde 4. — B
+
+277. **Een 24-uurskalender naast een gewone kalender kost een parallelle dagtaak een dag speling.** P werkt
+     maandag op een 24-uurskalender, met een START-mijlpaal op di 00:00. De dagtaak R op 07–16 of 08–16
+     krijgt speling 0 en is kritiek; op `be58ba356` is dat 1, niet kritiek. Dit geldt onder OPS, P6 en
+     MSP. Zonder die eindmijlpaal, of met een FINISH-mijlpaal, geven de basis en de head allebei 0.
+     Locatie: `CPMSolver.ts:1351`, samen met de projecteindgrens rond `CPMSolver.ts:3717`. Het ontstond in
+     `29a2f6cac` (eerder ook in `d3e7c885f`, hersteld in `b36c37770`). Richting: leg voor gewone
+     dagtaken apart vast wat een afsluitend eindmoment is en wat een START is die een projectdag opent,
+     met de bestaande kalenderfuncties. Gevonden in review F2 ronde 6. — B
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
@@ -152,6 +207,10 @@ en noem het in je rapport of PR-tekst.
 17. **Verwijderen zonder bevestiging**: `confirm.deleteTask` staat in de locales maar wordt nergens gebruikt. — S
 60. **Duur-kolom afgeknipt** in de standaard Gantt-weergave (WBS 60 + Taaknaam 240 + Duur 60 + de
     "+"-kolom): je leest "2c" in plaats van "2d", op 1600 én 1366 px breed. — B
+
+241. **Hetzelfde externe anker opnieuw invoeren als datum zonder tijd geeft een extra undo-stap en zet
+     de planning op verouderd.** `updateExternalLink` vergelijkt het ruwe anker, niet het genormaliseerde.
+     Gevonden in fixronde 1 van F2 (laadfix). — B
 
 ## Kalenders
 
@@ -243,16 +302,33 @@ en noem het in je rapport of PR-tekst.
     `updates.installing` staat achter `isDownloading` (`status.kind === 'downloading'`), terwijl de tekst
     `isReadyToInstall` (`'readyToInstall'`) vraagt (`UpdateDialog.tsx:125-128,205-208`). Na de download springt
     het venster naar *Herstarten…* (`:225-229`). Alleen in de code gezien. — S
-152. **Een MCP-wijziging van alleen een taaknaam verlaat "datums zoals opgeslagen" en rekent de planning door.**
-     `planner_update_tasks` met alleen `fields.name`: de MCP-transactie roept na elke datawijziging `runCPM` aan
-     (`createMcpTransactions.ts:1094-1103`), en `runCPM` verlaat de modus (`scheduleSlice.ts:110-113`). In de UI
-     blijft de modus bij dezelfde wijziging staan (`DATE_NEUTRAL_TASK_FIELDS` en `changesOnlyDateNeutralFields`
-     in `taskSlice.ts`). Nagespeeld in Node met de echte tool, op een document in de modus na een MSPDI-import:
-     taak B ging van 15 jun 07:00 naar 1 jun 07:00, en de modus ging uit (`/tmp/uren-fix4/probe.log`). Gevonden
-     door review ronde 4 van de spec "alleen uren"; de regel en de regressie staan in die spec (§5.2, route 3;
-     §6.1). VERMOED, niet nagespeeld: `recomputeMidBatch` (`batchTool.ts:234-240`) doet hetzelfde in een batch met
-     een leesstap. — B
 
+
+233. **`assignmentPlacementLoad` koppelt een contour met alleen de eigen toewijzing.**
+     Een tweede toewijzing van dezelfde resource krijgt de contour van de eerste. Voorbeeld:
+     contouren van 240 en 720 werkminuten op een plaatsing van 8 u geven voor de tweede
+     toewijzing 0,5 in plaats van 1,5 (`ResourceLoad.ts:266`). Voorstel: geef de opgeloste contour
+     verplicht mee via `contourLookup`, en haal de automatische fallback weg. De functie heeft
+     nog geen productieaanroeper; dit moet vóór de aansluiting in F3c. Review F3b r2 (#564). — B
+
+234. **Het histogram toont bij een verouderde planning alleen de belasting tot het oude einde.**
+     Een urentaak van 8 u, verlengd naar 16 u, met inzet 0,5 en zonder herberekening.
+     Het automatische venster eindigt op het oude `earlyFinish` (ma), zodat di 0,5 ontbreekt.
+     Met een expliciet venster tot di is de belasting wel volledig. Gevonden in F3b-fixronde 1. — B
+
+235. **De plaatsingskern van F3b staat deels in `ResourceLoad.ts` en heeft ongebruikte onderdelen.**
+     Verplaats `assignmentPlacementLoad` (circa 80 regels) naar `workPlacement.ts`, zodat
+     `ResourceLoad.ts` gelijk is aan de basis. Verwijder het ongebruikte type `PlacementMeasures`
+     (`workPlacement.ts:7`) en het ongebruikte argument `placed` (`ResourceLoad.ts:262`).
+     Review F3b r2. — B
+
+272. **Een al geplande verlaatberekening van `useExitRecordedDates` wordt niet geannuleerd bij
+     historieherstel.** `src/hooks/useExitRecordedDates.ts:47`: een wijziging die de modus niet verlaat,
+     keert terug zonder de lopende timer te stoppen. Reproductie: B5 terugdraaien → planningsbewerking →
+     undo → undo, in dezelfde JavaScript-beurt. Direct daarna staat B op 16 maart met
+     `minuteModelPending: true`; na de timer staat B op 9 maart en is de vlag uit. Alleen met synchrone
+     oproepen gereproduceerd. Richting: annuleer de lopende verlaatberekening bij historieherstel.
+     Review ronde 2 van PR #559, deel B. — B
 
 ## Bestanden en herstel
 
@@ -352,6 +428,22 @@ en noem het in je rapport of PR-tekst.
     runtime-repro of concreet dataverlies vastgesteld; bedoeling en gewenste foutafhandeling
     niet onderzocht. — S
 
+274. **Een werkelijk einde om precies 08:00 wordt na import uit P6 XML of MSPDI 16:00.** 08:00 is het
+     anker dat deze formaten schrijven voor een datum zonder tijd (ankerregel I8, spec
+     `2026-10-20-alleen-uren-design.md` §3.10, gepland voor F5b). De lezer kan een echte 08:00 daar niet
+     van onderscheiden. Een dagkalender blijft daardoor scalair, en het werkelijke einde wordt na laden het
+     dageinde 16:00. Gemeten op de eindmijlpaal uit review ronde 3 van PR #559 (`milestone-11.xml`, met een
+     werkelijk einde om 08:00), op alle vier stappen tot en met heropenen. Richting: lees 08:00 alleen als
+     anker in een bestand dat OPS zelf schreef. Fixronde 3 van de F2-laadfix. — B
+
+275. **Eén werkelijke datum met een tijd maakt van een importkalender een urenkalender.** Bij P6 XML en
+     MSPDI telt een werkelijke datum met een eigen tijd mee in de keuze tussen uren en dagen per kalender
+     (`p6xmlReader.ts:873`, `mspdiReader.ts:332`). Daarna leest een andere voltooide taak op die kalender,
+     met `ActualFinish …T08:00` in de bron, als 08:00 in plaats van 16:00. Dat blijft zo tot en met IFC
+     heropenen. Dit is de dubbelzinnigheid van ankerregel I8; een toegestane tussenstand tot F5a/F5b.
+     Richting: onderscheid een synthetisch 08:00-anker van een echte tijd. Zie ook 274. Gevonden in
+     review F2 ronde 4. — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 62. **Melding schuift over de knoppen van het begeleidingspaneel** (1600×950, venster Baselines open):
@@ -388,6 +480,15 @@ en noem het in je rapport of PR-tekst.
     van v2026.10.0 opgelost met afkappen (`TaskAssignmentsSection.tsx`), de koppen zelf niet. Voorstel: korte
     koppen in die talen, en de Help-artikelen die ze citeren mee. — B
 
+
+240. **Tutorial- en gidsteksten bevatten nog oude getallen uit het dagmodel.**
+     In F2-bouwronde 4 gecontroleerd naast de gewone F2-pins en de vaste F3-doelen;
+     `public/docs/nl/uitleg-nivelleren.md:55` noemt bijvoorbeeld het binnenspouwblad vanaf
+     29 juni, terwijl de F2-controle 25 juni en het F3-doel 28 juni toetst.
+     Zie `artifacts/uren-f2/bouwronde-4.md` (R4-030–039, R4-586–588) en
+     `tests/planning/fixtures/minute-model-tutorial-f3.json`. Voorstel: de verhalende tutorial-
+     en gidsteksten en eventuele schermbeelden bijwerken zodra de definitieve F3-uitkomsten
+     zijn gehaald, met behoud van de afzonderlijk getoetste einddoelen. — B
 
 ## Tests
 
@@ -474,6 +575,21 @@ en noem het in je rapport of PR-tekst.
      nagespeeld. PR #404 (gemerged in `main` op 2026-10-20) haalt volgens zijn beschrijving de oorzaak weg in
      `FeedbackDialog.tsx`. Een branch zonder #404 kan de fout nog geven. Weghalen als de CI op branches met #404
      groen blijft. — S
+
+236. **De kerncheck voor plaatsing toetst een exacte importcurve alleen op haar totaal.**
+     `check-placement-load.ts:87`: vervang je de curve door UNIFORM, dan blijven alle 27 controles
+     groen. De verdeling gaat dan van ongeveer [0,6667; 1,1667; 0,8333; 0,3333] naar
+     [0,5; 1; 1; 0,5]. Voorstel: één assertie op de volledige verdeling. Review F3b r2. — B
+
+237. **De browsertest voor curves met het toetsenbord is wisselvallig.**
+     `tests/browser/assignments-block.spec.ts:235` ("Expected UNIFORM, Received BELL", time-out
+     5000 ms). Hij faalde eenmaal in CI op #564 (`cb65c59cd`) en slaagde bij een herhaling
+     zonder wijziging. — S
+
+238. **`npm run i18n:resolve` stopt met exit 1 bij een merge met twee merge-bases.**
+     Dat gebeurde in F2-bouwronde 2. Een controle van beide bases gaf voor 127.519 sleutels
+     dezelfde samenvoeging, en `verify:i18n` gaf exit 0. Het script meldt dus een fout waar
+     geen fout is. Voorstel: gelijke resultaten vanaf beide bases als eenduidig accepteren. — S
 
 ## Wensen en open taken (geen bug)
 

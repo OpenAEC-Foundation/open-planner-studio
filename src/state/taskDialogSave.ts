@@ -1,4 +1,5 @@
 import { isElapsedTask } from '@/engine/scheduler/duration';
+import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { appStoreContext, type AppStoreContext } from '@/state/appStore';
 import { createBatchTransactions } from '@/state/runtime/createBatchTransactions';
 import {
@@ -244,7 +245,9 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
           S().notify(statusDateSetTodayNotice(today, S().ui.dateNotation));
           statusDate = today;
         }
-        applyProgressInvariants(merged, statusDate);
+        // Met de kalender van de taak: het afgeleide einde wordt eerst een moment (D6), en pas dan
+        // vergeleken met de werkelijke start (zie `carryRemainingThroughDurationEdit`).
+        applyProgressInvariants(merged, statusDate, resolveCalendar(merged.calendarId, S().calendars, S().calendar));
         patch.status = merged.status;
       }
       S().updateTask(editingTask.id, patch);

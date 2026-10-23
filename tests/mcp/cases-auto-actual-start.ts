@@ -78,12 +78,19 @@ function assertAccepted(res: any, label: string): void {
   assertEq(res.itemRejections ?? [], [], `${label}: geen per-item-weigering`);
 }
 
-const SCENARIOS: readonly { kind: Kind; statusDate: string; finish: string; explicitStart: string }[] = [
-  { kind: 'dag', statusDate: '2026-06-10', finish: '2026-06-09', explicitStart: '2026-06-03' },
-  { kind: 'uur', statusDate: '2026-06-10T12:00', finish: '2026-06-09T11:00', explicitStart: '2026-06-03T09:00' },
+// `applied`: de werkelijke datums zoals de store ze vastlegt. F2 (spec §3.6, invoer; §4.2 D1 en D6): een
+// datum zonder tijd wordt een moment, de start het begin van de werkdag en het einde op de statusdag
+// het einde van die werkdag. Een moment blijft een moment. Fixronde 1 deel B, B1.
+const SCENARIOS: readonly {
+  kind: Kind; statusDate: string; finish: string; explicitStart: string; applied: { as: string; af: string };
+}[] = [
+  { kind: 'dag', statusDate: '2026-06-10', finish: '2026-06-09', explicitStart: '2026-06-03',
+    applied: { as: '2026-06-03T07:00', af: '2026-06-10T16:00' } },
+  { kind: 'uur', statusDate: '2026-06-10T12:00', finish: '2026-06-09T11:00', explicitStart: '2026-06-03T09:00',
+    applied: { as: '2026-06-03T09:00', af: '2026-06-10T12:00' } },
 ];
 
-for (const { kind, statusDate, finish, explicitStart } of SCENARIOS) {
+for (const { kind, statusDate, finish, explicitStart, applied } of SCENARIOS) {
   /** Eén zachte weigering die de AI vertelt de werkelijke start mee te geven; taak ongewijzigd. */
   function assertAskedForActualStart(res: any, t: string, before: string, label: string): void {
     const rejections: { id: string; reason: string }[] = res.itemRejections ?? [];
@@ -127,7 +134,7 @@ for (const { kind, statusDate, finish, explicitStart } of SCENARIOS) {
       updates: [{ id: t, progress: { completion: 100, actualStart: explicitStart } }],
     });
     assertAccepted(res, 'completion 100 + actualStart');
-    assertEq({ as: timeOf(t).actualStart, af: timeOf(t).actualFinish }, { as: explicitStart, af: statusDate },
+    assertEq({ as: timeOf(t).actualStart, af: timeOf(t).actualFinish }, applied,
       'opgegeven start blijft, einde = statusdatum');
   });
 

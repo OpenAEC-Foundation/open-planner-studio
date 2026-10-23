@@ -1,3 +1,6 @@
+import { changesOnlyDateNeutralFields } from '../taskDateChanges';
+import { beginRecordedDateEdit, endRecordedDateEdit, keepsRecordedDates, recordedDateRuleChange } from '../recordedDateEditGate';
+import { assertMinuteModelTaskDates, normalizeTaskDates, normalizeTaskPatch } from '../migrations/minuteModel';
 import type { AppState, AppStoreContext } from '../appStore';
 import { attachToParent, isSelfOrDescendant, removeTaskSubtrees, reparentTask } from '@/state/taskTree';
 import {
@@ -173,7 +176,7 @@ function createMcpDraft(
       seedNewHourTaskFinish(task, partial.time, resolveCalendar(task.calendarId, s.calendars, s.calendar));
       if (partial.workRule !== undefined) s.taskTypesVisible = true; // een gezette regel ontsluit de UI
 
-      s.tasks.push(task);
+      s.tasks.push(normalizeTaskDates(task, s));
       if (parentId) attachToParent(s.tasks, id, parentId);
 
       // WBS: auto-nummering ⇒ hele boom; anders alleen een afgeleide code wanneer de aanroeper er
@@ -417,10 +420,14 @@ function createMcpDraft(
       const idx = s.tasks.findIndex((t) => t.id === id);
       if (idx < 0) return;
       const task = s.tasks[idx];
-      const next = mergeTaskUpdate(task, updates);
+      const next = normalizeTaskDates(mergeTaskUpdate(task, updates), s);
+      // Tweeling van taskSlice.ts's `updateTask`: één genormaliseerde wijziging voor de no-op-toets,
+      // de gevolgregels en het schrijven (`normalizeTaskPatch`).
+      updates = normalizeTaskPatch(updates, next);
       // Per saldo niets gewijzigd ⇒ no-op, net als taskSlice.ts's `updateTask`: geen mutatie, geen
       // gevolgregel en geen `isDirty`. (De undo-stap en de herberekening zijn van de transactie.)
       if (sameValue(task, next)) return;
+      const dateNeutralPatch = changesOnlyDateNeutralFields(task, next);
       // Tweeling van taskSlice.ts's `updateTask`: korter dan
       // het gedane werk van een lopende taak ⇒ geweigerd, vóór enige mutatie.
       if (taskTriggerChanges(task, next).timeBase) {
@@ -457,7 +464,8 @@ function createMcpDraft(
       if (changes.timeBase) {
         // Tweeling van taskSlice.ts: de rest schuift mee, het
         // percentage volgt, tenzij de patch zelf voortgang opgaf (`carryRemainingThroughDurationEdit`).
-        const carried = carryRemainingThroughDurationEdit(task, timeBefore, contourHpd, s.project.statusDate);
+        const carried = carryRemainingThroughDurationEdit(task, timeBefore, contourHpd, s.project.statusDate,
+          resolveCalendar(task.calendarId, s.calendars, s.calendar));
         if (carried && !carried.refused) outcome = { progress: carried };
         // Duur-/datumwijziging: dezelfde gevolgregels als taskSlice.ts's `updateTask` en het taakraster,
         // zie `applyDurationChangeRules` in taskDefaults.ts (kern van `settleDurationAftermath`).
@@ -468,7 +476,7 @@ function createMcpDraft(
       }
       settleProgressWork(task, s.assignments, progressWork);
       if ('workRule' in updates && task.workRule !== workRule) {
-        settleRuleChange(task, s.assignments, s, workRule);
+        recordedDateRuleChange(context, task, dateNeutralPatch, () => settleRuleChange(task, s.assignments, s, workRule));
         if (workRule !== undefined) s.taskTypesVisible = true; // een gezette regel ontsluit de UI
       }
       reconcileP6SuspendResume(task);
@@ -490,6 +498,7 @@ function createMcpDraft(
       // Tweeling van taskSlice.ts's `updateTask`: het ingevoerde einde beweegt mee,
       // bewust NA `clearLevelingGaps` (anders telt het einde gewiste nivelleergaten mee).
       reconcileHourInputFinish(task, finishBasis, resolveCalendar(task.calendarId, s.calendars, s.calendar));
+      Object.assign(task, normalizeTaskDates(task, s));
       markDocumentEdited(s);
     });
     return outcome;
@@ -533,9 +542,15 @@ function createMcpDraft(
       // De taak zoals de patch haar achterlaat, eerst op een kopie (muteert niets): `top` overschrijft
       // top-level waarden, `timePatch` de losse sleutels. Per saldo niets gewijzigd ⇒ no-op, zie
       // `updateTaskFields` hierboven (geen `isDirty`).
-      const next: Task = { ...task, ...top };
-      next.time = patchTime(next.time);
+      // Vergelijk dezelfde momenten als de opgeslagen taak vóór de no-op- en gevolgregels.
+      // Anders wist een opnieuw ingevoerde SNET-datum zonder tijd onterecht de nivelleergaten.
+      // `top.time` vervangt de hele tak (zie `patchedTime` hieronder), dus ook hier.
+      const next = normalizeTaskDates({ ...task, ...top, time: patchTime(top.time ?? task.time) }, s);
+      // Dezelfde genormaliseerde wijziging voor de gevolgregels en het schrijven hieronder, niet
+      // alleen voor deze vergelijking (`normalizeTaskPatch`, tweeling van `updateTaskFields`).
+      top = normalizeTaskPatch(top, next);
       if (sameValue(task, next)) return;
+      const dateNeutralPatch = changesOnlyDateNeutralFields(task, next);
       // Duur korter dan het gedane werk, zie `updateTaskFields` hierboven: vóór enige mutatie.
       if (taskTriggerChanges(task, next).timeBase) {
         const refusal = durationEditRefusal(task, next.time, taskCalendarHoursPerDay(next, s.calendars, s.calendar));
@@ -570,7 +585,8 @@ function createMcpDraft(
       if (changes.timeBase) {
         // Zelfde poort als `updateTaskFields`: `top.time` past in `Partial<Task>`,
         // dus een aanroeper kan de voortgang zelf zetten; die wint dan (`carryRemainingThroughDurationEdit`).
-        const carried = carryRemainingThroughDurationEdit(task, timeBefore, contourHpd, s.project.statusDate);
+        const carried = carryRemainingThroughDurationEdit(task, timeBefore, contourHpd, s.project.statusDate,
+          resolveCalendar(task.calendarId, s.calendars, s.calendar));
         if (carried && !carried.refused) outcome = { progress: carried };
         // Duurwijziging: dezelfde gevolgregels als `updateTaskFields` hierboven, zie
         // `applyDurationChangeRules` in taskDefaults.ts (inclusief het wissen van de nivelleergaten).
@@ -581,7 +597,7 @@ function createMcpDraft(
       }
       // `workRule` via de driehoek-bewuste route, ná de duurpatch.
       if ('workRule' in top && task.workRule !== workRule) {
-        settleRuleChange(task, s.assignments, s, workRule);
+        recordedDateRuleChange(context, task, dateNeutralPatch, () => settleRuleChange(task, s.assignments, s, workRule));
         if (workRule !== undefined) s.taskTypesVisible = true; // een gezette regel ontsluit de UI
       }
       reconcileP6SuspendResume(task);
@@ -595,6 +611,7 @@ function createMcpDraft(
       if (changes.levelingGaps || calendarChanged) clearLevelingGaps(task);
       // Ingevoerd einde — zie `updateTaskFields` hierboven (ná `clearLevelingGaps`).
       reconcileHourInputFinish(task, finishBasis, resolveCalendar(task.calendarId, s.calendars, s.calendar));
+      Object.assign(task, normalizeTaskDates(task, s));
       markDocumentEdited(s);
     });
     return outcome;
@@ -854,7 +871,7 @@ function createMcpDraft(
       const task = s.tasks.find((t) => t.id === taskId);
       if (!task) throw new Error(`draft.setTaskWorkRule: unknown taskId '${taskId}'`);
       if (task.workRule === rule) return;
-      settleRuleChange(task, s.assignments, s, rule);
+      recordedDateRuleChange(context, task, true, () => settleRuleChange(task, s.assignments, s, rule));
       if (rule !== undefined) s.taskTypesVisible = true; // een gezette regel ontsluit de UI
       markDocumentEdited(s);
     });
@@ -1043,6 +1060,7 @@ export function createMcpTransactions(context: AppStoreContext): McpTransactions
     try {
       const initial = store.getState();
       const snapshot: Snapshot = createSnapshot(initial);
+      beginRecordedDateEdit(context, snapshot);
       const documentId = initial.activeDocumentId;
       const previousHistory = initial.historyEvents;
       const previousSequence = initial.nextHistorySequence;
@@ -1085,6 +1103,7 @@ export function createMcpTransactions(context: AppStoreContext): McpTransactions
         if (isThenable(value)) {
           throw new Error('MCP transaction callback must be strictly synchronous and may not return a Promise/thenable');
         }
+        if (import.meta.env?.DEV) assertMinuteModelTaskDates(store.getState().tasks);
         // Wijzigde de callback per saldo projectdata? Gemeten VÓÓR de eindherberekening: `runCPM`
         // alléén is nooit een wijziging. Dit is de ene plek waar elke MCP-schrijfactie langskomt — ook
         // de toollaag-producers die geen draft-primitief gebruiken (zoals het voortgangspad van
@@ -1096,8 +1115,8 @@ export function createMcpTransactions(context: AppStoreContext): McpTransactions
         // De volledige eindherberekening blijft binnen dezelfde lease. Dat onderdrukt ook de
         // modus-verlaat-snapshot van "datums zoals opgeslagen". Zonder datawijziging valt er niets
         // te herrekenen.
-        if (dataChanged) {
-          store.getState().runCPM();
+        if (dataChanged && !keepsRecordedDates(context)) {
+          store.getState().runCPM({ withinEvent: true });
           store.getState().recomputeViewRows();
           store.getState().recomputeResourceLoad();
         }
@@ -1137,6 +1156,7 @@ export function createMcpTransactions(context: AppStoreContext): McpTransactions
       if (workNotice) store.getState().notify(workNotice);
       return { ok: true, value, timephasedGuidanceLost: lostCount, remainingWorkRecomputed };
     } finally {
+      endRecordedDateEdit(context);
       currentLease = null;
       runtime.exitMcpTransaction(lease);
     }

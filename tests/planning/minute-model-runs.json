@@ -8,39 +8,22 @@
     "calibration": [],
     "constraints": [],
     "driving": [],
-    "edge": [
-      "edge-isolated-with-milestone-01",
-      "wbs-summary-relation-conservative-sf-pred-01",
-      "wbs-summary-relation-conservative-sf-succ-01"
-    ],
+    "edge": [],
     "float": [],
     "hours": [],
     "hours-blokgrenzen": [],
     "hours-relations": [],
     "kalenders": [],
     "lag-advanced": [
-      "lagadv-pct-fs50-odd-roundup",
-      "lagadv-sf-ed"
+      "lagadv-pct-fs50-odd-roundup"
     ],
-    "milestone-kinds": [
-      "mk-14"
-    ],
-    "milestones": [
-      "ms-02-lone-vs-task",
-      "ms-15-milestone-no-artificial-stretch"
-    ],
+    "milestone-kinds": [],
+    "milestones": [],
     "move-project": [],
-    "msp-pariteit": [
-      "msp-51-z6-invariant-elapsed-opvolger-hele-dagen-delay",
-      "msp-56-z9a-manual-anchor-raw-no-snap"
-    ],
+    "msp-pariteit": [],
     "probes": [],
-    "progress": [
-      "prog-T9-elapsed-restwerk-24-7"
-    ],
-    "relations": [
-      "rel-sf-02-delayedpred"
-    ],
+    "progress": [],
+    "relations": [],
     "resource-leveling": [],
     "resource-load": [],
     "view": []
@@ -53,9 +36,7 @@
     "calibration": [],
     "constraints": [],
     "driving": [],
-    "edge": [
-      "edge-isolated-with-milestone-01"
-    ],
+    "edge": [],
     "float": [],
     "hours": [
       "durmin-on-daycal-withdm"
@@ -70,20 +51,14 @@
       "mk-05a",
       "mk-14"
     ],
-    "milestones": [
-      "ms-02-lone-vs-task",
-      "ms-15-milestone-no-artificial-stretch"
-    ],
+    "milestones": [],
     "move-project": [],
     "msp-pariteit": [
       "msp-20-t8-review-elapsed-keten",
-      "msp-51-z6-invariant-elapsed-opvolger-hele-dagen-delay",
       "msp-56-z9a-manual-anchor-raw-no-snap"
     ],
     "probes": [],
-    "progress": [
-      "prog-T9-elapsed-restwerk-24-7"
-    ],
+    "progress": [],
     "relations": [],
     "resource-leveling": [],
     "resource-load": [],
