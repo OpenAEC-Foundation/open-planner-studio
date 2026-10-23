@@ -228,6 +228,24 @@ for (const baseId of ['ops', 'p6', 'msproject'] as const) {
     ['2026-06-02T00:00', '2026-06-02T00:00', 0, true]);
 }
 
+// Ronde 3A, punt 3: een SNLT is startachtig, ook op een mijlpaal. P op maandag, FS+0 naar M, SNLT di:
+// M staat vroeg en laat op di 07:00, zonder schending (eerder: laat ma 16:00 en een gemelde schending).
+for (const baseId of ['ops', 'p6', 'msproject'] as const) {
+  const opts = { ...options, schedulingOptions: effectiveSchedulingOptions({ schedulingProfile: builtInProfile(baseId) }) };
+  for (const [calendarName, cal] of [['dagkalender', calendar], ['blokkenkalender', blockCalendar]] as const) {
+    for (const kind of ['START', undefined] as const) {
+      for (const date of ['2026-06-02', '2026-06-02T07:00']) {
+        const m = { ...task('M', 0), ...(kind ? { milestoneKind: kind } : {}), constraint: { type: 'SNLT' as const, date } };
+        const result = new CPMSolver([task('P'), m], [{ ...fs, predecessorId: 'P', successorId: 'M' }], cal, [], opts).solve();
+        const r = result.tasks.get('M')!;
+        eq(`${baseId}, ${calendarName}: ${kind ?? 'mijlpaal zonder soort'} na P met SNLT ${date}`,
+          [r.earlyStart, r.lateStart, r.totalFloat, result.violatedConstraintTaskIds],
+          ['2026-06-02T07:00', '2026-06-02T07:00', 0, []]);
+      }
+    }
+  }
+}
+
 // B6 blijft gelden voor een losse mijlpaal met een andere constraint (SNET): einde van de werkdag.
 {
   const m = { ...task('M', 0), milestoneKind: 'START' as const, constraint: { type: 'SNET' as const, date: '2026-06-02' } };

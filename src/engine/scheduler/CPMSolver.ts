@@ -1755,7 +1755,7 @@ export class CPMSolver {
       constraintInstant: (c, eng) => this.constraintInstant(c, eng),
       snapOnOrAfter: (eng, d) => this.snapOnOrAfter(eng, d),
       snapOnOrBefore: (eng, d) => this.snapOnOrBefore(eng, d),
-      milestoneConstraintMoment: (t, c, eng) => this.milestoneConstraintMoment(t, c, eng),
+      milestoneLateMoment: (t, c, eng) => this.milestoneLateMoment(t, c, eng),
       modeOf: (eng) => this.modeOf(eng),
       backwardFloatTrace: this.backwardFloatTrace,
       completedOutOfSequenceEs: this.completedOutOfSequenceEs,
@@ -3010,13 +3010,23 @@ export class CPMSolver {
     return this.forwardBoundOf(task, c, eng);
   }
 
+  /** De late grens van een constraint op een nulduurmijlpaal, aan de kant van de constraint: het moment
+   *  van een MSO/MFO, en voor een SNLT (startachtig) hetzelfde moment als een SNET op die datum. Anders
+   *  wordt SNLT di 07:00 via `snapOnOrBefore` ma 16:00, en meldt de schendingstoets een START op di 07:00. */
+  private milestoneLateMoment(task: Task, c: TaskConstraint | undefined, eng: CalendarEngine): Date | null {
+    if (c?.type === 'SNLT' && eng.isHourMode && isZeroDurationMilestone(task)) {
+      return this.forwardBoundOf(task, { ...c, type: 'SNET' }, eng);
+    }
+    return this.milestoneConstraintMoment(task, c, eng);
+  }
+
   /** Backward-bovengrens (late finish) van ÉÉN soft constraint, of null zonder backward-
    *  effect. FNLT/MFO ⇒ finish-bovengrens direct; SNLT/MSO ⇒ start-bovengrens vertaald naar de finish.
    *  Dag-modus via `prevWorkDay`/`addWorkingDaysSigned`; uur-modus via de instant-vinders. */
   private backwardBoundOf(task: Task, c: TaskConstraint | undefined, eng: CalendarEngine): Date | null {
     const d = this.constraintInstant(c, eng);
     if (!c || !d) return null;
-    const milestoneMoment = this.milestoneConstraintMoment(task, c, eng);
+    const milestoneMoment = this.milestoneLateMoment(task, c, eng);
     if (milestoneMoment) return milestoneMoment;
     const preserveMilestoneInstant =
       this.options.schedulingOptions?.p6PreserveZeroDurationConstraintInstants === true
