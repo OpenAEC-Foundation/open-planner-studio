@@ -145,6 +145,23 @@ en noem het in je rapport of PR-tekst.
     Dezelfde fout in een schone kopie van 12abaabf2 en tijdens de volledige F1b-suite, met het aanwezige
     corpus van 93 XER-bestanden. Geen pin of controle aangepast; oorzaak buiten F1b. — B
 
+230. **Een mijlpaal na een FF-relatie (mk-05a, M2) verliest zijn kritieke pad.**
+     A krijgt een late finish op vrijdag 13:00, speling 0,625 d, en is niet meer kritiek.
+     Gemeld in review F1 r1 (#563). Een algemene verbreding van de grens maakt drie C7-controles
+     rood. Een gerichte oplossing vraagt een orakel. — B
+
+231. **FF vanaf een voltooide voorganger met een einde buiten werktijd laat de opvolger te vroeg eindigen.**
+     Kalender 08:00–16:00, werkelijk einde wo 18:00, FF +0eu naar een opvolger van 2 u.
+     De opvolger eindigt wo 16:00, vóór het voorgangereinde. Dat geldt onder OPS, P6 en MSP.
+     `relationMath.ts:255` sluit FF uit van de aparte eindondergrens. Voorstel: behoud die
+     ondergrens, zoals het SF-pad doet. Bestond al vóór F1 (`12abaabf2`). Review F1 r5. — B
+
+232. **Een lopende taak met een werkelijke start na werktijd krijgt een einde vóór die start.**
+     Start wo 18:00, duur 8 u, 50%, statusdatum wo. Onder OPS en P6 wordt het berekende einde
+     wo 12:00 (`CPMSolver.ts:2564`; de inversiewacht geldt alleen bij een RESUME-override).
+     Voorstel: het restwerk begint niet vóór de vastgelegde start. Bestond al vóór F1.
+     Review F1 r3–r5. — B
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
@@ -244,6 +261,24 @@ en noem het in je rapport of PR-tekst.
     `isReadyToInstall` (`'readyToInstall'`) vraagt (`UpdateDialog.tsx:125-128,205-208`). Na de download springt
     het venster naar *Herstarten…* (`:225-229`). Alleen in de code gezien. — S
 
+
+233. **`assignmentPlacementLoad` koppelt een contour met alleen de eigen toewijzing.**
+     Een tweede toewijzing van dezelfde resource krijgt de contour van de eerste. Voorbeeld:
+     contouren van 240 en 720 werkminuten op een plaatsing van 8 u geven voor de tweede
+     toewijzing 0,5 in plaats van 1,5 (`ResourceLoad.ts:266`). Voorstel: geef de opgeloste contour
+     verplicht mee via `contourLookup`, en haal de automatische fallback weg. De functie heeft
+     nog geen productieaanroeper; dit moet vóór de aansluiting in F3c. Review F3b r2 (#564). — B
+
+234. **Het histogram toont bij een verouderde planning alleen de belasting tot het oude einde.**
+     Een urentaak van 8 u, verlengd naar 16 u, met inzet 0,5 en zonder herberekening.
+     Het automatische venster eindigt op het oude `earlyFinish` (ma), zodat di 0,5 ontbreekt.
+     Met een expliciet venster tot di is de belasting wel volledig. Gevonden in F3b-fixronde 1. — B
+
+235. **De plaatsingskern van F3b staat deels in `ResourceLoad.ts` en heeft ongebruikte onderdelen.**
+     Verplaats `assignmentPlacementLoad` (circa 80 regels) naar `workPlacement.ts`, zodat
+     `ResourceLoad.ts` gelijk is aan de basis. Verwijder het ongebruikte type `PlacementMeasures`
+     (`workPlacement.ts:7`) en het ongebruikte argument `placed` (`ResourceLoad.ts:262`).
+     Review F3b r2. — B
 
 ## Bestanden en herstel
 
@@ -380,6 +415,15 @@ en noem het in je rapport of PR-tekst.
     koppen in die talen, en de Help-artikelen die ze citeren mee. — B
 
 
+240. **Tutorial- en gidsteksten bevatten nog oude getallen uit het dagmodel.**
+     In F2-bouwronde 4 gecontroleerd naast de gewone F2-pins en de vaste F3-doelen;
+     `public/docs/nl/uitleg-nivelleren.md:55` noemt bijvoorbeeld het binnenspouwblad vanaf
+     29 juni, terwijl de F2-controle 25 juni en het F3-doel 28 juni toetst.
+     Zie `artifacts/uren-f2/bouwronde-4.md` (R4-030–039, R4-586–588) en
+     `tests/planning/fixtures/minute-model-tutorial-f3.json`. Voorstel: de verhalende tutorial-
+     en gidsteksten en eventuele schermbeelden bijwerken zodra de definitieve F3-uitkomsten
+     zijn gehaald, met behoud van de afzonderlijk getoetste einddoelen. — B
+
 ## Tests
 
 207. **De bulkprestatiepoort kan in een volledige run falen terwijl beide gerichte controles slagen.**
@@ -465,6 +509,21 @@ en noem het in je rapport of PR-tekst.
      nagespeeld. PR #404 (gemerged in `main` op 2026-10-20) haalt volgens zijn beschrijving de oorzaak weg in
      `FeedbackDialog.tsx`. Een branch zonder #404 kan de fout nog geven. Weghalen als de CI op branches met #404
      groen blijft. — S
+
+236. **De kerncheck voor plaatsing toetst een exacte importcurve alleen op haar totaal.**
+     `check-placement-load.ts:87`: vervang je de curve door UNIFORM, dan blijven alle 27 controles
+     groen. De verdeling gaat dan van ongeveer [0,6667; 1,1667; 0,8333; 0,3333] naar
+     [0,5; 1; 1; 0,5]. Voorstel: één assertie op de volledige verdeling. Review F3b r2. — B
+
+237. **De browsertest voor curves met het toetsenbord is wisselvallig.**
+     `tests/browser/assignments-block.spec.ts:235` ("Expected UNIFORM, Received BELL", time-out
+     5000 ms). Hij faalde eenmaal in CI op #564 (`cb65c59cd`) en slaagde bij een herhaling
+     zonder wijziging. — S
+
+238. **`npm run i18n:resolve` stopt met exit 1 bij een merge met twee merge-bases.**
+     Dat gebeurde in F2-bouwronde 2. Een controle van beide bases gaf voor 127.519 sleutels
+     dezelfde samenvoeging, en `verify:i18n` gaf exit 0. Het script meldt dus een fout waar
+     geen fout is. Voorstel: gelijke resultaten vanaf beide bases als eenduidig accepteren. — S
 
 ## Wensen en open taken (geen bug)
 
