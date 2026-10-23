@@ -143,8 +143,8 @@ export const TASK_FIELD_NAMES = [
 
 /** Gerichte hints voor sleutels die een agent redelijkerwijs probeert maar die hier niet horen. */
 const REJECT_HINTS: Record<string, string> = {
-  time: 'set the duration with `duration` (in days, a fraction such as 2.5 is allowed — working days for WORKTIME, calendar days for ELAPSEDTIME) and the duration type with `durationType` — the `time` branch itself is not settable (that would clear CPM dates, floats and actuals)',
-  scheduleDuration: 'use `duration` (in days, a fraction such as 2.5 is allowed — working days for WORKTIME, calendar days for ELAPSEDTIME)',
+  time: 'set the duration with `duration` and its measure with `durationUnit` (`days` = day measure, a fraction such as 2.5 is allowed; `hours` = hour measure) and the duration type with `durationType` (ELAPSEDTIME = calendar time, 1 d = 24 h) — the `time` branch itself is not settable (that would clear CPM dates, floats and actuals)',
+  scheduleDuration: 'use `duration` with `durationUnit` (`days` = day measure, a fraction such as 2.5 is allowed; `hours` = hour measure)',
   durationMinutes: 'use `duration` with `durationUnit: "hours"`; the bridge calculates and stores the exact minute source itself',
   status: 'use `progress` (progress path), not `fields.status`',
   completion: 'use `progress.completion` (0–100)',
@@ -541,16 +541,22 @@ export const TASK_FIELD_SCHEMA_PROPERTIES: Record<string, unknown> = {
     type: 'number',
     minimum: 0,
     description:
-      'Native task duration in the unit of `durationUnit` (default days for backward compatibility). In days ' +
-      'a fraction is allowed (2.5); the bridge does not round it, but a WORKTIME day task does occupy whole ' +
-      'working days in its dates (2.5 ⇒ 3). Milestone ⇒ must be 0. Summary task ⇒ derived and read-only; omit duration.',
+      'Task duration in the MEASURE of `durationUnit`. Without `durationUnit` it is in days and the task gets ' +
+      'the DAY MEASURE (backward compatible). Day measure: working days on the task calendar; a fraction is ' +
+      'allowed and stored exactly (the bridge does not round 2.5 to 3). In the OPS profile one working ' +
+      'day counts as one day, whatever its hours; in the P6 and MS Project profiles days × the working time ' +
+      'per day. Hour measure: working hours (1.5 = 1 h 30 min). A FIXED_WORK task (`workRule`) always has the ' +
+      'hour measure: days are converted at the working time per day (3 d = 24 h at 8 h/day). Milestone ⇒ ' +
+      'must be 0. Summary task ⇒ derived and read-only; omit duration.',
   },
   durationUnit: {
     type: 'string',
     enum: ['days', 'hours'],
-    description: 'Persistent task unit. Always give it together with `duration`; hours requires concrete work blocks.',
+    description: 'The persistent MEASURE of the task: `days` = day measure, `hours` = hour measure. Always give ' +
+      'it together with `duration`. A FIXED_WORK task stays in the hour measure (`days` is converted). The ' +
+      'hour measure needs a task calendar with working time.',
   },
-  durationType: { type: 'string', enum: ['WORKTIME', 'ELAPSEDTIME'], description: 'WORKTIME = working days (default), ELAPSEDTIME = elapsed time.' },
+  durationType: { type: 'string', enum: ['WORKTIME', 'ELAPSEDTIME'], description: 'WORKTIME = working time on the task calendar (default), ELAPSEDTIME = calendar time (1 d = 24 h).' },
   taskType: {
     type: 'string',
     enum: TASK_TYPES,

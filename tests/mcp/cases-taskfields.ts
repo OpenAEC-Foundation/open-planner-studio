@@ -367,7 +367,9 @@ test('duration in dagen: een fractie wordt geaccepteerd en exact bewaard, en de 
   const id = created.created['tmp-f'];
   assertEq(taskById(id)!.time.scheduleDuration, 2.5, 'add_tasks bewaart 2.5 dag exact (niet afgerond)');
   assertEq(taskById(id)!.time.durationUnit, 'days', 'het blijft een dagtaak');
-  // De schemabeschrijving belooft "een WORKTIME-dagtaak beslaat in de datums hele werkdagen (2.5 ⇒ 3)".
+  // B2 (tussenstand): de motor laat 2,5 d nu nog hele werkdagen beslaan (2,5 ⇒ 3). De schemabeschrijving
+  // belooft dat niet meer (spec "alleen uren" §3.13). F3c-motor → doel: in het OPS-profiel eindigt 2,5 d
+  // halverwege de derde werkdag (§3.14); dan valt deze vergelijking om.
   const drie = taskById(created.created['tmp-3'])!.time;
   assertEq([taskById(id)!.time.earlyStart, taskById(id)!.time.earlyFinish], [drie.earlyStart, drie.earlyFinish],
     '2.5 dag beslaat in de datums dezelfde 3 werkdagen als een taak van 3');
