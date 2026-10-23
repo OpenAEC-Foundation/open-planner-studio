@@ -563,6 +563,19 @@ function previousBlockEndIfSame(
 }
 
 /**
+ * Alleen uren §3.14: een dagenmaat-opvolger mag over FF niet vóór de geëiste finish `rawRequired` klaar
+ * zijn. De dagenmaat leest een eindmoment op een blokbegin als het einde van de werkdag ervoor. Ligt dat
+ * vorige blokeinde vóór `rawRequired` (de opvolger werkt daar niet, of de voorganger eindigt rauw buiten
+ * zijn werktijd), dan moet de opvolger op de volgende werkdag nog werken. De geëiste finish wordt dan het
+ * einde van die werkdag, zoals F2 een hele dag telde (`bg142-*` in `cases-hours-blokgrenzen.json`,
+ * `lagadv-ff-lead-ed`). Een finish die de opvolger al als eindmoment kan halen, blijft staan.
+ */
+function workdayFinishNotBefore(se: CalendarEngine, reqFinish: Date, rawRequired: Date): Date {
+  if (se.prevWorkInstant(reqFinish).getTime() >= rawRequired.getTime()) return reqFinish;
+  return se.measuredWorkdayEnd(se.nextWorkInstant(reqFinish));
+}
+
+/**
  * Landing van een rauwe voorganger-instant op de opvolger, gedeeld door `forwardHour` en
  * `sfReqFinishHour`: de rauwe instant is een uur-precisie `Date` uit de
  * VOORGANGER-kalender. Is de opvolger zelf ook uur-modus, dan is dat instant al geldig — gewoon
@@ -637,16 +650,23 @@ function forwardHour(
       // hieronder, hier tegen `predResult.ef` (de FF-relatie ankert al op de finish, geen aparte
       // dagrand-normalisatie nodig zoals FS se `predDone`).
       let reqFinish: Date;
+      // De rauwe geëiste finish, vóór de normalisatie naar een werkmoment (dagenmaat-opvolger hieronder).
+      let rawRequired: Date;
       if (elapsed) {
         const raw = new Date(predResult.ef.getTime() + elapsedMin());
+        rawRequired = raw;
         reqFinish = succElapsed ? raw : deps.snapOnOrAfter(se, raw);
         if (isDayTaskOnBands(deps, successor, se)) {
           reqFinish = deps.snapOnOrBefore(se, raw).getTime() === raw.getTime() ? raw : reqFinish;
         }
       } else {
         const lagged = deps.shiftLagPred(lagEng, predResult.ef, seq, predTask, 1);
+        const lagIsZero = lagged.getTime() === deps.snapOnOrAfter(lagEng, predResult.ef).getTime();
+        // Met lag is `lagged` een moment op de lagkalender; als eindmoment telt het vorige blokeinde
+        // daar (een lead landt op een blokbegin, en dat is het einde van de werkdag ervoor).
+        rawRequired = lagIsZero || !lagEng.isHourMode ? predResult.ef : lagEng.prevWorkInstant(lagged);
         if ((succIsFinishMs || (succIsStartMs && isDayTaskOnBands(deps, predTask, pe)) || succElapsed) && pe.isHourMode
-          && lagged.getTime() === deps.snapOnOrAfter(lagEng, predResult.ef).getTime()) {
+          && lagIsZero) {
           reqFinish = landRawInstant(deps, se, predResult.ef, succElapsed);
         } else if (pe.isHourMode && lagEng.isHourMode && !predEndsBeginOfDay
           && isDayTaskOnBands(deps, successor, se)) {
@@ -663,6 +683,7 @@ function forwardHour(
           reqFinish = lagged;
         }
       }
+      if (isDayTaskOnBands(deps, successor, se)) reqFinish = workdayFinishNotBefore(se, reqFinish, rawRequired);
       if (succIsStartMs && !predEndsBeginOfDay) return deps.snapStrictAfter(se, reqFinish);
       return deps.startFromFinish(se, reqFinish, successor);
     }

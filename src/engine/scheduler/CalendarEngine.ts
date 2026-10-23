@@ -1092,6 +1092,15 @@ export class CalendarEngine {
     return new Date(this.measureMoment(day, day.minutes - minutes, 'start'));
   }
 
+  /** Het einde (laatste blokeinde) van de dagenmaat-werkdag waarop het startmoment `t` valt; een moment
+   *  buiten werktijd telt als het begin van de volgende werkdag. Zonder werkblokken: `t` ongewijzigd. */
+  measuredWorkdayEnd(t: Date): Date {
+    if (this.mode !== 'hour') return new Date(t.getTime());
+    const from = this.measureFrom(t);
+    if (!from) return new Date(t.getTime());
+    return new Date(this.measureMoment(from.day, from.day.minutes, 'end'));
+  }
+
   /** Getekende afstand in de dagenmaat van `a` naar `b`: de hele werkdagen ertussen plus het deel van de
    *  begin- en de einddag (§3.4, de speling van een dagenmaat-taak). Een moment buiten werktijd telt als
    *  het begin van de volgende werkdag, dus als het einde van de vorige: een blokeinde en het volgende
