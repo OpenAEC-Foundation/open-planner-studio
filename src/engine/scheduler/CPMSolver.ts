@@ -971,6 +971,7 @@ export class CPMSolver {
     d: Date,
     task: Task,
     preserveP6FinishBoundary = false,
+    constraintsMovedStart = false,
   ): Date {
     // Een ELAPSEDTIME-opvolger krijgt hier GEEN werk-instant-snap: MS Project plant elapsed-taken
     // puur in kalendertijd, ook op een niet-werk-instant. Deze generieke her-snap draait na ELKE
@@ -984,6 +985,13 @@ export class CPMSolver {
     // (MFO di ⇒ di 16:00, niet wo 07:00).
     if ([task.constraint, task.constraint2].some(c =>
       this.milestoneConstraintMoment(task, c, eng)?.getTime() === d.getTime())) return d;
+    // Een FNET die de mijlpaal verschuift, legt een eindmoment vast: blijf op dat blokeinde (P ma,
+    // FNET di ⇒ di 16:00, niet wo 07:00). Verschuift de FNET niets (de voorganger legt de mijlpaal al
+    // even laat of later), dan geldt de gewone startsnap. De ondergrens blijft zo een ondergrens.
+    if (constraintsMovedStart && eng.isHourMode && isZeroDurationMilestone(task)
+      && this.snapOnOrBefore(eng, d).getTime() === d.getTime()
+      && [task.constraint, task.constraint2].some(c =>
+        c?.type === 'FNET' && this.forwardBoundOf(task, c, eng)?.getTime() === d.getTime())) return d;
     if (preserveP6FinishBoundary && eng.isHourMode
       && this.snapOnOrBefore(eng, d).getTime() === d.getTime()) return d;
     const p6FinishBoundary = this.p6ZeroDurationUsesFinishBoundary(task, eng);
@@ -2117,7 +2125,8 @@ export class CPMSolver {
         // constraint) met zo'n raw anker had hier toch al niets te her-snappen; alleen mét een
         // WERKELIJK bindende (werk-instant-snappende) constraint kan deze tak ooit iets anders dan
         // het rauwe anker geven.
-        earlyStart = (rootElapsed || timephasedAnchor || !constraintMoved) ? earlyStart : this.snapSuccessorEarlyStart(cal, earlyStart, task);
+        earlyStart = (rootElapsed || timephasedAnchor || !constraintMoved) ? earlyStart
+          : this.snapSuccessorEarlyStart(cal, earlyStart, task, false, true);
       } else {
         // Early start = max van alle voorganger-constraints, met de projectstart als ondergrens.
         // Die ondergrens is correct vóór ÉLKE relatie: relatie-constraints (FS/SS/FF/SF) zijn
@@ -2249,6 +2258,7 @@ export class CPMSolver {
           }
         }
         // `rawMax` (voorganger-druk) voedt de harde-pin-logicaschending-detectie.
+        const beforeForwardConstraints = earlyStart;
         earlyStart = this.applyForwardConstraints(task, earlyStart, rawMax, cal);
         const preserveP6FinishBoundary = preds.some(sequence =>
           sequence.p6StartAtPredecessorFinishBoundary === true
@@ -2258,6 +2268,7 @@ export class CPMSolver {
           earlyStart,
           task,
           preserveP6FinishBoundary,
+          earlyStart > beforeForwardConstraints,
         );
       }
 

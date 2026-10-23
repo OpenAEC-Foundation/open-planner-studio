@@ -246,6 +246,39 @@ for (const baseId of ['ops', 'p6', 'msproject'] as const) {
   }
 }
 
+// Ronde 3A, punt 1: een FNET die een START-mijlpaal verschuift, legt een eindmoment vast. FNET di
+// (opgeslagen als di 16:00) blijft di 16:00, en schuift niet door naar wo 07:00 (of, los, met B6 naar
+// wo 16:00). Bij een gelijkspel met de voorganger (P eindigt zelf di 16:00) geldt de gewone startsnap.
+for (const baseId of ['ops', 'p6', 'msproject'] as const) {
+  const opts = { ...options, schedulingOptions: effectiveSchedulingOptions({ schedulingProfile: builtInProfile(baseId) }) };
+  for (const [calendarName, cal] of [['dagkalender', calendar], ['blokkenkalender', blockCalendar]] as const) {
+    for (const kind of ['START', undefined] as const) {
+      const label = `${baseId}, ${calendarName}: ${kind ?? 'mijlpaal zonder soort'}`;
+      for (const date of ['2026-06-02', '2026-06-02T16:00']) {
+        const m = { ...task('M', 0), ...(kind ? { milestoneKind: kind } : {}), constraint: { type: 'FNET' as const, date } };
+        const afterP = new CPMSolver([task('P'), m], [{ ...fs, predecessorId: 'P', successorId: 'M' }], cal, [], opts).solve();
+        const r = afterP.tasks.get('M')!;
+        eq(`${label} na P met FNET ${date}`,
+          [r.earlyStart, r.lateStart, r.totalFloat, afterP.violatedConstraintTaskIds],
+          ['2026-06-02T16:00', '2026-06-02T16:00', 0, []]);
+        const alone = new CPMSolver([m], [], cal, [], opts).solve().tasks.get('M')!;
+        eq(`${label} los met FNET ${date}`, [alone.earlyStart, alone.lateStart], ['2026-06-02T16:00', '2026-06-02T16:00']);
+      }
+      const m = { ...task('M', 0), ...(kind ? { milestoneKind: kind } : {}), constraint: { type: 'FNET' as const, date: '2026-06-02' } };
+      const tie = new CPMSolver([task('P', 2), m], [{ ...fs, predecessorId: 'P', successorId: 'M' }], cal, [], opts)
+        .solve().tasks.get('M')!;
+      eq(`${label} met FNET di na P tot di 16:00 (gelijkspel)`, tie.earlyStart, '2026-06-03T07:00');
+      // Ook via FF+0 verandert een FNET die gelijk valt met de voorganger niets.
+      const tieFf = new CPMSolver([task('P', 2), m],
+        [{ ...fs, predecessorId: 'P', successorId: 'M', type: 'FINISH_FINISH' }], cal, [], opts).solve();
+      const tieFfWithout = new CPMSolver([task('P', 2), { ...m, constraint: undefined }],
+        [{ ...fs, predecessorId: 'P', successorId: 'M', type: 'FINISH_FINISH' }], cal, [], opts).solve();
+      eq(`${label} met FNET di na P tot di 16:00 via FF (gelijkspel, als zonder FNET)`,
+        tieFf.tasks.get('M')!.earlyStart, tieFfWithout.tasks.get('M')!.earlyStart);
+    }
+  }
+}
+
 // B6 blijft gelden voor een losse mijlpaal met een andere constraint (SNET): einde van de werkdag.
 {
   const m = { ...task('M', 0), milestoneKind: 'START' as const, constraint: { type: 'SNET' as const, date: '2026-06-02' } };
