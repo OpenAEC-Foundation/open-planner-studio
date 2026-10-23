@@ -984,6 +984,12 @@ export class CPMSolver {
     // (MFO di ⇒ di 16:00, niet wo 07:00).
     if ([task.constraint, task.constraint2].some(c =>
       this.milestoneConstraintMoment(task, c, eng)?.getTime() === d.getTime())) return d;
+    // Een mijlpaal op het eindmoment van zijn FNET blijft daar, ook een START op een blokeinde (P ma,
+    // FNET di ⇒ di 16:00, niet wo 07:00).
+    if (eng.isHourMode && isZeroDurationMilestone(task)
+      && this.snapOnOrBefore(eng, d).getTime() === d.getTime()
+      && [task.constraint, task.constraint2].some(c =>
+        c?.type === 'FNET' && this.forwardBoundOf(task, c, eng)?.getTime() === d.getTime())) return d;
     if (preserveP6FinishBoundary && eng.isHourMode
       && this.snapOnOrBefore(eng, d).getTime() === d.getTime()) return d;
     const p6FinishBoundary = this.p6ZeroDurationUsesFinishBoundary(task, eng);
@@ -1142,6 +1148,35 @@ export class CPMSolver {
   /** `d` valt precies op het eerste blokbegin van zijn eigen kalenderdag. */
   private isAtDayFirstBandStart(eng: CalendarEngine, d: Date | undefined): boolean {
     return !!d && this.dayFirstBandStart(eng, d)?.getTime() === d.getTime();
+  }
+
+  /** Een mijlpaal die zijn late kant begint op het begin van de laatste projectwerkdag, zoals in het dagmodel
+   *  (een START op de laatste projectdag heeft speling 0): een START-mijlpaal (een losse alleen zonder B6),
+   *  of een mijlpaal zonder soort na een FS/SS-voorganger, op een kalender zonder eigen werkblokken. Hij
+   *  moet zelf op het begin van zijn werkdag staan. Staat hij later op de dag (eigen tijd, het moment van
+   *  een MFO), dan zou deze plaats de late kant vóór de mijlpaal zelf leggen. */
+  private usesLastProjectDayStart(task: Task, taskId: string, earlyStart: Date | undefined): boolean {
+    const eng = this.calendarFor(task);
+    const preds = this.predecessors.get(taskId) ?? [];
+    return isZeroDurationMilestone(task)
+      && ((task.milestoneKind === 'START'
+        && (!this.options.schedulingOptions.milestoneWithoutPredecessorAtDayEnd
+          || preds.length > 0 || (this.successors.get(taskId)?.length ?? 0) > 0))
+        || (!task.milestoneKind && preds.length > 0
+          && !preds.some(seq => seq.type === 'FINISH_FINISH' || seq.type === 'START_FINISH')))
+      && taskDurationUnit(task) !== 'hours' && !eng.hasOwnWorkBlocks
+      && this.isAtDayFirstBandStart(eng, earlyStart);
+  }
+
+  /** Het begin van de laatste projectwerkdag, de late beginwaarde voor `usesLastProjectDayStart`. Het
+   *  projecteinde is een eindmoment: op een 24-uurskalender hoort wo 00:00 bij dinsdag, dus di 00:00 en
+   *  niet wo 00:00. Opent het projecteinde zelf de laatste werkdag (`projectEndOpensDay`), dan is dat zijn
+   *  eigen dag: P eindigt di 00:00 en de START erna staat daar, dus di 00:00 en niet ma 00:00. Het
+   *  dagbegin komt uit de eigen kalender van de taak: met een projecteinde di 07:00 (kalender 7–16) krijgt
+   *  een mijlpaal op een kalender 8–16 di 08:00, niet het klokmoment 07:00 buiten zijn werktijd. */
+  private lastProjectDayStart(eng: CalendarEngine, projectEnd: Date, projectEndOpensDay: boolean): Date {
+    if (projectEndOpensDay) return this.dayFirstBandStart(eng, projectEnd) ?? projectEnd;
+    return this.dayFirstBandStart(eng, workdayDateOfInstant(eng, projectEnd, 'end')) ?? projectEnd;
   }
 
   /** Het LAATSTE band-EIND op `d`'s eigen kalenderdag (backward-spiegel van `dayFirstBandStart`
@@ -1755,7 +1790,7 @@ export class CPMSolver {
       constraintInstant: (c, eng) => this.constraintInstant(c, eng),
       snapOnOrAfter: (eng, d) => this.snapOnOrAfter(eng, d),
       snapOnOrBefore: (eng, d) => this.snapOnOrBefore(eng, d),
-      milestoneConstraintMoment: (t, c, eng) => this.milestoneConstraintMoment(t, c, eng),
+      milestoneLateMoment: (t, c, eng) => this.milestoneLateMoment(t, c, eng),
       modeOf: (eng) => this.modeOf(eng),
       backwardFloatTrace: this.backwardFloatTrace,
       completedOutOfSequenceEs: this.completedOutOfSequenceEs,
@@ -3010,13 +3045,23 @@ export class CPMSolver {
     return this.forwardBoundOf(task, c, eng);
   }
 
+  /** De late grens van een constraint op een nulduurmijlpaal, aan de kant van de constraint: het moment
+   *  van een MSO/MFO, en voor een SNLT (startachtig) hetzelfde moment als een SNET op die datum. Anders
+   *  wordt SNLT di 07:00 via `snapOnOrBefore` ma 16:00, en meldt de schendingstoets een START op di 07:00. */
+  private milestoneLateMoment(task: Task, c: TaskConstraint | undefined, eng: CalendarEngine): Date | null {
+    if (c?.type === 'SNLT' && eng.isHourMode && isZeroDurationMilestone(task)) {
+      return this.forwardBoundOf(task, { ...c, type: 'SNET' }, eng);
+    }
+    return this.milestoneConstraintMoment(task, c, eng);
+  }
+
   /** Backward-bovengrens (late finish) van ÉÉN soft constraint, of null zonder backward-
    *  effect. FNLT/MFO ⇒ finish-bovengrens direct; SNLT/MSO ⇒ start-bovengrens vertaald naar de finish.
    *  Dag-modus via `prevWorkDay`/`addWorkingDaysSigned`; uur-modus via de instant-vinders. */
   private backwardBoundOf(task: Task, c: TaskConstraint | undefined, eng: CalendarEngine): Date | null {
     const d = this.constraintInstant(c, eng);
     if (!c || !d) return null;
-    const milestoneMoment = this.milestoneConstraintMoment(task, c, eng);
+    const milestoneMoment = this.milestoneLateMoment(task, c, eng);
     if (milestoneMoment) return milestoneMoment;
     const preserveMilestoneInstant =
       this.options.schedulingOptions?.p6PreserveZeroDurationConstraintInstants === true
@@ -3400,9 +3445,19 @@ export class CPMSolver {
         }
       }
     }
+    // Staat een mijlpaal met de dagregel van `usesLastProjectDayStart` zelf precies op het berekende
+    // projecteinde, dan opent dat moment de laatste werkdag. Op een 24-uurskalender: P eindigt di 00:00 en
+    // de START erna staat daar; de laatste projectdag is dan dinsdag, niet maandag. Een ingesteld
+    // projecteinde (hieronder) blijft een eindmoment.
+    let projectEndOpensDay = order.some(taskId => {
+      const task = this.tasks.get(taskId);
+      const es = earlyDates.get(taskId)?.es;
+      return !!task && es?.getTime() === projectEnd.getTime() && this.usesLastProjectDayStart(task, taskId, es);
+    });
     if (this.options.schedulingOptions?.useProjectEndDateForFloat === true) {
       const configuredProjectEnd = parseInstant(dayEndInstant(blocksClock(this.projectCal), this.options.projectEndDate ?? '') ?? this.options.projectEndDate ?? '');
       if (!isNaN(configuredProjectEnd.getTime())) {
+        projectEndOpensDay = false;
         projectEnd = this.snapOnOrBefore(this.projectEngine, configuredProjectEnd);
         if (this.backwardFloatTrace) this.backwardFloatTrace.projectEndSource = 'useProjectEndDateForFloat';
       }
@@ -3659,18 +3714,8 @@ export class CPMSolver {
       // Start-Start-opvolger een late finish ná het projecteinde opleveren, en krijgt de voorganger
       // ten onrechte speling).
       const predCal = this.calendarFor(task);
-      let lateFinish = isZeroDurationMilestone(task)
-        && ((task.milestoneKind === 'START'
-          && (!this.options.schedulingOptions.milestoneWithoutPredecessorAtDayEnd
-            || (this.predecessors.get(taskId)?.length ?? 0) > 0 || succs.length > 0)) || (!task.milestoneKind
-          && (this.predecessors.get(taskId)?.length ?? 0) > 0
-          && !(this.predecessors.get(taskId) ?? []).some(seq => seq.type === 'FINISH_FINISH' || seq.type === 'START_FINISH')))
-        && taskDurationUnit(task) !== 'hours' && !predCal.hasOwnWorkBlocks
-        // Alleen voor een mijlpaal die zelf op het begin van zijn werkdag staat: dan telt hij, zoals in
-        // het dagmodel, op de laatste projectdag als op tijd. Staat hij later op de dag (eigen tijd, het
-        // moment van een MFO), dan zou deze plaats de late kant vóór de mijlpaal zelf leggen.
-        && this.isAtDayFirstBandStart(predCal, earlyDates.get(taskId)?.es)
-        ? this.dayFirstBandStart(predCal, projectEnd) ?? projectEnd : projectEnd;
+      let lateFinish = this.usesLastProjectDayStart(task, taskId, earlyDates.get(taskId)?.es)
+        ? this.lastProjectDayStart(predCal, projectEnd, projectEndOpensDay) : projectEnd;
       let lateFinishSource: CpmLateFinishSource = 'projectEnd';
       for (const seq of succs) {
         const succResult = results.get(seq.successorId);

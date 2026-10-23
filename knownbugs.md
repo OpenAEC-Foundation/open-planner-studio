@@ -175,6 +175,31 @@ en noem het in je rapport of PR-tekst.
      `be58ba356`. Voorstel: neem bij een eindmoment de bijbehorende werkdag (`workdayDateOfInstant`,
      eindkant). Gevonden in review F2 ronde 2A. — B
 
+273. **ALAP laat bij een losse mijlpaal een dagdeel vrije speling liggen.** Een START-mijlpaal M op
+     ma 10:00 met ALAP, naast een taak A van 3 d (ma 07:00 tot wo 16:00). ALAP zet M op wo 10:00, met
+     0,625 d totale en vrije speling; de late start is wo 16:00. `applyAlap` in `CPMSolver.ts` meet de
+     vrije speling in hele werkdagen (`signedWorkDaysBetween`) en schuift ook alleen hele werkdagen
+     (`addWorkingDaysSigned`); het dagdeel blijft liggen. Gemeten op een kalender 7–16 met en zonder
+     eigen werkblokken. Op de basis `be58ba356` gebeurt het ook, met eigen werkblokken. Voorstel: laat
+     de bestaande ALAP-verplaatsing ook het resterende dagdeel meenemen. Gevonden in review F2 ronde 3A. — B
+
+276. **Een FNET met een tijd buiten werktijd zet een START-mijlpaal op de volgende werkdag.** P 1 d op
+     maandag, FS+0 naar START-mijlpaal M, FNET di 18:00 (kalender 7–16). M komt op wo 07:00, ook een
+     mijlpaal zonder soort. `forwardBoundOf` laat de tijd 18:00 staan (geen snap voor een mijlpaal met
+     tijd); de her-snap in `snapSuccessorEarlyStart` zet een moment buiten werktijd door naar het volgende
+     blokbegin. De controle op het FNET-eindmoment daar geldt alleen binnen werktijd of op een blokeinde.
+     Met eigen werkblokken gebeurt dit ook op `be58ba356`. Richting: puntsgewijze semantiek voor
+     mijlpalen. Gevonden in review F2 ronde 4. — B
+
+277. **Een 24-uurskalender naast een gewone kalender kost een parallelle dagtaak een dag speling.** P werkt
+     maandag op een 24-uurskalender, met een START-mijlpaal op di 00:00. De dagtaak R op 07–16 of 08–16
+     krijgt speling 0 en is kritiek; op `be58ba356` is dat 1, niet kritiek. Dit geldt onder OPS, P6 en
+     MSP. Zonder die eindmijlpaal, of met een FINISH-mijlpaal, geven de basis en de head allebei 0.
+     Locatie: `CPMSolver.ts:1351`, samen met de projecteindgrens rond `CPMSolver.ts:3717`. Het ontstond in
+     `29a2f6cac` (eerder ook in `d3e7c885f`, hersteld in `b36c37770`). Richting: leg voor gewone
+     dagtaken apart vast wat een afsluitend eindmoment is en wat een START is die een projectdag opent,
+     met de bestaande kalenderfuncties. Gevonden in review F2 ronde 6. — B
+
 251. **De projectstandaard *Vast werk* zet bestaande dagenmaat-taken niet om naar de urenmaat.**
      B1a (spec "alleen uren" §3.2): een taak met vast werk is altijd urenmaat. Een taak zonder eigen
      regel volgt de projectstandaard (`defaultWorkRule`). Zet je die standaard op vast werk, dan blijft
@@ -420,6 +445,22 @@ en noem het in je rapport of PR-tekst.
     punt zegt niet dat iedere mislukte snapshotwrite als rejection uit de flush komt. Geen
     runtime-repro of concreet dataverlies vastgesteld; bedoeling en gewenste foutafhandeling
     niet onderzocht. — S
+
+274. **Een werkelijk einde om precies 08:00 wordt na import uit P6 XML of MSPDI 16:00.** 08:00 is het
+     anker dat deze formaten schrijven voor een datum zonder tijd (ankerregel I8, spec
+     `2026-10-20-alleen-uren-design.md` §3.10, gepland voor F5b). De lezer kan een echte 08:00 daar niet
+     van onderscheiden. Een dagkalender blijft daardoor scalair, en het werkelijke einde wordt na laden het
+     dageinde 16:00. Gemeten op de eindmijlpaal uit review ronde 3 van PR #559 (`milestone-11.xml`, met een
+     werkelijk einde om 08:00), op alle vier stappen tot en met heropenen. Richting: lees 08:00 alleen als
+     anker in een bestand dat OPS zelf schreef. Fixronde 3 van de F2-laadfix. — B
+
+275. **Eén werkelijke datum met een tijd maakt van een importkalender een urenkalender.** Bij P6 XML en
+     MSPDI telt een werkelijke datum met een eigen tijd mee in de keuze tussen uren en dagen per kalender
+     (`p6xmlReader.ts:873`, `mspdiReader.ts:332`). Daarna leest een andere voltooide taak op die kalender,
+     met `ActualFinish …T08:00` in de bron, als 08:00 in plaats van 16:00. Dat blijft zo tot en met IFC
+     heropenen. Dit is de dubbelzinnigheid van ankerregel I8; een toegestane tussenstand tot F5a/F5b.
+     Richting: onderscheid een synthetisch 08:00-anker van een echte tijd. Zie ook 274. Gevonden in
+     review F2 ronde 4. — B
 
 ## Rondleiding, Help en extensie-gidsen
 
