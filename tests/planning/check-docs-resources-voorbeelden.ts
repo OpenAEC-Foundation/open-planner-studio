@@ -13,9 +13,8 @@
 import './domStub';
 import { useAppStore } from '@/state/appStore';
 import { workDaySlotsToPeriods } from '@/engine/contour/contourEdit';
-import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
-import { parseInstant } from '@/utils/dateUtils';
-import { assignmentPlacementLoad, distributeUnits } from '@/engine/scheduler/ResourceLoad';
+import { computeResourceLoad, distributeUnits } from '@/engine/scheduler/ResourceLoad';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import type { WorkRule } from '@/types/workRule';
 import { buildTutorialProject, ASSIGNMENTS, HOUR_TASKS, RESOURCES, TASKS, WORK_RULE, type ResourceKey, type TaskKey } from '../../scripts/tutorial-project';
 
@@ -275,15 +274,11 @@ async function main(): Promise<void> {
 
   // Dezelfde projecten met urenmaat houden de precieze F3-einddoelen groen.
   await tutorialBase({ plasterRule: true, hoursReference: true });
-  // F3b rekent de deeldagen al; F3c sluit deze kern op het productieoverzicht aan.
-  const futureLoads: Record<string, number> = {};
-  for (const key of ['innerLeaf', 'outerLeaf'] as const) {
-    const t = task(key);
-    const placement = assignmentPlacementLoad(t, asg(t.id, resIds.get('bricklayer')), new CalendarEngine(S().calendar), {
-      start: parseInstant(t.time.earlyStart), finish: parseInstant(t.time.earlyFinish), measure: 'workdays',
-    });
-    placement.days.forEach((day, index) => { futureLoads[day.iso] = (futureLoads[day.iso] ?? 0) + placement.units[index]; });
-  }
+  // F3c: de productieberekening van de belasting telt de deeldagen (spec §3.11).
+  const bricklayer = resIds.get('bricklayer')!;
+  const futureLoads = computeResourceLoad(S().resources,
+    (['innerLeaf', 'outerLeaf'] as const).map(key => asg(task(key).id, bricklayer)),
+    S().tasks, S().calendar, S().calendars, effectiveSchedulingOptions(S().project)).load[bricklayer] ?? {};
   eq('F3-referentie: overbezetting telt ook de laatste gedeeltelijke werkdag',
     Object.keys(futureLoads).filter(day => futureLoads[day] > 1 + 1e-9),
     ['2027-06-28', '2027-06-29', '2027-06-30', '2027-07-01', '2027-07-02', '2027-07-05']);
