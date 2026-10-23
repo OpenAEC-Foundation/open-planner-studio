@@ -2622,7 +2622,9 @@ export class CPMSolver {
 
       // B6: het OPS-profiel houdt een losse mijlpaal op haar eindgrens. Een START in een
       // keten blijft startachtig; P6 en MSP houden hun bestaande beginmoment.
-      if (noPreds && isZeroDurationMilestone(task)
+      // Een harde MSO/MFO-pin (`hardFinishPin`, bovenaan berekend) wint: B6 is alleen de
+      // standaardplaats, en de late pass houdt de mijlpaal ook op de pin.
+      if (noPreds && !hardFinishPin && isZeroDurationMilestone(task)
         && (task.milestoneKind === 'FINISH' || (this.successors.get(taskId)?.length ?? 0) === 0)
         && this.options.schedulingOptions.milestoneWithoutPredecessorAtDayEnd
         && earlyStart.getTime() === this.dayFirstBandStart(cal, earlyStart)?.getTime()) {
@@ -3725,11 +3727,14 @@ export class CPMSolver {
         && task.time.actualStart !== undefined && task.time.completion > 0 && task.time.completion < 1;
       // Een hele F2-dag kan alleen vóór deze grens eindigen als zijn laatste werkblok past.
       // Een opvolger om woensdag 08:00 laat dus hooguit dinsdag 16:00 toe, niet woensdag 16:00.
+      // De grens is een eindmoment: tel hem bij zijn eigen werkdag (eindkant). Op een 24-uurskalender
+      // is di 00:00 het einde van maandag; dat is al een geldig dageinde en springt niet verder terug.
       if (lateFinishSource === 'successorConstraint' && predCal.isHourMode
         && taskDurationUnit(task) !== 'hours' && !isZeroDurationMilestone(task) && !isElapsedTask(task)) {
-        const dayEnd = this.dayLastBandEnd(predCal, lateFinish);
+        const endDay = workdayDateOfInstant(predCal, lateFinish, 'end');
+        const dayEnd = this.dayLastBandEnd(predCal, endDay);
         if (dayEnd && lateFinish < dayEnd) {
-          const dayStart = this.dayFirstBandStart(predCal, lateFinish);
+          const dayStart = this.dayFirstBandStart(predCal, endDay);
           if (dayStart) lateFinish = predCal.prevWorkInstantBefore(dayStart);
         }
       }
