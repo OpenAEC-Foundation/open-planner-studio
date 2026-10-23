@@ -8,13 +8,14 @@
 //   npm run build:core              # → dist-core/
 //   node scripts/build-core.mjs --out <map>
 //
-// De bouw controleert ook de grens van de library mechanisch (zie FORBIDDEN_INPUTS): React, Tauri,
+// De bouw controleert ook de grens van de library mechanisch (zie FORBIDDEN_INPUTS in scripts/lib/headless-bundle.mjs): React, Tauri,
 // de app-singleton (`src/state/appStore.ts`), UI-componenten en de i18n-UI-config mogen niet in de
 // bundel zitten. Code die alleen achter een dynamische import of een React-hook leeft, wordt
 // vervangen door een stub die bij gebruik een duidelijke fout gooit.
 import esbuild from 'esbuild';
 import ts from 'typescript';
 import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { forbiddenInputs, headlessStubPlugin, metafileInputs } from './lib/headless-bundle.mjs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { thirdPartyNotices } from './lib/third-party-notices.mjs';
@@ -26,49 +27,9 @@ const outDir = resolve(outIdx >= 0 ? process.argv[outIdx + 1] : join(root, 'dist
 const appPkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
 export const CORE_PACKAGE_NAME = '@openaec/open-planner-core';
 
-// Modules die de kern niet nodig heeft en die alleen bereikbaar zijn via een dynamische import of
-// binnen een React-hook. De stub gooit pas bij GEBRUIK, niet bij het laden.
-const STUBBED = [
-  /^react$/, /^react-dom(\/.*)?$/, /^react-i18next$/, /^@tauri-apps\//, /^@\/i18n\/config$/,
-];
-const stubPlugin = {
-  name: 'ops-core-stubs',
-  setup(build) {
-    // zustand: alleen de vanilla store, zonder React-hook (`create` geeft een functie-object met de
-    // store-API, net als zustand zelf, maar zonder `useSyncExternalStore`).
-    build.onResolve({ filter: /^zustand$/ }, () => ({ path: 'zustand', namespace: 'ops-core-zustand' }));
-    build.onLoad({ filter: /.*/, namespace: 'ops-core-zustand' }, () => ({
-      resolveDir: root,
-      contents: `
-        import { createStore } from 'zustand/vanilla';
-        const bind = (api) => Object.assign(() => {
-          throw new Error('React hooks are not available in @openaec/open-planner-core');
-        }, api);
-        export const create = (init) => (init ? bind(createStore(init)) : (i) => bind(createStore(i)));
-        export { createStore };`,
-    }));
-    for (const filter of STUBBED) {
-      build.onResolve({ filter }, (args) => ({ path: args.path, namespace: 'ops-core-stub' }));
-    }
-    build.onLoad({ filter: /.*/, namespace: 'ops-core-stub' }, (args) => ({
-      contents: `
-        const fail = () => { throw new Error(${JSON.stringify(`"${args.path}" is not available in ${CORE_PACKAGE_NAME}`)}); };
-        const stub = new Proxy(function () {}, { get: (_t, k) => (k === '__esModule' ? true : k === 'then' ? undefined : fail()), apply: fail, construct: fail });
-        export default stub;`,
-    }));
-  },
-};
-
-// Inputs die nooit in de bundel mogen landen (padfragmenten, relatief aan de bundel-metafile).
-const FORBIDDEN_INPUTS = [
-  'src/state/appStore.ts',
-  'src/components/',
-  'src/i18n/config.ts',
-  'src/i18n/locales/',
-  'node_modules/react/',
-  'node_modules/react-dom/',
-  'node_modules/@tauri-apps/',
-];
+// De grens (stubs voor React/Tauri/i18n-config, verboden inputs) en de licentie-afleiding delen we met
+// de headless MCP-server: scripts/lib/headless-bundle.mjs.
+const stubPlugin = headlessStubPlugin(root, CORE_PACKAGE_NAME);
 
 rmSync(outDir, { recursive: true, force: true });
 mkdirSync(outDir, { recursive: true });
@@ -95,8 +56,8 @@ const result = await esbuild.build({
   },
 });
 
-const inputs = Object.keys(result.metafile.inputs).map((p) => p.replace(/\\/g, '/'));
-const leaks = inputs.filter((p) => FORBIDDEN_INPUTS.some((f) => p.includes(f)));
+const inputs = metafileInputs(result.metafile);
+const leaks = forbiddenInputs(inputs);
 if (leaks.length > 0) {
   console.error(`XX de kernbundel bevat ${leaks.length} verboden input(s):\n  ${leaks.join('\n  ')}`);
   process.exit(1);

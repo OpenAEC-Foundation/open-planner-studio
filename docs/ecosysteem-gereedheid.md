@@ -21,6 +21,7 @@ kwam, zit pas vanaf de volgende release in de installers.
 | Headless HTTP-API | ja | Node.js 22 in een Linux-container (CI bouwt linux/amd64; arm64 kan) | Dockerfile in de repo; geen gepubliceerde image | [headless API](headless-api.md) |
 | AWS-deployment | definitie klaar, niet uitgerold | ECS Fargate (X86_64 of ARM64) achter een ALB, CloudFormation | `deploy/aws/ecs-fargate.yaml` | [headless API](headless-api.md) |
 | MCP-server | ja, in de desktopapp | streamable HTTP op `127.0.0.1` (standaardpoort 3877), Bearer-token; 39 `planner_*`-tools in v2026.9.0, 41 in `main` | desktoprelease; niet in de browserversie | [MCP-verificatie](mcp-verificatie.md) |
+| Headless MCP-server | ja, niet gepubliceerd | Node.js ≥ 22, één ESM-bestand; stdio (standaard) of streamable HTTP op loopback; dezelfde 41 `planner_*`-tools | bouwartefact `dist-mcp-server/` (`npm run build:mcp-server`) | [headless MCP-server](headless-mcp.md) |
 | Claude Code | ja | `claude mcp add --transport http …` | gids in de app | [MCP-verificatie](mcp-verificatie.md) |
 | Claude Desktop | ja: `.mcpb`-bundel (stekker naar de app); reserve `mcp-remote`, getest door de eigenaar op 2026-10-23 | stdio-brug naar de lokale server; Claude Desktop levert Node mee | `.mcpb` als asset bij elke GitHub-release; gids in de app | [MCP-verificatie](mcp-verificatie.md) |
 | Claude-connector, MCP App | nee | — | — | zie *Claude* hieronder |
@@ -77,6 +78,11 @@ wel en niet beschermt, staat in [MCP-verificatie](mcp-verificatie.md).
 
 Beperking: de toetsing is gedaan op `main`. In v2026.9.0 heeft de server 39 tools en nog geen
 MCP-sessies (`Mcp-Session-Id`); dat komt met de volgende release.
+
+Zonder app: de [headless MCP-server](headless-mcp.md) biedt dezelfde tools op Node, op een IFC-bestand op
+schijf. `tests/mcp/cases-headless-server.ts` draait dezelfde SDK-controles ertegen, en ook tegen het gebouwde
+bestand in een lege map, over stdio en HTTP. Niet gepubliceerd; een plugin voor Claude Code en Codex en een
+stand zonder app in de `.mcpb`-bundel zijn vervolgwerk (#570).
 
 ### 7. Claude Desktop en Claude Code
 

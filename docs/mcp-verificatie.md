@@ -82,7 +82,8 @@ legt vast wat de app als MCP-server levert, wat niet, en welke test het bewijst.
 1. **`tests/mcp/cases-externe-client.ts`** (in `npm test`, suite `tests/mcp/`). De officiële client
    `@modelcontextprotocol/sdk` (`Client` + `StreamableHTTPClientTransport`, devDependency, vast op 1.32.1)
    praat over echt HTTP met `tests/mcp/bridgeMirror.ts`: een Node-host die het HTTP-contract van
-   `mcp_bridge.rs` nabootst rond de echte `createRequestHandler`, dispatcher en tools op een eigen headless
+   `mcp_bridge.rs` nabootst (sinds #570 de HTTP-transport van de headless MCP-server,
+   `headless/mcp-server/src/http.ts`) rond de echte `createRequestHandler`, dispatcher en tools op een eigen headless
    storecontext. De host is een kopie van de Rust-HTTP-laag en bewijst niets over Rust zelf; dat doet punt 2.
    Controles: initialize (protocolversie, serverInfo, capabilities, instructions, `Mcp-Session-Id`), ping,
    `tools/list` (aantal en annotaties per tool gelijk aan de registry), een leestool, `planner_add_tasks` en

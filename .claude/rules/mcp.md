@@ -56,15 +56,22 @@ dan `MCP_QUEUE_DEADLINE_MS` (110 s, net onder Rusts 120 s-time-out) in de wachtr
 per app-sessie zodat een handmatige stop niet stil ongedaan wordt gemaakt.
 
 De kern-bouwstenen nemen hun Tauri-randen als injecteerbare functies, zodat alles headless testbaar
-is — zie `tests/mcp/`. Nieuwe tool ⇒ contract in `contracts.ts`, schema erbij, registreren in
+is — zie `tests/mcp/`. **Headless MCP-server** (`headless/mcp-server/`, #570, `docs/headless-mcp.md`): dezelfde
+tools op Node zonder app. Hij bundelt de MCP-laag zonder app-singleton; daarom staan de requestlaag
+(`requestHandler.ts`), `createMcpContext` (`context.ts`), de backupkern (`backupService.ts`), de versheid
+(`freshness.ts`) en de dialoogpoort (`src/state/blockingDialogs.ts`) in modules zonder waarde-import uit `appStore.ts`
+(`verify:store-boundaries`). Tools importeren daaruit, niet uit `server.ts`, `backup.ts` of `staleGuard.ts`. Een
+nieuwe hostfunctie in een tool krijgt een naad zoals `fileToolDeps`/`guideToolDeps`; een tool die tijdens het draaien
+een bestand uit `public/` leest, zet dat bestand in `embeddedAssets()` van `scripts/build-mcp-server.mjs`. Nieuwe tool ⇒ contract in `contracts.ts`, schema erbij, registreren in
 `toolRegistry.ts`, en een case in `tests/mcp/`; zie `docs/recepten/mcp-tool.md` voor de volledige
 route. `tests/mcp/cases-toolregistry.ts` is het mechanische vangnet dat een vergeten registratie
 (of een spookregistratie zonder broncode) mechanisch afvangt.
 
 **Externe client.** `tests/mcp/cases-externe-client.ts` toetst de bridge met de officiële SDK-client over echt HTTP.
-De HTTP-schil daar is `tests/mcp/bridgeMirror.ts`, een met de hand bijgehouden kopie van `mcp_bridge.rs`; hij
+De HTTP-schil daar is `tests/mcp/bridgeMirror.ts`, die de HTTP-transport van de headless MCP-server gebruikt
+(`headless/mcp-server/src/http.ts`): een met de hand bijgehouden kopie van `mcp_bridge.rs`; hij
 bewijst niets over Rust zelf. Verander je de HTTP-laag in Rust (statuscodes, volgorde van de poorten, limieten,
-sessieheader), pas dan `bridgeMirror.ts` mee aan. Dezelfde controles (`tests/mcp/externalClient.ts`) draaien in
+sessieheader), pas dan `headless/mcp-server/src/http.ts` mee aan. Dezelfde controles (`tests/mcp/externalClient.ts`) draaien in
 `.github/workflows/mcp-real-app.yml` tegen de echte Rust-bridge in een Tauri-dev-build; die job draait ook de
 Rust-unit-tests van de bridge (`cargo test … mcp_bridge`), die geen andere workflow draait. Wat geleverd is en wat
 niet: `docs/mcp-verificatie.md`.

@@ -3,6 +3,7 @@ node_modules/
 dist/
 # Headless kern (`npm run build:core`) en het lokaal geïnstalleerde consumeervoorbeeld
 dist-core/
+dist-mcp-server/
 # Claude Desktop-bundel (`npm run build:mcpb`)
 dist-mcpb/
 headless/**/node_modules/

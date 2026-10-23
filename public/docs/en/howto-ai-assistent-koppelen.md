@@ -129,6 +129,25 @@ Whether the MCP client really read the guide you can see in the *Activity panel*
 
 **A web page in your browser cannot talk to the bridge.** The bridge refuses every request that comes from a browser, and every request without the right token.
 
+## Without the app
+
+There is also an MCP server that works without the desktop app: the **headless MCP server**. It offers the same `planner_*` tools, but it works on a schedule file on disk instead of on your open project. So you do not see the changes in the Gantt chart, and *Undo* in the app does not apply to them. Use it when you do not want the app open, or on a computer without a screen.
+
+The server is not in a release yet. You build it from the source code with `npm run build:mcp-server`; for that you need Node.js 22 or newer. The result is one file, `server.mjs`.
+
+1. Choose a working folder with your schedule files. The server reads and writes only in that folder.
+2. Connect your MCP client. For Claude Code, the command is below these steps.
+3. Ask the MCP client to open a schedule, for example `~/plan.ifc`. In this server, `~` means the working folder.
+4. Ask the MCP client to save the result. There is no automatic saving: the MCP client writes the file with `planner_export_ifc`. What it does not save is lost when the server stops.
+
+For step 2 in Claude Code, give this command in a terminal, with your own paths:
+
+```
+claude mcp add open-planner -- node /path/to/server.mjs --root /path/to/working-folder
+```
+
+Before the first change per document, the server makes an MCP backup, like the app. An MCP client that chooses a path outside the working folder, also through a shortcut (symbolic link), gets a refusal.
+
 ## See also
 
 - [Giving feedback](docs://howto-feedback-geven): if the connection works differently from what is described here, report it.

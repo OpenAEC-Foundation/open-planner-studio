@@ -129,6 +129,25 @@ Of de MCP-client de gids echt heeft gelezen, zie je in het *Activiteitenpaneel*:
 
 **Een webpagina in je browser kan de bridge niet aanspreken.** De bridge weigert elke aanvraag die vanuit een browser komt, en elke aanvraag zonder het juiste token.
 
+## Zonder de app
+
+Er is ook een MCP-server die zonder de desktop-app werkt: de **headless MCP-server**. Hij biedt dezelfde `planner_*`-tools, maar werkt op een planningsbestand op schijf in plaats van op je open project. Je ziet de wijzigingen dus niet in de Gantt, en *Ongedaan* in de app werkt er niet op. Gebruik hem als je de app niet open wilt hebben, of op een computer zonder scherm.
+
+De server zit nog niet in een release. Je bouwt hem uit de broncode met `npm run build:mcp-server`; daarvoor heb je Node.js 22 of nieuwer nodig. Het resultaat is één bestand, `server.mjs`.
+
+1. Kies een werkmap met je planningsbestanden. De server leest en schrijft alleen in die map.
+2. Koppel je MCP-client. Voor Claude Code staat de opdracht onder deze stappen.
+3. Vraag de MCP-client een planning te openen, bijvoorbeeld `~/plan.ifc`. In deze server betekent `~` de werkmap.
+4. Vraag de MCP-client om het resultaat op te slaan. Er is geen automatisch opslaan: de MCP-client schrijft het bestand met `planner_export_ifc`. Wat hij niet opslaat, is weg als de server stopt.
+
+Voor stap 2 in Claude Code geef je in een terminal deze opdracht, met je eigen paden:
+
+```
+claude mcp add open-planner -- node /pad/naar/server.mjs --root /pad/naar/werkmap
+```
+
+Vóór de eerste wijziging per document maakt de server een MCP-backup, net als de app. Een MCP-client die een pad buiten de werkmap kiest, ook via een snelkoppeling (symbolische link), krijgt een weigering.
+
 ## Zie ook
 
 - [Feedback geven](docs://howto-feedback-geven): loopt de koppeling anders dan hier staat, meld het dan.

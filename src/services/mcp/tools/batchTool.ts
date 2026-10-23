@@ -48,7 +48,7 @@ import type {
 import { isRecord, isThenable } from '@/utils/guards';
 import { createSnapshot, documentDataChanged } from '@/state/snapshot';
 import { TEMP_ID_PATTERN } from './helpers';
-import { ensureFreshSchedule, ensureFreshScheduleForRead } from '../staleGuard';
+import { ensureFreshSchedule, ensureFreshScheduleForRead } from '../freshness';
 
 /** Harde bovengrens op het aantal stappen. */
 export const MAX_BATCH_STEPS = 100;

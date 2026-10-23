@@ -154,6 +154,49 @@ en noem het in je rapport of PR-tekst.
     website volgt de laatste deploy, terwijl een desktopversie zijn eigen kopie meelevert; een oudere app kan
     dus naar een gids wijzen die tools beschrijft die hij niet heeft. De gids zegt nu dat de kopie van de tool
     voorgaat. Voorstel: een versiepad (bv. `/agent/<versie>/planning-guide.md`) of de versie in de gids. — S
+213. **Een UNC-werkmap op Windows werkt niet in de headless MCP-server.** `normalizeAbsolutePath`
+    (`src/services/mcp/tools/fileTools.ts:105`) maakt van `\\server\share\plan.ifc` het pad
+    `/server/share/plan.ifc`, en dat gaat zo naar `path.resolve` in `headless/mcp-server/src/nodeFs.ts:136`.
+    Gevonden in review ronde 1 van PR #572 (GPT-6.1-Sol). Voorstel: UNC-paden in de lexicale poort als eigen
+    vorm herkennen, of ze met een duidelijke melding weigeren. — B
+214. **De eigen XML-parser van de headless MCP-server is te soepel.** `headless/mcp-server/src/xmlDom.ts:101`
+    en 146: hij accepteert `&#0;`, leest `&constructor;` uit de prototypeketen, normaliseert CRLF niet,
+    accepteert ongebonden prefixen en `]]>` buiten CDATA, en detecteert geen UTF-16. Gevonden in review ronde
+    2 van PR #572 (GPT-6.1-Sol). Voorstel: `@xmldom/xmldom` bundelen met een kleine adapter (DOCTYPE-beleid,
+    strikte fouten), of gerichte fixes met tests. — B
+215. **De headless MCP-server doet geen `fsync` van de doelmap na de `rename`.**
+    `headless/mcp-server/src/nodeFs.ts:355`: na een stroomuitval kan de nieuwe naam ontbreken. Gevonden in
+    review ronde 2 van PR #572 (GPT-6.1-Sol). Voorstel: na de `rename` de map openen (`'.'`, in het gebonden
+    blok) en `fsync` doen. — B
+216. **De tijdelijke naam bij opslaan is de doelnaam plus 27 bytes.** `headless/mcp-server/src/nodeFs.ts:324`:
+    een geldige bestandsnaam van rond 240 bytes geeft bij opslaan `ENAMETOOLONG`. Gevonden in review ronde 2
+    van PR #572 (GPT-6.1-Sol). Voorstel: een korte eigen naam (bijv. `.ops-save.<willekeurig>.tmp`). — B
+217. **Het eigen tijdelijke bestand wordt na een mapwissel niet altijd opgeruimd.**
+    `headless/mcp-server/src/nodeFs.ts:370`: is de map weg of niet meer bereikbaar, dan blijft
+    `.<naam>.<willekeurig>.ops-save.tmp` staan (de docs zeggen dat nu ook). Gevonden in review ronde 2 van PR
+    #572 (GPT-6.1-Sol). Voorstel: een opruimronde voor oude `ops-save.tmp`-bestanden bij de start, of melden
+    waar het bestand staat. — B
+
+218. **Headless MCP-server: de HTTP-time-out begrenst synchrone bestandstoegang niet.**
+    `headless/mcp-server/src/nodeFs.ts:285` en `writeFileSync`/`fsyncSync` op 333–335 draaien synchroon; hangt
+    lezen of synchroniseren op een trage schijf, dan staan alle sessies stil en kan de 120-secondentimer in
+    `headless/mcp-server/src/http.ts:117` niet afgaan. De documentatie belooft die grens te stellig. Gevonden
+    in review ronde 3 van PR #572 (GPT-6.1-Sol). Voorstel: de tekst over de tijdslimiet eerlijk maken en grote
+    bestanden op trage opslag meten voordat er een andere procesopzet komt. — B
+
+219. **Headless MCP-server: een scopeweigering tijdens de bewerking komt niet als `SCOPE` bij de client.**
+    `src/services/mcp/tools/fileTools.ts:337` maakt van elke schrijffout `INTERNAL`, `fileTools.ts:434` van
+    elke leesfout `NOT_FOUND`; een `ScopeEscapeError` na een mapwissel krijgt dus de verkeerde code (de
+    toegang wordt wel geweigerd). De tests controleren alleen het fouttype van `nodeFs`. Gevonden in review
+    ronde 3 van PR #572 (GPT-6.1-Sol). Voorstel: een klein gedeeld foutcontract en één test door de echte
+    toolhandler. — B
+
+220. **Headless MCP-server: terugzetten van de procesmap is een poging, geen garantie.**
+    `headless/mcp-server/src/nodeFs.ts:253`: verdwijnt de oorspronkelijke procesmap tijdens een bewerking, dan
+    blijft het proces in `realRoot`; is ook die weg, dan gooit de `finally` opnieuw, verdringt de
+    oorspronkelijke fout en blijft de tijdelijke procesmap actief. CLI-, backup- en importpaden gebruiken
+    absolute paden, dus geen bekende route naar verkeerd opgeslagen bestanden. Gevonden in review ronde 3 van
+    PR #572 (GPT-6.1-Sol). Voorstel: de terugval documenteren en beide fouten bewaren of melden. — B
 
 206. **`.mcpb`-bundel: een annulering tijdens opnieuw verbinden valt weg.**
     `integrations/claude-desktop/src/proxy.ts:445` haalt het request-id uit `queuedIds` voordat

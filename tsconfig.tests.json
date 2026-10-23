@@ -13,12 +13,13 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "noEmit": true,
-    // Node-globals (process, Buffer, node:*-modules) horen bij scripts/ en tests/, niet bij src/.
+    // Node-globals (process, Buffer, node:*-modules) horen bij scripts/, tests/ en de headless
+    // MCP-server (headless/mcp-server/src/, issue #570), niet bij src/.
     "types": ["node"]
   },
   // Ambient globals moeten expliciet mee: `include` volgt imports wél, maar pikt losse
   // .d.ts-declaratiebestanden niet automatisch op (idem tests/planning/tsconfig.check.json).
   // (`src/vite-env.d.ts` levert `__APP_VERSION__` en `import.meta.env`, die de geïmporteerde
   // src-modules gebruiken; `file-system-access.d.ts` de FSA-typen achter fileAccess/webBackend.)
-  "include": ["scripts", "tests", "integrations", "src/vite-env.d.ts", "src/types/file-system-access.d.ts"]
+  "include": ["scripts", "tests", "integrations", "headless/mcp-server/src", "src/vite-env.d.ts", "src/types/file-system-access.d.ts"]
 }
