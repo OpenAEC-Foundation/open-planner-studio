@@ -14,6 +14,7 @@ import { CalendarEngine } from './CalendarEngine';
 import { resolveCalendar } from './resolveCalendar';
 import { enumerateTaskWorkDays } from './splitWalk';
 import { createTaskEngineCache } from './taskEngineCache';
+import { workPlacement, type PlacementDay, type PlacementResult, type WorkPlacement } from './workPlacement';
 import { isPinnedComplete } from './duration';
 import {
   CONTOUR_SHAPE_VALUES, CURVE_TO_SHAPE, matchContoursToAssignments, periodsToWorkDaySlots,
@@ -237,6 +238,85 @@ export function taskWorkDayIsos(task: Task, taskEngine: CalendarEngine, duration
   return task.time.durationType === 'ELAPSEDTIME' || isPinnedComplete(task.time)
     ? enumerateWorkDays(taskEngine, task.time.earlyStart, task.time.earlyFinish)
     : enumerateTaskWorkDays(task.splitGaps, taskEngine, task.time.earlyStart, durationDays);
+}
+
+export interface AssignmentPlacementLoad {
+  days: PlacementDay[];
+  units: number[];
+}
+
+/**
+ * Voorbereidend gegevenscontract voor histogram, nivelleerder en (F4b) contourdialoog.
+ * Productie sluit pas aan in F3c, samen met het maatbeleid en de minuutvertraging.
+ * De plaatsing en effectieve maat komen van de aanroeper. Bestaande curve-/werkverdeling blijft
+ * de bron: haar slots worden
+ * naar rato van overlap op de bezette dagdelen gelegd, zonder nieuwe curvevorm of afronding.
+ * Contourperiodes liggen op de fysieke split-as en worden rechtstreeks met werkblokken gesneden.
+ */
+export function assignmentPlacementLoad(
+  task: Task,
+  assignment: ResourceAssignment,
+  engine: CalendarEngine,
+  placement: WorkPlacement,
+  contour?: TaskTimephasedContour | null,
+  placed?: PlacementResult,
+): AssignmentPlacementLoad {
+  const { days } = placed ?? workPlacement(engine, placement);
+  const mpd = engine.hoursPerDay * 60;
+  const resolved = contour === undefined
+    ? matchContoursToAssignments(task.timephasedContours, [assignment]).get(assignment.id) ?? null : contour;
+  if (resolved && resolved.periods.length > 0) {
+    const units = days.map(() => 0);
+    const ranges = days.flatMap((d, day) => d.ranges.map(r => ({ ...r, day })));
+    for (const p of resolved.periods) {
+      if (!Number.isFinite(p.afterMinutes) || !Number.isFinite(p.minutes) || !Number.isFinite(p.workMinutes)
+        || p.afterMinutes < 0 || p.minutes <= 0 || p.workMinutes <= 0) continue;
+      // Werk in een split schuift, net als bij de bestaande contour-engine, naar het volgende
+      // werkblok. Ook een rest voorbij het laatste blok blijft behouden op de laatste werkdag.
+      let cursor = p.afterMinutes;
+      const end = cursor + p.minutes;
+      let lo = 0;
+      let hi = ranges.length;
+      while (lo < hi) {
+        const mid = (lo + hi) >>> 1;
+        if (ranges[mid].afterMinutes + ranges[mid].minutes <= cursor) lo = mid + 1; else hi = mid;
+      }
+      for (let i = lo; i < ranges.length; i++) {
+        const r = ranges[i];
+        const stop = Math.min(end, r.afterMinutes + r.minutes);
+        if (stop > cursor) {
+          units[r.day] += p.workMinutes * (stop - cursor) / p.minutes / mpd;
+          cursor = stop;
+        }
+        if (cursor >= end) break;
+      }
+      if (cursor < end && days.length > 0) units[days.length - 1] += p.workMinutes * (end - cursor) / p.minutes / mpd;
+    }
+    return { days, units };
+  }
+  const totalShare = days.reduce((sum, d) => sum + d.share, 0);
+  if (!(totalShare > 0)) return { days, units: [] };
+  if (!assignment.curveValues && assignment.remainingWorkMinutes === undefined
+    && (!assignment.curve || assignment.curve === 'UNIFORM')) {
+    return { days, units: days.map(d => d.share * assignment.unitsPerDay) };
+  }
+  const source = assignmentDayUnits(task, assignment, mpd, null);
+  // Bij ontbreken van opgeslagen werk volgt het totaal de effectieve plaatsingsmaat. De oude
+  // formule kan haar som op hele eenheden ronden; dat mag een gebroken plaatsing niet verlengen.
+  const storedWork = assignment.remainingWorkMinutes !== undefined && Number.isFinite(assignment.remainingWorkMinutes);
+  const sourceTotal = source.reduce((sum, u) => sum + u, 0);
+  const scale = storedWork ? 1 : sourceTotal > 0 ? assignment.unitsPerDay * totalShare / sourceTotal : 0;
+  let position = 0;
+  const units = days.map(d => {
+    const end = position + d.share / totalShare * source.length;
+    let load = 0;
+    for (let i = Math.floor(position); i < Math.min(source.length, Math.ceil(end)); i++) {
+      load += source[i] * Math.max(0, Math.min(end, i + 1) - Math.max(position, i));
+    }
+    position = end;
+    return load * scale;
+  });
+  return { days, units };
 }
 
 /** ISO-datum → belaste/beschikbare eenheden. Alleen dagen met >0 belasting of capaciteit
