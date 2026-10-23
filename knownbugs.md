@@ -199,15 +199,14 @@ en noem het in je rapport of PR-tekst.
      dagtaken apart vast wat een afsluitend eindmoment is en wat een START is die een projectdag opent,
      met de bestaande kalenderfuncties. Gevonden in review F2 ronde 6. — B
 
-251. **De projectstandaard *Vast werk* zet bestaande dagenmaat-taken niet om naar de urenmaat.**
-     B1a (spec "alleen uren" §3.2): een taak met vast werk is altijd urenmaat. Een taak zonder eigen
-     regel volgt de projectstandaard (`defaultWorkRule`). Zet je die standaard op vast werk, dan blijft
-     een bestaande taak van 3 d in de dagenmaat; een naamwijziging laat dat zo. Pas een duurwijziging
-     maakt er urenmaat van (`routeFixedWorkDurationToHours`). Nagespeeld met `setProject({ defaultWorkRule:
-     'FIXED_WORK' })` en `updateTask(naam)`. Hetzelfde geldt waarschijnlijk voor een bestand met die
-     standaard en dagtaken (VERMOED, niet nagespeeld). Voorstel: maak de wissel van de projectstandaard een
-     planningsbewerking die elke taak zonder eigen regel door `settleRuleChange` haalt, met één undo-stap
-     en een melding. Gevonden in F3c-winkel. — B
+253. **Een IFC met de projectstandaard *Vast werk* en dagenmaat-taken blijft na openen in de dagenmaat.**
+     B1a (spec "alleen uren" §3.2): een taak met vast werk is altijd urenmaat. Sinds review #581 r1 zet
+     een wissel van de projectstandaard (`setProject`, `planner_update_project`) de taken om die hem erven
+     (`settleDefaultWorkRuleSwitch`). Een bestand dat vóór die fix zo is opgeslagen, heeft nog dagtaken
+     onder een geërfd vast werk. Openen zet ze niet om: nagespeeld met een storeprobe (standaard buiten de
+     actie om gezet, IFC schrijven, `applyLoadedProject`): de taak blijft `days`, einde vr 16:00. Alleen
+     IFC draagt `defaultWorkRule`; MSPDI en P6 geven elke taak een eigen regel. Voorstel: dezelfde omzetting
+     aan de laadgrens (`prepareLoadedPayload`), met de laadmelding. Gevonden in F3c-fix-winkel. — B
 
 278. **Een wortel-taak met een rauw anker op het laatste blokeinde: solver en belasting kiezen een andere
      dag.** Urentaak van 8 u, geen voorganger, start ma 16:00 op een kalender 08–16. De solver houdt het

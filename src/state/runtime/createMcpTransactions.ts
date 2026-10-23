@@ -42,7 +42,7 @@ import { isValidUnits, type Resource, type ResourceAssignment, type ResourceCurv
 import type { Project } from '@/types/project';
 import type { CustomTaskType } from '@/types/taskType';
 import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
-import { applyProjectPatch } from '../projectPatch';
+import { applyProjectPatch, type ClearableProjectKey, type ProjectPatchOutcome } from '../projectPatch';
 import { customTaskTypeClashes } from '@/services/taskTypes/customTaskTypeRules';
 import { isThenable } from '@/utils/guards';
 import { isSummaryTask } from '@/utils/taskHierarchy';
@@ -1020,17 +1020,19 @@ function createMcpDraft(
    * de AI stil vóór het officiële projectbegin hangen. Dezelfde gedeelde `applyProjectPatch`
    * (`state/projectPatch.ts`) als de UI-kant — één definitie, geen tweede die kan afdrijven. GEEN
    * eigen `runCPM`/melding hier: de gebonden transactierun herrekent precies
-   * één keer aan het eind (stap 5); het AANTAL geklemde ankers gaat terug naar de AANROEPER (i.p.v.
+   * één keer aan het eind (stap 5). `clear` wist sleutels echt (statusdatum, voortgangsmodus,
+   * projectstandaard), binnen dezelfde patch, zodat ook een gewiste projectstandaard de taken omzet die
+   * hem erven. Het AANTAL geklemde ankers gaat terug naar de AANROEPER (i.p.v.
    * naar het UI-meldingenkanaal, dat de MCP-bridge niet gebruikt) zodat `planner_update_project` het
    * in zijn tool-resultaat kan melden.
    */
-  setProject(updates: Partial<Project>): number {
-    let clampedAnchors = 0;
+  setProject(updates: Partial<Project>, clear: readonly ClearableProjectKey[] = []): ProjectPatchOutcome {
+    let outcome: ProjectPatchOutcome = { clampedAnchors: 0, measureChangedTaskIds: [] };
     store.setState((s) => {
-      clampedAnchors = applyProjectPatch(s, updates);
+      outcome = applyProjectPatch(s, updates, clear);
       markDocumentEdited(s);
     });
-    return clampedAnchors;
+    return outcome;
   },
   };
 

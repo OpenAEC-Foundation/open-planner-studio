@@ -596,8 +596,45 @@ export function settleRuleChange(
 ): RuleChangeWriteBack {
   const captured = captureTriangle(task, assignments, deps);
   if (rule === undefined) delete task.workRule; else task.workRule = rule;
-  if (!captured) return { ...NO_CHANGE, durationUnitChanged: false };
-  const effectiveRule = effectiveWorkRule(task, captured.ctx.defaultWorkRule);
+  if (!captured) return NO_RULE_CHANGE;
+  return settleEffectiveRuleChange(task, assignments, captured, effectiveWorkRule(task, captured.ctx.defaultWorkRule));
+}
+
+const NO_RULE_CHANGE: RuleChangeWriteBack = { ...NO_CHANGE, durationUnitChanged: false };
+
+/**
+ * Wissel van de projectstandaard (`Project.defaultWorkRule`) voor één taak ZONDER eigen regel: zij erft
+ * de standaard, dus voor haar is dit een typewissel, met dezelfde brug als `settleRuleChange` (ook B1a:
+ * vast werk maakt een dagenmaat-taak urenmaat). `deps` beschrijft de toestand van VÓÓR de wissel (de
+ * oude standaard); `nextDefault` is de nieuwe. Een taak met een eigen regel, een taak waarop de regel
+ * niet werkt en een taak waarvoor de effectieve regel gelijk blijft, blijven ongemoeid. De terugweg
+ * (van vast werk naar een andere regel) laat de urenmaat staan, net als een typewissel op de taak.
+ */
+export function settleDefaultRuleChange(
+  task: Task,
+  assignments: ResourceAssignment[],
+  deps: WorkRuleDeps,
+  nextDefault: WorkRule | undefined,
+): RuleChangeWriteBack {
+  // Vroeg eruit: een eigen regel wint van elke standaard (dat zegt ook de gelijkheidstoets hieronder).
+  if (task.workRule !== undefined) return NO_RULE_CHANGE;
+  const captured = captureTriangle(task, assignments, deps);
+  if (!captured) return NO_RULE_CHANGE;
+  const rule = effectiveWorkRule(task, nextDefault);
+  if (rule === effectiveWorkRule(task, captured.ctx.defaultWorkRule)) return NO_RULE_CHANGE;
+  // Na de wissel geldt de nieuwe standaard ook voor het terugschrijven.
+  const ctx: WorkRuleContext = { ...captured.ctx };
+  if (nextDefault === undefined) delete ctx.defaultWorkRule; else ctx.defaultWorkRule = nextDefault;
+  return settleEffectiveRuleChange(task, assignments, { ...captured, ctx }, rule);
+}
+
+/** Het gedeelde deel van een typewissel: de taak krijgt `effectiveRule` (eigen veld of standaard). */
+function settleEffectiveRuleChange(
+  task: Task,
+  assignments: ResourceAssignment[],
+  captured: CapturedTriangle,
+  effectiveRule: WorkRule,
+): RuleChangeWriteBack {
   const durationUnitChanged = effectiveRule === 'FIXED_WORK' && task.time.durationUnit !== 'hours';
   if (durationUnitChanged) {
     const t = task.time;

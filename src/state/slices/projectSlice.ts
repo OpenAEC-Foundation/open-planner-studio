@@ -235,18 +235,28 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
     // teller die de producer vult, waarna de aanroeper ná `set()` op de VOLTOOIDE state reageert;
     // `get().notify(...)`/`get().runCPM()` binnen een actieve producer aanroepen kan niet).
     let clampedAnchors = 0;
+    let measureChanged = false;
     set((s) => {
       // No-op-guard vóór de snapshot: een opslag met identieke waarden verandert niets —
       // geen undo-stap, geen `modifiedAt`-bump, geen isDirty.
       if (!projectChanges(s.project, updates)) return;
       runtime.beginUndoable(s);
       // Merge + `modifiedAt` + de projectstart-vloer op het bewerkmoment (verouderde wortel-
-      // ankers klemmen) — gedeeld met `draft.setProject`, zie `applyProjectPatch` (projectPatch.ts)
-      // voor het waarom. Wie de hele planning wil opschuiven gebruikt `moveProject` hieronder.
-      clampedAnchors = applyProjectPatch(s, updates);
-      // Alleen de projectstart raakt de planning (anker van de forward pass); naam/auteur niet.
-      runtime.finishMutation(s, { stale: 'startDate' in updates });
+      // ankers klemmen) + de taken die een nieuwe projectstandaard voor het taaktype erven —
+      // gedeeld met `draft.setProject`, zie `applyProjectPatch` (projectPatch.ts) voor het waarom.
+      // Wie de hele planning wil opschuiven gebruikt `moveProject` hieronder.
+      const outcome = applyProjectPatch(s, updates);
+      clampedAnchors = outcome.clampedAnchors;
+      measureChanged = outcome.measureChangedTaskIds.length > 0;
+      // De projectstart raakt de planning (anker van de forward pass); naam/auteur niet. Een nieuwe
+      // standaard *Vast werk* die taken urenmaat maakt, is ook planning (geval 11c): de modus gaat
+      // uit en de planning wordt verouderd, in deze ene undo-stap.
+      runtime.finishMutation(s, { stale: 'startDate' in updates || measureChanged });
     });
+    if (measureChanged) {
+      get().recomputeResourceLoad();
+      get().recomputeViewRows();
+    }
     if (clampedAnchors > 0) {
       // Ná een DAADWERKELIJKE klem meteen herberekenen — anders is de melding ("meegeschoven")
       // op het moment dat hij verschijnt nog niet waar (de taken staan dan wel op hun nieuwe anker,

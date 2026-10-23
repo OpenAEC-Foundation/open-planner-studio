@@ -137,7 +137,10 @@ const finishOf = (c: AppStoreContext) => c.store.getState().tasks.find(t => t.id
   eq('p13 rapport Resourcebelasting: per week 0,8 en 0,3 (zonder profiel 1 en 0)',
     report.rows.map(r => [r.bucketStart, r.required]), [['2026-06-01', 0.8], [MA, 0.3]]);
 
-  const pool: CompanyPool = { companyId: 'c', version: 1, resources: [{ id: 'lib-r', name: 'R', type: 'LABOR', description: '', maxUnits: 1 }] } as CompanyPool;
+  const pool: CompanyPool = {
+    companyId: 'c', companyName: 'Bibliotheek', poolVersion: 1, modifiedAt: '2026-06-01T00:00:00.000Z', calendars: [],
+    resources: [{ id: 'lib-r', name: 'R', type: 'LABOR', description: '', maxUnits: 1 }],
+  };
   const occupancy = computeLibraryOccupancy('c', pool, [{
     docId: 'd', title: 'D', scheduleStale: false, companyId: 'c',
     resources: [{ ...s.resources[0], libraryOrigin: { companyId: 'c', libraryItemId: 'lib-r', poolVersion: 1, syncedHash: '' } }],
