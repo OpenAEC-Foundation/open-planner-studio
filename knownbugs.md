@@ -188,6 +188,23 @@ en noem het in je rapport of PR-tekst.
      een paar uur verschillen. Het taakeinde klopt altijd (de laatste grens is het taakeinde). Afgeleid uit de
      code, niet nagespeeld. Voorstel: geef de renderer `workdayDurationMeasure` mee. Gevonden in F3c. — S
 
+276. **Een FNET met een tijd buiten werktijd zet een START-mijlpaal op de volgende werkdag.** P 1 d op
+     maandag, FS+0 naar START-mijlpaal M, FNET di 18:00 (kalender 7–16). M komt op wo 07:00, ook een
+     mijlpaal zonder soort. `forwardBoundOf` laat de tijd 18:00 staan (geen snap voor een mijlpaal met
+     tijd); de her-snap in `snapSuccessorEarlyStart` zet een moment buiten werktijd door naar het volgende
+     blokbegin. De controle op het FNET-eindmoment daar geldt alleen binnen werktijd of op een blokeinde.
+     Met eigen werkblokken gebeurt dit ook op `be58ba356`. Richting: puntsgewijze semantiek voor
+     mijlpalen. Gevonden in review F2 ronde 4. — B
+
+277. **Een 24-uurskalender naast een gewone kalender kost een parallelle dagtaak een dag speling.** P werkt
+     maandag op een 24-uurskalender, met een START-mijlpaal op di 00:00. De dagtaak R op 07–16 of 08–16
+     krijgt speling 0 en is kritiek; op `be58ba356` is dat 1, niet kritiek. Dit geldt onder OPS, P6 en
+     MSP. Zonder die eindmijlpaal, of met een FINISH-mijlpaal, geven de basis en de head allebei 0.
+     Locatie: `CPMSolver.ts:1351`, samen met de projecteindgrens rond `CPMSolver.ts:3717`. Het ontstond in
+     `29a2f6cac` (eerder ook in `d3e7c885f`, hersteld in `b36c37770`). Richting: leg voor gewone
+     dagtaken apart vast wat een afsluitend eindmoment is en wat een START is die een projectdag opent,
+     met de bestaande kalenderfuncties. Gevonden in review F2 ronde 6. — B
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
@@ -437,6 +454,14 @@ en noem het in je rapport of PR-tekst.
      dageinde 16:00. Gemeten op de eindmijlpaal uit review ronde 3 van PR #559 (`milestone-11.xml`, met een
      werkelijk einde om 08:00), op alle vier stappen tot en met heropenen. Richting: lees 08:00 alleen als
      anker in een bestand dat OPS zelf schreef. Fixronde 3 van de F2-laadfix. — B
+
+275. **Eén werkelijke datum met een tijd maakt van een importkalender een urenkalender.** Bij P6 XML en
+     MSPDI telt een werkelijke datum met een eigen tijd mee in de keuze tussen uren en dagen per kalender
+     (`p6xmlReader.ts:873`, `mspdiReader.ts:332`). Daarna leest een andere voltooide taak op die kalender,
+     met `ActualFinish …T08:00` in de bron, als 08:00 in plaats van 16:00. Dat blijft zo tot en met IFC
+     heropenen. Dit is de dubbelzinnigheid van ankerregel I8; een toegestane tussenstand tot F5a/F5b.
+     Richting: onderscheid een synthetisch 08:00-anker van een echte tijd. Zie ook 274. Gevonden in
+     review F2 ronde 4. — B
 
 ## Rondleiding, Help en extensie-gidsen
 
