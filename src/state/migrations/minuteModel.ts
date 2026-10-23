@@ -4,6 +4,7 @@ import type { MilestoneKind, Task, TaskTime } from '@/types/task';
 import type { Baseline, BaselineTask } from '@/types/baseline';
 import { isElapsedTask, isPinnedComplete, isZeroDurationMilestone } from '@/engine/scheduler/duration';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
+import { settleFixedWorkMeasure, type WorkRuleDeps } from '@/engine/work/workRuleApply';
 import { scalarBreakIssue } from '@/utils/effectiveWorkTime';
 import {
   blocksClock, dayEndInstant, dayStartInstant, ELAPSED_CLOCK, isDateOnly, isInstant,
@@ -193,6 +194,9 @@ export interface MinuteModelReport {
   normalizedByField: Partial<Record<TaskDateField | 'projectEnd', number>>;
   calendarRepairs: CalendarRepair[];
   unresolved: UnresolvedDate[];
+  /** B1a (§3.2): taken onder vast werk (eigen of geërfde regel) die van de dagenmaat naar de urenmaat
+   *  gingen. Niet leeg ⇒ ook de vlag "omzetting open", zodat een verschuiving via B5 loopt. */
+  fixedWorkToHours: string[];
 }
 
 export interface MinuteModelOptions {
@@ -432,6 +436,7 @@ export function migrateToMinuteModel(payload: DocumentPayload, options: MinuteMo
     normalizedByField: {},
     calendarRepairs: [],
     unresolved: [],
+    fixedWorkToHours: [],
   };
 
   // 1. Schemamigratie (oud bestand): eerst de kalenders, want de normalisatie leest hun werkblokken.
@@ -459,7 +464,20 @@ export function migrateToMinuteModel(payload: DocumentPayload, options: MinuteMo
   // 2. Normalisatie (altijd).
   const clocks = new DayClockCache(calendar, calendars);
   const n = new Normalizer(report);
-  const tasks = payload.tasks.map((t) => migrateTask(t, taskDateContext(t, clocks, options.milestonesAtDayEnd), n));
+  const normalized = payload.tasks.map((t) => migrateTask(t, taskDateContext(t, clocks, options.milestonesAtDayEnd), n));
+
+  // 3. B1a (altijd): vast werk is urenmaat. Een bestand van vóór B1a kan een gewone taak onder vast werk
+  //    (eigen regel of de projectstandaard) in de dagenmaat hebben. Die wordt hier urenmaat, met dezelfde
+  //    omzetting als een typewissel; rest en verricht werk blijven. Een verschuiving van datums loopt
+  //    via B5: de vlag "omzetting open" gaat aan, ook in een bestand mét `TimeModel`.
+  const deps: WorkRuleDeps = { calendar, calendars, project: payload.project, resources: payload.resources };
+  const tasks = normalized.map((t) => {
+    const copy: Task = { ...t, time: { ...t.time } };
+    if (!settleFixedWorkMeasure(copy, deps)) return t;
+    report.fixedWorkToHours.push(t.id);
+    return copy;
+  });
+  if (report.fixedWorkToHours.length > 0) report.conversionPending = true;
   const taskById = new Map(tasks.map((t) => [t.id, t]));
   const baselines = payload.baselines.map((b) => migrateBaseline(b, taskById, clocks, n, options.milestonesAtDayEnd));
 

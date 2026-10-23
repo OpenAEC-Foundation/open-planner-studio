@@ -199,15 +199,6 @@ en noem het in je rapport of PR-tekst.
      dagtaken apart vast wat een afsluitend eindmoment is en wat een START is die een projectdag opent,
      met de bestaande kalenderfuncties. Gevonden in review F2 ronde 6. — B
 
-253. **Een IFC met de projectstandaard *Vast werk* en dagenmaat-taken blijft na openen in de dagenmaat.**
-     B1a (spec "alleen uren" §3.2): een taak met vast werk is altijd urenmaat. Sinds review #581 r1 zet
-     een wissel van de projectstandaard (`setProject`, `planner_update_project`) de taken om die hem erven
-     (`settleDefaultWorkRuleSwitch`). Een bestand dat vóór die fix zo is opgeslagen, heeft nog dagtaken
-     onder een geërfd vast werk. Openen zet ze niet om: nagespeeld met een storeprobe (standaard buiten de
-     actie om gezet, IFC schrijven, `applyLoadedProject`): de taak blijft `days`, einde vr 16:00. Alleen
-     IFC draagt `defaultWorkRule`; MSPDI en P6 geven elke taak een eigen regel. Voorstel: dezelfde omzetting
-     aan de laadgrens (`prepareLoadedPayload`), met de laadmelding. Gevonden in F3c-fix-winkel. — B
-
 278. **Een wortel-taak met een rauw anker op het laatste blokeinde: solver en belasting kiezen een andere
      dag.** Urentaak van 8 u, geen voorganger, start ma 16:00 op een kalender 08–16. De solver houdt het
      anker rauw en telt de duur vanaf het eerste blok van die dag (spec §4.3 N0, z13-cases in
@@ -491,6 +482,14 @@ en noem het in je rapport of PR-tekst.
      heropenen. Dit is de dubbelzinnigheid van ankerregel I8; een toegestane tussenstand tot F5a/F5b.
      Richting: onderscheid een synthetisch 08:00-anker van een echte tijd. Zie ook 274. Gevonden in
      review F2 ronde 4. — B
+
+256. **Een kale start op een letterlijke kalender schuift in de ruwe IFC-rondgang naar 07:00.** Kalender
+     09:00–17:00 met letterlijke tijden. Een planningsstart zonder tijd wordt in de ruwe route
+     `readIFC → writeIFC → readIFC` 07:00, terwijl de laadgrens er 09:00 van maakt. De ruwe MSPDI-export
+     schrijft voor dezelfde start 08:00. Via de echte laadroute van de app gaat het goed. Locatie:
+     `minuteModelWrite.ts:90` (`literalEndOf` laat een kale start ongemoeid). Richting: maak de
+     invoervoorwaarde van de ruwe writer expliciet (alleen genormaliseerde payloads), of normaliseer ook kale
+     planningsstarts met hun veldregel. Gevonden in review #581 r2 (VERVOLG). — B
 
 ## Rondleiding, Help en extensie-gidsen
 

@@ -628,6 +628,34 @@ export function settleDefaultRuleChange(
   return settleEffectiveRuleChange(task, assignments, { ...captured, ctx }, rule);
 }
 
+/** B1a: de dagenmaat-taak wordt urenmaat met `totalMinutes` (werkdagen × werktijd per dag). De rest komt
+ *  uit de blijvende dagenbron van VÓÓR de omzetting (`remainingMinutes`), ook bij een voltooide taak. */
+function writeHourMeasure(task: Task, totalMinutes: number, remainingMinutes: number): void {
+  const t = task.time;
+  t.durationUnit = 'hours';
+  t.durationMinutes = totalMinutes;
+  if (t.remainingTime !== undefined || t.completion > 0 || t.actualStart) {
+    t.remainingMinutes = remainingMinutes;
+    t.remainingTime = hourRemainingDays(t, t.remainingMinutes);
+  } else delete t.remainingMinutes;
+}
+
+/**
+ * B1a aan de laadgrens (review #581 r2): een gewone taak onder vast werk, met een eigen regel of een
+ * geërfde, die nog in de dagenmaat staat (een bestand van vóór B1a), wordt urenmaat. Dezelfde omzetting
+ * als een typewissel (`writeHourMeasure`), maar zonder de werkdriehoek: inzet, restwerk en verricht werk
+ * van de toewijzingen blijven zoals ze in het bestand staan, en de rest van de taak blijft gelijk.
+ * Mijlpalen, samenvattingen, hangmatten en ELAPSEDTIME-taken vallen erbuiten (`workRuleApplies`).
+ * Muteert `task.time`; geeft `true` als de taak is omgezet.
+ */
+export function settleFixedWorkMeasure(task: Task, deps: WorkRuleDeps): boolean {
+  if (task.time.durationUnit === 'hours' || !workRuleApplies(task)) return false;
+  const ctx = workRuleContextOf(task, deps);
+  if (effectiveWorkRule(task, ctx.defaultWorkRule) !== 'FIXED_WORK') return false;
+  writeHourMeasure(task, totalMinutesOf(task, ctx), remainingMinutesOf(task, ctx));
+  return true;
+}
+
 /** Het gedeelde deel van een typewissel: de taak krijgt `effectiveRule` (eigen veld of standaard). */
 function settleEffectiveRuleChange(
   task: Task,
@@ -636,16 +664,7 @@ function settleEffectiveRuleChange(
   effectiveRule: WorkRule,
 ): RuleChangeWriteBack {
   const durationUnitChanged = effectiveRule === 'FIXED_WORK' && task.time.durationUnit !== 'hours';
-  if (durationUnitChanged) {
-    const t = task.time;
-    t.durationUnit = 'hours';
-    t.durationMinutes = captured.totalMinutes;
-    // Rest uit de blijvende dagenbron van VÓÓR de omzetting, ook bij een voltooide taak.
-    if (t.remainingTime !== undefined || t.completion > 0 || t.actualStart) {
-      t.remainingMinutes = captured.state.remainingMinutes;
-      t.remainingTime = hourRemainingDays(t, t.remainingMinutes);
-    } else delete t.remainingMinutes;
-  }
+  if (durationUnitChanged) writeHourMeasure(task, captured.totalMinutes, captured.state.remainingMinutes);
   const result = applyRuleChange(captured.state, effectiveRule);
   const written = result.ok
     ? applyTriangleResult(task, assignments, captured.state, result.state, captured.ctx, { actualWork: captured.actualWork })
