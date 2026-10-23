@@ -6,6 +6,7 @@
 !LICENSE
 !LICENSE.GPL
 !scripts/build-core.mjs
+!scripts/lib/third-party-notices.mjs
 !src/
 !headless/server/server.mjs
 !headless/server/worker.mjs

@@ -14,9 +14,10 @@
 // vervangen door een stub die bij gebruik een duidelijke fout gooit.
 import esbuild from 'esbuild';
 import ts from 'typescript';
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { thirdPartyNotices } from './lib/third-party-notices.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const outIdx = process.argv.indexOf('--out');
@@ -127,23 +128,15 @@ for (const [src, out] of declarations) {
 // Licenties van de MEEGEBUNDELDE dependencies (afgeleid uit de metafile, niet uit een vaste lijst):
 // per pakket naam, versie, licentie en de volledige licentietekst uit node_modules. Een gebundeld
 // pakket zonder licentiebestand laat de bouw falen.
-const bundledPackages = new Map();
-for (const input of inputs) {
-  const m = /(?:^|\/)node_modules\/((?:@[^/]+\/)?[^/]+)\//.exec(input);
-  if (!m) continue;
-  const dir = resolve(process.cwd(), input.slice(0, m.index + m[0].length - 1));
-  if (!bundledPackages.has(m[1])) bundledPackages.set(m[1], dir);
+let notices;
+try {
+  notices = thirdPartyNotices(inputs);
+} catch (error) {
+  console.error(`XX ${error instanceof Error ? error.message : String(error)}`);
+  process.exit(1);
 }
-const noticeParts = [];
-for (const [name, dir] of [...bundledPackages].sort(([a], [b]) => a.localeCompare(b))) {
-  const meta = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'));
-  const licenseFile = readdirSync(dir).find((f) => /^(licen[cs]e|copying)(\.(md|txt))?$/i.test(f));
-  if (!licenseFile || !existsSync(join(dir, licenseFile))) {
-    console.error(`XX gebundeld pakket ${name} heeft geen licentiebestand in ${dir}`);
-    process.exit(1);
-  }
-  noticeParts.push(`## ${name} ${meta.version}\n\nLicense: ${meta.license ?? 'see below'}\n\n\`\`\`text\n${readFileSync(join(dir, licenseFile), 'utf8').trim()}\n\`\`\`\n`);
-}
+const bundledPackages = new Map(notices.packages.map((name) => [name, true]));
+const noticeParts = [notices.sections];
 writeFileSync(join(outDir, 'THIRD-PARTY-NOTICES.md'), `# Third-party notices
 
 \`index.mjs\` of ${CORE_PACKAGE_NAME} ${appPkg.version} bundles code from the packages below. Their

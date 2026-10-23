@@ -3,6 +3,8 @@ node_modules/
 dist/
 # Headless kern (`npm run build:core`) en het lokaal geïnstalleerde consumeervoorbeeld
 dist-core/
+# Claude Desktop-bundel (`npm run build:mcpb`)
+dist-mcpb/
 headless/**/node_modules/
 headless/**/package-lock.json
 .vite/

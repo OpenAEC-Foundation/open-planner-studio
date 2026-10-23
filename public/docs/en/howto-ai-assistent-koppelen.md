@@ -48,7 +48,16 @@ claude mcp add --transport http open-planner-studio http://localhost:3877/mcp --
 
 You can also put the snippet in the file `.mcp.json` in your project folder. Then do not put that file in git, because the token gives access to your plan. A server from `.mcp.json` must be approved the first time in Claude Code.
 
-**Claude Desktop.** The configuration snippet does not fit Claude Desktop directly. In the file `claude_desktop_config.json` you name a program that Claude Desktop starts itself, not an address. So use the external tool `mcp-remote` in between; it needs Node.js. In Claude Desktop choose *Settings › Developer › Edit Config*, put this in the file (with your own token) and start Claude Desktop again:
+**Claude Desktop.** For Claude Desktop there is an extension: the file `open-planner-studio-<version>.mcpb`. Claude Desktop installs it with a double-click. You do not need Node.js for it.
+
+1. Download the `.mcpb` file from the latest release: `https://github.com/OpenAEC-Foundation/open-planner-studio/releases/latest`.
+2. Double-click the file. Claude Desktop opens and shows the extension *Open Planner Studio*. Install it. If a double-click does not work, open *Settings › Extensions* in Claude Desktop and install the file there.
+3. Paste the token from the window *Connection details* into *Token*. Keep *Port* at 3877, unless you chose another port in the app.
+4. Turn on the extension and start a new chat. Ask Claude which tools of Open Planner Studio it sees.
+
+The extension contains no planner. It passes everything on to the app on your own computer. If the app does not run, or the bridge is off, Claude sees only the tool `open_planner_studio_status`, with a message that tells you what to do. Then start the app and the bridge. Claude gets the tools at its next call. If you restart the app while Claude works, the extension does not carry out a change that arrives at that moment. Claude gets a message about it and can send the change again.
+
+**Claude Desktop without the extension.** If you cannot use the extension, connect Claude Desktop with the external tool `mcp-remote`. The configuration snippet does not fit Claude Desktop directly: in the file `claude_desktop_config.json` you name a program that Claude Desktop starts itself, not an address. `mcp-remote` needs Node.js. In Claude Desktop choose *Settings › Developer › Edit Config*, put this in the file (with your own token) and start Claude Desktop again:
 
 ```
 {
@@ -110,7 +119,7 @@ Whether the MCP client really read the guide you can see in the *Activity panel*
 
 **The status is *Port 3877 in use*.** Another program is using the port. The app's message is shown below it. The port field then stays locked (*Only editable while the server is stopped.*), even though the bridge is not running, and there is no stop button. That is a known shortcoming. Until it is fixed: turn *Allow MCP connection* off and on again. The status is then back to *Off* and you can choose another port. Then copy the connection details again, because the endpoint contains the port.
 
-**The client cannot connect after a new token.** A new token breaks all existing connections. Give the client the new token, or paste the configuration snippet again.
+**The client cannot connect after a new token.** A new token breaks all existing connections. Give the client the new token, or paste the configuration snippet again. If you use the extension in Claude Desktop, paste the new token into *Token* in *Settings › Extensions*.
 
 **You stopped the bridge yourself and it does not start by itself.** *Start bridge automatically* works once each time the app starts. If you stop the bridge yourself, the app does not quietly turn it on again.
 

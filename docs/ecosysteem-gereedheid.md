@@ -22,8 +22,8 @@ kwam, zit pas vanaf de volgende release in de installers.
 | AWS-deployment | definitie klaar, niet uitgerold | ECS Fargate (X86_64 of ARM64) achter een ALB, CloudFormation | `deploy/aws/ecs-fargate.yaml` | [headless API](headless-api.md) |
 | MCP-server | ja, in de desktopapp | streamable HTTP op `127.0.0.1` (standaardpoort 3877), Bearer-token; 39 `planner_*`-tools in v2026.9.0, 41 in `main` | desktoprelease; niet in de browserversie | [MCP-verificatie](mcp-verificatie.md) |
 | Claude Code | ja | `claude mcp add --transport http …` | gids in de app | [MCP-verificatie](mcp-verificatie.md) |
-| Claude Desktop | route via `mcp-remote`; Desktop zelf niet getest | stdio-brug naar de lokale server | gids in de app | [MCP-verificatie](mcp-verificatie.md) |
-| Claude-connector, MCP App, `.mcpb`-bundel | nee | — | — | zie *Claude* hieronder |
+| Claude Desktop | ja: `.mcpb`-bundel (stekker naar de app); reserve `mcp-remote`, getest door de eigenaar op 2026-10-23 | stdio-brug naar de lokale server; Claude Desktop levert Node mee | `.mcpb` als asset bij elke GitHub-release; gids in de app | [MCP-verificatie](mcp-verificatie.md) |
+| Claude-connector, MCP App | nee | — | — | zie *Claude* hieronder |
 | Native DLL / `.so` | nee, niet van toepassing | — | — | zie *Native library* hieronder |
 | ARM64 voor Windows en Linux | nee | — | — | niet gebouwd |
 
@@ -80,12 +80,17 @@ MCP-sessies (`Mcp-Session-Id`); dat komt met de volgende release.
 
 ### 7. Claude Desktop en Claude Code
 
-- Claude Code verbindt rechtstreeks over HTTP. Claude Desktop verbindt via `mcp-remote` (een stdio-brug).
+- Claude Code verbindt rechtstreeks over HTTP. Claude Desktop verbindt via de **`.mcpb`-bundel**: een
+  stdio-stekker die elk bericht doorstuurt naar de bridge van de draaiende app (besluit eigenaar, 2026-10-23:
+  een stekker naar de app, geen losse kern). Installeren is een dubbelklik en het token plakken; de gebruiker
+  hoeft geen Node.js te installeren. De reserve is `mcp-remote` in `claude_desktop_config.json`.
 - Getest: Claude Code 2.1.306 en `mcp-remote` 0.15.2, tegen de Node-kopie van de bridge. Tegen de echte
-  desktopapp draaide de officiële SDK. Claude Desktop zelf is niet getest.
+  desktopapp draaide de officiële SDK. Claude Desktop met `mcp-remote`: getest door de eigenaar op
+  2026-10-23. De bundel: in CI via stdio tegen de Node-kopie van de bridge (`tests/mcp/cases-mcpb.ts`) en
+  met `mcpb validate`; installeren in Claude Desktop zelf is nog niet getest.
 - Een Claude-connector ("custom connector") werkt niet: die verbindt vanuit de cloud van Anthropic en
   heeft een publiek bereikbare server nodig, terwijl de MCP-server alleen op `127.0.0.1` luistert.
-- Niet geleverd: een installeerbare `.mcpb`-bundel, een MCP App en een losse stdio-server.
+- Niet geleverd: een MCP App, een losse MCP-server zonder app, een ondertekende bundel en een downloadknop in de app.
 
 De stappen voor gebruikers staan in de in-app gids *AI-assistent koppelen*.
 
