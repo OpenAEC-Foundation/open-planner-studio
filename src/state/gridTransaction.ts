@@ -1,3 +1,4 @@
+import { isElapsedTask } from '@/engine/scheduler/duration';
 import { produce } from 'immer';
 import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import { resourceLoadInputsUnchanged } from './resourceLoadReuse';
@@ -1006,7 +1007,7 @@ export function prepareGridMutation(
         const question = actualStartQuestionFor(before, after, entryStatusDate, {
           actualStart: wrote('task.time.actualStart'),
           actualFinish: wrote('task.time.actualFinish'),
-        });
+        }, isElapsedTask(after) ? undefined : resolveCalendar(after.calendarId, draft.calendars, draft.calendar));
         if (question) {
           errors.push(validationError('actualStartRequired', { taskId }, {
             statusDate: question.statusDate, latest: question.latest,

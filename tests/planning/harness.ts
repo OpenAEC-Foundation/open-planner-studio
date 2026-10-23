@@ -159,9 +159,6 @@ function minuteModelLoad(): void {
   const projectClock = new DayClockCache(payload.calendar, payload.calendars).calendarClock(undefined);
   const project = S().project;
   const startDate = dayStartInstant(projectClock, project.startDate) ?? project.startDate;
-  const statusDate = project.statusDate
-    ? (dayStartInstant(projectClock, project.statusDate) ?? project.statusDate)
-    : undefined;
   const withBlocks = (cal: WorkCalendar): WorkCalendar => calendarForEngine(cal);
   useAppStore.setState((s) => {
     s.tasks = payload.tasks as typeof s.tasks;
@@ -169,7 +166,6 @@ function minuteModelLoad(): void {
     s.calendar = withBlocks(payload.calendar) as typeof s.calendar;
     s.calendars = payload.calendars.map(withBlocks) as typeof s.calendars;
     s.project.startDate = startDate;
-    if (statusDate !== undefined) s.project.statusDate = statusDate;
   });
 }
 
@@ -934,12 +930,13 @@ function buildAndSolve(c: Case): {
     } else if ('setLevelingDelay' in op) {
       const tid = ids[op.setLevelingDelay.task];
       if (!tid) throw new Error(`afterCPM.setLevelingDelay: onbekende taak "${op.setLevelingDelay.task}"`);
-      // Minutenmodel, run 2: de vertraging ook in minuten (werktijd per dag van de taakkalender).
+      // Minutenmodel, run 2: kalendertijdvertraging telt 24 uur per dag, werktijd de taakkalender.
       S().updateTask(tid, MM_HOURS
         ? {
             levelingDelay: op.setLevelingDelay.days,
             levelingDelayMinutes: intMinutes(op.setLevelingDelay.days
-              * effHoursPerDayFor(c.tasks.find((x) => x.name === op.setLevelingDelay.task)?.calendar) * 60, 'levelingDelay'),
+              * (c.tasks.find((x) => x.name === op.setLevelingDelay.task)?.durationType === 'ELAPSEDTIME'
+                ? 24 : effHoursPerDayFor(c.tasks.find((x) => x.name === op.setLevelingDelay.task)?.calendar)) * 60, 'levelingDelay'),
           }
         : { levelingDelay: op.setLevelingDelay.days });
     }

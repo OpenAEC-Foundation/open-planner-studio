@@ -1486,13 +1486,28 @@ nodig heeft. B2, B4 en B8 zijn besloten (2026-10-20) en bepalen F4. B9 = optie 1
 - Toets: 138 urencases groen (op `msp-28` na, bewust); de vijf `z13-*`-cases groen; een nieuwe case per knownbug
   en per grensplek, met mutatiebewijs; de regressiegevallen van de statusregel in dialoog, raster en MCP; volledige
   planningssuite.
-- Stand (2026-10-23): PR #402 (`claude/uren-f1a-urenpadfouten`) is op 2026-10-23 gemerged in `main` (mergecommit `b811a21c2bad6dc2352f1f6767e30180fd4907d1`). Hij
-  pakt knownbugs 138–142 aan. Volgens de bouwer blijven daarna open, en ze horen bij F1: knownbugs 145 (een dagtaak op
-  werkblokken met SNLT/MSO op een blokbegin, één werkdag te vroeg; groep 12, dus de fix voor 139 geldt daar alleen
-  voor urentaken), 146 (late finish op een blokbegin bij FF tussen urentaken; in P6 dekt conventie B2
-  `p6BackwardLagFinishBoundary` het, voor MSP een conventievraag), 147 (FNLT/FNET zonder tijd wordt 00:00; regel D2)
-  en 148 (deadline zonder tijd in "datums zoals opgeslagen"; misschien nog in #402). De entries 138–142 gaan op deze
-  branch pas weg als #402 in `main` staat.
+- Stand (2026-10-23): PR #402 zit in de integratiebasis (12abaabf2). F1b op
+  claude/uren-f1b-urenfouten repareert 145 (dagenmaat bij SNLT/MSO), 147 (eindbeperkingen zonder tijd),
+  groep 1 (eindmijlpalen, ook zonder soort en met lag), de dagenmaatgrenzen van groep 12 (externe FF,
+  kalendertijdlag en splits), SS+0 naar kalendertijd (msp-27/msp-28), D6 en de gedeelde statusregel.
+  N2 geldt nu ook als dagen- en minutenvertraging samen bestaan; de meting telt een kalendertijdvertraging
+  als 24 uur per dag. Bug 148 was al opgelost door de gedeelde deadlinefunctie en krijgt direct bewijs.
+  Toegevoegd: 18 blokgrenscases (30 → 48), 114 controles van dialoog/paneel/raster/plakken/MCP en
+  echte datumvelden in de bestaande browserroute. Alleen invoer op de statuswerkdag krijgt
+  D1/D2/D6; algemene normalisatie, ook van oudere actuals, blijft bij F2. De vijf z13-cases blijven ongewijzigd.
+  Het minutenmodelvangnet krimpt uitsluitend: M1 57 → 12, M2 30 → 11; de ontbrekende lege sleutel
+  hours-blokgrenzen is toegevoegd. De oude lijsten liepen al achter na #402: de echte nulmeting
+  op 12abaabf2 gaf 34 en 21 afwijkende cases; F1b geeft er 12 en 11.
+  Open: 146 vereist de genoemde conventiekeuze. Daarnaast is mk-05a in M1 opgelost, maar blijft in
+  M2 het oude urenpad staan. De bredere startmijlpaalcorrectie schendt de bestaande C7-poort;
+  de fix is daarom volgens N1 tot dagenmaat beperkt. msp-51 blijft in beide runs
+  afwijken door het aparte FS-kalendertijdpunt 155. De overige bestaande restgevallen blijven
+  zichtbaar in het vangnet (onder meer 153/154 en de latere fasen); de nieuwe bevestigde FF-lead
+  bij urenmaat staat als 204 in knownbugs.md. Groep 2, 3, 8 en T16 zijn niet omgezet.
+  De laatste volledige corpusloze planningssuite is groen (exit 0), inclusief alle vijf tijdzones.
+  De profielmeting met de echte corpora houdt de P6-celpoort, maar heeft exit 1 door bestaande
+  corpusafwijkingen. Bewijs, mutaties en de precieze controle-uitkomsten staan bij deze PR
+  in artifacts/uren-f1b.
 
 **F2 — Kern: motor op werkblokken voor elke kalender.**
 - Inhoud: elke engine via `calendarForEngine`; elke dagtaak loopt als urenpad-dagtaak, in hele dagen. De conventie

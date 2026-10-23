@@ -6,7 +6,7 @@ import type { CpmBackwardFloatTrace, CpmFreeFloatSource, CPMResult, CPMTaskResul
 import { formatInstant, type DateMode } from '@/utils/dateUtils';
 import { drivingPredecessorWalker } from './graphWalk';
 import { projectDurationOf } from './projectDuration';
-import { isElapsedTask, isZeroDurationMilestone, taskDurationUnit } from './duration';
+import { isElapsedTask, isZeroDurationMilestone } from './duration';
 import { deadlineBound } from './deadlineBound';
 import { isLeafTask } from '@/utils/taskHierarchy';
 import { explainP6CompletedDataDateWindowResolved } from '@/engine/scheduler/p6CompletedTargetWindow';
@@ -418,18 +418,9 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
         const cd = constraintInstant(cc, cal);
         if (!cd) continue;
         const dW = snapOnOrBefore(cal, cd);
-        // Een startbeperking van een URENtaak vergelijkt met het eerstvolgende werkmoment (knownbugs
-        // 139 van het ontwerp "alleen uren"): `snapOnOrBefore` zet een datum op een blokbegin (di 08:00)
-        // terug naar het vorige blokeinde (ma 16:00), en een taak die precies op di 08:00 start gold
-        // dan als geschonden. Op de tijdas zijn beide hetzelfde punt, en de solver rekent de late
-        // start van een urentaak ook zo (`finishFromStart` loopt vanaf het volgende blokbegin). Een
-        // DAGtaak op werkblokken blijft bewust bij `snapOnOrBefore`: haar late start leest de solver
-        // daar nog als de dag ervóór (speling -1), en de melding moet die speling blijven verklaren.
-        // Een ELAPSEDTIME-taak en een nulduurmijlpaal blijven ook bij `snapOnOrBefore`: zij mogen
-        // buiten werktijd liggen (di 18:00), en een snap naar het volgende werkmoment (wo 08:00)
-        // verborg dan een echte schending (review PR #402, ronde 1 en 2). Een eindbeperking en
-        // dag-modus blijven ongewijzigd.
-        const dS = cal.isHourMode && taskDurationUnit(task) === 'hours'
+        // N3: vergelijk de equivalente startgrens; dagenmaat gebruikt dezelfde grens (145).
+        // Kalendertijd en nulduurmijlpalen houden hun letterlijke moment buiten werktijd.
+        const dS = cal.isHourMode
           && !isElapsedTask(task) && !isZeroDurationMilestone(task)
           ? snapOnOrAfter(cal, cd)
           : dW;

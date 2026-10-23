@@ -1,18 +1,59 @@
 import type { CustomFieldValue } from '@/types/structure';
+import type { WorkCalendar } from '@/types/calendar';
+import {
+  blocksClock, dayEndInstant, dayStartInstant, ELAPSED_CLOCK, isDateOnly, workdayOfInstant,
+  type InstantSide,
+} from '@/engine/calendar/workdayRules';
+import { isElapsedTask, isZeroDurationMilestone } from '@/engine/scheduler/duration';
 import type { Task, TaskTime } from '@/types/task';
 import { parseDate, parseInstant } from '@/utils/dateUtils';
 import { orderActualsAfterDerivedFinish } from '@/engine/actualDatesOrder';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
 
 /**
- * Vergelijkt een actual met de statusdatum op dezelfde precisie als de bestaande taaksetters.
- * Een statusdatum zonder tijd staat de hele kalenderdag toe; mét tijd geldt instantprecisie.
+ * De statusregel (§4.2): zonder tijd telt de werkdag van de taakkalender; met tijd het moment.
+ * Bij een nachtblok kan een feit op donderdag bij de statuswerkdag woensdag horen.
  */
-export function isActualPastStatusDate(dateIso: string, statusDateIso: string): boolean {
+export function isActualPastStatusDate(
+  dateIso: string,
+  statusDateIso: string,
+  calendar?: WorkCalendar,
+  side: InstantSide = 'start',
+): boolean {
   if (!statusDateIso.includes('T')) {
-    return parseDate(dateIso).getTime() > parseDate(statusDateIso).getTime();
+    const day = workdayOfInstant(calendar ? blocksClock(calendar) : ELAPSED_CLOCK, dateIso, side);
+    return parseDate(day).getTime() > parseDate(statusDateIso).getTime();
   }
   return parseInstant(dateIso).getTime() > parseInstant(statusDateIso).getTime();
+}
+
+/** D7: een nulduur-mijlpaal gebruikt voor beide actuals dezelfde kant. */
+export function actualDateSide(task: Task, field: 'actualStart' | 'actualFinish'): InstantSide {
+  return isZeroDurationMilestone(task)
+    ? task.milestoneKind === 'FINISH' ? 'end' : 'start'
+    : field === 'actualFinish' ? 'end' : 'start';
+}
+
+/** D1/D2/D4/D6 op de statuswerkdag in het urenpad. Letterlijke tijden blijven rauw (N0).
+ *  Algemene invoernormalisatie, ook vóór de statusdag, hoort bij F2. */
+export function normalizeActualDate(
+  task: Task,
+  field: 'actualStart' | 'actualFinish',
+  value: string | undefined,
+  statusDate: string | undefined,
+  calendar: WorkCalendar | undefined,
+): string | undefined {
+  if (!value || !isDateOnly(value) || !statusDate || !calendar
+    || (!calendar.workTime && taskDurationUnit(task) !== 'hours')) return value;
+  const clock = isElapsedTask(task) ? ELAPSED_CLOCK : blocksClock(calendar);
+  const statusDay = statusDate.includes('T') ? workdayOfInstant(clock, statusDate, 'start') : statusDate;
+  if (value !== statusDay) return value;
+  const side = actualDateSide(task, field);
+  const moment = (side === 'end' ? dayEndInstant(clock, value) : dayStartInstant(clock, value)) ?? value;
+  // Alleen een datumloze invoer op de statuswerkdag mag tot het expliciete statusmoment klemmen.
+  if (statusDate?.includes('T') && value === workdayOfInstant(clock, statusDate, 'start')
+    && parseInstant(moment) > parseInstant(statusDate)) return statusDate;
+  return moment;
 }
 
 /**
@@ -63,17 +104,20 @@ export function isActualFinishBeforeStart(time: Pick<TaskTime, 'actualStart' | '
  * "Het einde" is het al gezette `actualFinish`, of — staat de taak op 100% zonder einde — het einde
  * dat `applyProgressInvariants` daarna afleidt (`defaultActualFinish`). Roep dit dus aan NÁ het
  * vastleggen van `completion` en het wissen van een verouderd einde, en vóór de invarianten.
- * Vergelijken gaat met `isActualFinishBeforeStart` (instantprecisie): date-only waarden vallen op
- * UTC-middernacht, dus dagtaken vergelijken per dag en een uurtaak krijgt exact het einde-instant.
+ * Eerst D1/D6 op de afgeleide datums, dan vergelijken met `isActualFinishBeforeStart`
+ * (instantprecisie). Zo blijft een start om 10:00 vóór een afgeleid einde om 16:00.
  *
  * Een aanwezige werkelijke start — door gebruiker of AI opgegeven, of eerder gezet — blijft altijd
  * ongemoeid; een ongeldig opgegeven paar hoort de aanroeper te weigeren, niet stil te klemmen.
  */
-export function fillMissingActualStart(time: TaskTime, statusDate: string | undefined): void {
+export function fillMissingActualStart(task: Task, statusDate: string | undefined, calendar?: WorkCalendar): void {
+  const time = task.time;
   if (time.actualStart) return;
-  const start = defaultActualStart(time);
+  const start = normalizeActualDate(task, 'actualStart', defaultActualStart(time), statusDate, calendar)!;
   const finish = time.actualFinish
-    || (time.completion >= 1 ? defaultActualFinish(time, statusDate) : undefined);
+    || (time.completion >= 1
+      ? normalizeActualDate(task, 'actualFinish', defaultActualFinish(time, statusDate), statusDate, calendar)
+      : undefined);
   time.actualStart = finish && isActualFinishBeforeStart({ actualStart: start, actualFinish: finish })
     ? finish
     : start;
@@ -84,10 +128,11 @@ export function fillMissingActualStart(time: TaskTime, statusDate: string | unde
  *  `fillMissingActualStart`, dus nooit ná het werkelijke einde). In die volgorde: de klem moet het
  *  einde zien dat na deze bewerking overblijft. Daarna hoort de aanroeper `applyProgressInvariants`
  *  te draaien, met dezelfde `statusDate`. */
-export function applyCompletionEdit(time: TaskTime, completion: number, statusDate: string | undefined): void {
+export function applyCompletionEdit(task: Task, completion: number, statusDate: string | undefined, calendar?: WorkCalendar): void {
+  const time = task.time;
   time.completion = completion;
   if (completion < 1) time.actualFinish = undefined;
-  if (completion > 0) fillMissingActualStart(time, statusDate);
+  if (completion > 0) fillMissingActualStart(task, statusDate, calendar);
 }
 
 /** Een werkelijke start of einde zetten (`undefined` = wissen) en daarna de voortgangsinvarianten
@@ -100,24 +145,27 @@ export function applyActualDateEdit(
   field: 'actualStart' | 'actualFinish',
   date: string | undefined,
   statusDate: string | undefined,
+  calendar?: WorkCalendar,
 ): void {
   task.time[field] = date || undefined;
   if (field === 'actualFinish' && !date && task.time.completion >= 1) task.time.completion = 0;
-  applyProgressInvariants(task, statusDate);
+  applyProgressInvariants(task, statusDate, calendar);
 }
 
 /** Centrale voortgangsinvarianten, gedeeld door grid, store-setters en MCP-validatie. */
-export function applyProgressInvariants(task: Task, statusDate: string | undefined): void {
+export function applyProgressInvariants(task: Task, statusDate: string | undefined, calendar?: WorkCalendar): void {
   const time = task.time;
   if (time.actualFinish) {
     time.completion = 1;
     if (!time.actualStart) time.actualStart = time.actualFinish;
     task.status = 'COMPLETED';
   } else if (time.completion >= 1) {
-    time.actualFinish = defaultActualFinish(time, statusDate);
-    if (!time.actualStart) time.actualStart = time.actualFinish;
-    // Afgeleid einde vóór een (vaak zelf afgeleide) start: zelfde regel als de lezers.
-    orderActualsAfterDerivedFinish(time, statusDate);
+    // Eerst D6, dan pas de volgorde: een vastgelegde start om 10:00 blijft vóór het einde om 16:00.
+    time.actualFinish = normalizeActualDate(task, 'actualFinish', defaultActualFinish(time, statusDate), statusDate, calendar);
+    const startWasDerived = !time.actualStart;
+    if (startWasDerived) time.actualStart = time.actualFinish;
+    // Een aanwezige start blijft staan; alleen het afgeleide einde mag dan opschuiven.
+    orderActualsAfterDerivedFinish(time, statusDate, startWasDerived);
     task.status = 'COMPLETED';
   } else if (time.actualStart) {
     task.status = 'STARTED';

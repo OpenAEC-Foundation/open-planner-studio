@@ -106,4 +106,29 @@ test('binnen planner_batch: dezelfde weigering, de taak blijft ongewijzigd', asy
   assertEq(JSON.stringify(timeOf(L)), before, 'taak ongewijzigd (batch)');
 });
 
+// F1: dezelfde drie statusgevallen via de echte dispatcher en de mutatietransactie.
+for (const [statusDate, actualFinish, want] of [
+  ['2026-06-03', '2026-06-03', '2026-06-03T16:00'],
+  ['2026-06-03T12:00', '2026-06-03', '2026-06-03T12:00'],
+  ['2026-06-03T12:00', '2026-06-03T14:00', null],
+] as const) {
+  test('F1 statusregel via MCP: ' + statusDate + ' / ' + actualFinish, async () => {
+    const { V } = setup(statusDate);
+    const bands = [{ start: 480, end: 960 }];
+    S().setCalendar({ ...S().calendar, workTime: { byWeekday: {
+      1: bands, 2: bands, 3: bands, 4: bands, 5: bands, 6: [], 7: [],
+    } } });
+    S().updateTask(V, { time: { ...timeOf(V), durationUnit: 'hours', durationMinutes: 2400 } });
+    S().runCPM();
+    const before = JSON.stringify(timeOf(V));
+    const res = await rpc('planner_update_tasks', {
+      updates: [{ id: V, progress: { actualStart: '2026-06-01T08:00', actualFinish } }],
+    });
+    assertEq(reasons(res).length, want === null ? 1 : 0, 'weigering volgens statusregel');
+    assertEq(timeOf(V).actualFinish ?? null, want, 'het juiste eindmoment opgeslagen');
+    if (want === null) assertEq(JSON.stringify(timeOf(V)), before, 'weigering verandert niets');
+    else assertEq(timeOf(V).earlyFinish, want, 'de solver behoudt D6');
+  });
+}
+
 await run();

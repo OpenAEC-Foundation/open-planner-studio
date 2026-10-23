@@ -75,21 +75,10 @@ en noem het in je rapport of PR-tekst.
     (dagkalender ma-vr): een kalendertijd-taak van 1 d vanaf ma 1 jun krijgt einde 2 jun, en haar FS-opvolger
     begint wo 3 jun in plaats van di 2 jun; met FNLT ma 1 jun krijgt ze speling −1, terwijl ze om middernacht
     klaar is. In uur-modus klopt het wel (`msp-19`). — B
-145. **Een dagtaak op werkblokken met SNLT of MSO op een blokbegin krijgt een late start één werkdag te
-    vroeg** (speling −1). Dezelfde familie als 142 en groep 12 uit de spec `2026-10-20-alleen-uren-design.md`
-    (§10.3). Daarom geldt de fix voor 139 in #402 alleen voor urentaken. Gemeld door de bouwer van #402
-    (`claude/uren-f1a-urenpadfouten`). — B (volgens de bouwer van #402; niet door deze agent herhaald)
 146. **Bij FF tussen urentaken staat de late finish van de voorganger op een blokbegin**, in het OPS- en het
     MSP-profiel. Alleen de getoonde datum verschilt; de speling klopt. In het P6-profiel lost conventie B2
     (`p6BackwardLagFinishBoundary`, `registry.ts:156`) het op; voor MSP is het een conventievraag. Gemeld door
     de bouwer van #402. — B (volgens de bouwer van #402; niet door deze agent herhaald)
-147. **Een FNLT of FNET zonder tijd wordt bij een urentaak 00:00 van die dag.** Volgens regel D2 van de spec
-    `2026-10-20-alleen-uren-design.md` (§4.2) hoort dat het einde van het laatste werkblok van die dag te zijn.
-    Gemeld door de bouwer van #402. — B (volgens de bouwer van #402; niet door deze agent herhaald)
-148. **"Datums zoals opgeslagen" meldt een deadline zonder tijd bij een urentaak als gemist als de taak op de
-    deadline-dag eindigt.** De solver doet dat na #402 niet meer. De review van #402 beoordeelt of dit punt
-    in #402 zelf hoort; dan vervalt deze entry. Gemeld door de bouwer van #402. — B (volgens de bouwer van #402; niet door deze agent herhaald)
-
 119. **Een WBS-sjabloon verliest een lag in uren.** `wbsTemplates.ts:99-105` neemt per relatie `lagDays`,
     `lagUnit` en `lagPercent` mee, maar niet `lagMinutes`. Een relatie met lag `4u` komt na het invoegen van
     het sjabloon zonder lag terug, zonder melding. Gezien in de code (`Sequence.lagMinutes`,
@@ -142,6 +131,19 @@ en noem het in je rapport of PR-tekst.
     `CPMSolver.ts` en `ResourceLeveler.ts` uit die main-commit, zonder de PF-optimalisatie.
     De gecombineerde `measure:profiles` eindigt op exit 1; de P6-cellen zijn ongewijzigd.
     Geen baseline of motorcode hiervoor aangepast; oorzaak niet verder onderzocht. — B
+
+204. **Een urentaak na een FF-relatie met een kalendertijdlead kan vóór haar finish-ondergrens eindigen.**
+    Nagespeeld in de minutenmodelmeting van F1b: kalender ma-vr 07-12 + 13-16, A 48 u eindigt ma
+    8 juni 2026 16:00; FF −2 kalenderdagen naar B 32 u geeft B di 2 juni 07:00–vr 5 juni 16:00.
+    De eis ligt za 6 juni 16:00; het einde ligt dus ervoor. Het dagenmaatpad haalt na F1b wel de
+    dagverwachting van lagadv-ff-lead-ed; run 2 blijft rood op B, niet meer op de werkdagenlag van C.
+    De bestaande urencases en N1 laten hier geen algemene grensnormalisatie toe; apart uitwerken. — B
+
+205. **De corpuspin van expectedFinishDates in de SCHEDOPTIONS-check is rood op de integratiebasis.**
+    check-xer-schedule-options-corpus.ts eindigt op Node 22.23.4 met de fout
+    "expectedFinishDates zelfstandige per-bestand/as/populatie en richting blijven exact gepind".
+    Dezelfde fout in een schone kopie van 12abaabf2 en tijdens de volledige F1b-suite, met het aanwezige
+    corpus van 93 XER-bestanden. Geen pin of controle aangepast; oorzaak buiten F1b. — B
 
 ## Tabel, invoer en bediening
 
@@ -388,6 +390,22 @@ en noem het in je rapport of PR-tekst.
 
 
 ## Tests
+
+207. **De bulkprestatiepoort kan in een volledige run falen terwijl beide gerichte controles slagen.**
+    Tijdens een volledige corpusloze F1b-suite die deels met andere controles overlapte, meet `check-bulk-scale.ts`
+    17.188 ms voor voortgang op 2000 van 8000 taken, bij de vaste grens van 15.000 ms.
+    De gerichte controle op de schone basis 12abaabf2 slaagt met 6402 ms, en op dezelfde
+    F1b-bron met 5793 ms (beide 23/23, exit 0). Een eerdere volledige F1b-run haalde 13.126 ms.
+    De laatste volledige run zonder die overlap haalt 8833 ms en eindigt groen (exit 0).
+    De wisselende tijdmeting is bevestigd; oorzaak niet vastgesteld en geen grens verruimd. — B
+
+206. **De plakprestatiepoort kan op deze server ook zonder F1b de vaste grens overschrijden.**
+    `check-task-grid-paste-performance.ts` meet op Node 22.23.4 in een schone kopie van
+    12abaabf2 een mediaan van 3942,1 ms bij de onveranderde grens van 3000 ms (exit 1).
+    Dezelfde gerichte meting op F1b geeft 4388,7 ms (exit 1); de eerdere volledige run
+    gaf 3894,5 ms. In een volledige run haalt F1b 2804,2 ms (groen). De wisselende
+    metingen zijn bevestigd; een oorzaak of regressiegrootte volgt niet uit deze timing. Geen prestatiegrens verruimd en geen productfix buiten F1. — B
+
 
 79. **`check-task-grid-performance` (relationIndex-mediaan ≤ 500 ms) zit lokaal op het randje.** Los gedraaid
     496–499 ms (5-10-2026); rood (535–790 ms) in `npm run verify` zodra de container druk is (meerdere agents

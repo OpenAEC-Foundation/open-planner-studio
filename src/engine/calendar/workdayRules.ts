@@ -20,8 +20,8 @@ import { formatDate, formatInstant, MS_PER_DAY, parseDate, parseInstant, utcDayI
  * Kalendertijd (ELAPSEDTIME) heeft dagranden 00:00 en 24:00: D1 is 00:00, D2 is 24:00 (00:00 van de dag
  * erna). De regels per taakveld (D3, D5–D7) staan in `src/state/migrations/minuteModel.ts`.
  *
- * Fase F0: nog niet aangesloten. Alleen de migratiefunctie, de planningsharness en de checks gebruiken
- * deze module; F1/F2 sluiten hem aan (technische keuze T2).
+ * F1 gebruikt deze regels bij voortgangsinvoer in het urenpad. De migratiefunctie en de
+ * planningsharness gebruiken ze ook; F2 sluit de normalisatie aan op alle laad- en invoergrenzen.
  */
 
 /** Startkant `[blokbegin, blokeinde)` of eindkant `(blokbegin, blokeinde]` van een moment. */

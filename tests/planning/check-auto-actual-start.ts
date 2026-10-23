@@ -156,11 +156,11 @@ for (const { kind, statusDate } of SCENARIOS) {
 
   // 6. Taakdialoog-draft: dezelfde `applyCompletionEdit` als de store, op een losse kopie.
   {
-    const { ids, time$ } = setup(kind, statusDate);
-    const draft = { ...time$(ids[0]!) };
+    const { S, ids, time$ } = setup(kind, statusDate);
+    const draft = { ...S().tasks.find(t => t.id === ids[0])!, time: { ...time$(ids[0]!) } };
     applyCompletionEdit(draft, 1, statusDate);
     eq(`${tag} dialoog-draft 100%: afgeleide start = het einde dat de invariant straks zet`,
-      draft.actualStart, statusDate);
+      draft.time.actualStart, statusDate);
   }
 
   // 7. Het blok van 3 rijen × (naam, 100%). Vóór de fix liet stap (a) een omgekeerd paar achter en
@@ -245,23 +245,26 @@ for (const { kind, statusDate } of SCENARIOS) {
   {
     // Op helperniveau: een aanwezige start, zelfs een die ná het (afgeleide) einde ligt, wordt
     // nooit stil verplaatst — alleen een ONTBREKENDE start wordt ingevuld.
+    const { S, ids } = setup(kind, statusDate);
     const time = { ...createDefaultTaskTime('2026-07-08', 5), actualStart: '2026-07-01' };
-    applyCompletionEdit(time, 1, '2026-06-10');
+    applyCompletionEdit({ ...S().tasks.find(t => t.id === ids[0])!, time }, 1, '2026-06-10');
     eq(`${tag} helper: aanwezige start blijft staan`, time.actualStart, '2026-07-01');
   }
 }
 
-// 9. Uurtaak met een date-only statusdatum op dezelfde dag als de vroege start: op dagniveau
-//    "gelijk", maar als instant ligt de start (08:00) ná het einde (middernacht) — het bestaande
-//    `isActualFinishBeforeStart` noemt dat een omgekeerd paar. De klem vergelijkt daarom als instant
-//    en de start wordt exact het einde-instant.
+// 9. F1/D6: een datumloze status op de startdag geeft het werkelijke einde van die werkdag.
+//    De afgeleide start krijgt D1; het paar blijft geldig zonder klem naar middernacht.
 {
   const { S, ids, time$, status$ } = setup('uur', '2026-06-10', 1, false);
   const t = ids[0]!;
   eq('uur zelfde dag: voorwaarde vroege start op de statusdag, ná middernacht', time$(t).earlyStart, '2026-06-10T08:00');
   eq('uur zelfde dag: raster enkel 100% geaccepteerd',
     S().runGridMutation([cell(t, 'task.time.completion', 'task-progress', 1)]).ok, true);
-  expectClamped('uur zelfde dag: raster enkel 100%', time$(t), status$(t), '2026-06-10');
+  eq('uur zelfde dag: D1/D6 behouden het werkdagpaar',
+    { as: time$(t).actualStart, af: time$(t).actualFinish },
+    { as: '2026-06-10T08:00', af: '2026-06-10T17:00' });
+  eq('uur zelfde dag: voltooid', status$(t), 'COMPLETED');
+  eq('uur zelfde dag: percentage 100%', time$(t).completion, 1);
 }
 {
   // Dagtaak op dezelfde dag: start = einde was al zo, er valt niets te klemmen.

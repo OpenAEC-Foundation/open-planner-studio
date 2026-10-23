@@ -124,7 +124,7 @@ die lijst, en vul deze tabel aan.
 | `cases-edge.json` | cyclus, leeg, lange keten, WBS-/fase-oprol |
 | `cases-float.json` | totale vs. vrije speling, kritiek pad, diamanten/ladders |
 | `cases-hours.json` | uur-modus met de referentiekalenders: binnen-dag-FS, float in minuten, lunchpauze, nachtploeg over middernacht, 24/7, WORKTIME vs. ELAPSED (fase 2.8b) |
-| `cases-hours-blokgrenzen.json` | urenpad op een blokgrens (knownbugs 138-142 van het ontwerp "alleen uren"; de entries staan in `knownbugs.md` op `claude/uren-spec`): deadline zonder/met tijd, zachte MSO/SNLT op een blokbegin, nivelleervertraging die op een blokeinde landt, externe FS/FF-opvolger op een blokbegin, FF tussen dagtaken op een kalender met werkblokken, ook met een vrije dag op de opvolgerkalender en na een ELAPSEDTIME-voorganger; SNLT van een ELAPSEDTIME-taak en van een urenmijlpaal buiten werktijd; landing in de pauze en op een feestdag |
+| `cases-hours-blokgrenzen.json` | urenpad op een blokgrens (F1, knownbugs 138–142, 145 en 147): deadline zonder/met tijd, zachte MSO/SNLT op een blokbegin, nivelleervertraging die op een blokeinde landt, externe FS/FF-opvolger op een blokbegin, FF tussen dagtaken op een kalender met werkblokken, ook met een vrije dag op de opvolgerkalender en na een ELAPSEDTIME-voorganger; SNLT van een ELAPSEDTIME-taak en van een urenmijlpaal buiten werktijd; landing in de pauze en op een feestdag; eindmijlpalen na FF/FS met lag, FNET/FNLT/MFO zonder tijd, FF met splits en externe voorganger, en N2 met dagen- én minutenwaarde |
 | `cases-hours-relations.json` | SS/FF/SF met lag > 0, = 0 en < 0 in uur-modus, vooruit én terug, plus pauze-, nacht-, weekend-, elapsed-, kruiskalender- en mijlpaalvarianten (vangnet voor de relatiewiskunde, P15) |
 | `cases-kalenders.json` | taakkalenders: lag in de voorgangerkalender, merges en SS/FF/SF over verschillende kalenders, geen-taakkalender-no-op, leveler, werkende uitzonderingen, undo |
 | `cases-lag-advanced.json` | lag-eenheid (werkdagen vs. kalenderdagen/elapsed) + procent-lag (fase 2.1) |
@@ -221,3 +221,19 @@ solver — en draai `run.sh`.
 
 De aanleiding en de oorspronkelijke bevindingen staan in
 [`docs/planning-test-bevindingen.md`](../../docs/planning-test-bevindingen.md).
+
+### F1: urenfouten en de statusregel
+
+De blokgrensbatterij bevat 48 cases (30 uit PR #402, 18 uit F1b).
+check-hours-f1-status.ts controleert de echte dialoogopslag, paneelsetters, raster, plakken en
+MCP-validatie: D6 op de statusdag, datumloze invoer bij een expliciet statusmoment, weigeren van
+een latere letterlijke tijd, nachtdiensten, afgeleide voltooiing en de deadline in opgeslagen datums.
+De browserroute in task-dialog-save.spec.ts typt het werkelijke einde in de dialoog.
+
+De minutenmodelmeting bewaart de statusdatum zoals ingevoerd; de solver leest een datum zonder
+tijd zelf als begin van de statuswerkdag. In run 2 telt een kalendertijdvertraging 24 uur per dag.
+Na de F1-fixes zijn alleen verdwenen afwijkingen uit minute-model-runs.json verwijderd:
+run 1 van 57 naar 12, run 2 van 30 naar 11. Die oude lijsten waren al achterhaald door PR #402.
+De echte nulmeting op 12abaabf2 gaf 34 en 21 afwijkende cases; F1b geeft er 12 en 11.
+Er zijn geen nieuwe afwijkingen toegestaan.
+De lege sleutel hours-blokgrenzen ontbrak nog na PR #402 en staat nu in beide runs.

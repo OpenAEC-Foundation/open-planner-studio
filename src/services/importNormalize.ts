@@ -85,10 +85,11 @@ export function normalizeImportedProgress(
       t.completion = 1;
       // Zelfde volgorde en regels als de store (`setTaskProgress`): eerst de impliciete start (de
       // eigen geplande start, niet AS = AF — anders krimpt de voltooide balk), dan de AF-default.
-      if (!t.actualStart) t.actualStart = defaultActualStart(t);
+      const startWasDerived = !t.actualStart;
+      if (startWasDerived) t.actualStart = defaultActualStart(t);
       t.actualFinish = defaultActualFinish(t, statusDate);
-      // Geplande start ná de statusdatum ⇒ AS lag ná het afgeleide einde; zelfde regel als de store.
-      orderActualsAfterDerivedFinish(t, statusDate);
+      // Alleen een ontbrekende start mag terug naar de statusdatum; aanwezige feiten blijven staan.
+      orderActualsAfterDerivedFinish(t, statusDate, startWasDerived);
       task.status = 'COMPLETED';
     } else {
       // In progress: actualStart gezet óf completion > 0 (impliciete start dekt het

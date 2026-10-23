@@ -1,0 +1,196 @@
+{
+  "oorspronkelijke_head": "a9cab7a66203bdaba52d67b460b086767d3160d0",
+  "oorspronkelijke_head_exit": 1,
+  "oorspronkelijke_head_rode_controles": 37,
+  "gerichte_check": "bash tests/planning/run.sh check-hours-f1-review.ts",
+  "aantal_controles": 120,
+  "na_fix_exit": 0,
+  "na_alle_herstellingen_exit": 0,
+  "mutaties": [
+    {
+      "naam": "punt-1-einde-voor-D6",
+      "bestand": "src/engine/taskMutationRules.ts",
+      "exit": 1,
+      "rode_controles": [
+        "XX P1 paneel: start blijft 10:00: \"2026-06-03\" != \"2026-06-03T10:00\"",
+        "XX P1 paneel: einde D6: \"2026-06-03\" != \"2026-06-03T16:00\"",
+        "XX P1 dialoog: start blijft 10:00: \"2026-06-03\" != \"2026-06-03T10:00\"",
+        "XX P1 dialoog: einde D6: \"2026-06-03\" != \"2026-06-03T16:00\"",
+        "XX P1 raster: start blijft 10:00: \"2026-06-03\" != \"2026-06-03T10:00\"",
+        "XX P1 raster: einde D6: \"2026-06-03\" != \"2026-06-03T16:00\"",
+        "XX P1 plakken: start blijft 10:00: \"2026-06-03\" != \"2026-06-03T10:00\"",
+        "XX P1 plakken: einde D6: \"2026-06-03\" != \"2026-06-03T16:00\"",
+        "XX P1 import: start blijft 10:00: \"2026-06-03\" != \"2026-06-03T10:00\"",
+        "XX P1 import: einde D6: \"2026-06-03\" != \"2026-06-03T16:00\"",
+        "XX P1 MCP: start blijft 10:00: \"2026-06-03\" != \"2026-06-03T10:00\"",
+        "XX P1 MCP: einde D6: \"2026-06-03\" != \"2026-06-03T16:00\"",
+        "XX P3 raster task.status: actuals: [\"2026-06-02T10:00\",\"2026-06-03\"] != [\"2026-06-02T10:00\",\"2026-06-03T16:00\"]",
+        "XX P3 raster task.time.completion: actuals: [\"2026-06-02T10:00\",\"2026-06-03\"] != [\"2026-06-02T10:00\",\"2026-06-03T16:00\"]",
+        "XX P3 raster task.time.actualDuration: actuals: [\"2026-06-02T10:00\",\"2026-06-03\"] != [\"2026-06-02T10:00\",\"2026-06-03T16:00\"]",
+        "XX P3 raster task.time.remainingTime: actuals: [\"2026-06-02T10:00\",\"2026-06-03\"] != [\"2026-06-02T10:00\",\"2026-06-03T16:00\"]",
+        "XX P3 plakken task.status: actuals: [\"2026-06-02T10:00\",\"2026-06-03\"] != [\"2026-06-02T10:00\",\"2026-06-03T16:00\"]",
+        "XX P3 plakken task.time.completion: actuals: [\"2026-06-02T10:00\",\"2026-06-03\"] != [\"2026-06-02T10:00\",\"2026-06-03T16:00\"]",
+        "XX P3 plakken task.time.actualDuration: actuals: [\"2026-06-02T10:00\",\"2026-06-03\"] != [\"2026-06-02T10:00\",\"2026-06-03T16:00\"]",
+        "XX P3 plakken task.time.remainingTime: actuals: [\"2026-06-02T10:00\",\"2026-06-03\"] != [\"2026-06-02T10:00\",\"2026-06-03T16:00\"]",
+        "XX P3 plakken-met-naam task.status: actuals: [\"2026-06-02T10:00\",\"2026-06-03\"] != [\"2026-06-02T10:00\",\"2026-06-03T16:00\"]",
+        "XX P3 plakken-met-naam task.time.completion: actuals: [\"2026-06-02T10:00\",\"2026-06-03\"] != [\"2026-06-02T10:00\",\"2026-06-03T16:00\"]",
+        "XX P3 plakken-met-naam task.time.actualDuration: actuals: [\"2026-06-02T10:00\",\"2026-06-03\"] != [\"2026-06-02T10:00\",\"2026-06-03T16:00\"]",
+        "XX P3 plakken-met-naam task.time.remainingTime: actuals: [\"2026-06-02T10:00\",\"2026-06-03\"] != [\"2026-06-02T10:00\",\"2026-06-03T16:00\"]"
+      ],
+      "herstel_sha256": "373ca19c372ba5ff8eed1a3f5f2cb29e37b6e672ae7f3f2a92ffdead590e8556",
+      "omschrijving": "Het afgeleide einde krijgt weer de rauwe statusdatum vóór de volgordecorrectie.",
+      "met_cp_hersteld": true
+    },
+    {
+      "naam": "punt-2-kalendertijdsnap",
+      "bestand": "src/engine/scheduler/relationMath.ts",
+      "exit": 1,
+      "rode_controles": [
+        "XX P2 ops 120 ELAPSEDTIME: mijlpaal: [\"2026-07-06T16:00\",\"2026-07-06T16:00\"] != [\"2026-07-07T08:00\",\"2026-07-07T08:00\"]",
+        "XX P2 ops 120 ELAPSEDTIME: speling voorganger: -0.25 != 0",
+        "XX P2 p6 120 ELAPSEDTIME: mijlpaal: [\"2026-07-06T16:00\",\"2026-07-06T16:00\"] != [\"2026-07-07T08:00\",\"2026-07-07T08:00\"]",
+        "XX P2 p6 120 ELAPSEDTIME: speling voorganger: -0.25 != 0",
+        "XX P2 msproject 120 ELAPSEDTIME: mijlpaal: [\"2026-07-06T16:00\",\"2026-07-06T16:00\"] != [\"2026-07-07T08:00\",\"2026-07-07T08:00\"]",
+        "XX P2 msproject 120 ELAPSEDTIME: speling voorganger: -0.25 != 0"
+      ],
+      "herstel_sha256": "3fa911f23af5744f2438c6bf4ae17d13fc31af3c2a11a6f8b90be0bb67af3316",
+      "omschrijving": "De kalendertijdtak krijgt de oude onvoorwaardelijke snap terug.",
+      "met_cp_hersteld": true
+    },
+    {
+      "naam": "punt-2-werktijdsnap",
+      "bestand": "src/engine/scheduler/relationMath.ts",
+      "exit": 1,
+      "rode_controles": [
+        "XX P2 ops: negatieve lag bewaart ondergrens di 08:00: \"2026-07-06T17:00\" != \"2026-07-08T09:00\"",
+        "XX P2 p6: negatieve lag bewaart ondergrens di 08:00: \"2026-07-06T17:00\" != \"2026-07-08T09:00\"",
+        "XX P2 msproject: negatieve lag bewaart ondergrens di 08:00: \"2026-07-06T17:00\" != \"2026-07-08T09:00\""
+      ],
+      "herstel_sha256": "3fa911f23af5744f2438c6bf4ae17d13fc31af3c2a11a6f8b90be0bb67af3316",
+      "omschrijving": "De werktijdtak krijgt de oude onvoorwaardelijke snap terug.",
+      "met_cp_hersteld": true
+    },
+    {
+      "naam": "punt-3-status-overslaan",
+      "bestand": "src/engine/taskGrid/taskEditPlan.ts",
+      "exit": 1,
+      "rode_controles": [
+        "XX P3 raster task.status: actuals: [\"2026-06-02T10:00\",\"2026-06-03\"] != [\"2026-06-02T10:00\",\"2026-06-03T16:00\"]",
+        "XX P3 plakken task.status: actuals: [\"2026-06-02T10:00\",\"2026-06-03\"] != [\"2026-06-02T10:00\",\"2026-06-03T16:00\"]"
+      ],
+      "herstel_sha256": "1e3a68bfe28904903653c970559bb928aa0858fdacf90a965cf40d53788ebaf4",
+      "omschrijving": "De statuskolom slaat D6 weer over bij één cel.",
+      "met_cp_hersteld": true
+    },
+    {
+      "naam": "punt-3-status-meerdere-cellen",
+      "bestand": "src/engine/taskGrid/taskEditPlan.ts",
+      "exit": 1,
+      "rode_controles": [
+        "XX P3 plakken-met-naam task.status: actuals: [\"2026-06-02T10:00\",\"2026-06-03\"] != [\"2026-06-02T10:00\",\"2026-06-03T16:00\"]"
+      ],
+      "herstel_sha256": "1e3a68bfe28904903653c970559bb928aa0858fdacf90a965cf40d53788ebaf4",
+      "omschrijving": "De statuskolom slaat D6 weer over bij meerdere cellen.",
+      "met_cp_hersteld": true
+    },
+    {
+      "naam": "punt-4-MCP-startkant",
+      "bestand": "src/state/mcpValidation.ts",
+      "exit": 1,
+      "rode_controles": [
+        "XX P4 MCP 1320–1800: toegestaan: false != true",
+        "XX P4 MCP 1320–1800: één eindmoment: [null,null] != [\"2026-06-04T06:00\",\"2026-06-04T06:00\"]",
+        "XX P4 MCP 0–1440: toegestaan: false != true",
+        "XX P4 MCP 0–1440: één eindmoment: [null,null] != [\"2026-06-04T00:00\",\"2026-06-04T00:00\"]"
+      ],
+      "herstel_sha256": "2397068f3f398b30b6969d747c29952910a7ddce130fc5cb091fe4818cc37089",
+      "omschrijving": "MCP toetst actualStart weer uitsluitend als startachtig.",
+      "met_cp_hersteld": true
+    },
+    {
+      "naam": "punt-4-plakken-startkant",
+      "bestand": "src/engine/taskGrid/taskEditPlan.ts",
+      "exit": 1,
+      "rode_controles": [
+        "XX P4 plakken 1320–1800: toegestaan: false != true",
+        "XX P4 plakken 1320–1800: één eindmoment: [null,null] != [\"2026-06-04T06:00\",\"2026-06-04T06:00\"]",
+        "XX P4 plakken 0–1440: toegestaan: false != true",
+        "XX P4 plakken 0–1440: één eindmoment: [null,null] != [\"2026-06-04T00:00\",\"2026-06-04T00:00\"]"
+      ],
+      "herstel_sha256": "1e3a68bfe28904903653c970559bb928aa0858fdacf90a965cf40d53788ebaf4",
+      "omschrijving": "Het raster toetst actualStart weer uitsluitend als startachtig.",
+      "met_cp_hersteld": true
+    },
+    {
+      "naam": "punt-4-paneel-startkant",
+      "bestand": "src/engine/progressEntry.ts",
+      "exit": 1,
+      "rode_controles": [
+        "XX P4 paneel 1320–1800: start toegestaan: false != true",
+        "XX P4 dialoog 1320–1800: actualStart toegestaan: false != true",
+        "XX P4 paneel 0–1440: start toegestaan: false != true",
+        "XX P4 dialoog 0–1440: actualStart toegestaan: false != true"
+      ],
+      "herstel_sha256": "8bc80f5a1c2c4c74ef2c5bade210c50aa7f232f3ba25152d22a4dd187e32e756",
+      "omschrijving": "Paneel en dialoogplan toetsen actualStart weer uitsluitend als startachtig.",
+      "met_cp_hersteld": true
+    },
+    {
+      "naam": "punt-4-dialoog-startkant",
+      "bestand": "src/state/taskDialogSave.ts",
+      "exit": 1,
+      "rode_controles": [
+        "XX P4 dialoogvelden 1320–1800: start toegestaan: false != true",
+        "XX P4 dialoogvelden 1320–1800: einde toegestaan: false != true",
+        "XX P4 dialoogvelden 1320–1800: opgeslagen: false != true",
+        "XX P4 dialoogvelden 1320–1800: één eindmoment: [null,null] != [\"2026-06-04T06:00\",\"2026-06-04T06:00\"]",
+        "XX P4 dialoogvelden 0–1440: start toegestaan: false != true",
+        "XX P4 dialoogvelden 0–1440: einde toegestaan: false != true",
+        "XX P4 dialoogvelden 0–1440: opgeslagen: false != true",
+        "XX P4 dialoogvelden 0–1440: één eindmoment: [null,null] != [\"2026-06-04T00:00\",\"2026-06-04T00:00\"]"
+      ],
+      "herstel_sha256": "be1fa6e86367f11cce949d725b82c1193da2ba09d85e1f17e62234525e483192",
+      "omschrijving": "De losse dialoogvelden toetsen actualStart weer uitsluitend als startachtig.",
+      "met_cp_hersteld": true
+    }
+  ],
+  "oorspronkelijke_head_rode_uitvoer": [
+    "XX P1 paneel: start blijft 10:00: \"2026-06-03T08:00\" != \"2026-06-03T10:00\"",
+    "XX P1 dialoog: start blijft 10:00: \"2026-06-03T08:00\" != \"2026-06-03T10:00\"",
+    "XX P1 raster: start blijft 10:00: \"2026-06-03T08:00\" != \"2026-06-03T10:00\"",
+    "XX P1 plakken: start blijft 10:00: \"2026-06-03T08:00\" != \"2026-06-03T10:00\"",
+    "XX P1 import: start blijft 10:00: \"2026-06-03T08:00\" != \"2026-06-03T10:00\"",
+    "XX P1 MCP: start blijft 10:00: \"2026-06-03T08:00\" != \"2026-06-03T10:00\"",
+    "XX P2 ops 120 ELAPSEDTIME: mijlpaal: [\"2026-07-06T16:00\",\"2026-07-06T16:00\"] != [\"2026-07-07T08:00\",\"2026-07-07T08:00\"]",
+    "XX P2 ops 120 ELAPSEDTIME: speling voorganger: -0.25 != 0",
+    "XX P2 ops: negatieve lag bewaart ondergrens di 08:00: \"2026-07-06T17:00\" != \"2026-07-08T09:00\"",
+    "XX P2 p6 120 ELAPSEDTIME: mijlpaal: [\"2026-07-06T16:00\",\"2026-07-06T16:00\"] != [\"2026-07-07T08:00\",\"2026-07-07T08:00\"]",
+    "XX P2 p6 120 ELAPSEDTIME: speling voorganger: -0.25 != 0",
+    "XX P2 p6: negatieve lag bewaart ondergrens di 08:00: \"2026-07-06T17:00\" != \"2026-07-08T09:00\"",
+    "XX P2 msproject 120 ELAPSEDTIME: mijlpaal: [\"2026-07-06T16:00\",\"2026-07-06T16:00\"] != [\"2026-07-07T08:00\",\"2026-07-07T08:00\"]",
+    "XX P2 msproject 120 ELAPSEDTIME: speling voorganger: -0.25 != 0",
+    "XX P2 msproject: negatieve lag bewaart ondergrens di 08:00: \"2026-07-06T17:00\" != \"2026-07-08T09:00\"",
+    "XX P3 raster task.status: actuals: [\"2026-06-02T10:00\",\"2026-06-03\"] != [\"2026-06-02T10:00\",\"2026-06-03T16:00\"]",
+    "XX P3 plakken task.status: actuals: [\"2026-06-02T10:00\",\"2026-06-03\"] != [\"2026-06-02T10:00\",\"2026-06-03T16:00\"]",
+    "XX P4 MCP 1320–1800: toegestaan: false != true",
+    "XX P4 MCP 1320–1800: één eindmoment: [null,null] != [\"2026-06-04T06:00\",\"2026-06-04T06:00\"]",
+    "XX P4 plakken 1320–1800: toegestaan: false != true",
+    "XX P4 plakken 1320–1800: één eindmoment: [null,null] != [\"2026-06-04T06:00\",\"2026-06-04T06:00\"]",
+    "XX P4 paneel 1320–1800: start toegestaan: false != true",
+    "XX P4 dialoog 1320–1800: actualStart toegestaan: false != true",
+    "XX P4 dialoogvelden 1320–1800: start toegestaan: false != true",
+    "XX P4 dialoogvelden 1320–1800: einde toegestaan: false != true",
+    "XX P4 dialoogvelden 1320–1800: opgeslagen: false != true",
+    "XX P4 dialoogvelden 1320–1800: één eindmoment: [null,null] != [\"2026-06-04T06:00\",\"2026-06-04T06:00\"]",
+    "XX P4 MCP 0–1440: toegestaan: false != true",
+    "XX P4 MCP 0–1440: één eindmoment: [null,null] != [\"2026-06-04T00:00\",\"2026-06-04T00:00\"]",
+    "XX P4 plakken 0–1440: toegestaan: false != true",
+    "XX P4 plakken 0–1440: één eindmoment: [null,null] != [\"2026-06-04T00:00\",\"2026-06-04T00:00\"]",
+    "XX P4 paneel 0–1440: start toegestaan: false != true",
+    "XX P4 dialoog 0–1440: actualStart toegestaan: false != true",
+    "XX P4 dialoogvelden 0–1440: start toegestaan: false != true",
+    "XX P4 dialoogvelden 0–1440: einde toegestaan: false != true",
+    "XX P4 dialoogvelden 0–1440: opgeslagen: false != true",
+    "XX P4 dialoogvelden 0–1440: één eindmoment: [null,null] != [\"2026-06-04T00:00\",\"2026-06-04T00:00\"]"
+  ]
+}

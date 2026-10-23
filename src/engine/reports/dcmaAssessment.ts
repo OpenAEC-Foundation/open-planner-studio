@@ -5,8 +5,8 @@ import { originalSequenceId } from '@/engine/scheduler/expandSummaryRelations';
 import { resolveEffectiveLagDays } from '@/engine/scheduler/CPMSolver';
 import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProject';
 import type { ProjectSolveOptions } from '@/engine/scheduler/solveInput';
-import { taskDurationUnit } from '@/engine/scheduler/duration';
-import { isActualPastStatusDate } from '@/engine/taskMutationRules';
+import { isElapsedTask, taskDurationUnit } from '@/engine/scheduler/duration';
+import { actualDateSide, isActualPastStatusDate } from '@/engine/taskMutationRules';
 import { effHoursPerDay, effectiveCalendarOf } from '@/utils/taskDuration';
 import { parseDate } from '@/utils/dateUtils';
 import { signedWorkDaysBetween } from '@/engine/variance';
@@ -312,7 +312,8 @@ export function computeDcmaAssessment(ctx: ReportContext, logic: LogicIndex): Dc
     metrics.push(na(9, 'invalidDates', invalidNorm, 'noStatusDate'));
   } else {
     const sd = ctx.statusDate;
-    metrics.push(percentMetric(9, 'invalidDates', invalidNorm, count(t => invalidDateReasons(t, sd, statusDay, !!cpm).length > 0), n));
+    metrics.push(percentMetric(9, 'invalidDates', invalidNorm, count(t => invalidDateReasons(t, sd, statusDay, !!cpm,
+      effectiveCalendarOf(t, ctx.calendar, ctx.calendars as WorkCalendar[])).length > 0), n));
   }
 
   const resourceNorm: DcmaNorm = { kind: 'maxPercent', value: 0 };
@@ -378,11 +379,11 @@ export function computeDcmaAssessment(ctx: ReportContext, logic: LogicIndex): Dc
  */
 export type InvalidDateReason = 'actualStartAfterStatusDate' | 'actualFinishAfterStatusDate' | 'forecastStartBeforeStatusDate' | 'forecastFinishBeforeStatusDate';
 
-export function invalidDateReasons(t: Task, statusDate: string, statusDay: string, withForecast: boolean): InvalidDateReason[] {
+export function invalidDateReasons(t: Task, statusDate: string, statusDay: string, withForecast: boolean, calendar?: WorkCalendar): InvalidDateReason[] {
   const out: InvalidDateReason[] = [];
   const { actualStart, actualFinish } = t.time;
-  if (actualStart && isActualPastStatusDate(actualStart, statusDate)) out.push('actualStartAfterStatusDate');
-  if (actualFinish && isActualPastStatusDate(actualFinish, statusDate)) out.push('actualFinishAfterStatusDate');
+  if (actualStart && isActualPastStatusDate(actualStart, statusDate, isElapsedTask(t) ? undefined : calendar, actualDateSide(t, 'actualStart'))) out.push('actualStartAfterStatusDate');
+  if (actualFinish && isActualPastStatusDate(actualFinish, statusDate, isElapsedTask(t) ? undefined : calendar, actualDateSide(t, 'actualFinish'))) out.push('actualFinishAfterStatusDate');
   if (!withForecast) return out;
   const state = progressState(t);
   if (state === 'notStarted' && dayOf(taskStart(t)) < statusDay) out.push('forecastStartBeforeStatusDate');

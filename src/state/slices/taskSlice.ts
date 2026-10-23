@@ -1,3 +1,4 @@
+import { isElapsedTask } from '@/engine/scheduler/duration';
 import { Task, type ExternalLink } from '@/types/task';
 import { taskAssignmentDrafts, taskIndexById } from '@/state/immerDraft';
 import { type SplitPiece, type SplitRefusal } from '@/engine/scheduler/splitEdit';
@@ -261,7 +262,7 @@ function progressImportDeps(s: AppState, today: string | undefined): ProgressPla
       const question = actualStartQuestionFor(task, planned.value.task, statusDate, {
         actualStart: wrote('task.time.actualStart'),
         actualFinish: wrote('task.time.actualFinish'),
-      });
+      }, isElapsedTask(task) ? undefined : resolveCalendar(task.calendarId, s.calendars, s.calendar));
       if (!question) return planned;
       return {
         ok: false,
@@ -816,7 +817,8 @@ function commitProgressEdit(
   // Actuals liggen nooit ná de statusdatum — weigeren i.p.v. stil klemmen, zonder snapshot.
   // `isActualPastStatusDate` vergelijkt geparste instanten i.p.v. rauwe
   // ISO-strings (het uur-precies-op-de-statusdatum-dag-gat).
-  const plan = planProgressEntry(task, edit, { ...ctx, statusDate: s.project.statusDate });
+  const plan = planProgressEntry(task, edit, { ...ctx, statusDate: s.project.statusDate,
+    calendar: resolveCalendar(task.calendarId, s.calendars, s.calendar) });
   if (!plan.ok) return plan;
   if (!plan.change) return { ok: true };
   runtime.beginUndoable(s, opts); // `opts` = coalesceKey (slider-sleep / per-toetsaanslag-commits = 1 stap).

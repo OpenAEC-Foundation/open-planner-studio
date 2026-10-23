@@ -1,116 +1,57 @@
 {
   "toelichting": "Vangnet van de minutenmodel-runs (spec 2026-10-20-alleen-uren-design.md §6.1): per run en per batterij de dagcases die na de redencodes niet gelijk zijn op dagniveau (ROOD, BEWUST_ROOD, NIET_OMZETBAAR). Bijwerken: zie tests/planning/README.md.",
   "run1": {
-    "advanced-cpm": [
-      "ext-pred-ff-lag0",
-      "ext-successor-fs-negative",
-      "hammock-excluded-from-float-paths",
-      "hammock-not-near-critical",
-      "hammock-with-successor",
-      "s10-hammock-v1",
-      "s10-hammock-v2",
-      "s11-longest-path",
-      "s2-snlt-negative",
-      "s3-fnet-forward",
-      "s5-mso-soft-double-bound",
-      "s6-mfo-soft",
-      "s8-twin-soft",
-      "z7-split-e-ff-successor-startfromfinish"
-    ],
+    "advanced-cpm": [],
     "baselines": [],
     "boundary": [],
     "calendar": [],
     "calibration": [],
-    "constraints": [
-      "cst-deadline-cap",
-      "cst-deadline-chain",
-      "cst-deadline-missed",
-      "cst-fnet",
-      "cst-mfo",
-      "cst-mso",
-      "cst-mso-violated",
-      "cst-snlt-float-cap",
-      "cst-snlt-violated"
-    ],
+    "constraints": [],
     "driving": [],
     "edge": [
       "edge-isolated-with-milestone-01",
-      "wbs-summary-relation-conservative-ff-succ-01",
       "wbs-summary-relation-conservative-sf-pred-01",
       "wbs-summary-relation-conservative-sf-succ-01"
     ],
     "float": [],
     "hours": [],
-    "hours-relations": [
-      "rr-fs-succ-finishms-lag-dagpariteit"
-    ],
-    "kalenders": [
-      "kal-ff-multi"
-    ],
+    "hours-blokgrenzen": [],
+    "hours-relations": [],
+    "kalenders": [],
     "lag-advanced": [
-      "lagadv-ff-ed-weekend",
-      "lagadv-ff-lead-ed",
       "lagadv-pct-fs50-odd-roundup",
       "lagadv-sf-ed"
     ],
     "milestone-kinds": [
-      "mk-05a",
-      "mk-08a",
-      "mk-14",
-      "mk-15a"
+      "mk-14"
     ],
     "milestones": [
       "ms-02-lone-vs-task",
-      "ms-06-end-milestone-ff",
-      "ms-12-join-ff-aligned-finish",
       "ms-15-milestone-no-artificial-stretch"
     ],
     "move-project": [],
     "msp-pariteit": [
-      "msp-20-t8-review-elapsed-keten",
-      "msp-27-t8-review-blocker-ownanchor-rootfloor-ss",
       "msp-51-z6-invariant-elapsed-opvolger-hele-dagen-delay",
       "msp-56-z9a-manual-anchor-raw-no-snap"
     ],
-    "probes": [
-      "pb-ff-forward"
-    ],
+    "probes": [],
     "progress": [
-      "prog-T9-elapsed-restwerk-24-7",
-      "prog-completed-onplan-zero-float",
-      "prog-completed-overrun-negative-float"
+      "prog-T9-elapsed-restwerk-24-7"
     ],
     "relations": [
-      "rel-ff-01-longshort",
-      "rel-ff-lag0",
-      "rel-ff-lagm2",
-      "rel-ff-milestone-lag",
-      "rel-multi-ff-binds",
-      "rel-multi-fs-ff",
-      "rel-sf-02-delayedpred",
-      "rel-ss-ff-pair"
+      "rel-sf-02-delayedpred"
     ],
     "resource-leveling": [],
     "resource-load": [],
     "view": []
   },
   "run2": {
-    "advanced-cpm": [
-      "ext-successor-fs-negative",
-      "s11-longest-path",
-      "s5-mso-soft-double-bound"
-    ],
+    "advanced-cpm": [],
     "baselines": [],
     "boundary": [],
     "calendar": [],
     "calibration": [],
-    "constraints": [
-      "cst-deadline-cap",
-      "cst-deadline-chain",
-      "cst-deadline-missed",
-      "cst-fnet",
-      "cst-mso"
-    ],
+    "constraints": [],
     "driving": [],
     "edge": [
       "edge-isolated-with-milestone-01"
@@ -119,43 +60,31 @@
     "hours": [
       "durmin-on-daycal-withdm"
     ],
-    "hours-relations": [
-      "rr-fs-succ-finishms-lag-dagpariteit"
-    ],
+    "hours-blokgrenzen": [],
+    "hours-relations": [],
     "kalenders": [],
     "lag-advanced": [
       "lagadv-ff-lead-ed"
     ],
     "milestone-kinds": [
       "mk-05a",
-      "mk-08a",
-      "mk-14",
-      "mk-15a"
+      "mk-14"
     ],
     "milestones": [
       "ms-02-lone-vs-task",
-      "ms-06-end-milestone-ff",
-      "ms-12-join-ff-aligned-finish",
       "ms-15-milestone-no-artificial-stretch"
     ],
     "move-project": [],
     "msp-pariteit": [
       "msp-20-t8-review-elapsed-keten",
-      "msp-27-t8-review-blocker-ownanchor-rootfloor-ss",
-      "msp-50-z6-invariant-elapsed-wortel-hele-dagen-delay",
       "msp-51-z6-invariant-elapsed-opvolger-hele-dagen-delay",
-      "msp-54-z6-backward-doorgifte-spiegel",
       "msp-56-z9a-manual-anchor-raw-no-snap"
     ],
     "probes": [],
     "progress": [
-      "prog-T9-elapsed-restwerk-24-7",
-      "prog-completed-onplan-zero-float",
-      "prog-completed-overrun-negative-float"
+      "prog-T9-elapsed-restwerk-24-7"
     ],
-    "relations": [
-      "rel-ff-milestone-lag"
-    ],
+    "relations": [],
     "resource-leveling": [],
     "resource-load": [],
     "view": []

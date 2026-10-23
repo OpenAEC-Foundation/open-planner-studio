@@ -147,7 +147,7 @@ export function TaskDialog() {
   draftRef.current = draft;
   const enterDraftProgress = (edit: ProgressEdit, opts?: { actualStart?: string }): ProgressEntryResult => {
     const plan = planProgressEntry(draftRef.current, edit, {
-      statusDate: project.statusDate, today: localTodayIso(), actualStart: opts?.actualStart,
+      statusDate: project.statusDate, today: localTodayIso(), actualStart: opts?.actualStart, calendar: effCal,
     });
     if (!plan.ok) return plan;
     if (plan.change) {

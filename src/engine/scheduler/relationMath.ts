@@ -589,7 +589,10 @@ function forwardHour(
 ): Date {
   const elapsed = seq.lagUnit === 'ELAPSEDTIME';
   const lagEng = deps.lagEngine(pe, se);
-  const { predEndsBeginOfDay, predStartsNextDay, succIsFinishMs, succIsStartMs } = flags;
+  const { predEndsBeginOfDay, predStartsNextDay, succIsStartMs } = flags;
+  // Zonder soort volgt een nulduurmijlpaal de bindende eindrelatie (N1).
+  const succIsFinishMs = flags.succIsFinishMs || (isZeroDurationMilestone(successor)
+    && !successor.milestoneKind && (seq.type === 'FINISH_FINISH' || seq.type === 'START_FINISH'));
   const elapsedMin = () => deps.resolveElapsedMinutes(seq, predTask) * MS_PER_MIN;
   // Zie forwardDay se `succElapsed` — dezelfde definitie, hier voor de uurtak. Een
   // ELAPSEDTIME-opvolger heeft dezelfde behoefte als een EINDmijlpaal-opvolger (geen
@@ -618,13 +621,8 @@ function forwardHour(
         const raw = new Date(base.getTime() + elapsedMin());
         return succElapsed ? raw : deps.snapOnOrAfter(se, raw);
       }
-      // BEKENDE BEPERKING (niet gefixt): `deps.shiftLagPred` normaliseert bij lag=0 zelf óók via
-      // `nextWorkInstant(base)`, in de VOORGANGER-engine — vóór de `succElapsed`-check hieronder.
-      // Is `predTask` zelf ELAPSEDTIME met een rauwe `base` buiten elke band, dan snapt deze regel
-      // `base` alsnog naar een werk-instant van de voorganger. FF/SF ontsnappen hieraan via hun
-      // `lagIsZero`-mechanisme (`landRawInstant`); SS heeft dat niet. `shiftLagPred` is een gedeeld
-      // pad met 9 aanroepplekken, dus een blinde aanpassing raakt FF/SF mee; het gat is smal
-      // (ELAPSEDTIME-voorganger volledig buiten de banden) en gepind in msp-pariteit.
+      // SS + 0 naar kalendertijd bewaart het rauwe startmoment, ook buiten werkblokken.
+      if (succElapsed && deps.resolveEffectiveLagDays(seq, predTask, lagEng) === 0) return base;
       const lagged = deps.shiftLagPred(lagEng, base, seq, predTask, 1);
       return succElapsed ? lagged : deps.snapOnOrAfter(se, lagged);
     }
@@ -636,12 +634,14 @@ function forwardHour(
       // dagrand-normalisatie nodig zoals FS se `predDone`).
       let reqFinish: Date;
       if (elapsed) {
-        reqFinish = succElapsed
-          ? new Date(predResult.ef.getTime() + elapsedMin())
-          : deps.snapOnOrAfter(se, new Date(predResult.ef.getTime() + elapsedMin()));
+        const raw = new Date(predResult.ef.getTime() + elapsedMin());
+        reqFinish = succElapsed ? raw : deps.snapOnOrAfter(se, raw);
+        if (isDayTaskOnBands(successor, se)) {
+          reqFinish = deps.snapOnOrBefore(se, raw).getTime() === raw.getTime() ? raw : reqFinish;
+        }
       } else {
         const lagged = deps.shiftLagPred(lagEng, predResult.ef, seq, predTask, 1);
-        if ((succIsFinishMs || succElapsed) && pe.isHourMode
+        if ((succIsFinishMs || (succIsStartMs && isDayTaskOnBands(predTask, pe)) || succElapsed) && pe.isHourMode
           && lagged.getTime() === deps.snapOnOrAfter(lagEng, predResult.ef).getTime()) {
           reqFinish = landRawInstant(deps, se, predResult.ef, succElapsed);
         } else if (pe.isHourMode && lagEng.isHourMode && !predEndsBeginOfDay
@@ -681,12 +681,18 @@ function forwardHour(
         // MSP-pariteit: een ELAPSEDTIME-lag van exact 0 klok-minuten is dezelfde "geen échte
         // lag"-situatie als de WORKTIME-tak hieronder, zodat een elapsed-FS-eindmijlpaal op de rauwe
         // instant landt. Geen `lagIsZero`-vergelijking nodig: 0 klok-minuten is geen verschuiving.
-        // Anker is `predResult.ef` RECHTSTREEKS, NIET `predDone`: die dag-boundary-+1 is een
+        // Anker is het voorgangereinde RECHTSTREEKS, NIET `predDone`: die dag-boundary-+1 is een
         // WORKTIME-concept en schuift een dag-pred-scenario een dag op (`elapsed-day-to-hour` in
         // cases-hours.json).
         const target = new Date(predResult.ef.getTime() + elapsedMin());
         if (succIsFinishMs && pe.isHourMode && elapsedMin() === 0) {
           return landRawInstant(deps, se, target);
+        }
+        if (succIsFinishMs && pe.isHourMode && se.isHourMode) {
+          const back = deps.snapOnOrBefore(se, target);
+          // Kalendertijd bewaart de kloktijdgrens: nul werkminuten maakt ma 16:00 en di 08:00
+          // niet gelijk. Een geldig eindmoment blijft staan, een later blokbegin gaat niet terug.
+          if (back.getTime() === target.getTime()) return back;
         }
         return se.availableStart(target);
       }
@@ -758,6 +764,13 @@ function forwardHour(
       // zou de aanroep crashen op de non-null assertion. Die combinatie loopt correct via de
       // dag-lag-tak van `shiftLagPred` + `availableStart`.
       if (succIsFinishMs && lagIsZero) return landRawInstant(deps, se, predDone);
+      if (succIsFinishMs && pe.isHourMode && se.isHourMode) {
+        const back = deps.snapOnOrBefore(se, lagged);
+        // Beide kalenders moeten dit als dezelfde grens lezen, ook bij een lead en feestdagen.
+        if (back.getTime() === lagged.getTime()
+          || (se.nextWorkInstant(back).getTime() === lagged.getTime()
+            && lagEng.workMinutesBetween(back, lagged) === 0)) return back;
+      }
       return se.availableStart(lagged);
     }
   }

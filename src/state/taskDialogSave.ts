@@ -1,7 +1,8 @@
+import { isElapsedTask } from '@/engine/scheduler/duration';
 import { appStoreContext, type AppStoreContext } from '@/state/appStore';
 import { createBatchTransactions } from '@/state/runtime/createBatchTransactions';
 import {
-  applyActualDateEdit, applyCompletionEdit, applyProgressInvariants, isActualPastStatusDate,
+  actualDateSide, applyActualDateEdit, applyCompletionEdit, applyProgressInvariants, isActualPastStatusDate, normalizeActualDate,
 } from '@/engine/taskMutationRules';
 import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 import { startAnchorAfterEdit, startIsActual } from '@/utils/taskDates';
@@ -14,6 +15,7 @@ import { durationBelowDoneWorkNotice, statusDateSetTodayNotice } from '@/state/p
 import { durationEditRefusal } from '@/engine/work/workRuleApply';
 import { taskCalendarHoursPerDay } from '@/utils/taskDefaults';
 import { getPersonalTaskTypes } from '@/services/taskTypes/personalTaskTypes';
+import type { WorkCalendar } from '@/types/calendar';
 import type { Task } from '@/types/task';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import type { HistorySessionMark } from '@/state/slices/historySlice';
@@ -61,10 +63,10 @@ import type { PhaseAssignmentChoice } from '@/state/structuralTransition';
 const clampCompletion = (raw: number) => Math.max(0, Math.min(1, raw));
 
 /** Schuif "% voltooid" op de concept: dezelfde regel als `setTaskProgress`. */
-export function draftWithProgress(draft: Task, raw: number, statusDate: string | undefined): Task {
+export function draftWithProgress(draft: Task, raw: number, statusDate: string | undefined, calendar?: WorkCalendar): Task {
   const next: Task = { ...draft, time: { ...draft.time } };
-  applyCompletionEdit(next.time, clampCompletion(raw), statusDate);
-  applyProgressInvariants(next, statusDate);
+  applyCompletionEdit(next, clampCompletion(raw), statusDate, calendar);
+  applyProgressInvariants(next, statusDate, calendar);
   return next;
 }
 
@@ -73,22 +75,25 @@ function draftWithActualDate(
   field: 'actualStart' | 'actualFinish',
   date: string | undefined,
   statusDate: string | undefined,
+  calendar?: WorkCalendar,
 ): Task | null {
   // Zelfde weigering als de paneelsetters: actuals nooit ná de statusdatum.
-  if (date && statusDate && isActualPastStatusDate(date, statusDate)) return null;
+  date = normalizeActualDate(draft, field, date, statusDate, calendar);
+  if (date && statusDate && isActualPastStatusDate(date, statusDate, isElapsedTask(draft) ? undefined : calendar,
+    actualDateSide(draft, field))) return null;
   const next: Task = { ...draft, time: { ...draft.time } };
-  applyActualDateEdit(next, field, date, statusDate);
+  applyActualDateEdit(next, field, date, statusDate, calendar);
   return next;
 }
 
 /** Werkelijke start op de concept; `null` = geweigerd (ná de statusdatum), zoals `setActualStart`. */
-export function draftWithActualStart(draft: Task, date: string | undefined, statusDate: string | undefined): Task | null {
-  return draftWithActualDate(draft, 'actualStart', date, statusDate);
+export function draftWithActualStart(draft: Task, date: string | undefined, statusDate: string | undefined, calendar?: WorkCalendar): Task | null {
+  return draftWithActualDate(draft, 'actualStart', date, statusDate, calendar);
 }
 
 /** Werkelijk einde op de concept; `null` = geweigerd (ná de statusdatum), zoals `setActualFinish`. */
-export function draftWithActualFinish(draft: Task, date: string | undefined, statusDate: string | undefined): Task | null {
-  return draftWithActualDate(draft, 'actualFinish', date, statusDate);
+export function draftWithActualFinish(draft: Task, date: string | undefined, statusDate: string | undefined, calendar?: WorkCalendar): Task | null {
+  return draftWithActualDate(draft, 'actualFinish', date, statusDate, calendar);
 }
 
 /** De duur van de taak bij het openen van de dialoog. */
