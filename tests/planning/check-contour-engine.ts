@@ -242,12 +242,15 @@ console.log('-- (b) lastlezers: contour als data --');
     rep.resources[0].buckets[0].load, rep.resources[0].buckets[0].overallocatedDays, rep.resources[0].buckets[0].causes?.[0].contribution,
   ], [1.5, ['2026-06-01'], 1.5]);
 
-  // Contour langer dan de duur: het totaal blijft behouden (aanroeper enumereert genoeg dagen).
+  // Contour langer dan de duur: het totaal blijft behouden. F3c (B1, spec §3.11: een contour verdeelt
+  // het werk "over die dagen", de dagen van de plaatsing): de taak werkt alleen op ma, dus de rest
+  // voorbij het laatste werkblok komt op de laatste dag van de plaatsing. Vóór F3c verlengde de
+  // aanroeper de dagenlijst en kwam er ook last op di, een dag waarop de taak niet werkt.
   const longer = task('l', '2026-06-01', '2026-06-01', 1, {
     timephasedContours: [{ resourceUid: null, resourceId: 'r1', periods: [P(0, 480, 480), P(480, 480, 480)] }],
   });
   const al = assign('al', 'l', 'r1', 1);
-  eq('b8 contour voorbij scheduleDuration verliest geen werk', computeResourceLoad([res('r1')], [al], [longer], CAL, []).load.r1, { '2026-06-01': 1, '2026-06-02': 1 });
+  eq('b8 contour voorbij scheduleDuration verliest geen werk', computeResourceLoad([res('r1')], [al], [longer], CAL, []).load.r1, { '2026-06-01': 2 });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

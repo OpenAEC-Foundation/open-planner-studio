@@ -183,9 +183,9 @@ export const TUTORIAL_5: TutorialScript = {
         { click: { text: R.bricklayer, within: { anchor: 'rail:warnings' }, exact: false } },
       ],
       expect: [
-        // F3c-tussenstand (B2): de oude belastingroute telt 28 juni t/m 2 juli. Het doel, 6 dagen van 28 juni
-        // t/m 5 juli (plaatsingsreferentie), haalt F3c deel 3 (belasting per werkdag uit momenten, §3.11).
-        { see: { anchor: 'rail:warnings' }, text: l('Overbezet op 5 dag(en) (28-06-2027 – 02-07-2027)', 'Overallocated on 5 day(s) (28-06-2027 – 02-07-2027)') },
+        // F3c (§3.11, §3.14): de belasting per werkdag uit momenten op de dagenmaat-plaatsing. De metselaar
+        // is 6 werkdagen overbezet, van 28 juni t/m 5 juli (de plaatsingsreferentie).
+        { see: { anchor: 'rail:warnings' }, text: l('Overbezet op 6 dag(en) (28-06-2027 – 05-07-2027)', 'Overallocated on 6 day(s) (28-06-2027 – 05-07-2027)') },
         { state: (s, lang) => (s.ui.histogramResource === R.bricklayer[lang] ? [] : [`histogram toont ${s.ui.histogramResource}`]) },
       ],
       shots: [{ name: 'tut-5-overbezetting', of: [{ anchor: 'gantt-panel' }, { anchor: 'histogram-strip' }], pad: 0 }],
@@ -203,6 +203,7 @@ export const TUTORIAL_5: TutorialScript = {
       ],
       expect: [
         { gone: dialog },
+        // F3c (§3.11, §3.14): de nivelleerder schuift alleen het buitenspouwblad, 5 werkdagen.
         { state: (s, lang) => [
           ...taskIs(s, lang, T.outerLeaf, { earlyStart: '2027-07-05T10:00', earlyFinish: '2027-07-13T10:00', totalFloat: 0.625, critical: false }),
           ...(s.overallocated.length === 0 ? [] : [`nog overbezet: ${s.overallocated.join(', ')}`]),

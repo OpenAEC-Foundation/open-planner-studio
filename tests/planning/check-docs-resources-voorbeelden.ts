@@ -9,13 +9,15 @@
 // verandert rood wordt in plaats van de documentatie stil te laten liegen. Verandert een getal
 // bewust, pas dan de pin hieronder ÉN de artikelen (nl en en) aan.
 //
+// F3c: de belasting en de nivelleerder tellen het dagdeel (§3.11), en de motor plaatst een dagtaak in de
+// dagenmaat (§3.14). De urenreferentie onderaan (`hoursReference`) geeft dezelfde uitkomsten.
+//
 // Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { useAppStore } from '@/state/appStore';
 import { workDaySlotsToPeriods } from '@/engine/contour/contourEdit';
-import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
-import { parseInstant } from '@/utils/dateUtils';
-import { assignmentPlacementLoad, distributeUnits } from '@/engine/scheduler/ResourceLoad';
+import { computeResourceLoad, distributeUnits } from '@/engine/scheduler/ResourceLoad';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import type { WorkRule } from '@/types/workRule';
 import { buildTutorialProject, ASSIGNMENTS, HOUR_TASKS, RESOURCES, TASKS, WORK_RULE, type ResourceKey, type TaskKey } from '../../scripts/tutorial-project';
 
@@ -143,9 +145,12 @@ async function main(): Promise<void> {
     eq('zonder SNET: oplevering voor nivelleren', oplevering(), '2027-08-25');
     const smooth = level(true);
     eq('zonder SNET + smoothing: geen verschuiving', delaysByName(smooth), {});
-    eq('zonder SNET + smoothing: conflict INSUFFICIENT_CAPACITY (5 dagen)',
+    // B1 (§3.11): de belasting telt ook de laatste gedeeltelijke werkdag (5 juli, 07:00–10:00), dus het
+    // conflict beslaat 6 dagen, 28 juni t/m 5 juli; de urenreferentie geeft dezelfde dagen. De gids noemt
+    // nog 5 dag(en) (knownbugs 240).
+    eq('zonder SNET + smoothing: conflict INSUFFICIENT_CAPACITY (6 dagen)',
       [Object.values(smooth.unresolvedReasons), Object.values(smooth.unresolved).map(v => v.length)],
-      [['INSUFFICIENT_CAPACITY'], [5]]);
+      [['INSUFFICIENT_CAPACITY'], [6]]);
     const plain = level(false);
     eq('zonder SNET: buitenspouwblad +5', delaysByName(plain), { [name('outerLeaf')]: 5 });
     S().applyLeveling(plain);
@@ -205,7 +210,9 @@ async function main(): Promise<void> {
     S().updateAssignment(asg(f.id).id, { unitsPerDay: 3 });
     S().runCPM();
     eq('Vast werk, inzet 3: exact 4/3 werkdagen (32 / 24)', dur(f.id), 4 / 3);
-    eq('Vast werk, inzet 3: histogram 2 per dag', dayLoad(f.id, f.res), [2, 2]);
+    // B1 (§3.11): inzet × het deel van de werkdag. De duur is 10 u 40 min: dag 1 is heel (3 × 1 = 3),
+    // dag 2 is 2 u 40 min van 8 u (3 × 1/3 = 1); samen 32 u. De gids noemt nog 2 per dag (knownbugs 252).
+    eq('Vast werk, inzet 3: histogram 3 en 1', dayLoad(f.id, f.res), [3, 1]);
   }
   {
     const f = await plasterBase('FIXED_WORK', 1, 4);
@@ -274,15 +281,11 @@ async function main(): Promise<void> {
 
   // Dezelfde projecten met urenmaat houden de precieze F3-einddoelen groen.
   await tutorialBase({ plasterRule: true, hoursReference: true });
-  // F3b rekent de deeldagen al; F3c sluit deze kern op het productieoverzicht aan.
-  const futureLoads: Record<string, number> = {};
-  for (const key of ['innerLeaf', 'outerLeaf'] as const) {
-    const t = task(key);
-    const placement = assignmentPlacementLoad(t, asg(t.id, resIds.get('bricklayer')), new CalendarEngine(S().calendar), {
-      start: parseInstant(t.time.earlyStart), finish: parseInstant(t.time.earlyFinish), measure: 'workdays',
-    });
-    placement.days.forEach((day, index) => { futureLoads[day.iso] = (futureLoads[day.iso] ?? 0) + placement.units[index]; });
-  }
+  // F3c: de productieberekening van de belasting telt de deeldagen (spec §3.11).
+  const bricklayer = resIds.get('bricklayer')!;
+  const futureLoads = computeResourceLoad(S().resources,
+    (['innerLeaf', 'outerLeaf'] as const).map(key => asg(task(key).id, bricklayer)),
+    S().tasks, S().calendar, S().calendars, effectiveSchedulingOptions(S().project)).load[bricklayer] ?? {};
   eq('F3-referentie: overbezetting telt ook de laatste gedeeltelijke werkdag',
     Object.keys(futureLoads).filter(day => futureLoads[day] > 1 + 1e-9),
     ['2027-06-28', '2027-06-29', '2027-06-30', '2027-07-01', '2027-07-02', '2027-07-05']);

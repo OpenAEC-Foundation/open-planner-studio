@@ -32,7 +32,10 @@ import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { computeVariance } from '@/engine/variance';
 import { payloadFromImport } from '@/state/documentContract';
 import { solveProject } from '@/engine/scheduler/solveProject';
-import { solveInputFor } from '@/engine/scheduler/solveInput';
+import { solveInputFor, solveOptionsFor } from '@/engine/scheduler/solveInput';
+import { levelResources } from '@/engine/scheduler/ResourceLeveler';
+import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
+import { isLeafTask } from '@/utils/taskHierarchy';
 import { effHoursPerDay, effectiveCalendarOf } from '@/utils/taskDuration';
 import { useAppStore } from '@/state/appStore';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -70,7 +73,8 @@ interface Pinned {
 
 /** Gelijk aan de urenreferentie in minute-model-tutorial-f3.json (§3.14; F3c: terug van de F2-stand).
  *  De planning van na-tut-5: ook die van de tussenstanden van tutorial 6 in het BESTAND (daar is nog
- *  niet gerekend; de lezer rekent pas in stap 8). */
+ *  niet gerekend; de lezer rekent pas in stap 8). De nivelleerder schuift alleen het buitenspouwblad,
+ *  5 werkdagen (F3c, §3.11; dezelfde vertraging als op de urenreferentie in `checkF3Reference`). */
 const NA_TUT_5_PLANNING: Pick<Pinned, 'finish' | 'projectFinish' | 'critical' | 'table'> = {
   finish: "2027-08-30T16:00", projectFinish: "2027-08-30T16:00",
   critical: [
@@ -449,11 +453,12 @@ const PINNED: Record<Exclude<StageId, 'na-tut-7'>, Pinned> = {
   },
   // Tutorial 5 stap 3–5: alle toewijzingen, berekend. De metselaar staat al dubbel (binnen- en
   // buitenspouwblad); het stucwerk duurt nog 4 wd met 1 stukadoor.
+  // F3c (§3.11): de belasting per werkdag uit momenten; de metselaar is 6 werkdagen overbezet (`metselaarOver`).
   'tussen-tut-5-toegewezen': {
     finish: "2027-09-01T16:00", projectFinish: "2027-09-01T16:00",
     statusDate: null, baselineFinish: null,
     overallocated: {
-      "bricklayer": 5
+      "bricklayer": 6
     },
     counts: {
       "tasks": 27,
@@ -505,7 +510,7 @@ const PINNED: Record<Exclude<StageId, 'na-tut-7'>, Pinned> = {
     finish: "2027-08-30T16:00", projectFinish: "2027-08-30T16:00",
     statusDate: null, baselineFinish: null,
     overallocated: {
-      "bricklayer": 5
+      "bricklayer": 6
     },
     counts: {
       "tasks": 27,
@@ -633,7 +638,8 @@ const PINNED_EXTRA = {
   /** Tutorial 5: na toewijzen en werkregel, vóór nivelleren. */
   beforeLeveling: {
     finish: '2027-08-30T16:00',
-    overallocated: { bricklayer: 5 },
+    // F3c (§3.11): 6 werkdagen, van 28 juni t/m 5 juli (zie `metselaarOver`).
+    overallocated: { bricklayer: 6 },
     critical: ['frames', 'breakThrough', 'services', 'plaster', 'screed', 'tiling', 'cleaning', 'msHandover'],
   },
   plasterDays: { before: 4, after: 2 },
@@ -923,6 +929,12 @@ function comparableBuild(b: TutorialBuild): unknown {
 function checkF3Reference(build: TutorialBuild): void {
   const goals = JSON.parse(readFileSync(new URL('./fixtures/minute-model-tutorial-f3.json', import.meta.url), 'utf8')) as
     Record<string, { finish: string; duration: number; critical: TaskKey[]; table: Record<TaskKey, string> }>;
+  const keyOfName = (name: string) => TASKS.find(d => d.name.nl === name)?.key;
+  // De nivellering van tutorial 5 op de urenreferentie (F3c deel 3, spec §3.11): dezelfde nivelleerder,
+  // dezelfde opties als de generator, maar op de doelplaatsing. Ze moet het doel geven: alleen het
+  // buitenspouwblad, 5 werkdagen = 5 × 480 werkminuten.
+  let referenceLeveling: { delays: Partial<Record<TaskKey, number>>; delayMinutes: Partial<Record<TaskKey, number>> } | null = null;
+  let leveled = false;
   for (const stage of build.stages) {
     if (stage.id === 'start-tut-1') continue;
     const payload = payloadFromImport(readIFC(stage.ifc), null);
@@ -935,6 +947,14 @@ function checkF3Reference(build: TutorialBuild): void {
         remainingMinutes: task.time.remainingTime === undefined ? undefined : task.time.remainingTime * minutesPerDay,
       } };
     });
+    if (leveled && referenceLeveling) {
+      // Het bestand draagt de vertraging die de generator met de dagenmaat vond. Die is gelijk aan de
+      // vertraging van de nivelleerder op de urenreferentie (F3c: motor en belasting samen, §3.11, §3.14).
+      const fileDelays = (field: 'levelingDelay' | 'levelingDelayMinutes') => Object.fromEntries(tasks
+        .filter(t => t[field] !== undefined).map(t => [keyOfName(t.name)!, t[field]!])) as Partial<Record<TaskKey, number>>;
+      eq(`F3-referentie/${stage.id}: vertraging in werkdagen uit het bestand`, fileDelays('levelingDelay'), referenceLeveling.delays);
+      eq(`F3-referentie/${stage.id}: vertraging in werkminuten uit het bestand`, fileDelays('levelingDelayMinutes'), referenceLeveling.delayMinutes);
+    }
     const result = solveProject(solveInputFor(payload.project, tasks, payload.sequences, payload.calendar, payload.calendars));
     eq(`F3-referentie/${stage.id}: doorrekening`, result.error, undefined);
     eq(`F3-referentie/${stage.id}: einde`, result.projectEnd, goals[stage.id]?.finish);
@@ -945,6 +965,20 @@ function checkF3Reference(build: TutorialBuild): void {
       const t = tasks.find(task => task.name === definition.name.nl)!.time;
       eq(`F3-referentie/${stage.id}/${definition.key}`, `${t.earlyStart} ${t.earlyFinish} ${t.totalFloat}`,
         goals[stage.id]?.table[definition.key]);
+    }
+    if (stage.id === 'tussen-tut-5-werkregel') {
+      const { sequences } = expandSummaryRelations(tasks, payload.sequences);
+      const renewables = payload.resources.filter(r => r.type !== 'MATERIAL').map(r => r.id);
+      const lv = levelResources(tasks.filter(isLeafTask), sequences, payload.resources, payload.assignments,
+        payload.calendar, payload.calendars, result, { constrainToFloat: false, resourceIds: renewables },
+        solveOptionsFor(payload.project));
+      const byKey = (rec: Record<string, number>) => Object.fromEntries(Object.entries(rec)
+        .map(([id, v]) => [keyOfName(tasks.find(t => t.id === id)!.name)!, v])) as Partial<Record<TaskKey, number>>;
+      referenceLeveling = { delays: byKey(lv.delays), delayMinutes: byKey(lv.delayMinutes ?? {}) };
+      eq('F3-referentie/nivelleren: vertraging in werkdagen', referenceLeveling.delays, { outerLeaf: 5 });
+      eq('F3-referentie/nivelleren: vertraging in werkminuten', referenceLeveling.delayMinutes, { outerLeaf: 2400 });
+      eq('F3-referentie/nivelleren: geen onopgelost conflict', lv.unresolved, {});
+      leveled = true;
     }
     if (stage.id === 'na-tut-6') {
       const baseline = payload.baselines.find(b => b.id === payload.activeBaselineId) ?? null;
@@ -1138,10 +1172,9 @@ async function tut5Stages(nl: TutorialBuild): Promise<void> {
   const fiveResources = [
     'Timmerploeg CREW 1', 'Metselaar LABOR 1', 'Mobiele kraan EQUIPMENT 1', 'Stukadoor SUBCONTRACTOR 2', 'Beton MATERIAL 50 m³',
   ];
-  // F3c-tussenstand (B2): de dagenmaat legt het metselwerk op 28 juni 10:00 – 5/6 juli 10:00; de oude
-  // belastingroute telt daarvan 28 juni t/m 2 juli. Het doel, 6 overbezette dagen van 28 juni t/m 5 juli
-  // (de plaatsingsreferentie), haalt F3c deel 3 (belasting per werkdag uit momenten, §3.11).
-  const metselaarOver = ['2027-06-28', '2027-06-29', '2027-06-30', '2027-07-01', '2027-07-02'];
+  // F3c (§3.11, §3.14): de dagenmaat legt het metselwerk op 28 juni 10:00 – 5/6 juli 10:00, en de belasting
+  // per werkdag uit momenten telt daarvan 6 overbezette dagen, 28 juni t/m 5 juli (de plaatsingsreferentie).
+  const metselaarOver = ['2027-06-28', '2027-06-29', '2027-06-30', '2027-07-01', '2027-07-02', '2027-07-05'];
 
   await S().openExampleFromString(ifcOf('tussen-tut-5-resources'), 'tussen-tut-5-resources.ifc');
   eq('tut-5 resources: de vijf resources', resourceNames(), fiveResources);

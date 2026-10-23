@@ -68,6 +68,8 @@ export function computeResourceLoading(ctx: ReportContext, opts: ResourceLoading
     from,
     to,
     bucket: opts.bucket === 'month' ? 'maand' : 'week',
+    // De maatconventie van het project, zodat het rapport dezelfde dagdelen telt als de solver.
+    schedulingOptions: ctx.solveOptions?.schedulingOptions,
   });
   const byId = new Map(ctx.resources.map(r => [r.id, r]));
   const rows: ResourceLoadingRow[] = [];

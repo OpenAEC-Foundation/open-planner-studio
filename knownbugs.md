@@ -64,12 +64,6 @@ en noem het in je rapport of PR-tekst.
     bewaart "lopend" nu (`IfcTask.Status` = 'STARTED', #357); de motor plant de
     vastgelegde rest in (optie 3) na de release, in het rekenprofielen-spoor. — B voor de OPS-kant (gemeten),
     S voor de P6-kant
-143. **De belasting van een taak die midden op een dag begint, staat op de verkeerde dagen.** De verdeling telt
-    hele werkdagen vanaf de startdatum (`taskWorkDayIsos`/`enumerateTaskWorkDays`, `ResourceLoad.ts:236-240`;
-    de nivelleerder net zo, `ResourceLeveler.ts:425`). Nagespeeld in de store (kalender ma-vr 07-12 + 13-16,
-    urentaak 24 u van wo 3 jun 11:00 tot ma 8 jun 11:00, inzet 1): belasting wo 1, do 1, vr 1 en niets op
-    maandag; verwacht wo 0,5, do 1, vr 1, ma 0,5. Gevonden in review ronde 1 van de spec
-    `2026-10-20-alleen-uren-design.md` (§3.11). — B
 144. **Het einde van een kalendertijd-taak is in het dagpad half inclusief.** Het dagpad schrijft het einde als
     start + n kalenderdagen, maar leest die datum daarna als de laatste dag. Nagespeeld met de planningsharness
     (dagkalender ma-vr): een kalendertijd-taak van 1 d vanaf ma 1 jun krijgt einde 2 jun, en haar FS-opvolger
@@ -341,24 +335,6 @@ en noem het in je rapport of PR-tekst.
     het venster naar *Herstarten…* (`:225-229`). Alleen in de code gezien. — S
 
 
-233. **`assignmentPlacementLoad` koppelt een contour met alleen de eigen toewijzing.**
-     Een tweede toewijzing van dezelfde resource krijgt de contour van de eerste. Voorbeeld:
-     contouren van 240 en 720 werkminuten op een plaatsing van 8 u geven voor de tweede
-     toewijzing 0,5 in plaats van 1,5 (`ResourceLoad.ts:266`). Voorstel: geef de opgeloste contour
-     verplicht mee via `contourLookup`, en haal de automatische fallback weg. De functie heeft
-     nog geen productieaanroeper; dit moet vóór de aansluiting in F3c. Review F3b r2 (#564). — B
-
-234. **Het histogram toont bij een verouderde planning alleen de belasting tot het oude einde.**
-     Een urentaak van 8 u, verlengd naar 16 u, met inzet 0,5 en zonder herberekening.
-     Het automatische venster eindigt op het oude `earlyFinish` (ma), zodat di 0,5 ontbreekt.
-     Met een expliciet venster tot di is de belasting wel volledig. Gevonden in F3b-fixronde 1. — B
-
-235. **De plaatsingskern van F3b staat deels in `ResourceLoad.ts` en heeft ongebruikte onderdelen.**
-     Verplaats `assignmentPlacementLoad` (circa 80 regels) naar `workPlacement.ts`, zodat
-     `ResourceLoad.ts` gelijk is aan de basis. Verwijder het ongebruikte type `PlacementMeasures`
-     (`workPlacement.ts:7`) en het ongebruikte argument `placed` (`ResourceLoad.ts:262`).
-     Review F3b r2. — B
-
 272. **Een al geplande verlaatberekening van `useExitRecordedDates` wordt niet geannuleerd bij
      historieherstel.** `src/hooks/useExitRecordedDates.ts:47`: een wijziging die de modus niet verlaat,
      keert terug zonder de lopende timer te stoppen. Reproductie: B5 terugdraaien → planningsbewerking →
@@ -366,6 +342,34 @@ en noem het in je rapport of PR-tekst.
      `minuteModelPending: true`; na de timer staat B op 9 maart en is de vlag uit. Alleen met synchrone
      oproepen gereproduceerd. Richting: annuleer de lopende verlaatberekening bij historieherstel.
      Review ronde 2 van PR #559, deel B. — B
+
+257. **Type en commentaar van `applyLeveling` noemen de minuutvertraging niet.** `scheduleSlice.ts:69-72` en
+     `createMcpTransactions.ts:958` typen het voorstel als `Pick<LevelingResult, 'delays' | 'gaps'>`. Sinds F3c
+     draagt het voorstel ook `delayMinutes`, en `writeLevelingResult` (`utils/taskDefaults.ts`) schrijft die als
+     `levelingDelayMinutes`. Alle aanroepers geven het volledige resultaat door, dus de minuten komen aan. Een
+     aanroeper die zelf een object bouwt, verliest ze zonder typefout. Het commentaar in `applyLeveling`
+     (`scheduleSlice.ts:243`) zegt nog dat de nivelleerder in hele werkdagen rekent. Voorstel: `'delayMinutes'`
+     in beide types en het commentaar bijwerken. Gevonden bij F3c deel 3, alleen in de code gezien. — S
+
+258. **Histogram, rapport en bezetting lezen de maat van het OPS-profiel, ook onder P6 of MSP.** De
+     belastingfuncties (`computeResourceLoad`, `computeReliableResourceLoad`, `computeHistogramReport` in
+     `ResourceLoad.ts`) krijgen de maatconventie als optie; zonder optie gelden de OPS-conventies. Nog zonder
+     optie: `scheduleSlice.ts:93,109`, `documentActivation.ts:237`, `gridTransaction.ts:1101`,
+     `sessionHistory.ts:200`, `services/mcp/tools/readTools.ts:815,877`, `GanttCanvas.tsx:237` en
+     `services/library/occupancy.ts:293`. De nivelleerder krijgt het profiel wel (`solveOptionsFor`). Gevolg
+     onder P6: een dagtaak van 1 d vanaf vr 07:00 op een korte vrijdag (6 u) staat in het histogram als vr 1,
+     terwijl de nivelleerder vr 0,75 + ma 0,25 boekt (`check-f3b-production-compat.ts`, "dagtaak onder de
+     urenmaat (P6)"). Nagespeeld met een storeprobe: P6-profiel, `runCPM`, `resourceLoadResult` vr 1.
+     Voorstel: geef overal `effectiveSchedulingOptions(project)` mee; voor de bezetting een veld in
+     `OccupancyDocInput`. Gevonden bij F3c deel 3. — B
+
+259. **Een handmatig geplande taak krijgt een nivelleervertraging die de solver negeert.** De nivelleerder
+     behandelt alleen voltooide en lopende taken als onverplaatsbaar (`ResourceLeveler.ts:445`). De solver houdt
+     een handmatig geplande taak op haar eigen datums en leest geen nivelleervertraging (`CPMSolver.ts:2006`).
+     Na toepassen boekt de nivelleerder de taak dus op een andere plek dan het histogram haar toont.
+     `tests/library/check-distribute.ts` case 18 legt dit vast: vertraging 10, einde schuift 0. Voorstel: een
+     handmatig geplande taak als vaste last behandelen, zoals een lopende taak (dat verandert case 18).
+     Gevonden bij F3c deel 3. — B
 
 ## Bestanden en herstel
 
@@ -521,7 +525,10 @@ en noem het in je rapport of PR-tekst.
 240. **Tutorial- en gidsteksten bevatten nog oude getallen uit het dagmodel.**
      In F2-bouwronde 4 gecontroleerd naast de gewone F2-pins en de vaste F3-doelen;
      `public/docs/nl/uitleg-nivelleren.md:55` noemt bijvoorbeeld het binnenspouwblad vanaf
-     29 juni, terwijl de F2-controle 25 juni en het F3-doel 28 juni toetst.
+     29 juni, terwijl de F2-controle 25 juni en het F3-doel 28 juni toetst. Sinds F3c (motor en
+     belasting samen) is de metselaar 6 werkdagen overbezet, 28 juni t/m 5 juli, ook in het geval
+     zonder SNET met *smoothing* (conflict van 6 dag(en)); `uitleg-nivelleren.md` r.59 en r.76 (nl en en)
+     noemen nog 5 (`check-docs-resources-voorbeelden.ts`).
      Zie `artifacts/uren-f2/bouwronde-4.md` (R4-030–039, R4-586–588) en
      `tests/planning/fixtures/minute-model-tutorial-f3.json`. Voorstel: de verhalende tutorial-
      en gidsteksten en eventuele schermbeelden bijwerken zodra de definitieve F3-uitkomsten
@@ -533,7 +540,8 @@ en noem het in je rapport of PR-tekst.
      werkdagen) en r.106 (restduur 1,5 → 2); `howto-werkregel-kiezen.md` r.59; `uitleg-kalenders.md`
      r.97 (nl; "een taak in dagen telt hele werkdagen" klopt nog, maar vast werk is nu altijd een taak in
      uren). Uit de code afgeleid (niet in de app nagespeeld): r.94 wordt nu 32 ÷ 3 = 10 u 40 min, zonder
-     waarschuwingsteken. Hangt samen met 240.
+     waarschuwingsteken, en het histogram toont dan 3 op de eerste en 1 op de tweede werkdag (§3.11; getoetst
+     in `check-docs-resources-voorbeelden.ts`), niet 2 per dag. Hangt samen met 240.
      Voorstel: de voorbeelden herschrijven in dezelfde ronde als 240, met de uitkomsten uit
      `check-work-rule-*.ts`. Gevonden in F3c-winkel. — B
 
@@ -622,11 +630,6 @@ en noem het in je rapport of PR-tekst.
      nagespeeld. PR #404 (gemerged in `main` op 2026-10-20) haalt volgens zijn beschrijving de oorzaak weg in
      `FeedbackDialog.tsx`. Een branch zonder #404 kan de fout nog geven. Weghalen als de CI op branches met #404
      groen blijft. — S
-
-236. **De kerncheck voor plaatsing toetst een exacte importcurve alleen op haar totaal.**
-     `check-placement-load.ts:87`: vervang je de curve door UNIFORM, dan blijven alle 27 controles
-     groen. De verdeling gaat dan van ongeveer [0,6667; 1,1667; 0,8333; 0,3333] naar
-     [0,5; 1; 1; 0,5]. Voorstel: één assertie op de volledige verdeling. Review F3b r2. — B
 
 237. **De browsertest voor curves met het toetsenbord is wisselvallig.**
      `tests/browser/assignments-block.spec.ts:235` ("Expected UNIFORM, Received BELL", time-out
