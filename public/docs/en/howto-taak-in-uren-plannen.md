@@ -27,13 +27,15 @@ This shows the *Duration unit* selector. Without the selector, you can still typ
 ### Default new tasks to hours
 
 1. Open *Project settings*.
-2. Choose *Hours* under *Default unit for new tasks* and click *Apply*.
+2. Choose *Hour measure* under *Default measure for new tasks* and click *Apply*.
 
-New tasks use the chosen unit. The same choice is available when creating a project, alongside the shift preset.
+New tasks get the chosen measure. The same choice is available when creating a project, alongside the shift preset. In the P6 and MSP profiles the choice is fixed on *Hour measure*. The text below the list then says so.
 
 ## Pitfalls and what the app does
 
 **Derived duration.** You cannot type the duration of a summary, hammock or zero-duration milestone.
+
+**Fixed work.** A task with the task type *Fixed work* always uses the hour measure. If you set a task of 3 d to *Fixed work*, it becomes 24 h: 3 × the working time per day. The finish can therefore move, as with a duration change. In the table you cannot set such a task back to days.
 
 **Duration display in OPS.** This setting is disabled: each task shows its own unit. In the P6 and MSP profiles the choice remains available.
 
