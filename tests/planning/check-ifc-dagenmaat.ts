@@ -17,6 +17,8 @@
 //
 // Draait via run.sh (esbuild-bundel). Alleen de exitcode telt.
 import './domStub';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { freshPayload, payloadFromImport, type DocumentPayload } from '@/state/documentContract';
 import { prepareLoadedPayload } from '@/state/documentActivation';
@@ -389,6 +391,24 @@ function dayMeasureDurationsOf(text: string, name: string): unknown {
     [{ durationUnit: 'days', durationType: 'WORKTIME', scheduleDuration: 2.5 }, '2026-06-03T12:00']);
 }
 
+// Bestanden voor de lezervergelijking `check-minute-model-compat.ts` (zie tests/planning/README.md):
+// D0 = de voorbeeldweek met de drie lagvormen, D1 = de duren met een breuk plus de spelingen van (8).
+// F (lopend op 100 %) blijft eruit: v2026.9.0 maakt die taak voltooid (#357), los van de dagenmaat.
+{
+  const compatOut = process.env.OPS_MINUTE_MODEL_COMPAT_OUT;
+  if (compatOut) {
+    const p = durationPayload();
+    p.tasks = [
+      ...p.tasks.filter(t => t.name !== 'F'),
+      task('S1', '2026-06-01T07:00', '2026-06-01T16:00', 1, { totalFloat: 2.5, totalFloatMinutes: 1200, freeFloat: 0.75, freeFloatMinutes: 360 }),
+      task('S3', '2026-06-01T07:00', '2026-06-01T16:00', 1, { totalFloat: -1.5, freeFloat: 0 }),
+    ];
+    mkdirSync(compatOut, { recursive: true });
+    writeFileSync(join(compatOut, 'D0.ifc'), weekText);
+    writeFileSync(join(compatOut, 'D1.ifc'), writeIFC(buildWriteIFCInput(p)));
+  }
+}
+
 // ── (10) De lezer van v2026.9.0 ───────────────────────────────────────────────────────────────────
 async function oldReaderChecks(): Promise<void> {
   const reader = process.env.OPS_MINUTE_MODEL_OLD_READER;
@@ -414,6 +434,26 @@ async function oldReaderChecks(): Promise<void> {
   p.tasks = [task('S1', '2026-06-01T07:00', '2026-06-01T16:00', 1, { totalFloat: 2.5, totalFloatMinutes: 1200, freeFloat: 0.75, freeFloatMinutes: 360 })];
   const s1 = byName(old.readIFC(writeIFC(buildWriteIFCInput(p))), 'S1')?.time;
   eq('(10) v2026.9.0: speling 2,5 d ⇒ 3 d, 0,75 d ⇒ 1 d (afgerond, geen 5)', [s1?.totalFloat, s1?.freeFloat], [3, 1]);
+
+  // Geen dag kwijt in de tijd: v2026.9.0 leest elke datum van elke taak gelijk aan de nieuwe lezer
+  // (de kalender is letterlijk, §3.6). Zelfde vergelijking als check-minute-model-compat.ts.
+  const DATE_FIELDS = ['scheduleStart', 'scheduleFinish', 'earlyStart', 'earlyFinish', 'lateStart', 'lateFinish', 'actualStart', 'actualFinish'] as const;
+  for (const [label, text] of [['week', weekText], ['duren', durationText]] as const) {
+    const now = readIFC(text), before = old.readIFC(text);
+    eq(`(10) v2026.9.0 ${label}: zelfde aantal taken`, before.tasks.length, now.tasks.length);
+    for (const nowTask of now.tasks) {
+      const got = byName(before, nowTask.name)?.time;
+      for (const field of DATE_FIELDS) {
+        // F loopt op 100 % (`IfcTask.Status` 'STARTED'). v2026.9.0 kent die vorm niet en maakt F voltooid,
+        // met een werkelijk einde: bekend en besloten (#357, docs/ifc-round-trip.md "Lopend op 100 %"),
+        // los van de dagenmaat.
+        if (nowTask.name === 'F' && field === 'actualFinish') continue;
+        const want = nowTask.time[field];
+        const trim = (s: string | undefined) => s?.slice(0, want?.includes('T') ? 16 : 10);
+        eq(`(10) v2026.9.0 ${label}: ${nowTask.name} ${field}`, trim(got?.[field]), trim(want));
+      }
+    }
+  }
 }
 
 void oldReaderChecks().then(() => {
