@@ -2,7 +2,7 @@ import type { Task } from '@/types/task';
 import type { Sequence, LagUnit } from '@/types/sequence';
 import type { CalendarEngine } from './CalendarEngine';
 import { addCalendarDays, MS_PER_DAY } from '@/utils/dateUtils';
-import { isElapsedTask, isZeroDurationMilestone, taskDurationUnit } from './duration';
+import { isElapsedTask, isZeroDurationMilestone } from './duration';
 
 /**
  * Relatie-wiskunde (FS/SS/FF/SF) voor `CPMSolver.ts`, forward/backward × dag-/uur-modus.
@@ -153,6 +153,9 @@ export interface RelationDeps {
   snapStrictAfter(eng: CalendarEngine, d: Date): Date;
   snapStrictBefore(eng: CalendarEngine, d: Date): Date;
   startOfDay(d: Date): Date;
+  /** Alleen uren §3.14: telt deze taak in de dagenmaat (de hulpfunctie `taskCountsInWorkdays` met de
+   *  effectieve conventie `workdayDurationMeasure`)? */
+  countsInWorkdays(task: Task): boolean;
 }
 
 /**
@@ -522,14 +525,15 @@ function backwardDay(
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * Een dagtaak die in een uur-engine rekent: een dagtaak (geen urentaak, geen 0-duurmijlpaal, geen
- * ELAPSEDTIME) op een kalender met werkblokken. Haar duur-aftrek (`startFromFinish`/`subDuration`)
- * leest een eindmoment als kalenderdag (`utcDayStart`), zonder eerst achteruit naar een werkmoment
- * te zetten zoals `subtractWorkMinutes` dat voor een urentaak doet.
+ * Een taak die in de dagenmaat telt (alleen uren §3.14) op een kalender met werkblokken: geen
+ * urenmaat, geen 0-duurmijlpaal, geen ELAPSEDTIME, en de conventie `workdayDurationMeasure` aan
+ * (`deps.countsInWorkdays`). Een dagenmaat-taak in een profiel zonder dagenmaat (P6, MSP) telt als
+ * urenmaat en valt hier dus buiten. De grensregels hieronder (knownbugs 142, T8) houden een eindmoment
+ * op een blokbegin bij de dag ervoor; de dagenmaat-lopers lezen dat moment op dezelfde plek.
  */
-function isDayTaskOnBands(task: Task, eng: CalendarEngine): boolean {
-  return eng.isHourMode && taskDurationUnit(task) !== 'hours'
-    && !isZeroDurationMilestone(task) && !isElapsedTask(task);
+function isDayTaskOnBands(deps: RelationDeps, task: Task, eng: CalendarEngine): boolean {
+  return eng.isHourMode && !isZeroDurationMilestone(task) && !isElapsedTask(task)
+    && deps.countsInWorkdays(task);
 }
 
 /**
@@ -636,16 +640,16 @@ function forwardHour(
       if (elapsed) {
         const raw = new Date(predResult.ef.getTime() + elapsedMin());
         reqFinish = succElapsed ? raw : deps.snapOnOrAfter(se, raw);
-        if (isDayTaskOnBands(successor, se)) {
+        if (isDayTaskOnBands(deps, successor, se)) {
           reqFinish = deps.snapOnOrBefore(se, raw).getTime() === raw.getTime() ? raw : reqFinish;
         }
       } else {
         const lagged = deps.shiftLagPred(lagEng, predResult.ef, seq, predTask, 1);
-        if ((succIsFinishMs || (succIsStartMs && isDayTaskOnBands(predTask, pe)) || succElapsed) && pe.isHourMode
+        if ((succIsFinishMs || (succIsStartMs && isDayTaskOnBands(deps, predTask, pe)) || succElapsed) && pe.isHourMode
           && lagged.getTime() === deps.snapOnOrAfter(lagEng, predResult.ef).getTime()) {
           reqFinish = landRawInstant(deps, se, predResult.ef, succElapsed);
         } else if (pe.isHourMode && lagEng.isHourMode && !predEndsBeginOfDay
-          && isDayTaskOnBands(successor, se)) {
+          && isDayTaskOnBands(deps, successor, se)) {
           // Knownbugs 142 van het ontwerp "alleen uren": `shiftLagPred` normaliseert vooruit, dus een
           // geëiste finish op een blokeinde (vr 16:00) wordt bij lag 0 het volgende blokbegin
           // (ma 07:00), en een lead kan op een blokbegin landen. `startFromFinish` leest die finish
@@ -671,7 +675,7 @@ function forwardHour(
       const reqFinish = sfReqFinishHour(deps, predResult, predTask, seq, successor, pe, se, flags);
       // T8: SF bindt aan een exclusieve startgrens. Een hele dagtaak telt de dag die
       // op dat blokbegin begint niet mee in haar terugtelling; de finishvloer blijft rauw.
-      const durationFinish = isDayTaskOnBands(successor, se) ? se.prevWorkInstant(reqFinish) : reqFinish;
+      const durationFinish = isDayTaskOnBands(deps, successor, se) ? se.prevWorkInstant(reqFinish) : reqFinish;
       return deps.startFromFinish(se, durationFinish, successor);
     }
     case 'FINISH_START':
@@ -799,7 +803,7 @@ function sfReqFinishHour(
   const succElapsed = isElapsedTask(successor);
 
   // T8: een dagtaak bindt aan het echte startmoment, ook bij een eindmijlpaal.
-  const daySuccessor = isDayTaskOnBands(successor, se);
+  const daySuccessor = isDayTaskOnBands(deps, successor, se);
   const startMoment = predStartsNextDay && !daySuccessor ? deps.snapStrictAfter(pe, predResult.es) : predResult.es;
   if (elapsed) {
     return succElapsed
@@ -850,7 +854,7 @@ function backwardHour(
       // Spiegel van de forward-FF hierboven (knownbugs 142): een late finish op een blokbegin leest
       // een dagtaak-voorganger in `subDuration` als de dag erna. Alleen een dagtaak op werkblokken;
       // een urentaak houdt het bestaande gedrag (bij P6 regelt `p6BackwardLagFinishBoundary` dit).
-      if (se.isHourMode && lagEng.isHourMode && isDayTaskOnBands(predTask, pe)) {
+      if (se.isHourMode && lagEng.isHourMode && isDayTaskOnBands(deps, predTask, pe)) {
         return previousBlockEndIfSame(deps, lagEng, pe, predLf);
       }
       return predLf;

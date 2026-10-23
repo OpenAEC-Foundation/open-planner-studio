@@ -2,7 +2,7 @@ import { Task, type TaskConstraint, type ExternalLink } from '@/types/task';
 import type { EffectiveSchedulingOptions } from '@/types/project';
 import { Sequence, LagUnit } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
-import { dayEndInstant, dayStartInstant, blocksClock, workdayDateOfInstant } from '@/engine/calendar/workdayRules';
+import { dayEndInstant, dayStartInstant, blocksClock } from '@/engine/calendar/workdayRules';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { CalendarEngine } from './CalendarEngine';
 import { LevelingQueue } from './levelingQueue';
@@ -35,6 +35,7 @@ import { explainOpenXerLoeTargetSpanEligibilityResolved } from './p6OpenLoeTarge
 import {
   forwardConstraint, forwardFinishFloor, backwardConstraint, MS_PER_MIN, type RelationDeps,
 } from './relationMath';
+import { taskCountsInWorkdays, lagCountsInWorkdays } from './conventions/durationMeasure';
 import { isFiniteNumber } from '@/utils/guards';
 
 export interface CPMResult {
@@ -266,6 +267,11 @@ export interface CPMTaskResult {
   lateFinish: string;
   totalFloat: number;
   freeFloat: number;
+  /** Alleen uren §3.4: de speling in werkminuten op de taakkalender (kalendertijd: klokminuten).
+   *  `totalFloat`/`freeFloat` zijn daarvan de weergave in werkdagen. Optioneel: alleen de berekening
+   *  vult ze, niet de "datums zoals opgeslagen". */
+  totalFloatMinutes?: number;
+  freeFloatMinutes?: number;
   isCritical: boolean;
   /** OPTIONEEL — interfererende speling = totalFloat − freeFloat. Alleen
    *  geschreven wanneer de analyse-laag draait. */
@@ -1169,6 +1175,7 @@ export class CPMSolver {
     snapStrictAfter: (eng, d) => this.snapStrictAfter(eng, d),
     snapStrictBefore: (eng, d) => this.snapStrictBefore(eng, d),
     startOfDay: utcDayStart,
+    countsInWorkdays: (task) => this.countsInWorkdays(task),
   };
 
   /** Vroege finish = start ⊕ duur. Mijlpaal ⇒ 0; ELAPSEDTIME ⇒ kale 24/7-klokoptelling
@@ -1193,8 +1200,18 @@ export class CPMSolver {
     if (task.time.durationType === 'ELAPSEDTIME') {
       return { date: addElapsedMinutes(start, elapsedMinutesOf(task, eng)), capped: false };
     }
-    if (eng.isHourMode && taskDurationUnit(task) === 'hours') {
-      const totalMinutes = splitTotalSpanMinutes(task.splitGaps, durationMinutesOf(task, eng));
+    if (eng.isHourMode && this.countsInWorkdays(task)) {
+      // Alleen uren §3.14: de dagenmaat. Elke werkdag telt 1, binnen een dag het deel van de werktijd
+      // van die dag; `splitGaps` tellen mee als extra werkdagen (`splitTotalSpanDays`). Een start op een
+      // blokeinde telt vanaf het volgende blokbegin, dus nooit als een lege eerste dag.
+      const totalDays = splitTotalSpanDays(task, eng);
+      if (totalDays <= 0) return { date: new Date(start.getTime()), capped: false };
+      return eng.addMeasuredWorkdaysChecked(start, totalDays);
+    }
+    if (eng.isHourMode) {
+      // De urenmaat: een urentaak, of een dagenmaat-taak in een profiel zonder dagenmaat (§3.2:
+      // `scheduleDuration` × werktijd per dag × 60 minuten).
+      const totalMinutes = splitTotalSpanMinutes(task.splitGaps, this.workMinutesOf(task, eng));
       if (totalMinutes > 0 && this.p6FinishBoundaryStartTaskIds.has(task.id)
         && this.isExactBandEnd(eng, start)) {
         return {
@@ -1221,19 +1238,32 @@ export class CPMSolver {
         : start;
       return { date: eng.addWorkMinutes(walkStart, totalMinutes), capped: false };
     }
-    if (eng.isHourMode) {
-      // Ook een DAG-taak op een kalender MÉT banden telt `splitGaps` mee (via `splitTotalSpanDays`,
-      // dat voor een gatloze taak `scheduleDuration` RAUW teruggeeft).
-      const totalDays = splitTotalSpanDays(task, eng);
-      if (totalDays <= 0) return { date: new Date(start.getTime()), capped: false };
-      const dayResult = eng.addWorkDaysChecked(utcDayStart(start), totalDays);
-      return {
-        date: this.dayLastBandEnd(eng, dayResult.date) ?? dayResult.date,
-        capped: dayResult.capped,
-      };
-    }
     const totalDays = splitTotalSpanDays(task, eng);
     return eng.addWorkDaysChecked(start, totalDays);
+  }
+
+  /** Alleen uren §3.14: telt `task` (en haar rest) in de dagenmaat? De vraag gaat naar de hulpfunctie
+   *  `taskCountsInWorkdays`; de conventie `workdayDurationMeasure` komt uit de effectieve opties. Oude data
+   *  zonder `durationUnit` krijgt haar maat van `taskDurationUnit`. Alleen zinvol op een kalender met
+   *  werkblokken (`isHourMode`); de aanroepers toetsen dat zelf. */
+  private countsInWorkdays(task: Task): boolean {
+    return taskCountsInWorkdays(
+      { time: { durationUnit: taskDurationUnit(task), durationType: task.time.durationType } },
+      { workdayDurationMeasure: this.options.schedulingOptions?.workdayDurationMeasure },
+    );
+  }
+
+  /** De duur in werkminuten voor de urenmaat: een urentaak haar `durationMinutes`; een dagenmaat-taak
+   *  die in dit profiel als urenmaat telt `scheduleDuration` × werktijd per dag van de effectieve
+   *  kalender × 60 (§3.2), op hele minuten (T23: een moment ligt op een hele minuut). */
+  private workMinutesOf(task: Task, eng: CalendarEngine): number {
+    const minutes = durationMinutesOf(task, eng);
+    return taskDurationUnit(task) === 'hours' ? minutes : Math.round(minutes);
+  }
+
+  /** Een rest of een aantal werkdagen in de urenmaat: dagen × werktijd per dag × 60, op hele minuten. */
+  private static daysAsWorkMinutes(days: number, eng: CalendarEngine): number {
+    return Math.round(days * eng.hoursPerDay * 60);
   }
   /** Late start = late finish ⊖ duur (spiegel van `addDuration`). BEWUST GEEN
    *  `levelingDelay`/`levelingDelayMinutes`-aftrek hier: `end` (= `lateFinish`) komt hier al onafhankelijk van deze taak se eigen
@@ -1258,8 +1288,15 @@ export class CPMSolver {
     if (task.time.durationType === 'ELAPSEDTIME') {
       return subtractElapsedMinutes(end, elapsedMinutesOf(task, eng));
     }
-    if (eng.isHourMode && taskDurationUnit(task) === 'hours') {
-      const totalMinutes = splitTotalSpanMinutes(task.splitGaps, durationMinutesOf(task, eng));
+    if (eng.isHourMode && this.countsInWorkdays(task)) {
+      // Spiegel van `addDurationChecked`s dagenmaat (§3.14): dezelfde gaten-bewuste lengte in
+      // werkdagen, achteruit geteld. Zo blijft LS−ES gelijk aan LF−EF, ook met een deel van een dag.
+      const totalDays = splitTotalSpanDays(task, eng);
+      if (totalDays <= 0) return new Date(end.getTime());
+      return eng.subtractMeasuredWorkdays(end, totalDays);
+    }
+    if (eng.isHourMode) {
+      const totalMinutes = splitTotalSpanMinutes(task.splitGaps, this.workMinutesOf(task, eng));
       const natural = eng.subtractWorkMinutes(end, totalMinutes);
       // B1: de late start van een opvolger op een voorgangerfinishgrens-relatie is een gewone
       // bandSTART (P6: Hotel HCSWB1Z1240 LS 03-04 08:00). De finishgrens voor de voorganger legt de
@@ -1298,28 +1335,6 @@ export class CPMSolver {
       }
       return natural;
     }
-    if (eng.isHourMode) {
-      // Spiegel van `addDurationChecked`s dag-taak-op-bandenkalender-tak: zonder dezelfde
-      // gaten-bewuste aftrek wijkt LS−ES af van LF−EF en ontstaat er spookfloat op elke gesplitste
-      // dag-taak die op een uur-kalender staat.
-      const totalDays = splitTotalSpanDays(task, eng);
-      if (totalDays <= 0) return new Date(end.getTime());
-      const firstDay = eng.subtractWorkDays(workdayDateOfInstant(eng, end, 'end'), totalDays);
-      const firstStart = this.dayFirstBandStart(eng, firstDay) ?? firstDay;
-      // F2 telt hele dagen. Bewaar de positie in werkminuten binnen de eerste dag als
-      // die op de doelwerkdag past. Andere blokken of een korte uitzondering mogen geen
-      // start buiten werktijd of na het einde opleveren; gebruik dan het eerste blokbegin.
-      if (actualEarlyStart) {
-        const earlyDayStart = this.dayFirstBandStart(eng, actualEarlyStart);
-        if (earlyDayStart) {
-          const offset = Math.max(0, eng.workMinutesBetween(earlyDayStart, actualEarlyStart));
-          const candidate = eng.nextWorkInstant(eng.addWorkMinutes(firstStart, offset));
-          const firstEnd = this.dayLastBandEnd(eng, firstDay);
-          if (firstEnd && candidate < firstEnd && candidate <= end && eng.isWorkInstant(candidate)) return candidate;
-        }
-      }
-      return firstStart;
-    }
     const totalDays = splitTotalSpanDays(task, eng);
     return eng.subtractWorkDays(end, totalDays);
   }
@@ -1329,27 +1344,70 @@ export class CPMSolver {
    *  exact de resterende-duurtak uit `forwardPass`, inclusief het nog niet verbruikte deel van
    *  splitgaten; ze leest uitsluitend taakvoortgang, duur en kalenderinvoer. */
   private subRemainingDuration(eng: CalendarEngine, end: Date, task: Task): Date {
-    const t = task.time;
-    const totalSpan = eng.isHourMode ? durationMinutesOf(task, eng) : t.scheduleDuration;
-    const remaining = eng.isHourMode
-      ? Math.max(0, t.remainingMinutes ?? Math.round(totalSpan * (1 - t.completion)))
-      : Math.max(0, t.remainingTime ?? Math.round(totalSpan * (1 - t.completion)));
-    if (!isZeroDurationMilestone(task) && t.durationType === 'ELAPSEDTIME') {
-      return subtractElapsedMinutes(end, eng.isHourMode ? remaining : remaining * 24 * 60);
+    const work = this.progressWork(task, eng);
+    if (work.measure === 'elapsed') {
+      return subtractElapsedMinutes(end, CPMSolver.elapsedWorkMinutes(work.remaining, task));
     }
-    let remainingWithGaps = remaining;
-    if (task.splitGaps && task.splitGaps.length > 0) {
-      const totalSpanMinutes = eng.isHourMode ? totalSpan : totalSpan * eng.hoursPerDay * 60;
-      const remainingMinutes = eng.isHourMode ? remaining : remaining * eng.hoursPerDay * 60;
-      const completedSpanMinutes = Math.max(0, totalSpanMinutes - remainingMinutes);
-      remainingWithGaps = (
-        splitTotalSpanMinutes(task.splitGaps, totalSpanMinutes)
-        - splitTotalSpanMinutes(task.splitGaps, completedSpanMinutes)
-      ) / (eng.isHourMode ? 1 : eng.hoursPerDay * 60);
-    }
-    return eng.isHourMode
+    const remainingWithGaps = this.remainingWithSplitGaps(task, eng, work);
+    if (work.measure === 'workdays') return eng.subtractMeasuredWorkdays(end, remainingWithGaps);
+    return work.measure === 'minutes'
       ? eng.subtractWorkMinutes(end, remainingWithGaps)
       : eng.subtractWorkDays(end, remainingWithGaps);
+  }
+
+  /** Alleen uren §3.5 en B3: de lengte en het restwerk van een lopende taak, exact, in de maat waarin
+   *  de taak in dit profiel telt.
+   *  - `workdays`: de dagenmaat (§3.14), in werkdagen. Bron `remainingTime`, anders duur × (1 − voortgang),
+   *    zonder afronding op hele dagen (B3).
+   *  - `minutes`: de urenmaat, in werkminuten. Een urentaak leest `remainingMinutes`; een dagenmaat-taak in
+   *    een profiel zonder dagenmaat `remainingTime` × werktijd per dag × 60 (§3.5).
+   *  - `elapsed`: kalendertijd, in de eenheid van de taak (minuten of dagen); zie `elapsedWorkMinutes`.
+   *  - `days`: een kalender zonder werkblokken. Die kan geen deel van een dag plaatsen en houdt de telling
+   *    in hele dagen. */
+  private progressWork(task: Task, eng: CalendarEngine): {
+    measure: 'workdays' | 'minutes' | 'elapsed' | 'days'; total: number; remaining: number;
+  } {
+    const t = task.time;
+    const inHours = taskDurationUnit(task) === 'hours';
+    if (!isZeroDurationMilestone(task) && t.durationType === 'ELAPSEDTIME') {
+      const total = inHours ? durationMinutesOf(task, eng) : t.scheduleDuration;
+      const fromCompletion = inHours ? Math.round(total * (1 - t.completion)) : total * (1 - t.completion);
+      return { measure: 'elapsed', total, remaining: Math.max(0, (inHours ? t.remainingMinutes : t.remainingTime) ?? fromCompletion) };
+    }
+    if (eng.isHourMode && this.countsInWorkdays(task)) {
+      const total = t.scheduleDuration;
+      return { measure: 'workdays', total, remaining: Math.max(0, t.remainingTime ?? total * (1 - t.completion)) };
+    }
+    if (eng.isHourMode || inHours) {
+      const total = this.workMinutesOf(task, eng);
+      const rest = inHours
+        ? t.remainingMinutes
+        : t.remainingTime !== undefined ? CPMSolver.daysAsWorkMinutes(t.remainingTime, eng) : undefined;
+      return { measure: 'minutes', total, remaining: Math.max(0, rest ?? Math.round(total * (1 - t.completion))) };
+    }
+    const total = t.scheduleDuration;
+    return { measure: 'days', total, remaining: Math.max(0, t.remainingTime ?? Math.round(total * (1 - t.completion))) };
+  }
+
+  /** Kalendertijd-rest in klokminuten: een urentaak telt al in minuten, een dagtaak in dagen van 24 uur. */
+  private static elapsedWorkMinutes(amount: number, task: Task): number {
+    return taskDurationUnit(task) === 'hours' ? amount : Math.round(amount * 24 * 60);
+  }
+
+  /** Het restwerk plus het nog niet verbruikte deel van de splitgaten, in de maat van `work`. Alleen het
+   *  venster `[reeds afgewerkt, totale duur)` telt (zie de toelichting in `forwardPass`). De gaten staan in
+   *  werkminuten; de dagenmaat en hele dagen rekenen ze om met de werktijd per dag. */
+  private remainingWithSplitGaps(
+    task: Task, eng: CalendarEngine, work: { measure: 'workdays' | 'minutes' | 'elapsed' | 'days'; total: number; remaining: number },
+  ): number {
+    if (work.measure === 'elapsed' || !task.splitGaps || task.splitGaps.length === 0) return work.remaining;
+    const perUnit = work.measure === 'minutes' ? 1 : eng.hoursPerDay * 60;
+    const totalSpanMinutes = work.total * perUnit;
+    const remainingMinutes = work.remaining * perUnit;
+    const completedSpanMinutes = Math.max(0, totalSpanMinutes - remainingMinutes);
+    const totalAxisMinutes = splitTotalSpanMinutes(task.splitGaps, totalSpanMinutes);
+    const completedAxisMinutes = splitTotalSpanMinutes(task.splitGaps, completedSpanMinutes);
+    return Math.max(0, totalAxisMinutes - completedAxisMinutes) / perUnit;
   }
 
   /** Verschuift `date` met de nivelleer-vertraging van `task` (uur-/minuutprecisie,
@@ -1397,8 +1455,10 @@ export class CPMSolver {
       return Math.round((predMin * seq.lagPercent) / 100);
     }
     if (isFiniteNumber(seq.lagMinutes)) return seq.lagMinutes;
+    // Een lag in dagenmaat die hier als urenmaat telt (§3.3: profiel zonder dagenmaat): dagen ×
+    // werktijd per dag van de lagkalender, op hele minuten.
     const days = Number.isFinite(seq.lagDays) ? seq.lagDays : 0;
-    return days * predEng.hoursPerDay * 60;
+    return CPMSolver.daysAsWorkMinutes(days, predEng);
   }
   /** ELAPSEDTIME-lag in KLOK-minuten (24/7): `lagMinutes` ⇒ bron; anders (procent/)dagen × 24 × 60. */
   private resolveElapsedMinutes(seq: Sequence, predTask: Task): number {
@@ -1414,9 +1474,22 @@ export class CPMSolver {
     predEng: CalendarEngine, base: Date, seq: Sequence, predTask: Task, sign: 1 | -1,
   ): Date {
     if (predEng.isHourMode) {
-      const minutes = this.resolveLagMinutes(seq, predTask, predEng);
-      if (sign < 0 && minutes > 0) {
-        const projected = predEng.subtractWorkMinutes(base, minutes);
+      // Alleen uren §3.3 en §3.14: een lag in dagenmaat telt in het OPS-profiel met de dagenmaat-lopers
+      // op de lagkalender; een deel van een dag is het deel van de werktijd van die dag. Lag 0 houdt de
+      // gewone normalisatie hieronder (`nextWorkInstant` en de grensregels).
+      const lagDays = Number.isFinite(seq.lagDays) ? seq.lagDays : 0;
+      const measured = lagDays !== 0 && lagCountsInWorkdays(
+        seq, { workdayDurationMeasure: this.options.schedulingOptions?.workdayDurationMeasure },
+      );
+      const minutes = measured ? 0 : this.resolveLagMinutes(seq, predTask, predEng);
+      const amount = measured ? lagDays : minutes;
+      if (measured && sign * lagDays > 0) {
+        return predEng.addMeasuredWorkdays(predEng.nextWorkInstant(base), sign * lagDays);
+      }
+      if (sign < 0 && amount > 0) {
+        const projected = measured
+          ? predEng.subtractMeasuredWorkdays(base, lagDays)
+          : predEng.subtractWorkMinutes(base, minutes);
         // P6 WORKTIME-lag is een grensafstand. Vanaf een finishgrens moet een aftrek die exact op
         // een bandstart landt daarom de complementaire vorige finishgrens teruggeven: wo 17:00
         // min twee werkdagen = ma 17:00, niet di 08:00. Alleen de XER-resultaatprojectie krijgt
@@ -1431,11 +1504,14 @@ export class CPMSolver {
       }
       // B2 bij lag 0: een FF-grens op een exact bandeinde blijft die finishgrens; de
       // generieke normalisatie (`nextWorkInstant`) zou hem naar de volgende bandstart duwen.
-      if (sign < 0 && minutes === 0 && seq.type === 'FINISH_FINISH'
+      if (sign < 0 && amount === 0 && seq.type === 'FINISH_FINISH'
         && this.options.schedulingOptions?.p6BackwardLagFinishBoundary === true
         && this.isExactBandEnd(predEng, base)) {
         return new Date(base.getTime());
       }
+      // Een lead in dagenmaat, vooruit: vanaf het genormaliseerde moment terugtellen, zoals
+      // `addWorkingMinutesSigned` dat met minuten doet. (Achteruit telt een lead vooruit, hierboven.)
+      if (measured) return predEng.subtractMeasuredWorkdays(predEng.nextWorkInstant(base), Math.abs(lagDays));
       return predEng.addWorkingMinutesSigned(base, sign * minutes);
     }
     // Dag-voorganger: WORKTIME-lag in dagen; `hoursPerDay` van de voorganger-kalender vertaalt een
@@ -1458,12 +1534,18 @@ export class CPMSolver {
    *  Zelfde as-wandeling/ELAPSEDTIME-uitsluiting als `addDurationChecked` (`splitTotalSpanMinutes`/
    *  `splitTotalSpanDays`, `duration.ts`). */
   private startFromFinish(eng: CalendarEngine, finish: Date, task: Task): Date {
-    if (eng.isHourMode && taskDurationUnit(task) === 'hours') {
+    if (eng.isHourMode) {
       if (isZeroDurationMilestone(task)) return new Date(finish.getTime());
       if (task.time.durationType === 'ELAPSEDTIME') {
         return subtractElapsedMinutes(finish, elapsedMinutesOf(task, eng));
       }
-      const totalMinutes = splitTotalSpanMinutes(task.splitGaps, durationMinutesOf(task, eng));
+      if (this.countsInWorkdays(task)) {
+        // Dagenmaat (§3.14): een eindmoment op een blokbegin telt als het einde van de werkdag ervoor.
+        const totalDays = splitTotalSpanDays(task, eng);
+        if (totalDays <= 0) return new Date(finish.getTime());
+        return eng.subtractMeasuredWorkdays(finish, totalDays);
+      }
+      const totalMinutes = splitTotalSpanMinutes(task.splitGaps, this.workMinutesOf(task, eng));
       const natural = eng.subtractWorkMinutes(finish, totalMinutes);
       if (totalMinutes > 0 && this.p6FinishBoundaryStartTaskIds.has(task.id)) {
         const naturalDayStart = this.dayFirstBandStart(eng, natural);
@@ -1472,14 +1554,6 @@ export class CPMSolver {
         }
       }
       return natural;
-    }
-    if (eng.isHourMode) {
-      if (isZeroDurationMilestone(task)) return new Date(finish.getTime());
-      if (task.time.durationType === 'ELAPSEDTIME') return subtractElapsedMinutes(finish, elapsedMinutesOf(task, eng));
-      const totalDays = splitTotalSpanDays(task, eng);
-      if (totalDays <= 0) return new Date(finish.getTime());
-      const firstDay = eng.subtractWorkDays(workdayDateOfInstant(eng, finish, 'end'), totalDays);
-      return this.dayFirstBandStart(eng, firstDay) ?? firstDay;
     }
     // `isZeroDurationMilestone` i.p.v. de kale vlag — anders valt een dag-modus mijlpaal-met-duur-ELAPSEDTIME-taak hier stil
     // terug op de WORKTIME-tak (`addWorkingDaysSigned`, telt werkdagen, slaat weekend over) i.p.v.
@@ -1499,25 +1573,23 @@ export class CPMSolver {
    *
    *  Splits — zelfde as-wandeling, spiegel van `startFromFinish` hierboven. */
   private finishFromStart(eng: CalendarEngine, start: Date, task: Task): Date {
-    if (eng.isHourMode && taskDurationUnit(task) === 'hours') {
+    if (eng.isHourMode) {
       if (isZeroDurationMilestone(task)) return new Date(start.getTime());
       if (task.time.durationType === 'ELAPSEDTIME') {
         return addElapsedMinutes(start, elapsedMinutesOf(task, eng));
       }
-      const totalMinutes = splitTotalSpanMinutes(task.splitGaps, durationMinutesOf(task, eng));
+      if (this.countsInWorkdays(task)) {
+        // Dagenmaat (§3.14), met de splitgaten zoals `addDurationChecked`.
+        const totalDays = splitTotalSpanDays(task, eng);
+        if (totalDays <= 0) return new Date(start.getTime());
+        return eng.addMeasuredWorkdays(start, totalDays);
+      }
+      const totalMinutes = splitTotalSpanMinutes(task.splitGaps, this.workMinutesOf(task, eng));
       const walkStart = totalMinutes > 0 && this.p6FinishBoundaryStartTaskIds.has(task.id)
         && this.isExactBandEnd(eng, start)
         ? eng.nextWorkInstantAfter(start)
         : start;
       return eng.addWorkMinutes(walkStart, totalMinutes);
-    }
-    if (eng.isHourMode) {
-      if (isZeroDurationMilestone(task)) return new Date(start.getTime());
-      if (task.time.durationType === 'ELAPSEDTIME') return addElapsedMinutes(start, elapsedMinutesOf(task, eng));
-      const totalDays = task.time.scheduleDuration;
-      if (totalDays <= 0) return new Date(start.getTime());
-      const lastDay = eng.addWorkDaysChecked(utcDayStart(start), totalDays).date;
-      return this.dayLastBandEnd(eng, lastDay) ?? lastDay;
     }
     // `isZeroDurationMilestone` — zelfde reden als `startFromFinish` hierboven.
     if (isElapsedTask(task)) {
@@ -1534,11 +1606,21 @@ export class CPMSolver {
    *  werkdag-telling. `task` optioneel: afwezig (of WORKTIME) ⇒ de uur-/dagtak. */
   private signedFloat(a: Date, b: Date, eng: CalendarEngine, task?: Task): number {
     if (task?.time.durationType === 'ELAPSEDTIME') return signedElapsedSpan(a, b, eng);
-    if (eng.isHourMode && (!task || isZeroDurationMilestone(task) || taskDurationUnit(task) === 'hours')) {
+    if (eng.isHourMode) {
+      // Alleen uren §3.4: in de dagenmaat de afstand in werkdagen (met het deel van een dag), anders
+      // werkminuten ÷ (werktijd per dag × 60). Onder P6 en MSP dus altijd de tweede.
+      if (task && this.countsInWorkdays(task)) return eng.measuredWorkdaysBetween(a, b);
       return eng.workMinutesBetween(a, b) / (eng.hoursPerDay * 60);
     }
-    // F2 houdt de dagspeling: kloktijden mogen de laatste kalenderdag niet laten wegvallen.
     return eng.signedWorkDaysBetween(utcDayStart(a), utcDayStart(b));
+  }
+
+  /** Alleen uren §3.4: de getekende speling in minuten op de kalender van de taak. Werkminuten; bij
+   *  kalendertijd klokminuten; een kalender zonder werkblokken telt hele werkdagen × werktijd per dag. */
+  private signedFloatMinutes(a: Date, b: Date, eng: CalendarEngine, task?: Task): number {
+    if (task?.time.durationType === 'ELAPSEDTIME') return (b.getTime() - a.getTime()) / MS_PER_MIN;
+    if (eng.isHourMode) return eng.workMinutesBetween(a, b);
+    return eng.signedWorkDaysBetween(utcDayStart(a), utcDayStart(b)) * eng.hoursPerDay * 60;
   }
 
   /** Gedeelde voorbereiding van `solve()` en `solveEarlyStarts()`: toestand resetten, de guards
@@ -1743,6 +1825,8 @@ export class CPMSolver {
       calendarFor: (t) => this.calendarFor(t),
       progressCalendarFor: (t) => this.progressCalendarFor(t),
       signedFloat: (a, b, eng, task) => this.signedFloat(a, b, eng, task),
+      signedFloatMinutes: (a, b, eng, task) => this.signedFloatMinutes(a, b, eng, task),
+      countsInWorkdays: (task) => this.countsInWorkdays(task),
       constraintInstant: (c, eng) => this.constraintInstant(c, eng),
       snapOnOrAfter: (eng, d) => this.snapOnOrAfter(eng, d),
       snapOnOrBefore: (eng, d) => this.snapOnOrBefore(eng, d),
@@ -2389,13 +2473,12 @@ export class CPMSolver {
               ? this.parseIn(progressCal, t.actualStart)
               : this.snapActualForward(progressCal, this.parseIn(progressCal, t.actualStart))
             : earlyStart;
-          // Restwerk volgt de blijvende TAAK-eenheid, nooit de kalenderidentiteit: uur ⇒
-          // `remainingMinutes ?? durationMinutes × (1−completion)`; dag ⇒ werkdagen.
-          const progressInHours = taskDurationUnit(task) === 'hours';
-          const totalSpan = progressInHours ? durationMinutesOf(task, progressCal) : t.scheduleDuration;
-          const remaining = progressInHours
-            ? Math.max(0, t.remainingMinutes ?? Math.round(totalSpan * (1 - t.completion)))
-            : Math.max(0, t.remainingTime ?? Math.round(totalSpan * (1 - t.completion)));
+          // Restwerk volgt de maat waarin de taak in dit profiel telt (`progressWork`), nooit de
+          // kalenderidentiteit: dagenmaat ⇒ werkdagen (§3.14); urenmaat ⇒ werkminuten, ook voor een
+          // dagenmaat-taak onder P6 of MSP (§3.5). B3: de rest is exact, zonder afronding op hele dagen.
+          const work = this.progressWork(task, progressCal);
+          const totalSpan = work.total;
+          const remaining = work.remaining;
           // ELAPSEDTIME-bewust, zoals `addDurationChecked` (`addElapsedMinutes`, GEEN kalenderband-
           // toetsing): anders klapt een ELAPSEDTIME-taak met `completion > 0` stil om naar
           // WORKTIME-semantiek. `totalSpan`/`remaining` staan al in de "eigen eenheid" van de taak
@@ -2404,8 +2487,8 @@ export class CPMSolver {
           // dag-modus-pad komt erbij (`scheduleDuration × 24 × 60`, zoals `elapsedMinutesOf`).
           // `isElapsedTask` sluit een ECHTE (0-duur) mijlpaal uit (`isZeroDurationMilestone`, niet de
           // kale vlag).
-          const isElapsedTask = !isZeroDurationMilestone(task) && t.durationType === 'ELAPSEDTIME';
-          const remainingElapsedMinutes = isElapsedTask ? (progressInHours ? remaining : remaining * 24 * 60) : 0;
+          const isElapsedTask = work.measure === 'elapsed';
+          const remainingElapsedMinutes = isElapsedTask ? CPMSolver.elapsedWorkMinutes(remaining, task) : 0;
           let remStart = dataDate ?? actualES;                      // ondergrens: statusdatum, anders de eigen actualStart
           // `true` zodra `remStart` hieronder uit het RESUME-veld komt i.p.v. de gewone
           // voorganger-druk/elapsed-vloer — stuurt de ef<es-inversiecorrectie ná de gedeelde
@@ -2489,15 +2572,19 @@ export class CPMSolver {
               // `elapsed` (anders zou elapsed=1 op `actualES` zelf blijven staan i.p.v. doorschuiven
               // naar de eerstvolgende werkdag — geverifieerd tegen `CalendarEngine.addWorkDaysChecked`:
               // dag 1 vanaf een vrijdag = die vrijdag zelf, dag 2 = de eerstvolgende maandag).
+              // Dagenmaat (§3.14): dezelfde loper als het restwerk, en net als de urenmaat naar het
+              // eerstvolgende werkmoment gezet (een blokeinde wordt het volgende blokbegin).
               const elapsedAnchor = isElapsedTask
-                ? addElapsedMinutes(actualES, progressInHours ? elapsed : elapsed * 24 * 60)
-                : progressInHours
+                ? addElapsedMinutes(actualES, CPMSolver.elapsedWorkMinutes(elapsed, task))
+                : work.measure === 'minutes'
                   ? this.snapOnOrAfter(progressCal, progressCal.addWorkMinutes(actualES, elapsed))
-                  : (() => {
-                      const r = progressCal.addWorkDaysChecked(actualES, elapsed + 1);
-                      if (r.capped) this.cappedTaskIds.push(taskId);
-                      return r.date;
-                    })();
+                  : work.measure === 'workdays'
+                    ? this.snapOnOrAfter(progressCal, progressCal.addMeasuredWorkdays(actualES, elapsed))
+                    : (() => {
+                        const r = progressCal.addWorkDaysChecked(actualES, elapsed + 1);
+                        if (r.capped) this.cappedTaskIds.push(taskId);
+                        return r.date;
+                      })();
               if (elapsedAnchor > remStart) remStart = elapsedAnchor;
             }
             }
@@ -2540,28 +2627,18 @@ export class CPMSolver {
           // `remainingMinutes` loopt ongeklemd naar een verre (maar eindige) datum, zoals altijd.
           // `remaining` in het algemeen op de eigen duur klemmen zou progress-gedrag van élke taak
           // wijzigen zonder bewijs dat dat gewenst is.
-          let remainingWithGaps = remaining;
-          if (!isElapsedTask && task.splitGaps && task.splitGaps.length > 0) {
-            const totalSpanMinutes = progressInHours ? totalSpan : totalSpan * progressCal.hoursPerDay * 60;
-            const remainingMinutesUnits = progressInHours ? remaining : remaining * progressCal.hoursPerDay * 60;
-            const completedSpanMinutes = Math.max(0, totalSpanMinutes - remainingMinutesUnits);
-            const totalAxisMinutes = splitTotalSpanMinutes(task.splitGaps, totalSpanMinutes);
-            const completedAxisMinutes = splitTotalSpanMinutes(task.splitGaps, completedSpanMinutes);
-            const remainingAxisMinutes = Math.max(0, totalAxisMinutes - completedAxisMinutes);
-            remainingWithGaps = progressInHours
-              ? remainingAxisMinutes
-              : remainingAxisMinutes / (progressCal.hoursPerDay * 60);
-          }
+          const remainingWithGaps = this.remainingWithSplitGaps(task, progressCal, work);
           let ef: Date;
           if (isElapsedTask) {
             ef = addElapsedMinutes(remStart, remainingElapsedMinutes);
-          } else if (progressInHours) {
+          } else if (work.measure === 'minutes') {
             ef = progressCal.addWorkMinutes(remStart, remainingWithGaps);
           } else {
             // Ook het rest-werk-pad kan tegen de onwerkbaar-venster-cap lopen ⇒ checked-variant.
-            const r = progressCal.addWorkDaysChecked(remStart, remainingWithGaps);
-            // Een dagtaak op een kalender met banden omvat de volledige laatste beschikbare dag.
-            ef = progressCal.isHourMode ? (this.dayLastBandEnd(progressCal, r.date) ?? r.date) : r.date;
+            const r = work.measure === 'workdays'
+              ? progressCal.addMeasuredWorkdaysChecked(remStart, remainingWithGaps)
+              : progressCal.addWorkDaysChecked(remStart, remainingWithGaps);
+            ef = r.date;
             if (r.capped) this.cappedTaskIds.push(taskId);
           }
           // Inversiewacht: de VOLTOOID-tak (`if (ef < es) es = ef`) bewaakt dat een taak nooit
@@ -3725,19 +3802,11 @@ export class CPMSolver {
 
       const useP6RemainingProgress = this.options.schedulingOptions?.p6UseRemainingStartForProgress === true
         && task.time.actualStart !== undefined && task.time.completion > 0 && task.time.completion < 1;
-      // Een hele F2-dag kan alleen vóór deze grens eindigen als zijn laatste werkblok past.
-      // Een opvolger om woensdag 08:00 laat dus hooguit dinsdag 16:00 toe, niet woensdag 16:00.
-      // De grens is een eindmoment: tel hem bij zijn eigen werkdag (eindkant). Op een 24-uurskalender
-      // is di 00:00 het einde van maandag; dat is al een geldig dageinde en springt niet verder terug.
-      if (lateFinishSource === 'successorConstraint' && predCal.isHourMode
-        && taskDurationUnit(task) !== 'hours' && !isZeroDurationMilestone(task) && !isElapsedTask(task)) {
-        const endDay = workdayDateOfInstant(predCal, lateFinish, 'end');
-        const dayEnd = this.dayLastBandEnd(predCal, endDay);
-        if (dayEnd && lateFinish < dayEnd) {
-          const dayStart = this.dayFirstBandStart(predCal, endDay);
-          if (dayStart) lateFinish = predCal.prevWorkInstantBefore(dayStart);
-        }
-      }
+      // Alleen uren F3 (§3.14): de F2-wacht "een hele dag past alleen vóór deze grens als zijn laatste
+      // werkblok past" is weg. Een dagenmaat-taak eindigt nu ook midden op een dag (2,5 d), en de
+      // dagenmaat-lopers in `subDuration` tellen het deel van de dag zelf; een dagenmaat-taak onder P6
+      // of MSP telt als urenmaat. Met de wacht kreeg A (0,5 d, FS naar B) een late finish op de vorige
+      // werkdag en negatieve speling.
 
       const computedLateStart = useP6RemainingProgress
         ? this.subRemainingDuration(predCal, lateFinish, task)

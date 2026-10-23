@@ -40,7 +40,7 @@ const week = (perDay: Partial<Record<1 | 2 | 3 | 4 | 5 | 6 | 7, Band[]>>): WorkT
   byWeekday: { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], ...perDay },
 });
 const cal = (id: string, workDays: number[], workTime: WorkTimeBands | undefined, extra: Partial<WorkCalendar> = {}): WorkCalendar => ({
-  id, name: id, workDays, workStartHour: 7, workEndHour: 16, hoursPerDay: 8, holidays: [],
+  id, name: id, description: '', workDays, workStartHour: 7, workEndHour: 16, hoursPerDay: 8, holidays: [],
   ...(workTime ? { workTime } : {}), ...extra,
 });
 const DAY8: Band[] = [{ start: hm(7), end: hm(12) }, { start: hm(13), end: hm(16) }];
@@ -50,10 +50,10 @@ const FRI6: Band[] = [{ start: hm(7), end: hm(12) }, { start: hm(13), end: hm(14
 const VOORBEELDWEEK = cal('voorbeeldweek', [1, 2, 3, 4, 5], week({ 1: DAY8, 2: DAY8, 3: DAY8, 4: DAY8, 5: FRI6 }));
 const STANDAARD = cal('standaard', [1, 2, 3, 4, 5], undefined); // scalair 07–16, 8 u: de engine maakt de blokken
 const FEESTDAG = cal('feestdag', [1, 2, 3, 4, 5], undefined, {
-  holidays: [{ id: 'h', name: 'wo', startDate: '2026-06-03' } as WorkCalendar['holidays'][number]],
+  holidays: [{ name: 'wo', startDate: '2026-06-03', endDate: '2026-06-03' }],
 });
 const UITZONDERING = cal('uitzondering', [1, 2, 3, 4, 5], week({ 1: DAY8, 2: DAY8, 3: DAY8, 4: DAY8, 5: DAY8 }), {
-  workingExceptions: [{ startDate: '2026-06-06', endDate: '2026-06-06', bands: [{ start: hm(7), end: hm(11) }] }],
+  workingExceptions: [{ name: 'za', startDate: '2026-06-06', endDate: '2026-06-06', bands: [{ start: hm(7), end: hm(11) }] }],
 });
 const NACHT = cal('nacht', [1, 2, 3, 4, 5], week({
   1: [{ start: hm(22), end: hm(30) }], 2: [{ start: hm(22), end: hm(30) }], 3: [{ start: hm(22), end: hm(30) }],
@@ -64,7 +64,7 @@ const ETMAAL = cal('etmaal', [1, 2, 3, 4, 5, 6, 7], week({
   5: [{ start: 0, end: 1440 }], 6: [{ start: 0, end: 1440 }], 7: [{ start: 0, end: 1440 }],
 }), { workStartHour: 0, workEndHour: 24, hoursPerDay: 24 });
 const ZATERDAG1U = cal('zaterdag-1u', [1, 2, 3, 4, 5], week({ 1: DAY8, 2: DAY8, 3: DAY8, 4: DAY8, 5: DAY8 }), {
-  workingExceptions: [{ startDate: '2026-06-06', endDate: '2026-06-06', bands: [{ start: hm(7), end: hm(8) }] }],
+  workingExceptions: [{ name: 'za', startDate: '2026-06-06', endDate: '2026-06-06', bands: [{ start: hm(7), end: hm(8) }] }],
 });
 // Tegenstrijdig: zaterdag heeft blokken maar staat niet in workDays. De dagenmaat telt de blokken (de
 // trage tak van de lopers), zodat de referentieloper hieronder ook dat pad dekt.
