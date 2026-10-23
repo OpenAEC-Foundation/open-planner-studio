@@ -53,7 +53,7 @@ The overview shows the problem, but does not resolve it. You have two options:
 
 **A project does not count.** It is not open in this app, it is linked to another library, or the resource in it is an own resource of that project. At the bottom of the overview it always says *This overview only sees the documents opened in this app.* A copy of a resource that has since been removed from the library does not count either.
 
-**A copy or variant counts in full.** Every open project that is linked to the library counts, also if it is a copy or variant of another open project, for example a variant an AI assistant made with `planner_duplicate_document`. Original and variant together can then show a double booking that in reality exists only once. The overview does not quietly filter on that: close the variant for a moment, or read around it.
+**A copy or variant counts in full.** Every open project that is linked to the library counts, also if it is a copy or variant of another open project, for example a variant an MCP client made with `planner_duplicate_document`. Original and variant together can then show a double booking that in reality exists only once. The overview does not quietly filter on that: close the variant for a moment, or read around it.
 
 **A project is out of date.** A project is out of date if you changed something in the schedule without recalculating. The overview then handles that project as follows:
 

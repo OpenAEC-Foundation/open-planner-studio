@@ -1,10 +1,10 @@
-# AI tools (planner_*)
+# MCP tools (planner_*)
 
-All tools an AI assistant can call through the bridge, by group, with what they do and what they refuse. They all start with `planner_`. The connection prompt in the window *Connection details* names the current number, and the assistant gets the full list with descriptions from the bridge itself (`tools/list`). Why the link works the way it does is in [How the AI link works](docs://uitleg-ai-koppeling). How you turn it on is in [Connecting an AI assistant (MCP)](docs://howto-ai-assistent-koppelen).
+All tools an MCP client can call through the bridge, by group, with what they do and what they refuse. They all start with `planner_`. The connection prompt in the window *Connection details* names the current number, and the MCP client gets the full list with descriptions from the bridge itself (`tools/list`). Why the link works the way it does is in [How the MCP link works](docs://uitleg-ai-koppeling). How you turn it on is in [Connecting an MCP client](docs://howto-ai-assistent-koppelen).
 
 ## How to read this list
 
-**Read** means: the tool changes nothing. That works during *Pause* and *Read-only* too. An open dialog does block it (see *When a tool is refused* below). A read tool always gives current dates: if the schedule is stale, it recalculates first, also during *Pause* and *Read-only*: those hold back changes, not the recalculation when reading. If you are in the middle of an edit (dragging a bar, typing in a field), it does not recalculate; the assistant then gets the dates from before your edit with a notice that they are stale. If the project is in the *Dates as recorded* view, it does not recalculate; the assistant then gets the recorded dates with a notice that they have not been recalculated.
+**Read** means: the tool changes nothing. That works during *Pause* and *Read-only* too. An open dialog does block it (see *When a tool is refused* below). A read tool always gives current dates: if the schedule is stale, it recalculates first, also during *Pause* and *Read-only*: those hold back changes, not the recalculation when reading. If you are in the middle of an edit (dragging a bar, typing in a field), it does not recalculate; the MCP client then gets the dates from before your edit with a notice that they are stale. If the project is in the *Dates as recorded* view, it does not recalculate; the MCP client then gets the recorded dates with a notice that they have not been recalculated.
 
 **Change** means: the tool changes your project. It is refused during *Pause*, *Read-only* and when a dialog is open. That also goes for the tools without a label below (`planner_undo`, `planner_redo`, the file tools and the document tools, except `planner_list_documents`). Every change is one step in your undo history. If project data changes, the app recalculates the schedule afterwards by itself; you do not have to press *Calculate*. Before the first change per document the app writes a backup, if *Auto-backup* is on.
 
@@ -43,15 +43,15 @@ All tools an AI assistant can call through the bridge, by group, with what they 
 
 ## Project and calendars
 
-- `planner_update_project` (change) — name, description, author, company, start date, end date, status date, progress mode and the project default for the task type. The start date is the anchor for new tasks. If the assistant sets it later, only loose tasks move along (without a predecessor and without a constraint that sets a lower bound, such as *Start no earlier than*) and the response reports how many as `anchorsClamped`; the rest of the schedule stays put, see [New project and Project settings](docs://ref-projectinfo). The status date is not a label but the reference date of the calculation: on a schedule without progress, everything moves along. The end date is metadata only.
-- `planner_move_project` (change) — move the whole existing schedule to a new start date. The calendars do not move along, so the end can jump by a different number of days than the start. Baselines stay, unless the assistant explicitly has them move too. See [Moving a project](docs://howto-project-verplaatsen).
+- `planner_update_project` (change) — name, description, author, company, start date, end date, status date, progress mode and the project default for the task type. The start date is the anchor for new tasks. If the MCP client sets it later, only loose tasks move along (without a predecessor and without a constraint that sets a lower bound, such as *Start no earlier than*) and the response reports how many as `anchorsClamped`; the rest of the schedule stays put, see [New project and Project settings](docs://ref-projectinfo). The status date is not a label but the reference date of the calculation: on a schedule without progress, everything moves along. The end date is metadata only.
+- `planner_move_project` (change) — move the whole existing schedule to a new start date. The calendars do not move along, so the end can jump by a different number of days than the start. Baselines stay, unless the MCP client explicitly has them move too. See [Moving a project](docs://howto-project-verplaatsen).
 - `planner_update_calendar` (change, bulk) — change or create calendars: working days, working hours, break, hour bands, holidays (generate for a country and region, or specify literally) and working exceptions. Generating for an existing calendar covers the year before the project start through the year after the later of the entered and calculated project end dates. With neither end date known, and always when creating a calendar, the span runs through three years after the start year. It cannot change which calendar is the project calendar.
 
 ## Resources and units
 
-- `planner_manage_resources` (change, bulk) — create, change or delete resources: name, type (labor, equipment, material, subcontractor or crew), description, maximum units, cost per hour, unit, calendar, crew and availability over time. It refuses to delete a resource that has assignments until the assistant confirms explicitly. For a resource from a library, name, type, description, hourly rate and unit are fixed.
+- `planner_manage_resources` (change, bulk) — create, change or delete resources: name, type (labor, equipment, material, subcontractor or crew), description, maximum units, cost per hour, unit, calendar, crew and availability over time. It refuses to delete a resource that has assignments until the MCP client confirms explicitly. For a resource from a library, name, type, description, hourly rate and unit are fixed.
 - `planner_manage_assignments` (change, bulk) — add, change, move or remove assignments: units per working day, curve and remaining work. Only on a leaf task, and the same resource only once per task. What a change in units does to the duration depends on the task type of the task, as in [Task types: duration, units and work](docs://uitleg-werkregels).
-- `planner_level_resources` (change) — level overallocation. Within the float by default, so the end date stays; with `constrainToFloat: false` the end may move. With a dry run the assistant first gets a preview without changing anything. It skips material. See [Resource leveling](docs://uitleg-nivelleren).
+- `planner_level_resources` (change) — level overallocation. Within the float by default, so the end date stays; with `constrainToFloat: false` the end may move. With a dry run the MCP client first gets a preview without changing anything. It skips material. See [Resource leveling](docs://uitleg-nivelleren).
 - `planner_clear_leveling` (change) — clear all leveling delays.
 
 ## Managing baselines
@@ -70,14 +70,14 @@ All tools an AI assistant can call through the bridge, by group, with what they 
 - `planner_list_documents` (read) — all open documents with title, whether they are active and modified, the number of tasks, the project start and the calculated end.
 - `planner_new_document` — a new, empty document in its own tab, without the *New project* window.
 - `planner_duplicate_document` — copy the active document to a new tab, for a what-if or a tender variant. The copy is detached and has no file path.
-- `planner_switch_document` — make another document active. Also the way to confirm, after you switched tabs, which document the assistant works on.
+- `planner_switch_document` — make another document active. Also the way to confirm, after you switched tabs, which document the MCP client works on.
 - `planner_import_schedule` — open a schedule file from disk as a document: `.ifc`, `.xml` (Primavera P6 or MS Project, recognized by content), `.csv`, `.xer` and `.mpp` (MS Project 2010 through 2021). Nothing is merged with the current plan. A CSV has no calendar, so dates can shift. Only inside your user folder. After a CSV, XML or `.mpp` import the document has no save target; only an IFC takes over its path.
 - `planner_export_ifc` — write the active document as an IFC file, in the IFC schema of the project (default IFC 4.3 ADD2). Only inside your user folder, and an existing file is only overwritten on explicit request. If the document was opened in a schema the app cannot write (such as IFC2X3), the tool refuses to write over that file itself, including a case variant or link to the same file. If the tool cannot establish that an existing target is a different file, it also refuses. This includes Windows, where the file layer provides no file ID. Choose a new file name, or save in the app yourself and answer the schema question. Export leaves the document's save target and open schema question unchanged.
 
 ## Guide and source provenance
 
-- `planner_get_planning_guide` (read) — the English guide for assistants (the principles of [Planning well](docs://gids-goed-plannen), with the tools for each principle), the two skills *goed-plannen* (setting up a schedule) and *progress-update* (updating progress), or everything. Choose with `part`: `guide`, `skill` (both skills) or `both`; `both` by default. Returns, for each skill, the places where it belongs and the download addresses. The parameter `language` is still accepted for older assistants, but the text is always English. Does not touch the schedule.
-- `planner_inspect_xer_provenance` (read) — inspect the retained source semantics of an opened Primavera P6 file (`.xer`): what the file contained, with counts of the import and diagnostics. Free-text fields from the file stay invisible by default; the assistant has to ask for them explicitly. Resource names also stay hidden by default, because a P6 resource is usually a person; the resource codes stay visible. The assistant must ask you for permission before it requests the names, because they then go to the AI provider. Cannot be used in a script.
+- `planner_get_planning_guide` (read) — the English guide for MCP clients (the principles of [Planning well](docs://gids-goed-plannen), with the tools for each principle), the two skills *goed-plannen* (setting up a schedule) and *progress-update* (updating progress), or everything. Choose with `part`: `guide`, `skill` (both skills) or `both`; `both` by default. Returns, for each skill, the places where it belongs and the download addresses. The parameter `language` is still accepted for older MCP clients, but the text is always English. Does not touch the schedule.
+- `planner_inspect_xer_provenance` (read) — inspect the retained source semantics of an opened Primavera P6 file (`.xer`): what the file contained, with counts of the import and diagnostics. Free-text fields from the file stay invisible by default; the MCP client has to ask for them explicitly. Resource names also stay hidden by default, because a P6 resource is usually a person; the resource codes stay visible. The MCP client must ask you for permission before it requests the names, because they then go to the AI provider. Cannot be used in a script.
 
 ## The script
 
@@ -85,12 +85,12 @@ All tools an AI assistant can call through the bridge, by group, with what they 
 
 ## When a tool is refused
 
-The assistant then gets a response with an error code and an explanation.
+The MCP client then gets a response with an error code and an explanation.
 
 - `PAUSED` — *Pause* is on.
 - `READ_ONLY` — *Read-only* is on.
 - `DIALOG_OPEN` — a dialog is open. That counts for reading too, except for `planner_get_planning_guide`. The response names what is open by its internal name, for example `showTaskDialog`.
-- `DOC_DRIFT` — you switched tabs while the assistant was working. It has to confirm with `planner_switch_document` which document it works on.
+- `DOC_DRIFT` — you switched tabs while the MCP client was working. It has to confirm with `planner_switch_document` which document it works on.
 - `VALIDATION` — the arguments do not match the schema, or the requested change is not allowed. The response names the field.
 - `NOT_FOUND` — an id or document does not exist.
 - `CYCLE` — the change would create a circular reference. Everything in that call is rolled back.
@@ -101,9 +101,9 @@ The assistant then gets a response with an error code and an explanation.
 
 A request that sat in the queue longer than 110 seconds is no longer carried out by the app: the client has already received a time-out, and carrying it out would change things twice on a retry. A call that takes longer than 120 seconds gets a time-out from the bridge.
 
-## What the assistant cannot set
+## What the MCP client cannot set
 
-Per task the assistant cannot set: hammock, manual scheduling, a second constraint, notes, color, activity codes, custom fields, external links and a leveling delay by hand. The app calculates the WBS code itself. At project level it cannot change the calculation profile and the calculation options. Settings, theme, language, extensions and updates are out of reach, and so is the resource library. It has no reports, layouts, filters or view either. Why is in [How the AI link works](docs://uitleg-ai-koppeling).
+Per task the MCP client cannot set: hammock, manual scheduling, a second constraint, notes, color, activity codes, custom fields, external links and a leveling delay by hand. The app calculates the WBS code itself. At project level it cannot change the calculation profile and the calculation options. Settings, theme, language, extensions and updates are out of reach, and so is the resource library. It has no reports, layouts, filters or view either. Why is in [How the MCP link works](docs://uitleg-ai-koppeling).
 
 ## What the app stores
 
@@ -115,7 +115,7 @@ Per task the assistant cannot set: hammock, manual scheduling, a second constrai
 
 ## See also
 
-- [How the AI link works](docs://uitleg-ai-koppeling): why the bridge is set up this way and what the assistant may and may not do.
-- [Connecting an AI assistant (MCP)](docs://howto-ai-assistent-koppelen): start the bridge, connect, install the skill.
-- [App settings](docs://ref-instellingen): the two AI switches.
-- [Notifications and warnings](docs://ref-meldingen): the AI dot in the status bar.
+- [How the MCP link works](docs://uitleg-ai-koppeling): why the bridge is set up this way and what the MCP client may and may not do.
+- [Connecting an MCP client](docs://howto-ai-assistent-koppelen): start the bridge, connect, install the skill.
+- [App settings](docs://ref-instellingen): the two MCP switches.
+- [Notifications and warnings](docs://ref-meldingen): the MCP dot in the status bar.

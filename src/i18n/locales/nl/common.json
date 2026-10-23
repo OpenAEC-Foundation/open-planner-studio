@@ -11,7 +11,7 @@
   },
   "notifications": {
     "dismiss": "Melding sluiten",
-    "taskEditRevertBlocked": "Een wijziging van de AI-assistent of een extensie kwam tussendoor. De taakwijzigingen van daarvóór zijn niet teruggedraaid en staan als gewone stappen onder Ongedaan maken.",
+    "taskEditRevertBlocked": "Een wijziging van de MCP-client of een extensie kwam tussendoor. De taakwijzigingen van daarvóór zijn niet teruggedraaid en staan als gewone stappen onder Ongedaan maken.",
     "openFailed": "Bestand openen mislukt",
     "csvInvalidDate": "CSV niet geopend: onleesbare datum \"{{value}}\" op CSV-rij {{row}}, kolom \"{{column}}\". Gebruik jjjj-mm-dd, dd-mm-jjjj of dd/mm/jjjj.",
     "extGuideCallbackFailed": "Een stap van de extensie {{name}} gaf een fout. De begeleiding gaat door.",
@@ -158,7 +158,7 @@
     },
     "xerArchiveUnusable": "Het XER-bronarchief in dit bestand is onbruikbaar en weggelaten; het project zelf is volledig geopend.",
     "xerArchiveUnusableLine": "Het XER-bronarchief in dit bestand was onbruikbaar en is weggelaten.",
-    "xerArchiveUnusableConsequence": "De planning, het rekenprofiel en alle projectdata uit het IFC zijn compleet. Wat ontbreekt: de datums zoals Primavera ze opsloeg en de bronherkomst voor AI en extensies. Opslaan schrijft het bestand zonder archief; importeer de originele .xer opnieuw om het archief terug te krijgen.",
+    "xerArchiveUnusableConsequence": "De planning, het rekenprofiel en alle projectdata uit het IFC zijn compleet. Wat ontbreekt: de datums zoals Primavera ze opsloeg en de bronherkomst voor MCP-clients en extensies. Opslaan schrijft het bestand zonder archief; importeer de originele .xer opnieuw om het archief terug te krijgen.",
     "xerArchiveReasonSchemaVersion": "Reden: het archief heeft een onbekende schemaversie of indeling (nieuwere of andere schrijver).",
     "xerArchiveReasonHashMismatch": "Reden: de controlesom past niet bij de bronbytes — het archief is beschadigd.",
     "xerArchiveReasonTruncated": "Reden: het archief is afgeknot — een deel van de bronbytes ontbreekt.",
@@ -412,11 +412,11 @@
     "fontFamilySerif": "Met schreef",
     "fontFamilyMono": "Monospace",
     "fontHint": "Web-apps volgen niet automatisch de systeemlettertype-instelling. Kies hier het lettertype en de grootte voor de hele interface.",
-    "aiModeSection": "AI-modus",
-    "aiMode": "AI-modus inschakelen",
-    "aiModeHint": "Toont het AI-tabblad met de MCP-bridge, zodat AI-assistenten via het Model Context Protocol met je planning kunnen werken. Uitzetten stopt de bridge.",
+    "aiModeSection": "MCP-koppeling",
+    "aiMode": "MCP-koppeling toestaan",
+    "aiModeHint": "Toont het tabblad MCP. Daar start je de MCP-bridge, zodat een MCP-client via het Model Context Protocol met je planning kan werken. Uitzetten stopt de bridge.",
     "aiAutostart": "Bridge automatisch starten",
-    "aiAutostartHint": "Zet de MCP-bridge meteen live bij het opstarten van de app, zodat een AI-client kan koppelen zonder dat je eerst het AI-tabblad opent. Alleen in de desktop-app.",
+    "aiAutostartHint": "Zet de MCP-bridge meteen live bij het opstarten van de app, zodat een MCP-client kan koppelen zonder dat je eerst het MCP-tabblad opent. Alleen in de desktop-app.",
     "legacySection": "Legacy-functies",
     "classicViewControls": "Klassieke weergaveknoppen tonen",
     "classicViewControlsHint": "Zet de losse knoppen Kolommen, Filter, Groeperen en Sorteren terug op het tabblad Beeld. Kolommen kies je nu met het plusje in de tabelkop of via Tabel → Kolommen…; filteren, groeperen en sorteren zitten in de layoutknoppen en de layoutdialoog."
@@ -448,9 +448,9 @@
     "configSnippetHint": "Plak dit in de MCP-configuratie van je client.",
     "tokenWarning": "Dit token geeft toegang tot het geopende plan. Deel het niet met anderen.",
     "connectPrompt": "Koppelprompt",
-    "connectPromptHint": "Plak dit in je AI-agent — die koppelt zichzelf.",
+    "connectPromptHint": "Plak dit in je MCP-client — die koppelt zichzelf.",
     "connectPromptText": "Verbind met een MCP-server die op mijn computer draait: naam {{name}}, transport streamable HTTP, URL {{url}}, met de header Authorization: Bearer {{token}}. Voeg hem toe aan je MCP-configuratie (bijvoorbeeld als mcpServers-blok) en maak verbinding. Vraag daarna de toollijst op ter controle: je zou ongeveer {{count}} tools moeten zien met het voorvoegsel {{prefix}}. Vat kort samen wat je met deze server kunt doen. Lees vóór je iets wijzigt eerst de planningsgids via de tool planner_get_planning_guide.",
-    "statusDot": "AI-bridge: {{status}}"
+    "statusDot": "MCP-bridge: {{status}}"
   },
   "aiSafety": {
     "pause": "Pauzeren",
@@ -460,7 +460,7 @@
     "readOnlyHint": "Alle muterende tools worden geweigerd zolang dit aanstaat.",
     "autoBackupOn": "Auto-backup: aan",
     "autoBackupOff": "Auto-backup: uit",
-    "autoBackupHint": "Maakt vóór de eerste AI-wijziging per document automatisch een IFC-backup.",
+    "autoBackupHint": "Maakt vóór de eerste MCP-wijziging per document automatisch een IFC-backup.",
     "backupNow": "Nu backup maken",
     "openFolder": "Backup-map openen",
     "backupOk": "Backup gemaakt: {{name}}",
@@ -468,10 +468,10 @@
     "openErr": "Map openen mislukt: {{error}}"
   },
   "aiActivity": {
-    "title": "AI-activiteit",
+    "title": "MCP-activiteit",
     "panelButton": "Activiteitenpaneel",
     "clear": "Wissen",
-    "empty": "Nog geen AI-activiteit. Aanroepen van de bridge verschijnen hier.",
+    "empty": "Nog geen MCP-activiteit. Aanroepen van de bridge verschijnen hier.",
     "args": "Argumenten",
     "result": "Antwoord"
   },

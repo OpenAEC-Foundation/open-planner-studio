@@ -161,5 +161,5 @@ Wil je dat *Dakwerk* op vrijdag 18 juni klaar is, zet daar dan een deadline. Er 
 - [Voortgang, statusdatum en baseline](docs://uitleg-voortgang): wat de statusdatum doet en hoe je afwijking leest.
 - [Taken en mijlpalen toevoegen](docs://howto-taken-en-mijlpalen-toevoegen): de mijlpalen en taken invoeren.
 - [Relaties leggen](docs://howto-relaties-leggen): taken aan elkaar koppelen.
-- [Een AI-assistent koppelen (MCP)](docs://howto-ai-assistent-koppelen): een assistent die met deze principes plant.
+- [Een MCP-client koppelen](docs://howto-ai-assistent-koppelen): een MCP-client die met deze principes plant.
 - [Meldingen en waarschuwingen](docs://ref-meldingen): alle waarschuwingen op één plek.

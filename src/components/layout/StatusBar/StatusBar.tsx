@@ -109,7 +109,7 @@ export function StatusBar() {
           className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-surface-hover text-text-secondary"
         >
           <Circle size={10} fill={AI_STATUS_COLOR[aiServerStatus.state]} color={AI_STATUS_COLOR[aiServerStatus.state]} />
-          <span>AI</span>
+          <span>MCP</span>
         </button>
       )}
       {debugTerminalEnabled && (

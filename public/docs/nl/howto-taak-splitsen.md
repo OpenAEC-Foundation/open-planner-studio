@@ -44,9 +44,9 @@ Pas op met *na*: dat vak verlengt of verkort het werkstuk vóór de pauze, en da
 
 Klik met de rechtermuisknop op de onderbreking in de Gantt, of op het stuk erna, en kies *Onderbreking opheffen*. *Alle onderbrekingen opheffen* staat in het rechtermuismenu van elke balk met een onderbreking. Of gebruik het blok *Onderbrekingen* in het paneel *Eigenschappen*, zoals hierboven.
 
-### Met een AI-assistent
+### Met een MCP-client
 
-Een gekoppelde AI-assistent zet onderbrekingen met de tool `planner_set_task_splits`, in dezelfde vorm als het paneel: na hoeveel werkdagen (of werkuren) werk, en hoeveel werkdagen (of werkuren) pauze. Hij geeft telkens de hele lijst; een lege lijst heft alle onderbrekingen op. Teruglezen doet hij met `planner_get_task`. Dezelfde regels gelden als hieronder: een taak die je niet kunt splitsen, kan de assistent ook niet splitsen. Anders dan bij een splitsing die je zelf maakt, rekent de app de planning daarna zelf door. Hoe je een assistent koppelt, staat in [Een AI-assistent koppelen (MCP)](docs://howto-ai-assistent-koppelen).
+Een gekoppelde MCP-client zet onderbrekingen met de tool `planner_set_task_splits`, in dezelfde vorm als het paneel: na hoeveel werkdagen (of werkuren) werk, en hoeveel werkdagen (of werkuren) pauze. Hij geeft telkens de hele lijst; een lege lijst heft alle onderbrekingen op. Teruglezen doet hij met `planner_get_task`. Dezelfde regels gelden als hieronder: een taak die je niet kunt splitsen, kan de MCP-client ook niet splitsen. Anders dan bij een splitsing die je zelf maakt, rekent de app de planning daarna zelf door. Hoe je een MCP-client koppelt, staat in [Een MCP-client koppelen](docs://howto-ai-assistent-koppelen).
 
 ## Valkuilen en wat de app dan doet
 

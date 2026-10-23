@@ -161,5 +161,5 @@ If you want *Roofing* finished on Friday 18 June, put a deadline there. Nothing 
 - [Progress, status date and baseline](docs://uitleg-voortgang): what the status date does and how to read variance.
 - [Adding tasks and milestones](docs://howto-taken-en-mijlpalen-toevoegen): entering the milestones and tasks.
 - [Adding relations](docs://howto-relaties-leggen): linking tasks together.
-- [Connecting an AI assistant (MCP)](docs://howto-ai-assistent-koppelen): an assistant that plans by these principles.
+- [Connecting an MCP client](docs://howto-ai-assistent-koppelen): an MCP client that plans by these principles.
 - [Notifications and warnings](docs://ref-meldingen): all warnings in one place.
