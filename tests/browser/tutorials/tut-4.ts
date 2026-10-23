@@ -1,4 +1,4 @@
-// F2-tussenstand; F3 → de vaste tutorial-urenreferentie (§3.14; minute-model-tutorial-f3.json).
+// De dagenmaat (§3.14): de waarden zijn die van de urenreferentie (minute-model-tutorial-f3.json).
 // Tutorial 4 — Plannen in uren (`tut-4-uren`): de stort en twee kraaninzetten in uren.
 import { l, type Action, type Check, type L, type Snap, type TutorialScript } from './dsl';
 import { T, taskIs } from './project';
@@ -57,12 +57,12 @@ export const TUTORIAL_4: TutorialScript = {
         notStale,
         ...END_AND_PATH,
         { state: (s, lang) => [
-          ...taskIs(s, lang, T.pour, { earlyStart: '2027-06-18T07:00', earlyFinish: '2027-06-18T14:00', totalFloat: 6 }),
-          ...taskIs(s, lang, T.floor, { earlyStart: '2027-06-25T07:00', earlyFinish: '2027-06-25T12:00', totalFloat: 6 }),
-          ...taskIs(s, lang, T.roofElements, { earlyStart: '2027-07-02T07:00', earlyFinish: '2027-07-02T14:00', totalFloat: 6 }),
+          ...taskIs(s, lang, T.pour, { earlyStart: '2027-06-18T07:00', earlyFinish: '2027-06-18T14:00', totalFloat: 3.875 }),
+          ...taskIs(s, lang, T.floor, { earlyStart: '2027-06-25T14:00', earlyFinish: '2027-06-28T10:00', totalFloat: 3.875 }),
+          ...taskIs(s, lang, T.roofElements, { earlyStart: '2027-07-05T10:00', earlyFinish: '2027-07-06T08:00', totalFloat: 3.875 }),
         ] },
         { see: { cell: { task: T.pour, column: l('Start', 'Start') } }, text: '18-06-2027' },
-        { see: { cell: { task: T.floor, column: l('Totale speling', 'Total float') } }, text: '6' },
+        { see: { cell: { task: T.floor, column: l('Totale speling', 'Total float') } }, text: l('3,88', '3.88') },
       ],
       shots: [{
         name: 'tut-4-kloktijden',
@@ -77,9 +77,9 @@ export const TUTORIAL_4: TutorialScript = {
         notStale,
         ...END_AND_PATH,
         { state: (s, lang) => [
-          ...taskIs(s, lang, T.roofElements, { minutes: 720, earlyStart: '2027-07-02T07:00', earlyFinish: '2027-07-05T11:00', totalFloat: 5 }),
-          ...taskIs(s, lang, T.roofing, { earlyStart: '2027-07-05T11:00', earlyFinish: '2027-07-06T16:00', totalFloat: 5 }),
-          ...taskIs(s, lang, T.innerLeaf, { totalFloat: 5 }),
+          ...taskIs(s, lang, T.roofElements, { minutes: 720, earlyStart: '2027-07-05T10:00', earlyFinish: '2027-07-06T15:00', totalFloat: 3.125 }),
+          ...taskIs(s, lang, T.roofing, { earlyStart: '2027-07-06T15:00', earlyFinish: '2027-07-08T15:00', totalFloat: 3.125 }),
+          ...taskIs(s, lang, T.innerLeaf, { totalFloat: 3.125 }),
         ] },
       ],
     },
@@ -90,8 +90,8 @@ export const TUTORIAL_4: TutorialScript = {
         notStale,
         ...END_AND_PATH,
         { state: (s, lang) => [
-          ...taskIs(s, lang, T.roofElements, { minutes: 360, earlyFinish: '2027-07-02T14:00', totalFloat: 6 }),
-          ...taskIs(s, lang, T.roofing, { earlyStart: '2027-07-02T14:00' }),
+          ...taskIs(s, lang, T.roofElements, { minutes: 360, earlyFinish: '2027-07-06T08:00', totalFloat: 3.875 }),
+          ...taskIs(s, lang, T.roofing, { earlyStart: '2027-07-06T08:00' }),
         ] },
       ],
     },
