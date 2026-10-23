@@ -293,6 +293,34 @@
       }
     },
     {
+      "id": "f3-pct-fs50-korte-vrijdag",
+      "title": "B7 en §3.14: een procentlag telt in de maat van de voorganger. Ma–do 8 u, vr 6 u (tot 14:00). A 3 d (ma–wo) in de dagenmaat; FS+50% = 1,5 werkdag: do heel en de helft van vrijdag (3 van 6 u), dus B begint vr 10:00 (in minuten zou het 12 u zijn: vr 11:00). B 1 d: vr 10:00–14:00 is 0,5 d, ma 07:00–11:00 de andere helft.",
+      "anchor": "2026-06-01",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 420, "end": 720 }, { "start": 780, "end": 960 }], "2": [{ "start": 420, "end": 720 }, { "start": 780, "end": 960 }], "3": [{ "start": 420, "end": 720 }, { "start": 780, "end": 960 }], "4": [{ "start": 420, "end": 720 }, { "start": 780, "end": 960 }], "5": [{ "start": 420, "end": 720 }, { "start": 780, "end": 840 }], "6": [], "7": [] } } },
+      "tasks": [{ "name": "A", "dur": 3 }, { "name": "B", "dur": 1 }],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START", "lagPercent": 50 }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01T07:00", "ef": "2026-06-03T16:00" },
+          "B": { "es": "2026-06-05T10:00", "ef": "2026-06-08T11:00" }
+        }
+      }
+    },
+    {
+      "id": "f3-pct-fs-lead50-korte-vrijdag",
+      "title": "B7 en §3.14: een procent-lead telt ook in de maat van de voorganger. Ma–do 8 u, vr 6 u. A 5 d (ma–vr, einde vr 14:00); FS−50% = 2,5 werkdag terug: vr en do heel, de helft van woensdag (4 van 8 u), dus B begint wo 11:00 (in minuten zou het 20 u zijn: wo 09:00). B 1 d eindigt do 11:00.",
+      "anchor": "2026-06-01",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 420, "end": 720 }, { "start": 780, "end": 960 }], "2": [{ "start": 420, "end": 720 }, { "start": 780, "end": 960 }], "3": [{ "start": 420, "end": 720 }, { "start": 780, "end": 960 }], "4": [{ "start": 420, "end": 720 }, { "start": 780, "end": 960 }], "5": [{ "start": 420, "end": 720 }, { "start": 780, "end": 840 }], "6": [], "7": [] } } },
+      "tasks": [{ "name": "A", "dur": 5 }, { "name": "B", "dur": 1 }],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START", "lagPercent": -50 }],
+      "expect": {
+        "tasks": {
+          "A": { "ef": "2026-06-05T14:00" },
+          "B": { "es": "2026-06-03T11:00", "ef": "2026-06-04T11:00" }
+        }
+      }
+    },
+    {
       "id": "lagadv-minutes-daypred-hoursucc",
       "title": "MINUUT-lag zonder dag-lag bij een DAG-voorganger, cross-modus: D(2d, dag) -> H(4u, H8), lagMinutes 480 en lagDays 0. Precies wat p6xmlReader/mspdiReader schrijven zodra de OPVOLGER in uur-modus staat. 480 werkminuten in de VOORGANGER-kalender; voor de fix verdampte de lag volledig (H startte 07-08T08:00). F3 (§3.14): D telt in de dagenmaat en mag tot wo 08:00 lopen; 480 min later is do 08:00, dus 1 u = 0,125 d speling.",
       "anchor": "2026-07-06",

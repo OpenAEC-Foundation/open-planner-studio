@@ -1482,7 +1482,7 @@
     },
     "workdayDurationMeasure": {
       "label": "Duration in working days",
-      "help": "A duration, lag or remaining duration in days counts in working days: each working day counts as 1, however long that day is. Off: a day counts as the number of working hours per day of the calendar. Elapsed time and a percentage lag never count in working days."
+      "help": "A duration, lag or remaining duration in days counts in working days: each working day counts as 1, however long that day is. Off: a day counts as the number of working hours per day of the calendar. A percentage lag follows the measure of the predecessor. Elapsed time never counts in working days."
     }
   },
   "profiles": {

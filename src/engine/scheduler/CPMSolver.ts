@@ -1520,10 +1520,14 @@ export class CPMSolver {
     if (predEng.isHourMode) {
       // Alleen uren §3.3 en §3.14: een lag in dagenmaat telt in het OPS-profiel met de dagenmaat-lopers
       // op de lagkalender; een deel van een dag is het deel van de werktijd van die dag. Lag 0 houdt de
-      // gewone normalisatie hieronder (`nextWorkInstant` en de grensregels).
-      const lagDays = Number.isFinite(seq.lagDays) ? seq.lagDays : 0;
+      // gewone normalisatie hieronder (`nextWorkInstant` en de grensregels). Een procentlag telt in de maat
+      // van de voorganger (B7): in de dagenmaat een deel van zijn werkdagen, anders van zijn werkminuten.
+      const lagDays = isFiniteNumber(seq.lagPercent)
+        ? resolveEffectiveLagDays(seq, predTask)
+        : Number.isFinite(seq.lagDays) ? seq.lagDays : 0;
       const measured = lagDays !== 0 && lagCountsInWorkdays(
         seq, { workdayDurationMeasure: this.options.schedulingOptions?.workdayDurationMeasure },
+        { time: { durationUnit: taskDurationUnit(predTask), durationType: predTask.time.durationType } },
       );
       const minutes = measured ? 0 : this.resolveLagMinutes(seq, predTask, predEng);
       const amount = measured ? lagDays : minutes;

@@ -1482,7 +1482,7 @@
     },
     "workdayDurationMeasure": {
       "label": "Duur in werkdagen",
-      "help": "Een duur, lag of restduur in dagen telt in werkdagen: elke werkdag telt als 1, hoe lang die dag ook is. Uit: een dag telt als het aantal werkuren per dag van de kalender. Kalendertijd en een lag in procenten tellen nooit in werkdagen."
+      "help": "Een duur, lag of restduur in dagen telt in werkdagen: elke werkdag telt als 1, hoe lang die dag ook is. Uit: een dag telt als het aantal werkuren per dag van de kalender. Een lag in procenten volgt de maat van de voorganger. Kalendertijd telt nooit in werkdagen."
     }
   },
   "profiles": {

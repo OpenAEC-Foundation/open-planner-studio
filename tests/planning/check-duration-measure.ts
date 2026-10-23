@@ -2,9 +2,11 @@
 //
 // Wat hier bewezen wordt: `taskCountsInWorkdays` en `lagCountsInWorkdays` geven alleen "dagenmaat" als
 // de data in de dagenmaat staat EN het profiel de conventie `workdayDurationMeasure` aan heeft. Dat is
-// het OPS-profiel; onder P6 en MSP telt alles als uren. Kalendertijd en een procentlag tellen nooit in
-// de dagenmaat. Mutatiebewijs: zet in een functie de conventievoorwaarde op `true` ⇒ de P6/MSP-gevallen
-// worden rood; laat de kalendertijdvoorwaarde weg ⇒ de ELAPSEDTIME-gevallen worden rood.
+// het OPS-profiel; onder P6 en MSP telt alles als uren. Kalendertijd telt nooit in de dagenmaat. Een
+// procentlag volgt de maat van de voorganger (B7): in de dagenmaat alleen bij een dagtaak als voorganger.
+// Mutatiebewijs: zet in een functie de conventievoorwaarde op `true` ⇒ de P6/MSP-gevallen worden rood;
+// laat de kalendertijdvoorwaarde weg ⇒ de ELAPSEDTIME-gevallen worden rood; laat een procentlag altijd
+// in uren tellen ⇒ de OPS-gevallen met een dagtaak als voorganger worden rood.
 import { effectiveSchedulingOptions, builtInProfile } from '@/engine/scheduler/conventions/registry';
 import { lagCountsInWorkdays, taskCountsInWorkdays } from '@/engine/scheduler/conventions/durationMeasure';
 import type { BuiltInProfileId } from '@/types/project';
@@ -50,7 +52,7 @@ const LAGS: readonly [string, Lag, boolean][] = [
   ['minuten 0', { lagMinutes: 0 }, false],
   ['kalendertijd in dagen', { lagUnit: 'ELAPSEDTIME' }, false],
   ['kalendertijd in minuten', { lagMinutes: 2160, lagUnit: 'ELAPSEDTIME' }, false],
-  ['procent', { lagPercent: 50 }, false],
+  ['procent zonder voorganger', { lagPercent: 50 }, false],
 ];
 for (const id of PROFILES) {
   const o = optionsFor(id);
@@ -58,6 +60,22 @@ for (const id of PROFILES) {
     eq(`lag ${id}: ${label}`, lagCountsInWorkdays(lag, o), id === 'ops' && inOps);
   }
 }
+// Procentlag in de maat van de voorganger (B7, §3.3).
+const PCT: readonly [string, Lag, ReturnType<typeof task>, boolean][] = [
+  ['procent na een dagtaak', { lagPercent: 50 }, task('days'), true],
+  ['procent-lead na een dagtaak', { lagPercent: -50 }, task('days'), true],
+  ['procent na een urentaak', { lagPercent: 50 }, task('hours'), false],
+  ['procent na een dagtaak in kalendertijd', { lagPercent: 50 }, task('days', 'ELAPSEDTIME'), false],
+  ['procent in kalendertijd na een dagtaak', { lagPercent: 50, lagUnit: 'ELAPSEDTIME' }, task('days'), false],
+];
+for (const id of PROFILES) {
+  const o = optionsFor(id);
+  for (const [label, lag, pred, inOps] of PCT) {
+    eq(`lag ${id}: ${label}`, lagCountsInWorkdays(lag, o, pred), id === 'ops' && inOps);
+  }
+}
+// Een gewone lag kijkt niet naar de voorganger.
+eq('lag ops: dagen na een urentaak', lagCountsInWorkdays({}, optionsFor('ops'), task('hours')), true);
 
 if (diffs.length === 0) console.log(`OK: dagenmaat of urenmaat — ${checks} checks groen`);
 else { console.log(`XX dagenmaat of urenmaat — ${diffs.length} van ${checks} checks rood:`); for (const d of diffs) console.log(`  - ${d}`); process.exit(1); }
