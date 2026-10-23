@@ -209,8 +209,15 @@ export async function createNodeFileFs(
     }
     const tmp = path.join(c.dir, `.${path.basename(c.real)}.${randomBytes(6).toString('hex')}.ops-save.tmp`);
     const verifyPlace = async (tmpId: Identity) => {
-      const dirNow = idOf(await fsp.stat(c.dir, { bigint: true }));
-      const tmpNow = idOf(await fsp.lstat(tmp, { bigint: true }));
+      // Een map die verdwijnt of vervangen is, geeft hier ENOENT of ENOTDIR: dat is ook een wissel.
+      let dirNow: Identity;
+      let tmpNow: Identity;
+      try {
+        dirNow = idOf(await fsp.stat(c.dir, { bigint: true }));
+        tmpNow = idOf(await fsp.lstat(tmp, { bigint: true }));
+      } catch {
+        throw changed(target);
+      }
       if (!sameId(dirNow, c.dirId) || !sameId(tmpNow, tmpId)) throw changed(target);
     };
     await hooks.afterCheck?.('create', c.real);
