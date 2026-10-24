@@ -91,13 +91,6 @@ en noem het in je rapport of PR-tekst.
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden
     altijd gegenereerd. — B
 
-198. **Een onparseerbare projecteinddatum kan een ongeldige kalendergeneratie-spanne geven.**
-    `computeGenerateSpan` in `src/engine/calendar/generateCalendarHolidays.ts` haalt uit een
-    geselecteerde einddatum direct het UTC-jaar. Bij bijvoorbeeld `endDate = 'ongeldig'` kan
-    daardoor `to: NaN` ontstaan. Dit bestaande pad is niet afgedekt door de einddatummatrix;
-    PR #535 verhelpt alleen de keuze van het UI-projectbereik en wijzigt dit foutpad niet.
-    Statisch afgeleid bij de review op `71112e97`, niet lokaal uitgevoerd of in de app nagespeeld. — S
-
 ## Bibliotheek, bezetting, extensies, AI
 
 28. **Bezettingsoverzicht bij een verouderd actief project** mengt oude startdatums met een nieuwe duur of
