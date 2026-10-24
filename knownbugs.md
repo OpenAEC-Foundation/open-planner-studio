@@ -424,10 +424,6 @@ en noem het in je rapport of PR-tekst.
     de container bestaat, of eerst controleren dat het token niet leeg is. Niet onderzocht waarom het
     token-grep matcht. — S
 
-208. **`scripts/build-core.mjs` bouwt de licentiegegevens onnodig om.** `scripts/build-core.mjs:138–148` zet
-    de pakketnamen om in een `Map` en de sectietekst in een array met één element; `notices.packages.join(',
-    ')` en `notices.sections` volstaan. Gevonden in review ronde 1 van PR #567 (GPT-6.1-Sol). — B
-
 212. **Real-app-test van de MCP-ontdekking bewijst minder dan zijn naam zegt.**
     `tests/mcp/realApp/run-real-app.ts:141` heet "hetzelfde pid" maar vergelijkt de pids van beide bestanden
     niet; echte openen-, Opslaan als- en afsluitroutes ontbreken (de storetest zet `filePath` rechtstreeks).
