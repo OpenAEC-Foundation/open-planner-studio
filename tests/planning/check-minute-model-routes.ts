@@ -53,7 +53,7 @@ const expected: Record<string, string[]> = {
   'src/state/slices/projectSlice.ts': ['bewerking', 'bewerking'],
   'src/state/slices/scheduleSlice.ts': ['solveProject', 'bewerking', 'bewerking'],
   'src/state/slices/schedulingProfileSlice.ts': ['bewerking'],
-  'src/utils/qaScenes.ts': ['bereken'], // alleen ontwikkeling
+  'src/utils/qaScenes.ts': ['bereken', 'bereken'], // alleen ontwikkeling (ook het F4b-testproject)
 };
 const failures: string[] = [];
 for (const path of new Set([...Object.keys(actual), ...Object.keys(expected)])) {

@@ -3,6 +3,7 @@
 // zijn in plaats van een klikinstructie. Valt uit elke productiebouw (dynamische import achter
 // `import.meta.env.DEV` in main.tsx). Geen testhaak: browsertests doen hun eigen handelingen.
 import { useAppStore } from '@/state/appStore';
+import { TIMESCALE_ZOOM } from '@/engine/renderer/timelineTiers';
 
 type Scene = {
   /** Eigen verloop zonder Projectinfo; geeft het doel-selector terug. */
@@ -220,7 +221,7 @@ function seedF4bProject(theme: 'light' | 'dark'): Record<string, string> {
   useAppStore.getState().setTaskWorkRule(tegelwerk, 'FIXED_WORK');
   useAppStore.getState().runCPM();
   const view = useAppStore.getState();
-  view.setZoom(100);
+  view.setZoom(TIMESCALE_ZOOM.day);
   view.setViewStartDate('2026-11-02');
   return { fundering, metselwerk, leidingwerk, kozijnen, tegelwerk, oplevering };
 }
@@ -262,7 +263,7 @@ async function f4bGantt(theme: 'light' | 'dark'): Promise<string> {
   await sleep(400);
   await clickTaskRow(ids.fundering);
   // `focusOnTask` past de zoom aan de taak aan; de check begint bij de voorinstelling Dag.
-  useAppStore.getState().setZoom(100);
+  useAppStore.getState().setZoom(TIMESCALE_ZOOM.day);
   useAppStore.getState().setViewStartDate('2026-11-02');
   await dismissLateWelcome();
   (await waitFor('[data-ops-ribbon-tab="beeld"]')).click();
