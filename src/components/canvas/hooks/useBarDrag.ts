@@ -26,7 +26,7 @@ import {
 import { notifyStartEdit, type StartEditNotice } from '@/state/startConstraintNotice';
 import { ROW_DRAG_THRESHOLD } from './constants';
 import {
-  dagslotMinutes, dagslotMinutesBetween, dagslotMoment, dagslotWorkMinimum, hourSnapMinutesFor, snapTimelineDate,
+  dagslotMinutes, dagslotMinutesBetween, dagslotMoment, dagslotWorkMinimum, dragWorkdaySteps, hourSnapMinutesFor, snapTimelineDate,
   splitWorkdayStart, splitWorkdayMinutes, splitWorkMinimum, splitWorkdayUnits,
 } from './timelineSnap';
 import { listenWindowDrag } from '@/hooks/listenWindowDrag';
@@ -448,11 +448,12 @@ export function useBarDrag({
       if (!baseTime) return;
       const cal = effectiveCalById.get(dragState.taskId) ?? calendar;
       const engine = new CalendarEngine(calendarForEngine(cal));
-      // Bij dagzoom tellen de hele werkdagen tussen de werkdag onder de pointer bij het grijpen en nu
-      // (een nachtploeg hoort bij zijn begindag; een vrije dag telt als de volgende werkdag).
+      // Bij dagzoom per getoonde kolom: de hele werkdagen vanaf de werkdag van de gegrepen rand, met een
+      // vrije doeldag als de eerstvolgende werkdag in de sleeprichting (`dragWorkdaySteps`).
+      const right = dragState.edge === 'right';
       const workdaySteps = quantumMin === 1440
-        ? Math.round(engine.measuredWorkdaysBetween(
-          splitWorkdayStart(dragState.pointerStart, engine, cal), splitWorkdayStart(pointerCurrent, engine, cal)))
+        ? dragWorkdaySteps(parseInstant(right ? dragState.originalFinish : dragState.originalStart), right ? 'end' : 'start',
+          Math.round((event.clientX - dragState.startX) / zoom), compressed, engine, cal)
         : undefined;
       const result = resolveDayMeasureBarDrag({
         calendar: engine,

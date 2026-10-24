@@ -14,7 +14,7 @@ import { resolveDayMeasureBarDrag } from '@/engine/renderer/hourBarDragMath';
 import { splitEngineFor, taskSplitMeasure, taskSplitSegments } from '@/engine/renderer/splitBarGeometry';
 import { splitPieceRanges } from '@/components/task-sections/TaskSplitsSection';
 import {
-  dagslotMinutes, dagslotMinutesBetween, dagslotMoment, dagslotWorkMinimum, splitWorkdayStart, workOffsetOnAxis,
+  dagslotMinutes, dagslotMinutesBetween, dagslotMoment, dagslotWorkMinimum, dragWorkdaySteps, splitWorkdayStart, workOffsetOnAxis,
 } from '@/components/canvas/hooks/timelineSnap';
 import { buildPrintRows, measureTableColumnWidths, renderReport, type PrintOptions } from '@/services/print/printPreview';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
@@ -125,6 +125,29 @@ const dayTask = (start: string, finish: string, days: number, gaps?: TaskSplitGa
   });
   same('nachtploeg: één ploeg verder', [F(n.start), F(n.finish)], ['2026-06-02T22:00', '2026-06-03T06:00']);
 }
+// Per getoonde kolom (useBarDrag bij dagzoom): de telling begint bij de werkdag van de gegrepen rand, niet
+// bij de dag onder de muis. Een lange balk die in het weekend gegrepen wordt, gaat zo per kolom mee
+// (gantt-drag-undo, auto-calc-after-edit: +1 kolom vanaf een greep op za of zo).
+{
+  const std = engineOf(standard);
+  const steps = (anchor: string, columns: number, side: 'start' | 'end' = 'start', compressed = false, eng = std, c = standard) =>
+    dragWorkdaySteps(I(anchor), side, columns, compressed, eng, c);
+  same('kolommen: ma +1 = 1 werkdag', steps('2026-06-01T07:00', 1), 1);
+  same('kolommen: vr +1 (za) = de eerstvolgende werkdag, 1', steps('2026-06-05T07:00', 1), 1);
+  same('kolommen: vr +2 (zo) = 1, vr +3 (ma) = 1, vr +4 (di) = 2',
+    [steps('2026-06-05T07:00', 2), steps('2026-06-05T07:00', 3), steps('2026-06-05T07:00', 4)], [1, 1, 2]);
+  same('kolommen: ma −1 (zo) = de vorige werkdag, −1; ma −3 (vr) = −1; ma −4 (do) = −2',
+    [steps('2026-06-08T07:00', -1), steps('2026-06-08T07:00', -3), steps('2026-06-08T07:00', -4)], [-1, -1, -2]);
+  same('kolommen: geen beweging = 0', steps('2026-06-01T07:00', 0), 0);
+  same('kolommen onder werkdagencompressie: één kolom is één werkdag', steps('2026-06-05T07:00', 3, 'start', true), 3);
+  same('rechterrand: de werkdag van het einde (do 11:00) +1 = vr', steps('2026-06-04T11:00', 1, 'end'), 1);
+  same('rechterrand op de dagrand: einde vr 16:00 +1 (za) = ma', steps('2026-06-05T16:00', 1, 'end'), 1);
+  same('nachtploeg: een start di 22:00 hoort bij di; +1 = wo',
+    steps('2026-06-02T22:00', 1, 'start', false, engineOf(night), night), 1);
+  same('nachtploeg: een einde za 06:00 hoort bij vr; +1 (za) = ma',
+    steps('2026-06-06T06:00', 1, 'end', false, engineOf(night), night), 1);
+}
+
 
 // ── 3. Eén bron voor de stukken ──────────────────────────────────────────────────────────────────
 {

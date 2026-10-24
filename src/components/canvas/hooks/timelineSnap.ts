@@ -37,6 +37,31 @@ export function splitWorkdayStart(raw: Date, eng: CalendarEngine, calendar: Work
   return firstWorkdayStartOnOrAfter(parseDate(day), eng);
 }
 
+/**
+ * Dagzoom (T24, "per hele dag"): het aantal hele werkdagen dat een balksleep over `columns` getoonde
+ * kolommen een dagenmaat-taak verschuift. Een kolom is een kalenderdag, onder werkdagencompressie een
+ * werkdag. De telling begint bij de werkdag van het gegrepen randmoment (`anchor`; een blok hoort bij de
+ * dag waarop het begint, B4), niet bij de dag onder de muis: wie een lange balk in het weekend grijpt,
+ * ziet hem zo toch per kolom meegaan. Valt de doeldag op een dag zonder werk, dan telt de eerstvolgende
+ * werkdag in de sleeprichting.
+ */
+export function dragWorkdaySteps(
+  anchor: Date, side: 'start' | 'end', columns: number, compressed: boolean, eng: CalendarEngine, calendar: WorkCalendar,
+): number {
+  if (!Number.isFinite(columns) || columns === 0) return 0;
+  if (compressed) return columns;
+  const dir = Math.sign(columns);
+  let day = parseDate(workdayOfInstant({ kind: 'blocks', engine: eng, calendar }, formatInstant(anchor, 'hour'), side));
+  let steps = 0;
+  let working = true;
+  for (let i = 0; i < Math.abs(columns); i++) {
+    day = addCalendarDays(day, dir);
+    working = eng.effectiveBandsOn(day).length > 0;
+    if (working) steps += dir;
+  }
+  return working ? steps : steps + dir;
+}
+
 /** Zoekt vanaf een werkdagdatum; wijs middernacht niet opnieuw toe aan een vorige nachtploeg. */
 function firstWorkdayStartOnOrAfter(date: Date, eng: CalendarEngine): Date {
   for (let i = 0; i < 3660; i++, date = addCalendarDays(date, 1)) {
