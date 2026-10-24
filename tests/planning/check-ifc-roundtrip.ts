@@ -1388,7 +1388,7 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   //      ExceptionTimes is een feestdag" (dezelfde conservatieve terugval als "geen markering",
   //      block 6).
   // Expliciet legacy-bestand: behoud de oude corrupte-ids-regressie zonder V1-markering.
-  const ifc7a = writeIFC(fixture).replaceAll("'WorkingExceptionKeysV1'", "'IgnoredWorkingExceptionKeysV1'");
+  const ifc7a = writeIFC(fixture).split("'WorkingExceptionKeysV1'").join("'IgnoredWorkingExceptionKeysV1'");
   const lines7a = ifc7a.split('\n');
   const wexcIdx = lines7a.findIndex(l => l.includes("'WorkingExceptionIds'"));
   assert(wexcIdx >= 0, 'kon de WorkingExceptionIds-property niet vinden (verwacht op libCal, die heeft werkende uitzonderingen)');
@@ -2571,7 +2571,7 @@ for (const schema of IFC_SCHEMAS) {
     assert(JSON.stringify(calendarValues(readIFC(renumber(written)))) === JSON.stringify(expected),
       `112 ${schema}: vernummerde refs behouden feestdagen en werkende uitzonderingen`);
     // Eerdere lezers gebruiken IDs; nieuwe lezers blijven ook oude ongemergde bestanden lezen.
-    const legacy = written.replaceAll("'WorkingExceptionKeysV1'", "'IgnoredWorkingExceptionKeysV1'");
+    const legacy = written.split("'WorkingExceptionKeysV1'").join("'IgnoredWorkingExceptionKeysV1'");
     assert(JSON.stringify(calendarValues(readIFC(legacy))) === JSON.stringify(expected),
       `112 ${schema}: legacy-ids blijven leesbaar`);
     const corruptIds = written.replace(/('WorkingExceptionIds',\$,IFCTEXT\()'[^']*'/g, "$1'{kapot'");
