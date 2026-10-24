@@ -303,14 +303,6 @@ en noem het in je rapport of PR-tekst.
     van 36, maar niet vastgesteld als dezelfde oorzaak. De bedoeling en runtimegevolgen zijn niet
     onderzocht. — S
 
-203. **De updater gaat na een afgewezen recovery-flush door naar installatie.** Brononderzoek,
-    niet uitgevoerd: `updaterService.ts`, `downloadAndInstall`, vangt een rejection van
-    `flushRecoveryNow()` op en logt die, zonder de updateroute af te breken. Daarna probeert hij
-    `update.install()` en, als die slaagt, `relaunch()`. De bronroute bestond al vóór fix 96; dit
-    punt zegt niet dat iedere mislukte snapshotwrite als rejection uit de flush komt. Geen
-    runtime-repro of concreet dataverlies vastgesteld; bedoeling en gewenste foutafhandeling
-    niet onderzocht. — S
-
 ## Rondleiding, Help en extensie-gidsen
 
 62. **Melding schuift over de knoppen van het begeleidingspaneel** (1600×950, venster Baselines open):
