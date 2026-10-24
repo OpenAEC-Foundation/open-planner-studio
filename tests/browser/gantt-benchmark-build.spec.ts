@@ -80,7 +80,7 @@ test('productie-benchmark: alleen expliciete brug telt echte primary/secondary/h
         await context.close();
         await new Promise<void>((resolve, reject) => {
           server.httpServer.close(error => error ? reject(error) : resolve());
-          server.httpServer.closeAllConnections();
+          if ('closeAllConnections' in server.httpServer) server.httpServer.closeAllConnections();
         });
       }
     }
