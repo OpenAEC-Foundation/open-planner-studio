@@ -71,7 +71,8 @@ and sequence (`YYYY.W.N`); the jump from 2026.10.0 reflects that numbering chang
 - Updated Dutch and English guides for MCP, reports, recovery, calendar generation, conventions,
   imports, extensions and editing; refreshed README examples and tutorial references.
 - Updated the interface translations in all 28 languages through the translation pipeline.
-  Help translations beyond Dutch and English may lag and use the existing English fallback.
+  Guide translations beyond Dutch and English were not refreshed. Missing articles use the existing
+  English fallback; older translations remain visible.
 - Refreshed wiki feature and installation pages, including the building-model guard and package
   manager update behavior.
 

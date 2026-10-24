@@ -11,7 +11,7 @@
   },
   "notifications": {
     "dismiss": "Lukk melding",
-    "taskEditRevertBlocked": "En endring fra KI-assistenten eller en utvidelse kom imellom. Aktivitetsendringene fra før er ikke tilbakeført og står som vanlige steg under Angre.",
+    "taskEditRevertBlocked": "En endring fra MCP-klienten eller en utvidelse kom imellom. Aktivitetsendringene fra før er ikke tilbakeført og står som vanlige steg under «Angre».",
     "openFailed": "Kunne ikke åpne fil",
     "csvInvalidDate": "CSV ikke åpnet: ugjenkjennelig dato «{{value}}» på CSV-rad {{row}}, kolonne «{{column}}». Bruk åååå-mm-dd, dd-mm-åååå eller dd/mm/åååå.",
     "extGuideCallbackFailed": "Et steg fra utvidelsen {{name}} gav en feil. Veiledningen fortsetter.",
@@ -158,7 +158,7 @@
     },
     "xerArchiveUnusable": "XER-kildearkivet i denne filen er ubrukelig og er utelatt; prosjektet selv er åpnet fullt ut.",
     "xerArchiveUnusableLine": "XER-kildearkivet i denne filen var ubrukelig og er utelatt.",
-    "xerArchiveUnusableConsequence": "Tidsplanen, beregningsprofilen og alle prosjektdata fra IFC er komplette. Det som mangler: datoene slik Primavera lagret dem, og kildeopprinnelsen for KI og utvidelser. Lagring skriver filen uten arkivet; importer den originale .xer på nytt for å få arkivet tilbake.",
+    "xerArchiveUnusableConsequence": "Tidsplanen, beregningsprofilen og alle prosjektdata fra IFC er komplette. Det som mangler: datoene slik Primavera lagret dem, og kildeopprinnelsen for MCP-klienter og utvidelser. Lagring skriver filen uten arkivet. Importer den originale XER-filen på nytt for å få arkivet tilbake.",
     "xerArchiveReasonSchemaVersion": "Årsak: arkivet har en ukjent skjemaversjon eller oppsett (en nyere eller annen skriver).",
     "xerArchiveReasonHashMismatch": "Årsak: kontrollsummen passer ikke til kildebytene — arkivet er skadet.",
     "xerArchiveReasonTruncated": "Årsak: arkivet er avkortet — en del av kildebytene mangler.",
@@ -349,7 +349,7 @@
     "durationDisplayDays": "Alltid dager",
     "durationDisplayHours": "Alltid timer",
     "barSplitMode": "Aktivitetslinjer ved avbrudd",
-    "barSplitModeHint": "Om en aktivitetslinje visuelt deles rundt ikke-arbeidsdager.",
+    "barSplitModeHint": "Bare for timebaserte aktiviteter: del stolpene rundt pauser og ikke-arbeidstid. Faktiske avbrudd i aktiviteter forblir alltid synlige.",
     "barSplitNever": "Aldri dele",
     "barSplitSelection": "Del ved valg",
     "barSplitAlways": "Del alltid",
@@ -412,11 +412,11 @@
     "fontFamilySerif": "Med serif",
     "fontFamilyMono": "Monospace",
     "fontHint": "Webapper følger ikke automatisk innstillingen for systemskrift. Velg skrifttype og størrelse for hele grensesnittet her.",
-    "aiModeSection": "KI-modus",
-    "aiMode": "Slå på KI-modus",
-    "aiModeHint": "Viser KI-fanen med MCP-broen, slik at KI-assistenter kan arbeide med tidsplanen din via Model Context Protocol. Slår du den av, stopper broen.",
+    "aiModeSection": "MCP-tilkobling",
+    "aiMode": "Tillat MCP-tilkobling",
+    "aiModeHint": "Viser fanen «MCP». Der starter du MCP-broen, slik at en MCP-klient kan arbeide med tidsplanen din via Model Context Protocol. Slår du den av, stopper broen.",
     "aiAutostart": "Start broen automatisk",
-    "aiAutostartHint": "Gjør MCP-broen aktiv så snart appen starter, slik at en KI-klient kan koble til uten at du først åpner KI-fanen. Gjelder bare skrivebordsappen.",
+    "aiAutostartHint": "Starter MCP-broen med en gang appen starter, slik at en MCP-klient kan koble til uten at du først åpner fanen «MCP». Gjelder bare skrivebordsappen.",
     "legacySection": "Eldre funksjoner",
     "classicViewControls": "Vis klassiske visningsknapper",
     "classicViewControlsHint": "Viser de separate knappene Kolonner, Filter, Gruppér og Sortér igjen på fanen Visning. Kolonner velger du nå med plusstegnet i tabelloverskriften eller via Tabell → Kolonner…; filtrering, gruppering og sortering finner du i oppsettknappene og oppsettdialogen."
@@ -448,9 +448,9 @@
     "configSnippetHint": "Lim dette inn i MCP-konfigurasjonen til klienten din.",
     "tokenWarning": "Dette tokenet gir tilgang til den åpne tidsplanen. Ikke del det med andre.",
     "connectPrompt": "Koblingsprompt",
-    "connectPromptHint": "Lim dette inn i KI-agenten din. Den kobler seg selv til.",
+    "connectPromptHint": "Lim dette inn i MCP-klienten din – den kobler seg selv til.",
     "connectPromptText": "Koble til en MCP-server som kjører på datamaskinen min: navn {{name}}, transport streamable HTTP, URL {{url}}, med headeren Authorization: Bearer {{token}}. Legg den til i MCP-konfigurasjonen din (for eksempel som en mcpServers-blokk) og koble til. Hent deretter verktøylisten som kontroll: du skal se omtrent {{count}} verktøy med prefikset {{prefix}}. Oppsummer kort hva du kan gjøre med denne serveren. Les guiden for tidsplaner via verktøyet planner_get_planning_guide før du endrer noe.",
-    "statusDot": "KI-bro: {{status}}"
+    "statusDot": "MCP-bro: {{status}}"
   },
   "aiSafety": {
     "pause": "Avbrudd",
@@ -460,7 +460,7 @@
     "readOnlyHint": "Alle verktøy som endrer data, avvises så lenge dette er på.",
     "autoBackupOn": "Auto-backup: på",
     "autoBackupOff": "Auto-backup: av",
-    "autoBackupHint": "Lager automatisk en IFC-backup før den første KI-endringen i hvert dokument.",
+    "autoBackupHint": "Lager automatisk en IFC-backup før den første MCP-endringen per dokument.",
     "backupNow": "Ta backup nå",
     "openFolder": "Åpne backup-mappen",
     "backupOk": "Backup laget: {{name}}",
@@ -468,10 +468,10 @@
     "openErr": "Kunne ikke åpne mappen: {{error}}"
   },
   "aiActivity": {
-    "title": "KI-aktivitet",
+    "title": "MCP-aktivitet",
     "panelButton": "Aktivitetspanel",
     "clear": "Tøm",
-    "empty": "Ingen KI-aktivitet ennå. Kall til broen vises her.",
+    "empty": "Ingen MCP-aktivitet ennå. Kall til broen vises her.",
     "args": "Argumenter",
     "result": "Svar"
   },
@@ -723,7 +723,7 @@
     "calendars": "Kalendere",
     "noCalendars": "Ingen kalendere i biblioteket ennå.",
     "noResources": "Ingen ressurser i biblioteket ennå.",
-    "promoteHint": "Legg en prosjektkalender eller -ressurs til biblioteket med knappen “+ Fra prosjekt” over.",
+    "promoteHint": "Legg en prosjektkalender til biblioteket med knappen «+ Fra prosjekt» ovenfor.",
     "promoteFromProject": "Fra prosjekt",
     "alreadyLinked": "allerede koblet",
     "editItem": "Rediger",
@@ -1164,7 +1164,7 @@
     "nav": {
       "reportTab": "Gå til rapportfanen",
       "switchDocument": "Bytt dokument",
-      "scrollToToday": "Gå til i dag",
+      "scrollToToday": "Hopp til statusdato eller i dag",
       "help": "Åpne hjelp"
     },
     "grid": {
@@ -1378,7 +1378,7 @@
   "conventions": {
     "preserveActualDatesInBackwardPass": {
       "label": "Behold faktiske datoer i bakoverberegningen",
-      "help": "En startet eller fullført aktivitet beholder de registrerte datoene også på den seneste siden. En fullført etterfølger trekker ikke en åpen forgjenger tilbake i fortiden."
+      "help": "Med en statusdato beholder en fullført aktivitet sine faktiske datoer på den seneste siden, og en fullført etterfølger trekker ikke en åpen forgjenger tilbake i fortiden. En pågående aktivitet beholder sin faktiske start som seneste start, med mindre «Pågående aktivitet: tidligste start = start på gjenstående arbeid» er på. En fullført aktivitet på et statusdatopunkt eller -vindu kan likevel sende trykk videre via avhengigheter."
     },
     "clampNegativeFreeFloat": {
       "label": "Fri slakk aldri negativ",
@@ -1386,103 +1386,103 @@
     },
     "p6ZeroDurationUsesPlannedBoundary": {
       "label": "Milepæl følger den planlagte kalendergrensen",
-      "help": "En milepæl uten varighet blir på kalendergrensen som filen planla. En dagstart forblir en startmilepæl. Slutten av et tidsbånd kan havne på forgjengerens slutt."
+      "help": "Bare ved timeplanlegging. En milepæl uten varighet følger den planlagte kalendergrensen: en dagsstart forblir en startmilepæl, og slutten av et tidsbånd kan havne på forgjengerens slutt. Også en vanlig aktivitet med varighet 0 kan få et grensepar, men bare med XER-kildeopprinnelse som Task Dependent eller Resource Dependent, og med planlagt slutt før planlagt start."
     },
     "p6UseTaskPlannedStartFloor": {
       "label": "Planlagt start som ekstra nedre grense",
-      "help": "Den planlagte starten fra filen gjelder som nedre grense så snart både start og slutt ligger mer enn én kalenderdag senere enn nettverket tillater."
+      "help": "Den planlagte starten gjelder som nedre grense så snart både start og slutt ligger mer enn én kalenderdag senere enn nettverket tillater. For en milepæl som er slutt, med planlagt slutt før planlagt start, er en senere planlagt start nok. Gjelder ikke for en pågående aktivitet når «Planlagt start er ikke en nedre grense for en pågående aktivitet» er på, eller for en ikke-startet ALAP-aktivitet som plasseres ut fra etterfølgerne. Krever ikke XER-kildeopprinnelse."
     },
     "p6FinishMilestoneBoundaryWindow": {
       "label": "Sluttmilepæl som grensevindu",
-      "help": "En sluttmilepæl kan stå på to tilstøtende kalendergrenser: tidligste start ved begynnelsen av et tidsbånd, tidligste slutt ved slutten av forrige tidsbånd."
+      "help": "En milepæl som er slutt, uten varighet, får bare et grensevindu hvis planlagt slutt ligger før planlagt start, og beregnet start fortsatt er lik denne planlagte starten. En sluttmilepæl med forgjengere og uten etterfølger får også sine tidligste datoer som seneste datoer, med mindre «Beregne slakk til prosjektslutt» er på. Sett bare i P3-utdata; er av i alle innebygde profiler."
     },
     "p6PreserveActualInstants": {
       "label": "Behold faktiske datoer nøyaktig",
-      "help": "Registrerte datoer for faktisk start og faktisk slutt flyttes ikke til kanten av et tidsbånd."
+      "help": "Bare for aktiviteter med lagret kildeopprinnelse fra en XER-fil. Registrerte faktiske start- og sluttdatoer flyttes ikke til kanten av et tidsbånd."
     },
     "p6UseRemainingStartForProgress": {
       "label": "Pågående aktivitet: tidligste start = start på gjenstående arbeid",
-      "help": "Tidligste og seneste start for en pågående aktivitet beskriver der gjenstående arbeid begynner, ikke den faktiske starten, som ligger i fortiden. Ved bakoverberegning over en start-til-start-avhengighet teller bare gjenstående varighet."
+      "help": "Tidligste og seneste start for en pågående aktivitet beskriver der det gjenstående arbeidet begynner. Bakover over en start-til-start-avhengighet teller bare gjenstående varighet, men bare ved timeplanlegging, med faktisk start og fremdrift mellom 0 og 100 %, en kjent gjenstående varighet som er kortere enn den planlagte varigheten, og uten forløpt tid eller avbrudd i tidsplanen. Denne ekstra regelen for gjenstående varighet gjelder ikke for start-til-slutt-avhengigheter."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Nøyaktig begrensningstidspunkt på milepæl",
-      "help": "En dato-og-klokkeslett-begrensning på en milepæl uten varighet er et nøyaktig punkt, også ved starten av et tidsbånd."
+      "help": "Bare ved timeplanlegging, på den seneste siden, for en begrensning med dato og klokkeslett av typen SNLT, MSO, FNLT eller MFO på en milepæl uten varighet. Tidspunktet for begrensningen forblir nøyaktig, også ved starten av et tidsbånd. Fremover er et slikt tidspunkt allerede nøyaktig i alle beregningsprofiler."
     },
     "resumeFromActualElapsed": {
       "label": "Gjenstående arbeid fortsetter etter forløpt tid",
-      "help": "En pågående aktivitet fortsetter gjenstående arbeid på faktisk start pluss forløpt tid, ikke på statusdatoen."
+      "help": "En pågående aktivitet fortsetter det gjenstående arbeidet tidligst ved faktisk start pluss forløpt tid. Også statusdato og forgjengergrensen er nedre grenser; den seneste av de tre gjelder. Gjelder ikke ved «Progress Override», uten gjenstående arbeid, eller når appen bruker en gyldig gjenopptakelsesdato fra filen (med høyst én tilordning)."
     },
     "unstartedIgnoresStatusDate": {
       "label": "Ikke-startede aktiviteter flyttes ikke til statusdatoen",
-      "help": "En aktivitet som ikke er startet, blir ikke automatisk flyttet til statusdatoen eller etter den."
+      "help": "Bare med en statusdato, for en aktivitet uten fremdrift. Den aktiviteten flyttes ikke automatisk til på eller etter statusdatoen."
     },
     "p6RelationFinishBoundary": {
       "label": "Etterfølger starter på sluttgrensen",
-      "help": "Ved en slutt-til-start-avhengighet uten forsinkelse der etterfølgeren i filen starter nøyaktig ved forgjengerens slutt, på slutten av et tidsbånd, starter etterfølgeren ved denne slutten og ikke ved starten av neste tidsbånd. Filen markerer ikke dette: appen gjenkjenner en slik avhengighet selv når du åpner en .xer-fil. En avhengighet du legger inn selv, omfattes ikke. Ved bakoverberegning viser etterfølgeren sin seneste start bare som starten av et tidsbånd."
+      "help": "Bare ved timeplanlegging, på forgjengerens kalender, og for en avhengighet som appen gjenkjenner når den åpner en XER-fil. Ved en slutt-til-start-avhengighet uten forsinkelse der etterfølgeren i filen starter nøyaktig på slutten av forgjengerens tidsbånd, starter etterfølgeren på denne slutten. En avhengighet du legger inn selv, omfattes ikke. Ved bakoverberegning forblir etterfølgerens seneste start en start av et tidsbånd."
     },
     "p6BackwardLagFinishBoundary": {
       "label": "Forsinkelse ved bakoverberegning fra en sluttgrense",
-      "help": "Trekker bakoverberegningen en forsinkelse i arbeidstid fra en sluttgrense og havner nøyaktig på starten av et tidsbånd, da havner den på forrige sluttgrense. Også ved en slutt-til-slutt-avhengighet uten forsinkelse ligger en seneste slutt på slutten av et tidsbånd fortsatt på den sluttgrensen."
+      "help": "Bare ved timeplanlegging, på kalenderen forsinkelsen regnes i. Trekker bakoverberegningen en positiv forsinkelse i arbeidstid fra en nøyaktig sluttgrense og havner på den første starten av et tidsbånd på en dag, havner den på forrige sluttgrense. Også ved en slutt-til-slutt-avhengighet uten forsinkelse blir en seneste slutt på slutten av et tidsbånd stående på den grensen. Gjelder ikke for forsinkelse i forløpt tid."
     },
     "p6CompletedDataDateWindow": {
       "label": "Fullført aktivitet i statusdatovinduet",
-      "help": "En fullført aktivitet får tidligste datoer i statusdatovinduet, og slutten teller med for prosjektslutten."
+      "help": "Bare med en statusdato, for fullførte aktiviteter uten delaktiviteter fra en XER-fil, med lagret målvindu, fremdriftstype varighet og P6-type Task Dependent eller Resource Dependent med Fixed Duration & Units; ikke milepæler med varighet 0. Krever «Pågående aktivitet: tidligste start = start på gjenstående arbeid». Avbrudd/gjenopptakelse tillates bare for Task Dependent med et gyldig par, faktisk slutt mellom planlagt slutt og statusdato, gjenopptakelse senest ved faktisk slutt, og når «Behold faktiske datoer i bakoverberegningen» er på. Aktiviteten får tidligste datoer i statusdatovinduet; slutten teller med for prosjektslutten."
     },
     "p6CompletedLoeActualFinish": {
       "label": "Fullført LOE via faktisk slutt",
-      "help": "En fullført level-of-effort-aktivitet med bare en start-til-start-inngang følger ruten via den faktiske slutten."
+      "help": "Bare med en statusdato, for en fullført LOE fra en XER-fil med positiv varighet, fremdriftstype varighet og P6-type Fixed Duration & Units/Time, et komplett målvindu og faktisk slutt mellom planlagt slutt og statusdato. Bare start-til-start-innganger, minst én, ingen etterfølger og ingen avbrudd/gjenopptakelse. Krever «Pågående aktivitet: tidligste start = start på gjenstående arbeid», «Behold faktiske datoer i bakoverberegningen» og «Behold faktiske datoer nøyaktig». LOE-en følger sin faktiske slutt i stedet for hengekøyeruten."
     },
     "p6OpenLoeTargetSpan": {
       "label": "Ikke-startet LOE bruker målvinduet",
-      "help": "En level-of-effort-aktivitet som ikke er startet, bruker målvinduet sitt som løpetid."
+      "help": "Bare ved timeplanlegging, for en LOE/hengekøye som ikke er startet, fra en XER-fil med 0 % fremdrift, positiv varighet, fremdriftstype varighet og P6-type Fixed Duration & Units; uten faktiske datoer eller avbrudd/gjenopptakelse. Krever et komplett positivt målvindu der starten er lik avhengighetsgrensen, og arbeidstiden avviker høyst én arbeidsdag fra varigheten, minst én start-til-start-inngang og én slutt-til-slutt-utgang, bare disse avhengighetstypene og uten forsinkelse. LOE-en bruker da målvinduet som løpetid. Svakt bevis: én fil."
     },
     "p6CompletedPredecessorAtDataDate": {
       "label": "Fullført forgjenger holder ikke etter statusdatoen",
-      "help": "Hvis en fullført forgjengers faktiske slutt ligger etter statusdatoen, kan etterfølgerne likevel starte på statusdatoen."
+      "help": "Bare ved timeplanlegging og med en statusdato, for en fullført forgjenger med faktisk slutt. Slutt-til-start- og slutt-til-slutt-avhengigheter regner høyst fra arbeidsgrensen rett før statusdatoen; en senere faktisk slutt holder ikke etterfølgeren tilbake. Start-til-start- og start-til-slutt-avhengigheter blir på faktisk start. En fullført aktivitet med et eget statusdatopunkt eller forskjøvet statusdatovindu følger den egne grensen."
     },
     "p6FreeFloatOnOwnCalendar": {
       "label": "Fri slakk i aktivitetens egen kalender",
-      "help": "Fri slakk for en ikke-startet aktivitet teller per avhengighet i aktivitetens egen kalender, ikke i etterfølgerens: ved slutt-til-start, start-til-start og slutt-til-slutt, også med forsinkelse i arbeidstid på forgjengerens kalender. En startet aktivitet bare ved slutt-til-start uten forsinkelse."
+      "help": "Bare ved timeplanlegging, for ikke-fullførte aktiviteter og avhengigheter med beregnet fri slakk. For en aktivitet som ikke er startet, teller fri slakk i sin egen kalender ved slutt-til-start, start-til-start og slutt-til-slutt, uten prosentforsinkelse eller forsinkelse i forløpt tid. En forsinkelse som ikke er 0 krever forsinkelseskalenderen «Forgjenger». For en startet aktivitet gjelder bare slutt-til-start uten forsinkelse. Den frie slakken og markeringen for styrende avhengighet på selve avhengigheten endres ikke."
     },
     "p6CompletedRemainingLag": {
       "label": "Brukt forsinkelse fra en fullført forgjenger teller ikke",
-      "help": "På den seneste siden teller bare den delen av forsinkelsen etter en fullført forgjenger som ennå ikke er brukt ved statusdatoen."
+      "help": "Bare ved timeplanlegging på forsinkelseskalenderen og med en statusdato, for fullførte forgjengere fra en .xer-fil med faktisk slutt før statusdatoen og et statusdatopunkt eller -vindu. Av en positiv forsinkelse i arbeidstid teller bare den delen som ennå ikke er gått. Gjelder på den seneste siden og forover fra et statusdatopunkt eller et forskjøvet nullrestvindu. En aktivitet på sine vanlige faktiske datoer beholder hele forsinkelsen. Gjelder ikke forsinkelse i klokketimer."
     },
     "p6CompletedOutOfSequenceWindow": {
       "label": "Fullført aktivitet utenfor rekkefølge venter på forgjengerne",
-      "help": "En fullført aktivitet der en forgjenger ennå ikke er ferdig, får sitt nullvindu etter den forgjengeren i stedet for på statusdatoen (P6: Retained Logic). Virker bare når også «Fullført aktivitet i statusdatovinduet» og «Pågående aktivitet: tidligste start = start på gjenstående arbeid» er på."
+      "help": "Bare ved timeplanlegging og med en statusdato, på XER-ruten for «Fullført aktivitet i statusdatovinduet». Den beregningsregelen og «Pågående aktivitet: tidligste start = start på gjenstående arbeid» må være på. Gjelder ikke Progress Override. Via inndata for slutt-til-start eller start-til-start får aktiviteten den senere av statusdatogrensen og grensen fra en forgjenger som ikke er ferdig, eller fra en forgjenger med et forskjøvet statusdatovindu. Vanlige fullførte forgjengere teller ikke."
     },
     "p6CompletedPhysicalAtDataDate": {
       "label": "Fullført aktivitet med fysisk fremdrift står på statusdatoen",
-      "help": "En fullført aktivitet med fysisk prosent fullført vises som ett punkt på statusdatoen, eller senere hvis en forgjenger krever det, i stedet for på de faktiske datoene. Bare målt for fysisk prosent fullført. For andre typer prosent fullført (P6-standard: varighet) er denne oppførselen ikke målt, og den er slått av."
+      "help": "Bare ved timeplanlegging og med en statusdato, for fullførte aktiviteter uten delaktiviteter og milepæler med null varighet fra en .xer-fil av P6-typen Task Dependent, Start Milestone eller Finish Milestone. Krever et bevart måltidsvindu, fysisk prosent fullført, faktisk slutt senest på statusdatoen og uten avbrudd eller gjenopptak. Krever «Pågående aktivitet: tidligste start = start på gjenstående arbeid». Aktiviteten står som ett punkt på statusdatoen, eller senere hvis en forgjenger krever det. For andre typer prosent fullført, også varighet, er dette ikke målt, og det forblir av."
     },
     "p6InProgressStartLagElapsed": {
       "label": "Brukt SS-forsinkelse fra en pågående forgjenger teller ikke",
-      "help": "For en start-til-start-avhengighet fra en aktivitet som allerede er startet, teller bare den delen av forsinkelsen som ikke er brukt siden faktisk start ved statusdatoen."
+      "help": "Bare ved timeplanlegging på forsinkelseskalenderen og med en statusdato, for en start-til-start-avhengighet med positiv forsinkelse i arbeidstid fra en forgjenger som ikke er ferdig, med faktisk start før statusdatoen. Krever «Pågående aktivitet: tidligste start = start på gjenstående arbeid». Bare den delen av forsinkelsen som ennå ikke er gått, teller. Valget «SS-forsinkelse fra en pågående forgjenger beregnes fra» velger startpunktet. Gjelder ikke forsinkelse i klokketimer."
     },
     "p6FinishFinishStartMilestoneLateFinish": {
       "label": "Slutt-til-slutt-avhengighet til startmilepæl binder til milepælen selv",
-      "help": "En slutt-til-slutt-avhengighet til en startmilepæl teller til selve milepælen, ikke til starten av milepældagen. Forgjengerens seneste slutt kan gå til milepælens seneste slutt."
+      "help": "Bare ved timeplanlegging på begge sider av en slutt-til-slutt-avhengighet til en startmilepæl uten varighet. Avhengigheten binder til selve milepælen: den seneste slutten til forgjengeren kan gå til milepælens seneste slutt. Fri slakk kan også endre seg; milepælens tidligste start blir stående. Gjelder ikke sluttmilepæler eller den bakoverrettede nullrestvarighetsruten."
     },
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "Planlagt start er ikke en nedre grense for en pågående aktivitet",
-      "help": "Gjenstående arbeid i en startet aktivitet begynner på statusdatoen og rett etter forgjengerne, selv om planlagt start ligger senere."
+      "help": "Bare for en aktivitet med faktisk start og mindre enn 100 % fullført, når «Planlagt start som ekstra nedre grense» er på. Den planlagte starten gir ingen ekstra nedre grense for gjenstående arbeid. Statusdatoen og forgjengerne avgjør fortsatt."
     },
     "p6LateFinishOnOwnCalendar": {
       "label": "Seneste slutt i aktivitetens egen kalender",
-      "help": "Hvis den seneste slutten en etterfølger legger på, ligger utenfor aktivitetens arbeidstid, blir den slutten av forrige arbeidsperiode i aktivitetens egen kalender."
+      "help": "Bare ved timeplanlegging, når en etterfølgergrense bestemmer seneste slutt, og ingen strengere begrensning eller tidsfrist erstatter den grensen. Faller grensen utenfor aktivitetens egen arbeidstid, blir seneste slutt slutten av den forrige arbeidsperioden på aktivitetens egen kalender. Gjelder ikke seneste slutt som bestemmes av prosjektslutten."
     },
     "p6ProgressOverrideIgnoresStartedSuccessor": {
       "label": "Progress Override ignorerer en startet etterfølger også bakover",
-      "help": "Under Progress Override teller ikke avhengigheten til en etterfølger som allerede er startet, med i seneste datoer og fri slakk for en forgjenger som ikke er ferdig."
+      "help": "Bare ved Progress Override, for en forgjenger som ikke er ferdig og en etterfølger som er startet, men ikke ferdig (faktisk start eller fremdrift). Avhengigheten deres teller ikke med i forgjengerens seneste datoer og fri slakk."
     },
     "p6FinishNotBeforeFinishFinishBound": {
       "label": "Tidligste slutt ikke før en slutt-til-slutt-grense",
-      "help": "Ved en slutt-til-slutt-avhengighet ligger etterfølgerens tidligste slutt i klokketid aldri før grensen forgjengeren setter. Faller den grensen i etterfølgerens fritid, blir slutten starten av neste arbeidsperiode."
+      "help": "Datokorreksjon: ved en slutt-til-slutt-avhengighet med forsinkelse i arbeidstid, uten hengekøyer og med timeplanlegging på etterfølgerens kalender (for gjenstående arbeid: fremdriftskalenderen) og på forsinkelseskalenderen. Ligger grensen for avhengigheten senere enn tidligste slutt, uten arbeidstid mellom dem, da flyttes bare slutten til den første arbeidsgrensen på eller etter grensen. Gjelder for automatisk planlagte etterfølgere som ikke er startet, og for etterfølgere som er i gang. For etterfølgere som ikke er startet, går en hard sluttfiksering foran. Fri slakk: egen regel. En forgjenger som ikke er ferdig, teller ved slutt-til-slutt uten forsinkelse og uten prosentvis forsinkelse, med eksisterende fri slakk for avhengigheten og en beregnet tidligste slutt for etterfølgeren, på sin egen timekalender fra sin tidligste slutt til etterfølgerens tidligste slutt. Dette gjelder også ved null forløpt forsinkelse i klokketimer, uten ekstra timevilkår på etterfølger- eller forsinkelseskalenderen. Hengekøyer og manuelt planlagte aktiviteter får til slutt fri slakk 0."
     },
     "p6AlapPositionedFromSuccessors": {
       "label": "ALAP-aktiviteter så seint som etterfølgerne tillater",
-      "help": "En ikke-startet aktivitet med begrensningen «så sent som mulig» slutter i minuttet etterfølgerne trenger den, etterfølgere først, slik at kjeden henger sammen. Den egne planlagte starten teller ikke. En aktivitet uten forgjenger starter da ikke tidligere enn statusdatoen."
+      "help": "Bare ved timeplanlegging, for en aktivitet som ikke er startet og ikke er manuelt planlagt, med begrensningen «Så sent som mulig» (ALAP). Etterfølgernes tidligste datoer bestemmer plasseringen til minuttet; etterfølgerne går først. Dens egen planlagte start teller ikke. Forgjengere, statusdato og en annen begrensning gjelder fortsatt. Uten etterfølger bruker den sin seneste slutt. Det vanlige ALAP-trinnet er fortsatt tilgjengelig i alle profiler."
     }
   },
   "profiles": {
@@ -1533,7 +1533,7 @@
     "showHelp": "Forklaring av “{{name}}”",
     "sourceOptions": {
       "title": "Innstillinger fra kildefilen",
-      "intro": "Disse beregningsvalgene kommer fra en Primavera P6-fil (.xer). De brukes i beregningen, men kan ikke endres her.",
+      "intro": "Dette er skrivebeskyttede beregningsvalg i dette prosjektet. Ved import fra en Primavera P6-fil (.xer) tar appen dem fra kildefilen. De virker bare når de tilhørende vilkårene er oppfylt.",
       "useExpectedFinishDates": "Bruk forventede sluttdatoer (P6: Use Expected Finish Dates)",
       "useProjectEndDateForFloat": "Beregne slakk til prosjektslutt",
       "p6CompletedLateFromRemainingWindow": "Fullført aktivitet: seneste datoer fra statusdatoen",
@@ -1542,7 +1542,7 @@
     "requires": {
       "xerOrigin": "bare .xer-aktiviteter",
       "hourPlanning": "bare ved timeplanlegging",
-      "hourPlanningTitle": "Fungerer bare ved timeplanlegging: en kalender med tidsbånd, en aktivitet i timer, eller forsinkelseskalenderen satt til 24 timer."
+      "hourPlanningTitle": "Virker bare ved timeplanlegging på kalenderen regelen bruker: en kalender med tidsbånd, eller en aktivitet med varighet i timer. For forsinkelse kan også 24-timers forsinkelseskalenderen gjelde."
     },
     "optionsDeviate": {
       "line": "{{field}}: {{current}} (standard: {{standard}})",

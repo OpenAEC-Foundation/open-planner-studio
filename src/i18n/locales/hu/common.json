@@ -11,7 +11,7 @@
   },
   "notifications": {
     "dismiss": "Bezárás",
-    "taskEditRevertBlocked": "Az AI-segítőtárs vagy egy bővítmény közben módosított valamit. A korábbi tevékenység-módosítások nem lettek visszavonva; ezek normál lépésekként maradnak a Visszavonás alatt.",
+    "taskEditRevertBlocked": "Az MCP-kliens vagy egy bővítmény közben módosított. A korábbi tevékenység-módosításokat nem vontuk vissza; ezek normál lépésekként maradnak a Visszavonás alatt.",
     "openFailed": "A fájl megnyitása sikertelen",
     "csvInvalidDate": "CSV nem nyílt meg: felismerhetetlen dátum: „{{value}}” a CSV {{row}}. sorában, „{{column}}” oszlopban. Használja az éééé-hh-nn, nn-hh-éééé vagy nn/hh/éééé formátumot.",
     "extGuideCallbackFailed": "A(z) {{name}} bővítmény egyik lépése hibát jelzett. Az útmutató folytatódik.",
@@ -129,7 +129,7 @@
     "dragDatesAreActual": "A(z) „{{name}}” kész: a kezdés és a befejezés a tényleges dátumai, ezért nem mozdulnak el. Módosítsa az előrehaladáson keresztül.",
     "referencesClearedOnPaste_one": "{{count}} hivatkozás nem létezett ebben a dokumentumban, ezért törölve lett (egy tevékenységnaptár, egyéni munkanem, tevékenységkód vagy egyéni mező a forrásdokumentumból).",
     "referencesClearedOnPaste_other": "{{count}} hivatkozás nem létezett ebben a dokumentumban, ezért törölve lett (tevékenységnaptárak, egyéni munkanemek, tevékenységkódok vagy egyéni mezők a forrásdokumentumból).",
-    "milestoneRefusedAssignments": "A(z) „{{task}}” tevékenységnek vannak erőforrás-hozzárendelései, ezért nem lehet mérföldkő. Előbb távolítsa el a hozzárendeléseket.",
+    "milestoneRefusedAssignments": "A(z) „{{task}}” tevékenységnek erőforrás-hozzárendelései vannak, ezért nem lehet mérföldkő. Előbb távolítsa el a hozzárendeléseket.",
     "milestoneRefusedAssignmentsMany_one": "{{count}} tevékenységnek vannak erőforrás-hozzárendelései, ezért nem válhat mérföldkővé. Először törölje a hozzárendeléseket.",
     "milestoneRefusedAssignmentsMany_other": "{{count}} tevékenységnek vannak erőforrás-hozzárendelései, ezért nem válhatnak mérföldkővé. Először törölje a hozzárendeléseket.",
     "milestoneRefusedSummary": "A(z) „{{task}}” összefoglaló tevékenység altevékenységekkel rendelkezik, ezért nem lehet mérföldkő.",
@@ -158,7 +158,7 @@
     },
     "xerArchiveUnusable": "Az XER-forrásarchívum ebben a fájlban használhatatlan, ezért kimaradt; maga a projekt teljes egészében megnyílt.",
     "xerArchiveUnusableLine": "Az XER-forrásarchívum ebben a fájlban használhatatlan volt, ezért kimaradt.",
-    "xerArchiveUnusableConsequence": "Az ütemezés, a számítási profil és az IFC összes projektadata teljes. Ami hiányzik: a dátumok úgy, ahogy a Primavera tárolta őket, és a forrás eredete az AI és a bővítmények számára. Mentéskor a fájl archívum nélkül lesz mentve. Az archívum visszakapásához importálja újra az eredeti .xer fájlt.",
+    "xerArchiveUnusableConsequence": "Az ütemezés, a számítási profil és az IFC összes projektadata teljes. Hiányzik: a dátumok úgy, ahogy a Primavera tárolta őket, és a forrás eredete az MCP-kliensek és bővítmények számára. Mentéskor a fájl archívum nélkül lesz mentve. Az archívum visszakapásához importálja újra az eredeti XER-fájlt.",
     "xerArchiveReasonSchemaVersion": "Ok: az archívum ismeretlen sémaverziót vagy elrendezést használ (újabb vagy más író program).",
     "xerArchiveReasonHashMismatch": "Ok: az ellenőrző összeg nem egyezik a forrásbájtokkal, az archívum sérült.",
     "xerArchiveReasonTruncated": "Ok: az archívum csonka, a forrásbájtok egy része hiányzik.",
@@ -349,7 +349,7 @@
     "durationDisplayDays": "Mindig napok",
     "durationDisplayHours": "Mindig órák",
     "barSplitMode": "Tevékenységsávok szüneteknél",
-    "barSplitModeHint": "Hogy a tevékenységsáv vizuálisan szétbomlik-e a nem munkanapok körül.",
+    "barSplitModeHint": "Csak óraalapú tevékenységeknél: sávok szétbontása a szünetek és a nem munkaidő körül. A valódi tevékenység-szünetek mindig láthatók, ettől a beállítástól függetlenül.",
     "barSplitNever": "Nincs bontás",
     "barSplitSelection": "Bontás kijelöléskor",
     "barSplitAlways": "Mindig bontás",
@@ -412,11 +412,11 @@
     "fontFamilySerif": "Talpas",
     "fontFamilyMono": "Fix szélességű",
     "fontHint": "A webalkalmazások nem követik automatikusan a rendszer betűtípus-beállítását. Válassza ki itt a betűtípust és a méretet a teljes felülethez.",
-    "aiModeSection": "AI-mód",
-    "aiMode": "AI-mód bekapcsolása",
-    "aiModeHint": "Megjeleníti az AI-lapot az MCP-híddal, hogy az AI-segítőtársak a Model Context Protocol-on keresztül dolgozhassanak az ütemezésével. A kikapcsolás leállítja a hidat.",
+    "aiModeSection": "MCP-kapcsolat",
+    "aiMode": "MCP-kapcsolat engedélyezése",
+    "aiModeHint": "Megjeleníti az MCP-lapot. Ott indíthatja el az MCP-hidat, így egy MCP-kliens a Model Context Protocol segítségével dolgozhat az ütemezésével. Kikapcsolás esetén a híd leáll.",
     "aiAutostart": "Híd automatikus indítása",
-    "aiAutostartHint": "Az alkalmazás indulásakor azonnal élesre állítja az MCP-hidat, így egy AI-kliens az AI-lap megnyitása nélkül is csatlakozhat. Csak az asztali alkalmazásban.",
+    "aiAutostartHint": "Az alkalmazás indulásakor azonnal élesíti az MCP-hidat, így egy MCP-kliens az MCP-lap megnyitása nélkül is csatlakozhat. Csak az asztali alkalmazásban.",
     "legacySection": "Régi funkciók",
     "classicViewControls": "Klasszikus nézetgombok megjelenítése",
     "classicViewControlsHint": "Visszateszi a külön Oszlopok, Szűrő, Csoportosítás és Rendezés gombokat a Nézet lapra. Az oszlopokat most a táblázatfejléc pluszjelével vagy a Táblázat → Oszlopok… menüponttal választja ki; a szűrés, a csoportosítás és a rendezés az elrendezésgombokban és az elrendezési párbeszédpanelen található."
@@ -448,9 +448,9 @@
     "configSnippetHint": "Illessze be ezt a kliens MCP-konfigurációjába.",
     "tokenWarning": "Ez a token hozzáférést ad a megnyitott tervhez. Ne ossza meg másokkal.",
     "connectPrompt": "Csatlakozási prompt",
-    "connectPromptHint": "Illessze be ezt az AI-ügynökébe, az magától csatlakozik.",
+    "connectPromptHint": "Illessze be ezt az MCP-kliensébe; az magától csatlakozik.",
     "connectPromptText": "Csatlakozzon a számítógépemen futó MCP-szerverhez: név {{name}}, átvitel streamable HTTP, URL {{url}}, a következő fejléccel: Authorization: Bearer {{token}}. Adja hozzá az MCP-konfigurációhoz (például egy mcpServers-blokként), és csatlakozzon. Ezután ellenőrzésként kérje le az eszközlistát: körülbelül {{count}} eszközt kell látnia a {{prefix}} előtaggal. Foglalja össze röviden, mit tud tenni ezzel a szerverrel. Mielőtt bármit módosítana, olvassa el először az ütemezési útmutatót a planner_get_planning_guide eszközzel.",
-    "statusDot": "AI-híd: {{status}}"
+    "statusDot": "MCP-híd: {{status}}"
   },
   "aiSafety": {
     "pause": "Szüneteltetés",
@@ -460,7 +460,7 @@
     "readOnlyHint": "Ha ez be van kapcsolva, minden módosító eszköz el lesz utasítva.",
     "autoBackupOn": "Auto-mentés: be",
     "autoBackupOff": "Auto-mentés: ki",
-    "autoBackupHint": "Dokumentumonként az első AI-módosítás előtt automatikusan IFC-biztonsági mentést készít.",
+    "autoBackupHint": "Dokumentumonként az első MCP-módosítás előtt automatikusan IFC-biztonsági mentést készít.",
     "backupNow": "Biztonsági mentés most",
     "openFolder": "Biztonsági mentési mappa megnyitása",
     "backupOk": "Biztonsági mentés készült: {{name}}",
@@ -468,10 +468,10 @@
     "openErr": "A mappa megnyitása nem sikerült: {{error}}"
   },
   "aiActivity": {
-    "title": "AI-tevékenység",
+    "title": "MCP-tevékenység",
     "panelButton": "Tevékenységpanel",
     "clear": "Törlés",
-    "empty": "Még nincs AI-tevékenység. A híd hívásai itt jelennek meg.",
+    "empty": "Még nincs MCP-tevékenység. A híd hívásai itt jelennek meg.",
     "args": "Argumentumok",
     "result": "Válasz"
   },
@@ -723,7 +723,7 @@
     "calendars": "Naptárak",
     "noCalendars": "Még nincs naptár az erőforrástárban.",
     "noResources": "Még nincs erőforrás az erőforrástárban.",
-    "promoteHint": "Vigyen át egy projektnaptárt vagy -erőforrást az erőforrástárba a fenti „+ Projektből” gombbal.",
+    "promoteHint": "Vigyen át egy projektnaptárt az erőforrástárba a fenti „+ Projektből” gombbal.",
     "promoteFromProject": "+ Projektből",
     "alreadyLinked": "már kapcsolva",
     "editItem": "Szerkesztés",
@@ -1164,7 +1164,7 @@
     "nav": {
       "reportTab": "Ugrás a Jelentés lapra",
       "switchDocument": "Átkapcsolás dokumentumra",
-      "scrollToToday": "Ugrás a mai napra",
+      "scrollToToday": "Ugrás az állapotdátumra vagy a mai napra",
       "help": "Súgó megnyitása"
     },
     "grid": {
@@ -1378,7 +1378,7 @@
   "conventions": {
     "preserveActualDatesInBackwardPass": {
       "label": "Tényleges dátumok megtartása a visszafelé számításban",
-      "help": "Az elkezdett vagy befejezett tevékenység a rögzített dátumait a késői oldalon is megtartja. Egy befejezett utód nem húzza vissza a nyitott elődöt a múltba."
+      "help": "Állapotdátummal egy befejezett tevékenység a tényleges dátumait a késői oldalon tartja meg, és egy befejezett utód nem húzza vissza a múltba a nyitott elődöt. Egy folyamatban lévő tevékenység a tényleges kezdését legkésőbbi kezdésként tartja meg, kivéve, ha a „Folyamatban lévő tevékenység: korai kezdés = a hátralévő munka kezdete” be van kapcsolva. Egy befejezett tevékenység az állapotdátum-pontján vagy -ablakán továbbadhatja a kapcsolati nyomást."
     },
     "clampNegativeFreeFloat": {
       "label": "A szabad tartalékidő soha nem negatív",
@@ -1386,103 +1386,103 @@
     },
     "p6ZeroDurationUsesPlannedBoundary": {
       "label": "A mérföldkő a tervezett naptárhatárt követi",
-      "help": "A nulla időtartamú mérföldkő a fájlban tervezett naptárhatáron marad: a napkezdés kezdőmérföldkő marad, az idősáv vége egybeeshet az előd befejezésével."
+      "help": "Csak óraalapú tervezésnél. Egy nulla időtartamú mérföldkő a tervezett naptárhatárt követi: a napkezdés kezdő mérföldkő marad, egy idősáv vége egybeeshet az előd befejezésével. Egy egyszerű, nulla időtartamú tevékenység is kaphat határpárt, de csak akkor, ha XER-eredete Task Dependent vagy Resource Dependent, és a tervezett befejezés a tervezett kezdés előtt van."
     },
     "p6UseTaskPlannedStartFloor": {
       "label": "A tervezett kezdés további alsó határ",
-      "help": "A fájl tervezett kezdése alsó határként számít, ha a kezdés és a befejezés is egy naptári napnál többel később van, mint amit a hálózat megenged."
+      "help": "A tervezett kezdés alsó határként működik, amint a kezdés és a befejezés is egy naptári napnál többel később van, mint amit a hálózat megenged. Befejező mérföldkőnél, ha a tervezett befejezés a tervezett kezdés előtt van, elég egy későbbi tervezett kezdés. Nem vonatkozik a folyamatban lévő tevékenységre, ha a „A tervezett kezdés nem alsó határ a folyamatban lévő tevékenységnél” be van kapcsolva, és nem vonatkozik a még nem kezdett, utódaiból elhelyezett ALAP-tevékenységre sem. XER-eredet nem szükséges."
     },
     "p6FinishMilestoneBoundaryWindow": {
       "label": "A befejező mérföldkő határablakként",
-      "help": "A befejező mérföldkő két szomszédos naptárhatáron állhat: a korai kezdés egy idősáv elején, a korai befejezés az előző idősáv végén van."
+      "help": "Egy nulla időtartamú befejező mérföldkő csak akkor kap határablakot, ha tervezett befejezése a tervezett kezdése előtt van, és a számított kezdése még ezen a tervezett kezdésen van. Egy befejező mérföldkő, amelynek vannak elődjei, de nincs utódja, a korai dátumait legkésőbbi dátumként is megkapja, kivéve, ha a „Tartalékidő ütemezés-számítása a projektbefejezési dátumig” be van kapcsolva. Csak P3-kimenetben látható; minden beépített profilban ki van kapcsolva."
     },
     "p6PreserveActualInstants": {
       "label": "A tényleges dátumok pontos megtartása",
-      "help": "A rögzített tényleges kezdést és tényleges befejezést a rendszer nem helyezi át egy idősáv széléhez."
+      "help": "Csak olyan tevékenységeknél, amelyeknél az .xer-fájlból származó eredet meg van őrizve. A rögzített tényleges kezdési és befejezési dátumokat nem helyezi át az idősáv szélére."
     },
     "p6UseRemainingStartForProgress": {
       "label": "Folyamatban lévő tevékenység: korai kezdés = a hátralévő munka kezdete",
-      "help": "Egy folyamatban lévő tevékenység korai és legkésőbbi kezdése azt mutatja, hol kezdődik a hátralévő munka, nem a történeti tényleges kezdés. Kezdés-kezdés kapcsolaton visszafelé számítva csak a hátralévő időtartam számít."
+      "help": "Egy folyamatban lévő tevékenység korai és legkésőbbi kezdése azt mutatja meg, hol kezdődik a hátralévő munka. Kezdés-kezdés kapcsolaton visszafelé számítva csak a hátralévő időtartam számít, de kizárólag óraalapú tervezésnél, tényleges kezdéssel és 0–100% közötti előrehaladással, ha az ismert hátralévő időtartam kisebb a tervezettnél, és nincs eltelt időtartam vagy ütemezési szünet. Ez a többletszabály nem vonatkozik a kezdés-befejezés kapcsolatokra."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Korlátozás pontos időpontja mérföldkövön",
-      "help": "Egy nulla időtartamú mérföldkő dátum-és-idő korlátozása pontos pont, az idősáv kezdetén is."
+      "help": "Csak óraalapú tervezésnél, a késői oldalon, egy nulla időtartamú mérföldkő dátum-és-idő típusú SNLT, MSO, FNLT vagy MFO korlátozásánál. A korlátozás időpontja pontos marad, az idősáv elején is. Előrefelé számítva egy ilyen időpont minden profilban már pontos."
     },
     "resumeFromActualElapsed": {
       "label": "A hátralévő munka a már eltelt időtartam után folytatódik",
-      "help": "Egy folyamatban lévő tevékenység a hátralévő munkát a tényleges kezdés és a már eltelt időtartam összegénél folytatja, nem az állapotdátumnál."
+      "help": "Egy folyamatban lévő tevékenység a hátralévő munkáját legkorábban a tényleges kezdés és a már eltelt időtartam összegénél folytatja. Az állapotdátum és az elődhatár is alsó határ marad; a három közül a legkésőbbi érvényes. Nem alkalmazható Progress Override esetén, hátralévő munka nélkül, vagy ha az alkalmazás a fájlból érvényes folytatási dátumot használ (legfeljebb egy hozzárendelésnél)."
     },
     "unstartedIgnoresStatusDate": {
       "label": "Nem elkezdett tevékenységek nem tolódnak az állapotdátumra",
-      "help": "Egy még nem elkezdett tevékenység nem tolódik automatikusan az állapotdátumra vagy utána."
+      "help": "Csak állapotdátummal, előrehaladás nélküli tevékenységnél. Ez a tevékenység nem tolódik automatikusan az állapotdátumra vagy utána."
     },
     "p6RelationFinishBoundary": {
       "label": "Az utód a befejezési határon kezdődik",
-      "help": "Befejezés-kezdés kapcsolatnál késleltetés nélkül, ha a fájl szerint az utód pontosan az előd befejezésén kezdődik, egy idősáv végén, akkor az utód ezen a befejezésen kezdődik, és nem a következő idősáv elején. A fájl ezt nem jelöli meg: az alkalmazás a .xer fájl megnyitásakor maga ismeri fel az ilyen kapcsolatot. Az Ön által létrehozott kapcsolatra ez nem vonatkozik. Visszafelé számítva az utód legkésőbbi kezdését egyszerűen egy idősáv kezdeteként jeleníti meg."
+      "help": "Csak óraalapú tervezésnél, az előd naptárán, és olyan kapcsolatnál, amelyet az alkalmazás XER-fájl megnyitásakor felismer. Befejezés-kezdés kapcsolatnál, késleltetés nélkül, ha a fájl szerint az utód pontosan az előd idősávjának végén kezdődik, az utód ezen a befejezésen kezdődik. Az Ön által létrehozott kapcsolatra ez nem vonatkozik. Visszafelé számítva az utód legkésőbbi kezdése továbbra is idősáv-kezdés marad."
     },
     "p6BackwardLagFinishBoundary": {
       "label": "Késleltetés visszafelé számítása befejezési határról",
-      "help": "Ha a visszafelé számítás munkaidőben mért késleltetést von le egy befejezési határról, és pontosan egy idősáv kezdetére érkezik, akkor az előző befejezési határra kerül. Befejezés-befejezés kapcsolatnál késleltetés nélkül a legkésőbbi befejezés egy idősáv végén is ezen a befejezési határon marad."
+      "help": "Csak óraalapú tervezésnél, a naptáron, amelyen a késleltetés számít. Ha a visszafelé számítás egy pontos befejezési határról levon egy pozitív, munkaidőben mért késleltetést, és egy nap első idősáv-kezdetére jut, akkor az előző befejezési határra kerül. Befejezés-befejezés kapcsolatnál késleltetés nélkül is a legkésőbbi befejezés egy idősáv végén ezen a határon marad. Nem vonatkozik az eltelt időtartamban mért késleltetésre."
     },
     "p6CompletedDataDateWindow": {
       "label": "Befejezett tevékenység az állapotdátum-ablakban",
-      "help": "Egy befejezett tevékenység korai dátumokat kap az állapotdátum-ablakban, befejezése pedig beleszámít a projektbefejezésbe."
+      "help": "Csak állapotdátummal, .xer-fájlból származó, altevékenység nélküli, befejezett tevékenységeknél, megőrzött célablakkal, időtartam szerinti előrehaladással, és P6-típusként Task Dependent vagy Resource Dependent, Fixed Duration & Units beállítással; nulla időtartamú mérföldkövek nélkül. Ehhez be kell kapcsolni a „Folyamatban lévő tevékenység: korai kezdés = a hátralévő munka kezdete” beállítást. Szünet/folytatás csak Task Dependent esetén engedélyezett, érvényes párral, tényleges befejezéssel a tervezett befejezés és az állapotdátum között, folytatással legkésőbb a tényleges befejezésnél, és ha a „Tényleges dátumok megtartása a visszafelé számításban” be van kapcsolva. A tevékenység korai dátumokat kap az állapotdátum-ablakban; befejezése beleszámít a projektbefejezésbe."
     },
     "p6CompletedLoeActualFinish": {
       "label": "Befejezett LOE a tényleges befejezésén keresztül",
-      "help": "Egy befejezett ráfordításszintű (LOE) tevékenység, amelynek csak kezdés-kezdés bemenete van, a tényleges befejezésén keresztül követi az útvonalat."
+      "help": "Csak állapotdátummal, egy befejezett LOE-tevékenységnél, amely .xer-fájlból származik, pozitív időtartammal, időtartam szerinti előrehaladással és P6-típusként Fixed Duration & Units/Time beállítással, teljes célablakkal, és olyan tényleges befejezéssel, amely a tervezett befejezés és az állapotdátum között van. Legalább egy bejövő kapcsolat kell legyen, mind kezdés-kezdés, utód nélkül, és szünet/folytatás nélkül. Ehhez be kell kapcsolni ezeket: „Folyamatban lévő tevékenység: korai kezdés = a hátralévő munka kezdete”, „Tényleges dátumok megtartása a visszafelé számításban” és „A tényleges dátumok pontos megtartása”. A LOE a tényleges befejezését követi, nem a hangmat-útvonalat."
     },
     "p6OpenLoeTargetSpan": {
       "label": "Nem elkezdett LOE a célablakot használja",
-      "help": "Egy még el nem kezdett ráfordításszintű (LOE) tevékenység a célablakát veszi futamidőnek."
+      "help": "Csak óraalapú tervezésnél, egy még nem kezdett LOE-tevékenységnél vagy hangmatnál, amely .xer-fájlból származik, 0% előrehaladással, pozitív időtartammal, időtartam szerinti előrehaladással és P6-típusként Fixed Duration & Units beállítással; tényleges dátumok és szünet/folytatás nélkül. Teljes, pozitív célablak szükséges, amelynek kezdete megegyezik a kapcsolati határral, és a munkaidő legfeljebb egy munkanappal tér el az időtartamtól; legalább egy kezdés-kezdés bemenet és egy befejezés-befejezés kimenet kell legyen, kizárólag ezekkel a kapcsolattípusokkal és késleltetés nélkül. Ekkor a LOE a célablakot veszi futamidőnek. Gyenge bizonyíték: egyetlen fájl."
     },
     "p6CompletedPredecessorAtDataDate": {
       "label": "A befejezett előd nem tart vissza az állapotdátum után",
-      "help": "Ha egy befejezett előd tényleges befejezése az állapotdátum után esik, az utódjai mégis elkezdődhetnek az állapotdátumon."
+      "help": "Csak óraalapú tervezésnél és állapotdátummal, befejezett előd esetén, tényleges befejezéssel. A befejezés-kezdés és a befejezés-befejezés kapcsolatok legfeljebb az állapotdátum előtti munkahatártól számítanak; egy későbbi tényleges befejezés nem tartja vissza az utódot. A kezdés-kezdés és a kezdés-befejezés kapcsolatok a tényleges kezdésen maradnak. Egy befejezett tevékenység, amelynek saját állapotdátum-pontja vagy eltolt állapotdátum-ablaka van, ezt a saját határát követi."
     },
     "p6FreeFloatOnOwnCalendar": {
       "label": "Szabad tartalékidő a saját naptárban",
-      "help": "Egy nem elkezdett tevékenység szabad tartalékidője kapcsolatonként a tevékenység saját naptárában számít, nem az utódéban. Ez érvényes befejezés-kezdés, kezdés-kezdés és befejezés-befejezés kapcsolatnál is, az előd naptárán mért munkaidős késleltetéssel együtt. Elkezdett tevékenységnél csak befejezés-kezdés kapcsolatnál, késleltetés nélkül számít."
+      "help": "Csak óraalapú tervezésnél, nem befejezett tevékenységeknél és a számított szabad tartalékidővel rendelkező kapcsolatoknál. Egy nem elkezdett tevékenységnél a szabad tartalékidő a saját naptárában számít befejezés-kezdés, kezdés-kezdés és befejezés-befejezés kapcsolatnál, eltelt idejű vagy százalékos késleltetés nélkül. Nulla-tól eltérő késleltetéshez az Előd késleltetési naptára szükséges. Elkezdett tevékenységnél csak befejezés-kezdés kapcsolat számít, késleltetés nélkül. A kapcsolat saját szabad tartalékideje és meghatározó jelölése nem változik."
     },
     "p6CompletedRemainingLag": {
       "label": "Egy befejezett előd eltelt késleltetése nem számít",
-      "help": "A késői oldalon a befejezett előd utáni késleltetésnek csak az a része számít, amely az állapotdátumig még nem telt el."
+      "help": "Csak óraalapú tervezésnél, a késleltetési naptáron és állapotdátummal, befejezett előd esetén egy .xer-fájlból, amelynek tényleges befejezése az állapotdátum előtt van, és amelynél van állapotdátum-pont vagy -ablak. Munkaidőben mért pozitív késleltetésnek csak a még el nem telt része számít. A késői oldalon működik, és az állapotdátum-pontból vagy az eltolt nulla hátralévő-ablakból előre számolva. Ha a tevékenység a rendes tényleges dátumain van, a teljes késleltetés marad. Órában mért késleltetésre nem vonatkozik."
     },
     "p6CompletedOutOfSequenceWindow": {
       "label": "A befejezett, sorrenden kívüli tevékenység az elődjeire vár",
-      "help": "Egy befejezett tevékenység, amelynek előde még nincs kész, az állapotdátum helyett az előde utáni nulla ablakot kapja (P6: Retained Logic). Csak akkor működik, ha mindkét beállítás be van kapcsolva: a „Befejezett tevékenység az állapotdátum-ablakban” és a „Folyamatban lévő tevékenység: korai kezdés = a hátralévő munka kezdete”."
+      "help": "Csak óraalapú tervezésnél és állapotdátummal, az XER-útvonalon, ahol a „Befejezett tevékenység az állapotdátum-ablakban” szabály érvényes. Ehhez a szabályhoz be kell kapcsolni a „Folyamatban lévő tevékenység: korai kezdés = a hátralévő munka kezdete” beállítást is. A Progress Override nem használható. Befejezés-kezdés vagy kezdés-kezdés kapcsolaton keresztül a tevékenység a két határ közül a későbbit kapja: az állapotdátum határát, vagy a nem kész előd, illetve az eltolt állapotdátum-ablakú előd határát. A szokásos befejezett előd nem számít."
     },
     "p6CompletedPhysicalAtDataDate": {
       "label": "A befejezett, fizikai előrehaladású tevékenység az állapotdátumon áll",
-      "help": "Egy fizikai készültségi szinttel befejezett tevékenység egyetlen pontként jelenik meg az állapotdátumon. Ha egy előd ezt megköveteli, később jelenik meg. A tényleges dátumai helyett így jelenik meg. Csak fizikai előrehaladásnál mérve. Más előrehaladás-típusoknál (P6 alapérték: időtartam) ez a viselkedés nincs mérve, és ki marad."
+      "help": "Csak óraalapú tervezésnél és állapotdátummal, befejezett levéltevékenységeknél és nulla időtartamú mérföldköveknél, egy .xer-fájlból, P6-típus szerint Task Dependent, Start Milestone vagy Finish Milestone, megtartott célablakkal, fizikai készültségi szinttel, az állapotdátumnál nem későbbi tényleges befejezéssel, felfüggesztés és folytatás nélkül. Ehhez a „Folyamatban lévő tevékenység: korai kezdés = a hátralévő munka kezdete” beállítás szükséges. A tevékenység az állapotdátumon egyetlen ponton áll, vagy később, ha egy előd ezt megköveteli. Más készültségi szint-típusnál, az időtartamot is beleértve, ez nincs mérve, és kikapcsolva marad."
     },
     "p6InProgressStartLagElapsed": {
       "label": "Egy folyamatban lévő előd eltelt SS-késleltetése nem számít",
-      "help": "Kezdés-kezdés kapcsolatnál, amely már elkezdett tevékenységből indul, a késleltetésnek csak az a része számít, amely a tényleges kezdése óta az állapotdátumig még nem telt el."
+      "help": "Csak óraalapú tervezésnél, a késleltetési naptáron és állapotdátummal, kezdés-kezdés kapcsolatnál, amelynek késleltetése munkaidőben pozitív, és a kiinduló, még nem befejezett előd tényleges kezdése az állapotdátum előtt van. Ehhez a „Folyamatban lévő tevékenység: korai kezdés = a hátralévő munka kezdete” beállítás szükséges. Csak a késleltetésnek az a része számít, amely még nem telt el. A „Folyamatban lévő előd SS-késleltetésének ütemezés-számítása innentől” beállítás választja ki a kezdőpontot. Órában mért késleltetésre nem vonatkozik."
     },
     "p6FinishFinishStartMilestoneLateFinish": {
       "label": "Befejezés-befejezés kapcsolat kezdőmérföldkő esetén magához a mérföldkőhöz köt",
-      "help": "Befejezés-befejezés kapcsolat egy kezdőmérföldkőhöz magáig a mérföldkőig számít, nem a mérföldkő napjának kezdetéig: az előd legkésőbbi befejezése a mérföldkő legkésőbbi befejezéséig terjedhet."
+      "help": "Csak óraalapú tervezésnél, befejezés-befejezés kapcsolat mindkét oldalán, ha a cél nulla időtartamú kezdő mérföldkő. A kapcsolat magához a mérföldkőhöz kötődik: az előd legkésőbbi befejezése a mérföldkő legkésőbbi befejezéséig terjedhet. A szabad tartalékidő is változhat; a mérföldkő korai kezdése változatlan marad. Nem vonatkozik a befejező mérföldkövekre, sem a visszafelé számított, nulla hátralévő időtartamú útvonalra."
     },
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "A tervezett kezdés nem alsó határ a folyamatban lévő tevékenységnél",
-      "help": "A már elkezdett tevékenység hátralévő munkája az állapotdátumon és közvetlenül az elődei után kezdődik, akkor is, ha a tervezett kezdése később van."
+      "help": "Csak olyan tevékenységnél, amelynek van tényleges kezdése és 100%-nál kisebb készültségi szintje, ha a „A tervezett kezdés további alsó határ” beállítás be van kapcsolva. A tervezett kezdése nem alsó határ a hátralévő munkára; az állapotdátum és az elődei továbbra is döntők."
     },
     "p6LateFinishOnOwnCalendar": {
       "label": "Legkésőbbi befejezés a saját naptárban",
-      "help": "Ha az utód által előírt legkésőbbi befejezés a tevékenység munkaidején kívül esik, akkor a tevékenység saját naptárában az előző idősáv vége lesz."
+      "help": "Csak óraalapú tervezésnél, ha az utódhatár határozza meg a legkésőbbi befejezést, és nincs szigorúbb korlátozás vagy határidő, amely ezt a határt helyettesíti. Ha ez a határ a tevékenység saját munkaidején kívül esik, a legkésőbbi befejezés a saját naptárának előző munkaidőszakának befejezése lesz. Nem vonatkozik a projektbefejezés által meghatározott legkésőbbi befejezésre."
     },
     "p6ProgressOverrideIgnoresStartedSuccessor": {
       "label": "A Progress Override a már elkezdett utódot visszafelé is figyelmen kívül hagyja",
-      "help": "A Progress Override alatt a már elkezdett utódhoz vezető kapcsolat nem számít a legkésőbbi dátumokban és a még nem kész előd szabad tartalékidejében."
+      "help": "Csak Progress Override alatt, egy nem befejezett előd és egy elkezdett, de nem befejezett utód esetén (tényleges kezdés vagy készültségi szint). Ez a kapcsolat nem számít az előd legkésőbbi dátumaiban és szabad tartalékidejében."
     },
     "p6FinishNotBeforeFinishFinishBound": {
       "label": "A korai befejezés nem lehet befejezés-befejezés határ előtt",
-      "help": "Befejezés-befejezés kapcsolatnál az utód korai befejezése óraidőben soha nem lehet az előd által megadott határ előtt. Ha ez a határ az utód munkaidőn kívüli idejére esik, a befejezés a következő idősáv kezdete lesz."
+      "help": "Dátumkorrekció: befejezés-befejezés kapcsolatnál munkaidős késleltetéssel, hangmatok nélkül, és óraalapú tervezéssel az utód naptárán (hátralévő munkánál: a készültségi naptáron) és a késleltetési naptáron. Ha a kapcsolati határ később van, mint a korai befejezés, és közöttük nincs munkaidő, csak a befejezés mozdul el az első, a határ utáni munkahatárra. Ez érvényes automatikusan ütemezett, el nem kezdett és folyamatban lévő utódokra; el nem kezdett tevékenységnél a kemény befejezési rögzítés élvez elsőbbséget. Szabad tartalékidő: külön számít az a nem befejezett előd, amelynek befejezés-befejezés kapcsolata nulla késleltetésű, készültségi szint szerinti késleltetés nélküli, meglévő kapcsolati szabad tartalékidővel rendelkezik, és az utód számított korai befejezése van. Ez a saját óranaptárában számít, a saját korai befejezésétől az utód korai befejezéséig. Ez a nulla eltelt idejű késleltetésre is vonatkozik, az utód- vagy késleltetési naptárra vonatkozó további óraalapú feltétel nélkül. A hangmatok és a kézzel ütemezett tevékenységek szabad tartalékideje végül nulla marad."
     },
     "p6AlapPositionedFromSuccessors": {
       "label": "ALAP-tevékenységek az utódok által megengedett legkésőbbi időpontra",
-      "help": "Egy el nem kezdett tevékenység, amelynek korlátozása „lehető legkésőbb”, abban a percben fejeződik be, amikor az utódjainak szükségük van rá. Az utódokat előbb veszi figyelembe, így a lánc összezáródik. A saját tervezett kezdése nem számít; előd nélküli tevékenység nem kezdődik az állapotdátum előtt."
+      "help": "Csak óraalapú tervezésnél, egy el nem kezdett, kézzel nem ütemezett tevékenységnél, amelynek korlátozása „Lehető legkésőbb” (ALAP). Az utódok korai dátumai határozzák meg a helyzetét, percre pontosan; az utódok kerülnek előre. A saját tervezett kezdése nem számít. Az elődei, az állapotdátum és egy második korlátozás továbbra is érvényes. Utód nélkül a legkésőbbi befejezését használja. A szokásos ALAP-lépés minden profilban elérhető marad."
     }
   },
   "profiles": {
@@ -1533,7 +1533,7 @@
     "showHelp": "A(z) „{{name}}” súgója",
     "sourceOptions": {
       "title": "Beállítások a forrásfájlból",
-      "intro": "Ezek az ütemezés-számítási beállítások egy Primavera P6-fájlból (.xer) származnak. Az ütemezés-számításban részt vesznek, de itt nem módosíthatók.",
+      "intro": "Ezek a projekthez mentett, csak olvasható számítási beállítások. Primavera P6-fájl (.xer) importálásakor az app ezeket a forrásfájlból veszi át. Csak akkor érvényesülnek, ha a hozzájuk tartozó feltételek teljesülnek.",
       "useExpectedFinishDates": "Várt befejezési dátumok használata (P6: Use Expected Finish Dates)",
       "useProjectEndDateForFloat": "Tartalékidő ütemezés-számítása a projektbefejezési dátumig",
       "p6CompletedLateFromRemainingWindow": "Befejezett tevékenység: legkésőbbi dátumok az állapotdátumtól",
@@ -1542,7 +1542,7 @@
     "requires": {
       "xerOrigin": "csak .xer-tevékenységek",
       "hourPlanning": "csak óraalapú tervezésnél",
-      "hourPlanningTitle": "Csak óraalapú tervezésnél működik: idősávokat tartalmazó naptárnál, órában mért tevékenységnél, vagy 24 órásra állított késleltetési naptárnál."
+      "hourPlanningTitle": "Csak óraalapú tervezésnél működik azon a naptáron, amelyen a szabály számol: idősávokat tartalmazó naptárnál vagy órában megadott tevékenységi időtartamnál. Késleltetésnél a 24 órás késleltetési naptár is érvényes lehet."
     },
     "optionsDeviate": {
       "line": "{{field}}: {{current}} (alapértelmezett: {{standard}})",

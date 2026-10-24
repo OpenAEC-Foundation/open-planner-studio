@@ -11,7 +11,7 @@
   },
   "notifications": {
     "dismiss": "Bildirimi kapat",
-    "taskEditRevertBlocked": "Bu arada yapay zekâ asistanından veya bir uzantıdan bir değişiklik geldi. Ondan önceki görev düzenlemeleri geri alınmadı ve Geri Al altında normal adımlar olarak kalıyor.",
+    "taskEditRevertBlocked": "Bu sırada bir MCP-istemcisinden veya bir uzantıdan değişiklik geldi. Bundan önceki görev düzenlemeleri geri alınmadı ve Geri al altında normal adımlar olarak duruyor.",
     "openFailed": "Dosya açılamadı",
     "csvInvalidDate": "CSV açılmadı: okunamayan tarih \"{{value}}\" CSV satır {{row}}, sütun \"{{column}}\" içinde. yyyy-aa-gg, gg-aa-yyyy veya gg/aa/yyyy biçimini kullanın.",
     "extGuideCallbackFailed": "{{name}} uzantısının bir adımı başarısız oldu. Rehber devam ediyor.",
@@ -139,7 +139,7 @@
     "assignmentsMovedToSubtask_other": "{{count}} atama '{{child}}' alt görevine taşındı.",
     "assignmentsMovedToSubtasks_one": "{{count}} görevin atamaları bir alt göreve taşındı.",
     "assignmentsMovedToSubtasks_other": "{{count}} görevin atamaları alt görevlere taşındı.",
-    "milestoneClearedOnPhase": "'{{phase}}' artık kilometre taşı değil.",
+    "milestoneClearedOnPhase": "'{{phase}}' artık bir kilometre taşı değildir.",
     "milestoneClearedOnPhaseMany_one": "{{count}} görev artık kilometre taşı değil.",
     "milestoneClearedOnPhaseMany_other": "{{count}} görev artık kilometre taşı değil.",
     "phaseRefusedNoAssignableChild": "'{{phase}}' özet görev olamaz: atamalarının gidebileceği bir yer yok, çünkü yeni alt görevlerin hiçbiri atama taşıyamaz (kilometre taşı veya özet görev). Hiçbir şey değiştirilmedi.",
@@ -158,7 +158,7 @@
     },
     "xerArchiveUnusable": "Bu dosyadaki XER kaynak arşivi kullanılamaz durumda ve dışarıda bırakıldı; projenin kendisi eksiksiz açıldı.",
     "xerArchiveUnusableLine": "Bu dosyadaki XER kaynak arşivi kullanılamaz durumdaydı ve dışarıda bırakıldı.",
-    "xerArchiveUnusableConsequence": "IFC'deki çizelge, hesaplama profili ve tüm proje verileri eksiksiz. Eksik olanlar: Primavera'nın kaydettiği haliyle tarihler ve yapay zekâ ile uzantılar için kaynak kökeni. Kaydetme dosyayı arşiv olmadan yazar; arşivi geri almak için orijinal .xer dosyasını yeniden içe aktarın.",
+    "xerArchiveUnusableConsequence": "IFC'deki planlama, hesaplama profili ve tüm proje verileri eksiksiz. Eksik olanlar: Primavera'nın kaydettiği haliyle tarihler ve MCP-istemcileri ile uzantılar için kaynak kökeni. Kaydetme dosyayı arşiv olmadan yazar; arşivi geri almak için orijinal .xer dosyasını yeniden içe aktarın.",
     "xerArchiveReasonSchemaVersion": "Neden: arşivin şema sürümü veya düzeni bilinmiyor (daha yeni ya da farklı bir yazıcı).",
     "xerArchiveReasonHashMismatch": "Neden: sağlama toplamı kaynak baytlarıyla eşleşmiyor — arşiv hasarlı.",
     "xerArchiveReasonTruncated": "Neden: arşiv kesilmiş — kaynak baytlarının bir kısmı eksik.",
@@ -349,7 +349,7 @@
     "durationDisplayDays": "Her zaman gün",
     "durationDisplayHours": "Her zaman saat",
     "barSplitMode": "Kesintilerde görev çubukları",
-    "barSplitModeHint": "Bir görev çubuğunun çalışılmayan günler etrafında görsel olarak bölünüp bölünmeyeceği.",
+    "barSplitModeHint": "Yalnızca saat görevleri için: çubukları mola ve çalışılmayan süre etrafında bölün. Gerçek görev kesintileri bu ayara bakılmaksızın görünür kalır.",
     "barSplitNever": "Asla bölme",
     "barSplitSelection": "Seçildiğinde böl",
     "barSplitAlways": "Her zaman böl",
@@ -412,11 +412,11 @@
     "fontFamilySerif": "Serif",
     "fontFamilyMono": "Monospace",
     "fontHint": "Web uygulamaları sistem yazı tipi ayarını otomatik olarak izlemez. Arayüzün yazı tipini ve boyutunu buradan seçin.",
-    "aiModeSection": "Yapay zeka modu",
-    "aiMode": "Yapay zeka modunu etkinleştir",
-    "aiModeHint": "MCP köprüsüne sahip Yapay Zeka sekmesini gösterir; böylece yapay zeka asistanları Model Context Protocol üzerinden planınızla çalışabilir. Kapatmak köprüyü durdurur.",
+    "aiModeSection": "MCP bağlantısı",
+    "aiMode": "MCP bağlantısına izin verin",
+    "aiModeHint": "MCP sekmesini gösterir. Orada MCP-köprüsünü başlatırsınız; böylece bir MCP-istemcisi Model Context Protocol üzerinden planlamanızla çalışabilir. Kapatırsanız köprü durur.",
     "aiAutostart": "Köprüyü otomatik başlat",
-    "aiAutostartHint": "MCP köprüsünü uygulama açılır açılmaz devreye alır; böylece bir yapay zekâ istemcisi, siz önce AI sekmesini açmadan bağlanabilir. Yalnızca masaüstü uygulamasında.",
+    "aiAutostartHint": "MCP-köprüsünü uygulama açılır açılmaz etkinleştirir; böylece bir MCP-istemcisi, siz önce MCP sekmesini açmadan bağlanabilir. Yalnızca masaüstü uygulamasında.",
     "legacySection": "Eski özellikler",
     "classicViewControls": "Klasik görünüm düğmelerini göster",
     "classicViewControlsHint": "Ayrı Sütunlar, Filtre, Grupla ve Sırala düğmelerini Görünüm sekmesine geri getirir. Sütunlar artık tablo başlığındaki artı ile veya Tablo → Sütunlar… üzerinden seçilir; filtreleme, gruplama ve sıralama düzen düğmelerinde ve düzen iletişim kutusundadır."
@@ -448,9 +448,9 @@
     "configSnippetHint": "Bunu istemcinizin MCP yapılandırmasına yapıştırın.",
     "tokenWarning": "Bu belirteç açık plana erişim sağlar; başkalarıyla paylaşmayın.",
     "connectPrompt": "Bağlantı istemi",
-    "connectPromptHint": "Bunu yapay zekâ aracınıza yapıştırın; kendisi bağlanır.",
+    "connectPromptHint": "Bunu MCP-istemcinize yapıştırın; istemci kendisi bağlanır.",
     "connectPromptText": "Bilgisayarımda çalışan bir MCP sunucusuna bağlan: ad {{name}}, aktarım akışlı HTTP, URL {{url}}, Authorization: Bearer {{token}} başlığıyla. Bunu MCP yapılandırmana ekle (örneğin mcpServers bloğu olarak) ve bağlan. Ardından kontrol için araç listesini iste: {{prefix}} ön ekine sahip yaklaşık {{count}} araç görmelisin. Bu sunucuyla neler yapabileceğini kısaca özetle. Herhangi bir şeyi değiştirmeden önce planner_get_planning_guide aracıyla planlama kılavuzunu oku.",
-    "statusDot": "Yapay zeka köprüsü: {{status}}"
+    "statusDot": "MCP-köprüsü: {{status}}"
   },
   "aiSafety": {
     "pause": "Duraklat",
@@ -460,7 +460,7 @@
     "readOnlyHint": "Bu açıkken tüm değiştiren araçlar reddedilir.",
     "autoBackupOn": "Otomatik yedekleme: açık",
     "autoBackupOff": "Otomatik yedekleme: kapalı",
-    "autoBackupHint": "Her belge için ilk yapay zeka değişikliğinden önce otomatik olarak bir IFC yedeği oluşturur.",
+    "autoBackupHint": "Her belge için ilk MCP değişikliğinden önce otomatik olarak bir IFC yedeği oluşturur.",
     "backupNow": "Şimdi yedekle",
     "openFolder": "Yedekleme klasörünü aç",
     "backupOk": "Yedekleme oluşturuldu: {{name}}",
@@ -468,10 +468,10 @@
     "openErr": "Klasör açılamadı: {{error}}"
   },
   "aiActivity": {
-    "title": "Yapay zeka etkinliği",
+    "title": "MCP etkinliği",
     "panelButton": "Etkinlik paneli",
     "clear": "Temizle",
-    "empty": "Henüz yapay zeka etkinliği yok. Köprü çağrıları burada görünecek.",
+    "empty": "Henüz MCP etkinliği yok. Köprü çağrıları burada görünür.",
     "args": "Bağımsız değişkenler",
     "result": "Yanıt"
   },
@@ -723,7 +723,7 @@
     "calendars": "Takvimler",
     "noCalendars": "Havuzda henüz takvim yok.",
     "noResources": "Havuzda henüz kaynak yok.",
-    "promoteHint": "Yukarıdaki “+ Projeden” düğmesiyle bir proje takvimini veya kaynağını kitaplığa yükseltin.",
+    "promoteHint": "Yukarıdaki “Projeden” düğmesiyle bir proje takvimini kaynak kitaplığına aktarın.",
     "promoteFromProject": "Projeden",
     "alreadyLinked": "zaten bağlı",
     "editItem": "Düzenle",
@@ -1164,7 +1164,7 @@
     "nav": {
       "reportTab": "Rapor sekmesine git",
       "switchDocument": "Belge değiştir",
-      "scrollToToday": "Bugüne git",
+      "scrollToToday": "Durum tarihine veya bugüne gidin",
       "help": "Yardımı aç"
     },
     "grid": {
@@ -1378,7 +1378,7 @@
   "conventions": {
     "preserveActualDatesInBackwardPass": {
       "label": "Geri hesaplamada gerçek tarihleri koru",
-      "help": "Başlamış veya tamamlanmış bir görev kayıtlı tarihlerini geç tarafta da korur; tamamlanmış bir ardıl, açık bir öncülü geçmişe çekmez."
+      "help": "Durum tarihi varken tamamlanmış bir görev, gerçek tarihlerini geç tarafta tutar; tamamlanmış bir ardıl, açık bir öncülü geçmişe geri çekmez. Devam eden bir görev, gerçek başlangıcını geç başlangıç olarak tutar; ancak ‘Devam eden görev: erken başlangıç = kalan işin başlangıcı’ açıksa bu geçerli değildir. Bir durum tarihi noktasında veya penceresinde tamamlanmış bir görev yine de ilişki baskısını iletebilir."
     },
     "clampNegativeFreeFloat": {
       "label": "Serbest bolluk asla negatif değil",
@@ -1386,103 +1386,103 @@
     },
     "p6ZeroDurationUsesPlannedBoundary": {
       "label": "Kilometre taşı planlanan takvim sınırını izler",
-      "help": "Süresiz bir kilometre taşı, dosyanın planladığı takvim sınırında kalır: bir gün başlangıcı başlangıç kilometre taşı olarak kalır, bir bant sonu öncülün bitişine denk gelebilir."
+      "help": "Yalnızca saat planlamasında. Süresiz bir kilometre taşı, planlanan takvim sınırını izler: bir gün başlangıcı başlangıç kilometre taşı olarak kalır, bir bant sonu öncülün bitişine denk gelebilir. Süresi 0 olan olağan bir görev de bir sınır çiftine sahip olabilir; ancak bu yalnızca XER kökeniyle, Task Dependent ya da Resource Dependent olarak ve planlanan bitişi planlanan başlangıcından önce olduğunda mümkündür."
     },
     "p6UseTaskPlannedStartFloor": {
       "label": "Planlanan başlangıç ek alt sınır olarak",
-      "help": "Dosyadaki planlanan başlangıç, başlangıç ve bitiş ağın izin verdiğinden bir takvim gününden fazla sonra olduğunda alt sınır olarak sayılır."
+      "help": "Planlanan başlangıç, hem başlangıç hem de bitiş ağın izin verdiğinden bir takvim gününden fazla sonraya düştüğünde alt sınır sayılır. Planlanan bitişi planlanan başlangıcından önce olan bir bitiş kilometre taşında, daha sonraki bir planlanan başlangıç yeterlidir. Bu kural, ‘Planlanan başlangıç, devam eden bir görev için alt sınır değildir’ açıksa devam eden bir görev için geçerli değildir; ardıllarına göre yerleştirilen, henüz başlamamış bir ALAP görevi için de geçerli değildir. XER kökeni gerektirmez."
     },
     "p6FinishMilestoneBoundaryWindow": {
       "label": "Bitiş kilometre taşı sınır penceresi olarak",
-      "help": "Bir bitiş kilometre taşı iki bitişik takvim sınırında olabilir: erken başlangıç bir çalışma bandının başında, erken bitiş önceki çalışma bandının sonunda."
+      "help": "Süresiz bir bitiş kilometre taşı yalnızca, planlanan bitişi planlanan başlangıcından önce olduğunda ve hesaplanan başlangıcı hâlâ o planlanan başlangıçta olduğunda bir sınır penceresi alır. Öncülleri olan ve ardılı olmayan bir bitiş kilometre taşı, ‘Bolluğu proje bitiş tarihine kadar hesapla’ açık değilse erken tarihlerini geç tarihler olarak da alır. Yalnızca P3 çıktısında görülür; her yerleşik profilde kapalıdır."
     },
     "p6PreserveActualInstants": {
       "label": "Gerçek tarihleri aynen al",
-      "help": "Kaydedilmiş gerçek tarihler, yani gerçek başlangıç ve gerçek bitiş, bir çalışma bandının kenarına kaydırılmaz."
+      "help": "Yalnızca saklanan kökenli, bir .xer dosyasından gelen görevler için. Kaydedilmiş gerçek başlangıç ve bitiş tarihleri bir çalışma bandının kenarına kaydırılmaz."
     },
     "p6UseRemainingStartForProgress": {
       "label": "Devam eden görev: erken başlangıç = kalan işin başlangıcı",
-      "help": "Devam eden bir görevin erken ve geç başlangıcı, geçmişteki gerçek başlangıcı değil, kalan işin nerede başladığını gösterir. Başlangıç-başlangıç ilişkisi üzerinden geriye hesaplamada yalnızca kalan süre sayılır."
+      "help": "Devam eden bir görevin erken ve geç başlangıcı, kalan işin nerede başladığını gösterir. Bir başlangıç-başlangıç ilişkisi üzerinden geriye doğru yalnızca kalan süre sayılır; ancak bu yalnızca saat planlamasında, gerçek başlangıç ve yüzde 0 ile 100 arasında ilerleme varken, bilinen kalan süre planlanan süreden küçükken ve geçen süre ya da planlama kesintileri yokken geçerlidir. Bu ek kalan süre kuralı başlangıç-bitiş ilişkileri için geçerli değildir."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Kilometre taşında kesin kısıt anı",
-      "help": "Süresiz bir kilometre taşındaki tarih-saat kısıtlaması kesin bir noktadır; bir çalışma bandının başında da öyledir."
+      "help": "Yalnızca saat planlamasında, geç tarafta, süresiz bir kilometre taşındaki tarih ve saatli SNLT, MSO, FNLT veya MFO türünde bir kısıtlama için. Kısıtlama anı tam kalır; bir çalışma bandının başında bile. İleri hesaplamada böyle bir an zaten her profilde kesindir."
     },
     "resumeFromActualElapsed": {
       "label": "Kalan iş geçen süreden sonra devam eder",
-      "help": "Devam eden bir görev kalan işine durum tarihinde değil, gerçek başlangıç artı geçen sürede devam eder."
+      "help": "Devam eden bir görev, kalan işine gerçek başlangıç artı geçen süreden önce devam etmez. Durum tarihi ve öncül sınırı da alt sınır olarak kalır; üçünden en sonuncusu geçerlidir. Progress Override modundaysa, kalan işi yoksa veya uygulama dosyadan geçerli bir devam tarihi kullanıyorsa (en fazla bir atama varken) bu geçerli değildir."
     },
     "unstartedIgnoresStatusDate": {
       "label": "Başlamamış görevleri durum tarihine taşıma",
-      "help": "Henüz başlamamış bir görev otomatik olarak durum tarihine veya sonrasına kaydırılmaz."
+      "help": "Yalnızca durum tarihi varken ve ilerlemesi olmayan bir görev için. Bu görev kendiliğinden durum tarihinde veya sonrasına kaydırılmaz."
     },
     "p6RelationFinishBoundary": {
       "label": "Ardıl bitiş sınırında başlar",
-      "help": "Gecikmesiz bir bitiş-başlangıç ilişkisinde, dosyada ardıl tam olarak öncülün bitişinde başlıyorsa ve bu bir çalışma bandının sonuysa, ardıl o bitişte başlar; bir sonraki çalışma bandının başında değil. Dosya bunu işaretlemez: uygulama, bir .xer dosyasını açarken böyle bir ilişkiyi kendisi tanır. Kendiniz eklediğiniz ilişkiler bunun kapsamında değildir. Geriye hesaplamada ardıl, geç başlangıcını basitçe bir çalışma bandının başı olarak gösterir."
+      "help": "Yalnızca saat planlamasında, öncülün takviminde ve uygulamanın bir .xer dosyasını açarken tanıdığı bir ilişki için. Dosyada ardılın tam olarak öncülün bant sonunda başladığı, gecikmesiz bir bitiş-başlangıç ilişkisinde ardıl o bitişte başlar. Kendiniz eklediğiniz bir ilişki bunun kapsamında değildir. Geriye hesaplamada ardılın geç başlangıcı bir bant başlangıcı olarak kalır."
     },
     "p6BackwardLagFinishBoundary": {
       "label": "Bitiş sınırından geriye gecikme",
-      "help": "Geriye hesaplama, bir bitiş sınırından çalışma saati cinsinden bir gecikmeyi çıkarır ve tam olarak bir çalışma bandının başına denk gelirse, önceki bitiş sınırına iner. Gecikmesiz bir bitiş-bitiş ilişkisinde de bir bant sonundaki geç bitiş o bitiş sınırında kalır."
+      "help": "Yalnızca saat planlamasında, gecikmenin hesaplandığı takvimde. Geriye hesaplama, kesin bir bitiş sınırından çalışma saatleri cinsinden pozitif bir gecikmeyi çıkarır ve bir günün ilk bant başlangıcına denk gelirse, önceki bitiş sınırına iner. Gecikmesiz bir bitiş-bitiş ilişkisinde de bir bant sonundaki geç bitiş o sınırda kalır. Geçen süre cinsinden gecikme için geçerli değildir."
     },
     "p6CompletedDataDateWindow": {
       "label": "Durum tarihi penceresinde tamamlanan görev",
-      "help": "Tamamlanmış bir görev durum tarihi penceresinde erken tarihler alır ve bitişi proje bitişine sayılır."
+      "help": "Yalnızca durum tarihi varken, bir .xer dosyasından gelen alt görevi olmayan tamamlanmış görevler için: saklanan hedef penceresi, süre türünde ilerleme ve P6 türü Task Dependent veya Resource Dependent ile Fixed Duration & Units olan görevler. Süresi 0 olan kilometre taşları hariçtir. ‘Devam eden görev: erken başlangıç = kalan işin başlangıcı’ açık olmalıdır. Kesinti/devam yalnızca Task Dependent için ve geçerli bir çiftle izinlidir; gerçek bitiş planlanan bitiş ile durum tarihi arasında olmalı, devam en geç gerçek bitişte olmalı ve ‘Geri hesaplamada gerçek tarihleri koru’ açık olmalıdır. Görev, durum tarihi penceresinde erken tarihler alır; bitişi proje bitişine sayılır."
     },
     "p6CompletedLoeActualFinish": {
       "label": "Gerçek bitiş üzerinden tamamlanan LOE",
-      "help": "Yalnızca bir başlangıç-başlangıç ilişkisi olan tamamlanmış bir level-of-effort görevi, rotayı gerçek bitişi üzerinden izler."
+      "help": "Yalnızca durum tarihi varken, bir .xer dosyasından gelen tamamlanmış bir LOE için: pozitif süre, süre türünde ilerleme ve P6 türü Fixed Duration & Units/Time, tam bir hedef penceresi ve planlanan bitiş ile durum tarihi arasında gerçek bitiş. En az bir gelen ilişki olmalı, hepsi başlangıç-başlangıç olmalı; ardıl olmamalı ve kesinti/devam olmamalıdır. ‘Devam eden görev: erken başlangıç = kalan işin başlangıcı’, ‘Geri hesaplamada gerçek tarihleri koru’ ve ‘Gerçek tarihleri aynen al’ açık olmalıdır. LOE, hamak yolu yerine gerçek bitişini izler."
     },
     "p6OpenLoeTargetSpan": {
       "label": "Başlamamış LOE hedef pencereyi alır",
-      "help": "Henüz başlamamış bir level-of-effort görevi, hedef penceresini süre olarak alır."
+      "help": "Yalnızca saat planlamasında, bir .xer dosyasından gelen, ilerlemesi %0 olan başlamamış bir LOE/hamak için: pozitif süre, süre türünde ilerleme ve P6 türü Fixed Duration & Units; gerçek tarih veya kesinti/devam olmadan. Başlangıcı ilişki sınırına eşit, tam ve pozitif bir hedef penceresi gerekir; çalışma saatleri süreden en fazla bir iş günü farklı olmalıdır. En az bir başlangıç-başlangıç girişi ve bir bitiş-bitiş çıkışı olmalı; yalnızca bu ilişki türleri ve gecikme olmadan. LOE, o zaman hedef penceresini süresi olarak kullanır. Zayıf kanıt: tek dosya."
     },
     "p6CompletedPredecessorAtDataDate": {
       "label": "Tamamlanmış öncül durum tarihinden sonra tutmaz",
-      "help": "Tamamlanmış bir öncülün gerçek bitişi durum tarihinden sonraysa, ardılları yine de durum tarihinde başlayabilir."
+      "help": "Yalnızca saat planlamasında ve durum tarihi varken, gerçek bitişi olan tamamlanmış bir öncül için. Bitiş-başlangıç ve bitiş-bitiş ilişkileri, en fazla durum tarihinin hemen öncesindeki çalışma sınırından hesaplanır; daha sonraki bir gerçek bitiş ardılı tutmaz. Başlangıç-başlangıç ve başlangıç-bitiş ilişkileri gerçek başlangıçta kalır. Kendi durum tarihi noktası veya kaydırılmış durum tarihi penceresi olan tamamlanmış bir görev, kendi sınırını izler."
     },
     "p6FreeFloatOnOwnCalendar": {
       "label": "Serbest bolluk kendi takviminde",
-      "help": "Başlamamış bir görevin serbest bolluğu her ilişki için ardılın değil görevin kendi takviminde hesaplanır: bitiş-başlangıç, başlangıç-başlangıç ve bitiş-bitiş için, öncülün takvimindeki çalışma süresi cinsinden gecikmeler dahil. Başlamış bir görev yalnızca gecikmesiz bitiş-başlangıç için."
+      "help": "Yalnızca saat planlamasında; tamamlanmamış görevler ve hesaplanmış serbest bolluğu olan ilişkiler için. Başlamamış bir görevde serbest bolluk, bitiş-başlangıç, başlangıç-başlangıç ve bitiş-bitiş ilişkilerinde kendi takvimine göre sayılır; geçen süre cinsinden veya yüzde gecikme olmadan. 0 dışındaki bir gecikme, Öncül gecikme takvimini gerektirir. Başlamış bir görevde yalnızca gecikmesiz bitiş-başlangıç geçerlidir. İlişkinin kendi serbest bolluğu ve belirleyici işareti değişmez."
     },
     "p6CompletedRemainingLag": {
       "label": "Tamamlanmış öncülün geçmiş gecikmesi sayılmaz",
-      "help": "Geç tarihler tarafında, tamamlanmış bir öncülden sonraki gecikmenin yalnızca durum tarihinde henüz geçmemiş kısmı sayılır."
+      "help": "Yalnızca saat planlamasında, gecikme takvimi üzerinde ve bir durum tarihiyle çalışır. Bu, durum tarihinden önce gerçek bitişi olan, tamamlanmış öncüller içindir (.xer dosyasından) ve bir durum tarihi noktası ya da penceresi gerekir. Çalışma saatlerinde pozitif bir gecikmenin yalnızca henüz geçmemiş kısmı sayılır. Geç tarafta ve bir durum tarihi noktasından ya da kaydırılmış sıfır kalan pencereden ileriye doğru çalışır. Olağan gerçek tarihlerindeki bir görev tam gecikmeyi korur; saat cinsinden gecikme için geçerli değildir."
     },
     "p6CompletedOutOfSequenceWindow": {
       "label": "Sıra dışı tamamlanan görev öncüllerini bekler",
-      "help": "Öncülü henüz bitmemiş tamamlanmış bir görev, durum tarihi yerine öncülünden sonra gelen sıfır penceresini alır (P6: “Retained Logic”). Bu ayar yalnızca şu seçenekler de açıksa çalışır: “Durum tarihi penceresinde tamamlanan görev” ve “Devam eden görev: erken başlangıç = kalan işin başlangıcı”."
+      "help": "Yalnızca saat planlamasında ve bir durum tarihiyle, XER yolunda “Durum tarihi penceresinde tamamlanan görev” ile çalışır; bu kural ve “Devam eden görev: erken başlangıç = kalan işin başlangıcı” açık olmalıdır. Progress Override ile çalışmaz. Bitiş-başlangıç ya da başlangıç-başlangıç girişleri üzerinden görev, durum tarihi sınırının ve henüz bitmemiş bir öncülün ya da kaydırılmış durum tarihi penceresi olan bir öncülün sınırının daha geç olanını alır. Olağan tamamlanmış öncüller hesaba katılmaz."
     },
     "p6CompletedPhysicalAtDataDate": {
       "label": "Fiziksel ilerlemeli tamamlanan görev durum tarihinde durur",
-      "help": "Fiziksel tamamlanma yüzdesine sahip tamamlanmış bir görev, gerçek tarihleri yerine durum tarihinde ya da bir öncül gerektiriyorsa daha sonra tek bir nokta olarak gösterilir. Yalnızca fiziksel ilerleme için ölçülmüştür; diğer ilerleme türleri için (P6 varsayılanı: süre) bu davranış ölçülmemiştir ve kapalı kalır."
+      "help": "Yalnızca saat planlamasında ve bir durum tarihiyle çalışır. Bu, .xer dosyasından gelen, P6 türü Task Dependent, Start Milestone veya Finish Milestone olan tamamlanmış, alt görevi olmayan görevler ve sıfır süreli kilometre taşları içindir. Görevin korunan hedef penceresi, tamamlanma yüzdesi türü fiziksel, gerçek bitiş en geç durum tarihi ve kesinti veya devam yoktur. “Devam eden görev: erken başlangıç = kalan işin başlangıcı” gereklidir. Görev, durum tarihinde tek bir noktada durur; bir öncül bunu istiyorsa daha geç. Diğer tamamlanma yüzdesi türlerinde, süre dahil, bu ölçülmemiştir ve kapalı kalır."
     },
     "p6InProgressStartLagElapsed": {
       "label": "Devam eden bir öncülden geçmiş SS gecikmesi sayılmaz",
-      "help": "Zaten başlamış bir görevden başlangıç-başlangıç ilişkisinde, gecikmenin yalnızca gerçek başlangıcından durum tarihine kadar henüz geçmemiş kısmı sayılır."
+      "help": "Yalnızca saat planlamasında, gecikme takvimi üzerinde ve bir durum tarihiyle çalışır. Gerçek başlangıcı durum tarihinden önce olan, henüz bitmemiş bir öncülden çıkan, çalışma saatlerinde pozitif gecikmeli bir başlangıç-başlangıç ilişkisi içindir. “Devam eden görev: erken başlangıç = kalan işin başlangıcı” gereklidir. Gecikmenin yalnızca henüz geçmemiş kısmı sayılır. “Devam eden öncülün SS gecikmesini şuradan hesapla” başlangıç noktasını seçer. Saat cinsinden gecikme için geçerli değildir."
     },
     "p6FinishFinishStartMilestoneLateFinish": {
       "label": "Başlangıç kilometre taşına bitiş-bitiş ilişkisi kilometre taşının kendisine bağlanır",
-      "help": "Bir başlangıç kilometre taşına giden bitiş-bitiş ilişkisi, kilometre taşının gününün başına değil, kilometre taşının kendisine kadar sayılır: öncülün geç bitişi, kilometre taşının geç bitişine kadar uzanabilir."
+      "help": "Yalnızca saat planlamasında, sıfır süreli bir başlangıç kilometre taşına giden bitiş-bitiş ilişkisinin iki tarafında çalışır. İlişki doğrudan kilometre taşının kendisine bağlanır: öncülün geç bitişi, kilometre taşının geç bitişine kadar uzanabilir. Serbest bolluk da değişebilir; kilometre taşının erken başlangıcı aynı kalır. Bitiş kilometre taşları ve geriye doğru sıfır kalan süreli rota için geçerli değildir."
     },
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "Planlanan başlangıç, devam eden bir görev için alt sınır değildir",
-      "help": "Başlamış bir görevin kalan işi, planlanan başlangıcı daha geç olsa bile durum tarihinde ve öncüllerinin hemen ardından başlar."
+      "help": "Yalnızca gerçek başlangıcı olan ve tamamlanma yüzdesi %100'den düşük görevler için geçerlidir. Bu ayar “Planlanan başlangıç ek alt sınır olarak” açıkken çalışır. Planlanan başlangıcı, kalan iş için ek bir alt sınır değildir; durum tarihi ve öncüller hâlâ belirleyicidir."
     },
     "p6LateFinishOnOwnCalendar": {
       "label": "Geç bitiş, görevin kendi takviminde",
-      "help": "Bir ardılın koyduğu geç bitiş, görevin çalışma saatleri dışına düşerse, görevin kendi takvimindeki önceki çalışma döneminin sonu olur."
+      "help": "Yalnızca saat planlamasında, bir ardıl sınırı geç bitişi belirlediğinde ve bu sınırın yerini daha sıkı bir kısıtlama ya da son tarih almadığında çalışır. Bu sınır görevin kendi çalışma saatleri dışına düşerse, geç bitiş kendi takvimindeki bir önceki çalışma döneminin sonu olur. Geç bitiş proje bitişiyle belirleniyorsa geçerli değildir."
     },
     "p6ProgressOverrideIgnoresStartedSuccessor": {
       "label": "Progress Override başlamış bir ardılı geriye doğru da yok sayar",
-      "help": "Progress Override altında, zaten başlamış bir ardılla olan ilişki, henüz bitmemiş bir öncülün geç tarihlerinde ve serbest bolluğunda hesaba katılmaz."
+      "help": "Yalnızca Progress Override altında, henüz bitmemiş bir öncül ile başlamış ama henüz bitmemiş bir ardıl için (gerçek başlangıç ya da ilerleme) çalışır. Bu iki görev arasındaki ilişki, öncülün geç tarihlerinde ve serbest bolluğunda hesaba katılmaz."
     },
     "p6FinishNotBeforeFinishFinishBound": {
       "label": "Erken bitiş bir bitiş-bitiş sınırından önce olmaz",
-      "help": "Bitiş-bitiş ilişkisinde, ardılın erken bitişi saat olarak öncülün koyduğu sınırdan asla önce olmaz. Bu sınır ardılın çalışılmayan zamanına düşerse, bitiş bir sonraki çalışma saatlerinin başlangıcı olur."
+      "help": "Tarih düzeltmesi: çalışma saatleri cinsinden gecikmeli bir bitiş-bitiş ilişkisinde, hamak olmadan ve hem ardılın takviminde (kalan iş için: ilerleme takvimi) hem de gecikme takvimindeki saat planlamasıyla geçerlidir. İlişki sınırı erken bitişten sonra kalır ve aralarında çalışma saati yoksa yalnızca bitiş, bu sınırda ya da sonrasında ilk çalışma sınırına kayar. Otomatik planlanan, başlamamış ve devam eden ardıllar için geçerlidir; başlamamış görevlerde sabit bitiş pimi önceliklidir. Serbest bolluk: ayrıca, gecikmesiz ve yüzde gecikmesiz bir bitiş-bitiş ilişkisinde, mevcut ilişki serbest bolluğu ve hesaplanmış bir ardıl erken bitişi olan henüz bitmemiş bir öncül, kendi saat takvimindeki erken bitişinden ardılın erken bitişine kadar sayılır. Bu, sıfır saat gecikmesinde de geçerlidir; ardılın ya da gecikme takviminin üzerinde ek bir saat planlaması koşulu yoktur. Hamaklar ve elle planlanan görevler sonunda serbest bolluğu sıfır tutar."
     },
     "p6AlapPositionedFromSuccessors": {
       "label": "ALAP görevleri ardılların izin verdiği kadar geç",
-      "help": "“Mümkün olduğunca geç” kısıtlamasına sahip, henüz başlamamış bir görev, ardıllarının ona ihtiyaç duyduğu dakikada biter; ardıllar önce hesaplanır, böylece bir zincir kesintisiz birleşir. Kendi planlanmış başlangıcı sayılmaz; öncülü olmayan bir görev durum tarihinden önce başlamaz."
+      "help": "Yalnızca saat planlamasında, elle planlanmamış, başlamamış bir görev için ve “Mümkün olduğunca geç” (ALAP) kısıtlaması ile çalışır. Ardıllarının erken tarihleri, görevin yerini dakikasına kadar belirler; ardıllar önce hesaplanır. Görevin kendi planlanan başlangıcı sayılmaz; öncüller, durum tarihi ve ikinci bir kısıtlama hâlâ geçerlidir. Ardılı yoksa geç bitişini kullanır. Olağan ALAP adımı her profilde kullanılabilir kalır."
     }
   },
   "profiles": {
@@ -1533,7 +1533,7 @@
     "showHelp": "“{{name}}” açıklaması",
     "sourceOptions": {
       "title": "Kaynak dosyadaki ayarlar",
-      "intro": "Bu hesaplama seçenekleri bir Primavera P6 dosyasından (.xer) gelir. Hesaplamada kullanılır ancak burada değiştirilemez.",
+      "intro": "Bunlar bu projenin salt okunur hesaplama seçenekleridir. Bir Primavera P6 dosyasından (.xer) içe aktarırken uygulama bunları kaynak dosyadan alır. Yalnızca ilgili koşullar karşılandığında çalışırlar.",
       "useExpectedFinishDates": "Beklenen bitiş tarihlerini kullan (P6: Use Expected Finish Dates)",
       "useProjectEndDateForFloat": "Bolluğu proje bitiş tarihine kadar hesapla",
       "p6CompletedLateFromRemainingWindow": "Tamamlanan görev: durum tarihinden itibaren geç tarihler",
@@ -1542,7 +1542,7 @@
     "requires": {
       "xerOrigin": "yalnızca .xer görevleri",
       "hourPlanning": "yalnızca saat planlamasında",
-      "hourPlanningTitle": "Yalnızca saat planlamasında çalışır: bantları olan bir takvim, saat cinsinden bir görev ya da gecikme takvimi 24 saat olarak ayarlı."
+      "hourPlanningTitle": "Yalnızca kuralın hesapladığı takvimde saat planlaması olduğunda çalışır: çalışma bantları olan bir takvim ya da saat cinsinden bir görev süresi. Gecikme için 24 saatlik gecikme takvimi de geçerli olabilir."
     },
     "optionsDeviate": {
       "line": "{{field}}: {{current}} (varsayılan: {{standard}})",
