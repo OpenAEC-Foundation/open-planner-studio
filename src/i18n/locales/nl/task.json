@@ -4,6 +4,7 @@
     "applyShape": "Vorm toepassen:",
     "hoursPerDay": "{{hours}} uur per werkdag",
     "stripHint": "Sleep een grens om een fase langer of korter te maken, sleep de bovenrand voor de inzet, dubbelklik op een dag om een fase te splitsen.",
+    "partialDayHint": "Begint of eindigt de taak midden op een werkdag, dan telt die dag naar rato: de uren zijn de inzet × het deel van de dag. Het histogram telt net zo.",
     "from": "Van",
     "to": "Tot",
     "days": "Dagen",

@@ -4,6 +4,7 @@
     "applyShape": "Apply shape:",
     "hoursPerDay": "{{hours}} hours per working day",
     "stripHint": "Drag a boundary to lengthen or shorten a phase, drag the top edge to set the effort, double-click a day to split a phase.",
+    "partialDayHint": "If the task starts or ends partway through a working day, that day counts pro rata: the hours are the effort × the part of the day. The histogram counts the same way.",
     "from": "From",
     "to": "To",
     "days": "Days",
