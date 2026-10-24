@@ -321,6 +321,13 @@ en noem het in je rapport of PR-tekst.
 
 ## Teksten en helpteksten
 
+221. **Mogelijk onjuiste Portugese nulvorm bij aantalmeldingen.** Een nalezer meldde tijdens de
+    releasevoorbereiding van 2026-10-24 dat het `pt`-pakket nul onder `one` indeelt, terwijl de stijl
+    Europees Portugees gebruikt. De vertaling kan daardoor bijvoorbeeld `0 tarefa` opleveren.
+    De pakketindeling `one: [0, 1]` is gezien; een bereikbare nulmelding in de app en de bedoelde
+    Portugese taalvariant zijn niet gecontroleerd. Onderzoek die eerst voordat het meervoudscontract
+    of de vertaling wordt aangepast. Gemeld bij `ui-common-01`, niet als releaseblokker aangetoond. — S
+
 57. **Statusdatum-label in de Gantt** toont ISO (`2027-06-28`), de rest dd-mm-jjjj. Mogelijk bewust. — S
 73. **Namen en beschrijvingen van de voorbeeldprojecten zijn Engels in elke interfacetaal.** Gezien in de
     nl-interface bij *Bestand › Voorbeelden*; de Help-artikelen noemen daarom de Engelse namen. Niet
@@ -426,6 +433,20 @@ en noem het in je rapport of PR-tekst.
     niet; echte openen-, Opslaan als- en afsluitroutes ontbreken (de storetest zet `filePath` rechtstreeks).
     Gevonden in review ronde 1 en 2 van PR #573 (GPT-6.1-Sol). Voorstel: de pids vergelijken en de bestaande
     echte-app-route uitbreiden met echte bestandsacties, inhoud en opruiming. — B
+
+222. **Browsertest voor geweigerde mijlpalen vergelijkt alleen de taak-ID’s van toewijzingen.**
+    De helper `assignmentTaskIds` en de eindassertie in `tests/browser/structural-transition.spec.ts`
+    controleren geen `resourceId` of `units`. Een wijziging in die velden met dezelfde taakverdeling
+    blijft daardoor onopgemerkt. Bevestigd door de onafhankelijke reviews van PR #604; dit is een
+    bestaande blinde vlek in de test, geen aangetoonde productfout. Voorstel: vergelijk de toewijzingen
+    vóór en na de geweigerde browserhandeling. — B
+
+223. **Telling in de Chinese bulk-toast wordt alleen als deeltekst gecontroleerd.**
+    `tests/browser/structural-transition.spec.ts:80` zoekt met `toContainText` naar `2 个任务…`.
+    Een melding met `12 个任务…` of `22 个任务…` bevat dezelfde deeltekst. Dit gold ook voor de oude
+    letterlijke verwachting. Bevestigd in de tweede onafhankelijke review van PR #604. Voorstel:
+    vergelijk de volledige tekst van `.ops-toast-message` exact; laat de taaknamen apart gecontroleerd.
+    Geen fout in de huidige producttelling aangetoond. — B
 
 ## Wensen en open taken (geen bug)
 

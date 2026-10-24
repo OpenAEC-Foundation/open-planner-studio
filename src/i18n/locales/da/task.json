@@ -459,6 +459,7 @@
     "jumpToTask": "Gå til opgave {{wbs}}",
     "relationPopoverTitle": "Type afhængighed",
     "driving": "Bestemmende afhængighed",
+    "drivingUnknown": "Bestemmende afhængigheder ukendt uden beregning.",
     "lag": "Forsinkelse (f.eks. 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Beregn",
     "assignments": {
@@ -523,6 +524,8 @@
     "type": "Type",
     "lag": "Forsinkelse",
     "driving": "Bestemmende afhængighed",
+    "drivingUnknown": "Ukendt",
+    "notDriving": "Ikke bestemmende afhængighed",
     "freeFloat": "Tilladt slæk",
     "warnings": "Meddelelser",
     "warnTruncatedLead": "Forskud afkortet ved projektstartdatoen — overlapningen udnyttes ikke fuldt",

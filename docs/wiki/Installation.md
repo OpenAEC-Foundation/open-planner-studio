@@ -17,13 +17,17 @@ Download the latest installer for your platform from the
 
 - **Windows** — the signed `.exe` installer.
 - **macOS** — the universal `.dmg` (Apple Silicon and Intel).
-- **Linux** — an AppImage, a `.deb` package, or a `.snap`.
+- **Linux** — an AppImage, a `.deb`, an `.rpm`, or a `.snap` package. Arch Linux users can use the
+  `open-planner-studio-bin` AUR package. AppImage launches add a menu entry and icon for your user.
+
+For Claude Desktop, install the release's `.mcpb` extension and enter the connection details from
+the running app's MCP tab. See [Connecting an MCP client](docs://howto-ai-assistent-koppelen).
 
 ## Automatic updates
 
-The desktop app checks for updates on startup and can install them in place. Only Snap builds
-are updated outside the app (snapd handles them), so the in-app updater steps aside for those; AppImage
-and `.deb` installations are updated in place by the in-app updater.
+The desktop app checks for updates on startup and can install them in place. Snap and AUR
+installations use snapd and pacman respectively; the in-app updater steps aside for both. AppImage
+and `.deb` installations use the in-app updater.
 
 ## Build from source
 

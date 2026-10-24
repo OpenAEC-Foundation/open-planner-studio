@@ -467,6 +467,7 @@
     "jumpToTask": "Prejsť na úlohu {{wbs}}",
     "relationPopoverTitle": "Typ závislosti",
     "driving": "Určujúca závislosť (driving)",
+    "drivingUnknown": "Určujúce závislosti sú bez výpočtu neznáme.",
     "lag": "Oneskorenie (napr. 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Prepočítať",
     "assignments": {
@@ -531,6 +532,8 @@
     "type": "Typ",
     "lag": "Oneskorenie",
     "driving": "Určujúca závislosť",
+    "drivingUnknown": "Neznáme",
+    "notDriving": "Nie je určujúca",
     "freeFloat": "Voľná časová rezerva",
     "warnings": "Upozornenia",
     "warnTruncatedLead": "Predstih je orezaný na začiatku projektu. Prekrytie sa nevyužije úplne.",
