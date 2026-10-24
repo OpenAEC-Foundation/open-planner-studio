@@ -250,6 +250,14 @@ en noem het in je rapport of PR-tekst.
      een kleine negatieve speling kan in een filter op negatieve speling verschijnen. Voorstel: de duur van
      de urenmaat in de werkdriehoek op hele minuten zetten, of de speling op hele minuten vergelijken;
      motorwerk, buiten F4b. Gevonden bij het meten voor knownbugs 252. — B
+284. **Een opgeslagen Tabel-indeling houdt Start en Einde op 100 px; een datum met tijd valt dan weg.**
+     Sinds B4 toont een moment midden op de werkdag datum en tijd ("04-11-2026 11:00"). Die tekst is 89 px
+     breed, plus 14 px opvulling; de oude standaardbreedte was 100 px (gemeten in de browser, Inter 11 px).
+     F4b zet de standaard op 130 px (`preferences.ts`, ook genoeg voor "04-11-2026 11:00 AM"), maar een
+     indeling die al in `ops-taskGridPreferences` staat, houdt 100 px tot de planner de kolom verbreedt of
+     "Herstel standaard" kiest. De cel kapt de tekst af met een beletselteken. Voorstel: bij het laden een
+     opgeslagen breedte van precies 100 px voor deze twee kolommen naar 130 px zetten, of de kolom laten
+     meegroeien; een besluit over opgeslagen voorkeuren. — B
 
 ## Kalenders
 
