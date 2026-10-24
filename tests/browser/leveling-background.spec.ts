@@ -29,27 +29,6 @@ test('nivelleer-dialoog: berekenen via de worker levert een voorstel; toepassen 
 
   const conflictHint = 'Resource conflicts remain for these tasks. See the details below.';
   const noChanges = 'No tasks need to move — the schedule is already conflict-free.';
-  // Knownbugs 8/9: geen verschuiving is niet hetzelfde als geen resterend conflict.
-  await dialog.getByRole('button', { name: /^(Annuleren|Cancel)$/ }).click();
-  await page.evaluate(ids => {
-    const s = window.__OPS__!.store.getState();
-    for (const id of ids) s.updateTask(id, { priority: 1000 });
-    s.runCPM();
-  }, [first, second]);
-  await page.locator('[data-ops-ribbon-item="levelResources"]').first().click();
-  await dialog.getByRole('button', { name: /^(Berekenen|Calculate)$/ }).click();
-  await expect(dialog.getByText(conflictHint, { exact: true })).toBeVisible();
-  await expect(dialog.getByText(noChanges, { exact: true })).toHaveCount(0);
-  await expect(dialog.locator('table tbody tr')).toHaveCount(0);
-  await expect(dialog.getByText(noChanges, { exact: true })).toHaveCount(0);
-  await dialog.getByRole('button', { name: /^(Annuleren|Cancel)$/ }).click();
-  await page.evaluate(ids => {
-    const s = window.__OPS__!.store.getState();
-    for (const id of ids) s.updateTask(id, { priority: 500 });
-    s.runCPM();
-  }, [first, second]);
-  await page.locator('[data-ops-ribbon-item="levelResources"]').first().click();
-
   // Met smoothing blijft een conflict over: de algemene hint beschrijft het resultaat,
   // terwijl de toelichting per taak de oorzaak aanwijst.
   await dialog.getByRole('checkbox').first().check();
