@@ -18,6 +18,26 @@
 // Mutatiebewijs (2026-10-24, 177 rijen): de fix weg (stand c4bea0f21) ⇒ 30 rijen rood, met precies het
 // faalgeval ("1d 0u" 3 d en einde 4 juni 07:00; "1d 4u" 3,5 d en 4 juni 19:00); kalendertijd altijd als
 // urenmaat ⇒ 21 rood; dagen zonder exactheidstoets ⇒ 9 rood ("1d 4u" wordt 1,166667 d).
+//
+// Fixronde 4 (review r4): de dimensie TAAKSTAND. De rijen hierboven zijn niet gestart. Daarna dezelfde
+// invoer, plus "0d 8u" en "2u", op een LOPENDE taak (werkelijke start ma 1 juni 07:00, 25 % gereed,
+// statusdatum di 2 juni 07:00) en een GEREEDE taak (100 %, werkelijk einde na 2 d, statusdatum ma 8
+// juni 07:00), via de cel en plakken. Faalgeval uit het rapport: kalendertijd 2 d (12 u verricht),
+// "1d 4u" wordt een urentaak van 28 u; de voortgangsoverdracht mat de oude 2 d met 8 werkuren per dag
+// (960 min): 14,285714 % en nog 4 u verricht. "0d 8u" (minder dan de 12 u) werd geaccepteerd.
+//  - Lopend, per rij: eenheid, opgeslagen waarde, VERRICHT (% × totaal, in minuten van de maat van de
+//    taak: werkminuten, of klokminuten bij kalendertijd), rest, percentage en einde. Verricht blijft
+//    240 min (werktijd) of 720 min (kalendertijd). Een totaal onder het verrichte deel wordt geweigerd
+//    en dan verandert geen enkel tijdveld.
+//  - Gereed: geen weigering (een voltooide taak heeft geen rest om mee te schuiven); de duur volgt de
+//    invoer, de werkelijke datums en het einde blijven, 100 % blijft.
+//  - Ook de kolom Eenheid (dagen naar uren) op een lopende taak: dezelfde voortgangsoverdracht.
+//  - BEKENDE AFWIJKING (motor, niet in F4b): `durationEditProgress` (`workRuleApply.ts`) rekent bij een
+//    eenheidswissel de rest als 720 × (1 − 1/3) = 480,00000000000006 min. Die ruis legt het einde net
+//    voorbij de bandgrens: wo 3 juni 07:00 in plaats van di 2 juni 16:00 (hetzelfde werkmoment, een
+//    andere dag in de Tabel). De verwachting hieronder blijft de met de hand gerekende di 16:00; de vier
+//    rijen in `KNOWN_DRIFT` mogen alleen precies de gemeten afwijking geven. Verdwijnt die (motorfix),
+//    dan wordt de rij rood: haal hem dan uit `KNOWN_DRIFT`.
 // Exit 0 = groen.
 import './domStub';
 import { createAppStoreContext } from '@/state/appStore';
@@ -58,6 +78,14 @@ type Outcome = { unit: TaskDurationUnit; stored: number; finish: string; minutes
 
 const INPUTS = ['1d', '1,5d', '24u', '1d 0u', '1d 4u', '2,5d 3u', '5'] as const;
 type Input = typeof INPUTS[number];
+/** Gestarte taak: dezelfde invoer, plus twee totalen onder het verrichte deel van de kalendertijdtaak. */
+const STARTED_INPUTS = [...INPUTS, '0d 8u', '2u'] as const;
+type StartedInput = typeof STARTED_INPUTS[number];
+/** Gestarte taak na herberekenen. Lopend: met verricht en rest; gereed: met de werkelijke datums. */
+type ProgressOutcome = {
+  unit: TaskDurationUnit; stored: number; completion: number; finish: string;
+  done?: number; rest?: number; actualStart?: string; actualFinish?: string;
+};
 const COMPOUND: ReadonlySet<Input> = new Set(['1d 0u', '1d 4u', '2,5d 3u']);
 
 const day = (stored: number, finish: string, minutes: number): Outcome => ({ unit: 'days', stored, finish, minutes });
@@ -100,6 +128,74 @@ const START: Record<DurationType, Outcome> = {
   ELAPSEDTIME: day(2, '2026-06-03T07:00', 2880),
 };
 
+// LOPEND, met de hand gerekend. 2 d, 25 % gereed, werkelijke start ma 1 juni 07:00, statusdatum di 2 juni
+// 07:00. Het restwerk begint op de statusdatum (onder MSP is "start + verricht" eerder, A22).
+// Verricht: werktijd 0,25 × 2 × 480 = 240 werkmin; kalendertijd 0,25 × 2 × 1440 = 720 klokmin (12 u).
+// De voortgangsoverdracht houdt dat vast: nieuw % = verricht ÷ nieuw totaal, rest = totaal − verricht.
+// Bij een eenheidswissel telt de oude duur in de maat van de taak (kalendertijd: 2 d = 2880 klokmin).
+//  Werktijd, einde vanaf di 07:00 met 8 u per werkdag (07–12, 13–16): 240 ⇒ di 11:00; 480 ⇒ di 16:00;
+//    1140 ⇒ do 10:00; 1200 ⇒ do 11:00; 2160 ⇒ ma 8 juni 11:00.
+//  Kalendertijd, einde = di 07:00 + rest: 12 u ⇒ di 19:00; 16 u ⇒ di 23:00; 24 u ⇒ wo 07:00;
+//    51 u ⇒ do 10:00; 108 u ⇒ za 6 juni 19:00.
+type P = ProgressOutcome | 'geweigerd';
+const run = (unit: TaskDurationUnit, stored: number, done: number, rest: number, completion: number, finish: string): P =>
+  ({ unit, stored, completion, finish, done, rest });
+const RUN_WORK_OPS: Record<StartedInput, P> = {
+  '1d': run('days', 1, 240, 240, 0.5, '2026-06-02T11:00'),
+  '1,5d': run('days', 1.5, 240, 480, 0.333333, '2026-06-02T16:00'),
+  '24u': run('hours', 1440, 240, 1200, 0.166667, '2026-06-04T11:00'),
+  '1d 0u': run('days', 1, 240, 240, 0.5, '2026-06-02T11:00'),
+  '1d 4u': run('days', 1.5, 240, 480, 0.333333, '2026-06-02T16:00'),
+  '2,5d 3u': run('days', 2.875, 240, 1140, 0.173913, '2026-06-04T10:00'),
+  '5': run('days', 5, 240, 2160, 0.1, '2026-06-08T11:00'),
+  '0d 8u': run('days', 1, 240, 240, 0.5, '2026-06-02T11:00'),
+  '2u': 'geweigerd',
+};
+const RUN_WORK_P6: Record<StartedInput, P> = {
+  '1d': run('hours', 480, 240, 240, 0.5, '2026-06-02T11:00'),
+  '1,5d': run('hours', 720, 240, 480, 0.333333, '2026-06-02T16:00'),
+  '24u': run('hours', 1440, 240, 1200, 0.166667, '2026-06-04T11:00'),
+  '1d 0u': run('days', 1, 240, 240, 0.5, '2026-06-02T11:00'),
+  '1d 4u': run('days', 1.5, 240, 480, 0.333333, '2026-06-02T16:00'),
+  '2,5d 3u': run('days', 2.875, 240, 1140, 0.173913, '2026-06-04T10:00'),
+  '5': run('days', 5, 240, 2160, 0.1, '2026-06-08T11:00'),
+  '0d 8u': run('days', 1, 240, 240, 0.5, '2026-06-02T11:00'),
+  '2u': 'geweigerd',
+};
+const RUN_ELAPSED: Record<StartedInput, P> = {
+  '1d': run('days', 1, 720, 720, 0.5, '2026-06-02T19:00'),
+  '1,5d': run('days', 1.5, 720, 1440, 0.333333, '2026-06-03T07:00'),
+  '24u': run('hours', 1440, 720, 720, 0.5, '2026-06-02T19:00'),
+  '1d 0u': run('days', 1, 720, 720, 0.5, '2026-06-02T19:00'),
+  '1d 4u': run('hours', 1680, 720, 960, 0.428571, '2026-06-02T23:00'),
+  '2,5d 3u': run('days', 2.625, 720, 3060, 0.190476, '2026-06-04T10:00'),
+  '5': run('days', 5, 720, 6480, 0.1, '2026-06-06T19:00'),
+  '0d 8u': 'geweigerd',
+  '2u': 'geweigerd',
+};
+/** De kolom Eenheid naar uren op de lopende taak: de duur blijft, het verrichte deel ook. */
+const RUN_UNIT_HOURS: Record<DurationType, ProgressOutcome> = {
+  WORKTIME: { unit: 'hours', stored: 960, completion: 0.25, finish: '2026-06-03T11:00', done: 240, rest: 720 },
+  ELAPSEDTIME: { unit: 'hours', stored: 2880, completion: 0.25, finish: '2026-06-03T19:00', done: 720, rest: 2160 },
+};
+// GEREED: de duur volgt de invoer (dezelfde eenheid en waarde als op een niet-gestarte taak; "0d 8u" is
+// bij werktijd 1 d, bij kalendertijd 480 klokmin; "2u" overal 120 min). 100 %, de werkelijke datums
+// en het einde (= werkelijk einde) blijven.
+const DONE_TYPED: Record<'WORK_OPS' | 'WORK_P6' | 'ELAPSED', Record<StartedInput, [TaskDurationUnit, number]>> = {
+  WORK_OPS: { '1d': ['days', 1], '1,5d': ['days', 1.5], '24u': ['hours', 1440], '1d 0u': ['days', 1], '1d 4u': ['days', 1.5],
+    '2,5d 3u': ['days', 2.875], '5': ['days', 5], '0d 8u': ['days', 1], '2u': ['hours', 120] },
+  WORK_P6: { '1d': ['hours', 480], '1,5d': ['hours', 720], '24u': ['hours', 1440], '1d 0u': ['days', 1], '1d 4u': ['days', 1.5],
+    '2,5d 3u': ['days', 2.875], '5': ['days', 5], '0d 8u': ['days', 1], '2u': ['hours', 120] },
+  ELAPSED: { '1d': ['days', 1], '1,5d': ['days', 1.5], '24u': ['hours', 1440], '1d 0u': ['days', 1], '1d 4u': ['hours', 1680],
+    '2,5d 3u': ['days', 2.625], '5': ['days', 5], '0d 8u': ['hours', 480], '2u': ['hours', 120] },
+};
+
+function expectedStarted(input: StartedInput, type: DurationType, profile: Profile, stand: Stand): P {
+  if (stand === 'lopend') return (type === 'ELAPSEDTIME' ? RUN_ELAPSED : profile === 'ops' ? RUN_WORK_OPS : RUN_WORK_P6)[input];
+  const [unit, stored] = DONE_TYPED[type === 'ELAPSEDTIME' ? 'ELAPSED' : profile === 'ops' ? 'WORK_OPS' : 'WORK_P6'][input];
+  return { unit, stored, completion: 1, finish: DONE_FINISH[type], actualStart: '2026-06-01T07:00', actualFinish: DONE_FINISH[type] };
+}
+
 function expected(input: Input, type: DurationType, profile: Profile, route: Route): Outcome | 'geweigerd' {
   if (route === 'paneel' && COMPOUND.has(input)) return 'geweigerd';
   const typed = type === 'ELAPSEDTIME' ? ELAPSED[input] : profile === 'ops' ? WORK_OPS[input] : WORK_P6[input];
@@ -110,18 +206,24 @@ function expected(input: Input, type: DurationType, profile: Profile, route: Rou
   return typed;
 }
 
-function fixture(profile: Profile) {
+type Stand = 'lopend' | 'gereed';
+/** Werkelijk einde van de gereede taak van 2 d: werktijd di 2 juni 16:00, kalendertijd wo 3 juni 07:00. */
+const DONE_FINISH: Record<DurationType, string> = { WORKTIME: '2026-06-02T16:00', ELAPSEDTIME: '2026-06-03T07:00' };
+
+function fixture(profile: Profile, statusDate?: string) {
   const { store } = createAppStoreContext();
   const S = store.getState;
   S().setCalendar(week);
-  S().setProject({ startDate: '2026-06-01', schedulingProfile: builtInProfile(profile) });
+  S().setProject({ startDate: '2026-06-01', ...(statusDate ? { statusDate } : {}), schedulingProfile: builtInProfile(profile) });
   const taskOf = (id: string): Task => S().tasks.find(t => t.id === id)!;
-  const addTask = (name: string, type: DurationType, unit: TaskDurationUnit = 'days'): string => {
+  const addTask = (name: string, type: DurationType, unit: TaskDurationUnit = 'days', stand?: Stand): string => {
     const id = S().addTask({ name });
     const time = unit === 'days'
       ? { durationType: type, durationUnit: unit, scheduleDuration: 2, durationMinutes: undefined }
       : { durationType: type, durationUnit: unit, durationMinutes: type === 'ELAPSEDTIME' ? 2880 : 960, scheduleDuration: 2 };
-    S().updateTask(id, { time: { ...taskOf(id).time, ...time } });
+    const progress = stand === 'lopend' ? { actualStart: '2026-06-01T07:00', completion: 0.25 }
+      : stand === 'gereed' ? { actualStart: '2026-06-01T07:00', actualFinish: DONE_FINISH[type], completion: 1 } : {};
+    S().updateTask(id, { time: { ...taskOf(id).time, ...time, ...progress } });
     return id;
   };
   const domain = () => {
@@ -149,10 +251,10 @@ function fixture(profile: Profile) {
     const selection = updateGridSelection(createEmptyGridSelection(), { rowKey: task.id, columnId: DURATION }, rowIndex, [DURATION], 'replace');
     return { selection, rowIndex, columns: [DURATION], descriptors: d.descriptorsById, context: d.context, dateNotation: 'dmy' as const };
   };
-  /** Typen in de Duur-cel en Enter. */
-  const typeCell = (text: string, id: string): boolean => {
+  /** Typen in de Duur-cel (of een andere kolom) en Enter. */
+  const typeCell = (text: string, id: string, columnId = DURATION): boolean => {
     const d = domain();
-    const descriptor = d.descriptorsById.get(DURATION)!;
+    const descriptor = d.descriptorsById.get(columnId)!;
     const task = taskOf(id);
     const parsed = parseGridEditorText(descriptor, text, task, d.context, 'dmy');
     if (!parsed.ok) return false;
@@ -205,7 +307,24 @@ function fixture(profile: Profile) {
       minutes,
     };
   };
-  return { S, taskOf, addTask, typeCell, paste, copy, panel, outcome };
+  const round6 = (n: number) => Number(n.toFixed(6));
+  /** Na herberekenen, voor een gestarte taak. Verricht en rest in minuten van de maat van de taak. */
+  const progressOutcome = (id: string, stand: Stand): ProgressOutcome => {
+    S().runCPM();
+    const t = taskOf(id).time;
+    const perDay = t.durationType === 'ELAPSEDTIME' ? 24 * 60 : 8 * 60;
+    const hours = t.durationUnit === 'hours';
+    const stored = hours ? t.durationMinutes! : t.scheduleDuration;
+    const base = { unit: t.durationUnit, stored, completion: round6(t.completion), finish: t.earlyFinish! };
+    if (stand === 'gereed') return { ...base, actualStart: t.actualStart, actualFinish: t.actualFinish };
+    const total = hours ? t.durationMinutes! : t.scheduleDuration * perDay;
+    const rest = hours
+      ? t.remainingMinutes ?? (1 - t.completion) * total
+      : (t.remainingTime ?? (1 - t.completion) * t.scheduleDuration) * perDay;
+    return { ...base, done: round6(t.completion * total), rest: round6(rest) };
+  };
+  const timeJson = (id: string) => JSON.stringify(taskOf(id).time);
+  return { S, taskOf, addTask, typeCell, paste, copy, panel, outcome, progressOutcome, timeJson };
 }
 
 let rows = 0;
@@ -285,9 +404,62 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   }
 }
 
+// Taakstand lopend en gereed: de Duur-cel en plakken, en (lopend) de kolom Eenheid.
+const UNIT = taskColumnId('task.time.durationUnit');
+/** Zie de kop: ruis in de rest van `durationEditProgress` bij een eenheidswissel (motor). Gemeten einde. */
+const KNOWN_DRIFT: ReadonlyMap<string, string> = new Map([
+  'lopend p6 werktijd "1,5d" cel', 'lopend p6 werktijd "1,5d" plakken',
+  'lopend msproject werktijd "1,5d" cel', 'lopend msproject werktijd "1,5d" plakken',
+].map(label => [label, '2026-06-03T07:00']));
+const known: string[] = [];
+function startedRow(label: string, accepted: boolean, unchanged: boolean, got: ProgressOutcome, want: P): void {
+  rows++;
+  const drift = KNOWN_DRIFT.get(label);
+  const wantShown = drift && want !== 'geweigerd' ? { ...want, finish: drift } : want;
+  const a = want === 'geweigerd' ? JSON.stringify({ accepted, unchanged }) : JSON.stringify({ accepted, ...got });
+  const b = wantShown === 'geweigerd' ? JSON.stringify({ accepted: false, unchanged: true }) : JSON.stringify({ accepted: true, ...wantShown });
+  if (a !== b) {
+    failures.push(drift
+      ? `${label}: de bekende afwijking (einde ${drift} door ruis in de rest) is weg of anders; haal de rij uit KNOWN_DRIFT als het einde nu ${want === 'geweigerd' ? '-' : want.finish} is. Kreeg ${a}`
+      : `${label}: verwacht ${b}, kreeg ${a}`);
+  } else if (drift && want !== 'geweigerd') {
+    known.push(`${label}: einde ${drift}, met de hand ${want.finish} (ruis in durationEditProgress)`);
+  }
+}
+for (const stand of ['lopend', 'gereed'] as const) {
+  const statusDate = stand === 'lopend' ? '2026-06-02T07:00' : '2026-06-08T07:00';
+  for (const profile of ['ops', 'p6', 'msproject'] as const) {
+    for (const type of ['WORKTIME', 'ELAPSEDTIME'] as const) {
+      for (const input of STARTED_INPUTS) {
+        for (const route of ['cel', 'plakken'] as const) {
+          const f = fixture(profile, statusDate);
+          f.addTask('Andere', type);
+          const id = f.addTask('Doel', type, 'days', stand);
+          f.progressOutcome(id, stand);
+          const before = f.timeJson(id);
+          const accepted = route === 'cel' ? f.typeCell(input, id) : f.paste(input, id);
+          const got = f.progressOutcome(id, stand);
+          const unchanged = f.timeJson(id) === before;
+          startedRow(`${stand} ${profile} ${type === 'ELAPSEDTIME' ? 'kalendertijd' : 'werktijd'} "${input}" ${route}`,
+            accepted, unchanged, got, expectedStarted(input, type, profile, stand));
+        }
+      }
+      if (stand === 'lopend') {
+        const f = fixture(profile, statusDate);
+        const id = f.addTask('Doel', type, 'days', stand);
+        f.progressOutcome(id, stand);
+        const accepted = f.typeCell('hours', id, UNIT);
+        startedRow(`lopend ${profile} ${type === 'ELAPSEDTIME' ? 'kalendertijd' : 'werktijd'} kolom Eenheid naar uren`,
+          accepted, false, f.progressOutcome(id, stand), RUN_UNIT_HOURS[type]);
+      }
+    }
+  }
+}
+
 if (failures.length > 0) {
   for (const failure of failures) console.log(`XX  ${failure}`);
   console.log(`\n${failures.length}/${rows} rijen van de F4b-duurtabel mislukt.`);
   process.exit(1);
 }
-console.log(`OK  F4b review r3: ${rows} rijen van de duurtabel groen.`);
+for (const line of known) console.log(`BEKEND  ${line}`);
+console.log(`OK  F4b review r3: ${rows} rijen van de duurtabel groen (${known.length} met een bekende motorafwijking).`);

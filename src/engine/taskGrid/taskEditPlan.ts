@@ -204,9 +204,12 @@ function finishDurationEdit(
   routeFixedWorkDurationToHours(task, before, task.time, environment.defaultWorkRule, hoursPerDay);
   const oldWorkMinutes = taskWorkMinutes(before, hoursPerDay);
   // De rest schuift mee met de duurwijziging, het percentage volgt;
-  // korter dan het gedane werk wordt geweigerd.
+  // korter dan het gedane werk wordt geweigerd. Bij kalendertijd is een dag 24 klokuren
+  // (`durationHoursPerDay`): anders meet een eenheidswissel de oude kalenderdagen als werkdagen.
   const calendar = environment.calendarFor?.(task.calendarId) ?? environment.effectiveCalendar;
-  if (usableHours && carryRemainingThroughDurationEdit(task, before, hoursPerDay, environment.statusDate, calendar)?.refused) {
+  const progressHoursPerDay = durationHoursPerDay(task, hoursPerDay);
+  if (usableHours
+    && carryRemainingThroughDurationEdit(task, before, progressHoursPerDay, environment.statusDate, calendar)?.refused) {
     return failure('durationBelowDoneWork', edit);
   }
   return {

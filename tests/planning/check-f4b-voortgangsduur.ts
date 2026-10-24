@@ -19,6 +19,16 @@
 // Kalender: ma–vr 07–12 + 13–16 (8 u). Per rij na herberekenen: `remainingTime`, `remainingMinutes`,
 // `actualDuration`, het percentage en het einde, tegen een letterlijke, met de hand gerekende verwachting. Werktijd volgt B8 (OPS: dagenmaat; P6/MSP:
 // 1 d = 480 min) en B3 (de rest is exact, zonder afronding).
+//
+// Fixronde 4 (review r4): de dimensie TAAKSTAND. Elke rij draait ook op een NIET GESTARTE taak (0 %,
+// geen werkelijke datums) en een GEREEDE taak (100 %, werkelijk einde do 4 juni 16:00, kalendertijd
+// vr 5 juni 07:00). Een ingevoerde rest of werkelijke duur legt het percentage vast; de taak is daarna
+// lopend. Daarom gelden dezelfde rest, werkelijke duur, hetzelfde percentage en einde (de statusdatum
+// ma 8 juni ligt in alle drie de standen na "start + verricht"). Per stand verschilt alleen de
+// werkelijke start: lopend en gereed houden ma 1 juni 07:00; niet gestart krijgt de berekende start
+// (`defaultActualStart`): onder OPS en P6 de statusdatum ma 8 juni 07:00, onder MSP ma 1 juni 07:00
+// (een niet-gestarte taak negeert daar de statusdatum, A23). Een gereede taak gaat weer open: het
+// werkelijke einde verdwijnt.
 // Exit 0 = groen.
 import './domStub';
 import { createAppStoreContext } from '@/state/appStore';
@@ -47,6 +57,15 @@ const REMAINING = taskColumnId('task.time.remainingTime');
 const ACTUAL = taskColumnId('task.time.actualDuration');
 
 type Profile = 'ops' | 'p6' | 'msproject';
+type Stand = 'niet gestart' | 'lopend' | 'gereed';
+/** De werkelijke start na de invoer, per stand en profiel (zie de kop). */
+const ACTUAL_START: Record<Stand, Record<Profile, string>> = {
+  'niet gestart': { ops: '2026-06-08T07:00', p6: '2026-06-08T07:00', msproject: '2026-06-01T07:00' },
+  lopend: { ops: '2026-06-01T07:00', p6: '2026-06-01T07:00', msproject: '2026-06-01T07:00' },
+  gereed: { ops: '2026-06-01T07:00', p6: '2026-06-01T07:00', msproject: '2026-06-01T07:00' },
+};
+/** Werkelijk einde van de gereede taak van 4 d. */
+const DONE_FINISH: Record<DurationType, string> = { WORKTIME: '2026-06-04T16:00', ELAPSEDTIME: '2026-06-05T07:00' };
 type Column = 'rest' | 'werkelijk';
 type Route = 'cel' | 'plakken';
 const INPUTS = ['24u', '1d', '1d 4u', '1,5d'] as const;
@@ -55,6 +74,7 @@ type Input = typeof INPUTS[number];
  *  kalendertijd), `remainingMinutes` in minuten van de taak, het percentage als breuk. */
 type Outcome = {
   remainingTime?: number; remainingMinutes?: number; actualDuration?: number; completion: number; finish: string;
+  actualStart?: string; actualFinish?: string;
 };
 
 // Met de hand gerekend. Totaal 4 d: werktijd 1920 werkminuten, kalendertijd 4 kalenderdagen (5760 min).
@@ -122,11 +142,14 @@ function fixture(profile: Profile) {
   S().setCalendar(week);
   S().setProject({ startDate: '2026-06-01', statusDate: '2026-06-08T07:00', schedulingProfile: builtInProfile(profile) });
   const taskOf = (id: string): Task => S().tasks.find(t => t.id === id)!;
-  const addTask = (name: string, type: DurationType): string => {
+  const addTask = (name: string, type: DurationType, stand: Stand = 'lopend'): string => {
     const id = S().addTask({ name });
+    const progress = stand === 'niet gestart' ? { completion: 0 }
+      : stand === 'lopend' ? { actualStart: '2026-06-01T07:00', completion: 0.25 }
+        : { actualStart: '2026-06-01T07:00', actualFinish: DONE_FINISH[type], completion: 1 };
     S().updateTask(id, { time: {
       ...taskOf(id).time, durationType: type, durationUnit: 'days', scheduleDuration: 4, durationMinutes: undefined,
-      actualStart: '2026-06-01T07:00', completion: 0.25,
+      ...progress,
     } });
     return id;
   };
@@ -177,14 +200,16 @@ function fixture(profile: Profile) {
     const rest = { remainingTime: round6(t.remainingTime), remainingMinutes: round6(t.remainingMinutes) };
     const actual = { actualDuration: round6(t.actualDuration) };
     const progress = column === 'rest' ? rest : column === 'werkelijk' ? actual : { ...actual, ...rest };
-    return { ...progress, completion: round6(t.completion)!, finish: t.earlyFinish! };
+    return { ...progress, completion: round6(t.completion)!, finish: t.earlyFinish!, actualStart: t.actualStart, actualFinish: t.actualFinish };
   };
   return { addTask, typeCell, paste, outcome };
 }
 
 let rows = 0;
 const failures: string[] = [];
+for (const stand of ['niet gestart', 'lopend', 'gereed'] as const)
 for (const profile of ['ops', 'p6', 'msproject'] as const) {
+  const startAfter = ACTUAL_START[stand][profile];
   for (const type of ['WORKTIME', 'ELAPSEDTIME'] as const) {
     for (const column of ['rest', 'werkelijk'] as const) {
       const columnId = column === 'rest' ? REMAINING : ACTUAL;
@@ -193,12 +218,12 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
           rows++;
           const f = fixture(profile);
           f.addTask('Andere', type);
-          const id = f.addTask('Doel', type);
+          const id = f.addTask('Doel', type, stand);
           f.outcome(id, column);
           const accepted = route === 'cel' ? f.typeCell(input, id, columnId) : f.paste(input, id, [columnId]);
           const got = JSON.stringify({ accepted, ...f.outcome(id, column) });
-          const want = JSON.stringify({ accepted: true, ...expected(input, type, column) });
-          const label = `${profile} ${type === 'ELAPSEDTIME' ? 'kalendertijd' : 'werktijd'} ${column} "${input}" ${route}`;
+          const want = JSON.stringify({ accepted: true, ...expected(input, type, column), actualStart: startAfter });
+          const label = `${stand} ${profile} ${type === 'ELAPSEDTIME' ? 'kalendertijd' : 'werktijd'} ${column} "${input}" ${route}`;
           if (got !== want) failures.push(`${label}: verwacht ${want}, kreeg ${got}`);
         }
       }
@@ -207,12 +232,12 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
       rows++;
       const f = fixture(profile);
       f.addTask('Andere', type);
-      const id = f.addTask('Doel', type);
+      const id = f.addTask('Doel', type, stand);
       f.outcome(id, 'beide');
       const accepted = f.paste(`${pair.actual}\t${pair.rest}`, id, [ACTUAL, REMAINING]);
       const got = JSON.stringify({ accepted, ...f.outcome(id, 'beide') });
-      const want = JSON.stringify({ accepted: true, ...pair.want });
-      const label = `${profile} ${type === 'ELAPSEDTIME' ? 'kalendertijd' : 'werktijd'} beide "${pair.actual}" + "${pair.rest}" plakken`;
+      const want = JSON.stringify({ accepted: true, ...pair.want, actualStart: startAfter });
+      const label = `${stand} ${profile} ${type === 'ELAPSEDTIME' ? 'kalendertijd' : 'werktijd'} beide "${pair.actual}" + "${pair.rest}" plakken`;
       if (got !== want) failures.push(`${label}: verwacht ${want}, kreeg ${got}`);
     }
   }
