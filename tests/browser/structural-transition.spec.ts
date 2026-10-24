@@ -76,9 +76,11 @@ test('mijlpaalvinkje op een taak met toewijzing wordt geweigerd met melding', as
   await page.getByText('切换里程碑', { exact: true }).click();
   const bulk = page.locator('.ops-toast.toast-error');
   await expect(bulk).toHaveCount(1);
-  // Gebruik de actuele other-tekst; de browser moet zelf de taal, meervoudsvorm en het getal kiezen.
-  await expect(bulk).toContainText(zhCommon.notifications.milestoneRefusedAssignmentsMany_other.replace('{{count}}', '2'));
-  await expect(bulk).toContainText('Metselen, Voegen');
+  // Exact op de hoofdtekst: een deeltekst "2" zou ook 12 of 22 laten slagen (knownbug 223).
+  // De browser kiest zelf taal, CLDR-other en getal; taaknamen horen in de aparte detailregel.
+  await expect(bulk.locator('.ops-toast-message')).toHaveText(
+    zhCommon.notifications.milestoneRefusedAssignmentsMany_other.replace('{{count}}', '2'));
+  await expect(bulk.locator('.ops-toast-detail')).toHaveText('Metselen, Voegen');
   await expect(bulk).toHaveAttribute('role', 'alert');
   expect(await page.evaluate(() => window.__OPS__!.store.getState().tasks.map(t => t.isMilestone))).toEqual([false, false]);
   expect(await assignmentTaskIds(page)).toEqual([L, N]);
