@@ -925,11 +925,12 @@ export function parseProjectProperties(
 
   // Statusdatum mét tijd: MS Project bewaart hem op de standaard eindtijd (17:00 = einde van die
   // dag) en schrijft dezelfde waarde in MSPDI als `<StatusDate>…T17:00:00`. Daarom in precies die vorm
-  // gelezen met de regel van de MSPDI-lezer (`statusDateFromXml`): een tijd blijft, het dag-anker
-  // (08:00) geeft exact de datum — zo levert `.mpp` voor hetzelfde project hetzelfde op als MSPDI.
+  // gelezen met de regel van de MSPDI-lezer voor een vreemd bestand (`statusDateFromXml`, `foreign`): elke
+  // tijd blijft, ook 08:00 (I8; het anker 08:00 is een afspraak van OPS, en OPS schrijft geen `.mpp`) — zo
+  // levert `.mpp` voor hetzelfde project hetzelfde op als MSPDI.
   const statusBytes = props.getByteArray(PROPS_KEY_STATUS_DATE);
   const statusDate = statusBytes && statusBytes.length >= 4 ? getTimestamp(statusBytes, 0, 'Props statusDate') : null;
-  if (statusDate) project.statusDate = statusDateFromXml(toXmlDateTime(formatInstant(statusDate, 'hour')));
+  if (statusDate) project.statusDate = statusDateFromXml(toXmlDateTime(formatInstant(statusDate, 'hour')), 'foreign');
 
   return {
     project, hoursPerDay, calendarHoursPerDayOverride: minutesPerDayValid ? hoursPerDay : null,

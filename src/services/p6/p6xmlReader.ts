@@ -20,7 +20,7 @@ import {
 } from '@/services/xmlDayMeasure';
 import { normalizeImportedProgress, deriveImportedWorkRules, reconstructResourceIds } from '@/services/importNormalize';
 import { flattenOrder } from '@/utils/wbs';
-import { emptyMissingScheduleDates, importDateTimeOrUndefined, isoDatePrefixOrToday, parseImportedInstant, resolveMissingScheduleDates } from '@/services/importDates';
+import { emptyMissingScheduleDates, isoDatePrefixOrToday, parseImportedInstant, resolveMissingScheduleDates } from '@/services/importDates';
 import { directChildText, toInt, toFloat } from '@/services/xmlDom';
 import type { ImportResult, OpenedImport, P6XmlEmptyReason, P6XmlImportReport } from '@/services/importTypes';
 import type { Baseline } from '@/types/baseline';
@@ -46,10 +46,11 @@ import {
 } from './p6xmlWriter';
 import { invertRecord } from '@/utils/collections';
 import {
-  DAY_TIME_ANCHOR, decodeCustomTaskType, isTaskDurationUnit, OPS_DURATION_UNIT_NAME, statusDateFromXml,
+  decodeCustomTaskType, isTaskDurationUnit, OPS_DURATION_UNIT_NAME, OPS_LITERAL_CALENDARS_NAME, parseLiteralCalendars,
+  statusDateFromXml, xmlTaskDate, xmlTimeRule, xmlTimeSignal, type XmlTimeRule,
 } from '@/services/xmlInterchange';
 import {
-  canonicalizeBands, clockToMinutes, hasNonAnchorTime, isSubDayMinutes, opsDayWithBreak,
+  canonicalizeBands, clockToMinutes, isSubDayMinutes, opsDayWithBreak,
   promoteHourCalendars, registerCalendarBands, sameBlocks,
 } from '@/services/subdayIo';
 
@@ -627,6 +628,19 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
     if (objectId >= 0) durationUnitUdfIds.add(objectId);
   }
   const writtenByOps = durationUnitUdfIds.size > 0;
+  // De tijdregel van dit bestand (I8, `xmlTimeRule`): 08:00 is alleen een anker in een bestand van OPS. Een
+  // F5b-export draagt de project-UDF `OPS_LiteralCalendars`: elke taakdatum met zijn echte tijd, plus de
+  // letterlijke kalenders (kalender-`ObjectId`'s; geen geldige lijst ⇒ `null`).
+  const literalCalendarUdfIds = new Set(scopedElements(scope, 'UDFType')
+    .filter(el => getElementText(el, 'SubjectArea') === 'Project' && getElementText(el, 'DataType') === 'Text'
+      && getElementText(el, 'Title') === OPS_LITERAL_CALENDARS_NAME)
+    .map(el => getElementInt(el, 'ObjectId', -1))
+    .filter(objectId => objectId >= 0));
+  const timeRule = xmlTimeRule(writtenByOps, literalCalendarUdfIds.size > 0);
+  const literalCalendarUdf = scope.project && literalCalendarUdfIds.size > 0
+    ? directChildrenByLocalName(scope.project, 'UDF').find(el => literalCalendarUdfIds.has(getElementInt(el, 'TypeObjectId', -1)))
+    : undefined;
+  const literalCalendarObjIds = literalCalendarUdf ? parseLiteralCalendars(getElementText(literalCalendarUdf, 'TextValue')) : null;
   // De maatrecords (T21, T14; `xmlDayMeasure.ts`): Activity-Text-UDF's met een OPS-titel. De definitie van
   // `OPS_DayMeasureDurations` zegt ook dat de writer de dagenmaat in de werktijd per dag schreef (T13);
   // zonder die definitie (OPS tot en met F5a-1) telt een dag de opgeslagen `HoursPerDay`.
@@ -744,7 +758,7 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
   }
 
   // Parse project
-  const project = parseProject(scope.project);
+  const project = parseProject(scope.project, timeRule);
   // De lagkalender (I7) staat in de project-UDF `OPS_LagCalendar`. Zonder die waarde rekent de lezer met
   // de standaard (de voorganger); een lagrecord dat met een andere lagkalender is geschreven, telt dan niet
   // (`lagRecordHolds`; review #585 r1, punt 1).
@@ -921,6 +935,12 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
   // kalender-id (CalendarObjectId van de projectkalender of ontbrekend = projectkalender).
   const calById = new Map<string, WorkCalendar>([calendar, ...resourceCalendars].map(c => [c.id, c]));
   const effCalIdOf = (calObjId: number): string => calObjIdToId.get(calObjId) ?? calendar.id;
+  // `opsLiteral` met een geldige lijst: de lijst beslist over de tijdsignalen, niet de tijden zelf (die zijn
+  // allemaal echt, ook op een scalaire kalender). Een onbekend nummer telt niet.
+  const literalCalIds = timeRule === 'opsLiteral' && literalCalendarObjIds
+    ? new Set([...literalCalendarObjIds].flatMap(objId => objId === projectCalObjId ? [calendar.id]
+      : calObjIdToId.has(objId) ? [calObjIdToId.get(objId)!] : []))
+    : null;
 
   // Werkelijke datums. `Not Started` wint van werkelijke datums (zoals het percentage,
   // `p6ActivityCompletionPercent`): sommige tools vullen ActualStart/Finish met een vuldatum
@@ -938,13 +958,14 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
     const durSignal = durHours > 0 && isSubDayMinutes(Math.round(durHours * 60), cal.hoursPerDay);
     // Ook een werkelijke datum met een eigen tijd telt: een feit uit de bron. Anders blijft de kalender
     // scalair, kapt de lezer "11:00" af tot de datum, en maakt de laadnormalisatie er 16:00 van (review
-    // ronde 3 van PR #559, deel B: een voltooide eindmijlpaal met geplande datums op het anker).
-    const dateSignal = [
+    // ronde 3 van PR #559, deel B: een voltooide eindmijlpaal met geplande datums op het anker). In een
+    // F5b-export beslist de lijst (`literalCalIds`).
+    const dateSignal = literalCalIds ? literalCalIds.has(calId) : [
       getElementText(actEl, 'PlannedStartDate'),
       getElementText(actEl, 'PlannedFinishDate'),
       actualDateRaw(actEl, 'ActualStartDate'),
       actualDateRaw(actEl, 'ActualFinishDate'),
-    ].some(raw => hasNonAnchorTime(raw, DAY_TIME_ANCHOR) && importDateTimeOrUndefined(raw, true) !== undefined);
+    ].some(xmlTimeSignal);
     if (durSignal || dateSignal) cSignalCalIds.add(calId);
   }
   // P6 valt terug op de scalar-synth zodra de geregistreerde canonical geen werkdag draagt
@@ -1006,8 +1027,9 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
     const effCal = calById.get(effCalId) ?? calendar;
     effCalByTaskId.set(id, effCal);
     const effHpd = effCal.hoursPerDay;
-    // Datum-parser: uur ⇒ echte tijd (`parseInstant`+`formatInstant`), dag ⇒ tijd-strippen.
-    const parseTaskDate = (raw: string): string | undefined => importDateTimeOrUndefined(raw, hourDates);
+    // Datum-parser met de tijdregel van het bestand (I8, `xmlTaskDate`): 08:00 is alleen in een OPS-export van
+    // v2026.9.0 tot F5b een anker; daar valt een tijd op een scalaire kalender weg.
+    const parseTaskDate = (raw: string): string | undefined => xmlTaskDate(raw, timeRule, hourDates);
     const sourceStart = parseTaskDate(plannedStartRaw);
     const sourceFinish = parseTaskDate(plannedFinishRaw);
     const plannedStart = sourceStart ?? localTodayIso();
@@ -1017,7 +1039,7 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
     if (sourceFinish === undefined) missingDates.finish.add(id);
 
     {
-      const recordedDate = (raw: string): string | undefined => importDateTimeOrUndefined(raw, hourDates);
+      const recordedDate = (raw: string): string | undefined => xmlTaskDate(raw, timeRule, hourDates);
       const floatDays = (raw: string): number | undefined => {
         if (!raw) return undefined;
         const hours = Number.parseFloat(raw);
@@ -1410,7 +1432,7 @@ function p6ProjectName(name: string, id: string): string {
   return nameWithProjectCode(name.trim(), p6ProjectCode(id));
 }
 
-function parseProject(projEl: Element | null): Project {
+function parseProject(projEl: Element | null, timeRule: XmlTimeRule): Project {
 
   if (!projEl) {
     return {
@@ -1447,7 +1469,7 @@ function parseProject(projEl: Element | null): Project {
   if (code) project.p6ProjectCode = code;
   // Data date → project.statusDate. Alleen wanneer aanwezig.
   const dataDateRaw = getElementText(projEl, 'DataDate');
-  if (dataDateRaw) project.statusDate = statusDateFromXml(dataDateRaw);
+  if (dataDateRaw) project.statusDate = statusDateFromXml(dataDateRaw, timeRule);
   return project;
 }
 

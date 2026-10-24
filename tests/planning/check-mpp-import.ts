@@ -1661,8 +1661,9 @@ const PROPSKEY_ASSIGNMENT_FIELD_MAP = 131095;
 // eindtijd). Besluit eigenaar: tijd overnemen (17:00 = einde van die dag). De MSPDI-lezer doet dat
 // sinds `statusDateFromXml`; voor hetzelfde project moet `.mpp` exact hetzelfde opleveren. MS
 // Project schrijft de waarde in MSPDI als `<StatusDate>` in xsd:dateTime-vorm (wandklok, zonder
-// zone) — die string is hier de referentie. Het dag-anker 08:00 betekent in MSPDI "geen tijd"; voor
-// pariteit geldt dat ook hier (een statusdatum op 08:00 komt exact als `YYYY-MM-DD` terug).
+// zone) — die string is hier de referentie. Het dag-anker 08:00 betekent alleen in een MSPDI van OPS zelf
+// "geen tijd"; sinds F5b (I8) is 08:00 in een vreemd bestand een echte tijd. Een `.mpp` komt van MS
+// Project, dus ook hier: een statusdatum op 08:00 komt als `YYYY-MM-DDT08:00` terug, net als in MSPDI.
 // ═══════════════════════════════════════════════════════════════════════════════════════════
 {
   installDOMParser();
@@ -1684,7 +1685,7 @@ const PROPSKEY_ASSIGNMENT_FIELD_MAP = 131095;
     ['12:30', 7500, '2026-07-06T12:30:00', '2026-07-06T12:30'],
     ['23:59 (de datum schuift niet)', 14390, '2026-07-06T23:59:00', '2026-07-06T23:59'],
     ['00:00', 0, '2026-07-06T00:00:00', '2026-07-06T00:00'],
-    ['08:00 (dag-anker: geen tijd, exact de datum)', 4800, '2026-07-06T08:00:00', '2026-07-06'],
+    ['08:00 (een echte tijd in een vreemd bestand, F5b I8)', 4800, '2026-07-06T08:00:00', '2026-07-06T08:00'],
   ];
   for (const [label, time, xsd, want] of cases) {
     const got = fromMpp(time, DAYS_2026_07_06);
