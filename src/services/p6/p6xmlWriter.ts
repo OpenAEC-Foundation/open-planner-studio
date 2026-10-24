@@ -21,6 +21,12 @@ import { leaf, node, renderP6XmlWithReport, P6_ID_MAX_LENGTH, type P6Node } from
 import { taskDurationUnit } from '@/engine/scheduler/duration';
 import { effHoursPerDay } from '@/utils/taskDuration';
 import { computedStart, computedFinish } from '@/utils/taskDates';
+import {
+  LagRecordCollector, OPS_DAY_MEASURE_DURATIONS_NAME, OPS_DAY_MEASURE_LAGS_NAME, OPS_EXACT_MINUTES_NAME,
+  dayMeasureMinutesPerDay, fieldRecordsJson, lagRecordKey, lagWorkMinutesPerDay, writeDays, writeMinutes,
+  type LagRecord, type WrittenAmount,
+} from '@/services/xmlDayMeasure';
+import { roundDays } from '@/services/ifc/dayMeasureIo';
 import { P6_DURATION_TYPE_NAME, XER_DURATION_TYPE_TOKEN } from '@/engine/work/workRuleMapping';
 
 /** P6-UDF die de OPS-taaktypemarker draagt; geëxporteerd voor de reader. */
@@ -30,6 +36,13 @@ const OPS_CUSTOM_TASK_TYPE_UDF_OBJECT_ID = 900000001;
 /** OPS-eigen, schema-native P6-UDF (titel `OPS_DURATION_UNIT_NAME`) waarmee gemengde
  *  dag-/urentaken exact terugkomen. */
 const OPS_P6_DURATION_UNIT_UDF_OBJECT_ID = 1;
+
+/** De maatrecords (alleen uren §3.3, §3.10; T21, T14; `xmlDayMeasure.ts`): Activity-Text-UDF's naast de
+ *  eenheid. De reader herkent ze aan hun titel. Een Text-UDF in P6 houdt hoogstens 255 tekens (VERMOED);
+ *  een langere waarde die P6 inkort, is ongeldige JSON en telt dan niet (de lengtes blijven goed). */
+const OPS_DAY_MEASURE_DURATIONS_UDF_OBJECT_ID = 900000003;
+const OPS_EXACT_MINUTES_UDF_OBJECT_ID = 900000004;
+const OPS_DAY_MEASURE_LAGS_UDF_OBJECT_ID = 900000005;
 
 // Curve-/contour-naammapping. De curve wordt SCHEMA-NATIEF geschreven als `<ResourceCurve>`-object
 // (21 waarden, MPXJ `XmlContextWriter.writeResourceCurves`) plus `<ResourceCurveObjectId>` op de
@@ -116,10 +129,6 @@ function taskTypeToP6(task: Task): string {
   return 'Task Dependent';
 }
 
-function durationToP6Hours(days: number, hoursPerDay: number): number {
-  return days * hoursPerDay;
-}
-
 // ISO-dagnummer (1=maandag..7=zondag) -> P6/Engelse dagnaam. Geëxporteerd zodat de reader de naam
 // terug naar een ISO-dagnummer kan resolven.
 export const P6_DAY_NAMES = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -142,9 +151,13 @@ function weekdayBands(cal: WorkCalendar, workTime: ReturnType<typeof effectiveWo
 
 /** Werkweek: `<StandardWorkWeek>` met per dag een `<StandardWorkHours>` (Oracle-schema). Een
  *  niet-werkdag krijgt `<WorkTime xsi:nil="true"/>` (WorkTime is verplicht in het schema). Een
- *  wrap-band (`end > 1440`) emitteert het eind als tijd-van-de-dag; de reader herkent de wrap. */
-function standardWorkWeekNode(cal: WorkCalendar, includeEffectiveScalarBands: boolean): P6Node {
-  const workTime = cal.workTime ?? (includeEffectiveScalarBands ? effectiveWorkTimeBands(cal) : undefined);
+ *  wrap-band (`end > 1440`) emitteert het eind als tijd-van-de-dag; de reader herkent de wrap.
+ *  Een dagkalender gaat met zijn effectieve blokken, dus met de pauze (07:00–16:00 met 8 u ⇒
+ *  07:00–12:00 + 13:00–16:00), zoals de MSPDI-writer. Eén blok begin–einde gaf P6 en de lezer 9 u
+ *  werktijd per dag; sinds T13 telt een dag in de export de werktijd per dag, en dan kwam 3 d terug als
+ *  24 u ÷ 9 u = 2,67 d. Vroeger kreeg alleen een kalender met een urentaak zijn effectieve blokken. */
+function standardWorkWeekNode(cal: WorkCalendar): P6Node {
+  const workTime = cal.workTime ?? effectiveWorkTimeBands(cal);
   const days: P6Node[] = [];
   for (let day = 1; day <= 7; day++) {
     const bands = weekdayBands(cal, workTime, day);
@@ -183,8 +196,8 @@ function isoDaysInclusive(start: string, end: string): string[] {
  *  een werkende uitzondering ⇒ haar banden, of zonder eigen banden de banden van die weekdag
  *  (anders van de eerste werkdag; zelfde terugval als `WorkingException.bands`). Geen
  *  uitzonderingen ⇒ geen element. Verlies: de naam van een feestdag (P6 kent er geen). */
-function holidayOrExceptionsNode(cal: WorkCalendar, includeEffectiveScalarBands: boolean): P6Node[] {
-  const workTime = cal.workTime ?? (includeEffectiveScalarBands ? effectiveWorkTimeBands(cal) : undefined);
+function holidayOrExceptionsNode(cal: WorkCalendar): P6Node[] {
+  const workTime = cal.workTime ?? effectiveWorkTimeBands(cal);
   const byDate = new Map<string, P6Node>();
   for (const h of cal.holidays) {
     for (const date of isoDaysInclusive(h.startDate, holidayEndDate(h))) {
@@ -202,6 +215,48 @@ function holidayOrExceptionsNode(cal: WorkCalendar, includeEffectiveScalarBands:
   }
   if (byDate.size === 0) return [];
   return [node('HolidayOrExceptions', [...byDate.keys()].sort().map(date => byDate.get(date)!))];
+}
+
+/**
+ * De lag van één relatie in P6-uren, plus het lagrecord (T21; `xmlDayMeasure.ts`).
+ *  - Procent: uitgebakken naar minuten van de huidige voorgangerduur (I6), zonder record.
+ *  - Urenmaat (`lagMinutes`): de minuten. Kalendertijd in minuten krijgt `[minuten, minuten, "eu"]`.
+ *  - Dagenmaat (`lagDays`): dagen × de werktijd per dag van de lagkalender (I7), op de hele minuut, met het
+ *    record `[dagen, minuten]` (ook hele dagen: de relatie heeft geen eigen markering). Kalendertijd in
+ *    dagen telt in P6 net zo (P6 kent geen kalendertijd per relatie), met `[dagen, minuten, "ed"]`.
+ */
+function p6Lag(
+  seq: Sequence,
+  taskById: ReadonlyMap<string, Task>,
+  effCalByTask: ReadonlyMap<string, WorkCalendar>,
+  calendar: WorkCalendar,
+  minutesPerLagDay: number,
+): { hours: number; record?: LagRecord } {
+  const elapsed = seq.lagUnit === 'ELAPSEDTIME';
+  if (typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent)) {
+    const pred = taskById.get(seq.predecessorId);
+    const predCal = pred ? effCalByTask.get(pred.id) ?? calendar : calendar;
+    // De voorgangerduur is leidend, in minuten; nooit eerst naar hele dagen afronden (I6).
+    const predHpd = pred?.time.durationType === 'ELAPSEDTIME' ? 24 : effHoursPerDay(predCal);
+    const predMinutes = pred && !pred.isMilestone ? taskMinutesForWrite(pred, predHpd) : 0;
+    const minutes = Math.round(predMinutes * seq.lagPercent / 100);
+    console.warn(`P6-export: procent-lag (${seq.lagPercent}%) uitgebakken naar ${minutes} minuten — P6 kent geen procent-lag.`);
+    return { hours: minutes / 60 };
+  }
+  if (elapsed) {
+    console.warn('P6-export: kalenderdag-lag geëxporteerd als gewone lag-uren — P6 heeft geen lag-eenheid per relatie.');
+  }
+  if (typeof seq.lagMinutes === 'number' && Number.isFinite(seq.lagMinutes)) {
+    return {
+      hours: seq.lagMinutes / 60,
+      ...(elapsed ? { record: [seq.lagMinutes, Math.round(seq.lagMinutes), 'eu'] as const } : {}),
+    };
+  }
+  const days = Number.isFinite(seq.lagDays) ? seq.lagDays : 0;
+  const written = writeDays(days, minutesPerLagDay);
+  if (days === 0 && !elapsed) return { hours: 0 };
+  const record: LagRecord = elapsed ? [roundDays(days), written.minutes, 'ed'] : [roundDays(days), written.minutes];
+  return { hours: written.minutes / 60, record };
 }
 
 export function writeP6XML(...args: Parameters<typeof writeP6XMLWithReport>): string {
@@ -305,7 +360,7 @@ export function writeP6XMLWithReport(
   // Kalender-ObjectIds: 1 = projectkalender; het project wijst hem aan via
   // `<ActivityDefaultCalendarObjectId>`.
   const {
-    libraryCalendars, calendarNumber: calObjMap, effCalByTask, hourTaskCalendarIds,
+    libraryCalendars, calendarNumber: calObjMap, effCalByTask,
   } = exportCalendarLayout(tasks, calendar, resourceCalendars);
 
   // WBS elements (parent tasks). Diepte-eerst: een ouder staat vóór zijn kinderen en broers/zussen
@@ -333,6 +388,20 @@ export function writeP6XMLWithReport(
     ...leaf('SubjectArea', 'Activity'),
     ...leaf('Title', OPS_DURATION_UNIT_NAME),
   ]));
+  // De maatrecords. Altijd gedefinieerd, ook zonder records: de definitie van `OPS_DayMeasureDurations`
+  // zegt de lezer dat dit bestand de dagenmaat in de werktijd per dag schreef (T13).
+  for (const [objectId, title] of [
+    [OPS_DAY_MEASURE_DURATIONS_UDF_OBJECT_ID, OPS_DAY_MEASURE_DURATIONS_NAME],
+    [OPS_EXACT_MINUTES_UDF_OBJECT_ID, OPS_EXACT_MINUTES_NAME],
+    [OPS_DAY_MEASURE_LAGS_UDF_OBJECT_ID, OPS_DAY_MEASURE_LAGS_NAME],
+  ] as const) {
+    top.push(node('UDFType', [
+      ...leaf('DataType', 'Text'),
+      ...leaf('ObjectId', objectId),
+      ...leaf('SubjectArea', 'Activity'),
+      ...leaf('Title', title),
+    ]));
+  }
   const customTasks = leafTasks.filter(task => task.customTaskTypeId);
   if (customTasks.length > 0) {
     top.push(node('UDFType', [
@@ -363,7 +432,6 @@ export function writeP6XMLWithReport(
   // gebruikte Global-kalender ook).
   const taskCalendarIds = new Set(tasks.map(t => t.calendarId).filter((id): id is string => !!id));
   for (const cal of [calendar, ...libraryCalendars]) {
-    const hourBands = hourTaskCalendarIds.has(cal.id);
     top.push(node('Calendar', [
       ...leaf('HoursPerDay', cal.hoursPerDay),
       ...leaf('HoursPerMonth', cal.hoursPerDay * 20),
@@ -371,8 +439,8 @@ export function writeP6XMLWithReport(
       ...leaf('Name', cal.name),
       ...leaf('ObjectId', calObjMap.get(cal.id)!),
       ...leaf('Type', cal === calendar || taskCalendarIds.has(cal.id) ? 'Global' : 'Resource'),
-      standardWorkWeekNode(cal, hourBands),
-      ...holidayOrExceptionsNode(cal, hourBands),
+      standardWorkWeekNode(cal),
+      ...holidayOrExceptionsNode(cal),
     ]));
   }
 
@@ -451,6 +519,25 @@ export function writeP6XMLWithReport(
     ]));
   }
 
+  // Relaties vooraf: de lag in uren per relatie, en de lagrecords per opvolger (T21). De records gaan als
+  // één UDF op de opvolger, dus ze moeten er zijn vóór die activiteit geschreven wordt. P6 kent geen
+  // procent-lag en geen lageenheid per relatie (de lagkalender is in P6 een projectbrede optie):
+  // procent-lag wordt uitgebakken naar vaste minuten op basis van de huidige voorgangerduur, en een
+  // kalendertijd-lag gaat als gewone lag-uren — beide met een waarschuwing in de log. Het record draagt de
+  // kalendertijd dan wel, zodat OPS ⇒ P6 XML ⇒ OPS hem teruggeeft.
+  const taskById = new Map(tasks.map(t => [t.id, t]));
+  const lagCalendar = project.schedulingOptions?.lagCalendar;
+  const relationshipLagHours = new Map<string, number>();
+  const lagRecords = new LagRecordCollector();
+  for (const seq of sequences) {
+    const predObjId = taskObjMap.get(seq.predecessorId);
+    if (predObjId === undefined || !taskObjMap.has(seq.successorId)) continue;
+    const { hours, record } = p6Lag(seq, taskById, effCalByTask, calendar,
+      lagWorkMinutesPerDay(seq, lagCalendar, calendar, effCalByTask));
+    relationshipLagHours.set(seq.id, hours);
+    lagRecords.add(seq.successorId, lagRecordKey(predObjId, seq.type), record);
+  }
+
   // Activities (leaf tasks only in P6)
   let noteObjId = 1;
   for (const task of leafTasks) {
@@ -461,16 +548,30 @@ export function writeP6XMLWithReport(
     const durationTypeLabel = task.workRule
       ? P6_DURATION_TYPE_NAME[task.workRule]
       : task.p6DurationType ? p6LabelForToken(task.p6DurationType) : undefined;
-    // Uur-taak ⇒ PlannedDuration in fractionele uren uit de minuten (geen dag-afronding); dag-taak ⇒
-    // `dagen × hpd`.
-    const effCal = effCalByTask.get(task.id);
+    // Uur-taak ⇒ PlannedDuration in uren uit de minuten (op de hele minuut; een breuk in minuten gaat als
+    // `OPS_ExactMinutes`-record mee, T14). Dag-taak ⇒ werkdagen × de werktijd per dag van de
+    // activiteitkalender (T13, "1 d = echte werktijd per dag", eigenaarsbesluit 2026-10-15), niet de
+    // opgeslagen `HoursPerDay`: 3 d op een kalender met 8 u opgeslagen en werkblokken van 10 u werd 24 u,
+    // en P6 plande daar 2,4 werkdagen. Een breuk in dagen gaat als `OPS_DayMeasureDurations`-record mee
+    // (T21). P6 kent geen kalendertijd per activiteit: die telt hier ook in de werktijd per dag.
+    const effCal = effCalByTask.get(task.id) ?? calendar;
     const isHour = taskDurationUnit(task) === 'hours';
-    const effHpd = effCal?.hoursPerDay ?? calendar.hoursPerDay;
-    const plannedDur = isHour ? taskMinutesForWrite(task, effHpd) / 60 : durationToP6Hours(task.time.scheduleDuration, effHpd);
-    // RemainingDuration in uren; zelfde `effHpd` als PlannedDuration (P6 rekent de restduur op de
-    // activity-kalender).
-    const remainingHours = isHour && task.time.remainingMinutes != null ? task.time.remainingMinutes / 60
-      : task.time.remainingTime != null ? durationToP6Hours(task.time.remainingTime, effHpd) : undefined;
+    const workHpd = effHoursPerDay(effCal);
+    const dayMinutesPerDay = dayMeasureMinutesPerDay(effCal, false);
+    const writtenDuration: WrittenAmount = isHour
+      ? writeMinutes(taskMinutesForWrite(task, workHpd))
+      : writeDays(task.time.scheduleDuration, dayMinutesPerDay);
+    const plannedDur = writtenDuration.minutes / 60;
+    // RemainingDuration in uren, met dezelfde dag als PlannedDuration (P6 rekent de restduur op de
+    // activiteitkalender). Een urentaak zonder restminuten telt haar restdagen in de werktijd per dag.
+    const writtenRemaining: WrittenAmount | undefined = isHour && task.time.remainingMinutes != null
+      ? writeMinutes(task.time.remainingMinutes)
+      : task.time.remainingTime == null ? undefined
+      : isHour ? { minutes: Math.round(task.time.remainingTime * workHpd * 60) }
+      : writeDays(task.time.remainingTime, dayMinutesPerDay);
+    const remainingHours = writtenRemaining ? writtenRemaining.minutes / 60 : undefined;
+    const durationRecords = fieldRecordsJson({ PlannedDuration: writtenDuration.record, RemainingDuration: writtenRemaining?.record });
+    const lagRecordsJson = lagRecords.json(task.id);
     // Datumconstraints: primair + secundair als PMXML-label (`Start On or After`), zoals echte P6 XML
     // en MPXJ `XmlProjectWriter` (`ConstraintTypeHelper.getXmlFromInstance`); niet het XER-token
     // `CS_*`. ASAP ⇒ geen element. Secundair is altijd soft (P6 native `SecondaryConstraintType`).
@@ -481,6 +582,17 @@ export function writeP6XMLWithReport(
       // werkdag of als exacte werkuren moet herlezen. P6 zet de UDF-waarde van een activiteit IN de
       // activiteit (`<UDF><TypeObjectId/><TextValue/></UDF>`).
       node('UDF', [...leaf('TypeObjectId', OPS_P6_DURATION_UNIT_UDF_OBJECT_ID), ...leaf('TextValue', taskDurationUnit(task))]),
+      // De maatrecords naast de eenheid: dagenmaat `[dagen, minuten]`, urenmaat `[exacte minuten, minuten]`,
+      // en de lagen van de relaties naar deze activiteit (sleutel `voorganger-ObjectId:type`).
+      ...(durationRecords !== undefined
+        ? [node('UDF', [
+          ...leaf('TypeObjectId', isHour ? OPS_EXACT_MINUTES_UDF_OBJECT_ID : OPS_DAY_MEASURE_DURATIONS_UDF_OBJECT_ID),
+          ...leaf('TextValue', durationRecords),
+        ])]
+        : []),
+      ...(lagRecordsJson !== undefined
+        ? [node('UDF', [...leaf('TypeObjectId', OPS_DAY_MEASURE_LAGS_UDF_OBJECT_ID), ...leaf('TextValue', lagRecordsJson)])]
+        : []),
       ...(task.customTaskTypeId
         ? [node('UDF', [
           ...leaf('TypeObjectId', OPS_CUSTOM_TASK_TYPE_UDF_OBJECT_ID),
@@ -529,38 +641,13 @@ export function writeP6XMLWithReport(
     }
   }
 
-  // Relationships (sequences). P6 kent geen procent-lag en geen lag-eenheid per relatie
-  // (de lag-kalender is in P6 een projectbrede scheduling-optie): procent-lag wordt hier
-  // uitgebakken naar vaste uren op basis van de huidige voorgangerduur, en kalenderdag-lag
-  // exporteert als gewone uren — beide met een waarschuwing in de log.
-  const taskById = new Map(tasks.map(t => [t.id, t]));
+  // Relationships (sequences); de lag is hierboven al berekend (`relationshipLagHours`).
   let relObjId = 1;
   for (const seq of sequences) {
     const predObjId = taskObjMap.get(seq.predecessorId);
     const succObjId = taskObjMap.get(seq.successorId);
-    if (predObjId === undefined || succObjId === undefined) continue;
-
-    const lagDays = Number.isFinite(seq.lagDays) ? seq.lagDays : 0;
-    let percentLagMinutes: number | undefined;
-    if (typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent)) {
-      const pred = taskById.get(seq.predecessorId);
-      const predCal = pred ? effCalByTask.get(pred.id) ?? calendar : calendar;
-      // De voorgangerduur is leidend, in minuten; nooit eerst naar hele dagen afronden (I6).
-      const predHpd = pred?.time.durationType === 'ELAPSEDTIME' ? 24 : effHoursPerDay(predCal);
-      const predMinutes = pred && !pred.isMilestone ? taskMinutesForWrite(pred, predHpd) : 0;
-      percentLagMinutes = Math.round(predMinutes * seq.lagPercent / 100);
-      console.warn(`P6-export: procent-lag (${seq.lagPercent}%) uitgebakken naar ${percentLagMinutes} minuten — P6 kent geen procent-lag.`);
-    }
-    if (seq.lagUnit === 'ELAPSEDTIME') {
-      console.warn('P6-export: kalenderdag-lag geëxporteerd als gewone lag-uren — P6 heeft geen lag-eenheid per relatie.');
-    }
-
-    // Uur-lag (`lagMinutes`, bron van waarheid) als fractionele uren, mits geen procent-lag (die is
-    // al uitgebakken). Anders het `lagDays × hpd`-uren-pad.
-    const hourLag = typeof seq.lagMinutes === 'number' && Number.isFinite(seq.lagMinutes)
-      && !(typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent));
-    const lagHours = percentLagMinutes !== undefined ? percentLagMinutes / 60
-      : hourLag ? seq.lagMinutes! / 60 : durationToP6Hours(lagDays, calendar.hoursPerDay);
+    const lagHours = relationshipLagHours.get(seq.id);
+    if (predObjId === undefined || succObjId === undefined || lagHours === undefined) continue;
 
     inProject.push(node('Relationship', [
       ...leaf('Lag', lagHours),

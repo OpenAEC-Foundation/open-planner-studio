@@ -2,7 +2,7 @@ import { Task, TaskConstraint, ConstraintType, type MilestoneKind } from '@/type
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment } from '@/types/resource';
 import { Project } from '@/types/project';
-import type { WorkCalendar, WorkTimeBands } from '@/types/calendar';
+import type { WorkCalendar } from '@/types/calendar';
 import { effHoursPerDay, hourTaskScheduleDuration } from '@/utils/taskDuration';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { Baseline, BaselineTask } from '@/types/baseline';
@@ -20,18 +20,27 @@ import {
   OPS_DURATION_UNIT_FIELD_ID,
   OPS_DURATION_UNIT_LEGACY_FIELD_ID,
   OPS_DURATION_UNIT_FIELD_NAME,
+  OPS_DAY_MEASURE_DURATIONS_FIELD_ID,
+  OPS_DAY_MEASURE_LAGS_FIELD_ID,
+  OPS_EXACT_MINUTES_FIELD_ID,
   OPS_MILESTONE_KIND_FIELD_ID,
   OPS_MILESTONE_KIND_FIELD_NAME,
   WORKCONTOUR_TO_CURVE,
 } from './mspdiWriter';
 import { invertRecord } from '@/utils/collections';
 import {
+  OPS_DAY_MEASURE_DURATIONS_NAME, OPS_DAY_MEASURE_LAGS_NAME, OPS_EXACT_MINUTES_NAME,
+  dayMeasureMinutesPerDay, lagFromRecord, lagRecordKey, normalizeKeepingDayRest, parseFieldRecords, parseLagRecords,
+  readMeasure, recordHolds, type LagRecord,
+} from '@/services/xmlDayMeasure';
+import { ELAPSED_MINUTES_PER_DAY } from '@/services/ifc/dayMeasureIo';
+import {
   DAY_TIME_ANCHOR, decodeCustomTaskType, statusDateFromXml,
 } from '@/services/xmlInterchange';
 import {
   canonicalizeBands, clockToMinutes, hasNonAnchorTime, isSubDayMinutes,
-  milestoneKindAt, promoteHourCalendars, registerCalendarBands, workDayFromBlocks, deriveHoursPerDay,
-  scalarHourFromClock,
+  milestoneKindAt, opsDayWithBreak, promoteHourCalendars, registerCalendarBands, workDayFromBlocks,
+  deriveHoursPerDay, sameBlocks, scalarHourFromClock, sharedWeekBlocks,
 } from '@/services/subdayIo';
 
 // MSPDI-uitzonderingssemantiek gebruikt dezelfde `buildContributions` (record-opbouw MET budgetklem
@@ -97,6 +106,21 @@ function opsTaskFieldValue<T extends string>(te: Element, fieldId: string, allow
 
 /** Het FieldID waarop dit bestand de OPS-duureenheid draagt: Text30 (huidig), of het oude Flag9-ID
  *  van eerdere OPS-exports (zie `OPS_DURATION_UNIT_FIELD_ID`); `null` zonder OPS-definitie. */
+/** De tekst van het OPS-taakveld `fieldId` op deze taak (direct-kind `<ExtendedAttribute>`), of
+ *  `undefined`. Voor de maatrecords (JSON); `enabled` = de projectdefinitie draagt de OPS-naam. */
+function opsTaskFieldText(te: Element, fieldId: string, enabled: boolean): string | undefined {
+  if (!enabled) return undefined;
+  const values = te.getElementsByTagName('ExtendedAttribute');
+  for (let i = 0; i < values.length; i++) {
+    if (values[i].parentElement !== te) continue;
+    if (getElementText(values[i], 'FieldID') === fieldId) return getElementText(values[i], 'Value');
+  }
+  return undefined;
+}
+
+/** De twee duurvelden van MSPDI, zoals de writer ze als sleutel in de records gebruikt. */
+const MSPDI_DURATION_FIELDS = { duration: 'Duration', remaining: 'RemainingDuration' } as const;
+
 function opsDurationUnitFieldId(root: Element): string | null {
   for (const id of [OPS_DURATION_UNIT_FIELD_ID, OPS_DURATION_UNIT_LEGACY_FIELD_ID]) {
     if (hasOpsFieldDefinition(root, id, OPS_DURATION_UNIT_FIELD_NAME)) return id;
@@ -188,7 +212,8 @@ function parseMSPDuration(s: string, hoursPerDay: number): number {
  * Baselineduur in DAGEN, met dezelfde dag als de taakduur en als `mspdiWriter` hem schrijft. Urentaak:
  * werkminuten ÷ de werktijd per dag van de taakkalender (`hourTaskScheduleDuration`), zonder afronding —
  * ook als de kalender een eigen, afwijkende uren per dag houdt (`MinutesPerDay` 480 bij blokken van
- * 10 u). Dagtaak (of een duur zonder uren): `parseMSPDuration` met de opgeslagen uren per dag.
+ * 10 u). Dagtaak (of een duur zonder uren): `parseMSPDuration` met de uren per dag van de taakduur (sinds
+ * F5a-2 de werktijd per dag, T13; in een ouder OPS-bestand de opgeslagen uren per dag).
  */
 export function mspdiBaselineDays(text: string, hourTask: boolean, cal: WorkCalendar, hoursPerDay: number): number {
   const minutes = hourTask ? mspDurationMinutes(text) : null;
@@ -246,6 +271,13 @@ export function readMSPDI(content: string): ImportResult {
   const root = doc.documentElement;
   const durationUnitMarkerFieldId = opsDurationUnitFieldId(root);
   const opsMilestoneKindMarkerEnabled = hasOpsFieldDefinition(root, OPS_MILESTONE_KIND_FIELD_ID, OPS_MILESTONE_KIND_FIELD_NAME);
+  // De maatrecords (T21, T14; `xmlDayMeasure.ts`). De definitie van `OPS_DayMeasureDurations` zegt ook dat
+  // de writer de dagenmaat in de werktijd per dag schreef (T13). Zonder die definitie (OPS tot en met
+  // F5a-1) telt een dag de opgeslagen uren per dag, zoals die writer hem schreef.
+  const dayMeasureDurationsEnabled = hasOpsFieldDefinition(root, OPS_DAY_MEASURE_DURATIONS_FIELD_ID, OPS_DAY_MEASURE_DURATIONS_NAME);
+  const exactMinutesEnabled = hasOpsFieldDefinition(root, OPS_EXACT_MINUTES_FIELD_ID, OPS_EXACT_MINUTES_NAME);
+  const dayMeasureLagsEnabled = hasOpsFieldDefinition(root, OPS_DAY_MEASURE_LAGS_FIELD_ID, OPS_DAY_MEASURE_LAGS_NAME);
+  const workdayIsWorkTime = dayMeasureDurationsEnabled;
 
   // Parse project
   const project = parseProject(root);
@@ -307,7 +339,7 @@ export function readMSPDI(content: string): ImportResult {
   const outlineLevels: (number | undefined)[] = [];
   // Effectieve uren/dag per taak, voor de werkafleiding bij de toewijzingen.
   const effHpdByTaskId = new Map<string, number>();
-  const pendingLinks: { successorId: string; predUid: number; type: number; lag: number; lagFormat: number }[] = [];
+  const pendingLinks: { successorId: string; predUid: number; type: number; lag: number; lagFormat: number; record?: LagRecord }[] = [];
   // Baseline 0: per taak de gesnapshotte Start/Finish/Duration.
   const baselineEntries: BaselineTask[] = [];
 
@@ -377,10 +409,11 @@ export function readMSPDI(content: string): ImportResult {
     const isHour = hourModeCalIds.has(effCalId);
     const effCal = calById.get(effCalId) ?? calendar;
     const effHpd = effCal.hoursPerDay;
-    // Het werk van een toewijzing rekent met de opgeslagen uren per dag, net als `mspdiWriter` hem schrijft
-    // (`<Work>` = dagen × `hoursPerDay`). Met de werktijd zou een dagtaak van 5 d op 8 u/dag met blokken
-    // van 10 u haar 40 u als vastgelegd werk terugkrijgen, en bij een langere duur niet meer meegroeien.
-    effHpdByTaskId.set(id, effHpd);
+    // Het werk van een toewijzing rekent met dezelfde uren per dag als `mspdiWriter` hem schreef (`<Work>` =
+    // dagen × uren per dag): sinds F5a-2 de werktijd per dag (T13/T14), daarvoor de opgeslagen uren per
+    // dag. Met een andere waarde zou een dagtaak van 5 d op 8 u/dag met blokken van 10 u haar werk als
+    // vastgelegd werk terugkrijgen, en bij een langere duur niet meer meegroeien.
+    effHpdByTaskId.set(id, workdayIsWorkTime ? effHoursPerDay(effCal) : effHpd);
     // MSP's <Type> (0/1/2 = Fixed Units/Duration/Work) en <EffortDriven> — dezelfde bewaarvelden als
     // de .mpp-lezer; de werkregel volgt eruit via `deriveImportedWorkRules`. Ontbrekend/ongeldig ⇒
     // geen veld.
@@ -389,13 +422,37 @@ export function readMSPDI(content: string): ImportResult {
     const effortDriven = mspTaskType !== undefined && (effortDrivenRaw === '1' || effortDrivenRaw === 'true');
 
     const durationStr = getElementText(te, 'Duration');
-    // Duur: uur ⇒ minuten (bron van waarheid, geen afronding); dag ⇒ het dag-pad.
-    const durationUnit = taskDurationUnit(te, durationUnitMarkerFieldId);
-    const durationMinutes = durationUnit === 'hours' ? (mspDurationMinutes(durationStr) ?? 0) : undefined;
-    // Urentaak: dagengetal via `hourTaskScheduleDuration`; dagtaak: de opgeslagen uren per dag.
-    const duration = durationUnit === 'hours'
-      ? hourTaskScheduleDuration(durationMinutes!, effCal)
-      : parseMSPDuration(durationStr, effHpd);
+    const remainingRaw = getElementText(te, 'RemainingDuration');
+    // Duur en rest (alleen uren §3.10; `readMeasure`): urenmaat ⇒ minuten (bron van waarheid, geen
+    // afronding; een `OPS_ExactMinutes`-record geeft een breuk in minuten terug). Dagenmaat (OPS-markering
+    // `days`) ⇒ het record `[dagen, minuten]` zolang de duur nog de geschreven minuten draagt, anders
+    // minuten ÷ minuten per dag. Een dag is de werktijd per dag (T13; kalendertijd 1440), of in een
+    // ouder OPS-bestand de opgeslagen uren per dag.
+    const markerUnit = taskDurationUnit(te, durationUnitMarkerFieldId);
+    const dayMinutesPerDay = workdayIsWorkTime
+      ? dayMeasureMinutesPerDay(effCal, taskDurationType(te) === 'ELAPSEDTIME') : effHpd * 60;
+    const wholeDays = (raw: string): number | undefined => {
+      const m = raw.match(/^P(\d+(?:\.\d+)?)D$/);
+      return m ? parseFloat(m[1]) : undefined;
+    };
+    const durationDays = markerUnit === 'days' ? wholeDays(durationStr) : undefined;
+    const remainingDays = markerUnit === 'days' ? wholeDays(remainingRaw) : undefined;
+    const measure = readMeasure({
+      unit: markerUnit,
+      durationMinutes: mspDurationMinutes(durationStr) ?? 0,
+      ...(durationDays !== undefined ? { durationDays } : {}),
+      remainingMinutes: remainingRaw ? (mspDurationMinutes(remainingRaw) ?? undefined) : undefined,
+      ...(remainingDays !== undefined ? { remainingDays } : {}),
+      minutesPerDay: dayMinutesPerDay,
+      calendar: effCal,
+      dayRecords: markerUnit === 'days'
+        ? parseFieldRecords(opsTaskFieldText(te, OPS_DAY_MEASURE_DURATIONS_FIELD_ID, dayMeasureDurationsEnabled), MSPDI_DURATION_FIELDS) : {},
+      exactRecords: markerUnit === 'hours'
+        ? parseFieldRecords(opsTaskFieldText(te, OPS_EXACT_MINUTES_FIELD_ID, exactMinutesEnabled), MSPDI_DURATION_FIELDS) : {},
+    });
+    const durationUnit = measure.durationUnit;
+    const durationMinutes = measure.durationMinutes;
+    const duration = measure.scheduleDuration;
     const startRaw = getElementText(te, 'Start');
     const finishRaw = getElementText(te, 'Finish');
     const parseTaskDate = (raw: string): string | undefined => importDateTimeOrUndefined(raw, isHour);
@@ -463,12 +520,11 @@ export function readMSPDI(content: string): ImportResult {
     // Actuals — leeg ⇒ undefined (invarianten volgen bij normalizeImportedProgress).
     const actualStartRaw = getElementText(te, 'ActualStart');
     const actualFinishRaw = getElementText(te, 'ActualFinish');
-    const remainingRaw = getElementText(te, 'RemainingDuration');
     const actualStart = parseTaskDate(actualStartRaw);
     const actualFinish = parseTaskDate(actualFinishRaw);
-    // RemainingDuration: uur ⇒ minuten; dag ⇒ het dag-pad.
-    const remainingMinutes = durationUnit === 'hours' && remainingRaw ? (mspDurationMinutes(remainingRaw) ?? undefined) : undefined;
-    const remainingTime = durationUnit === 'days' && remainingRaw ? parseMSPDuration(remainingRaw, effHpd) : undefined;
+    // RemainingDuration: zie `measure` hierboven (urenmaat minuten, dagenmaat dagen).
+    const remainingMinutes = measure.remainingMinutes;
+    const remainingTime = measure.remainingTime;
 
     // Datumconstraint: ConstraintType/ConstraintDate. 0/ontbrekend ⇒ geen constraint. MSPDI kent geen
     // secundaire constraint. Datum: uur ⇒ echte tijd, dag ⇒ strip.
@@ -510,7 +566,7 @@ export function readMSPDI(content: string): ImportResult {
         // Dezelfde dag als de taakduur (`mspdiBaselineDays`), anders leest een 24/7-taak haar eigen
         // baseline als 2,33 dagen terug, of een urentaak van 1870 u op 8 u/dag met blokken van 10 u
         // haar baseline als 234 d naast een taak van 187 d.
-        duration: mspdiBaselineDays(getElementText(bEl, 'Duration'), durationUnit === 'hours', effCal, effHpd),
+        duration: mspdiBaselineDays(getElementText(bEl, 'Duration'), durationUnit === 'hours', effCal, dayMinutesPerDay / 60),
         isMilestone,
       });
       break;
@@ -561,8 +617,13 @@ export function readMSPDI(content: string): ImportResult {
     });
     outlineLevels.push(getElementText(te, 'OutlineLevel') ? outlineLevel : undefined);
 
-    // Parse predecessor links within task element
+    // Parse predecessor links within task element. De lagrecords van deze opvolger (T21) staan in één
+    // OPS-veld, met als sleutel voorganger-UID plus relatietype. Een sleutel die hier twee keer voorkomt,
+    // is dubbelzinnig en telt niet.
+    const lagRecords = dayMeasureLagsEnabled
+      ? parseLagRecords(opsTaskFieldText(te, OPS_DAY_MEASURE_LAGS_FIELD_ID, true)) : new Map<string, LagRecord>();
     const predLinks = te.getElementsByTagName('PredecessorLink');
+    const taskLinks: (typeof pendingLinks)[number][] = [];
     for (let j = 0; j < predLinks.length; j++) {
       const pl = predLinks[j];
       const predUid = getElementInt(pl, 'PredecessorUID', -1);
@@ -570,7 +631,7 @@ export function readMSPDI(content: string): ImportResult {
       const linkLag = getElementInt(pl, 'LinkLag', 0);
       const lagFormat = getElementInt(pl, 'LagFormat', 7);
       if (predUid >= 0) {
-        pendingLinks.push({
+        taskLinks.push({
           successorId: id,
           predUid,
           type: linkType,
@@ -578,6 +639,14 @@ export function readMSPDI(content: string): ImportResult {
           lagFormat,
         });
       }
+    }
+    const keyCount = new Map<string, number>();
+    const keyOf = (link: (typeof pendingLinks)[number]) => lagRecordKey(link.predUid, mspTypeToSequenceType(link.type));
+    for (const link of taskLinks) keyCount.set(keyOf(link), (keyCount.get(keyOf(link)) ?? 0) + 1);
+    for (const link of taskLinks) {
+      const record = keyCount.get(keyOf(link)) === 1 ? lagRecords.get(keyOf(link)) : undefined;
+      // MSPDI zegt kalendertijd met LagFormat; een record met een eigen eenheid hoort bij P6 XML.
+      pendingLinks.push(record && record.length === 2 ? { ...link, record } : link);
     }
   }
 
@@ -589,8 +658,11 @@ export function readMSPDI(content: string): ImportResult {
   // met LinkLag in tienden van een procent; 4/6/8/10/12 = elapsed duren (24/7); rest = werktijd
   // in tienden van minuten.
   //
-  // LinkLag draagt altijd tienden van minuten. LagFormat is de weergave-eenheid:
-  // ook verstreken dagen/weken/maanden blijven minuutgetrouw (I1/I2, T15).
+  // LinkLag draagt altijd tienden van minuten. Bij werktijd is LagFormat de weergave-eenheid (I1, T15):
+  // zonder record is de lag urenmaat. Bij kalendertijd zegt LagFormat de eenheid (alleen uren §3.3):
+  // 8 (ed) ⇒ kalenderdagen, zonder afronding (I2); 4/6/10/12 (em/eh/ew/emo) ⇒ kalenderminuten.
+  // Een lag in de dagenmaat staat als record `[dagen, minuten]` in `OPS_DayMeasureLags` van de opvolger
+  // (T21); de dagen tellen alleen als LinkLag nog de geschreven minuten draagt.
   const ELAPSED_DURATION_FORMATS = new Set([4, 6, 8, 10, 12]);
   const sequences: Sequence[] = [];
   for (const link of pendingLinks) {
@@ -606,6 +678,11 @@ export function readMSPDI(content: string): ImportResult {
     if (link.lagFormat === 19 || link.lagFormat === 20) {
       seq.lagPercent = link.lag / 10;
       if (link.lagFormat === 20) seq.lagUnit = 'ELAPSEDTIME';
+    } else if (link.lagFormat === 8) {
+      seq.lagDays = link.lag / 10 / ELAPSED_MINUTES_PER_DAY;
+      seq.lagUnit = 'ELAPSEDTIME';
+    } else if (!ELAPSED_DURATION_FORMATS.has(link.lagFormat) && recordHolds(link.record, link.lag / 10)) {
+      Object.assign(seq, lagFromRecord(link.record));
     } else {
       seq.lagMinutes = Math.round(link.lag / 10);
       if (ELAPSED_DURATION_FORMATS.has(link.lagFormat)) seq.lagUnit = 'ELAPSEDTIME';
@@ -729,8 +806,9 @@ export function readMSPDI(content: string): ImportResult {
   project.startDate = resolveMissingScheduleDates(tasks, missingDates, projectStartRaw ? project.startDate : '',
     (task) => resolveCalendar(task.calendarId, resourceCalendars, calendar));
 
-  // Voortgang-invarianten op de rauw ingelezen actuals.
-  normalizeImportedProgress(tasks, project.statusDate);
+  // Voortgang-invarianten op de rauw ingelezen actuals. De vastgelegde rest van een taak in de dagenmaat
+  // blijft exact (B3), zoals de restminuten van een urentaak.
+  normalizeKeepingDayRest(tasks, () => normalizeImportedProgress(tasks, project.statusDate));
   deriveImportedWorkRules(tasks); // werkregel uit <Type>/<EffortDriven>
 
   // Importverslag (issue #391): wat deze lezer niet overneemt. De OPS-transportvelden die hierboven
@@ -738,6 +816,9 @@ export function readMSPDI(content: string): ImportResult {
   const msProjectReport = scanMspdiImportLoss(root, (fieldId, value) =>
     (durationUnitMarkerFieldId !== null && fieldId === durationUnitMarkerFieldId)
     || (opsMilestoneKindMarkerEnabled && fieldId === OPS_MILESTONE_KIND_FIELD_ID)
+    || (dayMeasureDurationsEnabled && fieldId === OPS_DAY_MEASURE_DURATIONS_FIELD_ID)
+    || (exactMinutesEnabled && fieldId === OPS_EXACT_MINUTES_FIELD_ID)
+    || (dayMeasureLagsEnabled && fieldId === OPS_DAY_MEASURE_LAGS_FIELD_ID)
     || (fieldId === OPS_CUSTOM_TASK_TYPE_FIELD_ID && decodeCustomTaskType(value) !== undefined));
 
   return {
@@ -895,26 +976,6 @@ function canonicalExceptionBands(bands: { start: number; end: number }[]): { sta
   return bands.map((b) => (b.end <= b.start ? { start: b.start, end: b.end + 1440 } : b));
 }
 
-/** Twee bloklijsten met dezelfde begin- en eindminuten, in dezelfde volgorde. */
-function sameBlocks(
-  a: ReadonlyArray<{ start: number; end: number }>, b: ReadonlyArray<{ start: number; end: number }>,
-): boolean {
-  return a.length === b.length && a.every((x, i) => x.start === b[i].start && x.end === b[i].end);
-}
-
-/** De blokken die elke werkdag met blokken deelt (canonieke banden); `'verschilt'` als twee werkdagen
- *  andere blokken hebben; `undefined` als geen dag blokken heeft. */
-function sharedWeekBlocks(bands: WorkTimeBands): ReadonlyArray<{ start: number; end: number }> | 'verschilt' | undefined {
-  let shared: ReadonlyArray<{ start: number; end: number }> | undefined;
-  for (let wd = 1 as 1 | 2 | 3 | 4 | 5 | 6 | 7; wd <= 7; wd = (wd + 1) as 1 | 2 | 3 | 4 | 5 | 6 | 7) {
-    const day = bands.byWeekday[wd];
-    if (day.length === 0) continue;
-    if (!shared) shared = day;
-    else if (!sameBlocks(shared, day)) return 'verschilt';
-  }
-  return shared;
-}
-
 /** Leest alle `<Exception>`-elementen van één `<Calendar>` in RUWE vorm — geklemd op
  *  `MAX_CALENDAR_EXCEPTIONS` (gedeeld met de MPP-kant via `@/services/calendarRecurrence`). Spiegelt
  *  MSPDIReader.readException's guard: een record zonder BEIDE FromDate/ToDate wordt overgeslagen
@@ -1040,9 +1101,7 @@ function applyCalendarBody(
   // in een bestand van OPS zelf (de OPS-marker): een bestand van MS Project met 08:00–12:00 +
   // 13:00–17:00 blijft een uurkalender, zoals de `.mpp`-lezer hem leest. Een echte pauze tussen de
   // blokken, binnen de dag.
-  const dayWithBreak = opsFile && Array.isArray(shared) && shared.length === 2
-    && shared[0].end < shared[1].start && shared[1].end <= 1440
-    ? shared : undefined;
+  const dayWithBreak = opsFile ? opsDayWithBreak(bands) : undefined;
   // Uurkalender bij een afwijking van de enkelvoudige werkdag (`canonicalizeBands`: meer blokken,
   // over middernacht, een hele dag), en bij werkdagen met verschillende blokken: één werkdag voor de hele
   // week kan dat niet bewaren. Zo'n kalender las vroeger als dagkalender met de werktijd van de eerste
