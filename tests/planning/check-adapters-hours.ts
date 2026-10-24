@@ -596,8 +596,9 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     assert(mw.some(w => w.includes('hammock')), 'MSPDI hammock → warn');
   }
 
-  // (g) OPS_SchedulingOptions-pset: IFC round-trippt het VOLLE blok; MSPDI alleen
-  //     criticalDefinition.threshold via CriticalSlackLimit (rest weggelaten + warn); P6 niets + warn.
+  // (g) OPS_SchedulingOptions-pset: IFC round-trippt het VOLLE blok; MSPDI criticalDefinition.threshold via
+  //     CriticalSlackLimit en de lagkalender via `OPS_LagCalendar` (F5a-2, review #585 r1 punt 1; rest
+  //     weggelaten + warn); P6 alleen de lagkalender via de project-UDF `OPS_LagCalendar` + warn.
   {
     const so = {
       criticalDefinition: { mode: 'totalFloat' as const, threshold: 2 },
@@ -610,7 +611,7 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     eq('IFC schedulingOptions volledig round-trip', ifcBack, so);
     const { out: mspBack, warns: mw } = withWarns(() => readMSPDI(writeMSPDI(proj2, dayCal, tk, [], [], [])).project.schedulingOptions);
     eq('MSPDI CriticalSlackLimit → threshold', mspBack?.criticalDefinition, { mode: 'totalFloat', threshold: 2 });
-    eq('MSPDI lagCalendar/floatPaths weg', [mspBack?.lagCalendar, mspBack?.floatPaths], [undefined, undefined]);
+    eq('MSPDI lagCalendar terug (OPS_LagCalendar), floatPaths weg', [mspBack?.lagCalendar, mspBack?.floatPaths], ['successor', undefined]);
     assert(mw.some(w => w.includes('lagCalendar')), 'MSPDI schedulingOptions-verlies-warn');
     // Speling-modus: MSPDI heeft er geen veld voor en heropent als *Automatisch* (afwezig). Ook
     // 'smallest' (de P6-modus) is dus verlies en moet gemeld worden; afwezig is verliesvrij.
@@ -624,7 +625,7 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     }
     assert(!tfOnly().warns.some(w => w.includes('totalFloatMode')), 'MSPDI zonder totalFloatMode (automatisch) → geen warn');
     const { out: p6Back, warns: pw } = withWarns(() => readP6XML(writeP6XML(proj2, dayCal, tk, [], [], [])).project.schedulingOptions);
-    eq('P6 schedulingOptions niet uitdrukbaar', p6Back ?? null, null);
+    eq('P6 schedulingOptions: alleen de lagkalender (OPS_LagCalendar)', p6Back ?? null, { lagCalendar: 'successor' });
     assert(pw.some(w => w.includes('scheduling-opties')), 'P6 schedulingOptions-verlies-warn');
   }
 }
@@ -951,8 +952,9 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
 // werktijd-duur — de conservatieve keuze is dan ook weggelaten-met-warn i.p.v. een halve
 // round-trip die zich als vol voordoet. Deze case bewijst BEIDE kanten: (a) de warn vuurt met het
 // juiste aantal wanneer er een ELAPSEDTIME-taak in zit, en NIET wanneer alle taken WORKTIME zijn;
-// (b) de herimport laat zien dat de taak inderdaad als WORKTIME terugkomt (de eerlijke, gemeten
-// realiteit die de warn-tekst beschrijft — "geëxporteerd als gewone werktijd-duur").
+// (b) de herimport: MSPDI draagt ELAPSEDTIME native (DurationFormat). P6 krijgt de taak als gewone
+// werktijd-duur (de warn-tekst), maar OPS leest de kalendertijd terug uit het OPS-record met de eenheid
+// `eu` (F5a-2, review #585 r1 punt 3).
 {
   const projE: Project = {
     id: 'p-elapsed', name: 'Elapsed', description: '', startDate: '2026-07-06', endDate: '2026-07-31',
@@ -1021,7 +1023,8 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     const backP = readP6XML(p6Xml);
     const elapsedBackP = backP.tasks.find(t => t.name === 'Storttijd beton (24/7)');
     assert(!!elapsedBackP, 'H5 P6-round-trip: elapsed-taak komt terug (op naam)');
-    eq('H5 P6-round-trip: durationType valt terug op WORKTIME', elapsedBackP?.time.durationType, 'WORKTIME');
+    eq('H5 P6-round-trip: het OPS-record bewaart ELAPSEDTIME', [elapsedBackP?.time.durationType, elapsedBackP?.time.durationMinutes],
+      ['ELAPSEDTIME', 4320]);
 
     const { out: csvText, warns: wC } = withWarnings(() => writeCSV(projE, H8, mixedTasks, [], [], []));
     assert(

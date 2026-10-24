@@ -485,11 +485,51 @@ en noem het in je rapport of PR-tekst.
 
 256. **Een kale start op een letterlijke kalender schuift in de ruwe IFC-rondgang naar 07:00.** Kalender
      09:00–17:00 met letterlijke tijden. Een planningsstart zonder tijd wordt in de ruwe route
-     `readIFC → writeIFC → readIFC` 07:00, terwijl de laadgrens er 09:00 van maakt. De ruwe MSPDI-export
-     schrijft voor dezelfde start 08:00. Via de echte laadroute van de app gaat het goed. Locatie:
-     `minuteModelWrite.ts:90` (`literalEndOf` laat een kale start ongemoeid). Richting: maak de
-     invoervoorwaarde van de ruwe writer expliciet (alleen genormaliseerde payloads), of normaliseer ook kale
-     planningsstarts met hun veldregel. Gevonden in review #581 r2 (VERVOLG). — B
+     `readIFC → writeIFC → readIFC` 07:00, terwijl de laadgrens er 09:00 van maakt. Via de echte laadroute
+     van de app gaat het goed. Locatie: `minuteModelWrite.ts:90` (`literalEndOf` laat een kale start
+     ongemoeid). Richting: maak de invoervoorwaarde van de ruwe writer expliciet (alleen genormaliseerde
+     payloads), of normaliseer ook kale planningsstarts met hun veldregel. Gevonden in review #581 r2
+     (VERVOLG). Het MSPDI-deel (de ruwe export schreef 08:00) is opgelost in F5a-2: `mspdiWriter.ts` geeft
+     zo'n start het begin van de werkdag (`check-uren-f5a2-adapters.ts` (9)). Het IFC-deel staat nog open. — B
+
+290. **Een OPS-tekstveld in MSPDI kan langer worden dan 255 tekens.** De records van F5a-2
+     (`OPS_DayMeasureLags`, `OPS_DayMeasureDurations`, `OPS_ExactMinutes`) staan in de MS Project-velden
+     Text26–Text28 (`mspdiWriter.ts`, `OPS_DAY_MEASURE_*_FIELD_ID`). Een opvolger met veel lags in dagen met een
+     breuk krijgt één JSON-tekst met een record per relatie (ongeveer 15–25 tekens per record). MS Project
+     beperkt een tekstveld tot 255 tekens. Wat MS Project bij eigen opslaan met een langere waarde doet
+     (afkappen, weigeren), is niet getoetst: geen MS Project op deze machine. Een afgekapte JSON leest OPS
+     als geen record, dus als urenmaat met dezelfde lengte. Gevonden bij F5a-2. — S
+
+291. **P6 XML rondt begin en einde van een dagkalender met één blok af op het hele uur.** Een dagkalender
+     07:30–15:30 (8 u, één blok) komt na `writeP6XML → readP6XML` terug als 07:00–15:00. MSPDI houdt
+     07:30–15:30. Locatie: `p6xmlReader.ts:273-274` (`parseP6StandardWorkWeek`, `Math.floor` op de uren).
+     Een dagkalender met pauze (twee blokken) uit een OPS-bestand leest sinds F5a-2 wel op de minuut
+     (`registerP6Bands`). Nagespeeld met een probe bij F5a-2. Richting: begin en einde op de minuut, zoals
+     `applyCalendarBody` in de MSPDI-lezer. — B
+
+293. **De P6 XML-lezer deelt duur en rest twee keer door de uren per dag.** `p6xmlReader.ts:1070` en `:1072`
+     geven `durationDays`/`remainingDays` mee via `p6HoursToDays` (`:179`), terwijl `readMeasure`
+     (`xmlDayMeasure.ts`) dezelfde deling al doet met `minutesPerDay` (dezelfde uren per dag, met dezelfde
+     terugval op 8). De uitkomst is gelijk, op een mogelijk verschil in de laatste decimaal na
+     (`uren ÷ u` tegen `uren × 60 ÷ (u × 60)`, niet gemeten); het is dubbele code. Richting: de helper en de twee
+     argumentregels weghalen (ongeveer 6 regels). Gevonden in review #585 r1 (Sol, VERVOLG). — B
+
+295. **De IFC-lezer neemt een dagenrecord over na een kalenderwissel.** `ifcReader.ts:1590` accepteert het
+     duurrecord `DayMeasureDurations` alleen als de slotminuten nog overeenkomen; bij de rest gebeurt
+     hetzelfde. Wijzigt een ander programma alleen de kalendertoewijzing naar een aanwezige kalender van 10 u,
+     dan komen 2,5 d en 1,5 d terug, en wordt 20 u / 12 u bij opnieuw opslaan 25 u / 15 u. Dezelfde fout zat in
+     MSPDI en P6 XML en is daar in #585 gerepareerd (review r1, punt 2). Ook op basis `a6f9e2b1b`, dus hij
+     hoort bij F3c. Richting: controleer de huidige kalender en het duurtype voordat een dagenrecord terugkomt,
+     zoals `dayRecordFits`/`contextLost` in `xmlDayMeasure.ts`; anders de urenmaat voor duur en rest.
+     Nagespeeld door de reviewer van #585 r2 (Sol, VERVOLG). — B
+
+296. **De exportmeldingen zeggen dat de lagkalender verloren gaat, terwijl OPS hem bewaart.**
+     `mspdiWriter.ts:503` meldt "scheduling-opties lagCalendar niet native uitdrukbaar — weggelaten, alleen via
+     IFC OPS_SchedulingOptions" (de lijst komt uit `:479`). `p6xmlWriter.ts:304` meldt "scheduling-opties niet
+     geëxporteerd". Sinds #585 schrijven beide writers `OPS_LagCalendar`, en `successor` komt bij heropenen in
+     OPS goed terug. MS Project en P6 kennen de optie zelf niet. Richting: een melding die beide zegt: het
+     andere programma rekent er niet mee, OPS bewaart hem wel. Gezien door de reviewer van #585 r2 (Sol,
+     VERVOLG). — B
 
 ## Rondleiding, Help en extensie-gidsen
 
@@ -556,6 +596,15 @@ en noem het in je rapport of PR-tekst.
      taken die hem erven om naar de urenmaat. `public/docs/{nl,en}/howto-werkregel-kiezen.md` en
      `public/docs/{nl,en}/ref-ai-tools.md` zeggen dat nog niet. Hangt samen met 240 en 252. Voorstel: de
      zin toevoegen in dezelfde ronde als 252. Gevonden in F3c-fix-winkel. — B
+292. **De gids over import en export zegt nog dat een dagtaak op een bibliotheekkalender na MSPDI korter wordt.**
+     `public/docs/{nl,en}/ref-import-exportformaten.md` r.51: "Een taak in dagen op zo'n kalender wordt dan
+     korter, bijvoorbeeld 4 dagen in plaats van 5." Sinds F5a-2 (T13) schrijft OPS een dag als de werktijd per
+     dag en leest hij hem zo terug: een bestand van OPS houdt 5 d (`check-urenperdag-heropenen.ts` §1). Voor
+     een ouder OPS-bestand en een bestand van MS Project geldt de zin nog. Verder r.91 (P6): "Een lag in
+     kalenderdagen wordt een lag in werktijd". In P6 zelf klopt dat; heropent OPS zijn eigen P6 XML, dan
+     herstelt het record de kalenderdagen (`check-uren-f5a2-adapters.ts` (1)). Dezelfde regel noemt voor
+     procentlag "een vast aantal dagen"; sinds F5a-1 (I6) zijn dat minuten (alleen uit de code afgeleid).
+     Bestanden van F4b; niet aangepast in F5a-2. — B (r.51 en de lag), S (procentlag)
 
 ## Tests
 
@@ -652,6 +701,13 @@ en noem het in je rapport of PR-tekst.
      Dat gebeurde in F2-bouwronde 2. Een controle van beide bases gaf voor 127.519 sleutels
      dezelfde samenvoeging, en `verify:i18n` gaf exit 0. Het script meldt dus een fout waar
      geen fout is. Voorstel: gelijke resultaten vanaf beide bases als eenduidig accepteren. — S
+
+294. **De browsertest voor speling in de Gantt-tooltip is wisselvallig.**
+     `tests/browser/float-remaining-display.spec.ts:89` ("Expected pattern /^0[.,]67d$/, Received "1d"",
+     time-out 5000 ms). Hij faalde eenmaal in CI op #585 (`c354d1e41`, run 40051700758, browser 3-4), en
+     slaagde bij een herhaling zonder wijziging en lokaal drie keer (`--repeat-each=3`). De commit veranderde
+     alleen MSPDI- en P6 XML-code, die de test niet raakt. Vermoeden, niet onderzocht: de tooltip toont nog de
+     waarde 1 uit de lus ervoor (1,004 ⇒ "1"), van vóór de herberekening met F5. — S
 
 ## Wensen en open taken (geen bug)
 
