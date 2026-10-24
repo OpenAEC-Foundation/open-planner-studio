@@ -4,6 +4,7 @@
     "applyShape": "Zastosuj kształt:",
     "hoursPerDay": "{{hours}} godz. na dzień roboczy",
     "stripHint": "Przeciągnij granicę, aby wydłużyć lub skrócić fazę, górną krawędź, aby ustawić nakład; dwukrotne kliknięcie dnia dzieli fazę.",
+    "partialDayHint": "Jeśli zadanie zaczyna się lub kończy się w trakcie dnia roboczego, ten dzień liczy się proporcjonalnie: godziny to jednostki × część dnia. Histogram liczy tak samo.",
     "from": "Od",
     "to": "Do",
     "days": "Dni",
@@ -181,7 +182,8 @@
       "calendar": "Wybierz kalendarz z listy.",
       "calendarNotFound": "Wybrany kalendarz nie istnieje.",
       "calendarHours": "Kalendarz tego zadania nie ma godzin pracy na dzień.",
-      "durationConversionNotExact": "Tego czasu trwania nie da się dokładnie przeliczyć na drugą jednostkę.",
+      "durationConversionNotExact": "Ten czas trwania nie da się dokładnie przeliczyć na drugą jednostkę w tym kalendarzu.",
+      "fixedWorkIsHours": "Zadanie ze stałą pracą zawsze używa miary w godzinach.",
       "milestoneRequired": "To pole dotyczy tylko kamieni milowych.",
       "milestoneUnavailable": "Zadanie sumaryczne z podzadaniami nie może stać się kamieniem milowym.",
       "actualAfterStatusDate": "Data rzeczywista przypada po dacie stanu.",
@@ -335,8 +337,8 @@
     "unit": "Jednostka czasu trwania",
     "days": "Dni",
     "hours": "Godziny",
-    "invalid": "Wprowadź całkowitą liczbę dni lub godzin, na przykład 2d albo 12h.",
-    "conversionNotExact": "{{value}} nie daje pełnych dni w tym kalendarzu. Jednostka się nie zmieniła.",
+    "invalid": "Wprowadź liczbę dni lub godzin, na przykład 2,5d albo 12h.",
+    "conversionNotExact": "{{value}} nie da się przeliczyć na drugą jednostkę w tym kalendarzu. Jednostka się nie zmieniła.",
     "unitInfo": "Wybrana jednostka należy do tego zadania. Dni liczą dni robocze, a godziny liczą godziny pracy w kalendarzu. Inny kalendarz nie zmienia jednostki ani wpisanego czasu, ale może zmienić datę zakończenia."
   },
   "dialog": {
@@ -462,6 +464,7 @@
     "jumpToTask": "Przejdź do zadania {{wbs}}",
     "relationPopoverTitle": "Typ relacji",
     "driving": "Relacja wiodąca (driving)",
+    "drivingUnknown": "Relacje wiodące nieznane bez obliczenia.",
     "lag": "Opóźnienie (np. 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Oblicz",
     "assignments": {
@@ -526,6 +529,8 @@
     "type": "Typ",
     "lag": "Opóźnienie",
     "driving": "Wiodąca",
+    "drivingUnknown": "Nieznana",
+    "notDriving": "Nie relacja wiodąca",
     "freeFloat": "Zapas swobodny",
     "warnings": "Ostrzeżenia",
     "warnTruncatedLead": "Wyprzedzenie ucięte na starcie projektu — nakładanie nie jest w pełni wykorzystane",
@@ -659,5 +664,11 @@
     "pieceHours_many": "Odcinek: {{count}} godzin",
     "pieceHours_other": "Odcinek: {{count}} godziny",
     "merged": "Scal"
+  },
+  "dateTimeInput": {
+    "time": "Godzina: {{field}}",
+    "timeHint": "Puste: początek lub koniec dnia roboczego. Z godziną: dokładnie ten moment.",
+    "later": "Kwadrans później",
+    "earlier": "Kwadrans wcześniej"
   }
 }

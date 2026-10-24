@@ -4,6 +4,7 @@
     "applyShape": "Primijeni oblik:",
     "hoursPerDay": "{{hours}} sati po radnom danu",
     "stripHint": "Povucite granicu da produljite ili skratite fazu, povucite gornji rub za jedinice dodjele, dvaput kliknite dan da podijelite fazu.",
+    "partialDayHint": "Ako zadatak počinje ili završava usred radnog dana, taj se dan računa razmjerno: sati su jedinice dodjele × dio dana. Histogram se računa na isti način.",
     "from": "Od",
     "to": "Do",
     "days": "Dani",
@@ -181,7 +182,8 @@
       "calendar": "Odaberite kalendar s popisa.",
       "calendarNotFound": "Odabrani kalendar ne postoji.",
       "calendarHours": "Kalendar ovog zadatka nema radnih sati po danu.",
-      "durationConversionNotExact": "Ovo trajanje ne može se točno pretvoriti u drugu jedinicu.",
+      "durationConversionNotExact": "Ovo trajanje na ovom kalendaru ne može se točno pretvoriti u drugu jedinicu.",
+      "fixedWorkIsHours": "Zadatak fiksnog rada uvijek koristi mjeru u satima.",
       "milestoneRequired": "Ovo polje vrijedi samo za kontrolne točke.",
       "milestoneUnavailable": "Zadatak sažetka s podzadacima ne može postati kontrolna točka.",
       "actualAfterStatusDate": "Stvarni datum je nakon datuma stanja.",
@@ -331,8 +333,8 @@
     "unit": "Jedinica trajanja",
     "days": "Dani",
     "hours": "Sati",
-    "invalid": "Unesite cijeli broj dana ili sati, na primjer 2d ili 12h.",
-    "conversionNotExact": "{{value}} ne odgovara cijelim danima u ovom kalendaru. Jedinica nije promijenjena.",
+    "invalid": "Unesite broj dana ili sati, na primjer 2,5d ili 12h.",
+    "conversionNotExact": "{{value}} na ovom kalendaru ne može se pretvoriti u drugu jedinicu. Jedinica nije promijenjena.",
     "unitInfo": "Odabrana jedinica pripada ovom zadatku. Dani se broje kao radni dani, a sati kao radni sati unutar kalendara. Drugi kalendar ne mijenja jedinicu ni uneseno trajanje, ali može promijeniti datum završetka."
   },
   "dialog": {
@@ -458,6 +460,7 @@
     "jumpToTask": "Idi na zadatak {{wbs}}",
     "relationPopoverTitle": "Vrsta ovisnosti",
     "driving": "Odlučujuća ovisnost",
+    "drivingUnknown": "Odlučujuće ovisnosti nepoznate bez izračuna.",
     "lag": "Vrijeme odgode (npr. 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Izračunaj",
     "assignments": {
@@ -522,6 +525,8 @@
     "type": "Vrsta",
     "lag": "Vrijeme odgode",
     "driving": "Odlučujuća ovisnost",
+    "drivingUnknown": "Nepoznato",
+    "notDriving": "Nije odlučujuća ovisnost",
     "freeFloat": "Slobodni hod",
     "warnings": "Upozorenja",
     "warnTruncatedLead": "Vrijeme preklapanja skraćeno na datum početka projekta — preklapanje se ne iskorištava u potpunosti",
@@ -651,5 +656,11 @@
     "pieceHours_few": "Dio: {{count}} sata",
     "pieceHours_other": "Dio: {{count}} sati",
     "merged": "Spoji"
+  },
+  "dateTimeInput": {
+    "time": "Vrijeme: {{field}}",
+    "timeHint": "Prazno: početak ili završetak radnog dana. Uz navedeno vrijeme: točno taj trenutak.",
+    "later": "Četvrt sata kasnije",
+    "earlier": "Četvrt sata ranije"
   }
 }

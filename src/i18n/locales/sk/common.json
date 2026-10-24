@@ -11,8 +11,9 @@
   },
   "notifications": {
     "dismiss": "Zavrieť oznámenie",
-    "taskEditRevertBlocked": "Medzitým prišla zmena od AI asistenta alebo rozšírenia. Zmeny úloh vykonané skôr sa nevrátili späť. Zostávajú ako bežné kroky pod príkazom Vrátiť späť.",
+    "taskEditRevertBlocked": "Medzitým prišla zmena od klienta MCP alebo rozšírenia. Zmeny úloh vykonané skôr sa nevrátili späť. Zostávajú ako bežné kroky pod „Vrátiť späť“.",
     "openFailed": "Otvorenie súboru zlyhalo",
+    "csvInvalidDate": "Súbor CSV sa neotvoril: nečitateľný dátum „{{value}}“ v riadku {{row}}, stĺpec „{{column}}“. Použite formát rrrr-mm-dd, dd-mm-rrrr alebo dd/mm/rrrr.",
     "extGuideCallbackFailed": "Krok rozšírenia {{name}} zlyhal. Sprievodca pokračuje.",
     "extHelpProjectOpenFailed": "Súbor projektu {{file}} rozšírenia {{name}} sa nepodarilo otvoriť.",
     "extImportFailed": "Import pomocou „{{name}}“ zlyhal.",
@@ -106,6 +107,8 @@
     "browserCannotOverwrite": "Tento prehliadač neumožňuje aplikácii zapisovať späť do „{{name}}“. Preto sa aplikácia pri každom uložení znova pýta, kam má súbor uložiť. V prehliadačoch Chrome alebo Edge a v desktopovej aplikácii sa to nedeje.",
     "browserSavesAsDownload": "Uložené ako stiahnutý súbor: „{{name}}“ je v priečinku pre sťahovanie. Tento prehliadač neumožňuje aplikácii zapisovať na vlastné miesto, takže každé uloženie vytvorí nové sťahovanie. V prehliadačoch Chrome alebo Edge a v desktopovej aplikácii príkaz Uložiť jednoducho aktualizuje ten istý súbor.",
     "autoSaveFailed": "Automatické ukladanie zlyhalo",
+    "recoveryManifestBlocked": "Údaje na obnovu majú neznámu verziu alebo neplatnú štruktúru. Táto aplikácia ich nechá nedotknuté a nemôže túto sadu na obnovu čítať ani aktualizovať. Skúste verziu aplikácie, ktorá kópie vytvorila, alebo novšiu verziu. Nové zmeny uložte sami.",
+    "recoveryStorageBlocked": "Úložisko obnovy je dočasne zablokované iným otvoreným pripojením. Existujúce kópie zostávajú; táto stránka nevytvára nové kópie na obnovu. Uložte svoje zmeny sami, zatvorte ostatné karty s touto aplikáciou a znova načítajte túto stránku, aby sa obnova skúsila znova.",
     "recoveryReadFailed": "Obnovený súbor sa nepodarilo prečítať",
     "recoveryRestoreFailed": "Obnovenie zlyhalo",
     "recoveryDocumentsSkipped_one": "{{count}} súbor na obnovenie sa nepodarilo načítať a bol preskočený.",
@@ -185,7 +188,15 @@
     "referencesClearedOnPaste_many": "{{count}} odkazu v tomto dokumente neexistovalo a bolo vymazaných (kalendárov úloh, vlastných druhov prác, kódov aktivít alebo vlastných polí zo zdrojového dokumentu).",
     "referencesClearedOnPaste_other": "{{count}} odkazov v tomto dokumente neexistovalo a bolo vymazaných (kalendárov úloh, vlastných druhov prác, kódov aktivít alebo vlastných polí zo zdrojového dokumentu).",
     "milestoneRefusedAssignments": "„{{task}}“ má priradenia zdrojov a nemôže sa stať medzníkom. Najprv odstráňte priradenia.",
+    "milestoneRefusedAssignmentsMany_one": "{{count}} úloha má priradenia zdrojov a nemôže sa zmeniť na medzník. Najprv odstráňte priradenia.",
+    "milestoneRefusedAssignmentsMany_few": "{{count}} úlohy majú priradenia zdrojov a nemôžu sa zmeniť na medzník. Najprv odstráňte priradenia.",
+    "milestoneRefusedAssignmentsMany_many": "{{count}} úlohy majú priradenia zdrojov a nemôžu sa zmeniť na medzník. Najprv odstráňte priradenia.",
+    "milestoneRefusedAssignmentsMany_other": "{{count}} úloh má priradenia zdrojov a nemôže sa zmeniť na medzník. Najprv odstráňte priradenia.",
     "milestoneRefusedSummary": "„{{task}}“ je súhrnná úloha s čiastkovými úlohami a nemôže sa stať medzníkom.",
+    "milestoneRefusedSummaryMany_one": "{{count}} úloha je súhrnná úloha a má čiastkové úlohy. Nemôže sa zmeniť na medzník.",
+    "milestoneRefusedSummaryMany_few": "{{count}} úlohy sú súhrnné úlohy a majú čiastkové úlohy. Nemôžu sa zmeniť na medzník.",
+    "milestoneRefusedSummaryMany_many": "{{count}} úlohy sú súhrnné úlohy a majú čiastkové úlohy. Nemôžu sa zmeniť na medzník.",
+    "milestoneRefusedSummaryMany_other": "{{count}} súhrnných úloh má čiastkové úlohy a nemôže sa zmeniť na medzník.",
     "assignmentsMovedToSubtask_one": "Priradenie presunuté do čiastkovej úlohy „{{child}}“.",
     "assignmentsMovedToSubtask_few": "{{count}} priradenia presunuté do čiastkovej úlohy „{{child}}“.",
     "assignmentsMovedToSubtask_many": "{{count}} priradenia presunutého do čiastkovej úlohy „{{child}}“.",
@@ -195,6 +206,10 @@
     "assignmentsMovedToSubtasks_many": "Priradenia {{count}} úlohy presunuté do čiastkových úloh.",
     "assignmentsMovedToSubtasks_other": "Priradenia {{count}} úloh presunuté do čiastkových úloh.",
     "milestoneClearedOnPhase": "„{{phase}}“ už nie je medzník.",
+    "milestoneClearedOnPhaseMany_one": "{{count}} úloha už nie je medzník.",
+    "milestoneClearedOnPhaseMany_few": "{{count}} úlohy už nie sú medzníky.",
+    "milestoneClearedOnPhaseMany_many": "{{count}} úlohy už nie sú medzníky.",
+    "milestoneClearedOnPhaseMany_other": "{{count}} úloh už nie je medzník.",
     "phaseRefusedNoAssignableChild": "„{{phase}}“ nemôže byť súhrnnou úlohou: jej priradenia nemajú kam ísť, pretože žiadna z nových čiastkových úloh nesmie niesť priradenia (medzník alebo súhrnná úloha). Nič sa nezmenilo.",
     "phaseRefusedDuplicateResource": "„{{phase}}“ nemôže byť súhrnnou úlohou: priradenie zdroja {{resource}} sa nemôže presunúť do novej čiastkovej úlohy „{{child}}“, pretože tá už má {{resource}}. Nič sa nezmenilo.",
     "phaseQuestionOutdated": "Úlohy alebo priradenia sa zmenili, kým bola otázka otvorená. Nič sa nezmenilo; skúste to znova.",
@@ -213,7 +228,7 @@
     },
     "xerArchiveUnusable": "Zdrojový archív XER v tomto súbore nie je použiteľný a bol vynechaný; samotný projekt bol otvorený úplne.",
     "xerArchiveUnusableLine": "Zdrojový archív XER v tomto súbore nebol použiteľný a bol vynechaný.",
-    "xerArchiveUnusableConsequence": "Plán, profil výpočtu a všetky údaje projektu z IFC sú úplné. Chýba: dátumy tak, ako ich ukladala Primavera, a pôvod zdroja pre AI a rozšírenia. Uložením sa súbor zapíše bez archívu; ak chcete archív získať späť, importujte pôvodný súbor .xer znova.",
+    "xerArchiveUnusableConsequence": "Plán, profil výpočtu a všetky údaje projektu z IFC sú úplné. Chýba: dátumy tak, ako ich ukladala Primavera, a pôvod údajov pre klientov MCP a rozšírenia. Uložením sa súbor zapíše bez archívu; ak chcete archív získať späť, importujte pôvodný súbor .xer znova.",
     "xerArchiveReasonSchemaVersion": "Dôvod: archív má neznámu verziu schémy alebo inú štruktúru (novší alebo iný zapisovač).",
     "xerArchiveReasonHashMismatch": "Dôvod: kontrolný súčet nezodpovedá zdrojovým bajtom — archív je poškodený.",
     "xerArchiveReasonTruncated": "Dôvod: archív je skrátený — časť zdrojových bajtov chýba.",
@@ -320,7 +335,12 @@
     "msProjectLostResourceRates_one": "Štandardné sadzby pri {{count}} zdroji neboli prevzaté.",
     "msProjectLostResourceRates_few": "Štandardné sadzby pri {{count}} zdrojoch neboli prevzaté.",
     "msProjectLostResourceRates_many": "Štandardné sadzby pri {{count}} zdroji neboli prevzaté.",
-    "msProjectLostResourceRates_other": "Štandardné sadzby pri {{count}} zdrojoch neboli prevzaté."
+    "msProjectLostResourceRates_other": "Štandardné sadzby pri {{count}} zdrojoch neboli prevzaté.",
+    "minuteModelConverted_one": "{{document}}: {{count}} úloha má po prevode iný začiatok alebo dokončenie; najväčší posun v pracovných dňoch je {{days}}. Ctrl+Z obnoví uložené dátumy.",
+    "minuteModelConverted_few": "{{document}}: {{count}} úlohy majú po prevode iný začiatok alebo dokončenie; najväčší posun v pracovných dňoch je {{days}}. Ctrl+Z obnoví uložené dátumy.",
+    "minuteModelConverted_many": "{{document}}: {{count}} úlohy majú po prevode iný začiatok alebo dokončenie; najväčší posun v pracovných dňoch je {{days}}. Ctrl+Z obnoví uložené dátumy.",
+    "minuteModelConverted_other": "{{document}}: {{count}} úloh má po prevode iný začiatok alebo dokončenie; najväčší posun v pracovných dňoch je {{days}}. Ctrl+Z obnoví uložené dátumy.",
+    "minuteModelCalendarRepaired": "Kalendár „{{calendar}}“ bol opravený: dokončenie alebo prestávka nezodpovedala uloženému pracovnému času."
   },
   "scheduleErrors": {
     "cycle": "Kruhová závislosť medzi úlohami: {{path}}",
@@ -423,6 +443,11 @@
     "languageHint": "Jazyk zobrazenia aplikácie, použije sa hneď.",
     "version": "Verzia",
     "versionHint": "Aktuálne číslo verzie aplikácie.",
+    "experimentalSection": "Experimentálne",
+    "experimentalEmpty": "Momentálne nie sú k dispozícii žiadne experimentálne funkcie.",
+    "experimentalHide": "Skryť",
+    "demoTopbarAnimation": "Demo: animácia v hornej lište",
+    "demoTopbarAnimationHint": "Jemná oranžová lesklá vlna v hornej lište. Ukazuje, ako funguje experimentálny prepínač.",
     "tourHint": "Znova prejdite úvodnú prehliadku aplikácie.",
     "theme": "Motív",
     "themeHint": "Farebná schéma používateľského rozhrania.",
@@ -435,14 +460,18 @@
     "showTaskTypesHint": "Vyberte pre každú úlohu, čo sa zmení, keď sa zmení trvanie, jednotky priradenia alebo práca, ako Task Type v MS Project a Duration Type v P6. Vypnuté: trvanie a jednotky priradenia zostanú pevné. Súbor s typmi úloh alebo uloženou prácou ich zobrazí aj vtedy, keď je toto vypnuté.",
     "allowMixedDayHour": "Povoliť zmiešané plánovanie dní/hodín",
     "defaultTaskDurationUnit": "Predvolená jednotka pre nové úlohy",
-    "defaultTaskDurationUnitHint": "Určuje, či nové úlohy začínajú v pracovných dňoch alebo pracovných hodinách. Existujúce úlohy sa nemenia.",
+    "defaultTaskDurationUnitHint": "Dňová jednotka: trvanie sa počíta v pracovných dňoch kalendára. Hodinová jednotka: trvanie sa počíta v pracovných hodinách. Existujúce úlohy sa nemenia. Úloha s pevnou prácou má vždy hodinovú jednotku.",
+    "defaultTaskDurationUnitDays": "Mierka dní",
+    "defaultTaskDurationUnitHours": "Mierka hodín",
+    "defaultTaskDurationUnitLocked": "Profil „{{profile}}“ počíta trvanie v hodinách. Nové úlohy preto dostanú mierku hodín.",
     "durationDisplay": "Zobrazenie trvania",
     "durationDisplayHint": "Určuje, ako sa zobrazuje trvanie úlohy, nezávisle od jednotky, v ktorej je úloha zaznamenaná.",
+    "durationDisplayOpsHint": "V profile OPS zobrazuje každá úloha svoju vlastnú mierku.",
     "durationDisplayAuto": "Automaticky (vlastná jednotka každej úlohy)",
     "durationDisplayDays": "Vždy dni",
     "durationDisplayHours": "Vždy hodiny",
     "barSplitMode": "Lišty úloh pri prestávkach",
-    "barSplitModeHint": "Či sa lišta úlohy vizuálne rozdelí okolo nepracovných dní.",
+    "barSplitModeHint": "Iba pre hodinové úlohy: pruhy sa rozdelia okolo prestávok a nepracovného času. Skutočné prestávky úloh zostávajú vždy viditeľné, aj pri tomto nastavení.",
     "barSplitNever": "Nikdy nerozdeľovať",
     "barSplitSelection": "Rozdeliť pri výbere",
     "barSplitAlways": "Vždy rozdeliť",
@@ -505,11 +534,11 @@
     "fontFamilySerif": "Patkové",
     "fontFamilyMono": "Monospace",
     "fontHint": "Webové aplikácie automaticky nepreberajú systémové nastavenie písma. Vyberte tu písmo a veľkosť pre celé rozhranie.",
-    "aiModeSection": "Režim AI",
-    "aiMode": "Zapnúť režim AI",
-    "aiModeHint": "Zobrazuje kartu AI s mostom MCP, aby AI asistenti mohli pracovať s vaším plánom cez Model Context Protocol. Vypnutím sa most zastaví.",
+    "aiModeSection": "Pripojenie MCP",
+    "aiMode": "Povoliť pripojenie MCP",
+    "aiModeHint": "Zobrazuje kartu MCP. Na nej spustíte most MCP, aby klient MCP mohol cez Model Context Protocol pracovať s vaším plánom. Vypnutím sa most zastaví.",
     "aiAutostart": "Spustiť most automaticky",
-    "aiAutostartHint": "Spustí most MCP hneď po štarte aplikácie, aby sa AI klient mohol pripojiť bez otvorenia karty AI. Iba v desktopovej aplikácii.",
+    "aiAutostartHint": "Spustí most MCP hneď po štarte aplikácie, aby sa klient MCP mohol pripojiť bez otvorenia karty MCP. Iba v desktopovej aplikácii.",
     "legacySection": "Staré funkcie",
     "classicViewControls": "Zobraziť klasické tlačidlá zobrazenia",
     "classicViewControlsHint": "Vráti samostatné tlačidlá Stĺpce, Filter, Zoskupiť a Zoradiť na karte Zobrazenie. Stĺpce teraz vyberiete znamienkom plus v hlavičke tabuľky alebo cez Tabuľka → Stĺpce…; filtrovanie, zoskupovanie a zoradenie sú v tlačidlách rozloženia a v dialógu rozloženia."
@@ -541,9 +570,9 @@
     "configSnippetHint": "Vložte to do konfigurácie MCP vášho klienta.",
     "tokenWarning": "Tento token dáva prístup k otvorenému plánu. Nezdieľajte ho s inými.",
     "connectPrompt": "Výzva na pripojenie",
-    "connectPromptHint": "Vložte to do svojho AI agenta – ten sa pripojí sám.",
+    "connectPromptHint": "Vložte to do svojho klienta MCP – ten sa pripojí sám.",
     "connectPromptText": "Pripojte sa k serveru MCP bežiacemu v mojom počítači: názov {{name}}, prenos streamable HTTP, URL {{url}}, s hlavičkou Authorization: Bearer {{token}}. Pridajte ho do konfigurácie MCP (napríklad ako blok mcpServers) a pripojte sa. Potom na kontrolu vyžiadajte zoznam nástrojov: mali by ste vidieť približne {{count}} nástrojov s predponou {{prefix}}. Stručne zhrňte, čo viete s týmto serverom robiť. Skôr než niečo zmeníte, najprv si prečítajte sprievodcu plánovaním cez nástroj planner_get_planning_guide.",
-    "statusDot": "AI most: {{status}}"
+    "statusDot": "Most MCP: {{status}}"
   },
   "aiSafety": {
     "pause": "Pozastaviť",
@@ -553,7 +582,7 @@
     "readOnlyHint": "Všetky nástroje na zmeny sa odmietajú, kým je toto zapnuté.",
     "autoBackupOn": "Auto-záloha: zapnutá",
     "autoBackupOff": "Auto-záloha: vypnutá",
-    "autoBackupHint": "Pred prvou zmenou AI v každom dokumente automaticky uloží zálohu IFC.",
+    "autoBackupHint": "Pred prvou zmenou MCP v každom dokumente automaticky uloží zálohu IFC.",
     "backupNow": "Zálohovať teraz",
     "openFolder": "Otvoriť priečinok záloh",
     "backupOk": "Záloha vytvorená: {{name}}",
@@ -561,10 +590,10 @@
     "openErr": "Nepodarilo sa otvoriť priečinok: {{error}}"
   },
   "aiActivity": {
-    "title": "Činnosť AI",
+    "title": "Činnosť MCP",
     "panelButton": "Panel činnosti",
     "clear": "Vymazať",
-    "empty": "Zatiaľ žiadna činnosť AI. Volania mostu sa zobrazia tu.",
+    "empty": "Zatiaľ žiadna činnosť MCP. Volania mostu sa zobrazia tu.",
     "args": "Argumenty",
     "result": "Odpoveď"
   },
@@ -582,7 +611,10 @@
     "taskCount_many": "{{count}} úlohy",
     "taskCount_other": "{{count}} úloh",
     "restore": "Obnoviť",
-    "dontRestore": "Neobnovovať"
+    "dontRestore": "Neobnovovať",
+    "unreadableOnlyExplanation": "Žiadnu z kópií na obnovu nemožno prečítať. Uschovajte ich pre neskorší pokus o obnovu alebo ich odstráňte, len ak ich už nepotrebujete. Odstránenie sa nedá vrátiť späť.",
+    "keepCopies": "Ponechať kópie",
+    "deleteCopies": "Odstrániť kópie"
   },
   "window": {
     "minimize": "Minimalizovať",
@@ -601,7 +633,8 @@
   "project": {
     "untitled": "Nový plán",
     "imported": "Importovaný projekt",
-    "unassignedResource": "Nepriradené"
+    "unassignedResource": "Nepriradené",
+    "ifcBuildingModelUnsupported": "Tento súbor IFC obsahuje objekty stavebného modelu. Otvorenie je zablokované, pretože uloženie by tieto objekty odstránilo. Upravte samostatný súbor plánu a potom ho znova zlúčte so stavebným modelom."
   },
   "documents": {
     "overviewTitle": "Otvorené projekty",
@@ -696,12 +729,14 @@
     "releaseNotes": "Čo je nové",
     "downloadInstall": "Stiahnuť a nainštalovať",
     "downloading": "Sťahuje sa…",
+    "preparingInstall": "Príprava inštalácie…",
     "installing": "Inštaluje sa…",
     "restarting": "Reštartuje sa…",
     "retry": "Skúsiť znova",
     "error": "Pri aktualizácii sa niečo pokazilo",
     "checking": "Kontroluje sa…",
     "snapNotice": "Táto verzia sa aktualizuje automaticky cez Snap Store. Nemusíte nič robiť.",
+    "packageManagerNotice": "Aktualizujte pomocou správcu balíkov (napr. yay -Syu).",
     "debExplanation": "Aktualizujte ručne spustením tohto príkazu v termináli alebo si stiahnite najnovší balík.",
     "debCommandLabel": "Inštalačný príkaz",
     "copyCommand": "Kopírovať príkaz",
@@ -798,6 +833,7 @@
     "companies": "Knižnice zdrojov",
     "addCompany": "Pridať knižnicu zdrojov",
     "newCompany": "Nová knižnica zdrojov",
+    "defaultCompany": "Moja knižnica zdrojov",
     "companyName": "Názov knižnice",
     "removeCompany": "Odstrániť knižnicu zdrojov",
     "cannotRemoveLast": "Poslednú knižnicu zdrojov nie je možné odstrániť.",
@@ -813,7 +849,7 @@
     "calendars": "Kalendáre",
     "noCalendars": "Zatiaľ žiadne kalendáre v spoločnom zozname.",
     "noResources": "Zatiaľ žiadne zdroje v spoločnom zozname.",
-    "promoteHint": "Kalendár alebo zdroj projektu pridajte do knižnice tlačidlom „+ Pridať z projektu“ vyššie.",
+    "promoteHint": "Kalendár projektu pridajte do knižnice tlačidlom „+ Pridať z projektu“ vyššie.",
     "promoteFromProject": "Pridať z projektu",
     "alreadyLinked": "už prepojené",
     "editItem": "Upraviť",
@@ -1264,7 +1300,7 @@
     "nav": {
       "reportTab": "Prejsť na kartu Zostava",
       "switchDocument": "Prepnúť dokument",
-      "scrollToToday": "Prejsť na dnešný deň",
+      "scrollToToday": "Prejsť na dátum kontroly stavu alebo na dnešný deň",
       "help": "Otvoriť pomoc"
     },
     "grid": {
@@ -1446,6 +1482,7 @@
     "overrideDropped": "Prepojenie pre riadok {{row}} smeruje na úlohu, ktorá už neexistuje, a bolo ignorované.",
     "moreRows": "…a ešte {{more}}",
     "sheetRowHint": "riadok {{row}} v tabuľke",
+    "sheetTaskId": "ID úlohy OPS: {{id}}",
     "dateOrderTitle": "Najskôr deň alebo mesiac?",
     "dateOrderQuestion": "„{{sample}}“ — ktorý dátum to je?",
     "dateOrderOptionA": "{{date}}",
@@ -1487,7 +1524,7 @@
   "conventions": {
     "preserveActualDatesInBackwardPass": {
       "label": "Zachovať skutočné dátumy pri spätnom výpočte",
-      "help": "Začatá alebo dokončená úloha si ponechá svoje zaznamenané dátumy aj na neskorej strane. Dokončená nasledujúca úloha nepresunie otvorenú predchádzajúcu úlohu späť do minulosti."
+      "help": "S dátumom kontroly stavu si dokončená úloha ponechá svoje skutočné dátumy na neskorej strane. Dokončená nasledujúca úloha nepresunie otvorenú predchádzajúcu úlohu späť do minulosti. Úloha v priebehu si ponechá svoj skutočný začiatok ako neskorý začiatok, pokiaľ nie je zapnutá možnosť „Úloha v priebehu: skorý začiatok = začiatok zostávajúcej práce“. Dokončená úloha v bode alebo okne dátumu kontroly stavu môže tlak závislostí ďalej odovzdať."
     },
     "clampNegativeFreeFloat": {
       "label": "Voľná časová rezerva nie je záporná",
@@ -1495,103 +1532,111 @@
     },
     "p6ZeroDurationUsesPlannedBoundary": {
       "label": "Medzník sleduje plánovanú hranicu kalendára",
-      "help": "Medzník bez trvania zostane na hranici kalendára, ktorú súbor plánoval: začiatok dňa zostane medzníkom začiatku, koniec bloku môže pripadnúť na dokončenie predchádzajúcej úlohy."
+      "help": "Iba pre plánovanie v hodinách. Medzník bez trvania sa drží plánovanej hranice kalendára: začiatok dňa zostane medzníkom začiatku, koniec bloku môže pripadnúť na dokončenie predchádzajúcej úlohy. Aj bežná úloha s trvaním 0 môže dostať dvojicu hraníc, ale len s pôvodom XER ako Task Dependent alebo Resource Dependent a plánované dokončenie je pred plánovaným začiatkom."
     },
     "p6UseTaskPlannedStartFloor": {
       "label": "Plánovaný začiatok ako ďalšia dolná hranica",
-      "help": "Plánovaný začiatok zo súboru platí ako dolná hranica, keď začiatok aj dokončenie ležia o viac ako jeden kalendárny deň neskôr, než sieť dovoľuje."
+      "help": "Plánovaný začiatok platí ako dolná hranica, keď začiatok aj dokončenie ležia o viac ako jeden kalendárny deň neskôr, než sieť dovoľuje. Pri medzníku dokončenia, ktorého plánované dokončenie je pred plánovaným začiatkom, stačí neskorší plánovaný začiatok. Neplatí pre úlohu v priebehu, ak je zapnutá možnosť „Plánovaný začiatok nie je dolná hranica pre úlohu v priebehu“, ani pre nezačatú úlohu ALAP, ktorá sa umiestňuje podľa svojich nasledujúcich úloh. Nevyžaduje pôvod XER."
     },
     "p6FinishMilestoneBoundaryWindow": {
       "label": "Medzník dokončenia ako okno hraníc",
-      "help": "Medzník dokončenia môže byť na dvoch susedných hraniciach kalendára: skorý začiatok na začiatku pracovného bloku, skoré dokončenie na konci predchádzajúceho pracovného bloku."
+      "help": "Medzník dokončenia bez trvania dostane hraničné okno iba vtedy, keď jeho plánované dokončenie je pred jeho plánovaným začiatkom a vypočítaný začiatok je stále rovnaký ako tento plánovaný začiatok. Medzník dokončenia, ktorý má predchádzajúce úlohy a nemá nasledujúcu úlohu, dostane svoje skoré dátumy aj ako neskoré dátumy, pokiaľ nie je zapnutá možnosť „Prepočítať časovú rezervu do dokončenia projektu“. Iba pri výstupe P3; v každom vstavanom profile výpočtu je vypnuté."
     },
     "p6PreserveActualInstants": {
       "label": "Skutočné dátumy prevziať presne",
-      "help": "Zaznamenané skutočné dátumy začiatku a dokončenia sa nepresúvajú na okraj pracovného bloku."
+      "help": "Iba pre úlohy s uchovaným pôvodom zo súboru .xer. Zaznamenané skutočné dátumy začiatku a dokončenia sa nepresúvajú na okraj pracovného bloku."
     },
     "p6UseRemainingStartForProgress": {
       "label": "Úloha v priebehu: skorý začiatok = začiatok zostávajúcej práce",
-      "help": "Skorý a neskorý začiatok úlohy v priebehu opisujú, kde začína zostávajúca práca, nie historický skutočný začiatok. Pri spätnom výpočte cez závislosť začiatok-začiatok sa počíta len zostávajúce trvanie."
+      "help": "Skorý a neskorý začiatok úlohy v priebehu opisujú, kde začína zostávajúca práca. Pri spätnom výpočte cez závislosť začiatok-začiatok sa počíta len zostávajúce trvanie, ale iba pre plánovanie v hodinách, so skutočným začiatkom a postupom medzi 0 a 100 %, so známym zostávajúcim trvaním kratším než plánované trvanie, bez uplynulého trvania a bez prestávok v pláne. Toto dodatočné pravidlo zostávajúceho trvania sa nevzťahuje na závislosti začiatok-dokončenie."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Presný okamih obmedzenia na medzníku",
-      "help": "Obmedzenie na dátum a čas pri medzníku bez trvania je presný bod, aj na začiatku pracovného bloku."
+      "help": "Iba pre plánovanie v hodinách, na neskorej strane, pre obmedzenie s dátumom a časom typu SNLT, MSO, FNLT alebo MFO pri medzníku bez trvania. Okamih obmedzenia zostane presný, aj na začiatku pracovného bloku. Pri výpočte dopredu je takýto okamih v každom profile už presný."
     },
     "resumeFromActualElapsed": {
       "label": "Zostávajúca práca pokračuje po uplynulom trvaní",
-      "help": "Úloha v priebehu pokračuje so zostávajúcou prácou od skutočného začiatku plus už uplynulého trvania, nie od dátumu kontroly stavu."
+      "help": "Úloha v priebehu obnoví zostávajúcu prácu najskôr po skutočnom začiatku plus uplynulé trvanie. Dátum kontroly stavu a hranica predchádzajúcej úlohy zostávajú dolnými hranicami; platí najneskorší z troch. Neplatí pre Progress Override, úlohy bez zostávajúcej práce ani prípady, keď aplikácia použije platný dátum obnovenia zo súboru (ak je najviac jedno priradenie)."
     },
     "unstartedIgnoresStatusDate": {
       "label": "Nepresúvať nezačaté úlohy na dátum kontroly stavu",
-      "help": "Úloha, ktorá ešte nezačala, sa automaticky nepresúva na dátum kontroly stavu alebo po ňom."
+      "help": "Iba s dátumom kontroly stavu, pre úlohu bez postupu. Táto úloha sa automaticky nepresúva na dátum kontroly stavu alebo po ňom."
     },
     "p6RelationFinishBoundary": {
       "label": "Nasledujúca úloha začína na hranici dokončenia",
-      "help": "Pri závislosti dokončenie-začiatok bez oneskorenia, pri ktorej nasledujúca úloha v súbore začína presne na konci predchádzajúcej úlohy, na konci pracovného bloku, začína nasledujúca úloha na tomto konci, nie na začiatku ďalšieho pracovného bloku. Súbor to neoznačuje: aplikácia takúto závislosť rozpozná sama pri otvorení súboru .xer. Závislosť, ktorú pridáte sami, sa na ňu nevzťahuje. Pri spätnom výpočte nasledujúca úloha zobrazí svoj neskorý začiatok jednoducho ako začiatok pracovného bloku."
+      "help": "Iba pre plánovanie v hodinách, v kalendári predchádzajúcej úlohy a pre závislosť, ktorú aplikácia rozpozná pri otvorení súboru .xer. Pri závislosti dokončenie-začiatok bez oneskorenia, pri ktorej súbor umiestni nasledujúcu úlohu presne na koniec pracovného bloku predchádzajúcej úlohy, začína nasledujúca úloha na tomto konci. Závislosť, ktorú pridáte sami, sa na ňu nevzťahuje. Pri spätnom výpočte zostáva neskorý začiatok nasledujúcej úlohy začiatkom pracovného bloku."
     },
     "p6BackwardLagFinishBoundary": {
       "label": "Oneskorenie pri spätnom výpočte od hranice dokončenia",
-      "help": "Ak spätný výpočet odpočíta oneskorenie v pracovnom čase od hranice dokončenia a presne vyjde na začiatku pracovného bloku, skončí na predchádzajúcej hranici dokončenia. Aj pri závislosti dokončenie-dokončenie bez oneskorenia zostane neskoré dokončenie na konci bloku na tejto hranici dokončenia."
+      "help": "Iba pre plánovanie v hodinách a v kalendári, ktorý sa pre oneskorenie používa. Ak spätný výpočet odpočíta kladné oneskorenie v pracovnom čase od presnej hranice dokončenia a vyjde na prvom začiatku bloku dňa, skončí na predchádzajúcej hranici dokončenia. Aj pri závislosti dokončenie-dokončenie bez oneskorenia zostane neskoré dokončenie na konci bloku na tejto hranici. Neplatí pre oneskorenie s uplynulým trvaním."
     },
     "p6CompletedDataDateWindow": {
       "label": "Dokončená úloha v okne dátumu kontroly stavu",
-      "help": "Dokončená úloha dostane skoré dátumy v okne dátumu kontroly stavu a jej dokončenie sa počíta do dokončenia projektu."
+      "help": "Iba s dátumom kontroly stavu, pre dokončené úlohy zo súboru .xer bez čiastkových úloh, so zachovaným cieľovým oknom, typom postupu trvanie a typom P6 Task Dependent alebo Resource Dependent s Fixed Duration & Units; okrem medzníkov bez trvania. Vyžaduje „Úloha v priebehu: skorý začiatok = začiatok zostávajúcej práce“. Prestávka/obnovenie sa povoľuje iba pri Task Dependent s platnou dvojicou, so skutočným dokončením medzi plánovaným dokončením a dátumom kontroly stavu, s obnovením najneskôr pri skutočnom dokončení a keď je zapnuté „Zachovať skutočné dátumy pri spätnom výpočte“. Úloha dostane skoré dátumy v okne dátumu kontroly stavu; jej dokončenie sa počíta do dokončenia projektu."
     },
     "p6CompletedLoeActualFinish": {
       "label": "Dokončená LOE cez skutočné dokončenie",
-      "help": "Dokončená úloha typu level-of-effort, ktorá má len vstup začiatok-začiatok, sleduje trasu cez svoje skutočné dokončenie."
+      "help": "Iba s dátumom kontroly stavu, pre dokončenú LOE zo súboru .xer s kladným trvaním, typom postupu trvanie a typom P6 Fixed Duration & Units/Time, s úplným cieľovým oknom a skutočným dokončením medzi plánovaným dokončením a dátumom kontroly stavu. Iba vstupné závislosti začiatok-začiatok, aspoň jedna, bez nasledujúcej úlohy a bez prestávky/obnovenia. Vyžaduje „Úloha v priebehu: skorý začiatok = začiatok zostávajúcej práce“, „Zachovať skutočné dátumy pri spätnom výpočte“ a „Skutočné dátumy prevziať presne“. LOE sa riadi svojím skutočným dokončením namiesto trasy hamaka."
     },
     "p6OpenLoeTargetSpan": {
       "label": "Nezačatá LOE použije cieľové okno",
-      "help": "Úloha typu level-of-effort, ktorá ešte nezačala, použije ako trvanie svoje cieľové okno."
+      "help": "Iba pre plánovanie v hodinách, pre LOE alebo hamak, ktorý ešte nezačal, zo súboru .xer s postupom 0 %, kladným trvaním, typom postupu trvanie a typom P6 Fixed Duration & Units; bez skutočných dátumov a bez prestávky/obnovenia. Vyžaduje úplné kladné cieľové okno, ktorého začiatok sa rovná hranici závislosti a pracovný čas sa od trvania líši najviac o jeden pracovný deň, aspoň jeden vstup začiatok-začiatok a jeden výstup dokončenie-dokončenie, iba tieto typy závislostí a bez oneskorenia. LOE potom ako svoju dĺžku použije cieľové okno. Slabý dôkaz: jeden súbor."
     },
     "p6CompletedPredecessorAtDataDate": {
       "label": "Dokončená predchádzajúca úloha nezdržiava po dátume kontroly stavu",
-      "help": "Ak dokončená predchádzajúca úloha podľa svojho skutočného dátumu skončí po dátume kontroly stavu, jej nasledujúce úlohy môžu napriek tomu začať už na dátume kontroly stavu."
+      "help": "Iba pre plánovanie v hodinách a s dátumom kontroly stavu, pre dokončenú predchádzajúcu úlohu so skutočným dokončením. Závislosti dokončenie-začiatok a dokončenie-dokončenie sa počítajú najneskôr od hranice pracovného času tesne pred dátumom kontroly stavu; neskoršie skutočné dokončenie nedrží nasledujúcu úlohu späť. Závislosti začiatok-začiatok a začiatok-dokončenie zostávajú pri skutočnom začiatku. Dokončená úloha s vlastným bodom dátumu kontroly stavu alebo posunutým oknom dátumu kontroly stavu sleduje túto vlastnú hranicu."
     },
     "p6FreeFloatOnOwnCalendar": {
       "label": "Voľná časová rezerva vo vlastnom kalendári",
-      "help": "Voľná časová rezerva nezačatej úlohy sa počíta pri každej závislosti vo vlastnom kalendári úlohy, nie v kalendári nasledujúcej úlohy. Platí to pri závislostiach typu dokončenie-začiatok, začiatok-začiatok a dokončenie-dokončenie, aj s oneskorením v pracovnom čase v kalendári predchádzajúcej úlohy. Pri začatej úlohe iba pri závislosti dokončenie-začiatok bez oneskorenia."
+      "help": "Iba pri plánovaní v hodinách, pre neukončené úlohy a závislosti s vypočítanou voľnou časovou rezervou. Voľná časová rezerva nezačatej úlohy sa počíta pri každej závislosti vo vlastnom kalendári úlohy, nie v kalendári nasledujúcej úlohy. Platí to pri závislostiach typu dokončenie-začiatok, začiatok-začiatok a dokončenie-dokončenie bez oneskorenia v reálnych hodinách alebo v percentách. Oneskorenie iné ako 0 vyžaduje kalendár oneskorení predchádzajúcej úlohy. Pri začatej úlohe platí iba závislosť dokončenie-začiatok bez oneskorenia. Samotná voľná časová rezerva a označenie určujúcej závislosti sa nemení."
     },
     "p6CompletedRemainingLag": {
       "label": "Uplynulé oneskorenie dokončenej predchádzajúcej úlohy sa nepočíta",
-      "help": "Na neskorej strane sa z oneskorenia po dokončenej predchádzajúcej úlohe počíta iba časť, ktorá ešte k dátumu kontroly stavu neuplynula."
+      "help": "Iba pri plánovaní v hodinách na kalendári oneskorení a s dátumom kontroly stavu, pre dokončené predchádzajúce úlohy zo súboru .xer so skutočným dokončením pred dátumom kontroly stavu a s bodom alebo oknom dátumu kontroly stavu. Z kladného oneskorenia pracovného času sa počíta iba zatiaľ neuplynutá časť. Platí na neskorej strane a smerom dopredu od bodu dátumu kontroly stavu alebo od posunutého nulového okna zostávajúcej práce. Úloha na svojich bežných skutočných dátumoch zachováva celé oneskorenie; netýka sa oneskorenia v reálnych hodinách."
     },
     "p6CompletedOutOfSequenceWindow": {
       "label": "Dokončená úloha mimo poradia čaká na svoje predchádzajúce úlohy",
-      "help": "Dokončená úloha, ktorej predchádzajúca úloha ešte nie je hotová, dostane nulové okno až za touto predchádzajúcou úlohou namiesto dátumu kontroly stavu (P6: Retained Logic). Funguje len vtedy, keď sú zapnuté aj možnosti „Dokončená úloha v okne dátumu kontroly stavu“ a „Úloha v priebehu: skorý začiatok = začiatok zostávajúcej práce“."
+      "help": "Iba pri plánovaní v hodinách a s dátumom kontroly stavu, na trase XER pre „Dokončená úloha v okne dátumu kontroly stavu“. Toto pravidlo výpočtu a možnosť „Úloha v priebehu: skorý začiatok = začiatok zostávajúcej práce“ musia byť zapnuté. Netýka sa „Progress Override“. Pri vstupoch dokončenie-začiatok alebo začiatok-začiatok dostane úloha neskoršiu z týchto hraníc: hranicu dátumu kontroly stavu alebo hranicu nedokončenej predchádzajúcej úlohy, prípadne predchádzajúcej úlohy s posunutým oknom dátumu kontroly stavu. Bežné dokončené predchádzajúce úlohy sa nepočítajú."
     },
     "p6CompletedPhysicalAtDataDate": {
       "label": "Dokončená úloha s fyzickým postupom je na dátume kontroly stavu",
-      "help": "Dokončená úloha s fyzickým percentom dokončenia je ako jeden bod na dátume kontroly stavu, alebo neskôr, ak to vyžaduje predchádzajúca úloha. Nie je na svojich skutočných dátumoch. Namerané je to iba pri fyzickom postupe. Pri iných typoch postupu (štandard P6: trvanie) toto správanie namerané nebolo a zostáva vypnuté."
+      "help": "Iba pri plánovaní v hodinách a s dátumom kontroly stavu, pre dokončené úlohy bez čiastkových úloh a medzníky s nulovým trvaním zo súboru .xer typu P6 Task Dependent, Start Milestone alebo Finish Milestone. Podmienky: zachované cieľové okno, typ postupu fyzický, skutočné dokončenie najneskôr k dátumu kontroly stavu a bez prestávky a obnovenia. Vyžaduje „Úloha v priebehu: skorý začiatok = začiatok zostávajúcej práce“. Úloha je v jednom bode na dátume kontroly stavu, alebo neskôr, ak to vyžaduje predchádzajúca úloha. Pri iných typoch postupu vrátane trvania sa to nemeralo a zostáva to vypnuté."
     },
     "p6InProgressStartLagElapsed": {
       "label": "Uplynulé oneskorenie SS z predchádzajúcej úlohy v priebehu sa nepočíta",
-      "help": "Pri závislosti začiatok-začiatok z už začatej úlohy sa z oneskorenia počíta iba časť, ktorá od jej skutočného začiatku ešte k dátumu kontroly stavu neuplynula."
+      "help": "Iba pri plánovaní v hodinách na kalendári oneskorení a s dátumom kontroly stavu, pre závislosť začiatok-začiatok s kladným oneskorením pracovného času z nedokončenej predchádzajúcej úlohy so skutočným začiatkom pred dátumom kontroly stavu. Vyžaduje „Úloha v priebehu: skorý začiatok = začiatok zostávajúcej práce“. Počíta sa iba zatiaľ neuplynutá časť oneskorenia. Možnosť „Oneskorenie SS z prebiehajúcej predchádzajúcej úlohy prepočítať od“ určuje východiskový bod. Netýka sa oneskorenia v reálnych hodinách."
     },
     "p6FinishFinishStartMilestoneLateFinish": {
       "label": "Závislosť dokončenie-dokončenie k medzníku začiatku sa viaže na sám medzník",
-      "help": "Závislosť dokončenie-dokončenie k medzníku začiatku sa počíta až do samotného medzníka, nie do začiatku dňa medzníka. Neskoré dokončenie predchádzajúcej úlohy môže siahať až do neskorého dokončenia medzníka."
+      "help": "Iba pri plánovaní v hodinách na oboch stranách závislosti dokončenie-dokončenie k medzníku začiatku bez trvania. Závislosť sa viaže na samotný medzník: neskoré dokončenie predchádzajúcej úlohy môže siahať až do neskorého dokončenia medzníka. Môže sa zmeniť aj voľná časová rezerva; skorý začiatok medzníka zostáva nezmenený. Netýka sa medzníkov dokončenia ani spätnej trasy s nulovým zostávajúcim trvaním."
     },
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "Plánovaný začiatok nie je dolná hranica pre úlohu v priebehu",
-      "help": "Zostávajúca práca začatej úlohy začína na dátume kontroly stavu a hneď po predchádzajúcich úlohách, aj keď jej plánovaný začiatok je neskôr."
+      "help": "Iba pri úlohe so skutočným začiatkom a postupom menej ako 100 %, ak je zapnutá možnosť „Plánovaný začiatok ako ďalšia dolná hranica“. Jej plánovaný začiatok nepridáva pre zostávajúcu prácu žiadnu ďalšiu dolnú hranicu. Rozhodujúce sú dátum kontroly stavu a jej predchádzajúce úlohy."
     },
     "p6LateFinishOnOwnCalendar": {
       "label": "Neskoré dokončenie vo vlastnom kalendári",
-      "help": "Ak neskoré dokončenie, ktoré vynucuje nasledujúca úloha, pripadne mimo pracovného času úlohy, stane sa koncom predchádzajúceho pracovného obdobia vo vlastnom kalendári."
+      "help": "Iba pri plánovaní v hodinách, ak hranica nasledujúcej úlohy určuje neskoré dokončenie a žiadne prísnejšie obmedzenie ani termín túto hranicu nenahrádza. Ak táto hranica pripadne mimo pracovného času úlohy, stane sa neskoré dokončenie koncom predchádzajúceho pracovného bloku vo vlastnom kalendári. Netýka sa neskorého dokončenia, ktoré určuje dokončenie projektu."
     },
     "p6ProgressOverrideIgnoresStartedSuccessor": {
       "label": "Progress Override ignoruje začatú nasledujúcu úlohu aj pri spätnom výpočte",
-      "help": "Pri Progress Override sa závislosť na nasledujúcu úlohu, ktorá už začala, nepočíta do neskorých dátumov a voľnej časovej rezervy predchádzajúcej úlohy, ktorá ešte nie je hotová."
+      "help": "Iba pri „Progress Override“, pre nedokončenú predchádzajúcu úlohu a začatú, ale nedokončenú nasledujúcu úlohu (skutočný začiatok alebo postup). Ich závislosť sa nepočíta do neskorých dátumov a voľnej časovej rezervy predchádzajúcej úlohy."
     },
     "p6FinishNotBeforeFinishFinishBound": {
       "label": "Skoré dokončenie nie pred hranicou dokončenie-dokončenie",
-      "help": "Pri závislosti dokončenie-dokončenie nikdy neleží skoré dokončenie nasledujúcej úlohy v čase podľa hodín pred hranicou, ktorú stanovuje predchádzajúca úloha. Ak táto hranica pripadne do nepracovného času nasledujúcej úlohy, dokončenie sa stane začiatkom nasledujúceho pracovného obdobia."
+      "help": "Úprava dátumu: pri závislosti dokončenie-dokončenie s oneskorením pracovného času, bez úloh typu hamak a pri plánovaní v hodinách na kalendári nasledujúcej úlohy (pri zostávajúcej práci na kalendári postupu) aj na kalendári oneskorení. Ak hranica závislosti leží neskôr ako skoré dokončenie a medzi nimi nie je žiadny pracovný čas, posunie sa iba dokončenie na prvú hranicu pracovného času na tejto hranici alebo po nej. Platí pre automaticky plánované, nezačaté a prebiehajúce nasledujúce úlohy; pri nezačatých úlohách má prednosť tvrdé ukotvenie dokončenia. Voľná časová rezerva: osobitne sa nedokončená predchádzajúca úloha pri závislosti dokončenie-dokončenie bez oneskorenia a bez percentuálneho oneskorenia, pri existujúcej voľnej časovej rezerve závislosti a vypočítanom skorom dokončení nasledujúcej úlohy, počíta vo vlastnom hodinovom kalendári od svojho skorého dokončenia po skoré dokončenie nasledujúcej úlohy. Platí to aj pri nulovom oneskorení v reálnych hodinách, bez ďalšej podmienky plánovania v hodinách na kalendári nasledujúcej úlohy alebo kalendári oneskorení. Úlohy typu hamak a manuálne plánované úlohy nakoniec zostávajú s voľnou časovou rezervou 0."
     },
     "p6AlapPositionedFromSuccessors": {
       "label": "Úlohy ALAP tak neskoro, ako dovolia nasledujúce úlohy",
-      "help": "Nezačatá úloha s obmedzením „čo najneskôr“ skončí v minúte, keď ju nasledujúce úlohy potrebujú. Najskôr sa umiestnia nasledujúce úlohy, aby sa reťaz uzavrela. Jej vlastný plánovaný začiatok sa nepočíta. Úloha bez predchádzajúcej úlohy potom nezačína skôr ako na dátume kontroly stavu."
+      "help": "Iba pri plánovaní v hodinách, pre nezačatú úlohu, ktorá nie je manuálne plánovaná, s obmedzením „čo najneskôr“ (ALAP). Skoré dátumy nasledujúcich úloh určujú jej umiestnenie presne na minútu; nasledujúce úlohy sa umiestnia najskôr. Jej vlastný plánovaný začiatok sa nepočíta; predchádzajúce úlohy, dátum kontroly stavu a druhé obmedzenie platia ďalej. Bez nasledujúcej úlohy použije svoje neskoré dokončenie. Bežný krok ALAP zostáva dostupný v každom profile."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Samostatné medzníky na konci pracovného dňa",
+      "help": "Samostatný medzník alebo medzník dokončenia bez predchádzajúcej úlohy je na konci svojho pracovného dňa."
+    },
+    "workdayDurationMeasure": {
+      "label": "Trvanie v pracovných dňoch",
+      "help": "Trvanie, oneskorenie alebo zostávajúce trvanie v dňoch sa počíta v pracovných dňoch: každý pracovný deň sa počíta ako 1, bez ohľadu na to, ako dlhý je. Vypnuté: deň sa počíta ako počet pracovných hodín na deň podľa kalendára. Oneskorenie v percentách sa riadi mierkou predchádzajúcej úlohy. Uplynulé trvanie sa nikdy nepočíta v pracovných dňoch."
     }
   },
   "profiles": {
@@ -1630,6 +1675,7 @@
       "float": "Časová rezerva a neskoré dátumy",
       "instants": "Dátumy a časy zo súboru",
       "msproject": "Postup ako v Microsoft Project",
+      "durations": "Trvanie a mierka",
       "ownProfilesOnly": "Len pre vlastné profily"
     },
     "ownProfilesOnlyNote": "Tieto pravidlá výpočtu sú vypnuté vo všetkých vstavaných profiloch, aj v Primavera P6. Zapnúť ich môže len vlastný profil: vyberte na to Nový profil.",
@@ -1642,7 +1688,7 @@
     "showHelp": "Vysvetlenie k „{{name}}“",
     "sourceOptions": {
       "title": "Nastavenia zo zdrojového súboru",
-      "intro": "Tieto možnosti výpočtu pochádzajú zo súboru Primavera P6 (.xer). Vo výpočte sa uplatňujú, no tu ich nemôžete zmeniť.",
+      "intro": "Toto sú možnosti výpočtu iba na čítanie pre tento projekt. Pri importe zo súboru Primavera P6 (.xer) ich aplikácia prevezme zo zdrojového súboru. Uplatnia sa iba vtedy, keď sú splnené príslušné podmienky.",
       "useExpectedFinishDates": "Používať očakávané dátumy dokončenia (P6: Use Expected Finish Dates)",
       "useProjectEndDateForFloat": "Prepočítať časovú rezervu do dokončenia projektu",
       "p6CompletedLateFromRemainingWindow": "Dokončená úloha: neskoré dátumy od dátumu kontroly stavu",
@@ -1651,7 +1697,7 @@
     "requires": {
       "xerOrigin": "len úlohy zo súboru .xer",
       "hourPlanning": "iba pri plánovaní v hodinách",
-      "hourPlanningTitle": "Funguje iba pri plánovaní v hodinách: kalendár s blokmi pracovného času, úloha v hodinách alebo kalendár oneskorení na 24-hodinovom režime."
+      "hourPlanningTitle": "Funguje iba pri plánovaní v hodinách na kalendári, ktorý pravidlo používa: kalendár, v ktorom sú bloky pracovného času, alebo trvanie úlohy v hodinách. Pri oneskorení môže platiť aj 24-hodinový kalendár oneskorení."
     },
     "optionsDeviate": {
       "line": "{{field}}: {{current}} (predvolené: {{standard}})",

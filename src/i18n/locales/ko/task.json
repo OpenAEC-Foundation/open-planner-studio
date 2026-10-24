@@ -4,6 +4,7 @@
     "applyShape": "형태 적용:",
     "hoursPerDay": "작업일당 {{hours}}시간",
     "stripHint": "경계를 끌어 단계를 늘리거나 줄이고, 위쪽 가장자리를 끌어 투입량을 설정하세요. 날짜를 두 번 클릭하면 단계가 분할됩니다.",
+    "partialDayHint": "작업이 근무일 중간에 시작하거나 끝나면 그 날은 비율대로 계산됩니다. 시간은 단위 × 그 날의 일부입니다. 히스토그램도 같은 방식으로 계산됩니다.",
     "from": "시작",
     "to": "종료",
     "days": "일수",
@@ -181,7 +182,8 @@
       "calendar": "목록에서 달력을 선택하세요.",
       "calendarNotFound": "선택한 달력이 없습니다.",
       "calendarHours": "이 작업의 달력에 하루 근무 시간이 없습니다.",
-      "durationConversionNotExact": "이 기간은 다른 단위로 정확히 변환할 수 없습니다.",
+      "durationConversionNotExact": "이 기간은 이 달력에서 다른 단위로 정확히 변환할 수 없습니다.",
+      "fixedWorkIsHours": "고정 작업량인 작업은 항상 시간 단위를 사용합니다.",
       "milestoneRequired": "이 필드는 마일스톤에만 적용됩니다.",
       "milestoneUnavailable": "하위 작업이 있는 요약 작업은 마일스톤이 될 수 없습니다.",
       "actualAfterStatusDate": "실제 날짜가 상태 날짜 이후입니다.",
@@ -323,8 +325,8 @@
     "unit": "기간 단위",
     "days": "일",
     "hours": "시간",
-    "invalid": "정수 일수 또는 시간 수를 입력하세요. 예: 2d 또는 12h",
-    "conversionNotExact": "{{value}}은(는) 이 달력에서 정수 일수로 환산되지 않습니다. 단위는 바뀌지 않았습니다.",
+    "invalid": "일수 또는 시간 수를 입력하세요. 예: 2.5d 또는 12h",
+    "conversionNotExact": "{{value}}은(는) 이 달력에서 다른 단위로 환산되지 않습니다. 단위는 바뀌지 않았습니다.",
     "unitInfo": "선택한 단위는 이 작업에 속합니다. 일은 근무일을 세고, 시간은 달력 안의 근무 시간을 셉니다. 다른 달력은 단위나 입력한 기간을 바꾸지 않지만 완료 날짜는 바꿀 수 있습니다."
   },
   "dialog": {
@@ -450,6 +452,7 @@
     "jumpToTask": "{{wbs}} 작업으로 이동",
     "relationPopoverTitle": "관계 유형",
     "driving": "주도 관계",
+    "drivingUnknown": "계산 없이는 주도 관계를 알 수 없습니다.",
     "lag": "지연(예: 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "계산",
     "assignments": {
@@ -514,6 +517,8 @@
     "type": "유형",
     "lag": "지연",
     "driving": "주도",
+    "drivingUnknown": "알 수 없음",
+    "notDriving": "주도 관계 아님",
     "freeFloat": "자유 여유",
     "warnings": "경고",
     "warnTruncatedLead": "선행 시간이 프로젝트 시작에서 잘렸습니다 — 겹침이 완전히 활용되지 않습니다",
@@ -635,5 +640,11 @@
     "pieceDays_other": "구간: {{count}} 근무일",
     "pieceHours_other": "구간: {{count}}시간",
     "merged": "병합"
+  },
+  "dateTimeInput": {
+    "time": "{{field}} 시간",
+    "timeHint": "비워 두면 근무일의 시작 또는 끝입니다. 시간을 입력하면 정확히 그 시점입니다.",
+    "later": "15분 뒤",
+    "earlier": "15분 전"
   }
 }

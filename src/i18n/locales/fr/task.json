@@ -4,6 +4,7 @@
     "applyShape": "Appliquer une forme :",
     "hoursPerDay": "{{hours}} heures par jour ouvré",
     "stripHint": "Faites glisser une limite pour allonger ou raccourcir une phase, le bord supérieur pour régler l'effort, double-cliquez sur un jour pour scinder une phase.",
+    "partialDayHint": "Si la tâche commence ou se termine en cours de jour ouvré, ce jour compte au prorata : les heures sont égales aux unités × la part de la journée. L'histogramme compte de la même manière.",
     "from": "Du",
     "to": "Au",
     "days": "Jours",
@@ -181,7 +182,8 @@
       "calendar": "Choisissez un calendrier dans la liste.",
       "calendarNotFound": "Le calendrier choisi n'existe pas.",
       "calendarHours": "Le calendrier de cette tâche n'a pas d'heures de travail par jour.",
-      "durationConversionNotExact": "Cette durée ne peut pas être convertie exactement dans l'autre unité.",
+      "durationConversionNotExact": "Cette durée ne peut pas être convertie dans l’autre unité sur ce calendrier.",
+      "fixedWorkIsHours": "Une tâche à travail fixe est toujours exprimée en heures.",
       "milestoneRequired": "Ce champ ne s'applique qu'aux jalons.",
       "milestoneUnavailable": "Une tâche récapitulative avec des sous-tâches ne peut pas devenir un jalon.",
       "actualAfterStatusDate": "La date réelle est postérieure à la date d'état.",
@@ -331,8 +333,8 @@
     "unit": "Unité de durée",
     "days": "Jours",
     "hours": "Heures",
-    "invalid": "Saisissez un nombre entier de jours ou d’heures, par exemple 2d ou 12h.",
-    "conversionNotExact": "{{value}} ne correspond pas à des jours entiers dans ce calendrier. L’unité n’a pas changé.",
+    "invalid": "Saisissez un nombre de jours ou d’heures, par exemple 2,5d ou 12h.",
+    "conversionNotExact": "{{value}} ne peut pas être converti dans l’autre unité sur ce calendrier. L’unité n’a pas changé.",
     "unitInfo": "L'unité choisie appartient à cette tâche. Les jours comptent les jours ouvrés ; les heures comptent les heures de travail du calendrier. Un autre calendrier ne change ni l'unité ni la durée saisie, mais peut changer la date de fin."
   },
   "dialog": {
@@ -458,6 +460,7 @@
     "jumpToTask": "Aller à la tâche {{wbs}}",
     "relationPopoverTitle": "Type de relation",
     "driving": "Relation déterminante",
+    "drivingUnknown": "Relations déterminantes inconnues sans calcul.",
     "lag": "Décalage (p. ex. 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Calculer",
     "assignments": {
@@ -522,6 +525,8 @@
     "type": "Type",
     "lag": "Décalage",
     "driving": "Déterminante",
+    "drivingUnknown": "Inconnu",
+    "notDriving": "Non déterminante",
     "freeFloat": "Marge libre",
     "warnings": "Avertissements",
     "warnTruncatedLead": "Avance tronquée au début du projet — le chevauchement n'est pas entièrement utilisé",
@@ -651,5 +656,11 @@
     "pieceHours_many": "Segment : {{count}} heures",
     "pieceHours_other": "Segment : {{count}} heures",
     "merged": "Fusionner"
+  },
+  "dateTimeInput": {
+    "time": "Heure de {{field}}",
+    "timeHint": "Vide : le début ou la fin du jour ouvré. Avec une heure : exactement ce moment.",
+    "later": "Un quart d'heure plus tard",
+    "earlier": "Un quart d'heure plus tôt"
   }
 }

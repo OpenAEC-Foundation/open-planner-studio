@@ -4,6 +4,7 @@
     "applyShape": "Şekil uygula:",
     "hoursPerDay": "İş günü başına {{hours}} saat",
     "stripHint": "Bir aşamayı uzatmak veya kısaltmak için sınırı, eforu ayarlamak için üst kenarı sürükleyin; bir güne çift tıklamak aşamayı böler.",
+    "partialDayHint": "Görev bir iş gününün ortasında başlarsa veya biterse, o gün orantılı sayılır: saat sayısı, birim × günün bir kısmıdır. Histogram da aynı şekilde sayar.",
     "from": "Başlangıç",
     "to": "Bitiş",
     "days": "Gün",
@@ -181,7 +182,8 @@
       "calendar": "Listeden bir takvim seçin.",
       "calendarNotFound": "Seçilen takvim mevcut değil.",
       "calendarHours": "Bu görevin takviminde günlük çalışma saati yok.",
-      "durationConversionNotExact": "Bu süre diğer birime tam olarak dönüştürülemiyor.",
+      "durationConversionNotExact": "Bu süre, bu takvimde diğer birime dönüştürülemez.",
+      "fixedWorkIsHours": "Sabit işi olan bir görev her zaman saat ölçüsünü kullanır.",
       "milestoneRequired": "Bu alan yalnızca kilometre taşları için geçerlidir.",
       "milestoneUnavailable": "Alt görevleri olan bir özet görev kilometre taşı olamaz.",
       "actualAfterStatusDate": "Gerçek tarih, durum tarihinden sonra.",
@@ -327,8 +329,8 @@
     "unit": "Süre birimi",
     "days": "Gün",
     "hours": "Saat",
-    "invalid": "2d veya 12h gibi tam gün ya da saat sayısı girin.",
-    "conversionNotExact": "{{value}} bu takvimde tam günlere karşılık gelmiyor. Birim değişmedi.",
+    "invalid": "Gün veya saat sayısı girin, örneğin 2,5d veya 12h.",
+    "conversionNotExact": "{{value}} bu takvimde diğer birime dönüştürülemez. Birim değişmedi.",
     "unitInfo": "Seçilen birim bu göreve aittir. Günler iş günlerini, saatler takvim içindeki çalışma saatlerini sayar. Farklı bir takvim birimi veya girilen süreyi değiştirmez, ancak bitiş tarihini değiştirebilir."
   },
   "dialog": {
@@ -454,6 +456,7 @@
     "jumpToTask": "{{wbs}} görevine git",
     "relationPopoverTitle": "İlişki türü",
     "driving": "Belirleyici ilişki (driving)",
+    "drivingUnknown": "Belirleyici ilişkiler, hesaplama yapılmadan bilinmiyor.",
     "lag": "Gecikme (örn. 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Hesapla",
     "assignments": {
@@ -518,6 +521,8 @@
     "type": "Tür",
     "lag": "Gecikme",
     "driving": "Belirleyici",
+    "drivingUnknown": "Bilinmiyor",
+    "notDriving": "Belirleyici değil",
     "freeFloat": "Serbest bolluk",
     "warnings": "Uyarılar",
     "warnTruncatedLead": "Öne alma proje başlangıcında kesildi — örtüşme tam kullanılmıyor",
@@ -643,5 +648,11 @@
     "pieceHours_one": "Parça: {{count}} saat",
     "pieceHours_other": "Parça: {{count}} saat",
     "merged": "Birleştir"
+  },
+  "dateTimeInput": {
+    "time": "{{field}} saati",
+    "timeHint": "Boş bırakırsanız iş günü başlangıcı veya bitişi kullanılır. Saat girerseniz tam o an kullanılır.",
+    "later": "Çeyrek saat sonra",
+    "earlier": "Çeyrek saat önce"
   }
 }
