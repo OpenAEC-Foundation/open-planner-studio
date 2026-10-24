@@ -218,6 +218,7 @@ const en: JsonObject = {
     // De globale releasepoort vereist elke geregistreerde UI-taal (200), ook in deze kleine fixture.
     for (const lang of LOCALES.filter(lang => !['nl', 'en', 'ar', 'fa'].includes(lang))) {
       const actual = unitMap(readObj(join(root, 'src/i18n/locales', lang, 'menu.json'))).get(key)!.text;
+      if (typeof actual !== 'string') throw new Error(`172 ${lang}: uurtekst moet één tekstwaarde zijn`);
       writeJson(locFile(lang), menu(actual));
       writeJson(srcFile(lang), { menu: { [key]: hashUnit('{{hours}}u'), otherHours: hashUnit('{{hours}} س') } });
     }
