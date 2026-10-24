@@ -31,6 +31,7 @@
 // echte implementatie importeert `@tauri-apps/*` DYNAMISCH binnen een `isTauri()`-tak (anders breekt
 // de web-build), de headless tests spuiten een in-memory fs in.
 
+import { FileTextDecodingError } from '../fileTextError';
 import { isTauri } from '@/utils/platform';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { detectXmlFlavor, parseOpenedFile, readFormatInput, type FormatInput } from '@/services/formatRegistry';
@@ -432,7 +433,7 @@ export const fileTools: McpToolDef[] = [
         // óók hier — `fs` (McpFileFs) is structureel compatibel met `readFormatInput`'s `FormatIO`.
         input = await readFormatInput(path, fs);
       } catch (e) {
-        return toolError(ctx, 'NOT_FOUND', `Could not read '${path}': ${e instanceof Error ? e.message : String(e)}`);
+        return toolError(ctx, e instanceof FileTextDecodingError ? 'VALIDATION' : 'NOT_FOUND', `Could not read '${path}': ${e instanceof Error ? e.message : String(e)}`);
       }
       const content = input.text ?? '';
 

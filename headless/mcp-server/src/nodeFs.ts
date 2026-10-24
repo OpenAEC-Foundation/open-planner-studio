@@ -39,6 +39,7 @@ import {
 } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import path from 'node:path';
+import { decodeXmlBytes } from './xmlEncoding';
 import type { McpFileFs } from '@/services/mcp/tools/fileTools';
 import type { FileIdentityInfo } from '@/services/fileAccess/fileIdentity';
 import { isPathOpenInApp as noAppLock, type IsPathOpenInApp } from './appLock';
@@ -404,7 +405,10 @@ export async function createNodeFileFs(
       const safe = (n: bigint): number | null => (n <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(n) : null);
       return { isFile: info.isFile, dev: safe(info.id.dev), ino: safe(info.id.ino) };
     },
-    readTextFile: async (p) => (await readChecked(p)).toString('utf8'),
+    readTextFile: async (p) => {
+      const bytes = await readChecked(p);
+      return path.extname(p).toLowerCase() === '.xml' ? decodeXmlBytes(bytes) : bytes.toString('utf8');
+    },
     readFile: async (p) => new Uint8Array(await readChecked(p)),
     writeTextFile: (p, content) => writeChecked(p, content),
   };
