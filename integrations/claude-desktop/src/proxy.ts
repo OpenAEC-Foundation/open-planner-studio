@@ -81,6 +81,8 @@ export function failureMessage(failure: ProxyFailure, port: number, settings: st
  * leestool bindt geen anker; de eerste wijziging zou het lege anker anders aan het dan actieve document binden.
  */
 export const DOCUMENT_CHOICE_TOOL = 'planner_switch_document';
+// Deze acties binden eveneens een nieuw anker, maar blijven mutaties: nooit automatisch herhalen.
+const DOCUMENT_RECOVERY_TOOLS = new Set([DOCUMENT_CHOICE_TOOL, 'planner_new_document', 'planner_import_schedule']);
 
 /**
  * Fout voor een wijzigende tool na sessieverlies. Het drift-anker van de oude sessie is weg; een nieuwe
@@ -90,7 +92,8 @@ export const DOCUMENT_CHOICE_TOOL = 'planner_switch_document';
 export const SESSION_RESET_MESSAGE =
   'The connection to Open Planner Studio was reset (the app or its MCP bridge restarted), so this change was NOT carried out. '
   + 'Another document may be active now. Changes stay blocked until you choose the document explicitly: call '
-  + `planner_list_documents, pick the document you mean, confirm it with ${DOCUMENT_CHOICE_TOOL}, then send the change again.`;
+  + `planner_list_documents, pick the document you mean, confirm it with ${DOCUMENT_CHOICE_TOOL}, then send the change again. `
+  + 'Alternatively, explicitly create a new plan with planner_new_document or import a file with planner_import_schedule.';
 
 export interface BridgeProxyOptions {
   port: number;
@@ -322,10 +325,10 @@ export function createBridgeProxy(opts: BridgeProxyOptions, send: (message: JSON
       toolsShown = 'planner';
     }
     // Het model koos expliciet een document en de sessie is daaraan gebonden: wijzigingen mogen weer.
-    if (documentCheckNeeded && toolName === DOCUMENT_CHOICE_TOOL && isObject(json.result) && json.result.isError !== true
+    if (documentCheckNeeded && toolName !== null && DOCUMENT_RECOVERY_TOOLS.has(toolName) && isObject(json.result) && json.result.isError !== true
       && !(isObject(json.result.structuredContent) && json.result.structuredContent.ok === false)) {
       documentCheckNeeded = false;
-      log(`document chosen with ${DOCUMENT_CHOICE_TOOL}; changes are allowed again`);
+      log(`document chosen with ${toolName}; changes are allowed again`);
     }
     await send(json as JSONRPCMessage);
   }
@@ -387,7 +390,7 @@ export function createBridgeProxy(opts: BridgeProxyOptions, send: (message: JSON
     }
     // De documentkeuze zelf mag altijd door (en na sessieverlies herhaald worden): zij heft de blokkade op.
     const mutates = toolName !== null && !readOnlyTools.has(toolName) && toolName !== DOCUMENT_CHOICE_TOOL;
-    if (mutates && documentCheckNeeded) {
+    if (mutates && documentCheckNeeded && (toolName === null || !DOCUMENT_RECOVERY_TOOLS.has(toolName))) {
       await toolError(id, SESSION_RESET_MESSAGE);
       return;
     }

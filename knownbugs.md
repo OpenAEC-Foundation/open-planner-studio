@@ -205,14 +205,6 @@ en noem het in je rapport of PR-tekst.
     2 en 3 van PR #567 (GPT-6.1-Sol). Voorstel: het request annuleerbaar houden tot de echte tool-POST en na
     het verbinden opnieuw controleren, met een test voor dat venster. — B
 
-207. **`.mcpb`-bundel: na sessieverlies weigert de proxy ook een nieuw leeg plan en importeren.**
-    `integrations/claude-desktop/src/proxy.ts:389–392` blokkeert `planner_new_document` en
-    `planner_import_schedule` zolang de blokkade staat; Claude moet eerst een bestaand plan kiezen met
-    `planner_switch_document`. Veilig, maar een onnodige omweg. Gevonden in review ronde 3 van PR #567
-    (GPT-6.1-Sol). Voorstel: beide toestaan als losse herstelactie, zonder automatische herhaling en met
-    ontgrendeling alleen na succes; `planner_duplicate_document` niet, want die gebruikt het actieve document.
-    — B
-
 209. **MCP-ontdekking: een schrijffout kan een tijdelijk bestand met het token laten liggen.**
     `src/services/mcp/discoveryFiles.ts:95–105`: `writeNew` staat buiten de opruim-`try`; slaagt het aanmaken
     maar faalt het schrijven (bijv. schijfquota), dan blijft het tijdelijke bestand achter, mogelijk al met
