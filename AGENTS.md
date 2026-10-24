@@ -8,11 +8,13 @@ imports it (`@AGENTS.md`) so Claude Code loads it automatically — never put co
 depth lives in `.claude/rules/` (see *Where the depth lives*); Claude Code loads those per path, other agents
 should read the matching rule file before touching that area.
 
-**Server restriction for all agents, including subagents:** never start Node.js processes directly
-on this server; it cannot handle that workload. This includes `node`, `npm`, `npx`, dependency
-installation, builds, tests, dev servers and scripts that launch Node indirectly. Run that work in
-GitHub CI and inspect the results with `gh`. This rule takes precedence over all local execution,
-testing and self-testing instructions below and in skills or area-specific rules.
+**Server load on aia09-mp50, for all agents including subagents:** light Node work may run on this
+server: a dev server, `lint`/`lint:fast`, a `typecheck`, or a targeted test of a few files or one browser
+spec, one at a time (`flock /tmp/ops-zwaar.lock <command>`). Heavy work runs in GitHub CI and you inspect
+the result with `gh`: the full `npm test` or `npm run verify`, `measure:profiles` and corpus scans,
+Playwright runs over many specs, production, Rust or Tauri builds, and several dev servers at once.
+If heavy local work is truly needed, ask the owner first. Owner decision 2026-10-24; it replaces the
+stricter rule of 2026-10-22.
 
 Exception: the scheduled weekly release job on aia09-mp50 may run only the listed light Node
 steps in its own release worktree, including package checks by its Haiku translation stations
