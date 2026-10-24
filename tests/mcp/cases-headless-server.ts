@@ -25,7 +25,7 @@ import { AGENT_GUIDE_PATH, AGENT_SKILLS, skillAssetPath } from '@/services/mcp/t
 import { createHeadlessHost, headlessInstructions } from '../../headless/mcp-server/src/host';
 import { startHttpTransport } from '../../headless/mcp-server/src/http';
 import { parseOptions, isLoopbackHost } from '../../headless/mcp-server/src/options';
-import { createNodeFileFs, isInside, ScopeEscapeError, type NodeFsPhase } from '../../headless/mcp-server/src/nodeFs';
+import { createNodeFileFs, isInside, ScopeEscapeError, WorkingDirectoryRestoreError, type NodeFsPhase } from '../../headless/mcp-server/src/nodeFs';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
@@ -178,6 +178,54 @@ test('A2 bevinding 1: schrijf- en rename-fout laten het origineel byte-gelijk, o
   assert(lstatSync(join(fsRoot, 'link.ifc')).isSymbolicLink(), 'de link blijft een link');
   assertEq(readFileSync(join(fsRoot, 'plan.ifc'), 'utf8'), 'NIEUW', 'het echte doel is vervangen');
   writeFileSync(join(fsRoot, 'plan.ifc'), ORIGINAL);
+});
+
+test('A2 (220): verdwenen procesmap valt terug, dubbele herstelfout bewaart de oorspronkelijke fout', async () => {
+  if (process.platform === 'win32') return; // Windows laat de actieve procesmap niet zo verplaatsen.
+  const runnerCwd = process.cwd();
+  for (const loseRoot of [false, true]) {
+    const base = mkdtempSync(join(tmp, 'cwd-restore-'));
+    const previous = join(base, 'previous');
+    const root = join(base, 'root');
+    const moved = join(base, 'root-moved');
+    mkdirSync(previous); mkdirSync(root);
+    writeFileSync(join(root, 'plan.ifc'), ORIGINAL);
+    const originalError = new Error('originele schrijffout blijft zichtbaar');
+    const fs = await createNodeFileFs(root, undefined, {
+      fault: (phase) => {
+        if (phase !== 'write') return;
+        // Nu draait de operatie in root: previous is leeg en niet de actuele procesmap.
+        rmSync(previous, { recursive: true });
+        if (loseRoot) renameSync(root, moved);
+        throw originalError;
+      },
+    });
+    let caught: unknown;
+    try {
+      process.chdir(previous);
+      try { await fs.writeTextFile(join(root, 'plan.ifc'), 'MAG NIET WORDEN GESCHREVEN'); }
+      catch (error) { caught = error; }
+      if (loseRoot) {
+        assert(caught instanceof WorkingDirectoryRestoreError, 'dubbele herstelfout heeft eigen type');
+        const combined = caught as WorkingDirectoryRestoreError;
+        assertEq(combined.errors.length, 3, 'operatiefout plus beide herstelfouten');
+        assert(combined.errors[0] === originalError, 'originele foutobject behouden');
+        assert(combined.errors.slice(1).every((error) => error instanceof Error && 'code' in error
+          && error.code === 'ENOENT'), 'beide verdwenen paden verklaren de herstelfouten');
+        assert(combined.message.includes(originalError.message) && combined.message.includes('unrestored'),
+          'toolfout bevat oorspronkelijke oorzaak en de mislukte terugkeer');
+        assertEq(process.cwd(), moved, 'geen onterechte claim dat de procesmap hersteld is');
+      } else {
+        assert(caught === originalError, 'geslaagde terugval bewaart de originele operatiefout');
+        assertEq(process.cwd(), root, 'de bestaande werkmap is de terugval');
+      }
+      const actual = loseRoot ? moved : root;
+      assertEq(readFileSync(join(actual, 'plan.ifc'), 'utf8'), ORIGINAL, 'doel niet gewijzigd');
+      assertEq(tmpFiles(actual), [], 'eigen halffabricaat opgeruimd vóór herstel van procesmap');
+    } finally {
+      process.chdir(runnerCwd); // Testisolatie, ook als een assert faalt.
+    }
+  }
 });
 
 test('A2 bevinding 2: een map die tussen controle en operatie een link naar buiten wordt, wordt geweigerd', async () => {

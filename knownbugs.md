@@ -191,13 +191,6 @@ en noem het in je rapport of PR-tekst.
     ronde 3 van PR #572 (GPT-6.1-Sol). Voorstel: een klein gedeeld foutcontract en één test door de echte
     toolhandler. — B
 
-220. **Headless MCP-server: terugzetten van de procesmap is een poging, geen garantie.**
-    `headless/mcp-server/src/nodeFs.ts:253`: verdwijnt de oorspronkelijke procesmap tijdens een bewerking, dan
-    blijft het proces in `realRoot`; is ook die weg, dan gooit de `finally` opnieuw, verdringt de
-    oorspronkelijke fout en blijft de tijdelijke procesmap actief. CLI-, backup- en importpaden gebruiken
-    absolute paden, dus geen bekende route naar verkeerd opgeslagen bestanden. Gevonden in review ronde 3 van
-    PR #572 (GPT-6.1-Sol). Voorstel: de terugval documenteren en beide fouten bewaren of melden. — B
-
 206. **`.mcpb`-bundel: een annulering tijdens opnieuw verbinden valt weg.**
     `integrations/claude-desktop/src/proxy.ts:445` haalt het request-id uit `queuedIds` voordat
     `handleRequest()` op `connectUpstream()` wacht (`:394–403`); een `notifications/cancelled` in dat venster
