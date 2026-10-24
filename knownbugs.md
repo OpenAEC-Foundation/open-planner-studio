@@ -341,11 +341,6 @@ en noem het in je rapport of PR-tekst.
     Statisch afgeleid bij de review op `78583d1b` (regels 896–900), niet lokaal uitgevoerd.
     De nieuwe CLI-test herstelt de verwijderde UI-map evenmin vóór zijn groene verwachting. — S
 
-102. **`apply-terms` vertrouwt `terms-NN.json` en `terms-check-01.map.json` zonder zegel.** De UI- en
-     docs-pakketten hebben sinds #323 een zegel (`build/translate-seal/`); de termbase-pakketten niet, terwijl
-     agents in dezelfde map schrijven. Voorstel: dezelfde `seal`/`sealErrors` in `prepare`/`apply-terms`.
-     Gevonden in de review van #323 (Opus, 2026-10-12), in de code aangewezen. — S
-
 173. **Toewijzingen: lange kolomkoppen laten in veel talen weinig ruimte voor de resourcenaam.** De bron is kort
     (`task.json` `properties.assignments.units` "Units"/"Inzet", `workHours` "Work (h)"), maar de straat
     vertaalde naar de volle term (uk "Одиниця призначення", ru "Единицы назначения", bg, hu, ro, sk, da, nb,
