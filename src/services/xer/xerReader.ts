@@ -748,7 +748,9 @@ function readXerProject(
     }
     const durationHours = numberOf(tables, row, 'target_drtn_hr_cnt') ?? 0;
     const remainingHours = numberOf(tables, row, 'remain_drtn_hr_cnt');
-    const sourceDurationMinutes = Math.round(durationHours * 60);
+    // Zonder afronding op de hele minuut (§3.10; review #591 r3), zoals de lag hieronder: alleen de floatruis
+    // van uren × 60 valt weg, op een miljoenste minuut.
+    const sourceDurationMinutes = Math.round(durationHours * 60 * 1e6) / 1e6;
     const hoursPerDay = effectiveCalendar.hoursPerDay > 0 ? effectiveCalendar.hoursPerDay : 8;
     const activityType = activityTypeOf(row.cells.task_type ?? '', row, enumFallbacks);
     const durationType = durationTypeOf(
@@ -818,7 +820,7 @@ function readXerProject(
       : sourceDurationMinutes;
     // Altijd de urenmaat (alleen uren §3.10, T15; F5b): P6 kent alleen werkuren, en een XER-bestand draagt
     // nooit de OPS-markering voor de dagenmaat. Duur en rest zijn de minuten uit het bestand, zonder
-    // afronding op hele dagen. Vroeger kreeg een taak op een kalender zonder tijdsignaal de dagenmaat
+    // afronding op hele dagen of hele minuten. Vroeger kreeg een taak op een kalender zonder tijdsignaal de dagenmaat
     // (`durationMinutes / (day_hr_cnt × 60)` dagen); dat is weg, ook op een dagkalender.
     // LET OP: `createDefaultTaskTime` leest zijn tweede argument als UREN zodra de eenheid
     // 'hours' is, en zet dan zelf `durationMinutes = dat getal * 60`. Wij geven hier bewust
@@ -844,7 +846,7 @@ function readXerProject(
       : remainingHours;
     time.durationMinutes = durationMinutes;
     if (p6RemainingHours !== null) {
-      time.remainingMinutes = Math.round(p6RemainingHours * 60);
+      time.remainingMinutes = Math.round(p6RemainingHours * 60 * 1e6) / 1e6;
     }
     if (actualStart) time.actualStart = actualStart;
     if (actualFinish) time.actualFinish = actualFinish;

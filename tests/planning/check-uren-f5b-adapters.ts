@@ -26,7 +26,9 @@
 //      opslaan en heropenen, MSPDI heen en terug (twee keer) en P6 XML heen en terug (twee keer); review #591
 //      r2, was knownbug 309;
 // (14) een XER-lag van 0,33 u (19,8 min) blijft 19,8 min door de store, IFC opslaan en heropenen, MSPDI en
-//      P6 XML heen en terug; 0,12 u wordt precies 7,2 min, zonder floatruis (review #591 r3, was knownbug 307).
+//      P6 XML heen en terug; 0,12 u wordt precies 7,2 min, zonder floatruis (review #591 r3, was knownbug 307);
+// (15) XER-duur en -rest met een breuk in minuten (40,33 u = 2419,8 min, 16,33 u = 979,8 min) blijven exact
+//      door dezelfde route (review #591 r3, §3.10).
 //
 // Draait via run.sh (esbuild-bundel). Alleen de exitcode telt.
 import './domStub';
@@ -719,6 +721,31 @@ for (const c of LAG_CASES) {
   const p6 = P6.write(reopened);
   eq('(14) XER 0,33 u: P6 XML <Lag> in uren', Number(tagValue(p6, 'Lag')), 0.33);
   eq('(14) XER 0,33 u: P6 XML heropend en berekend', lagMinOf(await openAndRecalc('lag-p6.xml', { text: p6 })), want);
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// (15) XER-duur en -rest met een breuk in minuten door de hele route (review #591 r3, §3.10)
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// Vóór fixronde 3 rondde de XER-lezer duur en rest af op de hele minuut: 40,33 u werd 2420 min, niet 2419,8.
+{
+  const text = XER_FIXTURE
+    .replace('CP_Phys\t0\t50\t40\t16\t', 'CP_Phys\t0\t50\t40.33\t16.33\t')
+    .replace('CP_Drtn\t0\t\t16\t16\t', 'CP_Drtn\t0\t\t16.33\t16.33\t');
+  ok('(15) opzet: duur en rest met een breuk in de fixture',
+    text.includes('CP_Phys\t0\t50\t40.33\t16.33\t') && text.includes('CP_Drtn\t0\t\t16.33\t16.33\t'));
+  const minutesOf = (doc: { tasks: Task[] }) => ['Lopend', 'Volgend'].map(name => {
+    const t = byName(doc, name);
+    return [t?.time.durationUnit, t?.time.durationMinutes, t?.time.remainingMinutes];
+  });
+  const want = [['hours', 2419.8, 979.8], ['hours', 979.8, 979.8]];
+  const direct = quiet(() => readXER(new TextEncoder().encode(text)));
+  if (!isMultiDocumentImport(direct)) eq('(15) XER 40,33 u en 16,33 u: readXER', minutesOf(direct), want);
+  const opened = await openAndRecalc('duur.xer', { bytes: new TextEncoder().encode(text) });
+  eq('(15) XER: in de store, na Bereken', minutesOf(opened), want);
+  const reopened = await openAndRecalc('duur.ifc', { text: quiet(() => writeIFC(buildWriteIFCInput(opened))) });
+  eq('(15) XER: IFC opgeslagen, heropend en berekend', minutesOf(reopened), want);
+  eq('(15) XER: MSPDI heropend en berekend', minutesOf(await openAndRecalc('duur.xml', { text: MSPDI.write(reopened) })), want);
+  eq('(15) XER: P6 XML heropend en berekend', minutesOf(await openAndRecalc('duur-p6.xml', { text: P6.write(reopened) })), want);
 }
 
 if (errors.length) {
