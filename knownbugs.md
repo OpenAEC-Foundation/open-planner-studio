@@ -617,6 +617,14 @@ en noem het in je rapport of PR-tekst.
      07:00. Een export sinds F5b heeft geen van beide (echte tijden en `OPS_LiteralCalendars`). Gelezen in de
      code; (a) en (b) niet nagespeeld met een echte oude writer. Gevonden in fixronde 1 van #591. — S
 
+315. **De regressie van de XER-rest mist een lopende taak met `CP_Drtn`.** Sectie 15 van
+     `tests/planning/check-uren-f5b-adapters.ts:731` toetst een lopende `CP_Phys`-taak en een niet-gestarte
+     `CP_Drtn`-taak. De percentagetak van de rest (`xerReader.ts:843`) valt daarmee buiten de regressie. Die tak
+     geeft een rest met een breuk in minuten, ook als de duur hele minuten heeft. De reviewer toetste het zelf:
+     40,33 u, lopend, `CP_Drtn`, 33,33 % gereed geeft 1613,28066 min rest, en die blijft exact na herberekening,
+     IFC en twee rondgangen door MSPDI en P6 XML. Geen productfout; voeg het geval toe aan sectie 15 (de
+     bestaande routehelper volstaat). Gevonden in review r4 van #591. — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 62. **Melding schuift over de knoppen van het begeleidingspaneel** (1600×950, venster Baselines open):
