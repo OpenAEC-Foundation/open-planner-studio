@@ -475,6 +475,7 @@
     "jumpToTask": "الانتقال إلى المهمة {{wbs}}",
     "relationPopoverTitle": "نوع العلاقة",
     "driving": "علاقة حاكمة (driving)",
+    "drivingUnknown": "علاقات حاكمة غير معروفة بدون حساب.",
     "lag": "التأخير (مثل 2d، 3ed، 2u، 50%، -25e%)",
     "recalculate": "حساب",
     "assignments": {
@@ -539,6 +540,8 @@
     "type": "النوع",
     "lag": "التأخير",
     "driving": "حاكمة",
+    "drivingUnknown": "غير معروف",
+    "notDriving": "غير حاكمة",
     "freeFloat": "الفائض الحر",
     "warnings": "تحذيرات",
     "warnTruncatedLead": "تم قطع التقديم عند بداية المشروع — لا يُستفاد من التداخل بالكامل",

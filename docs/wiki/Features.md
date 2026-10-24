@@ -57,25 +57,27 @@ bridge and automatic updates.
   Alt+Right outdent and indent tasks.
 - **Context menus** — right-click tasks for quick actions.
 - **Office-style ribbon** — tabs for Start, Planning, Resources, View, Settings, Table, IFC,
-  Report and (once enabled) AI, plus a Backstage file menu. Relation actions are available from the
+  Report and (once enabled) MCP, plus a Backstage file menu. Relation actions are available from the
   task groups instead of a separate Relations tab.
 - **Multi-document** — work on several projects at once and switch between them.
 
 ## IFC & interoperability
 
 - **IFC 4.3 native** — projects are saved and opened as IFC (buildingSMART); there is no separate project format.
-- **4D BIM ready** — link the schedule to an IFC building model.
+- **Planning IFC and building models** — edit the planning file separately, then combine it with a
+  building model in another IFC tool. Opening an IFC that contains building-model objects is
+  temporarily refused because saving a schedule does not preserve those objects.
 - **Import/export** — CSV, Microsoft Project XML and Primavera P6 XML adapters, plus read-only
   opening of native Microsoft Project `.mpp` and Primavera P6 `.xer` files (save the result as IFC;
   the original `.xer` travels inside the IFC as a source archive).
 
-## AI assistant (MCP)
+## MCP clients
 
-- **Model Context Protocol server** — turn on AI mode and the app becomes an MCP server: an AI
+- **Model Context Protocol server** — enable the MCP connection and start the bridge: an MCP
   assistant connects to the project you have open, reads it and edits it live, with every change
   visible immediately and undoable with Ctrl+Z.
 - **Broad tool coverage** — reading, scheduling, resource/calendar/baseline setup and document
-  management, close to forty tools in total, all prefixed `planner_`.
+  management, 41 tools in total, all prefixed `planner_`.
 - **Batch scripting** — an assistant can submit a whole sequence of steps as one script, which lands
   in your undo history as a single step.
 - **Safety controls** — pause, read-only mode, automatic per-document backup before the first
@@ -83,6 +85,11 @@ bridge and automatic updates.
   out of reach entirely.
 - **Desktop only, off by default** — the bridge runs in the desktop shell; it can optionally start
   automatically with the app.
+- **Claude Desktop extension** — the release includes a `.mcpb` bundle that forwards calls to the
+  running desktop app. Enter the token and port from the MCP tab; the bundle contains no planner.
+- **Headless MCP server** — developers can build the same tools as a standalone Node program,
+  with stdio or authenticated loopback HTTP transport and file access limited to a working folder.
+  See [the headless MCP documentation](https://github.com/OpenAEC-Foundation/open-planner-studio/blob/main/docs/headless-mcp.md).
 
 ## Reporting
 

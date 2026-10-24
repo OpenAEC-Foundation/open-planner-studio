@@ -418,6 +418,8 @@
     "quarantineEmptyName": "Ugyldig utvidelse",
     "catalogEntriesSkipped": "Hoppet over katalogoppføringer: {{count}}",
     "storageWriteFailed": "Utvidelsesstatusen kunne ikke lagres.",
+    "minAppVersionRequired": "Krever Open Planner Studio ≥ {{minVersion}} (gjeldende versjon: {{appVersion}})",
+    "missingPermission": "Utvidelsen «{{extensionId}}» mangler tillatelse: {{permission}}",
     "import": "Importer",
     "importSubtitle": "Importer prosjektdata via installerte utvidelser.",
     "importEmpty": "Ingen importutvidelser er installert. Legg til en via Utvidelser."

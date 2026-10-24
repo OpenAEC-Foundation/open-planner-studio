@@ -455,6 +455,7 @@
     "jumpToTask": "跳转到任务 {{wbs}}",
     "relationPopoverTitle": "关系类型",
     "driving": "驱动关系 (driving)",
+    "drivingUnknown": "未计算时驱动关系未知。",
     "lag": "延隔（例如 2d、3ed、2u、50%、-25e%）",
     "recalculate": "计算",
     "assignments": {
@@ -519,6 +520,8 @@
     "type": "类型",
     "lag": "延隔",
     "driving": "驱动",
+    "drivingUnknown": "未知",
+    "notDriving": "非驱动关系",
     "freeFloat": "自由浮动",
     "warnings": "警告",
     "warnTruncatedLead": "提前量在项目开始处被截断——重叠未被完全利用",

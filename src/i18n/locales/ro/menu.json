@@ -420,6 +420,8 @@
     "quarantineEmptyName": "Extensie nevalidă",
     "catalogEntriesSkipped": "Elemente de catalog omise: {{count}}",
     "storageWriteFailed": "Starea extensiei nu a putut fi salvată.",
+    "minAppVersionRequired": "Necesită Open Planner Studio ≥ {{minVersion}} (versiunea curentă: {{appVersion}})",
+    "missingPermission": "Extensia „{{extensionId}}” nu are permisiunea: {{permission}}",
     "import": "Importare",
     "importSubtitle": "Importați date de proiect prin extensiile instalate.",
     "importEmpty": "Nu este instalată nicio extensie de import. Adăugați una din Extensii."
