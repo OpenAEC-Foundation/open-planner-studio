@@ -12,9 +12,9 @@
  * RELATIES, niet datumconstraints), resources uit `TBkndRsc` en assignments uit `TBkndAssn`
  * (`mppEntities.ts`).
  *
- * Veldsemantiek is gespiegeld aan `readMSPDI` (mspdiReader.ts) — zelfde afronding voor duur,
- * dezelfde constrainttype-codes (`mspCodeToConstraint`), dezelfde progress-normalisatie
- * (`normalizeImportedProgress`).
+ * Veldsemantiek is gespiegeld aan `readMSPDI` (mspdiReader.ts) — dezelfde maat voor duur, rest en lag
+ * (altijd de urenmaat, in minuten zonder afronding: alleen uren §3.10, T15), dezelfde constrainttype-codes
+ * (`mspCodeToConstraint`), dezelfde progress-normalisatie (`normalizeImportedProgress`).
  *
  * UURMODUS: dezelfde (c)-discriminator-orkestratie als `mspdiReader.ts` (zie `@/services/subdayIo`).
  * Een kalender promoveert naar uur-modus zodra ze zelf afwijkt ((a)/(b): meerdere banden per
@@ -22,24 +22,23 @@
  * (sub-dag-duur `isSubDayMinutes`, of een Start/Finish die van het kalender-eigen anker afwijkt,
  * `hasNonAnchorTime`/`mppAnchorClock`). Promotie (`promoteCalendarsForHourMode`) kan pas ná een
  * volledige taak-scan, dus `readTasks` doet drie passes: (A) ruwe scan zonder `Task`-object,
- * (B) signaalverzameling + promotie, (C) de `Task`-objecten met de dag/uur-beslissing per taak. In
- * uur-modus komt `durationMinutes` uit de rauwe tienden-van-minuten-duur, behouden datums hun
- * tijdcomponent (`formatInstant(..., 'hour')`) en krijgt `TBkndCons`-lag naar een uur-opvolger
- * `lagMinutes` (`mppLagToSequenceFields`). Dag-modus-bestanden doorlopen dezelfde code met
- * `isHour=false`.
+ * (B) signaalverzameling + promotie, (C) de `Task`-objecten met de dag/uur-beslissing per kalender. De
+ * uur-modus van de kalender bepaalt alleen nog de datums: in uur-modus behouden ze hun tijdcomponent
+ * (`formatInstant(..., 'hour')`), anders alleen de datum. Duur, rest (`durationMinutes`,
+ * `remainingMinutes` uit de rauwe tienden van minuten) en `TBkndCons`-lag (`lagMinutes`,
+ * `mppLagToSequenceFields`) zijn in elke modus de urenmaat.
  *
  * PARITEIT MET MSPDI geldt alleen bij `workStartHour === 8`: MSPDI's anker is een vaste 08:00, deze
  * lezer gebruikt het kalender-eigen startuur (zie `mppAnchorClock`). Bij een ander startuur
  * divergeren de lezers op een taak die precies op dat startuur landt (gepind in
  * `check-mpp-import.ts`, "ankerdivergentie").
  *
- * TWEE ASYMMETRISCHE REKENPADEN (bewust):
- *  - `scheduleDuration`: het UUR-pad rekent op de werktijd per dag van de effectieve taakkalender
- *    (`hourTaskScheduleDuration`, ná promotie); het DAG-pad op de projectbrede `hoursPerDay` (Props/MINUTES_PER_DAY,
- *    of 8u), ook als de taak een kalender-override met een ander `hoursPerDay` draagt.
- *  - `Sequence.lagMinutes`: een relatie naar een uur-opvolger krijgt altijd `lagMinutes`, ook `0`
- *    (spiegelt mspdiReader's `taskHourById`-tak). Dat verandert de serialisatievorm t.o.v. een
- *    relatie zonder het veld; geaccepteerd.
+ * DE MAAT (F5b, I4):
+ *  - `scheduleDuration` rekent op de werktijd per dag van de effectieve taakkalender
+ *    (`hourTaskScheduleDuration`, ná promotie). Het vroegere DAG-pad (hele werkdagen op de projectbrede
+ *    `hoursPerDay`) is weg.
+ *  - `Sequence.lagMinutes`: een WORKTIME-relatie krijgt altijd `lagMinutes`, ook `0`, zoals de
+ *    MSPDI-lezer.
  *
  * HIËRARCHIE: MPXJ vult `PARENT_TASK_UNIQUE_ID` wel, maar `ProjectFile.updateStructure()` bouwt de
  * boom uit de taken gesorteerd op ID, met het outline-level als enige dieptesignaal. Deze lezer
@@ -68,7 +67,6 @@ import { generateId } from '@/utils/id';
 import { formatDate, formatInstant, parseInstant, localTodayIso } from '@/utils/dateUtils';
 import { normalizeImportedProgress, deriveImportedWorkRules, reconstructResourceIds } from '@/services/importNormalize';
 import { emptyMissingScheduleDates, resolveMissingScheduleDates } from '@/services/importDates';
-import { tenthsOfMinutesToDays } from '@/services/importDurations';
 import { mspCodeToConstraint } from '@/services/msproject/mspdiReader';
 import { statusDateFromXml, toXmlDateTime } from '@/services/xmlInterchange';
 import { hasNonAnchorTime, isSubDayMinutes, milestoneKindAt } from '@/services/subdayIo';
@@ -368,13 +366,10 @@ export interface ReadTasksContext {
 }
 
 /** - `taskIdByUniqueId`: TBkndCons-relaties en TBkndAssn-assignments verwijzen naar taken via hun
- *    MPP-uniqueID; dit is de vertaling naar `Task.id` (spiegelt mspdiReader's `uidToId`).
- *  - `taskHourById`: per taak of ze in uur-modus is — `readRelations` kiest daarmee de lag-eenheid
- *    (spiegelt mspdiReader's `taskHourById`). */
+ *    MPP-uniqueID; dit is de vertaling naar `Task.id` (spiegelt mspdiReader's `uidToId`). */
 export interface ReadTasksResult {
   tasks: Task[];
   taskIdByUniqueId: Map<number, string>;
-  taskHourById: Map<string, boolean>;
   /** TEST-/METINGSVELD: de rauwe Fase-A-scan van elke geldige taak. `readMPP` geeft dit niet door
    *  aan `ImportResult`; alleen voor `check-mpp-import.ts`. */
   rawScans: readonly RawTaskScan[];
@@ -700,7 +695,6 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
 
   // ── Fase C: de `Task`-objecten, met de nu bekende dag/uur-beslissing per taak. ─────────────────
   const taskIdByUniqueId = new Map<number, string>();
-  const taskHourById = new Map<string, boolean>();
   const records: RawTaskRecord[] = [];
   /** "Datums zoals opgeslagen" — per taak-id MSP's eigen rekenuitvoer (zie `TaskFieldId.EarlyStart`). */
   const recordedTimes: Record<string, RecordedTime> = {};
@@ -708,36 +702,27 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
     const cal = raw.effCal;
     const isHour = hourModeCals.has(cal);
 
-    // Duur: uur ⇒ minuten (bron van waarheid, geen dag-afronding); dag ⇒ werkdagen op de
-    // PROJECT-brede `hoursPerDay` (niet die van de taakkalender, zie de moduleheader). `durationMinutes` is
-    // klok-neutraal (een minuut is een minuut); de solver past ELAPSEDTIME 24/7 toe (`duration.ts`).
-    // Beperkingen daar: MSO/MFO-snaps op een ELAPSEDTIME-taak (`CPMSolver.hardPinStart`) en de
-    // vrije-speling-eenheid bij een elapsed voorganger (`scheduleAnalysis.ts`).
-    const durationMinutes = isHour ? Math.round(raw.durationRaw / 10) : undefined;
-    // Valkuil: een ELAPSED-duur ligt in MPP al vast in KLOK-minuten (MPPUtility.getAdjustedDuration's
-    // ELAPSED-takken: vaste 24-uursdag, geen minutes-per-day-factor). `tenthsOfMinutesToDays` deelt
-    // door `hoursPerDay × 60` (werktijd) en zou dus onterecht een tweede keer door `hoursPerDay`
-    // delen; dag-modus + elapsed rekent daarom met de vaste klokdag (24 × 60 × 10 tienden).
-    // Urentaak: dagengetal via `hourTaskScheduleDuration`, niet ÷ de opgeslagen `hoursPerDay`.
-    const duration = isHour
-      ? hourTaskScheduleDuration(durationMinutes!, cal)
-      : raw.isElapsedDuration
-        ? raw.durationRaw / (24 * 60 * 10)
-        : tenthsOfMinutesToDays(raw.durationRaw, hoursPerDay);
+    // Duur: altijd de urenmaat (alleen uren §3.10, T15; I4, F5b). MS Project telt alleen werkminuten, en
+    // een `.mpp` draagt nooit de OPS-markering voor de dagenmaat (OPS schrijft geen `.mpp`; ook geen van
+    // de 661 `.mpp`'s in het corpus draagt een `OPS_`-veld, en deze lezer leest geen eigen tekstvelden).
+    // De minuten zijn de bron van waarheid, zonder afronding op hele dagen. Vroeger kreeg een taak op een
+    // kalender zonder tijdsignaal hele werkdagen op de projectbrede `hoursPerDay`. `durationMinutes` is
+    // klok-neutraal (een minuut is een minuut): een ELAPSED-duur ligt in MPP al vast in KLOK-minuten
+    // (MPPUtility.getAdjustedDuration's ELAPSED-takken: vaste 24-uursdag), en de solver past ELAPSEDTIME
+    // 24/7 toe (`duration.ts`). Beperkingen daar: MSO/MFO-snaps op een ELAPSEDTIME-taak
+    // (`CPMSolver.hardPinStart`) en de vrije-speling-eenheid bij een elapsed voorganger
+    // (`scheduleAnalysis.ts`). Het dagengetal via `hourTaskScheduleDuration`, niet ÷ de opgeslagen
+    // `hoursPerDay`. MPP telt in tienden van een minuut; die blijven staan (§3.10 "in minuten zonder
+    // afronding"; review #591 r1, punt 3). Een breuk gaat als `ExactMinutes`-record mee naar IFC en XML (T14).
+    const durationMinutes = raw.durationRaw / 10;
+    const duration = hourTaskScheduleDuration(durationMinutes, cal);
 
-    // REMAINING_DURATION rechtstreeks meenemen, met dezelfde eenheden-/elapsed-conversie als
-    // `duration`. `null` ⇒ beide ongezet en de solver leidt de rest af uit `completion`. Waarom:
-    // MSP's eigen restduur is exact (4 werkdagen = 1920 min), terwijl `completion` afgerond is
-    // opgeslagen (33% i.p.v. 33,33…%) — de afleiding zou op een klokstand landen die MSP nooit toont.
-    // In DAG-modus overschrijft `normalizeImportedProgress` `remainingTime` alsnog met de afgeleide
-    // waarde; `remainingMinutes` (UUR-modus) laat hij staan.
-    const remainingMinutes = isHour && raw.remainingDurationRaw !== null
-      ? Math.round(raw.remainingDurationRaw / 10)
-      : undefined;
-    const remainingTime = !isHour && raw.remainingDurationRaw !== null
-      ? (raw.isElapsedDuration
-        ? raw.remainingDurationRaw / (24 * 60 * 10)
-        : tenthsOfMinutesToDays(raw.remainingDurationRaw, hoursPerDay))
+    // REMAINING_DURATION rechtstreeks meenemen, in minuten zoals de duur. `null` ⇒ ongezet en de solver
+    // leidt de rest af uit `completion`. Waarom: MSP's eigen restduur is exact (4 werkdagen = 1920 min),
+    // terwijl `completion` afgerond is opgeslagen (33% i.p.v. 33,33…%) — de afleiding zou op een
+    // klokstand landen die MSP nooit toont. `normalizeImportedProgress` laat `remainingMinutes` staan.
+    const remainingMinutes = raw.remainingDurationRaw !== null
+      ? raw.remainingDurationRaw / 10
       : undefined;
 
     const formatField = (ts: Date | null): string | undefined =>
@@ -810,11 +795,10 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
       time: {
         durationType: raw.isElapsedDuration ? 'ELAPSEDTIME' : 'WORKTIME',
         // MPP bewaart geplande duur in werkminuten; DurationUnits is uitsluitend het
-        // invoer-/weergaveformaat. De precisiediscriminator hierboven bepaalt daarom de
-        // betekenisvolle blijvende OPS-eenheid, net als vóór het expliciete taakmodel.
-        durationUnit: isHour ? 'hours' : 'days',
+        // invoer-/weergaveformaat. De blijvende OPS-maat is daarom de urenmaat (T15).
+        durationUnit: 'hours',
         scheduleDuration: duration,
-        ...(durationMinutes != null ? { durationMinutes } : {}),
+        durationMinutes,
         scheduleStart: start,
         scheduleFinish: finish,
         earlyStart: start,
@@ -828,7 +812,6 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
         actualFinish,
         ...(resume != null ? { resume } : {}),
         ...(stop != null ? { stop } : {}),
-        ...(remainingTime != null ? { remainingTime } : {}),
         ...(remainingMinutes != null ? { remainingMinutes } : {}),
         completion: raw.percentComplete / 100,
       },
@@ -848,7 +831,6 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
     if (!resolvedFinishTs) missingDates.finish.add(task.id);
     records.push({ uniqueId: raw.uniqueId, id: raw.id, outlineLevel: raw.outlineLevel, storedWbs: raw.storedWbs, task });
     taskIdByUniqueId.set(raw.uniqueId, task.id);
-    taskHourById.set(task.id, isHour);
 
     // "Datums zoals opgeslagen": MSP's eigen uitvoer als apart kanaal. Start/einde:
     // EARLY_START/EARLY_FINISH, terugval het opgeslagen (manual-bewuste) paar van `task.time`. Slack:
@@ -896,7 +878,7 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
   normalizeImportedProgress(tasks, statusDate);
   deriveImportedWorkRules(tasks); // werkregel uit mspTaskType/effortDriven
   return {
-    tasks, taskIdByUniqueId, taskHourById, startAnchor, recordedTimes,
+    tasks, taskIdByUniqueId, startAnchor, recordedTimes,
     rawScans: raws, // alleen voor tests; readMPP geeft dit niet door
   };
 }
@@ -944,11 +926,12 @@ export function parseProjectProperties(
 
   // Statusdatum mét tijd: MS Project bewaart hem op de standaard eindtijd (17:00 = einde van die
   // dag) en schrijft dezelfde waarde in MSPDI als `<StatusDate>…T17:00:00`. Daarom in precies die vorm
-  // gelezen met de regel van de MSPDI-lezer (`statusDateFromXml`): een tijd blijft, het dag-anker
-  // (08:00) geeft exact de datum — zo levert `.mpp` voor hetzelfde project hetzelfde op als MSPDI.
+  // gelezen met de regel van de MSPDI-lezer voor een vreemd bestand (`statusDateFromXml`, `foreign`): elke
+  // tijd blijft, ook 08:00 (I8; het anker 08:00 is een afspraak van OPS, en OPS schrijft geen `.mpp`) — zo
+  // levert `.mpp` voor hetzelfde project hetzelfde op als MSPDI.
   const statusBytes = props.getByteArray(PROPS_KEY_STATUS_DATE);
   const statusDate = statusBytes && statusBytes.length >= 4 ? getTimestamp(statusBytes, 0, 'Props statusDate') : null;
-  if (statusDate) project.statusDate = statusDateFromXml(toXmlDateTime(formatInstant(statusDate, 'hour')));
+  if (statusDate) project.statusDate = statusDateFromXml(toXmlDateTime(formatInstant(statusDate, 'hour')), 'foreign');
 
   return {
     project, hoursPerDay, calendarHoursPerDayOverride: minutesPerDayValid ? hoursPerDay : null,
@@ -1541,8 +1524,8 @@ export function readMPP(bytes: Uint8Array, labels?: ImportLabels): ImportResult 
   const calendar = calResult.projectCalendar;
   project.calendarId = calendar.id;
 
-  // `readTasks` zet `Task.calendarId` zelf; `taskHourById` bepaalt de lag-eenheid in `readRelations`.
-  const { tasks, taskIdByUniqueId, taskHourById, startAnchor, recordedTimes } = readTasks({
+  // `readTasks` zet `Task.calendarId` zelf.
+  const { tasks, taskIdByUniqueId, startAnchor, recordedTimes } = readTasks({
     cfb, taskFieldMap, hoursPerDay, statusDate: project.statusDate, applicationVersion, calResult,
     projectStart: projectStartFromFile ? project.startDate : '',
     criticalSlackLimitDays: criticalSlackLimitDaysOf(projectProps),
@@ -1550,7 +1533,7 @@ export function readMPP(bytes: Uint8Array, labels?: ImportLabels): ImportResult 
   // Geen projectstart in de Props ⇒ het anker (vroegste aanwezige taakstart) i.p.v. vandaag.
   if (!projectStartFromFile) project.startDate = startAnchor;
 
-  const sequences = readRelations(cfb, applicationVersion, hoursPerDay, taskIdByUniqueId, taskHourById);
+  const sequences = readRelations(cfb, applicationVersion, taskIdByUniqueId);
 
   const resourceFieldMap = createResourceFieldMap(projectProps);
   const { resources, resourceIdByUniqueId } = readResources(cfb, resourceFieldMap, applicationVersion, calResult, labels);

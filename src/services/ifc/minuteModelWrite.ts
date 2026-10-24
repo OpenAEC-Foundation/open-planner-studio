@@ -31,9 +31,13 @@ const LITERAL_END_FIELDS: ReadonlySet<TaskDateField> = new Set(['scheduleFinish'
 /** Het eigen begin van een nulduur-mijlpaal (D7): bij een FINISH-mijlpaal ook een eindmoment. */
 const MILESTONE_OWN_STARTS: ReadonlySet<TaskDateField> = new Set(['scheduleStart', 'earlyStart', 'lateStart', 'actualStart']);
 
-/** T17 is een schrijfkeuze van dit document. Er komt geen vlag in een bibliotheekkalender. */
+/** T17 is een schrijfkeuze van dit document. Er komt geen vlag in een bibliotheekkalender.
+ *  `realTimes` (MSPDI en P6 XML sinds F5b, I8): geen enkel veld krijgt een daganker. Een veld zonder tijd
+ *  krijgt zijn moment volgens D1–D7, met dezelfde regel als de laadgrens (`normalizeTaskDate`); een
+ *  moment blijft. `literalCalendarIds` en `atDayEnd` blijven precies zoals zonder deze optie: de writer
+ *  geeft de letterlijke kalenders apart mee (`OPS_LiteralCalendars`). */
 export function minuteModelWriteView(input: Pick<ImportResult, 'tasks' | 'calendar' | 'resourceCalendars' | 'baselines'>,
-  options: { literalAutomaticMilestones?: boolean } = {}) {
+  options: { literalAutomaticMilestones?: boolean; realTimes?: boolean } = {}) {
   const calendars = input.resourceCalendars ?? [];
   const clocks = new DayClockCache(input.calendar, calendars);
   const literalCalendarIds = new Set<string>();
@@ -87,6 +91,17 @@ export function minuteModelWriteView(input: Pick<ImportResult, 'tasks' | 'calend
   // dezelfde regel als de laadgrens (`normalizeTaskDate`). Alleen de eindvelden van de planning, en bij
   // een FINISH-mijlpaal ook zijn eigen begin (D7); een beperking, deadline, extern anker, stop/hervat en
   // een kale start blijven zoals ze zijn.
+  if (options.realTimes) {
+    const real = (value: string, field: TaskDateField, ctx: TaskDateContext) => normalizeTaskDate(value, field, ctx) ?? value;
+    const tasks = input.tasks.map(task => mapTaskDates(task, (value, field) => real(value, field, contexts.get(task.id)!)));
+    const baselines = (input.baselines ?? []).map(b => ({ ...b,
+      tasks: b.tasks.map(bt => {
+        const { ctx, finishField } = baselineContext(bt);
+        return { ...bt, start: real(bt.start, 'baselineStart', ctx), finish: real(bt.finish, finishField, ctx) };
+      }),
+    }));
+    return { tasks, baselines, literalCalendarIds, atDayEnd };
+  }
   const literalEndOf = (value: string, field: TaskDateField, ctx: TaskDateContext): string => {
     if (!isDateOnly(value)) return value;
     const endLike = LITERAL_END_FIELDS.has(field) || (ctx.milestoneKind === 'FINISH' && MILESTONE_OWN_STARTS.has(field));

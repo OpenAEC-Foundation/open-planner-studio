@@ -107,15 +107,20 @@ export function emptyMissingScheduleDates(): MissingScheduleDates {
  * - duur 0 (mijlpaal/nul-duur, elke eenheid) ⇒ finish = start;
  * - dagtaak op werktijd met een geheel aantal dagen en een datum zonder tijd ⇒ de laatste werkdag op
  *   de effectieve kalender van de taak (`CalendarEngine.addWorkDays`, startdag telt als dag 1 — exact
- *   de forward-pass-rekenregel).
- * Anders `undefined` (uurtaken, elapsed duur, fractionele dagen, datetime-starts: daar hangt het
- * antwoord af van tijd-van-de-dag/bandregels die pas de solver eenduidig toepast).
+ *   de forward-pass-rekenregel);
+ * - een urentaak met hele werkdagen op een scalaire kalender (geen eigen werkblokken) en een datum zonder
+ *   tijd ⇒ hetzelfde. Daar heeft elke werkdag dezelfde werktijd, dus is het eenduidig. Sinds F5b leest
+ *   ook `.mpp` elke taak in de urenmaat (alleen uren §3.10, T15).
+ * Anders `undefined` (urentaken op een kalender met eigen werkblokken, elapsed duur, fractionele dagen,
+ * datetime-starts: daar hangt het antwoord af van tijd-van-de-dag/bandregels die pas de solver eenduidig
+ * toepast).
  */
 function finishFromStartAndDuration(task: Task, calendar: WorkCalendar): string | undefined {
   const t = task.time;
   if (t.scheduleDuration === 0 && !t.durationMinutes) return t.scheduleStart;
   if (t.scheduleStart.includes('T')) return undefined;
-  if (t.durationUnit !== 'days' || t.durationType !== 'WORKTIME') return undefined;
+  if (t.durationType !== 'WORKTIME') return undefined;
+  if (t.durationUnit !== 'days' && (t.durationUnit !== 'hours' || calendar.workTime)) return undefined;
   if (!Number.isInteger(t.scheduleDuration) || t.scheduleDuration < 0) return undefined;
   const start = parseDate(t.scheduleStart);
   if (isNaN(start.getTime())) return undefined;

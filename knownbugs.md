@@ -593,22 +593,6 @@ en noem het in je rapport of PR-tekst.
     runtime-repro of concreet dataverlies vastgesteld; bedoeling en gewenste foutafhandeling
     niet onderzocht. — S
 
-274. **Een werkelijk einde om precies 08:00 wordt na import uit P6 XML of MSPDI 16:00.** 08:00 is het
-     anker dat deze formaten schrijven voor een datum zonder tijd (ankerregel I8, spec
-     `2026-10-20-alleen-uren-design.md` §3.10, gepland voor F5b). De lezer kan een echte 08:00 daar niet
-     van onderscheiden. Een dagkalender blijft daardoor scalair, en het werkelijke einde wordt na laden het
-     dageinde 16:00. Gemeten op de eindmijlpaal uit review ronde 3 van PR #559 (`milestone-11.xml`, met een
-     werkelijk einde om 08:00), op alle vier stappen tot en met heropenen. Richting: lees 08:00 alleen als
-     anker in een bestand dat OPS zelf schreef. Fixronde 3 van de F2-laadfix. — B
-
-275. **Eén werkelijke datum met een tijd maakt van een importkalender een urenkalender.** Bij P6 XML en
-     MSPDI telt een werkelijke datum met een eigen tijd mee in de keuze tussen uren en dagen per kalender
-     (`p6xmlReader.ts:873`, `mspdiReader.ts:332`). Daarna leest een andere voltooide taak op die kalender,
-     met `ActualFinish …T08:00` in de bron, als 08:00 in plaats van 16:00. Dat blijft zo tot en met IFC
-     heropenen. Dit is de dubbelzinnigheid van ankerregel I8; een toegestane tussenstand tot F5a/F5b.
-     Richting: onderscheid een synthetisch 08:00-anker van een echte tijd. Zie ook 274. Gevonden in
-     review F2 ronde 4. — B
-
 256. **Een kale start op een letterlijke kalender schuift in de ruwe IFC-rondgang naar 07:00.** Kalender
      09:00–17:00 met letterlijke tijden. Een planningsstart zonder tijd wordt in de ruwe route
      `readIFC → writeIFC → readIFC` 07:00, terwijl de laadgrens er 09:00 van maakt. Via de echte laadroute
@@ -633,13 +617,6 @@ en noem het in je rapport of PR-tekst.
      (`registerP6Bands`). Nagespeeld met een probe bij F5a-2. Richting: begin en einde op de minuut, zoals
      `applyCalendarBody` in de MSPDI-lezer. — B
 
-293. **De P6 XML-lezer deelt duur en rest twee keer door de uren per dag.** `p6xmlReader.ts:1070` en `:1072`
-     geven `durationDays`/`remainingDays` mee via `p6HoursToDays` (`:179`), terwijl `readMeasure`
-     (`xmlDayMeasure.ts`) dezelfde deling al doet met `minutesPerDay` (dezelfde uren per dag, met dezelfde
-     terugval op 8). De uitkomst is gelijk, op een mogelijk verschil in de laatste decimaal na
-     (`uren ÷ u` tegen `uren × 60 ÷ (u × 60)`, niet gemeten); het is dubbele code. Richting: de helper en de twee
-     argumentregels weghalen (ongeveer 6 regels). Gevonden in review #585 r1 (Sol, VERVOLG). — B
-
 295. **De IFC-lezer neemt een dagenrecord over na een kalenderwissel.** `ifcReader.ts:1590` accepteert het
      duurrecord `DayMeasureDurations` alleen als de slotminuten nog overeenkomen; bij de rest gebeurt
      hetzelfde. Wijzigt een ander programma alleen de kalendertoewijzing naar een aanwezige kalender van 10 u,
@@ -656,6 +633,79 @@ en noem het in je rapport of PR-tekst.
      OPS goed terug. MS Project en P6 kennen de optie zelf niet. Richting: een melding die beide zegt: het
      andere programma rekent er niet mee, OPS bewaart hem wel. Gezien door de reviewer van #585 r2 (Sol,
      VERVOLG). — B
+
+300. **Een oude OPS-export die daarna van vorm veranderde, leest als vreemd bestand.** OPS v2026.6.0 tot en met
+     v2026.8.1 schreef nog geen OPS-markering. De lezer herkent zo'n MSPDI- of P6 XML-export aan de vorm van die
+     writers (`isLegacyOpsMspdi`, `mspdiReader.ts`; `isLegacyOpsP6Xml`, `p6xmlReader.ts`), en leest 08:00 dan als
+     anker. Wijkt de vorm op één punt af, dan geldt de regel voor een vreemd bestand: 08:00 is een echte tijd.
+     Voorbeeld: een export van v2026.8.1 met een voltooide taak van 1–2 juni, waar een ander programma
+     `<SaveVersion>` aan toevoegde of de elementen in een andere volgorde zette: het werkelijke einde blijft
+     2 juni 08:00, niet 16:00 (`check-uren-f5b-adapters.ts` (12)). Slaat MS Project zo'n export op, dan toont MS
+     Project zelf ook 08:00. De uitvoer van alle vijf oude writers past op de vingerafdruk; geen van de 184
+     vreemde XML-bestanden van het corpus past erop (43 MSPDI-bestanden zonder `<SaveVersion>` vallen op de kop
+     af). Gevonden in F5b; ingeperkt in fixronde 1 van #591. — S
+
+301. **De `.mpp`-lezer leest geen OPS-markering.** `mppReader.ts` leest geen eigen tekstvelden (Text24–Text30),
+     dus geen duureenheid en geen maatrecord (T21). In het corpus draagt geen van de 661 `.mpp`-bestanden een
+     OPS-veld (`OPS_MPP_CORPUS`, gezocht in F5b). Een OPS-MSPDI die in MS Project als `.mpp` is opgeslagen, komt
+     daardoor volledig in de urenmaat terug: een dagenmaat-taak van 2,5 d wordt 20 u. Niet getoetst met MS
+     Project (niet op deze machine). Richting: de eigen tekstvelden van `TBkndTask` lezen, met dezelfde
+     definitieregel als MSPDI. Gevonden in F5b. — S
+
+302. **Projectdatums gaan naar MSPDI en P6 XML met het anker 08:00.** `<StartDate>`, `<FinishDate>`,
+     `<StatusDate>` (`mspdiWriter.ts`) en `<PlannedStartDate>`, `<MustFinishByDate>`, `<DataDate>`
+     (`p6xmlWriter.ts:789`) krijgen voor een datum zonder tijd `T08:00:00` (`toXmlDateTime`). Gezien met een
+     probe: projecteinde 31 december ⇒ `MustFinishByDate 2026-12-31T08:00:00`. P6 leest dat vermoedelijk als
+     "klaar vóór 08:00", een werkdag te vroeg (VERMOED, niet getoetst in P6). Binnen OPS is het een anker
+     (`statusDateFromXml`); projectdatums blijven zoals ingevoerd (spec §3.6). Richting: een einde-achtige
+     projectdatum het einde van de werkdag geven, met een eigen OPS-markering zodat de leesregel gelijk blijft.
+     Gevonden in F5b. — S
+
+303. **Een kalenderuitzondering in MSPDI en P6 XML krijgt op begin én einde 08:00.** `mspdiWriter.ts:260-273`
+     schrijft `<FromDate>…T08:00:00</FromDate>` en `<ToDate>…T08:00:00</ToDate>`; P6 XML schrijft
+     `<HolidayOrException><Date>…T08:00:00`. Gezien met een probe (feestdag 25–26 mei). MS Project schrijft zelf
+     `00:00:00` en `23:59:00`. Of MS Project de laatste dag van de uitzondering dan als werkdag leest, is niet
+     getoetst (VERMOED). Gevonden in F5b. — S
+
+304. **De lijst `OPS_LiteralCalendars` kan in MSPDI langer worden dan 255 tekens.** Zelfde grens als 290: het
+     veld staat in Text24 (`OPS_LITERAL_CALENDARS_FIELD_ID`, `mspdiWriter.ts`). Een JSON-lijst van ongeveer 60
+     kalendernummers past nog. Een afgekapte lijst is ongeldig; de lezer valt dan terug op het tijdsignaal
+     (`check-uren-f5b-adapters.ts` (10)): de tijden blijven goed, maar elke kalender met een einde ≠ 08:00 wordt
+     een urenkalender. Gevonden in F5b. — S
+
+305. **Een automatische mijlpaal op het dageinde maakt zijn kalender in een MSPDI- of P6-export nog letterlijk.**
+     `literalAutomaticMilestones` (`minuteModelWrite.ts:56`) bestond omdat MSPDI geen AtDayEnd-hint heeft en het
+     moment anders verloren ging. Sinds F5b draagt de export het echte moment (16:00), dus de optie is voor
+     verliesvrijheid niet meer nodig; hij laat de kalender na heropenen wel een urenkalender worden. Bewust
+     gelaten in F5b, zodat de promotie gelijk blijft aan F5a. Richting: de optie weghalen, met `measure:profiles`
+     (T11). Gevonden in F5b. — S
+
+306. **De promotieregel van spec §3.10 is niet gebouwd.** De spec zegt: "Een lezer maakt alleen nog een
+     urenkalender als de kalender per dag verschilt of eigen werkblokken heeft; anders blijft hij scalair (§3.1)."
+     MSPDI (`mspdiReader.ts:420`), P6 XML (`p6xmlReader.ts:989`), XER (`xerReader.ts:678`) en `.mpp`
+     (`mppReader.ts:694`) promoveren nog op een tijdsignaal: een tijd die niet het anker is (in XER elke tijd), of
+     een duur die geen hele werkdag is. Ook F5a bouwde dit niet. Een wijziging raakt de
+     P6-conventies die op `isHourModeCalendar` letten (T11) en vraagt `measure:profiles`. Gelezen in de code
+     (F5b). — B
+
+308. **In een OPS-export zonder lijst beslist de kalender of 08:00 een anker is.** Zo schreven de writers van
+     v2026.6.0 tot en met F5a: per kalender een moment of een datum zonder tijd (`XmlTimeRule`,
+     `xmlInterchange.ts`). Twee gevallen lezen daardoor anders dan de bron bedoelde, net als vóór F5b:
+     (a) op een urenkalender leest een datum zonder tijd als 08:00. Voorbeeld: een kale beperking "start niet
+     eerder dan 3 juni" op een kalender van 07:00 tot 15:00 komt terug als 3 juni 08:00, niet 07:00. Een
+     planningsveld heeft dit niet: daar schreef de writer het moment (MSPDI in F5a), of de berekende datums waren
+     momenten (v2026.10.0);
+     (b) een letterlijke kalender zonder tijdsignaal leest scalair. Voorbeeld: een export van F5a met alleen
+     een urenmijlpaal om 08:00 op een kalender van 07:00 tot 15:00: de mijlpaal wordt een datum en na laden
+     07:00. Een export sinds F5b heeft geen van beide (echte tijden en `OPS_LiteralCalendars`). Gelezen in de
+     code; (a) en (b) niet nagespeeld met een echte oude writer. Gevonden in fixronde 1 van #591. — S
+
+309. **Een lag met tienden van een minuut verliest zijn breuk in IFC en bij het lezen van MSPDI.** Sinds
+     fixronde 1 van #591 houdt `.mpp` de tienden (`mppEntities.ts`, `lagMinutes` = `rawLag / 10`). De IFC-writer
+     schrijft een lag op de hele minuut (`minutesToIsoDuration`, `ifcWriter.ts`), en de MSPDI-lezer rondt
+     `LinkLag / 10` af (`mspdiReader.ts`); de MSPDI-writer schrijft wel tienden. Voorbeeld: een lag van 150,5 min
+     uit een `.mpp` is na opslaan als IFC en heropenen 151 min. Geen `.mpp` in het corpus heeft een lag ≠ 0
+     (zie `mppEntities.ts`). Gevonden in fixronde 1 van #591. — S
 
 ## Rondleiding, Help en extensie-gidsen
 

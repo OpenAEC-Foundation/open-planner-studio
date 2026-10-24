@@ -142,8 +142,10 @@ async function main(): Promise<void> {
       eq(`176/${label}: letterlijke XML-inhoud`, xml.match(/<StartDate>([\s\S]*?)<\/StartDate>/)?.[1], xmlText);
       const back = readMSPDI(xml);
       eq(`176/${label}: heropenen volgt bestaande projectstartregel`, back.project.startDate, importedStart);
+      // Sinds F5b (I8) schrijft MSPDI elke taakdatum met zijn echte tijd (D1 08:00, D2 16:00) en leest de
+      // lezer die terug; vóór F5b ging het als daganker 08:00 en kwam de datum terug.
       eq(`176/${label}: taak blijft heropenbaar`, back.tasks.map(t => [t.name, t.time.scheduleStart, t.time.scheduleFinish]),
-        [['Ankertaak', '2026-07-07', '2026-07-08']]);
+        [['Ankertaak', '2026-07-07T08:00', '2026-07-08T16:00']]);
     }
 
     // De oorspronkelijke route: geldige XML draagt ongeldige datumtekst. De reader bewaart de
@@ -196,8 +198,9 @@ async function main(): Promise<void> {
         assert(!xml.includes('<Injected/>'), `185/${field}/${label}: geen ingevoegd element`);
         const back = readMSPDI(xml);
         eq(`185/${field}/${label}: bestaande leesregel`, back.project[field], field === 'endDate' ? importedEnd : importedStatus);
+        // Echte tijden sinds F5b (I8), zie 176.
         eq(`185/${field}/${label}: taak blijft heropenbaar`, back.tasks.map(t => [t.name, t.time.scheduleStart, t.time.scheduleFinish]),
-          [['Ankertaak', '2026-07-07', '2026-07-08']]);
+          [['Ankertaak', '2026-07-07T08:00', '2026-07-08T16:00']]);
       }
     }
     const withoutStatus = writeMSPDI(project, cal, tasks, [], [], []);
@@ -438,12 +441,14 @@ async function main(): Promise<void> {
       const foreign = readMSPDI(xml.replace(/\s*<ExtendedAttributes>[\s\S]*?<\/ExtendedAttributes>/, ''));
       eq('#7 MSP-bestand zonder OPS-definitie: uurmodus leidt FINISH af uit 16:00 (ongewijzigd)', byName(foreign, 'Gestort')?.milestoneKind, 'FINISH');
       eq('#7 MSP-bestand zonder OPS-definitie: uurmodus leidt START af uit 08:00 (ongewijzigd)', byName(foreign, 'Start')?.milestoneKind, 'START');
-      // Dagmodus zonder OPS-definitie: nog steeds geen afleiding (ongewijzigd).
+      // Dagmodus zonder OPS-definitie. Sinds F5b (I8) staat de eindmijlpaal in de export op zijn echte
+      // eindmoment 16:00, niet op het daganker 08:00. Zonder de OPS-definities is dat een vreemd bestand
+      // met een uursignaal: de lezer leidt FINISH af, zoals bij elk MS Project-bestand (MS Project-semantiek).
       const dcal = DAY();
       const dayXml = writeMSPDI(proj('Dag', dcal.id, '2027-07-05'), dcal,
         [mkDay('m-m', 'Hoogste punt', '1', '2027-07-09', '2027-07-09', 0, { milestoneKind: 'FINISH' })], [], [], []);
       const dayForeign = readMSPDI(dayXml.replace(/\s*<ExtendedAttributes>[\s\S]*?<\/ExtendedAttributes>/, ''));
-      eq('#7 MSP-bestand zonder OPS-definitie: dagmodus zonder soort (ongewijzigd)', byName(dayForeign, 'Hoogste punt')?.milestoneKind, undefined);
+      eq('#7 MSP-bestand zonder OPS-definitie: eindmijlpaal op 16:00 ⇒ FINISH (F5b, I8)', byName(dayForeign, 'Hoogste punt')?.milestoneKind, 'FINISH');
     }
   }
 

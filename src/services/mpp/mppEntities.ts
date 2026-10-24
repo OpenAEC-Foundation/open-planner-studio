@@ -18,7 +18,6 @@ import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment, ResourceType } from '@/types/resource';
 import type { ImportLabels } from '@/services/importTypes';
 import { generateId } from '@/utils/id';
-import { tenthsOfMinutesToDays } from '@/services/importDurations';
 import { mspTypeToSequenceType } from '@/services/msproject/mspdiReader';
 import type { CfbFile } from './cfb';
 import {
@@ -72,19 +71,21 @@ const CONS_FIXED_DATA_ITEM_SIZE = 20;
 
 /**
  * Ruwe TBkndCons-lag (tienden van een minuut — MPPUtility.getDuration: "value is given in 1/10 of
- * minute", ONGEACHT welke eenheid `unitCode` claimt) + eenheidscode → `Sequence`-lagvelden. Spiegelt
- * mspdiReader's lag-afhandeling vanuit MPP's eigen eenheidscodering (`getDurationTimeUnits`):
+ * minute", ONGEACHT welke eenheid `unitCode` claimt) + eenheidscode → `Sequence`-lagvelden. Zonder afronding
+ * op hele dagen (alleen uren §3.3, §3.10, T15; I4, F5b), in dezelfde vormen als de MSPDI-lezer (F5a):
  *  - percent/elapsedPercent: /10. `mspdiReader.ts` leest `LinkLag` bij LagFormat 19/20 als TIENDEN
  *    VAN EEN PROCENT (`seq.lagPercent = link.lag / 10`; `mspdiWriter.ts` schrijft
  *    `Math.round(seq.lagPercent * 10)`). MPXJ normaliseert de schaal in geen van beide lezers, dus dit
  *    zegt niets over een schaalverschil; met dezelfde /10 leveren beide OPS-lezers HELE procenten.
- *  - elapsedMinutes/elapsedHours: minuut-exact `lagMinutes` (`rawLag / 10`) + ELAPSEDTIME — identiek
- *    aan mspdiReader's `ELAPSED_SUBDAY_FORMATS`-tak.
- *  - andere elapsed-varianten: kalenderdagen via `getDuration(rawLag, 'elapsedDays')` (deelt door
- *    24*60*10), afgerond op hele dagen — identiek aan mspdiReader's ELAPSED_DURATION_FORMATS-tak.
- *  - WORKTIME: dezelfde omrekening als taakduur (`tenthsOfMinutesToDays`, `@/services/importDurations`),
- *    TENZIJ de opvolger in uur-modus zit (`isHourSuccessor`): dan minuut-precies `lagMinutes`
- *    (`Math.round(rawLag/10)`) — exact mspdiReader's `taskHourById.get(link.successorId)`-tak.
+ *  - elapsedDays: exacte kalenderdagen (`rawLag / (24 × 60 × 10)`) + ELAPSEDTIME, zoals MSPDI LagFormat 8.
+ *    Vroeger afgerond op hele dagen.
+ *  - de andere elapsed-eenheden (minuten, uren, weken, maanden): minuut-exact `lagMinutes` (`rawLag / 10`)
+ *    + ELAPSEDTIME, zoals MSPDI LagFormat 4, 6, 10 en 12.
+ *  - WORKTIME: de urenmaat, `lagMinutes` = `rawLag / 10`, voor elke opvolger: een `.mpp` draagt geen
+ *    OPS-markering voor een lag in de dagenmaat (T15). Vroeger kreeg een opvolger op een dagkalender hele
+ *    werkdagen op de projectbrede `hoursPerDay`.
+ *  Tienden van een minuut blijven staan (§3.10, review #591 r1, punt 3). Grens: IFC en de MSPDI-lezer dragen
+ *  een lag op de hele minuut (knownbug 309); de MSPDI-writer schrijft wel tienden.
  *
  * ⚠️ Dekkingsvoorbehoud: het corpus draagt alleen FINISH_START-relaties met lag=0 — de typetabel
  * (`mspTypeToSequenceType`) en alle lag-takken worden alleen door de synthetische fixtures in
@@ -92,7 +93,7 @@ const CONS_FIXED_DATA_ITEM_SIZE = 20;
  */
 type SequenceLagFields = Pick<Sequence, 'lagDays'> & Partial<Pick<Sequence, 'lagMinutes' | 'lagUnit' | 'lagPercent'>>;
 
-function mppLagToSequenceFields(rawLag: number, unitCode: number, hoursPerDay: number, isHourSuccessor: boolean): SequenceLagFields {
+function mppLagToSequenceFields(rawLag: number, unitCode: number): SequenceLagFields {
   if (rawLag === -1) return { lagDays: 0 }; // MPPUtility.getAdjustedDuration: duration===-1 ⇒ geen lag
   const unit = getDurationTimeUnits(unitCode);
   if (unit === 'percent' || unit === 'elapsedPercent') {
@@ -100,32 +101,20 @@ function mppLagToSequenceFields(rawLag: number, unitCode: number, hoursPerDay: n
     if (unit === 'elapsedPercent') fields.lagUnit = 'ELAPSEDTIME';
     return fields;
   }
-  // Elapsed MINUTEN/UREN ("emin"/"ehr") zijn een uur-lag: minuut-exact, ongeacht de modus van de
-  // opvolger (de elapsed-dag-afronding hieronder zou van "12 ehr" 24 uur en van "8 ehr" 0 maken).
-  if (unit === 'elapsedMinutes' || unit === 'elapsedHours') {
-    return { lagDays: 0, lagMinutes: Math.round(rawLag / 10), lagUnit: 'ELAPSEDTIME' };
-  }
-  if (unit.startsWith('elapsed')) {
-    return { lagDays: Math.round(getDuration(rawLag, 'elapsedDays')), lagUnit: 'ELAPSEDTIME' };
-  }
-  // Een uur-modus-opvolger krijgt de lag minuut-precies i.p.v. dag-afgerond — `rawLag` is al tienden
-  // van een minuut, dus `/10` volstaat.
-  if (isHourSuccessor) return { lagDays: 0, lagMinutes: Math.round(rawLag / 10) };
-  return { lagDays: tenthsOfMinutesToDays(rawLag, hoursPerDay) };
+  if (unit === 'elapsedDays') return { lagDays: getDuration(rawLag, 'elapsedDays'), lagUnit: 'ELAPSEDTIME' };
+  if (unit.startsWith('elapsed')) return { lagDays: 0, lagMinutes: rawLag / 10, lagUnit: 'ELAPSEDTIME' };
+  return { lagDays: 0, lagMinutes: rawLag / 10 };
 }
 
 /** Poort van `ConstraintFactory.process` — `"   114"/TBkndCons` → `Sequence[]`. Geëxporteerd zodat
- *  `check-mpp-relations.ts` hem los kan aanroepen. `taskHourById` (optioneel, default leeg = overal
- *  dag-modus): per opvolger-`Task.id` of die in uur-modus zit, voor de lag-eenheid. */
+ *  `check-mpp-relations.ts` hem los kan aanroepen. */
 export function readRelations(
   cfb: CfbFile,
   applicationVersion: number | null,
-  hoursPerDay: number,
   taskIdByUniqueId: ReadonlyMap<number, string>,
-  taskHourById: ReadonlyMap<string, boolean> = new Map(),
 ): Sequence[] {
   try {
-    return readRelationsUnsafe(cfb, applicationVersion, hoursPerDay, taskIdByUniqueId, taskHourById);
+    return readRelationsUnsafe(cfb, applicationVersion, taskIdByUniqueId);
   } catch {
     return [];
   }
@@ -134,9 +123,7 @@ export function readRelations(
 function readRelationsUnsafe(
   cfb: CfbFile,
   applicationVersion: number | null,
-  hoursPerDay: number,
   taskIdByUniqueId: ReadonlyMap<number, string>,
-  taskHourById: ReadonlyMap<string, boolean>,
 ): Sequence[] {
   const label = '"   114"/TBkndCons';
   const fixedMetaBytes = cfb.getStream(['   114', 'TBkndCons', 'FixedMeta']);
@@ -192,7 +179,7 @@ function readRelationsUnsafe(
       predecessorId,
       successorId,
       type,
-      ...mppLagToSequenceFields(lagRaw, lagUnitsRaw, hoursPerDay, taskHourById.get(successorId) ?? false),
+      ...mppLagToSequenceFields(lagRaw, lagUnitsRaw),
     });
   }
   return sequences;

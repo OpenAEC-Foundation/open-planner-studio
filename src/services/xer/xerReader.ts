@@ -816,22 +816,21 @@ function readXerProject(
     const durationMinutes = plannedWindowRepairsFractionalDay
       ? plannedWindowMinutes
       : sourceDurationMinutes;
-    // Main's duurmodel is TAAKgestuurd, niet kalendergestuurd: `taskDurationUnit` leest
-    // `time.durationUnit` en valt alleen bij ONTBREKEND veld terug op `durationMinutes`.
-    // `createDefaultTaskTime` zet standaard 'days', dus zonder deze expliciete eenheid zou
-    // een uur-native XER-taak door de dag-tak van CPMSolver lopen en op de werkdaggrens
-    // eindigen (gemeten: 16:00 i.p.v. 10:00). Zelfde patroon als mppReader/p6xmlReader.
+    // Altijd de urenmaat (alleen uren §3.10, T15; F5b): P6 kent alleen werkuren, en een XER-bestand draagt
+    // nooit de OPS-markering voor de dagenmaat. Duur en rest zijn de minuten uit het bestand, zonder
+    // afronding op hele dagen. Vroeger kreeg een taak op een kalender zonder tijdsignaal de dagenmaat
+    // (`durationMinutes / (day_hr_cnt × 60)` dagen); dat is weg, ook op een dagkalender.
     // LET OP: `createDefaultTaskTime` leest zijn tweede argument als UREN zodra de eenheid
     // 'hours' is, en zet dan zelf `durationMinutes = dat getal * 60`. Wij geven hier bewust
     // DAGEN mee omdat `scheduleDuration` dagen hoort te zijn; de daaruit volgende foutieve
-    // `durationMinutes` wordt hieronder in dezelfde `if (hourMode)`-tak overschreven met de
-    // echte bronminuten. Die overschrijving is dus dragend — haal 'm niet weg.
-    // Urentaak: dagengetal via `hourTaskScheduleDuration` (de blokken, niet `day_hr_cnt`; die blijft
-    // wel op de kalender staan). Een dagtaak houdt de bronomrekening.
+    // `durationMinutes` wordt hieronder overschreven met de echte bronminuten. Die overschrijving is
+    // dus dragend — haal 'm niet weg.
+    // Het dagengetal via `hourTaskScheduleDuration` (de blokken, niet `day_hr_cnt`; die blijft wel op de
+    // kalender staan).
     const time = createDefaultTaskTime(
       start,
-      hourMode ? hourTaskScheduleDuration(durationMinutes, effectiveCalendar) : durationMinutes / (hoursPerDay * 60),
-      hourMode ? 'hours' : 'days',
+      hourTaskScheduleDuration(durationMinutes, effectiveCalendar),
+      'hours',
     );
     time.scheduleFinish = finish;
     time.earlyStart = start;
@@ -843,13 +842,9 @@ function readXerProject(
       && durationCompletionPercent !== null
       ? durationHours * (1 - completion)
       : remainingHours;
-    if (hourMode) {
-      time.durationMinutes = durationMinutes;
-      if (p6RemainingHours !== null) {
-        time.remainingMinutes = Math.round(p6RemainingHours * 60);
-      }
-    } else if (p6RemainingHours !== null) {
-      time.remainingTime = p6RemainingHours / hoursPerDay;
+    time.durationMinutes = durationMinutes;
+    if (p6RemainingHours !== null) {
+      time.remainingMinutes = Math.round(p6RemainingHours * 60);
     }
     if (actualStart) time.actualStart = actualStart;
     if (actualFinish) time.actualFinish = actualFinish;
