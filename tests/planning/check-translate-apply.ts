@@ -215,6 +215,12 @@ const en: JsonObject = {
       writeJson(locFile(lang), menu(want));
       if (lang !== 'nl') writeJson(srcFile(lang), { menu: { [key]: hashUnit('{{hours}}u'), otherHours: hashUnit('{{hours}} س') } });
     }
+    // De globale releasepoort vereist elke geregistreerde UI-taal (200), ook in deze kleine fixture.
+    for (const lang of LOCALES.filter(lang => !['nl', 'en', 'ar', 'fa'].includes(lang))) {
+      const actual = unitMap(readObj(join(root, 'src/i18n/locales', lang, 'menu.json'))).get(key)!.text;
+      writeJson(locFile(lang), menu(actual));
+      writeJson(srcFile(lang), { menu: { [key]: hashUnit('{{hours}}u'), otherHours: hashUnit('{{hours}} س') } });
+    }
     // Alle huidige, goedgekeurde uurteksten in andere talen blijven door de echte pakketpoort komen.
     const realNl = readObj(join(root, 'src/i18n/locales/nl/menu.json'));
     const realEn = readObj(join(root, 'src/i18n/locales/en/menu.json'));

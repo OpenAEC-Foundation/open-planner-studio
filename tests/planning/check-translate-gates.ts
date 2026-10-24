@@ -347,10 +347,31 @@ const has = (errs: string[], part: string) => errs.some(e => e.includes(part));
         r.out.includes('lo: taalbestand ontbreekt') && r.out.includes('lo.work-category: term ontbreekt'));
     }
     write(tbPath('lo'), termbase());
+    eq('200 termbase herstellen is genoeg voor de afzonderlijke termbasepoort', run(['validate-termbase']).status, 0);
+    const missingUi = run(['status', '--strict']);
+    eq('200 geldige termbase maskeert geen verdwenen UI-map', missingUi.status, 1);
+    ok(`200 release noemt lo en de ontbrekende UI-sleutel (${missingUi.out})`,
+      missingUi.out.includes('XX  lo:') && missingUi.out.includes('common:sample (ontbreekt)'));
+    eq('200 expliciete controle van andere taal behoudt eigen scope', run(['status', 'de', '--strict']).status, 0);
+    eq('200 expliciete verdwenen taal is eveneens rood', run(['status', 'lo', '--strict']).status, 1);
+    const report = run(['status']);
+    eq('200 gewone status blijft een rapport, geen harde poort', report.status, 0);
+    ok('200 gewone status meldt ook verdwenen locale', /lo\s+common\s+1/.test(report.out));
+    for (const ns of NAMESPACES) write(join(work, 'src/i18n/locales/lo', `${ns}.json`),
+      ns === 'common' ? { sample: 'Voorbeeld lo' } : {});
     for (const args of commands) {
       const r = run(args);
-      eq(`CLI ${args.join(' ')}: geldige doeltermen herstellen groen (${r.out})`, r.status, 0);
+      eq(`CLI ${args.join(' ')}: doeltermen én UI herstellen groen (${r.out})`, r.status, 0);
     }
+    // Engels heeft geen doeltermbase, maar is wel een verplichte UI-taal. Oude hashes helpen niet.
+    rmSync(join(work, 'src/i18n/locales/en'), { recursive: true });
+    const missingEnglish = run(['status', '--strict']);
+    eq('200 ook compleet verdwenen Engels blokkeert de release', missingEnglish.status, 1);
+    ok('200 Engelse ontbrekende sleutel expliciet gemeld', missingEnglish.out.includes('XX  en:')
+      && missingEnglish.out.includes('common:sample (ontbreekt)'));
+    for (const ns of NAMESPACES) write(join(work, 'src/i18n/locales/en', `${ns}.json`),
+      ns === 'common' ? { sample: 'Voorbeeld en' } : {});
+    eq('200 alle vereiste talen terug maakt de releasepoort groen', run(['status', '--strict']).status, 0);
     // De echte geregistreerde concepten en talen moeten in CI eveneens aan het contract voldoen.
     const real = run(['validate-termbase'], root);
     eq(`CLI: repository-termbase compleet en geldig (${real.out})`, real.status, 0);

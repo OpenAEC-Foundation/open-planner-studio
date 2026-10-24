@@ -333,14 +333,6 @@ en noem het in je rapport of PR-tekst.
     nl-interface bij *Bestand › Voorbeelden*; de Help-artikelen noemen daarom de Engelse namen. Niet
     nagegaan of dat voor alle voorbeelden geldt. Voorstel: bewust laten, of per taal vertalen. — B
 
-200. **De strikte UI-vertaalpoort kan een volledig ontbrekende taalmap overslaan.**
-    `status` in `scripts/translate/cli.ts` bepaalt zonder expliciete taal de UI-talen via de aanwezige
-    mappen onder `src/i18n/locales/`. Ontbreekt bijvoorbeeld `lo/`, dan kan `status --strict` groen
-    blijven wanneer de overige UI actueel is en de Lao-termbase geldig is. De bestaande mapinventarisatie
-    staat los van de termbasedekking uit PR #537; die PR herstelt deze UI-inventarisatie niet.
-    Statisch afgeleid bij de review op `78583d1b` (regels 896–900), niet lokaal uitgevoerd.
-    De nieuwe CLI-test herstelt de verwijderde UI-map evenmin vóór zijn groene verwachting. — S
-
 102. **`apply-terms` vertrouwt `terms-NN.json` en `terms-check-01.map.json` zonder zegel.** De UI- en
      docs-pakketten hebben sinds #323 een zegel (`build/translate-seal/`); de termbase-pakketten niet, terwijl
      agents in dezelfde map schrijven. Voorstel: dezelfde `seal`/`sealErrors` in `prepare`/`apply-terms`.
