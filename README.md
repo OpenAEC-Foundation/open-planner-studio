@@ -143,7 +143,7 @@ The desktop app is built with Tauri 2, so the installers are small and use the w
 
 ## Contributing
 
-- **Try it on a real project** and report bugs or missing features: [open an issue](https://github.com/OpenAEC-Foundation/open-planner-studio/issues/new).
+- **Try it on a real project** and report bugs or missing features: use the feedback button in the app, or [open a GitHub issue](https://github.com/OpenAEC-Foundation/open-planner-studio/issues/new).
 - **Share ideas or ask questions** in [GitHub Discussions](https://github.com/OpenAEC-Foundation/open-planner-studio/discussions).
 - **Send test files.** `.mpp`, `.xer` and P6 XML files help us improve the import, and a large set of test files may later help us improve the export as well. See [the discussion on test files](https://github.com/OpenAEC-Foundation/open-planner-studio/discussions/71). Remove confidential data first.
 - **Write code.** Read [CONTRIBUTING.md](CONTRIBUTING.md) and open a pull request.

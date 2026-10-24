@@ -582,6 +582,8 @@ export interface UIState {
   positionDivision: PositionDivision; // persisted — split used in position mode
   modifierMap: ModifierMap;           // persisted — wheel→function map for modifier mode
   debugTerminalEnabled: boolean;  // persisted
+  experimentalSettingsVisible: boolean; // persisted; verbergen laat de flagkeuzes staan
+  featureFlags: Record<string, boolean>; // persisted; ontbrekend = uit
   debugTerminalOpen: boolean;     // session
   documentChromeStyle: DocumentChromeStyle; // persisted — multi-document wisselstijl
   ribbonCompact: boolean; // persisted — compacte ribbon voor kleine schermen

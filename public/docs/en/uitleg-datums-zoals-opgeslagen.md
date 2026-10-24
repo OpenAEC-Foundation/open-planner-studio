@@ -2,7 +2,7 @@
 
 You open a schedule from Primavera or MS Project, and the dates differ from what you saw in that package. Did the import go wrong? Usually not. In this article you read why the app recalculates by itself, when it shows the dates from the file, what stays empty then and how you return to its own calculation. The example at the end follows two tasks through the whole cycle.
 
-A file from an older version of Open Planner Studio is recalculated when you open it. If tasks move, the app reports how many tasks have a different start or finish and the largest shift. Undo restores the recorded dates. They stay in place until you calculate or edit the schedule, including when automatic calculation is enabled. Changing only a name keeps the recorded dates, also through the AI assistant.
+A file from an older version of Open Planner Studio is recalculated when you open it. If tasks move, the app reports how many tasks have a different start or finish and the largest shift. Undo restores the recorded dates. They stay in place until you calculate or edit the schedule, including when automatic calculation is enabled. Changing only a name keeps the recorded dates, also through the MCP client.
 
 ## The concept
 

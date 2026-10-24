@@ -23,6 +23,53 @@
   -webkit-app-region: no-drag;
 }
 
+/* Demo: een warme glans achter de bediening. Alleen deze kleine laag beweegt;
+   de titelbalk zelf en zijn sleepgebied blijven ongemoeid. */
+.title-bar-demo-animation {
+  --demo-sweep-end: 300%;
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background: linear-gradient(90deg,
+    transparent 5%,
+    color-mix(in srgb, var(--theme-accent) 38%, transparent) 50%,
+    transparent 95%) bottom / 100% 1px no-repeat;
+}
+
+.title-bar-demo-animation::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: -50%;
+  width: 50%;
+  background:
+    radial-gradient(ellipse at 50% 100%,
+      color-mix(in srgb, var(--theme-accent) 22%, transparent), transparent 72%),
+    linear-gradient(110deg, transparent 20%,
+      color-mix(in srgb, var(--theme-accent) 9%, transparent) 50%, transparent 80%);
+  animation: title-bar-demo-sweep 18s ease-in-out infinite;
+}
+
+[dir="rtl"] .title-bar-demo-animation {
+  --demo-sweep-end: -300%;
+}
+
+@keyframes title-bar-demo-sweep {
+  0% { transform: translateX(0); opacity: 0; }
+  15%, 80% { opacity: 1; }
+  100% { transform: translateX(var(--demo-sweep-end)); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .title-bar-demo-animation::before {
+    animation: none;
+    inset-inline-start: 25%;
+    opacity: 0.65;
+  }
+}
+
 .title-bar-app-icon {
   width: 18px;
   height: 18px;

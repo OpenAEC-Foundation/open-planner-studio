@@ -205,8 +205,8 @@ const wordRe = (s: string, flags = 'u') => new RegExp(`(?<![\\p{L}\\p{N}])${esca
  * Alle mogelijke labels over alle namespaces. Een label is een gewone (geen meervouds)tekst zonder
  * invulplekken of `$t(…)`, die met een hoofdletter begint, van ten minste twee woorden of tien tekens. Eén los woord dat in meer dan
  * `LABEL_COMMON_WORD_MAX` andere nl-teksten staat ("Instellingen") telt niet: dat is gewone taal. De
- * doeltekst telt alleen als de eenheid vertaald is (`isTranslated`; in een nieuwe taal is tekst zonder
- * hash Engelse vulling) en geen avoid-variant uit de termbase bevat (`rules`).
+ * doeltekst telt alleen als de eenheid vertaald is, de bron-hash actueel is en de tekst geen
+ * avoid-variant uit de termbase bevat (`rules`). Een oude labeltekst mag de nieuwe vertaling niet vastzetten.
  */
 export function buildLabelIndex(inputs: NsInput[], lang: string, sources: UiSources, rules: AvoidRule[] = []): LabelEntry[] {
   const byText = new Map<string, { keys: string[]; targets: string[] }>();
@@ -226,8 +226,9 @@ export function buildLabelIndex(inputs: NsInput[], lang: string, sources: UiSour
       byText.set(t, e);
       e.keys.push(`${input.ns}:${u.key}`);
       const tu = target.get(u.key);
-      // Een doeltekst met een avoid-variant verandert zelf nog (`--avoid`): die eisen we niet af.
-      if (isTranslated(tu, u, lang, hashes) && typeof tu!.text === 'string' && !e.targets.includes(tu!.text)
+      // Een verouderde of hashloze doeltekst en een avoid-variant veranderen zelf nog: die eisen we niet af.
+      if (isTranslated(tu, u, lang, hashes) && hashes[u.key] === hashUnit(u.text)
+        && typeof tu!.text === 'string' && !e.targets.includes(tu!.text)
         && avoidHitsIn(tu!.text, rules).hits.length === 0) e.targets.push(tu!.text);
     }
   }

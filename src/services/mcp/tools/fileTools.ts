@@ -56,6 +56,14 @@ export interface McpFileFs extends FileIdentityFs {
   writeTextFile(path: string, content: string): Promise<void>;
   readTextFile(path: string): Promise<string>;
   readFile(path: string): Promise<Uint8Array>;
+  /**
+   * Optioneel: de tweede, fysieke scope-poort ná de lexicale `checkScope`. Geeft een uitleg terug als
+   * `path` via een link (symlink, junction) of een andere alias buiten de scope uitkomt, anders `null`.
+   * De headless MCP-server (`headless/mcp-server/`, issue #570) levert hem, want daar is geen
+   * Tauri-capability die zulke ontsnappingen weigert. De app laat hem weg: daar blijft de capability de
+   * harde grens (zie punt 1 bovenaan), en het gedrag van de app verandert dus niet.
+   */
+  confine?(path: string): Promise<string | null>;
 }
 
 /** Echte (Tauri-)fs; dynamisch geïmporteerd binnen een `isTauri()`-tak — spiegel van
@@ -285,6 +293,8 @@ export const fileTools: McpToolDef[] = [
         const scope = checkScope(home, raw.path);
         if (!scope.ok) return toolError(ctx, 'SCOPE', scope.reason);
         path = scope.path;
+        const escaped = await fs.confine?.(path);
+        if (escaped) return toolError(ctx, 'SCOPE', escaped);
         existed = await fs.exists(path);
         if (existed && !overwrite) {
           return toolError(
@@ -406,6 +416,8 @@ export const fileTools: McpToolDef[] = [
         const scope = checkScope(await fs.homeDir(), raw.path);
         if (!scope.ok) return toolError(ctx, 'SCOPE', scope.reason);
         path = scope.path;
+        const escaped = await fs.confine?.(path);
+        if (escaped) return toolError(ctx, 'SCOPE', escaped);
       } catch (e) {
         return toolError(ctx, 'INTERNAL', `Could not check the source path: ${e instanceof Error ? e.message : String(e)}`);
       }

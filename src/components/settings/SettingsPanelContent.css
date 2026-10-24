@@ -9,6 +9,23 @@
   min-height: 360px;
 }
 
+/* Versienummer blijft selecteerbaar; de native knop ondersteunt focus en Enter-herhaling. */
+.settings-version {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--theme-text);
+  font-family: inherit;
+  font-size: var(--text-body);
+  user-select: text;
+  cursor: text;
+}
+
+.settings-version:focus-visible {
+  outline: 2px solid var(--theme-accent);
+  outline-offset: 3px;
+}
+
 /* U1: subkop binnen een tab die een paar secties groepeert (bv. "Gantt" onder
    Weergave) zonder zelf een nieuwe tab te worden. Iets prominenter dan een
    gewone sectie-h3 (die is uppercase/gedimd), zonder de vorm te herontwerpen. */

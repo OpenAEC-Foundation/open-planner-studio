@@ -4,6 +4,7 @@ import { isTauri } from '@/utils/platform';
 import { clearOwnRecovery } from '@/services/recovery/recoveryStore';
 import { createAppQuitController } from '@/services/appQuit/appQuitController';
 import { appQuitDependencies } from '@/services/appQuit/appQuitDependencies';
+import { getMcpDiscoveryWriter } from '@/services/mcp/discoveryFiles';
 
 /**
  * Desktop-sluitbeveiliging (Tauri-only; de webbuild heeft `beforeunload` in `useAutoSave`).
@@ -29,7 +30,14 @@ export function useAppCloseGuard(autoSaveEnabled: MutableRefObject<boolean>): vo
         // Alleen de eigen snapshots: wat de gebruiker in het herstelvenster uitstelde, of dat nog
         // niet eens is aangeboden, blijft voor de volgende start staan.
         clearRecovery: clearOwnRecovery,
-        destroyWindow: () => appWindow.destroy(),
+        destroyWindow: async () => {
+          // Ontdekkingsbestanden voor de MCP-plugin weghalen (best effort; de writer vangt zijn
+          // eigen fouten). Na een crash herkent de plugin een achtergebleven bestand aan het pid.
+          // Hoogstens 1,5 s: het sluiten mag nooit op een hangende schrijfactie wachten.
+          const shutdown = getMcpDiscoveryWriter()?.shutdown();
+          if (shutdown) await Promise.race([shutdown, new Promise((resolve) => { setTimeout(resolve, 1500); })]);
+          await appWindow.destroy();
+        },
       }));
       unsubscribe = useAppStore.subscribe(() => { if (controller.active) controller.step(); });
       const stop = await appWindow.onCloseRequested((event) => {

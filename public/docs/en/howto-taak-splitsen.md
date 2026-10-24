@@ -44,9 +44,9 @@ Be careful with *after*: that box lengthens or shortens the piece of work before
 
 Right-click the break in the Gantt, or the piece after it, and choose *Remove break*. *Remove all breaks* is in the right-click menu of every bar that has a break. Or use the *Breaks* block in the *Properties* panel, as above.
 
-### With an AI assistant
+### With an MCP client
 
-A connected AI assistant sets breaks with the tool `planner_set_task_splits`, in the same form as the panel: after how many work days (or work hours) of work, and how many work days (or work hours) of pause. It always gives the whole list; an empty list removes all breaks. It reads them back with `planner_get_task`. The same rules apply as below: a task you cannot split, the assistant cannot split either. Unlike a split you make yourself, the app recalculates the schedule afterwards by itself. How to connect an assistant is in [Connecting an AI assistant (MCP)](docs://howto-ai-assistent-koppelen).
+A connected MCP client sets breaks with the tool `planner_set_task_splits`, in the same form as the panel: after how many work days (or work hours) of work, and how many work days (or work hours) of pause. It always gives the whole list; an empty list removes all breaks. It reads them back with `planner_get_task`. The same rules apply as below: a task you cannot split, the MCP client cannot split either. Unlike a split you make yourself, the app recalculates the schedule afterwards by itself. How to connect an MCP client is in [Connecting an MCP client](docs://howto-ai-assistent-koppelen).
 
 ## Pitfalls and what the app does
 

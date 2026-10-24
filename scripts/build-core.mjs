@@ -8,15 +8,17 @@
 //   npm run build:core              # → dist-core/
 //   node scripts/build-core.mjs --out <map>
 //
-// De bouw controleert ook de grens van de library mechanisch (zie FORBIDDEN_INPUTS): React, Tauri,
+// De bouw controleert ook de grens van de library mechanisch (zie FORBIDDEN_INPUTS in scripts/lib/headless-bundle.mjs): React, Tauri,
 // de app-singleton (`src/state/appStore.ts`), UI-componenten en de i18n-UI-config mogen niet in de
 // bundel zitten. Code die alleen achter een dynamische import of een React-hook leeft, wordt
 // vervangen door een stub die bij gebruik een duidelijke fout gooit.
 import esbuild from 'esbuild';
 import ts from 'typescript';
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { forbiddenInputs, headlessStubPlugin, metafileInputs } from './lib/headless-bundle.mjs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { thirdPartyNotices } from './lib/third-party-notices.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const outIdx = process.argv.indexOf('--out');
@@ -25,49 +27,9 @@ const outDir = resolve(outIdx >= 0 ? process.argv[outIdx + 1] : join(root, 'dist
 const appPkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
 export const CORE_PACKAGE_NAME = '@openaec/open-planner-core';
 
-// Modules die de kern niet nodig heeft en die alleen bereikbaar zijn via een dynamische import of
-// binnen een React-hook. De stub gooit pas bij GEBRUIK, niet bij het laden.
-const STUBBED = [
-  /^react$/, /^react-dom(\/.*)?$/, /^react-i18next$/, /^@tauri-apps\//, /^@\/i18n\/config$/,
-];
-const stubPlugin = {
-  name: 'ops-core-stubs',
-  setup(build) {
-    // zustand: alleen de vanilla store, zonder React-hook (`create` geeft een functie-object met de
-    // store-API, net als zustand zelf, maar zonder `useSyncExternalStore`).
-    build.onResolve({ filter: /^zustand$/ }, () => ({ path: 'zustand', namespace: 'ops-core-zustand' }));
-    build.onLoad({ filter: /.*/, namespace: 'ops-core-zustand' }, () => ({
-      resolveDir: root,
-      contents: `
-        import { createStore } from 'zustand/vanilla';
-        const bind = (api) => Object.assign(() => {
-          throw new Error('React hooks are not available in @openaec/open-planner-core');
-        }, api);
-        export const create = (init) => (init ? bind(createStore(init)) : (i) => bind(createStore(i)));
-        export { createStore };`,
-    }));
-    for (const filter of STUBBED) {
-      build.onResolve({ filter }, (args) => ({ path: args.path, namespace: 'ops-core-stub' }));
-    }
-    build.onLoad({ filter: /.*/, namespace: 'ops-core-stub' }, (args) => ({
-      contents: `
-        const fail = () => { throw new Error(${JSON.stringify(`"${args.path}" is not available in ${CORE_PACKAGE_NAME}`)}); };
-        const stub = new Proxy(function () {}, { get: (_t, k) => (k === '__esModule' ? true : k === 'then' ? undefined : fail()), apply: fail, construct: fail });
-        export default stub;`,
-    }));
-  },
-};
-
-// Inputs die nooit in de bundel mogen landen (padfragmenten, relatief aan de bundel-metafile).
-const FORBIDDEN_INPUTS = [
-  'src/state/appStore.ts',
-  'src/components/',
-  'src/i18n/config.ts',
-  'src/i18n/locales/',
-  'node_modules/react/',
-  'node_modules/react-dom/',
-  'node_modules/@tauri-apps/',
-];
+// De grens (stubs voor React/Tauri/i18n-config, verboden inputs) en de licentie-afleiding delen we met
+// de headless MCP-server: scripts/lib/headless-bundle.mjs.
+const stubPlugin = headlessStubPlugin(root, CORE_PACKAGE_NAME);
 
 rmSync(outDir, { recursive: true, force: true });
 mkdirSync(outDir, { recursive: true });
@@ -94,8 +56,8 @@ const result = await esbuild.build({
   },
 });
 
-const inputs = Object.keys(result.metafile.inputs).map((p) => p.replace(/\\/g, '/'));
-const leaks = inputs.filter((p) => FORBIDDEN_INPUTS.some((f) => p.includes(f)));
+const inputs = metafileInputs(result.metafile);
+const leaks = forbiddenInputs(inputs);
 if (leaks.length > 0) {
   console.error(`XX de kernbundel bevat ${leaks.length} verboden input(s):\n  ${leaks.join('\n  ')}`);
   process.exit(1);
@@ -127,23 +89,15 @@ for (const [src, out] of declarations) {
 // Licenties van de MEEGEBUNDELDE dependencies (afgeleid uit de metafile, niet uit een vaste lijst):
 // per pakket naam, versie, licentie en de volledige licentietekst uit node_modules. Een gebundeld
 // pakket zonder licentiebestand laat de bouw falen.
-const bundledPackages = new Map();
-for (const input of inputs) {
-  const m = /(?:^|\/)node_modules\/((?:@[^/]+\/)?[^/]+)\//.exec(input);
-  if (!m) continue;
-  const dir = resolve(process.cwd(), input.slice(0, m.index + m[0].length - 1));
-  if (!bundledPackages.has(m[1])) bundledPackages.set(m[1], dir);
+let notices;
+try {
+  notices = thirdPartyNotices(inputs);
+} catch (error) {
+  console.error(`XX ${error instanceof Error ? error.message : String(error)}`);
+  process.exit(1);
 }
-const noticeParts = [];
-for (const [name, dir] of [...bundledPackages].sort(([a], [b]) => a.localeCompare(b))) {
-  const meta = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'));
-  const licenseFile = readdirSync(dir).find((f) => /^(licen[cs]e|copying)(\.(md|txt))?$/i.test(f));
-  if (!licenseFile || !existsSync(join(dir, licenseFile))) {
-    console.error(`XX gebundeld pakket ${name} heeft geen licentiebestand in ${dir}`);
-    process.exit(1);
-  }
-  noticeParts.push(`## ${name} ${meta.version}\n\nLicense: ${meta.license ?? 'see below'}\n\n\`\`\`text\n${readFileSync(join(dir, licenseFile), 'utf8').trim()}\n\`\`\`\n`);
-}
+const bundledPackages = new Map(notices.packages.map((name) => [name, true]));
+const noticeParts = [notices.sections];
 writeFileSync(join(outDir, 'THIRD-PARTY-NOTICES.md'), `# Third-party notices
 
 \`index.mjs\` of ${CORE_PACKAGE_NAME} ${appPkg.version} bundles code from the packages below. Their

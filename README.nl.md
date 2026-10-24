@@ -143,7 +143,7 @@ De desktop-app is gebouwd met Tauri 2, dus de installers zijn klein en gebruiken
 
 ## Bijdragen
 
-- **Probeer het op een echt project** en meld bugs of ontbrekende functies: [maak een issue aan](https://github.com/OpenAEC-Foundation/open-planner-studio/issues/new).
+- **Probeer het op een echt project** en meld bugs of ontbrekende functies: gebruik de feedbackknop in de app, of [maak een GitHub-issue aan](https://github.com/OpenAEC-Foundation/open-planner-studio/issues/new).
 - **Deel ideeën of stel vragen** in [GitHub Discussions](https://github.com/OpenAEC-Foundation/open-planner-studio/discussions).
 - **Stuur testbestanden.** `.mpp`-, `.xer`- en P6 XML-bestanden helpen ons de import te verbeteren, en met veel testbestanden kunnen we in de toekomst misschien ook de export verbeteren. Zie [de discussie over testbestanden](https://github.com/OpenAEC-Foundation/open-planner-studio/discussions/71). Haal eerst vertrouwelijke gegevens weg.
 - **Schrijf code.** Lees [CONTRIBUTING.md](CONTRIBUTING.md) en open een pull request.

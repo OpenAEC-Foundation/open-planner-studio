@@ -23,6 +23,7 @@ import { snapToChoice } from '@/utils/numberChoice';
 import { parseBoolean, parseClampedInt as clampedInt, parseEnum as parseEnumValue } from '@/utils/settingParsers';
 import { loadBarColorSelection } from '@/utils/barColorSettings';
 import { parseFormatNoticeHidden } from '@/services/formatNoticeKinds';
+import { parseFeatureFlagValues } from '@/utils/featureFlags';
 import type { UIState } from '@/state/slices/types';
 import type { PersistedTaskGridPreferencesV1 } from '@/types/taskGrid';
 import {
@@ -139,6 +140,10 @@ export const SETTINGS: SettingDescriptor[] = [
 
   // Debug-terminal
   setting({ key: 'debugTerminalEnabled', field: 'debugTerminalEnabled', parse: parseBoolean }),
+
+  // Verborgen experimentele functies: zichtbaarheid en keuzes staan los van elkaar.
+  setting({ key: 'experimentalSettingsVisible', field: 'experimentalSettingsVisible', parse: parseBoolean }),
+  setting({ key: 'featureFlags', field: 'featureFlags', parse: parseFeatureFlagValues }),
 
   // AI-modus (MCP-bridge) — persistente spiegel die de conditionele AI-ribbontab voedt.
   setting({ key: 'aiMode', field: 'aiMode', parse: parseBoolean }),

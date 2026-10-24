@@ -51,6 +51,8 @@ If you want to see this window once more later, choose *Settings › Project ›
 
 **You have the app through the AUR (Arch Linux).** The app then does not update itself and does not check at startup either. Your package manager does that. In the window it says *Update through your package manager (for example yay -Syu).*
 
+**You use the AppImage (Linux).** The AppImage updates itself in the same place. At every start the app also puts *Open Planner Studio* with its logo in your computer's start menu. If you move the AppImage file, the menu entry points to the new place after the next start. If you already made a menu entry with the same name yourself, the app leaves it alone.
+
 **Nothing shows up at startup.** That is normal if you already have the latest version. The startup check does not report errors. If you want to be sure you are up to date, check yourself, as above.
 
 ## See also

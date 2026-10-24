@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useProfileCountsWorkdays } from '@/hooks/useDurationMeasure';
 import { useAppStore } from '@/state/appStore';
@@ -16,6 +16,8 @@ import './SettingsPanelContent.css';
 import { applyAutoCalcCPM, applySetting, applyTheme } from './applySetting';
 import { LanguageSelect, SettingToggle, THEME_LABEL_KEYS } from './settingControls';
 import { AI_MODE_AVAILABLE } from '@/utils/buildFlags';
+import { FEATURE_FLAGS, isFeatureEnabled } from '@/utils/featureFlags';
+import { saveExperimentalSettingsVisible, saveFeatureFlags } from '@/utils/settingsStore';
 
 // Drie tabs — Weergave (uiterlijk + Gantt-weergave), Planning (project-brede
 // planningsopties) en Geavanceerd (AI, debug, benchmark, rondleiding, versie);
@@ -76,8 +78,29 @@ export function SettingsPanelContent() {
   const aiMode = useAppStore(s => s.ui.aiMode);
   const aiAutostart = useAppStore(s => s.ui.aiAutostart);
   const compressNonWorkdays = useAppStore(s => s.ui.compressNonWorkdays);
+  const experimentalSettingsVisible = useAppStore(s => s.ui.experimentalSettingsVisible);
+  const featureFlags = useAppStore(s => s.ui.featureFlags);
+  const availableFlags = FEATURE_FLAGS.filter(flag => !flag.writesNewIfcData);
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
+  const versionRef = useRef<HTMLButtonElement>(null);
+  const unlockSequence = useRef<{ start: number; last: number } | null>(null);
+
+  // Geen timer: alleen een nieuwe activering kan ontgrendelen. Een pauze van > 0,5 s
+  // begint opnieuw. De native knop levert ook clicks bij Enter-toetsherhaling.
+  const activateVersion = () => {
+    if (experimentalSettingsVisible) return;
+    const now = performance.now();
+    const sequence = unlockSequence.current;
+    if (!sequence || now - sequence.last > 500) {
+      unlockSequence.current = { start: now, last: now };
+    } else if (now - sequence.start >= 5_000) {
+      unlockSequence.current = null;
+      applySetting('experimentalSettingsVisible', true, saveExperimentalSettingsVisible);
+    } else {
+      sequence.last = now;
+    }
+  };
 
   // "Wat is er nieuw" handmatig openen: toon JustUpdatedDialog voor de HUIDIGE versie (dus zonder
   // "van"-versie). KRITIEK: `@tauri-apps/*` alleen dynamisch achter `isTauri()` — in de web-build
@@ -476,7 +499,16 @@ export function SettingsPanelContent() {
               <h3>{t('settings.version')}</h3>
               <p className="scrollzoom-hint">{t('settings.versionHint')}</p>
               <div className="settings-row">
-                <span>{__APP_VERSION__}</span>
+                <button
+                  ref={versionRef}
+                  type="button"
+                  className="settings-version"
+                  data-ops-settings-version
+                  onClick={activateVersion}
+                  onBlur={() => { unlockSequence.current = null; }}
+                >
+                  {__APP_VERSION__}
+                </button>
               </div>
               <button
                 className="settings-link"
@@ -494,6 +526,39 @@ export function SettingsPanelContent() {
                 {t('updates.justUpdated.whatsNewButton')}
               </button>
             </div>
+            {experimentalSettingsVisible && (
+              <div className="settings-section" data-ops-experimental-settings>
+                <h3>{t('settings.experimentalSection')}</h3>
+                {availableFlags.length === 0 && (
+                  <p className="scrollzoom-hint">{t('settings.experimentalEmpty')}</p>
+                )}
+                {availableFlags.map(flag => (
+                  <SettingToggle
+                    key={flag.id}
+                    label={t(flag.nameKey)}
+                    hint={flag.descriptionKey ? t(flag.descriptionKey) : undefined}
+                    checked={isFeatureEnabled(featureFlags, flag.id)}
+                    onChange={checked => applySetting(
+                      'featureFlags',
+                      { ...useAppStore.getState().ui.featureFlags, [flag.id]: checked },
+                      saveFeatureFlags,
+                    )}
+                    inputProps={{ 'data-ops-feature-flag': flag.id }}
+                  />
+                ))}
+                <button
+                  type="button"
+                  className="settings-link"
+                  onClick={() => {
+                    applySetting('experimentalSettingsVisible', false, saveExperimentalSettingsVisible);
+                    unlockSequence.current = null;
+                    versionRef.current?.focus();
+                  }}
+                >
+                  {t('settings.experimentalHide')}
+                </button>
+              </div>
+            )}
             {/* Legacy-functies: vervangen functies, duidelijk als zodanig gemarkeerd. */}
             <div className="settings-section" data-ops-legacy-settings="true">
               <h3>{t('settings.legacySection')}</h3>

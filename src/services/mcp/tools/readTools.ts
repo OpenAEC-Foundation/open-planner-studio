@@ -23,7 +23,7 @@
 
 import type { AppState } from '@/state/appStore';
 import { ancestorIds, flattenOrder } from '@/utils/wbs';
-import type { ReadFreshResult } from '../staleGuard';
+import type { ReadFreshResult } from '../freshness';
 import { McpStepError, runReadTool } from './runtime';
 import { lagLabel, seqAbbrev } from './sequenceFields';
 import type { McpContext, McpToolDef } from '../contracts';
