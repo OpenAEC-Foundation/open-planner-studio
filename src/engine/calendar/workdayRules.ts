@@ -35,6 +35,16 @@ export type DayClock =
 /** Kalendertijd: elk uur telt; de dagranden zijn 00:00 en 24:00. */
 export const ELAPSED_CLOCK: DayClock = { kind: 'elapsed' };
 
+/** De kant van een beperkingsdatum (§4.2): een startbeperking (SNET, SNLT, MSO) is startachtig, een
+ *  eindbeperking (FNET, FNLT, MFO) eindachtig; ASAP/ALAP hebben geen datum (`null`). Dezelfde indeling
+ *  als `constraintDateField` in `state/migrations/minuteModel.ts` (gepind in check-f4b-datumweergave);
+ *  hier zonder state-import, voor de taskGrid-engine. */
+export function constraintDateSide(type: string): InstantSide | null {
+  if (type === 'SNET' || type === 'SNLT' || type === 'MSO') return 'start';
+  if (type === 'FNET' || type === 'FNLT' || type === 'MFO') return 'end';
+  return null;
+}
+
 /** De werkblokkenklok van een kalender. Een dagkalender krijgt zijn werkblokken uit zijn eigen velden
  *  (`calendarForEngine`), zoals de motor na F2. Een kalender zonder af te leiden werkblokken houdt een
  *  engine in dag-modus; dan valt D1/D2 terug op begin- en eindtijd van de kalender. */

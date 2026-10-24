@@ -3,8 +3,7 @@ import { formatClock, parseClock } from '@/utils/displayTime';
 import type { DateNotation, TimeNotation } from '@/types/view';
 import type { CellValidationError, GridResult, TaskColumnContext, TaskColumnDescriptor } from '@/types/taskGrid';
 import type { Task } from '@/types/task';
-import type { InstantSide } from '@/engine/calendar/workdayRules';
-import { constraintDateField, taskDateFieldSide } from '@/state/migrations/minuteModel';
+import { constraintDateSide, type InstantSide } from '@/engine/calendar/workdayRules';
 import { taskDateLabel } from '@/utils/taskDateLabel';
 
 export interface TaskGridBooleanLabels {
@@ -95,10 +94,7 @@ export function gridTaskDateField(columnId: string, task: Task): { side: Instant
   if (time === 'stop' || columnId === 'task.deadline') return { side: 'end', milestoneOwn: false };
   const constraint = columnId === 'task.constraint.date' ? task.constraint
     : columnId === 'task.constraint2.date' ? task.constraint2 : undefined;
-  if (constraint) {
-    const field = constraintDateField(constraint.type);
-    return { side: field ? taskDateFieldSide(field) : 'start', milestoneOwn: false };
-  }
+  if (constraint) return { side: constraintDateSide(constraint.type) ?? 'start', milestoneOwn: false };
   return null;
 }
 

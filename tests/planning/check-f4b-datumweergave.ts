@@ -12,6 +12,8 @@ import { buildTaskColumnRegistry } from '@/engine/taskGrid/taskColumnRegistry';
 import { copyGridEditorValue, gridTaskDateField } from '@/engine/taskGrid/editors';
 import { makeTaskDateLabeler } from '@/engine/reports/reportCommon';
 import { momentLabel, taskDateClock, taskDateLabel } from '@/utils/taskDateLabel';
+import { constraintDateSide } from '@/engine/calendar/workdayRules';
+import { constraintDateField, taskDateFieldSide } from '@/state/migrations/minuteModel';
 import { displayDateTime } from '@/utils/displayDate';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import type { TaskColumnContext } from '@/types/taskGrid';
@@ -164,6 +166,15 @@ same('raster: een datum zonder tijd in de beperkingskolom leest als datum (de st
   same('rapport: onbekende taak toont alleen de datum', label('weg', '2026-06-03T13:00', 'start'), '2026-06-03');
   same('rapport: lege waarde blijft leeg', label('a', undefined, 'start'), '');
 }
+
+// De taskGrid-engine leest de kant van een beperking zonder state-import (`constraintDateSide`); de
+// indeling is dezelfde als die van de normalisatie (`constraintDateField`).
+same('constraintDateSide = de kant van constraintDateField, voor elk type',
+  ['ASAP', 'ALAP', 'SNET', 'SNLT', 'FNET', 'FNLT', 'MSO', 'MFO'].map(type => constraintDateSide(type)),
+  ['ASAP', 'ALAP', 'SNET', 'SNLT', 'FNET', 'FNLT', 'MSO', 'MFO'].map(type => {
+    const field = constraintDateField(type);
+    return field ? taskDateFieldSide(field) : null;
+  }));
 
 if (failures.length > 0) {
   for (const f of failures) console.log(`XX  ${f}`);
