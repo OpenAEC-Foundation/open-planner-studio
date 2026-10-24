@@ -7,9 +7,6 @@ on:
   pull_request:
     branches:
       - main
-      # Tijdelijk: fase-PR's van de omzetting naar alleen uren (spec 2026-10-20-alleen-uren-design.md §7.3).
-      # Haal deze regel weg in de PR van de integratiebranch naar main.
-      - claude/uren-integratie
 
 # Zonder dit erft elke job de repo-default van GITHUB_TOKEN, terwijl deze
 # workflow op een PR de afhankelijkheden van vreemde code installeert — een
