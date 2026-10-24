@@ -197,7 +197,9 @@ export const TUTORIAL_5: TutorialScript = {
         { waitFor: dialog },
         { click: { button: l('Berekenen', 'Calculate'), within: dialog } },
         { check: { see: dialog, text: l('Projecteinddatum: ongewijzigd (30-08-2027)', 'Project end date: unchanged (30-08-2027)') } },
-        { check: { see: dialog, text: same('05-07-2027') } },
+        // B4: de nieuwe start valt midden op de werkdag en staat met tijd; het projecteinde valt op het
+        // einde van de werkdag en staat zonder tijd (regel hierboven).
+        { check: { see: dialog, text: same('05-07-2027 10:00') } },
         { shot: { name: 'tut-5-nivelleren', of: dialog, pad: 0 } },
         { click: { button: l('Toepassen', 'Apply'), within: dialog } },
       ],

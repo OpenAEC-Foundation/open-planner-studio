@@ -41,6 +41,7 @@ export function useGanttPointerCoordinator(
     splitMode,
     scrollMode,
     enableQuarterHourZoom,
+    workdayDurationMeasure,
 
     compressNonWorkdays,
     selectTask,
@@ -121,6 +122,7 @@ export function useGanttPointerCoordinator(
     notify,
     dateNotation,
     timeNotation,
+    workdayDurationMeasure,
   });
   // Het splitsgebaar. Bewust ná `useDependencyDraw` gedeclareerd — beide tekenen op
   // hetzelfde overlay-canvas, en de twee modi sluiten elkaar uit, dus de laatst gemounte teken-
@@ -135,6 +137,7 @@ export function useGanttPointerCoordinator(
     effectiveCalById: effectiveCalendarByTaskId,
     zoom: view.zoom,
     enableQuarterHourZoom,
+    workdayDurationMeasure,
 
     getTask,
     setTaskSplits,

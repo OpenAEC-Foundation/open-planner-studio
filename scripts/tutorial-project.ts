@@ -58,32 +58,35 @@ import { normalizeTaskDates } from '@/state/migrations/minuteModel';
 //                nu bij de constraint: Kozijnen → Achtergevel doorbreken → Installaties → Stucwerk →
 //                Dekvloer → Tegelwerk → Opleverpunten → Oplevering; alles daarvoor 3 wd speling.
 //                Deadline vr 10 sep op de oplevering: gehaald, 7 wd marge; verschuift geen balk.
-//   na-tut-4     einde blijft wo 1 sep. Fundering storten vr 18 jun 07:00–14:00 (6 u, pauze 12–13),
-//                Kanaalplaatvloer ma 28 jun 07:00–12:00 (5 u), Dakelementen di 6 jul 07:00–14:00
-//                (6 u). Speling van stort/dakelementen 3,25 wd en vloer 3,375 wd: de werkdag loopt
-//                tot 16:00, de dagtaak-opvolger begint pas de volgende ochtend.
+//   na-tut-4     einde blijft wo 1 sep (48 wd). Fundering storten vr 18 jun 07:00–14:00 (6 u, pauze
+//                12–13). In de dagenmaat begint een dagtaak direct na een urentaak, niet de volgende
+//                ochtend: Funderingsmetselwerk wo 23 jun 14:00 – vr 25 jun 14:00 (lag 3 wd na de stort),
+//                Kanaalplaatvloer vr 25 jun 14:00 – ma 28 jun 10:00 (5 u), binnen- en buitenspouwblad
+//                vanaf ma 28 jun 10:00, Dakelementen ma 5 jul 10:00 – di 6 jul 08:00 (6 u). Speling van
+//                alles vóór de kozijnen 3,875 wd, Buitenspouwblad 5,625 wd.
 //   tussen-tut-5-resources   planning = na-tut-4 (wo 1 sep, 48 wd); vijf resources, geen toewijzingen.
-//   tussen-tut-5-toegewezen  planning nog steeds wo 1 sep (48 wd, 8 kritieke taken); Metselaar al
-//                5 wd overbezet (29 jun – 5 jul); Stucwerk 4 wd (23–28 jul), 1 stukadoor.
-//   tussen-tut-5-werkregel   Stucwerk "Vast werk", 2 stukadoors: 2 wd (vr 23 – ma 26 jul);
-//                oplevering ma 30 aug, 46 wd, 8 kritieke taken; Metselaar nog 5 wd overbezet.
-//   na-tut-5    na toewijzen + werkregel (Stucwerk "Vast werk", stukadoor 1 → 2: 4 → 2 wd):
-//                oplevering ma 30 aug, Metselaar 5 wd overbezet (binnen- en buitenspouwblad tegelijk,
-//                29 jun – 5 jul). Nivelleren (dialoogstandaard) schuift Buitenspouwblad 5 wd op
-//                (di 6 – di 13 jul); geen overbezetting meer; oplevering blijft ma 30 aug (de
-//                kozijnen wachten toch tot 14 jul). Kritiek: Start bouw … Inspectie wapening →
-//                Funderingsmetselwerk → Buitenspouwblad → Kozijnen … Oplevering. Stort (0,25 wd) en
-//                Kanaalplaatvloer (0,375 wd) houden hun uurspeling en zijn dus niet kritiek.
-//   tussen-tut-6-*  in het bestand nog de planning van na-tut-5 (einde ma 30 aug, 46 wd, 17 kritieke
+//   tussen-tut-5-toegewezen  planning nog steeds wo 1 sep (48 wd, 8 kritieke taken); Metselaar 6 wd
+//                overbezet, ma 28 jun – ma 5 jul (belasting 1,25 / 2 / 2 / 2 / 2 / 1,375); Stucwerk 4 wd
+//                (23–28 jul), 1 stukadoor.
+//   tussen-tut-5-werkregel   Stucwerk "Vast werk" (een taak in uren), 2 stukadoors: 16 u (vr 23 – ma 26
+//                jul); oplevering ma 30 aug, 46 wd, 8 kritieke taken; Metselaar nog 6 wd overbezet.
+//   na-tut-5    na toewijzen + werkregel (Stucwerk "Vast werk", stukadoor 1 → 2: 32 → 16 u):
+//                oplevering ma 30 aug, Metselaar 6 wd overbezet. Nivelleren (dialoogstandaard) schuift
+//                Buitenspouwblad 5 wd op (ma 5 jul 10:00 – di 13 jul 10:00, houdt 0,625 wd speling);
+//                geen overbezetting meer; oplevering blijft ma 30 aug (de kozijnen wachten toch tot
+//                14 jul). Kritiek: Kozijnen … Oplevering (8 taken); alles vóór het binnenspouwblad
+//                houdt 0,625 wd speling, het binnenspouwblad zelf 3,875 wd.
+//   tussen-tut-6-*  in het bestand nog de planning van na-tut-5 (einde ma 30 aug, 46 wd, 8 kritieke
 //                taken): de lezer rekent pas in stap 8. De app rekent bij het OPENEN van een .ifc wel:
-//                geopend geeft statusdatum ma 20 sep (alles niet-begonnen op 28 jun, 23 kritieke taken,
-//                deadline overschreden), voorbereiding di 14 sep (deadline overschreden), ontgraven vr
-//                10 sep, fundering wo 1 sep, metselwerk = na-tut-6 (di 31 aug).
+//                geopend geeft statusdatum ma 20 sep 10:00 (alles niet-begonnen op 28 jun, 22 kritieke
+//                taken, deadline overschreden), voorbereiding di 14 sep 10:00 (deadline overschreden),
+//                ontgraven vr 10 sep 10:00, fundering wo 1 sep 12:00, metselwerk = na-tut-6.
 //   na-tut-6     basisplanning "Basisplanning" (oplevering ma 30 aug), statusdatum ma 28 jun.
 //                Werkelijk: Start bouw 7 jun, Bouwplaats 7–8 jun, Tuin 9 jun, Uitzetten 10 jun,
 //                Funderingssleuf ontgraven vr 11 – di 15 jun (3 i.p.v. 2 wd), Wapening 16–18 jun,
 //                Inspectie 18 jun, Fundering storten ma 21 jun 07:00–14:00; Funderingsmetselwerk
-//                gestart vr 25 jun, 50 %. Oplevering di 31 aug: 1 wd later dan de basisplanning.
+//                gestart vr 25 jun, 50 %. Oplevering di 31 aug 12:00 (47 wd, 11 kritieke taken); het
+//                Variance-rapport telt op dagniveau en meldt +1 werkdag ten opzichte van de basisplanning.
 //   na-tut-7     = na-tut-6.
 import { useAppStore } from '@/state/appStore';
 import { writeIFC } from '@/services/ifc/ifcWriter';

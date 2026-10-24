@@ -4,6 +4,7 @@
     "applyShape": "Apply shape:",
     "hoursPerDay": "{{hours}} hours per working day",
     "stripHint": "Drag a boundary to lengthen or shorten a phase, drag the top edge to set the effort, double-click a day to split a phase.",
+    "partialDayHint": "If the task starts or ends partway through a working day, that day counts pro rata: the hours are the effort × the part of the day. The histogram counts the same way.",
     "from": "From",
     "to": "To",
     "days": "Days",
@@ -181,7 +182,7 @@
       "calendar": "Choose a calendar from the list.",
       "calendarNotFound": "The chosen calendar does not exist.",
       "calendarHours": "The calendar of this task has no working hours per day.",
-      "durationConversionNotExact": "This duration cannot be converted to the other unit exactly.",
+      "durationConversionNotExact": "This duration cannot be converted to the other unit on this calendar.",
       "fixedWorkIsHours": "A task with fixed work always uses the hour measure.",
       "milestoneRequired": "This field only applies to milestones.",
       "milestoneUnavailable": "A summary task with subtasks cannot become a milestone.",
@@ -328,8 +329,8 @@
     "unit": "Duration unit",
     "days": "Days",
     "hours": "Hours",
-    "invalid": "Enter a whole number of days or hours, for example 2d or 12h.",
-    "conversionNotExact": "{{value}} does not fit into whole days on this calendar. The unit has not changed.",
+    "invalid": "Enter a number of days or hours, for example 2.5d or 12h.",
+    "conversionNotExact": "{{value}} cannot be converted to the other unit on this calendar. The unit has not changed.",
     "unitInfo": "The selected unit belongs to this task. Days count working days; hours count working hours within the calendar. A different calendar does not change the unit or entered duration, but it may change the finish date."
   },
   "dialog": {
@@ -647,5 +648,11 @@
     "pieceHours_one": "Piece: {{count}} hour",
     "pieceHours_other": "Piece: {{count}} hours",
     "merged": "Merge"
+  },
+  "dateTimeInput": {
+    "time": "Time of {{field}}",
+    "timeHint": "Empty: the start or end of the workday. With a time: exactly that moment.",
+    "later": "A quarter of an hour later",
+    "earlier": "A quarter of an hour earlier"
   }
 }

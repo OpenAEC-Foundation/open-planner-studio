@@ -146,8 +146,8 @@ async function main(): Promise<void> {
     const smooth = level(true);
     eq('zonder SNET + smoothing: geen verschuiving', delaysByName(smooth), {});
     // B1 (§3.11): de belasting telt ook de laatste gedeeltelijke werkdag (5 juli, 07:00–10:00), dus het
-    // conflict beslaat 6 dagen, 28 juni t/m 5 juli; de urenreferentie geeft dezelfde dagen. De gids noemt
-    // nog 5 dag(en) (knownbugs 240).
+    // conflict beslaat 6 dagen, 28 juni t/m 5 juli; de urenreferentie geeft dezelfde dagen (de gids sinds
+    // F4b ook, knownbugs 240).
     eq('zonder SNET + smoothing: conflict INSUFFICIENT_CAPACITY (6 dagen)',
       [Object.values(smooth.unresolvedReasons), Object.values(smooth.unresolved).map(v => v.length)],
       [['INSUFFICIENT_CAPACITY'], [6]]);
@@ -211,7 +211,7 @@ async function main(): Promise<void> {
     S().runCPM();
     eq('Vast werk, inzet 3: exact 4/3 werkdagen (32 / 24)', dur(f.id), 4 / 3);
     // B1 (§3.11): inzet × het deel van de werkdag. De duur is 10 u 40 min: dag 1 is heel (3 × 1 = 3),
-    // dag 2 is 2 u 40 min van 8 u (3 × 1/3 = 1); samen 32 u. De gids noemt nog 2 per dag (knownbugs 252).
+    // dag 2 is 2 u 40 min van 8 u (3 × 1/3 = 1); samen 32 u (uitleg-werkregels sinds F4b, knownbugs 252).
     eq('Vast werk, inzet 3: histogram 3 en 1', dayLoad(f.id, f.res), [3, 1]);
   }
   {
@@ -302,6 +302,99 @@ async function main(): Promise<void> {
   eq('F3-referentie: prioriteit Hoog einde voor/na', [futureLevel.projectEndBefore, futureLevel.projectEndAfter].map(d => String(d).slice(0, 10)), ['2027-08-30', '2027-09-02']);
   S().applyLeveling(futureLevel);
   eq('F3-referentie: prioriteit Hoog binnen/buiten', [span('innerLeaf'), span('outerLeaf')], ['2027-07-06..2027-07-13', '2027-06-28..2027-07-06']);
+
+  // ── F4b (knownbugs 240, 252, 254): de getallen die de gidsen sinds F4b letterlijk noemen ──
+  console.log('-- docs-resources: F4b-gidsgetallen --');
+  {
+    // uitleg-nivelleren: momenten (B4: midden op de dag met tijd), dagbelasting en speling.
+    await tutorialBase({ plasterRule: true });
+    const at = (k: TaskKey) => [task(k).time.earlyStart, task(k).time.earlyFinish];
+    eq('F4b nivelleren: vloer klaar 28 jun 10:00, beide muren vanaf 10:00',
+      [task('floor').time.earlyFinish, at('innerLeaf'), at('outerLeaf')],
+      ['2027-06-28T10:00', ['2027-06-28T10:00', '2027-07-05T10:00'], ['2027-06-28T10:00', '2027-07-06T10:00']]);
+    const l = S().resourceLoadResult!.load[resIds.get('bricklayer')!] ?? {};
+    eq('F4b nivelleren: metselaar 1,25 / 2 / 2 / 2 / 2 / 1,375',
+      ['2027-06-28', '2027-06-29', '2027-06-30', '2027-07-01', '2027-07-02', '2027-07-05'].map(d => l[d]), [1.25, 2, 2, 2, 2, 1.375]);
+    S().applyLeveling(level(false));
+    eq('F4b nivelleren: buitenspouwblad 5 jul 10:00 – 13 jul 10:00, 0,625 wd speling',
+      [...at('outerLeaf'), task('outerLeaf').time.totalFloat], ['2027-07-05T10:00', '2027-07-13T10:00', 0.625]);
+  }
+  {
+    await tutorialBase({ noConstraint: true, plasterRule: true });
+    eq('F4b zonder SNET: kozijnen do 8 jul 08:00, oplevering wo 25 aug 08:00, buitenspouwblad 1,75 wd',
+      [task('frames').time.earlyStart, task('msHandover').time.earlyStart, task('outerLeaf').time.totalFloat],
+      ['2027-07-08T08:00', '2027-08-25T08:00', 1.75]);
+    S().applyLeveling(level(false));
+    eq('F4b zonder SNET na nivelleren: kozijnen di 13 jul 10:00, oplevering ma 30 aug 10:00',
+      [task('frames').time.earlyStart, task('msHandover').time.earlyStart], ['2027-07-13T10:00', '2027-08-30T10:00']);
+  }
+  {
+    await tutorialBase({ plasterRule: true });
+    S().updateTask(task('outerLeaf').id, { priority: 900 });
+    const r = level(false);
+    eq('F4b prioriteit Hoog: oplevering do 2 sep 08:00', r.projectEndAfter, '2027-09-02T08:00');
+  }
+  {
+    // uitleg-werkregels en howto-werkregel-kiezen: Vast werk is een taak in uren en rondt niet af.
+    const f = await plasterBase('FIXED_WORK');
+    S().updateAssignment(asg(f.id).id, { unitsPerDay: 3 });
+    S().runCPM();
+    const t = S().tasks.find(x => x.id === f.id)!;
+    eq('F4b Vast werk inzet 3: 10 u 40 min, vr 23 jul 07:00 – ma 26 jul 09:40',
+      [t.time.durationUnit, t.time.durationMinutes, t.time.earlyStart, t.time.earlyFinish], ['hours', 640, '2027-07-23T07:00', '2027-07-26T09:40']);
+  }
+  {
+    const f = await plasterBase('FIXED_WORK');
+    const cal = S().project.calendarId!;
+    S().commitCalendarLibrary(S().calendars.map(c => c.id === cal ? { ...c, hoursPerDay: 6, workStartHour: 7, workEndHour: 14 } : c), cal);
+    S().runCPM();
+    const t = S().tasks.find(x => x.id === f.id)!;
+    eq('F4b kalender 8 -> 6 onder Vast werk: blijft 32 u, einde vr 30 jul 09:00',
+      [t.time.durationMinutes, t.time.earlyFinish], [1920, '2027-07-30T09:00']);
+  }
+  {
+    const f = await plasterBase('FIXED_RATE');
+    const cal = S().project.calendarId!;
+    S().commitCalendarLibrary(S().calendars.map(c => c.id === cal ? { ...c, hoursPerDay: 6, workStartHour: 7, workEndHour: 14 } : c), cal);
+    S().runCPM();
+    const t = S().tasks.find(x => x.id === f.id)!;
+    eq('F4b kalender 8 -> 6 onder Vaste inzet: taak in dagen, 16/3 wd, zelfde einde',
+      [t.time.durationUnit, t.time.scheduleDuration, t.time.earlyFinish], ['days', 16 / 3, '2027-07-30T09:00']);
+  }
+  {
+    // uitleg-werkregels, "Een taak met voortgang": 40 % van 5 wd, Vast werk, inzet 1 -> 2.
+    await tutorialBase({});
+    const inner = task('innerLeaf');
+    S().setStatusDate('2027-06-30');
+    S().setActualStart(inner.id, inner.time.earlyStart!);
+    S().setTaskProgress(inner.id, 0.4);
+    S().setTaskWorkRule(inner.id, 'FIXED_WORK');
+    S().updateAssignment(asg(inner.id).id, { unitsPerDay: 2 });
+    S().runCPM();
+    const t = task('innerLeaf').time;
+    eq('F4b voortgang onder Vast werk: 28 u, rest 12 u, 57 %',
+      [t.durationUnit, t.durationMinutes, t.remainingMinutes, Math.round(t.completion * 100)], ['hours', 1680, 720, 57]);
+  }
+  {
+    // howto-werkregel-kiezen en ref-ai-tools: de projectstandaard naar Vast werk zet de erfgenamen om.
+    await tutorialBase({});
+    const before = [task('innerLeaf').time.earlyStart, task('innerLeaf').time.earlyFinish];
+    S().setProject({ defaultWorkRule: 'FIXED_WORK' });
+    S().runCPM();
+    const t = task('innerLeaf').time;
+    eq('F4b projectstandaard Vast werk: 5 wd wordt 40 u, datums gelijk',
+      [t.durationUnit, t.durationMinutes, t.earlyStart, t.earlyFinish], ['hours', 2400, ...before]);
+  }
+  {
+    // uitleg-voortgang en howto-voortgang-bijwerken: de rest van 2 wd is exact (B3).
+    await S().openExampleFromString(na4Ifc, 'na-tut-4.ifc');
+    S().runCPM();
+    S().setStatusDate('2027-06-30');
+    const site = task('site');
+    S().setActualStart(site.id, site.time.earlyStart!);
+    const rests = [0.25, 0.5, 0.75, 0.9].map(p => { S().setTaskProgress(site.id, p); return task('site').time.remainingTime; });
+    eq('F4b restduur van 2 wd bij 25/50/75/90 %: 1,5 / 1 / 0,5 / 0,2', rests, [1.5, 1, 0.5, 0.2]);
+  }
 
   // ── howto-resource-toewijzen: de curves ──
   console.log('-- docs-resources: curves --');

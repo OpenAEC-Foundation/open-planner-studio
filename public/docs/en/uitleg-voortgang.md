@@ -37,7 +37,7 @@ The fields depend on each other. If you fill in one, the app fills in the others
 - A percentage above 0 means the task has started. If you give no actual start, the app takes the planned start. If the task is planned to start after the status date, the app first asks when it actually started.
 - A percentage of 100 means completed. If you give no actual finish, it becomes the status date, even if the work was in fact finished earlier.
 - An actual finish makes the task 100%. If you set a completed task back below 100%, the actual finish is dropped. If you clear the actual finish, the percentage goes back to 0 and the task stays *In progress* until you also clear the actual start.
-- The **remaining duration** is the duration times what is still to do, rounded to whole work days. For a task of 2 work days, 0% and 25% both give 2 work days of remaining work, and 50% and 75% both give 1. At 90% the app rounds to 0: the remaining work is then finished on the status date. A task in hours counts in whole minutes: a task of 5 hours at 40% has 3 hours of remaining work.
+- The **remaining duration** is the duration times what is still to do. The app does not round to whole work days. For a task of 2 work days, 25% gives a remainder of 1.5 work days, 50% a remainder of 1 and 75% a remainder of 0.5. At 90% the remainder is 0.2 work day. A task in hours counts in whole minutes: a task of 5 hours at 40% has 3 hours of remaining work.
 - A milestone has only one actual date.
 - A phase (summary task) has no progress of its own. After calculating, its percentage follows from the tasks below it: the weighted average of their percentages, with the duration in work days as the weight. A milestone weighs 0.
 

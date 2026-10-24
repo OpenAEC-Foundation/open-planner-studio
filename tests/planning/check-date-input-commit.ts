@@ -266,7 +266,10 @@ eq('d nextSegmentState sanitiseert niet-cijfers en kapt af op de segmentlengte',
   const srcRoot = kandidaten.find(p => existsSync(p)) ?? null;
   if (srcRoot) {
     const lees = (...deel: string[]) => readFileSync(joinPath(srcRoot, ...deel), 'utf8');
-    const telRequired = (bron: string) => (bron.match(/<DateTextInput[^>]*?\srequired[\s/>]/g) ?? []).length;
+    // F4b (§3.6): de taakdatums staan in `TaskDateTimeInput` (datum + tijd), dat `required` doorgeeft.
+    const telRequired = (bron: string) => (bron.match(/<(?:DateTextInput|TaskDateTimeInput)[^>]*?\srequired[\s/>]/g) ?? []).length;
+    eq('h het datum-met-tijdveld geeft required door aan het datumveld',
+      /<DateTextInput[^>]*?\srequired=\{required\}/.test(lees('components', 'common', 'TaskDateTimeInput.tsx')) ? 1 : 0, 1);
     eq('h paneel-Start is verplicht', telRequired(lees('components', 'task-sections', 'TaskTimeFields.tsx')), 1);
     eq('h Startdatum in Taak bewerken is verplicht', telRequired(lees('components', 'dialogs', 'TaskDialog.tsx')), 1);
     eq('h beide beperkingsdatums zijn verplicht', telRequired(lees('components', 'task-sections', 'TaskConstraintFields.tsx')), 2);

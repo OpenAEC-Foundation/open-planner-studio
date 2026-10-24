@@ -296,17 +296,20 @@ test('scalaire standaardkalender converteert naar uren met middagpauze; ongeldig
   await page.getByRole('option', { name: /^(Days|Dagen)$/ }).click();
   await expect(duration.locator('[data-ops-duration-not-exact]')).toBeVisible();
 
+  // Sinds de dagenmaat een breuk mag hebben (spec "alleen uren" B1, §3.2) is 12 u op een werkdag van 8 u
+  // exact 1,5 d: de wissel houdt het eindmoment en meldt niets.
   const hourTaskId = await seedDurationTask(page, 'hours', 12);
   const hourDuration = page.locator('[data-ops-task-duration]').first();
   await expect(hourDuration.locator('[data-ops-duration-value]')).toBeEnabled();
   await expect(hourDuration.locator('[data-ops-duration-hour-planning-blocked]')).toHaveCount(0);
   await hourDuration.getByRole('button', { name: /^(Duration unit|Duureenheid)$/ }).click();
   await page.getByRole('option', { name: /^(Days|Dagen)$/ }).click();
-  await expect(hourDuration.locator('[data-ops-duration-not-exact]')).toContainText(/(whole days|hele dagen)/i);
+  await expect(hourDuration.locator('[data-ops-duration-not-exact]')).toHaveCount(0);
   await expect.poll(() => page.evaluate((id) => {
     const task = window.__OPS__!.store.getState().tasks.find(candidate => candidate.id === id)!;
-    return { unit: task.time.durationUnit, minutes: task.time.durationMinutes };
-  }, hourTaskId)).toEqual({ unit: 'hours', minutes: 720 });
+    return { unit: task.time.durationUnit, days: task.time.scheduleDuration };
+  }, hourTaskId)).toEqual({ unit: 'days', days: 1.5 });
+  await expect(hourDuration.locator('[data-ops-duration-value]')).toHaveValue('1.5');
 });
 
 test('eenheid kiezen zet een exacte duur meteen om en undo zet het in één stap terug', async ({ page, ops: _ops }) => {
@@ -344,8 +347,18 @@ test('eenheid kiezen zet een exacte duur meteen om en undo zet het in één stap
   await expect(dialogDuration.locator('[data-ops-duration-message]')).toBeHidden();
 });
 
+/** Een kalender zonder werktijd: de enige plek waar een eenheidswissel niet om te rekenen is (sinds B1 is
+ *  elke omzetting op een leesbare kalender exact, want de dagenmaat mag een breuk hebben). */
+async function unreadableCalendar(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const state = window.__OPS__!.store.getState();
+    state.setCalendar({ ...state.calendar, workDays: [], workTime: undefined });
+  });
+}
+
 test('niet exact: duidelijk waarschuwingsblok, eenheid blijft, geen toast; blok verdwijnt bij nieuwe waarde en andere taak', async ({ page, ops: _ops }) => {
   const hourTaskId = await seedDurationTask(page, 'hours', 12);
+  await unreadableCalendar(page);
   const notificationCount = () => page.evaluate(() => window.__OPS__!.store.getState().ui.notifications.length);
   const notificationsBefore = await notificationCount();
   const duration = page.locator('[data-ops-task-duration]').first();
@@ -356,7 +369,7 @@ test('niet exact: duidelijk waarschuwingsblok, eenheid blijft, geen toast; blok 
   await expect(block).toBeVisible();
   await expect(block).toHaveAttribute('role', 'alert');
   await expect(block).toContainText('12h');
-  await expect(block).toContainText(/(whole days|hele dagen)/i);
+  await expect(block).toContainText(/(cannot be converted|niet om te rekenen)/i);
   // Waarschuwingskleur uit de --warning-token, geen grijze bijschrifttekst.
   const colors = await block.evaluate((el) => {
     const css = getComputedStyle(el);
@@ -400,6 +413,7 @@ test('niet exact: duidelijk waarschuwingsblok, eenheid blijft, geen toast; blok 
 
   // De taakdialoog toont hetzelfde blok.
   const dialogTaskId = await seedDurationTask(page, 'hours', 12);
+  await unreadableCalendar(page);
   await openDialog(page, dialogTaskId);
   const dialogDuration = page.getByRole('dialog').locator('[data-ops-task-duration]');
   await dialogDuration.getByRole('button', { name: /^(Duration unit|Duureenheid)$/ }).click();

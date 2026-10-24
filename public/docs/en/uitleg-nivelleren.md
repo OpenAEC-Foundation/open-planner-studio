@@ -52,32 +52,32 @@ With *smoothing* a task may not start later than its late start, which is the la
 
 The example is the tutorials' practice project *House extension*, as it stands just before the leveling in tutorial 5. In tutorial 5 you do this yourself and check the numbers. In this example the plastering is on *Fixed work* and the plasterer works with units of 2, as in [Task types: duration, units and work](docs://uitleg-werkregels).
 
-After the hollow-core floor, finished on Monday 28 June, the inner cavity leaf (5 work days) and the outer cavity leaf (6 work days) both start on Tuesday 29 June. They are both on the bricklayer, with units of 1 and a *Max units* of 1. After the inner leaf come the roof elements (a 6-hour crane job) and the roofing (2 work days). The frames wait for the roofing and for the outer leaf. The handover is on Monday 30 August.
+After the hollow-core floor, finished on Monday 28 June at 10:00, the inner cavity leaf (5 work days) and the outer cavity leaf (6 work days) both start on Monday 28 June at 10:00. They are both on the bricklayer, with units of 1 and a *Max units* of 1. After the inner leaf come the roof elements (a 6-hour crane job) and the roofing (2 work days). The frames wait for the roofing and for the outer leaf. The handover is on Monday 30 August.
 
 ### The overallocation
 
-The inner leaf runs from 29 June to 5 July inclusive, the outer leaf from 29 June to 6 July inclusive. From 29 June to 5 July inclusive, that is 5 work days, the schedule asks 2 units of a bricklayer with capacity 1. The bricklayer is overallocated on those 5 days.
+The inner leaf runs from 28 June 10:00 to 5 July 10:00, the outer leaf from 28 June 10:00 to 6 July 10:00. A work day runs from 07:00 to 16:00 with a one-hour break, so on 28 June both walls work 5 of the 8 hours. On that day the schedule asks 1.25 units of a bricklayer with capacity 1, from 29 June to 2 July inclusive 2 units, and on 5 July 1.375. So the bricklayer is overallocated on 6 work days, from 28 June to 5 July inclusive.
 
 ### The order
 
-Both tasks have priority 500. The window frames are only delivered on 14 July (in tutorial 3 you set a constraint *Start no earlier than (SNET)* for that). As a result the inner leaf has 3 work days of float and the outer leaf 5. The inner leaf has the least float and so comes first. It stays from 29 June to 5 July inclusive.
+Both tasks have priority 500. The window frames are only delivered on 14 July (in tutorial 3 you set a constraint *Start no earlier than (SNET)* for that). As a result the inner leaf has 3.875 work days of float (3 work days and 7 hours) and the outer leaf 5.625 (5 work days and 5 hours). The inner leaf has the least float and so comes first. It stays from 28 June 10:00 to 5 July 10:00.
 
 ### The shift
 
-The outer leaf cannot start on 29 June. The first day the bricklayer is free again is Tuesday 6 July. That is 5 work days later than the earliest start, so the leveling delay is 5. The outer leaf now runs from 6 July to 13 July inclusive. The frames only start on 14 July anyway, so the handover stays Monday 30 August. The window reports *Project end date: unchanged (30-08-2027)* and shows one line: *Build outer cavity leaf*, old start 29-06-2027, new start 06-07-2027, *5 d*.
+The outer leaf cannot start on 28 June. The bricklayer is free again on Monday 5 July at 10:00, when the inner leaf is done. That is 5 work days later than the earliest start, so the leveling delay is 5. The outer leaf now runs from 5 July 10:00 to 13 July 10:00. The frames only start on 14 July anyway, so the handover stays Monday 30 August. The window reports *Project end date: unchanged (30-08-2027)* and shows one line: *Build outer cavity leaf*, old start 28-06-2027 10:00, new start 05-07-2027 10:00, *5 d*.
 
-The 5 work days of shifting are exactly the float of the outer leaf. That is why *smoothing* gives the same result here. The outer leaf has no float left now and is critical.
+The shift of 5 work days fits within the float of the outer leaf. That is why *smoothing* gives the same result here. The outer leaf now keeps only 0.625 work days of float: 5 hours.
 
 ### What if the frames do not come on 14 July
 
-Without that constraint the frames can start on Friday 9 July and the handover is on Wednesday 25 August. The outer leaf then has only 2 work days of float.
+Without that constraint the frames can start on Thursday 8 July at 08:00 and the handover is on Wednesday 25 August at 08:00. The outer leaf then has only 1.75 work days of float (1 work day and 6 hours).
 
-- Without *smoothing* the outer leaf still shifts 5 work days. Now the frames have to wait: they start on 14 July, 3 work days later. Everything after them moves along and the handover goes from 25 August to 30 August, also 3 work days later.
-- With *smoothing* nothing shifts. The outer leaf does not fit within its 2 work days of float. The window shows the conflict *Build outer cavity leaf*, 5 day(s), with the reason *Not enough free capacity within the slack to resolve this conflict.*
+- Without *smoothing* the outer leaf still shifts 5 work days. Now the frames have to wait: they start on Tuesday 13 July at 10:00, 3 work days later. Everything after them moves along and the handover goes from Wednesday 25 August 08:00 to Monday 30 August 10:00.
+- With *smoothing* nothing shifts. The outer leaf does not fit within its 1.75 work days of float. The window shows the conflict *Build outer cavity leaf*, 6 day(s), with the reason *Not enough free capacity within the slack to resolve this conflict.*
 
 ### What if the outer leaf gets priority
 
-If you give the outer leaf priority *High* (900), it comes first. It stays on 29 June and now the inner leaf gives way: 6 work days later, from 7 July to 13 July inclusive. The inner leaf has only 3 work days of float, so shifting 6 work days is 3 too many. The roof elements, the frames and everything after them move along. The handover goes from Monday 30 August to Thursday 2 September. The same overallocation therefore gives a different finish date, depending on which task stays put.
+If you give the outer leaf priority *High* (900), it comes first. It stays on 28 June at 10:00 and now the inner leaf gives way: 6 work days later, from 6 July 10:00 to 13 July 10:00. The inner leaf has only 3.875 work days of float, so shifting 6 work days is more than 2 work days too many. The roof elements, the frames and everything after them move along. The handover goes from Monday 30 August to Thursday 2 September at 08:00. The same overallocation therefore gives a different finish date, depending on which task stays put.
 
 ### What if a second bricklayer arrives
 
@@ -87,7 +87,7 @@ If you set the bricklayer's *Max units* to 2, there is no overallocation any mor
 
 **"Leveling finds the shortest schedule."** No. The app works task by task in a fixed order and does not search for the best overall solution. See the example with the priority: another priority gives another finish date.
 
-**"A leveled task is safe."** Leveling uses float. The shifted task then has less or no float left and can become critical, like the outer leaf above. If it then runs late, the handover moves.
+**"A leveled task is safe."** Leveling uses float. The shifted task then has less or no float left and can become critical. The outer leaf above keeps only 5 hours of float. If it then runs late, the handover moves.
 
 **"Leveling follows my later changes."** No. The delay is a fixed number of work days. If the inner leaf becomes shorter after leveling, the outer leaf still starts 5 work days later, even though that is no longer needed. Level again then. The app starts from scratch.
 
