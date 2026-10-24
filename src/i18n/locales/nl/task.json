@@ -647,5 +647,11 @@
     "pieceHours_one": "Stuk: {{count}} uur",
     "pieceHours_other": "Stuk: {{count}} uur",
     "merged": "Samenvoegen"
+  },
+  "dateTimeInput": {
+    "time": "Tijd van {{field}}",
+    "timeHint": "Leeg: het begin of einde van de werkdag. Met een tijd: precies dat moment.",
+    "later": "Een kwartier later",
+    "earlier": "Een kwartier eerder"
   }
 }

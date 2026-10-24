@@ -647,5 +647,11 @@
     "pieceHours_one": "Piece: {{count}} hour",
     "pieceHours_other": "Piece: {{count}} hours",
     "merged": "Merge"
+  },
+  "dateTimeInput": {
+    "time": "Time of {{field}}",
+    "timeHint": "Empty: the start or end of the workday. With a time: exactly that moment.",
+    "later": "A quarter of an hour later",
+    "earlier": "A quarter of an hour earlier"
   }
 }

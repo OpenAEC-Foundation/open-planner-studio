@@ -14,7 +14,7 @@ import { shownStart, startIsActual } from '@/utils/taskDates';
 import { milestoneRefusal } from '@/engine/taskMilestoneTransition';
 import { milestoneRefusalNotices } from '@/state/structuralTransition';
 import { Select } from '@/components/common/Select';
-import { DateTextInput } from '@/components/common/DateTextInput';
+import { TaskDateTimeInput } from '@/components/common/TaskDateTimeInput';
 import { X } from 'lucide-react';
 import { Dialog, DialogHelpButton } from '@/components/common/Dialog';
 import { Field } from '@/components/task-sections/shared';
@@ -350,7 +350,10 @@ export function TaskDialog() {
           <span className="ui-card-header !text-small !leading-4">{t('properties.time')}</span>
           <div className="grid grid-cols-2 gap-3">
             <Field label={t('dialog.startDate')}>
-              <DateTextInput
+              <TaskDateTimeInput
+                task={draft}
+                side="start"
+                dataAttribute="dialog-start"
                 value={startLocked ? shownStart(draft) : startDate}
                 required
                 disabled={startLocked}
