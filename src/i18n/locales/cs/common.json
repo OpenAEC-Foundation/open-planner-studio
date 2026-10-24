@@ -13,6 +13,7 @@
     "dismiss": "Zavřít oznámení",
     "taskEditRevertBlocked": "Mezitím přišla změna od AI asistenta nebo rozšíření. Změny úkolů provedené dříve nebyly vráceny zpět a zůstávají jako běžné kroky pod položkou Zpět.",
     "openFailed": "Otevření souboru se nezdařilo",
+    "csvInvalidDate": "Soubor CSV nebyl otevřen: nečitelné datum „{{value}}“ na řádku {{row}}, ve sloupci „{{column}}“. Použijte rrrr-mm-dd, dd-mm-rrrr nebo dd/mm/rrrr.",
     "extGuideCallbackFailed": "Krok rozšíření {{name}} selhal. Průvodce pokračuje.",
     "extHelpProjectOpenFailed": "Soubor projektu {{file}} z rozšíření {{name}} se nepodařilo otevřít.",
     "extImportFailed": "Import pomocí {{name}} se nezdařil.",
@@ -106,6 +107,8 @@
     "browserCannotOverwrite": "Tento prohlížeč neumožňuje aplikaci zapisovat zpět do „{{name}}“. Proto se aplikace při každém uložení znovu ptá, kam má soubor uložit. V prohlížečích Chrome a Edge nebo v desktopové aplikaci k tomu nedochází.",
     "browserSavesAsDownload": "Uloženo jako stažený soubor: „{{name}}“ je ve složce Stažené. Tento prohlížeč neumožňuje aplikaci zapisovat na vlastní místo, takže každé uložení vytvoří nové stažení. V prohlížečích Chrome a Edge nebo v desktopové aplikaci příkaz Uložit jen aktualizuje stejný soubor.",
     "autoSaveFailed": "Automatické ukládání se nezdařilo",
+    "recoveryManifestBlocked": "Data obnovy mají neznámou verzi nebo neplatnou strukturu. Tato aplikace je nechá beze změny a nemůže tuto sadu obnovy číst ani aktualizovat. Zkuste verzi aplikace, která kopie vytvořila, nebo novější verzi. Novou práci uložte sami.",
+    "recoveryStorageBlocked": "Úložiště obnovy je dočasně blokováno jiným otevřeným připojením. Stávající kopie zůstanou beze změny; tato stránka nevytvoří nové kopie pro obnovu. Uložte svou práci sami, zavřete ostatní karty s touto aplikací a načtěte tuto stránku, aby se obnova mohla zkusit znovu.",
     "recoveryReadFailed": "Obnovený soubor se nepodařilo přečíst",
     "recoveryRestoreFailed": "Obnovení se nezdařilo",
     "recoveryDocumentsSkipped_one": "{{count}} obnovovací soubor se nepodařilo načíst a byl přeskočen.",
@@ -185,7 +188,15 @@
     "referencesClearedOnPaste_many": "{{count}} odkazu v tomto dokumentu neexistovalo a bylo vymazáno (kalendáře úkolů, vlastní druhy práce, kódy aktivit nebo vlastní pole ze zdrojového dokumentu).",
     "referencesClearedOnPaste_other": "{{count}} odkazů v tomto dokumentu neexistovalo a bylo vymazáno (kalendáře úkolů, vlastní druhy práce, kódy aktivit nebo vlastní pole ze zdrojového dokumentu).",
     "milestoneRefusedAssignments": "„{{task}}“ má přiřazení zdrojů a nemůže se stát milníkem. Nejprve odeberte přiřazení.",
+    "milestoneRefusedAssignmentsMany_one": "{{count}} úkol s přiřazením zdrojů nelze změnit na milník. Nejprve odstraňte tato přiřazení.",
+    "milestoneRefusedAssignmentsMany_few": "{{count}} úkoly s přiřazením zdrojů nelze změnit na milník. Nejprve odstraňte tato přiřazení.",
+    "milestoneRefusedAssignmentsMany_many": "{{count}} úkolu s přiřazením zdrojů nelze změnit na milník. Nejprve odstraňte tato přiřazení.",
+    "milestoneRefusedAssignmentsMany_other": "{{count}} úkolů s přiřazením zdrojů nelze změnit na milník. Nejprve odstraňte tato přiřazení.",
     "milestoneRefusedSummary": "„{{task}}“ je souhrnný úkol s dílčími úkoly a nemůže se stát milníkem.",
+    "milestoneRefusedSummaryMany_one": "{{count}} souhrnný úkol obsahuje dílčí úkoly a nelze jej změnit na milník.",
+    "milestoneRefusedSummaryMany_few": "{{count}} souhrnné úkoly obsahují dílčí úkoly a nelze je změnit na milník.",
+    "milestoneRefusedSummaryMany_many": "{{count}} souhrnného úkolu obsahuje dílčí úkoly a nelze jej změnit na milník.",
+    "milestoneRefusedSummaryMany_other": "{{count}} souhrnných úkolů obsahuje dílčí úkoly a nelze je změnit na milník.",
     "assignmentsMovedToSubtask_one": "Přiřazení přesunuto do dílčího úkolu „{{child}}“.",
     "assignmentsMovedToSubtask_few": "{{count}} přiřazení přesunuta do dílčího úkolu „{{child}}“.",
     "assignmentsMovedToSubtask_many": "{{count}} přiřazení přesunuto do dílčího úkolu „{{child}}“.",
@@ -195,6 +206,10 @@
     "assignmentsMovedToSubtasks_many": "Přiřazení {{count}} úkolu přesunuta do dílčích úkolů.",
     "assignmentsMovedToSubtasks_other": "Přiřazení {{count}} úkolů přesunuta do dílčích úkolů.",
     "milestoneClearedOnPhase": "„{{phase}}“ už není milník.",
+    "milestoneClearedOnPhaseMany_one": "{{count}} úkol už není milníkem.",
+    "milestoneClearedOnPhaseMany_few": "{{count}} úkoly už nejsou milníky.",
+    "milestoneClearedOnPhaseMany_many": "{{count}} úkolu už není milníkem.",
+    "milestoneClearedOnPhaseMany_other": "{{count}} úkolů už nejsou milníky.",
     "phaseRefusedNoAssignableChild": "„{{phase}}“ se nemůže stát souhrnným úkolem: jeho přiřazení nemají kam přejít, protože žádný z nových dílčích úkolů nesmí nést přiřazení (milník nebo souhrnný úkol). Nic nebylo změněno.",
     "phaseRefusedDuplicateResource": "„{{phase}}“ se nemůže stát souhrnným úkolem: přiřazení zdroje {{resource}} nelze přesunout do nového dílčího úkolu „{{child}}“, protože ten již zdroj {{resource}} má. Nic nebylo změněno.",
     "phaseQuestionOutdated": "Úkoly nebo přiřazení se změnily, zatímco otázka byla otevřená. Nic se nezměnilo; zkuste to znovu.",
@@ -320,7 +335,12 @@
     "msProjectLostResourceRates_one": "Standardní sazby pro {{count}} zdroj nebyly převzaty.",
     "msProjectLostResourceRates_few": "Standardní sazby pro {{count}} zdroje nebyly převzaty.",
     "msProjectLostResourceRates_many": "Standardní sazby pro {{count}} zdroje nebyly převzaty.",
-    "msProjectLostResourceRates_other": "Standardní sazby pro {{count}} zdrojů nebyly převzaty."
+    "msProjectLostResourceRates_other": "Standardní sazby pro {{count}} zdrojů nebyly převzaty.",
+    "minuteModelConverted_one": "{{document}}: {{count}} úkol má po převodu jiný začátek nebo dokončení; největší posun (v pracovních dnech): {{days}}. Ctrl+Z vrátí uložené datumy zpět.",
+    "minuteModelConverted_few": "{{document}}: {{count}} úkoly mají po převodu jiný začátek nebo dokončení; největší posun (v pracovních dnech): {{days}}. Ctrl+Z vrátí uložené datumy zpět.",
+    "minuteModelConverted_many": "{{document}}: {{count}} úkolu má po převodu jiný začátek nebo dokončení; největší posun (v pracovních dnech): {{days}}. Ctrl+Z vrátí uložené datumy zpět.",
+    "minuteModelConverted_other": "{{document}}: {{count}} úkolů má po převodu jiný začátek nebo dokončení; největší posun (v pracovních dnech): {{days}}. Ctrl+Z vrátí uložené datumy zpět.",
+    "minuteModelCalendarRepaired": "Kalendář „{{calendar}}“ byl opraven: dokončení nebo přestávka neodpovídaly uložené pracovní době."
   },
   "scheduleErrors": {
     "cycle": "Cyklus závislostí mezi úkoly: {{path}}",
@@ -423,6 +443,11 @@
     "languageHint": "Jazyk zobrazení aplikace, použije se ihned.",
     "version": "Verze",
     "versionHint": "Aktuální číslo verze aplikace.",
+    "experimentalSection": "Experimentální",
+    "experimentalEmpty": "Nyní nejsou k dispozici žádné experimentální funkce.",
+    "experimentalHide": "Skrýt",
+    "demoTopbarAnimation": "Ukázka: animace v horní liště",
+    "demoTopbarAnimationHint": "Jemný oranžový lesk přejíždí přes horní lištu. Ukazuje, jak funguje experimentální přepínač.",
     "tourHint": "Projděte si znovu úvodní prohlídku aplikace.",
     "theme": "Motiv",
     "themeHint": "Barevné schéma rozhraní.",
@@ -436,8 +461,12 @@
     "allowMixedDayHour": "Povolit smíšené plánování po dnech a v hodinách",
     "defaultTaskDurationUnit": "Výchozí jednotka pro nové úkoly",
     "defaultTaskDurationUnitHint": "Určuje, zda nové úkoly standardně začínají v pracovních dnech, nebo v pracovních hodinách. Stávající úkoly se nemění.",
+    "defaultTaskDurationUnitDays": "Jednotka: dny",
+    "defaultTaskDurationUnitHours": "Jednotka: hodiny",
+    "defaultTaskDurationUnitLocked": "Profil {{profile}} počítá dobu trvání v hodinách. Nové úkoly proto dostanou hodinovou jednotku.",
     "durationDisplay": "Zobrazení doby trvání",
     "durationDisplayHint": "Určuje, jak se zobrazí doba trvání úkolu, nezávisle na jednotce, ve které je úkol sám zapsán.",
+    "durationDisplayOpsHint": "V profilu OPS zobrazuje každý úkol svou vlastní jednotku.",
     "durationDisplayAuto": "Automaticky (vlastní jednotka každého úkolu)",
     "durationDisplayDays": "Vždy dny",
     "durationDisplayHours": "Vždy hodiny",
@@ -582,7 +611,10 @@
     "taskCount_many": "{{count}} úkolu",
     "taskCount_other": "{{count}} úkolů",
     "restore": "Obnovit",
-    "dontRestore": "Neobnovovat"
+    "dontRestore": "Neobnovovat",
+    "unreadableOnlyExplanation": "Žádnou z kopií pro obnovu nelze přečíst. Uchovejte je pro pozdější pokus o obnovu, nebo je odstraňte jen tehdy, když je už nepotřebujete. Odstranění nelze vrátit zpět.",
+    "keepCopies": "Ponechat kopie",
+    "deleteCopies": "Odstranit kopie"
   },
   "window": {
     "minimize": "Minimalizovat",
@@ -601,7 +633,8 @@
   "project": {
     "untitled": "Nový plán",
     "imported": "Importovaný projekt",
-    "unassignedResource": "Nepřiřazeno"
+    "unassignedResource": "Nepřiřazeno",
+    "ifcBuildingModelUnsupported": "Tento soubor IFC obsahuje objekty stavebního modelu. Otevření je zablokováno, protože uložení by tyto objekty odstranilo. Upravte samostatný soubor s plánem a poté jej znovu sloučte se stavebním modelem."
   },
   "documents": {
     "overviewTitle": "Otevřené projekty",
@@ -696,12 +729,14 @@
     "releaseNotes": "Co je nového",
     "downloadInstall": "Stáhnout a nainstalovat",
     "downloading": "Stahování…",
+    "preparingInstall": "Příprava instalace…",
     "installing": "Instalace…",
     "restarting": "Restartování…",
     "retry": "Zkusit znovu",
     "error": "Při aktualizaci se něco pokazilo",
     "checking": "Kontrola…",
     "snapNotice": "Tato verze se aktualizuje automaticky přes Snap Store — nemusíte nic dělat.",
+    "packageManagerNotice": "Aktualizujte pomocí správce balíčků (například yay -Syu).",
     "debExplanation": "Aktualizujte ručně spuštěním tohoto příkazu v terminálu, nebo stáhněte nejnovější balíček.",
     "debCommandLabel": "Instalační příkaz",
     "copyCommand": "Kopírovat příkaz",
@@ -798,6 +833,7 @@
     "companies": "Knihovny zdrojů",
     "addCompany": "Přidat knihovnu zdrojů",
     "newCompany": "Nová knihovna zdrojů",
+    "defaultCompany": "Moje knihovna zdrojů",
     "companyName": "Název knihovny zdrojů",
     "removeCompany": "Odebrat knihovnu zdrojů",
     "cannotRemoveLast": "Poslední knihovnu zdrojů nelze odebrat.",
@@ -1446,6 +1482,7 @@
     "overrideDropped": "Propojení pro řádek {{row}} ukazuje na úkol, který již neexistuje, a bylo ignorováno.",
     "moreRows": "…a dalších: {{more}}",
     "sheetRowHint": "řádek {{row}} v listu",
+    "sheetTaskId": "OPS ID úkolu: {{id}}",
     "dateOrderTitle": "Nejdřív den, nebo měsíc?",
     "dateOrderQuestion": "„{{sample}}“ — které datum to je?",
     "dateOrderOptionA": "{{date}}",
@@ -1592,6 +1629,14 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "Úkoly ALAP co nejpozději, jak dovolují následníci",
       "help": "Nezahájený úkol s omezením „co nejpozději“ končí v minutě, kdy ho jeho následníci potřebují. Nejdřív se řeší následníci, aby řetěz navazoval. Vlastní plánované zahájení se nepočítá. Úkol bez předchůdce pak nezačne dříve než na datu stavu."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Samostatné milníky na konci pracovního dne",
+      "help": "Samostatný milník nebo milník dokončení bez předchůdce se umístí na konec svého pracovního dne."
+    },
+    "workdayDurationMeasure": {
+      "label": "Doba trvání v pracovních dnech",
+      "help": "Doba trvání, prodleva nebo zbývající doba trvání ve dnech se počítá v pracovních dnech: každý pracovní den se počítá jako 1, ať je dlouhý jakkoli. Vypnuto: den se počítá jako počet hodin pracovní doby na den v kalendáři. Prodleva v procentech se řídí jednotkou předchůdce. Uplynulá doba trvání se v pracovních dnech nikdy nepočítá."
     }
   },
   "profiles": {
@@ -1630,6 +1675,7 @@
       "float": "Časová rezerva a pozdní termíny",
       "instants": "Data a časy ze souboru",
       "msproject": "Průběh jako v Microsoft Project",
+      "durations": "Doba trvání a jednotka",
       "ownProfilesOnly": "Pouze pro vlastní profily"
     },
     "ownProfilesOnlyNote": "Tyto konvence jsou vypnuté ve všech vestavěných profilech, včetně Primavera P6. Jen vlastní profil je může zapnout. Zvolte k tomu „Vytvořit profil“.",

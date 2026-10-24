@@ -422,6 +422,8 @@
     "quarantineEmptyName": "Neplatné rozšírenie",
     "catalogEntriesSkipped": "Preskočené položky katalógu: {{count}}",
     "storageWriteFailed": "Stav rozšírenia sa nepodarilo uložiť.",
+    "minAppVersionRequired": "Vyžaduje Open Planner Studio ≥ {{minVersion}} (aktuálna verzia: {{appVersion}})",
+    "missingPermission": "Rozšírenie „{{extensionId}}“ nemá oprávnenie: {{permission}}",
     "import": "Importovať",
     "importSubtitle": "Importujte údaje projektu cez nainštalované rozšírenia.",
     "importEmpty": "Nie sú nainštalované žiadne rozšírenia na import. Pridajte ich v sekcii Rozšírenia."

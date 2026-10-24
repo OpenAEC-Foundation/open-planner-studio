@@ -422,6 +422,8 @@
     "quarantineEmptyName": "Nieprawidłowe rozszerzenie",
     "catalogEntriesSkipped": "Pominięte wpisy katalogu: {{count}}",
     "storageWriteFailed": "Nie można zapisać stanu rozszerzenia.",
+    "minAppVersionRequired": "Wymaga Open Planner Studio ≥ {{minVersion}} (bieżąca wersja: {{appVersion}})",
+    "missingPermission": "Rozszerzenie „{{extensionId}}” nie ma uprawnienia: {{permission}}",
     "import": "Importuj",
     "importSubtitle": "Importuj dane projektu za pomocą zainstalowanych rozszerzeń.",
     "importEmpty": "Brak rozszerzeń importu. Dodaj je w sekcji Rozszerzenia."

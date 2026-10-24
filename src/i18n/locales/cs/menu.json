@@ -422,6 +422,8 @@
     "quarantineEmptyName": "Neplatné rozšíření",
     "catalogEntriesSkipped": "Přeskočené položky katalogu: {{count}}",
     "storageWriteFailed": "Stav rozšíření se nepodařilo uložit.",
+    "minAppVersionRequired": "Vyžaduje Open Planner Studio ≥ {{minVersion}} (aktuální verze: {{appVersion}})",
+    "missingPermission": "Rozšíření „{{extensionId}}“ nemá oprávnění: {{permission}}",
     "import": "Importovat",
     "importSubtitle": "Importujte data projektu prostřednictvím nainstalovaných rozšíření.",
     "importEmpty": "Nejsou nainstalována žádná importní rozšíření. Přidejte jedno v části Rozšíření."

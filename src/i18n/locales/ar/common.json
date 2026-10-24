@@ -13,6 +13,7 @@
     "dismiss": "إغلاق الإشعار",
     "taskEditRevertBlocked": "وصل تغيير من مساعد الذكاء الاصطناعي أو من إضافة في أثناء ذلك. لم يتم التراجع عن تعديلات المهمة التي سبقته، وهي باقية كخطوات عادية ضمن التراجع.",
     "openFailed": "تعذّر فتح الملف",
+    "csvInvalidDate": "تعذّر فتح ملف CSV: التاريخ «{{value}}» في صف CSV رقم {{row}} وعمود «{{column}}» غير معروف الصيغة. استخدم yyyy-mm-dd أو dd-mm-yyyy أو dd/mm/yyyy.",
     "extGuideCallbackFailed": "فشلت خطوة من الإضافة {{name}}. يستمر الدليل.",
     "extHelpProjectOpenFailed": "تعذّر فتح ملف المشروع {{file}} من الإضافة {{name}}.",
     "extImportFailed": "فشل الاستيراد باستخدام {{name}}.",
@@ -136,6 +137,8 @@
     "browserCannotOverwrite": "لا يسمح هذا المتصفح للتطبيق بالكتابة مجددًا إلى '{{name}}'. لذلك يسأل التطبيق في كل مرة تحفظ فيها عن مكان الملف. لا يحدث هذا في Chrome أو Edge أو تطبيق سطح المكتب.",
     "browserSavesAsDownload": "تم الحفظ كتنزيل: '{{name}}' موجود في مجلد التنزيلات. لا يسمح هذا المتصفح للتطبيق بالكتابة في مكان خاص به، لذا ينشئ كل حفظ تنزيلًا جديدًا. في Chrome أو Edge أو تطبيق سطح المكتب، يحدّث الحفظ الملف نفسه ببساطة.",
     "autoSaveFailed": "فشل الحفظ التلقائي",
+    "recoveryManifestBlocked": "بيانات الاستعادة لها إصدار غير معروف أو بنية غير صالحة. يترك هذا التطبيق البيانات دون تغيير، ولا يستطيع قراءة مجموعة الاستعادة هذه أو تحديثها. جرّب إصدار التطبيق الذي أنشأ نسخ الاستعادة أو إصدارًا أحدث. احفظ العمل الجديد بنفسك.",
+    "recoveryStorageBlocked": "تخزين الاستعادة محظور مؤقتًا بسبب اتصال مفتوح آخر. تبقى نسخ الاستعادة الموجودة كما هي، ولا تنشئ هذه الصفحة نسخ استعادة جديدة. احفظ عملك بنفسك، وأغلق علامات التبويب الأخرى التي تستخدم هذا التطبيق، ثم أعِد تحميل هذه الصفحة لمحاولة الاستعادة مرة أخرى.",
     "recoveryReadFailed": "تعذّرت قراءة الملف المستعاد",
     "recoveryRestoreFailed": "فشل الاستعادة",
     "recoveryDocumentsSkipped_zero": "لا توجد ملفات استرداد تعذّر تحميلها.",
@@ -243,7 +246,19 @@
     "referencesClearedOnPaste_many": "{{count}} مرجعًا لم يكن موجودًا في هذا المستند وتم مسحه (تقويمات مهام، أو فئات العمل المخصصة، أو رموز النشاط، أو حقول مخصصة من المستند المصدر).",
     "referencesClearedOnPaste_other": "{{count}} مرجع لم يكن موجودًا في هذا المستند وتم مسحه (تقويمات مهام، أو فئات العمل المخصصة، أو رموز النشاط، أو حقول مخصصة من المستند المصدر).",
     "milestoneRefusedAssignments": "«{{task}}» لديها تخصيصات موارد ولا يمكن أن تصبح معلمًا. أزل التخصيصات أولًا.",
+    "milestoneRefusedAssignmentsMany_zero": "لا يمكن أن تصبح أي مهمة لها تعيينات موارد معلمًا. احذف التعيينات أولًا.",
+    "milestoneRefusedAssignmentsMany_one": "مهمة واحدة لها تعيينات موارد ولا يمكن أن تصبح معلمًا. احذف التعيينات أولًا.",
+    "milestoneRefusedAssignmentsMany_two": "مهمتان لهما تعيينات موارد ولا يمكن أن تصبحا معلمين. احذف التعيينات أولًا.",
+    "milestoneRefusedAssignmentsMany_few": "{{count}} مهام لها تعيينات موارد ولا يمكن أن تصبح معلمًا. احذف التعيينات أولًا.",
+    "milestoneRefusedAssignmentsMany_many": "{{count}} مهمة لها تعيينات موارد ولا يمكن أن تصبح معلمًا. احذف التعيينات أولًا.",
+    "milestoneRefusedAssignmentsMany_other": "{{count}} مهمة لها تعيينات موارد ولا يمكن أن تصبح معلمًا. احذف التعيينات أولًا.",
     "milestoneRefusedSummary": "«{{task}}» مهمة موجزة لها مهام فرعية ولا يمكن أن تصبح معلمًا.",
+    "milestoneRefusedSummaryMany_zero": "لا يمكن أن تصبح أي مهمة موجزة لها مهام فرعية معلمًا.",
+    "milestoneRefusedSummaryMany_one": "مهمة موجزة واحدة لها مهام فرعية ولا يمكن أن تصبح معلمًا.",
+    "milestoneRefusedSummaryMany_two": "مهمتان موجزتان لهما مهام فرعية ولا يمكن أن تصبحا معلمين.",
+    "milestoneRefusedSummaryMany_few": "{{count}} مهام موجزة لها مهام فرعية ولا يمكن أن تصبح معلمًا.",
+    "milestoneRefusedSummaryMany_many": "{{count}} مهمة موجزة لها مهام فرعية ولا يمكن أن تصبح معلمًا.",
+    "milestoneRefusedSummaryMany_other": "{{count}} مهمة موجزة لها مهام فرعية ولا يمكن أن تصبح معلمًا.",
     "assignmentsMovedToSubtask_zero": "لم يُنقل أي تخصيص إلى المهمة الفرعية «{{child}}».",
     "assignmentsMovedToSubtask_one": "نُقل التخصيص إلى المهمة الفرعية «{{child}}».",
     "assignmentsMovedToSubtask_two": "نُقل تخصيصان إلى المهمة الفرعية «{{child}}».",
@@ -257,6 +272,12 @@
     "assignmentsMovedToSubtasks_many": "نُقلت تخصيصات {{count}} مهمة إلى مهام فرعية.",
     "assignmentsMovedToSubtasks_other": "نُقلت تخصيصات {{count}} مهمة إلى مهام فرعية.",
     "milestoneClearedOnPhase": "«{{phase}}» لم يعد معلمًا.",
+    "milestoneClearedOnPhaseMany_zero": "لم تعد أي مهمة معلمًا.",
+    "milestoneClearedOnPhaseMany_one": "مهمة واحدة لم تعد معلمًا.",
+    "milestoneClearedOnPhaseMany_two": "مهمتان لم تعودا معلمين.",
+    "milestoneClearedOnPhaseMany_few": "{{count}} مهام لم تعد معالم.",
+    "milestoneClearedOnPhaseMany_many": "{{count}} مهمة لم تعد معلمًا.",
+    "milestoneClearedOnPhaseMany_other": "{{count}} مهمة لم تعد معلمًا.",
     "phaseRefusedNoAssignableChild": "لا يمكن أن تصبح «{{phase}}» مهمة موجزة: لا مكان لتخصيصاتها، لأن أيًّا من المهام الفرعية الجديدة لا يمكنه حمل تخصيصات (معلم أو مهمة موجزة). لم يُغيَّر شيء.",
     "phaseRefusedDuplicateResource": "لا يمكن أن تصبح «{{phase}}» مهمة موجزة: لا يمكن نقل تخصيص {{resource}} إلى المهمة الفرعية الجديدة «{{child}}» لأنها تحمل {{resource}} بالفعل. لم يُغيَّر شيء.",
     "phaseQuestionOutdated": "تغيّرت مهام أو تعيينات أثناء بقاء السؤال مفتوحًا. لم يُغيَّر شيء؛ حاول مرة أخرى.",
@@ -428,7 +449,14 @@
     "msProjectLostResourceRates_two": "لم تُستورد أسعار موردين.",
     "msProjectLostResourceRates_few": "لم تُستورد أسعار {{count}} موارد.",
     "msProjectLostResourceRates_many": "لم تُستورد أسعار {{count}} موردًا.",
-    "msProjectLostResourceRates_other": "لم تُستورد أسعار {{count}} مورد."
+    "msProjectLostResourceRates_other": "لم تُستورد أسعار {{count}} مورد.",
+    "minuteModelConverted_zero": "{{document}}: {{count}} مهام لها تواريخ مختلفة للبداية أو النهاية بعد التحويل؛ أكبر إزاحة هي {{days}} بأيام عمل. يعيد Ctrl+Z التواريخ المحفوظة.",
+    "minuteModelConverted_one": "{{document}}: مهمة واحدة لها تواريخ مختلفة للبداية أو النهاية بعد التحويل؛ أكبر إزاحة هي {{days}} بأيام عمل. يعيد Ctrl+Z التواريخ المحفوظة.",
+    "minuteModelConverted_two": "{{document}}: مهمتان لهما تواريخ مختلفة للبداية أو النهاية بعد التحويل؛ أكبر إزاحة هي {{days}} بأيام عمل. يعيد Ctrl+Z التواريخ المحفوظة.",
+    "minuteModelConverted_few": "{{document}}: {{count}} مهام لها تواريخ مختلفة للبداية أو النهاية بعد التحويل؛ أكبر إزاحة هي {{days}} بأيام عمل. يعيد Ctrl+Z التواريخ المحفوظة.",
+    "minuteModelConverted_many": "{{document}}: {{count}} مهمة لها تواريخ مختلفة للبداية أو النهاية بعد التحويل؛ أكبر إزاحة هي {{days}} بأيام عمل. يعيد Ctrl+Z التواريخ المحفوظة.",
+    "minuteModelConverted_other": "{{document}}: {{count}} مهمة لها تواريخ مختلفة للبداية أو النهاية بعد التحويل؛ أكبر إزاحة هي {{days}} بأيام عمل. يعيد Ctrl+Z التواريخ المحفوظة.",
+    "minuteModelCalendarRepaired": "تم إصلاح التقويم «{{calendar}}»: لم تتوافق النهاية أو الاستراحة مع أوقات العمل المحفوظة."
   },
   "scheduleErrors": {
     "cycle": "تبعية دائرية بين المهام: {{path}}",
@@ -533,6 +561,11 @@
     "languageHint": "لغة عرض التطبيق، تُطبَّق فورًا.",
     "version": "الإصدار",
     "versionHint": "رقم الإصدار الحالي للتطبيق.",
+    "experimentalSection": "تجريبي",
+    "experimentalEmpty": "لا توجد حاليًا ميزات تجريبية.",
+    "experimentalHide": "إخفاء",
+    "demoTopbarAnimation": "عرض توضيحي: حركة في الشريط العلوي",
+    "demoTopbarAnimationHint": "موجة لمعان برتقالية هادئة في الشريط العلوي. توضح كيف يعمل مفتاح تجريبي.",
     "tourHint": "أعد جولة التعريف التمهيدية بالتطبيق.",
     "theme": "السمة",
     "themeHint": "نظام ألوان الواجهة.",
@@ -546,8 +579,12 @@
     "allowMixedDayHour": "السماح بالتخطيط المختلط باليوم/الساعة",
     "defaultTaskDurationUnit": "الوحدة الافتراضية للمهام الجديدة",
     "defaultTaskDurationUnitHint": "تحدد ما إذا كانت المهام الجديدة تبدأ بأيام العمل أو ساعات العمل. لا تتغير المهام الحالية.",
+    "defaultTaskDurationUnitDays": "وحدة الأيام",
+    "defaultTaskDurationUnitHours": "وحدة الساعات",
+    "defaultTaskDurationUnitLocked": "يحسب الملف الشخصي {{profile}} المدة بالساعات. لذلك تحصل المهام الجديدة على وحدة الساعات.",
     "durationDisplay": "عرض المدة",
     "durationDisplayHint": "يحدد كيفية عرض مدة المهمة، بغض النظر عن الوحدة التي سُجِّلت بها المهمة نفسها.",
+    "durationDisplayOpsHint": "في الملف الشخصي OPS تعرض كل مهمة وحدتها الخاصة.",
     "durationDisplayAuto": "تلقائي (وحدة خاصة بكل مهمة)",
     "durationDisplayDays": "أيام دائمًا",
     "durationDisplayHours": "ساعات دائمًا",
@@ -694,7 +731,10 @@
     "taskCount_many": "{{count}} مهمة",
     "taskCount_other": "{{count}} مهمة",
     "restore": "استعادة",
-    "dontRestore": "عدم الاستعادة"
+    "dontRestore": "عدم الاستعادة",
+    "unreadableOnlyExplanation": "لا يمكن قراءة أي من نسخ الاستعادة. احتفظ بها لمحاولة استعادة لاحقة، أو احذفها فقط إذا لم تعد بحاجة إليها. لا يمكن التراجع عن الحذف.",
+    "keepCopies": "الاحتفاظ بالنسخ",
+    "deleteCopies": "حذف النسخ"
   },
   "window": {
     "minimize": "تصغير",
@@ -713,7 +753,8 @@
   "project": {
     "untitled": "تخطيط جديد",
     "imported": "مشروع مستورد",
-    "unassignedResource": "غير معيّن"
+    "unassignedResource": "غير معيّن",
+    "ifcBuildingModelUnsupported": "يحتوي ملف IFC هذا على عناصر نموذج مبنى. فتحه محظور لأن الحفظ سيحذف هذه العناصر. عدّل ملف الجدول الزمني المنفصل، ثم ادمجه مجددًا مع نموذج المبنى."
   },
   "documents": {
     "overviewTitle": "المشاريع المفتوحة",
@@ -808,12 +849,14 @@
     "releaseNotes": "الجديد",
     "downloadInstall": "تنزيل وتثبيت",
     "downloading": "جارٍ التنزيل…",
+    "preparingInstall": "جارٍ تحضير التثبيت…",
     "installing": "جارٍ التثبيت…",
     "restarting": "جارٍ إعادة التشغيل…",
     "retry": "المحاولة مرة أخرى",
     "error": "حدث خطأ ما أثناء التحديث",
     "checking": "جارٍ التحقق…",
     "snapNotice": "يتم تحديث هذا الإصدار تلقائيًا عبر متجر Snap — لا تحتاج إلى فعل أي شيء.",
+    "packageManagerNotice": "حدّث عبر مدير الحزم الخاص بك (مثلًا yay -Syu).",
     "debExplanation": "حدّث يدويًا بتشغيل هذا الأمر في الطرفية، أو نزّل أحدث حزمة.",
     "debCommandLabel": "أمر التثبيت",
     "copyCommand": "نسخ الأمر",
@@ -910,6 +953,7 @@
     "companies": "مكتبات الموارد",
     "addCompany": "إضافة مكتبة موارد",
     "newCompany": "مكتبة موارد جديدة",
+    "defaultCompany": "مكتبة الموارد الخاصة بي",
     "companyName": "اسم المكتبة",
     "removeCompany": "إزالة مكتبة الموارد",
     "cannotRemoveLast": "لا يمكن إزالة مكتبة الموارد الأخيرة.",
@@ -1584,6 +1628,7 @@
     "overrideDropped": "يشير ربط الصف {{row}} إلى مهمة لم تعد موجودة، وتم تجاهله.",
     "moreRows": "…و {{more}} أخرى",
     "sheetRowHint": "الصف {{row}} في الورقة",
+    "sheetTaskId": "معرّف المهمة في OPS: {{id}}",
     "dateOrderTitle": "اليوم أولاً أم الشهر أولاً؟",
     "dateOrderQuestion": "«{{sample}}» — أي تاريخ هذا؟",
     "dateOrderOptionA": "{{date}}",
@@ -1730,6 +1775,14 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "مهام ALAP في أبعد وقت تسمح به المهام اللاحقة",
       "help": "المهمة التي لم تبدأ بعد وقيدها «في أبعد وقت ممكن» تنتهي عند الدقيقة التي تحتاجها فيها المهام اللاحقة لها، مع حساب المهام اللاحقة أولًا، بحيث تتصل السلسلة دون فجوات. لا يُحتسب بدؤها المخطط الخاص؛ والمهمة التي لا مهمة سابقة لها لا تبدأ حينئذٍ قبل تاريخ الحالة."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "معالم منفصلة في نهاية يوم العمل",
+      "help": "يُوضع معلم منفصل أو معلم النهاية بدون مهمة سابقة في نهاية يوم عمله."
+    },
+    "workdayDurationMeasure": {
+      "label": "المدة بأيام عمل",
+      "help": "تُحتسب المدة أو التأخير أو المدة المتبقية المقاسة بالأيام كأيام عمل: كل يوم عمل يُحسب 1، مهما كان طول ذلك اليوم. عند الإيقاف: يُحسب اليوم بعدد ساعات العمل لذلك اليوم في التقويم. يتبع التأخير المقاس بالنسبة المئوية وحدة المهمة السابقة. لا يُحسب الوقت المنقضي أبدًا بأيام عمل."
     }
   },
   "profiles": {
@@ -1768,6 +1821,7 @@
       "float": "الفائض والتواريخ المتأخرة",
       "instants": "التواريخ واللحظات من الملف",
       "msproject": "التقدم كما في Microsoft Project",
+      "durations": "المدة والوحدة",
       "ownProfilesOnly": "للملفات الشخصية المخصصة فقط"
     },
     "ownProfilesOnlyNote": "هذه الاصطلاحات معطّلة في كل ملف حساب مدمج، بما في ذلك Primavera P6. لا يمكن تفعيلها إلا في ملف حساب خاص: اختر لذلك «ملف حساب جديد».",

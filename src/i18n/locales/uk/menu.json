@@ -422,6 +422,8 @@
     "quarantineEmptyName": "Недійсне розширення",
     "catalogEntriesSkipped": "Пропущено записів каталогу: {{count}}",
     "storageWriteFailed": "Не вдалося зберегти стан розширення.",
+    "minAppVersionRequired": "Потрібен Open Planner Studio ≥ {{minVersion}} (поточна версія: {{appVersion}})",
+    "missingPermission": "Розширення «{{extensionId}}» не має дозволу: {{permission}}",
     "import": "Імпортувати",
     "importSubtitle": "Імпортуйте дані проєкту через встановлені розширення.",
     "importEmpty": "Розширень імпорту не встановлено. Додайте його у розділі «Розширення»."

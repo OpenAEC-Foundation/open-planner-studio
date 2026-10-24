@@ -418,6 +418,8 @@
     "quarantineEmptyName": "Ogiltigt tillägg",
     "catalogEntriesSkipped": "Hoppade över katalogposter: {{count}}",
     "storageWriteFailed": "Tilläggets status kunde inte sparas.",
+    "minAppVersionRequired": "Kräver Open Planner Studio ≥ {{minVersion}} (nuvarande version: {{appVersion}})",
+    "missingPermission": "Tillägget ”{{extensionId}}” saknar behörighet: {{permission}}",
     "import": "Importera",
     "importSubtitle": "Importera projektdata via installerade tillägg.",
     "importEmpty": "Inga importtillägg installerade. Lägg till ett under Tillägg."

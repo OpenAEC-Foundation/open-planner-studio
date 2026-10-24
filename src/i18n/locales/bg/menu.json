@@ -418,6 +418,8 @@
     "quarantineEmptyName": "Невалидно разширение",
     "catalogEntriesSkipped": "Пропуснати елементи от каталога: {{count}}",
     "storageWriteFailed": "Състоянието на разширението не можа да се запази.",
+    "minAppVersionRequired": "Изисква Open Planner Studio ≥ {{minVersion}} (текуща версия: {{appVersion}})",
+    "missingPermission": "Разширението „{{extensionId}}“ няма разрешение: {{permission}}",
     "import": "Импортирай",
     "importSubtitle": "Импортирайте данни за проекта чрез инсталираните разширения.",
     "importEmpty": "Няма инсталирани разширения за импорт. Добавете такова от Разширения."

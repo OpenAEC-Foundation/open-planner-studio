@@ -13,6 +13,7 @@
     "dismiss": "Lukk melding",
     "taskEditRevertBlocked": "En endring fra KI-assistenten eller en utvidelse kom imellom. Aktivitetsendringene fra før er ikke tilbakeført og står som vanlige steg under Angre.",
     "openFailed": "Kunne ikke åpne fil",
+    "csvInvalidDate": "CSV ikke åpnet: ulesbar dato «{{value}}» på CSV-rad {{row}}, kolonne «{{column}}». Bruk åååå-mm-dd, dd-mm-åååå eller dd/mm/åååå.",
     "extGuideCallbackFailed": "Et steg fra utvidelsen {{name}} gav en feil. Veiledningen fortsetter.",
     "extHelpProjectOpenFailed": "Prosjektfilen {{file}} fra utvidelsen {{name}} kunne ikke åpnes.",
     "extImportFailed": "Import med {{name}} mislyktes.",
@@ -76,6 +77,8 @@
     "browserCannotOverwrite": "Denne nettleseren lar ikke appen skrive tilbake til '{{name}}'. Derfor spør appen hver gang du lagrer hvor filen skal lagres. Dette skjer ikke i Chrome, Edge eller skrivebordsappen.",
     "browserSavesAsDownload": "Lagret som nedlasting: '{{name}}' ligger i nedlastingsmappen din. Denne nettleseren lar ikke appen skrive til et eget sted, så hver lagring lager en ny nedlasting. I Chrome, Edge eller skrivebordsappen oppdaterer Lagre bare samme fil.",
     "autoSaveFailed": "Automatisk lagring mislyktes",
+    "recoveryManifestBlocked": "Gjenopprettingsdataene har en ukjent versjon eller en ugyldig struktur. Denne appen lar dem være urørt og kan ikke lese eller oppdatere dette gjenopprettingssettet. Prøv appversjonen som lagde kopiene, eller en nyere versjon. Lagre nytt arbeid selv.",
+    "recoveryStorageBlocked": "Gjenopprettingslagringen er midlertidig blokkert av en annen åpen forbindelse. Eksisterende kopier blir værende; denne siden lager ikke nye gjenopprettingskopier. Lagre arbeidet ditt selv, lukk andre faner med denne appen og last siden på nytt for å prøve gjenoppretting igjen.",
     "recoveryReadFailed": "Den gjenopprettede filen kunne ikke leses",
     "recoveryRestoreFailed": "Gjenoppretting mislyktes",
     "recoveryDocumentsSkipped_one": "{{count}} gjenopprettingsfil kunne ikke lastes og er hoppet over.",
@@ -127,12 +130,18 @@
     "referencesClearedOnPaste_one": "{{count}} referanse fantes ikke i dette dokumentet og er tømt (en aktivitetskalender, en egen arbeidskategori, en aktivitetskode eller et egendefinert felt fra kildedokumentet).",
     "referencesClearedOnPaste_other": "{{count}} referanser fantes ikke i dette dokumentet og er tømt (aktivitetskalendere, egne arbeidskategorier, aktivitetskoder eller egendefinerte felt fra kildedokumentet).",
     "milestoneRefusedAssignments": "'{{task}}' har ressurstilordninger og kan ikke bli en milepæl. Fjern tilordningene først.",
+    "milestoneRefusedAssignmentsMany_one": "{{count}} aktivitet har ressurstilordninger og kan ikke bli en milepæl. Fjern tilordningene først.",
+    "milestoneRefusedAssignmentsMany_other": "{{count}} aktiviteter har ressurstilordninger og kan ikke bli milepæler. Fjern tilordningene først.",
     "milestoneRefusedSummary": "'{{task}}' er en hovedaktivitet med delaktiviteter og kan ikke bli en milepæl.",
+    "milestoneRefusedSummaryMany_one": "{{count}} aktivitet er en hovedaktivitet med delaktiviteter og kan ikke bli en milepæl.",
+    "milestoneRefusedSummaryMany_other": "{{count}} aktiviteter er hovedaktiviteter med delaktiviteter og kan ikke bli milepæler.",
     "assignmentsMovedToSubtask_one": "Tilordningen er flyttet til delaktiviteten '{{child}}'.",
     "assignmentsMovedToSubtask_other": "{{count}} tilordninger er flyttet til delaktiviteten '{{child}}'.",
     "assignmentsMovedToSubtasks_one": "Tilordningene for {{count}} aktivitet er flyttet til en delaktivitet.",
     "assignmentsMovedToSubtasks_other": "Tilordningene for {{count}} aktiviteter er flyttet til delaktiviteter.",
     "milestoneClearedOnPhase": "'{{phase}}' er ikke lenger en milepæl.",
+    "milestoneClearedOnPhaseMany_one": "{{count}} aktivitet er ikke lenger en milepæl.",
+    "milestoneClearedOnPhaseMany_other": "{{count}} aktiviteter er ikke lenger milepæler.",
     "phaseRefusedNoAssignableChild": "'{{phase}}' kan ikke bli en hovedaktivitet: tilordningene kan ikke flyttes noe sted, fordi ingen av de nye delaktivitetene kan ha tilordninger (en milepæl eller hovedaktivitet). Ingenting er endret.",
     "phaseRefusedDuplicateResource": "'{{phase}}' kan ikke bli en hovedaktivitet: tilordningen av {{resource}} kan ikke flyttes til den nye delaktiviteten '{{child}}', fordi den allerede har {{resource}}. Ingenting er endret.",
     "phaseQuestionOutdated": "Aktivitetene eller tilordningene er endret mens spørsmålet var åpent. Ingenting er endret. Prøv igjen.",
@@ -212,7 +221,10 @@
     "msProjectLostFixedCosts_one": "Den faste kostnaden for {{count}} aktivitet er ikke overtatt.",
     "msProjectLostFixedCosts_other": "De faste kostnadene for {{count}} aktiviteter er ikke overtatt.",
     "msProjectLostResourceRates_one": "Standardsatsene for {{count}} ressurs er ikke overtatt.",
-    "msProjectLostResourceRates_other": "Standardsatsene for {{count}} ressurser er ikke overtatt."
+    "msProjectLostResourceRates_other": "Standardsatsene for {{count}} ressurser er ikke overtatt.",
+    "minuteModelConverted_one": "{{document}}: {{count}} aktivitet har en annen start eller slutt etter konverteringen; den største forskyvningen er {{days}} arbeidsdager. Ctrl+Z setter de lagrede datoene tilbake.",
+    "minuteModelConverted_other": "{{document}}: {{count}} aktiviteter har en annen start eller slutt etter konverteringen; den største forskyvningen er {{days}} arbeidsdager. Ctrl+Z setter de lagrede datoene tilbake.",
+    "minuteModelCalendarRepaired": "Kalenderen «{{calendar}}» er reparert: slutten eller pausen passet ikke til den lagrede arbeidstiden."
   },
   "scheduleErrors": {
     "cycle": "Sirkulær avhengighet mellom aktiviteter: {{path}}",
@@ -313,6 +325,11 @@
     "languageHint": "Visningsspråket i appen, tatt i bruk med en gang.",
     "version": "Versjon",
     "versionHint": "Gjeldende versjonsnummer for appen.",
+    "experimentalSection": "Eksperimentelt",
+    "experimentalEmpty": "Det finnes ingen eksperimentelle funksjoner akkurat nå.",
+    "experimentalHide": "Skjul",
+    "demoTopbarAnimation": "Demo: animasjon i topplinjen",
+    "demoTopbarAnimationHint": "En rolig oransje glansbølge i topplinjen. Viser hvordan en eksperimentell bryter fungerer.",
     "tourHint": "Ta appens introduksjonsomvisning på nytt.",
     "theme": "Tema",
     "themeHint": "Fargeskjemaet for grensesnittet.",
@@ -326,8 +343,12 @@
     "allowMixedDayHour": "Tillat blandet dag/timeplanlegging",
     "defaultTaskDurationUnit": "Standardenhet for nye aktiviteter",
     "defaultTaskDurationUnitHint": "Bestemmer om nye aktiviteter standard starter i arbeidsdager eller arbeidstimer. Eksisterende aktiviteter endres ikke.",
+    "defaultTaskDurationUnitDays": "Dagsenhet",
+    "defaultTaskDurationUnitHours": "Timeenhet",
+    "defaultTaskDurationUnitLocked": "Profilen {{profile}} regner varighet i timer. Nye aktiviteter får derfor timeenheten.",
     "durationDisplay": "Varighetsvisning",
     "durationDisplayHint": "Bestemmer hvordan varigheten av en aktivitet vises, uavhengig av enheten aktiviteten er registrert i.",
+    "durationDisplayOpsHint": "I OPS-profilen viser hver aktivitet sin egen enhet.",
     "durationDisplayAuto": "Automatisk (egen enhet per aktivitet)",
     "durationDisplayDays": "Alltid dager",
     "durationDisplayHours": "Alltid timer",
@@ -470,7 +491,10 @@
     "taskCount_one": "{{count}} aktivitet",
     "taskCount_other": "{{count}} aktiviteter",
     "restore": "Gjenopprett",
-    "dontRestore": "Ikke gjenopprett"
+    "dontRestore": "Ikke gjenopprett",
+    "unreadableOnlyExplanation": "Ingen av gjenopprettingskopiene kan leses. Ta vare på dem til et senere gjenopprettingsforsøk, eller slett dem bare hvis du ikke trenger dem lenger. Sletting kan ikke angres.",
+    "keepCopies": "Behold kopiene",
+    "deleteCopies": "Slett kopiene"
   },
   "window": {
     "minimize": "Minimer",
@@ -489,7 +513,8 @@
   "project": {
     "untitled": "Ny tidsplan",
     "imported": "Importert prosjekt",
-    "unassignedResource": "Ikke tildelt"
+    "unassignedResource": "Ikke tildelt",
+    "ifcBuildingModelUnsupported": "Denne IFC-filen inneholder bygningsmodellobjekter. Åpning er blokkert, fordi lagring ville slette disse objektene. Rediger den separate tidsplanfilen og slå den sammen med bygningsmodellen etterpå."
   },
   "documents": {
     "overviewTitle": "Prosjekter som er åpne",
@@ -584,12 +609,14 @@
     "releaseNotes": "Hva er nytt",
     "downloadInstall": "Last ned og installer",
     "downloading": "Laster ned…",
+    "preparingInstall": "Forbereder installasjonen…",
     "installing": "Installerer…",
     "restarting": "Starter på nytt…",
     "retry": "Prøv igjen",
     "error": "Noe gikk galt under oppdateringen",
     "checking": "Sjekker…",
     "snapNotice": "Denne versjonen oppdateres automatisk via Snap Store — du trenger ikke å gjøre noe.",
+    "packageManagerNotice": "Oppdater via pakkebehandleren din (for eksempel yay -Syu).",
     "debExplanation": "Oppdater manuelt ved å kjøre denne kommandoen i en terminal, eller last ned den nyeste pakken.",
     "debCommandLabel": "Installasjonskommando",
     "copyCommand": "Kopier kommando",
@@ -686,6 +713,7 @@
     "companies": "Ressursbibliotekene",
     "addCompany": "Legg til ressursbibliotek",
     "newCompany": "Nytt ressursbibliotek",
+    "defaultCompany": "Mitt ressursbibliotek",
     "companyName": "Bibliotekets navn",
     "removeCompany": "Slett ressursbibliotek",
     "cannotRemoveLast": "Det siste ressursbiblioteket kan ikke slettes.",
@@ -1308,6 +1336,7 @@
     "overrideDropped": "Koblingen for rad {{row}} peker på en aktivitet som ikke finnes lenger, og er ignorert.",
     "moreRows": "…og {{more}} til",
     "sheetRowHint": "rad {{row}} i arket",
+    "sheetTaskId": "OPS-aktivitets-ID: {{id}}",
     "dateOrderTitle": "Dag eller måned først?",
     "dateOrderQuestion": "“{{sample}}” — hvilken dato er det?",
     "dateOrderOptionA": "{{date}}",
@@ -1454,6 +1483,14 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "ALAP-aktiviteter så seint som etterfølgerne tillater",
       "help": "En ikke-startet aktivitet med begrensningen «så sent som mulig» slutter i minuttet etterfølgerne trenger den, etterfølgere først, slik at kjeden henger sammen. Den egne planlagte starten teller ikke. En aktivitet uten forgjenger starter da ikke tidligere enn statusdatoen."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Frittstående milepæler ved arbeidsdagens slutt",
+      "help": "En frittstående milepæl eller en sluttmilepæl uten forgjenger plasseres ved slutten av arbeidsdagen."
+    },
+    "workdayDurationMeasure": {
+      "label": "Varighet i arbeidsdager",
+      "help": "En varighet, forsinkelse eller gjenstående varighet i dager regnes i arbeidsdager: hver arbeidsdag regnes som 1, uansett hvor lang den dagen er. Av: en dag regnes som antall arbeidstimer per dag i kalenderen. En forsinkelse i prosent følger enheten til forgjengeren. Forløpt tid regnes aldri i arbeidsdager."
     }
   },
   "profiles": {
@@ -1492,6 +1529,7 @@
       "float": "Slakk og seneste datoer",
       "instants": "Datoer og tidspunkter fra filen",
       "msproject": "Fremdrift slik som i Microsoft Project",
+      "durations": "Varighet og enhet",
       "ownProfilesOnly": "Bare for egne profiler"
     },
     "ownProfilesOnlyNote": "Disse beregningsreglene er av i alle innebygde profiler, også under «Primavera P6». Bare en egen profil kan slå dem på: velg «Ny profil» for det.",

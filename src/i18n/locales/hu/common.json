@@ -13,6 +13,7 @@
     "dismiss": "Bezárás",
     "taskEditRevertBlocked": "Az AI-segítőtárs vagy egy bővítmény közben módosított valamit. A korábbi tevékenység-módosítások nem lettek visszavonva; ezek normál lépésekként maradnak a Visszavonás alatt.",
     "openFailed": "A fájl megnyitása sikertelen",
+    "csvInvalidDate": "A CSV nem nyitható meg: olvashatatlan dátum („{{value}}”) a CSV {{row}}. sorában, a „{{column}}” oszlopban. Használja az éééé-hh-nn, nn-hh-éééé vagy nn/hh/éééé formátumot.",
     "extGuideCallbackFailed": "A(z) {{name}} bővítmény egyik lépése hibát jelzett. Az útmutató folytatódik.",
     "extHelpProjectOpenFailed": "A(z) {{name}} bővítmény projektfájlja ({{file}}) nem nyitható meg.",
     "extImportFailed": "Az importálás a(z) {{name}} segítségével nem sikerült.",
@@ -76,6 +77,8 @@
     "browserCannotOverwrite": "Ez a böngésző nem engedi, hogy az alkalmazás visszaírjon a(z) „{{name}}” fájlba. Ezért az alkalmazás minden mentéskor újra megkérdezi, hova kerüljön a fájl. Chrome-ban, Edge-ben vagy az asztali alkalmazásban ez nem fordul elő.",
     "browserSavesAsDownload": "Letöltésként mentve: a(z) „{{name}}” a letöltési mappában van. Ez a böngésző nem engedi, hogy az alkalmazás saját helyre írjon, ezért minden mentés új letöltést hoz létre. Chrome-ban, Edge-ben vagy az asztali alkalmazásban a Mentés ugyanazt a fájlt frissíti.",
     "autoSaveFailed": "Az automatikus mentés sikertelen",
+    "recoveryManifestBlocked": "A helyreállítási adatok ismeretlen verziójúak, vagy érvénytelen szerkezetűek. Az alkalmazás érintetlenül hagyja őket, és nem tudja beolvasni vagy frissíteni ezt a helyreállítási készletet. Próbálja meg a másolatokat készítő alkalmazásverziót vagy egy újabbat. Mentse el maga az új munkát.",
+    "recoveryStorageBlocked": "Egy másik nyitott kapcsolat átmenetileg zárolja a helyreállítási tárolót. A meglévő másolatok megmaradnak, és ez az oldal nem hoz létre új helyreállítási másolatokat. Mentse el maga a munkáját, zárja be ezt az alkalmazást futtató többi lapot, majd töltse újra ezt az oldalt, és próbálja újra a helyreállítást.",
     "recoveryReadFailed": "A visszaállított fájl nem olvasható",
     "recoveryRestoreFailed": "Visszaállítás sikertelen",
     "recoveryDocumentsSkipped_one": "{{count}} visszaállítási fájl nem tölthető be, ezért ki lett hagyva.",
@@ -127,12 +130,18 @@
     "referencesClearedOnPaste_one": "{{count}} hivatkozás nem létezett ebben a dokumentumban, ezért törölve lett (egy tevékenységnaptár, egyéni munkanem, tevékenységkód vagy egyéni mező a forrásdokumentumból).",
     "referencesClearedOnPaste_other": "{{count}} hivatkozás nem létezett ebben a dokumentumban, ezért törölve lett (tevékenységnaptárak, egyéni munkanemek, tevékenységkódok vagy egyéni mezők a forrásdokumentumból).",
     "milestoneRefusedAssignments": "A(z) „{{task}}” tevékenységnek vannak erőforrás-hozzárendelései, ezért nem lehet mérföldkő. Előbb távolítsa el a hozzárendeléseket.",
+    "milestoneRefusedAssignmentsMany_one": "{{count}} tevékenységnek van erőforrás-hozzárendelése, ezért nem lehet mérföldkő. Törölje előbb a hozzárendeléseket.",
+    "milestoneRefusedAssignmentsMany_other": "{{count}} tevékenységnek van erőforrás-hozzárendelése, ezért nem lehet mérföldkő. Törölje előbb a hozzárendeléseket.",
     "milestoneRefusedSummary": "A(z) „{{task}}” összefoglaló tevékenység altevékenységekkel rendelkezik, ezért nem lehet mérföldkő.",
+    "milestoneRefusedSummaryMany_one": "{{count}} tevékenység altevékenységeket tartalmazó összefoglaló tevékenység, ezért nem lehet mérföldkő.",
+    "milestoneRefusedSummaryMany_other": "{{count}} tevékenység altevékenységeket tartalmazó összefoglaló tevékenység, ezért nem lehet mérföldkő.",
     "assignmentsMovedToSubtask_one": "A hozzárendelés átkerült a(z) „{{child}}” altevékenységre.",
     "assignmentsMovedToSubtask_other": "{{count}} hozzárendelés átkerült a(z) „{{child}}” altevékenységre.",
     "assignmentsMovedToSubtasks_one": "{{count}} tevékenység hozzárendelései átkerültek egy altevékenységre.",
     "assignmentsMovedToSubtasks_other": "{{count}} tevékenység hozzárendelései átkerültek altevékenységekre.",
     "milestoneClearedOnPhase": "„{{phase}}” már nem mérföldkő.",
+    "milestoneClearedOnPhaseMany_one": "{{count}} tevékenység már nem mérföldkő.",
+    "milestoneClearedOnPhaseMany_other": "{{count}} tevékenység már nem mérföldkő.",
     "phaseRefusedNoAssignableChild": "„{{phase}}” nem lehet összefoglaló tevékenység: a hozzárendelései nem kerülhetnek sehová, mert az új altevékenységek közül egyik sem tartalmazhat hozzárendelést (mérföldkő vagy összefoglaló tevékenység). Nem történt változás.",
     "phaseRefusedDuplicateResource": "„{{phase}}” nem lehet összefoglaló tevékenység: {{resource}} hozzárendelése nem kerülhet át az új „{{child}}” altevékenységhez, mert az már tartalmazza {{resource}} hozzárendelését. Nem történt változás.",
     "phaseQuestionOutdated": "A tevékenységek vagy hozzárendelések megváltoztak, miközben a kérdés még nyitva volt. Nem történt módosítás; próbálja meg újra.",
@@ -212,7 +221,10 @@
     "msProjectLostFixedCosts_one": "Egy tevékenység fix költsége nem lett átvéve.",
     "msProjectLostFixedCosts_other": "{{count}} tevékenység fix költségei nem lettek átvéve.",
     "msProjectLostResourceRates_one": "Egy erőforrás alapdíja nem lett átvéve.",
-    "msProjectLostResourceRates_other": "{{count}} erőforrás alapdíjai nem lettek átvéve."
+    "msProjectLostResourceRates_other": "{{count}} erőforrás alapdíjai nem lettek átvéve.",
+    "minuteModelConverted_one": "{{document}}: {{count}} tevékenység kezdete vagy befejezése eltér az átalakítás után; a legnagyobb eltolódás {{days}} munkanap. A Ctrl+Z visszaállítja a mentett dátumokat.",
+    "minuteModelConverted_other": "{{document}}: {{count}} tevékenység kezdete vagy befejezése eltér az átalakítás után; a legnagyobb eltolódás {{days}} munkanap. A Ctrl+Z visszaállítja a mentett dátumokat.",
+    "minuteModelCalendarRepaired": "A(z) „{{calendar}}” naptár javítva lett: a befejezés vagy a szünet nem illett a mentett munkaidőhöz."
   },
   "scheduleErrors": {
     "cycle": "Körkörös kapcsolat a tevékenységek között: {{path}}",
@@ -313,6 +325,11 @@
     "languageHint": "Az alkalmazás megjelenítési nyelve, azonnal alkalmazva.",
     "version": "Verzió",
     "versionHint": "Az alkalmazás jelenlegi verziószáma.",
+    "experimentalSection": "Kísérleti",
+    "experimentalEmpty": "Jelenleg nincsenek kísérleti funkciók.",
+    "experimentalHide": "Elrejtés",
+    "demoTopbarAnimation": "Bemutató: animáció a felső sávban",
+    "demoTopbarAnimationHint": "Egy nyugodt narancssárga fényhullám fut át a felső sávon. Bemutatja, hogyan működik egy kísérleti kapcsoló.",
     "tourHint": "Indítsa újra az alkalmazás bevezető bemutatóját.",
     "theme": "Téma",
     "themeHint": "A felület színsémája.",
@@ -326,8 +343,12 @@
     "allowMixedDayHour": "Vegyes nap/óraalapú tervezés engedélyezése",
     "defaultTaskDurationUnit": "Alapértelmezett egység új tevékenységekhez",
     "defaultTaskDurationUnitHint": "Meghatározza, hogy az új tevékenységek időtartama alapértelmezés szerint munkanapokban vagy munkaórákban legyen megadva. A meglévő tevékenységek nem változnak.",
+    "defaultTaskDurationUnitDays": "Napi mértékegység",
+    "defaultTaskDurationUnitHours": "Órás mértékegység",
+    "defaultTaskDurationUnitLocked": "A(z) „{{profile}}” profil az időtartamot órában számolja. Az új tevékenységek ezért az órás mértékegységet kapják.",
     "durationDisplay": "Időtartam megjelenítése",
     "durationDisplayHint": "Meghatározza, hogyan jelenjen meg a tevékenység időtartama, függetlenül attól, hogy a tevékenység melyik egységben van rögzítve.",
+    "durationDisplayOpsHint": "Az OPS-profilban minden tevékenység a saját mértékegységét mutatja.",
     "durationDisplayAuto": "Automatikus (tevékenységenként saját egység)",
     "durationDisplayDays": "Mindig napok",
     "durationDisplayHours": "Mindig órák",
@@ -470,7 +491,10 @@
     "taskCount_one": "{{count}} tevékenység",
     "taskCount_other": "{{count}} tevékenység",
     "restore": "Visszaállítás",
-    "dontRestore": "Visszaállítás nélkül"
+    "dontRestore": "Visszaállítás nélkül",
+    "unreadableOnlyExplanation": "Egyik helyreállítási másolat sem olvasható. Őrizze meg őket későbbi helyreállítási kísérletre, vagy csak akkor törölje őket, ha már nincs szüksége rájuk. A törlés nem vonható vissza.",
+    "keepCopies": "Másolatok megtartása",
+    "deleteCopies": "Másolatok törlése"
   },
   "window": {
     "minimize": "Minimalizálás",
@@ -489,7 +513,8 @@
   "project": {
     "untitled": "Új ütemezés",
     "imported": "Importált projekt",
-    "unassignedResource": "Nincs hozzárendelve"
+    "unassignedResource": "Nincs hozzárendelve",
+    "ifcBuildingModelUnsupported": "Ez az IFC-fájl épületmodell-objektumokat tartalmaz. A megnyitás le van tiltva, mert a mentés törölné ezeket az objektumokat. Szerkessze a külön ütemezést tartalmazó fájlt, majd utána egyesítse újra az épületmodellel."
   },
   "documents": {
     "overviewTitle": "Megnyitott projektek",
@@ -584,12 +609,14 @@
     "releaseNotes": "Újdonságok",
     "downloadInstall": "Letöltés és telepítés",
     "downloading": "Letöltés…",
+    "preparingInstall": "Telepítés előkészítése…",
     "installing": "Telepítés…",
     "restarting": "Újraindítás…",
     "retry": "Újrapróbálkozás",
     "error": "Hiba történt a frissítés során",
     "checking": "Ellenőrzés…",
     "snapNotice": "Ez a verzió automatikusan frissül a Snap Store-on keresztül. Nincs dolga.",
+    "packageManagerNotice": "Frissítsen a csomagkezelőn keresztül, például a yay -Syu paranccsal.",
     "debExplanation": "Frissítsen kézzel: futtassa ezt a parancsot egy terminálban, vagy töltse le a legújabb csomagot.",
     "debCommandLabel": "Telepítő parancs",
     "copyCommand": "Parancs másolása",
@@ -686,6 +713,7 @@
     "companies": "Erőforrástárak",
     "addCompany": "Erőforrástár hozzáadása",
     "newCompany": "Új erőforrástár",
+    "defaultCompany": "Saját erőforrástár",
     "companyName": "Erőforrástár neve",
     "removeCompany": "Erőforrástár eltávolítása",
     "cannotRemoveLast": "Az utolsó erőforrástárat nem lehet eltávolítani.",
@@ -1308,6 +1336,7 @@
     "overrideDropped": "A(z) {{row}}. sor összekapcsolása olyan tevékenységre mutat, amely már nem létezik, ezért figyelmen kívül lett hagyva.",
     "moreRows": "…és {{more}} további",
     "sheetRowHint": "{{row}}. sor a táblázatban",
+    "sheetTaskId": "OPS tevékenység-ID: {{id}}",
     "dateOrderTitle": "Először a nap vagy a hónap?",
     "dateOrderQuestion": "„{{sample}}” — melyik dátum ez?",
     "dateOrderOptionA": "{{date}}",
@@ -1454,6 +1483,14 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "ALAP-tevékenységek az utódok által megengedett legkésőbbi időpontra",
       "help": "Egy el nem kezdett tevékenység, amelynek korlátozása „lehető legkésőbb”, abban a percben fejeződik be, amikor az utódjainak szükségük van rá. Az utódokat előbb veszi figyelembe, így a lánc összezáródik. A saját tervezett kezdése nem számít; előd nélküli tevékenység nem kezdődik az állapotdátum előtt."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Különálló mérföldkövek a munkanap végén",
+      "help": "Egy különálló vagy a befejezést jelölő mérföldkő, amelynek nincs elődje, a saját munkanapja végére kerül."
+    },
+    "workdayDurationMeasure": {
+      "label": "Időtartam munkanapokban",
+      "help": "Napokban megadott időtartam, késleltetés vagy hátralévő időtartam munkanapokban számít: minden munkanap 1-nek számít, bármilyen hosszú az a nap. Kikapcsolt állapotban egy nap annyit számít, ahány munkaórája van a naptárban. A százalékban megadott késleltetés az előd mértékegységét követi. Az eltelt időtartam soha nem számít munkanapokban."
     }
   },
   "profiles": {
@@ -1492,6 +1529,7 @@
       "float": "Legkésőbbi dátumok és tartalékidő",
       "instants": "Dátumok és időpontok a fájlból",
       "msproject": "Előrehaladás a Microsoft Project szerint",
+      "durations": "Időtartam és mértékegység",
       "ownProfilesOnly": "Csak saját profilok"
     },
     "ownProfilesOnlyNote": "Ezek az ütemezési szabályok minden beépített számítási profilban ki vannak kapcsolva, a Primavera P6 profilban is. Csak saját számítási profil kapcsolhatja be őket: ehhez válassza az Új profil lehetőséget.",

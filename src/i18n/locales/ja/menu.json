@@ -416,6 +416,8 @@
     "quarantineEmptyName": "無効な拡張機能",
     "catalogEntriesSkipped": "スキップしたカタログ項目: {{count}}",
     "storageWriteFailed": "拡張機能の状態を保存できませんでした。",
+    "minAppVersionRequired": "Open Planner Studio ≥ {{minVersion}} が必要です（現在のバージョン: {{appVersion}}）",
+    "missingPermission": "拡張機能「{{extensionId}}」に権限がありません: {{permission}}",
     "import": "インポート",
     "importSubtitle": "インストール済みの拡張機能でプロジェクトデータをインポート。",
     "importEmpty": "インポート用拡張機能がありません。拡張機能から追加してください。"

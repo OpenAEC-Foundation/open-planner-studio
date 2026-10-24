@@ -13,6 +13,7 @@
     "dismiss": "Fermer la notification",
     "taskEditRevertBlocked": "Une modification de l'assistant IA ou d'une extension est intervenue entre-temps. Les modifications de tâche antérieures n'ont pas été annulées et restent des étapes ordinaires sous Annuler.",
     "openFailed": "Échec de l'ouverture du fichier",
+    "csvInvalidDate": "CSV non ouvert : date illisible « {{value}} » à la ligne {{row}}, colonne « {{column}} ». Utilisez aaaa-mm-jj, jj-mm-aaaa ou jj/mm/aaaa.",
     "extGuideCallbackFailed": "Une étape de l’extension {{name}} a échoué. Le guide continue.",
     "extHelpProjectOpenFailed": "Le fichier de projet {{file}} de l’extension {{name}} n’a pas pu être ouvert.",
     "extImportFailed": "L'importation avec {{name}} a échoué.",
@@ -91,6 +92,8 @@
     "browserCannotOverwrite": "Ce navigateur ne permet pas à l'application de réécrire dans « {{name}} ». C'est pourquoi l'application redemande l'emplacement du fichier à chaque enregistrement. Cela ne se produit pas dans Chrome, Edge ou l'application de bureau.",
     "browserSavesAsDownload": "Enregistré en téléchargement : « {{name}} » se trouve dans votre dossier de téléchargements. Ce navigateur ne permet pas à l'application d'écrire à un emplacement choisi ; chaque enregistrement crée donc un nouveau téléchargement. Dans Chrome, Edge ou l'application de bureau, Enregistrer met simplement à jour le même fichier.",
     "autoSaveFailed": "Échec de l'enregistrement automatique",
+    "recoveryManifestBlocked": "Les données de récupération ont une version inconnue ou une structure non valide. Cette application ne les modifie pas et ne peut ni lire ni mettre à jour cet ensemble de récupération. Essayez la version de l’application qui a créé les copies, ou une version plus récente. Enregistrez vous-même vos nouvelles modifications.",
+    "recoveryStorageBlocked": "Le stockage de récupération est temporairement bloqué par une autre connexion ouverte. Les copies existantes sont conservées ; cette page ne crée pas de nouvelles copies de récupération. Enregistrez vous-même vos modifications, fermez les autres onglets qui utilisent cette application et rechargez cette page pour réessayer la récupération.",
     "recoveryReadFailed": "Le fichier récupéré n'a pas pu être lu",
     "recoveryRestoreFailed": "Échec de la restauration",
     "recoveryDocumentsSkipped_one": "{{count}} fichier de récupération n'a pas pu être chargé et a été ignoré.",
@@ -156,7 +159,13 @@
     "referencesClearedOnPaste_many": "{{count}} de références n'existaient pas dans ce document et ont été effacées (calendriers de tâche, catégories de travaux personnalisées, codes d'activité ou champs personnalisés du document source).",
     "referencesClearedOnPaste_other": "{{count}} références n'existaient pas dans ce document et ont été effacées (calendriers de tâche, catégories de travaux personnalisées, codes d'activité ou champs personnalisés du document source).",
     "milestoneRefusedAssignments": "« {{task}} » a des affectations de ressources et ne peut pas devenir un jalon. Supprimez d'abord les affectations.",
+    "milestoneRefusedAssignmentsMany_one": "{{count}} tâche a des affectations de ressources et ne peut pas devenir un jalon. Supprimez d’abord les affectations.",
+    "milestoneRefusedAssignmentsMany_many": "{{count}} de tâches ont des affectations de ressources et ne peuvent pas devenir des jalons. Supprimez d’abord les affectations.",
+    "milestoneRefusedAssignmentsMany_other": "{{count}} tâches ont des affectations de ressources et ne peuvent pas devenir des jalons. Supprimez d’abord les affectations.",
     "milestoneRefusedSummary": "« {{task}} » est une tâche récapitulative avec des sous-tâches et ne peut pas devenir un jalon.",
+    "milestoneRefusedSummaryMany_one": "{{count}} tâche est une tâche récapitulative avec des sous-tâches et ne peut pas devenir un jalon.",
+    "milestoneRefusedSummaryMany_many": "{{count}} de tâches sont des tâches récapitulatives avec des sous-tâches et ne peuvent pas devenir des jalons.",
+    "milestoneRefusedSummaryMany_other": "{{count}} tâches sont des tâches récapitulatives avec des sous-tâches et ne peuvent pas devenir des jalons.",
     "assignmentsMovedToSubtask_one": "Affectation déplacée vers la sous-tâche « {{child}} ».",
     "assignmentsMovedToSubtask_many": "{{count}} affectations déplacées vers la sous-tâche « {{child}} ».",
     "assignmentsMovedToSubtask_other": "{{count}} affectations déplacées vers la sous-tâche « {{child}} ».",
@@ -164,6 +173,9 @@
     "assignmentsMovedToSubtasks_many": "Affectations de {{count}} tâches déplacées vers des sous-tâches.",
     "assignmentsMovedToSubtasks_other": "Affectations de {{count}} tâches déplacées vers des sous-tâches.",
     "milestoneClearedOnPhase": "« {{phase}} » n’est plus un jalon.",
+    "milestoneClearedOnPhaseMany_one": "{{count}} tâche n’est plus un jalon.",
+    "milestoneClearedOnPhaseMany_many": "{{count}} de tâches ne sont plus des jalons.",
+    "milestoneClearedOnPhaseMany_other": "{{count}} tâches ne sont plus des jalons.",
     "phaseRefusedNoAssignableChild": "« {{phase}} » ne peut pas devenir une tâche récapitulative : ses affectations ne peuvent aller nulle part, car aucune des nouvelles sous-tâches ne peut porter d'affectations (un jalon ou une tâche récapitulative). Rien n'a été modifié.",
     "phaseRefusedDuplicateResource": "« {{phase}} » ne peut pas devenir une tâche récapitulative : l'affectation de {{resource}} ne peut pas aller vers la nouvelle sous-tâche « {{child}} », qui a déjà {{resource}}. Rien n'a été modifié.",
     "phaseQuestionOutdated": "Les tâches ou affectations ont changé pendant que la question était ouverte. Rien n'a été modifié ; veuillez réessayer.",
@@ -266,7 +278,11 @@
     "msProjectLostFixedCosts_other": "Les coûts fixes de {{count}} tâches n'ont pas été repris.",
     "msProjectLostResourceRates_one": "Les tarifs de {{count}} ressource n'ont pas été repris.",
     "msProjectLostResourceRates_many": "Les tarifs de {{count}} de ressources n'ont pas été repris.",
-    "msProjectLostResourceRates_other": "Les tarifs de {{count}} ressources n'ont pas été repris."
+    "msProjectLostResourceRates_other": "Les tarifs de {{count}} ressources n'ont pas été repris.",
+    "minuteModelConverted_one": "{{document}} : {{count}} tâche a un autre début ou une autre fin après la conversion ; le plus grand écart est de {{days}} jours ouvrés. Ctrl+Z rétablit les dates enregistrées.",
+    "minuteModelConverted_many": "{{document}} : {{count}} de tâches ont un autre début ou une autre fin après la conversion ; le plus grand écart est de {{days}} jours ouvrés. Ctrl+Z rétablit les dates enregistrées.",
+    "minuteModelConverted_other": "{{document}} : {{count}} tâches ont un autre début ou une autre fin après la conversion ; le plus grand écart est de {{days}} jours ouvrés. Ctrl+Z rétablit les dates enregistrées.",
+    "minuteModelCalendarRepaired": "Le calendrier « {{calendar}} » a été réparé : la fin ou la pause ne correspondait pas aux horaires de travail enregistrés."
   },
   "scheduleErrors": {
     "cycle": "Dépendance circulaire entre les tâches : {{path}}",
@@ -368,6 +384,11 @@
     "languageHint": "La langue d'affichage de l'application, appliquée immédiatement.",
     "version": "Version",
     "versionHint": "Le numéro de version actuel de l'application.",
+    "experimentalSection": "Expérimental",
+    "experimentalEmpty": "Il n’existe actuellement aucune fonction expérimentale.",
+    "experimentalHide": "Masquer",
+    "demoTopbarAnimation": "Démo : barre supérieure animée",
+    "demoTopbarAnimationHint": "Une douce lueur orange traverse la barre supérieure. Elle montre le fonctionnement d’un interrupteur expérimental.",
     "tourHint": "Refaites la visite guidée d'introduction de l'application.",
     "theme": "Thème",
     "themeHint": "Le schéma de couleurs de l'interface.",
@@ -381,8 +402,12 @@
     "allowMixedDayHour": "Autoriser la planification mixte jour/heure",
     "defaultTaskDurationUnit": "Unité par défaut des nouvelles tâches",
     "defaultTaskDurationUnitHint": "Détermine si les nouvelles tâches commencent en jours ouvrés ou en heures de travail. Les tâches existantes ne changent pas.",
+    "defaultTaskDurationUnitDays": "Unité en jours",
+    "defaultTaskDurationUnitHours": "Unité en heures",
+    "defaultTaskDurationUnitLocked": "Le profil {{profile}} calcule une durée en heures. Les nouvelles tâches reçoivent donc l’unité en heures.",
     "durationDisplay": "Affichage de la durée",
     "durationDisplayHint": "Détermine comment la durée des tâches est affichée, indépendamment de l'unité dans laquelle une tâche est elle-même enregistrée.",
+    "durationDisplayOpsHint": "Dans le profil OPS, chaque tâche affiche sa propre unité.",
     "durationDisplayAuto": "Automatique (unité propre à chaque tâche)",
     "durationDisplayDays": "Toujours en jours",
     "durationDisplayHours": "Toujours en heures",
@@ -526,7 +551,10 @@
     "taskCount_many": "{{count}} tâches",
     "taskCount_other": "{{count}} tâches",
     "restore": "Restaurer",
-    "dontRestore": "Ne pas restaurer"
+    "dontRestore": "Ne pas restaurer",
+    "unreadableOnlyExplanation": "Aucune des copies de récupération ne peut être lue. Conservez-les pour une future tentative de récupération, ou supprimez-les seulement si vous n’en avez plus besoin. La suppression ne peut pas être annulée.",
+    "keepCopies": "Conserver les copies",
+    "deleteCopies": "Supprimer les copies"
   },
   "window": {
     "minimize": "Réduire",
@@ -545,7 +573,8 @@
   "project": {
     "untitled": "Nouvelle planification",
     "imported": "Projet importé",
-    "unassignedResource": "Non assigné"
+    "unassignedResource": "Non assigné",
+    "ifcBuildingModelUnsupported": "Ce fichier IFC contient des objets de modèle de bâtiment. L’ouverture est bloquée, car l’enregistrement supprimerait ces objets. Modifiez le fichier de planning séparé, puis fusionnez-le de nouveau avec le modèle de bâtiment."
   },
   "documents": {
     "overviewTitle": "Projets ouverts",
@@ -640,12 +669,14 @@
     "releaseNotes": "Nouveautés",
     "downloadInstall": "Télécharger et installer",
     "downloading": "Téléchargement…",
+    "preparingInstall": "Préparation de l’installation…",
     "installing": "Installation…",
     "restarting": "Redémarrage…",
     "retry": "Réessayer",
     "error": "Une erreur s'est produite lors de la mise à jour",
     "checking": "Vérification…",
     "snapNotice": "Cette version est mise à jour automatiquement via le Snap Store — vous n'avez rien à faire.",
+    "packageManagerNotice": "Mettez à jour via votre gestionnaire de paquets (par exemple yay -Syu).",
     "debExplanation": "Mettez à jour manuellement en exécutant cette commande dans un terminal, ou téléchargez le dernier paquet.",
     "debCommandLabel": "Commande d'installation",
     "copyCommand": "Copier la commande",
@@ -742,6 +773,7 @@
     "companies": "Bibliothèques de ressources",
     "addCompany": "Ajouter une bibliothèque de ressources",
     "newCompany": "Nouvelle bibliothèque de ressources",
+    "defaultCompany": "Ma bibliothèque de ressources",
     "companyName": "Nom de la bibliothèque",
     "removeCompany": "Supprimer la bibliothèque de ressources",
     "cannotRemoveLast": "La dernière bibliothèque de ressources ne peut pas être supprimée.",
@@ -1377,6 +1409,7 @@
     "overrideDropped": "La liaison de la ligne {{row}} pointe vers une tâche qui n'existe plus et a été ignorée.",
     "moreRows": "…et {{more}} de plus",
     "sheetRowHint": "ligne {{row}} dans la feuille",
+    "sheetTaskId": "ID de tâche OPS : {{id}}",
     "dateOrderTitle": "Jour d'abord ou mois d'abord ?",
     "dateOrderQuestion": "« {{sample}} » — de quelle date s'agit-il ?",
     "dateOrderOptionA": "{{date}}",
@@ -1523,6 +1556,14 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "Tâches ALAP aussi tard que les successeurs le permettent",
       "help": "Une tâche non commencée avec la contrainte « le plus tard possible » se termine à la minute où ses successeurs en ont besoin, les successeurs d'abord, afin qu'une chaîne se referme. Son propre début planifié ne compte pas ; une tâche sans prédécesseur ne commence alors pas avant la date d'état."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Jalons isolés à la fin du jour ouvré",
+      "help": "Un jalon isolé, ou un jalon de fin sans prédécesseur, se place à la fin de son jour ouvré."
+    },
+    "workdayDurationMeasure": {
+      "label": "Durée en jours ouvrés",
+      "help": "Une durée, un décalage ou une durée restante exprimés en jours se comptent en jours ouvrés : chaque jour ouvré compte pour 1, quelle que soit sa durée. Désactivé : un jour compte pour le nombre d’heures de travail par jour du calendrier. Un décalage en pourcentage suit l’unité du prédécesseur. Le temps écoulé ne se compte jamais en jours ouvrés."
     }
   },
   "profiles": {
@@ -1561,6 +1602,7 @@
       "float": "Marge et dates au plus tard",
       "instants": "Dates et instants du fichier",
       "msproject": "Avancement comme dans Microsoft Project",
+      "durations": "Durée et unité",
       "ownProfilesOnly": "Profils personnalisés uniquement"
     },
     "ownProfilesOnlyNote": "Ces conventions sont désactivées dans chaque profil intégré, y compris Primavera P6. Seul un profil personnalisé peut les activer : choisissez pour cela « Nouveau profil ».",

@@ -13,6 +13,7 @@
     "dismiss": "Fechar notificação",
     "taskEditRevertBlocked": "Uma alteração do assistente de IA ou de uma extensão ocorreu entretanto. As alterações da tarefa anteriores não foram revertidas e permanecem como passos normais em Desfazer.",
     "openFailed": "Falha ao abrir o ficheiro",
+    "csvInvalidDate": "CSV não aberto: data não reconhecida «{{value}}» na linha CSV {{row}}, coluna «{{column}}». Use aaaa-mm-dd, dd-mm-aaaa ou dd/mm/aaaa.",
     "extGuideCallbackFailed": "Um passo da extensão {{name}} falhou. O guia continua.",
     "extHelpProjectOpenFailed": "Não foi possível abrir o ficheiro de projeto {{file}} da extensão {{name}}.",
     "extImportFailed": "A importação com {{name}} falhou.",
@@ -91,6 +92,8 @@
     "browserCannotOverwrite": "Este navegador não permite que a aplicação volte a gravar em «{{name}}». Por isso, a aplicação pergunta novamente onde guardar o ficheiro sempre que guarda. Isto não acontece no Chrome, no Edge nem na aplicação de ambiente de trabalho.",
     "browserSavesAsDownload": "Guardado como transferência: «{{name}}» está na sua pasta de transferências. Este navegador não permite que a aplicação grave num local próprio, por isso cada gravação cria uma nova transferência. No Chrome, no Edge ou na aplicação de ambiente de trabalho, Guardar atualiza simplesmente o mesmo ficheiro.",
     "autoSaveFailed": "Falha no salvamento automático",
+    "recoveryManifestBlocked": "Os dados de recuperação têm uma versão desconhecida ou uma estrutura inválida. Esta aplicação deixa-os intactos e não consegue ler nem atualizar este conjunto de recuperação. Tente a versão da aplicação que criou as cópias ou uma versão mais recente. Guarde manualmente o novo trabalho.",
+    "recoveryStorageBlocked": "O armazenamento de recuperação está temporariamente bloqueado por outra ligação aberta. As cópias existentes mantêm-se; esta página não cria novas cópias de recuperação. Guarde manualmente o seu trabalho, feche os outros separadores com esta aplicação e recarregue esta página para tentar a recuperação de novo.",
     "recoveryReadFailed": "Não foi possível ler o ficheiro recuperado",
     "recoveryRestoreFailed": "Falha na restauração",
     "recoveryDocumentsSkipped_one": "{{count}} ficheiro de recuperação não pôde ser carregado e foi ignorado.",
@@ -156,7 +159,13 @@
     "referencesClearedOnPaste_many": "{{count}} de referências não existiam neste documento e foram limpas (calendários de tarefa, categorias de trabalho próprias, códigos de atividade ou campos personalizados do documento de origem).",
     "referencesClearedOnPaste_other": "{{count}} referências não existiam neste documento e foram limpas (calendários de tarefa, categorias de trabalho próprias, códigos de atividade ou campos personalizados do documento de origem).",
     "milestoneRefusedAssignments": "«{{task}}» tem atribuições de recursos e não pode tornar-se um marco. Remova primeiro as atribuições.",
+    "milestoneRefusedAssignmentsMany_one": "{{count}} tarefa tem atribuições de recursos e não pode tornar-se um marco. Remova primeiro as atribuições.",
+    "milestoneRefusedAssignmentsMany_many": "{{count}} de tarefas têm atribuições de recursos e não podem tornar-se marcos. Remova primeiro as atribuições.",
+    "milestoneRefusedAssignmentsMany_other": "{{count}} tarefas têm atribuições de recursos e não podem tornar-se marcos. Remova primeiro as atribuições.",
     "milestoneRefusedSummary": "«{{task}}» é uma tarefa de resumo com subtarefas e não pode tornar-se um marco.",
+    "milestoneRefusedSummaryMany_one": "{{count}} tarefa é uma tarefa de resumo com subtarefas e não pode tornar-se um marco.",
+    "milestoneRefusedSummaryMany_many": "{{count}} de tarefas são tarefas de resumo com subtarefas e não podem tornar-se marcos.",
+    "milestoneRefusedSummaryMany_other": "{{count}} tarefas são tarefas de resumo com subtarefas e não podem tornar-se marcos.",
     "assignmentsMovedToSubtask_one": "Atribuição movida para a subtarefa «{{child}}».",
     "assignmentsMovedToSubtask_many": "{{count}} atribuições movidas para a subtarefa «{{child}}».",
     "assignmentsMovedToSubtask_other": "{{count}} atribuições movidas para a subtarefa «{{child}}».",
@@ -164,6 +173,9 @@
     "assignmentsMovedToSubtasks_many": "Atribuições de {{count}} tarefas movidas para subtarefas.",
     "assignmentsMovedToSubtasks_other": "Atribuições de {{count}} tarefas movidas para subtarefas.",
     "milestoneClearedOnPhase": "«{{phase}}» já não é um marco.",
+    "milestoneClearedOnPhaseMany_one": "{{count}} tarefa deixou de ser um marco.",
+    "milestoneClearedOnPhaseMany_many": "{{count}} de tarefas deixaram de ser marcos.",
+    "milestoneClearedOnPhaseMany_other": "{{count}} tarefas deixaram de ser marcos.",
     "phaseRefusedNoAssignableChild": "«{{phase}}» não pode tornar-se uma tarefa de resumo: as suas atribuições não têm para onde ir, porque nenhuma das novas subtarefas pode ter atribuições (um marco ou uma tarefa de resumo). Nada foi alterado.",
     "phaseRefusedDuplicateResource": "«{{phase}}» não pode tornar-se uma tarefa de resumo: a atribuição de {{resource}} não pode passar para a nova subtarefa «{{child}}», porque esta já tem {{resource}}. Nada foi alterado.",
     "phaseQuestionOutdated": "As tarefas ou atribuições foram alteradas enquanto a pergunta estava aberta. Nada foi alterado; tente novamente.",
@@ -266,7 +278,11 @@
     "msProjectLostFixedCosts_other": "Os custos fixos de {{count}} tarefas não foram importados.",
     "msProjectLostResourceRates_one": "As tarifas de {{count}} recurso não foram importadas.",
     "msProjectLostResourceRates_many": "As tarifas de {{count}} recursos não foram importadas.",
-    "msProjectLostResourceRates_other": "As tarifas de {{count}} recursos não foram importadas."
+    "msProjectLostResourceRates_other": "As tarifas de {{count}} recursos não foram importadas.",
+    "minuteModelConverted_one": "{{document}}: {{count}} tarefa tem um início ou fim diferente após a conversão; o maior deslocamento é de {{days}} dias úteis. Ctrl+Z repõe as datas guardadas.",
+    "minuteModelConverted_many": "{{document}}: {{count}} de tarefas têm um início ou fim diferente após a conversão; o maior deslocamento é de {{days}} dias úteis. Ctrl+Z repõe as datas guardadas.",
+    "minuteModelConverted_other": "{{document}}: {{count}} tarefas têm um início ou fim diferente após a conversão; o maior deslocamento é de {{days}} dias úteis. Ctrl+Z repõe as datas guardadas.",
+    "minuteModelCalendarRepaired": "Calendário «{{calendar}}» foi corrigido: o fim ou a pausa não correspondia ao tempo de trabalho guardado."
   },
   "scheduleErrors": {
     "cycle": "Dependência circular entre tarefas: {{path}}",
@@ -368,6 +384,11 @@
     "languageHint": "O idioma de exibição da aplicação, aplicado imediatamente.",
     "version": "Versão",
     "versionHint": "O número de versão atual da aplicação.",
+    "experimentalSection": "Experimental",
+    "experimentalEmpty": "Neste momento não há funcionalidades experimentais.",
+    "experimentalHide": "Ocultar",
+    "demoTopbarAnimation": "Demo: animação na barra superior",
+    "demoTopbarAnimationHint": "Um brilho laranja suave que percorre a barra superior. Mostra como funciona um interruptor experimental.",
     "tourHint": "Repita o tour introdutório da aplicação.",
     "theme": "Tema",
     "themeHint": "O esquema de cores da interface.",
@@ -381,8 +402,12 @@
     "allowMixedDayHour": "Permitir planeamento misto de dias/horas",
     "defaultTaskDurationUnit": "Unidade predefinida para novas tarefas",
     "defaultTaskDurationUnitHint": "Define se as novas tarefas começam em dias úteis ou horas de trabalho. As tarefas existentes não mudam.",
+    "defaultTaskDurationUnitDays": "Unidade em dias",
+    "defaultTaskDurationUnitHours": "Unidade em horas",
+    "defaultTaskDurationUnitLocked": "O perfil {{profile}} calcula uma duração em horas. Por isso, as novas tarefas recebem a unidade em horas.",
     "durationDisplay": "Exibição da duração",
     "durationDisplayHint": "Determina como a duração da tarefa é exibida, independentemente da unidade em que a própria tarefa está registada.",
+    "durationDisplayOpsHint": "No perfil OPS, cada tarefa mostra a sua própria unidade.",
     "durationDisplayAuto": "Automática (unidade própria por tarefa)",
     "durationDisplayDays": "Sempre dias",
     "durationDisplayHours": "Sempre horas",
@@ -526,7 +551,10 @@
     "taskCount_many": "{{count}} tarefas",
     "taskCount_other": "{{count}} tarefas",
     "restore": "Restaurar",
-    "dontRestore": "Não restaurar"
+    "dontRestore": "Não restaurar",
+    "unreadableOnlyExplanation": "Nenhuma das cópias de recuperação pode ser lida. Guarde-as para uma tentativa de recuperação posterior ou elimine-as apenas se já não precisar delas. Não é possível anular a eliminação.",
+    "keepCopies": "Manter cópias",
+    "deleteCopies": "Eliminar cópias"
   },
   "window": {
     "minimize": "Minimizar",
@@ -545,7 +573,8 @@
   "project": {
     "untitled": "Novo planeamento",
     "imported": "Projeto importado",
-    "unassignedResource": "Não atribuído"
+    "unassignedResource": "Não atribuído",
+    "ifcBuildingModelUnsupported": "Este ficheiro IFC contém objetos de modelo de construção. A abertura está bloqueada, porque guardar removeria esses objetos. Edite o ficheiro de planeamento separado e junte-o depois ao modelo de construção."
   },
   "documents": {
     "overviewTitle": "Projetos abertos",
@@ -640,12 +669,14 @@
     "releaseNotes": "Novidades",
     "downloadInstall": "Baixar e instalar",
     "downloading": "Baixando…",
+    "preparingInstall": "A preparar a instalação…",
     "installing": "Instalando…",
     "restarting": "Reiniciando…",
     "retry": "Tentar novamente",
     "error": "Ocorreu um erro durante a atualização",
     "checking": "Verificando…",
     "snapNotice": "Esta versão é atualizada automaticamente pela Snap Store — você não precisa fazer nada.",
+    "packageManagerNotice": "Atualize através do seu gestor de pacotes (por exemplo, yay -Syu).",
     "debExplanation": "Atualize manualmente executando este comando num terminal, ou baixe o pacote mais recente.",
     "debCommandLabel": "Comando de instalação",
     "copyCommand": "Copiar comando",
@@ -742,6 +773,7 @@
     "companies": "Bibliotecas de recursos",
     "addCompany": "Adicionar biblioteca de recursos",
     "newCompany": "Nova biblioteca de recursos",
+    "defaultCompany": "A minha biblioteca de recursos",
     "companyName": "Nome da biblioteca",
     "removeCompany": "Remover biblioteca de recursos",
     "cannotRemoveLast": "A última biblioteca de recursos não pode ser removida.",
@@ -1377,6 +1409,7 @@
     "overrideDropped": "A ligação da linha {{row}} aponta para uma tarefa que já não existe e foi ignorada.",
     "moreRows": "…e mais {{more}}",
     "sheetRowHint": "linha {{row}} da folha",
+    "sheetTaskId": "ID da tarefa OPS: {{id}}",
     "dateOrderTitle": "Dia primeiro ou mês primeiro?",
     "dateOrderQuestion": "«{{sample}}» — que data é essa?",
     "dateOrderOptionA": "{{date}}",
@@ -1523,6 +1556,14 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "Tarefas ALAP tão tarde quanto as sucessoras permitem",
       "help": "Uma tarefa não iniciada com a restrição «o mais tarde possível» termina no minuto em que as sucessoras precisam dela, sucessoras primeiro, para que a cadeia fique ligada. O seu próprio início planeado não conta; uma tarefa sem predecessora não começa então antes da data de estado."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Marcos isolados no fim do dia útil",
+      "help": "Um marco isolado ou um marco de fim sem predecessora é colocado no fim do seu dia útil."
+    },
+    "workdayDurationMeasure": {
+      "label": "Duração em dias úteis",
+      "help": "Uma duração, um desfasamento ou uma duração restante em dias conta em dias úteis: cada dia útil conta como 1, por muito longo que seja esse dia. Desativado: um dia conta como o número de horas de trabalho por dia do calendário. Um desfasamento em percentagem segue a unidade da predecessora. O tempo decorrido nunca conta em dias úteis."
     }
   },
   "profiles": {
@@ -1561,6 +1602,7 @@
       "float": "Folga e datas mais tardias",
       "instants": "Datas e instantes do ficheiro",
       "msproject": "Progresso como no Microsoft Project",
+      "durations": "Duração e unidade",
       "ownProfilesOnly": "Apenas para perfis próprios"
     },
     "ownProfilesOnlyNote": "Estas convenções estão desativadas em todos os perfis integrados, incluindo o Primavera P6. Só um perfil próprio as pode ativar: escolha para isso «Novo perfil».",

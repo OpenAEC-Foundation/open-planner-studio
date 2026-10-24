@@ -13,6 +13,7 @@
     "dismiss": "알림 닫기",
     "taskEditRevertBlocked": "그 사이에 AI 도우미 또는 확장 프로그램의 변경이 있었습니다. 그 이전의 작업 편집은 되돌려지지 않았으며 실행 취소의 일반 단계로 남아 있습니다.",
     "openFailed": "파일을 열 수 없습니다",
+    "csvInvalidDate": "CSV 파일을 열 수 없습니다: CSV {{row}}행의 “{{column}}” 열에 읽을 수 없는 날짜가 있습니다: “{{value}}”. yyyy-mm-dd, dd-mm-yyyy 또는 dd/mm/yyyy 형식을 사용하세요.",
     "extGuideCallbackFailed": "확장 프로그램 {{name}}의 단계에서 오류가 발생했습니다. 안내는 계속됩니다.",
     "extHelpProjectOpenFailed": "확장 프로그램 {{name}}의 프로젝트 파일 {{file}}을(를) 열 수 없습니다.",
     "extImportFailed": "{{name}} 가져오기에 실패했습니다.",
@@ -61,6 +62,8 @@
     "browserCannotOverwrite": "이 브라우저에서는 앱이 '{{name}}'에 다시 쓸 수 없습니다. 그래서 저장할 때마다 파일을 어디에 둘지 다시 묻습니다. Chrome, Edge 또는 데스크톱 앱에서는 이런 일이 없습니다.",
     "browserSavesAsDownload": "다운로드로 저장됨: '{{name}}'이(가) 다운로드 폴더에 있습니다. 이 브라우저에서는 앱이 원하는 위치에 쓸 수 없으므로 저장할 때마다 새 다운로드가 만들어집니다. Chrome, Edge 또는 데스크톱 앱에서는 저장하면 같은 파일이 업데이트됩니다.",
     "autoSaveFailed": "자동 저장 실패",
+    "recoveryManifestBlocked": "복구 데이터의 버전을 알 수 없거나 구조가 올바르지 않습니다. 이 앱은 데이터를 건드리지 않으며, 이 복구 세트를 읽거나 업데이트할 수 없습니다. 복사본을 만든 앱 버전이나 더 최신 버전을 사용해 보세요. 새 변경 내용은 직접 저장하세요.",
+    "recoveryStorageBlocked": "다른 열린 연결 때문에 복구 저장소가 일시적으로 차단되었습니다. 기존 복사본은 유지되며, 이 페이지는 새 복구 복사본을 만들지 않습니다. 변경 내용을 직접 저장하고, 이 앱을 사용하는 다른 탭을 닫은 다음 이 페이지를 다시 불러와 복구를 다시 시도하세요.",
     "recoveryReadFailed": "복구된 파일을 읽을 수 없습니다",
     "recoveryRestoreFailed": "복원하지 못했습니다",
     "recoveryDocumentsSkipped_other": "복구 파일 {{count}}개를 불러올 수 없어 건너뛰었습니다.",
@@ -97,10 +100,13 @@
     "dragStartIsActual": "'{{name}}'이(가) 시작되었습니다. 시작은 실제 시작이므로 이동하지 않습니다. 진행률에서 변경하세요.",
     "dragDatesAreActual": "'{{name}}'이(가) 완료되었습니다. 시작과 종료는 실제 날짜이므로 이동하지 않습니다. 진행률에서 변경하세요.",
     "referencesClearedOnPaste_other": "{{count}}개의 참조가 이 문서에 없어 비워졌습니다(원본 문서의 작업 달력, 사용자 지정 공종, 활동 코드 또는 사용자 지정 필드).",
+    "milestoneRefusedAssignments": "“{{task}}”에 리소스 할당이 있어 마일스톤이 될 수 없습니다. 먼저 할당을 삭제하세요.",
     "milestoneRefusedAssignmentsMany_other": "리소스 할당이 있는 작업 {{count}}개는 마일스톤이 될 수 없습니다. 먼저 할당을 제거하세요.",
+    "milestoneRefusedSummary": "요약 작업 “{{task}}”에는 하위 작업이 있어 마일스톤이 될 수 없습니다.",
     "milestoneRefusedSummaryMany_other": "하위 작업이 있는 요약 작업 {{count}}개는 마일스톤이 될 수 없습니다.",
     "assignmentsMovedToSubtask_other": "할당 {{count}}개를 하위 작업 '{{child}}'(으)로 옮겼습니다.",
     "assignmentsMovedToSubtasks_other": "작업 {{count}}개의 할당을 하위 작업으로 옮겼습니다.",
+    "milestoneClearedOnPhase": "“{{phase}}”의 마일스톤 설정이 해제되었습니다.",
     "milestoneClearedOnPhaseMany_other": "작업 {{count}}개가 더 이상 마일스톤이 아닙니다.",
     "phaseRefusedNoAssignableChild": "'{{phase}}'은(는) 요약 작업이 될 수 없습니다. 새 하위 작업 중 할당을 가질 수 있는 작업이 없어(마일스톤 또는 요약 작업) 할당을 옮길 곳이 없습니다. 아무것도 변경하지 않았습니다.",
     "phaseRefusedDuplicateResource": "'{{phase}}'은(는) 요약 작업이 될 수 없습니다. 새 하위 작업 '{{child}}'에 이미 {{resource}}이(가) 있어 {{resource}} 할당을 옮길 수 없습니다. 아무것도 변경하지 않았습니다.",
@@ -158,7 +164,9 @@
     "msProjectLostNotes_other": "메모 {{count}}개를 가져오지 않았습니다.",
     "msProjectLostHyperlinks_other": "하이퍼링크 {{count}}개를 가져오지 않았습니다.",
     "msProjectLostFixedCosts_other": "작업 {{count}}개의 고정 비용을 가져오지 않았습니다.",
-    "msProjectLostResourceRates_other": "리소스 {{count}}개의 단가를 가져오지 않았습니다."
+    "msProjectLostResourceRates_other": "리소스 {{count}}개의 단가를 가져오지 않았습니다.",
+    "minuteModelConverted_other": "{{document}}: 변환 후 {{count}}개 작업의 시작 또는 완료일이 달라졌습니다. 가장 큰 이동은 {{days}}근무일입니다. Ctrl+Z를 누르면 저장된 날짜가 복원됩니다.",
+    "minuteModelCalendarRepaired": "달력 “{{calendar}}”의 종료 시각 또는 휴식 시간이 저장된 근무 시간과 맞지 않아 복구되었습니다."
   },
   "scheduleErrors": {
     "cycle": "작업 간 순환 관계: {{path}}",
@@ -258,6 +266,11 @@
     "languageHint": "앱의 표시 언어이며 즉시 적용됩니다.",
     "version": "버전",
     "versionHint": "앱의 현재 버전 번호입니다.",
+    "experimentalSection": "실험적 기능",
+    "experimentalEmpty": "현재 실험적 기능이 없습니다.",
+    "experimentalHide": "숨기기",
+    "demoTopbarAnimation": "데모: 상단 표시줄 애니메이션",
+    "demoTopbarAnimationHint": "상단 표시줄에 차분한 주황색 빛 물결이 지나갑니다. 실험적 기능 스위치가 어떻게 동작하는지 보여 줍니다.",
     "tourHint": "앱 소개 투어를 다시 진행합니다.",
     "theme": "테마",
     "themeHint": "인터페이스의 색상 구성.",
@@ -271,8 +284,12 @@
     "allowMixedDayHour": "일/시간 혼합 계획 허용",
     "defaultTaskDurationUnit": "새 작업의 기본 단위",
     "defaultTaskDurationUnitHint": "새 작업을 근무일 또는 근무 시간 중 어떤 단위로 시작할지 정합니다. 기존 작업은 바뀌지 않습니다.",
+    "defaultTaskDurationUnitDays": "일 단위",
+    "defaultTaskDurationUnitHours": "시간 단위",
+    "defaultTaskDurationUnitLocked": "{{profile}} 프로필은 기간을 시간으로 계산합니다. 따라서 새 작업에는 시간 단위가 적용됩니다.",
     "durationDisplay": "기간 표시",
     "durationDisplayHint": "작업 자체가 기록된 단위와 무관하게 작업 기간을 표시하는 방식을 결정합니다.",
+    "durationDisplayOpsHint": "OPS 프로필에서는 각 작업이 자체 단위로 기간을 표시합니다.",
     "durationDisplayAuto": "자동 (작업별 고유 단위)",
     "durationDisplayDays": "항상 일",
     "durationDisplayHours": "항상 시간",
@@ -414,7 +431,10 @@
     "timeLabel": "저장 시각",
     "taskCount_other": "{{count}}개 작업",
     "restore": "복원",
-    "dontRestore": "복원 안 함"
+    "dontRestore": "복원 안 함",
+    "unreadableOnlyExplanation": "복구 복사본을 하나도 읽을 수 없습니다. 나중에 복구를 다시 시도할 수 있도록 보관하세요. 더 이상 필요하지 않을 때만 삭제하세요. 삭제는 되돌릴 수 없습니다.",
+    "keepCopies": "복사본 보관",
+    "deleteCopies": "복사본 삭제"
   },
   "window": {
     "minimize": "최소화",
@@ -433,7 +453,8 @@
   "project": {
     "untitled": "새 계획",
     "imported": "가져온 프로젝트",
-    "unassignedResource": "미할당"
+    "unassignedResource": "미할당",
+    "ifcBuildingModelUnsupported": "이 IFC 파일에는 건물 모델 객체가 있습니다. 저장하면 이 객체가 삭제되므로 파일을 열 수 없습니다. 별도의 일정 파일을 편집한 다음, 나중에 건물 모델과 다시 병합하세요."
   },
   "documents": {
     "overviewTitle": "열린 프로젝트",
@@ -528,12 +549,14 @@
     "releaseNotes": "새로운 기능",
     "downloadInstall": "다운로드 및 설치",
     "downloading": "다운로드 중…",
+    "preparingInstall": "설치 준비 중…",
     "installing": "설치 중…",
     "restarting": "다시 시작하는 중…",
     "retry": "다시 시도",
     "error": "업데이트 중 문제가 발생했습니다",
     "checking": "확인 중…",
     "snapNotice": "이 버전은 Snap Store를 통해 자동으로 업데이트됩니다 — 아무것도 하지 않아도 됩니다.",
+    "packageManagerNotice": "패키지 관리자로 업데이트하세요 (예: yay -Syu).",
     "debExplanation": "터미널에서 이 명령을 실행하여 수동으로 업데이트하거나 최신 패키지를 다운로드하세요.",
     "debCommandLabel": "설치 명령",
     "copyCommand": "명령 복사",
@@ -630,6 +653,7 @@
     "companies": "리소스 라이브러리",
     "addCompany": "리소스 라이브러리 추가",
     "newCompany": "새 리소스 라이브러리",
+    "defaultCompany": "내 리소스 라이브러리",
     "companyName": "라이브러리 이름",
     "removeCompany": "리소스 라이브러리 삭제",
     "cannotRemoveLast": "마지막 리소스 라이브러리는 삭제할 수 없습니다.",
@@ -1239,6 +1263,7 @@
     "overrideDropped": "{{row}}행의 연결이 더 이상 존재하지 않는 작업을 가리켜 무시되었습니다.",
     "moreRows": "…외 {{more}}건 더",
     "sheetRowHint": "시트의 {{row}}행",
+    "sheetTaskId": "OPS 작업 ID: {{id}}",
     "dateOrderTitle": "일이 먼저인가요, 월이 먼저인가요?",
     "dateOrderQuestion": "“{{sample}}” — 어떤 날짜인가요?",
     "dateOrderOptionA": "{{date}}",
@@ -1385,6 +1410,14 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "ALAP 작업을 후속 작업이 허용하는 만큼 늦게",
       "help": "‘가능한 한 늦게’ 제약 조건이 있는 아직 시작되지 않은 작업은 후속 작업이 필요로 하는 분 단위 시점에 끝납니다. 후속 작업을 먼저 계산하므로 체인이 빈틈없이 이어집니다. 자체 계획 시작은 고려하지 않으며, 선행 작업이 없는 작업은 상태 날짜보다 먼저 시작하지 않습니다."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "단독 마일스톤을 근무일 끝에 배치",
+      "help": "단독 마일스톤 또는 선행 작업이 없는 완료 마일스톤은 해당 근무일 끝에 배치됩니다."
+    },
+    "workdayDurationMeasure": {
+      "label": "기간을 근무일 단위로",
+      "help": "일 단위 기간, 지연 또는 남은 기간은 근무일로 계산됩니다. 각 근무일은 길이와 관계없이 1로 계산됩니다. 끄면 하루가 달력의 하루 근무 시간 수로 계산됩니다. 퍼센트 지연은 선행 작업의 단위를 따릅니다. 경과 시간은 근무일로 계산되지 않습니다."
     }
   },
   "profiles": {
@@ -1423,6 +1456,7 @@
       "float": "여유 및 늦은 날짜",
       "instants": "파일의 날짜와 시각",
       "msproject": "Microsoft Project 방식의 진행",
+      "durations": "기간 및 단위",
       "ownProfilesOnly": "사용자 프로필 전용"
     },
     "ownProfilesOnlyNote": "이 규칙은 모든 기본 제공 프로필에서 꺼져 있습니다. 여기에는 Primavera P6 프로필도 포함됩니다. 켜려면 사용자 프로필만 가능하므로 ‘새 프로필’을 선택하세요.",

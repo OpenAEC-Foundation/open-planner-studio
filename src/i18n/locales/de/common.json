@@ -13,6 +13,7 @@
     "dismiss": "Benachrichtigung schließen",
     "taskEditRevertBlocked": "Eine Änderung des KI-Assistenten oder einer Erweiterung kam dazwischen. Die vorher vorgenommenen Vorgangsänderungen wurden nicht zurückgesetzt und bleiben als normale Schritte unter Rückgängig.",
     "openFailed": "Datei konnte nicht geöffnet werden",
+    "csvInvalidDate": "CSV nicht geöffnet: unlesbares Datum „{{value}}“ in CSV-Zeile {{row}}, Spalte „{{column}}“. Verwenden Sie JJJJ-MM-TT, TT-MM-JJJJ oder TT/MM/JJJJ.",
     "extGuideCallbackFailed": "Ein Schritt der Erweiterung {{name}} ist fehlgeschlagen. Die Anleitung läuft weiter.",
     "extHelpProjectOpenFailed": "Die Projektdatei {{file}} der Erweiterung {{name}} konnte nicht geöffnet werden.",
     "extImportFailed": "Der Import mit {{name}} ist fehlgeschlagen.",
@@ -76,6 +77,8 @@
     "browserCannotOverwrite": "Dieser Browser lässt die App nicht in „{{name}}“ zurückschreiben. Deshalb fragt die App bei jedem Speichern erneut, wohin die Datei soll. In Chrome, Edge oder der Desktop-App passiert das nicht.",
     "browserSavesAsDownload": "Als Download gespeichert: „{{name}}“ liegt in deinem Download-Ordner. Dieser Browser lässt die App nicht an einen eigenen Ort schreiben, daher erzeugt jedes Speichern einen neuen Download. In Chrome, Edge oder der Desktop-App aktualisiert Speichern einfach dieselbe Datei.",
     "autoSaveFailed": "Automatisches Speichern fehlgeschlagen",
+    "recoveryManifestBlocked": "Die Wiederherstellungsdaten haben eine unbekannte Version oder einen ungültigen Aufbau. Diese App lässt sie unverändert und kann diesen Wiederherstellungssatz weder lesen noch aktualisieren. Versuchen Sie die App-Version, die die Kopien erstellt hat, oder eine neuere Version. Speichern Sie neue Änderungen selbst.",
+    "recoveryStorageBlocked": "Der Wiederherstellungsspeicher ist vorübergehend durch eine andere offene Verbindung blockiert. Vorhandene Kopien bleiben erhalten; diese Seite erstellt keine neuen Wiederherstellungskopien. Speichern Sie Ihre Änderungen selbst, schließen Sie andere Tabs mit dieser App und laden Sie diese Seite neu, um die Wiederherstellung erneut zu versuchen.",
     "recoveryReadFailed": "Wiederhergestellte Datei konnte nicht gelesen werden",
     "recoveryRestoreFailed": "Wiederherstellung fehlgeschlagen",
     "recoveryDocumentsSkipped_one": "{{count}} Wiederherstellungsdatei konnte nicht geladen werden und wurde übersprungen.",
@@ -127,12 +130,18 @@
     "referencesClearedOnPaste_one": "{{count}} Verweis existierte in diesem Dokument nicht und wurde geleert (ein Vorgangskalender, eine benutzerdefinierte Arbeitskategorie, ein Aktivitätscode oder ein benutzerdefiniertes Feld aus dem Quelldokument).",
     "referencesClearedOnPaste_other": "{{count}} Verweise existierten in diesem Dokument nicht und wurden geleert (Vorgangskalender, benutzerdefinierte Arbeitskategorien, Aktivitätscodes oder benutzerdefinierte Felder aus dem Quelldokument).",
     "milestoneRefusedAssignments": "„{{task}}“ hat Ressourcenzuweisungen und kann kein Meilenstein werden. Entfernen Sie zuerst die Zuweisungen.",
+    "milestoneRefusedAssignmentsMany_one": "{{count}} Vorgang hat Ressourcenzuweisungen und kann kein Meilenstein werden. Entfernen Sie zuerst die Zuweisungen.",
+    "milestoneRefusedAssignmentsMany_other": "{{count}} Vorgänge haben Ressourcenzuweisungen und können keine Meilensteine werden. Entfernen Sie zuerst die Zuweisungen.",
     "milestoneRefusedSummary": "„{{task}}“ ist ein Sammelvorgang mit Teilvorgängen und kann kein Meilenstein werden.",
+    "milestoneRefusedSummaryMany_one": "{{count}} Vorgang ist ein Sammelvorgang mit Teilvorgängen und kann kein Meilenstein werden.",
+    "milestoneRefusedSummaryMany_other": "{{count}} Vorgänge sind Sammelvorgänge mit Teilvorgängen und können keine Meilensteine werden.",
     "assignmentsMovedToSubtask_one": "Zuweisung zum Teilvorgang „{{child}}“ verschoben.",
     "assignmentsMovedToSubtask_other": "{{count}} Zuweisungen zum Teilvorgang „{{child}}“ verschoben.",
     "assignmentsMovedToSubtasks_one": "Zuweisungen von {{count}} Vorgang in einen Teilvorgang verschoben.",
     "assignmentsMovedToSubtasks_other": "Zuweisungen von {{count}} Vorgängen in Teilvorgänge verschoben.",
     "milestoneClearedOnPhase": "„{{phase}}“ ist kein Meilenstein mehr.",
+    "milestoneClearedOnPhaseMany_one": "{{count}} Vorgang ist kein Meilenstein mehr.",
+    "milestoneClearedOnPhaseMany_other": "{{count}} Vorgänge sind keine Meilensteine mehr.",
     "phaseRefusedNoAssignableChild": "„{{phase}}“ kann kein Sammelvorgang werden: Ihre Zuweisungen können nirgendwohin, weil keine der neuen Teilvorgänge Zuweisungen tragen kann (ein Meilenstein oder ein Sammelvorgang). Es wurde nichts geändert.",
     "phaseRefusedDuplicateResource": "„{{phase}}“ kann kein Sammelvorgang werden: Die Zuweisung von {{resource}} kann nicht zum neuen Teilvorgang „{{child}}“, weil dieser {{resource}} bereits hat. Es wurde nichts geändert.",
     "phaseQuestionOutdated": "Die Vorgänge oder Zuweisungen haben sich geändert, während die Frage offen stand. Es wurde nichts geändert; versuchen Sie es erneut.",
@@ -212,7 +221,10 @@
     "msProjectLostFixedCosts_one": "Die Fixkosten von {{count}} Vorgang wurden nicht übernommen.",
     "msProjectLostFixedCosts_other": "Die Fixkosten von {{count}} Vorgängen wurden nicht übernommen.",
     "msProjectLostResourceRates_one": "Die Tarife von {{count}} Ressource wurden nicht übernommen.",
-    "msProjectLostResourceRates_other": "Die Tarife von {{count}} Ressourcen wurden nicht übernommen."
+    "msProjectLostResourceRates_other": "Die Tarife von {{count}} Ressourcen wurden nicht übernommen.",
+    "minuteModelConverted_one": "{{document}}: {{count}} Vorgang hat nach der Umwandlung einen anderen Anfang oder ein anderes Ende; die größte Verschiebung beträgt {{days}} Arbeitstage. Strg+Z setzt die gespeicherten Daten zurück.",
+    "minuteModelConverted_other": "{{document}}: {{count}} Vorgänge haben nach der Umwandlung einen anderen Anfang oder ein anderes Ende; die größte Verschiebung beträgt {{days}} Arbeitstage. Strg+Z setzt die gespeicherten Daten zurück.",
+    "minuteModelCalendarRepaired": "Kalender „{{calendar}}“ wurde korrigiert: das Ende oder die Pause passte nicht zur gespeicherten Arbeitszeit."
   },
   "scheduleErrors": {
     "cycle": "Zirkelbezug zwischen Vorgängen: {{path}}",
@@ -313,6 +325,11 @@
     "languageHint": "Die Anzeigesprache der App, sofort angewendet.",
     "version": "Version",
     "versionHint": "Die aktuelle Versionsnummer der App.",
+    "experimentalSection": "Experimentell",
+    "experimentalEmpty": "Derzeit gibt es keine experimentellen Funktionen.",
+    "experimentalHide": "Ausblenden",
+    "demoTopbarAnimation": "Demo: Animation in der oberen Leiste",
+    "demoTopbarAnimationHint": "Eine ruhige orange Glanzwelle in der oberen Leiste. Zeigt, wie ein experimenteller Schalter funktioniert.",
     "tourHint": "Wiederhole die einführende Tour durch die App.",
     "theme": "Design",
     "themeHint": "Das Farbschema der Benutzeroberfläche.",
@@ -326,8 +343,12 @@
     "allowMixedDayHour": "Gemischte Tages-/Stundenplanung zulassen",
     "defaultTaskDurationUnit": "Standardeinheit für neue Vorgänge",
     "defaultTaskDurationUnitHint": "Legt fest, ob neue Vorgänge in Arbeitstagen oder Arbeitsstunden beginnen. Bestehende Vorgänge ändern sich nicht.",
+    "defaultTaskDurationUnitDays": "Tagesmaß",
+    "defaultTaskDurationUnitHours": "Stundenmaß",
+    "defaultTaskDurationUnitLocked": "Das Profil {{profile}} rechnet eine Dauer in Stunden. Neue Vorgänge erhalten daher das Stundenmaß.",
     "durationDisplay": "Daueranzeige",
     "durationDisplayHint": "Legt fest, wie die Vorgangsdauer angezeigt wird, unabhängig von der Einheit, in der ein Vorgang selbst erfasst ist.",
+    "durationDisplayOpsHint": "Im OPS-Profil zeigt jeder Vorgang sein eigenes Maß.",
     "durationDisplayAuto": "Automatisch (eigene Einheit je Vorgang)",
     "durationDisplayDays": "Immer Tage",
     "durationDisplayHours": "Immer Stunden",
@@ -470,7 +491,10 @@
     "taskCount_one": "{{count}} Vorgang",
     "taskCount_other": "{{count}} Vorgänge",
     "restore": "Wiederherstellen",
-    "dontRestore": "Nicht wiederherstellen"
+    "dontRestore": "Nicht wiederherstellen",
+    "unreadableOnlyExplanation": "Keine der Wiederherstellungskopien kann gelesen werden. Bewahren Sie sie für einen späteren Wiederherstellungsversuch auf oder löschen Sie sie nur, wenn Sie sie nicht mehr benötigen. Das Löschen lässt sich nicht rückgängig machen.",
+    "keepCopies": "Kopien behalten",
+    "deleteCopies": "Kopien löschen"
   },
   "window": {
     "minimize": "Minimieren",
@@ -489,7 +513,8 @@
   "project": {
     "untitled": "Neue Planung",
     "imported": "Importiertes Projekt",
-    "unassignedResource": "Nicht zugewiesen"
+    "unassignedResource": "Nicht zugewiesen",
+    "ifcBuildingModelUnsupported": "Diese IFC-Datei enthält Objekte des Gebäudemodells. Das Öffnen ist blockiert, weil Speichern diese Objekte entfernen würde. Bearbeiten Sie die separate Terminplan-Datei und führen Sie sie danach mit dem Gebäudemodell wieder zusammen."
   },
   "documents": {
     "overviewTitle": "Offene Projekte",
@@ -584,12 +609,14 @@
     "releaseNotes": "Neuerungen",
     "downloadInstall": "Herunterladen & installieren",
     "downloading": "Wird heruntergeladen…",
+    "preparingInstall": "Installation wird vorbereitet…",
     "installing": "Wird installiert…",
     "restarting": "Neustart…",
     "retry": "Erneut versuchen",
     "error": "Beim Aktualisieren ist etwas schiefgelaufen",
     "checking": "Wird geprüft…",
     "snapNotice": "Diese Version wird automatisch über den Snap Store aktualisiert — Sie müssen nichts tun.",
+    "packageManagerNotice": "Aktualisieren Sie über Ihre Paketverwaltung (z. B. yay -Syu).",
     "debExplanation": "Aktualisieren Sie manuell, indem Sie diesen Befehl im Terminal ausführen, oder laden Sie das neueste Paket herunter.",
     "debCommandLabel": "Installationsbefehl",
     "copyCommand": "Befehl kopieren",
@@ -686,6 +713,7 @@
     "companies": "Ressourcenbibliotheken",
     "addCompany": "Ressourcenbibliothek hinzufügen",
     "newCompany": "Neue Ressourcenbibliothek",
+    "defaultCompany": "Meine Ressourcenbibliothek",
     "companyName": "Bibliotheksname",
     "removeCompany": "Ressourcenbibliothek entfernen",
     "cannotRemoveLast": "Die letzte Ressourcenbibliothek kann nicht entfernt werden.",
@@ -1308,6 +1336,7 @@
     "overrideDropped": "Die Verknüpfung für Zeile {{row}} verweist auf einen nicht mehr existierenden Vorgang und wurde ignoriert.",
     "moreRows": "…und {{more}} weitere",
     "sheetRowHint": "Zeile {{row}} im Blatt",
+    "sheetTaskId": "OPS-Vorgangs-ID: {{id}}",
     "dateOrderTitle": "Tag zuerst oder Monat zuerst?",
     "dateOrderQuestion": "„{{sample}}“ — welches Datum ist das?",
     "dateOrderOptionA": "{{date}}",
@@ -1454,6 +1483,14 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "ALAP-Vorgänge so spät, wie die Nachfolger es zulassen",
       "help": "Ein nicht begonnener Vorgang mit der Einschränkung „so spät wie möglich“ endet in der Minute, in der seine Nachfolger ihn brauchen, Nachfolger zuerst, damit eine Kette lückenlos anschließt. Sein eigener geplanter Anfang zählt nicht; ein Vorgang ohne Vorgänger beginnt dann nicht vor dem Statusdatum."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Lose Meilensteine am Ende des Arbeitstags",
+      "help": "Ein loser Meilenstein oder ein Endmeilenstein ohne Vorgänger steht am Ende seines Arbeitstags."
+    },
+    "workdayDurationMeasure": {
+      "label": "Dauer in Arbeitstagen",
+      "help": "Eine Dauer, ein Zeitabstand oder eine Restdauer in Tagen zählt in Arbeitstagen: Jeder Arbeitstag zählt als 1, egal wie lang dieser Tag ist. Aus: Ein Tag zählt als die Arbeitszeit pro Tag im Kalender. Ein Zeitabstand in Prozent folgt dem Maß des Vorgängers. Verstrichene Zeit zählt nie in Arbeitstagen."
     }
   },
   "profiles": {
@@ -1492,6 +1529,7 @@
       "float": "Puffer und späte Termine",
       "instants": "Termine und Zeitpunkte aus der Datei",
       "msproject": "Fortschritt wie in Microsoft Project",
+      "durations": "Dauer und Maß",
       "ownProfilesOnly": "Nur für eigene Profile"
     },
     "ownProfilesOnlyNote": "Diese Konventionen sind in jedem integrierten Berechnungsprofil ausgeschaltet, auch unter Primavera P6. Nur ein eigenes Berechnungsprofil kann sie einschalten: Wählen Sie dafür „Neues Profil“.",

@@ -13,6 +13,7 @@
     "dismiss": "Luk meddelelse",
     "taskEditRevertBlocked": "En ændring fra AI-assistenten eller en udvidelse kom imellem. De opgaveændringer før den er ikke fortrudt og står som almindelige trin under Fortryd.",
     "openFailed": "Kunne ikke åbne filen",
+    "csvInvalidDate": "CSV ikke åbnet: ulæselig dato „{{value}}“ i CSV-række {{row}}, kolonne „{{column}}“. Brug åååå-mm-dd, dd-mm-åååå eller dd/mm/åååå.",
     "extGuideCallbackFailed": "Et trin fra udvidelsen {{name}} gav en fejl. Vejledningen fortsætter.",
     "extHelpProjectOpenFailed": "Projektfilen {{file}} fra udvidelsen {{name}} kunne ikke åbnes.",
     "extImportFailed": "Import med {{name}} mislykkedes.",
@@ -76,6 +77,8 @@
     "browserCannotOverwrite": "Denne browser tillader ikke appen at skrive tilbage til '{{name}}'. Derfor spørger appen hver gang du gemmer, hvor filen skal ligge. I Chrome, Edge eller desktop-appen sker det ikke.",
     "browserSavesAsDownload": "Gemt som download: '{{name}}' ligger i din downloadmappe. Denne browser tillader ikke appen at skrive til en egen placering, så hver gemning laver en ny download. I Chrome, Edge eller desktop-appen opdaterer Gem blot den samme fil.",
     "autoSaveFailed": "Automatisk gem mislykkedes",
+    "recoveryManifestBlocked": "Gendannelsesdataene har en ukendt version eller en ugyldig struktur. Denne app lader dem være urørt og kan ikke læse eller opdatere dette gendannelsessæt. Prøv den appversion, der lavede kopierne, eller en nyere version. Gem nye ændringer selv.",
+    "recoveryStorageBlocked": "Gendannelseslagringen er midlertidigt blokeret af en anden åben forbindelse. Eksisterende kopier bevares; denne side laver ikke nye gendannelseskopier. Gem dine ændringer selv, luk andre faner med denne app, og genindlæs denne side for at prøve gendannelsen igen.",
     "recoveryReadFailed": "Den genoprettede fil kunne ikke læses",
     "recoveryRestoreFailed": "Gendannelse mislykkedes",
     "recoveryDocumentsSkipped_one": "{{count}} genoprettelsesfil kunne ikke indlæses og blev sprunget over.",
@@ -127,12 +130,18 @@
     "referencesClearedOnPaste_one": "{{count}} reference fandtes ikke i dette dokument og er blevet ryddet (en opgavekalender, en egen arbejdskategori, en opgavekode eller et brugerdefineret felt fra kildedokumentet).",
     "referencesClearedOnPaste_other": "{{count}} referencer fandtes ikke i dette dokument og er blevet ryddet (opgavekalendere, egne arbejdskategorier, opgavekoder eller brugerdefinerede felter fra kildedokumentet).",
     "milestoneRefusedAssignments": "'{{task}}' har ressource-tildelinger og kan ikke blive en milepæl. Slet tildelingerne først.",
+    "milestoneRefusedAssignmentsMany_one": "{{count}} opgave har ressourcetildelinger og kan ikke blive en milepæl. Fjern først tildelingerne.",
+    "milestoneRefusedAssignmentsMany_other": "{{count}} opgaver har ressourcetildelinger og kan ikke blive milepæle. Fjern først tildelingerne.",
     "milestoneRefusedSummary": "'{{task}}' er en hovedopgave med underopgaver og kan ikke blive en milepæl.",
+    "milestoneRefusedSummaryMany_one": "{{count}} opgave er en hovedopgave med underopgaver og kan ikke blive en milepæl.",
+    "milestoneRefusedSummaryMany_other": "{{count}} opgaver er hovedopgaver med underopgaver og kan ikke blive milepæle.",
     "assignmentsMovedToSubtask_one": "Tildelingen er flyttet til underopgaven '{{child}}'.",
     "assignmentsMovedToSubtask_other": "{{count}} tildelinger er flyttet til underopgaven '{{child}}'.",
     "assignmentsMovedToSubtasks_one": "Tildelingerne for {{count}} opgave er flyttet til en underopgave.",
     "assignmentsMovedToSubtasks_other": "Tildelingerne for {{count}} opgaver er flyttet til underopgaver.",
     "milestoneClearedOnPhase": "'{{phase}}' er ikke længere en milepæl.",
+    "milestoneClearedOnPhaseMany_one": "{{count}} opgave er ikke længere en milepæl.",
+    "milestoneClearedOnPhaseMany_other": "{{count}} opgaver er ikke længere milepæle.",
     "phaseRefusedNoAssignableChild": "'{{phase}}' kan ikke blive en hovedopgave: dens tildelinger har ingen steder at gå hen, fordi ingen af de nye underopgaver kan have tildelinger (en milepæl eller hovedopgave). Intet er ændret.",
     "phaseRefusedDuplicateResource": "'{{phase}}' kan ikke blive en hovedopgave: tildelingen af {{resource}} kan ikke overføres til den nye underopgave '{{child}}', for den har allerede {{resource}}. Intet er ændret.",
     "phaseQuestionOutdated": "Opgaverne eller tildelingerne er ændret, mens spørgsmålet var åbent. Der er ikke ændret noget. Prøv igen.",
@@ -212,7 +221,10 @@
     "msProjectLostFixedCosts_one": "De faste omkostninger for {{count}} opgave er ikke overtaget.",
     "msProjectLostFixedCosts_other": "De faste omkostninger for {{count}} opgaver er ikke overtaget.",
     "msProjectLostResourceRates_one": "Standardsatsen for {{count}} ressource er ikke overtaget.",
-    "msProjectLostResourceRates_other": "Standardsatserne for {{count}} ressourcer er ikke overtaget."
+    "msProjectLostResourceRates_other": "Standardsatserne for {{count}} ressourcer er ikke overtaget.",
+    "minuteModelConverted_one": "{{document}}: {{count}} opgave har efter konverteringen en anden start eller slutdato; den største forskydning er {{days}} arbejdsdage. Ctrl+Z gendanner de gemte datoer.",
+    "minuteModelConverted_other": "{{document}}: {{count}} opgaver har efter konverteringen en anden start eller slutdato; den største forskydning er {{days}} arbejdsdage. Ctrl+Z gendanner de gemte datoer.",
+    "minuteModelCalendarRepaired": "Kalender „{{calendar}}“ er repareret: slutningen eller pausen passede ikke til den gemte arbejdstid."
   },
   "scheduleErrors": {
     "cycle": "Cirkulær afhængighed mellem opgaver: {{path}}",
@@ -313,6 +325,11 @@
     "languageHint": "Appens visningssprog, med det samme taget i brug.",
     "version": "Version",
     "versionHint": "Appens aktuelle versionsnummer.",
+    "experimentalSection": "Eksperimentelt",
+    "experimentalEmpty": "Der er lige nu ingen eksperimentelle funktioner.",
+    "experimentalHide": "Skjul",
+    "demoTopbarAnimation": "Demo: animation i øverste linje",
+    "demoTopbarAnimationHint": "En rolig orange glansbølge hen over den øverste linje. Viser, hvordan en eksperimentel kontakt virker.",
     "tourHint": "Gennemgå appens introduktionsrundvisning igen.",
     "theme": "Tema",
     "themeHint": "Interfacets farveskema.",
@@ -326,8 +343,12 @@
     "allowMixedDayHour": "Tillad blandet dag/timeplanlægning",
     "defaultTaskDurationUnit": "Standardenhed for nye opgaver",
     "defaultTaskDurationUnitHint": "Bestemmer, om nye opgaver som standard starter i arbejdsdage eller arbejdstimer. Eksisterende opgaver ændrer sig ikke.",
+    "defaultTaskDurationUnitDays": "Dagsenhed",
+    "defaultTaskDurationUnitHours": "Timeenhed",
+    "defaultTaskDurationUnitLocked": "Profilen {{profile}} regner en varighed i timer. Nye opgaver får derfor timeenheden.",
     "durationDisplay": "Varighedsvisning",
     "durationDisplayHint": "Bestemmer, hvordan opgavevarighed vises, uafhængigt af den enhed opgaven selv er registreret i.",
+    "durationDisplayOpsHint": "I OPS-profilen viser hver opgave sin egen enhed.",
     "durationDisplayAuto": "Automatisk (egen enhed pr. opgave)",
     "durationDisplayDays": "Altid dage",
     "durationDisplayHours": "Altid timer",
@@ -470,7 +491,10 @@
     "taskCount_one": "{{count}} opgave",
     "taskCount_other": "{{count}} opgaver",
     "restore": "Gendan",
-    "dontRestore": "Gendan ikke"
+    "dontRestore": "Gendan ikke",
+    "unreadableOnlyExplanation": "Ingen af gendannelseskopierne kan læses. Behold dem til et senere gendannelsesforsøg, eller slet dem kun, hvis du ikke længere har brug for dem. Sletning kan ikke fortrydes.",
+    "keepCopies": "Behold kopier",
+    "deleteCopies": "Slet kopier"
   },
   "window": {
     "minimize": "Minimer",
@@ -489,7 +513,8 @@
   "project": {
     "untitled": "Ny tidsplan",
     "imported": "Importeret projekt",
-    "unassignedResource": "Ikke tildelt"
+    "unassignedResource": "Ikke tildelt",
+    "ifcBuildingModelUnsupported": "Denne IFC-fil indeholder objekter fra bygningsmodellen. Åbning er blokeret, fordi lagring ville slette disse objekter. Rediger den separate tidsplanfil, og flet den derefter sammen med bygningsmodellen igen."
   },
   "documents": {
     "overviewTitle": "Åbne projekter",
@@ -584,12 +609,14 @@
     "releaseNotes": "Hvad er nyt",
     "downloadInstall": "Download og installer",
     "downloading": "Downloader…",
+    "preparingInstall": "Forbereder installationen…",
     "installing": "Installerer…",
     "restarting": "Genstarter…",
     "retry": "Prøv igen",
     "error": "Noget gik galt under opdateringen",
     "checking": "Søger…",
     "snapNotice": "Denne version opdateres automatisk via Snap Store. Du behøver ikke gøre noget.",
+    "packageManagerNotice": "Opdater via din pakkehåndtering (fx yay -Syu).",
     "debExplanation": "Opdater manuelt ved at køre denne kommando i en terminal, eller download den nyeste pakke.",
     "debCommandLabel": "Installationskommando",
     "copyCommand": "Kopiér kommando",
@@ -686,6 +713,7 @@
     "companies": "Ressourcebiblioteker",
     "addCompany": "Tilføj ressourcebibliotek",
     "newCompany": "Nyt ressourcebibliotek",
+    "defaultCompany": "Mit ressourcebibliotek",
     "companyName": "Biblioteksnavn",
     "removeCompany": "Slet ressourcebibliotek",
     "cannotRemoveLast": "Det sidste ressourcebibliotek kan ikke slettes.",
@@ -1308,6 +1336,7 @@
     "overrideDropped": "Sammenkædningen for række {{row}} peger på en opgave der ikke længere findes og er ignoreret.",
     "moreRows": "…og {{more}} mere",
     "sheetRowHint": "række {{row}} i arket",
+    "sheetTaskId": "OPS Task ID: {{id}}",
     "dateOrderTitle": "Dag eller måned først?",
     "dateOrderQuestion": "“{{sample}}” — hvilken dato er det?",
     "dateOrderOptionA": "{{date}}",
@@ -1454,6 +1483,14 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "ALAP-opgaver så sent som de efterfølgende opgaver tillader",
       "help": "En ikke-startet opgave med begrænsningen „så sent som muligt“ slutter på det minut, hvor dens efterfølgende opgaver har brug for den, med de efterfølgende opgaver først, så en kæde hænger sammen. Dens egen planlagte start tæller ikke; en opgave uden foregående opgave starter så ikke før statusdatoen."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Løse milepæle ved arbejdsdagens slutning",
+      "help": "En løs milepæl eller en slutmilepæl uden foregående opgave placeres ved slutningen af dens arbejdsdag."
+    },
+    "workdayDurationMeasure": {
+      "label": "Varighed i arbejdsdage",
+      "help": "En varighed, forsinkelse eller resterende varighed i dage tælles i arbejdsdage: hver arbejdsdag tæller som 1, uanset hvor lang dagen er. Fra: en dag tæller som antallet af arbejdstimer pr. dag i kalenderen. En forsinkelse i procent følger enheden for den foregående opgave. Forløbet varighed tæller aldrig i arbejdsdage."
     }
   },
   "profiles": {
@@ -1492,6 +1529,7 @@
       "float": "Slæk og seneste datoer",
       "instants": "Datoer og tidspunkter fra filen",
       "msproject": "Fremdrift som i Microsoft Project",
+      "durations": "Varighed og enhed",
       "ownProfilesOnly": "Kun egne profiler"
     },
     "ownProfilesOnlyNote": "Disse konventioner er slået fra i alle indbyggede profiler, også i Primavera P6. Kun en egen beregningsprofil kan slå dem til. Vælg Ny profil for at gøre det.",

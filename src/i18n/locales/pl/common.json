@@ -13,6 +13,7 @@
     "dismiss": "Zamknij powiadomienie",
     "taskEditRevertBlocked": "W międzyczasie pojawiła się zmiana asystenta AI lub rozszerzenia. Wcześniejsze zmiany zadania nie zostały cofnięte i pozostają jako zwykłe kroki w Cofnij.",
     "openFailed": "Nie udało się otworzyć pliku",
+    "csvInvalidDate": "Nie otwarto pliku CSV: nieczytelna data „{{value}}” w wierszu CSV {{row}}, kolumna „{{column}}”. Użyj formatu rrrr-mm-dd, dd-mm-rrrr lub dd/mm/rrrr.",
     "extGuideCallbackFailed": "Krok rozszerzenia {{name}} zakończył się błędem. Przewodnik działa dalej.",
     "extHelpProjectOpenFailed": "Nie udało się otworzyć pliku projektu {{file}} z rozszerzenia {{name}}.",
     "extImportFailed": "Importowanie za pomocą {{name}} nie powiodło się.",
@@ -106,6 +107,8 @@
     "browserCannotOverwrite": "Ta przeglądarka nie pozwala aplikacji zapisać ponownie do „{{name}}”. Dlatego przy każdym zapisie aplikacja ponownie pyta, gdzie zapisać plik. W Chrome, Edge ani w aplikacji desktopowej tak się nie dzieje.",
     "browserSavesAsDownload": "Zapisano jako pobieranie: „{{name}}” jest w folderze pobranych plików. Ta przeglądarka nie pozwala aplikacji zapisywać we własnym miejscu, więc każdy zapis tworzy nowe pobieranie. W Chrome, Edge lub aplikacji desktopowej Zapisz po prostu aktualizuje ten sam plik.",
     "autoSaveFailed": "Błąd autozapisu",
+    "recoveryManifestBlocked": "Dane odzyskiwania mają nieznaną wersję albo nieprawidłową strukturę. Ta aplikacja zostawia je bez zmian i nie może odczytać ani zaktualizować tego zestawu odzyskiwania. Spróbuj wersji aplikacji, która utworzyła kopie, albo nowszej wersji. Zapisz nowe dane samodzielnie.",
+    "recoveryStorageBlocked": "Magazyn danych odzyskiwania jest tymczasowo zablokowany przez inne otwarte połączenie. Istniejące kopie pozostają; ta strona nie tworzy nowych kopii odzyskiwania. Zapisz samodzielnie swoje dane, zamknij inne karty z tą aplikacją i załaduj tę stronę ponownie, aby ponownie spróbować odzyskać dane.",
     "recoveryReadFailed": "Nie udało się odczytać odzyskanego pliku",
     "recoveryRestoreFailed": "Nie udało się przywrócić",
     "recoveryDocumentsSkipped_one": "{{count}} plik odzyskiwania nie mógł zostać wczytany i został pominięty.",
@@ -185,7 +188,15 @@
     "referencesClearedOnPaste_many": "{{count}} odwołań nie istniało w tym dokumencie i zostało wyczyszczone (kalendarzy zadań, własnych rodzajów robót, kodów czynności lub pól niestandardowych z dokumentu źródłowego).",
     "referencesClearedOnPaste_other": "{{count}} odwołania nie istniało w tym dokumencie i zostało wyczyszczone (kalendarz zadania, własny rodzaj robót, kod czynności lub pole niestandardowe z dokumentu źródłowego).",
     "milestoneRefusedAssignments": "„{{task}}” ma przydziały zasobów i nie może stać się kamieniem milowym. Najpierw usuń przydziały.",
+    "milestoneRefusedAssignmentsMany_one": "{{count}} zadanie ma przydziały zasobów i nie może stać się kamieniem milowym. Najpierw usuń te przydziały.",
+    "milestoneRefusedAssignmentsMany_few": "{{count}} zadania mają przydziały zasobów i nie mogą stać się kamieniami milowymi. Najpierw usuń te przydziały.",
+    "milestoneRefusedAssignmentsMany_many": "{{count}} zadań ma przydziały zasobów i nie może stać się kamieniem milowym. Najpierw usuń te przydziały.",
+    "milestoneRefusedAssignmentsMany_other": "{{count}} zadania mają przydziały zasobów i nie mogą stać się kamieniami milowymi. Najpierw usuń te przydziały.",
     "milestoneRefusedSummary": "„{{task}}” jest zadaniem sumarycznym z podzadaniami i nie może stać się kamieniem milowym.",
+    "milestoneRefusedSummaryMany_one": "{{count}} zadanie jest zadaniem sumarycznym z podzadaniami i nie może stać się kamieniem milowym.",
+    "milestoneRefusedSummaryMany_few": "{{count}} zadania są zadaniami sumarycznymi z podzadaniami i nie mogą stać się kamieniami milowymi.",
+    "milestoneRefusedSummaryMany_many": "{{count}} zadań jest zadaniami sumarycznymi z podzadaniami i nie może stać się kamieniem milowym.",
+    "milestoneRefusedSummaryMany_other": "{{count}} zadania są zadaniami sumarycznymi z podzadaniami i nie mogą stać się kamieniami milowymi.",
     "assignmentsMovedToSubtask_one": "Przydział przeniesiono do podzadania „{{child}}”.",
     "assignmentsMovedToSubtask_few": "{{count}} przydziały przeniesiono do podzadania „{{child}}”.",
     "assignmentsMovedToSubtask_many": "{{count}} przydziałów przeniesiono do podzadania „{{child}}”.",
@@ -195,6 +206,10 @@
     "assignmentsMovedToSubtasks_many": "Przydziały {{count}} zadań przeniesiono do podzadań.",
     "assignmentsMovedToSubtasks_other": "Przydziały {{count}} zadania przeniesiono do podzadań.",
     "milestoneClearedOnPhase": "„{{phase}}” nie jest już kamieniem milowym.",
+    "milestoneClearedOnPhaseMany_one": "{{count}} zadanie nie jest już kamieniem milowym.",
+    "milestoneClearedOnPhaseMany_few": "{{count}} zadania nie są już kamieniami milowymi.",
+    "milestoneClearedOnPhaseMany_many": "{{count}} zadań nie jest już kamieniem milowym.",
+    "milestoneClearedOnPhaseMany_other": "{{count}} zadania nie są już kamieniami milowymi.",
     "phaseRefusedNoAssignableChild": "„{{phase}}” nie może stać się zadaniem sumarycznym: jego przydziały nie mają dokąd trafić, bo żadne z nowych podzadań nie może mieć przydziałów (kamień milowy lub zadanie sumaryczne). Nic nie zmieniono.",
     "phaseRefusedDuplicateResource": "„{{phase}}” nie może stać się zadaniem sumarycznym: przydziału {{resource}} nie można przenieść do nowego podzadania „{{child}}”, bo ma ono już {{resource}}. Nic nie zmieniono.",
     "phaseQuestionOutdated": "Zadania lub przydziały zmieniły się, gdy pytanie było otwarte. Nic nie zostało zmienione. Spróbuj ponownie.",
@@ -320,7 +335,12 @@
     "msProjectLostResourceRates_one": "Stawka w {{count}} zasobie nie została zaimportowana.",
     "msProjectLostResourceRates_few": "Stawki w {{count}} zasobach nie zostały zaimportowane.",
     "msProjectLostResourceRates_many": "Stawki w {{count}} zasobach nie zostały zaimportowane.",
-    "msProjectLostResourceRates_other": "Stawka w {{count}} zasobie nie została zaimportowana."
+    "msProjectLostResourceRates_other": "Stawka w {{count}} zasobie nie została zaimportowana.",
+    "minuteModelConverted_one": "{{document}}: {{count}} zadanie ma po konwersji inny początek lub zakończenie; największe przesunięcie w dniach roboczych: {{days}}. Ctrl+Z przywraca zapisane daty.",
+    "minuteModelConverted_few": "{{document}}: {{count}} zadania mają po konwersji inny początek lub zakończenie; największe przesunięcie w dniach roboczych: {{days}}. Ctrl+Z przywraca zapisane daty.",
+    "minuteModelConverted_many": "{{document}}: {{count}} zadań ma po konwersji inny początek lub zakończenie; największe przesunięcie w dniach roboczych: {{days}}. Ctrl+Z przywraca zapisane daty.",
+    "minuteModelConverted_other": "{{document}}: {{count}} zadania mają po konwersji inny początek lub zakończenie; największe przesunięcie w dniach roboczych: {{days}}. Ctrl+Z przywraca zapisane daty.",
+    "minuteModelCalendarRepaired": "Kalendarz „{{calendar}}” został naprawiony: zakończenie lub przerwa nie odpowiadała zapisanym godzinom pracy."
   },
   "scheduleErrors": {
     "cycle": "Zależność cykliczna między zadaniami: {{path}}",
@@ -423,6 +443,11 @@
     "languageHint": "Język wyświetlania aplikacji, stosowany natychmiast.",
     "version": "Wersja",
     "versionHint": "Aktualny numer wersji aplikacji.",
+    "experimentalSection": "Eksperymentalne",
+    "experimentalEmpty": "Obecnie nie ma żadnych funkcji eksperymentalnych.",
+    "experimentalHide": "Ukryj",
+    "demoTopbarAnimation": "Demo: animacja w górnym pasku",
+    "demoTopbarAnimationHint": "Spokojna pomarańczowa fala połysku w górnym pasku. Pokazuje, jak działa eksperymentalny przełącznik.",
     "tourHint": "Powtórz wprowadzającą wycieczkę po aplikacji.",
     "theme": "Motyw",
     "themeHint": "Schemat kolorów interfejsu.",
@@ -436,8 +461,12 @@
     "allowMixedDayHour": "Zezwól na mieszane planowanie dniowo-godzinowe",
     "defaultTaskDurationUnit": "Domyślna jednostka nowych zadań",
     "defaultTaskDurationUnitHint": "Określa, czy nowe zadania zaczynają się w dniach roboczych, czy godzinach pracy. Istniejące zadania się nie zmieniają.",
+    "defaultTaskDurationUnitDays": "Miara w dniach",
+    "defaultTaskDurationUnitHours": "Miara w godzinach",
+    "defaultTaskDurationUnitLocked": "Profil {{profile}} liczy czas trwania w godzinach. Nowe zadania dostają dlatego miarę w godzinach.",
     "durationDisplay": "Wyświetlanie czasu trwania",
     "durationDisplayHint": "Określa sposób wyświetlania czasu trwania zadania, niezależnie od jednostki, w jakiej samo zadanie jest zapisane.",
+    "durationDisplayOpsHint": "W profilu OPS każde zadanie pokazuje własną miarę.",
     "durationDisplayAuto": "Automatycznie (własna jednostka dla zadania)",
     "durationDisplayDays": "Zawsze w dniach",
     "durationDisplayHours": "Zawsze w godzinach",
@@ -582,7 +611,10 @@
     "taskCount_many": "{{count}} zadań",
     "taskCount_other": "{{count}} zadania",
     "restore": "Przywróć",
-    "dontRestore": "Nie przywracaj"
+    "dontRestore": "Nie przywracaj",
+    "unreadableOnlyExplanation": "Żadnej z kopii odzyskiwania nie można odczytać. Zachowaj je do późniejszej próby odzyskiwania albo usuń je tylko wtedy, gdy już ich nie potrzebujesz. Usunięcia nie można cofnąć.",
+    "keepCopies": "Zachowaj kopie",
+    "deleteCopies": "Usuń kopie"
   },
   "window": {
     "minimize": "Minimalizuj",
@@ -601,7 +633,8 @@
   "project": {
     "untitled": "Nowy harmonogram",
     "imported": "Zaimportowany projekt",
-    "unassignedResource": "Nieprzypisany"
+    "unassignedResource": "Nieprzypisany",
+    "ifcBuildingModelUnsupported": "Ten plik IFC zawiera obiekty modelu budynku. Otwieranie jest zablokowane, ponieważ zapisanie usunęłoby te obiekty. Edytuj osobny plik harmonogramu, a potem połącz go z modelem budynku."
   },
   "documents": {
     "overviewTitle": "Otwarte projekty",
@@ -696,12 +729,14 @@
     "releaseNotes": "Co nowego",
     "downloadInstall": "Pobierz i zainstaluj",
     "downloading": "Pobieranie…",
+    "preparingInstall": "Przygotowywanie instalacji…",
     "installing": "Instalowanie…",
     "restarting": "Ponowne uruchamianie…",
     "retry": "Spróbuj ponownie",
     "error": "Coś poszło nie tak podczas aktualizacji",
     "checking": "Sprawdzanie…",
     "snapNotice": "Ta wersja jest aktualizowana automatycznie przez Snap Store — nie musisz nic robić.",
+    "packageManagerNotice": "Zaktualizuj przez menedżera pakietów (np. yay -Syu).",
     "debExplanation": "Zaktualizuj ręcznie, uruchamiając to polecenie w terminalu, lub pobierz najnowszy pakiet.",
     "debCommandLabel": "Polecenie instalacji",
     "copyCommand": "Kopiuj polecenie",
@@ -798,6 +833,7 @@
     "companies": "Biblioteki zasobów",
     "addCompany": "Dodaj bibliotekę zasobów",
     "newCompany": "Nowa biblioteka zasobów",
+    "defaultCompany": "Moja biblioteka zasobów",
     "companyName": "Nazwa biblioteki",
     "removeCompany": "Usuń bibliotekę zasobów",
     "cannotRemoveLast": "Nie można usunąć ostatniej biblioteki zasobów.",
@@ -1446,6 +1482,7 @@
     "overrideDropped": "Powiązanie wiersza {{row}} wskazuje na zadanie, które już nie istnieje, i zostało zignorowane.",
     "moreRows": "…i jeszcze {{more}}",
     "sheetRowHint": "wiersz {{row}} w arkuszu",
+    "sheetTaskId": "ID zadania OPS: {{id}}",
     "dateOrderTitle": "Najpierw dzień czy najpierw miesiąc?",
     "dateOrderQuestion": "„{{sample}}” — o którą datę chodzi?",
     "dateOrderOptionA": "{{date}}",
@@ -1592,6 +1629,14 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "Zadania ALAP tak późno, jak pozwalają następniki",
       "help": "Nierozpoczęte zadanie z ograniczeniem „jak najpóźniej” kończy się co do minuty, w której potrzebują go następniki, najpierw następniki, tak aby łańcuch się domknął. Jego własne planowane rozpoczęcie się nie liczy; zadanie bez poprzednika nie zaczyna się wtedy wcześniej niż w dacie statusu."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Pojedyncze kamienie milowe na końcu dnia roboczego",
+      "help": "Pojedynczy kamień milowy lub kamień milowy zakończenia bez poprzednika trafia na koniec swojego dnia roboczego."
+    },
+    "workdayDurationMeasure": {
+      "label": "Czas trwania w dniach roboczych",
+      "help": "Czas trwania, opóźnienie lub pozostały czas trwania w dniach liczy się w dniach roboczych: każdy dzień roboczy liczy się jako 1, niezależnie od tego, jak długi jest ten dzień. Wyłączone: dzień liczy się jako liczba godzin pracy dziennie według kalendarza. Opóźnienie w procentach podąża za miarą poprzednika. Czas, który upłynął, nigdy nie liczy się w dniach roboczych."
     }
   },
   "profiles": {
@@ -1630,6 +1675,7 @@
       "float": "Zapas i późne terminy",
       "instants": "Daty i chwile z pliku",
       "msproject": "Postęp jak w Microsoft Project",
+      "durations": "Czas trwania i miara",
       "ownProfilesOnly": "Tylko dla własnych profili"
     },
     "ownProfilesOnlyNote": "Te konwencje są wyłączone w każdym wbudowanym profilu, także w Primavera P6. Włączyć je może tylko własny profil: wybierz do tego Nowy profil.",

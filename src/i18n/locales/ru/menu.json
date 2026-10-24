@@ -422,6 +422,8 @@
     "quarantineEmptyName": "Недопустимое расширение",
     "catalogEntriesSkipped": "Записи каталога пропущены ({{count}}).",
     "storageWriteFailed": "Не удалось сохранить состояние расширения.",
+    "minAppVersionRequired": "Требуется Open Planner Studio ≥ {{minVersion}} (текущая версия: {{appVersion}})",
+    "missingPermission": "Расширение «{{extensionId}}» не имеет разрешения: {{permission}}",
     "import": "Импорт",
     "importSubtitle": "Импортируйте данные проекта через установленные расширения.",
     "importEmpty": "Расширения импорта не установлены. Добавьте их в разделе «Расширения»."

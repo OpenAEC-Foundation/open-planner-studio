@@ -4,6 +4,7 @@
     "applyShape": "Použít tvar:",
     "hoursPerDay": "{{hours}} h za pracovní den",
     "stripHint": "Přetáhněte hranici a prodlužte nebo zkraťte fázi. Přetáhněte horní okraj a nastavte jednotky přiřazení. Dvojklikem na den fázi rozdělte.",
+    "partialDayHint": "Začíná-li nebo končí-li úkol uprostřed pracovního dne, počítá se tento den poměrně: hodiny jsou dány jednotkami přiřazení × částí dne. Histogram se počítá stejně.",
     "from": "Od",
     "to": "Do",
     "days": "Dny",
@@ -182,6 +183,7 @@
       "calendarNotFound": "Zvolený kalendář neexistuje.",
       "calendarHours": "Kalendář tohoto úkolu nemá pracovní hodiny za den.",
       "durationConversionNotExact": "Tuto dobu trvání nelze přesně převést na druhou jednotku.",
+      "fixedWorkIsHours": "Úkol typu pevná práce má vždy jednotku hodin.",
       "milestoneRequired": "Toto pole platí jen pro milníky.",
       "milestoneUnavailable": "Souhrnný úkol s dílčími úkoly nemůže být milník.",
       "actualAfterStatusDate": "Skutečné datum je po datu stavu.",
@@ -462,6 +464,7 @@
     "jumpToTask": "Přejít na úkol {{wbs}}",
     "relationPopoverTitle": "Typ závislosti",
     "driving": "Hnací vazba (driving)",
+    "drivingUnknown": "Hnací vazby jsou bez výpočtu neznámé.",
     "lag": "Prodleva (např. 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Přepočítat",
     "assignments": {
@@ -526,6 +529,8 @@
     "type": "Typ",
     "lag": "Prodleva",
     "driving": "Hnací",
+    "drivingUnknown": "Neznámá",
+    "notDriving": "Není hnací vazba",
     "freeFloat": "Volná časová rezerva",
     "warnings": "Upozornění",
     "warnTruncatedLead": "Předstih ořezán na zahájení projektu — překryv není využit úplně",
@@ -659,5 +664,11 @@
     "pieceHours_many": "Část: {{count}} hodiny",
     "pieceHours_other": "Část: {{count}} hodin",
     "merged": "Sloučit"
+  },
+  "dateTimeInput": {
+    "time": "Čas: {{field}}",
+    "timeHint": "Prázdné: začátek nebo konec pracovního dne. S časem: přesně tento okamžik.",
+    "later": "O čtvrt hodiny později",
+    "earlier": "O čtvrt hodiny dříve"
   }
 }

@@ -13,6 +13,7 @@
     "dismiss": "关闭通知",
     "taskEditRevertBlocked": "AI 助手或扩展在此期间进行了更改。此前的任务修改未被还原，仍作为普通步骤保留在“撤销”中。",
     "openFailed": "打开文件失败",
+    "csvInvalidDate": "未打开 CSV: 第 {{row}} 行, 列 “{{column}}” 中的日期 “{{value}}” 无法识别. 请使用 yyyy-mm-dd, dd-mm-yyyy 或 dd/mm/yyyy.",
     "extGuideCallbackFailed": "扩展 {{name}} 的一个步骤出错。引导将继续。",
     "extHelpProjectOpenFailed": "无法打开扩展 {{name}} 的项目文件 {{file}}。",
     "extImportFailed": "使用 {{name}} 导入失败。",
@@ -61,6 +62,8 @@
     "browserCannotOverwrite": "此浏览器不允许应用写回“{{name}}”。因此每次保存时，应用都会再次询问文件的保存位置。在 Chrome、Edge 或桌面应用中不会出现这种情况。",
     "browserSavesAsDownload": "已作为下载保存：“{{name}}”位于你的下载文件夹中。此浏览器不允许应用写入自选位置，因此每次保存都会生成一个新的下载。在 Chrome、Edge 或桌面应用中，保存只会更新同一个文件。",
     "autoSaveFailed": "自动保存失败",
+    "recoveryManifestBlocked": "恢复数据的版本未知, 或结构无效. 本应用不会改动这些数据, 也无法读取或更新此恢复集. 请尝试使用创建这些副本的应用版本, 或更新的版本. 请自行保存你的更改.",
+    "recoveryStorageBlocked": "另一个已打开的连接暂时阻止了恢复存储. 现有副本会保留; 此页面不会创建新的恢复副本. 请自行保存你的更改, 关闭其他运行本应用的标签页, 然后重新加载此页面以再次尝试恢复.",
     "recoveryReadFailed": "无法读取恢复的文件",
     "recoveryRestoreFailed": "恢复失败",
     "recoveryDocumentsSkipped_other": "有 {{count}} 个恢复文件无法加载，已被跳过。",
@@ -97,10 +100,13 @@
     "dragStartIsActual": "“{{name}}”已开始：其开始日期为实际开始日期，不会移动。请通过进度进行更改。",
     "dragDatesAreActual": "“{{name}}”已完成：其开始和完成日期为实际日期，不会移动。请通过进度进行更改。",
     "referencesClearedOnPaste_other": "{{count}} 个引用在本文档中不存在，已被清除（来自源文档的任务日历、自定义工作类别、活动代码或自定义字段）。",
+    "milestoneRefusedAssignments": "“{{task}}” 有资源分配, 无法变为里程碑. 请先删除资源分配.",
     "milestoneRefusedAssignmentsMany_other": "{{count}} 个任务有资源分配，无法变为里程碑。请先移除这些分配。",
+    "milestoneRefusedSummary": "“{{task}}” 是带有子任务的摘要任务, 无法变为里程碑.",
     "milestoneRefusedSummaryMany_other": "{{count}} 个任务是带子任务的摘要任务，无法变为里程碑。",
     "assignmentsMovedToSubtask_other": "{{count}} 个分配已移至子任务“{{child}}”。",
     "assignmentsMovedToSubtasks_other": "{{count}} 个任务的分配已移至子任务。",
+    "milestoneClearedOnPhase": "“{{phase}}” 不再是里程碑.",
     "milestoneClearedOnPhaseMany_other": "{{count}} 个任务不再是里程碑。",
     "phaseRefusedNoAssignableChild": "“{{phase}}”无法变成摘要任务：它的分配无处可去，因为新子任务都不能承载分配（里程碑或摘要任务）。未做任何更改。",
     "phaseRefusedDuplicateResource": "“{{phase}}”无法变成摘要任务：{{resource}} 的分配无法移至新子任务“{{child}}”，因为它已有 {{resource}}。未做任何更改。",
@@ -158,7 +164,9 @@
     "msProjectLostNotes_other": "{{count}} 条备注未导入。",
     "msProjectLostHyperlinks_other": "{{count}} 个超链接未导入。",
     "msProjectLostFixedCosts_other": "{{count}} 个任务的固定成本未导入。",
-    "msProjectLostResourceRates_other": "{{count}} 个资源的费率未导入。"
+    "msProjectLostResourceRates_other": "{{count}} 个资源的费率未导入。",
+    "minuteModelConverted_other": "{{document}}: {{count}} 个任务在转换后的开始或完成日期不同; 最大偏移为 {{days}} 个工作日. 按 Ctrl+Z 恢复已记录的日期.",
+    "minuteModelCalendarRepaired": "日历 “{{calendar}}” 已修复: 结束时间或休息时间与已保存的工作时间不符."
   },
   "scheduleErrors": {
     "cycle": "任务之间存在循环依赖：{{path}}",
@@ -258,6 +266,11 @@
     "languageHint": "应用的显示语言，立即生效。",
     "version": "版本",
     "versionHint": "应用的当前版本号。",
+    "experimentalSection": "实验性",
+    "experimentalEmpty": "目前没有实验性功能.",
+    "experimentalHide": "隐藏",
+    "demoTopbarAnimation": "演示: 顶栏动画",
+    "demoTopbarAnimationHint": "顶栏中有一道平缓的橙色光泽波纹. 用于演示实验性开关的工作方式.",
     "tourHint": "重新查看应用的入门导览。",
     "theme": "主题",
     "themeHint": "界面的配色方案。",
@@ -271,8 +284,12 @@
     "allowMixedDayHour": "允许混合按天/按小时计划",
     "defaultTaskDurationUnit": "新任务的默认单位",
     "defaultTaskDurationUnitHint": "决定新任务以工作日还是工作小时开始。现有任务不会改变。",
+    "defaultTaskDurationUnitDays": "天单位",
+    "defaultTaskDurationUnitHours": "小时单位",
+    "defaultTaskDurationUnitLocked": "{{profile}} 配置按小时计算工期. 因此新任务使用小时单位.",
     "durationDisplay": "工期显示",
     "durationDisplayHint": "决定任务工期的显示方式，与任务本身记录的单位无关。",
+    "durationDisplayOpsHint": "在 OPS 配置中, 每个任务显示自己的单位.",
     "durationDisplayAuto": "自动（按任务自身单位）",
     "durationDisplayDays": "始终按天",
     "durationDisplayHours": "始终按小时",
@@ -414,7 +431,10 @@
     "timeLabel": "保存时间",
     "taskCount_other": "{{count}} 个任务",
     "restore": "恢复",
-    "dontRestore": "不恢复"
+    "dontRestore": "不恢复",
+    "unreadableOnlyExplanation": "无法读取任何恢复副本. 请保留这些副本以便稍后再尝试恢复, 或仅在不再需要时删除. 删除无法撤销.",
+    "keepCopies": "保留副本",
+    "deleteCopies": "删除副本"
   },
   "window": {
     "minimize": "最小化",
@@ -433,7 +453,8 @@
   "project": {
     "untitled": "新建计划",
     "imported": "导入的项目",
-    "unassignedResource": "未分配"
+    "unassignedResource": "未分配",
+    "ifcBuildingModelUnsupported": "此 IFC 文件包含建筑模型对象. 打开已被阻止, 因为保存时会删除这些对象. 请编辑单独的计划文件, 然后再与建筑模型重新合并."
   },
   "documents": {
     "overviewTitle": "打开的项目",
@@ -528,12 +549,14 @@
     "releaseNotes": "更新内容",
     "downloadInstall": "下载并安装",
     "downloading": "正在下载…",
+    "preparingInstall": "正在准备安装…",
     "installing": "正在安装…",
     "restarting": "正在重启…",
     "retry": "重试",
     "error": "更新时出现问题",
     "checking": "正在检查…",
     "snapNotice": "此版本通过 Snap Store 自动更新 — 您无需执行任何操作。",
+    "packageManagerNotice": "请通过你的包管理器更新 (例如 yay -Syu).",
     "debExplanation": "在终端中运行此命令以手动更新，或下载最新的软件包。",
     "debCommandLabel": "安装命令",
     "copyCommand": "复制命令",
@@ -630,6 +653,7 @@
     "companies": "资源库",
     "addCompany": "添加资源库",
     "newCompany": "新建资源库",
+    "defaultCompany": "我的资源库",
     "companyName": "资源库名称",
     "removeCompany": "删除资源库",
     "cannotRemoveLast": "无法删除最后一个资源库。",
@@ -1239,6 +1263,7 @@
     "overrideDropped": "第 {{row}} 行的关联指向一个已不存在的任务，已被忽略。",
     "moreRows": "……还有 {{more}} 条",
     "sheetRowHint": "表中第 {{row}} 行",
+    "sheetTaskId": "OPS 任务 ID: {{id}}",
     "dateOrderTitle": "日在前还是月在前？",
     "dateOrderQuestion": "“{{sample}}”——这是哪个日期？",
     "dateOrderOptionA": "{{date}}",
@@ -1385,6 +1410,14 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "ALAP 任务尽可能晚，以后续任务允许为限",
       "help": "带有“越晚越好”约束的未开始任务，会在其后续任务需要它的那一分钟结束。先计算后续任务，使链条首尾相接。其自身的计划开始不计入；没有前置任务的任务，则不早于状态日期开始。"
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "工作日结束时的独立里程碑",
+      "help": "没有前置任务的独立里程碑或完成里程碑, 会放在其工作日结束时."
+    },
+    "workdayDurationMeasure": {
+      "label": "工期以工作日计",
+      "help": "以天为单位的工期、延隔或剩余工期按工作日计算: 每个工作日计为 1, 无论该日有多长. 关闭时: 一天按日历中每天的工作小时数计算. 按百分比的延隔跟随前置任务的单位. 已用时间永远不按工作日计算."
     }
   },
   "profiles": {
@@ -1423,6 +1456,7 @@
       "float": "浮时与最晚日期",
       "instants": "文件中的日期与时刻",
       "msproject": "按 Microsoft Project 的进度",
+      "durations": "工期和单位",
       "ownProfilesOnly": "仅用于自定义配置"
     },
     "ownProfilesOnlyNote": "这些约定在每个内置计算配置文件中都是关闭的，包括 Primavera P6。只有自定义计算配置文件才能开启它们：为此请选择“新建配置文件”。",

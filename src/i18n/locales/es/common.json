@@ -13,6 +13,7 @@
     "dismiss": "Cerrar notificación",
     "taskEditRevertBlocked": "Un cambio del asistente de IA o de una extensión se produjo entremedias. Las modificaciones de la tarea anteriores no se revirtieron y quedan como pasos normales en Deshacer.",
     "openFailed": "No se pudo abrir el archivo",
+    "csvInvalidDate": "No se ha abierto el CSV: fecha no legible «{{value}}» en la fila {{row}}, columna «{{column}}». Use aaaa-mm-dd, dd-mm-aaaa o dd/mm/aaaa.",
     "extGuideCallbackFailed": "Un paso de la extensión {{name}} ha fallado. La guía continúa.",
     "extHelpProjectOpenFailed": "No se pudo abrir el archivo de proyecto {{file}} de la extensión {{name}}.",
     "extImportFailed": "La importación con {{name}} ha fallado.",
@@ -91,6 +92,8 @@
     "browserCannotOverwrite": "Este navegador no permite que la aplicación vuelva a escribir en «{{name}}». Por eso la aplicación pregunta de nuevo dónde guardar el archivo cada vez que guardas. Esto no ocurre en Chrome, Edge ni en la aplicación de escritorio.",
     "browserSavesAsDownload": "Guardado como descarga: «{{name}}» está en tu carpeta de descargas. Este navegador no permite que la aplicación escriba en una ubicación propia, así que cada guardado crea una descarga nueva. En Chrome, Edge o la aplicación de escritorio, Guardar simplemente actualiza el mismo archivo.",
     "autoSaveFailed": "Error de guardado automático",
+    "recoveryManifestBlocked": "Los datos de recuperación tienen una versión desconocida o una estructura no válida. Esta aplicación no los modifica y no puede leer ni actualizar este conjunto de recuperación. Pruebe con la versión de la aplicación que creó las copias o con una más reciente. Guarde usted mismo los cambios nuevos.",
+    "recoveryStorageBlocked": "El almacenamiento de recuperación está bloqueado temporalmente por otra conexión abierta. Las copias existentes se conservan; esta página no crea nuevas copias de recuperación. Guarde usted mismo los cambios, cierre las demás pestañas con esta aplicación y vuelva a cargar esta página para intentar la recuperación de nuevo.",
     "recoveryReadFailed": "No se pudo leer el archivo recuperado",
     "recoveryRestoreFailed": "No se pudo restaurar",
     "recoveryDocumentsSkipped_one": "{{count}} archivo de recuperación no se pudo cargar y se omitió.",
@@ -156,7 +159,13 @@
     "referencesClearedOnPaste_many": "{{count}} de referencias no existían en este documento y se han borrado (calendarios de tarea, categorías de trabajo personalizadas, códigos de actividad o campos personalizados del documento de origen).",
     "referencesClearedOnPaste_other": "{{count}} referencias no existían en este documento y se han borrado (calendarios de tarea, categorías de trabajo personalizadas, códigos de actividad o campos personalizados del documento de origen).",
     "milestoneRefusedAssignments": "«{{task}}» tiene asignaciones de recursos y no puede convertirse en hito. Elimine primero las asignaciones.",
+    "milestoneRefusedAssignmentsMany_one": "{{count}} tarea tiene asignaciones de recursos y no puede convertirse en hito. Elimine primero las asignaciones.",
+    "milestoneRefusedAssignmentsMany_many": "{{count}} de tareas tienen asignaciones de recursos y no pueden convertirse en hitos. Elimine primero las asignaciones.",
+    "milestoneRefusedAssignmentsMany_other": "{{count}} tareas tienen asignaciones de recursos y no pueden convertirse en hitos. Elimine primero las asignaciones.",
     "milestoneRefusedSummary": "«{{task}}» es una tarea de resumen con subtareas y no puede convertirse en hito.",
+    "milestoneRefusedSummaryMany_one": "{{count}} tarea es una tarea de resumen con subtareas y no puede convertirse en hito.",
+    "milestoneRefusedSummaryMany_many": "{{count}} de tareas son tareas de resumen con subtareas y no pueden convertirse en hitos.",
+    "milestoneRefusedSummaryMany_other": "{{count}} tareas son tareas de resumen con subtareas y no pueden convertirse en hitos.",
     "assignmentsMovedToSubtask_one": "Asignación movida a la subtarea «{{child}}».",
     "assignmentsMovedToSubtask_many": "{{count}} asignaciones movidas a la subtarea «{{child}}».",
     "assignmentsMovedToSubtask_other": "{{count}} asignaciones movidas a la subtarea «{{child}}».",
@@ -164,6 +173,9 @@
     "assignmentsMovedToSubtasks_many": "Asignaciones de {{count}} tareas movidas a subtareas.",
     "assignmentsMovedToSubtasks_other": "Asignaciones de {{count}} tareas movidas a subtareas.",
     "milestoneClearedOnPhase": "«{{phase}}» ya no es un hito.",
+    "milestoneClearedOnPhaseMany_one": "{{count}} tarea ya no es un hito.",
+    "milestoneClearedOnPhaseMany_many": "{{count}} de tareas ya no son hitos.",
+    "milestoneClearedOnPhaseMany_other": "{{count}} tareas ya no son hitos.",
     "phaseRefusedNoAssignableChild": "«{{phase}}» no puede convertirse en tarea de resumen: sus asignaciones no tienen adónde ir, porque ninguna de las nuevas subtareas puede llevar asignaciones (un hito o una tarea de resumen). No se ha cambiado nada.",
     "phaseRefusedDuplicateResource": "«{{phase}}» no puede convertirse en tarea de resumen: la asignación de {{resource}} no puede pasar a la nueva subtarea «{{child}}», porque ya tiene {{resource}}. No se ha cambiado nada.",
     "phaseQuestionOutdated": "Las tareas o asignaciones han cambiado mientras la pregunta estaba abierta. No se ha modificado nada; vuelva a intentarlo.",
@@ -266,7 +278,11 @@
     "msProjectLostFixedCosts_other": "No se han importado los costes fijos de {{count}} tareas.",
     "msProjectLostResourceRates_one": "No se han importado las tarifas de {{count}} recurso.",
     "msProjectLostResourceRates_many": "No se han importado las tarifas de {{count}} recursos.",
-    "msProjectLostResourceRates_other": "No se han importado las tarifas de {{count}} recursos."
+    "msProjectLostResourceRates_other": "No se han importado las tarifas de {{count}} recursos.",
+    "minuteModelConverted_one": "{{document}}: {{count}} tarea tiene otra fecha de inicio o de fin tras la conversión; el mayor desplazamiento es de {{days}} días laborables. Ctrl+Z restaura las fechas guardadas.",
+    "minuteModelConverted_many": "{{document}}: {{count}} de tareas tienen otra fecha de inicio o de fin tras la conversión; el mayor desplazamiento es de {{days}} días laborables. Ctrl+Z restaura las fechas guardadas.",
+    "minuteModelConverted_other": "{{document}}: {{count}} tareas tienen otra fecha de inicio o de fin tras la conversión; el mayor desplazamiento es de {{days}} días laborables. Ctrl+Z restaura las fechas guardadas.",
+    "minuteModelCalendarRepaired": "Se ha reparado el calendario «{{calendar}}»: el fin o la pausa no coincidían con el horario laboral guardado."
   },
   "scheduleErrors": {
     "cycle": "Relación circular entre tareas: {{path}}",
@@ -368,6 +384,11 @@
     "languageHint": "El idioma de visualización de la app, aplicado de inmediato.",
     "version": "Versión",
     "versionHint": "El número de versión actual de la app.",
+    "experimentalSection": "Experimental",
+    "experimentalEmpty": "Actualmente no hay funciones experimentales.",
+    "experimentalHide": "Ocultar",
+    "demoTopbarAnimation": "Demo: animación en la barra superior",
+    "demoTopbarAnimationHint": "Un brillo naranja suave recorre la barra superior. Muestra cómo funciona un interruptor experimental.",
     "tourHint": "Vuelve a hacer el recorrido introductorio de la aplicación.",
     "theme": "Tema",
     "themeHint": "El esquema de color de la interfaz.",
@@ -381,8 +402,12 @@
     "allowMixedDayHour": "Permitir planificación mixta de días/horas",
     "defaultTaskDurationUnit": "Unidad predeterminada para tareas nuevas",
     "defaultTaskDurationUnitHint": "Determina si las tareas nuevas comienzan en días laborables u horas de trabajo. Las tareas existentes no cambian.",
+    "defaultTaskDurationUnitDays": "Unidad en días",
+    "defaultTaskDurationUnitHours": "Unidad en horas",
+    "defaultTaskDurationUnitLocked": "El perfil {{profile}} calcula la duración en horas. Por eso, las nuevas tareas reciben la unidad en horas.",
     "durationDisplay": "Visualización de la duración",
     "durationDisplayHint": "Determina cómo se muestra la duración de la tarea, independientemente de la unidad en la que la propia tarea esté registrada.",
+    "durationDisplayOpsHint": "En el perfil OPS, cada tarea muestra su propia unidad.",
     "durationDisplayAuto": "Automática (unidad propia por tarea)",
     "durationDisplayDays": "Siempre días",
     "durationDisplayHours": "Siempre horas",
@@ -526,7 +551,10 @@
     "taskCount_many": "{{count}} tareas",
     "taskCount_other": "{{count}} tareas",
     "restore": "Restaurar",
-    "dontRestore": "No restaurar"
+    "dontRestore": "No restaurar",
+    "unreadableOnlyExplanation": "No se puede leer ninguna de las copias de recuperación. Consérvelas para intentar la recuperación más adelante, o elimínelas solo si ya no las necesita. La eliminación no se puede deshacer.",
+    "keepCopies": "Conservar copias",
+    "deleteCopies": "Eliminar copias"
   },
   "window": {
     "minimize": "Minimizar",
@@ -545,7 +573,8 @@
   "project": {
     "untitled": "Nueva planificación",
     "imported": "Proyecto importado",
-    "unassignedResource": "Sin asignar"
+    "unassignedResource": "Sin asignar",
+    "ifcBuildingModelUnsupported": "Este archivo IFC contiene objetos de modelo de construcción. La apertura está bloqueada porque al guardar se perderían esos objetos. Edite por separado el archivo de planificación y, después, vuelva a combinarlo con el modelo de construcción."
   },
   "documents": {
     "overviewTitle": "Proyectos abiertos",
@@ -640,12 +669,14 @@
     "releaseNotes": "Novedades",
     "downloadInstall": "Descargar e instalar",
     "downloading": "Descargando…",
+    "preparingInstall": "Preparando la instalación…",
     "installing": "Instalando…",
     "restarting": "Reiniciando…",
     "retry": "Reintentar",
     "error": "Algo salió mal al actualizar",
     "checking": "Comprobando…",
     "snapNotice": "Esta versión se actualiza automáticamente a través de la Snap Store — no tienes que hacer nada.",
+    "packageManagerNotice": "Actualice a través de su gestor de paquetes (por ejemplo, yay -Syu).",
     "debExplanation": "Actualiza manualmente ejecutando este comando en una terminal, o descarga el último paquete.",
     "debCommandLabel": "Comando de instalación",
     "copyCommand": "Copiar comando",
@@ -742,6 +773,7 @@
     "companies": "Bibliotecas de recursos",
     "addCompany": "Añadir biblioteca de recursos",
     "newCompany": "Nueva biblioteca de recursos",
+    "defaultCompany": "Mi biblioteca de recursos",
     "companyName": "Nombre de la biblioteca",
     "removeCompany": "Eliminar biblioteca de recursos",
     "cannotRemoveLast": "No se puede eliminar la última biblioteca de recursos.",
@@ -1377,6 +1409,7 @@
     "overrideDropped": "El vínculo de la fila {{row}} apunta a una tarea que ya no existe y fue ignorado.",
     "moreRows": "…y {{more}} más",
     "sheetRowHint": "fila {{row}} de la hoja",
+    "sheetTaskId": "ID de tarea de OPS: {{id}}",
     "dateOrderTitle": "¿Día primero o mes primero?",
     "dateOrderQuestion": "«{{sample}}» — ¿qué fecha es esa?",
     "dateOrderOptionA": "{{date}}",
@@ -1523,6 +1556,14 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "Tareas ALAP tan tarde como permitan las sucesoras",
       "help": "Una tarea no iniciada con la restricción «lo más tarde posible» termina en el minuto en que sus sucesores la necesitan, primero los sucesores, para que una cadena quede unida. Su propio inicio planificado no cuenta; una tarea sin predecesor no empieza entonces antes de la fecha de estado."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Hitos aislados al final del día laborable",
+      "help": "Un hito aislado o un hito de fin sin predecesor se coloca al final de su día laborable."
+    },
+    "workdayDurationMeasure": {
+      "label": "Duración en días laborables",
+      "help": "Una duración, un desfase o una duración restante en días cuenta en días laborables: cada día laborable cuenta como 1, sea cual sea su longitud. Desactivado: un día cuenta como el número de horas laborables por día del calendario. Un desfase en porcentaje sigue la unidad del predecesor. El tiempo transcurrido nunca se cuenta en días laborables."
     }
   },
   "profiles": {
@@ -1561,6 +1602,7 @@
       "float": "Holgura y fechas tardías",
       "instants": "Fechas e instantes del archivo",
       "msproject": "Avance como en Microsoft Project",
+      "durations": "Duración y unidad",
       "ownProfilesOnly": "Solo para perfiles propios"
     },
     "ownProfilesOnlyNote": "Estas convenciones están desactivadas en todos los perfiles integrados, también en Primavera P6. Solo un perfil propio puede activarlas: elija para ello «Nuevo perfil».",

@@ -13,6 +13,7 @@
     "dismiss": "Chiudi notifica",
     "taskEditRevertBlocked": "Una modifica dell'assistente IA o di un'estensione è intervenuta nel frattempo. Le modifiche all'attività precedenti non sono state annullate e restano come passaggi normali in Annulla.",
     "openFailed": "Apertura del file non riuscita",
+    "csvInvalidDate": "CSV non aperto: data non leggibile «{{value}}» nella riga CSV {{row}}, colonna «{{column}}». Usa aaaa-mm-gg, gg-mm-aaaa o gg/mm/aaaa.",
     "extGuideCallbackFailed": "Un passaggio dell’estensione {{name}} non è riuscito. La guida continua.",
     "extHelpProjectOpenFailed": "Impossibile aprire il file di progetto {{file}} dell’estensione {{name}}.",
     "extImportFailed": "L'importazione con {{name}} non è riuscita.",
@@ -91,6 +92,8 @@
     "browserCannotOverwrite": "Questo browser non consente all'app di riscrivere su «{{name}}». Per questo l'app chiede di nuovo dove salvare il file a ogni salvataggio. Questo non accade in Chrome, Edge o nell'app desktop.",
     "browserSavesAsDownload": "Salvato come download: «{{name}}» si trova nella cartella dei download. Questo browser non consente all'app di scrivere in una posizione propria, quindi ogni salvataggio crea un nuovo download. In Chrome, Edge o nell'app desktop, Salva aggiorna semplicemente lo stesso file.",
     "autoSaveFailed": "Salvataggio automatico non riuscito",
+    "recoveryManifestBlocked": "I dati di ripristino hanno una versione sconosciuta o una struttura non valida. Questa app li lascia intatti e non può leggere né aggiornare questo set di ripristino. Prova la versione dell'app che ha creato le copie oppure una più recente. Salva tu stesso le nuove modifiche.",
+    "recoveryStorageBlocked": "L'archivio di ripristino è temporaneamente bloccato da un'altra connessione aperta. Le copie esistenti restano; questa pagina non crea nuove copie di ripristino. Salva tu stesso le modifiche, chiudi le altre schede con questa app e ricarica questa pagina per riprovare il ripristino.",
     "recoveryReadFailed": "Impossibile leggere il file ripristinato",
     "recoveryRestoreFailed": "Ripristino non riuscito",
     "recoveryDocumentsSkipped_one": "{{count}} file di ripristino non è stato caricato ed è stato ignorato.",
@@ -156,7 +159,13 @@
     "referencesClearedOnPaste_many": "{{count}} di riferimenti non esistevano in questo documento e sono stati cancellati (calendari delle attività, categorie di lavoro personalizzate, codici attività o campi personalizzati del documento di origine).",
     "referencesClearedOnPaste_other": "{{count}} riferimenti non esistevano in questo documento e sono stati cancellati (calendari delle attività, categorie di lavoro personalizzate, codici attività o campi personalizzati del documento di origine).",
     "milestoneRefusedAssignments": "«{{task}}» ha assegnazioni di risorse e non può diventare un cardine. Rimuovi prima le assegnazioni.",
+    "milestoneRefusedAssignmentsMany_one": "{{count}} attività ha assegnazioni di risorse e non può diventare un'attività cardine. Prima rimuovi le assegnazioni.",
+    "milestoneRefusedAssignmentsMany_many": "{{count}} di attività hanno assegnazioni di risorse e non possono diventare attività cardine. Prima rimuovi le assegnazioni.",
+    "milestoneRefusedAssignmentsMany_other": "{{count}} attività hanno assegnazioni di risorse e non possono diventare attività cardine. Prima rimuovi le assegnazioni.",
     "milestoneRefusedSummary": "«{{task}}» è un'attività di riepilogo con sottoattività e non può diventare un cardine.",
+    "milestoneRefusedSummaryMany_one": "{{count}} attività è un'attività di riepilogo con sottoattività e non può diventare un'attività cardine.",
+    "milestoneRefusedSummaryMany_many": "{{count}} di attività sono attività di riepilogo con sottoattività e non possono diventare attività cardine.",
+    "milestoneRefusedSummaryMany_other": "{{count}} attività sono attività di riepilogo con sottoattività e non possono diventare attività cardine.",
     "assignmentsMovedToSubtask_one": "Assegnazione spostata nella sottoattività «{{child}}».",
     "assignmentsMovedToSubtask_many": "{{count}} assegnazioni spostate nella sottoattività «{{child}}».",
     "assignmentsMovedToSubtask_other": "{{count}} assegnazioni spostate nella sottoattività «{{child}}».",
@@ -164,6 +173,9 @@
     "assignmentsMovedToSubtasks_many": "Assegnazioni di {{count}} attività spostate in sottoattività.",
     "assignmentsMovedToSubtasks_other": "Assegnazioni di {{count}} attività spostate in sottoattività.",
     "milestoneClearedOnPhase": "«{{phase}}» non è più un cardine.",
+    "milestoneClearedOnPhaseMany_one": "{{count}} attività non è più un'attività cardine.",
+    "milestoneClearedOnPhaseMany_many": "{{count}} di attività non sono più attività cardine.",
+    "milestoneClearedOnPhaseMany_other": "{{count}} attività non sono più attività cardine.",
     "phaseRefusedNoAssignableChild": "«{{phase}}» non può diventare un'attività di riepilogo: le sue assegnazioni non hanno dove andare, perché nessuna delle nuove sottoattività può portare assegnazioni (un cardine o un'attività di riepilogo). Non è stato modificato nulla.",
     "phaseRefusedDuplicateResource": "«{{phase}}» non può diventare un'attività di riepilogo: l'assegnazione di {{resource}} non può passare alla nuova sottoattività «{{child}}», che ha già {{resource}}. Non è stato modificato nulla.",
     "phaseQuestionOutdated": "Le attività o le assegnazioni sono cambiate mentre la domanda era aperta. Non è stato modificato nulla; riprova.",
@@ -266,7 +278,11 @@
     "msProjectLostFixedCosts_other": "I costi fissi di {{count}} attività non sono stati importati.",
     "msProjectLostResourceRates_one": "Le tariffe di {{count}} risorsa non sono state importate.",
     "msProjectLostResourceRates_many": "Le tariffe di {{count}} risorse non sono state importate.",
-    "msProjectLostResourceRates_other": "Le tariffe di {{count}} risorse non sono state importate."
+    "msProjectLostResourceRates_other": "Le tariffe di {{count}} risorse non sono state importate.",
+    "minuteModelConverted_one": "{{document}}: {{count}} attività ha un inizio o una fine diversi dopo la conversione; lo spostamento maggiore è di {{days}} giorni lavorativi. Ctrl+Z ripristina le date salvate.",
+    "minuteModelConverted_many": "{{document}}: {{count}} di attività hanno un inizio o una fine diversi dopo la conversione; lo spostamento maggiore è di {{days}} giorni lavorativi. Ctrl+Z ripristina le date salvate.",
+    "minuteModelConverted_other": "{{document}}: {{count}} attività hanno un inizio o una fine diversi dopo la conversione; lo spostamento maggiore è di {{days}} giorni lavorativi. Ctrl+Z ripristina le date salvate.",
+    "minuteModelCalendarRepaired": "Il calendario «{{calendar}}» è stato riparato: la fine o la pausa non corrispondeva agli orari di lavoro salvati."
   },
   "scheduleErrors": {
     "cycle": "Dipendenza circolare tra attività: {{path}}",
@@ -368,6 +384,11 @@
     "languageHint": "La lingua di visualizzazione dell'app, applicata immediatamente.",
     "version": "Versione",
     "versionHint": "Il numero di versione attuale dell'app.",
+    "experimentalSection": "Sperimentale",
+    "experimentalEmpty": "Al momento non ci sono funzioni sperimentali.",
+    "experimentalHide": "Nascondi",
+    "demoTopbarAnimation": "Demo: animazione barra superiore",
+    "demoTopbarAnimationHint": "Un'onda luminosa arancione e tranquilla nella barra superiore. Mostra come funziona un interruttore sperimentale.",
     "tourHint": "Rifai il tour introduttivo dell'app.",
     "theme": "Tema",
     "themeHint": "Lo schema di colori dell'interfaccia.",
@@ -381,8 +402,12 @@
     "allowMixedDayHour": "Consenti pianificazione mista giorno/ora",
     "defaultTaskDurationUnit": "Unità predefinita per le nuove attività",
     "defaultTaskDurationUnitHint": "Stabilisce se le nuove attività iniziano in giorni lavorativi o ore di lavoro. Le attività esistenti non cambiano.",
+    "defaultTaskDurationUnitDays": "Unità in giorni",
+    "defaultTaskDurationUnitHours": "Unità in ore",
+    "defaultTaskDurationUnitLocked": "Il profilo {{profile}} conta la durata in ore. Le nuove attività ricevono quindi l'unità in ore.",
     "durationDisplay": "Visualizzazione della durata",
     "durationDisplayHint": "Determina come viene mostrata la durata dell'attività, indipendentemente dall'unità in cui l'attività stessa è registrata.",
+    "durationDisplayOpsHint": "Nel profilo OPS ogni attività mostra la propria unità.",
     "durationDisplayAuto": "Automatica (unità propria per attività)",
     "durationDisplayDays": "Sempre giorni",
     "durationDisplayHours": "Sempre ore",
@@ -526,7 +551,10 @@
     "taskCount_many": "{{count}} attività",
     "taskCount_other": "{{count}} attività",
     "restore": "Ripristina",
-    "dontRestore": "Non ripristinare"
+    "dontRestore": "Non ripristinare",
+    "unreadableOnlyExplanation": "Nessuna delle copie di ripristino può essere letta. Conservale per un tentativo di ripristino successivo, oppure eliminale solo se non ti servono più. L'eliminazione non può essere annullata.",
+    "keepCopies": "Conserva copie",
+    "deleteCopies": "Elimina copie"
   },
   "window": {
     "minimize": "Riduci a icona",
@@ -545,7 +573,8 @@
   "project": {
     "untitled": "Nuova pianificazione",
     "imported": "Progetto importato",
-    "unassignedResource": "Non assegnato"
+    "unassignedResource": "Non assegnato",
+    "ifcBuildingModelUnsupported": "Questo file IFC contiene oggetti del modello edilizio. L'apertura è bloccata perché il salvataggio eliminerebbe quegli oggetti. Modifica il file di pianificazione separato e poi uniscilo di nuovo al modello edilizio."
   },
   "documents": {
     "overviewTitle": "Progetti aperti",
@@ -640,12 +669,14 @@
     "releaseNotes": "Novità",
     "downloadInstall": "Scarica e installa",
     "downloading": "Download in corso…",
+    "preparingInstall": "Preparazione dell'installazione…",
     "installing": "Installazione in corso…",
     "restarting": "Riavvio…",
     "retry": "Riprova",
     "error": "Si è verificato un problema durante l'aggiornamento",
     "checking": "Controllo in corso…",
     "snapNotice": "Questa versione viene aggiornata automaticamente tramite lo Snap Store — non devi fare nulla.",
+    "packageManagerNotice": "Aggiorna tramite il gestore di pacchetti (ad esempio yay -Syu).",
     "debExplanation": "Aggiorna manualmente eseguendo questo comando in un terminale, oppure scarica l'ultimo pacchetto.",
     "debCommandLabel": "Comando di installazione",
     "copyCommand": "Copia comando",
@@ -742,6 +773,7 @@
     "companies": "Librerie di risorse",
     "addCompany": "Aggiungi libreria di risorse",
     "newCompany": "Nuova libreria di risorse",
+    "defaultCompany": "La mia libreria di risorse",
     "companyName": "Nome libreria",
     "removeCompany": "Rimuovi libreria di risorse",
     "cannotRemoveLast": "Non è possibile rimuovere l'ultima libreria di risorse.",
@@ -1377,6 +1409,7 @@
     "overrideDropped": "Il collegamento della riga {{row}} punta a un'attività non più esistente ed è stato ignorato.",
     "moreRows": "…e altri {{more}}",
     "sheetRowHint": "riga {{row}} nel foglio",
+    "sheetTaskId": "ID attività OPS: {{id}}",
     "dateOrderTitle": "Prima il giorno o prima il mese?",
     "dateOrderQuestion": "«{{sample}}» — che data è?",
     "dateOrderOptionA": "{{date}}",
@@ -1523,6 +1556,14 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "Attività ALAP il più tardi consentito dai successori",
       "help": "Un'attività non iniziata con il vincolo «il più tardi possibile» ha la sua fine nel minuto in cui i suoi successori ne hanno bisogno, prima i successori, così che una catena si chiuda. Il suo inizio pianificato non viene considerato; un'attività senza predecessore non inizia quindi prima della data di stato."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Attività cardine isolate a fine giorno lavorativo",
+      "help": "Un'attività cardine isolata o un'attività cardine di fine senza predecessore viene collocata alla fine del suo giorno lavorativo."
+    },
+    "workdayDurationMeasure": {
+      "label": "Durata in giorni lavorativi",
+      "help": "Una durata, un ritardo o una durata rimanente in giorni conta in giorni lavorativi: ogni giorno lavorativo conta come 1, indipendentemente dalla sua lunghezza. Disattivato: un giorno conta come il numero di ore lavorative al giorno del calendario. Un ritardo in percentuale segue l'unità del predecessore. Il tempo trascorso non conta mai in giorni lavorativi."
     }
   },
   "profiles": {
@@ -1561,6 +1602,7 @@
       "float": "Margine e date più tarde",
       "instants": "Date e istanti dal file",
       "msproject": "Avanzamento come in Microsoft Project",
+      "durations": "Durata e unità",
       "ownProfilesOnly": "Solo per profili personalizzati"
     },
     "ownProfilesOnlyNote": "Queste convenzioni sono disattivate in ogni profilo integrato, anche in Primavera P6. Solo un profilo personalizzato può attivarle: scegli per questo «Nuovo profilo».",

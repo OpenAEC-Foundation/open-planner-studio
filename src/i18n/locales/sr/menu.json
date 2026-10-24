@@ -420,6 +420,8 @@
     "quarantineEmptyName": "Неважеће проширење",
     "catalogEntriesSkipped": "Број прескочених ставки каталога: {{count}}",
     "storageWriteFailed": "Стање проширења није могло да се сачува.",
+    "minAppVersionRequired": "Захтева Open Planner Studio ≥ {{minVersion}} (тренутна верзија: {{appVersion}})",
+    "missingPermission": "Проширење „{{extensionId}}“ нема дозволу: {{permission}}",
     "import": "Увези",
     "importSubtitle": "Увезите податке пројекта преко инсталираних проширења.",
     "importEmpty": "Нису инсталирана проширења за увоз. Додајте једно преко Проширења."

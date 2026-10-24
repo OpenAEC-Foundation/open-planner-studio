@@ -13,6 +13,7 @@
     "dismiss": "Zatvori obavijest",
     "taskEditRevertBlocked": "U međuvremenu je promjenu napravio AI pomoćnik ili proširenje. Izmjene zadataka prije nje nisu poništene. Ostaju kao obični koraci pod Poništi.",
     "openFailed": "Otvaranje datoteke nije uspjelo",
+    "csvInvalidDate": "CSV nije otvoren: nečitljiv datum „{{value}}“ u CSV retku {{row}}, stupcu „{{column}}“. Upotrijebite gggg-mm-dd, dd-mm-gggg ili dd/mm/gggg.",
     "extGuideCallbackFailed": "Jedan korak proširenja {{name}} javio je grešku. Vodič se nastavlja.",
     "extHelpProjectOpenFailed": "Projektnu datoteku {{file}} iz proširenja {{name}} nije bilo moguće otvoriti.",
     "extImportFailed": "Uvoz pomoću {{name}} nije uspio.",
@@ -91,6 +92,8 @@
     "browserCannotOverwrite": "Ovaj preglednik ne dopušta aplikaciji da zapisuje natrag u '{{name}}'. Zato aplikacija pri svakom spremanju ponovno pita gdje datoteka treba biti. U Chromeu, Edgeu ili desktop aplikaciji to se ne događa.",
     "browserSavesAsDownload": "Spremljeno kao preuzimanje: '{{name}}' je u vašoj mapi za preuzimanja. Ovaj preglednik ne dopušta aplikaciji da piše na vlastito mjesto, pa svako spremanje stvara novo preuzimanje. U Chromeu, Edgeu ili desktop aplikaciji Spremi jednostavno ažurira istu datoteku.",
     "autoSaveFailed": "Automatsko spremanje nije uspjelo",
+    "recoveryManifestBlocked": "Podaci za oporavak imaju nepoznatu verziju ili neispravan format. Ova aplikacija ih ne mijenja i ne može čitati ni ažurirati ovaj skup za oporavak. Pokušajte s verzijom aplikacije koja je stvorila kopije ili s novijom verzijom. Novi rad sami spremite.",
+    "recoveryStorageBlocked": "Spremište za oporavak privremeno je blokirano drugom otvorenom vezom. Postojeće kopije ostaju sačuvane; ova stranica ne stvara nove kopije za oporavak. Sami spremite svoj rad, zatvorite ostale kartice s ovom aplikacijom i ponovno učitajte ovu stranicu da biste ponovno pokušali oporavak.",
     "recoveryReadFailed": "Oporavljenu datoteku nije bilo moguće pročitati",
     "recoveryRestoreFailed": "Vraćanje nije uspjelo",
     "recoveryDocumentsSkipped_one": "{{count}} datoteka za oporavak nije bilo moguće učitati i preskočena je.",
@@ -156,7 +159,13 @@
     "referencesClearedOnPaste_few": "{{count}} reference nisu postojale u ovom dokumentu i uklonjene su (kalendari zadataka, prilagođene kategorije radova, šifre zadatka ili prilagođena polja iz izvornog dokumenta).",
     "referencesClearedOnPaste_other": "{{count}} referenci nije postojalo u ovom dokumentu i uklonjeno je (kalendari zadataka, prilagođene kategorije radova, šifre zadatka ili prilagođena polja iz izvornog dokumenta).",
     "milestoneRefusedAssignments": "'{{task}}' ima dodjele resursa i ne može postati kontrolna točka. Prvo uklonite dodjele.",
+    "milestoneRefusedAssignmentsMany_one": "{{count}} zadatak ima dodjele resursa i ne može postati kontrolna točka. Najprije uklonite dodjele.",
+    "milestoneRefusedAssignmentsMany_few": "{{count}} zadatka imaju dodjele resursa i ne mogu postati kontrolne točke. Najprije uklonite dodjele.",
+    "milestoneRefusedAssignmentsMany_other": "{{count}} zadataka ima dodjele resursa i ne može postati kontrolna točka. Najprije uklonite dodjele.",
     "milestoneRefusedSummary": "'{{task}}' je zadatak sažetka s podzadacima i ne može postati kontrolna točka.",
+    "milestoneRefusedSummaryMany_one": "{{count}} zadatak je zadatak sažetka s podzadacima i ne može postati kontrolna točka.",
+    "milestoneRefusedSummaryMany_few": "{{count}} zadatka su zadaci sažetka s podzadacima i ne mogu postati kontrolne točke.",
+    "milestoneRefusedSummaryMany_other": "{{count}} zadataka je zadatak sažetka s podzadacima i ne može postati kontrolna točka.",
     "assignmentsMovedToSubtask_one": "{{count}} dodjela premještena u podzadatak '{{child}}'.",
     "assignmentsMovedToSubtask_few": "{{count}} dodjele premještene u podzadatak '{{child}}'.",
     "assignmentsMovedToSubtask_other": "{{count}} dodjela premješteno u podzadatak '{{child}}'.",
@@ -164,6 +173,9 @@
     "assignmentsMovedToSubtasks_few": "Dodjele {{count}} zadatka premještene u podzadatke.",
     "assignmentsMovedToSubtasks_other": "Dodjele {{count}} zadataka premještene u podzadatke.",
     "milestoneClearedOnPhase": "'{{phase}}' više nije kontrolna točka.",
+    "milestoneClearedOnPhaseMany_one": "{{count}} zadatak više nije kontrolna točka.",
+    "milestoneClearedOnPhaseMany_few": "{{count}} zadatka više nisu kontrolne točke.",
+    "milestoneClearedOnPhaseMany_other": "{{count}} zadataka više nije kontrolna točka.",
     "phaseRefusedNoAssignableChild": "'{{phase}}' ne može postati zadatak sažetka: njegove dodjele nemaju kamo otići, jer nijedan od novih podzadataka ne smije nositi dodjele (kontrolna točka ili zadatak sažetka). Ništa nije promijenjeno.",
     "phaseRefusedDuplicateResource": "'{{phase}}' ne može postati zadatak sažetka: dodjela za {{resource}} ne može preći u novi podzadatak '{{child}}', jer on već ima {{resource}}. Ništa nije promijenjeno.",
     "phaseQuestionOutdated": "Zadaci ili dodjele promijenili su se dok je pitanje bilo otvoreno. Ništa nije promijenjeno; pokušajte ponovno.",
@@ -266,7 +278,11 @@
     "msProjectLostFixedCosts_other": "Fiksni troškovi za {{count}} zadataka nisu preuzeti.",
     "msProjectLostResourceRates_one": "Standardna tarifa za {{count}} resurs nije preuzeta.",
     "msProjectLostResourceRates_few": "Standardne tarife za {{count}} resursa nisu preuzete.",
-    "msProjectLostResourceRates_other": "Standardne tarife za {{count}} resursa nisu preuzete."
+    "msProjectLostResourceRates_other": "Standardne tarife za {{count}} resursa nisu preuzete.",
+    "minuteModelConverted_one": "{{document}}: {{count}} zadatak ima nakon pretvorbe drugačiji početak ili završetak; najveći pomak iznosi {{days}} radnih dana. Ctrl+Z vraća spremljene datume.",
+    "minuteModelConverted_few": "{{document}}: {{count}} zadatka imaju nakon pretvorbe drugačiji početak ili završetak; najveći pomak iznosi {{days}} radnih dana. Ctrl+Z vraća spremljene datume.",
+    "minuteModelConverted_other": "{{document}}: {{count}} zadataka ima nakon pretvorbe drugačiji početak ili završetak; najveći pomak iznosi {{days}} radnih dana. Ctrl+Z vraća spremljene datume.",
+    "minuteModelCalendarRepaired": "Kalendar „{{calendar}}“ je popravljen: završetak ili pauza nisu odgovarali spremljenom radnom vremenu."
   },
   "scheduleErrors": {
     "cycle": "Kružna ovisnost između zadataka: {{path}}",
@@ -368,6 +384,11 @@
     "languageHint": "Jezik prikaza aplikacije, odmah primijenjen.",
     "version": "Verzija",
     "versionHint": "Trenutni broj verzije aplikacije.",
+    "experimentalSection": "Eksperimentalno",
+    "experimentalEmpty": "Trenutačno nema eksperimentalnih značajki.",
+    "experimentalHide": "Sakrij",
+    "demoTopbarAnimation": "Demo: animacija u gornjoj traci",
+    "demoTopbarAnimationHint": "Mirni narančasti sjaj koji prolazi preko gornje trake. Prikazuje kako radi eksperimentalni prekidač.",
     "tourHint": "Ponovno prođite uvodni obilazak aplikacije.",
     "theme": "Tema",
     "themeHint": "Shema boja sučelja.",
@@ -381,8 +402,12 @@
     "allowMixedDayHour": "Dopusti mješoviti raspored po danima i satima",
     "defaultTaskDurationUnit": "Zadana jedinica za nove zadatke",
     "defaultTaskDurationUnitHint": "Određuje hoće li novi zadaci početi u radnim danima ili radnim satima. Postojeći zadaci se ne mijenjaju.",
+    "defaultTaskDurationUnitDays": "Mjera u danima",
+    "defaultTaskDurationUnitHours": "Mjera u satima",
+    "defaultTaskDurationUnitLocked": "Profil {{profile}} računa trajanje u satima. Novi zadaci zato dobivaju mjeru u satima.",
     "durationDisplay": "Prikaz trajanja",
     "durationDisplayHint": "Određuje kako se trajanje zadatka prikazuje, neovisno o jedinici u kojoj je zadatak sam zabilježen.",
+    "durationDisplayOpsHint": "U profilu OPS svaki zadatak prikazuje vlastitu mjeru.",
     "durationDisplayAuto": "Automatski (vlastita jedinica po zadatku)",
     "durationDisplayDays": "Uvijek dani",
     "durationDisplayHours": "Uvijek sati",
@@ -526,7 +551,10 @@
     "taskCount_few": "{{count}} zadatka",
     "taskCount_other": "{{count}} zadataka",
     "restore": "Vrati",
-    "dontRestore": "Ne vraćaj"
+    "dontRestore": "Ne vraćaj",
+    "unreadableOnlyExplanation": "Nijedna od kopija za oporavak ne može se pročitati. Sačuvajte ih za kasniji pokušaj oporavka ili ih izbrišite samo ako ih više ne trebate. Brisanje se ne može poništiti.",
+    "keepCopies": "Zadrži kopije",
+    "deleteCopies": "Izbriši kopije"
   },
   "window": {
     "minimize": "Minimiziraj",
@@ -545,7 +573,8 @@
   "project": {
     "untitled": "Novi raspored",
     "imported": "Uvezeni projekt",
-    "unassignedResource": "Nije dodijeljeno"
+    "unassignedResource": "Nije dodijeljeno",
+    "ifcBuildingModelUnsupported": "Ova IFC datoteka sadrži objekte građevinskog modela. Otvaranje je blokirano jer bi spremanje uklonilo te objekte. Uredite zasebnu datoteku rasporeda i zatim je ponovno spojite s građevinskim modelom."
   },
   "documents": {
     "overviewTitle": "Otvoreni projekti",
@@ -640,12 +669,14 @@
     "releaseNotes": "Što je novo",
     "downloadInstall": "Preuzmi i instaliraj",
     "downloading": "Preuzimanje…",
+    "preparingInstall": "Priprema instalacije…",
     "installing": "Instaliranje…",
     "restarting": "Ponovno pokretanje…",
     "retry": "Pokušaj ponovno",
     "error": "Nešto je pošlo po krivu pri ažuriranju",
     "checking": "Provjera…",
     "snapNotice": "Ova verzija ažurira se automatski putem Snap Storea. Ne morate ništa raditi.",
+    "packageManagerNotice": "Ažurirajte putem upravitelja paketa (npr. yay -Syu).",
     "debExplanation": "Ažurirajte ručno tako da u terminalu izvršite ovu naredbu ili preuzmite najnoviji paket.",
     "debCommandLabel": "Naredba za instalaciju",
     "copyCommand": "Kopiraj naredbu",
@@ -742,6 +773,7 @@
     "companies": "Biblioteke resursa",
     "addCompany": "Dodaj biblioteku resursa",
     "newCompany": "Nova biblioteka resursa",
+    "defaultCompany": "Moja biblioteka",
     "companyName": "Naziv biblioteke",
     "removeCompany": "Ukloni biblioteku resursa",
     "cannotRemoveLast": "Posljednja biblioteka resursa ne može se ukloniti.",
@@ -1377,6 +1409,7 @@
     "overrideDropped": "Povezivanje za redak {{row}} upućuje na zadatak koji više ne postoji i zanemaren je.",
     "moreRows": "…i još {{more}}",
     "sheetRowHint": "redak {{row}} u listu",
+    "sheetTaskId": "OPS ID zadatka: {{id}}",
     "dateOrderTitle": "Dan ili mjesec prvo?",
     "dateOrderQuestion": "“{{sample}}” — koji je to datum?",
     "dateOrderOptionA": "{{date}}",
@@ -1523,6 +1556,14 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "ALAP zadaci tako kasno kao što nasljednici dopuštaju",
       "help": "Nezapočeti zadatak s ograničenjem „što kasnije moguće“ završava u minuti u kojoj ga njegovi nasljednici trebaju, najprije nasljednici, tako da se lanac zatvori. Njegov planirani početak se ne računa. Zadatak bez prethodnika tada ne počinje prije datuma stanja."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Samostalne kontrolne točke na završetku radnog dana",
+      "help": "Samostalna kontrolna točka ili završna kontrolna točka bez prethodnika postavlja se na završetak svojega radnog dana."
+    },
+    "workdayDurationMeasure": {
+      "label": "Trajanje u radnim danima",
+      "help": "Trajanje, vrijeme odgode ili preostalo trajanje u danima računa se u radnim danima: svaki radni dan broji se kao 1, koliko god taj dan trajao. Isključeno: dan se računa kao broj radnih sati po danu u kalendaru. Vrijeme odgode u postotcima slijedi mjeru prethodnika. Proteklo vrijeme nikad se ne računa u radnim danima."
     }
   },
   "profiles": {
@@ -1561,6 +1602,7 @@
       "float": "Vremenska rezerva i kasni datumi",
       "instants": "Datumi i trenutci iz datoteke",
       "msproject": "Napredak kao u programu Microsoft Project",
+      "durations": "Trajanje i mjera",
       "ownProfilesOnly": "Samo za vlastite profile"
     },
     "ownProfilesOnlyNote": "Ta pravila izračuna isključena su u svakom ugrađenom profilu, uključujući Primavera P6. Samo vlastiti profil ih može uključiti: za to odaberite Novi profil.",

@@ -13,6 +13,7 @@
     "dismiss": "Bildirimi kapat",
     "taskEditRevertBlocked": "Bu arada yapay zekâ asistanından veya bir uzantıdan bir değişiklik geldi. Ondan önceki görev düzenlemeleri geri alınmadı ve Geri Al altında normal adımlar olarak kalıyor.",
     "openFailed": "Dosya açılamadı",
+    "csvInvalidDate": "CSV açılmadı: CSV satırı {{row}}, sütun \"{{column}}\" içinde okunamayan tarih \"{{value}}\". Şu biçimlerden birini kullanın: yyyy-aa-gg, gg-aa-yyyy veya gg/aa/yyyy.",
     "extGuideCallbackFailed": "{{name}} uzantısının bir adımı başarısız oldu. Rehber devam ediyor.",
     "extHelpProjectOpenFailed": "{{name}} uzantısının {{file}} proje dosyası açılamadı.",
     "extImportFailed": "{{name}} ile içe aktarma başarısız oldu.",
@@ -76,6 +77,8 @@
     "browserCannotOverwrite": "Bu tarayıcı, uygulamanın '{{name}}' dosyasına geri yazmasına izin vermiyor. Bu yüzden uygulama her kaydetmede dosyanın nereye kaydedileceğini yeniden sorar. Chrome, Edge veya masaüstü uygulamasında bu olmaz.",
     "browserSavesAsDownload": "İndirme olarak kaydedildi: '{{name}}' indirilenler klasörünüzde. Bu tarayıcı, uygulamanın kendi seçtiği bir yere yazmasına izin vermiyor; bu yüzden her kaydetme yeni bir indirme oluşturur. Chrome, Edge veya masaüstü uygulamasında Kaydet aynı dosyayı günceller.",
     "autoSaveFailed": "Otomatik kaydetme başarısız",
+    "recoveryManifestBlocked": "Kurtarma verilerinin sürümü bilinmiyor veya yapısı geçersiz. Bu uygulama verilere dokunmaz ve bu kurtarma kümesini okuyamaz veya güncelleyemez. Kopyaları oluşturan uygulama sürümünü veya daha yeni bir sürümü deneyin. Yeni çalışmanızı kendiniz kaydedin.",
+    "recoveryStorageBlocked": "Kurtarma depolaması başka bir açık bağlantı yüzünden geçici olarak engellendi. Mevcut kopyalar korunur; bu sayfa yeni kurtarma kopyaları oluşturmaz. Çalışmanızı kendiniz kaydedin, bu uygulamayı kullanan diğer sekmeleri kapatın ve kurtarmayı yeniden denemek için bu sayfayı yeniden yükleyin.",
     "recoveryReadFailed": "Kurtarılan dosya okunamadı",
     "recoveryRestoreFailed": "Geri yükleme başarısız",
     "recoveryDocumentsSkipped_one": "{{count}} kurtarma dosyası yüklenemedi ve atlandı.",
@@ -127,12 +130,18 @@
     "referencesClearedOnPaste_one": "{{count}} başvuru bu belgede yoktu ve temizlendi (kaynak belgeden bir görev takvimi, özel iş kategorisi, etkinlik kodu veya özel alan).",
     "referencesClearedOnPaste_other": "{{count}} başvuru bu belgede yoktu ve temizlendi (kaynak belgeden görev takvimleri, özel iş kategorileri, etkinlik kodları veya özel alanlar).",
     "milestoneRefusedAssignments": "'{{task}}' kaynak atamalarına sahip ve kilometre taşı olamaz. Önce atamaları kaldırın.",
+    "milestoneRefusedAssignmentsMany_one": "{{count}} görev kaynak atamalarına sahip ve kilometre taşı olamaz. Önce atamaları kaldırın.",
+    "milestoneRefusedAssignmentsMany_other": "{{count}} görev kaynak atamalarına sahip ve kilometre taşı olamaz. Önce atamaları kaldırın.",
     "milestoneRefusedSummary": "'{{task}}' alt görevleri olan bir özet görevdir ve kilometre taşı olamaz.",
+    "milestoneRefusedSummaryMany_one": "{{count}} görev, alt görevleri olan özet görevdir ve kilometre taşı olamaz.",
+    "milestoneRefusedSummaryMany_other": "{{count}} görev, alt görevleri olan özet görevdir ve kilometre taşı olamaz.",
     "assignmentsMovedToSubtask_one": "Atama '{{child}}' alt görevine taşındı.",
     "assignmentsMovedToSubtask_other": "{{count}} atama '{{child}}' alt görevine taşındı.",
     "assignmentsMovedToSubtasks_one": "{{count}} görevin atamaları bir alt göreve taşındı.",
     "assignmentsMovedToSubtasks_other": "{{count}} görevin atamaları alt görevlere taşındı.",
     "milestoneClearedOnPhase": "'{{phase}}' artık kilometre taşı değil.",
+    "milestoneClearedOnPhaseMany_one": "{{count}} görev artık kilometre taşı değil.",
+    "milestoneClearedOnPhaseMany_other": "{{count}} görev artık kilometre taşı değil.",
     "phaseRefusedNoAssignableChild": "'{{phase}}' özet görev olamaz: atamalarının gidebileceği bir yer yok, çünkü yeni alt görevlerin hiçbiri atama taşıyamaz (kilometre taşı veya özet görev). Hiçbir şey değiştirilmedi.",
     "phaseRefusedDuplicateResource": "'{{phase}}' özet görev olamaz: {{resource}} ataması yeni alt görev '{{child}}' görevine taşınamaz, çünkü onda zaten {{resource}} var. Hiçbir şey değiştirilmedi.",
     "phaseQuestionOutdated": "Görevler veya atamalar, soru açıkken değişti. Hiçbir şey değiştirilmedi; lütfen yeniden deneyin.",
@@ -212,7 +221,10 @@
     "msProjectLostFixedCosts_one": "{{count}} görevin sabit maliyeti aktarılmadı.",
     "msProjectLostFixedCosts_other": "{{count}} görevin sabit maliyeti aktarılmadı.",
     "msProjectLostResourceRates_one": "{{count}} kaynağın ücreti aktarılmadı.",
-    "msProjectLostResourceRates_other": "{{count}} kaynağın ücretleri aktarılmadı."
+    "msProjectLostResourceRates_other": "{{count}} kaynağın ücretleri aktarılmadı.",
+    "minuteModelConverted_one": "{{document}}: Dönüştürme sonrası {{count}} görevde başlangıç veya bitiş değişti; en büyük kayma {{days}} iş günü. Ctrl+Z kaydedilen tarihleri geri yükler.",
+    "minuteModelConverted_other": "{{document}}: Dönüştürme sonrası {{count}} görevde başlangıç veya bitiş değişti; en büyük kayma {{days}} iş günü. Ctrl+Z kaydedilen tarihleri geri yükler.",
+    "minuteModelCalendarRepaired": "'{{calendar}}' takvimi onarıldı: bitiş veya mola, kayıtlı çalışma saatleri ile uyuşmuyordu."
   },
   "scheduleErrors": {
     "cycle": "Görevler arasında döngüsel ilişki: {{path}}",
@@ -313,6 +325,11 @@
     "languageHint": "Uygulamanın görüntüleme dili, hemen uygulanır.",
     "version": "Sürüm",
     "versionHint": "Uygulamanın mevcut sürüm numarası.",
+    "experimentalSection": "Deneysel",
+    "experimentalEmpty": "Şu anda deneysel özellik yok.",
+    "experimentalHide": "Gizleyin",
+    "demoTopbarAnimation": "Demo: üst çubukta animasyon",
+    "demoTopbarAnimationHint": "Üst çubukta yumuşak, turuncu bir parıltı dalgası. Deneysel bir anahtarın nasıl çalıştığını gösterir.",
     "tourHint": "Uygulamanın tanıtım turunu tekrar yapın.",
     "theme": "Tema",
     "themeHint": "Arayüzün renk şeması.",
@@ -326,8 +343,12 @@
     "allowMixedDayHour": "Karma gün/saat planlamasına izin ver",
     "defaultTaskDurationUnit": "Yeni görevler için varsayılan birim",
     "defaultTaskDurationUnitHint": "Yeni görevlerin iş günüyle mi çalışma saatiyle mi başlayacağını belirler. Mevcut görevler değişmez.",
+    "defaultTaskDurationUnitDays": "Gün birimi",
+    "defaultTaskDurationUnitHours": "Saat birimi",
+    "defaultTaskDurationUnitLocked": "{{profile}} profili süreyi saat cinsinden hesaplar. Bu nedenle yeni görevler saat birimini alır.",
     "durationDisplay": "Süre gösterimi",
     "durationDisplayHint": "Görev süresinin, görevin kendi kaydedildiği birimden bağımsız olarak nasıl gösterileceğini belirler.",
+    "durationDisplayOpsHint": "OPS profilinde her görev kendi birimini gösterir.",
     "durationDisplayAuto": "Otomatik (göreve özgü birim)",
     "durationDisplayDays": "Her zaman gün",
     "durationDisplayHours": "Her zaman saat",
@@ -470,7 +491,10 @@
     "taskCount_one": "{{count}} görev",
     "taskCount_other": "{{count}} görev",
     "restore": "Geri yükle",
-    "dontRestore": "Geri yükleme"
+    "dontRestore": "Geri yükleme",
+    "unreadableOnlyExplanation": "Kurtarma kopyalarının hiçbiri okunamıyor. Bunları sonraki bir kurtarma denemesi için saklayın veya artık gerekmiyorsa yalnızca silin. Silme işlemi geri alınamaz.",
+    "keepCopies": "Kopyaları saklayın",
+    "deleteCopies": "Kopyaları silin"
   },
   "window": {
     "minimize": "Küçült",
@@ -489,7 +513,8 @@
   "project": {
     "untitled": "Yeni planlama",
     "imported": "İçe aktarılan proje",
-    "unassignedResource": "Atanmamış"
+    "unassignedResource": "Atanmamış",
+    "ifcBuildingModelUnsupported": "Bu IFC dosyası yapı modeli nesneleri içeriyor. Kaydetme bu nesneleri silerdi, bu yüzden açma engellendi. Ayrı planlama dosyasını düzenleyin ve ardından yapı modeliyle yeniden birleştirin."
   },
   "documents": {
     "overviewTitle": "Açık projeler",
@@ -584,12 +609,14 @@
     "releaseNotes": "Yenilikler",
     "downloadInstall": "İndir ve kur",
     "downloading": "İndiriliyor…",
+    "preparingInstall": "Kurulum hazırlanıyor…",
     "installing": "Kuruluyor…",
     "restarting": "Yeniden başlatılıyor…",
     "retry": "Tekrar dene",
     "error": "Güncelleme sırasında bir sorun oluştu",
     "checking": "Denetleniyor…",
     "snapNotice": "Bu sürüm Snap Store üzerinden otomatik olarak güncellenir — hiçbir şey yapmanıza gerek yok.",
+    "packageManagerNotice": "Güncellemeyi paket yöneticiniz üzerinden yapın (örneğin yay -Syu).",
     "debExplanation": "Bir terminalde bu komutu çalıştırarak elle güncelleyin veya en son paketi indirin.",
     "debCommandLabel": "Kurulum komutu",
     "copyCommand": "Komutu kopyala",
@@ -686,6 +713,7 @@
     "companies": "Kaynak kitaplıkları",
     "addCompany": "Kaynak kitaplığı ekle",
     "newCompany": "Yeni kaynak kitaplığı",
+    "defaultCompany": "Kaynak kitaplığım",
     "companyName": "Kitaplık adı",
     "removeCompany": "Kaynak kitaplığını kaldır",
     "cannotRemoveLast": "Son kaynak kitaplığı kaldırılamaz.",
@@ -1308,6 +1336,7 @@
     "overrideDropped": "{{row}} numaralı satırın eşleştirmesi artık var olmayan bir göreve işaret ediyor ve yok sayıldı.",
     "moreRows": "…ve {{more}} tane daha",
     "sheetRowHint": "sayfadaki {{row}}. satır",
+    "sheetTaskId": "OPS Görev Kimliği: {{id}}",
     "dateOrderTitle": "Önce gün mü, önce ay mı?",
     "dateOrderQuestion": "“{{sample}}” — bu hangi tarih?",
     "dateOrderOptionA": "{{date}}",
@@ -1454,6 +1483,14 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "ALAP görevleri ardılların izin verdiği kadar geç",
       "help": "“Mümkün olduğunca geç” kısıtlamasına sahip, henüz başlamamış bir görev, ardıllarının ona ihtiyaç duyduğu dakikada biter; ardıllar önce hesaplanır, böylece bir zincir kesintisiz birleşir. Kendi planlanmış başlangıcı sayılmaz; öncülü olmayan bir görev durum tarihinden önce başlamaz."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Bağlantısız kilometre taşları iş gününün sonunda",
+      "help": "Öncülü olmayan bağlantısız bir kilometre taşı veya bitiş kilometre taşı, iş gününün sonunda yerleştirilir."
+    },
+    "workdayDurationMeasure": {
+      "label": "Süre iş günü cinsinden",
+      "help": "Gün cinsinden bir süre, gecikme veya kalan süre iş günü olarak sayılır: her iş günü, o günün uzunluğu ne olursa olsun 1 sayılır. Kapalıyken bir gün, takvimdeki günlük çalışma saati sayısı kadar sayılır. Yüzde cinsinden bir gecikme, öncülün birimini izler. Geçen süre hiçbir zaman iş günü olarak sayılmaz."
     }
   },
   "profiles": {
@@ -1492,6 +1529,7 @@
       "float": "Bolluk ve geç tarihler",
       "instants": "Dosyadaki tarihler ve anlar",
       "msproject": "Microsoft Project gibi ilerleme",
+      "durations": "Süre ve birim",
       "ownProfilesOnly": "Yalnızca özel profiller için"
     },
     "ownProfilesOnlyNote": "Bu kurallar, Primavera P6 dahil her yerleşik hesaplama profilinde kapalıdır. Bunları yalnızca özel bir hesaplama profili açabilir: bunun için “Yeni profil” seçin.",

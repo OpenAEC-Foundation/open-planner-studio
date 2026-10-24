@@ -13,6 +13,7 @@
     "dismiss": "Stänga meddelandet",
     "taskEditRevertBlocked": "En ändring från AI-assistenten eller ett tillägg kom emellan. Uppgiftsändringarna som gjordes före den har inte ångrats och finns kvar som vanliga steg under Ångra.",
     "openFailed": "Det gick inte att öppna filen",
+    "csvInvalidDate": "CSV öppnades inte: datumet ”{{value}}” kan inte läsas på CSV-rad {{row}}, kolumn ”{{column}}”. Använd åååå-mm-dd, dd-mm-åååå eller dd/mm/åååå.",
     "extGuideCallbackFailed": "Ett steg från tillägget {{name}} gav ett fel. Guiden fortsätter.",
     "extHelpProjectOpenFailed": "Projektfilen {{file}} från tillägget {{name}} kunde inte öppnas.",
     "extImportFailed": "Importen med {{name}} misslyckades.",
@@ -76,6 +77,8 @@
     "browserCannotOverwrite": "Den här webbläsaren tillåter inte att appen skriver tillbaka till '{{name}}'. Därför frågar appen varje gång du sparar var filen ska sparas. I Chrome, Edge eller skrivbordsappen händer detta inte.",
     "browserSavesAsDownload": "Sparad som nedladdning: '{{name}}' finns i din nedladdningsmapp. Den här webbläsaren tillåter inte att appen skriver till en egen plats, så varje gång du sparar skapas en ny nedladdning. I Chrome, Edge eller skrivbordsappen uppdaterar Spara samma fil helt enkelt.",
     "autoSaveFailed": "Automatisk sparning misslyckades",
+    "recoveryManifestBlocked": "Återställningsdatan har en okänd version eller en ogiltig struktur. Appen lämnar dem orörda och kan inte läsa eller uppdatera den här återställningsuppsättningen. Prova den appversion som skapade kopiorna eller en nyare version. Spara ditt arbete själv.",
+    "recoveryStorageBlocked": "Återställningslagringen är tillfälligt blockerad av en annan öppen anslutning. Befintliga kopior finns kvar; den här sidan skapar inga nya återställningskopior. Spara ditt arbete själv, stäng andra flikar med den här appen och ladda om sidan för att försöka återställa igen.",
     "recoveryReadFailed": "Den återställda filen kunde inte läsas",
     "recoveryRestoreFailed": "Kunde inte återställa",
     "recoveryDocumentsSkipped_one": "{{count}} återställningsfil kunde inte läsas in och hoppades över.",
@@ -127,12 +130,18 @@
     "referencesClearedOnPaste_one": "{{count}} referens fanns inte i det här dokumentet och har tagits bort (en uppgiftskalender, egen arbetskategori, uppgiftskod eller eget fält från källdokumentet).",
     "referencesClearedOnPaste_other": "{{count}} referenser fanns inte i det här dokumentet och har tagits bort (uppgiftskalendrar, egna arbetskategorier, uppgiftskoder eller egna fält från källdokumentet).",
     "milestoneRefusedAssignments": "'{{task}}' har resurstilldelningar och kan inte bli en milstolpe. Ta först bort tilldelningarna.",
+    "milestoneRefusedAssignmentsMany_one": "{{count}} uppgift har resurstilldelningar och kan inte bli en milstolpe. Ta bort tilldelningarna först.",
+    "milestoneRefusedAssignmentsMany_other": "{{count}} uppgifter har resurstilldelningar och kan inte bli milstolpar. Ta bort tilldelningarna först.",
     "milestoneRefusedSummary": "'{{task}}' är en sammanfattningsuppgift med underuppgifter och kan inte bli en milstolpe.",
+    "milestoneRefusedSummaryMany_one": "{{count}} uppgift är en sammanfattningsuppgift med underuppgifter och kan inte bli en milstolpe.",
+    "milestoneRefusedSummaryMany_other": "{{count}} uppgifter är sammanfattningsuppgifter med underuppgifter och kan inte bli milstolpar.",
     "assignmentsMovedToSubtask_one": "Tilldelningen flyttades till underuppgiften '{{child}}'.",
     "assignmentsMovedToSubtask_other": "{{count}} tilldelningar flyttades till underuppgiften '{{child}}'.",
     "assignmentsMovedToSubtasks_one": "Tilldelningarna för {{count}} uppgift flyttades till en underuppgift.",
     "assignmentsMovedToSubtasks_other": "Tilldelningarna för {{count}} uppgifter flyttades till underuppgifter.",
     "milestoneClearedOnPhase": "'{{phase}}' är inte längre en milstolpe.",
+    "milestoneClearedOnPhaseMany_one": "{{count}} uppgift är inte längre en milstolpe.",
+    "milestoneClearedOnPhaseMany_other": "{{count}} uppgifter är inte längre milstolpar.",
     "phaseRefusedNoAssignableChild": "'{{phase}}' kan inte bli en sammanfattningsuppgift. Dess tilldelningar har ingenstans att ta vägen: ingen av de nya underuppgifterna kan ha tilldelningar (milstolpe eller sammanfattningsuppgift). Inget har ändrats.",
     "phaseRefusedDuplicateResource": "'{{phase}}' kan inte bli en sammanfattningsuppgift. Tilldelningen av {{resource}} kan inte flyttas till den nya underuppgiften '{{child}}', eftersom den redan har {{resource}}. Inget har ändrats.",
     "phaseQuestionOutdated": "Uppgifterna eller tilldelningarna har ändrats medan frågan var öppen. Ingenting har ändrats. Försök igen.",
@@ -212,7 +221,10 @@
     "msProjectLostFixedCosts_one": "Den fasta kostnaden för {{count}} uppgift har inte tagits över.",
     "msProjectLostFixedCosts_other": "De fasta kostnaderna för {{count}} uppgifter har inte tagits över.",
     "msProjectLostResourceRates_one": "Standardkostnaden för {{count}} resurs har inte tagits över.",
-    "msProjectLostResourceRates_other": "Standardkostnaderna för {{count}} resurser har inte tagits över."
+    "msProjectLostResourceRates_other": "Standardkostnaderna för {{count}} resurser har inte tagits över.",
+    "minuteModelConverted_one": "{{document}}: {{count}} uppgift har efter omvandlingen ett annat start- eller slutdatum; den största förskjutningen är {{days}} arbetsdagar. Ctrl+Z återställer de sparade datumen.",
+    "minuteModelConverted_other": "{{document}}: {{count}} uppgifter har efter omvandlingen ett annat start- eller slutdatum; den största förskjutningen är {{days}} arbetsdagar. Ctrl+Z återställer de sparade datumen.",
+    "minuteModelCalendarRepaired": "Kalendern ”{{calendar}}” har reparerats: slutet eller rasten stämde inte med den sparade arbetstiden."
   },
   "scheduleErrors": {
     "cycle": "Cirkulärt samband mellan uppgifter: {{path}}",
@@ -313,6 +325,11 @@
     "languageHint": "Appens visningsspråk. Ändras direkt.",
     "version": "Version",
     "versionHint": "Appens aktuella versionsnummer.",
+    "experimentalSection": "Experimentellt",
+    "experimentalEmpty": "Det finns just nu inga experimentella funktioner.",
+    "experimentalHide": "Dölj",
+    "demoTopbarAnimation": "Demo: animering i övre fältet",
+    "demoTopbarAnimationHint": "En lugn orange glansvåg i övre fältet. Visar hur en experimentell brytare fungerar.",
     "tourHint": "Gå igenom appens introduktionsrundtur igen.",
     "theme": "Tema",
     "themeHint": "Gränssnittets färgschema.",
@@ -326,8 +343,12 @@
     "allowMixedDayHour": "Tillåt blandad dag/timplanering",
     "defaultTaskDurationUnit": "Standardenhet för nya uppgifter",
     "defaultTaskDurationUnitHint": "Avgör om nya uppgifter börjar i arbetsdagar eller arbetstimmar. Befintliga uppgifter ändras inte.",
+    "defaultTaskDurationUnitDays": "Dagmått",
+    "defaultTaskDurationUnitHours": "Timmått",
+    "defaultTaskDurationUnitLocked": "Profilen {{profile}} räknar en varaktighet i timmar. Nya uppgifter får därför timmått.",
     "durationDisplay": "Visning av varaktighet",
     "durationDisplayHint": "Styr hur uppgiftens varaktighet visas, oberoende av enheten som uppgiften själv är registrerad i.",
+    "durationDisplayOpsHint": "I OPS-profilen visar varje uppgift sitt eget mått.",
     "durationDisplayAuto": "Automatiskt (egen enhet per uppgift)",
     "durationDisplayDays": "Alltid dagar",
     "durationDisplayHours": "Alltid timmar",
@@ -470,7 +491,10 @@
     "taskCount_one": "{{count}} uppgift",
     "taskCount_other": "{{count}} uppgifter",
     "restore": "Återställ",
-    "dontRestore": "Återställ inte"
+    "dontRestore": "Återställ inte",
+    "unreadableOnlyExplanation": "Ingen av återställningskopiorna kan läsas. Behåll dem för ett senare återställningsförsök, eller ta bort dem bara om du inte längre behöver dem. Borttagning kan inte ångras.",
+    "keepCopies": "Behåll kopiorna",
+    "deleteCopies": "Ta bort kopiorna"
   },
   "window": {
     "minimize": "Minimera",
@@ -489,7 +513,8 @@
   "project": {
     "untitled": "Ny tidsplan",
     "imported": "Importerat projekt",
-    "unassignedResource": "Inte tilldelad"
+    "unassignedResource": "Inte tilldelad",
+    "ifcBuildingModelUnsupported": "Den här IFC-filen innehåller byggmodellobjekt. Öppning är blockerad eftersom sparning skulle ta bort dem. Redigera den separata tidsplanfilen och sammanfoga den sedan med byggmodellen."
   },
   "documents": {
     "overviewTitle": "Öppnade projekt",
@@ -584,12 +609,14 @@
     "releaseNotes": "Vad är nytt",
     "downloadInstall": "Ladda ner och installera",
     "downloading": "Laddar ner…",
+    "preparingInstall": "Förbereder installationen…",
     "installing": "Installerar…",
     "restarting": "Startar om…",
     "retry": "Försök igen",
     "error": "Något gick fel vid uppdateringen",
     "checking": "Söker…",
     "snapNotice": "Den här versionen uppdateras automatiskt via Snap Store. Du behöver inte göra något.",
+    "packageManagerNotice": "Uppdatera via din pakethanterare (till exempel yay -Syu).",
     "debExplanation": "Uppdatera manuellt genom att köra det här kommandot i en terminal, eller ladda ner det senaste paketet.",
     "debCommandLabel": "Installationskommando",
     "copyCommand": "Kopiera kommando",
@@ -686,6 +713,7 @@
     "companies": "Bibliotek",
     "addCompany": "Lägg till bibliotek",
     "newCompany": "Nytt bibliotek",
+    "defaultCompany": "Mitt resursbibliotek",
     "companyName": "Bibliotekets namn",
     "removeCompany": "Ta bort bibliotek",
     "cannotRemoveLast": "Det sista biblioteket kan inte tas bort.",
@@ -1308,6 +1336,7 @@
     "overrideDropped": "Länken för rad {{row}} pekar på en uppgift som inte längre finns och ignorerades.",
     "moreRows": "…och {{more}} till",
     "sheetRowHint": "rad {{row}} i kalkylbladet",
+    "sheetTaskId": "OPS Task ID: {{id}}",
     "dateOrderTitle": "Dag eller månad först?",
     "dateOrderQuestion": "“{{sample}}” — vilket datum är det?",
     "dateOrderOptionA": "{{date}}",
@@ -1454,6 +1483,14 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "ALAP-uppgifter så sent som efterföljande uppgifter tillåter",
       "help": "En uppgift som inte har startat ännu med restriktionen ”så sent som möjligt” slutar vid den minut då de efterföljande uppgifterna behöver den, efterföljande först, så att en kedja sluter sig. Dess egen planerade start räknas inte; en uppgift utan föregående uppgift startar då inte tidigare än rapportdatumet."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Fristående milstolpar vid arbetsdagens slut",
+      "help": "En fristående milstolpe eller en slutmilstolpe utan föregående uppgift placeras i slutet av sin arbetsdag."
+    },
+    "workdayDurationMeasure": {
+      "label": "Varaktighet i arbetsdagar",
+      "help": "En varaktighet, fördröjning eller återstående varaktighet i dagar räknas i arbetsdagar: varje arbetsdag räknas som 1, hur lång dagen än är. Av: en dag räknas som antalet arbetstimmar per dag i kalendern. En fördröjning i procent följer måttet för föregående uppgift. Förfluten tid räknas aldrig i arbetsdagar."
     }
   },
   "profiles": {
@@ -1492,6 +1529,7 @@
       "float": "Slack och senaste datum",
       "instants": "Datum och tidpunkter från filen",
       "msproject": "Framdrift som i Microsoft Project",
+      "durations": "Varaktighet och mått",
       "ownProfilesOnly": "Endast egna profiler"
     },
     "ownProfilesOnlyNote": "Dessa beräkningsregler är av i varje inbyggd beräkningsprofil, även i ”Primavera P6”. Bara en egen profil kan slå på dem: välj ”Ny beräkningsprofil” för det.",

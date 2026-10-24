@@ -418,6 +418,8 @@
     "quarantineEmptyName": "Érvénytelen bővítmény",
     "catalogEntriesSkipped": "Kihagyott katalógustételek: {{count}}",
     "storageWriteFailed": "A bővítmény állapotát nem lehetett menteni.",
+    "minAppVersionRequired": "Open Planner Studio ≥ {{minVersion}} szükséges (jelenlegi verzió: {{appVersion}})",
+    "missingPermission": "A(z) „{{extensionId}}” bővítménynek hiányzik a jogosultsága: {{permission}}",
     "import": "Importálás",
     "importSubtitle": "Importálja a projektadatokat a telepített bővítményeken keresztül.",
     "importEmpty": "Nincs telepített importbővítmény. Adjon hozzá egyet a Bővítmények részben."

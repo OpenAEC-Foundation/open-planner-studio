@@ -4,6 +4,7 @@
     "applyShape": "应用形状：",
     "hoursPerDay": "每个工作日 {{hours}} 小时",
     "stripHint": "拖动边界可延长或缩短阶段，拖动上边缘可设置投入，双击某一天可拆分阶段。",
+    "partialDayHint": "如果任务在工作日中间开始或结束，该日按比例计算：小时数 = 单位 × 当天的占比。直方图的计算方式相同。",
     "from": "从",
     "to": "至",
     "days": "天数",
@@ -182,6 +183,7 @@
       "calendarNotFound": "所选日历不存在。",
       "calendarHours": "此任务的日历没有每日工作小时数。",
       "durationConversionNotExact": "此工期无法精确换算为另一单位。",
+      "fixedWorkIsHours": "固定工时的任务始终以小时计。",
       "milestoneRequired": "此字段仅适用于里程碑。",
       "milestoneUnavailable": "带子任务的摘要任务无法变为里程碑。",
       "actualAfterStatusDate": "实际日期晚于状态日期。",
@@ -450,6 +452,7 @@
     "jumpToTask": "跳转到任务 {{wbs}}",
     "relationPopoverTitle": "关系类型",
     "driving": "驱动关系 (driving)",
+    "drivingUnknown": "未经计算，驱动关系未知。",
     "lag": "延隔（例如 2d、3ed、2u、50%、-25e%）",
     "recalculate": "计算",
     "assignments": {
@@ -514,6 +517,8 @@
     "type": "类型",
     "lag": "延隔",
     "driving": "驱动",
+    "drivingUnknown": "未知",
+    "notDriving": "非驱动关系",
     "freeFloat": "自由浮动",
     "warnings": "警告",
     "warnTruncatedLead": "提前量在项目开始处被截断——重叠未被完全利用",
@@ -635,5 +640,11 @@
     "pieceDays_other": "片段：{{count}} 个工作日",
     "pieceHours_other": "片段：{{count}} 小时",
     "merged": "合并"
+  },
+  "dateTimeInput": {
+    "time": "{{field}}的时间",
+    "timeHint": "留空：工作日的开始或结束。填写时间：精确到该时刻。",
+    "later": "晚一刻钟",
+    "earlier": "早一刻钟"
   }
 }

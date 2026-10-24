@@ -420,6 +420,8 @@
     "quarantineEmptyName": "Extensão inválida",
     "catalogEntriesSkipped": "Entradas de catálogo ignoradas: {{count}}",
     "storageWriteFailed": "Não foi possível guardar o estado da extensão.",
+    "minAppVersionRequired": "Requer o Open Planner Studio ≥ {{minVersion}} (versão atual: {{appVersion}})",
+    "missingPermission": "A extensão «{{extensionId}}» não tem a permissão: {{permission}}",
     "import": "Importar",
     "importSubtitle": "Importe dados de projeto por meio das extensões instaladas.",
     "importEmpty": "Nenhuma extensão de importação instalada. Adicione uma em Extensões."

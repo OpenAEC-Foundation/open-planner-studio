@@ -420,6 +420,8 @@
     "quarantineEmptyName": "Neispravno proširenje",
     "catalogEntriesSkipped": "Preskočeni unosi kataloga: {{count}}",
     "storageWriteFailed": "Status proširenja nije bilo moguće spremiti.",
+    "minAppVersionRequired": "Zahtijeva Open Planner Studio ≥ {{minVersion}} (trenutna verzija: {{appVersion}})",
+    "missingPermission": "Proširenje \"{{extensionId}}\" nema dopuštenje: {{permission}}",
     "import": "Uvezi",
     "importSubtitle": "Uvezite podatke projekta putem instaliranih proširenja.",
     "importEmpty": "Nema instaliranih proširenja za uvoz. Dodajte jedno u Proširenjima."
