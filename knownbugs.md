@@ -428,11 +428,11 @@ en noem het in je rapport of PR-tekst.
     de pakketnamen om in een `Map` en de sectietekst in een array met één element; `notices.packages.join(',
     ')` en `notices.sections` volstaan. Gevonden in review ronde 1 van PR #567 (GPT-6.1-Sol). — B
 
-212. **Real-app-test van de MCP-ontdekking bewijst minder dan zijn naam zegt.**
-    `tests/mcp/realApp/run-real-app.ts:141` heet "hetzelfde pid" maar vergelijkt de pids van beide bestanden
-    niet; echte openen-, Opslaan als- en afsluitroutes ontbreken (de storetest zet `filePath` rechtstreeks).
-    Gevonden in review ronde 1 en 2 van PR #573 (GPT-6.1-Sol). Voorstel: de pids vergelijken en de bestaande
-    echte-app-route uitbreiden met echte bestandsacties, inhoud en opruiming. — B
+212. **Real-app-test van de MCP-ontdekking mist echte bestandsroutes.**
+    De pids van `runtime` en `open-files` worden inmiddels rechtstreeks vergeleken. Echte openen-,
+    Opslaan als- en afsluitroutes ontbreken nog (de storetest zet `filePath` rechtstreeks).
+    Gevonden in review ronde 1 en 2 van PR #573 (GPT-6.1-Sol). Resterend: de bestaande echte-app-route
+    uitbreiden met echte bestandsacties, inhoud en opruiming. — B
 
 222. **Browsertest voor geweigerde mijlpalen vergelijkt alleen de taak-ID’s van toewijzingen.**
     De helper `assignmentTaskIds` en de eindassertie in `tests/browser/structural-transition.spec.ts`
