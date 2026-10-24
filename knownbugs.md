@@ -128,12 +128,14 @@ en noem het in je rapport of PR-tekst.
     De eis ligt za 6 juni 16:00; het einde ligt dus ervoor. Het dagenmaatpad haalt na F1b wel de
     dagverwachting van lagadv-ff-lead-ed; run 2 blijft rood op B, niet meer op de werkdagenlag van C.
     De bestaande urencases en N1 laten hier geen algemene grensnormalisatie toe; apart uitwerken. — B
+    Nummer botst met 204 van `main` (`headless-api.yml`); hernummeren in de eind-PR.
 
 205. **De corpuspin van expectedFinishDates in de SCHEDOPTIONS-check is rood op de integratiebasis.**
     check-xer-schedule-options-corpus.ts eindigt op Node 22.23.4 met de fout
     "expectedFinishDates zelfstandige per-bestand/as/populatie en richting blijven exact gepind".
     Dezelfde fout in een schone kopie van 12abaabf2 en tijdens de volledige F1b-suite, met het aanwezige
     corpus van 93 XER-bestanden. Geen pin of controle aangepast; oorzaak buiten F1b. — B
+    Nummer botst met 205 van `main` (termbase *AI-assistent*); hernummeren in de eind-PR.
 
 230. **Een mijlpaal na een FF-relatie (mk-05a, M2) verliest zijn kritieke pad, als de voorganger in de
      urenmaat telt.** A krijgt een late finish op vrijdag 13:00, speling 0,625 d, en is niet meer kritiek.
@@ -412,6 +414,87 @@ en noem het in je rapport of PR-tekst.
      handmatig geplande taak als vaste last behandelen, zoals een lopende taak (dat verandert case 18).
      Gevonden bij F3c deel 3. — B
 
+213. **Een UNC-werkmap op Windows werkt niet in de headless MCP-server.** `normalizeAbsolutePath`
+    (`src/services/mcp/tools/fileTools.ts:105`) maakt van `\\server\share\plan.ifc` het pad
+    `/server/share/plan.ifc`, en dat gaat zo naar `path.resolve` in `headless/mcp-server/src/nodeFs.ts:136`.
+    Gevonden in review ronde 1 van PR #572 (GPT-6.1-Sol). Voorstel: UNC-paden in de lexicale poort als eigen
+    vorm herkennen, of ze met een duidelijke melding weigeren. — B
+214. **De eigen XML-parser van de headless MCP-server is te soepel.** `headless/mcp-server/src/xmlDom.ts:101`
+    en 146: hij accepteert `&#0;`, leest `&constructor;` uit de prototypeketen, normaliseert CRLF niet,
+    accepteert ongebonden prefixen en `]]>` buiten CDATA, en detecteert geen UTF-16. Gevonden in review ronde
+    2 van PR #572 (GPT-6.1-Sol). Voorstel: `@xmldom/xmldom` bundelen met een kleine adapter (DOCTYPE-beleid,
+    strikte fouten), of gerichte fixes met tests. — B
+215. **De headless MCP-server doet geen `fsync` van de doelmap na de `rename`.**
+    `headless/mcp-server/src/nodeFs.ts:355`: na een stroomuitval kan de nieuwe naam ontbreken. Gevonden in
+    review ronde 2 van PR #572 (GPT-6.1-Sol). Voorstel: na de `rename` de map openen (`'.'`, in het gebonden
+    blok) en `fsync` doen. — B
+216. **De tijdelijke naam bij opslaan is de doelnaam plus 27 bytes.** `headless/mcp-server/src/nodeFs.ts:324`:
+    een geldige bestandsnaam van rond 240 bytes geeft bij opslaan `ENAMETOOLONG`. Gevonden in review ronde 2
+    van PR #572 (GPT-6.1-Sol). Voorstel: een korte eigen naam (bijv. `.ops-save.<willekeurig>.tmp`). — B
+217. **Het eigen tijdelijke bestand wordt na een mapwissel niet altijd opgeruimd.**
+    `headless/mcp-server/src/nodeFs.ts:370`: is de map weg of niet meer bereikbaar, dan blijft
+    `.<naam>.<willekeurig>.ops-save.tmp` staan (de docs zeggen dat nu ook). Gevonden in review ronde 2 van PR
+    #572 (GPT-6.1-Sol). Voorstel: een opruimronde voor oude `ops-save.tmp`-bestanden bij de start, of melden
+    waar het bestand staat. — B
+
+218. **Headless MCP-server: de HTTP-time-out begrenst synchrone bestandstoegang niet.**
+    `headless/mcp-server/src/nodeFs.ts:285` en `writeFileSync`/`fsyncSync` op 333–335 draaien synchroon; hangt
+    lezen of synchroniseren op een trage schijf, dan staan alle sessies stil en kan de 120-secondentimer in
+    `headless/mcp-server/src/http.ts:117` niet afgaan. De documentatie belooft die grens te stellig. Gevonden
+    in review ronde 3 van PR #572 (GPT-6.1-Sol). Voorstel: de tekst over de tijdslimiet eerlijk maken en grote
+    bestanden op trage opslag meten voordat er een andere procesopzet komt. — B
+
+219. **Headless MCP-server: een scopeweigering tijdens de bewerking komt niet als `SCOPE` bij de client.**
+    `src/services/mcp/tools/fileTools.ts:337` maakt van elke schrijffout `INTERNAL`, `fileTools.ts:434` van
+    elke leesfout `NOT_FOUND`; een `ScopeEscapeError` na een mapwissel krijgt dus de verkeerde code (de
+    toegang wordt wel geweigerd). De tests controleren alleen het fouttype van `nodeFs`. Gevonden in review
+    ronde 3 van PR #572 (GPT-6.1-Sol). Voorstel: een klein gedeeld foutcontract en één test door de echte
+    toolhandler. — B
+
+220. **Headless MCP-server: terugzetten van de procesmap is een poging, geen garantie.**
+    `headless/mcp-server/src/nodeFs.ts:253`: verdwijnt de oorspronkelijke procesmap tijdens een bewerking, dan
+    blijft het proces in `realRoot`; is ook die weg, dan gooit de `finally` opnieuw, verdringt de
+    oorspronkelijke fout en blijft de tijdelijke procesmap actief. CLI-, backup- en importpaden gebruiken
+    absolute paden, dus geen bekende route naar verkeerd opgeslagen bestanden. Gevonden in review ronde 3 van
+    PR #572 (GPT-6.1-Sol). Voorstel: de terugval documenteren en beide fouten bewaren of melden. — B
+
+206. **`.mcpb`-bundel: een annulering tijdens opnieuw verbinden valt weg.**
+    `integrations/claude-desktop/src/proxy.ts:445` haalt het request-id uit `queuedIds` voordat
+    `handleRequest()` op `connectUpstream()` wacht (`:394–403`); een `notifications/cancelled` in dat venster
+    wordt niet vastgelegd en de tool kan na het verbinden alsnog naar de bridge gaan. Gevonden in review ronde
+    2 en 3 van PR #567 (GPT-6.1-Sol). Voorstel: het request annuleerbaar houden tot de echte tool-POST en na
+    het verbinden opnieuw controleren, met een test voor dat venster. — B
+
+207. **`.mcpb`-bundel: na sessieverlies weigert de proxy ook een nieuw leeg plan en importeren.**
+    `integrations/claude-desktop/src/proxy.ts:389–392` blokkeert `planner_new_document` en
+    `planner_import_schedule` zolang de blokkade staat; Claude moet eerst een bestaand plan kiezen met
+    `planner_switch_document`. Veilig, maar een onnodige omweg. Gevonden in review ronde 3 van PR #567
+    (GPT-6.1-Sol). Voorstel: beide toestaan als losse herstelactie, zonder automatische herhaling en met
+    ontgrendeling alleen na succes; `planner_duplicate_document` niet, want die gebruikt het actieve document.
+    — B
+
+209. **MCP-ontdekking: een schrijffout kan een tijdelijk bestand met het token laten liggen.**
+    `src/services/mcp/discoveryFiles.ts:95–105`: `writeNew` staat buiten de opruim-`try`; slaagt het aanmaken
+    maar faalt het schrijven (bijv. schijfquota), dan blijft het tijdelijke bestand achter, mogelijk al met
+    het volledige token. `bridgeStopped()` en `shutdown()` verwijderen alleen de definitieve namen; de test
+    injecteert alleen rename-fouten. Gevonden in review ronde 1 en 2 van PR #573 (GPT-6.1-Sol). Voorstel:
+    exclusief aanmaken en schrijven splitsen zoals `fileAccess/atomicWrite.ts`, zodat een schrijffout het
+    eigen bestand opruimt. — B
+
+210. **MCP-ontdekking: een update via de updater ruimt `runtime.json` en `open-files.json` niet op.** Alleen
+    `src/hooks/useAppCloseGuard.ts:33` roept `shutdown()` aan;
+    `src/services/updater/updaterService.ts:170–182` installeert en herstart rechtstreeks, en op Windows
+    beëindigt de installer de app. De lezer herkent de resten aan het dode pid. Gevonden in review ronde 1 en
+    2 van PR #573 (GPT-6.1-Sol). Voorstel: opruimen vóór de installatie, en opnieuw publiceren als de
+    installatie mislukt. — B
+
+211. **MCP-ontdekking: op Windows is niet bewezen dat alleen de gebruiker het tokenbestand kan lezen.**
+    `src/services/mcp/discoveryFiles.ts:237–253` vertrouwt op de geërfde ACL van de profielmap; `plugin-fs`
+    past `mode` alleen op Unix toe. Een bestaande of omgeleide gegevensmap met ruimere rechten maakt ook het
+    tijdelijke tokenbestand leesbaar. Doc en gids zeggen nu dat dit niet apart gecontroleerd is. Gevonden in
+    review ronde 1 van PR #573 (GPT-6.1-Sol). Voorstel: de ACL op Windows controleren (ook tijdelijk bestand
+    en bestaande map), of geen token publiceren als de bescherming onvoldoende is. — B
+
 ## Bestanden en herstel
 
 35. **Showcase-voorbeelden openen als gewijzigd** (`applyDemoLibraryToShowcaseProject`). — S
@@ -631,6 +714,10 @@ en noem het in je rapport of PR-tekst.
      procentlag "een vast aantal dagen"; sinds F5a-1 (I6) zijn dat minuten (alleen uit de code afgeleid).
      Bestanden van F4b; niet aangepast in F5a-2. — B (r.51 en de lag), S (procentlag)
 
+205. **Termbase kent nog het begrip *AI-assistent*.** `i18n/termbase/concepts.json` (`ai-assistant`, ook in
+   `read-only`) en de doeltalen. De UI zegt nu *MCP-client*. Voorstel: het begrip omzetten via de
+   vertaalstraat (`concepts-merge`, `apply-terms`) vóór de volgende release. — B
+
 ## Tests
 
 207. **De bulkprestatiepoort kan in een volledige run falen terwijl beide gerichte controles slagen.**
@@ -640,6 +727,7 @@ en noem het in je rapport of PR-tekst.
     F1b-bron met 5793 ms (beide 23/23, exit 0). Een eerdere volledige F1b-run haalde 13.126 ms.
     De laatste volledige run zonder die overlap haalt 8833 ms en eindigt groen (exit 0).
     De wisselende tijdmeting is bevestigd; oorzaak niet vastgesteld en geen grens verruimd. — B
+    Nummer botst met 207 van `main` (`.mcpb`-bundel na sessieverlies); hernummeren in de eind-PR.
 
 206. **De plakprestatiepoort kan op deze server ook zonder F1b de vaste grens overschrijden.**
     `check-task-grid-paste-performance.ts` meet op Node 22.23.4 in een schone kopie van
@@ -647,6 +735,7 @@ en noem het in je rapport of PR-tekst.
     Dezelfde gerichte meting op F1b geeft 4388,7 ms (exit 1); de eerdere volledige run
     gaf 3894,5 ms. In een volledige run haalt F1b 2804,2 ms (groen). De wisselende
     metingen zijn bevestigd; een oorzaak of regressiegrootte volgt niet uit deze timing. Geen prestatiegrens verruimd en geen productfix buiten F1. — B
+    Nummer botst met 206 van `main` (`.mcpb`-bundel, annulering); hernummeren in de eind-PR.
 
 
 79. **`check-task-grid-performance` (relationIndex-mediaan ≤ 500 ms) zit lokaal op het randje.** Los gedraaid
@@ -757,6 +846,24 @@ en noem het in je rapport of PR-tekst.
      slaagde bij een herhaling zonder wijziging en lokaal drie keer (`--repeat-each=3`). De commit veranderde
      alleen MSPDI- en P6 XML-code, die de test niet raakt. Vermoeden, niet onderzocht: de tooltip toont nog de
      waarde 1 uit de lus ervoor (1,004 ⇒ "1"), van vóór de herberekening met F5. — S
+
+204. **`headless-api.yml` meldt "token staat in de log" als het image niet bouwt.** De stap *Logs bevatten
+    geen token en geen IFC-inhoud* draait ook na een mislukte stap *Image bouwen*. Dan bestaat er geen
+    container, en `grep -qF "$OPS_API_TOKEN"` vindt een treffer in de foutmelding van Docker, zodat de job
+    een tweede, misleidende fout geeft. Gezien op PR #567, run 39950724242 (job *container + smoke-test*),
+    waar de echte oorzaak een ontbrekend bestand in de Dockerfile was. Voorstel: de stap alleen draaien als
+    de container bestaat, of eerst controleren dat het token niet leeg is. Niet onderzocht waarom het
+    token-grep matcht. — S
+
+208. **`scripts/build-core.mjs` bouwt de licentiegegevens onnodig om.** `scripts/build-core.mjs:138–148` zet
+    de pakketnamen om in een `Map` en de sectietekst in een array met één element; `notices.packages.join(',
+    ')` en `notices.sections` volstaan. Gevonden in review ronde 1 van PR #567 (GPT-6.1-Sol). — B
+
+212. **Real-app-test van de MCP-ontdekking bewijst minder dan zijn naam zegt.**
+    `tests/mcp/realApp/run-real-app.ts:141` heet "hetzelfde pid" maar vergelijkt de pids van beide bestanden
+    niet; echte openen-, Opslaan als- en afsluitroutes ontbreken (de storetest zet `filePath` rechtstreeks).
+    Gevonden in review ronde 1 en 2 van PR #573 (GPT-6.1-Sol). Voorstel: de pids vergelijken en de bestaande
+    echte-app-route uitbreiden met echte bestandsacties, inhoud en opruiming. — B
 
 ## Wensen en open taken (geen bug)
 

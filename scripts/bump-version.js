@@ -93,6 +93,7 @@ const VERSION_FIELDS = [
   { path: 'headless/consumer-example/package.json', matcher: /("version"\s*:\s*")([^"]*)(")/g, expected: 1 },
   { path: 'headless/server/openapi.yaml', matcher: /(^  version: )([^\r\n]*)(\r?$)/gm, expected: 1 },
   { path: 'snap/snapcraft.yaml', matcher: /(^version: ')([^']*)(')/gm, expected: 1 },
+  { path: 'integrations/claude-desktop/manifest.json', matcher: /("version"\s*:\s*")([^"]*)(")/g, expected: 1 },
 ];
 
 /** @param {string} root @param {string} version */

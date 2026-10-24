@@ -10,6 +10,8 @@ on:
     paths:
       - 'src/**'
       - 'scripts/build-core.mjs'
+      - 'scripts/lib/headless-bundle.mjs'
+      - 'scripts/lib/third-party-notices.mjs'
       - 'headless/**'
       - 'deploy/aws/**'
       - 'examples/01-grachtenpand-amsterdam.ifc'

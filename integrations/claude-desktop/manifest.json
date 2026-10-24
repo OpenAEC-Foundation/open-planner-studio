@@ -1,0 +1,59 @@
+{
+  "manifest_version": "0.3",
+  "name": "open-planner-studio",
+  "display_name": "Open Planner Studio",
+  "version": "2026.10.0",
+  "description": "Connects Claude Desktop to the Open Planner Studio desktop app, so Claude can read and edit your open construction schedule.",
+  "long_description": "This extension connects Claude Desktop to the MCP bridge of the Open Planner Studio desktop app on your own computer. It contains no planner of its own: the app must be running, with the MCP bridge started on the MCP tab. Claude then gets the planner_ tools of the app: read and change tasks, relations, resources, calendars and baselines, and calculate the schedule. Every change is one undo step in the app, and the app can pause the MCP client or allow reading only.\n\nPaste the token from the app (MCP tab › Connection › Connect) into the Token field. Change the port only if you changed it in the app.",
+  "author": {
+    "name": "OpenAEC Foundation",
+    "url": "https://github.com/OpenAEC-Foundation"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OpenAEC-Foundation/open-planner-studio"
+  },
+  "homepage": "https://open-planner-studio.open-aec.com",
+  "documentation": "https://github.com/OpenAEC-Foundation/open-planner-studio/wiki",
+  "support": "https://github.com/OpenAEC-Foundation/open-planner-studio/issues",
+  "icon": "icon.png",
+  "server": {
+    "type": "node",
+    "entry_point": "server/index.mjs",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/server/index.mjs"],
+      "env": {
+        "OPS_MCP_TOKEN": "${user_config.token}",
+        "OPS_MCP_PORT": "${user_config.port}"
+      }
+    }
+  },
+  "tools_generated": true,
+  "keywords": ["planning", "scheduling", "construction", "gantt", "ifc", "open-planner-studio"],
+  "license": "LGPL-3.0-or-later",
+  "user_config": {
+    "token": {
+      "type": "string",
+      "title": "Token",
+      "description": "The token from Open Planner Studio: MCP tab › Connection › Connect. It gives access to the open plan; do not share it.",
+      "sensitive": true,
+      "required": true
+    },
+    "port": {
+      "type": "number",
+      "title": "Port",
+      "description": "The port of the MCP bridge in Open Planner Studio (MCP tab › Connection › Port). Default 3877.",
+      "default": 3877,
+      "min": 1,
+      "max": 65535,
+      "required": false
+    }
+  },
+  "compatibility": {
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": {
+      "node": ">=18.0.0"
+    }
+  }
+}

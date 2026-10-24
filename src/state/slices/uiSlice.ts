@@ -109,6 +109,8 @@ export function createDefaultUI(): UIState {
     positionDivision: 'left-right',
     modifierMap: { plain: 'vertical', ctrl: 'zoom', shift: 'horizontal' },
     debugTerminalEnabled: false,
+    experimentalSettingsVisible: false,
+    featureFlags: {},
     debugTerminalOpen: false,
     documentChromeStyle: 'tabs',
     ribbonCompact: false,

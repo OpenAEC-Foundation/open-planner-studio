@@ -134,6 +134,8 @@ Het voorbeeld importeert alleen `@openaec/open-planner-core`, nooit code uit `sr
 
 - Geen andere invoerformaten (MSPDI, XER, `.mpp`, CSV). De lezers bestaan in de app; de kern
   biedt ze nog niet aan.
-- Geen bewerkingen op de planning (taken toevoegen, nivelleren). Daarvoor is de MCP-bridge van de
-  app (`planner_*`).
+- Geen bewerkingen op de planning (taken toevoegen, nivelleren). Daarvoor zijn er de `planner_*`-tools:
+  in de app via de MCP-koppeling, of zonder app via de [headless MCP-server](headless-mcp.md)
+  (`npm run build:mcp-server`). Die server deelt de grenscontrole van de bundel met deze kern
+  (`scripts/lib/headless-bundle.mjs`).
 - Geen native DLL of `.so`. Dat is een apart punt van issue #429.

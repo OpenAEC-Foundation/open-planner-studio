@@ -11,6 +11,7 @@ import { SwitcherPill } from '@/components/layout/DocumentChrome/SwitcherPill';
 import { canRedo, canUndo } from '@/state/sessionHistory';
 import { isGlobalShortcutFrozen } from '@/hooks/keyboard/shortcutRegistry';
 import { canWriteToRefWithoutPrompt, saveTargetRef } from '@/services/fileAccess';
+import { isFeatureEnabled } from '@/utils/featureFlags';
 
 // Het label van de feedback-knop roteert elke 10 minuten door deze drie.
 const FEEDBACK_LABEL_KEYS = ['feedback.rotateFeedback', 'feedback.rotateBug', 'feedback.rotateFeature'] as const;
@@ -44,6 +45,7 @@ export function TitleBar() {
   const autoSaveToFile = useAppStore(s => s.autoSaveToFile);
   const setAutoSaveToFile = useAppStore(s => s.setAutoSaveToFile);
   const documentChromeStyle = useAppStore(s => s.ui.documentChromeStyle);
+  const demoAnimation = useAppStore(s => isFeatureEnabled(s.ui.featureFlags, 'demo-topbar-animation'));
 
   const [maximized, setMaximized] = useState(false);
 
@@ -142,6 +144,9 @@ export function TitleBar() {
 
   return (
     <div ref={rootRef} className="title-bar" data-tauri-drag-region style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
+      {demoAnimation && (
+        <span className="title-bar-demo-animation" data-ops-topbar-animation aria-hidden="true" />
+      )}
       <div ref={leftRef} className="title-bar-left">
         <div className="quick-access-toolbar">
           <img src={`${import.meta.env.BASE_URL}icon.png`} className="title-bar-app-icon" alt="Open Planner Studio" />

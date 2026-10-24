@@ -50,8 +50,10 @@ teststructuur en `makeMcpContext(...)` voor de tool-context; roep de MCP-tools r
 
 `cases-externe-client.ts` is de uitzondering op "roep de tools rechtstreeks aan": daar praat de officiële
 `@modelcontextprotocol/sdk`-client over HTTP met `bridgeMirror.ts`, een Node-host die het HTTP-contract van
-`src-tauri/src/mcp_bridge.rs` met de hand nabouwt rond de echte `createRequestHandler`. Die kopie bewijst niets
-over Rust zelf; dat doet de workflow hieronder. De controles zelf staan in
+`src-tauri/src/mcp_bridge.rs` met de hand nabouwt rond de echte `createRequestHandler`. Sinds #570 is die host de
+HTTP-transport van de headless MCP-server (`headless/mcp-server/src/http.ts`). Die kopie bewijst niets
+over Rust zelf; dat doet de workflow hieronder. `cases-headless-server.ts` toetst de headless MCP-server met
+dezelfde controles, en daarnaast de gebouwde `server.mjs` over stdio en HTTP (zie `docs/headless-mcp.md`). De controles zelf staan in
 `externalClient.ts`, zodat `realApp/run-real-app.ts` ze tegen de echte Rust-bridge kan draaien
 (`.github/workflows/mcp-real-app.yml`; `realApp/` hoort bewust niet bij `run.sh`). Zie `docs/mcp-verificatie.md`.
 

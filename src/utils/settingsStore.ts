@@ -17,6 +17,7 @@ import type {
 import type { PersistedTaskGridPreferencesV1 } from '@/types/taskGrid';
 import type { FormatNoticeKind } from '@/services/formatNoticeKinds';
 import type { LayoutOverlays } from '@/types/view';
+import type { FeatureFlagValues } from '@/utils/featureFlags';
 import { migrateSavedFilters } from '@/engine/view/layoutPresets';
 import { AI_MODE_AVAILABLE } from '@/utils/buildFlags';
 import {
@@ -152,6 +153,14 @@ export async function saveZoomSettings(settings: Partial<PersistedZoomSettings>)
 
 export async function saveDebugTerminalEnabled(value: boolean): Promise<void> {
   await setSetting('debugTerminalEnabled', value);
+}
+
+export async function saveExperimentalSettingsVisible(value: boolean): Promise<void> {
+  await setSetting('experimentalSettingsVisible', value);
+}
+
+export async function saveFeatureFlags(value: FeatureFlagValues): Promise<void> {
+  await setSetting('featureFlags', value);
 }
 
 // Breedte van de takentabel links in de Gantt (ui.leftPanelWidth); begrensd

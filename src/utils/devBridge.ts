@@ -159,7 +159,7 @@ async function scanStoredExtensions(): Promise<Array<{
 
 export interface OpsCommand {
   id?: string;
-  op: 'ping' | 'getState' | 'roundTrip' | 'save' | 'open' | 'dispatch' | 'feedbackTest' | 'mcpConnection' | 'mcpRestart';
+  op: 'ping' | 'getState' | 'roundTrip' | 'save' | 'open' | 'dispatch' | 'feedbackTest' | 'mcpConnection' | 'mcpRestart' | 'mcpStop';
   args?: Record<string, unknown>;
 }
 
@@ -212,6 +212,14 @@ async function runOp(cmd: OpsCommand): Promise<Record<string, unknown>> {
       const { stopMcpServer, startMcpServer } = await import('@/services/mcp/server');
       await stopMcpServer();
       await startMcpServer();
+      return { ok: true, result: { status: useAppStore.getState().ui.aiServerStatus } };
+    }
+    case 'mcpStop': {
+      // Bridge stoppen zoals Stop op het AI-tabblad; voor de controle dat `runtime.json` dan verdwijnt
+      // (`tests/mcp/realApp/run-real-app.ts`). Dev-only, zoals `mcpRestart`.
+      if (!import.meta.env.DEV) return { ok: false, error: 'mcpStop is dev-only' };
+      const { stopMcpServer } = await import('@/services/mcp/server');
+      await stopMcpServer();
       return { ok: true, result: { status: useAppStore.getState().ui.aiServerStatus } };
     }
     case 'feedbackTest': {
