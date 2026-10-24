@@ -11,7 +11,7 @@
 //      Over HTTP: tools/list, fout token, ontbrekende sessie-id, Origin, en de startweigeringen.
 import { test, assert, assertEq, run } from './harness';
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from 'node:child_process';
-import { cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -178,6 +178,35 @@ test('A2 bevinding 1: schrijf- en rename-fout laten het origineel byte-gelijk, o
   assert(lstatSync(join(fsRoot, 'link.ifc')).isSymbolicLink(), 'de link blijft een link');
   assertEq(readFileSync(join(fsRoot, 'plan.ifc'), 'utf8'), 'NIEUW', 'het echte doel is vervangen');
   writeFileSync(join(fsRoot, 'plan.ifc'), ORIGINAL);
+});
+
+test('knownbug 216: lange geldige doelnamen blijven schrijfbaar en fouten houden het origineel intact', async () => {
+  // De bestaande A2-suite toetst de POSIX-bestandslaag; dit is geen Windows MAX_PATH-bewijs.
+  for (const name of ['a'.repeat(236) + '.ifc', 'é'.repeat(118) + '.ifc']) {
+    assertEq(Buffer.byteLength(name, 'utf8'), 240, 'fixture: doelnaam van 240 bytes');
+    const target = join(fsRoot, name);
+    // De directe fixture-write bewijst eerst dat het bestandssysteem de doelnaam accepteert.
+    writeFileSync(target, ORIGINAL);
+    const fs = await createNodeFileFs(fsRoot);
+    await fs.writeTextFile(target, 'LANG NIEUW');
+    assertEq(readFileSync(target, 'utf8'), 'LANG NIEUW', 'lang doel vervangen');
+    assertEq(tmpFiles(fsRoot), [], 'geen halffabricaat na succes');
+    for (const phase of ['write', 'rename'] as const) {
+      writeFileSync(target, ORIGINAL);
+      let reached = false;
+      const failing = await createNodeFileFs(fsRoot, undefined, { fault: p => {
+        if (p === phase) { reached = true; throw new Error('lange naam testfout'); }
+      } });
+      await expectReject(failing.writeTextFile(target, 'MAG NIET'), 'lange naam ' + phase);
+      assert(reached, 'foutpunt bereikt, niet eerder ENAMETOOLONG');
+      assertEq(readFileSync(target, 'utf8'), ORIGINAL, 'lange naam: origineel behouden');
+      assertEq(tmpFiles(fsRoot), [], 'lange naam: eigen halffabricaat opgeruimd');
+    }
+    unlinkSync(target);
+    await fs.writeTextFile(target, 'NIEUW LANG DOEL');
+    assertEq(readFileSync(target, 'utf8'), 'NIEUW LANG DOEL', 'nieuw lang doel aangemaakt');
+    unlinkSync(target);
+  }
 });
 
 test('A2 bevinding 2: een map die tussen controle en operatie een link naar buiten wordt, wordt geweigerd', async () => {
