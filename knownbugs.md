@@ -215,6 +215,27 @@ en noem het in je rapport of PR-tekst.
      die afwijkt wel, maar niet een tweede kopie die mee verandert. Voorstel: één gedeelde functie voor de
      spanwijdte, en de afronding per dag gelijk aan die van de Gantt. Gevonden in F3c-fix-split. — B
 
+265. **Contour en splitsgaten bij een eenheidswissel van een kalendertijdtaak tellen de oude duur in
+     werkminuten.** `applyDurationChangeRules` (`src/utils/taskDefaults.ts:822`) krijgt de oude werkminuten
+     van de aanroeper: in het raster `taskWorkMinutes(before, hoursPerDay)` met de werktijd per dag
+     (`src/engine/taskGrid/taskEditPlan.ts:205`), in de store via `settleDurationAftermath`
+     (`workRuleApply.ts:755`, de werktijd per dag van de taakkalender). Gaat een kalendertijdtaak van dagen
+     naar uren (2 d naar "1d 4u"), dan telt de oude duur als 960 in plaats van 2880 minuten. De
+     herschaling van een contour en het afknippen van splitsgaten (`clipUserGapsToWork`) rekenen dan
+     vermoedelijk met een verkeerde verhouding. Gevonden met grep in fixronde 4 van #584; niet gemeten.
+     Voorstel: eerst meten met een contour en een splitsgat op een kalendertijdtaak; dan dezelfde regel
+     als `durationEditProgress` (24 u per dag bij kalendertijd). — S
+
+266. **Na een eenheidswissel op een lopende taak heeft de rest ruis van de drijvende komma.**
+     `durationEditProgress` (`src/engine/work/workRuleApply.ts:953`) rekent de rest als nieuwe duur ×
+     (1 − nieuw percentage). Een werktijdtaak van 2 d, 25 % gereed, met een nieuwe duur van 12 u (onder P6
+     en MSP ook "1,5d") krijgt zo 720 × (1 − 1/3) = 480,00000000000006 min in plaats van 480. De motor legt
+     het einde daardoor net voorbij de bandgrens: wo 3 juni 07:00 in plaats van di 2 juni 16:00. Dat is
+     hetzelfde werkmoment, maar de Tabel toont een andere dag. Gemeten in fixronde 4 van #584; vastgelegd
+     als `KNOWN_DRIFT` (4 rijen) in `tests/planning/check-f4b-review-r3.ts`. Dit stond al zo op de basis
+     (bij "12u"). Voorstel: de rest als nieuwe duur − verricht rekenen, en dan de verwachtingen nameten;
+     haal daarna de rijen uit `KNOWN_DRIFT`. — B
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B

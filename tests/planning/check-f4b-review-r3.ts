@@ -19,7 +19,10 @@
 // faalgeval ("1d 0u" 3 d en einde 4 juni 07:00; "1d 4u" 3,5 d en 4 juni 19:00); kalendertijd altijd als
 // urenmaat ⇒ 21 rood; dagen zonder exactheidstoets ⇒ 9 rood ("1d 4u" wordt 1,166667 d).
 //
-// Fixronde 4 (review r4): de dimensie TAAKSTAND. De rijen hierboven zijn niet gestart. Daarna dezelfde
+// Fixronde 4 (review r4): de dimensie TAAKSTAND. Sinds de tweede stap van ronde 4 telt
+// `durationEditProgress` zelf een kalenderdag als 24 klokuren (besluit van de orkestrator); het raster
+// geeft weer gewoon de werktijd per dag mee. Paneel, dialoog en MCP: check-f4b-review-r4.ts en
+// tests/mcp/cases-duration-progress.ts. De rijen hierboven zijn niet gestart. Daarna dezelfde
 // invoer, plus "0d 8u" en "2u", op een LOPENDE taak (werkelijke start ma 1 juni 07:00, 25 % gereed,
 // statusdatum di 2 juni 07:00) en een GEREEDE taak (100 %, werkelijk einde na 2 d, statusdatum ma 8
 // juni 07:00), via de cel en plakken. Faalgeval uit het rapport: kalendertijd 2 d (12 u verricht),
@@ -32,7 +35,7 @@
 //  - Gereed: geen weigering (een voltooide taak heeft geen rest om mee te schuiven); de duur volgt de
 //    invoer, de werkelijke datums en het einde blijven, 100 % blijft.
 //  - Ook de kolom Eenheid (dagen naar uren) op een lopende taak: dezelfde voortgangsoverdracht.
-//  - BEKENDE AFWIJKING (motor, niet in F4b): `durationEditProgress` (`workRuleApply.ts`) rekent bij een
+//  - BEKENDE AFWIJKING (knownbug 266, motor, al op de basis): `durationEditProgress` (`workRuleApply.ts`) rekent bij een
 //    eenheidswissel de rest als 720 × (1 − 1/3) = 480,00000000000006 min. Die ruis legt het einde net
 //    voorbij de bandgrens: wo 3 juni 07:00 in plaats van di 2 juni 16:00 (hetzelfde werkmoment, een
 //    andere dag in de Tabel). De verwachting hieronder blijft de met de hand gerekende di 16:00; de vier
@@ -406,7 +409,7 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
 
 // Taakstand lopend en gereed: de Duur-cel en plakken, en (lopend) de kolom Eenheid.
 const UNIT = taskColumnId('task.time.durationUnit');
-/** Zie de kop: ruis in de rest van `durationEditProgress` bij een eenheidswissel (motor). Gemeten einde. */
+/** Zie de kop: ruis in de rest van `durationEditProgress` bij een eenheidswissel (knownbug 266). Gemeten einde. */
 const KNOWN_DRIFT: ReadonlyMap<string, string> = new Map([
   'lopend p6 werktijd "1,5d" cel', 'lopend p6 werktijd "1,5d" plakken',
   'lopend msproject werktijd "1,5d" cel', 'lopend msproject werktijd "1,5d" plakken',
