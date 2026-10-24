@@ -1117,7 +1117,7 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
       ...(constraint2 ? { constraint2 } : {}),
       time: {
         durationType: 'WORKTIME',
-        durationUnit: isHour ? 'hours' : 'days',
+        durationUnit: measure.durationUnit,
         scheduleDuration: durationDays,
         ...(durationMinutes != null ? { durationMinutes } : {}),
         scheduleStart: plannedStart,

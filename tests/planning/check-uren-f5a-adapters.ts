@@ -1,4 +1,4 @@
-// F5a-1: minuutgetrouwe adapters; de dagenmaat-markering met records volgt in F5a-2.
+// F5a-1: minuutgetrouwe adapters. De dagenmaat-markering met records (F5a-2) toetst check-uren-f5a2-adapters.ts.
 // Alle invoer komt via de publieke lezers/schrijvers; geen solver- of storewijziging.
 import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { writeMSPDI, OPS_DURATION_UNIT_FIELD_ID, OPS_DURATION_UNIT_FIELD_NAME } from '@/services/msproject/mspdiWriter';
@@ -47,9 +47,12 @@ for (const marker of [false, true]) {
   eq(`MSPDI ${tag}: I3 rest 12 u`, marker ? r.tasks[0]?.time.remainingTime : r.tasks[0]?.time.remainingMinutes, marker ? 1.5 : 720);
   eq(`MSPDI ${tag}: T15 eenheid`, r.tasks[0]?.time.durationUnit, marker ? 'days' : 'hours');
   eq(`MSPDI ${tag}: duur`, marker ? r.tasks[0]?.time.scheduleDuration : r.tasks[0]?.time.durationMinutes, marker ? 3 : 1440);
+  // F5a-2 (§3.3): `LagFormat` 8 (ed) zegt kalenderdagen; die komen terug als 1,5 ed, zonder afronding (I2).
+  // De andere kalenderformaten (em, eu, ew, emo) blijven kalenderminuten.
   for (const format of [4, 6, 8, 10, 12]) {
     const elapsed = readMSPDI(mspXml(marker, 21600, format)).sequences[0];
-    eq(`MSPDI ${tag}: I2 36 verstreken uur, formaat ${format}`, [elapsed?.lagMinutes, elapsed?.lagDays, elapsed?.lagUnit], [2160, 0, 'ELAPSEDTIME']);
+    eq(`MSPDI ${tag}: I2 36 verstreken uur, formaat ${format}`, [elapsed?.lagMinutes, elapsed?.lagDays, elapsed?.lagUnit],
+      format === 8 ? [undefined, 1.5, 'ELAPSEDTIME'] : [2160, 0, 'ELAPSEDTIME']);
   }
   const p6 = p6Xml(marker);
   const p = readP6XML(marker ? p6.split('<Status>In Progress</Status>').join('<Status>Not Started</Status>').split('<PhysicalPercentComplete>0.5</PhysicalPercentComplete>').join('<PhysicalPercentComplete>0</PhysicalPercentComplete>').split('<ActualStartDate>2026-06-01T08:00:00</ActualStartDate>').join('') : p6);
@@ -94,7 +97,8 @@ for (const [name, writer, reader] of [
   }
 }
 
-// I7: werktijd van de gekozen lagkalender, ook als opgeslagen uren per dag afwijken.
+// I7: werktijd van de gekozen lagkalender, ook als opgeslagen uren per dag afwijken. `LinkLag` draagt de
+// lengte (tienden van minuten); het record (T21, F5a-2) geeft de lag terug als 1 d dagenmaat.
 const long = { ...source.calendar, id: 'lang', name: 'Lange dagen', hoursPerDay: 8,
   workStartHour: 7, workEndHour: 17, workTime: { byWeekday: {
     1: [{ start: 420, end: 1020 }], 2: [{ start: 420, end: 1020 }], 3: [{ start: 420, end: 1020 }],
@@ -106,8 +110,10 @@ source.sequences = [{ ...source.sequences[0], lagMinutes: undefined, lagDays: 1 
 for (const [lagCalendar, expected] of [[undefined, 6000], ['predecessor', 6000],
   ['successor', 4800], ['projectDefault', 4800], ['24hour', 14400]] as const) {
   source.project.schedulingOptions = { lagCalendar };
-  const back = readMSPDI(writeMsp(source));
-  eq(`I7: lagkalender ${lagCalendar ?? 'standaard'}`, back.sequences[0]?.lagMinutes, expected / 10);
+  const xml = writeMsp(source);
+  const back = readMSPDI(xml);
+  eq(`I7: lagkalender ${lagCalendar ?? 'standaard'}: LinkLag`, xml.match(/<LinkLag>(-?\d+)<\/LinkLag>/)?.[1], String(expected));
+  eq(`I7: lagkalender ${lagCalendar ?? 'standaard'}: terug als 1 d`, [back.sequences[0]?.lagDays, back.sequences[0]?.lagMinutes], [1, undefined]);
 }
 source.project.schedulingOptions = undefined;
 
@@ -148,7 +154,9 @@ for (const [name, r] of [['MSPDI', readMSPDI(mspXml(false, 1, 7, 'PT24H', 'PT12H
 const percent = readMSPDI(mspXml(false, -125, 19)).sequences[0];
 eq('MSPDI procentlag', [percent?.lagPercent, percent?.lagMinutes], [-12.5, undefined]);
 const elapsed = readMSPDI(mspXml(false, -21600, 8)).sequences[0];
-eq('MSPDI negatieve verstreken lag', [elapsed?.lagMinutes, elapsed?.lagUnit], [-2160, 'ELAPSEDTIME']);
+eq('MSPDI negatieve verstreken lag (ed, F5a-2 §3.3)', [elapsed?.lagDays, elapsed?.lagMinutes, elapsed?.lagUnit], [-1.5, undefined, 'ELAPSEDTIME']);
+const elapsedHours = readMSPDI(mspXml(false, -21600, 6)).sequences[0];
+eq('MSPDI negatieve verstreken lag (eu)', [elapsedHours?.lagMinutes, elapsedHours?.lagUnit], [-2160, 'ELAPSEDTIME']);
 
 if (fails.length) {
   for (const failure of fails) console.log(`XX uren-f5a: ${failure}`);
