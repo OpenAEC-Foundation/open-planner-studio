@@ -7,6 +7,7 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { useEffectiveDurationDisplay } from '@/hooks/useDurationMeasure';
 import { useAppStore } from '@/state/appStore';
 import { useResolvedUITheme } from '@/hooks/useResolvedUITheme';
 import { useDisplayDate } from '@/hooks/displayDate';
@@ -122,7 +123,8 @@ export function GanttCanvas({
   // «Alleen werkbare dagen tonen» — globale weergavevoorkeur.
   const compressNonWorkdays = useAppStore(s => s.ui.compressNonWorkdays);
 
-  const durationDisplay = useAppStore(s => s.ui.durationDisplay);
+  // B9: in een profiel met de dagenmaat toont elke taak haar eigen maat.
+  const durationDisplay = useEffectiveDurationDisplay();
   const view = useAppStore(s => s.view);
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
   const selectTask = useAppStore(s => s.selectTask);

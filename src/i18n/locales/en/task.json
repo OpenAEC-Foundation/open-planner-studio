@@ -181,7 +181,7 @@
       "calendar": "Choose a calendar from the list.",
       "calendarNotFound": "The chosen calendar does not exist.",
       "calendarHours": "The calendar of this task has no working hours per day.",
-      "durationConversionNotExact": "This duration cannot be converted to the other unit exactly.",
+      "durationConversionNotExact": "This duration cannot be converted to the other unit on this calendar.",
       "fixedWorkIsHours": "A task with fixed work always uses the hour measure.",
       "milestoneRequired": "This field only applies to milestones.",
       "milestoneUnavailable": "A summary task with subtasks cannot become a milestone.",
@@ -328,8 +328,8 @@
     "unit": "Duration unit",
     "days": "Days",
     "hours": "Hours",
-    "invalid": "Enter a whole number of days or hours, for example 2d or 12h.",
-    "conversionNotExact": "{{value}} does not fit into whole days on this calendar. The unit has not changed.",
+    "invalid": "Enter a number of days or hours, for example 2.5d or 12h.",
+    "conversionNotExact": "{{value}} cannot be converted to the other unit on this calendar. The unit has not changed.",
     "unitInfo": "The selected unit belongs to this task. Days count working days; hours count working hours within the calendar. A different calendar does not change the unit or entered duration, but it may change the finish date."
   },
   "dialog": {

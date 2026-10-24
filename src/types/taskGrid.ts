@@ -148,8 +148,12 @@ export interface TaskColumnContext {
   /** B4: de werkdaggrenzen voor datumweergave, ook op een scalaire kalender. */
   effectiveCalendar?: (task: Task) => WorkCalendar;
   /** Instelling Duurweergave voor de weergavetekst van de Duur-kolom (edit- en kopieertekst blijven
-   *  de eigen, parsebare eenheid); ontbreekt ⇒ `'auto'`. */
+   *  de eigen, parsebare eenheid); ontbreekt ⇒ `'auto'`. In het OPS-profiel geeft het raster hier
+   *  altijd `'auto'` door (B9, `effectiveDurationDisplay`). */
   durationDisplay?: DurationDisplay;
+  /** Telt het rekenprofiel een dagenmaat in werkdagen (conventie `workdayDurationMeasure`)? Aan of
+   *  afwezig ⇒ "5d" is de dagenmaat; uit (P6, MSP) ⇒ "5d" is de urenmaat (B8, §3.12). */
+  workdayDurationMeasure?: boolean;
   /** App-taal voor het decimaalteken van duren en speling; ontbreekt ⇒ punt. */
   numberLocale?: string;
   /** De echte projectkalenderberekening voor baselineafwijkingen (`variance.signedWorkDaysBetween`).

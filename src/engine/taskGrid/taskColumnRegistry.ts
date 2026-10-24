@@ -47,6 +47,7 @@ import {
   formatTaskDurationInput,
   parseTaskDurationInput,
   type ParsedTaskDuration,
+  type DurationInputContext,
 } from '@/utils/taskDurationInput';
 import { finishIsActual, shownStart, shownFinish, startIsActual } from '@/utils/taskDates';
 import {
@@ -55,7 +56,7 @@ import {
 import { isStrictIsoDateTime } from '@/utils/dateUtils';
 import { isFiniteNumber } from '@/utils/guards';
 import { isManuallyScheduled } from '@/utils/manualScheduling';
-import { formatReportNumber } from '@/utils/reportNumber';
+import { formatReportNumber, localizeDecimalPoint } from '@/utils/reportNumber';
 
 export const TASK_COLUMN_CATEGORY_ORDER: readonly TaskColumnCategory[] = [
   'task', 'planning', 'constraints', 'relations', 'resources',
@@ -404,8 +405,9 @@ function isParsedTaskDuration(value: unknown): value is ParsedTaskDuration {
   if (!value || typeof value !== 'object') return false;
   const parsed = value as Partial<ParsedTaskDuration>;
   if (parsed.unit === 'days') {
+    // De dagenmaat mag een breuk hebben (spec "alleen uren" §3.2, B1).
     return typeof parsed.scheduleDuration === 'number'
-      && Number.isSafeInteger(parsed.scheduleDuration)
+      && Number.isFinite(parsed.scheduleDuration)
       && parsed.scheduleDuration >= 0;
   }
   return parsed.unit === 'hours'
@@ -414,8 +416,19 @@ function isParsedTaskDuration(value: unknown): value is ParsedTaskDuration {
     && parsed.durationMinutes >= 0;
 }
 
+/** Wat een getypte duur in deze cel betekent (B8, §3.12): de dagenmaat van het profiel, de werktijd per
+ *  dag van de taakkalender en de eenheid die de cel toont (voor een kaal getal). */
+function durationInputContext(task: Task, ctx: TaskColumnContext): DurationInputContext {
+  const display = ctx.durationDisplay ?? 'auto';
+  return {
+    dayMeasure: ctx.workdayDurationMeasure !== false,
+    hoursPerDay: effectiveHoursPerDay(task, ctx),
+    shownUnit: display === 'auto' ? task.time.durationUnit : display,
+  };
+}
+
 const parseScheduledTaskDuration: Parser = (text, task, ctx) => {
-  const parsed = parseTaskDurationInput(text, task.time.durationUnit);
+  const parsed = parseTaskDurationInput(text, task.time.durationUnit, durationInputContext(task, ctx));
   if (parsed) return success(parsed);
   // Achterwaartse klembordcompatibiliteit: de bestaande rasterparser accepteert samengestelde
   // invoer zoals `2d 4u` en draagt die als minuten naar de oude transactieroute. Nieuwe enkelvoudige
@@ -429,11 +442,24 @@ const validateScheduledTaskDuration: Validator = value =>
     ? success(value)
     : failure('duration', value);
 
-/** Kopieertekst van de Duur-kolom: de eigen taakeenheid in parsebare vorm ("2d", "1.5u" in nl,
- *  "1.5h" in en), zodat plakken terug hetzelfde oplevert. De WEERGAVE loopt via {@link durationCellText}. */
+/** Kopieertekst van de Duur-kolom: de eigen taakeenheid in parsebare vorm ("2.5d", "1.5u" in nl,
+ *  "1.5h" in en), zodat plakken terug hetzelfde oplevert. De WEERGAVE loopt via {@link durationCellText}.
+ *  Onder een profiel zonder dagenmaat (P6, MSP) leest "d" als de urenmaat (B8); een dagenmaat-taak gaat
+ *  daar dus als uren, zodat plakken haar lengte houdt. */
 function scheduledTaskDurationText(task: Task, ctx: TaskColumnContext): string {
-  if (task.time.durationUnit !== 'hours') return `${formatTaskDurationInput(task)}d`;
-  return `${formatTaskDurationInput(task)}${parseableHourSuffix(ctx.labelForText?.('duration.suffixHour'), 'h')}`;
+  const hourSuffix = parseableHourSuffix(ctx.labelForText?.('duration.suffixHour'), 'h');
+  if (task.time.durationUnit === 'hours') return `${formatTaskDurationInput(task)}${hourSuffix}`;
+  if (ctx.workdayDurationMeasure === false) {
+    return `${formatTaskDurationInput(task, { shownUnit: 'hours', hoursPerDay: effectiveHoursPerDay(task, ctx) })}${hourSuffix}`;
+  }
+  return `${formatTaskDurationInput(task)}d`;
+}
+
+/** Bewerktekst van de Duur-kolom: een kaal getal in de eenheid die de cel toont, met het decimaalteken
+ *  van de app-taal ("2,5" in nl). De parser leest punt en komma. */
+function scheduledTaskDurationEditText(task: Task, ctx: TaskColumnContext): string {
+  const input = durationInputContext(task, ctx);
+  return localizeDecimalPoint(formatTaskDurationInput(task, { shownUnit: input.shownUnit, hoursPerDay: input.hoursPerDay }), ctx.numberLocale);
 }
 
 /** De vertaalde duur-afkortingen en weergave-instellingen van het raster, voor de gedeelde formatter. */
@@ -954,7 +980,7 @@ function fixedTimeColumns(): TaskColumnDescriptor[] {
   return [
     editableColumn({ id: 'task.time.durationType', labelKey: 'taskGrid.columns.durationType', category: 'planning', valueKind: 'enum', editorKind: 'enum', editorOptions: enumOptions('durationType', ['WORKTIME', 'ELAPSEDTIME']), route: 'task-schedule', read: task => task.time.durationType, parse: enumParser(['WORKTIME', 'ELAPSEDTIME']), validate: enumValidator(['WORKTIME', 'ELAPSEDTIME']) }),
     editableColumn({ id: 'task.time.durationUnit', labelKey: 'duration.unit', category: 'planning', valueKind: 'enum', editorKind: 'enum', editorOptions: [{ value: 'days', labelKey: 'duration.days' }, { value: 'hours', labelKey: 'duration.hours' }], route: 'task-schedule', read: task => task.time.durationUnit, readOnly: task => task.isHammock === true || task.childIds.length > 0 || task.isMilestone, parse: enumParser(['days', 'hours']), validate: enumValidator(['days', 'hours']) }),
-    editableColumn({ id: 'task.time.scheduleDuration', labelKey: 'taskGrid.columns.duration', category: 'planning', valueKind: 'duration', editorKind: 'duration', route: 'task-schedule', read: task => task.time.durationUnit === 'hours' ? task.time.durationMinutes : task.time.scheduleDuration, readOnly: task => task.isHammock === true || task.childIds.length > 0 || (task.isMilestone && task.time.scheduleDuration === 0), format: (_value, task, ctx) => durationCellText(task, ctx), copy: (task, ctx) => scheduledTaskDurationText(task, ctx), editText: task => formatTaskDurationInput(task), parse: parseScheduledTaskDuration, validate: validateScheduledTaskDuration }),
+    editableColumn({ id: 'task.time.scheduleDuration', labelKey: 'taskGrid.columns.duration', category: 'planning', valueKind: 'duration', editorKind: 'duration', route: 'task-schedule', read: task => task.time.durationUnit === 'hours' ? task.time.durationMinutes : task.time.scheduleDuration, readOnly: task => task.isHammock === true || task.childIds.length > 0 || (task.isMilestone && task.time.scheduleDuration === 0), format: (_value, task, ctx) => durationCellText(task, ctx), copy: (task, ctx) => scheduledTaskDurationText(task, ctx), editText: scheduledTaskDurationEditText, parse: parseScheduledTaskDuration, validate: validateScheduledTaskDuration }),
     readonlyColumn({ id: 'task.time.durationMinutes', labelKey: 'taskGrid.columns.durationMinutes', category: 'technical', valueKind: 'number', read: task => task.time.durationMinutes }),
     // Start/Einde: de GETOONDE datums, dezelfde bron als Gantt-balk, tooltip, paneel en afdruk
     // (`shownStart`/`shownFinish`: een gestarte taak begint op haar werkelijke start, een voltooide

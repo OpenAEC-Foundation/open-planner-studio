@@ -60,14 +60,15 @@ eq('19 "2d 4u" @H10 = 1200+240', parseDuration('2d 4u', 10), 1440);
 eq('20 "1d 2u 30m" @H8 = 480+120+30', parseDuration('1d 2u 30m', 8), 630);
 
 // ── 3) parseDuration — ongeldig (⇒ null) ─────────────────────────────────────
-eq('21 "2.5d" ⇒ null (decimaal)', parseDuration('2.5d', 8), null);
-eq('22 "1,5u" ⇒ null (komma)', parseDuration('1,5u', 8), null);
+// Alleen uren §3.12 (B2): breuken zijn voor iedereen te typen, met punt of komma.
+eq('21 "2.5d" ⇒ 2,5 werkdag', parseDuration('2.5d', 8), 1200);
+eq('22 "1,5u" (komma) ⇒ 90 min', parseDuration('1,5u', 8), 90);
 eq('23 "4h30" ⇒ null (rest zonder suffix)', parseDuration('4h30', 8), null);
 eq('24 "" ⇒ null (leeg)', parseDuration('', 8), null);
 eq('25 "abc" ⇒ null', parseDuration('abc', 8), null);
 eq('26 "-3d" ⇒ null (negatief)', parseDuration('-3d', 8), null);
 eq('27 "   " ⇒ null (witruimte)', parseDuration('   ', 8), null);
-eq('28 "2.5" ⇒ null (decimaal naakt)', parseDuration('2.5', 8), null);
+eq('28 "2.5" (decimaal naakt) ⇒ 2,5 werkdag', parseDuration('2.5', 8), 1200);
 
 // ── 4) formatDuration ────────────────────────────────────────────────────────
 eq('29 fmt 1440 @H8 auto ⇒ "3d"', formatDuration(1440, 8, 'auto'), '3d');

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDisplayDate } from '@/hooks/displayDate';
+import { useEffectiveDurationDisplay } from '@/hooks/useDurationMeasure';
 import { useAppStore } from '@/state/appStore';
 import { durationSuffixesFrom, effectiveCalendarOf, formatTaskDurationDisplay, formatWorkDaysText } from '@/utils/taskDuration';
 import { Task } from '@/types/task';
@@ -36,7 +37,8 @@ export function TaskTooltipContent({ task }: { task: Task }) {
   const { t: tCommon } = useTranslation('common');
   const projectCalendar = useAppStore((s) => s.calendar);
   const calendars = useAppStore((s) => s.calendars);
-  const durationDisplay = useAppStore((s) => s.ui.durationDisplay);
+  // B9: in een profiel met de dagenmaat toont elke taak haar eigen maat.
+  const durationDisplay = useEffectiveDurationDisplay();
 
   const dd = useDisplayDate();
   const suffixes = durationSuffixesFrom(tCommon);

@@ -154,10 +154,15 @@ eq('Losse eenheidscel past alleen een exact kalendervoorstel toe', exactUnitConv
   days: exactUnitConversion.value.task.time.scheduleDuration,
   minutes: exactUnitConversion.value.task.time.durationMinutes,
 } : exactUnitConversion, { unit: 'hours', days: 5, minutes: 2400 });
-eq('Niet-exacte uur-naar-dagconversie wordt geweigerd', plan(
+// Alleen uren §3.2 (B1): de dagenmaat mag een breuk hebben, dus 90 min wordt exact 0,1875 d (het
+// eindmoment blijft gelijk). Voorheen weigerde de cel een omzetting die niet in hele dagen paste.
+const fractionalUnitConversion = plan(
   'task.time.durationUnit', 'task-schedule', 'days',
   { ...baseTask, time: { ...baseTask.time, durationUnit: 'hours', scheduleDuration: 0.1875, durationMinutes: 90 } },
-).ok, false);
+);
+eq('Uur-naar-dagconversie geeft een breuk in de dagenmaat', fractionalUnitConversion.ok
+  ? [fractionalUnitConversion.value.task.time.durationUnit, fractionalUnitConversion.value.task.time.scheduleDuration]
+  : fractionalUnitConversion, ['days', 0.1875]);
 eq('Ureninvoer is altijd beschikbaar', plan(
   'task.time.scheduleDuration', 'task-schedule',
   { unit: 'hours', durationMinutes: 90, explicitUnit: true }, baseTask,

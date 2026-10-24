@@ -7,6 +7,26 @@ import { formatReportNumber } from '@/utils/reportNumber';
 import type { DurationDisplay } from '@/types/view';
 import { isZeroDurationMilestone, taskDurationUnit } from '@/engine/scheduler/duration';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
+import type { Project } from '@/types/project';
+
+/**
+ * Telt het rekenprofiel van dit project een dagenmaat in werkdagen (conventie `workdayDurationMeasure`)?
+ * Aan in het OPS-profiel, uit onder P6 en MS Project. Bepaalt wat "d" betekent bij invoer (B8: aan ⇒ de
+ * dagenmaat, uit ⇒ de urenmaat) en of Duurweergave meetelt (B9).
+ */
+export function profileCountsWorkdays(project: Pick<Project, 'schedulingProfile' | 'schedulingOptions'>): boolean {
+  return effectiveSchedulingOptions(project).workdayDurationMeasure === true;
+}
+
+/**
+ * B9 = optie 1 (spec §3.12): in een profiel met de dagenmaat toont elke taak haar eigen maat, een
+ * dagenmaat-taak in d en een urenmaat-taak in u. Duurweergave ("Altijd dagen", "Altijd uren") heeft dan
+ * geen effect; onder P6 en MS Project werkt de instelling zoals voorheen.
+ */
+export function effectiveDurationDisplay(display: DurationDisplay, countsWorkdays: boolean): DurationDisplay {
+  return countsWorkdays ? 'auto' : display;
+}
 
 /**
  * Bouw de vertaalde duur-suffixen uit de i18n-`t` (common-namespace). Licht adapter-laagje zodat de PURE

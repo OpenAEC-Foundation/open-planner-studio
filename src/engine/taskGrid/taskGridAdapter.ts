@@ -137,6 +137,8 @@ export interface CreateTaskGridAdapterDomainInput {
   calendarOptions?: readonly { value: string; label: string }[];
   /** Instelling Duurweergave (weergavetekst van de Duur-kolom); ontbreekt ⇒ `'auto'`. */
   durationDisplay?: DurationDisplay;
+  /** Zie `TaskColumnContext.workdayDurationMeasure`. */
+  workdayDurationMeasure?: boolean;
   /** App-taal voor het decimaalteken van duren en speling; ontbreekt ⇒ punt. */
   numberLocale?: string;
   /** Zie `TaskColumnContext.taskTypesUnlocked`. */
@@ -257,6 +259,7 @@ export function createTaskGridAdapterDomain(
     signedWorkDaysBetween: input.signedWorkDaysBetween,
     baselineOldDay: input.baselineOldDay,
     durationDisplay: input.durationDisplay,
+    workdayDurationMeasure: input.workdayDurationMeasure,
     numberLocale: input.numberLocale,
     recordedMark: input.recordedMark,
     recordedUnrecordedAxes: input.recordedUnrecordedAxes,

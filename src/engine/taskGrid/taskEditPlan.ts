@@ -324,8 +324,8 @@ function applyParsedDuration(
     task.time.durationMinutes = parsed.durationMinutes;
     task.time.scheduleDuration = parsed.durationMinutes / (environment.effectiveHoursPerDay * 60);
   } else {
-    if (!isFiniteNumber(parsed.scheduleDuration) || !Number.isInteger(parsed.scheduleDuration)
-      || parsed.scheduleDuration < 0) return failure('duration', edit);
+    // De dagenmaat mag een breuk hebben (spec "alleen uren" §3.2, B1).
+    if (!isFiniteNumber(parsed.scheduleDuration) || parsed.scheduleDuration < 0) return failure('duration', edit);
     task.time.durationUnit = 'days';
     task.time.scheduleDuration = parsed.scheduleDuration;
     task.time.durationMinutes = undefined;
@@ -337,7 +337,8 @@ function applyParsedDuration(
 /**
  * De duur waarmee een automatisch geplande taak op `finish` eindigt, gerekend vanaf de GETOONDE
  * start: de omkering van `CPMSolver.addDuration`, dezelfde telling als de rechterrand-sleep in de
- * Gantt (`useBarDrag`). Dagtaak: inclusieve werkdagen (`workDaysBetween`, minimaal één). Urentaak:
+ * Gantt (`useBarDrag`). Dagenmaat-taak: werkdagen met hun deel (`measuredWorkdaysBetween`); een oude
+ * taak met alleen datums telt inclusieve werkdagen (`workDaysBetween`, minimaal één). Urentaak:
  * werkminuten in de effectieve uurbanden van de taakkalender (`calendarForEngine`, zoals de solver).
  * De eenheid van de taak blijft wat hij was.
  */
@@ -354,7 +355,20 @@ function durationForShownFinish(
     if (!(end.getTime() > start.getTime())) return { ok: false, code: 'finishBeforeStart' };
     return { ok: true, value: { unit: 'hours', durationMinutes: engine.workMinutesBetween(start, end), explicitUnit: true } };
   }
-  const start = parseDate(shownStart(task).slice(0, 10));
+  // Dagenmaat met momenten (sinds F2 elke taak): de werkdagen met hun deel tussen start en einde
+  // (`measuredWorkdaysBetween`, dezelfde telling als de motor, §3.14). Een einde op het blokeinde van
+  // een werkdag telt die dag dus heel; een einde om 12:00 een halve dag.
+  const startIso = shownStart(task);
+  const engine = new CalendarEngine(calendarForEngine(calendar));
+  if (engine.isHourMode && startIso.includes('T') && finish.includes('T')) {
+    const start = parseInstant(startIso);
+    const end = parseInstant(finish);
+    if (!(end.getTime() > start.getTime())) return { ok: false, code: 'finishBeforeStart' };
+    const days = engine.measuredWorkdaysBetween(start, end);
+    if (!(days > 0)) return { ok: false, code: 'finishBeforeStart' };
+    return { ok: true, value: { unit: 'days', scheduleDuration: Number(days.toFixed(6)), explicitUnit: true } };
+  }
+  const start = parseDate(startIso.slice(0, 10));
   const end = parseDate(finish.slice(0, 10));
   if (!(end.getTime() >= start.getTime())) return { ok: false, code: 'finishBeforeStart' };
   const days = new CalendarEngine(calendar).workDaysBetween(start, end);

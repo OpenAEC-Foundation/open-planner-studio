@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useEffectiveDurationDisplay } from '@/hooks/useDurationMeasure';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { buildPrintRows, curveCellFont, measureCurveColumnWidth, measurePrintReport, measureTableColumnWidths, measureTaskNameColumnWidth, nameCellFont, NAME_COLUMN_WIDTH_DEFAULT, NAME_COLUMN_WIDTH_MAX, NAME_COLUMN_WIDTH_MIN, renderPrintCanvas, renderPrintPreviewPage, renderReport, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM, PrintOptions, TableColumnWidths, TableHeaderLabels } from '@/services/print/printPreview';
@@ -236,7 +237,8 @@ export function ReportPanel() {
   const weekStartDay = useAppStore(s => s.ui.weekStartDay);
   // Duur-kolom van de Gantt-afdruk: dezelfde tekst als taakraster en tooltip — Duurweergave, de
   // eigen taakeenheid en de uren per dag van de effectieve taakkalender.
-  const durationDisplay = useAppStore(s => s.ui.durationDisplay);
+  // B9: in een profiel met de dagenmaat toont elke taak haar eigen maat.
+  const durationDisplay = useEffectiveDurationDisplay();
   const calendars = useAppStore(s => s.calendars);
   const durationSuffixes = useMemo(() => durationSuffixesFrom(tCommon), [tCommon]);
   // De lijnstijl van de relaties in het rapport volgt de P6-conventie van het scherm
