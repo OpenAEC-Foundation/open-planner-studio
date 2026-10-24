@@ -52,7 +52,7 @@ import {
 } from '@/utils/taskDurationInput';
 import { finishIsActual, shownStart, shownFinish, startIsActual } from '@/utils/taskDates';
 import {
-  formatRemainingDurationText, formatTaskDurationText, formatWorkDaysText, type DurationTextFormat,
+  durationHoursPerDay, formatRemainingDurationText, formatTaskDurationText, formatWorkDaysText, type DurationTextFormat,
 } from '@/utils/taskDuration';
 import { isStrictIsoDateTime } from '@/utils/dateUtils';
 import { isFiniteNumber } from '@/utils/guards';
@@ -393,7 +393,9 @@ function effectiveHoursPerDay(task: Task, ctx: TaskColumnContext): number {
 
 const parseTaskDuration: Parser = (text, task, ctx) => {
   if (text.trim() === '') return success(undefined);
-  const hoursPerDay = effectiveHoursPerDay(task, ctx);
+  // Resterende en Werkelijke duur: een dag is de werktijd per dag, bij kalendertijd 24 klokuren
+  // (`durationHoursPerDay`, zoals de Duur-kolom); de transactie rekent terug met dezelfde factor.
+  const hoursPerDay = durationHoursPerDay(task, effectiveHoursPerDay(task, ctx));
   const minutes = parseDurationMinutes(text, hoursPerDay);
   // De editor-/pastegrens draagt minuten. Task 12's bewaakte duurplanner houdt daaruit de
   // opgeslagen dag- en minutenvelden samen consistent; hier al terugdelen zou subdaginformatie

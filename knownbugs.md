@@ -274,16 +274,6 @@ en noem het in je rapport of PR-tekst.
      van 24. Cel, tooltip, afdruk en tabelrapport rekenen sinds fixronde 2 van F4b wel met 24 u
      (`durationHoursPerDay`). Dit stond al zo op de basis van F4b. Voorstel: in het sleeplabel
      `durationHoursPerDay` gebruiken; rendererwerk. Alleen in de code gelezen, niet in de app nagespeeld. — S
-289. **Resterende en Werkelijke duur lezen uren bij kalendertijd als werkuren.** De kolommen
-     `task.time.remainingTime` en `task.time.actualDuration` lezen een duur met de werktijd per dag
-     (`parseTaskDuration`, `taskColumnRegistry.ts:394`), en de transactie deelt de minuten weer door de
-     werktijd per dag (`taskEditPlan.ts:633`, `:640`, `:695`, `:885`). Bij een kalendertijdtaak in dagen
-     telt "1d" dus goed (1 kalenderdag), maar "24u" wordt 3 kalenderdagen. Gemeten in het OPS-profiel op
-     de werkweek 07–12 + 13–16: een kalendertijdtaak van 4 d, 25 % gereed; Resterende duur "24u" geeft
-     `remainingTime` 3 en een einde 5 juni 07:00 in plaats van 3 juni 07:00. Werkelijke duur heb ik alleen in
-     de code gelezen (zelfde parser, `taskEditPlan.ts:695`). Dit stond al zo op de basis
-     van F4b; de Duur-kolom rekent sinds fixronde 2 en 3 wel met 24 u (`durationHoursPerDay`,
-     `elapsedClockDuration`). Voorstel: dezelfde factor in deze twee kolommen en in hun transactiepad. — B
 
 ## Kalenders
 
@@ -681,6 +671,14 @@ en noem het in je rapport of PR-tekst.
      "minutes 240, verwacht 360". Gezien in CI op #584 (`293acf1c9`, shard 1); de error-context toont
      "Welcome to Open Planner Studio" open en het duurveld op "4". Lokaal 5 van 5 groen. Voorstel: na de
      reload `waitForWelcomeDialog` en `setUI({ showWelcomeDialog: false })`, zoals de fixture. — B
+
+264. **De browsertest "Gantt-balk vertical slepen landt in RTL op dezelfde plek als een rijsleep" is
+     wisselvallig.** `tests/browser/gantt-drag-undo.spec.ts:273`. De rijsleep en de undo slagen, maar na de
+     balksleep blijft de volgorde die van vóór de sleep: de eerste taak staat nog bovenaan ("Timeout 5000ms
+     exceeded", regel 314). Eenmaal gezien in CI op #584 (`2acc895fc`, job "verify (browser 3-4)",
+     2026-10-24). Een herhaling van de job zonder wijziging was groen, en lokaal 3 van 3 groen. De oorzaak
+     is niet onderzocht. F4b wijzigt `useBarDrag.ts` (maat en afronding van de datumsleep), niet de
+     overdracht naar de rijsleep; een verband is daarmee niet uitgesloten. — S
 
 ## Wensen en open taken (geen bug)
 

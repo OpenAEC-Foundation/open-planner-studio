@@ -48,6 +48,7 @@ import {
   reconcileHourInputFinish,
 } from '@/utils/taskDefaults';
 import { sameValue } from '@/utils/sameValue';
+import { durationHoursPerDay } from '@/utils/taskDuration';
 import { taskWorkMinutes } from '@/engine/contour/contourEngine';
 import { finishIsActual, shownFinish, shownStart, startAnchorAfterEdit, startIsActual } from '@/utils/taskDates';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
@@ -633,7 +634,8 @@ function completionFromDuration(
   remaining: boolean,
   environment: TaskEditPlanEnvironment,
 ): number {
-  const hoursPerDay = environment.effectiveHoursPerDay;
+  // Bij kalendertijd is een dag 24 klokuren (`durationHoursPerDay`), zoals bij het lezen van de invoer.
+  const hoursPerDay = durationHoursPerDay(task, environment.effectiveHoursPerDay);
   const inMinutes = minuteAxis(task, environment);
   const total = inMinutes
     ? task.time.durationMinutes ?? task.time.scheduleDuration * hoursPerDay * 60
@@ -644,9 +646,11 @@ function completionFromDuration(
 }
 
 /** Een ingevoerde resterende duur (minuten, of gewist) in dagen; `remainingMinutes` alleen op de
- *  minutenas ({@link minuteAxis}): bij een urentaak is dat de bron van de rest (spec §3.5). */
+ *  minutenas ({@link minuteAxis}): bij een urentaak is dat de bron van de rest (spec §3.5). Bij
+ *  kalendertijd zijn de minuten klokminuten en de dagen kalenderdagen (24 u per dag,
+ *  `durationHoursPerDay`, dezelfde factor als `parseTaskDuration` bij het lezen). */
 function writeRemaining(task: Task, minutes: number | undefined, environment: TaskEditPlanEnvironment): void {
-  task.time.remainingTime = minutes === undefined ? undefined : minutes / (environment.effectiveHoursPerDay * 60);
+  task.time.remainingTime = minutes === undefined ? undefined : minutes / (durationHoursPerDay(task, environment.effectiveHoursPerDay) * 60);
   task.time.remainingMinutes = minuteAxis(task, environment) && minutes !== undefined ? minutes : undefined;
 }
 
@@ -693,8 +697,10 @@ function applyProgressEdit(
     if (edit.value !== undefined && (!isFiniteNumber(edit.value) || edit.value < 0)) {
       return failure('duration', edit);
     }
-    const hoursPerDay = environment.effectiveHoursPerDay;
-    if (!Number.isFinite(hoursPerDay) || hoursPerDay <= 0) return failure('calendarHours', edit);
+    if (!Number.isFinite(environment.effectiveHoursPerDay) || environment.effectiveHoursPerDay <= 0) {
+      return failure('calendarHours', edit);
+    }
+    const hoursPerDay = durationHoursPerDay(task, environment.effectiveHoursPerDay);
     const remaining = id === 'task.time.remainingTime';
     if (edit.value === undefined) {
       if (remaining) writeRemaining(task, undefined, environment);
@@ -891,7 +897,7 @@ function applyProgressEdits(
   if (actualDurationEdit) {
     task.time.actualDuration = actualDurationEdit.value === undefined
       ? undefined
-      : (actualDurationEdit.value as number) / (environment.effectiveHoursPerDay * 60);
+      : (actualDurationEdit.value as number) / (durationHoursPerDay(task, environment.effectiveHoursPerDay) * 60);
   }
   if (remainingEdit) writeRemaining(task, remainingEdit.value as number | undefined, environment);
   if (actualStartEdit) task.time.actualStart = desiredActualStart;
