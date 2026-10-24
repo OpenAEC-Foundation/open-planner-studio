@@ -379,7 +379,6 @@
       "resourceAddsWork": "Dodatkowy zasób dodaje pracę.",
       "resourceSharesWork": "Dodatkowy zasób przejmuje część pracy; jednostki na zasób maleją.",
       "resourceShorter": "Dodatkowy zasób skraca zadanie.",
-      "resourceShorterWholeDays": "Dodatkowy zasób skraca zadanie, zaokrąglone do pełnych dni.",
       "resourceAddsWorkSameDuration": "Dodatkowy zasób dodaje pracę; czas trwania pozostaje taki sam."
     },
     "info": "Wyjaśnienie typu zadania"

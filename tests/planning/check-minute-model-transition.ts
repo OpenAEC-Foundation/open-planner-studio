@@ -248,7 +248,16 @@ async function finish() {
   store.getState().undo();
   const r = store.getState().addResource({ name: 'Ploeg', type: 'LABOR', description: '', maxUnits: 1, costPerHour: 0 });
   store.getState().assignResource(bId, r, 1);
-  store.setState(s => { s.tasks.find(t => t.id === bId)!.timephasedContours = [{ resourceUid: null, resourceId: r, periods: [{ afterMinutes: 0, minutes: 2400, workMinutes: 1200, kind: 'remaining' }] }]; });
+  // Geval 11 (spec §5.2) gaat over een wissel die de maat NIET verandert. Alleen uren B1a: vast werk maakt
+  // een dagenmaat-taak urenmaat (geval 11c, planning). B wordt hier daarom eerst urenmaat met dezelfde
+  // lengte (5 d = 2400 min); de datums in de modus blijven staan. 11c zelf staat in
+  // `check-work-rule-measure-switch.ts`.
+  store.setState(s => {
+    const b = s.tasks.find(t => t.id === bId)!;
+    b.time.durationUnit = 'hours';
+    b.time.durationMinutes = b.time.scheduleDuration * 480;
+    b.timephasedContours = [{ resourceUid: null, resourceId: r, periods: [{ afterMinutes: 0, minutes: 2400, workMinutes: 1200, kind: 'remaining' }] }];
+  });
   const ui = createAppStoreContext().store;
   ui.setState(s => hydratePayload(s, capturePayload(store.getState())));
   const beforeRule = structuredClone({ task: store.getState().tasks.find(t => t.id === bId), assignments: store.getState().assignments });

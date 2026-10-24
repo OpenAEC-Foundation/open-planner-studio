@@ -10,6 +10,8 @@ import { CalendarGeneratorFields } from '@/components/dialogs/CalendarGeneratorF
 import { SchedulingProfileSection } from '@/components/settings/SchedulingProfileSection';
 import { hasValidProfileName, sameSettings, type SchedulingSettingsDraft } from '@/state/schedulingProfileDraft';
 import { projectInfoPatch } from '@/state/projectInfoPatch';
+import { defaultTaskMeasureLocked } from '@/state/newTaskMeasure';
+import { BUILT_IN_PROFILE_BRANDS, profileBrand } from '@/state/schedulingProfileNotice';
 import { projectIfcSchema, type IfcSchemaId } from '@/types/project';
 import { computeGenerateSpan, type HolidayGenParams } from '@/engine/calendar/generateCalendarHolidays';
 import type { HolidayCountry } from '@/engine/calendar/holidays';
@@ -181,6 +183,8 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
     // Net als companyTouched — de rekenprofiel-tak committeert ALLEEN als de gebruiker
     // het blok in deze mount daadwerkelijk bewerkte.
     const [calcTouched, setCalcTouched] = useState(false);
+    // De standaardmaat volgt het profiel in de draft: kiest de planner hier P6, dan staat hij meteen vast.
+    const measureLocked = defaultTaskMeasureLocked({ schedulingProfile: scheduling.profile, schedulingOptions: scheduling.options });
     const setScheduling = (next: SchedulingSettingsDraft) => {
       setCalcTouched(true);
       setSchedulingRaw(next);
@@ -555,21 +559,28 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
           </div>
         </div>
 
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1" data-ops-default-task-measure>
           <label className="text-text-secondary font-medium">
             {tCommon('settings.defaultTaskDurationUnit')}
           </label>
+          {/* Standaardmaat (B1a, `newTaskMeasure.ts`): onder een profiel zonder dagenmaat (P6, MS
+              Project) staat hij vast op urenmaat. De keuze zelf blijft bewaard voor een terugwissel. */}
           <Select
             aria-label={tCommon('settings.defaultTaskDurationUnit')}
-            value={defaultTaskDurationUnit}
+            value={measureLocked ? 'hours' : defaultTaskDurationUnit}
             onChange={value => setDefaultTaskDurationUnit(value as 'days' | 'hours')}
+            disabled={measureLocked}
             options={[
-              { value: 'days', label: tCommon('duration.days') },
-              { value: 'hours', label: tCommon('duration.hours') },
+              { value: 'days', label: tCommon('settings.defaultTaskDurationUnitDays') },
+              { value: 'hours', label: tCommon('settings.defaultTaskDurationUnitHours') },
             ]}
           />
           <p className="scrollzoom-hint">
-            {tCommon('settings.defaultTaskDurationUnitHint')}
+            {measureLocked
+              ? tCommon('settings.defaultTaskDurationUnitLocked', {
+                profile: scheduling.profile ? profileBrand(scheduling.profile) : BUILT_IN_PROFILE_BRANDS.ops,
+              })
+              : tCommon('settings.defaultTaskDurationUnitHint')}
           </p>
         </div>
 

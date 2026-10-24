@@ -24,8 +24,10 @@
 //     toont de last (de projectkalender is ma-vr; dit toetst dat de mapping de TAAKkalender volgt).
 import { useAppStore, test, assert, assertEq, run } from './harness';
 import { computeHistogramReport } from '@/engine/scheduler/ResourceLoad';
+import { ELAPSED_CLOCK, workdayOfInstant } from '@/engine/calendar/workdayRules';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import type { WorkCalendar } from '@/types/calendar';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 
 const S = () => useAppStore.getState();
 const CLEAN_WORKDAYS = [1, 2, 3, 4, 5];
@@ -49,6 +51,8 @@ function sources() {
     calendar: s.calendar,
     calendars: s.calendars,
     cpmResult: s.cpmResult,
+    // Zoals `planner_resource_histogram`: de maatconventie van het project.
+    schedulingOptions: effectiveSchedulingOptions(s.project),
   };
 }
 
@@ -196,10 +200,14 @@ test('ELAPSEDTIME-taak: histogram-dagbuckets tonen geen last voorbij earlyFinish
   const report = computeHistogramReport({ ...sources(), bucket: 'dag', from: '2026-06-01', to: '2026-06-20' });
   const res = report.resources.find(r => r.resourceId === rId)!;
 
-  const onFinish = res.buckets.find(b => b.start === earlyFinish.slice(0, 10));
-  assert(!!onFinish && onFinish.load === 1, `earlyFinish (${earlyFinish}) zelf draagt last 1 (sanity — kreeg ${JSON.stringify(onFinish)})`);
+  // F3c (B1, spec §0 en §3.11): de belasting volgt de spanne op minuten. Een eindmoment om 00:00 hoort
+  // bij de dag ervoor (de 24:00-regel), dus de laatste belaste dag is de werkdag van het einde, niet de
+  // datum ervan (do 11 jun 00:00 ⇒ wo 10 jun).
+  const lastDay = workdayOfInstant(ELAPSED_CLOCK, earlyFinish, 'end');
+  const onFinish = res.buckets.find(b => b.start === lastDay);
+  assert(!!onFinish && onFinish.load === 1, `de werkdag van earlyFinish (${earlyFinish} ⇒ ${lastDay}) draagt last 1 (sanity — kreeg ${JSON.stringify(onFinish)})`);
 
-  const afterFinish = res.buckets.filter(b => b.start > earlyFinish);
+  const afterFinish = res.buckets.filter(b => b.start > lastDay);
   assert(afterFinish.length > 0, 'sanity: er bestaan buckets ná earlyFinish binnen het venster');
   const phantom = afterFinish.filter(b => b.load > 0);
   assert(phantom.length === 0, `geen enkele bucket ná earlyFinish (${earlyFinish}) mag last dragen (kreeg ${JSON.stringify(phantom)})`);

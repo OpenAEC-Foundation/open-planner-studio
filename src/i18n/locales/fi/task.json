@@ -371,7 +371,6 @@
       "resourceAddsWork": "Lisäresurssi lisää työtä.",
       "resourceSharesWork": "Lisäresurssi ottaa osan työstä; kunkin resurssin kuormitusaste laskee.",
       "resourceShorter": "Lisäresurssi lyhentää tehtävää.",
-      "resourceShorterWholeDays": "Lisäresurssi lyhentää tehtävää, pyöristettynä kokonaisiin päiviin.",
       "resourceAddsWorkSameDuration": "Lisäresurssi lisää työtä; kesto pysyy samana."
     },
     "info": "Tehtävätyypin selitys"

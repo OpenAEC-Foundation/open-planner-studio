@@ -1,4 +1,4 @@
-// F2-tussenstand; F3 → de vaste tutorial-urenreferentie (§3.14).
+// De dagenmaat (§3.14): de waarden zijn die van de urenreferentie (minute-model-tutorial-f3.json).
 // Tutorial 5 — Resources en nivelleren (`tut-5-resources`): vijf resources, twaalf toewijzingen, de werkregel
 // van het stucwerk, het histogram, overbezetting en nivelleren.
 import { l, same, type Action, type Check, type L, type Lang, type Snap, type TutorialScript } from './dsl';
@@ -129,7 +129,9 @@ export const TUTORIAL_5: TutorialScript = {
           return t?.workRule?.includes('FIXED_WORK') ? [] : [`werkregel ${t?.workRule}`];
         } },
         { see: props, text: l('Vast werk', 'Fixed work') },
-        { state: (s, lang) => [...taskIs(s, lang, T.plaster, { days: 4 }), ...(s.stale ? ['verouderd'] : [])] },
+        // B1 (spec "alleen uren" §3.2 B1a, §5.2 geval 11c): vast werk is altijd urenmaat. Het stucwerk van
+        // 4 d wordt 4 × 8 u = 32 u, en die maatwissel is planning: de planning is verouderd.
+        { state: (s, lang) => [...taskIs(s, lang, T.plaster, { minutes: 32 * 60 }), ...(s.stale ? [] : ['niet verouderd'])] },
       ],
       shots: [{
         name: 'tut-5-werkregel',
@@ -145,7 +147,8 @@ export const TUTORIAL_5: TutorialScript = {
         { press: 'Enter' },
       ],
       expect: [
-        { state: (s, lang) => [...assignmentsPresent([has(T.plaster, R.plasterer, 2)])(s, lang), ...taskIs(s, lang, T.plaster, { days: 2 })] },
+        // B1 (B1a): de urenmaat-taak van 32 u wordt met inzet 2 16 u (2 werkdagen van 8 u).
+        { state: (s, lang) => [...assignmentsPresent([has(T.plaster, R.plasterer, 2)])(s, lang), ...taskIs(s, lang, T.plaster, { minutes: 16 * 60 })] },
         status('Verouderd — herbereken (F5)', 'Out of date — recalculate (F5)'),
       ],
     },
@@ -180,8 +183,9 @@ export const TUTORIAL_5: TutorialScript = {
         { click: { text: R.bricklayer, within: { anchor: 'rail:warnings' }, exact: false } },
       ],
       expect: [
-        // F2-tussenstand; F3 → 6 dagen, 28-06 t/m 05-07 (§3.14; getoetste plaatsingskern).
-        { see: { anchor: 'rail:warnings' }, text: l('Overbezet op 5 dag(en) (25-06-2027 – 01-07-2027)', 'Overallocated on 5 day(s) (25-06-2027 – 01-07-2027)') },
+        // F3c (§3.11, §3.14): de belasting per werkdag uit momenten op de dagenmaat-plaatsing. De metselaar
+        // is 6 werkdagen overbezet, van 28 juni t/m 5 juli (de plaatsingsreferentie).
+        { see: { anchor: 'rail:warnings' }, text: l('Overbezet op 6 dag(en) (28-06-2027 – 05-07-2027)', 'Overallocated on 6 day(s) (28-06-2027 – 05-07-2027)') },
         { state: (s, lang) => (s.ui.histogramResource === R.bricklayer[lang] ? [] : [`histogram toont ${s.ui.histogramResource}`]) },
       ],
       shots: [{ name: 'tut-5-overbezetting', of: [{ anchor: 'gantt-panel' }, { anchor: 'histogram-strip' }], pad: 0 }],
@@ -193,14 +197,15 @@ export const TUTORIAL_5: TutorialScript = {
         { waitFor: dialog },
         { click: { button: l('Berekenen', 'Calculate'), within: dialog } },
         { check: { see: dialog, text: l('Projecteinddatum: ongewijzigd (30-08-2027)', 'Project end date: unchanged (30-08-2027)') } },
-        { check: { see: dialog, text: same('02-07-2027') } },
+        { check: { see: dialog, text: same('05-07-2027') } },
         { shot: { name: 'tut-5-nivelleren', of: dialog, pad: 0 } },
         { click: { button: l('Toepassen', 'Apply'), within: dialog } },
       ],
       expect: [
         { gone: dialog },
+        // F3c (§3.11, §3.14): de nivelleerder schuift alleen het buitenspouwblad, 5 werkdagen.
         { state: (s, lang) => [
-          ...taskIs(s, lang, T.outerLeaf, { earlyStart: '2027-07-02T13:00', earlyFinish: '2027-07-09T16:00', totalFloat: 2, critical: false }),
+          ...taskIs(s, lang, T.outerLeaf, { earlyStart: '2027-07-05T10:00', earlyFinish: '2027-07-13T10:00', totalFloat: 0.625, critical: false }),
           ...(s.overallocated.length === 0 ? [] : [`nog overbezet: ${s.overallocated.join(', ')}`]),
         ] },
         { notSee: statusBar, text: l('overbezet', 'overallocated') },

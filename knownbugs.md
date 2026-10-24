@@ -64,12 +64,6 @@ en noem het in je rapport of PR-tekst.
     bewaart "lopend" nu (`IfcTask.Status` = 'STARTED', #357); de motor plant de
     vastgelegde rest in (optie 3) na de release, in het rekenprofielen-spoor. — B voor de OPS-kant (gemeten),
     S voor de P6-kant
-143. **De belasting van een taak die midden op een dag begint, staat op de verkeerde dagen.** De verdeling telt
-    hele werkdagen vanaf de startdatum (`taskWorkDayIsos`/`enumerateTaskWorkDays`, `ResourceLoad.ts:236-240`;
-    de nivelleerder net zo, `ResourceLeveler.ts:425`). Nagespeeld in de store (kalender ma-vr 07-12 + 13-16,
-    urentaak 24 u van wo 3 jun 11:00 tot ma 8 jun 11:00, inzet 1): belasting wo 1, do 1, vr 1 en niets op
-    maandag; verwacht wo 0,5, do 1, vr 1, ma 0,5. Gevonden in review ronde 1 van de spec
-    `2026-10-20-alleen-uren-design.md` (§3.11). — B
 144. **Het einde van een kalendertijd-taak is in het dagpad half inclusief.** Het dagpad schrijft het einde als
     start + n kalenderdagen, maar leest die datum daarna als de laatste dag. Nagespeeld met de planningsharness
     (dagkalender ma-vr): een kalendertijd-taak van 1 d vanaf ma 1 jun krijgt einde 2 jun, en haar FS-opvolger
@@ -145,10 +139,12 @@ en noem het in je rapport of PR-tekst.
     Dezelfde fout in een schone kopie van 12abaabf2 en tijdens de volledige F1b-suite, met het aanwezige
     corpus van 93 XER-bestanden. Geen pin of controle aangepast; oorzaak buiten F1b. — B
 
-230. **Een mijlpaal na een FF-relatie (mk-05a, M2) verliest zijn kritieke pad.**
-     A krijgt een late finish op vrijdag 13:00, speling 0,625 d, en is niet meer kritiek.
+230. **Een mijlpaal na een FF-relatie (mk-05a, M2) verliest zijn kritieke pad, als de voorganger in de
+     urenmaat telt.** A krijgt een late finish op vrijdag 13:00, speling 0,625 d, en is niet meer kritiek.
      Gemeld in review F1 r1 (#563). Een algemene verbreding van de grens maakt drie C7-controles
-     rood. Een gerichte oplossing vraagt een orakel. — B
+     rood. F3c repareert het voor een voorganger in de dagenmaat (OPS-profiel; `relationMath.ts`,
+     `isInsideBlock`, case `f3-startmijlpaal-ff-midden-in-blok`). Het blijft voor een urentaak en voor
+     een dagtaak onder P6/MSP (minutenmodel run 2, `mk-05a` in `minute-model-runs.json`). — B
 
 231. **FF vanaf een voltooide voorganger met een einde buiten werktijd laat de opvolger te vroeg eindigen.**
      Kalender 08:00–16:00, werkelijk einde wo 18:00, FF +0eu naar een opvolger van 2 u.
@@ -161,11 +157,6 @@ en noem het in je rapport of PR-tekst.
      wo 12:00 (`CPMSolver.ts:2564`; de inversiewacht geldt alleen bij een RESUME-override).
      Voorstel: het restwerk begint niet vóór de vastgelegde start. Bestond al vóór F1.
      Review F1 r3–r5. — B
-
-242. **Een dagtaak met splitgaten korter dan een dag krijgt in de balk gaten van hele dagen.**
-     De renderer rondt de gaten af op hele dagen (`splitWalk.ts:104`), met stompjes van 2 px.
-     De motor telt dezelfde gaten mogelijk anders (VERMOED). Dit hoort bij F3 (§3.14).
-     Gevonden in fixronde 1 van F2 (laadfix). — B voor de renderer
 
 271. **Een nachttaak die op zaterdag 06:00 eindigt, krijgt −1 speling bij een gelijk vroeg en laat venster.**
      Nachtkalender ma–vr 22:00–06:00. A 2 d vanaf ma 22:00, FS+1 naar B van 2 d. B loopt vroeg en laat
@@ -182,6 +173,14 @@ en noem het in je rapport of PR-tekst.
      (`addWorkingDaysSigned`); het dagdeel blijft liggen. Gemeten op een kalender 7–16 met en zonder
      eigen werkblokken. Op de basis `be58ba356` gebeurt het ook, met eigen werkblokken. Voorstel: laat
      de bestaande ALAP-verplaatsing ook het resterende dagdeel meenemen. Gevonden in review F2 ronde 3A. — B
+
+243. **Onder het P6- en MSP-profiel tekent de Gantt de pauzes van een dagtaak in de dagenmaat, de motor
+     rekent ze in werkminuten.** De renderer kent het rekenprofiel niet (`GanttRenderOptions`) en kiest de
+     splitwandeling op de maat van de taak (`GanttRenderer.ts`, `computeSplitSegments`, `'workdays'`). Onder
+     P6/MSP staat de conventie `workdayDurationMeasure` uit, dus telt de motor een dagtaak als uren. Op een
+     kalender met gelijke dagen is de uitkomst gelijk; bij ongelijke dagen (bv. vr 6 u) kan een tussengrens
+     een paar uur verschillen. Het taakeinde klopt altijd (de laatste grens is het taakeinde). Afgeleid uit de
+     code, niet nagespeeld. Voorstel: geef de renderer `workdayDurationMeasure` mee. Gevonden in F3c. — S
 
 276. **Een FNET met een tijd buiten werktijd zet een START-mijlpaal op de volgende werkdag.** P 1 d op
      maandag, FS+0 naar START-mijlpaal M, FNET di 18:00 (kalender 7–16). M komt op wo 07:00, ook een
@@ -200,6 +199,26 @@ en noem het in je rapport of PR-tekst.
      dagtaken apart vast wat een afsluitend eindmoment is en wat een START is die een projectdag opent,
      met de bestaande kalenderfuncties. Gevonden in review F2 ronde 6. — B
 
+278. **Een wortel-taak met een rauw anker op het laatste blokeinde: solver en belasting kiezen een andere
+     dag.** Urentaak van 8 u, geen voorganger, start ma 16:00 op een kalender 08–16. De solver houdt het
+     anker rauw en telt de duur vanaf het eerste blok van die dag (spec §4.3 N0, z13-cases in
+     `cases-advanced-cpm.json`): begin en einde ma 16:00 (24 u ⇒ wo 16:00). De gedeelde plaatsing
+     (`taskWorkPlacement`, `workPlacement.ts`) wandelt de duur vanaf ma 16:00 vooruit en boekt di 1. Histogram
+     en nivelleerder boeken dus dinsdag, terwijl de solver de taak op maandag zet. Getoetst in `check-f3b-production-compat.ts` (geval
+     "blokgrens zonder capaciteitsdruk"; het F3c-belastingdeel verwachtte di 16:00 van de motor, maar
+     dat botst met het z13-orakel). Probe op de basis `1e460cde6`: hetzelfde solvergedrag. Voorstel: de
+     eigenaar kiest welke dag geldt; daarna volgt de plaatsing dezelfde regel als de solver (of andersom).
+     Gevonden bij de integratie van F3c. — B
+
+255. **Bij een split op een dagenmaat-taak wijkt de gedeelde plaatsing per dag tot 2 minuten af van de
+     Gantt-stukken.** Sinds F3c-fix-split heeft de split-as één betekenis: dagslots voor de dagenmaat
+     (`workPlacement.ts`). Een steekproef van 6000 gevallen geeft per dag een verschil van hoogstens
+     2 minuten tussen de plaatsing (histogram, nivelleerder) en de stukken in de Gantt. Bij een gelijkspel
+     gaat hoogstens een halve minuut werk verloren. `measuredSpanDays` in `workPlacement.ts` herhaalt de
+     formule van `splitTotalSpanDays` (`duration.ts`); `check-split-solver-placement.ts` vangt een solver
+     die afwijkt wel, maar niet een tweede kopie die mee verandert. Voorstel: één gedeelde functie voor de
+     spanwijdte, en de afronding per dag gelijk aan die van de Gantt. Gevonden in F3c-fix-split. — B
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
@@ -211,6 +230,28 @@ en noem het in je rapport of PR-tekst.
 241. **Hetzelfde externe anker opnieuw invoeren als datum zonder tijd geeft een extra undo-stap en zet
      de planning op verouderd.** `updateExternalLink` vergelijkt het ruwe anker, niet het genormaliseerde.
      Gevonden in fixronde 1 van F2 (laadfix). — B
+
+244. **Het paneel Onderbrekingen toont bij een dagtaak met een pauze korter dan een dag een verkeerd
+     van–tot.** `TaskSplitsSection.tsx:79-93` (`segmentRanges`) wandelt een dagtaak nog op hele werkdagen
+     (`computeSplitSegments(..., false, ...)`), terwijl de Gantt sinds F3c in de dagenmaat wandelt. Probe:
+     dagtaak ma 08:00–16:00 op een kalender 08–16, pauzes van 1 u na 2 u en na 5 u (as): het paneel geeft
+     "01-06 – 29-05" voor het eerste stuk na de pauze (einde vóór het begin), de Gantt tekent 11:00–13:00.
+     Zo'n pauze ontstaat bij splitsen op uurzoom (snap 60 of 15 min). Voorstel: geef `'workdays'` mee als
+     de taak tijden heeft en label zoals bij een urentaak (`workdayBoundaryLabel`). Gebied F4b. — B
+
+245. **Afdrukken tekent pauzes van een taak altijd in hele werkdagen.** `printPreview.ts:1424` roept
+     `computeSplitSegments(..., false, ...)` aan op datums zonder tijd, ook voor een urentaak. Een pauze
+     korter dan een dag valt weg; bij een taak van één dag tekent de afdruk geen onderbreking (probe:
+     start = einde ⇒ één stuk). Voorstel: dezelfde maatkeuze als de Gantt, als de afdruk tijden toont.
+     Gevonden in F3c. — B
+
+250. **Twee ingangen voor een nieuwe taak negeren de *Standaardmaat voor nieuwe taken*.** Rechtsklik in
+     de Gantt → *Nieuwe taak* geeft een tijd met een vaste dagenmaat mee (`GanttCanvas.tsx:401`,
+     `createDefaultTaskTime(date, 5, 'days', …)`), en de spookregel onderaan de tabel toont een taak van
+     5 d (`FullTaskGrid.tsx:353`). Een meegegeven maat blijft staan (`settleNewTaskMeasure`, zie
+     `check-new-task-measure.ts` s5). Met de gekozen urenmaat, of onder P6/MSP, krijgt zo'n taak dus toch
+     de dagenmaat; alleen vast werk zet hem om. Voorstel: geef in beide de maat van `newTaskTimeUnit`
+     mee, of laat de tijd weg en geef alleen de start. Alleen in de code gezien, plus het storegedrag. — S
 
 ## Kalenders
 
@@ -304,24 +345,6 @@ en noem het in je rapport of PR-tekst.
     het venster naar *Herstarten…* (`:225-229`). Alleen in de code gezien. — S
 
 
-233. **`assignmentPlacementLoad` koppelt een contour met alleen de eigen toewijzing.**
-     Een tweede toewijzing van dezelfde resource krijgt de contour van de eerste. Voorbeeld:
-     contouren van 240 en 720 werkminuten op een plaatsing van 8 u geven voor de tweede
-     toewijzing 0,5 in plaats van 1,5 (`ResourceLoad.ts:266`). Voorstel: geef de opgeloste contour
-     verplicht mee via `contourLookup`, en haal de automatische fallback weg. De functie heeft
-     nog geen productieaanroeper; dit moet vóór de aansluiting in F3c. Review F3b r2 (#564). — B
-
-234. **Het histogram toont bij een verouderde planning alleen de belasting tot het oude einde.**
-     Een urentaak van 8 u, verlengd naar 16 u, met inzet 0,5 en zonder herberekening.
-     Het automatische venster eindigt op het oude `earlyFinish` (ma), zodat di 0,5 ontbreekt.
-     Met een expliciet venster tot di is de belasting wel volledig. Gevonden in F3b-fixronde 1. — B
-
-235. **De plaatsingskern van F3b staat deels in `ResourceLoad.ts` en heeft ongebruikte onderdelen.**
-     Verplaats `assignmentPlacementLoad` (circa 80 regels) naar `workPlacement.ts`, zodat
-     `ResourceLoad.ts` gelijk is aan de basis. Verwijder het ongebruikte type `PlacementMeasures`
-     (`workPlacement.ts:7`) en het ongebruikte argument `placed` (`ResourceLoad.ts:262`).
-     Review F3b r2. — B
-
 272. **Een al geplande verlaatberekening van `useExitRecordedDates` wordt niet geannuleerd bij
      historieherstel.** `src/hooks/useExitRecordedDates.ts:47`: een wijziging die de modus niet verlaat,
      keert terug zonder de lopende timer te stoppen. Reproductie: B5 terugdraaien → planningsbewerking →
@@ -329,6 +352,22 @@ en noem het in je rapport of PR-tekst.
      `minuteModelPending: true`; na de timer staat B op 9 maart en is de vlag uit. Alleen met synchrone
      oproepen gereproduceerd. Richting: annuleer de lopende verlaatberekening bij historieherstel.
      Review ronde 2 van PR #559, deel B. — B
+
+257. **Type en commentaar van `applyLeveling` noemen de minuutvertraging niet.** `scheduleSlice.ts:69-72` en
+     `createMcpTransactions.ts:958` typen het voorstel als `Pick<LevelingResult, 'delays' | 'gaps'>`. Sinds F3c
+     draagt het voorstel ook `delayMinutes`, en `writeLevelingResult` (`utils/taskDefaults.ts`) schrijft die als
+     `levelingDelayMinutes`. Alle aanroepers geven het volledige resultaat door, dus de minuten komen aan. Een
+     aanroeper die zelf een object bouwt, verliest ze zonder typefout. Het commentaar in `applyLeveling`
+     (`scheduleSlice.ts:243`) zegt nog dat de nivelleerder in hele werkdagen rekent. Voorstel: `'delayMinutes'`
+     in beide types en het commentaar bijwerken. Gevonden bij F3c deel 3, alleen in de code gezien. — S
+
+259. **Een handmatig geplande taak krijgt een nivelleervertraging die de solver negeert.** De nivelleerder
+     behandelt alleen voltooide en lopende taken als onverplaatsbaar (`ResourceLeveler.ts:445`). De solver houdt
+     een handmatig geplande taak op haar eigen datums en leest geen nivelleervertraging (`CPMSolver.ts:2006`).
+     Na toepassen boekt de nivelleerder de taak dus op een andere plek dan het histogram haar toont.
+     `tests/library/check-distribute.ts` case 18 legt dit vast: vertraging 10, einde schuift 0. Voorstel: een
+     handmatig geplande taak als vaste last behandelen, zoals een lopende taak (dat verandert case 18).
+     Gevonden bij F3c deel 3. — B
 
 ## Bestanden en herstel
 
@@ -444,6 +483,14 @@ en noem het in je rapport of PR-tekst.
      Richting: onderscheid een synthetisch 08:00-anker van een echte tijd. Zie ook 274. Gevonden in
      review F2 ronde 4. — B
 
+256. **Een kale start op een letterlijke kalender schuift in de ruwe IFC-rondgang naar 07:00.** Kalender
+     09:00–17:00 met letterlijke tijden. Een planningsstart zonder tijd wordt in de ruwe route
+     `readIFC → writeIFC → readIFC` 07:00, terwijl de laadgrens er 09:00 van maakt. De ruwe MSPDI-export
+     schrijft voor dezelfde start 08:00. Via de echte laadroute van de app gaat het goed. Locatie:
+     `minuteModelWrite.ts:90` (`literalEndOf` laat een kale start ongemoeid). Richting: maak de
+     invoervoorwaarde van de ruwe writer expliciet (alleen genormaliseerde payloads), of normaliseer ook kale
+     planningsstarts met hun veldregel. Gevonden in review #581 r2 (VERVOLG). — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 62. **Melding schuift over de knoppen van het begeleidingspaneel** (1600×950, venster Baselines open):
@@ -484,11 +531,31 @@ en noem het in je rapport of PR-tekst.
 240. **Tutorial- en gidsteksten bevatten nog oude getallen uit het dagmodel.**
      In F2-bouwronde 4 gecontroleerd naast de gewone F2-pins en de vaste F3-doelen;
      `public/docs/nl/uitleg-nivelleren.md:55` noemt bijvoorbeeld het binnenspouwblad vanaf
-     29 juni, terwijl de F2-controle 25 juni en het F3-doel 28 juni toetst.
+     29 juni, terwijl de F2-controle 25 juni en het F3-doel 28 juni toetst. Sinds F3c (motor en
+     belasting samen) is de metselaar 6 werkdagen overbezet, 28 juni t/m 5 juli, ook in het geval
+     zonder SNET met *smoothing* (conflict van 6 dag(en)); `uitleg-nivelleren.md` r.59 en r.76 (nl en en)
+     noemen nog 5 (`check-docs-resources-voorbeelden.ts`).
      Zie `artifacts/uren-f2/bouwronde-4.md` (R4-030–039, R4-586–588) en
      `tests/planning/fixtures/minute-model-tutorial-f3.json`. Voorstel: de verhalende tutorial-
      en gidsteksten en eventuele schermbeelden bijwerken zodra de definitieve F3-uitkomsten
      zijn gehaald, met behoud van de afzonderlijk getoetste einddoelen. — B
+252. **De gidsen over taaktypes zeggen nog dat de app een duur op hele werkdagen afrondt.**
+     Sinds de werkdriehoek exact rekent (T14, B3) en vast werk de urenmaat is (B1a), klopt dat niet meer.
+     `public/docs/{nl,en}/uitleg-werkregels.md` r.42 ("rondt naar boven af … hele werkdagen"), r.94
+     (1,33 → 2 werkdagen, met het waarschuwingsteken *Wijkt af van inzet × duur*), r.102 (5,33 → 6
+     werkdagen) en r.106 (restduur 1,5 → 2); `howto-werkregel-kiezen.md` r.59; `uitleg-kalenders.md`
+     r.97 (nl; "een taak in dagen telt hele werkdagen" klopt nog, maar vast werk is nu altijd een taak in
+     uren). Uit de code afgeleid (niet in de app nagespeeld): r.94 wordt nu 32 ÷ 3 = 10 u 40 min, zonder
+     waarschuwingsteken, en het histogram toont dan 3 op de eerste en 1 op de tweede werkdag (§3.11; getoetst
+     in `check-docs-resources-voorbeelden.ts`), niet 2 per dag. Hangt samen met 240.
+     Voorstel: de voorbeelden herschrijven in dezelfde ronde als 240, met de uitkomsten uit
+     `check-work-rule-*.ts`. Gevonden in F3c-winkel. — B
+254. **De gidsen over de werkregel zeggen niet dat een wissel naar vast werk de taken omzet naar uren.**
+     Sinds F3c-fix-winkel zet een wissel van de projectstandaard naar *Vast werk* (`setProject`,
+     `planner_update_project`, `settleDefaultWorkRuleSwitch` in `src/state/defaultWorkRuleSwitch.ts`) de
+     taken die hem erven om naar de urenmaat. `public/docs/{nl,en}/howto-werkregel-kiezen.md` en
+     `public/docs/{nl,en}/ref-ai-tools.md` zeggen dat nog niet. Hangt samen met 240 en 252. Voorstel: de
+     zin toevoegen in dezelfde ronde als 252. Gevonden in F3c-fix-winkel. — B
 
 ## Tests
 
@@ -575,11 +642,6 @@ en noem het in je rapport of PR-tekst.
      nagespeeld. PR #404 (gemerged in `main` op 2026-10-20) haalt volgens zijn beschrijving de oorzaak weg in
      `FeedbackDialog.tsx`. Een branch zonder #404 kan de fout nog geven. Weghalen als de CI op branches met #404
      groen blijft. — S
-
-236. **De kerncheck voor plaatsing toetst een exacte importcurve alleen op haar totaal.**
-     `check-placement-load.ts:87`: vervang je de curve door UNIFORM, dan blijven alle 27 controles
-     groen. De verdeling gaat dan van ongeveer [0,6667; 1,1667; 0,8333; 0,3333] naar
-     [0,5; 1; 1; 0,5]. Voorstel: één assertie op de volledige verdeling. Review F3b r2. — B
 
 237. **De browsertest voor curves met het toetsenbord is wisselvallig.**
      `tests/browser/assignments-block.spec.ts:235` ("Expected UNIFORM, Received BELL", time-out

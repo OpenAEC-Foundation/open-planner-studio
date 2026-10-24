@@ -7,6 +7,7 @@ import { computeCalendarHash } from '@/services/library/libraryOps';
 import { createSnapshot } from '@/state/snapshot';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { ephemeralSolve, occupancySolveInputFor } from '@/services/library/occupancy';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 import type { Sequence } from '@/types/sequence';
 
 const diffs: string[] = [];
@@ -493,6 +494,7 @@ function taskRowNames(state: AppState): string[] {
   const solved = ephemeralSolve({
     docId: 'occ', title: '', scheduleStale: true, companyId: null, resources: [], assignments: [],
     tasks: payload.tasks, calendar: payload.calendar, calendars: payload.calendars,
+    loadOptions: solveOptionsFor(payload.project).schedulingOptions,
     // De ENIGE productiebouwplek (`occupancySolveInputFor`, ook door ResourceOccupancyView gebruikt).
     solveInput: occupancySolveInputFor(payload),
   });

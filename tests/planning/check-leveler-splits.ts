@@ -467,14 +467,14 @@ console.log('-- leveler-splits: lege earlyStart/earlyFinish crashen niet (geval 
 // Scenario (spiegelt de reviewer-repro): taak D (WORKTIME, prio 900) claimt vrijdag 2026-06-05 op de
 // resource. Taak E (ELAPSEDTIME, "duur" 1 — een span van 1 KALENDERdag, prio 100) wil ook vrijdag en
 // moet wijken. Haar kandidaat-scan stapt per kalenderdag: vr (echt bezet, occ=['vr']) → za (haar
-// span za..zo bevat GEEN projectkalender-werkdag, occ=[]) → zo (span zo..ma bevat wél een werkdag,
-// occ=['ma']).
+// span za..zo bevat GEEN projectkalender-werkdag, occ=[]) → zo (vóór F3c: span zo..ma bevat wél een
+// werkdag, occ=['ma']; sinds F3c is zo 00:00 → ma 00:00 ook leeg) → ma (occ=['ma']).
 //   - VÓÓR de fix: `fits(byRes, [])` op zaterdag is triviaal waar ⇒ E "past" daar, plaatst op
 //     zaterdag (delay 1), maar boekt NERGENS iets — haar vraag verdwijnt stilzwijgend uit het
 //     grootboek. Een concurrent F die vervolgens maandag wil (E's ECHTE dag, ware de scan correct)
 //     zou dan GEEN delay krijgen — een vals-vrije dag.
-//   - NÁ de fix: het lege venster op zaterdag wordt overgeslagen; E plaatst pas op zondag (delay 2),
-//     met een ECHTE boeking op maandag (haar verschoven span zo..ma bevat precies één werkdag). F
+//   - NÁ de fix: het lege venster op zaterdag wordt overgeslagen. Sinds F3c (plaatsing op minuten)
+//     is ook zondag leeg: E plaatst op maandag 00:00 (delay 3), met een ECHTE boeking op maandag. F
 //     moet daardoor wél wijken — haar vraag is zichtbaar in het grootboek gebleven.
 // ═══════════════════════════════════════════════════════════════════════════
 console.log('-- leveler-splits: leeg kandidaatvenster telt niet als passend (geval 10, L1/probe L) --');
@@ -499,8 +499,13 @@ console.log('-- leveler-splits: leeg kandidaatvenster telt niet als passend (gev
   );
 
   eq('D plaatst op haar eigen PF, geen delay', r10.delays['d10'], undefined);
-  eq('E slaat het lege weekend-venster over: delay 2 (vr→zo), niet de vals-vrije 1 (vr→za)',
-    r10.delays['e10'], 2);
+  // F3c (B1, spec §3.11): de vraag per kandidaat komt uit de plaatsing op minuten. E is kalendertijd en
+  // start vr 00:00; haar spanne is [start, start + 24 u). Ook zo 00:00 → ma 00:00 bevat geen
+  // werkminuut, dus de eerste kandidaat met vraag is ma 00:00: delay 3 (vr→ma), 4320 minuten. Het
+  // dagslotcontract van vóór F3c telde zo..ma inclusief en kwam op 2.
+  eq('E slaat het lege weekend-venster over: delay 3 (vr→ma), niet de vals-vrije 1 (vr→za)',
+    r10.delays['e10'], 3);
+  eq('E: de vertraging in minuten is kalendertijd (3 × 1440)', r10.delayMinutes?.['e10'], 4320);
   ok('F moet wijken: E\'s vraag staat echt in het grootboek (op maandag), niet spoorloos verdwenen',
     (r10.delays['f10'] ?? 0) > 0);
   ok('geen onopgeloste conflicten', Object.keys(r10.unresolved).length === 0);

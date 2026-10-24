@@ -807,6 +807,8 @@ const byKey = (value: object) => Object.fromEntries(Object.entries(value).sort((
 eq('P6-profiel ≡ hand-lijst (A19 aan sinds 2026-09-24)', byKey(P6_PROFILE), byKey({
   // B6: de losse mijlpaal aan het dageinde staat alleen in het OPS-profiel aan.
   milestoneWithoutPredecessorAtDayEnd: false,
+  // Alleen uren §3.14: de dagenmaat staat alleen in het OPS-profiel aan.
+  workdayDurationMeasure: false,
   preserveActualDatesInBackwardPass: true, clampNegativeFreeFloat: true,
   p6ZeroDurationUsesPlannedBoundary: true, p6UseTaskPlannedStartFloor: true,
   p6FinishMilestoneBoundaryWindow: false, p6PreserveActualInstants: true,

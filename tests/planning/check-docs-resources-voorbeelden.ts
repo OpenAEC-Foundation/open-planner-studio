@@ -9,13 +9,15 @@
 // verandert rood wordt in plaats van de documentatie stil te laten liegen. Verandert een getal
 // bewust, pas dan de pin hieronder ÉN de artikelen (nl en en) aan.
 //
+// F3c: de belasting en de nivelleerder tellen het dagdeel (§3.11), en de motor plaatst een dagtaak in de
+// dagenmaat (§3.14). De urenreferentie onderaan (`hoursReference`) geeft dezelfde uitkomsten.
+//
 // Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { useAppStore } from '@/state/appStore';
 import { workDaySlotsToPeriods } from '@/engine/contour/contourEdit';
-import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
-import { parseInstant } from '@/utils/dateUtils';
-import { assignmentPlacementLoad, distributeUnits } from '@/engine/scheduler/ResourceLoad';
+import { computeResourceLoad, distributeUnits } from '@/engine/scheduler/ResourceLoad';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import type { WorkRule } from '@/types/workRule';
 import { buildTutorialProject, ASSIGNMENTS, HOUR_TASKS, RESOURCES, TASKS, WORK_RULE, type ResourceKey, type TaskKey } from '../../scripts/tutorial-project';
 
@@ -116,20 +118,18 @@ async function main(): Promise<void> {
   console.log('-- docs-resources: nivelleren --');
   {
     await tutorialBase({ plasterRule: true });
-    // F2-tussenstand; F3 → 3.875 (§3.14).
-    eq('nivelleren: binnenspouwblad speling', task('innerLeaf').time.totalFloat, 6);
-    // F2-tussenstand; F3 → 5.625 (§3.14).
-    eq('nivelleren: buitenspouwblad speling', task('outerLeaf').time.totalFloat, 7);
+    // Alleen uren §3.4/§3.14: de speling in werkdagen telt het deel van een dag (F2: 6 en 7).
+    eq('nivelleren: binnenspouwblad speling', task('innerLeaf').time.totalFloat, 3.875);
+    eq('nivelleren: buitenspouwblad speling', task('outerLeaf').time.totalFloat, 5.625);
     eq('nivelleren: alleen de metselaar overbezet', Object.keys(S().resourceLoadResult!.overallocatedDays).filter(id => S().resourceLoadResult!.overallocatedDays[id].length > 0), [resIds.get('bricklayer')]);
     eq('nivelleren: oplevering voor', oplevering(), '2027-08-30');
     const r = level(false);
     eq('nivelleren: buitenspouwblad +5 werkdagen', delaysByName(r), { [name('outerLeaf')]: 5 });
     eq('nivelleren: niets onoplosbaar', Object.keys(r.unresolved).length, 0);
     S().applyLeveling(r);
-    // F2-tussenstand; F3 → 2027-07-05..2027-07-13 (§3.14).
-    eq('nivelleren: buitenspouwblad na nivelleren', span('outerLeaf'), '2027-07-02..2027-07-09');
-    // F2-tussenstand; F3 → 2027-06-28..2027-07-05 (§3.14).
-    eq('nivelleren: binnenspouwblad blijft', span('innerLeaf'), '2027-06-25..2027-07-01');
+    // §3.14: de dagenmaat (F2 hield hele dagen: 2–9 juli en 25 juni – 1 juli).
+    eq('nivelleren: buitenspouwblad na nivelleren', span('outerLeaf'), '2027-07-05..2027-07-13');
+    eq('nivelleren: binnenspouwblad blijft', span('innerLeaf'), '2027-06-28..2027-07-05');
     eq('nivelleren: oplevering na', oplevering(), '2027-08-30');
     eq('nivelleren: niemand meer overbezet', Object.values(S().resourceLoadResult!.overallocatedDays).flat().length, 0);
   }
@@ -141,29 +141,33 @@ async function main(): Promise<void> {
   }
   {
     await tutorialBase({ noConstraint: true, plasterRule: true });
-    // F2-tussenstand; F3 → 2027-08-25 (§3.14).
-    eq('zonder SNET: oplevering voor nivelleren', oplevering(), '2027-07-30');
+    // §3.14 (F2: 30 juli).
+    eq('zonder SNET: oplevering voor nivelleren', oplevering(), '2027-08-25');
     const smooth = level(true);
     eq('zonder SNET + smoothing: geen verschuiving', delaysByName(smooth), {});
-    eq('zonder SNET + smoothing: conflict INSUFFICIENT_CAPACITY (5 dagen)',
+    // B1 (§3.11): de belasting telt ook de laatste gedeeltelijke werkdag (5 juli, 07:00–10:00), dus het
+    // conflict beslaat 6 dagen, 28 juni t/m 5 juli; de urenreferentie geeft dezelfde dagen. De gids noemt
+    // nog 5 dag(en) (knownbugs 240).
+    eq('zonder SNET + smoothing: conflict INSUFFICIENT_CAPACITY (6 dagen)',
       [Object.values(smooth.unresolvedReasons), Object.values(smooth.unresolved).map(v => v.length)],
-      [['INSUFFICIENT_CAPACITY'], [5]]);
+      [['INSUFFICIENT_CAPACITY'], [6]]);
     const plain = level(false);
     eq('zonder SNET: buitenspouwblad +5', delaysByName(plain), { [name('outerLeaf')]: 5 });
     S().applyLeveling(plain);
-    // F2-tussenstand; F3 → 2027-08-30 (§3.14).
-    eq('zonder SNET: oplevering na nivelleren', oplevering(), '2027-08-26');
+    // §3.14 (F2: 26 aug).
+    eq('zonder SNET: oplevering na nivelleren', oplevering(), '2027-08-30');
   }
   {
     await tutorialBase({ plasterRule: true });
     S().updateTask(task('outerLeaf').id, { priority: 900 });
     const r = level(false);
     eq('prioriteit Hoog: binnenspouwblad wijkt 6 werkdagen', delaysByName(r), { [name('innerLeaf')]: 6 });
-    eq('prioriteit Hoog: oplevering voor -> na', [r.projectEndBefore, r.projectEndAfter].map(d => String(d).slice(0, 10)), ['2027-08-30', '2027-08-30']); // F2-tussenstand; F3 → 30 aug / 2 sep (§3.14).
+    // §3.14: de dagenmaat (F2: 30 aug / 30 aug, 5–9 juli, 25 juni – 2 juli, 30 aug).
+    eq('prioriteit Hoog: oplevering voor -> na', [r.projectEndBefore, r.projectEndAfter].map(d => String(d).slice(0, 10)), ['2027-08-30', '2027-09-02']);
     S().applyLeveling(r);
-    eq('prioriteit Hoog: binnenspouwblad', span('innerLeaf'), '2027-07-05..2027-07-09'); // F2-tussenstand; F3 → 6–13 juli (§3.14).
-    eq('prioriteit Hoog: buitenspouwblad blijft', span('outerLeaf'), '2027-06-25..2027-07-02'); // F2-tussenstand; F3 → 28 juni–6 juli (§3.14).
-    eq('prioriteit Hoog: oplevering', oplevering(), '2027-08-30'); // F2-tussenstand; F3 → 2 sep (§3.14).
+    eq('prioriteit Hoog: binnenspouwblad', span('innerLeaf'), '2027-07-06..2027-07-13');
+    eq('prioriteit Hoog: buitenspouwblad blijft', span('outerLeaf'), '2027-06-28..2027-07-06');
+    eq('prioriteit Hoog: oplevering', oplevering(), '2027-09-02');
   }
   {
     await tutorialBase({ plasterRule: true });
@@ -205,22 +209,24 @@ async function main(): Promise<void> {
     const f = await plasterBase('FIXED_WORK');
     S().updateAssignment(asg(f.id).id, { unitsPerDay: 3 });
     S().runCPM();
-    eq('Vast werk, inzet 3: 2 werkdagen (32 / 24 = 1,33 naar boven)', dur(f.id), 2);
-    eq('Vast werk, inzet 3: histogram 2 per dag', dayLoad(f.id, f.res), [2, 2]);
+    eq('Vast werk, inzet 3: exact 4/3 werkdagen (32 / 24)', dur(f.id), 4 / 3);
+    // B1 (§3.11): inzet × het deel van de werkdag. De duur is 10 u 40 min: dag 1 is heel (3 × 1 = 3),
+    // dag 2 is 2 u 40 min van 8 u (3 × 1/3 = 1); samen 32 u. De gids noemt nog 2 per dag (knownbugs 252).
+    eq('Vast werk, inzet 3: histogram 3 en 1', dayLoad(f.id, f.res), [3, 1]);
   }
   {
     const f = await plasterBase('FIXED_WORK', 1, 4);
     const r2 = S().addResource({ name: 'Stukadoor 2', type: 'SUBCONTRACTOR', description: '', maxUnits: 4 });
     S().assignResource(f.id, r2, 2);
     const a1 = asg(f.id, f.res), a2 = asg(f.id, r2);
-    eq('Vast werk, verhouding 1 : 2: 10,7 en 21,3 uur, 2 werkdagen',
-      [dur(f.id), Math.round((workH(a1) ?? 0) * 10) / 10, Math.round((workH(a2) ?? 0) * 10) / 10], [2, 10.7, 21.3]);
+    eq('Vast werk, verhouding 1 : 2: 10,7 en 21,3 uur, exact 4/3 werkdagen',
+      [dur(f.id), Math.round((workH(a1) ?? 0) * 10) / 10, Math.round((workH(a2) ?? 0) * 10) / 10], [4 / 3, 10.7, 21.3]);
   }
   {
     const f = await plasterBase('FIXED_WORK');
     const cal = S().project.calendarId!;
     S().commitCalendarLibrary(S().calendars.map(c => c.id === cal ? { ...c, hoursPerDay: 6, workStartHour: 7, workEndHour: 14 } : c), cal);
-    eq('kalender 8 -> 6 uur per dag onder Vast werk: 6 werkdagen', dur(f.id), 6);
+    eq('kalender 8 -> 6 uur per dag onder Vast werk: exact 16/3 werkdagen (32 / 6)', dur(f.id), 16 / 3);
   }
   {
     // Twee resources die elk 32 uur werk en inzet 1 hebben (samen 4 werkdagen): de inzet van de
@@ -275,15 +281,11 @@ async function main(): Promise<void> {
 
   // Dezelfde projecten met urenmaat houden de precieze F3-einddoelen groen.
   await tutorialBase({ plasterRule: true, hoursReference: true });
-  // F3b rekent de deeldagen al; F3c sluit deze kern op het productieoverzicht aan.
-  const futureLoads: Record<string, number> = {};
-  for (const key of ['innerLeaf', 'outerLeaf'] as const) {
-    const t = task(key);
-    const placement = assignmentPlacementLoad(t, asg(t.id, resIds.get('bricklayer')), new CalendarEngine(S().calendar), {
-      start: parseInstant(t.time.earlyStart), finish: parseInstant(t.time.earlyFinish), measure: 'workdays',
-    });
-    placement.days.forEach((day, index) => { futureLoads[day.iso] = (futureLoads[day.iso] ?? 0) + placement.units[index]; });
-  }
+  // F3c: de productieberekening van de belasting telt de deeldagen (spec §3.11).
+  const bricklayer = resIds.get('bricklayer')!;
+  const futureLoads = computeResourceLoad(S().resources,
+    (['innerLeaf', 'outerLeaf'] as const).map(key => asg(task(key).id, bricklayer)),
+    S().tasks, S().calendar, S().calendars, effectiveSchedulingOptions(S().project)).load[bricklayer] ?? {};
   eq('F3-referentie: overbezetting telt ook de laatste gedeeltelijke werkdag',
     Object.keys(futureLoads).filter(day => futureLoads[day] > 1 + 1e-9),
     ['2027-06-28', '2027-06-29', '2027-06-30', '2027-07-01', '2027-07-02', '2027-07-05']);

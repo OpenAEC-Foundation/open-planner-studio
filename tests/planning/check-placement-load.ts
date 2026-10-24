@@ -1,12 +1,12 @@
-// F3b: vaste plaatsingen zijn het orakel; de solver bepaalt geen verwachte dagverdeling.
+// F3b/F3c: vaste plaatsingen zijn het orakel; de solver bepaalt geen verwachte dagverdeling.
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
-import { workPlacement } from '@/engine/scheduler/workPlacement';
-import { assignmentPlacementLoad } from '@/engine/scheduler/ResourceLoad';
+import { workPlacement, type WorkPlacement } from '@/engine/scheduler/workPlacement';
+import { assignmentLoadOnPlacement, contourLookup } from '@/engine/scheduler/ResourceLoad';
 import { exceedsCapacity } from '@/engine/scheduler/capacityTolerance';
 import { parseInstant } from '@/utils/dateUtils';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { makeBands } from '@/utils/effectiveWorkTime';
-import type { Task } from '@/types/task';
+import type { Task, TaskTimephasedContour } from '@/types/task';
 import type { ResourceAssignment } from '@/types/resource';
 import type { WorkCalendar } from '@/types/calendar';
 
@@ -27,6 +27,13 @@ function eq(label: string, actual: unknown, expected: unknown): void {
   if (JSON.stringify(actual) !== JSON.stringify(expected)) failures.push(`${label}: ${JSON.stringify(actual)} ≠ ${JSON.stringify(expected)}`);
 }
 function rounded(values: readonly number[]): number[] { return values.map(n => Math.round(n * 1e9) / 1e9); }
+/** De productieketen: één plaatsing per taak, daarna de verdeling per toewijzing. De contour komt
+ *  altijd van de aanroeper (knownbugs 233); zonder argument is er geen. */
+function assignmentPlacementLoad(task: Task, a: ResourceAssignment, eng: CalendarEngine, placement: WorkPlacement,
+  contour: TaskTimephasedContour | null = null) {
+  const placed = workPlacement(eng, placement);
+  return { days: placed.days, units: assignmentLoadOnPlacement(task, a, placed.days, eng, contour) };
+}
 function task(start: string, finish: string, duration = 3): Task {
   return {
     id: 'taak', name: 'taak', description: '', wbsCode: '1', taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
@@ -84,7 +91,12 @@ const stored = { ...assignment, remainingWorkMinutes: 720 };
 eq('opgeslagen werk: totaal 12 uur blijft behouden', rounded(assignmentPlacementLoad(base, stored, engine, placement).units), [0.25, 0.5, 0.5, 0.25]);
 eq('curve: bestaande FRONT_LOADED-slots gewogen naar overlap', rounded(assignmentPlacementLoad(base, { ...assignment, curve: 'FRONT_LOADED' }, engine, placement).units), [1, 1.5, 0.5, 0]);
 const curveValues = { ...assignment, curveValues: [0, ...Array<number>(10).fill(2), ...Array<number>(10).fill(1)] };
-eq('exacte curve: werkbehoud', rounded([assignmentPlacementLoad(base, curveValues, engine, placement).units.reduce((a, b) => a + b, 0)]), [3]);
+const exactCurve = assignmentPlacementLoad(base, curveValues, engine, placement).units;
+eq('exacte curve: werkbehoud', rounded([exactCurve.reduce((a, b) => a + b, 0)]), [3]);
+// Knownbugs 236: de volledige verdeling, niet alleen het totaal. Slots [4/3, 1, 2/3] (twee derde van
+// het werk in de eerste helft) liggen naar rato van overlap op de deeldagen 0,5 / 1 / 1 / 0,5.
+eq('exacte curve: volledige verdeling over de deeldagen', exactCurve.map(n => Math.round(n * 1e4) / 1e4),
+  [0.6667, 1.1667, 0.8333, 0.3333]);
 const fractionalCurve = task('2026-06-03T12:00', '2026-06-05T16:00', 2.5);
 eq('gebroken curveduur: geen afronding van het werktotaal', rounded([assignmentPlacementLoad(
   fractionalCurve, { ...assignment, curve: 'BELL' }, engine,
@@ -128,6 +140,29 @@ eq('onderbroken plaatsing: beide dagen één', rounded(scattered.units), [1, 1])
 const boundary = workPlacement(engine, { start: parseInstant('2026-06-01T16:00'), duration: 480, measure: 'minutes' });
 eq('blokgrens: volle acht uur op dinsdag', boundary.days.map(d => [d.iso, d.minutes]), [['2026-06-02', 480]]);
 eq('blokgrens: einde dinsdag 16:00', boundary.finish.toISOString(), '2026-06-02T16:00:00.000Z');
+
+// Review F3b r2 punt 2: een kleine inzet met een curve rondt in het dagslotcontract naar nul; het
+// werk blijft toch staan (2 werkdagen × 0,001 = 0,002 eenheidsdagen).
+const twoFullDays = task('2026-06-01T08:00', '2026-06-03T08:00', 2);
+const tinyBell = assignmentPlacementLoad(twoFullDays, { ...assignment, unitsPerDay: 0.001, curve: 'BELL' }, engine, {
+  start: parseInstant('2026-06-01T08:00'), duration: 960, measure: 'minutes',
+}).units;
+eq('kleine inzet met curve: werk blijft staan', rounded([tinyBell.reduce((a, b) => a + b, 0)]), [0.002]);
+
+// Knownbugs 233: twee toewijzingen van dezelfde resource met twee contouren (240 en 720 werkminuten).
+// De koppeling gaat via `contourLookup` over ALLE toewijzingen van de taak; de tweede krijgt de
+// tweede contour (1,5), niet nog een keer de eerste (0,5).
+const oneDay = task('2026-06-01T08:00', '2026-06-01T16:00', 1);
+const twoContours = { ...oneDay, timephasedContours: [
+  { resourceId: 'r', resourceUid: null, periods: [{ afterMinutes: 0, minutes: 480, workMinutes: 240, kind: 'remaining' as const }] },
+  { resourceId: 'r', resourceUid: null, periods: [{ afterMinutes: 0, minutes: 480, workMinutes: 720, kind: 'remaining' as const }] },
+] };
+const first: ResourceAssignment = { id: 'a1', taskId: 'taak', resourceId: 'r', unitsPerDay: 1 };
+const second: ResourceAssignment = { id: 'a2', taskId: 'taak', resourceId: 'r', unitsPerDay: 1 };
+const lookup = contourLookup([first, second]);
+const dayPlacement = { start: parseInstant('2026-06-01T08:00'), duration: 480, measure: 'minutes' as const };
+eq('twee contouren: elke toewijzing haar eigen contour', [first, second].map(a => rounded(
+  assignmentPlacementLoad(twoContours, a, engine, dayPlacement, lookup(twoContours, a)).units)), [[0.5], [1.5]]);
 
 for (const failure of failures) console.error(`XX ${failure}`);
 console.log(`Plaatsingsbelasting: ${checks} checks, ${failures.length} afwijkingen`);

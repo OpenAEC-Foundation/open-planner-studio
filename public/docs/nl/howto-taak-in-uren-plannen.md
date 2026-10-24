@@ -27,13 +27,15 @@ Daarmee verschijnt de keuzelijst *Duureenheid*. Zonder die lijst kun je nog stee
 ### Nieuwe taken standaard in uren
 
 1. Open *Projectinstellingen*.
-2. Kies bij *Standaardeenheid voor nieuwe taken* de eenheid *Uren* en klik op *Toepassen*.
+2. Kies bij *Standaardmaat voor nieuwe taken* de *Urenmaat* en klik op *Toepassen*.
 
-Nieuwe taken krijgen de gekozen maat. Dezelfde keuze staat bij het maken van een project, naast de ploegpreset.
+Nieuwe taken krijgen de gekozen maat. Dezelfde keuze staat bij het maken van een project, naast de ploegpreset. Onder het P6- en het MSP-profiel staat de keuze vast op *Urenmaat*. De uitleg onder de keuzelijst zegt dat dan.
 
 ## Valkuilen en wat de app dan doet
 
 **Afgeleide duur.** Bij een fase, een hammock of een mijlpaal met nul duur kun je de duur niet zelf typen.
+
+**Vast werk.** Een taak met het taaktype *Vast werk* heeft altijd de urenmaat. Zet je een taak van 3 d op *Vast werk*, dan wordt het 24 u: 3 × de werktijd per dag. Het einde kan daardoor verschuiven, net als bij een duurwijziging. In de tabel kun je zo'n taak niet terugzetten naar dagen.
 
 **Duurweergave in OPS.** Deze instelling is grijs: elke taak toont zijn eigen maat. Onder het P6- en MSP-profiel blijft de keuze actief.
 

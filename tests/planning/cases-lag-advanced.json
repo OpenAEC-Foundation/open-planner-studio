@@ -184,26 +184,14 @@
     },
     {
       "id": "lagadv-pct-fs50-odd-roundup",
-      "title": "B7: FS+50% van 5 d = exact 2,5 d. F2-tussenstand; F3 → B do 11:00 (§3.14).",
+      "title": "B7: FS+50% van 5 d = exact 2,5 d (20 u), niet afgerond. B begint wo 11:00 en telt in de dagenmaat tot do 11:00 (§3.3, §3.14).",
       "tasks": [{ "name": "A", "dur": 5 }, { "name": "B", "dur": 1 }],
       "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START", "lagPercent": 50 }],
-      "minuteModel": {
-        "reason": "PCT-LAG-EXACT",
-        "note": "B7: 50 % van 5 d is 2,5 d (20 u), niet afgerond. B begint wo 11:00 en eindigt do 11:00. F2 houdt het einddoel bewust rood tot de F3-lopers (§3.14, §7.2).",
-        "expect": {
-          "tasks": {
-            "B": {
-              "es": "2026-06-10T11:00",
-              "ef": "2026-06-11T11:00"
-            }
-          }
-        }
-      },
       "expect": {
         "tasks": {
           "B": {
             "es": "2026-06-10T11:00",
-            "ef": "2026-06-10T16:00"
+            "ef": "2026-06-11T11:00"
           }
         }
       }
@@ -305,8 +293,36 @@
       }
     },
     {
+      "id": "f3-pct-fs50-korte-vrijdag",
+      "title": "B7 en §3.14: een procentlag telt in de maat van de voorganger. Ma–do 8 u, vr 6 u (tot 14:00). A 3 d (ma–wo) in de dagenmaat; FS+50% = 1,5 werkdag: do heel en de helft van vrijdag (3 van 6 u), dus B begint vr 10:00 (in minuten zou het 12 u zijn: vr 11:00). B 1 d: vr 10:00–14:00 is 0,5 d, ma 07:00–11:00 de andere helft.",
+      "anchor": "2026-06-01",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 420, "end": 720 }, { "start": 780, "end": 960 }], "2": [{ "start": 420, "end": 720 }, { "start": 780, "end": 960 }], "3": [{ "start": 420, "end": 720 }, { "start": 780, "end": 960 }], "4": [{ "start": 420, "end": 720 }, { "start": 780, "end": 960 }], "5": [{ "start": 420, "end": 720 }, { "start": 780, "end": 840 }], "6": [], "7": [] } } },
+      "tasks": [{ "name": "A", "dur": 3 }, { "name": "B", "dur": 1 }],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START", "lagPercent": 50 }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-01T07:00", "ef": "2026-06-03T16:00" },
+          "B": { "es": "2026-06-05T10:00", "ef": "2026-06-08T11:00" }
+        }
+      }
+    },
+    {
+      "id": "f3-pct-fs-lead50-korte-vrijdag",
+      "title": "B7 en §3.14: een procent-lead telt ook in de maat van de voorganger. Ma–do 8 u, vr 6 u. A 5 d (ma–vr, einde vr 14:00); FS−50% = 2,5 werkdag terug: vr en do heel, de helft van woensdag (4 van 8 u), dus B begint wo 11:00 (in minuten zou het 20 u zijn: wo 09:00). B 1 d eindigt do 11:00.",
+      "anchor": "2026-06-01",
+      "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 420, "end": 720 }, { "start": 780, "end": 960 }], "2": [{ "start": 420, "end": 720 }, { "start": 780, "end": 960 }], "3": [{ "start": 420, "end": 720 }, { "start": 780, "end": 960 }], "4": [{ "start": 420, "end": 720 }, { "start": 780, "end": 960 }], "5": [{ "start": 420, "end": 720 }, { "start": 780, "end": 840 }], "6": [], "7": [] } } },
+      "tasks": [{ "name": "A", "dur": 5 }, { "name": "B", "dur": 1 }],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START", "lagPercent": -50 }],
+      "expect": {
+        "tasks": {
+          "A": { "ef": "2026-06-05T14:00" },
+          "B": { "es": "2026-06-03T11:00", "ef": "2026-06-04T11:00" }
+        }
+      }
+    },
+    {
       "id": "lagadv-minutes-daypred-hoursucc",
-      "title": "MINUUT-lag zonder dag-lag bij een DAG-voorganger, cross-modus: D(2d, dag) -> H(4u, H8), lagMinutes 480 en lagDays 0. Precies wat p6xmlReader/mspdiReader schrijven zodra de OPVOLGER in uur-modus staat. 480 min / (8u x 60) = 1 werkdag in de VOORGANGER-kalender; voor de fix verdampte de lag volledig (H startte 07-08T08:00).",
+      "title": "MINUUT-lag zonder dag-lag bij een DAG-voorganger, cross-modus: D(2d, dag) -> H(4u, H8), lagMinutes 480 en lagDays 0. Precies wat p6xmlReader/mspdiReader schrijven zodra de OPVOLGER in uur-modus staat. 480 werkminuten in de VOORGANGER-kalender; voor de fix verdampte de lag volledig (H startte 07-08T08:00). F3 (§3.14): D telt in de dagenmaat en mag tot wo 08:00 lopen; 480 min later is do 08:00, dus 1 u = 0,125 d speling.",
       "anchor": "2026-07-06",
       "calendars": [{ "name": "H8", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } }],
       "tasks": [
@@ -316,7 +332,7 @@
       "links": [{ "pred": "D", "succ": "H", "type": "FINISH_START", "lagMinutes": 480 }],
       "expect": {
         "tasks": {
-          "D": { "es": "2026-07-06", "ef": "2026-07-07", "ls": "2026-07-06", "lf": "2026-07-07", "tf": 0, "crit": true },
+          "D": { "es": "2026-07-06", "ef": "2026-07-07", "ls": "2026-07-06T08:00", "lf": "2026-07-08T08:00", "tf": 0.125, "crit": false },
           "H": { "es": "2026-07-09T08:00", "ef": "2026-07-09T12:00", "ls": "2026-07-09T08:00", "lf": "2026-07-09T12:00", "tf": 0, "crit": true }
         },
         "error": false
@@ -343,7 +359,7 @@
     },
     {
       "id": "lagadv-minutes-daypred-lead-halftie",
-      "title": "MINUUT-LEAD zonder dag-lag, puur dag->dag: lagMinutes -240 = -0,5 werkdag. Rondt van NUL AF (-1 werkdag), zodat een lead niet stil naar 0 kantelt zoals Math.round(-0,5) zou doen. E start 07-07, tegelijk met de tweede dag van D.",
+      "title": "MINUUT-LEAD zonder dag-lag, puur dag->dag: lagMinutes -240 is exact 4 werkuren vóór het einde van D (§3.3, geen afronding meer). E start di 11:00 en telt in de dagenmaat tot wo 11:00 (§3.14). De projectduur telt de aangeraakte werkdagen ma–wo.",
       "anchor": "2026-07-06",
       "tasks": [
         { "name": "D", "dur": 2 },
@@ -353,16 +369,16 @@
       "expect": {
         "tasks": {
           "D": { "es": "2026-07-06", "ef": "2026-07-07", "ls": "2026-07-06", "lf": "2026-07-07", "tf": 0, "crit": true },
-          "E": { "es": "2026-07-07", "ef": "2026-07-07", "ls": "2026-07-07", "lf": "2026-07-07", "tf": 0, "crit": true }
+          "E": { "es": "2026-07-07T11:00", "ef": "2026-07-08T11:00", "ls": "2026-07-07T11:00", "lf": "2026-07-08T11:00", "tf": 0, "crit": true }
         },
-        "projectEnd": "2026-07-07",
-        "projectDuration": 2,
+        "projectEnd": "2026-07-08T11:00",
+        "projectDuration": 3,
         "error": false
       }
     },
     {
       "id": "lagadv-minutes-daypred-lagdays-wins",
-      "title": "§3.3/I11: lagMinutes draagt de urenmaat, ook naast het afgeleide lagDays; exact 240 min geeft wo 11:00. F2-tussenstand; F3 → E do 11:00 (§3.14).",
+      "title": "§3.3/I11: lagMinutes draagt de urenmaat, ook naast het afgeleide lagDays; exact 240 min geeft wo 11:00. E telt in de dagenmaat tot do 11:00 (§3.14).",
       "anchor": "2026-07-06",
       "tasks": [
         { "name": "D", "dur": 2 },
@@ -381,9 +397,9 @@
           },
           "E": {
             "es": "2026-07-08T11:00",
-            "ef": "2026-07-08T16:00",
+            "ef": "2026-07-09T11:00",
             "ls": "2026-07-08T11:00",
-            "lf": "2026-07-08T16:00",
+            "lf": "2026-07-09T11:00",
             "tf": 0,
             "crit": true
           }

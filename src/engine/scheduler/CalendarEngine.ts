@@ -15,7 +15,33 @@ interface BandInterval {
 interface BandCache {
   days: Map<number, BandInterval[]>;
   fills: number;
+  /** Dagenmaat (alleen uren §3.14): per werkdag de blokken op volgorde en de werkminuten. Afgeleid
+   *  van `days`, dus net zo puur een functie van het kalender-object. */
+  measure: Map<number, MeasureDay>;
+  /** Lopende som van de werkminuten per kalenderdag (de blokken die op die dag BEGINNEN), voor
+   *  `workMinutesBetween` over lange spannes. `cum[i]` = som van dag `firstDay` t/m `firstDay + i - 1`
+   *  (dagindex, UTC). Afgeleid van `measure`, dus net zo puur een functie van het kalender-object. */
+  minutePrefix?: { firstDay: number; cum: number[] };
 }
+
+/** Eén kalenderdag voor de dagenmaat: de blokken die op die dag BEGINNEN, op volgorde, en hun som in
+ *  werkminuten. `minutes === 0` ⇒ geen werkdag (feestdag, niet-werkdag). */
+interface MeasureDay {
+  bands: BandInterval[];
+  minutes: number;
+}
+
+/** Waar een moment op de dagenmaat ligt: de werkdag (UTC-middernacht-ms) en het aantal werkminuten
+ *  van die dag vóór het moment. */
+interface MeasurePosition {
+  dayMs: number;
+  offset: number;
+  day: MeasureDay;
+}
+
+/** Marge voor zwevendekommafouten in een dagenteller (`2.625 − 0.375` enz.): kleiner dan een
+ *  duizendste minuut op elke echte werkdag, en ruim groter dan de afrondingsruis van een double. */
+const MEASURE_EPS = 1e-9;
 
 /** WeakMap kalender-object → gedeelde band-cache. Bewust op het OBJECT (identiteit), niet per
  *  engine-instantie, zodat parallelle engines op dezelfde kalender de uitrol delen. */
@@ -132,7 +158,7 @@ export class CalendarEngine {
       this.standardWorkdayBands = this.computeStandardWorkdayBands();
       let cache = bandCacheRegistry.get(calendar);
       if (!cache) {
-        cache = { days: new Map(), fills: 0 };
+        cache = { days: new Map(), fills: 0, measure: new Map() };
         bandCacheRegistry.set(calendar, cache);
       }
       this.bandCache = cache;
@@ -851,9 +877,21 @@ export class CalendarEngine {
     const sign = bMs > aMs ? 1 : -1;
     const lo = Math.min(aMs, bMs);
     const hi = Math.max(aMs, bMs);
-    let total = 0;
     // Begin twee dagen vóór `lo`: een wrap-band (end ≤ +2880m) van een eerdere dag kan in [lo,hi) reiken.
-    let dayMs = this.dayStartMsOf(lo) - 2 * MS_PER_DAY;
+    const firstDayMs = this.dayStartMsOf(lo) - 2 * MS_PER_DAY;
+    // Snelle weg (F3c, speling in minuten over lange spannes): een dag `d` met `d ≥ lo` en `d + 2 dagen ≤ hi`
+    // ligt met al zijn blokken (ook een wrap-blok) binnen `[lo,hi)` en telt dus volledig mee; die dagen
+    // komen uit de lopende som. Alleen de randdagen worden blok voor blok geteld, zoals hieronder.
+    const fullFrom = Math.ceil(lo / MS_PER_DAY);
+    const fullTo = Math.floor(hi / MS_PER_DAY) - 2; // inclusief
+    const spanDays = (hi - firstDayMs) / MS_PER_DAY;
+    if (fullTo - fullFrom >= CalendarEngine.PREFIX_MIN_DAYS && spanDays <= CalendarEngine.MAX_DAYS) {
+      return sign * (this.bandMinutesOnDays(firstDayMs, fullFrom * MS_PER_DAY, lo, hi)
+        + this.fullDayMinutes(fullFrom, fullTo + 1)
+        + this.bandMinutesOnDays((fullTo + 1) * MS_PER_DAY, hi, lo, hi));
+    }
+    let total = 0;
+    let dayMs = firstDayMs;
     let steps = 0;
     while (dayMs < hi) {
       for (const band of this.bandsStartingOn(dayMs)) {
@@ -867,12 +905,267 @@ export class CalendarEngine {
     return sign * total;
   }
 
+  /** Vanaf hoeveel volle dagen `physicalWorkMinutesBetween` de lopende som gebruikt. */
+  private static readonly PREFIX_MIN_DAYS = 14;
+
+  /** Bandminuten in `[lo,hi)` van de blokken die beginnen op de dagen `fromDayMs` ≤ dag < `toDayMs`. */
+  private bandMinutesOnDays(fromDayMs: number, toDayMs: number, lo: number, hi: number): number {
+    let total = 0;
+    for (let dayMs = fromDayMs; dayMs < toDayMs && dayMs < hi; dayMs += MS_PER_DAY) {
+      for (const band of this.bandsStartingOn(dayMs)) {
+        const s = Math.max(band.start, lo);
+        const e = Math.min(band.end, hi);
+        if (e > s) total += (e - s) / CalendarEngine.MS_PER_MIN;
+      }
+    }
+    return total;
+  }
+
+  /** Som van de volle werkminuten van de dagen met index `fromDay` ≤ d < `toDay` (UTC-dagindex), uit de
+   *  lopende som op het kalender-object. Groeit de som, dan ruim (minstens een jaar extra aan elke kant). */
+  private fullDayMinutes(fromDay: number, toDay: number): number {
+    const cache = this.bandCache!;
+    let prefix = cache.minutePrefix;
+    if (!prefix || fromDay < prefix.firstDay || toDay > prefix.firstDay + prefix.cum.length - 1) {
+      const pad = Math.max(366, prefix ? prefix.cum.length : 0);
+      const first = Math.min(fromDay, prefix ? prefix.firstDay : fromDay) - pad;
+      const last = Math.max(toDay, prefix ? prefix.firstDay + prefix.cum.length - 1 : toDay) + pad;
+      const cum = new Array<number>(last - first + 1);
+      cum[0] = 0;
+      for (let i = 1; i < cum.length; i++) cum[i] = cum[i - 1] + this.measureDay((first + i - 1) * MS_PER_DAY).minutes;
+      prefix = { firstDay: first, cum };
+      cache.minutePrefix = prefix;
+    }
+    return prefix.cum[toDay - prefix.firstDay] - prefix.cum[fromDay - prefix.firstDay];
+  }
+
   /** Zuivere getekende offset over werkminuten (uur-tegenhanger van `addWorkingDaysSigned`, voor
    *  lag/lead). m=0 ⇒ genormaliseerd naar `nextWorkInstant(t)`; m>0 vooruit, m<0 achteruit. */
   addWorkingMinutesSigned(t: Date, m: number): Date {
     const current = this.nextWorkInstant(t);
     if (m === 0) return current;
     return m > 0 ? this.addWorkMinutes(current, m) : this.subtractWorkMinutes(current, -m);
+  }
+
+  // ── Dagenmaat-lopers (alleen uren §3.14, technische keuze T23) ──────────────
+  //
+  // De dagenmaat telt werkdagen: elke werkdag telt als 1, hoe lang hij ook is. Binnen een dag telt het
+  // deel van de werktijd van die dag (wo 11:00–16:00 op een dag van 8 u = 0,5 d). Een feestdag en een
+  // niet-werkdag tellen 0; een werkende uitzondering telt 1, ook met minder uren. Een werkdag is een
+  // kalenderdag waarop een werkblok BEGINT: een nachtblok di 22:00–wo 06:00 hoort bij dinsdag (§0).
+  //
+  // Afronding (T23): de lopers rekenen in hele minuten. Het deel van de laatste dag wordt
+  // `Math.round(deel × werkminuten van die dag)`, zonder verborgen rest. Vooruit en daarna achteruit
+  // verschilt daardoor hooguit ½ + ½ × (werkminuten van de begindag ÷ werkminuten van de einddag) minuut;
+  // `tests/planning/check-dagenmaat-lopers.ts` toetst die grens. Op gelijke dagen is dat 1 minuut.
+  //
+  // Randen: vooruit levert een EINDmoment (een blokeinde blijft staan, zoals `addWorkMinutes`),
+  // achteruit een STARTmoment (een blokbegin, zoals `subtractWorkMinutes`). Alleen in uur-modus; een
+  // kalender zonder werkblokken valt terug op de hele-dagentelling.
+
+  /** De dagenmaat-gegevens van kalenderdag `dayMs` (UTC-middernacht): de blokken die er beginnen, op
+   *  volgorde, en hun som in werkminuten. Gecachet op het kalender-object, net als `bandsStartingOn`. */
+  private measureDay(dayMs: number): MeasureDay {
+    const cache = this.bandCache!;
+    const hit = cache.measure.get(dayMs);
+    if (hit) return hit;
+    const bands = [...this.bandsStartingOn(dayMs)]
+      .filter((b) => b.end > b.start)
+      .sort((a, b) => a.start - b.start);
+    let minutes = 0;
+    for (const b of bands) minutes += (b.end - b.start) / CalendarEngine.MS_PER_MIN;
+    const day: MeasureDay = { bands, minutes };
+    cache.measure.set(dayMs, day);
+    return day;
+  }
+
+  /** Werkminuten van `day` vóór het moment `tMs`. */
+  private measureOffset(day: MeasureDay, tMs: number): number {
+    let offset = 0;
+    for (const b of day.bands) {
+      if (tMs <= b.start) break;
+      offset += (Math.min(b.end, tMs) - b.start) / CalendarEngine.MS_PER_MIN;
+    }
+    return offset;
+  }
+
+  /** Plek van een STARTmoment op de dagenmaat: de werkdag van het eerstvolgende werkmoment (`[start,end)`).
+   *  Een moment buiten werktijd telt als het begin van de volgende werkdag. `null` zonder werktijd. */
+  private measureFrom(t: Date): MeasurePosition | null {
+    const s = this.nextWorkInstant(t).getTime();
+    const band = this.findContaining(s, false);
+    if (!band) return null;
+    const dayMs = this.dayStartMsOf(band.start);
+    const day = this.measureDay(dayMs);
+    if (!(day.minutes > 0)) return null;
+    return { dayMs, offset: this.measureOffset(day, s), day };
+  }
+
+  /** Plek van een EINDmoment op de dagenmaat: de werkdag van het laatste werkmoment ervoor (`(start,end]`).
+   *  Een moment buiten werktijd telt als het einde van de vorige werkdag. `null` zonder werktijd. */
+  private measureTo(t: Date): MeasurePosition | null {
+    const e = this.prevWorkInstantOrNull(t);
+    if (!e) return null;
+    const eMs = e.getTime();
+    const band = this.findContaining(eMs, true);
+    if (!band) return null;
+    const dayMs = this.dayStartMsOf(band.start);
+    const day = this.measureDay(dayMs);
+    if (!(day.minutes > 0)) return null;
+    return { dayMs, offset: this.measureOffset(day, eMs), day };
+  }
+
+  /** Telt de dagenmaat dezelfde werkdagen als `isWorkDay`? Ja als elke weekdag met werkminuten in
+   *  `workDays` staat (en andersom) en elke werkende uitzondering minuten heeft. Dan mag de rekenkundige
+   *  telling (`offsetOfNthWorkday`, `workDaysBetween`) hele dagen overslaan; een tegenstrijdige kalender
+   *  telt dag voor dag. Eén keer per engine bepaald. */
+  private measureLikeWorkDays(): boolean {
+    if (this.measureLikeWorkDaysCache !== undefined) return this.measureLikeWorkDaysCache;
+    const byWeekday = this.calendar.workTime?.byWeekday;
+    let ok = byWeekday !== undefined;
+    for (let wd = 1; ok && wd <= 7; wd++) {
+      const bands = byWeekday![wd as 1 | 2 | 3 | 4 | 5 | 6 | 7] ?? [];
+      const minutes = bands.reduce((s, b) => s + Math.max(0, b.end - b.start), 0);
+      if ((minutes > 0) !== this.workDayMask[wd]) ok = false;
+    }
+    if (ok) {
+      for (const idx of this.workingExceptionDaySet) {
+        if (!(this.measureDay(idx * MS_PER_DAY).minutes > 0)) { ok = false; break; }
+      }
+    }
+    this.measureLikeWorkDaysCache = ok;
+    return ok;
+  }
+  private measureLikeWorkDaysCache?: boolean;
+
+  /** De `n`-de werkdag (dagenmaat) na (`dir` 1) of vóór (`dir` −1) werkdag `dayMs`; `null` als die binnen de
+   *  veiligheidsgrenzen niet bestaat (geen werkdag in MAX_SCAN dagen, of meer dan MAX_DAYS dagen ver). */
+  private nthMeasureWorkday(dayMs: number, n: number, dir: 1 | -1): number | null {
+    if (n <= 0) return dayMs;
+    if (this.measureLikeWorkDays()) {
+      const offset = this.offsetOfNthWorkday(new Date(dayMs), n, dir);
+      if (offset !== null) return dayMs + dir * offset * MS_PER_DAY;
+    }
+    let d = dayMs;
+    let left = n;
+    let sinceWorkday = 0;
+    for (let steps = 0; left > 0; steps++) {
+      if (steps > CalendarEngine.MAX_DAYS || sinceWorkday > CalendarEngine.MAX_SCAN) return null;
+      d += dir * MS_PER_DAY;
+      if (this.measureDay(d).minutes > 0) {
+        left--;
+        sinceWorkday = 0;
+      } else {
+        sinceWorkday++;
+      }
+    }
+    return d;
+  }
+
+  /** Aantal werkdagen (dagenmaat) in `[aMs, bMs)`, beide UTC-middernacht. */
+  private measureWorkdaysInRange(aMs: number, bMs: number): number {
+    if (bMs <= aMs) return 0;
+    if (this.measureLikeWorkDays()) return this.workDaysBetween(new Date(aMs), new Date(bMs - MS_PER_DAY));
+    let count = 0;
+    for (let d = aMs, steps = 0; d < bMs && steps <= CalendarEngine.MAX_DAYS; d += MS_PER_DAY, steps++) {
+      if (this.measureDay(d).minutes > 0) count++;
+    }
+    return count;
+  }
+
+  /** Het moment `offset` werkminuten na het begin van werkdag `day`. `'end'`: een grens tussen twee blokken
+   *  wordt het blokeinde (een eindmoment). `'start'`: het volgende blokbegin (een startmoment); de volle dag
+   *  is dan het begin van de volgende werkdag. */
+  private measureMoment(day: MeasureDay, offset: number, side: 'start' | 'end'): number {
+    let left = offset;
+    for (const b of day.bands) {
+      const len = (b.end - b.start) / CalendarEngine.MS_PER_MIN;
+      if (side === 'end' ? left <= len : left < len) return b.start + left * CalendarEngine.MS_PER_MIN;
+      left -= len;
+    }
+    const last = day.bands[day.bands.length - 1];
+    return side === 'end' ? last.end : this.nextWorkInstant(new Date(last.end)).getTime();
+  }
+
+  /** Dagenmaat vooruit: het EINDmoment `days` werkdagen (mag een breuk zijn) na `start`. `days ≤ 0` ⇒
+   *  `start` ongewijzigd (zoals `addWorkMinutes`). Voorbeeldweek (ma–do 8 u, vr 6 u): ma 07:00 + 5 d ⇒
+   *  vr 14:00; di 11:00 + 3 d ⇒ vr 10:00. */
+  addMeasuredWorkdays(start: Date, days: number): Date {
+    return this.addMeasuredWorkdaysChecked(start, days).date;
+  }
+
+  /** `addMeasuredWorkdays` met het CAP-signaal van `addWorkDaysChecked`: `capped` als de kalender binnen de
+   *  veiligheidsgrenzen geen werkdag meer heeft; de datum is dan `start` (geen betekenisvol einde). */
+  addMeasuredWorkdaysChecked(start: Date, days: number): { date: Date; capped: boolean } {
+    if (!(days > 0) || !Number.isFinite(days)) return { date: new Date(start.getTime()), capped: false };
+    if (this.mode !== 'hour') return this.addWorkDaysChecked(start, Math.ceil(days - MEASURE_EPS));
+    const from = this.measureFrom(start);
+    if (!from) return { date: new Date(start.getTime()), capped: true };
+    const firstLeft = (from.day.minutes - from.offset) / from.day.minutes;
+    if (days <= firstLeft + MEASURE_EPS) {
+      const offset = Math.min(from.day.minutes, from.offset + Math.round(days * from.day.minutes));
+      if (offset <= from.offset) return { date: new Date(start.getTime()), capped: false };
+      return { date: new Date(this.measureMoment(from.day, offset, 'end')), capped: false };
+    }
+    const rest = days - firstLeft;
+    const n = Math.max(1, Math.ceil(rest - MEASURE_EPS));
+    const dayMs = this.nthMeasureWorkday(from.dayMs, n, 1);
+    if (dayMs === null) return { date: new Date(start.getTime()), capped: true };
+    const day = this.measureDay(dayMs);
+    const minutes = Math.round(Math.min(1, rest - (n - 1)) * day.minutes);
+    // Valt het deel van de laatste dag weg in de afronding, dan is het einde het einde van de werkdag
+    // ervoor (op de tijdas hetzelfde punt als het begin van deze dag).
+    if (minutes <= 0) return { date: this.prevWorkInstant(new Date(day.bands[0].start)), capped: false };
+    return { date: new Date(this.measureMoment(day, minutes, 'end')), capped: false };
+  }
+
+  /** Dagenmaat achteruit: het STARTmoment `days` werkdagen (mag een breuk zijn) vóór `end`. Spiegel van
+   *  `addMeasuredWorkdays`; `days ≤ 0` ⇒ `end` ongewijzigd. */
+  subtractMeasuredWorkdays(end: Date, days: number): Date {
+    if (!(days > 0) || !Number.isFinite(days)) return new Date(end.getTime());
+    if (this.mode !== 'hour') return this.subtractWorkDays(end, Math.ceil(days - MEASURE_EPS));
+    const to = this.measureTo(end);
+    if (!to) return new Date(end.getTime());
+    const lastDone = to.offset / to.day.minutes;
+    if (days <= lastDone + MEASURE_EPS) {
+      const offset = Math.max(0, to.offset - Math.round(days * to.day.minutes));
+      if (offset >= to.offset) return new Date(end.getTime());
+      return new Date(this.measureMoment(to.day, offset, 'start'));
+    }
+    const rest = days - lastDone;
+    const n = Math.max(1, Math.ceil(rest - MEASURE_EPS));
+    const dayMs = this.nthMeasureWorkday(to.dayMs, n, -1);
+    if (dayMs === null) return new Date(end.getTime());
+    const day = this.measureDay(dayMs);
+    const minutes = Math.round(Math.min(1, rest - (n - 1)) * day.minutes);
+    // `minutes === 0`: het deel valt weg in de afronding; dan is de start het begin van de werkdag erna.
+    return new Date(this.measureMoment(day, day.minutes - minutes, 'start'));
+  }
+
+  /** Het einde (laatste blokeinde) van de dagenmaat-werkdag waarop het startmoment `t` valt; een moment
+   *  buiten werktijd telt als het begin van de volgende werkdag. Zonder werkblokken: `t` ongewijzigd. */
+  measuredWorkdayEnd(t: Date): Date {
+    if (this.mode !== 'hour') return new Date(t.getTime());
+    const from = this.measureFrom(t);
+    if (!from) return new Date(t.getTime());
+    return new Date(this.measureMoment(from.day, from.day.minutes, 'end'));
+  }
+
+  /** Getekende afstand in de dagenmaat van `a` naar `b`: de hele werkdagen ertussen plus het deel van de
+   *  begin- en de einddag (§3.4, de speling van een dagenmaat-taak). Een moment buiten werktijd telt als
+   *  het begin van de volgende werkdag, dus als het einde van de vorige: een blokeinde en het volgende
+   *  blokbegin liggen op dezelfde plek. Positief als `b` later ligt. */
+  measuredWorkdaysBetween(a: Date, b: Date): number {
+    const aMs = a.getTime();
+    const bMs = b.getTime();
+    if (aMs === bMs) return 0;
+    if (bMs < aMs) return -this.measuredWorkdaysBetween(b, a);
+    if (this.mode !== 'hour') return this.signedWorkDaysBetween(a, b);
+    const pa = this.measureFrom(a);
+    const pb = this.measureFrom(b);
+    if (!pa || !pb) return this.hoursPerDay > 0 ? this.workMinutesBetween(a, b) / (this.hoursPerDay * 60) : 0;
+    return this.measureWorkdaysInRange(pa.dayMs, pb.dayMs)
+      + pb.offset / pb.day.minutes - pa.offset / pa.day.minutes;
   }
 
   // ── Cross-modus-primitieven — de solver wisselt hiermee tussen dag- en uur-taken ──

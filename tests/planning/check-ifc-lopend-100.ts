@@ -145,7 +145,10 @@ const progress = (t: Task) => ({
 });
 const dates = (t: Task) => {
   const x = t.time;
-  return [x.scheduleStart, x.scheduleFinish, x.earlyStart, x.earlyFinish, x.lateStart, x.lateFinish, x.totalFloat, x.isCritical];
+  // F3 (alleen uren §3.5, B3): de rest is exact, dus de opgerolde speling is geen geheel aantal dagen
+  // meer (2,99167 d). IfcTaskTime draagt dagen met zes decimalen; vergelijk de speling daarom op 10⁻⁶.
+  const totalFloat = Math.round(x.totalFloat * 1e6) / 1e6;
+  return [x.scheduleStart, x.scheduleFinish, x.earlyStart, x.earlyFinish, x.lateStart, x.lateFinish, totalFloat, x.isCritical];
 };
 
 // ── 1. Vorm in het bestand ────────────────────────────────────────────────────────────────────────

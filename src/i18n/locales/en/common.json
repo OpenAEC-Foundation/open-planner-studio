@@ -336,8 +336,11 @@
     "showTaskTypes": "Use task types",
     "showTaskTypesHint": "Choose per task what adjusts when duration, units or work changes, like Task Type in MS Project and Duration Type in P6. Off: duration and units stay fixed. A file with task types or stored work shows them even when this is off.",
     "allowMixedDayHour": "Allow mixed day/hour planning",
-    "defaultTaskDurationUnit": "Default unit for new tasks",
-    "defaultTaskDurationUnitHint": "Determines whether new tasks start in working days or working hours. Existing tasks do not change.",
+    "defaultTaskDurationUnit": "Default measure for new tasks",
+    "defaultTaskDurationUnitHint": "Day measure: a duration counts in working days of the calendar. Hour measure: a duration counts in working hours. Existing tasks do not change. A task with fixed work always uses the hour measure.",
+    "defaultTaskDurationUnitDays": "Day measure",
+    "defaultTaskDurationUnitHours": "Hour measure",
+    "defaultTaskDurationUnitLocked": "The {{profile}} profile counts a duration in hours. New tasks therefore get the hour measure.",
     "durationDisplay": "Duration display",
     "durationDisplayHint": "Controls how task duration is shown, independent of the unit a task itself is recorded in.",
     "durationDisplayOpsHint": "In the OPS profile, each task shows its own unit.",
@@ -1479,6 +1482,10 @@
     "milestoneWithoutPredecessorAtDayEnd": {
       "label": "Isolated milestones at the end of the workday",
       "help": "An isolated milestone or a finish milestone without a predecessor is placed at the end of its workday."
+    },
+    "workdayDurationMeasure": {
+      "label": "Duration in working days",
+      "help": "A duration, lag or remaining duration in days counts in working days: each working day counts as 1, however long that day is. Off: a day counts as the number of working hours per day of the calendar. A percentage lag follows the measure of the predecessor. Elapsed time never counts in working days."
     }
   },
   "profiles": {
@@ -1517,6 +1524,7 @@
       "float": "Float and late dates",
       "instants": "Dates and moments from the file",
       "msproject": "Progress as in Microsoft Project",
+      "durations": "Duration and measure",
       "ownProfilesOnly": "Custom profiles only"
     },
     "ownProfilesOnlyNote": "These conventions are off in every built-in profile, including Primavera P6. Only a custom profile can switch them on: choose New profile for that.",

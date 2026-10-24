@@ -371,7 +371,6 @@
       "resourceAddsWork": "En extra resurs lägger till arbete.",
       "resourceSharesWork": "En extra resurs tar över en del av arbetet; tilldelningsenheten per resurs minskar.",
       "resourceShorter": "En extra resurs gör uppgiften kortare.",
-      "resourceShorterWholeDays": "En extra resurs gör uppgiften kortare, avrundat till hela dagar.",
       "resourceAddsWorkSameDuration": "En extra resurs lägger till arbete; varaktigheten förblir densamma."
     },
     "info": "Förklaring till uppgiftstypen"

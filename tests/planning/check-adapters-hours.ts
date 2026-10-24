@@ -398,7 +398,11 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   const rest = (t: Task | undefined) => [t?.time.remainingMinutes, t?.time.remainingTime];
   eq('restduur: voorwaarde urentaak 5 u op 40 %', rest(lopend), [180, 0.375]);
   eq('restduur: voorwaarde teruggezette urentaak', rest(terug), [300, 0.625]);
-  eq('restduur: voorwaarde dagtaak 5 d op 30 %', rest(dag), [undefined, 4]);
+  // B1 (spec "alleen uren" §3.5, besluit B3): de rest van een dagtaak is exact, 5 d op 30 % = 3,5 d (was
+  // round = 4 d). De adapters schrijven die breuk: MSPDI en P6 28 u, IFC ook 28 u als `PT…` met het record
+  // [3,5, 1680] (§3.10, T21: nooit een gebroken P…D, want v2026.9.0 leest die verkeerd, I10). De dagen komen
+  // terug uit het record (hieronder: dagtaak terug 3,5).
+  eq('restduur: voorwaarde dagtaak 5 d op 30 %', rest(dag), [undefined, 3.5]);
   const efOf = (tk: Task[], cal: WorkCalendar, statusDate: string | undefined): string | undefined => {
     solveProject(opsSolveInput({ tasks: tk, sequences: [], calendar: cal, calendars: [], dataDate: statusDate, projectStartDate: projS.startDate }));
     return tk.find(t => t.name === 'Lopend')?.time.earlyFinish;
@@ -411,17 +415,17 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   const restSlot = (text: string, name: string) =>
     new RegExp(`IFCTASKTIME\\('${name} Time'.*,('[^']*'|\\$),[0-9.]+\\);`).exec(text)?.[1];
   eq('restduur IFC: geschreven slot urentaak', restSlot(ifc, 'Lopend'), "'PT3H0M0S'");
-  eq('restduur IFC: geschreven slot dagtaak', restSlot(ifc, 'Dagtaak'), "'P0Y0M4D'");
+  eq('restduur IFC: geschreven slot dagtaak (PT…, geen gebroken P…D)', restSlot(ifc, 'Dagtaak'), "'PT28H0M0S'");
   const mspdi = writeMSPDI(projS, H8, [lopend, terug, dag], [], [], [], []);
   const p6 = writeP6XML(projS, H8, [lopend, terug, dag], [], [], [], []);
   const remXml = (xml: string, name: string) =>
     new RegExp(`<Name>${name}</Name>[\\s\\S]*?<RemainingDuration>([^<]*)</RemainingDuration>`).exec(xml)?.[1];
   eq('restduur MSPDI: geschreven urentaak', remXml(mspdi, 'Lopend'), 'PT3H0M0S');
   eq('restduur MSPDI: geschreven teruggezette urentaak', remXml(mspdi, 'Teruggezet'), 'PT5H0M0S');
-  eq('restduur MSPDI: geschreven dagtaak', remXml(mspdi, 'Dagtaak'), 'PT32H0M0S');
+  eq('restduur MSPDI: geschreven dagtaak', remXml(mspdi, 'Dagtaak'), 'PT28H0M0S');
   eq('restduur P6: geschreven urentaak (uren)', remXml(p6, 'Lopend'), '3');
   eq('restduur P6: geschreven teruggezette urentaak (uren)', remXml(p6, 'Teruggezet'), '5');
-  eq('restduur P6: geschreven dagtaak (uren)', remXml(p6, 'Dagtaak'), '32');
+  eq('restduur P6: geschreven dagtaak (uren)', remXml(p6, 'Dagtaak'), '28');
 
   for (const [label, back] of [
     ['IFC', readIFC(ifc)], ['MSPDI', readMSPDI(mspdi)], ['P6', readP6XML(p6)],
@@ -429,7 +433,7 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     const byName = (n: string) => back.tasks.find(t => t.name === n);
     eq(`restduur ${label}: urentaak terug`, rest(byName('Lopend')), [180, 0.375]);
     eq(`restduur ${label}: teruggezette urentaak terug (minuten)`, byName('Teruggezet')?.time.remainingMinutes, 300);
-    eq(`restduur ${label}: dagtaak terug`, rest(byName('Dagtaak')), [undefined, 4]);
+    eq(`restduur ${label}: dagtaak terug`, rest(byName('Dagtaak')), [undefined, 3.5]);
     eq(`restduur ${label}: EF lopende urentaak na opslaan + openen`, efOf(back.tasks, back.calendar, back.project.statusDate), efBefore);
   }
   eq('restduur IFC: teruggezette urentaak terug (werkdagfractie)', readIFC(ifc).tasks.find(t => t.name === 'Teruggezet')?.time.remainingTime, 0.625);

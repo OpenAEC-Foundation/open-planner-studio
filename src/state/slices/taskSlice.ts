@@ -45,8 +45,10 @@ import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import {
   captureCalendarChange, captureTriangle, carryRemainingThroughDurationEdit, durationEditRefusal, settleCalendarChange,
   settleDurationEdit, settleRuleChange, captureProgressWork, settleProgressWork, type RecomputedRemainingWork,
+  hourSourceOf, routeFixedWorkDurationToHours,
 } from '@/engine/work/workRuleApply';
 import { mergeStepRecomputedWork, remainingWorkRecomputedNotice } from '../remainingWorkNotice';
+import { newTaskTimeUnit, settleNewTaskMeasure } from '../newTaskMeasure';
 import type { WorkRule } from '@/types/workRule';
 import type { AppSlice, AppSliceFactory, NotifyInput, PhaseAssignmentQuestion, SiblingDirection } from './types';
 import type { AppState } from '../appStore';
@@ -924,7 +926,8 @@ function finishStructural(get: () => AppState, outcome: StructuralOutcome): void
  *  - `taskType`/`customTaskTypeId`: een IFC-classificatie; de motor leest ze niet.
  *  - `workRule`: `settleRuleChange` legt hooguit het restwerk vast ("Typewissel: geen enkel getal
  *    verandert", `applyRuleChange` in `workTriangle.ts`) — hetzelfde als `setTaskWorkRule`, dat
- *    daarom ook zonder `stale` sluit.
+ *    daarom ook zonder `stale` sluit. Uitzondering: maakt de wissel een dagenmaat-taak urenmaat (B1a,
+ *    vast werk), dan is het planning (spec §5.2, geval 11c; `durationUnitChanged`).
  *
  * Gebruik: een patch die ALLEEN deze velden verandert, laat "datums zoals opgeslagen" staan (de
  * getoonde datums blijven dan kloppen met het bestand). Zie de gids `uitleg-datums-zoals-opgeslagen`:
@@ -1018,11 +1021,12 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
 
       const now = s.project.startDate || localTodayIso();
       const effectiveNewTaskCalendar = resolveCalendar(partial.calendarId, s.calendars, s.calendar);
-      const defaultDurationUnit = s.project.defaultTaskDurationUnit ?? 'days';
+      // Standaardmaat voor nieuwe taken (B1a, `newTaskMeasure.ts`): de tijd ontstaat in de gekozen
+      // maat, en `settleNewTaskMeasure` maakt hem urenmaat onder vast werk of een vaste urenmaat.
       const initialTime = mergeTaskTime(createDefaultTaskTime(
         now,
         partial.isMilestone ? 0 : 5,
-        defaultDurationUnit,
+        newTaskTimeUnit(s.project),
         effectiveNewTaskCalendar,
       ), partial.time);
       deriveScheduleDurationFromMinutes(initialTime, effHoursPerDay(effectiveNewTaskCalendar));
@@ -1032,9 +1036,11 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       const task = buildNewTask(partial, {
         id, parentId, parentTask, constructionMode: s.ui.constructionMode, time: initialTime,
       });
+      const madeHours = settleNewTaskMeasure(task, s.project, partial.time?.durationUnit !== undefined, effHoursPerDay(effectiveNewTaskCalendar));
       // De solve schrijft `scheduleFinish` niet terug, dus een nieuwe urentaak krijgt
       // hier haar ingevoerde einde (start + duur op de echte kalender), zie `seedNewHourTaskFinish`.
-      seedNewHourTaskFinish(task, partial.time, effectiveNewTaskCalendar);
+      // Werd de taak hierboven urenmaat, dan hoorde een meegegeven einde bij de dagenmaat: opnieuw zaaien.
+      seedNewHourTaskFinish(task, madeHours ? undefined : partial.time, effectiveNewTaskCalendar);
       Object.assign(task, normalizeTaskDates(task, s));
       if (partial.workRule !== undefined) s.taskTypesVisible = true; // een gezette regel ontsluit de UI
 
@@ -1126,6 +1132,12 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // later op die lege plek. Zie
       // `mergeTaskTime` in taskDefaults.ts voor de ADD-vs-UPDATE-basissemantiek.
       const next = normalizeTaskDates(mergeTaskUpdate(task, updates), s);
+      // B1a: een duur in werkdagen onder vast werk gaat naar de urenbron (`routeFixedWorkDurationToHours`).
+      // Hier, vóór de no-op-toets en de weigering, zodat ook die de minuten zien.
+      if (updates.time && routeFixedWorkDurationToHours(next, task.time, next.time, s.project.defaultWorkRule,
+        taskCalendarHoursPerDay(next, s.calendars, s.calendar))) {
+        updates = { ...updates, time: { ...updates.time, ...hourSourceOf(next.time) } };
+      }
       // Eén genormaliseerde wijziging voor de no-op-toets, de gevolgregels en het schrijven: een
       // opnieuw ingevoerde datum zonder tijd is dan gelijk aan het opgeslagen moment, en wist geen
       // nivelleerpauze (`normalizeTaskPatch`).
@@ -1213,9 +1225,9 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       }
       settleProgressWork(task, s.assignments, progressWork);
       if ('workRule' in updates && task.workRule !== workRule) {
-        const unitBefore = task.time.durationUnit;
-        settleRuleChange(task, s.assignments, s, workRule);
-        if (task.time.durationUnit !== unitBefore) keepsRecordedMode = false;
+        // Een feitelijke maatwijziging (B1a: vast werk maakt een dagenmaat-taak urenmaat) is planning,
+        // ook als de patch verder alleen datumneutrale velden had (spec §5.2, geval 11c).
+        if (settleRuleChange(task, s.assignments, s, workRule).durationUnitChanged) keepsRecordedMode = false;
         if (workRule !== undefined) s.taskTypesVisible = true; // elk schrijfpad ontsluit.
       }
       reconcileP6SuspendResume(task);
@@ -1254,10 +1266,11 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       const task = s.tasks.find(t => t.id === id);
       if (!task || task.workRule === rule) return; // onbekend id of ongewijzigd: geen snapshot.
       runtime.beginUndoable(s);
-      const unitBefore = task.time.durationUnit;
-      settleRuleChange(task, s.assignments, s, rule);
+      const { durationUnitChanged } = settleRuleChange(task, s.assignments, s, rule);
       s.taskTypesVisible = true; // wie een regel zet, ziet de regel (documentontsluiting).
-      runtime.finishMutation(s, { stale: task.time.durationUnit !== unitBefore }); // Een maatwijziging is planning (11c).
+      // Een maatwijziging is planning (spec §5.2, geval 11c): de modus gaat uit en de planning wordt
+      // verouderd, in deze ene undo-stap. Een wissel zonder maatwijziging blijft datumneutraal.
+      runtime.finishMutation(s, { stale: durationUnitChanged });
     });
     get().recomputeResourceLoad(); // een vastgelegd restwerk kan de vierde bron van `assignmentDayUnits` activeren.
     get().recomputeViewRows();

@@ -13,11 +13,13 @@ import { relationVerdict } from '../relationRules';
 import { generateId } from '@/utils/id';
 import { localTodayIso } from '@/utils/dateUtils';
 import {
-  buildNewTask, createDefaultTaskTime, mergeTaskTime, mergeTaskUpdate, taskTriggerChanges,
+  buildNewTask, createDefaultTaskTime, deriveScheduleDurationFromMinutes, mergeTaskTime, mergeTaskUpdate, taskTriggerChanges,
   taskCalendarHoursPerDay, taskWorkMinutesOf, invalidateForTimeBaseChange, clearLevelingGaps,
   writeLevelingResult, clearLevelingOutput, applyDurationChangeRules,
   contourKeepsWork, hourInputFinishBasis, reconcileHourInputFinish, seedNewHourTaskFinish, type HourInputFinishBasis,
 } from '@/utils/taskDefaults';
+import { effHoursPerDay } from '@/utils/taskDuration';
+import { newTaskTimeUnit, settleNewTaskMeasure } from '../newTaskMeasure';
 import { sameValue } from '@/utils/sameValue';
 import { applyWbsNumbering } from '@/utils/wbs';
 import { assignInsertedWbsCodes } from '../insertedBranch';
@@ -40,7 +42,7 @@ import { isValidUnits, type Resource, type ResourceAssignment, type ResourceCurv
 import type { Project } from '@/types/project';
 import type { CustomTaskType } from '@/types/taskType';
 import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
-import { applyProjectPatch } from '../projectPatch';
+import { applyProjectPatch, type ClearableProjectKey, type ProjectPatchOutcome } from '../projectPatch';
 import { customTaskTypeClashes } from '@/services/taskTypes/customTaskTypeRules';
 import { isThenable } from '@/utils/guards';
 import { isSummaryTask } from '@/utils/taskHierarchy';
@@ -49,6 +51,7 @@ import {
   captureCalendarChange, captureTriangle, carryRemainingThroughDurationEdit, durationEditRefusal, planWorkEdit, commitTrianglePlan,
   captureProgressWork, settleProgressWork, syncAssignmentWorkToContour,
   settleCalendarChange, settleDurationAftermath, settleDurationEdit, settleRuleChange,
+  hourSourceOf, routeFixedWorkDurationToHours,
   type DurationEditProgress, type RecomputedRemainingWork,
 } from '@/engine/work/workRuleApply';
 import { remainingWorkRecomputedNotice } from '../remainingWorkNotice';
@@ -168,12 +171,19 @@ function createMcpDraft(
       // Zelfde veld-afleiding (incl. taaktype-overerving) als de store-`addTask`: `buildNewTask`.
       // De typecontractvelden zijn niet via de `taskFields.ts`-allowlist zetbaar (REJECT_HINTS);
       // ze gaan alleen mee voor aanroepers die een `Partial<Task>` rechtstreeks doorgeven.
+      // Tweeling van taskSlice.ts addTask: de standaardmaat voor nieuwe taken (B1a, `newTaskMeasure.ts`).
+      // Een agent die zelf een duur geeft, geeft ook de maat (`taskFields.ts`); alleen vast werk maakt
+      // die dan nog urenmaat.
+      const newCalendar = resolveCalendar(partial.calendarId, s.calendars, s.calendar);
+      const time = mergeTaskTime(createDefaultTaskTime(now, partial.isMilestone ? 0 : 5, newTaskTimeUnit(s.project), newCalendar), partial.time);
+      deriveScheduleDurationFromMinutes(time, effHoursPerDay(newCalendar));
       const task = buildNewTask(partial, {
-        id, parentId, parentTask, constructionMode: s.ui.constructionMode,
-        time: mergeTaskTime(createDefaultTaskTime(now, partial.isMilestone ? 0 : 5), partial.time),
+        id, parentId, parentTask, constructionMode: s.ui.constructionMode, time,
       });
+      const madeHours = settleNewTaskMeasure(task, s.project, partial.time?.durationUnit !== undefined,
+        taskCalendarHoursPerDay(task, s.calendars, s.calendar));
       // Tweeling van taskSlice.ts addTask: het ingevoerde einde van een nieuwe urentaak.
-      seedNewHourTaskFinish(task, partial.time, resolveCalendar(task.calendarId, s.calendars, s.calendar));
+      seedNewHourTaskFinish(task, madeHours ? undefined : partial.time, resolveCalendar(task.calendarId, s.calendars, s.calendar));
       if (partial.workRule !== undefined) s.taskTypesVisible = true; // een gezette regel ontsluit de UI
 
       s.tasks.push(normalizeTaskDates(task, s));
@@ -421,6 +431,12 @@ function createMcpDraft(
       if (idx < 0) return;
       const task = s.tasks[idx];
       const next = normalizeTaskDates(mergeTaskUpdate(task, updates), s);
+      // Tweeling van taskSlice.ts's `updateTask`: een duur in werkdagen onder vast werk gaat naar de
+      // urenbron (B1a, `routeFixedWorkDurationToHours`), vóór de no-op-toets en de weigering.
+      if (updates.time && routeFixedWorkDurationToHours(next, task.time, next.time, s.project.defaultWorkRule,
+        taskCalendarHoursPerDay(next, s.calendars, s.calendar))) {
+        updates = { ...updates, time: { ...updates.time, ...hourSourceOf(next.time) } };
+      }
       // Tweeling van taskSlice.ts's `updateTask`: één genormaliseerde wijziging voor de no-op-toets,
       // de gevolgregels en het schrijven (`normalizeTaskPatch`).
       updates = normalizeTaskPatch(updates, next);
@@ -528,15 +544,17 @@ function createMcpDraft(
       if (idx < 0) return;
       const task = s.tasks[idx];
       // `timePatch` zet losse `time`-sleutels op een kopie (`clearDurationMinutes` verwijdert de
-      // sleutel — `delete`, niet `= undefined`, voor de IFC-round-trip).
+      // sleutel — `delete`, niet `= undefined`, voor de IFC-round-trip). Lokaal, zodat de urenbron
+      // van vast werk hieronder de duursleutels kan vervangen.
+      let tp = timePatch;
       const patchTime = (base: Task['time']): Task['time'] => {
         const time = { ...base };
-        if (!timePatch) return time;
-        if (timePatch.scheduleDuration !== undefined) time.scheduleDuration = timePatch.scheduleDuration;
-        if (timePatch.durationUnit !== undefined) time.durationUnit = timePatch.durationUnit;
-        if (timePatch.durationMinutes !== undefined) time.durationMinutes = timePatch.durationMinutes;
-        if (timePatch.durationType !== undefined) time.durationType = timePatch.durationType;
-        if (timePatch.clearDurationMinutes) delete time.durationMinutes;
+        if (!tp) return time;
+        if (tp.scheduleDuration !== undefined) time.scheduleDuration = tp.scheduleDuration;
+        if (tp.durationUnit !== undefined) time.durationUnit = tp.durationUnit;
+        if (tp.durationMinutes !== undefined) time.durationMinutes = tp.durationMinutes;
+        if (tp.durationType !== undefined) time.durationType = tp.durationType;
+        if (tp.clearDurationMinutes) delete time.durationMinutes;
         return time;
       };
       // De taak zoals de patch haar achterlaat, eerst op een kopie (muteert niets): `top` overschrijft
@@ -546,6 +564,12 @@ function createMcpDraft(
       // Anders wist een opnieuw ingevoerde SNET-datum zonder tijd onterecht de nivelleergaten.
       // `top.time` vervangt de hele tak (zie `patchedTime` hieronder), dus ook hier.
       const next = normalizeTaskDates({ ...task, ...top, time: patchTime(top.time ?? task.time) }, s);
+      // Tweeling van `updateTaskFields`: een duur in werkdagen onder vast werk gaat naar de urenbron
+      // (B1a, `routeFixedWorkDurationToHours`); daarna zetten de duursleutels die minuten.
+      if (routeFixedWorkDurationToHours(next, task.time, next.time, s.project.defaultWorkRule,
+        taskCalendarHoursPerDay(next, s.calendars, s.calendar))) {
+        tp = { ...tp, ...hourSourceOf(next.time), clearDurationMinutes: false };
+      }
       // Dezelfde genormaliseerde wijziging voor de gevolgregels en het schrijven hieronder, niet
       // alleen voor deze vergelijking (`normalizeTaskPatch`, tweeling van `updateTaskFields`).
       top = normalizeTaskPatch(top, next);
@@ -996,17 +1020,19 @@ function createMcpDraft(
    * de AI stil vóór het officiële projectbegin hangen. Dezelfde gedeelde `applyProjectPatch`
    * (`state/projectPatch.ts`) als de UI-kant — één definitie, geen tweede die kan afdrijven. GEEN
    * eigen `runCPM`/melding hier: de gebonden transactierun herrekent precies
-   * één keer aan het eind (stap 5); het AANTAL geklemde ankers gaat terug naar de AANROEPER (i.p.v.
+   * één keer aan het eind (stap 5). `clear` wist sleutels echt (statusdatum, voortgangsmodus,
+   * projectstandaard), binnen dezelfde patch, zodat ook een gewiste projectstandaard de taken omzet die
+   * hem erven. Het AANTAL geklemde ankers gaat terug naar de AANROEPER (i.p.v.
    * naar het UI-meldingenkanaal, dat de MCP-bridge niet gebruikt) zodat `planner_update_project` het
    * in zijn tool-resultaat kan melden.
    */
-  setProject(updates: Partial<Project>): number {
-    let clampedAnchors = 0;
+  setProject(updates: Partial<Project>, clear: readonly ClearableProjectKey[] = []): ProjectPatchOutcome {
+    let outcome: ProjectPatchOutcome = { clampedAnchors: 0, measureChangedTaskIds: [] };
     store.setState((s) => {
-      clampedAnchors = applyProjectPatch(s, updates);
+      outcome = applyProjectPatch(s, updates, clear);
       markDocumentEdited(s);
     });
-    return clampedAnchors;
+    return outcome;
   },
   };
 

@@ -367,7 +367,6 @@
       "resourceAddsWork": "추가 리소스를 배정하면 작업량이 늘어납니다.",
       "resourceSharesWork": "추가 리소스가 작업량의 일부를 나눠 맡습니다. 리소스당 단위는 줄어듭니다.",
       "resourceShorter": "추가 리소스를 배정하면 작업이 짧아집니다.",
-      "resourceShorterWholeDays": "추가 리소스를 배정하면 작업이 짧아지고, 기간은 전체 일 단위로 반올림됩니다.",
       "resourceAddsWorkSameDuration": "추가 리소스를 배정하면 작업량이 늘고, 기간은 그대로 유지됩니다."
     },
     "info": "작업 유형 설명"

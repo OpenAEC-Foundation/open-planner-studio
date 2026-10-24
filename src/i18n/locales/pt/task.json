@@ -375,7 +375,6 @@
       "resourceAddsWork": "Um recurso adicional acrescenta trabalho.",
       "resourceSharesWork": "Um recurso adicional assume parte do trabalho; as unidades por recurso diminuem.",
       "resourceShorter": "Um recurso adicional torna a tarefa mais curta.",
-      "resourceShorterWholeDays": "Um recurso adicional torna a tarefa mais curta, arredondada a dias inteiros.",
       "resourceAddsWorkSameDuration": "Um recurso adicional acrescenta trabalho; a duração mantém-se igual."
     },
     "info": "Explicação do tipo de tarefa"

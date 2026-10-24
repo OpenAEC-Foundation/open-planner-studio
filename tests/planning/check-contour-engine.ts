@@ -51,6 +51,7 @@ import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { WorkCalendar } from '@/types/calendar';
 import { installDOMParser } from './xmldom-shim';
 import { legacyCpmOptions } from './legacySolveOptions';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 
 installDOMParser();
 
@@ -213,7 +214,7 @@ console.log('-- (b) lastlezers: contour als data --');
     splitGaps: [{ afterMinutes: 480, gapMinutes: 480 }],
   });
   const a = assign('a', 't', 'r1', 1);
-  const load = computeResourceLoad([res('r1', 1)], [a], [t], CAL, []);
+  const load = computeResourceLoad([res('r1', 1)], [a], [t], CAL, [], effectiveSchedulingOptions({}));
   eq('b1 dagbelasting volgt de contour (fractie blijft, gatdag draagt niets)', load.load.r1, { '2026-06-01': 0.5, '2026-06-03': 1, '2026-06-04': 1 });
   eq('b2 geen overallocatie', load.overallocatedDays.r1, undefined);
   eq('b3 assignmentDayUnits: contourdata zonder hele-eenheden-afronding', assignmentDayUnits(t, a, MPD, undefined, [a]), [0.5, 1, 1]);
@@ -237,17 +238,21 @@ console.log('-- (b) lastlezers: contour als data --');
   const rep = computeHistogramReport({
     tasks: [over], sequences: [], assignments: [ao], resources: [res('r1', 1)], calendar: CAL, calendars: [],
     cpmResult: null, from: '2026-06-01', to: '2026-06-01', bucket: 'dag',
+    schedulingOptions: effectiveSchedulingOptions({}),
   });
   eq('b7 histogram: 1,5 eenheid uit de contour, overbelast, veroorzaker = de toewijzing', [
     rep.resources[0].buckets[0].load, rep.resources[0].buckets[0].overallocatedDays, rep.resources[0].buckets[0].causes?.[0].contribution,
   ], [1.5, ['2026-06-01'], 1.5]);
 
-  // Contour langer dan de duur: het totaal blijft behouden (aanroeper enumereert genoeg dagen).
+  // Contour langer dan de duur: het totaal blijft behouden. F3c (B1, spec §3.11: een contour verdeelt
+  // het werk "over die dagen", de dagen van de plaatsing): de taak werkt alleen op ma, dus de rest
+  // voorbij het laatste werkblok komt op de laatste dag van de plaatsing. Vóór F3c verlengde de
+  // aanroeper de dagenlijst en kwam er ook last op di, een dag waarop de taak niet werkt.
   const longer = task('l', '2026-06-01', '2026-06-01', 1, {
     timephasedContours: [{ resourceUid: null, resourceId: 'r1', periods: [P(0, 480, 480), P(480, 480, 480)] }],
   });
   const al = assign('al', 'l', 'r1', 1);
-  eq('b8 contour voorbij scheduleDuration verliest geen werk', computeResourceLoad([res('r1')], [al], [longer], CAL, []).load.r1, { '2026-06-01': 1, '2026-06-02': 1 });
+  eq('b8 contour voorbij scheduleDuration verliest geen werk', computeResourceLoad([res('r1')], [al], [longer], CAL, [], effectiveSchedulingOptions({})).load.r1, { '2026-06-01': 2 });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -328,7 +333,7 @@ console.log('-- (e) adapters: MSPDI round-trip --');
   eq('e9 slotwerk per dag identiek na round-trip', periodsToSlotWork(bt.timephasedContours![0].periods, MPD), [240, 0, 480, 480]);
   eq('e10 gaten afgeleid uit de contour', bt.splitGaps, [{ afterMinutes: 480, gapMinutes: 480 }]);
   eq('e11 taak zonder contour blijft zonder (Bell-curve intact)', [bp.timephasedContours, back.assignments.find((a) => a.taskId === bp.id)?.curve], [undefined, 'BELL']);
-  const load = computeResourceLoad(back.resources, back.assignments, back.tasks, back.calendar, back.resourceCalendars ?? []);
+  const load = computeResourceLoad(back.resources, back.assignments, back.tasks, back.calendar, back.resourceCalendars ?? [], effectiveSchedulingOptions({}));
   eq('e12 lastlezer ziet na round-trip dezelfde dagverdeling', load.load[back.resources[0].id]['2026-06-01'], 0.5);
 }
 
@@ -442,7 +447,7 @@ console.log('-- (h) DOUBLE_PEAK/TURTLE als OPS-curve: MSPDI-, P6- en IFC-round-t
   const ifc = writeIFC({ project, calendar: CAL, tasks: [t1, t2], sequences: [], resources: [r1], assignments });
   const backI = readIFC(ifc);
   eq('h5 IFC-validator accepteert de twee nieuwe curves', backI.assignments.map((a) => a.curve).sort(), ['DOUBLE_PEAK', 'TURTLE']);
-  const load = computeResourceLoad(backI.resources, backI.assignments, backI.tasks, backI.calendar, backI.resourceCalendars ?? []);
+  const load = computeResourceLoad(backI.resources, backI.assignments, backI.tasks, backI.calendar, backI.resourceCalendars ?? [], effectiveSchedulingOptions({}));
   const dpLoad = Object.keys(load.load[backI.resources[0].id]).sort().slice(0, 5).map((k) => load.load[backI.resources[0].id][k]);
   eq('h6 lastlezer: DOUBLE_PEAK bij geheel tempo over 5 dagen = hele eenheden, som 5', [dpLoad.reduce((a, b) => a + b, 0), dpLoad.every((v) => Number.isInteger(v))], [5, true]);
 }

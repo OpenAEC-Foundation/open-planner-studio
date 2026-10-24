@@ -354,10 +354,11 @@ runProgressCase({
   expect: { completion: 0.4 * 10 / 12, remainingTime: 8, status: 'STARTED' },
 });
 runProgressCase({
-  // Gedaan 3,5 d; de restduur blijft in hele werkdagen (4 → 5, precies +1), het percentage exact 3,5/8.
+  // Gedaan 3,5 d; de restduur is exact 4,5 d (8 − 3,5), het percentage exact 3,5/8.
+  // B1 (spec "alleen uren" §3.5, besluit B3): de rest was in hele werkdagen, round(4,5) = 5.
   label: 'lopend dag: 7 d op 50 % → 8 d',
   kind: 'day', from: 7, completion: 0.5, to: 8,
-  expect: { completion: 3.5 / 8, remainingTime: 5, status: 'STARTED' },
+  expect: { completion: 3.5 / 8, remainingTime: 4.5, status: 'STARTED' },
 });
 runProgressCase({
   label: 'lopend dag: 10 d op 40 % → 6 d (krimp) ⇒ nog 2 d',
