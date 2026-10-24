@@ -182,7 +182,7 @@
       "calendar": "Wählen Sie einen Kalender aus der Liste.",
       "calendarNotFound": "Der gewählte Kalender existiert nicht.",
       "calendarHours": "Der Kalender dieses Vorgangs hat keine Arbeitsstunden pro Tag.",
-      "durationConversionNotExact": "Diese Dauer lässt sich nicht exakt in die andere Einheit umrechnen.",
+      "durationConversionNotExact": "Diese Dauer lässt sich in diesem Kalender nicht in die andere Einheit umrechnen.",
       "fixedWorkIsHours": "Ein Vorgang mit fester Arbeit hat immer Stunden als Maßeinheit.",
       "milestoneRequired": "Dieses Feld gilt nur für Meilensteine.",
       "milestoneUnavailable": "Ein Sammelvorgang mit Teilvorgängen kann kein Meilenstein werden.",
@@ -329,8 +329,8 @@
     "unit": "Dauereinheit",
     "days": "Tage",
     "hours": "Stunden",
-    "invalid": "Geben Sie eine ganze Anzahl Tage oder Stunden ein, zum Beispiel 2d oder 12h.",
-    "conversionNotExact": "{{value}} ergibt in diesem Kalender keine ganzen Tage. Die Einheit wurde nicht geändert.",
+    "invalid": "Geben Sie eine Anzahl Tage oder Stunden ein, zum Beispiel 2,5d oder 12h.",
+    "conversionNotExact": "{{value}} lässt sich in diesem Kalender nicht in die andere Einheit umrechnen. Die Einheit wurde nicht geändert.",
     "unitInfo": "Die gewählte Einheit gehört zu diesem Vorgang. Tage zählen Arbeitstage; Stunden zählen Arbeitsstunden innerhalb des Kalenders. Ein anderer Kalender ändert weder Einheit noch eingegebene Dauer, kann aber das Enddatum ändern."
   },
   "dialog": {

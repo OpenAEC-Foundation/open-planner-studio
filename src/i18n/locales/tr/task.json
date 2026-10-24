@@ -182,7 +182,7 @@
       "calendar": "Listeden bir takvim seçin.",
       "calendarNotFound": "Seçilen takvim mevcut değil.",
       "calendarHours": "Bu görevin takviminde günlük çalışma saati yok.",
-      "durationConversionNotExact": "Bu süre diğer birime tam olarak dönüştürülemiyor.",
+      "durationConversionNotExact": "Bu süre, bu takvimde diğer birime dönüştürülemez.",
       "fixedWorkIsHours": "Sabit işi olan bir görev her zaman saat ölçüsünü kullanır.",
       "milestoneRequired": "Bu alan yalnızca kilometre taşları için geçerlidir.",
       "milestoneUnavailable": "Alt görevleri olan bir özet görev kilometre taşı olamaz.",
@@ -329,8 +329,8 @@
     "unit": "Süre birimi",
     "days": "Gün",
     "hours": "Saat",
-    "invalid": "2d veya 12h gibi tam gün ya da saat sayısı girin.",
-    "conversionNotExact": "{{value}} bu takvimde tam günlere karşılık gelmiyor. Birim değişmedi.",
+    "invalid": "Gün veya saat sayısı girin, örneğin 2,5d veya 12h.",
+    "conversionNotExact": "{{value}} bu takvimde diğer birime dönüştürülemez. Birim değişmedi.",
     "unitInfo": "Seçilen birim bu göreve aittir. Günler iş günlerini, saatler takvim içindeki çalışma saatlerini sayar. Farklı bir takvim birimi veya girilen süreyi değiştirmez, ancak bitiş tarihini değiştirebilir."
   },
   "dialog": {

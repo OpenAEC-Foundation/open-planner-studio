@@ -392,7 +392,7 @@
       "title": "Обобщаваща задача по WBS",
       "baselineStart": "Начало на базовата линия",
       "baselineFinish": "Завършване на базовата линия",
-      "duration": "Продължителност (wd)",
+      "duration": "Продължителност (р.д.)",
       "finishVariance": "Δ завършване (wd)",
       "minFloat": "Min. TF",
       "activities": "Зад.",

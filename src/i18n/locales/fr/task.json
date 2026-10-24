@@ -182,7 +182,7 @@
       "calendar": "Choisissez un calendrier dans la liste.",
       "calendarNotFound": "Le calendrier choisi n'existe pas.",
       "calendarHours": "Le calendrier de cette tâche n'a pas d'heures de travail par jour.",
-      "durationConversionNotExact": "Cette durée ne peut pas être convertie exactement dans l'autre unité.",
+      "durationConversionNotExact": "Cette durée ne peut pas être convertie dans l’autre unité sur ce calendrier.",
       "fixedWorkIsHours": "Une tâche à travail fixe est toujours exprimée en heures.",
       "milestoneRequired": "Ce champ ne s'applique qu'aux jalons.",
       "milestoneUnavailable": "Une tâche récapitulative avec des sous-tâches ne peut pas devenir un jalon.",
@@ -333,8 +333,8 @@
     "unit": "Unité de durée",
     "days": "Jours",
     "hours": "Heures",
-    "invalid": "Saisissez un nombre entier de jours ou d’heures, par exemple 2d ou 12h.",
-    "conversionNotExact": "{{value}} ne correspond pas à des jours entiers dans ce calendrier. L’unité n’a pas changé.",
+    "invalid": "Saisissez un nombre de jours ou d’heures, par exemple 2,5d ou 12h.",
+    "conversionNotExact": "{{value}} ne peut pas être converti dans l’autre unité sur ce calendrier. L’unité n’a pas changé.",
     "unitInfo": "L'unité choisie appartient à cette tâche. Les jours comptent les jours ouvrés ; les heures comptent les heures de travail du calendrier. Un autre calendrier ne change ni l'unité ni la durée saisie, mais peut changer la date de fin."
   },
   "dialog": {

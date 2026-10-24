@@ -11,7 +11,7 @@
   },
   "notifications": {
     "dismiss": "Zavřít oznámení",
-    "taskEditRevertBlocked": "Mezitím přišla změna od AI asistenta nebo rozšíření. Změny úkolů provedené dříve nebyly vráceny zpět a zůstávají jako běžné kroky pod položkou Zpět.",
+    "taskEditRevertBlocked": "Mezitím přišla změna od klienta MCP nebo od rozšíření. Úpravy úkolů provedené dříve nebyly vráceny a zůstávají jako běžné kroky pod položkou „Vrátit zpět“.",
     "openFailed": "Otevření souboru se nezdařilo",
     "csvInvalidDate": "Soubor CSV nebyl otevřen: nečitelné datum „{{value}}“ na řádku {{row}}, ve sloupci „{{column}}“. Použijte rrrr-mm-dd, dd-mm-rrrr nebo dd/mm/rrrr.",
     "extGuideCallbackFailed": "Krok rozšíření {{name}} selhal. Průvodce pokračuje.",
@@ -228,7 +228,7 @@
     },
     "xerArchiveUnusable": "Zdrojový archiv XER v tomto souboru je nepoužitelný a byl vynechán; samotný projekt byl otevřen úplně.",
     "xerArchiveUnusableLine": "Zdrojový archiv XER v tomto souboru byl nepoužitelný a byl vynechán.",
-    "xerArchiveUnusableConsequence": "Plán, profil výpočtu a všechna data projektu z IFC jsou úplné. Chybí: data tak, jak je ukládala Primavera, a původ dat pro AI a rozšíření. Uložení zapíše soubor bez archivu; pro obnovení archivu znovu importujte původní .xer.",
+    "xerArchiveUnusableConsequence": "Plán, profil výpočtu a všechna data projektu z IFC jsou úplné. Chybí: termíny tak, jak je ukládala Primavera, a původ dat pro klienty MCP a rozšíření. Uložení zapíše soubor bez archivu. Pro obnovení archivu znovu importujte původní soubor .xer.",
     "xerArchiveReasonSchemaVersion": "Důvod: archiv má neznámou verzi schématu nebo rozložení (novější nebo jiný zapisovatel).",
     "xerArchiveReasonHashMismatch": "Důvod: kontrolní součet neodpovídá zdrojovým bajtům – archiv je poškozen.",
     "xerArchiveReasonTruncated": "Důvod: archiv je useknutý – část zdrojových bajtů chybí.",
@@ -460,7 +460,7 @@
     "showTaskTypesHint": "Vyberte u každého úkolu, co se změní, když se změní doba trvání, jednotky přiřazení nebo práce, jako Task Type v MS Projectu a Duration Type v P6. Vypnuto: doba trvání a jednotky přiřazení zůstanou beze změny. Soubor s typy úkolů nebo uloženou prací je zobrazí i tehdy, když je toto vypnuto.",
     "allowMixedDayHour": "Povolit smíšené plánování po dnech a v hodinách",
     "defaultTaskDurationUnit": "Výchozí jednotka pro nové úkoly",
-    "defaultTaskDurationUnitHint": "Určuje, zda nové úkoly standardně začínají v pracovních dnech, nebo v pracovních hodinách. Stávající úkoly se nemění.",
+    "defaultTaskDurationUnitHint": "Denní jednotka: doba trvání se počítá v pracovních dnech kalendáře. Hodinová jednotka: doba trvání se počítá v pracovních hodinách. Stávající úkoly se nemění. Úkol s pevnou prací má vždy hodinovou jednotku.",
     "defaultTaskDurationUnitDays": "Jednotka: dny",
     "defaultTaskDurationUnitHours": "Jednotka: hodiny",
     "defaultTaskDurationUnitLocked": "Profil {{profile}} počítá dobu trvání v hodinách. Nové úkoly proto dostanou hodinovou jednotku.",
@@ -471,7 +471,7 @@
     "durationDisplayDays": "Vždy dny",
     "durationDisplayHours": "Vždy hodiny",
     "barSplitMode": "Pruhy úkolů při přerušení práce",
-    "barSplitModeHint": "Zda se pruh úkolu vizuálně rozdělí kolem nepracovních dnů.",
+    "barSplitModeHint": "Jen pro hodinové úkoly: pruhy úkolů se rozdělí kolem přestávek a mimo pracovní dobu. Skutečná přerušení práce zůstanou vždy viditelná, bez ohledu na toto nastavení.",
     "barSplitNever": "Nikdy nerozdělovat",
     "barSplitSelection": "Rozdělit při výběru",
     "barSplitAlways": "Vždy rozdělovat",
@@ -534,11 +534,11 @@
     "fontFamilySerif": "Patkové",
     "fontFamilyMono": "Monospace",
     "fontHint": "Webové aplikace automaticky nepřebírají nastavení systémového písma. Zde zvolte písmo a velikost pro celé rozhraní.",
-    "aiModeSection": "Režim AI",
-    "aiMode": "Zapnout režim AI",
-    "aiModeHint": "Zobrazí kartu AI s mostem MCP, aby mohli AI asistenti pracovat s vaším plánem přes Model Context Protocol. Vypnutím most zastavíte.",
+    "aiModeSection": "Propojení MCP",
+    "aiMode": "Povolit propojení MCP",
+    "aiModeHint": "Zobrazí kartu MCP. Tam spustíte most MCP, aby klient MCP mohl pracovat s vaším plánem přes Model Context Protocol. Vypnutím zastavíte most.",
     "aiAutostart": "Spustit most automaticky",
-    "aiAutostartHint": "Spustí most MCP ihned po startu aplikace, aby se AI klient mohl propojit, aniž byste nejprve otevřeli kartu AI. Pouze v desktopové aplikaci.",
+    "aiAutostartHint": "Spustí most MCP hned při startu aplikace, aby se klient MCP mohl připojit, aniž byste nejprve otevřeli kartu MCP. Pouze v desktopové aplikaci.",
     "legacySection": "Starší funkce",
     "classicViewControls": "Zobrazit klasická tlačítka zobrazení",
     "classicViewControlsHint": "Vrátí samostatná tlačítka Sloupce, Filtr, Seskupit a Řadit na kartu Zobrazení. Sloupce nyní vyberete znaménkem plus v záhlaví tabulky nebo přes Tabulka → Sloupce…; filtrování, seskupování a řazení najdete v tlačítkách rozložení a v dialogu rozložení."
@@ -570,9 +570,9 @@
     "configSnippetHint": "Vložte toto do konfigurace MCP svého klienta.",
     "tokenWarning": "Tento token poskytuje přístup k otevřenému plánu. Nesdílejte ho s jinými.",
     "connectPrompt": "Prompt pro propojení",
-    "connectPromptHint": "Vložte toto do svého AI agenta, ten se propojí sám.",
+    "connectPromptHint": "Vložte to do svého klienta MCP, ten se připojí sám.",
     "connectPromptText": "Připojte se k serveru MCP, který běží na mém počítači: název {{name}}, přenos streamable HTTP, URL {{url}}, s hlavičkou Authorization: Bearer {{token}}. Přidejte jej do své konfigurace MCP (například jako blok mcpServers) a připojte se. Poté pro kontrolu vyžádejte seznam nástrojů: měli byste vidět přibližně {{count}} nástrojů s předponou {{prefix}}. Stručně shrňte, co s tímto serverem můžete dělat. Než cokoli změníte, nejprve si přečtěte plánovací průvodce přes nástroj planner_get_planning_guide.",
-    "statusDot": "Most AI: {{status}}"
+    "statusDot": "Most MCP: {{status}}"
   },
   "aiSafety": {
     "pause": "Pozastavit",
@@ -582,7 +582,7 @@
     "readOnlyHint": "Dokud je toto zapnuto, všechny nástroje, které mění data, se odmítají.",
     "autoBackupOn": "Auto-záloha: zapnuto",
     "autoBackupOff": "Auto-záloha: vypnuto",
-    "autoBackupHint": "Před první změnou AI v každém dokumentu automaticky uloží zálohu IFC.",
+    "autoBackupHint": "Před první změnou MCP v každém dokumentu automaticky vytvoří zálohu IFC.",
     "backupNow": "Zálohovat nyní",
     "openFolder": "Otevřít složku záloh",
     "backupOk": "Záloha vytvořena: {{name}}",
@@ -590,10 +590,10 @@
     "openErr": "Složku se nepodařilo otevřít: {{error}}"
   },
   "aiActivity": {
-    "title": "Činnost AI",
+    "title": "Činnost MCP",
     "panelButton": "Panel činnosti",
     "clear": "Vymazat",
-    "empty": "Zatím žádná činnost AI. Volání mostu se zobrazí zde.",
+    "empty": "Zatím žádná činnost MCP. Volání mostu se zobrazí zde.",
     "args": "Argumenty",
     "result": "Odpověď"
   },
@@ -849,7 +849,7 @@
     "calendars": "Kalendáře",
     "noCalendars": "V knihovně zdrojů zatím nejsou žádné kalendáře.",
     "noResources": "V knihovně zdrojů zatím nejsou žádné zdroje.",
-    "promoteHint": "Povyšte projektový kalendář nebo zdroj do knihovny zdrojů tlačítkem „+ Z projektu“ výše.",
+    "promoteHint": "Povyšte projektový kalendář do knihovny zdrojů tlačítkem „+ Z projektu“ výše.",
     "promoteFromProject": "Z projektu",
     "alreadyLinked": "již propojeno",
     "editItem": "Upravit",
@@ -1300,7 +1300,7 @@
     "nav": {
       "reportTab": "Přejít na záložku Sestava",
       "switchDocument": "Přepnout dokument",
-      "scrollToToday": "Přejít na dnešek",
+      "scrollToToday": "Přejít na datum stavu nebo na dnešek",
       "help": "Otevřít nápovědu"
     },
     "grid": {
@@ -1524,7 +1524,7 @@
   "conventions": {
     "preserveActualDatesInBackwardPass": {
       "label": "Skutečná data zachovat ve zpětném průchodu",
-      "help": "Zahájený nebo dokončený úkol si drží zaznamenaná data i na pozdní straně. Dokončený následník netáhne otevřený předchůdce zpět do minulosti."
+      "help": "Při nastaveném datu stavu drží dokončený úkol své skutečné termíny na pozdní straně. Dokončený následník netáhne nedokončeného předchůdce zpět do minulosti. Probíhající úkol si drží své skutečné zahájení jako pozdní zahájení, pokud není zapnuto „Probíhající úkol: nejdřívější zahájení = začátek zbývající práce“. Dokončený úkol v bodě nebo okně data stavu může stále předávat tlak závislostí."
     },
     "clampNegativeFreeFloat": {
       "label": "Volná časová rezerva nikdy není záporná",
@@ -1532,103 +1532,103 @@
     },
     "p6ZeroDurationUsesPlannedBoundary": {
       "label": "Milník se řídí plánovanou hranicí kalendáře",
-      "help": "Milník bez doby trvání zůstane na hranici kalendáře, kterou soubor naplánoval: začátek dne zůstane milníkem zahájení, konec bloku může připadnout na dokončení předchůdce."
+      "help": "Jen při plánování v hodinách. Milník bez doby trvání zůstane na plánované hranici kalendáře: začátek dne zůstane milníkem zahájení, okraj bloku může připadnout na dokončení předchůdce. Také běžný úkol s dobou trvání 0 může dostat dvojici hranic, ale jen s původem XER jako Task Dependent nebo Resource Dependent a s plánovaným dokončením před plánovaným zahájením."
     },
     "p6UseTaskPlannedStartFloor": {
       "label": "Plánované zahájení jako další dolní mez",
-      "help": "Plánované zahájení ze souboru působí jako dolní mez, jakmile zahájení i dokončení leží o více než jeden kalendářní den později, než síť dovoluje."
+      "help": "Plánované zahájení platí jako dolní mez, jakmile zahájení i dokončení leží více než jeden kalendářní den později, než síť dovoluje. U milníku dokončení s plánovaným dokončením před plánovaným zahájením stačí pozdější plánované zahájení. Neplatí pro probíhající úkol, pokud je zapnuto „Plánované zahájení není dolní mez pro probíhající úkol“, ani pro nezahájený úkol ALAP, který se umísťuje od svých následníků. Nevyžaduje původ XER."
     },
     "p6FinishMilestoneBoundaryWindow": {
       "label": "Milník dokončení jako okno hranic",
-      "help": "Milník dokončení smí ležet na dvou sousedních hranicích kalendáře: nejdřívější zahájení na začátku bloku, nejdřívější dokončení na konci předchozího bloku."
+      "help": "Milník dokončení bez doby trvání dostane okno hranice jen tehdy, když jeho plánované dokončení leží před jeho plánovaným zahájením a zahájení podle výpočtu se stále rovná tomuto plánovanému zahájení. Milník dokončení s předchůdci a bez následníka dostane své nejdřívější termíny také jako pozdní termíny, ledaže je zapnuto „Přepočítat časovou rezervu až do dokončení projektu“. Objevuje se jen ve výstupu P3; ve všech vestavěných profilech je vypnuto."
     },
     "p6PreserveActualInstants": {
       "label": "Zachovat skutečná data přesně",
-      "help": "Zaznamenané skutečné zahájení a skutečné dokončení se nepřesouvají na okraj bloku."
+      "help": "Jen pro úkoly s uchovaným původem ze souboru .xer. Zaznamenaná skutečná zahájení a skutečná dokončení se nepřesouvají na okraj bloku."
     },
     "p6UseRemainingStartForProgress": {
       "label": "Probíhající úkol: nejdřívější zahájení = začátek zbývající práce",
-      "help": "Nejdřívější a nejpozdější zahájení probíhajícího úkolu popisují, kde začíná zbývající práce, ne historické skutečné zahájení. Při výpočtu zpět přes závislost zahájení-zahájení se počítá jen zbývající doba trvání."
+      "help": "Nejdřívější a pozdní zahájení probíhajícího úkolu popisují, kde začíná zbývající práce. Při zpětném výpočtu přes závislost zahájení-zahájení se počítá jen zbývající doba trvání. To platí jen při plánování v hodinách, se skutečným zahájením a průběhem mezi 0 a 100 %, se známou zbývající dobou trvání menší než plánovaná doba trvání, a bez uplynulé doby trvání nebo rozdělení v plánu. Toto zvláštní pravidlo zbývající doby trvání se nevztahuje na závislosti zahájení-dokončení."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Přesný okamžik omezení na milníku",
-      "help": "Omezení data a času na milníku bez doby trvání je přesný bod, i na začátku bloku."
+      "help": "Jen při plánování v hodinách, na pozdní straně, pro omezení s datem a časem typu SNLT, MSO, FNLT nebo MFO na milníku bez doby trvání. Okamžik omezení zůstane přesný, i na začátku bloku. Při dopředném výpočtu je takový okamžik už ve všech profilech přesný."
     },
     "resumeFromActualElapsed": {
       "label": "Zbývající práce pokračuje po uplynulé době trvání",
-      "help": "Probíhající úkol pokračuje se zbývající prací od skutečného zahájení plus již uplynulé doby trvání, ne od data stavu."
+      "help": "Probíhající úkol pokračuje ve zbývající práci nejdříve od skutečného zahájení plus již uplynulé doby trvání. Datum stavu a hranice předchůdce zůstávají dolními mezemi; platí nejpozdější z těchto tří. Neplatí při Progress Override, u úkolů bez zbývající práce ani tehdy, když aplikace použije platné datum pokračování ze souboru (nejvýše u jednoho přiřazení)."
     },
     "unstartedIgnoresStatusDate": {
       "label": "Nezahájené úkoly nepřesouvat na datum stavu",
-      "help": "Úkol, který ještě nezačal, se automaticky nepřesune na datum stavu nebo na pozdější den."
+      "help": "Jen s datem stavu, pro úkol bez průběhu. Tento úkol se automaticky nepřesune na datum stavu nebo později."
     },
     "p6RelationFinishBoundary": {
       "label": "Následník začíná na hranici dokončení",
-      "help": "U závislosti dokončení-zahájení bez prodlevy začíná následník v souboru přesně na dokončení předchůdce na konci bloku. Tehdy začne následník na tomto dokončení, ne na začátku dalšího bloku. Soubor to neoznačuje. Aplikace takovou závislost rozpozná sama při otevření souboru .xer. Závislost, kterou přidáte sami, na to nedopadá. Při výpočtu zpět zobrazí následník své pozdní zahájení jako začátek bloku."
+      "help": "Jen při plánování v hodinách, v kalendáři předchůdce, a pro závislost, kterou aplikace rozpozná při otevření souboru .xer. U závislosti dokončení-zahájení bez prodlevy, jejíž následník začíná v souboru přesně na okraji bloku předchůdce, začíná následník na tomto dokončení. Na závislost, kterou přidáte sami, se to nevztahuje. Při zpětném výpočtu zůstává pozdní zahájení následníka začátkem bloku."
     },
     "p6BackwardLagFinishBoundary": {
       "label": "Prodlevu počítat zpět od hranice dokončení",
-      "help": "Odečte-li zpětný výpočet prodlevu v pracovní době od hranice dokončení a přistane přesně na začátku bloku, přistane na předchozí hranici dokončení. Také u závislosti dokončení-dokončení bez prodlevy zůstane pozdní dokončení na konci bloku na hranici dokončení."
+      "help": "Jen při plánování v hodinách, v kalendáři, ve kterém se prodleva počítá. Pokud zpětný výpočet odečte kladnou prodlevu v pracovní době od přesné hranice dokončení a přistane na prvním začátku bloku dne, přistane na předchozí hranici dokončení. Také u závislosti dokončení-dokončení bez prodlevy zůstává pozdní dokončení na okraji bloku na této hranici. Neplatí pro prodlevu v uplynulé době trvání."
     },
     "p6CompletedDataDateWindow": {
       "label": "Dokončený úkol v okně data stavu",
-      "help": "Dokončený úkol dostane nejdřívější data v okně data stavu a jeho dokončení se počítá do dokončení projektu."
+      "help": "Jen s datem stavu, pro dokončené úkoly bez dílčích úkolů ze souboru .xer s uchovaným cílovým oknem, s dokončením podle doby trvání a typem P6 Task Dependent nebo Resource Dependent s Fixed Duration & Units. Milníky s nulovou dobou trvání nejsou zahrnuty. Vyžaduje „Probíhající úkol: nejdřívější zahájení = začátek zbývající práce“. Přerušení práce a obnovení je povoleno jen u Task Dependent s platnou dvojicí, se skutečným dokončením mezi plánovaným dokončením a datem stavu, s obnovením nejpozději při skutečném dokončení a je-li zapnuto „Skutečná data zachovat ve zpětném průchodu“. Úkol dostane nejdřívější termíny v okně data stavu; jeho dokončení se počítá do dokončení projektu."
     },
     "p6CompletedLoeActualFinish": {
       "label": "Dokončená LOE přes skutečné dokončení",
-      "help": "Dokončený úkol úsilí na úrovni, který má jen vstup zahájení-zahájení, sleduje trasu přes své skutečné dokončení."
+      "help": "Jen s datem stavu, pro dokončenou LOE ze souboru .xer s kladnou dobou trvání, s dokončením podle doby trvání a typem P6 Fixed Duration & Units/Time, s úplným cílovým oknem a skutečným dokončením mezi plánovaným dokončením a datem stavu. Vyžaduje alespoň jednu příchozí závislost, a to jen typu zahájení-zahájení, bez následníka a bez přerušení práce a obnovení. Vyžaduje „Probíhající úkol: nejdřívější zahájení = začátek zbývající práce“, „Skutečná data zachovat ve zpětném průchodu“ a „Zachovat skutečná data přesně“. LOE se řídí svým skutečným dokončením místo trasy přes překlenovací úkol."
     },
     "p6OpenLoeTargetSpan": {
       "label": "Nezahájená LOE použije cílové okno",
-      "help": "Úkol úsilí na úrovni, který ještě nezačal, použije jako dobu trvání své cílové okno."
+      "help": "Jen při plánování v hodinách, pro nezahájenou LOE nebo překlenovací úkol ze souboru .xer s 0 % průběhu, kladnou dobou trvání, dokončením podle doby trvání a typem P6 Fixed Duration & Units; bez skutečných termínů a bez přerušení práce a obnovení. Vyžaduje úplné kladné cílové okno, jehož začátek se rovná hranici závislosti, a pracovní doba se od doby trvání liší nejvýše o jeden pracovní den. Dále musí mít alespoň jednu příchozí závislost zahájení-zahájení a jednu odchozí závislost dokončení-dokončení, jen tyto typy závislostí a bez prodlevy. LOE pak jako svou dobu trvání použije cílové okno. Slabý důkaz: pouze jeden soubor."
     },
     "p6CompletedPredecessorAtDataDate": {
       "label": "Dokončený předchůdce po datu stavu nebrzdí",
-      "help": "Pokud dokončený předchůdce končí podle svého skutečného data až po datu stavu, mohou jeho následníci přesto začít už na datu stavu."
+      "help": "Jen při plánování v hodinách a s datem stavu, pro dokončeného předchůdce se skutečným dokončením. Závislosti dokončení-zahájení a dokončení-dokončení se počítají nejvýše od hranice pracovní doby těsně před datem stavu; pozdější skutečné dokončení nezdrží následníka. Závislosti zahájení-zahájení a zahájení-dokončení zůstávají na skutečném zahájení. Dokončený úkol s vlastním bodem data stavu nebo s posunutým oknem data stavu se řídí touto vlastní hranicí."
     },
     "p6FreeFloatOnOwnCalendar": {
       "label": "Volná časová rezerva v kalendáři úkolu",
-      "help": "Volná časová rezerva nezahájeného úkolu se počítá u každé závislosti v kalendáři samotného úkolu, ne v kalendáři následníka. Platí to pro dokončení-zahájení, zahájení-zahájení a dokončení-dokončení, také s prodlevou v pracovní době v kalendáři předchůdce. Zahájený úkol jen u dokončení-zahájení bez prodlevy."
+      "help": "Pouze při plánování v hodinách, pro nedokončené úkoly a závislosti s vypočtenou volnou časovou rezervou. Volná časová rezerva nezahájeného úkolu se počítá u každé závislosti v kalendáři samotného úkolu, ne v kalendáři následníka. Platí to pro dokončení-zahájení, zahájení-zahájení a dokončení-dokončení, také s prodlevou v pracovní době v kalendáři předchůdce, ale ne s prodlevou v uplynulém čase nebo procentuální prodlevou. Prodleva jiná než 0 vyžaduje „Kalendář prodlev předchůdce“. Zahájený úkol jen u dokončení-zahájení bez prodlevy. Volná časová rezerva a příznak hnací vazby samotné závislosti se nemění."
     },
     "p6CompletedRemainingLag": {
       "label": "Uplynulá prodleva dokončeného předchůdce se nepočítá",
-      "help": "Na pozdní straně se z prodlevy za dokončeným předchůdcem počítá jen ta část, která k datu stavu ještě neuplynula."
+      "help": "Pouze při plánování v hodinách na kalendáři prodlev a s datem stavu, pro dokončené předchůdce ze souboru .xer se skutečným dokončením před datem stavu a s bodem nebo oknem data stavu. Z kladné prodlevy v pracovní době se počítá jen ta část, která ještě neuplynula. Platí na pozdní straně a dopředu od bodu data stavu nebo od posunutého nulového zbývajícího okna. Úkol na svých běžných skutečných datech si zachovává celou prodlevu; neplatí pro prodlevu v uplynulém čase."
     },
     "p6CompletedOutOfSequenceWindow": {
       "label": "Dokončený úkol mimo posloupnost čeká na své předchůdce",
-      "help": "Dokončený úkol, jehož předchůdce ještě není dokončen, dostane své nulové okno až za tímto předchůdcem. Nezůstane na datu stavu (P6: Retained Logic). Funguje jen tehdy, když jsou zapnuté také možnosti „Dokončený úkol v okně data stavu“ a „Probíhající úkol: nejdřívější zahájení = začátek zbývající práce“."
+      "help": "Pouze při plánování v hodinách a s datem stavu, na trase XER u konvence „Dokončený úkol v okně data stavu“. Musí být zapnuté také tato konvence a „Probíhající úkol: nejdřívější zahájení = začátek zbývající práce“. Neplatí pro „Progress Override“. Přes vstupy dokončení-zahájení nebo zahájení-zahájení dostane úkol pozdější z hranice data stavu a hranice nedokončeného předchůdce nebo předchůdce s posunutým oknem data stavu. Běžní předchůdci, kteří jsou dokončeni, se nepočítají."
     },
     "p6CompletedPhysicalAtDataDate": {
       "label": "Dokončený úkol s fyzickým průběhem je na datu stavu",
-      "help": "Dokončený úkol s fyzickým procentem dokončení se zobrazí jako jeden bod na datu stavu, nebo později, pokud to vyžaduje předchůdce. Nezobrazí se na svých skutečných datech. Měřeno jen pro fyzický průběh. U jiných typů procenta dokončení (výchozí P6: doba trvání) toto chování nebylo změřeno a zůstává vypnuto."
+      "help": "Pouze při plánování v hodinách a s datem stavu, pro dokončené úkoly bez podúkolů a milníky s nulovou dobou trvání ze souboru .xer typu P6 Task Dependent, Start Milestone nebo Finish Milestone, se zachovaným cílovým oknem, s fyzickým typem dokončeno %, se skutečným dokončením nejpozději k datu stavu a bez přerušení práce a obnovení. Vyžaduje „Probíhající úkol: nejdřívější zahájení = začátek zbývající práce“. Úkol je na datu stavu jako jeden bod, nebo později, pokud to vyžaduje předchůdce. U ostatních typů dokončeno %, včetně doby trvání, není toto chování změřeno a zůstává vypnuto."
     },
     "p6InProgressStartLagElapsed": {
       "label": "Uplynulá SS-prodleva z probíhajícího předchůdce se nepočítá",
-      "help": "U závislosti zahájení-zahájení z již zahájeného úkolu se z prodlevy počítá jen část, která od jeho skutečného zahájení k datu stavu ještě neuplynula."
+      "help": "Pouze při plánování v hodinách na kalendáři prodlev a s datem stavu, pro nedokončeného předchůdce se skutečným zahájením před datem stavu. Vyžaduje „Probíhající úkol: nejdřívější zahájení = začátek zbývající práce“. U závislosti zahájení-zahájení z již zahájeného úkolu s kladnou prodlevou v pracovní době se z prodlevy počítá jen část, která od jeho skutečného zahájení k datu stavu ještě neuplynula. Volba „Přepočítat prodlevu SS u probíhajícího předchůdce od“ určí počáteční bod. Neplatí pro prodlevu v uplynulém čase."
     },
     "p6FinishFinishStartMilestoneLateFinish": {
       "label": "Závislost dokončení-dokončení na milník zahájení se váže na samotný milník",
-      "help": "Závislost dokončení-dokončení k milníku zahájení se počítá až k samotnému milníku, ne k začátku dne milníku. Pozdní dokončení předchůdce smí sahat až k pozdnímu dokončení milníku."
+      "help": "Pouze při plánování v hodinách na obou stranách závislosti dokončení-dokončení k milníku zahájení bez doby trvání. Závislost se váže na samotný milník: pozdní dokončení předchůdce smí sahat až k pozdnímu dokončení milníku. Může se změnit i volná časová rezerva; nejdřívější zahájení milníku zůstává beze změny. Neplatí pro milníky dokončení ani pro zpětnou trasu s nulovou zbývající dobou trvání."
     },
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "Plánované zahájení není dolní mez pro probíhající úkol",
-      "help": "Zbývající práce zahájeného úkolu začíná na datu stavu a hned po svých předchůdcích, i když je jeho plánované zahájení později."
+      "help": "Pouze u úkolu se skutečným zahájením a průběhem nižším než 100 %, když je zapnuto „Plánované zahájení jako další dolní mez“. Plánované zahájení pro zbývající práci žádnou dolní mez nepřidává. Dál rozhodují datum stavu a předchůdci úkolu."
     },
     "p6LateFinishOnOwnCalendar": {
       "label": "Pozdní dokončení v kalendáři úkolu",
-      "help": "Pokud pozdní dokončení, které uloží následník, připadne mimo pracovní dobu úkolu, stane se koncem předchozího pracovního období v kalendáři úkolu."
+      "help": "Pouze při plánování v hodinách, když hranice následníka určuje pozdní dokončení a žádné přísnější omezení ani konečný termín tuto hranici nenahrazuje. Pokud hranice připadne mimo pracovní dobu úkolu, stane se pozdní dokončení koncem předchozího pracovního bloku v kalendáři úkolu. Neplatí pro pozdní dokončení určené dokončením projektu."
     },
     "p6ProgressOverrideIgnoresStartedSuccessor": {
       "label": "Progress Override ignoruje zahájeného následníka i při výpočtu zpět",
-      "help": "Při Progress Override se závislost na následníka, který už začal, nepočítá do pozdních termínů ani do volné časové rezervy předchůdce, který ještě neskončil."
+      "help": "Pouze u „Progress Override“, pro nedokončeného předchůdce a zahájeného, ale nedokončeného následníka (skutečné zahájení nebo průběh). Jejich závislost se nepočítá do pozdních termínů ani do volné časové rezervy předchůdce."
     },
     "p6FinishNotBeforeFinishFinishBound": {
       "label": "Nejdřívější dokončení nikdy před hranicí dokončení-dokončení",
-      "help": "U závislosti dokončení-dokončení neleží nejdřívější dokončení následníka v reálném čase nikdy před hranicí, kterou stanoví předchůdce. Padne-li tato hranice do nepracovního času následníka, stane se dokončení začátkem nejbližšího dalšího pracovního období."
+      "help": "Korekce data: platí jen pro závislost dokončení-dokončení s prodlevou v pracovní době, bez překlenovacích úkolů, s plánováním v hodinách na kalendáři následníka (u zbývající práce na kalendáři průběhu) a na kalendáři prodlev. Je-li hranice závislosti později než nejdřívější dokončení a mezi nimi není pracovní doba, posune se jen dokončení na první pracovní hranici od této hranice dál. Platí pro automaticky plánované, nezahájené a probíhající následníky; u nezahájených úkolů má přednost pevné ukotvení dokončení. Volná časová rezerva: samostatně se u nedokončeného předchůdce počítá závislost dokončení-dokončení bez prodlevy a bez procentuální prodlevy, s existující volnou časovou rezervou závislosti a vypočteným nejdřívějším dokončením následníka. Počítá se ve vlastním hodinovém kalendáři předchůdce od jeho nejdřívějšího dokončení po nejdřívější dokončení následníka. To platí také pro nulovou prodlevu v uplynulém čase, bez další podmínky plánování v hodinách na kalendáři následníka nebo kalendáři prodlev. Překlenovací úkoly a ručně plánované úkoly nakonec zachovávají volnou časovou rezervu 0."
     },
     "p6AlapPositionedFromSuccessors": {
       "label": "Úkoly ALAP co nejpozději, jak dovolují následníci",
-      "help": "Nezahájený úkol s omezením „co nejpozději“ končí v minutě, kdy ho jeho následníci potřebují. Nejdřív se řeší následníci, aby řetěz navazoval. Vlastní plánované zahájení se nepočítá. Úkol bez předchůdce pak nezačne dříve než na datu stavu."
+      "help": "Pouze při plánování v hodinách, a to jen pro nezahájený úkol, který není ručně plánovaný. Nezahájený úkol s omezením „co nejpozději“ (ALAP) je umístěn podle nejdřívějších dat svých následníků, přesně na minutu. Následníci se řeší nejdřív. Vlastní plánované zahájení se nepočítá; předchůdci, datum stavu a druhé omezení platí dál. Bez následníka použije své pozdní dokončení. Běžný krok ALAP zůstává dostupný v každém výpočetním profilu."
     },
     "milestoneWithoutPredecessorAtDayEnd": {
       "label": "Samostatné milníky na konci pracovního dne",
@@ -1688,7 +1688,7 @@
     "showHelp": "Vysvětlení k „{{name}}“",
     "sourceOptions": {
       "title": "Nastavení ze zdrojového souboru",
-      "intro": "Tyto možnosti výpočtu pocházejí ze souboru Primavera P6 (.xer). Při výpočtu se uplatňují, ale zde je nelze měnit.",
+      "intro": "Tyto možnosti výpočtu tohoto projektu jsou jen pro čtení. Při importu souboru Primavera P6 (.xer) je aplikace převezme ze zdrojového souboru. Uplatňují se jen tehdy, když jsou splněny příslušné podmínky.",
       "useExpectedFinishDates": "Použít očekávaná data dokončení (P6: Use Expected Finish Dates)",
       "useProjectEndDateForFloat": "Přepočítat časovou rezervu až do dokončení projektu",
       "p6CompletedLateFromRemainingWindow": "Dokončený úkol: pozdní termíny od data stavu",
@@ -1697,7 +1697,7 @@
     "requires": {
       "xerOrigin": "pouze úkoly z .xer",
       "hourPlanning": "pouze při plánování v hodinách",
-      "hourPlanningTitle": "Funguje jen při plánování v hodinách: kalendář s pracovními bloky, úkol v hodinách, nebo kalendář prodlev nastavený na 24 hodin."
+      "hourPlanningTitle": "Funguje jen při plánování v hodinách na kalendáři, se kterým konvence počítá: kalendář s pracovními bloky nebo doba trvání úkolu v hodinách. U prodlevy může platit také 24hodinový kalendář prodlev."
     },
     "optionsDeviate": {
       "line": "{{field}}: {{current}} (výchozí: {{standard}})",

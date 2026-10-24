@@ -182,7 +182,7 @@
       "calendar": "Velg en kalender fra listen.",
       "calendarNotFound": "Den valgte kalenderen finnes ikke.",
       "calendarHours": "Kalenderen for denne aktiviteten har ingen arbeidstimer per dag.",
-      "durationConversionNotExact": "Denne varigheten kan ikke regnes nøyaktig om til den andre enheten.",
+      "durationConversionNotExact": "Denne varigheten kan ikke regnes nøyaktig om til den andre enheten på denne kalenderen.",
       "fixedWorkIsHours": "En aktivitet med fast arbeid bruker alltid timemålet.",
       "milestoneRequired": "Dette feltet gjelder bare for milepæler.",
       "milestoneUnavailable": "En hovedaktivitet med delaktiviteter kan ikke bli en milepæl.",
@@ -329,8 +329,8 @@
     "unit": "Varighetsenhet",
     "days": "Dager",
     "hours": "Timer",
-    "invalid": "Skriv inn et heltall dager eller timer, for eksempel 2d eller 12t.",
-    "conversionNotExact": "{{value}} tilsvarer ikke hele dager i denne kalenderen. Enheten er ikke endret.",
+    "invalid": "Skriv inn et antall dager eller timer, for eksempel 2,5d eller 12t.",
+    "conversionNotExact": "{{value}} kan ikke regnes om til den andre enheten på denne kalenderen. Enheten er ikke endret.",
     "unitInfo": "Den valgte enheten gjelder for denne aktiviteten. Dager teller arbeidsdager. Timer teller arbeidstimer i kalenderen. En annen kalender endrer ikke enheten eller den angitte varigheten, men den kan endre sluttdatoen."
   },
   "dialog": {

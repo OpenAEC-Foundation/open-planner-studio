@@ -11,7 +11,7 @@
   },
   "notifications": {
     "dismiss": "Fermer la notification",
-    "taskEditRevertBlocked": "Une modification de l'assistant IA ou d'une extension est intervenue entre-temps. Les modifications de tâche antérieures n'ont pas été annulées et restent des étapes ordinaires sous Annuler.",
+    "taskEditRevertBlocked": "Une modification du client MCP ou d'une extension est intervenue entre-temps. Les modifications de tâches antérieures n'ont pas été annulées ; elles restent des étapes ordinaires sous « Annuler ».",
     "openFailed": "Échec de l'ouverture du fichier",
     "csvInvalidDate": "CSV non ouvert : date illisible « {{value}} » à la ligne {{row}}, colonne « {{column}} ». Utilisez aaaa-mm-jj, jj-mm-aaaa ou jj/mm/aaaa.",
     "extGuideCallbackFailed": "Une étape de l’extension {{name}} a échoué. Le guide continue.",
@@ -193,7 +193,7 @@
     },
     "xerArchiveUnusable": "L'archive source XER de ce fichier est inutilisable et a été omise ; le projet lui-même s'est ouvert en entier.",
     "xerArchiveUnusableLine": "L'archive source XER de ce fichier était inutilisable et a été omise.",
-    "xerArchiveUnusableConsequence": "Le planning, le profil de calcul et toutes les données de projet de l'IFC sont complets. Ce qui manque : les dates telles que Primavera les a enregistrées et la provenance source pour l'IA et les extensions. L'enregistrement écrit le fichier sans l'archive ; importez à nouveau le .xer d'origine pour récupérer l'archive.",
+    "xerArchiveUnusableConsequence": "Le planning, le profil de calcul et toutes les données de projet de l'IFC sont complets. Ce qui manque : les dates telles que Primavera les a enregistrées et la provenance source pour les clients MCP et les extensions. L'enregistrement écrit le fichier sans archive ; importez à nouveau le .xer d'origine pour récupérer l'archive.",
     "xerArchiveReasonSchemaVersion": "Raison : l'archive a une version de schéma ou une structure inconnue (rédacteur plus récent ou différent).",
     "xerArchiveReasonHashMismatch": "Raison : la somme de contrôle ne correspond pas aux octets source — l'archive est endommagée.",
     "xerArchiveReasonTruncated": "Raison : l'archive est tronquée — une partie des octets source manque.",
@@ -400,8 +400,8 @@
     "showTaskTypes": "Utiliser les types de tâche",
     "showTaskTypesHint": "Choisissez pour chaque tâche ce qui s'ajuste quand la durée, les unités ou le travail changent, comme Task Type dans MS Project et Duration Type dans P6. Désactivé : la durée et les unités restent fixes. Un fichier avec des types de tâche ou du travail enregistré les affiche aussi lorsque cette option est désactivée.",
     "allowMixedDayHour": "Autoriser la planification mixte jour/heure",
-    "defaultTaskDurationUnit": "Unité par défaut des nouvelles tâches",
-    "defaultTaskDurationUnitHint": "Détermine si les nouvelles tâches commencent en jours ouvrés ou en heures de travail. Les tâches existantes ne changent pas.",
+    "defaultTaskDurationUnit": "Unité de durée par défaut des nouvelles tâches",
+    "defaultTaskDurationUnitHint": "Unité en jours : une durée se compte en jours ouvrés du calendrier. Unité en heures : une durée se compte en heures de travail. Les tâches existantes ne changent pas. Une tâche à travail fixe utilise toujours l'unité en heures.",
     "defaultTaskDurationUnitDays": "Unité en jours",
     "defaultTaskDurationUnitHours": "Unité en heures",
     "defaultTaskDurationUnitLocked": "Le profil {{profile}} calcule une durée en heures. Les nouvelles tâches reçoivent donc l’unité en heures.",
@@ -412,7 +412,7 @@
     "durationDisplayDays": "Toujours en jours",
     "durationDisplayHours": "Toujours en heures",
     "barSplitMode": "Barres de tâche aux interruptions",
-    "barSplitModeHint": "Si une barre de tâche se scinde visuellement autour des jours non ouvrés.",
+    "barSplitModeHint": "Uniquement pour les tâches en heures : scinder les barres autour des pauses et du temps hors horaires de travail. Les vraies interruptions de tâche restent toujours visibles, quel que soit ce réglage.",
     "barSplitNever": "Ne jamais scinder",
     "barSplitSelection": "Scinder à la sélection",
     "barSplitAlways": "Toujours scinder",
@@ -475,11 +475,11 @@
     "fontFamilySerif": "Serif",
     "fontFamilyMono": "Monospace",
     "fontHint": "Les applications web ne suivent pas automatiquement la police du système. Choisissez ici la police et la taille de l'interface.",
-    "aiModeSection": "Mode IA",
-    "aiMode": "Activer le mode IA",
-    "aiModeHint": "Affiche l'onglet IA avec le pont MCP, permettant aux assistants IA de travailler sur votre planning via le Model Context Protocol. Le désactiver arrête le pont.",
+    "aiModeSection": "Connexion MCP",
+    "aiMode": "Autoriser la connexion MCP",
+    "aiModeHint": "Affiche l'onglet MCP. Vous y lancez le pont MCP, afin qu'un client MCP puisse travailler sur votre planning via le Model Context Protocol. Le désactiver arrête le pont MCP.",
     "aiAutostart": "Démarrer la passerelle automatiquement",
-    "aiAutostartHint": "Active la passerelle MCP dès le démarrage de l'application, afin qu'un client IA puisse se connecter sans que vous ouvriez d'abord l'onglet IA. Application de bureau uniquement.",
+    "aiAutostartHint": "Active le pont MCP dès le démarrage de l'application, afin qu'un client MCP puisse se connecter sans que vous ouvriez d'abord l'onglet MCP. Application de bureau uniquement.",
     "legacySection": "Fonctions héritées",
     "classicViewControls": "Afficher les boutons d’affichage classiques",
     "classicViewControlsHint": "Remet les boutons séparés Colonnes, Filtre, Grouper et Trier dans l’onglet Affichage. Les colonnes se choisissent désormais avec le plus dans l’en-tête du tableau ou via Tableau → Colonnes… ; le filtrage, le regroupement et le tri se trouvent dans les boutons de disposition et la boîte de dialogue des dispositions."
@@ -511,9 +511,9 @@
     "configSnippetHint": "Collez ceci dans la configuration MCP de votre client.",
     "tokenWarning": "Ce jeton donne accès au planning ouvert. Ne le partagez pas.",
     "connectPrompt": "Invite de connexion",
-    "connectPromptHint": "Collez ceci dans votre agent IA — il se connecte tout seul.",
+    "connectPromptHint": "Collez ceci dans votre client MCP : il se connecte tout seul.",
     "connectPromptText": "Connecte-toi à un serveur MCP qui tourne sur mon ordinateur : nom {{name}}, transport HTTP streamable, URL {{url}}, avec l'en-tête Authorization: Bearer {{token}}. Ajoute-le à ta configuration MCP (par exemple dans un bloc mcpServers) et connecte-toi. Demande ensuite la liste des outils pour vérifier : tu devrais voir environ {{count}} outils portant le préfixe {{prefix}}. Résume brièvement ce que tu peux faire avec ce serveur. Avant de modifier quoi que ce soit, lis d'abord le guide de planification via l'outil planner_get_planning_guide.",
-    "statusDot": "Pont IA : {{status}}"
+    "statusDot": "Pont MCP : {{status}}"
   },
   "aiSafety": {
     "pause": "Mettre en pause",
@@ -523,7 +523,7 @@
     "readOnlyHint": "Tous les outils de modification sont refusés tant que ceci est activé.",
     "autoBackupOn": "Sauvegarde automatique : activée",
     "autoBackupOff": "Sauvegarde automatique : désactivée",
-    "autoBackupHint": "Crée automatiquement une sauvegarde IFC avant la première modification IA de chaque document.",
+    "autoBackupHint": "Crée automatiquement une sauvegarde IFC avant la première modification MCP de chaque document.",
     "backupNow": "Sauvegarder maintenant",
     "openFolder": "Ouvrir le dossier de sauvegarde",
     "backupOk": "Sauvegarde créée : {{name}}",
@@ -531,10 +531,10 @@
     "openErr": "Impossible d'ouvrir le dossier : {{error}}"
   },
   "aiActivity": {
-    "title": "Activité IA",
+    "title": "Activité MCP",
     "panelButton": "Panneau d'activité",
     "clear": "Effacer",
-    "empty": "Aucune activité IA pour l'instant. Les appels du pont apparaîtront ici.",
+    "empty": "Aucune activité MCP pour l'instant. Les appels du pont MCP apparaîtront ici.",
     "args": "Arguments",
     "result": "Réponse"
   },
@@ -788,7 +788,7 @@
     "calendars": "Calendriers",
     "noCalendars": "Pas encore de calendriers dans le pool.",
     "noResources": "Pas encore de ressources dans le pool.",
-    "promoteHint": "Promouvez un calendrier ou une ressource de projet vers la bibliothèque avec le bouton « + Depuis le projet » ci-dessus.",
+    "promoteHint": "Promouvez un calendrier de projet vers la bibliothèque de ressources avec le bouton « + Depuis le projet » ci-dessus.",
     "promoteFromProject": "Depuis le projet",
     "alreadyLinked": "déjà lié",
     "editItem": "Modifier",
@@ -1232,7 +1232,7 @@
     "nav": {
       "reportTab": "Aller à l'onglet Rapport",
       "switchDocument": "Changer de document",
-      "scrollToToday": "Aller à aujourd'hui",
+      "scrollToToday": "Aller à la date d'état ou à aujourd'hui",
       "help": "Ouvrir l'aide"
     },
     "grid": {
@@ -1451,7 +1451,7 @@
   "conventions": {
     "preserveActualDatesInBackwardPass": {
       "label": "Conserver les dates réelles dans le calcul au plus tard",
-      "help": "Une tâche commencée ou terminée conserve ses dates enregistrées aussi du côté tardif ; un successeur terminé ne ramène pas un prédécesseur ouvert dans le passé."
+      "help": "Avec une date d'état, une tâche terminée conserve ses dates réelles côté tardif, et un successeur terminé ne ramène pas un prédécesseur non terminé dans le passé. Une tâche en cours conserve son début réel comme début au plus tard, sauf si « Tâche en cours : début au plus tôt = début du travail restant » est activé. Une tâche terminée à un point ou dans une fenêtre de date d'état peut toutefois transmettre une pression de relation."
     },
     "clampNegativeFreeFloat": {
       "label": "Marge libre jamais négative",
@@ -1459,103 +1459,103 @@
     },
     "p6ZeroDurationUsesPlannedBoundary": {
       "label": "Le jalon suit la limite de calendrier planifiée",
-      "help": "Un jalon sans durée reste sur la limite de calendrier planifiée par le fichier : un début de journée reste un jalon de début, une fin de plage peut tomber sur la fin du prédécesseur."
+      "help": "Uniquement pour la planification horaire. Un jalon de durée nulle suit la limite de calendrier planifiée : un début de journée reste un jalon de début, une fin de plage horaire peut tomber sur la fin du prédécesseur. Une tâche ordinaire de durée nulle peut aussi recevoir une paire de limites, mais seulement avec une provenance XER de type Task Dependent ou Resource Dependent, et une fin planifiée antérieure au début planifié."
     },
     "p6UseTaskPlannedStartFloor": {
       "label": "Début planifié comme plancher supplémentaire",
-      "help": "Le début planifié du fichier sert de plancher dès que le début et la fin se situent plus d’un jour calendaire plus tard que ce que le réseau permet."
+      "help": "Le début planifié compte comme plancher dès que le début et la fin se situent plus d'une journée calendaire après ce que le réseau permet. Pour un jalon de fin dont la fin planifiée précède le début planifié, un début planifié plus tardif suffit. Ne s'applique pas à une tâche en cours si « Le début planifié n’est pas un plancher pour une tâche en cours » est activé, ni à une tâche ALAP non commencée positionnée à partir de ses successeurs. Ne nécessite pas de provenance XER."
     },
     "p6FinishMilestoneBoundaryWindow": {
       "label": "Jalon de fin comme fenêtre de limite",
-      "help": "Un jalon de fin peut se trouver sur deux limites de calendrier adjacentes : début au plus tôt au début d'une plage de travail, fin au plus tôt à la fin de la plage précédente."
+      "help": "Un jalon de fin de durée nulle ne reçoit une fenêtre de limite que si sa fin planifiée précède son début planifié et si son début calculé est toujours égal à ce début planifié. Un jalon de fin avec prédécesseurs et sans successeur reçoit aussi ses dates au plus tôt comme dates au plus tard, sauf si « Calculer la marge jusqu’à la date de fin du projet » est activé. Observé uniquement dans la sortie P3 ; désactivé dans chaque profil de calcul intégré."
     },
     "p6PreserveActualInstants": {
       "label": "Reprendre les dates réelles exactement",
-      "help": "Les dates réelles de début et de fin enregistrées ne sont pas déplacées vers le bord d'une plage de travail."
+      "help": "Uniquement pour les tâches avec une provenance conservée d'un fichier .xer. Les débuts réels et fins réelles enregistrés ne sont pas déplacés vers le bord d'une plage horaire."
     },
     "p6UseRemainingStartForProgress": {
       "label": "Tâche en cours : début au plus tôt = début du travail restant",
-      "help": "Les débuts au plus tôt et au plus tard d’une tâche en cours indiquent où commence le travail restant, et non le début réel historique. En calcul arrière sur une relation début-début, seule la durée restante compte."
+      "help": "Le début au plus tôt et le début au plus tard d'une tâche en cours indiquent où commence le travail restant. En calcul arrière sur une relation début-début, seule la durée restante compte, mais uniquement en planification horaire, avec un début réel et un avancement entre 0 et 100 %, une durée restante connue inférieure à la durée planifiée, sans temps écoulé ni interruption dans le planning. Cette règle supplémentaire de durée restante ne s'applique pas aux relations début-fin."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Instant de contrainte exact sur un jalon",
-      "help": "Une contrainte de date et d'heure sur un jalon sans durée est un point exact, même au début d'une plage de travail."
+      "help": "Uniquement pour la planification horaire, côté tardif, pour une contrainte avec date et heure de type SNLT, MSO, FNLT ou MFO sur un jalon de durée nulle. Le moment de la contrainte reste exact, y compris au début d'une plage horaire. En calcul avant, un tel moment est déjà exact dans chaque profil de calcul."
     },
     "resumeFromActualElapsed": {
       "label": "Le travail restant reprend après la durée écoulée",
-      "help": "Une tâche en cours reprend son travail restant au début réel plus la durée écoulée, et non à la date d’état."
+      "help": "Une tâche en cours reprend son travail restant au plus tôt au début réel plus le temps écoulé. La date d'état et la limite du prédécesseur restent des bornes inférieures ; la plus tardive des trois s'applique. Ne s'applique pas avec « Progress Override », aux tâches sans travail restant, ni lorsque l'application utilise une date de reprise valide du fichier (avec au plus une affectation)."
     },
     "unstartedIgnoresStatusDate": {
       "label": "Ne pas déplacer les tâches non commencées à la date d’état",
-      "help": "Une tâche qui n’a pas commencé n’est pas déplacée automatiquement à la date d’état ou après."
+      "help": "Uniquement avec une date d'état, pour une tâche sans avancement. Cette tâche n'est pas automatiquement déplacée à la date d'état ou après."
     },
     "p6RelationFinishBoundary": {
       "label": "Le successeur commence à la limite de fin",
-      "help": "Pour une relation fin-début sans décalage dont le successeur commence, dans le fichier, exactement à la fin du prédécesseur, en fin de plage, le successeur commence à cette fin et non au début de la plage suivante. Le fichier ne le signale pas : l'application reconnaît elle-même une telle relation à l'ouverture d'un fichier .xer. Une relation que vous ajoutez vous-même n'est pas concernée. En calcul arrière, le successeur affiche son début au plus tard simplement comme début d'une plage de travail."
+      "help": "Uniquement pour la planification horaire, sur le calendrier du prédécesseur, et pour une relation que l'application reconnaît à l'ouverture d'un fichier .xer. Pour une relation fin-début sans décalage dont le fichier place le successeur exactement à la fin de la plage horaire du prédécesseur, le successeur commence à cette fin. Une relation que vous créez vous-même n'est pas concernée. En calcul arrière, le début au plus tard du successeur reste un début de plage horaire."
     },
     "p6BackwardLagFinishBoundary": {
       "label": "Décalage en calcul arrière depuis une limite de fin",
-      "help": "Lorsque le calcul arrière soustrait, depuis une limite de fin, un décalage en horaires de travail et tombe exactement sur le début d'une plage de travail, il tombe sur la limite de fin précédente. Pour une relation fin-fin sans décalage, une fin au plus tard en fin de plage reste également sur cette limite de fin."
+      "help": "Uniquement pour la planification horaire, sur le calendrier utilisé par le décalage. Lorsque le calcul arrière soustrait un décalage positif en horaires de travail à partir d'une limite de fin exacte et tombe sur le premier début de plage horaire d'une journée, il tombe sur la limite de fin précédente. Pour une relation fin-fin sans décalage, une fin au plus tard en fin de plage horaire reste sur cette limite. Ne concerne pas le décalage en temps écoulé."
     },
     "p6CompletedDataDateWindow": {
       "label": "Tâche terminée dans la fenêtre de la date d’état",
-      "help": "Une tâche terminée reçoit des dates au plus tôt dans la fenêtre de la date d'état, et sa fin compte pour la fin du projet."
+      "help": "Uniquement avec une date d'état, pour les tâches terminées sans sous-tâches issues d'un fichier .xer, avec une fenêtre cible conservée, un pourcentage d'avancement en durée et un type P6 Task Dependent ou Resource Dependent avec Fixed Duration & Units ; à l'exclusion des jalons de durée nulle. Exige « Tâche en cours : début au plus tôt = début du travail restant ». Une interruption/reprise n'est admise que pour Task Dependent avec une paire valide, une fin réelle comprise entre la fin planifiée et la date d'état, une reprise au plus tard à la fin réelle, et si « Conserver les dates réelles dans le calcul au plus tard » est activé. La tâche reçoit des dates au plus tôt dans la fenêtre de la date d'état ; sa fin compte pour la fin du projet."
     },
     "p6CompletedLoeActualFinish": {
       "label": "LOE terminée via sa fin réelle",
-      "help": "Une tâche level-of-effort terminée, avec seulement une entrée début-début, suit le chemin passant par sa fin réelle."
+      "help": "Uniquement avec une date d'état, pour un LOE terminé issu d'un fichier .xer, à durée positive, avec un pourcentage d'avancement en durée et un type P6 Fixed Duration & Units/Time, une fenêtre cible complète et une fin réelle comprise entre la fin planifiée et la date d'état. Exige au moins une relation entrante, uniquement de type début-début, sans successeur ni interruption/reprise. Exige « Tâche en cours : début au plus tôt = début du travail restant », « Conserver les dates réelles dans le calcul au plus tard » et « Reprendre les dates réelles exactement ». Le LOE suit sa fin réelle au lieu du parcours par hamac."
     },
     "p6OpenLoeTargetSpan": {
       "label": "LOE non commencée prend la fenêtre cible",
-      "help": "Une tâche level-of-effort qui n'a pas encore commencé prend sa fenêtre cible comme durée."
+      "help": "Uniquement pour la planification horaire, pour un LOE/hamac non commencé issu d'un fichier .xer, avec 0 % d'avancement, une durée positive, un pourcentage d'avancement en durée et un type P6 Fixed Duration & Units ; sans dates réelles ni interruption/reprise. Exige une fenêtre cible complète et positive dont le début est égal à la limite de relation, et dont les horaires de travail ne diffèrent de la durée que d'au plus un jour ouvré, au moins une entrée début-début et une sortie fin-fin, uniquement ces types de relation et sans décalage. Le LOE prend alors la fenêtre cible comme durée. Preuve faible : un seul fichier."
     },
     "p6CompletedPredecessorAtDataDate": {
       "label": "Un prédécesseur achevé ne retient pas au-delà de la date d’état",
-      "help": "Si la fin réelle d'un prédécesseur achevé tombe après la date d’état, ses successeurs peuvent quand même commencer à la date d’état."
+      "help": "Uniquement pour la planification horaire et avec une date d'état, pour un prédécesseur terminé dont la fin réelle est connue. Les relations fin-début et fin-fin ne comptent au plus tard qu'à partir de la limite de travail juste avant la date d'état ; une fin réelle plus tardive ne retient pas le successeur. Les relations début-début et début-fin restent sur le début réel. Une tâche terminée ayant son propre point de date d'état ou sa fenêtre de date d'état décalée suit sa propre limite."
     },
     "p6FreeFloatOnOwnCalendar": {
       "label": "Marge libre dans le calendrier de la tâche",
-      "help": "La marge libre d'une tâche non commencée se compte, pour chaque liaison, dans le calendrier de la tâche elle-même et non dans celui du successeur : pour fin-début, début-début et fin-fin, y compris avec un décalage en temps de travail sur le calendrier du prédécesseur. Une tâche commencée seulement pour fin-début sans décalage."
+      "help": "Uniquement en planification horaire, pour les tâches non terminées et les relations dont la marge libre est calculée. Pour une tâche non commencée, la marge libre se compte dans son propre calendrier pour fin-début, début-début et fin-fin, sans décalage en heures d'horloge ou en pourcentage. Un décalage autre que 0 exige le calendrier de décalage « Prédécesseur ». Pour une tâche commencée, seul fin-début sans décalage s'applique. La marge libre de la relation elle-même et son indicateur de relation déterminante ne changent pas."
     },
     "p6CompletedRemainingLag": {
       "label": "Le décalage écoulé d’un prédécesseur achevé ne compte pas",
-      "help": "Côté dates au plus tard, seule la partie du décalage après un prédécesseur achevé qui n’est pas encore écoulée à la date d’état compte."
+      "help": "Uniquement en planification horaire, sur le calendrier de décalage et avec une date d'état, pour les prédécesseurs achevés d'un fichier .xer dont la fin réelle est antérieure à la date d'état, avec un point ou une fenêtre de date d'état. Pour un décalage positif en horaires de travail, seule la partie non encore écoulée compte. S'applique côté dates au plus tard, et vers l'avant à partir d'un point de date d'état ou d'une fenêtre à reste nul décalée. Une tâche sur ses dates réelles ordinaires conserve le décalage complet ; pas pour un décalage en heures d'horloge."
     },
     "p6CompletedOutOfSequenceWindow": {
       "label": "Une tâche achevée hors séquence attend ses prédécesseurs",
-      "help": "Une tâche terminée dont un prédécesseur n'est pas encore terminé reçoit sa fenêtre nulle après ce prédécesseur, au lieu de la date d'état (P6 : Retained Logic). Cela ne fonctionne que si « Tâche terminée dans la fenêtre de la date d’état » et « Tâche en cours : début au plus tôt = début du travail restant » sont aussi activées."
+      "help": "Uniquement en planification horaire et avec une date d'état, sur le parcours XER de « Tâche terminée dans la fenêtre de la date d’état » ; cette convention et « Tâche en cours : début au plus tôt = début du travail restant » doivent être activées. Pas avec « Progress Override ». Via les entrées fin-début ou début-début, la tâche prend la plus tardive des limites suivantes : la limite de date d'état, et la limite d'un prédécesseur non terminé ou d'un prédécesseur à fenêtre de date d'état décalée. Les prédécesseurs achevés ordinaires ne comptent pas."
     },
     "p6CompletedPhysicalAtDataDate": {
       "label": "Tâche terminée à avancement physique placée à la date d'état",
-      "help": "Une tâche terminée avec un pourcentage d'avancement physique apparaît comme un seul point à la date d'état, ou plus tard si un prédécesseur l'exige, au lieu de ses dates réelles. Mesuré uniquement pour l'avancement physique ; pour les autres types d'avancement (par défaut dans P6 : durée), ce comportement n'a pas été mesuré et reste désactivé."
+      "help": "Uniquement en planification horaire et avec une date d'état, pour les tâches achevées sans sous-tâches et les jalons de durée nulle d'un fichier .xer de type P6 Task Dependent, Start Milestone ou Finish Milestone, avec fenêtre cible conservée, type d'avancement physique, fin réelle au plus tard à la date d'état et sans interruption ni reprise. Requiert « Tâche en cours : début au plus tôt = début du travail restant ». La tâche se place en un seul point à la date d'état, ou plus tard si un prédécesseur l'exige. Pour les autres types d'avancement, y compris la durée, ce n'est pas mesuré et cela reste désactivé."
     },
     "p6InProgressStartLagElapsed": {
       "label": "Le décalage SS écoulé d'un prédécesseur en cours ne compte pas",
-      "help": "Pour une relation début-début depuis une tâche déjà commencée, seule la partie du décalage non encore écoulée depuis son début réel à la date d'état compte."
+      "help": "Uniquement en planification horaire, sur le calendrier de décalage et avec une date d'état, pour une relation début-début avec décalage positif en horaires de travail, depuis un prédécesseur non terminé dont le début réel est antérieur à la date d'état. Requiert « Tâche en cours : début au plus tôt = début du travail restant ». Seule la partie non encore écoulée du décalage compte. L'option « Calculer le décalage SS d'un prédécesseur en cours à partir du » choisit le point de départ. Pas pour un décalage en heures d'horloge."
     },
     "p6FinishFinishStartMilestoneLateFinish": {
       "label": "Une liaison fin-fin vers un jalon de début se lie au jalon lui-même",
-      "help": "Une relation fin-fin vers un jalon de début compte jusqu'au jalon lui-même, et non jusqu'au début de sa journée : la fin au plus tard du prédécesseur peut aller jusqu'à la fin au plus tard du jalon."
+      "help": "Uniquement en planification horaire, des deux côtés d'une relation fin-fin vers un jalon de début de durée nulle. La relation se rattache au jalon lui-même : la fin au plus tard du prédécesseur peut aller jusqu'à la fin au plus tard du jalon. La marge libre peut aussi changer ; le début au plus tôt du jalon reste inchangé. Pas pour les jalons de fin ni pour le parcours inverse à durée restante nulle."
     },
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "Le début planifié n’est pas un plancher pour une tâche en cours",
-      "help": "Le travail restant d’une tâche commencée débute à la date d’état et juste après ses prédécesseurs, même si son début planifié est plus tardif."
+      "help": "Uniquement pour une tâche avec début réel et moins de 100 % d'avancement, lorsque « Début planifié comme plancher supplémentaire » est activé. Son début planifié n'ajoute aucun plancher au travail restant ; la date d'état et ses prédécesseurs restent déterminants."
     },
     "p6LateFinishOnOwnCalendar": {
       "label": "Fin au plus tard sur le calendrier de la tâche",
-      "help": "Si la fin au plus tard imposée par un successeur tombe hors des horaires de travail de la tâche, elle devient la fin de la plage de travail précédente sur le calendrier propre de la tâche."
+      "help": "Uniquement en planification horaire, lorsqu'une limite de successeur détermine la fin au plus tard et qu'aucune contrainte plus stricte ou échéance ne remplace cette limite. Si cette limite tombe hors des horaires de travail de la tâche, la fin au plus tard devient la fin de la plage de travail précédente sur son propre calendrier. Pas pour une fin au plus tard déterminée par la fin du projet."
     },
     "p6ProgressOverrideIgnoresStartedSuccessor": {
       "label": "Progress Override ignore aussi en arrière un successeur commencé",
-      "help": "Avec Progress Override, la relation vers un successeur déjà commencé ne compte pas dans les dates au plus tard ni dans la marge libre d'un prédécesseur non terminé."
+      "help": "Uniquement avec « Progress Override », pour un prédécesseur non terminé et un successeur commencé mais non terminé (début réel ou avancement). Leur relation ne compte pas dans les dates au plus tard ni dans la marge libre du prédécesseur."
     },
     "p6FinishNotBeforeFinishFinishBound": {
       "label": "Fin au plus tôt pas avant une limite fin-fin",
-      "help": "Avec une relation fin-fin, la fin au plus tôt du successeur ne se situe jamais, en heure réelle, avant la limite fixée par le prédécesseur. Si cette limite tombe hors des horaires de travail du successeur, la fin devient le début de la plage de travail suivante."
+      "help": "Correction de date : pour une relation fin-fin avec décalage en horaires de travail, sans hamacs, en planification horaire sur le calendrier du successeur (pour le travail restant : le calendrier d'avancement) et sur le calendrier de décalage. Si la limite de la relation est plus tardive que la fin au plus tôt, sans horaires de travail entre les deux, seule la fin se déplace à la première limite de travail égale ou postérieure à cette limite. S'applique aux successeurs planifiés automatiquement, non commencés et en cours ; pour une tâche non commencée, une épingle de fin ferme l'emporte. Marge libre : séparément, pour une relation fin-fin sans décalage et sans décalage en pourcentage, un prédécesseur non terminé avec une marge libre de relation existante et une fin au plus tôt calculée du successeur compte depuis sa propre fin au plus tôt jusqu'à la fin au plus tôt du successeur, sur son propre calendrier horaire. Cela vaut aussi pour un décalage nul en heures d'horloge, sans condition horaire supplémentaire sur le calendrier du successeur ou du décalage. Les hamacs et les tâches planifiées manuellement gardent finalement une marge libre de 0."
     },
     "p6AlapPositionedFromSuccessors": {
       "label": "Tâches ALAP aussi tard que les successeurs le permettent",
-      "help": "Une tâche non commencée avec la contrainte « le plus tard possible » se termine à la minute où ses successeurs en ont besoin, les successeurs d'abord, afin qu'une chaîne se referme. Son propre début planifié ne compte pas ; une tâche sans prédécesseur ne commence alors pas avant la date d'état."
+      "help": "Uniquement en planification horaire, pour une tâche non commencée, qui n'est pas planifiée manuellement, avec la contrainte « le plus tard possible » (ALAP). Les dates au plus tôt de ses successeurs fixent son positionnement à la minute près ; les successeurs passent en premier. Son propre début planifié ne compte pas ; les prédécesseurs, la date d'état et une deuxième contrainte restent applicables. Sans successeur, elle utilise sa fin au plus tard. L'étape ALAP ordinaire reste disponible dans chaque profil."
     },
     "milestoneWithoutPredecessorAtDayEnd": {
       "label": "Jalons isolés à la fin du jour ouvré",
@@ -1615,7 +1615,7 @@
     "showHelp": "Explication de « {{name}} »",
     "sourceOptions": {
       "title": "Paramètres du fichier source",
-      "intro": "Ces options de calcul proviennent d’un fichier Primavera P6 (.xer). Elles sont prises en compte dans le calcul mais ne sont pas modifiables ici.",
+      "intro": "Ce sont des options de calcul en lecture seule de ce projet. Lors de l'import d'un fichier Primavera P6 (.xer), l'application les reprend du fichier source. Elles ne s'appliquent que si les conditions correspondantes sont remplies.",
       "useExpectedFinishDates": "Utiliser les dates de fin prévues (P6 : Use Expected Finish Dates)",
       "useProjectEndDateForFloat": "Calculer la marge jusqu’à la date de fin du projet",
       "p6CompletedLateFromRemainingWindow": "Tâche terminée : dates au plus tard à partir de la date d’état",
@@ -1624,7 +1624,7 @@
     "requires": {
       "xerOrigin": "uniquement pour les tâches .xer",
       "hourPlanning": "uniquement avec la planification horaire",
-      "hourPlanningTitle": "Fonctionne uniquement avec la planification horaire : un calendrier avec des plages de travail, une tâche en heures, ou le calendrier de décalage réglé sur 24 heures."
+      "hourPlanningTitle": "Ne fonctionne qu'avec la planification horaire, sur le calendrier utilisé par la règle : un calendrier avec des plages horaires ou une durée de tâche en heures. Pour un décalage, le calendrier de décalage de 24 heures peut aussi s'appliquer."
     },
     "optionsDeviate": {
       "line": "{{field}} : {{current}} (par défaut : {{standard}})",

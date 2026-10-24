@@ -182,7 +182,7 @@
       "calendar": "Elija un calendario de la lista.",
       "calendarNotFound": "El calendario elegido no existe.",
       "calendarHours": "El calendario de esta tarea no tiene horas de trabajo por día.",
-      "durationConversionNotExact": "Esta duración no se puede convertir exactamente a la otra unidad.",
+      "durationConversionNotExact": "Esta duración no se puede convertir exactamente a la otra unidad en este calendario.",
       "fixedWorkIsHours": "Una tarea con trabajo fijo siempre usa la medida de horas.",
       "milestoneRequired": "Este campo solo se aplica a hitos.",
       "milestoneUnavailable": "Una tarea de resumen con subtareas no puede convertirse en hito.",
@@ -333,8 +333,8 @@
     "unit": "Unidad de duración",
     "days": "Días",
     "hours": "Horas",
-    "invalid": "Introduzca un número entero de días u horas, por ejemplo 2d o 12h.",
-    "conversionNotExact": "{{value}} no equivale a días completos en este calendario. La unidad no ha cambiado.",
+    "invalid": "Introduzca un número de días u horas, por ejemplo 2,5d o 12h.",
+    "conversionNotExact": "{{value}} no se puede convertir a la otra unidad en este calendario. La unidad no ha cambiado.",
     "unitInfo": "La unidad elegida pertenece a esta tarea. Los días cuentan días laborables; las horas cuentan horas de trabajo dentro del calendario. Otro calendario no cambia la unidad ni la duración introducida, pero puede cambiar la fecha de fin."
   },
   "dialog": {

@@ -182,7 +182,7 @@
       "calendar": "Vyberte kalendár zo zoznamu.",
       "calendarNotFound": "Vybraný kalendár neexistuje.",
       "calendarHours": "Kalendár tejto úlohy nemá pracovnú dobu za deň.",
-      "durationConversionNotExact": "Toto trvanie sa nedá presne previesť na druhú jednotku.",
+      "durationConversionNotExact": "Toto trvanie sa v tomto kalendári nedá presne previesť na druhú jednotku.",
       "fixedWorkIsHours": "Úloha s pevnou prácou má vždy mieru v hodinách.",
       "milestoneRequired": "Toto pole platí iba pre medzníky.",
       "milestoneUnavailable": "Súhrnná úloha, ktorá má čiastkové úlohy, nemôže byť medzníkom.",
@@ -337,8 +337,8 @@
     "unit": "Jednotka trvania",
     "days": "Dni",
     "hours": "Hodiny",
-    "invalid": "Zadajte celé číslo dní alebo hodín, napríklad 2d alebo 12h.",
-    "conversionNotExact": "{{value}} v tomto kalendári nevychádza na celé dni. Jednotka sa nezmenila.",
+    "invalid": "Zadajte počet dní alebo hodín, napríklad 2,5d alebo 12h.",
+    "conversionNotExact": "{{value}} sa v tomto kalendári nedá presne previesť na druhú jednotku. Jednotka sa nezmenila.",
     "unitInfo": "Zvolená jednotka patrí k tejto úlohe. Dni sa počítajú ako pracovné dni; hodiny sa počítajú ako pracovné hodiny v rámci kalendára. Iný kalendár nemení jednotku ani zadané trvanie, ale môže zmeniť dátum dokončenia."
   },
   "dialog": {

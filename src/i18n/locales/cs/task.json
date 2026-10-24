@@ -182,7 +182,7 @@
       "calendar": "Vyberte kalendář ze seznamu.",
       "calendarNotFound": "Zvolený kalendář neexistuje.",
       "calendarHours": "Kalendář tohoto úkolu nemá pracovní hodiny za den.",
-      "durationConversionNotExact": "Tuto dobu trvání nelze přesně převést na druhou jednotku.",
+      "durationConversionNotExact": "Tuto dobu trvání nelze v tomto kalendáři převést na druhou jednotku.",
       "fixedWorkIsHours": "Úkol typu pevná práce má vždy jednotku hodin.",
       "milestoneRequired": "Toto pole platí jen pro milníky.",
       "milestoneUnavailable": "Souhrnný úkol s dílčími úkoly nemůže být milník.",
@@ -337,8 +337,8 @@
     "unit": "Jednotka doby trvání",
     "days": "Dny",
     "hours": "Hodiny",
-    "invalid": "Zadejte celé číslo dnů nebo hodin, například 2d nebo 12h.",
-    "conversionNotExact": "{{value}} v tomto kalendáři nevychází na celé dny. Jednotka se nezměnila.",
+    "invalid": "Zadejte počet dnů nebo hodin, například 2,5d nebo 12h.",
+    "conversionNotExact": "{{value}} nelze v tomto kalendáři převést na druhou jednotku. Jednotka se nezměnila.",
     "unitInfo": "Zvolená jednotka patří k tomuto úkolu. Dny se počítají jako pracovní dny; hodiny se počítají jako pracovní hodiny v rámci kalendáře. Jiný kalendář nezmění jednotku ani zadanou dobu trvání, ale může změnit datum dokončení."
   },
   "dialog": {

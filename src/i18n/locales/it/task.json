@@ -182,7 +182,7 @@
       "calendar": "Scegli un calendario dall'elenco.",
       "calendarNotFound": "Il calendario scelto non esiste.",
       "calendarHours": "Il calendario di questa attività non ha ore lavorative al giorno.",
-      "durationConversionNotExact": "Questa durata non può essere convertita esattamente nell'altra unità.",
+      "durationConversionNotExact": "Questa durata non può essere convertita esattamente nell'altra unità in questo calendario.",
       "fixedWorkIsHours": "Un'attività con lavoro fisso usa sempre la misura in ore.",
       "milestoneRequired": "Questo campo vale solo per i cardini.",
       "milestoneUnavailable": "Un'attività di riepilogo con sottoattività non può diventare un cardine.",
@@ -333,8 +333,8 @@
     "unit": "Unità di durata",
     "days": "Giorni",
     "hours": "Ore",
-    "invalid": "Inserisci un numero intero di giorni o ore, ad esempio 2d o 12h.",
-    "conversionNotExact": "{{value}} non corrisponde a giorni interi in questo calendario. L'unità non è cambiata.",
+    "invalid": "Inserisci un numero di giorni o ore, ad esempio 2,5d o 12h.",
+    "conversionNotExact": "{{value}} non può essere convertito nell'altra unità in questo calendario. L'unità non è cambiata.",
     "unitInfo": "L'unità scelta appartiene a questa attività. I giorni contano i giorni lavorativi; le ore contano le ore di lavoro nel calendario. Un altro calendario non cambia l'unità né la durata inserita, ma può cambiare la data di fine."
   },
   "dialog": {

@@ -182,7 +182,7 @@
       "calendar": "Wybierz kalendarz z listy.",
       "calendarNotFound": "Wybrany kalendarz nie istnieje.",
       "calendarHours": "Kalendarz tego zadania nie ma godzin pracy na dzień.",
-      "durationConversionNotExact": "Tego czasu trwania nie da się dokładnie przeliczyć na drugą jednostkę.",
+      "durationConversionNotExact": "Ten czas trwania nie da się dokładnie przeliczyć na drugą jednostkę w tym kalendarzu.",
       "fixedWorkIsHours": "Zadanie ze stałą pracą zawsze używa miary w godzinach.",
       "milestoneRequired": "To pole dotyczy tylko kamieni milowych.",
       "milestoneUnavailable": "Zadanie sumaryczne z podzadaniami nie może stać się kamieniem milowym.",
@@ -337,8 +337,8 @@
     "unit": "Jednostka czasu trwania",
     "days": "Dni",
     "hours": "Godziny",
-    "invalid": "Wprowadź całkowitą liczbę dni lub godzin, na przykład 2d albo 12h.",
-    "conversionNotExact": "{{value}} nie daje pełnych dni w tym kalendarzu. Jednostka się nie zmieniła.",
+    "invalid": "Wprowadź liczbę dni lub godzin, na przykład 2,5d albo 12h.",
+    "conversionNotExact": "{{value}} nie da się przeliczyć na drugą jednostkę w tym kalendarzu. Jednostka się nie zmieniła.",
     "unitInfo": "Wybrana jednostka należy do tego zadania. Dni liczą dni robocze, a godziny liczą godziny pracy w kalendarzu. Inny kalendarz nie zmienia jednostki ani wpisanego czasu, ale może zmienić datę zakończenia."
   },
   "dialog": {

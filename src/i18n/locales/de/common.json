@@ -11,7 +11,7 @@
   },
   "notifications": {
     "dismiss": "Benachrichtigung schließen",
-    "taskEditRevertBlocked": "Eine Änderung des KI-Assistenten oder einer Erweiterung kam dazwischen. Die vorher vorgenommenen Vorgangsänderungen wurden nicht zurückgesetzt und bleiben als normale Schritte unter Rückgängig.",
+    "taskEditRevertBlocked": "Eine Änderung des MCP-Clients oder einer Erweiterung kam dazwischen. Die vorher vorgenommenen Vorgangsänderungen wurden nicht zurückgesetzt und bleiben als normale Schritte unter Rückgängig.",
     "openFailed": "Datei konnte nicht geöffnet werden",
     "csvInvalidDate": "CSV nicht geöffnet: unlesbares Datum „{{value}}“ in CSV-Zeile {{row}}, Spalte „{{column}}“. Verwenden Sie JJJJ-MM-TT, TT-MM-JJJJ oder TT/MM/JJJJ.",
     "extGuideCallbackFailed": "Ein Schritt der Erweiterung {{name}} ist fehlgeschlagen. Die Anleitung läuft weiter.",
@@ -158,7 +158,7 @@
     },
     "xerArchiveUnusable": "Das XER-Quellarchiv in dieser Datei ist unbrauchbar und wurde weggelassen; das Projekt selbst wurde vollständig geöffnet.",
     "xerArchiveUnusableLine": "Das XER-Quellarchiv in dieser Datei war unbrauchbar und wurde weggelassen.",
-    "xerArchiveUnusableConsequence": "Terminplan, Berechnungsprofil und alle Projektdaten aus der IFC sind vollständig. Es fehlen: die Termine, wie Primavera sie gespeichert hat, und die Quellherkunft für KI und Erweiterungen. Beim Speichern wird die Datei ohne Archiv geschrieben; importieren Sie die ursprüngliche .xer erneut, um das Archiv zurückzubekommen.",
+    "xerArchiveUnusableConsequence": "Der Terminplan, das Berechnungsprofil und alle Projektdaten aus der IFC sind vollständig. Es fehlen: die Termine, wie Primavera sie gespeichert hat, und die Quellherkunft für MCP-Clients und Erweiterungen. Beim Speichern wird die Datei ohne Archiv geschrieben; importieren Sie die ursprüngliche .xer erneut, um das Archiv zurückzubekommen.",
     "xerArchiveReasonSchemaVersion": "Grund: Das Archiv hat eine unbekannte Schemaversion oder ein unbekanntes Format (neuerer oder anderer Schreiber).",
     "xerArchiveReasonHashMismatch": "Grund: Die Prüfsumme passt nicht zu den Quellbytes — das Archiv ist beschädigt.",
     "xerArchiveReasonTruncated": "Grund: Das Archiv ist abgeschnitten — ein Teil der Quellbytes fehlt.",
@@ -341,8 +341,8 @@
     "showTaskTypes": "Vorgangsarten verwenden",
     "showTaskTypesHint": "Wählen Sie pro Vorgang, was sich mitbewegt, wenn Dauer, Einheiten oder Arbeit sich ändern, wie Task Type in MS Project und Duration Type in P6. Aus: Dauer und Einheiten bleiben stehen. Eine Datei mit Vorgangsarten oder gespeicherter Arbeit zeigt sie auch, wenn diese Option aus ist.",
     "allowMixedDayHour": "Gemischte Tages-/Stundenplanung zulassen",
-    "defaultTaskDurationUnit": "Standardeinheit für neue Vorgänge",
-    "defaultTaskDurationUnitHint": "Legt fest, ob neue Vorgänge in Arbeitstagen oder Arbeitsstunden beginnen. Bestehende Vorgänge ändern sich nicht.",
+    "defaultTaskDurationUnit": "Standardmaß für neue Vorgänge",
+    "defaultTaskDurationUnitHint": "Tagesmaß: Eine Dauer zählt in Arbeitstagen des Kalenders. Stundenmaß: Eine Dauer zählt in Arbeitsstunden. Bestehende Vorgänge ändern sich nicht. Ein Vorgang mit fester Arbeit hat immer das Stundenmaß.",
     "defaultTaskDurationUnitDays": "Tagesmaß",
     "defaultTaskDurationUnitHours": "Stundenmaß",
     "defaultTaskDurationUnitLocked": "Das Profil {{profile}} rechnet eine Dauer in Stunden. Neue Vorgänge erhalten daher das Stundenmaß.",
@@ -353,7 +353,7 @@
     "durationDisplayDays": "Immer Tage",
     "durationDisplayHours": "Immer Stunden",
     "barSplitMode": "Vorgangsbalken bei Unterbrechungen",
-    "barSplitModeHint": "Ob ein Vorgangsbalken sich visuell um arbeitsfreie Tage teilt.",
+    "barSplitModeHint": "Nur für Stundenvorgänge: Balken rund um Pausen und arbeitsfreie Zeit aufteilen. Echte Vorgangsunterbrechungen bleiben unabhängig von dieser Einstellung immer sichtbar.",
     "barSplitNever": "Nie aufteilen",
     "barSplitSelection": "Bei Auswahl aufteilen",
     "barSplitAlways": "Immer aufteilen",
@@ -416,11 +416,11 @@
     "fontFamilySerif": "Serifen",
     "fontFamilyMono": "Monospace",
     "fontHint": "Web-Apps übernehmen nicht automatisch die Schriftarteinstellung des Systems. Wähle hier Schriftart und Größe der Benutzeroberfläche.",
-    "aiModeSection": "KI-Modus",
-    "aiMode": "KI-Modus aktivieren",
-    "aiModeHint": "Zeigt den KI-Tab mit der MCP-Bridge, sodass KI-Assistenten über das Model Context Protocol mit Ihrer Planung arbeiten können. Deaktivieren stoppt die Bridge.",
+    "aiModeSection": "MCP-Verbindung",
+    "aiMode": "MCP-Verbindung zulassen",
+    "aiModeHint": "Zeigt den MCP-Tab. Dort starten Sie die MCP-Bridge, damit ein MCP-Client über das Model Context Protocol mit Ihrem Terminplan arbeiten kann. Ausschalten stoppt die Bridge.",
     "aiAutostart": "Bridge automatisch starten",
-    "aiAutostartHint": "Aktiviert die MCP-Bridge direkt beim Start der App, sodass ein KI-Client sich verbinden kann, ohne dass Sie zuerst den KI-Tab öffnen. Nur in der Desktop-App.",
+    "aiAutostartHint": "Aktiviert die MCP-Bridge direkt beim Start der App, sodass ein MCP-Client sich verbinden kann, ohne dass Sie zuerst den MCP-Tab öffnen. Nur in der Desktop-App.",
     "legacySection": "Legacy-Funktionen",
     "classicViewControls": "Klassische Ansichtsschaltflächen anzeigen",
     "classicViewControlsHint": "Bringt die einzelnen Schaltflächen Spalten, Filter, Gruppieren und Sortieren zurück auf die Registerkarte Ansicht. Spalten wählen Sie jetzt mit dem Plus im Tabellenkopf oder über Tabelle → Spalten…; Filtern, Gruppieren und Sortieren stecken in den Layout-Schaltflächen und im Layout-Dialog."
@@ -452,9 +452,9 @@
     "configSnippetHint": "Fügen Sie dies in die MCP-Konfiguration Ihres Clients ein.",
     "tokenWarning": "Dieses Token gewährt Zugriff auf den geöffneten Plan. Geben Sie es nicht weiter.",
     "connectPrompt": "Verbindungs-Prompt",
-    "connectPromptHint": "Fügen Sie dies in Ihren KI-Agenten ein — er verbindet sich selbst.",
+    "connectPromptHint": "Fügen Sie dies in Ihren MCP-Client ein — er verbindet sich selbst.",
     "connectPromptText": "Verbinde dich mit einem MCP-Server, der auf meinem Computer läuft: Name {{name}}, Transport Streamable HTTP, URL {{url}}, mit dem Header Authorization: Bearer {{token}}. Füge ihn deiner MCP-Konfiguration hinzu (zum Beispiel als mcpServers-Block) und stelle die Verbindung her. Rufe danach zur Kontrolle die Werkzeugliste ab: Du solltest etwa {{count}} Werkzeuge mit dem Präfix {{prefix}} sehen. Fasse kurz zusammen, was du mit diesem Server tun kannst. Lies vor jeder Änderung zuerst den Planungsleitfaden über das Werkzeug planner_get_planning_guide.",
-    "statusDot": "KI-Bridge: {{status}}"
+    "statusDot": "MCP-Bridge: {{status}}"
   },
   "aiSafety": {
     "pause": "Pausieren",
@@ -464,7 +464,7 @@
     "readOnlyHint": "Alle verändernden Werkzeuge werden abgelehnt, solange dies aktiv ist.",
     "autoBackupOn": "Auto-Backup: an",
     "autoBackupOff": "Auto-Backup: aus",
-    "autoBackupHint": "Erstellt vor der ersten KI-Änderung pro Dokument automatisch ein IFC-Backup.",
+    "autoBackupHint": "Erstellt vor der ersten MCP-Änderung pro Dokument automatisch ein IFC-Backup.",
     "backupNow": "Jetzt sichern",
     "openFolder": "Backup-Ordner öffnen",
     "backupOk": "Backup erstellt: {{name}}",
@@ -472,10 +472,10 @@
     "openErr": "Ordner konnte nicht geöffnet werden: {{error}}"
   },
   "aiActivity": {
-    "title": "KI-Aktivität",
+    "title": "MCP-Aktivität",
     "panelButton": "Aktivitätsbereich",
     "clear": "Leeren",
-    "empty": "Noch keine KI-Aktivität. Aufrufe der Bridge erscheinen hier.",
+    "empty": "Noch keine MCP-Aktivität. Aufrufe der Bridge erscheinen hier.",
     "args": "Argumente",
     "result": "Antwort"
   },
@@ -727,7 +727,7 @@
     "calendars": "Kalender",
     "noCalendars": "Noch keine Kalender im Pool.",
     "noResources": "Noch keine Ressourcen im Pool.",
-    "promoteHint": "Befördern Sie einen Projektkalender oder eine Projektressource mit der Schaltfläche „+ Aus Projekt“ oben in die Bibliothek.",
+    "promoteHint": "Befördern Sie einen Projektkalender mit der Schaltfläche „+ Aus Projekt“ oben in die Ressourcenbibliothek.",
     "promoteFromProject": "Aus Projekt",
     "alreadyLinked": "bereits verknüpft",
     "editItem": "Bearbeiten",
@@ -1164,7 +1164,7 @@
     "nav": {
       "reportTab": "Zum Bericht-Tab",
       "switchDocument": "Dokument wechseln",
-      "scrollToToday": "Zu heute springen",
+      "scrollToToday": "Zu Statusdatum oder heute springen",
       "help": "Hilfe öffnen"
     },
     "grid": {
@@ -1378,7 +1378,7 @@
   "conventions": {
     "preserveActualDatesInBackwardPass": {
       "label": "Istdaten in der Rückwärtsrechnung beibehalten",
-      "help": "Ein begonnener oder abgeschlossener Vorgang behält seine erfassten Termine auch auf der späten Seite; ein abgeschlossener Nachfolger zieht einen offenen Vorgänger nicht in die Vergangenheit zurück."
+      "help": "Mit einem Statusdatum behält ein abgeschlossener Vorgang seine Ist-Werte auf der späten Seite, und ein abgeschlossener Nachfolger zieht einen offenen Vorgänger nicht in die Vergangenheit zurück. Ein laufender Vorgang behält seinen Ist-Anfang als spätesten Anfang, außer wenn „Laufender Vorgang: frühester Anfang = Beginn der Restarbeit“ eingeschaltet ist. Ein abgeschlossener Vorgang an einem Statusdatumspunkt oder in einem Statusdatumsfenster kann trotzdem Beziehungsdruck weitergeben."
     },
     "clampNegativeFreeFloat": {
       "label": "Freier Puffer nie negativ",
@@ -1386,103 +1386,103 @@
     },
     "p6ZeroDurationUsesPlannedBoundary": {
       "label": "Meilenstein folgt der geplanten Kalendergrenze",
-      "help": "Ein Meilenstein ohne Dauer bleibt an der Kalendergrenze, die die Datei geplant hat: ein Tagesbeginn bleibt ein Startmeilenstein, ein Bandende darf auf dem Ende des Vorgängers landen."
+      "help": "Nur bei Stundenplanung. Ein Meilenstein ohne Dauer folgt der geplanten Kalendergrenze: Ein Tagesbeginn bleibt ein Startmeilenstein, ein Bandende darf auf dem Ende des Vorgängers liegen. Auch ein gewöhnlicher Vorgang mit der Dauer 0 kann ein Grenzpaar erhalten, aber nur mit XER-Herkunft als Task Dependent oder Resource Dependent und mit einem geplanten Ende vor dem geplanten Anfang."
     },
     "p6UseTaskPlannedStartFloor": {
       "label": "Geplanter Start als zusätzliche Untergrenze",
-      "help": "Der geplante Start aus der Datei gilt als Untergrenze, sobald Start und Ende mehr als einen Kalendertag später liegen, als das Netzwerk zulässt."
+      "help": "Der geplante Anfang gilt als Untergrenze, sobald Anfang und Ende jeweils mehr als einen Kalendertag später liegen, als das Netzwerk zulässt. Bei einem Endmeilenstein mit geplantem Ende vor dem geplanten Anfang genügt schon ein späterer geplanter Anfang. Ausgenommen ist ein laufender Vorgang, wenn „Geplanter Anfang ist keine Untergrenze für einen laufenden Vorgang“ eingeschaltet ist, sowie ein noch nicht begonnener ALAP-Vorgang, der von seinen Nachfolgern aus positioniert wird. Setzt keine XER-Herkunft voraus."
     },
     "p6FinishMilestoneBoundaryWindow": {
       "label": "Endmeilenstein als Grenzfenster",
-      "help": "Ein Endmeilenstein darf auf zwei angrenzenden Kalendergrenzen liegen: frühester Anfang am Beginn eines Bandes, frühestes Ende am Ende des vorherigen Bandes."
+      "help": "Ein Endmeilenstein ohne Dauer erhält nur dann ein Grenzfenster, wenn sein geplantes Ende vor seinem geplanten Anfang liegt und sein berechneter Anfang noch auf diesem geplanten Anfang liegt. Ein Endmeilenstein mit Vorgängern und ohne Nachfolger erhält seine frühen Termine auch als späte Termine, außer wenn „Puffer bis zum Projektendtermin berechnen“ eingeschaltet ist. Es wurde nur in P3-Ausgaben beobachtet und ist in jedem eingebauten Berechnungsprofil ausgeschaltet."
     },
     "p6PreserveActualInstants": {
       "label": "Istdaten exakt übernehmen",
-      "help": "Erfasste Ist-Anfangs- und Ist-Endtermine werden nicht an den Rand eines Bandes verschoben."
+      "help": "Nur für Vorgänge mit beibehaltener XER-Herkunft aus einer .xer-Datei. Erfasste Ist-Anfangs- und Ist-Endtermine werden nicht an den Rand eines Bandes verschoben."
     },
     "p6UseRemainingStartForProgress": {
       "label": "Laufender Vorgang: frühester Anfang = Beginn der Restarbeit",
-      "help": "Früher und spätester Anfang eines laufenden Vorgangs beschreiben, wo die Restarbeit beginnt, nicht den historischen Ist-Start. Bei der Rückwärtsrechnung über eine Anfang-Anfang-Beziehung zählt nur die Restdauer."
+      "help": "Der früheste Anfang und der späteste Anfang eines laufenden Vorgangs beschreiben, wo die Restarbeit beginnt. Rückwärts über eine Anfang-Anfang-Beziehung zählt nur die Restdauer, aber nur bei Stundenplanung, mit einem Ist-Anfang und einem Fortschritt zwischen 0 und 100%, einer bekannten Restdauer, die kleiner ist als die geplante Dauer, und ohne verstrichene Zeit oder Unterbrechungen im Terminplan. Diese zusätzliche Regel zur Restdauer gilt nicht für Anfang-Ende-Beziehungen."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Exakter Einschränkungszeitpunkt auf einem Meilenstein",
-      "help": "Eine Datums-und-Uhrzeit-Einschränkung auf einem Meilenstein ohne Dauer ist ein exakter Punkt, auch am Beginn eines Bandes."
+      "help": "Nur bei Stundenplanung, auf der späten Seite, für eine Einschränkung mit Datum und Uhrzeit vom Typ SNLT, MSO, FNLT oder MFO auf einem Meilenstein ohne Dauer. Der Zeitpunkt der Einschränkung bleibt exakt, auch am Beginn eines Bandes. In der Vorwärtsrechnung ist ein solcher Zeitpunkt in jedem Berechnungsprofil bereits exakt."
     },
     "resumeFromActualElapsed": {
       "label": "Restarbeit wird nach der verstrichenen Dauer fortgesetzt",
-      "help": "Ein laufender Vorgang setzt seine Restarbeit am Ist-Start plus der verstrichenen Dauer fort, nicht am Statusdatum."
+      "help": "Ein laufender Vorgang setzt seine Restarbeit frühestens am Ist-Anfang plus der bereits verstrichenen Zeit fort. Auch das Statusdatum und die Vorgängergrenze bleiben untere Grenzen; es gilt der späteste der drei. Nicht bei Progress Override, ohne Restarbeit oder wenn die App ein gültiges Fortsetzungsdatum aus der Datei verwendet (bei höchstens einer Zuweisung)."
     },
     "unstartedIgnoresStatusDate": {
       "label": "Nicht begonnene Vorgänge nicht zum Statusdatum verschieben",
-      "help": "Ein noch nicht begonnener Vorgang wird nicht automatisch auf oder nach das Statusdatum verschoben."
+      "help": "Nur mit einem Statusdatum, für einen Vorgang ohne Fortschritt. Dieser Vorgang wird nicht automatisch auf das Statusdatum oder danach verschoben."
     },
     "p6RelationFinishBoundary": {
       "label": "Nachfolger beginnt an der Endgrenze",
-      "help": "Bei einer Ende-Anfang-Beziehung ohne Zeitabstand, bei der der Nachfolger in der Datei genau am Ende des Vorgängers beginnt, am Ende eines Bandes, beginnt der Nachfolger an diesem Ende und nicht am Beginn des nächsten Bandes. Die Datei markiert das nicht: Die App erkennt eine solche Beziehung selbst beim Öffnen einer .xer-Datei. Eine Beziehung, die Sie selbst anlegen, fällt nicht darunter. Bei der Rückwärtsrechnung zeigt der Nachfolger seinen spätesten Anfang einfach als Beginn eines Bandes."
+      "help": "Nur bei Stundenplanung, im Kalender des Vorgängers und für eine Beziehung, die die App beim Öffnen einer .xer-Datei erkennt. Bei einer Ende-Anfang-Beziehung ohne Zeitabstand, bei der die Datei den Nachfolger genau auf das Bandende des Vorgängers legt, beginnt der Nachfolger an diesem Ende. Eine Beziehung, die Sie selbst anlegen, fällt nicht darunter. In der Rückwärtsrechnung bleibt der späteste Anfang des Nachfolgers ein Bandbeginn."
     },
     "p6BackwardLagFinishBoundary": {
       "label": "Zeitabstand rückwärts ab einer Endgrenze",
-      "help": "Zieht die Rückwärtsrechnung einen Zeitabstand in Arbeitszeit von einer Endgrenze ab und landet sie genau am Beginn eines Bandes, landet sie auf der vorherigen Endgrenze. Auch bei einer Ende-Ende-Beziehung ohne Zeitabstand bleibt ein spätestes Ende an einem Bandende auf dieser Endgrenze."
+      "help": "Nur bei Stundenplanung, im Kalender, in dem der Zeitabstand gerechnet wird. Zieht die Rückwärtsrechnung einen positiven Zeitabstand in Arbeitszeit von einer genauen Endgrenze ab und landet sie am ersten Bandbeginn eines Tages, dann landet sie auf der vorherigen Endgrenze. Auch bei einer Ende-Ende-Beziehung ohne Zeitabstand bleibt ein spätestes Ende an einem Bandende auf dieser Endgrenze. Nicht für Zeitabstand in verstrichener Zeit."
     },
     "p6CompletedDataDateWindow": {
       "label": "Abgeschlossener Vorgang im Statusdatumsfenster",
-      "help": "Ein abgeschlossener Vorgang erhält frühe Termine im Statusdatumsfenster, und sein Ende zählt für das Projektende."
+      "help": "Nur mit einem Statusdatum, für abgeschlossene Vorgänge ohne Teilvorgänge aus einer .xer-Datei mit beibehaltenem Zielfenster, Fortschrittstyp Dauer und P6-Typ Task Dependent oder Resource Dependent mit Fixed Duration & Units; keine Meilensteine mit Dauer 0. Erfordert „Laufender Vorgang: frühester Anfang = Beginn der Restarbeit“. Unterbrechung/Fortsetzung ist nur bei Task Dependent mit einem gültigen Paar erlaubt, wenn das Ist-Ende zwischen dem geplanten Ende und dem Statusdatum liegt, die Fortsetzung spätestens am Ist-Ende erfolgt und „Istdaten in der Rückwärtsrechnung beibehalten“ eingeschaltet ist. Der Vorgang erhält frühe Termine im Statusdatumsfenster; sein Ende zählt für das Projektende."
     },
     "p6CompletedLoeActualFinish": {
       "label": "Abgeschlossene LOE über das Ist-Ende",
-      "help": "Ein abgeschlossener Level-of-Effort-Vorgang mit nur einem Anfang-Anfang-Eingang folgt der Route über sein Ist-Ende."
+      "help": "Nur mit einem Statusdatum, für einen abgeschlossenen LOE aus einer .xer-Datei mit positiver Dauer, Fortschrittstyp Dauer und P6-Typ Fixed Duration & Units/Time, einem vollständigen Zielfenster und einem Ist-Ende zwischen dem geplanten Ende und dem Statusdatum. Der LOE braucht mindestens eine eingehende Beziehung, alle vom Typ Anfang-Anfang, und darf keinen Nachfolger und keine Unterbrechung/Fortsetzung haben. Erfordert „Laufender Vorgang: frühester Anfang = Beginn der Restarbeit“, „Istdaten in der Rückwärtsrechnung beibehalten“ und „Istdaten exakt übernehmen“. Der LOE folgt seinem Ist-Ende statt der Hammock-Route."
     },
     "p6OpenLoeTargetSpan": {
       "label": "Nicht begonnene LOE übernimmt das Zielfenster",
-      "help": "Ein Level-of-Effort-Vorgang, der noch nicht begonnen hat, übernimmt sein Zielfenster als Laufzeit."
+      "help": "Nur bei Stundenplanung, für einen noch nicht begonnenen LOE/Hammock aus einer .xer-Datei mit 0% Fortschritt, positiver Dauer, Fortschrittstyp Dauer und P6-Typ Fixed Duration & Units; ohne Ist-Werte oder Unterbrechung/Fortsetzung. Erfordert ein vollständiges, positives Zielfenster, dessen Anfang der Beziehungsgrenze entspricht und dessen Arbeitszeit höchstens einen Arbeitstag von der Dauer abweicht, mindestens eine eingehende Anfang-Anfang-Beziehung und eine ausgehende Ende-Ende-Beziehung, nur diese Beziehungstypen und ohne Zeitabstand. Der LOE nimmt dann das Zielfenster als Laufzeit. Schwacher Beleg: nur eine Datei."
     },
     "p6CompletedPredecessorAtDataDate": {
       "label": "Abgeschlossener Vorgänger hält nicht über das Statusdatum hinaus",
-      "help": "Liegt das Ist-Ende eines abgeschlossenen Vorgängers nach dem Statusdatum, dürfen seine Nachfolger trotzdem schon am Statusdatum beginnen."
+      "help": "Nur bei Stundenplanung und mit einem Statusdatum, für einen abgeschlossenen Vorgänger mit Ist-Ende. Ende-Anfang- und Ende-Ende-Beziehungen rechnen höchstens ab der Arbeitsgrenze kurz vor dem Statusdatum; ein späteres Ist-Ende hält den Nachfolger nicht zurück. Anfang-Anfang- und Anfang-Ende-Beziehungen bleiben am Ist-Anfang. Ein abgeschlossener Vorgang mit einem eigenen Statusdatumspunkt oder einem verschobenen Statusdatumsfenster folgt dieser eigenen Grenze."
     },
     "p6FreeFloatOnOwnCalendar": {
       "label": "Freier Puffer im eigenen Kalender",
-      "help": "Der freie Puffer eines nicht begonnenen Vorgangs zählt je Beziehung im Kalender des Vorgangs selbst, nicht in dem des Nachfolgers: bei Ende-Anfang, Anfang-Anfang und Ende-Ende, auch mit einem Zeitabstand in Arbeitszeit im Kalender des Vorgängers. Ein begonnener Vorgang nur bei Ende-Anfang ohne Zeitabstand."
+      "help": "Nur bei Stundenplanung, für nicht abgeschlossene Vorgänge und Beziehungen mit berechnetem freiem Puffer. Bei einem nicht begonnenen Vorgang zählt der freie Puffer im eigenen Kalender des Vorgangs, bei Ende-Anfang, Anfang-Anfang und Ende-Ende, ohne Zeitabstand in Uhrzeit oder in Prozent. Ein Zeitabstand ungleich 0 erfordert den Zeitabstand-Kalender des Vorgängers. Bei einem begonnenen Vorgang gilt nur Ende-Anfang ohne Zeitabstand. Der freie Puffer der Beziehung selbst und die Markierung als maßgebende Beziehung ändern sich nicht."
     },
     "p6CompletedRemainingLag": {
       "label": "Verstrichener Zeitabstand eines abgeschlossenen Vorgängers zählt nicht",
-      "help": "Auf der späten Seite zählt vom Zeitabstand nach einem abgeschlossenen Vorgänger nur der Teil, der am Statusdatum noch nicht verstrichen ist."
+      "help": "Nur bei Stundenplanung auf dem Zeitabstand-Kalender und mit einem Statusdatum, für abgeschlossene Vorgänger aus einer XER-Datei mit Ist-Ende vor dem Statusdatum und einem Statusdatumspunkt oder Statusdatumsfenster. Von einem positiven Zeitabstand in Arbeitszeit zählt nur der noch nicht verstrichene Teil. Wirkt auf der späten Seite und vorwärts ab einem Statusdatumspunkt oder einem verschobenen Null-Restfenster. Ein Vorgang mit seinen gewöhnlichen Ist-Werten behält den vollen Zeitabstand. Gilt nicht für Zeitabstand in Uhrzeit."
     },
     "p6CompletedOutOfSequenceWindow": {
       "label": "Abgeschlossener Vorgang außerhalb der Reihenfolge wartet auf seine Vorgänger",
-      "help": "Ein abgeschlossener Vorgang, dessen Vorgänger noch nicht fertig ist, erhält sein Nullfenster nach diesem Vorgänger statt am Statusdatum (P6: Retained Logic). Das wirkt nur, wenn auch „Abgeschlossener Vorgang im Statusdatumsfenster“ und „Laufender Vorgang: frühester Anfang = Beginn der Restarbeit“ eingeschaltet sind."
+      "help": "Nur bei Stundenplanung und mit einem Statusdatum, auf dem XER-Weg der Konvention „Abgeschlossener Vorgang im Statusdatumsfenster“. Diese Konvention und „Laufender Vorgang: frühester Anfang = Beginn der Restarbeit“ müssen eingeschaltet sein. Nicht bei „Progress Override“. Über eingehende Ende-Anfang- oder Anfang-Anfang-Beziehungen erhält der Vorgang den späteren Wert von der Statusdatumsgrenze und der Grenze eines noch offenen Vorgängers oder eines Vorgängers mit verschobenem Statusdatumsfenster. Gewöhnliche abgeschlossene Vorgänger zählen nicht."
     },
     "p6CompletedPhysicalAtDataDate": {
       "label": "Abgeschlossener Vorgang mit physischem Fortschritt steht am Statusdatum",
-      "help": "Ein abgeschlossener Vorgang mit physischem Fertigstellungsgrad steht als ein Punkt am Statusdatum, oder später, wenn ein Vorgänger es verlangt, statt auf seinen Ist-Terminen. Nur für physischen Fertigstellungsgrad gemessen; für andere Fertigstellungsarten (P6-Standard: Dauer) ist dieses Verhalten nicht gemessen und bleibt aus."
+      "help": "Nur bei Stundenplanung und mit einem Statusdatum, für abgeschlossene Vorgänge ohne Teilvorgänge und Meilensteine ohne Dauer aus einer XER-Datei mit dem P6-Typ Task Dependent, Startmeilenstein oder Endmeilenstein. Außerdem mit beibehaltenem Zielfenster, mit physischem Fertigstellungsgrad, mit Ist-Ende spätestens am Statusdatum und ohne Unterbrechung oder Wiederaufnahme. Erfordert „Laufender Vorgang: frühester Anfang = Beginn der Restarbeit“. Der Vorgang steht als ein Punkt am Statusdatum, oder später, wenn ein Vorgänger das verlangt. Bei anderen Fertigstellungsarten, also auch bei Dauer, ist dies nicht gemessen und bleibt aus."
     },
     "p6InProgressStartLagElapsed": {
       "label": "Verstrichener SS-Zeitabstand eines laufenden Vorgängers zählt nicht",
-      "help": "Bei einer Anfang-Anfang-Beziehung von einem bereits begonnenen Vorgang zählt vom Zeitabstand nur der Teil, der seit dessen Ist-Anfang am Statusdatum noch nicht verstrichen ist."
+      "help": "Nur bei Stundenplanung auf dem Zeitabstand-Kalender und mit einem Statusdatum, für eine Anfang-Anfang-Beziehung mit positivem Zeitabstand in Arbeitszeit von einem nicht abgeschlossenen Vorgänger mit Ist-Anfang vor dem Statusdatum. Erfordert „Laufender Vorgang: frühester Anfang = Beginn der Restarbeit“. Nur der noch nicht verstrichene Teil des Zeitabstands zählt. Die Option „SS-Verzögerung eines laufenden Vorgängers berechnen ab“ wählt den Anfangspunkt. Gilt nicht für Zeitabstand in Uhrzeit."
     },
     "p6FinishFinishStartMilestoneLateFinish": {
       "label": "Ende-Ende-Beziehung zu einem Startmeilenstein bindet an den Meilenstein selbst",
-      "help": "Eine Ende-Ende-Beziehung zu einem Startmeilenstein zählt bis zum Meilenstein selbst, nicht bis zum Beginn seines Tages: Der Vorgänger darf mit seinem spätesten Ende bis zum spätesten Ende des Meilensteins reichen."
+      "help": "Nur bei Stundenplanung auf beiden Seiten einer Ende-Ende-Beziehung zu einem Startmeilenstein ohne Dauer. Die Beziehung bindet an den Meilenstein selbst: Das späteste Ende des Vorgängers darf bis zum spätesten Ende des Meilensteins reichen. Auch der freie Puffer kann sich ändern; frühester Anfang des Meilensteins bleibt unverändert. Nicht für Endmeilensteine oder die Rückwärtsroute mit null Restdauer."
     },
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "Geplanter Anfang ist keine Untergrenze für einen laufenden Vorgang",
-      "help": "Die Restarbeit eines begonnenen Vorgangs beginnt am Statusdatum und direkt nach seinen Vorgängern, auch wenn sein geplanter Anfang später liegt."
+      "help": "Nur für einen Vorgang mit Ist-Anfang und weniger als 100 % Fortschritt, wenn „Geplanter Start als zusätzliche Untergrenze“ eingeschaltet ist. Sein geplanter Start ist keine zusätzliche Untergrenze für die Restarbeit; das Statusdatum und seine Vorgänger bleiben bestimmend."
     },
     "p6LateFinishOnOwnCalendar": {
       "label": "Spätestes Ende im eigenen Kalender",
-      "help": "Fällt ein spätestes Ende, das ein Nachfolger vorgibt, außerhalb der Arbeitszeit des Vorgangs, wird es das Ende der vorherigen Arbeitsperiode im eigenen Kalender."
+      "help": "Nur bei Stundenplanung, wenn eine Nachfolgergrenze das späteste Ende bestimmt und weder eine strengere Einschränkung noch ein Stichtag diese Grenze ersetzt. Fällt diese Grenze außerhalb der Arbeitszeit des Vorgangs, wird das späteste Ende das Ende der vorherigen Arbeitsperiode im eigenen Kalender. Nicht für ein spätestes Ende, das durch das Projektende bestimmt wird."
     },
     "p6ProgressOverrideIgnoresStartedSuccessor": {
       "label": "Progress Override ignoriert einen begonnenen Nachfolger auch rückwärts",
-      "help": "Bei Progress Override zählt die Beziehung zu einem bereits begonnenen Nachfolger nicht für die späten Termine und die freie Pufferzeit eines noch nicht abgeschlossenen Vorgängers."
+      "help": "Nur bei „Progress Override“, für einen nicht abgeschlossenen Vorgänger und einen begonnenen, aber nicht abgeschlossenen Nachfolger (Ist-Anfang oder Fortschritt). Deren Beziehung zählt nicht für die späten Termine und den freien Puffer des Vorgängers."
     },
     "p6FinishNotBeforeFinishFinishBound": {
       "label": "Frühestes Ende nicht vor einer Ende-Ende-Grenze",
-      "help": "Bei einer Ende-Ende-Beziehung liegt das früheste Ende des Nachfolgers in Uhrzeit nie vor der Grenze, die der Vorgänger setzt. Fällt diese Grenze in die arbeitsfreie Zeit des Nachfolgers, wird das Ende zum Beginn der nächsten Arbeitsperiode."
+      "help": "Datumskorrektur: bei einer Ende-Ende-Beziehung mit Zeitabstand in Arbeitszeit, ohne Hammocks, mit Stundenplanung im Kalender des Nachfolgers (bei Restarbeit: der Fortschrittskalender) und im Zeitabstand-Kalender. Liegt die Beziehungsgrenze später als das früheste Ende und liegt keine Arbeitszeit dazwischen, dann verschiebt sich nur das Ende auf die erste Arbeitsgrenze am oder nach dieser Grenze. Gilt für automatisch geplante, nicht begonnene und laufende Nachfolger; bei nicht begonnenen Vorgängen hat eine harte Endfixierung Vorrang. Freier Puffer: Ein nicht abgeschlossener Vorgänger zählt bei einer Ende-Ende-Beziehung ohne Zeitabstand und ohne Prozent-Zeitabstand separat, mit bestehendem freiem Puffer der Beziehung und einem berechneten frühesten Ende des Nachfolgers, im eigenen Stundenkalender vom eigenen frühesten Ende bis zum frühesten Ende des Nachfolgers. Dies gilt auch bei einem Null-Zeitabstand in Uhrzeit, ohne zusätzliche Stundenbedingung im Kalender des Nachfolgers oder im Zeitabstand-Kalender. Hammocks und manuell geplante Vorgänge behalten letztlich einen freien Puffer von 0."
     },
     "p6AlapPositionedFromSuccessors": {
       "label": "ALAP-Vorgänge so spät, wie die Nachfolger es zulassen",
-      "help": "Ein nicht begonnener Vorgang mit der Einschränkung „so spät wie möglich“ endet in der Minute, in der seine Nachfolger ihn brauchen, Nachfolger zuerst, damit eine Kette lückenlos anschließt. Sein eigener geplanter Anfang zählt nicht; ein Vorgang ohne Vorgänger beginnt dann nicht vor dem Statusdatum."
+      "help": "Nur bei Stundenplanung, für einen nicht begonnenen Vorgang, der nicht manuell geplant ist, mit der Einschränkung „so spät wie möglich“ (ALAP). Die frühen Termine seiner Nachfolger bestimmen seine Platzierung auf die Minute genau; Nachfolger kommen zuerst. Sein eigener geplanter Start zählt nicht; Vorgänger, Statusdatum und eine zweite Einschränkung gelten weiterhin. Ohne Nachfolger nutzt er sein spätestes Ende. Der gewöhnliche ALAP-Schritt bleibt in jedem Profil verfügbar."
     },
     "milestoneWithoutPredecessorAtDayEnd": {
       "label": "Lose Meilensteine am Ende des Arbeitstags",
@@ -1542,7 +1542,7 @@
     "showHelp": "Erläuterung zu „{{name}}“",
     "sourceOptions": {
       "title": "Einstellungen aus der Quelldatei",
-      "intro": "Diese Berechnungsoptionen stammen aus einer Primavera-P6-Datei (.xer). Sie fließen in die Berechnung ein, sind hier aber nicht änderbar.",
+      "intro": "Diese Berechnungsoptionen des Projekts sind nicht änderbar. Beim Import aus einer Primavera P6-Datei (XER) übernimmt die App sie aus der Quelldatei. Die Optionen wirken nur, wenn die zugehörigen Bedingungen erfüllt sind.",
       "useExpectedFinishDates": "Erwartete Endtermine verwenden (P6: Use Expected Finish Dates)",
       "useProjectEndDateForFloat": "Puffer bis zum Projektendtermin berechnen",
       "p6CompletedLateFromRemainingWindow": "Abgeschlossener Vorgang: späte Termine ab dem Statusdatum",
@@ -1551,7 +1551,7 @@
     "requires": {
       "xerOrigin": "nur Vorgänge aus .xer",
       "hourPlanning": "nur bei Stundenplanung",
-      "hourPlanningTitle": "Funktioniert nur bei Stundenplanung: ein Kalender mit Zeitbändern, ein Vorgang in Stunden oder der Kalender für den Zeitabstand auf 24 Stunden."
+      "hourPlanningTitle": "Funktioniert nur bei Stundenplanung im Kalender, auf dem die Regel rechnet: ein Kalender mit Zeitbändern oder eine Vorgangsdauer in Stunden. Für den Zeitabstand kann auch der 24-Stunden-Kalender gelten."
     },
     "optionsDeviate": {
       "line": "{{field}}: {{current}} (Standard: {{standard}})",

@@ -182,7 +182,7 @@
       "calendar": "Vælg en kalender fra listen.",
       "calendarNotFound": "Den valgte kalender findes ikke.",
       "calendarHours": "Kalenderen for denne opgave har ingen arbejdstimer pr. dag.",
-      "durationConversionNotExact": "Denne varighed kan ikke præcist omregnes til den anden enhed.",
+      "durationConversionNotExact": "Denne varighed kan ikke omregnes til den anden enhed på denne kalender.",
       "fixedWorkIsHours": "En opgave med fast arbejde bruger altid timer som måleenhed.",
       "milestoneRequired": "Dette felt gælder kun for milepæle.",
       "milestoneUnavailable": "En hovedopgave med underopgaver kan ikke blive en milepæl.",
@@ -329,8 +329,8 @@
     "unit": "Varighedsenhed",
     "days": "Dage",
     "hours": "Timer",
-    "invalid": "Indtast et helt antal dage eller timer, for eksempel 2d eller 12t.",
-    "conversionNotExact": "{{value}} svarer ikke til hele dage i denne kalender. Enheden er ikke ændret.",
+    "invalid": "Indtast et antal dage eller timer, for eksempel 2,5d eller 12t.",
+    "conversionNotExact": "{{value}} kan ikke omregnes til den anden enhed på denne kalender. Enheden er ikke ændret.",
     "unitInfo": "Den valgte enhed hører til denne opgave. Dage tæller arbejdsdage; timer tæller arbejdstimer inden for kalenderen. En anden kalender ændrer ikke enheden eller den indtastede varighed, men den kan ændre slutdatoen."
   },
   "dialog": {

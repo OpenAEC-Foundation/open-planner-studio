@@ -182,7 +182,7 @@
       "calendar": "Alegeți un calendar din listă.",
       "calendarNotFound": "Calendarul ales nu există.",
       "calendarHours": "Calendarul acestei activități nu are ore de lucru pe zi.",
-      "durationConversionNotExact": "Această durată nu poate fi convertită exact în cealaltă unitate.",
+      "durationConversionNotExact": "Această durată nu poate fi convertită în cealaltă unitate pe acest calendar.",
       "fixedWorkIsHours": "O activitate cu muncă fixă are întotdeauna măsura în ore.",
       "milestoneRequired": "Acest câmp se aplică doar jaloanelor.",
       "milestoneUnavailable": "O activitate rezumat cu subactivități nu poate deveni jalon.",
@@ -333,8 +333,8 @@
     "unit": "Unitate de durată",
     "days": "Zile",
     "hours": "Ore",
-    "invalid": "Introduceți un număr întreg de zile sau de ore, de exemplu 2d sau 12h.",
-    "conversionNotExact": "{{value}} nu corespunde unor zile întregi în acest calendar. Unitatea nu s-a schimbat.",
+    "invalid": "Introduceți un număr de zile sau de ore, de exemplu 2,5d sau 12h.",
+    "conversionNotExact": "{{value}} nu poate fi convertit în cealaltă unitate pe acest calendar. Unitatea nu s-a schimbat.",
     "unitInfo": "Unitatea aleasă aparține acestei activități. Zilele numără zile lucrătoare; orele numără ore de lucru din calendar. Un alt calendar nu modifică unitatea sau durata introdusă, dar poate modifica data de sfârșit."
   },
   "dialog": {

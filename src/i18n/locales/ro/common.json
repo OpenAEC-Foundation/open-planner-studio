@@ -11,7 +11,7 @@
   },
   "notifications": {
     "dismiss": "Închidere notificare",
-    "taskEditRevertBlocked": "O modificare făcută de asistentul de inteligență artificială sau de o extensie a intervenit între timp. Modificările activităților făcute înainte nu au fost anulate și rămân ca pași obișnuiți sub Anulare.",
+    "taskEditRevertBlocked": "O modificare făcută de clientul MCP sau de o extensie a intervenit între timp. Modificările activităților făcute înainte nu au fost anulate și rămân ca pași obișnuiți sub „Anulare”.",
     "openFailed": "Deschiderea fișierului a eșuat",
     "csvInvalidDate": "Fișierul CSV nu a fost deschis: data nerecunoscută „{{value}}” din rândul {{row}}, coloana „{{column}}”. Utilizați aaaa-ll-zz, zz-ll-aaaa sau zz/ll/aaaa.",
     "extGuideCallbackFailed": "Un pas al extensiei {{name}} a eșuat. Îndrumarea continuă.",
@@ -193,7 +193,7 @@
     },
     "xerArchiveUnusable": "Arhiva sursă XER din acest fișier nu este utilizabilă și a fost omisă; proiectul în sine a fost deschis complet.",
     "xerArchiveUnusableLine": "Arhiva sursă XER din acest fișier nu era utilizabilă și a fost omisă.",
-    "xerArchiveUnusableConsequence": "Planificarea, profilul de calcul și toate datele de proiect din IFC sunt complete. Lipsește: datele așa cum le-a salvat Primavera și proveniența sursei pentru AI și extensii. La salvare, fișierul se scrie fără arhivă; importați din nou fișierul .xer original ca să recuperați arhiva.",
+    "xerArchiveUnusableConsequence": "Planificarea, profilul de calcul și toate datele de proiect din IFC sunt complete. Lipsește: datele așa cum le-a salvat Primavera și proveniența sursei pentru clienții MCP și extensii. La salvare, fișierul se scrie fără arhivă; importați din nou fișierul .xer original ca să recuperați arhiva.",
     "xerArchiveReasonSchemaVersion": "Motiv: arhiva are o versiune de format sau un aspect necunoscut (un program de scriere mai nou sau altul).",
     "xerArchiveReasonHashMismatch": "Motiv: suma de control nu se potrivește cu octeții sursă; arhiva este deteriorată.",
     "xerArchiveReasonTruncated": "Motiv: arhiva este trunchiată; o parte din octeții sursă lipsește.",
@@ -401,7 +401,7 @@
     "showTaskTypesHint": "Alegeți pentru fiecare activitate ce se modifică atunci când se schimbă durata, unitățile de atribuire sau lucrul, ca Task Type în MS Project și Duration Type în P6. Dezactivat: durata și unitățile de atribuire rămân fixe. Un fișier cu tipuri de activitate sau cu lucru salvat le afișează chiar dacă această opțiune este dezactivată.",
     "allowMixedDayHour": "Permitere planificare pe ore și zile combinate",
     "defaultTaskDurationUnit": "Unitate implicită pentru activități noi",
-    "defaultTaskDurationUnitHint": "Stabilește dacă activitățile noi încep implicit în zile lucrătoare sau în ore de lucru. Activitățile existente nu se modifică.",
+    "defaultTaskDurationUnitHint": "Unitate pe zile: durata se măsoară în zile lucrătoare ale calendarului. Unitate pe ore: durata se măsoară în ore de lucru. Activitățile existente nu se modifică. O activitate cu muncă fixă folosește întotdeauna unitatea pe ore.",
     "defaultTaskDurationUnitDays": "Unitate în zile",
     "defaultTaskDurationUnitHours": "Unitate în ore",
     "defaultTaskDurationUnitLocked": "Profilul {{profile}} calculează o durată în ore. Prin urmare, activitățile noi primesc unitatea în ore.",
@@ -412,7 +412,7 @@
     "durationDisplayDays": "Întotdeauna zile",
     "durationDisplayHours": "Întotdeauna ore",
     "barSplitMode": "Bare de activitate la întreruperi",
-    "barSplitModeHint": "Dacă o bară de activitate se împarte vizual la zilele nelucrătoare.",
+    "barSplitModeHint": "Numai pentru activitățile pe ore: barele se împart în jurul pauzelor și al timpului nelucrător. Întreruperile reale ale activităților rămân mereu vizibile, indiferent de această setare.",
     "barSplitNever": "Niciodată împărțire",
     "barSplitSelection": "Împărțire la selectare",
     "barSplitAlways": "Întotdeauna împărțire",
@@ -475,11 +475,11 @@
     "fontFamilySerif": "Cu serife",
     "fontFamilyMono": "Monospațiat",
     "fontHint": "Aplicațiile web nu urmăresc automat setarea fontului din sistem. Alegeți aici fontul și dimensiunea pentru toată interfața.",
-    "aiModeSection": "Mod AI",
-    "aiMode": "Activare mod AI",
-    "aiModeHint": "Afișează fila AI cu puntea MCP, astfel încât asistenți de inteligență artificială să poată lucra cu planificarea prin Model Context Protocol. Dezactivarea oprește puntea.",
+    "aiModeSection": "Conexiune MCP",
+    "aiMode": "Activare conexiune MCP",
+    "aiModeHint": "Afișează fila MCP. Acolo porniți puntea MCP, astfel încât un client MCP să poată lucra cu planificarea dumneavoastră prin Model Context Protocol. Dezactivarea oprește puntea.",
     "aiAutostart": "Pornire automată bridge",
-    "aiAutostartHint": "Pornește puntea MCP imediat la lansarea aplicației, astfel încât un client AI să se poată conecta fără să deschideți mai întâi fila AI. Doar în aplicația desktop.",
+    "aiAutostartHint": "Pornește puntea MCP imediat la lansarea aplicației, astfel încât un client MCP să se poată conecta fără să deschideți mai întâi fila MCP. Doar în aplicația desktop.",
     "legacySection": "Funcții vechi",
     "classicViewControls": "Afișare butoane clasice de vizualizare",
     "classicViewControlsHint": "Readuce butoanele separate Coloane, Filtru, Grupare și Sortare pe fila Vizualizare. Coloanele alegeți acum cu semnul plus din antetul tabelului sau prin Tabel → Coloane…; filtrarea, gruparea și sortarea se află în butoanele de aspect și în dialogul de aspect."
@@ -511,9 +511,9 @@
     "configSnippetHint": "Lipiți acest text în configurația MCP a clientului dumneavoastră.",
     "tokenWarning": "Acest token oferă acces la planul deschis. Nu-l distribuiți altora.",
     "connectPrompt": "Prompt de conectare",
-    "connectPromptHint": "Lipiți acest text în agentul AI — acesta se va conecta singur.",
+    "connectPromptHint": "Lipiți acest text în clientul MCP — acesta se conectează singur.",
     "connectPromptText": "Conectați-vă la un server MCP care rulează pe calculatorul meu: nume {{name}}, transport HTTP streamable, URL {{url}}, cu antetul Authorization: Bearer {{token}}. Adăugați-l în configurația MCP (de exemplu ca bloc mcpServers) și conectați-vă. Apoi solicitați lista instrumentelor pentru verificare: ar trebui să vedeți aproximativ {{count}} instrumente cu prefixul {{prefix}}. Rezumați pe scurt ce puteți face cu acest server. Înainte de a modifica ceva, citiți mai întâi ghidul de planificare prin instrumentul planner_get_planning_guide.",
-    "statusDot": "Bridge AI: {{status}}"
+    "statusDot": "Puntea MCP: {{status}}"
   },
   "aiSafety": {
     "pause": "Pauzare",
@@ -523,7 +523,7 @@
     "readOnlyHint": "Toate instrumentele care modifică datele sunt refuzate cât timp este activată această opțiune.",
     "autoBackupOn": "Backup automat: activat",
     "autoBackupOff": "Backup automat: oprit",
-    "autoBackupHint": "Creează automat un backup IFC înainte de prima modificare AI din fiecare document.",
+    "autoBackupHint": "Creează automat un backup IFC înainte de prima modificare MCP din fiecare document.",
     "backupNow": "Creare backup",
     "openFolder": "Deschidere dosar backup",
     "backupOk": "Backup creat: {{name}}",
@@ -531,10 +531,10 @@
     "openErr": "Deschiderea dosarului a eșuat: {{error}}"
   },
   "aiActivity": {
-    "title": "Activitate AI",
+    "title": "Activitate MCP",
     "panelButton": "Panou de activitate",
     "clear": "Ștergere",
-    "empty": "Încă nu există activitate AI. Apelurile către bridge apar aici.",
+    "empty": "Încă nu există activitate MCP. Apelurile către punte apar aici.",
     "args": "Argumente",
     "result": "Răspuns"
   },
@@ -788,7 +788,7 @@
     "calendars": "Calendare",
     "noCalendars": "Nu există încă calendare în bibliotecă.",
     "noResources": "Nu există încă resurse în bibliotecă.",
-    "promoteHint": "Promovați un calendar sau o resursă de proiect în bibliotecă cu butonul „+ Din proiect” de mai sus.",
+    "promoteHint": "Promovați un calendar de proiect în biblioteca de resurse cu butonul „+ Din proiect” de mai sus.",
     "promoteFromProject": "Din proiect",
     "alreadyLinked": "deja legat",
     "editItem": "Editare",
@@ -1232,7 +1232,7 @@
     "nav": {
       "reportTab": "Trecere la fila Raport",
       "switchDocument": "Comutare document",
-      "scrollToToday": "Derulare la azi",
+      "scrollToToday": "Salt la data raportului de stare sau la azi",
       "help": "Deschidere ajutor"
     },
     "grid": {
@@ -1451,7 +1451,7 @@
   "conventions": {
     "preserveActualDatesInBackwardPass": {
       "label": "Păstrare date reale în calculul înapoi",
-      "help": "O activitate începută sau finalizată își păstrează datele înregistrate și la capătul târziu. Un succesor finalizat nu împinge un predecesor nefinalizat înapoi în trecut."
+      "help": "Cu data raportului de stare, o activitate finalizată își păstrează datele reale pe latura târzie. Un succesor finalizat nu împinge un predecesor nefinalizat înapoi în trecut. O activitate în curs își păstrează începutul efectiv ca început târziu, cu excepția cazului în care „Activitate în curs: început cel mai devreme = începutul lucrului rămas” este activată. O activitate finalizată într-un punct sau o fereastră a datei raportului de stare poate totuși transmite presiune prin dependențe."
     },
     "clampNegativeFreeFloat": {
       "label": "Marjă liberă niciodată negativă",
@@ -1459,103 +1459,103 @@
     },
     "p6ZeroDurationUsesPlannedBoundary": {
       "label": "Jalonul urmează limita planificată a calendarului",
-      "help": "Un jalon fără durată rămâne pe limita de calendar planificată în fișier: un început de zi rămâne jalon de început, iar un sfârșit de interval poate ajunge la sfârșitul predecesorului."
+      "help": "Doar la planificarea pe ore. Un jalon fără durată urmează limita de calendar planificată: un început de zi rămâne jalon de început, iar un sfârșit de interval poate ajunge la sfârșitul predecesorului. Și o activitate obișnuită cu durată zero poate primi o pereche de limite, dar doar cu proveniență XER ca Task Dependent sau Resource Dependent și cu un sfârșit planificat înainte de începutul planificat."
     },
     "p6UseTaskPlannedStartFloor": {
       "label": "Început planificat ca limită inferioară suplimentară",
-      "help": "Începutul planificat din fișier acționează ca limită inferioară când atât începutul, cât și sfârșitul sunt cu mai mult de o zi calendaristică mai târziu decât permite rețeaua."
+      "help": "Începutul planificat contează ca limită inferioară atunci când atât începutul, cât și sfârșitul sunt cu mai mult de o zi calendaristică mai târziu decât permite rețeaua. Pentru un jalon de sfârșit cu sfârșit planificat înainte de începutul planificat, este suficient un început planificat mai târziu. Nu se aplică unei activități în curs, dacă este activată „Începutul planificat nu este limită pentru o activitate în curs”, și nici unei activități ALAP nepornite, plasate din succesorii ei. Nu necesită proveniență XER."
     },
     "p6FinishMilestoneBoundaryWindow": {
       "label": "Jalon de sfârșit ca fereastră de limită",
-      "help": "Un jalon de sfârșit poate fi pe două limite de calendar vecine: început cel mai devreme la începutul unui interval, sfârșit cel mai devreme la sfârșitul intervalului anterior."
+      "help": "Un jalon de sfârșit fără durată primește o fereastră de limită doar dacă sfârșitul său planificat este înainte de începutul său planificat, iar începutul calculat încă este egal cu acel început planificat. Un jalon de sfârșit cu predecesori și fără succesor primește și datele sale cele mai devreme drept date târzii, cu excepția cazului în care „Marja se calculează până la sfârșitul proiectului” este activată. Este observat doar în rezultatele P3; este dezactivat în fiecare profil integrat."
     },
     "p6PreserveActualInstants": {
       "label": "Păstrare exactă a datelor reale",
-      "help": "Începutul efectiv și sfârșitul efectiv înregistrate nu se mută la marginea unui interval de lucru."
+      "help": "Doar pentru activități cu proveniență păstrată dintr-un fișier .xer. Începutul efectiv și sfârșitul efectiv înregistrate nu se mută la marginea unui interval de lucru."
     },
     "p6UseRemainingStartForProgress": {
       "label": "Activitate în curs: început cel mai devreme = începutul lucrului rămas",
-      "help": "Începutul cel mai devreme și începutul târziu ale unei activități în curs arată unde începe lucrul rămas, nu începutul efectiv istoric. La calculul înapoi pe o dependență început-început, se ia în calcul doar durata rămasă."
+      "help": "Începutul cel mai devreme și începutul târziu ale unei activități în curs arată unde începe lucrul rămas. La calculul înapoi pe o dependență început-început, se ia în calcul doar durata rămasă, dar numai la planificarea pe ore, cu început efectiv și progres între 0 și 100%, cu o durată rămasă cunoscută mai mică decât durata planificată, fără timp scurs și fără întreruperi în planificare. Această regulă suplimentară pentru durata rămasă nu se aplică dependențelor început-sfârșit."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Moment exact al restricției la un jalon",
-      "help": "O restricție de dată și oră la un jalon fără durată este un punct exact, chiar și la începutul unui interval."
+      "help": "Doar la planificarea pe ore, pe latura târzie, pentru o restricție cu dată și oră de tip SNLT, MSO, FNLT sau MFO la un jalon fără durată. Momentul restricției rămâne exact, chiar și la începutul unui interval de lucru. În calculul înainte, un astfel de moment este deja exact în fiecare profil."
     },
     "resumeFromActualElapsed": {
       "label": "Lucrul rămas se reia după timpul scurs",
-      "help": "O activitate în curs își reia lucrul rămas la începutul efectiv plus timpul scurs, nu la data raportului de stare."
+      "help": "O activitate în curs își reia lucrul rămas cel mai devreme la începutul efectiv plus timpul scurs. Data raportului de stare și limita predecesorului rămân limite inferioare; se aplică cea mai mare dintre cele trei. Nu se aplică la „Progress Override”, la activități fără lucru rămas sau acolo unde aplicația folosește o dată de reluare validă din fișier (cu cel mult o atribuire)."
     },
     "unstartedIgnoresStatusDate": {
       "label": "Activități nepornite nu se mută la data raportului de stare",
-      "help": "O activitate care nu a început nu se mută automat la data raportului de stare sau după ea."
+      "help": "Doar cu data raportului de stare, pentru o activitate fără progres. Activitatea nu se mută automat la data raportului de stare sau după aceasta."
     },
     "p6RelationFinishBoundary": {
       "label": "Succesorul începe la limita de sfârșit",
-      "help": "La o dependență sfârșit-început fără decalaj, în care succesorul începe în fișier exact la sfârșitul predecesorului, la sfârșitul unui interval, succesorul începe la acel sfârșit și nu la începutul intervalului următor. Fișierul nu marchează acest lucru: aplicația recunoaște singură o astfel de dependență când deschide un fișier .xer. O dependență pe care o adăugați singur nu intră sub această regulă. La calculul înapoi, succesorul își afișează începutul târziu ca începutul unui interval de lucru."
+      "help": "Doar la planificarea pe ore, pe calendarul predecesorului, și pentru o dependență pe care aplicația o recunoaște la deschiderea unui fișier .xer. Pentru o dependență sfârșit-început fără decalaj, la care succesorul din fișier începe exact la sfârșitul intervalului predecesorului, succesorul începe la acel sfârșit. O dependență pe care o legați dumneavoastră nu intră sub această regulă. La calculul înapoi, începutul târziu al succesorului rămâne un început de interval."
     },
     "p6BackwardLagFinishBoundary": {
       "label": "Decalaj înapoi de la o limită de sfârșit",
-      "help": "Dacă, la calculul înapoi, un decalaj de timp de lucru se scade de la o limită de sfârșit și ajunge exact la începutul unui interval, rezultatul cade pe limita de sfârșit anterioară. La o dependență sfârșit-sfârșit fără decalaj, un sfârșit târziu la sfârșitul unui interval rămâne pe această limită de sfârșit."
+      "help": "Doar la planificarea pe ore, pe calendarul în care se calculează decalajul. Dacă, la calculul înapoi, un decalaj pozitiv de timp de lucru se scade dintr-o limită exactă de sfârșit și ajunge la primul început de interval al unei zile, rezultatul cade pe limita de sfârșit anterioară. Și la o dependență sfârșit-sfârșit fără decalaj, un sfârșit târziu la sfârșitul unui interval rămâne pe această limită. Nu se aplică decalajului în timp scurs."
     },
     "p6CompletedDataDateWindow": {
       "label": "Activitate finalizată în fereastra datei raportului de stare",
-      "help": "O activitate finalizată primește date cele mai devreme în fereastra datei raportului de stare, iar sfârșitul ei contează pentru sfârșitul proiectului."
+      "help": "Doar cu data raportului de stare, pentru activități finalizate fără subactivități dintr-un fișier .xer, cu fereastră țintă păstrată, tip de progres durată și tip P6 Task Dependent sau Resource Dependent cu Fixed Duration & Units; fără jaloane cu durată zero. Necesită „Activitate în curs: început cel mai devreme = începutul lucrului rămas”. Întreruperea/reluarea este permisă doar la Task Dependent, cu o pereche validă, cu sfârșit efectiv între sfârșitul planificat și data raportului de stare, reluare cel târziu la sfârșitul efectiv, iar „Păstrarea datelor reale în calculul înapoi” este activată. Activitatea primește date cele mai devreme în fereastra datei raportului de stare, iar sfârșitul ei contează pentru sfârșitul proiectului."
     },
     "p6CompletedLoeActualFinish": {
       "label": "LOE finalizat prin sfârșitul efectiv",
-      "help": "O activitate LOE (level of effort) finalizată, cu o singură intrare început-început, urmează traseul prin sfârșitul efectiv."
+      "help": "Doar cu data raportului de stare, pentru o activitate LOE finalizată dintr-un fișier .xer, cu durată pozitivă, tip de progres durată și tip P6 Fixed Duration & Units/Time, cu fereastră țintă completă și sfârșit efectiv între sfârșitul planificat și data raportului de stare. Doar dependențe început-început la intrare, cel puțin una, fără succesor și fără întrerupere/reluare. Necesită „Activitate în curs: început cel mai devreme = începutul lucrului rămas”, „Păstrarea datelor reale în calculul înapoi” și „Păstrare exactă a datelor reale”. Activitatea LOE își urmează sfârșitul efectiv, în loc de traseul prin hamac."
     },
     "p6OpenLoeTargetSpan": {
       "label": "LOE nepornit ia fereastra țintă",
-      "help": "O activitate LOE (level of effort) care nu a început ia fereastra ei țintă drept durată."
+      "help": "Doar la planificarea pe ore, pentru o activitate LOE/hamac nepornită dintr-un fișier .xer, cu progres 0%, durată pozitivă, tip de progres durată și tip P6 Fixed Duration & Units; fără date reale sau întrerupere/reluare. Necesită o fereastră țintă completă și pozitivă, al cărei început este egal cu limita dependenței, iar timpul de lucru se abate de la durată cu cel mult o zi lucrătoare. Cel puțin o dependență început-început la intrare și o dependență sfârșit-sfârșit la ieșire, doar aceste tipuri de dependență și fără decalaj. Atunci LOE folosește fereastra țintă drept durată. Dovadă slabă: un singur fișier."
     },
     "p6CompletedPredecessorAtDataDate": {
       "label": "Predecesor finalizat nu reține după data raportului de stare",
-      "help": "Dacă sfârșitul efectiv al unui predecesor finalizat este după data raportului de stare, succesorii lui pot totuși începe la data raportului de stare."
+      "help": "Doar la planificarea pe ore și cu data raportului de stare, pentru un predecesor finalizat cu sfârșit efectiv. Dependențele sfârșit-început și sfârșit-sfârșit se calculează cel mult de la limita de lucru chiar înainte de data raportului de stare; un sfârșit efectiv mai târziu nu reține succesorul. Dependențele început-început și început-sfârșit rămân la începutul efectiv. O activitate finalizată cu propriul punct al datei raportului de stare sau cu o fereastră deplasată a datei raportului de stare urmează propria limită."
     },
     "p6FreeFloatOnOwnCalendar": {
       "label": "Marjă liberă în propriul calendar",
-      "help": "Marja liberă a unei activități nepornite se calculează pe dependență, în calendarul activității însăși, nu în cel al succesorului. Acest lucru se aplică la sfârșit-început, început-început și sfârșit-sfârșit, inclusiv cu un decalaj de timp de lucru în calendarul predecesorului. O activitate începută se calculează doar la sfârșit-început, fără decalaj."
+      "help": "Doar la planificarea pe ore, pentru activitățile nefinalizate și dependențele cu marjă liberă calculată. Pentru o activitate nepornită, marja liberă se calculează în calendarul ei propriu la sfârșit-început, început-început și sfârșit-sfârșit, fără decalaj în timp scurs sau decalaj procentual. Un decalaj diferit de 0 necesită calendarul de decalaj al predecesorului. Pentru o activitate începută se aplică doar sfârșit-început, fără decalaj. Marja liberă și marcajul de legătură determinantă ale dependenței în sine nu se schimbă."
     },
     "p6CompletedRemainingLag": {
       "label": "Decalajul scurs al unui predecesor finalizat nu se numără",
-      "help": "La partea târzie, din decalajul de după un predecesor finalizat se ia în calcul doar partea care nu s-a scurs încă la data raportului de stare."
+      "help": "Doar la planificarea pe ore, pe calendarul de decalaj și cu data raportului de stare, pentru predecesorii finalizați dintr-un fișier .xer, cu sfârșit efectiv înainte de data raportului de stare și cu un punct sau o fereastră a datei raportului de stare. Din decalajul pozitiv în timp de lucru se ia în calcul doar partea care nu s-a scurs încă. Se aplică pe partea târzie și înainte, pornind de la un punct al datei raportului de stare sau de la o fereastră cu rest zero deplasată. O activitate pe datele ei reale obișnuite păstrează decalajul întreg; nu se aplică decalajului în timp scurs."
     },
     "p6CompletedOutOfSequenceWindow": {
       "label": "Activitate finalizată cu progres în afara secvenței așteaptă predecesorii",
-      "help": "O activitate finalizată al cărei predecesor nu este încă gata primește fereastra ei cu durată zero după acel predecesor, nu la data raportului de stare (P6: Retained Logic). Funcționează doar dacă sunt active și „Activitate finalizată în fereastra datei raportului de stare” și „Activitate în curs: început cel mai devreme = începutul lucrului rămas”."
+      "help": "Doar la planificarea pe ore și cu data raportului de stare, pe calea XER a „Activitate finalizată în fereastra datei raportului de stare”; această convenție de calcul și „Activitate în curs: început cel mai devreme = începutul lucrului rămas” trebuie să fie active. Nu se aplică la Progress Override. Prin intrările sfârșit-început sau început-început, activitatea primește cea mai târzie valoare dintre limita datei raportului de stare și limita unui predecesor nefinalizat sau a unui predecesor cu o fereastră a datei raportului de stare deplasată. Predecesorii finalizați obișnuiți nu se iau în calcul."
     },
     "p6CompletedPhysicalAtDataDate": {
       "label": "Activitate finalizată cu progres fizic se află la data raportului de stare",
-      "help": "O activitate finalizată cu progres fizic apare ca un singur punct la data raportului de stare, sau mai târziu dacă un predecesor o cere, în loc de datele ei reale. Este măsurat doar pentru progres fizic. Pentru alte tipuri de procent finalizare (standard P6: durată) acest comportament nu a fost măsurat și rămâne dezactivat."
+      "help": "Doar la planificarea pe ore și cu data raportului de stare, pentru activitățile finalizate fără subactivități și jaloanele cu durată zero dintr-un fișier .xer de tip P6 Task Dependent, Start Milestone sau Finish Milestone, cu fereastra țintă păstrată, tip de procent finalizare fizic, sfârșit efectiv cel târziu la data raportului de stare și fără întrerupere și reluare. Necesită „Activitate în curs: început cel mai devreme = începutul lucrului rămas”. Activitatea se află ca un singur punct la data raportului de stare, sau mai târziu dacă un predecesor o impune. Pentru alte tipuri de procent finalizare, inclusiv durată, acest lucru nu este măsurat și rămâne dezactivat."
     },
     "p6InProgressStartLagElapsed": {
       "label": "Decalajul SS scurs dintr-un predecesor în curs nu se numără",
-      "help": "La o dependență început-început dintr-o activitate deja începută, din decalaj se ia în calcul doar partea care nu s-a scurs încă de la începutul efectiv, la data raportului de stare."
+      "help": "Doar la planificarea pe ore, pe calendarul de decalaj și cu data raportului de stare, pentru o dependență început-început cu decalaj pozitiv în timp de lucru, de la un predecesor nefinalizat cu început efectiv înainte de data raportului de stare. Necesită „Activitate în curs: început cel mai devreme = începutul lucrului rămas”. Se ia în calcul doar partea decalajului care nu s-a scurs încă. Opțiunea „Calculare decalaj SS de la un predecesor în curs, pornind de la” alege punctul de plecare. Nu se aplică decalajului în timp scurs."
     },
     "p6FinishFinishStartMilestoneLateFinish": {
       "label": "Dependență sfârșit-sfârșit către un jalon de început se leagă de jalonul însuși",
-      "help": "O dependență sfârșit-sfârșit către un jalon de început se întinde până la jalonul în sine, nu până la începutul zilei jalonului: sfârșitul târziu al predecesorului poate ajunge până la sfârșitul târziu al jalonului."
+      "help": "Doar la planificarea pe ore, pe ambele capete ale unei dependențe sfârșit-sfârșit către un jalon de început fără durată. Dependența se leagă de jalonul în sine: sfârșitul târziu al predecesorului poate ajunge până la sfârșitul târziu al jalonului. Marja liberă se poate schimba și ea; începutul cel mai devreme al jalonului rămâne. Nu se aplică jaloanelor de sfârșit sau traseului înapoi cu durată rămasă zero."
     },
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "Începutul planificat nu este limită pentru o activitate în curs",
-      "help": "Lucrul rămas al unei activități începute începe la data raportului de stare și imediat după predecesorii ei, chiar dacă începutul ei planificat este mai târziu."
+      "help": "Doar pentru o activitate cu început efectiv și cu progres sub 100%, când „Început planificat ca limită inferioară suplimentară” este activ. Începutul ei planificat nu adaugă o limită inferioară pentru lucrul rămas; data raportului de stare și predecesorii ei rămân decisivi."
     },
     "p6LateFinishOnOwnCalendar": {
       "label": "Sfârșit târziu în propriul calendar",
-      "help": "Dacă sfârșitul târziu impus de un succesor cade în afara timpului de lucru al activității, acesta devine sfârșitul perioadei de lucru anterioare din propriul calendar."
+      "help": "Doar la planificarea pe ore, când limita unui succesor stabilește sfârșitul târziu și nicio restricție mai strânsă sau niciun termen limită nu înlocuiește acea limită. Dacă limita cade în afara timpului de lucru propriu, sfârșitul târziu devine sfârșitul perioadei de lucru anterioare din calendarul propriu. Nu se aplică unui sfârșit târziu stabilit de sfârșitul proiectului."
     },
     "p6ProgressOverrideIgnoresStartedSuccessor": {
       "label": "Progress Override ignoră un succesor început și în calculul înapoi",
-      "help": "Sub Progress Override, dependența către un succesor deja început nu se ia în calcul la datele târzii și la marja liberă a unui predecesor care nu este încă finalizat."
+      "help": "Doar la Progress Override, pentru un predecesor nefinalizat și un succesor care a început, dar nu este finalizat (cu început efectiv sau cu progres). Dependența dintre ei nu se ia în calcul la datele târzii și la marja liberă a predecesorului."
     },
     "p6FinishNotBeforeFinishFinishBound": {
       "label": "Sfârșitul cel mai devreme nu înaintea unei limite sfârșit-sfârșit",
-      "help": "La o dependență sfârșit-sfârșit, sfârșitul cel mai devreme al succesorului nu cade niciodată, în timp calendaristic, înaintea limitei stabilite de predecesor. Dacă această limită cade într-o zi nelucrătoare a succesorului, sfârșitul devine începutul următoarei perioade de lucru."
+      "help": "Corecție de date: la o dependență sfârșit-sfârșit cu decalaj în timp de lucru, fără hamace, și cu planificarea pe ore pe calendarul succesorului (la lucru rămas: calendarul de progres) și pe calendarul de decalaj. Dacă limita dependenței este mai târzie decât sfârșitul cel mai devreme, fără timp de lucru între ele, atunci doar sfârșitul se mută la prima limită de timp de lucru aflată la sau după această limită. Se aplică succesorilor planificați automat, nepornite și în curs; la activitățile nepornite, o fixare fermă a sfârșitului are prioritate. Marjă liberă: separat, un predecesor nefinalizat se ia în calcul la sfârșit-sfârșit fără decalaj și fără decalaj procentual, cu marja liberă existentă a dependenței și cu un sfârșit cel mai devreme calculat al succesorului; în calendarul ei de ore, de la sfârșitul ei cel mai devreme până la sfârșitul cel mai devreme al succesorului. Aceasta se aplică și la decalajul zero în timp scurs, fără o condiție suplimentară de ore pe calendarul succesorului sau al decalajului. Hamace și activități planificate manual rămân în final cu marja liberă 0."
     },
     "p6AlapPositionedFromSuccessors": {
       "label": "Activități ALAP cât mai târziu permit succesorii",
-      "help": "O activitate nepornită, cu restricția „cât mai târziu posibil”, primește sfârșitul în minutul în care succesorii au nevoie de ea. Succesorii se calculează primii, astfel încât lanțul se închide. Începutul ei planificat nu contează; o activitate fără predecesor nu începe atunci mai devreme decât data raportului de stare."
+      "help": "Doar la planificarea pe ore, pentru o activitate nepornită, care nu este planificată manual, cu restricția „cât mai târziu posibil” (ALAP). Datele cele mai devreme ale succesorilor ei îi stabilesc poziția până la minut; succesorii se calculează primii. Începutul ei planificat nu se ia în calcul; predecesorii, data raportului de stare și o a doua restricție rămân valabile. Fără succesor, ea folosește sfârșitul târziu. Pasul ALAP obișnuit rămâne disponibil în fiecare profil."
     },
     "milestoneWithoutPredecessorAtDayEnd": {
       "label": "Jaloane izolate la sfârșitul zilei lucrătoare",
@@ -1615,7 +1615,7 @@
     "showHelp": "Explicație pentru „{{name}}”",
     "sourceOptions": {
       "title": "Setări din fișierul sursă",
-      "intro": "Aceste opțiuni de calcul provin dintr-un fișier Primavera P6 (.xer). Sunt utilizate la calcul, dar nu pot fi modificate aici.",
+      "intro": "Acestea sunt opțiuni de calcul doar în citire, salvate cu acest proiect. La importul dintr-un fișier Primavera P6 (.xer), aplicația le preia din fișierul sursă. Funcționează doar dacă sunt îndeplinite condițiile aferente.",
       "useExpectedFinishDates": "Utilizare date de sfârșit preconizate (P6: Use Expected Finish Dates)",
       "useProjectEndDateForFloat": "Marja se calculează până la sfârșitul proiectului",
       "p6CompletedLateFromRemainingWindow": "Activitate finalizată: date târzii de la data raportului de stare",
@@ -1624,7 +1624,7 @@
     "requires": {
       "xerOrigin": "numai activități din .xer",
       "hourPlanning": "numai la planificarea pe ore",
-      "hourPlanningTitle": "Funcționează numai cu planificarea pe ore: un calendar cu intervale de lucru, o activitate în ore sau calendarul de decalaj setat pe 24 de ore."
+      "hourPlanningTitle": "Funcționează doar la planificarea pe ore, pe calendarul pe care calculează regula: un calendar cu intervale de lucru sau o durată a activității în ore. Pentru decalaj poate conta și calendarul de decalaj de 24 de ore."
     },
     "optionsDeviate": {
       "line": "{{field}}: {{current}} (implicit: {{standard}})",

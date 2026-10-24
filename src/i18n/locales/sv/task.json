@@ -182,7 +182,7 @@
       "calendar": "Välj en kalender i listan.",
       "calendarNotFound": "Den valda kalendern finns inte.",
       "calendarHours": "Kalendern för den här uppgiften har inga arbetstimmar per dag.",
-      "durationConversionNotExact": "Den här varaktigheten kan inte exakt omräknas till den andra enheten.",
+      "durationConversionNotExact": "Den här varaktigheten kan inte räknas om till den andra enheten i den här kalendern.",
       "fixedWorkIsHours": "En uppgift med fast arbete mäts alltid i timmar.",
       "milestoneRequired": "Det här fältet gäller bara för milstolpar.",
       "milestoneUnavailable": "En sammanfattningsuppgift med underuppgifter kan inte bli en milstolpe.",
@@ -329,8 +329,8 @@
     "unit": "Varaktighetsenhet",
     "days": "Dagar",
     "hours": "Timmar",
-    "invalid": "Ange ett helt antal dagar eller timmar, till exempel 2d eller 12h.",
-    "conversionNotExact": "{{value}} motsvarar inte hela dagar i den här kalendern. Enheten har inte ändrats.",
+    "invalid": "Ange ett antal dagar eller timmar, till exempel 2,5d eller 12h.",
+    "conversionNotExact": "{{value}} kan inte räknas om till den andra enheten i den här kalendern. Enheten har inte ändrats.",
     "unitInfo": "Den valda enheten hör till den här uppgiften. Dagar räknar arbetsdagar; timmar räknar arbetstider i kalendern. En annan kalender ändrar varken enheten eller den angivna varaktigheten. Slutdatumet kan däremot ändras."
   },
   "dialog": {

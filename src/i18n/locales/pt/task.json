@@ -182,7 +182,7 @@
       "calendar": "Escolha um calendário da lista.",
       "calendarNotFound": "O calendário escolhido não existe.",
       "calendarHours": "O calendário desta tarefa não tem horas de trabalho por dia.",
-      "durationConversionNotExact": "Esta duração não pode ser convertida exatamente para a outra unidade.",
+      "durationConversionNotExact": "Esta duração não pode ser convertida para a outra unidade neste calendário.",
       "fixedWorkIsHours": "Uma tarefa com trabalho fixo usa sempre a medida em horas.",
       "milestoneRequired": "Este campo aplica-se apenas a marcos.",
       "milestoneUnavailable": "Uma tarefa de resumo com subtarefas não pode tornar-se um marco.",
@@ -333,8 +333,8 @@
     "unit": "Unidade de duração",
     "days": "Dias",
     "hours": "Horas",
-    "invalid": "Introduza um número inteiro de dias ou horas, por exemplo 2d ou 12h.",
-    "conversionNotExact": "{{value}} não corresponde a dias completos neste calendário. A unidade não foi alterada.",
+    "invalid": "Introduza um número de dias ou horas, por exemplo 2,5d ou 12h.",
+    "conversionNotExact": "{{value}} não pode ser convertido para a outra unidade neste calendário. A unidade não foi alterada.",
     "unitInfo": "A unidade escolhida pertence a esta tarefa. Os dias contam dias úteis; as horas contam horas de trabalho no calendário. Outro calendário não altera a unidade nem a duração introduzida, mas pode alterar a data de fim."
   },
   "dialog": {

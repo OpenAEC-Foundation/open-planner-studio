@@ -11,7 +11,7 @@
   },
   "notifications": {
     "dismiss": "Stänga meddelandet",
-    "taskEditRevertBlocked": "En ändring från AI-assistenten eller ett tillägg kom emellan. Uppgiftsändringarna som gjordes före den har inte ångrats och finns kvar som vanliga steg under Ångra.",
+    "taskEditRevertBlocked": "En ändring från MCP-klienten eller ett tillägg kom emellan. Uppgiftsändringarna som gjordes före den har inte ångrats och finns kvar som vanliga steg under ”Ångra”.",
     "openFailed": "Det gick inte att öppna filen",
     "csvInvalidDate": "CSV öppnades inte: datumet ”{{value}}” kan inte läsas på CSV-rad {{row}}, kolumn ”{{column}}”. Använd åååå-mm-dd, dd-mm-åååå eller dd/mm/åååå.",
     "extGuideCallbackFailed": "Ett steg från tillägget {{name}} gav ett fel. Guiden fortsätter.",
@@ -129,17 +129,17 @@
     "dragDatesAreActual": "”{{name}}” är klar: början och slut är de verkliga datumen och flyttas inte. Ändra dem via framdriften.",
     "referencesClearedOnPaste_one": "{{count}} referens fanns inte i det här dokumentet och har tagits bort (en uppgiftskalender, egen arbetskategori, uppgiftskod eller eget fält från källdokumentet).",
     "referencesClearedOnPaste_other": "{{count}} referenser fanns inte i det här dokumentet och har tagits bort (uppgiftskalendrar, egna arbetskategorier, uppgiftskoder eller egna fält från källdokumentet).",
-    "milestoneRefusedAssignments": "'{{task}}' har resurstilldelningar och kan inte bli en milstolpe. Ta först bort tilldelningarna.",
+    "milestoneRefusedAssignments": "”{{task}}” har resurstilldelningar och kan inte bli en milstolpe. Ta först bort tilldelningarna.",
     "milestoneRefusedAssignmentsMany_one": "{{count}} uppgift har resurstilldelningar och kan inte bli en milstolpe. Ta bort tilldelningarna först.",
     "milestoneRefusedAssignmentsMany_other": "{{count}} uppgifter har resurstilldelningar och kan inte bli milstolpar. Ta bort tilldelningarna först.",
-    "milestoneRefusedSummary": "'{{task}}' är en sammanfattningsuppgift med underuppgifter och kan inte bli en milstolpe.",
+    "milestoneRefusedSummary": "”{{task}}” är en sammanfattningsuppgift med underuppgifter och kan inte bli en milstolpe.",
     "milestoneRefusedSummaryMany_one": "{{count}} uppgift är en sammanfattningsuppgift med underuppgifter och kan inte bli en milstolpe.",
     "milestoneRefusedSummaryMany_other": "{{count}} uppgifter är sammanfattningsuppgifter med underuppgifter och kan inte bli milstolpar.",
     "assignmentsMovedToSubtask_one": "Tilldelningen flyttades till underuppgiften '{{child}}'.",
     "assignmentsMovedToSubtask_other": "{{count}} tilldelningar flyttades till underuppgiften '{{child}}'.",
     "assignmentsMovedToSubtasks_one": "Tilldelningarna för {{count}} uppgift flyttades till en underuppgift.",
     "assignmentsMovedToSubtasks_other": "Tilldelningarna för {{count}} uppgifter flyttades till underuppgifter.",
-    "milestoneClearedOnPhase": "'{{phase}}' är inte längre en milstolpe.",
+    "milestoneClearedOnPhase": "”{{phase}}” är inte längre en milstolpe.",
     "milestoneClearedOnPhaseMany_one": "{{count}} uppgift är inte längre en milstolpe.",
     "milestoneClearedOnPhaseMany_other": "{{count}} uppgifter är inte längre milstolpar.",
     "phaseRefusedNoAssignableChild": "'{{phase}}' kan inte bli en sammanfattningsuppgift. Dess tilldelningar har ingenstans att ta vägen: ingen av de nya underuppgifterna kan ha tilldelningar (milstolpe eller sammanfattningsuppgift). Inget har ändrats.",
@@ -158,7 +158,7 @@
     },
     "xerArchiveUnusable": "XER-källarkivet i den här filen är oanvändbart och har utelämnats. Projektet självt öppnades helt.",
     "xerArchiveUnusableLine": "XER-källarkivet i den här filen var oanvändbart och har utelämnats.",
-    "xerArchiveUnusableConsequence": "Tidsplanen, beräkningsprofilen och all projektdata från IFC är kompletta. Det som saknas är de datum som Primavera sparade och källans ursprung för AI och tillägg. Om du sparar skrivs filen utan arkivet. Importera den ursprungliga .xer-filen igen för att få tillbaka arkivet.",
+    "xerArchiveUnusableConsequence": "Tidsplanen, beräkningsprofilen och all projektdata från IFC är kompletta. Det som saknas är de datum som Primavera sparade och källans ursprung för MCP-klienter och tillägg. Om du sparar skrivs filen utan arkivet. Importera den ursprungliga .xer-filen igen för att få tillbaka arkivet.",
     "xerArchiveReasonSchemaVersion": "Orsak: arkivet har en okänd schemaversion eller layout (en nyare eller annan skrivare).",
     "xerArchiveReasonHashMismatch": "Orsak: kontrollsumman stämmer inte med källbytena. Arkivet är skadat.",
     "xerArchiveReasonTruncated": "Orsak: arkivet är avkortat. En del av källbytena saknas.",
@@ -342,7 +342,7 @@
     "showTaskTypesHint": "Välj per uppgift vad som ändras när varaktighet, tilldelningsenhet eller arbete ändras, som Task Type i MS Project och Duration Type i P6. Av: varaktighet och tilldelningsenhet står kvar. En fil med uppgiftstyper eller sparat arbete visar dem även när detta är av.",
     "allowMixedDayHour": "Tillåt blandad dag/timplanering",
     "defaultTaskDurationUnit": "Standardenhet för nya uppgifter",
-    "defaultTaskDurationUnitHint": "Avgör om nya uppgifter börjar i arbetsdagar eller arbetstimmar. Befintliga uppgifter ändras inte.",
+    "defaultTaskDurationUnitHint": "Dagsenhet: en varaktighet räknas i kalenderns arbetsdagar. Timenhet: en varaktighet räknas i arbetstimmar. Befintliga uppgifter ändras inte. En uppgift med fast arbete använder alltid timenheten.",
     "defaultTaskDurationUnitDays": "Dagmått",
     "defaultTaskDurationUnitHours": "Timmått",
     "defaultTaskDurationUnitLocked": "Profilen {{profile}} räknar en varaktighet i timmar. Nya uppgifter får därför timmått.",
@@ -353,7 +353,7 @@
     "durationDisplayDays": "Alltid dagar",
     "durationDisplayHours": "Alltid timmar",
     "barSplitMode": "Uppgiftsbalkar vid avbrott",
-    "barSplitModeHint": "Om en uppgiftsbalk visuellt delas upp runt lediga dagar.",
+    "barSplitModeHint": "Gäller bara för timuppgifter: balkarna delas upp runt raster och tid utanför arbetstiden. Verkliga avbrott i uppgifter visas alltid, oavsett den här inställningen.",
     "barSplitNever": "Dela aldrig upp",
     "barSplitSelection": "Dela upp vid val",
     "barSplitAlways": "Dela alltid upp",
@@ -416,11 +416,11 @@
     "fontFamilySerif": "Med serifer",
     "fontFamilyMono": "Monospace",
     "fontHint": "Webbappar följer inte automatiskt systemets typsnittsinställning. Välj typsnitt och storlek för hela gränssnittet här.",
-    "aiModeSection": "AI-läge",
-    "aiMode": "Aktivera AI-läge",
-    "aiModeHint": "Visar AI-fliken med MCP-bryggan, så att AI-assistenter kan arbeta med din tidsplan via Model Context Protocol. Om du stänger av det stoppas bryggan.",
+    "aiModeSection": "MCP-anslutning",
+    "aiMode": "Tillåt MCP-anslutning",
+    "aiModeHint": "Visar fliken MCP. Där startar du MCP-bryggan, så att en MCP-klient kan arbeta med din tidsplan via Model Context Protocol. Om du stänger av det stoppas bryggan.",
     "aiAutostart": "Starta bryggan automatiskt",
-    "aiAutostartHint": "Gör MCP-bryggan aktiv direkt när appen startar, så att en AI-klient kan koppla upp sig utan att du först öppnar AI-fliken. Endast i desktopappen.",
+    "aiAutostartHint": "Gör MCP-bryggan aktiv direkt när appen startar, så att en MCP-klient kan ansluta utan att du först öppnar fliken MCP. Endast i skrivbordsappen.",
     "legacySection": "Äldre funktioner",
     "classicViewControls": "Visa klassiska vyknappar",
     "classicViewControlsHint": "Sätter tillbaka de separata knapparna Kolumner, Filter, Gruppera och Sortera på fliken Vy. Du väljer nu kolumner med plustecknet i tabellrubriken eller via Tabell → Kolumner…. Filtrering, gruppering och sortering finns i layoutknapparna och layoutdialogen."
@@ -452,9 +452,9 @@
     "configSnippetHint": "Klistra in detta i MCP-konfigurationen för din klient.",
     "tokenWarning": "Den här token ger åtkomst till den öppna planen. Dela den inte med andra.",
     "connectPrompt": "Anslutningsprompt",
-    "connectPromptHint": "Klistra in detta i din AI-agent. Den ansluter sig själv.",
+    "connectPromptHint": "Klistra in detta i din MCP-klient. Den ansluter sig själv.",
     "connectPromptText": "Anslut till en MCP-server som körs på min dator: namn {{name}}, transport streamable HTTP, URL {{url}}, med headern Authorization: Bearer {{token}}. Lägg till den i din MCP-konfiguration (till exempel som ett mcpServers-block) och anslut. Lista sedan verktygen som kontroll: du bör se ungefär {{count}} verktyg med prefixet {{prefix}}. Sammanfatta kort vad du kan göra med den här servern. Läs först tidsplansguiden via verktyget planner_get_planning_guide, innan du ändrar något.",
-    "statusDot": "AI-bryggan: {{status}}"
+    "statusDot": "MCP-bryggan: {{status}}"
   },
   "aiSafety": {
     "pause": "Stoppa tillfälligt",
@@ -464,7 +464,7 @@
     "readOnlyHint": "Alla verktyg som ändrar något nekas så länge detta är på.",
     "autoBackupOn": "Auto-backup: på",
     "autoBackupOff": "Auto-backup: av",
-    "autoBackupHint": "Skapar automatiskt en IFC-backup före den första AI-ändringen i varje dokument.",
+    "autoBackupHint": "Skapar automatiskt en IFC-backup före den första MCP-ändringen i varje dokument.",
     "backupNow": "Gör backup nu",
     "openFolder": "Öppna backupmapp",
     "backupOk": "Backup skapad: {{name}}",
@@ -472,10 +472,10 @@
     "openErr": "Det gick inte att öppna mappen: {{error}}"
   },
   "aiActivity": {
-    "title": "AI-uppgifter",
+    "title": "MCP-aktivitet",
     "panelButton": "Uppgiftspanel",
     "clear": "Rensa",
-    "empty": "Ingen AI-uppgift ännu. Anrop till bryggan visas här.",
+    "empty": "Ingen MCP-aktivitet ännu. Anrop till bryggan visas här.",
     "args": "Argument",
     "result": "Svar"
   },
@@ -727,7 +727,7 @@
     "calendars": "Kalendrar",
     "noCalendars": "Inga kalendrar i biblioteket ännu.",
     "noResources": "Inga resurser i biblioteket ännu.",
-    "promoteHint": "Lägg till en projektkalender eller projektresurs i biblioteket med knappen ”+ Från projekt” ovan.",
+    "promoteHint": "Lägg till en projektkalender i biblioteket med knappen ”+ Från projekt” ovan.",
     "promoteFromProject": "Från projekt",
     "alreadyLinked": "redan kopplad",
     "editItem": "Redigera",
@@ -1164,7 +1164,7 @@
     "nav": {
       "reportTab": "Gå till menyfliken Rapport",
       "switchDocument": "Byta dokument",
-      "scrollToToday": "Hoppa till idag",
+      "scrollToToday": "Hoppa till rapportdatum eller idag",
       "help": "Öppna hjälp"
     },
     "grid": {
@@ -1378,7 +1378,7 @@
   "conventions": {
     "preserveActualDatesInBackwardPass": {
       "label": "Behåll verkliga datum i den bakåtriktade beräkningen",
-      "help": "En påbörjad eller slutförd uppgift behåller sina registrerade datum också på den sena sidan. En slutförd efterföljande uppgift drar inte en öppen föregående uppgift tillbaka i det förflutna."
+      "help": "Med ett rapportdatum behåller en slutförd uppgift sina verkliga datum på den sena sidan. En slutförd efterföljande uppgift drar inte en öppen föregående uppgift tillbaka i det förflutna. En pågående uppgift behåller den verkliga starten som senaste start, om inte ”Pågående uppgift: tidigaste start = början av återstående arbete” är på. En slutförd uppgift på en rapportdatumpunkt eller i ett rapportdatumfönster kan ändå föra vidare tryck via sambanden."
     },
     "clampNegativeFreeFloat": {
       "label": "Fritt slack är aldrig negativt",
@@ -1386,103 +1386,103 @@
     },
     "p6ZeroDurationUsesPlannedBoundary": {
       "label": "Milstolpen följer den planerade kalendergränsen",
-      "help": "En milstolpe utan varaktighet stannar på den kalendergräns som filen planerade: en dagsstart förblir en startmilstolpe, och ett bandslut får hamna på föregående uppgifts slut."
+      "help": "Endast vid timplanering. En milstolpe utan varaktighet följer den planerade kalendergränsen: en dagsstart förblir en startmilstolpe, och ett bandslut får hamna på föregående uppgifts slut. Även en vanlig uppgift med varaktighet 0 kan få ett gränspar, men bara med XER-ursprung som Task Dependent eller Resource Dependent och ett planerat slut före den planerade starten."
     },
     "p6UseTaskPlannedStartFloor": {
       "label": "Planerad start som extra undre gräns",
-      "help": "Den planerade starten i filen gäller som undre gräns när både start och slut ligger mer än en kalenderdag senare än nätverket tillåter."
+      "help": "Den planerade starten gäller som undre gräns när både start och slut ligger mer än en kalenderdag senare än nätverket tillåter. För en slutmilstolpe med planerat slut före planerad start räcker det med en senare planerad start. Gäller inte för en pågående uppgift när ”Planerad start är ingen undre gräns för en pågående uppgift” är på, eller för en ALAP-uppgift som inte har börjat och som placeras utifrån sina efterföljande uppgifter. Kräver inte XER-ursprung."
     },
     "p6FinishMilestoneBoundaryWindow": {
       "label": "Slutmilstolpe som gränsfönster",
-      "help": "En slutmilstolpe får ligga på två intilliggande kalendergränser: tidigaste start i början av ett band, tidigaste slut i slutet av föregående band."
+      "help": "En slutmilstolpe utan varaktighet får bara ett gränsfönster om dess planerade slut ligger före dess planerade start och dess beräknade start fortfarande är lika med den planerade starten. En slutmilstolpe med föregående uppgifter och utan efterföljande uppgift får också sina tidigaste datum som senaste datum, om inte ”Beräkna slack till projektslut” är på. Visas bara i P3-utdata och är avstängt i varje inbyggd profil."
     },
     "p6PreserveActualInstants": {
       "label": "Behåll verkliga datum exakt",
-      "help": "Datum för verklig start och verkligt slut som har registrerats flyttas inte till kanten av ett band."
+      "help": "Gäller endast uppgifter med bevarat ursprung från en .xer-fil. Den registrerade verkliga starten och det verkliga slutet flyttas inte till kanten av ett band."
     },
     "p6UseRemainingStartForProgress": {
       "label": "Pågående uppgift: tidigaste start = början av återstående arbete",
-      "help": "Den tidigaste och senaste starten av en pågående uppgift beskriver var det återstående arbetet börjar, inte den historiska verkliga starten. Vid bakåtberäkning över ett start-till-start-samband räknas bara den återstående varaktigheten."
+      "help": "Den tidigaste och senaste starten för en pågående uppgift beskriver var det återstående arbetet börjar. Vid bakåtberäkning över ett start-till-start-samband räknas bara den återstående varaktigheten, men bara vid timplanering, med verklig start och framdrift mellan 0 och 100 %, en känd återstående varaktighet som är kortare än den planerade varaktigheten, och utan förfluten tid eller avbrott i tidsplanen. Den extra regeln för återstående varaktighet gäller inte för start-till-slut-samband."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Restriktionens tidpunkt på en milstolpe exakt",
-      "help": "En restriktion med datum och tid på en milstolpe utan varaktighet är en exakt punkt, även i början av ett band."
+      "help": "Endast vid timplanering, på den sena sidan, för en restriktion med datum och tid av typen SNLT, MSO, FNLT eller MFO på en milstolpe utan varaktighet. Restriktionstidpunkten förblir exakt, även i början av ett band. Framåt är en sådan tidpunkt redan exakt i varje profil."
     },
     "resumeFromActualElapsed": {
       "label": "Återstående arbete återupptas efter den förflutna tiden",
-      "help": "En pågående uppgift återupptar sitt återstående arbete vid verklig start plus den förflutna tiden, inte vid rapportdatumet."
+      "help": "En pågående uppgift återupptar sitt återstående arbete tidigast vid verklig start plus redan förfluten tid. Rapportdatumet och föregående uppgifts gräns är också undre gränser; den senaste av de tre gäller. Gäller inte för Progress Override, för uppgifter utan återstående arbete eller när appen använder ett giltigt återupptagningsdatum från filen (vid högst en tilldelning)."
     },
     "unstartedIgnoresStatusDate": {
       "label": "Ej påbörjade uppgifter flyttas inte till rapportdatumet",
-      "help": "En uppgift som ännu inte har börjat flyttas inte automatiskt till rapportdatumet eller senare."
+      "help": "Gäller endast med ett rapportdatum, för en uppgift utan framdrift. Den uppgiften flyttas inte automatiskt till rapportdatumet eller senare."
     },
     "p6RelationFinishBoundary": {
       "label": "Efterföljande uppgift startar på slutgränsen",
-      "help": "Vid ett slut-till-start-samband utan fördröjning, där den efterföljande uppgiften i filen startar exakt vid den föregående uppgiftens slut, i slutet av ett band, startar den efterföljande uppgiften vid det slutet och inte i början av nästa band. Filen markerar inte detta. Appen känner själv igen ett sådant samband när den öppnar en .xer-fil. Ett samband som du lägger själv omfattas inte. Vid bakåtberäkning visar den efterföljande uppgiften sin senaste start helt enkelt som början av ett band."
+      "help": "Endast vid timplanering, i den föregående uppgiftens kalender och för ett samband som appen känner igen när den öppnar en .xer-fil. Vid ett slut-till-start-samband utan fördröjning, där den efterföljande uppgiften i filen startar exakt vid den föregående uppgiftens bandslut, startar den efterföljande uppgiften vid det slutet. Ett samband som du själv lägger till omfattas inte. Vid bakåtberäkning ligger den efterföljande uppgiftens senaste start kvar vid början av ett band."
     },
     "p6BackwardLagFinishBoundary": {
       "label": "Fördröjning bakåt från en slutgräns",
-      "help": "När bakåtberäkningen drar av en fördröjning i arbetstid från en slutgräns och hamnar exakt i början av ett band, hamnar den på föregående slutgräns. Även vid ett slut-till-slut-samband utan fördröjning stannar ett senaste slut i slutet av ett band kvar på den slutgränsen."
+      "help": "Endast vid timplanering, med den kalender som fördröjningen räknas i. När bakåtberäkningen drar av en positiv fördröjning i arbetstid från en exakt slutgräns och hamnar på den första starten av ett band på en dag, hamnar den på föregående slutgräns. Även vid ett slut-till-slut-samband utan fördröjning stannar ett senaste slut i slutet av ett band kvar på den gränsen. Gäller inte fördröjning i förfluten tid."
     },
     "p6CompletedDataDateWindow": {
       "label": "Slutförd uppgift i rapportdatumfönstret",
-      "help": "En slutförd uppgift får tidigaste datum i rapportdatumfönstret, och dess slut räknas med i projektslutet."
+      "help": "Endast med ett rapportdatum, för slutförda uppgifter utan underuppgifter från en .xer-fil, med sparat målfönster, framdriftstyp varaktighet och P6-typ Task Dependent eller Resource Dependent med Fixed Duration & Units. Inga milstolpar med varaktighet 0. Kräver ”Pågående uppgift: tidigaste start = början av återstående arbete”. Avbrott och återupptagning tillåts bara för Task Dependent med ett giltigt par, ett verkligt slut mellan planerat slut och rapportdatum, återupptagning senast vid det verkliga slutet och med ”Behåll verkliga datum i den bakåtriktade beräkningen” på. Uppgiften får tidigaste datum i rapportdatumfönstret, och dess slut räknas med i projektslutet."
     },
     "p6CompletedLoeActualFinish": {
       "label": "Slutförd LOE via det verkliga slutet",
-      "help": "En slutförd level-of-effort-uppgift med endast ett start-till-start-samband följer vägen via det verkliga slutet."
+      "help": "Endast med ett rapportdatum, för en slutförd LOE från en .xer-fil med positiv varaktighet, framdriftstyp varaktighet och P6-typ Fixed Duration & Units/Time, ett helt målfönster och ett verkligt slut mellan planerat slut och rapportdatum. Endast inkommande start-till-start-samband, minst ett, utan efterföljande uppgift och utan avbrott och återupptagning. Kräver ”Pågående uppgift: tidigaste start = början av återstående arbete”, ”Behåll verkliga datum i den bakåtriktade beräkningen” och ”Behåll verkliga datum exakt”. LOE följer sitt verkliga slut i stället för vägen via hängmattan."
     },
     "p6OpenLoeTargetSpan": {
       "label": "Ej påbörjad LOE använder målfönstret",
-      "help": "En level-of-effort-uppgift som ännu inte har börjat använder sitt målfönster som varaktighet."
+      "help": "Endast vid timplanering, för en LOE/hängmatta som inte har börjat, från en .xer-fil med 0 % framdrift, positiv varaktighet, framdriftstyp varaktighet och P6-typ Fixed Duration & Units. Utan verkliga datum och utan avbrott eller återupptagning. Kräver ett helt positivt målfönster vars start är lika med sambandsgränsen och vars arbetstid avviker högst en arbetsdag från varaktigheten, minst ett inkommande start-till-start-samband och ett utgående slut-till-slut-samband, endast de sambandstyperna och utan fördröjning. LOE använder då målfönstret som sitt tidsspann. Svagt underlag: bara en fil."
     },
     "p6CompletedPredecessorAtDataDate": {
       "label": "Slutförd föregående uppgift håller inte efter rapportdatumet",
-      "help": "Slutar en slutförd föregående uppgift enligt sitt verkliga datum efter rapportdatumet, då får dess efterföljande uppgifter ändå börja på rapportdatumet."
+      "help": "Endast vid timplanering och med ett rapportdatum, för en slutförd föregående uppgift med verkligt slut. Slut-till-start- och slut-till-slut-samband räknar högst från arbetsgränsen precis före rapportdatumet. Ett senare verkligt slut håller inte den efterföljande uppgiften tillbaka. Start-till-start- och start-till-slut-samband ligger kvar vid den verkliga starten. En slutförd uppgift med en egen rapportdatumpunkt eller ett förskjutet rapportdatumfönster följer den egna gränsen."
     },
     "p6FreeFloatOnOwnCalendar": {
       "label": "Fritt slack i den egna kalendern",
-      "help": "Fritt slack för en ej påbörjad uppgift räknas per samband i uppgiftens egna kalender, inte i den efterföljandes: vid slut-till-start, start-till-start och slut-till-slut, även med en arbetstidsfördröjning i föregående uppgifts kalender. En påbörjad uppgift räknas endast vid slut-till-start utan fördröjning."
+      "help": "Endast vid timplanering, för uppgifter som inte är klara och samband med beräknat fritt slack. Fritt slack för en ej påbörjad uppgift räknas i uppgiftens egna kalender vid slut-till-start, start-till-start och slut-till-slut, utan fördröjning i klocktid eller procent. En fördröjning som inte är 0 kräver fördröjningskalendern för föregående uppgift. För en påbörjad uppgift gäller endast slut-till-start utan fördröjning. Sambandets eget fria slack och markering för drivande samband ändras inte."
     },
     "p6CompletedRemainingLag": {
       "label": "Förfluten fördröjning från en slutförd föregående uppgift räknas inte",
-      "help": "På den sena sidan räknas av fördröjningen efter en slutförd föregående uppgift bara den del som ännu inte har förflutit vid rapportdatumet."
+      "help": "Endast vid timplanering på fördröjningskalendern och med ett rapportdatum, för slutförda föregående uppgifter från en .xer-fil med verkligt slut före rapportdatumet och en rapportdatumpunkt eller ett rapportdatumfönster. Av en positiv fördröjning i arbetstid räknas bara den del som ännu inte har förflutit. Gäller på den sena sidan och framåt från en rapportdatumpunkt eller ett förskjutet nollfönster för återstående arbete. En uppgift på sina vanliga verkliga datum behåller hela fördröjningen. Gäller inte fördröjning i klocktid."
     },
     "p6CompletedOutOfSequenceWindow": {
       "label": "Slutförd uppgift i fel ordning väntar på sina föregående uppgifter",
-      "help": "En slutförd uppgift vars föregående uppgift ännu inte är klar får sitt nollfönster efter den föregående uppgiften i stället för på rapportdatumet (P6: Retained Logic). Fungerar bara om ”Slutförd uppgift i rapportdatumfönstret” och ”Pågående uppgift: tidigaste start = början av återstående arbete” också är på."
+      "help": "Endast vid timplanering och med ett rapportdatum, på XER-vägen. Då måste beräkningsreglerna ”Slutförd uppgift i rapportdatumfönstret” och ”Pågående uppgift: tidigaste start = början av återstående arbete” vara på. Inte vid Progress Override. Via samband av typen slut-till-start eller start-till-start får uppgiften det senare av rapportdatumgränsen och gränsen från en föregående uppgift som inte är klar eller från en föregående uppgift med ett förskjutet rapportdatumfönster. Vanliga slutförda föregående uppgifter räknas inte."
     },
     "p6CompletedPhysicalAtDataDate": {
       "label": "Slutförd uppgift med fysisk framdrift ligger på rapportdatumet",
-      "help": "En slutförd uppgift med fysisk procent färdig visas som en enda punkt på rapportdatumet, eller senare om en föregående uppgift kräver det, i stället för på sina verkliga datum. Endast uppmätt för fysisk procent färdig. För andra typer av procent färdig (P6-standard: varaktighet) är detta beteende inte uppmätt och förblir avstängt."
+      "help": "Endast vid timplanering och med ett rapportdatum, för slutförda uppgifter utan delupgifter och milstolpar med noll varaktighet från en .xer-fil av P6-typen Task Dependent, Start Milestone eller Finish Milestone. Gäller med ett bevarat målfönster, fysisk procent färdig, verkligt slut på eller före rapportdatumet och utan avbrott/återupptagning. Kräver även ”Pågående uppgift: tidigaste start = början av återstående arbete”. Uppgiften placeras som en enda punkt på rapportdatumet, eller senare om en föregående uppgift kräver det. För andra typer av procent färdig, även varaktighet, är detta inte mätt och förblir avstängt."
     },
     "p6InProgressStartLagElapsed": {
       "label": "Förfluten SS-fördröjning från en pågående föregående uppgift räknas inte",
-      "help": "Vid ett start-till-start-samband från en redan påbörjad uppgift räknas av fördröjningen bara den del som sedan dess verkliga start ännu inte har förflutit vid rapportdatumet."
+      "help": "Endast vid timplanering, på fördröjningskalendern och med ett rapportdatum, för ett samband av typen start-till-start med positiv fördröjning i arbetstid från en föregående uppgift som inte är klar och har verklig start före rapportdatumet. Kräver ”Pågående uppgift: tidigaste start = början av återstående arbete”. Endast den del av fördröjningen som inte har förflutit räknas. Alternativet ”Beräkna SS-fördröjning från pågående föregående” väljer startpunkten. Gäller inte fördröjning i klocktid."
     },
     "p6FinishFinishStartMilestoneLateFinish": {
       "label": "Slut-till-slut-samband till en startmilstolpe binds till milstolpen själv",
-      "help": "Ett slut-till-slut-samband till en startmilstolpe räknas fram till milstolpen själv, inte till början av milstolpens dag: föregående uppgifts senaste slut får löpa till milstolpens senaste slut."
+      "help": "Endast vid timplanering på båda sidor av ett slut-till-slut-samband till en startmilstolpe utan varaktighet. Sambandet kopplas till milstolpen själv: föregående uppgifts senaste slut får löpa till milstolpens senaste slut. Även fritt slack kan ändras; milstolpens tidigaste start står kvar. Gäller inte slutmilstolpar eller den bakåtriktade vägen med noll kvarvarande varaktighet."
     },
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "Planerad start är ingen undre gräns för en pågående uppgift",
-      "help": "Det återstående arbetet för en påbörjad uppgift börjar på rapportdatumet och direkt efter dess föregående uppgifter, även om dess planerade start ligger senare."
+      "help": "Endast för en uppgift med verklig start och med mindre än 100 % framdrift, när ”Planerad start som extra undre gräns” är på. Dess planerade start är ingen extra undre gräns för återstående arbete. Rapportdatumet och dess föregående uppgifter gäller fortfarande."
     },
     "p6LateFinishOnOwnCalendar": {
       "label": "Senaste slutet i uppgiftens egna kalender",
-      "help": "Ligger det senaste slutet som en efterföljande uppgift kräver utanför uppgiftens arbetstid, blir det slutet av föregående arbetsperiod i den egna kalendern."
+      "help": "Endast vid timplanering, när en gräns från en efterföljande uppgift avgör senaste slut och ingen strängare restriktion eller något måldatum ersätter gränsen. Faller gränsen utanför uppgiftens egna arbetstid, sätts senaste slutet till slutet på föregående band i den egna kalendern. Gäller inte ett senaste slut som avgörs av projektslutet."
     },
     "p6ProgressOverrideIgnoresStartedSuccessor": {
       "label": "Progress Override negeras även för en påbörjad efterföljande uppgift bakåt",
-      "help": "Under Progress Override räknas samband till en efterföljande uppgift som redan har börjat inte med i de senaste datumen och i fritt slack för en föregående uppgift som inte är klar."
+      "help": "Endast vid Progress Override, för en föregående uppgift som inte är klar och en efterföljande uppgift som har startat men inte är klar (verklig start eller framdrift). Sambandet mellan dem räknas inte med i föregående uppgifts senaste datum och fritt slack."
     },
     "p6FinishNotBeforeFinishFinishBound": {
       "label": "Tidigaste slut inte före en slut-till-slut-gräns",
-      "help": "Vid ett slut-till-slut-samband ligger den efterföljande uppgiftens tidigaste slut aldrig före gränsen som den föregående uppgiften sätter, i klocktid. Faller den gränsen inom den efterföljande uppgiftens ledig tid, blir slutet början av nästa arbetsperiod."
+      "help": "Datumkorrigering: vid ett slut-till-slut-samband med fördröjning i arbetstid, utan hängmattor och med timplanering på efterföljande uppgifts kalender (vid återstående arbete: framdriftskalendern) och på fördröjningskalendern. Ligger sambandsgränsen senare än tidigaste slut utan arbetstid mellan dem, flyttas bara slutet till första arbetsgräns på eller efter gränsen. Gäller för automatiskt schemalagda, ej startade och pågående efterföljande uppgifter. För uppgifter som inte har startat går en hård slutspärr före. Fritt slack: en föregående uppgift som inte är klar räknas separat vid slut-till-slut utan fördröjning och utan procentfördröjning, med befintligt fritt slack för sambandet och ett beräknat tidigaste slut för efterföljande uppgift. Det räknas i föregående uppgifts egen timkalender från dess tidigaste slut till efterföljande uppgifts tidigaste slut. Detta gäller även vid noll fördröjning i klocktid, utan extra timvillkor på efterföljande uppgifts kalender eller fördröjningskalendern. Hängmattor och manuellt schemalagda uppgifter får slutligen fritt slack 0."
     },
     "p6AlapPositionedFromSuccessors": {
       "label": "ALAP-uppgifter så sent som efterföljande uppgifter tillåter",
-      "help": "En uppgift som inte har startat ännu med restriktionen ”så sent som möjligt” slutar vid den minut då de efterföljande uppgifterna behöver den, efterföljande först, så att en kedja sluter sig. Dess egen planerade start räknas inte; en uppgift utan föregående uppgift startar då inte tidigare än rapportdatumet."
+      "help": "Endast vid timplanering, för en uppgift som inte har startat, som inte är manuellt schemalagd och har restriktionen ”så sent som möjligt” (ALAP). De tidigaste datumen för dess efterföljande uppgifter avgör dess placering ned till minuten, och efterföljande uppgifter går först. Dess egna planerade start räknas inte. Föregående uppgifter, rapportdatumet och en andra restriktion gäller fortfarande. Utan efterföljande uppgift används dess senaste slut. Det vanliga ALAP-steget finns kvar i alla beräkningsprofiler."
     },
     "milestoneWithoutPredecessorAtDayEnd": {
       "label": "Fristående milstolpar vid arbetsdagens slut",
@@ -1542,7 +1542,7 @@
     "showHelp": "Förklaring av ”{{name}}”",
     "sourceOptions": {
       "title": "Inställningar från källfilen",
-      "intro": "Dessa beräkningsalternativ kommer från en Primavera P6-fil (.xer). De används i beräkningen men kan inte ändras här.",
+      "intro": "Dessa är skrivskyddade beräkningsalternativ för projektet. Vid import från en Primavera P6-fil (.xer) tar appen över dem från källfilen. De gäller bara när motsvarande villkor är uppfyllda.",
       "useExpectedFinishDates": "Använd förväntade slutdatum (P6: Use Expected Finish Dates)",
       "useProjectEndDateForFloat": "Beräkna slack till projektslut",
       "p6CompletedLateFromRemainingWindow": "Slutförd uppgift: senaste datum från rapportdatumet",
@@ -1551,7 +1551,7 @@
     "requires": {
       "xerOrigin": "endast .xer-uppgifter",
       "hourPlanning": "endast vid timplanering",
-      "hourPlanningTitle": "Fungerar endast vid timplanering: en kalender med band, en uppgift i timmar eller fördröjningskalendern inställd på 24 timmar."
+      "hourPlanningTitle": "Fungerar endast vid timplanering på kalendern som beräkningsregeln räknar på: en kalender med band eller en uppgifts varaktighet i timmar. För fördröjning kan även fördröjningskalendern med 24 timmar gälla."
     },
     "optionsDeviate": {
       "line": "{{field}}: {{current}} (standard: {{standard}})",

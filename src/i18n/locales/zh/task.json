@@ -182,7 +182,7 @@
       "calendar": "请从列表中选择日历。",
       "calendarNotFound": "所选日历不存在。",
       "calendarHours": "此任务的日历没有每日工作小时数。",
-      "durationConversionNotExact": "此工期无法精确换算为另一单位。",
+      "durationConversionNotExact": "此工期在此日历中无法换算为另一单位。",
       "fixedWorkIsHours": "固定工时的任务始终以小时计。",
       "milestoneRequired": "此字段仅适用于里程碑。",
       "milestoneUnavailable": "带子任务的摘要任务无法变为里程碑。",
@@ -325,8 +325,8 @@
     "unit": "工期单位",
     "days": "天",
     "hours": "小时",
-    "invalid": "请输入整数天数或小时数，例如 2d 或 12h。",
-    "conversionNotExact": "{{value}} 在此日历上无法换算为整天。单位未更改。",
+    "invalid": "请输入天数或小时数，例如 2.5d 或 12h。",
+    "conversionNotExact": "{{value}} 在此日历中无法换算为另一单位。单位未更改。",
     "unitInfo": "所选单位属于此任务。天数计算工作日；小时数计算日历内的工作小时。更换日历不会改变单位或输入的工期，但可能改变完成日期。"
   },
   "dialog": {
