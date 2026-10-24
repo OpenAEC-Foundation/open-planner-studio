@@ -236,6 +236,27 @@ function fixedDayMinutes(task: Task, engine: CalendarEngine): number {
     : Math.round(durationMinutesOf(task, engine));
 }
 
+/**
+ * Een duur in KLOKminuten van een kalendertijdtaak als expliciete duur, voor de oude minutenroute van
+ * de Duur-kolom (samengestelde invoer als "1d 4u", die de kolom met 24 u per dag leest). Zo rekent de
+ * transactie de klokminuten niet nog eens om met de werktijd per dag. Een taak in dagen houdt haar maat
+ * als de minuten precies op zes decimalen passen ("1d 0u" = 1 d, "2,5d 3u" = 2,625 d); anders wordt het
+ * de urenmaat ("1d 4u" = 28 u). `null` bij een negatief of onveilig groot getal.
+ */
+export function elapsedClockDuration(task: Task, minutes: number): ParsedTaskDuration | null {
+  const clockMinutes = minutesOf(minutes);
+  if (clockMinutes === null) return null;
+  if (task.time.durationUnit === 'days') {
+    const scheduleDuration = Number((clockMinutes / (24 * 60)).toFixed(6));
+    const candidate: Task = { ...task, time: { ...task.time, scheduleDuration } };
+    // Exact als de motor dezelfde klokminuten terugrekent (`elapsedMinutesOf` kent geen werktijd).
+    if (elapsedMinutesOf(candidate, { isHourMode: true, hoursPerDay: 24 }) === clockMinutes) {
+      return { unit: 'days', scheduleDuration, explicitUnit: false };
+    }
+  }
+  return { unit: 'hours', durationMinutes: clockMinutes, explicitUnit: true };
+}
+
 /** De wissel zonder dagenmaat: een dag is een vast aantal minuten (zie
  *  {@link proposeTaskDurationConversion}). Exact als de motor uit het resultaat dezelfde minuten
  *  terugrekent; anders `null`. */

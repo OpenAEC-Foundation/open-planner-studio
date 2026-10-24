@@ -33,6 +33,7 @@ import type {
 import { parseDate, parseInstant } from '@/utils/dateUtils';
 import {
   convertTaskDurationUnit,
+  elapsedClockDuration,
   type ParsedTaskDuration,
 } from '@/utils/taskDurationInput';
 import {
@@ -468,6 +469,14 @@ function applyScheduleEdit(
     }
     if (!isFiniteNumber(edit.value) || edit.value < 0) return failure('duration', edit);
     if (task.isHammock) return failure('readOnly', edit);
+    // Kalendertijd: het getal zijn klokminuten (de Duur-kolom leest een dag dan als 24 u). Als
+    // expliciete duur, anders deelt de regel hieronder ze door de WERKtijd per dag en wordt "1d 0u"
+    // drie kalenderdagen.
+    if (task.time.durationType === 'ELAPSEDTIME') {
+      const clock = elapsedClockDuration(task, edit.value);
+      if (!clock) return failure('duration', edit);
+      return applyParsedDuration(task, clock, edit, environment, timeBefore);
+    }
     const hoursPerDay = environment.effectiveHoursPerDay;
     if (!Number.isFinite(hoursPerDay) || hoursPerDay <= 0) return failure('calendarHours', edit);
     const days = edit.value / (hoursPerDay * 60);
