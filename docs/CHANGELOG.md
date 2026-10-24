@@ -42,6 +42,8 @@ and sequence (`YYYY.W.N`); the jump from 2026.10.0 reflects that numbering chang
 - **Build inputs.** Tailwind scans only application sources; Vite receives security updates.
 
 ### Fixed
+- **Translation labels.** Outdated or unhashed label translations no longer force an old UI name
+  into a newly translated message. Once the label is current, exact label matching remains required.
 - **Recovery and saving.** Unreadable, invalid, duplicate or newer recovery manifests cannot
   trigger writes or cleanup of the refused recovery set. A blocked browser database upgrade
   completes startup with a persistent warning and requires reload before recovery accesses it
