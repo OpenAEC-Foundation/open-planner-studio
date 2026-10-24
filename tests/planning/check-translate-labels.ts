@@ -10,7 +10,7 @@
  */
 import { hashUnit } from '../../scripts/translate/common';
 import { checkUi } from '../../scripts/translate/gates';
-import { buildLabelIndex, buildUiPackages, labelsFor, LABEL_COMMON_WORD_MAX, type NsInput, type UiPackage } from '../../scripts/translate/ui';
+import { buildLabelIndex, buildUiPackages, labelsFor, LABEL_COMMON_WORD_MAX, type NsInput, type UiPackage, type UiSources } from '../../scripts/translate/ui';
 import type { JsonObject } from '../../scripts/i18n-tools';
 
 let checks = 0;
@@ -102,7 +102,30 @@ const sources = { common: hashes(nlCommon, ['title', 'profile', 'restore']), men
   eq('meervoud: per vorm, alleen many rood', famErr.map(e => e.split(':')[0]), ['n.many']);
 }
 
-// ── 4. Doeltekst met een avoid-variant telt niet (anders botst de labelpoort met --avoid) ────
+// ── 4. Een hernoemd label mag de oude vertaling niet opleggen aan de verwijzende tekst ──────
+{
+  const nl: JsonObject = { title: 'MCP-activiteit', empty: 'Nog geen MCP-activiteit. Aanroepen verschijnen hier.' };
+  const fr: JsonObject = { title: 'Activité IA', empty: 'Aucune activité IA.' };
+  const input: NsInput[] = [{ ns: 'common', nl, en: nl, target: fr }];
+  const sourceSets: UiSources[] = [{}, { common: { title: hashUnit('AI-activiteit') } }];
+  for (const source of sourceSets) {
+    const packs = buildUiPackages({ lang: 'fr', inputs: input, mode: 'stale', sources: source, concepts: [] });
+    const item = packs.flatMap(p => p.items).find(i => i.key === 'empty')!;
+    eq('bestaande taal: oud of hashloos label heeft geen vaste doeltekst', item.labels?.[0].targets, []);
+    const pkg = { ...packs.find(p => p.items.includes(item))!, items: [item] };
+    eq('nieuwe naam mag ook in de verwijzende tekst', checkUi(pkg, { empty: 'Aucune Activité MCP. Les appels apparaissent ici.' }).errors, []);
+  }
+  // Na toepassing is de actuele labeltekst opnieuw een harde poort, ook voor een oud bericht.
+  const current: NsInput[] = [{ ...input[0], target: { ...fr, title: 'Activité MCP' } }];
+  const packs = buildUiPackages({ lang: 'fr', inputs: current, mode: 'stale', sources: { common: { title: hashUnit(nl.title as string) } }, concepts: [] });
+  const item = packs.flatMap(p => p.items).find(i => i.key === 'empty')!;
+  eq('actueel label blijft verplicht', item.labels?.[0].targets, ['Activité MCP']);
+  const pkg = { ...packs.find(p => p.items.includes(item))!, items: [item] };
+  eq('oude naam in verwijzing blijft rood', checkUi(pkg, { empty: 'Aucune Activité IA.' }).errors.length, 1);
+  eq('actuele naam in verwijzing blijft groen', checkUi(pkg, { empty: 'Aucune Activité MCP.' }).errors, []);
+}
+
+// ── 5. Doeltekst met een avoid-variant telt niet (anders botst de labelpoort met --avoid) ────
 {
   const concepts = [{ id: 'critical-path', kind: 'term' as const, nl: 'kritiek pad', en: ['critical path'], definition: 'd' }];
   const tb = { _style: { address: 'formal' as const }, 'critical-path': { term: 'kritični put', forms: ['kritični put'], avoid: ['ključni put'], source: 's', status: 'arbitrated' as const } };
