@@ -865,6 +865,15 @@ en noem het in je rapport of PR-tekst.
     Gevonden in review ronde 1 en 2 van PR #573 (GPT-6.1-Sol). Voorstel: de pids vergelijken en de bestaande
     echte-app-route uitbreiden met echte bestandsacties, inhoud en opruiming. — B
 
+310. **De formaatvergelijking in de headless-servertest ziet een verschuiving binnen een dag niet.**
+     `tests/mcp/cases-headless-server.ts:483` (`leafSchedule`) vergelijkt per bladtaak alleen de startdatum
+     op dagniveau (`.slice(0, 10)`). Eindmomenten, de maat en exacte minuten vergelijkt de test niet, dus
+     een verschuiving van 08:36 naar 16:00 op dezelfde dag valt niet op. Verder kan de extra `runCPM()` op
+     r.498 een fout laadpad repareren voordat de vergelijking begint. Richting: volledige begin- en
+     eindmomenten vergelijken, een fixture met de nieuwe maatrecords gebruiken, en `runCPM()` vervangen
+     door een assert dat het openen al een verse, berekende stand geeft. Gevonden in review ronde 1 van
+     PR #590 (GPT-6.1-Sol, VERVOLG). — B
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen en de selectie niet lezen.

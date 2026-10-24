@@ -489,9 +489,9 @@ test('B stdio bevinding 3: MSPDI, P6 XML, CSV en XER openen in de losse server, 
   // De bronbestanden komen uit de stand van de app na openen, zoals Exporteren ze schrijft
   // (`fileSlice.ts`), niet uit de ruwe `readIFC`-uitvoer. Het voorbeeld is een bestand van vóór het
   // minutenmodel: de app rekent het bij openen opnieuw door, en de urenmotor rekent de procentlag
-  // exact (B7), dus de berekende datums wijken af van de opgeslagen dagdatums. Een MSPDI of P6 XML
-  // met die opgeslagen datums opent in "datums zoals opgeslagen" en toont dan niet de datums van het
-  // IFC. De ruwe writers verwachten genormaliseerde invoer (knownbugs 256).
+  // exact (B7), dus de berekende datums wijken af van de opgeslagen dagdatums. Een MSPDI uit de ruwe
+  // `readIFC`-uitvoer, met die opgeslagen datums, opent in "datums zoals opgeslagen" en toont dan niet
+  // de datums van het IFC. De ruwe writers verwachten genormaliseerde invoer (knownbugs 256).
   const app = createAppStoreContext();
   app.store.getState().openAsDocument(await parseOpenedFile({ name: 'bron.ifc', text: source }),
     { name: 'bron.ifc', ref: { kind: 'path', path: join(work, 'bron.ifc') } });
