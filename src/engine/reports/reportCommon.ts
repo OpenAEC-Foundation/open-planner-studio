@@ -9,6 +9,8 @@ import { createTaskEngineCache, type TaskEngineCache } from '@/engine/scheduler/
 import { effHoursPerDay, effectiveCalendarOf } from '@/utils/taskDuration';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
 import { shownStart, shownFinish, shownSpanOverlapsDays } from '@/utils/taskDates';
+import { taskDateLabelIn, type TaskDateLabelOptions } from '@/utils/taskDateLabel';
+import type { InstantSide } from '@/engine/calendar/workdayRules';
 import { progressState, taskWorkDays, type ProgressState } from '@/engine/scheduler/summaryProgress';
 import { type ReportingPeriod, type ResolvedPeriod, resolveReportingPeriod } from './reportingPeriod';
 
@@ -62,6 +64,25 @@ export type SolvedReportContext = ReportContext & { solveOptions: ProjectSolveOp
 /** Alleen de dag-component van een ISO-datum(tijd): vergelijkbaar als string. */
 export function dayOf(iso: string): string {
   return iso.slice(0, 10);
+}
+
+/** De getoonde vorm van een datum van de taak met deze id (besluit B4). */
+export type ReportTaskDateLabel = (taskId: string, value: string | undefined, side: InstantSide, opts?: TaskDateLabelOptions) => string;
+
+/**
+ * Datums in een rapport volgens besluit B4 (spec "alleen uren"): een datum zonder tijd als het moment op de
+ * dagrand van zijn kant valt (begin van de werkdag bij een start, einde bij een einde; een mijlpaal op elke
+ * dagrand), anders het moment met zijn tijd. In de kalender van de taak, zoals raster en tooltip
+ * (`taskDateLabel`). Rapportrijen houden hun momenten (sorteren, vergelijken); alleen de weergave gebruikt
+ * deze vorm. Een onbekende taak (een vervallen baselinetaak) toont alleen de datum.
+ */
+export function makeTaskDateLabeler(ctx: Pick<ReportContext, 'tasks' | 'calendar' | 'calendars'>): ReportTaskDateLabel {
+  const byId = new Map(ctx.tasks.map(t => [t.id, t]));
+  return (taskId, value, side, opts) => {
+    if (!value) return '';
+    const task = byId.get(taskId);
+    return task ? taskDateLabelIn(task, value, side, ctx, opts) : dayOf(value);
+  };
 }
 
 /** Activiteiten: bladtaken zonder hammocks (een LOE-taak volgt anderen en is zelf geen werk). */

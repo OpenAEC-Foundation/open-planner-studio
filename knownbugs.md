@@ -227,20 +227,6 @@ en noem het in je rapport of PR-tekst.
      de planning op verouderd.** `updateExternalLink` vergelijkt het ruwe anker, niet het genormaliseerde.
      Gevonden in fixronde 1 van F2 (laadfix). — B
 
-244. **Het paneel Onderbrekingen toont bij een dagtaak met een pauze korter dan een dag een verkeerd
-     van–tot.** `TaskSplitsSection.tsx:79-93` (`segmentRanges`) wandelt een dagtaak nog op hele werkdagen
-     (`computeSplitSegments(..., false, ...)`), terwijl de Gantt sinds F3c in de dagenmaat wandelt. Probe:
-     dagtaak ma 08:00–16:00 op een kalender 08–16, pauzes van 1 u na 2 u en na 5 u (as): het paneel geeft
-     "01-06 – 29-05" voor het eerste stuk na de pauze (einde vóór het begin), de Gantt tekent 11:00–13:00.
-     Zo'n pauze ontstaat bij splitsen op uurzoom (snap 60 of 15 min). Voorstel: geef `'workdays'` mee als
-     de taak tijden heeft en label zoals bij een urentaak (`workdayBoundaryLabel`). Gebied F4b. — B
-
-245. **Afdrukken tekent pauzes van een taak altijd in hele werkdagen.** `printPreview.ts:1424` roept
-     `computeSplitSegments(..., false, ...)` aan op datums zonder tijd, ook voor een urentaak. Een pauze
-     korter dan een dag valt weg; bij een taak van één dag tekent de afdruk geen onderbreking (probe:
-     start = einde ⇒ één stuk). Voorstel: dezelfde maatkeuze als de Gantt, als de afdruk tijden toont.
-     Gevonden in F3c. — B
-
 250. **Twee ingangen voor een nieuwe taak negeren de *Standaardmaat voor nieuwe taken*.** Rechtsklik in
      de Gantt → *Nieuwe taak* geeft een tijd met een vaste dagenmaat mee (`GanttCanvas.tsx:401`,
      `createDefaultTaskTime(date, 5, 'days', …)`), en de spookregel onderaan de tabel toont een taak van
@@ -656,6 +642,13 @@ en noem het in je rapport of PR-tekst.
      Dat gebeurde in F2-bouwronde 2. Een controle van beide bases gaf voor 127.519 sleutels
      dezelfde samenvoeging, en `verify:i18n` gaf exit 0. Het script meldt dus een fout waar
      geen fout is. Voorstel: gelijke resultaten vanaf beide bases als eenduidig accepteren. — S
+
+282. **`check-reports.ts` hangt af van de taal van het systeem.** De regel "monthLabel: onbekende locale
+     valt terug op Engels" verwacht "Sep 2026", maar met `LANG=nl_NL.UTF-8` geeft Node "sep 2026" (de
+     onbekende locale valt terug op de systeemtaal, niet op Engels). Met `LANG=C.UTF-8` is de batterij groen.
+     Gezien op aia09-mp50 bij F4b; de CI draait met een Engelse locale en ziet het niet. Voorstel: in
+     `monthLabel` expliciet terugvallen op `en` als `Intl` de locale niet kent, of de toets de locale laten
+     vastzetten. — B
 
 ## Wensen en open taken (geen bug)
 
