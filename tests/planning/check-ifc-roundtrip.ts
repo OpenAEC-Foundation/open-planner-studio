@@ -1387,7 +1387,8 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   //      die corrumperen we naar onparseerbare tekst. Verwacht: geen crash, terugval op "alles in
   //      ExceptionTimes is een feestdag" (dezelfde conservatieve terugval als "geen markering",
   //      block 6).
-  const ifc7a = writeIFC(fixture);
+  // Expliciet legacy-bestand: behoud de oude corrupte-ids-regressie zonder V1-markering.
+  const ifc7a = writeIFC(fixture).replaceAll("'WorkingExceptionKeysV1'", "'IgnoredWorkingExceptionKeysV1'");
   const lines7a = ifc7a.split('\n');
   const wexcIdx = lines7a.findIndex(l => l.includes("'WorkingExceptionIds'"));
   assert(wexcIdx >= 0, 'kon de WorkingExceptionIds-property niet vinden (verwacht op libCal, die heeft werkende uitzonderingen)');
@@ -2554,6 +2555,45 @@ for (const schema of IFC_SCHEMAS) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
+// Knownbug 112: STEP-nummers veranderen bij een merge; inhoud en echte refs blijven behouden.
+{
+  const calendarValues = (r: ImportResult) => [r.calendar, ...(r.resourceCalendars ?? [])]
+    .map(c => ({ name: c.name, holidays: c.holidays, workingExceptions: c.workingExceptions ?? [] }));
+  const renumber = (text: string) => text.replace(/'(?:''|[^'])*'|#\d+/g, token =>
+    token.startsWith('#') ? `#${Number(token.slice(1)) + 10000}` : token);
+  for (const schema of IFC_SCHEMAS) {
+    const input = { ...fixture, project: { ...fixture.project, ifcSchema: schema } };
+    const written = writeIFC(input);
+    const expected = calendarValues(readIFC(written));
+    assert(expected.some(c => c.workingExceptions.length > 0), "112: testvoorwaarde werkende uitzonderingen aanwezig");
+    assert(renumber(written) !== written, "112: testvoorwaarde echte STEP-refs vernummerd");
+    assert(written.includes("'WorkingExceptionKeysV1'"), '112: writer geeft inhoudssleutels uit');
+    assert(JSON.stringify(calendarValues(readIFC(renumber(written)))) === JSON.stringify(expected),
+      `112 ${schema}: vernummerde refs behouden feestdagen en werkende uitzonderingen`);
+    // Eerdere lezers gebruiken IDs; nieuwe lezers blijven ook oude ongemergde bestanden lezen.
+    const legacy = written.replaceAll("'WorkingExceptionKeysV1'", "'IgnoredWorkingExceptionKeysV1'");
+    assert(JSON.stringify(calendarValues(readIFC(legacy))) === JSON.stringify(expected),
+      `112 ${schema}: legacy-ids blijven leesbaar`);
+    const corruptIds = written.replace(/('WorkingExceptionIds',\$,IFCTEXT\()'[^']*'/g, "$1'{kapot'");
+    assert(corruptIds !== written, '112: testvoorwaarde legacy-ids gecorrumpeerd');
+    assert(JSON.stringify(calendarValues(readIFC(renumber(corruptIds)))) === JSON.stringify(expected),
+      `112 ${schema}: V1 heeft voorrang boven onbruikbare legacy-ids`);
+    const corruptKeys = written.replace(/('WorkingExceptionKeysV1',\$,IFCTEXT\()'[^']*'/g, "$1'{kapot'");
+    assert(corruptKeys !== written, '112: testvoorwaarde V1 gecorrumpeerd');
+    const rejected = readIFC(corruptKeys);
+    assert([rejected.calendar, ...(rejected.resourceCalendars ?? [])].every(c => !c.workingExceptions?.length),
+      `112 ${schema}: corrupte V1 gebruikt niet alsnog mogelijk verouderde ids`);
+  }
+  // Namen mogen quotes, Unicode en tekst lijken op STEP-refs bevatten; dat zijn geen verwijzingen.
+  for (const bands of [undefined, [], [{ start: 0, end: 1440 }], [{ start: 1320, end: 1740 }]]) {
+    const exception = { name: "Nacht 'één' #123", startDate: '2027-06-05', endDate: '2027-06-05', bands };
+    const input = { ...fixture, calendar: { ...fixture.calendar, workingExceptions: [exception] } };
+    const written = writeIFC(input);
+    assert(JSON.stringify(calendarValues(readIFC(renumber(written)))) === JSON.stringify(calendarValues(readIFC(written))),
+      `112: Unicode/quotes/reftekst en banden ${JSON.stringify(bands)} blijven behouden`);
+  }
+}
+
 if (fails === 0) {
   console.log(`OK  ifc-roundtrip: alle checks groen (${checks})`);
   process.exit(0);
