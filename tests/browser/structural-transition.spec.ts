@@ -80,7 +80,8 @@ test('mijlpaalvinkje op een taak met toewijzing wordt geweigerd met melding', as
   // De browser kiest zelf taal, CLDR-other en getal; taaknamen horen in de aparte detailregel.
   await expect(bulk.locator('.ops-toast-message')).toHaveText(
     zhCommon.notifications.milestoneRefusedAssignmentsMany_other.replace('{{count}}', '2'));
-  await expect(bulk.locator('.ops-toast-detail')).toHaveText('Metselen, Voegen');
+  await expect(bulk.locator('.ops-toast-detail')).toHaveText(
+    zhCommon.notifications.refusedTaskNames.replace('{{names}}', 'Metselen, Voegen'));
   await expect(bulk).toHaveAttribute('role', 'alert');
   expect(await page.evaluate(() => window.__OPS__!.store.getState().tasks.map(t => t.isMilestone))).toEqual([false, false]);
   expect(await assignmentTaskIds(page)).toEqual([L, N]);
