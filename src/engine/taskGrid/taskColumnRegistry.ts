@@ -46,6 +46,7 @@ import { parseDuration as parseDurationMinutes, parseableHourSuffix } from '@/ut
 import {
   formatTaskDurationInput,
   parseTaskDurationInput,
+  taskDurationInputContext,
   type ParsedTaskDuration,
   type DurationInputContext,
 } from '@/utils/taskDurationInput';
@@ -416,24 +417,25 @@ function isParsedTaskDuration(value: unknown): value is ParsedTaskDuration {
     && parsed.durationMinutes >= 0;
 }
 
-/** Wat een getypte duur in deze cel betekent (B8, §3.12): de dagenmaat van het profiel, de werktijd per
- *  dag van de taakkalender en de eenheid die de cel toont (voor een kaal getal). */
+/** Wat een getypte duur in deze cel betekent (B8, §3.12): de gedeelde regel van paneel en dialoog
+ *  (`taskDurationInputContext`), met het profiel, de taakkalender en de Duurweergave van het raster. */
 function durationInputContext(task: Task, ctx: TaskColumnContext): DurationInputContext {
-  const display = ctx.durationDisplay ?? 'auto';
-  return {
-    dayMeasure: ctx.workdayDurationMeasure !== false,
+  return taskDurationInputContext(task, {
+    countsWorkdays: ctx.workdayDurationMeasure !== false,
     hoursPerDay: effectiveHoursPerDay(task, ctx),
-    shownUnit: display === 'auto' ? task.time.durationUnit : display,
-  };
+    display: ctx.durationDisplay ?? 'auto',
+  });
 }
 
 const parseScheduledTaskDuration: Parser = (text, task, ctx) => {
-  const parsed = parseTaskDurationInput(text, task.time.durationUnit, durationInputContext(task, ctx));
+  const input = durationInputContext(task, ctx);
+  const parsed = parseTaskDurationInput(text, task.time.durationUnit, input);
   if (parsed) return success(parsed);
   // Achterwaartse klembordcompatibiliteit: de bestaande rasterparser accepteert samengestelde
   // invoer zoals `2d 4u` en draagt die als minuten naar de oude transactieroute. Nieuwe enkelvoudige
   // invoer (`2d`, `12h`, of een getal in de huidige taakeenheid) gebruikt het expliciete unitobject.
-  const legacyMinutes = parseDurationMinutes(text, effectiveHoursPerDay(task, ctx));
+  // Een dag telt met dezelfde uren als hierboven (kalendertijd: 24).
+  const legacyMinutes = parseDurationMinutes(text, input.hoursPerDay ?? effectiveHoursPerDay(task, ctx));
   return legacyMinutes === null ? failure('duration', text) : success(legacyMinutes);
 };
 const validateScheduledTaskDuration: Validator = value =>
@@ -444,13 +446,15 @@ const validateScheduledTaskDuration: Validator = value =>
 
 /** Kopieertekst van de Duur-kolom: de eigen taakeenheid in parsebare vorm ("2.5d", "1.5u" in nl,
  *  "1.5h" in en), zodat plakken terug hetzelfde oplevert. De WEERGAVE loopt via {@link durationCellText}.
- *  Onder een profiel zonder dagenmaat (P6, MSP) leest "d" als de urenmaat (B8); een dagenmaat-taak gaat
- *  daar dus als uren, zodat plakken haar lengte houdt. */
+ *  Waar "d" niet de dagenmaat is (P6, MSP; B8) gaat een dagenmaat-taak als uren, zodat plakken haar
+ *  lengte houdt. Kalendertijd blijft in dagen: daar is "d" in elk profiel een kalenderdag van 24 klokuren
+ *  (`taskDurationInputContext`). Kopiëren en plakken lezen zo dezelfde regel. */
 function scheduledTaskDurationText(task: Task, ctx: TaskColumnContext): string {
   const hourSuffix = parseableHourSuffix(ctx.labelForText?.('duration.suffixHour'), 'h');
   if (task.time.durationUnit === 'hours') return `${formatTaskDurationInput(task)}${hourSuffix}`;
-  if (ctx.workdayDurationMeasure === false) {
-    return `${formatTaskDurationInput(task, { shownUnit: 'hours', hoursPerDay: effectiveHoursPerDay(task, ctx) })}${hourSuffix}`;
+  const input = durationInputContext(task, ctx);
+  if (!input.dayMeasure) {
+    return `${formatTaskDurationInput(task, { shownUnit: 'hours', hoursPerDay: input.hoursPerDay })}${hourSuffix}`;
   }
   return `${formatTaskDurationInput(task)}d`;
 }

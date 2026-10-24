@@ -5,8 +5,10 @@ import { parseInstant } from '@/utils/dateUtils';
 import type { WorkCalendar } from '@/types/calendar';
 import type { EffectiveSchedulingOptions } from '@/types/project';
 import type { Task, TaskDurationUnit } from '@/types/task';
+import type { DurationDisplay } from '@/types/view';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { shownStart } from '@/utils/taskDates';
+import { durationHoursPerDay } from '@/utils/taskDuration';
 
 export interface ParsedTaskDuration {
   unit: TaskDurationUnit;
@@ -20,16 +22,38 @@ export interface ParsedTaskDuration {
  * context leest de parser zoals in het OPS-profiel, met een kaal getal in de maat van de taak.
  */
 export interface DurationInputContext {
-  /** Telt het rekenprofiel een dagenmaat in werkdagen (conventie `workdayDurationMeasure`)? Aan (de
-   *  standaard, OPS-profiel) ⇒ "5d" is de dagenmaat. Uit (P6, MS Project) ⇒ "5d" is de urenmaat: 5 × de
-   *  werktijd per dag. */
+  /** Is "d" bij deze taak de dagenmaat? Ja in een profiel dat een dagenmaat in werkdagen telt (conventie
+   *  `workdayDurationMeasure`, OPS) en bij kalendertijd (een dag is daar altijd 24 klokuren). Uit (P6,
+   *  MS Project, geen kalendertijd) ⇒ "5d" is de urenmaat: 5 × de werktijd per dag. Bouw hem met
+   *  {@link taskDurationInputContext}. */
   dayMeasure?: boolean;
-  /** De werktijd per dag van de taakkalender in uren (`effHoursPerDay`). Nodig om een dag als uren te
-   *  lezen (onder P6/MSP, of een kaal getal in een andere eenheid dan de maat van de taak). */
+  /** De uren per dag waarmee deze taak tussen dagen en uren omrekent (`durationHoursPerDay`): de werktijd
+   *  per dag van de taakkalender, bij kalendertijd 24. Nodig om een dag als uren te lezen (onder P6/MSP,
+   *  of een kaal getal in een andere eenheid dan de maat van de taak). */
   hoursPerDay?: number;
   /** De eenheid die tabel of veld bij deze taak toont. Een kaal getal staat in die eenheid en houdt de
    *  maat van de taak. Standaard de maat van de taak. */
   shownUnit?: TaskDurationUnit;
+}
+
+/**
+ * Wat een getypte of geplakte duur bij DEZE taak betekent (B8, §3.12). Eén bouwer voor paneel, dialoog en
+ * de Duur-kolom (invoer, bewerktekst en kopieertekst), zodat de regel nergens afdrijft:
+ *  - `countsWorkdays`: telt het rekenprofiel een dagenmaat in werkdagen (`profileCountsWorkdays`)?
+ *  - `hoursPerDay`: de werktijd per dag van de taakkalender (`effHoursPerDay`);
+ *  - `display`: de Duurweergave die het veld volgt (`'auto'` ⇒ de maat van de taak).
+ * Kalendertijd telt een dag als 24 klokuren, in elk profiel: "d" blijft daar een dag, en een omrekening
+ * tussen dagen en uren gebruikt 24 u (`durationHoursPerDay`).
+ */
+export function taskDurationInputContext(
+  task: Pick<Task, 'time'>,
+  opts: { countsWorkdays: boolean; hoursPerDay: number; display: DurationDisplay },
+): DurationInputContext {
+  return {
+    dayMeasure: opts.countsWorkdays || task.time.durationType === 'ELAPSEDTIME',
+    hoursPerDay: durationHoursPerDay(task, opts.hoursPerDay),
+    shownUnit: opts.display === 'auto' ? task.time.durationUnit : opts.display,
+  };
 }
 
 /** Grootste duur die de invoer aanneemt: zo blijft het aantal minuten een veilig geheel getal. */

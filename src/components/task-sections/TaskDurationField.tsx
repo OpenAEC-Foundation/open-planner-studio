@@ -9,6 +9,7 @@ import {
   formatTaskDurationInput,
   parseTaskDurationInput,
   convertTaskDurationUnit,
+  taskDurationInputContext,
   type ParsedTaskDuration,
 } from '@/utils/taskDurationInput';
 import { durationSuffixesFrom, effHoursPerDay, formatTaskDurationText, hourTaskScheduleDuration } from '@/utils/taskDuration';
@@ -33,10 +34,12 @@ export function TaskDurationField({ task, calendar, onChange }: {
   const countsWorkdays = useProfileCountsWorkdays();
   const display = useEffectiveDurationDisplay();
   const hoursPerDay = effHoursPerDay(calendar);
-  const shownUnit: TaskDurationUnit = display === 'auto' ? task.time.durationUnit : display;
-  const inputContext = { dayMeasure: countsWorkdays, hoursPerDay, shownUnit };
+  // Dezelfde regel als de Duur-kolom; kalendertijd rekent met 24 klokuren per dag.
+  const inputContext = taskDurationInputContext(task, { countsWorkdays, hoursPerDay, display });
   // Het veld toont een kaal getal met het decimaalteken van de app-taal ("2,5" in nl).
-  const seed = localizeDecimalPoint(formatTaskDurationInput(task, { shownUnit, hoursPerDay }), i18n.language);
+  const seed = localizeDecimalPoint(formatTaskDurationInput(task, {
+    shownUnit: inputContext.shownUnit, hoursPerDay: inputContext.hoursPerDay,
+  }), i18n.language);
   // B1a: vast werk is altijd urenmaat; de keuze Dagen bestaat dan niet.
   const fixedWork = workRuleApplies(task) && effectiveWorkRule(task, defaultWorkRule) === 'FIXED_WORK';
   const [value, setValue] = useState(seed);

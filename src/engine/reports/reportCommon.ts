@@ -7,7 +7,8 @@ import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type { ProjectSolveOptions } from '@/engine/scheduler/solveInput';
 import { createTaskEngineCache, type TaskEngineCache } from '@/engine/scheduler/taskEngineCache';
 import {
-  effHoursPerDay, effectiveCalendarOf, remainingTaskMeasure, taskMeasuredDuration, type MeasuredDuration,
+  durationHoursPerDay, effHoursPerDay, effectiveCalendarOf, remainingTaskMeasure, taskMeasuredDuration,
+  type MeasuredDuration,
 } from '@/utils/taskDuration';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
 import { shownStart, shownFinish, shownSpanOverlapsDays } from '@/utils/taskDates';
@@ -162,9 +163,11 @@ export function durationMeasure(t: Task): MeasuredDuration {
   return taskMeasuredDuration(t);
 }
 
-/** De werktijd per dag van de kalender van een taak: nodig om een duur om te rekenen (Duurweergave). */
+/** De uren per dag waarmee de duur van een taak omrekent (Duurweergave): de werktijd per dag van haar
+ *  kalender, bij kalendertijd 24 klokuren. */
 export function taskHoursPerDay(ctx: ReportContext, t: Task): number {
-  return effHoursPerDay(effectiveCalendarOf(t, ctx.calendar, ctx.calendars as WorkCalendar[]));
+  // Kalendertijd: 24 klokuren per dag, zoals de Duur-kolom (`durationHoursPerDay`).
+  return durationHoursPerDay(t, effHoursPerDay(effectiveCalendarOf(t, ctx.calendar, ctx.calendars as WorkCalendar[])));
 }
 
 export function round1(n: number): number {

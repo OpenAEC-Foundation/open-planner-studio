@@ -63,6 +63,16 @@ export function effHoursPerDay(cal: WorkCalendar): number {
 }
 
 /**
+ * De uren per dag waarmee de duur van DEZE taak tussen dagen en uren omrekent. Kalendertijd
+ * (`ELAPSEDTIME`) telt een dag als 24 klokuren, in elk profiel (de motor: `elapsedMinutesOf`); een
+ * andere taak de werktijd per dag van haar kalender (`hoursPerDay`, meestal {@link effHoursPerDay}; de
+ * motor: `durationMinutesOf`). Invoer, kopieertekst en weergave van een duur gebruiken deze factor.
+ */
+export function durationHoursPerDay(task: Pick<Task, 'time'>, hoursPerDay: number): number {
+  return task.time.durationType === 'ELAPSEDTIME' ? 24 : hoursPerDay;
+}
+
+/**
  * Het verborgen dagengetal (`scheduleDuration`) van een gewone URENtaak (blad, geen hangmat): werkminuten
  * ÷ de werktijd per dag van de taakkalender ({@link effHoursPerDay}; bij een blokkenkalender de modale
  * dagsom van de blokken).
@@ -139,11 +149,13 @@ function hoursText(minutes: number, hoursPerDay: number, suffixes: DurationSuffi
  * - `auto` ⇒ de door de gebruiker gekozen, blijvende taakeenheid ("5h", "2d");
  * - `days`/`hours` ⇒ die eenheid, met de eigen eenheid erachter als ze verschilt ("18h(2d)").
  * Een nulduur-mijlpaal is "0d". `hoursPerDay` is die van de effectieve taakkalender (de omrekening
- * tussen dagen en uren); de EDIT-tekst van het raster blijft bewust de parsebare eigen vorm.
+ * tussen dagen en uren; bij kalendertijd 24 u, zie {@link durationHoursPerDay}); de EDIT-tekst van het
+ * raster blijft bewust de parsebare eigen vorm.
  */
 export function formatTaskDurationText(task: Task, hoursPerDay: number, fmt?: DurationTextFormat): string {
   if (isZeroDurationMilestone(task)) return `0${suffixesOf(fmt).day}`;
-  return formatMeasuredDurationText(taskMeasuredDuration(task), hoursPerDay, fmt);
+  // Kalendertijd rekent met 24 klokuren per dag, niet met de werktijd (`durationHoursPerDay`).
+  return formatMeasuredDurationText(taskMeasuredDuration(task), durationHoursPerDay(task, hoursPerDay), fmt);
 }
 
 /** Een duur in de maat van een taak (B8): werkdagen in de dagenmaat, werkminuten in de urenmaat. */
