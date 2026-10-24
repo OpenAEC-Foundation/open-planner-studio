@@ -702,16 +702,6 @@ en noem het in je rapport of PR-tekst.
      overbezet (29 jun – 5 jul)"; de app meldt nu 6 dagen, 28 juni t/m 5 juli. De tutorialstappen in
      `tests/browser/tutorials/` zijn groen. Voorstel: de extensieteksten nalezen tegen het nieuwe
      getallenblok. — S
-292. **De gids over import en export zegt nog dat een dagtaak op een bibliotheekkalender na MSPDI korter wordt.**
-     `public/docs/{nl,en}/ref-import-exportformaten.md` r.51: "Een taak in dagen op zo'n kalender wordt dan
-     korter, bijvoorbeeld 4 dagen in plaats van 5." Sinds F5a-2 (T13) schrijft OPS een dag als de werktijd per
-     dag en leest hij hem zo terug: een bestand van OPS houdt 5 d (`check-urenperdag-heropenen.ts` §1). Voor
-     een ouder OPS-bestand en een bestand van MS Project geldt de zin nog. Verder r.91 (P6): "Een lag in
-     kalenderdagen wordt een lag in werktijd". In P6 zelf klopt dat; heropent OPS zijn eigen P6 XML, dan
-     herstelt het record de kalenderdagen (`check-uren-f5a2-adapters.ts` (1)). Dezelfde regel noemt voor
-     procentlag "een vast aantal dagen"; sinds F5a-1 (I6) zijn dat minuten (alleen uit de code afgeleid).
-     Bestanden van F4b; niet aangepast in F5a-2. — B (r.51 en de lag), S (procentlag)
-
 205. **Termbase kent nog het begrip *AI-assistent*.** `i18n/termbase/concepts.json` (`ai-assistant`, ook in
    `read-only`) en de doeltalen. De UI zegt nu *MCP-client*. Voorstel: het begrip omzetten via de
    vertaalstraat (`concepts-merge`, `apply-terms`) vóór de volgende release. — B
