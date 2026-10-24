@@ -433,10 +433,10 @@ export function useGanttPointerCoordinator(
         setHoverCursor(renderer.getSplitGapAt(x, y) ? 'not-allowed' : 'default');
         return;
       }
-      const splittable = splitRefusalFor(hit.task) === null;
+      const splittable = splitRefusalFor(hit.task) === null
+        && splitGesture.updateHover(event.clientX, event.clientY);
       setHoverCursor(splittable ? 'col-resize' : 'not-allowed');
-      if (splittable) splitGesture.updateHover(event.clientX, event.clientY);
-      else splitGesture.clearHover();
+      if (!splittable) splitGesture.clearHover();
       return;
     }
     if (hit) {

@@ -30,8 +30,6 @@ en noem het in je rapport of PR-tekst.
    "al conflictvrij". — B
 9. **Nivelleervenster** toont tegelijk "Geen taken hoeven te verschuiven — de planning is al conflictvrij" en
    "Resterende conflicten". — S
-10. **Splitsen van een taak met voortgang**: cursor en geleidelijn tonen "splitsbaar" in het al gedane deel;
-    een klik doet niets. — B
 47. **Speling *Automatisch* telt voortgang alleen mét statusdatum.** MS Project rekent een gestarte taak ook
     zonder statusdatum met de finish-speling. Zonder statusdatum wijken *Automatisch* en *Kleinste* dus
     allebei af van MSP. — B (code), niet gemeten op bestanden
