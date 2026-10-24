@@ -81,7 +81,7 @@ test('mijlpaalvinkje op een taak met toewijzing wordt geweigerd met melding', as
   const beforeBulk = await assignmentSnapshot(page);
   expect(beforeBulk).toHaveLength(2);
   expect(new Set(beforeBulk.map(a => a.resourceId)).size).toBe(2);
-  expect(beforeBulk.map(a => a.units)).toEqual([1, 0.375]);
+  expect(beforeBulk.map(a => a.unitsPerDay)).toEqual([1, 0.375]);
   await nameCell(page, L).click({ button: 'right' });
   await page.getByText('切换里程碑', { exact: true }).click();
   const bulk = page.locator('.ops-toast.toast-error');
