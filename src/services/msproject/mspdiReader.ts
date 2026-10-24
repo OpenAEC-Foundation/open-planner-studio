@@ -10,7 +10,7 @@ import { generateId } from '@/utils/id';
 import { parseInstant, parseDate, localTodayIso } from '@/utils/dateUtils';
 import { normalizeImportedProgress, deriveImportedWorkRules, rebuildImportedHierarchy, reconstructResourceIds } from '@/services/importNormalize';
 import { emptyMissingScheduleDates, isoDatePrefixOrToday, parseImportedInstant, resolveMissingScheduleDates } from '@/services/importDates';
-import { descendantText, toInt, toFloat } from '@/services/xmlDom';
+import { childElementNames, childElements, descendantText, directChildText, startsWithNames, toInt, toFloat } from '@/services/xmlDom';
 import { hasMsProjectImportLoss, type ImportResult } from '@/services/importTypes';
 import { scanMspdiImportLoss } from '@/services/msproject/mspdiImportLoss';
 import type { CustomTaskType } from '@/types/taskType';
@@ -92,6 +92,31 @@ function hasOpsFieldDefinition(root: Element, fieldId: string, fieldName: string
     }
   }
   return false;
+}
+
+/** De vingerafdruk van een MSPDI-export van OPS v2026.6.0 tot en met v2026.8.1 (knownbug 300). Die writers
+ *  schreven nog geen OPS-markering, maar wel steeds dezelfde vorm. MS Project, MPXJ en de 160 MSPDI-bestanden
+ *  van het corpus hebben die vorm niet; 43 daarvan missen `<SaveVersion>` en vallen op de kop af.
+ *  - geen `<SaveVersion>`, en de kop begint met Name, Title, Author, Company, CreationDate, StartDate;
+ *  - `<CreationDate>` staat op het anker (`…T08:00:00`): de writer kortte het aanmaakmoment in tot de datum;
+ *  - de projectsamenvattingstaak (UID 0) heeft precies UID, ID, Name, OutlineLevel en Summary;
+ *  - elke andere taak begint met UID, ID, Name, Duration, Start, Finish, WBS, OutlineLevel, Summary, Milestone.
+ *  Sinds v2026.9.0 schrijft OPS `OPS_TaskDurationUnit` (en een taak met `DurationFormat` na `Duration`); die
+ *  bestanden herkent de lezer aan de markering. Bewezen met de echte writers van v2026.6.0, v2026.7.0,
+ *  v2026.7.14, v2026.8.0 en v2026.8.1 (`tests/fixtures/legacyOpsExports.ts`). */
+export function isLegacyOpsMspdi(root: Element): boolean {
+  const head = childElementNames(root);
+  if (root.localName !== 'Project' || head.includes('SaveVersion')
+    || !startsWithNames(head, ['Name', 'Title', 'Author', 'Company', 'CreationDate', 'StartDate'])) return false;
+  if (!/^\d{4}-\d{2}-\d{2}T08:00:00$/.test(directChildText(root, 'CreationDate'))) return false;
+  const containers = childElements(root, 'Tasks');
+  if (containers.length !== 1) return false;
+  const tasks = childElements(containers[0], 'Task');
+  const summary = tasks[0];
+  if (!summary || directChildText(summary, 'UID') !== '0'
+    || childElementNames(summary).join() !== 'UID,ID,Name,OutlineLevel,Summary') return false;
+  return tasks.slice(1).every(te => startsWithNames(childElementNames(te),
+    ['UID', 'ID', 'Name', 'Duration', 'Start', 'Finish', 'WBS', 'OutlineLevel', 'Summary', 'Milestone']));
 }
 
 /** De eerste geldige waarde (uit `allowed`) van het OPS-taakveld `fieldId` op deze taak (direct-kind
@@ -282,10 +307,11 @@ export function readMSPDI(content: string): ImportResult {
   const dayMeasureLagsEnabled = hasOpsFieldDefinition(root, OPS_DAY_MEASURE_LAGS_FIELD_ID, OPS_DAY_MEASURE_LAGS_NAME);
   const workdayIsWorkTime = dayMeasureDurationsEnabled;
   // De tijdregel van dit bestand (I8, `xmlTimeRule`): 08:00 is alleen een anker in een bestand van OPS.
-  // De definitie van de duureenheid zegt "OPS schreef dit" (zoals `opsFile` in `readCalendars`); die van
-  // `OPS_LiteralCalendars` zegt "sinds F5b: elke taakdatum met zijn echte tijd".
+  // De definitie van de duureenheid zegt "OPS schreef dit" (zoals `opsFile` in `readCalendars`), en voor
+  // v2026.9.0 de vingerafdruk van die writers (`isLegacyOpsMspdi`, alleen voor de tijdregel). De definitie
+  // van `OPS_LiteralCalendars` zegt "sinds F5b: elke taakdatum met zijn echte tijd".
   const literalCalendarsEnabled = hasOpsFieldDefinition(root, OPS_LITERAL_CALENDARS_FIELD_ID, OPS_LITERAL_CALENDARS_NAME);
-  const timeRule = xmlTimeRule(durationUnitMarkerFieldId !== null, literalCalendarsEnabled);
+  const timeRule = xmlTimeRule(durationUnitMarkerFieldId !== null || isLegacyOpsMspdi(root), literalCalendarsEnabled);
 
   // Parse project
   const project = parseProject(root, timeRule);
@@ -489,7 +515,8 @@ export function readMSPDI(content: string): ImportResult {
     const duration = measure.scheduleDuration;
     const startRaw = getElementText(te, 'Start');
     const finishRaw = getElementText(te, 'Finish');
-    // De tijdregel van het bestand (I8): 08:00 is alleen in een OPS-export van v2026.9.0 tot F5b een anker.
+    // De tijdregel van het bestand (I8, `xmlTaskDate`): in een OPS-export zonder lijst beslist de kalender
+    // (`isHour`), zoals die writers schreven; anders is elke tijd echt.
     const parseTaskDate = (raw: string): string | undefined => xmlTaskDate(raw, timeRule, isHour);
     const sourceStart = parseTaskDate(startRaw);
     const sourceFinish = parseTaskDate(finishRaw);

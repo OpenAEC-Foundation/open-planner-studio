@@ -81,9 +81,11 @@ const CONS_FIXED_DATA_ITEM_SIZE = 20;
  *    Vroeger afgerond op hele dagen.
  *  - de andere elapsed-eenheden (minuten, uren, weken, maanden): minuut-exact `lagMinutes` (`rawLag / 10`)
  *    + ELAPSEDTIME, zoals MSPDI LagFormat 4, 6, 10 en 12.
- *  - WORKTIME: de urenmaat, minuut-exact `lagMinutes` (`Math.round(rawLag / 10)`), voor elke opvolger: een
- *    `.mpp` draagt geen OPS-markering voor een lag in de dagenmaat (T15). Vroeger kreeg een opvolger op een
- *    dagkalender hele werkdagen op de projectbrede `hoursPerDay`.
+ *  - WORKTIME: de urenmaat, `lagMinutes` = `rawLag / 10`, voor elke opvolger: een `.mpp` draagt geen
+ *    OPS-markering voor een lag in de dagenmaat (T15). Vroeger kreeg een opvolger op een dagkalender hele
+ *    werkdagen op de projectbrede `hoursPerDay`.
+ *  Tienden van een minuut blijven staan (§3.10, review #591 r1, punt 3). Grens: IFC en de MSPDI-lezer dragen
+ *  een lag op de hele minuut (knownbug 309); de MSPDI-writer schrijft wel tienden.
  *
  * ⚠️ Dekkingsvoorbehoud: het corpus draagt alleen FINISH_START-relaties met lag=0 — de typetabel
  * (`mspTypeToSequenceType`) en alle lag-takken worden alleen door de synthetische fixtures in
@@ -100,8 +102,8 @@ function mppLagToSequenceFields(rawLag: number, unitCode: number): SequenceLagFi
     return fields;
   }
   if (unit === 'elapsedDays') return { lagDays: getDuration(rawLag, 'elapsedDays'), lagUnit: 'ELAPSEDTIME' };
-  if (unit.startsWith('elapsed')) return { lagDays: 0, lagMinutes: Math.round(rawLag / 10), lagUnit: 'ELAPSEDTIME' };
-  return { lagDays: 0, lagMinutes: Math.round(rawLag / 10) };
+  if (unit.startsWith('elapsed')) return { lagDays: 0, lagMinutes: rawLag / 10, lagUnit: 'ELAPSEDTIME' };
+  return { lagDays: 0, lagMinutes: rawLag / 10 };
 }
 
 /** Poort van `ConstraintFactory.process` — `"   114"/TBkndCons` → `Sequence[]`. Geëxporteerd zodat

@@ -21,7 +21,7 @@ import {
 import { normalizeImportedProgress, deriveImportedWorkRules, reconstructResourceIds } from '@/services/importNormalize';
 import { flattenOrder } from '@/utils/wbs';
 import { emptyMissingScheduleDates, isoDatePrefixOrToday, parseImportedInstant, resolveMissingScheduleDates } from '@/services/importDates';
-import { directChildText, toInt, toFloat } from '@/services/xmlDom';
+import { childElementNames, directChildText, startsWithNames, toInt, toFloat } from '@/services/xmlDom';
 import type { ImportResult, OpenedImport, P6XmlEmptyReason, P6XmlImportReport } from '@/services/importTypes';
 import type { Baseline } from '@/types/baseline';
 import { baselineTasksFromSource } from '@/services/importBaselines';
@@ -409,6 +409,35 @@ function mergeConsecutiveDays<T extends { name: string; startDate: string; endDa
   return out;
 }
 
+/** De kinderen van `<Project>` in een P6 XML-export van OPS v2026.6.0 tot en met v2026.8.1, in deze volgorde. */
+const LEGACY_OPS_PROJECT_FIELDS = ['ObjectId', 'Id', 'Name', 'Description', 'PlannedStartDate', 'MustFinishByDate', 'Status', 'DataDate'];
+
+/** De vingerafdruk van een P6 XML-export van OPS v2026.6.0 tot en met v2026.8.1 (knownbug 300). Die writers
+ *  schreven nog geen OPS-UDF, maar wel steeds dezelfde vorm. P6 zelf en de 24 P6 XML-bestanden van het corpus
+ *  hebben die vorm niet: daar staan de activiteiten in het project, en het project heeft veel meer velden.
+ *  - precies één `<Project>`, met `ObjectId` 1 en alleen velden uit {@link LEGACY_OPS_PROJECT_FIELDS}, in die
+ *    volgorde; ObjectId, Id en Name staan voorop, Description, PlannedStartDate en Status zijn er altijd;
+ *  - geen activiteit in het project; elke activiteit staat naast het project en begint met ObjectId, Id, Name,
+ *    ProjectObjectId (= 1).
+ *  Bewezen met de echte writers van v2026.6.0, v2026.7.0, v2026.7.14, v2026.8.0 en v2026.8.1
+ *  (`tests/fixtures/legacyOpsExports.ts`). */
+export function isLegacyOpsP6Xml(root: Element): boolean {
+  if (root.localName !== 'APIBusinessObjects') return false;
+  const projects = directChildrenByLocalName(root, 'Project');
+  if (projects.length !== 1 || directChildText(projects[0], 'ObjectId') !== '1') return false;
+  const fields = childElementNames(projects[0]);
+  let next = 0;
+  for (const field of fields) {
+    next = LEGACY_OPS_PROJECT_FIELDS.indexOf(field, next);
+    if (next < 0) return false;
+    next++;
+  }
+  if (!startsWithNames(fields, ['ObjectId', 'Id', 'Name'])
+    || !['Description', 'PlannedStartDate', 'Status'].every(field => fields.includes(field))) return false;
+  return directChildrenByLocalName(root, 'Activity').every(act => directChildText(act, 'ProjectObjectId') === '1'
+    && startsWithNames(childElementNames(act), ['ObjectId', 'Id', 'Name', 'ProjectObjectId']));
+}
+
 function directChildrenByLocalName(parent: Element, localName: string): Element[] {
   const results: Element[] = [];
   for (let i = 0; i < parent.children.length; i++) {
@@ -636,7 +665,9 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
       && getElementText(el, 'Title') === OPS_LITERAL_CALENDARS_NAME)
     .map(el => getElementInt(el, 'ObjectId', -1))
     .filter(objectId => objectId >= 0));
-  const timeRule = xmlTimeRule(writtenByOps, literalCalendarUdfIds.size > 0);
+  // Een export van vóór v2026.9.0 heeft geen UDF; de vingerafdruk van die writers (`isLegacyOpsP6Xml`) geldt
+  // alleen voor de tijdregel, niet voor de andere keuzes van `writtenByOps`.
+  const timeRule = xmlTimeRule(writtenByOps || isLegacyOpsP6Xml(scope.root), literalCalendarUdfIds.size > 0);
   const literalCalendarUdf = scope.project && literalCalendarUdfIds.size > 0
     ? directChildrenByLocalName(scope.project, 'UDF').find(el => literalCalendarUdfIds.has(getElementInt(el, 'TypeObjectId', -1)))
     : undefined;
@@ -1027,8 +1058,8 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
     const effCal = calById.get(effCalId) ?? calendar;
     effCalByTaskId.set(id, effCal);
     const effHpd = effCal.hoursPerDay;
-    // Datum-parser met de tijdregel van het bestand (I8, `xmlTaskDate`): 08:00 is alleen in een OPS-export van
-    // v2026.9.0 tot F5b een anker; daar valt een tijd op een scalaire kalender weg.
+    // Datum-parser met de tijdregel van het bestand (I8, `xmlTaskDate`): in een OPS-export zonder lijst beslist
+    // de kalender (`hourDates`), zoals die writers schreven; anders is elke tijd echt.
     const parseTaskDate = (raw: string): string | undefined => xmlTaskDate(raw, timeRule, hourDates);
     const sourceStart = parseTaskDate(plannedStartRaw);
     const sourceFinish = parseTaskDate(plannedFinishRaw);

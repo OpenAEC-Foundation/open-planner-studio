@@ -712,8 +712,9 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
     // 24/7 toe (`duration.ts`). Beperkingen daar: MSO/MFO-snaps op een ELAPSEDTIME-taak
     // (`CPMSolver.hardPinStart`) en de vrije-speling-eenheid bij een elapsed voorganger
     // (`scheduleAnalysis.ts`). Het dagengetal via `hourTaskScheduleDuration`, niet ÷ de opgeslagen
-    // `hoursPerDay`.
-    const durationMinutes = Math.round(raw.durationRaw / 10);
+    // `hoursPerDay`. MPP telt in tienden van een minuut; die blijven staan (§3.10 "in minuten zonder
+    // afronding"; review #591 r1, punt 3). Een breuk gaat als `ExactMinutes`-record mee naar IFC en XML (T14).
+    const durationMinutes = raw.durationRaw / 10;
     const duration = hourTaskScheduleDuration(durationMinutes, cal);
 
     // REMAINING_DURATION rechtstreeks meenemen, in minuten zoals de duur. `null` ⇒ ongezet en de solver
@@ -721,7 +722,7 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
     // terwijl `completion` afgerond is opgeslagen (33% i.p.v. 33,33…%) — de afleiding zou op een
     // klokstand landen die MSP nooit toont. `normalizeImportedProgress` laat `remainingMinutes` staan.
     const remainingMinutes = raw.remainingDurationRaw !== null
-      ? Math.round(raw.remainingDurationRaw / 10)
+      ? raw.remainingDurationRaw / 10
       : undefined;
 
     const formatField = (ts: Date | null): string | undefined =>

@@ -34,11 +34,20 @@ export function toXmlDateTime(iso: string): string {
 
 /**
  * Hoe een MSPDI- of P6 XML-lezer de tijd in een taakdatum leest (alleen uren §1.3 en §3.10, I8; knownbugs
- * 274 en 275). Het 08:00-anker is een afspraak van OPS zelf; een ander programma kent hem niet.
- *  - `foreign`: een bestand zonder OPS-markering. Elke tijd is echt, ook 08:00. Grens: een OPS-export van
- *    vóór v2026.9.0 heeft ook geen markering; zijn anker 08:00 leest nu als een echte tijd.
- *  - `opsAnchor`: een OPS-export van v2026.9.0 tot F5b. 08:00 is het anker: een datum zonder tijd, ook op
- *    een urenkalender (275). Op een scalaire kalender valt de tijd weg, zoals die writer hem bedoelde.
+ * 274, 275 en 300). Het 08:00-anker is een afspraak van OPS zelf; een ander programma kent hem niet.
+ *  - `foreign`: een bestand van een ander programma. Elke tijd is echt, ook 08:00.
+ *  - `opsAnchor`: een OPS-export zonder lijst. Dat is een bestand met de duureenheidmarkering (v2026.9.0
+ *    tot F5b), of een bestand met de vingerafdruk van de writers van v2026.6.0 tot en met v2026.8.1 (geen
+ *    markering; `isLegacyOpsMspdi`, `isLegacyOpsP6Xml`). Al die writers kozen de vorm van een datum per
+ *    KALENDER, niet per taak of per veld: op een urenkalender een moment, ook een echte 08:00; op een
+ *    dagkalender een datum zonder tijd, geschreven als het anker 08:00. Bronnen: `isHourCalendar` in de
+ *    writer van v2026.8.1, `modeOf(cal)` in `scheduleAnalysis.ts` van v2026.10.0 (de berekende datums van
+ *    ELKE taak op een urenkalender zijn momenten, ook van een dagtaak), en in F5a `minuteModelWriteView`
+ *    voor MSPDI (een letterlijke kalender schrijft elk planningsveld als moment, een ankerkalender elk
+ *    afleidbaar moment als datum); de P6-writer van F5a schreef de momenten van het model. De lezer volgt dat met de kalender van de taak: op een urenkalender is elke tijd echt, op een scalaire
+ *    kalender valt de tijd weg. De keuze voor een urenkalender is het tijdsignaal ({@link xmlTimeSignal}) of
+ *    een duur korter dan een werkdag, zoals vóór F5b. Grens: een letterlijke kalender zonder enig signaal
+ *    (alleen tijden van precies 08:00 en hele werkdagen) leest scalair, ook vóór F5b (knownbug 308).
  *  - `opsLiteral`: een OPS-export sinds F5b (`OPS_LiteralCalendars`). Elke taakdatum draagt zijn echte
  *    tijd; de lijst zegt welke kalenders letterlijk zijn (T17).
  */
@@ -77,14 +86,12 @@ export function xmlTimeSignal(raw: string): boolean {
 }
 
 /** Een taakdatum uit MSPDI of P6 XML. `hourCalendar`: de kalender van de taak is een urenkalender.
- *  - `opsAnchor`: 08:00 is een datum zonder tijd, ook op een urenkalender (275); een andere tijd blijft
- *    alleen op een urenkalender;
+ *  - `opsAnchor`: de kalender beslist, zoals de writer van dat bestand ({@link XmlTimeRule}): op een
+ *    urenkalender is elke tijd echt, ook 08:00; op een scalaire kalender is het een datum zonder tijd;
  *  - `foreign` en `opsLiteral`: elke tijd is het moment, ook 08:00 en ook op een scalaire kalender (274).
  *  Lege of onleesbare invoer ⇒ `undefined` (`importDateTimeOrUndefined`). */
 export function xmlTaskDate(raw: string, rule: XmlTimeRule, hourCalendar: boolean): string | undefined {
-  if (rule !== 'opsAnchor') return importDateTimeOrUndefined(raw, true);
-  if (raw.includes('T') && !hasNonAnchorTime(raw, DAY_TIME_ANCHOR)) return importDateTimeOrUndefined(raw, false);
-  return importDateTimeOrUndefined(raw, hourCalendar);
+  return importDateTimeOrUndefined(raw, rule !== 'opsAnchor' || hourCalendar);
 }
 
 /** Leesrichting van {@link toXmlDateTime} voor de statusdatum (MSPDI `<StatusDate>`, P6 `<DataDate>`)
