@@ -1,5 +1,7 @@
 import { Task, TaskConstraint } from '@/types/task';
 import { minuteModelWriteView } from '@/services/ifc/minuteModelWrite';
+import { DayClockCache, mapTaskDates, normalizeTaskDate, taskDateContext, type TaskDateField } from '@/state/migrations/minuteModel';
+import { isDateOnly } from '@/engine/calendar/workdayRules';
 import { isP6DialogDefaultLeveling } from '@/services/leveling/levelingInput';
 import { resolveConventions } from '@/engine/scheduler/conventions/registry';
 import { Sequence, SequenceType } from '@/types/sequence';
@@ -16,6 +18,12 @@ import { taskDurationUnit } from '@/engine/scheduler/duration';
 import { effHoursPerDay } from '@/utils/taskDuration';
 import { createBaselineOldDayCheck } from '@/engine/baselineOldDay';
 import { encodeCustomTaskType, escapeXml, OPS_DURATION_UNIT_NAME, toXmlDateTime } from '@/services/xmlInterchange';
+import {
+  LagRecordCollector, OPS_DAY_MEASURE_DURATIONS_NAME, OPS_DAY_MEASURE_LAGS_NAME, OPS_EXACT_MINUTES_NAME,
+  OPS_LAG_CALENDAR_NAME, dayMeasureMinutesPerDay, fieldRecordsJson, lagRecordKey, lagWorkMinutesPerDay, writeDays, writeMinutes,
+  type LagRecord, type WrittenAmount,
+} from '@/services/xmlDayMeasure';
+import { ELAPSED_MINUTES_PER_DAY, dayMeasureMinutes, roundDays } from '@/services/ifc/dayMeasureIo';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { effectiveWorkTimeBands, calendarForEngine } from '@/utils/effectiveWorkTime';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
@@ -60,6 +68,21 @@ export const OPS_MILESTONE_KIND_FIELD_NAME = 'OPS_MilestoneKind';
 /** MSPDI-transportveld (vrije ExtendedAttribute) voor de OPS-taaktypemarker; geëxporteerd voor de reader. */
 export const OPS_CUSTOM_TASK_TYPE_FIELD_ID = '188743731';
 
+/**
+ * De maat van duur, rest en lag (alleen uren §3.3, §3.10; T21, T14; `xmlDayMeasure.ts`). Zelfde patroon
+ * als de duureenheid: een namespaced tekstveld, alleen geldig als de projectdefinitie exact deze OPS-naam
+ * draagt. FieldID's van MS Project (`PjField`, Microsoft Learn): Text28 = 188744014, Text27 = 188744013,
+ * Text26 = 188744012. Een tekstveld in MS Project houdt hoogstens 255 tekens (VERMOED: MS Project kort een
+ * langere waarde bij eigen opslaan in; dan is de JSON ongeldig en leest OPS de lengtes in de urenmaat).
+ */
+export const OPS_DAY_MEASURE_DURATIONS_FIELD_ID = '188744014';
+export const OPS_EXACT_MINUTES_FIELD_ID = '188744013';
+export const OPS_DAY_MEASURE_LAGS_FIELD_ID = '188744012';
+/** De lagkalender van het project (`schedulingOptions.lagCalendar`, I7) op de projectsamenvattingstaak
+ *  (UID 0): Text25 = 188744011. Zonder deze waarde rekent de lezer met de standaard, de voorganger, en telt
+ *  een lagrecord dat met een andere lagkalender geschreven is niet (review #585 r1, punt 1). */
+export const OPS_LAG_CALENDAR_FIELD_ID = '188744011';
+
 // WorkContour-enum (MSPDI-schemadocumentatie/MPXJ): 0=Flat, 1=BackLoaded, 2=FrontLoaded,
 // 3=DoublePeak, 4=EarlyPeak, 5=LatePeak, 6=Bell, 7=Turtle; 8 (Contoured) is geen vorm maar het signaal
 // dat er `<TimephasedData>` meegaat. Alle acht vormen zijn een OPS-curve. Geëxporteerd zodat de reader
@@ -93,6 +116,19 @@ function durationToISO8601(days: number, hoursPerDay: number): string {
   return minutesToIsoDuration(days * hoursPerDay * 60);
 }
 
+/** De startvelden van de planning (knownbug 256). Een beperking, deadline of extern anker blijft zoals hij
+ *  is, net als in de write view (`minuteModelWrite.ts`). */
+const PLANNING_START_FIELDS: ReadonlySet<TaskDateField> = new Set(['scheduleStart', 'earlyStart', 'lateStart', 'actualStart']);
+
+/** Eén OPS-tekstveld op een taak (`<ExtendedAttribute>`), alleen met een waarde. */
+function pushOpsTaskField(lines: string[], indent: (level: number) => string, fieldId: string, value: string | undefined): void {
+  if (value === undefined) return;
+  lines.push(`${indent(3)}<ExtendedAttribute>`);
+  lines.push(`${indent(4)}<FieldID>${fieldId}</FieldID>`);
+  lines.push(`${indent(4)}<Value>${escapeXml(value)}</Value>`);
+  lines.push(`${indent(3)}</ExtendedAttribute>`);
+}
+
 /**
  * OPS-constraint → MSPDI `ConstraintType`-code (MS Learn: 0=ASAP, 1=ALAP, 2=Must Start On, 3=Must
  * Finish On, 4=SNET, 5=SNLT, 6=FNET, 7=FNLT). Retourneert `undefined` voor ASAP (default ⇒ niets
@@ -116,15 +152,14 @@ function mspConstraintCode(c: TaskConstraint): { code: number; softLoss?: boolea
   }
 }
 
-function lagToTenthsOfMinutes(lagDays: number, hoursPerDay: number): number {
-  // MS Project stores lag in tenths of minutes
-  return lagDays * hoursPerDay * 60 * 10;
-}
-
 // MSPDI LagFormat (subset van DurationFormat): 6 = elapsed uren, 7 = dagen, 8 = elapsed dagen
 // (24/7), 19 = procent, 20 = elapsed procent. Bij procent staat LinkLag in tienden van een procent,
-// anders altijd in tienden van (werk- of klok)minuten — LagFormat is alleen de weergave-eenheid.
-function lagFields(seq: Sequence, hoursPerDay: number): { linkLag: number; lagFormat: number } {
+// anders altijd in tienden van (werk- of klok)minuten. Bij werktijd is LagFormat alleen de
+// weergave-eenheid; bij kalendertijd zegt hij de eenheid van de lag (8 = dagen, 6 = minuten), zodat de
+// lezer een kalendertijd-lag zonder record terugkrijgt (alleen uren §3.3).
+// `minutesPerLagDay`: de werktijd per dag van de lagkalender (I7). Een lag in de dagenmaat krijgt een
+// record `[dagen, geschreven minuten]` (T21), ook in hele dagen: de relatie heeft geen eigen markering.
+function lagFields(seq: Sequence, minutesPerLagDay: number): { linkLag: number; lagFormat: number; record?: LagRecord } {
   const elapsed = seq.lagUnit === 'ELAPSEDTIME';
   if (typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent)) {
     return { linkLag: Math.round(seq.lagPercent * 10), lagFormat: elapsed ? 20 : 19 };
@@ -136,11 +171,14 @@ function lagFields(seq: Sequence, hoursPerDay: number): { linkLag: number; lagFo
   if (typeof seq.lagMinutes === 'number' && Number.isFinite(seq.lagMinutes)) {
     return { linkLag: Math.round(seq.lagMinutes * 10), lagFormat: elapsed ? 6 : 7 };
   }
+  const days = Number.isFinite(seq.lagDays) ? seq.lagDays : 0;
   if (elapsed) {
-    // Elapsed dagen tellen 24 uur, onafhankelijk van de werkkalender.
-    return { linkLag: seq.lagDays * 24 * 60 * 10, lagFormat: 8 };
+    // Elapsed dagen tellen 24 uur, onafhankelijk van de werkkalender. LinkLag is een geheel getal.
+    return { linkLag: Math.round(days * ELAPSED_MINUTES_PER_DAY * 10), lagFormat: 8 };
   }
-  return { linkLag: lagToTenthsOfMinutes(seq.lagDays, hoursPerDay), lagFormat: 7 };
+  // Dagenmaat: hele minuten, zoals `PT…` in IFC (`dayMeasureMinutes`); het record draagt de dagen.
+  const minutes = dayMeasureMinutes(days, minutesPerLagDay);
+  return { linkLag: minutes * 10, lagFormat: 7, ...(days !== 0 ? { record: [roundDays(days), minutes] as const } : {}) };
 }
 
 /** Datumopmaak is geen XML-escaping: ook ongeldige (geïmporteerde) datumtekst blijft tekst.
@@ -271,7 +309,14 @@ export function writeMSPDI(
   // de genormaliseerde kloktijden een scalaire kalender na herimport promoveren.
   const writeView = minuteModelWriteView({ tasks, calendar, resourceCalendars, baselines },
     { literalAutomaticMilestones: true });
-  tasks = writeView.tasks;
+  // Knownbug 256: op een letterlijke kalender laat de write view een kale planningsstart staan, en
+  // `toXmlDateTime` maakte er het anker 08:00 van (kalender 09:00–17:00: een uur te vroeg). Zo'n start
+  // krijgt hier zijn moment volgens zijn veldregel (D1: het begin van de werkdag), zoals de laadgrens.
+  const clocks = new DayClockCache(calendar, resourceCalendars);
+  tasks = writeView.tasks.map(task => (writeView.literalCalendarIds.has(resolveCalendar(task.calendarId, resourceCalendars, calendar).id)
+    ? mapTaskDates(task, (value, field) => (PLANNING_START_FIELDS.has(field) && isDateOnly(value)
+      ? normalizeTaskDate(value, field, taskDateContext(task, clocks, writeView.atDayEnd)) ?? value : value))
+    : task));
   baselines = writeView.baselines;
   const lines: string[] = [];
   const indent = (level: number) => '  '.repeat(level);
@@ -392,6 +437,28 @@ export function writeMSPDI(
   lines.push(`${indent(3)}<FieldName>${OPS_MILESTONE_KIND_FIELD_NAME}</FieldName>`);
   lines.push(`${indent(3)}<Alias>${OPS_MILESTONE_KIND_FIELD_NAME}</Alias>`);
   lines.push(`${indent(2)}</ExtendedAttribute>`);
+  // De maatrecords (T21, T14). Altijd gedefinieerd, ook zonder records: de definitie van
+  // `OPS_DayMeasureDurations` zegt de lezer dat dit bestand de dagenmaat in de werktijd per dag schreef
+  // (T13); een ouder OPS-bestand schreef dagen × de opgeslagen uren per dag.
+  for (const [fieldId, name] of [
+    [OPS_DAY_MEASURE_DURATIONS_FIELD_ID, OPS_DAY_MEASURE_DURATIONS_NAME],
+    [OPS_EXACT_MINUTES_FIELD_ID, OPS_EXACT_MINUTES_NAME],
+    [OPS_DAY_MEASURE_LAGS_FIELD_ID, OPS_DAY_MEASURE_LAGS_NAME],
+  ] as const) {
+    lines.push(`${indent(2)}<ExtendedAttribute>`);
+    lines.push(`${indent(3)}<FieldID>${fieldId}</FieldID>`);
+    lines.push(`${indent(3)}<FieldName>${name}</FieldName>`);
+    lines.push(`${indent(3)}<Alias>${name}</Alias>`);
+    lines.push(`${indent(2)}</ExtendedAttribute>`);
+  }
+  const lagCalendarOption = project.schedulingOptions?.lagCalendar;
+  if (lagCalendarOption) {
+    lines.push(`${indent(2)}<ExtendedAttribute>`);
+    lines.push(`${indent(3)}<FieldID>${OPS_LAG_CALENDAR_FIELD_ID}</FieldID>`);
+    lines.push(`${indent(3)}<FieldName>${OPS_LAG_CALENDAR_NAME}</FieldName>`);
+    lines.push(`${indent(3)}<Alias>${OPS_LAG_CALENDAR_NAME}</Alias>`);
+    lines.push(`${indent(2)}</ExtendedAttribute>`);
+  }
   lines.push(`${indent(1)}</ExtendedAttributes>`);
 
   // Scheduling-options: alleen wat MSPDI native kan. `CriticalSlackLimit` (dagen) draagt een triviale
@@ -459,6 +526,20 @@ export function writeMSPDI(
     taskUidMap.set(tasks[i].id, i + 1);
   }
 
+  // Relaties vooraf: `LinkLag`/`LagFormat` per relatie, en de lagrecords per opvolger (T21). De records
+  // gaan als één tekstveld op de opvolger, dus ze moeten er zijn vóór die taak geschreven wordt.
+  // Standaard telt de lag in de voorgangerkalender; een expliciete lagkalender gaat voor (I7).
+  const lagCalendar = project.schedulingOptions?.lagCalendar;
+  const linkFields = new Map<string, ReturnType<typeof lagFields>>();
+  const lagRecords = new LagRecordCollector();
+  for (const seq of sequences) {
+    const predUid = taskUidMap.get(seq.predecessorId);
+    if (predUid === undefined || !taskUidMap.has(seq.successorId)) continue;
+    const fields = lagFields(seq, lagWorkMinutesPerDay(seq, lagCalendar, calendar, effCalByTask));
+    linkFields.set(seq.id, fields);
+    lagRecords.add(seq.successorId, lagRecordKey(predUid, seq.type), fields.record);
+  }
+
   // Tasks
   lines.push(`${indent(1)}<Tasks>`);
 
@@ -469,6 +550,7 @@ export function writeMSPDI(
   lines.push(`${indent(3)}<Name>${escapeXml(exportName)}</Name>`);
   lines.push(`${indent(3)}<OutlineLevel>0</OutlineLevel>`);
   lines.push(`${indent(3)}<Summary>1</Summary>`);
+  pushOpsTaskField(lines, indent, OPS_LAG_CALENDAR_FIELD_ID, lagCalendarOption);
   lines.push(`${indent(2)}</Task>`);
 
   for (let i = 0; i < tasks.length; i++) {
@@ -480,16 +562,30 @@ export function writeMSPDI(
     // een ruit van zonder duur.
     const isMilestone = !isSummary && (task.isMilestone || task.time.scheduleDuration === 0);
 
-    // Uur-taak ⇒ Duration als `PT{h}H{m}M0S` uit de minuten; dag-taak ⇒ `PT{dagen×hpd}H0M0S`. De hpd
-    // is die van de EFFECTIEVE (taak-)kalender, niet de projectkalender: een OPS-dagduur is N werkdagen
-    // van de kalender waarin de taak rekent, en `readMSPDI` deelt bij het teruglezen ook door `effHpd`
-    // (met de projectkalender kwam een 7-daagse 24/7-taak als 2,33 dagen terug).
-    const effCal = effCalByTask.get(task.id);
-    const effHpd = effCal?.hoursPerDay ?? calendar.hoursPerDay;
+    // Uur-taak ⇒ Duration als `PT{h}H{m}M0S` uit de minuten; dag-taak ⇒ werkdagen × de werktijd per dag
+    // van de EFFECTIEVE (taak-)kalender (T13, "1 d = echte werktijd per dag", eigenaarsbesluit 2026-10-15),
+    // bij kalendertijd × 1440 (MS Project leest `PT36H` met DurationFormat 8 als 1,5 ed). Niet de opgeslagen
+    // uren per dag: 3 d op een kalender met 8 u opgeslagen en werkblokken van 10 u werd 24 u, en MS Project
+    // plande daar 2,4 werkdagen. Een breuk in dagen (dagenmaat) of in minuten (urenmaat) krijgt een record
+    // naast de unit-markering (T21, T14; `xmlDayMeasure.ts`).
+    const effCal = effCalByTask.get(task.id) ?? calendar;
+    const workHpd = effHoursPerDay(effCal);
+    const dayMinutesPerDay = dayMeasureMinutesPerDay(effCal, task.time.durationType === 'ELAPSEDTIME');
     const isHourTask = taskDurationUnit(task) === 'hours';
-    const durationTag = isHourTask
-      ? minutesToIsoDuration(taskMinutesForWrite(task, effHpd))
-      : durationToISO8601(task.time.scheduleDuration, effHpd);
+    const writtenDuration: WrittenAmount = isHourTask
+      ? writeMinutes(taskMinutesForWrite(task, workHpd))
+      : writeDays(task.time.scheduleDuration, dayMinutesPerDay);
+    const durationTag = minutesToIsoDuration(writtenDuration.minutes);
+    // Rest: urenmaat de restminuten; dagenmaat de restdagen × dezelfde minuten per dag. Een urentaak zonder
+    // restminuten telt haar restdagen in de werktijd per dag, zoals haar dagengetal.
+    const writtenRemaining: WrittenAmount | undefined = isHourTask && task.time.remainingMinutes != null
+      ? writeMinutes(task.time.remainingMinutes)
+      : task.time.remainingTime == null ? undefined
+      : isHourTask ? { minutes: dayMeasureMinutes(task.time.remainingTime, workHpd * 60) }
+      : writeDays(task.time.remainingTime, dayMinutesPerDay);
+    // Dagenmaat: `[dagen, minuten]` in `OPS_DayMeasureDurations`; urenmaat: `[exacte minuten, minuten]` in
+    // `OPS_ExactMinutes`. De unit-markering zegt welke van de twee de taak draagt.
+    const durationRecords = fieldRecordsJson({ Duration: writtenDuration.record, RemainingDuration: writtenRemaining?.record });
     const durationFormat = isHourTask
       ? (task.time.durationType === 'ELAPSEDTIME' ? 6 : 5)
       : (task.time.durationType === 'ELAPSEDTIME' ? 8 : 7);
@@ -530,10 +626,8 @@ export function writeMSPDI(
     if (task.time.actualFinish) {
       lines.push(`${indent(3)}<ActualFinish>${dateTimeXmlText(task.time.actualFinish)}</ActualFinish>`);
     }
-    if (isHourTask && task.time.remainingMinutes != null) {
-      lines.push(`${indent(3)}<RemainingDuration>${minutesToIsoDuration(task.time.remainingMinutes)}</RemainingDuration>`);
-    } else if (task.time.remainingTime != null) {
-      lines.push(`${indent(3)}<RemainingDuration>${durationToISO8601(task.time.remainingTime, effHpd)}</RemainingDuration>`);
+    if (writtenRemaining) {
+      lines.push(`${indent(3)}<RemainingDuration>${minutesToIsoDuration(writtenRemaining.minutes)}</RemainingDuration>`);
     }
     // ?? i.p.v. || : priority 0 is een geldige waarde (laagste, levelt als eerste weg).
     lines.push(`${indent(3)}<Priority>${Number.isFinite(task.priority) ? task.priority : 500}</Priority>`);
@@ -568,6 +662,10 @@ export function writeMSPDI(
     lines.push(`${indent(4)}<FieldID>${OPS_DURATION_UNIT_FIELD_ID}</FieldID>`);
     lines.push(`${indent(4)}<Value>${isHourTask ? 'hours' : 'days'}</Value>`);
     lines.push(`${indent(3)}</ExtendedAttribute>`);
+    // De maatrecords naast de markering: dagenmaat `[dagen, minuten]`, urenmaat `[exacte minuten, minuten]`,
+    // en de lagen van de relaties naar deze taak (sleutel `voorganger-UID:type`).
+    pushOpsTaskField(lines, indent, isHourTask ? OPS_EXACT_MINUTES_FIELD_ID : OPS_DAY_MEASURE_DURATIONS_FIELD_ID, durationRecords);
+    pushOpsTaskField(lines, indent, OPS_DAY_MEASURE_LAGS_FIELD_ID, lagRecords.json(task.id));
     if (isMilestone) {
       // Zelfde regel als de IFC-pset `OPS_Milestone`: alleen een echte mijlpaal draagt een soort.
       const kind = task.isMilestone && (task.milestoneKind === 'START' || task.milestoneKind === 'FINISH')
@@ -588,29 +686,26 @@ export function writeMSPDI(
       lines.push(`${indent(4)}<Start>${dateTimeXmlText(bt.start)}</Start>`);
       lines.push(`${indent(4)}<Finish>${dateTimeXmlText(bt.finish)}</Finish>`);
       // Dezelfde dag als de taakduur — anders staat naast een taakduur van 168 u een baseline van 56 u
-      // en verzint MS Project 112 u afwijking. Dagtaak: `effHpd`, zoals <Duration>. Urentaak: haar
-      // baselinedagen tellen in de werktijd per dag van de taakkalender, net als haar dagengetal
-      // (`hourTaskScheduleDuration`); met `effHpd` werd 187 d van 10 u 1496 u in plaats van 1870 u.
-      // Uitzondering: een baseline die nog met de oude dagtelling is opgeslagen (233,75 d = 1870 u ÷ 8,
-      // `baselineOldDay.ts`) telt in de opgeslagen uren per dag, anders werd hij 2337,5 u.
-      const baselineHpd = isHourTask && !oldDayBaseline(task, bt) ? effHoursPerDay(effCal ?? calendar) : effHpd;
+      // en verzint MS Project 112 u afwijking. Dagtaak: dezelfde minuten per dag als <Duration> (T13).
+      // Urentaak: haar baselinedagen tellen in de werktijd per dag van de taakkalender, net als haar
+      // dagengetal (`hourTaskScheduleDuration`); met de opgeslagen uren per dag werd 187 d van 10 u 1496 u
+      // in plaats van 1870 u. Uitzondering: een baseline die nog met de oude dagtelling is opgeslagen
+      // (233,75 d = 1870 u ÷ 8, `baselineOldDay.ts`) telt in de opgeslagen uren per dag, anders werd hij
+      // 2337,5 u.
+      const baselineHpd = !isHourTask ? dayMinutesPerDay / 60
+        : oldDayBaseline(task, bt) ? effCal.hoursPerDay : workHpd;
       lines.push(`${indent(4)}<Duration>${durationToISO8601(bt.duration, baselineHpd)}</Duration>`);
       lines.push(`${indent(3)}</Baseline>`);
     }
 
-    // Predecessor links embedded in task
+    // Predecessor links embedded in task (velden vooraf berekend, zie `linkFields`).
     const taskSeqs = sequences.filter(s => s.successorId === task.id);
     if (taskSeqs.length > 0) {
       for (const seq of taskSeqs) {
         const predUid = taskUidMap.get(seq.predecessorId);
-        if (predUid === undefined) continue;
-        // Standaard telt de lag in de voorgangerkalender; een expliciete lagkalender gaat voor.
-        const lagCalendar = project.schedulingOptions?.lagCalendar;
-        const lagCal = lagCalendar === 'projectDefault' ? calendar
-          : lagCalendar === 'successor' ? effCal ?? calendar
-          : effCalByTask.get(seq.predecessorId) ?? calendar;
-        const lagHpd = lagCalendar === '24hour' ? 24 : effHoursPerDay(lagCal);
-        const { linkLag, lagFormat } = lagFields(seq, lagHpd);
+        const fields = linkFields.get(seq.id);
+        if (predUid === undefined || !fields) continue;
+        const { linkLag, lagFormat } = fields;
         lines.push(`${indent(3)}<PredecessorLink>`);
         lines.push(`${indent(4)}<PredecessorUID>${predUid}</PredecessorUID>`);
         lines.push(`${indent(4)}<Type>${MSP_LINK_TYPE_CODE[seq.type]}</Type>`);
@@ -692,10 +787,11 @@ export function writeMSPDI(
       const task = tasks.find(t => t.id === a.taskId);
       // Werk in uren van de TAAK-kalender, consistent met <Duration> — anders leest MS Project
       // Duration 168 u / Work 56 u / Units 100% en herrekent de eenheden naar 33%.
-      const workHpd = task ? (effCalByTask.get(task.id)?.hoursPerDay ?? calendar.hoursPerDay) : calendar.hoursPerDay;
+      // Een dagtaak telt in de werktijd per dag (T14, alleen uren §3.11), zoals de werkregelbrug en zoals
+      // <Duration> (T13).
+      const workHpd = effHoursPerDay(task ? effCalByTask.get(task.id) ?? calendar : calendar);
       // Terugval voor <Work> (duur × inzet) in minuten. Een urentaak telt haar werkminuten, niet het
-      // dagengetal: dat telt in de werktijd per dag (`hourTaskScheduleDuration`), niet in `workHpd`.
-      // Een dagtaak telt haar dagen × `workHpd`, zoals <Duration>.
+      // dagengetal. Een dagtaak telt haar dagen × `workHpd`.
       const fallbackWorkMinutes = !task ? 0
         : taskDurationUnit(task) === 'hours' ? (task.time.durationMinutes ?? 0) * a.unitsPerDay
           : task.time.scheduleDuration * a.unitsPerDay * workHpd * 60;

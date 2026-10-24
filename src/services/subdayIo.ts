@@ -157,6 +157,37 @@ export function canonicalizeBands(
   return { bands: { byWeekday }, deviates };
 }
 
+/** Twee bloklijsten met dezelfde begin- en eindminuten, in dezelfde volgorde. */
+export function sameBlocks(
+  a: ReadonlyArray<{ start: number; end: number }>, b: ReadonlyArray<{ start: number; end: number }>,
+): boolean {
+  return a.length === b.length && a.every((x, i) => x.start === b[i].start && x.end === b[i].end);
+}
+
+/** De blokken die elke werkdag met blokken deelt (canonieke banden); `'verschilt'` als twee werkdagen
+ *  andere blokken hebben; `undefined` als geen dag blokken heeft. */
+export function sharedWeekBlocks(bands: WorkTimeBands): ReadonlyArray<{ start: number; end: number }> | 'verschilt' | undefined {
+  let shared: ReadonlyArray<{ start: number; end: number }> | undefined;
+  for (let wd = 1 as 1 | 2 | 3 | 4 | 5 | 6 | 7; wd <= 7; wd = (wd + 1) as 1 | 2 | 3 | 4 | 5 | 6 | 7) {
+    const day = bands.byWeekday[wd];
+    if (day.length === 0) continue;
+    if (!shared) shared = day;
+    else if (!sameBlocks(shared, day)) return 'verschilt';
+  }
+  return shared;
+}
+
+/** De twee blokken van een dagkalender met pauze, zoals de eigen MSPDI- en P6 XML-writer die schrijven:
+ *  op elke werkdag dezelfde twee blokken (`effectiveWorkTimeBands` van een dagkalender), met een echte
+ *  pauze ertussen, binnen de dag. Anders `undefined`. Alleen voor een bestand van OPS zelf: een bestand
+ *  van een ander programma met 08:00–12:00 + 13:00–17:00 blijft een uurkalender. */
+export function opsDayWithBreak(bands: WorkTimeBands): ReadonlyArray<{ start: number; end: number }> | undefined {
+  const shared = sharedWeekBlocks(bands);
+  return Array.isArray(shared) && shared.length === 2
+    && shared[0].end < shared[1].start && shared[1].end <= MIN_PER_DAY
+    ? shared : undefined;
+}
+
 /**
  * Afgeleide `hoursPerDay` uit banden: de MODALE dagsom over de werk-weekdagen,
  * bij gelijkspel de HOOGSTE. Dezelfde functie als de engine gebruikt (`modalBandHoursPerDay`), zodat
