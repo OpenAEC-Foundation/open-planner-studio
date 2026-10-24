@@ -26,6 +26,7 @@ import { createHeadlessHost, headlessInstructions } from '../../headless/mcp-ser
 import { startHttpTransport } from '../../headless/mcp-server/src/http';
 import { parseOptions, isLoopbackHost } from '../../headless/mcp-server/src/options';
 import { createNodeFileFs, isInside, ScopeEscapeError, type NodeFsPhase } from '../../headless/mcp-server/src/nodeFs';
+import { XmlDomParser } from '../../headless/mcp-server/src/xmlDom';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
@@ -482,6 +483,19 @@ async function leafSchedule(client: Client): Promise<string[]> {
   return rows.filter((t) => !t.summary).map((t) => `${t.name}|${String(t.start).slice(0, 10)}`).sort();
 }
 
+test('XML 1.0: geldige tekens, regeleinden en entiteiten blijven letterlijk correct (214)', () => {
+  const parser = new XmlDomParser();
+  const doc = parser.parseFromString('<root a="x\r\ny\tz&#xD;">A\r\nB\rC&#13;D&#x1F6A2;&amp;&lt;&gt;&quot;&apos;<![CDATA[\r\nraw & text]]></root>');
+  assertEq(doc.getElementsByTagName('parsererror').length, 0, 'geldige XML');
+  assertEq(doc.documentElement.textContent, 'A\nB\nC\rD🚢&<>"\'\nraw & text', 'fysieke CR genormaliseerd, karakterreferentie CR bewaard');
+  assertEq(doc.documentElement.getAttribute('a'), 'x y z\r', 'attribuutwitruimte genormaliseerd vóór entiteiten');
+  for (const code of [0x9, 0xa, 0xd, 0x20, 0xd7ff, 0xe000, 0xfffd, 0x10000, 0x10ffff]) {
+    const value = String.fromCodePoint(code);
+    const escaped = parser.parseFromString(`<r>&#${code};</r>`);
+    assertEq(escaped.documentElement.textContent, value, `geldige karakterreferentie ${code}`);
+  }
+});
+
 test('B stdio bevinding 3: MSPDI, P6 XML, CSV en XER openen in de losse server, met taken en datums', async () => {
   const source = readFileSync(EXAMPLE, 'utf8');
   const src = readIFC(source);
@@ -519,6 +533,20 @@ test('B stdio bevinding 3: MSPDI, P6 XML, CSV en XER openen in de losse server, 
   assert(String(broken.s.error).includes('Invalid XML'), `melding: ${broken.s.error}`);
   writeFileSync(join(work, 'entiteit.xml'), '<?xml version="1.0"?><!DOCTYPE Project [<!ENTITY x "y">]><Project xmlns="http://schemas.microsoft.com/project"><Name>&x;</Name></Project>');
   await refused(stdio, 'planner_import_schedule', { path: '~/entiteit.xml' }, 'VALIDATION', 'DOCTYPE met eigen entiteit');
+
+  // Via de echte gebouwde server: geen ongeldige tekens of prototype-entiteiten in een plan laden.
+  const beforeInvalid = await leafSchedule(stdio);
+  const invalid = ['&#0;', '&#1;', '&#xD800;', '&#xFFFE;', '&#xFFFF;', '&#1114112;',
+    '&constructor;', '&toString;', '&__proto__;', '&missing;', '&amp', '&#X41;', ']]>',
+    String.fromCharCode(0), String.fromCharCode(1), String.fromCharCode(0xfffe)];
+  for (const value of invalid) {
+    writeFileSync(join(work, 'invalid-character.xml'), `<Project xmlns="http://schemas.microsoft.com/project"><Name>${value}</Name></Project>`);
+    await refused(stdio, 'planner_import_schedule', { path: '~/invalid-character.xml' }, 'VALIDATION', `ongeldige XML ${JSON.stringify(value)}`);
+    assertEq(await leafSchedule(stdio), beforeInvalid, 'geweigerde import laat huidig plan intact');
+  }
+  const parser = new XmlDomParser();
+  assertEq(parser.parseFromString('<r>' + String.fromCharCode(0xd800) + '</r>').getElementsByTagName('parsererror').length, 1,
+    'losse surrogate ook geweigerd vóór UTF-8-vervanging aan de bestandssysteemrand');
 });
 
 test('B stdio: afsluiten', async () => {

@@ -159,11 +159,12 @@ en noem het in je rapport of PR-tekst.
     `/server/share/plan.ifc`, en dat gaat zo naar `path.resolve` in `headless/mcp-server/src/nodeFs.ts:136`.
     Gevonden in review ronde 1 van PR #572 (GPT-6.1-Sol). Voorstel: UNC-paden in de lexicale poort als eigen
     vorm herkennen, of ze met een duidelijke melding weigeren. — B
-214. **De eigen XML-parser van de headless MCP-server is te soepel.** `headless/mcp-server/src/xmlDom.ts:101`
-    en 146: hij accepteert `&#0;`, leest `&constructor;` uit de prototypeketen, normaliseert CRLF niet,
-    accepteert ongebonden prefixen en `]]>` buiten CDATA, en detecteert geen UTF-16. Gevonden in review ronde
-    2 van PR #572 (GPT-6.1-Sol). Voorstel: `@xmldom/xmldom` bundelen met een kleine adapter (DOCTYPE-beleid,
-    strikte fouten), of gerichte fixes met tests. — B
+214. **De eigen XML-parser van de headless MCP-server heeft nog namespace- en encodinggaten.**
+    `headless/mcp-server/src/xmlDom.ts` accepteert ongebonden prefixen; de bestandsroute in
+    `headless/mcp-server/src/nodeFs.ts` detecteert geen UTF-16. Gevonden in review ronde 2 van PR #572
+    (GPT-6.1-Sol). De aparte teken-/entiteitsproblemen en CRLF-normalisatie zijn gericht afgedekt.
+    Voorstel: `@xmldom/xmldom` bundelen met een kleine adapter (DOCTYPE-beleid, strikte fouten), of
+    namespacevalidatie en XML-byte-decoding gericht toevoegen met tests. — B
 215. **De headless MCP-server doet geen `fsync` van de doelmap na de `rename`.**
     `headless/mcp-server/src/nodeFs.ts:355`: na een stroomuitval kan de nieuwe naam ontbreken. Gevonden in
     review ronde 2 van PR #572 (GPT-6.1-Sol). Voorstel: na de `rename` de map openen (`'.'`, in het gebonden
