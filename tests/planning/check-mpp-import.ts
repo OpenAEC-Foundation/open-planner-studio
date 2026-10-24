@@ -74,7 +74,6 @@ import {
 } from '@/services/mpp/mppReader';
 import { readCalendars, type CalendarReadResult } from '@/services/mpp/mppCalendars';
 import { MAX_VAR_TEXT_BYTES, MAX_MANUAL_DURATION_TENTHS } from '@/services/mpp/limits';
-import { tenthsOfMinutesToDays } from '@/services/importDurations';
 import { formatInstant } from '@/utils/dateUtils';
 import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { writeMSPDI } from '@/services/msproject/mspdiWriter';
@@ -132,17 +131,6 @@ let softChecksTotal = 0;
   }
   truthy('00 niet-CFB-bytes: constructor gooit', threw);
   truthy('00b niet-CFB-bytes: nette CFB-foutmelding', message.startsWith('CFB:'));
-}
-
-// ── T7-restpunt (N1/N2): tenthsOfMinutesToDays met een NIET-dyadische hoursPerDay (7,6667u/dag =
-// 460 minuten/dag) — het geval waar de afrondingsvolgorde daadwerkelijk uitmaakt (zie de
-// toelichting in importDurations.ts). 16100 tienden-van-minuut = 1610 minuten; 1610/460 = 3,5
-// dagen, en JS' Math.round rondt .5 naar boven ⇒ 4. ─────────────────────────────────────────────
-{
-  truthy(
-    '00c tenthsOfMinutesToDays(16100, 460/60) === 4 (niet-dyadische hoursPerDay, halve-dag-grens)',
-    tenthsOfMinutesToDays(16100, 460 / 60) === 4,
-  );
 }
 
 // ── Z8-herwerkronde (2026-08-18) — INSTRUMENTFIX: `canonicalizeBands`/`promoteHourCalendar`
@@ -1460,8 +1448,10 @@ const PROPSKEY_ASSIGNMENT_FIELD_MAP = 131095;
       truthy('uurmodus-fixture (dag-contrast): 1 taak', result.tasks.length === 1);
       const task = result.tasks[0];
       truthy('uurmodus-fixture (dag-contrast): projectkalender.workTime NIET gezet (geen lek)', !result.calendar.workTime);
-      truthy('uurmodus-fixture (dag-contrast): expliciete taakeenheid is days', task?.time.durationUnit === 'days');
-      truthy('uurmodus-fixture (dag-contrast): durationMinutes NIET gezet (geen lek)', task?.time.durationMinutes === undefined);
+      // Sinds F5b altijd de urenmaat (alleen uren §3.10, T15; I4): de kalender blijft scalair (geen lek),
+      // maar de duur is de minuten uit het bestand.
+      truthy('uurmodus-fixture (dag-contrast): taakmaat is de urenmaat (T15)', task?.time.durationUnit === 'hours');
+      truthy('uurmodus-fixture (dag-contrast): durationMinutes === 480 (de minuten uit het bestand)', task?.time.durationMinutes === 480);
       truthy('uurmodus-fixture (dag-contrast): scheduleDuration === 1 dag', task?.time.scheduleDuration === 1);
       truthy('uurmodus-fixture (dag-contrast): scheduleStart is dag-alleen (geen "T")', !task?.time.scheduleStart.includes('T'));
       truthy('uurmodus-fixture (dag-contrast): scheduleFinish is dag-alleen (geen "T")', !task?.time.scheduleFinish.includes('T'));
@@ -1513,7 +1503,8 @@ const PROPSKEY_ASSIGNMENT_FIELD_MAP = 131095;
         `uurmodus-fixture (scalar-vs-promoted): projectkalender.workTime NIET gezet (scalar hpd=4, 240%240===0) — hoursPerDay=${result.calendar.hoursPerDay}`,
         !result.calendar.workTime,
       );
-      truthy('uurmodus-fixture (scalar-vs-promoted): durationMinutes NIET gezet', task?.time.durationMinutes === undefined);
+      // De kalender beslist (workTime hierboven); de duur is sinds F5b altijd de urenmaat (T15).
+      truthy('uurmodus-fixture (scalar-vs-promoted): durationMinutes === 240 (urenmaat, T15)', task?.time.durationMinutes === 240);
     }
   }
 
@@ -1560,7 +1551,8 @@ const PROPSKEY_ASSIGNMENT_FIELD_MAP = 131095;
         'uurmodus-fixture (ankerdivergentie, mpp-kant): projectkalender.workTime NIET gezet (kalender-eigen anker 09:00 == taaktijden)',
         !result.calendar.workTime,
       );
-      truthy('uurmodus-fixture (ankerdivergentie, mpp-kant): durationMinutes NIET gezet (dagmodus)', result.tasks[0]?.time.durationMinutes === undefined);
+      // De kalender blijft in dagmodus (workTime hierboven); de duur is sinds F5b altijd de urenmaat (T15).
+      truthy('uurmodus-fixture (ankerdivergentie, mpp-kant): durationMinutes === 480 (urenmaat, T15)', result.tasks[0]?.time.durationMinutes === 480);
     }
 
     // Dezelfde taak/kalender als minimale MSPDI-XML — bewijst de ANDERE kant van de divergentie.
@@ -1632,12 +1624,11 @@ const PROPSKEY_ASSIGNMENT_FIELD_MAP = 131095;
       truthy('uurmodus-fixture (T10 dag-modus elapsed): 1 taak', result.tasks.length === 1);
       const task = result.tasks[0];
       truthy('uurmodus-fixture (T10 dag-modus elapsed): projectkalender.workTime NIET gezet (dagmodus, geen lek)', !result.calendar.workTime);
-      truthy('uurmodus-fixture (T10 dag-modus elapsed): durationMinutes NIET gezet (dagmodus)', task?.time.durationMinutes === undefined);
+      // Sinds F5b de urenmaat (T15): de duur is de KLOK-minuten uit het bestand (2 × 1440), zonder
+      // omrekening via een uren-per-dag. Het dagengetal is afgeleid zoals bij elke urentaak.
+      truthy(`uurmodus-fixture (T10 dag-modus elapsed): durationMinutes === 2880 klokminuten (kreeg ${task?.time.durationMinutes})`, task?.time.durationMinutes === 2880);
       truthy('uurmodus-fixture (T10 dag-modus elapsed): durationType === ELAPSEDTIME', task?.time.durationType === 'ELAPSEDTIME');
-      truthy(
-        `uurmodus-fixture (T10 dag-modus elapsed): scheduleDuration === 2 (klok-dagen, GEEN dubbele hoursPerDay-deling — kreeg ${task?.time.scheduleDuration})`,
-        task?.time.scheduleDuration === 2,
-      );
+      truthy('uurmodus-fixture (T10 dag-modus elapsed): taakmaat is de urenmaat (T15)', task?.time.durationUnit === 'hours');
     }
   }
 

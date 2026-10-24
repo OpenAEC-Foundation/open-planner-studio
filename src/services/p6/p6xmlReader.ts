@@ -176,11 +176,6 @@ const SEQUENCE_TYPE_BY_P6: Partial<Record<string, SequenceType>> = {
 /** De twee duurvelden van P6 XML, zoals de writer ze als sleutel in de records gebruikt. */
 const P6_DURATION_FIELDS = { duration: 'PlannedDuration', remaining: 'RemainingDuration' } as const;
 
-function p6HoursToDays(hours: number, hoursPerDay: number): number {
-  if (hoursPerDay <= 0) hoursPerDay = 8;
-  return hours / hoursPerDay;
-}
-
 /**
  * P6-constraintsoort → OPS-constraint. Echte P6 XML (PMXML) schrijft `<PrimaryConstraintType>` en
  * `<SecondaryConstraintType>` als Engels label (`Start On or After`); de eigen writer schrijft het
@@ -1065,11 +1060,10 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
     const hasRemaining = Number.isFinite(remainingHours);
     const measure = readMeasure({
       unit: markerUnit,
+      // Zonder geldig record deelt `readMeasure` de minuten door de minuten per dag (knownbug 293: hier
+      // stond dezelfde deling nog een keer, in uren). Zonder uren per dag telt een dag 8 u.
       durationMinutes: plannedDuration * 60,
-      // Zonder geldig record: uren ÷ uren per dag, zoals voorheen (`p6HoursToDays`).
-      durationDays: p6HoursToDays(plannedDuration, dayHoursPerDay),
       remainingMinutes: hasRemaining ? remainingHours * 60 : undefined,
-      ...(hasRemaining ? { remainingDays: p6HoursToDays(remainingHours, dayHoursPerDay) } : {}),
       minutesPerDay: (dayHoursPerDay > 0 ? dayHoursPerDay : 8) * 60,
       calendar: effCal,
       dayRecords: markerUnit === 'days' ? parseFieldRecords(dayMeasureDurationText.get(objId), P6_DURATION_FIELDS) : {},

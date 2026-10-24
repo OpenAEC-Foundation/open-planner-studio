@@ -420,7 +420,9 @@ const emptyCalResult: CalendarReadResult = {
       truthy('I4/T7 end-to-end readMPP: relatie B→C gevonden', !!seqBC);
       if (seqAB) {
         truthy('I4/T7 end-to-end readMPP: A→B type === FINISH_START', seqAB.type === 'FINISH_START');
-        truthy('I4/T7 end-to-end readMPP: A→B lagDays === 2 (WORKTIME, 9600 tienden-van-minuut @8u/dag)', seqAB.lagDays === 2);
+        // Alleen uren §3.10 (T15, F5b): een WORKTIME-lag is de urenmaat, in minuten zonder afronding.
+        truthy('I4/T7 end-to-end readMPP: A→B lagMinutes === 960 (WORKTIME, 9600 tienden-van-minuut)', seqAB.lagMinutes === 960);
+        truthy('I4/T7 end-to-end readMPP: A→B lagDays === 0 (urenmaat, geen dagen)', seqAB.lagDays === 0);
         truthy('I4/T7 end-to-end readMPP: A→B lagUnit is WORKTIME (undefined = default)', seqAB.lagUnit === undefined);
       }
       if (seqBC) {
@@ -478,7 +480,7 @@ const emptyCalResult: CalendarReadResult = {
   const cfb = new CfbFile(buildNestedCfb({
     '   114': { children: { TBkndCons: { children: { FixedMeta: { data: fixedMeta }, FixedData: { data: fixedData } } } } },
   }));
-  const sequences = readRelations(cfb, null, 8, taskIdByUniqueId);
+  const sequences = readRelations(cfb, null, taskIdByUniqueId);
   truthy(
     'T7-hostile relatie naar onbestaande/circulaire/projectsamenvattingstaak: alle drie overgeslagen (0 relaties)',
     sequences.length === 0,
@@ -507,7 +509,7 @@ const emptyCalResult: CalendarReadResult = {
   let sequences: Sequence[] = [];
   let threw: string | null = null;
   try {
-    sequences = readRelations(cfb, null, 8, taskIdByUniqueId);
+    sequences = readRelations(cfb, null, taskIdByUniqueId);
   } catch (err) {
     threw = err instanceof Error ? err.message : String(err);
   }
@@ -731,7 +733,7 @@ for (const [uniqueIdOffset, size] of [[0, 2], [18, 20]]) {
   const cfb = new CfbFile(buildNestedCfb({
     '   114': { children: { TBkndCons: { children: { FixedMeta: { data: fixedMeta }, FixedData: { data: fixedData } } } } },
   }));
-  const sequences = readRelations(cfb, null, 8, taskIdByUniqueId);
+  const sequences = readRelations(cfb, null, taskIdByUniqueId);
   truthy('T7-spec-review-B2 percent-lag: 2 relaties gelezen', sequences.length === 2);
   const percentSeq = sequences.find((s) => s.predecessorId === 'task-A');
   const elapsedPercentSeq = sequences.find((s) => s.predecessorId === 'task-B');
@@ -757,8 +759,8 @@ for (const [uniqueIdOffset, size] of [[0, 2], [18, 20]]) {
   const cfb = new CfbFile(buildNestedCfb({
     '   114': { children: { TBkndCons: { children: { FixedMeta: { data: fixedMeta }, FixedData: { data: fixedData } } } } },
   }));
-  const hourSucc = new Map<string, boolean>([['task-B', true], ['task-C', true], ['task-D', true]]);
-  for (const [label, sequences] of [['dag-opvolger', readRelations(cfb, null, 8, taskIdByUniqueId)], ['uur-opvolger', readRelations(cfb, null, 8, taskIdByUniqueId, hourSucc)]] as const) {
+  // Sinds F5b hangt de lag niet meer af van de opvolger (alleen uren §3.10, T15): één lezing.
+  for (const [label, sequences] of [['elke opvolger', readRelations(cfb, null, taskIdByUniqueId)]] as const) {
     const bySucc = (id: string) => sequences.find((s) => s.successorId === id);
     const ehr = bySucc('task-B');
     const emin = bySucc('task-C');
@@ -779,7 +781,7 @@ for (const [uniqueIdOffset, size] of [[0, 2], [18, 20]]) {
 // readRelations se lege-stream-terugval hierboven). ──────────────────────────────────────────────
 {
   const cfb = new CfbFile(buildNestedCfb({ '   114': { children: {} } }));
-  truthy('T7 readRelations op ontbrekende TBkndCons: lege array', readRelations(cfb, null, 8, new Map()).length === 0);
+  truthy('T7 readRelations op ontbrekende TBkndCons: lege array', readRelations(cfb, null, new Map()).length === 0);
   truthy('T7 readResources op ontbrekende TBkndRsc: lege array', readResources(cfb, new Map(), null, emptyCalResult).resources.length === 0);
   truthy('T7 readAssignments op ontbrekende TBkndAssn: lege array', readAssignments(cfb, new Map(), new Map(), new Map()).length === 0);
 
@@ -812,7 +814,7 @@ const BAD_MAGIC = 0xdeadbeef;
   let sequences: Sequence[] = [];
   let threw: string | null = null;
   try {
-    sequences = readRelations(cfb, null, 8, new Map([[10, 'a'], [11, 'b']]));
+    sequences = readRelations(cfb, null, new Map([[10, 'a'], [11, 'b']]));
   } catch (err) {
     threw = err instanceof Error ? err.message : String(err);
   }
