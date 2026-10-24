@@ -545,7 +545,9 @@ for (const { label, fmt, xml, statusDate } of SOURCES_PUNT2) {
 // bestand: 08:00 is een echte tijd. Ook de vreemde bestanden uit (7) en een export van nu herkent hij niet.
 {
   const mspdiVariants: [string, string][] = [
-    ['met <SaveVersion>', LEGACY_V2026_8_1_MSPDI.replace('<Name>Oude export</Name>', '<SaveVersion>14</SaveVersion>\n  <Name>Oude export</Name>')],
+    // Na de kop, zodat alleen de eis "geen `<SaveVersion>`" hem tegenhoudt.
+    ['met <SaveVersion>', LEGACY_V2026_8_1_MSPDI.replace('<StatusDate>2026-06-03T08:00:00</StatusDate>',
+      '<StatusDate>2026-06-03T08:00:00</StatusDate>\n  <SaveVersion>14</SaveVersion>')],
     ['CreationDate niet op het anker', LEGACY_V2026_8_1_MSPDI.replace('<CreationDate>2026-06-01T08:00:00</CreationDate>', '<CreationDate>2026-06-01T09:12:00</CreationDate>')],
     ['samenvattingstaak met een extra veld', LEGACY_V2026_8_1_MSPDI.replace('<Summary>1</Summary>', '<Summary>1</Summary><Type>1</Type>')],
     ['taak met een andere volgorde', LEGACY_V2026_8_1_MSPDI.replace(/<Duration>PT16H0M0S<\/Duration>\s*<Start>2026-06-01T08:00:00<\/Start>/,
