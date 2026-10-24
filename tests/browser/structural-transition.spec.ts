@@ -9,7 +9,7 @@
 //   rechtsklik › Subtaak toevoegen, en "Taak bewerken" › Bovenliggende taak.
 // `__OPS__` zet alleen de fixture (taken, resource, toewijzing, selectie) en leest state.
 import type { Locator, Page } from '@playwright/test';
-import zhCommon from '@/i18n/locales/zh/common.json';
+import zhCommon from '@/i18n/locales/zh/common.json' with { type: 'json' };
 import { barPoint, expect, state, test, waitForOps, waitForWelcomeDialog } from './fixtures/ops';
 
 async function seedAssignedLeaf(page: Page): Promise<{ L: string; N: string; R: string }> {
