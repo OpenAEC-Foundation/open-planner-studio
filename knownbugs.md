@@ -180,9 +180,10 @@ en noem het in je rapport of PR-tekst.
 218. **Headless MCP-server: de HTTP-time-out begrenst synchrone bestandstoegang niet.**
     `headless/mcp-server/src/nodeFs.ts:285` en `writeFileSync`/`fsyncSync` op 333–335 draaien synchroon; hangt
     lezen of synchroniseren op een trage schijf, dan staan alle sessies stil en kan de 120-secondentimer in
-    `headless/mcp-server/src/http.ts:117` niet afgaan. De documentatie belooft die grens te stellig. Gevonden
-    in review ronde 3 van PR #572 (GPT-6.1-Sol). Voorstel: de tekst over de tijdslimiet eerlijk maken en grote
-    bestanden op trage opslag meten voordat er een andere procesopzet komt. — B
+    `headless/mcp-server/src/http.ts` niet afgaan. Documentatie en broncommentaar benoemen nu expliciet
+    de wachtrij-/eventloopgrens en dat een 504 geen lopende bewerking annuleert. Gevonden in review ronde 3
+    van PR #572 (GPT-6.1-Sol). Resterend: grote bestanden op trage opslag meten voordat er een andere
+    procesopzet komt; geen harde deadline of verholpen runtimeblokkade geclaimd. — B
 
 219. **Headless MCP-server: een scopeweigering tijdens de bewerking komt niet als `SCOPE` bij de client.**
     `src/services/mcp/tools/fileTools.ts:337` maakt van elke schrijffout `INTERNAL`, `fileTools.ts:434` van

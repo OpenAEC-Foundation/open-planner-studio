@@ -8,7 +8,8 @@
 // `.github/workflows/mcp-real-app.yml`.
 //   - alleen loopback; volgorde: Origin (403) → methode (405 + `Allow: POST`) → pad `/mcp` (404) →
 //     Bearer-token (401, scheme hoofdletterongevoelig, vergelijking in constante tijd) → doorgeven
-//   - body > 50 MiB ⇒ 413; onleesbare body (geen UTF-8) ⇒ 400; geen antwoord binnen 120 s ⇒ 504
+//   - body > 50 MiB ⇒ 413; onleesbare body (geen UTF-8) ⇒ 400; antwoordtimer 120 s ⇒ 504
+//     als de eventloop kan draaien; geen harde deadline of onderbreking van synchrone I/O (218)
 //   - strikt één request tegelijk; niet-lege antwoordbody ⇒ `200 application/json`, lege ⇒ `202`
 //     zonder body of Content-Type (notificatie)
 //   - elk antwoord met `Connection: close`
@@ -117,6 +118,8 @@ export async function startHttpTransport(opts: HttpTransportOptions): Promise<Ht
     let status = 0;
     const run = slot.then(() => new Promise<void>((resolve) => {
       const id = nextId++;
+      // Alleen antwoordwachten na de HTTP-wachtrij, geen preëmptie: synchrone I/O kan ook deze
+      // timer ophouden. Een 504 annuleert de al gestarte toolbewerking niet (docs/headless-mcp.md).
       const timer = setTimeout(() => {
         pending.delete(id);
         respondJson(res, 504, HTTP_TIMEOUT_BODY);
