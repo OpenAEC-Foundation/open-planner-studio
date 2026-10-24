@@ -235,13 +235,15 @@ en noem het in je rapport of PR-tekst.
      de dagenmaat; alleen vast werk zet hem om. Voorstel: geef in beide de maat van `newTaskTimeUnit`
      mee, of laat de tijd weg en geef alleen de start. Alleen in de code gezien, plus het storegedrag. — S
 
-281. **Een externe relatie rondt een lag in dagen nog af op hele dagen.** Een interne relatie houdt sinds
-     F4b de breuk ("1,5d" is anderhalve werkdag, I12). De lag van een externe relatie rondt bij invoer
-     half van nul af (`parseExternalLagInput`, `relationFormat.ts:187-201`), en de motor rondt een lag in
-     minuten ook naar hele dagen (`CPMSolver.externalLagDays`, `CPMSolver.ts:3170-3176`). "1,5d" wordt
-     dus 2 werkdagen bij een externe relatie en 1,5 bij een interne. Getoetst in `check-lag-format.ts`
-     (de reeks "externe dagafronding"). Voorstel: hetzelfde model als de interne lag, in de motor en de
-     invoer samen; buiten F4b, omdat het de motor raakt. — B
+281. **De motor rondt een externe lag in minuten nog af op hele dagen, maar alleen in dagmodus.** De invoer
+     houdt sinds fixronde 1 van F4b de breuk ("0,5d" is een halve werkdag, ook bij een externe relatie;
+     `check-f4b-review-r1.ts`). In uurmodus, de gewone route, rekent de motor `lagDays` × werktijd per dag
+     zonder afronding (`CPMSolver.externalLagMinutes`). Alleen `CPMSolver.externalLagDays`
+     (`CPMSolver.ts:3170-3176`) rondt een lag in minuten nog half van nul af naar hele dagen. Die functie
+     werkt alleen op een kalender waaruit geen werkblokken af te leiden zijn (`calendarForEngine` geeft dan
+     geen `workTime`). Zo'n kalender heb ik niet in een gewone planning kunnen maken; de lege kalender
+     weigert de motor al. Voorstel: de afronding weghalen als de dagmodus verdwijnt; motorwerk. Alleen in
+     de code gelezen. — S
 283. **Vast werk met een inzet die het werk niet in hele minuten deelt, geeft een duur met een deel van een
      minuut en een negatieve speling.** Gemeten op het stucwerk van het tutorialproject (stand na tutorial
      4, Vast werk, 32 uur): inzet 7 geeft `durationMinutes` 274,2857 (einde vr 23 jul 11:34) en een totale
@@ -258,6 +260,13 @@ en noem het in je rapport of PR-tekst.
      "Herstel standaard" kiest. De cel kapt de tekst af met een beletselteken. Voorstel: bij het laden een
      opgeslagen breedte van precies 100 px voor deze twee kolommen naar 130 px zetten, of de kolom laten
      meegroeien; een besluit over opgeslagen voorkeuren. — B
+286. **De kant van een beperkingsdatum wordt op twee plekken opnieuw bepaald.** `constraintDateSide`
+     (`src/engine/calendar/workdayRules.ts:42`) zegt al of een beperkingsdatum startachtig of eindachtig
+     is. `constraintSide` in `TaskConstraintFields.tsx:16` en `guardSideOf` in `MilestoneReport.tsx:62`
+     bouwen dat opnieuw uit `constraintDateField` en `taskDateFieldSide`. De uitkomst is nu gelijk; het
+     risico is dat een vierde beperkingstype op één plek wel en op een andere niet meekomt. Voorstel: beide
+     helpers vervangen door `constraintDateSide` en de losse imports weghalen. Gevonden in de review van
+     PR #584 (r1, VERVOLG), in de code nagelezen. — B
 
 ## Kalenders
 
@@ -544,6 +553,13 @@ en noem het in je rapport of PR-tekst.
      overbezet (29 jun – 5 jul)"; de app meldt nu 6 dagen, 28 juni t/m 5 juli. De tutorialstappen in
      `tests/browser/tutorials/` zijn groen. Voorstel: de extensieteksten nalezen tegen het nieuwe
      getallenblok. — S
+287. **De gids over externe relaties zegt dat een lag in uren bij een taak in dagen niet telt; hij telt
+     wel.** `public/docs/nl/howto-externe-relaties.md:45` (en `en`, dezelfde regel): "Een lag in uren telt
+     alleen bij een taak die in uren gepland is; bij een taak in dagen negeert de berekening hem." Gemeten
+     op de werkweek 07–12 + 13–16: een dagtaak van 2 d met een externe SS-voorganger, anker ma 07:00 en
+     lag 2 u, start na Bereken om 09:00, in het OPS- en in het P6-profiel. De motor telt de lag in uurmodus
+     altijd (`CPMSolver.externalLagMinutes`). Voorstel: de zin weghalen of vervangen door "Een lag in uren
+     telt in werktijd van de kalender van je eigen taak". Gevonden in fixronde 1 van F4b. — B
 
 ## Tests
 
