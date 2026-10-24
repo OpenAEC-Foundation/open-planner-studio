@@ -426,6 +426,8 @@
     "quarantineEmptyName": "إضافة غير صالحة",
     "catalogEntriesSkipped": "إدخالات الكتالوج المتجاوزة: {{count}}",
     "storageWriteFailed": "تعذر حفظ حالة الإضافة.",
+    "minAppVersionRequired": "يتطلب Open Planner Studio ≥ {{minVersion}} (الإصدار الحالي: {{appVersion}})",
+    "missingPermission": "الإضافة \"{{extensionId}}\" تفتقر إلى الإذن: {{permission}}",
     "import": "استيراد",
     "importSubtitle": "استيراد بيانات المشروع عبر الإضافات المثبّتة.",
     "importEmpty": "لا توجد إضافات استيراد مثبّتة. أضف واحدة عبر الإضافات."

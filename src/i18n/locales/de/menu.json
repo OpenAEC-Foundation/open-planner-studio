@@ -418,6 +418,8 @@
     "quarantineEmptyName": "Ungültige Erweiterung",
     "catalogEntriesSkipped": "Übersprungene Katalogeinträge: {{count}}",
     "storageWriteFailed": "Der Erweiterungsstatus konnte nicht gespeichert werden.",
+    "minAppVersionRequired": "Erfordert Open Planner Studio ≥ {{minVersion}} (aktuelle Version: {{appVersion}})",
+    "missingPermission": "Erweiterung „{{extensionId}}“ fehlt die Berechtigung: {{permission}}",
     "import": "Importieren",
     "importSubtitle": "Projektdaten über installierte Erweiterungen importieren.",
     "importEmpty": "Keine Import-Erweiterungen installiert. Fügen Sie eine über Erweiterungen hinzu."

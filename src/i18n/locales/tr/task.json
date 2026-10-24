@@ -459,6 +459,7 @@
     "jumpToTask": "{{wbs}} görevine git",
     "relationPopoverTitle": "İlişki türü",
     "driving": "Belirleyici ilişki (driving)",
+    "drivingUnknown": "Hesaplama yapılmadan belirleyici ilişkiler bilinmiyor.",
     "lag": "Gecikme (örn. 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Hesapla",
     "assignments": {
@@ -523,6 +524,8 @@
     "type": "Tür",
     "lag": "Gecikme",
     "driving": "Belirleyici",
+    "drivingUnknown": "Bilinmiyor",
+    "notDriving": "Belirleyici ilişki değil",
     "freeFloat": "Serbest bolluk",
     "warnings": "Uyarılar",
     "warnTruncatedLead": "Öne alma proje başlangıcında kesildi — örtüşme tam kullanılmıyor",

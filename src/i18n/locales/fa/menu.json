@@ -418,6 +418,8 @@
     "quarantineEmptyName": "افزونه نامعتبر",
     "catalogEntriesSkipped": "ورودی‌های ردشده کاتالوگ: {{count}}",
     "storageWriteFailed": "وضعیت افزونه ذخیره نشد.",
+    "minAppVersionRequired": "نیازمند Open Planner Studio ≥ {{minVersion}} (نسخه فعلی: {{appVersion}})",
+    "missingPermission": "افزونه \"{{extensionId}}\" مجوز ندارد: {{permission}}",
     "import": "درون‌ریزی",
     "importSubtitle": "درون‌ریزی داده‌های پروژه از طریق افزونه‌های نصب‌شده.",
     "importEmpty": "افزونه درون‌ریزی نصب نشده است. از بخش افزونه‌ها اضافه کنید."

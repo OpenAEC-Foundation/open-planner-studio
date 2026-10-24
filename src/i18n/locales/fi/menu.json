@@ -418,6 +418,8 @@
     "quarantineEmptyName": "Virheellinen laajennus",
     "catalogEntriesSkipped": "Ohitetut luettelokohteet: {{count}}",
     "storageWriteFailed": "Laajennuksen tilaa ei voitu tallentaa.",
+    "minAppVersionRequired": "Vaatii Open Planner Studio ≥ {{minVersion}} (nykyinen versio: {{appVersion}})",
+    "missingPermission": "Laajennukselta \"{{extensionId}}\" puuttuu lupa: {{permission}}",
     "import": "Tuo",
     "importSubtitle": "Tuo projektitietoja asennettujen laajennusten kautta.",
     "importEmpty": "Tuontilaajennuksia ei ole asennettu. Lisää niitä kohdasta Laajennukset."

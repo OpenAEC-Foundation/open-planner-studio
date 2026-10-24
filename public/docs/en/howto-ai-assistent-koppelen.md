@@ -133,7 +133,7 @@ Whether the MCP client really read the guide you can see in the *Activity panel*
 
 There is also an MCP server that works without the desktop app: the **headless MCP server**. It offers the same `planner_*` tools, but it works on a schedule file on disk instead of on your open project. So you do not see the changes in the Gantt chart, and *Undo* in the app does not apply to them. Use it when you do not want the app open, or on a computer without a screen.
 
-The server is not in a release yet. You build it from the source code with `npm run build:mcp-server`; for that you need Node.js 22 or newer. The result is one file, `server.mjs`.
+The release does not include a ready-made server download. You build it from the source code with `npm run build:mcp-server`; for that you need Node.js 22 or newer. The result is one file, `server.mjs`.
 
 1. Choose a working folder with your schedule files. The server reads and writes only in that folder.
 2. Connect your MCP client. For Claude Code, the command is below these steps.

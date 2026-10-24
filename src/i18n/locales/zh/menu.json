@@ -416,6 +416,8 @@
     "quarantineEmptyName": "无效扩展",
     "catalogEntriesSkipped": "已跳过的目录条目：{{count}}",
     "storageWriteFailed": "无法保存扩展状态。",
+    "minAppVersionRequired": "需要 Open Planner Studio ≥ {{minVersion}}（当前版本：{{appVersion}}）",
+    "missingPermission": "扩展 \"{{extensionId}}\" 缺少权限：{{permission}}",
     "import": "导入",
     "importSubtitle": "通过已安装的扩展导入项目数据。",
     "importEmpty": "未安装导入扩展。请通过“扩展”添加。"

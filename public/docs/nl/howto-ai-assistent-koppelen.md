@@ -133,7 +133,7 @@ Of de MCP-client de gids echt heeft gelezen, zie je in het *Activiteitenpaneel*:
 
 Er is ook een MCP-server die zonder de desktop-app werkt: de **headless MCP-server**. Hij biedt dezelfde `planner_*`-tools, maar werkt op een planningsbestand op schijf in plaats van op je open project. Je ziet de wijzigingen dus niet in de Gantt, en *Ongedaan* in de app werkt er niet op. Gebruik hem als je de app niet open wilt hebben, of op een computer zonder scherm.
 
-De server zit nog niet in een release. Je bouwt hem uit de broncode met `npm run build:mcp-server`; daarvoor heb je Node.js 22 of nieuwer nodig. Het resultaat is één bestand, `server.mjs`.
+De release bevat geen kant-en-klare download van de server. Je bouwt hem uit de broncode met `npm run build:mcp-server`; daarvoor heb je Node.js 22 of nieuwer nodig. Het resultaat is één bestand, `server.mjs`.
 
 1. Kies een werkmap met je planningsbestanden. De server leest en schrijft alleen in die map.
 2. Koppel je MCP-client. Voor Claude Code staat de opdracht onder deze stappen.

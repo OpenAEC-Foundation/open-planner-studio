@@ -459,6 +459,7 @@
     "jumpToTask": "Gå til aktivitet {{wbs}}",
     "relationPopoverTitle": "Type avhengighet",
     "driving": "Styrende avhengighet (driving)",
+    "drivingUnknown": "Styrende avhengigheter er ukjente uten en beregning.",
     "lag": "Forsinkelse (f.eks. 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Beregn",
     "assignments": {
@@ -523,6 +524,8 @@
     "type": "Type",
     "lag": "Forsinkelse",
     "driving": "Styrende avhengighet",
+    "drivingUnknown": "Ukjent",
+    "notDriving": "Ikke styrende",
     "freeFloat": "Fri slakk",
     "warnings": "Meldinger",
     "warnTruncatedLead": "Ledetid avkortet ved prosjektstart. Overlappingen blir ikke fullt brukt.",
