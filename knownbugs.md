@@ -236,6 +236,21 @@ en noem het in je rapport of PR-tekst.
      (bij "12u"). Voorstel: de rest als nieuwe duur − verricht rekenen, en dan de verwachtingen nameten;
      haal daarna de rijen uit `KNOWN_DRIFT`. — B
 
+316. **Het gezondheidsrapport telt een nachttaak goed, maar de detaillijst meldt een fout.**
+     `src/engine/reports/scheduleHealth.ts:175` geeft geen kalender aan `invalidDateReasons`; de DCMA-telling
+     doet dat wel. Voorbeeld: nachtdienst wo 22:00–do 06:00, werkelijke start do 02:00, status wo. De telling
+     geeft DCMA 0 fouten, de detaillijst meldt `actualStartAfterStatusDate`. Op `main` staat dezelfde
+     detailregel, met daarbij een foute telling van 1; de urenomzetting verbeterde de telling. Voorstel: geef
+     op deze ene aanroep de effectieve taakkalender mee. Gevonden in review #563 r2, nagespeeld in review r1
+     van #600. — B
+
+317. **Bij een FINISH-mijlpaal vraagt de voortgangsinvoer om een werkelijke start.**
+     `src/engine/progressEntry.ts:104` gebruikt een vaste `'start'`-kant. Voorbeeld: FINISH-mijlpaal do 06:00,
+     het einde van de dienst wo 22:00–do 06:00, status wo, alleen 100 % invoeren: `planProgressEntry` weigert
+     met `needsActualStart`, en de MCP-update weigert ook. Hetzelfde bij do 00:00 op een 24-uurskalender. Een
+     ingevuld werkelijk einde werkt wel. Op `main` faalt dezelfde invoer ook. Voorstel: gebruik de bestaande
+     mijlpaalkant. Gevonden in review #563 r2, nagespeeld in review r1 van #600. — B
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
@@ -553,7 +568,9 @@ en noem het in je rapport of PR-tekst.
     `preferCanonicalWhenEmpty`, `src/services/subdayIo.ts` op tag v2026.9.0). Nagemeten met de lezer en de
     solver van v2026.9.0 in Node: een bestand van main met een urentaak van 480 min op de standaardkalender
     geeft `workTime` met lege werkblokken op alle zeven dagen; na doorrekenen heeft de urentaak duur 0
-    (begin en einde do 07:00). `docs/ifc-round-trip.md` noemt alleen "werkuren terug naar 07–16"; dit gevolg
+    (begin en einde do 07:00). Een dagenmaat-taak met een breuk (0,5d) heeft ook een `PT`-duur en
+    valt eronder: in review r1 van #600 nagemeten, 240 min op lege werkblokken, begin en einde 07:00.
+    `docs/ifc-round-trip.md` noemt alleen "werkuren terug naar 07–16"; dit gevolg
     staat er niet bij. Voorstel: de releasetekst noemt het, naast het aanvaarde verlies van de kalenders.
     Gevonden bij fixronde 2 van de spec `2026-10-20-alleen-uren-design.md` (§5.4). — B
 
