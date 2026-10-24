@@ -94,7 +94,7 @@ The dates of *Brickwork* do not change. But Friday 4 June is red in the histogra
 
 **"The holidays are in there, aren't they?"** Holidays only exist for the years for which they were created. A day outside those years is simply a work day. In the calendar dialog the app says so with *Holidays cover 2025–2028; regenerate through 2030?*
 
-**"More hours per day make my task shorter."** Not for a task in days: it counts whole work days, whether the day has 6 or 8 hours. Only for a task with resources and the task type *Fixed work* or *Fixed units* does the duration change with it.
+**"More hours per day make my task shorter."** Not for a task in days: it counts work days, whether the day has 6 or 8 hours. A task in hours keeps its hours; on shorter work days it covers more work days. Only for a task in days with resources and the task type *Fixed units* does the duration change with it, because the work stays. *Fixed work* is always a task in hours.
 
 **A calendar without work days** cannot be calculated by the app. The calculation reports *The calendar has no working days set*.
 

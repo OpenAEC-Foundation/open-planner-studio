@@ -242,6 +242,14 @@ en noem het in je rapport of PR-tekst.
      dus 2 werkdagen bij een externe relatie en 1,5 bij een interne. Getoetst in `check-lag-format.ts`
      (de reeks "externe dagafronding"). Voorstel: hetzelfde model als de interne lag, in de motor en de
      invoer samen; buiten F4b, omdat het de motor raakt. — B
+283. **Vast werk met een inzet die het werk niet in hele minuten deelt, geeft een duur met een deel van een
+     minuut en een negatieve speling.** Gemeten op het stucwerk van het tutorialproject (stand na tutorial
+     4, Vast werk, 32 uur): inzet 7 geeft `durationMinutes` 274,2857 (einde vr 23 jul 11:34) en een totale
+     speling van −0,0006 werkdagen, terwijl de taak bij inzet 1 tot 3 speling 0 heeft. De werkdriehoek rondt
+     niet af (B3), maar de urenmaat telt verder in hele minuten (`applyRemainingDuration`). Een taak met
+     een kleine negatieve speling kan in een filter op negatieve speling verschijnen. Voorstel: de duur van
+     de urenmaat in de werkdriehoek op hele minuten zetten, of de speling op hele minuten vergelijken;
+     motorwerk, buiten F4b. Gevonden bij het meten voor knownbugs 252. — B
 
 ## Kalenders
 
@@ -518,34 +526,16 @@ en noem het in je rapport of PR-tekst.
     koppen in die talen, en de Help-artikelen die ze citeren mee. — B
 
 
-240. **Tutorial- en gidsteksten bevatten nog oude getallen uit het dagmodel.**
-     In F2-bouwronde 4 gecontroleerd naast de gewone F2-pins en de vaste F3-doelen;
-     `public/docs/nl/uitleg-nivelleren.md:55` noemt bijvoorbeeld het binnenspouwblad vanaf
-     29 juni, terwijl de F2-controle 25 juni en het F3-doel 28 juni toetst. Sinds F3c (motor en
-     belasting samen) is de metselaar 6 werkdagen overbezet, 28 juni t/m 5 juli, ook in het geval
-     zonder SNET met *smoothing* (conflict van 6 dag(en)); `uitleg-nivelleren.md` r.59 en r.76 (nl en en)
-     noemen nog 5 (`check-docs-resources-voorbeelden.ts`).
-     Zie `artifacts/uren-f2/bouwronde-4.md` (R4-030–039, R4-586–588) en
-     `tests/planning/fixtures/minute-model-tutorial-f3.json`. Voorstel: de verhalende tutorial-
-     en gidsteksten en eventuele schermbeelden bijwerken zodra de definitieve F3-uitkomsten
-     zijn gehaald, met behoud van de afzonderlijk getoetste einddoelen. — B
-252. **De gidsen over taaktypes zeggen nog dat de app een duur op hele werkdagen afrondt.**
-     Sinds de werkdriehoek exact rekent (T14, B3) en vast werk de urenmaat is (B1a), klopt dat niet meer.
-     `public/docs/{nl,en}/uitleg-werkregels.md` r.42 ("rondt naar boven af … hele werkdagen"), r.94
-     (1,33 → 2 werkdagen, met het waarschuwingsteken *Wijkt af van inzet × duur*), r.102 (5,33 → 6
-     werkdagen) en r.106 (restduur 1,5 → 2); `howto-werkregel-kiezen.md` r.59; `uitleg-kalenders.md`
-     r.97 (nl; "een taak in dagen telt hele werkdagen" klopt nog, maar vast werk is nu altijd een taak in
-     uren). Uit de code afgeleid (niet in de app nagespeeld): r.94 wordt nu 32 ÷ 3 = 10 u 40 min, zonder
-     waarschuwingsteken, en het histogram toont dan 3 op de eerste en 1 op de tweede werkdag (§3.11; getoetst
-     in `check-docs-resources-voorbeelden.ts`), niet 2 per dag. Hangt samen met 240.
-     Voorstel: de voorbeelden herschrijven in dezelfde ronde als 240, met de uitkomsten uit
-     `check-work-rule-*.ts`. Gevonden in F3c-winkel. — B
-254. **De gidsen over de werkregel zeggen niet dat een wissel naar vast werk de taken omzet naar uren.**
-     Sinds F3c-fix-winkel zet een wissel van de projectstandaard naar *Vast werk* (`setProject`,
-     `planner_update_project`, `settleDefaultWorkRuleSwitch` in `src/state/defaultWorkRuleSwitch.ts`) de
-     taken die hem erven om naar de urenmaat. `public/docs/{nl,en}/howto-werkregel-kiezen.md` en
-     `public/docs/{nl,en}/ref-ai-tools.md` zeggen dat nog niet. Hangt samen met 240 en 252. Voorstel: de
-     zin toevoegen in dezelfde ronde als 252. Gevonden in F3c-fix-winkel. — B
+240. **De tutorialteksten in de extensie en de schermbeelden van de gidsen hebben nog oude getallen.**
+     F4b werkte de gidsen in deze repo bij met gemeten getallen (`uitleg-nivelleren`, `uitleg-werkregels`,
+     `howto-werkregel-kiezen`, `uitleg-kalenders`, `uitleg-voortgang`, `howto-voortgang-bijwerken`,
+     `ref-ai-tools`; gepind in `check-docs-resources-voorbeelden.ts`, de reeks "F4b-gidsgetallen") en het
+     getallenblok bovenin `scripts/tutorial-project.ts`. Niet bijgewerkt en niet nagelezen: de verhalende
+     tutorialteksten in `open-planner-studio-extensions` (buiten deze repo) en de schermbeelden
+     (`gen:docs-screenshots`). Het oude getallenblok, waaruit die teksten komen, noemde nog "5 wd
+     overbezet (29 jun – 5 jul)"; de app meldt nu 6 dagen, 28 juni t/m 5 juli. De tutorialstappen in
+     `tests/browser/tutorials/` zijn groen. Voorstel: de extensieteksten nalezen tegen het nieuwe
+     getallenblok. — S
 
 ## Tests
 
