@@ -23,15 +23,16 @@ import {
   OPS_DAY_MEASURE_DURATIONS_FIELD_ID,
   OPS_DAY_MEASURE_LAGS_FIELD_ID,
   OPS_EXACT_MINUTES_FIELD_ID,
+  OPS_LAG_CALENDAR_FIELD_ID,
   OPS_MILESTONE_KIND_FIELD_ID,
   OPS_MILESTONE_KIND_FIELD_NAME,
   WORKCONTOUR_TO_CURVE,
 } from './mspdiWriter';
 import { invertRecord } from '@/utils/collections';
 import {
-  OPS_DAY_MEASURE_DURATIONS_NAME, OPS_DAY_MEASURE_LAGS_NAME, OPS_EXACT_MINUTES_NAME,
-  dayMeasureMinutesPerDay, lagFromRecord, lagRecordKey, normalizeKeepingDayRest, parseFieldRecords, parseLagRecords,
-  readMeasure, recordHolds, type LagRecord,
+  OPS_DAY_MEASURE_DURATIONS_NAME, OPS_DAY_MEASURE_LAGS_NAME, OPS_EXACT_MINUTES_NAME, OPS_LAG_CALENDAR_NAME,
+  dayMeasureMinutesPerDay, lagFromRecord, lagRecordHolds, lagRecordKey, lagWorkMinutesPerDay, normalizeKeepingDayRest,
+  parseFieldRecords, parseLagCalendarOption, parseLagRecords, readMeasure, type LagRecord,
 } from '@/services/xmlDayMeasure';
 import { ELAPSED_MINUTES_PER_DAY } from '@/services/ifc/dayMeasureIo';
 import {
@@ -281,6 +282,21 @@ export function readMSPDI(content: string): ImportResult {
 
   // Parse project
   const project = parseProject(root);
+  // De lagkalender (I7) staat in `OPS_LagCalendar` op de projectsamenvattingstaak (UID 0). Zonder dat veld
+  // rekent de lezer met de standaard (de voorganger); een lagrecord dat met een andere lagkalender is
+  // geschreven, telt dan niet (`lagRecordHolds`).
+  let summaryTask: Element | undefined;
+  const allTasks = root.getElementsByTagName('Task');
+  for (let i = 0; i < allTasks.length && !summaryTask; i++) {
+    const te = allTasks[i];
+    if (te.parentElement?.tagName === 'Tasks' && getElementInt(te, 'UID', -1) === 0
+      && getElementInt(te, 'OutlineLevel', 1) === 0) summaryTask = te;
+  }
+  const lagCalendarOption = summaryTask
+    ? parseLagCalendarOption(opsTaskFieldText(summaryTask, OPS_LAG_CALENDAR_FIELD_ID,
+      hasOpsFieldDefinition(root, OPS_LAG_CALENDAR_FIELD_ID, OPS_LAG_CALENDAR_NAME)))
+    : undefined;
+  if (lagCalendarOption) project.schedulingOptions = { ...project.schedulingOptions, lagCalendar: lagCalendarOption };
   const projectStartRaw = getElementText(root, 'StartDate');
   const missingDates = emptyMissingScheduleDates();
   // Eén gedeeld `HolidayBudget` over ALLE kalenders in dit document (projectkalender + elke
@@ -339,6 +355,8 @@ export function readMSPDI(content: string): ImportResult {
   const outlineLevels: (number | undefined)[] = [];
   // Effectieve uren/dag per taak, voor de werkafleiding bij de toewijzingen.
   const effHpdByTaskId = new Map<string, number>();
+  /** De effectieve kalender per taak (na de uur-promotie), voor de lagkalender van een lagrecord. */
+  const effCalByTaskId = new Map<string, WorkCalendar>();
   const pendingLinks: { successorId: string; predUid: number; type: number; lag: number; lagFormat: number; record?: LagRecord }[] = [];
   // Baseline 0: per taak de gesnapshotte Start/Finish/Duration.
   const baselineEntries: BaselineTask[] = [];
@@ -414,6 +432,7 @@ export function readMSPDI(content: string): ImportResult {
     // dag. Met een andere waarde zou een dagtaak van 5 d op 8 u/dag met blokken van 10 u haar werk als
     // vastgelegd werk terugkrijgen, en bij een langere duur niet meer meegroeien.
     effHpdByTaskId.set(id, workdayIsWorkTime ? effHoursPerDay(effCal) : effHpd);
+    effCalByTaskId.set(id, effCal);
     // MSP's <Type> (0/1/2 = Fixed Units/Duration/Work) en <EffortDriven> — dezelfde bewaarvelden als
     // de .mpp-lezer; de werkregel volgt eruit via `deriveImportedWorkRules`. Ontbrekend/ongeldig ⇒
     // geen veld.
@@ -662,7 +681,8 @@ export function readMSPDI(content: string): ImportResult {
   // zonder record is de lag urenmaat. Bij kalendertijd zegt LagFormat de eenheid (alleen uren §3.3):
   // 8 (ed) ⇒ kalenderdagen, zonder afronding (I2); 4/6/10/12 (em/eh/ew/emo) ⇒ kalenderminuten.
   // Een lag in de dagenmaat staat als record `[dagen, minuten]` in `OPS_DayMeasureLags` van de opvolger
-  // (T21); de dagen tellen alleen als LinkLag nog de geschreven minuten draagt.
+  // (T21); de dagen tellen alleen als LinkLag nog de geschreven minuten draagt, en als de dagen met de
+  // lagkalender van deze lezer nog die minuten geven (`lagRecordHolds`; review #585 r1, punt 1).
   const ELAPSED_DURATION_FORMATS = new Set([4, 6, 8, 10, 12]);
   const sequences: Sequence[] = [];
   for (const link of pendingLinks) {
@@ -681,7 +701,8 @@ export function readMSPDI(content: string): ImportResult {
     } else if (link.lagFormat === 8) {
       seq.lagDays = link.lag / 10 / ELAPSED_MINUTES_PER_DAY;
       seq.lagUnit = 'ELAPSEDTIME';
-    } else if (!ELAPSED_DURATION_FORMATS.has(link.lagFormat) && recordHolds(link.record, link.lag / 10)) {
+    } else if (!ELAPSED_DURATION_FORMATS.has(link.lagFormat) && lagRecordHolds(link.record, link.lag / 10,
+      lagWorkMinutesPerDay(seq, lagCalendarOption, calendar, effCalByTaskId))) {
       Object.assign(seq, lagFromRecord(link.record));
     } else {
       seq.lagMinutes = Math.round(link.lag / 10);

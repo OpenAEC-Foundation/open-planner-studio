@@ -54,6 +54,12 @@ function quiet<T>(fn: () => T): T {
 const LONG = [{ start: 420, end: 720 }, { start: 780, end: 960 }];
 const FRIDAY = [{ start: 420, end: 720 }, { start: 780, end: 840 }];
 const WEEK: WorkTimeBands = { byWeekday: { 1: LONG, 2: LONG, 3: LONG, 4: LONG, 5: FRIDAY, 6: [], 7: [] } };
+// Een tweede kalender: ma–vr 07:00–17:00, 10 u.
+const TEN: WorkTimeBands = { byWeekday: { 1: [{ start: 420, end: 1020 }], 2: [{ start: 420, end: 1020 }], 3: [{ start: 420, end: 1020 }], 4: [{ start: 420, end: 1020 }], 5: [{ start: 420, end: 1020 }], 6: [], 7: [] } };
+const tenCal: WorkCalendar = {
+  id: 'cal-tien', name: 'Tien uur', description: '', workDays: [1, 2, 3, 4, 5], workStartHour: 7, workEndHour: 17,
+  hoursPerDay: 10, holidays: [], workTime: TEN,
+};
 
 function task(id: string, start: string, finish: string, days: number, extra: Partial<TaskTime> = {}): Task {
   return {
@@ -118,6 +124,19 @@ function mspLink(text: string, pred: string, succ: string, type = 'FS'): string 
   return mspBlock(text, succ).split('<PredecessorLink>').slice(1).map(l => l.split('</PredecessorLink>')[0])
     .find(l => l.includes(`<PredecessorUID>${uid}</PredecessorUID>`) && l.includes(`<Type>${MSP_TYPE[type]}</Type>`)) ?? '';
 }
+/** Het nummer van de kalender met deze naam in het bestand (MSPDI `UID`, P6 `ObjectId`). */
+function calendarNumber(text: string, name: string, isMsp: boolean): string {
+  const block = (text.match(/<Calendar>[\s\S]*?<\/Calendar>/g) ?? []).find(b => b.includes(`<Name>${name}</Name>`)) ?? '';
+  return block.match(isMsp ? /<UID>(\d+)<\/UID>/ : /<ObjectId>(\d+)<\/ObjectId>/)?.[1] ?? '';
+}
+/** Zet alleen de kalender van één taak om (MSPDI `CalendarUID`, P6 `CalendarObjectId`). */
+function switchCalendar(text: string, fmt: Format, name: string, number: string): string {
+  const tag = fmt.name === 'MSPDI' ? 'CalendarUID' : 'CalendarObjectId';
+  const block = fmt.block(text, name);
+  ok(`opzet ${fmt.name}: ${tag} van ${name} gevonden`, new RegExp(`<${tag}>\\d+</${tag}>`).test(block) && number !== '');
+  return text.replace(block, block.replace(new RegExp(`<${tag}>\\d+</${tag}>`), `<${tag}>${number}</${tag}>`));
+}
+
 const MSPDI: Format = {
   name: 'MSPDI',
   write: p => quiet(() => writeMSPDI(p.project, p.calendar, p.tasks, p.sequences, p.resources, p.assignments, p.calendars,
@@ -287,11 +306,6 @@ for (const fmt of [MSPDI, P6XML]) {
 
   // ── (5) De lagkalender bepaalt de minuten ───────────────────────────────────────────────────────
   {
-    const TEN: WorkTimeBands = { byWeekday: { 1: [{ start: 420, end: 1020 }], 2: [{ start: 420, end: 1020 }], 3: [{ start: 420, end: 1020 }], 4: [{ start: 420, end: 1020 }], 5: [{ start: 420, end: 1020 }], 6: [], 7: [] } };
-    const tenCal: WorkCalendar = {
-      id: 'cal-tien', name: 'Tien uur', description: '', workDays: [1, 2, 3, 4, 5], workStartHour: 7, workEndHour: 17,
-      hoursPerDay: 10, holidays: [], workTime: TEN,
-    };
     const cases: [string, NonNullable<DocumentPayload['project']['schedulingOptions']>['lagCalendar'], number][] = [
       ['voorganger (standaard)', undefined, 240], ['opvolger op een kalender van 10 u', 'successor', 300],
       ['projectkalender', 'projectDefault', 240], ['24 uur', '24hour', 720],
@@ -305,7 +319,25 @@ for (const fmt of [MSPDI, P6XML]) {
       const text = fmt.write(p);
       eq(`(5) ${tag} lagkalender ${label}: standaardveld`, fmt.lagOf(text, 'A', 'B'), isMsp ? `${minutes * 10}/7` : String(minutes / 60));
       eq(`(5) ${tag} lagkalender ${label}: record met dezelfde minuten`, Object.values(fmt.record(text, 'B', 'lags') as object ?? {}), [[0.5, minutes]]);
-      eq(`(5) ${tag} lagkalender ${label}: terug als 0,5 d`, lagFields(seqByPair(fmt.read(text), 'A', 'B')), { lagDays: 0.5 });
+      const read = fmt.read(text);
+      eq(`(5) ${tag} lagkalender ${label}: terug als 0,5 d`, lagFields(seqByPair(read, 'A', 'B')), { lagDays: 0.5 });
+      // Review #585 r1, punt 1: de lagkalender komt mee terug, dus de tweede export schrijft dezelfde lengte
+      // en de doorrekening geeft dezelfde start van B.
+      eq(`(5) ${tag} lagkalender ${label}: de optie komt terug`, read.project.schedulingOptions?.lagCalendar, lagCalendar);
+      const loaded = load(read);
+      eq(`(5) ${tag} lagkalender ${label}: tweede export dezelfde lengte`, fmt.lagOf(fmt.write(loaded), 'A', 'B'), fmt.lagOf(text, 'A', 'B'));
+      eq(`(5) ${tag} lagkalender ${label}: doorgerekend dezelfde start van B`, startOf(solve(loaded), 'B'), startOf(solve(p), 'B'));
+      // Zonder de optie in het bestand (een ander programma liet het veld weg): het record past alleen nog
+      // als de voorganger dezelfde minuten geeft. Anders wint het standaardveld, in de urenmaat.
+      const stripped = isMsp
+        ? text.replace(/<ExtendedAttribute>\s*<FieldID>188744011<\/FieldID>\s*<Value>[^<]*<\/Value>\s*<\/ExtendedAttribute>/, '')
+        : text.replace(/<UDF>\s*<TypeObjectId>900000006<\/TypeObjectId>\s*<TextValue>[^<]*<\/TextValue>\s*<\/UDF>/, '');
+      ok(`(5) ${tag} lagkalender ${label}: opzet zonder optie`, lagCalendar === undefined ? stripped === text : stripped !== text);
+      const strippedRead = fmt.read(stripped);
+      eq(`(5) ${tag} lagkalender ${label}: zonder optie de lengte uit het standaardveld`, lagFields(seqByPair(strippedRead, 'A', 'B')),
+        minutes === 240 ? { lagDays: 0.5 } : { lagDays: 0, lagMinutes: minutes });
+      eq(`(5) ${tag} lagkalender ${label}: zonder optie tweede export dezelfde lengte`, fmt.lagOf(fmt.write(load(strippedRead)), 'A', 'B'),
+        fmt.lagOf(text, 'A', 'B'));
     }
   }
 
@@ -325,8 +357,15 @@ for (const fmt of [MSPDI, P6XML]) {
         completion: 2 / 3, actualStart: '2026-06-01T07:00', remainingTime: 1,
       }), status: 'STARTED' },
       task('J', '2026-06-01T07:00', '2026-06-03T16:00', 3),
+      // R: hele dagen met een rest met een breuk: alleen een restrecord.
+      { ...task('R', '2026-06-01T07:00', '2026-06-03T16:00', 3, {
+        completion: 0.5, actualStart: '2026-06-01T07:00', remainingTime: 1.5,
+      }), status: 'STARTED' },
+      // L staat op de kalender van 10 u, zodat die kalender in het bestand staat.
+      { ...task('L', '2026-06-01T07:00', '2026-06-01T17:00', 1), calendarId: tenCal.id },
       ...(isMsp ? [task('G', '2026-06-01T07:00', '2026-06-02T19:00', 1.5, { durationType: 'ELAPSEDTIME' })] : []),
     ];
+    p.calendars = [...p.calendars, tenCal];
     const text = fmt.write(p);
     const fields = isMsp ? { d: 'Duration', r: 'RemainingDuration' } : { d: 'PlannedDuration', r: 'RemainingDuration' };
     eq(`(6) ${tag} E: 2,5 d ⇒ 20 u met record`, [fmt.durationOf(text, 'E')[0], fmt.record(text, 'E', 'durations')],
@@ -358,6 +397,20 @@ for (const fmt of [MSPDI, P6XML]) {
     // Een gewijzigde rest (de duur ongewijzigd): de dagenmaat blijft, de rest volgt het standaardveld.
     const changedRest = fmt.read(fmt.patchField(text, 'F', 'remaining', isMsp ? 'PT16H0M0S' : '16'));
     eq(`(6) ${tag}: gewijzigde rest ⇒ 2 d`, dur(byName(changedRest, 'F')), ['days', 2.5, 2]);
+    // Review #585 r1, punt 2: een ander programma zet alleen de kalender van F en R om naar de kalender van
+    // 10 u. De records passen niet meer bij die kalender (2,5 d × 10 u ≠ 20 u): de urenmaat, voor duur én
+    // rest, met de minuten uit het bestand. De volgende export houdt 20 u en 12 u (niet 25 u en 15 u).
+    const ten = calendarNumber(text, tenCal.name, isMsp);
+    const switched = fmt.read(switchCalendar(switchCalendar(text, fmt, 'F', ten), fmt, 'R', ten));
+    const minutesOf = (t: Task | undefined) => t && [t.time.durationUnit, t.time.durationMinutes, t.time.remainingMinutes];
+    eq(`(6) ${tag}: kalenderwissel F ⇒ urenmaat 1200 en 720 min`, minutesOf(byName(switched, 'F')), ['hours', 1200, 720]);
+    eq(`(6) ${tag}: kalenderwissel R (alleen een restrecord) ⇒ urenmaat 1440 en 720 min`, minutesOf(byName(switched, 'R')),
+      ['hours', 1440, 720]);
+    const switchedAgain = fmt.write(load(switched));
+    eq(`(6) ${tag}: kalenderwissel, tweede export dezelfde lengtes`, [fmt.durationOf(switchedAgain, 'F'), fmt.durationOf(switchedAgain, 'R')],
+      [fmt.durationOf(text, 'F'), fmt.durationOf(text, 'R')]);
+    // Zonder wissel blijft R 3 d met 1,5 d rest.
+    eq(`(6) ${tag} ⇒ OPS: R 3 d met 1,5 d rest`, dur(byName(r, 'R')), ['days', 3, 1.5]);
   }
 
   // ── (7) De urenmaat zonder afronding (ExactMinutes) ─────────────────────────────────────────────
@@ -402,6 +455,71 @@ for (const fmt of [MSPDI, P6XML]) {
     ok(`(8) ${tag} opzet: de definities zijn weg`, !/OPS_DayMeasureDurations/.test(old));
     const oldRead = byName(fmt.read(fmt.patchField(old, 'T', 'duration', isMsp ? 'PT24H0M0S' : '24')), 'T');
     eq(`(8) ${tag}: ouder bestand 24 u ⇒ 3 d met de opgeslagen 8 u`, [oldRead?.time.durationUnit, oldRead?.time.scheduleDuration], ['days', 3]);
+  }
+}
+
+// ── (10) Kalendertijd (ELAPSEDTIME) voor duur en rest (review #585 r1, punt 3) ───────────────────────
+// P6 kent geen kalendertijd per activiteit en krijgt de taak als werktijd: 1,5 ed op een kalender van 8 u
+// wordt `PlannedDuration` 12. Het OPS-record draagt de eenheid (`ed`/`eu`), ook bij hele dagen, zodat OPS de
+// kalendertijd terugleest. MSPDI draagt kalendertijd zelf (`DurationFormat`).
+for (const fmt of [MSPDI, P6XML]) {
+  const tag = fmt.name;
+  const isMsp = fmt === MSPDI;
+  const p = weekPayload();
+  p.project = { ...p.project, statusDate: '2026-06-02' };
+  p.sequences = [];
+  p.tasks = [
+    // X: 1,5 ed met 0,5 ed rest. Y: 2 ed, hele dagen. Z: een urentaak van 4320 kalenderminuten met 1440 rest.
+    { ...task('X', '2026-06-01T07:00', '2026-06-02T19:00', 1.5, {
+      durationType: 'ELAPSEDTIME', completion: 2 / 3, actualStart: '2026-06-01T07:00', remainingTime: 0.5,
+    }), status: 'STARTED' },
+    task('Y', '2026-06-01T07:00', '2026-06-03T07:00', 2, { durationType: 'ELAPSEDTIME' }),
+    { ...task('Z', '2026-06-01T07:00', '2026-06-04T07:00', 3, {
+      durationType: 'ELAPSEDTIME', durationUnit: 'hours', durationMinutes: 4320,
+      completion: 2 / 3, actualStart: '2026-06-01T07:00', remainingMinutes: 1440,
+    }), status: 'STARTED' },
+  ];
+  const text = fmt.write(p);
+  if (!isMsp) {
+    eq('(10) P6 XML: standaardvelden in werktijd (wat P6 rekent)', ['X', 'Y', 'Z'].map(n => fmt.durationOf(text, n)),
+      [['12', '4'], ['16', undefined], ['72', '24']]);
+    eq('(10) P6 XML: records met de eenheid', [fmt.record(text, 'X', 'durations'), fmt.record(text, 'Y', 'durations'), fmt.record(text, 'Z', 'exact')], [
+      { PlannedDuration: [1.5, 720, 'ed'], RemainingDuration: [0.5, 240, 'ed'] },
+      { PlannedDuration: [2, 960, 'ed'] },
+      { PlannedDuration: [4320, 4320, 'eu'], RemainingDuration: [1440, 1440, 'eu'] },
+    ]);
+  }
+  const fields = (t: Task | undefined) => t && {
+    durationType: t.time.durationType, durationUnit: t.time.durationUnit, scheduleDuration: t.time.scheduleDuration,
+    remainingTime: t.time.remainingTime, durationMinutes: t.time.durationMinutes, remainingMinutes: t.time.remainingMinutes,
+  };
+  const r = fmt.read(text);
+  eq(`(10) ${tag} ⇒ OPS: X 1,5 ed met 0,5 ed rest`, fields(byName(r, 'X')),
+    { durationType: 'ELAPSEDTIME', durationUnit: 'days', scheduleDuration: 1.5, remainingTime: 0.5 });
+  eq(`(10) ${tag} ⇒ OPS: Y 2 ed`, [byName(r, 'Y')?.time.durationType, byName(r, 'Y')?.time.durationUnit, byName(r, 'Y')?.time.scheduleDuration],
+    ['ELAPSEDTIME', 'days', 2]);
+  eq(`(10) ${tag} ⇒ OPS: Z 4320 kalenderminuten met 1440 rest`,
+    [byName(r, 'Z')?.time.durationType, byName(r, 'Z')?.time.durationUnit, byName(r, 'Z')?.time.durationMinutes, byName(r, 'Z')?.time.remainingMinutes],
+    ['ELAPSEDTIME', 'hours', 4320, 1440]);
+  const loaded = load(r);
+  const again = fmt.write(loaded);
+  eq(`(10) ${tag}: tweede export dezelfde standaardvelden`, ['X', 'Y', 'Z'].map(n => fmt.durationOf(again, n)),
+    ['X', 'Y', 'Z'].map(n => fmt.durationOf(text, n)));
+  const second = fmt.read(again);
+  eq(`(10) ${tag}: tweede ronde dezelfde velden`, ['X', 'Y', 'Z'].map(n => fields(byName(second, n))),
+    ['X', 'Y', 'Z'].map(n => fields(byName(r, n))));
+  eq(`(10) ${tag}: doorgerekend dezelfde einden`, ['X', 'Y', 'Z'].map(n => byName(solve(loaded), n)?.time.earlyFinish),
+    ['X', 'Y', 'Z'].map(n => byName(solve(p), n)?.time.earlyFinish));
+  if (!isMsp) {
+    // Een ander programma wijzigde de duur, of de kalender: werktijd in de urenmaat, zoals P6 rekent.
+    const changed = byName(fmt.read(fmt.patchField(text, 'X', 'duration', '14')), 'X');
+    eq('(10) P6 XML: gewijzigde duur ⇒ werktijd, urenmaat 840 min', [changed?.time.durationType, changed?.time.durationUnit, changed?.time.durationMinutes],
+      ['WORKTIME', 'hours', 840]);
+    const q = { ...p, calendars: [...p.calendars, tenCal], tasks: [...p.tasks, { ...task('L', '2026-06-01T07:00', '2026-06-01T17:00', 1), calendarId: tenCal.id }] };
+    const qText = fmt.write(q);
+    const moved = byName(fmt.read(switchCalendar(qText, fmt, 'X', calendarNumber(qText, tenCal.name, false))), 'X');
+    eq('(10) P6 XML: kalenderwissel ⇒ werktijd, urenmaat 720 min', [moved?.time.durationType, moved?.time.durationUnit, moved?.time.durationMinutes],
+      ['WORKTIME', 'hours', 720]);
   }
 }
 

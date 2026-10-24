@@ -20,7 +20,7 @@ import { createBaselineOldDayCheck } from '@/engine/baselineOldDay';
 import { encodeCustomTaskType, escapeXml, OPS_DURATION_UNIT_NAME, toXmlDateTime } from '@/services/xmlInterchange';
 import {
   LagRecordCollector, OPS_DAY_MEASURE_DURATIONS_NAME, OPS_DAY_MEASURE_LAGS_NAME, OPS_EXACT_MINUTES_NAME,
-  dayMeasureMinutesPerDay, fieldRecordsJson, lagRecordKey, lagWorkMinutesPerDay, writeDays, writeMinutes,
+  OPS_LAG_CALENDAR_NAME, dayMeasureMinutesPerDay, fieldRecordsJson, lagRecordKey, lagWorkMinutesPerDay, writeDays, writeMinutes,
   type LagRecord, type WrittenAmount,
 } from '@/services/xmlDayMeasure';
 import { ELAPSED_MINUTES_PER_DAY, dayMeasureMinutes, roundDays } from '@/services/ifc/dayMeasureIo';
@@ -78,6 +78,10 @@ export const OPS_CUSTOM_TASK_TYPE_FIELD_ID = '188743731';
 export const OPS_DAY_MEASURE_DURATIONS_FIELD_ID = '188744014';
 export const OPS_EXACT_MINUTES_FIELD_ID = '188744013';
 export const OPS_DAY_MEASURE_LAGS_FIELD_ID = '188744012';
+/** De lagkalender van het project (`schedulingOptions.lagCalendar`, I7) op de projectsamenvattingstaak
+ *  (UID 0): Text25 = 188744011. Zonder deze waarde rekent de lezer met de standaard, de voorganger, en telt
+ *  een lagrecord dat met een andere lagkalender geschreven is niet (review #585 r1, punt 1). */
+export const OPS_LAG_CALENDAR_FIELD_ID = '188744011';
 
 // WorkContour-enum (MSPDI-schemadocumentatie/MPXJ): 0=Flat, 1=BackLoaded, 2=FrontLoaded,
 // 3=DoublePeak, 4=EarlyPeak, 5=LatePeak, 6=Bell, 7=Turtle; 8 (Contoured) is geen vorm maar het signaal
@@ -447,6 +451,14 @@ export function writeMSPDI(
     lines.push(`${indent(3)}<Alias>${name}</Alias>`);
     lines.push(`${indent(2)}</ExtendedAttribute>`);
   }
+  const lagCalendarOption = project.schedulingOptions?.lagCalendar;
+  if (lagCalendarOption) {
+    lines.push(`${indent(2)}<ExtendedAttribute>`);
+    lines.push(`${indent(3)}<FieldID>${OPS_LAG_CALENDAR_FIELD_ID}</FieldID>`);
+    lines.push(`${indent(3)}<FieldName>${OPS_LAG_CALENDAR_NAME}</FieldName>`);
+    lines.push(`${indent(3)}<Alias>${OPS_LAG_CALENDAR_NAME}</Alias>`);
+    lines.push(`${indent(2)}</ExtendedAttribute>`);
+  }
   lines.push(`${indent(1)}</ExtendedAttributes>`);
 
   // Scheduling-options: alleen wat MSPDI native kan. `CriticalSlackLimit` (dagen) draagt een triviale
@@ -538,6 +550,7 @@ export function writeMSPDI(
   lines.push(`${indent(3)}<Name>${escapeXml(exportName)}</Name>`);
   lines.push(`${indent(3)}<OutlineLevel>0</OutlineLevel>`);
   lines.push(`${indent(3)}<Summary>1</Summary>`);
+  pushOpsTaskField(lines, indent, OPS_LAG_CALENDAR_FIELD_ID, lagCalendarOption);
   lines.push(`${indent(2)}</Task>`);
 
   for (let i = 0; i < tasks.length; i++) {

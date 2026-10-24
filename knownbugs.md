@@ -507,6 +507,13 @@ en noem het in je rapport of PR-tekst.
      (`registerP6Bands`). Nagespeeld met een probe bij F5a-2. Richting: begin en einde op de minuut, zoals
      `applyCalendarBody` in de MSPDI-lezer. — B
 
+293. **De P6 XML-lezer deelt duur en rest twee keer door de uren per dag.** `p6xmlReader.ts:1070` en `:1072`
+     geven `durationDays`/`remainingDays` mee via `p6HoursToDays` (`:179`), terwijl `readMeasure`
+     (`xmlDayMeasure.ts`) dezelfde deling al doet met `minutesPerDay` (dezelfde uren per dag, met dezelfde
+     terugval op 8). De uitkomst is gelijk, op een mogelijk verschil in de laatste decimaal na
+     (`uren ÷ u` tegen `uren × 60 ÷ (u × 60)`, niet gemeten); het is dubbele code. Richting: de helper en de twee
+     argumentregels weghalen (ongeveer 6 regels). Gevonden in review #585 r1 (Sol, VERVOLG). — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 62. **Melding schuift over de knoppen van het begeleidingspaneel** (1600×950, venster Baselines open):

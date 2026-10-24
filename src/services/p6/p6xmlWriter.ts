@@ -18,15 +18,15 @@ import type { CustomTaskType } from '@/types/taskType';
 import { encodeCustomTaskType, OPS_DURATION_UNIT_NAME, toXmlDateTime } from '@/services/xmlInterchange';
 import { p6ConstraintLabel } from './p6ConstraintTypes';
 import { leaf, node, renderP6XmlWithReport, P6_ID_MAX_LENGTH, type P6Node } from './p6xmlSchemaOrder';
-import { taskDurationUnit } from '@/engine/scheduler/duration';
+import { isElapsedTask, taskDurationUnit } from '@/engine/scheduler/duration';
 import { effHoursPerDay } from '@/utils/taskDuration';
 import { computedStart, computedFinish } from '@/utils/taskDates';
 import {
   LagRecordCollector, OPS_DAY_MEASURE_DURATIONS_NAME, OPS_DAY_MEASURE_LAGS_NAME, OPS_EXACT_MINUTES_NAME,
-  dayMeasureMinutesPerDay, fieldRecordsJson, lagRecordKey, lagWorkMinutesPerDay, writeDays, writeMinutes,
-  type LagRecord, type WrittenAmount,
+  OPS_LAG_CALENDAR_NAME, dayMeasureMinutesPerDay, fieldRecordsJson, lagRecordKey, lagWorkMinutesPerDay,
+  withElapsedUnit, writeDays, writeMinutes, type LagRecord, type WrittenAmount,
 } from '@/services/xmlDayMeasure';
-import { roundDays } from '@/services/ifc/dayMeasureIo';
+import { ELAPSED_MINUTES_PER_DAY, roundDays } from '@/services/ifc/dayMeasureIo';
 import { P6_DURATION_TYPE_NAME, XER_DURATION_TYPE_TOKEN } from '@/engine/work/workRuleMapping';
 
 /** P6-UDF die de OPS-taaktypemarker draagt; geëxporteerd voor de reader. */
@@ -43,6 +43,9 @@ const OPS_P6_DURATION_UNIT_UDF_OBJECT_ID = 1;
 const OPS_DAY_MEASURE_DURATIONS_UDF_OBJECT_ID = 900000003;
 const OPS_EXACT_MINUTES_UDF_OBJECT_ID = 900000004;
 const OPS_DAY_MEASURE_LAGS_UDF_OBJECT_ID = 900000005;
+/** De lagkalender van het project (`schedulingOptions.lagCalendar`, I7) als project-UDF. Zonder deze waarde
+ *  rekent de lezer met de standaard, de voorganger (review #585 r1, punt 1). */
+const OPS_LAG_CALENDAR_UDF_OBJECT_ID = 900000006;
 
 // Curve-/contour-naammapping. De curve wordt SCHEMA-NATIEF geschreven als `<ResourceCurve>`-object
 // (21 waarden, MPXJ `XmlContextWriter.writeResourceCurves`) plus `<ResourceCurveObjectId>` op de
@@ -402,6 +405,15 @@ export function writeP6XMLWithReport(
       ...leaf('Title', title),
     ]));
   }
+  const lagCalendarOption = project.schedulingOptions?.lagCalendar;
+  if (lagCalendarOption) {
+    top.push(node('UDFType', [
+      ...leaf('DataType', 'Text'),
+      ...leaf('ObjectId', OPS_LAG_CALENDAR_UDF_OBJECT_ID),
+      ...leaf('SubjectArea', 'Project'),
+      ...leaf('Title', OPS_LAG_CALENDAR_NAME),
+    ]));
+  }
   const customTasks = leafTasks.filter(task => task.customTaskTypeId);
   if (customTasks.length > 0) {
     top.push(node('UDFType', [
@@ -553,22 +565,33 @@ export function writeP6XMLWithReport(
     // activiteitkalender (T13, "1 d = echte werktijd per dag", eigenaarsbesluit 2026-10-15), niet de
     // opgeslagen `HoursPerDay`: 3 d op een kalender met 8 u opgeslagen en werkblokken van 10 u werd 24 u,
     // en P6 plande daar 2,4 werkdagen. Een breuk in dagen gaat als `OPS_DayMeasureDurations`-record mee
-    // (T21). P6 kent geen kalendertijd per activiteit: die telt hier ook in de werktijd per dag.
+    // (T21). P6 kent geen kalendertijd per activiteit: die telt hier ook in de werktijd per dag (een
+    // urentaak: haar kalenderminuten als uren). Het record draagt dan altijd de eenheid (`ed` of `eu`), ook
+    // bij hele dagen of minuten, zodat OPS de kalendertijd terugleest (review #585 r1, punt 3).
     const effCal = effCalByTask.get(task.id) ?? calendar;
     const isHour = taskDurationUnit(task) === 'hours';
+    const elapsed = isElapsedTask(task);
     const workHpd = effHoursPerDay(effCal);
     const dayMinutesPerDay = dayMeasureMinutesPerDay(effCal, false);
+    const tagElapsed = (written: WrittenAmount, value: number): WrittenAmount =>
+      (elapsed ? withElapsedUnit(written, value, isHour ? 'eu' : 'ed') : written);
+    const durationMinutesForWrite = taskMinutesForWrite(task, workHpd);
     const writtenDuration: WrittenAmount = isHour
-      ? writeMinutes(taskMinutesForWrite(task, workHpd))
-      : writeDays(task.time.scheduleDuration, dayMinutesPerDay);
+      ? tagElapsed(writeMinutes(durationMinutesForWrite), durationMinutesForWrite)
+      : tagElapsed(writeDays(task.time.scheduleDuration, dayMinutesPerDay), task.time.scheduleDuration);
     const plannedDur = writtenDuration.minutes / 60;
     // RemainingDuration in uren, met dezelfde dag als PlannedDuration (P6 rekent de restduur op de
-    // activiteitkalender). Een urentaak zonder restminuten telt haar restdagen in de werktijd per dag.
-    const writtenRemaining: WrittenAmount | undefined = isHour && task.time.remainingMinutes != null
-      ? writeMinutes(task.time.remainingMinutes)
-      : task.time.remainingTime == null ? undefined
-      : isHour ? { minutes: Math.round(task.time.remainingTime * workHpd * 60) }
-      : writeDays(task.time.remainingTime, dayMinutesPerDay);
+    // activiteitkalender). Een urentaak zonder restminuten telt haar restdagen in de werktijd per dag (in
+    // kalendertijd: 1440 minuten per dag, zoals haar duur).
+    const remainingMinutes = task.time.remainingMinutes;
+    const remainingTime = task.time.remainingTime;
+    const hourRestMinutes = isHour && remainingMinutes == null && remainingTime != null
+      ? Math.round(remainingTime * (elapsed ? ELAPSED_MINUTES_PER_DAY : workHpd * 60)) : undefined;
+    const writtenRemaining: WrittenAmount | undefined = isHour && remainingMinutes != null
+      ? tagElapsed(writeMinutes(remainingMinutes), remainingMinutes)
+      : remainingTime == null ? undefined
+      : hourRestMinutes !== undefined ? tagElapsed({ minutes: hourRestMinutes }, hourRestMinutes)
+      : tagElapsed(writeDays(remainingTime, dayMinutesPerDay), remainingTime);
     const remainingHours = writtenRemaining ? writtenRemaining.minutes / 60 : undefined;
     const durationRecords = fieldRecordsJson({ PlannedDuration: writtenDuration.record, RemainingDuration: writtenRemaining?.record });
     const lagRecordsJson = lagRecords.json(task.id);
@@ -747,6 +770,9 @@ export function writeP6XMLWithReport(
     ...leaf('ObjectId', 1),
     ...leaf('PlannedStartDate', toXmlDateTime(project.startDate)),
     ...leaf('Status', project.endDate ? 'Active' : 'Planned'),
+    ...(lagCalendarOption
+      ? [node('UDF', [...leaf('TypeObjectId', OPS_LAG_CALENDAR_UDF_OBJECT_ID), ...leaf('TextValue', lagCalendarOption)])]
+      : []),
     ...inProject,
   ]));
 

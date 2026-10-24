@@ -314,10 +314,10 @@ if (corpus && existsSync(join(twinDir, 'mpp14timephased.mpp'))) {
   const xml2 = quiet(() => writeMSPDI(project, back.calendar, back.tasks, [], back.resources ?? [], back.assignments ?? [], [], [], null));
   eq('§8 MSPDI-toewijzing: na 10 d groeit het werk mee naar 105 u', workHours(xml2), '105h0m');
 }
-// Een dagkalender (geen blokken, geen promotie) met `<MinutesPerDay>` 600 (10 u) naast werktijden van 8 u.
-// `LinkLag` draagt 14400 tienden = 24 werkuur. Het record (T21, F5a-2) geeft de vertraging terug als 3 d
-// dagenmaat, onafhankelijk van de bestandswaarde: 3 werkdagen van 8 u is dezelfde 24 u. Tot en met F5a-1
-// kwam ze terug als 1440 minuten urenmaat.
+// Een dagkalender (geen blokken, geen promotie) waarvan een ander programma `<MinutesPerDay>` naar 600
+// (10 u) zette, naast werktijden van 8 u. `LinkLag` draagt 14400 tienden = 24 werkuur, en het record (T21)
+// zegt `[3, 1440]`. Op deze kalender is een dag nu 10 u: 3 d zou 30 u zijn. De context past dus niet meer
+// (review #585 r1, punt 2), het record telt niet, en de vertraging blijft 1440 minuten urenmaat.
 {
   const dayCal: WorkCalendar = { ...CAL, id: 'cal-dag', workStartHour: 8, workEndHour: 16, workTime: undefined };
   const dayOnly = (name: string): Task => {
@@ -331,7 +331,7 @@ if (corpus && existsSync(join(twinDir, 'mpp14timephased.mpp'))) {
     [written.match(/<LinkLag>([^<]*)</)?.[1], MSPDI.writtenHpd(written)], ['14400', '480']);
   const back = quiet(() => readMSPDI(MSPDI.setFileHpd(written, '600')));
   eq('§8 MSPDI-dagkalender: testvoorwaarde geen uurkalender; bestandswaarde 10 u', [!!back.calendar.workTime, back.calendar.hoursPerDay], [false, 10]);
-  eq('§8 MSPDI-dagkalender: vertraging blijft 3 d', [back.sequences[0]?.lagDays, back.sequences[0]?.lagMinutes], [3, undefined]);
+  eq('§8 MSPDI-dagkalender: vertraging blijft 1440 minuten', [back.sequences[0]?.lagDays, back.sequences[0]?.lagMinutes], [0, 1440]);
 }
 
 if (fails > 0) {

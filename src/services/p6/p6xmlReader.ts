@@ -14,9 +14,9 @@ import { generateId } from '@/utils/id';
 import { parseInstant, localTodayIso, parseDate, formatDate, addCalendarDays } from '@/utils/dateUtils';
 import { UNNAMED_HOLIDAY_NAME, UNNAMED_WORKING_EXCEPTION_NAME } from '@/services/calendarRecurrence';
 import {
-  OPS_DAY_MEASURE_DURATIONS_NAME, OPS_DAY_MEASURE_LAGS_NAME, OPS_EXACT_MINUTES_NAME,
-  dayMeasureMinutesPerDay, lagFromRecord, lagRecordKey, normalizeKeepingDayRest, parseFieldRecords, parseLagRecords,
-  readMeasure, recordHolds, type LagRecord,
+  OPS_DAY_MEASURE_DURATIONS_NAME, OPS_DAY_MEASURE_LAGS_NAME, OPS_EXACT_MINUTES_NAME, OPS_LAG_CALENDAR_NAME,
+  dayMeasureMinutesPerDay, lagFromRecord, lagRecordHolds, lagRecordKey, lagWorkMinutesPerDay, normalizeKeepingDayRest,
+  parseFieldRecords, parseLagCalendarOption, parseLagRecords, readMeasure, type LagRecord,
 } from '@/services/xmlDayMeasure';
 import { normalizeImportedProgress, deriveImportedWorkRules, reconstructResourceIds } from '@/services/importNormalize';
 import { flattenOrder } from '@/utils/wbs';
@@ -750,6 +750,21 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
 
   // Parse project
   const project = parseProject(scope.project);
+  // De lagkalender (I7) staat in de project-UDF `OPS_LagCalendar`. Zonder die waarde rekent de lezer met
+  // de standaard (de voorganger); een lagrecord dat met een andere lagkalender is geschreven, telt dan niet
+  // (`lagRecordHolds`; review #585 r1, punt 1).
+  const lagCalendarUdfIds = new Set(scopedElements(scope, 'UDFType')
+    .filter(el => getElementText(el, 'SubjectArea') === 'Project' && getElementText(el, 'DataType') === 'Text'
+      && getElementText(el, 'Title') === OPS_LAG_CALENDAR_NAME)
+    .map(el => getElementInt(el, 'ObjectId', -1))
+    .filter(objectId => objectId >= 0));
+  const lagCalendarUdf = scope.project && lagCalendarUdfIds.size > 0
+    ? directChildrenByLocalName(scope.project, 'UDF').find(el => lagCalendarUdfIds.has(getElementInt(el, 'TypeObjectId', -1)))
+    : undefined;
+  const lagCalendarOption = lagCalendarUdf ? parseLagCalendarOption(getElementText(lagCalendarUdf, 'TextValue')) : undefined;
+  if (lagCalendarOption) project.schedulingOptions = { ...project.schedulingOptions, lagCalendar: lagCalendarOption };
+  /** De effectieve kalender per taak (na de uur-promotie), voor de lagkalender van een lagrecord. */
+  const effCalByTaskId = new Map<string, WorkCalendar>();
   // Ontbrekende geplande datums (gedeelde regel `resolveMissingScheduleDates`, vóór de voortgang-
   // invarianten). Zonder <PlannedStartDate> op het project dragen ook de WBS-samenvattingen (die op
   // de projectstart worden aangemaakt) de vandaag-plaatshouder — die tellen dan mee als ontbrekend.
@@ -994,6 +1009,7 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
     // (ook de actuals) houden hun echte tijd.
     const hourDates = hourModeCalIds.has(effCalId);
     const effCal = calById.get(effCalId) ?? calendar;
+    effCalByTaskId.set(id, effCal);
     const effHpd = effCal.hoursPerDay;
     // Datum-parser: uur ⇒ echte tijd (`parseInstant`+`formatInstant`), dag ⇒ tijd-strippen.
     const parseTaskDate = (raw: string): string | undefined => importDateTimeOrUndefined(raw, hourDates);
@@ -1116,7 +1132,8 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
       ...(constraint ? { constraint } : {}),
       ...(constraint2 ? { constraint2 } : {}),
       time: {
-        durationType: 'WORKTIME',
+        // P6 kent geen kalendertijd per activiteit; een geldig OPS-record met `ed`/`eu` zegt het wel.
+        durationType: measure.durationType ?? 'WORKTIME',
         durationUnit: measure.durationUnit,
         scheduleDuration: durationDays,
         ...(durationMinutes != null ? { durationMinutes } : {}),
@@ -1221,8 +1238,13 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
       predecessorId: predId,
       successorId: succId,
       type: SEQUENCE_TYPE_BY_P6[p6Type] ?? 'FINISH_START',
-      ...(recordHolds(record, lagHours * 60) ? lagFromRecord(record) : { lagDays: 0, lagMinutes: Math.round(lagHours * 60) }),
+      lagDays: 0,
     };
+    if (lagRecordHolds(record, lagHours * 60, lagWorkMinutesPerDay(seq, lagCalendarOption, calendar, effCalByTaskId))) {
+      Object.assign(seq, lagFromRecord(record));
+    } else {
+      seq.lagMinutes = Math.round(lagHours * 60);
+    }
     sequences.push(seq);
   }
 

@@ -8,16 +8,27 @@
  *
  * Daarnaast schrijft OPS maatinformatie in eigen tekstvelden (MSPDI-`ExtendedAttribute`, P6-UDF), in de
  * vorm die F3c voor IFC koos (`dayMeasureIo.ts`): een RECORD `[waarde, geschreven minuten]` per
- * standaardveld. De lezer gebruikt de waarde alleen als het standaardveld nog precies die minuten draagt
- * (op de hele minuut). Anders heeft een ander programma de lengte gewijzigd en geldt het standaardveld.
+ * standaardveld. De lezer gebruikt de waarde alleen als twee dingen gelden (leesregel, `recordHolds` en
+ * `dayRecordFits`):
+ *  1. het standaardveld draagt nog precies die minuten (op de hele minuut). Anders heeft een ander programma
+ *     de lengte gewijzigd;
+ *  2. de waarde geeft met de huidige context nog die minuten: dagen × de minuten per dag van de huidige
+ *     kalender en het huidige duurtype (taak), of van de lagkalender (lag). Anders koos een ander programma
+ *     een andere kalender, of ontbreekt de lagkalender (review #585 r1, punt 1 en 2).
+ * Geldt een van beide niet, dan geldt het standaardveld, in de urenmaat: de lengte blijft precies staan.
  *  - Taak, dagenmaat met een breuk (`OPS_DayMeasureDurations`): `[dagen, minuten]`. Hele dagen krijgen geen
  *    record; de lezer deelt dan de minuten door de werktijd per dag (§3.10).
  *  - Taak, urenmaat met een breuk in minuten (`OPS_ExactMinutes`, T14): `[exacte minuten, minuten]`.
  *  - Lag (`OPS_DayMeasureLags`, één veld op de opvolger): sleutel = voorganger plus relatietype (`12:SS`),
  *    waarde `[dagen, minuten]` voor ELKE lag in de dagenmaat, ook hele dagen: de relatie heeft geen eigen
- *    eenheidsmarkering, dus zonder record is elke lag urenmaat (T15). P6 XML kent geen lageenheid per
- *    relatie; daar draagt het record ook de kalendertijd: `[dagen, minuten, "ed"]` of
- *    `[minuten, minuten, "eu"]`. MSPDI zegt kalendertijd zelf met `LagFormat` (8 = ed, 6 = eu).
+ *    eenheidsmarkering, dus zonder record is elke lag urenmaat (T15).
+ *  - Kalendertijd in P6 XML. P6 kent geen kalendertijd per relatie of per activiteit; het standaardveld telt
+ *    daar in werktijd. Het record draagt dan ook de eenheid, altijd (ook bij hele dagen): `[dagen, minuten,
+ *    "ed"]` of `[minuten, minuten, "eu"]`, voor een lag en voor de duur en rest van een taak (review #585 r1,
+ *    punt 3). MSPDI zegt kalendertijd zelf: `LagFormat` 8 (ed) of 6 (eu), en `DurationFormat` bij een taak.
+ *  - De lagkalender (`schedulingOptions.lagCalendar`, I7) staat in `OPS_LagCalendar`: MSPDI op de
+ *    projectsamenvattingstaak (UID 0), P6 XML als project-UDF. Zonder dat veld rekent de lezer met de
+ *    standaard, de voorganger.
  *
  * De definitie van `OPS_DayMeasureDurations` schrijft OPS altijd, ook zonder records. De lezer herkent
  * daaraan een bestand dat de dagenmaat in de werktijd per dag schreef (T13). Een ouder OPS-bestand
@@ -30,24 +41,40 @@ import type { WorkCalendar } from '@/types/calendar';
 import { effHoursPerDay, hourTaskScheduleDuration } from '@/utils/taskDuration';
 import {
   ELAPSED_MINUTES_PER_DAY, dayMeasureMinutes, exactMinutesRecord, isWholeDays, parseDayMeasureRecord, roundDays,
-  type DayMeasureRecord, type ExactMinutesRecord,
 } from '@/services/ifc/dayMeasureIo';
 
 /** Namen van de OPS-velden (MSPDI `FieldName`/`Alias`, P6 UDF-`Title`). Eén plek voor beide formaten. */
 export const OPS_DAY_MEASURE_DURATIONS_NAME = 'OPS_DayMeasureDurations';
 export const OPS_EXACT_MINUTES_NAME = 'OPS_ExactMinutes';
 export const OPS_DAY_MEASURE_LAGS_NAME = 'OPS_DayMeasureLags';
+export const OPS_LAG_CALENDAR_NAME = 'OPS_LagCalendar';
+
+/** De lagkalender van het project (`schedulingOptions.lagCalendar`). */
+export type LagCalendarOption = NonNullable<NonNullable<Project['schedulingOptions']>['lagCalendar']>;
+const LAG_CALENDAR_OPTIONS: readonly LagCalendarOption[] = ['predecessor', 'successor', 'projectDefault', '24hour'];
+
+/** De lagkalender uit het veld `OPS_LagCalendar`; een onbekende waarde telt als afwezig. */
+export function parseLagCalendarOption(raw: string | undefined): LagCalendarOption | undefined {
+  const value = raw?.trim();
+  return LAG_CALENDAR_OPTIONS.find(option => option === value);
+}
 
 /** De twee duurvelden van een taak, op hun naam in het formaat. */
 export interface DurationFieldNames { duration: string; remaining: string }
 
+/** Eenheid van kalendertijd in een record (P6 XML): kalenderdagen of kalenderminuten. */
+export type ElapsedUnit = 'ed' | 'eu';
+
+/** Een record: `[waarde, geschreven minuten]`, in P6 XML voor kalendertijd met de eenheid erbij. */
+export type FieldRecord = readonly [value: number, minutes: number] | readonly [value: number, minutes: number, unit: ElapsedUnit];
+
 /** Records per duurveld, op de naam van het veld in het formaat. */
-export type FieldRecords = Record<string, DayMeasureRecord>;
+export type FieldRecords = Record<string, FieldRecord>;
 
 // ── Schrijven ─────────────────────────────────────────────────────────────────────────────────────
 
 /** Een geschreven hoeveelheid: de minuten van het standaardveld, en het record als dat nodig is. */
-export interface WrittenAmount { minutes: number; record?: DayMeasureRecord }
+export interface WrittenAmount { minutes: number; record?: FieldRecord }
 
 /** Dagen ⇒ de minuten van het standaardveld (dagen × minuten per dag, op de hele minuut), plus het record
  *  `[dagen, minuten]` bij een breuk (T21). Hele dagen: geen record. */
@@ -61,6 +88,12 @@ export function writeDays(days: number, minutesPerDay: number): WrittenAmount {
 export function writeMinutes(minutes: number): WrittenAmount {
   const record = exactMinutesRecord(minutes);
   return record ? { minutes: record[1], record } : { minutes: Math.round(minutes) };
+}
+
+/** P6 XML: een hoeveelheid in kalendertijd krijgt altijd een record met de eenheid (ook bij hele dagen of
+ *  minuten), want het standaardveld telt in P6 als werktijd. `value`: de dagen (`ed`) of de minuten (`eu`). */
+export function withElapsedUnit(written: WrittenAmount, value: number, unit: ElapsedUnit): WrittenAmount {
+  return { minutes: written.minutes, record: [unit === 'ed' ? roundDays(value) : value, written.minutes, unit] };
 }
 
 /**
@@ -91,7 +124,7 @@ export function lagWorkMinutesPerDay(
 }
 
 /** Een record van een lag: `[dagen, minuten]` (dagenmaat), of in P6 XML ook kalendertijd. */
-export type LagRecord = readonly [value: number, minutes: number] | readonly [value: number, minutes: number, unit: 'ed' | 'eu'];
+export type LagRecord = FieldRecord;
 
 const LINK_TYPE_TOKEN: Record<SequenceType, string> = {
   FINISH_START: 'FS', START_START: 'SS', FINISH_FINISH: 'FF', START_FINISH: 'SF',
@@ -129,7 +162,7 @@ export class LagRecordCollector {
 
 /** De JSON-tekst voor de duurrecords van een taak, of `undefined` zonder records. */
 export function fieldRecordsJson(records: Partial<FieldRecords>): string | undefined {
-  const entries = Object.entries(records).filter((e): e is [string, DayMeasureRecord] => e[1] !== undefined);
+  const entries = Object.entries(records).filter((e): e is [string, FieldRecord] => e[1] !== undefined);
   return entries.length > 0 ? JSON.stringify(Object.fromEntries(entries)) : undefined;
 }
 
@@ -145,13 +178,22 @@ function parseJsonObject(raw: string | undefined): Record<string, unknown> | und
   }
 }
 
+/** Eén record lezen: `[getal, hele minuten]`, eventueel met een kalendertijd-eenheid. Anders `undefined`. */
+function parseFieldRecord(value: unknown): FieldRecord | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const base = parseDayMeasureRecord(value.slice(0, 2));
+  if (!base || value.length < 2) return undefined;
+  if (value.length === 2) return base;
+  return value.length === 3 && (value[2] === 'ed' || value[2] === 'eu') ? [base[0], base[1], value[2]] : undefined;
+}
+
 /** Duurrecords lezen (`[getal, hele minuten]` per veldnaam). Corrupte JSON of een ongeldig record blijft
  *  inert, zoals een bestand zonder record. */
-export function parseFieldRecords(raw: string | undefined, names: DurationFieldNames): { duration?: DayMeasureRecord; remaining?: DayMeasureRecord } {
+export function parseFieldRecords(raw: string | undefined, names: DurationFieldNames): { duration?: FieldRecord; remaining?: FieldRecord } {
   const obj = parseJsonObject(raw);
   if (!obj) return {};
-  const duration = parseDayMeasureRecord(obj[names.duration]);
-  const remaining = parseDayMeasureRecord(obj[names.remaining]);
+  const duration = parseFieldRecord(obj[names.duration]);
+  const remaining = parseFieldRecord(obj[names.remaining]);
   return { ...(duration ? { duration } : {}), ...(remaining ? { remaining } : {}) };
 }
 
@@ -161,38 +203,69 @@ export function parseLagRecords(raw: string | undefined): Map<string, LagRecord>
   const obj = parseJsonObject(raw);
   if (!obj) return out;
   for (const [key, value] of Object.entries(obj)) {
-    if (!key || !Array.isArray(value)) continue;
-    const base = parseDayMeasureRecord(value.slice(0, 2));
-    if (!base) continue;
-    if (value.length === 2) out.set(key, base);
-    else if (value.length === 3 && (value[2] === 'ed' || value[2] === 'eu')) out.set(key, [base[0], base[1], value[2]]);
+    const record = key ? parseFieldRecord(value) : undefined;
+    if (record) out.set(key, record);
   }
   return out;
 }
 
-/** De leesregel van T21: het record telt alleen als het standaardveld nog de geschreven minuten draagt (op
+/** Leesregel, deel 1 (T21): het record telt alleen als het standaardveld nog de geschreven minuten draagt (op
  *  de hele minuut). */
 export function recordHolds<R extends readonly [number, number, ...unknown[]]>(record: R | undefined, standardMinutes: number | null | undefined): record is R {
   return record !== undefined && standardMinutes != null && Number.isFinite(standardMinutes)
     && Math.round(standardMinutes) === record[1];
 }
 
-/** De gelezen maat van een taak: de velden van `TaskTime` die de duur en de rest dragen. */
+const isElapsedUnit = (record: FieldRecord | undefined, unit: ElapsedUnit): boolean =>
+  record !== undefined && record.length === 3 && record[2] === unit;
+
+/**
+ * Leesregel, deel 2 (review #585 r1): de waarde van het record geeft met de huidige context nog de geschreven
+ * minuten. Een record in dagen (dagenmaat of `ed`): dagen × `minutesPerDay` op de hele minuut, zoals de writer
+ * (`dayMeasureMinutes`). `minutesPerDay` is wat de lezer nu rekent: de huidige kalender en het huidige
+ * duurtype van de taak, of de lagkalender van de relatie. Een record in minuten (`ExactMinutes`, `eu`) hangt
+ * niet van een kalender af.
+ */
+export function dayRecordFits(record: FieldRecord, minutesPerDay: number): boolean {
+  if (isElapsedUnit(record, 'eu')) return minuteRecordFits(record);
+  return minutesPerDay > 0 && dayMeasureMinutes(record[0], minutesPerDay) === record[1];
+}
+
+/** Leesregel, deel 2, voor een record in minuten (`ExactMinutes`, `eu`): de waarde geeft op de hele minuut de
+ *  geschreven minuten. */
+export function minuteRecordFits(record: FieldRecord): boolean {
+  return Math.round(record[0]) === record[1];
+}
+
+/** De hele leesregel voor een lagrecord: het standaardveld én de lagkalender. */
+export function lagRecordHolds(record: LagRecord | undefined, standardMinutes: number, lagMinutesPerDay: number): record is LagRecord {
+  return recordHolds(record, standardMinutes) && dayRecordFits(record, lagMinutesPerDay);
+}
+
+/** De gelezen maat van een taak: de velden van `TaskTime` die de duur en de rest dragen. `durationType` alleen
+ *  als een geldig record kalendertijd zegt (P6 XML, `ed`/`eu`); anders beslist de lezer zelf. */
 export interface ReadMeasure {
   durationUnit: 'days' | 'hours';
   scheduleDuration: number;
   durationMinutes?: number;
   remainingTime?: number;
   remainingMinutes?: number;
+  durationType?: 'ELAPSEDTIME';
 }
 
 /**
- * Duur en rest van één taak uit de standaardvelden en de records (§3.10, T21, T14).
+ * Duur en rest van één taak uit de standaardvelden en de records (§3.10, T21, T14). De leesregel staat
+ * hier één keer, voor beide formaten (`recordHolds` en `dayRecordFits`, zie de kop van dit bestand).
  *  - Urenmaat (OPS-markering `hours`, of geen markering: T15): de minuten. Een `ExactMinutes`-record geeft de
- *    exacte minuten terug zolang het standaardveld de geschreven minuten draagt.
- *  - Dagenmaat (OPS-markering `days`): met een duurrecord de exacte dagen, zolang de duur nog de geschreven
- *    minuten draagt; bij een andere duur de urenmaat (de rest dan in minuten). Zonder record: minuten ÷
- *    minuten per dag. De rest volgt dezelfde regel, maar blijft in de dagenmaat (zoals de IFC-lezer).
+ *    exacte minuten terug zolang het standaardveld de geschreven minuten draagt; met de eenheid `eu` ook de
+ *    kalendertijd.
+ *  - Dagenmaat (OPS-markering `days`): met een duurrecord de exacte dagen. Draagt de duur niet meer de
+ *    geschreven minuten, of past een duur- of restrecord niet meer bij `minutesPerDay` (een andere kalender
+ *    of een ander duurtype), dan de urenmaat: duur én rest in de minuten uit het bestand. Zonder record:
+ *    minuten ÷ minuten per dag. Een restrecord dat alleen niet meer bij de rest past (een ander programma
+ *    wijzigde de rest), geeft de rest in de dagenmaat uit het standaardveld (zoals de IFC-lezer). Een
+ *    duurrecord met de eenheid `ed` geeft ook de kalendertijd.
+ * `minutesPerDay`: de minuten per dag die de lezer nu rekent (de huidige kalender en het huidige duurtype).
  * De minuten mogen een breuk zijn: de urenmaat rondt ze af op de hele minuut, de leesregel ook.
  * `durationDays`/`remainingDays`: de dagen van het standaardveld zonder geldig record, als de lezer die zelf
  * uitrekent (MSPDI `P5D`, P6 uren ÷ uren per dag); anders minuten ÷ minuten per dag.
@@ -205,36 +278,41 @@ export function readMeasure(input: {
   remainingDays?: number;
   minutesPerDay: number;
   calendar: WorkCalendar;
-  dayRecords: { duration?: DayMeasureRecord; remaining?: DayMeasureRecord };
-  exactRecords: { duration?: ExactMinutesRecord; remaining?: ExactMinutesRecord };
+  dayRecords: { duration?: FieldRecord; remaining?: FieldRecord };
+  exactRecords: { duration?: FieldRecord; remaining?: FieldRecord };
 }): ReadMeasure {
   const { durationMinutes, remainingMinutes, minutesPerDay, calendar } = input;
   const perDay = (minutes: number) => (minutesPerDay > 0 ? minutes / minutesPerDay : 0);
-  const hours = (): ReadMeasure => {
-    const exact = recordHolds(input.exactRecords.duration, durationMinutes) ? input.exactRecords.duration[0] : Math.round(durationMinutes);
+  /** De urenmaat: de minuten uit het bestand, of de exacte minuten uit een geldig `ExactMinutes`-record. */
+  const hours = (exact: { duration?: FieldRecord; remaining?: FieldRecord }): ReadMeasure => {
+    const durationRecord = exact.duration;
+    const durationHolds = recordHolds(durationRecord, durationMinutes) && minuteRecordFits(durationRecord);
+    const minutes = durationHolds ? durationRecord[0] : Math.round(durationMinutes);
+    const restRecord = exact.remaining;
     const rest = remainingMinutes === undefined ? undefined
-      : recordHolds(input.exactRecords.remaining, remainingMinutes) ? input.exactRecords.remaining[0] : Math.round(remainingMinutes);
-    return {
-      durationUnit: 'hours', durationMinutes: exact, scheduleDuration: hourTaskScheduleDuration(exact, calendar),
-      ...(rest !== undefined ? { remainingMinutes: rest } : {}),
-    };
-  };
-  if (input.unit === 'hours') return hours();
-  const durationRecord = input.dayRecords.duration;
-  if (durationRecord && !recordHolds(durationRecord, durationMinutes)) {
-    // Een ander programma wijzigde de duur: de urenmaat met de minuten uit het bestand (T21). Een
-    // `ExactMinutes`-record hoort niet bij een dagenmaat-taak en telt niet.
-    const minutes = Math.round(durationMinutes);
+      : recordHolds(restRecord, remainingMinutes) && minuteRecordFits(restRecord) ? restRecord[0] : Math.round(remainingMinutes);
     return {
       durationUnit: 'hours', durationMinutes: minutes, scheduleDuration: hourTaskScheduleDuration(minutes, calendar),
-      ...(remainingMinutes !== undefined ? { remainingMinutes: Math.round(remainingMinutes) } : {}),
+      ...(rest !== undefined ? { remainingMinutes: rest } : {}),
+      ...(durationHolds && isElapsedUnit(durationRecord, 'eu') ? { durationType: 'ELAPSEDTIME' as const } : {}),
     };
+  };
+  if (input.unit === 'hours') return hours(input.exactRecords);
+  const durationRecord = input.dayRecords.duration;
+  const restRecord = input.dayRecords.remaining;
+  const contextLost = [durationRecord, restRecord].some(record => record !== undefined && !dayRecordFits(record, minutesPerDay));
+  if (contextLost || (durationRecord && !recordHolds(durationRecord, durationMinutes))) {
+    // Een ander programma wijzigde de duur, de kalender of het duurtype: de urenmaat met de minuten uit het
+    // bestand, voor duur én rest (T21). Een `ExactMinutes`-record hoort niet bij een dagenmaat-taak en telt niet.
+    return hours({});
   }
   const days = durationRecord ? durationRecord[0] : input.durationDays ?? perDay(durationMinutes);
-  const restRecord = input.dayRecords.remaining;
   const remainingTime = remainingMinutes === undefined ? undefined
     : recordHolds(restRecord, remainingMinutes) ? restRecord[0] : input.remainingDays ?? perDay(remainingMinutes);
-  return { durationUnit: 'days', scheduleDuration: days, ...(remainingTime !== undefined ? { remainingTime } : {}) };
+  return {
+    durationUnit: 'days', scheduleDuration: days, ...(remainingTime !== undefined ? { remainingTime } : {}),
+    ...(isElapsedUnit(durationRecord, 'ed') ? { durationType: 'ELAPSEDTIME' as const } : {}),
+  };
 }
 
 /** De gelezen lag uit een geldig record (de leesregel is al getoetst): de velden van `Sequence`. */
