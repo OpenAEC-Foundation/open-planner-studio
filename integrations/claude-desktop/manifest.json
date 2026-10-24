@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "open-planner-studio",
   "display_name": "Open Planner Studio",
-  "version": "2026.10.0",
+  "version": "2026.43.0",
   "description": "Connects Claude Desktop to the Open Planner Studio desktop app, so Claude can read and edit your open construction schedule.",
   "long_description": "This extension connects Claude Desktop to the MCP bridge of the Open Planner Studio desktop app on your own computer. It contains no planner of its own: the app must be running, with the MCP bridge started on the MCP tab. Claude then gets the planner_ tools of the app: read and change tasks, relations, resources, calendars and baselines, and calculate the schedule. Every change is one undo step in the app, and the app can pause the MCP client or allow reading only.\n\nPaste the token from the app (MCP tab › Connection › Connect) into the Token field. Change the port only if you changed it in the app.",
   "author": {

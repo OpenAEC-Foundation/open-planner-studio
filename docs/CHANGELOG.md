@@ -6,6 +6,73 @@ version has its own section (no gaps); the newest is at the top. It is deliberat
 running archive of every individual commit: within a version there is a curated description,
 grouped by whichever category applies (`Added`, `Changed`, `Fixed`, `Documentation`).
 
+## v2026.43.0 — 2026-10-24
+
+This release makes MCP clients easier to connect, improves large-schedule performance, and
+hardens file handling, recovery and progress entry. Versions now use the ISO week-year, week
+and sequence (`YYYY.W.N`); the jump from 2026.10.0 reflects that numbering change.
+
+### Added
+- **Claude Desktop extension.** A `.mcpb` asset connects Claude Desktop to the MCP bridge of the
+  running desktop app. It forwards calls and contains no planner; the user supplies the token and
+  port shown in the app.
+- **Headless MCP server.** The same 41 `planner_*` tools can run on Node without the desktop app,
+  over stdio or authenticated loopback HTTP, in an isolated store context. File tools stay within
+  a configured working folder, reject symlink escapes and save atomically without a direct-write
+  fallback. The source build embeds the guides and examples it needs.
+- **Desktop discovery files.** The app writes bridge connection information and an inventory of
+  open files for future MCP integrations. Documentation describes the identity and file-permission
+  limits explicitly; the shipped Claude Desktop bundle still uses manual connection settings.
+- **Arch Linux packaging.** AUR packaging and its build/publication workflow accompany the existing
+  desktop installers. Snap and AUR installations leave updating to their package managers.
+- **AppImage desktop integration.** Launching the AppImage writes a menu entry and icon in the
+  user's data folder, respects existing entries it does not own and supports an opt-out.
+
+### Changed
+- **Large schedules.** IFC reading indexes property relations, F5 computes outside the Immer
+  producer, resource leveling reuses a forward pass when its prerequisites hold, and large leveling
+  proposals render only visible rows. The full calculation fallback remains available.
+- **Recovery serialization.** Changed IFC snapshots are serialized by one reusable worker, with
+  the existing writer as a fallback. Snapshot ordering, stopping and XER archive references remain
+  guarded; file handles and archive bytes do not cross the worker boundary.
+- **MCP naming.** Ribbon controls, status, connection dialogs, settings and guides now call the
+  external connection MCP. Tutorials use a movable guide panel without the former marking overlay.
+- **Release automation.** Weekly releases use explicit recovery, translation and CI gates, a
+  deadline, reviewed fix PRs and successor versions when a failed tag needs changed source code.
+- **Build inputs.** Tailwind scans only application sources; Vite receives security updates.
+
+### Fixed
+- **Recovery and saving.** Unreadable, invalid, duplicate or newer recovery manifests cannot
+  trigger writes or cleanup of the refused recovery set. A blocked browser database upgrade
+  completes startup with a persistent warning and requires reload before recovery accesses it
+  again. Real web-save errors are reported, temporary export files are created exclusively, and
+  MCP exports respect the document's file identity.
+- **Scheduling and progress.** External minute lags also apply to day tasks. Hour-task block
+  boundaries, finish constraints, elapsed-time limits and deadline calendars receive targeted
+  corrections. Reversed actual dates are refused; completed tasks without an actual finish retain
+  the full scheduling path. Unknown driving status stays distinct from a known non-driving link.
+- **IFC and imports.** IFC phase progress and actual dates survive round trips, applying IFC editor
+  content preserves document state and identities, and deep WBS structures avoid recursive open
+  traversal. Building-model IFC files are refused before a lossy import. MSPDI escapes project
+  date fields correctly; MPP import-loss reporting handles resource records, rates, notes, RTF and
+  empty baseline dates more accurately.
+- **Progress sheets.** Invalid populated CSV dates are refused with row and field context;
+  unmatched preview rows state their reason and source identifier.
+- **Reports and editing.** Report Print invokes PDF export, Backstage print preview opens the
+  correct workspace, and PDF filenames follow the report language. Task calendars show names and
+  offer a chooser; milestone creation and assignment feedback are consistent.
+- **Help and updates.** Pending actual-start questions survive Help navigation and freeze
+  surrounding controls. Update preparation, installation and restart have separate phases, and
+  automatic update dialogs wait until guided tutorials finish.
+
+### Documentation
+- Updated Dutch and English guides for MCP, reports, recovery, calendar generation, conventions,
+  imports, extensions and editing; refreshed README examples and tutorial references.
+- Updated the interface translations in all 28 languages through the translation pipeline.
+  Help translations beyond Dutch and English may lag and use the existing English fallback.
+- Refreshed wiki feature and installation pages, including the building-model guard and package
+  manager update behavior.
+
 ## v2026.10.0 — 2026-10-21
 
 A large release: 2,165 commits (228 merged pull requests) since v2026.9.0. It opens Primavera P6
