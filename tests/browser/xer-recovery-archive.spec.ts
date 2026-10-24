@@ -6,7 +6,10 @@
 // een leesbare snapshot met ingebed archief én een onleesbare kopie — en bewijst
 // dat de upgrade naar v3 die snapshot nog herstelt.
 import type { Locator, Page } from '@playwright/test';
-import { expect, test } from './fixtures/ops';
+import { expect, test, waitForOps } from './fixtures/ops';
+
+// main.tsx installeert de brug via een losse dynamische import. Een zichtbare herstelmelding
+// bewijst niet dat die klaar is: na iedere app-navigatie wachten vóór store-observaties.
 
 const TASK_HEADER = [
   'task_id', 'proj_id', 'clndr_id', 'task_code', 'task_name', 'task_type', 'duration_type',
@@ -168,6 +171,7 @@ test('crashherstel: een XER met twee projecten komt terug mét archief, uit éé
   await page.evaluate(() => localStorage.setItem('ops-welcomeSeen', 'true'));
   page.on('dialog', d => { void d.accept(); });
   await page.reload();
+  await waitForOps(page);
   await acceptRecovery(page);
 
   // (6) Beide documenten zijn terug, mét het gedeelde archief en zonder archiefmelding; de wijziging ook.
@@ -233,6 +237,7 @@ test('crashherstel: oude v1-snapshot herstelt en onleesbare kopie blijft bewaard
   }, { xer: XER_TWO_PROJECTS, sid: sessionId });
 
   await page.goto('/');
+  await waitForOps(page);
   await acceptRecovery(page);
   await expect.poll(() => openDocuments(page).then(docs => docs.length)).toBe(1);
   const [restored] = await openDocuments(page);
@@ -288,6 +293,7 @@ test('crashherstel: oude v1-snapshot herstelt en onleesbare kopie blijft bewaard
       localStorage.setItem('ops-locale', locale);
     }, { sid: 'alleen-onleesbaar-' + locale, locale });
     await page.goto('/');
+    await waitForOps(page);
     const dialog = page.locator('[data-ops-recovery-dialog]');
     await expect(dialog).toBeVisible({ timeout: 15_000 });
     await expect(dialog.getByRole('button', { name: /^(Herstellen|Restore)$/ })).toHaveCount(0);
@@ -301,6 +307,7 @@ test('crashherstel: oude v1-snapshot herstelt en onleesbare kopie blijft bewaard
     await expect(dialog).toHaveCount(0);
     expect((await readRecoveryDb(page, 'BROKEN_RECOVERY_FIXTURE')).snapshotHasName).toBe(true);
     await page.reload();
+    await waitForOps(page);
     await expect(dialog).toBeVisible({ timeout: 15_000 });
     if (locale === 'nl') {
       // Ook Enter kiest standaard de veilige uitweg, nooit verwijderen.
@@ -308,6 +315,7 @@ test('crashherstel: oude v1-snapshot herstelt en onleesbare kopie blijft bewaard
       await expect(dialog).toHaveCount(0);
       expect((await readRecoveryDb(page, 'BROKEN_RECOVERY_FIXTURE')).snapshotHasName).toBe(true);
       await page.reload();
+      await waitForOps(page);
       await expect(dialog).toBeVisible({ timeout: 15_000 });
     }
     await dialog.getByRole('button', { name: discardName, exact: true }).click();
@@ -315,7 +323,7 @@ test('crashherstel: oude v1-snapshot herstelt en onleesbare kopie blijft bewaard
     await expect.poll(() => readRecoveryDb(page, 'BROKEN_RECOVERY_FIXTURE'))
       .toMatchObject({ snapshotHasName: false });
     await page.reload();
-    await expect.poll(() => page.evaluate(() => !!window.__OPS__)).toBe(true);
+    await waitForOps(page);
     await expect(dialog).toHaveCount(0);
   }
 
@@ -419,6 +427,7 @@ test('crashherstel: oude v1-snapshot herstelt en onleesbare kopie blijft bewaard
     }
     const sidBefore = await page.evaluate(() => sessionStorage.getItem('ops-recovery-session'));
     await page.goto('/');
+    await waitForOps(page);
     const warning = page.getByRole('alert').filter({ hasText: locale === 'nl'
       ? 'De herstelgegevens hebben een onbekende versie of een ongeldige indeling.'
       : 'The recovery data has an unknown version or an invalid structure.' });
@@ -556,6 +565,7 @@ test('crashherstel: oude v1-snapshot herstelt en onleesbare kopie blijft bewaard
       };
     });
     await page.goto('/');
+    await waitForOps(page);
     const warning = page.getByRole('alert').filter({ hasText: 'Recovery storage is temporarily blocked by another open connection.' });
     await expect(warning).toBeVisible();
     await expect(warning).toContainText('Save your work yourself');
@@ -619,6 +629,7 @@ test('crashherstel: oude v1-snapshot herstelt en onleesbare kopie blijft bewaard
     // Alleen een nieuwe paginastart probeert opnieuw; gezond v2-herstel en de v3-index blijven werken.
     page.once('dialog', dialog => { void dialog.accept(); });
     await page.reload();
+    await waitForOps(page);
     await acceptRecovery(page);
     expect((await readRecoveryDb(page, 'Fundering')).version).toBe(3);
     expect((await openDocuments(page)).flatMap(doc => doc.tasks)).toEqual(['Fundering']);
