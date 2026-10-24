@@ -313,7 +313,8 @@ const has = (errs: string[], part: string) => errs.some(e => e.includes(part));
       for (const ns of NAMESPACES) write(join(work, 'src/i18n/locales', lang, `${ns}.json`), ns === 'common' ? { sample: `Voorbeeld ${lang}` } : {});
       if (lang !== 'nl') write(join(work, 'i18n/ui-sources', `${lang}.json`), { common: { sample: hashUnit('Voorbeeld nl') } });
     }
-    mkdirSync(join(work, 'public/docs'), { recursive: true });
+    // Gewone status rapporteert ook docs; de UI-fixture heeft bewust geen artikelen.
+    write(join(work, 'public/docs/manifest.json'), { version: 2, articles: [] });
     for (const args of commands) {
       const r = run(args);
       eq(`CLI ${args.join(' ')}: complete termen en UI, geen token/keep- of nl/en-doeltermen (${r.out})`, r.status, 0);
@@ -355,7 +356,7 @@ const has = (errs: string[], part: string) => errs.some(e => e.includes(part));
     eq('200 expliciete controle van andere taal behoudt eigen scope', run(['status', 'de', '--strict']).status, 0);
     eq('200 expliciete verdwenen taal is eveneens rood', run(['status', 'lo', '--strict']).status, 1);
     const report = run(['status']);
-    eq('200 gewone status blijft een rapport, geen harde poort', report.status, 0);
+    eq(`200 gewone status blijft een rapport, geen harde poort (${report.out})`, report.status, 0);
     ok('200 gewone status meldt ook verdwenen locale', /lo\s+common\s+1/.test(report.out));
     for (const ns of NAMESPACES) write(join(work, 'src/i18n/locales/lo', `${ns}.json`),
       ns === 'common' ? { sample: 'Voorbeeld lo' } : {});
