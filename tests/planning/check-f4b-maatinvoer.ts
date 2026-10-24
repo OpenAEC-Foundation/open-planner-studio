@@ -157,20 +157,22 @@ const sample: WorkCalendar = {
 }
 
 // ── 8. Een eenheidswissel houdt het eindmoment (B1: een breuk mag) ───────────────────────────────
+// Het OPS-profiel: de dagenmaat telt de kalender dag voor dag. P6/MSP en kalendertijd: check-f4b-review-r1.
+const OPS_MEASURE = { workdayDurationMeasure: true };
 const engine = new CalendarEngine(calendarForEngine(sample));
 same('voorbeeldweek: werktijd per dag', engine.hoursPerDay, 8);
 same('dagen ⇒ uren: 5 d vanaf ma 07:00 = 38 u (korte vrijdag)',
-  convertTaskDurationUnit(task({ durationUnit: 'days', scheduleDuration: 5 }), 'hours', sample), hours(2280));
+  convertTaskDurationUnit(task({ durationUnit: 'days', scheduleDuration: 5 }), 'hours', sample, OPS_MEASURE), hours(2280));
 same('dagen ⇒ uren: 2,5 d vanaf ma 07:00 = 20 u',
-  convertTaskDurationUnit(task({ durationUnit: 'days', scheduleDuration: 2.5 }), 'hours', sample), hours(1200));
+  convertTaskDurationUnit(task({ durationUnit: 'days', scheduleDuration: 2.5 }), 'hours', sample, OPS_MEASURE), hours(1200));
 same('uren ⇒ dagen: 12 u vanaf ma 07:00 = 1,5 d',
-  convertTaskDurationUnit(task({ durationUnit: 'hours', durationMinutes: 720, scheduleDuration: 1.5 }), 'days', sample), days(1.5));
+  convertTaskDurationUnit(task({ durationUnit: 'hours', durationMinutes: 720, scheduleDuration: 1.5 }), 'days', sample, OPS_MEASURE), days(1.5));
 same('uren ⇒ dagen: 24 u vanaf di 11:00 = 3,166667 d (vr telt 6 u)',
   convertTaskDurationUnit(task({ durationUnit: 'hours', durationMinutes: 1440, scheduleDuration: 3,
-    scheduleStart: '2026-06-02T11:00', earlyStart: '2026-06-02T11:00' }), 'days', sample), days(3.166667));
+    scheduleStart: '2026-06-02T11:00', earlyStart: '2026-06-02T11:00' }), 'days', sample, OPS_MEASURE), days(3.166667));
 const standard: WorkCalendar = { id: 'std', name: 'Standaard', description: '', workDays: [1, 2, 3, 4, 5], workStartHour: 7, workEndHour: 16, hoursPerDay: 8, holidays: [] };
 same('scalaire standaardkalender: 12 u ⇒ 1,5 d (geen blokkade meer)',
-  convertTaskDurationUnit(task({ durationUnit: 'hours', durationMinutes: 720, scheduleDuration: 1.5 }), 'days', standard), days(1.5));
+  convertTaskDurationUnit(task({ durationUnit: 'hours', durationMinutes: 720, scheduleDuration: 1.5 }), 'days', standard, OPS_MEASURE), days(1.5));
 
 if (failures.length > 0) {
   for (const f of failures) console.log(`XX  ${f}`);

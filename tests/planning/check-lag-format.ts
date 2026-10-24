@@ -48,10 +48,9 @@ eq('06 "-25e%" ⇒ lagPercent -25, ELAPSEDTIME', parseLagInput('-25e%'), { lagDa
 eq('07 "" ⇒ lag 0 (alles undefined/0)', parseLagInput(''), { lagDays: 0, lagUnit: undefined, lagPercent: undefined, lagMinutes: undefined });
 
 // Alleen uren §3.3, I12: een lag in dagen houdt zijn breuk ("1,5d" ⇒ 1,5; "0,5" ⇒ 0,5). Voorheen rondde
-// de invoer symmetrisch van nul af (knownbugs #120). Externe relaties houden hun eigen, smallere model
-// met hele dagen (zie hieronder).
-for (const [value, rounded] of [[-2.5, -3], [-1.51, -2], [-1.5, -2], [-1.49, -1], [-0.5, -1],
-  [-0.49, 0], [0, 0], [0.49, 0], [0.5, 1], [1.49, 1], [1.5, 2], [1.51, 2], [2.5, 3]]) {
+// de invoer symmetrisch van nul af (knownbugs #120). Sinds fixronde 1 van F4b geldt dat ook voor een
+// externe relatie ("0,5d" werd daar 1 werkdag); de rekenroute staat in check-f4b-review-r1.ts.
+for (const value of [-2.5, -1.51, -1.5, -1.49, -0.5, -0.49, 0, 0.49, 0.5, 1.49, 1.5, 1.51, 2.5]) {
   for (const separator of ['.', ',']) {
     const number = String(value).replace('.', separator);
     for (const suffix of ['', 'd', 'ed']) {
@@ -60,12 +59,18 @@ for (const [value, rounded] of [[-2.5, -3], [-1.51, -2], [-1.5, -2], [-1.49, -1]
         lagPercent: undefined, lagMinutes: undefined,
       });
     }
-    const days = rounded;
     for (const suffix of ['', 'd']) {
-      eq(`externe dagafronding ${number}${suffix}`, parseExternalLagInput(`${number}${suffix}`), { lagDays: days });
+      const external = parseExternalLagInput(`${number}${suffix}`);
+      eq(`externe lag zonder afronding ${number}${suffix}`, external, { lagDays: value });
+      // Terugtonen en opnieuw lezen geeft dezelfde lag (dialoog en tabelcel tonen `formatExternalLagShort`).
+      if (external) eq(`externe lag rondgang ${number}${suffix}`, parseExternalLagInput(formatExternalLagShort(external)), external);
     }
   }
 }
+eq('externe lag: zes decimalen', parseExternalLagInput('0,1234567d'), { lagDays: 0.123457 });
+eq('externe lag: weergave van een halve werkdag', formatExternalLagShort({ lagDays: 0.5 }), '+0.5d');
+eq('externe lag: weergave van een lead met breuk', formatExternalLagShort({ lagDays: -1.25 }), '-1.25d');
+eq('externe lag: weergave zonder floatruis', formatExternalLagShort({ lagDays: 0.1 + 0.2 }), '+0.3d');
 eq('I12: "1,5d" ⇒ 1,5 werkdag', parseLagInput('1,5d')?.lagDays, 1.5);
 eq('I12: kaal "0,5" ⇒ een halve werkdag', parseLagInput('0,5')?.lagDays, 0.5);
 eq('I12: zes decimalen', parseLagInput('0,1234567')?.lagDays, 0.123457);

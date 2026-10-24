@@ -1,6 +1,9 @@
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { taskCountsInWorkdays } from '@/engine/scheduler/conventions/durationMeasure';
+import { durationMinutesOf, elapsedMinutesOf } from '@/engine/scheduler/duration';
 import { parseInstant } from '@/utils/dateUtils';
 import type { WorkCalendar } from '@/types/calendar';
+import type { EffectiveSchedulingOptions } from '@/types/project';
 import type { Task, TaskDurationUnit } from '@/types/task';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { shownStart } from '@/utils/taskDates';
@@ -143,26 +146,42 @@ function conversionStart(task: Task, engine: CalendarEngine): Date {
   return engine.nextWorkInstant(parseInstant(shownStart(task)));
 }
 
+/** De maatconventie van het effectieve rekenprofiel (`workdayDurationMeasure`): aan in OPS, uit onder
+ *  P6 en MS Project. Een eenheidswissel moet hem kennen, want hij bepaalt hoe de motor een dag telt. */
+export type DurationMeasure = Pick<EffectiveSchedulingOptions, 'workdayDurationMeasure'>;
+
 /**
  * Een bewuste eenheidswissel die het eindmoment houdt (§3.2, B1: een dagenmaat-taak mag een breuk
- * hebben). Vanaf de getoonde start van de taak, op haar eigen kalender met werkblokken
- * (`calendarForEngine`, zoals de motor):
- *  - dagen ⇒ uren: de werkminuten tussen de start en het einde van de dagenmaat (`addMeasuredWorkdays`).
- *    Op de voorbeeldweek (ma–do 8 u, vr 6 u) wordt 5 d vanaf ma 07:00 dus 38 u, niet 40 u;
- *  - uren ⇒ dagen: de werkdagen met hun deel tussen de start en het einde van de urenmaat
- *    (`measuredWorkdaysBetween`). 12 u vanaf ma 07:00 op 8 u per dag wordt 1,5 d.
- * `null` als de kalender geen werkblokken heeft of de taak geen leesbare start heeft.
+ * hebben). De omzetting telt zoals de motor (`CPMSolver.addDurationChecked`) onder het effectieve
+ * profiel (`measure`), op de eigen kalender van de taak met werkblokken (`calendarForEngine`):
+ *  - telt de dag in de dagenmaat (`taskCountsInWorkdays`: OPS-profiel, geen kalendertijd), dan volgt de
+ *    omzetting de kalender dag voor dag vanaf de getoonde start. Dagen ⇒ uren: de werkminuten tot het
+ *    einde van de dagenmaat (`addMeasuredWorkdays`); op de voorbeeldweek (ma–do 8 u, vr 6 u) wordt 5 d
+ *    vanaf ma 07:00 dus 38 u. Uren ⇒ dagen: de werkdagen met hun deel (`measuredWorkdaysBetween`);
+ *    12 u vanaf ma 07:00 op 8 u per dag wordt 1,5 d;
+ *  - anders is een dag een vast aantal minuten: onder P6 en MS Project de werktijd per dag van de
+ *    kalender (`durationMinutesOf`), bij kalendertijd 1440 klokminuten (`elapsedMinutesOf`). Op de
+ *    voorbeeldweek onder P6 is 40 u dus 5 d, en 24 u kalendertijd is 1 d.
+ * `null` als de kalender geen werkblokken heeft, de taak geen leesbare start heeft (alleen nodig voor de
+ * dagenmaat), of de motor uit het resultaat niet precies dezelfde minuten terugrekent. Dan blijft de
+ * eenheid.
  */
 export function proposeTaskDurationConversion(
   task: Task,
   target: TaskDurationUnit,
   calendar: WorkCalendar,
+  measure: DurationMeasure,
 ): ParsedTaskDuration | null {
   if (target === task.time.durationUnit) return null;
   // Elke kalender heeft werkblokken (§3.2, B2): een dagkalender krijgt ze uit begin, einde en uren per
   // dag, zoals de motor (`calendarForEngine`). Zonder af te leiden werkblokken is er geen voorstel.
   const engine = new CalendarEngine(calendarForEngine(calendar));
   if (!engine.isHourMode) return null;
+  // De dagenkant van de wissel bepaalt de telling: een urentaak telt nooit in de dagenmaat.
+  const dayMeasure = taskCountsInWorkdays(
+    { time: { durationUnit: 'days', durationType: task.time.durationType } }, measure,
+  );
+  if (!dayMeasure) return proposeFixedDayConversion(task, target, engine);
   const start = conversionStart(task, engine);
   if (Number.isNaN(start.getTime())) return null;
 
@@ -184,17 +203,51 @@ export function proposeTaskDurationConversion(
   return { unit: 'days', scheduleDuration: Number(days.toFixed(6)), explicitUnit: true };
 }
 
+/** De minuten waarmee de motor een taak in de urenmaat of in kalendertijd laat lopen: kalendertijd in
+ *  klokminuten (`elapsedMinutesOf`), anders in werkminuten op hele minuten (`durationMinutesOf`, zoals
+ *  `CPMSolver.workMinutesOf`). */
+function fixedDayMinutes(task: Task, engine: CalendarEngine): number {
+  return task.time.durationType === 'ELAPSEDTIME'
+    ? elapsedMinutesOf(task, engine)
+    : Math.round(durationMinutesOf(task, engine));
+}
+
+/** De wissel zonder dagenmaat: een dag is een vast aantal minuten (zie
+ *  {@link proposeTaskDurationConversion}). Exact als de motor uit het resultaat dezelfde minuten
+ *  terugrekent; anders `null`. */
+function proposeFixedDayConversion(task: Task, target: TaskDurationUnit, engine: CalendarEngine): ParsedTaskDuration | null {
+  const minutesPerDay = task.time.durationType === 'ELAPSEDTIME' ? 24 * 60 : engine.hoursPerDay * 60;
+  if (!Number.isFinite(minutesPerDay) || minutesPerDay <= 0) return null;
+  if (target === 'hours') {
+    const days = task.time.scheduleDuration;
+    if (!Number.isFinite(days) || days < 0) return null;
+    const minutes = fixedDayMinutes(task, engine);
+    // Kalendertijd rekent niet op hele minuten: een dagdeel dat geen hele minuut is, is niet exact.
+    if (!Number.isSafeInteger(minutes)) return null;
+    return { unit: 'hours', durationMinutes: minutes, explicitUnit: true };
+  }
+  const wanted = task.time.durationMinutes ?? 0;
+  if (!Number.isSafeInteger(wanted) || wanted < 0) return null;
+  // Zes decimalen, zoals de invoer en de opslag in IFC (`dayAmount`).
+  const scheduleDuration = Number((wanted / minutesPerDay).toFixed(6));
+  const candidate: Task = { ...task, time: { ...task.time, durationUnit: 'days', scheduleDuration, durationMinutes: undefined } };
+  if (fixedDayMinutes(candidate, engine) !== wanted) return null;
+  return { unit: 'days', scheduleDuration, explicitUnit: true };
+}
+
 /**
  * Eén ingang voor een bewuste eenheidswissel, gedeeld door eigenschappenpaneel, taakdialoog en
  * taakraster: de gekozen eenheid wordt meteen toegepast (geen voorstel om doorheen te klikken).
- * De omzetting houdt het eindmoment ({@link proposeTaskDurationConversion}); sinds de dagenmaat een
- * breuk mag hebben (B1) is ze altijd exact. `null` alleen als de kalender of de start niet te lezen is;
- * dan blijft de eenheid. De regel landt alléén hier, zodat de drie routes vanzelf gelijk blijven.
+ * De omzetting houdt het eindmoment onder het effectieve profiel ({@link proposeTaskDurationConversion});
+ * sinds de dagenmaat een breuk mag hebben (B1) is ze bijna altijd exact. `null` als de kalender of de
+ * start niet te lezen is, of bij kalendertijd met een dagdeel dat geen hele minuut is; dan blijft de
+ * eenheid. De regel landt alléén hier, zodat de drie routes vanzelf gelijk blijven.
  */
 export function convertTaskDurationUnit(
   task: Task,
   target: TaskDurationUnit,
   calendar: WorkCalendar,
+  measure: DurationMeasure,
 ): ParsedTaskDuration | null {
-  return proposeTaskDurationConversion(task, target, calendar);
+  return proposeTaskDurationConversion(task, target, calendar, measure);
 }

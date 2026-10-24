@@ -108,7 +108,8 @@ export function TaskDurationField({ task, calendar, onChange }: {
     setNotExact(null);
     // De gekozen eenheid geldt meteen: een exacte omzetting wordt direct toegepast, als één
     // wijziging (één undo-stap), net als in het taakraster. Niet exact ⇒ melding, eenheid blijft.
-    const next = convertTaskDurationUnit(task, target, calendar);
+    // De omzetting telt een dag zoals het rekenprofiel (onder P6/MSP de werktijd per dag).
+    const next = convertTaskDurationUnit(task, target, calendar, { workdayDurationMeasure: countsWorkdays });
     if (!next) {
       setMessage(null);
       setNotExact(formatTaskDurationText(task, hoursPerDay, { suffixes: durationSuffixesFrom(tCommon), locale: i18n.language }));

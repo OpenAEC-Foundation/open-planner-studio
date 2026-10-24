@@ -53,6 +53,7 @@ const effectiveCalendar: WorkCalendar = {
 const environment = {
   projectId: 'p-1', wbsAutoNumber: false, statusDate: '2026-01-07',
   calendarIds: new Set(['cal-hour']), effectiveHoursPerDay: 8, hourMode: false,
+  workdayDurationMeasure: true,
   effectiveCalendar,
   customTaskTypeIds: new Set(['custom-installation']),
   activityCodeTypes: [{ id: 'fase', name: 'Fase', values: [{ id: 'bouw', code: 'B' }] }],

@@ -198,8 +198,10 @@ deepEq('scalaire 07-16/8u-bandresolver materialiseert de middagpauze', effective
   { start: 420, end: 720 }, { start: 780, end: 960 },
 ]);
 eq('scalaire kalender levert effectieve werkblokken', hasConcreteWorkBlocks(scalarH8), true);
+// Het OPS-profiel (dagenmaat aan); P6/MSP en kalendertijd staan in check-f4b-review-r1.
+const OPS_MEASURE = { workdayDurationMeasure: true };
 deepEq('2d op scalaire 07-16/8u-kalender krijgt exact 16h als voorstel',
-  proposeTaskDurationConversion(day2, 'hours', scalarH8), { unit: 'hours', durationMinutes: 960, explicitUnit: true });
+  proposeTaskDurationConversion(day2, 'hours', scalarH8, OPS_MEASURE), { unit: 'hours', durationMinutes: 960, explicitUnit: true });
 const scalarBeforeSolve = JSON.stringify(scalarH8);
 const hourOnScalar = { ...hour12, time: { ...hour12.time } };
 const hourOnScalarResult = solveProject(opsSolveInput({
@@ -212,17 +214,17 @@ eq('scalar-oplossing bewaart uur-unit', hourOnScalar.time.durationUnit, 'hours')
 eq('scalar-oplossing bewaart exacte minuten', hourOnScalar.time.durationMinutes, 720);
 const invalidScalar = { ...scalarH8, id: 'invalid-scalar', workDays: [] };
 eq('lege scalaire kalender heeft geen effectieve werkblokken', hasConcreteWorkBlocks(invalidScalar), false);
-eq('lege scalaire kalender heeft geen conversievoorstel', proposeTaskDurationConversion(day2, 'hours', invalidScalar), null);
+eq('lege scalaire kalender heeft geen conversievoorstel', proposeTaskDurationConversion(day2, 'hours', invalidScalar, OPS_MEASURE), null);
 eq('lege scalaire kalender geeft een duidelijke validatiefout', solveError(hour12, invalidScalar), 'Kalender heeft geen werkdagen ingesteld');
-deepEq('2d op H8 krijgt exact 16h als voorstel', proposeTaskDurationConversion(day2, 'hours', h8), { unit: 'hours', durationMinutes: 960, explicitUnit: true });
-deepEq('0h wordt exact 0d en niet stil een werkdag', proposeTaskDurationConversion(task('hours', 0), 'days', h8), { unit: 'days', scheduleDuration: 0, explicitUnit: true });
+deepEq('2d op H8 krijgt exact 16h als voorstel', proposeTaskDurationConversion(day2, 'hours', h8, OPS_MEASURE), { unit: 'hours', durationMinutes: 960, explicitUnit: true });
+deepEq('0h wordt exact 0d en niet stil een werkdag', proposeTaskDurationConversion(task('hours', 0), 'days', h8, OPS_MEASURE), { unit: 'days', scheduleDuration: 0, explicitUnit: true });
 // Alleen uren §3.2 (B1): een dagenmaat-taak mag een breuk hebben; de omzetting houdt het eindmoment.
-deepEq('12h wordt exact 1,5d (breuk, geen afronding)', proposeTaskDurationConversion(hour12, 'days', h8), { unit: 'days', scheduleDuration: 1.5, explicitUnit: true });
-deepEq('16h wordt exact naar 2d voorgesteld', proposeTaskDurationConversion(task('hours', 16), 'days', h8), { unit: 'days', scheduleDuration: 2, explicitUnit: true });
+deepEq('12h wordt exact 1,5d (breuk, geen afronding)', proposeTaskDurationConversion(hour12, 'days', h8, OPS_MEASURE), { unit: 'days', scheduleDuration: 1.5, explicitUnit: true });
+deepEq('16h wordt exact naar 2d voorgesteld', proposeTaskDurationConversion(task('hours', 16), 'days', h8, OPS_MEASURE), { unit: 'days', scheduleDuration: 2, explicitUnit: true });
 // Gedeelde ingang voor paneel, dialoog en raster: exact ⇒ meteen de omgezette duur; niet exact ⇒ null (eenheid blijft).
-deepEq('eenheidswissel 16h → dagen geeft meteen 2d', convertTaskDurationUnit(task('hours', 16), 'days', h8), { unit: 'days', scheduleDuration: 2, explicitUnit: true });
-deepEq('eenheidswissel 2d → uren geeft meteen 16h', convertTaskDurationUnit(day2, 'hours', h8), { unit: 'hours', durationMinutes: 960, explicitUnit: true });
-deepEq('eenheidswissel 12h → dagen op H8 geeft exact 1,5d', convertTaskDurationUnit(hour12, 'days', h8), { unit: 'days', scheduleDuration: 1.5, explicitUnit: true });
+deepEq('eenheidswissel 16h → dagen geeft meteen 2d', convertTaskDurationUnit(task('hours', 16), 'days', h8, OPS_MEASURE), { unit: 'days', scheduleDuration: 2, explicitUnit: true });
+deepEq('eenheidswissel 2d → uren geeft meteen 16h', convertTaskDurationUnit(day2, 'hours', h8, OPS_MEASURE), { unit: 'hours', durationMinutes: 960, explicitUnit: true });
+deepEq('eenheidswissel 12h → dagen op H8 geeft exact 1,5d', convertTaskDurationUnit(hour12, 'days', h8, OPS_MEASURE), { unit: 'days', scheduleDuration: 1.5, explicitUnit: true });
 
 // Storecontract: projectdefault, normale mutatie, undo/redo, clipboard en documentwissel.
 const context = createAppStoreContext();

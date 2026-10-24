@@ -51,6 +51,7 @@ import { taskWorkMinutes } from '@/engine/contour/contourEngine';
 import { finishIsActual, shownFinish, shownStart, startAnchorAfterEdit, startIsActual } from '@/utils/taskDates';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { isElapsedTask, isPinnedComplete, isZeroDurationMilestone } from '@/engine/scheduler/duration';
+import { taskCountsInWorkdays } from '@/engine/scheduler/conventions/durationMeasure';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { isFiniteNumber } from '@/utils/guards';
 import { isManuallyScheduled } from '@/utils/manualScheduling';
@@ -77,6 +78,9 @@ export interface TaskEditPlanEnvironment {
   calendarIds: ReadonlySet<string>;
   effectiveHoursPerDay: number;
   hourMode: boolean;
+  /** De maatconventie van het effectieve rekenprofiel (`workdayDurationMeasure`): aan in OPS, uit onder
+   *  P6 en MS Project. Een eenheidswissel en een getypt einde tellen een dag zoals de motor. */
+  workdayDurationMeasure: boolean;
   effectiveCalendar?: WorkCalendar;
   /** De kalender waarin een taak met dit `calendarId` rekent (leeg ⇒ projectkalender). */
   calendarFor?: (calendarId: string | undefined) => WorkCalendar;
@@ -337,15 +341,18 @@ function applyParsedDuration(
 /**
  * De duur waarmee een automatisch geplande taak op `finish` eindigt, gerekend vanaf de GETOONDE
  * start: de omkering van `CPMSolver.addDuration`, dezelfde telling als de rechterrand-sleep in de
- * Gantt (`useBarDrag`). Dagenmaat-taak: werkdagen met hun deel (`measuredWorkdaysBetween`); een oude
- * taak met alleen datums telt inclusieve werkdagen (`workDaysBetween`, minimaal één). Urentaak:
- * werkminuten in de effectieve uurbanden van de taakkalender (`calendarForEngine`, zoals de solver).
- * De eenheid van de taak blijft wat hij was.
+ * Gantt (`useBarDrag`). Dagtaak in de dagenmaat (`taskCountsInWorkdays`, OPS-profiel): werkdagen met
+ * hun deel (`measuredWorkdaysBetween`). Dagtaak onder P6/MSP: de werkminuten gedeeld door de werktijd
+ * per dag, want de motor telt daar dagen × werktijd per dag (`CPMSolver.workMinutesOf`). Een oude taak
+ * met alleen datums telt inclusieve werkdagen (`workDaysBetween`, minimaal één). Urentaak: werkminuten
+ * in de effectieve uurbanden van de taakkalender (`calendarForEngine`, zoals de solver). De eenheid van
+ * de taak blijft wat hij was.
  */
 function durationForShownFinish(
   task: Task,
   finish: string,
   calendar: WorkCalendar,
+  measure: Pick<TaskEditPlanEnvironment, 'workdayDurationMeasure'>,
 ): { ok: true; value: ParsedTaskDuration } | { ok: false; code: string } {
   if (task.time.durationUnit === 'hours') {
     const engine = new CalendarEngine(calendarForEngine(calendar));
@@ -355,16 +362,22 @@ function durationForShownFinish(
     if (!(end.getTime() > start.getTime())) return { ok: false, code: 'finishBeforeStart' };
     return { ok: true, value: { unit: 'hours', durationMinutes: engine.workMinutesBetween(start, end), explicitUnit: true } };
   }
-  // Dagenmaat met momenten (sinds F2 elke taak): de werkdagen met hun deel tussen start en einde
-  // (`measuredWorkdaysBetween`, dezelfde telling als de motor, §3.14). Een einde op het blokeinde van
-  // een werkdag telt die dag dus heel; een einde om 12:00 een halve dag.
+  // Dagtaak met momenten (sinds F2 elke taak). In de dagenmaat: de werkdagen met hun deel tussen start
+  // en einde (`measuredWorkdaysBetween`, dezelfde telling als de motor, §3.14). Een einde op het
+  // blokeinde van een werkdag telt die dag dus heel; een einde om 12:00 een halve dag. Onder P6/MSP:
+  // werkminuten ÷ (werktijd per dag × 60), zodat de motor precies die werkminuten terugrekent.
   const startIso = shownStart(task);
   const engine = new CalendarEngine(calendarForEngine(calendar));
   if (engine.isHourMode && startIso.includes('T') && finish.includes('T')) {
     const start = parseInstant(startIso);
     const end = parseInstant(finish);
     if (!(end.getTime() > start.getTime())) return { ok: false, code: 'finishBeforeStart' };
-    const days = engine.measuredWorkdaysBetween(start, end);
+    const dayMeasure = taskCountsInWorkdays(
+      { time: { durationUnit: 'days', durationType: task.time.durationType } }, measure,
+    );
+    const days = dayMeasure
+      ? engine.measuredWorkdaysBetween(start, end)
+      : engine.workMinutesBetween(start, end) / (engine.hoursPerDay * 60);
     if (!(days > 0)) return { ok: false, code: 'finishBeforeStart' };
     return { ok: true, value: { unit: 'days', scheduleDuration: Number(days.toFixed(6)), explicitUnit: true } };
   }
@@ -432,7 +445,7 @@ function applyScheduleEdit(
     if (target === 'days' && workRuleApplies(task)
       && effectiveWorkRule(task, environment.defaultWorkRule) === 'FIXED_WORK') return failure('fixedWorkIsHours', edit);
     if (!environment.effectiveCalendar) return failure('calendarNotFound', edit);
-    const proposal = convertTaskDurationUnit(task, target, environment.effectiveCalendar);
+    const proposal = convertTaskDurationUnit(task, target, environment.effectiveCalendar, environment);
     if (!proposal) return failure('durationConversionNotExact', edit);
     task.time.durationUnit = proposal.unit;
     if (proposal.unit === 'days') {
@@ -506,7 +519,7 @@ function applyScheduleEdit(
     if (isZeroDurationMilestone(task) || task.time.durationType === 'ELAPSEDTIME'
       || (task.splitGaps?.length ?? 0) > 0) return failure('finishFromDuration', edit);
     if (!environment.effectiveCalendar) return failure('calendarNotFound', edit);
-    const duration = durationForShownFinish(task, edit.value, environment.effectiveCalendar);
+    const duration = durationForShownFinish(task, edit.value, environment.effectiveCalendar, environment);
     if (!duration.ok) return failure(duration.code, edit);
     return applyParsedDuration(task, duration.value, edit, environment, timeBefore);
   } else if (id === 'task.time.scheduleStart' || id === 'task.time.scheduleFinish') {
