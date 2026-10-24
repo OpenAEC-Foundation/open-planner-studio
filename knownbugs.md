@@ -434,13 +434,6 @@ en noem het in je rapport of PR-tekst.
     Gevonden in review ronde 1 en 2 van PR #573 (GPT-6.1-Sol). Voorstel: de pids vergelijken en de bestaande
     echte-app-route uitbreiden met echte bestandsacties, inhoud en opruiming. — B
 
-222. **Browsertest voor geweigerde mijlpalen vergelijkt alleen de taak-ID’s van toewijzingen.**
-    De helper `assignmentTaskIds` en de eindassertie in `tests/browser/structural-transition.spec.ts`
-    controleren geen `resourceId` of `units`. Een wijziging in die velden met dezelfde taakverdeling
-    blijft daardoor onopgemerkt. Bevestigd door de onafhankelijke reviews van PR #604; dit is een
-    bestaande blinde vlek in de test, geen aangetoonde productfout. Voorstel: vergelijk de toewijzingen
-    vóór en na de geweigerde browserhandeling. — B
-
 223. **Telling in de Chinese bulk-toast wordt alleen als deeltekst gecontroleerd.**
     `tests/browser/structural-transition.spec.ts:80` zoekt met `toContainText` naar `2 个任务…`.
     Een melding met `12 个任务…` of `22 个任务…` bevat dezelfde deeltekst. Dit gold ook voor de oude
