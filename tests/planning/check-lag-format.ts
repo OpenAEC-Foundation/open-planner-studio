@@ -47,21 +47,34 @@ eq('05 "50%" ⇒ lagPercent 50', parseLagInput('50%'), { lagDays: 0, lagUnit: un
 eq('06 "-25e%" ⇒ lagPercent -25, ELAPSEDTIME', parseLagInput('-25e%'), { lagDays: 0, lagUnit: 'ELAPSEDTIME', lagPercent: -25, lagMinutes: undefined });
 eq('07 "" ⇒ lag 0 (alles undefined/0)', parseLagInput(''), { lagDays: 0, lagUnit: undefined, lagPercent: undefined, lagMinutes: undefined });
 
-// knownbugs #120: halve dagen rondt de invoer symmetrisch van nul af, net als de motor.
-for (const [value, days] of [[-2.5, -3], [-1.51, -2], [-1.5, -2], [-1.49, -1], [-0.5, -1],
+// Alleen uren §3.3, I12: een lag in dagen houdt zijn breuk ("1,5d" ⇒ 1,5; "0,5" ⇒ 0,5). Voorheen rondde
+// de invoer symmetrisch van nul af (knownbugs #120). Externe relaties houden hun eigen, smallere model
+// met hele dagen (zie hieronder).
+for (const [value, rounded] of [[-2.5, -3], [-1.51, -2], [-1.5, -2], [-1.49, -1], [-0.5, -1],
   [-0.49, 0], [0, 0], [0.49, 0], [0.5, 1], [1.49, 1], [1.5, 2], [1.51, 2], [2.5, 3]]) {
   for (const separator of ['.', ',']) {
     const number = String(value).replace('.', separator);
     for (const suffix of ['', 'd', 'ed']) {
-      eq(`dagafronding ${number}${suffix}`, parseLagInput(`${number}${suffix}`), {
-        lagDays: days, lagUnit: suffix === 'ed' ? 'ELAPSEDTIME' : undefined,
+      eq(`lag zonder afronding ${number}${suffix}`, parseLagInput(`${number}${suffix}`), {
+        lagDays: value, lagUnit: suffix === 'ed' ? 'ELAPSEDTIME' : undefined,
         lagPercent: undefined, lagMinutes: undefined,
       });
     }
+    const days = rounded;
     for (const suffix of ['', 'd']) {
       eq(`externe dagafronding ${number}${suffix}`, parseExternalLagInput(`${number}${suffix}`), { lagDays: days });
     }
   }
+}
+eq('I12: "1,5d" ⇒ 1,5 werkdag', parseLagInput('1,5d')?.lagDays, 1.5);
+eq('I12: kaal "0,5" ⇒ een halve werkdag', parseLagInput('0,5')?.lagDays, 0.5);
+eq('I12: zes decimalen', parseLagInput('0,1234567')?.lagDays, 0.123457);
+eq('I12: weergave van een halve werkdag', formatLagShort({ lagDays: 0.5, lagUnit: undefined, lagPercent: undefined, lagMinutes: undefined }), '+0.5d');
+eq('I12: weergave zonder floatruis', formatLagShort({ lagDays: 0.1 + 0.2, lagUnit: undefined, lagPercent: undefined, lagMinutes: undefined }), '+0.3d');
+eq('I12: weergave van een lead met breuk', formatLagShort({ lagDays: -1.25, lagUnit: 'ELAPSEDTIME', lagPercent: undefined, lagMinutes: undefined }), '-1.25ed');
+for (const text of ['1,5d', '-0,5', '2.25ed', '0,333333d']) {
+  const parsed = parseLagInput(text)!;
+  eq(`I12: rondgang ${text}`, parseLagInput(formatLagShort(parsed)), parsed);
 }
 eq('negatieve procenten blijven fracties', parseLagInput('-1,5%')?.lagPercent, -1.5);
 eq('negatieve uren blijven minuut-precies', parseLagInput('-1,5u')?.lagMinutes, -90);
