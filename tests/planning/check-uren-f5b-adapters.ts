@@ -251,7 +251,7 @@ const scalarProject = () => payload([
 /** Een letterlijk project: een werkelijk begin om 10:00 is niet afleidbaar (T17). */
 const literalProject = () => payload([
   done('Klaar', '2026-06-01T08:00', '2026-06-02T16:00', 2),
-  task('Lopend', '2026-06-03T10:00', '2026-06-05T16:00', 3, { actualStart: '2026-06-03T10:00', completion: 0.2 }, { status: 'IN_PROGRESS' }),
+  task('Lopend', '2026-06-03T10:00', '2026-06-05T16:00', 3, { actualStart: '2026-06-03T10:00', completion: 0.2 }, { status: 'STARTED' }),
 ]);
 
 type Fmt = {
@@ -311,7 +311,7 @@ const setInBlock = (xml: string, fmt: Fmt, name: string, tag: string, value: str
 // (4) P6 XML, knownbug 293: dagenmaat zonder record, één deling
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 {
-  const p = payload([task('Dag', '2026-06-01T08:00', '2026-06-03T16:00', 3, { remainingTime: 2, completion: 1 / 3, actualStart: '2026-06-01T08:00' }, { status: 'IN_PROGRESS' })]);
+  const p = payload([task('Dag', '2026-06-01T08:00', '2026-06-03T16:00', 3, { remainingTime: 2, completion: 1 / 3, actualStart: '2026-06-01T08:00' }, { status: 'STARTED' })]);
   const xml = P6.write(p);
   eq('(4) P6 XML: 3 d ⇒ PlannedDuration 24 u, rest 16 u', [tagValue(P6.block(xml, 'Dag'), 'PlannedDuration'), tagValue(P6.block(xml, 'Dag'), 'RemainingDuration')], ['24', '16']);
   const back = byName(P6.read(xml), 'Dag');
