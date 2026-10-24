@@ -6,7 +6,9 @@ import type { Baseline } from '@/types/baseline';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type { ProjectSolveOptions } from '@/engine/scheduler/solveInput';
 import { createTaskEngineCache, type TaskEngineCache } from '@/engine/scheduler/taskEngineCache';
-import { effHoursPerDay, effectiveCalendarOf } from '@/utils/taskDuration';
+import {
+  effHoursPerDay, effectiveCalendarOf, remainingTaskMeasure, taskMeasuredDuration, type MeasuredDuration,
+} from '@/utils/taskDuration';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
 import { shownStart, shownFinish, shownSpanOverlapsDays } from '@/utils/taskDates';
 import { taskDateLabelIn, type TaskDateLabelOptions } from '@/utils/taskDateLabel';
@@ -126,10 +128,11 @@ export function durationDays(ctx: ReportContext, t: Task): number {
 }
 
 /**
- * Resterende duur in werkdagen. Spiegelt de solver (`CPMSolver`, IN-PROGRESS-tak): in uur-modus is
- * `remainingMinutes` de bron, in dag-modus `remainingTime`; ontbreekt die, dan `duur × (1 −
- * completion)`. Voltooid ⇒ 0. Let op: `applyProgressInvariants` rondt `remainingTime` op hele dagen,
- * dus een dag-taak toont hier nooit halve dagen — dat is de opgeslagen waarde, geen rekenfout.
+ * Resterende duur in werkdagen (een getal, voor tellingen en de toetsen). Spiegelt de solver
+ * (`CPMSolver`, IN-PROGRESS-tak): in de urenmaat is `remainingMinutes` de bron, in de dagenmaat
+ * `remainingTime`; ontbreekt die, dan `duur × (1 − completion)`. Voltooid ⇒ 0. De rest is exact (B3,
+ * `applyRemainingDuration`); dit getal rondt af op één decimaal. Het rapport toont de rest in de maat
+ * van de taak: {@link remainingMeasure}.
  */
 export function remainingDays(ctx: ReportContext, t: Task): number {
   if (progressState(t) === 'complete') return 0;
@@ -141,6 +144,27 @@ export function remainingDays(ctx: ReportContext, t: Task): number {
     return round1(t.time.remainingTime);
   }
   return round1(durationDays(ctx, t) * (1 - t.time.completion));
+}
+
+/**
+ * De restduur in de maat van de taak (B8): een dagenmaat-taak in werkdagen, een urenmaat-taak in
+ * werkminuten. Dezelfde bron als de kolom Resterende duur van de tabel (`remainingTaskMeasure`);
+ * voltooid ⇒ 0.
+ */
+export function remainingMeasure(t: Task): MeasuredDuration {
+  const own = remainingTaskMeasure(t);
+  if (progressState(t) !== 'complete') return own;
+  return own.unit === 'hours' ? { unit: 'hours', minutes: 0 } : { unit: 'days', days: 0 };
+}
+
+/** De duur in de maat van de taak (B8), zoals de kolom Duur van de tabel. */
+export function durationMeasure(t: Task): MeasuredDuration {
+  return taskMeasuredDuration(t);
+}
+
+/** De werktijd per dag van de kalender van een taak: nodig om een duur om te rekenen (Duurweergave). */
+export function taskHoursPerDay(ctx: ReportContext, t: Task): number {
+  return effHoursPerDay(effectiveCalendarOf(t, ctx.calendar, ctx.calendars as WorkCalendar[]));
 }
 
 export function round1(n: number): number {

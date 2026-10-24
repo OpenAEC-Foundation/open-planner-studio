@@ -142,21 +142,37 @@ function hoursText(minutes: number, hoursPerDay: number, suffixes: DurationSuffi
  * tussen dagen en uren); de EDIT-tekst van het raster blijft bewust de parsebare eigen vorm.
  */
 export function formatTaskDurationText(task: Task, hoursPerDay: number, fmt?: DurationTextFormat): string {
+  if (isZeroDurationMilestone(task)) return `0${suffixesOf(fmt).day}`;
+  return formatMeasuredDurationText(taskMeasuredDuration(task), hoursPerDay, fmt);
+}
+
+/** Een duur in de maat van een taak (B8): werkdagen in de dagenmaat, werkminuten in de urenmaat. */
+export type MeasuredDuration = { unit: 'days'; days: number } | { unit: 'hours'; minutes: number };
+
+/** De duur van een taak in haar eigen maat. */
+export function taskMeasuredDuration(task: Task): MeasuredDuration {
+  return taskDurationUnit(task) === 'hours'
+    ? { unit: 'hours', minutes: task.time.durationMinutes ?? 0 }
+    : { unit: 'days', days: task.time.scheduleDuration };
+}
+
+/**
+ * Een duur in zijn maat als weergavetekst, de regel van {@link formatTaskDurationText}: `auto` ⇒ de eigen
+ * maat ("2,5d", "40h"); `days`/`hours` ⇒ die eenheid met de eigen maat erachter als ze verschilt
+ * ("18h(2d)"). `hoursPerDay` is die van de taakkalender en telt alleen bij een omrekening.
+ */
+export function formatMeasuredDurationText(duration: MeasuredDuration, hoursPerDay: number, fmt?: DurationTextFormat): string {
   const suffixes = suffixesOf(fmt);
-  if (isZeroDurationMilestone(task)) return `0${suffixes.day}`;
-  const nativeUnit = taskDurationUnit(task);
-  const minutes = nativeUnit === 'hours'
-    ? task.time.durationMinutes ?? 0
-    : task.time.scheduleDuration * hoursPerDay * 60;
-  const native = nativeUnit === 'days'
-    ? formatWorkDaysText(task.time.scheduleDuration, fmt)
+  const minutes = duration.unit === 'hours' ? duration.minutes : duration.days * hoursPerDay * 60;
+  const native = duration.unit === 'days'
+    ? formatWorkDaysText(duration.days, fmt)
     : hoursText(minutes, hoursPerDay, suffixes);
 
   // Automatisch betekent letterlijk de door de gebruiker gekozen, blijvende taakeenheid. Houd de
   // exacte kalenderwandeling voor een bewuste eenheidswissel in TaskDurationField; de renderer mag
   // niet bij iedere tekenronde duizenden werkdagen doorlopen om een presentatie-equivalent te zoeken.
   const display = fmt?.display ?? 'auto';
-  if (display === 'auto' || display === nativeUnit) return native;
+  if (display === 'auto' || display === duration.unit) return native;
   const converted = display === 'days'
     ? formatWorkDaysText(hoursPerDay > 0 ? minutes / (hoursPerDay * 60) : NaN, fmt)
     : hoursText(minutes, hoursPerDay, suffixes);
@@ -181,9 +197,14 @@ export function remainingTaskMinutes(task: Task): number {
  * speling en duur ({@link formatWorkDaysText}). De eenheid staat in de waarde, niet in het label.
  */
 export function formatRemainingDurationText(task: Task, fmt?: DurationTextFormat): string {
-  if (taskDurationUnit(task) === 'hours') return hoursText(remainingTaskMinutes(task), 1, suffixesOf(fmt));
-  const days = task.time.remainingTime ?? Math.round(task.time.scheduleDuration * (1 - task.time.completion));
-  return formatWorkDaysText(days, fmt);
+  return formatMeasuredDurationText(remainingTaskMeasure(task), 1, { ...fmt, display: 'auto' });
+}
+
+/** De restduur van een taak in haar eigen maat: een urentaak in minuten ({@link remainingTaskMinutes}),
+ *  een dagtaak in werkdagen (`remainingTime`, anders de afgeronde duur × (1 − voortgang)). */
+export function remainingTaskMeasure(task: Task): MeasuredDuration {
+  if (taskDurationUnit(task) === 'hours') return { unit: 'hours', minutes: remainingTaskMinutes(task) };
+  return { unit: 'days', days: task.time.remainingTime ?? Math.round(task.time.scheduleDuration * (1 - task.time.completion)) };
 }
 
 /**

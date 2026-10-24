@@ -14,6 +14,10 @@ import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 import { SEQUENCE_TYPE_OPTIONS } from '@/types/sequence';
 import { localizeLagHourSuffix } from '@/utils/lagFormat';
 import { parseableHourSuffix } from '@/utils/durationFormat';
+import { useEffectiveDurationDisplay } from '@/hooks/useDurationMeasure';
+import {
+  durationSuffixesFrom, formatMeasuredDurationText, formatWorkDaysText, type MeasuredDuration,
+} from '@/utils/taskDuration';
 import type { InstantSide } from '@/engine/calendar/workdayRules';
 import type { TaskDateLabelOptions } from '@/utils/taskDateLabel';
 import { constraintDateField, taskDateFieldSide } from '@/state/migrations/minuteModel';
@@ -42,6 +46,13 @@ type DD = ReturnType<typeof useDisplayDate> & {
   lagText: (lag: string) => string;
   /** Een datum van een taak volgens B4 (`makeTaskDateLabeler`), in de notatie van de app. */
   taskDate: (taskId: string, value: string | undefined, side: InstantSide, opts?: TaskDateLabelOptions) => string;
+  /** Een duur in de maat van de taak (B8): "2,5d" bij de dagenmaat, "40u" bij de urenmaat; onder P6 en
+   *  MSP volgens Duurweergave, zoals de kolom Duur van de tabel. */
+  duration: (duration: MeasuredDuration, hoursPerDay: number) => string;
+  /** Een restduur in de maat van de taak, zoals de kolom Resterende duur van de tabel (altijd de eigen maat). */
+  remaining: (duration: MeasuredDuration) => string;
+  /** Een aantal werkdagen met de dag-afkorting ("3d"). */
+  workDays: (days: number) => string;
 };
 
 /** Zelfde sleutelmap als `ResourcePanel.tsx` — `t()` is strikt getypeerd, dus geen template-sleutel. */
@@ -104,8 +115,8 @@ function taskDateCol<R extends { taskId: string }>(
 ): ReportColumn<R> {
   return { key, header, width, align: 'left', text: r => dd.taskDate(r.taskId, get(r), side) || '—' };
 }
-function remainingCol<R extends { remainingDays: number }>(t: T, dd: DD): ReportColumn<R> {
-  return { key: 'remaining', header: t('tableReports.common.remaining'), width: 70, align: 'right', text: r => dd.num(r.remainingDays) };
+function remainingCol<R extends { remaining: MeasuredDuration }>(t: T, dd: DD): ReportColumn<R> {
+  return { key: 'remaining', header: t('tableReports.common.remaining'), width: 70, align: 'right', text: r => dd.remaining(r.remaining) };
 }
 function completionCol<R extends { completion: number }>(t: T): ReportColumn<R> {
   return { key: 'completion', header: t('tableReports.common.completion'), width: 60, align: 'right', text: r => pct(r.completion) };
@@ -480,7 +491,7 @@ function buildWbsSummary(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD
     taskDateCol('finish', t('tableReports.common.finish'), r => r.finish, 'end', dd),
     taskDateCol('baselineStart', t(`${p}.baselineStart`), r => r.baselineStart, 'start', dd),
     taskDateCol('baselineFinish', t(`${p}.baselineFinish`), r => r.baselineFinish, 'end', dd),
-    { key: 'duration', header: t(`${p}.duration`), width: 70, align: 'right', text: r => dd.num(r.durationDays) },
+    { key: 'duration', header: t(`${p}.duration`), width: 70, align: 'right', text: r => (r.duration ? dd.duration(r.duration, r.hoursPerDay) : dd.workDays(r.durationDays)) },
     { key: 'completion', header: t('tableReports.common.completion'), width: 60, align: 'right', text: r => pct(r.completion) },
     { key: 'variance', header: t(`${p}.finishVariance`), width: 80, align: 'right', text: r => (r.finishVarianceDays === undefined ? '—' : dd.signed(r.finishVarianceDays)), color: r => (r.finishVarianceDays !== undefined && r.finishVarianceDays > 0 ? REPORT_COLORS.error : undefined), bold: r => r.finishVarianceDays !== undefined && r.finishVarianceDays > 0 },
     { key: 'minFloat', header: t(`${p}.minFloat`), width: 70, align: 'right', text: r => dd.num(r.minTotalFloat), color: r => floatColor(r.minTotalFloat), bold: r => r.minTotalFloat < 0 },
@@ -510,18 +521,23 @@ export function useTableReportSpec(reportType: ReportType, options: TableReportO
   const { ctx, stale } = useReportContext();
   const locale = i18n.language;
   const hourSuffix = parseableHourSuffix(tCommon('duration.suffixHour'));
+  const durationDisplay = useEffectiveDurationDisplay();
   // Getallen in de app-taal (komma in nl/de/fr): dezelfde notatie als de toewijzingskolommen van het
   // resourcediagram (`formatReportNumber`), zodat de rapporten in één paneel niet uiteenlopen.
   const dd = useMemo<DD>(() => {
     const label = makeTaskDateLabeler(ctx);
+    const suffixes = durationSuffixesFrom(tCommon);
     return {
       ...dates,
       num: n => formatReportNumber(n, locale),
       signed: n => formatSignedReportNumber(n, locale),
       lagText: lag => localizeDecimalPoint(localizeLagHourSuffix(lag, hourSuffix), locale),
       taskDate: (taskId, value, side, opts) => dates.dateTime(label(taskId, value, side, opts)),
+      duration: (duration, hoursPerDay) => formatMeasuredDurationText(duration, hoursPerDay, { display: durationDisplay, suffixes, locale }),
+      remaining: duration => formatMeasuredDurationText(duration, 1, { display: 'auto', suffixes, locale }),
+      workDays: days => formatWorkDaysText(days, { suffixes, locale }),
     };
-  }, [dates, locale, hourSuffix, ctx]);
+  }, [dates, locale, hourSuffix, ctx, tCommon, durationDisplay]);
   // "Datums zoals opgeslagen": in de modus lezen de
   // rapporten `task.time` zoals de tabel, maar zónder de "niet vastgelegd"-poort van de kolommen —
   // een as die het bestand niet vastlegde staat er dan als leeg/0. Eén melding bovenaan elk rapport
