@@ -78,10 +78,6 @@ en noem het in je rapport of PR-tekst.
     het sjabloon zonder lag terug, zonder melding. Gezien in de code (`Sequence.lagMinutes`,
     `types/sequence.ts:23`); niet in de app nagespeeld. Voorstel: `lagMinutes` meenemen in
     `WbsTemplateSequence`. — S
-120. **Lag `-1,5` rondt naar −1 dag, de motor naar −2.** `parseLagInput` rondt met `Math.round(num)`
-    (`lagFormat.ts:73`, JavaScript rondt −1,5 naar −1), terwijl de solver half van nul af rondt
-    (`CPMSolver.ts:272-279`, `Math.sign(raw) * Math.round(Math.abs(raw))`). Een lead die je als `-1,5`
-    typt, wordt dus anders opgeslagen dan dezelfde lead in uren wordt gerekend. Alleen in de code gezien. — S
 121. **Nivelleervenster: de piekmelding blijft leeg bij een eigen urenverdeling of capaciteitsstappen.** De
     nivelleerder kiest `INTRINSIC_OVERRUN` op de echte dagwaarden (`assignmentDayUnits`) en op
     `maxCapacityOf` met stappen (`ResourceLeveler.ts`); het venster vult de details in met `distributeUnits` en
@@ -252,6 +248,14 @@ en noem het in je rapport of PR-tekst.
      `check-new-task-measure.ts` s5). Met de gekozen urenmaat, of onder P6/MSP, krijgt zo'n taak dus toch
      de dagenmaat; alleen vast werk zet hem om. Voorstel: geef in beide de maat van `newTaskTimeUnit`
      mee, of laat de tijd weg en geef alleen de start. Alleen in de code gezien, plus het storegedrag. — S
+
+281. **Een externe relatie rondt een lag in dagen nog af op hele dagen.** Een interne relatie houdt sinds
+     F4b de breuk ("1,5d" is anderhalve werkdag, I12). De lag van een externe relatie rondt bij invoer
+     half van nul af (`parseExternalLagInput`, `relationFormat.ts:187-201`), en de motor rondt een lag in
+     minuten ook naar hele dagen (`CPMSolver.externalLagDays`, `CPMSolver.ts:3170-3176`). "1,5d" wordt
+     dus 2 werkdagen bij een externe relatie en 1,5 bij een interne. Getoetst in `check-lag-format.ts`
+     (de reeks "externe dagafronding"). Voorstel: hetzelfde model als de interne lag, in de motor en de
+     invoer samen; buiten F4b, omdat het de motor raakt. — B
 
 ## Kalenders
 
