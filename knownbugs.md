@@ -274,6 +274,16 @@ en noem het in je rapport of PR-tekst.
      van 24. Cel, tooltip, afdruk en tabelrapport rekenen sinds fixronde 2 van F4b wel met 24 u
      (`durationHoursPerDay`). Dit stond al zo op de basis van F4b. Voorstel: in het sleeplabel
      `durationHoursPerDay` gebruiken; rendererwerk. Alleen in de code gelezen, niet in de app nagespeeld. — S
+289. **Resterende en Werkelijke duur lezen uren bij kalendertijd als werkuren.** De kolommen
+     `task.time.remainingTime` en `task.time.actualDuration` lezen een duur met de werktijd per dag
+     (`parseTaskDuration`, `taskColumnRegistry.ts:394`), en de transactie deelt de minuten weer door de
+     werktijd per dag (`taskEditPlan.ts:633`, `:640`, `:695`, `:885`). Bij een kalendertijdtaak in dagen
+     telt "1d" dus goed (1 kalenderdag), maar "24u" wordt 3 kalenderdagen. Gemeten in het OPS-profiel op
+     de werkweek 07–12 + 13–16: een kalendertijdtaak van 4 d, 25 % gereed; Resterende duur "24u" geeft
+     `remainingTime` 3 en een einde 5 juni 07:00 in plaats van 3 juni 07:00. Werkelijke duur heb ik alleen in
+     de code gelezen (zelfde parser, `taskEditPlan.ts:695`). Dit stond al zo op de basis
+     van F4b; de Duur-kolom rekent sinds fixronde 2 en 3 wel met 24 u (`durationHoursPerDay`,
+     `elapsedClockDuration`). Voorstel: dezelfde factor in deze twee kolommen en in hun transactiepad. — B
 
 ## Kalenders
 
