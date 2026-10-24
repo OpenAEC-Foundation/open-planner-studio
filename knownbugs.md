@@ -267,6 +267,13 @@ en noem het in je rapport of PR-tekst.
      risico is dat een vierde beperkingstype op één plek wel en op een andere niet meekomt. Voorstel: beide
      helpers vervangen door `constraintDateSide` en de losse imports weghalen. Gevonden in de review van
      PR #584 (r1, VERVOLG), in de code nagelezen. — B
+288. **Het duurlabel tijdens het slepen rekent kalendertijd met de werktijd per dag.** `GanttRenderer.dragDurationText`
+     (`src/engine/renderer/GanttRenderer.ts:1996-2008`) neemt voor een dagtaak `taskDurationMinutes` (dagen ×
+     werktijd per dag, `utils/taskDuration.ts:94`) en zet dat om met `effHoursPerDay`. Bij een
+     kalendertijdtaak onder P6/MSP met Duurweergave "Altijd uren" toont het label dan 8 u per dag in plaats
+     van 24. Cel, tooltip, afdruk en tabelrapport rekenen sinds fixronde 2 van F4b wel met 24 u
+     (`durationHoursPerDay`). Dit stond al zo op de basis van F4b. Voorstel: in het sleeplabel
+     `durationHoursPerDay` gebruiken; rendererwerk. Alleen in de code gelezen, niet in de app nagespeeld. — S
 
 ## Kalenders
 
@@ -553,13 +560,6 @@ en noem het in je rapport of PR-tekst.
      overbezet (29 jun – 5 jul)"; de app meldt nu 6 dagen, 28 juni t/m 5 juli. De tutorialstappen in
      `tests/browser/tutorials/` zijn groen. Voorstel: de extensieteksten nalezen tegen het nieuwe
      getallenblok. — S
-287. **De gids over externe relaties zegt dat een lag in uren bij een taak in dagen niet telt; hij telt
-     wel.** `public/docs/nl/howto-externe-relaties.md:45` (en `en`, dezelfde regel): "Een lag in uren telt
-     alleen bij een taak die in uren gepland is; bij een taak in dagen negeert de berekening hem." Gemeten
-     op de werkweek 07–12 + 13–16: een dagtaak van 2 d met een externe SS-voorganger, anker ma 07:00 en
-     lag 2 u, start na Bereken om 09:00, in het OPS- en in het P6-profiel. De motor telt de lag in uurmodus
-     altijd (`CPMSolver.externalLagMinutes`). Voorstel: de zin weghalen of vervangen door "Een lag in uren
-     telt in werktijd van de kalender van je eigen taak". Gevonden in fixronde 1 van F4b. — B
 
 ## Tests
 
