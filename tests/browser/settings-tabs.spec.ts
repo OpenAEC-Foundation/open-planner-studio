@@ -125,6 +125,16 @@ async function enabledDemo(page: Page): Promise<boolean> {
 async function reloadSettingsApp(page: Page): Promise<void> {
   await page.reload();
   await waitForOps(page);
+  // `assertThreeTabsAndSections` wisselt het rekenprofiel (het document is dan gewijzigd), dus na de
+  // herlaad kan eerst het herstelvenster komen; de welkomst wacht daarop. Zelfde aanpak als
+  // `settleAfterReload` in site-storage.spec.ts.
+  const recovery = page.locator('[data-ops-recovery-dialog]');
+  const welcome = page.locator('[data-ops-welcome-dialog]');
+  await expect(recovery.or(welcome).first()).toBeAttached({ timeout: 15_000 });
+  if (await recovery.count() > 0) {
+    await recovery.getByRole('button', { name: /^(Don't restore|Niet herstellen)$/ }).click();
+    await expect(recovery).toHaveCount(0);
+  }
   await waitForWelcomeDialog(page);
   await page.evaluate(() => {
     window.__OPS__!.store.getState().setUI({ showWelcomeDialog: false, showTourOverlay: false });
