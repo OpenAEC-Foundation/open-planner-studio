@@ -524,6 +524,7 @@ export function buildTaskEditPlanEnvironment(state: AppState, task: Task): TaskE
     calendarIds: new Set([state.calendar.id, ...state.calendars.map(calendar => calendar.id)]),
     effectiveHoursPerDay: effHoursPerDay(effectiveCalendar),
     hourMode: isHourModeCalendar(effectiveCalendar) === true,
+    workdayDurationMeasure: effectiveSchedulingOptions(state.project).workdayDurationMeasure === true,
     effectiveCalendar,
     calendarFor: (calendarId) => resolveCalendar(calendarId, state.calendars, state.calendar),
 

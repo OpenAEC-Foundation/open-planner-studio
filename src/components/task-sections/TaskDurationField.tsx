@@ -9,33 +9,39 @@ import {
   formatTaskDurationInput,
   parseTaskDurationInput,
   convertTaskDurationUnit,
+  taskDurationInputContext,
   type ParsedTaskDuration,
 } from '@/utils/taskDurationInput';
-import { durationSuffixesFrom, hourTaskScheduleDuration } from '@/utils/taskDuration';
-import type { DurationSuffixes } from '@/utils/durationFormat';
+import { durationSuffixesFrom, effHoursPerDay, formatTaskDurationText, hourTaskScheduleDuration } from '@/utils/taskDuration';
+import { localizeDecimalPoint } from '@/utils/reportNumber';
+import { useEffectiveDurationDisplay, useProfileCountsWorkdays } from '@/hooks/useDurationMeasure';
+import { effectiveWorkRule, workRuleApplies } from '@/engine/work/workRuleApply';
 import { isZeroDurationMilestone } from '@/engine/scheduler/duration';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Task, TaskDurationUnit } from '@/types/task';
-
-/** De duur zoals het duurveld hem noemt, bijv. `12u` of `12u 30m` (nl), `12h` (en); voor de
- *  niet-exactmelding. De afkortingen komen uit de taal (eigenaarsbesluit 2026-10-20). */
-function durationText(task: Task, suffixes: DurationSuffixes): string {
-  if (task.time.durationUnit === 'days') return `${task.time.scheduleDuration}${suffixes.day}`;
-  const minutes = task.time.durationMinutes ?? 0;
-  const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  return rest === 0 ? `${hours}${suffixes.hour}` : `${hours}${suffixes.hour} ${rest}${suffixes.minute}`;
-}
 
 export function TaskDurationField({ task, calendar, onChange }: {
   task: Task;
   calendar: WorkCalendar;
   onChange: (patch: Partial<Task>) => void;
 }) {
-  const { t } = useTranslation('task');
+  const { t, i18n } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
   const allowMixedDayHour = useAppStore((s) => s.ui.allowMixedDayHour);
-  const seed = formatTaskDurationInput(task);
+  const defaultWorkRule = useAppStore((s) => s.project.defaultWorkRule);
+  // B8 (§3.12): in een profiel met de dagenmaat is "5d" de dagenmaat, anders de urenmaat. Een kaal getal
+  // houdt de maat van de taak, in de eenheid die het veld toont (onder P6/MSP volgens Duurweergave, B9).
+  const countsWorkdays = useProfileCountsWorkdays();
+  const display = useEffectiveDurationDisplay();
+  const hoursPerDay = effHoursPerDay(calendar);
+  // Dezelfde regel als de Duur-kolom; kalendertijd rekent met 24 klokuren per dag.
+  const inputContext = taskDurationInputContext(task, { countsWorkdays, hoursPerDay, display });
+  // Het veld toont een kaal getal met het decimaalteken van de app-taal ("2,5" in nl).
+  const seed = localizeDecimalPoint(formatTaskDurationInput(task, {
+    shownUnit: inputContext.shownUnit, hoursPerDay: inputContext.hoursPerDay,
+  }), i18n.language);
+  // B1a: vast werk is altijd urenmaat; de keuze Dagen bestaat dan niet.
+  const fixedWork = workRuleApplies(task) && effectiveWorkRule(task, defaultWorkRule) === 'FIXED_WORK';
   const [value, setValue] = useState(seed);
   const [message, setMessage] = useState<string | null>(null);
   // Eigenaar (2026-10-12): een niet-exacte omzetting is een duidelijk gekleurd blok, geen toast en
@@ -90,7 +96,7 @@ export function TaskDurationField({ task, calendar, onChange }: {
   const commitInput = () => {
     if (derived) return;
     setNotExact(null);
-    const parsed = parseTaskDurationInput(value, task.time.durationUnit);
+    const parsed = parseTaskDurationInput(value, task.time.durationUnit, inputContext);
     if (!parsed) {
       setMessage(t('duration.invalid'));
       setValue(seed);
@@ -101,13 +107,15 @@ export function TaskDurationField({ task, calendar, onChange }: {
 
   const requestUnit = (target: TaskDurationUnit) => {
     if (target === task.time.durationUnit) return;
+    if (target === 'days' && fixedWork) return;
     setNotExact(null);
     // De gekozen eenheid geldt meteen: een exacte omzetting wordt direct toegepast, als één
     // wijziging (één undo-stap), net als in het taakraster. Niet exact ⇒ melding, eenheid blijft.
-    const next = convertTaskDurationUnit(task, target, calendar);
+    // De omzetting telt een dag zoals het rekenprofiel (onder P6/MSP de werktijd per dag).
+    const next = convertTaskDurationUnit(task, target, calendar, { workdayDurationMeasure: countsWorkdays });
     if (!next) {
       setMessage(null);
-      setNotExact(durationText(task, durationSuffixesFrom(tCommon)));
+      setNotExact(formatTaskDurationText(task, hoursPerDay, { suffixes: durationSuffixesFrom(tCommon), locale: i18n.language }));
       return;
     }
     apply(next);
@@ -188,7 +196,7 @@ export function TaskDurationField({ task, calendar, onChange }: {
                 onChange={(next) => requestUnit(next as TaskDurationUnit)}
                 disabled={derived}
                 options={[
-                  { value: 'days', label: t('duration.days') },
+                  { value: 'days', label: t('duration.days'), disabled: fixedWork },
                   { value: 'hours', label: t('duration.hours') },
                 ]}
               />

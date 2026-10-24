@@ -24,7 +24,7 @@ import { storedWorkDeviates } from '@/engine/work/workDeviation';
 import { contourIndexForAssignment, taskWorkMinutes } from '@/engine/contour/contourEngine';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
-import { effHoursPerDay, hourTaskScheduleDuration } from '@/utils/taskDuration';
+import { durationHoursPerDay, effHoursPerDay, hourTaskScheduleDuration } from '@/utils/taskDuration';
 // `contourKeepsWork` en `effectiveEffortDriven`
 // lezen per-taak-herkomst (`mspTaskType`) van bewaarde data — bewerksemantiek, geen solverinvoer en
 // geen conventie. Ze wonen daarom in `utils/taskDefaults.ts`, buiten `src/engine/` (verify:conventions).
@@ -885,13 +885,16 @@ export function settleCalendarChange(
  *   gedane werk mee. Het percentage wordt NIET afgerond: oud % × oude duur ÷ nieuwe duur, zodat
  *   % × duur (het gedane werk) gelijk blijft; de weergave rondt pas af (IFC schrijft verliesvrij, zie
  *   `ifcCompletionReal`).
- * - Een eenheidswissel (dagen ↔ uren) rekent via de werkminuten: het gedane werk blijft gelijk en de
- *   restduur volgt de gewone regel in de nieuwe eenheid.
+ * - Een eenheidswissel (dagen ↔ uren) rekent via de minuten in de maat van de taak: het gedane werk
+ *   blijft gelijk en de restduur volgt de gewone regel in de nieuwe eenheid. De dag telt de functie zelf
+ *   uit het duurtype: bij kalendertijd (`ELAPSEDTIME`) 24 klokuren (`durationHoursPerDay`), anders
+ *   `workHoursPerDay`. Zo telt een kalendertijdtaak van 2 d als 2880 klokminuten, op elke route.
  * - Nieuwe duur KORTER dan het gedane werk: geweigerd (`refused`), niets geraden. Precies gelijk
  *   ⇒ 100 %: de voortgangsinvarianten leiden dan het werkelijke einde af.
  *
  * `null` = de regel is niet van toepassing. Pure functie op de tijd van VÓÓR en NÁ de bewerking;
- * `hoursPerDay` zoals de aanroeper de werkduur meet (`taskWorkMinutes`).
+ * `workHoursPerDay` is de werktijd per dag van de taakkalender. Bij kalendertijd vervangt de functie
+ * die zelf door 24 u, zodat geen aanroeper (store, dialoog, raster, MCP) dat hoeft te weten.
  */
 export type DurationEditProgress =
   | { refused: true; done: number; unit: 'days' | 'hours' }
@@ -901,10 +904,13 @@ export function durationEditProgress(
   task: Pick<Task, 'childIds' | 'isHammock'>,
   before: TaskTime,
   after: TaskTime,
-  hoursPerDay: number,
+  workHoursPerDay: number,
 ): DurationEditProgress | null {
   if (task.childIds.length > 0 || task.isHammock === true) return null;
-  if (!Number.isFinite(hoursPerDay) || hoursPerDay <= 0) return null;
+  if (!Number.isFinite(workHoursPerDay) || workHoursPerDay <= 0) return null;
+  // De dag in de maat van de taak: 24 klokuren bij kalendertijd. Het duurtype na de bewerking telt;
+  // een wissel van alleen het duurtype is dan geen duurwijziging (beide kanten met dezelfde factor).
+  const hoursPerDay = durationHoursPerDay({ time: after }, workHoursPerDay);
   const running = (before.completion > 0 || !!before.actualStart) && before.completion < 1 && !before.actualFinish;
   if (!running) return null;
   const progressTouched = after.completion !== before.completion
@@ -964,9 +970,9 @@ function timeUnit(time: TaskTime): 'days' | 'hours' {
 export function durationEditRefusal(
   task: Pick<Task, 'childIds' | 'isHammock' | 'time'>,
   after: TaskTime,
-  hoursPerDay: number,
+  workHoursPerDay: number,
 ): Extract<DurationEditProgress, { refused: true }> | null {
-  const change = durationEditProgress(task, task.time, after, hoursPerDay);
+  const change = durationEditProgress(task, task.time, after, workHoursPerDay);
   return change?.refused ? change : null;
 }
 
@@ -987,11 +993,11 @@ export function durationEditRefusal(
 export function carryRemainingThroughDurationEdit(
   task: Task,
   before: TaskTime,
-  hoursPerDay: number,
+  workHoursPerDay: number,
   statusDate: string | undefined,
   calendar: WorkCalendar | undefined,
 ): DurationEditProgress | null {
-  const change = durationEditProgress(task, before, task.time, hoursPerDay);
+  const change = durationEditProgress(task, before, task.time, workHoursPerDay);
   if (!change || change.refused) return change;
   // Mijlpaal aan op een gestarte taak zonder gedaan werk: niets mee te schuiven (duur 0; een
   // mijlpaal blijft zonder restveld). Met gedaan werk weigerde de regel hierboven al.

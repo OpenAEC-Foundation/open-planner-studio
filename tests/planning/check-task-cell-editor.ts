@@ -166,10 +166,12 @@ const dateMarkup = renderToStaticMarkup(createElement(TaskCellEditor, {
   onCancel: () => undefined,
   onFocusCell: () => undefined,
 }));
+// Sinds F4b (spec "alleen uren" §3.6) is de deadline een eindachtig taakveld met een moment: de editor is
+// datum-met-tijd, met dezelfde combinatie van tekstinvoer en kalenderkiezer.
 ok('Datumeditor combineert persoonlijke tekstinvoer met een echte kalenderkiezer',
-  dateMarkup.includes('data-task-editor-kind="date"')
-    && dateMarkup.includes('data-task-editor-picker="date"')
-    && dateMarkup.includes('type="date"')
+  dateMarkup.includes('data-task-editor-kind="datetime"')
+    && dateMarkup.includes('data-task-editor-picker="datetime"')
+    && dateMarkup.includes('type="datetime-local"')
     && dateMarkup.includes('aria-label="Kies startdatum"'));
 
 let assignmentCommit: readonly GridIntent[] | null = null;

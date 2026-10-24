@@ -4,6 +4,7 @@
     "applyShape": "Vorm toepassen:",
     "hoursPerDay": "{{hours}} uur per werkdag",
     "stripHint": "Sleep een grens om een fase langer of korter te maken, sleep de bovenrand voor de inzet, dubbelklik op een dag om een fase te splitsen.",
+    "partialDayHint": "Begint of eindigt de taak midden op een werkdag, dan telt die dag naar rato: de uren zijn de inzet × het deel van de dag. Het histogram telt net zo.",
     "from": "Van",
     "to": "Tot",
     "days": "Dagen",
@@ -181,7 +182,7 @@
       "calendar": "Kies een kalender uit de lijst.",
       "calendarNotFound": "De gekozen kalender bestaat niet.",
       "calendarHours": "De kalender van deze taak heeft geen werkuren per dag.",
-      "durationConversionNotExact": "Deze duur is niet exact naar de andere eenheid om te rekenen.",
+      "durationConversionNotExact": "Deze duur is op deze kalender niet naar de andere eenheid om te rekenen.",
       "fixedWorkIsHours": "Een taak met vast werk heeft altijd de urenmaat.",
       "milestoneRequired": "Dit veld geldt alleen voor mijlpalen.",
       "milestoneUnavailable": "Een samenvattingstaak met subtaken kan geen mijlpaal worden.",
@@ -328,8 +329,8 @@
     "unit": "Duureenheid",
     "days": "Dagen",
     "hours": "Uren",
-    "invalid": "Voer een geheel aantal dagen of uren in, bijvoorbeeld 2d of 12u.",
-    "conversionNotExact": "{{value}} past op deze kalender niet in hele dagen. De eenheid is niet veranderd.",
+    "invalid": "Voer een aantal dagen of uren in, bijvoorbeeld 2,5d of 12u.",
+    "conversionNotExact": "{{value}} is op deze kalender niet om te rekenen naar de andere eenheid. De eenheid is niet veranderd.",
     "unitInfo": "De gekozen eenheid hoort bij deze taak. Dagen tellen werkdagen; uren tellen werkuren binnen de kalender. Een andere kalender verandert de eenheid of ingevoerde duur niet, maar kan wel de einddatum veranderen."
   },
   "dialog": {
@@ -647,5 +648,11 @@
     "pieceHours_one": "Stuk: {{count}} uur",
     "pieceHours_other": "Stuk: {{count}} uur",
     "merged": "Samenvoegen"
+  },
+  "dateTimeInput": {
+    "time": "Tijd van {{field}}",
+    "timeHint": "Leeg: het begin of einde van de werkdag. Met een tijd: precies dat moment.",
+    "later": "Een kwartier later",
+    "earlier": "Een kwartier eerder"
   }
 }

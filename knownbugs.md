@@ -78,10 +78,6 @@ en noem het in je rapport of PR-tekst.
     het sjabloon zonder lag terug, zonder melding. Gezien in de code (`Sequence.lagMinutes`,
     `types/sequence.ts:23`); niet in de app nagespeeld. Voorstel: `lagMinutes` meenemen in
     `WbsTemplateSequence`. — S
-120. **Lag `-1,5` rondt naar −1 dag, de motor naar −2.** `parseLagInput` rondt met `Math.round(num)`
-    (`lagFormat.ts:73`, JavaScript rondt −1,5 naar −1), terwijl de solver half van nul af rondt
-    (`CPMSolver.ts:272-279`, `Math.sign(raw) * Math.round(Math.abs(raw))`). Een lead die je als `-1,5`
-    typt, wordt dus anders opgeslagen dan dezelfde lead in uren wordt gerekend. Alleen in de code gezien. — S
 121. **Nivelleervenster: de piekmelding blijft leeg bij een eigen urenverdeling of capaciteitsstappen.** De
     nivelleerder kiest `INTRINSIC_OVERRUN` op de echte dagwaarden (`assignmentDayUnits`) en op
     `maxCapacityOf` met stappen (`ResourceLeveler.ts`); het venster vult de details in met `distributeUnits` en
@@ -219,6 +215,27 @@ en noem het in je rapport of PR-tekst.
      die afwijkt wel, maar niet een tweede kopie die mee verandert. Voorstel: één gedeelde functie voor de
      spanwijdte, en de afronding per dag gelijk aan die van de Gantt. Gevonden in F3c-fix-split. — B
 
+265. **Contour en splitsgaten bij een eenheidswissel van een kalendertijdtaak tellen de oude duur in
+     werkminuten.** `applyDurationChangeRules` (`src/utils/taskDefaults.ts:822`) krijgt de oude werkminuten
+     van de aanroeper: in het raster `taskWorkMinutes(before, hoursPerDay)` met de werktijd per dag
+     (`src/engine/taskGrid/taskEditPlan.ts:205`), in de store via `settleDurationAftermath`
+     (`workRuleApply.ts:755`, de werktijd per dag van de taakkalender). Gaat een kalendertijdtaak van dagen
+     naar uren (2 d naar "1d 4u"), dan telt de oude duur als 960 in plaats van 2880 minuten. De
+     herschaling van een contour en het afknippen van splitsgaten (`clipUserGapsToWork`) rekenen dan
+     vermoedelijk met een verkeerde verhouding. Gevonden met grep in fixronde 4 van #584; niet gemeten.
+     Voorstel: eerst meten met een contour en een splitsgat op een kalendertijdtaak; dan dezelfde regel
+     als `durationEditProgress` (24 u per dag bij kalendertijd). — S
+
+266. **Na een eenheidswissel op een lopende taak heeft de rest ruis van de drijvende komma.**
+     `durationEditProgress` (`src/engine/work/workRuleApply.ts:953`) rekent de rest als nieuwe duur ×
+     (1 − nieuw percentage). Een werktijdtaak van 2 d, 25 % gereed, met een nieuwe duur van 12 u (onder P6
+     en MSP ook "1,5d") krijgt zo 720 × (1 − 1/3) = 480,00000000000006 min in plaats van 480. De motor legt
+     het einde daardoor net voorbij de bandgrens: wo 3 juni 07:00 in plaats van di 2 juni 16:00. Dat is
+     hetzelfde werkmoment, maar de Tabel toont een andere dag. Gemeten in fixronde 4 van #584; vastgelegd
+     als `KNOWN_DRIFT` (4 rijen) in `tests/planning/check-f4b-review-r3.ts`. Dit stond al zo op de basis
+     (bij "12u"). Voorstel: de rest als nieuwe duur − verricht rekenen, en dan de verwachtingen nameten;
+     haal daarna de rijen uit `KNOWN_DRIFT`. — B
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
@@ -231,20 +248,6 @@ en noem het in je rapport of PR-tekst.
      de planning op verouderd.** `updateExternalLink` vergelijkt het ruwe anker, niet het genormaliseerde.
      Gevonden in fixronde 1 van F2 (laadfix). — B
 
-244. **Het paneel Onderbrekingen toont bij een dagtaak met een pauze korter dan een dag een verkeerd
-     van–tot.** `TaskSplitsSection.tsx:79-93` (`segmentRanges`) wandelt een dagtaak nog op hele werkdagen
-     (`computeSplitSegments(..., false, ...)`), terwijl de Gantt sinds F3c in de dagenmaat wandelt. Probe:
-     dagtaak ma 08:00–16:00 op een kalender 08–16, pauzes van 1 u na 2 u en na 5 u (as): het paneel geeft
-     "01-06 – 29-05" voor het eerste stuk na de pauze (einde vóór het begin), de Gantt tekent 11:00–13:00.
-     Zo'n pauze ontstaat bij splitsen op uurzoom (snap 60 of 15 min). Voorstel: geef `'workdays'` mee als
-     de taak tijden heeft en label zoals bij een urentaak (`workdayBoundaryLabel`). Gebied F4b. — B
-
-245. **Afdrukken tekent pauzes van een taak altijd in hele werkdagen.** `printPreview.ts:1424` roept
-     `computeSplitSegments(..., false, ...)` aan op datums zonder tijd, ook voor een urentaak. Een pauze
-     korter dan een dag valt weg; bij een taak van één dag tekent de afdruk geen onderbreking (probe:
-     start = einde ⇒ één stuk). Voorstel: dezelfde maatkeuze als de Gantt, als de afdruk tijden toont.
-     Gevonden in F3c. — B
-
 250. **Twee ingangen voor een nieuwe taak negeren de *Standaardmaat voor nieuwe taken*.** Rechtsklik in
      de Gantt → *Nieuwe taak* geeft een tijd met een vaste dagenmaat mee (`GanttCanvas.tsx:401`,
      `createDefaultTaskTime(date, 5, 'days', …)`), en de spookregel onderaan de tabel toont een taak van
@@ -252,6 +255,46 @@ en noem het in je rapport of PR-tekst.
      `check-new-task-measure.ts` s5). Met de gekozen urenmaat, of onder P6/MSP, krijgt zo'n taak dus toch
      de dagenmaat; alleen vast werk zet hem om. Voorstel: geef in beide de maat van `newTaskTimeUnit`
      mee, of laat de tijd weg en geef alleen de start. Alleen in de code gezien, plus het storegedrag. — S
+
+281. **De motor rondt een externe lag in minuten nog af op hele dagen, maar alleen in dagmodus.** De invoer
+     houdt sinds fixronde 1 van F4b de breuk ("0,5d" is een halve werkdag, ook bij een externe relatie;
+     `check-f4b-review-r1.ts`). In uurmodus, de gewone route, rekent de motor `lagDays` × werktijd per dag
+     zonder afronding (`CPMSolver.externalLagMinutes`). Alleen `CPMSolver.externalLagDays`
+     (`CPMSolver.ts:3170-3176`) rondt een lag in minuten nog half van nul af naar hele dagen. Die functie
+     werkt alleen op een kalender waaruit geen werkblokken af te leiden zijn (`calendarForEngine` geeft dan
+     geen `workTime`). Zo'n kalender heb ik niet in een gewone planning kunnen maken; de lege kalender
+     weigert de motor al. Voorstel: de afronding weghalen als de dagmodus verdwijnt; motorwerk. Alleen in
+     de code gelezen. — S
+283. **Vast werk met een inzet die het werk niet in hele minuten deelt, geeft een duur met een deel van een
+     minuut en een negatieve speling.** Gemeten op het stucwerk van het tutorialproject (stand na tutorial
+     4, Vast werk, 32 uur): inzet 7 geeft `durationMinutes` 274,2857 (einde vr 23 jul 11:34) en een totale
+     speling van −0,0006 werkdagen, terwijl de taak bij inzet 1 tot 3 speling 0 heeft. De werkdriehoek rondt
+     niet af (B3), maar de urenmaat telt verder in hele minuten (`applyRemainingDuration`). Een taak met
+     een kleine negatieve speling kan in een filter op negatieve speling verschijnen. Voorstel: de duur van
+     de urenmaat in de werkdriehoek op hele minuten zetten, of de speling op hele minuten vergelijken;
+     motorwerk, buiten F4b. Gevonden bij het meten voor knownbugs 252. — B
+284. **Een opgeslagen Tabel-indeling houdt Start en Einde op 100 px; een datum met tijd valt dan weg.**
+     Sinds B4 toont een moment midden op de werkdag datum en tijd ("04-11-2026 11:00"). Die tekst is 89 px
+     breed, plus 14 px opvulling; de oude standaardbreedte was 100 px (gemeten in de browser, Inter 11 px).
+     F4b zet de standaard op 130 px (`preferences.ts`, ook genoeg voor "04-11-2026 11:00 AM"), maar een
+     indeling die al in `ops-taskGridPreferences` staat, houdt 100 px tot de planner de kolom verbreedt of
+     "Herstel standaard" kiest. De cel kapt de tekst af met een beletselteken. Voorstel: bij het laden een
+     opgeslagen breedte van precies 100 px voor deze twee kolommen naar 130 px zetten, of de kolom laten
+     meegroeien; een besluit over opgeslagen voorkeuren. — B
+286. **De kant van een beperkingsdatum wordt op twee plekken opnieuw bepaald.** `constraintDateSide`
+     (`src/engine/calendar/workdayRules.ts:42`) zegt al of een beperkingsdatum startachtig of eindachtig
+     is. `constraintSide` in `TaskConstraintFields.tsx:16` en `guardSideOf` in `MilestoneReport.tsx:62`
+     bouwen dat opnieuw uit `constraintDateField` en `taskDateFieldSide`. De uitkomst is nu gelijk; het
+     risico is dat een vierde beperkingstype op één plek wel en op een andere niet meekomt. Voorstel: beide
+     helpers vervangen door `constraintDateSide` en de losse imports weghalen. Gevonden in de review van
+     PR #584 (r1, VERVOLG), in de code nagelezen. — B
+288. **Het duurlabel tijdens het slepen rekent kalendertijd met de werktijd per dag.** `GanttRenderer.dragDurationText`
+     (`src/engine/renderer/GanttRenderer.ts:1996-2008`) neemt voor een dagtaak `taskDurationMinutes` (dagen ×
+     werktijd per dag, `utils/taskDuration.ts:94`) en zet dat om met `effHoursPerDay`. Bij een
+     kalendertijdtaak onder P6/MSP met Duurweergave "Altijd uren" toont het label dan 8 u per dag in plaats
+     van 24. Cel, tooltip, afdruk en tabelrapport rekenen sinds fixronde 2 van F4b wel met 24 u
+     (`durationHoursPerDay`). Dit stond al zo op de basis van F4b. Voorstel: in het sleeplabel
+     `durationHoursPerDay` gebruiken; rendererwerk. Alleen in de code gelezen, niet in de app nagespeeld. — S
 
 ## Kalenders
 
@@ -604,34 +647,16 @@ en noem het in je rapport of PR-tekst.
     koppen in die talen, en de Help-artikelen die ze citeren mee. — B
 
 
-240. **Tutorial- en gidsteksten bevatten nog oude getallen uit het dagmodel.**
-     In F2-bouwronde 4 gecontroleerd naast de gewone F2-pins en de vaste F3-doelen;
-     `public/docs/nl/uitleg-nivelleren.md:55` noemt bijvoorbeeld het binnenspouwblad vanaf
-     29 juni, terwijl de F2-controle 25 juni en het F3-doel 28 juni toetst. Sinds F3c (motor en
-     belasting samen) is de metselaar 6 werkdagen overbezet, 28 juni t/m 5 juli, ook in het geval
-     zonder SNET met *smoothing* (conflict van 6 dag(en)); `uitleg-nivelleren.md` r.59 en r.76 (nl en en)
-     noemen nog 5 (`check-docs-resources-voorbeelden.ts`).
-     Zie `artifacts/uren-f2/bouwronde-4.md` (R4-030–039, R4-586–588) en
-     `tests/planning/fixtures/minute-model-tutorial-f3.json`. Voorstel: de verhalende tutorial-
-     en gidsteksten en eventuele schermbeelden bijwerken zodra de definitieve F3-uitkomsten
-     zijn gehaald, met behoud van de afzonderlijk getoetste einddoelen. — B
-252. **De gidsen over taaktypes zeggen nog dat de app een duur op hele werkdagen afrondt.**
-     Sinds de werkdriehoek exact rekent (T14, B3) en vast werk de urenmaat is (B1a), klopt dat niet meer.
-     `public/docs/{nl,en}/uitleg-werkregels.md` r.42 ("rondt naar boven af … hele werkdagen"), r.94
-     (1,33 → 2 werkdagen, met het waarschuwingsteken *Wijkt af van inzet × duur*), r.102 (5,33 → 6
-     werkdagen) en r.106 (restduur 1,5 → 2); `howto-werkregel-kiezen.md` r.59; `uitleg-kalenders.md`
-     r.97 (nl; "een taak in dagen telt hele werkdagen" klopt nog, maar vast werk is nu altijd een taak in
-     uren). Uit de code afgeleid (niet in de app nagespeeld): r.94 wordt nu 32 ÷ 3 = 10 u 40 min, zonder
-     waarschuwingsteken, en het histogram toont dan 3 op de eerste en 1 op de tweede werkdag (§3.11; getoetst
-     in `check-docs-resources-voorbeelden.ts`), niet 2 per dag. Hangt samen met 240.
-     Voorstel: de voorbeelden herschrijven in dezelfde ronde als 240, met de uitkomsten uit
-     `check-work-rule-*.ts`. Gevonden in F3c-winkel. — B
-254. **De gidsen over de werkregel zeggen niet dat een wissel naar vast werk de taken omzet naar uren.**
-     Sinds F3c-fix-winkel zet een wissel van de projectstandaard naar *Vast werk* (`setProject`,
-     `planner_update_project`, `settleDefaultWorkRuleSwitch` in `src/state/defaultWorkRuleSwitch.ts`) de
-     taken die hem erven om naar de urenmaat. `public/docs/{nl,en}/howto-werkregel-kiezen.md` en
-     `public/docs/{nl,en}/ref-ai-tools.md` zeggen dat nog niet. Hangt samen met 240 en 252. Voorstel: de
-     zin toevoegen in dezelfde ronde als 252. Gevonden in F3c-fix-winkel. — B
+240. **De tutorialteksten in de extensie en de schermbeelden van de gidsen hebben nog oude getallen.**
+     F4b werkte de gidsen in deze repo bij met gemeten getallen (`uitleg-nivelleren`, `uitleg-werkregels`,
+     `howto-werkregel-kiezen`, `uitleg-kalenders`, `uitleg-voortgang`, `howto-voortgang-bijwerken`,
+     `ref-ai-tools`; gepind in `check-docs-resources-voorbeelden.ts`, de reeks "F4b-gidsgetallen") en het
+     getallenblok bovenin `scripts/tutorial-project.ts`. Niet bijgewerkt en niet nagelezen: de verhalende
+     tutorialteksten in `open-planner-studio-extensions` (buiten deze repo) en de schermbeelden
+     (`gen:docs-screenshots`). Het oude getallenblok, waaruit die teksten komen, noemde nog "5 wd
+     overbezet (29 jun – 5 jul)"; de app meldt nu 6 dagen, 28 juni t/m 5 juli. De tutorialstappen in
+     `tests/browser/tutorials/` zijn groen. Voorstel: de extensieteksten nalezen tegen het nieuwe
+     getallenblok. — S
 292. **De gids over import en export zegt nog dat een dagtaak op een bibliotheekkalender na MSPDI korter wordt.**
      `public/docs/{nl,en}/ref-import-exportformaten.md` r.51: "Een taak in dagen op zo'n kalender wordt dan
      korter, bijvoorbeeld 4 dagen in plaats van 5." Sinds F5a-2 (T13) schrijft OPS een dag als de werktijd per
@@ -737,6 +762,30 @@ en noem het in je rapport of PR-tekst.
      Dat gebeurde in F2-bouwronde 2. Een controle van beide bases gaf voor 127.519 sleutels
      dezelfde samenvoeging, en `verify:i18n` gaf exit 0. Het script meldt dus een fout waar
      geen fout is. Voorstel: gelijke resultaten vanaf beide bases als eenduidig accepteren. — S
+
+282. **`check-reports.ts` hangt af van de taal van het systeem.** De regel "monthLabel: onbekende locale
+     valt terug op Engels" verwacht "Sep 2026", maar met `LANG=nl_NL.UTF-8` geeft Node "sep 2026" (de
+     onbekende locale valt terug op de systeemtaal, niet op Engels). Met `LANG=C.UTF-8` is de batterij groen.
+     Gezien op aia09-mp50 bij F4b; de CI draait met een Engelse locale en ziet het niet. Voorstel: in
+     `monthLabel` expliciet terugvallen op `en` als `Intl` de locale niet kent, of de toets de locale laten
+     vastzetten. — B
+
+285. **`hour-data-notice-document.spec.ts` is wisselvallig: na `page.reload()` komt het welkomstvenster
+     over het paneel.** De test herlaadt de pagina per voorkeur (aan, uit), maar wacht daarna niet op het
+     welkomstvenster en sluit het niet, zoals de fixture bij de start doet (`waitForWelcomeDialog`,
+     `fixtures/ops.ts:88`). Komt het venster net na `fill('6h')`, dan gaat Enter niet naar het duurveld:
+     "minutes 240, verwacht 360". Gezien in CI op #584 (`293acf1c9`, shard 1); de error-context toont
+     "Welcome to Open Planner Studio" open en het duurveld op "4". Lokaal 5 van 5 groen. Voorstel: na de
+     reload `waitForWelcomeDialog` en `setUI({ showWelcomeDialog: false })`, zoals de fixture. — B
+
+264. **De browsertest "Gantt-balk vertical slepen landt in RTL op dezelfde plek als een rijsleep" is
+     wisselvallig.** `tests/browser/gantt-drag-undo.spec.ts:273`. De rijsleep en de undo slagen, maar na de
+     balksleep blijft de volgorde die van vóór de sleep: de eerste taak staat nog bovenaan ("Timeout 5000ms
+     exceeded", regel 314). Eenmaal gezien in CI op #584 (`2acc895fc`, job "verify (browser 3-4)",
+     2026-10-24). Een herhaling van de job zonder wijziging was groen, en lokaal 3 van 3 groen. De oorzaak
+     is niet onderzocht. F4b wijzigt `useBarDrag.ts` (maat en afronding van de datumsleep), niet de
+     keuze voor de rijsleep: `handleMouseMove` (`useBarDrag.ts:528-545`) is gelijk aan de basis (review r4
+     van #584, nagelezen). Een verband is niet aangetoond. Voorstel: gericht herhalen met een trace. — S
 
 294. **De browsertest voor speling in de Gantt-tooltip is wisselvallig.**
      `tests/browser/float-remaining-display.spec.ts:89` ("Expected pattern /^0[.,]67d$/, Received "1d"",

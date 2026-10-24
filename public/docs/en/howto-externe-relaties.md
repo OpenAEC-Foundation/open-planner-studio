@@ -42,7 +42,7 @@ Example: the site project finishes on Friday 18 June 2027. You link *Groundwork*
 
 **An external successor is an upper limit.** If the anchor is too tight, you see that as negative float on your task and the tasks before it. No separate warning appears with it, so keep an eye on the *Total float* column.
 
-**Only a fixed lag.** For an external relation you cannot give a lag in calendar days or percentages; the app says *External relationships only support a fixed lag in working days or working time.* The work days count in the calendar of your own task. A lag in hours only counts for a task that is planned in hours; for a task in days the calculation ignores it. Use work days then.
+**Only a fixed lag.** For an external relation you cannot give a lag in calendar days or percentages; the app says *External relationships only support a fixed lag in working days or working time.* The work days and the working time count in the calendar of your own task. A lag in hours counts for every task, also for a task in days: 2 hours after an anchor at 07:00 is 09:00. A fraction is allowed, for example `0.5d`.
 
 **The Project id of another file.** The Project id is not in a field or column, but is stored as `InternalProjectId` in the IFC of that project: open the project, go to the *IFC* tab and choose *Generate IFC*. The calculation only uses the anchor date; the id is not a mere label. When refreshing, the app first recognises a source file by its Project id (then by its file path). If you enter the same id with a manual link as that of a source file, the link is updated along when that file is refreshed. You find the *Task ID* of a task in the other project in that project's table, in the *Task ID* column under *Technical*.
 

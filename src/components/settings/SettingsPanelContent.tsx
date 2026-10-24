@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useProfileCountsWorkdays } from '@/hooks/useDurationMeasure';
 import { useAppStore } from '@/state/appStore';
 import { useResolvedUITheme } from '@/hooks/useResolvedUITheme';
 import { ResolvedUITheme, UI_THEMES, DocumentChromeStyle, DateNotation, TimeNotation, DurationDisplay, BarSplitMode, UIFontFamily, UI_FONT_FAMILIES, UI_FONT_SCALES, type UIState } from '@/state/slices/types';
@@ -64,7 +65,9 @@ export function SettingsPanelContent() {
   const constructionMode = useAppStore(s => s.ui.constructionMode);
   const dateNotation = useAppStore(s => s.ui.dateNotation);
   const timeNotation = useAppStore(s => s.ui.timeNotation);
-  const opsProfile = useAppStore(s => (s.project.schedulingProfile?.baseId ?? 'ops') === 'ops');
+  // B9: Duurweergave staat grijs zolang het profiel de dagenmaat telt (het OPS-profiel); dezelfde regel
+  // als de schermen (`useEffectiveDurationDisplay`) en de invoer (B8).
+  const opsProfile = useProfileCountsWorkdays();
   const showTaskTypes = useAppStore(s => s.ui.showTaskTypes);
   const formatNoticeHidden = useAppStore(s => s.ui.formatNoticeHidden);
   const allowMixedDayHour = useAppStore(s => s.ui.allowMixedDayHour);

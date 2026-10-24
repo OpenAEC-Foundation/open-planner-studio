@@ -233,9 +233,9 @@ export function contourLookup(
 
 /**
  * Het DAGSLOTcontract: de werkdagen van `task`, index-uitgelijnd op `assignmentDayUnits` (slot i ⇒
- * `isos[i]`). Sinds F3c boeken histogram en nivelleerder op de plaatsing (`taskLoadPlacement`); deze
- * dagenlijst blijft voor de contourdialoog (`ContourDialog.tsx`, die gaat in F4b over) en voor een
- * kalender zonder werkblokken (`dayslotLoad`). Drie takken:
+ * `isos[i]`). Sinds F3c boeken histogram en nivelleerder op de plaatsing (`taskLoadPlacement`), sinds
+ * F4b ook de contourdialoog (`contourDayModel`); deze dagenlijst blijft voor een kalender zonder
+ * werkblokken (`dayslotLoad`). Drie takken:
  *  - ELAPSEDTIME: `scheduleDuration` is KALENDERdagen, niet werkdagen (zie het docblok bij
  *    `computeResourceLoad`) — de op `earlyFinish` geklemde mapping i.p.v. `enumerateTaskWorkDays`,
  *    die het getal als werkdagen-telling zou lezen en voorbij `earlyFinish` zou doorlopen;

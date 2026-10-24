@@ -67,6 +67,7 @@ import {
 } from '@/engine/taskGrid/ghostRow';
 import { buildNewTask, createDefaultTaskTime } from '@/utils/taskDefaults';
 import { recordedGridBinding } from '@/state/recordedDatesSelectors';
+import { useEffectiveDurationDisplay, useProfileCountsWorkdays } from '@/hooks/useDurationMeasure';
 import { useAppStore } from '@/state/appStore';
 import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import { saveBranchAsWbsTemplate } from '@/utils/wbsTemplates';
@@ -305,7 +306,9 @@ export function TaskGridSurface({
   const view = useAppStore(state => state.view);
   const dateNotation = useAppStore(state => state.ui.dateNotation);
   const timeNotation = useAppStore(state => state.ui.timeNotation);
-  const durationDisplay = useAppStore(state => state.ui.durationDisplay);
+  // B9: in een profiel met de dagenmaat telt Duurweergave niet; B8: daar is "d" de dagenmaat.
+  const durationDisplay = useEffectiveDurationDisplay();
+  const countsWorkdays = useProfileCountsWorkdays();
   const uiFontScale = useAppStore(state => state.ui.uiFontScale);
   const traceMode = useAppStore(state => state.ui.traceMode);
   const showColumnsDialog = useAppStore(state => state.ui.showColumnsDialog);
@@ -436,6 +439,7 @@ export function TaskGridSurface({
     calendarOptions,
     // Duur-kolom en speling: dezelfde Duurweergave en hetzelfde decimaalteken als tooltip en afdruk.
     durationDisplay,
+    workdayDurationMeasure: countsWorkdays,
     numberLocale: taskI18n.language,
     effectiveHoursPerDay: task => effHoursPerDay(effectiveCalendarOf(task, calendar, calendars)),
     effectiveCalendar: task => effectiveCalendarOf(task, calendar, calendars),
@@ -465,7 +469,7 @@ export function TaskGridSurface({
     textDirection,
   }), [
     activityCodeTypes, assignments, baselines, calendar, calendarEngine, calendarOptions, calendars,
-    cpmResult, customFieldDefs, customTaskTypes, datesAsRecorded, dateNotation, timeNotation, durationDisplay, project.id,
+    cpmResult, customFieldDefs, customTaskTypes, datesAsRecorded, dateNotation, timeNotation, durationDisplay, countsWorkdays, project.id,
     project.defaultWorkRule, project.wbsAutoNumber, recordedDates, resources, scheduleStale, sequences, showTaskTypes,
     taskTypesVisible, tCommon, tTask, taskI18n.language, tasks, textDirection, showGhostRow, ghostTask,
   ]);

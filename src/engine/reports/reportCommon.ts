@@ -6,9 +6,14 @@ import type { Baseline } from '@/types/baseline';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type { ProjectSolveOptions } from '@/engine/scheduler/solveInput';
 import { createTaskEngineCache, type TaskEngineCache } from '@/engine/scheduler/taskEngineCache';
-import { effHoursPerDay, effectiveCalendarOf } from '@/utils/taskDuration';
+import {
+  durationHoursPerDay, effHoursPerDay, effectiveCalendarOf, remainingTaskMeasure, taskMeasuredDuration,
+  type MeasuredDuration,
+} from '@/utils/taskDuration';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
 import { shownStart, shownFinish, shownSpanOverlapsDays } from '@/utils/taskDates';
+import { taskDateLabelIn, type TaskDateLabelOptions } from '@/utils/taskDateLabel';
+import type { InstantSide } from '@/engine/calendar/workdayRules';
 import { progressState, taskWorkDays, type ProgressState } from '@/engine/scheduler/summaryProgress';
 import { type ReportingPeriod, type ResolvedPeriod, resolveReportingPeriod } from './reportingPeriod';
 
@@ -64,6 +69,25 @@ export function dayOf(iso: string): string {
   return iso.slice(0, 10);
 }
 
+/** De getoonde vorm van een datum van de taak met deze id (besluit B4). */
+export type ReportTaskDateLabel = (taskId: string, value: string | undefined, side: InstantSide, opts?: TaskDateLabelOptions) => string;
+
+/**
+ * Datums in een rapport volgens besluit B4 (spec "alleen uren"): een datum zonder tijd als het moment op de
+ * dagrand van zijn kant valt (begin van de werkdag bij een start, einde bij een einde; een mijlpaal op elke
+ * dagrand), anders het moment met zijn tijd. In de kalender van de taak, zoals raster en tooltip
+ * (`taskDateLabel`). Rapportrijen houden hun momenten (sorteren, vergelijken); alleen de weergave gebruikt
+ * deze vorm. Een onbekende taak (een vervallen baselinetaak) toont alleen de datum.
+ */
+export function makeTaskDateLabeler(ctx: Pick<ReportContext, 'tasks' | 'calendar' | 'calendars'>): ReportTaskDateLabel {
+  const byId = new Map(ctx.tasks.map(t => [t.id, t]));
+  return (taskId, value, side, opts) => {
+    if (!value) return '';
+    const task = byId.get(taskId);
+    return task ? taskDateLabelIn(task, value, side, ctx, opts) : dayOf(value);
+  };
+}
+
 /** Activiteiten: bladtaken zonder hammocks (een LOE-taak volgt anderen en is zelf geen werk). */
 export function activityTasks(tasks: readonly Task[]): Task[] {
   return tasks.filter(t => t.childIds.length === 0 && !t.isHammock);
@@ -105,10 +129,11 @@ export function durationDays(ctx: ReportContext, t: Task): number {
 }
 
 /**
- * Resterende duur in werkdagen. Spiegelt de solver (`CPMSolver`, IN-PROGRESS-tak): in uur-modus is
- * `remainingMinutes` de bron, in dag-modus `remainingTime`; ontbreekt die, dan `duur × (1 −
- * completion)`. Voltooid ⇒ 0. Let op: `applyProgressInvariants` rondt `remainingTime` op hele dagen,
- * dus een dag-taak toont hier nooit halve dagen — dat is de opgeslagen waarde, geen rekenfout.
+ * Resterende duur in werkdagen (een getal, voor tellingen en de toetsen). Spiegelt de solver
+ * (`CPMSolver`, IN-PROGRESS-tak): in de urenmaat is `remainingMinutes` de bron, in de dagenmaat
+ * `remainingTime`; ontbreekt die, dan `duur × (1 − completion)`. Voltooid ⇒ 0. De rest is exact (B3,
+ * `applyRemainingDuration`); dit getal rondt af op één decimaal. Het rapport toont de rest in de maat
+ * van de taak: {@link remainingMeasure}.
  */
 export function remainingDays(ctx: ReportContext, t: Task): number {
   if (progressState(t) === 'complete') return 0;
@@ -120,6 +145,29 @@ export function remainingDays(ctx: ReportContext, t: Task): number {
     return round1(t.time.remainingTime);
   }
   return round1(durationDays(ctx, t) * (1 - t.time.completion));
+}
+
+/**
+ * De restduur in de maat van de taak (B8): een dagenmaat-taak in werkdagen, een urenmaat-taak in
+ * werkminuten. Dezelfde bron als de kolom Resterende duur van de tabel (`remainingTaskMeasure`);
+ * voltooid ⇒ 0.
+ */
+export function remainingMeasure(t: Task): MeasuredDuration {
+  const own = remainingTaskMeasure(t);
+  if (progressState(t) !== 'complete') return own;
+  return own.unit === 'hours' ? { unit: 'hours', minutes: 0 } : { unit: 'days', days: 0 };
+}
+
+/** De duur in de maat van de taak (B8), zoals de kolom Duur van de tabel. */
+export function durationMeasure(t: Task): MeasuredDuration {
+  return taskMeasuredDuration(t);
+}
+
+/** De uren per dag waarmee de duur van een taak omrekent (Duurweergave): de werktijd per dag van haar
+ *  kalender, bij kalendertijd 24 klokuren. */
+export function taskHoursPerDay(ctx: ReportContext, t: Task): number {
+  // Kalendertijd: 24 klokuren per dag, zoals de Duur-kolom (`durationHoursPerDay`).
+  return durationHoursPerDay(t, effHoursPerDay(effectiveCalendarOf(t, ctx.calendar, ctx.calendars as WorkCalendar[])));
 }
 
 export function round1(n: number): number {

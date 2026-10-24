@@ -517,6 +517,8 @@ const baseInput: GanttRenderOptionsInput = {
   barSplitMode: 'always',
 
   durationDisplay: 'auto',
+  // NIET de standaard (aan): zo valt een bouwer op die het veld laat vallen.
+  workdayDurationMeasure: false,
   durationSuffixes: { day: 'd', hour: 'u', minute: 'm' },
   externalStaleLabel: 'verouderd (NL-test)',
   durationDrag: { taskId: idA, edge: 'right' },
@@ -601,6 +603,7 @@ const passthrough: [string, unknown, unknown][] = [
   ['effectiveCalById', optsOk.effectiveCalById, baseInput.effectiveCalById],
   ['barSplitMode', optsOk.barSplitMode, baseInput.barSplitMode],
   ['durationDisplay', optsOk.durationDisplay, baseInput.durationDisplay],
+  ['workdayDurationMeasure', optsOk.workdayDurationMeasure, baseInput.workdayDurationMeasure],
   ['durationSuffixes', optsOk.durationSuffixes, baseInput.durationSuffixes],
   ['externalStaleLabel', optsOk.externalStaleLabel, baseInput.externalStaleLabel],
   ['durationDrag', optsOk.durationDrag, baseInput.durationDrag],
