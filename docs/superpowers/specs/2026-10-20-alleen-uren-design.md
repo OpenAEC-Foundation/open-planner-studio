@@ -1503,7 +1503,7 @@ nodig heeft. B2, B4 en B8 zijn besloten (2026-10-20) en bepalen F4. B9 = optie 1
   de fix is daarom volgens N1 tot dagenmaat beperkt. msp-51 blijft in beide runs
   afwijken door het aparte FS-kalendertijdpunt 155. De overige bestaande restgevallen blijven
   zichtbaar in het vangnet (onder meer 153/154 en de latere fasen); de nieuwe bevestigde FF-lead
-  bij urenmaat staat als 204 in knownbugs.md. Groep 2, 3, 8 en T16 zijn niet omgezet.
+  bij urenmaat staat als 311 in knownbugs.md. Groep 2, 3, 8 en T16 zijn niet omgezet.
   De laatste volledige corpusloze planningssuite is groen (exit 0), inclusief alle vijf tijdzones.
   De profielmeting met de echte corpora houdt de P6-celpoort, maar heeft exit 1 door bestaande
   corpusafwijkingen. Bewijs, mutaties en de precieze controle-uitkomsten staan bij deze PR

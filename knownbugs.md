@@ -122,20 +122,18 @@ en noem het in je rapport of PR-tekst.
     De gecombineerde `measure:profiles` eindigt op exit 1; de P6-cellen zijn ongewijzigd.
     Geen baseline of motorcode hiervoor aangepast; oorzaak niet verder onderzocht. — B
 
-204. **Een urentaak na een FF-relatie met een kalendertijdlead kan vóór haar finish-ondergrens eindigen.**
+311. **Een urentaak na een FF-relatie met een kalendertijdlead kan vóór haar finish-ondergrens eindigen.**
     Nagespeeld in de minutenmodelmeting van F1b: kalender ma-vr 07-12 + 13-16, A 48 u eindigt ma
     8 juni 2026 16:00; FF −2 kalenderdagen naar B 32 u geeft B di 2 juni 07:00–vr 5 juni 16:00.
     De eis ligt za 6 juni 16:00; het einde ligt dus ervoor. Het dagenmaatpad haalt na F1b wel de
     dagverwachting van lagadv-ff-lead-ed; run 2 blijft rood op B, niet meer op de werkdagenlag van C.
     De bestaande urencases en N1 laten hier geen algemene grensnormalisatie toe; apart uitwerken. — B
-    Nummer botst met 204 van `main` (`headless-api.yml`); hernummeren in de eind-PR.
 
-205. **De corpuspin van expectedFinishDates in de SCHEDOPTIONS-check is rood op de integratiebasis.**
+312. **De corpuspin van expectedFinishDates in de SCHEDOPTIONS-check is rood op de integratiebasis.**
     check-xer-schedule-options-corpus.ts eindigt op Node 22.23.4 met de fout
     "expectedFinishDates zelfstandige per-bestand/as/populatie en richting blijven exact gepind".
     Dezelfde fout in een schone kopie van 12abaabf2 en tijdens de volledige F1b-suite, met het aanwezige
     corpus van 93 XER-bestanden. Geen pin of controle aangepast; oorzaak buiten F1b. — B
-    Nummer botst met 205 van `main` (termbase *AI-assistent*); hernummeren in de eind-PR.
 
 230. **Een mijlpaal na een FF-relatie (mk-05a, M2) verliest zijn kritieke pad, als de voorganger in de
      urenmaat telt.** A krijgt een late finish op vrijdag 13:00, speling 0,625 d, en is niet meer kritiek.
@@ -720,22 +718,20 @@ en noem het in je rapport of PR-tekst.
 
 ## Tests
 
-207. **De bulkprestatiepoort kan in een volledige run falen terwijl beide gerichte controles slagen.**
+313. **De bulkprestatiepoort kan in een volledige run falen terwijl beide gerichte controles slagen.**
     Tijdens een volledige corpusloze F1b-suite die deels met andere controles overlapte, meet `check-bulk-scale.ts`
     17.188 ms voor voortgang op 2000 van 8000 taken, bij de vaste grens van 15.000 ms.
     De gerichte controle op de schone basis 12abaabf2 slaagt met 6402 ms, en op dezelfde
     F1b-bron met 5793 ms (beide 23/23, exit 0). Een eerdere volledige F1b-run haalde 13.126 ms.
     De laatste volledige run zonder die overlap haalt 8833 ms en eindigt groen (exit 0).
     De wisselende tijdmeting is bevestigd; oorzaak niet vastgesteld en geen grens verruimd. — B
-    Nummer botst met 207 van `main` (`.mcpb`-bundel na sessieverlies); hernummeren in de eind-PR.
 
-206. **De plakprestatiepoort kan op deze server ook zonder F1b de vaste grens overschrijden.**
+314. **De plakprestatiepoort kan op deze server ook zonder F1b de vaste grens overschrijden.**
     `check-task-grid-paste-performance.ts` meet op Node 22.23.4 in een schone kopie van
     12abaabf2 een mediaan van 3942,1 ms bij de onveranderde grens van 3000 ms (exit 1).
     Dezelfde gerichte meting op F1b geeft 4388,7 ms (exit 1); de eerdere volledige run
     gaf 3894,5 ms. In een volledige run haalt F1b 2804,2 ms (groen). De wisselende
     metingen zijn bevestigd; een oorzaak of regressiegrootte volgt niet uit deze timing. Geen prestatiegrens verruimd en geen productfix buiten F1. — B
-    Nummer botst met 206 van `main` (`.mcpb`-bundel, annulering); hernummeren in de eind-PR.
 
 
 79. **`check-task-grid-performance` (relationIndex-mediaan ≤ 500 ms) zit lokaal op het randje.** Los gedraaid
