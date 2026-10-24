@@ -84,7 +84,9 @@ Claude Code: `claude mcp add --transport http open-planner http://127.0.0.1:3878
   geëxporteerd is, is weg als de server stopt.
 - **Paden.** In de toolbeschrijvingen staat "home folder". In de headless server is dat de werkmap:
   `~/plan.ifc` is `<werkmap>/plan.ifc`. Een absoluut pad moet in de werkmap liggen. Een relatief pad
-  weigert de tool, net als in de app.
+  weigert de tool, net als in de app. UNC-/netwerkpaden en Windows-devicepaden worden expliciet
+  geweigerd: kies een lokale werkmap en een lokaal absoluut bestandspad. De tool zet een netwerkpad
+  nooit om in een lokaal pad.
 - **Instructies.** `initialize.instructions` bevat de vaste instructies van de app plus een korte
   headless uitleg (werkmap, opslaan, geen gebruikersinterface).
 - **Veiligheidsvlaggen.** `--read-only` zet `ui.aiReadOnly`. `paused` blijft altijd `false`: er is

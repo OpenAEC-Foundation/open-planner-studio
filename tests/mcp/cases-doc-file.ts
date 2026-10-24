@@ -9,7 +9,7 @@ import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, r
 import { getTool } from '@/services/mcp/toolRegistry';
 import { handleMcpMessage } from '@/services/mcp/dispatcher';
 import type { McpContext, McpToolResult, McpToolOk, McpToolErr } from '@/services/mcp/contracts';
-import { fileToolDeps, type McpFileFs } from '@/services/mcp/tools/fileTools';
+import { fileToolDeps, normalizeAbsolutePath, checkScope, type McpFileFs } from '@/services/mcp/tools/fileTools';
 import { generateBenchmarkProject } from '@/services/benchmark/generateProject';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { writeCSV } from '@/services/csv/csvWriter';
@@ -559,6 +559,46 @@ test('export_ifc: pad buiten de $HOME-fs-scope ⇒ code SCOPE (ook via ..-traver
 
   const relative = await callErr('planner_export_ifc', { path: 'plan.ifc' });
   assertEq(relative.code, 'SCOPE', 'een relatief pad is niet te scopen ⇒ geweigerd');
+});
+
+test('bestandstools weigeren UNC/devicepaden vóór bestandstoegang (knownbug 213)', async () => {
+  resetToSingleEmptyDocument();
+  loadSmallProject('UNC-weigering');
+  const unsupported = [
+    String.raw`\\server\share\plan.ifc`, '//server/share/plan.ifc',
+    String.raw`\\?\UNC\server\share\plan.ifc`, String.raw`\\?\C:\plan.ifc`,
+    String.raw`\\.\C:\plan.ifc`, '///server/share/plan.ifc',
+  ];
+  for (const path of unsupported) {
+    assertEq(normalizeAbsolutePath(path), null, `geen lokale interpretatie van ${path}`);
+    const scope = checkScope(HOME, path);
+    assert(!scope.ok && scope.reason.includes('not supported'), 'duidelijke niet-ondersteundmelding');
+  }
+  assertEq(normalizeAbsolutePath('/home/tester//sub/../plan.ifc'), '/home/tester/plan.ifc', 'lokaal POSIX blijft werken');
+  assertEq(normalizeAbsolutePath(String.raw`C:\Users\tester\sub\..\plan.ifc`), 'C:/Users/tester/plan.ifc', 'driveletter blijft werken');
+  assert(checkScope('C:/Users/tester', 'c:/users/TESTER/plan.ifc').ok, 'lokale Windows-scope blijft hoofdletterongevoelig');
+
+  for (const [home, path] of [
+    ...unsupported.map(path => [HOME, path]),
+    [String.raw`\\server\share`, '~/plan.ifc'],
+    ['//server/share', '/server/share/plan.ifc'],
+  ]) {
+    const fs = installFakeFs();
+    fs.homeDir = async () => home;
+    let access = 0;
+    const unexpected = async (): Promise<never> => { access++; throw new Error('bestandstoegang vóór scopeweigering'); };
+    fs.exists = unexpected;
+    fs.readFile = unexpected;
+    fs.readTextFile = unexpected;
+    fs.writeTextFile = unexpected;
+    fs.confine = unexpected;
+    for (const tool of ['planner_export_ifc', 'planner_import_schedule']) {
+      const result = await callErr(tool, { path });
+      assertEq(result.code, 'SCOPE', `${tool}: geen verkeerde lokale padinterpretatie`);
+      assert(result.error.includes('not supported'), `${tool}: duidelijke UNC-melding`);
+    }
+    assertEq(access, 0, 'geen fysieke controle, lees- of schrijfactie');
+  }
 });
 
 test('export_ifc: SIBLING-PREFIX-ontsnapping ⇒ SCOPE (de scope-grens loopt op mapniveau)', async () => {

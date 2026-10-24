@@ -104,6 +104,8 @@ export const fileToolDeps: { getFs: () => Promise<McpFileFs> } = { getFs: realFs
  */
 export function normalizeAbsolutePath(input: string): string | null {
   const unified = input.replace(/\\/g, '/');
+  // UNC- en devicepaden mogen niet stil een lokaal POSIX-pad worden (knownbug 213).
+  if (unified.startsWith('//')) return null;
   let root = '';
   let rest: string;
   const drive = /^([A-Za-z]:)\//.exec(unified); // Windows: C:/…
@@ -140,6 +142,13 @@ export function checkScope(home: string, input: string): ScopeCheck {
   const expanded = input === '~' || input.startsWith('~/') || input.startsWith('~\\')
     ? `${home}/${input.slice(2)}`
     : input;
+  if ([expanded, home].some(path => path.replace(/\\/g, '/').startsWith('//'))) {
+    return {
+      ok: false,
+      reason: 'UNC/network and Windows device paths are not supported by the file tools. ' +
+        'Use a local absolute path and a local home/working folder instead; no file was read or written.',
+    };
+  }
   const target = normalizeAbsolutePath(expanded);
   const root = normalizeAbsolutePath(home);
   if (target === null || root === null) {
