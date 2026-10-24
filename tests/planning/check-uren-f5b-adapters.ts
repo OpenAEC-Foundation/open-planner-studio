@@ -24,7 +24,9 @@
 // (12) de vingerafdruk is streng: één afwijking in de vorm, en het bestand leest als vreemd bestand;
 // (13) een `.mpp`-lag met tienden (150,5 min werktijd, 720,5 min kalendertijd) blijft exact door de store, IFC
 //      opslaan en heropenen, MSPDI heen en terug (twee keer) en P6 XML heen en terug (twee keer); review #591
-//      r2, was knownbug 309.
+//      r2, was knownbug 309;
+// (14) een XER-lag van 0,33 u (19,8 min) blijft 19,8 min door de store, IFC opslaan en heropenen, MSPDI en
+//      P6 XML heen en terug; 0,12 u wordt precies 7,2 min, zonder floatruis (review #591 r3, was knownbug 307).
 //
 // Draait via run.sh (esbuild-bundel). Alleen de exitcode telt.
 import './domStub';
@@ -237,25 +239,26 @@ function consRecord(uniqueId: number, pred: number, succ: number, durationUnits:
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // (3) XER: een taak op een dagkalender in de urenmaat
 // ════════════════════════════════════════════════════════════════════════════════════════════════
+// Twee taken op een dagkalender van 8 u en één FS-relatie met 4 u lag. Ook gebruikt in (14).
+const XER_FIXTURE = [
+  'ERMHDR\t23.12\t2026-06-01\t\t\t\t\t\tEUR',
+  '%T\tPROJECT',
+  '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date',
+  '%R\tP1\tF5b\tC1\t2026-06-03',
+  '%T\tCALENDAR',
+  '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+  '%R\tC1\tDagkalender\tP1\tCA_Project\t8\t40\t',
+  '%T\tTASK',
+  '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tstatus_code\tcomplete_pct_type\tcomplete_pct\tphys_complete_pct\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date',
+  '%R\tT1\tP1\tC1\tA\tLopend\tTT_Task\tTK_Active\tCP_Phys\t0\t50\t40\t16\t2026-06-01 08:00\t2026-06-05 16:00\t2026-06-01 08:00',
+  '%R\tT2\tP1\tC1\tB\tVolgend\tTT_Task\tTK_NotStart\tCP_Drtn\t0\t\t16\t16\t2026-06-08 08:00\t2026-06-09 16:00\t',
+  '%T\tTASKPRED',
+  '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+  '%R\tR1\tT2\tT1\tP1\tP1\tPR_FS\t4',
+  '%E',
+].join('\n');
 {
-  const XER = [
-    'ERMHDR\t23.12\t2026-06-01\t\t\t\t\t\tEUR',
-    '%T\tPROJECT',
-    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date',
-    '%R\tP1\tF5b\tC1\t2026-06-03',
-    '%T\tCALENDAR',
-    '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
-    '%R\tC1\tDagkalender\tP1\tCA_Project\t8\t40\t',
-    '%T\tTASK',
-    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tstatus_code\tcomplete_pct_type\tcomplete_pct\tphys_complete_pct\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date',
-    '%R\tT1\tP1\tC1\tA\tLopend\tTT_Task\tTK_Active\tCP_Phys\t0\t50\t40\t16\t2026-06-01 08:00\t2026-06-05 16:00\t2026-06-01 08:00',
-    '%R\tT2\tP1\tC1\tB\tVolgend\tTT_Task\tTK_NotStart\tCP_Drtn\t0\t\t16\t16\t2026-06-08 08:00\t2026-06-09 16:00\t',
-    '%T\tTASKPRED',
-    '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
-    '%R\tR1\tT2\tT1\tP1\tP1\tPR_FS\t4',
-    '%E',
-  ].join('\n');
-  const opened = quiet(() => readXER(new TextEncoder().encode(XER)));
+  const opened = quiet(() => readXER(new TextEncoder().encode(XER_FIXTURE)));
   ok('(3) XER: één document', !isMultiDocumentImport(opened));
   if (!isMultiDocumentImport(opened)) {
     const a = byName(opened, 'Lopend');
@@ -680,6 +683,42 @@ for (const c of LAG_CASES) {
   // Hele minuten krijgen geen record.
   const whole = await openAndRecalc('lag.mpp', { bytes: mppLagBytes(5, 1500) });
   ok('(13) 150 min: geen ExactMinuteLags in IFC', !quiet(() => writeIFC(buildWriteIFCInput(whole))).includes('ExactMinuteLags'));
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// (14) Een XER-lag met een breuk in minuten door de hele route (review #591 r3; was knownbug 307)
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// XER telt een lag in uren als kommagetal. Vóór fixronde 3 werd 0,33 u (19,8 min) 20 min: in de store, na
+// IFC en in MSPDI (`LinkLag` 200).
+{
+  const xerWithLag = (hours: string) => {
+    const text = XER_FIXTURE.replace('PR_FS\t4', `PR_FS\t${hours}`);
+    ok(`(14) opzet: lag ${hours} u in de fixture`, text !== XER_FIXTURE);
+    return new TextEncoder().encode(text);
+  };
+  const lagMinOf = (doc: { sequences: DocumentPayload['sequences'] }) => {
+    const seq = doc.sequences[0];
+    return [doc.sequences.length, seq?.lagMinutes ?? null, seq?.lagUnit ?? null];
+  };
+  const want = [1, 19.8, null];
+  const direct = quiet(() => readXER(xerWithLag('0.33')));
+  if (!isMultiDocumentImport(direct)) eq('(14) XER 0,33 u: readXER', lagMinOf(direct), want);
+  // 0,12 × 60 = 7,199999999999999 in een float; de lezer maakt er 7,2 van.
+  const noise = quiet(() => readXER(xerWithLag('0.12')));
+  if (!isMultiDocumentImport(noise)) eq('(14) XER 0,12 u: precies 7,2 min, zonder floatruis', noise.sequences[0]?.lagMinutes, 7.2);
+  const opened = await openAndRecalc('lag.xer', { bytes: xerWithLag('0.33') });
+  eq('(14) XER 0,33 u: in de store, na Bereken', lagMinOf(opened), want);
+  const ifc = quiet(() => writeIFC(buildWriteIFCInput(opened)));
+  const record = ifc.match(/IFCPROPERTYSINGLEVALUE\('ExactMinuteLags',\$,IFCTEXT\('\{"[^"]+":(\[[^\]]*\])\}'\),\$\)/)?.[1];
+  eq('(14) XER 0,33 u: IFC-record [19.8,20]', record, '[19.8,20]');
+  const reopened = await openAndRecalc('lag.ifc', { text: ifc });
+  eq('(14) XER 0,33 u: IFC opgeslagen, heropend en berekend', lagMinOf(reopened), want);
+  const mspdi = MSPDI.write(reopened);
+  eq('(14) XER 0,33 u: MSPDI LinkLag in tienden', linkLagOf(mspdi), ['198', '7']);
+  eq('(14) XER 0,33 u: MSPDI heropend en berekend', lagMinOf(await openAndRecalc('lag.xml', { text: mspdi })), want);
+  const p6 = P6.write(reopened);
+  eq('(14) XER 0,33 u: P6 XML <Lag> in uren', Number(tagValue(p6, 'Lag')), 0.33);
+  eq('(14) XER 0,33 u: P6 XML heropend en berekend', lagMinOf(await openAndRecalc('lag-p6.xml', { text: p6 })), want);
 }
 
 if (errors.length) {

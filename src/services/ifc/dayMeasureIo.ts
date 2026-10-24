@@ -210,7 +210,8 @@ export function parseExactFloat(raw: unknown): ExactFloatRecords | undefined {
 }
 
 /** `DayMeasureLags` lezen: GlobalId van de relatie → record. Alleen een object telt; een ongeldig record
- *  valt weg. `undefined` = geen geldige bron. */
+ *  valt weg. `undefined` = geen geldige bron. `ExactMinuteLags` heeft dezelfde vorm (twee getallen, nu
+ *  `[exacte minuten, geschreven minuten]`) en gaat door dezelfde parser. */
 export function parseDayMeasureLags(raw: unknown): Map<string, DayMeasureRecord> | undefined {
   const obj = parseJsonObject(raw);
   if (!obj) return undefined;
@@ -220,10 +221,4 @@ export function parseDayMeasureLags(raw: unknown): Map<string, DayMeasureRecord>
     if (guid && record) out.set(guid, record);
   }
   return out;
-}
-
-/** `ExactMinuteLags` lezen: GlobalId van de relatie → `[exacte minuten, hele geschreven minuten]`. Dezelfde vorm
- *  en dezelfde regel als {@link parseDayMeasureLags}. */
-export function parseExactMinuteLags(raw: unknown): Map<string, ExactMinutesRecord> | undefined {
-  return parseDayMeasureLags(raw);
 }

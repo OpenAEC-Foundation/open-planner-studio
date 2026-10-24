@@ -343,17 +343,26 @@ typewijziging. "Fase" verwijst naar §7.
     werktijd per dag wordt 0,3 d 136,8 min, geschreven als `PT2H17M0S`, en dat is terug 0,30044 d (BEVESTIGD,
     §10.5).
   - *IFC (F3):* urenmaat `PT…` (zoals nu). Dagenmaat in hele dagen `P{n}D` (zoals nu). Dagenmaat met een breuk
-    `PT…` = werkdagen × werktijd per dag van de lagkalender, plus het record. Alle records staan in één eigenschap
+    `PT…` = werkdagen × werktijd per dag van de lagkalender, plus het record. Alle dagrecords staan in één eigenschap
     `DayMeasureLags` (naam voorlopig) in de bestaande pset `OPS_Sequences`, als JSON met de GUID van de relatie
     als sleutel, bijvoorbeeld `{"<guid>": [0.5, 240]}`. Die pset en die vorm bestaan al
     (`P6StartAtPredecessorFinishBoundarySequenceGuids`, `writeSequenceMeta`, `ifcWriter.ts:1521-1543`), want een
     `IfcRelSequence` kan geen pset dragen. Er komt geen nieuwe pset. Kalendertijd in hele dagen `P{n}D` met
     `ELAPSEDTIME` (zoals nu); kalendertijd met een breuk `PT…` (dagen × 1440 min) met `ELAPSEDTIME`, plus het
     record. Procentlag `IFCRATIOMEASURE` (zoals nu). Elke relatie zonder geldig record leest de lezer zoals nu.
+  - *IFC, urenmaat met een breuk in minuten (F5b; review #591 r2 en r3):* een `.mpp` telt een lag in tienden van
+    een minuut, en XER en P6 XML in uren als kommagetal (0,33 u = 19,8 min). Het slot `PT…` draagt hele minuten
+    (`minutesToIsoDuration`). Bij een breuk schrijft OPS daarom een minutenrecord `[exacte minuten, geschreven
+    minuten]`, bijvoorbeeld `{"<guid>": [150.5, 151]}`. Dat is hetzelfde record als `ExactMinutes` bij de duur van
+    een urentaak (T14). Het staat in een eigen eigenschap `ExactMinuteLags` in dezelfde pset `OPS_Sequences`, naast
+    `DayMeasureLags`, met de GUID van de relatie als sleutel. Reden voor een eigen eigenschap: in `DayMeasureLags`
+    betekent het eerste getal dagen, dus `[150.5, 151]` zou daar 150,5 dagen zijn. Zelfde leesregel: de exacte
+    minuten tellen alleen als het slot nog precies de geschreven minuten draagt. Anders geldt het slot. Een lag in
+    hele minuten krijgt geen record. v2026.9.0 kent de eigenschap niet en leest het slot (151 min).
   - *Waarom deze vorm:* v2026.9.0 leest `PT4H0M0S` als lag van 240 min en `PT36H0M0S` met `ELAPSEDTIME` als
     2160 kalenderminuten; `OPS_Sequences` kent hij niet (BEVESTIGD, §10.5). Hij leest dus een urenmaat-lag met
-    dezelfde lengte, nooit 5 dagen. Het is de kleinste vorm: een record alleen voor een breuk in dagen; een lag
-    in hele dagen of in uren zegt zijn maat al met de duurvorm.
+    dezelfde lengte, nooit 5 dagen. Het is de kleinste vorm: een record alleen voor een breuk in dagen (of, in de
+    urenmaat, voor een breuk in minuten); een lag in hele dagen of in hele minuten zegt zijn maat al met de duurvorm.
   - *MSPDI en P6 XML (F5a):* de lengte in minuten, zoals nu (dagenmaat: werkdagen × werktijd per dag van de
     lagkalender, I7). Daarnaast de OPS-markering, zoals bij de taak (T15): één tekstveld op de opvolger met het
     record per relatie. MSPDI: een `ExtendedAttribute` naast `OPS_TaskDurationUnit` (`mspdiWriter.ts:43-45`). P6
@@ -364,7 +373,9 @@ typewijziging. "Fase" verwijst naar §7.
     opvolger en type bestaan niet. Dezelfde leesregel: de dagen tellen alleen als `LinkLag` (MSPDI) of `Lag`
     (P6 XML) nog de geschreven minuten draagt. Zonder record, of bij een andere lengte, maakt de lezer een lag in
     urenmaat (T15). Kalendertijd heeft geen markering nodig: `LagFormat` 8 (ed) of 6 (eu) zegt de eenheid, en de
-    lezer rondt niet meer af (I2). Of MSP en P6 zo'n veld bij hun eigen opslaan bewaren, is niet getoetst (geen
+    lezer rondt niet meer af (I2). Een breuk in minuten heeft in MSPDI en P6 XML geen record nodig: `LinkLag` telt
+    in tienden van een minuut en P6 `Lag` in uren als kommagetal. De lezers ronden die niet af op de hele minuut
+    (F5b); alleen de floatruis van uren × 60 valt weg, op een miljoenste minuut. Of MSP en P6 zo'n veld bij hun eigen opslaan bewaren, is niet getoetst (geen
     MSP of P6 op deze machine).
   - *Profielwissel:* de lag verandert niet, alleen de conventie (§3.14). De schrijver bewaart de maat in elk
     profiel; onder het P6-profiel staat in `PT…` precies wat dat profiel rekent.

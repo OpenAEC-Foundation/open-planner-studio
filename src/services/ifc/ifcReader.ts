@@ -30,7 +30,7 @@ import {
   OPS_LEGACY_LITERAL_APP_VERSION, PSET, PER_TASK_PSET_BY_NAME, readDayMeasureDurations, readExactFloat, readExactMinutes, readIfcDate,
 } from './ifcPsets';
 import {
-  DAY_MEASURE_LAGS_PROP, EXACT_MINUTE_LAGS_PROP, parseDayMeasureLags, parseExactMinuteLags, taskMinutesPerDay,
+  DAY_MEASURE_LAGS_PROP, EXACT_MINUTE_LAGS_PROP, parseDayMeasureLags, taskMinutesPerDay,
   wholeFloatDays, type DayMeasureRecord, type ExactMinutesRecord,
 } from './dayMeasureIo';
 import {
@@ -2125,7 +2125,8 @@ function extractSequenceMeta(
         continue;
       }
       if (propName === EXACT_MINUTE_LAGS_PROP) {
-        const records = parseExactMinuteLags(parseTypedValue(prop.args[2] || ''));
+        // Zelfde vorm als `DayMeasureLags` (GlobalId → twee getallen), dus dezelfde parser.
+        const records = parseDayMeasureLags(parseTypedValue(prop.args[2] || ''));
         if (records) acceptedExactMinutes.push(records);
         continue;
       }

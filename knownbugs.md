@@ -605,13 +605,6 @@ en noem het in je rapport of PR-tekst.
      P6-conventies die op `isHourModeCalendar` letten (T11) en vraagt `measure:profiles`. Gelezen in de code
      (F5b). — B
 
-307. **De XER-lezer rondt een lag af op de hele minuut.** `xerReader.ts` leest `lag_hr_cnt` als
-     `Math.round(uren × 60)`. Spec §3.10 vraagt een lag in minuten zonder afronding; MSPDI, P6 XML, IFC en `.mpp`
-     doen dat sinds fixronde 2 van #591. Voorbeeld: `lag_hr_cnt` 0,33 u ⇒ 20 min, niet 19,8 min. Niet
-     meegenomen in #591: de XER-lag stuurt de P6-conventies, en een wijziging vraagt `measure:profiles` (regel A),
-     die op deze machine niet mag draaien. Gelezen in de code; niet gemeten op het corpus. Gevonden in fixronde 2
-     van #591. — S
-
 308. **In een OPS-export zonder lijst beslist de kalender of 08:00 een anker is.** Zo schreven de writers van
      v2026.6.0 tot en met F5a: per kalender een moment of een datum zonder tijd (`XmlTimeRule`,
      `xmlInterchange.ts`). Twee gevallen lezen daardoor anders dan de bron bedoelde, net als vóór F5b:

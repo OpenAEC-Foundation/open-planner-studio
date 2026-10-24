@@ -1282,7 +1282,7 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
       Object.assign(seq, lagFromRecord(record));
     } else {
       // Zonder afronding op de hele minuut (§3.10; review #591 r2): 150,5 min gaat als 2.5083333333333333 u en
-      // komt zo terug. Alleen de floatruis van uren × 60 valt weg (0,1 u ⇒ 6,000000000000001), op een
+      // komt zo terug. Alleen de floatruis van uren × 60 valt weg (0,12 u × 60 = 7,199999999999999 ⇒ 7,2), op een
       // miljoenste minuut.
       seq.lagMinutes = Math.round(lagHours * 60 * 1e6) / 1e6;
     }

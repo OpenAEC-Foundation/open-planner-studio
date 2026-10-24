@@ -1057,7 +1057,10 @@ function readXerProject(
     const successorProjectId = row.cells.proj_id || projectId;
     const predecessorProjectId = row.cells.pred_proj_id || successorProjectId;
     const relationType = relationTypeOf(row.cells.pred_type, row, enumFallbacks);
-    const lagMinutes = Math.round((numberOf(tables, row, 'lag_hr_cnt', 'TASKPRED') ?? 0) * 60);
+    // Zonder afronding op de hele minuut (§3.10; review #591 r3, was knownbug 307): 0,33 u blijft 19,8 min.
+    // Alleen de floatruis van uren × 60 valt weg (0,12 u × 60 = 7,199999999999999 ⇒ 7,2), op een miljoenste minuut,
+    // zoals in de P6 XML-lezer.
+    const lagMinutes = Math.round((numberOf(tables, row, 'lag_hr_cnt', 'TASKPRED') ?? 0) * 60 * 1e6) / 1e6;
     const relationId = row.cells.task_pred_id || `xer-rel:${row.line}`;
     const predecessorLocal = predecessorProjectId === projectId && taskById.has(row.cells.pred_task_id);
     const successorLocal = successorProjectId === projectId && taskById.has(row.cells.task_id);
