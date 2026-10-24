@@ -179,7 +179,7 @@ test('crashherstel: een XER met twee projecten komt terug mét archief, uit éé
   expect(restored.flatMap(doc => doc.tasks)).toContain(RENAMED);
 });
 
-test('crashherstel: oude v1-snapshot herstelt en onleesbare kopie blijft bewaard na nieuwe auto-save', async ({ page, ops }) => {
+test('crashherstel: oude v1-snapshot herstelt en I/O- of parsefoutkopie blijft bewaard na nieuwe auto-save', async ({ page, ops }) => {
   test.setTimeout(90_000);
   // Zelfde herstelroute ook zonder Web Worker (bijvoorbeeld een beperkte webview).
   await page.addInitScript(() => { Object.defineProperty(window, 'Worker', { value: undefined, configurable: true }); });
@@ -189,6 +189,26 @@ test('crashherstel: oude v1-snapshot herstelt en onleesbare kopie blijft bewaard
   // gemaakt met de eigen lezer/writer via de dev-server. Daarna pas de app openen.
   await page.goto('/icon.png');
   const sessionId = 'oude-sessie-v1';
+  // Review #550: oefen readFailures via de ECHTE herstelhook, niet een gekopieerde if/else.
+  // Alleen de backend-leesuitkomst voor de eerste gemengde sessie krijgt een I/O-foutdouble.
+  // IndexedDB, de gezonde IFC, de herstelklik, hold/clear en de volgende auto-save blijven echt.
+  await page.route('**/src/services/recovery/recoveryStore.ts*', async route => {
+    const response = await route.fetch();
+    const body = await response.text();
+    await route.fulfill({ response, body: body + `
+      const realLoadRecoveryForIoTest = loadRecovery;
+      loadRecovery = async () => {
+        const loaded = await realLoadRecoveryForIoTest();
+        if (sessionStorage.getItem('ops-recovery-session') !== 'oude-sessie-v1') return loaded;
+        const unreadable = loaded.docs.find(doc => doc.id === 'doc-corrupt');
+        if (!unreadable) throw new Error('I/O fixture mist doc-corrupt');
+        window.__recoveryIoFailureInjected = true;
+        return { ...loaded, docs: loaded.docs.filter(doc => doc.id !== unreadable.id),
+          readFailures: [...(loaded.readFailures ?? []), { id: unreadable.id, detail: 'Test snapshot read failed' }] };
+      };
+    ` });
+  });
+
   ops.acceptError('Failed to read recovery document: doc-corrupt');
   await page.evaluate(async ({ xer, sid }) => {
     // Paden als variabele: de dev-server (Vite) levert de bronmodules; de testtypecheck kent ze niet.
@@ -234,6 +254,7 @@ test('crashherstel: oude v1-snapshot herstelt en onleesbare kopie blijft bewaard
 
   await page.goto('/');
   await acceptRecovery(page);
+  expect(await page.evaluate(() => (window as unknown as { __recoveryIoFailureInjected?: boolean }).__recoveryIoFailureInjected)).toBe(true);
   await expect.poll(() => openDocuments(page).then(docs => docs.length)).toBe(1);
   const [restored] = await openDocuments(page);
   expect(restored!.project).toContain('HerstelAlfa');
