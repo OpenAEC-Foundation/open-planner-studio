@@ -21,7 +21,7 @@ import {
 import { normalizeImportedProgress, deriveImportedWorkRules, reconstructResourceIds } from '@/services/importNormalize';
 import { flattenOrder } from '@/utils/wbs';
 import { emptyMissingScheduleDates, isoDatePrefixOrToday, parseImportedInstant, resolveMissingScheduleDates } from '@/services/importDates';
-import { childElementNames, directChildText, startsWithNames, toInt, toFloat } from '@/services/xmlDom';
+import { childElementNames, childElements, directChildText, startsWithNames, toInt, toFloat } from '@/services/xmlDom';
 import type { ImportResult, OpenedImport, P6XmlEmptyReason, P6XmlImportReport } from '@/services/importTypes';
 import type { Baseline } from '@/types/baseline';
 import { baselineTasksFromSource } from '@/services/importBaselines';
@@ -328,7 +328,7 @@ function parseP6HolidayOrExceptions(calEl: Element, alwaysLastMinute = false): {
     const startDate = parseP6Date(date);
     const endDate = parseP6Date(finishDate);
     const bands: { start: number; end: number }[] = [];
-    for (const wt of directChildrenByLocalName(hEl, 'WorkTime')) {
+    for (const wt of childElements(hEl, 'WorkTime')) {
       const s = clockToMinutes(getElementText(wt, 'Start'));
       const e = p6FinishClockToMinutes(getElementText(wt, 'Finish'), alwaysLastMinute);
       if (s == null || e == null) continue;
@@ -423,7 +423,7 @@ const LEGACY_OPS_PROJECT_FIELDS = ['ObjectId', 'Id', 'Name', 'Description', 'Pla
  *  (`tests/fixtures/legacyOpsExports.ts`). */
 export function isLegacyOpsP6Xml(root: Element): boolean {
   if (root.localName !== 'APIBusinessObjects') return false;
-  const projects = directChildrenByLocalName(root, 'Project');
+  const projects = childElements(root, 'Project');
   if (projects.length !== 1 || directChildText(projects[0], 'ObjectId') !== '1') return false;
   const fields = childElementNames(projects[0]);
   let next = 0;
@@ -434,17 +434,8 @@ export function isLegacyOpsP6Xml(root: Element): boolean {
   }
   if (!startsWithNames(fields, ['ObjectId', 'Id', 'Name'])
     || !['Description', 'PlannedStartDate', 'Status'].every(field => fields.includes(field))) return false;
-  return directChildrenByLocalName(root, 'Activity').every(act => directChildText(act, 'ProjectObjectId') === '1'
+  return childElements(root, 'Activity').every(act => directChildText(act, 'ProjectObjectId') === '1'
     && startsWithNames(childElementNames(act), ['ObjectId', 'Id', 'Name', 'ProjectObjectId']));
-}
-
-function directChildrenByLocalName(parent: Element, localName: string): Element[] {
-  const results: Element[] = [];
-  for (let i = 0; i < parent.children.length; i++) {
-    const child = parent.children[i];
-    if (child.localName === localName) results.push(child);
-  }
-  return results;
 }
 
 /**
@@ -478,20 +469,20 @@ const PROJECT_OBJECT_TAGS = new Set(['WBS', 'Activity', 'Relationship', 'Resourc
  *  met een `<ProjectObjectId>` van een ANDER project valt weg. */
 function scopedElements(scope: P6XmlScope, localName: string): Element[] {
   const results: Element[] = [];
-  for (const el of directChildrenByLocalName(scope.root, localName)) {
+  for (const el of childElements(scope.root, localName)) {
     const owner = getElementInt(el, 'ProjectObjectId', -1);
     if (owner >= 0 && scope.projectObjectId != null && owner !== scope.projectObjectId) continue;
     if (owner < 0 && !scope.ownsUnassigned && PROJECT_OBJECT_TAGS.has(localName)) continue;
     results.push(el);
   }
-  if (scope.project) results.push(...directChildrenByLocalName(scope.project, localName));
+  if (scope.project) results.push(...childElements(scope.project, localName));
   return results;
 }
 
 function scopeOf(root: Element, project: Element | null): P6XmlScope {
   const objId = project ? getElementInt(project, 'ObjectId', -1) : -1;
   const ownsUnassigned = !project
-    || (project.localName === 'Project' && directChildrenByLocalName(root, 'Project').length === 1);
+    || (project.localName === 'Project' && childElements(root, 'Project').length === 1);
   return { root, project, projectObjectId: objId >= 0 ? objId : null, ownsUnassigned };
 }
 
@@ -527,13 +518,13 @@ interface P6XmlProjectRead {
  */
 function emptyReasonOf(root: Element): P6XmlEmptyReason {
   const activities: Element[] = [];
-  for (const project of directChildrenByLocalName(root, 'Project')) {
-    activities.push(...directChildrenByLocalName(project, 'Activity'));
+  for (const project of childElements(root, 'Project')) {
+    activities.push(...childElements(project, 'Activity'));
   }
-  activities.push(...directChildrenByLocalName(root, 'Activity'));
+  activities.push(...childElements(root, 'Activity'));
   if (activities.length === 0) return 'no-activities';
-  if (activities.some(el => directChildrenByLocalName(el, 'task_code').length > 0
-    || directChildrenByLocalName(el, 'task_name').length > 0)) return 'xer-columns';
+  if (activities.some(el => childElements(el, 'task_code').length > 0
+    || childElements(el, 'task_name').length > 0)) return 'xer-columns';
   return 'no-object-ids';
 }
 
@@ -575,12 +566,12 @@ function leafCount(result: ImportResult): number {
 /** Alle documenten van het bestand, in bestandsvolgorde, elk met baselines en hetzelfde verslag. */
 function readAllP6XmlProjects(content: string, throwWhenEmpty = false): ImportResult[] {
   const root = parseP6XmlDocument(content);
-  const projects = directChildrenByLocalName(root, 'Project');
+  const projects = childElements(root, 'Project');
   const nonEmpty = projects.map(project => scopeOf(root, project)).filter(hasActivities);
   const scopes = nonEmpty.length > 0 ? nonEmpty : [scopeOf(root, projects[0] ?? null)];
   const reads = scopes.map(readP6XmlProject);
 
-  const baselineElements = directChildrenByLocalName(root, 'BaselineProject');
+  const baselineElements = childElements(root, 'BaselineProject');
   let baselinesMaterialized = 0;
   // Losse baselineverwijzingen (zoals XER `danglingBaselineReferences`): een `<BaselineProject>` waarvan
   // de eigenaar niet als document opent (niet in het bestand, of leeg), en een
@@ -606,7 +597,7 @@ function readAllP6XmlProjects(content: string, throwWhenEmpty = false): ImportRe
   // Platte activiteiten zonder `ProjectObjectId` in een bestand met meerdere projecten: bij geen
   // enkel project ingelezen (`P6XmlScope.ownsUnassigned`), wel geteld.
   const unassignedActivities = projects.length > 1
-    ? directChildrenByLocalName(root, 'Activity').filter(el => getElementInt(el, 'ProjectObjectId', -1) < 0).length
+    ? childElements(root, 'Activity').filter(el => getElementInt(el, 'ProjectObjectId', -1) < 0).length
     : 0;
 
   const crossProjectRelations = new Set(reads.flatMap(read => [...read.crossProjectRelations]));
@@ -669,7 +660,7 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
   // alleen voor de tijdregel, niet voor de andere keuzes van `writtenByOps`.
   const timeRule = xmlTimeRule(writtenByOps || isLegacyOpsP6Xml(scope.root), literalCalendarUdfIds.size > 0);
   const literalCalendarUdf = scope.project && literalCalendarUdfIds.size > 0
-    ? directChildrenByLocalName(scope.project, 'UDF').find(el => literalCalendarUdfIds.has(getElementInt(el, 'TypeObjectId', -1)))
+    ? childElements(scope.project, 'UDF').find(el => literalCalendarUdfIds.has(getElementInt(el, 'TypeObjectId', -1)))
     : undefined;
   const literalCalendarObjIds = literalCalendarUdf ? parseLiteralCalendars(getElementText(literalCalendarUdf, 'TextValue')) : null;
   // De maatrecords (T21, T14; `xmlDayMeasure.ts`): Activity-Text-UDF's met een OPS-titel. De definitie van
@@ -799,7 +790,7 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
     .map(el => getElementInt(el, 'ObjectId', -1))
     .filter(objectId => objectId >= 0));
   const lagCalendarUdf = scope.project && lagCalendarUdfIds.size > 0
-    ? directChildrenByLocalName(scope.project, 'UDF').find(el => lagCalendarUdfIds.has(getElementInt(el, 'TypeObjectId', -1)))
+    ? childElements(scope.project, 'UDF').find(el => lagCalendarUdfIds.has(getElementInt(el, 'TypeObjectId', -1)))
     : undefined;
   const lagCalendarOption = lagCalendarUdf ? parseLagCalendarOption(getElementText(lagCalendarUdf, 'TextValue')) : undefined;
   if (lagCalendarOption) project.schedulingOptions = { ...project.schedulingOptions, lagCalendar: lagCalendarOption };
@@ -905,7 +896,7 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
   }
   for (const actEl of activityElements) {
     const activityObjId = getElementInt(actEl, 'ObjectId', -1);
-    for (const udf of directChildrenByLocalName(actEl, 'UDF')) {
+    for (const udf of childElements(actEl, 'UDF')) {
       udfEntries.push({ activityObjId, typeObjId: getElementInt(udf, 'TypeObjectId', -1), text: getElementText(udf, 'TextValue') });
     }
   }
@@ -1290,7 +1281,10 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
     if (lagRecordHolds(record, lagHours * 60, lagWorkMinutesPerDay(seq, lagCalendarOption, calendar, effCalByTaskId))) {
       Object.assign(seq, lagFromRecord(record));
     } else {
-      seq.lagMinutes = Math.round(lagHours * 60);
+      // Zonder afronding op de hele minuut (§3.10; review #591 r2): 150,5 min gaat als 2.5083333333333333 u en
+      // komt zo terug. Alleen de floatruis van uren × 60 valt weg (0,1 u ⇒ 6,000000000000001), op een
+      // miljoenste minuut.
+      seq.lagMinutes = Math.round(lagHours * 60 * 1e6) / 1e6;
     }
     sequences.push(seq);
   }

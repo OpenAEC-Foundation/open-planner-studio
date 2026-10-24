@@ -84,8 +84,8 @@ const CONS_FIXED_DATA_ITEM_SIZE = 20;
  *  - WORKTIME: de urenmaat, `lagMinutes` = `rawLag / 10`, voor elke opvolger: een `.mpp` draagt geen
  *    OPS-markering voor een lag in de dagenmaat (T15). Vroeger kreeg een opvolger op een dagkalender hele
  *    werkdagen op de projectbrede `hoursPerDay`.
- *  Tienden van een minuut blijven staan (§3.10, review #591 r1, punt 3). Grens: IFC en de MSPDI-lezer dragen
- *  een lag op de hele minuut (knownbug 309); de MSPDI-writer schrijft wel tienden.
+ *  Tienden van een minuut blijven staan (§3.10, review #591 r1, punt 3), ook na opslaan en exporteren (r2): IFC
+ *  met het record `ExactMinuteLags`, MSPDI in `LinkLag` (tienden), P6 XML in de uren van `<Lag>`.
  *
  * ⚠️ Dekkingsvoorbehoud: het corpus draagt alleen FINISH_START-relaties met lag=0 — de typetabel
  * (`mspTypeToSequenceType`) en alle lag-takken worden alleen door de synthetische fixtures in

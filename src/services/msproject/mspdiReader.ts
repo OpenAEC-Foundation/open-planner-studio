@@ -748,7 +748,9 @@ export function readMSPDI(content: string): ImportResult {
       lagWorkMinutesPerDay(seq, lagCalendarOption, calendar, effCalByTaskId))) {
       Object.assign(seq, lagFromRecord(link.record));
     } else {
-      seq.lagMinutes = Math.round(link.lag / 10);
+      // Tienden van een minuut blijven staan (§3.10 "lag in minuten zonder afronding"; review #591 r2): de
+      // writer schrijft `LinkLag` = minuten × 10, dus 150,5 min gaat als 1505 en komt zo terug.
+      seq.lagMinutes = link.lag / 10;
       if (ELAPSED_DURATION_FORMATS.has(link.lagFormat)) seq.lagUnit = 'ELAPSEDTIME';
     }
     sequences.push(seq);

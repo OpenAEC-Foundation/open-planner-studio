@@ -21,7 +21,10 @@
 // (10) een onleesbare lijst: de tijden blijven echt; de promotie volgt het tijdsignaal;
 // (11) een OPS-export van v2026.7.0 en v2026.8.1 (geen markering), uit hun ECHTE writers: herkend aan de
 //      vingerafdruk, 08:00 is het anker; een voltooide dagtaak eindigt om 16:00, door de hele route (punt 2);
-// (12) de vingerafdruk is streng: één afwijking in de vorm, en het bestand leest als vreemd bestand.
+// (12) de vingerafdruk is streng: één afwijking in de vorm, en het bestand leest als vreemd bestand;
+// (13) een `.mpp`-lag met tienden (150,5 min werktijd, 720,5 min kalendertijd) blijft exact door de store, IFC
+//      opslaan en heropenen, MSPDI heen en terug (twee keer) en P6 XML heen en terug (twee keer); review #591
+//      r2, was knownbug 309.
 //
 // Draait via run.sh (esbuild-bundel). Alleen de exitcode telt.
 import './domStub';
@@ -578,6 +581,105 @@ for (const { label, fmt, xml, statusDate } of SOURCES_PUNT2) {
     ok(`(12) ${fmt.name}: de basis en v2026.10.0 ook niet (die hebben de markering)`,
       !legacy(fmt, fmt === MSPDI ? F5A_BASE_MSPDI : F5A_BASE_P6) && !legacy(fmt, fmt === MSPDI ? V2026_10_0_MSPDI : V2026_10_0_P6));
   }
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// (13) Een lag met tienden van een minuut door de hele route (review #591 r2; was knownbug 309)
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// Twee taken (UID 10 en 11) en één FS-relatie in TBkndCons, MPP14, zoals de probe van de review. De lag staat
+// in tienden van een minuut. Vóór fixronde 2 werd 150,5 min na IFC opslaan en na MSPDI heropenen 151 min.
+function mppLagBytes(unitCode: number, rawLag: number): Uint8Array {
+  const text = (s: string) => {
+    const out = new Uint8Array((s.length + 1) * 2);
+    const view = new DataView(out.buffer);
+    for (let i = 0; i < s.length; i++) view.setUint16(i * 2, s.charCodeAt(i), true);
+    return out;
+  };
+  const int32 = (v: number) => { const o = new Uint8Array(4); new DataView(o.buffer).setInt32(0, v, true); return o; };
+  const props = encodePropsEntries([
+    { key: 37748738, data: mppTimestampBytes(0, 15493) },
+    { key: 37748739, data: mppTimestampBytes(0, 15523) },
+    { key: 37748765, data: int32(480) },
+    { key: 37748744, data: text('Lag') },
+  ]);
+  const data = new Uint8Array(260);
+  for (let n = 0; n < 2; n++) {
+    const r = new DataView(data.buffer, n * 130, 130);
+    r.setInt32(0, 10 + n, true); r.setInt32(4, 1 + n, true); r.setInt16(40, 1, true);
+    r.setInt32(42, 4800, true); r.setInt16(46, 0, true); r.setInt32(52, 4800, true); r.setInt16(56, 0, true);
+    r.setUint16(64, 4800, true); r.setUint16(66, 15493 + n, true); r.setUint16(68, 9600, true); r.setUint16(70, 15493 + n, true);
+    r.setInt32(118, -1, true);
+  }
+  const meta = new Uint8Array(16 + 5 * 47);
+  const mv = new DataView(meta.buffer);
+  mv.setUint32(0, 0xfadfadba, true); mv.setInt32(8, 5, true); mv.setInt32(16 + 4 * 47 + 4, 130, true);
+  const names = ['A', 'B'].map(text);
+  const varData = new Uint8Array(names.reduce((n, a) => n + 4 + a.length, 0));
+  const entries: { uniqueId: number; offset: number; type: number }[] = [];
+  let pos = 0;
+  names.forEach((name, n) => {
+    new DataView(varData.buffer).setInt32(pos, name.length, true);
+    varData.set(name, pos + 4);
+    entries.push({ uniqueId: 10 + n, offset: pos, type: 14 });
+    pos += 4 + name.length;
+  });
+  return buildNestedCfb({
+    '\x01CompObj': { data: encodeCompObjFileFormat('MSProject.MPP14') },
+    Props14: { data: encodePropsSingleByteEntry(893386752, 0) },
+    '   114': {
+      children: {
+        Props: { data: props },
+        TBkndTask: { children: { FixedMeta: { data: meta }, FixedData: { data }, VarMeta: { data: buildVarMetaBytes(entries) }, Var2Data: { data: varData } } },
+        TBkndCons: { children: { FixedMeta: { data: consMeta(1) }, FixedData: { data: consRecord(100, 10, 11, unitCode, rawLag) } } },
+      },
+    },
+  });
+}
+const LAG_CASES = [
+  { label: '150,5 min werktijd', unit: 5, raw: 1505, minutes: 150.5, lagUnit: null, lagFormat: '7' },
+  { label: '720,5 min kalendertijd', unit: 6, raw: 7205, minutes: 720.5, lagUnit: 'ELAPSEDTIME', lagFormat: '6' },
+];
+const lagOf = (doc: DocumentPayload) => {
+  const seq = doc.sequences[0];
+  return [doc.sequences.length, seq?.lagDays, seq?.lagMinutes ?? null, seq?.lagUnit ?? null];
+};
+const linkLagOf = (xml: string) => [tagValue(xml, 'LinkLag'), tagValue(xml, 'LagFormat')];
+for (const c of LAG_CASES) {
+  const want = [1, 0, c.minutes, c.lagUnit];
+  const opened = await openAndRecalc('lag.mpp', { bytes: mppLagBytes(c.unit, c.raw) });
+  eq(`(13) ${c.label}: .mpp in de store, na Bereken`, lagOf(opened), want);
+  // IFC: het slot draagt hele minuten, het record de breuk.
+  const ifc = quiet(() => writeIFC(buildWriteIFCInput(opened)));
+  const record = ifc.match(/IFCPROPERTYSINGLEVALUE\('ExactMinuteLags',\$,IFCTEXT\('\{"[^"]+":(\[[^\]]*\])\}'\),\$\)/)?.[1];
+  eq(`(13) ${c.label}: IFC-record [exacte minuten, geschreven minuten]`, record, `[${c.minutes},${Math.round(c.minutes)}]`);
+  const reopened = await openAndRecalc('lag.ifc', { text: ifc });
+  eq(`(13) ${c.label}: IFC opgeslagen, heropend en berekend`, lagOf(reopened), want);
+  // Leesregel: wijzigde een ander programma de lengte in het slot, dan telt het record niet.
+  const slot = ifc.match(/IFCLAGTIME\('Lag',\.PREDICTED\.,\$,IFCDURATION\('-?PT[^']*'\)/)?.[0];
+  ok(`(13) ${c.label}: opzet, het lagslot gevonden`, slot !== undefined);
+  const changed = await openAndRecalc('lag-gewijzigd.ifc',
+    { text: ifc.replace(slot ?? '', "IFCLAGTIME('Lag',.PREDICTED.,$,IFCDURATION('PT3H0M0S')") });
+  eq(`(13) ${c.label}: IFC met een ander slot ⇒ het slot geldt (180 min)`, changed.sequences[0]?.lagMinutes, 180);
+  // MSPDI: twee keer heen en terug.
+  const mspdi1 = MSPDI.write(reopened);
+  eq(`(13) ${c.label}: MSPDI LinkLag in tienden`, linkLagOf(mspdi1), [String(c.raw), c.lagFormat]);
+  const m1 = await openAndRecalc('lag.xml', { text: mspdi1 });
+  eq(`(13) ${c.label}: MSPDI heropend en berekend`, lagOf(m1), want);
+  const mspdi2 = MSPDI.write(m1);
+  eq(`(13) ${c.label}: tweede MSPDI-export dezelfde LinkLag`, linkLagOf(mspdi2), [String(c.raw), c.lagFormat]);
+  eq(`(13) ${c.label}: tweede MSPDI-export heropend`, lagOf(await openAndRecalc('lag-2.xml', { text: mspdi2 })), want);
+  // P6 XML: twee keer heen en terug.
+  const p6a = P6.write(reopened);
+  const p1 = await openAndRecalc('lag-p6.xml', { text: p6a });
+  eq(`(13) ${c.label}: P6 XML heropend en berekend`, lagOf(p1), want);
+  const p6b = P6.write(p1);
+  eq(`(13) ${c.label}: tweede P6-export dezelfde <Lag>`, tagValue(p6b, 'Lag'), tagValue(p6a, 'Lag'));
+  eq(`(13) ${c.label}: tweede P6-export heropend`, lagOf(await openAndRecalc('lag-p6-2.xml', { text: p6b })), want);
+}
+{
+  // Hele minuten krijgen geen record.
+  const whole = await openAndRecalc('lag.mpp', { bytes: mppLagBytes(5, 1500) });
+  ok('(13) 150 min: geen ExactMinuteLags in IFC', !quiet(() => writeIFC(buildWriteIFCInput(whole))).includes('ExactMinuteLags'));
 }
 
 if (errors.length) {
