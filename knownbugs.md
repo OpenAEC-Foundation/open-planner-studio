@@ -125,7 +125,7 @@ en noem het in je rapport of PR-tekst.
 76. **Nog Nederlandse tekst die via MCP bij de agent kan komen, buiten de vertaalde MCP-laag.** De
     solverfouten uit `scheduleErrorLegacyText` (`CPMSolver.ts:~339`, bv. "Kalender heeft geen werkdagen
     ingesteld"; MCP én extensies lezen die letterlijk), en meldingen uit gedeelde importcode die
-    `import_schedule` doorgeeft (bv. `formatRegistry.ts:~99` "Onbekend XML-formaat…", `xerSourceArchive.ts`,
+    `import_schedule` doorgeeft (bv. `xerSourceArchive.ts`,
     `libraryOps.ts`). Of elk importpad werkelijk bij de agent uitkomt is afgeleid, niet nagespeeld. (De fout
     van `planner_get_planning_guide` is sinds de Engelse agentgids Engels.) — S (solver: B)
 78. **`planner_level_resources` meldt in "datums zoals opgeslagen" verschuivingen die geen nivellering zijn.**

@@ -68,6 +68,7 @@
     "importDatesAsRecorded_other": "{{count}} taken tonen de datums zoals ze in het bestand staan (niet herberekend).",
     "xerExportLoss": "Bij export naar {{format}} gaat XER-broninformatie verloren.",
     "mppLegacy": "Dit .mpp-bestand gebruikt een oud formaat (Project 2007 of ouder). Exporteer het in MS Project als XML (Bestand → Opslaan als → XML) en open dat bestand.",
+    "xmlUnknownSchedule": "Onbekend XML-planningsformaat. Open een MS Project-XML (Project) of Primavera P6-XML (APIBusinessObjects).",
     "mppEncrypted": "Dit .mpp-bestand is met een wachtwoord beveiligd. Exporteer het in MS Project als XML (Bestand → Opslaan als → XML) en open dat bestand.",
     "saveFailed": "Opslaan mislukt",
     "ambiguousThousands": "\"{{text}}\" is dubbelzinnig: bedoel je een decimaal getal of duizendtallen? Typ decimalen met \"{{separator}}\" (1{{separator}}5) en duizendtallen zonder scheidingsteken (1500). De waarde is niet gewijzigd.",
