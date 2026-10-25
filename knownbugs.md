@@ -313,8 +313,6 @@ en noem het in je rapport of PR-tekst.
 
 ## Rondleiding, Help en extensie-gidsen
 
-62. **Melding schuift over de knoppen van het begeleidingspaneel** (1600×950, venster Baselines open):
-    `toastPlacement.ts` houdt geen rekening met het paneel. — B (gezien), oorzaak afgeleid
 68. **Een gidsstap die eenmaal "gedaan" is, blijft gedaan**, ook na wisselen naar een leeg project. Gezien bij
     tutorial 6 stap 8; niet uitgezocht of dat bedoeld is. — S
 
