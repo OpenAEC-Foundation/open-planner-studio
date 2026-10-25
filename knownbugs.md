@@ -447,6 +447,13 @@ en noem het in je rapport of PR-tekst.
     vergelijk de volledige tekst van `.ops-toast-message` exact; laat de taaknamen apart gecontroleerd.
     Geen fout in de huidige producttelling aangetoond. — B
 
+224. **RTL-balksleeptest faalt incidenteel zonder aangetoonde oorzaak.** In PR #635 op
+    `3ca78f26234ddfed8e6fd4341a8f9e0ee44ec66a`, run 40157918525 poging 1, bleef bij
+    `gantt-drag-undo.spec.ts:313` de taakvolgorde na balkslepen ongewijzigd, terwijl de voorafgaande
+    rijsleep wel verplaatste. Dezelfde head slaagde in poging 2 zonder codewijziging; ook de eerdere
+    PR-head was groen. Screenshot/trace: artefact 12585687942. Geen Gantt-code in deze PR gewijzigd;
+    timing-/geometrieoorzaak en productreproduceerbaarheid nog niet vastgesteld. — S
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen en de selectie niet lezen.
