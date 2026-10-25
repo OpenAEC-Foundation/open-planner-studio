@@ -344,11 +344,11 @@ function scheduleErrorLegacyText(info: ScheduleErrorInfo): string {
   const name = info.taskName ?? '';
   switch (info.code) {
     case 'cycle': return `Circular dependency detected: ${(info.cycleNames ?? []).join(' -> ')}`;
-    case 'noWorkingDays': return 'Kalender heeft geen werkdagen ingesteld';
-    case 'invalidDayDuration': return `Ongeldige dagduur voor taak "${name}"`;
-    case 'invalidHourDuration': return `Ongeldige urenduur voor taak "${name}"`;
-    case 'hourTaskWithoutWorkHours': return `Uurtaak "${name}" heeft geen geldige werktijden in zijn kalender`;
-    case 'invalidStartDate': return `Ongeldige startdatum voor taak "${name}"`;
+    case 'noWorkingDays': return 'Calendar has no working days configured';
+    case 'invalidDayDuration': return `Invalid day duration for task "${name}"`;
+    case 'invalidHourDuration': return `Invalid hour duration for task "${name}"`;
+    case 'hourTaskWithoutWorkHours': return `Hour-based task "${name}" has no valid working hours in its calendar`;
+    case 'invalidStartDate': return `Invalid start date for task "${name}"`;
   }
 }
 

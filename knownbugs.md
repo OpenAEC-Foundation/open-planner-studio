@@ -122,12 +122,11 @@ en noem het in je rapport of PR-tekst.
     *Nu backup maken* zet de rauwe foutmelding (`backup.ts` `makeManualBackup`, Nederlands) in
     `aiSafety.backupErr`. Voorstel: in het paneel de foutcode (`code`) via `t(...)` tonen en de ruwe tekst
     als detail. — B
-76. **Nog Nederlandse tekst die via MCP bij de agent kan komen, buiten de vertaalde MCP-laag.** De
-    solverfouten uit `scheduleErrorLegacyText` (`CPMSolver.ts:~339`, bv. "Kalender heeft geen werkdagen
-    ingesteld"; MCP én extensies lezen die letterlijk), en meldingen uit gedeelde importcode die
-    `import_schedule` doorgeeft (bv. `formatRegistry.ts:~99` "Onbekend XML-formaat…", `xerSourceArchive.ts`,
-    `libraryOps.ts`). Of elk importpad werkelijk bij de agent uitkomt is afgeleid, niet nagespeeld. (De fout
-    van `planner_get_planning_guide` is sinds de Engelse agentgids Engels.) — S (solver: B)
+76. **Nog Nederlandse importtekst die via MCP bij de agent kan komen, buiten de vertaalde MCP-laag.**
+    Meldingen uit gedeelde importcode die `import_schedule` doorgeeft (bv. `formatRegistry.ts:~99`
+    "Onbekend XML-formaat…", `xerSourceArchive.ts`, `libraryOps.ts`). Of elk importpad werkelijk bij de
+    agent uitkomt is afgeleid, niet nagespeeld. De solverfouten zijn inmiddels Engels; de UI blijft ze
+    via code en parameters vertalen. — S
 78. **`planner_level_resources` meldt in "datums zoals opgeslagen" verschuivingen die geen nivellering zijn.**
     De preview rekent tegen een verse solve, niet tegen de opgeslagen datums. Nagespeeld met de fixture
     `tests/fixtures/recordedDatesIfc.ts` (geen resources), zonder `dryRun`: `delays: {}`, de modus blijft aan en
