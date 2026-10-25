@@ -50,6 +50,10 @@ test('document-plus kiest eerst nieuw of bestaand; annuleren verandert geen docu
     await open('invalid', 'planning.mpp');
     const toast = page.locator('.ops-toast').filter({ hasText: message });
     await expect(toast.locator('.ops-toast-message')).toHaveText(message);
+    await expect.poll(() => page.evaluate(() => {
+      const notice = window.__OPS__!.store.getState().ui.notifications.find(n => n.messageKey === 'notifications.mppInvalidContainer');
+      return notice && { severity: notice.severity, refusal: notice.refusal ?? false };
+    })).toEqual({ severity: 'error', refusal: false });
     await expect(toast.locator('.ops-toast-detail')).toHaveText('CFB: file too small for a valid header (7 bytes, minimum 512)');
     expect((await state(page)).documentIds).toEqual(before.documentIds);
     expect((await state(page)).tasks).toEqual(before.tasks);
