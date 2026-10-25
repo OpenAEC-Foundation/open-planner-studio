@@ -450,7 +450,7 @@ en noem het in je rapport of PR-tekst.
 
 ## Wensen en open taken (geen bug)
 
-45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen en de selectie niet lezen.
+45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
     `updateSequence`/`updateCalendar` zou de tutorials eenvoudiger maken. Ook een alleen-lezen
     `api.settings.getApp(key)`: tutorial 4 leest nu `localStorage['ops-enableHourPlanning']`. — B
 49. **Release-notes, volgende release**: een nieuw MS Project-project rekent de speling nu *Automatisch*
