@@ -41,9 +41,9 @@ export function useDemoStartExample(recoveryResolved: boolean, recovery: Recover
         const res = await fetch(`${import.meta.env.BASE_URL}examples/${example.file}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const content = await res.text();
-        // Bewust GEEN `applyDemoLibraryToShowcaseProject`: `bindProjectToCompany` zet `isDirty`, en een
-        // document dat de bezoeker niet aanraakte mag niet als niet-opgeslagen werk gelden (auto-save
-        // zou na 10 s een snapshot maken, en elke herlaad toonde dan de herstel-dialoog).
+        // Demo-start blijft zonder bibliotheek-koppeling; alleen expliciet geopende showcase-
+        // voorbeelden gebruiken `applyDemoLibraryToShowcaseProject`. De laadroute blijft schoon:
+        // een document dat de bezoeker niet aanraakte is geen niet-opgeslagen gebruikerswerk.
         await useAppStore.getState().openExampleFromString(content, example.name, buildImportLabels(t));
       } catch (err) {
         console.error('[Demo-start] Voorbeeldplanning laden mislukt:', err);
