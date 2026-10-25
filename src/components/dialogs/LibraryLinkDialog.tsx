@@ -13,7 +13,7 @@ import { LIBRARY_LINK_HELP_ARTICLE_ID } from '@/state/helpArticles';
  * bij een koppelmoment. "Later beslissen" sluit het scherm; markeringen blijven; heropbaar via de
  * Projectweergave.
  *
- * NB (verplicht): ELKE uitgang (backdrop-klik, Escape, X, "Later beslissen") loopt
+ * NB (verplicht): ELKE uitgang (Escape, X, "Later beslissen") loopt
  * door dezelfde `close()` die `showLibraryLinkDialog` op false zet. Data komt live uit de store (geen
  * transient payload) — een openFile naar een ander document terwijl dit scherm openstaat laat dus geen
  * stale inhoud achter (de document-/bibliotheekgrenzen resetten de vlag zelf, zie librarySlice/documentSlice).
@@ -61,7 +61,6 @@ export function LibraryLinkDialog() {
 
   return (
     <Dialog
-      onBackdropClick={close}
       onCancel={close}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[640px] max-h-[88vh] flex flex-col overflow-hidden"
       panelProps={{ 'data-ops-library-link-dialog': true }}

@@ -83,6 +83,9 @@ test('afwijkingenscherm: "Bibliotheekwaarden gebruiken" op een kalender laat Vas
     return { resourceId: resource.id, poolId, maxUnits: resource.maxUnits };
   }, companyId);
   await expect(resourcePicker).toBeEnabled();
+  // Een dialoog met invoer sluit niet via de backdrop (de gedeelde dialoogregel).
+  await page.mouse.click(5, 100);
+  await expect(dialog).toBeVisible();
   await resourcePicker.click();
   await expect(page.getByRole('option', { name: 'Handmatige ploeg', exact: true })).toBeVisible();
   await expect(page.getByRole('option')).toHaveCount(1); // Geen kalender als resourcekeuze.
