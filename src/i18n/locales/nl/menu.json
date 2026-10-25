@@ -300,6 +300,7 @@
     "recentTitle": "Recente projecten",
     "recentSubtitle": "Klik om te openen.",
     "recentEmpty": "Nog geen recent geopende projecten.",
+    "recentUnavailable": "Deze browser kan eerder geopende lokale bestanden niet opnieuw openen vanuit Recent. Gebruik Openen om je projectbestand opnieuw te kiezen.",
     "recentOnSite": "Op de site",
     "examples": "Voorbeelden",
     "examplesTitle": "Voorbeeldprojecten",
