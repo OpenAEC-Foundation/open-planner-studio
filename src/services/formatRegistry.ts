@@ -232,6 +232,7 @@ export function importErrorMessageKey(
   | 'notifications.openFailed'
   | 'notifications.mppEncrypted'
   | 'notifications.mppLegacy'
+  | 'notifications.mppInvalidContainer'
   | 'notifications.xerInvalidInput'
   | 'notifications.xerInvalidFile'
   | 'notifications.xerInvalidEncoding'
@@ -246,7 +247,8 @@ export function importErrorMessageKey(
   | 'notifications.xerDuplicateId'
   | 'notifications.xerAmbiguousLocalRelation'
   | 'notifications.xerDanglingLocalRelation' {
-  const typed = err as { mppCode?: string; xerCode?: string } | null | undefined;
+  const typed = err as { mppCode?: string; xerCode?: string; cfbCode?: string } | null | undefined;
+  if (typed?.cfbCode === 'CFB_INVALID') return 'notifications.mppInvalidContainer';
   if (typed?.mppCode === 'MPP_ENCRYPTED') return 'notifications.mppEncrypted';
   if (typed?.mppCode === 'MPP_LEGACY') return 'notifications.mppLegacy';
   const xerKeys = {

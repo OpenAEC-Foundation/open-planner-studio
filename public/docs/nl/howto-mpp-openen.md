@@ -38,7 +38,7 @@ Een WBS-code die je zelf in MS Project invulde, neemt de app wel over; anders nu
 
 **Een bestand met wachtwoord.** De app meldt: *Dit .mpp-bestand is met een wachtwoord beveiligd. Exporteer het in MS Project als XML (Bestand → Opslaan als → XML) en open dat bestand.* Ook hier staat achter de melding een technische reden in het Engels.
 
-**Een bestand dat geen `.mpp` blijkt.** Je krijgt *Bestand openen mislukt*, met een technische reden erbij.
+**Een ongeldige bestandsstructuur.** Kan de CFB-container van het MPP-bestand niet worden gelezen, dan meldt de app dat de bestandsstructuur ongeldig is. De uitleg staat in de gekozen interfacetaal, met daaronder een technische CFB-diagnose in het Engels. Andere onherkenbare bestanden kunnen nog *Bestand openen mislukt* geven.
 
 **De XML-route rekent anders.** Open je de MS Project XML-export in plaats van het `.mpp`, dan rekent de app met het rekenprofiel *Open Planner Studio* en zie je de melding over *Microsoft Project* niet. De datums kunnen dan anders uitkomen dan bij het `.mpp`-bestand. Ook bij de XML-export zegt de app wat ze niet overneemt; zie *Niet alles komt mee*.
 

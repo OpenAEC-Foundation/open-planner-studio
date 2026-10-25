@@ -252,6 +252,7 @@ export type NotificationMessageKey =
   | 'notifications.phaseRefusedDuplicateResource'
   | 'notifications.phaseQuestionOutdated'
   | 'notifications.mppLegacy'
+  | 'notifications.mppInvalidContainer'
   | 'notifications.mppEncrypted'
   | 'notifications.xerInvalidInput'
   | 'notifications.xerInvalidFile'
