@@ -721,6 +721,7 @@
     "import": "Import",
     "backupHint": "Exporting is also your backup: keep the file somewhere safe.",
     "calendars": "Calendars",
+    "removeCalendarConfirm": "Remove calendar “{{name}}” from the resource library? This cannot be undone. Existing project copies are kept.",
     "noCalendars": "No calendars in the pool yet.",
     "noResources": "No resources in the pool yet.",
     "promoteHint": "Promote a project calendar to the library with the “+ From project” button above.",

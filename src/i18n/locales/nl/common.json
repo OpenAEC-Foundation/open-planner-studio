@@ -721,6 +721,7 @@
     "import": "Importeren",
     "backupHint": "Exporteren is tevens je back-up: bewaar het bestand op een veilige plek.",
     "calendars": "Kalenders",
+    "removeCalendarConfirm": "Kalender “{{name}}” uit de resourcebibliotheek verwijderen? Dit kan niet ongedaan worden gemaakt. Bestaande projectkopieën blijven behouden.",
     "noCalendars": "Nog geen kalenders in de pool.",
     "noResources": "Nog geen resources in de pool.",
     "promoteHint": "Promoveer een projectkalender naar de bibliotheek met de knop “+ Uit project” hierboven.",
