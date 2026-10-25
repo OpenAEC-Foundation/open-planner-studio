@@ -77,6 +77,7 @@
     "browserCannotOverwrite": "This browser does not let the app write back to '{{name}}'. That is why the app asks again where to put the file every time you save. This does not happen in Chrome, Edge or the desktop app.",
     "browserSavesAsDownload": "Saved as a download: '{{name}}' is in your downloads folder. This browser does not let the app write to a place of its own, so every save creates a new download. In Chrome, Edge or the desktop app, Save simply updates the same file.",
     "autoSaveFailed": "Auto-save failed",
+    "autoSaveNotWritable": "Auto-save failed: the existing project file is not writable.",
     "recoveryManifestBlocked": "The recovery data has an unknown version or an invalid structure. This app leaves it untouched and cannot read or update this recovery set. Try the app version that created the copies or a newer version. Save new work yourself.",
     "recoveryStorageBlocked": "Recovery storage is temporarily blocked by another open connection. Existing copies are kept; this page will not create new recovery copies. Save your work yourself, close other tabs running this app and reload this page to try recovery again.",
     "recoveryReadFailed": "Recovered file could not be read",
