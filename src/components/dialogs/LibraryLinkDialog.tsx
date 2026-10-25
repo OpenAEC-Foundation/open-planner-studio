@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Link2, AlertCircle, ArrowRight } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
+import { Select } from '@/components/common/Select';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { LIBRARY_LINK_HELP_ARTICLE_ID } from '@/state/helpArticles';
 
@@ -29,7 +30,7 @@ export function LibraryLinkDialog() {
   // herrendert bij elke oplossing/koppeling.
   const resources = useAppStore((s) => s.resources);
   const calendars = useAppStore((s) => s.calendars);
-  useAppStore((s) => s.pools);
+  const pools = useAppStore((s) => s.pools);
   const companyId = useAppStore((s) => s.project.companyId);
   const computeRecognition = useAppStore((s) => s.computeRecognition);
   const linkRecognizedItems = useAppStore((s) => s.linkRecognizedItems);
@@ -42,6 +43,9 @@ export function LibraryLinkDialog() {
 
   const candidates = companyId ? computeRecognition() : [];
   const withMatch = candidates.filter((c) => c.suggestedPoolId);
+  const pool = companyId ? pools[companyId] : undefined;
+  const manualOptions = (kind: 'resource' | 'calendar') =>
+    (kind === 'resource' ? pool?.resources : pool?.calendars)?.map(item => ({ value: item.id, label: item.name })) ?? [];
 
   // Afwijkingen: gestempelde items die deviated/removed zijn (scope via de getters).
   const deviatedResources = resources.filter((r) => {
@@ -80,13 +84,24 @@ export function LibraryLinkDialog() {
             <p className="text-text-secondary">{t('companyLibrary.recognizeIntro')}</p>
             <ul className="flex flex-col gap-1">
               {candidates.map((c) => (
-                <li key={`${c.kind}-${c.projectId}`} className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-[8px] border border-border">
+                <li key={`${c.kind}-${c.projectId}`} className="flex flex-wrap items-center justify-between gap-2 px-2 py-1.5 rounded-[8px] border border-border">
                   <span className="flex items-center gap-1.5">
                     <b>{c.projectName}</b>
                     {c.suggestedPoolName
                       ? <span className="text-text-secondary flex items-center gap-1"><ArrowRight size={11} /> {t('companyLibrary.suggestedMatch', { name: c.suggestedPoolName })}</span>
                       : <span className="text-text-secondary italic">{t('companyLibrary.noMatch')}</span>}
                   </span>
+                  {!c.suggestedPoolId && (
+                    <Select
+                      value=""
+                      options={manualOptions(c.kind)}
+                      disabled={manualOptions(c.kind).length === 0}
+                      placeholder={t(manualOptions(c.kind).length > 0 ? 'companyLibrary.chooseAndLink' : 'companyLibrary.noLinkItems')}
+                      aria-label={t('companyLibrary.chooseLinkFor', { name: c.projectName })}
+                      className="w-48 shrink-0"
+                      onChange={poolId => linkRecognizedItems([{ kind: c.kind, projectId: c.projectId, poolId }])}
+                    />
+                  )}
                   {c.suggestedPoolId && (
                     <button
                       onClick={() => linkRecognizedItems([{ kind: c.kind, projectId: c.projectId, poolId: c.suggestedPoolId! }])}
