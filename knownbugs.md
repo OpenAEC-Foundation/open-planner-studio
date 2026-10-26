@@ -474,6 +474,14 @@ en noem het in je rapport of PR-tekst.
      vanuit dezelfde toestand zonder vervallen nivelleerpauzes. Gevonden in de review van de fix voor aanval a09
      (GPT-6.1-Sol). — B
 
+387. **Een lopende taak op 100 % met een bronrest toont in het paneel een rest van nul.** `src/utils/taskDuration.ts:201`,
+     aangeroepen voor het veld Resterend in `src/components/task-sections/TaskProgressFields.tsx:214`. Een MPP-taak van
+     6 d op 100 % zonder werkelijk einde, met 1920 min bronrest, blijft na openen, berekenen en twee IFC-rondgangen
+     STARTED met die rest. Het paneel toont `0u`; verwacht `32u` (op main `4d`). De helper ziet het percentage al als
+     voltooid. Voor urentaken al zo op main; F5b (`mppReader.ts:806`) laat deze importvorm er ook langs lopen. De
+     opgeslagen rest blijft goed. Voorstel: de formatter de voltooiingsstatus en een aanwezige bronrest laten volgen.
+     Gevonden in review ronde 5 van PR #591 (GPT-6.1-Sol). — B
+
 ## Kalenders
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden
