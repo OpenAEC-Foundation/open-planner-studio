@@ -54,7 +54,7 @@ const int32 = (n: number): Uint8Array => {
   return out;
 };
 
-function runningMpp(): Uint8Array {
+function runningMpp(task: { duration: number; rest: number; pct: number } = { duration: 28800, rest: 19200, pct: 33 }): Uint8Array {
   const slots = 4; // drie lege records, dan de taak (zoals de probe)
   const meta = new Uint8Array(16 + slots * 47);
   const mv = new DataView(meta.buffer);
@@ -67,9 +67,9 @@ function runningMpp(): Uint8Array {
   v.setInt32(0, 10, true); // unique id
   v.setInt32(4, 1, true); // id
   v.setInt16(40, 1, true);
-  v.setInt32(42, 28800, true); // duur in tienden van een minuut
+  v.setInt32(42, task.duration, true); // duur in tienden van een minuut
   v.setUint16(46, 0, true);
-  v.setInt32(52, 19200, true); // REMAINING_DURATION
+  v.setInt32(52, task.rest, true); // REMAINING_DURATION
   for (const n of [8, 12, 16, 20, 64, 68, 72, 76, 80, 106, 110, 122]) {
     v.setUint16(n, 65535, true);
     v.setUint16(n + 2, 65535, true);
@@ -81,7 +81,7 @@ function runningMpp(): Uint8Array {
   stamp(64, 480, 0); // start ma 1 juni 08:00
   stamp(68, 480, 8); // einde zoals MSP het opsloeg
   stamp(72, 480, 0); // werkelijke start ma 1 juni 08:00
-  v.setInt16(90, 33, true); // voortgang 33 %
+  v.setInt16(90, task.pct, true); // voortgang in hele procenten
   v.setInt32(118, -1, true);
   const name = utf16('Lopend zes dagen');
   const nameField = new Uint8Array(4 + name.length);
@@ -156,6 +156,16 @@ const leaf = (r: { tasks: Task[] }): Task => r.tasks.find(t => t.childIds.length
   const back = reopen(d);
   eq('MPP → IFC → heropenen: nog 4 d rest', leaf(back).time.remainingTime, 4);
   eq('MPP → IFC → heropenen: zelfde einde na F5', leaf(solved(back)).time.earlyFinish, '2026-06-08T16:00');
+}
+
+// ── 1b. MPP: een gebroken dagenrest komt exact binnen ───────────────────────────────────────────
+// De rest is geen signaal voor de uurmodus: een dagtaak kan een rest van een halve dag dragen. 7 d
+// (33600 tienden), rest 2,5 d (12000 tienden), 64 %: exact 2,5 d; afgeleid zou 2,52 d geven, en de
+// afronding van de duur (`tenthsOfMinutesToDays`) 3 d.
+{
+  const t = leaf(readMPP(runningMpp({ duration: 33600, rest: 12000, pct: 64 })));
+  eq('MPP: gebroken bronrest 2,5 d blijft 2,5 d (niet 2,52 d, niet 3 d)',
+    [t.time.durationUnit, t.time.scheduleDuration, t.time.remainingTime], ['days', 7, 2.5]);
 }
 
 // ── 2. XER in dagenmaat (datums zonder kloktijd): de rest uit de bron overleeft IFC ──────────────

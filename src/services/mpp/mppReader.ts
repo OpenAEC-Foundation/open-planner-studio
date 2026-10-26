@@ -73,6 +73,7 @@ import { mspCodeToConstraint } from '@/services/msproject/mspdiReader';
 import { statusDateFromXml, toXmlDateTime } from '@/services/xmlInterchange';
 import { hasNonAnchorTime, isSubDayMinutes, milestoneKindAt } from '@/services/subdayIo';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { exactWorkdays } from '@/engine/taskMutationRules';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { CfbFile } from './cfb';
 import { assertReadable, detectApplicationVersion, Props } from './mppContainer';
@@ -731,13 +732,15 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
     // opgeslagen (33% i.p.v. 33,33…%) — de afleiding zou op een klokstand landen die MSP nooit toont.
     // `normalizeImportedProgress` laat beide staan: `remainingMinutes` (UUR-modus) en de dagenrest van
     // een lopende taak (DAG-modus; 4 d bij 33 % van 6 d blijft 4 d, niet 4,02 d).
+    // De dagenrest is exact, niet afgerond zoals de duur (`tenthsOfMinutesToDays`): de rest is geen
+    // signaal voor de uurmodus, dus een dagtaak van 6 d op 75 % draagt hier 1,5 d, en die blijft staan.
     const remainingMinutes = isHour && raw.remainingDurationRaw !== null
       ? Math.round(raw.remainingDurationRaw / 10)
       : undefined;
     const remainingTime = !isHour && raw.remainingDurationRaw !== null
       ? (raw.isElapsedDuration
         ? raw.remainingDurationRaw / (24 * 60 * 10)
-        : tenthsOfMinutesToDays(raw.remainingDurationRaw, hoursPerDay))
+        : hoursPerDay > 0 ? exactWorkdays(raw.remainingDurationRaw / 10 / (hoursPerDay * 60)) : 0)
       : undefined;
 
     const formatField = (ts: Date | null): string | undefined =>

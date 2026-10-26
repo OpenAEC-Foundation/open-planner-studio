@@ -653,6 +653,25 @@ en noem het in je rapport of PR-tekst.
      Richting: `durationUnit: 'hours'` zetten als `durMinutes` er is; dat verschuift wel de hele planning van
      De Vaart en de getallen in de gidsen. Gevonden bij het opnieuw genereren van de voorbeelden (PR #600). — B
 
+351. **De MPP-lezer rondt een werk-lag naar een dagopvolger en een lag in verstreken dagen af op hele dagen.**
+     `src/services/mpp/mppEntities.ts:114` rekent een werk-lag naar een dagopvolger om met
+     `tenthsOfMinutesToDays` (`Math.round`); `:109` rondt een lag in verstreken dagen af met `Math.round`.
+     Gemeten met de echte `readRelations` op kleine TBkndCons-records: +1800 tienden van een minuut (3 u) naar een
+     dagopvolger wordt `lagDays: 0`, en −1800 ook: de lead verdwijnt. Naar een uuropvolger blijft het +180 en
+     −180 minuten. Een lag in verstreken dagen van 21600 tienden (36 u) wordt 2 kalenderdagen (48 u), ook naar een
+     uuropvolger. Al op `fbd4a3f9d`; hoort bij F5b. Voorstel: de minutenroute (`lagMinutes`) voor elke lag die
+     geen procent is, met de elapsed-vlag erbij; de twee dagafrondingen en de keuze op de modus van de opvolger
+     kunnen dan weg. Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
+
+352. **CSV gooit de kloktijd van een werkelijke datum weg, ook als de app hem zelf schreef.**
+     `src/services/importDates.ts:75` (`csvDate`) knipt een ISO-waarde af op de datum (`substring(0, 10)`);
+     `parseDate` in `src/services/csv/csvReader.ts:349` en `:350` gebruikt hem voor Actual Start en Actual Finish.
+     Gemeten: `writeCSV` schrijft Actual Start `2026-06-01T10:15` en Actual Finish `2026-06-01T11:45`; `readCSV`
+     leest beide als `2026-06-01`, en na laden op de standaardkalender staan ze op 07:00 en 16:00. Al op
+     `fbd4a3f9d`. Voorstel: een ISO-waarde met kloktijd lezen met de bestaande parser voor kloktijden uit een
+     bestand (`importDateTime`/`parseImportedInstant` in `importDates.ts`), en alleen een kale datum via de
+     datumroute; geen tweede CSV-datumparser. Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 68. **Een gidsstap die eenmaal "gedaan" is, blijft gedaan**, ook na wisselen naar een leeg project. Gezien bij
