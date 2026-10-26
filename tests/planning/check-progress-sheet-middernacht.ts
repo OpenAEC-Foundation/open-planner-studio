@@ -15,6 +15,11 @@
 //   1. einde om 00:00 (24-uurskalender)    → exact hetzelfde moment terug;
 //   2. einde om 16:00 (standaardkalender)  → exact hetzelfde moment terug;
 //   3. een kale datum in het blad          → blijft "einde van die werkdag" (ongewijzigd gedrag).
+//   4. de celopmaak bepaalt of een geheel getal een moment is (review r1 van #659): alleen een opmaak
+//      waarvan de GELDENDE sectie een datum én een kloktijd toont. Ingebouwd 34/35 (per landinstelling
+//      datum of tijd), een tweede sectie met tijd, een voorwaardelijke sectie, opvulling `_h`, tekst
+//      tussen aanhalingstekens en een opmaak met alleen een tijd blijven een kale datum. Ook met
+//      bestanden die LibreOffice opnieuw heeft opgeslagen (`fixtures/xlsx-libreoffice/`).
 //
 // Exit 0 = alles groen. De exitcode is het enige geldige oordeel.
 
@@ -28,6 +33,11 @@ import { readXlsxSheet } from '@/services/xlsx/readXlsxSheet';
 import { writeZip } from '@/services/zip';
 import type { ProgressRow, ProgressSheet } from '@/services/progressImport/types';
 import type { Task } from '@/types/task';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 const diffs: string[] = [];
 let checks = 0;
@@ -148,6 +158,79 @@ function viaCsv(task: Task): readonly ProgressRow[] {
   const csvRows = finalizeProgressRows(parseProgressCsv(lines.join('\n')), 'dmy');
   eq('datum csv: de lezer geeft een kale datum', csvRows[0]?.actualFinish, { kind: 'value', iso: '2026-06-01' });
   eq('datum csv: toepassen leest het als einde van de werkdag', pasToe(bron, csvRows).actualFinish, '2026-06-01T16:00');
+}
+
+// ── 4. De opmaak van de cel: alleen een datum mét kloktijd maakt een moment ────────────────
+{
+  /** Een blad zonder voortgang, met in H2 het getal `value` in een opmaak naar keuze. */
+  async function bladMetOpmaak(bron: Task, value: number, fmt: { id: number } | { code: string }): Promise<Uint8Array> {
+    const parts = buildProgressXlsxParts([zonderVoortgang(bron)]).map(part => {
+      if (part.name === 'xl/styles.xml') {
+        // Stijl 7 (invul-datum) gebruikt numFmt 164: die krijgt de testopmaak.
+        const xml = 'id' in fmt
+          ? part.xml.replace(/<xf numFmtId="164"/g, `<xf numFmtId="${fmt.id}"`)
+          : part.xml.replace('formatCode="yyyy-mm-dd"', `formatCode="${fmt.code.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}"`);
+        return { ...part, xml };
+      }
+      if (part.name === 'xl/worksheets/sheet1.xml') {
+        return { ...part, xml: part.xml.replace('</row></sheetData>', `<c r="H2" s="7"><v>${value}</v></c></row></sheetData>`) };
+      }
+      return part;
+    });
+    const encoder = new TextEncoder();
+    return writeZip(parts.map(part => ({ name: part.name, data: encoder.encode(part.xml) })));
+  }
+
+  // Datum zonder moment: 1 juni (46174) op de standaardkalender wordt einde van de werkdag, 16:00.
+  const dag = voltooideTaak(false);
+  const datumOpmaken: readonly [string, { id: number } | { code: string }][] = [
+    ['ingebouwd 34', { id: 34 }],
+    ['ingebouwd 35', { id: 35 }],
+    ['ingebouwd 32 (alleen tijd)', { id: 32 }],
+    ['ingebouwd 18 (alleen tijd)', { id: 18 }],
+    ['tweede sectie met tijd', { code: 'yyyy-mm-dd;yyyy-mm-dd hh:mm' }],
+    ['voorwaardelijke sectie', { code: '[>50000]yyyy-mm-dd hh:mm;yyyy-mm-dd' }],
+    ['opvulling _h', { code: 'yyyy-mm-dd_h' }],
+    ['herhaling *s', { code: 'yyyy-mm-dd*s' }],
+    ['tekst tussen aanhalingstekens', { code: 'yyyy-mm-dd" uur"' }],
+    ['escape \\h', { code: 'yyyy-mm-dd\\h' }],
+    ['alleen een tijd', { code: 'h:mm:ss' }],
+  ];
+  for (const [label, fmt] of datumOpmaken) {
+    const rows = finalizeProgressRows(await parseProgressXlsx(await bladMetOpmaak(dag, 46174, fmt)), 'dmy');
+    eq(`opmaak ${label}: de lezer geeft een kale datum`, rows[0]?.actualFinish, { kind: 'value', iso: '2026-06-01' });
+    const uit = pasToe(dag, rows);
+    eq(`opmaak ${label}: toepassen geeft 16:00`, [uit.preview, uit.applied, uit.actualFinish], [[1, 0], [1, 0], '2026-06-01T16:00']);
+  }
+
+  // Bestanden die LibreOffice opende en opnieuw als XLSX opsloeg (review r1 van #659). Het taak-id in
+  // die bladen komt uit een andere sessie; de rij wordt aan de fixturetaak gekoppeld. LibreOffice
+  // schrijft ingebouwd 34 terug als eigen opmaak `h:mm:ss`: alleen een tijd, dus ook een kale datum.
+  const lo = (naam: string) => new Uint8Array(readFileSync(join(ROOT, 'tests', 'planning', 'fixtures', 'xlsx-libreoffice', `${naam}.xlsx`)));
+  for (const naam of ['builtin-34', 'custom-sections', 'custom-padding']) {
+    const rows = finalizeProgressRows(await parseProgressXlsx(lo(naam)), 'dmy').map(r => ({ ...r, taskId: dag.id }));
+    eq(`LibreOffice ${naam}: toepassen geeft 16:00`, pasToe(dag, rows).actualFinish, '2026-06-01T16:00');
+  }
+
+  // Wel een moment: 2 juni 00:00 (46175) op de 24-uurskalender blijft 2 juni 00:00.
+  const nacht = voltooideTaak(true);
+  const momentOpmaken: readonly [string, { id: number } | { code: string }][] = [
+    ['ingebouwd 22', { id: 22 }],
+    ['datum en tijd', { code: 'yyyy-mm-dd hh:mm' }],
+    ['taalcode en AM/PM', { code: '[$-409]yyyy-mm-dd h:mm AM/PM' }],
+    ['voorwaarde die de tijdsectie kiest', { code: '[>40000]yyyy-mm-dd hh:mm;yyyy-mm-dd' }],
+    ['verstreken uren', { code: 'yyyy-mm-dd [h]:mm' }],
+  ];
+  for (const [label, fmt] of momentOpmaken) {
+    const rows = finalizeProgressRows(await parseProgressXlsx(await bladMetOpmaak(nacht, 46175, fmt)), 'dmy');
+    eq(`opmaak ${label}: de lezer houdt T00:00`, rows[0]?.actualFinish, { kind: 'value', iso: '2026-06-02T00:00' });
+    eq(`opmaak ${label}: toepassen houdt middernacht`, pasToe(nacht, rows).actualFinish, '2026-06-02T00:00');
+  }
+
+  {
+    const rows = finalizeProgressRows(await parseProgressXlsx(lo('source-midnight')), 'dmy').map(r => ({ ...r, taskId: nacht.id }));
+    eq('LibreOffice source-midnight: toepassen houdt middernacht', pasToe(nacht, rows).actualFinish, '2026-06-02T00:00');
+  }
 }
 
 if (diffs.length > 0) {

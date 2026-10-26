@@ -43,8 +43,8 @@ export interface XlsxCell {
   /** De cel draagt een datum-`numFmt` (ingebouwd 14–22 / 27–36 / 45–47 / 50–58, of custom met y/m/d). */
   isDate?: boolean;
   /**
-   * De datumopmaak toont ook een kloktijd (ingebouwd 18–22 / 32–35 / 45–47, of custom met h/s).
-   * Alleen gezet naast `isDate`. Nodig omdat een geheel serieel getal in zo'n cel middernacht als
+   * De opmaak toont voor DEZE celwaarde een datum met kloktijd: ingebouwd 22, of een custom formaat
+   * waarvan de geldende sectie een jaar of dag én een uur of seconde toont. Alleen gezet naast `isDate`. Nodig omdat een geheel serieel getal in zo'n cel middernacht als
    * MOMENT betekent, niet een kale datum.
    */
   hasTime?: boolean;
@@ -241,9 +241,15 @@ function isBuiltinDateFormat(id: number): boolean {
     || (id >= 50 && id <= 58);
 }
 
-/** Ingebouwde datumformaten die ook een kloktijd tonen (ECMA-376, §18.8.30; 32–35 zijn de CJK-tijden). */
+/**
+ * Ingebouwde formaten die een datum MET kloktijd tonen. Dat is alleen 22 (`m/d/yy h:mm`). De andere
+ * tijdformaten (18–21, 45–47, en de CJK-codes 32–35) tonen geen datum, of hangen af van de
+ * landinstelling: 34 en 35 zijn in ja-jp jaar/maand en maand/dag, in ko-kr `yyyy-mm-dd`, in zh-tw een
+ * tijd. Een cel die geen datum met tijd toont, leest de lezer als datum, zoals vóór de
+ * middernachtreparatie (review r1 van #659). Zie `sectionShowsMoment`.
+ */
 function isBuiltinTimeFormat(id: number): boolean {
-  return (id >= 18 && id <= 22) || (id >= 32 && id <= 35) || (id >= 45 && id <= 47);
+  return id === 22;
 }
 
 /** Ingebouwde percentageformaten: `0%` en `0.00%`. */
@@ -266,9 +272,110 @@ function customFormatIsDate(code: string): boolean {
   return /[ymd]/i.test(stripFormatLiterals(code));
 }
 
-/** Een custom formaat met uren of seconden toont een kloktijd (`m` alleen is maand óf minuut). */
-function customFormatHasTime(code: string): boolean {
-  return /[hs]/i.test(stripFormatLiterals(code));
+/**
+ * Splitst een formatcode in zijn secties (`positief;negatief;nul;tekst`). Een `;` binnen `"…"`, `[…]`,
+ * na `\`, `_` of `*` is geen scheiding.
+ */
+function formatSections(code: string): string[] {
+  const sections: string[] = [];
+  let current = '';
+  for (let i = 0; i < code.length; i++) {
+    const ch = code[i]!;
+    if (ch === '"') {
+      const end = code.indexOf('"', i + 1);
+      const stop = end < 0 ? code.length : end + 1;
+      current += code.slice(i, stop);
+      i = stop - 1;
+    } else if (ch === '[') {
+      const end = code.indexOf(']', i + 1);
+      const stop = end < 0 ? code.length : end + 1;
+      current += code.slice(i, stop);
+      i = stop - 1;
+    } else if (ch === '\\' || ch === '_' || ch === '*') {
+      current += code.slice(i, i + 2);
+      i++;
+    } else if (ch === ';') {
+      sections.push(current);
+      current = '';
+    } else {
+      current += ch;
+    }
+  }
+  sections.push(current);
+  return sections;
+}
+
+/** De voorwaarde `[<50000]`, `[>=1]` … van een sectie, of `undefined` zonder voorwaarde. */
+function sectionCondition(section: string): ((value: number) => boolean) | undefined {
+  const m = /\[(<=|>=|<>|<|>|=)\s*(-?\d+(?:\.\d+)?)\]/.exec(section);
+  if (!m) return undefined;
+  const limit = Number(m[2]);
+  switch (m[1]) {
+    case '<': return v => v < limit;
+    case '<=': return v => v <= limit;
+    case '>': return v => v > limit;
+    case '>=': return v => v >= limit;
+    case '=': return v => v === limit;
+    default: return v => v !== limit;
+  }
+}
+
+/**
+ * De sectie die Excel voor deze waarde gebruikt. Met voorwaarden: de eerste sectie waarvan de
+ * voorwaarde klopt, anders de eerste sectie zonder voorwaarde. Zonder voorwaarden: positief → 1,
+ * negatief → 2, nul → 3 (elk met terugval op 1). Zonder getal: sectie 1.
+ */
+function activeSection(code: string, value: number | undefined): string {
+  const sections = formatSections(code);
+  if (value === undefined) return sections[0]!;
+  const conditions = sections.map(sectionCondition);
+  if (conditions.some(c => c !== undefined)) {
+    for (let i = 0; i < sections.length; i++) {
+      const condition = conditions[i];
+      if (condition === undefined || condition(value)) return sections[i]!;
+    }
+    return sections[0]!;
+  }
+  if (value < 0) return sections[1] ?? sections[0]!;
+  if (value === 0) return sections[2] ?? sections[0]!;
+  return sections[0]!;
+}
+
+/**
+ * Toont deze sectie een datum MET kloktijd? Alleen dan is een geheel serieel getal middernacht als
+ * moment. Een kloktijd is een uur (`h`) of seconde (`s`), een datum een jaar (`y`) of dag (`d`); `m`
+ * alleen is maand óf minuut, dus geen bewijs. Een sectie met alleen een tijd verbergt de datum: daar is
+ * niet vast te stellen wat middernacht betekent, dus geldt de datumlezing. Niet mee tellen: letterlijke
+ * tekst (`"…"`, `\x`), opvulling (`_x`), herhaling (`*x`) en kleur-, taal- en voorwaardecodes
+ * (`[…]`); verstreken tijd (`[h]`) is wel een kloktijd.
+ */
+function sectionShowsMoment(section: string): boolean {
+  let clock = false;
+  let date = false;
+  for (let i = 0; i < section.length; i++) {
+    const ch = section[i]!;
+    if (ch === '"') {
+      const end = section.indexOf('"', i + 1);
+      i = end < 0 ? section.length : end;
+    } else if (ch === '[') {
+      const end = section.indexOf(']', i + 1);
+      const inner = section.slice(i + 1, end < 0 ? section.length : end);
+      if (/^(?:h+|s+)$/i.test(inner)) clock = true;
+      i = end < 0 ? section.length : end;
+    } else if (ch === '\\' || ch === '_' || ch === '*') {
+      i++;
+    } else if (ch === 'h' || ch === 'H' || ch === 's' || ch === 'S') {
+      clock = true;
+    } else if (ch === 'y' || ch === 'Y' || ch === 'd' || ch === 'D') {
+      date = true;
+    }
+  }
+  return clock && date;
+}
+
+/** Toont een custom formaat voor deze celwaarde een datum met kloktijd? Alleen de geldende sectie telt. */
+function customFormatHasTime(code: string, value: number | undefined): boolean {
+  return sectionShowsMoment(activeSection(code, value));
 }
 
 function customFormatIsPercent(code: string): boolean {
@@ -278,15 +385,19 @@ function customFormatIsPercent(code: string): boolean {
 interface StyleTable {
   /** Per `cellXfs`-index: draagt de stijl een datumopmaak? */
   readonly isDate: readonly boolean[];
-  /** Per `cellXfs`-index: toont de datumopmaak ook een kloktijd? */
-  readonly hasTime: readonly boolean[];
+  /**
+   * Per `cellXfs`-index: toont de datumopmaak ook een kloktijd? Een vast antwoord voor een ingebouwd
+   * formaat, de formatcode voor een custom formaat: daar hangt het af van de sectie die bij de
+   * celwaarde hoort (`customFormatHasTime`).
+   */
+  readonly hasTime: readonly (boolean | string)[];
   readonly isPercent: readonly boolean[];
 }
 
 function parseStyles(xml: string): StyleTable {
   const customFormats = new Map<number, string>();
   const isDate: boolean[] = [];
-  const hasTime: boolean[] = [];
+  const hasTime: (boolean | string)[] = [];
   const isPercent: boolean[] = [];
   let inCellXfs = false;
   for (const ev of scanXml(xml)) {
@@ -309,7 +420,7 @@ function parseStyles(xml: string): StyleTable {
       const id = Number(ev.attrs.numFmtId ?? '0');
       const custom = customFormats.get(id);
       isDate.push(custom !== undefined ? customFormatIsDate(custom) : isBuiltinDateFormat(id));
-      hasTime.push(custom !== undefined ? customFormatHasTime(custom) : isBuiltinTimeFormat(id));
+      hasTime.push(custom !== undefined ? custom : isBuiltinTimeFormat(id));
       isPercent.push(custom !== undefined ? customFormatIsPercent(custom) : isBuiltinPercentFormat(id));
     }
   }
@@ -444,7 +555,8 @@ function parseWorksheet(xml: string, shared: readonly string[], styles: StyleTab
       }
     }
     const isDate = styleIndex >= 0 && styles.isDate[styleIndex] === true;
-    const hasTime = isDate && styles.hasTime[styleIndex] === true;
+    const clock = isDate ? styles.hasTime[styleIndex] : undefined;
+    const hasTime = typeof clock === 'string' ? customFormatHasTime(clock, num) : clock === true;
     const isPercent = styleIndex >= 0 && styles.isPercent[styleIndex] === true;
     if (text.length === 0 && num === undefined && !isDate && !isPercent) return; // lege cel
     row.cells.push({
