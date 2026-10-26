@@ -90,6 +90,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { solveOptionsFor } from '@/engine/scheduler/solveInput';
+import { crewEdgeResources } from './ifcCrewIndexFixture';
 
 // tests/ valt buiten de hoofd-tsconfig; process is niet via @types/node beschikbaar in de
 // dedicated round-trip-tsconfig (types:[]). Minimale, botsingvrije declaratie.
@@ -385,7 +386,13 @@ const RMember = {
 const REquip: Resource = { id: 'r-eq', name: 'Torenkraan', type: 'EQUIPMENT', description: 'Liebherr 200', maxUnits: 2 };
 const RMat: Resource = { id: 'r-mat', name: 'Beton C30', type: 'MATERIAL', description: 'Stortbeton', maxUnits: 1, unitOfMeasure: 'm3' };
 const RSub: Resource = { id: 'r-sub', name: 'Installateur BV', type: 'SUBCONTRACTOR', description: 'Onderaannemer', maxUnits: 1 };
-const resources: Resource[] = [RCrew, RMember, REquip, RMat, RSub];
+const RCrewBeta: Resource = { ...RCrew, id: 'r-beta', name: 'Ploeg Beta' };
+const RCrewEmpty: Resource = { ...RCrew, id: 'r-empty', name: 'Lege ploeg' };
+const resources: Resource[] = [
+  { ...RMember, id: 'r-beta-lid', name: 'Lid Beta', parentId: RCrewBeta.id }, RCrewBeta,
+  RMember, RCrewEmpty, RCrew, REquip, RMat, RSub,
+  { ...RMember, id: 'r-alpha-tweede', name: 'Tweede lid Alpha' },
+];
 
 // ── Toewijzingen: incl. twee assignments van DEZELFDE resource op één taak (M3-uniciteit) + curve ─
 const A1 = {
@@ -477,6 +484,57 @@ export const fixture: ImportResult = {
   importPristine: true,
   recordedSourceFormat: 'mspdi',
 };
+
+// De IFC-lijsten zelf bewaren volgorde en duplicaten; de canon verderop sorteert op naam.
+for (const duplicates of [false, true]) {
+  const crewResources = crewEdgeResources(duplicates);
+  const before = structuredClone(crewResources);
+  const input: ImportResult = { ...fixture, tasks: [], sequences: [], assignments: [], resources: crewResources, baselines: [] };
+  const ifc = writeIFC(input);
+  const entities = parseStep(ifc);
+  const names = new Map(entities.filter(e => e.type.endsWith('RESOURCE')).map(e => [
+    e.id, e.args[2].k === 'str' ? e.args[2].raw.slice(1, -1) : '',
+  ]));
+  const nests = entities.filter(e => e.type === 'IFCRELNESTS' && e.args[4].k === 'ref' && names.has(e.args[4].id));
+  const actual = nests.map(e => ({
+    parent: e.args[4].k === 'ref' ? names.get(e.args[4].id) : '',
+    members: e.args[5].k === 'list' ? e.args[5].items.map(v => v.k === 'ref' ? names.get(v.id) : '') : [],
+  }));
+  const alpha = duplicates ? 'Alfa laatste' : 'Alfa';
+  const alphaMembers = duplicates
+    ? ['Alfa twee', 'Alfa een laatste', 'Alfa een laatste', 'Alfa twee'] : ['Alfa twee', 'Alfa een'];
+  const expected = [
+    { parent: 'Beta', members: ['Beta een'] }, { parent: alpha, members: alphaMembers },
+    { parent: 'Lege sleutel', members: ['Lid lege sleutel'] },
+    ...(duplicates ? [{ parent: alpha, members: alphaMembers }] : []),
+  ];
+  assert(JSON.stringify(actual) === JSON.stringify(expected), `ploegen: exacte nest-/ledenvolgorde, dubbele id's=${duplicates}`);
+  assert(JSON.stringify(crewResources) === JSON.stringify(before), 'ploegen: schrijven behoudt invoer');
+  assert(!nests.some(e => JSON.stringify(e.args).includes('"id":0')), 'ploegen: geen #0-verwijzingen');
+  if (!duplicates) {
+    const reopened = readIFC(ifc);
+    const again = readIFC(writeIFC(reopened));
+    const pairs = (r: ImportResult) => r.resources.map(member => [member.name, r.resources.find(p => p.id === member.parentId)?.name]);
+    assert(JSON.stringify(pairs(reopened)) === JSON.stringify(pairs(again)), 'ploegen: koppelingen blijven na tweede export gelijk');
+    crewResources.find(r => r.id === 'a1')!.parentId = 'constructor';
+    const changed = readIFC(writeIFC(input));
+    assert(changed.resources.find(r => r.id === changed.resources.find(m => m.name === 'Alfa een')?.parentId)?.name === 'Beta',
+      'ploegen: volgende save leest gewijzigde koppeling op hetzelfde invoerobject');
+    crewResources.find(r => r.id === 'a1')!.parentId = '__proto__';
+    const restored = readIFC(writeIFC(input));
+    assert(restored.resources.find(r => r.id === restored.resources.find(m => m.name === 'Alfa een')?.parentId)?.name === 'Alfa',
+      'ploegen: teruggezette koppeling wordt opnieuw gelezen');
+  }
+}
+
+// De runtime accepteert ook deze beschadigde id's; === koppelde NaN nooit aan NaN.
+{
+  const damaged = crewEdgeResources().slice(0, 2).map((r, i) => ({
+    ...r, id: i === 0 ? NaN : 'lid-nan', type: i === 0 ? 'CREW' : 'LABOR', parentId: NaN,
+  })) as unknown as Resource[];
+  const output = writeIFC({ ...fixture, tasks: [], sequences: [], assignments: [], resources: damaged, baselines: [] });
+  assert(!parseStep(output).some(e => e.type === 'IFCRELNESTS'), 'ploegen: NaN blijft ongelijk aan zichzelf');
+}
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 //  CANONICALISATIE — vervang volatiele ids door natuurlijke sleutels, herschrijf kruisverwijzingen,

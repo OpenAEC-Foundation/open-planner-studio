@@ -1768,9 +1768,13 @@ function writeResourceMeta(ctx: WriteContext, resources: Resource[], ownerHistId
  */
 function writeCrewNesting(ctx: WriteContext, resources: Resource[], ownerHistId: number): void {
   const crews = resources.filter(r => r.type === 'CREW');
+  if (crews.length === 0) return;
+  // Eén index per schrijfronde; groupBy bewaart ledenvolgorde en dubbele voorkomens.
+  const resourcesByParent = groupBy(resources, r => r.parentId);
   for (const crew of crews) {
-    const memberRefs = resources
-      .filter(r => r.parentId === crew.id)
+    // Ook bij beschadigde invoer blijft NaN, anders dan bij Map.get, ongelijk aan zichzelf.
+    if (Number.isNaN(crew.id)) continue;
+    const memberRefs = (resourcesByParent.get(crew.id) ?? [])
       .map(r => ref(ctx, `res_${r.id}`))
       .filter(r => r !== '#0');
     if (memberRefs.length === 0) continue;
