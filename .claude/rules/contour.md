@@ -32,7 +32,11 @@ fidelity-poort bewaakt dat. Een duurwijziging (`taskSlice.updateTask`, `createMc
 `taskEditPlan`) herschaalt de contour én de importsplits proportioneel via `taskDefaults.ts`'s
 `rescaleTaskContours` (actuals blijven; werkbehoud volgt de effectieve werkregel via
 `taskDefaults.ts`'s `contourKeepsWork` — zonder eigen `workRule` telt `mspTaskType === 'FIXED_WORK'`
-of een werkbeschermende `Project.defaultWorkRule`); een datum-/kalender-/toewijzingswijziging raakt de as niet (een kalenderwissel
+of een werkbeschermende `Project.defaultWorkRule`). Oude én nieuwe duur meet elke route (store, raster,
+MCP) op dezelfde as, `contourEngine.ts`'s `taskAxisMinutes` (via `taskWorkMinutesOf`): werktijd in
+werkminuten, kalendertijd in klokdagen × werktijd per dag, in dagen én in uren — zo herschaalt een
+eenheidswissel op dezelfde klokuren niets (knownbug 265, `check-contour-unit-switch.ts`). Een
+datum-/kalender-/toewijzingswijziging raakt de as niet (een kalenderwissel
 herschaalt de as wél van oude naar nieuwe werkminuten — zie de `taaktypes`-rule). Verandert het
 restwerk van een toewijzing mét contour, dan zakt de contourhoogte mee (`reconcileContourWork`, "vorm
 blijft, hoogte zakt"). `src/services/contourIo.ts` is de adapterlaag:
