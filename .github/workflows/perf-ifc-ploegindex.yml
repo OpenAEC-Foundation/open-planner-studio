@@ -51,7 +51,10 @@ jobs:
         shell: bash
         run: |
           set +e
-          timeout --signal=TERM --kill-after=30s 12m node docs/superpowers/evidence/ifc-ploegindex.mjs --out qa/ifc-ploegindex/resultaat.json 2>&1 | tee qa/ifc-ploegindex/meting.log
+          trap 'printf "meetshell: TERM ontvangen\n" >&2; exit 143' TERM
+          trap 'printf "meetshell: INT ontvangen\n" >&2; exit 130' INT
+          trap 'status=$?; printf "meetshell: exit=%s\n" "$status" >&2' EXIT
+          timeout --verbose --signal=TERM --kill-after=30s 12m node docs/superpowers/evidence/ifc-ploegindex.mjs --out qa/ifc-ploegindex/resultaat.json 2>&1 | tee qa/ifc-ploegindex/meting.log
           codes=("${PIPESTATUS[@]}")
           printf 'meting=%s tee=%s\n' "${codes[0]}" "${codes[1]}" > qa/ifc-ploegindex/meting-exitcodes.txt
           test "${codes[0]}" -eq 0 && test "${codes[1]}" -eq 0

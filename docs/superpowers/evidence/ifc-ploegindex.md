@@ -47,7 +47,7 @@ vastgezette basis. Het weigert andere productwijzigingen, ook wijzigingen buiten
 `writeCrewNesting` in hetzelfde bestand.
 
 Het vergelijkt alle IFC-bytes, inclusief STEP-nummers en GlobalIds, en de volledige
-readerpayload met `deepStrictEqual`. Ook bij de tweede export worden geen resources,
+readerpayload met `isDeepStrictEqual`. Ook bij de tweede export worden geen resources,
 bibliotheekvelden, provenance of GlobalIds uit de vergelijking verwijderd. De rijke
 bestaande schemafixture, ploeggevallen, bibliotheekpool en XER-bronarchief worden in
 IFC4, IFC4X3 en IFC4X3_ADD2 geschreven, gelezen en opnieuw geëxporteerd. Dubbele id's
@@ -63,17 +63,29 @@ opnieuw uit via een modulegebonden teller en `Math.random`. Iedere vergelijkings
 krijgt daarom een verse module (teller op nul) en dezelfde vaste toevalsinvoer (0,5).
 Zo blijven ook die id-velden volledig vergelijkbaar, zonder productbron aan te passen.
 Dit staat los van de tijdmeting, die uitsluitend de writer aanroept.
-Invoerbehoud wordt getoetst met de volledige V8-serialisatie plus de oorspronkelijke
-prototypeverwijzing van ieder object. `structuredClone` is daarvoor geen oracle:
-de XER-fixture bevat woordenboeken met een null-prototype dat de kloon niet behoudt.
-De bewaker controleert zichzelf op een ongewijzigd null-prototypeobject en weigert
-zowel een prototypewijziging als een datawijziging. De rechtstreekse vergelijking
-van beide readerpayloads met `deepStrictEqual` blijft daarnaast intact.
+Invoerbehoud wordt getoetst door beide volledige V8-snapshots te deserialiseren en
+hun waarden met `isDeepStrictEqual` te vergelijken. De oorspronkelijke prototype-
+verwijzing van ieder object wordt daarnaast apart gecontroleerd. Beide snapshots
+krijgen dezelfde kloonbehandeling: de XER-fixture heeft null-prototypewoordenboeken
+die `structuredClone` en V8 niet met dat oorspronkelijke prototype klonen.
+[Node 22.23.3 documenteert](https://github.com/nodejs/node/blob/v22.23.3/doc/api/v8.md#serialization-api)
+uitdrukkelijk dat gelijke waarden verschillende serialisatiebytes kunnen geven.
+Bytegelijkheid wordt daarom alleen als diagnostiek gemeld. Bij een echte waarde-
+of prototypeafwijking blijven beide volledige `.v8`-snapshots en een korte foutmelding
+bewaard. Zelfcontroles accepteren ongewijzigde null-prototypeobjecten en gelijke
+arrays uit verschillende opbouw, en weigeren prototype-, waarde- en typed-arraymutaties.
+De rechtstreekse volledige vergelijking van de readerpayloads blijft intact; geen
+payloadveld wordt voor die vergelijking gekloond of weggelaten. Grote vergelijkingen
+gebruiken een booleaanse assertion, zodat een fout geen enorme verschiltekst opbouwt.
+De verse readerbundle exporteert `readIFCWithXerReconstruction`, dezelfde ingang als
+de app. Zowel eerste als tweede heropening moeten het XER-archief behouden en mogen
+geen `xerArchiveIssue` melden.
 Bestaande readernormalisatie tussen
 de eerste en tweede export mag bestaan; oude en nieuwe schrijver moeten op elke
 zelfde invoer en in elke ronde exact gelijk zijn. V8-serialisatie voor invoer- en
 payloadhashes behoudt ook undefined, NaN en typed arrays; de Node/V8-versies staan
-naast de hashes.
+naast de hashes. Deze hashes identificeren een vastgelegde snapshot en zijn geen
+canonieke waardehashes. De volledige waarde-/uitvoervergelijking is de pariteitspoort.
 
 ## Meetopzet en huidige bewijsstand
 
@@ -101,7 +113,8 @@ en eigen meet-/test-/workflowpaden. Hij draait op opened/synchronize/reopened, n
 op edited, checkt expliciet de PR-head uit en heeft alleen leesrechten. De job heeft
 30 minuten; installatie, meetstap, gerichte checks en upload hebben eigen limieten.
 Het meetproces stopt zelf na 12 minuten (exit 124 bij een timeout), vóór de
-meetstaplimiet van 14 minuten. Dat laat ruimte voor gerichte checks en artifactupload,
+meetstaplimiet van 14 minuten. `timeout --verbose` en TERM/INT/EXIT-meldingen van
+de omringende shell maken een volgende procesonderbreking beter zichtbaar. Dat laat ruimte voor gerichte checks en artifactupload,
 ook wanneer het meetproces niet afrondt. Een externe annulering kan die stappen nog
 steeds verhinderen. Installatie-, meet- en testlogs met exitcodes gaan bij fouten in
 een artifact. Het harnas bewaart vanaf de voorbereiding zijn huidige fase, na elke
@@ -126,6 +139,16 @@ invoersnapshot, beide schrijfacties, invoerbehoud, laden van de verse lezermodul
 lezen en volledige uitvoervergelijking. Iedere fase meldt procesgeheugen in bytes
 en cumulatieve CPU-tijd in microseconden. Deze diagnostiek staat buiten de
 writerklok en bewijst geen piekgeheugen of snelheid van de toepassing.
+
+[De diagnostische run 40309037578 op 091e605](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/runs/40309037578)
+kwam verder tot de exacte stap: de oude writer voltooide de eerste rijke export
+(456.635 bytes) in ongeveer 32 ms; direct daarna begon de invoerbewaker. Na ongeveer
+28 seconden stilte volgde opnieuw exit 143, vóór de eerste readerimport. Daarmee
+is de plaats gelokaliseerd; een byteverschil, dure assertion-diff, geheugentekort of
+afzonderlijke afzender van SIGTERM is hiermee nog niet bewezen. De ongeldige aanname
+van bytegelijkheid en de ontbrekende XER-reconstructieroute zijn onafhankelijk uit
+de bron vastgesteld en hersteld. Een nieuwe CI-uitvoering moet de zelfcontroles,
+alle 23 pariteitsgevallen en alle twaalf schaalgevallen nog bevestigen.
 
 De poging op `3e55648b415ed089c2871fd72e0b12cd7e81990d`,
 [run 40299449231](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/runs/40299449231),

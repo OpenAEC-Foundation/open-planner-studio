@@ -9,7 +9,8 @@ import { cpus, tmpdir, totalmem } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { performance } from 'node:perf_hooks';
-import { serialize } from 'node:v8';
+import { isDeepStrictEqual } from 'node:util';
+import { deserialize, serialize } from 'node:v8';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const base = 'fbd4a3f9dcc7bdd308ab86b992d0b26f4670a553';
@@ -22,10 +23,10 @@ assert(out, '--out is verplicht; ook een fout schrijft gedeeltelijk bewijs');
 mkdirSync(dirname(out), { recursive: true });
 const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
 const hash = value => createHash('sha256').update(value).digest('hex');
-// V8-serialisatie bewaart ook undefined, NaN en typed arrays; vergelijkingen zijn deepStrictEqual.
+// V8-hashes identificeren één snapshot; gelijke waarden hoeven geen gelijke bytes te geven.
 const inputHash = value => hash(serialize(value));
-// structuredClone verandert null-prototypewoordenboeken. Bewaar daarom de volledige data en
-// de oorspronkelijke prototypes apart; de schrijver mag geen van beide veranderen.
+// Vergelijk volledige gedeserialiseerde waarden, geen niet-canonieke V8-bytes.
+// Beide snapshots krijgen dezelfde kloonbehandeling; oorspronkelijke prototypes blijven apart.
 function inputSnapshot(input) {
   const prototypes = [];
   const seen = new Set();
@@ -44,12 +45,23 @@ function inputSnapshot(input) {
   visit(input);
   return { bytes: serialize(input), prototypes };
 }
-function assertInputPreserved(input, snapshot, label) {
+function assertInputPreserved(input, snapshot, label, saveFailure = true) {
   const after = inputSnapshot(input);
-  assert.deepStrictEqual(after.bytes, snapshot.bytes, `${label}: volledige data`);
-  assert.equal(after.prototypes.length, snapshot.prototypes.length, `${label}: objectaantal`);
-  after.prototypes.forEach((prototype, i) =>
-    assert.equal(prototype, snapshot.prototypes[i], `${label}: prototype ${i}`));
+  const result = {
+    serializedBytesEqual: after.bytes.equals(snapshot.bytes),
+    valuesEqual: isDeepStrictEqual(deserialize(after.bytes), deserialize(snapshot.bytes)),
+    prototypesEqual: after.prototypes.length === snapshot.prototypes.length
+      && after.prototypes.every((prototype, i) => prototype === snapshot.prototypes[i]),
+  };
+  if ((!result.valuesEqual || !result.prototypesEqual) && saveFailure) {
+    // Volledige snapshots bewaren; een compacte assertion voorkomt een enorme Buffer-diff.
+    writeFileSync(join(dirname(out), 'invoer-voor.v8'), snapshot.bytes);
+    writeFileSync(join(dirname(out), 'invoer-na.v8'), after.bytes);
+    writeFileSync(join(dirname(out), 'invoer-afwijking.json'), `${JSON.stringify({ label, ...result }, null, 2)}\n`);
+  }
+  assert(result.valuesEqual, `${label}: volledige data`);
+  assert(result.prototypesEqual, `${label}: oorspronkelijke prototypes en objectaantal`);
+  return result;
 }
 const RealDate = Date;
 const realRandom = Math.random;
@@ -61,7 +73,7 @@ const evidence = {
   runner: process.env.ImageOS, runnerVersion: process.env.ImageVersion,
   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   fixedTime, normalization: 'Geen velden of uitvoer verwijderd; schrijftijd via Date vastgezet.',
-  readerIdentity: 'Verse module per readIFC (id-teller begint op 0), Math.random constant 0.5; alle gegenereerde id-velden blijven in de vergelijking.',
+  readerIdentity: 'Verse module per readIFCWithXerReconstruction (id-teller begint op 0), Math.random constant 0.5; alle gegenereerde id-velden blijven in de vergelijking.',
   warmups: 2, repeats: 7, sampleTargetMs: 100, maxCallsPerSample: 5,
   parity: [], rows: [], status: 'bezig',
 };
@@ -81,10 +93,20 @@ try {
   const probeSnapshot = inputSnapshot(probe);
   assertInputPreserved(probe, probeSnapshot, 'bewaker zelfcontrole');
   Object.setPrototypeOf(probe, Object.prototype);
-  assert.throws(() => assertInputPreserved(probe, probeSnapshot, 'gewijzigd prototype'), { code: 'ERR_ASSERTION' });
+  assert.throws(() => assertInputPreserved(probe, probeSnapshot, 'gewijzigd prototype', false), { code: 'ERR_ASSERTION' });
   Object.setPrototypeOf(probe, null);
   probe.nested.value = 1;
-  assert.throws(() => assertInputPreserved(probe, probeSnapshot, 'gewijzigde data'), { code: 'ERR_ASSERTION' });
+  assert.throws(() => assertInputPreserved(probe, probeSnapshot, 'gewijzigde data', false), { code: 'ERR_ASSERTION' });
+  // Gelijke waarden uit verschillende array-opbouw mogen geen datamutatie suggereren.
+  const representationProbe = { values: [1.5, 2.5] };
+  representationProbe.values[0] = 1;
+  representationProbe.values[1] = 2;
+  const representation = assertInputPreserved(representationProbe, inputSnapshot({ values: [1, 2] }),
+    'gelijke waarden uit verschillende array-opbouw');
+  probe.nested.value = NaN;
+  probe.nested.bytes[0] = 9;
+  assert.throws(() => assertInputPreserved(probe, probeSnapshot, 'gewijzigde typed array', false), { code: 'ERR_ASSERTION' });
+  progress('invoerbewaker zelfcontrole geslaagd', { representation });
   const changed = git('diff', '--name-only', base, 'HEAD', '--', 'src').split('\n').filter(Boolean);
   assert.deepEqual(changed, [writerPath], 'Nulmeting geldt alleen voor deze ene productwijziging');
   assert.equal(git('status', '--porcelain', '--untracked-files=no', '--', 'src', harnessPath, fixturePath), '');
@@ -142,7 +164,7 @@ try {
   const readerFile = join(temp, 'reader.mjs');
   progress('lezer bundelen');
   await build({
-    stdin: { contents: "export { readIFC } from '@/services/ifc/ifcReader';", resolveDir: root, loader: 'ts' },
+    stdin: { contents: "export { readIFCWithXerReconstruction } from '@/services/formatRegistry';", resolveDir: root, loader: 'ts' },
     bundle: true, platform: 'node', format: 'esm', outfile: readerFile,
     alias: { '@': join(root, 'src') }, logLevel: 'warning',
     define: { 'import.meta.env.DEV': 'false', 'import.meta.env.PROD': 'true', 'import.meta.env.MODE': '"production"' },
@@ -154,7 +176,8 @@ try {
     progress('lezermodule laden', { ...context, readerNumber: number, outputBytes: Buffer.byteLength(output) });
     const reader = await import(`${pathToFileURL(readerFile).href}?read=${number}`);
     progress('IFC lezen', { ...context, readerNumber: number });
-    const payload = reader.readIFC(output);
+    const payload = await reader.readIFCWithXerReconstruction(output);
+    assert(payload.xerArchiveIssue === undefined, 'Heropening mag geen XER-archiefverlies melden');
     progress('IFC gelezen', { ...context, readerNumber: number,
       tasks: payload.tasks.length, resources: payload.resources.length });
     return payload;
@@ -175,9 +198,10 @@ try {
       progress('eerste IFC geschreven', { ...context, version,
         outputBytes: Buffer.byteLength(first[version]), outputHash: hash(first[version]) });
       progress('eerste invoerbehoud controleren', { ...context, version });
-      assertInputPreserved(input, snapshot, `${label}/${version}: invoerbehoud`);
-      progress('eerste invoerbehoud gelijk', { ...context, version });
+      const firstGuard = assertInputPreserved(input, snapshot, `${label}/${version}: invoerbehoud`);
+      progress('eerste invoerbehoud gelijk', { ...context, version, ...firstGuard });
       payloads[version] = await readFresh(first[version], { ...context, version, round: 'eerste' });
+      if (input.xer) assert(payloads[version].xer !== undefined, `${label}/${version}: volledig XER-archief heropend`);
       progress('heropende invoersnapshot maken', { ...context, version });
       const reopened = inputSnapshot(payloads[version]);
       progress('tweede IFC schrijven', { ...context, version, inputBytes: reopened.bytes.byteLength });
@@ -185,16 +209,17 @@ try {
       progress('tweede IFC geschreven', { ...context, version,
         outputBytes: Buffer.byteLength(second[version]), outputHash: hash(second[version]) });
       progress('tweede invoerbehoud controleren', { ...context, version });
-      assertInputPreserved(payloads[version], reopened, `${label}/${version}: heropende invoerbehoud`);
-      progress('tweede invoerbehoud gelijk', { ...context, version });
+      const secondGuard = assertInputPreserved(payloads[version], reopened, `${label}/${version}: heropende invoerbehoud`);
+      progress('tweede invoerbehoud gelijk', { ...context, version, ...secondGuard });
     }
     progress('volledige uitvoer vergelijken', context);
-    assert.equal(first.before, first.after, `${label}: volledige eerste IFC-uitvoer incl. STEP-nummers`);
-    assert.deepStrictEqual(payloads.before, payloads.after, `${label}: volledige readerpayload incl. GlobalIds/bibliotheek/herkomst`);
-    assert.equal(second.before, second.after, `${label}: volledige tweede IFC-uitvoer`);
+    assert(first.before === first.after, `${label}: volledige eerste IFC-uitvoer incl. STEP-nummers`);
+    assert(isDeepStrictEqual(payloads.before, payloads.after), `${label}: volledige readerpayload incl. GlobalIds/bibliotheek/herkomst`);
+    assert(second.before === second.after, `${label}: volledige tweede IFC-uitvoer`);
     const secondPayload = await readFresh(second.after, { ...context, version: 'after', round: 'tweede' });
-    assert.deepStrictEqual(await readFresh(second.before, { ...context, version: 'before', round: 'tweede' }),
-      secondPayload, `${label}: volledige tweede readerpayload`);
+    assert(isDeepStrictEqual(await readFresh(second.before, { ...context, version: 'before', round: 'tweede' }),
+      secondPayload), `${label}: volledige tweede readerpayload`);
+    if (input.xer) assert(secondPayload.xer !== undefined, `${label}: volledig XER-archief na tweede export`);
     if (schemaValid) {
       for (const [stage, output] of [['eerste', first.after], ['tweede', second.after]]) {
         progress('schema controleren', { ...context, round: stage });
@@ -239,14 +264,14 @@ try {
   const original = await parity('voor-wijziging', mutable);
   mutable.resources.find(r => r.id === 'a1').parentId = 'constructor';
   const changedOutput = await parity('na-wijziging-zelfde-object', mutable);
-  assert.notEqual(original, changedOutput, 'Veranderde koppeling moet uitvoer veranderen');
+  assert(original !== changedOutput, 'Veranderde koppeling moet uitvoer veranderen');
   const changedPayload = await readFresh(changedOutput);
   const changedMember = changedPayload.resources.find(r => r.name === 'Alfa een');
   assert.equal(changedPayload.resources.find(r => r.id === changedMember.parentId)?.name, 'Beta');
   // Een ander document tussen twee saves en herstel van de oorspronkelijke koppeling.
   await parity('ander-document', modules.after.ifcCrewIndexFixture(100, 5));
   mutable.resources.find(r => r.id === 'a1').parentId = '__proto__';
-  assert.equal(await parity('herstelde-koppeling', mutable), original);
+  assert(await parity('herstelde-koppeling', mutable) === original, 'Herstelde koppeling herstelt de volledige IFC-uitvoer');
 
   const median = values => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
   for (const size of [1_000, 5_000, 10_000]) {
@@ -262,7 +287,7 @@ try {
         const output = modules[version].writeIFC(input);
         const ms = performance.now() - start;
         if (expected === undefined) expected = output;
-        assert.equal(output, expected, `Schaal ${size}/${crews}/${version}: volledige uitvoer`);
+        assert(output === expected, `Schaal ${size}/${crews}/${version}: volledige uitvoer`);
         return ms;
       };
       for (let warmup = 0; warmup < evidence.warmups; warmup++) {
@@ -286,7 +311,7 @@ try {
         const counted = { ...input, resources: input.resources.map(resource => ({
           ...resource, get parentId() { reads++; return resource.parentId; },
         })) };
-        assert.equal(modules[version].writeIFC(counted), expected, 'Teller verandert geen IFC-uitvoer');
+        assert(modules[version].writeIFC(counted) === expected, 'Teller verandert geen IFC-uitvoer');
         row.parentIdReads[version] = reads;
       }
       assert.equal(row.parentIdReads.before - row.parentIdReads.after,
