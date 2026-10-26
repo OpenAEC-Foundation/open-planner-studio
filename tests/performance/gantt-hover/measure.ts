@@ -8,6 +8,7 @@ import { barPoint, expect } from '../../browser/fixtures/ops';
 
 interface HoverProbe {
   armed: boolean;
+  expectedLines: string[];
   eventAt?: number;
   tooltipAt?: number;
   timers: Array<{ requestedAt: number; startedAt?: number; finishedAt?: number }>;
@@ -54,6 +55,7 @@ export async function measureGanttHover(page: Page, info: TestInfo): Promise<voi
         durationMinutes: 960, scheduleDuration: 2,
         scheduleStart: '2026-09-07T07:00', scheduleFinish: '2026-09-08T16:00',
         earlyStart: '2026-09-07T07:00', earlyFinish: '2026-09-08T16:00',
+        lateStart: '2026-09-07T07:00', lateFinish: '2026-09-08T16:00',
         freeFloat: 0, totalFloat: 0, isCritical: false, completion: 0 },
     }));
     const assignments = tasks.flatMap(task => task.resourceIds.map((resourceId, slot) => ({
@@ -61,13 +63,13 @@ export async function measureGanttHover(page: Page, info: TestInfo): Promise<voi
     })));
     // De last is fixture-invoer; deze meting rekent geen ResourceLoad of CPM en meet alleen hover.
     const days = { '2026-09-07': 1250, '2026-09-08': 1250 };
-    bridge.store.setState({ tasks, resources, assignments, sequences: [], selectedTaskIds: [],
+    bridge.store.setState({ tasks, resources, assignments, sequences: [], selectedTaskIds: [], cpmResult: null,
       calendar: { ...s.calendar, id: 'hover-calendar' }, calendars: [],
       resourceLoadResult: { load: Object.fromEntries(resources.map(resource => [resource.id, { ...days }])),
         capacity: Object.fromEntries(resources.map(resource => [resource.id, { '2026-09-07': 2000, '2026-09-08': 2000 }])),
         overallocatedDays: {}, overallocatedReasons: {}, hours: {} },
       view: { ...s.view, histogramResourceId: undefined, scrollX: 0, scrollY: 0, zoom: 32,
-        viewStartDate: '2026-09-07', pendingFit: false, pendingFocusTaskId: null },
+        viewStartDate: '2026-09-07', pendingFit: false, pendingFocusTaskId: undefined },
       ui: { ...s.ui, showHistogram: true, autoCalcCPM: false },
     });
     bridge.store.getState().recomputeViewRows();
@@ -85,8 +87,11 @@ export async function measureGanttHover(page: Page, info: TestInfo): Promise<voi
   // Alleen observerende meetinstrumenten: echte mousemove, bestaande 300-ms-timer en DOM-commit.
   // De callbackduur omvat buildTooltip (inclusief indexbouw) én de setState-aanroep.
   await page.evaluate(() => {
-    const original = window.setTimeout;
-    window.setTimeout = (handler, timeout, ...args) => {
+    // Window houdt hier bewust het DOM-timertype; de Node-testconfig kent daarnaast een eigen
+    // setTimeout met een promisify-eigenschap die in de browser niet bestaat.
+    const browserWindow: Window = window;
+    const original = browserWindow.setTimeout.bind(browserWindow);
+    browserWindow.setTimeout = (handler: TimerHandler, timeout?: number, ...args: unknown[]) => {
       const probe = window.__ganttHoverProbe;
       if (!probe?.armed || timeout !== 300 || typeof handler !== 'function') return original(handler, timeout, ...args);
       const timer: HoverProbe['timers'][number] = { requestedAt: performance.now() };
@@ -104,7 +109,8 @@ export async function measureGanttHover(page: Page, info: TestInfo): Promise<voi
     new MutationObserver(() => {
       const probe = window.__ganttHoverProbe;
       if (probe?.armed && probe.eventAt !== undefined && probe.tooltipAt === undefined
-        && document.querySelector('.gantt-tooltip .tooltip-title')) probe.tooltipAt = performance.now();
+        && JSON.stringify(Array.from(document.querySelectorAll('.gantt-tooltip > div'), node => node.textContent))
+          === JSON.stringify(probe.expectedLines)) probe.tooltipAt = performance.now();
     }).observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true });
   });
 
@@ -112,12 +118,13 @@ export async function measureGanttHover(page: Page, info: TestInfo): Promise<voi
   const allNames = Array.from({ length: 10_000 }, (_, index) => `Hovertaak ${String(index).padStart(5, '0')}`);
   async function hover(label: string, day: number, contributors: string[], sameDay = false) {
     const before = await hashes(page);
-    await page.evaluate(() => { window.__ganttHoverProbe = { armed: true, timers: [] }; });
+    const isoDate = day === 0 ? '2026-09-07' : '2026-09-08';
+    const expectedLines = [`${contributors.length} tasks contribute on ${isoDate}`, ...contributors.slice(0, 8)];
+    await page.evaluate(lines => { window.__ganttHoverProbe = { armed: true, timers: [], expectedLines: lines }; }, expectedLines);
     await page.mouse.move(point.x + day * dayWidth + (sameDay ? 6 : 5), y + (sameDay ? 1 : 0));
     await page.waitForFunction(() => window.__ganttHoverProbe?.tooltipAt !== undefined);
     const lines = await page.locator('.gantt-tooltip > div').allTextContents();
-    const isoDate = day === 0 ? '2026-09-07' : '2026-09-08';
-    expect(lines).toEqual([`${contributors.length} tasks contribute on ${isoDate}`, ...contributors.slice(0, 8)]);
+    expect(lines).toEqual(expectedLines);
     const probe = await page.evaluate(() => {
       window.__ganttHoverProbe!.armed = false;
       return window.__ganttHoverProbe!;

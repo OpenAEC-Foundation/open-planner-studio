@@ -50,7 +50,8 @@ try:
         "productTrees": {"before": git("rev-parse", "HEAD:src", cwd=BEFORE),
                          "after": git("rev-parse", "HEAD:src")},
         "hookSha256": {"before": digest(BEFORE / HOOK), "after": digest(ROOT / HOOK)},
-        "harnessSha256": {path: digest(ROOT / path) for path in [SPEC, f"{HARNESS}/measure.ts", f"{HARNESS}/run.py"]},
+        "harnessSha256": {path: digest(ROOT / path) for path in [SPEC, f"{HARNESS}/measure.ts", f"{HARNESS}/run.py",
+                                                              ".github/workflows/measure-gantt-hover.yml"]},
     }
     assert digest(BEFORE / SPEC) == digest(ROOT / SPEC)
     assert digest(BEFORE / HARNESS / "measure.ts") == digest(ROOT / HARNESS / "measure.ts")
