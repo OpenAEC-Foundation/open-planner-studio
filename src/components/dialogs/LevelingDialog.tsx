@@ -220,11 +220,10 @@ export function LevelingDialog() {
                   : t('resource.leveling.projectEndUnchanged', { date: fmt(result.projectEndAfter) })}
               </div>
 
-              {rows.length === 0 ? (
+              {rows.length === 0 && conflicts.length === 0 && (
                 <div className="text-text-secondary">{t('resource.leveling.noChanges')}</div>
-              ) : (
-                <LevelingPreviewTable rows={rows} formatDate={fmt} />
               )}
+              {rows.length > 0 && <LevelingPreviewTable rows={rows} formatDate={fmt} />}
 
               {conflicts.length > 0 && (
                 <div className="flex flex-col gap-1">
