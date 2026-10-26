@@ -410,7 +410,11 @@ const NO_DURATION_CHANGE: DurationEditWriteBack = { ...NO_CHANGE, recomputedWork
  *  3. Elk bewaard restwerk dat afweek van inzet × restduur en nu herschreven is, komt terug in
  *     `recomputedWork`; de aanroeper meldt het één keer per transactie.
  *
- * Onder FIXED_DURATION_RATE zonder werkvelden verandert er aan de toewijzingen niets.
+ * Maakt de bewerking de taak voltooid (rest 0, 100 %), dan is er geen resterende driehoek: de kern
+ * zou rest 0 weigeren. Dat geval handelt {@link completedByDurationEdit} af, onder elke regel.
+ *
+ * Onder FIXED_DURATION_RATE zonder werkvelden en zonder voortgang verandert er aan de toewijzingen
+ * niets; op een gestarte taak legt `applyTriangleResult` het verrichte werk en het restwerk vast.
  */
 export function settleDurationEdit(task: Task, captured: CapturedTriangle | null): DurationEditWriteBack {
   if (!captured) return NO_DURATION_CHANGE;
@@ -420,7 +424,10 @@ export function settleDurationEdit(task: Task, captured: CapturedTriangle | null
   followRemainingOfUnstartedTask(task, captured.time);
   const newRemaining = remainingMinutesOf(task, captured.ctx);
   if (Math.abs(newRemaining - captured.state.remainingMinutes) < 1e-6) return NO_DURATION_CHANGE;
-  const result = applyDurationEdit(captured.state, newRemaining);
+  // Vóór de positieve-restvalidatie van de kern: rest 0 op een voltooide taak is een voltooiing.
+  const result = newRemaining < 1e-6 && task.time.completion >= 1
+    ? completedByDurationEdit(captured.state)
+    : applyDurationEdit(captured.state, newRemaining);
   if (!result.ok) return NO_DURATION_CHANGE;
   // Alleen de toewijzingen van deze taak (uit de momentopname): de terugschrijfstap en het
   // afwijkcriterium zoeken dan in een handvol objecten, niet in alle toewijzingen van het project.
@@ -438,6 +445,28 @@ export function settleDurationEdit(task: Task, captured: CapturedTriangle | null
     });
   }
   return { ...written, recomputedWork };
+}
+
+/**
+ * Voltooid door een duurbewerking: de nieuwe duur is precies het gedane deel, dus de rest is 0. Elke
+ * werkresource houdt haar verrichte werk en krijgt restwerk 0, onder elke regel; inzet en materiaal
+ * blijven staan. Het vervallen restwerk wordt NIET als verricht geboekt (dat doet alleen een
+ * voortgangsboeking, `settleProgressWork`). `applyTriangleResult` legt daarna het verrichte werk uit
+ * de momentopname vast waar het nog ontbrak. Geeft dezelfde bewerking zelf ook 100 % op (dialoog,
+ * MCP), dan geldt hetzelfde: de voortgangsboeking slaat een bewerking met een andere totale duur
+ * over, dus het verrichte werk groeit hier niet mee. Zonder deze stap weigerde de kern
+ * rest 0, bleef het opgeslagen restwerk staan en telde de belasting het nog mee (aanval a03 na #600:
+ * 4 d op 50 %, verlengd tot 6 d en terug naar 2 d gaf 100 % met 32 u restwerk).
+ */
+function completedByDurationEdit(state: TriangleState): { ok: true; state: TriangleState } {
+  return {
+    ok: true,
+    state: {
+      ...state,
+      remainingMinutes: 0,
+      assignments: state.assignments.map((a) => (a.drivesDuration ? { ...a, remainingWorkMinutes: 0 } : a)),
+    },
+  };
 }
 
 /**

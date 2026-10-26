@@ -70,7 +70,10 @@ oud % × oude duur ÷ nieuwe duur, onafgerond (`carryRemainingThroughDurationEdi
 dan het gedane werk wordt geweigerd — geen klem op 0 meer: store/extensie-API via `durationEditRefusal`
 vóór de snapshot met melding `durationBelowDoneWork`, "Taak bewerken" slaat niets op, raster celfout
 `durationBelowDoneWork`, MCP zachte weigering per item (`planner_update_tasks` meldt een aanpassing als
-`progressAdjusted`). Precies gelijk ⇒ 100 %. Geeft dezelfde bewerking zelf voortgang op, dan wint die.
+`progressAdjusted`). Precies gelijk ⇒ 100 %, en dan houdt elke werkresource haar verrichte werk en krijgt ze
+restwerk 0, onder elke regel (`completedByDurationEdit` in `settleDurationEdit`, vóór de positieve-restweigering
+van de kern; het vervallen restwerk wordt niet als verricht geboekt). Geeft dezelfde bewerking zelf voortgang op,
+dan wint die.
 `setTaskSplits` valt erbuiten. Schrijft de brug de rest expliciet vanuit de driehoek of een kalenderwissel
 op een gestarte taak, dan volgt `completion` daaruit als 1 − rest ÷ duur (`syncCompletionToRemaining`,
 eigenaarsbesluit 2026-09-06), zodat Gantt-balk, solver en rapportage één waarheid delen — spec §6.4/§6.5,

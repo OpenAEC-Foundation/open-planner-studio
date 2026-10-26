@@ -18,6 +18,9 @@
  * TK_NotStart, 80 h; Design Engineer target/remain 320 h bij 1/h, resttempo 0). Geen corpusbestand
  * in de repo. Daarnaast een Roads-achtige taak zonder toewijzingen (A15131), een gestarte taak,
  * Vast werk, Vaste duur en werk, een gewone dagtaak, splitsen, raster, MCP en IFC heen en terug.
+ *
+ * Sectie (r) heeft een eigen project: een lopende taak die door een duurverkorting precies voltooid
+ * raakt, houdt haar verrichte werk en krijgt restwerk 0, onder elke regel (aanval a03 na #600).
  */
 import './domStub';
 import { useAppStore } from '@/state/appStore';
@@ -25,6 +28,7 @@ import { runGridMutation } from '@/state/gridTransaction';
 import { draft, runInMcpTransaction } from '@/state/mcpTransaction';
 import { readXER } from '@/services/xer/xerReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
+import { readIFC } from '@/services/ifc/ifcReader';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { readXerArchiveIFC } from './xerArchiveTestReader';
 import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes';
@@ -38,9 +42,11 @@ import { createDefaultTaskTime, taskCalendarHoursPerDay } from '@/utils/taskDefa
 import { createTaskGridAdapter } from '@/engine/taskGrid/taskGridAdapter';
 import { taskColumnId } from '@/engine/taskGrid/fieldIds';
 import { effectiveCalendarOf, effHoursPerDay } from '@/utils/taskDuration';
+import { makeBands } from '@/utils/effectiveWorkTime';
 import type { CellEditIntent } from '@/types/taskGrid';
 import type { Task } from '@/types/task';
 import type { ResourceAssignment } from '@/types/resource';
+import type { WorkRule } from '@/types/workRule';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -556,6 +562,98 @@ console.log('-- (q) besluit V10: de slotzin van de uitleg volgt de regel, in tab
   useAppStore.setState((s) => { s.tasks.find((x) => x.wbsCode === 'E-1020')!.workRule = 'FIXED_WORK'; });
   eq('q6 dezelfde taak onder Vast werk: de andere slotzin', tableText('E-1020'),
     `Opgeslagen werk wijkt af van inzet × resterende duur:\nDesign Engineer 2: 160u (inzet × resterende duur: 40u)\n${KEEPS}`);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- (r) voltooien door duurverkorting: restwerk 0, verricht werk blijft (aanval a03 na #600) --');
+{
+  // Kalender ma–vr 08:00–16:00, één arbeidsresource met inzet 1, werkelijke start 1 juni 08:00,
+  // statusdatum 3 juni: 4 d op 50 % = 16 u verricht. Verlengen naar 6 d legt 960 min verricht en
+  // 1920 min restwerk vast (33⅓ %). Verkorten naar 2 d, precies het gedane deel, maakt de taak
+  // voltooid. De kern weigerde rest 0 en `settleProgressWork` slaat een andere totale duur over: de
+  // toewijzing hield 1920 min restwerk en de belasting telde 48 u in plaats van 16 u.
+  const start = (name: string, rule: WorkRule): void => {
+    S().newProject();
+    S().setProject({ startDate: '2026-06-01', statusDate: '2026-06-03' });
+    S().setCalendar({
+      ...S().calendar, workStartHour: 8, workEndHour: 16, hoursPerDay: 8, workDays: [1, 2, 3, 4, 5], holidays: [],
+      workTime: makeBands([1, 2, 3, 4, 5], [{ start: 480, end: 960 }]),
+    });
+    const id = S().addTask({ name, time: createDefaultTaskTime('2026-06-01', 4) });
+    const rid = S().addResource({ name: 'Ploeg', type: 'LABOR', description: '', maxUnits: 1 });
+    S().assignResource(id, rid, 1);
+    if (rule !== 'FIXED_DURATION_RATE') S().setTaskWorkRule(id, rule);
+    S().setActualStart(id, '2026-06-01T08:00');
+    S().setTaskProgress(id, 0.5);
+    S().runCPM();
+    useAppStore.setState((s) => { s.ui.notifications = []; });
+  };
+  // Opzoeken op naam: een IFC-heropening geeft nieuwe ids.
+  const taskNamed = (name: string): Task => S().tasks.find((t) => t.name === name)!;
+  const own = (name: string): ResourceAssignment => S().assignments.find((a) => a.taskId === taskNamed(name).id)!;
+  const load = (name: string) => assignmentDayUnits(taskNamed(name), own(name), 480).reduce((sum, v) => sum + v, 0) * 480;
+  const snapshot = (name: string) => JSON.stringify({ time: taskNamed(name).time, status: taskNamed(name).status, assignment: own(name) });
+  const work = (name: string) => [own(name).actualWorkMinutes, own(name).remainingWorkMinutes];
+  const setDays = (name: string, days: number, route: 'store' | 'raster' | 'MCP'): void => {
+    const t = taskNamed(name);
+    const hours = t.time.durationUnit === 'hours';
+    const patch = hours ? { durationMinutes: days * 480, scheduleDuration: days } : { scheduleDuration: days };
+    if (route === 'store') S().updateTask(t.id, { time: { ...t.time, ...patch } });
+    else if (route === 'raster') {
+      const value = hours
+        ? { unit: 'hours', durationMinutes: days * 480, explicitUnit: false }
+        : { unit: 'days', scheduleDuration: days, explicitUnit: true };
+      eq(`r ${name}: rastercel ${days} d slaagt`, runGridMutation([{
+        kind: 'cell-edit', taskId: t.id, columnId: 'task.time.scheduleDuration' as CellEditIntent['columnId'],
+        route: 'task-schedule', value,
+      }]).ok, true);
+    } else ok(`r ${name}: MCP ${days} d slaagt`, runInMcpTransaction(() => { draft.patchTaskFields(t.id, {}, patch); }).ok);
+  };
+  const completed = (name: string, label: string): void => {
+    const t = taskNamed(name).time;
+    eq(`${label}: 100 % en taakrest 0`, [t.completion, t.remainingTime], [1, 0]);
+    eq(`${label}: verricht 960 blijft, restwerk 0`, work(name), [960, 0]);
+    eq(`${label}: belasting is het verrichte werk van 16 u`, r4(load(name)), 960);
+  };
+
+  // Het gemelde geval op de drie routes, met undo/redo, F5 en IFC-heropening.
+  for (const route of ['store', 'raster', 'MCP'] as const) {
+    const name = `a03 ${route}`;
+    start(name, 'FIXED_DURATION_RATE');
+    setDays(name, 6, route);
+    eq(`r1 ${route}: verlengen legt 960 verricht en 1920 rest vast`, work(name), [960, 1920]);
+    const extended = snapshot(name);
+    setDays(name, 2, route);
+    completed(name, `r2 ${route}`);
+    eq(`r3 ${route}: geen melding over herrekend restwerk`, workNotices(), []);
+    const done = snapshot(name);
+    S().undo();
+    eq(`r4 ${route}: undo herstelt de verlengde stand exact`, snapshot(name), extended);
+    S().redo();
+    eq(`r5 ${route}: redo herstelt de voltooide stand exact`, snapshot(name), done);
+    S().runCPM();
+    completed(name, `r6 ${route} na F5`);
+    const back = readIFC(writeIFC(buildWriteIFCInput(S())));
+    const a = back.assignments.find((x) => x.taskId === back.tasks.find((t) => t.name === name)!.id)!;
+    eq(`r7 ${route}: IFC schrijft 960 verricht en 0 restwerk`, [a.actualWorkMinutes, a.remainingWorkMinutes], [960, 0]);
+    S().applyLoadedProject(back, { linkedOpen: true, recompute: true, filePath: null });
+    completed(name, `r8 ${route} na heropenen`);
+  }
+
+  // Dezelfde overgang onder de andere regels; vast werk is urenmaat (B1a). Ook zonder verlenging:
+  // de werkbeschermende regels hebben al een opgeslagen werkpaar (stond zo al op fbd4a3f9d).
+  for (const rule of ['FIXED_RATE', 'FIXED_DURATION_WORK', 'FIXED_WORK'] as const) {
+    for (const extend of [true, false]) {
+      const name = `a03 ${rule}${extend ? ' na verlengen' : ' direct'}`;
+      start(name, rule);
+      if (extend) setDays(name, 6, 'store');
+      const units = own(name).unitsPerDay;
+      setDays(name, 2, 'store');
+      completed(name, `r9 ${name}`);
+      eq(`r10 ${name}: inzet blijft staan`, own(name).unitsPerDay, units);
+      if (rule === 'FIXED_WORK') eq(`r11 ${name}: urenmaat`, taskNamed(name).time.durationUnit, 'hours');
+    }
+  }
 }
 
 if (diffs.length > 0) {

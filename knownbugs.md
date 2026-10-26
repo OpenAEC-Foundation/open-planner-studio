@@ -245,6 +245,14 @@ en noem het in je rapport of PR-tekst.
      ingevuld werkelijk einde werkt wel. Op `main` faalt dezelfde invoer ook. Voorstel: gebruik de bestaande
      mijlpaalkant. Gevonden in review #563 r2, nagespeeld in review r1 van #600. — B
 
+341. **Een maatwissel vervangt een expliciete restduur door de afleiding uit het percentage.**
+     `src/engine/work/workRuleApply.ts:982`: begintoestand 4 d, 50 % gereed, expliciet 1 d rest (toegelaten
+     import- of extensiedata); alleen wisselen naar 32 uur geeft `remainingMinutes = 960` (16 u) in plaats van
+     480 (8 u). De eenheidswisseltak rekent `totaal × (1 − percentage)` en laat de expliciete rest vallen. Undo
+     herstelt, redo verdubbelt opnieuw. Stond al zo op `fbd4a3f9d` (met Urenplanning aan). Voorstel: ook bij een
+     maatwissel de bestaande Δ-restregel in minuten toepassen; het percentage alleen als de expliciete rest
+     ontbreekt. Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
