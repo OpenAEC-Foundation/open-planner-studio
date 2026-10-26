@@ -1,6 +1,7 @@
 import { useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Trash2, X, Check, AlertTriangle, ChevronRight, ChevronDown } from 'lucide-react';
+import { activityFieldText } from '@/i18n/activityFieldText';
 import * as activityLog from '@/services/mcp/activityLog';
 import type { ActivityEntry } from '@/services/mcp/contracts';
 import { useAppStore } from '@/state/appStore';
@@ -45,7 +46,7 @@ function ActivityRow({ entry, depth = 0 }: { entry: ActivityEntry; depth?: numbe
           : <AlertTriangle size={12} style={{ flexShrink: 0, color: '#f87171' }} />}
         <span style={{ color: 'var(--dashboard-text-dim)', flexShrink: 0 }}>{formatClockTime(entry.ts)}</span>
         <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {entry.summary || entry.tool}
+          {entry.summaryKind === 'unparseableRequest' ? t('aiActivity.unparseableRequest') : entry.summary || entry.tool}
         </span>
         <span style={{ color: 'var(--dashboard-text-dim)', flexShrink: 0 }}>{formatDuration(entry.durationMs)}</span>
       </div>
@@ -53,19 +54,19 @@ function ActivityRow({ entry, depth = 0 }: { entry: ActivityEntry; depth?: numbe
         <div style={{ padding: '2px 6px 6px', paddingLeft: 24 + depth * 14 }}>
           {entry.error && (
             <div style={{ color: '#f87171', marginBottom: 4, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-              {entry.error}
+              {entry.errorKind ? t(entry.errorKind === 'unparseableResponse' ? 'aiActivity.unparseableResponse' : 'aiActivity.error') : entry.error}
             </div>
           )}
           {entry.argsJson && (
             <div style={{ marginBottom: 4 }}>
               <div className="!text-small" style={{ color: 'var(--dashboard-text-dim)' }}>{t('aiActivity.args')}</div>
-              <pre className="!text-small" style={preStyle}>{entry.argsJson}</pre>
+              <pre className="!text-small" style={preStyle}>{activityFieldText(entry.argsJson, t('aiActivity.truncated'))}</pre>
             </div>
           )}
           {entry.resultJson && (
             <div>
               <div className="!text-small" style={{ color: 'var(--dashboard-text-dim)' }}>{t('aiActivity.result')}</div>
-              <pre className="!text-small" style={preStyle}>{entry.resultJson}</pre>
+              <pre className="!text-small" style={preStyle}>{activityFieldText(entry.resultJson, t('aiActivity.truncated'))}</pre>
             </div>
           )}
           {entry.substeps?.map((sub, i) => <ActivityRow key={i} entry={sub} depth={depth + 1} />)}
