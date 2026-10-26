@@ -94,7 +94,6 @@ en noem het in je rapport of PR-tekst.
 29. **Hardgecodeerd Nederlands**: "Het bestaande projectbestand is niet schrijfbaar."
     (`actualAutoSave.ts`), het CFB-citaat (`cfb.ts`) en bestandsnaamdelen
     `-voortgang`/`-bibliotheek`. Zie ook 61 voor PDF-bestandsnamen. — S
-32. ***Herkennen*: "Geen voorstel — kies handmatig"** zonder knop om handmatig te kiezen. — B
 33. **Bibliotheekkalender verwijderen** gaat zonder bevestiging; daarna staat hij nog als *al gekoppeld*. — S
 64. **Een uitgeschakelde `tutorials`-extensie wordt weer aangezet, ongeacht waar hij vandaan kwam**
     (review #261, punt O2). — S
@@ -231,6 +230,12 @@ en noem het in je rapport of PR-tekst.
     `calendarResourceTools.ts:1621` verwijst dan naar een lege `unresolvedReasons`. De dialoog toont de
     conflicten wel goed. Voorstel: een ontbrekende reden expliciet in het typecontract, en de MCP-uitleg daarop
     aanpassen. Gevonden in review r1 van #594 (GPT-6.1-Sol). — B
+
+320. **De koppeldialoog bouwt dezelfde optielijst drie keer per kandidaat.** `src/components/dialogs/LibraryLinkDialog.tsx:47`
+    mapt de volledige bronlijst; regels 96–98 roepen dat apart aan voor `options`, `disabled` en `placeholder`.
+    Dat maakt bij elke render onnodige arrays; een merkbare vertraging is niet aangetoond. Voorstel: één
+    resourcelijst en één kalenderlijst per render, en die hergebruiken. Gevonden in review r1 van #635
+    (GPT-6.1-Sol). — B
 
 ## Bestanden en herstel
 
@@ -423,6 +428,13 @@ en noem het in je rapport of PR-tekst.
     letterlijke verwachting. Bevestigd in de tweede onafhankelijke review van PR #604. Voorstel:
     vergelijk de volledige tekst van `.ops-toast-message` exact; laat de taaknamen apart gecontroleerd.
     Geen fout in de huidige producttelling aangetoond. — B
+
+224. **RTL-balksleeptest faalt incidenteel zonder aangetoonde oorzaak.** In PR #635 op
+    `3ca78f26234ddfed8e6fd4341a8f9e0ee44ec66a`, run 40157918525 poging 1, bleef bij
+    `gantt-drag-undo.spec.ts:313` de taakvolgorde na balkslepen ongewijzigd, terwijl de voorafgaande
+    rijsleep wel verplaatste. Dezelfde head slaagde in poging 2 zonder codewijziging; ook de eerdere
+    PR-head was groen. Screenshot/trace: artefact 12585687942. Geen Gantt-code in deze PR gewijzigd;
+    timing-/geometrieoorzaak en productreproduceerbaarheid nog niet vastgesteld. — S
 
 ## Wensen en open taken (geen bug)
 
