@@ -86,6 +86,12 @@ en noem het in je rapport of PR-tekst.
 60. **Duur-kolom afgeknipt** in de standaard Gantt-weergave (WBS 60 + Taaknaam 240 + Duur 60 + de
     "+"-kolom): je leest "2c" in plaats van "2d", op 1600 én 1366 px breed. — B
 
+333. **De bevestigingsdialoog let bij Enter niet op `isComposing`.** `src/components/dialogs/ConfirmDialog.tsx:36–44`:
+    een synthetische IME-Enter verwijderde in een browserprobe de kalender, toen de focus bewust achter de open
+    dialoog stond. De focus-trap zet de focus normaal op Annuleren; een gewone gebruikersroute naar dit geval is
+    niet aangetoond. Voorstel: na `stopPropagation()` een guard voor `isComposing` die ook de standaardactie
+    tegenhoudt. Gevonden in review r2 van #628 (GPT-6-Sol). — B
+
 ## Kalenders
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden
