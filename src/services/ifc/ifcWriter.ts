@@ -1,3 +1,4 @@
+import { calendarExceptionKey } from './calendarExceptionKey';
 import { Task } from '@/types/task';
 import { Sequence } from '@/types/sequence';
 import { Resource } from '@/types/resource';
@@ -1202,8 +1203,8 @@ function writeCalendar(
   // reserveert die niet voor werkende uitzonderingen, en een spec-conforme externe tool kan een
   // RECURRENTE FEESTDAG ("elke 25 december") met exact zo'n gevulde ref schrijven. Het echte
   // onderscheid is de OPS-pset-markering hieronder (`writeCalendarGenerationMeta`,
-  // `WorkingExceptionIds`) — de STEP-ids van deze IFCWORKTIME's worden daar expliciet
-  // weggeschreven, en de reader behandelt alléén een gemarkeerd id als werkende uitzondering
+  // `WorkingExceptionKeysV1`, met legacy `WorkingExceptionIds`) — inhoudssleutels overleven
+  // vernummering; alleen een expliciet gemarkeerde uitzondering wordt als werkend gelezen
   // (conservatief: ongemarkeerd + gevulde ref ⇒ feestdag). Golden rule: `cal.workingExceptions`
   // afwezig/leeg ⇒ deze lus doet niets (geen nieuwe entiteiten, geen gewijzigde ExceptionTimes,
   // geen nieuwe pset-property).
@@ -1378,6 +1379,10 @@ function writeCalendarGenerationMeta(
       `IFCPROPERTYSINGLEVALUE('IsHourCalendar',$,IFCBOOLEAN(.F.),$)`));
   }
   if (hasWorkingExceptions) {
+    // Nieuwe lezers gebruiken inhoud, niet STEP-nummers die MergeProjects opnieuw uitgeeft.
+    // De oude property blijft voor eerdere OPS-versies; V1 heeft bij nieuwe lezers voorrang.
+    props.push(addLine(ctx, `_opscal_wexckeys_${cal.id}`,
+      `IFCPROPERTYSINGLEVALUE('WorkingExceptionKeysV1',$,IFCTEXT(${ifcJson((cal.workingExceptions ?? []).map(calendarExceptionKey))}),$)`));
     const idJson = JSON.stringify(workingExceptionStepIds.map(String));
     props.push(addLine(ctx, `_opscal_wexc_${cal.id}`,
       `IFCPROPERTYSINGLEVALUE('WorkingExceptionIds',$,IFCTEXT(${ifcStr(asciiJson(idJson))}),$)`));

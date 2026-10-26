@@ -1,3 +1,5 @@
+import { ScopeEscapeError } from '@/services/mcp/fileScopeError';
+export { ScopeEscapeError } from '@/services/mcp/fileScopeError';
 // Bestandstoegang van de headless MCP-server: de `McpFileFs`-naad van `planner_export_ifc` en
 // `planner_import_schedule` (`src/services/mcp/tools/fileTools.ts`) op Node `fs`, opgesloten in één
 // werkmap (`--root`).
@@ -53,14 +55,6 @@ export function isInside(parent: string, child: string, sep: string = path.sep):
 
 function errCode(e: unknown): string | undefined {
   return e && typeof e === 'object' && 'code' in e ? String((e as { code: unknown }).code) : undefined;
-}
-
-/** Een eigen fouttype, zodat een scopeweigering in een bestandsoperatie herkenbaar blijft. */
-export class ScopeEscapeError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'ScopeEscapeError';
-  }
 }
 
 /** `dev` + `ino` van een bestand of map. */

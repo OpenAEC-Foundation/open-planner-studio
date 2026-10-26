@@ -455,6 +455,7 @@
     "jumpToTask": "タスク {{wbs}} へ移動",
     "relationPopoverTitle": "関係の種類",
     "driving": "駆動関係（駆動関係）",
+    "drivingUnknown": "駆動関係は計算なしでは不明です。",
     "lag": "ラグ（例: 2d、3ed、2u、50%、-25e%）",
     "recalculate": "計算",
     "assignments": {
@@ -519,6 +520,8 @@
     "type": "タイプ",
     "lag": "ラグ",
     "driving": "駆動",
+    "drivingUnknown": "不明",
+    "notDriving": "駆動関係ではない",
     "freeFloat": "フリーフロート",
     "warnings": "警告",
     "warnTruncatedLead": "リードがプロジェクト開始で打ち切られました — 重複は完全には活用されません",
