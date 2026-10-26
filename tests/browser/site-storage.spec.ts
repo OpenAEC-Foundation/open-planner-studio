@@ -585,8 +585,32 @@ async function openToolInIframe(page: Page, options: { initialFileId?: string; l
   return frame;
 }
 
+/**
+ * Zoals in de SuperCloud-werkplek (issue #582): daar draait de tool in een sandbox-iframe zonder
+ * `allow-same-origin`, en weigert de browser IndexedDB met een `SecurityError`. Alleen in de iframe;
+ * de host op de parent houdt zijn eigen opslag.
+ */
+async function refuseIndexedDbInIframe(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    if (window === window.top) return;
+    Object.defineProperty(IDBFactory.prototype, 'open', {
+      configurable: true,
+      value: () => { throw new DOMException('The user denied permission to access the database.', 'SecurityError'); },
+    });
+  });
+}
+
+/** Meldingen over crashherstel of auto-save in het meldingenkanaal van de tool. */
+const recoveryNotices = (tool: Tool) => tool.evaluate(() => window.__OPS__!.store.getState().ui.notifications
+  .map((n) => n.messageKey).filter((key) => /recovery|autoSave/i.test(key)));
+
 for (const [label, lateMs] of [['meteen', undefined], ['pas na het laden', 3_000]] as const) {
   test(`iframe: host op de parent (${label}) — startbestand, openen en opslaan over twee vensters`, async ({ page }) => {
+    // De iframe weigert IndexedDB, zoals in de werkplek. Crashherstel gaat dan stil uit: één
+    // consoleregel, geen melding; openen en opslaan via de host werken gewoon.
+    const recoveryOff: string[] = [];
+    page.on('console', (message) => { if (message.text().includes('Crashherstel staat uit')) recoveryOff.push(message.text()); });
+    await refuseIndexedDbInIframe(page);
     const frame = await openToolInIframe(page, { initialFileId: 'p1', lateMs });
     // Het startbestand komt van de parent; de inhoud is een Blob uit het venster van de parent.
     await expect.poll(() => doc(frame).then((d) => d.siteFileId), { timeout: 20_000 }).toBe('p1');
@@ -610,6 +634,15 @@ for (const [label, lateMs] of [['meteen', undefined], ['pas na het laden', 3_000
       fn: 'save', id: 'p1', name: 'Planning.ifc', baseVersion: '2', type: 'application/x-step', realm: 'other',
     });
     await expect.poll(() => doc(frame)).toMatchObject({ isDirty: false, siteFileVersion: '3' });
+
+    // De eerste crashherstelronde loopt meteen na de eerste wijziging; de site-opslag hierboven is
+    // pas daarna klaar. Nog een wijziging en nog een opslag: ook die ronde blijft stil.
+    await makeDirty(frame, 'Nog een wijziging');
+    await page.keyboard.press('Control+s');
+    await expect.poll(() => saves(page).then((s) => s.length)).toBe(2);
+    await expect.poll(() => doc(frame)).toMatchObject({ isDirty: false, siteFileVersion: '4' });
+    expect(recoveryOff).toHaveLength(1);
+    expect(await recoveryNotices(frame)).toEqual([]);
   });
 }
 
