@@ -1141,14 +1141,6 @@ en noem het in je rapport of PR-tekst.
      `monthLabel` expliciet terugvallen op `en` als `Intl` de locale niet kent, of de toets de locale laten
      vastzetten. — B
 
-285. **`hour-data-notice-document.spec.ts` is wisselvallig: na `page.reload()` komt het welkomstvenster
-     over het paneel.** De test herlaadt de pagina per voorkeur (aan, uit), maar wacht daarna niet op het
-     welkomstvenster en sluit het niet, zoals de fixture bij de start doet (`waitForWelcomeDialog`,
-     `fixtures/ops.ts:88`). Komt het venster net na `fill('6h')`, dan gaat Enter niet naar het duurveld:
-     "minutes 240, verwacht 360". Gezien in CI op #584 (`293acf1c9`, shard 1); de error-context toont
-     "Welcome to Open Planner Studio" open en het duurveld op "4". Lokaal 5 van 5 groen. Voorstel: na de
-     reload `waitForWelcomeDialog` en `setUI({ showWelcomeDialog: false })`, zoals de fixture. — B
-
 264. **De browsertest "Gantt-balk vertical slepen landt in RTL op dezelfde plek als een rijsleep" is
      wisselvallig.** `tests/browser/gantt-drag-undo.spec.ts:273`. De rijsleep en de undo slagen, maar na de
      balksleep blijft de volgorde die van vóór de sleep: de eerste taak staat nog bovenaan ("Timeout 5000ms
