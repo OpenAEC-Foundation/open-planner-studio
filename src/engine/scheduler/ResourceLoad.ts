@@ -239,6 +239,33 @@ export function taskWorkDayIsos(task: Task, taskEngine: CalendarEngine, duration
     : enumerateTaskWorkDays(task.splitGaps, taskEngine, task.time.earlyStart, durationDays);
 }
 
+/** Alleen binnen één lastberekening: taak en engine veranderen daar niet. Een langere contour
+ *  kan een andere duur vragen, dus die krijgt een eigen mapping. Bewaar niets voor een enkele
+ *  toewijzing en laat de dagen na het laatste gebruik los; de optelvolgorde blijft ongewijzigd. */
+function createTaskWorkDayLookup(assignments: readonly ResourceAssignment[]) {
+  const remaining = new Map<string, number>();
+  for (const a of assignments) remaining.set(a.taskId, (remaining.get(a.taskId) ?? 0) + 1);
+  const cache = new Map<Task, Map<number, string[]>>();
+  return (task: Task, engine: CalendarEngine, slotCount: number): readonly string[] => {
+    const count = remaining.get(task.id) ?? 1;
+    remaining.set(task.id, count - 1);
+    let byDuration = cache.get(task);
+    if (count <= 1) cache.delete(task);
+    // Ook een lege verdeling telt af, maar hoeft geen kalenderdagen op te vragen.
+    if (slotCount === 0) return [];
+    const durationDays = Math.max(task.time.scheduleDuration, slotCount);
+    const days = byDuration?.get(durationDays) ?? taskWorkDayIsos(task, engine, durationDays);
+    if (count > 1) {
+      if (!byDuration) {
+        byDuration = new Map();
+        cache.set(task, byDuration);
+      }
+      byDuration.set(durationDays, days);
+    }
+    return days;
+  };
+}
+
 /** ISO-datum → belaste/beschikbare eenheden. Alleen dagen met >0 belasting of capaciteit
  *  (dag-granulair) — geen volledige-projectspanne-vulling met nul-dagen. */
 export interface DailyLoad {
@@ -350,13 +377,13 @@ export function computeResourceLoad(
   // 2-3. Verdeel + accumuleer per resource per dag. De verdeling komt uit
   //      `assignmentDayUnits` — opgeslagen contour of exacte curve als DATA, anders de formule.
   const contourOf = contourLookup(validAssignments);
+  const workDaysOf = createTaskWorkDayLookup(validAssignments);
   for (const a of validAssignments) {
     const task = taskById.get(a.taskId)!;
     const taskEngine = engineForTask(task);
     const days = assignmentDayUnits(task, a, taskEngine.hoursPerDay * 60, contourOf(task, a));
+    const workDayIsos = workDaysOf(task, taskEngine, days.length);
     if (days.length === 0) continue;
-    const durationDays = Math.max(task.time.scheduleDuration, days.length);
-    const workDayIsos = taskWorkDayIsos(task, taskEngine, durationDays);
 
     if (!load[a.resourceId]) load[a.resourceId] = {};
     const bucket = load[a.resourceId];
@@ -541,14 +568,14 @@ export function computeHistogramReport(input: HistogramInput): HistogramReport {
   }
   const perAssignment: AssignDaily[] = [];
   const contourOf = contourLookup(assignments);
+  const workDaysOf = createTaskWorkDayLookup(assignments);
   for (const a of assignments) {
     const task = taskById.get(a.taskId);
     if (!task || task.isMilestone || isSummaryTask(task)) continue;
     const taskEngine = engineForTask(task);
     const dist = assignmentDayUnits(task, a, taskEngine.hoursPerDay * 60, contourOf(task, a));
+    const workDayIsos = workDaysOf(task, taskEngine, dist.length);
     if (dist.length === 0) continue;
-    const durationDays = Math.max(task.time.scheduleDuration, dist.length);
-    const workDayIsos = taskWorkDayIsos(task, taskEngine, durationDays);
     const daily = new Map<string, number>();
     for (let i = 0; i < dist.length && i < workDayIsos.length; i++) {
       const iso = workDayIsos[i];

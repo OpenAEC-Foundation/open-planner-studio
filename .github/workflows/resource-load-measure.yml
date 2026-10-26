@@ -1,0 +1,64 @@
+# Tijdelijke, afgebakende vergelijking voor het taakwerkdagen-hergebruik.
+# Deze tekst is geplaatst door een AI-assistent.
+name: Resourcebelasting voor-na
+
+on:
+  push:
+    branches: [t3/resource-load-performance-1]
+    paths:
+      - '.github/workflows/resource-load-measure.yml'
+      - 'tests/planning/check-resource-load-reuse.ts'
+      - 'tests/planning/resourceLoadReuseFixture.ts'
+      - 'tests/planning/measure-resource-load-reuse.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: resource-load-measure-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compare:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Afhankelijkheden
+        run: npm ci
+      - name: Gerichte regressies en schaalpoort
+        run: bash tests/planning/run.sh check-resource-load-reuse.ts check-resource-load-splits.ts check-resource-load-reasons.ts check-contour-engine.ts check-short-hour-task-load.ts check-leveler-pool-ledger.ts
+      - name: Meet basis en wijziging op dezelfde runner
+        env:
+          RESOURCE_LOAD_BASE: fbd4a3f9dcc7bdd308ab86b992d0b26f4670a553
+        run: |
+          git fetch --no-tags origin "$RESOURCE_LOAD_BASE"
+          before_dir=$(mktemp -d)
+          trap 'rm -rf "$before_dir"' EXIT
+          git archive "$RESOURCE_LOAD_BASE" | tar -x -C "$before_dir"
+          mkdir -p build/resource-load-measure
+          NODE_PATH="$PWD/node_modules" node_modules/.bin/esbuild tests/planning/check-resource-load-reuse.ts --bundle --platform=node --format=esm --alias:@="$before_dir/src" --outfile="$RUNNER_TEMP/resource-load-before-check.mjs"
+          set +e
+          node "$RUNNER_TEMP/resource-load-before-check.mjs" > build/resource-load-measure/before-check.log 2>&1
+          before_status=$?
+          set -e
+          test "$before_status" -eq 1
+          grep -F 'achtmaal meer toewijzingen geeft geen extra kalenderdoorloop' build/resource-load-measure/before-check.log
+          node --expose-gc tests/planning/measure-resource-load-reuse.mjs "$before_dir" "$RESOURCE_LOAD_BASE" build/resource-load-measure
+      - name: Bewaar meetbewijs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resource-load-voor-na-${{ github.sha }}
+          path: |
+            build/resource-load-measure/result.json
+            build/resource-load-measure/summary.md
+            build/resource-load-measure/before-check.log
+          if-no-files-found: ignore
+          retention-days: 14
