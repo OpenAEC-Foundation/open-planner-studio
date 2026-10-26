@@ -140,7 +140,8 @@ function validateNamespaces(name: string, attrs: Map<string, string>, parent: Na
   }
   const [prefix] = qualifiedName(name);
   if (prefix === 'xmlns') throw new XmlSyntaxError('xmlns cannot be an element prefix');
-  namespaceFor(prefix, scope);
+  // Alleen een expliciete prefix moet gebonden zijn; de default namespace wordt hier niet gebruikt.
+  if (prefix) namespaceFor(prefix, scope);
   const expanded = new Set<string>();
   for (const attr of attrs.keys()) {
     const [attrPrefix, local] = qualifiedName(attr);
