@@ -20,7 +20,7 @@ Het isometrische kubuslogo met zes Gantt-blokken op drie rijen. De tijdlijn en Ã
 
 De map bevat het complete aangeleverde pakket, ongewijzigd uitgepakt naast het oorspronkelijke ZIP-bestand. De ZIP en de bestanden in de hashmanifesten zijn byte voor byte gecontroleerd. Deze index is apart toegevoegd en valt buiten het pakketmanifest.
 
-De logo-assets zijn beschikbaar voor gebruik; deze toevoeging activeert ze nog niet in de applicatie of de installers.
+De app en de installers gebruiken het beeldmerk uit dit pakket in een afgeleide vorm; zie *Gebruik in de app* hieronder.
 
 Voor het bewerken en opnieuw renderen: zie [LEESMIJ.txt](LEESMIJ.txt). De generator gebruikt Blender, zonder Node.js. De fonts hebben een eigen [SIL Open Font License](04-source/fonts/OFL.txt).
 
