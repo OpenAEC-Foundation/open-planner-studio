@@ -209,17 +209,6 @@ en noem het in je rapport of PR-tekst.
      die afwijkt wel, maar niet een tweede kopie die mee verandert. Voorstel: één gedeelde functie voor de
      spanwijdte, en de afronding per dag gelijk aan die van de Gantt. Gevonden in F3c-fix-split. — B
 
-265. **Contour en splitsgaten bij een eenheidswissel van een kalendertijdtaak tellen de oude duur in
-     werkminuten.** `applyDurationChangeRules` (`src/utils/taskDefaults.ts:822`) krijgt de oude werkminuten
-     van de aanroeper: in het raster `taskWorkMinutes(before, hoursPerDay)` met de werktijd per dag
-     (`src/engine/taskGrid/taskEditPlan.ts:205`), in de store via `settleDurationAftermath`
-     (`workRuleApply.ts:755`, de werktijd per dag van de taakkalender). Gaat een kalendertijdtaak van dagen
-     naar uren (2 d naar "1d 4u"), dan telt de oude duur als 960 in plaats van 2880 minuten. De
-     herschaling van een contour en het afknippen van splitsgaten (`clipUserGapsToWork`) rekenen dan
-     vermoedelijk met een verkeerde verhouding. Gevonden met grep in fixronde 4 van #584; niet gemeten.
-     Voorstel: eerst meten met een contour en een splitsgat op een kalendertijdtaak; dan dezelfde regel
-     als `durationEditProgress` (24 u per dag bij kalendertijd). — S
-
 266. **Na een eenheidswissel op een lopende taak heeft de rest ruis van de drijvende komma.**
      `durationEditProgress` (`src/engine/work/workRuleApply.ts:953`) rekent de rest als nieuwe duur ×
      (1 − nieuw percentage). Een werktijdtaak van 2 d, 25 % gereed, met een nieuwe duur van 12 u (onder P6
@@ -244,6 +233,35 @@ en noem het in je rapport of PR-tekst.
      met `needsActualStart`, en de MCP-update weigert ook. Hetzelfde bij do 00:00 op een 24-uurskalender. Een
      ingevuld werkelijk einde werkt wel. Op `main` faalt dezelfde invoer ook. Voorstel: gebruik de bestaande
      mijlpaalkant. Gevonden in review #563 r2, nagespeeld in review r1 van #600. — B
+
+341. **Een maatwissel vervangt een expliciete restduur door de afleiding uit het percentage.**
+     `src/engine/work/workRuleApply.ts:990`: begintoestand 4 d, 50 % gereed, expliciet 1 d rest (toegelaten
+     import- of extensiedata); alleen wisselen naar 32 uur geeft `remainingMinutes = 960` (16 u) in plaats van
+     480 (8 u). De eenheidswisseltak rekent `totaal × (1 − percentage)` en laat de expliciete rest vallen. Undo
+     herstelt, redo verdubbelt opnieuw. Stond al zo op `fbd4a3f9d` (met Urenplanning aan). Voorstel: ook bij een
+     maatwissel de bestaande Δ-restregel in minuten toepassen; het percentage alleen als de expliciete rest
+     ontbreekt. Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
+
+358. **Een gestarte taak op 0 % die naar duur 0 gaat, houdt onder vast werk restwerk.**
+     `src/engine/work/workRuleApply.ts:435-437` (`settleDurationEdit`), `durationEditProgress` (`:940`) en
+     `src/engine/work/workTriangle.ts:177`. Voorbeeld: 4 d, werkelijke start, 0 %, één arbeidsresource; onder
+     vast werk of vaste duur en werk verlengd naar 6 d en dan duur 0. De kern weigert rest 0 en de toewijzing
+     houdt 1920 min restwerk; de belasting is 0, want de taak heeft geen duur meer. Stond al zo op
+     `fbd4a3f9d`. Voorstel: deze overgang weigeren of expliciet afhandelen, in plaats van na de weigering van
+     de kern een half bijgewerkte toestand te laten staan. Gevonden bij de fix van aanval a03 en in review r1
+     van #662 (GPT-6.1-Sol). — B
+
+367. **Duur en voortgang samen opslaan boekt de voortgang niet in de werkvelden.**
+     `src/engine/work/workRuleApply.ts:1096` (`settleProgressWork` slaat een andere totale duur over) en
+     `src/state/taskDialogSave.ts:253`. Voorbeeld: 4 d, 50 %, één arbeidsresource op inzet 1, verlengd naar
+     6 d (960 min verricht, 1920 rest); daarna in één opslag 8 d en 75 %. Main en #662 houden 960 verricht +
+     960 rest = 1920; verwacht is 2880 verricht + 960 rest = 3840. Op `fbd4a3f9d` was de totale belasting
+     wel 3840 (afgeleid, zonder werkpaar), dus de fout bestaat sinds #600. Bij 8 d en 100 % zit dezelfde
+     fout (verwacht 3840 verricht); #662 laat dat geval bewust op het gedrag van main (960 + 1920). Fout op
+     de dialoog en de interne MCP-draft (`updateTaskFields`/`patchTaskFields`); `planner_update_tasks` en
+     `planner_batch` verwerken duur en voortgang na elkaar en geven wel de juiste uitkomst. Voorstel: eerst
+     de duur verwerken met behoud van het verrichte werk, dan de expliciete voortgang boeken zoals
+     `settleProgressWork`. Gevonden bij de fix van aanval a03 en in review r1 van #662 (GPT-6.1-Sol). — B
 
 ## Tabel, invoer en bediening
 
@@ -285,7 +303,12 @@ en noem het in je rapport of PR-tekst.
      niet af (B3), maar de urenmaat telt verder in hele minuten (`applyRemainingDuration`). Een taak met
      een kleine negatieve speling kan in een filter op negatieve speling verschijnen. Voorstel: de duur van
      de urenmaat in de werkdriehoek op hele minuten zetten, of de speling op hele minuten vergelijken;
-     motorwerk, buiten F4b. Gevonden bij het meten voor knownbugs 252. — B
+     motorwerk, buiten F4b. Gevonden bij het meten voor knownbugs 252.
+     Dezelfde gemengde precisie weigert ook een gewone verkorting (review van #662, GPT-6.1-Sol): vast werk,
+     kalender van 465 minuten, 3,75 d op 40%, verlengd naar 6,75 d en terug naar 1,5 d. De afgeronde rest geeft
+     een negatieve rest van 0,25 minuut, en store, raster, MCP en dialoog weigeren de invoer
+     (`src/engine/taskMutationRules.ts:204`, `src/engine/work/workRuleApply.ts:981`). Al zo op `9a636ec69`.
+     Voorstel: één precisie voor totale, verrichte en resterende duur. — B
 284. **Een opgeslagen Tabel-indeling houdt Start en Einde op 100 px; een datum met tijd valt dan weg.**
      Sinds B4 toont een moment midden op de werkdag datum en tijd ("04-11-2026 11:00"). Die tekst is 89 px
      breed, plus 14 px opvulling; de oude standaardbreedte was 100 px (gemeten in de browser, Inter 11 px).
@@ -308,6 +331,13 @@ en noem het in je rapport of PR-tekst.
      van 24. Cel, tooltip, afdruk en tabelrapport rekenen sinds fixronde 2 van F4b wel met 24 u
      (`durationHoursPerDay`). Dit stond al zo op de basis van F4b. Voorstel: in het sleeplabel
      `durationHoursPerDay` gebruiken; rendererwerk. Alleen in de code gelezen, niet in de app nagespeeld. — S
+342. **Werkdagencompressie knipt zes uur van de vrijdagse nachtdienst weg.** `src/engine/renderer/workdayAxis.ts:184`:
+    kalender ma–vr 22:00–06:00, taak vr 5 juni 22:00 – za 6 juni 06:00. Bij zoom 240 beslaan acht klokuren 80 px;
+    met compressie blijven 20 px over, en za 06:00 komt op de maandagnaad 00:00. De terugweg (`xToDate`) maakt van
+    za 02:00 dan ma 8 juni 00:00 (los gevonden door aanvaller a02). Stond al zo op `fbd4a3f9d`.
+    Voorstel: ook bij compressie en de inverse as een moment aan zijn werkdag toewijzen, zodat een nachtstuk niet
+    verdwijnt omdat de klokdatum zaterdag is. Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
+
 353. **Een decimale komma in een lag van een interne relatiecel wordt als scheiding tussen twee relaties
      gelezen.** `tokenSlices` in `src/engine/taskGrid/relationCell.ts:55` knipt een cel zonder externe
      relatie ook op een komma. `1 FS+1,5d` wordt zo `1 FS+1` en `5d`; de tweede token geeft de fout
@@ -328,6 +358,23 @@ en noem het in je rapport of PR-tekst.
      op `9a636ec69`; de plakplanner geeft op basis en na de fix van #661 `writes: []`. Voorstel: het exacte
      moment in de kopieerwaarde bewaren; D7 hoeft daarvoor niet te veranderen. Gevonden in de review van de
      fix voor aanval a08 (GPT-6.1-Sol). — B
+
+366. **Slepen van de linkergreep bij importsplits met een contour verschuift het einde.** Vier werkdagen met een
+     pauze van 480 minuten na het eerste werkstuk, ma 07:00 – vr 16:00: de linkergreep één dag naar rechts, in
+     twee muisbewegingen, eindigt op di 09:00; de contourherschaling maakt van de pauze 360 minuten. Terugslepen
+     laat ma 09:00 staan, en F5 zet het einde op ma 8 juni 09:00. Eén undo herstelt de beginstand
+     (`src/components/canvas/hooks/useBarDrag.ts:353`, `src/engine/renderer/hourBarDragMath.ts:218`,
+     `src/utils/taskDefaults.ts:774`). Op `9a636ec69` ook fout (na terugslepen en F5 ma 8 juni 16:00).
+     Voorstel: de pauzegegevens bij het grijpen bevriezen en sleepberekening en store dezelfde herschaalregel
+     laten volgen. Gevonden in de review van de fix voor aanval a09 (GPT-6.1-Sol). — B
+
+371. **De linkergreep springt bij een taak met alleen nivelleerpauzes.** Vier werkdagen plus één
+     nivelleerpauzedag, ma–vr: de linkergreep één dag naar rechts geeft wo 07:00 en duur 3 d. De sleep filtert
+     de pauze weg, maar rekent terug vanaf het oorspronkelijke einde mét pauze
+     (`src/components/canvas/hooks/useBarDrag.ts:353`, `src/engine/renderer/hourBarDragMath.ts:218`). De
+     bodyverplaatsing werkt wel. Al zo op `9a636ec69`. Voorstel: de vaste rand en de resterende spanne bepalen
+     vanuit dezelfde toestand zonder vervallen nivelleerpauzes. Gevonden in de review van de fix voor aanval a09
+     (GPT-6.1-Sol). — B
 
 ## Kalenders
 
@@ -490,6 +537,56 @@ en noem het in je rapport of PR-tekst.
     Voorstel: `namespaceFor` alleen aanroepen als de elementprefix niet leeg is. Gevonden in review r1 van #608
     (GPT-6.1-Sol). — B
 
+347. **De belasting telt dagdelen van verschillende kalenders op: vier beschikbare uren tellen als een volle dag.**
+    `src/engine/scheduler/ResourceLoad.ts:446` telt per resource de dagdelen van elke taakkalender bij elkaar op;
+    `:468` geeft de resource op een werkdag van haar eigen kalender de volle capaciteit, anders 0. Taak ma 1 juni
+    2026 07:00–15:00, 8 u werk, inzet 1; resource met capaciteit 1 en kalender 07:00–11:00 (240 beschikbare
+    minuten): belasting 1, capaciteit 1, geen overbezetting. Hetzelfde met een gewone kalender en een werkende
+    uitzondering van vier uur op die maandag. Omgekeerd: twee taken op aparte vierurige kalenders (07:00–11:00 en
+    11:00–15:00) op één resource met acht beschikbare uren, zonder overlap: belasting 2, capaciteit 1, onterecht
+    overbezet. Al op `fbd4a3f9d`. Voorstel: vraag en capaciteit per resource per dag in dezelfde maat uitdrukken
+    (werkminuten uit de werkblokken), met behoud van de dagindeling; regel 446 en 468 samen aanpassen. Gevonden in
+    de aanval na #600 (GPT-6.1-Sol). — B
+
+348. **Loslaten van de eerste contour verhuist de tweede contour naar de verkeerde toewijzing.**
+    `src/state/assignmentMutations.ts:248` haalt de contour met `splice` uit de lijst; daarna koppelt
+    `matchContoursToAssignments` (`src/engine/contour/contourEngine.ts:302`) opnieuw alleen op resource-id en
+    volgorde. Eén taak van twee werkdagen met toewijzingen A1 en A2 op dezelfde resource: A1 heeft contour
+    [480, 0] min en 480 min opgeslagen restwerk, A2 [0, 960] en 960 min. Na `setAssignmentContour(A1, null)`
+    krijgt A1 de contour van A2, en A2 valt terug op haar formule. De belasting wordt [1; 3] (32 u) in plaats van
+    [0,5; 2,5] (24 u). Al op `fbd4a3f9d`. Voorstel: de koppeling aan de toewijzing bewaren bij toevoegen,
+    loslaten en verwijderen van een contour, en alle lezers via dezelfde koppelfunctie laten lopen. Gevonden in de
+    aanval na #600 (GPT-6.1-Sol). — B
+
+349. **Twee projectresources op hetzelfde bibliotheekitem worden apart tegen dezelfde vrije capaciteit getoetst.**
+    `src/engine/scheduler/ResourceLeveler.ts:1137` (`fits`) vergelijkt de vraag van elke resource afzonderlijk met
+    de restcapaciteit van het poolitem; de som wordt pas daarna geboekt. Bibliotheekitem P heeft capaciteit 1; de
+    projectresources R1 en R2 (elk capaciteit 1) verwijzen allebei naar P. Eén taak vraagt op ma 1 juni 2026 één
+    eenheid van R1 en één van R2. `computeDistribution` geeft `blocked: null` en geen tekort, terwijl
+    `afterLoadByDay` op die dag 2 telt; het restprofiel wordt op 0 geklemd en verbergt de overschrijding.
+    `librarySlice.linkRecognizedItems` laat twee projectresources aan hetzelfde item koppelen, dus deze invoer kan
+    ontstaan. Al op `fbd4a3f9d`. Voorstel: de kandidaatvraag per bibliotheekitem en werkdag optellen vóór de
+    pooltoets, en die som ook bij onderbrekingen gebruiken (`:1058`); de projecttoets blijft daarnaast nodig.
+    Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
+
+350. **Een tussenstap zonder resource maakt een afhankelijke taak te vroeg plaatsbaar.**
+    `src/engine/scheduler/ResourceLeveler.ts:660` telt een taak zonder vraag meteen als geplaatst; de wachtrij
+    (`:718`) wacht daardoor alleen op actieve voorgangers. Kalender ma–vr 08:00–16:00, capaciteit 1. A → M → B
+    met FS+0, elk één werkdag; A heeft prioriteit 500 en resource R, M heeft geen resource, B prioriteit 1000 en
+    resource R. Pin C bezet R op ma 1 juni 2026; D (prioriteit 400) vraagt R op do 4 juni. A moet naar dinsdag,
+    dus M naar woensdag en B naar donderdag. De nivelleerder boekt B al op woensdag, en D krijgt donderdag. Na
+    toepassen en herberekenen staat B ook op donderdag: het histogram telt daar 2 bij capaciteit 1, en
+    `unresolved` is leeg. Al op `fbd4a3f9d`. Voorstel: een actieve taak pas plaatsbaar maken als ook haar
+    transitieve actieve voorgangers via tussenstappen zonder resource geplaatst zijn, binnen de bestaande
+    plaatsingsvolgorde. Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
+
+370. **Nivelleren van een grote planning is nog 2,8 keer trager dan vóór de urenomzetting.** De a12-planning
+    (2.000 taken, 400 kraantaken) kostte 546 ms op `fbd4a3f9d`, 14.353 ms op `9a636ec69` en 1.539 ms na de fix
+    in #665 (`src/engine/scheduler/ResourceLeveler.ts:309`, `:969`). De kandidaatopbouw per taak is weer
+    lineair; over een rij concurrerende taken blijft de nivelleerder kwadratisch in het aantal kandidaten.
+    Voorstel: meten waar de resterende tijd zit en daar de kalenderwandeling per kandidaat delen. Gevonden in de
+    review van de fix voor aanval a12 (GPT-6.1-Sol). — B
+
 354. **MCP verbergt een minutenlag en de eenheid van een kalendertijdlag.** `src/services/mcp/tools/sequenceFields.ts:89`
     (`lagLabel`) leest alleen `lagDays` en `lagPercent`. Een relatie met `lagMinutes: 240` toont in
     `planner_get_task` `lag: ""`; een bestaande kalendertijdlag van 1 d toont `"+1d"`, zonder eenheid.
@@ -651,7 +748,18 @@ en noem het in je rapport of PR-tekst.
      breuk krijgt één JSON-tekst met een record per relatie (ongeveer 15–25 tekens per record). MS Project
      beperkt een tekstveld tot 255 tekens. Wat MS Project bij eigen opslaan met een langere waarde doet
      (afkappen, weigeren), is niet getoetst: geen MS Project op deze machine. Een afgekapte JSON leest OPS
-     als geen record, dus als urenmaat met dezelfde lengte. Gevonden bij F5a-2. — S
+     als geen record, dus als urenmaat met dezelfde lengte. Gevonden bij F5a-2.
+     Concreter (aanval na #600, GPT-6.1-Sol): op een 8-uurskalender met per voorganger een FS-lag van 0,5 d
+     heeft Text26 bij 14 voorgangers 244 tekens, bij 15 262 en bij 16 280. De writer schrijft de hele JSON
+     zonder lengtegrens (`mspdiWriter.ts:669`, `xmlDayMeasure.ts:160-162`). Afgekapt op 255 tekens is de
+     JSON ongeldig en komen alle 15 relaties terug als 240 minuten (gesimuleerd, logregel in
+     `/tmp/aanval/a06-controles-voorbeeld.log`; het bestand `/tmp/aanval/a06-afgekapt-255.xml` is het geval met
+     16 voorgangers; niet bewezen dat MS Project zelf afkapt). Richting: controleer de
+     veldlengte vóór het schrijven en maak het maatverlies expliciet; toets met echt opslaan in MS Project.
+     Sinds #658 kan een record een ongeronde dagwaarde dragen (`recordDayValue`, `dayMeasureIo.ts:83`); dat maakt
+     Text26 sneller te lang: acht voorgangers met FS +5/6 d op 465 min per dag geven 257 tekens (177 op
+     `9a636ec69`), acht keer −1/6 d 273 tekens. Gesimuleerd afkappen maakt alle acht records ongeldig; de lezer
+     valt terug op acht lags van 388 minuten. — S
 
 291. **P6 XML rondt begin en einde van een dagkalender met één blok af op het hele uur.** Een dagkalender
      07:30–15:30 (8 u, één blok) komt na `writeP6XML → readP6XML` terug als 07:00–15:00. MSPDI houdt
@@ -752,6 +860,26 @@ en noem het in je rapport of PR-tekst.
      Opnieuw opslaan bewaart die nulduur. Al zo op `9a636ec69`. Voorstel: bij het verwerpen van de solve ook de
      bronduur en duurmaat van hammocks vastleggen en terugzetten. Gevonden in de review van de fix voor aanval
      a05 (GPT-6.1-Sol). — B
+
+357. **De IFC-lezer leidt de rest van een lopende dagenmaat-taak opnieuw af uit het percentage.**
+     `ifcReader.ts:1600` zet de rest uit het record, maar `normalizeImportedProgress` (`ifcReader.ts:369`, via
+     `applyRemainingDuration` en `exactWorkdays`, `taskMutationRules.ts:199`, `:215`) overschrijft die met
+     duur × (1 − completion) op 15 cijfers. Kalender ma–do 07:00–14:45 (465 min), vr 07:00–12:00; taak C: 3 d,
+     rest 5/6 d, completion 13/18. De eerste export schrijft `RemainingTime` `PT6H28M0S` met het record; na
+     inlezen is de rest 0,833333333333333 d, en een tweede export schrijft `PT6H27M0S`. MSPDI en P6 XML
+     beschermen de rest met `normalizeKeepingDayRest` (`xmlDayMeasure.ts`); de IFC-lezer niet. Al op
+     `9a636ec69`. De duur en de lags drijven sinds PR #658 niet meer (`recordDayValue`). Voorstel: roep
+     `normalizeImportedProgress` in de IFC-lezer aan via `normalizeKeepingDayRest`, zoals de XML-lezers.
+     Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
+
+372. **Een kalendertijdtaak met een breuk in dagen verliest bij heropenen uit MSPDI een minuut.** ELAPSEDTIME-taak
+     5/6 ed vanaf 1 juni 2026 07:00: vóór export eindigt ze 2 juni 03:00, na heropenen en doorrekenen 02:59. Het
+     record houdt zes decimalen, omdat 5/6 en 0,833333 allebei afgerond 1200 minuten geven; de solver telt
+     daarna de onafgeronde klokminuten op en de formatter snijdt de seconden af
+     (`src/services/xmlDayMeasure.ts:82`, `src/engine/scheduler/duration.ts:182`, `:188`,
+     `src/utils/dateUtils.ts:119`). Ook gezien met werkkalenders van 465 en 525 minuten; al zo op `9a636ec69`.
+     Voorstel: de afgesproken minuutgrens respecteren bij het omzetten naar klokminuten. Gevonden in de review
+     van de fix voor aanval a06 (GPT-6.1-Sol). — B
 
 ## Rondleiding, Help en extensie-gidsen
 

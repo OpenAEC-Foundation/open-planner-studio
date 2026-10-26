@@ -298,10 +298,15 @@ export function levelResources(
           starts.push(eng.nextWorkDayAfter(prev));
           sums.push(Number.NaN);
         } else {
-          const sum = sums[sums.length - 1] + eng.effectiveBandsOn(skip).reduce((acc, b) => acc + b.end - b.start, 0);
+          const day = eng.effectiveBandsOn(skip).reduce((acc, b) => acc + b.end - b.start, 0);
           skip = eng.nextWorkDayAfter(skip);
-          sums.push(sum);
-          starts.push(eng.nextWorkInstant(eng.addWorkingMinutesSigned(first, sum)));
+          sums.push(sums[sums.length - 1] + day);
+          // Stapsgewijs vanaf de vorige kandidaat: alleen de nieuw overgeslagen werkdag. De bandwandeling
+          // is optelbaar (de vorige kandidaat ligt `sums[k-1]` werkminuten na `first`, een blokeinde is
+          // al naar het volgende blokbegin gezet), dus dit is hetzelfde moment als `first` + `sums[k]`.
+          // Elke kandidaat opnieuw vanaf `first` wandelen kostte k werkdagen per kandidaat: kwadratisch per
+          // taak, derde macht over een rij concurrerende taken (aanval a12 na #600).
+          starts.push(eng.nextWorkInstant(eng.addWorkingMinutesSigned(prev, day)));
         }
       }
     };

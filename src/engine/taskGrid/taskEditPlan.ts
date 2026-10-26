@@ -49,7 +49,7 @@ import {
 } from '@/utils/taskDefaults';
 import { sameValue } from '@/utils/sameValue';
 import { durationHoursPerDay } from '@/utils/taskDuration';
-import { taskWorkMinutes } from '@/engine/contour/contourEngine';
+import { taskAxisMinutes } from '@/engine/contour/contourEngine';
 import { finishIsActual, shownFinish, shownStart, startAnchorAfterEdit, startIsActual } from '@/utils/taskDates';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { isElapsedTask, isPinnedComplete, isZeroDurationMilestone } from '@/engine/scheduler/duration';
@@ -202,7 +202,9 @@ function finishDurationEdit(
   // B1a: vast werk is altijd urenmaat. Een duur in werkdagen ("5d", een kaal getal op een oude
   // dagtaak, een nieuw einde) gaat eerst naar de urenbron; de nazorg hieronder rekent dan in minuten.
   routeFixedWorkDurationToHours(task, before, task.time, environment.defaultWorkRule, hoursPerDay);
-  const oldWorkMinutes = taskWorkMinutes(before, hoursPerDay);
+  // Op de contour-as, net als store en MCP (`taskWorkMinutesOf`): bij kalendertijd klokdagen × werktijd
+  // per dag, zodat een eenheidswissel op dezelfde klokuren niets herschaalt (knownbug 265).
+  const oldWorkMinutes = taskAxisMinutes(before, hoursPerDay);
   // De rest schuift mee met de duurwijziging, het percentage volgt;
   // korter dan het gedane werk wordt geweigerd. Kalendertijd (24 klokuren per dag) regelt
   // `durationEditProgress` zelf; hier gaat de werktijd per dag mee, net als in store en MCP.
