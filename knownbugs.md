@@ -336,9 +336,6 @@ en noem het in je rapport of PR-tekst.
     "Failed to load resource: 404" in de console, ook de bestaande `table-reports.spec.ts` (gedraaid op de
     branch van de DCMA-PR, die dat rapport niet raakt). Welke URL dat is, is niet vastgesteld. — S
 
-104. **Geen automatische test voor de zegels en `check-docs`** (`scripts/translate/cli.ts`). In #323 alleen met
-     de hand nagespeeld. De CLI werkt vanuit `process.cwd()`, dus een test in een tijdelijke map kan. — S
-
 165. **`window.__OPS__.gantt.paintCount` telt alleen in een dev-build.** `useGanttRendererHost.ts:32` roept
     `recordGanttPaint` aan achter `import.meta.env.DEV`; in een productiebuild met `VITE_OPS_BENCH_BRIDGE=1`
     blijft de teller 0. Een meting op die build moet de tekening zelf herkennen
