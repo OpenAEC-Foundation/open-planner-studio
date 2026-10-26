@@ -94,7 +94,7 @@ For a deviation you have two choices:
 
 **Under Resource library you choose another library or *none (standalone project)*.** The origin stamps of the previous library disappear. The resources stay in the project as ordinary project resources. With another library, the app looks again for resources with the same name.
 
-**A resource has no suggestion in *Recognized*.** It says *No suggestion — choose manually*, but this window has no button for that. That looks like a shortcoming. Put such a resource in the library with *To the library* (step 4).
+**A resource or calendar has no suggestion in *Recognized*.** Select the library item with *Choose and link…*. Choosing links immediately and adopts the library values, just like *Link* for a suggestion. Resources list only library resources; calendars list only library calendars. If no items of that kind exist, the picker is disabled. First add an item of that kind to the library. You can undo a link.
 
 ## See also
 

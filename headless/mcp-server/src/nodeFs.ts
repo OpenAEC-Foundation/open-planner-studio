@@ -1,3 +1,5 @@
+import { ScopeEscapeError } from '@/services/mcp/fileScopeError';
+export { ScopeEscapeError } from '@/services/mcp/fileScopeError';
 // Bestandstoegang van de headless MCP-server: de `McpFileFs`-naad van `planner_export_ifc` en
 // `planner_import_schedule` (`src/services/mcp/tools/fileTools.ts`) op Node `fs`, opgesloten in één
 // werkmap (`--root`).
@@ -55,14 +57,6 @@ function errCode(e: unknown): string | undefined {
   return e && typeof e === 'object' && 'code' in e ? String((e as { code: unknown }).code) : undefined;
 }
 
-/** Een eigen fouttype, zodat een scopeweigering in een bestandsoperatie herkenbaar blijft. */
-export class ScopeEscapeError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'ScopeEscapeError';
-  }
-}
-
 /** Beide herstelpaden zijn verdwenen: bewaar de operatie- én herstelfouten zonder ErrorOptions/ES2021. */
 export class WorkingDirectoryRestoreError extends Error {
   constructor(readonly errors: readonly unknown[]) {
@@ -71,7 +65,6 @@ export class WorkingDirectoryRestoreError extends Error {
     this.name = 'WorkingDirectoryRestoreError';
   }
 }
-
 /** `dev` + `ino` van een bestand of map. */
 interface Identity { dev: bigint; ino: bigint }
 const idOf = (s: BigIntStats): Identity => ({ dev: s.dev, ino: s.ino });
@@ -111,6 +104,8 @@ export type NodeFsPhase =
 export interface NodeFsHooks {
   afterCheck?: (phase: NodeFsPhase, target: string) => void;
   fault?: (phase: 'write' | 'rename') => void;
+  /** Alleen de directory-fsync vervangen/observeren in tests; standaard de echte syscall. */
+  syncDirectory?: (fd: number) => void;
 }
 
 const O_NOFOLLOW = fsConstants.O_NOFOLLOW ?? 0;
@@ -346,7 +341,9 @@ export async function createNodeFileFs(
   }
 
   function writeHere(c: Checked, target: string, content: string): void {
-    const tmpName = `.${c.base}.${randomBytes(6).toString('hex')}.ops-save.tmp`;
+    // De doelnaam kan zelf al bijna NAME_MAX bytes zijn; voeg daar niets aan toe.
+    // O_EXCL en de inodecontrole blijven het eigendom van deze korte eigen naam bewaken.
+    const tmpName = `.${randomBytes(6).toString('hex')}.ops-save.tmp`;
     const fd = openHere(tmpName, fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL, target, c.file?.mode ?? 0o666);
     let tmpId: Identity | null = null;
     let open = true;
@@ -379,6 +376,27 @@ export async function createNodeFileFs(
       hooks.fault?.('rename');
       renameSync(tmpName, c.base);
       renamed = true;
+      try {
+        assertHere(target);
+      } catch {
+        throw movedDuringSave(target);
+      }
+      // De bestands-fsync bewaart niet automatisch de nieuwe naam in de doelmap.
+      // Open '.' relatief aan het al gebonden map-object, niet opnieuw via c.dir.
+      // Windows ondersteunt deze POSIX-directoryroute niet; geen schijnzekerheid daar.
+      if (process.platform !== 'win32') {
+        try {
+          const directoryFd = openSync('.', fsConstants.O_RDONLY | (fsConstants.O_DIRECTORY ?? 0));
+          try {
+            (hooks.syncDirectory ?? fsyncSync)(directoryFd);
+          } finally {
+            closeSync(directoryFd);
+          }
+        } catch (error) {
+          throw new Error(`File '${target}' was replaced, but synchronizing its directory failed; `
+            + `crash durability is unconfirmed. Inspect the saved file before retrying. ${String(error)}`);
+        }
+      }
       try {
         assertHere(target);
       } catch {
