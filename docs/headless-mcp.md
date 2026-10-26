@@ -84,7 +84,9 @@ Claude Code: `claude mcp add --transport http open-planner http://127.0.0.1:3878
   geëxporteerd is, is weg als de server stopt.
 - **Paden.** In de toolbeschrijvingen staat "home folder". In de headless server is dat de werkmap:
   `~/plan.ifc` is `<werkmap>/plan.ifc`. Een absoluut pad moet in de werkmap liggen. Een relatief pad
-  weigert de tool, net als in de app.
+  weigert de tool, net als in de app. UNC-/netwerkpaden en Windows-devicepaden worden expliciet
+  geweigerd: kies een lokale werkmap en een lokaal absoluut bestandspad. De tool zet een netwerkpad
+  nooit om in een lokaal pad.
 - **Instructies.** `initialize.instructions` bevat de vaste instructies van de app plus een korte
   headless uitleg (werkmap, opslaan, geen gebruikersinterface).
 - **Veiligheidsvlaggen.** `--read-only` zet `ui.aiReadOnly`. `paused` blijft altijd `false`: er is
@@ -97,9 +99,24 @@ Claude Code: `claude mcp add --transport http open-planner http://127.0.0.1:3878
 **HTTP.** Hetzelfde contract als de bridge in `src-tauri/src/mcp_bridge.rs`: alleen loopback; een
 request met een `Origin`-header krijgt 403 (bescherming tegen DNS-rebinding); alleen `POST /mcp`
 (anders 405 of 404); het Bearer-token wordt in constante tijd vergeleken (401); body tot 50 MiB (413);
-strikt één request tegelijk; geen antwoord binnen 120 s geeft 504. Sessies via `Mcp-Session-Id`:
+strikt één request tegelijk, met een antwoordtimer van 120 s (zie de beperking hieronder). Sessies via `Mcp-Session-Id`:
 elk request behalve `initialize` zonder header krijgt 400, een onbekende sessie 404. Het
 documentanker (`DOC_DRIFT`) leeft per sessie.
+
+**Geen harde uitvoeringstijdgrens.** De antwoordtimer wordt pas gestart nadat de body is gelezen en
+het request aan de beurt is in de HTTP-wachtrij; die voorafgaande wachttijd telt dus niet mee. De timer
+gebruikt de Node-eventloop. Als die vrij kan draaien en er geen antwoord is, kan de timer na circa
+120 s een 504 leveren. Synchrone verwerking, waaronder `readFileSync`, `writeFileSync` en `fsyncSync` in de
+gebonden bestandsroute, kan diezelfde eventloop blokkeren. Tijdens zo'n blokkade staan ook andere
+sessies stil en kan de timer niet afgaan: 120 s is geen gegarandeerde bovengrens, ook niet op trage
+of vastgelopen opslag. Zie [Node-timers](https://nodejs.org/api/timers.html#scheduling-timers).
+
+Een 504 beëindigt het HTTP-wachten, maar onderbreekt geen al gestarte toolbewerking. Behandel dat
+niet als bewijs dat er niets is gewijzigd: controleer de planning en eventuele doelbestanden vóór
+het opnieuw uitvoeren van een wijzigende opdracht. De headless server is hiermee niet getest of
+geschikt verklaard voor harde opslagdeadlines. Metingen op grote bestanden/trage opslag en een
+mogelijke geïsoleerde uitvoeringsopzet blijven apart vervolgwerk (knownbug 218); de scopecontroles
+mogen daarvoor niet worden afgezwakt.
 
 **stdio.** Eén proces is één client en één sessie. stdout is alleen voor het protocol; alle
 logging gaat naar stderr.
@@ -121,7 +138,7 @@ logging gaat naar stderr.
 een map door een link vervangen, of een map mét inhoud naar buiten verplaatsen en een link terugleggen.
 Node kent geen `openat` of `renameat`, maar wel de procesmap: die wijst naar een map-object, niet naar een
 pad. Elke bestandsoperatie loopt daarom in één synchroon blok (er draait geen andere code tussendoor; de
-procesmap gaat erna terug):
+procesmap wordt erna teruggezet voor zover de oorspronkelijke map of de terugval nog bestaat):
 
 1. `chdir` naar de echte map van het bestand. Ontbrekende mappen maakt de server één voor één aan, elk
    relatief aan de vorige.
@@ -151,22 +168,38 @@ Wat overblijft, per besturingssysteem:
   laat een map die een procesmap is niet hernoemen of verwijderen; dat beperkt het venster (VERMOED, niet
   getest). Niet getest in CI.
 
+**Procesmap terugzetten.** Na elke gebonden bestandsoperatie probeert de server de oorspronkelijke
+procesmap terug te zetten. Is die verdwenen, dan gebruikt hij de geconfigureerde werkmap als terugval.
+Mislukt ook dat, dan blijft de tijdelijke procesmap actief en wordt dit expliciet gemeld. De fout bewaart
+zowel een eventuele oorspronkelijke operatiefout als beide herstelfouten; de laatste `chdir`-fout
+verbergt dus niet de reden waarom de bestandsbewerking mislukte. Dit is geen garantie dat een verdwenen
+map hersteld kan worden. CLI-, backup- en importpaden blijven absoluut.
+
 Wie een tweede proces met schrijfrechten in de werkmap niet vertrouwt, draait de server als eigen
 gebruiker of in een container met alleen de werkmap.
 
 **Opslaan is altijd atomair.** Eerst een eigen halffabricaat naast het echte doel, dan `fsync` en
-`rename`. Een link naar een bestand binnen de werkmap blijft een link: het echte doel wordt vervangen.
+`rename`. Op Linux/macOS volgt daarna een `fsync` van de doelmap, via een handle op het al gebonden
+map-object. Mislukt die stap, dan meldt de tool expliciet dat het bestand al vervangen is maar de
+crashbestendigheid niet bevestigd is: controleer het opgeslagen bestand vóór opnieuw proberen. Er is
+geen rollback na de `rename`. Windows houdt alleen de bestands-fsync; deze POSIX-directoryroute wordt
+daar niet uitgevoerd. Dit is geen bewijs tegen echte stroomuitval of weigerende opslaghardware, en
+synchroniseert niet de hele keten van eventueel nieuw aangemaakte bovenmappen.
+Een link naar een bestand binnen de werkmap blijft een link: het echte doel wordt vervangen.
 Mislukt schrijven of `rename` (volle schijf, afgebroken proces), dan geeft de tool een fout en blijft
 het origineel byte-gelijk. De server probeert het halffabricaat op te ruimen, in dezelfde map en alleen
 als de naam nog naar het eigen bestand wijst. Is die map verdwenen of stopt het proces hard (zoals bij
-een crash), dan kan een halffabricaat (`.<naam>.<willekeurig>.ops-save.tmp`) blijven staan. Anders dan
+een crash), dan kan een halffabricaat (`.<willekeurig>.ops-save.tmp`) blijven staan. Anders dan
 in de app is er geen terugval op direct schrijven (die terugval in `replaceUserFile` blijft voor de
 desktop-app ongewijzigd). De bestaande controle tegen een stille schemawissel via bestandsaliassen
 (#519) werkt ook hier: de server levert `dev`/`ino` van het doel.
 
 **Importformaten.** Node heeft geen `DOMParser`. De MSPDI- en P6-XML-lezers van de app gebruiken hem;
 de server zet daarom een eigen kleine XML-parser als `DOMParser` (`headless/mcp-server/src/xmlDom.ts`),
-met precies wat de lezers gebruiken. Een DOCTYPE met eigen entiteiten weigert hij (geen
+met precies wat de lezers gebruiken. De bestandsroute decodeert `.xml` als UTF-8 of UTF-16 LE/BE
+(BOM, of zonder BOM met een expliciete UTF-16LE/UTF-16BE-declaratie). Ongeldige bytes, een strijdige
+encodingdeclaratie en niet-ondersteunde encodings geven `VALIDATION`, zonder de planning te openen.
+De byte-decoding van andere bestandstypen blijft ongewijzigd. Een DOCTYPE met eigen entiteiten weigert hij (geen
 entiteit-expansie, geen externe entiteiten). CSV, XER en `.mpp` gebruiken geen browserglobals die in
 Node 22 ontbreken (nagelopen: `TextDecoder`, `crypto.subtle` en `structuredClone` bestaan).
 

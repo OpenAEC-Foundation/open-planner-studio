@@ -5,6 +5,8 @@
  * https://github.com/joniles/mpxj (Primavera `XerFile`, LGPL-2.1, Jon Iles e.a.). Er is geen
  * MPXJ-code overgenomen; deze parser heeft een eigen tokenizer, rapportvorm en getalparser.
  */
+import { decodeWindows1252 } from '@/utils/windows1252';
+
 
 /** Tekstcodering van een XER (besluit B17: BOM, anders UTF-8, anders een enkelbyte-codetabel). De
  *  enkelbyte-keuze is Windows-1252, tenzij de tekst eenduidig Cyrillisch (1251), Grieks (1253) of
@@ -324,7 +326,7 @@ function decodeXerBytes(bytes: Uint8Array): { text: string; encoding: XerEncodin
   } catch {
     const encoding = detectSingleByteEncoding(bytes);
     return {
-      text: new TextDecoder(encoding).decode(bytes),
+      text: encoding === 'windows-1252' ? decodeWindows1252(bytes) : new TextDecoder(encoding).decode(bytes),
       encoding,
     };
   }
