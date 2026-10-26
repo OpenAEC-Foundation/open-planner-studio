@@ -66,8 +66,15 @@ const evidence = {
   parity: [], rows: [], status: 'bezig',
 };
 const save = () => writeFileSync(out, `${JSON.stringify(evidence, null, 2)}\n`);
+const started = performance.now();
+const progress = (phase, details = {}) => {
+  evidence.progress = { phase, elapsedMs: performance.now() - started, ...details };
+  console.log(JSON.stringify(evidence.progress));
+  save();
+};
 const temp = mkdtempSync(join(tmpdir(), 'ops-ifc-ploegindex-'));
 try {
+  progress('voorbereiding');
   // De bewaker accepteert een ongewijzigd null-prototypeobject en weigert beide soorten mutatie.
   const probe = Object.assign(Object.create(null), { nested: { value: NaN, bytes: new Uint8Array([1, 2]) } });
   const probeSnapshot = inputSnapshot(probe);
@@ -105,6 +112,7 @@ try {
   Math.random = () => 0.5;
   const modules = {};
   for (const version of ['before', 'after']) {
+    progress('schrijver bundelen', { version });
     const outfile = join(temp, `${version}.mjs`);
     await build({
       stdin: { contents: `
@@ -131,6 +139,7 @@ try {
   // De reader maakt assignment-id's met een modulaire teller + Math.random. Een verse module
   // geeft beide teksten dezelfde id-bron; geen payloadvelden wissen of achteraf canonicaliseren.
   const readerFile = join(temp, 'reader.mjs');
+  progress('lezer bundelen');
   await build({
     stdin: { contents: "export { readIFC } from '@/services/ifc/ifcReader';", resolveDir: root, loader: 'ts' },
     bundle: true, platform: 'node', format: 'esm', outfile: readerFile,
@@ -145,6 +154,7 @@ try {
   }
 
   async function parity(label, input, schemaValid = true) {
+    progress('volledige roundtrip vergelijken', { label, schema: input.project.ifcSchema });
     const snapshot = inputSnapshot(input);
     const first = {};
     const second = {};
@@ -174,7 +184,7 @@ try {
       payloadHash: inputHash(payloads.after), secondPayloadHash: inputHash(secondPayload),
     };
     evidence.parity.push(row);
-    save();
+    progress('roundtrip gelijk', { label, schema: input.project.ifcSchema, cases: evidence.parity.length });
     return first.after;
   }
 
@@ -219,7 +229,9 @@ try {
     for (const crews of [0, 1, 8, size / 5]) {
       const input = modules.after.ifcCrewIndexFixture(size, crews);
       const snapshot = inputSnapshot(input);
-      const row = { resources: size, crews, tasks: input.tasks.length, inputHash: inputHash(input), warmupMs: { before: [], after: [] }, samples: [] };
+      const row = { resources: size, crews, tasks: input.tasks.length, status: 'bezig', inputHash: inputHash(input), warmupMs: { before: [], after: [] }, samples: [] };
+      evidence.rows.push(row);
+      progress('opwarmen', { resources: size, crews });
       let expected;
       const run = version => {
         const start = performance.now();
@@ -234,10 +246,12 @@ try {
       }
       const slowest = Math.max(...row.warmupMs.before, ...row.warmupMs.after);
       row.callsPerSample = Math.max(1, Math.min(evidence.maxCallsPerSample, Math.ceil(evidence.sampleTargetMs / slowest)));
+      progress('meetparen starten', { resources: size, crews, callsPerSample: row.callsPerSample });
       for (let repeat = 0; repeat < evidence.repeats; repeat++) {
         const sample = { repeat, order: repeat % 2 ? ['after', 'before'] : ['before', 'after'] };
         for (const version of sample.order) sample[version] = Array.from({ length: row.callsPerSample }, () => run(version));
         row.samples.push(sample);
+        progress('meetpaar bewaard', { resources: size, crews, pairs: row.samples.length });
       }
       assertInputPreserved(input, snapshot, 'Schaalmeting muteert geen invoer');
       // Apart van de klok: tel echte parentId-lezingen aan de volledige writergrens.
@@ -258,7 +272,7 @@ try {
       row.medianMs = Object.fromEntries(['before', 'after'].map(version => [version,
         median(row.samples.map(sample => sample[version].reduce((a, b) => a + b, 0) / row.callsPerSample)),
       ]));
-      evidence.rows.push(row);
+      row.status = 'geslaagd';
       console.log(JSON.stringify(row));
       save();
     }

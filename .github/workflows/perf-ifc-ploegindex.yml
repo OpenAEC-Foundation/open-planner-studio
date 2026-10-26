@@ -22,7 +22,7 @@ jobs:
     # Bewust opt-in; latere wijzigingen in de gedeelde roundtripcheck erven geen oude nulmeting.
     if: contains(github.event.pull_request.title, '[perf-ifc-ploegen]')
     runs-on: ubuntu-22.04
-    timeout-minutes: 15
+    timeout-minutes: 30
     env:
       TZ: UTC
     steps:
@@ -37,6 +37,7 @@ jobs:
           cache: npm
       - name: Installeer vastgelegde afhankelijkheden
         id: install
+        timeout-minutes: 5
         shell: bash
         run: |
           mkdir -p qa/ifc-ploegindex
@@ -46,15 +47,17 @@ jobs:
           printf 'npm-ci=%s tee=%s\n' "${codes[0]}" "${codes[1]}" > qa/ifc-ploegindex/install-exitcodes.txt
           test "${codes[0]}" -eq 0 && test "${codes[1]}" -eq 0
       - name: Vergelijk uitvoer en meet volledige schrijver
+        timeout-minutes: 14
         shell: bash
         run: |
           set +e
-          node docs/superpowers/evidence/ifc-ploegindex.mjs --out qa/ifc-ploegindex/resultaat.json 2>&1 | tee qa/ifc-ploegindex/meting.log
+          timeout --signal=TERM --kill-after=30s 12m node docs/superpowers/evidence/ifc-ploegindex.mjs --out qa/ifc-ploegindex/resultaat.json 2>&1 | tee qa/ifc-ploegindex/meting.log
           codes=("${PIPESTATUS[@]}")
           printf 'meting=%s tee=%s\n' "${codes[0]}" "${codes[1]}" > qa/ifc-ploegindex/meting-exitcodes.txt
           test "${codes[0]}" -eq 0 && test "${codes[1]}" -eq 0
       - name: Gerichte roundtrip-, schema-, GlobalId- en documentchecks
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        timeout-minutes: 5
         shell: bash
         run: |
           set +e
@@ -68,6 +71,7 @@ jobs:
           exit "$result"
       - uses: actions/upload-artifact@v4
         if: always()
+        timeout-minutes: 3
         with:
           name: ifc-ploegindex-${{ github.event.pull_request.head.sha }}
           path: qa/ifc-ploegindex/

@@ -98,9 +98,15 @@ Dit is geen TDD-rood/groenclaim of producttijdmeting op basis van telwerk.
 
 Workflow `perf-ifc-ploegindex.yml` is opt-in via `[perf-ifc-ploegen]` in de PR-titel
 en eigen meet-/test-/workflowpaden. Hij draait op opened/synchronize/reopened, niet
-op edited, checkt expliciet de PR-head uit en heeft alleen leesrechten en een
-limiet van 15 minuten. Installatie-, meet- en testlogs met exitcodes gaan ook bij
-fouten in een artifact; gedeeltelijke meetresultaten blijven behouden. De gewone
+op edited, checkt expliciet de PR-head uit en heeft alleen leesrechten. De job heeft
+30 minuten; installatie, meetstap, gerichte checks en upload hebben eigen limieten.
+Het meetproces stopt zelf na 12 minuten (exit 124 bij een timeout), vóór de
+meetstaplimiet van 14 minuten. Dat laat ruimte voor gerichte checks en artifactupload,
+ook wanneer het meetproces niet afrondt. Een externe annulering kan die stappen nog
+steeds verhinderen. Installatie-, meet- en testlogs met exitcodes gaan bij fouten in
+een artifact. Het harnas bewaart vanaf de voorbereiding zijn huidige fase, na elke
+roundtrip het resultaat en na ieder volledig meetpaar de ruwe tijden. Een gedeeltelijke
+rij blijft `bezig`; alleen afgeronde rijen krijgen `geslaagd` en medianen. De gewone
 CI levert de volledige planning- en typecheckpoorten. De aanvullende workflow
 controleert roundtrip, schema, GlobalIds en documentcontract afzonderlijk.
 
@@ -109,6 +115,13 @@ bevestigd. Lokaal zijn uitsluitend broncontrole, `git diff --check` en `actionli
 uitgevoerd (exit 0). Exacte head, bron-/harnashashes, invoer-/uitvoerhashes, versies,
 ruwe tijden en eventuele foutstacks komen in `resultaat.json` in het CI-artifact.
 Een eventuele latere resultaatnotitie moet naar de werkelijk gemeten head verwijzen.
+
+De poging op `3e55648b415ed089c2871fd72e0b12cd7e81990d`,
+[run 40299449231](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/runs/40299449231),
+is geannuleerd terwijl de meetstap liep. De eenmalige inzage gaf geen log of artifact
+terug. De precieze annuleringsreden, de zelfcontrole en de meetuitkomsten zijn daardoor
+niet vastgesteld. De bovenstaande begrenzing en tussentijdse opslag herstellen het
+bewaren van diagnostiek bij een eigen meettimeout; er is nog geen snelheidsclaim.
 
 ## Bestandsoverlap gecontroleerd op 26 oktober 2026
 
