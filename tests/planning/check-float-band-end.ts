@@ -10,8 +10,8 @@
 // afdrukbereik de band-rand af uit één helper (`floatBandEnd`, `src/utils/taskDates.ts`).
 //
 // Deze batterij draait de ECHTE `GanttRenderer` (opnemende 2D-context) en de ECHTE `renderReport`
-// (opnemende Draw2D) en meet de band tegen de x van het einde van de "Laatste einde"-dag (dagtaak)
-// of het instant (urentaak).
+// (opnemende Draw2D) en meet de band tegen de x van het moment van "Laatste einde" (sinds F2 heeft ook
+// een dagtaak momenten; alleen een datum zonder tijd loopt tot het einde van die dag).
 //
 // Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
@@ -111,6 +111,11 @@ function renderPrint(options: Partial<PrintOptions> = {}) {
   return { rr, band, result };
 }
 
+/** Kalenderdagen (met een breuk) tussen twee momenten. */
+function daysBetween(from: string, to: string): number {
+  return (parseInstant(to).getTime() - parseInstant(from).getTime()) / 86_400_000;
+}
+
 // ── Scenario 1: dagtaken, speling over twee weekenden ────────────────────────
 // A (2d) en B (12d) parallel, C na beide. A: ES ma 01-06, EF di 02-06, LF di 16-06, TF 10 wd.
 function dayScenario(holidays: WorkCalendar['holidays'] = []): string {
@@ -144,17 +149,19 @@ function dayScenario(holidays: WorkCalendar['holidays'] = []): string {
   near('1e scherm (werkdagen-as): band eindigt op het einde van de "Laatste einde"-dag',
     comp.bands[0] && comp.bands[0].x + comp.bands[0].w, comp.renderer.dateToX(parseInstant(a.time.lateFinish)));
 
-  // Afdruk: de balk van A (2 kalenderdagen) is de meetlat.
+  // Afdruk: de balk van A is de meetlat. Sinds de afdruk de balkregel van het scherm volgt (`taskBarSpan`,
+  // aanval na #600) loopt hij van ma 07:00 tot di 16:00 = 33 uur, en eindigt de band net als op het scherm
+  // (1c) op het moment van "Laatste einde".
   const p = renderPrint();
   const bar = p.rr.find(r => r !== p.band && p.band && Math.abs(r.y - p.band.y) < 12);
   checks++;
   if (!p.band || !bar) {
     diffs.push(`1f afdruk: band of balk van A niet gevonden (${p.rr.map(r => r.color).join(',')})`);
   } else {
-    const pxPerDay = bar.w / 2;
+    const pxPerDay = bar.w / daysBetween(a.time.earlyStart!, a.time.earlyFinish!);
     near('1f afdruk: band begint op de balkrand', p.band.x, bar.x + bar.w);
-    // ES 01-06 → einde van LF-dag 16-06 = begin van 17-06 = 16 kalenderdagen.
-    near('1g afdruk: band eindigt op het einde van de "Laatste einde"-dag', p.band.x + p.band.w, bar.x + 16 * pxPerDay);
+    // ES 01-06 07:00 → LF 16-06 16:00 = 15 dagen en 9 uur.
+    near('1g afdruk: band eindigt op het moment van "Laatste einde"', p.band.x + p.band.w, bar.x + daysBetween(a.time.earlyStart!, a.time.lateFinish) * pxPerDay);
   }
 }
 
@@ -173,9 +180,9 @@ function dayScenario(holidays: WorkCalendar['holidays'] = []): string {
   if (!p.band || !bar) {
     diffs.push('2a afdruk: band of balk van A niet gevonden');
   } else {
-    const pxPerDay = bar.w / 2;
-    // ES 01-06 → begin van 08-07 = 37 kalenderdagen.
-    near('2a afdruk (bouwvak): band eindigt op het einde van de "Laatste einde"-dag', p.band.x + p.band.w, bar.x + 37 * pxPerDay);
+    const pxPerDay = bar.w / daysBetween(a.time.earlyStart!, a.time.earlyFinish!);
+    // ES 01-06 07:00 → LF 07-07 16:00 = 36 dagen en 9 uur.
+    near('2a afdruk (bouwvak): band eindigt op het moment van "Laatste einde"', p.band.x + p.band.w, bar.x + daysBetween(a.time.earlyStart!, a.time.lateFinish) * pxPerDay);
     checks++;
     if (p.band.x + p.band.w > p.result.width + 0.01) {
       diffs.push(`2b afdruk (bouwvak): datumbereik draagt de band niet — band eindigt op ${(p.band.x + p.band.w).toFixed(1)}, canvas is ${p.result.width.toFixed(1)} breed`);
