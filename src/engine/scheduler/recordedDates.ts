@@ -36,6 +36,13 @@ export interface RecordedTime {
   lateFinish?: string;
   totalFloat?: number;
   freeFloat?: number;
+  /** De speling in werkminuten (alleen uren §3.4), zoals het bestand haar naast `totalFloat` gaf
+   *  (`OPS_Analysis.ExactFloat`). Hoort bij de as `totalFloat`: zonder vastgelegde speling ook geen
+   *  minuten. Afwezig ⇒ de modus wist de minuten van de verworpen solve (`applyRecordedTimesToTasks`),
+   *  anders spreken dagen en minuten elkaar tegen en schrijft opslaan die combinatie weg. */
+  totalFloatMinutes?: number;
+  /** Idem voor `freeFloat`. */
+  freeFloatMinutes?: number;
   isCritical?: boolean;
   /** Alleen op een VERZAMELTAAK: haar opgeslagen voortgang, status en werkelijke datums. Buiten de
    *  modus leidt de rollup (`applyCpmResult`) die af uit de bladen; ín de modus toont de fase — net
@@ -187,6 +194,12 @@ export interface RecordedDatesState extends RecordedDates {
  * welke laag voor start/finish werd gekozen. Binnen laag 0 draagt `RecordedTime` deze vijf al kant-
  * en-klaar (aanwezig of `undefined`, door de aanroepende lezer bepaald).
  *
+ * De spelingminuten (`totalFloatMinutes`/`freeFloatMinutes`) volgen hun dagen-as: alleen als het
+ * slot aanwezig is én de lezer er minuten bij las (`OPS_Analysis.ExactFloat`, `applyTaskTimeRecords`
+ * in `ifcReader.ts`). De lezer leidt geen minuten af, dus een gelezen waarde komt echt uit het bestand.
+ * Laag 0 levert geen minuten (de bronlezers vullen ze niet): de modus wist daar de minuten van de
+ * verworpen solve.
+ *
  * `recordedFields` komt uit `ImportResult.recordedFields` (`src/services/ifc/ifcTaskSlots.ts`,
  * `RECORDED_SLOT_KEYS` + `RECORDED_INPUT_SLOT_KEYS`) — de engine mag niet uit de services-laag
  * importeren, dus dit neemt bewust het structurele unietype via `@/types/task`
@@ -244,6 +257,8 @@ export function captureRecordedDates(
       lateFinish: has.has('lateFinish') ? t.lateFinish : undefined,
       totalFloat: has.has('totalFloat') ? t.totalFloat : undefined,
       freeFloat: has.has('freeFloat') ? t.freeFloat : undefined,
+      ...(has.has('totalFloat') && t.totalFloatMinutes !== undefined ? { totalFloatMinutes: t.totalFloatMinutes } : {}),
+      ...(has.has('freeFloat') && t.freeFloatMinutes !== undefined ? { freeFloatMinutes: t.freeFloatMinutes } : {}),
       isCritical: has.has('isCritical') ? t.isCritical : undefined,
       ...(isSummaryTask(task)
         ? {
@@ -389,6 +404,9 @@ export function cpmResultFromRecorded(
       lateFinish: rec.lateFinish ?? rec.finish,
       totalFloat: rec.totalFloat ?? 0,
       freeFloat: rec.freeFloat ?? 0,
+      // Minuten alleen als het bestand ze gaf; geen terugval (zie `applyRecordedTimesToTasks`).
+      ...(rec.totalFloatMinutes !== undefined ? { totalFloatMinutes: rec.totalFloatMinutes } : {}),
+      ...(rec.freeFloatMinutes !== undefined ? { freeFloatMinutes: rec.freeFloatMinutes } : {}),
       isCritical: rec.isCritical ?? false,
     });
     if (rec.isCritical) criticalPath.push(task.id);
@@ -427,6 +445,8 @@ export function cpmResultFromRecorded(
       lateFinish: summary.time.lateFinish,
       totalFloat: summary.time.totalFloat,
       freeFloat: summary.time.freeFloat,
+      ...(summary.time.totalFloatMinutes !== undefined ? { totalFloatMinutes: summary.time.totalFloatMinutes } : {}),
+      ...(summary.time.freeFloatMinutes !== undefined ? { freeFloatMinutes: summary.time.freeFloatMinutes } : {}),
       isCritical: summary.time.isCritical,
     });
   }
@@ -479,7 +499,8 @@ export function cpmResultFromRecorded(
  * `?? rec.start`/`?? rec.finish`/`?? 0`/`?? false`-terugvallen hier als VELDWAARDE staan; "niet
  * vastgelegd" leeft uitsluitend in `times[id].lateStart === undefined` enz. (al bestaande,
  * gepersisteerde documentstate) en wordt pas in de UI als weergave afgedwongen — een bewust
- * compromis.
+ * compromis. De spelingminuten (`totalFloatMinutes`/`freeFloatMinutes`) zijn wél optioneel en
+ * krijgen dus GEEN terugval: de waarde uit het bestand, of afwezig.
  *
  * Wist daarnaast per geraakte taak `interferingFloat`/`isNearCritical`/`floatPath`: die drie
  * analyse-afgeleiden komen uit de zojuist weggegooide solve en zouden een planning beschrijven die
@@ -502,6 +523,12 @@ export function applyRecordedTimesToTasks(
     task.time.lateFinish = rec.lateFinish ?? rec.finish;
     task.time.totalFloat = rec.totalFloat ?? 0;
     task.time.freeFloat = rec.freeFloat ?? 0;
+    // De minuten uit het bestand, of GEEN minuten: de solve die deze modus verwerpt schreef eigen
+    // minuten, en die naast de dagen uit het bestand laten staan geeft een tegenstrijdige speling
+    // die opslaan als `ExactFloat` vastlegt (aanval na #600, a05). Geen terugval op 0: een
+    // ontbrekende as is "niet vastgelegd", en zonder minuten valt de writer terug op de dagen.
+    task.time.totalFloatMinutes = rec.totalFloatMinutes;
+    task.time.freeFloatMinutes = rec.freeFloatMinutes;
     task.time.isCritical = rec.isCritical ?? false;
     // Een verzameltaak toont in de modus ook haar opgeslagen voortgang: de solve bij het laden
     // leidde die af uit de bladen (`applyCpmResult`), net zoals hij haar datums oprolde.

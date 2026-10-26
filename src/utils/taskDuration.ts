@@ -213,10 +213,11 @@ export function formatRemainingDurationText(task: Task, fmt?: DurationTextFormat
 }
 
 /** De restduur van een taak in haar eigen maat: een urentaak in minuten ({@link remainingTaskMinutes}),
- *  een dagtaak in werkdagen (`remainingTime`, anders de afgeronde duur × (1 − voortgang)). */
+ *  een dagtaak in werkdagen (`remainingTime`, anders duur × (1 − voortgang)). Exact, zonder afronding
+ *  op hele dagen (B3): een nieuwe taak van 0,25 d heeft 0,25 d rest, niet 0 d (aanval a08 na #600). */
 export function remainingTaskMeasure(task: Task): MeasuredDuration {
   if (taskDurationUnit(task) === 'hours') return { unit: 'hours', minutes: remainingTaskMinutes(task) };
-  return { unit: 'days', days: task.time.remainingTime ?? Math.round(task.time.scheduleDuration * (1 - task.time.completion)) };
+  return { unit: 'days', days: task.time.remainingTime ?? task.time.scheduleDuration * (1 - task.time.completion) };
 }
 
 /**
