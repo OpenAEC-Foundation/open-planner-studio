@@ -54,6 +54,74 @@ test('projectweergave: hernoemen is één undo-stap en Ctrl+Z zet de oude naam v
   await page.keyboard.press('ControlOrMeta+z');
   await expect.poll(() => resource(page, id).then(r => r.name)).toBe('Kraan');
   await expect(name).toHaveValue('Kraan');
+
+  // Zonder toewijzingen verwijdert de prullenbak direct, met één herstelbare stap.
+  const row = page.locator(`[data-ops-grid-row="${id}"]`);
+  const remove = row.getByTitle(/^(Verwijderen|Delete)$/);
+  const beforeEmptyRemove = await resource(page, id);
+  await remove.click();
+  await expect(row).toHaveCount(0);
+  await expect(page.getByTitle(/^(Annuleren|Cancel)$/)).toHaveCount(0);
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().historyEvents.filter(e => e.state === 'applied').length))
+    .toBe(beforeEmptyRemove.undo + 1);
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect(name).toHaveValue('Kraan');
+
+  const { tasks, other } = await page.evaluate(rid => {
+    const g = () => window.__OPS__!.store.getState();
+    const tasks = [g().addTask({ name: 'Hijswerk' }), g().addTask({ name: 'Montage' })];
+    const other = g().addResource({ name: 'Hulpploeg', type: 'LABOR', description: '', maxUnits: 1 });
+    g().assignResource(tasks[0], rid, 1);
+    g().assignResource(tasks[0], other, 1);
+    return { tasks, other };
+  }, id);
+  const data = () => page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    return {
+      resources: s.resources,
+      assignments: s.assignments,
+      tasks: s.tasks.map(t => ({ id: t.id, resourceIds: t.resourceIds })),
+      undo: s.historyEvents.filter(e => e.state === 'applied').length,
+    };
+  });
+  const question = page.getByText(/^'Kraan' (heeft \d+ toewijzing\(en\) — verwijderen\?|has \d+ assignment\(s\) — delete\?)$/);
+  const countText = (count: number) => new RegExp(`^'Kraan' (heeft ${count} toewijzing\\(en\\) — verwijderen\\?|has ${count} assignment\\(s\\) — delete\\?)$`);
+  const beforeQuestion = await data();
+  await remove.click();
+  await expect(question).toHaveText(countText(1));
+  expect(await data()).toEqual(beforeQuestion);
+
+  // Een open vraag volgt ook externe toewijzingswijzigingen; de telling is geen cache.
+  await page.evaluate(({ task, rid }) => window.__OPS__!.store.getState().assignResource(task, rid, 1), { task: tasks[1], rid: id });
+  await expect(question).toHaveText(countText(2));
+  await page.evaluate(rid => {
+    const g = () => window.__OPS__!.store.getState();
+    for (const a of g().assignments.filter(a => a.resourceId === rid)) g().unassignResource(a.id);
+  }, id);
+  await expect(question).toHaveText(countText(0));
+  await page.evaluate(({ tasks, rid }) => {
+    for (const task of tasks) window.__OPS__!.store.getState().assignResource(task, rid, 1);
+  }, { tasks, rid: id });
+  await expect(question).toHaveText(countText(2));
+
+  const beforeCancel = await data();
+  await row.getByTitle(/^(Annuleren|Cancel)$/).click();
+  await expect(question).toHaveCount(0);
+  expect(await data()).toEqual(beforeCancel);
+  await remove.click();
+  await expect(question).toHaveText(countText(2));
+  await remove.click();
+  await expect(row).toHaveCount(0);
+  const afterRemove = await data();
+  expect(afterRemove.undo).toBe(beforeCancel.undo + 1);
+  expect(afterRemove.resources).toEqual(beforeCancel.resources.filter(r => r.id !== id));
+  expect(afterRemove.assignments).toEqual(beforeCancel.assignments.filter(a => a.resourceId === other));
+  expect(afterRemove.tasks).toEqual(beforeCancel.tasks.map(t => ({ ...t, resourceIds: t.resourceIds.filter(rid => rid !== id) })));
+
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect(name).toHaveValue('Kraan');
+  expect(await data()).toEqual(beforeCancel);
+  await expect(question).toHaveCount(0);
 });
 
 test('projectweergave: een lege naam komt niet in de store of de undo-geschiedenis', async ({ page, ops: _ops }) => {

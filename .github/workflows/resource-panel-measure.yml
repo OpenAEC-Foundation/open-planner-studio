@@ -1,0 +1,69 @@
+name: Resourcepaneel meten
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/resource-panel-measure.yml'
+      - 'tests/performance/resource-panel.mjs'
+
+# Deze vaste vergelijking is opt-in via de meetbestanden, geen extra poort voor productwijzigingen.
+permissions:
+  contents: read
+
+concurrency:
+  group: resource-panel-measure-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  measure:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    env:
+      BEFORE_SHA: fbd4a3f9dcc7bdd308ab86b992d0b26f4670a553
+      AFTER_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.AFTER_SHA }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps --only-shell chromium
+      - name: Zet de vaste nulmeting klaar met dezelfde browserregressie
+        run: |
+          git worktree add --detach "$RUNNER_TEMP/resource-before" "$BEFORE_SHA"
+          ln -s "$GITHUB_WORKSPACE/node_modules" "$RUNNER_TEMP/resource-before/node_modules"
+          cp tests/browser/resource-row-undo.spec.ts "$RUNNER_TEMP/resource-before/tests/browser/resource-row-undo.spec.ts"
+          mkdir -p output/resource-panel
+          git rev-parse HEAD
+          sha256sum src/components/panels/ResourcePanel.tsx "$RUNNER_TEMP/resource-before/src/components/panels/ResourcePanel.tsx"
+      - name: Typecheck en lint
+        run: |
+          npm run typecheck
+          npm run lint
+      - name: Bedienroute vóór en na (exitcodes blijven leidend)
+        run: |
+          (cd "$RUNNER_TEMP/resource-before" && node scripts/run-browser-tests.mjs tests/browser/resource-row-undo.spec.ts)
+          node scripts/run-browser-tests.mjs tests/browser/resource-row-undo.spec.ts
+      - name: Bouw beide productierevisies met de bestaande meetbrug
+        env:
+          VITE_OPS_BENCH_BRIDGE: '1'
+        run: |
+          (cd "$RUNNER_TEMP/resource-before" && ./node_modules/.bin/vite build --outDir "$RUNNER_TEMP/resource-before-dist")
+          ./node_modules/.bin/vite build --outDir "$RUNNER_TEMP/resource-after-dist"
+      - name: Meet echte paneelklikken en vergelijk DOM, store en undo
+        run: node tests/performance/resource-panel.mjs "$RUNNER_TEMP/resource-before-dist" "$RUNNER_TEMP/resource-after-dist" output/resource-panel
+      - name: Bewaar ruwe meting en schermcontrole
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resource-panel-${{ env.AFTER_SHA }}
+          path: |
+            output/resource-panel/
+            test-results/
+            playwright-report/
+          retention-days: 14
