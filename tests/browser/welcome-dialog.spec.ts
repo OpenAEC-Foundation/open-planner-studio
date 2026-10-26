@@ -31,13 +31,21 @@ test('welkomstdialoog past taal, thema en automatisch berekenen live toe en bewa
 });
 
 // Werkplek zonder localStorage (#583): de host zet `skipWelcome: true`. Bewust zonder de `ops`-fixture,
-// want die wacht juist op de welkomst. Elke laadbeurt begint met lege opslag, zoals in een
-// sandbox-iframe. Het startbestand van de host is het ijkpunt: `useSiteInitialFile` opent het in
-// dezelfde ronde als de welkomstcheck (na de herstelcontrole), dus staat het er, dan is die check
-// voorbij en had een welkomstvenster al moeten verschijnen.
-test('host met skipWelcome: geen welkomstvenster, ook niet na herladen, en niets wacht erop', async ({ page }) => {
+// want die wacht juist op de welkomst en schrijft localStorage. Zoals in een sandbox-iframe zonder
+// `allow-same-origin` (opaque origin) gooit al het LEZEN van `localStorage` en `sessionStorage` een
+// `SecurityError`; de app moet dan toch starten (IndexedDB blijft hier wel bruikbaar). Het
+// startbestand van de host is het ijkpunt: `useSiteInitialFile` opent het in dezelfde ronde als de
+// welkomstcheck (na de herstelcontrole). Staat het er, dan is die check voorbij en had een
+// welkomstvenster al moeten verschijnen. Een onafgevangen fout faalt de test; console-fouten komen
+// alleen in de log (de recovery-route is hier geen onderwerp).
+test('host met skipWelcome zonder localStorage: de app start, geen welkomstvenster, ook niet na herladen', async ({ page }) => {
   await page.addInitScript((ifc) => {
-    localStorage.clear();
+    for (const name of ['localStorage', 'sessionStorage']) {
+      Object.defineProperty(window, name, {
+        configurable: true,
+        get() { throw new DOMException(`${name} is niet beschikbaar (opaque origin).`, 'SecurityError'); },
+      });
+    }
     const file = { id: 'p1', name: 'Planning.ifc', version: '1' };
     (window as unknown as { openaecHost: unknown }).openaecHost = {
       skipWelcome: true,
@@ -50,6 +58,11 @@ test('host met skipWelcome: geen welkomstvenster, ook niet na herladen, en niets
       },
     };
   }, IFC);
+  const pageErrors: string[] = [];
+  page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
+  page.on('console', (message) => {
+    if (message.type() === 'error') console.log(`[zonder localStorage] console.error: ${message.text()}`);
+  });
   const welcome = page.locator('[data-ops-welcome-dialog]');
   for (const round of ['eerste start', 'na herladen']) {
     if (round === 'eerste start') await page.goto('/'); else await page.reload();
@@ -62,7 +75,6 @@ test('host met skipWelcome: geen welkomstvenster, ook niet na herladen, en niets
       return { welcomePending: u.welcomePending, showTourOverlay: u.showTourOverlay, showTutorialOffer: u.showTutorialOffer };
     });
     expect(ui, round).toEqual({ welcomePending: false, showTourOverlay: false, showTutorialOffer: false });
-    // De host beslist per start: de tool legt niet vast dat de welkomst gezien is.
-    expect(await page.evaluate(() => localStorage.getItem('ops-welcomeSeen')), round).toBeNull();
   }
+  expect(pageErrors, 'onafgevangen fouten zonder localStorage').toEqual([]);
 });

@@ -359,7 +359,8 @@ export function createExtensionApi(
         }
       },
       set<T>(key: string, value: T) {
-        localStorage.setItem(settingsPrefix + key, JSON.stringify(value));
+        // Geblokkeerde of volle opslag (bijv. een sandbox-iframe, #583): niet bewaard, maar geen fout.
+        try { localStorage.setItem(settingsPrefix + key, JSON.stringify(value)); } catch { /* niet bewaard */ }
       },
     },
 
