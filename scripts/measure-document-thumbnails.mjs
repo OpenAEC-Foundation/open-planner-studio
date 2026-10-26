@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Alleen opt-in CI. Eén ongewijzigd harnas bedient beide exacte checkouts, achtereenvolgens op
 // dezelfde runner. Dev-modus met React StrictMode; geen productie- of algemene snelheidsclaim.
-// Tijdmeting zonder profiler; de deterministische aanroeptelling volgt in een aparte browsercontext.
+// Tijdmeting zonder profiler; de uitvoeringscontrole volgt in een aparte browsercontext.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -31,6 +31,7 @@ const report = {
   mode: 'Vite-ontwikkelmodus, React StrictMode, Chromium zonder venster, nl-NL, UTC, 1600x1000',
   timing: 'Echte Enter-keydown tot twee requestAnimationFrame-callbacks na zichtbare commit; openen vanaf echte click. Dit is een paintgelegenheid, geen GPU-presentatietijd.',
   warmups: WARMUPS, samples: SAMPLES, order: ['base', 'head'],
+  executionCheck: 'Binaire V8-dekking: gesloten head nooit uitgevoerd, geopende head wel; geen vast aantal renderherhalingen.',
   runner: { node: process.version, cpu: cpus()[0]?.model, cores: cpus().length, memory: totalmem() },
   harnessSha256: hash(readFileSync(fileURLToPath(import.meta.url))),
   run: `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,
@@ -285,35 +286,35 @@ async function runTiming(browser, url, label, scenario) {
   } finally { await context.close(); }
 }
 
-async function runCounts(browser, url, label, scenario) {
+async function runCoverage(browser, url, label, scenario) {
   const { page, context, errors } = await prepare(browser, url);
   try {
     await fixture(page, scenario.size, scenario.documents);
-    // Warm de thumbnailfunctie eenmaal op zodat de profiler ook een nul aan dezelfde functie bindt.
+    // Warm de thumbnailfunctie eenmaal op zodat de uitvoeringscontrole dezelfde functie kent.
     await open(page);
     await close(page);
     const cdp = await context.newCDPSession(page);
     await cdp.send('Profiler.enable');
-    await cdp.send('Profiler.startPreciseCoverage', { callCount: true, detailed: true });
+    // De productvoorwaarde is wel/niet uitvoeren. Het aantal ontwikkelrenders is geen contract.
+    await cdp.send('Profiler.startPreciseCoverage', { callCount: false, detailed: false });
     const take = async phase => {
       const coverage = await cdp.send('Profiler.takePreciseCoverage');
       const matches = coverage.result.filter(s => /\/src\/utils\/documents\.ts(?:\?|$)/.test(s.url))
         .flatMap(s => s.functions.filter(f => f.functionName === 'buildThumbnail').map(f => ({ url: s.url, ...f })));
       // V8 mag onuitgevoerde functies uit de delta weglaten; bron en warme open zijn hierboven bewezen.
-      const count = matches.reduce((n, f) => n + f.ranges[0].count, 0);
-      scenario.counts.push({ phase, count, functions: matches });
-      return count;
+      const covered = matches.some(f => f.ranges[0].count > 0);
+      scenario.coverage.push({ phase, covered, functions: matches });
+      return covered;
     };
-    await take('start');
+    assert.equal(await take('start'), false, 'De proef mag de opwarming niet meetellen');
     await edit(page, 'task.name', 'Aanroeptelling');
     const closed = await take('closed-edit');
-    if (label === 'head') assert.equal(closed, 0, 'Gesloten overzicht mag geen thumbnails berekenen');
-    else assert.ok(closed >= 2 * scenario.documents, 'Basis moet het bestaande dubbele thumbnailwerk tonen');
+    if (label === 'head') assert.equal(closed, false, 'Gesloten overzicht mag geen thumbnails berekenen');
+    else assert.equal(closed, true, 'Basis moet het bestaande verborgen thumbnailwerk tonen');
     await open(page);
     const opened = await take('open');
     if (label === 'head') {
-      // StrictMode herhaalt de useMemo-berekening tweemaal; alleen het overzicht mag dit doen.
-      assert.equal(opened, 2 * scenario.documents, 'Geopend overzicht: één berekening per kaart, tweemaal door StrictMode');
+      assert.equal(opened, true, 'Geopend overzicht moet actuele thumbnails berekenen');
     }
     await close(page);
     await page.keyboard.press('Control+z');
@@ -327,8 +328,8 @@ async function runCounts(browser, url, label, scenario) {
       await settle(page);
     }
     const closedRoute = await take('closed-undo-redo-switch');
-    if (label === 'head') assert.equal(closedRoute, 0);
-    else assert.ok(closedRoute > 0);
+    if (label === 'head') assert.equal(closedRoute, false);
+    else assert.equal(closedRoute, true);
     await cdp.send('Profiler.stopPreciseCoverage');
     await cdp.detach();
     assert.deepEqual(errors, []);
@@ -356,11 +357,11 @@ try {
       assert.ok(address && typeof address !== 'string');
       const url = `http://127.0.0.1:${address.port}`;
       for (const size of [1000, 5000, 10000]) for (const documents of [1, 3]) {
-        const scenario = { key: `${size}x${documents}`, size, documents, timings: [], snapshots: [], counts: [] };
+        const scenario = { key: `${size}x${documents}`, size, documents, timings: [], snapshots: [], coverage: [] };
         variant.scenarios.push(scenario);
         try {
           await runTiming(browser, url, label, scenario);
-          await runCounts(browser, url, label, scenario);
+          await runCoverage(browser, url, label, scenario);
         } catch (error) {
           scenario.error = String(error.stack || error);
           report.errors.push(`${label}/${scenario.key}: ${scenario.error}`);
