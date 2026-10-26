@@ -1,3 +1,4 @@
+// F2: de kalenderdatum blijft gelijk; D1/D2/D7 bepalen het exacte moment (§4.2).
 // H1 (Opus-review T15-fixronde, B1-BLOKKER): store-niveau-bewijs voor `applyProgressInvariants`
 // (taskSlice.ts) — vóór de fix viel `completion===1` zonder statusdatum terug op
 // `formatDate(new Date())` ("vandaag"). Het commentaar bij `applyProgressInvariants` verwees al
@@ -169,7 +170,7 @@ ok(
   S().setTaskProgress(ids.m, 1);
   ok(`mijlpaal-100-verouderd: AS niet ná AF (${actuals(task(ids.m)!.time)})`, inOrder(task(ids.m)!.time));
   ok(`mijlpaal-100-verouderd: AS = AF = statusdatum (${actuals(task(ids.m)!.time)})`,
-    task(ids.m)!.time.actualStart === '2026-06-10' && task(ids.m)!.time.actualFinish === '2026-06-10');
+    task(ids.m)!.time.actualStart === '2026-06-10T07:00' && task(ids.m)!.time.actualFinish === '2026-06-10T07:00');
 
   // Paneel/contextmenu: taak die volgens de VERSE planning ná de statusdatum begint.
   ids = setup();
@@ -177,7 +178,7 @@ ok(
   ok(`toekomstige-taak-100: voorwaarde — verse ES (${task(ids.f)!.time.earlyStart}) ná de statusdatum`, task(ids.f)!.time.earlyStart > '2026-06-10');
   S().setTaskProgress(ids.f, 1);
   ok(`toekomstige-taak-100 (setTaskProgress): AS = AF = statusdatum (${actuals(task(ids.f)!.time)})`,
-    task(ids.f)!.time.actualStart === '2026-06-10' && task(ids.f)!.time.actualFinish === '2026-06-10');
+    task(ids.f)!.time.actualStart === '2026-06-10T16:00' && task(ids.f)!.time.actualFinish === '2026-06-10T16:00');
 
   // Raster: completion-cel 100 %.
   ids = setup();
@@ -207,7 +208,7 @@ ok(
   S().setActualStart(late, '2026-06-08');
   S().setTaskProgress(late, 1);
   ok(`zonder-statusdatum-100: vastgelegde AS blijft, AF niet ervóór (${actuals(task(late)!.time)})`,
-    task(late)!.time.actualStart === '2026-06-08' && inOrder(task(late)!.time));
+    task(late)!.time.actualStart === '2026-06-08T07:00' && inOrder(task(late)!.time));
 }
 
 // ── Z14b (eigenaarsprincipe 2026-08-18) — edit-time-invalidatie van het GELEZEN Z8-venster.

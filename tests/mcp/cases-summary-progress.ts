@@ -67,12 +67,12 @@ test('get_task op een fase toont de afgeleide werkelijke datums (vroegste start;
   assert(S().setActualStart(B, '2026-03-05'), 'fixture: start B');
   S().runCPM();
   let data = callOk('planner_get_task', { taskId: P });
-  assertEq(data.progress.actualStart, '2026-03-03', 'fase-actualStart = de vroegste van de bladen');
+  assertEq(data.progress.actualStart, '2026-03-03T07:00', 'fase-actualStart = de vroegste van de bladen');
   assertEq(data.progress.actualFinish, undefined, 'geen fase-actualFinish zolang B nog loopt');
   assert(S().setActualFinish(B, '2026-03-20'), 'fixture: einde B');
   S().runCPM();
   data = callOk('planner_get_task', { taskId: P });
-  assertEq(data.progress.actualFinish, '2026-03-20', 'alle bladen klaar ⇒ fase-actualFinish = het laatste einde');
+  assertEq(data.progress.actualFinish, '2026-03-20T16:00', 'alle bladen klaar ⇒ fase-actualFinish = het laatste einde');
   assertEq(data.status, 'COMPLETED', 'en de fase is COMPLETED');
 });
 
@@ -90,7 +90,7 @@ test('update_tasks: werkelijke datums op een fase ⇒ zachte weigering met uitle
   assert(/actual dates/.test(rejections[0]?.reason ?? '') && /leaf tasks/.test(rejections[0]?.reason ?? ''),
     `de reden noemt dat werkelijke datums uit de bladtaken komen: ${rejections[0]?.reason}`);
   const phase = S().tasks.find(t => t.id === P)!;
-  assertEq(phase.time.actualStart, '2026-03-04', 'de fase houdt haar afgeleide start');
+  assertEq(phase.time.actualStart, '2026-03-04T07:00', 'de fase houdt haar afgeleide start');
 });
 
 await run();

@@ -48,13 +48,13 @@ const task = (id: string) => S().tasks.find(t => t.id === id)!;
 
 test('constraint: null wist ook de secundaire constraint (was: SNET bleef staan, ES bleef 07-04)', async () => {
   const id = seedPair();
-  assertEq(task(id).time.earlyStart, '2026-04-07', 'vooraf begrenst de secundaire SNET de start');
+  assertEq(task(id).time.earlyStart, '2026-04-07T07:00', 'vooraf begrenst de secundaire SNET de start');
   const res = await updateFields(id, { constraint: null });
   assertEq(res.isError ?? false, false, 'de call slaagt');
   assertEq(res.structuredContent.itemRejections, undefined, 'geen weigering');
   assertEq(task(id).constraint, undefined, 'primair gewist');
   assertEq(task(id).constraint2, undefined, 'secundair óók gewist — zoals paneel en raster');
-  assertEq(task(id).time.earlyStart, '2026-03-02', 'de taak valt terug op de projectstart');
+  assertEq(task(id).time.earlyStart, '2026-03-02T07:00', 'de taak valt terug op de projectstart');
 });
 
 test('constraint: { type: ASAP } wist beide (canonieke ASAP = geen constraint)', async () => {
@@ -62,7 +62,7 @@ test('constraint: { type: ASAP } wist beide (canonieke ASAP = geen constraint)',
   await updateFields(id, { constraint: { type: 'ASAP' } });
   assertEq(task(id).constraint, undefined, 'ASAP wordt als "geen constraint" opgeslagen, net als paneel/raster');
   assertEq(task(id).constraint2, undefined, 'secundair gewist');
-  assertEq(task(id).time.earlyStart, '2026-03-02', 'geen grens meer');
+  assertEq(task(id).time.earlyStart, '2026-03-02T07:00', 'geen grens meer');
 });
 
 test('constraint: { type: ALAP } wist de secundaire en bewaart ALAP zonder datum', async () => {
@@ -76,8 +76,8 @@ test('een geldig nieuw primair laat de secundaire staan', async () => {
   const id = seedPair();
   const res = await updateFields(id, { constraint: { type: 'SNLT', date: '2026-06-01' } });
   assertEq(res.structuredContent.itemRejections, undefined, 'SNLT (boven) + SNET (onder) is een geldig paar');
-  assertEq(task(id).constraint, { type: 'SNLT', date: '2026-06-01' }, 'primair gezet');
-  assertEq(task(id).constraint2, { type: 'SNET', date: '2026-04-06' }, 'secundair blijft');
+  assertEq(task(id).constraint, { type: 'SNLT', date: '2026-06-01T07:00' }, 'primair gezet');
+  assertEq(task(id).constraint2, { type: 'SNET', date: '2026-04-06T07:00' }, 'secundair blijft');
 });
 
 test('een ongeldig paar wordt per item geweigerd met reden; de taak blijft ongewijzigd', async () => {
@@ -92,8 +92,8 @@ test('een ongeldig paar wordt per item geweigerd met reden; de taak blijft ongew
     assertEq(rejections?.length, 1, `${constraint.type} naast SNET wordt geweigerd`);
     assert(rejections[0].reason.includes('secondary constraint') && rejections[0].reason.includes(fragment),
       `de reden noemt de secundaire constraint en waarom (${fragment}): ${rejections[0].reason}`);
-    assertEq(task(id).constraint, { type: 'FNLT', date: '2026-06-30' }, 'primair ongewijzigd');
-    assertEq(task(id).constraint2, { type: 'SNET', date: '2026-04-06' }, 'secundair ongewijzigd');
+    assertEq(task(id).constraint, { type: 'FNLT', date: '2026-06-30T16:00' }, 'primair ongewijzigd');
+    assertEq(task(id).constraint2, { type: 'SNET', date: '2026-04-06T07:00' }, 'secundair ongewijzigd');
   }
 });
 
@@ -101,7 +101,7 @@ test('zonder secundaire verandert er niets aan het bestaande gedrag', async () =
   S().newProject();
   const id = S().addTask({ name: 'Los' });
   await updateFields(id, { constraint: { type: 'MSO', date: '2026-03-09', hard: true } });
-  assertEq(task(id).constraint, { type: 'MSO', date: '2026-03-09', hard: true }, 'MSO met harde pin landt');
+  assertEq(task(id).constraint, { type: 'MSO', date: '2026-03-09T07:00', hard: true }, 'MSO met harde pin landt');
   assert(!('constraint2' in task(id)) || task(id).constraint2 === undefined, 'geen secundaire verzonnen');
 });
 

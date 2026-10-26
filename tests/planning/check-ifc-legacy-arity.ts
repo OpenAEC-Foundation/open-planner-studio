@@ -28,6 +28,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { IfcParseError } from '@/services/ifc/ifcErrors';
+import { normalizeTaskDates } from '@/state/migrations/minuteModel';
 import type { ImportResult } from '@/services/importTypes';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
@@ -133,7 +134,31 @@ const rOld = readIFC(OLD);
 // ── 2. Lezen → schrijven (nieuwe ariteit) → lezen: identiek ────────────────────────────────────────
 const NEW = writeIFC(rOld);
 eq('2a de huidige writer schrijft de schema-ariteit', arities(NEW, CONTROL), NEW_ARITY);
-same('2b oud bestand en nieuw equivalent lezen identiek', readIFC(NEW), rOld);
+// T10: schrijven markeert het minutenmodel; alle overige gelezen velden blijven gelijk. Sinds F3c is de
+// rest exact (B3): "Earthworks for extension" (3 d, 40 %) houdt 1,8 d rest. Een dagtaak met een gebroken
+// rest maakt haar kalender letterlijk (T21, §3.10), en een letterlijke kalender schrijft elke waarde zoals
+// hij is (§3.6). In de app passeert een gelezen bestand eerst de laadgrens (D1–D7) en pas daarna de writer;
+// deze ronde volgt die route. Vergelijk daarom de momenten; al het andere blijft letterlijk gelijk.
+// `mapTaskDates` zet bij een gewijzigde taak lege sleutels als `undefined`; die laten we weg. De ruwe
+// route (lezeruitvoer rechtstreeks schrijven) toetst 2e.
+const moments = (r: ImportResult): ImportResult => ({ ...r,
+  tasks: r.tasks.map(t => JSON.parse(JSON.stringify(normalizeTaskDates(t, { calendar: r.calendar, calendars: r.resourceCalendars ?? [] })))) });
+const rNew = readIFC(writeIFC(moments(rOld)));
+same('2b oud bestand en nieuw equivalent lezen dezelfde momenten op TimeModel na', moments(rNew), moments({ ...rOld, timeModel: 'MINUTES-1' }));
+eq('2c gebroken rest (B3) blijft bewaard', rNew.tasks.find(t => t.name === 'Earthworks for extension')?.time.remainingTime, 1.8);
+eq('2d een planningseinde zonder tijd komt terug als het einde van die werkdag',
+  [rOld.tasks[1].time.scheduleFinish, rNew.tasks[1].time.scheduleFinish], ['2027-05-12', '2027-05-12T16:00']);
+// 2e Knownbug 279 (review ronde 1 van #581, punt 2): de ruwe route `readIFC → writeIFC → readIFC`, zonder
+// laadgrens. Op een letterlijke kalender ging een eindveld zonder tijd als `…T07:00:00` het bestand in en
+// las terug als 07:00: "1. Preparation" eindigde op 12 mei 07:00 in plaats van 16:00. Nu krijgt de writer
+// voor zo'n eindveld het moment van de laadgrens; dezelfde momenten als 2b.
+const rRaw = readIFC(writeIFC(rOld));
+same('2e ruwe route: dezelfde momenten als het oude bestand, op TimeModel na', moments(rRaw), moments({ ...rOld, timeModel: 'MINUTES-1' }));
+const prep = (r: ImportResult) => r.tasks.find(t => t.name === '1. Preparation')?.time;
+eq('2e ruwe route: "1. Preparation" eindigt op 12 mei 16:00, vroeg einde 19 mei 16:00',
+  [prep(rRaw)?.scheduleFinish, prep(rRaw)?.earlyFinish, prep(rRaw)?.lateFinish], ['2027-05-12T16:00', '2027-05-19T16:00', '2027-05-19T16:00']);
+eq('2e ruwe route: een kale werkelijke start blijft het 07:00-anker',
+  rRaw.tasks.find(t => t.name === 'Set up site')?.time.actualStart?.slice(11), '07:00');
 
 // ── 3. Mechanisch omgezet naar de nieuwe ariteit: identiek ────────────────────────────────────────
 const converted = rewrite(

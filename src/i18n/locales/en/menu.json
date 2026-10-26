@@ -300,6 +300,7 @@
     "recentTitle": "Recent projects",
     "recentSubtitle": "Click to open.",
     "recentEmpty": "No recently opened projects yet.",
+    "recentUnavailable": "This browser cannot reopen local files from Recent. Use Open to choose your project file again.",
     "recentOnSite": "On the site",
     "examples": "Examples",
     "examplesTitle": "Example projects",

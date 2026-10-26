@@ -290,7 +290,7 @@ async function open(name: string, bytes: Uint8Array): Promise<OpenedImport> {
   const parsed = await parseOpenedFile({ name, bytes });
   S().newProject();
   useAppStore.setState(st => { st.ui.notifications = []; });
-  S().applyOpenedImport(parsed, { filePath: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: true });
+  S().applyOpenedImport(parsed, { filePath: null, recompute: true, fit: false, linkedOpen: true });
   return parsed;
 }
 const resultsOf = (parsed: OpenedImport) => isMultiDocumentImport(parsed) ? parsed.results : [parsed];
@@ -557,7 +557,7 @@ async function main(): Promise<void> {
       S().tasks.map(task => task.time.isCritical), S().tasks.map(task => task.time.totalFloat <= expected));
     const restored = readIFC(writeIFC(buildWriteIFCInput(S())));
     eq(`46 ${raw}: IFC-round-trip behoudt de grens`, restored.project.schedulingOptions?.criticalDefinition, want);
-    S().applyOpenedImport(restored, { filePath: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: true });
+    S().applyOpenedImport(restored, { filePath: null, recompute: true, fit: false, linkedOpen: true });
     eq(`46 ${raw}: heropend project behoudt de grens`, S().project.schedulingOptions?.criticalDefinition, want);
   }
 

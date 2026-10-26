@@ -37,7 +37,7 @@ De velden hangen aan elkaar. Als je er één invult, vult de app de andere aan.
 - Een percentage boven 0 betekent dat de taak gestart is. Geef je geen werkelijke start op, dan neemt de app de geplande start. Begint de taak volgens de planning pas na de statusdatum, dan vraagt de app eerst wanneer hij werkelijk begon.
 - Een percentage van 100 betekent voltooid. Geef je geen werkelijk einde op, dan wordt dat de statusdatum, ook als het werk in werkelijkheid eerder klaar was.
 - Een werkelijk einde maakt de taak 100 %. Zet je een voltooide taak terug onder de 100 %, dan vervalt het werkelijke einde. Wis je het werkelijke einde, dan gaat het percentage terug naar 0 en blijft de taak *Bezig*, tot je ook de werkelijke start wist.
-- De **restduur** is de duur maal wat er nog te doen is, afgerond op hele werkdagen. Voor een taak van 2 werkdagen geven 0 % en 25 % allebei 2 werkdagen restwerk, en 50 % en 75 % allebei 1. Bij 90 % rondt de app af op 0: het restwerk is dan op de statusdatum klaar. Een taak in uren rekent in hele minuten: een taak van 5 uur op 40 % heeft 3 uur restwerk.
+- De **restduur** is de duur maal wat er nog te doen is. De app rondt niet af op hele werkdagen. Voor een taak van 2 werkdagen geeft 25 % een rest van 1,5 werkdag, 50 % een rest van 1 en 75 % een rest van 0,5. Bij 90 % is de rest 0,2 werkdag. Een taak in uren rekent in hele minuten: een taak van 5 uur op 40 % heeft 3 uur restwerk.
 - Een mijlpaal heeft maar één werkelijke datum.
 - Een fase (samenvattende taak) heeft geen eigen voortgang. Haar percentage volgt na het berekenen uit de taken eronder: het gewogen gemiddelde van hun percentages, met de duur in werkdagen als gewicht. Een mijlpaal weegt 0.
 

@@ -862,7 +862,7 @@ if (!firstUsableFile) {
   const S = () => useAppStore.getState();
   S().newProject();
   S().applyLoadedProject(readMPP(parityBytes), {
-    filePath: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: true,
+    filePath: null, recompute: true, fit: false, linkedOpen: true,
   });
 
   // Join op ARRAY-POSITIE, niet op `id`: `readMPP` geeft elke taak een VERSE id

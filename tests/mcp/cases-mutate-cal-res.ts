@@ -617,7 +617,7 @@ test('update_project: statusdatum landt; startDate is GEEN volledige Δ-verschui
   while (!clampEngine.isWorkDay(expectedAnchor)) {
     expectedAnchor = addCalendarDays(expectedAnchor, 1);
   }
-  assertEq(aStartAfter, formatDate(expectedAnchor),
+  assertEq(aStartAfter, `${formatDate(expectedAnchor)}T07:00`,
     'de wortel-taak klemt naar de EERSTE werkdag op/ná de nieuwe startDate (onafhankelijk dag-voor-dag berekend via CalendarEngine.isWorkDay, niet via snapWorkInstantOnOrAfter)');
   assertEq(data.anchorsClamped, 1, 'de respons meldt het geklemde aantal');
   // GEEN volledige Δ-verschuiving (dat blijft move_project): de OPVOLGER (heeft een voorganger, dus

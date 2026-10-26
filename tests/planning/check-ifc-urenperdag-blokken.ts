@@ -129,7 +129,7 @@ for (const c of CASES) {
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // §4 De echte open- en opslaanroute, met doorrekenen
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-const OPEN = { filePath: null, fileHandle: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: true } as const;
+const OPEN = { filePath: null, fileHandle: null, recompute: true, fit: false, linkedOpen: true } as const;
 function openInStore(parsed: OpenedImport): DocumentPayload {
   const store = createAppStoreContext().store;
   store.getState().applyOpenedImport(parsed, OPEN);
@@ -150,9 +150,9 @@ function openInStore(parsed: OpenedImport): DocumentPayload {
     const cal = effectiveCalendarOf(t, p.calendar, p.calendars);
     const x = t.time;
     return [t.id, {
-      auto: formatTaskDurationDisplay(t, cal, 'auto', true),
-      days: formatTaskDurationDisplay(t, cal, 'days', true),
-      hours: formatTaskDurationDisplay(t, cal, 'hours', true),
+      auto: formatTaskDurationDisplay(t, cal, 'auto'),
+      days: formatTaskDurationDisplay(t, cal, 'days'),
+      hours: formatTaskDurationDisplay(t, cal, 'hours'),
       dates: [x.scheduleStart, x.scheduleFinish, x.earlyStart, x.earlyFinish, x.lateStart, x.lateFinish],
       dur: x.scheduleDuration, min: x.durationMinutes ?? null,
     }];

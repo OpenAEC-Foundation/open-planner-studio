@@ -12,7 +12,7 @@ De eenheid hoort bij de taak, niet bij het project. Je kunt dagtaken en urentake
 
 Uren gebruik je voor werk dat niet in hele dagen past: een kraan die je twaalf uur huurt, een stort van zes uur, een taak die pas na de lunch kan beginnen. Voor al het andere zijn dagen genoeg en overzichtelijker.
 
-**Urenplanning** staat standaard uit. Zolang dat zo is, werkt de app in dagen. Bevat een bestand toch urenplanning, zoals taken in uren, dan meldt de app *Dit bestand bevat urenplanning.* Die taken worden nog steeds doorgerekend, maar hun duur kun je pas bewerken als je urenplanning aanzet.
+De duur in uren is altijd te bewerken. Kies de maat bij de taak; de kalender bepaalt de werktijden.
 
 ## Hoe de app rekent
 
@@ -97,11 +97,10 @@ In tutorial 4, over urenplanning, plan je zelf een kraaninzet in uren.
 
 **Een kalender met eigen werktijdblokken** gedraagt zich anders dan de standaardkalender. Zo'n kalender krijg je door per weekdag werktijden in te stellen of een ploegenpreset te kiezen (*2 ploegen*, *3 ploegen*, *Nachtploeg* of *24/7*). Op zo'n kalender telt een lag in uren exact in werkuren, ook na een dagtaak.
 
-**Urenplanning uitzetten** verwijdert niets. Taken in uren blijven bestaan en rekenen mee, maar je kunt ze niet bewerken tot je urenplanning weer aanzet.
 
 ## Zie ook
 
-- [Urenplanning aanzetten](docs://howto-urenplanning-aanzetten): de stappen om een taak in uren te plannen.
+- [Een taak in uren plannen](docs://howto-taak-in-uren-plannen): de stappen om een taak in uren te plannen.
 - [Werktijden instellen](docs://howto-werktijden-instellen): de werktijdblokken van een kalender aanpassen.
 - [Kalenders en werkdagen](docs://uitleg-kalenders): hoe de app werkdagen telt en welke kalender wint.
 - [Relaties leggen](docs://howto-relaties-leggen): de stappen om een relatie of lag te leggen.

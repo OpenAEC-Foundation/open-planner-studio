@@ -51,6 +51,8 @@ Heeft de toewijzing een eigen verdeling, dan staat in het venster ook *Verdeling
 
 **Alles geldt voor deze ene toewijzing.** De app noemt het zelf: *De verdeling verandert alleen de uren per dag van deze toewijzing; de taakdatums en onderbrekingen blijven zoals ze zijn.* Andere resources op dezelfde taak houden hun eigen verdeling.
 
+**Een deel van een werkdag telt naar rato.** Begint de taak midden op een werkdag, bijvoorbeeld wo om 11:00 op een werkdag van 07:00 tot 16:00 met een uur pauze, dan werkt ze die dag 4 van de 8 uur. Die dag telt voor de helft: bij inzet 1 boekt de app 4 uur, net als het histogram. Een fase houdt haar inzet; de kolom *Uren* telt het deel van de dag mee. Onder de strook staat dan een korte uitleg.
+
 **Nivelleren volgt de verdeling.** De nivelleerder telt dezelfde uren per dag als het histogram.
 
 **Terugdraaien.** *Toepassen* en *Verdeling loslaten* zijn elk één stap voor *Ongedaan* (Ctrl+Z).

@@ -108,7 +108,8 @@ const treeSequences = (): Sequence[] => [
 /** Relaties als `pred>succ:type:lag` op NAAM, gesorteerd — vergelijkbaar los van id's. */
 function seqShape(tasks: readonly Task[], seqs: readonly Sequence[]): string[] {
   const name = (id: string) => tasks.find(t => t.id === id)?.name ?? '?';
-  return seqs.map(q => `${name(q.predecessorId)}>${name(q.successorId)}:${q.type}:${q.lagDays}`).sort();
+  // T15 leest lag als minuten; vergelijk de lengte op de vaste 8-uurskalender van deze fixture.
+  return seqs.map(q => `${name(q.predecessorId)}>${name(q.successorId)}:${q.type}:${q.lagMinutes ?? q.lagDays * 480}`).sort();
 }
 const WANT_DEPTH: Record<string, number> = { R: 1, S1: 2, a: 3, b: 3, S2: 2, c: 3, d: 3, S3: 2, e: 3, S4: 2, f: 3, M: 3 };
 

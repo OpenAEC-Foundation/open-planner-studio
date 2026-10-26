@@ -51,7 +51,7 @@ eq('diagnostiek onderscheidt reviewtakken', {
 eq('catalogus diep immutable', [Object.isFrozen(catalog), Object.isFrozen(catalog.taskProjectionsByProject.MAIN), Object.isFrozen(catalog.sourceData.TASKACTV)], [true, true, true]);
 
 const store = createAppStore();
-store.getState().applyLoadedProject(main, { filePath: null, fileHandle: null, recompute: false, fit: false, hourDataNotice: false, linkedOpen: true });
+store.getState().applyLoadedProject(main, { filePath: null, fileHandle: null, recompute: false, fit: false, linkedOpen: true });
 const sourceId = store.getState().activeDocumentId; const sharedCatalog = store.getState().xerImportMetadata!.metadata!.catalog;
 const copyId = store.getState().duplicateDocument('kopie');
 store.getState().updateTask('SHARED', { activityCodes: { TYPE: 'VO' }, customFields: { UT: 'Mutatie' }, notes: [{ id: 'mut', text: 'Mutatie', done: false }] });

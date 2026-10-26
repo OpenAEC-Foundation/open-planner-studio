@@ -278,7 +278,11 @@
     "msProjectLostFixedCosts_other": "Os custos fixos de {{count}} tarefas não foram importados.",
     "msProjectLostResourceRates_one": "As tarifas de {{count}} recurso não foram importadas.",
     "msProjectLostResourceRates_many": "As tarifas de {{count}} recursos não foram importadas.",
-    "msProjectLostResourceRates_other": "As tarifas de {{count}} recursos não foram importadas."
+    "msProjectLostResourceRates_other": "As tarifas de {{count}} recursos não foram importadas.",
+    "minuteModelConverted_one": "{{document}}: {{count}} tarefa tem um início ou fim diferente após a conversão; o maior deslocamento é de {{days}} dias úteis. Ctrl+Z repõe as datas guardadas.",
+    "minuteModelConverted_many": "{{document}}: {{count}} de tarefas têm um início ou fim diferente após a conversão; o maior deslocamento é de {{days}} dias úteis. Ctrl+Z repõe as datas guardadas.",
+    "minuteModelConverted_other": "{{document}}: {{count}} tarefas têm um início ou fim diferente após a conversão; o maior deslocamento é de {{days}} dias úteis. Ctrl+Z repõe as datas guardadas.",
+    "minuteModelCalendarRepaired": "Calendário «{{calendar}}» foi corrigido: o fim ou a pausa não correspondia ao tempo de trabalho guardado."
   },
   "scheduleErrors": {
     "cycle": "Dependência circular entre tarefas: {{path}}",
@@ -393,16 +397,17 @@
     "themeHighContrast": "Alto contraste",
     "themeFollowSystem": "Seguir o tema do sistema",
     "themeSystemHint": "Segue o esquema de cores do sistema (agora: {{theme}}).",
-    "hourPlanningSection": "Planeamento por horas",
-    "enableHourPlanning": "Ativar planeamento por horas",
-    "enableHourPlanningHint": "Ativa o escalonamento por hora/minuto: uma escala de tempo horária, turnos com faixas de horário de trabalho e barras de tarefa com precisão à hora. Desativado ⇒ a aplicação permanece totalmente granular por dias, como antes.",
     "showTaskTypes": "Usar tipos de tarefa",
     "showTaskTypesHint": "Escolha, por tarefa, o que se ajusta quando a duração, as unidades ou o trabalho mudam, como Task Type no MS Project e Duration Type no P6. Desligado: a duração e as unidades mantêm-se. Um ficheiro com tipos de tarefa ou trabalho guardado mostra-os também quando isto estiver desligado.",
     "allowMixedDayHour": "Permitir planeamento misto de dias/horas",
-    "defaultTaskDurationUnit": "Unidade predefinida para novas tarefas",
-    "defaultTaskDurationUnitHint": "Define se as novas tarefas começam em dias úteis ou horas de trabalho. As tarefas existentes não mudam.",
+    "defaultTaskDurationUnit": "Unidade padrão para novas tarefas",
+    "defaultTaskDurationUnitHint": "Unidade de dias: uma duração conta em dias úteis do calendário. Unidade de horas: uma duração conta em horas de trabalho. As tarefas existentes não mudam. Uma tarefa com trabalho fixo usa sempre a unidade de horas.",
+    "defaultTaskDurationUnitDays": "Unidade em dias",
+    "defaultTaskDurationUnitHours": "Unidade em horas",
+    "defaultTaskDurationUnitLocked": "O perfil {{profile}} calcula uma duração em horas. Por isso, as novas tarefas recebem a unidade em horas.",
     "durationDisplay": "Exibição da duração",
     "durationDisplayHint": "Determina como a duração da tarefa é exibida, independentemente da unidade em que a própria tarefa está registada.",
+    "durationDisplayOpsHint": "No perfil OPS, cada tarefa mostra a sua própria unidade.",
     "durationDisplayAuto": "Automática (unidade própria por tarefa)",
     "durationDisplayDays": "Sempre dias",
     "durationDisplayHours": "Sempre horas",
@@ -1181,10 +1186,6 @@
     "month": "mês",
     "year": "ano"
   },
-  "hourData": {
-    "notice": "Este ficheiro contém planeamento por horas.",
-    "enable": "Ativar planeamento por horas"
-  },
   "recordedDates": {
     "activeCount_one": "Está a ver o planeamento tal como o Primavera o registou; recalcular deslocaria {{count}} tarefa.",
     "activeCount_many": "Está a ver o planeamento tal como o Primavera o registou; recalcular deslocaria {{count}} tarefas.",
@@ -1555,6 +1556,14 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "Tarefas ALAP tão tarde quanto as sucessoras permitem",
       "help": "Apenas com planeamento por horas, para uma tarefa não iniciada e não agendada manualmente, com a restrição «o mais tarde possível» (ALAP). As datas antecipadas das suas sucessoras determinam a sua posição até ao minuto; as sucessoras vêm primeiro. O seu próprio início planeado não conta; predecessoras, data de estado e uma segunda restrição continuam a aplicar-se. Sem sucessora, usa o seu fim tardio. A etapa ALAP comum continua disponível em todos os perfis."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Marcos isolados no fim do dia útil",
+      "help": "Um marco isolado ou um marco de fim sem predecessora é colocado no fim do seu dia útil."
+    },
+    "workdayDurationMeasure": {
+      "label": "Duração em dias úteis",
+      "help": "Uma duração, um desfasamento ou uma duração restante em dias conta em dias úteis: cada dia útil conta como 1, por muito longo que seja esse dia. Desativado: um dia conta como o número de horas de trabalho por dia do calendário. Um desfasamento em percentagem segue a unidade da predecessora. O tempo decorrido nunca conta em dias úteis."
     }
   },
   "profiles": {
@@ -1593,6 +1602,7 @@
       "float": "Folga e datas mais tardias",
       "instants": "Datas e instantes do ficheiro",
       "msproject": "Progresso como no Microsoft Project",
+      "durations": "Duração e unidade",
       "ownProfilesOnly": "Apenas para perfis próprios"
     },
     "ownProfilesOnlyNote": "Estas convenções estão desativadas em todos os perfis integrados, incluindo o Primavera P6. Só um perfil próprio as pode ativar: escolha para isso «Novo perfil».",

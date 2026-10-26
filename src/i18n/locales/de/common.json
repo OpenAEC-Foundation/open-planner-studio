@@ -221,7 +221,10 @@
     "msProjectLostFixedCosts_one": "Die Fixkosten von {{count}} Vorgang wurden nicht übernommen.",
     "msProjectLostFixedCosts_other": "Die Fixkosten von {{count}} Vorgängen wurden nicht übernommen.",
     "msProjectLostResourceRates_one": "Die Tarife von {{count}} Ressource wurden nicht übernommen.",
-    "msProjectLostResourceRates_other": "Die Tarife von {{count}} Ressourcen wurden nicht übernommen."
+    "msProjectLostResourceRates_other": "Die Tarife von {{count}} Ressourcen wurden nicht übernommen.",
+    "minuteModelConverted_one": "{{document}}: {{count}} Vorgang hat nach der Umwandlung einen anderen Anfang oder ein anderes Ende; die größte Verschiebung beträgt {{days}} Arbeitstage. Strg+Z setzt die gespeicherten Daten zurück.",
+    "minuteModelConverted_other": "{{document}}: {{count}} Vorgänge haben nach der Umwandlung einen anderen Anfang oder ein anderes Ende; die größte Verschiebung beträgt {{days}} Arbeitstage. Strg+Z setzt die gespeicherten Daten zurück.",
+    "minuteModelCalendarRepaired": "Kalender „{{calendar}}“ wurde korrigiert: das Ende oder die Pause passte nicht zur gespeicherten Arbeitszeit."
   },
   "scheduleErrors": {
     "cycle": "Zirkelbezug zwischen Vorgängen: {{path}}",
@@ -335,16 +338,17 @@
     "themeHighContrast": "Hoher Kontrast",
     "themeFollowSystem": "Systemdesign folgen",
     "themeSystemHint": "Folgt dem Farbschema deines Systems (aktuell: {{theme}}).",
-    "hourPlanningSection": "Stundenplanung",
-    "enableHourPlanning": "Stundenplanung aktivieren",
-    "enableHourPlanningHint": "Aktiviert Stunden-/Minuten-Scheduling: eine Stunden-Zeitskala, Schichten mit Arbeitszeitbändern und stundengenaue Vorgangsbalken. Aus ⇒ die App bleibt wie bisher vollständig tagesgenau.",
     "showTaskTypes": "Vorgangsarten verwenden",
     "showTaskTypesHint": "Wählen Sie pro Vorgang, was sich mitbewegt, wenn Dauer, Einheiten oder Arbeit sich ändern, wie Task Type in MS Project und Duration Type in P6. Aus: Dauer und Einheiten bleiben stehen. Eine Datei mit Vorgangsarten oder gespeicherter Arbeit zeigt sie auch, wenn diese Option aus ist.",
     "allowMixedDayHour": "Gemischte Tages-/Stundenplanung zulassen",
-    "defaultTaskDurationUnit": "Standardeinheit für neue Vorgänge",
-    "defaultTaskDurationUnitHint": "Legt fest, ob neue Vorgänge in Arbeitstagen oder Arbeitsstunden beginnen. Bestehende Vorgänge ändern sich nicht.",
+    "defaultTaskDurationUnit": "Standardmaß für neue Vorgänge",
+    "defaultTaskDurationUnitHint": "Tagesmaß: Eine Dauer zählt in Arbeitstagen des Kalenders. Stundenmaß: Eine Dauer zählt in Arbeitsstunden. Bestehende Vorgänge ändern sich nicht. Ein Vorgang mit fester Arbeit hat immer das Stundenmaß.",
+    "defaultTaskDurationUnitDays": "Tagesmaß",
+    "defaultTaskDurationUnitHours": "Stundenmaß",
+    "defaultTaskDurationUnitLocked": "Das Profil {{profile}} rechnet eine Dauer in Stunden. Neue Vorgänge erhalten daher das Stundenmaß.",
     "durationDisplay": "Daueranzeige",
     "durationDisplayHint": "Legt fest, wie die Vorgangsdauer angezeigt wird, unabhängig von der Einheit, in der ein Vorgang selbst erfasst ist.",
+    "durationDisplayOpsHint": "Im OPS-Profil zeigt jeder Vorgang sein eigenes Maß.",
     "durationDisplayAuto": "Automatisch (eigene Einheit je Vorgang)",
     "durationDisplayDays": "Immer Tage",
     "durationDisplayHours": "Immer Stunden",
@@ -1116,10 +1120,6 @@
     "month": "Monat",
     "year": "Jahr"
   },
-  "hourData": {
-    "notice": "Diese Datei enthält stundenbasierte Planung.",
-    "enable": "Stundenplanung aktivieren"
-  },
   "recordedDates": {
     "activeCount_one": "Sie sehen den Terminplan so, wie Primavera ihn gespeichert hat; eine Neuberechnung würde {{count}} Vorgang verschieben.",
     "activeCount_other": "Sie sehen den Terminplan so, wie Primavera ihn gespeichert hat; eine Neuberechnung würde {{count}} Vorgänge verschieben.",
@@ -1483,6 +1483,14 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "ALAP-Vorgänge so spät, wie die Nachfolger es zulassen",
       "help": "Nur bei Stundenplanung, für einen nicht begonnenen, nicht manuell geplanten Vorgang mit der Einschränkung „so spät wie möglich“ (ALAP). Die frühen Termine seiner Nachfolger bestimmen seine Platzierung auf die Minute genau; Nachfolger kommen zuerst. Sein eigener geplanter Anfang zählt nicht; Vorgänger, Statusdatum und eine zweite Einschränkung gelten weiter. Ohne Nachfolger nutzt er sein spätestes Ende. Der gewöhnliche ALAP-Schritt bleibt in jedem Profil verfügbar."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Lose Meilensteine am Ende des Arbeitstags",
+      "help": "Ein loser Meilenstein oder ein Endmeilenstein ohne Vorgänger steht am Ende seines Arbeitstags."
+    },
+    "workdayDurationMeasure": {
+      "label": "Dauer in Arbeitstagen",
+      "help": "Eine Dauer, ein Zeitabstand oder eine Restdauer in Tagen zählt in Arbeitstagen: Jeder Arbeitstag zählt als 1, egal wie lang dieser Tag ist. Aus: Ein Tag zählt als die Arbeitszeit pro Tag im Kalender. Ein Zeitabstand in Prozent folgt dem Maß des Vorgängers. Verstrichene Zeit zählt nie in Arbeitstagen."
     }
   },
   "profiles": {
@@ -1521,6 +1529,7 @@
       "float": "Puffer und späte Termine",
       "instants": "Termine und Zeitpunkte aus der Datei",
       "msproject": "Fortschritt wie in Microsoft Project",
+      "durations": "Dauer und Maß",
       "ownProfilesOnly": "Nur für eigene Profile"
     },
     "ownProfilesOnlyNote": "Diese Konventionen sind in jedem integrierten Berechnungsprofil ausgeschaltet, auch unter Primavera P6. Nur ein eigenes Berechnungsprofil kann sie einschalten: Wählen Sie dafür „Neues Profil“.",

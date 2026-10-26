@@ -37,7 +37,8 @@ const project = {
 const o = solveOptionsFor(project);
 eq('01 vijf projectvelden letterlijk', [o.dataDate, o.progressMode, o.projectStartDate, o.projectEndDate],
   ['2026-07-01', 'PROGRESS_OVERRIDE', '2026-06-01', '2026-12-31']);
-eq('02 zonder profiel: zevenentwintig conventies uit', CONVENTION_KEYS.map(k => o.schedulingOptions[k]), CONVENTION_KEYS.map(() => false));
+eq('02 zonder profiel: alleen B6 en de dagenmaat aan in OPS', CONVENTION_KEYS.map(k => o.schedulingOptions[k]),
+  CONVENTION_KEYS.map(k => k === 'milestoneWithoutPredecessorAtDayEnd' || k === 'workdayDurationMeasure'));
 eq('03 projectopties komen mee', o.schedulingOptions.lagCalendar, 'successor');
 eq('04 p6-profiel zet B1 aan',
   solveOptionsFor({ ...project, schedulingProfile: builtInProfile('p6') }).schedulingOptions.p6RelationFinishBoundary, true);
@@ -97,6 +98,7 @@ void bad; void missing; void good;
   const solved = ephemeralSolve({
     docId: 'd', title: '', scheduleStale: true, companyId: null, resources: [], assignments: [],
     tasks: S().tasks, calendar: S().calendar, calendars: S().calendars,
+    loadOptions: solveOptionsFor(S().project).schedulingOptions,
     solveInput: occupancySolveInputFor({ tasks: S().tasks, sequences: S().sequences, project: S().project }),
   });
   eq('C5-03 bezetting rekent met de projectstart-vloer zoals F5', solved?.find(t => t.id === b)?.time.earlyStart, f5);

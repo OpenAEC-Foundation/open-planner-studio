@@ -18,6 +18,7 @@
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { useAppStore } from '@/state/appStore';
+import { createAppStoreContext } from '@/state/appStoreFactory';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { allSpecs } from './gen-core';
@@ -279,25 +280,39 @@ function verifyShowcase(spec: ProjectSpec, parsed: Parsed, diffs: string[]): Ret
  *  het bevroren `anchorDate` op GROOT's taak moet overeenkomen met wat een verse `readIFC` van
  *  het bronbestand daadwerkelijk oplevert voor de brontaak (gematcht op NAAM — taak-ids zijn
  *  per leesrun nieuw, dus nooit een stabiel matchveld, ook niet binnen dit script: zie de
- *  bestaande digest()-conventie hierboven). */
+ *  bestaande digest()-conventie hierboven).
+ *
+ *  Minutenmodel: beide bestanden gaan door de laadgrens van de app (`loadState`, elk in een eigen
+ *  store), niet alleen door de kale `readIFC`. De kale lezer geeft de schrijfvorm: een datum zonder
+ *  tijd die pas op de laadgrens een moment wordt. Het anker in GROOT is al een moment (een
+ *  eindachtig anker eindigt op `T16:00`), dus de vergelijking hoort op de momenten van het geopende
+ *  bronbestand. Een mijlpaal heeft daar één moment voor al zijn velden (D7); de kale datum kan dat
+ *  moment niet dragen.
+ *  De toets blijft een exacte gelijkheid. */
+function openedTasks(parsed: Parsed) {
+  const ctx = createAppStoreContext();
+  ctx.store.getState().loadState(parsed as any);
+  return ctx.store.getState().tasks;
+}
+
 function verifyExternalSource(specs: ProjectSpec[], diffs: string[]) {
   const terrain = specs.find(s => s.category === 'external-source');
   if (!terrain) { diffs.push('extern bronbestand-spec ontbreekt (category "external-source")'); return; }
   const terrainPath = join(EX_DIR, `${terrain.slug}.ifc`);
   if (!existsSync(terrainPath)) { diffs.push(`extern bronbestand niet op schijf: ${terrainPath}`); return; }
-  const terrainParsed = readIFC(readFileSync(terrainPath, 'utf8'));
+  const terrainTasks = openedTasks(readIFC(readFileSync(terrainPath, 'utf8')));
 
   const groot = specs.find(s => s.category === 'showcase' && (s.tags ?? []).includes('large'));
   if (!groot) { diffs.push('GROOT-showcase (tag "groot") niet gevonden'); return; }
   const grootPath = join(EX_DIR, `${groot.slug}.ifc`);
   if (!existsSync(grootPath)) { diffs.push(`GROOT-bestand niet op schijf: ${grootPath}`); return; }
-  const grootParsed = readIFC(readFileSync(grootPath, 'utf8'));
+  const grootTasks = openedTasks(readIFC(readFileSync(grootPath, 'utf8')));
 
-  const withLink = grootParsed.tasks.filter(t => (t.externalLinks?.length ?? 0) > 0);
+  const withLink = grootTasks.filter(t => (t.externalLinks?.length ?? 0) > 0);
   if (withLink.length === 0) { diffs.push('GROOT heeft geen taak met een externe koppeling'); return; }
   for (const t of withLink) {
     for (const link of t.externalLinks ?? []) {
-      const srcTask = terrainParsed.tasks.find(x => x.name === link.sourceRef.taskName);
+      const srcTask = terrainTasks.find(x => x.name === link.sourceRef.taskName);
       if (!srcTask) { diffs.push(`extern-koppeling: brontaak "${link.sourceRef.taskName}" niet gevonden in bronbestand`); continue; }
       const side = (link.direction === 'predecessor' ? link.relType[0] : link.relType[1]) === 'F' ? 'finish' : 'start';
       const expected = side === 'finish'

@@ -53,7 +53,8 @@ const effectiveCalendar: WorkCalendar = {
 const environment = {
   projectId: 'p-1', wbsAutoNumber: false, statusDate: '2026-01-07',
   calendarIds: new Set(['cal-hour']), effectiveHoursPerDay: 8, hourMode: false,
-  effectiveCalendar, enableHourPlanning: true,
+  workdayDurationMeasure: true,
+  effectiveCalendar,
   customTaskTypeIds: new Set(['custom-installation']),
   activityCodeTypes: [{ id: 'fase', name: 'Fase', values: [{ id: 'bouw', code: 'B' }] }],
   customFieldDefs: [
@@ -154,15 +155,20 @@ eq('Losse eenheidscel past alleen een exact kalendervoorstel toe', exactUnitConv
   days: exactUnitConversion.value.task.time.scheduleDuration,
   minutes: exactUnitConversion.value.task.time.durationMinutes,
 } : exactUnitConversion, { unit: 'hours', days: 5, minutes: 2400 });
-eq('Niet-exacte uur-naar-dagconversie wordt geweigerd', plan(
+// Alleen uren §3.2 (B1): de dagenmaat mag een breuk hebben, dus 90 min wordt exact 0,1875 d (het
+// eindmoment blijft gelijk). Voorheen weigerde de cel een omzetting die niet in hele dagen paste.
+const fractionalUnitConversion = plan(
   'task.time.durationUnit', 'task-schedule', 'days',
   { ...baseTask, time: { ...baseTask.time, durationUnit: 'hours', scheduleDuration: 0.1875, durationMinutes: 90 } },
-).ok, false);
-eq('Ureninvoer volgt de urenplanningpoort', plan(
+);
+eq('Uur-naar-dagconversie geeft een breuk in de dagenmaat', fractionalUnitConversion.ok
+  ? [fractionalUnitConversion.value.task.time.durationUnit, fractionalUnitConversion.value.task.time.scheduleDuration]
+  : fractionalUnitConversion, ['days', 0.1875]);
+eq('Ureninvoer is altijd beschikbaar', plan(
   'task.time.scheduleDuration', 'task-schedule',
   { unit: 'hours', durationMinutes: 90, explicitUnit: true }, baseTask,
-  { enableHourPlanning: false },
-).ok, false);
+  { },
+).ok, true);
 
 const steered = {
   ...baseTask,
@@ -223,13 +229,16 @@ eq('Uitvinken van een geimporteerde mijlpaal bewaart de bestaande duur',
 eq('Mijlpaalsoort op een gewone taak wordt geweigerd',
   plan('task.milestoneKind', 'task-milestone', 'START').ok, false);
 
+// F2 (spec §3.6, invoer; §4.2 D1, D2, D6): een AFGELEIDE werkelijke datum wordt een moment op de
+// kalender van de taak (08:00–16:00 hier): de start D1, het einde op de statusdag D6. Een niet-bewerkte
+// start uit de fixture blijft zoals hij is; de store normaliseert die bij het schrijven. Fixronde 1 deel B, B1.
 const completion = plan('task.time.completion', 'task-progress', 0.4);
 eq('Completion gebruikt de bestaande voortgangsinvarianten', completion.ok ? {
   completion: completion.value.task.time.completion,
   actualStart: completion.value.task.time.actualStart,
   remaining: completion.value.task.time.remainingTime,
   status: completion.value.task.status,
-} : completion, { completion: 0.4, actualStart: '2026-01-05', remaining: 3, status: 'STARTED' });
+} : completion, { completion: 0.4, actualStart: '2026-01-05T08:00', remaining: 3, status: 'STARTED' });
 eq('Actual op dezelfde dag als een date-only statusdatum is toegestaan',
   plan('task.time.actualStart', 'task-progress', '2026-01-07T17:00').ok, true);
 eq('Actual na de statusdatum wordt atomair geweigerd',
@@ -239,12 +248,12 @@ eq('Status voltooid routeert via completion/actual-invarianten', completed.ok ? 
   status: completed.value.task.status,
   completion: completed.value.task.time.completion,
   actualFinish: completed.value.task.time.actualFinish,
-} : completed, { status: 'COMPLETED', completion: 1, actualFinish: '2026-01-07' });
+} : completed, { status: 'COMPLETED', completion: 1, actualFinish: '2026-01-07T16:00' });
 // Import/export-audit (vervolg bevinding 6): status "voltooid" op een taak zonder actualStart volgt
 // dezelfde regel als setTaskProgress/de completion-cel — AS = de eigen geplande start, niet AS = AF
 // (anders krimpt de voltooide balk tot zijn laatste dag).
 eq('Status voltooid zonder actualStart ⇒ AS = geplande start (zelfde regel als completion)',
-  completed.ok ? completed.value.task.time.actualStart : completed, '2026-01-05');
+  completed.ok ? completed.value.task.time.actualStart : completed, '2026-01-05T08:00');
 const completedViaCompletion = plan('task.time.completion', 'task-progress', 1);
 eq('Status voltooid en completion 100 % geven dezelfde actuals',
   completed.ok && completedViaCompletion.ok
@@ -286,7 +295,7 @@ const clearedWithCompletion = planTaskCellEdits(doneTask, [
 ], environment);
 eq('Actual Finish wissen naast een expliciete completion 1 leidt de einddatum opnieuw af',
   progressShape(clearedWithCompletion),
-  { status: 'COMPLETED', completion: 1, actualStart: '2026-01-05', actualFinish: '2026-01-07', remaining: 0 });
+  { status: 'COMPLETED', completion: 1, actualStart: '2026-01-05', actualFinish: '2026-01-07T16:00', remaining: 0 });
 
 const primary = plan('task.constraint.type', 'task-constraint', 'SNET');
 eq('Constrainttype krijgt een bruikbare datum', primary.ok ? primary.value.task.constraint : primary,

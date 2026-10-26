@@ -12,7 +12,7 @@ The unit belongs to the task, not to the project. You can mix day tasks and hour
 
 You use hours for work that does not fit in whole days: a crane you hire for twelve hours, a pour of six hours, a task that can only start after lunch. For everything else days are enough and clearer.
 
-**Hour planning** is off by default. As long as it is, the app works in days. If a file does contain hour planning, such as tasks in hours, the app reports *This file contains hour-based planning.* Those tasks are still calculated, but you can only edit their duration once you turn hour planning on.
+Duration in hours is always editable. Choose the unit on the task; the calendar determines working times.
 
 ## How the app calculates
 
@@ -97,11 +97,10 @@ In tutorial 4, on hour planning, you plan a crane job in hours yourself.
 
 **A calendar with working-time blocks of its own** behaves differently from the standard calendar. You get such a calendar by setting working times per weekday or by choosing a shift preset (*2 shifts*, *3 shifts*, *Night shift* or *24/7*). On such a calendar a lag in hours counts exactly in working hours, also after a day task.
 
-**Turning hour planning off** removes nothing. Tasks in hours remain and are still calculated, but you cannot edit them until you turn hour planning on again.
 
 ## See also
 
-- [Turning on hour planning](docs://howto-urenplanning-aanzetten): the steps to plan a task in hours.
+- [Plan a task in hours](docs://howto-taak-in-uren-plannen): the steps to plan a task in hours.
 - [Setting working times](docs://howto-werktijden-instellen): adjusting the working-time blocks of a calendar.
 - [Calendars and working days](docs://uitleg-kalenders): how the app counts work days and which calendar wins.
 - [Adding relations](docs://howto-relaties-leggen): the steps to add a relation or lag.

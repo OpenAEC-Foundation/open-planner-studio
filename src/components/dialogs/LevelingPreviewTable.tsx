@@ -12,9 +12,10 @@ export interface LevelingPreviewRow {
 }
 
 /** Alleen de zichtbare voorstelregels mounten; Toepassen blijft het volledige resultaat gebruiken. */
-export function LevelingPreviewTable({ rows, formatDate }: {
+export function LevelingPreviewTable({ rows, formatStart }: {
   rows: readonly LevelingPreviewRow[];
-  formatDate: (iso: string) => string;
+  /** De start van een taak volgens B4 (`useTaskIdDateText`, startachtig). */
+  formatStart: (taskId: string, iso: string) => string;
 }) {
   const { t } = useTranslation('common');
   const fontScale = useAppStore(s => s.ui.uiFontScale);
@@ -70,8 +71,8 @@ export function LevelingPreviewTable({ rows, formatDate }: {
             return (
               <tr key={row.taskId} aria-rowindex={ariaRowIndex} className="border-b border-border-light" style={{ height: rowHeight }}>
                 <td className="px-2 py-0 truncate" title={row.name}>{row.name}</td>
-                <td className="px-2 py-0 whitespace-nowrap">{formatDate(row.oldStart)}</td>
-                <td className="px-2 py-0 whitespace-nowrap">{formatDate(row.newStart)}</td>
+                <td className="px-2 py-0 whitespace-nowrap">{formatStart(row.taskId, row.oldStart)}</td>
+                <td className="px-2 py-0 whitespace-nowrap">{formatStart(row.taskId, row.newStart)}</td>
                 <td className="px-2 py-0 text-right whitespace-nowrap">{t('resource.leveling.shiftDays', { count: row.delay })}</td>
               </tr>
             );

@@ -12,7 +12,6 @@ A contractor, consultant or client sends you their schedule as an `.mpp` file. Y
 2. The project opens in a new tab, or in the current tab if it was still empty and unchanged. The project has no file: *Save* later writes a new IFC file. A window then briefly explains what the app took over from the file and how saving works; see [Opening and saving a file](docs://howto-bestand-openen-en-opslaan).
 3. Read the message at the bottom: *This project calculates as Microsoft Project. Change it via File → Project settings → Calculation profile and options.* The app calculates this project with the calculation rules of MS Project: the calculation profile *Microsoft Project*. With *Open calculation profile* you go to the setting, *Read more* opens the Help about calculation profiles.
 4. Check whether there is a bar under the ribbon: *You're viewing the dates as recorded in the file; recalculating would shift 4 tasks.* Then on those tasks the app's outcome differs from the dates that MS Project saved. Below the message from step 3 there is then also a line: *4 tasks show the dates as recorded in the file (not recalculated).* What that means and how you switch to the app's own calculation is in [Dates as recorded](docs://uitleg-datums-zoals-opgeslagen).
-5. If it says *This file contains hour-based planning.* with the button *Enable hour planning*, the file contains data in hours. See [Turning on hour planning](docs://howto-urenplanning-aanzetten).
 
 If the file contains tasks with splits, leveling or a resource-driven schedule, another message is added, such as *This MS Project file contains 3 tasks with a split, leveled, or resource-driven schedule. They are imported and shown as such.* For one task the message is in the singular.
 
@@ -51,7 +50,7 @@ A WBS code that you filled in yourself in MS Project is taken over; otherwise th
 
 - [Files and formats](docs://uitleg-bestanden): why an `.mpp` is only read and what saving writes.
 - [Dates as recorded](docs://uitleg-datums-zoals-opgeslagen): the view of MS Project's own dates.
-- [Turning on hour planning](docs://howto-urenplanning-aanzetten): if the file contains data in hours.
+- [Plan a task in hours](docs://howto-taak-in-uren-plannen): if the file contains data in hours.
 - [Opening a Primavera P6 file (.xer)](docs://howto-xer-openen): the same for Primavera.
 - [Import and export formats](docs://ref-import-exportformaten): per format what is carried over and what is not.
 - [Calculation profiles and conventions](docs://uitleg-rekenprofielen): why an MS Project file opens with its own calculation profile.

@@ -11,11 +11,9 @@
 // datum, IN DE ENGINE WAARIN DE SOLVER DIE TAAK REKENT. Beide stappen zijn de solver-functies zelf,
 // geen kopie:
 //   - de engine-keuze is `engineForTaskCalendar` (CPMSolver.ts), dezelfde functie achter
-//     `CPMSolver.calendarFor`: taak-eigen kalender via `resolveCalendar`, en voor een URENtaak de
-//     effectieve uurbanden van die kalender. Op een scalaire kalender zonder `workTime` (zoals de
-//     standaardprojectkalender) staat de engine voor een urentaak dus in uurmodus en landt het
-//     anker op het eerste werkmoment (bv. 07:00); een dagtaak op diezelfde kalender krijgt een kale
-//     datum. Een engine op de ruwe kalender zou een urentaak op middernacht (`T00:00`) zetten;
+//     `CPMSolver.calendarFor`: taak-eigen kalender via `resolveCalendar`, met effectieve werkblokken
+//     voor dagtaken en urentaken. Ook op een scalaire kalender zonder `workTime` landt het anker
+//     op het eerste werkmoment (bv. 07:00); de opgeslagen kalender blijft ongemoeid;
 //   - de snap is `snapWorkInstantOnOrAfter`, dezelfde als `CPMSolver.ownAnchor`/`rootFloor` (een
 //     kale datumstring zonder kalender-snap landt op middernacht i.p.v. de eerste werkband).
 // `scheduleFinish` schuift consistent mee (duurbehoudend, klokbehoudend: `shiftIso` met het
@@ -62,8 +60,7 @@ export function clampProjectStartAnchors(input: ClampProjectStartAnchorsInput): 
   if (nextRaw.getTime() <= prevRaw.getTime()) return 0; // dag-granulaire vergelijking, geen rauwe string
 
   const hasPredecessor = new Set(input.sequences.map((seq) => seq.successorId));
-  // Eén cache per klem-aanroep; de sleutel (kalender-id + uur-/dagonderscheid) komt uit
-  // `engineForTaskCalendar`, dus een uur- en een dagtaak op dezelfde kalender delen geen engine.
+  // Eén cache per klem-aanroep; dagtaken en urentaken delen de engine van hun kalender.
   const engineCache = new Map<string, CalendarEngine>();
 
   let clamped = 0;
@@ -74,7 +71,7 @@ export function clampProjectStartAnchors(input: ClampProjectStartAnchorsInput): 
     if (hasForwardConstraint(t.constraint)) continue;  // expliciete forward-constraint wint
     if (hasForwardConstraint(t.constraint2)) continue;
 
-    const eng = engineForTaskCalendar(engineCache, resolveCalendar(t.calendarId, input.calendars, input.calendar), t);
+    const eng = engineForTaskCalendar(engineCache, resolveCalendar(t.calendarId, input.calendars, input.calendar));
     const mode: DateMode = eng.isHourMode ? 'hour' : 'day';
     // Vergelijk GEPARSEERDE instants, niet rauwe strings — een datetime-anker op de
     // projectstartdag zelf ("2026-08-15T08:00") is lexicografisch "groter" dan het rauwe

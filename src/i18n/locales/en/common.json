@@ -224,7 +224,10 @@
     "msProjectLostFixedCosts_one": "The fixed cost of {{count}} task was not imported.",
     "msProjectLostFixedCosts_other": "The fixed costs of {{count}} tasks were not imported.",
     "msProjectLostResourceRates_one": "The rates of {{count}} resource were not imported.",
-    "msProjectLostResourceRates_other": "The rates of {{count}} resources were not imported."
+    "msProjectLostResourceRates_other": "The rates of {{count}} resources were not imported.",
+    "minuteModelConverted_one": "{{document}}: {{count}} task has a different start or finish after conversion; the largest shift is {{days}} workdays. Undo restores the recorded dates.",
+    "minuteModelConverted_other": "{{document}}: {{count}} tasks have a different start or finish after conversion; the largest shift is {{days}} workdays. Undo restores the recorded dates.",
+    "minuteModelCalendarRepaired": "Calendar '{{calendar}}' was repaired: its finish or break did not match the stored working time."
   },
   "scheduleErrors": {
     "cycle": "Circular dependency between tasks: {{path}}",
@@ -338,16 +341,17 @@
     "themeHighContrast": "High Contrast",
     "themeFollowSystem": "Follow system theme",
     "themeSystemHint": "Follows your system colour scheme (currently: {{theme}}).",
-    "hourPlanningSection": "Hour planning",
-    "enableHourPlanning": "Enable hour planning",
-    "enableHourPlanningHint": "Turns on hour/minute scheduling: an hour time-scale, shifts with working-time bands and hour-precise task bars. Off ⇒ the app stays fully day-granular as before.",
     "showTaskTypes": "Use task types",
     "showTaskTypesHint": "Choose per task what adjusts when duration, units or work changes, like Task Type in MS Project and Duration Type in P6. Off: duration and units stay fixed. A file with task types or stored work shows them even when this is off.",
     "allowMixedDayHour": "Allow mixed day/hour planning",
-    "defaultTaskDurationUnit": "Default unit for new tasks",
-    "defaultTaskDurationUnitHint": "Determines whether new tasks start in working days or working hours. Existing tasks do not change.",
+    "defaultTaskDurationUnit": "Default measure for new tasks",
+    "defaultTaskDurationUnitHint": "Day measure: a duration counts in working days of the calendar. Hour measure: a duration counts in working hours. Existing tasks do not change. A task with fixed work always uses the hour measure.",
+    "defaultTaskDurationUnitDays": "Day measure",
+    "defaultTaskDurationUnitHours": "Hour measure",
+    "defaultTaskDurationUnitLocked": "The {{profile}} profile counts a duration in hours. New tasks therefore get the hour measure.",
     "durationDisplay": "Duration display",
     "durationDisplayHint": "Controls how task duration is shown, independent of the unit a task itself is recorded in.",
+    "durationDisplayOpsHint": "In the OPS profile, each task shows its own unit.",
     "durationDisplayAuto": "Automatic (native unit per task)",
     "durationDisplayDays": "Always days",
     "durationDisplayHours": "Always hours",
@@ -728,6 +732,7 @@
     "import": "Import",
     "backupHint": "Exporting is also your backup: keep the file somewhere safe.",
     "calendars": "Calendars",
+    "removeCalendarConfirm": "Remove calendar “{{name}}” from the resource library? This cannot be undone. Existing project copies are kept.",
     "noCalendars": "No calendars in the pool yet.",
     "noResources": "No resources in the pool yet.",
     "promoteHint": "Promote a project calendar to the library with the “+ From project” button above.",
@@ -1126,10 +1131,6 @@
     "month": "month",
     "year": "year"
   },
-  "hourData": {
-    "notice": "This file contains hour-based planning.",
-    "enable": "Enable hour planning"
-  },
   "recordedDates": {
     "activeCount_one": "You're viewing the schedule as Primavera recorded it; recalculating would shift {{count}} task.",
     "activeCount_other": "You're viewing the schedule as Primavera recorded it; recalculating would shift {{count}} tasks.",
@@ -1493,6 +1494,14 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "ALAP tasks as late as the successors allow",
       "help": "Hour planning only, for an unstarted task that is not manually scheduled and has the “As late as possible” (ALAP) constraint. Its successors’ early dates determine its position to the minute; successors go first. Its own planned start does not count; predecessors, status date and a second constraint still apply. Without a successor, it uses its late finish. The ordinary ALAP step remains available in every profile."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Isolated milestones at the end of the workday",
+      "help": "An isolated milestone or a finish milestone without a predecessor is placed at the end of its workday."
+    },
+    "workdayDurationMeasure": {
+      "label": "Duration in working days",
+      "help": "A duration, lag or remaining duration in days counts in working days: each working day counts as 1, however long that day is. Off: a day counts as the number of working hours per day of the calendar. A percentage lag follows the measure of the predecessor. Elapsed time never counts in working days."
     }
   },
   "profiles": {
@@ -1531,6 +1540,7 @@
       "float": "Float and late dates",
       "instants": "Dates and moments from the file",
       "msproject": "Progress as in Microsoft Project",
+      "durations": "Duration and measure",
       "ownProfilesOnly": "Custom profiles only"
     },
     "ownProfilesOnlyNote": "These conventions are off in every built-in profile, including Primavera P6. Only a custom profile can switch them on: choose New profile for that.",

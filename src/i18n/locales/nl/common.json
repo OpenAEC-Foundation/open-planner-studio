@@ -224,7 +224,10 @@
     "msProjectLostFixedCosts_one": "De vaste kosten van {{count}} taak zijn niet overgenomen.",
     "msProjectLostFixedCosts_other": "De vaste kosten van {{count}} taken zijn niet overgenomen.",
     "msProjectLostResourceRates_one": "De tarieven van {{count}} resource zijn niet overgenomen.",
-    "msProjectLostResourceRates_other": "De tarieven van {{count}} resources zijn niet overgenomen."
+    "msProjectLostResourceRates_other": "De tarieven van {{count}} resources zijn niet overgenomen.",
+    "minuteModelConverted_one": "{{document}}: {{count}} taak heeft na de omzetting een ander begin of einde; de grootste verschuiving is {{days}} werkdagen. Ctrl+Z zet de opgeslagen datums terug.",
+    "minuteModelConverted_other": "{{document}}: {{count}} taken hebben na de omzetting een ander begin of einde; de grootste verschuiving is {{days}} werkdagen. Ctrl+Z zet de opgeslagen datums terug.",
+    "minuteModelCalendarRepaired": "Kalender '{{calendar}}' is hersteld: het einde of de pauze paste niet bij de opgeslagen werktijd."
   },
   "scheduleErrors": {
     "cycle": "Kringverwijzing tussen taken: {{path}}",
@@ -338,16 +341,17 @@
     "themeHighContrast": "Hoog contrast",
     "themeFollowSystem": "Volg systeemthema",
     "themeSystemHint": "Volgt het kleurschema van je systeem (nu: {{theme}}).",
-    "hourPlanningSection": "Urenplanning",
-    "enableHourPlanning": "Urenplanning inschakelen",
-    "enableHourPlanningHint": "Zet uren-/minuten-scheduling aan: een uur-tijdschaal, ploegen met werktijd-banden en uur-precieze taakbalken. Uit ⇒ de app werkt volledig dag-granulair zoals voorheen.",
     "showTaskTypes": "Taaktypes gebruiken",
     "showTaskTypesHint": "Kies per taak wat meebeweegt als duur, inzet of werk verandert, zoals Task Type in MS Project en Duration Type in P6. Uit: duur en inzet blijven staan. Een bestand met taaktypes of opgeslagen werk toont ze ook als dit uit staat.",
     "allowMixedDayHour": "Gemengde dag/uur-planning toestaan",
-    "defaultTaskDurationUnit": "Standaardeenheid voor nieuwe taken",
-    "defaultTaskDurationUnitHint": "Bepaalt of nieuwe taken standaard in werkdagen of werkuren beginnen. Bestaande taken veranderen niet.",
+    "defaultTaskDurationUnit": "Standaardmaat voor nieuwe taken",
+    "defaultTaskDurationUnitHint": "Dagenmaat: een duur telt in werkdagen van de kalender. Urenmaat: een duur telt in werkuren. Bestaande taken veranderen niet. Een taak met vast werk heeft altijd de urenmaat.",
+    "defaultTaskDurationUnitDays": "Dagenmaat",
+    "defaultTaskDurationUnitHours": "Urenmaat",
+    "defaultTaskDurationUnitLocked": "Het profiel {{profile}} rekent een duur in uren. Nieuwe taken krijgen daarom de urenmaat.",
     "durationDisplay": "Duurweergave",
     "durationDisplayHint": "Bepaalt hoe taakduur wordt getoond, los van de eenheid waarin een taak zelf is vastgelegd.",
+    "durationDisplayOpsHint": "In het OPS-profiel toont elke taak zijn eigen maat.",
     "durationDisplayAuto": "Automatisch (eigen eenheid per taak)",
     "durationDisplayDays": "Altijd dagen",
     "durationDisplayHours": "Altijd uren",
@@ -728,6 +732,7 @@
     "import": "Importeren",
     "backupHint": "Exporteren is tevens je back-up: bewaar het bestand op een veilige plek.",
     "calendars": "Kalenders",
+    "removeCalendarConfirm": "Kalender “{{name}}” uit de resourcebibliotheek verwijderen? Dit kan niet ongedaan worden gemaakt. Bestaande projectkopieën blijven behouden.",
     "noCalendars": "Nog geen kalenders in de pool.",
     "noResources": "Nog geen resources in de pool.",
     "promoteHint": "Promoveer een projectkalender naar de bibliotheek met de knop “+ Uit project” hierboven.",
@@ -1126,10 +1131,6 @@
     "month": "maand",
     "year": "jaar"
   },
-  "hourData": {
-    "notice": "Dit bestand bevat urenplanning.",
-    "enable": "Urenplanning aanzetten"
-  },
   "recordedDates": {
     "activeCount_one": "Je ziet de planning zoals Primavera hem opsloeg; bij herberekenen wijkt {{count}} taak af.",
     "activeCount_other": "Je ziet de planning zoals Primavera hem opsloeg; bij herberekenen wijken {{count}} taken af.",
@@ -1493,6 +1494,14 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "ALAP-taken zo laat als de opvolgers toestaan",
       "help": "Alleen bij uurplanning, voor een niet-gestarte, niet handmatig geplande taak met de constraint ‘Zo laat mogelijk’ (ALAP). De vroege datums van haar opvolgers bepalen haar plaatsing tot op de minuut; opvolgers gaan eerst. Haar eigen geplande start telt niet; voorgangers, statusdatum en een tweede constraint blijven gelden. Zonder opvolger gebruikt ze haar late einde. De gewone ALAP-stap blijft in elk profiel beschikbaar."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Losse mijlpalen aan het werkeinde",
+      "help": "Een losse mijlpaal of een eindmijlpaal zonder voorganger staat aan het einde van haar werkdag."
+    },
+    "workdayDurationMeasure": {
+      "label": "Duur in werkdagen",
+      "help": "Een duur, lag of restduur in dagen telt in werkdagen: elke werkdag telt als 1, hoe lang die dag ook is. Uit: een dag telt als het aantal werkuren per dag van de kalender. Een lag in procenten volgt de maat van de voorganger. Kalendertijd telt nooit in werkdagen."
     }
   },
   "profiles": {
@@ -1531,6 +1540,7 @@
       "float": "Speling en late datums",
       "instants": "Datums en tijdstippen uit het bestand",
       "msproject": "Voortgang zoals Microsoft Project",
+      "durations": "Duur en maat",
       "ownProfilesOnly": "Alleen voor eigen profielen"
     },
     "ownProfilesOnlyNote": "Deze conventies staan in elk ingebouwd profiel uit, ook onder Primavera P6. Alleen een eigen profiel kan ze aanzetten: kies daarvoor Nieuw profiel.",

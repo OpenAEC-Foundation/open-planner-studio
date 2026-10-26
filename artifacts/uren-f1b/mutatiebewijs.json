@@ -1,0 +1,330 @@
+[
+  {
+    "mutatie": "145-late-start",
+    "exit": 1,
+    "bestand": "src/engine/scheduler/CPMSolver.ts",
+    "cases": [
+      "f1-145-snlt",
+      "f1-145-mso"
+    ],
+    "controlefouten": [],
+    "ingreep": "Startgrens bij een dagenmaat-taak weer rauw gebruiken in plaats van het equivalente blokbegin."
+  },
+  {
+    "mutatie": "145-n3-vergelijking",
+    "exit": 1,
+    "bestand": "src/engine/scheduler/scheduleAnalysis.ts",
+    "cases": [
+      "f1-145-snlt",
+      "f1-145-mso"
+    ],
+    "controlefouten": [],
+    "ingreep": "De vergelijking met equivalente blokgrenzen weer beperken tot urenmaat, zoals vóór F1b."
+  },
+  {
+    "mutatie": "147-eindbeperking",
+    "exit": 1,
+    "bestand": "src/engine/scheduler/CPMSolver.ts",
+    "cases": [
+      "f1-147-fnet",
+      "f1-147-fnlt",
+      "f1-147-mfo",
+      "f1-147-harde-mfo-uren"
+    ],
+    "controlefouten": [],
+    "ingreep": "FNET/FNLT/MFO zonder tijd weer met parseInstant lezen in plaats van deadlineBound."
+  },
+  {
+    "mutatie": "ss-nul-kalendertijd",
+    "exit": 1,
+    "bestand": "src/engine/scheduler/relationMath.ts",
+    "cases": [
+      "msp-28-t8-review-uur-ss-bekende-beperking"
+    ],
+    "controlefouten": [],
+    "ingreep": "De rauwe ankerterugkeer bij SS+0 naar kalendertijd uitschakelen."
+  },
+  {
+    "mutatie": "n1-ff-zonder-soort",
+    "exit": 1,
+    "bestand": "src/engine/scheduler/relationMath.ts",
+    "cases": [
+      "f1-n1-eindmijlpaal-ff"
+    ],
+    "controlefouten": [],
+    "ingreep": "De afgeleide finishkant van een mijlpaal zonder soort uitschakelen."
+  },
+  {
+    "mutatie": "n1-fs-werklag",
+    "exit": 1,
+    "bestand": "src/engine/scheduler/relationMath.ts",
+    "cases": [
+      "f1-n1-eindmijlpaal-fs-lag"
+    ],
+    "controlefouten": [],
+    "ingreep": "De terugkeer op het vorige blokeinde na FS met werktijdlag uitschakelen."
+  },
+  {
+    "mutatie": "n1-fs-kalenderlag",
+    "exit": 1,
+    "bestand": "src/engine/scheduler/relationMath.ts",
+    "cases": [
+      "f1-n1-eindmijlpaal-fs-elapsed"
+    ],
+    "controlefouten": [],
+    "ingreep": "De terugkeer op het vorige blokeinde na FS met kalendertijdlag uitschakelen."
+  },
+  {
+    "mutatie": "n1-eindbeperking-wortel",
+    "exit": 1,
+    "bestand": "src/engine/scheduler/CPMSolver.ts",
+    "cases": [
+      "f1-n1-mijlpaal-eindbeperking"
+    ],
+    "controlefouten": [],
+    "ingreep": "De eindmijlpaal na haar eindbeperking weer algemeen vooruit snappen."
+  },
+  {
+    "mutatie": "mk05a-dubbele-snap",
+    "exit": 1,
+    "bestand": "src/engine/scheduler/relationMath.ts",
+    "cases": [
+      "f1-mk05a-startmijlpaal"
+    ],
+    "controlefouten": [],
+    "ingreep": "De uitzondering voor een START-mijlpaal na een dagenmaat-voorganger weghalen."
+  },
+  {
+    "mutatie": "n1-externe-ff",
+    "exit": 1,
+    "bestand": "src/engine/scheduler/CPMSolver.ts",
+    "cases": [
+      "f1-n1-externe-ff"
+    ],
+    "controlefouten": [],
+    "ingreep": "Het externe FF-einde weer door de vooruit gesnapte startgrens vervangen."
+  },
+  {
+    "mutatie": "n1-ff-kalenderlag-dagenmaat",
+    "exit": 1,
+    "bestand": "src/engine/scheduler/relationMath.ts",
+    "cases": [
+      "f1-n1-ff-kalendertijdlag"
+    ],
+    "controlefouten": [],
+    "ingreep": "De behouden ruwe finishgrens bij kalendertijdlag weer overschrijven."
+  },
+  {
+    "mutatie": "D6-normalisatie",
+    "exit": 1,
+    "bestand": "src/engine/taskMutationRules.ts",
+    "cases": [],
+    "controlefouten": [
+      "XX dialoog 2026-06-03 2026-06-03 opgeslagen: \"2026-06-03\" != \"2026-06-03T16:00\"",
+      "XX dialoog 2026-06-03 2026-06-03 D6 berekend einde: \"2026-06-02T16:00\" != \"2026-06-03T16:00\"",
+      "XX paneel 2026-06-03 2026-06-03 opgeslagen: \"2026-06-03\" != \"2026-06-03T16:00\"",
+      "XX paneel 2026-06-03 2026-06-03 D6 berekend einde: \"2026-06-02T16:00\" != \"2026-06-03T16:00\"",
+      "XX raster 2026-06-03 2026-06-03 opgeslagen: \"2026-06-03\" != \"2026-06-03T16:00\"",
+      "XX raster 2026-06-03 2026-06-03 D6 berekend einde: \"2026-06-02T16:00\" != \"2026-06-03T16:00\"",
+      "XX plakken 2026-06-03 2026-06-03 opgeslagen: \"2026-06-03\" != \"2026-06-03T16:00\"",
+      "XX plakken 2026-06-03 2026-06-03 D6 berekend einde: \"2026-06-02T16:00\" != \"2026-06-03T16:00\"",
+      "XX MCP 2026-06-03 2026-06-03 opgeslagen: \"2026-06-03\" != \"2026-06-03T16:00\"",
+      "XX dialoog 2026-06-03T12:00 2026-06-03 opgeslagen: \"2026-06-03\" != \"2026-06-03T12:00\"",
+      "XX dialoog 2026-06-03T12:00 2026-06-03 D6 berekend einde: \"2026-06-02T16:00\" != \"2026-06-03T12:00\"",
+      "XX paneel 2026-06-03T12:00 2026-06-03 opgeslagen: \"2026-06-03\" != \"2026-06-03T12:00\"",
+      "XX paneel 2026-06-03T12:00 2026-06-03 D6 berekend einde: \"2026-06-02T16:00\" != \"2026-06-03T12:00\"",
+      "XX raster 2026-06-03T12:00 2026-06-03 opgeslagen: \"2026-06-03\" != \"2026-06-03T12:00\"",
+      "XX raster 2026-06-03T12:00 2026-06-03 D6 berekend einde: \"2026-06-02T16:00\" != \"2026-06-03T12:00\"",
+      "XX plakken 2026-06-03T12:00 2026-06-03 opgeslagen: \"2026-06-03\" != \"2026-06-03T12:00\"",
+      "XX plakken 2026-06-03T12:00 2026-06-03 D6 berekend einde: \"2026-06-02T16:00\" != \"2026-06-03T12:00\"",
+      "XX MCP 2026-06-03T12:00 2026-06-03 opgeslagen: \"2026-06-03\" != \"2026-06-03T12:00\"",
+      "XX dialoog 2026-06-03 2026-06-03 opgeslagen: \"2026-06-03\" != \"2026-06-04T00:00\"",
+      "XX dialoog 2026-06-03 2026-06-03 D6 berekend einde: \"2026-06-03T00:00\" != \"2026-06-04T00:00\"",
+      "XX paneel 2026-06-03 2026-06-03 opgeslagen: \"2026-06-03\" != \"2026-06-04T00:00\"",
+      "XX paneel 2026-06-03 2026-06-03 D6 berekend einde: \"2026-06-03T00:00\" != \"2026-06-04T00:00\"",
+      "XX raster 2026-06-03 2026-06-03 opgeslagen: \"2026-06-03\" != \"2026-06-04T00:00\"",
+      "XX raster 2026-06-03 2026-06-03 D6 berekend einde: \"2026-06-03T00:00\" != \"2026-06-04T00:00\"",
+      "XX plakken 2026-06-03 2026-06-03 opgeslagen: \"2026-06-03\" != \"2026-06-04T00:00\"",
+      "XX plakken 2026-06-03 2026-06-03 D6 berekend einde: \"2026-06-03T00:00\" != \"2026-06-04T00:00\"",
+      "XX MCP 2026-06-03 2026-06-03 opgeslagen: \"2026-06-03\" != \"2026-06-04T00:00\"",
+      "XX 100% leidt D6 af: \"2026-06-03\" != \"2026-06-03T16:00\""
+    ],
+    "ingreep": "De normalisatie van datumloze werkelijke datums geheel laten terugkeren zonder omzetting."
+  },
+  {
+    "mutatie": "status-werkdag",
+    "exit": 1,
+    "bestand": "src/engine/taskMutationRules.ts",
+    "cases": [],
+    "controlefouten": [
+      "XX dialoog 2026-06-03 2026-06-04T06:00 toegestaan: false != true",
+      "XX dialoog 2026-06-03 2026-06-04T06:00 opgeslagen: null != \"2026-06-04T06:00\"",
+      "XX paneel 2026-06-03 2026-06-04T06:00 toegestaan: false != true",
+      "XX paneel 2026-06-03 2026-06-04T06:00 opgeslagen: null != \"2026-06-04T06:00\"",
+      "XX raster 2026-06-03 2026-06-04T06:00 toegestaan: false != true",
+      "XX raster 2026-06-03 2026-06-04T06:00 opgeslagen: null != \"2026-06-04T06:00\"",
+      "XX plakken 2026-06-03 2026-06-04T06:00 toegestaan: false != true",
+      "XX plakken 2026-06-03 2026-06-04T06:00 opgeslagen: null != \"2026-06-04T06:00\"",
+      "XX MCP 2026-06-03 2026-06-04T06:00 opgeslagen: null != \"2026-06-04T06:00\"",
+      "XX MCP 2026-06-03 2026-06-04T06:00 toegestaan: false != true",
+      "XX dialoog 2026-06-03 2026-06-03 toegestaan: false != true",
+      "XX dialoog 2026-06-03 2026-06-03 opgeslagen: null != \"2026-06-04T00:00\"",
+      "XX paneel 2026-06-03 2026-06-03 toegestaan: false != true",
+      "XX paneel 2026-06-03 2026-06-03 opgeslagen: null != \"2026-06-04T00:00\"",
+      "XX raster 2026-06-03 2026-06-03 toegestaan: false != true",
+      "XX raster 2026-06-03 2026-06-03 opgeslagen: null != \"2026-06-04T00:00\"",
+      "XX plakken 2026-06-03 2026-06-03 toegestaan: false != true",
+      "XX plakken 2026-06-03 2026-06-03 opgeslagen: null != \"2026-06-04T00:00\"",
+      "XX MCP 2026-06-03 2026-06-03 opgeslagen: null != \"2026-06-04T00:00\"",
+      "XX MCP 2026-06-03 2026-06-03 toegestaan: false != true",
+      "XX Nachtfeit hoort bij statuswerkdag: true != false"
+    ],
+    "ingreep": "De werkdagbepaling voor een feit weer door de ruwe datum vervangen."
+  },
+  {
+    "mutatie": "148-deadline-vastlegging",
+    "exit": 1,
+    "bestand": "src/engine/scheduler/recordedDates.ts",
+    "cases": [],
+    "controlefouten": [
+      "XX 148 vastgelegde finish op deadline gehaald: [\"task-mvkrts2kuwnx113\"] != []"
+    ],
+    "ingreep": "De vastleggingsroute weer rechtstreeks met parseInstant tegen de deadline laten vergelijken."
+  },
+  {
+    "mutatie": "n1-externe-opvolger-141",
+    "exit": 1,
+    "bestand": "src/engine/scheduler/CPMSolver.ts",
+    "cases": [
+      "bg141-externe-opvolger-fs-blokbegin",
+      "bg141-externe-opvolger-fs-lag",
+      "bg141-externe-opvolger-ff-blokbegin",
+      "bg141-externe-opvolger-dagtaak",
+      "bg141-externe-opvolger-na-de-pauze"
+    ],
+    "controlefouten": [],
+    "ingreep": "De late finish bij een externe opvolger weer zonder terugwaartse snap teruggeven."
+  },
+  {
+    "mutatie": "n2-vertraging-140",
+    "exit": 1,
+    "bestand": "src/engine/scheduler/CPMSolver.ts",
+    "cases": [
+      "bg140-nivelleervertraging-blokeinde",
+      "bg140-nivelleervertraging-voor-de-pauze"
+    ],
+    "controlefouten": [],
+    "ingreep": "De snap na een afgeleide minutenvertraging uitschakelen."
+  },
+  {
+    "mutatie": "n1-ff-dagenmaat-142",
+    "exit": 1,
+    "bestand": "src/engine/scheduler/relationMath.ts",
+    "cases": [
+      "bg142-ff-dagtaken-werkblokken",
+      "bg142-ff-dagtaken-werkblokken-lead",
+      "bg142-ff-na-elapsed-voorganger-op-blokeinde",
+      "f1-n1-ff-met-split",
+      "f1-n1-hangmat"
+    ],
+    "controlefouten": [],
+    "ingreep": "De bestaande N1-tak voor een FF-opvolger met dagenmaat uitschakelen."
+  },
+  {
+    "mutatie": "n2-dagen-en-minuten",
+    "exit": 1,
+    "bestand": "src/engine/scheduler/CPMSolver.ts",
+    "cases": [
+      "f1-n2-dagen-en-minuten"
+    ],
+    "controlefouten": [],
+    "ingreep": "De snap uitschakelen wanneer dagen- en minutenvertraging samen aanwezig zijn."
+  },
+  {
+    "mutatie": "n1-mijlpaal-hersnap",
+    "exit": 1,
+    "bestand": "src/engine/scheduler/CPMSolver.ts",
+    "cases": [
+      "f1-n1-eindmijlpaal-ff"
+    ],
+    "controlefouten": [],
+    "ingreep": "Het voorkomen van een tweede vooruit-snap bij een eindmijlpaal uitschakelen."
+  },
+  {
+    "mutatie": "n1-zachte-eindgrens",
+    "exit": 1,
+    "bestand": "src/engine/scheduler/CPMSolver.ts",
+    "cases": [
+      "f1-n1-dagtaak-fnet"
+    ],
+    "controlefouten": [],
+    "ingreep": "De eindgrens bij een zachte eindbeperking weer door de algemene start-snap laten lopen."
+  },
+  {
+    "mutatie": "n1-harde-mfo-start",
+    "exit": 1,
+    "bestand": "src/engine/scheduler/CPMSolver.ts",
+    "cases": [
+      "f1-n1-harde-mfo-dagenmaat"
+    ],
+    "controlefouten": [],
+    "ingreep": "De aangepaste startafleiding bij harde MFO terugzetten."
+  },
+  {
+    "mutatie": "n1-harde-mfo-einde",
+    "exit": 1,
+    "bestand": "src/engine/scheduler/CPMSolver.ts",
+    "cases": [
+      "f1-147-harde-mfo-uren",
+      "f1-n1-harde-mfo-dagenmaat"
+    ],
+    "controlefouten": [],
+    "ingreep": "Het behouden finishmoment bij harde MFO terugzetten."
+  },
+  {
+    "mutatie": "n1-splitduur",
+    "exit": 1,
+    "bestand": "src/engine/scheduler/CPMSolver.ts",
+    "cases": [
+      "f1-n1-ff-met-split"
+    ],
+    "controlefouten": [],
+    "ingreep": "In startFromFinish weer scheduleDuration gebruiken in plaats van splitTotalSpanDays."
+  },
+  {
+    "mutatie": "meting-kalendertijdvertraging",
+    "exit": 1,
+    "bestand": "tests/planning/harness.ts",
+    "cases": [
+      "msp-50-z6-invariant-elapsed-wortel-hele-dagen-delay"
+    ],
+    "controlefouten": [
+      "XX  minutenmodel run 2 (urenmaat) msp-pariteit: nieuw niet gelijk op dagniveau: msp-50-z6-invariant-elapsed-wortel-hele-dagen-delay"
+    ],
+    "ingreep": "De run-2-omzetting van een kalendertijdvertraging weer met urenPerDag in plaats van 24 uur uitvoeren."
+  },
+  {
+    "mutatie": "mcp-opgegeven-einde-na-wissen",
+    "exit": 1,
+    "bestand": "src/state/mcpValidation.ts",
+    "cases": [],
+    "controlefouten": [
+      "XX MCP gecombineerd 2026-06-03T14:00: true != false",
+      "XX MCP gecombineerde weigering atomair: \"{\\\"id\\\":\\\"task-mvks4squ0oll116\\\",\\\"name\\\":\\\"F1\\\",\\\"description\\\":\\\"\\\",\\\"wbsCode\\\":\\\"1\\\",\\\"taskType\\\":\\\"CONSTRUCTION\\\",\\\"status\\\":\\\"STARTED\\\",\\\"isMilestone\\\":false,\\\"priority\\\":500,\\\"parentId\\\":null,\\\"childIds\\\":[],\\\"time\\\":{\\\"durationType\\\":\\\"WORKTIME\\\",\\\"durationUnit\\\":\\\"hours\\\",\\\"scheduleDuration\\\":1,\\\"scheduleStart\\\":\\\"2026-06-01T08:00\\\",\\\"scheduleFinish"
+    ],
+    "ingreep": "De MCP-statuscontrole weer op het resterende einde uitvoeren, dat completion <100 inmiddels heeft gewist."
+  },
+  {
+    "mutatie": "status-scope-F1",
+    "exit": 1,
+    "bestand": "src/engine/taskMutationRules.ts",
+    "cases": [],
+    "controlefouten": [
+      "XX vóór statusdag blijft datumvorm staan: \"2026-06-04T16:00\" != \"2026-06-04\"",
+      "XX zonder statusdag blijft datumvorm staan: \"2026-06-04T16:00\" != \"2026-06-04\"",
+      "XX paneel bewaart ouder feit: \"2026-06-04T16:00\" != \"2026-06-04\"",
+      "XX  recovery-content: 1 afwijking(en) van 57"
+    ],
+    "ingreep": "De beperking tot de statuswerkdag weghalen; ook oudere datums en invoer zonder statusdatum weer normaliseren."
+  }
+]

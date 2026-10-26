@@ -71,8 +71,8 @@ for (const format of ['mspdi', 'p6xml'] as const) {
   for (const hour of [false, true]) {
     const tag = `${format}/${hour ? 'uur' : 'dag'}`;
     const valid = read(fixture(format, hour, '', ''));
-    eq(`${tag}: fixture heeft de bedoelde modus`, valid.tasks.map(t => t.time.durationUnit),
-      [hour ? 'hours' : 'days', hour ? 'hours' : 'days']);
+    eq(`${tag}: T15 maakt ongemarkeerde taken altijd urenmaat`, valid.tasks.map(t => t.time.durationUnit),
+      ['hours', 'hours']);
     eq(`${tag}: geldige geplande datums blijven exact`,
       [valid.tasks[0]?.time.scheduleStart, valid.tasks[0]?.time.scheduleFinish],
       hour ? ['2015-01-07T09:00', '2015-01-07T12:00'] : ['2015-01-07', '2015-01-07']);

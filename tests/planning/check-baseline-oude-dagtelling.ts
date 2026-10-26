@@ -46,7 +46,7 @@ const quiet = async <T>(fn: () => T | Promise<T>): Promise<T> => {
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const IFC = readFileSync(join(ROOT, 'tests', 'browser', 'fixtures', 'ifc', 'oude-baseline.ifc'), 'utf8');
-const OPEN = { filePath: null, fileHandle: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: true } as const;
+const OPEN = { filePath: null, fileHandle: null, recompute: true, fit: false, linkedOpen: true } as const;
 const ctx = createAppStoreContext();
 await quiet(async () => ctx.store.getState().applyOpenedImport(
   await parseOpenedFile({ name: 'oude-baseline.ifc', text: IFC }) as OpenedImport, OPEN));
@@ -110,7 +110,7 @@ same('§2 nieuwe telling ⇒ geen ⚠', check(A, snapshotOf(A.id, newBaseline)),
 {
   const cal = resolveCalendar(A.calendarId, S().calendars, S().calendar);
   const same10 = { ...cal, hoursPerDay: 10 };
-  const engine: CalendarEngine = engineForTaskCalendar(new Map(), same10, A);
+  const engine: CalendarEngine = engineForTaskCalendar(new Map(), same10);
   same('§4 opgeslagen 10 u/dag bij blokken van 10 u: de oude baseline 233,75 d ⇒ geen ⚠',
     baselineHasOldDayCount(A, snapshotOf(A.id), same10, engine), false);
   // Een afwijking onder de tolerantie (0,3 min per dag): ook een baseline die precies bij die opgeslagen
@@ -118,9 +118,9 @@ same('§2 nieuwe telling ⇒ geen ⚠', check(A, snapshotOf(A.id, newBaseline)),
   const almost = { ...cal, hoursPerDay: 10.005 };
   same('§4 opgeslagen 10,005 u/dag bij blokken van 10 u (0,3 min per dag): baseline 112200 ÷ (10,005 × 60) d ⇒ geen ⚠',
     baselineHasOldDayCount(A, { ...snapshotOf(A.id), duration: 112200 / (10.005 * 60) }, almost,
-      engineForTaskCalendar(new Map(), almost, A)), false);
+      engineForTaskCalendar(new Map(), almost)), false);
   same('§4 dezelfde kalender met 8 u/dag ⇒ wel ⚠ (controle van de opzet)',
-    baselineHasOldDayCount(A, snapshotOf(A.id), cal, engineForTaskCalendar(new Map(), cal, A)), true);
+    baselineHasOldDayCount(A, snapshotOf(A.id), cal, engineForTaskCalendar(new Map(), cal)), true);
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════

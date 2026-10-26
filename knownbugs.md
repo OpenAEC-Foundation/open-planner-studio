@@ -58,6 +58,50 @@ en noem het in je rapport of PR-tekst.
     bewaart "lopend" nu (`IfcTask.Status` = 'STARTED', #357); de motor plant de
     vastgelegde rest in (optie 3) na de release, in het rekenprofielen-spoor. — B voor de OPS-kant (gemeten),
     S voor de P6-kant
+144. **Het einde van een kalendertijd-taak is in het dagpad half inclusief.** Het dagpad schrijft het einde als
+    start + n kalenderdagen, maar leest die datum daarna als de laatste dag. Nagespeeld met de planningsharness
+    (dagkalender ma-vr): een kalendertijd-taak van 1 d vanaf ma 1 jun krijgt einde 2 jun, en haar FS-opvolger
+    begint wo 3 jun in plaats van di 2 jun; met FNLT ma 1 jun krijgt ze speling −1, terwijl ze om middernacht
+    klaar is. In uur-modus klopt het wel (`msp-19`). — B
+146. **Bij FF tussen urentaken staat de late finish van de voorganger op een blokbegin**, in het OPS- en het
+    MSP-profiel. Alleen de getoonde datum verschilt; de speling klopt. In het P6-profiel lost conventie B2
+    (`p6BackwardLagFinishBoundary`, `registry.ts:156`) het op; voor MSP is het een conventievraag. Gemeld door
+    de bouwer van #402. — B (volgens de bouwer van #402; niet door deze agent herhaald)
+119. **Een WBS-sjabloon verliest een lag in uren.** `wbsTemplates.ts:99-105` neemt per relatie `lagDays`,
+    `lagUnit` en `lagPercent` mee, maar niet `lagMinutes`. Een relatie met lag `4u` komt na het invoegen van
+    het sjabloon zonder lag terug, zonder melding. Gezien in de code (`Sequence.lagMinutes`,
+    `types/sequence.ts:23`); niet in de app nagespeeld. Voorstel: `lagMinutes` meenemen in
+    `WbsTemplateSequence`. — S
+121. **Nivelleervenster: de piekmelding blijft leeg bij een eigen urenverdeling of capaciteitsstappen.** De
+    nivelleerder kiest `INTRINSIC_OVERRUN` op de echte dagwaarden (`assignmentDayUnits`) en op
+    `maxCapacityOf` met stappen (`ResourceLeveler.ts`); het venster vult de details in met `distributeUnits` en
+    de vlakke `res.maxUnits` (`LevelingDialog.tsx:141-165`, `:293-304`). Dan ontbreken resource, piek en
+    capaciteit in de melding. Niet nagespeeld. Zie ook 9. — S
+122. **Nivelleervenster: onder *Resterende conflicten* staat altijd "Deze taken passen niet binnen hun
+    speling"**, ook zonder smoothing (`LevelingDialog.tsx:282`, `resource.leveling.remainingConflictsHint`).
+    De tekst noemt een oorzaak die niet voor elk conflict geldt. Zie ook 9. — B
+153. **Een SF-opvolger van een eindmijlpaal op een blokeinde schuift bij een urentaak één werkdag op.**
+    Nagespeeld met de planningsharness (kalender ma-vr 07-12 + 13-16, FINISH-mijlpaal M met start
+    `2026-06-01T16:00`, urentaak B 16 u, SF+0 van M naar B): B loopt van di 07:00 tot wo 16:00. De eis is
+    "B eindigt niet vóór ma 16:00", dus verwacht ma 07:00 tot di 16:00. VERMOED: `sfReqFinishHour` zet het
+    anker met `predStartsNextDay` naar het volgende blokbegin (`relationMath.ts:737`). In de minutenmodel-runs
+    van F0 maakt dit `mk-14` rood in beide runs (de omzetting zet een eindmijlpaal op het einde van de
+    werkdag). Spec `2026-10-20-alleen-uren-design.md` §4.3. — B
+154. **Een automatisch geplande mijlpaal met een anker mét tijd op een niet-werkdag blijft daar staan.**
+    `ownAnchor` snapt een mijlpaal van duur 0 alleen bij een anker zonder tijd (`CPMSolver.ts:1112-1116`).
+    Nagespeeld met de planningsharness (kalender ma-vr 07-12 + 13-16, mijlpaal B met start
+    `2026-06-06T07:00`, een zaterdag): B blijft za 07:00. Met start `2026-06-06` gaat hij naar ma 07:00
+    (`msp-56`). Vandaag bewust (zie de toelichting bij `ownAnchor`), maar na de omzetting naar momenten
+    heeft elk anker een tijd: dan verschuift `msp-56` B niet meer (rood in beide minutenmodel-runs van F0).
+    De spec zegt bij D4 dat geplande datums toch naar de volgende werktijd schuiven; voor deze mijlpaal klopt
+    dat niet. Hoort bij F1/F2. — B
+155. **Een kalendertijd-opvolger na FS met een lag in kalendertijd begint pas op het volgende werkmoment.**
+    `forwardHour` geeft voor FS met een kalendertijd-lag `se.availableStart(target)` terug
+    (`relationMath.ts:643`). Nagespeeld met de planningsharness (kalender ma-vr 07-12 + 13-16, P 16 u, FS+1
+    kalenderdag naar kalendertijd-taak A): P eindigt di 16:00, A begint do 07:00 in plaats van wo 16:00.
+    Bij FF en SF mag een kalendertijd-taak wel op een niet-werkmoment beginnen (`msp-23`, `msp-25`). Of
+    FS hier hetzelfde moet doen, is niet vastgesteld. In de minutenmodel-runs van F0 maakt dit `msp-51` rood
+    op het vroege einde (ma 07:00 tegen ma 00:00). — S
 
 186. **B3-voltooidvenster met een dagkalender kan een TypeError geven.** Gemeld bij de onafhankelijke
     review van PR #480 op `620c9e775`: ook op basiscommit `522589202` zou de volledige CPM-route
@@ -72,13 +116,265 @@ en noem het in je rapport of PR-tekst.
     De gecombineerde `measure:profiles` eindigt op exit 1; de P6-cellen zijn ongewijzigd.
     Geen baseline of motorcode hiervoor aangepast; oorzaak niet verder onderzocht. — B
 
+311. **Een urentaak na een FF-relatie met een kalendertijdlead kan vóór haar finish-ondergrens eindigen.**
+    Nagespeeld in de minutenmodelmeting van F1b: kalender ma-vr 07-12 + 13-16, A 48 u eindigt ma
+    8 juni 2026 16:00; FF −2 kalenderdagen naar B 32 u geeft B di 2 juni 07:00–vr 5 juni 16:00.
+    De eis ligt za 6 juni 16:00; het einde ligt dus ervoor. Het dagenmaatpad haalt na F1b wel de
+    dagverwachting van lagadv-ff-lead-ed; run 2 blijft rood op B, niet meer op de werkdagenlag van C.
+    De bestaande urencases en N1 laten hier geen algemene grensnormalisatie toe; apart uitwerken. — B
+
+312. **De corpuspin van expectedFinishDates in de SCHEDOPTIONS-check is rood op de integratiebasis.**
+    check-xer-schedule-options-corpus.ts eindigt op Node 22.23.4 met de fout
+    "expectedFinishDates zelfstandige per-bestand/as/populatie en richting blijven exact gepind".
+    Dezelfde fout in een schone kopie van 12abaabf2 en tijdens de volledige F1b-suite, met het aanwezige
+    corpus van 93 XER-bestanden. Geen pin of controle aangepast; oorzaak buiten F1b. — B
+
+230. **Een mijlpaal na een FF-relatie (mk-05a, M2) verliest zijn kritieke pad, als de voorganger in de
+     urenmaat telt.** A krijgt een late finish op vrijdag 13:00, speling 0,625 d, en is niet meer kritiek.
+     Gemeld in review F1 r1 (#563). Een algemene verbreding van de grens maakt drie C7-controles
+     rood. F3c repareert het voor een voorganger in de dagenmaat (OPS-profiel; `relationMath.ts`,
+     `isInsideBlock`, case `f3-startmijlpaal-ff-midden-in-blok`). Het blijft voor een urentaak en voor
+     een dagtaak onder P6/MSP (minutenmodel run 2, `mk-05a` in `minute-model-runs.json`). — B
+
+231. **FF vanaf een voltooide voorganger met een einde buiten werktijd laat de opvolger te vroeg eindigen.**
+     Kalender 08:00–16:00, werkelijk einde wo 18:00, FF +0eu naar een opvolger van 2 u.
+     De opvolger eindigt wo 16:00, vóór het voorgangereinde. Dat geldt onder OPS, P6 en MSP.
+     `relationMath.ts:255` sluit FF uit van de aparte eindondergrens. Voorstel: behoud die
+     ondergrens, zoals het SF-pad doet. Bestond al vóór F1 (`12abaabf2`). Review F1 r5. — B
+
+232. **Een lopende taak met een werkelijke start na werktijd krijgt een einde vóór die start.**
+     Start wo 18:00, duur 8 u, 50%, statusdatum wo. Onder OPS en P6 wordt het berekende einde
+     wo 12:00 (`CPMSolver.ts:2564`; de inversiewacht geldt alleen bij een RESUME-override).
+     Voorstel: het restwerk begint niet vóór de vastgelegde start. Bestond al vóór F1.
+     Review F1 r3–r5. — B
+
+271. **Een nachttaak die op zaterdag 06:00 eindigt, krijgt −1 speling bij een gelijk vroeg en laat venster.**
+     Nachtkalender ma–vr 22:00–06:00. A 2 d vanaf ma 22:00, FS+1 naar B van 2 d. B loopt vroeg en laat
+     van do 4 jun 22:00 tot za 6 jun 06:00, maar krijgt totale speling −1 onder OPS, P6 en MSP (vrije
+     speling −1 onder OPS en MSP). `CPMSolver.ts:1541` telt de dagspeling met `utcDayStart`; dat legt
+     het eindmoment op zaterdag, en `signedWorkDaysBetween(za, za)` is −1. Ook op de integratiebasis
+     `be58ba356`. Voorstel: neem bij een eindmoment de bijbehorende werkdag (`workdayDateOfInstant`,
+     eindkant). Gevonden in review F2 ronde 2A. — B
+
+273. **ALAP laat bij een losse mijlpaal een dagdeel vrije speling liggen.** Een START-mijlpaal M op
+     ma 10:00 met ALAP, naast een taak A van 3 d (ma 07:00 tot wo 16:00). ALAP zet M op wo 10:00, met
+     0,625 d totale en vrije speling; de late start is wo 16:00. `applyAlap` in `CPMSolver.ts` meet de
+     vrije speling in hele werkdagen (`signedWorkDaysBetween`) en schuift ook alleen hele werkdagen
+     (`addWorkingDaysSigned`); het dagdeel blijft liggen. Gemeten op een kalender 7–16 met en zonder
+     eigen werkblokken. Op de basis `be58ba356` gebeurt het ook, met eigen werkblokken. Voorstel: laat
+     de bestaande ALAP-verplaatsing ook het resterende dagdeel meenemen. Gevonden in review F2 ronde 3A. — B
+
+243. **Onder het P6- en MSP-profiel tekent de Gantt de pauzes van een dagtaak in de dagenmaat, de motor
+     rekent ze in werkminuten.** De renderer kent het rekenprofiel niet (`GanttRenderOptions`) en kiest de
+     splitwandeling op de maat van de taak (`GanttRenderer.ts`, `computeSplitSegments`, `'workdays'`). Onder
+     P6/MSP staat de conventie `workdayDurationMeasure` uit, dus telt de motor een dagtaak als uren. Op een
+     kalender met gelijke dagen is de uitkomst gelijk; bij ongelijke dagen (bv. vr 6 u) kan een tussengrens
+     een paar uur verschillen. Het taakeinde klopt altijd (de laatste grens is het taakeinde). Afgeleid uit de
+     code, niet nagespeeld. Voorstel: geef de renderer `workdayDurationMeasure` mee. Gevonden in F3c. — S
+
+276. **Een FNET met een tijd buiten werktijd zet een START-mijlpaal op de volgende werkdag.** P 1 d op
+     maandag, FS+0 naar START-mijlpaal M, FNET di 18:00 (kalender 7–16). M komt op wo 07:00, ook een
+     mijlpaal zonder soort. `forwardBoundOf` laat de tijd 18:00 staan (geen snap voor een mijlpaal met
+     tijd); de her-snap in `snapSuccessorEarlyStart` zet een moment buiten werktijd door naar het volgende
+     blokbegin. De controle op het FNET-eindmoment daar geldt alleen binnen werktijd of op een blokeinde.
+     Met eigen werkblokken gebeurt dit ook op `be58ba356`. Richting: puntsgewijze semantiek voor
+     mijlpalen. Gevonden in review F2 ronde 4. — B
+
+277. **Een 24-uurskalender naast een gewone kalender kost een parallelle dagtaak een dag speling.** P werkt
+     maandag op een 24-uurskalender, met een START-mijlpaal op di 00:00. De dagtaak R op 07–16 of 08–16
+     krijgt speling 0 en is kritiek; op `be58ba356` is dat 1, niet kritiek. Dit geldt onder OPS, P6 en
+     MSP. Zonder die eindmijlpaal, of met een FINISH-mijlpaal, geven de basis en de head allebei 0.
+     Locatie: `CPMSolver.ts:1351`, samen met de projecteindgrens rond `CPMSolver.ts:3717`. Het ontstond in
+     `29a2f6cac` (eerder ook in `d3e7c885f`, hersteld in `b36c37770`). Richting: leg voor gewone
+     dagtaken apart vast wat een afsluitend eindmoment is en wat een START is die een projectdag opent,
+     met de bestaande kalenderfuncties. Gevonden in review F2 ronde 6. — B
+
+278. **Een wortel-taak met een rauw anker op het laatste blokeinde: solver en belasting kiezen een andere
+     dag.** Urentaak van 8 u, geen voorganger, start ma 16:00 op een kalender 08–16. De solver houdt het
+     anker rauw en telt de duur vanaf het eerste blok van die dag (spec §4.3 N0, z13-cases in
+     `cases-advanced-cpm.json`): begin en einde ma 16:00 (24 u ⇒ wo 16:00). De gedeelde plaatsing
+     (`taskWorkPlacement`, `workPlacement.ts`) wandelt de duur vanaf ma 16:00 vooruit en boekt di 1. Histogram
+     en nivelleerder boeken dus dinsdag, terwijl de solver de taak op maandag zet. Getoetst in `check-f3b-production-compat.ts` (geval
+     "blokgrens zonder capaciteitsdruk"; het F3c-belastingdeel verwachtte di 16:00 van de motor, maar
+     dat botst met het z13-orakel). Probe op de basis `1e460cde6`: hetzelfde solvergedrag. Voorstel: de
+     eigenaar kiest welke dag geldt; daarna volgt de plaatsing dezelfde regel als de solver (of andersom).
+     Gevonden bij de integratie van F3c. — B
+
+255. **Bij een split op een dagenmaat-taak wijkt de gedeelde plaatsing per dag tot 2 minuten af van de
+     Gantt-stukken.** Sinds F3c-fix-split heeft de split-as één betekenis: dagslots voor de dagenmaat
+     (`workPlacement.ts`). Een steekproef van 6000 gevallen geeft per dag een verschil van hoogstens
+     2 minuten tussen de plaatsing (histogram, nivelleerder) en de stukken in de Gantt. Bij een gelijkspel
+     gaat hoogstens een halve minuut werk verloren. `measuredSpanDays` in `workPlacement.ts` herhaalt de
+     formule van `splitTotalSpanDays` (`duration.ts`); `check-split-solver-placement.ts` vangt een solver
+     die afwijkt wel, maar niet een tweede kopie die mee verandert. Voorstel: één gedeelde functie voor de
+     spanwijdte, en de afronding per dag gelijk aan die van de Gantt. Gevonden in F3c-fix-split. — B
+
+266. **Na een eenheidswissel op een lopende taak heeft de rest ruis van de drijvende komma.**
+     `durationEditProgress` (`src/engine/work/workRuleApply.ts:953`) rekent de rest als nieuwe duur ×
+     (1 − nieuw percentage). Een werktijdtaak van 2 d, 25 % gereed, met een nieuwe duur van 12 u (onder P6
+     en MSP ook "1,5d") krijgt zo 720 × (1 − 1/3) = 480,00000000000006 min in plaats van 480. De motor legt
+     het einde daardoor net voorbij de bandgrens: wo 3 juni 07:00 in plaats van di 2 juni 16:00. Dat is
+     hetzelfde werkmoment, maar de Tabel toont een andere dag. Gemeten in fixronde 4 van #584; vastgelegd
+     als `KNOWN_DRIFT` (4 rijen) in `tests/planning/check-f4b-review-r3.ts`. Dit stond al zo op de basis
+     (bij "12u"). Voorstel: de rest als nieuwe duur − verricht rekenen, en dan de verwachtingen nameten;
+     haal daarna de rijen uit `KNOWN_DRIFT`. — B
+
+316. **Het gezondheidsrapport telt een nachttaak goed, maar de detaillijst meldt een fout.**
+     `src/engine/reports/scheduleHealth.ts:175` geeft geen kalender aan `invalidDateReasons`; de DCMA-telling
+     doet dat wel. Voorbeeld: nachtdienst wo 22:00–do 06:00, werkelijke start do 02:00, status wo. De telling
+     geeft DCMA 0 fouten, de detaillijst meldt `actualStartAfterStatusDate`. Op `main` staat dezelfde
+     detailregel, met daarbij een foute telling van 1; de urenomzetting verbeterde de telling. Voorstel: geef
+     op deze ene aanroep de effectieve taakkalender mee. Gevonden in review #563 r2, nagespeeld in review r1
+     van #600. — B
+
+317. **Bij een FINISH-mijlpaal vraagt de voortgangsinvoer om een werkelijke start.**
+     `src/engine/progressEntry.ts:104` gebruikt een vaste `'start'`-kant. Voorbeeld: FINISH-mijlpaal do 06:00,
+     het einde van de dienst wo 22:00–do 06:00, status wo, alleen 100 % invoeren: `planProgressEntry` weigert
+     met `needsActualStart`, en de MCP-update weigert ook. Hetzelfde bij do 00:00 op een 24-uurskalender. Een
+     ingevuld werkelijk einde werkt wel. Op `main` faalt dezelfde invoer ook. Voorstel: gebruik de bestaande
+     mijlpaalkant. Gevonden in review #563 r2, nagespeeld in review r1 van #600. — B
+
+341. **Een maatwissel vervangt een expliciete restduur door de afleiding uit het percentage.**
+     `src/engine/work/workRuleApply.ts:990`: begintoestand 4 d, 50 % gereed, expliciet 1 d rest (toegelaten
+     import- of extensiedata); alleen wisselen naar 32 uur geeft `remainingMinutes = 960` (16 u) in plaats van
+     480 (8 u). De eenheidswisseltak rekent `totaal × (1 − percentage)` en laat de expliciete rest vallen. Undo
+     herstelt, redo verdubbelt opnieuw. Stond al zo op `fbd4a3f9d` (met Urenplanning aan). Voorstel: ook bij een
+     maatwissel de bestaande Δ-restregel in minuten toepassen; het percentage alleen als de expliciete rest
+     ontbreekt. Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
+
+358. **Een gestarte taak op 0 % die naar duur 0 gaat, houdt onder vast werk restwerk.**
+     `src/engine/work/workRuleApply.ts:435-437` (`settleDurationEdit`), `durationEditProgress` (`:940`) en
+     `src/engine/work/workTriangle.ts:177`. Voorbeeld: 4 d, werkelijke start, 0 %, één arbeidsresource; onder
+     vast werk of vaste duur en werk verlengd naar 6 d en dan duur 0. De kern weigert rest 0 en de toewijzing
+     houdt 1920 min restwerk; de belasting is 0, want de taak heeft geen duur meer. Stond al zo op
+     `fbd4a3f9d`. Voorstel: deze overgang weigeren of expliciet afhandelen, in plaats van na de weigering van
+     de kern een half bijgewerkte toestand te laten staan. Gevonden bij de fix van aanval a03 en in review r1
+     van #662 (GPT-6.1-Sol). — B
+
+367. **Duur en voortgang samen opslaan boekt de voortgang niet in de werkvelden.**
+     `src/engine/work/workRuleApply.ts:1096` (`settleProgressWork` slaat een andere totale duur over) en
+     `src/state/taskDialogSave.ts:253`. Voorbeeld: 4 d, 50 %, één arbeidsresource op inzet 1, verlengd naar
+     6 d (960 min verricht, 1920 rest); daarna in één opslag 8 d en 75 %. Main en #662 houden 960 verricht +
+     960 rest = 1920; verwacht is 2880 verricht + 960 rest = 3840. Op `fbd4a3f9d` was de totale belasting
+     wel 3840 (afgeleid, zonder werkpaar), dus de fout bestaat sinds #600. Bij 8 d en 100 % zit dezelfde
+     fout (verwacht 3840 verricht); #662 laat dat geval bewust op het gedrag van main (960 + 1920). Fout op
+     de dialoog en de interne MCP-draft (`updateTaskFields`/`patchTaskFields`); `planner_update_tasks` en
+     `planner_batch` verwerken duur en voortgang na elkaar en geven wel de juiste uitkomst. Voorstel: eerst
+     de duur verwerken met behoud van het verrichte werk, dan de expliciete voortgang boeken zoals
+     `settleProgressWork`. Gevonden bij de fix van aanval a03 en in review r1 van #662 (GPT-6.1-Sol). — B
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
 16. **Taken kopiëren** heeft geen zichtbare bediening; alleen Ctrl+C/V met de Gantt in focus. — B
 17. **Verwijderen zonder bevestiging**: `confirm.deleteTask` staat in de locales maar wordt nergens gebruikt. — S
-60. **Duur-kolom afgeknipt** in de standaard Gantt-weergave (WBS 60 + Taaknaam 240 + Duur 60 + de
-    "+"-kolom): je leest "2c" in plaats van "2d", op 1600 én 1366 px breed. — B
+
+333. **De bevestigingsdialoog let bij Enter niet op `isComposing`.** `src/components/dialogs/ConfirmDialog.tsx:36–44`:
+    een synthetische IME-Enter verwijderde in een browserprobe de kalender, toen de focus bewust achter de open
+    dialoog stond. De focus-trap zet de focus normaal op Annuleren; een gewone gebruikersroute naar dit geval is
+    niet aangetoond. Voorstel: na `stopPropagation()` een guard voor `isComposing` die ook de standaardactie
+    tegenhoudt. Gevonden in review r2 van #628 (GPT-6-Sol). — B
+
+241. **Hetzelfde externe anker opnieuw invoeren als datum zonder tijd geeft een extra undo-stap en zet
+     de planning op verouderd.** `updateExternalLink` vergelijkt het ruwe anker, niet het genormaliseerde.
+     Gevonden in fixronde 1 van F2 (laadfix). — B
+
+250. **Twee ingangen voor een nieuwe taak negeren de *Standaardmaat voor nieuwe taken*.** Rechtsklik in
+     de Gantt → *Nieuwe taak* geeft een tijd met een vaste dagenmaat mee (`GanttCanvas.tsx:401`,
+     `createDefaultTaskTime(date, 5, 'days', …)`), en de spookregel onderaan de tabel toont een taak van
+     5 d (`FullTaskGrid.tsx:353`). Een meegegeven maat blijft staan (`settleNewTaskMeasure`, zie
+     `check-new-task-measure.ts` s5). Met de gekozen urenmaat, of onder P6/MSP, krijgt zo'n taak dus toch
+     de dagenmaat; alleen vast werk zet hem om. Voorstel: geef in beide de maat van `newTaskTimeUnit`
+     mee, of laat de tijd weg en geef alleen de start. Alleen in de code gezien, plus het storegedrag. — S
+
+281. **De motor rondt een externe lag in minuten nog af op hele dagen, maar alleen in dagmodus.** De invoer
+     houdt sinds fixronde 1 van F4b de breuk ("0,5d" is een halve werkdag, ook bij een externe relatie;
+     `check-f4b-review-r1.ts`). In uurmodus, de gewone route, rekent de motor `lagDays` × werktijd per dag
+     zonder afronding (`CPMSolver.externalLagMinutes`). Alleen `CPMSolver.externalLagDays`
+     (`CPMSolver.ts:3170-3176`) rondt een lag in minuten nog half van nul af naar hele dagen. Die functie
+     werkt alleen op een kalender waaruit geen werkblokken af te leiden zijn (`calendarForEngine` geeft dan
+     geen `workTime`). Zo'n kalender heb ik niet in een gewone planning kunnen maken; de lege kalender
+     weigert de motor al. Voorstel: de afronding weghalen als de dagmodus verdwijnt; motorwerk. Alleen in
+     de code gelezen. — S
+283. **Vast werk met een inzet die het werk niet in hele minuten deelt, geeft een duur met een deel van een
+     minuut en een negatieve speling.** Gemeten op het stucwerk van het tutorialproject (stand na tutorial
+     4, Vast werk, 32 uur): inzet 7 geeft `durationMinutes` 274,2857 (einde vr 23 jul 11:34) en een totale
+     speling van −0,0006 werkdagen, terwijl de taak bij inzet 1 tot 3 speling 0 heeft. De werkdriehoek rondt
+     niet af (B3), maar de urenmaat telt verder in hele minuten (`applyRemainingDuration`). Een taak met
+     een kleine negatieve speling kan in een filter op negatieve speling verschijnen. Voorstel: de duur van
+     de urenmaat in de werkdriehoek op hele minuten zetten, of de speling op hele minuten vergelijken;
+     motorwerk, buiten F4b. Gevonden bij het meten voor knownbugs 252.
+     Dezelfde gemengde precisie weigert ook een gewone verkorting (review van #662, GPT-6.1-Sol): vast werk,
+     kalender van 465 minuten, 3,75 d op 40%, verlengd naar 6,75 d en terug naar 1,5 d. De afgeronde rest geeft
+     een negatieve rest van 0,25 minuut, en store, raster, MCP en dialoog weigeren de invoer
+     (`src/engine/taskMutationRules.ts:204`, `src/engine/work/workRuleApply.ts:981`). Al zo op `9a636ec69`.
+     Voorstel: één precisie voor totale, verrichte en resterende duur. — B
+284. **Een opgeslagen Tabel-indeling houdt Start en Einde op 100 px; een datum met tijd valt dan weg.**
+     Sinds B4 toont een moment midden op de werkdag datum en tijd ("04-11-2026 11:00"). Die tekst is 89 px
+     breed, plus 14 px opvulling; de oude standaardbreedte was 100 px (gemeten in de browser, Inter 11 px).
+     F4b zet de standaard op 130 px (`preferences.ts`, ook genoeg voor "04-11-2026 11:00 AM"), maar een
+     indeling die al in `ops-taskGridPreferences` staat, houdt 100 px tot de planner de kolom verbreedt of
+     "Herstel standaard" kiest. De cel kapt de tekst af met een beletselteken. Voorstel: bij het laden een
+     opgeslagen breedte van precies 100 px voor deze twee kolommen naar 130 px zetten, of de kolom laten
+     meegroeien; een besluit over opgeslagen voorkeuren. — B
+286. **De kant van een beperkingsdatum wordt op twee plekken opnieuw bepaald.** `constraintDateSide`
+     (`src/engine/calendar/workdayRules.ts:42`) zegt al of een beperkingsdatum startachtig of eindachtig
+     is. `constraintSide` in `TaskConstraintFields.tsx:16` en `guardSideOf` in `MilestoneReport.tsx:62`
+     bouwen dat opnieuw uit `constraintDateField` en `taskDateFieldSide`. De uitkomst is nu gelijk; het
+     risico is dat een vierde beperkingstype op één plek wel en op een andere niet meekomt. Voorstel: beide
+     helpers vervangen door `constraintDateSide` en de losse imports weghalen. Gevonden in de review van
+     PR #584 (r1, VERVOLG), in de code nagelezen. — B
+288. **Het duurlabel tijdens het slepen rekent kalendertijd met de werktijd per dag.** `GanttRenderer.dragDurationText`
+     (`src/engine/renderer/GanttRenderer.ts:1996-2008`) neemt voor een dagtaak `taskDurationMinutes` (dagen ×
+     werktijd per dag, `utils/taskDuration.ts:94`) en zet dat om met `effHoursPerDay`. Bij een
+     kalendertijdtaak onder P6/MSP met Duurweergave "Altijd uren" toont het label dan 8 u per dag in plaats
+     van 24. Cel, tooltip, afdruk en tabelrapport rekenen sinds fixronde 2 van F4b wel met 24 u
+     (`durationHoursPerDay`). Dit stond al zo op de basis van F4b. Voorstel: in het sleeplabel
+     `durationHoursPerDay` gebruiken; rendererwerk. Alleen in de code gelezen, niet in de app nagespeeld. — S
+342. **Werkdagencompressie knipt zes uur van de vrijdagse nachtdienst weg.** `src/engine/renderer/workdayAxis.ts:184`:
+    kalender ma–vr 22:00–06:00, taak vr 5 juni 22:00 – za 6 juni 06:00. Bij zoom 240 beslaan acht klokuren 80 px;
+    met compressie blijven 20 px over, en za 06:00 komt op de maandagnaad 00:00. De terugweg (`xToDate`) maakt van
+    za 02:00 dan ma 8 juni 00:00 (los gevonden door aanvaller a02). Stond al zo op `fbd4a3f9d`.
+    Voorstel: ook bij compressie en de inverse as een moment aan zijn werkdag toewijzen, zodat een nachtstuk niet
+    verdwijnt omdat de klokdatum zaterdag is. Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
+
+353. **Een decimale komma in een lag van een interne relatiecel wordt als scheiding tussen twee relaties
+     gelezen.** `tokenSlices` in `src/engine/taskGrid/relationCell.ts:55` knipt een cel zonder externe
+     relatie ook op een komma. `1 FS+1,5d` wordt zo `1 FS+1` en `5d`; de tweede token geeft de fout
+     `relationToken`. `1 FS-0,5d` gaat net zo mis. Met een punt (`1 FS+1.5d`, `1 FS-0.5d`) gaat het goed, en
+     de lagparser zelf leest een komma wel. Al op `fbd4a3f9d`: de tokenizer van toen geeft dezelfde uitslag.
+     Sinds #600 is een breuk in een lag gewone invoer, dus een Nederlandse planner typt dit. Voorstel: in
+     `tokenSlices` een komma binnen het getal van een lag (na `+` of `-` en cijfers, vóór een cijfer) niet
+     als scheiding nemen. Let op: `1,2` (twee voorgangers) moet een scheiding blijven, en `1 FS+1,2` is
+     dubbelzinnig; daar is een regel nodig, bijvoorbeeld een decimaal alleen met een eenheid erachter
+     (`+1,5d`). Nagespeeld met `parseRelationCellText` (probe
+     `/tmp/aanval/a08-probe.ts`, regels `relation-cell-comma`). Gevonden in de aanval na #600
+     (GPT-6.1-Sol). — B
+
+360. **Kopiëren tussen mijlpalen draagt het exacte moment niet over.** Een FINISH-mijlpaal op
+     `2026-06-01T07:00` kopieert het label `01-06-2026` (B4 laat de tijd op een dagrand weg). Plakken in een
+     FINISH-mijlpaal op dezelfde datum om 16:00 schrijft niets: beide momenten hebben hetzelfde label, dus het
+     doel blijft 16:00 (`src/engine/taskGrid/editors.ts:147`, `src/engine/taskGrid/clipboard.ts:269`). Al zo
+     op `9a636ec69`; de plakplanner geeft op basis en na de fix van #661 `writes: []`. Voorstel: het exacte
+     moment in de kopieerwaarde bewaren; D7 hoeft daarvoor niet te veranderen. Gevonden in de review van de
+     fix voor aanval a08 (GPT-6.1-Sol). — B
+
+366. **Slepen van de linkergreep bij importsplits met een contour verschuift het einde.** Vier werkdagen met een
+     pauze van 480 minuten na het eerste werkstuk, ma 07:00 – vr 16:00: de linkergreep één dag naar rechts, in
+     twee muisbewegingen, eindigt op di 09:00; de contourherschaling maakt van de pauze 360 minuten. Terugslepen
+     laat ma 09:00 staan, en F5 zet het einde op ma 8 juni 09:00. Eén undo herstelt de beginstand
+     (`src/components/canvas/hooks/useBarDrag.ts:353`, `src/engine/renderer/hourBarDragMath.ts:218`,
+     `src/utils/taskDefaults.ts:774`). Op `9a636ec69` ook fout (na terugslepen en F5 ma 8 juni 16:00).
+     Voorstel: de pauzegegevens bij het grijpen bevriezen en sleepberekening en store dezelfde herschaalregel
+     laten volgen. Gevonden in de review van de fix voor aanval a09 (GPT-6.1-Sol). — B
+
+371. **De linkergreep springt bij een taak met alleen nivelleerpauzes.** Vier werkdagen plus één
+     nivelleerpauzedag, ma–vr: de linkergreep één dag naar rechts geeft wo 07:00 en duur 3 d. De sleep filtert
+     de pauze weg, maar rekent terug vanaf het oorspronkelijke einde mét pauze
+     (`src/components/canvas/hooks/useBarDrag.ts:353`, `src/engine/renderer/hourBarDragMath.ts:218`). De
+     bodyverplaatsing werkt wel. Al zo op `9a636ec69`. Voorstel: de vaste rand en de resterende spanne bepalen
+     vanuit dezelfde toestand zonder vervallen nivelleerpauzes. Gevonden in de review van de fix voor aanval a09
+     (GPT-6.1-Sol). — B
 
 ## Kalenders
 
@@ -89,9 +385,6 @@ en noem het in je rapport of PR-tekst.
 
 28. **Bezettingsoverzicht bij een verouderd actief project** mengt oude startdatums met een nieuwe duur of
     inzet, onder de tekst "laatst berekende cijfers". — B
-33. **Bibliotheekkalender verwijderen** gaat zonder bevestiging; daarna staat hij nog als *al gekoppeld*. — S
-64. **Een uitgeschakelde `tutorials`-extensie wordt weer aangezet, ongeacht waar hij vandaan kwam**
-    (review #261, punt O2). — S
 74. **Nederlandse parameternamen en enumwaarden in het MCP-contract.** Na de vertaling naar Engels zijn deze
     sleutels bewust gebleven (ze zijn invoercontract): `planner_list_tasks` `kritiek`/`van`/`tot`/
     `zonder_relaties`, `planner_get_resource_histogram` `van`/`tot` en `bucket: dag|week|maand`,
@@ -133,23 +426,59 @@ en noem het in je rapport of PR-tekst.
     website volgt de laatste deploy, terwijl een desktopversie zijn eigen kopie meelevert; een oudere app kan
     dus naar een gids wijzen die tools beschrijft die hij niet heeft. De gids zegt nu dat de kopie van de tool
     voorgaat. Voorstel: een versiepad (bv. `/agent/<versie>/planning-guide.md`) of de versie in de gids. — S
-213. **Een UNC-werkmap op Windows werkt niet in de headless MCP-server.** `normalizeAbsolutePath`
-    (`src/services/mcp/tools/fileTools.ts:105`) maakt van `\\server\share\plan.ifc` het pad
-    `/server/share/plan.ifc`, en dat gaat zo naar `path.resolve` in `headless/mcp-server/src/nodeFs.ts:136`.
-    Gevonden in review ronde 1 van PR #572 (GPT-6.1-Sol). Voorstel: UNC-paden in de lexicale poort als eigen
-    vorm herkennen, of ze met een duidelijke melding weigeren. — B
-214. **De eigen XML-parser van de headless MCP-server is te soepel.** `headless/mcp-server/src/xmlDom.ts:101`
-    en 146: hij accepteert `&#0;`, leest `&constructor;` uit de prototypeketen, normaliseert CRLF niet,
-    accepteert ongebonden prefixen en `]]>` buiten CDATA, en detecteert geen UTF-16. Gevonden in review ronde
-    2 van PR #572 (GPT-6.1-Sol). Voorstel: `@xmldom/xmldom` bundelen met een kleine adapter (DOCTYPE-beleid,
-    strikte fouten), of gerichte fixes met tests. — B
-215. **De headless MCP-server doet geen `fsync` van de doelmap na de `rename`.**
-    `headless/mcp-server/src/nodeFs.ts:355`: na een stroomuitval kan de nieuwe naam ontbreken. Gevonden in
-    review ronde 2 van PR #572 (GPT-6.1-Sol). Voorstel: na de `rename` de map openen (`'.'`, in het gebonden
-    blok) en `fsync` doen. — B
-216. **De tijdelijke naam bij opslaan is de doelnaam plus 27 bytes.** `headless/mcp-server/src/nodeFs.ts:324`:
-    een geldige bestandsnaam van rond 240 bytes geeft bij opslaan `ENAMETOOLONG`. Gevonden in review ronde 2
-    van PR #572 (GPT-6.1-Sol). Voorstel: een korte eigen naam (bijv. `.ops-save.<willekeurig>.tmp`). — B
+113. **`planner_export_ifc` herkent het eigen bestand niet bij een ander hoofdlettergebruik op macOS.** De
+    weigering voor een stille schemawijziging (`fileTools.ts`, `refuseSilentSchemaChange`) vergelijkt paden
+    alleen hoofdletterongevoelig bij een Windows-station. Op macOS is het bestandssysteem meestal
+    hoofdletterongevoelig, dus `Model.ifc` tegenover `model.ifc` is hetzelfde bestand maar komt door de
+    vergelijking. Symbolische links worden ook niet opgelost. Afgeleid uit de code door de review van #336,
+    niet op een Mac nagespeeld. — S
+
+124. **`planner_update_calendar` `generate` dekt het projecteinde niet als `endDate` gezet is.**
+    `calendarSpan` (`calendarResourceTools.ts:585-590`) neemt `project.endDate || cpmResult.projectEnd`. Een
+    `endDate` gaat dus voor het berekende einde. Loopt de planning daarna door, dan krijgen die jaren geen
+    feestdagen en komt er geen waarschuwing; opnieuw genereren helpt niet, want de spanne blijft op `endDate`
+    staan. Nagespeeld in een scratch-script (agent-audit 2026-10-19). Anders dan 88 (geen rekenresultaat).
+    De UI-regeneratie gebruikt dezelfde `computeGenerateSpan` (`ResourceCalendarDialog.tsx:57`); of dat daar
+    bedoeld is, is niet uitgezocht. Voorstel: het latere van `endDate` en het berekende einde nemen, of een
+    `warnings`-regel geven. — B
+125. **De eerste bibliotheek heet hardgecodeerd "Mijn resourcebibliotheek"**, ook in de Engelse app
+    (`types/library.ts:63`). Ook de terugvalnamen "Nieuwe resourcebibliotheek" (`librarySlice.ts:414`,
+    `libraryOps.ts:463`). Valt buiten 29. — B
+126. **Updatevenster: de tekst *Bezig met installeren…* is niet te bereiken.** De balk met
+    `updates.installing` staat achter `isDownloading` (`status.kind === 'downloading'`), terwijl de tekst
+    `isReadyToInstall` (`'readyToInstall'`) vraagt (`UpdateDialog.tsx:125-128,205-208`). Na de download springt
+    het venster naar *Herstarten…* (`:225-229`). Alleen in de code gezien. — S
+
+
+272. **Een al geplande verlaatberekening van `useExitRecordedDates` wordt niet geannuleerd bij
+     historieherstel.** `src/hooks/useExitRecordedDates.ts:47`: een wijziging die de modus niet verlaat,
+     keert terug zonder de lopende timer te stoppen. Reproductie: B5 terugdraaien → planningsbewerking →
+     undo → undo, in dezelfde JavaScript-beurt. Direct daarna staat B op 16 maart met
+     `minuteModelPending: true`; na de timer staat B op 9 maart en is de vlag uit. Alleen met synchrone
+     oproepen gereproduceerd. Richting: annuleer de lopende verlaatberekening bij historieherstel.
+     Review ronde 2 van PR #559, deel B. — B
+
+257. **Type en commentaar van `applyLeveling` noemen de minuutvertraging niet.** `scheduleSlice.ts:69-72` en
+     `createMcpTransactions.ts:958` typen het voorstel als `Pick<LevelingResult, 'delays' | 'gaps'>`. Sinds F3c
+     draagt het voorstel ook `delayMinutes`, en `writeLevelingResult` (`utils/taskDefaults.ts`) schrijft die als
+     `levelingDelayMinutes`. Alle aanroepers geven het volledige resultaat door, dus de minuten komen aan. Een
+     aanroeper die zelf een object bouwt, verliest ze zonder typefout. Het commentaar in `applyLeveling`
+     (`scheduleSlice.ts:243`) zegt nog dat de nivelleerder in hele werkdagen rekent. Voorstel: `'delayMinutes'`
+     in beide types en het commentaar bijwerken. Gevonden bij F3c deel 3, alleen in de code gezien. — S
+
+259. **Een handmatig geplande taak krijgt een nivelleervertraging die de solver negeert.** De nivelleerder
+     behandelt alleen voltooide en lopende taken als onverplaatsbaar (`ResourceLeveler.ts:445`). De solver houdt
+     een handmatig geplande taak op haar eigen datums en leest geen nivelleervertraging (`CPMSolver.ts:2006`).
+     Na toepassen boekt de nivelleerder de taak dus op een andere plek dan het histogram haar toont.
+     `tests/library/check-distribute.ts` case 18 legt dit vast: vertraging 10, einde schuift 0. Voorstel: een
+     handmatig geplande taak als vaste last behandelen, zoals een lopende taak (dat verandert case 18).
+     Gevonden bij F3c deel 3. — B
+
+215. **Directory-durability bij headless opslaan blijft op Windows en nieuwe bovenmappen beperkt.**
+    Linux/macOS synchroniseren nu de doelmap na `rename`, met een expliciete fout als dat mislukt nadat
+    het bestand al vervangen is. Windows houdt alleen de bestands-fsync; nieuw aangemaakte bovenmappen
+    worden niet als hele keten gesynchroniseerd. Echte stroomuitval is niet getest. Restpunt van review
+    ronde 2 van PR #572. Voorstel: afzonderlijke platform-/crashbestendigheidstest en Windows-route. — B
 217. **Het eigen tijdelijke bestand wordt na een mapwissel niet altijd opgeruimd.**
     `headless/mcp-server/src/nodeFs.ts:370`: is de map weg of niet meer bereikbaar, dan blijft
     `.<naam>.<willekeurig>.ops-save.tmp` staan (de docs zeggen dat nu ook). Gevonden in review ronde 2 van PR
@@ -159,16 +488,10 @@ en noem het in je rapport of PR-tekst.
 218. **Headless MCP-server: de HTTP-time-out begrenst synchrone bestandstoegang niet.**
     `headless/mcp-server/src/nodeFs.ts:285` en `writeFileSync`/`fsyncSync` op 333–335 draaien synchroon; hangt
     lezen of synchroniseren op een trage schijf, dan staan alle sessies stil en kan de 120-secondentimer in
-    `headless/mcp-server/src/http.ts:117` niet afgaan. De documentatie belooft die grens te stellig. Gevonden
-    in review ronde 3 van PR #572 (GPT-6.1-Sol). Voorstel: de tekst over de tijdslimiet eerlijk maken en grote
-    bestanden op trage opslag meten voordat er een andere procesopzet komt. — B
-
-220. **Headless MCP-server: terugzetten van de procesmap is een poging, geen garantie.**
-    `headless/mcp-server/src/nodeFs.ts:253`: verdwijnt de oorspronkelijke procesmap tijdens een bewerking, dan
-    blijft het proces in `realRoot`; is ook die weg, dan gooit de `finally` opnieuw, verdringt de
-    oorspronkelijke fout en blijft de tijdelijke procesmap actief. CLI-, backup- en importpaden gebruiken
-    absolute paden, dus geen bekende route naar verkeerd opgeslagen bestanden. Gevonden in review ronde 3 van
-    PR #572 (GPT-6.1-Sol). Voorstel: de terugval documenteren en beide fouten bewaren of melden. — B
+    `headless/mcp-server/src/http.ts` niet afgaan. Documentatie en broncommentaar benoemen nu expliciet
+    de wachtrij-/eventloopgrens en dat een 504 geen lopende bewerking annuleert. Gevonden in review ronde 3
+    van PR #572 (GPT-6.1-Sol). Resterend: grote bestanden op trage opslag meten voordat er een andere
+    procesopzet komt; geen harde deadline of verholpen runtimeblokkade geclaimd. — B
 
 210. **MCP-ontdekking: een update via de updater ruimt `runtime.json` en `open-files.json` niet op.** Alleen
     `src/hooks/useAppCloseGuard.ts:33` roept `shutdown()` aan;
@@ -184,11 +507,11 @@ en noem het in je rapport of PR-tekst.
     review ronde 1 van PR #573 (GPT-6.1-Sol). Voorstel: de ACL op Windows controleren (ook tijdelijk bestand
     en bestaande map), of geen token publiceren als de bescherming onvoldoende is. — B
 
-322. **Een conflict tussen vastgepinde taken heeft geen reden.** `src/engine/scheduler/ResourceLeveler.ts:811`
-    vult voor pinconflicten alleen `unresolved`. `src/services/library/distribute.ts:475` maakt daaruit een
+322. **Een conflict tussen vastgepinde taken heeft geen reden.** `src/engine/scheduler/ResourceLeveler.ts:890`
+    vult voor pinconflicten alleen `unresolved`. `src/services/library/distribute.ts:478` maakt daaruit een
     `DistributionShortfall` waarvan `reason` volgens regel 101 verplicht is: twee botsende pins plus één
     verplaatsbare taak geven twee tekorten met `reason: undefined`. De MCP-waarschuwing in
-    `calendarResourceTools.ts:1621` verwijst dan naar een lege `unresolvedReasons`. De dialoog toont de
+    `calendarResourceTools.ts:1611` verwijst dan naar een lege `unresolvedReasons`. De dialoog toont de
     conflicten wel goed. Voorstel: een ontbrekende reden expliciet in het typecontract, en de MCP-uitleg daarop
     aanpassen. Gevonden in review r1 van #594 (GPT-6.1-Sol). — B
 
@@ -202,11 +525,114 @@ en noem het in je rapport of PR-tekst.
     de tak `toolName === null` kan niet meer optreden zodra `mutates` waar is. Voorstel: die deelvoorwaarde weg;
     de concrete herstelset blijft voldoende. Gevonden in review r1 van #605 (GPT-6.1-Sol). — B
 
+331. **Met de werkmap `/` weigert de MCP-server `~/plan.ifc` als UNC-pad.** `src/services/mcp/tools/fileTools.ts:142–145`:
+    bij `home="/"` maakt de tilde-expansie van `~/plan.ifc` eerst `//plan.ifc`, en de nieuwe UNC-controle weigert
+    dat. Op `main` werd het `/plan.ifc`; het expliciete pad `/plan.ifc` werkt nog wel. Zeldzaam, geen dataverlies.
+    Voorstel: bij tilde-expansie precies één scheidingsteken toevoegen, en de wortelmap aan de bestaande test
+    toevoegen. Gevonden in review r1 van #626 (GPT-6.1-Sol). — B
+
+332. **De XML-parser van de headless server zoekt bij elk element zonder prefix de hele ouderketen af.**
+    `headless/mcp-server/src/xmlDom.ts:143` roept `namespaceFor('', scope)` aan en gooit het resultaat weg. Bij
+    8.000 niveaus nesting kost parsen circa 499 ms tegen 12 ms op de basis (kwadratische groei). Zeldzame invoer.
+    Voorstel: `namespaceFor` alleen aanroepen als de elementprefix niet leeg is. Gevonden in review r1 van #608
+    (GPT-6.1-Sol). — B
+
+347. **De belasting telt dagdelen van verschillende kalenders op: vier beschikbare uren tellen als een volle dag.**
+    `src/engine/scheduler/ResourceLoad.ts:446` telt per resource de dagdelen van elke taakkalender bij elkaar op;
+    `:468` geeft de resource op een werkdag van haar eigen kalender de volle capaciteit, anders 0. Taak ma 1 juni
+    2026 07:00–15:00, 8 u werk, inzet 1; resource met capaciteit 1 en kalender 07:00–11:00 (240 beschikbare
+    minuten): belasting 1, capaciteit 1, geen overbezetting. Hetzelfde met een gewone kalender en een werkende
+    uitzondering van vier uur op die maandag. Omgekeerd: twee taken op aparte vierurige kalenders (07:00–11:00 en
+    11:00–15:00) op één resource met acht beschikbare uren, zonder overlap: belasting 2, capaciteit 1, onterecht
+    overbezet. Al op `fbd4a3f9d`. Voorstel: vraag en capaciteit per resource per dag in dezelfde maat uitdrukken
+    (werkminuten uit de werkblokken), met behoud van de dagindeling; regel 446 en 468 samen aanpassen. Gevonden in
+    de aanval na #600 (GPT-6.1-Sol). — B
+
+348. **Loslaten van de eerste contour verhuist de tweede contour naar de verkeerde toewijzing.**
+    `src/state/assignmentMutations.ts:248` haalt de contour met `splice` uit de lijst; daarna koppelt
+    `matchContoursToAssignments` (`src/engine/contour/contourEngine.ts:302`) opnieuw alleen op resource-id en
+    volgorde. Eén taak van twee werkdagen met toewijzingen A1 en A2 op dezelfde resource: A1 heeft contour
+    [480, 0] min en 480 min opgeslagen restwerk, A2 [0, 960] en 960 min. Na `setAssignmentContour(A1, null)`
+    krijgt A1 de contour van A2, en A2 valt terug op haar formule. De belasting wordt [1; 3] (32 u) in plaats van
+    [0,5; 2,5] (24 u). Al op `fbd4a3f9d`. Voorstel: de koppeling aan de toewijzing bewaren bij toevoegen,
+    loslaten en verwijderen van een contour, en alle lezers via dezelfde koppelfunctie laten lopen. Gevonden in de
+    aanval na #600 (GPT-6.1-Sol). — B
+
+349. **Twee projectresources op hetzelfde bibliotheekitem worden apart tegen dezelfde vrije capaciteit getoetst.**
+    `src/engine/scheduler/ResourceLeveler.ts:1137` (`fits`) vergelijkt de vraag van elke resource afzonderlijk met
+    de restcapaciteit van het poolitem; de som wordt pas daarna geboekt. Bibliotheekitem P heeft capaciteit 1; de
+    projectresources R1 en R2 (elk capaciteit 1) verwijzen allebei naar P. Eén taak vraagt op ma 1 juni 2026 één
+    eenheid van R1 en één van R2. `computeDistribution` geeft `blocked: null` en geen tekort, terwijl
+    `afterLoadByDay` op die dag 2 telt; het restprofiel wordt op 0 geklemd en verbergt de overschrijding.
+    `librarySlice.linkRecognizedItems` laat twee projectresources aan hetzelfde item koppelen, dus deze invoer kan
+    ontstaan. Al op `fbd4a3f9d`. Voorstel: de kandidaatvraag per bibliotheekitem en werkdag optellen vóór de
+    pooltoets, en die som ook bij onderbrekingen gebruiken (`:1058`); de projecttoets blijft daarnaast nodig.
+    Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
+
+350. **Een tussenstap zonder resource maakt een afhankelijke taak te vroeg plaatsbaar.**
+    `src/engine/scheduler/ResourceLeveler.ts:660` telt een taak zonder vraag meteen als geplaatst; de wachtrij
+    (`:718`) wacht daardoor alleen op actieve voorgangers. Kalender ma–vr 08:00–16:00, capaciteit 1. A → M → B
+    met FS+0, elk één werkdag; A heeft prioriteit 500 en resource R, M heeft geen resource, B prioriteit 1000 en
+    resource R. Pin C bezet R op ma 1 juni 2026; D (prioriteit 400) vraagt R op do 4 juni. A moet naar dinsdag,
+    dus M naar woensdag en B naar donderdag. De nivelleerder boekt B al op woensdag, en D krijgt donderdag. Na
+    toepassen en herberekenen staat B ook op donderdag: het histogram telt daar 2 bij capaciteit 1, en
+    `unresolved` is leeg. Al op `fbd4a3f9d`. Voorstel: een actieve taak pas plaatsbaar maken als ook haar
+    transitieve actieve voorgangers via tussenstappen zonder resource geplaatst zijn, binnen de bestaande
+    plaatsingsvolgorde. Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
+
+370. **Nivelleren van een grote planning is nog 2,8 keer trager dan vóór de urenomzetting.** De a12-planning
+    (2.000 taken, 400 kraantaken) kostte 546 ms op `fbd4a3f9d`, 14.353 ms op `9a636ec69` en 1.539 ms na de fix
+    in #665 (`src/engine/scheduler/ResourceLeveler.ts:309`, `:969`). De kandidaatopbouw per taak is weer
+    lineair; over een rij concurrerende taken blijft de nivelleerder kwadratisch in het aantal kandidaten.
+    Voorstel: meten waar de resterende tijd zit en daar de kalenderwandeling per kandidaat delen. Gevonden in de
+    review van de fix voor aanval a12 (GPT-6.1-Sol). — B
+
+354. **MCP verbergt een minutenlag en de eenheid van een kalendertijdlag.** `src/services/mcp/tools/sequenceFields.ts:89`
+    (`lagLabel`) leest alleen `lagDays` en `lagPercent`. Een relatie met `lagMinutes: 240` toont in
+    `planner_get_task` `lag: ""`; een bestaande kalendertijdlag van 1 d toont `"+1d"`, zonder eenheid.
+    `planner_update_dependencies` met `lag: 2` schrijft alleen `lagDays` (`dependencyTools.ts:351`) en laat
+    `lagUnit: ELAPSEDTIME` staan; de opvolger begint dan ma 8 juni 07:00 in plaats van wo 10 juni. Al op
+    `fbd4a3f9d`. Voorstel: de gedeelde `formatLagShort`/`parseLagInput` uit `src/utils/lagFormat.ts` gebruiken,
+    en bij een nieuwe lag ook de eenheid schrijven. Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
+
+355. **`planner_update_calendar` met `workTime: null` weigert, ook als de kalender dezelfde werkblokken houdt.**
+    `src/services/mcp/tools/calendarResourceTools.ts:940` weigert zodra een urentaak de kalender gebruikt
+    ("cannot remove concrete work blocks"). Op een gelijkwaardige scalaire kalender (07–16, pauze 12–13) blijft
+    dezelfde urentaak gewoon 07:00–11:00. Al op `fbd4a3f9d`. Voorstel: de uiteindelijke kalender toetsen op
+    geldige effectieve werkblokken, niet op de aanwezigheid van `workTime`. Gevonden in de aanval na #600
+    (GPT-6.1-Sol). — B
+
+362. **Een B5-omzetting bij een latere MCP-call staat niet in het antwoord.** Alleen `planner_import_schedule`
+    geeft `minuteModelConversion` mee. Staat de omzetting nog open, dan rekent een volgende leestool
+    (`freshenScheduleForRead`) of muterende tool (de MCP-transactie) om, en `runCPM` meldt dat alleen via het
+    meldingenkanaal (`src/state/slices/scheduleSlice.ts:180`). Probe van de aanval: oud bestand importeren,
+    `planner_undo` (modus "datums zoals opgeslagen", omzetting weer open), dan `planner_batch` met
+    `planner_update_tasks` `duration: 6, durationUnit: "days"`: de taak eindigt di 9 juni 10:12, de omzetting is
+    dicht, en het antwoord noemt haar niet. Hetzelfde geldt voor een slapend hersteld document na
+    `planner_switch_document`. In de modus zegt de envelop wel dat een wijziging herberekent (`scheduleNote`).
+    Voorstel: de omzetting van `runCPM` via de MCP-lease in de envelop zetten, zoals `remainingWorkRecomputed`.
+    Gevonden bij de fix van aanval a10 na #600. — B
+
+363. **De kalenderreparatie bij het openen van een oud bestand bereikt MCP en de kern niet.**
+    `src/state/slices/fileSlice.ts:928` meldt `notifications.minuteModelCalendarRepaired` alleen via het
+    meldingenkanaal: past het einde of de pauze van een kalender niet bij de opgeslagen werktijd, dan herstelt
+    het laadpad de kalender. `planner_import_schedule` en `openIfc` zeggen daar niets over. Nagespeeld in de
+    review van #664: een oud IFC met een scalaire kalender 07–11 en 8 uur per dag wordt bij openen 07–15; de
+    app krijgt de melding, MCP en `openWarnings` melden alleen de taakverschuiving, en de kernexport schrijft
+    de herstelde kalender zonder melding (`src/core/index.ts:88`). Voorstel: dezelfde route als de
+    B5-omzetting: de herstelde kalenders teruggeven uit `applyLoadedProject`, en ze in het importantwoord en
+    in `openWarnings` zetten. Gevonden bij de fix van aanval a10 na #600. — B
+
+368. **De headless HTTP-route met `output=ifc` heeft geen kanaal voor waarschuwingen.**
+    `headless/server/server.mjs:295` geeft bij een oud IFC het omgerekende bestand terug (`TimeModel =
+    MINUTES-1`), zonder waarschuwing in de body of de headers; `output=summary` meldt de B5-omzetting wel.
+    Hetzelfde geldt al voor `XER_ARCHIVE_DROPPED`. Voorstel: een contractkeuze, bijvoorbeeld een
+    gedocumenteerde responseheader met de waarschuwingscodes. Gevonden in de review van de fix voor aanval
+    a10 (GPT-6.1-Sol). — B
+
 ## Bestanden en herstel
 
-35. **Showcase-voorbeelden openen als gewijzigd** (`applyDemoLibraryToShowcaseProject`). — S
 36. **Herstelvenster na een gewone herlaad** in de browser, ook als alles was opgeslagen. — S
-38. **Firefox: *Recent*** opent een lege pagina (de knop staat er wel). — B
 
 97. **De sluitvraag van een tabblad ligt op een vaste z-index 80**, de gewone dialogen op 50/60. Elke vraag die
     vanuit *Opslaan* in die sluitvraag opent, valt eronder en lijkt te hangen. De twee site-dialogen liggen
@@ -241,6 +667,30 @@ en noem het in je rapport of PR-tekst.
     geval 0 keer voor. Gevonden bij de review van #358. Voorstel: een onbekende status behandelen als een lege
     (afleiden uit de voortgang, melding blijft), zoals MPXJ; besluit van de eigenaar nodig. — B
 
+150. **OPS v2026.9.0 maakt van een kalender in een nieuw IFC-bestand een urenkalender zonder werktijd zodra
+    een taak op die kalender een tijd ≠ 07:00 of een `PT`-duur heeft.** Oorzaak: v2026.9.0 leest
+    `WorkingTimes` van `IfcWorkCalendar` op plek 5; sinds #336 staat daar Identification (aanvaard verlies,
+    `docs/ifc-round-trip.md:351-356` en `:436-460`). De geregistreerde werkblokken zijn dan leeg, en de
+    promotie met een tijdsignaal kiest die lege werkblokken (`promoteHourCalendar` met
+    `preferCanonicalWhenEmpty`, `src/services/subdayIo.ts` op tag v2026.9.0). Nagemeten met de lezer en de
+    solver van v2026.9.0 in Node: een bestand van main met een urentaak van 480 min op de standaardkalender
+    geeft `workTime` met lege werkblokken op alle zeven dagen; na doorrekenen heeft de urentaak duur 0
+    (begin en einde do 07:00). Een dagenmaat-taak met een breuk (0,5d) heeft ook een `PT`-duur en
+    valt eronder: in review r1 van #600 nagemeten, 240 min op lege werkblokken, begin en einde 07:00.
+    `docs/ifc-round-trip.md` noemt alleen "werkuren terug naar 07–16"; dit gevolg
+    staat er niet bij. Voorstel: de releasetekst noemt het, naast het aanvaarde verlies van de kalenders.
+    Gevonden bij fixronde 2 van de spec `2026-10-20-alleen-uren-design.md` (§5.4). — B
+
+127. **IFC-tab *Toepassen* wist de bibliotheekkoppeling en zet *Niet opgeslagen* uit.** *Toepassen*
+    (`IFCPanel.tsx:57-62`) roept `loadState` aan zonder `linkedOpen`; `applyLoadedProject` wist dan `companyId`
+    en `companyName` (`fileSlice.ts:797-799`) en `isDirty` wordt `false` (`documentContract.ts:489`). Een
+    gewijzigd project lijkt zo opgeslagen, en sluiten vraagt niets. Nagespeeld met het voorbeeld plus
+    bibliotheek en een gewijzigde taaknaam: vóór `isDirty` true, erna false, `companyName` null, de wijziging
+    blijft aanwezig. Voorstel: `isDirty` laten staan en de koppeling behouden. — B
+128. **CSV: een datum in een onleesbare vorm wordt stil "vandaag".** `csvDateOrToday` valt terug op
+    `localTodayIso()` (`importDates.ts:71-74`, gebruikt door `csvReader.ts:135`). De Help noemt alleen de drie
+    geldige vormen. Of er elders een melding voor komt, is niet nagegaan. Niet nagespeeld. — S
+
 162. **Desktop (Linux/macOS): Opslaan overschrijft een alleen-lezen projectbestand als de map schrijfbaar
     is.** `replaceUserFile` (`atomicWrite.ts`) schrijft een halffabricaat met de rechten van het origineel
     (0444) en hernoemt het over het doel; op POSIX mag dat. Het bestand krijgt de nieuwe inhoud en blijft
@@ -249,21 +699,11 @@ en noem het in je rapport of PR-tekst.
     kenmerk alleen-lezen, dan faalt opslaan wel netjes (zelfde check, §1 en §2). Voorstel: bij een doel zonder
     schrijfbit eerst vragen of melden. Een besluit voor de eigenaar. — B
 
-201. **Het versieloze webherstelmanifest met `docIds` forceert `isDirty=true`.** In
-    `recoveryStore.ts`, `loadWeb`, krijgt de terugvalmetadata voor `docIds` `isDirty: true`;
-    `document.isDirty ?? rec.isDirty ?? true` kiest daardoor die `true`, ook als het oude
-    documentrecord `isDirty: false` bevat. Statisch gezien bij het versiecontract van knownbug 96;
-    de bestaande legacysemantiek is in die fix behouden. Mogelijk verwant aan de herstelmelding
-    van 36, maar niet vastgesteld als dezelfde oorzaak. De bedoeling en runtimegevolgen zijn niet
-    onderzocht. — S
-
-203. **De updater gaat na een afgewezen recovery-flush door naar installatie.** Brononderzoek,
-    niet uitgevoerd: `updaterService.ts`, `downloadAndInstall`, vangt een rejection van
-    `flushRecoveryNow()` op en logt die, zonder de updateroute af te breken. Daarna probeert hij
-    `update.install()` en, als die slaagt, `relaunch()`. De bronroute bestond al vóór fix 96; dit
-    punt zegt niet dat iedere mislukte snapshotwrite als rejection uit de flush komt. Geen
-    runtime-repro of concreet dataverlies vastgesteld; bedoeling en gewenste foutafhandeling
-    niet onderzocht. — S
+329. **Een mislukte opslag in de herstelronde houdt de installatie van een update niet tegen.**
+    `src/hooks/useAutoSave.ts:72`: de geregistreerde herstelronde vangt opslagfouten zelf af en meldt ze, zonder
+    opnieuw te gooien. Zulke fouten bereiken de blokkade van #589 (stoppen als `flushRecoveryNow()` faalt) dus
+    niet. Dit stond al op `main`. Voorstel: de foutafhandeling van de periodieke auto-save scheiden van het
+    resultaat van een expliciete flush vóór installatie. Gevonden in review r1 van #589 (GPT-6.1-Sol). — B
 
 328. **De verliescategorie `criticalSlackLimitDays` is dode code.** `src/services/importTypes.ts:454` en
     `src/state/msProjectImportNotice.ts:22` houden de categorie, maar de importeurs zetten haar sinds de fix van
@@ -271,10 +711,159 @@ en noem het in je rapport of PR-tekst.
     leespad. Voorstel: veld, nulinitialisatie en meldingsregel weg, of het compatibiliteitscontract onderbouwen.
     Gevonden in review r1 van #634 (GPT-6.1-Sol). — B
 
+330. **Een herstelmanifest `documents` zonder `isDirty` markeert een schoon document als gewijzigd.**
+    `src/services/recovery/recoveryStore.ts:1361`: bij een geaccepteerd `documents`-manifest zonder `isDirty`, en
+    `isDirty: false` in het documentrecord, gaf de basis `false` en geeft de nieuwe expressie `true`. Zeldzaam; het
+    document vraagt dan onnodig om opslaan. Voorstel: bij ontbrekende manifestmetadata terugvallen op
+    `rec.isDirty`, vóór de standaardwaarde `true`. Gevonden in review r1 van #599 (GPT-6.1-Sol). — B
+
+274. **Een werkelijk einde om precies 08:00 wordt na import uit P6 XML of MSPDI 16:00.** 08:00 is het
+     anker dat deze formaten schrijven voor een datum zonder tijd (ankerregel I8, spec
+     `2026-10-20-alleen-uren-design.md` §3.10, gepland voor F5b). De lezer kan een echte 08:00 daar niet
+     van onderscheiden. Een dagkalender blijft daardoor scalair, en het werkelijke einde wordt na laden het
+     dageinde 16:00. Gemeten op de eindmijlpaal uit review ronde 3 van PR #559 (`milestone-11.xml`, met een
+     werkelijk einde om 08:00), op alle vier stappen tot en met heropenen. Richting: lees 08:00 alleen als
+     anker in een bestand dat OPS zelf schreef. Fixronde 3 van de F2-laadfix. — B
+
+275. **Eén werkelijke datum met een tijd maakt van een importkalender een urenkalender.** Bij P6 XML en
+     MSPDI telt een werkelijke datum met een eigen tijd mee in de keuze tussen uren en dagen per kalender
+     (`p6xmlReader.ts:873`, `mspdiReader.ts:332`). Daarna leest een andere voltooide taak op die kalender,
+     met `ActualFinish …T08:00` in de bron, als 08:00 in plaats van 16:00. Dat blijft zo tot en met IFC
+     heropenen. Dit is de dubbelzinnigheid van ankerregel I8; een toegestane tussenstand tot F5a/F5b.
+     Richting: onderscheid een synthetisch 08:00-anker van een echte tijd. Zie ook 274. Gevonden in
+     review F2 ronde 4. — B
+
+256. **Een kale start op een letterlijke kalender schuift in de ruwe IFC-rondgang naar 07:00.** Kalender
+     09:00–17:00 met letterlijke tijden. Een planningsstart zonder tijd wordt in de ruwe route
+     `readIFC → writeIFC → readIFC` 07:00, terwijl de laadgrens er 09:00 van maakt. Via de echte laadroute
+     van de app gaat het goed. Locatie: `minuteModelWrite.ts:90` (`literalEndOf` laat een kale start
+     ongemoeid). Richting: maak de invoervoorwaarde van de ruwe writer expliciet (alleen genormaliseerde
+     payloads), of normaliseer ook kale planningsstarts met hun veldregel. Gevonden in review #581 r2
+     (VERVOLG). Het MSPDI-deel (de ruwe export schreef 08:00) is opgelost in F5a-2: `mspdiWriter.ts` geeft
+     zo'n start het begin van de werkdag (`check-uren-f5a2-adapters.ts` (9)). Het IFC-deel staat nog open. — B
+
+290. **Een OPS-tekstveld in MSPDI kan langer worden dan 255 tekens.** De records van F5a-2
+     (`OPS_DayMeasureLags`, `OPS_DayMeasureDurations`, `OPS_ExactMinutes`) staan in de MS Project-velden
+     Text26–Text28 (`mspdiWriter.ts`, `OPS_DAY_MEASURE_*_FIELD_ID`). Een opvolger met veel lags in dagen met een
+     breuk krijgt één JSON-tekst met een record per relatie (ongeveer 15–25 tekens per record). MS Project
+     beperkt een tekstveld tot 255 tekens. Wat MS Project bij eigen opslaan met een langere waarde doet
+     (afkappen, weigeren), is niet getoetst: geen MS Project op deze machine. Een afgekapte JSON leest OPS
+     als geen record, dus als urenmaat met dezelfde lengte. Gevonden bij F5a-2.
+     Concreter (aanval na #600, GPT-6.1-Sol): op een 8-uurskalender met per voorganger een FS-lag van 0,5 d
+     heeft Text26 bij 14 voorgangers 244 tekens, bij 15 262 en bij 16 280. De writer schrijft de hele JSON
+     zonder lengtegrens (`mspdiWriter.ts:669`, `xmlDayMeasure.ts:160-162`). Afgekapt op 255 tekens is de
+     JSON ongeldig en komen alle 15 relaties terug als 240 minuten (gesimuleerd, logregel in
+     `/tmp/aanval/a06-controles-voorbeeld.log`; het bestand `/tmp/aanval/a06-afgekapt-255.xml` is het geval met
+     16 voorgangers; niet bewezen dat MS Project zelf afkapt). Richting: controleer de
+     veldlengte vóór het schrijven en maak het maatverlies expliciet; toets met echt opslaan in MS Project.
+     Sinds #658 kan een record een ongeronde dagwaarde dragen (`recordDayValue`, `dayMeasureIo.ts:83`); dat maakt
+     Text26 sneller te lang: acht voorgangers met FS +5/6 d op 465 min per dag geven 257 tekens (177 op
+     `9a636ec69`), acht keer −1/6 d 273 tekens. Gesimuleerd afkappen maakt alle acht records ongeldig; de lezer
+     valt terug op acht lags van 388 minuten. — S
+
+291. **P6 XML rondt begin en einde van een dagkalender met één blok af op het hele uur.** Een dagkalender
+     07:30–15:30 (8 u, één blok) komt na `writeP6XML → readP6XML` terug als 07:00–15:00. MSPDI houdt
+     07:30–15:30. Locatie: `p6xmlReader.ts:273-274` (`parseP6StandardWorkWeek`, `Math.floor` op de uren).
+     Een dagkalender met pauze (twee blokken) uit een OPS-bestand leest sinds F5a-2 wel op de minuut
+     (`registerP6Bands`). Nagespeeld met een probe bij F5a-2. Richting: begin en einde op de minuut, zoals
+     `applyCalendarBody` in de MSPDI-lezer. — B
+
+293. **De P6 XML-lezer deelt duur en rest twee keer door de uren per dag.** `p6xmlReader.ts:1070` en `:1072`
+     geven `durationDays`/`remainingDays` mee via `p6HoursToDays` (`:179`), terwijl `readMeasure`
+     (`xmlDayMeasure.ts`) dezelfde deling al doet met `minutesPerDay` (dezelfde uren per dag, met dezelfde
+     terugval op 8). De uitkomst is gelijk, op een mogelijk verschil in de laatste decimaal na
+     (`uren ÷ u` tegen `uren × 60 ÷ (u × 60)`, niet gemeten); het is dubbele code. Richting: de helper en de twee
+     argumentregels weghalen (ongeveer 6 regels). Gevonden in review #585 r1 (Sol, VERVOLG). — B
+
+295. **De IFC-lezer neemt een dagenrecord over na een kalenderwissel.** `ifcReader.ts:1590` accepteert het
+     duurrecord `DayMeasureDurations` alleen als de slotminuten nog overeenkomen; bij de rest gebeurt
+     hetzelfde. Wijzigt een ander programma alleen de kalendertoewijzing naar een aanwezige kalender van 10 u,
+     dan komen 2,5 d en 1,5 d terug, en wordt 20 u / 12 u bij opnieuw opslaan 25 u / 15 u. Dezelfde fout zat in
+     MSPDI en P6 XML en is daar in #585 gerepareerd (review r1, punt 2). Ook op basis `a6f9e2b1b`, dus hij
+     hoort bij F3c. Richting: controleer de huidige kalender en het duurtype voordat een dagenrecord terugkomt,
+     zoals `dayRecordFits`/`contextLost` in `xmlDayMeasure.ts`; anders de urenmaat voor duur en rest.
+     Nagespeeld door de reviewer van #585 r2 (Sol, VERVOLG). — B
+
+296. **De exportmeldingen zeggen dat de lagkalender verloren gaat, terwijl OPS hem bewaart.**
+     `mspdiWriter.ts:503` meldt "scheduling-opties lagCalendar niet native uitdrukbaar — weggelaten, alleen via
+     IFC OPS_SchedulingOptions" (de lijst komt uit `:479`). `p6xmlWriter.ts:304` meldt "scheduling-opties niet
+     geëxporteerd". Sinds #585 schrijven beide writers `OPS_LagCalendar`, en `successor` komt bij heropenen in
+     OPS goed terug. MS Project en P6 kennen de optie zelf niet. Richting: een melding die beide zegt: het
+     andere programma rekent er niet mee, OPS bewaart hem wel. Gezien door de reviewer van #585 r2 (Sol,
+     VERVOLG). — B
+
+335. **Een P6 XML- of MSPDI-export uit het minutenmodel komt terug met een urenkalender.** Gemeten met
+     `03-kantoorgebouw-zuidas.ifc`, het oude en het opnieuw gegenereerde bestand: openen in de store,
+     `writeP6XML`/`writeMSPDI` met de store-stand, terug inlezen. De projectkalender heeft dan `workTime` met twee
+     blokken per werkdag (07:00–12:00 en 13:00–16:00). Op `main` bleef dat een dagkalender zonder `workTime`
+     (de dagbestand-discriminator in `check-adapters-hours.ts`). Oorzaak: in de store is elke datum een moment
+     (07:00, 16:00), en dat is tijdsignaal (c) van de importdiscriminator (`subdayIo.ts:14-22`). De taken blijven
+     dagenmaat en het bladschema blijft gelijk; alleen de vorm van de kalender verandert. De check leest sinds
+     PR #600 het oude bestand uit `tests/planning/fixtures/minute-model-examples-f0/` en ziet dit dus niet. Of dit
+     een fout is, is niet beoordeeld. Zie ook 275. Gevonden bij het opnieuw genereren van de voorbeelden. — B
+
+336. **Het bronbestand van een externe koppeling wordt zonder laadgrens gelezen.** `parseExternalSource`
+     (`fileSlice.ts:1385`) leest het bestand met de kale `readIFC`; het anker is dan een datum zonder tijd, en de
+     eigenaar normaliseert die naar de kant van de relatie (`externalAnchorField`, `minuteModel.ts:159`). Twee
+     gevolgen, gemeten met een script op `examples/showcase-groot-terrein-onderaannemer.ifc`:
+     (1) een mijlpaal heeft in de geopende bron één moment (D7), maar het anker valt aan de andere kant van de
+     dag: FS naar de startmijlpaal *Start of subcontractor site works* geeft `2027-03-01T16:00` (bron 07:00), SS
+     naar de eindmijlpaal *Site ready for main contractor paving* geeft `2027-04-06T07:00` (bron 16:00); gewone
+     taken en FS naar een eindmijlpaal kloppen. (2) `refreshExternalAnchors` vergelijkt het opgeslagen moment
+     `2027-04-06T16:00` met de kale `2027-04-06` en meldt `changed` bij een koppeling die al actueel is; dan maakt
+     `refreshExternalAnchorsFrom` een undo-stap en rekent opnieuw (vergelijk 241). Niet in de app-dialoog
+     nagespeeld (Tauri-route). Richting: lees de bron via de laadgrens, zoals `loadState`. Gevonden bij het
+     opnieuw genereren van de voorbeelden (PR #600). — B
+
+337. **De urentaken in De Vaart duren 5 werkdagen in plaats van 4 tot 8 uur.** `scripts/showcase-groot.ts:160-171`
+     geeft vlechtwerk en stort per toren `durMinutes` (480, 360, 480, 240) op de uurkalender. `gen-core.ts:193` zet
+     alleen `time.durationMinutes`; de taak blijft dagenmaat met de standaardduur 5 (`dur ?? 5`). Gemeten met een
+     script in het oude bestand (`tests/planning/fixtures/minute-model-examples-f0/`) en in het nieuwe:
+     *Rebar fixing, basement floor — Tower A* loopt van 13 mei 07:00 tot 20 mei 15:00 (5 werkdagen). De belofte
+     "sub-dag, zichtbaar aan een balk die niet op een hele dag valt" (`showcase-groot.ts:159-160`) klopt dus niet.
+     Richting: `durationUnit: 'hours'` zetten als `durMinutes` er is; dat verschuift wel de hele planning van
+     De Vaart en de getallen in de gidsen. Gevonden bij het opnieuw genereren van de voorbeelden (PR #600). — B
+
+340. **Na omzetten, Ctrl+Z en crashherstel verdwijnt de modus "Datums zoals opgeslagen".** Een oud bestand wordt
+     bij openen omgezet (B5); Ctrl+Z zet de opgeslagen datums terug met `datesAsRecorded: true`. Crashherstel
+     (`restoreDocuments`) weigert daarna de vóór-toestand: B5 maakt die met `origin: 'ifc-own'` zonder
+     `sourceFormat` (`src/state/minuteModelTransition.ts:65`), en de herstelroute weigert juist die combinatie
+     vóór ze de herstelvlag toepast (`src/state/documentActivation.ts:358`, `:378`). Een actief document krijgt
+     weer de omgerekende datums; een slapend document komt zonder modus en verouderd terug. Geen onherstelbaar
+     verlies aangetoond (het omzet-event kan opnieuw met undo terug). Voorstel: bij expliciet herstel van de modus
+     de IFC-vastlegging toelaten zonder verplicht bronformaat; actief en slapend herstel toetsen. Gevonden in de
+     aanval na #600 (GPT-6.1-Sol). — B
+
+356. **Een hammock houdt in "Datums zoals opgeslagen" de nulduur van de verworpen berekening.** Hammock B met
+     opgeslagen datums 16–20 maart en duur 5 dagen: de verworpen berekening schrijft duur 0
+     (`writeDerivedSpan`, `src/engine/scheduler/CPMSolver.ts:2106`); de modus zet de datums terug, maar laat
+     `scheduleDuration: 0` en `durationMinutes: 0` staan (`src/engine/scheduler/recordedDates.ts:520`).
+     Opnieuw opslaan bewaart die nulduur. Al zo op `9a636ec69`. Voorstel: bij het verwerpen van de solve ook de
+     bronduur en duurmaat van hammocks vastleggen en terugzetten. Gevonden in de review van de fix voor aanval
+     a05 (GPT-6.1-Sol). — B
+
+357. **De IFC-lezer leidt de rest van een lopende dagenmaat-taak opnieuw af uit het percentage.**
+     `ifcReader.ts:1600` zet de rest uit het record, maar `normalizeImportedProgress` (`ifcReader.ts:369`, via
+     `applyRemainingDuration` en `exactWorkdays`, `taskMutationRules.ts:199`, `:215`) overschrijft die met
+     duur × (1 − completion) op 15 cijfers. Kalender ma–do 07:00–14:45 (465 min), vr 07:00–12:00; taak C: 3 d,
+     rest 5/6 d, completion 13/18. De eerste export schrijft `RemainingTime` `PT6H28M0S` met het record; na
+     inlezen is de rest 0,833333333333333 d, en een tweede export schrijft `PT6H27M0S`. MSPDI en P6 XML
+     beschermen de rest met `normalizeKeepingDayRest` (`xmlDayMeasure.ts`); de IFC-lezer niet. Al op
+     `9a636ec69`. De duur en de lags drijven sinds PR #658 niet meer (`recordDayValue`). Voorstel: roep
+     `normalizeImportedProgress` in de IFC-lezer aan via `normalizeKeepingDayRest`, zoals de XML-lezers.
+     Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
+
+372. **Een kalendertijdtaak met een breuk in dagen verliest bij heropenen uit MSPDI een minuut.** ELAPSEDTIME-taak
+     5/6 ed vanaf 1 juni 2026 07:00: vóór export eindigt ze 2 juni 03:00, na heropenen en doorrekenen 02:59. Het
+     record houdt zes decimalen, omdat 5/6 en 0,833333 allebei afgerond 1200 minuten geven; de solver telt
+     daarna de onafgeronde klokminuten op en de formatter snijdt de seconden af
+     (`src/services/xmlDayMeasure.ts:82`, `src/engine/scheduler/duration.ts:182`, `:188`,
+     `src/utils/dateUtils.ts:119`). Ook gezien met werkkalenders van 465 en 525 minuten; al zo op `9a636ec69`.
+     Voorstel: de afgesproken minuutgrens respecteren bij het omzetten naar klokminuten. Gevonden in de review
+     van de fix voor aanval a06 (GPT-6.1-Sol). — B
+
 ## Rondleiding, Help en extensie-gidsen
 
-62. **Melding schuift over de knoppen van het begeleidingspaneel** (1600×950, venster Baselines open):
-    `toastPlacement.ts` houdt geen rekening met het paneel. — B (gezien), oorzaak afgeleid
 68. **Een gidsstap die eenmaal "gedaan" is, blijft gedaan**, ook na wisselen naar een leeg project. Gezien bij
     tutorial 6 stap 8; niet uitgezocht of dat bedoeld is. — S
 265. **Commentaar noemt een ingang die het welkomstvenster opnieuw toont, maar die bestaat niet.**
@@ -294,7 +883,6 @@ en noem het in je rapport of PR-tekst.
     Portugese taalvariant zijn niet gecontroleerd. Onderzoek die eerst voordat het meervoudscontract
     of de vertaling wordt aangepast. Gemeld bij `ui-common-01`, niet als releaseblokker aangetoond. — S
 
-57. **Statusdatum-label in de Gantt** toont ISO (`2027-06-28`), de rest dd-mm-jjjj. Mogelijk bewust. — S
 73. **Namen en beschrijvingen van de voorbeeldprojecten zijn Engels in elke interfacetaal.** Gezien in de
     nl-interface bij *Bestand › Voorbeelden*; de Help-artikelen noemen daarom de Engelse namen. Niet
     nagegaan of dat voor alle voorbeelden geldt. Voorstel: bewust laten, of per taal vertalen. — B
@@ -308,6 +896,16 @@ en noem het in je rapport of PR-tekst.
     koppen in die talen, en de Help-artikelen die ze citeren mee. — B
 
 
+240. **De tutorialteksten in de extensie en de schermbeelden van de gidsen hebben nog oude getallen.**
+     F4b werkte de gidsen in deze repo bij met gemeten getallen (`uitleg-nivelleren`, `uitleg-werkregels`,
+     `howto-werkregel-kiezen`, `uitleg-kalenders`, `uitleg-voortgang`, `howto-voortgang-bijwerken`,
+     `ref-ai-tools`; gepind in `check-docs-resources-voorbeelden.ts`, de reeks "F4b-gidsgetallen") en het
+     getallenblok bovenin `scripts/tutorial-project.ts`. Niet bijgewerkt en niet nagelezen: de verhalende
+     tutorialteksten in `open-planner-studio-extensions` (buiten deze repo) en de schermbeelden
+     (`gen:docs-screenshots`). Het oude getallenblok, waaruit die teksten komen, noemde nog "5 wd
+     overbezet (29 jun – 5 jul)"; de app meldt nu 6 dagen, 28 juni t/m 5 juli. De tutorialstappen in
+     `tests/browser/tutorials/` zijn groen. Voorstel: de extensieteksten nalezen tegen het nieuwe
+     getallenblok. — S
 205. **Termbase kent nog het begrip *AI-assistent*.** `i18n/termbase/concepts.json` (`ai-assistant`, ook in
    `read-only`) en de doeltalen. De UI zegt nu *MCP-client*. Voorstel: het begrip omzetten via de
    vertaalstraat (`concepts-merge`, `apply-terms`) vóór de volgende release. — B
@@ -320,6 +918,22 @@ en noem het in je rapport of PR-tekst.
     (GPT-6.1-Sol). — B
 
 ## Tests
+
+313. **De bulkprestatiepoort kan in een volledige run falen terwijl beide gerichte controles slagen.**
+    Tijdens een volledige corpusloze F1b-suite die deels met andere controles overlapte, meet `check-bulk-scale.ts`
+    17.188 ms voor voortgang op 2000 van 8000 taken, bij de vaste grens van 15.000 ms.
+    De gerichte controle op de schone basis 12abaabf2 slaagt met 6402 ms, en op dezelfde
+    F1b-bron met 5793 ms (beide 23/23, exit 0). Een eerdere volledige F1b-run haalde 13.126 ms.
+    De laatste volledige run zonder die overlap haalt 8833 ms en eindigt groen (exit 0).
+    De wisselende tijdmeting is bevestigd; oorzaak niet vastgesteld en geen grens verruimd. — B
+
+314. **De plakprestatiepoort kan op deze server ook zonder F1b de vaste grens overschrijden.**
+    `check-task-grid-paste-performance.ts` meet op Node 22.23.4 in een schone kopie van
+    12abaabf2 een mediaan van 3942,1 ms bij de onveranderde grens van 3000 ms (exit 1).
+    Dezelfde gerichte meting op F1b geeft 4388,7 ms (exit 1); de eerdere volledige run
+    gaf 3894,5 ms. In een volledige run haalt F1b 2804,2 ms (groen). De wisselende
+    metingen zijn bevestigd; een oorzaak of regressiegrootte volgt niet uit deze timing. Geen prestatiegrens verruimd en geen productfix buiten F1. — B
+
 
 79. **`check-task-grid-performance` (relationIndex-mediaan ≤ 500 ms) zit lokaal op het randje.** Los gedraaid
     496–499 ms (5-10-2026); rood (535–790 ms) in `npm run verify` zodra de container druk is (meerdere agents
@@ -361,29 +975,65 @@ en noem het in je rapport of PR-tekst.
     `gh api --method PATCH repos/OpenAEC-Foundation/open-planner-studio/pulls/479 -F body=@<bestand>`.
     Voorstel: de GitHub CLI op de host bijwerken; de repo zelf is niet aangepast hiervoor. — B
 
-208. **`scripts/build-core.mjs` bouwt de licentiegegevens onnodig om.** `scripts/build-core.mjs:138–148` zet
-    de pakketnamen om in een `Map` en de sectietekst in een array met één element; `notices.packages.join(',
-    ')` en `notices.sections` volstaan. Gevonden in review ronde 1 van PR #567 (GPT-6.1-Sol). — B
+149. **`check-reports.ts` (`monthLabel`) hangt af van de taalinstelling van de machine.** Rood als de machine in
+     de systeemtaal nl_NL draait, groen met `LANG=en_US.UTF-8`. Gemeld door de coördinator op 2026-10-20; niet
+     door deze agent nagespeeld. — S
+
+151. **De feedbacktests in de browsersuite falen in CI wisselvallig met "Maximum update depth exceeded".** Gezien
+     in de job `verify (browser 2-4)`: op PR #402 vier tests in `tests/browser/feedback-venster.spec.ts`; op `main`
+     `e98b83e48` (#395, run 39410998771) acht tests in `tests/browser/feedback-studio.spec.ts`; ook op de branch
+     `claude/uren-zonder-spatie`. Per run falen andere feedbacktests, en een herhaling van de job wordt groen.
+     Gemeld door de bouwer van #402 via de coördinator (2026-10-20); niet lokaal gedraaid en niet door deze agent
+     nagespeeld. PR #404 (gemerged in `main` op 2026-10-20) haalt volgens zijn beschrijving de oorzaak weg in
+     `FeedbackDialog.tsx`. Een branch zonder #404 kan de fout nog geven. Weghalen als de CI op branches met #404
+     groen blijft. — S
+
+237. **De browsertest voor curves met het toetsenbord is wisselvallig.**
+     `tests/browser/assignments-block.spec.ts:235` ("Expected UNIFORM, Received BELL", time-out
+     5000 ms). Hij faalde eenmaal in CI op #564 (`cb65c59cd`) en slaagde bij een herhaling
+     zonder wijziging. — S
+
+238. **`npm run i18n:resolve` stopt met exit 1 bij een merge met twee merge-bases.**
+     Dat gebeurde in F2-bouwronde 2. Een controle van beide bases gaf voor 127.519 sleutels
+     dezelfde samenvoeging, en `verify:i18n` gaf exit 0. Het script meldt dus een fout waar
+     geen fout is. Voorstel: gelijke resultaten vanaf beide bases als eenduidig accepteren. — S
+
+282. **`check-reports.ts` hangt af van de taal van het systeem.** De regel "monthLabel: onbekende locale
+     valt terug op Engels" verwacht "Sep 2026", maar met `LANG=nl_NL.UTF-8` geeft Node "sep 2026" (de
+     onbekende locale valt terug op de systeemtaal, niet op Engels). Met `LANG=C.UTF-8` is de batterij groen.
+     Gezien op aia09-mp50 bij F4b; de CI draait met een Engelse locale en ziet het niet. Voorstel: in
+     `monthLabel` expliciet terugvallen op `en` als `Intl` de locale niet kent, of de toets de locale laten
+     vastzetten. — B
+
+285. **`hour-data-notice-document.spec.ts` is wisselvallig: na `page.reload()` komt het welkomstvenster
+     over het paneel.** De test herlaadt de pagina per voorkeur (aan, uit), maar wacht daarna niet op het
+     welkomstvenster en sluit het niet, zoals de fixture bij de start doet (`waitForWelcomeDialog`,
+     `fixtures/ops.ts:88`). Komt het venster net na `fill('6h')`, dan gaat Enter niet naar het duurveld:
+     "minutes 240, verwacht 360". Gezien in CI op #584 (`293acf1c9`, shard 1); de error-context toont
+     "Welcome to Open Planner Studio" open en het duurveld op "4". Lokaal 5 van 5 groen. Voorstel: na de
+     reload `waitForWelcomeDialog` en `setUI({ showWelcomeDialog: false })`, zoals de fixture. — B
+
+264. **De browsertest "Gantt-balk vertical slepen landt in RTL op dezelfde plek als een rijsleep" is
+     wisselvallig.** `tests/browser/gantt-drag-undo.spec.ts:273`. De rijsleep en de undo slagen, maar na de
+     balksleep blijft de volgorde die van vóór de sleep: de eerste taak staat nog bovenaan ("Timeout 5000ms
+     exceeded", regel 314). Eenmaal gezien in CI op #584 (`2acc895fc`, job "verify (browser 3-4)",
+     2026-10-24). Een herhaling van de job zonder wijziging was groen, en lokaal 3 van 3 groen. De oorzaak
+     is niet onderzocht. F4b wijzigt `useBarDrag.ts` (maat en afronding van de datumsleep), niet de
+     keuze voor de rijsleep: `handleMouseMove` (`useBarDrag.ts:528-545`) is gelijk aan de basis (review r4
+     van #584, nagelezen). Een verband is niet aangetoond. Voorstel: gericht herhalen met een trace. — S
+
+294. **De browsertest voor speling in de Gantt-tooltip is wisselvallig.**
+     `tests/browser/float-remaining-display.spec.ts:89` ("Expected pattern /^0[.,]67d$/, Received "1d"",
+     time-out 5000 ms). Hij faalde eenmaal in CI op #585 (`c354d1e41`, run 40051700758, browser 3-4), en
+     slaagde bij een herhaling zonder wijziging en lokaal drie keer (`--repeat-each=3`). De commit veranderde
+     alleen MSPDI- en P6 XML-code, die de test niet raakt. Vermoeden, niet onderzocht: de tooltip toont nog de
+     waarde 1 uit de lus ervoor (1,004 ⇒ "1"), van vóór de herberekening met F5. — S
 
 212. **Real-app-test van de MCP-ontdekking mist echte bestandsroutes.**
     De pids van `runtime` en `open-files` worden inmiddels rechtstreeks vergeleken. Echte openen-,
     Opslaan als- en afsluitroutes ontbreken nog (de storetest zet `filePath` rechtstreeks).
     Gevonden in review ronde 1 en 2 van PR #573 (GPT-6.1-Sol). Resterend: de bestaande echte-app-route
     uitbreiden met echte bestandsacties, inhoud en opruiming. — B
-
-222. **Browsertest voor geweigerde mijlpalen vergelijkt alleen de taak-ID’s van toewijzingen.**
-    De helper `assignmentTaskIds` en de eindassertie in `tests/browser/structural-transition.spec.ts`
-    controleren geen `resourceId` of `units`. Een wijziging in die velden met dezelfde taakverdeling
-    blijft daardoor onopgemerkt. Bevestigd door de onafhankelijke reviews van PR #604; dit is een
-    bestaande blinde vlek in de test, geen aangetoonde productfout. Voorstel: vergelijk de toewijzingen
-    vóór en na de geweigerde browserhandeling. — B
-
-223. **Telling in de Chinese bulk-toast wordt alleen als deeltekst gecontroleerd.**
-    `tests/browser/structural-transition.spec.ts:80` zoekt met `toContainText` naar `2 个任务…`.
-    Een melding met `12 个任务…` of `22 个任务…` bevat dezelfde deeltekst. Dit gold ook voor de oude
-    letterlijke verwachting. Bevestigd in de tweede onafhankelijke review van PR #604. Voorstel:
-    vergelijk de volledige tekst van `.ops-toast-message` exact; laat de taaknamen apart gecontroleerd.
-    Geen fout in de huidige producttelling aangetoond. — B
 
 224. **RTL-balksleeptest faalt incidenteel zonder aangetoonde oorzaak.** In PR #635 op
     `3ca78f26234ddfed8e6fd4341a8f9e0ee44ec66a`, run 40157918525 poging 1, bleef bij
@@ -404,9 +1054,35 @@ en noem het in je rapport of PR-tekst.
     sinds de vorige controle geen nieuwe asynchrone onderbreking. Voorstel: de 404-route in de test, en de twee
     regels weg. Gevonden in review r1 van #603 (GPT-6.1-Sol). — B
 
+325. **Zes browserroutes toetsen geen smal scherm meer.** Sinds de standaardtakenlijst 400 px breed is, zetten zes
+    specs het venster op 1600×900, onder meer `tests/browser/duration-display.spec.ts:5`. De handelingen en
+    controles blijven, maar de smallere beginstand wordt niet meer bewaakt. Geen productfout op die breedte
+    aangetoond. Voorstel: één gerichte interactieroute op een smaller scherm houden. Gevonden in review r1 van
+    #627 (GPT-6.1-Sol). — B
+
+326. **De controle bij het annuleren van een faseovergang vergelijkt toewijzingen alleen op id.**
+    `tests/browser/structural-transition.spec.ts:113` vergelijkt toewijzingen als `[id, taskId]`. Een gewijzigde
+    resource of inzet glipt daar doorheen. Dit stond al op `main`. Voorstel: daar ook de volledige
+    toewijzingswaarden vergelijken, zoals de mijlpaalroute nu doet. Gevonden in review r1 van #622
+    (GPT-6.1-Sol). — B
+
+334. **`tests/browser/assignments-block.spec.ts:235` faalt soms in CI.** De test verwachtte `UNIFORM` en kreeg `BELL`,
+    na een time-out van 5 s, in run 40286556225 (job `verify (browser 2-4)`) op PR #595, die alleen de herstelspec
+    wijzigt. Dezelfde test slaagt lokaal op die head, en de herhaalde poging liep apart. De oorzaak is niet
+    bewezen. Gevonden in fixronde 1 en review r2 van #595 (GPT-6.1-Sol). — S
+
+310. **De formaatvergelijking in de headless-servertest ziet een verschuiving binnen een dag niet.**
+     `tests/mcp/cases-headless-server.ts:483` (`leafSchedule`) vergelijkt per bladtaak alleen de startdatum
+     op dagniveau (`.slice(0, 10)`). Eindmomenten, de maat en exacte minuten vergelijkt de test niet, dus
+     een verschuiving van 08:36 naar 16:00 op dezelfde dag valt niet op. Verder kan de extra `runCPM()` op
+     r.498 een fout laadpad repareren voordat de vergelijking begint. Richting: volledige begin- en
+     eindmomenten vergelijken, een fixture met de nieuwe maatrecords gebruiken, en `runCPM()` vervangen
+     door een assert dat het openen al een verse, berekende stand geeft. Gevonden in review ronde 1 van
+     PR #590 (GPT-6.1-Sol, VERVOLG). — B
+
 ## Wensen en open taken (geen bug)
 
-45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen en de selectie niet lezen.
+45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
     `updateSequence`/`updateCalendar` zou de tutorials eenvoudiger maken. Ook een alleen-lezen
     `api.settings.getApp(key)`: tutorial 4 leest nu `localStorage['ops-enableHourPlanning']`. — B
 49. **Release-notes, volgende release**: een nieuw MS Project-project rekent de speling nu *Automatisch*
