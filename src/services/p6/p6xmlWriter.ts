@@ -107,9 +107,12 @@ export const OPS_DESCRIPTION_TOPIC_NAME = 'OPS Description';
 const OPS_DESCRIPTION_TOPIC_OBJECT_ID = 900000002;
 
 /** Status zoals P6 hem leest: in lijn met voortgang en actuals (in OPS kan `task.status` achterlopen
- *  op een gewijzigd percentage; P6 laat de status leiden). */
+ *  op een gewijzigd percentage; P6 laat de status leiden). Een taak die nog loopt op 100 % (`STARTED`
+ *  zonder werkelijk einde, zoals de IFC-writer haar herkent) blijft `In Progress`: P6 plant haar rest nog
+ *  in (knownbug 114). Met `Completed` zag P6 haar als klaar. */
 function taskStatusToP6(task: Task): string {
-  if (task.status === 'COMPLETED' || task.time.actualFinish || task.time.completion >= 1) return 'Completed';
+  const runningAtFull = task.status === 'STARTED' && !task.time.actualFinish;
+  if (task.status === 'COMPLETED' || task.time.actualFinish || (task.time.completion >= 1 && !runningAtFull)) return 'Completed';
   if (task.status === 'STARTED' || task.time.actualStart || task.time.completion > 0) return 'In Progress';
   return 'Not Started';
 }

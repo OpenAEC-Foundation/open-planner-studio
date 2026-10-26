@@ -73,6 +73,7 @@ import { mspCodeToConstraint } from '@/services/msproject/mspdiReader';
 import { statusDateFromXml, toXmlDateTime } from '@/services/xmlInterchange';
 import { hasNonAnchorTime, isSubDayMinutes, milestoneKindAt } from '@/services/subdayIo';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { exactWorkdays } from '@/engine/taskMutationRules';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { CfbFile } from './cfb';
 import { assertReadable, detectApplicationVersion, Props } from './mppContainer';
@@ -407,7 +408,7 @@ export interface RawTaskScan {
   /** Rauwe REMAINING_DURATION (tienden van een minuut, zelfde eenheid + eenhedenbron als
    *  `durationRaw`). `null` als het veld ontbreekt of het record te kort is — Fase C laat
    *  `remainingMinutes`/`remainingTime` dan ongezet; `normalizeImportedProgress` leidt ze bij een
-   *  taak met voortgang af uit `completion`. */
+   *  taak met voortgang af uit `completion`. Aanwezig ⇒ die bronrest blijft staan. */
   remainingDurationRaw: number | null;
   /** Rauwe LEVELING_DELAY (tienden van een minuut), geklemd (`clampLevelingDelayTenths`, limits.ts)
    *  omdat Fase C hem als duur decodeert (`Task.levelingDelayMinutes`). `0` als het veld ontbreekt. */
@@ -704,6 +705,10 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
   const records: RawTaskRecord[] = [];
   /** "Datums zoals opgeslagen" — per taak-id MSP's eigen rekenuitvoer (zie `TaskFieldId.EarlyStart`). */
   const recordedTimes: Record<string, RecordedTime> = {};
+  // Taken die nog lopen: geen werkelijk einde en een rest groter dan 0. MS Project zet een werkelijk einde
+  // zodra een taak klaar is; op 100 % is het hele percentage dan afgerond. Zie `runningAtFullIds` in
+  // `normalizeImportedProgress`: alleen op 100 % zonder werkelijk einde telt de set (zoals MSPDI).
+  const runningAtFullIds = new Set<string>();
   for (const raw of raws) {
     const cal = raw.effCal;
     const isHour = hourModeCals.has(cal);
@@ -729,15 +734,17 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
     // `duration`. `null` ⇒ beide ongezet en de solver leidt de rest af uit `completion`. Waarom:
     // MSP's eigen restduur is exact (4 werkdagen = 1920 min), terwijl `completion` afgerond is
     // opgeslagen (33% i.p.v. 33,33…%) — de afleiding zou op een klokstand landen die MSP nooit toont.
-    // In DAG-modus overschrijft `normalizeImportedProgress` `remainingTime` alsnog met de afgeleide
-    // waarde; `remainingMinutes` (UUR-modus) laat hij staan.
+    // `normalizeImportedProgress` laat beide staan: `remainingMinutes` (UUR-modus) en de dagenrest van
+    // een lopende taak (DAG-modus; 4 d bij 33 % van 6 d blijft 4 d, niet 4,02 d).
+    // De dagenrest is exact, niet afgerond zoals de duur (`tenthsOfMinutesToDays`): de rest is geen
+    // signaal voor de uurmodus, dus een dagtaak van 6 d op 75 % draagt hier 1,5 d, en die blijft staan.
     const remainingMinutes = isHour && raw.remainingDurationRaw !== null
       ? Math.round(raw.remainingDurationRaw / 10)
       : undefined;
     const remainingTime = !isHour && raw.remainingDurationRaw !== null
       ? (raw.isElapsedDuration
         ? raw.remainingDurationRaw / (24 * 60 * 10)
-        : tenthsOfMinutesToDays(raw.remainingDurationRaw, hoursPerDay))
+        : hoursPerDay > 0 ? exactWorkdays(raw.remainingDurationRaw / 10 / (hoursPerDay * 60)) : 0)
       : undefined;
 
     const formatField = (ts: Date | null): string | undefined =>
@@ -847,6 +854,7 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
     if (!resolvedStartTs) missingDates.start.add(task.id);
     if (!resolvedFinishTs) missingDates.finish.add(task.id);
     records.push({ uniqueId: raw.uniqueId, id: raw.id, outlineLevel: raw.outlineLevel, storedWbs: raw.storedWbs, task });
+    if (raw.actualFinishTs === null && (raw.remainingDurationRaw ?? 0) > 0) runningAtFullIds.add(task.id);
     taskIdByUniqueId.set(raw.uniqueId, task.id);
     taskHourById.set(task.id, isHour);
 
@@ -893,7 +901,7 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
   // taakstart), finish ⇒ start + duur op de eigen kalender van de taak waar eenduidig.
   const startAnchor = resolveMissingScheduleDates(tasks, missingDates, ctx.projectStart ?? '',
     (task) => taskCalendar(task, calResult));
-  normalizeImportedProgress(tasks, statusDate);
+  normalizeImportedProgress(tasks, statusDate, runningAtFullIds);
   deriveImportedWorkRules(tasks); // werkregel uit mspTaskType/effortDriven
   return {
     tasks, taskIdByUniqueId, taskHourById, startAnchor, recordedTimes,

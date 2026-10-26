@@ -860,6 +860,50 @@ en noem het in je rapport of PR-tekst.
      de IFC-vastlegging toelaten zonder verplicht bronformaat; actief en slapend herstel toetsen. Gevonden in de
      aanval na #600 (GPT-6.1-Sol). — B
 
+351. **De MPP-lezer rondt een werk-lag naar een dagopvolger en een lag in verstreken dagen af op hele dagen.**
+     `src/services/mpp/mppEntities.ts:114` rekent een werk-lag naar een dagopvolger om met
+     `tenthsOfMinutesToDays` (`Math.round`); `:109` rondt een lag in verstreken dagen af met `Math.round`.
+     Gemeten met de echte `readRelations` op kleine TBkndCons-records: +1800 tienden van een minuut (3 u) naar een
+     dagopvolger wordt `lagDays: 0`, en −1800 ook: de lead verdwijnt. Naar een uuropvolger blijft het +180 en
+     −180 minuten. Een lag in verstreken dagen van 21600 tienden (36 u) wordt 2 kalenderdagen (48 u), ook naar een
+     uuropvolger. Al op `fbd4a3f9d`; hoort bij F5b. Voorstel: de minutenroute (`lagMinutes`) voor elke lag die
+     geen procent is, met de elapsed-vlag erbij; de twee dagafrondingen en de keuze op de modus van de opvolger
+     kunnen dan weg. Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
+
+352. **CSV gooit de kloktijd van een werkelijke datum weg, ook als de app hem zelf schreef.**
+     `src/services/importDates.ts:75` (`csvDate`) knipt een ISO-waarde af op de datum (`substring(0, 10)`);
+     `parseDate` in `src/services/csv/csvReader.ts:349` en `:350` gebruikt hem voor Actual Start en Actual Finish.
+     Gemeten: `writeCSV` schrijft Actual Start `2026-06-01T10:15` en Actual Finish `2026-06-01T11:45`; `readCSV`
+     leest beide als `2026-06-01`, en na laden op de standaardkalender staan ze op 07:00 en 16:00. Al op
+     `fbd4a3f9d`. Voorstel: een ISO-waarde met kloktijd lezen met de bestaande parser voor kloktijden uit een
+     bestand (`importDateTime`/`parseImportedInstant` in `importDates.ts`), en alleen een kale datum via de
+     datumroute; geen tweede CSV-datumparser. Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
+
+381. **Een lopende taak op 100 % met rest 0 komt uit de eigen P6 XML-export terug als voltooid.** Een XER-taak
+     met `TK_Active`, 100 %, rest 0 en geen werkelijk einde schrijft sinds #663 `In Progress`
+     (`src/services/p6/p6xmlWriter.ts:114`), maar de lezer maakt er `COMPLETED` van en verzint een werkelijk
+     einde op de statusdatum (`src/services/p6/p6xmlReader.ts:1166`). Op `aaf77b15a` eindigt dezelfde route ook
+     zo (de writer schreef daar `Completed`). Voorstel: bij een eigen P6-export ook de expliciete lopende status
+     bij rest 0 herkennen, met behoud van oude exports waarin de status alleen informatief was. Gevonden in
+     review ronde 3 van #663 (GPT-6.1-Sol). — B
+
+382. **MSPDI en MPP zonder `ActualFinish` maar op 100 % met een rest komen binnen als lopend.** Sinds #663 geldt
+     "geen werkelijk einde en rest > 0" als teken voor lopend op 100 % (`src/services/msproject/mspdiReader.ts:643`,
+     `src/services/mpp/mppReader.ts:857`). Een bron met 100 %, geen `ActualFinish` en één minuut rest wordt
+     `STARTED` met 100 % en een leeg werkelijk einde, ook na F5. Bedoelde de exporteur voltooid, dan ziet de
+     planner een lopende taak. Microsoft zet bij 100 % zelf een `ActualFinish`; een echte bronfixture met dit
+     geval ontbreekt. De tegenproef klopt: 99,6 % wordt bij de eigen MSPDI-export 100 % en blijft met twaalf
+     minuten rest terecht lopend. Voorstel: alleen met een echte bronfixture aanpassen, eventueel met een
+     importmelding; geen drempel die echte rest wist. Gevonden in review ronde 3 van #663 (GPT-6.1-Sol). — S
+
+383. **`normalizeKeepingDayRest` bewaart de dagenrest dubbel en een commentaar in de P6 XML-lezer is achterhaald.**
+     Sinds #663 bewaart `normalizeImportedProgress` een ingelezen dagenrest zelf; de functie van twaalf regels in
+     `src/services/xmlDayMeasure.ts:336` en de twee omhulselaanroepen in de MSPDI- en P6 XML-lezer doen niets
+     meer (met de laag uitgeschakeld blijven 46 importcontroles en 72 afrondingscontroles groen). Het commentaar
+     bij `src/services/p6/p6xmlReader.ts:979` zegt nog dat de writer op 100 % altijd `Completed` schrijft.
+     Voorstel: de functie en de aanroepen weghalen en het commentaar bijwerken. Gevonden in review ronde 3 van
+     #663 (GPT-6.1-Sol). — B
+
 356. **Een hammock houdt in "Datums zoals opgeslagen" de nulduur van de verworpen berekening.** Hammock B met
      opgeslagen datums 16–20 maart en duur 5 dagen: de verworpen berekening schrijft duur 0
      (`writeDerivedSpan`, `src/engine/scheduler/CPMSolver.ts:2106`); de modus zet de datums terug, maar laat
@@ -867,17 +911,6 @@ en noem het in je rapport of PR-tekst.
      Opnieuw opslaan bewaart die nulduur. Al zo op `9a636ec69`. Voorstel: bij het verwerpen van de solve ook de
      bronduur en duurmaat van hammocks vastleggen en terugzetten. Gevonden in de review van de fix voor aanval
      a05 (GPT-6.1-Sol). — B
-
-357. **De IFC-lezer leidt de rest van een lopende dagenmaat-taak opnieuw af uit het percentage.**
-     `ifcReader.ts:1600` zet de rest uit het record, maar `normalizeImportedProgress` (`ifcReader.ts:369`, via
-     `applyRemainingDuration` en `exactWorkdays`, `taskMutationRules.ts:199`, `:215`) overschrijft die met
-     duur × (1 − completion) op 15 cijfers. Kalender ma–do 07:00–14:45 (465 min), vr 07:00–12:00; taak C: 3 d,
-     rest 5/6 d, completion 13/18. De eerste export schrijft `RemainingTime` `PT6H28M0S` met het record; na
-     inlezen is de rest 0,833333333333333 d, en een tweede export schrijft `PT6H27M0S`. MSPDI en P6 XML
-     beschermen de rest met `normalizeKeepingDayRest` (`xmlDayMeasure.ts`); de IFC-lezer niet. Al op
-     `9a636ec69`. De duur en de lags drijven sinds PR #658 niet meer (`recordDayValue`). Voorstel: roep
-     `normalizeImportedProgress` in de IFC-lezer aan via `normalizeKeepingDayRest`, zoals de XML-lezers.
-     Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
 
 372. **Een kalendertijdtaak met een breuk in dagen verliest bij heropenen uit MSPDI een minuut.** ELAPSEDTIME-taak
      5/6 ed vanaf 1 juni 2026 07:00: vóór export eindigt ze 2 juni 03:00, na heropenen en doorrekenen 02:59. Het

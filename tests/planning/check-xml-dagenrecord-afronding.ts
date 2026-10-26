@@ -19,7 +19,7 @@
 //      stabiel na één rondgang;
 //  (3) na inlezen en doorrekenen eindigt elke taak op hetzelfde moment als vóór de rondgang;
 //  (4) een echt gewijzigde kalender (14:45 → 15:45 in het bestand) wijst de records nog steeds af.
-// En voor IFC: een tweede export schrijft dezelfde duren en lags als de eerste (de rest van C: knownbug 357).
+// En voor IFC: een tweede export schrijft dezelfde duren, restduren en lags als de eerste, ook voor C.
 //
 // Draait via run.sh (esbuild-bundel). Alleen de exitcode telt.
 import './domStub';
@@ -195,16 +195,17 @@ for (const fmt of FORMATS) {
 }
 
 // IFC (review r1): de eerste export schreef PT6H28M0S met [0.833333,388]; de lezer nam 0.833333 over en een
-// tweede export schreef PT6H27M0S. Nu blijven duren en lags gelijk. De rest van de lopende taak C telt hier
-// niet mee: de IFC-lezer leidt die opnieuw af uit het percentage (knownbug 357).
+// tweede export schreef PT6H27M0S. Nu blijven duren en lags gelijk, ook de rest van de lopende taak C: de
+// IFC-lezer houdt de rest uit het record (knownbug 357 is gesloten in #663).
 {
   const original = quiet(() => prepareLoadedPayload(payload(), { recompute: true }));
   const ifc1 = quiet(() => writeIFC(buildWriteIFCInput(original)));
   const ifc2 = quiet(() => writeIFC(buildWriteIFCInput(payloadFromImport(quiet(() => readIFC(ifc1)), null))));
   const times = (ifc: string) => [...ifc.matchAll(/IFC(?:TASKTIME|LAGTIME)\(('[^']*'|\$)[^\n]*/g)]
-    .map(m => m[0].replace(/#\d+/g, '#')).filter(line => !line.startsWith("IFCTASKTIME('C Time'")).sort();
+    .map(m => m[0].replace(/#\d+/g, '#')).sort();
   const first = times(ifc1);
   ok('[IFC] taaktijden en lags gevonden', first.length >= 5);
+  ok('[IFC] de taaktijd van C doet mee', first.some(line => line.startsWith("IFCTASKTIME('C Time'")));
   ok('[IFC] eerste export draagt PT6H28M0S voor 5/6 d', ifc1.includes("PT6H28M0S"));
   eq('[IFC] tweede export: dezelfde duren en lags', times(ifc2), first);
 }
