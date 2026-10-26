@@ -1,6 +1,14 @@
 import type { FileRef } from '@/services/fileAccess';
 import type { IFCSaveSource } from '@/state/ifcSaveInput';
 
+/** Herkenbare weigering; de UI vertaalt de melding pas bij het tonen. */
+export class AutoSaveTargetUnavailableError extends Error {
+  constructor() {
+    super('The existing project file is not writable.');
+    this.name = 'AutoSaveTargetUnavailableError';
+  }
+}
+
 /** Hetzelfde venster als crashherstel: regelmatig tijdens lang werk, nooit per toetsaanslag. */
 export const ACTUAL_AUTOSAVE_INTERVAL_MS = 10_000;
 
@@ -69,7 +77,7 @@ export function createActualAutoSaveController(deps: {
           } else {
             // Geen stille "opgeslagen"-indruk bij een verdwenen/vergrendeld doel. De UI-laag
             // dedupliceert deze fout, zodat een aanhoudend probleem geen notificatiestorm wordt.
-            deps.onFailure(candidate, new Error('Het bestaande projectbestand is niet schrijfbaar.'));
+            deps.onFailure(candidate, new AutoSaveTargetUnavailableError());
           }
         } catch (error) {
           deps.onFailure(candidate, error);

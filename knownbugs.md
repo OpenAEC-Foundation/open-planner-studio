@@ -91,8 +91,7 @@ en noem het in je rapport of PR-tekst.
 
 28. **Bezettingsoverzicht bij een verouderd actief project** mengt oude startdatums met een nieuwe duur of
     inzet, onder de tekst "laatst berekende cijfers". — B
-29. **Hardgecodeerd Nederlands**: "Het bestaande projectbestand is niet schrijfbaar."
-    (`actualAutoSave.ts`), het CFB-citaat (`cfb.ts`) en bestandsnaamdelen
+29. **Hardgecodeerd Nederlands**: het CFB-citaat (`cfb.ts`) en bestandsnaamdelen
     `-voortgang`/`-bibliotheek`. Zie ook 61 voor PDF-bestandsnamen. — S
 33. **Bibliotheekkalender verwijderen** gaat zonder bevestiging; daarna staat hij nog als *al gekoppeld*. — S
 64. **Een uitgeschakelde `tutorials`-extensie wordt weer aangezet, ongeacht waar hij vandaan kwam**
