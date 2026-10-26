@@ -792,6 +792,27 @@ export function levelResources(
     remaining--;
   }
 
+  // Vastgepind betekent niet conflictvrij. Deze taken boeken onvoorwaardelijk en scannen
+  // geen alternatief venster. Controleer na ALLE boekingen hun werkelijke vraagdagen, zodat
+  // ook de eerst geboekte pin het conflict met een later geboekte pin terugkrijgt.
+  // Geen tweede boeking: booked bevat de eigen vraag al. Nulvraag telt niet als conflict.
+  for (const taskId of pinnedIds) {
+    const start = placedStartIso.get(taskId);
+    if (!start) continue;
+    const occ = occurrenceFor(workById.get(taskId)!, parseDate(start));
+    const days = new Set<string>();
+    for (const [resId, demand] of demandByTask.get(taskId)!) {
+      for (let i = 0; i < demand.length && i < occ.length; i++) {
+        if (demand[i] > 0 && exceedsCapacity(bookedOn(resId, occ[i]), capacityOf(resId, occ[i]))) {
+          days.add(occ[i]);
+        }
+      }
+    }
+    if (days.size > 0) unresolved[taskId] = [...days].sort();
+    // Geen verzonnen scanreden zoals 'onvoldoende speling': de pin is niet verplaatst.
+    // De UI kan het bestaande taak-/conflictdagenrapport zonder specifieke reden tonen.
+  }
+
   // Preview uit één echte proef-solve op de werkkopieën (nu mét alle gezette delays) — exact wat
   // applyLeveling→runCPM straks doet (incl. `cpmOptions`, anders wijkt de preview zelf weer af).
   // Bevat óók niet-geresourcete opvolgers die enkel meeschuiven.
