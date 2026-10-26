@@ -38,27 +38,25 @@ export function deriveImportedWorkRules(tasks: Task[]): void {
  *
  * Golden rule: een taak ZONDER enig voortgangssignaal (geen actuals, completion 0) blijft
  * volledig ongemoeid — status NOT_STARTED, geen `remainingTime` gezet — zodat bestaande
- * bestanden ongewijzigd round-trippen. Een restduur die het bestand vastlegt, blijft staan: de
- * restduur-minuten van een urentaak en de dagenrest van een lopende dagtaak. Alleen zonder bronrest
- * leidt `applyRemainingDuration` hem af uit `completion` (dezelfde regel als de store).
+ * bestanden ongewijzigd round-trippen. De restduur die het bestand van een lopende taak vastlegt,
+ * blijft staan: de restduur-minuten van een urentaak en de dagenrest van een dagtaak. Alleen zonder
+ * bronrest leidt `applyRemainingDuration` hem af uit `completion` (dezelfde regel als de store); een
+ * voltooide taak krijgt rest 0.
  *
  * `runningAtFullIds`: smalle uitzondering voor de IFC-lezer. Een taak in deze set met `completion >= 1`
  * en ZONDER werkelijk einde blijft STARTED (zie de tak hieronder). Met een werkelijk einde, of onder
  * 100 %, telt de set niet: dan geldt de gewone regel. Andere lezers geven de set niet mee.
  *
- * `keepRecordedDayRest`: alleen de IFC-lezer zet hem op `false`, voor een bestand zonder de markering
- * van het minutenmodel. Zo'n bestand komt van een oudere versie (die schreef de dagenrest afgerond op
- * hele dagen, `Math.round`) of van een ander programma. Daar leidt de regel de rest exact af uit
- * `completion`; eigenaarsbesluit B3 (2026-10-20): "Oude bestanden met voortgang zonder ingevoerde rest
- * kunnen verschuiven; de melding van B5 telt ze."
+ * Ook een IFC van een oudere versie houdt zijn opgeslagen rest, al schreef die versie een dagenrest
+ * afgerond (`Math.round`): het bestand zegt niet of een rest ingevoerd of afgeleid was, en een MPP-rest
+ * van 4 d bij 33 % ziet er net zo uit als een afgeronde afleiding. De opgeslagen waarde is dan het feit.
+ * Eigenaarsbesluit B3 (2026-10-20) staat een verschuiving van oude bestanden toe, maar eist haar niet.
  */
 export function normalizeImportedProgress(
   tasks: Task[],
   statusDate?: string,
   runningAtFullIds?: ReadonlySet<string>,
-  keepRecordedDayRest = true,
 ): void {
-  const keep = { minutes: true, days: keepRecordedDayRest };
   for (const task of tasks) {
     const t = task.time;
 
@@ -105,10 +103,11 @@ export function normalizeImportedProgress(
     }
 
     // Restduur in de vorm van de duur: een dagtaak in werkdagen, een urentaak in minuten plus een
-    // onafgeronde werkdagfractie. Een in het bestand vastgelegde rest blijft staan (MSP's eigen exacte
-    // restduur bij een afgerond percentage, P6's rest naast een fysiek percentage, een eerder
-    // opgeslagen IFC); zonder bronrest leidt dezelfde regel als de store hem af uit `completion`.
-    applyRemainingDuration(task, keep);
+    // onafgeronde werkdagfractie. De in het bestand vastgelegde rest van een lopende taak blijft staan
+    // (MSP's eigen exacte restduur bij een afgerond percentage, P6's rest naast een fysiek percentage,
+    // een eerder opgeslagen IFC); zonder bronrest leidt dezelfde regel als de store hem af uit
+    // `completion`. Een voltooide taak krijgt rest 0.
+    applyRemainingDuration(task, true);
   }
 }
 

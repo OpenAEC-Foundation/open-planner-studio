@@ -7,15 +7,17 @@
 //     na opslaan als IFC en heropenen bleef 4,02 staan;
 //   - XER in dagenmaat (datums zonder kloktijd), fysiek 75 %, 48 u duur, 32 u rest: direct 4 d, na
 //     IFC-heropening 1,5 d (12 u).
-// De regel nu: een lezer houdt een aanwezige bronrest; alleen zonder bronrest leidt hij af. Een
-// voortgangsbewerking in de app leidt de rest nog steeds af (B3). Uitzondering: een IFC zonder de
-// markering van het minutenmodel (een oudere versie schreef de dagenrest afgerond) krijgt de exacte
-// afleiding, zoals eigenaarsbesluit B3 voor oude bestanden zegt (check-ifc-legacy-arity 2c). De
-// eenheidsregels van `normalizeImportedProgress` staan in check-remaining-duration.ts (sectie 5).
+// De regel nu: een lezer houdt de bronrest van een lopende taak; alleen zonder bronrest leidt hij af.
+// Een voltooide taak krijgt rest 0. Een voortgangsbewerking in de app leidt de rest nog steeds af (B3).
+// Dat geldt ook voor een IFC zonder de markering van het minutenmodel (fixronde 1 van #663): het bestand
+// zegt niet of een rest ingevoerd of afgeleid was, dus de opgeslagen waarde is het feit
+// (check-ifc-legacy-arity 2c). De eenheidsregels van `normalizeImportedProgress` staan in
+// check-remaining-duration.ts (sectie 5).
 //
 // Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { useAppStore } from '@/state/appStore';
+import { createAppStore } from '@/state/appStoreFactory';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { readMPP } from '@/services/mpp/mppReader';
 import { readXER } from '@/services/xer/xerReader';
@@ -37,10 +39,11 @@ function eq(label: string, got: unknown, want: unknown): void {
   if (JSON.stringify(got) !== JSON.stringify(want)) diffs.push(`${label}: kreeg ${JSON.stringify(got)} ≠ verwacht ${JSON.stringify(want)}`);
 }
 
-// ── Fixture: één lopende MPP14-taak op een kalender ma–vr 08:00–16:00 ─────────────────────────
-// Dezelfde bytes als de aanvalsprobe (`a07-rest.mpp`): duur 28800 tienden = 2880 min = 6 d, rest
-// 19200 tienden = 1920 min = 4 d, 33 %, werkelijke start ma 1 juni 2026 08:00, statusdatum wo 3 juni
-// 08:00. Geplande start en einde liggen op het kalenderanker 08:00: de lezer kiest de dagenmaat.
+// ── Fixture: MPP14-taken op een kalender ma–vr 08:00–16:00 ────────────────────────────────────
+// De standaardtaak heeft dezelfde bytes als de aanvalsprobe (`a07-rest.mpp`): duur 28800 tienden =
+// 2880 min = 6 d, rest 19200 tienden = 1920 min = 4 d, 33 %, werkelijke start ma 1 juni 2026 08:00,
+// statusdatum wo 3 juni 08:00. Geplande start en einde liggen op het kalenderanker 08:00: de lezer
+// kiest de dagenmaat (een werkelijk einde op een andere kloktijd maakt de kalender een uurkalender).
 const MPP_EPOCH_DAY = Math.round((Date.UTC(2026, 5, 1) - Date.UTC(1983, 11, 31)) / 86400000);
 const utf16 = (s: string): Uint8Array => {
   const out = new Uint8Array(s.length * 2);
@@ -54,39 +57,67 @@ const int32 = (n: number): Uint8Array => {
   return out;
 };
 
-function runningMpp(task: { duration: number; rest: number; pct: number } = { duration: 28800, rest: 19200, pct: 33 }): Uint8Array {
-  const slots = 4; // drie lege records, dan de taak (zoals de probe)
+/** Eén MPP-taak; een moment is [minuten na middernacht, dag na ma 1 juni 2026]. */
+interface MppTask {
+  name: string;
+  duration: number;
+  rest: number;
+  pct: number;
+  start: [number, number];
+  finish: [number, number];
+  actualStart?: [number, number];
+  actualFinish?: [number, number];
+}
+const RUNNING: MppTask = {
+  name: 'Lopend zes dagen', duration: 28800, rest: 19200, pct: 33, start: [480, 0], finish: [480, 8], actualStart: [480, 0],
+};
+
+function mpp(tasks: MppTask[]): Uint8Array {
+  const slots = 3 + tasks.length; // drie lege records, dan de taken (zoals de probe)
   const meta = new Uint8Array(16 + slots * 47);
   const mv = new DataView(meta.buffer);
   mv.setUint32(0, 0xfadfadba, true);
   mv.setInt32(8, slots, true);
   const fixed = new Uint8Array(slots * 130);
-  const offset = 3 * 130;
-  mv.setInt32(16 + 3 * 47 + 4, offset, true);
-  const v = new DataView(fixed.buffer, offset, 130);
-  v.setInt32(0, 10, true); // unique id
-  v.setInt32(4, 1, true); // id
-  v.setInt16(40, 1, true);
-  v.setInt32(42, task.duration, true); // duur in tienden van een minuut
-  v.setUint16(46, 0, true);
-  v.setInt32(52, task.rest, true); // REMAINING_DURATION
-  for (const n of [8, 12, 16, 20, 64, 68, 72, 76, 80, 106, 110, 122]) {
-    v.setUint16(n, 65535, true);
-    v.setUint16(n + 2, 65535, true);
-  }
-  const stamp = (at: number, minutes: number, day: number) => {
-    v.setUint16(at, minutes * 10, true);
-    v.setUint16(at + 2, MPP_EPOCH_DAY + day, true);
-  };
-  stamp(64, 480, 0); // start ma 1 juni 08:00
-  stamp(68, 480, 8); // einde zoals MSP het opsloeg
-  stamp(72, 480, 0); // werkelijke start ma 1 juni 08:00
-  v.setInt16(90, task.pct, true); // voortgang in hele procenten
-  v.setInt32(118, -1, true);
-  const name = utf16('Lopend zes dagen');
-  const nameField = new Uint8Array(4 + name.length);
-  new DataView(nameField.buffer).setInt32(0, name.length, true);
-  nameField.set(name, 4);
+  const names: Uint8Array[] = [];
+  const varMeta: { uniqueId: number; type: number; offset: number }[] = [];
+  let varSize = 0;
+  tasks.forEach((task, j) => {
+    const offset = (3 + j) * 130;
+    mv.setInt32(16 + (3 + j) * 47 + 4, offset, true);
+    const v = new DataView(fixed.buffer, offset, 130);
+    v.setInt32(0, 10 + j, true); // unique id
+    v.setInt32(4, j + 1, true); // id
+    v.setInt16(40, 1, true);
+    v.setInt32(42, task.duration, true); // duur in tienden van een minuut
+    v.setUint16(46, 0, true);
+    v.setInt32(52, task.rest, true); // REMAINING_DURATION
+    for (const n of [8, 12, 16, 20, 64, 68, 72, 76, 80, 106, 110, 122]) {
+      v.setUint16(n, 65535, true);
+      v.setUint16(n + 2, 65535, true);
+    }
+    const stamp = (at: number, moment: [number, number] | undefined) => {
+      if (!moment) return;
+      v.setUint16(at, moment[0] * 10, true);
+      v.setUint16(at + 2, MPP_EPOCH_DAY + moment[1], true);
+    };
+    stamp(64, task.start);
+    stamp(68, task.finish);
+    stamp(72, task.actualStart);
+    stamp(76, task.actualFinish);
+    v.setInt16(90, task.pct, true); // voortgang in hele procenten
+    v.setInt32(118, -1, true);
+    const name = utf16(task.name);
+    const field = new Uint8Array(4 + name.length);
+    new DataView(field.buffer).setInt32(0, name.length, true);
+    field.set(name, 4);
+    varMeta.push({ uniqueId: 10 + j, type: 14, offset: varSize });
+    varSize += field.length;
+    names.push(field);
+  });
+  const var2 = new Uint8Array(varSize);
+  let at = 0;
+  for (const field of names) { var2.set(field, at); at += field.length; }
 
   const calName = 'A07 kalender';
   const hours = buildCalHoursBlock([0, 1, 2, 3, 4, 5, 6].map(d => (d === 0 || d === 6
@@ -117,8 +148,8 @@ function runningMpp(task: { duration: number; rest: number; pct: number } = { du
           children: {
             FixedMeta: { data: meta },
             FixedData: { data: fixed },
-            VarMeta: { data: buildVarMetaBytes([{ uniqueId: 10, type: 14, offset: 0 }]) },
-            Var2Data: { data: nameField },
+            VarMeta: { data: buildVarMetaBytes(varMeta) },
+            Var2Data: { data: var2 },
           },
         },
         TBkndCal: {
@@ -133,6 +164,8 @@ function runningMpp(task: { duration: number; rest: number; pct: number } = { du
     },
   });
 }
+/** De lopende standaardtaak, met desgewenst een andere duur, rest of voortgang. */
+const runningMpp = (over: Partial<MppTask> = {}): Uint8Array => mpp([{ ...RUNNING, ...over }]);
 
 /** Rekent door zoals F5 (de taken dragen daarna het resultaat), met de kalenderlijst van de store. */
 function solved(imported: ImportResult): ImportResult {
@@ -232,19 +265,66 @@ function xer(dateOnly: boolean): ImportResult {
 }
 
 // ── 4. De route van de app: openen, meteen opslaan (zonder F5), heropenen ─────────────────────────
-// De lezer houdt de dagenrest alleen in een IFC met de markering van het minutenmodel; een ouder
-// bestand schreef hem afgerond en krijgt de exacte afleiding (B3, check-ifc-legacy-arity 2c). De writer
-// zet de markering zodra de B5-omzetting niet meer openstaat; de laadberekening bij openen sluit haar.
 {
   const S = () => useAppStore.getState();
   const restAfterSave = () => readIFC(writeIFC(buildWriteIFCInput(S()))).tasks
     .filter(t => t.childIds.length === 0).map(t => t.time.remainingTime);
   S().openAsDocument(readMPP(runningMpp()), { name: 'a07-rest.mpp', ref: null });
-  eq('app: MPP geopend, omzetting gesloten (de writer zet de markering)', S().minuteModelPending, false);
   eq('app: MPP openen → opslaan → heropenen houdt 4 d', restAfterSave(), [4]);
   S().openAsDocument(xer(true), { name: 'a07-xer-date.xer', ref: null });
-  eq('app: XER geopend, omzetting gesloten', S().minuteModelPending, false);
   eq('app: XER dagenmaat openen → opslaan → heropenen houdt 4,5 / 4 / 4 d', restAfterSave(), [4.5, 4, 4]);
+}
+
+// ── 5. Een IFC zonder de markering van het minutenmodel houdt zijn expliciete rest ────────────────
+// Review r1 van #663: zonder `TimeModel` las 6 d, 33 %, 4 d rest als 4,02 d; na openen en opslaan stond
+// die waarde vast (nu mét markering) en eindigde de taak di 9 juni 08:10 in plaats van ma 8 juni 16:00.
+{
+  const withMarker = writeIFC(solved(readMPP(runningMpp())));
+  const legacy = withMarker.replace("IFCPROPERTYSINGLEVALUE('TimeModel'", "IFCPROPERTYSINGLEVALUE('Onbekend'");
+  eq('zonder markering: voorwaarde (het bestand had de markering, de kopie niet)',
+    [readIFC(withMarker).timeModel, readIFC(legacy).timeModel], ['MINUTES-1', undefined]);
+  eq('zonder markering: de expliciete rest 4 d blijft 4 d (niet 4,02 d)', leaf(readIFC(legacy)).time.remainingTime, 4);
+  const app = createAppStore();
+  app.getState().openAsDocument(readIFC(legacy), { name: 'zonder-markering.ifc', ref: null });
+  app.getState().runCPM();
+  eq('zonder markering: na openen en F5 einde ma 8 juni 16:00', leaf(app.getState()).time.earlyFinish, '2026-06-08T16:00');
+  eq('zonder markering: openen → opslaan → heropenen houdt 4 d',
+    leaf(readIFC(writeIFC(buildWriteIFCInput(app.getState())))).time.remainingTime, 4);
+}
+
+// ── 6. B1a/B5 → Ctrl+Z → opslaan → heropenen houdt de rest ───────────────────────────────────────
+// Review r1 van #663: een minutenbestand met een vastwerktaak in dagen (B1a zet haar om naar uren, B5
+// maakt daar één undo-stap van) en een lopende dagtaak met 4 d rest. Ctrl+Z op de omzetting zet
+// `minuteModelPending` terug op `true`; de writer laat `TimeModel` dan weg. Heropenen gaf 4,02 d.
+{
+  const q = readMPP(mpp([
+    { name: 'Vast werk nog dagen', duration: 14400, rest: 14400, pct: 0, start: [480, 2], finish: [480, 6] },
+    { ...RUNNING, name: 'Lopend expliciete rest' },
+  ]));
+  q.tasks[0].workRule = 'FIXED_WORK';
+  q.tasks[1].workRule = 'FIXED_DURATION_RATE';
+  const app = createAppStore();
+  app.getState().openAsDocument(readIFC(writeIFC(q)), { name: 'B1a.ifc', ref: null });
+  const rest = (r: { tasks: Task[] }) => r.tasks.find(t => t.name === 'Lopend expliciete rest')?.time.remainingTime;
+  eq('B1a/B5: voorwaarde (omzetting gesloten, één undo-stap, vast werk in uren)',
+    [app.getState().minuteModelPending, app.getState().historyEvents.length, app.getState().tasks[0].time.durationUnit],
+    [false, 1, 'hours']);
+  eq('B1a/B5: na openen 4 d rest', rest(app.getState()), 4);
+  app.getState().undo();
+  const saved = writeIFC(buildWriteIFCInput(app.getState()));
+  eq('B1a/B5 → Ctrl+Z: voorwaarde (omzetting open, bestand zonder markering)',
+    [app.getState().minuteModelPending, readIFC(saved).timeModel], [true, undefined]);
+  eq('B1a/B5 → Ctrl+Z → opslaan → heropenen houdt 4 d (niet 4,02 d)', rest(readIFC(saved)), 4);
+}
+
+// ── 7. Een voltooide taak krijgt rest 0, ook met een bronrest (VERVOLG uit review r1 van #663) ────
+// Een werkelijk einde om 15:00 maakt de kalender een uurkalender. MPP: 2880 min, 100 %, werkelijk einde,
+// 1920 bronminuten rest. Vroeger bleef de taak `COMPLETED` met 1920 min rest, ook na IFC-heropening.
+{
+  const imported = readMPP(runningMpp({ name: 'Voltooid met bronrest', pct: 100, actualFinish: [900, 1] }));
+  const state = (t: Task) => [t.status, t.time.durationUnit, t.time.remainingMinutes, t.time.remainingTime];
+  eq('voltooid: urentaak krijgt rest 0 (niet 1920 min)', state(leaf(imported)), ['COMPLETED', 'hours', 0, 0]);
+  eq('voltooid → IFC → heropenen: rest 0', state(leaf(reopen(solved(imported)))), ['COMPLETED', 'hours', 0, 0]);
 }
 
 if (diffs.length === 0) {

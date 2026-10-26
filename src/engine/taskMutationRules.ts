@@ -181,14 +181,6 @@ export function applyProgressInvariants(task: Task, statusDate: string | undefin
   applyRemainingDuration(task);
 }
 
-/** Welke restduur uit het bestand een lezer laat staan (zie {@link applyRemainingDuration}). */
-export interface KeepRecordedRest {
-  /** De restduur-minuten van een urentaak. */
-  minutes: boolean;
-  /** De restduur in werkdagen van een lopende dagtaak. */
-  days: boolean;
-}
-
 /**
  * Restduur afgeleid uit `completion`, in dezelfde maat en vorm als de duur van de taak. Exact, in elke
  * maat (spec "alleen uren" §3.5, besluit B3): nooit `Math.round` op hele werkdagen.
@@ -197,23 +189,24 @@ export interface KeepRecordedRest {
  *  - urenmaat: `remainingMinutes` in hele minuten, zoals `durationMinutes`, met `remainingTime` als
  *    ONafgeronde werkdagfractie, zoals `scheduleDuration` ({@link hourRemainingDays}).
  * Eén regel voor de store (`applyProgressInvariants`) en de lezers (`normalizeImportedProgress`).
- * `keep` (alleen de lezers): een restduur die het bestand zelf vastlegt, blijft staan; de regel leidt
- * alleen af als de bron geen rest draagt. Het percentage is in de bron vaak afgerond (MSP 33 % bij 4
- * van 6 d) of staat los van de rest (P6 fysiek %), dus de afleiding zou de rest verzetten.
- *  - `minutes` (urenmaat): een gelezen `remainingMinutes` blijft staan; de werkdagfractie volgt die minuten;
- *  - `days` (dagenmaat): een gelezen `remainingTime` van een lopende taak blijft staan. Een voltooide
- *    taak houdt rest 0.
- * Een voortgangsbewerking in de app (store) geeft geen `keep` mee en leidt de rest dus af (B3).
+ * `keepRecordedRest` (alleen de lezers): de restduur die het bestand van een LOPENDE taak vastlegt,
+ * blijft staan: `remainingMinutes` van een urentaak (de werkdagfractie volgt die minuten) en
+ * `remainingTime` van een dagtaak. De regel leidt alleen af als de bron geen rest draagt. Het
+ * percentage is in de bron vaak afgerond (MSP 33 % bij 4 van 6 d) of staat los van de rest (P6
+ * fysiek %), dus de afleiding zou de rest verzetten. Een voltooide taak krijgt altijd rest 0, ook als
+ * het bestand nog een rest noemt. Een voortgangsbewerking in de app (store) geeft de vlag niet mee en
+ * leidt de rest dus af (B3).
  */
-export function applyRemainingDuration(task: Task, keep?: KeepRecordedRest): void {
+export function applyRemainingDuration(task: Task, keepRecordedRest = false): void {
   const time = task.time;
+  const keep = keepRecordedRest && time.completion < 1;
   if (taskDurationUnit(task) !== 'hours') {
     const recorded = time.remainingTime;
-    if (keep?.days && time.completion < 1 && recorded != null && Number.isFinite(recorded)) return;
+    if (keep && recorded != null && Number.isFinite(recorded)) return;
     time.remainingTime = exactWorkdays(time.scheduleDuration * (1 - time.completion));
     return;
   }
-  const minutes = keep?.minutes && time.remainingMinutes != null
+  const minutes = keep && time.remainingMinutes != null
     ? time.remainingMinutes
     : Math.round((time.durationMinutes ?? 0) * (1 - time.completion));
   time.remainingMinutes = minutes;

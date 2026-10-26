@@ -144,13 +144,16 @@ const DAY_30 = { remainingMinutes: undefined, remainingTime: 3.5 };
   const dayRecorded = base({ completion: 0.3, actualStart: '2026-06-01', remainingTime: 2 }, 'days');
   const dayWithoutRest = base({ completion: 0.3, actualStart: '2026-06-01' }, 'days');
   const dayCompleted = base({ completion: 0.3, actualStart: '2026-06-01', actualFinish: '2026-06-02', remainingTime: 2 }, 'days');
+  // Review r1 van #663 (VERVOLG): ook een voltooide urentaak houdt geen bronminuten rest.
+  const hourCompleted = base({ completion: 1, actualStart: '2026-06-01', actualFinish: '2026-06-02', remainingMinutes: 1920 }, 'hours');
   const untouched = base({}, 'hours');
-  normalizeImportedProgress([recorded, legacy, dayRecorded, dayWithoutRest, dayCompleted, untouched], '2026-06-03');
+  normalizeImportedProgress([recorded, legacy, dayRecorded, dayWithoutRest, dayCompleted, hourCompleted, untouched], '2026-06-03');
   eq('lezer: vastgelegde restduur-minuten (T9) blijven staan', rem(recorded), { remainingMinutes: 1500, remainingTime: 3.125 });
   eq('lezer: urentaak zonder restduur-minuten krijgt ze afgeleid (40 % van 48 u)', rem(legacy), { remainingMinutes: 1728, remainingTime: 3.6 });
   eq('lezer: vastgelegde dagenrest van een lopende taak blijft staan (2 d, niet 3,5 d uit 30 %)', rem(dayRecorded), { remainingMinutes: undefined, remainingTime: 2 });
   eq('lezer: dagtaak zonder bronrest krijgt de exacte rest (afgeleid uit %, B3)', rem(dayWithoutRest), DAY_30);
   eq('lezer: voltooide dagtaak houdt rest 0, ook met een bronrest', rem(dayCompleted), { remainingMinutes: undefined, remainingTime: 0 });
+  eq('lezer: voltooide urentaak houdt rest 0, ook met bronminuten', rem(hourCompleted), { remainingMinutes: 0, remainingTime: 0 });
   eq('lezer: taak zonder voortgang blijft ongemoeid', rem(untouched), { remainingMinutes: undefined, remainingTime: undefined });
 }
 
