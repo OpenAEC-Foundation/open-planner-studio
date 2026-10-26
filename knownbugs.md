@@ -251,13 +251,11 @@ en noem het in je rapport of PR-tekst.
     van 36, maar niet vastgesteld als dezelfde oorzaak. De bedoeling en runtimegevolgen zijn niet
     onderzocht. — S
 
-203. **De updater gaat na een afgewezen recovery-flush door naar installatie.** Brononderzoek,
-    niet uitgevoerd: `updaterService.ts`, `downloadAndInstall`, vangt een rejection van
-    `flushRecoveryNow()` op en logt die, zonder de updateroute af te breken. Daarna probeert hij
-    `update.install()` en, als die slaagt, `relaunch()`. De bronroute bestond al vóór fix 96; dit
-    punt zegt niet dat iedere mislukte snapshotwrite als rejection uit de flush komt. Geen
-    runtime-repro of concreet dataverlies vastgesteld; bedoeling en gewenste foutafhandeling
-    niet onderzocht. — S
+329. **Een mislukte opslag in de herstelronde houdt de installatie van een update niet tegen.**
+    `src/hooks/useAutoSave.ts:72`: de geregistreerde herstelronde vangt opslagfouten zelf af en meldt ze, zonder
+    opnieuw te gooien. Zulke fouten bereiken de blokkade van #589 (stoppen als `flushRecoveryNow()` faalt) dus
+    niet. Dit stond al op `main`. Voorstel: de foutafhandeling van de periodieke auto-save scheiden van het
+    resultaat van een expliciete flush vóór installatie. Gevonden in review r1 van #589 (GPT-6.1-Sol). — B
 
 328. **De verliescategorie `criticalSlackLimitDays` is dode code.** `src/services/importTypes.ts:454` en
     `src/state/msProjectImportNotice.ts:22` houden de categorie, maar de importeurs zetten haar sinds de fix van
