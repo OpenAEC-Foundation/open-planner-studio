@@ -1,3 +1,4 @@
+import { fileToolDeps } from '@/services/mcp/tools/fileTools';
 // Headless MCP-server (issue #570, `headless/mcp-server/`): de `planner_*`-tools zonder app, op Node.
 //
 // Twee routes, beide met de OFFICIËLE MCP-client (`@modelcontextprotocol/sdk`):
@@ -11,7 +12,7 @@
 //      Over HTTP: tools/list, fout token, ontbrekende sessie-id, Origin, en de startweigeringen.
 import { test, assert, assertEq, run } from './harness';
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from 'node:child_process';
-import { cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, fstatSync, fsyncSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -25,7 +26,8 @@ import { AGENT_GUIDE_PATH, AGENT_SKILLS, skillAssetPath } from '@/services/mcp/t
 import { createHeadlessHost, headlessInstructions } from '../../headless/mcp-server/src/host';
 import { startHttpTransport } from '../../headless/mcp-server/src/http';
 import { parseOptions, isLoopbackHost } from '../../headless/mcp-server/src/options';
-import { createNodeFileFs, isInside, ScopeEscapeError, type NodeFsPhase } from '../../headless/mcp-server/src/nodeFs';
+import { createNodeFileFs, isInside, ScopeEscapeError, WorkingDirectoryRestoreError, type NodeFsPhase } from '../../headless/mcp-server/src/nodeFs';
+import { XmlDomParser } from '../../headless/mcp-server/src/xmlDom';
 import { decodeXmlBytes } from '../../headless/mcp-server/src/xmlEncoding';
 import { FileTextDecodingError } from '@/services/mcp/fileTextError';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -182,6 +184,131 @@ test('A2 bevinding 1: schrijf- en rename-fout laten het origineel byte-gelijk, o
   writeFileSync(join(fsRoot, 'plan.ifc'), ORIGINAL);
 });
 
+test('knownbug 216: lange geldige doelnamen blijven schrijfbaar en fouten houden het origineel intact', async () => {
+  // De bestaande A2-suite toetst de POSIX-bestandslaag; dit is geen Windows MAX_PATH-bewijs.
+  for (const name of ['a'.repeat(236) + '.ifc', 'é'.repeat(118) + '.ifc']) {
+    assertEq(Buffer.byteLength(name, 'utf8'), 240, 'fixture: doelnaam van 240 bytes');
+    const target = join(fsRoot, name);
+    // De directe fixture-write bewijst eerst dat het bestandssysteem de doelnaam accepteert.
+    writeFileSync(target, ORIGINAL);
+    const fs = await createNodeFileFs(fsRoot);
+    await fs.writeTextFile(target, 'LANG NIEUW');
+    assertEq(readFileSync(target, 'utf8'), 'LANG NIEUW', 'lang doel vervangen');
+    assertEq(tmpFiles(fsRoot), [], 'geen halffabricaat na succes');
+    for (const phase of ['write', 'rename'] as const) {
+      writeFileSync(target, ORIGINAL);
+      let reached = false;
+      const failing = await createNodeFileFs(fsRoot, undefined, { fault: p => {
+        if (p === phase) { reached = true; throw new Error('lange naam testfout'); }
+      } });
+      await expectReject(failing.writeTextFile(target, 'MAG NIET'), 'lange naam ' + phase);
+      assert(reached, 'foutpunt bereikt, niet eerder ENAMETOOLONG');
+      assertEq(readFileSync(target, 'utf8'), ORIGINAL, 'lange naam: origineel behouden');
+      assertEq(tmpFiles(fsRoot), [], 'lange naam: eigen halffabricaat opgeruimd');
+    }
+    unlinkSync(target);
+    await fs.writeTextFile(target, 'NIEUW LANG DOEL');
+    assertEq(readFileSync(target, 'utf8'), 'NIEUW LANG DOEL', 'nieuw lang doel aangemaakt');
+    unlinkSync(target);
+  }
+});
+
+test('A2 (215): doelmap synchroniseren na rename, met expliciete fout als het bestand al vervangen is', async () => {
+  if (process.platform === 'win32') return; // Deze POSIX-route beweert geen Windows-durability.
+  const folder = join(tmp, 'directory-sync');
+  mkdirSync(folder);
+  const target = join(folder, 'plan.ifc');
+  const linked = join(folder, 'link.ifc');
+  writeFileSync(target, ORIGINAL);
+  symlinkSync(target, linked);
+  let syncs = 0;
+  let lastFd = -1;
+  const fs = await createNodeFileFs(folder, undefined, {
+    syncDirectory: (fd) => {
+      syncs++;
+      lastFd = fd;
+      const actual = fstatSync(fd, { bigint: true });
+      const expected = lstatSync(folder, { bigint: true });
+      assert(actual.isDirectory() && actual.dev === expected.dev && actual.ino === expected.ino,
+        'fsync krijgt het gecontroleerde map-object');
+      assertEq(readFileSync(target, 'utf8'), 'NIEUW', 'rename is vóór directory-fsync uitgevoerd');
+      assertEq(tmpFiles(folder), [], 'halffabricaat is al hernoemd');
+      fsyncSync(fd); // Niet alleen de haak: ook de echte syscall op de echte map.
+    },
+  });
+  for (const name of [target, linked]) {
+    await fs.writeTextFile(name, 'NIEUW');
+    let closed = false;
+    try { fstatSync(lastFd); } catch { closed = true; }
+    assert(closed, 'directory-handle gesloten na succes');
+  }
+  assertEq(syncs, 2, 'iedere save synchroniseert de doelmap, ook via een symlink');
+  assert(lstatSync(linked).isSymbolicLink(), 'symlink behouden');
+  const failing = await createNodeFileFs(folder, undefined, {
+    syncDirectory: (fd) => { lastFd = fd; throw new Error('nagebootste directory-I/O-fout'); },
+  });
+  let message = '';
+  try { await failing.writeTextFile(target, 'REEDS VERVANGEN'); } catch (error) { message = String(error); }
+  assert(message.includes('was replaced') && message.includes('crash durability is unconfirmed')
+    && message.includes('nagebootste directory-I/O-fout'), `eerlijk foutbericht na commit: ${message}`);
+  assertEq(readFileSync(target, 'utf8'), 'REEDS VERVANGEN', 'geen onmogelijke rollback of verwijdering na rename');
+  assertEq(tmpFiles(folder), [], 'geen los halffabricaat na syncfout');
+  let closed = false;
+  try { fstatSync(lastFd); } catch { closed = true; }
+  assert(closed, 'directory-handle ook gesloten na syncfout');
+  // De fout laat geen bruikbaarheidsprobleem achter: een volgende save kan normaal slagen.
+  await fs.writeTextFile(target, 'NIEUW');
+  assertEq(syncs, 3, 'volgende save synchroniseert opnieuw');
+});
+
+test('A2 (220): verdwenen procesmap valt terug, dubbele herstelfout bewaart de oorspronkelijke fout', async () => {
+  if (process.platform === 'win32') return; // Windows laat de actieve procesmap niet zo verplaatsen.
+  const runnerCwd = process.cwd();
+  for (const loseRoot of [false, true]) {
+    const base = mkdtempSync(join(tmp, 'cwd-restore-'));
+    const previous = join(base, 'previous');
+    const root = join(base, 'root');
+    const moved = join(base, 'root-moved');
+    mkdirSync(previous); mkdirSync(root);
+    writeFileSync(join(root, 'plan.ifc'), ORIGINAL);
+    const originalError = new Error('originele schrijffout blijft zichtbaar');
+    const fs = await createNodeFileFs(root, undefined, {
+      fault: (phase) => {
+        if (phase !== 'write') return;
+        // Nu draait de operatie in root: previous is leeg en niet de actuele procesmap.
+        rmSync(previous, { recursive: true });
+        if (loseRoot) renameSync(root, moved);
+        throw originalError;
+      },
+    });
+    let caught: unknown;
+    try {
+      process.chdir(previous);
+      try { await fs.writeTextFile(join(root, 'plan.ifc'), 'MAG NIET WORDEN GESCHREVEN'); }
+      catch (error) { caught = error; }
+      if (loseRoot) {
+        assert(caught instanceof WorkingDirectoryRestoreError, 'dubbele herstelfout heeft eigen type');
+        const combined = caught as WorkingDirectoryRestoreError;
+        assertEq(combined.errors.length, 3, 'operatiefout plus beide herstelfouten');
+        assert(combined.errors[0] === originalError, 'originele foutobject behouden');
+        assert(combined.errors.slice(1).every((error) => error instanceof Error && 'code' in error
+          && error.code === 'ENOENT'), 'beide verdwenen paden verklaren de herstelfouten');
+        assert(combined.message.includes(originalError.message) && combined.message.includes('unrestored'),
+          'toolfout bevat oorspronkelijke oorzaak en de mislukte terugkeer');
+        assertEq(process.cwd(), moved, 'geen onterechte claim dat de procesmap hersteld is');
+      } else {
+        assert(caught === originalError, 'geslaagde terugval bewaart de originele operatiefout');
+        assertEq(process.cwd(), root, 'de bestaande werkmap is de terugval');
+      }
+      const actual = loseRoot ? moved : root;
+      assertEq(readFileSync(join(actual, 'plan.ifc'), 'utf8'), ORIGINAL, 'doel niet gewijzigd');
+      assertEq(tmpFiles(actual), [], 'eigen halffabricaat opgeruimd vóór herstel van procesmap');
+    } finally {
+      process.chdir(runnerCwd); // Testisolatie, ook als een assert faalt.
+    }
+  }
+});
+
 test('A2 bevinding 2: een map die tussen controle en operatie een link naar buiten wordt, wordt geweigerd', async () => {
   mkdirSync(fsOutside, { recursive: true });
   writeFileSync(join(fsOutside, 'plan.ifc'), 'GEHEIM');
@@ -274,6 +401,60 @@ test('A2 bevinding 4: paden die alleen in hoofdletters verschillen tellen niet a
   const fs = await createNodeFileFs(upper);
   const reason = await fs.confine!(join(upper, 'naar-kleine-letters', 'geheim.ifc'));
   assert(reason !== null && reason.includes('outside the working folder'), `link naar de map met kleine letters: ${reason}`);
+});
+
+// Knownbug 219: scopeverlies ná de voorcontrole blijft SCOPE door echte toolhandler en HTTP-client.
+test('A2 late scopeweigering bereikt de MCP-client bij import en export zonder buitenwerkmap-I/O', async () => {
+  const originalGetFs = fileToolDeps.getFs;
+  const outsideDir = join(tmp, 'scope-219-outside');
+  mkdirSync(outsideDir);
+  writeFileSync(join(outsideDir, 'plan.ifc'), 'BUITEN BLIJFT INTACT');
+  app.store.getState().setUI({ aiPaused: false, aiReadOnly: false });
+  app.store.getState().newDocument();
+  const { client } = await connectClient(httpA.url, { Authorization: `Bearer ${TOKEN}` });
+  try {
+    for (const operation of ['import', 'export'] as const) {
+      const dir = join(rootA, 'scope-219-' + operation);
+      mkdirSync(dir);
+      const original = readFileSync(EXAMPLE, 'utf8');
+      writeFileSync(join(dir, 'plan.ifc'), original);
+      let swapped = false;
+      const fs = await createNodeFileFs(rootA, undefined, { afterCheck: phase => {
+        if (!swapped && phase === (operation === 'import' ? 'open' : 'create')) {
+          swapped = true;
+          renameSync(dir, dir + '-held');
+          symlinkSync(outsideDir, dir, 'dir');
+        }
+      } });
+      fileToolDeps.getFs = async () => fs;
+      const taskCount = app.store.getState().tasks.length;
+      await refused(client, operation === 'import' ? 'planner_import_schedule' : 'planner_export_ifc',
+        { path: join(dir, 'plan.ifc'), ...(operation === 'export' ? { overwrite: true } : {}) }, 'SCOPE', operation);
+      assert(swapped, 'de map wisselde tijdens de operatie, niet vóór de voorcontrole');
+      assertEq(readFileSync(join(outsideDir, 'plan.ifc'), 'utf8'), 'BUITEN BLIJFT INTACT', 'buitenbestand ongewijzigd');
+      assertEq(readFileSync(join(dir + '-held', 'plan.ifc'), 'utf8'), original, 'origineel ongewijzigd');
+      assertEq(app.store.getState().tasks.length, taskCount, 'geen document geïmporteerd');
+      assertEq(tmpFiles(outsideDir), [], 'geen halffabricaat buiten de werkmap');
+    }
+    fileToolDeps.getFs = async () => createNodeFileFs(rootA);
+    await refused(client, 'planner_import_schedule', { path: join(rootA, 'ordinary-missing.ifc') },
+      'NOT_FOUND', 'gewone ontbrekende bron behoudt code');
+    const ordinaryTarget = join(rootA, 'ordinary-write.ifc');
+    writeFileSync(ordinaryTarget, 'OUD GEWOON');
+    fileToolDeps.getFs = async () => createNodeFileFs(rootA, undefined, { fault: phase => {
+      if (phase === 'write') {
+        const error = new Error('ordinary write failure');
+        error.name = 'ScopeEscapeError'; // Alleen een gelijknamige Error is niet het gedeelde contract.
+        throw error;
+      }
+    } });
+    await refused(client, 'planner_export_ifc', { path: ordinaryTarget, overwrite: true },
+      'INTERNAL', 'gewone schrijffout behoudt code');
+    assertEq(readFileSync(ordinaryTarget, 'utf8'), 'OUD GEWOON', 'gewone fout behoudt origineel');
+  } finally {
+    fileToolDeps.getFs = originalGetFs;
+    await client.close();
+  }
 });
 
 test('A: afsluiten', async () => { await httpA.close(); });
@@ -484,6 +665,66 @@ async function leafSchedule(client: Client): Promise<string[]> {
   return rows.filter((t) => !t.summary).map((t) => `${t.name}|${String(t.start).slice(0, 10)}`).sort();
 }
 
+test('XML 1.0: geldige tekens, regeleinden en entiteiten blijven letterlijk correct (214)', () => {
+  const parser = new XmlDomParser();
+  const doc = parser.parseFromString('<root a="x\r\ny\tz&#xD;">A\r\nB\rC&#13;D&#x1F6A2;&amp;&lt;&gt;&quot;&apos;<![CDATA[\r\nraw & text]]></root>');
+  assertEq(doc.getElementsByTagName('parsererror').length, 0, 'geldige XML');
+  assertEq(doc.documentElement.textContent, 'A\nB\nC\rD🚢&<>"\'\nraw & text', 'fysieke CR genormaliseerd, karakterreferentie CR bewaard');
+  assertEq(doc.documentElement.getAttribute('a'), 'x y z\r', 'attribuutwitruimte genormaliseerd vóór entiteiten');
+  for (const code of [0x9, 0xa, 0xd, 0x20, 0xd7ff, 0xe000, 0xfffd, 0x10000, 0x10ffff]) {
+    const value = String.fromCodePoint(code);
+    const escaped = parser.parseFromString(`<r>&#${code};</r>`);
+    assertEq(escaped.documentElement.textContent, value, `geldige karakterreferentie ${code}`);
+  }
+});
+
+// Zowel direct als via de gebouwde server: geen stil genegeerde ongeldige uitbreidingselementen.
+const invalidNamespaceFragments = [
+  '<p:Extra/>', '<Extra p:attr="x"/>', '<:Extra/>', '<Extra:/>', '<p:q:Extra/>',
+  '<Extra :attr="x"/>', '<Extra p:1attr="x" xmlns:p="urn:p"/>',
+  '<Extra xmlns:p=""/>', '<Extra xmlns:xml="urn:wrong"/>',
+  '<Extra xmlns:p="http://www.w3.org/XML/1998/namespace"/>',
+  '<Extra xmlns="http://www.w3.org/XML/1998/namespace"/>',
+  '<Extra xmlns:xmlns="urn:p"/>', '<xmlns:Extra/>',
+  '<Extra xmlns:p="http://www.w3.org/2000/xmlns/"/>',
+  '<Extra xmlns="http://www.w3.org/2000/xmlns/"/>',
+  '<Extra xmlns:p="urn:x" xmlns:q="urn:x" p:a="1" q:a="2"/>',
+  '<Extra xmlns:p="urn:x&amp;y" xmlns:q="urn:x&#38;y" p:a="1" q:a="2"/>',
+  '<Extra><child xmlns:p="urn:p"/><p:later/></Extra>',
+  '<Extra><child xmlns:p="urn:p"></child><p:later/></Extra>',
+  '<Extra xmlns:p="urn:p"><child xmlns:p="urn:q" xmlns:q="urn:q" p:a="1" q:a="2"/></Extra>',
+];
+
+test('XML namespaces: declaratievolgorde, overerving, lokale overrides en gereserveerde namen (214)', () => {
+  const parser = new XmlDomParser();
+  for (const xml of invalidNamespaceFragments) {
+    assertEq(parser.parseFromString(xml).getElementsByTagName('parsererror').length, 1, `ongeldig: ${xml}`);
+  }
+  const valid = [
+    '<p:Root p:a="1" xmlns:p="urn:p"/>',
+    '<Root xml:lang="nl"><xml:child/></Root>',
+    '<Root xmlns:xml="http://www.w3.org/XML/1998/namespace" xml:space="preserve"/>',
+    '<Root xmlns="urn:p" xmlns:p="urn:p" a="1" p:a="2"/>',
+    '<Root xmlns="urn:p"><child xmlns=""/></Root>',
+    '<Root xmlns:p="urn:p"><p:child p:a="x"/></Root>',
+    '<Root xmlns:p="urn:p" xmlns:q="urn:q"><child xmlns:p="urn:q"/><later p:a="1" q:a="2"/></Root>',
+    '<Root xmlns:p="urn:p" xmlns:q="urn:q"><child xmlns:p="urn:q"></child><later p:a="1" q:a="2"/></Root>',
+    '<Root xmlns:p="urn:p" xmlns:q="urn:q" p:a="1" q:a="2"/>',
+    '<Root xmlns:constructor="urn:c"><constructor:child/></Root>',
+    '<Root xmlns:xmlOther="urn:allowed"><xmlOther:child/></Root>',
+    '<é:Root xmlns:é="urn:unicode"><é:child/></é:Root>',
+  ];
+  for (const xml of valid) {
+    assertEq(parser.parseFromString(xml).getElementsByTagName('parsererror').length, 0, `geldig: ${xml}`);
+  }
+  const root = parser.parseFromString('<p:Root xmlns:p="urn:p"><p:child p:a="x">tekst</p:child></p:Root>').documentElement;
+  assertEq(root.tagName, 'p:Root', 'gekwalificeerde naam behouden');
+  assertEq(root.localName, 'Root', 'lokale naam behouden');
+  const child = root.getElementsByTagName('p:child')[0];
+  assertEq(child.getAttribute('p:a'), 'x', 'attribuut via gekwalificeerde naam');
+  assertEq(child.textContent, 'tekst', 'inhoud behouden');
+});
+
 /** Bewust zelf bytes maken; de productie-decoder mag niet zijn eigen fixtures schrijven. */
 function utf16Bytes(text: string, bigEndian: boolean, bom = true): Buffer {
   const body = Buffer.from(text, 'utf16le');
@@ -592,8 +833,33 @@ test('B stdio bevinding 3: MSPDI, P6 XML, CSV en XER openen in de losse server, 
   writeFileSync(join(work, 'kapot.xml'), '<Project xmlns="http://schemas.microsoft.com/project"><Tasks></Project>');
   const broken = await refused(stdio, 'planner_import_schedule', { path: '~/kapot.xml' }, 'VALIDATION', 'kapotte XML');
   assert(String(broken.s.error).includes('Invalid XML'), `melding: ${broken.s.error}`);
+  const beforeNamespaces = await leafSchedule(stdio);
+  const mspdi = readFileSync(join(work, 'bron-mspdi.xml'), 'utf8');
+  for (const fragment of invalidNamespaceFragments) {
+    writeFileSync(join(work, 'namespace.xml'), mspdi.replace('</Project>', `${fragment}</Project>`));
+    await refused(stdio, 'planner_import_schedule', { path: '~/namespace.xml' }, 'VALIDATION', `namespace: ${fragment}`);
+    assertEq(await leafSchedule(stdio), beforeNamespaces, 'ongeldige namespace laat het open plan intact');
+  }
+  writeFileSync(join(work, 'namespace.xml'), mspdi.replace('</Project>',
+    '<p:Extra p:attr="x" xmlns:p="urn:extension"><p:Child xml:lang="nl"/></p:Extra></Project>'));
+  await ok(stdio, 'planner_import_schedule', { path: '~/namespace.xml' });
+  assertEq(await leafSchedule(stdio), fromIfc, 'geldige namespace-uitbreiding behoudt planning');
   writeFileSync(join(work, 'entiteit.xml'), '<?xml version="1.0"?><!DOCTYPE Project [<!ENTITY x "y">]><Project xmlns="http://schemas.microsoft.com/project"><Name>&x;</Name></Project>');
   await refused(stdio, 'planner_import_schedule', { path: '~/entiteit.xml' }, 'VALIDATION', 'DOCTYPE met eigen entiteit');
+
+  // Via de echte gebouwde server: geen ongeldige tekens of prototype-entiteiten in een plan laden.
+  const beforeInvalid = await leafSchedule(stdio);
+  const invalid = ['&#0;', '&#1;', '&#xD800;', '&#xFFFE;', '&#xFFFF;', '&#1114112;',
+    '&constructor;', '&toString;', '&__proto__;', '&missing;', '&amp', '&#X41;', ']]>',
+    String.fromCharCode(0), String.fromCharCode(1), String.fromCharCode(0xfffe)];
+  for (const value of invalid) {
+    writeFileSync(join(work, 'invalid-character.xml'), `<Project xmlns="http://schemas.microsoft.com/project"><Name>${value}</Name></Project>`);
+    await refused(stdio, 'planner_import_schedule', { path: '~/invalid-character.xml' }, 'VALIDATION', `ongeldige XML ${JSON.stringify(value)}`);
+    assertEq(await leafSchedule(stdio), beforeInvalid, 'geweigerde import laat huidig plan intact');
+  }
+  const parser = new XmlDomParser();
+  assertEq(parser.parseFromString('<r>' + String.fromCharCode(0xd800) + '</r>').getElementsByTagName('parsererror').length, 1,
+    'losse surrogate ook geweigerd vóór UTF-8-vervanging aan de bestandssysteemrand');
 });
 
 test('B stdio: afsluiten', async () => {

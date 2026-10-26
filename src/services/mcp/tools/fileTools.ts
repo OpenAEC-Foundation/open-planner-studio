@@ -1,3 +1,4 @@
+import { ScopeEscapeError } from '../fileScopeError';
 // MCP-bridge — de TWEE BESTANDS-TOOLS.
 //
 // `export_ifc` en `import_schedule` zijn de enige tools die de wereld BUITEN de app raken. Daarom:
@@ -105,6 +106,8 @@ export const fileToolDeps: { getFs: () => Promise<McpFileFs> } = { getFs: realFs
  */
 export function normalizeAbsolutePath(input: string): string | null {
   const unified = input.replace(/\\/g, '/');
+  // UNC- en devicepaden mogen niet stil een lokaal POSIX-pad worden (knownbug 213).
+  if (unified.startsWith('//')) return null;
   let root = '';
   let rest: string;
   const drive = /^([A-Za-z]:)\//.exec(unified); // Windows: C:/…
@@ -141,6 +144,13 @@ export function checkScope(home: string, input: string): ScopeCheck {
   const expanded = input === '~' || input.startsWith('~/') || input.startsWith('~\\')
     ? `${home}/${input.slice(2)}`
     : input;
+  if ([expanded, home].some(path => path.replace(/\\/g, '/').startsWith('//'))) {
+    return {
+      ok: false,
+      reason: 'UNC/network and Windows device paths are not supported by the file tools. ' +
+        'Use a local absolute path and a local home/working folder instead; no file was read or written.',
+    };
+  }
   const target = normalizeAbsolutePath(expanded);
   const root = normalizeAbsolutePath(home);
   if (target === null || root === null) {
@@ -306,7 +316,7 @@ export const fileTools: McpToolDef[] = [
           );
         }
       } catch (e) {
-        return toolError(ctx, 'INTERNAL', `Could not check the target path: ${e instanceof Error ? e.message : String(e)}`);
+        return toolError(ctx, e instanceof ScopeEscapeError ? 'SCOPE' : 'INTERNAL', `Could not check the target path: ${e instanceof Error ? e.message : String(e)}`);
       }
 
       // Na de fs-awaits opnieuw: de gebruiker kan intussen gepauzeerd, alleen-lezen gezet, een
@@ -336,7 +346,7 @@ export const fileTools: McpToolDef[] = [
       try {
         await fs.writeTextFile(path, content);
       } catch (e) {
-        return toolError(ctx, 'INTERNAL', `Writing to '${path}' failed: ${e instanceof Error ? e.message : String(e)}`);
+        return toolError(ctx, e instanceof ScopeEscapeError ? 'SCOPE' : 'INTERNAL', `Writing to '${path}' failed: ${e instanceof Error ? e.message : String(e)}`);
       }
       return {
         ok: true,
@@ -420,7 +430,7 @@ export const fileTools: McpToolDef[] = [
         const escaped = await fs.confine?.(path);
         if (escaped) return toolError(ctx, 'SCOPE', escaped);
       } catch (e) {
-        return toolError(ctx, 'INTERNAL', `Could not check the source path: ${e instanceof Error ? e.message : String(e)}`);
+        return toolError(ctx, e instanceof ScopeEscapeError ? 'SCOPE' : 'INTERNAL', `Could not check the source path: ${e instanceof Error ? e.message : String(e)}`);
       }
       // `content` blijft '' voor een binair formaat — puur voor `formatOf` (verderop) om te sniffen
       // op CSV/P6-XML/MSPDI-XML-inhoud; het OPSLAGDOEL-besluit hangt niet af van `formatOf`'s
@@ -433,7 +443,8 @@ export const fileTools: McpToolDef[] = [
         // óók hier — `fs` (McpFileFs) is structureel compatibel met `readFormatInput`'s `FormatIO`.
         input = await readFormatInput(path, fs);
       } catch (e) {
-        return toolError(ctx, e instanceof FileTextDecodingError ? 'VALIDATION' : 'NOT_FOUND', `Could not read '${path}': ${e instanceof Error ? e.message : String(e)}`);
+        const code = e instanceof ScopeEscapeError ? 'SCOPE' : e instanceof FileTextDecodingError ? 'VALIDATION' : 'NOT_FOUND';
+        return toolError(ctx, code, `Could not read '${path}': ${e instanceof Error ? e.message : String(e)}`);
       }
       const content = input.text ?? '';
 

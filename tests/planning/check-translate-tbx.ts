@@ -6,7 +6,12 @@
 import { buildTermsPackages, candidatesFor, indexTbx, parseTbx, uiExamplesFor } from '../../scripts/translate/tbx';
 import { collectCandidates, emphasisOf, normalizeCandidate } from '../../scripts/translate/candidates';
 import { applyTerms, inconsistencyReport, mergeConcepts, type TermsOut } from '../../scripts/translate/termbase';
-import type { Concept } from '../../scripts/translate/common';
+import { TBX_FILES, type Concept } from '../../scripts/translate/common';
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 
 let checks = 0;
 const diffs: string[] = [];
@@ -138,6 +143,90 @@ const concepts: Concept[] = [
   const md = inconsistencyReport('fr', outs, concepts);
   ok('rapport: variant genoemd', md.includes('*parcours critique*') && md.includes('Eén concept, meer vertalingen (1)'));
   ok('rapport: afwijking van de vakterm', md.includes('vakterm (TBX) *marge libre totale*') && md.includes('Afwijking van de vakterm (1)'));
+}
+
+// 102: de echte CLI in een tijdelijke werkmap; geen productie-termbase of Microsoft-TBX nodig.
+{
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+  const work = mkdtempSync(join(tmpdir(), 'ops-term-seals-'));
+  const cli = join(work, 'translate.mjs');
+  const dir = join(work, 'build/translate/cs');
+  const tbPath = join(work, 'i18n/termbase/cs.json');
+  const sealsPath = join(work, 'build/translate-seal/cs.json');
+  const write = (path: string, value: unknown) => {
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify(value));
+  };
+  const run = (...args: string[]) => {
+    const r = spawnSync(process.execPath, [cli, ...args], { cwd: work, encoding: 'utf8', timeout: 30_000,
+      env: { ...process.env, OPS_MSTERMS_DIR: join(work, 'msterms') } });
+    return { status: r.status, output: `${r.stdout}${r.stderr}${r.error?.message ?? ''}` };
+  };
+  const output = { _style: { address: 'formal' }, gap: { term: 'mezera', forms: ['mezera'], source: 'model', status: 'model' } };
+  try {
+    const built = spawnSync(join(root, 'node_modules/.bin/esbuild'), [join(root, 'scripts/translate/cli.ts'),
+      '--bundle', '--platform=node', '--format=esm', '--log-level=error', `--outfile=${cli}`], { encoding: 'utf8', timeout: 30_000 });
+    if (built.status !== 0) throw new Error(`CLI-bundel faalde: ${built.stderr}`);
+    symlinkSync(join(root, 'scripts'), join(work, 'scripts'), 'dir');
+    symlinkSync(join(root, 'node_modules'), join(work, 'node_modules'), 'dir');
+    write(join(work, 'i18n/termbase/concepts.json'), [
+      { id: 'gap', kind: 'term', nl: 'gat', en: ['gap'], definition: 'Onderbreking.' },
+    ]);
+    write(tbPath, { _style: { address: 'formal' } });
+    mkdirSync(join(work, 'msterms'));
+    writeFileSync(join(work, 'msterms', TBX_FILES.cs), TBX);
+    const lookedUp = run('terms-lookup', 'cs');
+    eq(`102 terms-lookup maakt bronpakket (${lookedUp.output})`, lookedUp.status, 0);
+    const pkgPath = join(dir, 'terms-01.json');
+    const pkg = readFileSync(pkgPath, 'utf8');
+    const seals = readFileSync(sealsPath, 'utf8');
+    write(join(dir, 'terms-01.out.json'), output);
+    const before = readFileSync(tbPath, 'utf8');
+    rmSync(sealsPath);
+    const unsealed = run('apply-terms', 'cs');
+    eq('102 onverzegeld bronpakket geweigerd', unsealed.status, 1);
+    ok('102 ontbrekend zegel wordt uitgelegd', unsealed.output.includes('geen zegel'));
+    eq('102 onverzegeld laat termbase bytegelijk', readFileSync(tbPath, 'utf8'), before);
+    writeFileSync(sealsPath, seals);
+    writeFileSync(pkgPath, pkg + '\n');
+    const tampered = run('apply-terms', 'cs');
+    eq('102 veranderd bronpakket geweigerd', tampered.status, 1);
+    ok('102 veranderd zegel wordt uitgelegd', tampered.output.includes('veranderd na prepare'));
+    eq('102 veranderd bronpakket laat termbase bytegelijk', readFileSync(tbPath, 'utf8'), before);
+    writeFileSync(pkgPath, pkg);
+    const applied = run('apply-terms', 'cs');
+    eq(`102 intact bronpakket wordt toegepast (${applied.output})`, applied.status, 0);
+    eq('102 gekozen term bewaard', JSON.parse(readFileSync(tbPath, 'utf8')).gap.term, 'mezera');
+    const sources = ['terms-check-01.json', 'terms-check-01.map.json'];
+    const trusted = sources.map(file => readFileSync(join(dir, file), 'utf8'));
+    const trustedSeals = readFileSync(sealsPath, 'utf8');
+    ok('102 bron en koppeltabel van blinde controle verzegeld', sources.every(file =>
+      typeof JSON.parse(trustedSeals)[file] === 'string'));
+    write(join(dir, 'terms-check-01.out.json'), { t1: { backTranslation: 'gap', standard: false, suggestion: 'jiný termín' } });
+    const appliedBefore = readFileSync(tbPath, 'utf8');
+    // Een gewijzigde uitvoer zou zonder de bronpoort de termbase veranderen: weigering moet vóór die write.
+    write(join(dir, 'terms-01.out.json'), { ...output, gap: { ...output.gap, term: 'nová mezera', forms: ['nová mezera'] } });
+    for (const [index, file] of sources.entries()) {
+      writeFileSync(join(dir, file), trusted[index] + '\n');
+      const bad = run('apply-terms', 'cs');
+      eq(`102 veranderd ${file} geweigerd`, bad.status, 1);
+      eq(`102 ${file} weigert vóór termbasewrite`, readFileSync(tbPath, 'utf8'), appliedBefore);
+      eq(`102 ${file} maakt geen misleidend rapport`, existsSync(join(dir, 'terms-check-report.md')), false);
+      writeFileSync(join(dir, file), trusted[index]);
+    }
+    const missingMapSeal = JSON.parse(trustedSeals) as Record<string, string>;
+    delete missingMapSeal['terms-check-01.map.json'];
+    write(sealsPath, missingMapSeal);
+    eq('102 ontbrekend koppeltabelzegel geweigerd', run('apply-terms', 'cs').status, 1);
+    eq('102 ontbrekend koppeltabelzegel behoudt termbase', readFileSync(tbPath, 'utf8'), appliedBefore);
+    writeFileSync(sealsPath, trustedSeals);
+    write(join(dir, 'terms-01.out.json'), output);
+    const checked = run('apply-terms', 'cs');
+    eq(`102 intacte blinde controle maakt rapport (${checked.output})`, checked.status, 0);
+    ok('102 rapport koppelt t1 aan gap', readFileSync(join(dir, 'terms-check-report.md'), 'utf8').includes('- gap (en *gap*)'));
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
 }
 
 if (diffs.length === 0) {

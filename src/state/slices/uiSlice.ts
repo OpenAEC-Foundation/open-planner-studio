@@ -77,7 +77,9 @@ export function createDefaultUI(): UIState {
     showSplitMode: false,
     showProjectSettings: false,
     showProjectInfoDialog: false,
-    leftPanelWidth: 350,
+    // Standaardkolommen 60 + 240 + 60, plus 32px kolomkiezer en 8px marge (knownbug 60).
+    // Bewaarde gebruikersbreedten worden zoals altijd afzonderlijk geladen.
+    leftPanelWidth: 400,
     rightPanelWidth: 280,
     rightPanelVisible: true,
     rightPanelCollapsed: false,
