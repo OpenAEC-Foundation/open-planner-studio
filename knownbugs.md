@@ -314,7 +314,12 @@ en noem het in je rapport of PR-tekst.
      niet af (B3), maar de urenmaat telt verder in hele minuten (`applyRemainingDuration`). Een taak met
      een kleine negatieve speling kan in een filter op negatieve speling verschijnen. Voorstel: de duur van
      de urenmaat in de werkdriehoek op hele minuten zetten, of de speling op hele minuten vergelijken;
-     motorwerk, buiten F4b. Gevonden bij het meten voor knownbugs 252. — B
+     motorwerk, buiten F4b. Gevonden bij het meten voor knownbugs 252.
+     Dezelfde gemengde precisie weigert ook een gewone verkorting (review van #662, GPT-6.1-Sol): vast werk,
+     kalender van 465 minuten, 3,75 d op 40%, verlengd naar 6,75 d en terug naar 1,5 d. De afgeronde rest geeft
+     een negatieve rest van 0,25 minuut, en store, raster, MCP en dialoog weigeren de invoer
+     (`src/engine/taskMutationRules.ts:204`, `src/engine/work/workRuleApply.ts:981`). Al zo op `9a636ec69`.
+     Voorstel: één precisie voor totale, verrichte en resterende duur. — B
 284. **Een opgeslagen Tabel-indeling houdt Start en Einde op 100 px; een datum met tijd valt dan weg.**
      Sinds B4 toont een moment midden op de werkdag datum en tijd ("04-11-2026 11:00"). Die tekst is 89 px
      breed, plus 14 px opvulling; de oude standaardbreedte was 100 px (gemeten in de browser, Inter 11 px).
