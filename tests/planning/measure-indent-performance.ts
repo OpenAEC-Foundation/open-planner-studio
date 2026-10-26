@@ -14,6 +14,10 @@ const output = process.argv[2];
 assert.ok(output, 'Een uitvoermap is verplicht');
 mkdirSync(output, { recursive: true });
 
+// De oude route kostte bij 5.000 taken en 500 geselecteerde taken 211 seconden voor één meting.
+// Beperk de vergelijkende tijdmeting; de regressiecheck bewaakt nog selecties van 1.000/2.000.
+const selectionCount = (size: number) => Math.min(100, Math.floor(size / 5));
+
 function exercise(size: number, sample: number, nested = false): number {
   const { store } = createAppStoreContext();
   const state = () => store.getState();
@@ -26,7 +30,7 @@ function exercise(size: number, sample: number, nested = false): number {
     }
   }
   state().applyLoadedProject(fixture, { filePath: null, recompute: false, viewStartDate: '2026-03-02' });
-  const count = Math.min(500, size / 5);
+  const count = selectionCount(size);
   const selected = nested
     ? state().tasks.filter((_, index) => index % 3 === 2).map(task => task.id)
     : state().tasks.slice(size - count).map(task => task.id);
@@ -79,7 +83,7 @@ exercise(100, 0);
 exercise(80, 0, true);
 const measurements = [5000, 10000].map(size => {
   const samplesMs = Array.from({ length: 3 }, (_, index) => exercise(size, index));
-  return { size, selected: 500, samplesMs, medianMs: [...samplesMs].sort((a, b) => a - b)[1] };
+  return { size, selected: selectionCount(size), samplesMs, medianMs: [...samplesMs].sort((a, b) => a - b)[1] };
 });
 writeFileSync(join(output, 'measurements.json'), JSON.stringify({
   revision: process.env.REVISION_SHA, node: process.version, measurements,
