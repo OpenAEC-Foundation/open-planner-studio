@@ -303,6 +303,12 @@ en noem het in je rapport of PR-tekst.
     runtime-repro of concreet dataverlies vastgesteld; bedoeling en gewenste foutafhandeling
     niet onderzocht. — S
 
+330. **Een herstelmanifest `documents` zonder `isDirty` markeert een schoon document als gewijzigd.**
+    `src/services/recovery/recoveryStore.ts:1361`: bij een geaccepteerd `documents`-manifest zonder `isDirty`, en
+    `isDirty: false` in het documentrecord, gaf de basis `false` en geeft de nieuwe expressie `true`. Zeldzaam; het
+    document vraagt dan onnodig om opslaan. Voorstel: bij ontbrekende manifestmetadata terugvallen op
+    `rec.isDirty`, vóór de standaardwaarde `true`. Gevonden in review r1 van #599 (GPT-6.1-Sol). — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 62. **Melding schuift over de knoppen van het begeleidingspaneel** (1600×950, venster Baselines open):
