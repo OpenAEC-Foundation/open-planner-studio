@@ -522,6 +522,13 @@ en noem het in je rapport of PR-tekst.
     transitieve actieve voorgangers via tussenstappen zonder resource geplaatst zijn, binnen de bestaande
     plaatsingsvolgorde. Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
 
+370. **Nivelleren van een grote planning is nog 2,8 keer trager dan vóór de urenomzetting.** De a12-planning
+    (2.000 taken, 400 kraantaken) kostte 546 ms op `fbd4a3f9d`, 14.353 ms op `9a636ec69` en 1.539 ms na de fix
+    in #665 (`src/engine/scheduler/ResourceLeveler.ts:309`, `:969`). De kandidaatopbouw per taak is weer
+    lineair; over een rij concurrerende taken blijft de nivelleerder kwadratisch in het aantal kandidaten.
+    Voorstel: meten waar de resterende tijd zit en daar de kalenderwandeling per kandidaat delen. Gevonden in de
+    review van de fix voor aanval a12 (GPT-6.1-Sol). — B
+
 ## Bestanden en herstel
 
 36. **Herstelvenster na een gewone herlaad** in de browser, ook als alles was opgeslagen. — S
