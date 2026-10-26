@@ -78,6 +78,12 @@ en noem het in je rapport of PR-tekst.
 16. **Taken kopiëren** heeft geen zichtbare bediening; alleen Ctrl+C/V met de Gantt in focus. — B
 17. **Verwijderen zonder bevestiging**: `confirm.deleteTask` staat in de locales maar wordt nergens gebruikt. — S
 
+333. **De bevestigingsdialoog let bij Enter niet op `isComposing`.** `src/components/dialogs/ConfirmDialog.tsx:36–44`:
+    een synthetische IME-Enter verwijderde in een browserprobe de kalender, toen de focus bewust achter de open
+    dialoog stond. De focus-trap zet de focus normaal op Annuleren; een gewone gebruikersroute naar dit geval is
+    niet aangetoond. Voorstel: na `stopPropagation()` een guard voor `isComposing` die ook de standaardactie
+    tegenhoudt. Gevonden in review r2 van #628 (GPT-6-Sol). — B
+
 ## Kalenders
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden
@@ -87,7 +93,6 @@ en noem het in je rapport of PR-tekst.
 
 28. **Bezettingsoverzicht bij een verouderd actief project** mengt oude startdatums met een nieuwe duur of
     inzet, onder de tekst "laatst berekende cijfers". — B
-33. **Bibliotheekkalender verwijderen** gaat zonder bevestiging; daarna staat hij nog als *al gekoppeld*. — S
 74. **Nederlandse parameternamen en enumwaarden in het MCP-contract.** Na de vertaling naar Engels zijn deze
     sleutels bewust gebleven (ze zijn invoercontract): `planner_list_tasks` `kritiek`/`van`/`tot`/
     `zonder_relaties`, `planner_get_resource_histogram` `van`/`tot` en `bucket: dag|week|maand`,
