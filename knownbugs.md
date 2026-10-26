@@ -129,10 +129,6 @@ en noem het in je rapport of PR-tekst.
     website volgt de laatste deploy, terwijl een desktopversie zijn eigen kopie meelevert; een oudere app kan
     dus naar een gids wijzen die tools beschrijft die hij niet heeft. De gids zegt nu dat de kopie van de tool
     voorgaat. Voorstel: een versiepad (bv. `/agent/<versie>/planning-guide.md`) of de versie in de gids. — S
-214. **De eigen XML-parser van de headless MCP-server heeft nog een encodinggat.**
-    De bestandsroute in `headless/mcp-server/src/nodeFs.ts` detecteert geen UTF-16. Gevonden in review ronde 2
-    van PR #572 (GPT-6.1-Sol). De teken-/entiteitsproblemen, CRLF-normalisatie en namespacevalidatie zijn
-    gericht afgedekt. Voorstel: XML-byte-decoding gericht toevoegen met tests. — B
 215. **Directory-durability bij headless opslaan blijft op Windows en nieuwe bovenmappen beperkt.**
     Linux/macOS synchroniseren nu de doelmap na `rename`, met een expliciete fout als dat mislukt nadat
     het bestand al vervangen is. Windows houdt alleen de bestands-fsync; nieuw aangemaakte bovenmappen

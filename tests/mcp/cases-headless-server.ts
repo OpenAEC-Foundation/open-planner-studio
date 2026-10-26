@@ -28,6 +28,8 @@ import { startHttpTransport } from '../../headless/mcp-server/src/http';
 import { parseOptions, isLoopbackHost } from '../../headless/mcp-server/src/options';
 import { createNodeFileFs, isInside, ScopeEscapeError, WorkingDirectoryRestoreError, type NodeFsPhase } from '../../headless/mcp-server/src/nodeFs';
 import { XmlDomParser } from '../../headless/mcp-server/src/xmlDom';
+import { decodeXmlBytes } from '../../headless/mcp-server/src/xmlEncoding';
+import { FileTextDecodingError } from '@/services/mcp/fileTextError';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
@@ -723,6 +725,55 @@ test('XML namespaces: declaratievolgorde, overerving, lokale overrides en gerese
   assertEq(child.textContent, 'tekst', 'inhoud behouden');
 });
 
+/** Bewust zelf bytes maken; de productie-decoder mag niet zijn eigen fixtures schrijven. */
+function utf16Bytes(text: string, bigEndian: boolean, bom = true): Buffer {
+  const body = Buffer.from(text, 'utf16le');
+  if (bigEndian) body.swap16();
+  return bom ? Buffer.concat([Buffer.from(bigEndian ? [0xfe, 0xff] : [0xff, 0xfe]), body]) : body;
+}
+
+const invalidXmlBytes = [
+  Buffer.from([0xff, 0xfe, 0x3c]), // afgebroken UTF-16-code-eenheid
+  Buffer.from([0xff, 0xfe, 0x00, 0xd8]), // losse hoge surrogate
+  Buffer.from([0xfe, 0xff, 0xdc, 0x00]), // losse lage surrogate
+  Buffer.from([0x3c, 0x50, 0xc3, 0x28, 0x2f, 0x3e]), // ongeldige UTF-8
+  Buffer.from([0xff, 0xfe, 0, 0, 0x3c, 0, 0, 0]), // UTF-32 LE, geen UTF-16
+  Buffer.from([0, 0, 0xfe, 0xff, 0, 0, 0, 0x3c]), // UTF-32 BE
+  utf16Bytes('<?xml version="1.0" encoding="UTF-8"?><Project/>', false),
+  utf16Bytes('<?xml version="1.0" encoding="UTF-16LE"?><Project/>', true),
+  Buffer.from('<?xml version="1.0" encoding="UTF-16"?><Project/>'),
+  Buffer.from('<?xml version="1.0" encoding="ISO-8859-1"?><Project/>'),
+  utf16Bytes('<?xml version="1.0"?><Project/>', false, false),
+  utf16Bytes('<?xml version="1.0" encoding="UTF-16"?><Project/>', true, false),
+];
+
+test('XML byte-decoding (214): beide bytevolgordes, BOM, declaratie en ongeldige bytes', async () => {
+  const body = '<Project><Name>é漢😀</Name></Project>';
+  for (const big of [false, true]) {
+    assertEq(decodeXmlBytes(utf16Bytes(body, big)), body, 'BOM zonder declaratie');
+    const generic = `<?xml version="1.0" encoding="UTF-16"?>${body}`;
+    assertEq(decodeXmlBytes(utf16Bytes(generic, big)), generic, 'BOM met UTF-16-declaratie');
+    const explicit = `<?xml version='1.0' encoding = '${big ? 'UTF-16BE' : 'UTF-16LE'}'?>${body}`;
+    for (const bom of [false, true]) {
+      assertEq(decodeXmlBytes(utf16Bytes(explicit, big, bom)), explicit, 'expliciete endian-declaratie');
+    }
+  }
+  assertEq(decodeXmlBytes(Buffer.from(body)), body, 'UTF-8 zonder BOM');
+  assertEq(decodeXmlBytes(Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from(body)])), body, 'UTF-8 BOM');
+  for (const bytes of invalidXmlBytes) {
+    let rejected = false;
+    try { decodeXmlBytes(bytes); } catch (error) { rejected = error instanceof FileTextDecodingError; }
+    assert(rejected, `ongeldige encoding moet leesvalidatiefout geven: ${bytes.toString('hex')}`);
+  }
+  const bytes = utf16Bytes(body, true);
+  writeFileSync(join(work, 'encoding.XML'), bytes);
+  writeFileSync(join(work, 'encoding.csv'), bytes);
+  const fs = await createNodeFileFs(work);
+  assertEq(await fs.readTextFile(join(work, 'encoding.XML')), body, 'XML-extensie hoofdletterongevoelig');
+  assertEq(await fs.readTextFile(join(work, 'encoding.csv')), bytes.toString('utf8'), 'andere tekstformaten ongewijzigd');
+  assertEq(Array.from(await fs.readFile(join(work, 'encoding.XML'))), Array.from(bytes), 'binair lezen blijft bytegelijk');
+});
+
 test('B stdio bevinding 3: MSPDI, P6 XML, CSV en XER openen in de losse server, met taken en datums', async () => {
   const source = readFileSync(EXAMPLE, 'utf8');
   const src = readIFC(source);
@@ -742,6 +793,30 @@ test('B stdio bevinding 3: MSPDI, P6 XML, CSV en XER openen in de losse server, 
     const opened = await ok(stdio, 'planner_import_schedule', { path: `~/${file}` });
     assertEq(opened.format, format, `${file}: formaat`);
     assertEq(await leafSchedule(stdio), fromIfc, `${file}: dezelfde bladtaken met dezelfde startdatum als het IFC`);
+  }
+  // Dezelfde echte import met Unicode-namen, in beide XML-dialecten en beide bytevolgordes.
+  for (const [file, format] of [['bron-mspdi.xml', 'MSPDI-XML'], ['bron-p6.xml', 'P6-XML']] as const) {
+    const xml = readFileSync(join(work, file), 'utf8').replace(/<\/Name>/g, ' é漢😀</Name>');
+    writeFileSync(join(work, 'encoding.xml'), xml);
+    await ok(stdio, 'planner_import_schedule', { path: '~/encoding.xml' });
+    const expected = await leafSchedule(stdio);
+    assert(expected.some((row) => row.includes('é漢😀')), `${format}: Unicode in taaknaam`);
+    for (const big of [false, true]) {
+      for (const bom of [false, true]) {
+        const encoding = bom ? 'UTF-16' : big ? 'UTF-16BE' : 'UTF-16LE';
+        const encoded = xml.replace(/encoding="UTF-8"/i, `encoding="${encoding}"`);
+        writeFileSync(join(work, 'encoding.xml'), utf16Bytes(encoded, big, bom));
+        const opened = await ok(stdio, 'planner_import_schedule', { path: '~/encoding.xml' });
+        assertEq(opened.format, format, `${encoding}: formaat`);
+        assertEq(await leafSchedule(stdio), expected, `${format} ${encoding} BOM=${bom}: namen en datums behouden`);
+      }
+    }
+  }
+  const beforeEncodingFailure = await leafSchedule(stdio);
+  for (const bytes of invalidXmlBytes) {
+    writeFileSync(join(work, 'encoding.xml'), bytes);
+    await refused(stdio, 'planner_import_schedule', { path: '~/encoding.xml' }, 'VALIDATION', 'ongeldige XML-encoding');
+    assertEq(await leafSchedule(stdio), beforeEncodingFailure, 'decoderfout laat het open plan intact');
   }
   const csv = await ok(stdio, 'planner_import_schedule', { path: '~/bron.csv' });
   assertEq(csv.format, 'CSV', 'CSV: formaat');
