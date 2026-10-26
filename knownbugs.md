@@ -309,6 +309,12 @@ en noem het in je rapport of PR-tekst.
     runtime-repro of concreet dataverlies vastgesteld; bedoeling en gewenste foutafhandeling
     niet onderzocht. — S
 
+328. **De verliescategorie `criticalSlackLimitDays` is dode code.** `src/services/importTypes.ts:454` en
+    `src/state/msProjectImportNotice.ts:22` houden de categorie, maar de importeurs zetten haar sinds de fix van
+    knownbug 46 altijd op nul. Voor het commentaar over "bewaarde oude verslagen" is in de repo geen opslag- of
+    leespad. Voorstel: veld, nulinitialisatie en meldingsregel weg, of het compatibiliteitscontract onderbouwen.
+    Gevonden in review r1 van #634 (GPT-6.1-Sol). — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 62. **Melding schuift over de knoppen van het begeleidingspaneel** (1600×950, venster Baselines open):
