@@ -243,14 +243,6 @@ en noem het in je rapport of PR-tekst.
     kenmerk alleen-lezen, dan faalt opslaan wel netjes (zelfde check, §1 en §2). Voorstel: bij een doel zonder
     schrijfbit eerst vragen of melden. Een besluit voor de eigenaar. — B
 
-201. **Het versieloze webherstelmanifest met `docIds` forceert `isDirty=true`.** In
-    `recoveryStore.ts`, `loadWeb`, krijgt de terugvalmetadata voor `docIds` `isDirty: true`;
-    `document.isDirty ?? rec.isDirty ?? true` kiest daardoor die `true`, ook als het oude
-    documentrecord `isDirty: false` bevat. Statisch gezien bij het versiecontract van knownbug 96;
-    de bestaande legacysemantiek is in die fix behouden. Mogelijk verwant aan de herstelmelding
-    van 36, maar niet vastgesteld als dezelfde oorzaak. De bedoeling en runtimegevolgen zijn niet
-    onderzocht. — S
-
 329. **Een mislukte opslag in de herstelronde houdt de installatie van een update niet tegen.**
     `src/hooks/useAutoSave.ts:72`: de geregistreerde herstelronde vangt opslagfouten zelf af en meldt ze, zonder
     opnieuw te gooien. Zulke fouten bereiken de blokkade van #589 (stoppen als `flushRecoveryNow()` faalt) dus
@@ -262,6 +254,12 @@ en noem het in je rapport of PR-tekst.
     knownbug 46 altijd op nul. Voor het commentaar over "bewaarde oude verslagen" is in de repo geen opslag- of
     leespad. Voorstel: veld, nulinitialisatie en meldingsregel weg, of het compatibiliteitscontract onderbouwen.
     Gevonden in review r1 van #634 (GPT-6.1-Sol). — B
+
+330. **Een herstelmanifest `documents` zonder `isDirty` markeert een schoon document als gewijzigd.**
+    `src/services/recovery/recoveryStore.ts:1361`: bij een geaccepteerd `documents`-manifest zonder `isDirty`, en
+    `isDirty: false` in het documentrecord, gaf de basis `false` en geeft de nieuwe expressie `true`. Zeldzaam; het
+    document vraagt dan onnodig om opslaan. Voorstel: bij ontbrekende manifestmetadata terugvallen op
+    `rec.isDirty`, vóór de standaardwaarde `true`. Gevonden in review r1 van #599 (GPT-6.1-Sol). — B
 
 ## Rondleiding, Help en extensie-gidsen
 
