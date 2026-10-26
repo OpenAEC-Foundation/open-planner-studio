@@ -174,11 +174,15 @@ test('occupancy ververst na actieve-documentedit zonder documentwissel', async (
 
   await expect.poll(() => row.innerText()).not.toBe(beforeText);
   expect((await state(page)).activeDocumentId).toBe(documentId);
+  // Een duurwijziging maakt de planning stale; alleen inzet wijzigen hoeft dat niet te doen.
+  const duration = taskDialog.locator('[data-ops-duration-value]');
+  await duration.fill('20');
+  await duration.blur();
+  await taskDialog.locator('[data-ops-task-save]').click();
+  await expect(taskDialog).toBeHidden();
   // Een edit in een reeds geopend overzicht start geen CPM per toetsaanslag.
   await page.waitForTimeout(150);
   expect(await page.evaluate(() => window.__OPS__!.store.getState().scheduleStale)).toBe(true);
-  await page.keyboard.press('Escape');
-  await expect(taskDialog).toBeHidden();
   await openOccupancyWithRealClick(page);
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().scheduleStale)).toBe(false);
 

@@ -178,8 +178,8 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
       const s = useAppStore.getState();
       if (s.activeDocumentId !== activeDocumentId || s.project.companyId !== companyId) return;
       openingAttempt.current = key;
-      // Opgeslagen datums verlaten blijft een expliciete gebruikershandeling, nooit een leesvenster.
-      if (s.scheduleStale && !s.datesAsRecorded) s.runCPM();
+      // Opgeslagen datums verlaten / een minutenmigratie bevestigen blijft expliciet, nooit een leesvenster.
+      if (s.scheduleStale && !s.datesAsRecorded && !s.minuteModelPending) s.runCPM();
     };
     const unsubscribe = onAutoCalcReleased(calculateOnOpen);
     calculateOnOpen();
