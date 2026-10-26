@@ -1,16 +1,20 @@
 import { expect, seedProject, state, test } from './fixtures/ops';
 
 // Relatie toevoegen vanuit het eigenschappenpaneel (sectie Afhankelijkheden, 2026-09). De fixture
-// (drie taken + selectie) komt via de brug; alles daarna is echte bediening: klikken op de
+// (taken + selectie) komt via de brug; alles daarna is echte bediening: klikken op de
 // toevoegknop, typen in het zoekveld, kiezen met pijltoets/Enter of met de muis, en bevestigen.
 // Asserties lopen over de store — de sequences zijn de bron, niet de DOM.
 
 test('conceptrij: zoeken met pijltoets + Enter legt een voorgangerrelatie vast', async ({ page, ops: _ops }) => {
-  const [grondwerk, fundering] = await seedProject(page, [
+  const ids = await seedProject(page, [
     { name: 'Grondwerk', start: '2026-09-07', finish: '2026-09-18' },
     { name: 'Fundering', start: '2026-09-21', finish: '2026-10-02' },
     { name: 'Ruwbouw', start: '2026-10-05', finish: '2026-10-16' },
+    ...Array.from({ length: 10 }, (_, i) => ({
+      name: `Extra werk ${i}`, start: '2026-10-05', finish: '2026-10-16',
+    })),
   ]);
+  const [grondwerk, fundering] = ids;
 
   await page.evaluate((id) => {
     const s = window.__OPS__!.store.getState();
@@ -28,6 +32,47 @@ test('conceptrij: zoeken met pijltoets + Enter legt een voorgangerrelatie vast',
   await expect(draft.locator('[data-ops-dependency-direction]')).toHaveAttribute('data-ops-dependency-direction', 'predecessor');
 
   const search = draft.locator('[data-ops-dependency-search]');
+  const options = draft.locator('[data-ops-dependency-option]');
+  const firstEight = await page.evaluate(id => window.__OPS__!.store.getState().tasks
+    .filter(task => task.id !== id).slice(0, 8).map(task => `${task.wbsCode} ${task.name}`.trim()), fundering);
+  await expect(options).toHaveText(firstEight);
+  const before = await state(page);
+  await search.press('ArrowDown');
+  await expect(options.nth(1)).toHaveAttribute('data-ops-dependency-highlighted', 'true');
+  await search.press('ArrowUp');
+  await expect(options.nth(0)).toHaveAttribute('data-ops-dependency-highlighted', 'true');
+  await search.pressSequentially('Extra werk');
+  await expect(options).toHaveCount(8);
+  await search.fill('Extra werk 9');
+  await expect(options).toHaveCount(1);
+  await expect(options).toContainText('Extra werk 9');
+
+  // Een vervangende takenarray moet dezelfde open zoekroute direct verversen, ook bij undo.
+  const last = ids[ids.length - 1]!;
+  await page.evaluate(id => window.__OPS__!.store.getState().updateTask(id, { name: 'Nieuwe naam' }), last);
+  await expect(options).toHaveCount(0);
+  await search.fill('Nieuwe naam');
+  await expect(options).toHaveCount(1);
+  await page.evaluate(() => window.__OPS__!.store.getState().undo());
+  await expect(options).toHaveCount(0);
+  // WBS komt normaal uit hiërarchiebewerkingen; hier wisselt alleen de fixture buiten de meting.
+  await page.evaluate(id => {
+    const store = window.__OPS__!.store;
+    store.setState({ tasks: store.getState().tasks.map(task => task.id === id ? { ...task, wbsCode: '9.8' } : task) });
+  }, last);
+  await search.fill('9.8 Extra werk 9');
+  await expect(options).toHaveText(['9.8 Extra werk 9']);
+  await search.press('Escape');
+  await expect(draft).toHaveCount(0);
+  expect((await state(page)).sequences).toEqual(before.sequences);
+  expect((await state(page)).undoDepth).toBe(before.undoDepth);
+
+  // Een selectiewissel wist een open concept; opnieuw openen gebruikt de nieuwe eigenaar.
+  await add.click();
+  await page.locator(`[data-grid-data-row="true"][data-grid-row-key="${grondwerk}"]`).first().click();
+  await expect(draft).toHaveCount(0);
+  await page.locator(`[data-grid-data-row="true"][data-grid-row-key="${fundering}"]`).first().click();
+  await add.click();
   await search.click();
   await search.pressSequentially('Grond');
   await expect(draft.locator('[data-ops-dependency-option="0"]')).toContainText('Grondwerk');
@@ -37,12 +82,22 @@ test('conceptrij: zoeken met pijltoets + Enter legt een voorgangerrelatie vast',
   await search.press('Enter');
   await draft.locator('[data-ops-dependency-type] .ops-select__trigger').click();
   await page.getByRole('option', { name: 'SS', exact: true }).click();
+  const lag = draft.locator('.dependency-lag-field');
+  await lag.fill('2d');
+  await search.click();
+  expect((await state(page)).sequences).toEqual(before.sequences);
+  expect((await state(page)).undoDepth).toBe(before.undoDepth);
   await search.press('Enter');
 
   await expect(page.locator('[data-ops-dependency-draft]')).toHaveCount(0);
   await expect.poll(() => state(page).then(s => s.sequences.map(q => ({
     p: q.predecessorId, s: q.successorId, t: q.type,
   })))).toEqual([{ p: grondwerk, s: fundering, t: 'START_START' }]);
+  expect((await state(page)).sequences[0]?.lagDays).toBe(2);
+  expect((await state(page)).undoDepth).toBe(before.undoDepth + 1);
+  await page.keyboard.press('Control+z');
+  await expect.poll(() => state(page).then(s => s.sequences)).toEqual(before.sequences);
+  expect((await state(page)).undoDepth).toBe(before.undoDepth);
 });
 
 test('conceptrij: muiskeuze met richting Opvolger, en een duplicaat wordt geweigerd', async ({ page, ops: _ops }) => {
