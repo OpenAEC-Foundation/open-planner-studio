@@ -25,6 +25,20 @@ eq('Generatiespanne vanaf 1 januari: startjaar zelf', computeGenerateSpan('2026-
 eq('Generatiespanne met projecteinde op 1 januari', computeGenerateSpan('2026-01-01', '2027-01-01'), { from: 2025, to: 2028 });
 eq('Generatiespanne op 31 december', computeGenerateSpan('2026-12-31', '2027-12-31'), { from: 2025, to: 2028 });
 
+// Knownbug 198: ongeldig einde verdringt geen geldig alternatief en veroorzaakt geen NaN.
+for (const invalid of ['ongeldig', 'not-a-date', 'NaN']) {
+  eq(`onleesbaar einde ${invalid}: standaardbereik`, computeGenerateSpan('2026-01-01', invalid), { from: 2025, to: 2029 });
+  eq(`onleesbaar einde ${invalid}: berekend einde blijft tellen`, computeGenerateSpan('2026-01-01', invalid, '2031-06-01'), { from: 2025, to: 2032 });
+  eq(`onleesbaar berekend einde ${invalid}: ingevoerd einde blijft tellen`, computeGenerateSpan('2026-01-01', '2030-12-31', invalid), { from: 2025, to: 2031 });
+  eq(`beide eindes onleesbaar ${invalid}: standaardbereik`, computeGenerateSpan('2026-01-01', invalid, invalid), { from: 2025, to: 2029 });
+}
+eq('latere berekende einde', computeGenerateSpan('2026-01-01', '2027-01-01', '2029-01-01'), { from: 2025, to: 2030 });
+eq('latere ingevoerde einde', computeGenerateSpan('2026-01-01', '2029-01-01', '2027-01-01'), { from: 2025, to: 2030 });
+eq('einde ver vóór start houdt niet-omgekeerde spanne', computeGenerateSpan('2026-01-01', '2020-01-01'), { from: 2025, to: 2025 });
+const localYear = new Date().getFullYear();
+eq('onleesbare start gebruikt dezelfde terugval als ontbrekende start', computeGenerateSpan('ongeldig', undefined), { from: localYear - 1, to: localYear + 3 });
+eq('ontbrekende start behoudt lokale jaarterugval', computeGenerateSpan('', undefined), { from: localYear - 1, to: localYear + 3 });
+
 const leaf = (id: string, start: string, finish: string): Task => ({
   id, childIds: [], isMilestone: false,
   time: { earlyStart: start, earlyFinish: finish, scheduleStart: start, scheduleFinish: finish, isCritical: false },
