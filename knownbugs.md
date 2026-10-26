@@ -420,6 +420,13 @@ en noem het in je rapport of PR-tekst.
     Gevonden in review ronde 1 en 2 van PR #573 (GPT-6.1-Sol). Voorstel: de pids vergelijken en de bestaande
     echte-app-route uitbreiden met echte bestandsacties, inhoud en opruiming. — B
 
+323. **De regressietest van de MCP-proxy mist annuleren na een 404.** `tests/mcp/cases-mcpb.ts:411` toetst
+    annuleren tijdens verbinden vanuit offline toestand, maar niet de registratie vóór de tweede
+    verbindingspoging na `404`. Een losse proef van de reviewer bevestigt dat die route werkt. Daarnaast zijn de
+    annuleringscontroles op `integrations/claude-desktop/src/proxy.ts:402` en `:418` overbodig: op die routes zit
+    sinds de vorige controle geen nieuwe asynchrone onderbreking. Voorstel: de 404-route in de test, en de twee
+    regels weg. Gevonden in review r1 van #603 (GPT-6.1-Sol). — B
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen en de selectie niet lezen.
