@@ -1391,13 +1391,15 @@ async function readWebRecovery(strict = false): Promise<{ records: WebRecord[]; 
 }
 
 async function loadWeb(): Promise<LoadedRecovery> {
-  // Eerst de database, dan pas de sessie-id: in een opaque origin weigeren ook sessionStorage en Web
-  // Locks, en de sessieclaim zou dan een retry en een consolewaarschuwing kosten (issue #582).
-  // Bij een geweigerde opslag is er niets te herstellen.
-  const { records: all, archives: allArchives } = await readWebRecovery();
-  if (webStorageUnavailable) return emptyRecovery();
+  // Eerst de sessieclaims, dan pas de herstelread (review PR #644): een gedupliceerd tabblad wacht
+  // hier op de lock; las het vóór die wachttijd, dan kon het een oudere generatie herstellen en daarna
+  // bij het wissen de nieuwere generatie van het andere tabblad weggooien. In een opaque origin kost
+  // dit niets extra: daar weigert sessionStorage en geeft `resolveSessionId` meteen `'default'`.
   const sid = await sessionId();
   const held = await heldSessionIds();
+  const { records: all, archives: allArchives } = await readWebRecovery();
+  // Bij een geweigerde opslag (issue #582) is er niets te herstellen.
+  if (webStorageUnavailable) return emptyRecovery();
   const candidates = webManifestCandidates(all);
   checkWebGenerations(candidates, [sid, ...held]);
   const docs: LoadedRecoveryDoc[] = [];
