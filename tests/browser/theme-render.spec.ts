@@ -128,7 +128,27 @@ test('occupancy ververst na actieve-documentedit zonder documentwissel', async (
   }], 'Bezettingsproject');
   const { poolResourceId } = await addLibraryBooking(page, taskId, 'Actief');
   const documentId = (await state(page)).activeDocumentId;
+  // Openen moet ook met automatisch berekenen UIT het actieve project één keer bijwerken.
+  const beforeOpen = await page.evaluate(id => {
+    const s = window.__OPS__!.store.getState();
+    s.setUI({ autoCalcCPM: false });
+    const task = s.tasks.find(t => t.id === id)!;
+    s.updateTask(id, { manuallyScheduled: false, time: { ...task.time, scheduleDuration: 15 } });
+    const changed = window.__OPS__!.store.getState();
+    return { end: changed.cpmResult?.projectEnd, dirty: changed.isDirty,
+      history: changed.historyEvents, stale: changed.scheduleStale };
+  }, taskId);
+  expect(beforeOpen.stale).toBe(true);
   await openOccupancyWithRealClick(page);
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().scheduleStale)).toBe(false);
+  const afterOpen = await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    return { end: s.cpmResult?.projectEnd, dirty: s.isDirty, history: s.historyEvents };
+  });
+  expect(afterOpen.end).not.toBe(beforeOpen.end);
+  expect(afterOpen.dirty).toBe(beforeOpen.dirty);
+  // F5 kan de huidige event-afterdata verversen, maar maakt geen extra undo-event.
+  expect(afterOpen.history.map(e => e.id)).toEqual(beforeOpen.history.map(e => e.id));
   const row = page.locator(`[data-ops-occupancy-row="${poolResourceId}"]`);
   await expect(row).toBeVisible();
   const beforeText = await row.innerText();
@@ -154,6 +174,40 @@ test('occupancy ververst na actieve-documentedit zonder documentwissel', async (
 
   await expect.poll(() => row.innerText()).not.toBe(beforeText);
   expect((await state(page)).activeDocumentId).toBe(documentId);
+  // Een edit in een reeds geopend overzicht start geen CPM per toetsaanslag.
+  await page.waitForTimeout(150);
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().scheduleStale)).toBe(true);
+  await page.keyboard.press('Escape');
+  await expect(taskDialog).toBeHidden();
+  await openOccupancyWithRealClick(page);
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().scheduleStale)).toBe(false);
+
+  // Openen is nooit stil toestemming om de modus 'datums zoals opgeslagen' te verlaten.
+  await page.evaluate(() => window.__OPS__!.store.setState(s => {
+    s.datesAsRecorded = true;
+    s.scheduleStale = true;
+  }));
+  await openOccupancyWithRealClick(page);
+  expect(await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    return [s.datesAsRecorded, s.scheduleStale];
+  })).toEqual([true, true]);
+
+  // Ook een foutieve invoer krijgt maar één poging, geen render-/notificatielus.
+  await page.evaluate(id => window.__OPS__!.store.setState(s => {
+    s.datesAsRecorded = false;
+    s.tasks.find(t => t.id === id)!.time.scheduleStart = '';
+    s.scheduleStale = true;
+  }), taskId);
+  await openOccupancyWithRealClick(page);
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().cpmResult?.errorInfo?.code))
+    .toBe('invalidStartDate');
+  const count = () => page.evaluate(() => window.__OPS__!.store.getState().ui.notifications
+    .find(n => n.dedupeKey === 'cpm-error')?.count);
+  const countAfterOpen = await count();
+  await page.waitForTimeout(200);
+  expect(await count()).toBe(countAfterOpen);
+
 });
 
 test('occupancy gebruikt na echte documenttabwissel de nieuwe company- en poolcache', async ({ page, ops: _ops }) => {
