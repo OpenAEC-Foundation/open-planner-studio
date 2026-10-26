@@ -608,8 +608,12 @@ export function TaskGridSurface({
         previousColumnsRef.current,
         visibleColumnIds,
       );
-      const samePublishedSelection = current.selectedTaskIds.length === selectedTaskIds.length
-        && current.selectedTaskIds.every(id => selectedTaskIds.includes(id));
+      let samePublishedSelection = current.selectedTaskIds.length === selectedTaskIds.length;
+      if (samePublishedSelection) {
+        // Alleen de opzoeking verandert: every behoudt ook bij dubbele ids zijn betekenis.
+        const publishedSelectionIds = new Set(selectedTaskIds);
+        samePublishedSelection = current.selectedTaskIds.every(id => publishedSelectionIds.has(id));
+      }
       const samePublishedActiveTask = current.activeTaskId === publishedActiveTaskId;
       if (samePublishedSelection && samePublishedActiveTask) return reconciled;
 
