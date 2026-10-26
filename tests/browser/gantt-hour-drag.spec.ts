@@ -1,5 +1,11 @@
 import { barPoint, expect, state, test } from './fixtures/ops';
 
+// Deze route bedient tijdlijnbalken naast de takenlijst en de eigenschappenrail.
+// Reserveer expliciet genoeg canvasruimte, onafhankelijk van de standaard paneelbreedte
+// (knownbug 60, #627: de standaardbreedte van de takenlijst is 400 px). Bij kwartierzoom is de
+// urentaak 1000 px breed en ligt het midden van de balk anders onder de eigenschappenrail.
+test.use({ viewport: { width: 1600, height: 900 } });
+
 async function seedHourTask(page: import('@playwright/test').Page, start = '2026-09-07T07:00', finish = '2026-09-07T16:00'): Promise<string> {
   const id = await page.evaluate(({ taskStart, taskFinish }) => {
     const state = window.__OPS__!.store.getState();
