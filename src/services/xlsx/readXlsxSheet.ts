@@ -305,9 +305,36 @@ function formatSections(code: string): string[] {
   return sections;
 }
 
+/**
+ * De `[…]`-codes van een sectie, buiten letterlijke tekst (`"…"`), escapes (`\x`), opvulling (`_x`) en
+ * herhaling (`*x`). Zo telt `yyyy-mm-dd "[<0]"` niet als voorwaarde: daar is `[<0]` gewone tekst in de cel
+ * (review r2 van #659).
+ */
+function bracketCodes(section: string): string[] {
+  const codes: string[] = [];
+  for (let i = 0; i < section.length; i++) {
+    const ch = section[i]!;
+    if (ch === '"') {
+      const end = section.indexOf('"', i + 1);
+      i = end < 0 ? section.length : end;
+    } else if (ch === '[') {
+      const end = section.indexOf(']', i + 1);
+      codes.push(section.slice(i + 1, end < 0 ? section.length : end));
+      i = end < 0 ? section.length : end;
+    } else if (ch === '\\' || ch === '_' || ch === '*') {
+      i++;
+    }
+  }
+  return codes;
+}
+
 /** De voorwaarde `[<50000]`, `[>=1]` … van een sectie, of `undefined` zonder voorwaarde. */
 function sectionCondition(section: string): ((value: number) => boolean) | undefined {
-  const m = /\[(<=|>=|<>|<|>|=)\s*(-?\d+(?:\.\d+)?)\]/.exec(section);
+  let m: RegExpExecArray | null = null;
+  for (const code of bracketCodes(section)) {
+    m = /^\s*(<=|>=|<>|<|>|=)\s*([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s*$/.exec(code);
+    if (m) break;
+  }
   if (!m) return undefined;
   const limit = Number(m[2]);
   switch (m[1]) {

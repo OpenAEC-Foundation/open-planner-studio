@@ -18,7 +18,8 @@
 //   4. de celopmaak bepaalt of een geheel getal een moment is (review r1 van #659): alleen een opmaak
 //      waarvan de GELDENDE sectie een datum én een kloktijd toont. Ingebouwd 34/35 (per landinstelling
 //      datum of tijd), een tweede sectie met tijd, een voorwaardelijke sectie, opvulling `_h`, tekst
-//      tussen aanhalingstekens en een opmaak met alleen een tijd blijven een kale datum. Ook met
+//      tussen aanhalingstekens, een "voorwaarde" die letterlijke tekst is en een opmaak met alleen een
+//      tijd blijven een kale datum. Ook met
 //      bestanden die LibreOffice opnieuw heeft opgeslagen (`fixtures/xlsx-libreoffice/`).
 //
 // Exit 0 = alles groen. De exitcode is het enige geldige oordeel.
@@ -190,6 +191,10 @@ function viaCsv(task: Task): readonly ProgressRow[] {
     ['ingebouwd 18 (alleen tijd)', { id: 18 }],
     ['tweede sectie met tijd', { code: 'yyyy-mm-dd;yyyy-mm-dd hh:mm' }],
     ['voorwaardelijke sectie', { code: '[>50000]yyyy-mm-dd hh:mm;yyyy-mm-dd' }],
+    // `[<0]` tussen aanhalingstekens is tekst in de cel, geen voorwaarde (review r2 van #659).
+    ['voorwaarde als letterlijke tekst', { code: 'yyyy-mm-dd "[<0]";yyyy-mm-dd hh:mm' }],
+    ['voorwaarde als escape', { code: 'yyyy-mm-dd\\[<0];yyyy-mm-dd hh:mm' }],
+    ['voorwaarde met plusteken', { code: '[>+50000]yyyy-mm-dd hh:mm;yyyy-mm-dd' }],
     ['opvulling _h', { code: 'yyyy-mm-dd_h' }],
     ['herhaling *s', { code: 'yyyy-mm-dd*s' }],
     ['tekst tussen aanhalingstekens', { code: 'yyyy-mm-dd" uur"' }],
@@ -206,8 +211,9 @@ function viaCsv(task: Task): readonly ProgressRow[] {
   // Bestanden die LibreOffice opende en opnieuw als XLSX opsloeg (review r1 van #659). Het taak-id in
   // die bladen komt uit een andere sessie; de rij wordt aan de fixturetaak gekoppeld. LibreOffice
   // schrijft ingebouwd 34 terug als eigen opmaak `h:mm:ss`: alleen een tijd, dus ook een kale datum.
+  // `condition-quoted` heeft `yyyy\-mm\-dd" [<0]";yyyy\-mm\-dd\ hh:mm` (review r2 van #659).
   const lo = (naam: string) => new Uint8Array(readFileSync(join(ROOT, 'tests', 'planning', 'fixtures', 'xlsx-libreoffice', `${naam}.xlsx`)));
-  for (const naam of ['builtin-34', 'custom-sections', 'custom-padding']) {
+  for (const naam of ['builtin-34', 'custom-sections', 'custom-padding', 'condition-quoted']) {
     const rows = finalizeProgressRows(await parseProgressXlsx(lo(naam)), 'dmy').map(r => ({ ...r, taskId: dag.id }));
     eq(`LibreOffice ${naam}: toepassen geeft 16:00`, pasToe(dag, rows).actualFinish, '2026-06-01T16:00');
   }
