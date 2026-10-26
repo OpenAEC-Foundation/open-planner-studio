@@ -326,6 +326,36 @@ test('bijwerken toont voortgang, installatie en herstart; AUR en Snap blijven bi
   await expect(dialog.getByText('Test signature failure', { exact: true })).toBeVisible();
   await expect.poll(() => page.evaluate(() => window.updaterProbe.calls)).toEqual(['download']);
   await expect(dialog.getByRole('status')).toHaveCount(0);
+  // Knownbug 203: een afgewezen herstelronde mag nooit installeren of herstarten.
+  // Dit loopt door de echte service en dialoog, niet een gekopieerde beslisregel.
+  await dialog.getByRole('button', { name: 'Try again', exact: true }).click();
+  await expect(install).toBeEnabled();
+  await page.evaluate(() => { window.updaterProbe.calls = []; window.updaterProbe.steps = {}; });
+  await install.click();
+  await sendDownloadEvent({ event: 'Started', data: {} });
+  await sendDownloadEvent({ event: 'Finished' });
+  await completeStep('download');
+  await expectPhase('Preparing installation…');
+  await completeStep('recovery', 'Test recovery flush failure');
+  await expect(dialog.getByText('Test recovery flush failure', { exact: true })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.updaterProbe.calls)).toEqual(['download', 'recovery']);
+  await expect(dialog.getByRole('status')).toHaveCount(0);
+  await expect(closeButtons.first()).toBeEnabled();
+  await expect(closeButtons.last()).toBeEnabled();
+
+  // Na de fout opnieuw via dezelfde knop: een geslaagde flush staat installatie weer toe.
+  await dialog.getByRole('button', { name: 'Try again', exact: true }).click();
+  await expect(install).toBeEnabled();
+  await page.evaluate(() => { window.updaterProbe.calls = []; window.updaterProbe.steps = {}; });
+  await install.click();
+  await sendDownloadEvent({ event: 'Started', data: {} });
+  await sendDownloadEvent({ event: 'Finished' });
+  await completeStep('download');
+  await completeStep('recovery');
+  await expectPhase('Installing…');
+  await expect.poll(() => page.evaluate(() => window.updaterProbe.calls)).toEqual(['download', 'recovery', 'install']);
+  await completeStep('install', 'Test retry installation failure');
+  await expect(dialog.getByText('Test retry installation failure', { exact: true })).toBeVisible();
   await closeButtons.last().click();
   await expect(dialog).toHaveCount(0);
 
