@@ -25,7 +25,7 @@ Sleep je overwegend omhoog of omlaag in plaats van opzij, dan verplaats je de ta
 
 De linkerrand verplaatst de start en laat het einde staan, dus de taak wordt korter of langer aan de voorkant. Daarvoor geldt dezelfde SNET-regel als bij het verplaatsen. Bij het slepen van het midden van de balk verschijnt het pilletje niet: de duur verandert dan niet.
 
-De duur telt werkdagen van de kalender van de taak. Weekenden en vrije dagen tellen niet mee, en een taak in dagen kan niet korter worden dan één werkdag. Bij een taak in uren rondt de app af op het stapje van de tijdlijn onder je muis: minstens een uur, of een kwartier als je ver genoeg inzoomt en *Kwartieren tonen bij ver inzoomen* aan staat.
+De duur telt werkdagen van de kalender van de taak. Weekenden en vrije dagen tellen niet mee. Bij een taak in dagen hangt de stap af van de zoom. Zie je dagen, dan gaat de duur per werkdag, en wordt de taak niet korter dan één werkdag. Zie je uren, dan gaat de duur per uur en kan een dagtaak ook een deel van een dag duren: een taak van 2 dagen wordt bijvoorbeeld 0,5 dag, van maandag 07:00 tot 11:00. Bij een taak in uren rondt de app af op het stapje van de tijdlijn onder je muis: minstens een uur, of een kwartier als je ver genoeg inzoomt en *Kwartieren tonen bij ver inzoomen* aan staat.
 
 Eén sleepbeweging is één stap in *Ongedaan*, hoe lang je ook sleept. Op een gesplitste balk werken de randen anders; zie [Een taak splitsen](docs://howto-taak-splitsen).
 
