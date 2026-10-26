@@ -21,8 +21,8 @@ steps in its own release worktree, including package checks by its Haiku transla
 (website generators in a temporary copy there); see
 [`.claude/skills/release/SKILL.md`](.claude/skills/release/SKILL.md) and its exact list in `referentie.md`.
 Owner decision 9, clarified by the orchestrator on 2026-10-23. This does not cover agents outside
-that job or maintenance of the skill.
-Tests, app builds, the full `npm run verify` and dev servers remain CI-only.
+that job or maintenance of the skill. Within that job, tests, app builds, the full `npm run verify` and
+dev servers stay CI-only.
 
 ## Commands
 
