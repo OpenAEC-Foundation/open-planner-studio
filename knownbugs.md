@@ -1202,11 +1202,6 @@ en noem het in je rapport of PR-tekst.
     PR-head was groen. Screenshot/trace: artefact 12585687942. Geen Gantt-code in deze PR gewijzigd;
     timing-/geometrieoorzaak en productreproduceerbaarheid nog niet vastgesteld. — S
 
-321. **De browsertest voor een kapot `.mpp`-bestand toetst geen bestaand werk.** `tests/browser/new-open-task-flow.spec.ts:58`
-    zegt dat bestaand werk behouden blijft, maar vergelijkt met een leeg beginproject (de fixture doet
-    `newProject()` en voegt geen taak toe). Een losse probe met gewijzigd werk slaagt wel. Voorstel: één taak in
-    de beginstaat en ook de dirty-vlag controleren. Gevonden in review r1 van #636 (GPT-6.1-Sol). — B
-
 323. **De regressietest van de MCP-proxy mist annuleren na een 404.** `tests/mcp/cases-mcpb.ts:411` toetst
     annuleren tijdens verbinden vanuit offline toestand, maar niet de registratie vóór de tweede
     verbindingspoging na `404`. Een losse proef van de reviewer bevestigt dat die route werkt. Daarnaast zijn de
