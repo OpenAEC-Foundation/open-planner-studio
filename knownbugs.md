@@ -143,9 +143,6 @@ en noem het in je rapport of PR-tekst.
     `headless/mcp-server/src/nodeFs.ts:355`: na een stroomuitval kan de nieuwe naam ontbreken. Gevonden in
     review ronde 2 van PR #572 (GPT-6.1-Sol). Voorstel: na de `rename` de map openen (`'.'`, in het gebonden
     blok) en `fsync` doen. — B
-216. **De tijdelijke naam bij opslaan is de doelnaam plus 27 bytes.** `headless/mcp-server/src/nodeFs.ts:324`:
-    een geldige bestandsnaam van rond 240 bytes geeft bij opslaan `ENAMETOOLONG`. Gevonden in review ronde 2
-    van PR #572 (GPT-6.1-Sol). Voorstel: een korte eigen naam (bijv. `.ops-save.<willekeurig>.tmp`). — B
 217. **Het eigen tijdelijke bestand wordt na een mapwissel niet altijd opgeruimd.**
     `headless/mcp-server/src/nodeFs.ts:370`: is de map weg of niet meer bereikbaar, dan blijft
     `.<naam>.<willekeurig>.ops-save.tmp` staan (de docs zeggen dat nu ook). Gevonden in review ronde 2 van PR

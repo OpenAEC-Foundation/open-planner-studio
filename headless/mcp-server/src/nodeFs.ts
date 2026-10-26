@@ -315,7 +315,9 @@ export async function createNodeFileFs(
   }
 
   function writeHere(c: Checked, target: string, content: string): void {
-    const tmpName = `.${c.base}.${randomBytes(6).toString('hex')}.ops-save.tmp`;
+    // De doelnaam kan zelf al bijna NAME_MAX bytes zijn; voeg daar niets aan toe.
+    // O_EXCL en de inodecontrole blijven het eigendom van deze korte eigen naam bewaken.
+    const tmpName = `.${randomBytes(6).toString('hex')}.ops-save.tmp`;
     const fd = openHere(tmpName, fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL, target, c.file?.mode ?? 0o666);
     let tmpId: Identity | null = null;
     let open = true;
