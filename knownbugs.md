@@ -26,8 +26,6 @@ en noem het in je rapport of PR-tekst.
 6. **Externe opvolger met te krap anker** geeft alleen negatieve speling, geen melding over een geschonden
    constraint. — B
 7. **Hammock zonder finish-driver**: de melding zegt "nul-lengte", het Duur-veld toont 1 dag. — S
-8. **Twee botsende taken op nivelleerprioriteit 1000**: de overbezetting blijft, maar het venster zegt
-   "al conflictvrij". — B
 10. **Splitsen van een taak met voortgang**: cursor en geleidelijn tonen "splitsbaar" in het al gedane deel;
     een klik doet niets. — B
 47. **Speling *Automatisch* telt voortgang alleen mét statusdatum.** MS Project rekent een gestarte taak ook
@@ -232,6 +230,14 @@ en noem het in je rapport of PR-tekst.
     tijdelijke tokenbestand leesbaar. Doc en gids zeggen nu dat dit niet apart gecontroleerd is. Gevonden in
     review ronde 1 van PR #573 (GPT-6.1-Sol). Voorstel: de ACL op Windows controleren (ook tijdelijk bestand
     en bestaande map), of geen token publiceren als de bescherming onvoldoende is. — B
+
+322. **Een conflict tussen vastgepinde taken heeft geen reden.** `src/engine/scheduler/ResourceLeveler.ts:811`
+    vult voor pinconflicten alleen `unresolved`. `src/services/library/distribute.ts:475` maakt daaruit een
+    `DistributionShortfall` waarvan `reason` volgens regel 101 verplicht is: twee botsende pins plus één
+    verplaatsbare taak geven twee tekorten met `reason: undefined`. De MCP-waarschuwing in
+    `calendarResourceTools.ts:1621` verwijst dan naar een lege `unresolvedReasons`. De dialoog toont de
+    conflicten wel goed. Voorstel: een ontbrekende reden expliciet in het typecontract, en de MCP-uitleg daarop
+    aanpassen. Gevonden in review r1 van #594 (GPT-6.1-Sol). — B
 
 ## Bestanden en herstel
 
