@@ -26,10 +26,6 @@ en noem het in je rapport of PR-tekst.
 6. **Externe opvolger met te krap anker** geeft alleen negatieve speling, geen melding over een geschonden
    constraint. — B
 7. **Hammock zonder finish-driver**: de melding zegt "nul-lengte", het Duur-veld toont 1 dag. — S
-8. **Twee botsende taken op nivelleerprioriteit 1000**: de overbezetting blijft, maar het venster zegt
-   "al conflictvrij". — B
-9. **Nivelleervenster** toont tegelijk "Geen taken hoeven te verschuiven — de planning is al conflictvrij" en
-   "Resterende conflicten". — S
 10. **Splitsen van een taak met voortgang**: cursor en geleidelijn tonen "splitsbaar" in het al gedane deel;
     een klik doet niets. — B
 47. **Speling *Automatisch* telt voortgang alleen mét statusdatum.** MS Project rekent een gestarte taak ook
@@ -90,13 +86,6 @@ en noem het in je rapport of PR-tekst.
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden
     altijd gegenereerd. — B
-
-198. **Een onparseerbare projecteinddatum kan een ongeldige kalendergeneratie-spanne geven.**
-    `computeGenerateSpan` in `src/engine/calendar/generateCalendarHolidays.ts` haalt uit een
-    geselecteerde einddatum direct het UTC-jaar. Bij bijvoorbeeld `endDate = 'ongeldig'` kan
-    daardoor `to: NaN` ontstaan. Dit bestaande pad is niet afgedekt door de einddatummatrix;
-    PR #535 verhelpt alleen de keuze van het UI-projectbereik en wijzigt dit foutpad niet.
-    Statisch afgeleid bij de review op `71112e97`, niet lokaal uitgevoerd of in de app nagespeeld. — S
 
 ## Bibliotheek, bezetting, extensies, AI
 
@@ -234,6 +223,14 @@ en noem het in je rapport of PR-tekst.
     review ronde 1 van PR #573 (GPT-6.1-Sol). Voorstel: de ACL op Windows controleren (ook tijdelijk bestand
     en bestaande map), of geen token publiceren als de bescherming onvoldoende is. — B
 
+322. **Een conflict tussen vastgepinde taken heeft geen reden.** `src/engine/scheduler/ResourceLeveler.ts:811`
+    vult voor pinconflicten alleen `unresolved`. `src/services/library/distribute.ts:475` maakt daaruit een
+    `DistributionShortfall` waarvan `reason` volgens regel 101 verplicht is: twee botsende pins plus één
+    verplaatsbare taak geven twee tekorten met `reason: undefined`. De MCP-waarschuwing in
+    `calendarResourceTools.ts:1621` verwijst dan naar een lege `unresolvedReasons`. De dialoog toont de
+    conflicten wel goed. Voorstel: een ontbrekende reden expliciet in het typecontract, en de MCP-uitleg daarop
+    aanpassen. Gevonden in review r1 van #594 (GPT-6.1-Sol). — B
+
 320. **De koppeldialoog bouwt dezelfde optielijst drie keer per kandidaat.** `src/components/dialogs/LibraryLinkDialog.tsx:47`
     mapt de volledige bronlijst; regels 96–98 roepen dat apart aan voor `options`, `disabled` en `placeholder`.
     Dat maakt bij elke render onnodige arrays; een merkbare vertraging is niet aangetoond. Voorstel: één
@@ -245,8 +242,6 @@ en noem het in je rapport of PR-tekst.
 35. **Showcase-voorbeelden openen als gewijzigd** (`applyDemoLibraryToShowcaseProject`). — S
 36. **Herstelvenster na een gewone herlaad** in de browser, ook als alles was opgeslagen. — S
 38. **Firefox: *Recent*** opent een lege pagina (de knop staat er wel). — B
-46. **`.mpp` neemt de kritiek-drempel uit MS Project niet over als projectinstelling** (wel voor *Datums zoals
-    opgeslagen*; MSPDI doet het wel). Gevolg: drempel 0 na openen. — B
 
 97. **De sluitvraag van een tabblad ligt op een vaste z-index 80**, de gewone dialogen op 50/60. Elke vraag die
     vanuit *Opslaan* in die sluitvraag opent, valt eronder en lijkt te hangen. De twee site-dialogen liggen
@@ -258,17 +253,6 @@ en noem het in je rapport of PR-tekst.
     op dezelfde browser, dan krijgt B de herstelvraag van A, en schrijft Ctrl+S na herstel naar het bestand van A
     met de rechten van B. Voorstel: de host levert een gebruikers-id en de tool sleutelt zijn opslag daarop.
     Gemeld door de review van #312. — S
-112. **Na IfcOpenShell `MergeProjects` wordt een werkende uitzondering van een kalender een feestdag.** Het
-    pset `OPS_Calendar` bewaart de werkende uitzonderingen als STEP-nummers (`WorkingExceptionIds`,
-    `ifcWriter.ts` `writeCalendarGenerationMeta`). MergeProjects nummert alle regels opnieuw, dus die nummers
-    wijzen daarna naar iets anders. Nagemeten met het rijke testproject van de oude writer
-    (`tests/planning/fixtures/ifc-arity-oude-writer.ifc` en `…-merged.ifc`): `#37` (werkende uitzondering
-    *Inhaalzaterdag*) is na de merge een `IFCTASKTIME`, `#192` (*Zaterdagdienst*) een `IFCPROPERTYSET`. De
-    lezer leest beide daarna als feestdag: de projectkalender heeft 19 feestdagen en 0 werkende
-    uitzonderingen in plaats van 18 en 1, de bibliotheekkalender *Tweeploegen* 2 feestdagen in plaats van 1.
-    Zo ook met de lezer van main; de huidige writer bewaart de nummers op dezelfde manier. Voorstel: de
-    uitzonderingen herkennen op iets dat een merge overleeft (naam en datum, of een GlobalId-achtige
-    sleutel). Gevonden bij de herbeoordeling van #336. — B
 115. **Na een IFC-round-trip veranderen status of percentage van XER-taken waarvan de P6-status de werkelijke
     datums tegenspreekt**, zonder datumwijziging. De XER-lezer houdt de P6-status aan; de IFC-lezer leidt de
     status af uit de actuals (`normalizeImportedProgress`). Gemeten over het XER-corpus (openen, opslaan als
@@ -315,6 +299,12 @@ en noem het in je rapport of PR-tekst.
     punt zegt niet dat iedere mislukte snapshotwrite als rejection uit de flush komt. Geen
     runtime-repro of concreet dataverlies vastgesteld; bedoeling en gewenste foutafhandeling
     niet onderzocht. — S
+
+328. **De verliescategorie `criticalSlackLimitDays` is dode code.** `src/services/importTypes.ts:454` en
+    `src/state/msProjectImportNotice.ts:22` houden de categorie, maar de importeurs zetten haar sinds de fix van
+    knownbug 46 altijd op nul. Voor het commentaar over "bewaarde oude verslagen" is in de repo geen opslag- of
+    leespad. Voorstel: veld, nulinitialisatie en meldingsregel weg, of het compatibiliteitscontract onderbouwen.
+    Gevonden in review r1 van #634 (GPT-6.1-Sol). — B
 
 ## Rondleiding, Help en extensie-gidsen
 
@@ -378,12 +368,6 @@ en noem het in je rapport of PR-tekst.
     Dit is een afzonderlijke netwerk-/doorlooptijdbevinding na #515/#523; oorzaak en herhaalbaarheid
     zijn niet vastgesteld. De limieten en CI-poorten zijn niet verruimd. — B (CI-uitval), S (oorzaak)
 
-90. **`check-xer-tables` is rood als de `TextDecoder` van Node byte 0x80 (CP1252) niet naar € vertaalt**
-    ("Café €" wordt "Café "; 6 asserties in deel 5). Gezien 7-10-2026 in een cloudcontainer (Node 22.22.0,
-    ICU 77.1), óók op de onaangeraakte commit `c00163a`; daar geeft `new TextDecoder('windows-1252')` voor
-    byte 0x80 geen €. De check hangt dus af van de ICU-build van Node, niet van de code. Voorstel: de
-    check slaat deel 5 over (met melding) als die decoder 0x80 niet naar € vertaalt, of de reader decodeert
-    CP1252 met een eigen tabel. — B (nagespeeld), oorzaak in de ICU-build afgeleid
 91. **De browsersuite start niet in een container met alleen de voorgeïnstalleerde Chromium-1194**
     (`@playwright/test` 1.62.1 verwacht een nieuwere headless shell; `scripts/run-browser-tests.mjs`
     stopt dan met "Playwright headless shell ontbreekt"). Met `executablePath` naar
@@ -420,14 +404,6 @@ en noem het in je rapport of PR-tekst.
     op `repository.pullRequest.projectCards`. De body is wel bijgewerkt via
     `gh api --method PATCH repos/OpenAEC-Foundation/open-planner-studio/pulls/479 -F body=@<bestand>`.
     Voorstel: de GitHub CLI op de host bijwerken; de repo zelf is niet aangepast hiervoor. — B
-
-204. **`headless-api.yml` meldt "token staat in de log" als het image niet bouwt.** De stap *Logs bevatten
-    geen token en geen IFC-inhoud* draait ook na een mislukte stap *Image bouwen*. Dan bestaat er geen
-    container, en `grep -qF "$OPS_API_TOKEN"` vindt een treffer in de foutmelding van Docker, zodat de job
-    een tweede, misleidende fout geeft. Gezien op PR #567, run 39950724242 (job *container + smoke-test*),
-    waar de echte oorzaak een ontbrekend bestand in de Dockerfile was. Voorstel: de stap alleen draaien als
-    de container bestaat, of eerst controleren dat het token niet leeg is. Niet onderzocht waarom het
-    token-grep matcht. — S
 
 208. **`scripts/build-core.mjs` bouwt de licentiegegevens onnodig om.** `scripts/build-core.mjs:138–148` zet
     de pakketnamen om in een `Map` en de sectietekst in een array met één element; `notices.packages.join(',
