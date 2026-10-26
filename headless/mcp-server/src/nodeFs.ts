@@ -96,6 +96,8 @@ export type NodeFsPhase =
 export interface NodeFsHooks {
   afterCheck?: (phase: NodeFsPhase, target: string) => void;
   fault?: (phase: 'write' | 'rename') => void;
+  /** Alleen de directory-fsync vervangen/observeren in tests; standaard de echte syscall. */
+  syncDirectory?: (fd: number) => void;
 }
 
 const O_NOFOLLOW = fsConstants.O_NOFOLLOW ?? 0;
@@ -350,6 +352,27 @@ export async function createNodeFileFs(
       hooks.fault?.('rename');
       renameSync(tmpName, c.base);
       renamed = true;
+      try {
+        assertHere(target);
+      } catch {
+        throw movedDuringSave(target);
+      }
+      // De bestands-fsync bewaart niet automatisch de nieuwe naam in de doelmap.
+      // Open '.' relatief aan het al gebonden map-object, niet opnieuw via c.dir.
+      // Windows ondersteunt deze POSIX-directoryroute niet; geen schijnzekerheid daar.
+      if (process.platform !== 'win32') {
+        try {
+          const directoryFd = openSync('.', fsConstants.O_RDONLY | (fsConstants.O_DIRECTORY ?? 0));
+          try {
+            (hooks.syncDirectory ?? fsyncSync)(directoryFd);
+          } finally {
+            closeSync(directoryFd);
+          }
+        } catch (error) {
+          throw new Error(`File '${target}' was replaced, but synchronizing its directory failed; `
+            + `crash durability is unconfirmed. Inspect the saved file before retrying. ${String(error)}`);
+        }
+      }
       try {
         assertHere(target);
       } catch {

@@ -12,7 +12,7 @@ import { fileToolDeps } from '@/services/mcp/tools/fileTools';
 //      Over HTTP: tools/list, fout token, ontbrekende sessie-id, Origin, en de startweigeringen.
 import { test, assert, assertEq, run } from './harness';
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from 'node:child_process';
-import { cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, fstatSync, fsyncSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -208,6 +208,54 @@ test('knownbug 216: lange geldige doelnamen blijven schrijfbaar en fouten houden
     assertEq(readFileSync(target, 'utf8'), 'NIEUW LANG DOEL', 'nieuw lang doel aangemaakt');
     unlinkSync(target);
   }
+});
+
+test('A2 (215): doelmap synchroniseren na rename, met expliciete fout als het bestand al vervangen is', async () => {
+  if (process.platform === 'win32') return; // Deze POSIX-route beweert geen Windows-durability.
+  const folder = join(tmp, 'directory-sync');
+  mkdirSync(folder);
+  const target = join(folder, 'plan.ifc');
+  const linked = join(folder, 'link.ifc');
+  writeFileSync(target, ORIGINAL);
+  symlinkSync(target, linked);
+  let syncs = 0;
+  let lastFd = -1;
+  const fs = await createNodeFileFs(folder, undefined, {
+    syncDirectory: (fd) => {
+      syncs++;
+      lastFd = fd;
+      const actual = fstatSync(fd, { bigint: true });
+      const expected = lstatSync(folder, { bigint: true });
+      assert(actual.isDirectory() && actual.dev === expected.dev && actual.ino === expected.ino,
+        'fsync krijgt het gecontroleerde map-object');
+      assertEq(readFileSync(target, 'utf8'), 'NIEUW', 'rename is vóór directory-fsync uitgevoerd');
+      assertEq(tmpFiles(folder), [], 'halffabricaat is al hernoemd');
+      fsyncSync(fd); // Niet alleen de haak: ook de echte syscall op de echte map.
+    },
+  });
+  for (const name of [target, linked]) {
+    await fs.writeTextFile(name, 'NIEUW');
+    let closed = false;
+    try { fstatSync(lastFd); } catch { closed = true; }
+    assert(closed, 'directory-handle gesloten na succes');
+  }
+  assertEq(syncs, 2, 'iedere save synchroniseert de doelmap, ook via een symlink');
+  assert(lstatSync(linked).isSymbolicLink(), 'symlink behouden');
+  const failing = await createNodeFileFs(folder, undefined, {
+    syncDirectory: (fd) => { lastFd = fd; throw new Error('nagebootste directory-I/O-fout'); },
+  });
+  let message = '';
+  try { await failing.writeTextFile(target, 'REEDS VERVANGEN'); } catch (error) { message = String(error); }
+  assert(message.includes('was replaced') && message.includes('crash durability is unconfirmed')
+    && message.includes('nagebootste directory-I/O-fout'), `eerlijk foutbericht na commit: ${message}`);
+  assertEq(readFileSync(target, 'utf8'), 'REEDS VERVANGEN', 'geen onmogelijke rollback of verwijdering na rename');
+  assertEq(tmpFiles(folder), [], 'geen los halffabricaat na syncfout');
+  let closed = false;
+  try { fstatSync(lastFd); } catch { closed = true; }
+  assert(closed, 'directory-handle ook gesloten na syncfout');
+  // De fout laat geen bruikbaarheidsprobleem achter: een volgende save kan normaal slagen.
+  await fs.writeTextFile(target, 'NIEUW');
+  assertEq(syncs, 3, 'volgende save synchroniseert opnieuw');
 });
 
 test('A2 bevinding 2: een map die tussen controle en operatie een link naar buiten wordt, wordt geweigerd', async () => {
