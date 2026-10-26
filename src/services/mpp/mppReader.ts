@@ -407,7 +407,7 @@ export interface RawTaskScan {
   /** Rauwe REMAINING_DURATION (tienden van een minuut, zelfde eenheid + eenhedenbron als
    *  `durationRaw`). `null` als het veld ontbreekt of het record te kort is — Fase C laat
    *  `remainingMinutes`/`remainingTime` dan ongezet; `normalizeImportedProgress` leidt ze bij een
-   *  taak met voortgang af uit `completion`. */
+   *  taak met voortgang af uit `completion`. Aanwezig ⇒ die bronrest blijft staan. */
   remainingDurationRaw: number | null;
   /** Rauwe LEVELING_DELAY (tienden van een minuut), geklemd (`clampLevelingDelayTenths`, limits.ts)
    *  omdat Fase C hem als duur decodeert (`Task.levelingDelayMinutes`). `0` als het veld ontbreekt. */
@@ -729,8 +729,8 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
     // `duration`. `null` ⇒ beide ongezet en de solver leidt de rest af uit `completion`. Waarom:
     // MSP's eigen restduur is exact (4 werkdagen = 1920 min), terwijl `completion` afgerond is
     // opgeslagen (33% i.p.v. 33,33…%) — de afleiding zou op een klokstand landen die MSP nooit toont.
-    // In DAG-modus overschrijft `normalizeImportedProgress` `remainingTime` alsnog met de afgeleide
-    // waarde; `remainingMinutes` (UUR-modus) laat hij staan.
+    // `normalizeImportedProgress` laat beide staan: `remainingMinutes` (UUR-modus) en de dagenrest van
+    // een lopende taak (DAG-modus; 4 d bij 33 % van 6 d blijft 4 d, niet 4,02 d).
     const remainingMinutes = isHour && raw.remainingDurationRaw !== null
       ? Math.round(raw.remainingDurationRaw / 10)
       : undefined;

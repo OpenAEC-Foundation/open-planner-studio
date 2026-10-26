@@ -19,6 +19,7 @@ import { Baseline, BaselineTask } from '@/types/baseline';
 import { generateId } from '@/utils/id';
 import { formatInstant, localTodayIso } from '@/utils/dateUtils';
 import { ifcGuid, ifcGuid128, ifcObjectSeed } from './ifcWriter';
+import { MINUTE_MODEL_TIME_MODEL } from '@/state/migrations/minuteModel';
 import { IfcParseError } from './ifcErrors';
 import { IFC_BUILDING_MODEL_TYPES } from './ifcBuildingModelTypes';
 import { workCalendarSlots, workControlSlots } from './ifcWorkControlSlots';
@@ -366,7 +367,14 @@ export function readIFC(
   // project.statusDate (uit OPS_ProjectSettings) beschikbaar is als default-actualFinish.
   // `runningStatusIds`: taken met `IfcTask.Status` = 'STARTED' — een lopende taak op 100 % blijft
   // dan lopend (eigenaarsbesluit 2026-10-14). Oude bestanden (`$`) lezen als voorheen.
-  normalizeImportedProgress(tasks.filter(isLeafTask), project.statusDate, runningStatusIds);
+  // De dagenrest blijft staan in een bestand van het minutenmodel (exact geschreven, ook een rest uit
+  // MPP of XER). Zonder die markering schreef een oudere versie hem afgerond: dan exact afleiden (B3).
+  const timeModel = entities.filter(e => e.type === 'IFCPROPERTYSET' && stripQuotes(e.args[2] || '') === 'OPS_Project')
+    .flatMap(e => parseRefs(e.args[4] || '').map(id => entityMap.get(id)))
+    .filter((e): e is StepEntity => !!e && stripQuotes(e.args[0] || '') === 'TimeModel')
+    .map(e => parseTypedValue(e.args[2] || '')).find((value): value is string => typeof value === 'string');
+  normalizeImportedProgress(tasks.filter(isLeafTask), project.statusDate, runningStatusIds,
+    timeModel === MINUTE_MODEL_TIME_MODEL);
   // Fasen dragen bron- of rollupwaarden: 100 % kan zonder werkelijk einde voorkomen
   // (bv. afgeronde voortgang of een niet-gestarte mijlpaal naast voltooid werk). Bewaar hun
   // voortgang, actuals en restduur; een taakdefault zou ook "datums zoals opgeslagen" vervalsen.
@@ -380,10 +388,6 @@ export function readIFC(
 
   const ifcGlobalIds = collectIfcGlobalIds(entities, entityMap, taskStepIdMap, project.id, guidLog);
 
-  const timeModel = entities.filter(e => e.type === 'IFCPROPERTYSET' && stripQuotes(e.args[2] || '') === 'OPS_Project')
-    .flatMap(e => parseRefs(e.args[4] || '').map(id => entityMap.get(id)))
-    .filter((e): e is StepEntity => !!e && stripQuotes(e.args[0] || '') === 'TimeModel')
-    .map(e => parseTypedValue(e.args[2] || '')).find((value): value is string => typeof value === 'string');
   return {
     project, calendar, tasks, sequences, resources, assignments,
     ...(timeModel ? { timeModel } : {}),

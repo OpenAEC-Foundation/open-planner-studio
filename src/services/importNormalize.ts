@@ -38,20 +38,27 @@ export function deriveImportedWorkRules(tasks: Task[]): void {
  *
  * Golden rule: een taak ZONDER enig voortgangssignaal (geen actuals, completion 0) blijft
  * volledig ongemoeid — status NOT_STARTED, geen `remainingTime` gezet — zodat bestaande
- * bestanden ongewijzigd round-trippen. De restduur is afgeleid uit `completion`
- * (`applyRemainingDuration`): een afwijkende geïmporteerde dag-restduur wordt naar de afgeleide
- * genormaliseerd (gedocumenteerd verlies); vastgelegde restduur-minuten van een urentaak blijven
- * staan.
+ * bestanden ongewijzigd round-trippen. Een restduur die het bestand vastlegt, blijft staan: de
+ * restduur-minuten van een urentaak en de dagenrest van een lopende dagtaak. Alleen zonder bronrest
+ * leidt `applyRemainingDuration` hem af uit `completion` (dezelfde regel als de store).
  *
  * `runningAtFullIds`: smalle uitzondering voor de IFC-lezer. Een taak in deze set met `completion >= 1`
  * en ZONDER werkelijk einde blijft STARTED (zie de tak hieronder). Met een werkelijk einde, of onder
  * 100 %, telt de set niet: dan geldt de gewone regel. Andere lezers geven de set niet mee.
+ *
+ * `keepRecordedDayRest`: alleen de IFC-lezer zet hem op `false`, voor een bestand zonder de markering
+ * van het minutenmodel. Zo'n bestand komt van een oudere versie (die schreef de dagenrest afgerond op
+ * hele dagen, `Math.round`) of van een ander programma. Daar leidt de regel de rest exact af uit
+ * `completion`; eigenaarsbesluit B3 (2026-10-20): "Oude bestanden met voortgang zonder ingevoerde rest
+ * kunnen verschuiven; de melding van B5 telt ze."
  */
 export function normalizeImportedProgress(
   tasks: Task[],
   statusDate?: string,
   runningAtFullIds?: ReadonlySet<string>,
+  keepRecordedDayRest = true,
 ): void {
+  const keep = { minutes: true, days: keepRecordedDayRest };
   for (const task of tasks) {
     const t = task.time;
 
@@ -97,11 +104,11 @@ export function normalizeImportedProgress(
       task.status = 'STARTED';
     }
 
-    // Restduur afgeleid met dezelfde regel als de store, in de vorm van de duur: een
-    // dagtaak hele werkdagen (een geïmporteerde waarde wordt overschreven), een urentaak minuten plus
-    // een onafgeronde werkdagfractie. Uitzondering: in het bestand vastgelegde restduur-MINUTEN
-    // blijven staan (MSP's eigen exacte restduur bij een afgeronde voortgang).
-    applyRemainingDuration(task, true);
+    // Restduur in de vorm van de duur: een dagtaak in werkdagen, een urentaak in minuten plus een
+    // onafgeronde werkdagfractie. Een in het bestand vastgelegde rest blijft staan (MSP's eigen exacte
+    // restduur bij een afgerond percentage, P6's rest naast een fysiek percentage, een eerder
+    // opgeslagen IFC); zonder bronrest leidt dezelfde regel als de store hem af uit `completion`.
+    applyRemainingDuration(task, keep);
   }
 }
 

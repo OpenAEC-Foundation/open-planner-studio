@@ -9,8 +9,9 @@
 //   - urentaak: `remainingMinutes` in hele minuten, zoals `durationMinutes`, en `remainingTime` als
 //     onafgeronde werkdagfractie, zoals `scheduleDuration` (minuten ÷ (uren per dag × 60)).
 // Eén functie (`applyRemainingDuration`) voor alle store-routes (paneel, raster, MCP) én de lezers
-// (`normalizeImportedProgress`); de lezers laten een in het bestand vastgelegde `remainingMinutes`
-// staan (T9: MSP's eigen exacte restduur). De adapter-round-trip staat in check-adapters-hours.ts.
+// (`normalizeImportedProgress`); de lezers laten een in het bestand vastgelegde rest staan
+// (`remainingMinutes`, T9: MSP's eigen exacte restduur; en de dagenrest van een lopende taak, aanval a07
+// na #600, zie check-import-explicit-rest.ts). De adapter-round-trip staat in check-adapters-hours.ts.
 //
 // Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
@@ -139,12 +140,17 @@ const DAY_30 = { remainingMinutes: undefined, remainingTime: 3.5 };
   const recorded = base({ completion: 0.48, actualStart: '2026-06-01', remainingMinutes: 1500 }, 'hours');
   // Oud bestand zonder restduur-minuten (onze eigen export van vóór deze fix: 'P0Y0M0D').
   const legacy = base({ completion: 0.4, actualStart: '2026-06-01', remainingTime: 0 }, 'hours');
-  const day = base({ completion: 0.3, actualStart: '2026-06-01', remainingTime: 2 }, 'days');
+  // Aanval a07 na #600: ook een vastgelegde dagenrest blijft staan; afleiden alleen zonder bronrest.
+  const dayRecorded = base({ completion: 0.3, actualStart: '2026-06-01', remainingTime: 2 }, 'days');
+  const dayWithoutRest = base({ completion: 0.3, actualStart: '2026-06-01' }, 'days');
+  const dayCompleted = base({ completion: 0.3, actualStart: '2026-06-01', actualFinish: '2026-06-02', remainingTime: 2 }, 'days');
   const untouched = base({}, 'hours');
-  normalizeImportedProgress([recorded, legacy, day, untouched], '2026-06-03');
+  normalizeImportedProgress([recorded, legacy, dayRecorded, dayWithoutRest, dayCompleted, untouched], '2026-06-03');
   eq('lezer: vastgelegde restduur-minuten (T9) blijven staan', rem(recorded), { remainingMinutes: 1500, remainingTime: 3.125 });
   eq('lezer: urentaak zonder restduur-minuten krijgt ze afgeleid (40 % van 48 u)', rem(legacy), { remainingMinutes: 1728, remainingTime: 3.6 });
-  eq('lezer: dagtaak krijgt de exacte rest (afgeleid uit %, B3)', rem(day), DAY_30);
+  eq('lezer: vastgelegde dagenrest van een lopende taak blijft staan (2 d, niet 3,5 d uit 30 %)', rem(dayRecorded), { remainingMinutes: undefined, remainingTime: 2 });
+  eq('lezer: dagtaak zonder bronrest krijgt de exacte rest (afgeleid uit %, B3)', rem(dayWithoutRest), DAY_30);
+  eq('lezer: voltooide dagtaak houdt rest 0, ook met een bronrest', rem(dayCompleted), { remainingMinutes: undefined, remainingTime: 0 });
   eq('lezer: taak zonder voortgang blijft ongemoeid', rem(untouched), { remainingMinutes: undefined, remainingTime: undefined });
 }
 

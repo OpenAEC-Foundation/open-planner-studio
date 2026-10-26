@@ -181,6 +181,14 @@ export function applyProgressInvariants(task: Task, statusDate: string | undefin
   applyRemainingDuration(task);
 }
 
+/** Welke restduur uit het bestand een lezer laat staan (zie {@link applyRemainingDuration}). */
+export interface KeepRecordedRest {
+  /** De restduur-minuten van een urentaak. */
+  minutes: boolean;
+  /** De restduur in werkdagen van een lopende dagtaak. */
+  days: boolean;
+}
+
 /**
  * Restduur afgeleid uit `completion`, in dezelfde maat en vorm als de duur van de taak. Exact, in elke
  * maat (spec "alleen uren" §3.5, besluit B3): nooit `Math.round` op hele werkdagen.
@@ -189,17 +197,23 @@ export function applyProgressInvariants(task: Task, statusDate: string | undefin
  *  - urenmaat: `remainingMinutes` in hele minuten, zoals `durationMinutes`, met `remainingTime` als
  *    ONafgeronde werkdagfractie, zoals `scheduleDuration` ({@link hourRemainingDays}).
  * Eén regel voor de store (`applyProgressInvariants`) en de lezers (`normalizeImportedProgress`).
- * `keepRecordedMinutes` (alleen de lezers): een uit het bestand gelezen `remainingMinutes` blijft
- * staan — MSP's eigen exacte restduur bij een afgeronde voortgang; de werkdagfractie volgt dan
- * die minuten.
+ * `keep` (alleen de lezers): een restduur die het bestand zelf vastlegt, blijft staan; de regel leidt
+ * alleen af als de bron geen rest draagt. Het percentage is in de bron vaak afgerond (MSP 33 % bij 4
+ * van 6 d) of staat los van de rest (P6 fysiek %), dus de afleiding zou de rest verzetten.
+ *  - `minutes` (urenmaat): een gelezen `remainingMinutes` blijft staan; de werkdagfractie volgt die minuten;
+ *  - `days` (dagenmaat): een gelezen `remainingTime` van een lopende taak blijft staan. Een voltooide
+ *    taak houdt rest 0.
+ * Een voortgangsbewerking in de app (store) geeft geen `keep` mee en leidt de rest dus af (B3).
  */
-export function applyRemainingDuration(task: Task, keepRecordedMinutes = false): void {
+export function applyRemainingDuration(task: Task, keep?: KeepRecordedRest): void {
   const time = task.time;
   if (taskDurationUnit(task) !== 'hours') {
+    const recorded = time.remainingTime;
+    if (keep?.days && time.completion < 1 && recorded != null && Number.isFinite(recorded)) return;
     time.remainingTime = exactWorkdays(time.scheduleDuration * (1 - time.completion));
     return;
   }
-  const minutes = keepRecordedMinutes && time.remainingMinutes != null
+  const minutes = keep?.minutes && time.remainingMinutes != null
     ? time.remainingMinutes
     : Math.round((time.durationMinutes ?? 0) * (1 - time.completion));
   time.remainingMinutes = minutes;
