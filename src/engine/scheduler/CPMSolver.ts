@@ -3463,8 +3463,10 @@ export class CPMSolver {
     const updates: Array<[string, Date]> = [];
     for (const seq of this.successors.get(taskId) || []) {
       const succTask = this.tasks.get(seq.successorId);
-      if (!succTask) continue;
-      if (succTask.manuallyScheduled) continue;   // uitsluiting (2) — zie het docblok bij `applyAlap`.
+      const before = this.seqConstraint.get(seq.id);
+      // Uitsluiting (2), zoals in C14: `forwardPass` zet nooit een `seqConstraint` naar een handmatige
+      // opvolger (en ook niet naar een hammock); zo'n relatie krijgt er hier ook geen.
+      if (!succTask || !before) continue;
       const succCal = this.calendarFor(succTask);
       const bound = forwardConstraint(
         this.relDeps, placed, task, seq, succTask, cal, succCal,
@@ -3472,9 +3474,8 @@ export class CPMSolver {
       );
       // Zou de opvolger nu later moeten beginnen dan zijn vroege start (en later dan de relatie al
       // eiste), dan is deze plek niet uitvoerbaar: niet verschuiven.
-      const before = this.seqConstraint.get(seq.id);
       const succEarly = earlyDates.get(seq.successorId);
-      if (before && succEarly && bound > before
+      if (succEarly && bound > before
         && this.signedFloatMinutes(succEarly.es, bound, succCal, succTask) > 0) return;
       updates.push([seq.id, bound]);
     }
