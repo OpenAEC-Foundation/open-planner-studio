@@ -2,6 +2,7 @@
 // Gantt-scrollposities uit de geparkeerde payload herstellen.
 import type { Page } from '@playwright/test';
 import { barPoint, expect, seedProject, state, test } from './fixtures/ops';
+import { buildThumbnail, documentColor } from '../../src/utils/documents';
 
 interface ViewFixture {
   ratio: number;
@@ -94,6 +95,81 @@ test('Gantt documenttabs herstellen beide paneviews en DOM-scrollbars', async ({
 
   await page.locator(`[data-testid="document-tab"][data-ops-tab="${bId}"]`).click();
   await expectDocument(page, bId, 'Document B', bIds[5], viewB);
+
+
+  // Dezelfde documentroute: bewerken met gesloten overzicht, undo/redo en kiezen via een kaart.
+  // Lees alle kaarttekst en alle inline geometrie; de onveranderde thumbnailfunctie is de oracle.
+  const overview = page.locator('[data-ops-overview]');
+  const readCards = async () => {
+    await page.locator('.ops-tabstrip-menu').click();
+    await expect(overview).toBeVisible();
+    const expected = await page.evaluate(() => {
+      const s = window.__OPS__!.store.getState();
+      return s.documents.map(entry => {
+        const data = entry.id === s.activeDocumentId ? s : entry.payload!;
+        return { id: entry.id, projectId: data.project.id, tasks: data.tasks };
+      });
+    });
+    const cards = await overview.locator('[data-ops-overview-card]').evaluateAll(elements =>
+      elements.map(element => ({
+        id: element.getAttribute('data-ops-overview-card'),
+        text: element.textContent,
+        html: element.innerHTML,
+        bars: Array.from(element.querySelectorAll<HTMLElement>('div')).filter(el =>
+          el.style.position === 'absolute' && el.style.height === '6px',
+        ).map(el => ({ top: parseFloat(el.style.top), left: parseFloat(el.style.left),
+          width: parseFloat(el.style.width), color: el.style.background })),
+      })),
+    );
+    expect(cards.map(card => card.id)).toEqual([aId, bId]);
+    for (const [index, data] of expected.entries()) {
+      const bars = buildThumbnail(data.tasks, documentColor(data.projectId));
+      expect(cards[index].bars).toHaveLength(bars.length);
+      for (const [j, bar] of bars.entries()) {
+        expect(cards[index].bars[j].top).toBeCloseTo(bar.topPct, 3);
+        expect(cards[index].bars[j].left).toBeCloseTo(bar.leftPct, 3);
+        expect(cards[index].bars[j].width).toBeCloseTo(bar.widthPct, 3);
+      }
+    }
+    await expect(overview.locator(`[data-ops-overview-card="${(await state(page)).activeDocumentId}"] .ops-card-close`))
+      .toBeFocused();
+    return cards;
+  };
+  const originalCards = await readCards();
+  await page.keyboard.press('Escape');
+  await expect(overview).toHaveCount(0);
+  await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
+  const finishCell = page.locator(`[data-task-grid-surface-id="full-task-grid"] [data-grid-data-row="true"][data-grid-row-key="${bIds[0]}"] [data-grid-column-id="task.time.finish"]`);
+  await finishCell.click();
+  await expect(finishCell).toBeFocused();
+  await page.keyboard.press('Enter');
+  const input = finishCell.locator('input').first();
+  await expect(input).toBeFocused();
+  await input.fill('25-09-2026');
+  await page.keyboard.press('Enter');
+  await expect.poll(() => state(page).then(s => s.tasks[0].scheduleFinish)).toBe('2026-09-25');
+  const editedCards = await readCards();
+  expect(editedCards[0]).toEqual(originalCards[0]);
+  expect(editedCards[1].bars).not.toEqual(originalCards[1].bars);
+
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Control+z');
+  await expect.poll(() => state(page).then(s => s.tasks[0].scheduleFinish)).toBe('2026-09-18');
+  expect(await readCards()).toEqual(originalCards);
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Control+y');
+  await expect.poll(() => state(page).then(s => s.tasks[0].scheduleFinish)).toBe('2026-09-25');
+  expect(await readCards()).toEqual(editedCards);
+
+  await overview.locator(`[data-ops-overview-card="${aId}"]`).click();
+  await expect(overview).toHaveCount(0);
+  await expect.poll(() => state(page).then(s => s.activeDocumentId)).toBe(aId);
+  const switchedCards = await readCards();
+  expect(switchedCards.map(card => card.bars)).toEqual(editedCards.map(card => card.bars));
+  await overview.locator(`[data-ops-overview-card="${bId}"]`).click();
+  await expect.poll(() => state(page).then(s => s.activeDocumentId)).toBe(bId);
+  expect(await readCards()).toEqual(editedCards);
+  await page.keyboard.press('Escape');
 });
 
 // Andere beginstand en doel dan de Gantt-scrollroute hierboven: een gekoppeld, gewijzigd
