@@ -114,7 +114,10 @@ en noem het in je rapport of PR-tekst.
     (pin 0); ook de verzameling afwijkende bestanden wijkt daardoor af. Dezelfde uitslag met
     `CPMSolver.ts` en `ResourceLeveler.ts` uit die main-commit, zonder de PF-optimalisatie.
     De gecombineerde `measure:profiles` eindigt op exit 1; de P6-cellen zijn ongewijzigd.
-    Geen baseline of motorcode hiervoor aangepast; oorzaak niet verder onderzocht. — B
+    Geen baseline of motorcode hiervoor aangepast; oorzaak niet verder onderzocht.
+    Een bisect over de merges van main op 2026-10-26 wijst merge #494 (`363bb638f`, korte
+    MPP-resourceplaatsaanduidingen overslaan) aan als eerste rode merge; #446 (`811999328`) is nog
+    groen. — B
 
 311. **Een urentaak na een FF-relatie met een kalendertijdlead kan vóór haar finish-ondergrens eindigen.**
     Nagespeeld in de minutenmodelmeting van F1b: kalender ma-vr 07-12 + 13-16, A 48 u eindigt ma
@@ -306,7 +309,7 @@ en noem het in je rapport of PR-tekst.
      van de eigen kalender; C14 is op het P6-corpus geijkt en is daarom niet mee veranderd. Voorstel: dezelfde
      `snapOnOrBefore` in C14, na een corpusmeting. Gevonden in review ronde 1 van #660 (GPT-6.1-Sol). — B
 
-373. **C14 houdt bij een ALAP-plaatsing geen rekening met een deadline.** P6-profiel met eigen werkblokken,
+384. **C14 houdt bij een ALAP-plaatsing geen rekening met een deadline.** (was 373) P6-profiel met eigen werkblokken,
      A 1 d ALAP met deadline di 2 juni 16:00, naast X 2,5 d; A en X FS0 naar B. A staat di 12:00 – wo 12:00,
      met −240 minuten totale speling (`src/engine/scheduler/CPMSolver.ts:3568–3593`). Al zo op `9a636ec69`.
      De gewone ALAP-stap houdt sinds #660 de late grens aan; C14 niet. Voorstel: dezelfde eigen grens in C14,
