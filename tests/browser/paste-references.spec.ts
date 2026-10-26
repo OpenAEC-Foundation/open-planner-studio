@@ -30,9 +30,10 @@ test('plakken in een ander document maakt onbekende verwijzingen leeg en meldt d
     window.__OPS__!.store.getState().setTaskActivityCode(id, codeType, codeValue);
     window.__OPS__!.store.getState().setTaskCustomField(id, field, 42);
     // Eén echte tak met twee bladeren en een interne relatie, zodat dezelfde toetsroute ook
-    // de ingevoegde kinderen en relaties door de gedeelde lookup laat lopen.
-    const a = window.__OPS__!.store.getState().addTask({ name: 'Voorbereiden', parentId: id });
-    const b = window.__OPS__!.store.getState().addTask({ name: 'Nabehandelen', parentId: id });
+    // de ingevoegde kinderen en relaties door de gedeelde lookup laat lopen. Geef de kinderen
+    // een standaardwerksoort, anders erven ze de eigen werksoort en zijn er zes verwijzingen.
+    const a = window.__OPS__!.store.getState().addTask({ name: 'Voorbereiden', parentId: id, taskType: 'CONSTRUCTION' });
+    const b = window.__OPS__!.store.getState().addTask({ name: 'Nabehandelen', parentId: id, taskType: 'CONSTRUCTION' });
     window.__OPS__!.store.getState().addSequence({ predecessorId: a, successorId: b,
       type: 'FINISH_START', lagDays: 0 });
     window.__OPS__!.store.getState().runCPM();
