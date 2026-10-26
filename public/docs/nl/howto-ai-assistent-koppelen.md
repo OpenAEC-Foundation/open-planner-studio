@@ -75,7 +75,7 @@ Het token staat bewust in `env` en niet in `args`: op Windows breekt Claude Desk
 
 In de groep *Verbinding* staat ook het veld *Token*. Dat is een lange, willekeurige code die de app voor je maakt en op deze computer bewaart. In het venster staat *Dit token geeft toegang tot het geopende plan. Deel het niet met anderen.* Met het pictogram *Nieuw token* maak je een nieuw token. De app vraagt eerst *Een nieuw token maken verbreekt alle bestaande koppelingen. Doorgaan?* Draait de bridge, dan herstart hij met het nieuwe token en werkt het oude niet meer.
 
-**De app vindt zichzelf.** Zolang de bridge draait, schrijft de desktop-app de poort en het token in het bestand `mcp/runtime.json` in de gegevensmap van de app. Een MCP-plugin van Open Planner Studio leest dat bestand en vindt de app dan vanzelf; je hoeft geen token te plakken. Op Linux en macOS kan alleen jouw gebruikersaccount het bestand lezen. Op Windows beschermt de standaard-ACL van je profielmap het bestand; dat controleert de app niet apart. Stop je de bridge of zet je de MCP-koppeling uit, dan verwijdert de app het bestand. Daarnaast houdt de app in `mcp/open-files.json` bij welke bestanden open staan, ook als de MCP-koppeling uit staat. Zo schrijft de plugin nooit in een plan dat je in de app open hebt.
+**Voorbereid op automatische detectie.** Zolang de bridge draait, schrijft de desktop-app de poort en het token in het bestand `mcp/runtime.json` in de gegevensmap van de app. De huidige Claude Desktop-extensie gebruikt nog de poort en het token die je zelf invult; een plugin die de app via dit bestand vindt is nog niet beschikbaar. Op Linux en macOS kan alleen jouw gebruikersaccount het bestand lezen. Op Windows beschermt de standaard-ACL van je profielmap het bestand; dat controleert de app niet apart. Stop je de bridge of zet je de MCP-koppeling uit, dan verwijdert de app het bestand. Daarnaast houdt de app in `mcp/open-files.json` bij welke bestanden open staan, ook als de MCP-koppeling uit staat. Dit register is bedoeld voor een toekomstige plugin; de huidige headless server controleert het nog niet. Open daarom niet tegelijk hetzelfde bestand in de app en de headless server.
 
 ### 4. Zien wat de MCP-client doet
 
@@ -133,7 +133,7 @@ Of de MCP-client de gids echt heeft gelezen, zie je in het *Activiteitenpaneel*:
 
 Er is ook een MCP-server die zonder de desktop-app werkt: de **headless MCP-server**. Hij biedt dezelfde `planner_*`-tools, maar werkt op een planningsbestand op schijf in plaats van op je open project. Je ziet de wijzigingen dus niet in de Gantt, en *Ongedaan* in de app werkt er niet op. Gebruik hem als je de app niet open wilt hebben, of op een computer zonder scherm.
 
-De server zit nog niet in een release. Je bouwt hem uit de broncode met `npm run build:mcp-server`; daarvoor heb je Node.js 22 of nieuwer nodig. Het resultaat is één bestand, `server.mjs`.
+De release bevat geen kant-en-klare download van de server. Je bouwt hem uit de broncode met `npm run build:mcp-server`; daarvoor heb je Node.js 22 of nieuwer nodig. Het resultaat is één bestand, `server.mjs`.
 
 1. Kies een werkmap met je planningsbestanden. De server leest en schrijft alleen in die map.
 2. Koppel je MCP-client. Voor Claude Code staat de opdracht onder deze stappen.

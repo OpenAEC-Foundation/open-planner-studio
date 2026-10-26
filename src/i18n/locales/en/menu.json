@@ -300,6 +300,7 @@
     "recentTitle": "Recent projects",
     "recentSubtitle": "Click to open.",
     "recentEmpty": "No recently opened projects yet.",
+    "recentUnavailable": "This browser cannot reopen local files from Recent. Use Open to choose your project file again.",
     "recentOnSite": "On the site",
     "examples": "Examples",
     "examplesTitle": "Example projects",
@@ -352,6 +353,8 @@
     "helpDraft": "draft"
   },
   "export": {
+    "progressFileSuffix": "progress",
+    "libraryFileSuffix": "library",
     "progressXlsxLabel": "Progress sheet (Excel)",
     "progressXlsxDesc": "Slim sheet with only id, WBS, name, dates and completion — with fixed column widths, locked fields and date checking.",
     "progressXlsxShort": "Progress (Excel)",

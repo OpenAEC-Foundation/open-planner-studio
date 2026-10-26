@@ -463,6 +463,7 @@
     "jumpToTask": "Accesare activitate {{wbs}}",
     "relationPopoverTitle": "Tip de dependență",
     "driving": "Legătură determinantă (driving)",
+    "drivingUnknown": "Legăturile determinante sunt necunoscute fără calcul.",
     "lag": "Decalaj (ex. 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Calculare",
     "assignments": {
@@ -527,6 +528,8 @@
     "type": "Tip",
     "lag": "Decalaj",
     "driving": "Legătură determinantă",
+    "drivingUnknown": "Necunoscut",
+    "notDriving": "Nu e legătură determinantă",
     "freeFloat": "Marjă liberă",
     "warnings": "Avertismente",
     "warnTruncatedLead": "Devansul este limitat la începutul proiectului — suprapunerea nu este utilizată complet",

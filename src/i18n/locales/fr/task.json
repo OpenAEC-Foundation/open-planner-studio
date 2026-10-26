@@ -463,6 +463,7 @@
     "jumpToTask": "Aller à la tâche {{wbs}}",
     "relationPopoverTitle": "Type de relation",
     "driving": "Relation déterminante",
+    "drivingUnknown": "Relations déterminantes inconnues sans calcul.",
     "lag": "Décalage (p. ex. 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Calculer",
     "assignments": {
@@ -527,6 +528,8 @@
     "type": "Type",
     "lag": "Décalage",
     "driving": "Déterminante",
+    "drivingUnknown": "Inconnu",
+    "notDriving": "Non déterminante",
     "freeFloat": "Marge libre",
     "warnings": "Avertissements",
     "warnTruncatedLead": "Avance tronquée au début du projet — le chevauchement n'est pas entièrement utilisé",

@@ -467,6 +467,7 @@
     "jumpToTask": "Przejdź do zadania {{wbs}}",
     "relationPopoverTitle": "Typ relacji",
     "driving": "Relacja wiodąca (driving)",
+    "drivingUnknown": "Relacje wiodące są nieznane bez obliczenia.",
     "lag": "Opóźnienie (np. 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Oblicz",
     "assignments": {
@@ -531,6 +532,8 @@
     "type": "Typ",
     "lag": "Opóźnienie",
     "driving": "Wiodąca",
+    "drivingUnknown": "Nieznane",
+    "notDriving": "Nie relacja wiodąca",
     "freeFloat": "Zapas swobodny",
     "warnings": "Ostrzeżenia",
     "warnTruncatedLead": "Wyprzedzenie ucięte na starcie projektu — nakładanie nie jest w pełni wykorzystane",

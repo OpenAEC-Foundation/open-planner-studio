@@ -459,6 +459,7 @@
     "jumpToTask": "رفتن به وظیفه {{wbs}}",
     "relationPopoverTitle": "نوع رابطه",
     "driving": "رابطهٔ تعیین‌کننده (driving)",
+    "drivingUnknown": "روابط تعیین‌کننده بدون محاسبه نامشخص است.",
     "lag": "تأخیر (مثلاً 2d، 3ed، 2u، 50%، -25e%)",
     "recalculate": "محاسبه",
     "assignments": {
@@ -523,6 +524,8 @@
     "type": "نوع",
     "lag": "تأخیر",
     "driving": "تعیین‌کننده",
+    "drivingUnknown": "نامشخص",
+    "notDriving": "تعیین‌کننده نیست",
     "freeFloat": "شناوری آزاد",
     "warnings": "هشدارها",
     "warnTruncatedLead": "پیش‌افت در شروع پروژه بریده شد — از هم‌پوشانی به‌طور کامل استفاده نمی‌شود",
