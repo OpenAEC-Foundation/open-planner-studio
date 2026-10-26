@@ -72,6 +72,59 @@ test('afwijkingenscherm: "Bibliotheekwaarden gebruiken" op een kalender laat Vas
   expect(st.dirty).toBe(false);
   expect(st.stale).toBe(true);
   await expect(durationNotice(page)).toHaveCount(1);
+
+  // Knownbug 32: dezelfde koppelroute, nu met niet-herkende projectitems.
+  const resourcePicker = dialog.getByRole('button', { name: 'Choose a library item for Metselploeg', exact: true });
+  await expect(resourcePicker).toBeDisabled();
+  const resourceFixture = await page.evaluate(cid => {
+    const s = () => window.__OPS__!.store.getState();
+    const resource = s().resources.find(r => r.name === 'Metselploeg')!;
+    const poolId = s().addPoolResource(cid, { name: 'Handmatige ploeg', type: 'LABOR', description: 'Gekozen bron', maxUnits: 4 })!;
+    return { resourceId: resource.id, poolId, maxUnits: resource.maxUnits };
+  }, companyId);
+  await expect(resourcePicker).toBeEnabled();
+  // Een dialoog met invoer sluit niet via de backdrop (de gedeelde dialoogregel).
+  await page.mouse.click(5, 100);
+  await expect(dialog).toBeVisible();
+  await resourcePicker.click();
+  await expect(page.getByRole('option', { name: 'Handmatige ploeg', exact: true })).toBeVisible();
+  await expect(page.getByRole('option')).toHaveCount(1); // Geen kalender als resourcekeuze.
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeVisible();
+  const resourceState = () => page.evaluate(id => {
+    const r = window.__OPS__!.store.getState().resources.find(r => r.id === id)!;
+    return { name: r.name, origin: r.libraryOrigin?.libraryItemId ?? null, maxUnits: r.maxUnits };
+  }, resourceFixture.resourceId);
+  expect((await resourceState()).origin).toBeNull();
+  await resourcePicker.click();
+  await page.getByRole('option', { name: 'Handmatige ploeg', exact: true }).click();
+  await expect.poll(resourceState).toEqual({ name: 'Handmatige ploeg', origin: resourceFixture.poolId, maxUnits: resourceFixture.maxUnits });
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await page.keyboard.press('Control+z');
+  await expect.poll(resourceState).toEqual({ name: 'Metselploeg', origin: null, maxUnits: resourceFixture.maxUnits });
+
+  const calendarId = await page.evaluate(async () => {
+    const localePath = '/src/i18n/config.ts';
+    const { setLocale } = await import(/* @vite-ignore */ localePath);
+    await setLocale('nl');
+    const s = () => window.__OPS__!.store.getState();
+    const id = s().addCalendar({ ...structuredClone(s().calendar), name: 'Losse kalender', libraryOrigin: undefined });
+    s().setUI({ showLibraryLinkDialog: true });
+    return id;
+  });
+  const calendarPicker = dialog.getByRole('button', { name: 'Kies een bibliotheekitem voor Losse kalender', exact: true });
+  await calendarPicker.click();
+  await expect(page.getByRole('option')).toHaveCount(1); // Alleen de bibliotheekkalender.
+  await expect(page.getByRole('option', { name: 'Handmatige ploeg', exact: true })).toHaveCount(0);
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  const calendarOrigin = () => page.evaluate(id => window.__OPS__!.store.getState().calendars.find(c => c.id === id)?.libraryOrigin?.libraryItemId ?? null, calendarId);
+  await expect.poll(calendarOrigin).toBe(poolCalendarId);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await page.keyboard.press('Control+z');
+  await expect.poll(calendarOrigin).toBeNull();
 });
 
 test('bibliotheekkalender bewerken: werkdag tot 14:00 ververst de gekoppelde projectkalender en Vast werk wordt 6 d, met melding', async ({ page, ops: _ops }) => {

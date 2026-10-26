@@ -4,6 +4,10 @@
 import type { Page } from '@playwright/test';
 import { barPoint, expect, seedProject, state, test } from './fixtures/ops';
 
+// Deze route bedient tijdlijnbalken naast de takenlijst en de eigenschappenrail.
+// Reserveer expliciet genoeg canvasruimte, onafhankelijk van de standaard paneelbreedte.
+test.use({ viewport: { width: 1600, height: 900 } });
+
 async function canvasBounds(page: Page) {
   const bounds = await page.getByTestId('gantt-primary-canvas').boundingBox();
   expect(bounds).not.toBeNull();

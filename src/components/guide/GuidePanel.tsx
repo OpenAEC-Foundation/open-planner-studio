@@ -40,6 +40,7 @@ import {
 import { findTourAnchorRect, ribbonTabFallback } from '@/components/tour/tourAnchor';
 import { placeGuidePanel, type GuideSide, type PlacementRect } from './guidePlacement';
 import '@/components/backstage/HelpPanel.css';
+import { notifyToastLayoutChange } from '@/components/layout/toastPlacement';
 import './GuidePanel.css';
 
 /** Hoe vaak anker, vensters en paneel opnieuw gemeten worden: een anker kan verschijnen (tabwissel),
@@ -165,6 +166,12 @@ export function GuidePanel() {
     measure();
   });
   const active = !!view;
+  // Mount/unmount en pure positiewijzigingen ziet een ResizeObserver niet (knownbug 62).
+  // Eén signaal per commit; de meldingenhost voegt signalen binnen hetzelfde frame samen.
+  useLayoutEffect(() => {
+    notifyToastLayoutChange();
+    return notifyToastLayoutChange;
+  }, [active, side, compact, freePos]);
   useEffect(() => {
     if (!active) return;
     const timer = setInterval(measure, MEASURE_MS);
