@@ -312,6 +312,10 @@ P6 telt de motor een lag in dagen als uren, en `PT…` draagt precies die minute
 `wholeFloatDays`). De exacte dagen en de minuten (`totalFloatMinutes`, `freeFloatMinutes`) staan in de
 eigenschap `ExactFloat` van `OPS_Analysis`. Die eigenschap komt er alleen als de taak spelingminuten draagt
 of als de speling een breuk heeft. De lezer neemt de minuten als ze er zijn en leidt ze nergens zelf af.
+In "Datums zoals opgeslagen" lopen de minuten mee in de vastlegging (`RecordedTime.totalFloatMinutes`/
+`freeFloatMinutes`, `recordedDates.ts`); gaf het bestand geen minuten, dan wist de modus de minuten van de
+verworpen berekening. Zo schrijft opslaan in de modus nooit de dagen uit het bestand naast minuten uit een
+solve (regressie: `check-recorded-dates.ts` §19).
 
 **De leesregel.** Een record telt alleen als het standaardveld nog precies de geschreven minuten draagt (op
 de hele minuut); bij de speling: als het slot nog de afgeronde dagen van het record draagt. Wijzigde een

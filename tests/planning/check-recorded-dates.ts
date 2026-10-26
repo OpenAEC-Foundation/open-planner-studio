@@ -50,6 +50,7 @@ import {
   type RecordedDatesObservation,
 } from '@/state/recordedDatesExit';
 import { normalizeTaskDates } from '@/state/migrations/minuteModel';
+import { currentRecordedTimes } from '@/state/minuteModelTransition';
 import { markScheduleStale } from '@/state/transaction';
 import { ensureFreshSchedule } from '@/services/mcp/staleGuard';
 import type { ExternalLink } from '@/types/task';
@@ -1889,6 +1890,84 @@ const inMode = (ifcText: string): ImportResult => ({ ...offerOnly(ifcText), reco
   S().applyOpenedImport(eigen, { filePath: null, recompute: true });
   eq('18d heropenen: in de modus opgeslagen ⇒ weer in de modus, met vastlegging', [S().recordedDates !== null, S().datesAsRecorded], [true, true]);
   eq('18e …en GEEN openingsmelding', importMeldingen() - voorHeropen, 0);
+}
+
+// ── (19) De exacte speling blijft in de modus (aanval na #600, a05) ─────────────────────────────
+// Een eigen IFC, opgeslagen in de modus, met per taak een speling in dagen én minuten
+// (`OPS_Analysis.ExactFloat`). De echte laadroute rekent eerst en zet daarna de opgeslagen datums
+// terug. De fout: de dagen kwamen terug, de minuten bleven die van de verworpen solve (0), en
+// opnieuw opslaan schreef `"TotalFloat":[2.5,0]`. Tweede bron: dezelfde speling ZONDER minuten; dan
+// moeten de minuten van de solve weg (geen 0 naast 2,5 d), niet blijven staan.
+{
+  type Speling = { tf: number; tfMin?: number; ff: number; ffMin?: number };
+  const bron = (tag: string, speling: Record<string, Speling>): string => {
+    const p = payloadFromImport(readIFC(externIfc(tag)), null);
+    p.minuteModelPending = false;
+    p.datesAsRecorded = true;
+    for (const t of p.tasks) {
+      const s = speling[t.name];
+      t.time.totalFloat = s.tf;
+      t.time.totalFloatMinutes = s.tfMin;
+      t.time.freeFloat = s.ff;
+      t.time.freeFloatMinutes = s.ffMin;
+    }
+    // Alle assen vastgelegd ⇒ de writer houdt niets achter; `sourceFormat` maakt het een eigen IFC
+    // dat bij heropenen weer in de modus gaat.
+    p.recordedDates = {
+      times: Object.fromEntries(p.tasks.map((t) => [t.id, {
+        start: t.time.earlyStart, finish: t.time.earlyFinish, lateStart: t.time.lateStart, lateFinish: t.time.lateFinish,
+        totalFloat: t.time.totalFloat, freeFloat: t.time.freeFloat, isCritical: false,
+      }])),
+      total: p.tasks.length, origin: 'ifc-own', sourceFormat: 'ifc',
+    };
+    return writeIFC(buildWriteIFCInput(p));
+  };
+  const spelingVan = (tasks: readonly Task[]) => Object.fromEntries(tasks.map((t) =>
+    [t.name, [t.time.totalFloat, t.time.totalFloatMinutes ?? null, t.time.freeFloat, t.time.freeFloatMinutes ?? null]]));
+  const resultaatVan = (s: ReturnType<typeof createAppStoreContext>['store']) => Object.fromEntries(s.getState().tasks.map((t) => {
+    const r = s.getState().cpmResult?.tasks.get(t.id);
+    return [t.name, [r?.totalFloatMinutes ?? null, r?.freeFloatMinutes ?? null]];
+  }));
+  const openen = (tekst: string) => {
+    const s = createAppStoreContext().store;
+    s.getState().applyLoadedProject(readIFC(tekst), { filePath: null, recompute: true });
+    return s;
+  };
+
+  // (a) Met minuten: 2,5 d / 1200 min en 0,75 d / 360 min.
+  const metMinuten = bron('19a', { A: { tf: 2.5, tfMin: 1200, ff: 0.75, ffMin: 360 }, B: { tf: 2.5, tfMin: 1200, ff: 0.75, ffMin: 360 } });
+  eq('19a opzet: de kale lezer leest de minuten', spelingVan(readIFC(metMinuten).tasks),
+    { A: [2.5, 1200, 0.75, 360], B: [2.5, 1200, 0.75, 360] });
+  const a = openen(metMinuten);
+  eq('19b opzet: het bestand opent in de modus', a.getState().datesAsRecorded, true);
+  eq('19c in de modus: dagen én minuten uit het bestand', spelingVan(a.getState().tasks),
+    { A: [2.5, 1200, 0.75, 360], B: [2.5, 1200, 0.75, 360] });
+  eq('19d de reconstructie (cpmResult) draagt dezelfde minuten', resultaatVan(a), { A: [1200, 360], B: [1200, 360] });
+  const opnieuw = writeIFC(buildWriteIFCInput(a.getState()));
+  truthy('19e opnieuw opslaan schrijft de exacte speling', opnieuw.includes('"TotalFloat":[2.5,1200]') && opnieuw.includes('"FreeFloat":[0.75,360]'));
+  truthy('19f …en nooit de minuten van de verworpen solve', !/"(?:Total|Free)Float":\[[\d.]+,0\]/.test(opnieuw));
+  eq('19g opnieuw lezen: dezelfde speling', spelingVan(readIFC(opnieuw).tasks), { A: [2.5, 1200, 0.75, 360], B: [2.5, 1200, 0.75, 360] });
+  eq('19h opnieuw openen via de laadroute: dezelfde speling', spelingVan(openen(opnieuw).getState().tasks),
+    { A: [2.5, 1200, 0.75, 360], B: [2.5, 1200, 0.75, 360] });
+
+  // (b) Zonder minuten: A met een breuk (record `[2.5,null]`), B in hele dagen (geen record).
+  const zonderMinuten = bron('19z', { A: { tf: 2.5, ff: 0.75 }, B: { tf: 3, ff: 1 } });
+  eq('19i opzet: de kale lezer leest geen minuten', spelingVan(readIFC(zonderMinuten).tasks),
+    { A: [2.5, null, 0.75, null], B: [3, null, 1, null] });
+  const z = openen(zonderMinuten);
+  eq('19j opzet: ook dit bestand opent in de modus', z.getState().datesAsRecorded, true);
+  eq('19k in de modus: de dagen uit het bestand, de minuten van de solve gewist', spelingVan(z.getState().tasks),
+    { A: [2.5, null, 0.75, null], B: [3, null, 1, null] });
+  eq('19l de reconstructie verzint geen minuten', resultaatVan(z), { A: [null, null], B: [null, null] });
+  const zOpnieuw = writeIFC(buildWriteIFCInput(z.getState()));
+  truthy('19m opnieuw opslaan: de breuk zonder minuten, geen 0', zOpnieuw.includes('"TotalFloat":[2.5,null]') && zOpnieuw.includes('"FreeFloat":[0.75,null]'));
+  eq('19n opnieuw lezen: dezelfde speling, zonder minuten', spelingVan(readIFC(zOpnieuw).tasks),
+    { A: [2.5, null, 0.75, null], B: [3, null, 1, null] });
+
+  // (c) De vastlegging van het getoonde document (B5-omzetting) neemt de minuten mee.
+  const getoond = currentRecordedTimes({ tasks: [mk('a', { totalFloat: 0.25, totalFloatMinutes: 120, freeFloat: 0, freeFloatMinutes: 0 }), mk('b')] });
+  eq('19o getoonde vastlegging: minuten mee, en weg waar de taak er geen heeft',
+    [getoond.times.a.totalFloatMinutes, getoond.times.a.freeFloatMinutes, 'totalFloatMinutes' in getoond.times.b], [120, 0, false]);
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
