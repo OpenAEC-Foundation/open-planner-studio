@@ -1,7 +1,8 @@
 // Geweigerde webopslag voor crashherstel, deel 2 (issue #582): `indexedDB.open` slaagt, maar de eerste
-// transactie gooit een `SecurityError`. Ook dan gaat crashherstel stil uit voor deze sessie. Een
-// gewone transactiefout (bijv. quota) houdt haar bestaande route. Deel 1, de weigering bij het openen,
-// staat in `check-recovery-refused.ts`; een eigen proces, want de sessievlag blijft de sessie lang staan.
+// transactie gooit een `SecurityError`. Ook dan gaat crashherstel stil uit voor deze sessie.
+// Andere delen, elk in een eigen proces want de sessievlag blijft de sessie lang staan:
+// `check-recovery-refused.ts` (weigering bij openen), `-missing.ts` (`indexedDB` ontbreekt),
+// `-getter.ts` (lezen van `indexedDB` gooit) en `-later.ts` (uitval ná werkende opslag blijft zichtbaar).
 //
 // Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
 import {
@@ -18,11 +19,13 @@ const eq = (label: string, got: unknown, want: unknown) => {
   if (JSON.stringify(got) !== JSON.stringify(want)) diffs.push(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
 };
 
-let failTransaction: (() => Error) | null = null;
+// Transactie 1 en 2 horen bij het openen: de versionchange-transactie van de dubbel en de indexcontrole
+// in `openDbStores`. Die slagen. Elke volgende transactie, dus de eerste echte lezing van
+// crashherstel, wordt geweigerd.
 let transactions = 0;
 installFakeRecoveryIndexedDb({ onTransaction: () => {
   transactions++;
-  if (failTransaction) throw failTransaction();
+  if (transactions > 2) throw new DOMException('Access is denied for this document.', 'SecurityError');
 } });
 const session = new Map<string, string>();
 (globalThis as unknown as { sessionStorage: unknown }).sessionStorage = {
@@ -41,36 +44,23 @@ const infoLines: unknown[][] = [];
 const originalInfo = console.info;
 console.info = (...args: unknown[]) => { infoLines.push(args); };
 
-const doc = (id: string) => ({ id, ifc: `ISO-10303-21; /* ${id} */`, filePath: null, isDirty: true, datesAsRecorded: false });
+const doc = { id: 'A', ifc: 'ISO-10303-21; /* A */', filePath: null, isDirty: true, datesAsRecorded: false };
 const caught = async (run: () => Promise<unknown>): Promise<unknown> => run().then(() => null, (error: unknown) => error);
 
-// Een gezonde start: de opslag werkt.
-await saveRecovery(fullRecoverySave('A', [doc('A')]));
-eq('T1 voorwaarde: een gezonde schrijfronde slaagt', (await loadRecovery()).docs.map(d => d.id), ['A']);
+// Opstarten: de eerste transactie wordt geweigerd.
+const loaded = await loadRecovery();
+eq('T1 loadRecovery geeft een lege herstelset', [loaded.activeDocumentId, loaded.docs.length, loaded.archives.size], [null, 0, 0]);
+eq('T2 de geweigerde eerste transactie zet de sessievlag', recoveryStorageUnavailable(), true);
+eq('T3 het openen slaagde; de eerste echte transactie werd geweigerd', transactions, 3);
 
-// Een gewone transactiefout houdt de bestaande route: de fout zelf, geen sessievlag.
-failTransaction = () => new Error('Gesimuleerde quotafout');
-const quota = await caught(() => saveRecovery(fullRecoverySave('A', [doc('A')])));
-eq('T2 een gewone fout blijft dezelfde fout', quota instanceof Error && !(quota instanceof RecoveryStorageUnavailableError) && quota.message, 'Gesimuleerde quotafout');
-eq('T3 een gewone fout zet de sessievlag niet', recoveryStorageUnavailable(), false);
-eq('T4 en blijft bij de bestaande meldingsroute', notifyRecoveryError(quota, () => undefined), false);
-
-// De eerste transactie wordt geweigerd: crashherstel gaat stil uit.
-failTransaction = () => new DOMException('Access is denied for this document.', 'SecurityError');
-const refused = await caught(() => saveRecovery(fullRecoverySave('A', [doc('A')])));
-eq('T5 saveRecovery gooit RecoveryStorageUnavailableError', refused instanceof RecoveryStorageUnavailableError, true);
-eq('T6 de weigering zet de sessievlag', recoveryStorageUnavailable(), true);
+const refused = await caught(() => saveRecovery(fullRecoverySave('A', [doc])));
+eq('T4 saveRecovery gooit RecoveryStorageUnavailableError', refused instanceof RecoveryStorageUnavailableError, true);
 let notified = 0;
-eq('T7 de weigering is afgehandeld zonder melding', [notifyRecoveryError(refused, () => { notified++; }), notified], [true, 0]);
-
-const before = transactions;
-eq('T8 loadRecovery geeft een lege herstelset', (await loadRecovery()).docs.length, 0);
-eq('T9 clearRecovery is een stille no-op', await caught(() => clearRecovery()), null);
-eq('T10 holdRecoveryForLater is een stille no-op', await caught(() => holdRecoveryForLater()), null);
-eq('T11 een volgende schrijfronde gooit dezelfde stille fout',
-  (await caught(() => saveRecovery(fullRecoverySave('A', [doc('A')])))) instanceof RecoveryStorageUnavailableError, true);
-eq('T12 na de weigering opent geen actie nog een transactie', transactions, before);
-eq('T13 precies één consoleregel voor de hele sessie', infoLines.length, 1);
+eq('T5 de weigering is afgehandeld zonder melding', [notifyRecoveryError(refused, () => { notified++; }), notified], [true, 0]);
+eq('T6 clearRecovery is een stille no-op', await caught(() => clearRecovery()), null);
+eq('T7 holdRecoveryForLater is een stille no-op', await caught(() => holdRecoveryForLater()), null);
+eq('T8 na de weigering opent geen actie nog een transactie', transactions, 3);
+eq('T9 precies één consoleregel voor de hele sessie', infoLines.length, 1);
 
 console.info = originalInfo;
 

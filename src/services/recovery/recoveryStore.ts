@@ -890,6 +890,10 @@ let webUpgradeBlocked: IndexedDbUpgradeBlockedError | null = null;
  * `indexedDB.open` gooit een `SecurityError`, of `indexedDB` ontbreekt helemaal. Crashherstel gaat
  * dan stil uit voor deze sessie: geen melding, één regel in de console. Opslaan via de site
  * (`window.openaecHost`) staat hier los van en werkt gewoon.
+ *
+ * Alleen zolang de opslag in deze sessie nog niet werkte: na de eerste geslaagde opslagactie
+ * (`webStorageProven`) is een `SecurityError` een gewone fout met de bestaande zichtbare foutroute.
+ * Anders zou een latere uitval in een gewone browser het crashherstel stil uitzetten.
  */
 export class RecoveryStorageUnavailableError extends Error {
   constructor(readonly refusal?: unknown) {
@@ -899,16 +903,23 @@ export class RecoveryStorageUnavailableError extends Error {
 }
 
 let webStorageUnavailable = false;
+/**
+ * De webopslag werkte in deze sessie al: een geslaagde lezing in `readWebRecovery` (de opstartcontrole)
+ * of een geslaagde save, wis- of uitstelactie. Daarna wordt geen enkele fout meer een stille weigering.
+ */
+let webStorageProven = false;
 
 /** `true` als de webopslag voor crashherstel in deze sessie geweigerd is. Desktop: altijd `false`. */
 export function recoveryStorageUnavailable(): boolean {
   return !isTauri() && webStorageUnavailable;
 }
 
-/** Alleen een weigering van de opslag zelf; een quota-, lees- of upgradefout houdt haar eigen route. */
+/** Alleen een weigering van de opslag zelf, en alleen vóór de eerste geslaagde opslagactie; een
+ *  quota-, lees- of upgradefout, en elke fout ná `webStorageProven`, houdt haar eigen route. */
 const isStorageRefusal = (error: unknown): boolean =>
   error instanceof RecoveryStorageUnavailableError
-  || (typeof error === 'object' && error !== null && (error as { name?: unknown }).name === 'SecurityError');
+  || (!webStorageProven && typeof error === 'object' && error !== null
+    && (error as { name?: unknown }).name === 'SecurityError');
 
 /** Zet de sessievlag (één consoleregel, alleen de eerste keer) en geef de fout voor de aanroeper. */
 function markStorageUnavailable(cause: unknown): RecoveryStorageUnavailableError {
@@ -928,9 +939,11 @@ const openRecoveryDb = async (): Promise<IDBDatabase> => {
   if (webStorageUnavailable) throw new RecoveryStorageUnavailableError();
   // Lezen van `indexedDB` kan zelf al gooien (opaque origin in sommige browsers), of de waarde
   // ontbreekt. Beide tellen als weigering, net als een `SecurityError` bij het openen.
+  // Na bewezen werkende opslag blijft ook dit een gewone fout.
+  const refuse = (cause: unknown) => (webStorageProven ? cause : markStorageUnavailable(cause));
   let factory: unknown;
-  try { factory = (globalThis as { indexedDB?: unknown }).indexedDB; } catch (error) { throw markStorageUnavailable(error); }
-  if (!factory) throw markStorageUnavailable(new Error('indexedDB ontbreekt'));
+  try { factory = (globalThis as { indexedDB?: unknown }).indexedDB; } catch (error) { throw refuse(error); }
+  if (!factory) throw refuse(new Error('indexedDB ontbreekt'));
   try {
     return await openDbStores(
       WEB_DB, WEB_DB_VERSION, [WEB_STORE, WEB_ARCHIVE_STORE],
@@ -1345,7 +1358,7 @@ async function saveWeb(input: RecoverySaveInput): Promise<void> {
 async function readWebRecovery(strict = false): Promise<{ records: WebRecord[]; archives: Map<string, Uint8Array> }> {
   try {
     const db = await openRecoveryDb();
-    return await new Promise((resolve, reject) => {
+    const read = await new Promise<{ records: WebRecord[]; archives: Map<string, Uint8Array> }>((resolve, reject) => {
       const tx = db.transaction([WEB_STORE, WEB_ARCHIVE_STORE], 'readonly');
       const allRequest = tx.objectStore(WEB_STORE).getAll();
       allRequest.onerror = () => reject(allRequest.error);
@@ -1367,6 +1380,8 @@ async function readWebRecovery(strict = false): Promise<{ records: WebRecord[]; 
         }
       };
     });
+    webStorageProven = true;
+    return read;
   } catch (error) {
     // Ook een weigering bij de eerste transactie zet de sessievlag (issue #582).
     const refusal = asStorageRefusal(error);
@@ -1490,7 +1505,7 @@ const emptyRecovery = (): LoadedRecovery => ({ activeDocumentId: null, docs: [],
 /** Webtak van wis- en uitstelacties: na een geweigerde opslag stil een no-op (issue #582). */
 async function quietWhenRefused(action: () => Promise<void>): Promise<void> {
   if (webStorageUnavailable) return;
-  try { await action(); } catch (error) {
+  try { await action(); webStorageProven = true; } catch (error) {
     if (isStorageRefusal(error)) { markStorageUnavailable(error); return; }
     throw error;
   }
@@ -1501,13 +1516,15 @@ async function quietWhenRefused(action: () => Promise<void>): Promise<void> {
  * stil over te slaan. Bewuste keuze: `runRecoveryTick` legt pas na een geslaagde `saveRecovery` vast
  * dat de bron bewaard is (`RecoveryDeltaTracker.commit`). Een stille overslag zou dat ten onrechte
  * doen. De fout zelf blijft stil: `notifyRecoveryError` handelt hem af zonder melding, en
- * `useAutoSave` slaat volgende rondes over via `recoveryStorageUnavailable()`.
+ * `useAutoSave` slaat volgende rondes over via `recoveryStorageUnavailable()`. Werkte de opslag in
+ * deze sessie al (`webStorageProven`), dan is een `SecurityError` een gewone fout met een melding.
  */
 export function saveRecovery(input: RecoverySaveInput): Promise<void> {
   return serializeRecoveryWrite(async () => {
     if (isTauri()) { await saveTauri(input); return; }
     if (webStorageUnavailable) throw new RecoveryStorageUnavailableError();
     try { await saveWeb(input); } catch (error) { throw asStorageRefusal(error); }
+    webStorageProven = true;
   });
 }
 
