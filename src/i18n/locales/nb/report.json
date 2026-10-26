@@ -7,7 +7,7 @@
   "relations": "Avhengigheter:",
   "settings": "Innstillinger",
   "paper": "Papir:",
-  "orientation": "Retning:",
+  "orientation": "Orientering:",
   "landscape": "Liggende",
   "portrait": "Stående",
   "showCriticalPath": "Kritisk linje",
@@ -49,10 +49,10 @@
     "lookAhead": "look-ahead",
     "critical": "kritisk",
     "progress": "fremdrift",
-    "health": "helse",
+    "health": "tidsplanhelse",
     "resourceLoading": "ressursbelastning",
     "resourceAssignments": "tilordninger",
-    "wbsSummary": "WBS"
+    "wbsSummary": "wbs"
   },
   "noTasks": "Ingen aktiviteter å vise",
   "printed": "Utskrevet:",

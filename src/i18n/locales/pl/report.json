@@ -46,15 +46,15 @@
   "fileSuffix": {
     "gantt": "harmonogram",
     "resourceGantt": "diagram-zasobów",
-    "milestones": "kamienie milowe",
+    "milestones": "kamienie-milowe",
     "variance": "odchylenia",
     "lookAhead": "look-ahead",
-    "critical": "krytyczny",
+    "critical": "krytyczne",
     "progress": "postęp",
     "health": "kondycja-harmonogramu",
     "resourceLoading": "obciążenie-zasobów",
     "resourceAssignments": "przydziały-zasobów",
-    "wbsSummary": "WBS"
+    "wbsSummary": "wbs"
   },
   "noTasks": "Brak zadań do wyświetlenia",
   "printed": "Wydrukowano:",

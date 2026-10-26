@@ -174,7 +174,9 @@ async function main(): Promise<void> {
     S().updateTask(task('outerLeaf').id, { priority: 1000 });
     S().updateTask(task('innerLeaf').id, { priority: 1000 });
     const r = level(false);
-    eq('beide op 1000: geen verschuiving, geen conflictmelding', [delaysByName(r), Object.keys(r.unresolved).length], [{}, 0]);
+    eq('beide op 1000: geen verschuiving, beide conflicten zichtbaar',
+      [delaysByName(r), Object.keys(r.unresolved).sort()],
+      [{}, [task('outerLeaf').id, task('innerLeaf').id].sort()]);
     S().applyLeveling(r);
     ok('beide op 1000: de metselaar blijft overbezet', (S().resourceLoadResult!.overallocatedDays[resIds.get('bricklayer')!] ?? []).length > 0);
   }

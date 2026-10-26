@@ -456,7 +456,7 @@
     "jumpToTask": "Siirry tehtävään {{wbs}}",
     "relationPopoverTitle": "Riippuvuuden tyyppi",
     "driving": "Ohjaava riippuvuus (driving)",
-    "drivingUnknown": "Ohjaavat riippuvuudet ovat tuntemattomia ilman laskentaa.",
+    "drivingUnknown": "Ohjaavia riippuvuuksia ei tunneta ilman laskentaa.",
     "lag": "Viive (esim. 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Laske",
     "assignments": {
@@ -522,7 +522,7 @@
     "lag": "Viive",
     "driving": "Ohjaava",
     "drivingUnknown": "Tuntematon",
-    "notDriving": "Ei ohjaava riippuvuus",
+    "notDriving": "Ei ohjaava",
     "freeFloat": "Vapaa pelivara",
     "warnings": "Huomautukset",
     "warnTruncatedLead": "Limitys katkaistu projektin aloituspäivän kohdalta — päällekkäisyyttä ei hyödynnetä kokonaan",

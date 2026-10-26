@@ -45,16 +45,16 @@
   "exportPDF": "Експортувати PDF",
   "fileSuffix": {
     "gantt": "графік",
-    "resourceGantt": "ресурс-діаграма",
+    "resourceGantt": "діаграма-ресурсів",
     "milestones": "віхи",
     "variance": "відхилення",
     "lookAhead": "look-ahead",
     "critical": "критичний",
     "progress": "прогрес",
     "health": "стан-графіка",
-    "resourceLoading": "ресурс-навантаження",
-    "resourceAssignments": "ресурс-призначення",
-    "wbsSummary": "робоча структура проєкту"
+    "resourceLoading": "навантаження-ресурсів",
+    "resourceAssignments": "призначення-ресурсів",
+    "wbsSummary": "wbs"
   },
   "noTasks": "Немає завдань для відображення",
   "printed": "Надруковано:",

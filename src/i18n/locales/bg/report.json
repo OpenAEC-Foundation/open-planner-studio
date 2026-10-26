@@ -49,10 +49,10 @@
     "lookAhead": "look-ahead",
     "critical": "критичен",
     "progress": "напредък",
-    "health": "състояние-на-графика",
-    "resourceLoading": "ресурсно-натоварване",
-    "resourceAssignments": "назначения-на-ресурси",
-    "wbsSummary": "WBS"
+    "health": "здраве-на-графика",
+    "resourceLoading": "натоварване-на-ресурси",
+    "resourceAssignments": "назначения",
+    "wbsSummary": "wbs"
   },
   "noTasks": "Няма задачи за показване",
   "printed": "Отпечатано:",

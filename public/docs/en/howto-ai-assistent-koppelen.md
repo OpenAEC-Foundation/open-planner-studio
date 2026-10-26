@@ -75,7 +75,7 @@ The token is in `env` and not in `args` on purpose: on Windows, Claude Desktop b
 
 In the group *Connection* there is also the field *Token*. It is a long, random code that the app makes for you and stores on this computer. In the window it says *This token grants access to the open plan. Do not share it with others.* With the icon *New token* you make a new token. The app first asks *Generating a new token breaks all existing connections. Continue?* If the bridge is running, it restarts with the new token and the old one no longer works.
 
-**The app can be found automatically.** While the bridge runs, the desktop app writes the port and the token to the file `mcp/runtime.json` in the app's data folder. An Open Planner Studio MCP plugin reads that file and finds the app by itself; you do not have to paste a token. On Linux and macOS, only your user account can read the file. On Windows, the default ACL of your profile folder protects the file; the app does not check this separately. When you stop the bridge or turn off the MCP connection, the app removes the file. The app also keeps a list of open files in `mcp/open-files.json`, even when the MCP connection is off. That way the plugin never writes to a plan that you have open in the app.
+**Prepared for automatic discovery.** While the bridge runs, the desktop app writes the port and the token to the file `mcp/runtime.json` in the app's data folder. The current Claude Desktop extension still uses the port and token you enter yourself; a plugin that finds the app through this file is not yet available. On Linux and macOS, only your user account can read the file. On Windows, the default ACL of your profile folder protects the file; the app does not check this separately. When you stop the bridge or turn off the MCP connection, the app removes the file. The app also keeps a list of open files in `mcp/open-files.json`, even when the MCP connection is off. This inventory is intended for a future plugin; the current headless server does not check it yet. Do not open the same file in the app and the headless server at the same time.
 
 ### 4. See what the MCP client does
 
@@ -133,7 +133,7 @@ Whether the MCP client really read the guide you can see in the *Activity panel*
 
 There is also an MCP server that works without the desktop app: the **headless MCP server**. It offers the same `planner_*` tools, but it works on a schedule file on disk instead of on your open project. So you do not see the changes in the Gantt chart, and *Undo* in the app does not apply to them. Use it when you do not want the app open, or on a computer without a screen.
 
-The server is not in a release yet. You build it from the source code with `npm run build:mcp-server`; for that you need Node.js 22 or newer. The result is one file, `server.mjs`.
+The release does not include a ready-made server download. You build it from the source code with `npm run build:mcp-server`; for that you need Node.js 22 or newer. The result is one file, `server.mjs`.
 
 1. Choose a working folder with your schedule files. The server reads and writes only in that folder.
 2. Connect your MCP client. For Claude Code, the command is below these steps.

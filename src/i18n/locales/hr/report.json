@@ -48,12 +48,12 @@
     "milestones": "kontrolne-točke",
     "variance": "odstupanja",
     "lookAhead": "look-ahead",
-    "critical": "kritično",
+    "critical": "kritični",
     "progress": "napredak",
     "health": "zdravlje-rasporeda",
     "resourceLoading": "opterećenje-resursa",
     "resourceAssignments": "dodjele-resursa",
-    "wbsSummary": "WBS"
+    "wbsSummary": "wbs"
   },
   "noTasks": "Nema zadataka za prikaz",
   "printed": "Ispisano:",

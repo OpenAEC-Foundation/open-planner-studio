@@ -117,7 +117,7 @@
     "groupByWbs": "WBS (شجرة)",
     "templates": "القوالب",
     "noTemplates": "لا توجد قوالب محفوظة بعد — انقر بزر الفأرة الأيمن على مهمة موجزة → 'حفظ الفرع كقالب'",
-    "insertTemplateHint": "إدراج كآخر مهمة فرعية للمهمة المحددة (أو في أسفل مستوى الجذر)",
+    "insertTemplateHint": "أدرِج كآخر مهمة فرعية للمهمة المحددة (أو في أسفل مستوى الجذر)",
     "templateMeta": "{{tasks}} مهمة، {{relations}} علاقة",
     "deleteTemplate": "حذف القالب",
     "collapseRibbon": "طي الشريط",

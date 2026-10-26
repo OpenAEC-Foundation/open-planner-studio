@@ -49,10 +49,10 @@
     "lookAhead": "look-ahead",
     "critical": "kritisk",
     "progress": "fremdrift",
-    "health": "tidsplansundhed",
+    "health": "tidsplan-sundhed",
     "resourceLoading": "ressourcebelastning",
-    "resourceAssignments": "ressourcetildelinger",
-    "wbsSummary": "wbs"
+    "resourceAssignments": "ressource-tildelinger",
+    "wbsSummary": "WBS"
   },
   "noTasks": "Ingen opgaver at vise",
   "printed": "Udskrevet:",

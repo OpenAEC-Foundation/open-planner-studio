@@ -529,7 +529,7 @@
     "type": "Typ",
     "lag": "Oneskorenie",
     "driving": "Určujúca závislosť",
-    "drivingUnknown": "Neznáma",
+    "drivingUnknown": "Neznáme",
     "notDriving": "Nie je určujúca",
     "freeFloat": "Voľná časová rezerva",
     "warnings": "Upozornenia",

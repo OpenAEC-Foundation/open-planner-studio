@@ -54,7 +54,7 @@
     "health": "zdravie-plánu",
     "resourceLoading": "zaťaženie-zdrojov",
     "resourceAssignments": "priradenia-zdrojov",
-    "wbsSummary": "WBS"
+    "wbsSummary": "wbs"
   },
   "noTasks": "Žiadne úlohy na zobrazenie",
   "printed": "Vytlačené:",

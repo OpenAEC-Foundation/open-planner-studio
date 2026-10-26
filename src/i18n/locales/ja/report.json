@@ -42,10 +42,10 @@
   "exportPDF": "PDF エクスポート",
   "fileSuffix": {
     "gantt": "スケジュール",
-    "resourceGantt": "リソースダイアグラム",
+    "resourceGantt": "リソース図",
     "milestones": "マイルストーン",
     "variance": "差異",
-    "lookAhead": "ルックアヘッド",
+    "lookAhead": "look-ahead",
     "critical": "クリティカル",
     "progress": "進捗",
     "health": "スケジュール健全性",

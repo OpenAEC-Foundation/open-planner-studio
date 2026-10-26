@@ -52,9 +52,9 @@
     "critical": "kritický",
     "progress": "průběh",
     "health": "stav-plánu",
-    "resourceLoading": "zatížení-zdrojů",
+    "resourceLoading": "vytížení-zdrojů",
     "resourceAssignments": "přiřazení-zdrojů",
-    "wbsSummary": "WBS"
+    "wbsSummary": "wbs"
   },
   "noTasks": "Žádné úkoly k zobrazení",
   "printed": "Vytištěno:",

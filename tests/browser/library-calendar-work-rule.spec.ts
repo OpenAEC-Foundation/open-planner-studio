@@ -78,6 +78,59 @@ test('afwijkingenscherm: "Bibliotheekwaarden gebruiken" op een kalender laat Vas
   expect(st.dirty).toBe(false);
   expect(st.stale).toBe(true);
   await expect(durationNotice(page)).toHaveCount(1);
+
+  // Knownbug 32: dezelfde koppelroute, nu met niet-herkende projectitems.
+  const resourcePicker = dialog.getByRole('button', { name: 'Choose a library item for Metselploeg', exact: true });
+  await expect(resourcePicker).toBeDisabled();
+  const resourceFixture = await page.evaluate(cid => {
+    const s = () => window.__OPS__!.store.getState();
+    const resource = s().resources.find(r => r.name === 'Metselploeg')!;
+    const poolId = s().addPoolResource(cid, { name: 'Handmatige ploeg', type: 'LABOR', description: 'Gekozen bron', maxUnits: 4 })!;
+    return { resourceId: resource.id, poolId, maxUnits: resource.maxUnits };
+  }, companyId);
+  await expect(resourcePicker).toBeEnabled();
+  // Een dialoog met invoer sluit niet via de backdrop (de gedeelde dialoogregel).
+  await page.mouse.click(5, 100);
+  await expect(dialog).toBeVisible();
+  await resourcePicker.click();
+  await expect(page.getByRole('option', { name: 'Handmatige ploeg', exact: true })).toBeVisible();
+  await expect(page.getByRole('option')).toHaveCount(1); // Geen kalender als resourcekeuze.
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeVisible();
+  const resourceState = () => page.evaluate(id => {
+    const r = window.__OPS__!.store.getState().resources.find(r => r.id === id)!;
+    return { name: r.name, origin: r.libraryOrigin?.libraryItemId ?? null, maxUnits: r.maxUnits };
+  }, resourceFixture.resourceId);
+  expect((await resourceState()).origin).toBeNull();
+  await resourcePicker.click();
+  await page.getByRole('option', { name: 'Handmatige ploeg', exact: true }).click();
+  await expect.poll(resourceState).toEqual({ name: 'Handmatige ploeg', origin: resourceFixture.poolId, maxUnits: resourceFixture.maxUnits });
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await page.keyboard.press('Control+z');
+  await expect.poll(resourceState).toEqual({ name: 'Metselploeg', origin: null, maxUnits: resourceFixture.maxUnits });
+
+  const calendarId = await page.evaluate(async () => {
+    const localePath = '/src/i18n/config.ts';
+    const { setLocale } = await import(/* @vite-ignore */ localePath);
+    await setLocale('nl');
+    const s = () => window.__OPS__!.store.getState();
+    const id = s().addCalendar({ ...structuredClone(s().calendar), name: 'Losse kalender', libraryOrigin: undefined });
+    s().setUI({ showLibraryLinkDialog: true });
+    return id;
+  });
+  const calendarPicker = dialog.getByRole('button', { name: 'Kies een bibliotheekitem voor Losse kalender', exact: true });
+  await calendarPicker.click();
+  await expect(page.getByRole('option')).toHaveCount(1); // Alleen de bibliotheekkalender.
+  await expect(page.getByRole('option', { name: 'Handmatige ploeg', exact: true })).toHaveCount(0);
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  const calendarOrigin = () => page.evaluate(id => window.__OPS__!.store.getState().calendars.find(c => c.id === id)?.libraryOrigin?.libraryItemId ?? null, calendarId);
+  await expect.poll(calendarOrigin).toBe(poolCalendarId);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await page.keyboard.press('Control+z');
+  await expect.poll(calendarOrigin).toBeNull();
 });
 
 test('bibliotheekkalender bewerken: werkdag tot 14:00 ververst de gekoppelde projectkalender en Vaste inzet wordt 16/3 d, met melding', async ({ page, ops: _ops }) => {
@@ -129,7 +182,7 @@ test('bibliotheekhint verwijst alleen naar kalenders en de knop promoveert een p
       const companyId = s.addCompany(`Kalenderhint ${locale}`);
       s.setDefaultCompany(companyId);
       const calendar = window.__OPS__!.store.getState().calendars[0];
-      return { companyId, calendarName: calendar.name };
+      return { companyId, calendarName: calendar.name, calendarId: calendar.id };
     }, locale);
     await page.locator('.ribbon-tab--file').click();
     await page.locator('.backstage-nav-item').filter({ hasText: /^(Library|Bibliotheek)$/ }).click();
@@ -151,6 +204,48 @@ test('bibliotheekhint verwijst alleen naar kalenders en de knop promoveert een p
       const pool = window.__OPS__!.store.getState().pools[id];
       return { calendars: pool.calendars.map(c => c.name), resources: pool.resources.length };
     }, fixture.companyId)).toEqual({ calendars: [fixture.calendarName], resources: 0 });
+    // Knownbug 33: verwijderen vraagt eerst; annuleren bewaart de bron. Na bevestigen kan
+    // de behouden projectkopie opnieuw promoveren, in plaats van onterecht 'al gekoppeld'.
+    const sourceRow = section.locator('.library-pool > ul > li').filter({ hasText: fixture.calendarName });
+    const poolState = () => page.evaluate(id => {
+      const pool = window.__OPS__!.store.getState().pools[id];
+      return pool.calendars.map(c => ({ id: c.id, name: c.name }));
+    }, fixture.companyId);
+    const beforeRemove = await poolState();
+    const projectCopy = () => page.evaluate(id => {
+      const calendar = window.__OPS__!.store.getState().calendars.find(c => c.id === id)!;
+      const { libraryOrigin: _origin, ...data } = calendar;
+      return data;
+    }, fixture.calendarId);
+    const beforeCopy = await projectCopy();
+    const confirm = page.getByRole('dialog');
+    await sourceRow.locator('.danger-icon').click();
+    await expect(confirm).toContainText(fixture.calendarName);
+    expect(await poolState()).toEqual(beforeRemove);
+    await page.keyboard.press('Escape');
+    await expect(confirm).toBeHidden();
+    expect(await poolState()).toEqual(beforeRemove);
+    await sourceRow.locator('.danger-icon').click();
+    await confirm.getByRole('button', { name: /^(Cancel|Annuleren)$/ }).click();
+    await expect(confirm).toBeHidden();
+    expect(await poolState()).toEqual(beforeRemove);
+    // Enter op de gefocuste Annuleren-knop annuleert; alleen Enter zonder knopfocus bevestigt.
+    await sourceRow.locator('.danger-icon').click();
+    await expect(confirm.getByRole('button', { name: /^(Cancel|Annuleren)$/ })).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(confirm).toBeHidden();
+    expect(await poolState()).toEqual(beforeRemove);
+    await sourceRow.locator('.danger-icon').click();
+    await confirm.getByRole('button', { name: /^(Delete|Verwijderen)$/ }).click();
+    await expect(confirm).toBeHidden();
+    await expect.poll(poolState).toEqual([]);
+    expect(await projectCopy()).toEqual(beforeCopy);
+    await expect(row.locator('.library-promote-linked')).toHaveCount(0);
+    await row.locator('button').click();
+    await expect(row.locator('.library-promote-linked')).toBeVisible();
+    const promotedAgain = await poolState();
+    expect(promotedAgain.map(c => c.name)).toEqual([fixture.calendarName]);
+    expect(promotedAgain[0].id).not.toBe(beforeRemove[0].id);
     await page.locator('[data-ops-ribbon-tab="start"]').click();
   }
 });

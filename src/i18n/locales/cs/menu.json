@@ -117,7 +117,7 @@
     "groupByWbs": "WBS (strom)",
     "templates": "Šablony",
     "noTemplates": "Zatím žádné šablony — klikněte pravým tlačítkem na souhrnný úkol → 'Uložit větev jako šablonu'",
-    "insertTemplateHint": "Vložit jako poslední dílčí úkol vybraného úkolu (nebo dole na kořenové úrovni)",
+    "insertTemplateHint": "Vložit jako poslední dílčí úkol vybraného úkolu (nebo na konec kořenové úrovně)",
     "templateMeta": "Úkoly: {{tasks}}, závislosti: {{relations}}",
     "deleteTemplate": "Smazat šablonu",
     "collapseRibbon": "Sbalit pás karet",

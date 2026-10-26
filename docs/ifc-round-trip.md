@@ -571,3 +571,17 @@ eigen besluit.
 | werkblokken per weekdag (B7): groepen, geen terugvalweek, byte-identiek aan main, de lezer in beide indelingen | `tests/planning/check-ifc-werktijd-per-dag.ts` |
 | welke velden een save meeschrijft | `src/state/ifcSaveInput.ts` |
 | wat een "document" ís (breder dan IFC) | `src/state/documentContract.ts` |
+
+### Werkende kalenderuitzonderingen na vernummering
+
+Nieuwe bestanden dragen in OPS_Calendar de property WorkingExceptionKeysV1: inhoudssleutels
+van naam, datumrange en tijdvakken, onafhankelijk van STEP-nummers. De reader gebruikt die
+markering alleen binnen dezelfde kalender en voor een dagelijkse recurrence. Geen markering
+betekent nog steeds niet-werktijd; een gevulde recurrence is op zichzelf geen werkdagbewijs.
+WorkingExceptionIds blijft voor oudere lezers en voor het lezen van oude, niet-vernummerde
+bestanden. Aanwezige maar corrupte V1-metadata valt niet terug op mogelijk verouderde nummers.
+Al eerder samengevoegde oude bestanden zonder V1 kunnen niet betrouwbaar worden gerepareerd
+zonder de bron: de verwijzingsinformatie is daarin al verloren. Externe wijzigingen aan naam,
+datums of banden vereisen bijwerken van de metadata; deze fix garandeert vernummering, niet
+herkenning na willekeurige inhoudswijzigingen. De regressietest vernummert alle echte refs
+zonder strings aan te raken; dit is geen uitgevoerde IfcOpenShell MergeProjects-run.

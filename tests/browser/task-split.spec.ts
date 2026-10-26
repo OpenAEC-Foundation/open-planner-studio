@@ -95,13 +95,40 @@ test('Splits-modus: slepen op de balk maakt één onderbreking in één undo-sta
   await expect.poll(() => splitGapsOf(page, taskId)).toBeNull();
 });
 
-test('Splits-modus: een losse klik geeft een pauze van één werkdag', async ({ page, ops: _ops }) => {
+test('Splits-modus: alleen resterend werk toont een splitcursor; losse klik geeft één werkdag pauze', async ({ page, ops: _ops }) => {
   const taskId = await seedSplittableTask(page);
+  await page.evaluate(id => {
+    const store = window.__OPS__!.store.getState();
+    const task = store.tasks.find(t => t.id === id)!;
+    store.updateTask(id, { time: { ...task.time, completion: 0.5, actualStart: '2026-06-01',
+      remainingTime: 5 } });
+  }, taskId);
   await enableSplitMode(page);
 
   const point = await barPoint(page, taskId);
   const downX = await dayColumnX(page, taskId, 7);
+  const label = page.getByTestId('split-mode-label');
+  const cursor = () => page.evaluate(() => getComputedStyle(document.querySelector('canvas')!).cursor);
+  const before = await state(page);
+  // Eerst een geldige positie, dan terug naar uitgevoerd werk: ook de oude hulplijn moet weg.
   await page.mouse.move(downX, point.y);
+  await expect.poll(cursor).toBe('col-resize');
+  await expect(label).toBeVisible();
+  for (const day of [2, 0]) {
+    const invalidX = await dayColumnX(page, taskId, day);
+    await page.mouse.move(invalidX, point.y);
+    await expect.poll(cursor).toBe('not-allowed');
+    await expect(label).toHaveCount(0);
+    await page.mouse.down();
+    await page.mouse.move(downX, point.y, { steps: 3 });
+    await page.mouse.up();
+    expect(await splitGapsOf(page, taskId)).toBeNull();
+    expect((await state(page)).undoDepth).toBe(before.undoDepth);
+  }
+  await page.mouse.move(downX - 1, point.y);
+  await page.mouse.move(downX, point.y);
+  await expect.poll(cursor).toBe('col-resize');
+  await expect(label).toBeVisible();
   await page.mouse.down();
   await page.mouse.up();
 

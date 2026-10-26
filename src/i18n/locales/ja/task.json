@@ -452,7 +452,7 @@
     "jumpToTask": "タスク {{wbs}} へ移動",
     "relationPopoverTitle": "関係の種類",
     "driving": "駆動関係（駆動関係）",
-    "drivingUnknown": "計算なしでは駆動関係が不明です。",
+    "drivingUnknown": "駆動関係は計算なしでは不明です。",
     "lag": "ラグ（例: 2d、3ed、2u、50%、-25e%）",
     "recalculate": "計算",
     "assignments": {

@@ -460,7 +460,7 @@
     "jumpToTask": "Idi na zadatak {{wbs}}",
     "relationPopoverTitle": "Vrsta ovisnosti",
     "driving": "Odlučujuća ovisnost",
-    "drivingUnknown": "Odlučujuće ovisnosti nepoznate bez izračuna.",
+    "drivingUnknown": "Odlučujuće ovisnosti nisu poznate bez izračuna.",
     "lag": "Vrijeme odgode (npr. 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Izračunaj",
     "assignments": {
@@ -526,7 +526,7 @@
     "lag": "Vrijeme odgode",
     "driving": "Odlučujuća ovisnost",
     "drivingUnknown": "Nepoznato",
-    "notDriving": "Nije odlučujuća ovisnost",
+    "notDriving": "Nije odlučujuća",
     "freeFloat": "Slobodni hod",
     "warnings": "Upozorenja",
     "warnTruncatedLead": "Vrijeme preklapanja skraćeno na datum početka projekta — preklapanje se ne iskorištava u potpunosti",

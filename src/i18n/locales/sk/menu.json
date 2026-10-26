@@ -117,7 +117,7 @@
     "groupByWbs": "WBS (strom)",
     "templates": "Šablóny",
     "noTemplates": "Zatiaľ nie sú uložené šablóny. Kliknite pravým tlačidlom na súhrnnú úlohu → „Uložiť vetvu ako šablónu“",
-    "insertTemplateHint": "Vložiť ako poslednú čiastkovú úlohu vybranej úlohy (alebo na koniec koreňovej úrovne)",
+    "insertTemplateHint": "Vloží sa ako posledná čiastková úloha vybranej úlohy (alebo na spodok koreňovej úrovne)",
     "templateMeta": "Úlohy: {{tasks}}, závislosti: {{relations}}",
     "deleteTemplate": "Odstrániť šablónu",
     "collapseRibbon": "Zbaliť pás s nástrojmi",

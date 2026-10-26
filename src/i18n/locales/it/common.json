@@ -11,9 +11,9 @@
   },
   "notifications": {
     "dismiss": "Chiudi notifica",
-    "taskEditRevertBlocked": "Una modifica del client MCP o di un'estensione è intervenuta nel frattempo. Le modifiche alle attività precedenti non sono state annullate e restano come passaggi normali in Annulla.",
+    "taskEditRevertBlocked": "Una modifica del client MCP o di un'estensione è intervenuta nel frattempo. Le modifiche all'attività fatte prima non sono state annullate e restano come normali passaggi sotto Annulla.",
     "openFailed": "Apertura del file non riuscita",
-    "csvInvalidDate": "CSV non aperto: data non leggibile «{{value}}» nella riga CSV {{row}}, colonna «{{column}}». Usa aaaa-mm-gg, gg-mm-aaaa o gg/mm/aaaa.",
+    "csvInvalidDate": "CSV non aperto: data non riconosciuta \"{{value}}\" nella riga CSV {{row}}, colonna \"{{column}}\". Usa aaaa-mm-gg, gg-mm-aaaa o gg/mm/aaaa.",
     "extGuideCallbackFailed": "Un passaggio dell’estensione {{name}} non è riuscito. La guida continua.",
     "extHelpProjectOpenFailed": "Impossibile aprire il file di progetto {{file}} dell’estensione {{name}}.",
     "extImportFailed": "L'importazione con {{name}} non è riuscita.",
@@ -92,8 +92,8 @@
     "browserCannotOverwrite": "Questo browser non consente all'app di riscrivere su «{{name}}». Per questo l'app chiede di nuovo dove salvare il file a ogni salvataggio. Questo non accade in Chrome, Edge o nell'app desktop.",
     "browserSavesAsDownload": "Salvato come download: «{{name}}» si trova nella cartella dei download. Questo browser non consente all'app di scrivere in una posizione propria, quindi ogni salvataggio crea un nuovo download. In Chrome, Edge o nell'app desktop, Salva aggiorna semplicemente lo stesso file.",
     "autoSaveFailed": "Salvataggio automatico non riuscito",
-    "recoveryManifestBlocked": "I dati di ripristino hanno una versione sconosciuta o una struttura non valida. Questa app li lascia intatti e non può leggere né aggiornare questo set di ripristino. Prova la versione dell'app che ha creato le copie oppure una più recente. Salva tu stesso le nuove modifiche.",
-    "recoveryStorageBlocked": "L'archivio di ripristino è temporaneamente bloccato da un'altra connessione aperta. Le copie esistenti restano; questa pagina non crea nuove copie di ripristino. Salva tu stesso le modifiche, chiudi le altre schede con questa app e ricarica questa pagina per riprovare il ripristino.",
+    "recoveryManifestBlocked": "I dati di ripristino hanno una versione sconosciuta o una struttura non valida. Questa app non li modifica e non può leggere né aggiornare questo set di ripristino. Prova la versione dell'app che ha creato le copie o una più recente. Salva tu il nuovo lavoro.",
+    "recoveryStorageBlocked": "L'archiviazione del ripristino è bloccata temporaneamente da un'altra connessione aperta. Le copie esistenti restano; questa pagina non crea nuove copie di ripristino. Salva tu il lavoro, chiudi le altre schede con questa app e ricarica questa pagina per riprovare il ripristino.",
     "recoveryReadFailed": "Impossibile leggere il file ripristinato",
     "recoveryRestoreFailed": "Ripristino non riuscito",
     "recoveryDocumentsSkipped_one": "{{count}} file di ripristino non è stato caricato ed è stato ignorato.",
@@ -159,13 +159,13 @@
     "referencesClearedOnPaste_many": "{{count}} di riferimenti non esistevano in questo documento e sono stati cancellati (calendari delle attività, categorie di lavoro personalizzate, codici attività o campi personalizzati del documento di origine).",
     "referencesClearedOnPaste_other": "{{count}} riferimenti non esistevano in questo documento e sono stati cancellati (calendari delle attività, categorie di lavoro personalizzate, codici attività o campi personalizzati del documento di origine).",
     "milestoneRefusedAssignments": "«{{task}}» ha assegnazioni di risorse e non può diventare un cardine. Rimuovi prima le assegnazioni.",
-    "milestoneRefusedAssignmentsMany_one": "{{count}} attività ha assegnazioni di risorse e non può diventare un'attività cardine. Prima rimuovi le assegnazioni.",
-    "milestoneRefusedAssignmentsMany_many": "{{count}} di attività hanno assegnazioni di risorse e non possono diventare attività cardine. Prima rimuovi le assegnazioni.",
-    "milestoneRefusedAssignmentsMany_other": "{{count}} attività hanno assegnazioni di risorse e non possono diventare attività cardine. Prima rimuovi le assegnazioni.",
+    "milestoneRefusedAssignmentsMany_one": "{{count}} attività ha assegnazioni di risorse e non può diventare un cardine. Rimuovi prima le assegnazioni.",
+    "milestoneRefusedAssignmentsMany_many": "{{count}} di attività hanno assegnazioni di risorse e non possono diventare cardini. Rimuovi prima le assegnazioni.",
+    "milestoneRefusedAssignmentsMany_other": "{{count}} attività hanno assegnazioni di risorse e non possono diventare cardini. Rimuovi prima le assegnazioni.",
     "milestoneRefusedSummary": "«{{task}}» è un'attività di riepilogo con sottoattività e non può diventare un cardine.",
-    "milestoneRefusedSummaryMany_one": "{{count}} attività è un'attività di riepilogo con sottoattività e non può diventare un'attività cardine.",
-    "milestoneRefusedSummaryMany_many": "{{count}} di attività sono attività di riepilogo con sottoattività e non possono diventare attività cardine.",
-    "milestoneRefusedSummaryMany_other": "{{count}} attività sono attività di riepilogo con sottoattività e non possono diventare attività cardine.",
+    "milestoneRefusedSummaryMany_one": "{{count}} attività è un'attività di riepilogo con sottoattività e non può diventare un cardine.",
+    "milestoneRefusedSummaryMany_many": "{{count}} di attività sono attività di riepilogo con sottoattività e non possono diventare cardini.",
+    "milestoneRefusedSummaryMany_other": "{{count}} attività sono attività di riepilogo con sottoattività e non possono diventare cardini.",
     "assignmentsMovedToSubtask_one": "Assegnazione spostata nella sottoattività «{{child}}».",
     "assignmentsMovedToSubtask_many": "{{count}} assegnazioni spostate nella sottoattività «{{child}}».",
     "assignmentsMovedToSubtask_other": "{{count}} assegnazioni spostate nella sottoattività «{{child}}».",
@@ -173,9 +173,9 @@
     "assignmentsMovedToSubtasks_many": "Assegnazioni di {{count}} attività spostate in sottoattività.",
     "assignmentsMovedToSubtasks_other": "Assegnazioni di {{count}} attività spostate in sottoattività.",
     "milestoneClearedOnPhase": "«{{phase}}» non è più un cardine.",
-    "milestoneClearedOnPhaseMany_one": "{{count}} attività non è più un'attività cardine.",
-    "milestoneClearedOnPhaseMany_many": "{{count}} di attività non sono più attività cardine.",
-    "milestoneClearedOnPhaseMany_other": "{{count}} attività non sono più attività cardine.",
+    "milestoneClearedOnPhaseMany_one": "{{count}} attività non è più un cardine.",
+    "milestoneClearedOnPhaseMany_many": "{{count}} di attività non sono più cardini.",
+    "milestoneClearedOnPhaseMany_other": "{{count}} attività non sono più cardini.",
     "phaseRefusedNoAssignableChild": "«{{phase}}» non può diventare un'attività di riepilogo: le sue assegnazioni non hanno dove andare, perché nessuna delle nuove sottoattività può portare assegnazioni (un cardine o un'attività di riepilogo). Non è stato modificato nulla.",
     "phaseRefusedDuplicateResource": "«{{phase}}» non può diventare un'attività di riepilogo: l'assegnazione di {{resource}} non può passare alla nuova sottoattività «{{child}}», che ha già {{resource}}. Non è stato modificato nulla.",
     "phaseQuestionOutdated": "Le attività o le assegnazioni sono cambiate mentre la domanda era aperta. Non è stato modificato nulla; riprova.",
@@ -193,7 +193,7 @@
     },
     "xerArchiveUnusable": "L'archivio sorgente XER di questo file è inutilizzabile ed è stato omesso; il progetto stesso è stato aperto per intero.",
     "xerArchiveUnusableLine": "L'archivio sorgente XER di questo file era inutilizzabile ed è stato omesso.",
-    "xerArchiveUnusableConsequence": "La pianificazione, il profilo di calcolo e tutti i dati di progetto dell'IFC sono completi. Mancano: le date così come Primavera le ha salvate e la provenienza della sorgente per i client MCP e le estensioni. Il salvataggio scrive il file senza l'archivio; importa di nuovo il .xer originale per recuperarlo.",
+    "xerArchiveUnusableConsequence": "La pianificazione, il profilo di calcolo e tutti i dati di progetto dell'IFC sono completi. Mancano le date così come Primavera le ha salvate e la provenienza della sorgente per i client MCP e le estensioni. Salvando, il file viene scritto senza archivio. Importa di nuovo il .xer originale per recuperarlo.",
     "xerArchiveReasonSchemaVersion": "Motivo: l'archivio ha una versione di schema o un formato sconosciuti (scrittore più recente o diverso).",
     "xerArchiveReasonHashMismatch": "Motivo: il checksum non corrisponde ai byte sorgente: l'archivio è danneggiato.",
     "xerArchiveReasonTruncated": "Motivo: l'archivio è troncato: manca una parte dei byte sorgente.",
@@ -388,7 +388,7 @@
     "experimentalEmpty": "Al momento non ci sono funzioni sperimentali.",
     "experimentalHide": "Nascondi",
     "demoTopbarAnimation": "Demo: animazione barra superiore",
-    "demoTopbarAnimationHint": "Un'onda luminosa arancione e tranquilla nella barra superiore. Mostra come funziona un interruttore sperimentale.",
+    "demoTopbarAnimationHint": "Un tenue bagliore arancione che scorre nella barra superiore. Mostra come funziona un interruttore sperimentale.",
     "tourHint": "Rifai il tour introduttivo dell'app.",
     "theme": "Tema",
     "themeHint": "Lo schema di colori dell'interfaccia.",
@@ -412,7 +412,7 @@
     "durationDisplayDays": "Sempre giorni",
     "durationDisplayHours": "Sempre ore",
     "barSplitMode": "Barre attività alle interruzioni",
-    "barSplitModeHint": "Solo per le attività in ore: dividere le barre intorno alle pause e ai periodi non lavorativi. Le interruzioni reali delle attività restano sempre visibili.",
+    "barSplitModeHint": "Solo per attività in ore: dividi le barre attorno alle pause e al periodo non lavorativo. Le vere interruzioni di attività restano sempre visibili, indipendentemente da questa impostazione.",
     "barSplitNever": "Non dividere mai",
     "barSplitSelection": "Dividi alla selezione",
     "barSplitAlways": "Dividi sempre",
@@ -475,11 +475,11 @@
     "fontFamilySerif": "Serif",
     "fontFamilyMono": "Monospace",
     "fontHint": "Le app web non seguono automaticamente il carattere di sistema. Scegli qui il carattere e la dimensione dell'interfaccia.",
-    "aiModeSection": "Connessione MCP",
-    "aiMode": "Abilita connessione MCP",
-    "aiModeHint": "Mostra la scheda MCP. Lì avvii il bridge MCP, così un client MCP può lavorare sulla tua pianificazione tramite il Model Context Protocol. Disattivandola si interrompe il bridge.",
+    "aiModeSection": "Collegamento MCP",
+    "aiMode": "Consenti collegamento MCP",
+    "aiModeHint": "Mostra la scheda MCP. Lì avvii il bridge MCP, così un client MCP può lavorare con la tua pianificazione tramite il Model Context Protocol. Disattivandolo, il bridge si ferma.",
     "aiAutostart": "Avvia il bridge automaticamente",
-    "aiAutostartHint": "Attiva il bridge MCP all'avvio dell'applicazione, così un client MCP può collegarsi senza che tu apra prima la scheda MCP. Solo nell'app desktop.",
+    "aiAutostartHint": "Attiva subito il bridge MCP all'avvio dell'app, così un client MCP può collegarsi senza che tu apra prima la scheda MCP. Solo nell'app desktop.",
     "legacySection": "Funzioni legacy",
     "classicViewControls": "Mostra i pulsanti di vista classici",
     "classicViewControlsHint": "Riporta i pulsanti separati Colonne, Filtro, Raggruppa e Ordina nella scheda Vista. Le colonne ora si scelgono con il più nell'intestazione della tabella o da Tabella → Colonne…; filtro, raggruppamento e ordinamento si trovano nei pulsanti di layout e nella finestra dei layout."
@@ -523,7 +523,7 @@
     "readOnlyHint": "Tutti gli strumenti di modifica vengono rifiutati finché questa opzione è attiva.",
     "autoBackupOn": "Backup automatico: attivo",
     "autoBackupOff": "Backup automatico: disattivo",
-    "autoBackupHint": "Crea automaticamente un backup IFC prima della prima modifica MCP per ciascun documento.",
+    "autoBackupHint": "Crea automaticamente un backup IFC prima della prima modifica MCP per ogni documento.",
     "backupNow": "Esegui backup ora",
     "openFolder": "Apri cartella di backup",
     "backupOk": "Backup creato: {{name}}",
@@ -534,7 +534,7 @@
     "title": "Attività MCP",
     "panelButton": "Pannello attività",
     "clear": "Cancella",
-    "empty": "Nessuna attività MCP finora. Le chiamate del bridge appariranno qui.",
+    "empty": "Ancora nessuna attività MCP. Le chiamate del bridge compaiono qui.",
     "args": "Argomenti",
     "result": "Risposta"
   },
@@ -574,7 +574,7 @@
     "untitled": "Nuova pianificazione",
     "imported": "Progetto importato",
     "unassignedResource": "Non assegnato",
-    "ifcBuildingModelUnsupported": "Questo file IFC contiene oggetti del modello edilizio. L'apertura è bloccata perché il salvataggio eliminerebbe quegli oggetti. Modifica il file di pianificazione separato e poi uniscilo di nuovo al modello edilizio."
+    "ifcBuildingModelUnsupported": "Questo file IFC contiene oggetti del modello edilizio. L'apertura è bloccata perché il salvataggio li eliminerebbe. Modifica il file di pianificazione separato e poi uniscilo di nuovo al modello edilizio."
   },
   "documents": {
     "overviewTitle": "Progetti aperti",
@@ -676,7 +676,7 @@
     "error": "Si è verificato un problema durante l'aggiornamento",
     "checking": "Controllo in corso…",
     "snapNotice": "Questa versione viene aggiornata automaticamente tramite lo Snap Store — non devi fare nulla.",
-    "packageManagerNotice": "Aggiorna tramite il gestore di pacchetti (ad esempio yay -Syu).",
+    "packageManagerNotice": "Aggiorna tramite il tuo gestore di pacchetti (ad esempio yay -Syu).",
     "debExplanation": "Aggiorna manualmente eseguendo questo comando in un terminale, oppure scarica l'ultimo pacchetto.",
     "debCommandLabel": "Comando di installazione",
     "copyCommand": "Copia comando",
@@ -1451,7 +1451,7 @@
   "conventions": {
     "preserveActualDatesInBackwardPass": {
       "label": "Mantieni le date effettive nel calcolo all’indietro",
-      "help": "Con una data di stato, un'attività completata mantiene le sue date effettive sul lato tardivo e un successore completato non riporta nel passato un predecessore aperto. Un'attività in corso mantiene il suo inizio effettivo come inizio posticipato, a meno che l'opzione «Attività in corso: inizio anticipato = inizio del lavoro rimanente» sia attiva. Un'attività completata su un punto o una finestra di data di stato può comunque trasmettere la pressione delle relazioni."
+      "help": "Con una data di stato, un'attività completata conserva le sue date effettive sul lato tardivo, e un successore completato non riporta nel passato un predecessore aperto. Un'attività in corso mantiene il suo inizio effettivo come inizio posticipato, a meno che «Attività in corso: inizio anticipato = inizio del lavoro rimanente» sia attivo. Un'attività completata in un punto o in una finestra della data di stato può comunque trasmettere pressione di relazione."
     },
     "clampNegativeFreeFloat": {
       "label": "Margine libero mai negativo",
@@ -1459,75 +1459,75 @@
     },
     "p6ZeroDurationUsesPlannedBoundary": {
       "label": "Il cardine segue il limite di calendario pianificato",
-      "help": "Solo con pianificazione oraria. Un cardine senza durata segue il limite di calendario pianificato: un inizio giornata resta un cardine di inizio, una fine di fascia può cadere sulla fine del predecessore. Anche un'attività normale con durata 0 può ottenere una coppia di limiti, ma solo con provenienza XER come Task Dependent o Resource Dependent e con una fine pianificata prima dell'inizio pianificato."
+      "help": "Solo con pianificazione oraria. Un cardine senza durata segue il limite di calendario pianificato: un inizio giornata resta un cardine di inizio, una fine di fascia può cadere sulla fine del predecessore. Anche un'attività normale con durata 0 può ricevere una coppia di limiti, ma solo con provenienza XER come Task Dependent o Resource Dependent e con una fine pianificata prima dell'inizio pianificato."
     },
     "p6UseTaskPlannedStartFloor": {
       "label": "Inizio pianificato come limite inferiore aggiuntivo",
-      "help": "L'inizio pianificato vale come limite minimo quando inizio e fine cadono più di un giorno di calendario dopo quanto consentito dalla rete. Per un cardine di fine con fine pianificata prima dell'inizio pianificato, basta un inizio pianificato più tardi. Non vale per un'attività in corso se è attiva l'opzione «L'inizio pianificato non è un limite minimo per un'attività in corso», né per un'attività ALAP non ancora iniziata posizionata a partire dai suoi successori. Non richiede una provenienza XER."
+      "help": "L'inizio pianificato vale come limite inferiore quando inizio e fine cadono entrambi più di un giorno di calendario dopo quanto consente la rete. Per un cardine di fine con fine pianificata prima dell'inizio pianificato basta un inizio pianificato più tardi. Non vale per un'attività in corso, se «L'inizio pianificato non è un limite minimo per un'attività in corso» è attivo, né per un'attività ALAP non iniziata posizionata dai suoi successori. Non richiede provenienza XER."
     },
     "p6FinishMilestoneBoundaryWindow": {
       "label": "Cardine finale come finestra di limite",
-      "help": "Un cardine di fine senza durata ottiene una finestra di limite solo se la sua fine pianificata è prima del suo inizio pianificato e il suo inizio calcolato resta su quell'inizio pianificato. Un cardine di fine con predecessori e senza successore ottiene anche le sue date anticipate come date più tarde, a meno che l'opzione «Calcola il margine fino alla data di fine progetto» sia attiva. Osservato solo nell'output di P3; è disattivato in ogni profilo di calcolo integrato."
+      "help": "Un cardine di fine senza durata riceve una finestra di limite solo se la sua fine pianificata cade prima del suo inizio pianificato e il suo inizio calcolato coincide ancora con quell'inizio pianificato. Un cardine di fine con predecessori e senza successore riceve anche le sue date anticipate come date posticipate, a meno che «Calcola il margine fino alla data di fine progetto» sia attivo. Si vede solo nell'output P3 ed è disattivato in ogni profilo integrato."
     },
     "p6PreserveActualInstants": {
       "label": "Mantieni esatte le date effettive",
-      "help": "Solo per attività con provenienza conservata da un file .xer. Le date effettive di inizio e di fine registrate non vengono spostate sul bordo di una fascia."
+      "help": "Solo per attività con provenienza conservata da un file .xer. Le date registrate di inizio effettivo e di fine effettiva non vengono spostate sul bordo di una fascia."
     },
     "p6UseRemainingStartForProgress": {
       "label": "Attività in corso: inizio anticipato = inizio del lavoro rimanente",
-      "help": "Inizio anticipato e inizio posticipato di un'attività in corso indicano dove inizia il lavoro rimanente. Nel calcolo all'indietro su una relazione inizio-inizio conta solo la durata rimanente. Questo vale solo con pianificazione oraria, con inizio effettivo e avanzamento tra 0 e 100%, una durata rimanente nota inferiore alla durata pianificata e senza tempo trascorso o interruzioni nella pianificazione. Questa regola aggiuntiva sulla durata rimanente non vale per le relazioni inizio-fine."
+      "help": "L'inizio anticipato e l'inizio posticipato di un'attività in corso indicano dove inizia il lavoro rimanente. Nel calcolo all'indietro su una relazione inizio-inizio conta solo la durata rimanente. Questo vale solo con pianificazione oraria, con inizio effettivo e avanzamento tra 0 e 100%, con una durata rimanente nota minore della durata pianificata, e senza tempo trascorso o interruzioni della pianificazione. Questa regola extra sulla durata rimanente non vale per le relazioni inizio-fine."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Istante del vincolo esatto su un cardine",
-      "help": "Solo con pianificazione oraria, sul lato tardivo, per un vincolo con data e ora di tipo SNLT, MSO, FNLT o MFO su un cardine senza durata. Il momento del vincolo resta esatto, anche all'inizio di una fascia. Nel calcolo in avanti, un momento del genere è già esatto in ogni profilo di calcolo."
+      "help": "Solo con pianificazione oraria, dal lato tardivo, per un vincolo con data e ora di tipo SNLT, MSO, FNLT o MFO su un cardine senza durata. Il momento del vincolo resta esatto, anche all'inizio di una fascia. In avanti, un tale momento è già esatto in ogni profilo."
     },
     "resumeFromActualElapsed": {
       "label": "Il lavoro rimanente riprende dopo la durata trascorsa",
-      "help": "Un'attività in corso riprende il suo lavoro rimanente non prima dell'inizio effettivo più il tempo trascorso. Anche la data di stato e il limite del predecessore restano limiti minimi; vale il valore più tardo dei tre. Non si applica con Progress Override, senza lavoro rimanente o se l'app usa una data di ripresa valida dal file (con al massimo un'assegnazione)."
+      "help": "Un'attività in corso riprende il lavoro rimanente non prima dell'inizio effettivo più il tempo trascorso. Anche la data di stato e il limite del predecessore restano limiti inferiori; vale il più tardivo dei tre. Esclude Progress Override, le attività senza lavoro rimanente e i casi in cui l'app usa una data di ripresa valida dal file (con al massimo una assegnazione)."
     },
     "unstartedIgnoresStatusDate": {
       "label": "Non spostare le attività non iniziate alla data di stato",
-      "help": "Solo con una data di stato, per un'attività senza avanzamento. Quell'attività non viene spostata automaticamente alla data di stato o successivamente."
+      "help": "Solo con una data di stato, per un'attività senza avanzamento. Quell'attività non viene spostata automaticamente alla data di stato o dopo di essa."
     },
     "p6RelationFinishBoundary": {
       "label": "Il successore inizia sul limite di fine",
-      "help": "Solo con pianificazione oraria, sul calendario del predecessore e per una relazione che l'app riconosce all'apertura di un file .xer. Per una relazione fine-inizio senza ritardo, in cui nel file il successore inizia esattamente alla fine di una fascia del predecessore, il successore inizia a quella fine. Una relazione che crei tu stesso non rientra in questa regola. Nel calcolo all'indietro, l'inizio posticipato del successore resta un inizio di fascia."
+      "help": "Solo con pianificazione oraria, sul calendario del predecessore e per una relazione che l'app riconosce all'apertura di un file .xer. Per una relazione fine-inizio senza ritardo, in cui il file colloca il successore esattamente alla fine della fascia del predecessore, il successore inizia a quella fine. Una relazione che crei tu non rientra in questa regola. Nel calcolo all'indietro, l'inizio posticipato del successore resta un inizio di fascia."
     },
     "p6BackwardLagFinishBoundary": {
       "label": "Ritardo all'indietro da un limite di fine",
-      "help": "Solo con pianificazione oraria, sul calendario in cui il ritardo viene calcolato. Se il calcolo all'indietro sottrae da un limite di fine esatto un ritardo positivo in orari di lavoro e cade sul primo inizio di fascia di un giorno, cade sul limite di fine precedente. Anche con una relazione fine-fine senza ritardo, una fine posticipata alla fine di una fascia resta su quel limite di fine. Non per il ritardo a tempo trascorso."
+      "help": "Solo con pianificazione oraria, sul calendario in cui il ritardo conta. Se il calcolo all'indietro sottrae un ritardo positivo in orari di lavoro da un limite di fine esatto e atterra sul primo inizio di fascia di un giorno, atterra sul limite di fine precedente. Anche con una relazione fine-fine senza ritardo, una fine posticipata alla fine di una fascia resta su quel limite. Non vale per un ritardo in tempo trascorso."
     },
     "p6CompletedDataDateWindow": {
       "label": "Attività completata nella finestra della data di stato",
-      "help": "Solo con una data di stato, per attività completate senza sottoattività da un file .xer, con finestra obiettivo conservata, tipo di avanzamento durata e tipo P6 Task Dependent o Resource Dependent con Fixed Duration & Units; esclusi i cardini a durata zero. Richiede «Attività in corso: inizio anticipato = inizio del lavoro rimanente». Interruzione/ripresa è ammessa solo per Task Dependent con una coppia valida, con fine effettiva tra fine pianificata e data di stato, ripresa al più tardi alla fine effettiva e con l'opzione «Mantieni le date effettive nel calcolo all’indietro» attiva. L'attività ottiene date anticipate nella finestra della data di stato; la sua fine conta per la fine del progetto."
+      "help": "Solo con una data di stato, per attività completate da un file .xer senza sottoattività, con una finestra obiettivo conservata, tipo di avanzamento durata e tipo P6 Task Dependent o Resource Dependent con Fixed Duration & Units; esclude i cardini senza durata. Richiede «Attività in corso: inizio anticipato = inizio del lavoro rimanente». Interruzione e ripresa sono ammesse solo per Task Dependent con una coppia valida, con fine effettiva tra fine pianificata e data di stato, ripresa non oltre la fine effettiva e con «Mantieni le date effettive nel calcolo all’indietro» attivo. L'attività riceve date anticipate nella finestra della data di stato, e la sua fine conta per la fine del progetto."
     },
     "p6CompletedLoeActualFinish": {
       "label": "LOE completata tramite la fine effettiva",
-      "help": "Solo con una data di stato, per una LOE completata da un file .xer con durata positiva, tipo di avanzamento durata e tipo P6 Fixed Duration & Units/Time, una finestra obiettivo completa e una fine effettiva tra la fine pianificata e la data di stato. Solo relazioni in ingresso inizio-inizio, almeno una, senza successore e senza interruzione/ripresa. Richiede «Attività in corso: inizio anticipato = inizio del lavoro rimanente», «Mantieni le date effettive nel calcolo all’indietro» e «Mantieni esatte le date effettive». La LOE segue la sua fine effettiva invece del percorso hammock."
+      "help": "Solo con una data di stato, per un'attività LOE completata da un file .xer con durata positiva, tipo di avanzamento durata e tipo P6 Fixed Duration & Units/Time, una finestra obiettivo completa e una fine effettiva tra la fine pianificata e la data di stato. Richiede almeno una relazione in entrata, tutte inizio-inizio, nessun successore e nessuna interruzione o ripresa. Richiede «Attività in corso: inizio anticipato = inizio del lavoro rimanente», «Mantieni le date effettive nel calcolo all’indietro» e «Mantieni esatte le date effettive». La LOE segue la sua fine effettiva invece del percorso hammock."
     },
     "p6OpenLoeTargetSpan": {
       "label": "LOE non iniziata usa la finestra obiettivo",
-      "help": "Solo con pianificazione oraria, per una LOE/hammock non ancora iniziata da un file .xer con 0% di avanzamento, durata positiva, tipo di avanzamento durata e tipo P6 Fixed Duration & Units; senza date effettive né interruzione/ripresa. Richiede una finestra obiettivo completa e positiva, che inizia sul limite della relazione. Gli orari di lavoro della finestra differiscono dalla durata di al massimo un giorno lavorativo; almeno una relazione in ingresso inizio-inizio e una relazione in uscita fine-fine, solo questi tipi di relazione e senza ritardo. La LOE usa poi la finestra obiettivo come durata. Prova debole: un solo file."
+      "help": "Solo con pianificazione oraria, per una LOE o hammock non iniziata da un file .xer con avanzamento 0%, durata positiva, tipo di avanzamento durata e tipo P6 Fixed Duration & Units; senza date effettive né interruzione o ripresa. Richiede una finestra obiettivo completa e positiva il cui inizio coincide con il limite della relazione, e i cui orari di lavoro si discostano dalla durata di al massimo un giorno lavorativo; almeno un ingresso inizio-inizio e un'uscita fine-fine, solo questi tipi di relazione e senza ritardo. La LOE usa allora la finestra obiettivo come durata. Prova debole: un solo file."
     },
     "p6CompletedPredecessorAtDataDate": {
       "label": "Il predecessore completato non trattiene oltre la data di stato",
-      "help": "Solo con pianificazione oraria e una data di stato, per un predecessore completato con fine effettiva. Le relazioni fine-inizio e fine-fine contano al più a partire dal limite di lavoro immediatamente prima della data di stato; una fine effettiva più tarda non trattiene il successore. Le relazioni inizio-inizio e inizio-fine restano sull'inizio effettivo. Un'attività completata con un proprio punto di data di stato o una finestra di data di stato spostata segue quel proprio limite."
+      "help": "Solo con pianificazione oraria e una data di stato, per un predecessore completato con fine effettiva. Le relazioni fine-inizio e fine-fine contano al massimo dal limite di lavoro subito prima della data di stato; una fine effettiva più tardi non trattiene il successore. Le relazioni inizio-inizio e inizio-fine restano sull'inizio effettivo. Un'attività completata con un proprio punto o una finestra spostata della data di stato segue quel proprio limite."
     },
     "p6FreeFloatOnOwnCalendar": {
       "label": "Margine libero nel calendario dell'attività",
-      "help": "Solo con pianificazione oraria, per attività non completate e relazioni con margine libero calcolato. Per un'attività non avviata il margine libero conta nel proprio calendario per fine-inizio, inizio-inizio e fine-fine, senza ritardo in ore di orologio o in percentuale. Un ritardo diverso da 0 richiede il calendario del ritardo «Predecessore». Per un'attività avviata vale solo fine-inizio senza ritardo. Il margine libero della relazione stessa e il fatto che sia una relazione determinante non cambiano."
+      "help": "Solo con pianificazione oraria, per attività non completate e relazioni con margine libero calcolato. Per un'attività non iniziata, il margine libero conta nel suo calendario per fine-inizio, inizio-inizio e fine-fine, senza ritardo in ore di orologio o in percentuale. Un ritardo diverso da 0 richiede il calendario del ritardo Predecessore. Per un'attività iniziata vale solo fine-inizio senza ritardo. Il margine libero e il contrassegno di relazione determinante della relazione stessa non cambiano."
     },
     "p6CompletedRemainingLag": {
       "label": "Il ritardo trascorso di un predecessore completato non conta",
-      "help": "Solo con pianificazione oraria sul calendario del ritardo e con una data di stato, per predecessori completati da un file .xer con fine effettiva prima della data di stato e con un punto o una finestra della data di stato. Conta solo la parte non ancora trascorsa di un ritardo positivo in orari di lavoro. Vale sul lato delle date più tarde e in avanti da un punto della data di stato o da una finestra con residuo zero spostata. Un'attività sulle sue normali date effettive mantiene il ritardo intero; non vale per il ritardo in ore di orologio."
+      "help": "Solo con pianificazione oraria sul calendario del ritardo e con una data di stato, per predecessori completati da un file .xer con fine effettiva prima della data di stato e un punto o una finestra della data di stato. Di un ritardo positivo in orari di lavoro conta solo la parte non ancora trascorsa. Agisce sul lato tardivo e in avanti da un punto della data di stato o da una finestra a residuo zero spostata. Un'attività sulle sue date effettive ordinarie mantiene il ritardo intero; non vale per il ritardo in ore di orologio."
     },
     "p6CompletedOutOfSequenceWindow": {
       "label": "Un'attività completata fuori sequenza attende i suoi predecessori",
-      "help": "Solo con pianificazione oraria e con una data di stato, sul percorso XER di «Attività completata nella finestra della data di stato»; devono essere attive anche quella convenzione e «Attività in corso: inizio anticipato = inizio del lavoro rimanente». Non con «Progress Override». Tramite relazioni fine-inizio o inizio-inizio, l'attività riceve il valore più tardo tra il limite della data di stato e il limite di un predecessore non ancora completato o con una finestra della data di stato spostata. I normali predecessori completati non contano."
+      "help": "Solo con pianificazione oraria e una data di stato, sul percorso XER di «Attività completata nella finestra della data di stato»; quella convenzione e «Attività in corso: inizio anticipato = inizio del lavoro rimanente» devono essere attive. Non con Progress Override. Tramite ingressi fine-inizio o inizio-inizio, l'attività riceve il limite più tardi tra quello della data di stato e quello di un predecessore non ancora terminato o con finestra della data di stato spostata. I normali predecessori completati non contano."
     },
     "p6CompletedPhysicalAtDataDate": {
       "label": "Attività completata ad avanzamento fisico sulla data di stato",
-      "help": "Solo con pianificazione oraria e con una data di stato, per attività completate senza sottoattività e cardini a durata zero da un file .xer di tipo P6 Task Dependent, cardine di inizio o cardine di fine. Con finestra di destinazione conservata, tipo di percentuale di avanzamento fisica, fine effettiva non oltre la data di stato e senza interruzione/ripresa. Richiede «Attività in corso: inizio anticipato = inizio del lavoro rimanente». L'attività sta come un unico punto sulla data di stato, o più tardi se un predecessore lo richiede. Per altri tipi di percentuale di avanzamento, durata compresa, questo non è misurato e resta disattivato."
+      "help": "Solo con pianificazione oraria e una data di stato, per attività completate senza sottoattività e per cardini di durata zero da un file .xer di tipo P6 Task Dependent, Start Milestone o Finish Milestone, con finestra di destinazione conservata, percentuale di avanzamento fisica, fine effettiva non successiva alla data di stato e senza interruzione o ripresa. Richiede «Attività in corso: inizio anticipato = inizio del lavoro rimanente». L'attività sta in un unico punto sulla data di stato, o più tardi se un predecessore lo richiede. Per gli altri tipi di avanzamento, compresa la durata, non è misurato e resta disattivato."
     },
     "p6InProgressStartLagElapsed": {
       "label": "Il ritardo SS trascorso di un predecessore in corso non conta",
@@ -1535,27 +1535,27 @@
     },
     "p6FinishFinishStartMilestoneLateFinish": {
       "label": "Una relazione fine-fine verso un cardine di inizio si lega al cardine stesso",
-      "help": "Solo con pianificazione oraria su entrambi i lati di una relazione fine-fine verso un cardine di inizio a durata zero. La relazione si lega al cardine stesso: la fine posticipata del predecessore può arrivare fino alla fine posticipata del cardine. Può cambiare anche il margine libero; l'inizio anticipato del cardine resta invariato. Non per i cardini di fine o per il percorso all'indietro a durata residua zero."
+      "help": "Solo con pianificazione oraria su entrambi i lati di una relazione fine-fine verso un cardine di inizio di durata zero. La relazione si lega al cardine stesso: la fine posticipata del predecessore può arrivare fino alla fine posticipata del cardine. Può cambiare anche il margine libero; l'inizio anticipato del cardine resta invariato. Non per i cardini di fine o il percorso all'indietro a residuo di durata zero."
     },
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "L'inizio pianificato non è un limite minimo per un'attività in corso",
-      "help": "Solo per un'attività con inizio effettivo e meno del 100% di avanzamento, quando «Inizio pianificato come limite inferiore aggiuntivo» è attivo. Il suo inizio pianificato non è un limite inferiore aggiuntivo per il lavoro rimanente; restano determinanti la data di stato e i suoi predecessori."
+      "help": "Solo per un'attività con inizio effettivo e meno del 100% di avanzamento, quando «Inizio pianificato come limite inferiore aggiuntivo» è attivo. Il suo inizio pianificato non aggiunge un limite inferiore per il lavoro rimanente; restano determinanti la data di stato e i suoi predecessori."
     },
     "p6LateFinishOnOwnCalendar": {
       "label": "Fine posticipata sul calendario dell'attività",
-      "help": "Solo con pianificazione oraria, quando il limite di un successore determina la fine posticipata e nessun vincolo più stringente o scadenza sostituisce quel limite. Se quel limite cade fuori dagli orari di lavoro dell'attività, la fine posticipata diventa la fine della fascia lavorativa precedente sul calendario dell'attività. Non per una fine posticipata determinata dalla fine del progetto."
+      "help": "Solo con pianificazione oraria, quando il limite di un successore determina la fine posticipata e nessun vincolo o scadenza più stretto sostituisce quel limite. Se il limite cade fuori dagli orari di lavoro dell'attività, la fine posticipata diventa la fine della fascia lavorativa precedente sul calendario dell'attività. Non per una fine posticipata determinata dalla fine del progetto."
     },
     "p6ProgressOverrideIgnoresStartedSuccessor": {
       "label": "Progress Override ignora anche all'indietro un successore iniziato",
-      "help": "Solo con «Progress Override», per un predecessore non completato e un successore avviato ma non completato (inizio effettivo o avanzamento). La loro relazione non conta nelle date più tarde e nel margine libero del predecessore."
+      "help": "Solo con Progress Override, per un predecessore non completato e un successore iniziato ma non completato (inizio effettivo o avanzamento). La loro relazione non conta nelle date più tarde né nel margine libero del predecessore."
     },
     "p6FinishNotBeforeFinishFinishBound": {
       "label": "Fine anticipata mai prima di un limite fine-fine",
-      "help": "Correzione della data: per una relazione fine-fine con ritardo in orari di lavoro, senza hammock, con pianificazione oraria sul calendario del successore (per il lavoro rimanente: il calendario di avanzamento) e sul calendario del ritardo. Se il limite della relazione cade dopo la fine anticipata, senza orari di lavoro in mezzo, solo la fine si sposta al primo confine lavorativo uguale o successivo a quel limite. Vale per successori pianificati automaticamente, non avviati e in corso; per le attività non avviate prevale un vincolo rigido di fine. Margine libero: separatamente, per una relazione fine-fine senza ritardo e senza ritardo percentuale, conta un predecessore non completato con margine libero della relazione esistente e una fine anticipata calcolata del successore: dalla fine anticipata del predecessore alla fine anticipata del successore, nel proprio calendario orario. Questo vale anche con ritardo zero in ore di orologio, senza condizioni orarie aggiuntive sul calendario del successore o del ritardo. Hammock e attività pianificate manualmente restano infine a margine libero 0."
+      "help": "Correzione della data: per una relazione fine-fine con ritardo in orari di lavoro, senza hammock e con pianificazione oraria sul calendario del successore (per il lavoro rimanente: il calendario di avanzamento) e sul calendario del ritardo. Se il limite della relazione cade dopo la fine anticipata senza orari di lavoro in mezzo, solo la fine si sposta alla prima soglia di lavoro uguale o successiva a quel limite. Vale per successori pianificati automaticamente, non iniziati e in corso; per le attività non iniziate prevale un vincolo fisso di fine. Margine libero: separatamente, un predecessore non completato conta in una relazione fine-fine senza ritardo e senza ritardo percentuale, con margine libero della relazione esistente e una fine anticipata calcolata del successore, nel proprio calendario orario dalla sua fine anticipata fino alla fine anticipata del successore. Vale anche con ritardo zero in ore di orologio, senza ulteriore condizione oraria sul calendario del successore o del ritardo. Hammock e attività pianificate manualmente restano infine con margine libero 0."
     },
     "p6AlapPositionedFromSuccessors": {
       "label": "Attività ALAP il più tardi consentito dai successori",
-      "help": "Solo con pianificazione oraria, per un'attività non avviata, non pianificata manualmente, con il vincolo «il più tardi possibile» (ALAP). Le date anticipate dei suoi successori ne determinano la posizione fino al minuto; prima vengono i successori. Il suo inizio pianificato non conta; i predecessori, la data di stato e un secondo vincolo restano validi. Senza successore usa la sua fine posticipata. Il normale passo ALAP resta disponibile in ogni profilo."
+      "help": "Solo con pianificazione oraria, per un'attività non iniziata e non pianificata manualmente con il vincolo «il più tardi possibile» (ALAP). Le date anticipate dei successori ne determinano la posizione fino al minuto; prima vengono i successori. La sua data di inizio pianificata non conta; restano validi predecessori, data di stato e un secondo vincolo. Senza successori usa la sua fine posticipata. Il normale passo ALAP resta disponibile in ogni profilo."
     },
     "milestoneWithoutPredecessorAtDayEnd": {
       "label": "Attività cardine isolate a fine giorno lavorativo",
@@ -1615,7 +1615,7 @@
     "showHelp": "Spiegazione di «{{name}}»",
     "sourceOptions": {
       "title": "Impostazioni dal file di origine",
-      "intro": "Queste opzioni di calcolo sono di sola lettura e valgono per questo progetto. All'importazione da un file Primavera P6 (.xer) l'app le prende dal file di origine. Funzionano solo quando sono soddisfatte le relative condizioni.",
+      "intro": "Queste sono opzioni di calcolo di sola lettura di questo progetto. All'importazione da un file Primavera P6 (.xer) l'app le riprende dal file di origine. Funzionano solo quando sono soddisfatte le relative condizioni.",
       "useExpectedFinishDates": "Usa date di fine previste (P6: Use Expected Finish Dates)",
       "useProjectEndDateForFloat": "Calcola il margine fino alla data di fine progetto",
       "p6CompletedLateFromRemainingWindow": "Attività completata: date più tarde dalla data di stato",
@@ -1624,7 +1624,7 @@
     "requires": {
       "xerOrigin": "solo attività da .xer",
       "hourPlanning": "solo pianificazione oraria",
-      "hourPlanningTitle": "Funziona solo con pianificazione oraria sul calendario con cui la regola calcola: un calendario con fasce di lavoro o una durata dell'attività in ore. Per il ritardo può valere anche il calendario del ritardo impostato su 24 ore."
+      "hourPlanningTitle": "Funziona solo con pianificazione oraria sul calendario su cui la regola calcola: un calendario con fasce di lavoro o una durata di attività in ore. Per il ritardo può valere anche il calendario del ritardo di 24 ore."
     },
     "optionsDeviate": {
       "line": "{{field}}: {{current}} (predefinito: {{standard}})",

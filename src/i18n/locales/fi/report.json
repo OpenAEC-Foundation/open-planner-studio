@@ -7,7 +7,7 @@
   "relations": "Riippuvuudet:",
   "settings": "Asetukset",
   "paper": "Paperi:",
-  "orientation": "Suunta:",
+  "orientation": "Suuntaus:",
   "landscape": "Vaaka",
   "portrait": "Pysty",
   "showCriticalPath": "Kriittinen polku",
@@ -52,7 +52,7 @@
     "health": "aikataulun-kunto",
     "resourceLoading": "resurssikuormitus",
     "resourceAssignments": "resurssikohdistukset",
-    "wbsSummary": "WBS"
+    "wbsSummary": "wbs"
   },
   "noTasks": "Ei näytettäviä tehtäviä",
   "printed": "Tulostettu:",

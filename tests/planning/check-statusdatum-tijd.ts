@@ -69,6 +69,8 @@ same('§1 tijd zonder datum bestaat niet', withStatusTime(undefined, 720), undef
 
 // ── §2 ──────────────────────────────────────────────────────────────────────
 const label = GanttRenderer.statusDateBadgeLabel;
+same('§2 knownbug 57: oorspronkelijk voorbeeld gebruikt standaard dmy', label('2027-06-28', false), '28-06-2027');
+same('§2 knownbug 57: ISO alleen wanneer ymd expliciet gekozen is', label('2027-06-28', false, 'ymd'), '2027-06-28');
 same('§2 dmy + tijd', label('2006-09-20T17:00', true, 'dmy', '24h'), '20-09-2006 17:00');
 same('§2 dmy zonder tijd', label('2006-09-20', true, 'dmy', '24h'), '20-09-2006');
 same('§2 mdy + 12 uur', label('2006-09-20T17:00', true, 'mdy', '12h'), '09-20-2006 5:00 PM');

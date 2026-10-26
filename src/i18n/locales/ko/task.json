@@ -452,7 +452,7 @@
     "jumpToTask": "{{wbs}} 작업으로 이동",
     "relationPopoverTitle": "관계 유형",
     "driving": "주도 관계",
-    "drivingUnknown": "계산 없이는 주도 관계를 알 수 없습니다.",
+    "drivingUnknown": "계산하지 않으면 주도 관계를 알 수 없습니다.",
     "lag": "지연(예: 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "계산",
     "assignments": {

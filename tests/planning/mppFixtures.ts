@@ -598,6 +598,9 @@ function expectPrefixedError(
   } catch (err) {
     threw = true;
     message = err instanceof Error ? err.message : String(err);
+    if (prefix === 'CFB') {
+      truthy(`${label}: herkenbare containerfout voor de UI`, (err as { cfbCode?: string })?.cfbCode === 'CFB_INVALID');
+    }
   }
   const elapsedMs = Date.now() - start;
   truthy(`${label}: binnen tijdslimiet (${elapsedMs}ms < ${timeLimitMs}ms)`, elapsedMs < timeLimitMs);

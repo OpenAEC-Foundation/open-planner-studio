@@ -53,7 +53,7 @@
     "health": "santé-planning",
     "resourceLoading": "charge-ressources",
     "resourceAssignments": "affectations-ressources",
-    "wbsSummary": "wbs"
+    "wbsSummary": "WBS"
   },
   "noTasks": "Aucune tâche à afficher",
   "printed": "Imprimé :",

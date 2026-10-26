@@ -117,7 +117,7 @@
     "groupByWbs": "WBS (дърво)",
     "templates": "Шаблони",
     "noTemplates": "Още няма шаблони — щракнете с десен бутон върху обобщаваща задача → „Запиши клона като шаблон“",
-    "insertTemplateHint": "Вмъкни като последна подзадача на избраната задача (или в края на най-горното ниво)",
+    "insertTemplateHint": "Вмъкване като последна подзадача на избраната задача (или най-долу на най-горното ниво)",
     "templateMeta": "{{tasks}} задачи, {{relations}} зависимости",
     "deleteTemplate": "Изтрий шаблона",
     "collapseRibbon": "Свий лентата",
@@ -419,7 +419,7 @@
     "catalogEntriesSkipped": "Пропуснати елементи от каталога: {{count}}",
     "storageWriteFailed": "Състоянието на разширението не можа да се запази.",
     "minAppVersionRequired": "Изисква Open Planner Studio ≥ {{minVersion}} (текуща версия: {{appVersion}})",
-    "missingPermission": "Разширението „{{extensionId}}“ няма разрешение: {{permission}}",
+    "missingPermission": "Разширение „{{extensionId}}“ няма разрешение: {{permission}}",
     "import": "Импортирай",
     "importSubtitle": "Импортирайте данни за проекта чрез инсталираните разширения.",
     "importEmpty": "Няма инсталирани разширения за импорт. Добавете такова от Разширения."

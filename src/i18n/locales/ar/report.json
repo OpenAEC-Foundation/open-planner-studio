@@ -46,14 +46,14 @@
   "print": "طباعة...",
   "exportPDF": "تصدير PDF",
   "fileSuffix": {
-    "gantt": "الجدول-الزمني",
+    "gantt": "الجدول الزمني",
     "resourceGantt": "مخطط-الموارد",
     "milestones": "المعالم",
     "variance": "الانحرافات",
     "lookAhead": "look-ahead",
     "critical": "حرج",
     "progress": "التقدم",
-    "health": "صحة-الجدول-الزمني",
+    "health": "صحة الجدول الزمني",
     "resourceLoading": "تحميل-الموارد",
     "resourceAssignments": "تعيينات-الموارد",
     "wbsSummary": "WBS"

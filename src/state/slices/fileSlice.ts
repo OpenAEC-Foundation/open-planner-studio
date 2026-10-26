@@ -50,6 +50,7 @@ import { msProjectImportNotice } from '../msProjectImportNotice';
 import type { ImportLabelT } from '@/i18n/importLabels';
 import { parseableHourSuffix } from '@/utils/durationFormat';
 import i18next from 'i18next';
+import { exportFileSuffix } from '@/i18n/exportFileSuffix';
 import { invalidateDocumentRedo, removeSessionHistoryForDocumentFromState } from '../sessionHistory';
 import { scheduleFailedNotice } from '../scheduleErrorNotice';
 import { browserSaveNotice } from '../browserSaveNotice';
@@ -1233,7 +1234,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           ext = 'xlsx';
           filters = [{ name: 'Excel Workbook', extensions: ['xlsx'] }];
           mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-          nameOverride = `${suggestedFileBase(state)}-voortgang.${ext}`;
+          nameOverride = `${suggestedFileBase(state)}-${exportFileSuffix('progress')}.${ext}`;
           break;
         }
         case 'progress-csv': {
@@ -1260,7 +1261,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           );
           ext = 'csv';
           filters = [{ name: 'CSV Files', extensions: ['csv'] }];
-          nameOverride = `${suggestedFileBase(state)}-voortgang.${ext}`;
+          nameOverride = `${suggestedFileBase(state)}-${exportFileSuffix('progress')}.${ext}`;
           break;
         }
         case 'csv': {
@@ -1367,7 +1368,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (!companyId) return { ok: true, warnings: [] };
       const poolContent = state.exportPoolIFC(companyId);
       if (!poolContent) return { ok: true, warnings: [] };
-      const poolOutcome = await saveFileDialog(`${base}-bibliotheek.ifc`, poolContent, [{ name: 'IFC Files', extensions: ['ifc'] }]);
+      const poolOutcome = await saveFileDialog(`${base}-${exportFileSuffix('library')}.ifc`, poolContent, [{ name: 'IFC Files', extensions: ['ifc'] }]);
       // Het projectbestand bestaat dan al; annuleren van het tweede bestand is geen voltooide export.
       if (!poolOutcome) return { ok: true, warnings: [], cancelled: true };
       noticeIfDownloaded(poolOutcome);

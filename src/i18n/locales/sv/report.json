@@ -49,9 +49,9 @@
     "lookAhead": "look-ahead",
     "critical": "kritisk",
     "progress": "framdrift",
-    "health": "tidsplanshälsa",
+    "health": "tidsplan-hälsa",
     "resourceLoading": "resursbelastning",
-    "resourceAssignments": "tilldelningar",
+    "resourceAssignments": "resurstilldelningar",
     "wbsSummary": "WBS"
   },
   "noTasks": "Inga uppgifter att visa",

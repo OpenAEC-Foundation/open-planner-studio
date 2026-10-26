@@ -117,7 +117,7 @@
     "groupByWbs": "СДР (дерево)",
     "templates": "Шаблоны",
     "noTemplates": "Шаблонов пока нет. Щёлкните правой кнопкой мыши суммарную задачу → «Сохранить ветку как шаблон»",
-    "insertTemplateHint": "Вставка как последней подзадачи выбранной задачи (или в конце верхнего уровня)",
+    "insertTemplateHint": "Вставить как последнюю подзадачу выбранной задачи (или в конец верхнего уровня)",
     "templateMeta": "{{tasks}} задач, {{relations}} связей",
     "deleteTemplate": "Удалить шаблон",
     "collapseRibbon": "Свернуть ленту",
@@ -423,7 +423,7 @@
     "catalogEntriesSkipped": "Записи каталога пропущены ({{count}}).",
     "storageWriteFailed": "Не удалось сохранить состояние расширения.",
     "minAppVersionRequired": "Требуется Open Planner Studio ≥ {{minVersion}} (текущая версия: {{appVersion}})",
-    "missingPermission": "Расширение «{{extensionId}}» не имеет разрешения: {{permission}}",
+    "missingPermission": "Расширению «{{extensionId}}» не хватает разрешения: {{permission}}",
     "import": "Импорт",
     "importSubtitle": "Импортируйте данные проекта через установленные расширения.",
     "importEmpty": "Расширения импорта не установлены. Добавьте их в разделе «Расширения»."

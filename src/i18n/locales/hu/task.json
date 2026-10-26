@@ -456,7 +456,7 @@
     "jumpToTask": "Ugrás a(z) {{wbs}} tevékenységre",
     "relationPopoverTitle": "Kapcsolattípus",
     "driving": "Meghatározó kapcsolat (driving)",
-    "drivingUnknown": "Számítás nélkül a meghatározó kapcsolatok ismeretlenek.",
+    "drivingUnknown": "Meghatározó kapcsolatok ismeretlenek számítás nélkül.",
     "lag": "Késleltetés (pl. 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Számítás",
     "assignments": {

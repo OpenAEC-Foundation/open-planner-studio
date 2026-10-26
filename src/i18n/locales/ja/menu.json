@@ -117,7 +117,7 @@
     "groupByWbs": "WBS（ツリー）",
     "templates": "テンプレート",
     "noTemplates": "保存されたテンプレートはまだありません — サマリータスクを右クリック →「ブランチをテンプレートとして保存」",
-    "insertTemplateHint": "選択したタスクの最後のサブタスクとして挿入します（またはルートレベルの一番下に）",
+    "insertTemplateHint": "選択したタスクの最後のサブタスクとして挿入します（またはルートレベルの末尾に）",
     "templateMeta": "{{tasks}} タスク、{{relations}} 関係",
     "deleteTemplate": "テンプレートを削除",
     "collapseRibbon": "リボンを折りたたむ",
@@ -417,7 +417,7 @@
     "catalogEntriesSkipped": "スキップしたカタログ項目: {{count}}",
     "storageWriteFailed": "拡張機能の状態を保存できませんでした。",
     "minAppVersionRequired": "Open Planner Studio ≥ {{minVersion}} が必要です（現在のバージョン: {{appVersion}}）",
-    "missingPermission": "拡張機能「{{extensionId}}」に権限がありません: {{permission}}",
+    "missingPermission": "拡張機能「{{extensionId}}」に必要な権限がありません: {{permission}}",
     "import": "インポート",
     "importSubtitle": "インストール済みの拡張機能でプロジェクトデータをインポート。",
     "importEmpty": "インポート用拡張機能がありません。拡張機能から追加してください。"

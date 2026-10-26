@@ -483,7 +483,7 @@ test('voortgangsblad-export: knop op Planning levert een leesbaar .xlsx in de do
 
   const { name, bytes } = await exportProgressSheet(page);
 
-  expect(name).toMatch(/-voortgang\.xlsx$/);
+  expect(name).toBe('Voortgangsblad-export-progress.xlsx');
   // `PK\x03\x04` — een ZIP, dus geen CSV en geen half bestand.
   expect([...bytes.subarray(0, 4)]).toEqual([0x50, 0x4b, 0x03, 0x04]);
 

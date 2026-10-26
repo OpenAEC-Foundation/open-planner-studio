@@ -452,7 +452,7 @@
     "jumpToTask": "跳转到任务 {{wbs}}",
     "relationPopoverTitle": "关系类型",
     "driving": "驱动关系 (driving)",
-    "drivingUnknown": "未经计算，驱动关系未知。",
+    "drivingUnknown": "未计算时驱动关系未知。",
     "lag": "延隔（例如 2d、3ed、2u、50%、-25e%）",
     "recalculate": "计算",
     "assignments": {

@@ -7,7 +7,7 @@
   "relations": "İlişkiler:",
   "settings": "Ayarlar",
   "paper": "Kağıt:",
-  "orientation": "Yön:",
+  "orientation": "Oryantasyon:",
   "landscape": "Yatay",
   "portrait": "Dikey",
   "showCriticalPath": "Kritik yol",
@@ -49,10 +49,10 @@
     "lookAhead": "look-ahead",
     "critical": "kritik",
     "progress": "ilerleme",
-    "health": "planlama-sağlığı",
+    "health": "sağlık",
     "resourceLoading": "kaynak-yükleme",
     "resourceAssignments": "kaynak-atamaları",
-    "wbsSummary": "wbs"
+    "wbsSummary": "WBS"
   },
   "noTasks": "Görüntülenecek görev yok",
   "printed": "Yazdırıldı:",

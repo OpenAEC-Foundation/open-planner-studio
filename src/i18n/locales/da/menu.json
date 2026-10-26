@@ -418,7 +418,7 @@
     "quarantineEmptyName": "Ugyldig udvidelse",
     "catalogEntriesSkipped": "Katalogposter sprunget over: {{count}}",
     "storageWriteFailed": "Udvidelsens status kunne ikke gemmes.",
-    "minAppVersionRequired": "Kræver Open Planner Studio ≥ {{minVersion}} (nuværende version: {{appVersion}})",
+    "minAppVersionRequired": "Kræver Open Planner Studio ≥ {{minVersion}} (aktuel version: {{appVersion}})",
     "missingPermission": "Udvidelsen \"{{extensionId}}\" mangler tilladelse: {{permission}}",
     "import": "Importer",
     "importSubtitle": "Importer projektdata via installerede udvidelser.",

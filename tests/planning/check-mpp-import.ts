@@ -1183,9 +1183,9 @@ const PROPSKEY_ASSIGNMENT_FIELD_MAP = 131095;
   if (result) {
     truthy('I4 end-to-end readMPP: project.name uit Props/TITLE', result.project.name === 'Fixture Project');
     // Rekenprofielen C3/C4: de twee MPP-eigen conventies staan in het MS Project-profiel; de lezer zet
-    // geen projectopties meer.
-    truthy('I4 end-to-end readMPP: zonder XER-floatbron geen projectopties, MS Project-profiel',
-      result.project.schedulingOptions === undefined
+    // geen conventie-overrides meer; de bronkritiekgrens is wel een projectinstelling.
+    truthy('I4 end-to-end readMPP: alleen bronkritiekgrens als projectoptie, MS Project-profiel',
+      JSON.stringify(result.project.schedulingOptions) === JSON.stringify({ criticalDefinition: { mode: 'totalFloat', threshold: 0 } })
         && JSON.stringify(result.project.schedulingProfile) === JSON.stringify(builtInProfile('msproject')));
     truthy('I4 end-to-end readMPP: project en kalender krijgen nooit XER-provenance',
       result.project.schedulingProfile?.id === 'msproject' && result.calendar.p6Source === undefined);

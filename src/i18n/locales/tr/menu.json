@@ -117,7 +117,7 @@
     "groupByWbs": "WBS (ağaç)",
     "templates": "Şablonlar",
     "noTemplates": "Henüz kayıtlı şablon yok — bir özet göreve sağ tıklayın → 'Dalı şablon olarak kaydet'",
-    "insertTemplateHint": "Seçili görevin son alt görevi olarak ekleyin (veya kök düzeyin en altına)",
+    "insertTemplateHint": "Seçili görevin son alt görevi olarak ekleyin (veya kök düzeyinde en alta)",
     "templateMeta": "{{tasks}} görev, {{relations}} ilişki",
     "deleteTemplate": "Şablonu sil",
     "collapseRibbon": "Şeridi daralt",

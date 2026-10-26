@@ -46,10 +46,10 @@
     "resourceGantt": "Ressourcendiagramm",
     "milestones": "Meilensteine",
     "variance": "Abweichungen",
-    "lookAhead": "Look-ahead",
+    "lookAhead": "look-ahead",
     "critical": "kritisch",
     "progress": "Fortschritt",
-    "health": "Terminplan-Gesundheit",
+    "health": "Terminplan-Status",
     "resourceLoading": "Ressourcenbelastung",
     "resourceAssignments": "Zuweisungen",
     "wbsSummary": "PSP"

@@ -117,7 +117,7 @@
     "groupByWbs": "WBS (árvore)",
     "templates": "Modelos",
     "noTemplates": "Ainda não há modelos guardados — clique com o botão direito numa tarefa de resumo → 'Guardar ramo como modelo'",
-    "insertTemplateHint": "Inserir como última subtarefa da tarefa selecionada (ou no fim do nível de raiz)",
+    "insertTemplateHint": "Inserir como última subtarefa da tarefa selecionada (ou no fim do nível raiz)",
     "templateMeta": "{{tasks}} tarefas, {{relations}} relações",
     "deleteTemplate": "Eliminar modelo",
     "collapseRibbon": "Recolher o friso",
@@ -421,7 +421,7 @@
     "catalogEntriesSkipped": "Entradas de catálogo ignoradas: {{count}}",
     "storageWriteFailed": "Não foi possível guardar o estado da extensão.",
     "minAppVersionRequired": "Requer o Open Planner Studio ≥ {{minVersion}} (versão atual: {{appVersion}})",
-    "missingPermission": "A extensão «{{extensionId}}» não tem a permissão: {{permission}}",
+    "missingPermission": "A extensão \"{{extensionId}}\" não tem a permissão: {{permission}}",
     "import": "Importar",
     "importSubtitle": "Importe dados de projeto por meio das extensões instaladas.",
     "importEmpty": "Nenhuma extensão de importação instalada. Adicione uma em Extensões."

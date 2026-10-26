@@ -45,10 +45,10 @@
     "resourceGantt": "资源图",
     "milestones": "里程碑",
     "variance": "差异",
-    "lookAhead": "前瞻计划",
+    "lookAhead": "前瞻",
     "critical": "关键",
     "progress": "进度",
-    "health": "计划健康度",
+    "health": "计划健康",
     "resourceLoading": "资源负荷",
     "resourceAssignments": "资源分配",
     "wbsSummary": "WBS"

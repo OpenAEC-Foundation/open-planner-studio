@@ -52,7 +52,7 @@
     "progress": "avanzamento",
     "health": "salute-pianificazione",
     "resourceLoading": "carico-risorse",
-    "resourceAssignments": "assegnazioni-risorse",
+    "resourceAssignments": "risorse-assegnazioni",
     "wbsSummary": "wbs"
   },
   "noTasks": "Nessuna attività da visualizzare",

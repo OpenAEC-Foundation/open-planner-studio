@@ -4,7 +4,9 @@
 
 Open Planner Studio is a free, open-source scheduling application for the construction industry:
 interactive Gantt charts, Critical Path Method (CPM) scheduling, a Work Breakdown Structure, resource
-management and reporting — with IFC 4.3 (buildingSMART) as its native file format, ready for 4D BIM. It
+management and reporting — with IFC 4.3 (buildingSMART) as its native planning format. Combine the
+planning file with a building model in another IFC tool; the app currently refuses building-model
+IFC files because it cannot preserve their objects. It
 runs as a desktop app on Windows, macOS and Linux, and directly in your browser.
 
 ![Open Planner Studio](screenshot.png)

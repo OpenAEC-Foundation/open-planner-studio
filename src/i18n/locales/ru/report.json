@@ -45,7 +45,7 @@
   "exportPDF": "Экспортировать в PDF",
   "fileSuffix": {
     "gantt": "график",
-    "resourceGantt": "диаграмма-ресурсов",
+    "resourceGantt": "ресурсная-диаграмма",
     "milestones": "вехи",
     "variance": "отклонения",
     "lookAhead": "look-ahead",
@@ -53,7 +53,7 @@
     "progress": "ход выполнения",
     "health": "состояние-графика",
     "resourceLoading": "загрузка-ресурсов",
-    "resourceAssignments": "назначения",
+    "resourceAssignments": "назначения-ресурсов",
     "wbsSummary": "СДР"
   },
   "noTasks": "Нет задач для отображения",

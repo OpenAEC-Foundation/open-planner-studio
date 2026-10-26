@@ -49,10 +49,10 @@
     "lookAhead": "look-ahead",
     "critical": "kritikus",
     "progress": "előrehaladás",
-    "health": "ütemezés-egészség",
+    "health": "ütemezés-állapot",
     "resourceLoading": "erőforrás-terhelés",
     "resourceAssignments": "erőforrás-hozzárendelések",
-    "wbsSummary": "WBS"
+    "wbsSummary": "wbs"
   },
   "noTasks": "Nincs megjeleníthető tevékenység",
   "printed": "Nyomtatva:",
