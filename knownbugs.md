@@ -242,6 +242,18 @@ en noem het in je rapport of PR-tekst.
      maatwissel de bestaande Δ-restregel in minuten toepassen; het percentage alleen als de expliciete rest
      ontbreekt. Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
 
+343. **De WBS-samenvatting maakt van een halve dag één dag.** `src/engine/reports/wbsSummary.ts:111` rekent de
+    faseduur opnieuw met `workDaysBetween(parseDate(start), parseDate(finish))`. Een fase met één kind van 0,5 d
+    (1 juni 07:00–11:00) krijgt in de store terecht 0,5 d, maar in het WBS-rapport `durationDays: 1` en de kolom
+    toont 1 d. Bij een urentaak van 240 min stond het al zo op `fbd4a3f9d`. Voorstel: de al berekende
+    fasehoeveelheid in de projectkalender lezen. Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
+
+344. **DCMA vergelijkt een afgeronde duur met de grens van 44 dagen.** `src/engine/reports/dcmaAssessment.ts:313`
+    via `src/engine/scheduler/summaryProgress.ts:53`: een onvoltooide taak van 44,025 d (21.132 werkminuten; de
+    grens is 21.120) geeft "hoge duur 0/1, pass" in plaats van "1/1, flag", omdat 44,025 vooraf naar 44,0 wordt
+    afgerond. Bij een urentaak stond het al zo op `fbd4a3f9d`. Voorstel: exacte dagen of minuten vergelijken en
+    pas bij de weergave afronden. Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
+
 358. **Een gestarte taak op 0 % die naar duur 0 gaat, houdt onder vast werk restwerk.**
      `src/engine/work/workRuleApply.ts:435-437` (`settleDurationEdit`), `durationEditProgress` (`:940`) en
      `src/engine/work/workTriangle.ts:177`. Voorbeeld: 4 d, werkelijke start, 0 %, één arbeidsresource; onder
@@ -875,6 +887,17 @@ en noem het in je rapport of PR-tekst.
      `src/utils/dateUtils.ts:119`). Ook gezien met werkkalenders van 465 en 525 minuten; al zo op `9a636ec69`.
      Voorstel: de afgesproken minuutgrens respecteren bij het omzetten naar klokminuten. Gevonden in de review
      van de fix voor aanval a06 (GPT-6.1-Sol). — B
+
+375. **Een XLSX-cel met alleen een tijdopmaak verliest het onderscheid tussen een moment en een datum.**
+     `src/services/xlsx/readXlsxSheet.ts:251` en `:400`, `src/services/progressImport/parseProgressXlsx.ts:65`.
+     Voorbeeld: in een aangeleverd voortgangsblad staat het werkelijke einde als serieel getal 46175 met de
+     opmaak `hh:mm:ss` of ingebouwd 21. De lezer maakt er de kale datum 2 juni van; toepassen op de
+     24-uurskalender geeft 3 juni 00:00 in plaats van 2 juni 00:00. Een opmaak met alleen een tijd verbergt de
+     datum, dus #659 laat hier bewust de datumlezing staan. Stond al zo op main; de OPS-schrijver maakt zo'n
+     opmaak zelf niet (`writeProgressXlsx.ts:277–280`). Alleen `12:00` intypen geeft 0,5 en wordt zichtbaar
+     geweigerd; een volledig datum-tijdgetal onder een tijdopmaak wordt stil geaccepteerd. Voorstel: deze grens
+     apart behandelen, bijvoorbeeld zichtbaar weigeren of melden. Gevonden in review r2 van #659
+     (GPT-6.1-Sol). — B
 
 ## Rondleiding, Help en extensie-gidsen
 
