@@ -447,6 +447,17 @@ export class GanttRenderer {
     return this.opts.headerHeight + rowIndex * this.opts.rowHeight - this.opts.view.scrollY;
   }
 
+  /** Kandidaten rond het zichtbare rijbereik. De bestaande afkapvoorwaarden per laag blijven
+   *  beslissen wat tekent; de marge bewaart rijranden en afrondingen zonder alle rijen te bezoeken.
+   *  Het raster geeft één extra rij mee voor de lijn onder de laatste taak. */
+  private visibleRowRange(rowCount = this.rows.length): { first: number; last: number } {
+    const { rowHeight, headerHeight, canvasHeight, view } = this.opts;
+    return {
+      first: Math.max(0, Math.ceil(view.scrollY / rowHeight) - 2),
+      last: Math.min(rowCount - 1, Math.ceil((canvasHeight - headerHeight + view.scrollY) / rowHeight) + 1),
+    };
+  }
+
   // ── Uur-bewuste balkgeometrie ──────────────────────────────────────────────
   // Discriminator: een taak is UUR-modus zodra zijn (early/schedule-)datumstring een tijdcomponent
   // ('T') draagt — precies wat `formatInstant('hour')` emitteert. Dag-taken (YYYY-MM-DD)
@@ -661,7 +672,8 @@ export class GanttRenderer {
     }
 
     // Horizontal grid lines (per row)
-    for (let i = 0; i < this.rows.length + 1; i++) {
+    const { first, last } = this.visibleRowRange(this.rows.length + 1);
+    for (let i = first; i <= last; i++) {
       const y = this.rowToY(i);
       if (y < headerHeight || y > canvasHeight) continue;
       ctx.strokeStyle = this.colors.grid;
@@ -917,7 +929,8 @@ export class GanttRenderer {
     // balk (een `miter`-hoek stak bij een spitse uitstulping tot ~10 px door).
     ctx.beginPath();
 
-    for (let i = 0; i < this.rows.length; i++) {
+    const { first, last } = this.visibleRowRange();
+    for (let i = first; i <= last; i++) {
       const rowTop = this.rowToY(i);
       const rowBottom = rowTop + rowHeight;
       if (rowBottom < headerHeight || rowTop > canvasHeight) continue;
@@ -1229,7 +1242,8 @@ export class GanttRenderer {
     // De focus-taak behoudt z'n eigen kleur — de selectiering markeert hem al.
     const trace = this.opts.trace;
 
-    for (let i = 0; i < this.rows.length; i++) {
+    const { first, last } = this.visibleRowRange();
+    for (let i = first; i <= last; i++) {
       const row = this.rows[i];
       const y = this.rowToY(i) + barOffset;
       if (y + barHeight < this.opts.headerHeight || y > this.opts.canvasHeight) continue;

@@ -25,7 +25,7 @@ function ganttTaskCell(page: Page, taskId: string) {
 }
 
 test('Gantt viewport: primary wheel volgt drag, modifier en position mode', async ({ page, ops: _ops }) => {
-  await seedProject(page, manyTasks('Wheelpad'));
+  const ids = await seedProject(page, manyTasks('Wheelpad'));
   const bounds = await primaryCanvasBounds(page);
   const point = { x: bounds.x + bounds.width * 0.78, y: bounds.y + bounds.height * 0.65 };
 
@@ -54,6 +54,15 @@ test('Gantt viewport: primary wheel volgt drag, modifier en position mode', asyn
   const modifierAfter = await state(page);
   expect(modifierAfter.view.zoom).toBe(modifierBefore.view.zoom);
   expect(modifierAfter.view.scrollX).toBe(modifierBefore.view.scrollX);
+
+  // Na echt wielscrollen blijft de zichtbare balk selecteerbaar. Dit raakt de koppeling tussen
+  // de begrensde tekenlus en de hit-test; een offscreen rij mag de selectie niet overnemen.
+  const visibleId = ids[12];
+  const visibleBar = await barPoint(page, visibleId);
+  expect(visibleBar.y).toBeGreaterThan(bounds.y + 50);
+  expect(visibleBar.y).toBeLessThan(bounds.y + bounds.height);
+  await page.mouse.click(visibleBar.x, visibleBar.y);
+  await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([visibleId]);
 
   await page.evaluate(() => {
     const s = window.__OPS__!.store.getState();
