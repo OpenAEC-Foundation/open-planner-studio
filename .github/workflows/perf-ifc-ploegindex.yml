@@ -1,0 +1,75 @@
+name: Prestatiemeting IFC-ploegindex
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+    paths:
+      - tests/planning/check-ifc-roundtrip.ts
+      - tests/planning/ifcCrewIndexFixture.ts
+      - docs/superpowers/evidence/ifc-ploegindex.mjs
+      - .github/workflows/perf-ifc-ploegindex.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: perf-ifc-ploegindex-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  vergelijk:
+    # Bewust opt-in; latere wijzigingen in de gedeelde roundtripcheck erven geen oude nulmeting.
+    if: contains(github.event.pull_request.title, '[perf-ifc-ploegen]')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    env:
+      TZ: UTC
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Installeer vastgelegde afhankelijkheden
+        id: install
+        shell: bash
+        run: |
+          mkdir -p qa/ifc-ploegindex
+          set +e
+          npm ci 2>&1 | tee qa/ifc-ploegindex/install.log
+          codes=("${PIPESTATUS[@]}")
+          printf 'npm-ci=%s tee=%s\n' "${codes[0]}" "${codes[1]}" > qa/ifc-ploegindex/install-exitcodes.txt
+          test "${codes[0]}" -eq 0 && test "${codes[1]}" -eq 0
+      - name: Vergelijk uitvoer en meet volledige schrijver
+        shell: bash
+        run: |
+          set +e
+          node docs/superpowers/evidence/ifc-ploegindex.mjs --out qa/ifc-ploegindex/resultaat.json 2>&1 | tee qa/ifc-ploegindex/meting.log
+          codes=("${PIPESTATUS[@]}")
+          printf 'meting=%s tee=%s\n' "${codes[0]}" "${codes[1]}" > qa/ifc-ploegindex/meting-exitcodes.txt
+          test "${codes[0]}" -eq 0 && test "${codes[1]}" -eq 0
+      - name: Gerichte roundtrip-, schema-, GlobalId- en documentchecks
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        shell: bash
+        run: |
+          set +e
+          result=0
+          for check in check-ifc-roundtrip.ts check-ifc-schema.ts check-ifc-globalid.ts check-document-contract.ts; do
+            bash tests/planning/run.sh "$check" 2>&1 | tee "qa/ifc-ploegindex/$check.log"
+            codes=("${PIPESTATUS[@]}")
+            printf '%s=%s tee=%s\n' "$check" "${codes[0]}" "${codes[1]}" >> qa/ifc-ploegindex/check-exitcodes.txt
+            if [ "${codes[0]}" -ne 0 ] || [ "${codes[1]}" -ne 0 ]; then result=1; fi
+          done
+          exit "$result"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ifc-ploegindex-${{ github.event.pull_request.head.sha }}
+          path: qa/ifc-ploegindex/
+          if-no-files-found: error
+          retention-days: 14
