@@ -13,6 +13,11 @@
 //  4. (bijvangst review) decimale komma: "2,5" dagen / "33,4" % werden stil 2 / 33.
 //
 // Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
+import { createAppStoreContext } from '@/state/appStoreFactory';
+import { readIFC } from '@/services/ifc/ifcReader';
+import { writeIFC } from '@/services/ifc/ifcWriter';
+import { buildWriteIFCInput } from '@/state/ifcSaveInput';
+import { payloadFromImport } from '@/state/documentContract';
 import { CsvDateImportError, readCSV } from '@/services/csv/csvReader';
 import { writeCSV } from '@/services/csv/csvWriter';
 import { parseSheetPercent } from '@/services/progressImport/sheetValues';
@@ -309,8 +314,7 @@ const lagsByLink = (r: ImportResult) => {
     [3, 'Startdatum', '2 maart\r\n2026']);
 }
 
-// 8. Geen strengere datumparser: alle bestaande vormen en prefix-/wandklokregels blijven gelijk,
-//    óók voor actuals. Kalenderdatumvalidatie blijft bij het bestaande vastleggingskanaal.
+// 8. Bestaande datumvormen blijven gelijk; werkelijke ISO-momenten behouden nu ook hun kloktijd (352).
 {
   const H = ['WBS', 'Name', 'Duration', 'Start', 'Finish', 'Actual Start', 'Actual Finish'];
   for (const raw of [
@@ -320,10 +324,42 @@ const lagsByLink = (r: ImportResult) => {
   ]) {
     const { out, warns } = withWarnings(() => readCSV(csvOf(H, [['1', 'A', '0', raw, raw, raw, raw]])));
     const t = out.tasks[0].time;
-    eq(`8 ${raw}: vier datumvelden behouden de brondag zonder offsetverschuiving`,
+    const actual = raw.includes('T') ? raw.slice(0, 16) : '2026-03-02';
+    eq(`8 ${raw}: geplande brondag en werkelijke wandklok zonder offsetverschuiving`,
       [t.scheduleStart, t.scheduleFinish, t.actualStart, t.actualFinish],
-      ['2026-03-02', '2026-03-02', '2026-03-02', '2026-03-02']);
+      ['2026-03-02', '2026-03-02', actual, actual]);
     eq(`8 ${raw}: geen onleesbaar-melding`, warns, []);
+  }
+}
+
+// 352: eigen CSV-export → lezer → laadgrens → echte store/F5 behoudt actuals tot op de minuut.
+{
+  const expected = ['2026-06-01T10:15', '2026-06-01T11:45'];
+  const original = task('actual', '1', 'Werkelijke momenten', {
+    scheduleStart: '2026-06-01', scheduleFinish: '2026-06-01', scheduleDuration: 1,
+    completion: 1, actualStart: expected[0], actualFinish: expected[1],
+  });
+  const csv = writeCSV(noProject, noCalendar, [original], [], [], []);
+  const parsed = readCSV(csv);
+  const actuals = (tasks: Task[]) => [tasks[0].time.actualStart, tasks[0].time.actualFinish];
+  eq('352 writer bevat beide tijden', expected.every(value => csv.includes(value)), true);
+  eq('352 lezer behoudt echte actuals', actuals(parsed.tasks), expected);
+  eq('352 laadgrens behoudt echte actuals', actuals(payloadFromImport(parsed, null).tasks), expected);
+  const context = createAppStoreContext();
+  context.store.getState().applyLoadedProject(readCSV(csv), { recompute: true });
+  eq('352 laden en berekenen behoudt echte actuals', actuals(context.store.getState().tasks), expected);
+  const reopened = createAppStoreContext();
+  reopened.store.getState().applyLoadedProject(readIFC(writeIFC(buildWriteIFCInput(context.store.getState()))), { recompute: true });
+  eq('352 IFC opslaan en heropenen behoudt echte actuals', actuals(reopened.store.getState().tasks), expected);
+  const midnight = readCSV(csvOf(['Name', 'Actual Start', 'Actual Finish'],
+    [['Middernacht', '2026-06-01T00:00:00Z', '2026-06-02T00:00:00+02:00']]));
+  eq('352 expliciete middernacht blijft een moment op de laadgrens', actuals(payloadFromImport(midnight, null).tasks),
+    ['2026-06-01T00:00', '2026-06-02T00:00']);
+
+  for (const column of ['Actual Start', 'Actual Finish']) {
+    let error: unknown;
+    try { readCSV(csvOf(['Name', column], [['A', '2026-06-01Tno-time']])); } catch (e) { error = e; }
+    ok(`352 onleesbaar moment in ${column} wordt niet stil een datum`, error instanceof CsvDateImportError);
   }
 }
 
