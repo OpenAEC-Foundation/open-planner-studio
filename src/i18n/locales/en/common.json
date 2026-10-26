@@ -468,6 +468,10 @@
     "openErr": "Could not open folder: {{error}}"
   },
   "aiActivity": {
+    "unparseableRequest": "Unparseable request",
+    "unparseableResponse": "Unparseable response",
+    "error": "Error",
+    "truncated": "… truncated",
     "title": "MCP activity",
     "panelButton": "Activity panel",
     "clear": "Clear",
