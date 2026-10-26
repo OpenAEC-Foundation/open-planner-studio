@@ -40,7 +40,6 @@ const ALLOWLIST = new Set([
   'src/components/dialogs/NewOrOpenProjectDialog.tsx',   // keuze zonder invoer
   'src/components/dialogs/ExtensionConsentDialog.tsx',   // toestemming — backdrop = weigeren
   'src/components/dialogs/JustUpdatedDialog.tsx',        // leesweergave
-  'src/components/dialogs/LibraryLinkDialog.tsx',        // keuzes werken direct op de store; "later beslissen" is een geldige uitgang
 ]);
 
 const INPUT_MARKERS = ['<input', '<textarea', '<select', '<Select'];

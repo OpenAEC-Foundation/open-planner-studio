@@ -907,8 +907,8 @@ function strictStatus(langs: string[]): void {
 
 function status(args: string[]): void {
   const asked = positional(args)[0];
-  const langs = asked ? [checkLang(asked)]
-    : readdirSync(LOCALES_DIR).filter(d => d !== 'nl' && statSync(join(LOCALES_DIR, d)).isDirectory()).sort();
+  // De appregistratie bepaalt de vereiste talen, niet de nog aanwezige mappen (knownbug 200).
+  const langs = asked ? [checkLang(asked)] : LOCALES.filter(lang => lang !== 'nl').sort();
   if (flag(args, '--strict')) { strictStatus(langs); return; }
   console.log('taal  namespace  ontbreekt  verouderd  actueel  (zonder hash)');
   let todo = 0;

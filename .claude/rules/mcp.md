@@ -83,7 +83,8 @@ tussenstap en de module gaat op in de ene plugin uit #570. Geen planner, geen ke
 Wijzig je het HTTP-contract van de bridge (statuscodes, sessieheader, `404` bij een onbekende sessie), loop dan ook
 `proxy.ts` na; `tests/mcp/cases-mcpb.ts` start de gebouwde server uit de ZIP tegen `bridgeMirror.ts`. Een
 wijzigende tool wordt na sessieverlies bewust niet herhaald (het drift-anker is dan weg), en daarna blijven wijzigingen
-geweigerd tot een geslaagde `planner_switch_document` het anker opnieuw bindt; hernoem of verander je die tool, loop dan
+geweigerd tot een geslaagde `planner_switch_document`, `planner_new_document` of `planner_import_schedule`
+het anker opnieuw bindt. Nieuw/import mogen als losse herstelactie door, maar worden nooit automatisch herhaald; hernoem of verander je die tool, loop dan
 `DOCUMENT_CHOICE_TOOL` in `proxy.ts` na; welke tools lezen, haalt
 de bundel uit `readOnlyHint` in `tools/list`.
 
