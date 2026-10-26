@@ -8,6 +8,12 @@ import { chooseLocale, LOCALE_CASES } from './fixtures/locale';
 
 test.use({ launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'] } });
 
+// Deze routes bewijzen horizontale OVERLOOP; de nieuwe standaardbreedte past alle kolommen.
+// Een bewust smaller gebruikerspaneel houdt de bestaande scrollbarfixture intact.
+test.beforeEach(async ({ page, ops: _ops }) => {
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ leftPanelWidth: 350 }));
+});
+
 type Box = { x: number; y: number; width: number; height: number };
 
 async function box(locator: Locator): Promise<Box> {

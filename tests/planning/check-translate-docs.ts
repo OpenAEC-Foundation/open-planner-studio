@@ -12,9 +12,11 @@
  * `mergeArticle` een behouden verouderde sectie de nieuwe hash geven ⇒ 11e rood; in `classifyItalic` de
  * tabbladfilter weghalen ⇒ 16b en 16f rood; de tabbladpoort in `checkDocsSection` uitzetten ⇒ 16f rood.
  */
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { sectionHash, splitSections, structureHash } from '../../scripts/lib/docs-structure';
 import {
   articleState, avoidWords, blocksOf, buildDocsPackages, buildEnLabelIndex, classifyItalic, codesOf, decodeIfcString, docsReleaseGaps,
@@ -670,6 +672,101 @@ const run = (out: string) => checkDocs(PKG.pkg, PKG.src, out);
         has(`19 ${lang}/${key}: ontbrekende UI-naam blijft zichtbaar als waarschuwing`, result.warnings, /nog geen vertaling in de UI/);
       }
     }
+  }
+}
+
+// 104: echte CLI-keten voor UI/docs-zegels en check-docs, niet alleen de pure pakketfuncties.
+{
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+  const work = mkdtempSync(join(tmpdir(), 'ops-docs-cli-'));
+  const cli = join(work, 'translate.mjs');
+  const dir = join(work, 'build/translate/cs');
+  const sealsPath = join(work, 'build/translate-seal/cs.json');
+  const writeText = (path: string, text: string) => { mkdirSync(dirname(path), { recursive: true }); writeFileSync(path, text); };
+  const write = (path: string, value: unknown) => writeText(path, JSON.stringify(value));
+  const run = (...args: string[]) => {
+    const r = spawnSync(process.execPath, [cli, ...args], { cwd: work, encoding: 'utf8', timeout: 30_000 });
+    return { status: r.status, out: `${r.stdout}${r.stderr}${r.error?.message ?? ''}` };
+  };
+  const expectExit = (label: string, args: string[], want: number) => {
+    const r = run(...args);
+    eq(`104 ${label} (${r.out})`, r.status, want);
+    return r.out;
+  };
+  try {
+    const built = spawnSync(join(root, 'node_modules/.bin/esbuild'), [join(root, 'scripts/translate/cli.ts'),
+      '--bundle', '--platform=node', '--format=esm', '--log-level=error', `--outfile=${cli}`], { encoding: 'utf8', timeout: 30_000 });
+    if (built.status !== 0) throw new Error(`docs CLI-bundel faalde: ${built.stderr}`);
+    symlinkSync(join(root, 'scripts'), join(work, 'scripts'), 'dir');
+    symlinkSync(join(root, 'node_modules'), join(work, 'node_modules'), 'dir');
+    write(join(work, 'i18n/termbase/concepts.json'), []);
+    write(join(work, 'i18n/docs-literal.json'), { sources: {}, manual: [] });
+    for (const [lang, text] of [['nl', 'Voorbeeld'], ['en', 'Example'], ['cs', 'Stará hodnota']]) {
+      write(join(work, 'src/i18n/locales', lang, 'common.json'), { sample: text });
+    }
+    const targetUi = join(work, 'src/i18n/locales/cs/common.json');
+    expectExit('UI prepare', ['prepare', 'ui', 'cs', '--all'], 0);
+    const uiPkg = join(dir, 'ui-common-01.json');
+    const uiSource = readFileSync(uiPkg, 'utf8');
+    const uiSeal = readFileSync(sealsPath, 'utf8');
+    write(join(dir, 'ui-common-01.out.json'), { sample: 'Ukázka' });
+    const originalUi = readFileSync(targetUi, 'utf8');
+    rmSync(sealsPath);
+    expectExit('UI zonder zegel geweigerd', ['apply', 'ui', 'cs'], 1);
+    eq('104 UI zonder zegel blijft bytegelijk', readFileSync(targetUi, 'utf8'), originalUi);
+    writeText(sealsPath, uiSeal);
+    writeText(uiPkg, uiSource + '\n');
+    expectExit('UI gewijzigd pakket geweigerd', ['apply', 'ui', 'cs'], 1);
+    eq('104 gewijzigde UI-bron laat doel bytegelijk', readFileSync(targetUi, 'utf8'), originalUi);
+    const red = expectExit('UI packages red', ['packages', 'ui', 'cs', '--red'], 0);
+    eq('104 rode pakketlijst noemt veranderd pakket', JSON.parse(red), [['cs', 'ui-common-01']]);
+    writeText(uiPkg, uiSource);
+    expectExit('UI intact pakket', ['apply', 'ui', 'cs'], 0);
+    eq('104 UI intact toegepast', JSON.parse(readFileSync(targetUi, 'utf8')).sample, 'Ukázka');
+
+    const article = 'howto-test';
+    const enPath = join(work, 'public/docs/en', `${article}.md`);
+    const targetDoc = join(work, 'public/docs/cs', `${article}.md`);
+    const source = '# Guide\n\nUse `F5` and wait 3 days.\n';
+    const translated = '# Průvodce\n\nPoužijte `F5` a počkejte 3 dny.\n';
+    write(join(work, 'public/docs/manifest.json'), { version: 2, articles: [{ id: article, kind: 'howto', title: { nl: 'Gids', en: 'Guide' } }] });
+    writeText(enPath, source);
+    expectExit('docs prepare', ['prepare', 'docs', 'cs', '--missing'], 0);
+    const docJson = join(dir, `${article}.json`);
+    const docSrc = join(dir, `${article}.src.md`);
+    const savedJson = readFileSync(docJson, 'utf8');
+    const savedSrc = readFileSync(docSrc, 'utf8');
+    const savedSeals = readFileSync(sealsPath, 'utf8');
+    writeText(join(dir, `${article}.out.md`), translated);
+    for (const [path, original] of [[docJson, savedJson], [docSrc, savedSrc]]) {
+      writeText(path, original + '\n');
+      expectExit('docs gewijzigde bron geweigerd', ['apply', 'docs', 'cs'], 1);
+      eq('104 geen artikel bij geweigerde docs-bron', existsSync(targetDoc), false);
+      eq('104 geen C3-hash bij geweigerde docs-bron', existsSync(join(work, 'i18n/docs-sources/cs.json')), false);
+      writeText(path, original);
+    }
+    rmSync(sealsPath);
+    expectExit('docs zonder zegel geweigerd', ['apply', 'docs', 'cs'], 1);
+    eq('104 geen artikel bij ontbrekend docs-zegel', existsSync(targetDoc), false);
+    writeText(sealsPath, savedSeals);
+    expectExit('docs intact toegepast', ['apply', 'docs', 'cs'], 0);
+    expectExit('check-docs geldig expliciet', ['check-docs', 'cs', article], 0);
+    const savedTranslation = readFileSync(targetDoc, 'utf8');
+    writeText(targetDoc, savedTranslation.replace('`F5`', '`F6`'));
+    expectExit('check-docs vangt verkeerde inline-code', ['check-docs', 'cs', article], 1);
+    writeText(targetDoc, savedTranslation);
+    expectExit('check-docs hersteld', ['check-docs', 'cs', article], 0);
+    expectExit('check-docs ontbrekend artikel', ['check-docs', 'cs', 'bestaat-niet'], 1);
+    writeText(enPath, source.replace('3 days', '4 days'));
+    const stale = expectExit('alle docs meldt stale zonder harde weigering', ['check-docs', 'cs'], 0);
+    eq('104 verouderd artikel is expliciet gemeld', stale.includes('verouderd overgeslagen'), true);
+    expectExit('expliciete stale check is rood', ['check-docs', 'cs', article], 1);
+    expectExit('stale artikel opnieuw voorbereiden', ['prepare', 'docs', 'cs', '--ids', article], 0);
+    writeText(join(dir, `${article}.out.md`), translated.replace('3 dny', '4 dny'));
+    expectExit('stale artikel opnieuw toepassen', ['apply', 'docs', 'cs'], 0);
+    expectExit('bijgewerkt artikel weer groen', ['check-docs', 'cs', article], 0);
+  } finally {
+    rmSync(work, { recursive: true, force: true });
   }
 }
 

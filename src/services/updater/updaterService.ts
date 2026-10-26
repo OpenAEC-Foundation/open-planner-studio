@@ -170,11 +170,9 @@ export async function downloadAndInstall(
     // Geen normale afsluiting (geen sluitvraag): leg vóór de installatie nog één herstelsnapshot
     // vast, zodat bewerkingen van de laatste seconden na de update via het herstel-venster
     // terugkomen.
-    try {
-      await flushRecoveryNow();
-    } catch (flushErr) {
-      console.error('Herstelsnapshot vóór de update-herstart mislukt:', flushErr);
-    }
+    // Een afgewezen flush blokkeert de installatie: die kan de app al afsluiten.
+    // De bestaande buitenste catch toont de fout en laat opnieuw proberen toe.
+    await flushRecoveryNow();
     // Pas na de geslaagde download (inclusief handtekeningcontrole) en het herstelwerk installeren.
     onStatus?.({ kind: 'installing' });
     await update.install();

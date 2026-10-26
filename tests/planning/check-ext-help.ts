@@ -95,7 +95,7 @@ const step = (id: string, extra: Partial<ExtGuide['steps'][number]> = {}): ExtGu
 const guide = (steps: ExtGuide['steps']): ExtGuide => ({ id: 'tut-1', title: { nl: 'Eerste planning', en: 'First schedule' }, steps });
 
 // ── 1. Contract en permissie ────────────────────────────────────────────────────
-eq('1 contractversie 1.4.1 (1.4.0 help + 1.4.1 loadProject-fix)', EXTENSION_API_VERSION, '1.4.1');
+eq('1 contractversie 1.5.0 (1.4.0 help + 1.4.1 loadProject-fix)', EXTENSION_API_VERSION, '1.5.0');
 eq('2 help is een bekende permissie', KNOWN_PERMISSIONS.includes('help'), true);
 eq('3 sanitize laat help staan', sanitizeManifestPermissions(['help', 'onzin'], 'x'), ['help']);
 {

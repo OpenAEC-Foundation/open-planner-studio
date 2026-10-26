@@ -467,6 +467,7 @@
     "jumpToTask": "Přejít na úkol {{wbs}}",
     "relationPopoverTitle": "Typ závislosti",
     "driving": "Hnací vazba (driving)",
+    "drivingUnknown": "Hnací vazby bez výpočtu nejsou známy.",
     "lag": "Prodleva (např. 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Přepočítat",
     "assignments": {
@@ -531,6 +532,8 @@
     "type": "Typ",
     "lag": "Prodleva",
     "driving": "Hnací",
+    "drivingUnknown": "Neznámé",
+    "notDriving": "Není hnací",
     "freeFloat": "Volná časová rezerva",
     "warnings": "Upozornění",
     "warnTruncatedLead": "Předstih ořezán na zahájení projektu — překryv není využit úplně",
