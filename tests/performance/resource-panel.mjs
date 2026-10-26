@@ -71,6 +71,8 @@ async function fixture(page, size) {
 }
 
 async function clickMs(page, button, readySelector, present = true) {
+  // Een eerdere hover kan title tijdelijk hebben weggehaald; echt vertrek herstelt de locator.
+  await page.mouse.move(0, 0);
   // Begin bij de vertrouwde click, einde na zichtbare doel-DOM plus de volgende framekans.
   // Playwrights wachttijd op een bedienbare knop zit daarmee buiten het gemeten interval.
   await page.evaluate(({ selector, present }) => {
