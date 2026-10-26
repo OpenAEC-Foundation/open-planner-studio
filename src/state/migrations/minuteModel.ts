@@ -147,6 +147,25 @@ export function normalizeTaskDate(value: string, field: TaskDateField, ctx: Task
   return dayEndInstant(ctx.clock, value);
 }
 
+/**
+ * De regel voor een datum zonder tijd die een planner in de tabel typt of plakt. Hij leest de datum zoals
+ * de tabel haar toont (B4): een eindachtig veld is het einde van die dag, ook bij een kalendertijd-taak.
+ * Daar is dat 24:00, dus 00:00 van de dag erna. Een kalendertijd-taak van 1 d vanaf ma 00:00 toont
+ * "einde ma 1 jun"; wie "ma 1 jun" typt, krijgt dus weer di 00:00 en niet ma 00:00.
+ *
+ * De exclusieve lezing van D3 ({@link normalizeTaskDate}: `scheduleFinish` en `earlyFinish` op 00:00 van
+ * de datum) blijft de regel voor de laadgrens. Die past bij een oud bestand, waar de motor start + n
+ * kalenderdagen schreef; een getypte datum komt van het scherm (aanval a08 na #600). Startachtige velden
+ * en de eigen velden van een mijlpaal (D7) volgen hier dezelfde regel als bij het laden.
+ */
+export function normalizeTaskDateInput(value: string, field: TaskDateField, ctx: TaskDateContext): string | null {
+  if (!isDateOnly(value)) return value;
+  const rule = FIELD_RULES[field];
+  const milestone = rule.milestoneOwn && ctx.milestoneKind !== null;
+  if (!milestone && rule.side === 'end' && ctx.clock.kind === 'elapsed') return dayEndInstant(ctx.clock, value);
+  return normalizeTaskDate(value, field, ctx);
+}
+
 /** De kant van een beperkingsdatum: SNET/SNLT/MSO startachtig, FNET/FNLT/MFO eindachtig. */
 export function constraintDateField(type: string): TaskDateField | null {
   if (type === 'SNET' || type === 'SNLT' || type === 'MSO') return 'constraintStart';

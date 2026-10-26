@@ -308,6 +308,26 @@ en noem het in je rapport of PR-tekst.
      van 24. Cel, tooltip, afdruk en tabelrapport rekenen sinds fixronde 2 van F4b wel met 24 u
      (`durationHoursPerDay`). Dit stond al zo op de basis van F4b. Voorstel: in het sleeplabel
      `durationHoursPerDay` gebruiken; rendererwerk. Alleen in de code gelezen, niet in de app nagespeeld. — S
+353. **Een decimale komma in een lag van een interne relatiecel wordt als scheiding tussen twee relaties
+     gelezen.** `tokenSlices` in `src/engine/taskGrid/relationCell.ts:55` knipt een cel zonder externe
+     relatie ook op een komma. `1 FS+1,5d` wordt zo `1 FS+1` en `5d`; de tweede token geeft de fout
+     `relationToken`. `1 FS-0,5d` gaat net zo mis. Met een punt (`1 FS+1.5d`, `1 FS-0.5d`) gaat het goed, en
+     de lagparser zelf leest een komma wel. Al op `fbd4a3f9d`: de tokenizer van toen geeft dezelfde uitslag.
+     Sinds #600 is een breuk in een lag gewone invoer, dus een Nederlandse planner typt dit. Voorstel: in
+     `tokenSlices` een komma binnen het getal van een lag (na `+` of `-` en cijfers, vóór een cijfer) niet
+     als scheiding nemen. Let op: `1,2` (twee voorgangers) moet een scheiding blijven, en `1 FS+1,2` is
+     dubbelzinnig; daar is een regel nodig, bijvoorbeeld een decimaal alleen met een eenheid erachter
+     (`+1,5d`). Nagespeeld met `parseRelationCellText` (probe
+     `/tmp/aanval/a08-probe.ts`, regels `relation-cell-comma`). Gevonden in de aanval na #600
+     (GPT-6.1-Sol). — B
+
+360. **Kopiëren tussen mijlpalen draagt het exacte moment niet over.** Een FINISH-mijlpaal op
+     `2026-06-01T07:00` kopieert het label `01-06-2026` (B4 laat de tijd op een dagrand weg). Plakken in een
+     FINISH-mijlpaal op dezelfde datum om 16:00 schrijft niets: beide momenten hebben hetzelfde label, dus het
+     doel blijft 16:00 (`src/engine/taskGrid/editors.ts:147`, `src/engine/taskGrid/clipboard.ts:269`). Al zo
+     op `9a636ec69`; de plakplanner geeft op basis en na de fix van #661 `writes: []`. Voorstel: het exacte
+     moment in de kopieerwaarde bewaren; D7 hoeft daarvoor niet te veranderen. Gevonden in de review van de
+     fix voor aanval a08 (GPT-6.1-Sol). — B
 
 ## Kalenders
 
