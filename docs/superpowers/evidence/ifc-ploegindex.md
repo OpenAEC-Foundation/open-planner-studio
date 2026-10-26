@@ -55,10 +55,15 @@ en beschadigde runtime-invoer zijn aparte pariteitsgevallen. Een andere document
 tussen saves controleert dat geen index tussen documenten wordt hergebruikt. Dit
 bewijst de writergrens; het simuleert geen UI-undo of echte schijf-/workerlatentie.
 
-Alleen de klok staat vast: `Date()` zonder argumenten en `Date.now()` leveren
+Voor de schrijftijd staat de klok vast: `Date()` zonder argumenten en `Date.now()` leveren
 `2026-10-26T10:00:00.000Z`. Zo worden de FILE_NAME-tijd, IFCOWNERHISTORY en de
 CreationDate van werkplan/werkschema reproduceerbaar. Er wordt geen tekst vervangen
-en geen payloadveld genormaliseerd of weggelaten. Bestaande readernormalisatie tussen
+en geen payloadveld genormaliseerd of weggelaten. De reader geeft assignment-id's
+opnieuw uit via een modulegebonden teller en `Math.random`. Iedere vergelijkingslezing
+krijgt daarom een verse module (teller op nul) en dezelfde vaste toevalsinvoer (0,5).
+Zo blijven ook die id-velden volledig vergelijkbaar, zonder productbron aan te passen.
+Dit staat los van de tijdmeting, die uitsluitend de writer aanroept.
+Bestaande readernormalisatie tussen
 de eerste en tweede export mag bestaan; oude en nieuwe schrijver moeten op elke
 zelfde invoer en in elke ronde exact gelijk zijn. V8-serialisatie voor invoer- en
 payloadhashes behoudt ook undefined, NaN en typed arrays; de Node/V8-versies staan
