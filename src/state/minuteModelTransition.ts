@@ -40,7 +40,10 @@ export function currentRecordedTimes(payload: Pick<DocumentPayload, 'tasks'>): R
   for (const t of payload.tasks) {
     times[t.id] = { start: shownStart(t), finish: shownFinish(t),
       lateStart: t.time.lateStart, lateFinish: t.time.lateFinish,
-      totalFloat: t.time.totalFloat, freeFloat: t.time.freeFloat, isCritical: t.time.isCritical };
+      totalFloat: t.time.totalFloat, freeFloat: t.time.freeFloat, isCritical: t.time.isCritical,
+      // De getoonde minuten gaan mee: `applyRecordedTimesToTasks` neemt de minuten uit de vastlegging.
+      ...(t.time.totalFloatMinutes !== undefined ? { totalFloatMinutes: t.time.totalFloatMinutes } : {}),
+      ...(t.time.freeFloatMinutes !== undefined ? { freeFloatMinutes: t.time.freeFloatMinutes } : {}) };
   }
   return { times, total: payload.tasks.length };
 }

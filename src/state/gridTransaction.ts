@@ -1,4 +1,4 @@
-import { constraintDateField, DayClockCache, normalizeTaskDate, normalizeTaskDates, taskDateContext, type TaskDateField } from './migrations/minuteModel';
+import { constraintDateField, DayClockCache, normalizeTaskDateInput, normalizeTaskDates, taskDateContext, type TaskDateField } from './migrations/minuteModel';
 import { workdayBoundaryLabel } from '@/engine/calendar/workdayRules';
 import { normalizeActualDate } from '@/engine/taskMutationRules';
 import { isElapsedTask } from '@/engine/scheduler/duration';
@@ -599,6 +599,8 @@ function applyCellEdits(
     let value = edit.value;
     // Dezelfde datum heeft vóór validatie en de no-op-vergelijking dezelfde vorm als
     // de opgeslagen taak (D1/D2/D7). Een ongewijzigde start mag geen nieuwe SNET maken.
+    // Een einde zonder tijd is het einde van die dag zoals de tabel het toont (B4), ook bij
+    // kalendertijd (`normalizeTaskDateInput`); D3-exclusief geldt alleen op de laadgrens.
     if (typeof value === 'string') {
       const column = String(edit.columnId);
       let field: TaskDateField | null = null;
@@ -615,7 +617,7 @@ function applyCellEdits(
       if (field === 'actualStart' || field === 'actualFinish') {
         value = normalizeActualDate(dateTask, field, value, state.project.statusDate,
           effectiveCalendarOf(dateTask, state.calendar, state.calendars)) ?? value;
-      } else if (field) value = normalizeTaskDate(value, field, dateContext) ?? value;
+      } else if (field) value = normalizeTaskDateInput(value, field, dateContext) ?? value;
     }
     if (descriptor.validate) {
       const validated = descriptor.validate(value, task, runtime.context);
