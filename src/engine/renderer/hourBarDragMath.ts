@@ -1,11 +1,49 @@
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { addElapsedMinutes, splitTotalSpanMinutes, subtractElapsedMinutes } from '@/engine/scheduler/duration';
+import { toSplitPieces } from '@/engine/scheduler/splitEdit';
+import type { TaskSplitGap } from '@/types/task';
+
+/** De vier lopers van een uursleep: de werkblokken van de taakkalender (`CalendarEngine`), of de klok van een
+ *  kalendertijdtaak (`ELAPSED_DRAG_CLOCK`). */
+export type DragClock = Pick<CalendarEngine, 'nextWorkInstant' | 'addWorkMinutes' | 'subtractWorkMinutes' | 'workMinutesBetween'>;
+
+/** Kalendertijd (ELAPSEDTIME) loopt 24/7 op de klok, net als in de motor (`addElapsedMinutes`): elke minuut
+ *  telt, een dag is 1440 minuten en er is geen werkmoment om op te snappen. */
+export const ELAPSED_DRAG_CLOCK: DragClock = {
+  nextWorkInstant: t => new Date(t.getTime()),
+  addWorkMinutes: addElapsedMinutes,
+  subtractWorkMinutes: subtractElapsedMinutes,
+  workMinutesBetween: (a, b) => (b.getTime() - a.getTime()) / 60_000,
+};
+
+/**
+ * De splitsom van de motor (`splitTotalSpanMinutes`, F3c): `work` werk plus elke pauze die ervoor valt, in de
+ * eenheid van de aanroeper (`unit` asminuten per eenheid: 1 voor werkminuten, `werktijd per dag × 60` voor
+ * de dagenmaat, zoals `splitTotalSpanDays`). Zonder pauzes `work` zelf.
+ */
+function splitSpan(work: number, gaps: readonly TaskSplitGap[] | undefined, unit: number): number {
+  if (!gaps || gaps.length === 0) return work;
+  const minutes = work * unit;
+  return work + (splitTotalSpanMinutes(gaps, minutes) - minutes) / unit;
+}
+
+/** Het laatste werkstuk van een gesplitste taak, in de eenheid van de aanroeper. Een randsleep maakt alleen dat
+ *  stuk korter of langer: de pauzes liggen vast ten opzichte van de start (`afterMinutes`). Zonder (wélgevormde)
+ *  pauzes is dat de hele duur. */
+function lastWorkPiece(work: number, gaps: readonly TaskSplitGap[] | undefined, unit: number): number {
+  const pieces = gaps && gaps.length > 0 ? toSplitPieces(gaps, work * unit) : null;
+  return pieces ? pieces[pieces.length - 1].minutes / unit : work;
+}
 
 export interface HourBarDragInput {
-  calendar: CalendarEngine;
+  calendar: DragClock;
   edge: 'left' | 'right' | 'body';
   originalStart: Date;
   originalFinish: Date;
   originalDurationMinutes: number;
+  /** De pauzes van een gesplitste taak (werkminuten op de as van de taak). Het einde komt dan uit de
+   *  splitsom, zoals in de motor; een rand verandert alleen het laatste werkstuk. */
+  splitGaps?: readonly TaskSplitGap[];
   /** De aspositie bij pointer-down en de actuele positie. Beide komen uit dezelfde GanttAxis. */
   pointerStart: Date;
   pointerCurrent: Date;
@@ -38,6 +76,7 @@ export function resolveHourBarDrag(input: HourBarDragInput): HourBarDragResult {
     originalStart,
     originalFinish,
     originalDurationMinutes,
+    splitGaps,
     pointerStart,
     pointerCurrent,
     snapMinutes,
@@ -48,13 +87,18 @@ export function resolveHourBarDrag(input: HourBarDragInput): HourBarDragResult {
   // kwartierzoom, anders het bestaande minimum van één uur.
   const durationMinutes = Math.max(1, Math.round(originalDurationMinutes));
   const minimumResizeMinutes = snapMinutes <= 15 ? 15 : 60;
+  // Een gesplitste taak: de balk spant werk plus pauzes (de splitsom van de motor). Een rand verandert alleen
+  // het laatste werkstuk, dat ten minste de editorstap houdt; zo blijven alle pauzes binnen de taak.
+  const span = (minutes: number) => splitSpan(minutes, splitGaps, 1);
+  const gapMinutes = span(durationMinutes) - durationMinutes;
+  const minimumMinutes = durationMinutes - lastWorkPiece(durationMinutes, splitGaps, 1) + minimumResizeMinutes;
 
   if (edge === 'body') {
     const candidate = new Date(originalStart.getTime() + deltaMs);
     const start = calendar.nextWorkInstant(candidate);
     return {
       start,
-      finish: calendar.addWorkMinutes(start, durationMinutes),
+      finish: calendar.addWorkMinutes(start, span(durationMinutes)),
       durationMinutes,
     };
   }
@@ -62,23 +106,23 @@ export function resolveHourBarDrag(input: HourBarDragInput): HourBarDragResult {
   if (edge === 'right') {
     const candidate = calendar.nextWorkInstant(new Date(originalFinish.getTime() + deltaMs));
     const nextDuration = Math.max(
-      minimumResizeMinutes,
-      Math.round(calendar.workMinutesBetween(originalStart, candidate)),
+      minimumMinutes,
+      Math.round(calendar.workMinutesBetween(originalStart, candidate) - gapMinutes),
     );
     return {
       start: new Date(originalStart.getTime()),
-      finish: calendar.addWorkMinutes(originalStart, nextDuration),
+      finish: calendar.addWorkMinutes(originalStart, span(nextDuration)),
       durationMinutes: nextDuration,
     };
   }
 
   const candidate = calendar.nextWorkInstant(new Date(originalStart.getTime() + deltaMs));
   const nextDuration = Math.max(
-    minimumResizeMinutes,
-    Math.round(calendar.workMinutesBetween(candidate, originalFinish)),
+    minimumMinutes,
+    Math.round(calendar.workMinutesBetween(candidate, originalFinish) - gapMinutes),
   );
   return {
-    start: calendar.subtractWorkMinutes(originalFinish, nextDuration),
+    start: calendar.subtractWorkMinutes(originalFinish, span(nextDuration)),
     finish: new Date(originalFinish.getTime()),
     durationMinutes: nextDuration,
   };
@@ -94,6 +138,9 @@ export interface DayMeasureBarDragInput {
   originalFinish: Date;
   /** De duur in de dagenmaat bij het grijpen (`scheduleDuration`, mag een breuk zijn). */
   originalDays: number;
+  /** De pauzes van een gesplitste taak (dagslots op de as van de taak, F3c). Het einde komt dan uit de
+   *  splitsom, zoals in de motor (`splitTotalSpanDays`); een rand verandert alleen het laatste werkstuk. */
+  splitGaps?: readonly TaskSplitGap[];
   /** Bij dagzoom: het getekende aantal werkdagen van de werkdag onder de pointer bij het grijpen naar de
    *  werkdag onder de pointer nu. Afwezig ⇒ uurzoom: dan gelden de pointerposities en de snap. */
   workdaySteps?: number;
@@ -129,37 +176,44 @@ function shiftByWorkdays(calendar: CalendarEngine, start: Date, steps: number): 
  * (`measuredWorkdaysBetween`). Het einde komt altijd uit de dagenmaat-lopers van de kalender, net als in de
  * motor (`addMeasuredWorkdays`), zodat de volgende berekening de balk niet verplaatst.
  *
- * Minimum: bij dagzoom één werkdag (of de duur zelf als die korter was), bij uurzoom één snapstap van een
- * werkdag van `hoursPerDay` uur.
+ * Een gesplitste taak spant werk plus pauzes (de splitsom van de motor, `splitTotalSpanDays`): de balk houdt
+ * zijn pauzes, en een rand verandert alleen het laatste werkstuk. Zo blijft de linkerrand één werkdag per
+ * kolom volgen en blijft het einde staan waar het was.
+ *
+ * Minimum van het laatste werkstuk: bij dagzoom één werkdag (of het stuk zelf als dat korter was), bij uurzoom
+ * één snapstap van een werkdag van `hoursPerDay` uur.
  */
 export function resolveDayMeasureBarDrag(input: DayMeasureBarDragInput): DayMeasureBarDragResult {
-  const { calendar, edge, originalStart, originalFinish, originalDays, workdaySteps, pointerStart, pointerCurrent, snapMinutes } = input;
+  const { calendar, edge, originalStart, originalFinish, originalDays, splitGaps, workdaySteps, pointerStart, pointerCurrent, snapMinutes } = input;
   const dayZoom = workdaySteps !== undefined;
   const steps = workdaySteps ?? 0;
   const deltaMs = dayZoom ? 0 : snappedDeltaMs(pointerStart, pointerCurrent, snapMinutes);
   const days0 = Math.max(0, originalDays);
   const dayMinutes = Math.max(1, calendar.hoursPerDay * 60);
-  const minimumDays = dayZoom ? Math.min(1, days0) : (snapMinutes <= 15 ? 15 : 60) / dayMinutes;
+  const span = (days: number) => splitSpan(days, splitGaps, dayMinutes);
+  const gapDays = span(days0) - days0;
+  const lastPiece = lastWorkPiece(days0, splitGaps, dayMinutes);
+  const minimumDays = round6(days0 - lastPiece + (dayZoom ? Math.min(1, lastPiece) : (snapMinutes <= 15 ? 15 : 60) / dayMinutes));
 
   if (edge === 'body') {
     const start = dayZoom
       ? shiftByWorkdays(calendar, originalStart, steps)
       : calendar.nextWorkInstant(new Date(originalStart.getTime() + deltaMs));
-    return { start, finish: calendar.addMeasuredWorkdays(start, days0), days: days0 };
+    return { start, finish: calendar.addMeasuredWorkdays(start, span(days0)), days: days0 };
   }
 
   if (edge === 'right') {
     const start = calendar.nextWorkInstant(originalStart);
     const raw = dayZoom
       ? days0 + steps
-      : calendar.measuredWorkdaysBetween(start, new Date(originalFinish.getTime() + deltaMs));
+      : calendar.measuredWorkdaysBetween(start, new Date(originalFinish.getTime() + deltaMs)) - gapDays;
     const days = round6(Math.max(minimumDays, raw));
-    return { start: new Date(originalStart.getTime()), finish: calendar.addMeasuredWorkdays(start, days), days };
+    return { start: new Date(originalStart.getTime()), finish: calendar.addMeasuredWorkdays(start, span(days)), days };
   }
 
   const raw = dayZoom
     ? days0 - steps
-    : calendar.measuredWorkdaysBetween(calendar.nextWorkInstant(new Date(originalStart.getTime() + deltaMs)), originalFinish);
+    : calendar.measuredWorkdaysBetween(calendar.nextWorkInstant(new Date(originalStart.getTime() + deltaMs)), originalFinish) - gapDays;
   const days = round6(Math.max(minimumDays, raw));
-  return { start: calendar.subtractMeasuredWorkdays(originalFinish, days), finish: new Date(originalFinish.getTime()), days };
+  return { start: calendar.subtractMeasuredWorkdays(originalFinish, span(days)), finish: new Date(originalFinish.getTime()), days };
 }

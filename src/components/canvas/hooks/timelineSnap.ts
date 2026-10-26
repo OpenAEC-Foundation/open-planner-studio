@@ -2,6 +2,7 @@ import { MAX_DAY_ZOOM, pickTiers, TIER_CONFIG } from '@/engine/renderer/timeline
 import type { WorkCalendar } from '@/types/calendar';
 import type { GanttAxis } from '@/engine/renderer/timeAxis';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { shiftByDisplayedColumns } from '@/engine/renderer/barDragMath';
 import { workdayOfInstant } from '@/engine/calendar/workdayRules';
 import { addCalendarDays, formatInstant, parseDate, utcDayStart } from '@/utils/dateUtils';
 
@@ -38,23 +39,28 @@ export function splitWorkdayStart(raw: Date, eng: CalendarEngine, calendar: Work
 }
 
 /**
- * Dagzoom (T24, "per hele dag"): het aantal hele werkdagen dat een balksleep over `columns` getoonde
- * kolommen een dagenmaat-taak verschuift. Een kolom is een kalenderdag, onder werkdagencompressie een
- * werkdag. De telling begint bij de werkdag van het gegrepen randmoment (`anchor`; een blok hoort bij de
- * dag waarop het begint, B4), niet bij de dag onder de muis: wie een lange balk in het weekend grijpt,
- * ziet hem zo toch per kolom meegaan. Valt de doeldag op een dag zonder werk, dan telt de eerstvolgende
- * werkdag in de sleeprichting.
+ * Dagzoom (T24, "per hele dag"): het aantal hele werkdagen van de TAAKkalender (`eng`) dat een balksleep
+ * over `columns` getoonde kolommen een dagenmaat-taak verschuift. De kolommen tellen eerst op de getekende
+ * as, dus op de PROJECTkalender (`axisEngine`): een kolom is een kalenderdag, onder werkdagencompressie een
+ * werkdag van die kalender (`shiftByDisplayedColumns`). Daarna telt de taakkalender haar werkdagen tot die
+ * doeldag. Zo landt een taak met een eigen kalender op de dag die de gebruiker zag: onder compressie is de
+ * kolom na vrijdag maandag, ook als de taak op zaterdag mag werken. De telling begint bij de werkdag van
+ * het gegrepen randmoment (`anchor`; een blok hoort bij de dag waarop het begint, B4), niet bij de dag
+ * onder de muis: wie een lange balk in het weekend grijpt, ziet hem zo toch per kolom meegaan. Valt de
+ * doeldag op een dag zonder werk, dan telt de eerstvolgende werkdag in de sleeprichting.
  */
 export function dragWorkdaySteps(
-  anchor: Date, side: 'start' | 'end', columns: number, compressed: boolean, eng: CalendarEngine, calendar: WorkCalendar,
+  anchor: Date, side: 'start' | 'end', columns: number, axisEngine: CalendarEngine, compressed: boolean,
+  eng: CalendarEngine, calendar: WorkCalendar,
 ): number {
   if (!Number.isFinite(columns) || columns === 0) return 0;
-  if (compressed) return columns;
   const dir = Math.sign(columns);
-  let day = parseDate(workdayOfInstant({ kind: 'blocks', engine: eng, calendar }, formatInstant(anchor, 'hour'), side));
+  const from = parseDate(workdayOfInstant({ kind: 'blocks', engine: eng, calendar }, formatInstant(anchor, 'hour'), side));
+  const target = shiftByDisplayedColumns(axisEngine, from, columns, compressed).getTime();
+  let day = from;
   let steps = 0;
   let working = true;
-  for (let i = 0; i < Math.abs(columns); i++) {
+  for (let i = 0; i < 3660 && (dir > 0 ? day.getTime() < target : day.getTime() > target); i++) {
     day = addCalendarDays(day, dir);
     working = eng.effectiveBandsOn(day).length > 0;
     if (working) steps += dir;
