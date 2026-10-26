@@ -18,7 +18,7 @@ export const MAX_ENTRIES = 500;
 export const FIELD_CAP = 20 * 1024; // 20 kB
 
 /** Marker die aan een afgekapt veld wordt geplakt zodat de UI de afkapping toont. */
-export const TRUNCATE_MARKER = '… afgekapt';
+export const TRUNCATE_MARKER = '… truncated';
 
 let buffer: ActivityEntry[] = [];
 const listeners = new Set<(entries: ActivityEntry[]) => void>();

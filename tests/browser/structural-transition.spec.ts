@@ -29,6 +29,8 @@ async function seedAssignedLeaf(page: Page): Promise<{ L: string; N: string; R: 
 }
 
 const assignmentTaskIds = (page: Page) => page.evaluate(() => window.__OPS__!.store.getState().assignments.map(a => a.taskId));
+/** Complete waardesnapshot: ook resource, inzet en eventuele overige toewijzingsvelden moeten gelijk blijven. */
+const assignmentSnapshot = (page: Page) => page.evaluate(() => window.__OPS__!.store.getState().assignments);
 
 test('mijlpaalvinkje op een taak met toewijzing wordt geweigerd met melding', async ({ page, ops: _ops }) => {
   const { L } = await seedAssignedLeaf(page);
@@ -36,13 +38,15 @@ test('mijlpaalvinkje op een taak met toewijzing wordt geweigerd met melding', as
 
   const checkbox = page.locator('label', { hasText: /^Milestone$/ }).first().locator('input[type=checkbox]');
   await expect(checkbox).not.toBeChecked();
+  const beforeSingle = await assignmentSnapshot(page);
+  expect(beforeSingle).toHaveLength(1);
   await checkbox.click();
 
   await expect(page.locator('.ops-toast', { hasText: /'Metselen' has resource assignments and cannot become a milestone/ }))
     .toBeVisible();
   await expect(checkbox).not.toBeChecked();
   expect(await page.evaluate((id) => window.__OPS__!.store.getState().tasks.find(t => t.id === id)!.isMilestone, L)).toBe(false);
-  expect(await assignmentTaskIds(page)).toEqual([L]);
+  expect(await assignmentSnapshot(page)).toEqual(beforeSingle);
 
   // Dezelfde route in een taal zonder CLDR-one: een echte taalkeuze, daarna opnieuw klikken.
   await page.locator('.ops-toast [data-ops-toast-close]').click();
@@ -59,6 +63,7 @@ test('mijlpaalvinkje op een taak met toewijzing wordt geweigerd met melding', as
   await expect(named).not.toContainText('{{');
   await expect(named).toHaveAttribute('role', 'alert');
   await expect(zhCheckbox).not.toBeChecked();
+  expect(await assignmentSnapshot(page)).toEqual(beforeSingle);
   await named.locator('[data-ops-toast-close]').click();
 
   // Bulk via het echte contextmenu: twee toegewezen taken blijven gewoon taken, beide namen
@@ -66,12 +71,17 @@ test('mijlpaalvinkje op een taak met toewijzing wordt geweigerd met melding', as
   const N = await page.evaluate(() => {
     const s = window.__OPS__!.store.getState();
     const n = s.tasks.find(t => t.name === 'Voegen')!.id;
-    s.assignResource(n, s.resources[0].id, 1);
+    const resource = s.addResource({ name: 'Voeger', type: 'LABOR', description: '', maxUnits: 1 });
+    window.__OPS__!.store.getState().assignResource(n, resource, 0.375);
     return n;
   });
   await selectRow(page, L);
   await nameCell(page, N).click({ modifiers: ['Control'] });
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().selectedTaskIds.length)).toBe(2);
+  const beforeBulk = await assignmentSnapshot(page);
+  expect(beforeBulk).toHaveLength(2);
+  expect(new Set(beforeBulk.map(a => a.resourceId)).size).toBe(2);
+  expect(beforeBulk.map(a => a.unitsPerDay)).toEqual([1, 0.375]);
   await nameCell(page, L).click({ button: 'right' });
   await page.getByText('切换里程碑', { exact: true }).click();
   const bulk = page.locator('.ops-toast.toast-error');
@@ -84,7 +94,7 @@ test('mijlpaalvinkje op een taak met toewijzing wordt geweigerd met melding', as
     zhCommon.notifications.refusedTaskNames.replace('{{names}}', 'Metselen, Voegen'));
   await expect(bulk).toHaveAttribute('role', 'alert');
   expect(await page.evaluate(() => window.__OPS__!.store.getState().tasks.map(t => t.isMilestone))).toEqual([false, false]);
-  expect(await assignmentTaskIds(page)).toEqual([L, N]);
+  expect(await assignmentSnapshot(page)).toEqual(beforeBulk);
 });
 
 const dialog = (page: Page) => page.locator('[data-ops-phase-dialog]');

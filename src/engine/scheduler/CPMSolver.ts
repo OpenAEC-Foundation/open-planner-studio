@@ -98,8 +98,8 @@ export interface CPMResult {
   projectEnd: string;
   projectDuration: number; // work days
   /** Gezet als de solve niet kon rekenen (kring, kalender zonder werkdagen, ongeldige invoer). De
-   *  vaste tekst die MCP-tools, extensies (`scheduleCalculated`) en logs al kennen — ongewijzigd,
-   *  en deels Nederlands, deels Engels. Gebruikerszichtbare UI vertaalt `errorInfo` in plaats hiervan. */
+   *  technische fouttekst voor MCP-tools, extensies (`scheduleCalculated`) en logs, in het Engels.
+   *  De vertaling voor de gebruiker loopt via `errorInfo`. */
   error?: string;
   /** Dezelfde fout als code + parameters: de UI vertaalt hem via `scheduleErrors.<code>`
    *  (`src/i18n/scheduleErrors.ts`). Altijd samen met `error` gezet door `solve()`. */
@@ -344,11 +344,11 @@ function scheduleErrorLegacyText(info: ScheduleErrorInfo): string {
   const name = info.taskName ?? '';
   switch (info.code) {
     case 'cycle': return `Circular dependency detected: ${(info.cycleNames ?? []).join(' -> ')}`;
-    case 'noWorkingDays': return 'Kalender heeft geen werkdagen ingesteld';
-    case 'invalidDayDuration': return `Ongeldige dagduur voor taak "${name}"`;
-    case 'invalidHourDuration': return `Ongeldige urenduur voor taak "${name}"`;
-    case 'hourTaskWithoutWorkHours': return `Uurtaak "${name}" heeft geen geldige werktijden in zijn kalender`;
-    case 'invalidStartDate': return `Ongeldige startdatum voor taak "${name}"`;
+    case 'noWorkingDays': return 'Calendar has no working days configured';
+    case 'invalidDayDuration': return `Invalid day duration for task "${name}"`;
+    case 'invalidHourDuration': return `Invalid hour duration for task "${name}"`;
+    case 'hourTaskWithoutWorkHours': return `Hour-based task "${name}" has no valid working hours in its calendar`;
+    case 'invalidStartDate': return `Invalid start date for task "${name}"`;
   }
 }
 
