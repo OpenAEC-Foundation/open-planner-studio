@@ -43,6 +43,8 @@ import { createTaskGridAdapter } from '@/engine/taskGrid/taskGridAdapter';
 import { taskColumnId } from '@/engine/taskGrid/fieldIds';
 import { effectiveCalendarOf, effHoursPerDay } from '@/utils/taskDuration';
 import { makeBands } from '@/utils/effectiveWorkTime';
+import { draftWithProgress, saveTaskDialog } from '@/state/taskDialogSave';
+import { shownStart } from '@/utils/taskDates';
 import type { CellEditIntent } from '@/types/taskGrid';
 import type { Task } from '@/types/task';
 import type { ResourceAssignment } from '@/types/resource';
@@ -652,6 +654,47 @@ console.log('-- (r) voltooien door duurverkorting: restwerk 0, verricht werk bli
       completed(name, `r9 ${name}`);
       eq(`r10 ${name}: inzet blijft staan`, own(name).unitsPerDay, units);
       if (rule === 'FIXED_WORK') eq(`r11 ${name}: urenmaat`, taskNamed(name).time.durationUnit, 'hours');
+    }
+  }
+
+  // Duur én expliciet 100 % in één opslag, via de echte dialoogroute. Alleen een nieuwe duur gelijk aan
+  // het gedane deel (2 d) is een voltooiing door verkorting. Bij een andere duur (3 d, 8 d) blijven
+  // werkpaar, inzet en belasting zoals op de basis 9a636ec69: deze fix wist daar geen werk (review r1
+  // van #662). Het extra gedane deel als verricht boeken is knownbug 367.
+  const saveDialog = (name: string, days: number): boolean => {
+    const t = taskNamed(name);
+    const duration = t.time.durationUnit === 'hours' ? { scheduleDuration: days, durationMinutes: days * 480 } : { scheduleDuration: days };
+    const edited = draftWithProgress({ ...t, time: { ...t.time, ...duration } }, 1, S().project.statusDate, S().calendar);
+    return saveTaskDialog({
+      editingTaskId: t.id, draft: edited, startDate: shownStart(t),
+      initialDuration: { unit: t.time.durationUnit, scheduleDuration: t.time.scheduleDuration, durationMinutes: t.time.durationMinutes },
+    });
+  };
+  const pair = (name: string) => ({ work: work(name), units: own(name).unitsPerDay, load: r4(load(name)) });
+  for (const rule of ['FIXED_DURATION_RATE', 'FIXED_RATE', 'FIXED_DURATION_WORK', 'FIXED_WORK'] as const) {
+    for (const days of [2, 3, 8]) {
+      const name = `a03 dialoog ${rule} ${days} d + 100 %`;
+      start(name, rule);
+      setDays(name, 6, 'store');
+      const before = pair(name);
+      const extended = snapshot(name);
+      eq(`r12 ${name}: dialoog slaat op`, saveDialog(name, days), true);
+      eq(`r13 ${name}: taak op 100 %`, taskNamed(name).time.completion, 1);
+      if (days === 2) {
+        completed(name, `r14 ${name}`);
+        continue;
+      }
+      eq(`r15 ${name}: werkpaar, inzet en belasting blijven (geen werk gewist)`, pair(name), before);
+      if (rule !== 'FIXED_DURATION_RATE') continue;
+      const saved = snapshot(name);
+      S().undo();
+      eq(`r16 ${name}: undo herstelt exact`, snapshot(name), extended);
+      S().redo();
+      eq(`r17 ${name}: redo herstelt exact`, snapshot(name), saved);
+      S().runCPM();
+      eq(`r18 ${name}: F5 houdt het werkpaar`, pair(name), before);
+      S().applyLoadedProject(readIFC(writeIFC(buildWriteIFCInput(S()))), { linkedOpen: true, recompute: true, filePath: null });
+      eq(`r19 ${name}: IFC-heropening houdt het werkpaar`, pair(name), before);
     }
   }
 }

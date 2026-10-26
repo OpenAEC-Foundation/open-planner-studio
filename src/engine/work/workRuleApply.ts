@@ -410,8 +410,10 @@ const NO_DURATION_CHANGE: DurationEditWriteBack = { ...NO_CHANGE, recomputedWork
  *  3. Elk bewaard restwerk dat afweek van inzet × restduur en nu herschreven is, komt terug in
  *     `recomputedWork`; de aanroeper meldt het één keer per transactie.
  *
- * Maakt de bewerking de taak voltooid (rest 0, 100 %), dan is er geen resterende driehoek: de kern
- * zou rest 0 weigeren. Dat geval handelt {@link completedByDurationEdit} af, onder elke regel.
+ * Maakt de bewerking de taak voltooid doordat de nieuwe duur precies het gedane deel is (rest 0,
+ * 100 %), dan is er geen resterende driehoek: de kern zou rest 0 weigeren. Dat geval handelt
+ * {@link completedByDurationEdit} af, onder elke regel. Een bewerking die een ANDERE duur en zelf
+ * 100 % opgeeft, valt daar bewust buiten (knownbug 367): de kern weigert dan en het werk blijft staan.
  *
  * Onder FIXED_DURATION_RATE zonder werkvelden en zonder voortgang verandert er aan de toewijzingen
  * niets; op een gestarte taak legt `applyTriangleResult` het verrichte werk en het restwerk vast.
@@ -420,12 +422,17 @@ export function settleDurationEdit(task: Task, captured: CapturedTriangle | null
   if (!captured) return NO_DURATION_CHANGE;
   // Poort: een voortgangsbewerking (`completion`/`remainingTime`) verandert de REST maar niet
   // de duur — dat is geen duurbewerking en raakt de driehoek niet.
-  if (Math.abs(totalMinutesOf(task, captured.ctx) - captured.totalMinutes) < 1e-6) return NO_DURATION_CHANGE;
+  const newTotal = totalMinutesOf(task, captured.ctx);
+  if (Math.abs(newTotal - captured.totalMinutes) < 1e-6) return NO_DURATION_CHANGE;
   followRemainingOfUnstartedTask(task, captured.time);
   const newRemaining = remainingMinutesOf(task, captured.ctx);
   if (Math.abs(newRemaining - captured.state.remainingMinutes) < 1e-6) return NO_DURATION_CHANGE;
-  // Vóór de positieve-restvalidatie van de kern: rest 0 op een voltooide taak is een voltooiing.
-  const result = newRemaining < 1e-6 && task.time.completion >= 1
+  // Vóór de positieve-restvalidatie van de kern: is de nieuwe duur precies het gedane deel van vóór de
+  // bewerking, dan is rest 0 op de voltooide taak een voltooiing door verkorting.
+  const doneBefore = captured.totalMinutes - captured.state.remainingMinutes;
+  const completedByShortening = newRemaining < 1e-6 && task.time.completion >= 1
+    && Math.abs(newTotal - doneBefore) < 1e-6;
+  const result = completedByShortening
     ? completedByDurationEdit(captured.state)
     : applyDurationEdit(captured.state, newRemaining);
   if (!result.ok) return NO_DURATION_CHANGE;
@@ -452,11 +459,12 @@ export function settleDurationEdit(task: Task, captured: CapturedTriangle | null
  * werkresource houdt haar verrichte werk en krijgt restwerk 0, onder elke regel; inzet en materiaal
  * blijven staan. Het vervallen restwerk wordt NIET als verricht geboekt (dat doet alleen een
  * voortgangsboeking, `settleProgressWork`). `applyTriangleResult` legt daarna het verrichte werk uit
- * de momentopname vast waar het nog ontbrak. Geeft dezelfde bewerking zelf ook 100 % op (dialoog,
- * MCP), dan geldt hetzelfde: de voortgangsboeking slaat een bewerking met een andere totale duur
- * over, dus het verrichte werk groeit hier niet mee. Zonder deze stap weigerde de kern
- * rest 0, bleef het opgeslagen restwerk staan en telde de belasting het nog mee (aanval a03 na #600:
- * 4 d op 50 %, verlengd tot 6 d en terug naar 2 d gaf 100 % met 32 u restwerk).
+ * de momentopname vast waar het nog ontbrak. Alleen als de nieuwe totale duur gelijk is aan het
+ * gedane deel van vóór de bewerking; een opslag met een andere duur én 100 % (dialoog, MCP-draft)
+ * komt hier niet: daar zou nulstellen het werk van het extra gedane deel wissen (knownbug 367).
+ * Zonder deze stap weigerde de kern rest 0, bleef het opgeslagen restwerk staan en telde de
+ * belasting het nog mee (aanval a03 na #600: 4 d op 50 %, verlengd tot 6 d en terug naar 2 d gaf
+ * 100 % met 32 u restwerk).
  */
 function completedByDurationEdit(state: TriangleState): { ok: true; state: TriangleState } {
   return {
