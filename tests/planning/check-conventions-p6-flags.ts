@@ -1206,8 +1206,11 @@ groupC.push({
 // C14 (plan XER §9 "C10"; brok 5 "C9"): band 08:00–17:00 ma–vr, statusdatum ma 5 jan 08:00. C (31 u)
 // loopt ma 5 jan 08:00 – do 8 jan 12:00 —FS0→ B (9 u), dus B begint do 8 jan 12:00. A is een ALAP-wortel
 // (9 u, CS_ALAP) —FS0→ B. P6 (HarbourPointe, B12, EC1420 → EC1430 → EC1810 → EC2090): A eindigt precies
-// waar B begint — EF do 8 jan 12:00, ES wo 7 jan 12:00 (9 werkuren terug). Zonder C14 schuift de oude
-// ALAP-stap A in hele werkdagen op haar vrije speling: ES wo 7 jan 08:00, EF wo 7 jan 17:00.
+// waar B begint — EF do 8 jan 12:00, ES wo 7 jan 12:00 (9 werkuren terug). Zonder C14 komt de gewone
+// ALAP-stap sinds de aanval na #600 op hetzelfde venster (hij schuift een niet-gestarte taak met haar duur
+// tot de grens van haar opvolgers; vroeger in hele werkdagen: wo 7 jan 08:00–17:00). Het verschil zit
+// in het eigen anker: met een gepland venster ná B (ma 12 jan) houdt de gewone stap A daar en duwt hij B,
+// C14 niet. De groep-C-fixture gebruikt daarom dat venster (randgeval (a) hieronder).
 // `withPred`: A krijgt een voorganger Q (3 u, ma 5 jan 08:00–11:00) —FS0→ A, zodat A niet meer de
 // wortel-tak maar de voorganger-tak (met de A16-vloer) doorloopt.
 function c14Fixture(alapTargetStart: string, alapTargetEnd: string, withPred = false): ImportResult {
@@ -1236,11 +1239,11 @@ function c14Fixture(alapTargetStart: string, alapTargetEnd: string, withPred = f
 groupC.push({
   flag: 'p6AlapPositionedFromSuccessors',
   label: 'C14 ALAP zo laat als de opvolgers toestaan, in werktijd',
-  input: c14Fixture('2026-01-05 08:00', '2026-01-05 17:00'),
+  input: c14Fixture('2026-01-12 08:00', '2026-01-12 17:00'),
   taskId: 'A',
   pick: axes => ({ es: axes.es, ef: axes.ef }),
   on: { es: '2026-01-07T12:00', ef: '2026-01-08T12:00' },
-  off: { es: '2026-01-07T08:00', ef: '2026-01-07T17:00' },
+  off: { es: '2026-01-12T08:00', ef: '2026-01-12T17:00' },
 });
 
 // C14, randgevallen (docblok). Mutanten die hier rood worden (brok 5, opnieuw gedraaid in brok 10):
@@ -1260,6 +1263,12 @@ groupC.push({
     { es: '2026-01-12T08:00', ef: '2026-01-12T17:00' });
   eq('C14 opvolger blijft op de grens van C', solveAxes(later, 'B').es, '2026-01-08T12:00');
   eq('C14 uit ⇒ opvolger achter het geplande venster van A', solveAxes(off(later), 'B').es, '2026-01-13T08:00');
+  // (a2) Met het geplande venster op de statusdatum (ma 5 jan) komt de gewone ALAP-stap zonder C14 op
+  // hetzelfde venster als C14: A eindigt waar B begint, met haar 9 werkuren (aanval na #600; vroeger
+  // in hele werkdagen wo 7 jan 08:00–17:00).
+  eq('C14 uit ⇒ gewone ALAP-stap sluit met haar duur aan op B',
+    pickEsEf(solveAxes(off(c14Fixture('2026-01-05 08:00', '2026-01-05 17:00')), 'A')),
+    { es: '2026-01-07T12:00', ef: '2026-01-08T12:00' });
   // (b) Dezelfde vorm met een voorganger Q (voorganger-tak): de A16-vloer (eigen gepland venster ma 12
   // jan) geldt niet voor een niet-gestarte ALAP-taak, dus B blijft op de grens van C en A sluit erop aan.
   // Zonder C14 zet A16 A op haar venster en schuift B mee. Mutant "A16-vloeruitzondering weg" ⇒ rood.

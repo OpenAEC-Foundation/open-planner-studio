@@ -3309,11 +3309,28 @@ export class CPMSolver {
    * ALAP (P6-semantiek, zero free float): schuif de vroege datums van ALAP-taken op met
    * hun eigen vrije speling. Opvolgers eerst: een niet-ALAP-opvolger beweegt niet, een ALAP-opvolger
    * is dan al verschoven, zodat een ALAP-keten schakel voor schakel aansluit (ook over een C14-taak
-   * heen). Bekende grens: de vrije speling wordt hier in hele dagen van de opvolgerkalender gemeten;
-   * bij een uur-voorganger vóór een dag-opvolger kan dat een dag te weinig zijn (formule van vóór de
-   * audit, review 2026-09-28; niet omgebouwd zonder corpusmeting). Draait ná de backward
-   * pass; de constraint-cache van uitgaande relaties wordt geactualiseerd zodat de
-   * relatie-floats en driving-markering daarna kloppen (de relatie wordt precies bindend).
+   * heen). Draait ná de backward pass; de constraint-cache van uitgaande relaties wordt
+   * geactualiseerd zodat de relatie-floats en driving-markering daarna kloppen (de relatie wordt
+   * precies bindend).
+   *
+   * Een niet-gestarte taak (geen hammock) krijgt als vroege finish de laatste grens die haar
+   * opvolgers met hun vroege datums via de achterwaartse relatiewiskunde toestaan (`alapLatestFinish`,
+   * dezelfde grens als C14; zonder opvolger haar late finish), nooit later dan haar eigen late finish
+   * (deadline, constraints, projecteinde) en op een eindmoment van haar eigen kalender. Haar vroege
+   * start is die finish min haar opgeslagen duur in de maat van het profiel (`startFromFinish`), dus
+   * het venster houdt precies die duur, ook over een korte werkdag. Ze schuift alleen later, nooit
+   * vroeger. Zou de nieuwe plek een opvolger toch na zijn vroege start laten beginnen (de terugrekening
+   * is niet overal de exacte inverse van de voorwaartse, zie knownbug 345), dan zoekt een halvering in
+   * werkminuten de laatste plek die dat niet doet (`placeUnstartedAlap`). Aanval na #600: de oude
+   * stap telde de speling in hele dagen en verschoof begin en einde los met `addWorkingDaysSigned`; op
+   * een vrijdag 08:00–14:00 stond een dagtaak dan een dag te vroeg (OPS) of verloor ze twee uur werk
+   * (P6/MSP).
+   *
+   * Een gestarte of voltooide taak en een hammock houden die oude stap (vrije speling in hele
+   * werkdagen van de opvolgerkalender, begin en einde even ver): hun venster is geen opgeslagen duur,
+   * en de voltooide P6-gevallen zijn op deze stap geijkt (C14-docblok in `types/project.ts`).
+   * Bekende grens daar: bij een uur-voorganger vóór een dag-opvolger kan dat een dag te weinig zijn,
+   * en een korte werkdag kan het venster inkorten.
    *
    * Handmatig gepland — TWEE aparte uitsluitingen, niet één:
    * (1) een manual taak ZELF wordt NOOIT vooruitgeschoven, ook niet als ze toevallig
@@ -3365,6 +3382,10 @@ export class CPMSolver {
 
       const cal = this.calendarFor(task);
       const succs = this.successors.get(taskId) || [];
+      if (!task.isHammock && !task.time.actualStart && task.time.completion === 0) {
+        this.placeUnstartedAlap(taskId, task, cal, early, late, earlyDates);
+        continue;
+      }
       let ff = Infinity;
       if (succs.length === 0) {
         ff = cal.signedWorkDaysBetween(early.ef, late.lf);
@@ -3396,6 +3417,116 @@ export class CPMSolver {
         );
       }
     }
+  }
+
+  /** De laatste finish die de opvolgers met hun VROEGE datums toestaan, via dezelfde achterwaartse
+   *  relatiewiskunde als de backward pass; zonder opvolger de late finish. `null` als er opvolgers
+   *  zijn maar geen enkele relatie meedoet (uitsluiting (2): `forwardPass` zet nooit een
+   *  `seqConstraint` naar een handmatige opvolger). Gedeeld door de gewone ALAP-stap en C14. */
+  private alapLatestFinish(
+    taskId: string,
+    task: Task,
+    cal: CalendarEngine,
+    earlyDates: Map<string, { es: Date; ef: Date }>,
+    late: { ls: Date; lf: Date },
+  ): Date | null {
+    const succs = this.successors.get(taskId) || [];
+    let finish: Date | null = succs.length === 0 ? late.lf : null;
+    for (const seq of succs) {
+      const succTask = this.tasks.get(seq.successorId);
+      const succEarly = earlyDates.get(seq.successorId);
+      if (!succTask || !succEarly || !this.seqConstraint.has(seq.id)) continue;
+      const succCal = this.calendarFor(succTask);
+      const bound = backwardConstraint(
+        this.relDeps, { ls: succEarly.es, lf: succEarly.ef }, seq, task, succTask, cal, succCal,
+        this.p6ZeroDurationUsesFinishBoundary(succTask, succCal),
+        this.finishFinishAtStartMilestoneLateFinish(seq, succTask, cal, succCal),
+      );
+      if (!finish || bound < finish) finish = bound;
+    }
+    return finish;
+  }
+
+  /** De gewone ALAP-stap voor een niet-gestarte taak (docblok bij `applyAlap`). Het einde is de laatste
+   *  grens van de opvolgers, nooit later dan de eigen late finish (die draagt ook deadline, constraints
+   *  en projecteinde), op een eindmoment van de eigen kalender. De start is dat einde min de opgeslagen
+   *  duur in de maat van het profiel. Moet een opvolger op die plek toch later beginnen, dan zoekt een
+   *  halvering in werkminuten tussen het vroege einde en die grens de laatste plek waar dat niet zo is.
+   *  Schuift alleen later. */
+  private placeUnstartedAlap(
+    taskId: string,
+    task: Task,
+    cal: CalendarEngine,
+    early: { es: Date; ef: Date },
+    late: { ls: Date; lf: Date },
+    earlyDates: Map<string, { es: Date; ef: Date }>,
+  ): void {
+    let finish = this.alapLatestFinish(taskId, task, cal, earlyDates, late);
+    if (!finish) return;
+    if (late.lf < finish) finish = late.lf;
+    // Een grens buiten de eigen werktijd (bv. FF met een lag op de opvolgerkalender): het laatste
+    // eindmoment ervóór. Een mijlpaal en een kalendertijdtaak staan op het moment zelf.
+    const elapsed = isElapsedTask(task);
+    if (!elapsed && !isZeroDurationMilestone(task)) finish = this.snapOnOrBefore(cal, finish);
+    // Geen werktijd tussen het vroege einde en de grens: er is geen speling, de taak blijft staan.
+    const span = this.signedFloatMinutes(early.ef, finish, cal, task);
+    if (!(span > 0)) return;
+    const at = (ef: Date) => ({ es: this.startFromFinish(cal, ef, task), ef });
+    let placed = at(finish);
+    let updates = this.alapSuccessorBounds(taskId, task, cal, placed, earlyDates);
+    if (!updates && cal.isHourMode) {
+      // Projectie naar de laatste uitvoerbare plek. Later schuiven vraagt nooit minder van een
+      // opvolger, dus de uitvoerbare plekken vormen één aaneengesloten stuk vanaf het vroege einde.
+      let lo = 0;
+      let hi = Math.round(span);
+      while (hi - lo > 1) {
+        const mid = Math.floor((lo + hi) / 2);
+        const candidate = at(elapsed
+          ? new Date(early.ef.getTime() + mid * MS_PER_MIN)
+          : cal.addWorkMinutes(early.ef, mid));
+        const found = this.alapSuccessorBounds(taskId, task, cal, candidate, earlyDates);
+        if (found) {
+          lo = mid;
+          placed = candidate;
+          updates = found;
+        } else {
+          hi = mid;
+        }
+      }
+    }
+    if (!updates || placed.es <= early.es) return;
+    early.es = placed.es;
+    early.ef = placed.ef;
+    for (const [seqId, bound] of updates) this.seqConstraint.set(seqId, bound);
+  }
+
+  /** De nieuwe relatiegrenzen naar de opvolgers voor een ALAP-plek, of `null` als een opvolger op die
+   *  plek later dan zijn vroege start zou moeten beginnen (en later dan de relatie al eiste). */
+  private alapSuccessorBounds(
+    taskId: string,
+    task: Task,
+    cal: CalendarEngine,
+    placed: { es: Date; ef: Date },
+    earlyDates: Map<string, { es: Date; ef: Date }>,
+  ): Array<[string, Date]> | null {
+    const updates: Array<[string, Date]> = [];
+    for (const seq of this.successors.get(taskId) || []) {
+      const succTask = this.tasks.get(seq.successorId);
+      const before = this.seqConstraint.get(seq.id);
+      // Uitsluiting (2), zoals in C14: `forwardPass` zet nooit een `seqConstraint` naar een handmatige
+      // opvolger (en ook niet naar een hammock); zo'n relatie krijgt er hier ook geen.
+      if (!succTask || !before) continue;
+      const succCal = this.calendarFor(succTask);
+      const bound = forwardConstraint(
+        this.relDeps, placed, task, seq, succTask, cal, succCal,
+        this.p6ZeroDurationUsesFinishBoundary(succTask, succCal),
+      );
+      const succEarly = earlyDates.get(seq.successorId);
+      if (succEarly && bound > before
+        && this.signedFloatMinutes(succEarly.es, bound, succCal, succTask) > 0) return null;
+      updates.push([seq.id, bound]);
+    }
+    return updates;
   }
 
   /** Conventie C14: valt deze taak onder de ALAP-positionering vanuit de opvolgers? Niet-gestart,
@@ -3433,21 +3564,9 @@ export class CPMSolver {
       const late = lateDates.get(taskId);
       if (!early || !late) return;
       const succs = this.successors.get(taskId) || [];
-      let finish: Date | null = succs.length === 0 ? late.lf : null;
-      for (const seq of succs) {
-        const succTask = this.tasks.get(seq.successorId);
-        const succEarly = earlyDates.get(seq.successorId);
-        // Uitsluiting (2): `forwardPass` zet nooit een `seqConstraint` naar een handmatige opvolger; zo'n
-        // relatie doet hier dus ook niet mee.
-        if (!succTask || !succEarly || !this.seqConstraint.has(seq.id)) continue;
-        const succCal = this.calendarFor(succTask);
-        const bound = backwardConstraint(
-          this.relDeps, { ls: succEarly.es, lf: succEarly.ef }, seq, task, succTask, cal, succCal,
-          this.p6ZeroDurationUsesFinishBoundary(succTask, succCal),
-          this.finishFinishAtStartMilestoneLateFinish(seq, succTask, cal, succCal),
-        );
-        if (!finish || bound < finish) finish = bound;
-      }
+      // Uitsluiting (2): `forwardPass` zet nooit een `seqConstraint` naar een handmatige opvolger; zo'n
+      // relatie doet in `alapLatestFinish` dus ook niet mee.
+      let finish = this.alapLatestFinish(taskId, task, cal, earlyDates, late);
       if (!finish) return;
       // Secundaire constraint (`constraint2`; de primaire ís ALAP). Bovengrens: SNLT/FNLT (en een
       // zachte MSO/MFO) via dezelfde `backwardBoundOf` als `applyBackwardBound` — de ALAP-taak schuift
