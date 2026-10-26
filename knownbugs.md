@@ -231,6 +231,14 @@ en noem het in je rapport of PR-tekst.
     review ronde 1 van PR #573 (GPT-6.1-Sol). Voorstel: de ACL op Windows controleren (ook tijdelijk bestand
     en bestaande map), of geen token publiceren als de bescherming onvoldoende is. — B
 
+322. **Een conflict tussen vastgepinde taken heeft geen reden.** `src/engine/scheduler/ResourceLeveler.ts:811`
+    vult voor pinconflicten alleen `unresolved`. `src/services/library/distribute.ts:475` maakt daaruit een
+    `DistributionShortfall` waarvan `reason` volgens regel 101 verplicht is: twee botsende pins plus één
+    verplaatsbare taak geven twee tekorten met `reason: undefined`. De MCP-waarschuwing in
+    `calendarResourceTools.ts:1621` verwijst dan naar een lege `unresolvedReasons`. De dialoog toont de
+    conflicten wel goed. Voorstel: een ontbrekende reden expliciet in het typecontract, en de MCP-uitleg daarop
+    aanpassen. Gevonden in review r1 van #594 (GPT-6.1-Sol). — B
+
 ## Bestanden en herstel
 
 35. **Showcase-voorbeelden openen als gewijzigd** (`applyDemoLibraryToShowcaseProject`). — S
