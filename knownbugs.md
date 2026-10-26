@@ -240,8 +240,6 @@ en noem het in je rapport of PR-tekst.
 35. **Showcase-voorbeelden openen als gewijzigd** (`applyDemoLibraryToShowcaseProject`). — S
 36. **Herstelvenster na een gewone herlaad** in de browser, ook als alles was opgeslagen. — S
 38. **Firefox: *Recent*** opent een lege pagina (de knop staat er wel). — B
-46. **`.mpp` neemt de kritiek-drempel uit MS Project niet over als projectinstelling** (wel voor *Datums zoals
-    opgeslagen*; MSPDI doet het wel). Gevolg: drempel 0 na openen. — B
 
 97. **De sluitvraag van een tabblad ligt op een vaste z-index 80**, de gewone dialogen op 50/60. Elke vraag die
     vanuit *Opslaan* in die sluitvraag opent, valt eronder en lijkt te hangen. De twee site-dialogen liggen
@@ -310,6 +308,12 @@ en noem het in je rapport of PR-tekst.
     punt zegt niet dat iedere mislukte snapshotwrite als rejection uit de flush komt. Geen
     runtime-repro of concreet dataverlies vastgesteld; bedoeling en gewenste foutafhandeling
     niet onderzocht. — S
+
+328. **De verliescategorie `criticalSlackLimitDays` is dode code.** `src/services/importTypes.ts:454` en
+    `src/state/msProjectImportNotice.ts:22` houden de categorie, maar de importeurs zetten haar sinds de fix van
+    knownbug 46 altijd op nul. Voor het commentaar over "bewaarde oude verslagen" is in de repo geen opslag- of
+    leespad. Voorstel: veld, nulinitialisatie en meldingsregel weg, of het compatibiliteitscontract onderbouwen.
+    Gevonden in review r1 van #634 (GPT-6.1-Sol). — B
 
 ## Rondleiding, Help en extensie-gidsen
 
