@@ -485,7 +485,7 @@ en noem het in je rapport of PR-tekst.
     geldige effectieve werkblokken, niet op de aanwezigheid van `workTime`. Gevonden in de aanval na #600
     (GPT-6.1-Sol). — B
 
-356. **Een B5-omzetting bij een latere MCP-call staat niet in het antwoord.** Alleen `planner_import_schedule`
+362. **Een B5-omzetting bij een latere MCP-call staat niet in het antwoord.** Alleen `planner_import_schedule`
     geeft `minuteModelConversion` mee. Staat de omzetting nog open, dan rekent een volgende leestool
     (`freshenScheduleForRead`) of muterende tool (de MCP-transactie) om, en `runCPM` meldt dat alleen via het
     meldingenkanaal (`src/state/slices/scheduleSlice.ts:180`). Probe van de aanval: oud bestand importeren,
@@ -496,7 +496,7 @@ en noem het in je rapport of PR-tekst.
     Voorstel: de omzetting van `runCPM` via de MCP-lease in de envelop zetten, zoals `remainingWorkRecomputed`.
     Gevonden bij de fix van aanval a10 na #600. — B
 
-357. **De kalenderreparatie bij het openen van een oud bestand bereikt MCP en de kern niet.**
+363. **De kalenderreparatie bij het openen van een oud bestand bereikt MCP en de kern niet.**
     `src/state/slices/fileSlice.ts:928` meldt `notifications.minuteModelCalendarRepaired` alleen via het
     meldingenkanaal: past het einde of de pauze van een kalender niet bij de opgeslagen werktijd, dan herstelt
     het laadpad de kalender. `planner_import_schedule` en `openIfc` zeggen daar niets over. Gezien in de code,
