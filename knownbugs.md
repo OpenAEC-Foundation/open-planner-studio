@@ -499,10 +499,19 @@ en noem het in je rapport of PR-tekst.
 363. **De kalenderreparatie bij het openen van een oud bestand bereikt MCP en de kern niet.**
     `src/state/slices/fileSlice.ts:928` meldt `notifications.minuteModelCalendarRepaired` alleen via het
     meldingenkanaal: past het einde of de pauze van een kalender niet bij de opgeslagen werktijd, dan herstelt
-    het laadpad de kalender. `planner_import_schedule` en `openIfc` zeggen daar niets over. Gezien in de code,
-    niet nagespeeld. Voorstel: dezelfde route als de B5-omzetting: de herstelde kalenders teruggeven uit
-    `applyLoadedProject`, en ze in het importantwoord en in `openWarnings` zetten. Gevonden bij de fix van
-    aanval a10 na #600. — S
+    het laadpad de kalender. `planner_import_schedule` en `openIfc` zeggen daar niets over. Nagespeeld in de
+    review van #664: een oud IFC met een scalaire kalender 07–11 en 8 uur per dag wordt bij openen 07–15; de
+    app krijgt de melding, MCP en `openWarnings` melden alleen de taakverschuiving, en de kernexport schrijft
+    de herstelde kalender zonder melding (`src/core/index.ts:88`). Voorstel: dezelfde route als de
+    B5-omzetting: de herstelde kalenders teruggeven uit `applyLoadedProject`, en ze in het importantwoord en
+    in `openWarnings` zetten. Gevonden bij de fix van aanval a10 na #600. — B
+
+368. **De headless HTTP-route met `output=ifc` heeft geen kanaal voor waarschuwingen.**
+    `headless/server/server.mjs:295` geeft bij een oud IFC het omgerekende bestand terug (`TimeModel =
+    MINUTES-1`), zonder waarschuwing in de body of de headers; `output=summary` meldt de B5-omzetting wel.
+    Hetzelfde geldt al voor `XER_ARCHIVE_DROPPED`. Voorstel: een contractkeuze, bijvoorbeeld een
+    gedocumenteerde responseheader met de waarschuwingscodes. Gevonden in de review van de fix voor aanval
+    a10 (GPT-6.1-Sol). — B
 
 ## Bestanden en herstel
 
