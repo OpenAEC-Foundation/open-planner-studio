@@ -66,4 +66,6 @@ jobs:
             output/resource-panel/
             test-results/
             playwright-report/
+            ${{ runner.temp }}/resource-before/test-results/
+            ${{ runner.temp }}/resource-before/playwright-report/
           retention-days: 14

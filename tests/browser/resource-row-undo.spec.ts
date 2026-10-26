@@ -85,8 +85,24 @@ test('projectweergave: hernoemen is één undo-stap en Ctrl+Z zet de oude naam v
     };
   });
   const question = page.getByText(/^'Kraan' (heeft \d+ toewijzing\(en\) — verwijderen\?|has \d+ assignment\(s\) — delete\?)$/);
-  const countText = (count: number) => new RegExp(`^'Kraan' (heeft ${count} toewijzing\\(en\\) — verwijderen\\?|has ${count} assignment\\(s\\) — delete\\?)$`);
+  const countText = (count: number) => new RegExp(String.raw`^'Kraan' (heeft ${count} toewijzing\(en\) — verwijderen\?|has ${count} assignment\(s\) — delete\?)$`);
   const beforeQuestion = await data();
+  // Leg de echte paneelstand vast: een ontbrekende knop mag geen onverklaarde kliktimeout zijn.
+  const panelState = await page.evaluate(rid => {
+    const s = window.__OPS__!.store.getState();
+    return {
+      activeRibbonTab: s.ui.activeRibbonTab,
+      showResourcePanel: s.ui.showResourcePanel,
+      resourcePanelDocked: s.ui.resourcePanelDocked,
+      resourcesView: s.ui.resourcesView,
+      resource: s.resources.find(r => r.id === rid),
+      rows: [...document.querySelectorAll('[data-ops-grid-row]')].map(r => r.getAttribute('data-ops-grid-row')),
+    };
+  }, id);
+  await test.info().attach('paneel-voor-verwijdervraag', { body: JSON.stringify(panelState, null, 2), contentType: 'application/json' });
+  expect(panelState).toMatchObject({ activeRibbonTab: 'resources', showResourcePanel: true, resourcePanelDocked: false, resourcesView: 'project', resource: { id, name: 'Kraan' } });
+  await expect(row).toBeVisible();
+  await expect(remove).toBeVisible();
   await remove.click();
   await expect(question).toHaveText(countText(1));
   expect(await data()).toEqual(beforeQuestion);
