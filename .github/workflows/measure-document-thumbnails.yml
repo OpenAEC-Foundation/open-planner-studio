@@ -20,7 +20,7 @@ jobs:
     # Bewuste opt-in via deze marker in de PR-omschrijving; geen extra werk op andere PR's.
     if: contains(github.event.pull_request.body, '<!-- meet-documentminiaturen -->')
     runs-on: ubuntu-22.04
-    timeout-minutes: 30
+    timeout-minutes: 35
     env:
       CI: 'true'
       EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
@@ -65,7 +65,7 @@ jobs:
           node scripts/run-browser-tests.mjs tests/browser/document-switch.spec.ts 2>&1 | tee ../evidence/browser-route.log
       - name: Vergelijk beide standen met hetzelfde harnas
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
-        timeout-minutes: 16
+        timeout-minutes: 24
         shell: bash
         run: |
           set -o pipefail

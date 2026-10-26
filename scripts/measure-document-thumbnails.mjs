@@ -31,7 +31,7 @@ const report = {
   mode: 'Vite-ontwikkelmodus, React StrictMode, Chromium zonder venster, nl-NL, UTC, 1600x1000',
   timing: 'Echte Enter-keydown tot twee requestAnimationFrame-callbacks na zichtbare commit; openen vanaf echte click. Dit is een paintgelegenheid, geen GPU-presentatietijd.',
   warmups: WARMUPS, samples: SAMPLES, order: ['base', 'head'],
-  executionCheck: 'Binaire V8-dekking: gesloten head nooit uitgevoerd, geopende head wel; geen vast aantal renderherhalingen.',
+  executionCheck: 'V8-tellerdelta met twee positieve kalibraties; de poort toetst alleen nul of meer dan nul aanroepen, geen vast aantal ontwikkelrenders.',
   runner: { node: process.version, cpu: cpus()[0]?.model, cores: cpus().length, memory: totalmem() },
   harnessSha256: hash(readFileSync(fileURLToPath(import.meta.url))),
   run: `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,
@@ -295,17 +295,28 @@ async function runCoverage(browser, url, label, scenario) {
     await close(page);
     const cdp = await context.newCDPSession(page);
     await cdp.send('Profiler.enable');
-    // De productvoorwaarde is wel/niet uitvoeren. Het aantal ontwikkelrenders is geen contract.
-    await cdp.send('Profiler.startPreciseCoverage', { callCount: false, detailed: false });
+    // Gebruik tellerdelta's: binaire dekking levert geen herhaalbare aanroepdelta voor deze proef.
+    // De productvoorwaarde blijft wel/niet uitvoeren; het aantal ontwikkelrenders is geen contract.
+    await cdp.send('Profiler.startPreciseCoverage', { callCount: true, detailed: false });
     const take = async phase => {
       const coverage = await cdp.send('Profiler.takePreciseCoverage');
       const matches = coverage.result.filter(s => /\/src\/utils\/documents\.ts(?:\?|$)/.test(s.url))
         .flatMap(s => s.functions.filter(f => f.functionName === 'buildThumbnail').map(f => ({ url: s.url, ...f })));
-      // V8 mag onuitgevoerde functies uit de delta weglaten; bron en warme open zijn hierboven bewezen.
-      const covered = matches.some(f => f.ranges[0].count > 0);
-      scenario.coverage.push({ phase, covered, functions: matches });
+      assert.ok(matches.every(f => Number.isSafeInteger(f.ranges[0]?.count) && f.ranges[0].count >= 0));
+      const count = matches.reduce((sum, f) => sum + f.ranges[0].count, 0);
+      const covered = count > 0;
+      scenario.coverage.push({ phase, count, covered, functions: matches });
       return covered;
     };
+    // Alleen een profilerkalibratie, buiten de tijdmeting en vóór de echte gebruikersroute.
+    // Beide directe aanroepen moeten zichtbaar zijn, ook nadat de eerste delta is gelezen.
+    for (const phase of ['calibration-first', 'calibration-repeat']) {
+      await page.evaluate(async () => {
+        const { buildThumbnail } = await import('/src/utils/documents.ts');
+        buildThumbnail([], '#000000');
+      });
+      assert.equal(await take(phase), true, `Profiler moet de functie herhaald herkennen: ${phase}`);
+    }
     assert.equal(await take('start'), false, 'De proef mag de opwarming niet meetellen');
     await edit(page, 'task.name', 'Aanroeptelling');
     const closed = await take('closed-edit');
@@ -360,11 +371,16 @@ try {
         const scenario = { key: `${size}x${documents}`, size, documents, timings: [], snapshots: [], coverage: [] };
         variant.scenarios.push(scenario);
         try {
+          console.log(`${label}/${scenario.key}: tijdmeting en kaart-/domeinroute starten`);
           await runTiming(browser, url, label, scenario);
+          save();
+          console.log(`${label}/${scenario.key}: ${scenario.timings.length} samples en ${scenario.snapshots.length} snapshots; uitvoeringscontrole starten`);
           await runCoverage(browser, url, label, scenario);
+          console.log(`${label}/${scenario.key}: uitvoeringscontrole geslaagd`);
         } catch (error) {
           scenario.error = String(error.stack || error);
           report.errors.push(`${label}/${scenario.key}: ${scenario.error}`);
+          console.error(`${label}/${scenario.key}: ${scenario.error}`);
         }
         save();
       }
