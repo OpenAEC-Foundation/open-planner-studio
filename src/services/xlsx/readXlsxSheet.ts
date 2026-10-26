@@ -42,6 +42,12 @@ export interface XlsxCell {
   num?: number;
   /** De cel draagt een datum-`numFmt` (ingebouwd 14–22 / 27–36 / 45–47 / 50–58, of custom met y/m/d). */
   isDate?: boolean;
+  /**
+   * De datumopmaak toont ook een kloktijd (ingebouwd 18–22 / 32–35 / 45–47, of custom met h/s).
+   * Alleen gezet naast `isDate`. Nodig omdat een geheel serieel getal in zo'n cel middernacht als
+   * MOMENT betekent, niet een kale datum.
+   */
+  hasTime?: boolean;
   /** De cel draagt een percentage-`numFmt` (ingebouwd 9/10, of custom met een vrije `%`). */
   isPercent?: boolean;
 }
@@ -235,6 +241,11 @@ function isBuiltinDateFormat(id: number): boolean {
     || (id >= 50 && id <= 58);
 }
 
+/** Ingebouwde datumformaten die ook een kloktijd tonen (ECMA-376, §18.8.30; 32–35 zijn de CJK-tijden). */
+function isBuiltinTimeFormat(id: number): boolean {
+  return (id >= 18 && id <= 22) || (id >= 32 && id <= 35) || (id >= 45 && id <= 47);
+}
+
 /** Ingebouwde percentageformaten: `0%` en `0.00%`. */
 function isBuiltinPercentFormat(id: number): boolean {
   return id === 9 || id === 10;
@@ -255,6 +266,11 @@ function customFormatIsDate(code: string): boolean {
   return /[ymd]/i.test(stripFormatLiterals(code));
 }
 
+/** Een custom formaat met uren of seconden toont een kloktijd (`m` alleen is maand óf minuut). */
+function customFormatHasTime(code: string): boolean {
+  return /[hs]/i.test(stripFormatLiterals(code));
+}
+
 function customFormatIsPercent(code: string): boolean {
   return stripFormatLiterals(code).includes('%');
 }
@@ -262,12 +278,15 @@ function customFormatIsPercent(code: string): boolean {
 interface StyleTable {
   /** Per `cellXfs`-index: draagt de stijl een datumopmaak? */
   readonly isDate: readonly boolean[];
+  /** Per `cellXfs`-index: toont de datumopmaak ook een kloktijd? */
+  readonly hasTime: readonly boolean[];
   readonly isPercent: readonly boolean[];
 }
 
 function parseStyles(xml: string): StyleTable {
   const customFormats = new Map<number, string>();
   const isDate: boolean[] = [];
+  const hasTime: boolean[] = [];
   const isPercent: boolean[] = [];
   let inCellXfs = false;
   for (const ev of scanXml(xml)) {
@@ -290,10 +309,11 @@ function parseStyles(xml: string): StyleTable {
       const id = Number(ev.attrs.numFmtId ?? '0');
       const custom = customFormats.get(id);
       isDate.push(custom !== undefined ? customFormatIsDate(custom) : isBuiltinDateFormat(id));
+      hasTime.push(custom !== undefined ? customFormatHasTime(custom) : isBuiltinTimeFormat(id));
       isPercent.push(custom !== undefined ? customFormatIsPercent(custom) : isBuiltinPercentFormat(id));
     }
   }
-  return { isDate, isPercent };
+  return { isDate, hasTime, isPercent };
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════
@@ -424,6 +444,7 @@ function parseWorksheet(xml: string, shared: readonly string[], styles: StyleTab
       }
     }
     const isDate = styleIndex >= 0 && styles.isDate[styleIndex] === true;
+    const hasTime = isDate && styles.hasTime[styleIndex] === true;
     const isPercent = styleIndex >= 0 && styles.isPercent[styleIndex] === true;
     if (text.length === 0 && num === undefined && !isDate && !isPercent) return; // lege cel
     row.cells.push({
@@ -431,6 +452,7 @@ function parseWorksheet(xml: string, shared: readonly string[], styles: StyleTab
       text,
       ...(num !== undefined ? { num } : {}),
       ...(isDate ? { isDate: true } : {}),
+      ...(hasTime ? { hasTime: true } : {}),
       ...(isPercent ? { isPercent: true } : {}),
     });
   };
@@ -661,7 +683,7 @@ export async function readXlsxSheetWith(
   if (sheetPath === undefined) throw new XlsxReadError('noSheet', 'geen werkblad in de relaties');
 
   const stylesXml = textOf(meta, 'xl/styles.xml');
-  const styles: StyleTable = stylesXml !== undefined ? parseStyles(stylesXml) : { isDate: [], isPercent: [] };
+  const styles: StyleTable = stylesXml !== undefined ? parseStyles(stylesXml) : { isDate: [], hasTime: [], isPercent: [] };
   const sharedXml = textOf(meta, 'xl/sharedStrings.xml');
   const shared = sharedXml !== undefined ? parseSharedStrings(sharedXml, limits.maxSharedStrings) : [];
 
