@@ -76,12 +76,14 @@ export function failureMessage(failure: ProxyFailure, port: number, settings: st
 }
 
 /**
- * De enige tool die na sessieverlies de blokkade opheft: hij kiest expliciet een document en bindt het
- * drift-anker van de sessie daaraan (`bindExpectedDoc` in `src/services/mcp/tools/runtime.ts`). Een
- * leestool bindt geen anker; de eerste wijziging zou het lege anker anders aan het dan actieve document binden.
+ * Tool die na sessieverlies expliciet een bestaand document kiest en het drift-anker van de sessie daaraan
+ * bindt (`bindExpectedDoc` in `src/services/mcp/tools/runtime.ts`). Ook een nieuw document of een import
+ * heft de blokkade op (zie `DOCUMENT_RECOVERY_TOOLS`). Een leestool bindt geen anker; de eerste wijziging zou
+ * het lege anker anders aan het dan actieve document binden.
  */
 export const DOCUMENT_CHOICE_TOOL = 'planner_switch_document';
-// Deze acties binden eveneens een nieuw anker, maar blijven mutaties: nooit automatisch herhalen.
+// Deze acties binden eveneens een nieuw anker en heffen de blokkade op, maar blijven mutaties: nooit
+// automatisch herhalen.
 const DOCUMENT_RECOVERY_TOOLS = new Set([DOCUMENT_CHOICE_TOOL, 'planner_new_document', 'planner_import_schedule']);
 
 /**
@@ -160,8 +162,9 @@ export function createBridgeProxy(opts: BridgeProxyOptions, send: (message: JSON
   /**
    * Gezet zodra een sessie verloren ging (404), ongeacht welk bericht dat ontdekte. Zolang hij staat,
    * weigert de proxy elke wijzigende tool, ook aanvragen die al in de wachtrij stonden. Alleen een
-   * geslaagde `planner_switch_document` heft hem op. Omdat de wachtrij strikt op volgorde loopt, zijn
-   * aanvragen die vóór die keuze binnenkwamen dan al geweigerd.
+   * geslaagde hersteltool (`DOCUMENT_RECOVERY_TOOLS`: document wisselen, nieuw document of importeren) heft
+   * hem op. Omdat de wachtrij strikt op volgorde loopt, zijn aanvragen die vóór dat herstel binnenkwamen dan
+   * al geweigerd.
    */
   let documentCheckNeeded = false;
   /** Leestools volgens de laatste `tools/list` (`readOnlyHint`). Een onbekende tool telt als wijzigend. */
