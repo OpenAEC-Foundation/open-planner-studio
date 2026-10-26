@@ -19,6 +19,9 @@ import './domStub';
 import { useAppStore } from '@/state/appStore';
 import { createAppStore } from '@/state/appStoreFactory';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
+import { freshPayload, payloadFromImport, type DocumentPayload } from '@/state/documentContract';
+import { prepareLoadedPayload } from '@/state/documentActivation';
+import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { readMPP } from '@/services/mpp/mppReader';
 import { readXER } from '@/services/xer/xerReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
@@ -325,6 +328,43 @@ function xer(dateOnly: boolean): ImportResult {
   const state = (t: Task) => [t.status, t.time.durationUnit, t.time.remainingMinutes, t.time.remainingTime];
   eq('voltooid: urentaak krijgt rest 0 (niet 1920 min)', state(leaf(imported)), ['COMPLETED', 'hours', 0, 0]);
   eq('voltooid → IFC → heropenen: rest 0', state(leaf(reopen(solved(imported)))), ['COMPLETED', 'hours', 0, 0]);
+}
+
+// ── 8. Knownbug 357: de IFC-lezer zet de rest niet opnieuw uit het percentage ───────────────────
+// Kalender ma–do 07:00–14:45 (465 min), vr 07:00–12:00. Lopende taak C: dagenmaat, 3 d, rest 5/6 d,
+// 13/18. De lezer zet de rest uit het dagenrecord; `normalizeImportedProgress` maakte daar 3 × 5/18 =
+// 0,833333333333333 van, en een tweede export schreef 387 in plaats van 388 min. Nu blijft de waarde uit
+// het record staan. Dat dat record zelf de 388 min verklaart (geen afronding op zes decimalen), regelt
+// PR #658 (`recordDayValue`); pas met beide blijft de rest bij elke ronde 388 min.
+{
+  const LONG = [{ start: 420, end: 885 }];
+  const SHORT = [{ start: 420, end: 720 }];
+  const p: DocumentPayload = freshPayload();
+  p.calendar = {
+    ...p.calendar, workStartHour: 7, workEndHour: 14.75, hoursPerDay: 7.75, holidays: [],
+    workTime: { byWeekday: { 1: LONG, 2: LONG, 3: LONG, 4: LONG, 5: SHORT, 6: [], 7: [] } },
+  };
+  p.calendars = [p.calendar];
+  p.project = { ...p.project, startDate: '2026-06-01', statusDate: '2026-06-05' };
+  p.tasks = [{
+    id: 'C', name: 'C', description: '', wbsCode: 'C', taskType: 'CONSTRUCTION', status: 'STARTED', isMilestone: false,
+    priority: 500, parentId: null, childIds: [], resourceIds: [],
+    time: {
+      ...createDefaultTaskTime('2026-06-01', 3), scheduleStart: '2026-06-01T07:00', scheduleFinish: '2026-06-04T14:45',
+      earlyStart: '2026-06-01T07:00', earlyFinish: '2026-06-04T14:45', actualStart: '2026-06-01T07:00',
+      completion: 13 / 18, remainingTime: 5 / 6,
+    },
+  }];
+  /** De dagen in het `RemainingTime`-record van het bestand. */
+  const recordDays = (ifc: string) => Number(ifc.match(/"RemainingTime":\[([^,\]]+),\d+\]/)?.[1]);
+  const first = writeIFC(buildWriteIFCInput(prepareLoadedPayload(p, { recompute: true })));
+  eq('357: de eerste export schrijft 388 min (5/6 × 465)', first.includes("'PT6H28M0S'"), true);
+  const back = readIFC(first);
+  eq('357 ronde 1: na heropenen is de rest de waarde uit het record, niet 3 × 5/18',
+    back.tasks[0].time.remainingTime, recordDays(first));
+  const second = writeIFC(buildWriteIFCInput(payloadFromImport(back, null)));
+  eq('357 ronde 2: na heropenen is de rest de waarde uit het record',
+    readIFC(second).tasks[0].time.remainingTime, recordDays(second));
 }
 
 if (diffs.length === 0) {
