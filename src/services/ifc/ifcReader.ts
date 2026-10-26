@@ -1,3 +1,4 @@
+import { calendarExceptionKey } from './calendarExceptionKey';
 import { Task, TaskTime, TaskType, TASK_TYPES } from '@/types/task';
 import { WORK_RULES, type WorkRule } from '@/types/workRule';
 import { normalizeCurveValues } from '@/engine/contour/contourEngine';
@@ -2650,15 +2651,15 @@ function legacyScalarFromEffectiveBands(
 const declaredScalarCalendars = new WeakSet<WorkCalendar>();
 
 /**
- * Het STEP-id-signaal
- * dat een `IFCWORKTIME` in `ExceptionTimes` een WERKENDE UITZONDERING is, i.p.v. een feestdag.
- * Spiegel van `writeCalendarGenerationMeta`'s `WorkingExceptionIds`-property in hetzelfde
+ * V1-inhoudssleutels (merge-bestendig), met legacy STEP-ids als terugval, markeren
+ * een IFCWORKTIME in ExceptionTimes als werkende uitzondering in plaats van feestdag.
+ * Spiegel van WorkingExceptionKeysV1/WorkingExceptionIds in hetzelfde
  * `OPS_Calendar`-pset als generation/libraryOrigin/hoursPerDay. BEWUST geen discriminator op
  * `IfcWorkTime.RecurrencePattern` (args[3]): IFC 4.3 reserveert die ref niet voor werkende
  * uitzonderingen — een spec-conforme externe tool kan een RECURRENTE FEESTDAG ("elke 25 december")
  * met exact zo'n gevulde ref schrijven, en die zou dan zonder deze pset-check als werkdag
- * ingelezen worden. Geen/corrupte property ⇒ `undefined` — de aanroeper valt dan terug op "alles
- * in ExceptionTimes is een feestdag", het conservatieve gedrag voor bestanden zonder deze markering.
+ * ingelezen worden. Geen of corrupte markering betekent conservatief: feestdag.
+ * Aanwezige V1-metadata heeft voorrang op legacy-ids, ook als de V1-inhoud ongeldig is.
  */
 function extractCalendarExceptionMetadata(
   calStepId: string,
@@ -2666,6 +2667,7 @@ function extractCalendarExceptionMetadata(
   entityMap: Map<string, StepEntity>,
 ): {
   workingExceptionIds?: Set<string>;
+  workingExceptionKeys?: Set<string>;
   p6Source?: 'XER';
   p6NonWorkPenaltyDates?: string[];
   p6NonWorkPenaltyDatesState?: import('@/types/calendar').P6NonWorkPenaltyDatesState;
@@ -2673,6 +2675,7 @@ function extractCalendarExceptionMetadata(
   for (const props of opsCalendarPsetProps(calStepId, entities, entityMap)) {
     const result: {
       workingExceptionIds?: Set<string>;
+      workingExceptionKeys?: Set<string>;
       p6Source?: 'XER';
       p6NonWorkPenaltyDates?: string[];
       p6NonWorkPenaltyDatesState?: import('@/types/calendar').P6NonWorkPenaltyDatesState;
@@ -2683,8 +2686,10 @@ function extractCalendarExceptionMetadata(
     let candidatePenaltyDates: string[] | undefined;
     for (const prop of props) {
       const name = stripQuotes(prop.args[0] || '');
-      if (name !== 'WorkingExceptionIds' && name !== 'P6Source'
+      if (name !== 'WorkingExceptionIds' && name !== 'WorkingExceptionKeysV1' && name !== 'P6Source'
         && name !== 'P6NonWorkPenaltyDates' && name !== 'P6NonWorkPenaltyDatesState') continue;
+      // Aanwezige maar corrupte V1 mag niet terugvallen op mogelijk vernummerde legacy-ids.
+      if (name === 'WorkingExceptionKeysV1') result.workingExceptionKeys = new Set();
       const value = parseTypedValue(prop.args[2] || '');
       if (typeof value !== 'string' || !value) continue;
       if (name === 'P6NonWorkPenaltyDatesState') {
@@ -2697,7 +2702,10 @@ function extractCalendarExceptionMetadata(
       }
       try {
         const parsed = JSON.parse(value);
-        if (name === 'WorkingExceptionIds'
+        if (name === 'WorkingExceptionKeysV1'
+          && Array.isArray(parsed) && parsed.every(x => typeof x === 'string')) {
+          result.workingExceptionKeys = new Set(parsed);
+        } else if (name === 'WorkingExceptionIds'
           && Array.isArray(parsed) && parsed.every(x => typeof x === 'string')) {
           result.workingExceptionIds = new Set(parsed);
         } else if (name === 'P6NonWorkPenaltyDates' && Array.isArray(parsed)) {
@@ -2960,14 +2968,7 @@ function buildCalendarFromEntity(
     // verzint een feestdag op de leesdatum): één datum ⇒ die ene dag, geen datum ⇒ geen uitzondering.
     const range = workTimeDateRange(wt);
     if (!range) continue;
-    if (!workingExceptionIds?.has(ref)) {
-      holidays.push({
-        name: ifcSlotText(wt.args[0]) || 'Feestdag',
-        ...range,
-      });
-      continue;
-    }
-    // OPS-gemarkeerd als werkende uitzondering. De banden zitten — indien geschreven — nog steeds
+    // Lees de banden vóór de classificatie: V1 vergelijkt inhoud, geen STEP-nummers. De banden zitten — indien geschreven — nog steeds
     // in de RecurrencePattern-ref (args[3] → TimePeriods, args[7]); DayComponent is hier altijd
     // leeg. Canoniseren naar `end > start` (`WorkingException.bands`): een
     // wrap-band komt als tijd-van-de-dag terug (`e ≤ s`) en krijgt hier `+1440` terug, precies
@@ -2988,6 +2989,16 @@ function buildCalendarFromEntity(
           }
         }
       }
+    }
+    const stableKeys = calendarExceptionMetadata.workingExceptionKeys;
+    const recurrence = excRecRef ? entityMap.get(excRecRef) : undefined;
+    const isWorking = stableKeys !== undefined
+      ? recurrence?.type === 'IFCRECURRENCEPATTERN' && recurrence.args[0] === '.DAILY.'
+        && stableKeys.has(calendarExceptionKey({ name: ifcSlotText(wt.args[0]), ...range, bands }))
+      : workingExceptionIds?.has(ref);
+    if (!isWorking) {
+      holidays.push({ name: ifcSlotText(wt.args[0]) || 'Feestdag', ...range });
+      continue;
     }
     workingExceptions.push({
       name: ifcSlotText(wt.args[0]) || 'Werkende uitzondering',

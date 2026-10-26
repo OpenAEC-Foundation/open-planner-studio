@@ -1,5 +1,9 @@
 import { barPoint, expect, test } from './fixtures/ops';
 
+// Deze route bedient tijdlijnbalken naast de takenlijst en de eigenschappenrail.
+// Reserveer expliciet genoeg canvasruimte, onafhankelijk van de standaard paneelbreedte.
+test.use({ viewport: { width: 1600, height: 900 } });
+
 // Audit weergaven, bevinding 7: "Duur" had drie formatters. Met Duurweergave "Altijd uren" toonde
 // de Gantt-tooltip een dagtaak als "18h(2d)", maar het taakraster bleef "2d" zeggen. Nu lezen
 // raster, tooltip en afdruk dezelfde formatter. De brug zet alleen de fixture (project, kalender en

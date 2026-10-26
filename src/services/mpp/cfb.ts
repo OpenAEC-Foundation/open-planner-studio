@@ -15,6 +15,16 @@
 // `tests/planning/check-mpp-import.ts` bewijzen dit (o.a. een zelf-lussende DIFAT-sector met een
 // vijandig grote `numFatSectors`, en dubbele siblings voor de gedeelde visited-set).
 
+/** Herkenbare containerfout: de UI vertaalt de kop, technische details blijven Engels. */
+export class CfbParseError extends Error {
+  readonly cfbCode = 'CFB_INVALID';
+
+  constructor(detail: string) {
+    super(detail);
+    this.name = 'CfbParseError';
+  }
+}
+
 const MAGIC = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
 
 const FAT_FREESECT = 0xffffffff;
@@ -86,19 +96,19 @@ export class CfbFile {
     this.view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 
     if (bytes.byteLength < HEADER_SIZE) {
-      throw new Error(
-        `CFB: bestand te klein voor een geldige header (${bytes.byteLength} bytes, minimaal ${HEADER_SIZE})`,
+      throw new CfbParseError(
+        `CFB: file too small for a valid header (${bytes.byteLength} bytes, minimum ${HEADER_SIZE})`,
       );
     }
     for (let i = 0; i < MAGIC.length; i++) {
       if (bytes[i] !== MAGIC[i]) {
-        throw new Error('CFB: ongeldige magic — geen Compound File Binary');
+        throw new CfbParseError('CFB: invalid signature — not a Compound File Binary');
       }
     }
 
     const majorVersion = this.view.getUint16(26, true);
     if (majorVersion !== 3 && majorVersion !== 4) {
-      throw new Error(`CFB: onbekende major version ${majorVersion} (verwacht 3 of 4)`);
+      throw new CfbParseError(`CFB: unknown major version ${majorVersion} (expected 3 or 4)`);
     }
     // sectorShift/miniSectorShift/miniStreamCutoff zijn voor CFB vaste waarden per major version —
     // expliciet valideren i.p.v. `1 << sectorShift` blind te vertrouwen (dat wrapt stil modulo 32).
@@ -106,12 +116,12 @@ export class CfbFile {
     const miniSectorShift = this.view.getUint16(32, true);
     const expectedSectorShift = majorVersion === 3 ? 9 : 12;
     if (sectorShift !== expectedSectorShift) {
-      throw new Error(
-        `CFB: sectorShift ${sectorShift} hoort niet bij major version ${majorVersion} (verwacht ${expectedSectorShift})`,
+      throw new CfbParseError(
+        `CFB: sectorShift ${sectorShift} does not match major version ${majorVersion} (expected ${expectedSectorShift})`,
       );
     }
     if (miniSectorShift !== 6) {
-      throw new Error(`CFB: onverwachte miniSectorShift ${miniSectorShift} (verwacht 6)`);
+      throw new CfbParseError(`CFB: unexpected miniSectorShift ${miniSectorShift} (expected 6)`);
     }
     this.sectorSize = 1 << sectorShift;
     this.miniSectorSize = 1 << miniSectorShift;
@@ -120,7 +130,7 @@ export class CfbFile {
     const firstDirSector = this.view.getUint32(48, true);
     this.miniStreamCutoff = this.view.getUint32(56, true);
     if (this.miniStreamCutoff !== 4096) {
-      throw new Error(`CFB: onverwachte miniStreamCutoff ${this.miniStreamCutoff} (verwacht 4096)`);
+      throw new CfbParseError(`CFB: unexpected miniStreamCutoff ${this.miniStreamCutoff} (expected 4096)`);
     }
     const firstMiniFatSector = this.view.getUint32(60, true);
     const numMiniFatSectors = this.view.getUint32(64, true);
@@ -138,7 +148,7 @@ export class CfbFile {
     const difat = this.readDifat(firstDifatSector, numDifatSectors, numFatSectors, maxSectors);
     this.fat = this.readFat(difat, maxSectors);
     if (this.fat.length === 0 || numFatSectors === 0) {
-      throw new Error('CFB: geen FAT-sectoren gevonden');
+      throw new CfbParseError('CFB: no FAT sectors found');
     }
 
     const dirBytes = this.readChain(firstDirSector, undefined, 'directory');
@@ -146,7 +156,7 @@ export class CfbFile {
 
     const rootIdx = rawEntries.findIndex((e) => e.type === 'root');
     if (rootIdx < 0) {
-      throw new Error('CFB: geen root-directory-entry gevonden');
+      throw new CfbParseError('CFB: no root directory entry found');
     }
     const rootRaw = rawEntries[rootIdx];
     this.miniStreamStartSector = rootRaw.startSector;
@@ -179,11 +189,11 @@ export class CfbFile {
       difat.length < cap
     ) {
       if (steps++ > this.maxSectorSteps) {
-        throw new Error(this.fmtErr('DIFAT-keten te lang of cyclisch', 'DIFAT', difatSector, this.sectorOffset(difatSector)));
+        throw new CfbParseError(this.fmtErr('DIFAT chain too long or cyclic', 'DIFAT', difatSector, this.sectorOffset(difatSector)));
       }
       const off = this.sectorOffset(difatSector);
       if (off + this.sectorSize > this.bytes.byteLength) {
-        throw new Error(this.fmtErr('DIFAT-sector buiten bestandsgrenzen', 'DIFAT', difatSector, off));
+        throw new CfbParseError(this.fmtErr('DIFAT sector outside file bounds', 'DIFAT', difatSector, off));
       }
       const entriesPerSector = this.sectorSize / 4 - 1; // laatste u32 = volgende DIFAT-sector
       for (let i = 0; i < entriesPerSector && difat.length < cap; i++) {
@@ -206,7 +216,7 @@ export class CfbFile {
       if (fatSector === FAT_FREESECT) continue;
       const off = this.sectorOffset(fatSector);
       if (off + this.sectorSize > this.bytes.byteLength) {
-        throw new Error(this.fmtErr('FAT-sector buiten bestandsgrenzen', 'FAT', fatSector, off));
+        throw new CfbParseError(this.fmtErr('FAT sector outside file bounds', 'FAT', fatSector, off));
       }
       for (let i = 0; i < entriesPerFatSector && values.length < maxSectors; i++) {
         values.push(this.view.getUint32(off + i * 4, true));
@@ -232,7 +242,7 @@ export class CfbFile {
   private parseDirectory(dirBytes: Uint8Array): RawDirEntry[] {
     const entryCount = Math.floor(dirBytes.length / DIR_ENTRY_SIZE);
     if (entryCount === 0) {
-      throw new Error('CFB: lege of onleesbare directory-keten');
+      throw new CfbParseError('CFB: empty or unreadable directory chain');
     }
     const view = new DataView(dirBytes.buffer, dirBytes.byteOffset, dirBytes.byteLength);
     const entries: RawDirEntry[] = [];
@@ -291,7 +301,7 @@ export class CfbFile {
     let steps = 0;
     while (worklist.length > 0) {
       if (steps++ > rawEntries.length + this.maxSectorSteps) {
-        throw new Error('CFB: directory-boom te diep of cyclisch');
+        throw new CfbParseError('CFB: directory tree too deep or cyclic');
       }
       const item = worklist.pop();
       if (!item) continue;
@@ -339,7 +349,7 @@ export class CfbFile {
     const bits = [`CFB: ${detail}`, `[${label}]`];
     if (sector !== undefined) bits.push(`sector=${sector}`);
     if (offset !== undefined) bits.push(`offset=${offset}`);
-    bits.push(`bestandslengte=${this.bytes.byteLength}`);
+    bits.push(`fileLength=${this.bytes.byteLength}`);
     return bits.join(' ');
   }
 
@@ -357,14 +367,14 @@ export class CfbFile {
     let collected = 0;
     while (sector !== FAT_ENDOFCHAIN && sector !== FAT_FREESECT) {
       if (steps++ > this.maxSectorSteps) {
-        throw new Error(this.fmtErr('sectorketen te lang of cyclisch', label, sector, this.sectorOffset(sector)));
+        throw new CfbParseError(this.fmtErr('sector chain too long or cyclic', label, sector, this.sectorOffset(sector)));
       }
       if (sector < 0 || sector >= this.fat.length) {
-        throw new Error(this.fmtErr(`ongeldig sectornummer ${sector} in keten`, label, sector));
+        throw new CfbParseError(this.fmtErr(`invalid sector number ${sector} in chain`, label, sector));
       }
       const off = this.sectorOffset(sector);
       if (off + this.sectorSize > this.bytes.byteLength) {
-        throw new Error(this.fmtErr('sector buiten bestandsgrenzen', label, sector, off));
+        throw new CfbParseError(this.fmtErr('sector outside file bounds', label, sector, off));
       }
       chunks.push(this.bytes.subarray(off, off + this.sectorSize));
       collected += this.sectorSize;
@@ -372,7 +382,7 @@ export class CfbFile {
       sector = this.fat[sector];
     }
     if (byteLimit !== undefined && collected < byteLimit) {
-      throw new Error(this.fmtErr(`keten eindigde voortijdig (${collected} van ${byteLimit} bytes)`, label));
+      throw new CfbParseError(this.fmtErr(`chain ended prematurely (${collected} of ${byteLimit} bytes)`, label));
     }
     const out = new Uint8Array(collected);
     let pos = 0;
@@ -404,18 +414,18 @@ export class CfbFile {
     let collected = 0;
     while (sector !== FAT_ENDOFCHAIN && sector !== FAT_FREESECT) {
       if (steps++ > this.maxMiniSteps) {
-        throw new Error(this.fmtErr('minisectorketen te lang of cyclisch', label, sector, sector * this.miniSectorSize));
+        throw new CfbParseError(this.fmtErr('mini-sector chain too long or cyclic', label, sector, sector * this.miniSectorSize));
       }
       // Bereikcontrole vooraan (zoals readChain) — vóór we de sector gebruiken, niet pas
       // vlak vóór de volgende stap.
       if (sector < 0 || sector >= this.miniFat.length) {
-        throw new Error(this.fmtErr(`ongeldig minisectornummer ${sector} in keten`, label, sector));
+        throw new CfbParseError(this.fmtErr(`invalid mini-sector number ${sector} in chain`, label, sector));
       }
       // Offset relatief aan de mini-stream (niet aan het bestand) en met de minisector-korrel
       // (64 bytes), niet de gewone sectorgrootte.
       const off = sector * this.miniSectorSize;
       if (off + this.miniSectorSize > miniStreamBytes.length) {
-        throw new Error(this.fmtErr('minisector buiten mini-stream-grenzen', label, sector, off));
+        throw new CfbParseError(this.fmtErr('mini-sector outside mini-stream bounds', label, sector, off));
       }
       chunks.push(miniStreamBytes.subarray(off, off + this.miniSectorSize));
       collected += this.miniSectorSize;
@@ -423,7 +433,7 @@ export class CfbFile {
       sector = this.miniFat[sector];
     }
     if (collected < byteLimit) {
-      throw new Error(this.fmtErr(`ministream-keten eindigde voortijdig (${collected} van ${byteLimit} bytes)`, label));
+      throw new CfbParseError(this.fmtErr(`mini-stream chain ended prematurely (${collected} of ${byteLimit} bytes)`, label));
     }
     const out = new Uint8Array(collected);
     let pos = 0;
