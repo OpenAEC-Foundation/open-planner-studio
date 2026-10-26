@@ -1419,13 +1419,17 @@ function writeCalendarLibrary(
   ownerHistId: number,
   hourTaskCalendarIds: Set<string>,
 ): void {
+  if (calendars.length === 0) return;
+  // Eén index per schrijfronde voorkomt dat elke kalender alle taken/resources opnieuw scant.
+  // groupBy houdt de invoervolgorde vast, dus ook STEP-volgorde en verwijzingen blijven gelijk.
+  const resourcesByCalendar = groupBy(resources, r => r.calendarId);
+  const tasksByCalendar = groupBy(tasks, t => t.calendarId);
   for (const cal of calendars) {
     const written = writeCalendar(ctx, cal, ownerHistId, `calendar_${cal.id}`, hourTaskCalendarIds.has(cal.id));
     const { calStepId } = written;
     writeCalendarGenerationMeta(ctx, cal, ownerHistId, written);
 
-    const resRefs = resources
-      .filter(r => r.calendarId === cal.id)
+    const resRefs = (resourcesByCalendar.get(cal.id) ?? [])
       .map(r => ref(ctx, `res_${r.id}`))
       .filter(r => r !== '#0');
     if (resRefs.length > 0) {
@@ -1433,8 +1437,7 @@ function writeCalendarLibrary(
         `IFCRELASSIGNSTOCONTROL(${ifcStr(guidOf(ctx, 'resctrl_' + cal.id))},#${ownerHistId},$,$,(${resRefs.join(',')}),$,#${calStepId})`);
     }
 
-    const taskRefs = tasks
-      .filter(t => t.calendarId === cal.id)
+    const taskRefs = (tasksByCalendar.get(cal.id) ?? [])
       .map(t => ref(ctx, `task_${t.id}`))
       .filter(r => r !== '#0');
     if (taskRefs.length > 0) {

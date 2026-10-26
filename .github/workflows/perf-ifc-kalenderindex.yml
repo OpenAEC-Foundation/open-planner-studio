@@ -1,0 +1,47 @@
+name: Prestatiemeting IFC-kalenderindex
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/services/ifc/ifcWriter.ts
+      - tests/planning/check-ifc-calendar-index.ts
+      - tests/planning/ifcCalendarIndexFixture.ts
+      - docs/superpowers/evidence/ifc-kalenderindex.mjs
+      - .github/workflows/perf-ifc-kalenderindex.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: perf-ifc-kalenderindex-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  vergelijk:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Controleer kalenderkoppelingen en schaalbudget
+        run: bash tests/planning/run.sh check-ifc-calendar-index.ts
+      - name: Meet de oude en nieuwe schrijver op dezelfde invoer
+        env:
+          OPS_PERF_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          TZ: UTC
+        run: node docs/superpowers/evidence/ifc-kalenderindex.mjs --base "$OPS_PERF_BASE_SHA" --out ifc-kalenderindex.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ifc-kalenderindex
+          path: ifc-kalenderindex.json
+          if-no-files-found: warn
+          retention-days: 7
