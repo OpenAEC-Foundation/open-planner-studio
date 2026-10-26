@@ -126,7 +126,10 @@ function scene(count: number, rowHeight = 28, scrollY = 0, compressed = false, h
         durationUnit: hours ? 'hours' as const : 'days' as const,
         scheduleStart: hours ? '2026-10-19T08:00' : '2026-10-19',
         scheduleFinish: hours ? '2026-10-23T16:00' : '2026-10-23',
-        earlyStart: undefined, earlyFinish: undefined, lateStart: undefined, lateFinish: undefined,
+        earlyStart: hours ? '2026-10-19T08:00' : '2026-10-19',
+        earlyFinish: hours ? '2026-10-23T16:00' : '2026-10-23',
+        lateStart: hours ? '2026-10-19T08:00' : '2026-10-19',
+        lateFinish: hours ? '2026-10-23T16:00' : '2026-10-23',
         completion: (i % 5) / 4, totalFloat: 2,
       },
     };

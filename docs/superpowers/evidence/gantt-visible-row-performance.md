@@ -54,5 +54,22 @@ De vergelijking faalt bij afwijkende invoer, tekenuitvoer of hitdetectie, of als
 rijpositieberekeningen niet afneemt. De timing omvat rendererconstructie plus renderen
 tegen een opnemende canvascontext; zij meet geen echte browserframetijd of GPU-werk.
 
-Bij het opstellen van dit document waren deze CI-controles nog niet uitgevoerd. Er wordt
-daarom nog geen gemeten snelheidswinst of groene TypeScript-/browsercontrole geclaimd.
+## Eerste CI-meting
+
+[Run 40284512662](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/runs/40284512662)
+is geslaagd op head `edb1aabd9e62a58b46cf034269477a4cba09c17e`, tegenover bovengenoemde
+uitgangsrevisie. De meetstap is met exitcode 0 geëindigd; alle vier uitvoeringen van de
+gerichte renderercheck voldeden aan 100 controles. Het
+[artifact](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/runs/40284512662/artifacts/12633560603)
+is gedownload en gecontroleerd. Per schaal en meetpaar waren invoer-, teken- en hithashes
+exact gelijk.
+
+- 1.000 rijen: 3.018 naar 59 rijpositieberekeningen. Paar 1: 0,755 naar 0,763 ms;
+  paar 2: 0,950 naar 0,758 ms. De tijdwinst is op deze schaal niet consistent.
+- 10.000 rijen: 30.014 naar 55 rijpositieberekeningen. Paar 1: 1,207 naar 0,594 ms;
+  paar 2: 1,076 naar 0,584 ms, circa 46–51% minder gemeten rendertijd in deze opstelling.
+
+De eerste reguliere typecheck stopte met exitcode 2 op een ongeldige testfixture:
+`earlyStart`/`earlyFinish` zijn verplichte strings. De fixture is daarna gecorrigeerd; de
+productcode is sinds de gemeten head ongewijzigd. De nieuwe head vereist nog een eigen
+CI-resultaat. Planning, browser en de volledige poort worden hier nog niet groen genoemd.
