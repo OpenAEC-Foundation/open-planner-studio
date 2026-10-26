@@ -448,6 +448,11 @@ en noem het in je rapport of PR-tekst.
     vergelijk de volledige tekst van `.ops-toast-message` exact; laat de taaknamen apart gecontroleerd.
     Geen fout in de huidige producttelling aangetoond. — B
 
+321. **De browsertest voor een kapot `.mpp`-bestand toetst geen bestaand werk.** `tests/browser/new-open-task-flow.spec.ts:58`
+    zegt dat bestaand werk behouden blijft, maar vergelijkt met een leeg beginproject (de fixture doet
+    `newProject()` en voegt geen taak toe). Een losse probe met gewijzigd werk slaagt wel. Voorstel: één taak in
+    de beginstaat en ook de dirty-vlag controleren. Gevonden in review r1 van #636 (GPT-6.1-Sol). — B
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen en de selectie niet lezen.
