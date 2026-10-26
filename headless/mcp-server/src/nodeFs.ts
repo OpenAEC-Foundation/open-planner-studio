@@ -18,7 +18,7 @@ export { ScopeEscapeError } from '@/services/mcp/fileScopeError';
 // alleen een controle vooraf; een ander proces kan daarna een map door een link vervangen, of een map
 // mét inhoud naar buiten verplaatsen. Node kent geen `openat`/`renameat`, maar wel de werkmap van het
 // proces: die wijst naar een map-OBJECT, niet naar een pad. Daarom doet elke operatie dit, in één
-// synchroon blok (geen andere code kan ertussen, en de procesmap gaat erna terug):
+// synchroon blok (geen andere code kan ertussen, en de procesmap wordt erna hersteld, met de werkmap als terugval; beide kunnen verdwijnen):
 //   - `chdir` naar de echte map van het bestand;
 //   - `realpath('.')` (de native variant: de kernel geeft het huidige pad van dát map-object) moet binnen
 //     de werkmap liggen, en de werkmap zelf moet nog dezelfde `dev`/`ino` hebben;
@@ -41,6 +41,7 @@ import {
 } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import path from 'node:path';
+import { decodeXmlBytes } from './xmlEncoding';
 import type { McpFileFs } from '@/services/mcp/tools/fileTools';
 import type { FileIdentityInfo } from '@/services/fileAccess/fileIdentity';
 import { isPathOpenInApp as noAppLock, type IsPathOpenInApp } from './appLock';
@@ -57,6 +58,14 @@ function errCode(e: unknown): string | undefined {
   return e && typeof e === 'object' && 'code' in e ? String((e as { code: unknown }).code) : undefined;
 }
 
+/** Beide herstelpaden zijn verdwenen: bewaar de operatie- én herstelfouten zonder ErrorOptions/ES2021. */
+export class WorkingDirectoryRestoreError extends Error {
+  constructor(readonly errors: readonly unknown[]) {
+    super('Could not restore the process working directory or its fallback; '
+      + 'the process directory remains unrestored. ' + errors.map(String).join(' | '));
+    this.name = 'WorkingDirectoryRestoreError';
+  }
+}
 /** `dev` + `ino` van een bestand of map. */
 interface Identity { dev: bigint; ino: bigint }
 const idOf = (s: BigIntStats): Identity => ({ dev: s.dev, ino: s.ino });
@@ -96,6 +105,8 @@ export type NodeFsPhase =
 export interface NodeFsHooks {
   afterCheck?: (phase: NodeFsPhase, target: string) => void;
   fault?: (phase: 'write' | 'rename') => void;
+  /** Alleen de directory-fsync vervangen/observeren in tests; standaard de echte syscall. */
+  syncDirectory?: (fd: number) => void;
 }
 
 const O_NOFOLLOW = fsConstants.O_NOFOLLOW ?? 0;
@@ -225,7 +236,7 @@ export async function createNodeFileFs(
     if (!isInside(realRoot, where)) throw outside(target);
   }
 
-  /** Voer `fn` synchroon uit met `dir` als procesmap, na de ligging te controleren; zet de procesmap terug. */
+  /** Voer `fn` synchroon uit in de gecontroleerde map; probeer daarna de oude map of de werkmap. */
   function inDir<T>(dir: string, target: string, fn: () => T): T {
     let previous: string;
     try {
@@ -240,11 +251,27 @@ export async function createNodeFileFs(
       if (code === 'ENOENT' || code === 'ENOTDIR' || code === 'ELOOP') throw changed(target);
       throw e;
     }
+    let operationFailed = false;
+    let operationError: unknown;
     try {
       assertHere(target);
       return fn();
+    } catch (error) {
+      operationFailed = true;
+      operationError = error;
+      throw error;
     } finally {
-      try { process.chdir(previous); } catch { process.chdir(realRoot); }
+      try {
+        process.chdir(previous);
+      } catch (restoreError) {
+        try {
+          process.chdir(realRoot);
+        } catch (fallbackError) {
+          throw new WorkingDirectoryRestoreError([
+            ...(operationFailed ? [operationError] : []), restoreError, fallbackError,
+          ]);
+        }
+      }
     }
   }
 
@@ -315,7 +342,9 @@ export async function createNodeFileFs(
   }
 
   function writeHere(c: Checked, target: string, content: string): void {
-    const tmpName = `.${c.base}.${randomBytes(6).toString('hex')}.ops-save.tmp`;
+    // De doelnaam kan zelf al bijna NAME_MAX bytes zijn; voeg daar niets aan toe.
+    // O_EXCL en de inodecontrole blijven het eigendom van deze korte eigen naam bewaken.
+    const tmpName = `.${randomBytes(6).toString('hex')}.ops-save.tmp`;
     const fd = openHere(tmpName, fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL, target, c.file?.mode ?? 0o666);
     let tmpId: Identity | null = null;
     let open = true;
@@ -348,6 +377,27 @@ export async function createNodeFileFs(
       hooks.fault?.('rename');
       renameSync(tmpName, c.base);
       renamed = true;
+      try {
+        assertHere(target);
+      } catch {
+        throw movedDuringSave(target);
+      }
+      // De bestands-fsync bewaart niet automatisch de nieuwe naam in de doelmap.
+      // Open '.' relatief aan het al gebonden map-object, niet opnieuw via c.dir.
+      // Windows ondersteunt deze POSIX-directoryroute niet; geen schijnzekerheid daar.
+      if (process.platform !== 'win32') {
+        try {
+          const directoryFd = openSync('.', fsConstants.O_RDONLY | (fsConstants.O_DIRECTORY ?? 0));
+          try {
+            (hooks.syncDirectory ?? fsyncSync)(directoryFd);
+          } finally {
+            closeSync(directoryFd);
+          }
+        } catch (error) {
+          throw new Error(`File '${target}' was replaced, but synchronizing its directory failed; `
+            + `crash durability is unconfirmed. Inspect the saved file before retrying. ${String(error)}`);
+        }
+      }
       try {
         assertHere(target);
       } catch {
@@ -398,7 +448,10 @@ export async function createNodeFileFs(
       const safe = (n: bigint): number | null => (n <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(n) : null);
       return { isFile: info.isFile, dev: safe(info.id.dev), ino: safe(info.id.ino) };
     },
-    readTextFile: async (p) => (await readChecked(p)).toString('utf8'),
+    readTextFile: async (p) => {
+      const bytes = await readChecked(p);
+      return path.extname(p).toLowerCase() === '.xml' ? decodeXmlBytes(bytes) : bytes.toString('utf8');
+    },
     readFile: async (p) => new Uint8Array(await readChecked(p)),
     writeTextFile: (p, content) => writeChecked(p, content),
   };

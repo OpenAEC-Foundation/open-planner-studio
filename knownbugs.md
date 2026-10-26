@@ -77,8 +77,12 @@ en noem het in je rapport of PR-tekst.
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
 16. **Taken kopiëren** heeft geen zichtbare bediening; alleen Ctrl+C/V met de Gantt in focus. — B
 17. **Verwijderen zonder bevestiging**: `confirm.deleteTask` staat in de locales maar wordt nergens gebruikt. — S
-60. **Duur-kolom afgeknipt** in de standaard Gantt-weergave (WBS 60 + Taaknaam 240 + Duur 60 + de
-    "+"-kolom): je leest "2c" in plaats van "2d", op 1600 én 1366 px breed. — B
+
+333. **De bevestigingsdialoog let bij Enter niet op `isComposing`.** `src/components/dialogs/ConfirmDialog.tsx:36–44`:
+    een synthetische IME-Enter verwijderde in een browserprobe de kalender, toen de focus bewust achter de open
+    dialoog stond. De focus-trap zet de focus normaal op Annuleren; een gewone gebruikersroute naar dit geval is
+    niet aangetoond. Voorstel: na `stopPropagation()` een guard voor `isComposing` die ook de standaardactie
+    tegenhoudt. Gevonden in review r2 van #628 (GPT-6-Sol). — B
 
 ## Kalenders
 
@@ -89,9 +93,6 @@ en noem het in je rapport of PR-tekst.
 
 28. **Bezettingsoverzicht bij een verouderd actief project** mengt oude startdatums met een nieuwe duur of
     inzet, onder de tekst "laatst berekende cijfers". — B
-33. **Bibliotheekkalender verwijderen** gaat zonder bevestiging; daarna staat hij nog als *al gekoppeld*. — S
-64. **Een uitgeschakelde `tutorials`-extensie wordt weer aangezet, ongeacht waar hij vandaan kwam**
-    (review #261, punt O2). — S
 74. **Nederlandse parameternamen en enumwaarden in het MCP-contract.** Na de vertaling naar Engels zijn deze
     sleutels bewust gebleven (ze zijn invoercontract): `planner_list_tasks` `kritiek`/`van`/`tot`/
     `zonder_relaties`, `planner_get_resource_histogram` `van`/`tot` en `bucket: dag|week|maand`,
@@ -133,23 +134,11 @@ en noem het in je rapport of PR-tekst.
     website volgt de laatste deploy, terwijl een desktopversie zijn eigen kopie meelevert; een oudere app kan
     dus naar een gids wijzen die tools beschrijft die hij niet heeft. De gids zegt nu dat de kopie van de tool
     voorgaat. Voorstel: een versiepad (bv. `/agent/<versie>/planning-guide.md`) of de versie in de gids. — S
-213. **Een UNC-werkmap op Windows werkt niet in de headless MCP-server.** `normalizeAbsolutePath`
-    (`src/services/mcp/tools/fileTools.ts:105`) maakt van `\\server\share\plan.ifc` het pad
-    `/server/share/plan.ifc`, en dat gaat zo naar `path.resolve` in `headless/mcp-server/src/nodeFs.ts:136`.
-    Gevonden in review ronde 1 van PR #572 (GPT-6.1-Sol). Voorstel: UNC-paden in de lexicale poort als eigen
-    vorm herkennen, of ze met een duidelijke melding weigeren. — B
-214. **De eigen XML-parser van de headless MCP-server is te soepel.** `headless/mcp-server/src/xmlDom.ts:101`
-    en 146: hij accepteert `&#0;`, leest `&constructor;` uit de prototypeketen, normaliseert CRLF niet,
-    accepteert ongebonden prefixen en `]]>` buiten CDATA, en detecteert geen UTF-16. Gevonden in review ronde
-    2 van PR #572 (GPT-6.1-Sol). Voorstel: `@xmldom/xmldom` bundelen met een kleine adapter (DOCTYPE-beleid,
-    strikte fouten), of gerichte fixes met tests. — B
-215. **De headless MCP-server doet geen `fsync` van de doelmap na de `rename`.**
-    `headless/mcp-server/src/nodeFs.ts:355`: na een stroomuitval kan de nieuwe naam ontbreken. Gevonden in
-    review ronde 2 van PR #572 (GPT-6.1-Sol). Voorstel: na de `rename` de map openen (`'.'`, in het gebonden
-    blok) en `fsync` doen. — B
-216. **De tijdelijke naam bij opslaan is de doelnaam plus 27 bytes.** `headless/mcp-server/src/nodeFs.ts:324`:
-    een geldige bestandsnaam van rond 240 bytes geeft bij opslaan `ENAMETOOLONG`. Gevonden in review ronde 2
-    van PR #572 (GPT-6.1-Sol). Voorstel: een korte eigen naam (bijv. `.ops-save.<willekeurig>.tmp`). — B
+215. **Directory-durability bij headless opslaan blijft op Windows en nieuwe bovenmappen beperkt.**
+    Linux/macOS synchroniseren nu de doelmap na `rename`, met een expliciete fout als dat mislukt nadat
+    het bestand al vervangen is. Windows houdt alleen de bestands-fsync; nieuw aangemaakte bovenmappen
+    worden niet als hele keten gesynchroniseerd. Echte stroomuitval is niet getest. Restpunt van review
+    ronde 2 van PR #572. Voorstel: afzonderlijke platform-/crashbestendigheidstest en Windows-route. — B
 217. **Het eigen tijdelijke bestand wordt na een mapwissel niet altijd opgeruimd.**
     `headless/mcp-server/src/nodeFs.ts:370`: is de map weg of niet meer bereikbaar, dan blijft
     `.<naam>.<willekeurig>.ops-save.tmp` staan (de docs zeggen dat nu ook). Gevonden in review ronde 2 van PR
@@ -159,16 +148,10 @@ en noem het in je rapport of PR-tekst.
 218. **Headless MCP-server: de HTTP-time-out begrenst synchrone bestandstoegang niet.**
     `headless/mcp-server/src/nodeFs.ts:285` en `writeFileSync`/`fsyncSync` op 333–335 draaien synchroon; hangt
     lezen of synchroniseren op een trage schijf, dan staan alle sessies stil en kan de 120-secondentimer in
-    `headless/mcp-server/src/http.ts:117` niet afgaan. De documentatie belooft die grens te stellig. Gevonden
-    in review ronde 3 van PR #572 (GPT-6.1-Sol). Voorstel: de tekst over de tijdslimiet eerlijk maken en grote
-    bestanden op trage opslag meten voordat er een andere procesopzet komt. — B
-
-220. **Headless MCP-server: terugzetten van de procesmap is een poging, geen garantie.**
-    `headless/mcp-server/src/nodeFs.ts:253`: verdwijnt de oorspronkelijke procesmap tijdens een bewerking, dan
-    blijft het proces in `realRoot`; is ook die weg, dan gooit de `finally` opnieuw, verdringt de
-    oorspronkelijke fout en blijft de tijdelijke procesmap actief. CLI-, backup- en importpaden gebruiken
-    absolute paden, dus geen bekende route naar verkeerd opgeslagen bestanden. Gevonden in review ronde 3 van
-    PR #572 (GPT-6.1-Sol). Voorstel: de terugval documenteren en beide fouten bewaren of melden. — B
+    `headless/mcp-server/src/http.ts` niet afgaan. Documentatie en broncommentaar benoemen nu expliciet
+    de wachtrij-/eventloopgrens en dat een 504 geen lopende bewerking annuleert. Gevonden in review ronde 3
+    van PR #572 (GPT-6.1-Sol). Resterend: grote bestanden op trage opslag meten voordat er een andere
+    procesopzet komt; geen harde deadline of verholpen runtimeblokkade geclaimd. — B
 
 210. **MCP-ontdekking: een update via de updater ruimt `runtime.json` en `open-files.json` niet op.** Alleen
     `src/hooks/useAppCloseGuard.ts:33` roept `shutdown()` aan;
@@ -210,11 +193,21 @@ en noem het in je rapport of PR-tekst.
     de tak `toolName === null` kan niet meer optreden zodra `mutates` waar is. Voorstel: die deelvoorwaarde weg;
     de concrete herstelset blijft voldoende. Gevonden in review r1 van #605 (GPT-6.1-Sol). — B
 
+331. **Met de werkmap `/` weigert de MCP-server `~/plan.ifc` als UNC-pad.** `src/services/mcp/tools/fileTools.ts:142–145`:
+    bij `home="/"` maakt de tilde-expansie van `~/plan.ifc` eerst `//plan.ifc`, en de nieuwe UNC-controle weigert
+    dat. Op `main` werd het `/plan.ifc`; het expliciete pad `/plan.ifc` werkt nog wel. Zeldzaam, geen dataverlies.
+    Voorstel: bij tilde-expansie precies één scheidingsteken toevoegen, en de wortelmap aan de bestaande test
+    toevoegen. Gevonden in review r1 van #626 (GPT-6.1-Sol). — B
+
+332. **De XML-parser van de headless server zoekt bij elk element zonder prefix de hele ouderketen af.**
+    `headless/mcp-server/src/xmlDom.ts:143` roept `namespaceFor('', scope)` aan en gooit het resultaat weg. Bij
+    8.000 niveaus nesting kost parsen circa 499 ms tegen 12 ms op de basis (kwadratische groei). Zeldzame invoer.
+    Voorstel: `namespaceFor` alleen aanroepen als de elementprefix niet leeg is. Gevonden in review r1 van #608
+    (GPT-6.1-Sol). — B
+
 ## Bestanden en herstel
 
-35. **Showcase-voorbeelden openen als gewijzigd** (`applyDemoLibraryToShowcaseProject`). — S
 36. **Herstelvenster na een gewone herlaad** in de browser, ook als alles was opgeslagen. — S
-38. **Firefox: *Recent*** opent een lege pagina (de knop staat er wel). — B
 
 97. **De sluitvraag van een tabblad ligt op een vaste z-index 80**, de gewone dialogen op 50/60. Elke vraag die
     vanuit *Opslaan* in die sluitvraag opent, valt eronder en lijkt te hangen. De twee site-dialogen liggen
@@ -257,21 +250,11 @@ en noem het in je rapport of PR-tekst.
     kenmerk alleen-lezen, dan faalt opslaan wel netjes (zelfde check, §1 en §2). Voorstel: bij een doel zonder
     schrijfbit eerst vragen of melden. Een besluit voor de eigenaar. — B
 
-201. **Het versieloze webherstelmanifest met `docIds` forceert `isDirty=true`.** In
-    `recoveryStore.ts`, `loadWeb`, krijgt de terugvalmetadata voor `docIds` `isDirty: true`;
-    `document.isDirty ?? rec.isDirty ?? true` kiest daardoor die `true`, ook als het oude
-    documentrecord `isDirty: false` bevat. Statisch gezien bij het versiecontract van knownbug 96;
-    de bestaande legacysemantiek is in die fix behouden. Mogelijk verwant aan de herstelmelding
-    van 36, maar niet vastgesteld als dezelfde oorzaak. De bedoeling en runtimegevolgen zijn niet
-    onderzocht. — S
-
-203. **De updater gaat na een afgewezen recovery-flush door naar installatie.** Brononderzoek,
-    niet uitgevoerd: `updaterService.ts`, `downloadAndInstall`, vangt een rejection van
-    `flushRecoveryNow()` op en logt die, zonder de updateroute af te breken. Daarna probeert hij
-    `update.install()` en, als die slaagt, `relaunch()`. De bronroute bestond al vóór fix 96; dit
-    punt zegt niet dat iedere mislukte snapshotwrite als rejection uit de flush komt. Geen
-    runtime-repro of concreet dataverlies vastgesteld; bedoeling en gewenste foutafhandeling
-    niet onderzocht. — S
+329. **Een mislukte opslag in de herstelronde houdt de installatie van een update niet tegen.**
+    `src/hooks/useAutoSave.ts:72`: de geregistreerde herstelronde vangt opslagfouten zelf af en meldt ze, zonder
+    opnieuw te gooien. Zulke fouten bereiken de blokkade van #589 (stoppen als `flushRecoveryNow()` faalt) dus
+    niet. Dit stond al op `main`. Voorstel: de foutafhandeling van de periodieke auto-save scheiden van het
+    resultaat van een expliciete flush vóór installatie. Gevonden in review r1 van #589 (GPT-6.1-Sol). — B
 
 261. **Recente bestanden in een sandbox-iframe zonder `allow-same-origin` tonen hoogstens het laatst geopende
     bestand, en na herladen niets.** Gezien bij #582. `src/services/fileAccess/recentFiles.ts` gebruikt de
@@ -285,10 +268,14 @@ en noem het in je rapport of PR-tekst.
     leespad. Voorstel: veld, nulinitialisatie en meldingsregel weg, of het compatibiliteitscontract onderbouwen.
     Gevonden in review r1 van #634 (GPT-6.1-Sol). — B
 
+330. **Een herstelmanifest `documents` zonder `isDirty` markeert een schoon document als gewijzigd.**
+    `src/services/recovery/recoveryStore.ts:1361`: bij een geaccepteerd `documents`-manifest zonder `isDirty`, en
+    `isDirty: false` in het documentrecord, gaf de basis `false` en geeft de nieuwe expressie `true`. Zeldzaam; het
+    document vraagt dan onnodig om opslaan. Voorstel: bij ontbrekende manifestmetadata terugvallen op
+    `rec.isDirty`, vóór de standaardwaarde `true`. Gevonden in review r1 van #599 (GPT-6.1-Sol). — B
+
 ## Rondleiding, Help en extensie-gidsen
 
-62. **Melding schuift over de knoppen van het begeleidingspaneel** (1600×950, venster Baselines open):
-    `toastPlacement.ts` houdt geen rekening met het paneel. — B (gezien), oorzaak afgeleid
 68. **Een gidsstap die eenmaal "gedaan" is, blijft gedaan**, ook na wisselen naar een leeg project. Gezien bij
     tutorial 6 stap 8; niet uitgezocht of dat bedoeld is. — S
 
@@ -302,7 +289,6 @@ en noem het in je rapport of PR-tekst.
     Portugese taalvariant zijn niet gecontroleerd. Onderzoek die eerst voordat het meervoudscontract
     of de vertaling wordt aangepast. Gemeld bij `ui-common-01`, niet als releaseblokker aangetoond. — S
 
-57. **Statusdatum-label in de Gantt** toont ISO (`2027-06-28`), de rest dd-mm-jjjj. Mogelijk bewust. — S
 73. **Namen en beschrijvingen van de voorbeeldprojecten zijn Engels in elke interfacetaal.** Gezien in de
     nl-interface bij *Bestand › Voorbeelden*; de Help-artikelen noemen daarom de Engelse namen. Niet
     nagegaan of dat voor alle voorbeelden geldt. Voorstel: bewust laten, of per taal vertalen. — B
@@ -369,29 +355,11 @@ en noem het in je rapport of PR-tekst.
     `gh api --method PATCH repos/OpenAEC-Foundation/open-planner-studio/pulls/479 -F body=@<bestand>`.
     Voorstel: de GitHub CLI op de host bijwerken; de repo zelf is niet aangepast hiervoor. — B
 
-208. **`scripts/build-core.mjs` bouwt de licentiegegevens onnodig om.** `scripts/build-core.mjs:138–148` zet
-    de pakketnamen om in een `Map` en de sectietekst in een array met één element; `notices.packages.join(',
-    ')` en `notices.sections` volstaan. Gevonden in review ronde 1 van PR #567 (GPT-6.1-Sol). — B
-
 212. **Real-app-test van de MCP-ontdekking mist echte bestandsroutes.**
     De pids van `runtime` en `open-files` worden inmiddels rechtstreeks vergeleken. Echte openen-,
     Opslaan als- en afsluitroutes ontbreken nog (de storetest zet `filePath` rechtstreeks).
     Gevonden in review ronde 1 en 2 van PR #573 (GPT-6.1-Sol). Resterend: de bestaande echte-app-route
     uitbreiden met echte bestandsacties, inhoud en opruiming. — B
-
-222. **Browsertest voor geweigerde mijlpalen vergelijkt alleen de taak-ID’s van toewijzingen.**
-    De helper `assignmentTaskIds` en de eindassertie in `tests/browser/structural-transition.spec.ts`
-    controleren geen `resourceId` of `units`. Een wijziging in die velden met dezelfde taakverdeling
-    blijft daardoor onopgemerkt. Bevestigd door de onafhankelijke reviews van PR #604; dit is een
-    bestaande blinde vlek in de test, geen aangetoonde productfout. Voorstel: vergelijk de toewijzingen
-    vóór en na de geweigerde browserhandeling. — B
-
-223. **Telling in de Chinese bulk-toast wordt alleen als deeltekst gecontroleerd.**
-    `tests/browser/structural-transition.spec.ts:80` zoekt met `toContainText` naar `2 个任务…`.
-    Een melding met `12 个任务…` of `22 个任务…` bevat dezelfde deeltekst. Dit gold ook voor de oude
-    letterlijke verwachting. Bevestigd in de tweede onafhankelijke review van PR #604. Voorstel:
-    vergelijk de volledige tekst van `.ops-toast-message` exact; laat de taaknamen apart gecontroleerd.
-    Geen fout in de huidige producttelling aangetoond. — B
 
 262. **`check-recovery-refused-later.ts` scheidt de twee routes niet die de opslag als werkend markeren.**
     De check laat eerst een lezing én een save slagen en geeft pas daarna een `SecurityError`
@@ -436,9 +404,26 @@ en noem het in je rapport of PR-tekst.
     sinds de vorige controle geen nieuwe asynchrone onderbreking. Voorstel: de 404-route in de test, en de twee
     regels weg. Gevonden in review r1 van #603 (GPT-6.1-Sol). — B
 
+325. **Zes browserroutes toetsen geen smal scherm meer.** Sinds de standaardtakenlijst 400 px breed is, zetten zes
+    specs het venster op 1600×900, onder meer `tests/browser/duration-display.spec.ts:5`. De handelingen en
+    controles blijven, maar de smallere beginstand wordt niet meer bewaakt. Geen productfout op die breedte
+    aangetoond. Voorstel: één gerichte interactieroute op een smaller scherm houden. Gevonden in review r1 van
+    #627 (GPT-6.1-Sol). — B
+
+326. **De controle bij het annuleren van een faseovergang vergelijkt toewijzingen alleen op id.**
+    `tests/browser/structural-transition.spec.ts:113` vergelijkt toewijzingen als `[id, taskId]`. Een gewijzigde
+    resource of inzet glipt daar doorheen. Dit stond al op `main`. Voorstel: daar ook de volledige
+    toewijzingswaarden vergelijken, zoals de mijlpaalroute nu doet. Gevonden in review r1 van #622
+    (GPT-6.1-Sol). — B
+
+334. **`tests/browser/assignments-block.spec.ts:235` faalt soms in CI.** De test verwachtte `UNIFORM` en kreeg `BELL`,
+    na een time-out van 5 s, in run 40286556225 (job `verify (browser 2-4)`) op PR #595, die alleen de herstelspec
+    wijzigt. Dezelfde test slaagt lokaal op die head, en de herhaalde poging liep apart. De oorzaak is niet
+    bewezen. Gevonden in fixronde 1 en review r2 van #595 (GPT-6.1-Sol). — S
+
 ## Wensen en open taken (geen bug)
 
-45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen en de selectie niet lezen.
+45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
     `updateSequence`/`updateCalendar` zou de tutorials eenvoudiger maken. Ook een alleen-lezen
     `api.settings.getApp(key)`: tutorial 4 leest nu `localStorage['ops-enableHourPlanning']`. — B
 49. **Release-notes, volgende release**: een nieuw MS Project-project rekent de speling nu *Automatisch*

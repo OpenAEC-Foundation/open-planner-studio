@@ -707,6 +707,28 @@ for (const [label, lateMs] of [['meteen', undefined], ['pas na het laden', 3_000
 test('zonder site: Ctrl+O en Ctrl+S gaan als vanouds naar bestandskiezer en download', async ({ page, ops: _ops }) => {
   expect(await page.evaluate(() => 'openaecHost' in window)).toBe(false);
 
+  // Firefox/Safari-capabilityroute in Chromium: geen herbruikbare handles of site-host.
+  await page.evaluate(() => {
+    Reflect.deleteProperty(window, 'showOpenFilePicker');
+    Reflect.deleteProperty(window, 'showSaveFilePicker');
+  });
+  expect(await page.evaluate(() => 'showOpenFilePicker' in window)).toBe(false);
+  for (const locale of ['nl', 'en']) {
+    await page.evaluate(async lang => {
+      const localePath = '/src/i18n/config.ts';
+      const { setLocale } = await import(/* @vite-ignore */ localePath);
+      await setLocale(lang);
+    }, locale);
+    await page.locator('.ribbon-tab--file').click();
+    await page.locator('.backstage-nav-item').filter({ hasText: /^Recent$/ }).click();
+    await expect(page.locator('.backstage-title')).toHaveText(locale === 'nl' ? 'Recente projecten' : 'Recent projects');
+    await expect(page.locator('[data-ops-recent-unavailable]')).toHaveText(locale === 'nl'
+      ? 'Deze browser kan eerder geopende lokale bestanden niet opnieuw openen vanuit Recent. Gebruik Openen om je projectbestand opnieuw te kiezen.'
+      : 'This browser cannot reopen local files from Recent. Use Open to choose your project file again.');
+    await expect(page.locator('.backstage-recent-item')).toHaveCount(0);
+    await page.locator('[data-ops-backstage-back]').click();
+  }
+
   const chooser = page.waitForEvent('filechooser');
   await page.keyboard.press('Control+o');
   await chooser;
