@@ -1356,7 +1356,9 @@ async function loadWeb(): Promise<LoadedRecovery> {
         id: rec.docId,
         ifc: rec.ifc,
         filePath: document.filePath ?? rec.filePath ?? null,
-        isDirty: document.isDirty ?? rec.isDirty ?? true,
+        // docIds-manifesten hadden geen documentmetadata: hun synthetische defaults
+        // mogen de daadwerkelijk bewaarde vlag in het oude doc-record niet verdringen.
+        isDirty: (Array.isArray(manifest.documents) ? document.isDirty : rec.isDirty) ?? true,
         // v1–v3-webrecord kent het veld niet ⇒ `false` (geen modus).
         datesAsRecorded: document.datesAsRecorded ?? false,
         // Een webrecord van vóór issue #309 kent het site-doel niet ⇒ weggelaten (geen site-doel).

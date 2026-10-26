@@ -186,6 +186,7 @@ export function createExtensionApi(
      *  (gemapt uit de Immer-bevroren store) — muteren ervan raakt de store niet. Schrijf via
      *  addTask/updateTask/addSequence en roep daarna recalculate() aan. */
     data: {
+      getSelectedTaskIds: () => [...document.store.getState().selectedTaskIds],
       getProject: () => toExtProject(document.store.getState().project),
       getCalendar: () => toExtCalendar(document.store.getState().calendar),
       getTasks: () => {
