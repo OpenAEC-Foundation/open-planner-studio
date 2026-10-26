@@ -65,7 +65,7 @@ async function seed(side, tasks) {
     store.getState().recomputeViewRows();
     s.setViewStartDate('2026-09-07');
   }, tasks);
-  await page.locator('[data-grid-data-row="true"][data-grid-row-key="zoek-0"] [data-grid-column-id="name"]').first().click();
+  await page.locator('[data-grid-data-row="true"][data-grid-row-key="zoek-0"] [data-grid-column-id="task.name"]').first().click();
   await page.locator('[data-ops-dependency-add]').click();
   await expect(options(page)).toHaveCount(8);
   await settle(page);

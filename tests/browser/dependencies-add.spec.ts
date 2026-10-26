@@ -69,9 +69,9 @@ test('conceptrij: zoeken met pijltoets + Enter legt een voorgangerrelatie vast',
 
   // Een selectiewissel wist een open concept; opnieuw openen gebruikt de nieuwe eigenaar.
   await add.click();
-  await page.locator(`[data-grid-data-row="true"][data-grid-row-key="${grondwerk}"] [data-grid-column-id="name"]`).first().click();
+  await page.locator(`[data-grid-data-row="true"][data-grid-row-key="${grondwerk}"] [data-grid-column-id="task.name"]`).first().click();
   await expect(draft).toHaveCount(0);
-  await page.locator(`[data-grid-data-row="true"][data-grid-row-key="${fundering}"] [data-grid-column-id="name"]`).first().click();
+  await page.locator(`[data-grid-data-row="true"][data-grid-row-key="${fundering}"] [data-grid-column-id="task.name"]`).first().click();
   await add.click();
   await search.click();
   await search.pressSequentially('Grond');
