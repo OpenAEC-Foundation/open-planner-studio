@@ -1220,12 +1220,6 @@ en noem het in je rapport of PR-tekst.
     aangetoond. Voorstel: één gerichte interactieroute op een smaller scherm houden. Gevonden in review r1 van
     #627 (GPT-6.1-Sol). — B
 
-326. **De controle bij het annuleren van een faseovergang vergelijkt toewijzingen alleen op id.**
-    `tests/browser/structural-transition.spec.ts:113` vergelijkt toewijzingen als `[id, taskId]`. Een gewijzigde
-    resource of inzet glipt daar doorheen. Dit stond al op `main`. Voorstel: daar ook de volledige
-    toewijzingswaarden vergelijken, zoals de mijlpaalroute nu doet. Gevonden in review r1 van #622
-    (GPT-6.1-Sol). — B
-
 334. **`tests/browser/assignments-block.spec.ts:235` faalt soms in CI.** De test verwachtte `UNIFORM` en kreeg `BELL`,
     na een time-out van 5 s, in run 40286556225 (job `verify (browser 2-4)`) op PR #595, die alleen de herstelspec
     wijzigt. Dezelfde test slaagt lokaal op die head, en de herhaalde poging liep apart. De oorzaak is niet
