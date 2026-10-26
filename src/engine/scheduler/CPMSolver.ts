@@ -98,8 +98,8 @@ export interface CPMResult {
   projectEnd: string;
   projectDuration: number; // work days
   /** Gezet als de solve niet kon rekenen (kring, kalender zonder werkdagen, ongeldige invoer). De
-   *  vaste tekst die MCP-tools, extensies (`scheduleCalculated`) en logs al kennen — ongewijzigd,
-   *  en deels Nederlands, deels Engels. Gebruikerszichtbare UI vertaalt `errorInfo` in plaats hiervan. */
+   *  technische fouttekst voor MCP-tools, extensies (`scheduleCalculated`) en logs, in het Engels.
+   *  De vertaling voor de gebruiker loopt via `errorInfo`. */
   error?: string;
   /** Dezelfde fout als code + parameters: de UI vertaalt hem via `scheduleErrors.<code>`
    *  (`src/i18n/scheduleErrors.ts`). Altijd samen met `error` gezet door `solve()`. */
