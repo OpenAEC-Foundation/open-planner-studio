@@ -29,8 +29,10 @@
  * Bedoeld voor een host waar de tool geen instellingen kan bewaren, bijvoorbeeld een sandbox-iframe
  * zonder `localStorage`: daar zou het venster bij elke start terugkomen. Dit veld vraagt GEEN
  * `storage`; een host mag alleen het welkomstvenster uitzetten. Alleen strikt `true` telt. De tool
- * kijkt bij de start en nog eens vlak voordat het venster zou openen (na de herstelvraag), dus de
- * host mag ook kort ná het laden komen. De handmatige ingangen (lint, backstage) blijven werken.
+ * kijkt bij de start en nog eens vlak voordat het venster zou openen (na de herstelvraag). Zet de
+ * host daarom vóór de tool start: staat het venster al open, dan sluit een latere host het niet, en
+ * het event `openaec-host-ready` verandert daar niets aan. De handmatige ingangen (lint, backstage)
+ * blijven werken.
  *
  * ## De vier functies
  *
