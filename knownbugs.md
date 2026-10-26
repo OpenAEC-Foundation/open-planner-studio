@@ -172,14 +172,6 @@ en noem het in je rapport of PR-tekst.
     absolute paden, dus geen bekende route naar verkeerd opgeslagen bestanden. Gevonden in review ronde 3 van
     PR #572 (GPT-6.1-Sol). Voorstel: de terugval documenteren en beide fouten bewaren of melden. — B
 
-209. **MCP-ontdekking: een schrijffout kan een tijdelijk bestand met het token laten liggen.**
-    `src/services/mcp/discoveryFiles.ts:95–105`: `writeNew` staat buiten de opruim-`try`; slaagt het aanmaken
-    maar faalt het schrijven (bijv. schijfquota), dan blijft het tijdelijke bestand achter, mogelijk al met
-    het volledige token. `bridgeStopped()` en `shutdown()` verwijderen alleen de definitieve namen; de test
-    injecteert alleen rename-fouten. Gevonden in review ronde 1 en 2 van PR #573 (GPT-6.1-Sol). Voorstel:
-    exclusief aanmaken en schrijven splitsen zoals `fileAccess/atomicWrite.ts`, zodat een schrijffout het
-    eigen bestand opruimt. — B
-
 210. **MCP-ontdekking: een update via de updater ruimt `runtime.json` en `open-files.json` niet op.** Alleen
     `src/hooks/useAppCloseGuard.ts:33` roept `shutdown()` aan;
     `src/services/updater/updaterService.ts:170–182` installeert en herstart rechtstreeks, en op Windows
