@@ -748,8 +748,9 @@ function readXerProject(
     }
     const durationHours = numberOf(tables, row, 'target_drtn_hr_cnt') ?? 0;
     const remainingHours = numberOf(tables, row, 'remain_drtn_hr_cnt');
-    // Op de hele minuut, anders dan de lag hieronder: P6 rekent duur en rest op de hele minuut. Zonder afronding
-    // worden P6-cellen onexact (regel A, measure:profiles met het P6-corpus, meting 2026-10-26; §3.10).
+    // Op de hele minuut, anders dan de lag hieronder: P6 rekent duur en rest op de hele minuut. XER schrijft uren
+    // met zes decimalen, dus 1600 min staat er als 26,666667 u (1600,00002 min). Zonder afronding worden P6-cellen
+    // onexact (regel A, measure:profiles met het P6-corpus, meting 2026-10-26; §3.10; knownbug 385).
     const sourceDurationMinutes = Math.round(durationHours * 60);
     const hoursPerDay = effectiveCalendar.hoursPerDay > 0 ? effectiveCalendar.hoursPerDay : 8;
     const activityType = activityTypeOf(row.cells.task_type ?? '', row, enumFallbacks);

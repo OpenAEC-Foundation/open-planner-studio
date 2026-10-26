@@ -521,6 +521,11 @@ normalisatie draait altijd; de markering `TimeModel` stuurt alleen de B5-overgan
   minuten ÷ werktijd per dag, zoals nu. Nu maakt de XER-lezer een dagtaak op een kalender
   zonder tijdsignaal (`xerReader.ts:831-834`); dat verdwijnt. Een lezer maakt alleen nog een urenkalender als de
   kalender per dag verschilt of eigen werkblokken heeft; anders blijft hij scalair (§3.1).
+  *XER (F5b, fixronde 5 van #591):* de XER-lezer leest duur en rest op de hele minuut, de lag niet (0,33 u blijft
+  19,8 min). Reden: P6 rekent duur en rest op de hele minuut, en XER schrijft uren met zes decimalen (1600 min staat
+  er als 26,666667 u, dus 1600,00002 min). Zonder afronding werden 29 P6-cellen onexact (regel A; `measure:profiles`
+  met het P6-corpus, meting 2026-10-26). P6 XML rondt duur en rest zonder `ExactMinutes`-record ook af
+  (`readMeasure`, `xmlDayMeasure.ts:293`). Een lag met die ruis: knownbug 386.
 - **Schrijven:** urenmaat: minuten. Dagenmaat: werkdagen × werktijd per dag (technische keuze T13), plus de
   OPS-markering, en bij een breuk het record (T21). Reden: dat is precies wat het P6- en het MSP-profiel rekenen, het
   hangt niet af van de plek, en OPS → P6 → OPS geeft de dagenmaat terug. Nu gebruikt `taskMinutesForWrite` het

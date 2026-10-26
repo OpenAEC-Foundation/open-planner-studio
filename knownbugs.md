@@ -344,6 +344,23 @@ en noem het in je rapport of PR-tekst.
      niet-werktijd; de basis geeft in dit geval ook een herberekeningsverschil. Voorstel: bij SF de bestaande
      `forwardFinishFloor` meenemen. Gevonden in review ronde 2 van #660 (GPT-6.1-Sol). — B
 
+385. **Een duur of lag die geen heel aantal milliseconden is, laat een late datum een dag terugspringen.** De
+     voorwaartse wandeling (`src/engine/scheduler/CalendarEngine.ts:827`) eindigt in een `Date`, en die kapt af op
+     hele ms. De terugwandeling (`:855`) trekt de volle breuk af. Landt die op een bandstart, dan schiet hij een
+     deel van een ms door naar het vorige band-eind, en `formatInstant` (`src/utils/dateUtils.ts:119`) rondt naar
+     beneden af. Nagespeeld met `solveProject`, ma–vr 08:00–16:00, A 8 u FS B, ma 1 juni 2026: met B = 1920/7 min
+     (274,2857… min, wat de werkregel geeft bij 1920 min werk en inzet 7, T14) krijgt B LS ma 1 juni 15:59 in
+     plaats van di 2 juni 08:00, en A LS vr 29 mei 15:59 en LF ma 15:59 in plaats van ma 08:00 en 16:00, met
+     speling −3,5·10⁻⁸ d. Met 274 of 275 min klopt alles. De spiegel zelf: `addWorkMinutes` en daarna
+     `subtractWorkMinutes` met 1600,00002 min vanaf ma 08:00 geeft vr 29 mei 15:59:59,999. Tienden van een minuut
+     (`.mpp`, MSPDI `LinkLag`) zijn hele ms en springen niet (160,5 en 1600,5 min nagespeeld). In #591 r3 gaf een
+     XER-rest van 26,666667 u (1600,00002 min, `HarbourPointe_AssistedLiving.xer`) zo 29 onexacte P6-cellen; de
+     XER-lezer rondt duur en rest nu weer af. De werkregelroute is niet in de app nagespeeld.
+     `check-calendar-mirror.ts` toetst alleen hele minuten. De motorbestanden zijn in #591 gelijk aan main, dus
+     het staat ook op main.
+     Voorstel: de minuten in de wandeling op hele ms afronden en de spiegelcheck uitbreiden met zo'n breuk.
+     Gevonden in fixronde 5 van #591. — B
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
@@ -1037,6 +1054,17 @@ en noem het in je rapport of PR-tekst.
      geweigerd; een volledig datum-tijdgetal onder een tijdopmaak wordt stil geaccepteerd. Voorstel: deze grens
      apart behandelen, bijvoorbeeld zichtbaar weigeren of melden. Gevonden in review r2 van #659
      (GPT-6.1-Sol). — B
+
+386. **Een XER- of P6 XML-lag met zes decimalen wordt geen hele minuut.** `src/services/xer/xerReader.ts:1069` en
+     `src/services/p6/p6xmlReader.ts:1297` ronden uren × 60 af op een miljoenste minuut. Een lag van 40 min met zes
+     decimalen is `0.666667` u, en dat wordt 40,00002 min, in beide lezers nagespeeld. Daarmee treedt 385 op:
+     A 8 u FS B met XER-lag `0.666667` (ma–vr 08:00–16:00) geeft A LS vr 29 mei 15:59 en LF ma 1 juni 15:59 in
+     plaats van ma 08:00 en 16:00; met `0.6666666667` (40 min) klopt het. De corpora hebben zo'n lag niet (XER:
+     32.181 lags, P6 XML: 434, alle op de hele minuut), dus `measure:profiles` ziet het niet. Wel staan er vier
+     XER-resten met deze ruis in `HarbourPointe_AssistedLiving.xer` (`26.666667` u); dat P6 een lag zo schrijft, is
+     daarvan afgeleid. De eigen P6 XML-writer schrijft `0.6666666666666666` en komt heel terug. Voorstel: een
+     waarde binnen de ruis van zes decimalen (verschil met de hele minuut ≤ 0,00003 min) op de hele minuut zetten;
+     0,33 u blijft dan 19,8 min. Gevonden in fixronde 5 van #591. — B
 
 ## Rondleiding, Help en extensie-gidsen
 
