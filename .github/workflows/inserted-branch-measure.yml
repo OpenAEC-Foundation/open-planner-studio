@@ -1,0 +1,48 @@
+name: Ingevoegde tak meten (opt-in)
+
+# Tijdelijk meetpad voor deze upgrade. Andere product-PR's krijgen geen vaste oude basis opgelegd.
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/inserted-branch-measure.yml'
+      - 'tests/planning/insertedBranchMeasure.ts'
+      - 'tests/planning/measure-inserted-branch.mjs'
+      - 'tests/planning/check-paste-references.ts'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: inserted-branch-measure-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  measure:
+    if: github.head_ref == 't3/speed-inserted-branches'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 12
+    env:
+      TZ: Europe/Amsterdam
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Voor en na op dezelfde runner, volledige toestandshashes
+        run: timeout 330s node tests/planning/measure-inserted-branch.mjs qa/inserted-branch.json
+      - name: Gerichte bestaande regressies met leesbudget
+        run: |
+          bash tests/planning/run.sh check-paste-references.ts
+          bash tests/planning/run.sh check-relation-rules.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: inserted-branch-${{ github.event.pull_request.head.sha }}
+          path: qa/inserted-branch.json
+          if-no-files-found: warn
+          retention-days: 14
