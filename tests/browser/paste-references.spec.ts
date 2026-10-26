@@ -2,13 +2,13 @@
 // Het klembord is app-globaal; een geplakte taak droeg daardoor een taakkalender, eigen taaktype,
 // activity code en gebruikersveld mee die alleen in A bestaan. Na de fix worden die verwijzingen in B
 // leeggemaakt en verschijnt er één melding. `__OPS__` zet alleen de fixture (document A, een tweede
-// document) en leest state; kopiëren, plakken en de balkklik zijn echte browser-events.
+// document) en leest state; kopiëren, plakken en de canvasklik zijn echte browser-events.
 import { barPoint, expect, test } from './fixtures/ops';
 
 test('plakken in een ander document maakt onbekende verwijzingen leeg en meldt dat', async ({ page, ops: _ops }) => {
   // Breed genoeg dat de balk naast het eigenschappenpaneel valt.
   await page.setViewportSize({ width: 1600, height: 1000 });
-  const taskId = await page.evaluate(() => {
+  const { taskId, leafId } = await page.evaluate(() => {
     const s = window.__OPS__!.store.getState();
     s.setProject({ name: 'Project A', startDate: '2026-09-07' });
     s.setViewStartDate('2026-09-01');
@@ -37,12 +37,20 @@ test('plakken in een ander document maakt onbekende verwijzingen leeg en meldt d
       type: 'FINISH_START', lagDays: 0 });
     window.__OPS__!.store.getState().runCPM();
     window.__OPS__!.store.getState().setViewStartDate('2026-09-04');
-    return id;
+    return { taskId: id, leafId: a };
   });
 
-  // Echte klik op de balk selecteert de taak; echte Ctrl+C kopieert hem.
-  const point = await barPoint(page, taskId);
-  await page.mouse.click(point.x, point.y);
+  // Een fase heeft geen sleepbare balk voor barPoint. De x van haar kind ligt binnen de
+  // fasebalk; de DOM-rij geeft de y. Klik echt op het canvas, zodat Ctrl+C de tak kopieert.
+  const point = await barPoint(page, leafId);
+  const rootRow = page.locator(
+    `[data-task-grid-surface-id="gantt-task-grid"] [data-grid-data-row="true"][data-grid-row-key="${taskId}"]`,
+  );
+  await expect(rootRow).toBeVisible();
+  const rootBounds = await rootRow.boundingBox();
+  expect(rootBounds).not.toBeNull();
+  await page.mouse.click(point.x, rootBounds!.y + rootBounds!.height / 2);
+  await expect(page.getByTestId('gantt-primary-canvas')).toBeFocused();
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().selectedTaskIds)).toEqual([taskId]);
   await page.keyboard.press('Control+c');
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().taskClipboard?.tasks.length ?? 0)).toBe(3);

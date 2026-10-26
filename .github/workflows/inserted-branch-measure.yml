@@ -8,6 +8,7 @@ on:
       - 'tests/planning/insertedBranchMeasure.ts'
       - 'tests/planning/measure-inserted-branch.mjs'
       - 'tests/planning/check-paste-references.ts'
+      - 'tests/browser/paste-references.spec.ts'
 
 permissions:
   contents: read
@@ -33,6 +34,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Echte tak kopiëren, plakken en ongedaan maken in Chromium
+        run: |
+          npx playwright install --with-deps --only-shell chromium
+          node scripts/run-browser-tests.mjs tests/browser/paste-references.spec.ts
       - name: Oude productbron faalt uitsluitend op de zes leesbudgetten
         run: |
           mkdir -p qa
@@ -75,4 +80,13 @@ jobs:
             qa/inserted-branch.json
             qa/inserted-branch-before.log
           if-no-files-found: warn
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: inserted-branch-browser-${{ github.event.pull_request.head.sha }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
           retention-days: 14
