@@ -254,6 +254,7 @@ export type NotificationMessageKey =
   | 'notifications.phaseQuestionOutdated'
   | 'notifications.mppLegacy'
   | 'notifications.xmlUnknownSchedule'
+  | 'notifications.mppInvalidContainer'
   | 'notifications.mppEncrypted'
   | 'notifications.xerInvalidInput'
   | 'notifications.xerInvalidFile'

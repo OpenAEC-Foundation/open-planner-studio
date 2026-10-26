@@ -91,7 +91,6 @@ en noem het in je rapport of PR-tekst.
 
 28. **Bezettingsoverzicht bij een verouderd actief project** mengt oude startdatums met een nieuwe duur of
     inzet, onder de tekst "laatst berekende cijfers". — B
-29. **Hardgecodeerd Nederlands**: het CFB-citaat (`cfb.ts`). Zie ook 61 voor PDF-bestandsnamen. — S
 33. **Bibliotheekkalender verwijderen** gaat zonder bevestiging; daarna staat hij nog als *al gekoppeld*. — S
 64. **Een uitgeschakelde `tutorials`-extensie wordt weer aangezet, ongeacht waar hij vandaan kwam**
     (review #261, punt O2). — S
@@ -429,6 +428,11 @@ en noem het in je rapport of PR-tekst.
     rijsleep wel verplaatste. Dezelfde head slaagde in poging 2 zonder codewijziging; ook de eerdere
     PR-head was groen. Screenshot/trace: artefact 12585687942. Geen Gantt-code in deze PR gewijzigd;
     timing-/geometrieoorzaak en productreproduceerbaarheid nog niet vastgesteld. — S
+
+321. **De browsertest voor een kapot `.mpp`-bestand toetst geen bestaand werk.** `tests/browser/new-open-task-flow.spec.ts:58`
+    zegt dat bestaand werk behouden blijft, maar vergelijkt met een leeg beginproject (de fixture doet
+    `newProject()` en voegt geen taak toe). Een losse probe met gewijzigd werk slaagt wel. Voorstel: één taak in
+    de beginstaat en ook de dirty-vlag controleren. Gevonden in review r1 van #636 (GPT-6.1-Sol). — B
 
 ## Wensen en open taken (geen bug)
 
