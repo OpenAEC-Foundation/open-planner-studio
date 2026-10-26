@@ -295,11 +295,6 @@ en noem het in je rapport of PR-tekst.
     nl-interface bij *Bestand › Voorbeelden*; de Help-artikelen noemen daarom de Engelse namen. Niet
     nagegaan of dat voor alle voorbeelden geldt. Voorstel: bewust laten, of per taal vertalen. — B
 
-102. **`apply-terms` vertrouwt `terms-NN.json` en `terms-check-01.map.json` zonder zegel.** De UI- en
-     docs-pakketten hebben sinds #323 een zegel (`build/translate-seal/`); de termbase-pakketten niet, terwijl
-     agents in dezelfde map schrijven. Voorstel: dezelfde `seal`/`sealErrors` in `prepare`/`apply-terms`.
-     Gevonden in de review van #323 (Opus, 2026-10-12), in de code aangewezen. — S
-
 173. **Toewijzingen: lange kolomkoppen laten in veel talen weinig ruimte voor de resourcenaam.** De bron is kort
     (`task.json` `properties.assignments.units` "Units"/"Inzet", `workHours` "Work (h)"), maar de straat
     vertaalde naar de volle term (uk "Одиниця призначення", ru "Единицы назначения", bg, hu, ro, sk, da, nb,
@@ -312,6 +307,13 @@ en noem het in je rapport of PR-tekst.
 205. **Termbase kent nog het begrip *AI-assistent*.** `i18n/termbase/concepts.json` (`ai-assistant`, ook in
    `read-only`) en de doeltalen. De UI zegt nu *MCP-client*. Voorstel: het begrip omzetten via de
    vertaalstraat (`concepts-merge`, `apply-terms`) vóór de volgende release. — B
+
+327. **`apply-terms` eindigt met exit 0 als een deel van de pakketten geweigerd is.** `scripts/translate/cli.ts:275`
+    slaat een pakket met een ongeldig zegel over; is een ander pakket geldig, dan schrijft hij dat en eindigt
+    succesvol. Nagespeeld: intact `terms-01.json`, gewijzigd `terms-02.json` → uitvoer `XX … veranderd na
+    prepare`, alleen de eerste term toegepast, exit 0. Automatisering ziet half werk dan als geslaagd. Voorstel:
+    een weigeringsteller en een afsluitende exit 1, zoals bij `apply ui`. Gevonden in review r1 van #618
+    (GPT-6.1-Sol). — B
 
 ## Tests
 

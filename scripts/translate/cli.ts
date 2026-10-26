@@ -247,6 +247,7 @@ function termsLookup(args: string[]): void {
   archive(dir, 'terms-');
   mkdirSync(dir, { recursive: true });
   for (const p of packs) writeFileSync(join(dir, `${p.id}.json`), packageText(p));
+  seal(lang, packs.map(p => `${p.id}.json`));
   bundleCheck();
   const withCand = packs.flatMap(p => p.concepts).filter(c => c.candidates.length > 0).length;
   const total = packs.flatMap(p => p.concepts).length;
@@ -257,11 +258,22 @@ function applyTermsCmd(args: string[]): void {
   const lang = checkLang(positional(args)[0]);
   const dir = join(WORK, lang);
   const concepts = loadConcepts();
+  const checkOut = join(dir, 'terms-check-01.out.json');
+  const mapFile = join(dir, 'terms-check-01.map.json');
+  // Eerst vertrouwen vaststellen, vóór de termbase of een rapport wordt overschreven.
+  if (existsSync(checkOut)) {
+    const checkSources = ['terms-check-01.json', 'terms-check-01.map.json'];
+    if (checkSources.some(f => !existsSync(join(dir, f)))) fail('bronpakket of koppeltabel van de blinde controle ontbreekt');
+    const tampered = sealErrors(lang, checkSources);
+    if (tampered.length) fail(tampered.join('\n'));
+  }
   const outs: TermsOut[] = [];
   const files = existsSync(dir) ? readdirSync(dir).filter(f => /^terms-\d+\.json$/.test(f)).sort() : [];
   for (const f of files) {
     const outFile = join(dir, f.replace('.json', '.out.json'));
     if (!existsSync(outFile)) { console.log(`..  ${f}: nog geen uitvoer`); continue; }
+    const tampered = sealErrors(lang, [f]);
+    if (tampered.length) { console.log(`XX  ${f}: ${tampered.join('; ')}, overgeslagen`); continue; }
     const pkg = readJson<TermsPackage>(join(dir, f));
     const out = readJson<unknown>(outFile);
     const r = checkPackage(pkg, out);
@@ -279,8 +291,6 @@ function applyTermsCmd(args: string[]): void {
   }
   // Termen zonder bron (`model`) en zelf gekozen TBX-termen (`tbx-chosen`) krijgen een blinde controle:
   // alleen de doelterm, ondoorzichtige id's. Bestaat de uitkomst al, dan wordt het rapport gemaakt.
-  const checkOut = join(dir, 'terms-check-01.out.json');
-  const mapFile = join(dir, 'terms-check-01.map.json');
   if (existsSync(checkOut) && existsSync(mapFile)) {
     const res = readJson<Record<string, { backTranslation: string; standard: boolean; suggestion?: string }>>(checkOut);
     const map = readJson<Record<string, string>>(mapFile);
@@ -307,6 +317,7 @@ function applyTermsCmd(args: string[]): void {
     };
     writeJson(join(dir, 'terms-check-01.json'), pkg);
     writeJson(join(dir, 'terms-check-01.map.json'), map);
+    seal(lang, ['terms-check-01.json', 'terms-check-01.map.json']);
     console.log(`OK  blinde controle nodig voor ${unchecked.length} term(en): build/translate/${lang}/terms-check-01.json`);
   }
 }
