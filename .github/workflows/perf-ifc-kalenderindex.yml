@@ -4,7 +4,8 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - src/services/ifc/ifcWriter.ts
+      # De gewone planningpoort bewaakt productwijzigingen. Deze aanvullende vergelijking draait
+      # alleen wanneer de meetopzet verandert, zodat latere IFC-PR's geen oude nulmeting erven.
       - tests/planning/check-ifc-calendar-index.ts
       - tests/planning/ifcCalendarIndexFixture.ts
       - docs/superpowers/evidence/ifc-kalenderindex.mjs
