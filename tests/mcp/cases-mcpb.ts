@@ -24,6 +24,7 @@ import { createAppStoreContext } from '@/state/appStore';
 import { buildMcpContext, createMcpSessionTable, type McpSessionTable } from '@/services/mcp/server';
 import type { McpContext } from '@/services/mcp/contracts';
 import { handleMcpMessage, MCP_INSTRUCTIONS, MCP_SERVER_NAME } from '@/services/mcp/dispatcher';
+import { fileToolDeps } from '@/services/mcp/tools/fileTools';
 import { getTools } from '@/services/mcp/toolRegistry';
 import { parseZipEntries } from '@/services/zip';
 import { MCP_DEFAULT_PORT } from '@/utils/settingsStore';
@@ -309,7 +310,7 @@ test('app-herstart met een ander plan actief, ontdekt door een ping: wachtende e
   }
 });
 
-test('na sessieverlies: lezen heft niets op, alleen planner_switch_document; daarna houdt de drift-guard stand (review r2)', async () => {
+test('na sessieverlies: lezen heft niets op, expliciete documentkeuze wel; daarna houdt de drift-guard stand (review r2)', async () => {
   const s = await startExtension(TOKEN, mirror.port);
   const docA = app.store.getState().activeDocumentId;
   const opened: string[] = [];
@@ -359,6 +360,75 @@ test('na sessieverlies: lezen heft niets op, alleen planner_switch_document; daa
   } finally {
     await s.client.close();
     for (const id of opened) app.store.getState().closeDocument(id);
+    if (app.store.getState().activeDocumentId !== docA) app.store.getState().switchDocument(docA);
+  }
+});
+
+test('sessieherstel via nieuw/import: alleen expliciet, alleen na succes en zonder herhaling (207)', async () => {
+  const s = await startExtension(TOKEN, mirror.port);
+  const docA = app.store.getState().activeDocumentId;
+  const beforeIds = new Set(app.store.getState().getOpenDocuments().map(d => d.id));
+  const previousFs = fileToolDeps.getFs;
+  const count = () => app.store.getState().getOpenDocuments().length;
+  const add = () => call(s, 'planner_add_tasks', { tasks: [{ tempId: 'tmp-recovery', name: 'Na herstel', duration: 1 }] });
+  const restart = async () => {
+    const port = mirror.port;
+    await mirror.close();
+    mirror = await startMirror(port);
+  };
+  let reads = 0;
+  fileToolDeps.getFs = async () => ({
+    homeDir: async () => '/home/test',
+    exists: async () => true,
+    stat: async () => ({ isFile: true, dev: 1, ino: 1 }),
+    writeTextFile: async () => { throw new Error('unexpected write'); },
+    readFile: async () => { throw new Error('unexpected binary read'); },
+    readTextFile: async (path) => {
+      reads++;
+      if (path.endsWith('/missing.csv')) throw new Error('missing fixture');
+      return 'Name;Duration;Start;Finish\nImported;1;2015-01-05;2015-01-05';
+    },
+  });
+  try {
+    await toolNames(s);
+    await restart();
+    const before = count();
+    const lostNew = await call(s, 'planner_new_document');
+    assertEq(lostNew.text, SESSION_RESET_MESSAGE, 'nieuw dat sessieverlies ontdekt wordt niet herhaald');
+    assertEq(count(), before, 'geen extra document bij de geweigerde aanvraag');
+    const duplicate = await call(s, 'planner_duplicate_document');
+    assertEq(duplicate.text, SESSION_RESET_MESSAGE, 'kopie van toevallig actief document blijft geblokkeerd');
+    // Ook een echte toolfout mag de blokkade niet opheffen.
+    app.store.getState().setUI({ aiReadOnly: true });
+    const failedNew = await call(s, 'planner_new_document');
+    assert(failedNew.isError, 'alleen-lezen weigert nieuw document');
+    app.store.getState().setUI({ aiReadOnly: false });
+    assertEq((await add()).text, SESSION_RESET_MESSAGE, 'mislukt nieuw heft blokkade niet op');
+    const fresh = await call(s, 'planner_new_document');
+    assert(!fresh.isError && fresh.structured.ok === true, `expliciet nieuw: ${fresh.text}`);
+    assertEq(count(), before + 1, 'precies één nieuw document');
+    assert((await add()).structured.ok === true, 'wijziging op expliciet nieuw document toegestaan');
+
+    await restart();
+    const lostImport = await call(s, 'planner_import_schedule', { path: '/home/test/plan.csv' });
+    assertEq(lostImport.text, SESSION_RESET_MESSAGE, 'import die sessieverlies ontdekt wordt niet herhaald');
+    assertEq(reads, 0, 'geen bestandslezing bij automatische herverbinding');
+    const failedImport = await call(s, 'planner_import_schedule', { path: '/home/test/missing.csv' });
+    assert(failedImport.isError && failedImport.structured.code === 'NOT_FOUND', 'werkelijke importfout doorgestuurd');
+    assertEq((await add()).text, SESSION_RESET_MESSAGE, 'mislukte import heft blokkade niet op');
+    const imported = await call(s, 'planner_import_schedule', { path: '/home/test/plan.csv' });
+    assert(!imported.isError && imported.structured.ok === true, `expliciete import: ${imported.text}`);
+    assertEq(reads, 2, 'elk expliciet importverzoek precies eenmaal gelezen');
+    assert(app.store.getState().tasks.some(t => t.name === 'Imported'), 'echte CSV-parser en documentroute uitgevoerd');
+    assert((await add()).structured.ok === true, 'wijziging op importdocument toegestaan');
+    app.store.getState().switchDocument(docA);
+    const drift = await add();
+    assert(drift.isError && drift.structured.code === 'DOC_DRIFT', 'anker na import beschermt nog steeds tegen tabwissel');
+  } finally {
+    fileToolDeps.getFs = previousFs;
+    app.store.getState().setUI({ aiReadOnly: false });
+    await s.client.close();
+    for (const d of app.store.getState().getOpenDocuments()) if (!beforeIds.has(d.id)) app.store.getState().closeDocument(d.id);
     if (app.store.getState().activeDocumentId !== docA) app.store.getState().switchDocument(docA);
   }
 });
