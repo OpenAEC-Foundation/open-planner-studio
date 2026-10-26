@@ -200,7 +200,6 @@ en noem het in je rapport of PR-tekst.
 
 ## Bestanden en herstel
 
-35. **Showcase-voorbeelden openen als gewijzigd** (`applyDemoLibraryToShowcaseProject`). — S
 36. **Herstelvenster na een gewone herlaad** in de browser, ook als alles was opgeslagen. — S
 38. **Firefox: *Recent*** opent een lege pagina (de knop staat er wel). — B
 
