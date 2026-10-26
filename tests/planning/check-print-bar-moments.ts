@@ -63,7 +63,7 @@ function renderScreen(tasks: Task[], zoom: number) {
     rows, sequences: [], calendar: st.calendar,
     view: { ...st.view, viewStartDate: '2026-06-01', zoom, scrollX: 0, scrollY: 0 },
     selectedTaskIds: [], canvasWidth: 4000, canvasHeight: 400, rowHeight: 28, headerHeight: 60,
-    showDependencies: false, barSplitMode: 'never',
+    barSplitMode: 'never',
   });
   renderer.render();
   const origin = renderer.dateToX(parseDate('2026-06-01'));
@@ -185,7 +185,8 @@ function project(calendar: WorkCalendar): void {
   const zoom = 96;
   const printed = renderPrint(S().tasks, zoom);
   const screen = renderScreen([c], zoom);
-  near('2a afdruk: de balk is één dag breed', printed.bar(0) && printed.bar(0)!.x2 - printed.bar(0)!.x1, zoom);
+  const day = printed.bar(0);
+  near('2a afdruk: de balk is één dag breed', day ? day.x2 - day.x1 : undefined, zoom);
   near('2b scherm = afdruk: einde', printed.bar(0)?.x2, screen.bar(C)?.x2 ?? Number.NaN);
 }
 
