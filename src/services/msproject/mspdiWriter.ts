@@ -23,7 +23,7 @@ import {
   OPS_LAG_CALENDAR_NAME, dayMeasureMinutesPerDay, fieldRecordsJson, lagRecordKey, lagWorkMinutesPerDay, writeDays, writeMinutes,
   type LagRecord, type WrittenAmount,
 } from '@/services/xmlDayMeasure';
-import { ELAPSED_MINUTES_PER_DAY, dayMeasureMinutes, roundDays } from '@/services/ifc/dayMeasureIo';
+import { ELAPSED_MINUTES_PER_DAY, dayMeasureMinutes, dayMeasureRecord } from '@/services/ifc/dayMeasureIo';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { effectiveWorkTimeBands, calendarForEngine } from '@/utils/effectiveWorkTime';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
@@ -176,9 +176,10 @@ function lagFields(seq: Sequence, minutesPerLagDay: number): { linkLag: number; 
     // Elapsed dagen tellen 24 uur, onafhankelijk van de werkkalender. LinkLag is een geheel getal.
     return { linkLag: Math.round(days * ELAPSED_MINUTES_PER_DAY * 10), lagFormat: 8 };
   }
-  // Dagenmaat: hele minuten, zoals `PT…` in IFC (`dayMeasureMinutes`); het record draagt de dagen.
-  const minutes = dayMeasureMinutes(days, minutesPerLagDay);
-  return { linkLag: minutes * 10, lagFormat: 7, ...(days !== 0 ? { record: [roundDays(days), minutes] as const } : {}) };
+  // Dagenmaat: hele minuten uit de bron, zoals `PT…` in IFC; het record draagt dagen die precies die minuten
+  // verklaren (`dayMeasureRecord`), ook bij hele dagen (aanval a06 na #600).
+  const record = dayMeasureRecord(days, minutesPerLagDay);
+  return { linkLag: record[1] * 10, lagFormat: 7, ...(days !== 0 ? { record } : {}) };
 }
 
 /** Datumopmaak is geen XML-escaping: ook ongeldige (geïmporteerde) datumtekst blijft tekst.

@@ -26,12 +26,13 @@ import { paintProgressBarPiece } from './barPaint';
 import { xToDayOffset, type GanttAxis } from './timeAxis';
 import { resolveGanttAxis, isCompressedEffective } from './workdayAxis';
 import { computeSplitSegments, splitEngineFor, taskSplitMeasure } from './splitBarGeometry';
+import { milestoneAnchorX, taskBarSpan } from './barSpan';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import { classifyTraceTask, isRelationOutsideTrace, type TaskTrace } from '@/engine/taskGrid/trace';
 import { ellipsize } from './textFit';
 import { barLayout, type BarLayout } from './rowGeometry';
 import { canvasFont, type TextRole } from './textRoles';
-import { shownStart, shownFinish, floatBandEnd, finishInstant } from '@/utils/taskDates';
+import { shownStart, shownFinish, floatBandEnd } from '@/utils/taskDates';
 
 /** `firstRowIndexByTask` per rijenlijst (die komt bevroren uit de store): de renderer wordt per
  *  scrollframe opnieuw gebouwd en bouwde de map dan telkens over alle rijen. */
@@ -453,33 +454,17 @@ export class GanttRenderer {
   // ('T') draagt — precies wat `formatInstant('hour')` emitteert. Dag-taken (YYYY-MM-DD)
   // vallen dus ALTIJD op het dag-pad (`parseDate` + één dag breedte).
 
-  /** Balk-uiteinden voor een taak. Uur-taak: `[dateToX(start), dateToX(finish))` (geen +dag).
-   *  Dag-taak: `[dateToX(start), dateToX(finish)+zoom)` (inclusieve eind-dag). */
+  /** Balk-uiteinden voor een taak, met dezelfde regel als de afdruk (`taskBarSpan`). Met momenten:
+   *  `[dateToX(start), dateToX(finish))` (geen +dag). Alleen datums: `[dateToX(start), dateToX(finish)+zoom)`
+   *  (inclusieve einddag). */
   private barGeometry(task: Task): { x1: number; x2: number; hourMode: boolean; start: Date; end: Date } {
-    // Guard: een taak zonder énige datum (noch CPM- noch schedule-, bv. uit een onvolledige import)
-    // zou hier per frame crashen op `undefined.includes(...)`. Terugval: de ontbrekende kant leent
-    // van de andere kant; ontbreken beide, dan één
-    // dag-cel op de viewstart (zichtbaar, maar zonder datums geen sleep/resize — getTaskBarBounds
-    // weigert zulke taken).
-    const rawStart = shownStart(task) || '';
-    const rawEnd = shownFinish(task) || '';
-    const startStr = rawStart || rawEnd;
-    const endStr = rawEnd || rawStart;
-    if (!startStr) {
-      const d = this.viewStart;
-      const x = this.dateToX(d);
-      return { x1: x, x2: x + this.opts.view.zoom, hourMode: false, start: d, end: d };
-    }
-    const hourMode = startStr.includes('T') || endStr.includes('T');
-    const start = hourMode ? parseInstant(startStr) : parseDate(startStr);
-    // Uur-balk: het einde als tijdstip met de rollupregel (`finishInstant`) — een einde ZONDER tijd
-    // (een fase met een uren-start en een dagkind als laatste) loopt tot het einde van die dag, niet
-    // tot middernacht aan het begin ervan. Voor een einde mét tijd
-    // is dat gewoon `parseInstant`.
-    const end = hourMode ? finishInstant(endStr) : parseDate(endStr);
-    const x1 = this.dateToX(start);
-    const x2 = hourMode ? this.dateToX(end) : this.dateToX(end) + this.opts.view.zoom;
-    return { x1, x2, hourMode, start, end };
+    const span = taskBarSpan(task, date => this.dateToX(date), this.opts.view.zoom);
+    if (span) return span;
+    // Een taak zonder énige datum (noch CPM- noch schedule-, bv. uit een onvolledige import): één dagcel op
+    // de viewstart (zichtbaar, maar zonder datums geen sleep/resize — getTaskBarBounds weigert zulke taken).
+    const d = this.viewStart;
+    const x = this.dateToX(d);
+    return { x1: x, x2: x + this.opts.view.zoom, hourMode: false, start: d, end: d };
   }
 
   /** De engine van de split-wandeling voor een taak: de werkblokken van haar effectieve kalender, ook
@@ -1740,17 +1725,10 @@ export class GanttRenderer {
    *  getekend wordt — `drawMilestone` heeft genoeg aan één van beide datums. Bewust géén
    *  `barGeometry`-hergebruik: die geeft een `[x1,x2)`-balkbreedte, geen enkel ruitmidden. */
   private milestoneAnchorX(task: Task): number | null {
-    const startStr = shownStart(task) || shownFinish(task);
-    if (!startStr) return null;
-    const hourMode = startStr.includes('T');
-    const date = hourMode ? parseInstant(startStr) : parseDate(startStr);
-    // Grens-model: een startmijlpaal ankert op het dagBEGIN (linkerrand van de
-    // dagcel), een eindmijlpaal op het dagEINDE (rechterrand); automatisch is
-    // dag-gecentreerd. Een UUR-mijlpaal draagt de exacte instant al,
-    // dus die ankert op de instant zelf (anchor 0) zonder dag-cel-verschuiving.
-    const zoom = this.opts.view.zoom;
-    const anchor = hourMode ? 0 : task.milestoneKind === 'START' ? 0 : task.milestoneKind === 'FINISH' ? zoom : zoom / 2;
-    return this.dateToX(date) + anchor;
+    // Grens-model, gedeeld met de afdruk (`milestoneAnchorX` in barSpan.ts): een startmijlpaal ankert op
+    // het dagBEGIN, een eindmijlpaal op het dagEINDE, automatisch dag-gecentreerd; een mijlpaal met een
+    // moment op dat moment zelf.
+    return milestoneAnchorX(task, date => this.dateToX(date), this.opts.view.zoom);
   }
 
   private drawMilestone(task: Task, y: number, height: number, isSelected: boolean, overrideColor?: string): void {

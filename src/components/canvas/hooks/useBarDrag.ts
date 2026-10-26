@@ -4,10 +4,10 @@ import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { parseDate, parseInstant, formatDate, formatInstant } from '@/utils/dateUtils';
 import { isCompressedEffective } from '@/engine/renderer/workdayAxis';
 import { shiftByDisplayedColumns } from '@/engine/renderer/barDragMath';
-import { resolveDayMeasureBarDrag, resolveHourBarDrag } from '@/engine/renderer/hourBarDragMath';
+import { ELAPSED_DRAG_CLOCK, resolveDayMeasureBarDrag, resolveHourBarDrag } from '@/engine/renderer/hourBarDragMath';
 import { taskSplitMeasure } from '@/engine/renderer/splitBarGeometry';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
-import { durationMinutesOf, taskDurationUnit } from '@/engine/scheduler/duration';
+import { durationMinutesOf, isElapsedTask, taskDurationUnit } from '@/engine/scheduler/duration';
 import { taskCountsInWorkdays } from '@/engine/scheduler/conventions/durationMeasure';
 import {
   canSplitTask, setGapLength, setWorkLength, splitUnitMinutes, toSplitPieces, workAxisMinutesBetween,
@@ -338,12 +338,19 @@ export function useBarDrag({
     //  - `daysAsHours`: een dagtaak onder P6/MSP, waar "d" de urenmaat is: dezelfde sleep als een
     //    urentaak, en de duur gaat terug als dagen × werktijd per dag;
     //  - `days`: een taak met alleen datums (van vóór het minutenmodel), in hele werkdagen.
+    // Kalendertijd (ELAPSEDTIME) telt nooit in de dagenmaat (`taskCountsInWorkdays`) en loopt dus via de
+    // uursleep, maar dan op de klok (`ELAPSED_DRAG_CLOCK`, 1440 minuten per dag), zoals de motor.
     const draggedTask = getTask(dragState.taskId);
     if (!draggedTask) return;
     const hasInstants = dragState.originalStart.includes('T') && dragState.originalFinish.includes('T');
     const dragKind: 'hours' | 'dayMeasure' | 'daysAsHours' | 'days' = taskDurationUnit(draggedTask) === 'hours' ? 'hours'
       : !hasInstants ? 'days'
         : taskCountsInWorkdays(draggedTask, { workdayDurationMeasure }) ? 'dayMeasure' : 'daysAsHours';
+    const elapsed = isElapsedTask(draggedTask);
+    // De pauzes van een gesplitste balk die als geheel sleept (stuk 0: body en linkerrand): het einde komt uit
+    // de splitsom, zoals in de motor. Elke sleepcommit wist nivelleerpauzes (`clearLevelingGaps` via
+    // `taskTriggerChanges`), dus die tellen niet mee; kalendertijd kent geen pauzes.
+    const splitGaps = elapsed ? undefined : draggedTask.splitGaps?.filter(g => g.source !== 'leveling');
 
     // Dag-resize: de nieuwe duur is de INCLUSIEVE werkdagen-telling via de taakkalender — exact
     // zoals CPM zelf rekent (CPMSolver: `scheduleDuration = cal.workDaysBetween(es, ef)`). Zo blijft
@@ -396,20 +403,22 @@ export function useBarDrag({
       const baseTime = getTask(dragState.taskId)?.time;
       if (!baseTime) return;
       // Volg dezelfde kalenderfabriek (`calendarForEngine`) als de scheduler en resourceberekeningen: expliciete banden
-      // (inclusief pauzes) winnen, maar een oudere/zuiver dag-granulaire kalender blijft bruikbaar.
+      // (inclusief pauzes) winnen, maar een oudere/zuiver dag-granulaire kalender blijft bruikbaar. Kalendertijd
+      // rekent op de klok: klokverschillen, een dag van 1440 minuten, geen snap naar een werkmoment.
       const hourEngine = new CalendarEngine(calendarForEngine(effectiveCalById.get(dragState.taskId) ?? calendar));
       const daysAsHours = dragKind === 'daysAsHours';
-      const dayMinutes = Math.max(1, hourEngine.hoursPerDay * 60);
+      const dayMinutes = elapsed ? 24 * 60 : Math.max(1, hourEngine.hoursPerDay * 60);
       const origMinutes = daysAsHours
         ? Math.max(1, Math.round(dragState.originalDuration * dayMinutes))
         : dragState.originalDurationMinutes
           ?? Math.max(1, Math.round((origFinish.getTime() - origStart.getTime()) / 60000));
       const result = resolveHourBarDrag({
-        calendar: hourEngine,
+        calendar: elapsed ? ELAPSED_DRAG_CLOCK : hourEngine,
         edge: dragState.edge,
         originalStart: origStart,
         originalFinish: origFinish,
         originalDurationMinutes: origMinutes,
+        splitGaps,
         pointerStart: dragState.pointerStart,
         pointerCurrent,
         snapMinutes: quantumMin,
@@ -417,7 +426,7 @@ export function useBarDrag({
       const nextStart = formatInstant(result.start, 'hour');
       const nextFinish = formatInstant(result.finish, 'hour');
       // Onder P6/MSP is "d" de urenmaat: de werkminuten gaan terug als dagen × werktijd per dag, met zes
-      // decimalen zoals de opslag.
+      // decimalen zoals de opslag. Een kalendertijdtaak in dagen: klokminuten ÷ 1440.
       const duration = daysAsHours
         ? { scheduleDuration: Math.round((result.durationMinutes / dayMinutes) * 1e6) / 1e6 }
         : { durationMinutes: result.durationMinutes };
@@ -448,12 +457,13 @@ export function useBarDrag({
       if (!baseTime) return;
       const cal = effectiveCalById.get(dragState.taskId) ?? calendar;
       const engine = new CalendarEngine(calendarForEngine(cal));
-      // Bij dagzoom per getoonde kolom: de hele werkdagen vanaf de werkdag van de gegrepen rand, met een
-      // vrije doeldag als de eerstvolgende werkdag in de sleeprichting (`dragWorkdaySteps`).
+      // Bij dagzoom per getoonde kolom: de kolommen tellen op de getekende as (projectkalender, ook onder
+      // compressie), daarna de hele werkdagen van de taakkalender vanaf de werkdag van de gegrepen rand, met
+      // een vrije doeldag als de eerstvolgende werkdag in de sleeprichting (`dragWorkdaySteps`).
       const right = dragState.edge === 'right';
       const workdaySteps = quantumMin === 1440
         ? dragWorkdaySteps(parseInstant(right ? dragState.originalFinish : dragState.originalStart), right ? 'end' : 'start',
-          Math.round((event.clientX - dragState.startX) / zoom), compressed, engine, cal)
+          Math.round((event.clientX - dragState.startX) / zoom), axisCalEngine, compressed, engine, cal)
         : undefined;
       const result = resolveDayMeasureBarDrag({
         calendar: engine,
@@ -461,6 +471,7 @@ export function useBarDrag({
         originalStart: parseInstant(dragState.originalStart),
         originalFinish: parseInstant(dragState.originalFinish),
         originalDays: dragState.originalDuration,
+        splitGaps,
         workdaySteps,
         pointerStart: dragState.pointerStart,
         pointerCurrent,

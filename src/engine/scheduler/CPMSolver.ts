@@ -268,8 +268,9 @@ export interface CPMTaskResult {
   totalFloat: number;
   freeFloat: number;
   /** Alleen uren §3.4: de speling in werkminuten op de taakkalender (kalendertijd: klokminuten).
-   *  `totalFloat`/`freeFloat` zijn daarvan de weergave in werkdagen. Optioneel: alleen de berekening
-   *  vult ze, niet de "datums zoals opgeslagen". */
+   *  `totalFloat`/`freeFloat` zijn daarvan de weergave in werkdagen. Optioneel: de berekening vult ze
+   *  altijd; "datums zoals opgeslagen" (`cpmResultFromRecorded`) alleen als het bestand ze vastlegde
+   *  (`OPS_Analysis.ExactFloat`). */
   totalFloatMinutes?: number;
   freeFloatMinutes?: number;
   isCritical: boolean;

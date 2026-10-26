@@ -124,14 +124,33 @@ const dayTask = (start: string, finish: string, days: number, gaps?: TaskSplitGa
     workdaySteps: 1, pointerStart: I('2026-06-02T01:00'), pointerCurrent: I('2026-06-03T01:00'), snapMinutes: 1440,
   });
   same('nachtploeg: één ploeg verder', [F(n.start), F(n.finish)], ['2026-06-02T22:00', '2026-06-03T06:00']);
+  // Een gesplitste dagtaak (aanval na #600 fout 3): 4 d, een pauze van één werkdag na de eerste werkdag; ma werk,
+  // di pauze, wo–vr werk. De balk spant werk plus pauze (de splitsom van de motor); een rand verandert alleen het
+  // laatste werkstuk. Vroeger trok de linkerrand alleen werk van het einde af en sprong hij naar woensdag.
+  const gaps: TaskSplitGap[] = [{ afterMinutes: 480, gapMinutes: 480, source: 'user' }];
+  const split = (over: Partial<Parameters<typeof resolveDayMeasureBarDrag>[0]>) => {
+    const r = resolveDayMeasureBarDrag({
+      calendar: std, edge: 'left', originalStart: I('2026-06-01T07:00'), originalFinish: I('2026-06-05T16:00'), originalDays: 4,
+      splitGaps: gaps, pointerStart: I('2026-06-01T12:00'), pointerCurrent: I('2026-06-01T12:00'), snapMinutes: 1440, ...over,
+    });
+    return [F(r.start), F(r.finish), r.days];
+  };
+  same('splits, dagzoom: linkerrand +1 werkdag begint di en houdt het einde', split({ workdaySteps: 1 }), ['2026-06-02T07:00', '2026-06-05T16:00', 3]);
+  same('splits, dagzoom: linkerrand −1 werkdag begint de vrijdag ervoor', split({ workdaySteps: -1 }), ['2026-05-29T07:00', '2026-06-05T16:00', 5]);
+  same('splits, dagzoom: de linkerrand houdt het laatste werkstuk ten minste één werkdag', split({ workdaySteps: 3 }), ['2026-06-03T07:00', '2026-06-05T16:00', 2]);
+  same('splits, uurzoom: linkerrand +2 u', split({ snapMinutes: 60, pointerCurrent: I('2026-06-01T14:00') }), ['2026-06-01T09:00', '2026-06-05T16:00', 3.75]);
+  same('splits, dagzoom: body +1 werkdag houdt de pauze in het einde', split({ edge: 'body', workdaySteps: 1 }), ['2026-06-02T07:00', '2026-06-08T16:00', 4]);
+  same('splits, uurzoom: body +1 u schuift alles een uur, ook over de pauze en het weekend',
+    split({ edge: 'body', snapMinutes: 60, pointerCurrent: I('2026-06-01T13:00') }), ['2026-06-01T08:00', '2026-06-08T08:00', 4]);
 }
 // Per getoonde kolom (useBarDrag bij dagzoom): de telling begint bij de werkdag van de gegrepen rand, niet
 // bij de dag onder de muis. Een lange balk die in het weekend gegrepen wordt, gaat zo per kolom mee
 // (gantt-drag-undo, auto-calc-after-edit: +1 kolom vanaf een greep op za of zo).
 {
   const std = engineOf(standard);
+  // De projectkalender (de getekende as) is standaard ma–vr; `eng`/`c` is de taakkalender.
   const steps = (anchor: string, columns: number, side: 'start' | 'end' = 'start', compressed = false, eng = std, c = standard) =>
-    dragWorkdaySteps(I(anchor), side, columns, compressed, eng, c);
+    dragWorkdaySteps(I(anchor), side, columns, std, compressed, eng, c);
   same('kolommen: ma +1 = 1 werkdag', steps('2026-06-01T07:00', 1), 1);
   same('kolommen: vr +1 (za) = de eerstvolgende werkdag, 1', steps('2026-06-05T07:00', 1), 1);
   same('kolommen: vr +2 (zo) = 1, vr +3 (ma) = 1, vr +4 (di) = 2',
@@ -146,6 +165,26 @@ const dayTask = (start: string, finish: string, days: number, gaps?: TaskSplitGa
     steps('2026-06-02T22:00', 1, 'start', false, engineOf(night), night), 1);
   same('nachtploeg: een einde za 06:00 hoort bij vr; +1 (za) = ma',
     steps('2026-06-06T06:00', 1, 'end', false, engineOf(night), night), 1);
+  // Aanval na #600 (a09, fout 1): een taak met een kalender van zeven dagen op een project van ma–vr. Onder
+  // compressie is de kolom na vrijdag maandag; de taakkalender telt daar drie werkdagen tot (za, zo, ma).
+  // Vroeger gaf de verkorting "compressed ⇒ columns" één werkdag, dus zaterdag.
+  const sevenBands = [{ start: 420, end: 720 }, { start: 780, end: 960 }];
+  const sevenDays = cal('zeven', { byWeekday: { 1: sevenBands, 2: sevenBands, 3: sevenBands, 4: sevenBands, 5: sevenBands, 6: sevenBands, 7: sevenBands } });
+  sevenDays.workDays = [1, 2, 3, 4, 5, 6, 7];
+  const seven = engineOf(sevenDays);
+  same('eigen taakkalender onder compressie: vr +1 kolom = ma = 3 werkdagen van de taak',
+    steps('2026-06-05T07:00', 1, 'start', true, seven, sevenDays), 3);
+  same('eigen taakkalender onder compressie: ma −1 kolom = vr = −3 werkdagen van de taak',
+    steps('2026-06-08T07:00', -1, 'start', true, seven, sevenDays), -3);
+  same('eigen taakkalender zonder compressie: vr +1 kolom = za = 1 werkdag van de taak',
+    steps('2026-06-05T07:00', 1, 'start', false, seven, sevenDays), 1);
+  const moved = resolveDayMeasureBarDrag({
+    calendar: seven, edge: 'body', originalStart: I('2026-06-05T07:00'), originalFinish: I('2026-06-05T16:00'), originalDays: 1,
+    workdaySteps: steps('2026-06-05T07:00', 1, 'start', true, seven, sevenDays),
+    pointerStart: I('2026-06-05T12:00'), pointerCurrent: I('2026-06-08T12:00'), snapMinutes: 1440,
+  });
+  same('eigen taakkalender onder compressie: de balk landt op maandag, zoals getekend',
+    [F(moved.start), F(moved.finish), moved.days], ['2026-06-08T07:00', '2026-06-08T16:00', 1]);
 }
 
 
