@@ -242,6 +242,7 @@ export function importErrorMessageKey(
   | 'notifications.xmlUnknownSchedule'
   | 'notifications.mppEncrypted'
   | 'notifications.mppLegacy'
+  | 'notifications.mppInvalidContainer'
   | 'notifications.xerInvalidInput'
   | 'notifications.xerInvalidFile'
   | 'notifications.xerInvalidEncoding'
@@ -256,8 +257,9 @@ export function importErrorMessageKey(
   | 'notifications.xerDuplicateId'
   | 'notifications.xerAmbiguousLocalRelation'
   | 'notifications.xerDanglingLocalRelation' {
-  const typed = err as { mppCode?: string; xerCode?: string; xmlCode?: string } | null | undefined;
+  const typed = err as { mppCode?: string; xerCode?: string; xmlCode?: string; cfbCode?: string } | null | undefined;
   if (typed?.xmlCode === 'XML_UNKNOWN_SCHEDULE') return 'notifications.xmlUnknownSchedule';
+  if (typed?.cfbCode === 'CFB_INVALID') return 'notifications.mppInvalidContainer';
   if (typed?.mppCode === 'MPP_ENCRYPTED') return 'notifications.mppEncrypted';
   if (typed?.mppCode === 'MPP_LEGACY') return 'notifications.mppLegacy';
   const xerKeys = {

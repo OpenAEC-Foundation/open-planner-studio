@@ -22,10 +22,10 @@ test('document-plus kiest eerst nieuw of bestaand; annuleren verandert geen docu
   const planning = readFileSync(resolve('public/examples/10-villa-wassenaar.ifc'), 'utf8');
   const combined = planning.replace('DATA;', "DATA;\n#900001=IFCWALL('0YvctVUKr0kugbFTf53O9L',$,'Muur',$,$,$,$,$,.NOTDEFINED.);");
   ops.acceptError(/Failed to open file:.*building model objects/);
-  const open = async (text: string) => {
+  const open = async (text: string, name = 'planning.ifc') => {
     const chooser = page.waitForEvent('filechooser');
     await page.locator('button.ribbon-btn').filter({ hasText: /^(Open|Openen)$/ }).click();
-    await (await chooser).setFiles({ name: 'planning.ifc', mimeType: 'application/octet-stream', buffer: Buffer.from(text) });
+    await (await chooser).setFiles({ name, mimeType: 'application/octet-stream', buffer: Buffer.from(text) });
   };
   for (let attempt = 0; attempt < 2; attempt++) {
     await open(combined);
@@ -52,6 +52,30 @@ test('document-plus kiest eerst nieuw of bestaand; annuleren verandert geen docu
     const toast = page.locator('.ops-toast', { hasText: message });
     await expect(toast).toBeVisible();
     await expect(toast).toContainText('Unknown XML format:');
+    expect((await state(page)).documentIds).toEqual(before.documentIds);
+    expect((await state(page)).tasks).toEqual(before.tasks);
+    await toast.locator('[data-ops-toast-close]').click();
+  }
+  // Ook een ongeldige MPP-container laat bestaand werk intact. De kop vertaalt, de
+  // technische CFB-diagnose blijft Engels, zoals bij andere importfouten.
+  ops.acceptError(/Failed to open file:.*CFB: file too small for a valid header/);
+  for (const [locale, message] of [
+    ['nl', 'Dit MPP-bestand heeft een ongeldige bestandsstructuur en kan niet worden geopend.'],
+    ['en', 'This MPP file has an invalid file structure and cannot be opened.'],
+  ]) {
+    await page.evaluate(async language => {
+      const localePath = '/src/i18n/config.ts';
+      const { setLocale } = await import(/* @vite-ignore */ localePath);
+      await setLocale(language);
+    }, locale);
+    await open('invalid', 'planning.mpp');
+    const toast = page.locator('.ops-toast').filter({ hasText: message });
+    await expect(toast.locator('.ops-toast-message')).toHaveText(message);
+    await expect.poll(() => page.evaluate(() => {
+      const notice = window.__OPS__!.store.getState().ui.notifications.find(n => n.messageKey === 'notifications.mppInvalidContainer');
+      return notice && { severity: notice.severity, refusal: notice.refusal ?? false };
+    })).toEqual({ severity: 'error', refusal: false });
+    await expect(toast.locator('.ops-toast-detail')).toHaveText('CFB: file too small for a valid header (7 bytes, minimum 512)');
     expect((await state(page)).documentIds).toEqual(before.documentIds);
     expect((await state(page)).tasks).toEqual(before.tasks);
     await toast.locator('[data-ops-toast-close]').click();
