@@ -40,7 +40,7 @@ import type { Project } from '@/types/project';
 import type { WorkCalendar } from '@/types/calendar';
 import { effHoursPerDay, hourTaskScheduleDuration } from '@/utils/taskDuration';
 import {
-  ELAPSED_MINUTES_PER_DAY, dayMeasureMinutes, exactMinutesRecord, isWholeDays, parseDayMeasureRecord, roundDays,
+  ELAPSED_MINUTES_PER_DAY, dayMeasureMinutes, dayMeasureRecord, exactMinutesRecord, isWholeDays, parseDayMeasureRecord, roundDays,
 } from '@/services/ifc/dayMeasureIo';
 
 /** Namen van de OPS-velden (MSPDI `FieldName`/`Alias`, P6 UDF-`Title`). Eén plek voor beide formaten. */
@@ -77,16 +77,11 @@ export type FieldRecords = Record<string, FieldRecord>;
 export interface WrittenAmount { minutes: number; record?: FieldRecord }
 
 /** Dagen ⇒ de minuten van het standaardveld (dagen × minuten per dag, op de hele minuut), plus het record
- *  `[dagen, minuten]` bij een breuk (T21). Hele dagen: geen record.
- *  De opgeslagen dagenwaarde (`roundDays`, 6 decimalen) staat één keer vast; de minuten komen uit diezelfde
- *  waarde, ook bij hele dagen (de lagwriters zetten daar zelf een record bij). Zo geeft de leesregel
- *  (`dayRecordFits`: opgeslagen dagen × minuten per dag) bij een ongewijzigde kalender altijd de geschreven
- *  minuten terug. Met de ongeronde dagen konden ze een minuut verschillen:
- *  5/6 d × 465 = 387,5 → 388, maar 0,833333 × 465 = 387,4998 → 387 (aanval a06 na #600). */
+ *  `[dagen, minuten]` bij een breuk (T21). Hele dagen: geen record. De minuten komen uit de bron; de dagen
+ *  van het record verklaren precies die minuten (`recordDayValue`, aanval a06 na #600). */
 export function writeDays(days: number, minutesPerDay: number): WrittenAmount {
-  const stored = roundDays(days);
-  const minutes = dayMeasureMinutes(stored, minutesPerDay);
-  return isWholeDays(days) ? { minutes } : { minutes, record: [stored, minutes] };
+  const record = dayMeasureRecord(days, minutesPerDay);
+  return isWholeDays(days) ? { minutes: record[1] } : { minutes: record[1], record };
 }
 
 /** Urenmaat ⇒ de minuten van het standaardveld (op de hele minuut), plus het `ExactMinutes`-record bij een
@@ -99,7 +94,9 @@ export function writeMinutes(minutes: number): WrittenAmount {
 /** P6 XML: een hoeveelheid in kalendertijd krijgt altijd een record met de eenheid (ook bij hele dagen of
  *  minuten), want het standaardveld telt in P6 als werktijd. `value`: de dagen (`ed`) of de minuten (`eu`). */
 export function withElapsedUnit(written: WrittenAmount, value: number, unit: ElapsedUnit): WrittenAmount {
-  return { minutes: written.minutes, record: [unit === 'ed' ? roundDays(value) : value, written.minutes, unit] };
+  // `ed`: dezelfde dagen als het record van `writeDays` (die verklaren de minuten); hele dagen op 6 decimalen.
+  const days = written.record?.[0] ?? roundDays(value);
+  return { minutes: written.minutes, record: [unit === 'ed' ? days : value, written.minutes, unit] };
 }
 
 /**
