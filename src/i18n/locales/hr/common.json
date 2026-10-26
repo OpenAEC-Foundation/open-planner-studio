@@ -11,8 +11,9 @@
   },
   "notifications": {
     "dismiss": "Zatvori obavijest",
-    "taskEditRevertBlocked": "U međuvremenu je promjenu napravio AI pomoćnik ili proširenje. Izmjene zadataka prije nje nisu poništene. Ostaju kao obični koraci pod Poništi.",
+    "taskEditRevertBlocked": "Promjena od MCP-klijenta ili proširenja stigla je u međuvremenu. Izmjene zadataka prije nje nisu poništene i ostaju kao obični koraci pod Poništi.",
     "openFailed": "Otvaranje datoteke nije uspjelo",
+    "csvInvalidDate": "CSV nije otvoren: nepoznat datum \"{{value}}\" u CSV retku {{row}}, stupcu \"{{column}}\". Upotrijebite gggg-mm-dd, dd-mm-gggg ili dd/mm/gggg.",
     "extGuideCallbackFailed": "Jedan korak proširenja {{name}} javio je grešku. Vodič se nastavlja.",
     "extHelpProjectOpenFailed": "Projektnu datoteku {{file}} iz proširenja {{name}} nije bilo moguće otvoriti.",
     "extImportFailed": "Uvoz pomoću {{name}} nije uspio.",
@@ -91,6 +92,8 @@
     "browserCannotOverwrite": "Ovaj preglednik ne dopušta aplikaciji da zapisuje natrag u '{{name}}'. Zato aplikacija pri svakom spremanju ponovno pita gdje datoteka treba biti. U Chromeu, Edgeu ili desktop aplikaciji to se ne događa.",
     "browserSavesAsDownload": "Spremljeno kao preuzimanje: '{{name}}' je u vašoj mapi za preuzimanja. Ovaj preglednik ne dopušta aplikaciji da piše na vlastito mjesto, pa svako spremanje stvara novo preuzimanje. U Chromeu, Edgeu ili desktop aplikaciji Spremi jednostavno ažurira istu datoteku.",
     "autoSaveFailed": "Automatsko spremanje nije uspjelo",
+    "recoveryManifestBlocked": "Podaci za oporavak imaju nepoznatu verziju ili neispravan format. Ova aplikacija ih ostavlja netaknutima i ne može pročitati ni ažurirati ovaj skup za oporavak. Pokušajte s verzijom aplikacije koja je izradila kopije ili s novijom verzijom. Novi rad sami spremite.",
+    "recoveryStorageBlocked": "Spremište za oporavak privremeno je blokirano drugom otvorenom vezom. Postojeće kopije ostaju sačuvane; ova stranica ne izrađuje nove kopije za oporavak. Spremite rad sami, zatvorite druge kartice s ovom aplikacijom i ponovno učitajte ovu stranicu da biste ponovno pokušali oporavak.",
     "recoveryReadFailed": "Oporavljenu datoteku nije bilo moguće pročitati",
     "recoveryRestoreFailed": "Vraćanje nije uspjelo",
     "recoveryDocumentsSkipped_one": "{{count}} datoteka za oporavak nije bilo moguće učitati i preskočena je.",
@@ -155,8 +158,14 @@
     "referencesClearedOnPaste_one": "{{count}} referenca nije postojala u ovom dokumentu i uklonjena je (kalendar zadatka, prilagođena kategorija radova, šifra zadatka ili prilagođeno polje iz izvornog dokumenta).",
     "referencesClearedOnPaste_few": "{{count}} reference nisu postojale u ovom dokumentu i uklonjene su (kalendari zadataka, prilagođene kategorije radova, šifre zadatka ili prilagođena polja iz izvornog dokumenta).",
     "referencesClearedOnPaste_other": "{{count}} referenci nije postojalo u ovom dokumentu i uklonjeno je (kalendari zadataka, prilagođene kategorije radova, šifre zadatka ili prilagođena polja iz izvornog dokumenta).",
-    "milestoneRefusedAssignments": "'{{task}}' ima dodjele resursa i ne može postati kontrolna točka. Prvo uklonite dodjele.",
+    "milestoneRefusedAssignments": "'{{task}}' ima dodjele resursa i ne može postati kontrolna točka. Najprije uklonite dodjele.",
+    "milestoneRefusedAssignmentsMany_one": "{{count}} zadatak ima dodjele resursa i ne može postati kontrolna točka. Prvo uklonite dodjele.",
+    "milestoneRefusedAssignmentsMany_few": "{{count}} zadatka imaju dodjele resursa i ne mogu postati kontrolne točke. Prvo uklonite dodjele.",
+    "milestoneRefusedAssignmentsMany_other": "{{count}} zadataka imaju dodjele resursa i ne mogu postati kontrolne točke. Prvo uklonite dodjele.",
     "milestoneRefusedSummary": "'{{task}}' je zadatak sažetka s podzadacima i ne može postati kontrolna točka.",
+    "milestoneRefusedSummaryMany_one": "{{count}} zadatak je zadatak sažetka s podzadacima i ne može postati kontrolna točka.",
+    "milestoneRefusedSummaryMany_few": "{{count}} zadatka su zadaci sažetka s podzadacima i ne mogu postati kontrolne točke.",
+    "milestoneRefusedSummaryMany_other": "{{count}} zadataka su zadaci sažetka s podzadacima i ne mogu postati kontrolne točke.",
     "assignmentsMovedToSubtask_one": "{{count}} dodjela premještena u podzadatak '{{child}}'.",
     "assignmentsMovedToSubtask_few": "{{count}} dodjele premještene u podzadatak '{{child}}'.",
     "assignmentsMovedToSubtask_other": "{{count}} dodjela premješteno u podzadatak '{{child}}'.",
@@ -164,6 +173,9 @@
     "assignmentsMovedToSubtasks_few": "Dodjele {{count}} zadatka premještene u podzadatke.",
     "assignmentsMovedToSubtasks_other": "Dodjele {{count}} zadataka premještene u podzadatke.",
     "milestoneClearedOnPhase": "'{{phase}}' više nije kontrolna točka.",
+    "milestoneClearedOnPhaseMany_one": "{{count}} zadatak više nije kontrolna točka.",
+    "milestoneClearedOnPhaseMany_few": "{{count}} zadatka više nisu kontrolne točke.",
+    "milestoneClearedOnPhaseMany_other": "{{count}} zadataka više nisu kontrolne točke.",
     "phaseRefusedNoAssignableChild": "'{{phase}}' ne može postati zadatak sažetka: njegove dodjele nemaju kamo otići, jer nijedan od novih podzadataka ne smije nositi dodjele (kontrolna točka ili zadatak sažetka). Ništa nije promijenjeno.",
     "phaseRefusedDuplicateResource": "'{{phase}}' ne može postati zadatak sažetka: dodjela za {{resource}} ne može preći u novi podzadatak '{{child}}', jer on već ima {{resource}}. Ništa nije promijenjeno.",
     "phaseQuestionOutdated": "Zadaci ili dodjele promijenili su se dok je pitanje bilo otvoreno. Ništa nije promijenjeno; pokušajte ponovno.",
@@ -181,7 +193,7 @@
     },
     "xerArchiveUnusable": "Izvorni XER arhiv u ovoj datoteci je neupotrebljiv i izostavljen je; sam projekt je potpuno otvoren.",
     "xerArchiveUnusableLine": "Izvorni XER arhiv u ovoj datoteci bio je neupotrebljiv i izostavljen je.",
-    "xerArchiveUnusableConsequence": "Raspored, profil izračuna i svi projektni podaci iz IFC-a su potpuni. Što nedostaje: datumi kakve ih je Primavera spremila i izvorno podrijetlo za AI i proširenja. Spremanje zapisuje datoteku bez arhiva; ponovno uvezite izvorni .xer da biste vratili arhiv.",
+    "xerArchiveUnusableConsequence": "Raspored, profil izračuna i svi projektni podaci iz IFC-a su potpuni. Što nedostaje: datumi kakve ih je Primavera spremila i izvorno podrijetlo za MCP-klijente i proširenja. Spremanje zapisuje datoteku bez arhiva; ponovno uvezite izvorni .xer da biste vratili arhiv.",
     "xerArchiveReasonSchemaVersion": "Razlog: arhiv ima nepoznatu verziju sheme ili izgled (noviji ili drugi pisac).",
     "xerArchiveReasonHashMismatch": "Razlog: kontrolni zbroj ne odgovara izvornim bajtovima; arhiv je oštećen.",
     "xerArchiveReasonTruncated": "Razlog: arhiv je skraćen; dio izvornih bajtova nedostaje.",
@@ -266,7 +278,11 @@
     "msProjectLostFixedCosts_other": "Fiksni troškovi za {{count}} zadataka nisu preuzeti.",
     "msProjectLostResourceRates_one": "Standardna tarifa za {{count}} resurs nije preuzeta.",
     "msProjectLostResourceRates_few": "Standardne tarife za {{count}} resursa nisu preuzete.",
-    "msProjectLostResourceRates_other": "Standardne tarife za {{count}} resursa nisu preuzete."
+    "msProjectLostResourceRates_other": "Standardne tarife za {{count}} resursa nisu preuzete.",
+    "minuteModelConverted_one": "{{document}}: {{count}} zadatak ima nakon pretvorbe drugačiji početak ili završetak; najveći pomak iznosi {{days}} radnih dana. Ctrl+Z vraća spremljene datume.",
+    "minuteModelConverted_few": "{{document}}: {{count}} zadatka imaju nakon pretvorbe drugačiji početak ili završetak; najveći pomak iznosi {{days}} radnih dana. Ctrl+Z vraća spremljene datume.",
+    "minuteModelConverted_other": "{{document}}: {{count}} zadataka ima nakon pretvorbe drugačiji početak ili završetak; najveći pomak iznosi {{days}} radnih dana. Ctrl+Z vraća spremljene datume.",
+    "minuteModelCalendarRepaired": "Kalendar „{{calendar}}“ je popravljen: završetak ili pauza nisu odgovarali spremljenom radnom vremenu."
   },
   "scheduleErrors": {
     "cycle": "Kružna ovisnost između zadataka: {{path}}",
@@ -368,6 +384,11 @@
     "languageHint": "Jezik prikaza aplikacije, odmah primijenjen.",
     "version": "Verzija",
     "versionHint": "Trenutni broj verzije aplikacije.",
+    "experimentalSection": "Eksperimentalno",
+    "experimentalEmpty": "Trenutačno nema eksperimentalnih značajki.",
+    "experimentalHide": "Sakrij",
+    "demoTopbarAnimation": "Demo: animacija u gornjoj traci",
+    "demoTopbarAnimationHint": "Nježan narančasti sjaj preko gornje trake. Pokazuje kako radi eksperimentalna sklopka.",
     "tourHint": "Ponovno prođite uvodni obilazak aplikacije.",
     "theme": "Tema",
     "themeHint": "Shema boja sučelja.",
@@ -379,15 +400,19 @@
     "showTaskTypes": "Koristi vrste zadataka",
     "showTaskTypesHint": "Odaberite za svaki zadatak što se mijenja kad se promijeni trajanje, jedinice dodjele ili rad, kao Task Type u MS Project i Duration Type u P6. Isključeno: trajanje i jedinice dodjele ostaju isti. Datoteka s vrstama zadataka ili spremljenim radom ih prikazuje i kad je ovo isključeno.",
     "allowMixedDayHour": "Dopusti mješoviti raspored po danima i satima",
-    "defaultTaskDurationUnit": "Zadana jedinica za nove zadatke",
-    "defaultTaskDurationUnitHint": "Određuje hoće li novi zadaci početi u radnim danima ili radnim satima. Postojeći zadaci se ne mijenjaju.",
+    "defaultTaskDurationUnit": "Zadana mjera za nove zadatke",
+    "defaultTaskDurationUnitHint": "Mjera u danima: trajanje se računa u radnim danima kalendara. Mjera u satima: trajanje se računa u radnim satima. Postojeći zadaci se ne mijenjaju. Zadatak tipa fiksni rad uvijek koristi mjeru u satima.",
+    "defaultTaskDurationUnitDays": "Mjera u danima",
+    "defaultTaskDurationUnitHours": "Mjera u satima",
+    "defaultTaskDurationUnitLocked": "Profil {{profile}} računa trajanje u satima. Novi zadaci zato dobivaju mjeru u satima.",
     "durationDisplay": "Prikaz trajanja",
     "durationDisplayHint": "Određuje kako se trajanje zadatka prikazuje, neovisno o jedinici u kojoj je zadatak sam zabilježen.",
+    "durationDisplayOpsHint": "U profilu OPS svaki zadatak prikazuje vlastitu mjeru.",
     "durationDisplayAuto": "Automatski (vlastita jedinica po zadatku)",
     "durationDisplayDays": "Uvijek dani",
     "durationDisplayHours": "Uvijek sati",
     "barSplitMode": "Trake zadataka kod prekida",
-    "barSplitModeHint": "Hoće li se traka zadatka vizualno dijeliti oko neradnih dana.",
+    "barSplitModeHint": "Samo za zadatke u satima: dijeli trake oko pauza i izvan radnog vremena. Stvarni prekidi zadataka uvijek ostaju vidljivi, bez obzira na ovu postavku.",
     "barSplitNever": "Nikad ne dijeli",
     "barSplitSelection": "Dijeli kad je odabrano",
     "barSplitAlways": "Uvijek dijeli",
@@ -450,11 +475,11 @@
     "fontFamilySerif": "Serifno",
     "fontFamilyMono": "Monospace",
     "fontHint": "Web-aplikacije ne prate automatski postavku sustavnog fonta. Ovdje odaberite font i veličinu za cijelo sučelje.",
-    "aiModeSection": "AI način rada",
-    "aiMode": "Omogući AI način rada",
-    "aiModeHint": "Prikazuje karticu AI s MCP-mostom, pa AI pomoćnici mogu raditi s vašim rasporedom putem Model Context Protocol. Isključivanjem zaustavljate most.",
+    "aiModeSection": "MCP-veza",
+    "aiMode": "Dopusti MCP-vezu",
+    "aiModeHint": "Prikazuje karticu MCP. Tamo pokrećete MCP-most da MCP-klijent preko protokola Model Context Protocol može raditi s vašim rasporedom. Isključivanjem se most zaustavlja.",
     "aiAutostart": "Automatski pokreni most",
-    "aiAutostartHint": "Odmah aktivira MCP-most pri pokretanju aplikacije, pa se AI klijent može povezati bez otvaranja kartice AI. Samo u desktop-aplikaciji.",
+    "aiAutostartHint": "Odmah aktivira MCP-most pri pokretanju aplikacije, pa se MCP-klijent može povezati bez otvaranja kartice MCP. Samo u desktop-aplikaciji.",
     "legacySection": "Zastarjele funkcije",
     "classicViewControls": "Prikaži klasične gumbe prikaza",
     "classicViewControlsHint": "Vraća zasebne gumbe Stupci, Filtar, Grupiraj i Sortiraj na karticu Prikaz. Stupce sada birate znakom plus u zaglavlju tablice ili putem Tablica → Stupci…; filtriranje, grupiranje i sortiranje nalaze se u gumbima izgleda i u dijalogu izgleda."
@@ -486,9 +511,9 @@
     "configSnippetHint": "Zalijepite ovo u MCP-konfiguraciju vašeg klijenta.",
     "tokenWarning": "Ovaj token daje pristup otvorenom planu. Nemojte ga dijeliti s drugima.",
     "connectPrompt": "Upit za povezivanje",
-    "connectPromptHint": "Zalijepite ovo u vašeg AI agenta. On će se sam povezati.",
+    "connectPromptHint": "Zalijepite ovo u svoj MCP-klijent. On će se sam povezati.",
     "connectPromptText": "Povežite se s MCP-poslužiteljem koji radi na mom računalu: naziv {{name}}, prijenos streamable HTTP, URL {{url}}, s zaglavljem Authorization: Bearer {{token}}. Dodajte ga u svoju MCP-konfiguraciju (na primjer kao blok mcpServers) i uspostavite vezu. Zatim provjerite popis alata: trebali biste vidjeti otprilike {{count}} alata s prefiksom {{prefix}}. Ukratko opišite što možete raditi s ovim poslužiteljem. Prije nego što išta promijenite, prvo pročitajte vodič za raspored putem alata planner_get_planning_guide.",
-    "statusDot": "AI-most: {{status}}"
+    "statusDot": "MCP-most: {{status}}"
   },
   "aiSafety": {
     "pause": "Pauziraj",
@@ -498,7 +523,7 @@
     "readOnlyHint": "Dok je ovo uključeno, svi alati koji mijenjaju podatke odbijaju se.",
     "autoBackupOn": "Automatska sigurnosna kopija: uključena",
     "autoBackupOff": "Automatska sigurnosna kopija: isključena",
-    "autoBackupHint": "Prije prve AI-promjene po dokumentu automatski zapisuje IFC-sigurnosnu kopiju.",
+    "autoBackupHint": "Prije prve MCP-promjene po dokumentu automatski zapisuje IFC-sigurnosnu kopiju.",
     "backupNow": "Napravi sigurnosnu kopiju",
     "openFolder": "Otvori mapu sigurnosnih kopija",
     "backupOk": "Sigurnosna kopija napravljena: {{name}}",
@@ -506,10 +531,10 @@
     "openErr": "Mapa se nije mogla otvoriti: {{error}}"
   },
   "aiActivity": {
-    "title": "AI zadatak",
+    "title": "MCP-aktivnost",
     "panelButton": "Panel zadatka",
     "clear": "Obriši",
-    "empty": "Još nema AI zadatka. Pozivi mosta prikazat će se ovdje.",
+    "empty": "Još nema MCP-aktivnosti. Pozivi mosta prikazat će se ovdje.",
     "args": "Argumenti",
     "result": "Odgovor"
   },
@@ -526,7 +551,10 @@
     "taskCount_few": "{{count}} zadatka",
     "taskCount_other": "{{count}} zadataka",
     "restore": "Vrati",
-    "dontRestore": "Ne vraćaj"
+    "dontRestore": "Ne vraćaj",
+    "unreadableOnlyExplanation": "Nijedna od kopija za oporavak ne može se pročitati. Sačuvajte ih za kasniji pokušaj oporavka ili ih izbrišite samo ako ih više ne trebate. Brisanje se ne može poništiti.",
+    "keepCopies": "Zadrži kopije",
+    "deleteCopies": "Izbriši kopije"
   },
   "window": {
     "minimize": "Minimiziraj",
@@ -545,7 +573,8 @@
   "project": {
     "untitled": "Novi raspored",
     "imported": "Uvezeni projekt",
-    "unassignedResource": "Nije dodijeljeno"
+    "unassignedResource": "Nije dodijeljeno",
+    "ifcBuildingModelUnsupported": "Ova IFC datoteka sadrži objekte građevinskog modela. Otvaranje je blokirano jer bi spremanje te objekte uklonilo. Uredite zasebnu datoteku s rasporedom i zatim je ponovno spojite s građevinskim modelom."
   },
   "documents": {
     "overviewTitle": "Otvoreni projekti",
@@ -640,12 +669,14 @@
     "releaseNotes": "Što je novo",
     "downloadInstall": "Preuzmi i instaliraj",
     "downloading": "Preuzimanje…",
+    "preparingInstall": "Priprema instalacije…",
     "installing": "Instaliranje…",
     "restarting": "Ponovno pokretanje…",
     "retry": "Pokušaj ponovno",
     "error": "Nešto je pošlo po krivu pri ažuriranju",
     "checking": "Provjera…",
     "snapNotice": "Ova verzija ažurira se automatski putem Snap Storea. Ne morate ništa raditi.",
+    "packageManagerNotice": "Ažurirajte putem upravitelja paketa (npr. yay -Syu).",
     "debExplanation": "Ažurirajte ručno tako da u terminalu izvršite ovu naredbu ili preuzmite najnoviji paket.",
     "debCommandLabel": "Naredba za instalaciju",
     "copyCommand": "Kopiraj naredbu",
@@ -742,6 +773,7 @@
     "companies": "Biblioteke resursa",
     "addCompany": "Dodaj biblioteku resursa",
     "newCompany": "Nova biblioteka resursa",
+    "defaultCompany": "Moja biblioteka resursa",
     "companyName": "Naziv biblioteke",
     "removeCompany": "Ukloni biblioteku resursa",
     "cannotRemoveLast": "Posljednja biblioteka resursa ne može se ukloniti.",
@@ -756,7 +788,7 @@
     "calendars": "Kalendari",
     "noCalendars": "Još nema kalendara u biblioteci.",
     "noResources": "Još nema resursa u biblioteci.",
-    "promoteHint": "Projektni kalendar ili resurs dodajte u biblioteku gumbom „+ Iz projekta“ iznad.",
+    "promoteHint": "Promovirajte projektni kalendar u biblioteku gumbom „+ Iz projekta“ iznad.",
     "promoteFromProject": "Iz projekta",
     "alreadyLinked": "već povezano",
     "editItem": "Uredi",
@@ -1200,7 +1232,7 @@
     "nav": {
       "reportTab": "Idi na karticu Izvješće",
       "switchDocument": "Prebaci dokument",
-      "scrollToToday": "Idi na danas",
+      "scrollToToday": "Pomakni na datum stanja ili na danas",
       "help": "Otvori pomoć"
     },
     "grid": {
@@ -1377,6 +1409,7 @@
     "overrideDropped": "Povezivanje za redak {{row}} upućuje na zadatak koji više ne postoji i zanemaren je.",
     "moreRows": "…i još {{more}}",
     "sheetRowHint": "redak {{row}} u listu",
+    "sheetTaskId": "OPS ID zadatka: {{id}}",
     "dateOrderTitle": "Dan ili mjesec prvo?",
     "dateOrderQuestion": "“{{sample}}” — koji je to datum?",
     "dateOrderOptionA": "{{date}}",
@@ -1418,7 +1451,7 @@
   "conventions": {
     "preserveActualDatesInBackwardPass": {
       "label": "Stvarni datumi ostaju u unatražnom prolazu",
-      "help": "Započeti ili dovršeni zadatak zadržava svoje zabilježene datume i na kasnoj strani. Dovršeni nasljednik ne vraća otvoreni prethodnik u prošlost."
+      "help": "S datumom stanja dovršeni zadatak zadržava svoje stvarne datume na kasnoj strani. Dovršeni nasljednik ne vraća otvoreni prethodnik u prošlost. Zadatak u tijeku zadržava svoj stvarni početak kao kasni početak, osim ako je uključeno „Zadatak u tijeku: najraniji početak = početak preostalog posla“. Dovršeni zadatak na točki ili prozoru datuma stanja može i dalje prenijeti pritisak ovisnosti."
     },
     "clampNegativeFreeFloat": {
       "label": "Slobodni hod nikad nije negativan",
@@ -1426,103 +1459,111 @@
     },
     "p6ZeroDurationUsesPlannedBoundary": {
       "label": "Kontrolna točka prati planiranu granicu kalendara",
-      "help": "Kontrolna točka bez trajanja ostaje na granici kalendara koju je datoteka planirala: početak dana ostaje početna kontrolna točka, a završetak radnog bloka smije pasti na završetak prethodnika."
+      "help": "Samo pri planiranju u satima. Kontrolna točka bez trajanja prati planiranu granicu kalendara: početak dana ostaje početna kontrolna točka, a završetak radnog bloka smije pasti na završetak prethodnika. I običan zadatak s trajanjem 0 može dobiti par granica, ali samo uz XER-podrijetlo kao Task Dependent ili Resource Dependent i uz planirani završetak prije planiranog početka."
     },
     "p6UseTaskPlannedStartFloor": {
       "label": "Planirani početak kao dodatna donja granica",
-      "help": "Planirani početak iz datoteke djeluje kao donja granica kada su i početak i završetak više od jednog kalendarskog dana kasniji nego što mreža dopušta."
+      "help": "Planirani početak djeluje kao donja granica kada su i početak i završetak više od jednog kalendarskog dana kasniji nego što mreža dopušta. Kod završne kontrolne točke s planiranim završetkom prije planiranog početka dovoljan je kasniji planirani početak. Ne vrijedi za zadatak u tijeku kad je uključeno „Planirani početak nije donja granica za zadatak u tijeku“, niti za nezapočeti ALAP-zadatak koji se postavlja iz nasljednika. Ne zahtijeva XER-podrijetlo."
     },
     "p6FinishMilestoneBoundaryWindow": {
       "label": "Završna kontrolna točka kao prozor granica",
-      "help": "Završna kontrolna točka smije biti na dvije susjedne granice kalendara: najraniji početak na početku radnog bloka, najraniji završetak na završetku prethodnog radnog bloka."
+      "help": "Završna kontrolna točka bez trajanja dobiva prozor granice samo ako joj je planirani završetak prije planiranog početka i ako njezin izračunati početak još jednako planiranom početku. Završna kontrolna točka s prethodnicima i bez nasljednika dobiva i rane datume kao kasne, osim ako je uključeno „Izračunati vremensku rezervu do datuma završetka projekta“. Vidi se samo u P3-izlazu; isključeno u svakom ugrađenom profilu."
     },
     "p6PreserveActualInstants": {
       "label": "Stvarni datumi ostaju točni",
-      "help": "Zabilježeni stvarni početak i stvarni završetak ne pomiču se na rub radnog bloka."
+      "help": "Samo za zadatke sa sačuvanim podrijetlom iz .xer-datoteke. Zabilježeni stvarni početak i stvarni završetak ne pomiču se na rub radnog bloka."
     },
     "p6UseRemainingStartForProgress": {
       "label": "Zadatak u tijeku: najraniji početak = početak preostalog posla",
-      "help": "Najraniji i kasni početak zadatka u tijeku opisuju gdje počinje preostali posao, a ne povijesni stvarni početak. Pri unatražnom izračunu preko ovisnosti početak-početak računa se samo preostalo trajanje."
+      "help": "Najraniji i kasni početak zadatka u tijeku opisuju mjesto gdje počinje preostali posao. Pri unatražnom izračunu preko ovisnosti početak-početak računa se samo preostalo trajanje, ali samo uz planiranje u satima, sa stvarnim početkom i napretkom između 0 i 100 %, poznatim preostalim trajanjem manjim od planiranog trajanja te bez proteklog vremena ili prekida u rasporedu. Ovo dodatno pravilo preostalog trajanja ne vrijedi za ovisnosti početak-završetak."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Točan trenutak ograničenja na kontrolnoj točki",
-      "help": "Ograničenje datuma i vremena na kontrolnoj točki bez trajanja točan je trenutak, također i na početku radnog bloka."
+      "help": "Samo pri planiranju u satima, na kasnoj strani, za ograničenje s datumom i vremenom tipa SNLT, MSO, FNLT ili MFO na kontrolnoj točki bez trajanja. Trenutak ograničenja ostaje točan, također na početku radnog bloka. Unaprijed je takav trenutak već točan u svakom profilu."
     },
     "resumeFromActualElapsed": {
       "label": "Preostali posao nastavlja se nakon proteklog vremena",
-      "help": "Zadatak u tijeku nastavlja preostali posao na stvarnom početku plus proteklo vrijeme, a ne na datumu stanja."
+      "help": "Zadatak u tijeku nastavlja preostali posao najranije na stvarnom početku plus proteklo vrijeme. Datum stanja i granica prethodnika ostaju donje granice; vrijedi najkasnija od sve tri. Ne vrijedi za Progress Override, zadatke bez preostalog posla ili slučajeve gdje aplikacija koristi valjan datum nastavka iz datoteke (uz najviše jednu dodjelu)."
     },
     "unstartedIgnoresStatusDate": {
       "label": "Nezapočeti zadaci se ne pomiču na datum stanja",
-      "help": "Zadatak koji još nije započeo ne pomiče se sam na datum stanja ili nakon njega."
+      "help": "Samo s datumom stanja, za zadatak bez napretka. Taj se zadatak ne pomiče sam na datum stanja niti nakon njega."
     },
     "p6RelationFinishBoundary": {
       "label": "Nasljednik počinje na granici završetka",
-      "help": "Kod ovisnosti završetak-početak bez vremena odgode, kad nasljednik u datoteci počinje točno na završetku prethodnika, na završetku radnog bloka, počinje nasljednik na tom završetku, a ne na početku sljedećeg radnog bloka. Datoteka to ne označava: aplikacija takvu ovisnost sama prepoznaje pri otvaranju .xer datoteke. Ovisnost koju sami unesete ne spada pod ovo pravilo. Pri unatražnom izračunu nasljednik svoj kasni početak jednostavno prikazuje kao početak radnog bloka."
+      "help": "Samo pri planiranju u satima, na kalendaru prethodnika, i za ovisnost koju aplikacija prepoznaje pri otvaranju .xer-datoteke. Kod ovisnosti završetak-početak bez vremena odgode, kad nasljednik u datoteci počinje točno na završetku radnog bloka prethodnika, nasljednik počinje na tom završetku. Ovisnost koju sami dodate nije obuhvaćena. Pri unatražnom izračunu kasni početak nasljednika ostaje početak bloka."
     },
     "p6BackwardLagFinishBoundary": {
       "label": "Vrijeme odgode unatrag od granice završetka",
-      "help": "Ako unatražni izračun oduzme vrijeme odgode u radnom vremenu od granice završetka i dobije točno početak radnog bloka, završava na prethodnoj granici završetka. I kod ovisnosti završetak-završetak bez vremena odgode kasni završetak koji pada na završetak radnog bloka ostaje na toj granici završetka."
+      "help": "Samo pri planiranju u satima, na kalendaru u kojem se računa vrijeme odgode. Ako unatražni izračun oduzme pozitivno vrijeme odgode u radnom vremenu od točne granice završetka i dobije prvi početak bloka u danu, završava na prethodnoj granici završetka. Također kod ovisnosti završetak-završetak bez vremena odgode kasni završetak na završetku radnog bloka ostaje na toj granici. Ne vrijedi za vrijeme odgode u proteklom vremenu."
     },
     "p6CompletedDataDateWindow": {
       "label": "Dovršeni zadatak u prozoru datuma stanja",
-      "help": "Dovršeni zadatak dobiva najranije datume u prozoru datuma stanja, a njegov završetak ulazi u datum završetka projekta."
+      "help": "Samo s datumom stanja, za dovršene listovne zadatke iz .xer-datoteke sa sačuvanim ciljnim prozorom, napretkom po trajanju i P6-tipom Task Dependent ili Resource Dependent s Fixed Duration & Units; bez kontrolnih točaka bez trajanja. Zahtijeva „Zadatak u tijeku: najraniji početak = početak preostalog posla“. Prekid i nastavak dopušteni su samo za Task Dependent s valjanim parom, stvarnim završetkom između planiranog završetka i datuma stanja, nastavkom najkasnije na stvarnom završetku te uključenim „Stvarni datumi ostaju u unatražnom prolazu“. Zadatak dobiva rane datume u prozoru datuma stanja; njegov završetak ulazi u datum završetka projekta."
     },
     "p6CompletedLoeActualFinish": {
       "label": "Dovršena LOE preko stvarnog završetka",
-      "help": "Dovršeni zadatak razine napora (LOE) s jedinom ovisnošću početak-početak slijedi put kroz svoj stvarni završetak."
+      "help": "Samo s datumom stanja, za dovršeni LOE iz .xer-datoteke s pozitivnim trajanjem, napretkom po trajanju i P6-tipom Fixed Duration & Units/Time, potpunim ciljnim prozorom i stvarnim završetkom između planiranog završetka i datuma stanja. Samo ulazne ovisnosti početak-početak, najmanje jedna, bez nasljednika i bez prekida/nastavka. Zahtijeva „Zadatak u tijeku: najraniji početak = početak preostalog posla“, „Stvarni datumi ostaju u unatražnom prolazu“ i „Stvarni datumi ostaju točni“. LOE prati svoj stvarni završetak umjesto puta kroz hamak."
     },
     "p6OpenLoeTargetSpan": {
       "label": "Nezapočeta LOE koristi ciljni prozor",
-      "help": "Zadatak razine napora koji još nije započeo uzima svoj ciljni prozor kao trajanje."
+      "help": "Samo pri planiranju u satima, za nezapočeti LOE/hamak iz .xer-datoteke s 0% napretka, pozitivnim trajanjem, napretkom po trajanju i P6-tipom Fixed Duration & Units; bez stvarnih datuma i bez prekida/nastavka. Zahtijeva potpuni pozitivni ciljni prozor čiji je početak jednak granici ovisnosti, a radno vrijeme se od trajanja razlikuje najviše za jedan radni dan, najmanje jedan ulaz početak-početak i jedan izlaz završetak-završetak, samo te vrste ovisnosti i bez vremena odgode. LOE tada uzima ciljni prozor kao trajanje. Slab dokaz: jedna datoteka."
     },
     "p6CompletedPredecessorAtDataDate": {
       "label": "Dovršeni prethodnik ne zadržava nakon datuma stanja",
-      "help": "Ako dovršeni prethodnik po stvarnom datumu završava nakon datuma stanja, njegovi nasljednici ipak već smiju početi na datumu stanja."
+      "help": "Samo pri planiranju u satima i s datumom stanja, za dovršenog prethodnika sa stvarnim završetkom. Ovisnosti završetak-početak i završetak-završetak računaju najkasnije od radne granice neposredno pred datum stanja; kasniji stvarni završetak ne zadržava nasljednika. Ovisnosti početak-početak i početak-završetak ostaju na stvarnom početku. Dovršeni zadatak s vlastitom točkom datuma stanja ili pomaknutim prozorom datuma stanja slijedi tu vlastitu granicu."
     },
     "p6FreeFloatOnOwnCalendar": {
       "label": "Slobodni hod zadatka u vlastitom kalendaru",
-      "help": "Slobodni hod nezapočetog zadatka računa se po ovisnosti u kalendaru samog zadatka, a ne u kalendaru nasljednika: kod završetak-početak, početak-početak i završetak-završetak, uključujući vrijeme odgode u radnom vremenu u kalendaru prethodnika. Započeti zadatak samo kod završetak-početak bez vremena odgode."
+      "help": "Samo pri planiranju u satima, za nedovršene zadatke i ovisnosti s izračunatim slobodnim hodom. Za nezapočeti zadatak slobodni hod se računa u vlastitom kalendaru zadatka za završetak-početak, početak-početak i završetak-završetak, bez odgode u proteklom vremenu ili postotku. Vrijeme odgode različito od 0 zahtijeva kalendar odgode Prethodnik. Za započeti zadatak vrijedi samo završetak-početak bez vremena odgode. Slobodni hod same ovisnosti i oznaka odlučujuće ovisnosti se ne mijenjaju."
     },
     "p6CompletedRemainingLag": {
       "label": "Prošlo vrijeme odgode dovršenog prethodnika se ne računa",
-      "help": "Na kasnoj strani računa se od vremena odgode nakon dovršenog prethodnika samo dio koji do datuma stanja još nije prošao."
+      "help": "Samo uz planiranje u satima na kalendaru vremena odgode i uz datum stanja, za dovršene prethodnike iz datoteke .xer sa stvarnim završetkom prije datuma stanja te s točkom ili prozorom datuma stanja. Od pozitivnog vremena odgode u radnom vremenu računa se samo dio koji još nije prošao. Radi na kasnoj strani i unaprijed od točke datuma stanja ili pomaknutog nultog preostalog prozora. Zadatak na svojim uobičajenim stvarnim datumima zadržava puno vrijeme odgode; ne vrijedi za vrijeme odgode u satima proteklog vremena. Zadatak u tijeku: najraniji početak = početak preostalog posla. Dovršeni zadatak u prozoru datuma stanja. Progress Override."
     },
     "p6CompletedOutOfSequenceWindow": {
       "label": "Dovršeni zadatak izvan redoslijeda čeka prethodnike",
-      "help": "Dovršeni zadatak čiji prethodnik još nije završen dobiva nulti prozor nakon tog prethodnika, umjesto na datumu stanja (P6: Retained Logic). Radi samo ako su također uključene opcije „Dovršeni zadatak u prozoru datuma stanja“ i „Zadatak u tijeku: najraniji početak = početak preostalog posla“."
+      "help": "Samo uz planiranje u satima i datum stanja, na XER-putu opcije „Dovršeni zadatak u prozoru datuma stanja“; ta pravila izračuna i „Zadatak u tijeku: najraniji početak = početak preostalog posla“ moraju biti uključeni. Ne uz Progress Override. Preko ulaza završetak-početak ili početak-početak zadatak dobiva kasniju od granice datuma stanja i granice nedovršenog prethodnika ili prethodnika s pomaknutim prozorom datuma stanja. Obični dovršeni prethodnici se ne računaju."
     },
     "p6CompletedPhysicalAtDataDate": {
       "label": "Dovršeni zadatak fizičkog napretka stoji na datumu stanja",
-      "help": "Dovršeni zadatak s fizičkim postotkom dovršenog prikazuje se kao jedna točka na datumu stanja, ili kasnije ako to zahtijeva prethodnik, umjesto na svojim stvarnim datumima. Izmjereno je samo za fizički napredak. Za ostale vrste napretka (P6 standard: trajanje) ovo ponašanje nije izmjereno i ostaje isključeno."
+      "help": "Samo uz planiranje u satima i datum stanja, za dovršene zadatke bez podzadataka i kontrolne točke nulte duljine iz datoteke .xer s P6-vrstom Task Dependent, Start Milestone ili Finish Milestone, sa zadržanim ciljnim prozorom, fizičkim postotkom dovršenosti, stvarnim završetkom najkasnije na datumu stanja i bez prekida/nastavka. Zahtijeva „Zadatak u tijeku: najraniji početak = početak preostalog posla“. Zadatak stoji kao jedna točka na datumu stanja, ili kasnije ako to zahtijeva prethodnik. Za druge vrste postotka dovršenog, uključujući trajanje, ovo nije izmjereno i ostaje isključeno."
     },
     "p6InProgressStartLagElapsed": {
       "label": "Prošlo vrijeme SS odgode iz prethodnika u tijeku se ne računa",
-      "help": "Kod ovisnosti početak-početak iz već započetog zadatka računa se od vremena odgode samo dio koji od njegovog stvarnog početka do datuma stanja još nije prošao."
+      "help": "Samo uz planiranje u satima na kalendaru vremena odgode i uz datum stanja, za ovisnost početak-početak s pozitivnim vremenom odgode u radnom vremenu iz nedovršenog prethodnika sa stvarnim početkom prije datuma stanja. Zahtijeva „Zadatak u tijeku: najraniji početak = početak preostalog posla“. Računa se samo dio vremena odgode koji još nije prošao. Opcija „Izračun SS vremena odgode za prethodnika u tijeku od“ bira početnu točku. Ne vrijedi za vrijeme odgode u satima proteklog vremena."
     },
     "p6FinishFinishStartMilestoneLateFinish": {
       "label": "Ovisnost završetak-završetak do početne kontrolne točke veže se uz nju",
-      "help": "Ovisnost završetak-završetak prema početnoj kontrolnoj točki računa se do same kontrolne točke, a ne do početka dana kontrolne točke: kasni završetak prethodnika smije ići do kasnog završetka kontrolne točke."
+      "help": "Samo uz planiranje u satima na obje strane ovisnosti završetak-završetak prema kontrolnoj točki početka bez trajanja. Ovisnost se veže na samu kontrolnu točku: kasni završetak prethodnika smije ići do kasnog završetka kontrolne točke. Slobodni hod se također može promijeniti; najraniji početak kontrolne točke ostaje isti. Ne vrijedi za završne kontrolne točke ni za unatražnu rutu nultog preostalog trajanja."
     },
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "Planirani početak nije donja granica za zadatak u tijeku",
-      "help": "Preostali posao započetog zadatka počinje na datumu stanja i odmah nakon svojih prethodnika, čak i ako je njegov planirani početak kasniji."
+      "help": "Samo za zadatak sa stvarnim početkom i manje od 100% dovršenosti, kad je „Planirani početak kao dodatna donja granica“ uključen. Njegov planirani početak nije dodatna donja granica za preostali posao; datum stanja i njegovi prethodnici ostaju mjerodavni."
     },
     "p6LateFinishOnOwnCalendar": {
       "label": "Kasni završetak u vlastitom kalendaru",
-      "help": "Ako kasni završetak koji nasljednik nameće padne izvan radnog vremena zadatka, postaje završetak prethodnog radnog razdoblja u vlastitom kalendaru zadatka."
+      "help": "Samo uz planiranje u satima, kad granica nasljednika određuje kasni završetak i nijedno strože ograničenje ili rok za dovršetak ne zamjenjuje tu granicu. Ako ta granica pada izvan vlastitog radnog vremena zadatka, kasni završetak postaje završetak prethodnog radnog razdoblja na vlastitom kalendaru. Ne vrijedi za kasni završetak koji određuje datum završetka projekta."
     },
     "p6ProgressOverrideIgnoresStartedSuccessor": {
       "label": "Progress Override ignorira započetog nasljednika i unatrag",
-      "help": "U načinu rada Progress Override ovisnost prema već započetom nasljedniku ne ulazi u izračun kasnih datuma i slobodnog hoda prethodnika koji još nije završen."
+      "help": "Samo uz Progress Override, za nedovršenog prethodnika i započetog, ali nedovršenog nasljednika (stvarni početak ili napredak). Njihova ovisnost se ne računa u kasnim datumima i slobodnom hodu prethodnika. Progress Override."
     },
     "p6FinishNotBeforeFinishFinishBound": {
       "label": "Najraniji završetak nije prije granice završetak-završetak",
-      "help": "Kod ovisnosti završetak-završetak najraniji završetak nasljednika u kalendarskom vremenu nikad nije prije granice koju postavlja prethodnik. Ako ta granica padne u neradno vrijeme nasljednika, završetak postaje početak sljedećeg radnog razdoblja."
+      "help": "Ispravak datuma: za ovisnost završetak-završetak s vremenom odgode u radnom vremenu, bez hamaka i uz planiranje u satima na kalendaru nasljednika (za preostali posao: njegov kalendar napretka) i kalendaru vremena odgode. Ako je granica ovisnosti kasnija od najranijeg završetka bez radnog vremena između njih, pomiče se samo završetak na prvu radnu granicu na toj granici ili nakon nje. Vrijedi za automatski planirane nasljednike koji nisu započeli i one koji su u tijeku; kod zadataka koji nisu započeli, tvrda fiksna točka završetka ima prednost. Slobodni hod: zasebno, za ovisnost završetak-završetak s nultim vremenom odgode i bez postotka odgode, nedovršeni prethodnik s postojećim slobodnim hodom ovisnosti i izračunatim najranijim završetkom nasljednika broji se od svog najranijeg završetka do najranijeg završetka nasljednika na vlastitom satnom kalendaru. Vrijedi i za nultu odgodu u proteklom vremenu, bez dodatnog uvjeta planiranja u satima na kalendaru nasljednika ili vremena odgode. Hamaci i ručno planirani zadaci na kraju zadržavaju slobodni hod 0."
     },
     "p6AlapPositionedFromSuccessors": {
       "label": "ALAP zadaci tako kasno kao što nasljednici dopuštaju",
-      "help": "Nezapočeti zadatak s ograničenjem „što kasnije moguće“ završava u minuti u kojoj ga njegovi nasljednici trebaju, najprije nasljednici, tako da se lanac zatvori. Njegov planirani početak se ne računa. Zadatak bez prethodnika tada ne počinje prije datuma stanja."
+      "help": "Samo uz planiranje u satima, za nezapočet zadatak koji nije ručno planiran i ima ograničenje „što kasnije moguće“ (ALAP). Najraniji datumi njegovih nasljednika određuju njegov položaj do minute; nasljednici idu prvi. Njegov planirani početak se ne računa; prethodnici, datum stanja i drugo ograničenje i dalje vrijede. Bez nasljednika koristi svoj kasni završetak. Obični korak ALAP ostaje dostupan u svakom profilu."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Samostalne kontrolne točke na završetku radnog dana",
+      "help": "Samostalna kontrolna točka ili završna kontrolna točka bez prethodnika postavlja se na završetak svojega radnog dana."
+    },
+    "workdayDurationMeasure": {
+      "label": "Trajanje u radnim danima",
+      "help": "Trajanje, vrijeme odgode ili preostalo trajanje u danima računa se u radnim danima: svaki radni dan broji se kao 1, koliko god taj dan trajao. Isključeno: dan se računa kao broj radnih sati po danu u kalendaru. Vrijeme odgode u postotcima slijedi mjeru prethodnika. Proteklo vrijeme nikad se ne računa u radnim danima."
     }
   },
   "profiles": {
@@ -1561,6 +1602,7 @@
       "float": "Vremenska rezerva i kasni datumi",
       "instants": "Datumi i trenutci iz datoteke",
       "msproject": "Napredak kao u programu Microsoft Project",
+      "durations": "Trajanje i mjera",
       "ownProfilesOnly": "Samo za vlastite profile"
     },
     "ownProfilesOnlyNote": "Ta pravila izračuna isključena su u svakom ugrađenom profilu, uključujući Primavera P6. Samo vlastiti profil ih može uključiti: za to odaberite Novi profil.",
@@ -1573,7 +1615,7 @@
     "showHelp": "Objašnjenje o „{{name}}”",
     "sourceOptions": {
       "title": "Postavke iz izvorne datoteke",
-      "intro": "Ove opcije izračunavanja dolaze iz datoteke Primavera P6 (.xer). Koriste se pri izračunavanju, ali ih ovdje ne možete mijenjati.",
+      "intro": "Ovo su opcije izračuna samo za čitanje, pohranjene uz ovaj projekt. Pri uvozu iz datoteke Primavera P6 (.xer) aplikacija ih preuzima iz izvorne datoteke. Primjenjuju se samo kad su ispunjeni odgovarajući uvjeti. Primavera P6.",
       "useExpectedFinishDates": "Koristi očekivane datume završetka (P6: Use Expected Finish Dates)",
       "useProjectEndDateForFloat": "Izračunati vremensku rezervu do datuma završetka projekta",
       "p6CompletedLateFromRemainingWindow": "Dovršeni zadatak: kasni datumi od datuma stanja",
@@ -1582,7 +1624,7 @@
     "requires": {
       "xerOrigin": "samo zadaci iz .xer",
       "hourPlanning": "samo uz planiranje u satima",
-      "hourPlanningTitle": "Radi samo uz planiranje u satima: kalendar s radnim blokovima, zadatak u satima ili kalendar za vrijeme odgode na 24-satnom prikazu."
+      "hourPlanningTitle": "Radi samo uz planiranje u satima na kalendaru koji pravilo koristi: kalendar s radnim blokovima ili trajanje zadatka u satima. Za vrijeme odgode može vrijediti i 24-satni kalendar vremena odgode."
     },
     "optionsDeviate": {
       "line": "{{field}}: {{current}} (zadano: {{standard}})",

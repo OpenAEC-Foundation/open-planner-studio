@@ -12,6 +12,7 @@ on:
     paths:
       - 'src-tauri/src/mcp_bridge.rs'
       - 'src-tauri/src/main.rs'
+      - 'src-tauri/src/desktop_integration.rs'
       - 'src-tauri/Cargo.toml'
       - 'src-tauri/Cargo.lock'
       - 'package.json'
@@ -62,10 +63,11 @@ jobs:
 
       # De Rust-unit-tests van mcp_bridge.rs draait verder geen enkele workflow. `dist/` hoeft alleen te
       # bestaan: de standaardfeature `custom-protocol` sluit de frontend in bij het compileren.
-      - name: Rust-unit-tests van de bridge
+      - name: Rust-unit-tests van de bridge en de AppImage-integratie
         run: |
           mkdir -p dist
           cargo test --manifest-path src-tauri/Cargo.toml mcp_bridge
+          cargo test --manifest-path src-tauri/Cargo.toml desktop_integration
 
       - name: Externe client tegen de echte app
         run: bash tests/mcp/realApp/run.sh

@@ -20,6 +20,8 @@
 }
 .guide-panel--end { inset-inline-end: 12px; }
 .guide-panel--start { inset-inline-start: 12px; }
+/* Zelf versleept: `left`/`top` staan inline (GuidePanel.tsx), los van de leesrichting. */
+.guide-panel--free { bottom: auto; }
 
 /* Op een laag scherm (1366×768) zou 70vh bijna het hele werkvlak bedekken: daar hooguit de helft van
    de hoogte; de stap-tekst scrolt. */
@@ -44,10 +46,14 @@
   border: none;
   border-radius: 999px;
   cursor: pointer;
+  touch-action: none;
 }
 .guide-panel-pill:hover { background: var(--theme-hover); }
 
 .guide-panel-head {
+  cursor: move;
+  touch-action: none;
+  user-select: none;
   display: flex;
   align-items: flex-start;
   gap: var(--sp-2, 8px);

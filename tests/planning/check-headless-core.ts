@@ -11,6 +11,8 @@
 // 4g. Een IFC met 6.000 WBS-niveaus opent, rekent en bewaart zijn volledige structuur.
 // 5. Een weggelaten XER-bronarchief komt als waarschuwing XER_ARCHIVE_DROPPED in de samenvatting.
 // 6. Het openen-contract: `toIfc()` vóór `schedule()` geeft de stand van de app na Bestand → Openen.
+// 7. Een oud bestand (B5) meldt zijn omzetting direct na het openen in `openWarnings`, en in elke
+//    samenvatting; een nieuw bestand meldt niets.
 //
 // Het gebouwde pakket zelf (bundel, install, consumeervoorbeeld) toetst `npm run verify:core-package`.
 import { readdirSync, readFileSync } from 'node:fs';
@@ -272,6 +274,38 @@ ok('4c2 afgekapt STEP ⇒ IFC_READ_FAILED', await codeOf(() => openIfc('ISO-1030
   ok('6a schedule() rekent de afwijkende datum terug', fresh?.start === target.time.earlyStart, `${fresh?.start} ≠ ${target.time.earlyStart}`);
   ok('6b toIfc() na schedule() bevat de berekende datum',
     readIFC(doc.toIfc()).tasks.find(t => t.id === target.id)?.time.earlyStart === target.time.earlyStart);
+}
+
+{
+  // 7. B5 (aanval na #600, a10): een oud bestand zonder `TimeModel`, geschreven met de bron van
+  //    `fbd4a3f9d`. Eén taak van 5 werkdagen, 32% gereed, werkelijke start 1 juni 07:00, statusdatum
+  //    3 juni; kalender ma–vr 07–12 en 13–16; einde in het bestand vr 5 juni 16:00. Het openen rekent
+  //    om (ma 8 juni 10:12). De kern meldt dat direct na het openen, vóór de eerste `toIfc()`; eerder
+  //    schreef `openIfc(...).toIfc()` de nieuwe datum zonder enig signaal.
+  const text = readFileSync(join(root, 'tests/planning/fixtures/b5-lopend-oude-writer.ifc'), 'utf8');
+  const source = readIFC(text);
+  ok('7 de fixture is een oud bestand', source.timeModel === undefined);
+  const taskId = source.tasks[0].id;
+  const doc = await openIfc(text);
+  const opened = doc.openWarnings;
+  ok('7a openWarnings meldt de omzetting met taak en grootste verschuiving, vóór toIfc()',
+    JSON.stringify(opened) === JSON.stringify([{ code: 'MINUTE_MODEL_CONVERTED', ids: [taskId], maxShiftWorkdays: 0.4 }]),
+    JSON.stringify(opened));
+  opened[0]?.ids.push('gemuteerd');
+  ok('7b openWarnings geeft een kopie', doc.openWarnings[0]?.ids.length === 1, JSON.stringify(doc.openWarnings));
+  const written = readIFC(doc.toIfc());
+  ok('7c toIfc() schrijft de omgerekende datum met de markering',
+    written.tasks[0].time.earlyFinish === '2026-06-08T10:12' && written.timeModel === 'MINUTES-1',
+    `${written.tasks[0].time.earlyFinish} ${written.timeModel}`);
+  const w = doc.schedule().warnings.filter(x => x.code === 'MINUTE_MODEL_CONVERTED');
+  ok('7d de samenvatting van schedule() houdt de waarschuwing',
+    w.length === 1 && w[0].maxShiftWorkdays === 0.4 && JSON.stringify(w[0].ids) === JSON.stringify([taskId]),
+    JSON.stringify(w));
+  const modern = await openIfc(doc.toIfc());
+  ok('7e een nieuw bestand (met TimeModel) meldt niets', modern.openWarnings.length === 0
+    && !modern.schedule().warnings.some(x => x.code === 'MINUTE_MODEL_CONVERTED'), JSON.stringify(modern.openWarnings));
+  const example = await openIfc(readFileSync(files[0], 'utf8'));
+  ok('7f een voorbeeldbestand meldt niets bij het openen', example.openWarnings.length === 0, JSON.stringify(example.openWarnings));
 }
 
 if (diffs.length === 0) {

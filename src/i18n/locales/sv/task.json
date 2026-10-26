@@ -4,6 +4,7 @@
     "applyShape": "Tillämpa form:",
     "hoursPerDay": "{{hours}} timmar per arbetsdag",
     "stripHint": "Dra en gräns för att förlänga eller förkorta en fas. Dra den övre kanten för att ange tilldelningsenheterna. Dubbelklicka på en dag för att dela en fas.",
+    "partialDayHint": "Börjar eller slutar uppgiften mitt på en arbetsdag, räknas den dagen proportionellt: timmarna är tilldelningsenheten × den del av dagen. Histogrammet räknar på samma sätt.",
     "from": "Från",
     "to": "Till",
     "days": "Dagar",
@@ -181,7 +182,8 @@
       "calendar": "Välj en kalender i listan.",
       "calendarNotFound": "Den valda kalendern finns inte.",
       "calendarHours": "Kalendern för den här uppgiften har inga arbetstimmar per dag.",
-      "durationConversionNotExact": "Den här varaktigheten kan inte exakt omräknas till den andra enheten.",
+      "durationConversionNotExact": "Den här varaktigheten kan inte räknas om till den andra enheten i den här kalendern.",
+      "fixedWorkIsHours": "En uppgift med fast arbete mäts alltid i timmar.",
       "milestoneRequired": "Det här fältet gäller bara för milstolpar.",
       "milestoneUnavailable": "En sammanfattningsuppgift med underuppgifter kan inte bli en milstolpe.",
       "actualAfterStatusDate": "Det verkliga datumet ligger efter rapportdatumet.",
@@ -327,8 +329,8 @@
     "unit": "Varaktighetsenhet",
     "days": "Dagar",
     "hours": "Timmar",
-    "invalid": "Ange ett helt antal dagar eller timmar, till exempel 2d eller 12h.",
-    "conversionNotExact": "{{value}} motsvarar inte hela dagar i den här kalendern. Enheten har inte ändrats.",
+    "invalid": "Ange ett antal dagar eller timmar, till exempel 2,5d eller 12h.",
+    "conversionNotExact": "{{value}} kan inte räknas om till den andra enheten i den här kalendern. Enheten har inte ändrats.",
     "unitInfo": "Den valda enheten hör till den här uppgiften. Dagar räknar arbetsdagar; timmar räknar arbetstider i kalendern. En annan kalender ändrar varken enheten eller den angivna varaktigheten. Slutdatumet kan däremot ändras."
   },
   "dialog": {
@@ -454,6 +456,7 @@
     "jumpToTask": "Gå till uppgift {{wbs}}",
     "relationPopoverTitle": "Typ av samband",
     "driving": "Drivande samband",
+    "drivingUnknown": "Drivande samband okända utan beräkning.",
     "lag": "Fördröjning (t.ex. 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Beräkna",
     "assignments": {
@@ -518,6 +521,8 @@
     "type": "Typ",
     "lag": "Fördröjning",
     "driving": "Drivande",
+    "drivingUnknown": "Okänt",
+    "notDriving": "Inte drivande",
     "freeFloat": "Fritt slack",
     "warnings": "Varningar",
     "warnTruncatedLead": "Överlapp avkortat vid projektstart — överlappet utnyttjas inte helt",
@@ -643,5 +648,11 @@
     "pieceHours_one": "Del: {{count}} timme",
     "pieceHours_other": "Del: {{count}} timmar",
     "merged": "Slå ihop"
+  },
+  "dateTimeInput": {
+    "time": "Tid för {{field}}",
+    "timeHint": "Tomt: början eller slutet av arbetsdagen. Med en tid: exakt det momentet.",
+    "later": "Ett kvarter senare",
+    "earlier": "Ett kvarter tidigare"
   }
 }

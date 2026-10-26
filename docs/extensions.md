@@ -124,6 +124,12 @@ geen contractwijziging: `loadProject` met hetzelfde project-id houdt de projectd
 resultaat niet kan dragen, een ander id krijgt geen opslagdoel, en na elke load is het document
 gewijzigd; een importer-resultaat opent als nieuw document (zie *API-overzicht*).
 
+`1.5.0` voegt `api.data.getSelectedTaskIds()` toe. De methode geeft een verse, muteerbare lijst
+van taak-ID's in selectievolgorde uit de gebonden documentcontext (leeg als niets geselecteerd is).
+De lijst aanpassen verandert de selectie niet. Elke aanroep leest de actuele selectie; bij een
+actief-documentwissel volgt die de documentcontext net als `getTasks()`. Het is een kern-API-methode
+zonder extra permissie, geen schrijfmethode. Extensies die haar gebruiken declareren `apiVersion: "1.5"`.
+
 > **Migratie (audit P16):**
 > - De permissie `commands` is verwijderd — die had nooit een API-oppervlak. Een nieuwe installatie met een manifest dat haar (of een andere onbekende waarde) noemt, wordt geweigerd. Alleen al opgeslagen legacy-installaties blijven werken: daar worden onbekende permissies weggefilterd met een waarschuwing.
 > - `backstage` is nu de permissie voor `api.importers.*`. Bestaande importer-extensies die haar niet declareren blijven werken (warn-modus); **declareer `backstage` in nieuwe extensies met een importer** — in een toekomstige versie wordt dit hard.
@@ -231,7 +237,7 @@ module.exports = {
 | Onderdeel | Functies |
 |---|---|
 | `api.importers` | `register(def)`, `unregister(id)` |
-| `api.data` | `getProject/getCalendar/getTasks/getSequences/getResources/getAssignments`, `getImportSourceInfo/getImportSourceIssue/getImportSourceChunk/getImportSourceCatalogPage` (permissie `importSource`, zie hieronder), `addTask`, `updateTask`, `addSequence`, `loadProject(result)`, `recalculate()`, `batch(fn)` |
+| `api.data` | `getProject/getCalendar/getTasks/getSelectedTaskIds/getSequences/getResources/getAssignments`, `getImportSourceInfo/getImportSourceIssue/getImportSourceChunk/getImportSourceCatalogPage` (permissie `importSource`, zie hieronder), `addTask`, `updateTask`, `addSequence`, `loadProject(result)`, `recalculate()`, `batch(fn)` |
 | `api.events` | `on/off/emit` (permissie `events`) |
 | `api.ui` | `addRibbonButton(reg)` (permissie `ribbon`), `showNotification(msg, type?)` — zichtbare melding voor de gebruiker, zie hieronder |
 | `api.settings` | `get(key, default)`, `set(key, value)` — per extensie geprefixt in localStorage |
@@ -445,31 +451,32 @@ zoals in een artikel. Knoppen: **Terug**, **Toon mij** (alleen met `prepare`), *
 Het paneel zweeft rechtsonder (in `ar`/`fa` linksonder) boven de statusbalk, en niet in de
 rechterrail: die bestaat niet in de volledige weergaven (Tabel, IFC, Rapport, Resources) en in
 Backstage, terwijl een tutorial daar juist doorheen loopt. Het ligt boven dialogen en onder de
-meldingen, maar het bedekt geen gemarkeerd element en geen open venster: ligt een van die twee eronder
+meldingen, maar het bedekt het anker van de stap niet en geen open venster: ligt een van die twee eronder
 en is de andere kant vrij, dan wijkt het paneel daarheen uit, en zodra de weg weer vrij is keert het
 terug. Past het aan geen van beide kanten naast een open venster (een breed venster op een klein
 scherm), dan klapt het vanzelf in tot een knopje met de stapteller; de gebruiker kan het uitklappen,
 en het klapt weer uit zodra het venster dicht is. De gebruiker kan het ook zelf inklappen; een nieuwe
 stap klapt het weer uit. Op een scherm van hooguit 800 px hoog is het paneel hooguit half zo hoog als
-het venster.
+het venster. De gebruiker kan het paneel aan de kop (of het ingeklapte knopje) verslepen; daarna blijft
+het waar de gebruiker het neerzet, ook bij volgende stappen, en staat het uitwijken en vanzelf inklappen uit tot de
+app herlaadt.
 
 Het paneel weet alleen wat het niet mag bedekken via het anker. Laat een stap iets aanklikken op een
 plek die het paneel kan bedekken (de onderkant van de rechterrail, bijvoorbeeld het paneel
 Waarschuwingen), geef die plek dan als anker (`rail:warnings`), ook als die pas tijdens de stap
 verschijnt.
 
-**Ankers.** `anchor` is de waarde van een `data-tour-anchor`-attribuut; de app markeert dat element
-met dezelfde rand als de rondleiding, maar **niet modaal**: de gebruiker kan het gewoon aanklikken. Een
-element dat uit meerdere delen bestaat, krijgt één markering om alle zichtbare delen. De markering
-verdwijnt zodra de stap gedaan is. Beschikbare ankers:
+**Ankers.** `anchor` is de waarde van een `data-tour-anchor`-attribuut. De app **markeert dat element
+niet** en dimt de rest van de app niet: de stapstekst zegt wat de gebruiker moet doen (besluit
+eigenaar, 2026-10-23). Het anker bepaalt alleen waar het paneel niet mag staan. Een element dat uit
+meerdere delen bestaat, telt met alle zichtbare delen. Beschikbare ankers:
 
 - `ribbon-tab:<tab>` — elk linttabblad, ook `ribbon-tab:file`;
 - `ribbon-group:<tab>:<groupId>` — elke lintgroep;
 - `ribbon:<tab>:<itemId>` — elke lintknop en elk lintwidget (dropdown, invoerveld). Deze drie komen
   automatisch uit het lint; de id's zijn die uit `src/components/layout/Ribbon/ribbonConfig.tsx`,
   bijvoorbeeld `ribbon:start:addTask` (Taak), `ribbon:start:milestone`, `ribbon:planning:calendar`.
-  Staat de knop op een ander tabblad dan het actieve, dan markeert de app `ribbon-tab:<tab>`, zodat
-  de gebruiker ziet welke tab hij moet openen. Knoppen die een extensie zelf aan het lint toevoegt,
+  Staat de knop op een ander tabblad dan het actieve, dan telt `ribbon-tab:<tab>` als anker. Knoppen die een extensie zelf aan het lint toevoegt,
   hebben (nog) geen anker;
 - vaste ankers voor de hoofdpanelen: `ribbon-tabs`, `gantt-panel`, `properties-panel` (de
   rechterrail), `rail:properties`, `rail:resources`, `rail:warnings`, `histogram-strip`,

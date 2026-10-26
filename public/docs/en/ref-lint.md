@@ -4,9 +4,9 @@ The ribbon at the top of the screen has tabs, and each tab has groups of buttons
 
 ## How the ribbon behaves
 
-- **Tabs** — *File* is on the left, then *Home*, *Planning*, *Resources*, *View*, *Settings*, *Table*, *IFC*, *Report* and, only with AI mode on, *AI*.
+- **Tabs** — *File* is on the left, then *Home*, *Planning*, *Resources*, *View*, *Settings*, *Table*, *IFC*, *Report* and, only with the MCP connection on, *MCP*.
 - **Narrow window** — when the ribbon does not fit, buttons shrink to an icon from right to left. The name is then the tooltip on the button. Every button without its own tooltip shows its name.
-- **Collapse the ribbon** — the small arrow at the bottom right of the ribbon turns it into a flat strip with icons only. The *Baselines & progress* group and the *Connection* group on the AI tab then disappear behind a single button with a pop-up. Default: expanded. Your choice is remembered.
+- **Collapse the ribbon** — the small arrow at the bottom right of the ribbon turns it into a flat strip with icons only. The *Baselines & progress* group and the *Connection* group on the MCP tab then disappear behind a single button with a pop-up. Default: expanded. Your choice is remembered.
 - **Extension buttons** — an extension can add its own group at the end of a tab. Such a button does what the extension gave it.
 
 ## File
@@ -229,28 +229,28 @@ The tab shows the IFC panel in the workspace. The ribbon has no buttons here, on
 
 - **Print** — only on this tab, where it does nothing because *Report* is already open; the report choices are in the report screen.
 
-## AI
+## MCP
 
-The *AI* tab only exists when *Enable AI mode* is on (*App settings*, tab *Advanced*, heading *AI mode*). Default: off. Turning it off removes the tab and stops the bridge. An AI assistant works with your schedule through an MCP bridge that you start here. See [Connecting an AI assistant (MCP)](docs://howto-ai-assistent-koppelen).
+The *MCP* tab only exists when *Allow MCP connection* is on (*App settings*, tab *Advanced*, heading *MCP connection*). Default: off. Turning it off removes the tab and stops the bridge. An MCP client works with your schedule through an MCP bridge that you start here. See [Connecting an MCP client](docs://howto-ai-assistent-koppelen).
 
-### AI › Server
+### MCP › Server
 
-- **Start bridge** and **Stop bridge** — start or stop the MCP bridge. Next to it is the status: *Off*, *Live on port …*, *Port … in use* (with the reason) or *Error*. Disabled in the web version; the tooltip says *The bridge only works in the desktop app.* The same status shows as a dot with *AI* in the status bar.
+- **Start bridge** and **Stop bridge** — start or stop the MCP bridge. Next to it is the status: *Off*, *Live on port …*, *Port … in use* (with the reason) or *Error*. Disabled in the web version; the tooltip says *The bridge only works in the desktop app.* The same status shows as a dot with *MCP* in the status bar.
 
-### AI › Connection
+### MCP › Connection
 
 - **Port** — the port of the bridge. Default: 3877. Only editable when the status is *Off* (tooltip *Only editable while the server is stopped.*).
 - **Token** — the password of the bridge, shown hidden. Small buttons *Show token*/*Hide token*, *Copy* and *New token*. *New token* asks for confirmation first, because a new token breaks all existing connections; if the bridge is running, it restarts with the new token.
-- **Connect** — shows the connection details: endpoint, token, a configuration snippet and a connection prompt that you paste into your AI agent.
+- **Connect** — shows the connection details: endpoint, token, a configuration snippet and a connection prompt that you paste into your MCP client.
 
-### AI › Safety
+### MCP › Safety
 
-- **Pause** / **Resume** — temporarily refuses all changes by the AI; reading stays allowed and the bridge stays live. The button lights up red while paused.
+- **Pause** / **Resume** — temporarily refuses all changes by the MCP client; reading stays allowed and the bridge stays live. The button lights up red while paused.
 - **Read-only** — refuses all mutating tools while this is on.
-- **Auto-backup: on** / **Auto-backup: off** — automatically writes an IFC backup before the first AI change per document. Default: on.
+- **Auto-backup: on** / **Auto-backup: off** — automatically writes an IFC backup before the first MCP change per document. Default: on.
 - **Back up now** — writes a backup straight away and reports the file name. Desktop app only.
 - **Open backup folder** — opens the folder with the backups. Desktop app only.
 
-### AI › Activity
+### MCP › Activity
 
-- **Activity panel** — shows or hides the *AI activity* panel with the calls to the bridge, with their arguments and response.
+- **Activity panel** — shows or hides the *MCP activity* panel with the calls to the bridge, with their arguments and response.

@@ -4,6 +4,7 @@
     "applyShape": "Sovella muotoa:",
     "hoursPerDay": "{{hours}} tuntia työpäivässä",
     "stripHint": "Vaiheen pidentämiseksi tai lyhentämiseksi vedä rajaa. Kuormitusasteen asettamiseksi vedä yläreunaa. Vaiheen jakamiseksi kaksoisnapsauta päivää.",
+    "partialDayHint": "Jos tehtävä alkaa tai päättyy kesken työpäivän, se työpäivä lasketaan suhteellisesti: tunnit ovat kuormitusaste × päivän osuus. Histogrammi lasketaan samalla tavalla.",
     "from": "Alkaen",
     "to": "Asti",
     "days": "Päivät",
@@ -181,7 +182,8 @@
       "calendar": "Valitse kalenteri listasta.",
       "calendarNotFound": "Valittua kalenteria ei ole olemassa.",
       "calendarHours": "Tämän tehtävän kalenterissa ei ole työtunteja päivässä.",
-      "durationConversionNotExact": "Tätä kestoa ei voi muuntaa toiseen yksikköön tarkasti.",
+      "durationConversionNotExact": "Tätä kestoa ei voi muuntaa toiseen yksikköön tämän kalenterin mukaan.",
+      "fixedWorkIsHours": "Tehtävällä, jolla on kiinteä työmäärä, on aina tuntimitta.",
       "milestoneRequired": "Tämä kenttä koskee vain välitavoitteita.",
       "milestoneUnavailable": "Yhteenvetotehtävä, jolla on alitehtäviä, ei voi olla välitavoite.",
       "actualAfterStatusDate": "Todellinen päivämäärä on raportointipäivän jälkeen.",
@@ -327,8 +329,8 @@
     "unit": "Keston yksikkö",
     "days": "Päivät",
     "hours": "Tunnit",
-    "invalid": "Syötä kokonaisluku päiviä tai tunteja, esimerkiksi 2d tai 12h.",
-    "conversionNotExact": "{{value}} ei vastaa kokonaisia päiviä tässä kalenterissa. Mittayksikköä ei muutettu.",
+    "invalid": "Syötä päivien tai tuntien määrä, esimerkiksi 2,5d tai 12h.",
+    "conversionNotExact": "{{value}} ei voi muuntaa toiseen yksikköön tämän kalenterin mukaan. Yksikköä ei muutettu.",
     "unitInfo": "Valittu yksikkö kuuluu tähän tehtävään. Päivät lasketaan työpäivinä; tunnit lasketaan työtunteina kalenterin sisällä. Toinen kalenteri ei muuta yksikköä eikä syötettyä kestoa, mutta se voi muuttaa loppupäivää."
   },
   "dialog": {
@@ -454,6 +456,7 @@
     "jumpToTask": "Siirry tehtävään {{wbs}}",
     "relationPopoverTitle": "Riippuvuuden tyyppi",
     "driving": "Ohjaava riippuvuus (driving)",
+    "drivingUnknown": "Ohjaavia riippuvuuksia ei tunneta ilman laskentaa.",
     "lag": "Viive (esim. 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Laske",
     "assignments": {
@@ -518,6 +521,8 @@
     "type": "Tyyppi",
     "lag": "Viive",
     "driving": "Ohjaava",
+    "drivingUnknown": "Tuntematon",
+    "notDriving": "Ei ohjaava",
     "freeFloat": "Vapaa pelivara",
     "warnings": "Huomautukset",
     "warnTruncatedLead": "Limitys katkaistu projektin aloituspäivän kohdalta — päällekkäisyyttä ei hyödynnetä kokonaan",
@@ -643,5 +648,11 @@
     "pieceHours_one": "Osa: {{count}} tunti",
     "pieceHours_other": "Osa: {{count}} tuntia",
     "merged": "Yhdistä"
+  },
+  "dateTimeInput": {
+    "time": "{{field}}: kellonaika",
+    "timeHint": "Tyhjä: työpäivän alku tai loppu. Kellonajalla: täsmälleen tuo hetki.",
+    "later": "Neljännestunti myöhemmin",
+    "earlier": "Neljännestunti aiemmin"
   }
 }

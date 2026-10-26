@@ -463,7 +463,8 @@ Bij historisch hervatten vervallen alleen workflowcontroles die het hervatpad aa
 
 - Volg `release.yml`, `snap.yml` en `aur.yml` tot hun eindstatus; koppel run aan tag/SHA.
 - Vergelijk `gh release view "v$VERSION" --json body,assets` met de vorige release:
-  alle platforminstallers, updaterarchieven, `.sig`-bestanden en `latest.json` moeten aanwezig zijn.
+  alle platforminstallers, updaterarchieven, `.sig`-bestanden, `latest.json` en de Claude Desktop-bundel
+  `open-planner-studio-<versie>.mcpb` (job `build-mcpb`) moeten aanwezig zijn.
 - Download `latest.json` van **deze tag** naar een eigen tijdelijke map met `gh release download`.
   Controleer versie, niet-lege platte notes en alle platform-URL's (HTTP 200).
   Controleer daarnaast het publieke updater-endpoint; houd rekening met kortdurende CDN-cache.

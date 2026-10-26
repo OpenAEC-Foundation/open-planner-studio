@@ -95,7 +95,7 @@ Zet je *Max. eenheden* van de metselaar op 2, dan is er geen overbezetting meer.
 
 **Materiaal wordt niet genivelleerd.** Vraagt materiaal op een dag meer dan zijn capaciteit, dan meldt de app dat als overbezetting, maar nivelleren laat het staan.
 
-**Vastgepinde taken.** Staan alle taken die botsen op prioriteit 1000, dan meldt het venster *Geen taken hoeven te verschuiven — de planning is al conflictvrij.*, terwijl de overbezetting blijft. Kijk na het toepassen dus naar de melding *Overallocatie* in het lint.
+**Vastgepinde taken.** Taken op prioriteit 1000 schuiven niet voor capaciteit. Hun resterende overboeking wordt wel per taak en conflictdag gemeld. Pas de prioriteit, inzet of capaciteit aan om dat conflict op te lossen. Controleer na het toepassen ook *Overallocatie* in het lint.
 
 ## Zie ook
 

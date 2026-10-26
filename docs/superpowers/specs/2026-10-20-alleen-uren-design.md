@@ -1,8 +1,9 @@
 # Ontwerp: alleen uren — één tijdas in minuten voor alle taken en kalenders
 
 - **Datum:** 2026-10-20.
-- **Stand:** ontwerp; er is nog niets gebouwd. Besloten door de eigenaar op 2026-10-20: B1 (een maat per taak;
-  de dagenmaat alleen in het OPS-profiel), B1a (standaardmaat dagenmaat in het OPS-profiel, vast werk altijd
+- **Stand (2026-10-24):** F0 tot en met F5a zijn gebouwd en gemerged op `claude/uren-integratie`; de PR naar
+  `main` staat klaar als concept (§7.2, §7.3). F5b, F6 en F7 komen later.
+  Besloten door de eigenaar op 2026-10-20: B1 (een maat per taak; de dagenmaat alleen in het OPS-profiel), B1a (standaardmaat dagenmaat in het OPS-profiel, vast werk altijd
   urenmaat), B2 (de schakelaar Urenplanning verdwijnt), B3 (rest exact), B4 (een datum toont alleen een tijd
   midden op de werkdag), B5 (berekenen en melden), B6 (losse mijlpaal aan het einde van de werkdag in het
   OPS-profiel), B7 (procentlag exact) en B8 ("d" is in het OPS-profiel de dagenmaat; de urenmaat staat in u).
@@ -377,6 +378,16 @@ typewijziging. "Fase" verwijst naar §7.
     in tienden van een minuut en P6 `Lag` in uren als kommagetal. De lezers ronden die niet af op de hele minuut
     (F5b); alleen de floatruis van uren × 60 valt weg, op een miljoenste minuut. Of MSP en P6 zo'n veld bij hun eigen opslaan bewaren, is niet getoetst (geen
     MSP of P6 op deze machine).
+  - *Kalendertijd in P6 XML (F5a-2; besluit orkestrator 2026-10-24, bevestigd in review #585 r1):* P6 kent geen
+    kalendertijd per relatie of per activiteit, dus P6 krijgt werktijd (1,5 ed wordt 12 u). Het record krijgt
+    daarom een derde element met de eenheid: `[1.5, 720, "ed"]` voor kalenderdagen en `[180, 180, "eu"]` voor
+    kalenderminuten. Dat geldt voor de lag en ook voor duur en rest van een kalendertijdtaak (`withElapsedUnit`,
+    `xmlDayMeasure.ts`). De lezer zet zo de kalendertijd terug. De MSPDI-lezer accepteert voor een lag alleen
+    een record van twee elementen; daar zegt `LagFormat` de eenheid.
+  - *Lagkalender (F5a-2; review #585 r1):* MSPDI en P6 XML bewaren ook `schedulingOptions.lagCalendar`. MSPDI:
+    `OPS_LagCalendar` in Text25 op de projectsamenvattingstaak (UID 0). P6 XML: een project-UDF (ObjectId
+    900000006). Een lagrecord telt alleen als de dagen met de lagkalender van de lezer nog de geschreven minuten
+    geven; anders geldt het standaardveld in de urenmaat. MS Project en P6 rekenen zelf niet met deze optie.
   - *Profielwissel:* de lag verandert niet, alleen de conventie (§3.14). De schrijver bewaart de maat in elk
     profiel; onder het P6-profiel staat in `PT…` precies wat dat profiel rekent.
   - *Regressie (F3 voor IFC, F5a voor de adapters):* op de voorbeeldweek drie relaties naast elkaar: FS 0,5 d
@@ -1483,6 +1494,8 @@ nodig heeft. B2, B4 en B8 zijn besloten (2026-10-20) en bepalen F4. B9 = optie 1
   een moment" en de regels D1–D7 (met D3 per veld); `tests/planning/harness.ts` (omzetting met die functies, de
   vergelijker en de twee runs uit §6.1); redencodes in de cases; voorbeeldensnapshot; checks voor de
   migratiefunctie en de werkdagfunctie (nachtblok, 24:00, kalendertijd).
+- Stand (2026-10-24): gebouwd en gemerged op de integratiebranch (#433): dagregels, migratiefunctie, de twee runs,
+  redencodes en de voorbeeldensnapshot.
 - Risico: laag. De app verandert niet.
 - Toets: suite groen; de runs tonen per batterij het aantal rode cases, gelijk aan de lijst in §10, op de
   verschillen door de nieuwe vergelijker na (per case benoemd).
@@ -1497,31 +1510,13 @@ nodig heeft. B2, B4 en B8 zijn besloten (2026-10-20) en bepalen F4. B9 = optie 1
 - Toets: 138 urencases groen (op `msp-28` na, bewust); de vijf `z13-*`-cases groen; een nieuwe case per knownbug
   en per grensplek, met mutatiebewijs; de regressiegevallen van de statusregel in dialoog, raster en MCP; volledige
   planningssuite.
-- Stand (2026-10-23): PR #402 zit in de integratiebasis (12abaabf2). F1b op
-  claude/uren-f1b-urenfouten repareert 145 (dagenmaat bij SNLT/MSO), 147 (eindbeperkingen zonder tijd),
-  groep 1 (eindmijlpalen, ook zonder soort en met lag), de dagenmaatgrenzen van groep 12 (externe FF,
-  kalendertijdlag en splits), SS+0 naar kalendertijd (msp-27/msp-28), D6 en de gedeelde statusregel.
-  N2 geldt nu ook als dagen- en minutenvertraging samen bestaan; de meting telt een kalendertijdvertraging
-  als 24 uur per dag. Bug 148 was al opgelost door de gedeelde deadlinefunctie en krijgt direct bewijs.
-  Toegevoegd: 18 blokgrenscases (30 → 48), 114 controles van dialoog/paneel/raster/plakken/MCP en
-  echte datumvelden in de bestaande browserroute. Alleen invoer op de statuswerkdag krijgt
-  D1/D2/D6; algemene normalisatie, ook van oudere actuals, blijft bij F2. De vijf z13-cases blijven ongewijzigd.
-  Het minutenmodelvangnet krimpt uitsluitend: M1 57 → 12, M2 30 → 11; de ontbrekende lege sleutel
-  hours-blokgrenzen is toegevoegd. De oude lijsten liepen al achter na #402: de echte nulmeting
-  op 12abaabf2 gaf 34 en 21 afwijkende cases; F1b geeft er 12 en 11.
-  Open: 146 vereist de genoemde conventiekeuze. Daarnaast is mk-05a in M1 opgelost, maar blijft in
-  M2 het oude urenpad staan. De bredere startmijlpaalcorrectie schendt de bestaande C7-poort;
-  de fix is daarom volgens N1 tot dagenmaat beperkt. msp-51 blijft in beide runs
-  afwijken door het aparte FS-kalendertijdpunt 155. De overige bestaande restgevallen blijven
-  zichtbaar in het vangnet (onder meer 153/154 en de latere fasen); de nieuwe bevestigde FF-lead
-  bij urenmaat staat als 204 in knownbugs.md. Groep 2, 3, 8 en T16 zijn niet omgezet.
-  De laatste volledige corpusloze planningssuite is groen (exit 0), inclusief alle vijf tijdzones.
-  De profielmeting met de echte corpora houdt de P6-celpoort, maar heeft exit 1 door bestaande
-  corpusafwijkingen. Bewijs, mutaties en de precieze controle-uitkomsten staan bij deze PR
-  in artifacts/uren-f1b.
+- Stand (2026-10-24): gebouwd en gemerged. #402 repareerde knownbugs 138–142 rechtstreeks op `main`; #563 (F1b)
+  repareerde op de integratiebranch 145, 147, groep 1, de dagenmaatgrenzen van groep 12, msp-27/msp-28, D6 en de
+  gedeelde statusregel. Open: 146 (conventiekeuze) en 311 (FF-lead bij urenmaat). Bewijs: artifacts/uren-f1b.
 
 **F2 — Kern: motor op werkblokken voor elke kalender.**
-- Stand: in uitvoering op `claude/uren-f2-kern`, concept-PR #559. Motor, laadgrens, B5 en IFC aangesloten; profielmeting houdt dezelfde celstand als de basis. Dagcases en voorbeeldensnapshot zijn nog niet groen; geen integratie-akkoord.
+- Stand (2026-10-24): gebouwd en gemerged (#559): de werkblokkenmotor voor elke kalender, de omzetting op de
+  laadgrens met B5, B6, B7 en de IFC-schrijfgrens voor v2026.9.0.
 - Inhoud: elke engine via `calendarForEngine`; elke dagtaak loopt als urenpad-dagtaak, in hele dagen. De conventie
   dagenmaat bestaat dan nog niet; dat is het gedrag van nu op een urenkalender, in elk profiel. De migratie op de
   laadgrens met normalisatie (ook van de vastlegging), D7 en het baseline-einde (§4.2), T1 en de B5-overgang met twee
@@ -1553,12 +1548,16 @@ nodig heeft. B2, B4 en B8 zijn besloten (2026-10-20) en bepalen F4. B9 = optie 1
   `workTriangle.ts`, `workRuleApply.ts`, `ResourceLoad.ts`, `ResourceLeveler.ts`, `splitWalk.ts`, `taskSlice.ts`,
   `ProjectInfoPanelContent.tsx`, `ifcWriter.ts`, `ifcReader.ts`, `ifcPsets.ts`, `ifcTaskSlots.ts`,
   `sequenceFields.ts`, `taskFields.ts`.
+- Stand (2026-10-24): gebouwd en gemerged in drie delen: F3a (#562, werkdriehoek exact en vast werk naar urenmaat),
+  F3b (#564, de kern voor belasting per werkdag) en F3c (#581, de dagenmaat in motor, store/MCP, belasting en IFC).
 - Risico: hoog (R1, R2, R7, R10, R13).
 - Toets: run 1 en run 2 (§6.1); de nieuwe checks uit §6.1 en §6.2; de lezer van v2026.9.0 op de lagvormen en de
   breuken (§5.4); migratiemelding over de voorbeelden en het corpus; `measure:profiles` met corpus.
 
 **F4 — UI op momenten en maten (B2, B4, B8 en B9 besloten).**
-- Stand: F4a verwijdert de schakelaar en meldingen (B2/T25), maakt zoom en splitbediening vast (T24), maakt Duurweergave grijs in OPS (B9) en past gidsen en tutorials aan. F4b volgt na F3: datumweergave en datuminvoer, maatnotatie en -invoer, breuken, lag zonder afronding en de controlestap voor de eigenaar.
+- Stand (2026-10-24): gebouwd en gemerged. F4a (#560) haalt de schakelaar en de meldingen weg (B2/T25), maakt zoom
+  en splitbediening vast (T24) en Duurweergave grijs in OPS (B9). F4b (#584) bouwt datumweergave en datuminvoer,
+  maatnotatie en -invoer, breuken en lag zonder afronding.
 - Werkwijze: een fase-PR op `claude/uren-integratie`, net als F0–F3 en F5a. De PR naar `main` komt pas als F4 daar
   staat (§7.3).
 - Inhoud: datuminvoer volgens §3.6 (de store normaliseert al sinds F2); de datumweergave volgens B4 (een tijd alleen
@@ -1592,7 +1591,9 @@ nodig heeft. B2, B4 en B8 zijn besloten (2026-10-20) en bepalen F4. B9 = optie 1
   `allowMixedDayHour`.
 
 **F5a — Verliesvrije adapters voor duur, rest en lag (hoort bij de eerste release).**
-- Stand: F5a-1 bouwt I1–I3, I5–I7 en de urenmaat als importstandaard (T15), met minuutgetrouwe duur, rest en lag en gerichte rondgangen; F5a-2 volgt na F3 voor T13, T21 en de volledige dagenmaat-markering met records. De bestaande markering blijft leesbaar; voortgangsnormalisatie van gemarkeerde dagtaken blijft afhankelijk van F2.
+- Stand (2026-10-24): gebouwd en gemerged. F5a-1 (#558) bouwt I1–I3, I5–I7 en de urenmaat als importstandaard
+  (T15). F5a-2 (#585) bouwt T13, T21 en de dagenmaat-records, ook voor de lagkalender (§3.3). De integratiebranch
+  is daarna bijgewerkt met `main` (#590).
 - Inhoud: I1, I2, I3, I5, I6, I7 (§1.3); T13 en T15 (§3.10); de OPS-markering voor de maat van taak en lag heen
   en terug (T21, §3.3).
 - Bestanden: `mspdiReader.ts`, `mspdiWriter.ts`, `p6xmlReader.ts`, `p6xmlWriter.ts`, `importDurations.ts`,
@@ -1604,11 +1605,13 @@ nodig heeft. B2, B4 en B8 zijn besloten (2026-10-20) en bepalen F4. B9 = optie 1
   `measure:profiles`.
 
 **F5b — De overige adapters (mag later).**
+- Stand (2026-10-24): in uitvoering, PR #591 naar de integratiebranch; komt na de PR naar `main`.
 - Inhoud: I4 (.mpp), de XER-lezer (`xerReader.ts:831-834`), I8 (het 08:00-anker).
 - Bestanden: `mppReader.ts`, `xerReader.ts`, `importDates.ts`, `xmlInterchange.ts`.
 - Toets: de checks uit §6.2 (F5b).
 
 **F6 — Opruimen (mag later).**
+- Stand (2026-10-24): komt na de PR naar `main`, als gewone PR.
 - Inhoud: dagpadcode weg (§3.9); `mode` in `CalendarEngine`; `levelingDelay` (dagen) weg. `scheduleDuration`
   en `lagDays` blijven: ze dragen de dagenmaat (T7). De migratie en de normalisatie blijven altijd (oude
   bestanden, andere programma's).
@@ -1616,6 +1619,7 @@ nodig heeft. B2, B4 en B8 zijn besloten (2026-10-20) en bepalen F4. B9 = optie 1
 - Toets: `typecheck`, `verify:cycles`, volledige suite in de CI.
 
 **F7 — Publieke surface (mag later).**
+- Stand (2026-10-24): komt na de PR naar `main`, als gewone PR.
 - Inhoud: extensie-API (versie), `AGENTS.md`, `.claude/rules/rekenprofielen.md` (negenentwintig conventies), de
   skills `goed-plannen` en `progress-update`, de agentgids, de overige MCP-teksten (§3.13).
 - Risico: laag.
@@ -1642,7 +1646,10 @@ nodig heeft. B2, B4 en B8 zijn besloten (2026-10-20) en bepalen F4. B9 = optie 1
   verlies van de kalenders (§5.4). Dat is: v2026.9.0 maakt van een kalender met een tijdsignaal een urenkalender
   zonder werktijd.
 - F5b, F6 en F7 mogen na de PR naar `main`, als gewone PR's.
-- F1 loopt nu via PR #402 rechtstreeks naar `main` (stand 2026-10-20, zie F1). Lezing van dit ontwerp: dat botst niet
+- **Stand (2026-10-24):** de PR naar `main` gaat uit van `claude/uren-naar-main`, een aparte branch vanaf de tip
+  van de integratiebranch. Die PR haalt de tijdelijke CI-trigger voor `claude/uren-integratie` weg. De vertalingen
+  voor de 26 andere talen komen er nog bij vóór de release.
+- F1 liep via PR #402 rechtstreeks naar `main` (stand 2026-10-20, gemerged 2026-10-23; zie F1). Lezing van dit ontwerp: dat botst niet
   met de integratiebranch: F1 repareert fouten van het huidige urenpad en verandert geen dagpad, dus de webversie
   krijgt geen halve verbouwing. De integratiebranch neemt F1 mee als hij wordt bijgewerkt met `main`.
 

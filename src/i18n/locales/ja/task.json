@@ -4,6 +4,7 @@
     "applyShape": "形状を適用:",
     "hoursPerDay": "稼働日あたり {{hours}} 時間",
     "stripHint": "境界をドラッグしてフェーズを伸縮し、上端をドラッグして投入量を設定します。日をダブルクリックするとフェーズを分割します。",
+    "partialDayHint": "タスクが稼働日の途中で開始または終了する場合、その日は日割りで数えます。時間数は単位数 × 日の一部です。ヒストグラムも同じように数えます。",
     "from": "開始",
     "to": "終了",
     "days": "日数",
@@ -181,7 +182,8 @@
       "calendar": "一覧からカレンダーを選んでください。",
       "calendarNotFound": "選択したカレンダーは存在しません。",
       "calendarHours": "このタスクのカレンダーには1日あたりの稼働時間がありません。",
-      "durationConversionNotExact": "この期間は別の単位に正確に換算できません。",
+      "durationConversionNotExact": "この期間は、このカレンダーでは別の単位に換算できません。",
+      "fixedWorkIsHours": "固定作業のタスクは、常に時間単位を使います。",
       "milestoneRequired": "この項目はマイルストーンにのみ適用されます。",
       "milestoneUnavailable": "サブタスクを持つサマリータスクはマイルストーンにできません。",
       "actualAfterStatusDate": "実績日がステータス日より後です。",
@@ -323,8 +325,8 @@
     "unit": "期間の単位",
     "days": "日",
     "hours": "時間",
-    "invalid": "2d や 12h のように、日数または時間数を整数で入力してください。",
-    "conversionNotExact": "{{value}} はこのカレンダーでは整数の日数になりません。単位は変更されていません。",
+    "invalid": "日数または時間数を入力してください。例：2.5d や 12h",
+    "conversionNotExact": "{{value}} はこのカレンダーでは別の単位に換算できません。単位は変更されていません。",
     "unitInfo": "選択した単位はこのタスクに属します。日は稼働日を数え、時間はカレンダー内の作業時間を数えます。別のカレンダーにしても単位や入力した期間は変わりませんが、終了日は変わる場合があります。"
   },
   "dialog": {
@@ -450,6 +452,7 @@
     "jumpToTask": "タスク {{wbs}} へ移動",
     "relationPopoverTitle": "関係の種類",
     "driving": "駆動関係（駆動関係）",
+    "drivingUnknown": "駆動関係は計算なしでは不明です。",
     "lag": "ラグ（例: 2d、3ed、2u、50%、-25e%）",
     "recalculate": "計算",
     "assignments": {
@@ -514,6 +517,8 @@
     "type": "タイプ",
     "lag": "ラグ",
     "driving": "駆動",
+    "drivingUnknown": "不明",
+    "notDriving": "駆動関係ではない",
     "freeFloat": "フリーフロート",
     "warnings": "警告",
     "warnTruncatedLead": "リードがプロジェクト開始で打ち切られました — 重複は完全には活用されません",
@@ -635,5 +640,11 @@
     "pieceDays_other": "区間: {{count}} 稼働日",
     "pieceHours_other": "区間: {{count}} 時間",
     "merged": "結合"
+  },
+  "dateTimeInput": {
+    "time": "{{field}}の時刻",
+    "timeHint": "空欄の場合は稼働日の開始または終了です。時刻を入力すると、その正確な時点になります。",
+    "later": "15分後",
+    "earlier": "15分前"
   }
 }

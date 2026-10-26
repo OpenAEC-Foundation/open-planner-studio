@@ -1,3 +1,4 @@
+import { ScopeEscapeError } from '../fileScopeError';
 // MCP-bridge — de TWEE BESTANDS-TOOLS.
 //
 // `export_ifc` en `import_schedule` zijn de enige tools die de wereld BUITEN de app raken. Daarom:
@@ -31,6 +32,7 @@
 // echte implementatie importeert `@tauri-apps/*` DYNAMISCH binnen een `isTauri()`-tak (anders breekt
 // de web-build), de headless tests spuiten een in-memory fs in.
 
+import { FileTextDecodingError } from '../fileTextError';
 import { isTauri } from '@/utils/platform';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { detectXmlFlavor, parseOpenedFile, readFormatInput, type FormatInput } from '@/services/formatRegistry';
@@ -56,6 +58,14 @@ export interface McpFileFs extends FileIdentityFs {
   writeTextFile(path: string, content: string): Promise<void>;
   readTextFile(path: string): Promise<string>;
   readFile(path: string): Promise<Uint8Array>;
+  /**
+   * Optioneel: de tweede, fysieke scope-poort ná de lexicale `checkScope`. Geeft een uitleg terug als
+   * `path` via een link (symlink, junction) of een andere alias buiten de scope uitkomt, anders `null`.
+   * De headless MCP-server (`headless/mcp-server/`, issue #570) levert hem, want daar is geen
+   * Tauri-capability die zulke ontsnappingen weigert. De app laat hem weg: daar blijft de capability de
+   * harde grens (zie punt 1 bovenaan), en het gedrag van de app verandert dus niet.
+   */
+  confine?(path: string): Promise<string | null>;
 }
 
 /** Echte (Tauri-)fs; dynamisch geïmporteerd binnen een `isTauri()`-tak — spiegel van
@@ -96,6 +106,8 @@ export const fileToolDeps: { getFs: () => Promise<McpFileFs> } = { getFs: realFs
  */
 export function normalizeAbsolutePath(input: string): string | null {
   const unified = input.replace(/\\/g, '/');
+  // UNC- en devicepaden mogen niet stil een lokaal POSIX-pad worden (knownbug 213).
+  if (unified.startsWith('//')) return null;
   let root = '';
   let rest: string;
   const drive = /^([A-Za-z]:)\//.exec(unified); // Windows: C:/…
@@ -132,6 +144,13 @@ export function checkScope(home: string, input: string): ScopeCheck {
   const expanded = input === '~' || input.startsWith('~/') || input.startsWith('~\\')
     ? `${home}/${input.slice(2)}`
     : input;
+  if ([expanded, home].some(path => path.replace(/\\/g, '/').startsWith('//'))) {
+    return {
+      ok: false,
+      reason: 'UNC/network and Windows device paths are not supported by the file tools. ' +
+        'Use a local absolute path and a local home/working folder instead; no file was read or written.',
+    };
+  }
   const target = normalizeAbsolutePath(expanded);
   const root = normalizeAbsolutePath(home);
   if (target === null || root === null) {
@@ -285,6 +304,8 @@ export const fileTools: McpToolDef[] = [
         const scope = checkScope(home, raw.path);
         if (!scope.ok) return toolError(ctx, 'SCOPE', scope.reason);
         path = scope.path;
+        const escaped = await fs.confine?.(path);
+        if (escaped) return toolError(ctx, 'SCOPE', escaped);
         existed = await fs.exists(path);
         if (existed && !overwrite) {
           return toolError(
@@ -295,7 +316,7 @@ export const fileTools: McpToolDef[] = [
           );
         }
       } catch (e) {
-        return toolError(ctx, 'INTERNAL', `Could not check the target path: ${e instanceof Error ? e.message : String(e)}`);
+        return toolError(ctx, e instanceof ScopeEscapeError ? 'SCOPE' : 'INTERNAL', `Could not check the target path: ${e instanceof Error ? e.message : String(e)}`);
       }
 
       // Na de fs-awaits opnieuw: de gebruiker kan intussen gepauzeerd, alleen-lezen gezet, een
@@ -325,7 +346,7 @@ export const fileTools: McpToolDef[] = [
       try {
         await fs.writeTextFile(path, content);
       } catch (e) {
-        return toolError(ctx, 'INTERNAL', `Writing to '${path}' failed: ${e instanceof Error ? e.message : String(e)}`);
+        return toolError(ctx, e instanceof ScopeEscapeError ? 'SCOPE' : 'INTERNAL', `Writing to '${path}' failed: ${e instanceof Error ? e.message : String(e)}`);
       }
       return {
         ok: true,
@@ -360,7 +381,10 @@ export const fileTools: McpToolDef[] = [
       'becomes active and follow-up work lands there. LOSS PER FORMAT — tell the user: CSV contains NO ' +
       'calendar (the document gets the default calendar, so dates can shift!) and no resources or ' +
       'assignments; P6 XML maps Nonlabor resources to EQUIPMENT; MPP contains no baselines/custom fields; ' +
-      'MSPDI is the richest after IFC. After a CSV/XML/MPP import the document has NO save target yet ' +
+      'MSPDI is the richest after IFC. A file whose dates were not calculated in minutes (an IFC from an ' +
+      'older Open Planner Studio) is recalculated on opening; when that moves tasks, the document in `documents` carries ' +
+      '`minuteModelConversion` (`shiftedTasks`, `maxShiftWorkdays`) and `notice` says it — tell the user. ' +
+      'After a CSV/XML/MPP import the document has NO save target yet ' +
       '(saving always writes IFC, so the source file is never overwritten); only an IFC import takes over ' +
       'the source path. Use the `documents` inventory FROM THE RESPONSE for all opened documents; ' +
       '`documentId` keeps pointing at the active document for compatibility. Whether the first project ' +
@@ -406,8 +430,10 @@ export const fileTools: McpToolDef[] = [
         const scope = checkScope(await fs.homeDir(), raw.path);
         if (!scope.ok) return toolError(ctx, 'SCOPE', scope.reason);
         path = scope.path;
+        const escaped = await fs.confine?.(path);
+        if (escaped) return toolError(ctx, 'SCOPE', escaped);
       } catch (e) {
-        return toolError(ctx, 'INTERNAL', `Could not check the source path: ${e instanceof Error ? e.message : String(e)}`);
+        return toolError(ctx, e instanceof ScopeEscapeError ? 'SCOPE' : 'INTERNAL', `Could not check the source path: ${e instanceof Error ? e.message : String(e)}`);
       }
       // `content` blijft '' voor een binair formaat — puur voor `formatOf` (verderop) om te sniffen
       // op CSV/P6-XML/MSPDI-XML-inhoud; het OPSLAGDOEL-besluit hangt niet af van `formatOf`'s
@@ -420,7 +446,8 @@ export const fileTools: McpToolDef[] = [
         // óók hier — `fs` (McpFileFs) is structureel compatibel met `readFormatInput`'s `FormatIO`.
         input = await readFormatInput(path, fs);
       } catch (e) {
-        return toolError(ctx, 'NOT_FOUND', `Could not read '${path}': ${e instanceof Error ? e.message : String(e)}`);
+        const code = e instanceof ScopeEscapeError ? 'SCOPE' : e instanceof FileTextDecodingError ? 'VALIDATION' : 'NOT_FOUND';
+        return toolError(ctx, code, `Could not read '${path}': ${e instanceof Error ? e.message : String(e)}`);
       }
       const content = input.text ?? '';
 
@@ -463,9 +490,13 @@ export const fileTools: McpToolDef[] = [
         document.id,
         document.payload,
       ]));
+      // B5: het meldingenkanaal van de app bereikt een MCP-client niet. Dezelfde telling en grootste
+      // verschuiving als `notifications.minuteModelConverted`, per document in de inventaris.
+      const conversionById = new Map(opened.minuteModelConversions.map(c => [c.documentId, c]));
       const documents = opened.documentIds.map(documentId => {
         const payload = payloadById.get(documentId);
         if (!payload) throw new Error(`Opened document '${documentId}' is missing after the import`);
+        const conversion = conversionById.get(documentId);
         return {
           documentId,
           projectId: payload.project.id,
@@ -474,9 +505,24 @@ export const fileTools: McpToolDef[] = [
           sequences: payload.sequences.length,
           resources: payload.resources.length,
           filePath: payload.filePath,
+          ...(conversion ? { minuteModelConversion: {
+            shiftedTasks: conversion.shifted.length,
+            maxShiftWorkdays: conversion.maxWorkdays,
+          } } : {}),
         };
       });
       const notices: string[] = [];
+      for (const document of documents) {
+        if (!document.minuteModelConversion) continue;
+        const { shiftedTasks, maxShiftWorkdays } = document.minuteModelConversion;
+        notices.push(
+          `${documents.length > 1 ? `Document '${document.documentId}': the` : 'The'} dates in this file ` +
+          'were not calculated in minutes (for example an IFC from an older Open Planner Studio), so opening ' +
+          `recalculated it: ${shiftedTasks} task${shiftedTasks === 1 ? ' has' : 's have'} a different start ` +
+          `or finish; the largest shift is ${maxShiftWorkdays} workdays. Saving or exporting now writes the ` +
+          'new dates; planner_undo restores the recorded dates (Dates as recorded). Tell the user.',
+        );
+      }
       if (format === 'CSV') {
         notices.push('CSV contains no calendar (the document now runs on the DEFAULT calendar — dates may differ) and no resources/assignments.');
       } else if (format === 'P6-XML') {

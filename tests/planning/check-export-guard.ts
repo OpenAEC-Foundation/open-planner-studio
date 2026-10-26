@@ -13,6 +13,10 @@
 import { useAppStore } from '@/state/appStore';
 import { exportGoesToRecents, exportSplitsLostNotice } from '@/state/slices/fileSlice';
 import { EXPORT_FORMATS, type ExportFormat } from '@/services/formatRegistry';
+import i18next from 'i18next';
+import enMenu from '@/i18n/locales/en/menu.json';
+import nlMenu from '@/i18n/locales/nl/menu.json';
+import { exportFileSuffix } from '@/i18n/exportFileSuffix';
 import type { Task } from '@/types/task';
 
 const S = () => useAppStore.getState();
@@ -154,6 +158,19 @@ const metContour: Task[] = S().tasks.map(t => (t.id === sp
   : t));
 eq('18 mspdi: taak met contour ⇒ geen melding', exportSplitsLostNotice('mspdi', metContour), null);
 eq('19 p6: taak met contour ⇒ geen melding', exportSplitsLostNotice('p6', metContour), null);
+
+// Bestandsnaamdelen volgen de taal; zonder UI-initialisatie blijft headless export bruikbaar.
+eq('20 headless voortgang heeft Engelse terugval', exportFileSuffix('progress'), 'progress');
+eq('21 headless bibliotheek heeft Engelse terugval', exportFileSuffix('library'), 'library');
+await i18next.init({ lng: 'nl', fallbackLng: 'en', resources: { nl: { menu: nlMenu }, en: { menu: enMenu } } });
+eq('22 Nederlands voortgang', exportFileSuffix('progress'), 'voortgang');
+eq('23 Nederlands bibliotheek', exportFileSuffix('library'), 'bibliotheek');
+await i18next.changeLanguage('en');
+eq('24 Engels voortgang', exportFileSuffix('progress'), 'progress');
+eq('25 Engels bibliotheek', exportFileSuffix('library'), 'library');
+await i18next.changeLanguage('fr');
+eq('26 ontbrekende vertaling valt terug op Engels', exportFileSuffix('progress'), 'progress');
+eq('27 ontbrekende bibliotheekvertaling valt terug op Engels', exportFileSuffix('library'), 'library');
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {

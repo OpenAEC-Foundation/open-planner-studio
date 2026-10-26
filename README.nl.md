@@ -7,7 +7,7 @@
 **Open-source bouwplanning. Kritiek pad, MS Project- en Primavera P6-bestanden, IFC 4.3 als eigen formaat en een MCP-server.**
 
 [![Versie](https://img.shields.io/github/package-json/v/OpenAEC-Foundation/open-planner-studio?label=versie&color=blue)](https://github.com/OpenAEC-Foundation/open-planner-studio/releases)
-[![Downloads](https://img.shields.io/github/downloads/OpenAEC-Foundation/open-planner-studio/total?label=downloads&color=success)](https://github.com/OpenAEC-Foundation/open-planner-studio/releases)
+[![Downloads](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FOpenAEC-Foundation%2Fopen-planner-studio%2Fstats%2Fdownloads.json&query=%24.downloads&label=downloads&color=success)](https://github.com/OpenAEC-Foundation/open-planner-studio/releases)
 [![CI](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/workflows/ci.yml)
 [![Talen](https://img.shields.io/badge/talen-28-informational)](src/i18n/config.ts)
 [![Licentie](https://img.shields.io/github/license/OpenAEC-Foundation/open-planner-studio)](#licentie)
@@ -143,7 +143,7 @@ De desktop-app is gebouwd met Tauri 2, dus de installers zijn klein en gebruiken
 
 ## Bijdragen
 
-- **Probeer het op een echt project** en meld bugs of ontbrekende functies: [maak een issue aan](https://github.com/OpenAEC-Foundation/open-planner-studio/issues/new).
+- **Probeer het op een echt project** en meld bugs of ontbrekende functies: gebruik de feedbackknop in de app, of [maak een GitHub-issue aan](https://github.com/OpenAEC-Foundation/open-planner-studio/issues/new).
 - **Deel ideeën of stel vragen** in [GitHub Discussions](https://github.com/OpenAEC-Foundation/open-planner-studio/discussions).
 - **Stuur testbestanden.** `.mpp`-, `.xer`- en P6 XML-bestanden helpen ons de import te verbeteren, en met veel testbestanden kunnen we in de toekomst misschien ook de export verbeteren. Zie [de discussie over testbestanden](https://github.com/OpenAEC-Foundation/open-planner-studio/discussions/71). Haal eerst vertrouwelijke gegevens weg.
 - **Schrijf code.** Lees [CONTRIBUTING.md](CONTRIBUTING.md) en open een pull request.

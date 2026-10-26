@@ -7,7 +7,7 @@
 **Open-source construction scheduling. Critical path, MS Project and Primavera P6 files, IFC 4.3 as the native format, and an MCP server.**
 
 [![Version](https://img.shields.io/github/package-json/v/OpenAEC-Foundation/open-planner-studio?label=version&color=blue)](https://github.com/OpenAEC-Foundation/open-planner-studio/releases)
-[![Downloads](https://img.shields.io/github/downloads/OpenAEC-Foundation/open-planner-studio/total?label=downloads&color=success)](https://github.com/OpenAEC-Foundation/open-planner-studio/releases)
+[![Downloads](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FOpenAEC-Foundation%2Fopen-planner-studio%2Fstats%2Fdownloads.json&query=%24.downloads&label=downloads&color=success)](https://github.com/OpenAEC-Foundation/open-planner-studio/releases)
 [![CI](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/workflows/ci.yml)
 [![Languages](https://img.shields.io/badge/languages-28-informational)](src/i18n/config.ts)
 [![License](https://img.shields.io/github/license/OpenAEC-Foundation/open-planner-studio)](#license)
@@ -143,7 +143,7 @@ The desktop app is built with Tauri 2, so the installers are small and use the w
 
 ## Contributing
 
-- **Try it on a real project** and report bugs or missing features: [open an issue](https://github.com/OpenAEC-Foundation/open-planner-studio/issues/new).
+- **Try it on a real project** and report bugs or missing features: use the feedback button in the app, or [open a GitHub issue](https://github.com/OpenAEC-Foundation/open-planner-studio/issues/new).
 - **Share ideas or ask questions** in [GitHub Discussions](https://github.com/OpenAEC-Foundation/open-planner-studio/discussions).
 - **Send test files.** `.mpp`, `.xer` and P6 XML files help us improve the import, and a large set of test files may later help us improve the export as well. See [the discussion on test files](https://github.com/OpenAEC-Foundation/open-planner-studio/discussions/71). Remove confidential data first.
 - **Write code.** Read [CONTRIBUTING.md](CONTRIBUTING.md) and open a pull request.

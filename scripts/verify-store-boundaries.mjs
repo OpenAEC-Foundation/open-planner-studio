@@ -108,6 +108,24 @@ for (const file of coreFiles) {
   }
 }
 
+// De headless MCP-server (`headless/mcp-server/src/`, issue #570) en de MCP-modules die hij bundelt
+// buiten `tools/` om, bouwen op een eigen storecontext. Elke waarde-import uit `appStore` laadt de
+// app-singleton mee, dus die is daar verboden; transitieve lekken vangt `npm run build:mcp-server`.
+const headlessMcpFiles = [
+  ...sourceFiles(resolve(root, 'headless/mcp-server/src')),
+  ...['src/services/mcp/freshness.ts', 'src/services/mcp/requestHandler.ts', 'src/services/mcp/context.ts',
+    'src/services/mcp/backupService.ts', 'src/state/blockingDialogs.ts']
+    .map((file) => resolve(root, file))
+    .filter((file) => existsSync(file)),
+];
+for (const file of headlessMcpFiles) {
+  const sourceFile = parse(file);
+  for (const binding of importsOf(sourceFile, (specifier) => appStoreModule(file, specifier))) {
+    report(file, sourceFile, binding.declaration,
+      `waarde-import '${binding.imported}' uit appStore in code van de headless MCP-server (gebruik appStoreFactory)`);
+  }
+}
+
 // staleGuard mag de appcontext uitsluitend als compatibiliteitsdefault aanbieden. De functiebody
 // moet altijd de expliciete `app`-parameter volgen.
 const staleFile = resolve(root, 'src/services/mcp/staleGuard.ts');
@@ -194,7 +212,7 @@ for (const relativeAdapter of ['src/state/batchTransaction.ts', 'src/state/mcpTr
 }
 
 if (violations.length === 0) {
-  console.log(`OK — store-runtimegrenzen bewaakt in ${strictFiles.length} storegebonden modules en ${coreFiles.length} kernmodules.`);
+  console.log(`OK — store-runtimegrenzen bewaakt in ${strictFiles.length} storegebonden modules, ${coreFiles.length} kernmodules en ${headlessMcpFiles.length} modules van de headless MCP-server.`);
   process.exit(0);
 }
 

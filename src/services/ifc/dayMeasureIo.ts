@@ -77,9 +77,21 @@ export function dayMeasureMinutes(days: number, minutesPerDay: number): number {
   return Math.round(days * minutesPerDay);
 }
 
-/** Het record voor een gebroken dag: dagen op 6 decimalen, en de minuten die de writer schrijft. */
+/**
+ * De dagenwaarde voor een record `[dagen, minuten]`: de dagen op 6 decimalen, als die dezelfde minuten geven
+ * als de bronwaarde; anders de bronwaarde zelf. De minuten van het standaardveld komen altijd uit de bron.
+ * Voorbeeld: 5/6 d × 465 = 387,5 → 388, maar 0,833333 × 465 = 387,4998 → 387. Met 0,833333 in het record
+ * wijst de leesregel (dagen × minuten per dag = minuten) het eigen record af, en een tweede export schrijft
+ * 387 (aanval a06 na #600, review r1). Het record draagt dan 0,8333333333333334.
+ */
+export function recordDayValue(days: number, minutesPerDay: number): number {
+  const rounded = roundDays(days);
+  return dayMeasureMinutes(rounded, minutesPerDay) === dayMeasureMinutes(days, minutesPerDay) ? rounded : days;
+}
+
+/** Het record voor een gebroken dag: de dagen (`recordDayValue`), en de minuten die de writer schrijft. */
 export function dayMeasureRecord(days: number, minutesPerDay: number): DayMeasureRecord {
-  return [roundDays(days), dayMeasureMinutes(days, minutesPerDay)];
+  return [recordDayValue(days, minutesPerDay), dayMeasureMinutes(days, minutesPerDay)];
 }
 
 /**

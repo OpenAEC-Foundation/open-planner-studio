@@ -455,8 +455,8 @@ export interface MsProjectImportReport {
   levelingDelays: number;
   /** Alleen MSPDI: inactieve taken, ingelezen als actieve taak. */
   inactiveTasks: number;
-  /** Alleen `.mpp`: de kritiek-drempel (dagen) uit het bestand; niet overgenomen als projectinstelling
-   *  (knownbugs 46). 0 ⇒ geen regel. */
+  /** Historisch verliesveld voor oude `.mpp`-importverslagen. Nieuwe imports nemen de grens
+   *  als projectinstelling over en laten dit op 0; bewaarde oude verslagen blijven leesbaar. */
   criticalSlackLimitDays: number;
 }
 

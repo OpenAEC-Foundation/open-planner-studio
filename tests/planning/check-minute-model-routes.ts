@@ -43,7 +43,7 @@ const expected: Record<string, string[]> = {
   'src/hooks/useAutoCalcCPM.ts': ['bereken'],
   'src/hooks/useExitRecordedDates.ts': ['bewerking'],
   'src/services/library/occupancy.ts': ['solveProject'], // vluchtig op een kloon
-  'src/services/mcp/staleGuard.ts': ['bereken'],
+  'src/services/mcp/freshness.ts': ['bereken'], // verhuisd uit staleGuard.ts (#572)
   'src/services/mcp/tools/batchTool.ts': ['bewerking'],
   'src/state/documentActivation.ts': ['solveProject', 'solveProject'], // vluchtige teller; laadgrens
   'src/state/runtime/createMcpTransactions.ts': ['bewerking'],

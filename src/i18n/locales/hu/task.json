@@ -4,6 +4,7 @@
     "applyShape": "Alak alkalmazása:",
     "hoursPerDay": "{{hours}} óra munkanaponként",
     "stripHint": "Húzza az egyik határt a fázis hosszabbításához vagy rövidítéséhez. Húzza a felső szélt a hozzárendelt mennyiség beállításához. Kattintson duplán egy napra a fázis szétbontásához.",
+    "partialDayHint": "Ha a tevékenység munkanap közben kezdődik vagy fejeződik be, akkor az a nap arányosan számít: az órák a hozzárendelt mennyiség × a nap része. A hisztogram ugyanúgy számol.",
     "from": "Tól",
     "to": "Ig",
     "days": "Napok",
@@ -181,7 +182,8 @@
       "calendar": "Válasszon egy naptárat a listából.",
       "calendarNotFound": "A kiválasztott naptár nem létezik.",
       "calendarHours": "A tevékenység naptárában nincs napi munkaóra.",
-      "durationConversionNotExact": "Ez az időtartam nem alakítható át pontosan a másik egységre.",
+      "durationConversionNotExact": "Ez az időtartam ebben a naptárban nem alakítható át pontosan a másik egységre.",
+      "fixedWorkIsHours": "A rögzített munkát tartalmazó tevékenység mindig órában mérendő.",
       "milestoneRequired": "Ez a mező csak mérföldkövekre vonatkozik.",
       "milestoneUnavailable": "Egy összefoglaló tevékenység altevékenységekkel nem lehet mérföldkő.",
       "actualAfterStatusDate": "A tényleges dátum az állapotdátum után van.",
@@ -327,8 +329,8 @@
     "unit": "Időtartam-egység",
     "days": "Napok",
     "hours": "Órák",
-    "invalid": "Adjon meg egész számú napot vagy órát, például 2d vagy 12h.",
-    "conversionNotExact": "{{value}} ebben a naptárban nem ad ki egész napokat. Az egység nem változott.",
+    "invalid": "Adjon meg napok vagy órák számát, például 2,5d vagy 12h.",
+    "conversionNotExact": "{{value}} ebben a naptárban nem alakítható át a másik egységre. Az egység nem változott.",
     "unitInfo": "A kiválasztott mértékegység ehhez a tevékenységhez tartozik. A napok munkanapokat, az órák a naptáron belüli munkaórákat jelentenek. Egy másik naptár nem változtatja meg a mértékegységet vagy a megadott időtartamot, de megváltoztathatja a befejezési dátumot."
   },
   "dialog": {
@@ -454,6 +456,7 @@
     "jumpToTask": "Ugrás a(z) {{wbs}} tevékenységre",
     "relationPopoverTitle": "Kapcsolattípus",
     "driving": "Meghatározó kapcsolat (driving)",
+    "drivingUnknown": "Meghatározó kapcsolatok ismeretlenek számítás nélkül.",
     "lag": "Késleltetés (pl. 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Számítás",
     "assignments": {
@@ -518,6 +521,8 @@
     "type": "Típus",
     "lag": "Késleltetés",
     "driving": "Meghatározó kapcsolat",
+    "drivingUnknown": "Ismeretlen",
+    "notDriving": "Nem meghatározó",
     "freeFloat": "Szabad tartalékidő",
     "warnings": "Figyelmeztetések",
     "warnTruncatedLead": "Az átfedés a projektkezdésnél le lett vágva, ezért nem használódik ki teljesen",
@@ -643,5 +648,11 @@
     "pieceHours_one": "Rész: {{count}} óra",
     "pieceHours_other": "Rész: {{count}} óra",
     "merged": "Összevonás"
+  },
+  "dateTimeInput": {
+    "time": "{{field}} időpontja",
+    "timeHint": "Üresen hagyva: a munkanap eleje vagy vége. Időponttal: pontosan ez a pillanat.",
+    "later": "Negyedórával később",
+    "earlier": "Negyedórával korábban"
   }
 }

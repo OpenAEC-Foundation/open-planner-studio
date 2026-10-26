@@ -298,10 +298,15 @@ export function levelResources(
           starts.push(eng.nextWorkDayAfter(prev));
           sums.push(Number.NaN);
         } else {
-          const sum = sums[sums.length - 1] + eng.effectiveBandsOn(skip).reduce((acc, b) => acc + b.end - b.start, 0);
+          const day = eng.effectiveBandsOn(skip).reduce((acc, b) => acc + b.end - b.start, 0);
           skip = eng.nextWorkDayAfter(skip);
-          sums.push(sum);
-          starts.push(eng.nextWorkInstant(eng.addWorkingMinutesSigned(first, sum)));
+          sums.push(sums[sums.length - 1] + day);
+          // Stapsgewijs vanaf de vorige kandidaat: alleen de nieuw overgeslagen werkdag. De bandwandeling
+          // is optelbaar (de vorige kandidaat ligt `sums[k-1]` werkminuten na `first`, een blokeinde is
+          // al naar het volgende blokbegin gezet), dus dit is hetzelfde moment als `first` + `sums[k]`.
+          // Elke kandidaat opnieuw vanaf `first` wandelen kostte k werkdagen per kandidaat: kwadratisch per
+          // taak, derde macht over een rij concurrerende taken (aanval a12 na #600).
+          starts.push(eng.nextWorkInstant(eng.addWorkingMinutesSigned(prev, day)));
         }
       }
     };
@@ -586,6 +591,9 @@ export function levelResources(
 
   // Geplaatste posities (voor boekhouding/debug): iso-startdag.
   const placedStartIso = new Map<string, string>();
+  // Het exacte boekingsmoment van elke vastgepinde taak: de pinconflictcontrole na de lus leest
+  // daarmee precies de vraag die `bookDemandAt` boekte (`demandAt` is per moment gecachet).
+  const pinnedStartDate = new Map<string, Date>();
 
   // Boek de vraag van een taak vanaf een gegeven startmoment — via `demandAt` hierboven, dezelfde
   // uitkomst als `findSlot`s capaciteitstoets (conflictdetectie en boeking lopen niet uit elkaar).
@@ -816,6 +824,7 @@ export function levelResources(
     // verdeler.
     bookDemandAt(pick, startDate, slotUnresolved.length === 0);
     placedStartIso.set(pick, formatInstant(startDate, 'hour'));
+    if (pinnedSet.has(pick)) pinnedStartDate.set(pick, startDate);
     // De vertraging, zoals `CPMSolver.forwardPass`'s `shiftByLevelingDelay` haar straks TOEPAST
     // (spec §3.11): `delayMinutes` gaat vóór `levelingDelay`. Beide komen van de kandidaat-as
     // (`candidateAxis`): `skipped` overgeslagen werkdagen, en hun werkminuten op de TAAKkalender.
@@ -864,6 +873,28 @@ export function levelResources(
     placed.add(pick);
     markPlaced(pick);
     remaining--;
+  }
+
+  // Vastgepind betekent niet conflictvrij. Deze taken boeken onvoorwaardelijk en scannen
+  // geen alternatief venster. Controleer na ALLE boekingen hun werkelijke vraagdagen, zodat
+  // ook de eerst geboekte pin het conflict met een later geboekte pin terugkrijgt.
+  // Geen tweede boeking: booked bevat de eigen vraag al. Nulvraag telt niet als conflict.
+  // De vraag komt uit dezelfde gedeelde plaatsing als de boeking (`demandAt` op het boekingsmoment).
+  for (const taskId of pinnedIds) {
+    const start = pinnedStartDate.get(taskId);
+    if (!start) continue;
+    const { days: occ, byRes } = demandAt(workById.get(taskId)!, start);
+    const days = new Set<string>();
+    for (const [resId, demand] of byRes) {
+      for (let i = 0; i < demand.length && i < occ.length; i++) {
+        if (demand[i] > 0 && exceedsCapacity(bookedOn(resId, occ[i]), capacityOf(resId, occ[i]))) {
+          days.add(occ[i]);
+        }
+      }
+    }
+    if (days.size > 0) unresolved[taskId] = [...days].sort();
+    // Geen verzonnen scanreden zoals 'onvoldoende speling': de pin is niet verplaatst.
+    // De UI kan het bestaande taak-/conflictdagenrapport zonder specifieke reden tonen.
   }
 
   // Preview uit één echte proef-solve op de werkkopieën (nu mét alle gezette delays) — exact wat

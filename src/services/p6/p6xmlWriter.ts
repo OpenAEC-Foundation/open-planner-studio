@@ -29,7 +29,7 @@ import {
   OPS_LAG_CALENDAR_NAME, dayMeasureMinutesPerDay, fieldRecordsJson, lagRecordKey, lagWorkMinutesPerDay,
   withElapsedUnit, writeDays, writeMinutes, type LagRecord, type WrittenAmount,
 } from '@/services/xmlDayMeasure';
-import { ELAPSED_MINUTES_PER_DAY, roundDays } from '@/services/ifc/dayMeasureIo';
+import { ELAPSED_MINUTES_PER_DAY, dayMeasureRecord } from '@/services/ifc/dayMeasureIo';
 import { P6_DURATION_TYPE_NAME, XER_DURATION_TYPE_TOKEN } from '@/engine/work/workRuleMapping';
 
 /** P6-UDF die de OPS-taaktypemarker draagt; geëxporteerd voor de reader. */
@@ -114,9 +114,12 @@ export const OPS_DESCRIPTION_TOPIC_NAME = 'OPS Description';
 const OPS_DESCRIPTION_TOPIC_OBJECT_ID = 900000002;
 
 /** Status zoals P6 hem leest: in lijn met voortgang en actuals (in OPS kan `task.status` achterlopen
- *  op een gewijzigd percentage; P6 laat de status leiden). */
+ *  op een gewijzigd percentage; P6 laat de status leiden). Een taak die nog loopt op 100 % (`STARTED`
+ *  zonder werkelijk einde, zoals de IFC-writer haar herkent) blijft `In Progress`: P6 plant haar rest nog
+ *  in (knownbug 114). Met `Completed` zag P6 haar als klaar. */
 function taskStatusToP6(task: Task): string {
-  if (task.status === 'COMPLETED' || task.time.actualFinish || task.time.completion >= 1) return 'Completed';
+  const runningAtFull = task.status === 'STARTED' && !task.time.actualFinish;
+  if (task.status === 'COMPLETED' || task.time.actualFinish || (task.time.completion >= 1 && !runningAtFull)) return 'Completed';
   if (task.status === 'STARTED' || task.time.actualStart || task.time.completion > 0) return 'In Progress';
   return 'Not Started';
 }
@@ -265,7 +268,9 @@ function p6Lag(
   const days = Number.isFinite(seq.lagDays) ? seq.lagDays : 0;
   const written = writeDays(days, minutesPerLagDay);
   if (days === 0 && !elapsed) return { hours: 0 };
-  const record: LagRecord = elapsed ? [roundDays(days), written.minutes, 'ed'] : [roundDays(days), written.minutes];
+  // De dagen van het record verklaren precies de geschreven minuten (`dayMeasureRecord`, aanval a06 na #600).
+  const [recordDays] = dayMeasureRecord(days, minutesPerLagDay);
+  const record: LagRecord = elapsed ? [recordDays, written.minutes, 'ed'] : [recordDays, written.minutes];
   return { hours: written.minutes / 60, record };
 }
 

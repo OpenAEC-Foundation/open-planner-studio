@@ -211,6 +211,7 @@ export type NotificationMessageKey =
   | 'notifications.browserCannotOverwrite'
   | 'notifications.browserSavesAsDownload'
   | 'notifications.autoSaveFailed'
+  | 'notifications.autoSaveNotWritable'
   | 'notifications.recoveryManifestBlocked'
   | 'notifications.recoveryStorageBlocked'
   | 'notifications.recoveryReadFailed'
@@ -254,6 +255,8 @@ export type NotificationMessageKey =
   | 'notifications.phaseRefusedDuplicateResource'
   | 'notifications.phaseQuestionOutdated'
   | 'notifications.mppLegacy'
+  | 'notifications.xmlUnknownSchedule'
+  | 'notifications.mppInvalidContainer'
   | 'notifications.mppEncrypted'
   | 'notifications.xerInvalidInput'
   | 'notifications.xerInvalidFile'
@@ -582,6 +585,8 @@ export interface UIState {
   positionDivision: PositionDivision; // persisted — split used in position mode
   modifierMap: ModifierMap;           // persisted — wheel→function map for modifier mode
   debugTerminalEnabled: boolean;  // persisted
+  experimentalSettingsVisible: boolean; // persisted; verbergen laat de flagkeuzes staan
+  featureFlags: Record<string, boolean>; // persisted; ontbrekend = uit
   debugTerminalOpen: boolean;     // session
   documentChromeStyle: DocumentChromeStyle; // persisted — multi-document wisselstijl
   ribbonCompact: boolean; // persisted — compacte ribbon voor kleine schermen

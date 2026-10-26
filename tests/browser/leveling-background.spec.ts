@@ -8,7 +8,7 @@ import type { GeneratedProject } from '@/services/benchmark/generateProject';
 // Toepassen het conflict oplost (store-asserties, geen pixels).
 
 test('nivelleer-dialoog: berekenen via de worker levert een voorstel; toepassen lost het conflict op', async ({ page, ops: _ops }) => {
-  // Deze route rekent vijf voorstellen door, inclusief het grote scroll-/toepasscenario.
+  // Deze route rekent meerdere voorstellen door, inclusief het grote scroll-/toepasscenario.
   test.slow();
   const [first, second] = await seedProject(page, [
     { name: 'Metselen', start: '2026-09-07', finish: '2026-09-09', durationDays: 3 },
@@ -29,11 +29,34 @@ test('nivelleer-dialoog: berekenen via de worker levert een voorstel; toepassen 
   await expect(dialog).toBeVisible();
 
   const conflictHint = 'Resource conflicts remain for these tasks. See the details below.';
+  const noChanges = 'No tasks need to move — the schedule is already conflict-free.';
+  // Knownbug 8: pins schuiven niet, maar de engine moet hun conflict wel terugmelden.
+  await dialog.getByRole('button', { name: /^(Annuleren|Cancel)$/ }).click();
+  await page.evaluate(ids => {
+    const s = window.__OPS__!.store.getState();
+    for (const id of ids) s.updateTask(id, { priority: 1000 });
+    s.runCPM();
+  }, [first, second]);
+  await page.locator('[data-ops-ribbon-item="levelResources"]').first().click();
+  await dialog.getByRole('button', { name: /^(Berekenen|Calculate)$/ }).click();
+  await expect(dialog.getByText(conflictHint, { exact: true })).toBeVisible();
+  await expect(dialog.getByText(noChanges, { exact: true })).toHaveCount(0);
+  await expect(dialog.locator('table tbody tr')).toHaveCount(0);
+  await expect(dialog.getByText('Metselen', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('Voegen', { exact: true })).toBeVisible();
+  await dialog.getByRole('button', { name: /^(Annuleren|Cancel)$/ }).click();
+  await page.evaluate(ids => {
+    const s = window.__OPS__!.store.getState();
+    for (const id of ids) s.updateTask(id, { priority: 500 });
+    s.runCPM();
+  }, [first, second]);
+  await page.locator('[data-ops-ribbon-item="levelResources"]').first().click();
   // Met smoothing blijft een conflict over: de algemene hint beschrijft het resultaat,
   // terwijl de toelichting per taak de oorzaak aanwijst.
   await dialog.getByRole('checkbox').first().check();
   await dialog.getByRole('button', { name: /^(Berekenen|Calculate)$/ }).click();
   await expect(dialog.getByText(conflictHint, { exact: true })).toBeVisible();
+  await expect(dialog.getByText(noChanges, { exact: true })).toHaveCount(0);
   await dialog.getByRole('checkbox').first().uncheck();
 
   await dialog.getByRole('button', { name: /^(Berekenen|Calculate)$/ }).click();
@@ -62,6 +85,7 @@ test('nivelleer-dialoog: berekenen via de worker levert een voorstel; toepassen 
   await expect(dialog.getByRole('checkbox').first()).not.toBeChecked();
   await dialog.getByRole('button', { name: /^(Berekenen|Calculate)$/ }).click();
   await expect(dialog.getByText(conflictHint, { exact: true })).toBeVisible();
+  await expect(dialog.getByText(noChanges, { exact: true })).toHaveCount(0);
   await expect(dialog.getByText('Kleine ploeg peaks at 2 units/day, capacity is 1 — cannot be resolved by shifting.', { exact: true })).toBeVisible();
   await dialog.getByRole('button', { name: /^(Annuleren|Cancel)$/ }).click();
 
@@ -85,6 +109,18 @@ test('nivelleer-dialoog: berekenen via de worker levert een voorstel; toepassen 
   await dialog.getByRole('button', { name: /^(Berekenen|Calculate)$/ }).click();
   await expect(dialog.getByText('Importploeg peaks at 3 units/day, capacity is 2 — cannot be resolved by shifting.', { exact: true })).toBeVisible();
   await expect(dialog.getByText(/\{\{(?:resource|peak|capacity)\}\}/)).toHaveCount(0);
+  await dialog.getByRole('button', { name: /^(Annuleren|Cancel)$/ }).click();
+
+  await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    for (const resource of s.resources) s.updateResource(resource.id, { maxUnits: 100, availabilitySteps: [] });
+    for (const task of s.tasks) s.updateTask(task.id, { levelingDelay: 0 });
+    s.runCPM();
+  });
+  await page.locator('[data-ops-ribbon-item="levelResources"]').first().click();
+  await dialog.getByRole('button', { name: /^(Berekenen|Calculate)$/ }).click();
+  await expect(dialog.getByText(noChanges, { exact: true })).toBeVisible();
+  await expect(dialog.getByText(conflictHint, { exact: true })).toHaveCount(0);
   await dialog.getByRole('button', { name: /^(Annuleren|Cancel)$/ }).click();
 
   // Een groot voorstel blijft begrensd in de DOM, terwijl de laatste rij bereikbaar is en

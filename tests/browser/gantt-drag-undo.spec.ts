@@ -4,6 +4,10 @@
 import type { Locator, Page } from '@playwright/test';
 import { barPoint, expect, seedProject, state, test } from './fixtures/ops';
 
+// Deze route bedient tijdlijnbalken naast de takenlijst en de eigenschappenrail.
+// Reserveer expliciet genoeg canvasruimte, onafhankelijk van de standaard paneelbreedte.
+test.use({ viewport: { width: 1600, height: 900 } });
+
 async function addTaskDuringGesture(page: Page, name: string): Promise<string> {
   const id = await page.evaluate((taskName) => {
     const store = window.__OPS__!.store.getState();

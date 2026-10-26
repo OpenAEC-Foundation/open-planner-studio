@@ -118,9 +118,9 @@ eq('0d zonder mijlpaalvlag blijft een nulpunt op de start', finishOn(zeroDay, h8
 eq('0h zonder mijlpaalvlag blijft een nulpunt op de start', finishOn(zeroHour, h8), '2026-07-06T08:00');
 const missingHourSource = task('hours', 1);
 delete missingHourSource.time.durationMinutes;
-eq('urentaak zonder minutenbron wordt niet stil als nul gepland', solveError(missingHourSource, h8), 'Ongeldige urenduur voor taak "hours"');
-eq('negatieve urenduur wordt voor mutatie geweigerd', solveError(task('hours', -1), h8), 'Ongeldige urenduur voor taak "hours"');
-eq('negatieve dagduur wordt voor mutatie geweigerd', solveError(task('days', -1), h8), 'Ongeldige dagduur voor taak "days"');
+eq('urentaak zonder minutenbron wordt niet stil als nul gepland', solveError(missingHourSource, h8), 'Invalid hour duration for task "hours"');
+eq('negatieve urenduur wordt voor mutatie geweigerd', solveError(task('hours', -1), h8), 'Invalid hour duration for task "hours"');
+eq('negatieve dagduur wordt voor mutatie geweigerd', solveError(task('days', -1), h8), 'Invalid day duration for task "days"');
 
 const progressingDay = {
   ...day2,
@@ -215,7 +215,7 @@ eq('scalar-oplossing bewaart exacte minuten', hourOnScalar.time.durationMinutes,
 const invalidScalar = { ...scalarH8, id: 'invalid-scalar', workDays: [] };
 eq('lege scalaire kalender heeft geen effectieve werkblokken', hasConcreteWorkBlocks(invalidScalar), false);
 eq('lege scalaire kalender heeft geen conversievoorstel', proposeTaskDurationConversion(day2, 'hours', invalidScalar, OPS_MEASURE), null);
-eq('lege scalaire kalender geeft een duidelijke validatiefout', solveError(hour12, invalidScalar), 'Kalender heeft geen werkdagen ingesteld');
+eq('lege scalaire kalender geeft een duidelijke validatiefout', solveError(hour12, invalidScalar), 'Calendar has no working days configured');
 deepEq('2d op H8 krijgt exact 16h als voorstel', proposeTaskDurationConversion(day2, 'hours', h8, OPS_MEASURE), { unit: 'hours', durationMinutes: 960, explicitUnit: true });
 deepEq('0h wordt exact 0d en niet stil een werkdag', proposeTaskDurationConversion(task('hours', 0), 'days', h8, OPS_MEASURE), { unit: 'days', scheduleDuration: 0, explicitUnit: true });
 // Alleen uren §3.2 (B1): een dagenmaat-taak mag een breuk hebben; de omzetting houdt het eindmoment.

@@ -128,15 +128,13 @@ test('dag-modus: geen tijdveld, ook met Urenplanning aan en een statusdatum met 
   await spyOnCanvasText(page);
   // Standaardproject: dagkalender zonder werktijdblokken ⇒ de solver gebruikt de tijd niet.
   expect(await page.evaluate(() => !!window.__OPS__!.store.getState().calendar.workTime)).toBe(false);
-  // De dag na `viewStartDate`, zodat lijn en label in beeld staan.
-  const day = await page.evaluate(() => {
+  // Exact het oorspronkelijke voorbeeld uit knownbug 57, met de lijn bewust in beeld.
+  const day = '2027-06-28';
+  await page.evaluate(iso => {
     const s = window.__OPS__!.store.getState();
-    const d = new Date(`${s.view.viewStartDate}T00:00:00Z`);
-    d.setUTCDate(d.getUTCDate() + 1);
-    const iso = d.toISOString().slice(0, 10);
+    s.setViewStartDate('2027-06-27');
     s.setProject({ statusDate: `${iso}T17:00` });
-    return iso;
-  });
+  }, day);
   const [yyyy, mm, dd] = day.split('-');
   await page.locator('.ribbon-tab').filter({ hasText: /^Planning$/ }).click();
   const group = page.getByRole('group', { name: /^(Status date|Statusdatum)$/ }).first();
@@ -147,6 +145,19 @@ test('dag-modus: geen tijdveld, ook met Urenplanning aan en een statusdatum met 
   // Label in de datumnotatie, zonder de tijd die de solver niet gebruikt.
   await expect.poll(() => drawnText(page)).toContain(`${dd}-${mm}-${yyyy}`);
   expect((await drawnText(page)).some(text => text.includes('17:00'))).toBe(false);
+  expect((await drawnText(page)).some(text => text.startsWith(day))).toBe(false);
+  // Een echte invoerwijziging ververst ook het canvaslabel, niet alleen de pure formatter.
+  await clearDrawnText(page);
+  await group.locator('input').first().click();
+  await page.keyboard.press('ControlOrMeta+A');
+  await page.keyboard.type('29');
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Tab');
+  await expect.poll(async () => (await store(page)).statusDate).toBe('2027-06-29T17:00');
+  await expect.poll(() => drawnText(page)).toContain('29-06-2027');
+  expect((await drawnText(page)).some(text => text.startsWith('2027-06-29') || text.includes('17:00'))).toBe(false);
+
   // De lijnpositie (dagrand in dag-modus, tijdstip in uur-modus) toetst check-statusdatum-lijn.ts met de
   // echte renderer; deze spec toetst wat de planner in lint en label ziet.
 });

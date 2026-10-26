@@ -4,6 +4,7 @@
     "applyShape": "Aplicare formă:",
     "hoursPerDay": "{{hours}} ore pe zi lucrătoare",
     "stripHint": "Trageți o limită pentru a prelungi sau a scurta o fază. Trageți marginea de sus pentru a seta unitățile de atribuire. Faceți dublu clic pe o zi pentru a diviza o fază.",
+    "partialDayHint": "Dacă activitatea începe sau se încheie în mijlocul unei zile lucrătoare, ziua respectivă se numără proporțional: orele sunt unitățile de atribuire × partea din zi. Histograma se calculează la fel.",
     "from": "De la",
     "to": "Până la",
     "days": "Zile",
@@ -181,7 +182,8 @@
       "calendar": "Alegeți un calendar din listă.",
       "calendarNotFound": "Calendarul ales nu există.",
       "calendarHours": "Calendarul acestei activități nu are ore de lucru pe zi.",
-      "durationConversionNotExact": "Această durată nu poate fi convertită exact în cealaltă unitate.",
+      "durationConversionNotExact": "Această durată nu poate fi convertită în cealaltă unitate pe acest calendar.",
+      "fixedWorkIsHours": "O activitate cu muncă fixă are întotdeauna măsura în ore.",
       "milestoneRequired": "Acest câmp se aplică doar jaloanelor.",
       "milestoneUnavailable": "O activitate rezumat cu subactivități nu poate deveni jalon.",
       "actualAfterStatusDate": "Data reală este după data raportului de stare.",
@@ -331,8 +333,8 @@
     "unit": "Unitate de durată",
     "days": "Zile",
     "hours": "Ore",
-    "invalid": "Introduceți un număr întreg de zile sau de ore, de exemplu 2d sau 12h.",
-    "conversionNotExact": "{{value}} nu corespunde unor zile întregi în acest calendar. Unitatea nu s-a schimbat.",
+    "invalid": "Introduceți un număr de zile sau de ore, de exemplu 2,5d sau 12h.",
+    "conversionNotExact": "{{value}} nu poate fi convertit în cealaltă unitate pe acest calendar. Unitatea nu s-a schimbat.",
     "unitInfo": "Unitatea aleasă aparține acestei activități. Zilele numără zile lucrătoare; orele numără ore de lucru din calendar. Un alt calendar nu modifică unitatea sau durata introdusă, dar poate modifica data de sfârșit."
   },
   "dialog": {
@@ -458,6 +460,7 @@
     "jumpToTask": "Accesare activitate {{wbs}}",
     "relationPopoverTitle": "Tip de dependență",
     "driving": "Legătură determinantă (driving)",
+    "drivingUnknown": "Legăturile determinante sunt necunoscute fără calcul.",
     "lag": "Decalaj (ex. 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Calculare",
     "assignments": {
@@ -522,6 +525,8 @@
     "type": "Tip",
     "lag": "Decalaj",
     "driving": "Legătură determinantă",
+    "drivingUnknown": "Necunoscut",
+    "notDriving": "Nu e legătură determinantă",
     "freeFloat": "Marjă liberă",
     "warnings": "Avertismente",
     "warnTruncatedLead": "Devansul este limitat la începutul proiectului — suprapunerea nu este utilizată complet",
@@ -651,5 +656,11 @@
     "pieceHours_few": "Bucată: {{count}} ore",
     "pieceHours_other": "Bucată: {{count}} de ore",
     "merged": "Îmbinare"
+  },
+  "dateTimeInput": {
+    "time": "Ora pentru {{field}}",
+    "timeHint": "Gol: începutul sau sfârșitul zilei lucrătoare. Cu oră introdusă: exact acel moment.",
+    "later": "Cu un sfert de oră mai târziu",
+    "earlier": "Cu un sfert de oră mai devreme"
   }
 }

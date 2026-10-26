@@ -9,7 +9,7 @@ import { bumpVersion, checkVersionFiles, isoWeek, nextVersion, parseVersion } fr
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 // Bewust een onafhankelijke lijst: een vergeten pakket mag niet verdwijnen uit de testdekking.
-const paths = ['package.json', 'package-lock.json', 'src-tauri/tauri.conf.json', 'src-tauri/Cargo.toml', 'src-tauri/Cargo.lock', 'headless/server/package.json', 'headless/consumer-example/package.json', 'headless/server/openapi.yaml', 'snap/snapcraft.yaml'];
+const paths = ['package.json', 'package-lock.json', 'src-tauri/tauri.conf.json', 'src-tauri/Cargo.toml', 'src-tauri/Cargo.lock', 'headless/server/package.json', 'headless/consumer-example/package.json', 'headless/server/openapi.yaml', 'snap/snapcraft.yaml', 'integrations/claude-desktop/manifest.json'];
 
 function fixture(t) {
   const dir = mkdtempSync(join(tmpdir(), 'ops-bump-'));
@@ -44,7 +44,7 @@ console.log(${JSON.stringify(refs)});
 }
 
 function assertVersions(dir, version) {
-  for (const path of ['package.json', 'src-tauri/tauri.conf.json', 'headless/server/package.json', 'headless/consumer-example/package.json']) {
+  for (const path of ['package.json', 'src-tauri/tauri.conf.json', 'headless/server/package.json', 'headless/consumer-example/package.json', 'integrations/claude-desktop/manifest.json']) {
     assert.equal(json(dir, path).version, version, path);
   }
   const lock = json(dir, 'package-lock.json');

@@ -166,20 +166,50 @@ export function useSplitGesture({
     setState(null);
   }, []);
 
-  /** Hover in de modus: dezelfde geleidelijn, zonder te muteren. `null` = niets tonen. */
-  const updateHover = useCallback((clientX: number, clientY: number) => {
-    if (frozenRef.current) return; // een lopend gebaar bezit de overlay
+  /**
+   * Eén proef voor hover én gebaarstart (knownbug 10, #614): geen splitsbelofte in voltooid werk, pauzes
+   * of taakranden. Meet op de as van de taak (`axisKind`, §3.14) met dezelfde kleinste pauze als het
+   * gebaar (`minimumGap`, T24 stap 2), zodat hover nooit belooft wat de start weigert.
+   */
+  const splitPositionFor = useCallback((task: Task, x: number) => {
+    const { eng, cal, axisKind, hoursUnit, hoursPerDay, workMinutes, unitMinutes } = contextFor(task);
+    const pieces0 = toSplitPieces(task.splitGaps, workMinutes);
+    if (!pieces0) return null; // niet-wélgevormde importsplit: alleen-lezen
+    const at = snapAt(x, axisKind, eng, cal);
+    if (!at) return null;
+    // De balk staat op de getoonde start (`shownStart`, `GanttRenderer.barGeometry`): een taak die
+    // door een voorganger is opgeschoven houdt haar `scheduleStart`-anker op de projectstart. Vanaf
+    // dat anker meten schuift de split precies die opschuiving op.
+    const startIso = shownStart(task);
+    const taskStart = startIso.includes('T') ? parseInstant(startIso) : parseDate(startIso);
+    const { workMinutes: offsetMinutes, inGap } = axisKind === 'dagslots'
+      ? workOffsetOnAxis(pieces0, dagslotMinutesBetween(taskStart, at, eng))
+      : workOffsetAtDate(pieces0, taskStart, at, eng, axisKind === 'minutes');
+    if (inGap) return null;
+    const minOffsetMinutes = completedWorkMinutes(task, hoursPerDay);
+    // T24 stap 2: een nieuwe pauze is ten minste één werkdag (bij dagzoom), anders één snapstap.
+    const minimumGap = axisKind === 'dagslots'
+      ? (dayZoom ? dagslotMinutes(eng) : Math.max(1e-6, dagslotMinutesBetween(at, eng.addWorkMinutes(at, hourSnapMinutes), eng)))
+      : axisKind === 'minutes' && dayZoom ? splitWorkdayMinutes(at, eng, cal) : unitMinutes;
+    // Proefsplits met de kleinste pauze: kan die niet, dan kan geen enkele lengte hier.
+    if (!splitAt(pieces0, offsetMinutes, minimumGap, unitMinutes, minOffsetMinutes).ok) return null;
+    return { eng, cal, axisKind, hoursUnit, pieces0, offsetMinutes, minOffsetMinutes, unitMinutes, minimumGap, at };
+  }, [contextFor, snapAt, dayZoom, hourSnapMinutes]);
+
+  /** Hover zonder mutatie; geeft terug of hier werkelijk een split kan starten. */
+  const updateHover = useCallback((clientX: number, clientY: number): boolean => {
+    if (frozenRef.current) return false; // een lopend gebaar bezit de overlay
     const canvas = canvasRef.current;
     const renderer = rendererRef.current;
-    if (!canvas || !renderer) { setState(null); return; }
+    if (!canvas || !renderer) { setState(null); return false; }
     const rect = canvas.getBoundingClientRect();
     const x = clientX - rect.left;
     const hit = renderer.getTaskBarBounds(x, clientY - rect.top);
     const bar = hit ? renderer.getTaskBarRect(hit.task.id) : null;
-    if (!hit || !bar) { setState(null); return; }
-    const { axisKind, hoursUnit, eng, cal } = contextFor(hit.task);
-    const at = snapAt(x, axisKind, eng, cal);
-    if (!at) { setState(null); return; }
+    if (!hit || !bar) { setState(null); return false; }
+    const position = splitPositionFor(hit.task, x);
+    if (!position) { setState(null); return false; }
+    const { axisKind, hoursUnit, at } = position;
     setState({
       taskId: hit.task.id,
       anchorX: axis.dateToX(at),
@@ -188,7 +218,8 @@ export function useSplitGesture({
       atIso: atIsoOf(at, axisKind),
       gapUnits: 0, hourMode: !dayZoom && axisKind === 'minutes' && hoursUnit, dragging: false,
     });
-  }, [canvasRef, rendererRef, axis, contextFor, snapAt, atIsoOf, dayZoom]);
+    return true;
+  }, [canvasRef, rendererRef, axis, splitPositionFor, atIsoOf, dayZoom]);
 
   const clearHover = useCallback(() => { if (!frozenRef.current) setState(null); }, []);
 
@@ -204,28 +235,9 @@ export function useSplitGesture({
     if (!canvas || !renderer || !task) return false;
     const bar = renderer.getTaskBarRect(task.id);
     if (!bar) return false;
-    const { eng, cal, axisKind, hoursUnit, hoursPerDay, workMinutes, unitMinutes } = contextFor(task);
-    const pieces0 = toSplitPieces(task.splitGaps, workMinutes);
-    if (!pieces0) return false; // niet-wélgevormde importsplit: alleen-lezen
-    const x = input.startClientX - canvas.getBoundingClientRect().left;
-    const at = snapAt(x, axisKind, eng, cal);
-    if (!at) return false;
-    // De balk staat op de getoonde start (`shownStart`, `GanttRenderer.barGeometry`): een taak die
-    // door een voorganger is opgeschoven houdt haar `scheduleStart`-anker op de projectstart. Vanaf
-    // dat anker meten schuift de split precies die opschuiving op.
-    const startIso = shownStart(task);
-    const taskStart = startIso.includes('T') ? parseInstant(startIso) : parseDate(startIso);
-    const { workMinutes: offsetMinutes, inGap } = axisKind === 'dagslots'
-      ? workOffsetOnAxis(pieces0, dagslotMinutesBetween(taskStart, at, eng))
-      : workOffsetAtDate(pieces0, taskStart, at, eng, axisKind === 'minutes');
-    if (inGap) return false;
-    const minOffsetMinutes = completedWorkMinutes(task, hoursPerDay);
-    // T24 stap 2: een nieuwe pauze is ten minste één werkdag (bij dagzoom), anders één snapstap.
-    const minimumGap = axisKind === 'dagslots'
-      ? (dayZoom ? dagslotMinutes(eng) : Math.max(1e-6, dagslotMinutesBetween(at, eng.addWorkMinutes(at, hourSnapMinutes), eng)))
-      : axisKind === 'minutes' && dayZoom ? splitWorkdayMinutes(at, eng, cal) : unitMinutes;
-    // Proefsplits met de kleinste pauze: kan die niet, dan kan geen enkele lengte hier.
-    if (!splitAt(pieces0, offsetMinutes, minimumGap, unitMinutes, minOffsetMinutes).ok) return false;
+    const position = splitPositionFor(task, input.startClientX - canvas.getBoundingClientRect().left);
+    if (!position) return false;
+    const { eng, cal, axisKind, hoursUnit, pieces0, offsetMinutes, minOffsetMinutes, unitMinutes, minimumGap, at } = position;
     frozenRef.current = {
       taskId: task.id, pieces0, offsetMinutes, minOffsetMinutes, unitMinutes, minimumGap,
       anchorDate: at, eng, cal, axisKind, undoKey: `split:${task.id}:${++splitSeq}`, committed: false,
@@ -238,7 +250,7 @@ export function useSplitGesture({
       gapUnits: 0, hourMode: !dayZoom && axisKind === 'minutes' && hoursUnit, dragging: true,
     });
     return true;
-  }, [canvasRef, rendererRef, axis, getTask, contextFor, snapAt, atIsoOf, dayZoom, hourSnapMinutes]);
+  }, [canvasRef, rendererRef, axis, getTask, splitPositionFor, atIsoOf, dayZoom]);
 
   // Automatisch berekenen wacht tot het gebaar af is (zie `useBarDrag`).
   const dragging = !!state?.dragging;

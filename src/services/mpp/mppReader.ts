@@ -402,7 +402,7 @@ export interface RawTaskScan {
   /** Rauwe REMAINING_DURATION (tienden van een minuut, zelfde eenheid + eenhedenbron als
    *  `durationRaw`). `null` als het veld ontbreekt of het record te kort is — Fase C laat
    *  `remainingMinutes`/`remainingTime` dan ongezet; `normalizeImportedProgress` leidt ze bij een
-   *  taak met voortgang af uit `completion`. */
+   *  taak met voortgang af uit `completion`. Aanwezig ⇒ die bronrest blijft staan. */
   remainingDurationRaw: number | null;
   /** Rauwe LEVELING_DELAY (tienden van een minuut), geklemd (`clampLevelingDelayTenths`, limits.ts)
    *  omdat Fase C hem als duur decodeert (`Task.levelingDelayMinutes`). `0` als het veld ontbreekt. */
@@ -698,6 +698,10 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
   const records: RawTaskRecord[] = [];
   /** "Datums zoals opgeslagen" — per taak-id MSP's eigen rekenuitvoer (zie `TaskFieldId.EarlyStart`). */
   const recordedTimes: Record<string, RecordedTime> = {};
+  // Taken die nog lopen: geen werkelijk einde en een rest groter dan 0. MS Project zet een werkelijk einde
+  // zodra een taak klaar is; op 100 % is het hele percentage dan afgerond. Zie `runningAtFullIds` in
+  // `normalizeImportedProgress`: alleen op 100 % zonder werkelijk einde telt de set (zoals MSPDI).
+  const runningAtFullIds = new Set<string>();
   for (const raw of raws) {
     const cal = raw.effCal;
     const isHour = hourModeCals.has(cal);
@@ -717,10 +721,13 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
     const durationMinutes = raw.durationRaw / 10;
     const duration = hourTaskScheduleDuration(durationMinutes, cal);
 
-    // REMAINING_DURATION rechtstreeks meenemen, in minuten zoals de duur. `null` ⇒ ongezet en de solver
+    // REMAINING_DURATION rechtstreeks meenemen, in minuten zoals de duur, zonder afronding (ook een rest
+    // van 1,5 d of 2,5 d is zo exact: 720 of 1200 min op 8 u per dag). `null` ⇒ ongezet en de solver
     // leidt de rest af uit `completion`. Waarom: MSP's eigen restduur is exact (4 werkdagen = 1920 min),
     // terwijl `completion` afgerond is opgeslagen (33% i.p.v. 33,33…%) — de afleiding zou op een
-    // klokstand landen die MSP nooit toont. `normalizeImportedProgress` laat `remainingMinutes` staan.
+    // klokstand landen die MSP nooit toont. `normalizeImportedProgress` laat `remainingMinutes` van een
+    // lopende taak staan (4 d bij 33 % van 6 d blijft 1920 min, niet 1930 min), ook op 100 % zonder
+    // werkelijk einde (`runningAtFullIds` hieronder).
     const remainingMinutes = raw.remainingDurationRaw !== null
       ? raw.remainingDurationRaw / 10
       : undefined;
@@ -830,6 +837,7 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
     if (!resolvedStartTs) missingDates.start.add(task.id);
     if (!resolvedFinishTs) missingDates.finish.add(task.id);
     records.push({ uniqueId: raw.uniqueId, id: raw.id, outlineLevel: raw.outlineLevel, storedWbs: raw.storedWbs, task });
+    if (raw.actualFinishTs === null && (raw.remainingDurationRaw ?? 0) > 0) runningAtFullIds.add(task.id);
     taskIdByUniqueId.set(raw.uniqueId, task.id);
 
     // "Datums zoals opgeslagen": MSP's eigen uitvoer als apart kanaal. Start/einde:
@@ -875,7 +883,7 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
   // taakstart), finish ⇒ start + duur op de eigen kalender van de taak waar eenduidig.
   const startAnchor = resolveMissingScheduleDates(tasks, missingDates, ctx.projectStart ?? '',
     (task) => taskCalendar(task, calResult));
-  normalizeImportedProgress(tasks, statusDate);
+  normalizeImportedProgress(tasks, statusDate, runningAtFullIds);
   deriveImportedWorkRules(tasks); // werkregel uit mspTaskType/effortDriven
   return {
     tasks, taskIdByUniqueId, startAnchor, recordedTimes,
@@ -922,6 +930,8 @@ export function parseProjectProperties(
     // `src/types/project.ts`). Out-of-sequence-hervatting is veldgedreven: `task.time.resume`
     // (MPP-veld-id 99) is het signaal, er is geen projectvlag.
     schedulingProfile: builtInProfile('msproject'),
+    // Dezelfde grens als bij de opgeslagen speling, ook na F5 en IFC-opslag behouden.
+    schedulingOptions: { criticalDefinition: { mode: 'totalFloat', threshold: criticalSlackLimitDaysOf(props) } },
   };
 
   // Statusdatum mét tijd: MS Project bewaart hem op de standaard eindtijd (17:00 = einde van die
@@ -1601,7 +1611,6 @@ export function readMPP(bytes: Uint8Array, labels?: ImportLabels): ImportResult 
     cfb, taskFieldMap, resourceFieldMap, assignmentFieldMap,
     taskUniqueIds: new Set(taskIdByUniqueId.keys()),
     resourceUniqueIds: new Set(resourceIdByUniqueId.keys()),
-    criticalSlackLimitDays: criticalSlackLimitDaysOf(projectProps),
   });
 
   return {

@@ -4,6 +4,7 @@
     "applyShape": "Aplicar forma:",
     "hoursPerDay": "{{hours}} horas por día laborable",
     "stripHint": "Arrastre un límite para alargar o acortar una fase, el borde superior para fijar el esfuerzo; doble clic en un día divide una fase.",
+    "partialDayHint": "Si la tarea empieza o termina a mitad de un día laborable, ese día cuenta a prorrata: las horas son las unidades × la parte del día. El histograma cuenta del mismo modo.",
     "from": "Desde",
     "to": "Hasta",
     "days": "Días",
@@ -181,7 +182,8 @@
       "calendar": "Elija un calendario de la lista.",
       "calendarNotFound": "El calendario elegido no existe.",
       "calendarHours": "El calendario de esta tarea no tiene horas de trabajo por día.",
-      "durationConversionNotExact": "Esta duración no se puede convertir exactamente a la otra unidad.",
+      "durationConversionNotExact": "Esta duración no se puede convertir exactamente a la otra unidad en este calendario.",
+      "fixedWorkIsHours": "Una tarea con trabajo fijo siempre usa la medida de horas.",
       "milestoneRequired": "Este campo solo se aplica a hitos.",
       "milestoneUnavailable": "Una tarea de resumen con subtareas no puede convertirse en hito.",
       "actualAfterStatusDate": "La fecha real es posterior a la fecha de estado.",
@@ -331,8 +333,8 @@
     "unit": "Unidad de duración",
     "days": "Días",
     "hours": "Horas",
-    "invalid": "Introduzca un número entero de días u horas, por ejemplo 2d o 12h.",
-    "conversionNotExact": "{{value}} no equivale a días completos en este calendario. La unidad no ha cambiado.",
+    "invalid": "Introduzca un número de días u horas, por ejemplo 2,5d o 12h.",
+    "conversionNotExact": "{{value}} no se puede convertir a la otra unidad en este calendario. La unidad no ha cambiado.",
     "unitInfo": "La unidad elegida pertenece a esta tarea. Los días cuentan días laborables; las horas cuentan horas de trabajo dentro del calendario. Otro calendario no cambia la unidad ni la duración introducida, pero puede cambiar la fecha de fin."
   },
   "dialog": {
@@ -458,6 +460,7 @@
     "jumpToTask": "Ir a la tarea {{wbs}}",
     "relationPopoverTitle": "Tipo de relación",
     "driving": "Relación determinante (relación determinante)",
+    "drivingUnknown": "Relaciones determinantes desconocidas sin un cálculo.",
     "lag": "Desfase (ej. 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Calcular",
     "assignments": {
@@ -522,6 +525,8 @@
     "type": "Tipo",
     "lag": "Desfase",
     "driving": "Determinante",
+    "drivingUnknown": "Desconocido",
+    "notDriving": "No determinante",
     "freeFloat": "Holgura libre",
     "warnings": "Advertencias",
     "warnTruncatedLead": "Adelanto truncado en el inicio del proyecto — la superposición no se aprovecha por completo",
@@ -651,5 +656,11 @@
     "pieceHours_many": "Tramo: {{count}} horas",
     "pieceHours_other": "Tramo: {{count}} horas",
     "merged": "Unir"
+  },
+  "dateTimeInput": {
+    "time": "Hora de {{field}}",
+    "timeHint": "Vacío: el inicio o el fin del día laborable. Con una hora: exactamente ese momento.",
+    "later": "Un cuarto de hora más tarde",
+    "earlier": "Un cuarto de hora antes"
   }
 }

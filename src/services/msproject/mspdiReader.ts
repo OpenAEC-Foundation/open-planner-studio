@@ -385,6 +385,11 @@ export function readMSPDI(content: string): ImportResult {
   const tasks: Task[] = [];
   /** Zie de toelichting bij de vastlegging in de taaklus. */
   const recordedTimes: Record<string, RecordedTime> = {};
+  // Taken die nog lopen: geen werkelijk einde en een rest groter dan 0. MSPDI kent geen statusveld, maar MS
+  // Project zet een werkelijk einde zodra een taak klaar is. Op 100 % is het hele percentage dan afgerond
+  // (OPS schrijft `Math.round`), of het is P6 "Physical 100 %". Zie `runningAtFullIds` in
+  // `normalizeImportedProgress`: alleen op 100 % zonder werkelijk einde telt de set.
+  const runningAtFullIds = new Set<string>();
   const customTaskTypes = new Map<string, CustomTaskType>();
   const uidToId = new Map<number, string>();
   const uidToWbs = new Map<number, string>();
@@ -678,6 +683,7 @@ export function readMSPDI(content: string): ImportResult {
       ...(effortDriven ? { effortDriven: true } : {}),
     });
     outlineLevels.push(getElementText(te, 'OutlineLevel') ? outlineLevel : undefined);
+    if (!actualFinish && ((remainingMinutes ?? 0) > 0 || (remainingTime ?? 0) > 0)) runningAtFullIds.add(id);
 
     // Parse predecessor links within task element. De lagrecords van deze opvolger (T21) staan in één
     // OPS-veld, met als sleutel voorganger-UID plus relatietype. Een sleutel die hier twee keer voorkomt,
@@ -873,8 +879,8 @@ export function readMSPDI(content: string): ImportResult {
     (task) => resolveCalendar(task.calendarId, resourceCalendars, calendar));
 
   // Voortgang-invarianten op de rauw ingelezen actuals. De vastgelegde rest van een taak in de dagenmaat
-  // blijft exact (B3), zoals de restminuten van een urentaak.
-  normalizeKeepingDayRest(tasks, () => normalizeImportedProgress(tasks, project.statusDate));
+  // blijft exact (B3), zoals de restminuten van een urentaak. Een lopende taak op 100 % blijft lopend.
+  normalizeKeepingDayRest(tasks, () => normalizeImportedProgress(tasks, project.statusDate, runningAtFullIds));
   deriveImportedWorkRules(tasks); // werkregel uit <Type>/<EffortDriven>
 
   // Importverslag (issue #391): wat deze lezer niet overneemt. De OPS-transportvelden die hierboven

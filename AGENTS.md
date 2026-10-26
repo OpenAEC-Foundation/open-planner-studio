@@ -8,19 +8,21 @@ imports it (`@AGENTS.md`) so Claude Code loads it automatically — never put co
 depth lives in `.claude/rules/` (see *Where the depth lives*); Claude Code loads those per path, other agents
 should read the matching rule file before touching that area.
 
-**Server restriction for all agents, including subagents:** never start Node.js processes directly
-on this server; it cannot handle that workload. This includes `node`, `npm`, `npx`, dependency
-installation, builds, tests, dev servers and scripts that launch Node indirectly. Run that work in
-GitHub CI and inspect the results with `gh`. This rule takes precedence over all local execution,
-testing and self-testing instructions below and in skills or area-specific rules.
+**Server load on aia09-mp50, for all agents including subagents:** light Node work may run on this
+server: a dev server, `lint`/`lint:fast`, a `typecheck`, or a targeted test of a few files or one browser
+spec, one at a time (`flock /tmp/ops-zwaar.lock <command>`). Heavy work runs in GitHub CI and you inspect
+the result with `gh`: the full `npm test` or `npm run verify`, `measure:profiles` and corpus scans,
+Playwright runs over many specs, production, Rust or Tauri builds, and several dev servers at once.
+If heavy local work is truly needed, ask the owner first. Owner decision 2026-10-24; it replaces the
+stricter rule of 2026-10-22.
 
 Exception: the scheduled weekly release job on aia09-mp50 may run only the listed light Node
 steps in its own release worktree, including package checks by its Haiku translation stations
 (website generators in a temporary copy there); see
 [`.claude/skills/release/SKILL.md`](.claude/skills/release/SKILL.md) and its exact list in `referentie.md`.
 Owner decision 9, clarified by the orchestrator on 2026-10-23. This does not cover agents outside
-that job or maintenance of the skill.
-Tests, app builds, the full `npm run verify` and dev servers remain CI-only.
+that job or maintenance of the skill. Within that job, tests, app builds, the full `npm run verify` and
+dev servers stay CI-only.
 
 ## Commands
 
@@ -30,6 +32,8 @@ npm run tauri:dev    # desktop app, same port assignment
 npm run build        # tsc && vite build → dist/
 npm run build:platform -- --base /pad/   # platform build for the OpenAEC app on Frappe → dist-platform/
 npm run build:core   # headless core package @openaec/open-planner-core → dist-core/ (not published)
+npm run build:mcp-server   # headless MCP server (planner_* tools without the app) → dist-mcp-server/server.mjs (not published)
+npm run build:mcpb   # Claude Desktop extension (MCP Bundle) → dist-mcpb/open-planner-studio-<version>.mcpb
 npm run verify       # THE gate — the same steps as CI (split in parallel), release and deploy gate
 npm run typecheck    # tsc over src/ AND scripts/+tests/ — use this, not just build (incremental)
 npm run lint         # deliberately minimal ESLint (promises, control-regex, React hooks)
@@ -98,6 +102,7 @@ Node 22 (see CI). Rust stable only for the `tauri:*` commands.
 
 Workflows outside `verify` (depth: `ci-release` and `mcp` rules): `headless-api.yml` (HTTP API, container, `cfn-lint`),
 `release-verify.yml` (checks a published release on clean runners: updater `.sig`s, digests, install, signatures),
+`mcpb.yml` (builds the Claude Desktop bundle and checks its manifest with the pinned official `mcpb validate`),
 `windows-sign-check.yml` / `macos-sign-check.yml` (prove signing on a PR, without a tag), `mcp-real-app.yml` (MCP
 bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`, `docs/mcp-verificatie.md`.
 
@@ -142,6 +147,7 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
 | i18n key | `npm run verify:i18n` |
 | UI change | `node scripts/run-browser-tests.mjs tests/browser/smoke.spec.ts` (or a targeted spec), plus `window.__OPS__` |
 | MCP tool | `bash tests/mcp/run.sh cases-<x>.ts` |
+| Claude Desktop bundle (`integrations/claude-desktop/`) | `bash tests/mcp/run.sh cases-mcpb.ts` (builds the bundle, runs it over stdio against `bridgeMirror`) |
 | library code | `bash tests/library/run.sh [check-<x>.ts]` |
 | in-app docs/guides | `npm run verify:docs` |
 | before push | the targeted checks above; the full `npm run verify` runs in CI on the PR |
@@ -156,8 +162,15 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   none of the platform switches. Differences go only through the constants in `src/utils/buildFlags.ts` (extensions, demo start and
   AI mode are off there) — never read `VITE_OPS_PLATFORM` directly. Own assets always via `import.meta.env.BASE_URL`.
   Detail: `docs/platformbouw.md`.
+- **Claude Desktop bundle = a plug, not a planner.** `integrations/claude-desktop/` (`manifest.json` +
+  `src/proxy.ts`) is an MCP Bundle (`.mcpb`) whose stdio server forwards every message to the bridge of the
+  running desktop app (`127.0.0.1:<port>/mcp`, token and port from the install dialog). It must never contain
+  app code; `build:mcpb` fails if `src/` ends up in the bundle. Keep `proxy.ts` free of manifest, transport and
+  client code (that lives in `main.ts`/`config.ts`): it is an interim step and moves into the single plugin of #570. Its manifest version is in the bump register;
+  `release.yml` (job `build-mcpb`) attaches it to every release. Detail: `docs/mcp-verificatie.md`.
 - **Rust is thin.** Exactly three commands (`install_kind`, `mcp_bridge_start`, `mcp_bridge_stop`); every new
-  command is public surface. File I/O: extend `src/services/fileAccess/`, not a Rust command.
+  command is public surface. File I/O: extend `src/services/fileAccess/`, not a Rust command. One command-less
+  plugin, `ops-process-info`, injects the process id for the MCP discovery files (`docs/mcp-ontdekking.md`). Started from an AppImage, `src-tauri/src/desktop_integration.rs` writes a menu entry and the logo to the user's data folder at startup (no command; opt out with `OPS_NO_DESKTOP_INTEGRATION`).
 - **Storage via the site.** `FileRef` has three kinds: `path` (Tauri), `handle` (Chromium web) and `site`. When the
   page that hosts the tool sets `window.openaecHost` (contract in `src/services/fileAccess/siteHost.ts`), Open, Save,
   Save As, Recent and crash recovery also work against the site (AutoSave deliberately not: every round would be a
@@ -191,6 +204,18 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   The HTTP API on top of it (`headless/server/`, contract `openapi.yaml`, container `Dockerfile`, AWS ECS
   Fargate template `deploy/aws/ecs-fargate.yaml`) is tested by `.github/workflows/headless-api.yml`
   (local server + container + smoke test, `cfn-lint`), not by `verify`. Detail: `docs/headless-api.md`.
+- **Headless MCP server.** `headless/mcp-server/` runs the same `planner_*` tools as the app bridge on Node
+  (stdio default, streamable HTTP on loopback with the bridge's HTTP contract), on its own store context, with file
+  tools confined to `--root` (lexical + exact `realpath` check, operations run synchronously relative to the checked folder
+  object via `chdir` + native `realpath('.')`, `O_NOFOLLOW`;
+  atomic save with no direct-write fallback), its own XML parser as `DOMParser` (`xmlDom.ts`, for MSPDI/P6 XML) and
+  MCP backups in its own data folder. It reuses the
+  dispatcher, registry, `runtime.ts`, the tools and `requestHandler.ts` unchanged; host functions go through seams
+  (`fileToolDeps`, `McpFileFs.confine`, `guideToolDeps`, `createAppBackupService` overrides). Code it bundles imports
+  no value from `appStore.ts` (`verify:store-boundaries`); `npm run build:mcp-server` fails on React, Tauri, the
+  singleton, `src/components/`, `src/hooks/` or the i18n UI config in the bundle. `tests/mcp/bridgeMirror.ts` uses its
+  `http.ts`, so a change to `mcp_bridge.rs`'s HTTP layer means changing `headless/mcp-server/src/http.ts`.
+  Detail: `docs/headless-mcp.md`.
 - **Scheduling is manual, not reactive.** `runCPM` → `solveProject()`; call it after mutating tasks,
   relations or the calendar (store actions do not do it themselves; only the opt-in setting Automatisch berekenen,
   `ui.autoCalcCPM`, runs it via `useAutoCalcCPM`). Always set `scheduleStale` via `markScheduleStale`
@@ -269,6 +294,17 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
 
 ## Conventions
 
+- **`main` is always releasable.** The weekly release job ships whatever is on `main` (owner decision 1,
+  conversation 2026-10-22). There is no next, nightly or dev branch and no update channel. Land big work in
+  small PRs to `main`; keep unfinished user-visible work behind a feature flag until it is complete.
+- **Feature flags:** add a temporary entry to `src/utils/featureFlags.ts` with an id, typed i18n
+  name/description keys and `writesNewIfcData`; read it through `isFeatureEnabled(ui.featureFlags, id)`.
+  Flags default to off. Keep `writesNewIfcData: true` (no checkbox, always off) until the IFC
+  save/load round-trip is complete; only then mark the data as supported (`false`). The hidden
+  Experimental block in Settings → Advanced is unlocked by activating its version number for
+  5 seconds with at most 0.5 s between activations (clicks or held Enter). Visibility and choices
+  persist per device; hiding keeps the choices. The PR that enables a feature by default also
+  removes its flag and the corresponding checks.
 - **Working language is Dutch**: code comments, commit messages and the canonical source translations.
   This file is English on purpose; the `.claude/rules/` files are Dutch.
 - **Side findings go to [`knownbugs.md`](knownbugs.md).** Anything you run into that is not part of your own
@@ -290,10 +326,11 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   commits or bumping. Outstanding website work does not block the next app release; retry it the next
   Saturday alongside that release. Also resume open release PRs and untagged versions on main without another bump,
   only when their candidate version is numerically newer than the previous release; otherwise stop.
-  record workflow IDs, wiki commit and website PR in the release PR.
-  UI translations, wiki publication and the two website release blocks
-  are included; guide translations beyond nl/en run only on the owner's separate request.
-  The proposed schedule and literal job prompt live in `.claude/skills/release/scheduled-job.md`.
+  Record workflow IDs, wiki commit and website PR in the release PR. Every release includes the UI
+  translations for all locales, wiki publication and the two website blocks (the highlights in
+  `#whats-new` and the new entry under `#releases`); guide translations beyond nl/en run only on the
+  owner's separate request. The job repairs a red CI itself (owner decision 8; route in the `ci-release` rule).
+  The schedule and literal job prompt live in `.claude/skills/release/scheduled-job.md`.
   Release text in `docs/release-notes/v<version>.md`; `docs/CHANGELOG.md` only at release.
 - The user term is "resourcebibliotheek"; code/IFC still say `companyId`/`companyName`.
 - Screen evidence in a PR: `artifacts/<topic>/`, PNG ≤ ~150 KB, a handful; local QA screenshots in `qa/`.
@@ -362,7 +399,9 @@ Design docs: start at `docs/superpowers/README.md` — read them as *why*, not a
 |---|---|
 | Store composition root | `src/state/appStore.ts` (factory: `src/state/appStoreFactory.ts`) |
 | Headless core (package API) | `src/core/`, build `scripts/build-core.mjs`, consumer `headless/consumer-example/` |
+| Headless MCP server | `headless/mcp-server/src/`, build `scripts/build-mcp-server.mjs`, test `tests/mcp/cases-headless-server.ts` |
 | Headless HTTP API, container, AWS | `headless/server/`, `deploy/aws/ecs-fargate.yaml`, `.github/workflows/headless-api.yml` |
+| Claude Desktop bundle (`.mcpb`) | `integrations/claude-desktop/`, build `scripts/build-mcpb.mjs`, test `tests/mcp/cases-mcpb.ts`, `.github/workflows/mcpb.yml` |
 | Slices | `src/state/slices/` |
 | CPM solver / calendar engine | `src/engine/scheduler/`, `src/engine/calendar/` |
 | Canvas renderer | `src/engine/renderer/` |

@@ -25,7 +25,7 @@ import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
 import { readP6XML } from '@/services/p6/p6xmlReader';
-import { detectXmlFlavor, parseOpenedFile } from '@/services/formatRegistry';
+import { detectXmlFlavor, parseOpenedFile, UnknownScheduleXmlError, importErrorMessageKey } from '@/services/formatRegistry';
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import type { Task, MilestoneKind } from '@/types/task';
@@ -287,7 +287,12 @@ async function main(): Promise<void> {
     // leeg project.
     let threw = false;
     try { await parseOpenedFile({ name: 'lijst.xml', text: '<?xml version="1.0"?><Lijst><Naam>Primavera</Naam></Lijst>' }); }
-    catch { threw = true; }
+    catch (error) {
+      threw = true;
+      assert(error instanceof UnknownScheduleXmlError, '#3 onbekende XML heeft een getypeerde fout');
+      eq('#3 UI-sleutel', importErrorMessageKey(error), 'notifications.xmlUnknownSchedule');
+      eq('#3 technische tekst is Engels', (error as Error).message, 'Unknown XML format: the root element is not an MS Project (Project) or Primavera P6 (APIBusinessObjects) schedule');
+    }
     assert(threw, '#3 onbekende XML-root met "Primavera" in de tekst: gooit (geen leeg P6-project)');
 
     // De gedeelde beslissing zelf (ook gebruikt door het MCP-label `formatOf`).

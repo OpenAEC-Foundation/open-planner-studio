@@ -51,6 +51,8 @@ Wil je dit venster later nog een keer zien, dan kies je *Instellingen › Projec
 
 **Je hebt de app via het AUR (Arch Linux).** De app werkt zichzelf dan niet bij en controleert bij het opstarten ook niet. Je pakketbeheer doet dat. In het venster staat *Werk bij via je pakketbeheer (bijv. yay -Syu).*
 
+**Je gebruikt de AppImage (Linux).** De AppImage werkt zichzelf bij op dezelfde plek. Bij elke start zet de app ook zelf *Open Planner Studio* met het logo in het startmenu van je computer. Verplaats je het AppImage-bestand, dan wijst het menu-item na de volgende start naar de nieuwe plek. Heb je zelf al een menu-item met dezelfde naam gemaakt, dan laat de app dat staan.
+
 **Er komt niets bij het opstarten.** Dat is normaal als je al de nieuwste versie hebt. De opstartcontrole meldt geen fouten. Wil je zeker weten of je actueel bent, dan controleer je zelf, zoals hierboven.
 
 ## Zie ook

@@ -90,6 +90,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { solveOptionsFor } from '@/engine/scheduler/solveInput';
+import { crewEdgeResources } from './ifcCrewIndexFixture';
 
 // tests/ valt buiten de hoofd-tsconfig; process is niet via @types/node beschikbaar in de
 // dedicated round-trip-tsconfig (types:[]). Minimale, botsingvrije declaratie.
@@ -385,7 +386,13 @@ const RMember = {
 const REquip: Resource = { id: 'r-eq', name: 'Torenkraan', type: 'EQUIPMENT', description: 'Liebherr 200', maxUnits: 2 };
 const RMat: Resource = { id: 'r-mat', name: 'Beton C30', type: 'MATERIAL', description: 'Stortbeton', maxUnits: 1, unitOfMeasure: 'm3' };
 const RSub: Resource = { id: 'r-sub', name: 'Installateur BV', type: 'SUBCONTRACTOR', description: 'Onderaannemer', maxUnits: 1 };
-const resources: Resource[] = [RCrew, RMember, REquip, RMat, RSub];
+const RCrewBeta: Resource = { ...RCrew, id: 'r-beta', name: 'Ploeg Beta' };
+const RCrewEmpty: Resource = { ...RCrew, id: 'r-empty', name: 'Lege ploeg' };
+const resources: Resource[] = [
+  { ...RMember, id: 'r-beta-lid', name: 'Lid Beta', parentId: RCrewBeta.id }, RCrewBeta,
+  RMember, RCrewEmpty, RCrew, REquip, RMat, RSub,
+  { ...RMember, id: 'r-alpha-tweede', name: 'Tweede lid Alpha' },
+];
 
 // ── Toewijzingen: incl. twee assignments van DEZELFDE resource op één taak (M3-uniciteit) + curve ─
 const A1 = {
@@ -477,6 +484,57 @@ export const fixture: ImportResult = {
   importPristine: true,
   recordedSourceFormat: 'mspdi',
 };
+
+// De IFC-lijsten zelf bewaren volgorde en duplicaten; de canon verderop sorteert op naam.
+for (const duplicates of [false, true]) {
+  const crewResources = crewEdgeResources(duplicates);
+  const before = structuredClone(crewResources);
+  const input: ImportResult = { ...fixture, tasks: [], sequences: [], assignments: [], resources: crewResources, baselines: [] };
+  const ifc = writeIFC(input);
+  const entities = parseStep(ifc);
+  const names = new Map(entities.filter(e => e.type.endsWith('RESOURCE')).map(e => [
+    e.id, e.args[2].k === 'str' ? e.args[2].raw.slice(1, -1) : '',
+  ]));
+  const nests = entities.filter(e => e.type === 'IFCRELNESTS' && e.args[4].k === 'ref' && names.has(e.args[4].id));
+  const actual = nests.map(e => ({
+    parent: e.args[4].k === 'ref' ? names.get(e.args[4].id) : '',
+    members: e.args[5].k === 'list' ? e.args[5].items.map(v => v.k === 'ref' ? names.get(v.id) : '') : [],
+  }));
+  const alpha = duplicates ? 'Alfa laatste' : 'Alfa';
+  const alphaMembers = duplicates
+    ? ['Alfa twee', 'Alfa een laatste', 'Alfa een laatste', 'Alfa twee'] : ['Alfa twee', 'Alfa een'];
+  const expected = [
+    { parent: 'Beta', members: ['Beta een'] }, { parent: alpha, members: alphaMembers },
+    { parent: 'Lege sleutel', members: ['Lid lege sleutel'] },
+    ...(duplicates ? [{ parent: alpha, members: alphaMembers }] : []),
+  ];
+  assert(JSON.stringify(actual) === JSON.stringify(expected), `ploegen: exacte nest-/ledenvolgorde, dubbele id's=${duplicates}`);
+  assert(JSON.stringify(crewResources) === JSON.stringify(before), 'ploegen: schrijven behoudt invoer');
+  assert(!nests.some(e => JSON.stringify(e.args).includes('"id":0')), 'ploegen: geen #0-verwijzingen');
+  if (!duplicates) {
+    const reopened = readIFC(ifc);
+    const again = readIFC(writeIFC(reopened));
+    const pairs = (r: ImportResult) => r.resources.map(member => [member.name, r.resources.find(p => p.id === member.parentId)?.name]);
+    assert(JSON.stringify(pairs(reopened)) === JSON.stringify(pairs(again)), 'ploegen: koppelingen blijven na tweede export gelijk');
+    crewResources.find(r => r.id === 'a1')!.parentId = 'constructor';
+    const changed = readIFC(writeIFC(input));
+    assert(changed.resources.find(r => r.id === changed.resources.find(m => m.name === 'Alfa een')?.parentId)?.name === 'Beta',
+      'ploegen: volgende save leest gewijzigde koppeling op hetzelfde invoerobject');
+    crewResources.find(r => r.id === 'a1')!.parentId = '__proto__';
+    const restored = readIFC(writeIFC(input));
+    assert(restored.resources.find(r => r.id === restored.resources.find(m => m.name === 'Alfa een')?.parentId)?.name === 'Alfa',
+      'ploegen: teruggezette koppeling wordt opnieuw gelezen');
+  }
+}
+
+// De runtime accepteert ook deze beschadigde id's; === koppelde NaN nooit aan NaN.
+{
+  const damaged = crewEdgeResources().slice(0, 2).map((r, i) => ({
+    ...r, id: i === 0 ? NaN : 'lid-nan', type: i === 0 ? 'CREW' : 'LABOR', parentId: NaN,
+  })) as unknown as Resource[];
+  const output = writeIFC({ ...fixture, tasks: [], sequences: [], assignments: [], resources: damaged, baselines: [] });
+  assert(!parseStep(output).some(e => e.type === 'IFCRELNESTS'), 'ploegen: NaN blijft ongelijk aan zichzelf');
+}
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 //  CANONICALISATIE — vervang volatiele ids door natuurlijke sleutels, herschrijf kruisverwijzingen,
@@ -1394,7 +1452,8 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   //      die corrumperen we naar onparseerbare tekst. Verwacht: geen crash, terugval op "alles in
   //      ExceptionTimes is een feestdag" (dezelfde conservatieve terugval als "geen markering",
   //      block 6).
-  const ifc7a = writeIFC(fixture);
+  // Expliciet legacy-bestand: behoud de oude corrupte-ids-regressie zonder V1-markering.
+  const ifc7a = writeIFC(fixture).split("'WorkingExceptionKeysV1'").join("'IgnoredWorkingExceptionKeysV1'");
   const lines7a = ifc7a.split('\n');
   const wexcIdx = lines7a.findIndex(l => l.includes("'WorkingExceptionIds'"));
   assert(wexcIdx >= 0, 'kon de WorkingExceptionIds-property niet vinden (verwacht op libCal, die heeft werkende uitzonderingen)');
@@ -2570,6 +2629,45 @@ for (const schema of IFC_SCHEMAS) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
+// Knownbug 112: STEP-nummers veranderen bij een merge; inhoud en echte refs blijven behouden.
+{
+  const calendarValues = (r: ImportResult) => [r.calendar, ...(r.resourceCalendars ?? [])]
+    .map(c => ({ name: c.name, holidays: c.holidays, workingExceptions: c.workingExceptions ?? [] }));
+  const renumber = (text: string) => text.replace(/'(?:''|[^'])*'|#\d+/g, token =>
+    token.startsWith('#') ? `#${Number(token.slice(1)) + 10000}` : token);
+  for (const schema of IFC_SCHEMAS) {
+    const input = { ...fixture, project: { ...fixture.project, ifcSchema: schema } };
+    const written = writeIFC(input);
+    const expected = calendarValues(readIFC(written));
+    assert(expected.some(c => c.workingExceptions.length > 0), "112: testvoorwaarde werkende uitzonderingen aanwezig");
+    assert(renumber(written) !== written, "112: testvoorwaarde echte STEP-refs vernummerd");
+    assert(written.includes("'WorkingExceptionKeysV1'"), '112: writer geeft inhoudssleutels uit');
+    assert(JSON.stringify(calendarValues(readIFC(renumber(written)))) === JSON.stringify(expected),
+      `112 ${schema}: vernummerde refs behouden feestdagen en werkende uitzonderingen`);
+    // Eerdere lezers gebruiken IDs; nieuwe lezers blijven ook oude ongemergde bestanden lezen.
+    const legacy = written.split("'WorkingExceptionKeysV1'").join("'IgnoredWorkingExceptionKeysV1'");
+    assert(JSON.stringify(calendarValues(readIFC(legacy))) === JSON.stringify(expected),
+      `112 ${schema}: legacy-ids blijven leesbaar`);
+    const corruptIds = written.replace(/('WorkingExceptionIds',\$,IFCTEXT\()'[^']*'/g, "$1'{kapot'");
+    assert(corruptIds !== written, '112: testvoorwaarde legacy-ids gecorrumpeerd');
+    assert(JSON.stringify(calendarValues(readIFC(renumber(corruptIds)))) === JSON.stringify(expected),
+      `112 ${schema}: V1 heeft voorrang boven onbruikbare legacy-ids`);
+    const corruptKeys = written.replace(/('WorkingExceptionKeysV1',\$,IFCTEXT\()'[^']*'/g, "$1'{kapot'");
+    assert(corruptKeys !== written, '112: testvoorwaarde V1 gecorrumpeerd');
+    const rejected = readIFC(corruptKeys);
+    assert([rejected.calendar, ...(rejected.resourceCalendars ?? [])].every(c => !c.workingExceptions?.length),
+      `112 ${schema}: corrupte V1 gebruikt niet alsnog mogelijk verouderde ids`);
+  }
+  // Namen mogen quotes, Unicode en tekst lijken op STEP-refs bevatten; dat zijn geen verwijzingen.
+  for (const bands of [undefined, [], [{ start: 0, end: 1440 }], [{ start: 1320, end: 1740 }]]) {
+    const exception = { name: "Nacht 'één' #123", startDate: '2027-06-05', endDate: '2027-06-05', bands };
+    const input = { ...fixture, calendar: { ...fixture.calendar, workingExceptions: [exception] } };
+    const written = writeIFC(input);
+    assert(JSON.stringify(calendarValues(readIFC(renumber(written)))) === JSON.stringify(calendarValues(readIFC(written))),
+      `112: Unicode/quotes/reftekst en banden ${JSON.stringify(bands)} blijven behouden`);
+  }
+}
+
 if (fails === 0) {
   console.log(`OK  ifc-roundtrip: alle checks groen (${checks})`);
   process.exit(0);

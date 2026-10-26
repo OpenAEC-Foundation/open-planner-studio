@@ -361,6 +361,24 @@ test('kringverwijzing: de eerste lezing rekent één keer, daarna geen nieuwe so
   assertEq(fixed.envelope.scheduleStale, false, 'en vers');
 });
 
+// Knownbug 76: ook niet-cyclische solverfouten moeten via de echte dispatcher Engels zijn.
+test('ongeldige startdatum: alle leestools melden de Engelse solverfout met ongewijzigde taaknaam', async () => {
+  const p = staleProject();
+  store.setState((s) => {
+    const t = s.tasks.find((item) => item.id === p.a)!;
+    t.name = 'Grondwerk – 南';
+    t.time.scheduleStart = '';
+  });
+  const expected = 'Invalid start date for task "Grondwerk – 南"';
+  for (const tool of ['planner_list_tasks', 'planner_get_project_info', 'planner_get_critical_path']) {
+    const res = ok(await rpc(tool), tool);
+    assertEq(res.envelope.scheduleError, expected, `${tool}: Engelse fout met letterlijke taaknaam`);
+  }
+  const detail = ok(await rpc('planner_get_task', { taskId: p.a }), 'get_task');
+  assertEq(detail.envelope.scheduleError, expected, 'get_task: dezelfde Engelse fout');
+  assertEq(S().cpmResult?.errorInfo, { code: 'invalidStartDate', taskName: 'Grondwerk – 南' }, 'UI-code en parameters blijven behouden');
+});
+
 test('planner_batch met een leesstap op een verouderde planning meldt scheduleRecalculated in de envelop', async () => {
   staleProject();
   const res = ok(await rpc('planner_batch', { steps: [{ tool: 'planner_get_project_info' }] }), 'batch');

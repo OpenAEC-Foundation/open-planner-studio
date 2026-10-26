@@ -309,7 +309,7 @@ console.log('-- leveler-splits: 6-daagse taak zonder capaciteitsdruk ⇒ geen sp
 // Geval 6 (C2-dekking): dezelfde spookvertraging, maar dan voor een VASTGEPINDE taak (priority
 // 1000) — het pinned-pad in de eligibility-lus snapte VÓÓR C2 ook onvoorwaardelijk met
 // `projEngine.nextWorkDay`. Een gepinde taak op een 6-daagse kalender met PF op zaterdag (geen
-// concurrent, dus geen echt conflict — vastgepinde taken scannen toch al niet op capaciteit) hoort
+// concurrent; de resourcekalender heeft wel capaciteit 0 op zaterdag) hoort
 // dus ook delay 0 te krijgen.
 // ═══════════════════════════════════════════════════════════════════════════
 console.log('-- leveler-splits: vastgepinde 6-daagse taak, PF in het weekend ⇒ geen delay (geval 6, C2) --');
@@ -328,7 +328,9 @@ console.log('-- leveler-splits: vastgepinde 6-daagse taak, PF in het weekend ⇒
   );
 
   eq('vastgepinde taak krijgt geen delay — snapt op haar EIGEN kalender-as, niet de projectkalender', r6.delays, {});
-  ok('geen onopgeloste conflicten', Object.keys(r6.unresolved).length === 0);
+  // De taak werkt zaterdag, maar de resource heeft de vijfdaagse projectkalender: capaciteit 0.
+  // Knownbug 8 verborg dit conflict; geen spookvertraging blijft de oorspronkelijke invariant.
+  eq('vastgepinde zaterdagtaak meldt ontbrekende resourcecapaciteit', r6.unresolved, { p6: ['2026-06-06'] });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
