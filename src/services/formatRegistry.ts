@@ -90,6 +90,15 @@ export function detectXmlFlavor(content: string): 'p6' | 'mspdi' | null {
   return null;
 }
 
+/** Technische fout voor MCP; de app vertaalt de code aan de notificatiegrens. */
+export class UnknownScheduleXmlError extends Error {
+  readonly xmlCode = 'XML_UNKNOWN_SCHEDULE';
+  constructor() {
+    super('Unknown XML format: the root element is not an MS Project (Project) or Primavera P6 (APIBusinessObjects) schedule');
+    this.name = 'UnknownScheduleXmlError';
+  }
+}
+
 /** Interne subdispatch voor de xml-entry van `READ_FORMATS`: kies de juiste XML-reader op basis
  *  van het root-element (`detectXmlFlavor`). Gooit bij een onbekend formaat i.p.v. stil als MSPDI
  *  te parsen. Niet geëxporteerd: geen afnemer buiten deze module — de enige
@@ -98,7 +107,7 @@ function parseProjectXml(content: string): OpenedImport {
   const flavor = detectXmlFlavor(content);
   if (flavor === 'p6') return readP6XMLDocuments(content);
   if (flavor === 'mspdi') return readMSPDI(content);
-  throw new Error('Onbekend XML-formaat: het root-element is geen MS Project- (Project) of Primavera P6-planning (APIBusinessObjects)');
+  throw new UnknownScheduleXmlError();
 }
 
 /**
@@ -230,6 +239,7 @@ export function importErrorMessageKey(
   err: unknown,
 ):
   | 'notifications.openFailed'
+  | 'notifications.xmlUnknownSchedule'
   | 'notifications.mppEncrypted'
   | 'notifications.mppLegacy'
   | 'notifications.xerInvalidInput'
@@ -246,7 +256,8 @@ export function importErrorMessageKey(
   | 'notifications.xerDuplicateId'
   | 'notifications.xerAmbiguousLocalRelation'
   | 'notifications.xerDanglingLocalRelation' {
-  const typed = err as { mppCode?: string; xerCode?: string } | null | undefined;
+  const typed = err as { mppCode?: string; xerCode?: string; xmlCode?: string } | null | undefined;
+  if (typed?.xmlCode === 'XML_UNKNOWN_SCHEDULE') return 'notifications.xmlUnknownSchedule';
   if (typed?.mppCode === 'MPP_ENCRYPTED') return 'notifications.mppEncrypted';
   if (typed?.mppCode === 'MPP_LEGACY') return 'notifications.mppLegacy';
   const xerKeys = {
