@@ -446,6 +446,12 @@ en noem het in je rapport of PR-tekst.
     vergelijk de volledige tekst van `.ops-toast-message` exact; laat de taaknamen apart gecontroleerd.
     Geen fout in de huidige producttelling aangetoond. — B
 
+325. **Zes browserroutes toetsen geen smal scherm meer.** Sinds de standaardtakenlijst 400 px breed is, zetten zes
+    specs het venster op 1600×900, onder meer `tests/browser/duration-display.spec.ts:5`. De handelingen en
+    controles blijven, maar de smallere beginstand wordt niet meer bewaakt. Geen productfout op die breedte
+    aangetoond. Voorstel: één gerichte interactieroute op een smaller scherm houden. Gevonden in review r1 van
+    #627 (GPT-6.1-Sol). — B
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen en de selectie niet lezen.
