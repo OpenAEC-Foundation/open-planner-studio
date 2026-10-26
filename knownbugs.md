@@ -470,6 +470,40 @@ en noem het in je rapport of PR-tekst.
     Voorstel: `namespaceFor` alleen aanroepen als de elementprefix niet leeg is. Gevonden in review r1 van #608
     (GPT-6.1-Sol). — B
 
+354. **MCP verbergt een minutenlag en de eenheid van een kalendertijdlag.** `src/services/mcp/tools/sequenceFields.ts:89`
+    (`lagLabel`) leest alleen `lagDays` en `lagPercent`. Een relatie met `lagMinutes: 240` toont in
+    `planner_get_task` `lag: ""`; een bestaande kalendertijdlag van 1 d toont `"+1d"`, zonder eenheid.
+    `planner_update_dependencies` met `lag: 2` schrijft alleen `lagDays` (`dependencyTools.ts:351`) en laat
+    `lagUnit: ELAPSEDTIME` staan; de opvolger begint dan ma 8 juni 07:00 in plaats van wo 10 juni. Al op
+    `fbd4a3f9d`. Voorstel: de gedeelde `formatLagShort`/`parseLagInput` uit `src/utils/lagFormat.ts` gebruiken,
+    en bij een nieuwe lag ook de eenheid schrijven. Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
+
+355. **`planner_update_calendar` met `workTime: null` weigert, ook als de kalender dezelfde werkblokken houdt.**
+    `src/services/mcp/tools/calendarResourceTools.ts:940` weigert zodra een urentaak de kalender gebruikt
+    ("cannot remove concrete work blocks"). Op een gelijkwaardige scalaire kalender (07–16, pauze 12–13) blijft
+    dezelfde urentaak gewoon 07:00–11:00. Al op `fbd4a3f9d`. Voorstel: de uiteindelijke kalender toetsen op
+    geldige effectieve werkblokken, niet op de aanwezigheid van `workTime`. Gevonden in de aanval na #600
+    (GPT-6.1-Sol). — B
+
+356. **Een B5-omzetting bij een latere MCP-call staat niet in het antwoord.** Alleen `planner_import_schedule`
+    geeft `minuteModelConversion` mee. Staat de omzetting nog open, dan rekent een volgende leestool
+    (`freshenScheduleForRead`) of muterende tool (de MCP-transactie) om, en `runCPM` meldt dat alleen via het
+    meldingenkanaal (`src/state/slices/scheduleSlice.ts:180`). Probe van de aanval: oud bestand importeren,
+    `planner_undo` (modus "datums zoals opgeslagen", omzetting weer open), dan `planner_batch` met
+    `planner_update_tasks` `duration: 6, durationUnit: "days"`: de taak eindigt di 9 juni 10:12, de omzetting is
+    dicht, en het antwoord noemt haar niet. Hetzelfde geldt voor een slapend hersteld document na
+    `planner_switch_document`. In de modus zegt de envelop wel dat een wijziging herberekent (`scheduleNote`).
+    Voorstel: de omzetting van `runCPM` via de MCP-lease in de envelop zetten, zoals `remainingWorkRecomputed`.
+    Gevonden bij de fix van aanval a10 na #600. — B
+
+357. **De kalenderreparatie bij het openen van een oud bestand bereikt MCP en de kern niet.**
+    `src/state/slices/fileSlice.ts:928` meldt `notifications.minuteModelCalendarRepaired` alleen via het
+    meldingenkanaal: past het einde of de pauze van een kalender niet bij de opgeslagen werktijd, dan herstelt
+    het laadpad de kalender. `planner_import_schedule` en `openIfc` zeggen daar niets over. Gezien in de code,
+    niet nagespeeld. Voorstel: dezelfde route als de B5-omzetting: de herstelde kalenders teruggeven uit
+    `applyLoadedProject`, en ze in het importantwoord en in `openWarnings` zetten. Gevonden bij de fix van
+    aanval a10 na #600. — S
+
 ## Bestanden en herstel
 
 36. **Herstelvenster na een gewone herlaad** in de browser, ook als alles was opgeslagen. — S
