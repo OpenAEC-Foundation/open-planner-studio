@@ -3314,11 +3314,13 @@ export class CPMSolver {
    *
    * Een niet-gestarte taak (geen hammock) krijgt als vroege finish de laatste grens die haar
    * opvolgers met hun vroege datums via de achterwaartse relatiewiskunde toestaan (`alapLatestFinish`,
-   * dezelfde grens als C14; zonder opvolger haar late finish). Haar vroege start is die finish min
-   * haar opgeslagen duur in de maat van het profiel (`startFromFinish`), dus het venster houdt precies
-   * die duur, ook over een korte werkdag. Ze schuift alleen later, nooit vroeger. Zou de nieuwe plek
-   * een opvolger toch na zijn vroege start laten beginnen (de terugrekening is niet overal de exacte
-   * inverse van de voorwaartse, zie knownbug 345), dan blijft de taak staan. Aanval na #600: de oude
+   * dezelfde grens als C14; zonder opvolger haar late finish), nooit later dan haar eigen late finish
+   * (deadline, constraints, projecteinde) en op een eindmoment van haar eigen kalender. Haar vroege
+   * start is die finish min haar opgeslagen duur in de maat van het profiel (`startFromFinish`), dus
+   * het venster houdt precies die duur, ook over een korte werkdag. Ze schuift alleen later, nooit
+   * vroeger. Zou de nieuwe plek een opvolger toch na zijn vroege start laten beginnen (de terugrekening
+   * is niet overal de exacte inverse van de voorwaartse, zie knownbug 345), dan zoekt een halvering in
+   * werkminuten de laatste plek die dat niet doet (`placeUnstartedAlap`). Aanval na #600: de oude
    * stap telde de speling in hele dagen en verschoof begin en einde los met `addWorkingDaysSigned`; op
    * een vrijdag 08:00–14:00 stond een dagtaak dan een dag te vroeg (OPS) of verloor ze twee uur werk
    * (P6/MSP).
@@ -3444,9 +3446,12 @@ export class CPMSolver {
     return finish;
   }
 
-  /** De gewone ALAP-stap voor een niet-gestarte taak (docblok bij `applyAlap`): einde op de laatste
-   *  grens van de opvolgers, start = einde min de opgeslagen duur in de maat van het profiel. Schuift
-   *  alleen later, en niet als een opvolger daardoor na zijn vroege start zou moeten beginnen. */
+  /** De gewone ALAP-stap voor een niet-gestarte taak (docblok bij `applyAlap`). Het einde is de laatste
+   *  grens van de opvolgers, nooit later dan de eigen late finish (die draagt ook deadline, constraints
+   *  en projecteinde), op een eindmoment van de eigen kalender. De start is dat einde min de opgeslagen
+   *  duur in de maat van het profiel. Moet een opvolger op die plek toch later beginnen, dan zoekt een
+   *  halvering in werkminuten tussen het vroege einde en die grens de laatste plek waar dat niet zo is.
+   *  Schuift alleen later. */
   private placeUnstartedAlap(
     taskId: string,
     task: Task,
@@ -3455,11 +3460,54 @@ export class CPMSolver {
     late: { ls: Date; lf: Date },
     earlyDates: Map<string, { es: Date; ef: Date }>,
   ): void {
-    const finish = this.alapLatestFinish(taskId, task, cal, earlyDates, late);
+    let finish = this.alapLatestFinish(taskId, task, cal, earlyDates, late);
+    if (!finish) return;
+    if (late.lf < finish) finish = late.lf;
+    // Een grens buiten de eigen werktijd (bv. FF met een lag op de opvolgerkalender): het laatste
+    // eindmoment ervóór. Een mijlpaal en een kalendertijdtaak staan op het moment zelf.
+    const elapsed = isElapsedTask(task);
+    if (!elapsed && !isZeroDurationMilestone(task)) finish = this.snapOnOrBefore(cal, finish);
     // Geen werktijd tussen het vroege einde en de grens: er is geen speling, de taak blijft staan.
-    if (!finish || !(this.signedFloatMinutes(early.ef, finish, cal, task) > 0)) return;
-    const placed = { es: this.startFromFinish(cal, finish, task), ef: finish };
-    if (placed.es <= early.es) return;
+    const span = this.signedFloatMinutes(early.ef, finish, cal, task);
+    if (!(span > 0)) return;
+    const at = (ef: Date) => ({ es: this.startFromFinish(cal, ef, task), ef });
+    let placed = at(finish);
+    let updates = this.alapSuccessorBounds(taskId, task, cal, placed, earlyDates);
+    if (!updates && cal.isHourMode) {
+      // Projectie naar de laatste uitvoerbare plek. Later schuiven vraagt nooit minder van een
+      // opvolger, dus de uitvoerbare plekken vormen één aaneengesloten stuk vanaf het vroege einde.
+      let lo = 0;
+      let hi = Math.round(span);
+      while (hi - lo > 1) {
+        const mid = Math.floor((lo + hi) / 2);
+        const candidate = at(elapsed
+          ? new Date(early.ef.getTime() + mid * MS_PER_MIN)
+          : cal.addWorkMinutes(early.ef, mid));
+        const found = this.alapSuccessorBounds(taskId, task, cal, candidate, earlyDates);
+        if (found) {
+          lo = mid;
+          placed = candidate;
+          updates = found;
+        } else {
+          hi = mid;
+        }
+      }
+    }
+    if (!updates || placed.es <= early.es) return;
+    early.es = placed.es;
+    early.ef = placed.ef;
+    for (const [seqId, bound] of updates) this.seqConstraint.set(seqId, bound);
+  }
+
+  /** De nieuwe relatiegrenzen naar de opvolgers voor een ALAP-plek, of `null` als een opvolger op die
+   *  plek later dan zijn vroege start zou moeten beginnen (en later dan de relatie al eiste). */
+  private alapSuccessorBounds(
+    taskId: string,
+    task: Task,
+    cal: CalendarEngine,
+    placed: { es: Date; ef: Date },
+    earlyDates: Map<string, { es: Date; ef: Date }>,
+  ): Array<[string, Date]> | null {
     const updates: Array<[string, Date]> = [];
     for (const seq of this.successors.get(taskId) || []) {
       const succTask = this.tasks.get(seq.successorId);
@@ -3472,16 +3520,12 @@ export class CPMSolver {
         this.relDeps, placed, task, seq, succTask, cal, succCal,
         this.p6ZeroDurationUsesFinishBoundary(succTask, succCal),
       );
-      // Zou de opvolger nu later moeten beginnen dan zijn vroege start (en later dan de relatie al
-      // eiste), dan is deze plek niet uitvoerbaar: niet verschuiven.
       const succEarly = earlyDates.get(seq.successorId);
       if (succEarly && bound > before
-        && this.signedFloatMinutes(succEarly.es, bound, succCal, succTask) > 0) return;
+        && this.signedFloatMinutes(succEarly.es, bound, succCal, succTask) > 0) return null;
       updates.push([seq.id, bound]);
     }
-    early.es = placed.es;
-    early.ef = placed.ef;
-    for (const [seqId, bound] of updates) this.seqConstraint.set(seqId, bound);
+    return updates;
   }
 
   /** Conventie C14: valt deze taak onder de ALAP-positionering vanuit de opvolgers? Niet-gestart,

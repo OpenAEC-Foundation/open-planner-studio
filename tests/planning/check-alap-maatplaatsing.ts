@@ -18,10 +18,17 @@
 //     en de opvolger beweegt niet;
 //  3. de uitvoerbaarheid: wie de taak zonder ALAP op haar ALAP-start zet, krijgt hetzelfde venster en
 //     dezelfde opvolgers. Ook bij SS met een 24-uurslagkalender (knownbug 345), waar de
-//     terugrekening een te late start belooft: dan blijft de taak staan in plaats van de opvolger
-//     te vertragen;
+//     terugrekening een te late start belooft: dan zoekt de plaatsing de laatste plek die de opvolger
+//     niet vertraagt;
 //  4. een losse START-mijlpaal met ALAP staat op haar late start, zonder speling (knownbug 273);
 //  5. de store neemt het venster over, zonder speling en zonder `scheduleStale`.
+// Fixronde 1 (review GPT-6.1-Sol, NEE):
+//  6. een eigen datumgrens (deadline, FNLT als tweede constraint) blijft gelden, ook met een opvolger;
+//  7. een onuitvoerbare eerste plek (SS0 naar een opvolger met SNET vr 17:00 op een 10-uurskalender)
+//     geeft niet elke verschuiving op: A komt minstens op vrijdag;
+//  8. FF met een lag op de opvolgerkalender: het einde valt op een eindmoment van de eigen kalender;
+//  9. een relatiematrix (FS/SS/FF/SF, vier lagkalenders, vijf lags, werk- en kalendertijd): de plek is
+//     uitvoerbaar en een dag later zou wel iets veranderen. Zonder P6 met eigen werkblokken: dat is C14.
 //
 // Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
 import { solveProject } from '@/engine/scheduler/solveProject';
@@ -81,12 +88,12 @@ function task(id: string, days: number, opts: { alap?: boolean; start?: string; 
 }
 const fs = (p: string, s: string): Sequence => ({ id: `${p}-${s}`, predecessorId: p, successorId: s, type: 'FINISH_START', lagDays: 0 });
 
-function run(profile: Profile, tasks: Task[], seqs: Sequence[], cal: WorkCalendar, lagCalendar?: string) {
+function run(profile: Profile, tasks: Task[], seqs: Sequence[], cal: WorkCalendar, lagCalendar?: string, extra: WorkCalendar[] = []) {
   const project = {
     startDate: '2026-06-01', schedulingProfile: builtInProfile(profile),
     schedulingOptions: lagCalendar ? { lagCalendar } : {},
   } as Parameters<typeof solveInputFor>[0];
-  const r = solveProject(solveInputFor(project, tasks, seqs, cal, [cal]));
+  const r = solveProject(solveInputFor(project, structuredClone(tasks), seqs, cal, [cal, ...extra]));
   if (r.error) diffs.push(`${profile}: rekenfout ${r.error}`);
   return r;
 }
@@ -101,16 +108,18 @@ function expectWindowHoldsDuration(label: string, profile: Profile, cal: WorkCal
 }
 
 /** Uitvoerbaarheid: zet de taak zonder ALAP op haar ALAP-start; venster en opvolgers blijven gelijk. */
-function expectFeasible(label: string, profile: Profile, tasks: Task[], seqs: Sequence[], cal: WorkCalendar, alapId: string, lagCalendar?: string) {
-  const first = run(profile, tasks, seqs, cal, lagCalendar);
-  const placed = first.tasks.get(alapId)!;
-  const replay = tasks.map((t) => {
+function withoutAlapAt(tasks: Task[], alapId: string, start: string): Task[] {
+  return tasks.map((t) => {
     if (t.id !== alapId) return t;
     const { constraint: _drop, ...rest } = t;
     void _drop;
-    return { ...rest, time: { ...t.time, scheduleStart: placed.earlyStart, scheduleFinish: placed.earlyStart } } as Task;
+    return { ...rest, time: { ...t.time, scheduleStart: start, scheduleFinish: start } } as Task;
   });
-  const again = run(profile, replay, seqs, cal, lagCalendar);
+}
+function expectFeasible(label: string, profile: Profile, tasks: Task[], seqs: Sequence[], cal: WorkCalendar, alapId: string, lagCalendar?: string, extra: WorkCalendar[] = []) {
+  const first = run(profile, tasks, seqs, cal, lagCalendar, extra);
+  const placed = first.tasks.get(alapId)!;
+  const again = run(profile, withoutAlapAt(tasks, alapId, placed.earlyStart), seqs, cal, lagCalendar, extra);
   const windowOf = (r: typeof first, id: string) => [r.tasks.get(id)!.earlyStart, r.tasks.get(id)!.earlyFinish];
   for (const t of tasks) {
     eq(`${label}: ${t.id} gelijk na herberekening vanaf de ALAP-start`, windowOf(again, t.id), windowOf(first, t.id));
@@ -240,6 +249,134 @@ for (const profile of PROFILES) {
   eq(`${profile} store: venster van A`, [a.time.earlyStart, a.time.earlyFinish],
     profile === 'ops' ? ['2026-06-05T08:00', '2026-06-05T14:00'] : ['2026-06-05T08:00', '2026-06-08T10:00']);
   eq(`${profile} store: speling (totaal, vrij) in minuten`, [a.time.totalFloatMinutes, a.time.freeFloatMinutes], [0, 0]);
+}
+
+// De kalendervarianten voor de fixronde. P6 met eigen werkblokken loopt via C14 (een eigen conventie,
+// niet deze stap) en blijft daarom buiten deel 6–9.
+const OWN_BLOCKS: WorkCalendar = { ...SCALAR, workTime: { byWeekday: { 1: BAND, 2: BAND, 3: BAND, 4: BAND, 5: BAND, 6: [], 7: [] } } } as WorkCalendar;
+const TEN_BAND = [{ start: 480, end: 1080 }];
+const TEN: WorkCalendar = {
+  ...SCALAR, id: 'ten', name: '10u', hoursPerDay: 10, workEndHour: 18,
+  workTime: { byWeekday: { 1: TEN_BAND, 2: TEN_BAND, 3: TEN_BAND, 4: TEN_BAND, 5: TEN_BAND, 6: [], 7: [] } },
+} as WorkCalendar;
+const variants = (scalar: WorkCalendar, own: WorkCalendar) => PROFILES.flatMap((profile) => [
+  { profile, calName: 'scalair', cal: scalar },
+  ...(profile === 'p6' ? [] : [{ profile, calName: 'eigen blokken', cal: own }]),
+]);
+
+// ── 6. Een eigen datumgrens blijft gelden, ook met een opvolger ─────────────────────────────────
+// A 1 d ALAP met deadline (of FNLT) di 2 juni 16:00; X 2,5 d; A en X FS0 naar B. B begint wo 12:00, maar
+// A mag niet voorbij di 16:00: A blijft di 08:00–16:00, totale speling 0 (de PR-versie van ronde 0 gaf
+// di 12:00–wo 12:00 met −240 min).
+for (const { profile, calName, cal } of variants(SCALAR, OWN_BLOCKS)) {
+  for (const kind of ['deadline', 'FNLT'] as const) {
+    const label = `${profile} ${calName} ${kind}`;
+    const a = task('A', 1, { alap: true });
+    if (kind === 'deadline') a.deadline = '2026-06-02T16:00';
+    else a.constraint2 = { type: 'FNLT', date: '2026-06-02T16:00' };
+    const tasks = [a, task('X', 2.5), task('B', 1)];
+    const seqs = [fs('A', 'B'), fs('X', 'B')];
+    const r = run(profile, tasks, seqs, cal);
+    const ar = r.tasks.get('A')!;
+    eq(`${label}: A binnen de grens`, [ar.earlyStart, ar.earlyFinish, ar.totalFloatMinutes], ['2026-06-02T08:00', '2026-06-02T16:00', 0]);
+    expectFeasible(label, profile, tasks, seqs, cal, 'A');
+  }
+}
+for (const profile of PROFILES) {
+  const ctx = createAppStoreContext();
+  const a = task('A', 1, { alap: true });
+  a.deadline = '2026-06-02T16:00';
+  ctx.store.setState((s) => {
+    s.project.startDate = '2026-06-01';
+    s.project.statusDate = undefined;
+    s.project.schedulingProfile = builtInProfile(profile);
+    s.project.schedulingOptions = {};
+    s.calendar = SCALAR;
+    s.calendars = [SCALAR];
+    s.tasks = [a, task('X', 2.5), task('B', 1)];
+    s.sequences = [fs('A', 'B'), fs('X', 'B')];
+    s.resources = [];
+    s.assignments = [];
+  });
+  ctx.store.getState().runCPM();
+  const s = ctx.store.getState();
+  const stored = s.tasks.find((t) => t.id === 'A')!;
+  eq(`${profile} store deadline: venster en speling van A`,
+    [stored.time.earlyStart, stored.time.earlyFinish, stored.time.totalFloatMinutes, s.scheduleStale],
+    ['2026-06-02T08:00', '2026-06-02T16:00', 0, false]);
+}
+
+// ── 7. Een onuitvoerbare eerste plek geeft niet elke verschuiving op ────────────────────────────
+// A 1 d ALAP (08–16) —SS0→ B op 08–18 met SNET vr 5 juni 17:00. Vrijdag is uitvoerbaar (zonder ALAP op
+// vr 08:00 blijft B gelijk). B = 480 min (het projecteinde begrenst A) en B = 2400 min (dan moet de
+// projectie de plek zoeken). Ronde 0 liet A op ma 1 juni staan, met 2940 min vrije speling.
+for (const { profile, calName, cal } of variants(SCALAR, OWN_BLOCKS)) {
+  for (const bDays of [1, 5]) {
+    const label = `${profile} ${calName} SS0 naar SNET, B=${bDays * 480} min`;
+    const b = { ...task('B', bDays, { unit: 'hours' }), calendarId: 'ten', constraint: { type: 'SNET', date: '2026-06-05T17:00' } } as Task;
+    const tasks = [task('A', 1, { alap: true }), b];
+    const seqs: Sequence[] = [{ id: 'ab', predecessorId: 'A', successorId: 'B', type: 'START_START', lagDays: 0 }];
+    const r = run(profile, tasks, seqs, cal, undefined, [TEN]);
+    const ar = r.tasks.get('A')!;
+    eq(`${label}: A start op vrijdag`, ar.earlyStart.slice(0, 10), '2026-06-05');
+    expectWindowHoldsDuration(label, profile, cal, ar.earlyStart, ar.earlyFinish, 1);
+    expectFeasible(label, profile, tasks, seqs, cal, 'A', undefined, [TEN]);
+  }
+}
+
+// ── 8. FF met een lag op de opvolgerkalender: einde op een eindmoment van de eigen kalender ─────
+// A 2 d ALAP op de korte vrijdag (tot 14:00) —FF+1,5 d→ B op 08–18, lagkalender opvolger; X 5 d drijft
+// B. Ronde 0 zette A onder P6 op een einde vr 15:00, na sluitingstijd; zonder ALAP gaf dezelfde start
+// vr 14:00.
+for (const { profile, calName, cal } of variants(SHORT_FRIDAY_EXCEPTION, SHORT_FRIDAY_BLOCKS)) {
+  const label = `${profile} ${calName} FF+1,5 d opvolgerkalender`;
+  const tasks = [task('A', 2, { alap: true }), task('X', 5), { ...task('B', 1), calendarId: 'ten' } as Task];
+  const seqs: Sequence[] = [
+    { id: 'ab', predecessorId: 'A', successorId: 'B', type: 'FINISH_FINISH', lagDays: 1.5 }, fs('X', 'B'),
+  ];
+  const r = run(profile, tasks, seqs, cal, 'successor', [TEN]);
+  const ef = new Date(`${r.tasks.get('A')!.earlyFinish}Z`);
+  eq(`${label}: einde op een eindmoment van A`, new CalendarEngine(cal).prevWorkInstant(ef).getTime(), ef.getTime());
+  expectFeasible(label, profile, tasks, seqs, cal, 'A', 'successor', [TEN]);
+}
+
+// ── 9. Relatiematrix: uitvoerbaar, en geen achtergebleven speling ───────────────────────────────
+// Naar de probe van de review (ronde 1). A 2 d ALAP —relatie→ B 1 d op 08–18; X 5 d —FS0→ B. "Speling
+// over" = A een kalenderdag later zonder ALAP laat B en het projecteinde gelijk.
+{
+  let cases = 0;
+  for (const { profile, calName, cal } of variants(SHORT_FRIDAY_EXCEPTION, SHORT_FRIDAY_BLOCKS)) {
+    for (const type of ['FINISH_START', 'START_START', 'FINISH_FINISH', 'START_FINISH'] as const) {
+      for (const lagCalendar of ['predecessor', 'successor', 'projectDefault', '24hour']) {
+        for (const lagDays of [-1.5, -0.5, 0, 0.5, 1.5]) {
+          for (const durationType of ['WORKTIME', 'ELAPSEDTIME'] as const) {
+            cases++;
+            const label = `${profile} ${calName} ${type} ${lagCalendar} ${lagDays} ${durationType}`;
+            const a = task('A', 2, { alap: true });
+            a.time.durationType = durationType;
+            const tasks = [a, task('X', 5), { ...task('B', 1), calendarId: 'ten' } as Task];
+            const seqs: Sequence[] = [{ id: 'ab', predecessorId: 'A', successorId: 'B', type, lagDays }, fs('X', 'B')];
+            const r = run(profile, tasks, seqs, cal, lagCalendar, [TEN]);
+            const ar = r.tasks.get('A')!;
+            const br = r.tasks.get('B')!;
+            const again = run(profile, withoutAlapAt(tasks, 'A', ar.earlyStart), seqs, cal, lagCalendar, [TEN]);
+            eq(`${label}: uitvoerbaar`, [again.tasks.get('A')!.earlyFinish, again.tasks.get('B')!.earlyStart], [ar.earlyFinish, br.earlyStart]);
+            const later = new Date(`${ar.earlyStart}Z`);
+            later.setUTCDate(later.getUTCDate() + 1);
+            const moved = run(profile, withoutAlapAt(tasks, 'A', later.toISOString().slice(0, 16)), seqs, cal, lagCalendar, [TEN]);
+            const ma = moved.tasks.get('A')!;
+            const mb = moved.tasks.get('B')!;
+            checks++;
+            if (ma.earlyStart > ar.earlyStart && ma.earlyFinish <= r.projectEnd
+              && mb.earlyStart === br.earlyStart && mb.earlyFinish === br.earlyFinish) {
+              diffs.push(`${label}: een dag later laat B gelijk (speling over): A ${ar.earlyStart}, kon ${ma.earlyStart}`);
+            }
+          }
+        }
+      }
+    }
+  }
+  eq('relatiematrix: aantal gevallen', cases, 5 * 4 * 4 * 5 * 2);
 }
 
 if (diffs.length === 0) {

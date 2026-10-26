@@ -422,8 +422,8 @@ export interface SchedulingOptions {
    *    vertragen, dus binnen de vrije speling. Empirisch (HarbourPointe, ALAP-keten).
    *  - MS Project: uit. Plant ALAP vanaf de late datums van de taak (ongemeten).
    *  - OPS: uit (de gewone stap, `CPMSolver.applyAlap`, opvolgers eerst: een niet-gestarte taak eindigt op
-   *    de laatste grens die haar opvolgers met hun vroege datums toestaan, met haar duur in de maat van het
-   *    profiel, en schuift alleen later; een gestarte taak en een hammock schuiven in hele werkdagen op met
+   *    de laatste grens die haar opvolgers met hun vroege datums toestaan, niet voorbij haar late finish
+   *    (deadline, constraints), met haar duur in de maat van het profiel, en schuift alleen later; een gestarte taak en een hammock schuiven in hele werkdagen op met
    *    de vrije speling). */
   p6AlapPositionedFromSuccessors?: boolean;
   /** Dagenmaat (spec alleen-uren §3.14): telt een taak, lag of rest in de dagenmaat (`durationUnit: 'days'`,
