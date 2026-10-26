@@ -10,7 +10,7 @@ import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { effHoursPerDay } from '@/utils/taskDuration';
 import { clipUserGapsToWork, splitUnitMinutes } from '@/engine/scheduler/splitEdit';
 import {
-  rescaleContourForDuration, rescaleFactor, rescaleSplitGaps, taskWorkMinutes,
+  rescaleContourForDuration, rescaleFactor, rescaleSplitGaps, taskAxisMinutes,
 } from '@/engine/contour/contourEngine';
 import { DEFAULT_WORK_RULE, type WorkRule } from '@/types/workRule';
 import { ruleProtectsWork } from '@/engine/work/workTriangle';
@@ -721,10 +721,12 @@ export function taskCalendarHoursPerDay(task: Task, calendars: WorkCalendar[], p
   return effHoursPerDay(resolveCalendar(task.calendarId, calendars, projectCalendar));
 }
 
-/** Werkduur van de taak in werkminuten (zie `contourEngine.ts`'s `taskWorkMinutes`) — aan te
- *  roepen VÓÓR een `mergeTaskTime`, zodat `rescaleTaskContours` de oude waarde kent. */
+/** Duur van de taak op de contour- en split-as (zie `contourEngine.ts`'s `taskAxisMinutes`): de
+ *  werkminuten, en bij kalendertijd de klokdagen × de werktijd per dag. Aan te roepen VÓÓR een
+ *  `mergeTaskTime`, zodat `rescaleTaskContours` de oude waarde kent; die meet de nieuwe met dezelfde
+ *  functie. Zo herschaalt een wissel van eenheid op dezelfde klokuren niets (knownbug 265). */
 export function taskWorkMinutesOf(task: Task, hoursPerDay: number): number {
-  return taskWorkMinutes(task.time, hoursPerDay);
+  return taskAxisMinutes(task.time, hoursPerDay);
 }
 
 /**
@@ -757,7 +759,8 @@ export function rescaleTaskContours(
 ): boolean {
   const contours = task.timephasedContours;
   if (!contours || contours.length === 0) return false;
-  const newWorkMinutes = taskWorkMinutes(task.time, hoursPerDay);
+  // Dezelfde as als de oude waarde (`taskWorkMinutesOf`): bij kalendertijd klokdagen × werktijd per dag.
+  const newWorkMinutes = taskAxisMinutes(task.time, hoursPerDay);
   // Eén gedeeld profiel voor de factor: de contour met de langste asspanne bepaalt de taakduur
   // (dezelfde "langste toewijzing bepaalt de finish"-regel als laag 3/4), dus die is de referentie
   // voor zowel de periodes als de gaten.
@@ -828,7 +831,7 @@ export function applyDurationChangeRules(
   const rescaled = opts?.rescaleContours !== false
     && rescaleTaskContours(task, oldWorkMinutes, hoursPerDay, opts?.keepWork);
   if (!rescaled && task.splitGaps !== undefined) {
-    const newWorkMinutes = taskWorkMinutes(task.time, hoursPerDay);
+    const newWorkMinutes = taskAxisMinutes(task.time, hoursPerDay);
     if (newWorkMinutes < oldWorkMinutes - 1e-6) {
       const clipped = clipUserGapsToWork(task.splitGaps, newWorkMinutes);
       task.splitGaps = clipped && clipped.length > 0 ? clipped : undefined;

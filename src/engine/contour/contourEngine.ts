@@ -34,7 +34,7 @@
 // rekenresidu, en worden hier NOOIT afgerond.
 //
 // Pure module: geen store, geen kalender-engine-import (de aanroeper levert `mpd`), geen I/O.
-import type { TaskSplitGap, TaskTimephasedContour, TimephasedContourPeriod, MspTaskType } from '@/types/task';
+import type { DurationType, TaskSplitGap, TaskTimephasedContour, TimephasedContourPeriod, MspTaskType } from '@/types/task';
 import type { ResourceAssignment, ResourceCurve } from '@/types/resource';
 import { splitDayPattern } from '@/engine/scheduler/splitWalk';
 import { isFiniteNumber } from '@/utils/guards';
@@ -446,4 +446,30 @@ export function taskWorkMinutes(
     return Math.max(0, time.durationMinutes);
   }
   return Math.max(0, time.scheduleDuration) * Math.max(0, hoursPerDay) * 60;
+}
+
+/**
+ * Lengte van de contour- en split-as van een taak: de maat waarmee de herschaling
+ * (`rescaleTaskContours`, `rescaleSplitGaps`, het afknippen van gebruikersgaten) de duur VÓÓR en NÁ
+ * een bewerking meet. Beide kanten moeten op dezelfde as staan; alleen de verhouding en het
+ * actual-anker tellen.
+ *
+ * Werktijd: gelijk aan {@link taskWorkMinutes} (werkminuten, of dagslots bij een dagtaak).
+ *
+ * Kalendertijd (`ELAPSEDTIME`): de duur telt in klokdagen van 24 u (`elapsedMinutesOf` in `duration.ts`),
+ * maar de as telt per werkdag één slot van `hoursPerDay × 60`, net als bij een dagtaak (de plaatsing
+ * en de contourdialoog delen per werkdag). Daarom: klokdagen × `hoursPerDay × 60`, in BEIDE eenheden.
+ * Een dagtaak van 2 d en een urentaak van 48 u zijn zo allebei 960 (bij 8 u per dag), en een wissel van
+ * eenheid herschaalt niets. `taskWorkMinutes` gaf 960 tegenover 2880 (de klokminuten van de urentaak),
+ * waardoor de contour bij de wissel naar uren verdrievoudigde (knownbug 265, aanval a04 na #600).
+ */
+export function taskAxisMinutes(
+  time: { durationType?: DurationType; durationUnit?: 'days' | 'hours'; durationMinutes?: number; scheduleDuration: number },
+  hoursPerDay: number,
+): number {
+  if (time.durationType !== 'ELAPSEDTIME') return taskWorkMinutes(time, hoursPerDay);
+  const clockDays = time.durationUnit === 'hours' && isFiniteNumber(time.durationMinutes)
+    ? time.durationMinutes / 1440
+    : time.scheduleDuration;
+  return Math.max(0, clockDays) * Math.max(0, hoursPerDay) * 60;
 }

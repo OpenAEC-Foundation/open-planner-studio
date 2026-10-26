@@ -209,17 +209,6 @@ en noem het in je rapport of PR-tekst.
      die afwijkt wel, maar niet een tweede kopie die mee verandert. Voorstel: één gedeelde functie voor de
      spanwijdte, en de afronding per dag gelijk aan die van de Gantt. Gevonden in F3c-fix-split. — B
 
-265. **Contour en splitsgaten bij een eenheidswissel van een kalendertijdtaak tellen de oude duur in
-     werkminuten.** `applyDurationChangeRules` (`src/utils/taskDefaults.ts:822`) krijgt de oude werkminuten
-     van de aanroeper: in het raster `taskWorkMinutes(before, hoursPerDay)` met de werktijd per dag
-     (`src/engine/taskGrid/taskEditPlan.ts:205`), in de store via `settleDurationAftermath`
-     (`workRuleApply.ts:755`, de werktijd per dag van de taakkalender). Gaat een kalendertijdtaak van dagen
-     naar uren (2 d naar "1d 4u"), dan telt de oude duur als 960 in plaats van 2880 minuten. De
-     herschaling van een contour en het afknippen van splitsgaten (`clipUserGapsToWork`) rekenen dan
-     vermoedelijk met een verkeerde verhouding. Gevonden met grep in fixronde 4 van #584; niet gemeten.
-     Voorstel: eerst meten met een contour en een splitsgat op een kalendertijdtaak; dan dezelfde regel
-     als `durationEditProgress` (24 u per dag bij kalendertijd). — S
-
 266. **Na een eenheidswissel op een lopende taak heeft de rest ruis van de drijvende komma.**
      `durationEditProgress` (`src/engine/work/workRuleApply.ts:953`) rekent de rest als nieuwe duur ×
      (1 − nieuw percentage). Een werktijdtaak van 2 d, 25 % gereed, met een nieuwe duur van 12 u (onder P6
@@ -547,6 +536,56 @@ en noem het in je rapport of PR-tekst.
     8.000 niveaus nesting kost parsen circa 499 ms tegen 12 ms op de basis (kwadratische groei). Zeldzame invoer.
     Voorstel: `namespaceFor` alleen aanroepen als de elementprefix niet leeg is. Gevonden in review r1 van #608
     (GPT-6.1-Sol). — B
+
+347. **De belasting telt dagdelen van verschillende kalenders op: vier beschikbare uren tellen als een volle dag.**
+    `src/engine/scheduler/ResourceLoad.ts:446` telt per resource de dagdelen van elke taakkalender bij elkaar op;
+    `:468` geeft de resource op een werkdag van haar eigen kalender de volle capaciteit, anders 0. Taak ma 1 juni
+    2026 07:00–15:00, 8 u werk, inzet 1; resource met capaciteit 1 en kalender 07:00–11:00 (240 beschikbare
+    minuten): belasting 1, capaciteit 1, geen overbezetting. Hetzelfde met een gewone kalender en een werkende
+    uitzondering van vier uur op die maandag. Omgekeerd: twee taken op aparte vierurige kalenders (07:00–11:00 en
+    11:00–15:00) op één resource met acht beschikbare uren, zonder overlap: belasting 2, capaciteit 1, onterecht
+    overbezet. Al op `fbd4a3f9d`. Voorstel: vraag en capaciteit per resource per dag in dezelfde maat uitdrukken
+    (werkminuten uit de werkblokken), met behoud van de dagindeling; regel 446 en 468 samen aanpassen. Gevonden in
+    de aanval na #600 (GPT-6.1-Sol). — B
+
+348. **Loslaten van de eerste contour verhuist de tweede contour naar de verkeerde toewijzing.**
+    `src/state/assignmentMutations.ts:248` haalt de contour met `splice` uit de lijst; daarna koppelt
+    `matchContoursToAssignments` (`src/engine/contour/contourEngine.ts:302`) opnieuw alleen op resource-id en
+    volgorde. Eén taak van twee werkdagen met toewijzingen A1 en A2 op dezelfde resource: A1 heeft contour
+    [480, 0] min en 480 min opgeslagen restwerk, A2 [0, 960] en 960 min. Na `setAssignmentContour(A1, null)`
+    krijgt A1 de contour van A2, en A2 valt terug op haar formule. De belasting wordt [1; 3] (32 u) in plaats van
+    [0,5; 2,5] (24 u). Al op `fbd4a3f9d`. Voorstel: de koppeling aan de toewijzing bewaren bij toevoegen,
+    loslaten en verwijderen van een contour, en alle lezers via dezelfde koppelfunctie laten lopen. Gevonden in de
+    aanval na #600 (GPT-6.1-Sol). — B
+
+349. **Twee projectresources op hetzelfde bibliotheekitem worden apart tegen dezelfde vrije capaciteit getoetst.**
+    `src/engine/scheduler/ResourceLeveler.ts:1137` (`fits`) vergelijkt de vraag van elke resource afzonderlijk met
+    de restcapaciteit van het poolitem; de som wordt pas daarna geboekt. Bibliotheekitem P heeft capaciteit 1; de
+    projectresources R1 en R2 (elk capaciteit 1) verwijzen allebei naar P. Eén taak vraagt op ma 1 juni 2026 één
+    eenheid van R1 en één van R2. `computeDistribution` geeft `blocked: null` en geen tekort, terwijl
+    `afterLoadByDay` op die dag 2 telt; het restprofiel wordt op 0 geklemd en verbergt de overschrijding.
+    `librarySlice.linkRecognizedItems` laat twee projectresources aan hetzelfde item koppelen, dus deze invoer kan
+    ontstaan. Al op `fbd4a3f9d`. Voorstel: de kandidaatvraag per bibliotheekitem en werkdag optellen vóór de
+    pooltoets, en die som ook bij onderbrekingen gebruiken (`:1058`); de projecttoets blijft daarnaast nodig.
+    Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
+
+350. **Een tussenstap zonder resource maakt een afhankelijke taak te vroeg plaatsbaar.**
+    `src/engine/scheduler/ResourceLeveler.ts:660` telt een taak zonder vraag meteen als geplaatst; de wachtrij
+    (`:718`) wacht daardoor alleen op actieve voorgangers. Kalender ma–vr 08:00–16:00, capaciteit 1. A → M → B
+    met FS+0, elk één werkdag; A heeft prioriteit 500 en resource R, M heeft geen resource, B prioriteit 1000 en
+    resource R. Pin C bezet R op ma 1 juni 2026; D (prioriteit 400) vraagt R op do 4 juni. A moet naar dinsdag,
+    dus M naar woensdag en B naar donderdag. De nivelleerder boekt B al op woensdag, en D krijgt donderdag. Na
+    toepassen en herberekenen staat B ook op donderdag: het histogram telt daar 2 bij capaciteit 1, en
+    `unresolved` is leeg. Al op `fbd4a3f9d`. Voorstel: een actieve taak pas plaatsbaar maken als ook haar
+    transitieve actieve voorgangers via tussenstappen zonder resource geplaatst zijn, binnen de bestaande
+    plaatsingsvolgorde. Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
+
+370. **Nivelleren van een grote planning is nog 2,8 keer trager dan vóór de urenomzetting.** De a12-planning
+    (2.000 taken, 400 kraantaken) kostte 546 ms op `fbd4a3f9d`, 14.353 ms op `9a636ec69` en 1.539 ms na de fix
+    in #665 (`src/engine/scheduler/ResourceLeveler.ts:309`, `:969`). De kandidaatopbouw per taak is weer
+    lineair; over een rij concurrerende taken blijft de nivelleerder kwadratisch in het aantal kandidaten.
+    Voorstel: meten waar de resterende tijd zit en daar de kalenderwandeling per kandidaat delen. Gevonden in de
+    review van de fix voor aanval a12 (GPT-6.1-Sol). — B
 
 354. **MCP verbergt een minutenlag en de eenheid van een kalendertijdlag.** `src/services/mcp/tools/sequenceFields.ts:89`
     (`lagLabel`) leest alleen `lagDays` en `lagPercent`. Een relatie met `lagMinutes: 240` toont in
