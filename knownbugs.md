@@ -334,12 +334,6 @@ en noem het in je rapport of PR-tekst.
     "Failed to load resource: 404" in de console, ook de bestaande `table-reports.spec.ts` (gedraaid op de
     branch van de DCMA-PR, die dat rapport niet raakt). Welke URL dat is, is niet vastgesteld. — S
 
-165. **`window.__OPS__.gantt.paintCount` telt alleen in een dev-build.** `useGanttRendererHost.ts:32` roept
-    `recordGanttPaint` aan achter `import.meta.env.DEV`; in een productiebuild met `VITE_OPS_BENCH_BRIDGE=1`
-    blijft de teller 0. Een meting op die build moet de tekening zelf herkennen
-    (`scripts/measure-large-plans.mjs` doet dat met een passieve wrapper om `fillRect`). Voorstel: de
-    teller ook laten lopen als de brug in een productiebuild aan staat. — B
-
 167. **Een browsershard van `ci.yml` blijft hangen voorbij `timeout-minutes: 45`.** Op 2026-10-21 bleef
    `verify (browser 2-4)` van run 39559601987 (PR #440) ruim 50 minuten `in_progress` in de stap
    *Verify (browser 2-4)*. Ook `gh run cancel` stopte hem niet; pas `force-cancel` via de API deed dat.
