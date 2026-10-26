@@ -51,7 +51,7 @@ import {
 } from '@/services/xmlInterchange';
 import {
   canonicalizeBands, clockToMinutes, isSubDayMinutes, opsDayWithBreak,
-  promoteHourCalendars, registerCalendarBands, sameBlocks,
+  promoteHourCalendars, registerCalendarBands, sameBlocks, sixDecimalHoursToMinutes,
 } from '@/services/subdayIo';
 
 // De rauwe-bandenregistry en `synth*BandsFromScalar` staan in subdayIo. P6_NAME_TO_CURVE (P6-curvenaam
@@ -1291,10 +1291,10 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
     if (lagRecordHolds(record, lagHours * 60, lagWorkMinutesPerDay(seq, lagCalendarOption, calendar, effCalByTaskId))) {
       Object.assign(seq, lagFromRecord(record));
     } else {
-      // Zonder afronding op de hele minuut (§3.10; review #591 r2): 150,5 min gaat als 2.5083333333333333 u en
-      // komt zo terug. Alleen de floatruis van uren × 60 valt weg (0,12 u × 60 = 7,199999999999999 ⇒ 7,2), op een
-      // miljoenste minuut.
-      seq.lagMinutes = Math.round(lagHours * 60 * 1e6) / 1e6;
+      // Een echte breuk blijft (§3.10; review #591 r2): 150,5 min gaat als 2.5083333333333333 u en komt zo terug.
+      // De ruis van zes decimalen wordt de hele minuut: 0,666667 u wordt 40 min, niet 40,00002 (review #591 r6,
+      // was knownbug 386). Zelfde regel als de XER-lezer.
+      seq.lagMinutes = sixDecimalHoursToMinutes(lagHours);
     }
     sequences.push(seq);
   }

@@ -17,6 +17,7 @@ import {
   getCalendarBands,
   promoteHourCalendar,
   registerCalendarBands,
+  sixDecimalHoursToMinutes,
 } from '@/services/subdayIo';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Sequence, SequenceType } from '@/types/sequence';
@@ -748,10 +749,10 @@ function readXerProject(
     }
     const durationHours = numberOf(tables, row, 'target_drtn_hr_cnt') ?? 0;
     const remainingHours = numberOf(tables, row, 'remain_drtn_hr_cnt');
-    // Op de hele minuut, anders dan de lag hieronder: P6 rekent duur en rest op de hele minuut. XER schrijft uren
-    // met zes decimalen, dus 1600 min staat er als 26,666667 u (1600,00002 min). Zonder afronding worden P6-cellen
-    // onexact (regel A, measure:profiles met het P6-corpus, meting 2026-10-26; §3.10; knownbug 385).
-    const sourceDurationMinutes = Math.round(durationHours * 60);
+    // Zelfde regel als de lag (§3.10; review #591 r6): XER schrijft uren met zes decimalen, dus 1600 min staat er
+    // als 26,666667 u (1600,00002 min); die ruis wordt de hele minuut. Met de ruis werden 29 P6-cellen onexact
+    // (regel A, meting 2026-10-26; knownbug 385). Een echte breuk blijft: 40,33 u = 2419,8 min.
+    const sourceDurationMinutes = sixDecimalHoursToMinutes(durationHours);
     const hoursPerDay = effectiveCalendar.hoursPerDay > 0 ? effectiveCalendar.hoursPerDay : 8;
     const activityType = activityTypeOf(row.cells.task_type ?? '', row, enumFallbacks);
     const durationType = durationTypeOf(
@@ -821,9 +822,9 @@ function readXerProject(
       : sourceDurationMinutes;
     // Altijd de urenmaat (alleen uren §3.10, T15; F5b): P6 kent alleen werkuren, en een XER-bestand draagt
     // nooit de OPS-markering voor de dagenmaat. Duur en rest zijn de minuten uit het bestand, zonder
-    // afronding op hele dagen (wel op de hele minuut, zie hierboven). Vroeger kreeg een taak op een kalender
-    // zonder tijdsignaal de dagenmaat (`durationMinutes / (day_hr_cnt × 60)` dagen); dat is weg, ook op een
-    // dagkalender.
+    // afronding op hele dagen (de ruis van zes decimalen wel, zie hierboven). Vroeger kreeg een taak op een
+    // kalender zonder tijdsignaal de dagenmaat (`durationMinutes / (day_hr_cnt × 60)` dagen); dat is weg, ook op
+    // een dagkalender.
     // LET OP: `createDefaultTaskTime` leest zijn tweede argument als UREN zodra de eenheid
     // 'hours' is, en zet dan zelf `durationMinutes = dat getal * 60`. Wij geven hier bewust
     // DAGEN mee omdat `scheduleDuration` dagen hoort te zijn; de daaruit volgende foutieve
@@ -842,15 +843,20 @@ function readXerProject(
     time.lateStart = start;
     time.lateFinish = finish;
     time.completion = completion;
-    const p6RemainingHours = status === 'STARTED' && completePctType === 'CP_Drtn'
-      && durationCompletionPercent !== null
+    const remainingFromPercent = status === 'STARTED' && completePctType === 'CP_Drtn'
+      && durationCompletionPercent !== null;
+    const p6RemainingHours = remainingFromPercent
       ? durationHours * (1 - completion)
       : remainingHours;
     time.durationMinutes = durationMinutes;
     if (p6RemainingHours !== null) {
-      // Op de hele minuut, zoals de duur: P6 rekent de rest op de hele minuut; zonder afronding worden P6-cellen
-      // onexact (regel A, meting 2026-10-26).
-      time.remainingMinutes = Math.round(p6RemainingHours * 60);
+      // Een rest uit het bestand: zelfde regel als de duur (de ruis van zes decimalen wordt de hele minuut, een
+      // echte breuk blijft). Een rest uit de percentagetak is berekend, geen bronwaarde: die blijft op de hele
+      // minuut, zoals op main. 40,33 u bij 33,33 % gaf anders 1613,28066 min, en dan springt LS een dag terug
+      // (knownbug 385; review #591 r6).
+      time.remainingMinutes = remainingFromPercent
+        ? Math.round(p6RemainingHours * 60)
+        : sixDecimalHoursToMinutes(p6RemainingHours);
     }
     if (actualStart) time.actualStart = actualStart;
     if (actualFinish) time.actualFinish = actualFinish;
@@ -1063,10 +1069,10 @@ function readXerProject(
     const successorProjectId = row.cells.proj_id || projectId;
     const predecessorProjectId = row.cells.pred_proj_id || successorProjectId;
     const relationType = relationTypeOf(row.cells.pred_type, row, enumFallbacks);
-    // Zonder afronding op de hele minuut (§3.10; review #591 r3, was knownbug 307): 0,33 u blijft 19,8 min.
-    // Alleen de floatruis van uren × 60 valt weg (0,12 u × 60 = 7,199999999999999 ⇒ 7,2), op een miljoenste minuut,
-    // zoals in de P6 XML-lezer.
-    const lagMinutes = Math.round((numberOf(tables, row, 'lag_hr_cnt', 'TASKPRED') ?? 0) * 60 * 1e6) / 1e6;
+    // Een echte breuk blijft (§3.10; review #591 r3, was knownbug 307): 0,33 u blijft 19,8 min. De ruis van zes
+    // decimalen wordt de hele minuut: 0,666667 u wordt 40 min, niet 40,00002 (review #591 r6, was knownbug 386).
+    // Zelfde regel als de P6 XML-lezer (`sixDecimalHoursToMinutes`).
+    const lagMinutes = sixDecimalHoursToMinutes(numberOf(tables, row, 'lag_hr_cnt', 'TASKPRED') ?? 0);
     const relationId = row.cells.task_pred_id || `xer-rel:${row.line}`;
     const predecessorLocal = predecessorProjectId === projectId && taskById.has(row.cells.pred_task_id);
     const successorLocal = successorProjectId === projectId && taskById.has(row.cells.task_id);
