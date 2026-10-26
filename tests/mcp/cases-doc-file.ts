@@ -1065,6 +1065,16 @@ test('import_schedule: MS Project-XML met "Primavera" in de naam blijft MSPDI; e
   const p6Path = `${HOME}/residencial-p6.xml`;
   files.set(p6Path, writeP6XML(s.project, s.calendar, s.tasks, s.sequences, s.resources, s.assignments, s.calendars));
 
+  const invalidPath = `${HOME}/lijst.xml`;
+  files.set(invalidPath, '<Lijst><Naam>Primavera</Naam></Lijst>');
+  const beforeInvalid = JSON.stringify(S().getOpenDocumentPayloads());
+  const raw = await handleMcpMessage(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call',
+    params: { name: 'planner_import_schedule', arguments: { path: invalidPath } } }), makeCtx());
+  const invalid = JSON.parse(raw).result.structuredContent;
+  assertEq(invalid.code, 'VALIDATION', 'onbekende XML is een validatiefout via de dispatcher');
+  assertEq(invalid.error, `'${invalidPath}' could not be read as a schedule: Unknown XML format: the root element is not an MS Project (Project) or Primavera P6 (APIBusinessObjects) schedule`, 'volledig Engelse MCP-fout');
+  assertEq(JSON.stringify(S().getOpenDocumentPayloads()), beforeInvalid, 'afgewezen XML verandert geen document');
+
   const msp = await callOk('planner_import_schedule', { path: mspPath });
   assertEq(msp.format, 'MSPDI-XML', 'de MS Project-XML wordt als MSPDI-XML gelabeld, ondanks "Primavera" in de naam');
   assertEq(msp.tasks, taskCount, 'alle taken komen binnen (geen leeg P6-project)');

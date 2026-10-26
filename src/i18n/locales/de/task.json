@@ -459,6 +459,7 @@
     "jumpToTask": "Zum Vorgang {{wbs}} springen",
     "relationPopoverTitle": "Beziehungstyp",
     "driving": "Maßgebende Beziehung (driving)",
+    "drivingUnknown": "Maßgebende Beziehungen ohne Berechnung unbekannt.",
     "lag": "Verzögerung (z.B. 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Berechnen",
     "assignments": {
@@ -523,6 +524,8 @@
     "type": "Typ",
     "lag": "Verzögerung",
     "driving": "Maßgebend",
+    "drivingUnknown": "Unbekannt",
+    "notDriving": "Nicht maßgebend",
     "freeFloat": "Freier Puffer",
     "warnings": "Warnungen",
     "warnTruncatedLead": "Vorlauf am Projektstart gekappt — die Überlappung wird nicht vollständig genutzt",

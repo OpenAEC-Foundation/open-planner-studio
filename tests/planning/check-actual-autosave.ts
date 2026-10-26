@@ -1,7 +1,7 @@
 // Contract voor echt automatisch opslaan. Deze test gebruikt geen browser- of Tauri-I/O:
 // de controller krijgt die randen geïnjecteerd, zodat timing, single-flight en de dirty-race
 // deterministisch bewaakt blijven.
-import { actualAutoSaveDelay, createActualAutoSaveController, type ActualAutoSaveCandidate } from '@/services/actualAutosave/actualAutoSave';
+import { AutoSaveTargetUnavailableError, actualAutoSaveDelay, createActualAutoSaveController, type ActualAutoSaveCandidate } from '@/services/actualAutosave/actualAutoSave';
 import { useAppStore } from '@/state/appStore';
 import { freshPayload } from '@/state/documentContract';
 import { isProjectFileWriteBusy, runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
@@ -89,10 +89,13 @@ const unavailable = createActualAutoSaveController({
   listCandidates: () => [{ id: 'weg', enabled: true, dirty: true, ref: { kind: 'path', path: '/weg.ifc' }, source: source(1) }],
   serialize: () => 'ifc', canWrite: async () => true, write: async () => false,
   markSavedIfUnchanged: () => { throw new Error('mag niet schoon worden'); },
-  onFailure: (c, e) => { failures.push(`${c.id}:${(e as Error).message}`); },
+  onFailure: (c, e) => {
+    truthy('9a niet-schrijfbaar heeft een herkenbaar fouttype voor vertaling', e instanceof AutoSaveTargetUnavailableError);
+    failures.push(`${c.id}:${(e as Error).message}`);
+  },
 });
 await unavailable.flush();
-eq('9 een niet-schrijfbaar bestaand doel blijft niet stil', failures, ['weg:Het bestaande projectbestand is niet schrijfbaar.']);
+eq('9 een niet-schrijfbaar bestaand doel blijft niet stil', failures, ['weg:The existing project file is not writable.']);
 
 // De keuze is per geopend document, maar geen IFC- of recoveryveld. Een tabwissel mag hem dus
 // niet laten lekken en een verse/herstelde payload begint veilig uit.

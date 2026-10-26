@@ -459,6 +459,7 @@
     "jumpToTask": "Gå till uppgift {{wbs}}",
     "relationPopoverTitle": "Typ av samband",
     "driving": "Drivande samband",
+    "drivingUnknown": "Drivande samband okända utan beräkning.",
     "lag": "Fördröjning (t.ex. 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Beräkna",
     "assignments": {
@@ -523,6 +524,8 @@
     "type": "Typ",
     "lag": "Fördröjning",
     "driving": "Drivande",
+    "drivingUnknown": "Okänt",
+    "notDriving": "Inte drivande",
     "freeFloat": "Fritt slack",
     "warnings": "Varningar",
     "warnTruncatedLead": "Överlapp avkortat vid projektstart — överlappet utnyttjas inte helt",

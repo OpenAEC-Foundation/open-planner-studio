@@ -9,6 +9,7 @@
 //   rechtsklik › Subtaak toevoegen, en "Taak bewerken" › Bovenliggende taak.
 // `__OPS__` zet alleen de fixture (taken, resource, toewijzing, selectie) en leest state.
 import type { Locator, Page } from '@playwright/test';
+import zhCommon from '@/i18n/locales/zh/common.json' with { type: 'json' };
 import { barPoint, expect, state, test, waitForOps, waitForWelcomeDialog } from './fixtures/ops';
 
 async function seedAssignedLeaf(page: Page): Promise<{ L: string; N: string; R: string }> {
@@ -75,7 +76,8 @@ test('mijlpaalvinkje op een taak met toewijzing wordt geweigerd met melding', as
   await page.getByText('切换里程碑', { exact: true }).click();
   const bulk = page.locator('.ops-toast.toast-error');
   await expect(bulk).toHaveCount(1);
-  await expect(bulk).toContainText('2 个任务有资源分配，无法变为里程碑。请先移除这些分配。');
+  // Gebruik de actuele other-tekst; de browser moet zelf de taal, meervoudsvorm en het getal kiezen.
+  await expect(bulk).toContainText(zhCommon.notifications.milestoneRefusedAssignmentsMany_other.replace('{{count}}', '2'));
   await expect(bulk).toContainText('Metselen, Voegen');
   await expect(bulk).toHaveAttribute('role', 'alert');
   expect(await page.evaluate(() => window.__OPS__!.store.getState().tasks.map(t => t.isMilestone))).toEqual([false, false]);

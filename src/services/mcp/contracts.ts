@@ -149,6 +149,9 @@ export interface ActivityEntry {
   ts: number;
   tool: string;
   summary: string;
+  /** Vaste UI-markering; de technische samenvatting blijft beschikbaar zonder i18n. */
+  summaryKind?: 'unparseableRequest';
+  errorKind?: 'unparseableResponse' | 'error';
   durationMs: number;
   ok: boolean;
   error?: string;

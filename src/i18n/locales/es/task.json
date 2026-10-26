@@ -463,6 +463,7 @@
     "jumpToTask": "Ir a la tarea {{wbs}}",
     "relationPopoverTitle": "Tipo de relación",
     "driving": "Relación determinante (relación determinante)",
+    "drivingUnknown": "Relaciones determinantes desconocidas sin un cálculo.",
     "lag": "Desfase (ej. 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Calcular",
     "assignments": {
@@ -527,6 +528,8 @@
     "type": "Tipo",
     "lag": "Desfase",
     "driving": "Determinante",
+    "drivingUnknown": "Desconocido",
+    "notDriving": "No determinante",
     "freeFloat": "Holgura libre",
     "warnings": "Advertencias",
     "warnTruncatedLead": "Adelanto truncado en el inicio del proyecto — la superposición no se aprovecha por completo",
