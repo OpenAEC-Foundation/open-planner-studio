@@ -348,10 +348,6 @@ en noem het in je rapport of PR-tekst.
     `gh api --method PATCH repos/OpenAEC-Foundation/open-planner-studio/pulls/479 -F body=@<bestand>`.
     Voorstel: de GitHub CLI op de host bijwerken; de repo zelf is niet aangepast hiervoor. — B
 
-208. **`scripts/build-core.mjs` bouwt de licentiegegevens onnodig om.** `scripts/build-core.mjs:138–148` zet
-    de pakketnamen om in een `Map` en de sectietekst in een array met één element; `notices.packages.join(',
-    ')` en `notices.sections` volstaan. Gevonden in review ronde 1 van PR #567 (GPT-6.1-Sol). — B
-
 212. **Real-app-test van de MCP-ontdekking mist echte bestandsroutes.**
     De pids van `runtime` en `open-files` worden inmiddels rechtstreeks vergeleken. Echte openen-,
     Opslaan als- en afsluitroutes ontbreken nog (de storetest zet `filePath` rechtstreeks).
