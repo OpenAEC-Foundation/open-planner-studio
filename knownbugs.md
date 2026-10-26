@@ -647,10 +647,6 @@ en noem het in je rapport of PR-tekst.
     resourcelijst en één kalenderlijst per render, en die hergebruiken. Gevonden in review r1 van #635
     (GPT-6.1-Sol). — B
 
-324. **Een tak in de herstelcontrole van de MCP-proxy is onbereikbaar.** `integrations/claude-desktop/src/proxy.ts:396`:
-    de tak `toolName === null` kan niet meer optreden zodra `mutates` waar is. Voorstel: die deelvoorwaarde weg;
-    de concrete herstelset blijft voldoende. Gevonden in review r1 van #605 (GPT-6.1-Sol). — B
-
 331. **Met de werkmap `/` weigert de MCP-server `~/plan.ifc` als UNC-pad.** `src/services/mcp/tools/fileTools.ts:142–145`:
     bij `home="/"` maakt de tilde-expansie van `~/plan.ifc` eerst `//plan.ifc`, en de nieuwe UNC-controle weigert
     dat. Op `main` werd het `/plan.ifc`; het expliciete pad `/plan.ifc` werkt nog wel. Zeldzaam, geen dataverlies.
