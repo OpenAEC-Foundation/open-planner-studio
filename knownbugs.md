@@ -1092,6 +1092,12 @@ en noem het in je rapport of PR-tekst.
     wijzigt. Dezelfde test slaagt lokaal op die head, en de herhaalde poging liep apart. De oorzaak is niet
     bewezen. Gevonden in fixronde 1 en review r2 van #595 (GPT-6.1-Sol). — S
 
+379. **`tests/browser/float-remaining-display.spec.ts:89` faalt soms in CI.** De tooltip van de balk toonde
+    `1d` waar `0,67d` hoort, in run 40344140298 (job `verify (browser 1-4)`) op PR #658. Het eigenschappenpaneel
+    toonde vlak daarvoor wel `0,67 dagen`; de test zet eerst testwaarden tot 1,004 en rekent dan met F5 opnieuw,
+    dus de tooltip leest mogelijk een waarde van vóór de herberekening. De herhaalde poging slaagde; main was op
+    dat moment groen. Oorzaak niet bewezen. Gevonden bij het mergen van de aanvalfixes na #600. — S
+
 310. **De formaatvergelijking in de headless-servertest ziet een verschuiving binnen een dag niet.**
      `tests/mcp/cases-headless-server.ts:483` (`leafSchedule`) vergelijkt per bladtaak alleen de startdatum
      op dagniveau (`.slice(0, 10)`). Eindmomenten, de maat en exacte minuten vergelijkt de test niet, dus
