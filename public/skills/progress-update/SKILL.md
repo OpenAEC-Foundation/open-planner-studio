@@ -90,9 +90,15 @@ The rules the tool applies (all checked against the code):
 There is no remaining-duration field. The remaining duration follows from the percentage:
 duration × (1 − completion), exact, also for a day task (5 days at 30% leaves 3.5 days). If the user's
 remaining estimate differs, change the duration of the running task with `planner_update_tasks`
-`fields.duration`. The work done stays the same: remaining duration = new duration − work done, and the
-percentage adjusts. The answer reports it under `progressAdjusted` (for example 10 days at 40%, changed
-to 12 days: 8 days left, 33%).
+`fields.duration` together with `fields.durationUnit`. Read the task with `planner_get_task` first and
+send its `durationUnit` back with the new `duration`: without `durationUnit` the number counts in days.
+The work done stays the same: remaining duration = new duration − work done, and the percentage
+adjusts. The answer reports it under `progressAdjusted` (for example 10 days at 40%, changed to 12 days:
+8 days left, 33%).
+An hour task works the same way. A `FIXED_WORK` task of 4 days reads as
+`duration: 32, durationUnit: "hours"`. At 25% complete, 8 hours are done. For 32 hours remaining, send
+`{ "duration": 40, "durationUnit": "hours" }`: 40 hours, 32 hours left, 20%. With `{ "duration": 40 }`
+alone, the 40 counts as days: 320 hours, 312 hours left, 2.5%, and the finish lands seven weeks too late.
 A duration shorter than the work done is refused.
 
 ## 5. Read the effect
@@ -147,7 +153,7 @@ on Friday 11 June: Groundwork ran 7 to 9 June, Pour foundation started on 10 Jun
   actualFinish: "2027-06-09"` and Pour foundation `completion: 50, actualStart: "2027-06-10"`. Project
   end stays 23 June, `projectEndDelta` 0.
 - The user then says the foundation needs three more days. Changing its duration from 2 to 4 days
-  gives `progressAdjusted` with 25% and 3 days remaining. Project end becomes Friday 25 June;
+  (`{ "duration": 4, "durationUnit": "days" }`) gives `progressAdjusted` with 25% and 3 days remaining. Project end becomes Friday 25 June;
   `planner_analyze_delay` reports `projectEndDelta` 2, with Pour foundation, Brickwork and Roofing as
   critical shifters, each 2 days late. The delay is 2 working days, not 6.
 - The trap: had you sent only `completion: 100` for Groundwork and `completion: 50` for Pour
