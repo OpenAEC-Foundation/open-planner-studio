@@ -228,7 +228,7 @@ if (isMultiDocumentImport(opened)) {
         costPerHour: 80, availabilitySteps: [{ from: '2026-02-01', maxUnits: 0.75 }],
       },
     ]);
-  eq('X6-c TASKRSRC vult toewijzingen, resourceIds en materiaaluren op resourcekalender', {
+  eq('X6-c TASKRSRC vult toewijzingen, resourceIds en het materiaaltempo met de dag van de taak', {
     assignments: opened.assignments.map(assignment => ({
       taskId: assignment.taskId,
       resourceId: assignment.resourceId,
@@ -241,7 +241,10 @@ if (isMultiDocumentImport(opened)) {
       // C-BELL matcht de contour-engine-tabel EXACT ⇒ `matchCurveValues` beslist, `curv_name`
       // ('Klok') is geen P6-naam en wordt niet geraadpleegd.
       { taskId: 'T1', resourceId: 'xer-resource:42', unitsPerDay: 0.5, curve: 'BELL' },
-      { taskId: 'T2', resourceId: 'xer-resource:MAT', unitsPerDay: 30 },
+      // Sinds F5b is T2 een urentaak (alleen uren §3.10, T15): het tempo per uur telt met de dag van de
+      // taak zelf (8 u), niet met de resourcekalender (10 u). 3 kg/u × 8 u = 24 kg per dag, en over de
+      // ene dag van de taak 24 kg = `target_qty` (vroeger 30 kg).
+      { taskId: 'T2', resourceId: 'xer-resource:MAT', unitsPerDay: 24 },
       { taskId: 'T3', resourceId: 'xer-role:42', unitsPerDay: 0.25 },
       // C-RAMP matcht GEEN tabel exact ⇒ `matchCurveValues` geeft undefined, de OPS-curve komt
       // uitsluitend uit de `P6_NAME_TO_CURVE['Front Loaded']`-terugval.

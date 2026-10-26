@@ -270,8 +270,8 @@ export interface ReadMeasure {
  *    duurrecord met de eenheid `ed` geeft ook de kalendertijd.
  * `minutesPerDay`: de minuten per dag die de lezer nu rekent (de huidige kalender en het huidige duurtype).
  * De minuten mogen een breuk zijn: de urenmaat rondt ze af op de hele minuut, de leesregel ook.
- * `durationDays`/`remainingDays`: de dagen van het standaardveld zonder geldig record, als de lezer die zelf
- * uitrekent (MSPDI `P5D`, P6 uren ÷ uren per dag); anders minuten ÷ minuten per dag.
+ * `durationDays`/`remainingDays`: de dagen van het standaardveld zonder geldig record, als het formaat ze zelf
+ * draagt (MSPDI `P5D`); anders minuten ÷ minuten per dag (ook P6 XML, knownbug 293).
  */
 export function readMeasure(input: {
   unit: 'days' | 'hours';
