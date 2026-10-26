@@ -29,8 +29,9 @@ Bevat het bestand taken met onderbrekingen, nivellering of een resource-gedreven
 - hyperlinks;
 - de vaste kosten van taken;
 - de tarieven van resources: uit een `.mpp` geen enkel tarief, uit MS Project XML alleen het standaardtarief;
-- alleen bij MS Project XML: handmatig geplande taken (de app plant ze automatisch), inactieve taken (ze tellen mee in de berekening) en de nivelleringsvertraging;
-- alleen bij een `.mpp`: de drempel voor kritiek uit MS Project; de app rekent met drempel 0.
+- alleen bij MS Project XML: handmatig geplande taken (de app plant ze automatisch), inactieve taken (ze tellen mee in de berekening) en de nivelleringsvertraging.
+
+De drempel voor kritiek uit MS Project wordt als projectinstelling overgenomen, zowel uit `.mpp` als XML. Hij blijft gelden na herberekenen en opslaan als IFC.
 
 Een WBS-code die je zelf in MS Project invulde, neemt de app wel over; anders nummert ze de taken volgens de structuur.
 
