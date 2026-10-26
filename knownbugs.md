@@ -946,7 +946,11 @@ en noem het in je rapport of PR-tekst.
      (07:00, 16:00), en dat is tijdsignaal (c) van de importdiscriminator (`subdayIo.ts:14-22`). De taken blijven
      dagenmaat en het bladschema blijft gelijk; alleen de vorm van de kalender verandert. De check leest sinds
      PR #600 het oude bestand uit `tests/planning/fixtures/minute-model-examples-f0/` en ziet dit dus niet. Of dit
-     een fout is, is niet beoordeeld. Zie ook 275. Gevonden bij het opnieuw genereren van de voorbeelden. — B
+     een fout is, is niet beoordeeld. Gevonden bij het opnieuw genereren van de voorbeelden. Na F5b (#591) is
+     de uitkomst gelijk, maar de oorzaak anders: de export noemt de projectkalender zelf in
+     `OPS_LiteralCalendars` (MSPDI Text24 `[1]`), en de lezer maakt een kalender uit die lijst een urenkalender.
+     Het tijdsignaal telt in zo'n export niet meer; de vroegere 275 is in #591 opgelost. Gemeten met een probe
+     bij het bijwerken van #591 met main. — B
 
 336. **Het bronbestand van een externe koppeling wordt zonder laadgrens gelezen.** `parseExternalSource`
      (`fileSlice.ts:1385`) leest het bestand met de kale `readIFC`; het anker is dan een datum zonder tijd, en de
@@ -979,16 +983,6 @@ en noem het in je rapport of PR-tekst.
      verlies aangetoond (het omzet-event kan opnieuw met undo terug). Voorstel: bij expliciet herstel van de modus
      de IFC-vastlegging toelaten zonder verplicht bronformaat; actief en slapend herstel toetsen. Gevonden in de
      aanval na #600 (GPT-6.1-Sol). — B
-
-351. **De MPP-lezer rondt een werk-lag naar een dagopvolger en een lag in verstreken dagen af op hele dagen.**
-     `src/services/mpp/mppEntities.ts:114` rekent een werk-lag naar een dagopvolger om met
-     `tenthsOfMinutesToDays` (`Math.round`); `:109` rondt een lag in verstreken dagen af met `Math.round`.
-     Gemeten met de echte `readRelations` op kleine TBkndCons-records: +1800 tienden van een minuut (3 u) naar een
-     dagopvolger wordt `lagDays: 0`, en −1800 ook: de lead verdwijnt. Naar een uuropvolger blijft het +180 en
-     −180 minuten. Een lag in verstreken dagen van 21600 tienden (36 u) wordt 2 kalenderdagen (48 u), ook naar een
-     uuropvolger. Al op `fbd4a3f9d`; hoort bij F5b. Voorstel: de minutenroute (`lagMinutes`) voor elke lag die
-     geen procent is, met de elapsed-vlag erbij; de twee dagafrondingen en de keuze op de modus van de opvolger
-     kunnen dan weg. Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
 
 352. **CSV gooit de kloktijd van een werkelijke datum weg, ook als de app hem zelf schreef.**
      `src/services/importDates.ts:75` (`csvDate`) knipt een ISO-waarde af op de datum (`substring(0, 10)`);

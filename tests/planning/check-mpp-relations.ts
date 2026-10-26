@@ -777,6 +777,38 @@ for (const [uniqueIdOffset, size] of [[0, 2], [18, 20]]) {
   }
 }
 
+// ── (e3) Knownbug 351 (opgelost door F5b): geen afronding op hele dagen ──────────────────────────
+// Vóór F5b rekende de lezer een werk-lag naar een dagopvolger om met `tenthsOfMinutesToDays` (Math.round):
+// +1800 tienden (3 u) en −1800 werden `lagDays: 0`, de lead verdween. Een lag in verstreken dagen van 21600
+// tienden (36 u) werd 2 kalenderdagen. Sinds F5b is een werk-lag altijd `lagMinutes` (T15), ongeacht de
+// eenheid of de opvolger, en een lag in verstreken dagen exact (`rawLag / 14400`). De getallen komen uit de
+// ingang (aanval na #600, GPT-6.1-Sol).
+{
+  const taskIdByUniqueId = new Map<number, string>([[10, 'task-A'], [11, 'task-B'], [12, 'task-C'], [13, 'task-D']]);
+  const fixedMeta = buildConsFixedMetaBlob([0, 20, 40]);
+  const fixedData = concatBytes(
+    buildConsFixedDataRecord({ uniqueId: 1, predecessorTaskUid: 10, successorTaskUid: 11, relationType: 1, durationUnits: 7, duration: 1800 }),
+    buildConsFixedDataRecord({ uniqueId: 2, predecessorTaskUid: 11, successorTaskUid: 12, relationType: 1, durationUnits: 5, duration: -1800 }),
+    buildConsFixedDataRecord({ uniqueId: 3, predecessorTaskUid: 12, successorTaskUid: 13, relationType: 1, durationUnits: 8, duration: 21600 }),
+  );
+  const cfb = new CfbFile(buildNestedCfb({
+    '   114': { children: { TBkndCons: { children: { FixedMeta: { data: fixedMeta }, FixedData: { data: fixedData } } } } },
+  }));
+  const sequences = readRelations(cfb, null, taskIdByUniqueId);
+  const bySucc = (id: string) => sequences.find((s) => s.successorId === id);
+  const lag = (s: Sequence | undefined) => s && [s.lagDays, s.lagMinutes ?? null, s.lagUnit ?? null];
+  truthy('351: 3 relaties gelezen', sequences.length === 3);
+  const plus = lag(bySucc('task-B'));
+  truthy(`351 werk-lag +1800 tienden (eenheid dagen): lagMinutes 180, geen dagen (kreeg ${JSON.stringify(plus)})`,
+    JSON.stringify(plus) === JSON.stringify([0, 180, null]));
+  const lead = lag(bySucc('task-C'));
+  truthy(`351 werk-lead −1800 tienden (eenheid uren): lagMinutes −180, de lead blijft (kreeg ${JSON.stringify(lead)})`,
+    JSON.stringify(lead) === JSON.stringify([0, -180, null]));
+  const elapsed = lag(bySucc('task-D'));
+  truthy(`351 lag 21600 tienden in verstreken dagen: 1,5 kalenderdag, niet 2 (kreeg ${JSON.stringify(elapsed)})`,
+    JSON.stringify(elapsed) === JSON.stringify([1.5, null, 'ELAPSEDTIME']));
+}
+
 // ── readAssignments/readResources: lege/ontbrekende storage ⇒ lege array, gooit niet (spiegelt
 // readRelations se lege-stream-terugval hierboven). ──────────────────────────────────────────────
 {
