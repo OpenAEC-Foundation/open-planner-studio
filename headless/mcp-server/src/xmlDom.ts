@@ -154,23 +154,31 @@ function validateNamespaces(name: string, attrs: Map<string, string>, parent: Na
   return scope;
 }
 
-const PREDEFINED: Record<string, string> = { lt: '<', gt: '>', amp: '&', quot: '"', apos: "'" };
+const PREDEFINED = new Map([['lt', '<'], ['gt', '>'], ['amp', '&'], ['quot', '"'], ['apos', "'"]]);
+
+// XML 1.0 §2.2: dezelfde grens geldt letterlijk en in numerieke tekenverwijzingen.
+// https://www.w3.org/TR/xml/#charsets
+function validXmlChar(code: number): boolean {
+  return code === 0x9 || code === 0xa || code === 0xd
+    || (code >= 0x20 && code <= 0xd7ff) || (code >= 0xe000 && code <= 0xfffd)
+    || (code >= 0x10000 && code <= 0x10ffff);
+}
 
 function decodeEntities(raw: string, at: number): string {
   if (!raw.includes('&')) return raw;
   return raw.replace(/&([^;&\s]*);?/g, (match, ref: string) => {
     if (!match.endsWith(';')) throw new XmlSyntaxError(`unterminated entity reference near offset ${at}`);
-    if (ref.startsWith('#x') || ref.startsWith('#X')) {
+    if (ref.startsWith('#x')) {
       const code = Number.parseInt(ref.slice(2), 16);
-      if (!/^[0-9a-fA-F]+$/.test(ref.slice(2)) || code > 0x10ffff) throw new XmlSyntaxError(`invalid character reference &${ref};`);
+      if (!/^[0-9a-fA-F]+$/.test(ref.slice(2)) || !validXmlChar(code)) throw new XmlSyntaxError(`invalid character reference &${ref};`);
       return String.fromCodePoint(code);
     }
     if (ref.startsWith('#')) {
       const code = Number.parseInt(ref.slice(1), 10);
-      if (!/^\d+$/.test(ref.slice(1)) || code > 0x10ffff) throw new XmlSyntaxError(`invalid character reference &${ref};`);
+      if (!/^\d+$/.test(ref.slice(1)) || !validXmlChar(code)) throw new XmlSyntaxError(`invalid character reference &${ref};`);
       return String.fromCodePoint(code);
     }
-    const value = PREDEFINED[ref];
+    const value = PREDEFINED.get(ref);
     if (value === undefined) throw new XmlSyntaxError(`undefined entity &${ref};`);
     return value;
   });
@@ -179,7 +187,11 @@ function decodeEntities(raw: string, at: number): string {
 /** Parse XML-tekst. Gooit `XmlSyntaxError` bij een fout; `DOMParser` hieronder maakt daar een
  *  `parsererror`-document van. */
 export function parseXml(input: string): XmlDocument {
-  const src = input.charCodeAt(0) === 0xfeff ? input.slice(1) : input;
+  // XML 1.0 §2.11: normaliseer fysieke regeleinden vóór het decoderen van entiteiten.
+  const src = (input.charCodeAt(0) === 0xfeff ? input.slice(1) : input).replace(/\r\n?/g, '\n');
+  for (const char of src) {
+    if (!validXmlChar(char.codePointAt(0)!)) throw new XmlSyntaxError('invalid XML character');
+  }
   const n = src.length;
   let i = 0;
   let root: XmlElement | null = null;
@@ -205,6 +217,7 @@ export function parseXml(input: string): XmlDocument {
       const end = src.indexOf('<', i);
       const stop = end < 0 ? n : end;
       const raw = src.slice(i, stop);
+      if (raw.includes(']]>')) throw new XmlSyntaxError(`CDATA terminator outside CDATA at offset ${i}`);
       if (stack.length === 0) {
         if (raw.trim() !== '') throw new XmlSyntaxError(`text outside the root element at offset ${i}`);
       } else {
@@ -280,7 +293,7 @@ export function parseXml(input: string): XmlDocument {
       const raw = src.slice(i + 1, end);
       if (raw.includes('<')) throw new XmlSyntaxError(`'<' in attribute value at offset ${i}`);
       if (el.hasAttribute(attr)) throw new XmlSyntaxError(`duplicate attribute ${attr}`);
-      const value = decodeEntities(raw, i);
+      const value = decodeEntities(raw.replace(/[\t\n]/g, ' '), i);
       el.setAttribute(attr, value);
       attrs.set(attr, value);
       i = end + 1;

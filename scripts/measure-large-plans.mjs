@@ -162,7 +162,7 @@ const INIT_SCRIPT = `(() => {
     }
     return tx;
   };
-  // Gantt-tekeningen: \`__OPS__.gantt.paintCount\` telt alleen in een dev-build. Hier herkent een
+  // Gantt-tekeningen: de brug telt paints, maar meet geen duur. Daarom herkent hier een
   // passieve wrapper om fillRect de achtergrondvulling (0,0) waarmee GanttRenderer.render() begint op
   // het primaire Gantt-canvas. Begin = die vulling; einde = de microtaak direct na de synchrone
   // tekenaanroep (dus inclusief wat dezelfde taak er nog synchroon achteraan doet).

@@ -35,15 +35,30 @@ import { buildMcpContext, createBridgeController, type BridgeDeps } from '@/serv
 
 interface MemFile { text: string; mode: number }
 
-function memFs(opts: { failRename?: number } = {}) {
+interface FsFaults { failRename?: number; failWrite?: number; failClose?: number; failRemove?: boolean }
+
+function memFs(opts: FsFaults = {}) {
   const files = new Map<string, MemFile>();
   const ops: string[] = [];
   let renameFailures = opts.failRename ?? 0;
+  let writeFailures = opts.failWrite ?? 0;
+  let closeFailures = opts.failClose ?? 0;
   const fs: DiscoveryDirFs = {
-    async writeNew(name, text, mode) {
+    async createNew(name, mode) {
       if (files.has(name)) throw new Error(`EEXIST ${name}`);
-      ops.push(`write ${name}`);
-      files.set(name, { text, mode });
+      ops.push(`create ${name}`);
+      files.set(name, { text: '', mode });
+      return {
+        async write(text) {
+          ops.push(`write ${name}`);
+          files.set(name, { text, mode }); // ook volledig geschreven bytes kunnen gevolgd worden door een fout
+          if (writeFailures > 0) { writeFailures--; throw new Error('ENOSPC'); }
+        },
+        async close() {
+          ops.push(`close ${name}`);
+          if (closeFailures > 0) { closeFailures--; throw new Error('EIO close'); }
+        },
+      };
     },
     async rename(from, to) {
       if (renameFailures > 0) { renameFailures -= 1; throw new Error('EBUSY'); }
@@ -54,6 +69,7 @@ function memFs(opts: { failRename?: number } = {}) {
       files.set(to, f);
     },
     async remove(name) {
+      if (opts.failRemove) throw new Error('EACCES remove');
       if (files.delete(name)) ops.push(`remove ${name}`);
     },
     async list() { return [...files.keys()]; },
@@ -61,7 +77,7 @@ function memFs(opts: { failRename?: number } = {}) {
   return { fs, files, ops };
 }
 
-function makeWriter(over: Partial<DiscoveryWriterDeps> = {}, fsOpts?: { failRename?: number }) {
+function makeWriter(over: Partial<DiscoveryWriterDeps> = {}, fsOpts?: FsFaults) {
   const mem = memFs(fsOpts);
   const logs: string[] = [];
   let n = 0;
@@ -179,7 +195,7 @@ test('alleen FileRef van de soort path telt: site, browserhandle en naamloos nie
 test('bridgeStarted schrijft runtime.json atomair (nieuw halffabricaat, 0600, dan rename)', async () => {
   const { writer, files, ops } = makeWriter();
   await writer.bridgeStarted(3877, 'tok');
-  assertEq(ops, ['write runtime.json.t1.tmp', 'rename runtime.json.t1.tmp -> runtime.json'], 'volgorde');
+  assertEq(ops, ['create runtime.json.t1.tmp', 'write runtime.json.t1.tmp', 'close runtime.json.t1.tmp', 'rename runtime.json.t1.tmp -> runtime.json'], 'volgorde');
   assertEq([...files.keys()], ['runtime.json'], 'geen halffabricaat over');
   assertEq(files.get('runtime.json')!.mode, MCP_DISCOVERY_FILE_MODE, 'rechten 0600');
   assertEq(readJson(files, 'runtime.json'), {
@@ -224,6 +240,42 @@ test('een mislukte schrijfactie laat geen halffabricaat achter en wordt bij deze
   assert(logs.some((l) => l.includes('mislukt')), 'fout gelogd');
   await writer.setOpenFiles(['/a.ifc']);
   assertEq(readJson(files, 'open-files.json').files, ['/a.ifc'], 'tweede poging schrijft');
+});
+
+test('schrijf- en sluitfout ruimen het eigen token-halffabricaat op en behouden de vorige versie (209)', async () => {
+  for (const faults of [{ failWrite: 1 }, { failClose: 1 }]) {
+    const { writer, files, ops, logs } = makeWriter({}, faults);
+    files.set('runtime.json', { text: 'vorige versie', mode: 0o600 });
+    await writer.bridgeStarted(3877, 'synthetic-secret');
+    assertEq([...files.keys()], ['runtime.json'], 'geen token-halffabricaat na fout');
+    assertEq(files.get('runtime.json')!.text, 'vorige versie', 'vorige definitieve versie intact');
+    assert(ops.indexOf('close runtime.json.t1.tmp') < ops.indexOf('remove runtime.json.t1.tmp'), 'sluiten vóór opruimen');
+    assert(!ops.some(o => o.startsWith('rename')), 'mislukte inhoud nooit gepubliceerd');
+    assert(logs.some(l => l.includes('mislukt')), 'fout gemeld');
+    await writer.bridgeStarted(3877, 'retry');
+    assertEq(readJson(files, 'runtime.json').token, 'retry', 'wachtrij herstelt na fout');
+  }
+  const { writer, files } = makeWriter({}, { failWrite: 1 });
+  await writer.setOpenFiles(['/a.ifc']);
+  assertEq(files.size, 0, 'ook gedeeltelijk register opgeruimd');
+  await writer.setOpenFiles(['/a.ifc']);
+  assertEq(readJson(files, 'open-files.json').files, ['/a.ifc'], 'dezelfde lijst na schrijffout opnieuw geprobeerd');
+});
+
+test('mislukte exclusieve aanmaak verwijdert nooit een bestaand halffabricaat (209)', async () => {
+  const { writer, files, ops } = makeWriter({ tmpId: () => 'collision' });
+  files.set('runtime.json.collision.tmp', { text: 'niet van ons', mode: 0o600 });
+  await writer.bridgeStarted(3877, 'synthetic-secret');
+  assertEq(files.get('runtime.json.collision.tmp')!.text, 'niet van ons', 'geen eigendom na EEXIST');
+  assertEq(ops, [], 'niet geschreven, gesloten, hernoemd of verwijderd');
+});
+
+test('ook mislukte cleanup wordt gemeld, zonder token in de melding (209)', async () => {
+  const { writer, files, logs } = makeWriter({}, { failWrite: 1, failRemove: true });
+  await writer.bridgeStarted(3877, 'synthetic-secret');
+  assert(files.has('runtime.json.t1.tmp'), 'geweigerde cleanup kan bestand laten liggen');
+  assert(logs.some(l => l.includes('halffabricaat opruimen mislukt')), 'cleanupfout expliciet gemeld');
+  assert(!logs.join(' ').includes('synthetic-secret'), 'geen token in onze logteksten');
 });
 
 test('Windows-achtige rename-fout: één herhaling volstaat', async () => {
