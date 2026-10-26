@@ -1,5 +1,5 @@
 import { normalizeTaskDates } from '../migrations/minuteModel';
-import { minuteModelTransition, minuteModelNotice, recordMinuteModelTransition } from '../minuteModelTransition';
+import { minuteModelTransition, minuteModelNotice, recordMinuteModelTransition, type MinuteModelTransition } from '../minuteModelTransition';
 import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
 import { claimTaskTypesNotice, notifyTaskTypesUnlocked, notifyTaskTypesUnlockedClaimed, TASK_TYPES_DETAIL_LINE } from '../taskTypesNotice';
 import { taskTypesNeedNotice } from '../taskTypesVisibility';
@@ -417,6 +417,10 @@ export interface AppliedOpenedImport {
   documentIds: string[];
   activeDocumentId: string;
   reusedActiveTab: boolean;
+  /** B5: per geopend oud document waarvan het openen taken verschoof, dezelfde telling en grootste
+   *  verschuiving als de melding `notifications.minuteModelConverted`. Voor aanroepers die het
+   *  meldingenkanaal niet zien (MCP, de headless kern); leeg als niets verschoof. */
+  minuteModelConversions: (Pick<MinuteModelTransition, 'shifted' | 'maxWorkdays'> & { documentId: string })[];
 }
 
 export interface FileSlice {
@@ -458,8 +462,10 @@ export interface FileSlice {
   /** Eén gedeelde load-implementatie: vul de ACTIEVE document-state met een geparsed
    *  project en voer de opt-afhankelijke nastappen uit (runCPM/fit/uur-melding/extensie-event).
    *  Neemt géén besluit over een nieuw tabblad — dat blijft bij de aanroeper vóór de load.
-   *  `loadState`, `applyProjectEdit` en de drie open-paden lopen hier allemaal doorheen. */
-  applyLoadedProject: (parsed: ImportResult, opts: ApplyLoadedProjectOpts) => void;
+   *  `loadState`, `applyProjectEdit` en de drie open-paden lopen hier allemaal doorheen.
+   *  Geeft de B5-overgang van het geladen document terug (`null` zonder overgang); de melding gaat
+   *  daarnaast zoals altijd via het meldingenkanaal. */
+  applyLoadedProject: (parsed: ImportResult, opts: ApplyLoadedProjectOpts) => MinuteModelTransition | null;
   /** Pas IFC-editorinhoud toe als bewerking van het actieve document, met één undo-stap. */
   applyProjectEdit: (parsed: ImportResult, opts?: { viewStartDate?: string }) => void;
   /**
@@ -999,6 +1005,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         sequences: parsed.sequences.length,
         resources: parsed.resources.length,
       });
+      return conversion;
     },
 
     applyOpenedImport: (parsed, opts) => {
@@ -1007,6 +1014,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
       const reusedActiveTab = isActivePristine(get());
       const openedDocumentIds: string[] = [];
+      const minuteModelConversions: AppliedOpenedImport['minuteModelConversions'] = [];
       // Som over alle zojuist geopende documenten in de modus van `recordedDates.total` (het aantal
       // taken dat de opgeslagen datums TOONT) — per document eigen vlag/eigen vastlegging (elk
       // document leest zijn eigen `recordedTimes` uit zijn eigen `ImportResult`), maar de MELDING
@@ -1027,7 +1035,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         openedDocumentIds.push(get().activeDocumentId);
         // `applyLoadedProject` draait de open-/bibliotheekgrens zelf (materializeLibraryBoundary),
         // dus elk document krijgt hem — geen aparte runOpenBoundary-aanroep meer nodig.
-        get().applyLoadedProject(result, { ...opts, deferTaskTypesNotice: true });
+        const conversion = get().applyLoadedProject(result, { ...opts, deferTaskTypesNotice: true });
+        // Dezelfde voorwaarde als `minuteModelNotice`: alleen een daadwerkelijke verschuiving telt.
+        if (conversion && conversion.shifted.length > 0) {
+          minuteModelConversions.push({ documentId: get().activeDocumentId,
+            shifted: [...conversion.shifted], maxWorkdays: conversion.maxWorkdays });
+        }
         // Taaktypes: ontsloten door de bestandsdata terwijl de instelling uit staat ⇒ één keer
         // per document geclaimd, maar gemeld in de ene bestandsmelding hieronder.
         // Alleen melden bij opgeslagen werk, een projectstandaard of
@@ -1099,6 +1112,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         documentIds: openedDocumentIds,
         activeDocumentId: get().activeDocumentId,
         reusedActiveTab,
+        minuteModelConversions,
       };
     },
 
