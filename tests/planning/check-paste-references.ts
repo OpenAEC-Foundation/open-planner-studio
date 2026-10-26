@@ -13,6 +13,7 @@ import { produce } from 'immer';
 import type { Task } from '@/types/task';
 import { normalizeInsertedBranch, assignInsertedWbsCodes, insertRemappedRelations } from '@/state/insertedBranch';
 import { applyWbsNumbering, deriveWbsCodes } from '@/utils/wbs';
+import { createDefaultTaskTime } from '@/utils/taskDefaults';
 
 const S = () => useAppStore.getState();
 const diffs: string[] = [];
@@ -98,7 +99,13 @@ eq('B: plakken blijft één undo-stap', S().historyEvents.filter(e => e.state ==
 // De lookup moet dezelfde EERSTE taak vinden als Array.find, ook bij corrupte invoer.
 // De ids komen uit een iterator: een volgende taak kan intussen in dezelfde producer veranderen.
 for (const auto of [false, true]) {
-  const seed = S().tasks[0];
+  // Deze lookup-proef varieert alleen kalenderverwijzingen; neem geen activiteitscodes uit
+  // een eerdere storetest mee. De echte plakroutes hierboven toetsen alle verwijzingssoorten.
+  const seed: Task = {
+    id: 'seed', name: 'Basis', description: '', wbsCode: '', taskType: 'CONSTRUCTION',
+    status: 'NOT_STARTED', isMilestone: false, priority: 500, parentId: null, childIds: [],
+    resourceIds: [], time: createDefaultTaskTime('2026-03-02', 2, 'days'),
+  };
   const base = {
     tasks: [
       { ...seed, id: 'eerste', name: 'Eerste', parentId: null, childIds: [], calendarId: 'wees', wbsCode: 'eigen' },
@@ -172,6 +179,13 @@ for (const size of [1000, 2000]) {
   const skipped = insertRemappedRelations({ tasks, sequences: [] }, relations, new Map(ids.map(id => [id, id])));
   eq(`${size}/100 relaties: geen weigeringen`, skipped, []);
   eq(`${size}/100 relaties: hooguit één id-lezing per documenttaak`, reads <= size, true);
+  reads = 0;
+  deriveWbsCodes(tasks);
+  const derivationReads = reads;
+  reads = 0;
+  assignInsertedWbsCodes({ tasks, project: { wbsAutoNumber: false } }, ids);
+  eq(`${size}/100 handmatige WBS: afleiding plus één id-lezing per documenttaak`,
+    reads <= derivationReads + size, true);
 }
 
 if (diffs.length === 0) {

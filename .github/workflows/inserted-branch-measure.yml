@@ -33,16 +33,46 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Voor en na op dezelfde runner, volledige toestandshashes
-        run: timeout 330s node tests/planning/measure-inserted-branch.mjs qa/inserted-branch.json
+      - name: Oude productbron faalt uitsluitend op de zes leesbudgetten
+        run: |
+          mkdir -p qa
+          trap 'git restore --source=HEAD -- src/state/insertedBranch.ts' EXIT
+          git show fbd4a3f9dcc7bdd308ab86b992d0b26f4670a553:src/state/insertedBranch.ts > src/state/insertedBranch.ts
+          set +e
+          bash tests/planning/run.sh check-paste-references.ts > qa/inserted-branch-before.log 2>&1
+          result=$?
+          set -e
+          cat qa/inserted-branch-before.log
+          echo "Oude productbron: exit $result"
+          test "$result" -eq 1
+          python3 - <<'PY'
+          from pathlib import Path
+          lines = Path('qa/inserted-branch-before.log').read_text().splitlines()
+          failures = [line.strip() for line in lines if line.startswith('   - ')]
+          expected = [
+              f'- {size}/100 {label}: verwacht true, kreeg false'
+              for size in (1000, 2000)
+              for label in (
+                  'normaliseren: hooguit één id-lezing per documenttaak',
+                  'relaties: hooguit één id-lezing per documenttaak',
+                  'handmatige WBS: afleiding plus één id-lezing per documenttaak',
+              )
+          ]
+          assert failures == expected, failures
+          print('Bevestigd: precies zes leesbudgetten rood; geen fixture- of pariteitsfout.')
+          PY
       - name: Gerichte bestaande regressies met leesbudget
         run: |
           bash tests/planning/run.sh check-paste-references.ts
           bash tests/planning/run.sh check-relation-rules.ts
+      - name: Voor en na op dezelfde runner, volledige toestandshashes
+        run: timeout 330s node tests/planning/measure-inserted-branch.mjs qa/inserted-branch.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: inserted-branch-${{ github.event.pull_request.head.sha }}
-          path: qa/inserted-branch.json
+          path: |
+            qa/inserted-branch.json
+            qa/inserted-branch-before.log
           if-no-files-found: warn
           retention-days: 14

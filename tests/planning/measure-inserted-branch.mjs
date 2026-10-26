@@ -14,13 +14,20 @@ const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: '
 const path = 'src/state/insertedBranch.ts';
 const oldSource = execFileSync('git', ['show', `${baseline}:${path}`], { cwd: root, encoding: 'utf8' });
 const newSource = readFileSync(join(root, path), 'utf8');
+const changedProductFiles = execFileSync('git', ['diff', '--name-only', baseline, head, '--', 'src', 'package.json', 'package-lock.json'],
+  { cwd: root, encoding: 'utf8' }).trim().split('\n').filter(Boolean);
+deepStrictEqual(changedProductFiles.filter(file => file !== path), [], 'alleen insertedBranch.ts mag productcode verschillen');
 const sha = data => createHash('sha256').update(data).digest('hex');
 const out = resolve(process.argv[2] ?? 'qa/inserted-branch.json');
 const temp = mkdtempSync(join(tmpdir(), 'ops-inserted-branch-'));
-const result = { baseline, head, changedProductFile: path,
+const result = { baseline, head, changedProductFiles,
   beforeSourceSha256: sha(oldSource), afterSourceSha256: sha(newSource),
+  harnessSha256: Object.fromEntries([
+    'tests/planning/insertedBranchMeasure.ts', 'tests/planning/measure-inserted-branch.mjs',
+    '.github/workflows/inserted-branch-measure.yml',
+  ].map(file => [file, sha(readFileSync(join(root, file)))])),
   node: process.version, cpu: cpus()[0].model, timezone: process.env.TZ,
-  warmups: 1, samples: 3, maxSampleMs: 10000, parity: [], rows: [], skipped: [] };
+  warmups: 1, samples: 3, maxSampleMs: 10000, complete: false, parity: [], rows: [], skipped: [] };
 const NativeDate = Date;
 const fixedTime = NativeDate.parse('2026-10-26T10:00:00Z');
 // Tijd en toeval zijn gelijk; de twee geïsoleerde bundels hebben hun eigen id-/meldingentellers.
@@ -73,28 +80,29 @@ try {
       result.parity.push({ route, auto, ...sample });
     }
   }
-  // Eerst 100, pas daarna 500/1000. Een traag klein geval slaat grotere gevallen expliciet over.
+  // Eerst beide documentgroottes van de echte plakroute. Grotere takken dan 100 zijn bewust
+  // buiten deze meting: de oude route kan daarvoor de hele CI-tijdbegroting opsouperen.
   const started = performance.now();
-  for (const size of [5000, 10000]) {
-    for (const route of ['paste', 'cross-document', 'template']) {
-      let priorMs = 0;
-      for (const count of [100, 500, 1000]) {
-        if (priorMs > 2500 || performance.now() - started > 240000) {
-          result.skipped.push({ size, route, count, reason: 'vooraf afgesproken tijdlimiet' });
-          continue;
-        }
-        const samples = [];
-        for (let i = 0; i < 4; i++) {
-          const sample = pair(size, count, route, false, false, false, i % 2 === 1);
-          priorMs = Math.max(sample.beforeMs, sample.afterMs);
-          if (i > 0) samples.push(sample);
-          if (priorMs > result.maxSampleMs) break;
-        }
-        result.rows.push({ size, route, count, auto: false, samples });
-        console.log(JSON.stringify(result.rows.at(-1)));
+  for (const route of ['paste', 'cross-document', 'template']) {
+    for (const size of [5000, 10000]) {
+      const count = 100;
+      if (performance.now() - started > 240000) {
+        result.skipped.push({ size, route, count, reason: 'vooraf afgesproken tijdlimiet' });
+        continue;
       }
+      const samples = [];
+      let warmup;
+      for (let i = 0; i < 4; i++) {
+        const sample = pair(size, count, route, false, false, false, i % 2 === 1);
+        if (i > 0) samples.push(sample);
+        else warmup = sample;
+        if (Math.max(sample.beforeMs, sample.afterMs) > result.maxSampleMs) break;
+      }
+      result.rows.push({ size, route, count, auto: false, warmup, samples });
+      console.log(JSON.stringify(result.rows.at(-1)));
     }
   }
+  result.complete = true;
 } finally {
   globalThis.Date = NativeDate;
   Math.random = nativeRandom;

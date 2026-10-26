@@ -48,6 +48,11 @@ export function createFixture(size: number, count: number, route: InsertRoute, a
     tasks.push({ ...a, name: 'Tweede dubbele id', calendarId: 'andere-wees' });
     tasks.push({ ...b, id: '', name: 'Lege id', parentId: 'onbekend', childIds: [] });
   }
+  // Ook het bestaande project heeft een netwerk: de ongewijzigde duplicaatcheck blijft dit lezen.
+  for (let i = 0; i < size - count - 1; i++) sequences.push({
+    id: `bestaand-${i}`, predecessorId: tasks[i].id, successorId: tasks[i + 1].id,
+    type: 'FINISH_START', lagDays: 0,
+  });
   store.setState(s => {
     s.project.startDate = '2026-03-02'; s.project.wbsAutoNumber = auto;
     s.tasks = tasks; s.sequences = sequences;
@@ -77,7 +82,11 @@ export function createFixture(size: number, count: number, route: InsertRoute, a
     S().newDocument();
     store.setState(s => {
       s.project.startDate = '2026-03-02'; s.project.wbsAutoNumber = auto;
-      s.tasks = makeTasks('doel-'); s.sequences = [];
+      s.tasks = makeTasks('doel-');
+      s.sequences = sequences.filter(seq => seq.id.startsWith('bestaand-')).map(seq => ({
+        ...seq, predecessorId: seq.predecessorId.replace('bron-', 'doel-'),
+        successorId: seq.successorId.replace('bron-', 'doel-'),
+      }));
       s.resources = [{ id: 'r', name: 'Bekend', type: 'LABOR', description: '', maxUnits: 1 }];
     });
   }
