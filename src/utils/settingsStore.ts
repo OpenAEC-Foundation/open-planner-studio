@@ -515,13 +515,10 @@ export async function saveUIFontScale(value: number): Promise<void> {
   await setSetting('uiFontScale', value);
 }
 
-// --- Urenplanning-instellingen. App-instellingen, dus onder de 3-plekken-regel
+// --- Duurinstellingen. App-instellingen, dus onder de 3-plekken-regel
 //     (tandwiel/ribbontab/backstage delen SettingsPanelContent). Ontbrekende/corrupte sleutel ⇒
-//     undefined → de store houdt zijn default (hoofdschakelaar uit, gemengd aan, duurweergave
+//     undefined → de store houdt zijn default (gemengd aan, duurweergave
 //     automatisch, balk-opsplitsing bij selectie), zonder reset van andere voorkeuren.
-export async function saveEnableHourPlanning(value: boolean): Promise<void> {
-  await setSetting('enableHourPlanning', value);
-}
 
 /** "Toon taaktypes" — werkregel en resterend werk zichtbaar in de UI. */
 export async function saveShowTaskTypes(value: boolean): Promise<void> {

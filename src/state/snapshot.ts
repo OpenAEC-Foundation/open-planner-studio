@@ -43,7 +43,7 @@ export type Snapshot = Pick<
   DocumentPayload,
   | 'project' | 'calendar' | 'tasks' | 'sequences' | 'resources' | 'assignments' | 'calendars'
   | 'activityCodeTypes' | 'customFieldDefs' | 'customTaskTypes' | 'cpmResult'
-  | 'scheduleStale' | 'baselines' | 'activeBaselineId' | 'recordedDates' | 'datesAsRecorded'
+  | 'scheduleStale' | 'baselines' | 'activeBaselineId' | 'recordedDates' | 'datesAsRecorded' | 'minuteModelPending'
   | 'ifcGlobalIds'
 >;
 
@@ -151,6 +151,7 @@ export function migrateSnapshot(raw: Snapshot): Snapshot {
     // is legitiem, alleen een ontbrekend veld valt terug.
     recordedDates: raw.recordedDates !== undefined ? raw.recordedDates : null,
     datesAsRecorded: raw.datesAsRecorded ?? false,
+    minuteModelPending: raw.minuteModelPending ?? false,
     // Een project zonder `id` is een halve projectie (bv. alleen `{ wbsAutoNumber }`): vul die AAN
     // met een verse default; de aanwezige velden blijven leidend, inclusief een legitiem `undefined`
     // ("vrije tekst"). Puur defensief.

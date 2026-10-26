@@ -335,6 +335,9 @@ export function mergeTaskTime(base: TaskTime, partial: Partial<TaskTime> | undef
     // Optioneel — sleutel-aanwezigheid, zie docstring hierboven ('in' i.p.v. '??').
     durationMinutes: 'durationMinutes' in partial ? partial.durationMinutes : base.durationMinutes,
     interferingFloat: 'interferingFloat' in partial ? partial.interferingFloat : base.interferingFloat,
+    // Alleen uren §3.4: de speling in minuten (berekend, zoals interferingFloat).
+    totalFloatMinutes: 'totalFloatMinutes' in partial ? partial.totalFloatMinutes : base.totalFloatMinutes,
+    freeFloatMinutes: 'freeFloatMinutes' in partial ? partial.freeFloatMinutes : base.freeFloatMinutes,
     isNearCritical: 'isNearCritical' in partial ? partial.isNearCritical : base.isNearCritical,
     floatPath: 'floatPath' in partial ? partial.floatPath : base.floatPath,
     actualStart: 'actualStart' in partial ? partial.actualStart : base.actualStart,
@@ -618,12 +621,18 @@ export function clearLevelingOutput(task: Task): boolean {
  * haar sub-dag-velden en krijgt `write.gaps[id]` als VOLLEDIGE gatenlijst (importsplits
  * inbegrepen); staat ze niet in `write.gaps`, dan gaan alleen de nivelleergaten van een vorige
  * nivellering weg. `scopeTaskIds`: taken erbuiten zijn vaste last waarop het
- * voorstel gerekend heeft en blijven ongemoeid; afwezig ⇒ alle taken. Retourneert het aantal taken
- * dat sub-dag-precisie verloor (voor de eenmalige melding).
+ * voorstel gerekend heeft en blijven ongemoeid; afwezig ⇒ alle taken.
+ *
+ * Minuutvertraging (spec §3.11): draagt het voorstel `delayMinutes`, dan krijgt een taak met een
+ * vertraging die minuten als `levelingDelayMinutes` (werktijd op de taakkalender; de solver past ze
+ * vóór `levelingDelay` toe). Zo is de toegepaste start precies het moment dat de nivelleerder
+ * toetste en boekte. Er gaat dan geen sub-dag-precisie verloren. Een voorstel zonder `delayMinutes`
+ * (een oudere aanroeper) schrijft alleen hele werkdagen, zoals vroeger.
+ * Retourneert het aantal taken dat sub-dag-precisie verloor (voor de eenmalige melding).
  */
 export function writeLevelingResult(
   tasks: Task[],
-  write: Pick<LevelingResult, 'delays' | 'gaps'>,
+  write: Pick<LevelingResult, 'delays' | 'gaps' | 'delayMinutes'>,
   scopeTaskIds?: string[],
 ): number {
   const scope = scopeTaskIds ? new Set(scopeTaskIds) : null;
@@ -632,7 +641,11 @@ export function writeLevelingResult(
     if (scope && !scope.has(task.id)) continue;
     const d = write.delays[task.id];
     task.levelingDelay = d !== undefined && d > 0 ? d : undefined;
-    if (dropSubDayLevelingDelay(task)) roundedCount++;
+    if (dropSubDayLevelingDelay(task) && !write.delayMinutes) roundedCount++;
+    const m = write.delayMinutes?.[task.id];
+    if (task.levelingDelay !== undefined && m !== undefined && Number.isFinite(m) && m > 0) {
+      task.levelingDelayMinutes = Math.round(m);
+    }
     const g = write.gaps[task.id];
     if (g !== undefined) task.splitGaps = g.length > 0 ? g : undefined;
     else clearLevelingGaps(task);

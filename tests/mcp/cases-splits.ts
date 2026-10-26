@@ -77,7 +77,7 @@ test('dag-taak 10d: na 5 werkdagen 3 dagen pauze ⇒ één gebruikersgat op de H
   assertEq(data.durationUnit, 'days', 'eenheid in het antwoord');
   assert(Array.isArray(data.tasks) && data.tasks[0].id === id, 'verse datums in het antwoord');
   // 10 werkdagen + 3 pauzedagen vanaf ma 1 juni = 13 werkdagen ⇒ laatste werkdag wo 17 juni.
-  assertEq(S().tasks.find(t => t.id === id)?.time.earlyFinish, '2026-06-17', 'EF groeit met de pauze mee');
+  assertEq(S().tasks.find(t => t.id === id)?.time.earlyFinish, '2026-06-17T16:00', 'EF groeit met de pauze mee');
 });
 
 test('twee onderbrekingen, ongesorteerd opgegeven ⇒ gesorteerd op de werk-as', async () => {
@@ -101,7 +101,7 @@ test('de lijst VERVANGT: een tweede call zet een nieuwe lijst, een lege lijst he
   const data = okData(await rpc('planner_set_task_splits', { taskId: id, interruptions: [] }));
   assertEq(gapsOf(id), undefined, 'lege lijst ⇒ geen splitGaps meer');
   assertEq(data.interruptions, [], 'antwoord: geen onderbrekingen');
-  assertEq(S().tasks.find(t => t.id === id)?.time.earlyFinish, '2026-06-12', 'EF terug op 10 werkdagen');
+  assertEq(S().tasks.find(t => t.id === id)?.time.earlyFinish, '2026-06-12T16:00', 'EF terug op 10 werkdagen');
 });
 
 test('één undo-stap per call', async () => {

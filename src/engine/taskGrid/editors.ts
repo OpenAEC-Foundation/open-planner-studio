@@ -3,6 +3,8 @@ import { formatClock, parseClock } from '@/utils/displayTime';
 import type { DateNotation, TimeNotation } from '@/types/view';
 import type { CellValidationError, GridResult, TaskColumnContext, TaskColumnDescriptor } from '@/types/taskGrid';
 import type { Task } from '@/types/task';
+import { constraintDateSide, type InstantSide } from '@/engine/calendar/workdayRules';
+import { taskDateLabel } from '@/utils/taskDateLabel';
 
 export interface TaskGridBooleanLabels {
   true: string;
@@ -76,6 +78,26 @@ export function parseGridEditorText(
   return descriptor.parse(text, task, context);
 }
 
+const OWN_START = new Set(['start', 'scheduleStart', 'earlyStart', 'lateStart', 'actualStart']);
+const OWN_END = new Set(['finish', 'scheduleFinish', 'earlyFinish', 'lateFinish', 'actualFinish']);
+
+/**
+ * De kant van een datumkolom van een taak voor B4 (spec "alleen uren"): startachtig of eindachtig, en of
+ * het een eigen start- of eindveld is (dan geldt de mijlpaalregel). `null` voor een kolom die geen
+ * taakdatum is (technische ankers); die toont haar moment ongewijzigd.
+ */
+export function gridTaskDateField(columnId: string, task: Task): { side: InstantSide; milestoneOwn: boolean } | null {
+  const time = /^task\.time\.(\w+)$/.exec(columnId)?.[1];
+  if (time && OWN_START.has(time)) return { side: 'start', milestoneOwn: true };
+  if (time && OWN_END.has(time)) return { side: 'end', milestoneOwn: true };
+  if (time === 'resume') return { side: 'start', milestoneOwn: false };
+  if (time === 'stop' || columnId === 'task.deadline') return { side: 'end', milestoneOwn: false };
+  const constraint = columnId === 'task.constraint.date' ? task.constraint
+    : columnId === 'task.constraint2.date' ? task.constraint2 : undefined;
+  if (constraint) return { side: constraintDateSide(constraint.type) ?? 'start', milestoneOwn: false };
+  return null;
+}
+
 /** Klembord volgt persoonlijke datumnotatie; alle overige canonieke vormen blijven bij de registry. */
 export function copyGridEditorValue(
   descriptor: TaskColumnDescriptor,
@@ -90,7 +112,11 @@ export function copyGridEditorValue(
   }
   if (descriptor.valueKind === 'date' && typeof value === 'string') return formatGridDate(value, notation);
   if (descriptor.valueKind === 'datetime' && typeof value === 'string') {
-    return formatGridDateTime(value, notation, context.timeNotation ?? '24h');
+    const calendar = context.effectiveCalendar?.(task);
+    const field = gridTaskDateField(String(descriptor.id), task);
+    const label = calendar && field
+      ? taskDateLabel(task, value, field.side, calendar, { milestoneOwn: field.milestoneOwn }) : value;
+    return formatGridDateTime(label, notation, context.timeNotation ?? '24h');
   }
   return descriptor.copy(task, context);
 }

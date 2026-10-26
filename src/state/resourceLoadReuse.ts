@@ -2,6 +2,7 @@ import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { Task } from '@/types/task';
+import type { Project } from '@/types/project';
 import { sameValue } from '@/utils/sameValue';
 
 /**
@@ -25,20 +26,25 @@ export interface ResourceLoadInputs {
   calendar: WorkCalendar;
   calendars: readonly WorkCalendar[];
   cpmResult: CPMResult | null;
+  /** Het profiel en de projectopties: samen de maatconventie die de belasting leest. */
+  project: Pick<Project, 'schedulingProfile' | 'schedulingOptions'>;
 }
 
 /**
  * Geeft de belasting op `after` hetzelfde resultaat als op `before`? Waar alleen als resources,
- * toewijzingen, kalenders en CPM-resultaat dezelfde objecten zijn, de takenlijst even lang is met
- * dezelfde id's op dezelfde plek, en elke gewijzigde taak alleen neutrale sleutels wijzigt. Per
- * sleutel eerst de referentie (Immer deelt ongewijzigde delen), dan structureel via `sameValue`:
+ * toewijzingen, kalenders, CPM-resultaat, profiel en projectopties dezelfde objecten zijn, de
+ * takenlijst even lang is met dezelfde id's op dezelfde plek, en elke gewijzigde taak alleen
+ * neutrale sleutels wijzigt. Per sleutel eerst de referentie (Immer deelt ongewijzigde delen), dan
+ * structureel via `sameValue`:
  * de celbewerking schrijft `time` ook bij een naamwijziging opnieuw weg, met dezelfde inhoud.
  * Conservatief: bij twijfel `false`, dus herberekenen.
  */
 export function resourceLoadInputsUnchanged(before: ResourceLoadInputs, after: ResourceLoadInputs): boolean {
   if (before.assignments !== after.assignments || before.resources !== after.resources
     || before.calendar !== after.calendar || before.calendars !== after.calendars
-    || before.cpmResult !== after.cpmResult) return false;
+    || before.cpmResult !== after.cpmResult
+    || before.project.schedulingProfile !== after.project.schedulingProfile
+    || before.project.schedulingOptions !== after.project.schedulingOptions) return false;
   if (before.tasks === after.tasks) return true;
   if (before.tasks.length !== after.tasks.length) return false;
   for (let i = 0; i < after.tasks.length; i++) {

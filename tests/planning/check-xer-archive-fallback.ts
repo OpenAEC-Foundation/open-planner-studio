@@ -52,7 +52,7 @@ expect('A2 het project zelf is volledig: beide taken en de relatie uit het IFC',
 store().newProject();
 clearNotes();
 store().applyOpenedImport(parsed, {
-  filePath: '/tmp/xer-archief-herschreven.ifc', recompute: true, fit: false, hourDataNotice: false, linkedOpen: true,
+  filePath: '/tmp/xer-archief-herschreven.ifc', recompute: true, fit: false, linkedOpen: true,
 });
 const openedDocId = store().activeDocumentId;
 const newNotes: AppNotification[] = store().ui.notifications;

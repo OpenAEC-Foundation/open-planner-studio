@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { holdAutoCalc } from '@/state/editHold';
 import { useTranslation } from 'react-i18next';
 import { Task } from '@/types/task';
-import { DateTextInput } from '@/components/common/DateTextInput';
+import { TaskDateTimeInput } from '@/components/common/TaskDateTimeInput';
 import type { ActualStartQuestion, ProgressEntryResult } from '@/engine/progressEntry';
 import { askActualStart } from '@/state/actualStartQuestion';
 import { Field } from './shared';
@@ -160,7 +160,10 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
           De acties dwingen de invarianten af en weigeren datums ná de statusdatum (toast). */}
       {task.isMilestone ? (
         <Field label={t('properties.progress.actualDate')}>
-          <DateTextInput
+          <TaskDateTimeInput
+            task={task}
+            side="end"
+            dataAttribute="actual-date"
             className="input !text-small !leading-4 !px-2.5 !py-1.5"
             ariaLabel={t('properties.progress.actualDate')}
             value={task.time.actualFinish ?? ''}
@@ -175,7 +178,10 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
         <>
           <div className="grid grid-cols-2 gap-2">
             <Field label={t('properties.progress.actualStart')}>
-              <DateTextInput
+              <TaskDateTimeInput
+                task={task}
+                side="start"
+                dataAttribute="actual-start"
                 className="input !text-small !leading-4 !px-2.5 !py-1.5"
                 ariaLabel={t('properties.progress.actualStart')}
                 value={task.time.actualStart ?? ''}
@@ -187,7 +193,10 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
               />
             </Field>
             <Field label={t('properties.progress.actualFinish')}>
-              <DateTextInput
+              <TaskDateTimeInput
+                task={task}
+                side="end"
+                dataAttribute="actual-finish"
                 className="input !text-small !leading-4 !px-2.5 !py-1.5"
                 ariaLabel={t('properties.progress.actualFinish')}
                 value={task.time.actualFinish ?? ''}

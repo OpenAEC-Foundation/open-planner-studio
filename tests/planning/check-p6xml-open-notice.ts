@@ -53,7 +53,7 @@ async function open(name: string, text: string): Promise<OpenedImport> {
   const parsed = await parseOpenedFile({ name, text });
   S().newProject();
   useAppStore.setState(st => { st.ui.notifications = []; });
-  S().applyOpenedImport(parsed, { filePath: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: true });
+  S().applyOpenedImport(parsed, { filePath: null, recompute: true, fit: false, linkedOpen: true });
   return parsed;
 }
 const noticeOf = (parsed: OpenedImport) => p6xmlImportNotice(isMultiDocumentImport(parsed) ? parsed.results : [parsed]);
@@ -93,7 +93,7 @@ async function main(): Promise<void> {
   S().newProject();
   const docsBefore = S().documents.length;
   const multi = await parseOpenedFile({ name: 'meerdere.xml', text: fixture });
-  const outcome = S().applyOpenedImport(multi, { filePath: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: true });
+  const outcome = S().applyOpenedImport(multi, { filePath: null, recompute: true, fit: false, linkedOpen: true });
   eq('6a twee documenten geopend (leeg tabblad hergebruikt)', [outcome.documentIds.length, S().documents.length - docsBefore], [2, 1]);
   eq('6b actief document = B (naam kaal, code apart)', [S().project.name, S().project.p6ProjectCode], ['Project B & bouw', 'B-BOUW']);
   eq('6c B: actieve baseline', S().activeBaselineId?.startsWith('p6xml-baseline:200:201'), true);

@@ -26,7 +26,9 @@ Een wijziging werkt direct. Er is geen knop *Toepassen* en geen *Annuleren*.
 
 **Tijdnotatie** — hoe kloktijden in de app staan. Keuze uit *24 uur (13:00)* en *12 uur (1:00 PM)*. Standaard: *24 uur (13:00)*. Effect: de tijden in het kalendervenster, de datum met tijd van taken in uren (tabel, splitsingen, meldingen) en de tijdschaal *Uur* in de Gantt. In een tijdveld mag je beide vormen typen: *13:00*, *1300*, *13*, *1:00 PM* of *1 pm*. Middernacht als einde van de dag is *24:00* of *12:00 AM*. Bestanden en berekeningen veranderen niet: die blijven 24 uur. Waar: *Weergave*.
 
-**Duurweergave** — in welke eenheid de duur van een taak staat. Keuze uit *Automatisch (eigen eenheid per taak)*, *Altijd dagen* en *Altijd uren*. Standaard: *Automatisch (eigen eenheid per taak)*. Effect: in het taakraster, de balklabels van de Gantt, de tooltip, de afdruk en de rapporten. Bij *Automatisch* toont een dagtaak dagen en een urentaak uren. Bij *Altijd dagen* of *Altijd uren* rekent de app om met de uren per dag van de taakkalender en zet, als de eenheid van de taak verschilt, de eigen eenheid erachter tussen haakjes, bijvoorbeeld `2,25d(18u)`. Alleen de weergave verandert; de taak houdt haar eigen eenheid. Waar: *Weergave*.
+**Duurweergave** — In het OPS-profiel is dit veld grijs: elke taak toont zijn eigen maat. Onder P6 en MSP is de keuze actief. in welke eenheid de duur van een taak staat. Keuze uit *Automatisch (eigen eenheid per taak)*, *Altijd dagen* en *Altijd uren*. Standaard: *Automatisch (eigen eenheid per taak)*. Effect: in het taakraster, de balklabels van de Gantt, de tooltip, de afdruk en de rapporten. Bij *Automatisch* toont een dagtaak dagen en een urentaak uren. Bij *Altijd dagen* of *Altijd uren* rekent de app om met de uren per dag van de taakkalender en zet, als de eenheid van de taak verschilt, de eigen eenheid erachter tussen haakjes, bijvoorbeeld `2,25d(18u)`. Alleen de weergave verandert; de taak houdt haar eigen eenheid. Waar: *Weergave*.
+
+**Gemengde dag/uur-planning toestaan** — of je per taak de eenheid kiest. Standaard: aan. Effect: aan toont bij elke taak de keuzelijst *Duureenheid* naast de duur. Uit verbergt die keuzelijst. Waar: *Weergave*, onder *Duurweergave*. Zie [Dagen en uren](docs://uitleg-dagen-en-uren).
 
 **Documentwissel-stijl** — hoe je wisselt tussen geopende projecten. Keuze uit *Horizontale tabbladen*, *Verticale tabbladen* en *Pil*. Standaard: *Horizontale tabbladen*. Effect: bij *Horizontale tabbladen* staat een tabbalk onder het lint; bij *Verticale tabbladen* een projectbalk links; bij *Pil* een kleine projectknop in de titelbalk. Waar: *Weergave*.
 
@@ -34,7 +36,7 @@ Een wijziging werkt direct. Er is geen knop *Toepassen* en geen *Annuleren*.
 
 **Alleen werkbare dagen tonen** — comprimeert de tijd-as. Standaard: uit. Effect: weekenden en feestdagen uit de projectkalender worden overgeslagen, zodat een taak van 5 werkdagen precies 5 kolommen breed is. De sneltoetsen voor *Spring naar vandaag* en *Passend maken op project* tellen dan ook in werkdagen. Het rapport heeft een eigen vinkje met dezelfde naam, dat los van deze instelling staat. Waar: *Weergave*, onder *Gantt › Tijd-as*.
 
-**Kwartieren tonen bij ver inzoomen** — extra fijne tijdschaal. Standaard: uit. Effect: je kunt verder inzoomen en de uurschaal krijgt een extra kwartierrij. Een urenbalk slepen kan dan op kwartieren snappen in plaats van op hele uren. Je ziet dit alleen als *Urenplanning inschakelen* aan staat. Waar: *Weergave*, onder *Gantt › Kwartierzoom*.
+**Kwartieren tonen bij ver inzoomen** — extra fijne tijdschaal. Standaard: uit. Effect: je kunt verder inzoomen en de uurschaal krijgt een extra kwartierrij. Een urenbalk slepen kan dan op kwartieren snappen in plaats van op hele uren. Waar: *Weergave*, onder *Gantt › Kwartierzoom*.
 
 **Taakbalken bij onderbrekingen** — of een urentaak in blokken wordt getekend. Keuze uit *Nooit opsplitsen*, *Opsplitsen bij selectie* en *Altijd opsplitsen*. Standaard: *Opsplitsen bij selectie*. Effect: de balk van een urentaak wordt dan per werkblok getekend in plaats van als één doorlopend blok. *Opsplitsen bij selectie* doet dat alleen voor de geselecteerde taak. Het gaat alleen over urentaken; een echt gesplitste taak (met *Taak splitsen*) toont haar onderbreking los van deze instelling. Waar: *Weergave*, onder *Gantt*.
 
@@ -47,10 +49,6 @@ Een wijziging werkt direct. Er is geen knop *Toepassen* en geen *Annuleren*.
 ## Tabblad Planning
 
 **Bouwmodus inschakelen** — bouwgerichte beginwaarden voor nieuwe projecten. Standaard: aan. Effect: aan geeft een nieuw project de kalender *Bouwkalender NL* met de Nederlandse feestdagen, laat je bij het genereren van feestdagen een bouwvak kiezen, biedt de fasesjablonen *Woningbouw* en *Utiliteitsbouw / renovatie* aan en geeft nieuwe taken de werksoort *Bouw*. Uit geeft de kalender *Standaardkalender* zonder feestdagen, alleen het sjabloon *Leeg* en de werksoort *Overig*. Een nieuwe taak onder een bovenliggende taak met een werksoort neemt eerst die werksoort over; *Bouw* of *Overig* geldt daarna. Bestaande taken en kalenders veranderen niet. Waar: *Planning*.
-
-**Urenplanning inschakelen** — plannen in werkuren naast werkdagen. Standaard: uit. Effect: de tijdschaal *Uur* verschijnt onder *Beeld › Tijdschaal*, in het venster *Kalenders* kan een gewone kalender werktijdblokken krijgen (het blok *Werktijden*; een kalender die al blokken heeft, toont dat blok altijd), en het venster *Nieuw project* krijgt de keuzes *Ploeg* en *Standaardeenheid voor nieuwe taken*. Ook *Projectinstellingen* krijgt de keuze *Standaardeenheid voor nieuwe taken*. Uit werkt de app dag-granulair. Taken die al in uren staan blijven bestaan en rekenen mee; hun duur bewerk je pas als je urenplanning aanzet. Waar: *Planning*, onder *Urenplanning*. Zie [Urenplanning aanzetten](docs://howto-urenplanning-aanzetten).
-
-**Gemengde dag/uur-planning toestaan** — of je per taak de eenheid kiest. Alleen zichtbaar als *Urenplanning inschakelen* aan staat. Standaard: aan. Effect: aan toont bij elke taak de keuzelijst *Duureenheid* naast de duur. Uit verbergt die keuzelijst. Waar: *Planning*, onder *Urenplanning*. Zie [Dagen en uren](docs://uitleg-dagen-en-uren).
 
 **Week begint op** — de eerste dag van de week. Keuze uit *Maandag* en *Zondag*. Standaard: *Maandag*. Effect: de weekindeling en weeknummers van de tijdschaal in de Gantt en in de rapporten (de Gantt-afdruk), en de volgorde van de weekdagen in het venster *Kalenders*. Waar: *Planning*.
 
@@ -117,7 +115,7 @@ Deze keuzes bewaart de app ook op dit apparaat, maar je stelt ze in bij het onde
 ## Zie ook
 
 - [Rekenopties en conventies](docs://ref-rekenopties-en-conventies): de opties die bij een project horen.
-- [Urenplanning aanzetten](docs://howto-urenplanning-aanzetten): de stappen bij de schakelaar *Urenplanning inschakelen*.
+- [Een taak in uren plannen](docs://howto-taak-in-uren-plannen): de duur en de eenheidskeuze.
 - [Dagen en uren](docs://uitleg-dagen-en-uren): hoe de app dagen en uren telt.
 - [Taaktypes: duur, inzet en werk](docs://uitleg-werkregels): wat *Taaktypes gebruiken* zichtbaar maakt.
 - [Sneltoetsen](docs://ref-sneltoetsen): alle toetsen van de app, ook die voor zoomen en scrollen.

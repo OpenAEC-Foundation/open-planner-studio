@@ -28,6 +28,7 @@ import { computeResourceLoad } from '@/engine/scheduler/ResourceLoad';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 
 let checks = 0;
 const diffs: string[] = [];
@@ -86,7 +87,7 @@ console.log('-- resource-load-splits: splits slaan pauzedagen over --');
   const resourceR = res('r-a', 1);
   const assignments = [assign('a-a', 't-a', 'r-a', 1)];
 
-  const result = computeResourceLoad([resourceR], assignments, [taskA], PROJECT_CAL, []);
+  const result = computeResourceLoad([resourceR], assignments, [taskA], PROJECT_CAL, [], effectiveSchedulingOptions({}));
   const daily = result.load['r-a'] ?? {};
 
   eq('06-01 belast met 1', daily['2026-06-01'], 1);
@@ -112,7 +113,7 @@ console.log('-- resource-load-splits: FRONT_LOADED-curve volgt de echte werkdage
   const resourceR = res('r-a-front', 5);
   const assignments = [{ id: 'a-a-front', taskId: 't-a-front', resourceId: 'r-a-front', unitsPerDay: 1, curve: 'FRONT_LOADED' as const }];
 
-  const result = computeResourceLoad([resourceR], assignments, [taskAFront], PROJECT_CAL, []);
+  const result = computeResourceLoad([resourceR], assignments, [taskAFront], PROJECT_CAL, [], effectiveSchedulingOptions({}));
   const daily = result.load['r-a-front'] ?? {};
 
   eq('werkdag 1 (06-01) draagt het hoogste gewicht (2)', daily['2026-06-01'], 2);
@@ -146,7 +147,7 @@ console.log('-- resource-load-splits: taak met eigen (6-daagse) kalender --');
   const resourceR = res('r-b', 1);
   const assignments = [assign('a-b', 't-b', 'r-b', 1)];
 
-  const result = computeResourceLoad([resourceR], assignments, [taskB], PROJECT_CAL, [SIX_DAY_CAL]);
+  const result = computeResourceLoad([resourceR], assignments, [taskB], PROJECT_CAL, [SIX_DAY_CAL], effectiveSchedulingOptions({}));
   const daily = result.load['r-b'] ?? {};
 
   eq('vr 06-05 belast met 1', daily['2026-06-05'], 1);
@@ -177,7 +178,7 @@ console.log('-- resource-load-splits: ELAPSEDTIME — belasting stopt op earlyFi
   const resourceR = res('r-c', 10);
   const assignments = [assign('a-c', 't-c', 'r-c', 1)];
 
-  const result = computeResourceLoad([resourceR], assignments, [taskC], PROJECT_CAL, []);
+  const result = computeResourceLoad([resourceR], assignments, [taskC], PROJECT_CAL, [], effectiveSchedulingOptions({}));
   const daily = result.load['r-c'] ?? {};
 
   eq('laatste werkdag binnen de spanne (06-10) draagt last', daily['2026-06-10'], 1);
@@ -220,7 +221,7 @@ console.log('-- resource-load-splits: VOLTOOIDE taak mapt op earlyStart..earlyFi
   const resourceR = res('r-d', 5);
   const assignments = [assign('a-d', 't-d', 'r-d', 1)];
 
-  const result = computeResourceLoad([resourceR], assignments, [taskD], HOLIDAY_CAL, []);
+  const result = computeResourceLoad([resourceR], assignments, [taskD], HOLIDAY_CAL, [], effectiveSchedulingOptions({}));
   const daily = result.load['r-d'] ?? {};
 
   eq('laatste echte werkdag (06-03, earlyFinish) draagt last', daily['2026-06-03'], 1);

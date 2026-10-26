@@ -22,7 +22,7 @@ Welke datum je bij een handmatige koppeling als anker invult, hangt af van de ri
 - Bij een externe **voorganger** telt de eerste letter van het type: F betekent de einddatum van de externe taak, S de startdatum. Bij FS en FF vul je dus het einde in, bij SS en SF de start.
 - Bij een externe **opvolger** telt de tweede letter: S is de startdatum van de externe taak, F de einddatum. Bij FS en SS vul je dus de start in, bij FF en SF het einde.
 
-Plan je in uren (urenplanning aan en een taak op een kalender met werktijden), dan vraagt het veld *Ankerdatum* ook een tijdstip.
+Plan je in uren (een taak op een kalender met werktijden), dan vraagt het veld *Ankerdatum* ook een tijdstip.
 
 Voorbeeld: het terreinproject eindigt vrijdag 18 juni 2027. Je koppelt *Grondwerk* met een externe voorganger van type FS, ankerdatum 18 juni 2027. Na **Bereken** begint het grondwerk op maandag 21 juni, de eerste werkdag na het anker. Een externe opvolger werkt de andere kant op: hij begrenst hoe laat jouw taak klaar mag zijn.
 
@@ -42,7 +42,7 @@ Voorbeeld: het terreinproject eindigt vrijdag 18 juni 2027. Je koppelt *Grondwer
 
 **Een externe opvolger is een bovengrens.** Is het anker te krap, dan zie je dat als negatieve speling op je taak en de taken ervoor. Er komt geen aparte waarschuwing bij, dus let op de kolom *Totale speling*.
 
-**Alleen een vaste lag.** Voor een externe relatie kun je geen lag in kalenderdagen of procenten opgeven; de app zegt *Externe relaties ondersteunen alleen een vaste lag in werkdagen of werktijd.* De werkdagen tellen in de kalender van je eigen taak. Een lag in uren telt alleen bij een taak die in uren gepland is; bij een taak in dagen negeert de berekening hem. Gebruik dan werkdagen.
+**Alleen een vaste lag.** Voor een externe relatie kun je geen lag in kalenderdagen of procenten opgeven; de app zegt *Externe relaties ondersteunen alleen een vaste lag in werkdagen of werktijd.* De werkdagen en de werktijd tellen in de kalender van je eigen taak. Een lag in uren telt bij elke taak, ook bij een taak in dagen: 2 uur na een anker om 07:00 is 09:00. Een breuk mag, bijvoorbeeld `0,5d`.
 
 **Het Project-id van een ander bestand.** Het Project-id staat niet in een veld of kolom, maar als `InternalProjectId` in het IFC van dat project: open het project, ga naar het tabblad *IFC* en kies *Genereer IFC*. De berekening gebruikt alleen de ankerdatum; het id is geen puur label. Bij het vernieuwen herkent de app een bronbestand eerst aan het Project-id (daarna aan het bestandspad). Vul je bij een handmatige koppeling hetzelfde id in als dat van een bronbestand, dan wordt de koppeling bij het vernieuwen van dat bestand mee bijgewerkt. De *Taak-id* van een taak in het andere project vind je in de tabel van dat project, in de kolom *Taak-id* onder *Technisch*.
 

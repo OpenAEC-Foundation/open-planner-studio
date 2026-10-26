@@ -140,9 +140,13 @@ function calendarWork(n: number): number {
   const tasks = Array.from({ length: n }, (_, i) => task(i));
   const sequences = tasks.slice(1).map((_, i) => relation(i, i + 1));
   const options = solveOptionsFor({ endDate: '', startDate: '2026-06-01' });
+  // F3 (alleen uren §3.14): een dagtaak loopt in het OPS-profiel met de dagenmaat-loper
+  // (`addMeasuredWorkdaysChecked`); tel beide lopers, zodat de kostentoets kalenderwerk blijft meten.
   const original = CalendarEngine.prototype.addWorkDaysChecked;
+  const originalMeasured = CalendarEngine.prototype.addMeasuredWorkdaysChecked;
   let calls = 0;
   CalendarEngine.prototype.addWorkDaysChecked = function (...args) { calls++; return original.apply(this, args); };
+  CalendarEngine.prototype.addMeasuredWorkdaysChecked = function (...args) { calls++; return originalMeasured.apply(this, args); };
   try {
     const forward = new CPMSolver(tasks, sequences, calendar, [calendar], options).createLevelingForwardPass();
     if (!forward) throw new Error('keten afgewezen');
@@ -152,7 +156,10 @@ function calendarWork(n: number): number {
       forward.earlyStart(tasks[i + 1].id);
     }
     return calls;
-  } finally { CalendarEngine.prototype.addWorkDaysChecked = original; }
+  } finally {
+    CalendarEngine.prototype.addWorkDaysChecked = original;
+    CalendarEngine.prototype.addMeasuredWorkdaysChecked = originalMeasured;
+  }
 }
 const small = calendarWork(100), large = calendarWork(200);
 checks++;

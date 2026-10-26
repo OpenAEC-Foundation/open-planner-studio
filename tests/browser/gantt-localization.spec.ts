@@ -42,7 +42,7 @@ test('Gantt vertaalt weekdagen en duursuffix na een echte taalkeuze', async ({ p
     });
     const store = window.__OPS__!.store.getState();
     store.setZoom(48);
-    store.setUI({ enableHourPlanning: true, showSettingsDialog: true });
+    store.setUI({ showSettingsDialog: true });
   });
   const beforePaint = await paintCount(page);
 

@@ -1,10 +1,11 @@
+import type { MeasuredDuration } from '@/utils/taskDuration';
 import type { Task } from '@/types/task';
 import { flattenOrder } from '@/utils/wbs';
 import { parseDate } from '@/utils/dateUtils';
 import { signedWorkDaysBetween } from '@/engine/variance';
 import { descendantLeaves, isSummaryProgressDerived, summaryProgressOf } from '@/engine/scheduler/summaryProgress';
 import {
-  type ReportContext, durationDays, makeEngineCache, progressState,
+  type ReportContext, durationDays, durationMeasure, taskHoursPerDay, makeEngineCache, progressState,
   taskDepths, taskFinish, taskStart,
 } from './reportCommon';
 
@@ -34,6 +35,10 @@ export interface WbsSummaryRow {
   baselineStart?: string;
   baselineFinish?: string;
   durationDays: number;
+  /** De duur van een activiteit in haar maat (B8); ontbreekt bij een verzamelrij (die toont werkdagen). */
+  duration?: MeasuredDuration;
+  /** De werktijd per dag van de taakkalender, voor Duurweergave onder P6 en MSP. */
+  hoursPerDay: number;
   completion: number;
   /** Werkdagen, getekend (+ = later dan de baseline). */
   finishVarianceDays?: number;
@@ -105,6 +110,8 @@ export function computeWbsSummary(ctx: ReportContext, opts: WbsSummaryOptions): 
       durationDays: isSummary
         ? Math.max(0, projectEngine.workDaysBetween(parseDate(start), parseDate(finish)))
         : durationDays(ctx, t),
+      ...(isSummary ? {} : { duration: durationMeasure(t) }),
+      hoursPerDay: taskHoursPerDay(ctx, t),
       completion,
       finishVarianceDays: bFinish ? signedWorkDaysBetween(projectEngine, bFinish, finish) : undefined,
       minTotalFloat: leaves.length ? leaves.reduce((m, l) => Math.min(m, l.time.totalFloat), Infinity) : t.time.totalFloat,

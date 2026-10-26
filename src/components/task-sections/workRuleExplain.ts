@@ -11,10 +11,7 @@ import type { WorkRule } from '@/types/workRule';
  * het leest: FIXED_DURATION_WORK + `true` (een duurwijziging past het werk aan, case wt-11b) en
  * FIXED_RATE + `false` (een extra resource voegt werk toe, de duur blijft).
  *
- * Bij een dagtaak rondt de rekenkern een afgeleide duur naar boven af op hele werkdagen
- * (`roundUpRemaining`, spec §6.1); de zin "maakt de taak korter" krijgt dan "afgerond op hele dagen"
- * (besluit eigenaar 2026-10-15: "zet het alleen wanneer het een dagtaak is"). Een urentaak rondt af
- * op hele minuten en houdt de korte zin.
+ * Beide maten rekenen exact (F3a/T14); een extra resource gebruikt daarom dezelfde korte zin.
  */
 export const WORK_RULE_SENTENCES = [
   'followsWork',
@@ -29,7 +26,6 @@ export const WORK_RULE_SENTENCES = [
   'resourceAddsWork',
   'resourceSharesWork',
   'resourceShorter',
-  'resourceShorterWholeDays',
   'resourceAddsWorkSameDuration',
 ] as const;
 
@@ -44,9 +40,8 @@ export interface WorkRuleExplanation {
 export function workRuleExplanation(
   rule: WorkRule,
   effortDriven: boolean | undefined,
-  unit: 'days' | 'hours',
 ): WorkRuleExplanation {
-  const shorter: WorkRuleSentence = unit === 'hours' ? 'resourceShorter' : 'resourceShorterWholeDays';
+  const shorter: WorkRuleSentence = 'resourceShorter';
   switch (rule) {
     case 'FIXED_DURATION_RATE':
       return { lead: 'followsWork', rest: ['workAdjustsUnits', 'resourceAddsWork'] };

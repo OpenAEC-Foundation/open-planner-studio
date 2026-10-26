@@ -80,7 +80,6 @@ function setup(sc: Scenario): { S: () => AppState; id: string } {
   S().setProject({ startDate: '2026-06-01' });
   if (sc.kind === 'hour') {
     S().setCalendar(HOUR_CAL);
-    ctx.store.setState((s) => { s.ui.enableHourPlanning = true; });
   }
   const id = sc.kind === 'day'
     ? S().addTask({ name: sc.label, time: createDefaultTaskTime('2026-06-01', sc.from) })
@@ -273,7 +272,6 @@ function setupRunning(pc: ProgressCase): { ctx: ReturnType<typeof createAppStore
   S().setProject({ startDate: '2026-06-01' });
   if (pc.kind === 'hour') {
     S().setCalendar(HOUR_CAL);
-    ctx.store.setState((s) => { s.ui.enableHourPlanning = true; });
   }
   const id = pc.kind === 'day'
     ? S().addTask({ name: pc.label, time: createDefaultTaskTime('2026-06-01', pc.from) })
@@ -340,7 +338,7 @@ function runProgressCase(pc: ProgressCase): void {
     const afterDone = after.time.completion * (pc.kind === 'day' ? after.time.scheduleDuration : after.time.durationMinutes!);
     ok(`${pc.label} [${route}]: gedane werk exact gelijk (${beforeDone} → ${afterDone})`, Math.abs(afterDone - beforeDone) < 1e-9);
     if (pc.expect.status === 'COMPLETED') {
-      eq(`${pc.label} [${route}]: voltooid, werkelijk einde = statusdatum`, after.time.actualFinish, PROGRESS_STATUS_DATE);
+      eq(`${pc.label} [${route}]: voltooid, werkelijk einde = statusdatum`, after.time.actualFinish, `${PROGRESS_STATUS_DATE}T16:00`);
     }
   }
   if (pc.expect !== 'refused') {
@@ -356,10 +354,11 @@ runProgressCase({
   expect: { completion: 0.4 * 10 / 12, remainingTime: 8, status: 'STARTED' },
 });
 runProgressCase({
-  // Gedaan 3,5 d; de restduur blijft in hele werkdagen (4 → 5, precies +1), het percentage exact 3,5/8.
+  // Gedaan 3,5 d; de restduur is exact 4,5 d (8 − 3,5), het percentage exact 3,5/8.
+  // B1 (spec "alleen uren" §3.5, besluit B3): de rest was in hele werkdagen, round(4,5) = 5.
   label: 'lopend dag: 7 d op 50 % → 8 d',
   kind: 'day', from: 7, completion: 0.5, to: 8,
-  expect: { completion: 3.5 / 8, remainingTime: 5, status: 'STARTED' },
+  expect: { completion: 3.5 / 8, remainingTime: 4.5, status: 'STARTED' },
 });
 runProgressCase({
   label: 'lopend dag: 10 d op 40 % → 6 d (krimp) ⇒ nog 2 d',

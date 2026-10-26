@@ -167,7 +167,7 @@ test('tabel: één tooltip per cel — geen taakkaart op gewone cellen, waarde a
   const startCell = taskCell(page, shortId, 'task.time.start');
   await expect(startCell).toHaveText('07-09-2026');
   await startCell.hover();
-  await expect(bubble).toHaveText('2026-09-07');
+  await expect(bubble).toHaveText('2026-09-07T07:00');
   await expect(tooltip).toHaveCount(0);
 
   // Een afgeknipte naam: de volledige waarde als bubbel, nog steeds geen taakkaart. De meting

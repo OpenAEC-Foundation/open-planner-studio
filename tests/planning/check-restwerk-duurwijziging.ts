@@ -103,13 +103,12 @@ const xer = [
 ].join('\n');
 
 const S = () => useAppStore.getState();
-const OPEN_OPTIONS = { filePath: null, fileHandle: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: true } as const;
+const OPEN_OPTIONS = { filePath: null, fileHandle: null, recompute: true, fit: false, linkedOpen: true } as const;
 function openFixture(): void {
   const opened = readXER(new TextEncoder().encode(xer));
   if (isMultiDocumentImport(opened)) throw new Error('fixture gaf meerdere documenten');
   S().applyOpenedImport(opened, OPEN_OPTIONS);
   useAppStore.setState((s) => { s.ui.notifications = []; });
-  if (!S().ui.enableHourPlanning) S().setUI({ enableHourPlanning: true });
 }
 const byCode = (code: string): Task => {
   const t = S().tasks.find((x) => x.wbsCode === code);
@@ -194,7 +193,7 @@ openFixture();
 {
   setHours('E-1030', 72);
   eq('d1 (vervolgfout c) Vast werk: rest volgt (72 h)', byCode('E-1030').time.remainingMinutes, 72 * H);
-  eq('d2 Vast werk: restwerk blijft 320 h, inzet volgt (320 / 72)', [asg('7502').remainingWorkMinutes, asg('7502').unitsPerDay], [320 * H, r4(320 / 72)]);
+  eq('d2 Vast werk: restwerk blijft 320 h, inzet volgt (320 / 72)', [asg('7502').remainingWorkMinutes, asg('7502').unitsPerDay], [320 * H, 320 / 72]);
   eq('d3 Vast werk: geen melding (het bewaarde werk bleef)', workNotices(), []);
   eq('d4 Vast werk: geen waarschuwingsteken meer', deviationOf('E-1030', '7502'), null);
   setHours('E-1040', 64);

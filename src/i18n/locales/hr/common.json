@@ -158,7 +158,7 @@
     "referencesClearedOnPaste_one": "{{count}} referenca nije postojala u ovom dokumentu i uklonjena je (kalendar zadatka, prilagođena kategorija radova, šifra zadatka ili prilagođeno polje iz izvornog dokumenta).",
     "referencesClearedOnPaste_few": "{{count}} reference nisu postojale u ovom dokumentu i uklonjene su (kalendari zadataka, prilagođene kategorije radova, šifre zadatka ili prilagođena polja iz izvornog dokumenta).",
     "referencesClearedOnPaste_other": "{{count}} referenci nije postojalo u ovom dokumentu i uklonjeno je (kalendari zadataka, prilagođene kategorije radova, šifre zadatka ili prilagođena polja iz izvornog dokumenta).",
-    "milestoneRefusedAssignments": "'{{task}}' ima dodjele resursa i ne može postati kontrolna točka. Prvo uklonite dodjele.",
+    "milestoneRefusedAssignments": "'{{task}}' ima dodjele resursa i ne može postati kontrolna točka. Najprije uklonite dodjele.",
     "milestoneRefusedAssignmentsMany_one": "{{count}} zadatak ima dodjele resursa i ne može postati kontrolna točka. Prvo uklonite dodjele.",
     "milestoneRefusedAssignmentsMany_few": "{{count}} zadatka imaju dodjele resursa i ne mogu postati kontrolne točke. Prvo uklonite dodjele.",
     "milestoneRefusedAssignmentsMany_other": "{{count}} zadataka imaju dodjele resursa i ne mogu postati kontrolne točke. Prvo uklonite dodjele.",
@@ -278,7 +278,11 @@
     "msProjectLostFixedCosts_other": "Fiksni troškovi za {{count}} zadataka nisu preuzeti.",
     "msProjectLostResourceRates_one": "Standardna tarifa za {{count}} resurs nije preuzeta.",
     "msProjectLostResourceRates_few": "Standardne tarife za {{count}} resursa nisu preuzete.",
-    "msProjectLostResourceRates_other": "Standardne tarife za {{count}} resursa nisu preuzete."
+    "msProjectLostResourceRates_other": "Standardne tarife za {{count}} resursa nisu preuzete.",
+    "minuteModelConverted_one": "{{document}}: {{count}} zadatak ima nakon pretvorbe drugačiji početak ili završetak; najveći pomak iznosi {{days}} radnih dana. Ctrl+Z vraća spremljene datume.",
+    "minuteModelConverted_few": "{{document}}: {{count}} zadatka imaju nakon pretvorbe drugačiji početak ili završetak; najveći pomak iznosi {{days}} radnih dana. Ctrl+Z vraća spremljene datume.",
+    "minuteModelConverted_other": "{{document}}: {{count}} zadataka ima nakon pretvorbe drugačiji početak ili završetak; najveći pomak iznosi {{days}} radnih dana. Ctrl+Z vraća spremljene datume.",
+    "minuteModelCalendarRepaired": "Kalendar „{{calendar}}“ je popravljen: završetak ili pauza nisu odgovarali spremljenom radnom vremenu."
   },
   "scheduleErrors": {
     "cycle": "Kružna ovisnost između zadataka: {{path}}",
@@ -393,16 +397,17 @@
     "themeHighContrast": "Visoki kontrast",
     "themeFollowSystem": "Prati sustavnu temu",
     "themeSystemHint": "Prati shemu boja vašeg sustava (trenutno: {{theme}}).",
-    "hourPlanningSection": "Planiranje u satima",
-    "enableHourPlanning": "Uključi planiranje u satima",
-    "enableHourPlanningHint": "Uključuje raspored u satima i minutama: vremensku ljestvicu sati, smjene s trakama radnog vremena i trake zadataka točne do sata. Isključeno ⇒ aplikacija radi potpuno po danima, kao prije.",
     "showTaskTypes": "Koristi vrste zadataka",
     "showTaskTypesHint": "Odaberite za svaki zadatak što se mijenja kad se promijeni trajanje, jedinice dodjele ili rad, kao Task Type u MS Project i Duration Type u P6. Isključeno: trajanje i jedinice dodjele ostaju isti. Datoteka s vrstama zadataka ili spremljenim radom ih prikazuje i kad je ovo isključeno.",
     "allowMixedDayHour": "Dopusti mješoviti raspored po danima i satima",
-    "defaultTaskDurationUnit": "Zadana jedinica za nove zadatke",
-    "defaultTaskDurationUnitHint": "Određuje hoće li novi zadaci početi u radnim danima ili radnim satima. Postojeći zadaci se ne mijenjaju.",
+    "defaultTaskDurationUnit": "Zadana mjera za nove zadatke",
+    "defaultTaskDurationUnitHint": "Mjera u danima: trajanje se računa u radnim danima kalendara. Mjera u satima: trajanje se računa u radnim satima. Postojeći zadaci se ne mijenjaju. Zadatak tipa fiksni rad uvijek koristi mjeru u satima.",
+    "defaultTaskDurationUnitDays": "Mjera u danima",
+    "defaultTaskDurationUnitHours": "Mjera u satima",
+    "defaultTaskDurationUnitLocked": "Profil {{profile}} računa trajanje u satima. Novi zadaci zato dobivaju mjeru u satima.",
     "durationDisplay": "Prikaz trajanja",
     "durationDisplayHint": "Određuje kako se trajanje zadatka prikazuje, neovisno o jedinici u kojoj je zadatak sam zabilježen.",
+    "durationDisplayOpsHint": "U profilu OPS svaki zadatak prikazuje vlastitu mjeru.",
     "durationDisplayAuto": "Automatski (vlastita jedinica po zadatku)",
     "durationDisplayDays": "Uvijek dani",
     "durationDisplayHours": "Uvijek sati",
@@ -1181,10 +1186,6 @@
     "month": "mjesec",
     "year": "godina"
   },
-  "hourData": {
-    "notice": "Ova datoteka sadrži planiranje u satima.",
-    "enable": "Uključi planiranje u satima"
-  },
   "recordedDates": {
     "activeCount_one": "Prikazujete raspored onako kako ga je Primavera spremila; pri ponovnom izračunavanju pomaknut će se {{count}} zadatak.",
     "activeCount_few": "Prikazujete raspored onako kako ga je Primavera spremila; pri ponovnom izračunavanju pomaknut će se {{count}} zadatka.",
@@ -1555,6 +1556,14 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "ALAP zadaci tako kasno kao što nasljednici dopuštaju",
       "help": "Samo uz planiranje u satima, za nezapočet zadatak koji nije ručno planiran i ima ograničenje „što kasnije moguće“ (ALAP). Najraniji datumi njegovih nasljednika određuju njegov položaj do minute; nasljednici idu prvi. Njegov planirani početak se ne računa; prethodnici, datum stanja i drugo ograničenje i dalje vrijede. Bez nasljednika koristi svoj kasni završetak. Obični korak ALAP ostaje dostupan u svakom profilu."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Samostalne kontrolne točke na završetku radnog dana",
+      "help": "Samostalna kontrolna točka ili završna kontrolna točka bez prethodnika postavlja se na završetak svojega radnog dana."
+    },
+    "workdayDurationMeasure": {
+      "label": "Trajanje u radnim danima",
+      "help": "Trajanje, vrijeme odgode ili preostalo trajanje u danima računa se u radnim danima: svaki radni dan broji se kao 1, koliko god taj dan trajao. Isključeno: dan se računa kao broj radnih sati po danu u kalendaru. Vrijeme odgode u postotcima slijedi mjeru prethodnika. Proteklo vrijeme nikad se ne računa u radnim danima."
     }
   },
   "profiles": {
@@ -1593,6 +1602,7 @@
       "float": "Vremenska rezerva i kasni datumi",
       "instants": "Datumi i trenutci iz datoteke",
       "msproject": "Napredak kao u programu Microsoft Project",
+      "durations": "Trajanje i mjera",
       "ownProfilesOnly": "Samo za vlastite profile"
     },
     "ownProfilesOnlyNote": "Ta pravila izračuna isključena su u svakom ugrađenom profilu, uključujući Primavera P6. Samo vlastiti profil ih može uključiti: za to odaberite Novi profil.",

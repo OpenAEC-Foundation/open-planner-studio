@@ -25,7 +25,7 @@ import { readGanttPalette, barLabelColor, doneBarTones, type GanttPalette } from
 import { paintProgressBarPiece } from './barPaint';
 import { xToDayOffset, type GanttAxis } from './timeAxis';
 import { resolveGanttAxis, isCompressedEffective } from './workdayAxis';
-import { computeSplitSegments } from './splitBarGeometry';
+import { computeSplitSegments, splitEngineFor, taskSplitMeasure } from './splitBarGeometry';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import { classifyTraceTask, isRelationOutsideTrace, type TaskTrace } from '@/engine/taskGrid/trace';
 import { ellipsize } from './textFit';
@@ -144,9 +144,11 @@ export interface GanttRenderOptions {
   /** Stand van "Taakbalken bij onderbrekingen". Default 'selection'. */
   barSplitMode?: BarSplitMode;
   /** Hoofdschakelaar Urenplanning. UIT ⇒ duurkolom in dagen (`Nd`). */
-  enableHourPlanning?: boolean;
   /** Duurweergave-instelling voor de duurkolom (auto/dagen/uren). */
   durationDisplay?: DurationDisplay;
+  /** Telt het rekenprofiel een dagenmaat in werkdagen (conventie `workdayDurationMeasure`)? Kiest de maat
+   *  van de split-as (`taskSplitMeasure`). Afwezig ⇒ aan, zoals het OPS-profiel. */
+  workdayDurationMeasure?: boolean;
   /** Vertaalde eenheid-afkortingen voor de duurkolom-WEERGAVE. Afwezig ⇒ NL d/u/m. */
   durationSuffixes?: DurationSuffixes;
   /** Vertaald "verouderd"-badgelabel voor een externe ghost-balk met sourceMissing.
@@ -429,7 +431,6 @@ export class GanttRenderer {
       task,
       cal,
       this.opts.durationDisplay ?? 'auto',
-      this.opts.enableHourPlanning ?? false,
       this.opts.durationSuffixes,
     );
   }
@@ -481,21 +482,13 @@ export class GanttRenderer {
     return { x1, x2, hourMode, start, end };
   }
 
-  /** De effectieve `CalendarEngine` voor een taak, ONGEACHT dag-/uur-modus. Gedeelde cache
-   *  met `engineFor` (hieronder), dat bewust NULL teruggeeft in dag-modus omdat de kalender-
-   *  necking (`workIntervalsBetween`) daar toch niets oplevert. `Task.splitGaps` heeft echter
-   *  ALTIJD een engine nodig — ook een dag-modus-taak (`workTime` ontbreekt) — om de gat-offsets
-   *  naar schermcoördinaten te wandelen (`computeSplitSegments`, `splitBarGeometry.ts`). Een
-   *  dag-modus-`CalendarEngine` bouwen is goedkoop (de uur-modus-band-uitrol in de constructor
-   *  slaat over, zie `CalendarEngine`'s `mode`-branch), dus geen aparte null-guard nodig hier. */
-  private engineForAnyMode(task: Task): CalendarEngine {
-    const cal = this.opts.effectiveCalById?.get(task.id) ?? this.opts.calendar;
-    let eng = this.engineCache.get(cal.id);
-    if (!eng) {
-      eng = new CalendarEngine(cal);
-      this.engineCache.set(cal.id, eng);
-    }
-    return eng;
+  /** De engine van de split-wandeling voor een taak: de werkblokken van haar effectieve kalender, ook
+   *  op een dagkalender (`splitEngineFor` → `calendarForEngine`), zoals de motor en de gedeelde plaatsing.
+   *  `Task.splitGaps` heeft altijd een engine nodig om de gat-offsets naar schermcoördinaten te wandelen
+   *  (`computeSplitSegments`, `splitBarGeometry.ts`). Voorheen kreeg een dagkalender hier een engine in
+   *  dag-modus; dan liep een dagenmaat-taak in hele werkdagen en een urentaak zonder werkblokken. */
+  private splitEngine(task: Task): CalendarEngine {
+    return splitEngineFor(this.opts.effectiveCalById?.get(task.id) ?? this.opts.calendar);
   }
 
   /** De effectieve `CalendarEngine` voor een taak (uur-modus), of null als de taak op een
@@ -1017,7 +1010,7 @@ export class GanttRenderer {
     const enableQH = enableQuarterHourZoom ?? false;
     // De kopstrook volgt dezelfde tierkeuze als de uurinteractie, zodat “kwartieren tonen bij ver
     // inzoomen” ook de uren/kwartieren in de schermtijdlijn tekent, niet alleen de snapping.
-    const { major, mid, minor } = pickTiers(view.zoom, enableQH, this.opts.enableHourPlanning ?? false);
+    const { major, mid, minor } = pickTiers(view.zoom, enableQH);
 
     // Visible date range, via de as-index (`this.axis.dayIndexOf`/`dateAtIndex`) i.p.v. de
     // kalenderdag-aanname `scrollX/zoom` — die gaat ervan uit dat 1 kalenderdag = 1 zoom-kolom,
@@ -1413,8 +1406,12 @@ export class GanttRenderer {
     // raadpleegt `shouldSplit`/`barSplitMode` daarom NIET; die blijven uitsluitend voor de
     // hieronder-volgende `else`-tak (kalender-necking, puur weergave, uur-modus-only).
     if (task.splitGaps && task.splitGaps.length > 0) {
-      const eng = this.engineForAnyMode(task);
-      const segments = computeSplitSegments(task.splitGaps, geo.start, geo.end, geo.hourMode, eng);
+      const eng = this.splitEngine(task);
+      // De maat van de taak kiest de wandeling (alleen uren §3.14): een taak in de dagenmaat in werkdagen
+      // met een breuk (dezelfde telling als de motor en de plaatsing), anders in werkminuten (een urentaak,
+      // of een dagtaak onder P6/MSP); een dagtaak met alleen datums in hele werkdagen.
+      const measure = geo.hourMode ? taskSplitMeasure(task, this.opts.workdayDurationMeasure ?? true) : false;
+      const segments = computeSplitSegments(task.splitGaps, geo.start, geo.end, measure, eng);
       if (segments.length > 1) {
         // Eerste/laatste grens hergebruikt de AL BEKENDE volle-extent `x1`/`x2` (dezelfde waarden
         // als de cull-test bovenaan deze functie): die dragen dag-modus' "+zoom voor de inclusieve

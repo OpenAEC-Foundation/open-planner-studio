@@ -1,3 +1,4 @@
+import { normalizeTaskDates } from '@/state/migrations/minuteModel';
 // Geavanceerde-CPM checks (fase 2.9, golf 0 + 1 + 2 + 3). Golf 0/1: datamodel + plumbing default-inert,
 // validateConstraintPair, harde-pin-idempotentie. Golf 2 (§4.6): de analyse-laag — interfering float
 // (ALTIJD tf−ff), near-critical-drempel (0<tf≤thr; tf=0 niet, tf=thr wél), kritiek-definitie-opties
@@ -54,6 +55,7 @@ function fs(id: string, pred: string, succ: string): Sequence {
   return { id, predecessorId: pred, successorId: succ, type: 'FINISH_START', lagDays: 0 };
 }
 function solve(tasks: Task[], seqs: Sequence[], opts: CPMOptions = legacyCpmOptions()): CPMResult {
+  for (const task of tasks) Object.assign(task, normalizeTaskDates(task, { calendar: CAL, calendars: [] }));
   return new CPMSolver(tasks, seqs, CAL, [], opts).solve();
 }
 
@@ -189,7 +191,7 @@ const pinSeq: Sequence[] = [fs('p1', 'A', 'B')];
 const rp1 = solve(pinTasks, pinSeq);
 const rp2 = solve(pinTasks, pinSeq);
 eq('32 harde pin: solve idempotent (zelfde digest)', digest(rp1), digest(rp2));
-eq('33 harde pin: B start vóór A klaar (logica gebroken)', rp1.tasks.get('B')!.earlyStart, '2026-06-03');
+eq('33 harde pin: B start vóór A klaar (logica gebroken)', rp1.tasks.get('B')!.earlyStart, '2026-06-03T08:00');
 eq('34 harde pin: B tf=0 (pin kritiek-neutraal)', rp1.tasks.get('B')!.totalFloat, 0);
 eq('35 harde pin: A negatieve float upstream', rp1.tasks.get('A')!.totalFloat, -3);
 eq('36 harde pin: B in violatedConstraintTaskIds (rawMax > pin)', rp1.violatedConstraintTaskIds.includes('B'), true);
@@ -313,8 +315,8 @@ const engDay = new CalendarEngine(CAL);
 // S10-v1 (B dur2): H 06-01..06-05, span 5 werkdagen; nooit kritiek.
 const s10a = s10(2);
 const hA = s10a.r.tasks.get('H')!;
-eq('90 S10-v1: H.es', hA.earlyStart, '2026-06-01');
-eq('91 S10-v1: H.ef', hA.earlyFinish, '2026-06-05');
+eq('90 S10-v1: H.es', hA.earlyStart, '2026-06-01T08:00');
+eq('91 S10-v1: H.ef', hA.earlyFinish, '2026-06-05T16:00');
 eq('92 S10-v1: H tf=0', hA.totalFloat, 0);
 eq('93 S10-v1: H ff=0', hA.freeFloat, 0);
 eq('94 S10-v1: H interfering=0', hA.interferingFloat, 0);
@@ -330,7 +332,7 @@ eq('99 S10-v1: span == workDaysBetween(ES,EF)',
 // S10-v2 (B dur4): driver verschuift ⇒ H her-spant naar EF 06-09, span 7.
 const s10b = s10(4);
 const hB = s10b.r.tasks.get('H')!;
-eq('100 S10-v2: H.ef her-spant naar 06-09', hB.earlyFinish, '2026-06-09');
+eq('100 S10-v2: H.ef her-spant naar 06-09', hB.earlyFinish, '2026-06-09T16:00');
 eq('101 S10-v2: afgeleide scheduleDuration = span 7', s10b.tasks.find(t => t.id === 'H')!.time.scheduleDuration, 7);
 eq('102 S10-v2: span == workDaysBetween(ES,EF)',
   s10b.tasks.find(t => t.id === 'H')!.time.scheduleDuration,
@@ -381,7 +383,7 @@ const succTasks = [mkTask('A', 3), mkTask('B', 2), mkTask('H', 1, { isHammock: t
 const succSeq = [lk('l1', 'A', 'B', 'FINISH_START'), lk('l2', 'A', 'H', 'START_START'),
   lk('l3', 'B', 'H', 'FINISH_FINISH'), lk('l4', 'H', 'Z', 'FINISH_START')];
 const rSucc = solve(succTasks, succSeq);
-eq('114 opvolger: Z.es (FS vanaf H rekent forward door)', rSucc.tasks.get('Z')!.earlyStart, '2026-06-08');
+eq('114 opvolger: Z.es (FS vanaf H rekent forward door)', rSucc.tasks.get('Z')!.earlyStart, '2026-06-08T08:00');
 eq('115 opvolger: Z negatief door FNLT (tf=-1)', rSucc.tasks.get('Z')!.totalFloat, -1);
 eq('116 opvolger: start-driver A GEEN negatieve float via hammock (tf=2)', rSucc.tasks.get('A')!.totalFloat, 2);
 eq('117 opvolger: finish-driver B GEEN negatieve float via hammock (tf=2)', rSucc.tasks.get('B')!.totalFloat, 2);
@@ -742,8 +744,8 @@ gateP.time.actualFinish = '2026-06-12';
 const gateSeq: Sequence[] = [fs('gp1', 'GateS', 'GateP')];
 const rGateA = solve([gateS, gateP], gateSeq, legacyCpmOptions({ dataDate: '2026-07-01' }));
 eq('182 detector-gate: actual EXACT op de pin ⇒ GEEN violation', rGateA.violatedConstraintTaskIds.includes('GateP'), false);
-eq('183 detector-gate: P blijft gepind op zijn actuals (ES)', rGateA.tasks.get('GateP')!.earlyStart, '2026-06-10');
-eq('184 detector-gate: P blijft gepind op zijn actuals (EF)', rGateA.tasks.get('GateP')!.earlyFinish, '2026-06-12');
+eq('183 detector-gate: P blijft gepind op zijn actuals (ES)', rGateA.tasks.get('GateP')!.earlyStart, '2026-06-10T08:00');
+eq('184 detector-gate: P blijft gepind op zijn actuals (EF)', rGateA.tasks.get('GateP')!.earlyFinish, '2026-06-12T16:00');
 
 // (b) CONTROLE — zelfde net, maar het geregistreerde feit wijkt AF van de pin (te laat gestart):
 // een ECHTE schending, moet gewoon blijven vuren (de gate is smal — respecteert de pin niet ⇒
@@ -844,8 +846,8 @@ eq('186 detector-gate CONTROLE: geen actuals + structureel te laat ⇒ violation
   );
   // X en Y zijn na het negeren twee gewone ONGEKOPPELDE bladtaken: ASAP op het anker, geen dwang
   // van/naar de (afwezige) samenvatting. K2 (dur 5, de langste taak) bepaalt het projecteinde.
-  eq('199 T8: X (voormalig "voorganger" van S) start gewoon op het anker', result?.tasks.get('T8-X')?.earlyStart, '2026-06-01');
-  eq('200 T8: Y (voormalig "opvolger" van S) start gewoon op het anker (geen wachten op S)', result?.tasks.get('T8-Y')?.earlyStart, '2026-06-01');
+  eq('199 T8: X (voormalig "voorganger" van S) start gewoon op het anker', result?.tasks.get('T8-X')?.earlyStart, '2026-06-01T08:00');
+  eq('200 T8: Y (voormalig "opvolger" van S) start gewoon op het anker (geen wachten op S)', result?.tasks.get('T8-Y')?.earlyStart, '2026-06-01T08:00');
   eq('201 T8: K1/K2 rekenen normaal door — K2 (langste kind) is kritiek', result?.tasks.get('T8-K2')?.isCritical, true);
 }
 
@@ -857,7 +859,7 @@ eq('186 detector-gate CONTROLE: geen actuals + structureel te laat ⇒ violation
   const b = mkTask('T8-B', 2);
   const result = solve([a, b], [fs('t8-normal', 'T8-A', 'T8-B')]);
   eq('202 T8: normale relatie blijft ongemoeid — geen droppedSequenceIds', result.droppedSequenceIds, undefined);
-  eq('203 T8: normale relatie blijft ongemoeid — B start ná A (FS)', result.tasks.get('T8-B')?.earlyStart, '2026-06-04');
+  eq('203 T8: normale relatie blijft ongemoeid — B start ná A (FS)', result.tasks.get('T8-B')?.earlyStart, '2026-06-04T08:00');
 }
 
 // ── Z8-herwerkronde-fixronde-2 ("laag 1/2-gat"): progressCal-substitutie ────────────────────────
@@ -1001,7 +1003,7 @@ eq('213 Z8-slotronde: es blijft de voorganger-gedreven 2026-06-08T08:00, niet he
   eq('214 Z9b/applyAlap-precondition: P werd daadwerkelijk ALAP-opgeschoven (niet op haar vroegste anker)', r.tasks.get('Z9B2-P')!.earlyStart !== '2026-06-01', true);
   // M's EIGEN datums zijn hoe dan ook ongemoeid (haar forwardPass-tak leest nooit een relatie) —
   // dit bewijst NIET de fix, alleen dat de opzet verder klopt.
-  eq('215 Z9b/applyAlap: M houdt haar rauwe anker ongeacht P se ALAP-push', r.tasks.get('Z9B2-M')!.earlyStart, '2026-06-01');
+  eq('215 Z9b/applyAlap: M houdt haar rauwe anker ongeacht P se ALAP-push', r.tasks.get('Z9B2-M')!.earlyStart, '2026-06-01T08:00');
   // De kern van de fix: P->M draagt GEEN sequenceFreeFloat-invoer (de relatie blijft, net als een
   // hammock-relatie, buiten de driving-/float-analyse — een AANWEZIGE maar betekenisloze invoer,
   // ongeacht het teken, is het lek).

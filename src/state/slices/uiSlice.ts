@@ -159,15 +159,14 @@ export function createDefaultUI(): UIState {
     constructionMode: true,
     dateNotation: 'dmy',
     timeNotation: '24h',
-    // Urenplanning-defaults — hoofdschakelaar uit, gemengd toegestaan,
+    // Duurinstellingen — gemengd toegestaan,
     // duurweergave automatisch, balk-opsplitsing bij selectie.
-    enableHourPlanning: false,
     allowMixedDayHour: true,
     durationDisplay: 'auto',
     barSplitMode: 'selection',
     // «Alleen werkbare dagen tonen»: default UIT.
     compressNonWorkdays: false,
-    hourDataNotice: null,
+
     showTaskTypes: false,
     structureLockedNotice: 0,
     structureLockedClearedAt: 0,
@@ -330,7 +329,7 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
       if (helpWasOpen && (s.ui.activeRibbonTab !== 'file' || s.ui.backstageSection !== 'help')) {
         s.ui.pendingHelpSection = null;
       }
-      const max = maxGanttZoom(s.ui.enableQuarterHourZoom, s.ui.enableHourPlanning);
+      const max = maxGanttZoom(s.ui.enableQuarterHourZoom);
       if (s.view.zoom > max) s.view.zoom = max;
     }),
 

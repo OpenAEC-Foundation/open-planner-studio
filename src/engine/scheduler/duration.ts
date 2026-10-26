@@ -65,6 +65,8 @@ export interface DurationCalendar {
  *  net als `DurationCalendar` zelf: `CalendarEngine` vervult dit contract zonder dat deze
  *  bladmodule ernaar hoeft te importeren (dat zou een cyclus richting de solver openen). */
 export interface SpanCalendar extends DurationCalendar {
+  /** Afgeleide blokken veranderen de bestaande dageenheid van een fase niet (F2, T11). */
+  readonly hasOwnWorkBlocks?: boolean;
   workMinutesBetween(a: Date, b: Date): number;
   workDaysBetween(start: Date, end: Date): number;
 }
@@ -85,12 +87,18 @@ export interface SpanCalendar extends DurationCalendar {
  * ELAPSEDTIME rekent 24/7 in KLOK-tijd: de dag-tak deelt door de VASTE klokdag, nooit door
  * `hoursPerDay` (dubbele-deling-valkuil).
  */
-export function writeDerivedSpan(task: Task, es: Date, ef: Date, cal: SpanCalendar): void {
-  task.time.durationUnit = cal.isHourMode ? 'hours' : 'days';
+export function writeDerivedSpan(task: Task, es: Date, ef: Date, cal: SpanCalendar, preserveScalarDays = false): void {
+  const scalarDays = preserveScalarDays && cal.hasOwnWorkBlocks === false;
+  const spanDays = task.time.durationType === 'ELAPSEDTIME'
+    ? (ef.getTime() - es.getTime()) / (24 * 60 * MS_PER_MIN)
+    : cal.workMinutesBetween(es, ef) / (cal.hoursPerDay * 60);
+  // T10: een gebroken afgeleide duur blijft minuten, zodat v2026.9.0 geen P39.8D als 8 d leest.
+  // Hele scalaire spans behouden de bestaande dagenweergave van de verzameltaak.
+  task.time.durationUnit = cal.isHourMode && !(scalarDays && Number.isInteger(spanDays)) ? 'hours' : 'days';
   if (task.time.durationType === 'ELAPSEDTIME') {
     if (cal.isHourMode) {
       const mins = Math.round((ef.getTime() - es.getTime()) / MS_PER_MIN);
-      task.time.durationMinutes = mins;
+      task.time.durationMinutes = task.time.durationUnit === 'hours' ? mins : undefined;
       task.time.scheduleDuration = mins / (24 * 60);
     } else {
       task.time.durationMinutes = undefined;
@@ -98,7 +106,7 @@ export function writeDerivedSpan(task: Task, es: Date, ef: Date, cal: SpanCalend
     }
   } else if (cal.isHourMode) {
     const mins = cal.workMinutesBetween(es, ef);
-    task.time.durationMinutes = mins;
+    task.time.durationMinutes = task.time.durationUnit === 'hours' ? mins : undefined;
     task.time.scheduleDuration = mins / (cal.hoursPerDay * 60);
   } else {
     task.time.durationMinutes = undefined;

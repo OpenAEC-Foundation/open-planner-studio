@@ -689,9 +689,11 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
     const durMinutes = raw.durationRaw / 10;
     const durSignal = isSubDayMinutes(durMinutes, cal.hoursPerDay);
     const anchor = mppAnchorClock(cal);
-    const dateSignal =
-      (raw.startTs != null && hasNonAnchorTime(formatInstant(raw.startTs, 'hour'), anchor)) ||
-      (raw.finishTs != null && hasNonAnchorTime(formatInstant(raw.finishTs, 'hour'), anchor));
+    // Ook een werkelijke datum met een eigen tijd telt: een feit uit de bron. Anders blijft de kalender
+    // scalair, kapt `formatField` "11:00" af tot de datum, en maakt de laadnormalisatie er het blokeinde
+    // van (review ronde 3 van PR #559, deel B; zelfde regel als mspdiReader).
+    const dateSignal = [raw.startTs, raw.finishTs, raw.actualStartTs, raw.actualFinishTs]
+      .some(ts => ts != null && hasNonAnchorTime(formatInstant(ts, 'hour'), anchor));
     if (durSignal || dateSignal) cSignalCals.add(cal);
   }
   const hourModeCals = promoteCalendarsForHourMode(calResult.calendarByUniqueId, cSignalCals, calResult.fileHoursPerDay);

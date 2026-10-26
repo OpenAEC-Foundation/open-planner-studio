@@ -4,9 +4,11 @@ import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { parseDate, parseInstant, formatDate, formatInstant } from '@/utils/dateUtils';
 import { isCompressedEffective } from '@/engine/renderer/workdayAxis';
 import { shiftByDisplayedColumns } from '@/engine/renderer/barDragMath';
-import { resolveHourBarDrag } from '@/engine/renderer/hourBarDragMath';
+import { resolveDayMeasureBarDrag, resolveHourBarDrag } from '@/engine/renderer/hourBarDragMath';
+import { taskSplitMeasure } from '@/engine/renderer/splitBarGeometry';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { durationMinutesOf, taskDurationUnit } from '@/engine/scheduler/duration';
+import { taskCountsInWorkdays } from '@/engine/scheduler/conventions/durationMeasure';
 import {
   canSplitTask, setGapLength, setWorkLength, splitUnitMinutes, toSplitPieces, workAxisMinutesBetween,
   type SplitPiece,
@@ -23,9 +25,12 @@ import {
 } from '@/engine/startEditConstraint';
 import { notifyStartEdit, type StartEditNotice } from '@/state/startConstraintNotice';
 import { ROW_DRAG_THRESHOLD } from './constants';
-import { hourSnapMinutesFor, snapTimelineDate } from './timelineSnap';
+import {
+  dagslotMinutes, dagslotMinutesBetween, dagslotMoment, dagslotWorkMinimum, dragWorkdaySteps, hourSnapMinutesFor, snapTimelineDate,
+  splitWorkdayStart, splitWorkdayMinutes, splitWorkMinimum, splitWorkdayUnits,
+} from './timelineSnap';
 import { listenWindowDrag } from '@/hooks/listenWindowDrag';
-import { finishIsActual, startIsActual } from '@/utils/taskDates';
+import { finishIsActual, startIsActual, shownStart } from '@/utils/taskDates';
 import { BASELINES_PROGRESS_HELP_ARTICLE_ID } from '@/state/helpArticles';
 import { refusalNotice } from '@/state/refusalNotice';
 
@@ -47,10 +52,18 @@ export interface SplitDragContext {
   /** De lengte van het bewerkte stuk in `pieces0`, in werkminuten. */
   baseMinutes: number;
   unitMinutes: number;
+  minimumMinutes: number;
+  pieceStart: Date;
+  dayZoom: boolean;
   /** Gesnapte pointerdatum bij de start. */
   anchorDate: Date;
   eng: CalendarEngine;
-  hourMode: boolean;
+  cal: WorkCalendar;
+  /** De as van de taak: werkminuten, dagslots (de dagenmaat) of hele werkdagen (alleen datums). Zie
+   *  `SplitAxisKind` in `useSplitGesture.ts`; dezelfde keuze als de Gantt-stukken (`taskSplitMeasure`). */
+  axisKind: 'minutes' | 'dagslots' | 'days';
+  /** Een urentaak: het label telt bij uurzoom uren. */
+  hoursUnit: boolean;
   coalesceKey: string;
 }
 
@@ -138,7 +151,6 @@ export interface DragState {
 interface UseBarDragOptions {
   zoom: number;
   enableQuarterHourZoom: boolean;
-  enableHourPlanning: boolean;
   calendar: WorkCalendar;
   effectiveCalById: Map<string, WorkCalendar>;
   /** Dezelfde vlag als `GanttCanvas`/`resolveGanttAxis` — bepaalt
@@ -172,6 +184,9 @@ interface UseBarDragOptions {
   notify?: (notification: NotifyInput) => void;
   dateNotation?: DateNotation;
   timeNotation?: TimeNotation;
+  /** Telt het rekenprofiel een dagenmaat in werkdagen (conventie `workdayDurationMeasure`)? Kiest de as van
+   *  een stuksleep en de rekenwijze van een dagtaak (dagenmaat of uren). Afwezig ⇒ aan (OPS-profiel). */
+  workdayDurationMeasure?: boolean;
 }
 
 // Balk-sleep (resize links/rechts + verplaatsen), dag- én uur-taken. Bezit zijn eigen `dragState`
@@ -195,9 +210,9 @@ interface UseBarDragOptions {
 // `pieces0` en committen per mousemove via `setTaskSplits` met één coalesce-key per gebaar. Stuk 0
 // (body en linkerrand) en elke ongesplitste balk lopen over de gewone code hieronder.
 export function useBarDrag({
-  zoom, enableQuarterHourZoom, enableHourPlanning, calendar, effectiveCalById, compressNonWorkdays, getTask,
+  zoom, enableQuarterHourZoom, calendar, effectiveCalById, compressNonWorkdays, getTask,
   updateTask, onVerticalBodyDrag, axis, canvasRef, setTaskSplits, barTopOf, isStartDrivenByPredecessor,
-  notify, dateNotation = 'dmy', timeNotation = '24h',
+  notify, dateNotation = 'dmy', timeNotation = '24h', workdayDurationMeasure = true,
 }: UseBarDragOptions) {
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [splitLabel, setSplitLabel] = useState<SplitDragLabel | null>(null);
@@ -222,7 +237,7 @@ export function useBarDrag({
   const startRuleRef = useRef<StartRuleGesture | null>(null);
   // Werkelijke datums van dit gebaar (zie `ActualDatesLock`); hoort net zo bij het GEBAAR.
   const actualLockRef = useRef<ActualDatesLock | null>(null);
-  const hourSnapMinutes = hourSnapMinutesFor(zoom, enableQuarterHourZoom, enableHourPlanning);
+  const hourSnapMinutes = hourSnapMinutesFor(zoom, enableQuarterHourZoom);
   const snapAt = useCallback(
     (x: number, hourMode: boolean) => snapTimelineDate(axis, x, hourMode, hourSnapMinutes),
     [axis, hourSnapMinutes],
@@ -239,20 +254,42 @@ export function useBarDrag({
     const cal = effectiveCalById.get(task.id) ?? calendar;
     const pieces0 = editableSplitPieces(task, cal, segmentCount);
     if (!pieces0) return undefined;
-    const hourMode = taskDurationUnit(task) === 'hours';
-    const eng = new CalendarEngine(hourMode ? calendarForEngine(cal) : cal);
-    const anchorDate = snapAt(canvasX, hourMode);
+    const startIso = shownStart(task);
+    const instants = startIso.includes('T');
+    const axisKind = !instants ? 'days' : taskSplitMeasure(task, workdayDurationMeasure) === 'workdays' ? 'dagslots' : 'minutes';
+    const eng = new CalendarEngine(axisKind === 'days' ? cal : calendarForEngine(cal));
+    const hoursUnit = taskDurationUnit(task) === 'hours';
+    // T24: bij dagzoom valt de pointer op het begin van de werkdag onder de muis, voor elke taak met
+    // momenten (een urentaak sinds F4a, een dagtaak sinds F4b).
+    const dayZoom = axisKind !== 'days' && hourSnapMinutes === 1440;
+    const anchorDate = dayZoom ? splitWorkdayStart(axis.xToDate(canvasX), eng, cal) : snapAt(canvasX, axisKind !== 'days');
     if (!anchorDate) return undefined;
     const index = kind === 'gap' ? segmentIndex - 1 : segmentIndex;
     const base = pieces0.filter(p => p.kind === kind)[index];
     if (!base) return undefined;
+    const taskStart = instants ? parseInstant(startIso) : parseDate(startIso);
+    const arrayIndex = pieces0.indexOf(base);
+    const before = pieces0.slice(0, arrayIndex).reduce((sum, p) => sum + p.minutes, 0);
+    const pieceStart = axisKind === 'dagslots' ? dagslotMoment(taskStart, before, eng)
+      : axisKind === 'minutes' ? eng.nextWorkInstant(eng.addWorkMinutes(taskStart, before))
+        : eng.addWorkingDaysSigned(taskStart, before / (eng.hoursPerDay * 60));
+    const unitMinutes = axisKind === 'dagslots' || dayZoom ? 0 : splitUnitMinutes(task, eng.hoursPerDay, hourSnapMinutes);
+    // T24 stap 2: een pauze is ten minste één werkdag, een werkstuk loopt ten minste tot de volgende
+    // werkdaggrens; bij uurzoom één snapstap.
+    const minimumMinutes = axisKind === 'dagslots'
+      ? (dayZoom
+        ? (kind === 'gap' ? dagslotMinutes(eng) : dagslotWorkMinimum(pieceStart, eng, cal))
+        : Math.max(1e-6, dagslotMinutesBetween(pieceStart, eng.addWorkMinutes(pieceStart, hourSnapMinutes), eng)))
+      : dayZoom
+        ? (kind === 'gap' ? splitWorkdayMinutes(anchorDate, eng, cal) : splitWorkMinimum(pieceStart, eng, cal))
+        : splitUnitMinutes(task, eng.hoursPerDay, hourSnapMinutes);
     return {
       kind, index, pieces0, baseMinutes: base.minutes,
-      unitMinutes: splitUnitMinutes(task, eng.hoursPerDay, hourSnapMinutes),
-      anchorDate, eng, hourMode,
+      dayZoom, pieceStart, minimumMinutes, unitMinutes,
+      anchorDate, eng, cal, axisKind, hoursUnit,
       coalesceKey: `splitdrag:${task.id}:${++splitDragSeq}`,
     };
-  }, [setTaskSplits, getTask, effectiveCalById, calendar, snapAt, hourSnapMinutes]);
+  }, [setTaskSplits, getTask, effectiveCalById, calendar, snapAt, hourSnapMinutes, axis, workdayDurationMeasure]);
 
   const startBarDrag = useCallback((next: DragState) => {
     const canvas = canvasRef.current;
@@ -294,9 +331,19 @@ export function useBarDrag({
     const undoKey = undoKeyRef.current;
     if (!undoKey) return;
 
-    // Een UUR-taak (datumstring met tijdcomponent) behoudt zijn minutenbron. Dag-taken houden het
-    // dag-pad hieronder letterlijk gescheiden.
-    const isHourDrag = dragState.originalStart.includes('T');
+    // Sinds F2 heeft ook een dagtaak momenten. De maat van de taak bepaalt hoe een sleep rekent:
+    //  - `hours`: een urentaak, in werkminuten (`resolveHourBarDrag`, F4a);
+    //  - `dayMeasure`: een dagtaak in een profiel met de dagenmaat, in werkdagen met een breuk
+    //    (`resolveDayMeasureBarDrag`, F4b; T24: bij dagzoom per werkdag, bij uurzoom per uur);
+    //  - `daysAsHours`: een dagtaak onder P6/MSP, waar "d" de urenmaat is: dezelfde sleep als een
+    //    urentaak, en de duur gaat terug als dagen × werktijd per dag;
+    //  - `days`: een taak met alleen datums (van vóór het minutenmodel), in hele werkdagen.
+    const draggedTask = getTask(dragState.taskId);
+    if (!draggedTask) return;
+    const hasInstants = dragState.originalStart.includes('T') && dragState.originalFinish.includes('T');
+    const dragKind: 'hours' | 'dayMeasure' | 'daysAsHours' | 'days' = taskDurationUnit(draggedTask) === 'hours' ? 'hours'
+      : !hasInstants ? 'days'
+        : taskCountsInWorkdays(draggedTask, { workdayDurationMeasure }) ? 'dayMeasure' : 'daysAsHours';
 
     // Dag-resize: de nieuwe duur is de INCLUSIEVE werkdagen-telling via de taakkalender — exact
     // zoals CPM zelf rekent (CPMSolver: `scheduleDuration = cal.workDaysBetween(es, ef)`). Zo blijft
@@ -312,10 +359,9 @@ export function useBarDrag({
     // past de taak-kalender in het gesleepte bereik).
     const axisCalEngine = new CalendarEngine(calendar);
     const compressed = isCompressedEffective(axisCalEngine, compressNonWorkdays);
-    // Snap-quantum: zie `hourSnapMinutesFor`. Met urenplanning uit blijft de as voor nieuwe gebaren
-    // dag-granulair, maar bestaande urentaken behouden hun eigen werkminuten en worden nooit naar
-    // dagen omgezet.
-    const quantumMin = hourSnapMinutesFor(zoom, enableQuarterHourZoom, enableHourPlanning);
+    // De zoom bepaalt de kloksnap: hele dagen onder 400, daarna uren of kwartieren.
+    // De taak behoudt haar eigen werkminuten.
+    const quantumMin = hourSnapMinutesFor(zoom, enableQuarterHourZoom);
 
     // De constraint bij een gesleepte start `start` (dezelfde regel als typen): een SNET, of — terug
     // op de oorspronkelijke start — weer de oorspronkelijke constraint. Leeg zonder startregel: dan
@@ -351,11 +397,15 @@ export function useBarDrag({
       if (!baseTime) return;
       // Volg dezelfde kalenderfabriek (`calendarForEngine`) als de scheduler en resourceberekeningen: expliciete banden
       // (inclusief pauzes) winnen, maar een oudere/zuiver dag-granulaire kalender blijft bruikbaar.
-      const effectiveHourCalendar = calendarForEngine(effectiveCalById.get(dragState.taskId) ?? calendar);
-      const origMinutes = dragState.originalDurationMinutes
-        ?? Math.max(1, Math.round((origFinish.getTime() - origStart.getTime()) / 60000));
+      const hourEngine = new CalendarEngine(calendarForEngine(effectiveCalById.get(dragState.taskId) ?? calendar));
+      const daysAsHours = dragKind === 'daysAsHours';
+      const dayMinutes = Math.max(1, hourEngine.hoursPerDay * 60);
+      const origMinutes = daysAsHours
+        ? Math.max(1, Math.round(dragState.originalDuration * dayMinutes))
+        : dragState.originalDurationMinutes
+          ?? Math.max(1, Math.round((origFinish.getTime() - origStart.getTime()) / 60000));
       const result = resolveHourBarDrag({
-        calendar: new CalendarEngine(effectiveHourCalendar),
+        calendar: hourEngine,
         edge: dragState.edge,
         originalStart: origStart,
         originalFinish: origFinish,
@@ -366,17 +416,69 @@ export function useBarDrag({
       });
       const nextStart = formatInstant(result.start, 'hour');
       const nextFinish = formatInstant(result.finish, 'hour');
+      // Onder P6/MSP is "d" de urenmaat: de werkminuten gaan terug als dagen × werktijd per dag, met zes
+      // decimalen zoals de opslag.
+      const duration = daysAsHours
+        ? { scheduleDuration: Math.round((result.durationMinutes / dayMinutes) * 1e6) / 1e6 }
+        : { durationMinutes: result.durationMinutes };
       if (dragState.edge !== 'right' && startBlocked(nextStart !== dragState.originalStart)) return;
       if (baseTime.scheduleStart === nextStart && baseTime.scheduleFinish === nextFinish
-        && baseTime.durationMinutes === result.durationMinutes) return;
+        && (daysAsHours ? baseTime.scheduleDuration === duration.scheduleDuration : baseTime.durationMinutes === result.durationMinutes)) return;
       updateTask(dragState.taskId, {
         time: {
           ...baseTime,
-          scheduleStart: nextStart,
+          scheduleStart: dragState.edge === 'right' ? baseTime.scheduleStart : nextStart,
           scheduleFinish: nextFinish,
           earlyStart: nextStart,
           earlyFinish: nextFinish,
-          durationMinutes: result.durationMinutes,
+          ...duration,
+        },
+        ...(dragState.edge !== 'right' ? constraintForStart(nextStart) : {}),
+      }, { coalesceKey: undoKey });
+    };
+
+    /** Een dagtaak in de dagenmaat (F4b, T24): bij dagzoom per hele werkdag van de taakkalender, bij uurzoom
+     *  per uur of kwartier; de duur blijft een aantal werkdagen, met een breuk. */
+    const handleDayMeasureDrag = (event: MouseEvent) => {
+      const canvas = canvasRef.current;
+      const rect = canvas?.getBoundingClientRect();
+      if (!rect || !dragState.pointerStart) return;
+      const pointerCurrent = axis.xToDate(event.clientX - rect.left);
+      const baseTime = getTask(dragState.taskId)?.time;
+      if (!baseTime) return;
+      const cal = effectiveCalById.get(dragState.taskId) ?? calendar;
+      const engine = new CalendarEngine(calendarForEngine(cal));
+      // Bij dagzoom per getoonde kolom: de hele werkdagen vanaf de werkdag van de gegrepen rand, met een
+      // vrije doeldag als de eerstvolgende werkdag in de sleeprichting (`dragWorkdaySteps`).
+      const right = dragState.edge === 'right';
+      const workdaySteps = quantumMin === 1440
+        ? dragWorkdaySteps(parseInstant(right ? dragState.originalFinish : dragState.originalStart), right ? 'end' : 'start',
+          Math.round((event.clientX - dragState.startX) / zoom), compressed, engine, cal)
+        : undefined;
+      const result = resolveDayMeasureBarDrag({
+        calendar: engine,
+        edge: dragState.edge,
+        originalStart: parseInstant(dragState.originalStart),
+        originalFinish: parseInstant(dragState.originalFinish),
+        originalDays: dragState.originalDuration,
+        workdaySteps,
+        pointerStart: dragState.pointerStart,
+        pointerCurrent,
+        snapMinutes: quantumMin,
+      });
+      const nextStart = formatInstant(result.start, 'hour');
+      const nextFinish = formatInstant(result.finish, 'hour');
+      if (dragState.edge !== 'right' && startBlocked(nextStart !== dragState.originalStart)) return;
+      if (baseTime.scheduleStart === nextStart && baseTime.scheduleFinish === nextFinish
+        && baseTime.scheduleDuration === result.days) return;
+      updateTask(dragState.taskId, {
+        time: {
+          ...baseTime,
+          scheduleStart: dragState.edge === 'right' ? baseTime.scheduleStart : nextStart,
+          scheduleFinish: nextFinish,
+          earlyStart: nextStart,
+          earlyFinish: nextFinish,
+          scheduleDuration: result.days,
         },
         ...(dragState.edge !== 'right' ? constraintForStart(nextStart) : {}),
       }, { coalesceKey: undoKey });
@@ -388,19 +490,24 @@ export function useBarDrag({
       const canvas = canvasRef.current;
       if (!canvas || !setTaskSplits) return;
       const x = e.clientX - canvas.getBoundingClientRect().left;
-      const at = snapAt(x, split.hourMode);
+      const at = split.dayZoom ? splitWorkdayStart(axis.xToDate(x), split.eng, split.cal) : snapAt(x, split.axisKind !== 'days');
       if (!at) return;
-      // Getekende werkafstand tussen het grijppunt en de dag onder de muis, met teken: naar links
-      // negatief. `workAxisMinutesBetween` is half-open en telt alleen vooruit.
-      const delta = at.getTime() >= split.anchorDate.getTime()
-        ? workAxisMinutesBetween(split.anchorDate, at, split.eng, split.hourMode)
-        : -workAxisMinutesBetween(at, split.anchorDate, split.eng, split.hourMode);
+      // Getekende afstand tussen het grijppunt en de dag onder de muis op de as van de taak, met teken:
+      // naar links negatief. `workAxisMinutesBetween` is half-open en telt alleen vooruit.
+      const minutesAxis = split.axisKind === 'minutes';
+      const delta = split.axisKind === 'dagslots'
+        ? dagslotMinutesBetween(split.anchorDate, at, split.eng)
+        : at.getTime() >= split.anchorDate.getTime()
+          ? workAxisMinutesBetween(split.anchorDate, at, split.eng, minutesAxis)
+          : -workAxisMinutesBetween(at, split.anchorDate, split.eng, minutesAxis);
       const top = barTopOf?.(dragState.taskId) ?? null;
       if (delta === lastAppliedDeltaRef.current) return;
       lastAppliedDeltaRef.current = delta;
+      const rawMinutes = split.baseMinutes + delta;
+      const gapMinutes = rawMinutes <= 0 ? 0 : Math.max(split.minimumMinutes, rawMinutes);
       const result = split.kind === 'gap'
-        ? setGapLength(split.pieces0, split.index, split.baseMinutes + delta, split.unitMinutes)
-        : setWorkLength(split.pieces0, split.index, split.baseMinutes + delta, split.unitMinutes);
+        ? setGapLength(split.pieces0, split.index, gapMinutes, split.unitMinutes)
+        : setWorkLength(split.pieces0, split.index, rawMinutes, split.unitMinutes, split.minimumMinutes);
       if (!result.ok) return;
       setTaskSplits(dragState.taskId, result.pieces, { coalesceKey: undoKey });
       // Het label leest de nieuwe lengte terug uit de UITKOMST (dus gesnapt en geklemd), niet uit de
@@ -410,8 +517,10 @@ export function useBarDrag({
         : result.pieces.filter(p => p.kind === 'work')[split.index]?.minutes ?? 0;
       if (top !== null) {
         setSplitLabel({
-          x, top, kind: split.kind, hourMode: split.hourMode,
-          units: Math.round(edited / split.unitMinutes),
+          x, top, kind: split.kind, hourMode: !split.dayZoom && split.axisKind === 'minutes' && split.hoursUnit,
+          units: split.axisKind === 'dagslots' ? Math.round((edited / dagslotMinutes(split.eng)) * 100) / 100
+            : split.dayZoom ? splitWorkdayUnits(split.pieceStart, edited, split.eng, split.cal)
+              : split.unitMinutes > 0 ? Math.round(edited / split.unitMinutes) : 0,
         });
       }
     };
@@ -456,8 +565,12 @@ export function useBarDrag({
         if (Math.abs(pixelDelta) >= ROW_DRAG_THRESHOLD) lock.tried = true;
         return;
       }
-      if (isHourDrag) {
+      if (dragKind === 'hours' || dragKind === 'daysAsHours') {
         handleHourDrag(e);
+        return;
+      }
+      if (dragKind === 'dayMeasure') {
+        handleDayMeasureDrag(e);
         return;
       }
       const daysDelta = Math.round(pixelDelta / zoom);
@@ -482,15 +595,18 @@ export function useBarDrag({
         // duur exact). Toggle uit ⇒ `addCalendarDays`.
         const newStart = shiftByDisplayedColumns(axisCalEngine, origStart, daysDelta, compressed);
         const newFinish = shiftByDisplayedColumns(axisCalEngine, origFinish, daysDelta, compressed);
+        // Een dagsleep bewaart een bestaand moment binnen de werkdag (N0).
+        const start = `${formatDate(newStart)}${dragState.originalStart.slice(10)}`;
+        const finish = `${formatDate(newFinish)}${dragState.originalFinish.slice(10)}`;
         updateTask(dragState.taskId, {
           time: {
             ...currentTime,
-            scheduleStart: formatDate(newStart),
-            scheduleFinish: formatDate(newFinish),
-            earlyStart: formatDate(newStart),
-            earlyFinish: formatDate(newFinish),
+            scheduleStart: start,
+            scheduleFinish: finish,
+            earlyStart: start,
+            earlyFinish: finish,
           },
-          ...constraintForStart(formatDate(newStart)),
+          ...constraintForStart(start),
         }, { coalesceKey: undoKey });
       } else if (dragState.edge === 'right') {
         // Resize from right (change duration/finish). Bereken de duur uit de rauwe sleep-datum,
@@ -567,7 +683,7 @@ export function useBarDrag({
     dragState,
     zoom,
     enableQuarterHourZoom,
-    enableHourPlanning,
+
     calendar,
     effectiveCalById,
     compressNonWorkdays,
@@ -582,6 +698,7 @@ export function useBarDrag({
     notify,
     dateNotation,
     timeNotation,
+    workdayDurationMeasure,
   ]);
 
   return { dragState, startBarDrag, splitLabel, active: !!dragState };

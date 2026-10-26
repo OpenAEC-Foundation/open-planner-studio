@@ -195,7 +195,6 @@ export const SETTINGS: SettingDescriptor[] = [
   setting({ key: 'uiFontScale', field: 'uiFontScale', parse: parseNumberChoice(UI_FONT_SCALES) }),
 
   // Urenplanning
-  setting({ key: 'enableHourPlanning', field: 'enableHourPlanning', parse: parseBoolean }),
   setting({ key: 'showTaskTypes', field: 'showTaskTypes', parse: parseBoolean }),
   setting({ key: 'allowMixedDayHour', field: 'allowMixedDayHour', parse: parseBoolean }),
   setting({ key: 'durationDisplay', field: 'durationDisplay', parse: parseEnum(DURATION_DISPLAYS) }),

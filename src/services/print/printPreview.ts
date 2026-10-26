@@ -10,7 +10,8 @@ import { printableWidthLogicalPx, type TileLayout } from '@/services/print/tileL
 // Print-vriendelijk kleurschema uit het centrale themapalet.
 import { PRINT_PALETTE as PRINT_COLORS, doneBarTones } from '@/engine/renderer/themePalette';
 import { isCompressedEffective, resolveGanttAxis } from '@/engine/renderer/workdayAxis';
-import { computeSplitSegments } from '@/engine/renderer/splitBarGeometry';
+import { taskSplitSegments } from '@/engine/renderer/splitBarGeometry';
+import { taskDateLabel } from '@/utils/taskDateLabel';
 import { paintProgressBarPiece } from '@/engine/renderer/barPaint';
 import { snapToChoice } from '@/utils/numberChoice';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
@@ -395,7 +396,7 @@ interface TaskTableCellTexts extends Record<AutoColumnKey, string> {
 }
 
 type CellTextOptions = Pick<PrintOptions,
-  'dateNotation' | 'numberLocale' | 'curveLabels' | 'durationDisplay' | 'durationSuffixes' | 'calendars'> & {
+  'dateNotation' | 'timeNotation' | 'numberLocale' | 'curveLabels' | 'durationDisplay' | 'durationSuffixes' | 'calendars'> & {
   /** De projectkalender: terugval voor de effectieve taakkalender van de Duur-kolom. Afwezig ⇒ 8 u/dag
    *  (dan zijn alleen de omrekeningen tussen dagen en uren een schatting; de eigen eenheid niet). */
   calendar?: WorkCalendar;
@@ -418,17 +419,23 @@ function durationCellText(task: Task, options: CellTextOptions): string {
   });
 }
 
+/** Een datum van een taak in de tabel: B4 (een tijd alleen als het moment midden op de werkdag valt), in
+ *  de kalender van de taak. Zonder projectkalender alleen de datum. Ontbreekt de notatie ⇒ dd-mm-jjjj. */
+function taskDateCellText(task: Task, value: string, side: 'start' | 'end', options: CellTextOptions): string {
+  const notation = options.dateNotation ?? 'dmy';
+  if (!value || !options.calendar) return displayDate(value, notation);
+  const calendar = effectiveCalendarOf(task, options.calendar, options.calendars ?? []);
+  return displayDateTime(taskDateLabel(task, value, side, calendar), notation, options.timeNotation ?? '24h');
+}
+
 function taskTableCellTexts(row: PrintRow, options: CellTextOptions): TaskTableCellTexts {
   const task = row.kind === 'task' ? row.task : undefined;
-  const startStr = task && shownStart(task);
-  const endStr = task && shownFinish(task);
   const assignment = row.assignment;
   return {
     wbs: task?.wbsCode || '',
     duration: task ? durationCellText(task, options) : '',
-    // Ontbreekt de datumnotatie ⇒ dd-mm-jjjj.
-    start: displayDate(startStr, options.dateNotation ?? 'dmy'),
-    end: displayDate(endStr, options.dateNotation ?? 'dmy'),
+    start: task ? taskDateCellText(task, shownStart(task), 'start', options) : '',
+    end: task ? taskDateCellText(task, shownFinish(task), 'end', options) : '',
     complete: task ? formatCompletion(task.time.completion) : '',
     units: assignment ? formatReportNumber(assignment.unitsPerDay, options.numberLocale) : '',
     curve: assignment ? (assignment.curve === null ? '—' : (options.curveLabels?.[assignment.curve] ?? assignment.curve)) : '',
@@ -691,8 +698,12 @@ export interface PrintOptions {
   durationDisplay?: DurationDisplay;
   /** Vertaalde duur-afkortingen (`durationSuffixesFrom`) — print heeft geen `t()`; afwezig ⇒ d/h/m. */
   durationSuffixes?: DurationSuffixes;
-  /** De kalenderbibliotheek, voor de uren per dag van de effectieve taakkalender in de Duur-kolom. */
+  /** De kalenderbibliotheek, voor de uren per dag van de effectieve taakkalender in de Duur-kolom, de
+   *  datums volgens B4 en de stukken van een onderbroken taak. */
   calendars?: WorkCalendar[];
+  /** Telt het rekenprofiel een dagenmaat in werkdagen (conventie `workdayDurationMeasure`)? Kiest de maat
+   *  van de split-as, zoals de Gantt. Afwezig ⇒ aan (OPS-profiel). */
+  workdayDurationMeasure?: boolean;
   /**
    * Lettergrootte van het GEGENEREERDE RAPPORT als percentage. 100 (of ontbrekend) = ongeschaald.
    * Werkt bewust RELATIEF: tekst, rijhoogtes,
@@ -1420,8 +1431,12 @@ export function renderReport(
       // kleurverhouding komt terug in elk werkblok van één taak.
       const advies = colorAdvice(task, width);
       const baseColor = advies.kind === 'segments' ? advies.segments[0].color : advies.fill;
+      // Dezelfde stukken als de Gantt (knownbug 245): de getoonde momenten, de maat van de taak en de
+      // werkblokken van haar kalender (`taskSplitSegments`). De buitenranden blijven de hele dagen van de
+      // afdrukbalk; de tussengrenzen liggen op hun moment, dus ook een pauze korter dan een dag is te zien.
       const segments = task.splitGaps && task.splitGaps.length > 0
-        ? computeSplitSegments(task.splitGaps, start, end, false, calEngine)
+        ? taskSplitSegments(task, effectiveCalendarOf(task, calendar, options.calendars ?? []), options.workdayDurationMeasure ?? true)
+          ?? [{ start, end }]
         : [{ start, end }];
       const segs = segments.map((s, i) => {
         const rx1 = i === 0 ? rawX1 : dateToX(s.start);

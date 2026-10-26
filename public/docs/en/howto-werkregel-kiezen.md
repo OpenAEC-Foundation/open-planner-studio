@@ -29,6 +29,8 @@ This is a setting of the app, not of the project file. If a file already contain
 
 *Project default* is the first choice and is what a task has by default. The task type between the brackets is the one the project currently has as its default. The app has no button to change that project default: it comes from an import (for example from MS Project or Primavera P6) or from the MCP connection. If you want another task type for one task, choose it here.
 
+If the MCP connection sets the project default to *Fixed work*, every task that follows the default becomes a task in hours, because fixed work is always a task in hours. A task of 5 work days then becomes 40 hours. The dates stay the same.
+
 You can also choose the task type in the table. Click the **+** on the right of the task list header (*Add column*) and, under *Planning*, choose the *Task type* column.
 
 A task without an assignment has nothing to tie together, so the task type does nothing there. Assign a resource first (see [Assigning resources with a curve](docs://howto-resource-toewijzen)).
@@ -56,9 +58,9 @@ If that changes the task's duration, the status bar says *Out of date — recalc
 
 **The *Task type* field is missing.** Then the setting *Use task types* is off and the file has no task types yet, or you have selected a milestone, a phase, a hammock or a task with the duration type *Elapsed time*. There is no task type there. Select an ordinary task.
 
-**The duration changes without me changing it.** Under *Fixed work* and *Fixed units* the duration follows from units and work. If you change one of those or the number of resources, the app adjusts the duration, rounded up to whole work days. For a task in hours the app rounds up to whole minutes.
+**The duration changes without me changing it.** Under *Fixed work* and *Fixed units* the duration follows from units and work. If you change one of those or the number of resources, the app adjusts the duration. The app does not round the duration: at units of 3 on 32 hours of work the duration becomes 10 hours and 40 minutes.
 
-**The work does not exactly match units × duration.** Rounding can cause that. In the *Work (h)* field a warning sign then appears, *Differs from units × duration*. The histogram follows the stored work.
+**The work does not exactly match units × duration.** That can happen for a task from P6 or MS Project, if the file holds a different remaining work. In the *Work (h)* field a warning sign then appears, *Differs from units × duration*. The histogram follows the stored work. A change you make yourself gives no difference, because the app does not round.
 
 **Material does not count.** For a material resource *Work (h)* shows a dash. Material never drives the duration.
 
