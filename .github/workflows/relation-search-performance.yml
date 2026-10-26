@@ -1,0 +1,89 @@
+name: Afhankelijkheden zoeken meten
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - '.github/workflows/relation-search-performance.yml'
+      - 'scripts/performance/relation-search/**'
+      - 'tests/planning/check-relation-cell.ts'
+      - 'tests/browser/dependencies-add.spec.ts'
+
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    # Opt-in via deze werkbranch, of later handmatig. Geen permanente brede PR-poort.
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 't3/limit-relation-search'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    env:
+      BASE_REVISION: 1f719e9ffca1123e3fc173ecaa4cd83f3c228416
+      HEAD_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+      CI: 'true'
+    steps:
+      - name: Exacte head ophalen
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.HEAD_REVISION }}
+          path: after
+          persist-credentials: false
+      - name: Exacte basis ophalen
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.BASE_REVISION }}
+          path: before
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: after/package-lock.json
+      - name: Herkomst vastleggen
+        run: |
+          mkdir -p relation-search-evidence
+          printf '%s\n' "voor=$BASE_REVISION" "na=$HEAD_REVISION" > relation-search-evidence/revisies.txt
+          git -C before rev-parse HEAD >> relation-search-evidence/revisies.txt
+          git -C after rev-parse HEAD >> relation-search-evidence/revisies.txt
+          test "$(git -C before rev-parse HEAD)" = "$BASE_REVISION"
+          test "$(git -C after rev-parse HEAD)" = "$HEAD_REVISION"
+      - name: Afhankelijkheden en Chromium
+        timeout-minutes: 6
+        run: |
+          set -o pipefail
+          npm ci --prefix before 2>&1 | tee relation-search-evidence/install-voor.log
+          npm ci --prefix after 2>&1 | tee relation-search-evidence/install-na.log
+          cd after
+          npx playwright install --with-deps --only-shell chromium 2>&1 | tee ../relation-search-evidence/chromium.log
+      - name: Gerichte helpertest
+        working-directory: after
+        run: |
+          set -o pipefail
+          bash tests/planning/run.sh check-relation-cell.ts 2>&1 | tee ../relation-search-evidence/planning.log
+      - name: Bestaande browserroute
+        if: ${{ !cancelled() && hashFiles('after/node_modules/.package-lock.json') != '' }}
+        working-directory: after
+        timeout-minutes: 4
+        run: |
+          set -o pipefail
+          node scripts/run-browser-tests.mjs tests/browser/dependencies-add.spec.ts 2>&1 | tee ../relation-search-evidence/browser-test.log
+      - name: Voor en na op dezelfde runner
+        if: ${{ !cancelled() && hashFiles('before/node_modules/.package-lock.json', 'after/node_modules/.package-lock.json') != '' }}
+        timeout-minutes: 14
+        run: |
+          set -o pipefail
+          node after/scripts/performance/relation-search/measure.mjs before after relation-search-evidence 2>&1 | tee relation-search-evidence/meting.log
+      - name: Bewijs en foutlogs bewaren
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relation-search-${{ env.HEAD_REVISION }}
+          retention-days: 7
+          if-no-files-found: warn
+          path: |
+            relation-search-evidence/
+            !relation-search-evidence/*-dist/
+            after/test-results/
+            after/playwright-report/
