@@ -341,11 +341,17 @@ function canonical(value: unknown): unknown {
 function fingerprint(value: unknown): string {
   return createHash('sha256').update(JSON.stringify(canonical(value))).digest('hex');
 }
+// De publieke selectie bepaalt WELKE acht bestanden; de inhoud komt uit de vaste fixture met de
+// voorbeelden van vóór het minutenmodel (`fixtures/minute-model-examples-f0/`, bytegelijk aan de
+// publieke bestanden waarop de vingerafdrukken hierboven gemeten zijn). Sinds de voorbeelden in het
+// minutenmodel opnieuw gegenereerd zijn (knownbug 35), hebben ze nieuwe id's en is het opgeslagen plan
+// al het berekende plan; deze check bewaakt de productieroute, dus hij houdt de gemeten invoer.
 const examples = fileURLToPath(new URL('../../public/examples/', import.meta.url));
+const frozen = fileURLToPath(new URL('./fixtures/minute-model-examples-f0/', import.meta.url));
 const files = readdirSync(examples).filter(f => f.endsWith('.ifc')).sort();
 eq('voorbeelden: dezelfde acht bestanden', files, Object.keys(exampleLoads).sort());
 for (const file of files) {
-  const parsed = readIFC(readFileSync(`${examples}/${file}`, 'utf8'));
+  const parsed = readIFC(readFileSync(`${frozen}/${file}`, 'utf8'));
   const { tasks, assignments, resources, calendar: cal, resourceCalendars: calendars } = parsed;
   const before = computeResourceLoad(resources, assignments, tasks, cal, calendars ?? [], OPS);
   eq(`voorbeeld ${file}: vóór Bereken`, fingerprint(before), exampleLoads[file]?.[0]);

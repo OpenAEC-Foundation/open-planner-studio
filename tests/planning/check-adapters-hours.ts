@@ -451,7 +451,10 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
 
 // ── Dag-bestand-discriminator (geen uur-lek + identieke leaf-schedule) ──────
 {
-  const src = readFileSync(join(HERE, '..', '..', 'examples', '03-kantoorgebouw-zuidas.ifc'), 'utf8');
+  // Een ECHT dagbestand: het voorbeeld van vóór het minutenmodel, als vaste fixture. Het opnieuw
+  // gegenereerde `examples/03-…` is geen dagbestand meer in de zin van de discriminator: elke datum is
+  // daar een moment (07:00, 16:00), en dat is tijdsignaal (c) in `subdayIo.ts`.
+  const src = readFileSync(join(HERE, 'fixtures', 'minute-model-examples-f0', '03-kantoorgebouw-zuidas.ifc'), 'utf8');
   const M = readIFC(src);
   const startOf = (t: Task) => (t.time.earlyStart || t.time.scheduleStart).substring(0, 10);
   const digest = (ts: Task[]) => ts.filter(t => t.childIds.length === 0)

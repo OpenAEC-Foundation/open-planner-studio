@@ -1,5 +1,6 @@
 // Voorbeeldensnapshot van fase F0 van "alleen uren" (spec docs/superpowers/specs/2026-10-20-alleen-uren-design.md
-// §6.3). Per IFC-voorbeeld in `examples/` staat in `fixtures/minute-model-examples.json` van elke taak de
+// §6.3). Per IFC-voorbeeld van vóór het minutenmodel (`fixtures/minute-model-examples-f0/`, de vroegere
+// `examples/`) staat in `fixtures/minute-model-examples.json` van elke taak de
 // vroege en late start, het vroege en late einde en de speling na Bereken, met de motor van vandaag.
 // F2 en F3 moeten die snapshot halen op dagniveau.
 //
@@ -27,7 +28,11 @@ import { workdayOfInstant, isDateOnly } from '@/engine/calendar/workdayRules';
 import type { Task } from '@/types/task';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
-const EX_DIR = join(HERE, '..', '..', 'examples');
+// De voorbeelden zoals ze vóór het minutenmodel waren (zonder `OPS_Project.TimeModel`), vastgezet als
+// fixture. Sinds de voorbeelden in het minutenmodel opnieuw gegenereerd zijn (zodat ze schoon openen,
+// knownbug 35), toetst deze check hier nog steeds wat hij moet toetsen: een oud bestand gaat door de
+// migratie op de laadgrens en haalt de F0-snapshot op dagniveau. Niet bijwerken met `gen:examples`.
+const EX_DIR = join(HERE, 'fixtures', 'minute-model-examples-f0');
 const SNAPSHOT = join(HERE, 'fixtures', 'minute-model-examples.json');
 const UPDATE = process.env.OPS_MINUTE_MODEL_EXAMPLES_UPDATE === '1';
 const S = () => useAppStore.getState();
