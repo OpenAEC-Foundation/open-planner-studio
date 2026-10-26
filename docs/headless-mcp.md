@@ -97,9 +97,24 @@ Claude Code: `claude mcp add --transport http open-planner http://127.0.0.1:3878
 **HTTP.** Hetzelfde contract als de bridge in `src-tauri/src/mcp_bridge.rs`: alleen loopback; een
 request met een `Origin`-header krijgt 403 (bescherming tegen DNS-rebinding); alleen `POST /mcp`
 (anders 405 of 404); het Bearer-token wordt in constante tijd vergeleken (401); body tot 50 MiB (413);
-strikt één request tegelijk; geen antwoord binnen 120 s geeft 504. Sessies via `Mcp-Session-Id`:
+strikt één request tegelijk, met een antwoordtimer van 120 s (zie de beperking hieronder). Sessies via `Mcp-Session-Id`:
 elk request behalve `initialize` zonder header krijgt 400, een onbekende sessie 404. Het
 documentanker (`DOC_DRIFT`) leeft per sessie.
+
+**Geen harde uitvoeringstijdgrens.** De antwoordtimer wordt pas gestart nadat de body is gelezen en
+het request aan de beurt is in de HTTP-wachtrij; die voorafgaande wachttijd telt dus niet mee. De timer
+gebruikt de Node-eventloop. Als die vrij kan draaien en er geen antwoord is, kan de timer na circa
+120 s een 504 leveren. Synchrone verwerking, waaronder `readFileSync`, `writeFileSync` en `fsyncSync` in de
+gebonden bestandsroute, kan diezelfde eventloop blokkeren. Tijdens zo'n blokkade staan ook andere
+sessies stil en kan de timer niet afgaan: 120 s is geen gegarandeerde bovengrens, ook niet op trage
+of vastgelopen opslag. Zie [Node-timers](https://nodejs.org/api/timers.html#scheduling-timers).
+
+Een 504 beëindigt het HTTP-wachten, maar onderbreekt geen al gestarte toolbewerking. Behandel dat
+niet als bewijs dat er niets is gewijzigd: controleer de planning en eventuele doelbestanden vóór
+het opnieuw uitvoeren van een wijzigende opdracht. De headless server is hiermee niet getest of
+geschikt verklaard voor harde opslagdeadlines. Metingen op grote bestanden/trage opslag en een
+mogelijke geïsoleerde uitvoeringsopzet blijven apart vervolgwerk (knownbug 218); de scopecontroles
+mogen daarvoor niet worden afgezwakt.
 
 **stdio.** Eén proces is één client en één sessie. stdout is alleen voor het protocol; alle
 logging gaat naar stderr.
