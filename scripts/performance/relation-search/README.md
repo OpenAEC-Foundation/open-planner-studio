@@ -55,6 +55,11 @@ De exacte declaratie in de geleverde JavaScript wordt via haar bronbereik aan
 CDP gekoppeld; de mogelijk lege CDP-functienaam is geen zoekcriterium. Ruwe
 coverage wordt per stap bewaard. Een querywijziging moet hem op beide revisies uitvoeren; pijl, type, richting en
 lag alleen vóór de wijziging. Er is geen contract op aantallen StrictMode-renders.
+Na de pijlcontrole kiest een echte Enter de gemarkeerde taak. De proef controleert
+de gekozen zoektekst, de gesloten trefferlijst en ongewijzigde domeinstate vóór
+de muisklik op type. Dit volgt de bestaande browserroute: de zwevende trefferlijst
+bedekt anders het typeveld. Kiezen wijzigt de zoektekst en moet de helper op beide
+revisies opnieuw uitvoeren; type, richting en lag houden daarna die zoektekst gelijk.
 Daarna moet de echte bevestiging één relatie en één undo-stap maken; undo en Escape
 worden tegen de volledige taken, relaties en toewijzingen gecontroleerd. De
 voor/na-domeinvergelijking normaliseert uitsluitend het gegenereerde relatie-id.

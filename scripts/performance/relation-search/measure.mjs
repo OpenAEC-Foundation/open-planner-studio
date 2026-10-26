@@ -179,6 +179,13 @@ async function memoProof(side, tasks) {
     await probe('zoektekst', () => search(page).fill('Werk'), true);
     await probe('pijl', () => search(page).press('ArrowDown'), side.name === 'voor');
     await expect(options(page).nth(1)).toHaveAttribute('data-ops-dependency-highlighted', 'true');
+    // Eerst een taak kiezen, zoals in de bestaande browserroute. De trefferlijst ligt boven
+    // het typeveld; pas na de keuze zijn de overige conceptvelden met de muis bereikbaar.
+    const chosenLabel = await options(page).nth(1).textContent();
+    await probe('taak kiezen', () => search(page).press('Enter'), true);
+    await expect(options(page)).toHaveCount(0);
+    await expect(search(page)).toHaveValue(chosenLabel);
+    assert.deepEqual(await domain(page), original, 'een taak kiezen bevestigt nog geen relatie');
     await probe('type', async () => {
       await page.locator('[data-ops-dependency-type] .ops-select__trigger').click();
       await page.getByRole('option', { name: 'SS', exact: true }).click();
