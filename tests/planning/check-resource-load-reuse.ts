@@ -98,6 +98,9 @@ function calendarCalls<T>(run: () => T): { value: T; calls: number } {
 function scaleInput(taskCount: number, count: number): HistogramInput {
   const input = makeResourceLoadReuseFixture(taskCount, count);
   for (const task of input.tasks) {
+    // Hier mag geen kalenderconflict ontstaan: veroorzakers verschillen terecht bij opsplitsen.
+    // De gemengde taak-/resourcekalenders zijn hierboven al met volledige attributie vergeleken.
+    task.calendarId = undefined;
     task.time.durationType = 'WORKTIME';
     task.time.scheduleDuration = 32;
     task.time.completion = 0;
