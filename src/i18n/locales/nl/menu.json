@@ -352,6 +352,8 @@
     "helpDraft": "concept"
   },
   "export": {
+    "progressFileSuffix": "voortgang",
+    "libraryFileSuffix": "bibliotheek",
     "progressXlsxLabel": "Voortgangsblad (Excel)",
     "progressXlsxDesc": "Slank blad met alleen id, WBS, naam, datums en voltooiing — met vaste kolombreedtes, vergrendelde velden en datumcontrole.",
     "progressXlsxShort": "Voortgang (Excel)",
