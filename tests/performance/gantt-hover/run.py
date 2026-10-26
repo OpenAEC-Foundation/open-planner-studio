@@ -61,7 +61,7 @@ try:
         cwd = BEFORE if label.startswith("before") else ROOT
         output = OUT / f"{label}.json"
         env = dict(os.environ, OPS_MEASURE_GANTT_HOVER="1", OPS_GANTT_HOVER_OUT=str(output))
-        run(["node", "scripts/run-browser-tests.mjs", SPEC, "--grep", "^histogram picker wisselt"], cwd=cwd, env=env)
+        run(["node", "scripts/run-browser-tests.mjs", SPEC, "--grep", "histogram picker wisselt"], cwd=cwd, env=env)
         results[label] = json.loads(output.read_text())
         assert results[label]["commit"] == (BASE if label.startswith("before") else head)
         # Bewaar visueel bewijs van beide kanten, ook wanneer de volgende browserstart opruimt.
