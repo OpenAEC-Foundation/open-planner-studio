@@ -25,7 +25,7 @@
 //     expliciet vastlegt. Het drift-anker van de oude sessie is weg; een leestool bindt geen anker,
 //     dus zonder die keuze landde een wijziging op het document dat toevallig actief is.
 //   - Een annulering (`notifications/cancelled`) wordt direct bij ontvangst vastgelegd; een geannuleerde
-//     aanvraag die nog in de wachtrij stond, gaat nooit naar de bridge.
+//     aanvraag die nog wachtte (ook op opnieuw verbinden), gaat nooit naar de bridge.
 //   - De toollijst wisselt tussen de plannertools en de statustool; bij elke wissel krijgt de client
 //     `notifications/tools/list_changed`, en `initialize` kondigt altijd `listChanged` aan.
 import type { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
@@ -169,7 +169,7 @@ export function createBridgeProxy(opts: BridgeProxyOptions, send: (message: JSON
   let documentCheckNeeded = false;
   /** Leestools volgens de laatste `tools/list` (`readOnlyHint`). Een onbekende tool telt als wijzigend. */
   const readOnlyTools = new Set<string>();
-  /** Aanvragen die in de wachtrij staan en nog niet zijn doorgestuurd. */
+  /** Aanvragen die nog niet zijn doorgestuurd, ook tijdens opnieuw verbinden. */
   const queuedIds = new Set<Id>();
   /** Aanvragen die de client annuleerde vóór ze aan de beurt waren; die gaan nooit naar de bridge. */
   const cancelledIds = new Set<Id>();
@@ -399,14 +399,19 @@ export function createBridgeProxy(opts: BridgeProxyOptions, send: (message: JSON
     }
     if (!connected) {
       const failure = await connectUpstream();
+      if (cancelledIds.has(id)) return;
       if (failure) {
         await answerOffline(id, method, failure);
         return;
       }
     }
+    if (cancelledIds.has(id)) return;
+    queuedIds.delete(id); // vanaf deze POST is de aanvraag bij de bridge, niet meer lokaal wachtend
     let result = await post(message, true);
     if (result.type === 'session-lost') {
+      queuedIds.add(id); // een eventuele veilige herhaling is tijdens reconnect weer annuleerbaar
       const failure = await connectUpstream();
+      if (cancelledIds.has(id)) return;
       if (failure) {
         await answerOffline(id, method, failure);
         return;
@@ -416,6 +421,8 @@ export function createBridgeProxy(opts: BridgeProxyOptions, send: (message: JSON
         await toolError(id, SESSION_RESET_MESSAGE);
         return;
       }
+      if (cancelledIds.has(id)) return;
+      queuedIds.delete(id);
       result = await post(message, true);
       if (result.type === 'session-lost') {
         await answerOffline(id, method, { kind: 'refused', message: 'the new session was refused right away; try again' });
@@ -448,13 +455,16 @@ export function createBridgeProxy(opts: BridgeProxyOptions, send: (message: JSON
     const method = typeof raw.method === 'string' ? raw.method : null;
     if (method !== null && isId(raw.id)) {
       const id = raw.id;
-      queuedIds.delete(id);
-      // Geannuleerd terwijl hij wachtte: niet doorsturen en (volgens de spec) niet beantwoorden.
-      if (cancelledIds.has(id)) {
-        log(`request ${String(id)} was cancelled before it was sent; dropped`);
-        return;
+      try {
+        // Geannuleerd terwijl hij wachtte: niet doorsturen en niet beantwoorden.
+        if (cancelledIds.has(id)) {
+          log(`request ${String(id)} was cancelled before it was sent; dropped`);
+          return;
+        }
+        await handleRequest(id, method, raw);
+      } finally {
+        queuedIds.delete(id); // ook lokale weigering/verbindingsfout ruimt de wachtregistratie op
       }
-      await handleRequest(id, method, raw);
     } else if (method !== null) {
       await handleNotification(raw);
     }

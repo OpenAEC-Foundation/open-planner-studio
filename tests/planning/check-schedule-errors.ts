@@ -5,7 +5,7 @@
 // (Engels) verschenen ongeacht de UI-taal, want de solver leverde alleen een vaste tekst. Nu levert
 // hij óók een code + parameters (`CPMResult.errorInfo`) en vertaalt de UI via `scheduleErrors.*`.
 // Deze batterij pint vast:
-//   1. elke guard in `solve()` levert de juiste code (+ taak/kring) én nog steeds letterlijk de oude
+//   1. elke guard in `solve()` levert de juiste code (+ taak/kring) én letterlijk de Engelse
 //      `error`-tekst — MCP-tools, extensies en `mapTransactionError` lezen die;
 //   2. elke code heeft in alle talen een niet-lege tekst met de juiste placeholder;
 //   3. de melding en het waarschuwingenpaneel dragen de code, en vertalen naar de gekozen taal.
@@ -60,7 +60,7 @@ const eq = (label: string, got: unknown, want: unknown) => {
 };
 const truthy = (label: string, got: unknown) => { checks++; if (!got) diffs.push(`${label}: verwacht waar, kreeg ${JSON.stringify(got)}`); };
 
-// ── 1. Elke guard: code + parameters, en de oude tekst ongewijzigd ─────────────────────────────
+// ── 1. Elke guard: code + parameters, en de Engelse technische tekst ─────────────────────────────
 function task(id: string, name: string, time: Partial<Task['time']> = {}): Task {
   return {
     id, name, parentId: null, childIds: [], wbsCode: id, isMilestone: false, status: 'NOT_STARTED',
@@ -85,27 +85,27 @@ const cases: { code: ScheduleErrorCode; result: CPMResult; legacy: string; info:
     info: {},
   },
   { code: 'noWorkingDays', result: solve([task('a', 'Fundering')], [], noWorkDays),
-    legacy: 'Kalender heeft geen werkdagen ingesteld', info: { code: 'noWorkingDays' } },
+    legacy: 'Calendar has no working days configured', info: { code: 'noWorkingDays' } },
   { code: 'invalidDayDuration', result: solve([task('a', 'Fundering', { scheduleDuration: -1 })]),
-    legacy: 'Ongeldige dagduur voor taak "Fundering"', info: { code: 'invalidDayDuration', taskName: 'Fundering' } },
+    legacy: 'Invalid day duration for task "Fundering"', info: { code: 'invalidDayDuration', taskName: 'Fundering' } },
   { code: 'invalidHourDuration', result: solve([task('a', 'Stellen', { durationUnit: 'hours', durationMinutes: Number.NaN })]),
-    legacy: 'Ongeldige urenduur voor taak "Stellen"', info: { code: 'invalidHourDuration', taskName: 'Stellen' } },
+    legacy: 'Invalid hour duration for task "Stellen"', info: { code: 'invalidHourDuration', taskName: 'Stellen' } },
   { code: 'hourTaskWithoutWorkHours', result: solve([task('a', 'Stellen', { durationUnit: 'hours', durationMinutes: 240, durationType: 'WORKTIME' })], [], bandless),
-    legacy: 'Uurtaak "Stellen" heeft geen geldige werktijden in zijn kalender', info: { code: 'hourTaskWithoutWorkHours', taskName: 'Stellen' } },
+    legacy: 'Hour-based task "Stellen" has no valid working hours in its calendar', info: { code: 'hourTaskWithoutWorkHours', taskName: 'Stellen' } },
   { code: 'invalidStartDate', result: solve([task('a', 'Grondwerk', { scheduleStart: '' })]),
-    legacy: 'Ongeldige startdatum voor taak "Grondwerk"', info: { code: 'invalidStartDate', taskName: 'Grondwerk' } },
+    legacy: 'Invalid start date for task "Grondwerk"', info: { code: 'invalidStartDate', taskName: 'Grondwerk' } },
 ];
 eq('1.0 elke code heeft een solvergeval in deze batterij', cases.map((c) => c.code).sort(), [...SCHEDULE_ERROR_CODES].sort());
 for (const c of cases) {
   eq(`1 ${c.code}: errorInfo.code`, c.result.errorInfo?.code, c.code);
   if (c.code === 'cycle') continue;
   eq(`1 ${c.code}: errorInfo compleet`, c.result.errorInfo, c.info);
-  eq(`1 ${c.code}: de oude error-tekst is letterlijk ongewijzigd`, c.result.error, c.legacy);
+  eq(`1 ${c.code}: de technische error-tekst is Engels`, c.result.error, c.legacy);
 }
 const cyc = cases[0].result;
 const names = cyc.errorInfo?.cycleNames ?? [];
 eq('1 cycle: de kring is gesloten en noemt beide taken', [names[0] === names[names.length - 1], [...new Set(names)].sort()], [true, ['Fundering', 'Wanden']]);
-eq('1 cycle: de oude error-tekst is letterlijk ongewijzigd', cyc.error, `Circular dependency detected: ${names.join(' -> ')}`);
+eq('1 cycle: de technische error-tekst is Engels', cyc.error, `Circular dependency detected: ${names.join(' -> ')}`);
 // `mapTransactionError` (MCP) herkent een kring aan deze woorden; die module sleept de i18n-config
 // mee (DOM nodig), dus hier de regex zelf — de MCP-suite dekt de functie.
 truthy('1 cycle: MCP herkent de kring nog aan de tekst', /circular dependency/i.test(cyc.error ?? ''));

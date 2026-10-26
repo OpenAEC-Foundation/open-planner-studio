@@ -478,6 +478,46 @@ test('geannuleerde wijziging in de wachtrij gaat nooit naar de bridge (review r1
   }
 });
 
+test('knownbug 206: annuleren tijdens verbinden voorkomt de tool-POST, een volgende aanvraag werkt', async () => {
+  const port = await freePort();
+  const s = await startExtension(TOKEN, port); // lokale initialize terwijl de bridge nog uit staat
+  let release = () => {};
+  let holding = false;
+  const bodies: string[] = [];
+  const late = await startMirror(port, { handleMessage: async (body, ctx) => {
+    bodies.push(body);
+    if (JSON.parse(body).method === 'initialize') {
+      holding = true;
+      await new Promise<void>(resolve => { release = resolve; });
+    }
+    return handleMcpMessage(body, ctx);
+  } });
+  try {
+    const before = app.store.getState().tasks.length;
+    const controller = new AbortController();
+    const outcome = s.client.callTool({ name: 'planner_add_tasks',
+      arguments: { tasks: [{ tempId: 'tmp-cancel-reconnect', name: 'MAG NIET NA ANNULEREN', duration: 1 }] } },
+    undefined, { signal: controller.signal }).then(() => 'beantwoord', () => 'afgebroken');
+    await waitFor(() => holding);
+    assert(holding, 'de aanvraag wacht daadwerkelijk op upstream initialize');
+    controller.abort('annuleren tijdens opnieuw verbinden');
+    assertEq(await outcome, 'afgebroken', 'SDK-client annuleert');
+    await sleep(200); // laat de cancellation-notification de stdio-proxy bereiken
+    release();
+    await toolNames(s); // wacht achter aanvraag én annuleringsmelding in dezelfde proxywachtrij
+    assert(!bodies.some(body => body.includes('planner_add_tasks')), 'geannuleerde tool is niet naar bridge gepost');
+    assertEq(app.store.getState().tasks.length, before, 'geen taak toegevoegd na annuleren');
+    const next = await call(s, 'planner_add_tasks', { tasks: [{ tempId: 'tmp-after-cancel', name: 'Na annuleren', duration: 1 }] });
+    assert(!next.isError, `volgende aanvraag werkt: ${next.text}`);
+    assertEq(app.store.getState().tasks.length, before + 1, 'volgende aanvraag precies eenmaal uitgevoerd');
+    app.store.getState().undo();
+  } finally {
+    release();
+    await s.client.close();
+    await late.close();
+  }
+});
+
 test('bridge Stop/Start met behouden sessie: statustool en terug, elk met list_changed (review r1, 3)', async () => {
   const sessions = createMcpSessionTable();
   let bridge = await startMirror(undefined, { sessions });

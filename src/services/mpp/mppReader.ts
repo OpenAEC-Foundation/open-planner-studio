@@ -938,6 +938,8 @@ export function parseProjectProperties(
     // `src/types/project.ts`). Out-of-sequence-hervatting is veldgedreven: `task.time.resume`
     // (MPP-veld-id 99) is het signaal, er is geen projectvlag.
     schedulingProfile: builtInProfile('msproject'),
+    // Dezelfde grens als bij de opgeslagen speling, ook na F5 en IFC-opslag behouden.
+    schedulingOptions: { criticalDefinition: { mode: 'totalFloat', threshold: criticalSlackLimitDaysOf(props) } },
   };
 
   // Statusdatum mét tijd: MS Project bewaart hem op de standaard eindtijd (17:00 = einde van die
@@ -1616,7 +1618,6 @@ export function readMPP(bytes: Uint8Array, labels?: ImportLabels): ImportResult 
     cfb, taskFieldMap, resourceFieldMap, assignmentFieldMap,
     taskUniqueIds: new Set(taskIdByUniqueId.keys()),
     resourceUniqueIds: new Set(resourceIdByUniqueId.keys()),
-    criticalSlackLimitDays: criticalSlackLimitDaysOf(projectProps),
   });
 
   return {

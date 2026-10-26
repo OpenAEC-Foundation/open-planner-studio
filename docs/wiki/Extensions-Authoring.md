@@ -240,16 +240,17 @@ explanation after `---`. Buttons: **Back**, **Show me** (with `prepare`), **Star
 
 The panel floats bottom-right (bottom-left in `ar`/`fa`) above the status bar rather than in the right
 rail, which does not exist in the full views (Table, IFC, Report, Resources) or in Backstage. If the
-highlighted element lies under the panel and the other side is free, the panel moves there.
+step's target lies under the panel and the other side is free, the panel moves there. Users can also
+drag the expanded panel by its header. Tutorial steps no longer draw a marking overlay.
 
-**Anchors.** `anchor` is the value of a `data-tour-anchor` attribute; the app outlines that element in
-the tour style, but **non-modally** — the user can click it. Available anchors:
+**Anchors.** `anchor` is the value of a `data-tour-anchor` attribute. The app measures that target
+when placing the guide panel so the panel can avoid it; it does not outline it. Available anchors:
 
 - `ribbon-tab:<tab>` — every ribbon tab, including `ribbon-tab:file`;
 - `ribbon-group:<tab>:<groupId>` — every ribbon group;
 - `ribbon:<tab>:<itemId>` — every ribbon button and widget, with the ids from
   `src/components/layout/Ribbon/ribbonConfig.tsx` (e.g. `ribbon:start:addTask`,
-  `ribbon:planning:calendar`). When the button is on another tab, the app outlines
+  `ribbon:planning:calendar`). When the button is on another tab, placement uses
   `ribbon-tab:<tab>` instead. Buttons added by extensions have no anchor (yet);
 - fixed anchors for the main panels: `ribbon-tabs`, `gantt-panel`, `properties-panel`,
   `rail:properties`, `rail:resources`, `rail:warnings`, `histogram-strip`, `report-panel`,

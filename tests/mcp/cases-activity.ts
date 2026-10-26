@@ -13,6 +13,7 @@ const backing = new Map<string, string>();
   removeItem: (k: string) => { backing.delete(k); },
 };
 
+import { activityFieldText } from '@/i18n/activityFieldText';
 import { test, assert, assertEq, run } from './harness';
 import type { ActivityEntry, McpToolDef, McpToolResult, McpEnvelope } from '@/services/mcp/contracts';
 import {
@@ -127,6 +128,8 @@ test('capField kapt >20 kB af met de marker en is idempotent', () => {
   assertEq(capField(cut), cut, 'dubbel afkappen verandert niets (idempotent)');
   const small = 'y'.repeat(10);
   assertEq(capField(small), small, 'klein veld blijft onaangeroerd');
+  assertEq(activityFieldText(cut, '… afgekapt'), 'x'.repeat(FIELD_CAP) + '… afgekapt', 'UI vertaalt alleen de afkapmarker');
+  assertEq(activityFieldText('inhoud … truncated', '… afgekapt'), 'inhoud … truncated', 'korte technische inhoud blijft letterlijk');
 });
 
 test('record kapt een >20 kB argsJson defensief af (laatste linie)', () => {
@@ -228,6 +231,23 @@ test('wiring: een >20 kB arg wordt afgekapt met de marker', async () => {
   const got = getEntries()[0];
   assert(got.argsJson.endsWith(TRUNCATE_MARKER), 'de te grote argsJson is afgekapt met de marker');
   assert(got.argsJson.length <= FIELD_CAP + TRUNCATE_MARKER.length, 'argsJson binnen de cap');
+});
+
+test('wiring: vaste foutmarkeringen hebben taalonafhankelijke soorten', async () => {
+  for (const [response, errorKind] of [['invalid', 'unparseableResponse'], ['{"error":{}}', 'error']] as const) {
+    clear();
+    const handler = createRequestHandler({
+      emit: () => {}, buildContext: buildMcpContext,
+      handleMessage: async (body, ctx) => body.includes('"initialize"') ? handleMcpMessage(body, ctx) : response,
+      newSessionId: () => 'sessie-markering',
+    });
+    await handler({ id: 0, body: JSON.stringify({ jsonrpc: '2.0', id: 'init', method: 'initialize', params: {} }) });
+    clear();
+    await handler({ id: 1, body: '{invalid', sessionId: 'sessie-markering' });
+    const entry = getEntries()[0];
+    assertEq(entry?.summaryKind, 'unparseableRequest', 'requestsoort voor de UI');
+    assertEq(entry?.errorKind, errorKind, 'antwoordsoort voor de UI');
+  }
 });
 
 await run();

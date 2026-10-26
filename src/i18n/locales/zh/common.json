@@ -11,8 +11,9 @@
   },
   "notifications": {
     "dismiss": "关闭通知",
-    "taskEditRevertBlocked": "AI 助手或扩展在此期间进行了更改。此前的任务修改未被还原，仍作为普通步骤保留在“撤销”中。",
+    "taskEditRevertBlocked": "一项 MCP 客户端或扩展的更改在此期间插入。之前的任务修改没有被还原，仍作为普通步骤保留在“撤销”中。",
     "openFailed": "打开文件失败",
+    "csvInvalidDate": "未打开 CSV：CSV 第 {{row}} 行、“{{column}}”列中的日期“{{value}}”无法识别。请使用 yyyy-mm-dd、dd-mm-yyyy 或 dd/mm/yyyy。",
     "extGuideCallbackFailed": "扩展 {{name}} 的一个步骤出错。引导将继续。",
     "extHelpProjectOpenFailed": "无法打开扩展 {{name}} 的项目文件 {{file}}。",
     "extImportFailed": "使用 {{name}} 导入失败。",
@@ -61,6 +62,8 @@
     "browserCannotOverwrite": "此浏览器不允许应用写回“{{name}}”。因此每次保存时，应用都会再次询问文件的保存位置。在 Chrome、Edge 或桌面应用中不会出现这种情况。",
     "browserSavesAsDownload": "已作为下载保存：“{{name}}”位于你的下载文件夹中。此浏览器不允许应用写入自选位置，因此每次保存都会生成一个新的下载。在 Chrome、Edge 或桌面应用中，保存只会更新同一个文件。",
     "autoSaveFailed": "自动保存失败",
+    "recoveryManifestBlocked": "恢复数据的版本未知，或结构无效。本应用不会改动这些数据，也无法读取或更新此恢复集。请尝试使用创建这些副本的应用版本，或更新的版本。请自行保存新工作。",
+    "recoveryStorageBlocked": "恢复存储暂时被另一个打开的连接占用。现有副本会保留；此页面不会创建新的恢复副本。请自行保存工作，关闭其他运行本应用的标签页，然后重新加载此页面以再次尝试恢复。",
     "recoveryReadFailed": "无法读取恢复的文件",
     "recoveryRestoreFailed": "恢复失败",
     "recoveryDocumentsSkipped_other": "有 {{count}} 个恢复文件无法加载，已被跳过。",
@@ -97,10 +100,13 @@
     "dragStartIsActual": "“{{name}}”已开始：其开始日期为实际开始日期，不会移动。请通过进度进行更改。",
     "dragDatesAreActual": "“{{name}}”已完成：其开始和完成日期为实际日期，不会移动。请通过进度进行更改。",
     "referencesClearedOnPaste_other": "{{count}} 个引用在本文档中不存在，已被清除（来自源文档的任务日历、自定义工作类别、活动代码或自定义字段）。",
-    "milestoneRefusedAssignmentsMany_other": "{{count}} 个任务有资源分配，无法变为里程碑。请先移除这些分配。",
-    "milestoneRefusedSummaryMany_other": "{{count}} 个任务是带子任务的摘要任务，无法变为里程碑。",
+    "milestoneRefusedAssignments": "“{{task}}”有资源分配，不能变为里程碑。请先删除这些分配。",
+    "milestoneRefusedAssignmentsMany_other": "{{count}} 个任务有资源分配，无法变为里程碑。请先删除这些分配。",
+    "milestoneRefusedSummary": "“{{task}}”是带子任务的摘要任务，不能变为里程碑。",
+    "milestoneRefusedSummaryMany_other": "{{count}} 个任务是带有子任务的摘要任务，无法变为里程碑。",
     "assignmentsMovedToSubtask_other": "{{count}} 个分配已移至子任务“{{child}}”。",
     "assignmentsMovedToSubtasks_other": "{{count}} 个任务的分配已移至子任务。",
+    "milestoneClearedOnPhase": "“{{phase}}”不再是里程碑。",
     "milestoneClearedOnPhaseMany_other": "{{count}} 个任务不再是里程碑。",
     "phaseRefusedNoAssignableChild": "“{{phase}}”无法变成摘要任务：它的分配无处可去，因为新子任务都不能承载分配（里程碑或摘要任务）。未做任何更改。",
     "phaseRefusedDuplicateResource": "“{{phase}}”无法变成摘要任务：{{resource}} 的分配无法移至新子任务“{{child}}”，因为它已有 {{resource}}。未做任何更改。",
@@ -117,7 +123,7 @@
     },
     "xerArchiveUnusable": "此文件中的 XER 源存档不可用，已被略去；项目本身已完整打开。",
     "xerArchiveUnusableLine": "此文件中的 XER 源存档不可用，已被略去。",
-    "xerArchiveUnusableConsequence": "IFC 中的进度计划、计算配置文件和所有项目数据均完整。缺少的是：Primavera 保存时的日期，以及供 AI 和扩展使用的源出处。保存时将不带存档写入文件；重新导入原始 .xer 即可找回存档。",
+    "xerArchiveUnusableConsequence": "进度计划、计算配置文件和 IFC 中的所有项目数据都完整。缺少的是：Primavera 保存的日期，以及 MCP 客户端和扩展使用的来源信息。保存时会写入不带存档的文件；如需恢复存档，请重新导入原始 .xer 文件。",
     "xerArchiveReasonSchemaVersion": "原因：存档的架构版本或格式未知（较新或不同的写入程序）。",
     "xerArchiveReasonHashMismatch": "原因：校验和与源字节不符——存档已损坏。",
     "xerArchiveReasonTruncated": "原因：存档被截断——部分源字节缺失。",
@@ -258,6 +264,11 @@
     "languageHint": "应用的显示语言，立即生效。",
     "version": "版本",
     "versionHint": "应用的当前版本号。",
+    "experimentalSection": "实验性",
+    "experimentalEmpty": "目前没有实验性功能。",
+    "experimentalHide": "隐藏",
+    "demoTopbarAnimation": "演示：顶部栏动画",
+    "demoTopbarAnimationHint": "顶部栏中有一道柔和的橙色光泽掠过。用于演示实验性开关的工作方式。",
     "tourHint": "重新查看应用的入门导览。",
     "theme": "主题",
     "themeHint": "界面的配色方案。",
@@ -280,7 +291,7 @@
     "durationDisplayDays": "始终按天",
     "durationDisplayHours": "始终按小时",
     "barSplitMode": "中断处的任务条",
-    "barSplitModeHint": "任务条是否在非工作日周围视觉上拆分。",
+    "barSplitModeHint": "仅适用于小时任务：在休息和非工作时间周围拆分任务条。真正的任务中断始终可见，与此设置无关。",
     "barSplitNever": "从不拆分",
     "barSplitSelection": "选中时拆分",
     "barSplitAlways": "始终拆分",
@@ -343,11 +354,11 @@
     "fontFamilySerif": "衬线",
     "fontFamilyMono": "等宽",
     "fontHint": "网页应用不会自动跟随系统的字体设置。请在此处选择界面的字体和大小。",
-    "aiModeSection": "AI 模式",
-    "aiMode": "启用 AI 模式",
-    "aiModeHint": "显示带有 MCP 桥接的 AI 选项卡，让 AI 助手可以通过 Model Context Protocol 处理你的计划。关闭后将停止桥接服务。",
+    "aiModeSection": "MCP 连接",
+    "aiMode": "允许 MCP 连接",
+    "aiModeHint": "显示 MCP 选项卡。在那里启动 MCP 桥接，让 MCP 客户端可以通过 Model Context Protocol 处理你的计划。关闭后将停止桥接。",
     "aiAutostart": "自动启动桥接",
-    "aiAutostartHint": "应用启动时立即启用 MCP 桥接，AI 客户端无需你先打开 AI 选项卡即可连接。仅限桌面应用。",
+    "aiAutostartHint": "应用启动时立即启动 MCP 桥接，让 MCP 客户端无需你先打开 MCP 选项卡即可连接。仅限桌面应用。",
     "legacySection": "旧版功能",
     "classicViewControls": "显示经典视图按钮",
     "classicViewControlsHint": "将单独的“列”“筛选”“分组”和“排序”按钮放回“视图”选项卡。现在通过表头中的加号或“表格 → 列…”选择列；筛选、分组和排序位于布局按钮和布局对话框中。"
@@ -379,9 +390,9 @@
     "configSnippetHint": "将其粘贴到客户端的 MCP 配置中。",
     "tokenWarning": "该令牌可访问当前打开的计划，请勿与他人分享。",
     "connectPrompt": "连接提示词",
-    "connectPromptHint": "把它粘贴给你的 AI 智能体，它会自行完成连接。",
+    "connectPromptHint": "将此内容粘贴到你的 MCP 客户端中，它会自行连接。",
     "connectPromptText": "请连接一个运行在我电脑上的 MCP 服务器：名称 {{name}}，传输方式为流式 HTTP，URL 为 {{url}}，并附带请求头 Authorization: Bearer {{token}}。把它加入你的 MCP 配置（例如作为 mcpServers 块）并建立连接。然后列出工具以做检查：你应当看到约 {{count}} 个以 {{prefix}} 为前缀的工具。请简要说明用这个服务器可以做什么。在做任何修改之前，请先通过工具 planner_get_planning_guide 阅读规划指南。",
-    "statusDot": "AI 桥接：{{status}}"
+    "statusDot": "MCP 桥接：{{status}}"
   },
   "aiSafety": {
     "pause": "暂停",
@@ -391,7 +402,7 @@
     "readOnlyHint": "启用此选项时，所有修改类工具都会被拒绝。",
     "autoBackupOn": "自动备份：开",
     "autoBackupOff": "自动备份：关",
-    "autoBackupHint": "在每个文档首次被 AI 修改前自动创建 IFC 备份。",
+    "autoBackupHint": "在每个文档第一次被 MCP 修改前，自动写入一份 IFC 备份。",
     "backupNow": "立即备份",
     "openFolder": "打开备份文件夹",
     "backupOk": "已创建备份：{{name}}",
@@ -399,10 +410,10 @@
     "openErr": "无法打开文件夹：{{error}}"
   },
   "aiActivity": {
-    "title": "AI 活动",
+    "title": "MCP 活动",
     "panelButton": "活动面板",
     "clear": "清除",
-    "empty": "暂无 AI 活动。桥接调用将显示在此处。",
+    "empty": "还没有 MCP 活动。桥接调用会显示在这里。",
     "args": "参数",
     "result": "响应"
   },
@@ -417,7 +428,10 @@
     "timeLabel": "保存时间",
     "taskCount_other": "{{count}} 个任务",
     "restore": "恢复",
-    "dontRestore": "不恢复"
+    "dontRestore": "不恢复",
+    "unreadableOnlyExplanation": "所有恢复副本都无法读取。如需稍后再尝试恢复，请保留它们；只有在不再需要时才删除。删除后无法撤销。",
+    "keepCopies": "保留副本",
+    "deleteCopies": "删除副本"
   },
   "window": {
     "minimize": "最小化",
@@ -436,7 +450,8 @@
   "project": {
     "untitled": "新建计划",
     "imported": "导入的项目",
-    "unassignedResource": "未分配"
+    "unassignedResource": "未分配",
+    "ifcBuildingModelUnsupported": "此 IFC 文件包含建筑模型对象。由于保存时会丢失这些对象，已阻止打开。请编辑单独的计划文件，然后再将其与建筑模型合并。"
   },
   "documents": {
     "overviewTitle": "打开的项目",
@@ -531,12 +546,14 @@
     "releaseNotes": "更新内容",
     "downloadInstall": "下载并安装",
     "downloading": "正在下载…",
+    "preparingInstall": "正在准备安装…",
     "installing": "正在安装…",
     "restarting": "正在重启…",
     "retry": "重试",
     "error": "更新时出现问题",
     "checking": "正在检查…",
     "snapNotice": "此版本通过 Snap Store 自动更新 — 您无需执行任何操作。",
+    "packageManagerNotice": "请通过你的包管理器更新（例如 yay -Syu）。",
     "debExplanation": "在终端中运行此命令以手动更新，或下载最新的软件包。",
     "debCommandLabel": "安装命令",
     "copyCommand": "复制命令",
@@ -633,6 +650,7 @@
     "companies": "资源库",
     "addCompany": "添加资源库",
     "newCompany": "新建资源库",
+    "defaultCompany": "我的资源库",
     "companyName": "资源库名称",
     "removeCompany": "删除资源库",
     "cannotRemoveLast": "无法删除最后一个资源库。",
@@ -645,7 +663,7 @@
     "calendars": "日历",
     "noCalendars": "资源池中尚无日历。",
     "noResources": "资源池中尚无资源。",
-    "promoteHint": "使用上方的“+ 从项目”按钮，将项目日历或资源提升至资料库。",
+    "promoteHint": "使用上方的“+ 从项目”按钮，将项目日历提升到资源库。",
     "promoteFromProject": "从项目",
     "alreadyLinked": "已关联",
     "editItem": "编辑",
@@ -1079,7 +1097,7 @@
     "nav": {
       "reportTab": "转到报告选项卡",
       "switchDocument": "切换文档",
-      "scrollToToday": "跳转到今天",
+      "scrollToToday": "跳转到状态日期或今天",
       "help": "打开帮助"
     },
     "grid": {
@@ -1246,6 +1264,7 @@
     "overrideDropped": "第 {{row}} 行的关联指向一个已不存在的任务，已被忽略。",
     "moreRows": "……还有 {{more}} 条",
     "sheetRowHint": "表中第 {{row}} 行",
+    "sheetTaskId": "OPS 任务 ID：{{id}}",
     "dateOrderTitle": "日在前还是月在前？",
     "dateOrderQuestion": "“{{sample}}”——这是哪个日期？",
     "dateOrderOptionA": "{{date}}",
@@ -1287,7 +1306,7 @@
   "conventions": {
     "preserveActualDatesInBackwardPass": {
       "label": "在逆推计算中保留实际日期",
-      "help": "已开始或已完成的任务在晚期一侧也保留其记录的日期；已完成的后续任务不会把未完成的前置任务拉回过去。"
+      "help": "设置状态日期后，已完成任务在晚期一侧保留其实际日期，已完成的后续任务不会把未完成的前置任务拉回过去。进行中任务将其实际开始保留为最晚开始，除非已开启“进行中任务：最早开始 = 剩余工作的开始”。位于状态日期点或窗口上的已完成任务仍可传递关系压力。"
     },
     "clampNegativeFreeFloat": {
       "label": "自由浮时永不为负",
@@ -1295,103 +1314,103 @@
     },
     "p6ZeroDurationUsesPlannedBoundary": {
       "label": "里程碑遵循计划的日历边界",
-      "help": "零工期里程碑保持在文件所计划的日历边界上：一天的开始处仍是开始里程碑，时段的结束可以落在前置任务的完成时间上。"
+      "help": "仅适用于小时计划。零工期里程碑遵循计划的日历边界：一天的开始仍是开始里程碑，时段的结束可以落在前置任务的完成时间上。普通零工期任务也可以获得一对边界，但只有带有 XER 来源（Task Dependent 或 Resource Dependent）且计划完成早于计划开始时才可以。"
     },
     "p6UseTaskPlannedStartFloor": {
       "label": "计划开始作为额外下限",
-      "help": "当开始和完成都比网络允许的时间晚一个日历日以上时，文件中的计划开始作为下限。"
+      "help": "当开始和完成都比网络允许的时间晚一个日历日以上时，计划开始会作为下限。对于计划完成早于计划开始的完成里程碑，只要计划开始更晚即可。不适用于进行中任务（若已开启“计划开始不是进行中任务的下限”），也不适用于由后续任务定位的未开始 ALAP 任务。不需要 XER 来源。"
     },
     "p6FinishMilestoneBoundaryWindow": {
       "label": "完成里程碑作为边界窗口",
-      "help": "完成里程碑可以位于两个相邻的日历边界上：最早开始在一个时段的开头，最早完成在前一个时段的结尾。"
+      "help": "零工期完成里程碑只有在其计划完成早于计划开始，且其计算开始仍等于该计划开始时，才会获得边界窗口。有前置任务且没有后续任务的完成里程碑，其最早日期也会作为最晚日期，除非已开启“计算浮时至项目完成日期”。仅在 P3 输出中看到；所有内置计算配置文件中均关闭。"
     },
     "p6PreserveActualInstants": {
       "label": "精确保留实际日期",
-      "help": "已记录的实际开始和完成日期不会移到时段的边缘。"
+      "help": "仅适用于保留了 .xer 文件来源的任务。记录的实际开始和完成日期不会移到工作时段的边缘。"
     },
     "p6UseRemainingStartForProgress": {
       "label": "进行中任务：最早开始 = 剩余工作的开始",
-      "help": "进行中任务的最早和最晚开始描述剩余工作从哪里开始，而不是历史实际开始。沿开始-开始关系逆推时,只计算剩余工期。"
+      "help": "进行中任务的最早和最晚开始表示剩余工作从哪里开始。沿开始-开始关系逆推时，只计算剩余工期；但仅适用于：小时计划、有实际开始且进度在 0 到 100% 之间、已知剩余工期小于计划工期，并且没有已用时间或计划中的中断。此额外的剩余工期规则不适用于开始-完成关系。"
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "里程碑上的精确约束时刻",
-      "help": "零工期里程碑上的日期和时间约束是一个精确的时间点，即使位于时段的开头也是如此。"
+      "help": "仅适用于小时计划，且在晚期一侧，适用于零工期里程碑上带日期和时间的 SNLT、MSO、FNLT 或 MFO 约束。约束时刻保持精确，即使位于工作时段开头也是如此。在前向计算中，所有配置文件中这样的时刻本来就是精确的。"
     },
     "resumeFromActualElapsed": {
       "label": "剩余工作在已用工期之后恢复",
-      "help": "进行中任务在实际开始加上已用工期处恢复剩余工作，而不是在状态日期。"
+      "help": "进行中任务的剩余工作恢复时间不早于实际开始加上已用时间。状态日期和前置任务边界仍是下限；三者中取最晚的一个。不适用于 Progress Override、没有剩余工作的任务，或应用使用了文件中有效恢复日期的情况（最多一项分配）。"
     },
     "unstartedIgnoresStatusDate": {
       "label": "不将未开始的任务移到状态日期",
-      "help": "尚未开始的任务不会自动移到状态日期或之后。"
+      "help": "仅适用于设置了状态日期且无进度的任务。该任务不会自动移到状态日期或之后。"
     },
     "p6RelationFinishBoundary": {
       "label": "后续任务在完成边界开始",
-      "help": "对于无延隔的完成-开始关系：若文件中后续任务恰好在前置任务的完成时刻开始，且该时刻位于时段末尾，则后续任务在该完成时刻开始，而不是在下一个时段的开始。文件不会标记这一点：打开 .xer 文件时，应用会自行识别此类关系。你自己建立的关系不属于此范围。逆推计算时，后续任务的最晚开始仍会显示为时段的开始。"
+      "help": "仅适用于小时计划，且使用前置任务的日历，并且是应用打开 .xer 文件时识别出的关系。对于无延隔的完成-开始关系，如果文件中后续任务恰好在前置任务的工作时段结束时开始，则后续任务从该完成时刻开始。你自己添加的关系不适用。逆推计算时，后续任务的最晚开始仍是工作时段的开始。"
     },
     "p6BackwardLagFinishBoundary": {
       "label": "从完成边界逆推延隔时间",
-      "help": "若逆推计算从完成边界减去工作时间的延隔后，恰好落在某个时段的开始，则结果落在前一个完成边界上。对于无延隔的完成-完成关系，位于时段结尾处的最晚完成同样保留在该完成边界上。"
+      "help": "仅适用于小时计划，且按用于延隔的日历计算。若逆推计算从精确的完成边界中减去正的工作时间延隔，并落在某天第一个时段的开始，则结果落在前一个完成边界上。对于无延隔的完成-完成关系，位于时段结束处的最晚完成也保留在该边界上。不适用于已用时间延隔。"
     },
     "p6CompletedDataDateWindow": {
       "label": "状态日期窗口中的已完成任务",
-      "help": "已完成任务在状态日期窗口内获得最早日期，其完成时间计入项目完成。"
+      "help": "仅适用于设置了状态日期、来自 .xer 文件且已完成的叶子任务，要求保留目标窗口、进度类型为工期、P6 类型为 Task Dependent 或 Resource Dependent 且为 Fixed Duration & Units；不包括零工期里程碑。需要已开启“进行中任务：最早开始 = 剩余工作的开始”。只有 Task Dependent 且中断/恢复配对有效、实际完成在计划完成与状态日期之间、恢复不晚于实际完成，并已开启“在逆推计算中保留实际日期”时，才允许中断/恢复。该任务在状态日期窗口内获得最早日期；其完成计入项目完成。"
     },
     "p6CompletedLoeActualFinish": {
       "label": "通过实际完成的已完成 LOE",
-      "help": "若已完成的投入水平任务只有开始-开始输入，则沿其实际完成日期推算路径。"
+      "help": "仅适用于设置了状态日期、来自 .xer 文件、已完成的 LOE：正工期、进度类型为工期、P6 类型为 Fixed Duration & Units/Time，目标窗口完整，且实际完成在计划完成与状态日期之间。仅限开始-开始输入，至少一个，没有后续任务，也没有中断/恢复。需要已开启“进行中任务：最早开始 = 剩余工作的开始”、“在逆推计算中保留实际日期”以及“精确保留实际日期”。LOE 跟随其实际完成，而不是吊床任务路线。"
     },
     "p6OpenLoeTargetSpan": {
       "label": "未开始的 LOE 采用目标窗口",
-      "help": "尚未开始的投入水平任务以其目标窗口作为工期。"
+      "help": "仅适用于小时计划，且针对来自 .xer 文件、尚未开始的 LOE/吊床任务：完成进度 0%，正工期，进度类型为工期，P6 类型为 Fixed Duration & Units；没有实际日期，也没有中断/恢复。需要一个完整的正目标窗口，其开始等于关系边界，且工作时间与工期相差最多一个工作日；至少一个开始-开始输入和一个完成-完成输出，仅限这些关系类型且无延隔。然后 LOE 以目标窗口作为跨度。证据较弱：仅一个文件。"
     },
     "p6CompletedPredecessorAtDataDate": {
       "label": "已完成的紧前任务不在状态日期之后约束",
-      "help": "如果已完成的紧前任务的实际完成时间晚于状态日期，其后续任务仍可在状态日期开始。"
+      "help": "仅适用于小时计划且设置了状态日期，针对已有实际完成的已完成前置任务。完成-开始和完成-完成关系最多从状态日期前的工作边界开始计算；较晚的实际完成不会拖住后续任务。开始-开始和开始-完成关系仍以实际开始为准。拥有自己的状态日期点或已偏移状态日期窗口的已完成任务，遵循其自身边界。"
     },
     "p6FreeFloatOnOwnCalendar": {
       "label": "按任务自身日历计算自由浮动",
-      "help": "未开始任务的自由浮时按每个关系在任务自身的日历中计算，而不是按后续任务的日历：适用于完成-开始、开始-开始和完成-完成，也包括在紧前任务日历上按工作时间计的延隔。已开始的任务仅适用于无延隔的完成-开始。"
+      "help": "仅适用于小时计划，针对未完成的任务和已计算出自由浮时的关系。对于未开始的任务，自由浮时按该任务自己的日历计算，适用于完成-开始、开始-开始和完成-完成，不含已用时间或百分比延隔。非零延隔需要使用“前置任务延隔日历”。对于已开始的任务，只适用于无延隔的完成-开始。关系本身的自由浮时和驱动标记不会改变。"
     },
     "p6CompletedRemainingLag": {
       "label": "已完成紧前任务的已流逝延隔不计入",
-      "help": "在最晚日期一侧，已完成紧前任务之后的延隔只计入在状态日期尚未流逝的部分。"
+      "help": "仅适用于小时计划，使用延隔日历，并且设置了状态日期。针对来自 .xer 文件、实际完成早于状态日期、且具有状态日期点或窗口的已完成前置任务。对于正的工作时间延隔，只计入尚未流逝的部分。适用于晚期一侧，以及从状态日期点或已偏移的零剩余窗口向前计算。位于普通实际日期上的任务保留完整延隔；不适用于已用时间延隔。"
     },
     "p6CompletedOutOfSequenceWindow": {
       "label": "顺序外完成的任务等待其紧前任务",
-      "help": "已完成任务的前置任务尚未完成时，其零时段排在该前置任务之后，而不是排在状态日期上（P6：Retained Logic）。只有在以下两个选项也开启时，此项才起作用：“状态日期窗口中的已完成任务”和“进行中任务：最早开始 = 剩余工作的开始”。"
+      "help": "仅在小时计划且有状态日期时生效，位于 XER 路径的“状态日期窗口中的已完成任务”选项下；该约定和“进行中任务：最早开始 = 剩余工作的开始”都必须开启。不适用于 Progress Override。经由完成-开始或开始-开始输入时，任务取状态日期边界与以下两者中较晚的一个：未完成前置任务的边界，或状态日期窗口已移动的前置任务的边界。普通已完成前置任务不计入。"
     },
     "p6CompletedPhysicalAtDataDate": {
       "label": "按实物进度完成的任务位于数据日期",
-      "help": "采用实物完成百分比的已完成任务显示为数据日期上的单一时间点（若前置任务要求则更晚），而不是其实际日期。 仅针对实际完成百分比进行过测量；对于其他完成百分比类型（P6 默认：工期），此行为未经测量，保持关闭。"
+      "help": "仅在小时计划且有状态日期时生效，适用于来自 P6 类型为 Task Dependent、Start Milestone 或 Finish Milestone 的 .xer 文件中已完成的叶子任务和零工期里程碑，且保留目标窗口、完成百分比类型为实物、实际完成日期不晚于状态日期，并且没有中断/恢复。需要“进行中任务：最早开始 = 剩余工作的开始”。任务位于状态日期上的单一时间点；若前置任务要求，则更晚。其他完成百分比类型（包括工期）未经测量，保持关闭。"
     },
     "p6InProgressStartLagElapsed": {
       "label": "进行中前置任务已经过的开始-开始 (SS) 延隔不计",
-      "help": "对于来自已开始任务的开始-开始关系，只计算自其实际开始至数据日期尚未经过的那部分延隔。"
+      "help": "仅在小时计划、使用延隔日历且有状态日期时生效，适用于开始-开始关系中以工作时间计的正向延隔，且前置任务未完成、其实际开始日期早于状态日期。需要“进行中任务：最早开始 = 剩余工作的开始”。只计入延隔中尚未经过的部分。“进行中紧前任务的开始-开始 (SS) 延迟计算起点”选项决定起点。不适用于以挂钟时间计的延隔。"
     },
     "p6FinishFinishStartMilestoneLateFinish": {
       "label": "指向开始里程碑的完成-完成关系绑定到里程碑本身",
-      "help": "指向开始里程碑的完成-完成关系，计算到里程碑本身，而不是里程碑当天的开始：前置任务的最晚完成可以延伸到里程碑的最晚完成。"
+      "help": "仅在小时计划下生效，且完成-完成关系两端都必须使用小时计划，关系另一端为零工期的开始里程碑。该关系绑定到里程碑本身：前置任务的最晚完成可以延伸到里程碑的最晚完成。自由浮时也可能改变；里程碑的最早开始保持不变。不适用于结束里程碑，也不适用于向后的零剩余工期路径。"
     },
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "计划开始不是进行中任务的下限",
-      "help": "已开始任务的剩余工作从状态日期、紧接其紧前任务之后开始，即使其计划开始更晚。"
+      "help": "仅适用于已有实际开始且完成度低于 100% 的任务，并且“计划开始作为额外下限”已开启。其计划开始不会为剩余工作增加下限；状态日期及其前置任务仍然适用。"
     },
     "p6LateFinishOnOwnCalendar": {
       "label": "最晚完成落在自身日历上",
-      "help": "若后续任务施加的最晚完成落在任务的工作时间之外，则它变为该任务自身日历上前一个时段的结束。"
+      "help": "仅在小时计划下生效，且后续任务边界决定最晚完成，没有更严格的约束或截止日期取代该边界。若该边界落在任务自身工作时间之外，则最晚完成变为其自身日历上前一个工作时段的结束。不适用于由项目完成决定的最晚完成。"
     },
     "p6ProgressOverrideIgnoresStartedSuccessor": {
       "label": "进度覆盖在逆推时也忽略已开始的紧后作业",
-      "help": "在进度覆盖（Progress Override）下，与已开始的紧后作业之间的关系不计入尚未完成的紧前作业的最晚日期和自由浮时。"
+      "help": "仅在 Progress Override 下生效，适用于未完成的前置任务和已开始但未完成的后续任务（有实际开始日期或有进度）。它们之间的关系不计入前置任务的最晚日期和自由浮时。"
     },
     "p6FinishNotBeforeFinishFinishBound": {
       "label": "最早完成不早于完成-完成界限",
-      "help": "在完成-完成关系中，后续任务的最早完成按钟表时间永远不会早于前置任务设定的界限。若该界限落在后续任务的非工作时间内，则完成时间变为下一个时段的开始。"
+      "help": "日期修正：适用于带工作时间延隔的完成-完成关系，且不含吊床任务，并且后续任务日历（剩余工作时为其进度日历）与延隔日历都为小时计划。若关系边界晚于最早完成，且二者之间没有工作时间，则只有完成时间移动到该边界当天或之后的第一个工作边界。适用于自动计划的未开始任务和进行中的后续任务；对于未开始任务，硬性完成锁定优先。自由浮时单独计算：对于无延隔且无百分比延隔的完成-完成关系，若未完成的前置任务已有关系自由浮时，且后续任务已算出最早完成，则在其自身的小时日历上，从其最早完成计至后续任务的最早完成。此规则也适用于挂钟时间为零的延隔，且对后续任务日历或延隔日历没有额外的小时计划条件。吊床任务和手动计划的任务，其自由浮时最终保持为 0。"
     },
     "p6AlapPositionedFromSuccessors": {
       "label": "ALAP 任务尽可能晚，以后续任务允许为限",
-      "help": "带有“越晚越好”约束的未开始任务，会在其后续任务需要它的那一分钟结束。先计算后续任务，使链条首尾相接。其自身的计划开始不计入；没有前置任务的任务，则不早于状态日期开始。"
+      "help": "仅在小时计划下生效，适用于未开始、非手动计划且带有约束“越晚越好”（ALAP）的任务。后续任务的最早日期精确到分钟决定其位置；后续任务先计算。其自身的计划开始不计入；前置任务、状态日期和第二个约束仍然适用。没有后续任务时，使用其最晚完成。普通 ALAP 步骤在每个计划配置中都可用。"
     }
   },
   "profiles": {
@@ -1442,7 +1461,7 @@
     "showHelp": "“{{name}}”的说明",
     "sourceOptions": {
       "title": "源文件中的设置",
-      "intro": "这些计算选项来自 Primavera P6 文件（.xer）。它们参与计算，但无法在此更改。",
+      "intro": "这些是本项目保存的只读计算选项。从 Primavera P6 文件（.xer）导入时，应用会从源文件获取这些选项。仅在满足相应条件时生效。",
       "useExpectedFinishDates": "使用预期完成日期（P6：Use Expected Finish Dates）",
       "useProjectEndDateForFloat": "计算浮时至项目完成日期",
       "p6CompletedLateFromRemainingWindow": "已完成任务：最晚日期从数据日期起算",
@@ -1451,7 +1470,7 @@
     "requires": {
       "xerOrigin": "仅限来自 .xer 的任务",
       "hourPlanning": "仅限小时计划",
-      "hourPlanningTitle": "仅在小时计划下有效：带有工作时段的日历、以小时计的任务，或设为 24 小时制的延隔日历。"
+      "hourPlanningTitle": "仅在小时计划下、且规则所用的日历生效：带工作时段的日历，或以小时计的任务工期。延隔还可适用 24 小时延隔日历。"
     },
     "optionsDeviate": {
       "line": "{{field}}：{{current}}（默认：{{standard}}）",
