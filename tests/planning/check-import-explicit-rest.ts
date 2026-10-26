@@ -8,7 +8,9 @@
 //   - XER in dagenmaat (datums zonder kloktijd), fysiek 75 %, 48 u duur, 32 u rest: direct 4 d, na
 //     IFC-heropening 1,5 d (12 u).
 // De regel nu: een lezer houdt de bronrest van een lopende taak; alleen zonder bronrest leidt hij af.
-// Een voltooide taak krijgt rest 0. Een voortgangsbewerking in de app leidt de rest nog steeds af (B3).
+// Een voltooide taak krijgt rest 0; een taak die volgens de bron nog loopt op 100 %, is niet voltooid en
+// houdt haar rest (secties 9–12, fixronde 2 van #663). Een voortgangsbewerking in de app leidt de rest nog
+// steeds af (B3).
 // Dat geldt ook voor een IFC zonder de markering van het minutenmodel (fixronde 1 van #663): het bestand
 // zegt niet of een rest ingevoerd of afgeleid was, dus de opgeslagen waarde is het feit
 // (check-ifc-legacy-arity 2c). De eenheidsregels van `normalizeImportedProgress` staan in
@@ -16,6 +18,7 @@
 //
 // Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
+import { installDOMParser } from './xmldom-shim';
 import { useAppStore } from '@/state/appStore';
 import { createAppStore } from '@/state/appStoreFactory';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
@@ -24,6 +27,10 @@ import { prepareLoadedPayload } from '@/state/documentActivation';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { readMPP } from '@/services/mpp/mppReader';
 import { readXER } from '@/services/xer/xerReader';
+import { readP6XML } from '@/services/p6/p6xmlReader';
+import { readMSPDI } from '@/services/msproject/mspdiReader';
+import { writeMSPDI } from '@/services/msproject/mspdiWriter';
+import { writeP6XML } from '@/services/p6/p6xmlWriter';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes';
 import { solveProject } from '@/engine/scheduler/solveProject';
@@ -365,6 +372,111 @@ function xer(dateOnly: boolean): ImportResult {
   const second = writeIFC(buildWriteIFCInput(payloadFromImport(back, null)));
   eq('357 ronde 2: na heropenen is de rest de waarde uit het record',
     readIFC(second).tasks[0].time.remainingTime, recordDays(second));
+}
+
+// ── 9–11. Lopend op 100 % zonder werkelijk einde houdt zijn bronrest (review r2 van #663) ─────────
+// Sectie 7 zet de rest van een voltooide taak op 0. Een taak die volgens de bron nog loopt op 100 %, is niet
+// voltooid: P6 "Physical 100 %" plant de rest nog in (knownbugs 114). De lezer geeft zo'n taak door aan
+// `runningAtFullIds` van `normalizeImportedProgress`: status STARTED, geen afgeleid werkelijk einde, de
+// rest uit het bestand. Gemeten op drie punten: direct na lezen, na openen als document, en na opslaan als
+// IFC en heropenen. Een echt voltooide taak (status Completed, of een werkelijk einde) houdt rest 0.
+installDOMParser();
+type Point = [string, number | undefined, number | undefined, string | null];
+/** [status, restminuten, restdagen, werkelijk einde] na lezen, na openen en na IFC opslaan + heropenen. */
+function threePoints(imported: ImportResult, name: string): Point[] {
+  const state = (t: Task): Point => [t.status, t.time.remainingMinutes, t.time.remainingTime, t.time.actualFinish ?? null];
+  const read = state(leaf(imported));
+  const app = createAppStore();
+  app.getState().openAsDocument(imported, { name, ref: null });
+  const opened = state(leaf(app.getState()));
+  const back = state(leaf(readIFC(writeIFC(buildWriteIFCInput(app.getState())))));
+  return [read, opened, back];
+}
+/** Dezelfde verwachting op alle drie de meetpunten. */
+const thrice = <T,>(want: T): T[] => [want, want, want];
+
+// ── 9. P6 XML: `In Progress`, fysiek 100 %, 48 u duur, 32 u rest, geen werkelijk einde ──────────
+// De invoer van de reviewer (r2). Vóór de fix: 1920 → 0 restminuten, status COMPLETED en een afgeleid
+// werkelijk einde op de statusdatum, op alle drie de meetpunten.
+function p6xml(over: { status?: string; actualFinish?: string } = {}): ImportResult {
+  const finish = over.actualFinish ? `<ActualFinishDate>${over.actualFinish}</ActualFinishDate>` : '';
+  return readP6XML(`<?xml version="1.0"?><APIBusinessObjects><Project><ObjectId>1</ObjectId><Name>P</Name>`
+    + '<PlannedStartDate>2026-06-01T08:00:00</PlannedStartDate><DataDate>2026-06-03T08:00:00</DataDate>'
+    + '<Activity><ObjectId>1</ObjectId><Id>X</Id><Name>Lopend, fysiek 100 procent</Name>'
+    + '<PlannedDuration>48</PlannedDuration><RemainingDuration>32</RemainingDuration>'
+    + '<PlannedStartDate>2026-06-01T09:15:00</PlannedStartDate><PlannedFinishDate>2026-06-08T15:15:00</PlannedFinishDate>'
+    + `<Status>${over.status ?? 'In Progress'}</Status><ActualStartDate>2026-06-01T09:15:00</ActualStartDate>${finish}`
+    + '<PercentCompleteType>Physical</PercentCompleteType><PhysicalPercentComplete>1</PhysicalPercentComplete>'
+    + '</Activity></Project></APIBusinessObjects>');
+}
+{
+  const imported = p6xml();
+  eq('P6 XML lopend 100 %: voorwaarde urenmaat, 2880 min, 100 %',
+    [leaf(imported).time.durationUnit, leaf(imported).time.durationMinutes, leaf(imported).time.completion], ['hours', 2880, 1]);
+  eq('P6 XML lopend 100 %: STARTED, 1920 restminuten, geen werkelijk einde (lezen, openen, IFC heropenen)',
+    threePoints(imported, 'p6-physical100.xml').map(p => [p[0], p[1], p[3]]), thrice(['STARTED', 1920, null]));
+  eq('P6 XML status Completed (geen werkelijk einde): voltooid met rest 0',
+    threePoints(p6xml({ status: 'Completed' }), 'p6-completed.xml').map(p => [p[0], p[1]]), thrice(['COMPLETED', 0]));
+  eq('P6 XML In Progress mét werkelijk einde: voltooid met rest 0 (het werkelijke einde wint)',
+    threePoints(p6xml({ actualFinish: '2026-06-02T15:00:00' }), 'p6-af.xml').map(p => [p[0], p[1]]), thrice(['COMPLETED', 0]));
+}
+
+// ── 10. MSPDI: 100 %, geen werkelijk einde, 32 u rest ───────────────────────────────────────────
+// MSPDI kent geen statusveld. MS Project zet een werkelijk einde zodra een taak klaar is; zonder dat einde
+// en met een rest groter dan 0 loopt de taak nog. Het percentage is een heel getal: de MSPDI-writer van OPS
+// schrijft `Math.round` (99,6 % ⇒ 100) en een lopende taak op 100 % ook als 100, steeds met de rest en
+// zonder werkelijk einde. Een export van P6 naar MSPDI geeft "Physical 100 %" zo door.
+function mspdi(over: { actualFinish?: string; rest?: string } = {}): ImportResult {
+  const day = (d: number) => `<WeekDay><DayType>${d}</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime>`
+    + '<FromTime>08:00:00</FromTime><ToTime>16:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay>';
+  const finish = over.actualFinish ? `<ActualFinish>${over.actualFinish}</ActualFinish>` : '';
+  return readMSPDI('<?xml version="1.0"?><Project><StartDate>2026-06-01T08:00:00</StartDate>'
+    + '<StatusDate>2026-06-03T08:00:00</StatusDate><CalendarUID>1</CalendarUID><Calendars><Calendar><UID>1</UID>'
+    + `<Name>A07</Name><WeekDays>${[2, 3, 4, 5, 6].map(day).join('')}</WeekDays></Calendar></Calendars><Tasks>`
+    + '<Task><UID>1</UID><ID>1</ID><Name>Lopend op 100 procent</Name><OutlineLevel>1</OutlineLevel>'
+    + '<Duration>PT48H0M0S</Duration><Start>2026-06-01T09:15:00</Start><Finish>2026-06-09T09:15:00</Finish>'
+    + `<PercentComplete>100</PercentComplete><ActualStart>2026-06-01T09:15:00</ActualStart>${finish}`
+    + `<RemainingDuration>${over.rest ?? 'PT32H0M0S'}</RemainingDuration></Task></Tasks></Project>`);
+}
+{
+  const imported = mspdi();
+  eq('MSPDI 100 % zonder werkelijk einde: voorwaarde urenmaat, 2880 min, 100 %',
+    [leaf(imported).time.durationUnit, leaf(imported).time.durationMinutes, leaf(imported).time.completion], ['hours', 2880, 1]);
+  eq('MSPDI 100 % zonder werkelijk einde met rest: STARTED, 1920 restminuten (lezen, openen, IFC heropenen)',
+    threePoints(imported, 'lopend100.xml').map(p => [p[0], p[1], p[3]]), thrice(['STARTED', 1920, null]));
+  eq('MSPDI 100 % mét werkelijk einde: voltooid met rest 0',
+    threePoints(mspdi({ actualFinish: '2026-06-02T15:00:00' }), 'af.xml').map(p => [p[0], p[1]]), thrice(['COMPLETED', 0]));
+  eq('MSPDI 100 % zonder werkelijk einde met rest 0: voltooid met rest 0',
+    threePoints(mspdi({ rest: 'PT0H0M0S' }), 'rest0.xml').map(p => [p[0], p[1]]), thrice(['COMPLETED', 0]));
+}
+
+// ── 11. MPP: 100 %, geen werkelijk einde, 4 d rest ──────────────────────────────────────────────
+// Dezelfde regel als MSPDI, in de dagenmaat (sectie 1) en in de urenmaat (een werkelijke start om 09:15).
+{
+  eq('MPP dagenmaat 100 % zonder werkelijk einde met 4 d rest: STARTED, 4 d (lezen, openen, IFC heropenen)',
+    threePoints(readMPP(runningMpp({ name: 'Lopend 100', pct: 100 })), 'lopend100.mpp').map(p => [p[0], p[2], p[3]]),
+    thrice(['STARTED', 4, null]));
+  eq('MPP urenmaat 100 % zonder werkelijk einde met 1920 min rest: STARTED, 1920 min',
+    threePoints(readMPP(runningMpp({ name: 'Lopend 100 uur', pct: 100, actualStart: [555, 0] })), 'lopend100u.mpp')
+      .map(p => [p[0], p[1], p[3]]), thrice(['STARTED', 1920, null]));
+  eq('MPP 100 % zonder werkelijk einde met rest 0: voltooid met rest 0',
+    threePoints(readMPP(runningMpp({ name: 'Klaar zonder einde', pct: 100, rest: 0 })), 'rest0.mpp').map(p => [p[0], p[2]]),
+    thrice(['COMPLETED', 0]));
+}
+
+// ── 12. Export door OPS naar P6 XML of MSPDI en terug: lopend op 100 % blijft lopend ─────────────
+// De P6-XML-writer schrijft `Completed` op 100 %; in een OPS-export is de status geen bron. De lezer kijkt dan
+// naar het werkelijke einde en de rest, zoals bij MSPDI. Een voltooide taak heeft in OPS altijd een werkelijk
+// einde en blijft voltooid met rest 0.
+{
+  const viaP6 = (q: ImportResult) => readP6XML(writeP6XML(q.project, q.calendar, q.tasks, q.sequences, [], [], q.resourceCalendars ?? []));
+  const viaMs = (q: ImportResult) => readMSPDI(writeMSPDI(q.project, q.calendar, q.tasks, q.sequences, [], [], q.resourceCalendars ?? []));
+  const state = (r: ImportResult) => [leaf(r).status, leaf(r).time.remainingMinutes, leaf(r).time.actualFinish ?? null];
+  eq('OPS → P6 XML → OPS: lopend op 100 % houdt 1920 min en geen werkelijk einde', state(viaP6(p6xml())), ['STARTED', 1920, null]);
+  eq('OPS → MSPDI → OPS: lopend op 100 % houdt 1920 min en geen werkelijk einde', state(viaMs(p6xml())), ['STARTED', 1920, null]);
+  const done = p6xml({ status: 'Completed' });
+  eq('OPS → P6 XML → OPS: voltooid blijft voltooid met rest 0', state(viaP6(done)).slice(0, 2), ['COMPLETED', 0]);
+  eq('OPS → MSPDI → OPS: voltooid blijft voltooid met rest 0', state(viaMs(done)).slice(0, 2), ['COMPLETED', 0]);
 }
 
 if (diffs.length === 0) {

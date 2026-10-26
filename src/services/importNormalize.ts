@@ -43,9 +43,13 @@ export function deriveImportedWorkRules(tasks: Task[]): void {
  * bronrest leidt `applyRemainingDuration` hem af uit `completion` (dezelfde regel als de store); een
  * voltooide taak krijgt rest 0.
  *
- * `runningAtFullIds`: smalle uitzondering voor de IFC-lezer. Een taak in deze set met `completion >= 1`
- * en ZONDER werkelijk einde blijft STARTED (zie de tak hieronder). Met een werkelijk einde, of onder
- * 100 %, telt de set niet: dan geldt de gewone regel. Andere lezers geven de set niet mee.
+ * `runningAtFullIds`: smalle uitzondering voor een taak die volgens het bestand nog loopt. Een taak in deze
+ * set met `completion >= 1` en ZONDER werkelijk einde blijft STARTED (zie de tak hieronder). Met een
+ * werkelijk einde, of onder 100 %, telt de set niet: dan geldt de gewone regel. De lezers vullen haar uit
+ * de bron: IFC uit `IfcTask.Status` = 'STARTED', P6 XML uit de status `In Progress`, MSPDI, MPP en een
+ * P6-XML-export van OPS uit een rest groter dan 0 zonder werkelijk einde (MS Project zet dat einde zodra
+ * een taak klaar is). De XER-lezer neemt de status zelf over en roept deze functie niet aan; CSV kent geen
+ * status en geen rest.
  *
  * Ook een IFC van een oudere versie houdt zijn opgeslagen rest, al schreef die versie een dagenrest
  * afgerond (`Math.round`): het bestand zegt niet of een rest ingevoerd of afgeleid was, en een MPP-rest
@@ -79,8 +83,8 @@ export function normalizeImportedProgress(
       if (!t.actualStart) t.actualStart = t.actualFinish;
       task.status = 'COMPLETED';
     } else if (t.completion >= 1 && runningAtFullIds?.has(task.id)) {
-      // Lopend op 100 %, zo gemarkeerd in het bestand (alleen IFC: `IfcTask.Status` = 'STARTED',
-      // eigenaarsbesluit 2026-10-14). Houd hem lopend: geen afgeleid werkelijk einde, geen afgeleide
+      // Lopend op 100 %, zo vastgelegd in het bestand (IFC: `IfcTask.Status` = 'STARTED', eigenaarsbesluit
+      // 2026-10-14; zie `runningAtFullIds`). Houd hem lopend: geen afgeleid werkelijk einde, geen afgeleide
       // werkelijke start, en de restduur zoals het bestand hem vastlegde (geen afleiding uit
       // `completion`), zodat de taak na opslaan en heropenen gelijk is aan de import.
       t.completion = 1;

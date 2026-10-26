@@ -705,6 +705,10 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
   const records: RawTaskRecord[] = [];
   /** "Datums zoals opgeslagen" — per taak-id MSP's eigen rekenuitvoer (zie `TaskFieldId.EarlyStart`). */
   const recordedTimes: Record<string, RecordedTime> = {};
+  // Taken die nog lopen: geen werkelijk einde en een rest groter dan 0. MS Project zet een werkelijk einde
+  // zodra een taak klaar is; op 100 % is het hele percentage dan afgerond. Zie `runningAtFullIds` in
+  // `normalizeImportedProgress`: alleen op 100 % zonder werkelijk einde telt de set (zoals MSPDI).
+  const runningAtFullIds = new Set<string>();
   for (const raw of raws) {
     const cal = raw.effCal;
     const isHour = hourModeCals.has(cal);
@@ -850,6 +854,7 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
     if (!resolvedStartTs) missingDates.start.add(task.id);
     if (!resolvedFinishTs) missingDates.finish.add(task.id);
     records.push({ uniqueId: raw.uniqueId, id: raw.id, outlineLevel: raw.outlineLevel, storedWbs: raw.storedWbs, task });
+    if (raw.actualFinishTs === null && (raw.remainingDurationRaw ?? 0) > 0) runningAtFullIds.add(task.id);
     taskIdByUniqueId.set(raw.uniqueId, task.id);
     taskHourById.set(task.id, isHour);
 
@@ -896,7 +901,7 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
   // taakstart), finish ⇒ start + duur op de eigen kalender van de taak waar eenduidig.
   const startAnchor = resolveMissingScheduleDates(tasks, missingDates, ctx.projectStart ?? '',
     (task) => taskCalendar(task, calResult));
-  normalizeImportedProgress(tasks, statusDate);
+  normalizeImportedProgress(tasks, statusDate, runningAtFullIds);
   deriveImportedWorkRules(tasks); // werkregel uit mspTaskType/effortDriven
   return {
     tasks, taskIdByUniqueId, taskHourById, startAnchor, recordedTimes,
