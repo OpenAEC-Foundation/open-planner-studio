@@ -196,7 +196,10 @@ desktop-app ongewijzigd). De bestaande controle tegen een stille schemawissel vi
 
 **Importformaten.** Node heeft geen `DOMParser`. De MSPDI- en P6-XML-lezers van de app gebruiken hem;
 de server zet daarom een eigen kleine XML-parser als `DOMParser` (`headless/mcp-server/src/xmlDom.ts`),
-met precies wat de lezers gebruiken. Een DOCTYPE met eigen entiteiten weigert hij (geen
+met precies wat de lezers gebruiken. De bestandsroute decodeert `.xml` als UTF-8 of UTF-16 LE/BE
+(BOM, of zonder BOM met een expliciete UTF-16LE/UTF-16BE-declaratie). Ongeldige bytes, een strijdige
+encodingdeclaratie en niet-ondersteunde encodings geven `VALIDATION`, zonder de planning te openen.
+De byte-decoding van andere bestandstypen blijft ongewijzigd. Een DOCTYPE met eigen entiteiten weigert hij (geen
 entiteit-expansie, geen externe entiteiten). CSV, XER en `.mpp` gebruiken geen browserglobals die in
 Node 22 ontbreken (nagelopen: `TextDecoder`, `crypto.subtle` en `structuredClone` bestaan).
 
