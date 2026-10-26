@@ -336,6 +336,23 @@ en noem het in je rapport of PR-tekst.
      moment in de kopieerwaarde bewaren; D7 hoeft daarvoor niet te veranderen. Gevonden in de review van de
      fix voor aanval a08 (GPT-6.1-Sol). — B
 
+366. **Slepen van de linkergreep bij importsplits met een contour verschuift het einde.** Vier werkdagen met een
+     pauze van 480 minuten na het eerste werkstuk, ma 07:00 – vr 16:00: de linkergreep één dag naar rechts, in
+     twee muisbewegingen, eindigt op di 09:00; de contourherschaling maakt van de pauze 360 minuten. Terugslepen
+     laat ma 09:00 staan, en F5 zet het einde op ma 8 juni 09:00. Eén undo herstelt de beginstand
+     (`src/components/canvas/hooks/useBarDrag.ts:353`, `src/engine/renderer/hourBarDragMath.ts:218`,
+     `src/utils/taskDefaults.ts:774`). Op `9a636ec69` ook fout (na terugslepen en F5 ma 8 juni 16:00).
+     Voorstel: de pauzegegevens bij het grijpen bevriezen en sleepberekening en store dezelfde herschaalregel
+     laten volgen. Gevonden in de review van de fix voor aanval a09 (GPT-6.1-Sol). — B
+
+371. **De linkergreep springt bij een taak met alleen nivelleerpauzes.** Vier werkdagen plus één
+     nivelleerpauzedag, ma–vr: de linkergreep één dag naar rechts geeft wo 07:00 en duur 3 d. De sleep filtert
+     de pauze weg, maar rekent terug vanaf het oorspronkelijke einde mét pauze
+     (`src/components/canvas/hooks/useBarDrag.ts:353`, `src/engine/renderer/hourBarDragMath.ts:218`). De
+     bodyverplaatsing werkt wel. Al zo op `9a636ec69`. Voorstel: de vaste rand en de resterende spanne bepalen
+     vanuit dezelfde toestand zonder vervallen nivelleerpauzes. Gevonden in de review van de fix voor aanval a09
+     (GPT-6.1-Sol). — B
+
 ## Kalenders
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden
