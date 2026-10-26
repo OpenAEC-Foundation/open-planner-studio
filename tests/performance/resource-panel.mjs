@@ -13,6 +13,7 @@ assert(beforeDist && afterDist && output, 'Geef vóór-build, na-build en uitvoe
 mkdirSync(output, { recursive: true });
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json', '.woff2': 'font/woff2' };
+const openPanelTitle = /Open the full resource panel|Volledig resourcepaneel openen/i;
 
 async function serve(root) {
   const server = createServer((req, res) => {
@@ -66,7 +67,7 @@ async function fixture(page, size) {
     });
     store.getState().recomputeViewRows();
   }, size);
-  await expect(page.getByTitle(/Open the full resource panel|volledige resourcepaneel/i)).toBeVisible();
+  await expect(page.getByTitle(openPanelTitle)).toBeVisible();
   await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
 }
 
@@ -135,7 +136,7 @@ try {
         page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
         try {
           await fixture(page, size);
-          const openMs = await clickMs(page, page.getByTitle(/Open the full resource panel|volledige resourcepaneel/i), `[data-ops-grid-row="measure-resource-${size - 1}"]`);
+          const openMs = await clickMs(page, page.getByTitle(openPanelTitle), `[data-ops-grid-row="measure-resource-${size - 1}"]`);
           await expect(page.locator('tbody [data-ops-grid-row]')).toHaveCount(size);
           const opened = await snapshot(page, size);
           const steps = page.locator('[data-ops-grid-row="measure-resource-0"]').getByTitle(/^(Time-phased capacity|Tijd-gefaseerde capaciteit)$/);
@@ -154,6 +155,16 @@ try {
           samples.push(sample);
           writeFileSync(resolve(output, 'raw.json'), JSON.stringify(samples, null, 2) + '\n');
           console.log(JSON.stringify(sample));
+        } catch (error) {
+          // Ook de zelfstandige productiemeting bewaart foutbeelden; de test-runner doet dit hier niet.
+          const prefix = `${revision ? 'na' : 'voor'}-${size}-${repeat}`;
+          await page.screenshot({ path: resolve(output, `${prefix}-fout.png`) }).catch(() => {});
+          writeFileSync(resolve(output, `${prefix}-fout.json`), JSON.stringify({
+            revision, size, repeat, before: process.env.BEFORE_SHA, after: process.env.AFTER_SHA,
+            error: String(error), browserErrors: errors,
+            visibleText: await page.locator('body').innerText().catch(() => ''),
+          }, null, 2) + '\n');
+          throw error;
         } finally { await context.close(); }
       }
     }
