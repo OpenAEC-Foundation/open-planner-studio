@@ -167,6 +167,14 @@ async function edit(page, column, value, measure = false) {
   await settle(page);
 }
 
+async function calculate(page, expectedFinish) {
+  // Alleen gedragsbewijs, buiten de naamedit-/openingstijden: thumbnails volgen rekendatums.
+  await page.keyboard.press('F5');
+  await expect.poll(() => page.evaluate(() => window.__OPS__.store.getState().tasks[0].time.earlyFinish))
+    .toBe(expectedFinish);
+  await settle(page);
+}
+
 async function prepare(browser, url) {
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 }, locale: 'nl-NL', timezoneId: 'UTC' });
   const page = await context.newPage();
@@ -235,6 +243,7 @@ async function runTiming(browser, url, label, scenario) {
     await close(page);
     await edit(page, 'task.time.finish', '31-12-2026');
     await expect.poll(() => page.evaluate(() => window.__OPS__.store.getState().tasks[0].time.scheduleFinish)).toBe('2026-12-31');
+    await calculate(page, '2026-12-31');
     await open(page);
     const after = await snapshot(page);
     assert.notDeepEqual(after.cards[0].bars, before.cards[0].bars, 'Datumedit moet mini-Gantt wijzigen');
@@ -248,6 +257,7 @@ async function runTiming(browser, url, label, scenario) {
     recordSnapshot(label, scenario, 'undo', undone);
     await close(page);
     await page.keyboard.press('Control+y');
+    await calculate(page, '2026-12-31');
     await open(page);
     const redone = await snapshot(page);
     assert.deepEqual(redone.cards, after.cards, 'Redo moet volledige kaarten herstellen');

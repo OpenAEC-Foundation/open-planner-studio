@@ -2,7 +2,7 @@ name: Documentminiaturen vergelijken
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, edited]
+    types: [opened, synchronize, reopened]
     paths:
       - 'scripts/measure-document-thumbnails.mjs'
       - 'tests/browser/document-switch.spec.ts'
