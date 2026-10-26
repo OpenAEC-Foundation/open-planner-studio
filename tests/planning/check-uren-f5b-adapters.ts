@@ -729,7 +729,8 @@ for (const c of LAG_CASES) {
 {
   // De ruis van zes decimalen (review #591 r6, was knownbug 386). P6 schrijft uren met zes decimalen: 40 min is
   // 0,666667 u. Vóór fixronde 6 werd dat 40,00002 min, in XER en in P6 XML. Na Bereken kreeg A dan LS vr 29 mei
-  // 15:59 en LF ma 1 juni 15:59 (knownbug 385). Twee taken van 8 u, FS, ma–vr 08:00–16:00, statusdatum ma 1 juni.
+  // 15:59 en LF ma 1 juni 15:59 (was knownbug 385). Twee taken van 8 u, FS, ma–vr 08:00–16:00, statusdatum
+  // ma 1 juni.
   const ruisXer = (lagHours: string) => new TextEncoder().encode([
     'ERMHDR\t23.12\t2026-06-01\t\t\t\t\t\tEUR',
     '%T\tPROJECT', '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date', '%R\tP1\tRuis\tC1\t2026-06-01',
@@ -768,7 +769,7 @@ for (const c of LAG_CASES) {
 // Fixronde 5 rondde alles af op de hele minuut; dan werd ook een echte breuk (40,33 u = 2419,8 min) 2420.
 // Sinds fixronde 6 (review #591 r6) gaat alleen de ruis weg (`sixDecimalHoursToMinutes`, zoals de lag in (14)).
 // De rest uit de percentagetak van een lopende `CP_Drtn`-taak is berekend en blijft op de hele minuut, zoals op
-// main (was knownbug 315; met de breuk sprong LS een dag terug, knownbug 385).
+// main (was knownbug 315; met de breuk sprong LS met de oude kalenderwandeling een dag terug, was knownbug 385).
 {
   // Taak C is lopend met `CP_Drtn` en 33,33 % gereed. Zijn rest komt uit de percentagetak, niet uit
   // `remain_drtn_hr_cnt` (40,33 u, dus 2419,8 min als de tak niet loopt). Taak D heeft duur en rest met de ruis

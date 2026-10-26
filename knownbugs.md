@@ -344,29 +344,16 @@ en noem het in je rapport of PR-tekst.
      niet-werktijd; de basis geeft in dit geval ook een herberekeningsverschil. Voorstel: bij SF de bestaande
      `forwardFinishFloor` meenemen. Gevonden in review ronde 2 van #660 (GPT-6.1-Sol). — B
 
-385. **Een duur of lag met een breuk in minuten laat een late datum soms een dag terugspringen.** De
-     voorwaartse wandeling (`src/engine/scheduler/CalendarEngine.ts:827`) eindigt in een `Date`, en die kapt af op
-     hele ms. De terugwandeling (`:855`) trekt de volle breuk af. Landt die op een bandstart, dan schiet hij een
-     deel van een ms door naar het vorige band-eind, en `formatInstant` (`src/utils/dateUtils.ts:119`) rondt naar
-     beneden af. Nagespeeld met `solveProject`, ma–vr 08:00–16:00, A 8 u FS B, ma 1 juni 2026: met B = 1920/7 min
-     (274,2857… min, wat de werkregel geeft bij 1920 min werk en inzet 7, T14) krijgt B LS ma 1 juni 15:59 in
-     plaats van di 2 juni 08:00, en A LS vr 29 mei 15:59 en LF ma 15:59 in plaats van ma 08:00 en 16:00, met
-     speling −3,5·10⁻⁸ d. Met 274 of 275 min klopt alles. De spiegel zelf: `addWorkMinutes` en daarna
-     `subtractWorkMinutes` met 1600,00002 min vanaf ma 08:00 geeft vr 29 mei 15:59:59,999. Ook hele ms zijn niet
-     veilig: de aftrekking per band (`remaining -= availMin`, `:858`) laat door floatruis soms ~10⁻¹³ min over op
-     een bandstart, en dan landt LS op het vorige band-eind. B = 512,2 min (een `.mpp`-tiende) geeft B LS ma 1 juni
-     16:00 in plaats van di 2 juni 08:00 (speling 0). Spiegelproef vanaf ma 08:00 (fixronde 6): hele minuten
-     1–5000 geen fout; tienden 0,1–5000 2880 van 50.000 fout; uren met twee decimalen 0,01–83 u 479 van 8300;
-     willekeurige waarden op hele ms 1088 van 20.000; op een miljoenste minuut 19.609 van 20.000. De eerdere zin
-     "tienden springen niet" gold alleen voor de geteste 160,5 en 1600,5 min. In #591 r3 gaf een
-     XER-rest van 26,666667 u (1600,00002 min, `HarbourPointe_AssistedLiving.xer`) zo 29 onexacte P6-cellen. Sinds
-     fixronde 6 wordt de ruis van zes uurdecimalen in XER en P6 XML de hele minuut (was 386); een echte breuk
-     raakt dit nog wel (388). De werkregelroute is niet in de app nagespeeld.
-     `check-calendar-mirror.ts` toetst alleen hele minuten. De motorbestanden zijn in #591 gelijk aan main, dus
-     het staat ook op main.
-     Voorstel: de wandeling in hele ms laten rekenen (ook de rest na elke band), en de spiegelcheck uitbreiden met
-     tienden en met een breuk die geen heel aantal ms is.
-     Gevonden in fixronde 5 van #591. — B
+389. **Kalendertijd komt bij een breuk die geen heel aantal ms is 1 ms te vroeg terug.** `addElapsedMinutes` en
+     `subtractElapsedMinutes` (`src/engine/scheduler/duration.ts:189`, `:196`) rekenen `t ± minuten × 60000` zonder
+     afronding, en een `Date` kapt af op hele ms. De lag in kalendertijd doet hetzelfde
+     (`src/engine/scheduler/CPMSolver.ts:688`, `src/engine/scheduler/relationMath.ts:620`, `:837`, `:868`).
+     Nagespeeld met de twee functies vanaf ma 08:00: 1920/7 min (274,2857…), 1600,00002 min en 2407,40742 min komen
+     terug op 07:59:59,999; een datum toont dan 07:59 in plaats van 08:00. 512,2 min (een tiende) klopt. Niet via
+     een taak nagespeeld: welke invoer een kalendertijdduur of -lag geeft die geen heel aantal ms is, is niet
+     onderzocht (`.mpp` en MSPDI tellen in tienden, en die kloppen). De werktijdwandelingen rekenen sinds fixronde 7
+     van #591 in hele ms (`CalendarEngine.walkMs`, was 385 en 388). Voorstel: dezelfde afronding hier. Gevonden in
+     fixronde 7 van #591. — B
 
 ## Tabel, invoer en bediening
 
@@ -1069,19 +1056,6 @@ en noem het in je rapport of PR-tekst.
      geweigerd; een volledig datum-tijdgetal onder een tijdopmaak wordt stil geaccepteerd. Voorstel: deze grens
      apart behandelen, bijvoorbeeld zichtbaar weigeren of melden. Gevonden in review r2 van #659
      (GPT-6.1-Sol). — B
-
-388. **Een echte breuk in minuten uit XER, P6 XML of `.mpp` kan 385 raken; main rondde die af.** Sinds F5b houden de
-     XER-duur, de XER-rest en de lag in XER en P6 XML een echte breuk (`sixDecimalHoursToMinutes`,
-     `src/services/subdayIo.ts`), en houdt `.mpp` zijn tienden (`src/services/mpp/mppReader.ts`; main deed
-     `Math.round(raw.durationRaw / 10)`). Nagespeeld met `solveProject`, ma–vr 08:00–16:00, ma 1 juni 2026: een
-     lopende `CP_Phys`-taak met XER-rest 40,123457 u (2407,40742 min, geen heel aantal ms) krijgt LS vr 29 mei
-     15:59 in plaats van ma 1 juni 08:00; met 2407 min klopt het. A 8 u FS B met B = 512,2 min geeft B LS ma 1 juni
-     16:00 in plaats van di 2 juni 08:00. De waarden in `check-uren-f5b-adapters.ts` (19,8, 150,5, 720,5, 979,8,
-     2419,8, 3428,4 en 13709,5 min) houden de spiegel. De XER- en P6 XML-corpora hebben geen echte breuk in
-     minuten; het `.mpp`-corpus heeft volgens sectie (1) van die check 4 duren en 19 resten met tienden, en die
-     zijn hierop niet gemeten (het MSP-orakel meet alleen start en einde). MSPDI is niet nagekeken. Afronden op
-     hele ms in de lezer helpt maar ten dele (zie 385). Voorstel: 385 in de motor oplossen. Gevonden in
-     fixronde 6 van #591. — B
 
 ## Rondleiding, Help en extensie-gidsen
 

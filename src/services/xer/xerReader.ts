@@ -751,7 +751,7 @@ function readXerProject(
     const remainingHours = numberOf(tables, row, 'remain_drtn_hr_cnt');
     // Zelfde regel als de lag (§3.10; review #591 r6): XER schrijft uren met zes decimalen, dus 1600 min staat er
     // als 26,666667 u (1600,00002 min); die ruis wordt de hele minuut. Met de ruis werden 29 P6-cellen onexact
-    // (regel A, meting 2026-10-26; knownbug 385). Een echte breuk blijft: 40,33 u = 2419,8 min.
+    // (regel A, meting 2026-10-26; was knownbug 385). Een echte breuk blijft: 40,33 u = 2419,8 min.
     const sourceDurationMinutes = sixDecimalHoursToMinutes(durationHours);
     const hoursPerDay = effectiveCalendar.hoursPerDay > 0 ? effectiveCalendar.hoursPerDay : 8;
     const activityType = activityTypeOf(row.cells.task_type ?? '', row, enumFallbacks);
@@ -852,8 +852,8 @@ function readXerProject(
     if (p6RemainingHours !== null) {
       // Een rest uit het bestand: zelfde regel als de duur (de ruis van zes decimalen wordt de hele minuut, een
       // echte breuk blijft). Een rest uit de percentagetak is berekend, geen bronwaarde: die blijft op de hele
-      // minuut, zoals op main. 40,33 u bij 33,33 % gaf anders 1613,28066 min, en dan springt LS een dag terug
-      // (knownbug 385; review #591 r6).
+      // minuut, zoals op main (review #591 r6 en r7). Met de oude kalenderwandeling sprong LS bij 1613,28066 min
+      // (40,33 u bij 33,33 %) een dag terug (was knownbug 385).
       time.remainingMinutes = remainingFromPercent
         ? Math.round(p6RemainingHours * 60)
         : sixDecimalHoursToMinutes(p6RemainingHours);

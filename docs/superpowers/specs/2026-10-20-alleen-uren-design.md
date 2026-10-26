@@ -507,6 +507,13 @@ normalisatie draait altijd; de markering `TimeModel` stuurt alleen de B5-overgan
   projecten die nu een dagkalender hebben. F2 vervangt die test daarom door een expliciete vlag "de kalender
   had eigen werkblokken" (`isHourModeCalendar` op de opgeslagen kalender). Zo verandert hun bereik niet. Of ze
   later breder gaan gelden, is een aparte meting met `measure:profiles` (regel A).
+- **Wandelingen in hele milliseconden (F5b, fixronde 7 van #591):** `addWorkMinutes` en `subtractWorkMinutes`
+  rekenen intern in hele ms, ook de rest na elke band (`CalendarEngine.walkMs`). Reden: met kommagetalminuten bleef
+  bij een bandgrens soms een minieme rest over, en dan koos de terugwandeling het vorige werkeinde. Een XER-duur van
+  8,72 u (523,2 min) gaf zo een late start op het werkeinde van de dag ervoor (ma 16:00 in plaats van di 08:00),
+  960 min minder speling op een 24/7-voorganger en een verkeerde ALAP-plek. Nu blijft
+  `subtractWorkMinutes(addWorkMinutes(t, m), m) === t` voor elke breuk (`check-kalender-ms-wandeling.ts`). Regel A:
+  P6 zonder celverschil, MS Project gelijk aan de stand ervoor (meting 2026-10-26).
 
 ### 3.10 Adapters
 
@@ -528,13 +535,14 @@ normalisatie draait altijd; de markering `TimeModel` stuurt alleen de B5-overgan
   (0,33 u = 19,8 min, 40,33 u = 2419,8 min), zonder de floatruis van uren × 60 (`sixDecimalHoursToMinutes`,
   `subdayIo.ts`). Dat geldt voor de XER-duur, de XER-rest en de lag in XER en P6 XML. Reden: met de ruis werden
   29 P6-cellen onexact (regel A; `measure:profiles` met het P6-corpus, meting 2026-10-26), en sprong een late datum
-  een dag terug (knownbug 385). Op de hele minuut blijven, zoals op main: de rest die de XER-lezer uit het percentage
-  van een lopende `CP_Drtn`-taak berekent (40,33 u bij 33,33 % gaf anders 1613,28066 min, en LS sprong een dag
-  terug), en duur en rest in P6 XML zonder `ExactMinutes`-record (`readMeasure`, `xmlDayMeasure.ts:293`). Grens van
+  een dag terug (was knownbug 385, zie §3.9). Op de hele minuut blijven, zoals op main: de rest die de XER-lezer uit
+  het percentage van een lopende `CP_Drtn`-taak berekent (40,33 u bij 33,33 % gaf anders 1613,28066 min, en met de
+  oude kalenderwandeling sprong LS een dag terug), en duur en rest in P6 XML zonder `ExactMinutes`-record
+  (`readMeasure`, `xmlDayMeasure.ts:293`). Grens van
   het bewijs: de corpora (XER: 20.815 duren, 20.598 resten, 32.181 lags; P6 XML: 489, 697 en 434) hebben geen echte
   breuk in minuten, alleen vier XER-resten met de ruis (`HarbourPointe_AssistedLiving.xer`). Een bron die een echte
-  breuk bedoelt, is dus niet gezien. Ook een echte breuk kan de late datums een dag laten springen (knownbug 385
-  en 388).
+  breuk bedoelt, is dus niet gezien. Een echte breuk laat de late datums niet meer springen: de kalenderwandelingen
+  rekenen sinds fixronde 7 in hele milliseconden (§3.9).
 - **Schrijven:** urenmaat: minuten. Dagenmaat: werkdagen × werktijd per dag (technische keuze T13), plus de
   OPS-markering, en bij een breuk het record (T21). Reden: dat is precies wat het P6- en het MSP-profiel rekenen, het
   hangt niet af van de plek, en OPS → P6 → OPS geeft de dagenmaat terug. Nu gebruikt `taskMinutesForWrite` het
