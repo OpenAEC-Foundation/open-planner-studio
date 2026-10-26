@@ -172,13 +172,6 @@ en noem het in je rapport of PR-tekst.
     absolute paden, dus geen bekende route naar verkeerd opgeslagen bestanden. Gevonden in review ronde 3 van
     PR #572 (GPT-6.1-Sol). Voorstel: de terugval documenteren en beide fouten bewaren of melden. — B
 
-206. **`.mcpb`-bundel: een annulering tijdens opnieuw verbinden valt weg.**
-    `integrations/claude-desktop/src/proxy.ts:445` haalt het request-id uit `queuedIds` voordat
-    `handleRequest()` op `connectUpstream()` wacht (`:394–403`); een `notifications/cancelled` in dat venster
-    wordt niet vastgelegd en de tool kan na het verbinden alsnog naar de bridge gaan. Gevonden in review ronde
-    2 en 3 van PR #567 (GPT-6.1-Sol). Voorstel: het request annuleerbaar houden tot de echte tool-POST en na
-    het verbinden opnieuw controleren, met een test voor dat venster. — B
-
 207. **`.mcpb`-bundel: na sessieverlies weigert de proxy ook een nieuw leeg plan en importeren.**
     `integrations/claude-desktop/src/proxy.ts:389–392` blokkeert `planner_new_document` en
     `planner_import_schedule` zolang de blokkade staat; Claude moet eerst een bestaand plan kiezen met
@@ -426,6 +419,13 @@ en noem het in je rapport of PR-tekst.
     zegt dat bestaand werk behouden blijft, maar vergelijkt met een leeg beginproject (de fixture doet
     `newProject()` en voegt geen taak toe). Een losse probe met gewijzigd werk slaagt wel. Voorstel: één taak in
     de beginstaat en ook de dirty-vlag controleren. Gevonden in review r1 van #636 (GPT-6.1-Sol). — B
+
+323. **De regressietest van de MCP-proxy mist annuleren na een 404.** `tests/mcp/cases-mcpb.ts:411` toetst
+    annuleren tijdens verbinden vanuit offline toestand, maar niet de registratie vóór de tweede
+    verbindingspoging na `404`. Een losse proef van de reviewer bevestigt dat die route werkt. Daarnaast zijn de
+    annuleringscontroles op `integrations/claude-desktop/src/proxy.ts:402` en `:418` overbodig: op die routes zit
+    sinds de vorige controle geen nieuwe asynchrone onderbreking. Voorstel: de 404-route in de test, en de twee
+    regels weg. Gevonden in review r1 van #603 (GPT-6.1-Sol). — B
 
 ## Wensen en open taken (geen bug)
 
