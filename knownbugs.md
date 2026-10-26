@@ -235,6 +235,14 @@ en noem het in je rapport of PR-tekst.
     review ronde 1 van PR #573 (GPT-6.1-Sol). Voorstel: de ACL op Windows controleren (ook tijdelijk bestand
     en bestaande map), of geen token publiceren als de bescherming onvoldoende is. — B
 
+260. **Resourcebibliotheek in een sandbox-iframe zonder `allow-same-origin`: elke bibliotheekwijziging geeft
+    de melding "bibliotheek opslaan mislukt", en de wijziging is na herladen weg.** Gezien bij #582 (de
+    SuperCloud-werkplek weigert IndexedDB). `src/services/library/libraryStore.ts` (`saveWeb`) opent IndexedDB
+    zonder de weigering te herkennen; `persistLibrary` (`src/state/slices/librarySlice.ts:334–353`) meldt dan
+    `notifications.librarySaveFailed` (één melding dankzij `dedupeKey`). Bij de start blijft het stil: `loadLibrary`
+    valt terug op een verse bibliotheek. Alleen in de code nagelopen, niet in de app nagespeeld. Voorstel: dezelfde
+    stille sessievlag als crashherstel, of één uitleg dat de bibliotheek in deze omgeving niet bewaard wordt. — S
+
 ## Bestanden en herstel
 
 35. **Showcase-voorbeelden openen als gewijzigd** (`applyDemoLibraryToShowcaseProject`). — S
@@ -310,6 +318,12 @@ en noem het in je rapport of PR-tekst.
     punt zegt niet dat iedere mislukte snapshotwrite als rejection uit de flush komt. Geen
     runtime-repro of concreet dataverlies vastgesteld; bedoeling en gewenste foutafhandeling
     niet onderzocht. — S
+
+261. **Recente bestanden in een sandbox-iframe zonder `allow-same-origin` tonen hoogstens het laatst geopende
+    bestand, en na herladen niets.** Gezien bij #582. `src/services/fileAccess/recentFiles.ts` gebruikt de
+    stille `idb*`-helpers: `loadRecents` leest daar altijd een lege lijst, dus `addRecent` geeft alleen de nieuwe
+    regel terug. Geen melding. Alleen in de code nagelopen, niet in de app nagespeeld. Voorstel: in die omgeving
+    de lijst in het geheugen houden, of Recent daar verbergen (de site heeft een eigen bestandslijst). — S
 
 ## Rondleiding, Help en extensie-gidsen
 

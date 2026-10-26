@@ -50,7 +50,8 @@
  *
  * De tool schrijft ALLEEN naar de site als de gebruiker opslaat (Opslaan of Opslaan als). Automatisch
  * opslaan staat voor een site-bestand uit: elke ronde zou een nieuwe versie maken. Crashherstel blijft
- * lokaal in de browser.
+ * lokaal in de browser. Weigert de browser IndexedDB (bijv. in een sandbox-iframe zonder
+ * `allow-same-origin`), dan gaat crashherstel stil uit voor die sessie; opslaan via de site werkt gewoon.
  *
  * Staat de host op `window.parent`, dan komen objecten uit twee vensters. De tool controleert de
  * inhoud daarom zonder `instanceof`; de site doet er goed aan hetzelfde te doen met de `Blob` die de

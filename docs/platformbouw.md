@@ -125,7 +125,10 @@ Alleen als er een site is; zonder site verandert er niets.
   doel, en **Opslaan als**, tonen "Opslaan op de site" met een naamveld en een knop "Op deze pc…".
 - **Recente bestanden** tonen site-bestanden met het label "Op de site". Heropenen haalt de nieuwste versie.
 - **Crashherstel** werkt met een site-bestand: na herstel schrijft Ctrl+S weer naar dezelfde plek op de site,
-  met dezelfde basisversie (het herstelmanifest bewaart `siteFileId` en `siteFileVersion`).
+  met dezelfde basisversie (het herstelmanifest bewaart `siteFileId` en `siteFileVersion`). Crashherstel blijft
+  lokaal in de browser. Weigert de browser IndexedDB (bijv. in een sandbox-iframe zonder `allow-same-origin`,
+  zoals de SuperCloud-werkplek), dan gaat crashherstel stil uit voor die sessie: geen melding, één regel in de
+  console. Opslaan via de site werkt gewoon.
 - **Automatisch opslaan** staat uit voor een site-bestand: elke ronde zou een nieuwe versie op de site maken. De
   knop in de titelbalk is grijs en zegt waarom; crashherstel blijft actief.
 - Exporteren blijft altijd een download of bestandskiezer.
