@@ -26,7 +26,7 @@ import {
   OPS_LAG_CALENDAR_NAME, dayMeasureMinutesPerDay, fieldRecordsJson, lagRecordKey, lagWorkMinutesPerDay,
   withElapsedUnit, writeDays, writeMinutes, type LagRecord, type WrittenAmount,
 } from '@/services/xmlDayMeasure';
-import { ELAPSED_MINUTES_PER_DAY, roundDays } from '@/services/ifc/dayMeasureIo';
+import { ELAPSED_MINUTES_PER_DAY, dayMeasureRecord } from '@/services/ifc/dayMeasureIo';
 import { P6_DURATION_TYPE_NAME, XER_DURATION_TYPE_TOKEN } from '@/engine/work/workRuleMapping';
 
 /** P6-UDF die de OPS-taaktypemarker draagt; geëxporteerd voor de reader. */
@@ -258,7 +258,9 @@ function p6Lag(
   const days = Number.isFinite(seq.lagDays) ? seq.lagDays : 0;
   const written = writeDays(days, minutesPerLagDay);
   if (days === 0 && !elapsed) return { hours: 0 };
-  const record: LagRecord = elapsed ? [roundDays(days), written.minutes, 'ed'] : [roundDays(days), written.minutes];
+  // De dagen van het record verklaren precies de geschreven minuten (`dayMeasureRecord`, aanval a06 na #600).
+  const [recordDays] = dayMeasureRecord(days, minutesPerLagDay);
+  const record: LagRecord = elapsed ? [recordDays, written.minutes, 'ed'] : [recordDays, written.minutes];
   return { hours: written.minutes / 60, record };
 }
 
