@@ -27,8 +27,9 @@
 //      r2, was knownbug 309;
 // (14) een XER-lag van 0,33 u (19,8 min) blijft 19,8 min door de store, IFC opslaan en heropenen, MSPDI en
 //      P6 XML heen en terug; 0,12 u wordt precies 7,2 min, zonder floatruis (review #591 r3, was knownbug 307);
-// (15) XER-duur en -rest met een breuk in minuten (40,33 u = 2419,8 min, 16,33 u = 979,8 min) blijven exact
-//      door dezelfde route (review #591 r3, §3.10).
+// (15) XER-duur en -rest op de hele minuut (40,33 u = 2419,8 min wordt 2420, 16,33 u wordt 980), ook de rest
+//      van een lopende `CP_Drtn`-taak; anders worden P6-cellen onexact (regel A, meting 2026-10-26). Een breuk
+//      in minuten in duur en rest (.mpp: 2419,8 en 979,8 min) blijft exact door de store, IFC, MSPDI en P6 XML.
 //
 // Draait via run.sh (esbuild-bundel). Alleen de exitcode telt.
 import './domStub';
@@ -724,28 +725,51 @@ for (const c of LAG_CASES) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-// (15) XER-duur en -rest met een breuk in minuten door de hele route (review #591 r3, §3.10)
+// (15) XER-duur en -rest op de hele minuut; een breuk in minuten (.mpp) door de hele route
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-// Vóór fixronde 3 rondde de XER-lezer duur en rest af op de hele minuut: 40,33 u werd 2420 min, niet 2419,8.
+// Fixronde 3 (review #591 r3) liet de afronding van XER-duur en -rest weg: 40,33 u werd 2419,8 min. Dat maakte
+// 29 P6-cellen onexact (regel A; measure:profiles met het P6-corpus, meting 2026-10-26). De lezer rondt duur en
+// rest daarom weer af op de hele minuut, ook in de percentagetak van een lopende `CP_Drtn`-taak (was knownbug
+// 315). De lag houdt zijn breuk (14).
 {
+  // Taak C is lopend met `CP_Drtn` en 33,33 % gereed. Zijn rest komt uit de percentagetak, niet uit
+  // `remain_drtn_hr_cnt` (40,33 u, dus 2420 min als de tak niet loopt).
   const text = XER_FIXTURE
     .replace('CP_Phys\t0\t50\t40\t16\t', 'CP_Phys\t0\t50\t40.33\t16.33\t')
-    .replace('CP_Drtn\t0\t\t16\t16\t', 'CP_Drtn\t0\t\t16.33\t16.33\t');
-  ok('(15) opzet: duur en rest met een breuk in de fixture',
-    text.includes('CP_Phys\t0\t50\t40.33\t16.33\t') && text.includes('CP_Drtn\t0\t\t16.33\t16.33\t'));
-  const minutesOf = (doc: { tasks: Task[] }) => ['Lopend', 'Volgend'].map(name => {
+    .replace('CP_Drtn\t0\t\t16\t16\t', 'CP_Drtn\t0\t\t16.33\t16.33\t')
+    .replace('\n%T\tTASKPRED', '\n%R\tT3\tP1\tC1\tC\tLopend op duur\tTT_Task\tTK_Active\tCP_Drtn\t33.33\t\t40.33\t40.33'
+      + '\t2026-06-01 08:00\t2026-06-05 16:00\t2026-06-01 08:00\n%T\tTASKPRED');
+  ok('(15) opzet: duur en rest met een breuk in de fixture, en een lopende CP_Drtn-taak',
+    text.includes('CP_Phys\t0\t50\t40.33\t16.33\t') && text.includes('CP_Drtn\t0\t\t16.33\t16.33\t')
+    && text.includes('\tLopend op duur\tTT_Task\tTK_Active\tCP_Drtn\t33.33\t'));
+  const minutesOf = (doc: { tasks: Task[] }) => ['Lopend', 'Volgend', 'Lopend op duur'].map(name => {
     const t = byName(doc, name);
     return [t?.time.durationUnit, t?.time.durationMinutes, t?.time.remainingMinutes];
   });
-  const want = [['hours', 2419.8, 979.8], ['hours', 979.8, 979.8]];
+  // 40,33 u = 2419,8 min ⇒ 2420; 16,33 u = 979,8 min ⇒ 980; percentagetak 2419,8 × (1 − 0,3333) = 1613,28 ⇒ 1613.
+  const want = [['hours', 2420, 980], ['hours', 980, 980], ['hours', 2420, 1613]];
   const direct = quiet(() => readXER(new TextEncoder().encode(text)));
-  if (!isMultiDocumentImport(direct)) eq('(15) XER 40,33 u en 16,33 u: readXER', minutesOf(direct), want);
+  ok('(15) XER: één document', !isMultiDocumentImport(direct));
+  if (!isMultiDocumentImport(direct)) eq('(15) XER 40,33 u en 16,33 u: readXER op de hele minuut', minutesOf(direct), want);
   const opened = await openAndRecalc('duur.xer', { bytes: new TextEncoder().encode(text) });
   eq('(15) XER: in de store, na Bereken', minutesOf(opened), want);
   const reopened = await openAndRecalc('duur.ifc', { text: quiet(() => writeIFC(buildWriteIFCInput(opened))) });
   eq('(15) XER: IFC opgeslagen, heropend en berekend', minutesOf(reopened), want);
-  eq('(15) XER: MSPDI heropend en berekend', minutesOf(await openAndRecalc('duur.xml', { text: MSPDI.write(reopened) })), want);
-  eq('(15) XER: P6 XML heropend en berekend', minutesOf(await openAndRecalc('duur-p6.xml', { text: P6.write(reopened) })), want);
+}
+{
+  // Een breuk in minuten in duur en rest blijft exact door de store, IFC, MSPDI en P6 XML. De bron is nu een
+  // `.mpp` in tienden van een minuut (24198 en 9798 tienden), met dezelfde getallen als vroeger uit XER.
+  const minutesOf = (doc: { tasks: Task[] }) => {
+    const t = byName(doc, 'M');
+    return [t?.time.durationUnit, t?.time.durationMinutes, t?.time.remainingMinutes];
+  };
+  const want = ['hours', 2419.8, 979.8];
+  const opened = await openAndRecalc('duur.mpp', { bytes: mppTaskBytes({ durationRaw: 24198, remainingRaw: 9798 }) });
+  eq('(15) .mpp 2419,8 en 979,8 min: in de store, na Bereken', minutesOf(opened), want);
+  const reopened = await openAndRecalc('duur.ifc', { text: quiet(() => writeIFC(buildWriteIFCInput(opened))) });
+  eq('(15) .mpp: IFC opgeslagen, heropend en berekend', minutesOf(reopened), want);
+  eq('(15) .mpp: MSPDI heropend en berekend', minutesOf(await openAndRecalc('duur.xml', { text: MSPDI.write(reopened) })), want);
+  eq('(15) .mpp: P6 XML heropend en berekend', minutesOf(await openAndRecalc('duur-p6.xml', { text: P6.write(reopened) })), want);
 }
 
 if (errors.length) {

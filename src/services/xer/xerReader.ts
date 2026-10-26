@@ -748,9 +748,9 @@ function readXerProject(
     }
     const durationHours = numberOf(tables, row, 'target_drtn_hr_cnt') ?? 0;
     const remainingHours = numberOf(tables, row, 'remain_drtn_hr_cnt');
-    // Zonder afronding op de hele minuut (§3.10; review #591 r3), zoals de lag hieronder: alleen de floatruis
-    // van uren × 60 valt weg, op een miljoenste minuut.
-    const sourceDurationMinutes = Math.round(durationHours * 60 * 1e6) / 1e6;
+    // Op de hele minuut, anders dan de lag hieronder: P6 rekent duur en rest op de hele minuut. Zonder afronding
+    // worden P6-cellen onexact (regel A, measure:profiles met het P6-corpus, meting 2026-10-26; §3.10).
+    const sourceDurationMinutes = Math.round(durationHours * 60);
     const hoursPerDay = effectiveCalendar.hoursPerDay > 0 ? effectiveCalendar.hoursPerDay : 8;
     const activityType = activityTypeOf(row.cells.task_type ?? '', row, enumFallbacks);
     const durationType = durationTypeOf(
@@ -820,8 +820,9 @@ function readXerProject(
       : sourceDurationMinutes;
     // Altijd de urenmaat (alleen uren §3.10, T15; F5b): P6 kent alleen werkuren, en een XER-bestand draagt
     // nooit de OPS-markering voor de dagenmaat. Duur en rest zijn de minuten uit het bestand, zonder
-    // afronding op hele dagen of hele minuten. Vroeger kreeg een taak op een kalender zonder tijdsignaal de dagenmaat
-    // (`durationMinutes / (day_hr_cnt × 60)` dagen); dat is weg, ook op een dagkalender.
+    // afronding op hele dagen (wel op de hele minuut, zie hierboven). Vroeger kreeg een taak op een kalender
+    // zonder tijdsignaal de dagenmaat (`durationMinutes / (day_hr_cnt × 60)` dagen); dat is weg, ook op een
+    // dagkalender.
     // LET OP: `createDefaultTaskTime` leest zijn tweede argument als UREN zodra de eenheid
     // 'hours' is, en zet dan zelf `durationMinutes = dat getal * 60`. Wij geven hier bewust
     // DAGEN mee omdat `scheduleDuration` dagen hoort te zijn; de daaruit volgende foutieve
@@ -846,7 +847,9 @@ function readXerProject(
       : remainingHours;
     time.durationMinutes = durationMinutes;
     if (p6RemainingHours !== null) {
-      time.remainingMinutes = Math.round(p6RemainingHours * 60 * 1e6) / 1e6;
+      // Op de hele minuut, zoals de duur: P6 rekent de rest op de hele minuut; zonder afronding worden P6-cellen
+      // onexact (regel A, meting 2026-10-26).
+      time.remainingMinutes = Math.round(p6RemainingHours * 60);
     }
     if (actualStart) time.actualStart = actualStart;
     if (actualFinish) time.actualFinish = actualFinish;
