@@ -676,6 +676,53 @@ test('XML 1.0: geldige tekens, regeleinden en entiteiten blijven letterlijk corr
   }
 });
 
+// Zowel direct als via de gebouwde server: geen stil genegeerde ongeldige uitbreidingselementen.
+const invalidNamespaceFragments = [
+  '<p:Extra/>', '<Extra p:attr="x"/>', '<:Extra/>', '<Extra:/>', '<p:q:Extra/>',
+  '<Extra :attr="x"/>', '<Extra p:1attr="x" xmlns:p="urn:p"/>',
+  '<Extra xmlns:p=""/>', '<Extra xmlns:xml="urn:wrong"/>',
+  '<Extra xmlns:p="http://www.w3.org/XML/1998/namespace"/>',
+  '<Extra xmlns="http://www.w3.org/XML/1998/namespace"/>',
+  '<Extra xmlns:xmlns="urn:p"/>', '<xmlns:Extra/>',
+  '<Extra xmlns:p="http://www.w3.org/2000/xmlns/"/>',
+  '<Extra xmlns="http://www.w3.org/2000/xmlns/"/>',
+  '<Extra xmlns:p="urn:x" xmlns:q="urn:x" p:a="1" q:a="2"/>',
+  '<Extra xmlns:p="urn:x&amp;y" xmlns:q="urn:x&#38;y" p:a="1" q:a="2"/>',
+  '<Extra><child xmlns:p="urn:p"/><p:later/></Extra>',
+  '<Extra><child xmlns:p="urn:p"></child><p:later/></Extra>',
+  '<Extra xmlns:p="urn:p"><child xmlns:p="urn:q" xmlns:q="urn:q" p:a="1" q:a="2"/></Extra>',
+];
+
+test('XML namespaces: declaratievolgorde, overerving, lokale overrides en gereserveerde namen (214)', () => {
+  const parser = new XmlDomParser();
+  for (const xml of invalidNamespaceFragments) {
+    assertEq(parser.parseFromString(xml).getElementsByTagName('parsererror').length, 1, `ongeldig: ${xml}`);
+  }
+  const valid = [
+    '<p:Root p:a="1" xmlns:p="urn:p"/>',
+    '<Root xml:lang="nl"><xml:child/></Root>',
+    '<Root xmlns:xml="http://www.w3.org/XML/1998/namespace" xml:space="preserve"/>',
+    '<Root xmlns="urn:p" xmlns:p="urn:p" a="1" p:a="2"/>',
+    '<Root xmlns="urn:p"><child xmlns=""/></Root>',
+    '<Root xmlns:p="urn:p"><p:child p:a="x"/></Root>',
+    '<Root xmlns:p="urn:p" xmlns:q="urn:q"><child xmlns:p="urn:q"/><later p:a="1" q:a="2"/></Root>',
+    '<Root xmlns:p="urn:p" xmlns:q="urn:q"><child xmlns:p="urn:q"></child><later p:a="1" q:a="2"/></Root>',
+    '<Root xmlns:p="urn:p" xmlns:q="urn:q" p:a="1" q:a="2"/>',
+    '<Root xmlns:constructor="urn:c"><constructor:child/></Root>',
+    '<Root xmlns:xmlOther="urn:allowed"><xmlOther:child/></Root>',
+    '<é:Root xmlns:é="urn:unicode"><é:child/></é:Root>',
+  ];
+  for (const xml of valid) {
+    assertEq(parser.parseFromString(xml).getElementsByTagName('parsererror').length, 0, `geldig: ${xml}`);
+  }
+  const root = parser.parseFromString('<p:Root xmlns:p="urn:p"><p:child p:a="x">tekst</p:child></p:Root>').documentElement;
+  assertEq(root.tagName, 'p:Root', 'gekwalificeerde naam behouden');
+  assertEq(root.localName, 'Root', 'lokale naam behouden');
+  const child = root.getElementsByTagName('p:child')[0];
+  assertEq(child.getAttribute('p:a'), 'x', 'attribuut via gekwalificeerde naam');
+  assertEq(child.textContent, 'tekst', 'inhoud behouden');
+});
+
 test('B stdio bevinding 3: MSPDI, P6 XML, CSV en XER openen in de losse server, met taken en datums', async () => {
   const source = readFileSync(EXAMPLE, 'utf8');
   const src = readIFC(source);
@@ -711,6 +758,17 @@ test('B stdio bevinding 3: MSPDI, P6 XML, CSV en XER openen in de losse server, 
   writeFileSync(join(work, 'kapot.xml'), '<Project xmlns="http://schemas.microsoft.com/project"><Tasks></Project>');
   const broken = await refused(stdio, 'planner_import_schedule', { path: '~/kapot.xml' }, 'VALIDATION', 'kapotte XML');
   assert(String(broken.s.error).includes('Invalid XML'), `melding: ${broken.s.error}`);
+  const beforeNamespaces = await leafSchedule(stdio);
+  const mspdi = readFileSync(join(work, 'bron-mspdi.xml'), 'utf8');
+  for (const fragment of invalidNamespaceFragments) {
+    writeFileSync(join(work, 'namespace.xml'), mspdi.replace('</Project>', `${fragment}</Project>`));
+    await refused(stdio, 'planner_import_schedule', { path: '~/namespace.xml' }, 'VALIDATION', `namespace: ${fragment}`);
+    assertEq(await leafSchedule(stdio), beforeNamespaces, 'ongeldige namespace laat het open plan intact');
+  }
+  writeFileSync(join(work, 'namespace.xml'), mspdi.replace('</Project>',
+    '<p:Extra p:attr="x" xmlns:p="urn:extension"><p:Child xml:lang="nl"/></p:Extra></Project>'));
+  await ok(stdio, 'planner_import_schedule', { path: '~/namespace.xml' });
+  assertEq(await leafSchedule(stdio), fromIfc, 'geldige namespace-uitbreiding behoudt planning');
   writeFileSync(join(work, 'entiteit.xml'), '<?xml version="1.0"?><!DOCTYPE Project [<!ENTITY x "y">]><Project xmlns="http://schemas.microsoft.com/project"><Name>&x;</Name></Project>');
   await refused(stdio, 'planner_import_schedule', { path: '~/entiteit.xml' }, 'VALIDATION', 'DOCTYPE met eigen entiteit');
 

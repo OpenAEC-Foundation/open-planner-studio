@@ -129,12 +129,10 @@ en noem het in je rapport of PR-tekst.
     website volgt de laatste deploy, terwijl een desktopversie zijn eigen kopie meelevert; een oudere app kan
     dus naar een gids wijzen die tools beschrijft die hij niet heeft. De gids zegt nu dat de kopie van de tool
     voorgaat. Voorstel: een versiepad (bv. `/agent/<versie>/planning-guide.md`) of de versie in de gids. — S
-214. **De eigen XML-parser van de headless MCP-server heeft nog namespace- en encodinggaten.**
-    `headless/mcp-server/src/xmlDom.ts` accepteert ongebonden prefixen; de bestandsroute in
-    `headless/mcp-server/src/nodeFs.ts` detecteert geen UTF-16. Gevonden in review ronde 2 van PR #572
-    (GPT-6.1-Sol). De aparte teken-/entiteitsproblemen en CRLF-normalisatie zijn gericht afgedekt.
-    Voorstel: `@xmldom/xmldom` bundelen met een kleine adapter (DOCTYPE-beleid, strikte fouten), of
-    namespacevalidatie en XML-byte-decoding gericht toevoegen met tests. — B
+214. **De eigen XML-parser van de headless MCP-server heeft nog een encodinggat.**
+    De bestandsroute in `headless/mcp-server/src/nodeFs.ts` detecteert geen UTF-16. Gevonden in review ronde 2
+    van PR #572 (GPT-6.1-Sol). De teken-/entiteitsproblemen, CRLF-normalisatie en namespacevalidatie zijn
+    gericht afgedekt. Voorstel: XML-byte-decoding gericht toevoegen met tests. — B
 215. **Directory-durability bij headless opslaan blijft op Windows en nieuwe bovenmappen beperkt.**
     Linux/macOS synchroniseren nu de doelmap na `rename`, met een expliciete fout als dat mislukt nadat
     het bestand al vervangen is. Windows houdt alleen de bestands-fsync; nieuw aangemaakte bovenmappen
@@ -191,6 +189,12 @@ en noem het in je rapport of PR-tekst.
     dat. Op `main` werd het `/plan.ifc`; het expliciete pad `/plan.ifc` werkt nog wel. Zeldzaam, geen dataverlies.
     Voorstel: bij tilde-expansie precies één scheidingsteken toevoegen, en de wortelmap aan de bestaande test
     toevoegen. Gevonden in review r1 van #626 (GPT-6.1-Sol). — B
+
+332. **De XML-parser van de headless server zoekt bij elk element zonder prefix de hele ouderketen af.**
+    `headless/mcp-server/src/xmlDom.ts:143` roept `namespaceFor('', scope)` aan en gooit het resultaat weg. Bij
+    8.000 niveaus nesting kost parsen circa 499 ms tegen 12 ms op de basis (kwadratische groei). Zeldzame invoer.
+    Voorstel: `namespaceFor` alleen aanroepen als de elementprefix niet leeg is. Gevonden in review r1 van #608
+    (GPT-6.1-Sol). — B
 
 ## Bestanden en herstel
 
