@@ -155,7 +155,13 @@ Wie een tweede proces met schrijfrechten in de werkmap niet vertrouwt, draait de
 gebruiker of in een container met alleen de werkmap.
 
 **Opslaan is altijd atomair.** Eerst een eigen halffabricaat naast het echte doel, dan `fsync` en
-`rename`. Een link naar een bestand binnen de werkmap blijft een link: het echte doel wordt vervangen.
+`rename`. Op Linux/macOS volgt daarna een `fsync` van de doelmap, via een handle op het al gebonden
+map-object. Mislukt die stap, dan meldt de tool expliciet dat het bestand al vervangen is maar de
+crashbestendigheid niet bevestigd is: controleer het opgeslagen bestand vóór opnieuw proberen. Er is
+geen rollback na de `rename`. Windows houdt alleen de bestands-fsync; deze POSIX-directoryroute wordt
+daar niet uitgevoerd. Dit is geen bewijs tegen echte stroomuitval of weigerende opslaghardware, en
+synchroniseert niet de hele keten van eventueel nieuw aangemaakte bovenmappen.
+Een link naar een bestand binnen de werkmap blijft een link: het echte doel wordt vervangen.
 Mislukt schrijven of `rename` (volle schijf, afgebroken proces), dan geeft de tool een fout en blijft
 het origineel byte-gelijk. De server probeert het halffabricaat op te ruimen, in dezelfde map en alleen
 als de naam nog naar het eigen bestand wijst. Is die map verdwenen of stopt het proces hard (zoals bij

@@ -139,10 +139,11 @@ en noem het in je rapport of PR-tekst.
     accepteert ongebonden prefixen en `]]>` buiten CDATA, en detecteert geen UTF-16. Gevonden in review ronde
     2 van PR #572 (GPT-6.1-Sol). Voorstel: `@xmldom/xmldom` bundelen met een kleine adapter (DOCTYPE-beleid,
     strikte fouten), of gerichte fixes met tests. — B
-215. **De headless MCP-server doet geen `fsync` van de doelmap na de `rename`.**
-    `headless/mcp-server/src/nodeFs.ts:355`: na een stroomuitval kan de nieuwe naam ontbreken. Gevonden in
-    review ronde 2 van PR #572 (GPT-6.1-Sol). Voorstel: na de `rename` de map openen (`'.'`, in het gebonden
-    blok) en `fsync` doen. — B
+215. **Directory-durability bij headless opslaan blijft op Windows en nieuwe bovenmappen beperkt.**
+    Linux/macOS synchroniseren nu de doelmap na `rename`, met een expliciete fout als dat mislukt nadat
+    het bestand al vervangen is. Windows houdt alleen de bestands-fsync; nieuw aangemaakte bovenmappen
+    worden niet als hele keten gesynchroniseerd. Echte stroomuitval is niet getest. Restpunt van review
+    ronde 2 van PR #572. Voorstel: afzonderlijke platform-/crashbestendigheidstest en Windows-route. — B
 217. **Het eigen tijdelijke bestand wordt na een mapwissel niet altijd opgeruimd.**
     `headless/mcp-server/src/nodeFs.ts:370`: is de map weg of niet meer bereikbaar, dan blijft
     `.<naam>.<willekeurig>.ops-save.tmp` staan (de docs zeggen dat nu ook). Gevonden in review ronde 2 van PR
