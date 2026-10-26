@@ -477,6 +477,13 @@ en noem het in je rapport of PR-tekst.
     `localStorage` en Web Locks, en de Vite-dev-server weigert waarschijnlijk CORS voor origin `null`.
     Bevestigd in review ronde 2 van PR #644 (GPT-6.1-Sol). Voorstel: een test met een echt sandbox-iframe
     tegen een productiebuild, of een handmatige check in de SuperCloud-werkplek. — B
+264. **Een synchrone `SecurityError` van Web Locks kan crashherstel ten onrechte uitzetten.** In
+    `src/services/recovery/recoveryStore.ts` (`loadRecovery`, rond regel 1538) vangt de opvang rond heel
+    `loadWeb()` elke eerste `SecurityError` als opslagweigering. Werkt `sessionStorage` wel, maar gooit de getter
+    `navigator.locks` of `locks.request()` synchroon zo'n fout, dan komt de code niet bij IndexedDB en gaat
+    crashherstel toch stil uit. Een browser die dit doet is niet gevonden; een afgewezen promise vangt `claimLock`
+    al af. Bevestigd in review ronde 3 van PR #644 (GPT-6.1-Sol). Voorstel: de classificatie beperken tot de
+    IndexedDB-grens. — B
 
 ## Wensen en open taken (geen bug)
 
