@@ -73,6 +73,10 @@ module.exports = {
       },
     });
     api.ui.addRibbonButton({
+      tab: 'start', group: 'Tutorials', label: 'Read selection',
+      onClick: () => api.ui.showNotification('Selection: ' + JSON.stringify(api.data.getSelectedTaskIds())),
+    });
+    api.ui.addRibbonButton({
       tab: 'start', group: 'Tutorials', label: 'Say done',
       onClick: () => api.ui.showNotification('<b>Done!</b>'),
     });
@@ -126,6 +130,11 @@ test('help-API: tutorial in Help, meegeleverd project openen, begeleiding met co
   await page.locator('[data-tour-anchor="ribbon:start:addTask"]').click();
   await expect.poll(async () => (await state(page)).tasks.length).toBe(1);
   const ownWork = await state(page);
+  await page.getByRole('button', { name: 'Read selection', exact: true }).click();
+  const selectionToast = page.locator('.ops-toast-message').filter({ hasText: 'Selection:' });
+  await expect(selectionToast).toContainText('Selection: ' + JSON.stringify(ownWork.selectedTaskIds));
+  expect(ownWork.selectedTaskIds).toHaveLength(1);
+  await page.locator('.ops-toast').filter({ hasText: 'Selection:' }).locator('[data-ops-toast-close]').click();
 
   // ── Artikel onder Tutorials, en de projectlink opent een NIEUW document ──
   await openHelp(page);
@@ -142,6 +151,12 @@ test('help-API: tutorial in Help, meegeleverd project openen, begeleiding met co
   // Zoals een voorbeeld: vanuit Help terug naar het project (Start-tab).
   await expect(page.locator('.help-panel')).toHaveCount(0);
   await expect(page.locator('[data-tour-anchor="ribbon-tab:start"]')).toHaveClass(/active/);
+
+  // Dezelfde extensie leest na projectwissel geen achtergebleven selectie uit het vorige document.
+  await page.getByRole('button', { name: 'Read selection', exact: true }).click();
+  await expect(selectionToast).toContainText('Selection: ' + JSON.stringify(opened.selectedTaskIds));
+  expect(opened.selectedTaskIds).toEqual([]);
+  await page.locator('.ops-toast').filter({ hasText: 'Selection:' }).locator('[data-ops-toast-close]').click();
 
   // ── Begeleiding starten via de lintknop van de extensie ──
   await page.getByRole('button', { name: 'Start guide', exact: true }).click();
