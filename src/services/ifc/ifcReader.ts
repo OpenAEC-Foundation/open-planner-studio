@@ -2221,6 +2221,9 @@ function extractNesting(
   // Index tasks by id once: een tasks.find() per parent/child in de lus maakt nesting
   // O(nestings × children × tasks).
   const taskById = new Map<string, Task>(tasks.map(t => [t.id, t]));
+  // Eén lidmaatschapsindex per ouder, ook over meerdere IFCRELNESTS heen. De array blijft
+  // leidend voor de volgorde; includes per kind maakte een brede fase kwadratisch.
+  const childIdsByParent = new Map<Task, Set<string>>();
 
   for (const ne of nestEntities) {
     const parentRef = parseRef(ne.args[4] || '');
@@ -2230,6 +2233,11 @@ function extractNesting(
     const parent = taskById.get(parentId);
     if (!parent) continue;
 
+    let childIds = childIdsByParent.get(parent);
+    if (!childIds) {
+      childIds = new Set(parent.childIds);
+      childIdsByParent.set(parent, childIds);
+    }
     const childRefs = parseRefs(ne.args[5] || '');
     for (const childRef of childRefs) {
       const childId = taskStepIdMap.get(childRef);
@@ -2237,7 +2245,8 @@ function extractNesting(
       const child = taskById.get(childId);
       if (!child) continue;
       child.parentId = parentId;
-      if (!parent.childIds.includes(childId)) {
+      if (!childIds.has(childId)) {
+        childIds.add(childId);
         parent.childIds.push(childId);
       }
     }

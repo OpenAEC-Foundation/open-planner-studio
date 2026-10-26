@@ -1,0 +1,46 @@
+name: IFC-nesting vergelijken
+
+# Alleen eigen meet-/testbestanden triggeren deze vastgepinde vergelijking.
+# Een latere gecombineerde product-PR erft hierdoor geen verouderde nulmeting.
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/perf-ifc-nesting.yml'
+      - 'tests/planning/check-ifc-nesting-index.ts'
+      - 'tests/planning/ifcNestingFixture.ts'
+      - 'tests/planning/measure-ifc-nesting.ts'
+      - 'docs/superpowers/evidence/ifc-nesting-index.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: perf-ifc-nesting-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      TZ: Europe/Amsterdam
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Gerichte regressie en schaalcheck
+        run: bash tests/planning/run.sh check-ifc-nesting-index.ts
+      - name: Vergelijk volledige IFC-import en opslagketen
+        run: node docs/superpowers/evidence/ifc-nesting-index.mjs --out ifc-nesting-resultaat.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ifc-nesting-vergelijking
+          path: ifc-nesting-resultaat.json
+          if-no-files-found: warn
