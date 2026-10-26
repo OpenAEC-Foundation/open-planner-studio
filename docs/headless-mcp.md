@@ -159,7 +159,7 @@ gebruiker of in een container met alleen de werkmap.
 Mislukt schrijven of `rename` (volle schijf, afgebroken proces), dan geeft de tool een fout en blijft
 het origineel byte-gelijk. De server probeert het halffabricaat op te ruimen, in dezelfde map en alleen
 als de naam nog naar het eigen bestand wijst. Is die map verdwenen of stopt het proces hard (zoals bij
-een crash), dan kan een halffabricaat (`.<naam>.<willekeurig>.ops-save.tmp`) blijven staan. Anders dan
+een crash), dan kan een halffabricaat (`.<willekeurig>.ops-save.tmp`) blijven staan. Anders dan
 in de app is er geen terugval op direct schrijven (die terugval in `replaceUserFile` blijft voor de
 desktop-app ongewijzigd). De bestaande controle tegen een stille schemawissel via bestandsaliassen
 (#519) werkt ook hier: de server levert `dev`/`ino` van het doel.
