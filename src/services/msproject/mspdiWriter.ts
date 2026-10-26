@@ -176,9 +176,11 @@ function lagFields(seq: Sequence, minutesPerLagDay: number): { linkLag: number; 
     // Elapsed dagen tellen 24 uur, onafhankelijk van de werkkalender. LinkLag is een geheel getal.
     return { linkLag: Math.round(days * ELAPSED_MINUTES_PER_DAY * 10), lagFormat: 8 };
   }
-  // Dagenmaat: hele minuten, zoals `PT…` in IFC (`dayMeasureMinutes`); het record draagt de dagen.
-  const minutes = dayMeasureMinutes(days, minutesPerLagDay);
-  return { linkLag: minutes * 10, lagFormat: 7, ...(days !== 0 ? { record: [roundDays(days), minutes] as const } : {}) };
+  // Dagenmaat: hele minuten, zoals `PT…` in IFC; het record draagt de dagen. Minuten en record komen uit
+  // dezelfde opgeslagen dagenwaarde (`writeDays`), anders wijst de lezer het eigen record af (aanval a06).
+  const written = writeDays(days, minutesPerLagDay);
+  const record = [roundDays(days), written.minutes] as const;
+  return { linkLag: written.minutes * 10, lagFormat: 7, ...(days !== 0 ? { record } : {}) };
 }
 
 /** Datumopmaak is geen XML-escaping: ook ongeldige (geïmporteerde) datumtekst blijft tekst.

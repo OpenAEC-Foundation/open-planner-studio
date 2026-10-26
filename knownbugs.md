@@ -588,7 +588,13 @@ en noem het in je rapport of PR-tekst.
      breuk krijgt één JSON-tekst met een record per relatie (ongeveer 15–25 tekens per record). MS Project
      beperkt een tekstveld tot 255 tekens. Wat MS Project bij eigen opslaan met een langere waarde doet
      (afkappen, weigeren), is niet getoetst: geen MS Project op deze machine. Een afgekapte JSON leest OPS
-     als geen record, dus als urenmaat met dezelfde lengte. Gevonden bij F5a-2. — S
+     als geen record, dus als urenmaat met dezelfde lengte. Gevonden bij F5a-2.
+     Concreter (aanval na #600, GPT-6.1-Sol): op een 8-uurskalender met per voorganger een FS-lag van 0,5 d
+     heeft Text26 bij 14 voorgangers 244 tekens, bij 15 262 en bij 16 280. De writer schrijft de hele JSON
+     zonder lengtegrens (`mspdiWriter.ts:670`, `xmlDayMeasure.ts:163-165`). Afgekapt op 255 tekens is de
+     JSON ongeldig en komen alle 15 relaties terug als 240 minuten (gesimuleerd,
+     `/tmp/aanval/a06-afgekapt-255.xml`; niet bewezen dat MS Project zelf afkapt). Richting: controleer de
+     veldlengte vóór het schrijven en maak het maatverlies expliciet; toets met echt opslaan in MS Project. — S
 
 291. **P6 XML rondt begin en einde van een dagkalender met één blok af op het hele uur.** Een dagkalender
      07:30–15:30 (8 u, één blok) komt na `writeP6XML → readP6XML` terug als 07:00–15:00. MSPDI houdt

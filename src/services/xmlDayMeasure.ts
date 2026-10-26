@@ -77,10 +77,16 @@ export type FieldRecords = Record<string, FieldRecord>;
 export interface WrittenAmount { minutes: number; record?: FieldRecord }
 
 /** Dagen ⇒ de minuten van het standaardveld (dagen × minuten per dag, op de hele minuut), plus het record
- *  `[dagen, minuten]` bij een breuk (T21). Hele dagen: geen record. */
+ *  `[dagen, minuten]` bij een breuk (T21). Hele dagen: geen record.
+ *  De opgeslagen dagenwaarde (`roundDays`, 6 decimalen) staat één keer vast; de minuten komen uit diezelfde
+ *  waarde, ook bij hele dagen (de lagwriters zetten daar zelf een record bij). Zo geeft de leesregel
+ *  (`dayRecordFits`: opgeslagen dagen × minuten per dag) bij een ongewijzigde kalender altijd de geschreven
+ *  minuten terug. Met de ongeronde dagen konden ze een minuut verschillen:
+ *  5/6 d × 465 = 387,5 → 388, maar 0,833333 × 465 = 387,4998 → 387 (aanval a06 na #600). */
 export function writeDays(days: number, minutesPerDay: number): WrittenAmount {
-  const minutes = dayMeasureMinutes(days, minutesPerDay);
-  return isWholeDays(days) ? { minutes } : { minutes, record: [roundDays(days), minutes] };
+  const stored = roundDays(days);
+  const minutes = dayMeasureMinutes(stored, minutesPerDay);
+  return isWholeDays(days) ? { minutes } : { minutes, record: [stored, minutes] };
 }
 
 /** Urenmaat ⇒ de minuten van het standaardveld (op de hele minuut), plus het `ExactMinutes`-record bij een
