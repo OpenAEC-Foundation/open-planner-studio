@@ -11,6 +11,15 @@ Beide gebruiken Node 22, dezelfde lockfile, dezelfde Chromium-versie en dezelfde
 runner. De workflow bewaart ook bij fouten de revisies, installatie-/test-/bouwlogs
 en gedeeltelijke resultaten. Er is geen millisecondenpoort.
 
+De Ubuntu-installatie gebruikt dezelfde officiële archiefbron als de bestaande
+Linux-CI, met één APT-retry en transporttimeouts van 15 seconden. Na installatie
+wordt de headless browser werkelijk gestart en gesloten; versie en Node-versie
+komen in `browser-preflight.log`. De browserroute en vergelijking starten alleen
+wanneer die hele installatiestap slaagt. De installatiestap heeft 10 minuten, de
+job 35 minuten. De poging op `700bf69` liep na zes minuten vast bij APT; zonder
+Chromium faalden daarna de browserroute en vergelijking. Dat was geen voltooide
+browsermeting of productregressiebewijs.
+
 `fixture.mjs` maakt 1.000, 5.000 en 10.000 vlakke taken, eigenaar vooraan. Per omvang
 worden leeg zoeken, breed zoeken op `Werk`, een unieke laatste treffer en geen
 treffer gemeten. Namen bevatten ook niet-ASCII-tekst. Locale-/whitespacegevallen,
@@ -38,7 +47,10 @@ long-tasks worden apart vastgelegd; afwezigheid daarvan bewijst niet dat zoeken
 geen tijd kost. Andere app-activiteit wordt niet onderdrukt.
 
 De aparte CDP-proef staat uit tijdens alle tijden. `startPreciseCoverage` gebruikt
-`callCount:false,detailed:false` en toetst alleen of de echte helper is uitgevoerd.
+`callCount:true,detailed:false`; de poort toetst uitsluitend of de tellerdelta nul
+of positief is. Een echte zoekactie kalibreert de observatie; de volgende zoekactie
+moet de helper opnieuw laten zien nadat de eerste delta is gelezen. Ruwe aantallen
+blijven bewaard, zonder vast renderaantal als contract.
 De exacte declaratie in de geleverde JavaScript wordt via haar bronbereik aan
 CDP gekoppeld; de mogelijk lege CDP-functienaam is geen zoekcriterium. Ruwe
 coverage wordt per stap bewaard. Een querywijziging moet hem op beide revisies uitvoeren; pijl, type, richting en

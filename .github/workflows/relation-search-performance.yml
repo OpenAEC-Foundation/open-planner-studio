@@ -22,7 +22,7 @@ jobs:
     # Opt-in via deze werkbranch, of later handmatig. Geen permanente brede PR-poort.
     if: github.event_name == 'workflow_dispatch' || github.head_ref == 't3/limit-relation-search'
     runs-on: ubuntu-22.04
-    timeout-minutes: 25
+    timeout-minutes: 35
     env:
       BASE_REVISION: 1f719e9ffca1123e3fc173ecaa4cd83f3c228416
       HEAD_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -54,27 +54,41 @@ jobs:
           test "$(git -C before rev-parse HEAD)" = "$BASE_REVISION"
           test "$(git -C after rev-parse HEAD)" = "$HEAD_REVISION"
       - name: Afhankelijkheden en Chromium
-        timeout-minutes: 6
+        id: install
+        timeout-minutes: 10
         run: |
           set -o pipefail
           npm ci --prefix before 2>&1 | tee relation-search-evidence/install-voor.log
           npm ci --prefix after 2>&1 | tee relation-search-evidence/install-na.log
+          # Dezelfde bronwissel als de bestaande Ubuntu-CI: Azure-downloads kunnen blijven hangen.
+          if ! grep -Fq 'mirror+file:/etc/apt/apt-mirrors.txt' /etc/apt/sources.list; then
+            echo '::error::Onverwachte APT-bronnen; geen automatische bronwissel.'
+            exit 1
+          fi
+          sudo sed -i 's|mirror+file:/etc/apt/apt-mirrors\.txt|https://archive.ubuntu.com/ubuntu/|g' /etc/apt/sources.list
+          printf '%s\n' 'Acquire::Retries "1";' 'Acquire::http::Timeout "15";' 'Acquire::https::Timeout "15";' | sudo tee /etc/apt/apt.conf.d/99-ops-search-measure
           cd after
           npx playwright install --with-deps --only-shell chromium 2>&1 | tee ../relation-search-evidence/chromium.log
+          node --input-type=module <<'NODE' 2>&1 | tee ../relation-search-evidence/browser-preflight.log
+          import { chromium } from '@playwright/test';
+          const browser = await chromium.launch();
+          console.log(JSON.stringify({ node: process.version, chromium: browser.version() }));
+          await browser.close();
+          NODE
       - name: Gerichte helpertest
         working-directory: after
         run: |
           set -o pipefail
           bash tests/planning/run.sh check-relation-cell.ts 2>&1 | tee ../relation-search-evidence/planning.log
       - name: Bestaande browserroute
-        if: ${{ !cancelled() && hashFiles('after/node_modules/.package-lock.json') != '' }}
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         working-directory: after
         timeout-minutes: 4
         run: |
           set -o pipefail
           node scripts/run-browser-tests.mjs tests/browser/dependencies-add.spec.ts 2>&1 | tee ../relation-search-evidence/browser-test.log
       - name: Voor en na op dezelfde runner
-        if: ${{ !cancelled() && hashFiles('before/node_modules/.package-lock.json', 'after/node_modules/.package-lock.json') != '' }}
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         timeout-minutes: 14
         run: |
           set -o pipefail

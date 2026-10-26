@@ -27,6 +27,7 @@ const report = {
   mode: 'Vite production, React productie, minify=false, VITE_OPS_BENCH_BRIDGE=1; geen dev-server',
   timing: 'Helper: één aanroep. Browser: eerste echte input/keydown tot twee rAFs na de verwachte DOM-lijst; één fill-input of Ctrl+A/Backspace. CDP uit tijdens tijden.',
   warmups: { helper: 2, browser: 1 }, repeats: { helper: 9, browser: 5 },
+  executionCheck: 'Tellerdelta, uitsluitend nul/positief als poort; twee positieve zoekacties bewaken herhaalde observatie.',
   harnessHashes: Object.fromEntries(['measure.mjs', 'fixture.mjs'].map(name => [name, hash(readFileSync(new URL(name, import.meta.url)))])),
   sides: [], fixtures: [], helper: [], browser: [], coverage: [], errors: [],
 };
@@ -118,7 +119,7 @@ async function memoProof(side, tasks) {
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Debugger.enable');
   await cdp.send('Profiler.enable');
-  await cdp.send('Profiler.startPreciseCoverage', { callCount: false, detailed: false });
+  await cdp.send('Profiler.startPreciseCoverage', { callCount: true, detailed: false });
   let helper;
   const steps = [];
   async function probe(name, action, expected) {
@@ -159,15 +160,22 @@ async function memoProof(side, tasks) {
       assert.equal(candidates.length, 1, 'de echte helper moet één exact bronbereik in de browsercode hebben');
       helper = candidates[0];
     }
-    const executed = result.some(script => script.scriptId === helper.scriptId && script.functions.some(fn =>
-      fn.ranges.some(range => range.startOffset === helper.startOffset && range.endOffset === helper.endOffset && range.count > 0)));
-    steps.push({ name, executed, expected });
-    report.coverage.push({ side: side.name, size: tasks.length, name, executed, expected,
+    const counts = result.filter(script => script.scriptId === helper.scriptId).flatMap(script =>
+      script.functions.flatMap(fn => fn.ranges.filter(range =>
+        range.startOffset === helper.startOffset && range.endOffset === helper.endOffset).map(range => range.count)));
+    assert.ok(counts.every(count => Number.isSafeInteger(count) && count >= 0));
+    const count = counts.reduce((sum, value) => sum + value, 0);
+    const executed = count > 0;
+    steps.push({ name, count, executed, expected });
+    report.coverage.push({ side: side.name, size: tasks.length, name, count, executed, expected,
       helper });
     save();
     assert.equal(executed, expected, `${side.name}: ${name}`);
   }
   try {
+    // Deze echte zoekactie kalibreert de profiler vóór de geteste nul-/positiefroute.
+    // De volgende zoekactie moet de helper opnieuw waarnemen na het uitlezen van deze delta.
+    await probe('kalibratie zoektekst', () => search(page).fill('kalibratie-zonder-treffers'), true);
     await probe('zoektekst', () => search(page).fill('Werk'), true);
     await probe('pijl', () => search(page).press('ArrowDown'), side.name === 'voor');
     await expect(options(page).nth(1)).toHaveAttribute('data-ops-dependency-highlighted', 'true');
