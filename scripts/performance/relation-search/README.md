@@ -39,7 +39,9 @@ geen tijd kost. Andere app-activiteit wordt niet onderdrukt.
 
 De aparte CDP-proef staat uit tijdens alle tijden. `startPreciseCoverage` gebruikt
 `callCount:false,detailed:false` en toetst alleen of de echte helper is uitgevoerd.
-Een querywijziging moet hem op beide revisies uitvoeren; pijl, type, richting en
+De exacte declaratie in de geleverde JavaScript wordt via haar bronbereik aan
+CDP gekoppeld; de mogelijk lege CDP-functienaam is geen zoekcriterium. Ruwe
+coverage wordt per stap bewaard. Een querywijziging moet hem op beide revisies uitvoeren; pijl, type, richting en
 lag alleen vóór de wijziging. Er is geen contract op aantallen StrictMode-renders.
 Daarna moet de echte bevestiging één relatie en één undo-stap maken; undo en Escape
 worden tegen de volledige taken, relaties en toewijzingen gecontroleerd. De

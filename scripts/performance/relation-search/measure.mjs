@@ -8,6 +8,7 @@ import { pathToFileURL } from 'node:url';
 import { cpus, totalmem } from 'node:os';
 import { build as bundle } from 'esbuild';
 import { build, preview } from 'vite';
+import ts from 'typescript';
 import { chromium, expect } from '@playwright/test';
 import { fixture, queries } from './fixture.mjs';
 
@@ -115,6 +116,7 @@ async function memoProof(side, tasks) {
   await seed(side, tasks);
   const original = await domain(page);
   const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Debugger.enable');
   await cdp.send('Profiler.enable');
   await cdp.send('Profiler.startPreciseCoverage', { callCount: false, detailed: false });
   let helper;
@@ -124,17 +126,44 @@ async function memoProof(side, tasks) {
     await action();
     await settle(page);
     const { result } = await cdp.send('Profiler.takePreciseCoverage');
-    const functions = result.flatMap(script => script.functions
-      .filter(fn => /^relationTaskOptions\d*$/.test(fn.functionName))
-      .map(fn => ({ scriptId: script.scriptId, url: script.url, ...fn })));
+    writeFileSync(join(out, `coverage-${side.name}-${tasks.length}-${steps.length}.json`), JSON.stringify(result));
     if (!helper) {
-      assert.equal(functions.length, 1, 'de echte helper moet eenduidig in de gebouwde browsercode staan');
-      helper = functions[0];
+      const candidates = [];
+      // CDP kan een lege of herschreven functienaam leveren. Zoek de echte declaratie in de
+      // geleverde JavaScript en koppel uitsluitend het omsloten functiebereik, nooit de module.
+      for (const script of result) {
+        if (!script.url.startsWith(side.url + '/assets/')) continue;
+        const { scriptSource } = await cdp.send('Debugger.getScriptSource', { scriptId: script.scriptId });
+        if (!scriptSource.includes('relationTaskOptions')) continue;
+        const source = ts.createSourceFile(script.url, scriptSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+        const declarations = [];
+        const visit = node => {
+          if (ts.isFunctionDeclaration(node) && node.name?.text.includes('relationTaskOptions')) declarations.push(node);
+          ts.forEachChild(node, visit);
+        };
+        visit(source);
+        for (const declaration of declarations) {
+          const start = declaration.getStart(source);
+          const end = declaration.end;
+          const marker = declaration.body.getStart(source) + 1;
+          for (const fn of script.functions) {
+            const range = fn.ranges[0];
+            if (range.startOffset >= start && range.startOffset <= marker && range.endOffset === end) {
+              candidates.push({ scriptId: script.scriptId, url: script.url, functionName: fn.functionName,
+                declarationName: declaration.name.text, startOffset: range.startOffset, endOffset: range.endOffset,
+                sourceHash: hash(scriptSource) });
+            }
+          }
+        }
+      }
+      assert.equal(candidates.length, 1, 'de echte helper moet één exact bronbereik in de browsercode hebben');
+      helper = candidates[0];
     }
-    const executed = functions.some(fn => fn.scriptId === helper.scriptId && fn.ranges.some(range => range.count > 0));
+    const executed = result.some(script => script.scriptId === helper.scriptId && script.functions.some(fn =>
+      fn.ranges.some(range => range.startOffset === helper.startOffset && range.endOffset === helper.endOffset && range.count > 0)));
     steps.push({ name, executed, expected });
     report.coverage.push({ side: side.name, size: tasks.length, name, executed, expected,
-      helper: { url: helper.url, functionName: helper.functionName, ranges: helper.ranges } });
+      helper });
     save();
     assert.equal(executed, expected, `${side.name}: ${name}`);
   }
