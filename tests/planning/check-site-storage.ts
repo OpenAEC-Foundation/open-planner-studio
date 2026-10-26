@@ -4,7 +4,7 @@
 //   A. Het hostcontract: `getSiteStorage()` vindt een geldige host op het eigen venster en op een
 //      same-origin parent, valt stil terug bij een cross-origin parent (die gooit bij lezen), weigert
 //      een host zonder vier functies, en ziet in Tauri nooit een site. Plus `siteInitialFileId`,
-//      `siteHostWindows` (waar het ready-event kan komen) en de foutcodes.
+//      `siteHostWindows` (waar het ready-event kan komen), de foutcodes en `siteSkipsWelcome` (#583).
 //   B. De dispatch in `fileAccess/index.ts`: de algemene schrijffuncties schrijven NOOIT naar de site
 //      (ook niet met host), lezen mag wel; een handle-ref blijft bij de webbackend.
 //   C. De site-backend: openen geeft de gelezen versie (verplicht), een oudere versie geeft geen doel
@@ -116,6 +116,7 @@ g.indexedDB = {
 // ── Imports (na de globals) ────────────────────────────────────────────────────────────────────
 const {
   getSiteStorage, isSiteStorage, siteInitialFileId, isSiteConflict, isSiteNotFound, siteStorageAvailable, siteHostWindows,
+  siteSkipsWelcome,
 } = await import('@/services/fileAccess/siteHost');
 const {
   saveToRef, saveToRefWithoutPrompt, canWriteToRefWithoutPrompt, readFromRef, readBytesFromRef, saveTargetRef,
@@ -296,6 +297,24 @@ const sameOriginParent = (extra: AnyRecord = {}): AnyRecord => ({ addEventListen
   eq('A11 isSiteNotFound op code', isSiteNotFound({ code: 'not-found' }), true);
   eq('A11 conflict is geen not-found', isSiteNotFound({ code: 'conflict' }), false);
   eq('A11 null is geen not-found', isSiteNotFound(null), false);
+
+  // Welkomstvenster overslaan (#583): alleen strikt `true`, ook zonder opslag, ook via de parent.
+  eq('A12 geen host ⇒ welkomst niet overslaan', siteSkipsWelcome(), false);
+  setHost({ skipWelcome: true });
+  eq('A12 skipWelcome zonder opslag telt', siteSkipsWelcome(), true);
+  eq('A12 skipWelcome maakt nog geen site', getSiteStorage(), null);
+  for (const [label, value] of [['tekst', 'true'], ['getal', 1], ['object', {}], ['false', false], ['ontbreekt', undefined]] as const) {
+    setHost({ storage: memorySite().storage, skipWelcome: value });
+    eq(`A12 skipWelcome ${label} ⇒ niet overslaan`, siteSkipsWelcome(), false);
+  }
+  setHost({ storage: memorySite().storage });
+  win.parent = sameOriginParent({ openaecHost: { skipWelcome: true } });
+  eq('A12 skipWelcome op de same-origin parent telt', siteSkipsWelcome(), true);
+  clearHost();
+  setHost({ skipWelcome: true });
+  win.__TAURI_INTERNALS__ = {};
+  eq('A12 Tauri ⇒ welkomst nooit overslaan', siteSkipsWelcome(), false);
+  clearHost();
 }
 
 // ═══ B. Dispatch in fileAccess/index.ts ════════════════════════════════════════════════════════
