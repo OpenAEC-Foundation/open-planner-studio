@@ -209,6 +209,7 @@ export type NotificationMessageKey =
   | 'notifications.browserCannotOverwrite'
   | 'notifications.browserSavesAsDownload'
   | 'notifications.autoSaveFailed'
+  | 'notifications.autoSaveNotWritable'
   | 'notifications.recoveryManifestBlocked'
   | 'notifications.recoveryStorageBlocked'
   | 'notifications.recoveryReadFailed'

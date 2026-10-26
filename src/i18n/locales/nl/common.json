@@ -78,6 +78,7 @@
     "browserCannotOverwrite": "Deze browser laat de app niet terugschrijven naar '{{name}}'. Daarom vraagt de app bij elke keer opslaan opnieuw waar het bestand moet komen. In Chrome, Edge of de desktop-app gebeurt dit niet.",
     "browserSavesAsDownload": "Opgeslagen als download: '{{name}}' staat in je downloadmap. Deze browser laat de app niet naar een eigen plek schrijven, dus elke keer opslaan maakt een nieuwe download. In Chrome, Edge of de desktop-app werkt Opslaan hetzelfde bestand gewoon bij.",
     "autoSaveFailed": "Automatisch opslaan mislukt",
+    "autoSaveNotWritable": "Automatisch opslaan mislukt: het bestaande projectbestand is niet schrijfbaar.",
     "recoveryManifestBlocked": "De herstelgegevens hebben een onbekende versie of een ongeldige indeling. Deze app laat ze ongemoeid en kan deze herstelset niet lezen of bijwerken. Probeer de appversie die de kopieën maakte of een nieuwere versie. Sla nieuw werk zelf op.",
     "recoveryStorageBlocked": "De herstelopslag is tijdelijk geblokkeerd door een andere open verbinding. Bestaande kopieën blijven staan; deze pagina maakt geen nieuwe herstelkopieën. Sla je werk zelf op, sluit andere tabbladen met deze app en laad deze pagina opnieuw om herstel opnieuw te proberen.",
     "recoveryReadFailed": "Hersteld bestand kon niet worden gelezen",
