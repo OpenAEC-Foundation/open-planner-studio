@@ -88,7 +88,7 @@ async function open(name: string, text: string): Promise<OpenedImport> {
   const parsed = await parseOpenedFile({ name, text });
   S().newProject();
   useAppStore.setState(st => { st.ui.notifications = []; });
-  S().applyOpenedImport(parsed, { filePath: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: true });
+  S().applyOpenedImport(parsed, { filePath: null, recompute: true, fit: false, linkedOpen: true });
   return parsed;
 }
 const resultsOf = (parsed: OpenedImport) => isMultiDocumentImport(parsed) ? parsed.results : [parsed];
@@ -224,13 +224,13 @@ async function main(): Promise<void> {
   eq('6k2 baselines met hun tijden', baselineDates(hourBaselines),
     [['2026-03-02T09:00', '2026-03-02T12:00'], ['2026-03-02T11:00', '2026-03-02T14:00']]);
   eq('6k3 geen verslag', hourBaselines.msProjectReport, undefined);
-  // 6l Een dagtaak (datums op het dag-anker ⇒ dagmodus): de baseline blijft alleen een datum, zoals op main.
+  // 6l T15 maakt de taak urenmaat; de scalaire kalender houdt de baseline op datumprecisie.
   const dayTask = (start: string, finish: string) => readMSPDI(wrap(`<Tasks><Task><UID>1</UID><ID>1</ID><Name>Dag</Name>
     <OutlineLevel>1</OutlineLevel><Start>2026-03-02T08:00:00</Start><Finish>2026-03-03T08:00:00</Finish><Duration>PT16H0M0S</Duration>
     <Baseline><Number>0</Number><Start>${start}</Start><Finish>${finish}</Finish><Duration>PT16H0M0S</Duration></Baseline></Task></Tasks>`));
   const day0817 = dayTask('2026-03-02T08:00:00', '2026-03-03T17:00:00');
-  eq('6l dagtaak met baseline 08:00–17:00: dagmodus, alleen datum, geen verslag',
-    [day0817.tasks[0]?.time.durationUnit, baselineDates(day0817), day0817.msProjectReport], ['days', [['2026-03-02', '2026-03-03']], undefined]);
+  eq('6l urentaak op scalaire kalender met baseline 08:00–17:00: alleen datum, geen verslag',
+    [day0817.tasks[0]?.time.durationUnit, baselineDates(day0817), day0817.msProjectReport], ['hours', [['2026-03-02', '2026-03-03']], undefined]);
   eq('6l2 dagtaak met baseline 09:00–12:00: alleen datum, geen verslag',
     (r => [baselineDates(r), r.msProjectReport])(dayTask('2026-03-02T09:00:00', '2026-03-02T12:00:00')), [[['2026-03-02', '2026-03-02']], undefined]);
   // 6l3 Het scenario van review ronde 5: urentaak nu 09:00–12:00, baseline 08:00–17:00 op dezelfde dag.

@@ -25,7 +25,7 @@
 //     expliciet vastlegt. Het drift-anker van de oude sessie is weg; een leestool bindt geen anker,
 //     dus zonder die keuze landde een wijziging op het document dat toevallig actief is.
 //   - Een annulering (`notifications/cancelled`) wordt direct bij ontvangst vastgelegd; een geannuleerde
-//     aanvraag die nog in de wachtrij stond, gaat nooit naar de bridge.
+//     aanvraag die nog wachtte (ook op opnieuw verbinden), gaat nooit naar de bridge.
 //   - De toollijst wisselt tussen de plannertools en de statustool; bij elke wissel krijgt de client
 //     `notifications/tools/list_changed`, en `initialize` kondigt altijd `listChanged` aan.
 import type { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
@@ -76,11 +76,15 @@ export function failureMessage(failure: ProxyFailure, port: number, settings: st
 }
 
 /**
- * De enige tool die na sessieverlies de blokkade opheft: hij kiest expliciet een document en bindt het
- * drift-anker van de sessie daaraan (`bindExpectedDoc` in `src/services/mcp/tools/runtime.ts`). Een
- * leestool bindt geen anker; de eerste wijziging zou het lege anker anders aan het dan actieve document binden.
+ * Tool die na sessieverlies expliciet een bestaand document kiest en het drift-anker van de sessie daaraan
+ * bindt (`bindExpectedDoc` in `src/services/mcp/tools/runtime.ts`). Ook een nieuw document of een import
+ * heft de blokkade op (zie `DOCUMENT_RECOVERY_TOOLS`). Een leestool bindt geen anker; de eerste wijziging zou
+ * het lege anker anders aan het dan actieve document binden.
  */
 export const DOCUMENT_CHOICE_TOOL = 'planner_switch_document';
+// Deze acties binden eveneens een nieuw anker en heffen de blokkade op, maar blijven mutaties: nooit
+// automatisch herhalen.
+const DOCUMENT_RECOVERY_TOOLS = new Set([DOCUMENT_CHOICE_TOOL, 'planner_new_document', 'planner_import_schedule']);
 
 /**
  * Fout voor een wijzigende tool na sessieverlies. Het drift-anker van de oude sessie is weg; een nieuwe
@@ -90,7 +94,8 @@ export const DOCUMENT_CHOICE_TOOL = 'planner_switch_document';
 export const SESSION_RESET_MESSAGE =
   'The connection to Open Planner Studio was reset (the app or its MCP bridge restarted), so this change was NOT carried out. '
   + 'Another document may be active now. Changes stay blocked until you choose the document explicitly: call '
-  + `planner_list_documents, pick the document you mean, confirm it with ${DOCUMENT_CHOICE_TOOL}, then send the change again.`;
+  + `planner_list_documents, pick the document you mean, confirm it with ${DOCUMENT_CHOICE_TOOL}, then send the change again. `
+  + 'Alternatively, explicitly create a new plan with planner_new_document or import a file with planner_import_schedule.';
 
 export interface BridgeProxyOptions {
   port: number;
@@ -157,13 +162,14 @@ export function createBridgeProxy(opts: BridgeProxyOptions, send: (message: JSON
   /**
    * Gezet zodra een sessie verloren ging (404), ongeacht welk bericht dat ontdekte. Zolang hij staat,
    * weigert de proxy elke wijzigende tool, ook aanvragen die al in de wachtrij stonden. Alleen een
-   * geslaagde `planner_switch_document` heft hem op. Omdat de wachtrij strikt op volgorde loopt, zijn
-   * aanvragen die vóór die keuze binnenkwamen dan al geweigerd.
+   * geslaagde hersteltool (`DOCUMENT_RECOVERY_TOOLS`: document wisselen, nieuw document of importeren) heft
+   * hem op. Omdat de wachtrij strikt op volgorde loopt, zijn aanvragen die vóór dat herstel binnenkwamen dan
+   * al geweigerd.
    */
   let documentCheckNeeded = false;
   /** Leestools volgens de laatste `tools/list` (`readOnlyHint`). Een onbekende tool telt als wijzigend. */
   const readOnlyTools = new Set<string>();
-  /** Aanvragen die in de wachtrij staan en nog niet zijn doorgestuurd. */
+  /** Aanvragen die nog niet zijn doorgestuurd, ook tijdens opnieuw verbinden. */
   const queuedIds = new Set<Id>();
   /** Aanvragen die de client annuleerde vóór ze aan de beurt waren; die gaan nooit naar de bridge. */
   const cancelledIds = new Set<Id>();
@@ -322,10 +328,10 @@ export function createBridgeProxy(opts: BridgeProxyOptions, send: (message: JSON
       toolsShown = 'planner';
     }
     // Het model koos expliciet een document en de sessie is daaraan gebonden: wijzigingen mogen weer.
-    if (documentCheckNeeded && toolName === DOCUMENT_CHOICE_TOOL && isObject(json.result) && json.result.isError !== true
+    if (documentCheckNeeded && toolName !== null && DOCUMENT_RECOVERY_TOOLS.has(toolName) && isObject(json.result) && json.result.isError !== true
       && !(isObject(json.result.structuredContent) && json.result.structuredContent.ok === false)) {
       documentCheckNeeded = false;
-      log(`document chosen with ${DOCUMENT_CHOICE_TOOL}; changes are allowed again`);
+      log(`document chosen with ${toolName}; changes are allowed again`);
     }
     await send(json as JSONRPCMessage);
   }
@@ -387,20 +393,25 @@ export function createBridgeProxy(opts: BridgeProxyOptions, send: (message: JSON
     }
     // De documentkeuze zelf mag altijd door (en na sessieverlies herhaald worden): zij heft de blokkade op.
     const mutates = toolName !== null && !readOnlyTools.has(toolName) && toolName !== DOCUMENT_CHOICE_TOOL;
-    if (mutates && documentCheckNeeded) {
+    if (mutates && documentCheckNeeded && (toolName === null || !DOCUMENT_RECOVERY_TOOLS.has(toolName))) {
       await toolError(id, SESSION_RESET_MESSAGE);
       return;
     }
     if (!connected) {
       const failure = await connectUpstream();
+      if (cancelledIds.has(id)) return;
       if (failure) {
         await answerOffline(id, method, failure);
         return;
       }
     }
+    if (cancelledIds.has(id)) return;
+    queuedIds.delete(id); // vanaf deze POST is de aanvraag bij de bridge, niet meer lokaal wachtend
     let result = await post(message, true);
     if (result.type === 'session-lost') {
+      queuedIds.add(id); // een eventuele veilige herhaling is tijdens reconnect weer annuleerbaar
       const failure = await connectUpstream();
+      if (cancelledIds.has(id)) return;
       if (failure) {
         await answerOffline(id, method, failure);
         return;
@@ -410,6 +421,8 @@ export function createBridgeProxy(opts: BridgeProxyOptions, send: (message: JSON
         await toolError(id, SESSION_RESET_MESSAGE);
         return;
       }
+      if (cancelledIds.has(id)) return;
+      queuedIds.delete(id);
       result = await post(message, true);
       if (result.type === 'session-lost') {
         await answerOffline(id, method, { kind: 'refused', message: 'the new session was refused right away; try again' });
@@ -442,13 +455,16 @@ export function createBridgeProxy(opts: BridgeProxyOptions, send: (message: JSON
     const method = typeof raw.method === 'string' ? raw.method : null;
     if (method !== null && isId(raw.id)) {
       const id = raw.id;
-      queuedIds.delete(id);
-      // Geannuleerd terwijl hij wachtte: niet doorsturen en (volgens de spec) niet beantwoorden.
-      if (cancelledIds.has(id)) {
-        log(`request ${String(id)} was cancelled before it was sent; dropped`);
-        return;
+      try {
+        // Geannuleerd terwijl hij wachtte: niet doorsturen en niet beantwoorden.
+        if (cancelledIds.has(id)) {
+          log(`request ${String(id)} was cancelled before it was sent; dropped`);
+          return;
+        }
+        await handleRequest(id, method, raw);
+      } finally {
+        queuedIds.delete(id); // ook lokale weigering/verbindingsfout ruimt de wachtregistratie op
       }
-      await handleRequest(id, method, raw);
     } else if (method !== null) {
       await handleNotification(raw);
     }

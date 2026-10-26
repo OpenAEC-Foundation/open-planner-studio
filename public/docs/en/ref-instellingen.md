@@ -26,7 +26,9 @@ A change takes effect immediately. There is no *Apply* button and no *Cancel*.
 
 **Time format** — how clock times appear in the app. Choose from *24-hour (13:00)* and *12-hour (1:00 PM)*. Default: *24-hour (13:00)*. Effect: the times in the calendar window, the date and time of tasks in hours (table, splits, messages) and the *Hour* timescale in the Gantt. In a time field you may type either form: *13:00*, *1300*, *13*, *1:00 PM* or *1 pm*. Midnight as the end of the day is *24:00* or *12:00 AM*. Files and calculations do not change: they stay 24-hour. Where: *Appearance*.
 
-**Duration display** — in which unit the duration of a task is shown. Choose from *Automatic (native unit per task)*, *Always days* and *Always hours*. Default: *Automatic (native unit per task)*. Effect: in the task grid, the bar labels of the Gantt, the tooltip, the print and the reports. With *Automatic* a day task shows days and an hour task shows hours. With *Always days* or *Always hours* the app converts using the hours per day of the task calendar and, if the unit of the task differs, puts its own unit after it in brackets, for example `2.25d(18h)`. Only the display changes; the task keeps its own unit. Where: *Appearance*.
+**Duration display** — In the OPS profile this field is disabled: each task shows its own unit. Under P6 and MSP the choice is active. in which unit the duration of a task is shown. Choose from *Automatic (native unit per task)*, *Always days* and *Always hours*. Default: *Automatic (native unit per task)*. Effect: in the task grid, the bar labels of the Gantt, the tooltip, the print and the reports. With *Automatic* a day task shows days and an hour task shows hours. With *Always days* or *Always hours* the app converts using the hours per day of the task calendar and, if the unit of the task differs, puts its own unit after it in brackets, for example `2.25d(18h)`. Only the display changes; the task keeps its own unit. Where: *Appearance*.
+
+**Allow mixed day/hour planning** — whether you choose the unit per task. Default: on. Effect: on shows the *Duration unit* drop-down next to the duration of every task. Off hides that drop-down. Where: *Appearance*, under *Duration display*. See [Days and hours](docs://uitleg-dagen-en-uren).
 
 **Document switch style** — how you switch between open projects. Choose from *Horizontal tabs*, *Vertical tabs* and *Pill*. Default: *Horizontal tabs*. Effect: *Horizontal tabs* puts a tab bar under the ribbon; *Vertical tabs* a project bar on the left; *Pill* a small project button in the title bar. Where: *Appearance*.
 
@@ -34,7 +36,7 @@ A change takes effect immediately. There is no *Apply* button and no *Cancel*.
 
 **Show only working days** — compresses the timeline axis. Default: off. Effect: weekends and holidays from the project calendar are skipped, so a task of 5 working days is exactly 5 columns wide. The shortcuts for *Jump to today* and *Fit to project* then also count in working days. The report has its own checkbox with the same name, which is independent of this setting. Where: *Appearance*, under *Gantt › Timeline axis*.
 
-**Show quarter-hours when zoomed in far** — an extra fine time scale. Default: off. Effect: you can zoom in further and the hour scale gets an extra quarter-hour row. Dragging an hour bar can then snap to quarter-hours instead of whole hours. You only see this when *Enable hour planning* is on. Where: *Appearance*, under *Gantt › Quarter-hour zoom*.
+**Show quarter-hours when zoomed in far** — an extra fine time scale. Default: off. Effect: you can zoom in further and the hour scale gets an extra quarter-hour row. Dragging an hour bar can then snap to quarter-hours instead of whole hours. Where: *Appearance*, under *Gantt › Quarter-hour zoom*.
 
 **Task bars at interruptions** — whether an hour task is drawn in blocks. Choose from *Never split*, *Split when selected* and *Always split*. Default: *Split when selected*. Effect: the bar of an hour task is then drawn per working block instead of as one continuous block. *Split when selected* does that only for the selected task. It only concerns hour tasks; a task that is really split (with *Split task*) shows its interruption regardless of this setting. Where: *Appearance*, under *Gantt*.
 
@@ -47,10 +49,6 @@ A change takes effect immediately. There is no *Apply* button and no *Cancel*.
 ## Planning tab
 
 **Enable construction mode** — construction-oriented starting values for new projects. Default: on. Effect: on gives a new project the calendar *Bouwkalender NL* with the Dutch public holidays, lets you choose a builders' holiday when generating holidays, offers the phasing templates *Residential construction* and *Commercial / renovation* and gives new tasks the work category *Construction*. Off gives the calendar *Standaardkalender* without holidays, only the template *Empty* and the work category *Other*. A new task under a parent task that has a work category takes over that work category first; *Construction* or *Other* applies after that. Existing tasks and calendars do not change. Where: *Planning*.
-
-**Enable hour planning** — planning in working hours next to working days. Default: off. Effect: the time scale *Hour* appears under *View › Time Scale*, in the *Calendars* window an ordinary calendar can get working-time blocks (the *Working times* block; a calendar that already has blocks always shows it), and the *New project* window gets the choices *Shift* and *Default unit for new tasks*. *Project settings* also gets the choice *Default unit for new tasks*. Off, the app works day-granular. Tasks that are already in hours stay and are included in the calculation; you can only edit their duration once you turn hour planning on. Where: *Planning*, under *Hour planning*. See [Turning on hour planning](docs://howto-urenplanning-aanzetten).
-
-**Allow mixed day/hour planning** — whether you choose the unit per task. Only visible when *Enable hour planning* is on. Default: on. Effect: on shows the *Duration unit* drop-down next to the duration of every task. Off hides that drop-down. Where: *Planning*, under *Hour planning*. See [Days and hours](docs://uitleg-dagen-en-uren).
 
 **Week starts on** — the first day of the week. Choose from *Monday* and *Sunday*. Default: *Monday*. Effect: the week layout and week numbers of the time scale in the Gantt and in the reports (the Gantt chart print), and the order of the weekdays in the *Calendars* window. Where: *Planning*.
 
@@ -117,7 +115,7 @@ The app also keeps these choices on this device, but you set them at the item it
 ## See also
 
 - [Calculation options and conventions](docs://ref-rekenopties-en-conventies): the options that belong to a project.
-- [Turning on hour planning](docs://howto-urenplanning-aanzetten): the steps for the switch *Enable hour planning*.
+- [Plan a task in hours](docs://howto-taak-in-uren-plannen): duration and the unit selector.
 - [Days and hours](docs://uitleg-dagen-en-uren): how the app counts days and hours.
 - [Task types: duration, units and work](docs://uitleg-werkregels): what *Use task types* makes visible.
 - [Keyboard shortcuts](docs://ref-sneltoetsen): all keys of the app, including those for zooming and scrolling.

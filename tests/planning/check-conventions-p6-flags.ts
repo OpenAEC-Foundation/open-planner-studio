@@ -1956,7 +1956,11 @@ const lateOf = (input: ImportResult, id: string) => {
 //   - origineel                    : zoals de XER-lezer hem opent (uurkalender, uurtaken, P6-herkomst);
 //   - dag                          : geen enkele uurplanning meer — kalenders zonder werkblokken, taken in
 //                                    dagen, geen 24-uurs lag-kalender, en zonder de B1-relatievlag (die zet
-//                                    de lezer alleen bij een urenkalender van de voorganger, hieronder gepind);
+//                                    de lezer alleen bij een urenkalender van de voorganger, hieronder gepind).
+//                                    Sinds F3c telt een taak in dagen onder een profiel zonder dagenmaat
+//                                    (P6, MSP) als urenmaat (§3.2); daarom staat de dagenmaat in deze variant
+//                                    aan, ook onder de P6-basis (behalve als de dagenmaat zelf de getoggelde
+//                                    conventie is);
 //   - zonder herkomst              : het origineel zonder elk `p6…`/`xer…`-veld op taken en relaties.
 // Eisen per conventie:
 //   - gelabeld `hourPlanning`  ⇒ op GEEN dag-variant verschil, en op minstens één origineel wel;
@@ -1986,6 +1990,11 @@ const lateOf = (input: ImportResult, id: string) => {
   pool.push([...header, pre, '%R\tT3\tP1\tC1\tT3\tLang\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t45\t45\t2026-01-05 08:00\t2026-01-09 17:00\t\t',
     '%R\tM1\tP1\tC1\tM1\tUiterlijk\tTT_FinMile\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t0\t0\t2026-01-05 17:00\t2026-01-05 17:00\tCS_MEOB\t2026-01-07 08:00',
     ...relations('%R\tR1\tM1\tT1\tP1\tP1\tPR_FS\t0')]);
+
+  // B6: ook zonder herkomst en zonder expliciete blokken verschuift een losse mijlpaal.
+  pool.push([...header,
+    '%R\tM1\tP1\tC1\tM1\tLosse mijlpaal\tTT_Mile\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t0\t0\t2026-01-05 08:00\t2026-01-05 08:00\t\t',
+    ...relations()]);
 
   const readPlain = (lines: string[]): ImportResult => {
     const opened = readXER(new TextEncoder().encode(lines.join('\n')));
@@ -2019,14 +2028,15 @@ const lateOf = (input: ImportResult, id: string) => {
     try { return JSON.stringify(solveAllAxes(input)); } catch (error) { return `fout: ${(error as Error).message}`; }
   };
   /** Verandert aan/uit van `key` iets? P6-basis (met B3/B4 aan) en OPS-basis, met de voortgangsmodus van
-   *  het bestand en met Progress Override. */
-  const toggles = (input: ImportResult, key: ConventionKey): boolean => {
+   *  het bestand en met Progress Override. `workdays`: de dagenmaat staat aan (de dag-variant). */
+  const toggles = (input: ImportResult, key: ConventionKey, workdays = false): boolean => {
     for (const progressMode of [input.project.progressMode, 'PROGRESS_OVERRIDE' as const]) {
       const moded = structuredClone(input);
       moded.project.progressMode = progressMode;
       for (const baseId of ['p6', 'ops'] as const) {
         const values = resolveConventions({ baseId, id: baseId, name: '', overrides: {} });
         if (baseId === 'p6') for (const k of P6_OFF_GROUP_B) values[k] = true;
+        if (workdays) values.workdayDurationMeasure = true;
         if (fingerprint(withConventions(moded, baseId, { ...values, [key]: true }))
           !== fingerprint(withConventions(moded, baseId, { ...values, [key]: false }))) return true;
       }
@@ -2040,12 +2050,16 @@ const lateOf = (input: ImportResult, id: string) => {
   /** Niet gelabelde conventies zonder trigger in een variant: met reden, en een vermelding die niet meer
    *  nodig is, is rood (opruimen). */
   const NO_DAY_TRIGGER: Partial<Record<ConventionKey, string>> = {};
-  const NO_PLAIN_TRIGGER: Partial<Record<ConventionKey, string>> = {};
-  const count = (key: ConventionKey, pick: (v: typeof variants[number]) => ImportResult) =>
-    variants.filter(v => toggles(pick(v), key)).length;
+  const NO_PLAIN_TRIGGER: Partial<Record<ConventionKey, string>> = {
+    // De pool komt uit XER: alleen taken in uren en lags in minuten. Zonder herkomst blijft dat zo, dus de
+    // dagenmaat heeft daar niets om te tellen. De dag-variant toont zijn effect wel (day > 0 hierboven).
+    workdayDurationMeasure: 'de XER-pool heeft geen taak of lag in dagen; de dag-variant toont het effect',
+  };
+  const count = (key: ConventionKey, pick: (v: typeof variants[number]) => ImportResult, workdays = false) =>
+    variants.filter(v => toggles(pick(v), key, workdays)).length;
   for (const d of CONVENTIONS) {
     const orig = count(d.id, v => v.orig);
-    const day = count(d.id, v => v.day);
+    const day = count(d.id, v => v.day, true);
     const plain = count(d.id, v => v.plain);
     if (process.env.OPS_REQUIRES_MATRIX) console.log(d.id.padEnd(45), 'orig', orig, 'dag', day, 'zonderHerkomst', plain, JSON.stringify(d.requires ?? {}));
     if (d.requires?.hourPlanning) {

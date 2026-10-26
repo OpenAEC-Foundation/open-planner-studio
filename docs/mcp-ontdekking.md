@@ -164,6 +164,9 @@ bestandsnaam veranderen.
 - `src/services/mcp/discoveryFiles.ts` schrijft beide bestanden via `plugin-fs` (nieuw halffabricaat met
   `createNew` en rechten `0600`, dan `rename` in dezelfde map, dus atomair). Alle schrijf- en wisacties lopen
   door één wachtrij, zodat een late schrijfactie nooit een bestand terugzet dat een latere stop al wiste.
+  Exclusief aanmaken en schrijven zijn gescheiden: na een schrijf- of sluitfout wordt alleen het eigen
+  halffabricaat opgeruimd; een botsende bestaande naam blijft staan. Een geweigerde cleanup wordt gemeld
+  en kan het halffabricaat alsnog laten liggen (geen garantie tegen OS-verwijderfouten).
 - `createBridgeController` (`server.ts`) meldt start en stop; `useMcpDiscovery` volgt de store voor het
   register; `useAppCloseGuard` verwijdert beide bestanden bij het afsluiten (hoogstens 1,5 s).
 - In de browser en in de platformbouw gebeurt niets (`isTauri()`).

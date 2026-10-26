@@ -3,6 +3,7 @@
 // zijn in plaats van een klikinstructie. Valt uit elke productiebouw (dynamische import achter
 // `import.meta.env.DEV` in main.tsx). Geen testhaak: browsertests doen hun eigen handelingen.
 import { useAppStore } from '@/state/appStore';
+import { TIMESCALE_ZOOM } from '@/engine/renderer/timelineTiers';
 
 type Scene = {
   /** Eigen verloop zonder Projectinfo; geeft het doel-selector terug. */
@@ -166,7 +167,134 @@ function seedLibraryBooking(companyId?: string): { companyId: string; taskId: st
   return { companyId: cid, taskId: task.id };
 }
 
+// ── F4b: momenten en maten (spec "alleen uren" §7.2 F4, checkstap voor de eigenaar) ───────────────
+
+/** Een week met een korte vrijdag (vr 07:00–12:00 + 13:00–14:00, 6 u), de voorbeeldweek van de spec. */
+const F4B_DAY = [{ start: 420, end: 720 }, { start: 780, end: 960 }];
+const F4B_FRIDAY = [{ start: 420, end: 720 }, { start: 780, end: 840 }];
+
+/**
+ * Beginstand voor de F4b-checkstap, vanaf ma 2 nov 2026 in het OPS-profiel:
+ *  - Fundering storten: dagenmaat 2,5 d (einde wo 11:00, midden op de dag);
+ *  - Metselwerk: urenmaat 40 u, na de fundering (start wo 11:00, midden op de dag);
+ *  - Leidingwerk: dagenmaat 3 d, SS na de fundering met een lag van 0,5 d (start ma 11:00);
+ *  - Kozijnen: dagenmaat 5 d met een pauze van één werkdag op de korte vrijdag;
+ *  - Tegelwerk: vast werk (altijd urenmaat), 24 u met één tegelzetter, na het metselwerk;
+ *  - Oplevering: mijlpaal na het tegelwerk.
+ */
+function seedF4bProject(theme: 'light' | 'dark'): Record<string, string> {
+  const s = useAppStore.getState();
+  s.newProject();
+  s.setProject({ name: 'F4b — momenten en maten', startDate: '2026-11-02' });
+  s.setUI({ uiTheme: theme, compressNonWorkdays: false, showPropertiesPanel: true, rightPanelCollapsed: false });
+  s.setCalendar({
+    ...s.calendar, name: 'Werkweek met korte vrijdag', workDays: [1, 2, 3, 4, 5], workStartHour: 7, workEndHour: 16,
+    hoursPerDay: 8, holidays: [],
+    workTime: { byWeekday: { 1: F4B_DAY, 2: F4B_DAY, 3: F4B_DAY, 4: F4B_DAY, 5: F4B_FRIDAY, 6: [], 7: [] } },
+  });
+  const add = (name: string, time: { unit: 'days'; days: number } | { unit: 'hours'; minutes: number }, extra: { milestone?: boolean } = {}) => {
+    const id = useAppStore.getState().addTask({ name });
+    const t = useAppStore.getState().tasks.find(x => x.id === id)!;
+    useAppStore.getState().updateTask(id, {
+      ...(extra.milestone ? { isMilestone: true } : {}),
+      time: time.unit === 'days'
+        ? { ...t.time, durationUnit: 'days', durationMinutes: undefined, scheduleDuration: time.days }
+        : { ...t.time, durationUnit: 'hours', durationMinutes: time.minutes, scheduleDuration: time.minutes / 480 },
+    });
+    return id;
+  };
+  const fundering = add('Fundering storten', { unit: 'days', days: 2.5 });
+  const metselwerk = add('Metselwerk', { unit: 'hours', minutes: 2400 });
+  const leidingwerk = add('Leidingwerk', { unit: 'days', days: 3 });
+  const kozijnen = add('Kozijnen', { unit: 'days', days: 5 });
+  const tegelwerk = add('Tegelwerk (vast werk)', { unit: 'hours', minutes: 1440 });
+  const oplevering = add('Oplevering', { unit: 'days', days: 0 }, { milestone: true });
+  const st = useAppStore.getState();
+  st.addSequence({ predecessorId: fundering, successorId: metselwerk, type: 'FINISH_START', lagDays: 0 });
+  st.addSequence({ predecessorId: fundering, successorId: leidingwerk, type: 'START_START', lagDays: 0.5 });
+  st.addSequence({ predecessorId: metselwerk, successorId: tegelwerk, type: 'FINISH_START', lagDays: 0 });
+  st.addSequence({ predecessorId: tegelwerk, successorId: oplevering, type: 'FINISH_START', lagDays: 0 });
+  // Vier werkdagen (ma–do) werk, dan een pauze van één werkdag: de korte vrijdag.
+  st.updateTask(kozijnen, { splitGaps: [{ afterMinutes: 1920, gapMinutes: 480, source: 'user' }] });
+  const tegelzetter = st.addResource({ name: 'Tegelzetter', type: 'LABOR', description: '', maxUnits: 1 });
+  useAppStore.getState().assignResource(tegelwerk, tegelzetter, 1);
+  useAppStore.getState().setTaskWorkRule(tegelwerk, 'FIXED_WORK');
+  useAppStore.getState().runCPM();
+  const view = useAppStore.getState();
+  view.setZoom(TIMESCALE_ZOOM.day);
+  view.setViewStartDate('2026-11-02');
+  return { fundering, metselwerk, leidingwerk, kozijnen, tegelwerk, oplevering };
+}
+
+/** Een herstelvraag die alleen kopieën van dit testproject noemt (van een vorige kijklink), wordt
+ *  weggeklikt met "Niet herstellen". Noemt hij iets anders, dan blijft hij staan voor de eigenaar. */
+async function dismissOwnRecovery(): Promise<void> {
+  const end = Date.now() + 2500;
+  while (Date.now() < end) {
+    const dialog = document.querySelector<HTMLElement>('[data-ops-recovery-dialog]');
+    if (dialog) {
+      const names = [...dialog.querySelectorAll('li .font-semibold')].map(el => el.textContent?.trim() ?? '');
+      if (names.length > 0 && names.every(name => name === 'F4b — momenten en maten')) {
+        await clickText('[data-ops-recovery-dialog]', ['Niet herstellen', "Don't restore"]);
+      }
+      return;
+    }
+    await sleep(100);
+  }
+}
+
+/** Het welkomstvenster van een schone browser kan pas na de scène komen; klik het dan weg. */
+async function dismissLateWelcome(): Promise<void> {
+  const end = Date.now() + 3000;
+  while (Date.now() < end) {
+    if (document.querySelector('[data-ops-welcome-dialog]')) {
+      await clickText('[data-ops-welcome-dialog]', ['Overslaan', 'Skip']);
+      return;
+    }
+    await sleep(100);
+  }
+}
+
+/** Het project in de Gantt, met de tijdschaal in beeld (Beeld › Tijdschaal): de eigenaar kiest daar Dag,
+ *  Uur en de zoomgrenzen. */
+async function f4bGantt(theme: 'light' | 'dark'): Promise<string> {
+  await dismissOwnRecovery();
+  const ids = seedF4bProject(theme);
+  await sleep(400);
+  await clickTaskRow(ids.fundering);
+  // `focusOnTask` past de zoom aan de taak aan; de check begint bij de voorinstelling Dag.
+  useAppStore.getState().setZoom(TIMESCALE_ZOOM.day);
+  useAppStore.getState().setViewStartDate('2026-11-02');
+  await dismissLateWelcome();
+  (await waitFor('[data-ops-ribbon-tab="beeld"]')).click();
+  return '[data-tour-anchor="ribbon-group:beeld:timeScale"]';
+}
+
+/** Het project in de Tabel: Start, Einde en Duur volgens B4 en B8. */
+async function f4bTable(theme: 'light' | 'dark'): Promise<string> {
+  await dismissOwnRecovery();
+  seedF4bProject(theme);
+  await sleep(400);
+  await dismissLateWelcome();
+  await clickText('body', ['Tabel', 'Table']);
+  return waitFor('[data-task-grid-surface-id="full-task-grid"] [role="grid"]').then(() => '[data-task-grid-surface-id="full-task-grid"]');
+}
+
 const SCENES: Record<string, Scene> = {
+  // F4b-checkstap: het testproject in licht en donker, en de plek van "Gemengde dag/uur-planning toestaan".
+  'f4b-maten': { run: () => f4bGantt('light') },
+  'f4b-maten-donker': { run: () => f4bGantt('dark') },
+  'f4b-tabel': { run: () => f4bTable('light') },
+  'f4b-tabel-donker': { run: () => f4bTable('dark') },
+  'f4b-instellingen': {
+    run: async () => {
+      await dismissOwnRecovery();
+      seedF4bProject('light');
+      await dismissLateWelcome();
+      useAppStore.getState().setUI({ showSettingsDialog: true });
+      return tagWhere('.settings-section', el => ['Duurweergave', 'Duration display'].includes(el.querySelector('h3')?.textContent?.trim() ?? ''));
+    },
+  },
   // Blauwe (nu oranje) infoblokken in Projectinfo › Rekenprofiel.
   // Uitleg per conventie: het i-icoon krijgt de focus, de tooltip staat er meteen (en blijft bij scrollen).
   'info-uitleg': {

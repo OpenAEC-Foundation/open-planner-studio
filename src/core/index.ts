@@ -47,7 +47,8 @@ const STEP_HEADER = 'ISO-10303-21;';
  * openen rekent al door; wijkt de uitkomst af van de datums in het bestand, dan kan de app (net als
  * hier) de datums uit het bestand tonen ("datums zoals opgeslagen"). `toIfc()` direct na `openIfc()`
  * schrijft dus de geopende stand, niet per se de datums uit de invoer. `schedule()` rekent opnieuw
- * door zoals F5 en verlaat die stand.
+ * door zoals F5 en verlaat die stand. Wat het openen veranderde of weglaat, staat meteen in
+ * `openWarnings` (bijv. de omzetting van een oud bestand, B5), dus ook vóór de eerste `toIfc()`.
  */
 export async function openIfc(text: string): Promise<PlannerDocument> {
   if (typeof text !== 'string') {
@@ -76,14 +77,24 @@ export async function openIfc(text: string): Promise<PlannerDocument> {
   // Een eigen context per document, zonder host-events: extensies van een app bestaan hier niet.
   const ctx = createAppStoreContext({ emitHostEvents: false });
   // De open-route van de app (Bestand → Openen) zonder opslagdoel: een naamloos document.
+  let opened: ReturnType<AppState['openAsDocument']>;
   try {
-    ctx.store.getState().openAsDocument(parsed, { name: 'document.ifc', ref: null, saveTarget: false });
+    opened = ctx.store.getState().openAsDocument(parsed, { name: 'document.ifc', ref: null, saveTarget: false });
   } catch (err) {
     throw new PlannerCoreError('IFC_READ_FAILED', `Could not open IFC: ${errorText(err)}`);
+  }
+  // B5: een oud bestand wordt bij het openen omgerekend. De app meldt dat via het meldingenkanaal; de
+  // kern heeft er geen, dus dezelfde telling en grootste verschuiving als vaste waarschuwing.
+  for (const conversion of opened.minuteModelConversions) {
+    importWarnings.push({ code: 'MINUTE_MODEL_CONVERTED', ids: [...conversion.shifted],
+      maxShiftWorkdays: conversion.maxWorkdays });
   }
   const state = (): AppState => ctx.store.getState();
 
   return {
+    get openWarnings(): ScheduleWarning[] {
+      return importWarnings.map(w => ({ ...w, ids: [...w.ids] }));
+    },
     schedule(): ScheduleSummary {
       try {
         state().runCPM();

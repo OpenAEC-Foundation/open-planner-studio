@@ -71,7 +71,8 @@ test('later geplande taak mét actualStart: toegepast, zoals opgegeven', async (
   const { L } = setup('2026-06-10');
   const res = await rpc('planner_update_tasks', { updates: [{ id: L, progress: { completion: 40, actualStart: '2026-06-08' } }] });
   assertEq(reasons(res), [], 'geen weigering');
-  assertEq({ as: timeOf(L).actualStart, c: timeOf(L).completion }, { as: '2026-06-08', c: 0.4 }, 'start en voortgang');
+  // F2 (spec §3.6, invoer; §4.2 D1): de opgegeven datum wordt het begin van de werkdag. Fixronde 1 deel B, B1.
+  assertEq({ as: timeOf(L).actualStart, c: timeOf(L).completion }, { as: '2026-06-08T07:00', c: 0.4 }, 'start en voortgang');
 });
 
 test('later geplande taak: alleen actualFinish zonder actualStart is ook geweigerd', async () => {
@@ -86,7 +87,10 @@ test('later geplande mijlpaal met een werkelijke datum: gewoon toegepast (start 
   const { M } = setup('2026-06-10');
   const res = await rpc('planner_update_tasks', { updates: [{ id: M, progress: { actualFinish: '2026-06-09' } }] });
   assertEq(reasons(res), [], 'geen weigering');
-  assertEq({ as: timeOf(M).actualStart, af: timeOf(M).actualFinish }, { as: '2026-06-09', af: '2026-06-09' }, 'mijlpaal afgemeld');
+  // F2 (spec §4.2 D7): een mijlpaal heeft één moment; zonder soort (`milestoneKind`) is dat D1, het begin
+  // van de werkdag, net als in het paneel (`check-progress-entry.ts`, "3d mijlpaal"). B6 gaat over de
+  // berekende plaats van een losse mijlpaal, niet over een opgegeven werkelijke datum. Fixronde 1 deel B, B1.
+  assertEq({ as: timeOf(M).actualStart, af: timeOf(M).actualFinish }, { as: '2026-06-09T07:00', af: '2026-06-09T07:00' }, 'mijlpaal afgemeld');
 });
 
 test('taak die volgens plan al begonnen is: voortgang zonder actualStart werkt zoals altijd', async () => {
@@ -105,5 +109,30 @@ test('binnen planner_batch: dezelfde weigering, de taak blijft ongewijzigd', asy
   assert(res.ok === true, `batch gaf een fout: ${JSON.stringify(res)}`);
   assertEq(JSON.stringify(timeOf(L)), before, 'taak ongewijzigd (batch)');
 });
+
+// F1: dezelfde drie statusgevallen via de echte dispatcher en de mutatietransactie.
+for (const [statusDate, actualFinish, want] of [
+  ['2026-06-03', '2026-06-03', '2026-06-03T16:00'],
+  ['2026-06-03T12:00', '2026-06-03', '2026-06-03T12:00'],
+  ['2026-06-03T12:00', '2026-06-03T14:00', null],
+] as const) {
+  test('F1 statusregel via MCP: ' + statusDate + ' / ' + actualFinish, async () => {
+    const { V } = setup(statusDate);
+    const bands = [{ start: 480, end: 960 }];
+    S().setCalendar({ ...S().calendar, workTime: { byWeekday: {
+      1: bands, 2: bands, 3: bands, 4: bands, 5: bands, 6: [], 7: [],
+    } } });
+    S().updateTask(V, { time: { ...timeOf(V), durationUnit: 'hours', durationMinutes: 2400 } });
+    S().runCPM();
+    const before = JSON.stringify(timeOf(V));
+    const res = await rpc('planner_update_tasks', {
+      updates: [{ id: V, progress: { actualStart: '2026-06-01T08:00', actualFinish } }],
+    });
+    assertEq(reasons(res).length, want === null ? 1 : 0, 'weigering volgens statusregel');
+    assertEq(timeOf(V).actualFinish ?? null, want, 'het juiste eindmoment opgeslagen');
+    if (want === null) assertEq(JSON.stringify(timeOf(V)), before, 'weigering verandert niets');
+    else assertEq(timeOf(V).earlyFinish, want, 'de solver behoudt D6');
+  });
+}
 
 await run();

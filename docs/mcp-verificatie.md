@@ -203,7 +203,10 @@ ook headless werkt en het token zelf uit `<appDataDir>/mcp/runtime.json` leest.
   geslaagde `planner_switch_document` het anker van de nieuwe sessie expliciet vastlegt (`bindExpectedDoc`).
   Een leestool heft niets op: hij bindt geen anker, en de eerste wijziging zou het lege anker anders aan het
   document binden dat toevallig actief is (review ronde 2 van PR #567). `planner_switch_document` zelf mag
-  altijd door. Na Stop/Start van de bridge in de app blijft de sessie geldig; dan is er geen sessieverlies en
+  altijd door. Ook een expliciete `planner_new_document` of `planner_import_schedule` mag als losse
+  herstelactie door: alleen na succes wordt de blokkade opgeheven. Deze twee mutaties worden bij
+  nieuw sessieverlies nooit automatisch herhaald. `planner_duplicate_document` blijft geblokkeerd,
+  omdat die het actieve document gebruikt. Na Stop/Start van de bridge in de app blijft de sessie geldig; dan is er geen sessieverlies en
   geen blokkade.
 - Annuleren (`notifications/cancelled`, ook na een time-out van de client): de bundel legt de annulering vast
   zodra hij binnenkomt, niet achter in de wachtrij. Een geannuleerde aanvraag die nog wachtte, gaat nooit naar

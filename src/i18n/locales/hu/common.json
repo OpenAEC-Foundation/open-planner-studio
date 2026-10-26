@@ -221,7 +221,10 @@
     "msProjectLostFixedCosts_one": "Egy tevékenység fix költsége nem lett átvéve.",
     "msProjectLostFixedCosts_other": "{{count}} tevékenység fix költségei nem lettek átvéve.",
     "msProjectLostResourceRates_one": "Egy erőforrás alapdíja nem lett átvéve.",
-    "msProjectLostResourceRates_other": "{{count}} erőforrás alapdíjai nem lettek átvéve."
+    "msProjectLostResourceRates_other": "{{count}} erőforrás alapdíjai nem lettek átvéve.",
+    "minuteModelConverted_one": "{{document}}: {{count}} tevékenység kezdete vagy befejezése eltér az átalakítás után; a legnagyobb eltolódás {{days}} munkanap. A Ctrl+Z visszaállítja a mentett dátumokat.",
+    "minuteModelConverted_other": "{{document}}: {{count}} tevékenység kezdete vagy befejezése eltér az átalakítás után; a legnagyobb eltolódás {{days}} munkanap. A Ctrl+Z visszaállítja a mentett dátumokat.",
+    "minuteModelCalendarRepaired": "A(z) „{{calendar}}” naptár javítva lett: a befejezés vagy a szünet nem illett a mentett munkaidőhöz."
   },
   "scheduleErrors": {
     "cycle": "Körkörös kapcsolat a tevékenységek között: {{path}}",
@@ -335,16 +338,17 @@
     "themeHighContrast": "Magas kontraszt",
     "themeFollowSystem": "Rendszertéma követése",
     "themeSystemHint": "A rendszer színsémáját követi (jelenleg: {{theme}}).",
-    "hourPlanningSection": "Óraalapú tervezés",
-    "enableHourPlanning": "Óraalapú tervezés bekapcsolása",
-    "enableHourPlanningHint": "Bekapcsolja az óra/perc szerinti ütemezést: óraskála, műszakok munkaidő-sávokkal és óra pontosságú tevékenységsávok. Kikapcsolva ⇒ az alkalmazás továbbra is teljesen napalapon működik.",
     "showTaskTypes": "Tevékenységtípusok használata",
     "showTaskTypesHint": "Válassza ki tevékenységenként, mi változzon, ha az időtartam, a hozzárendelt mennyiség vagy a munka módosul, például az MS Project Task Type és a P6 Duration Type beállítása szerint. Ki: az időtartam és a hozzárendelt mennyiség megmarad. A tevékenységtípusokat vagy mentett munkát tartalmazó fájl ezeket akkor is megjeleníti, ha ki van kapcsolva.",
     "allowMixedDayHour": "Vegyes nap/óraalapú tervezés engedélyezése",
     "defaultTaskDurationUnit": "Alapértelmezett egység új tevékenységekhez",
-    "defaultTaskDurationUnitHint": "Meghatározza, hogy az új tevékenységek időtartama alapértelmezés szerint munkanapokban vagy munkaórákban legyen megadva. A meglévő tevékenységek nem változnak.",
+    "defaultTaskDurationUnitHint": "Napi mértékegység: az időtartam a naptár munkanapjaiban számít. Órás mértékegység: az időtartam munkaórában számít. A meglévő tevékenységek nem változnak. A rögzített munkát tartalmazó tevékenység mindig az órás mértékegységet használja.",
+    "defaultTaskDurationUnitDays": "Napi mértékegység",
+    "defaultTaskDurationUnitHours": "Órás mértékegység",
+    "defaultTaskDurationUnitLocked": "A(z) „{{profile}}” profil az időtartamot órában számolja. Az új tevékenységek ezért az órás mértékegységet kapják.",
     "durationDisplay": "Időtartam megjelenítése",
     "durationDisplayHint": "Meghatározza, hogyan jelenjen meg a tevékenység időtartama, függetlenül attól, hogy a tevékenység melyik egységben van rögzítve.",
+    "durationDisplayOpsHint": "Az OPS-profilban minden tevékenység a saját mértékegységét mutatja.",
     "durationDisplayAuto": "Automatikus (tevékenységenként saját egység)",
     "durationDisplayDays": "Mindig napok",
     "durationDisplayHours": "Mindig órák",
@@ -1116,10 +1120,6 @@
     "month": "hónap",
     "year": "év"
   },
-  "hourData": {
-    "notice": "Ez a fájl óraalapú tervezést tartalmaz.",
-    "enable": "Óraalapú tervezés bekapcsolása"
-  },
   "recordedDates": {
     "activeCount_one": "Az ütemezést úgy látja, ahogy a Primavera rögzítette; újraszámításkor {{count}} tevékenység eltérne.",
     "activeCount_other": "Az ütemezést úgy látja, ahogy a Primavera rögzítette; újraszámításkor {{count}} tevékenység eltérne.",
@@ -1483,6 +1483,14 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "ALAP-tevékenységek az utódok által megengedett legkésőbbi időpontra",
       "help": "Csak óraalapú tervezésnél, egy el nem kezdett, kézzel nem ütemezett tevékenységnél, amelynek korlátozása „Lehető legkésőbb” (ALAP). Az utódok korai dátumai határozzák meg a helyzetét, percre pontosan; az utódok kerülnek előre. A saját tervezett kezdése nem számít. Az elődei, az állapotdátum és egy második korlátozás továbbra is érvényes. Utód nélkül a legkésőbbi befejezését használja. A szokásos ALAP-lépés minden profilban elérhető marad."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Különálló mérföldkövek a munkanap végén",
+      "help": "Egy különálló vagy a befejezést jelölő mérföldkő, amelynek nincs elődje, a saját munkanapja végére kerül."
+    },
+    "workdayDurationMeasure": {
+      "label": "Időtartam munkanapokban",
+      "help": "Napokban megadott időtartam, késleltetés vagy hátralévő időtartam munkanapokban számít: minden munkanap 1-nek számít, bármilyen hosszú az a nap. Kikapcsolt állapotban egy nap annyit számít, ahány munkaórája van a naptárban. A százalékban megadott késleltetés az előd mértékegységét követi. Az eltelt időtartam soha nem számít munkanapokban."
     }
   },
   "profiles": {
@@ -1521,6 +1529,7 @@
       "float": "Legkésőbbi dátumok és tartalékidő",
       "instants": "Dátumok és időpontok a fájlból",
       "msproject": "Előrehaladás a Microsoft Project szerint",
+      "durations": "Időtartam és mértékegység",
       "ownProfilesOnly": "Csak saját profilok"
     },
     "ownProfilesOnlyNote": "Ezek az ütemezési szabályok minden beépített számítási profilban ki vannak kapcsolva, a Primavera P6 profilban is. Csak saját számítási profil kapcsolhatja be őket: ehhez válassza az Új profil lehetőséget.",

@@ -5,9 +5,13 @@ door één lokale `groupBy` op `parentId`. Zonder ploegen wordt geen index gebou
 Ploegvolgorde, ledenvolgorde, dubbele voorkomens, de laatste STEP-verwijzing bij een
 dubbele id, lege ploegen en de bestaande `#0`-filter blijven behouden.
 
-De basis is `fbd4a3f9dcc7bdd308ab86b992d0b26f4670a553`. De toegewezen schone branch
-is vóór implementatie teruggezet vanaf `f7ee2e77802a6d5d815449f5a7e58ff56f67fe6f`.
-De kalenderindex uit #641 zit dus niet in deze wijziging of nulmeting.
+De actuele meetbasis is `aaf77b15a5bf971b4734351df309ae2d02d3e84f`. Vóór de merge is
+`main` in de werkbranch opgenomen, inclusief de urenomzetting en de daaropvolgende
+reparaties. De productdiff ten opzichte van deze basis blijft uitsluitend
+`writeCrewNesting`. Beide writers gebruiken nu dezelfde actuele afhankelijkheden.
+De historische meting op `ff70e24` gebruikte nog
+`fbd4a3f9dcc7bdd308ab86b992d0b26f4670a553`; haar tijden gelden alleen voor die oude
+basis. Een nieuwe CI-uitvoering moet de integratie en actuele vergelijking bevestigen.
 
 ## Grenzen van de schrijver
 
@@ -147,8 +151,9 @@ kwam verder tot de exacte stap: de oude writer voltooide de eerste rijke export
 is de plaats gelokaliseerd; een byteverschil, dure assertion-diff, geheugentekort of
 afzonderlijke afzender van SIGTERM is hiermee nog niet bewezen. De ongeldige aanname
 van bytegelijkheid en de ontbrekende XER-reconstructieroute zijn onafhankelijk uit
-de bron vastgesteld en hersteld. Een nieuwe CI-uitvoering moet de zelfcontroles,
-alle 23 pariteitsgevallen en alle twaalf schaalgevallen nog bevestigen.
+de bron vastgesteld en hersteld. De uitvoering op `ff70e24` bevestigde daarna de zelfcontroles, alle 23 pariteitsgevallen
+en alle twaalf schaalgevallen. Na het opnemen van de actuele mainbasis moeten
+die controles en de tijden opnieuw worden uitgevoerd.
 
 De poging op `3e55648b415ed089c2871fd72e0b12cd7e81990d`,
 [run 40299449231](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/runs/40299449231),
@@ -170,3 +175,12 @@ wijzigt `writeCrewNesting`:
 - #650: `e6bff1d5d0a4d5f5efb26bd7e8ec12f91be5a007`, kalenderuitzonderingssleutels in de writer.
 
 Integratie met die branches en de andere campagnewijzigingen is niet uitgevoerd.
+
+## Bijwerken vóór merge
+
+De eigenaar gaf toestemming om #655 te mergen als de werking voldoende vaststaat.
+De eerdere groene CI testte de combinatie met `1f719e9`; main is daarna gewijzigd.
+Daarom is main op `aaf77b15a5bf971b4734351df309ae2d02d3e84f` conflictvrij opgenomen en staat de
+meetbasis op precies die revisie. Dit voegt geen tweede performancewijziging toe.
+Historische tijden worden niet als nieuwe integratiemeting voorgesteld. Een
+onafhankelijke bronreview en de volledige CI op de nieuwe head blijven vereist.

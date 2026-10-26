@@ -1,7 +1,8 @@
+import type { MeasuredDuration } from '@/utils/taskDuration';
 import type { Resource } from '@/types/resource';
 import {
   type ReportContext, type ProgressState, activityTasks, overlapsWindow, progressState,
-  remainingDays, resolvePeriodFor, scheduleSlip, taskFinish, taskStart,
+  remainingDays, remainingMeasure, resolvePeriodFor, scheduleSlip, taskFinish, taskStart,
 } from './reportCommon';
 import type { ReportingPeriod } from './reportingPeriod';
 
@@ -22,6 +23,8 @@ export interface ResourceAssignmentRow {
   start: string;
   finish: string;
   remainingDays: number;
+  /** De restduur in de maat van de taak (B8), voor de weergave. */
+  remaining: MeasuredDuration;
   unitsPerDay: number;
   completion: number;
   isCritical: boolean;
@@ -76,6 +79,7 @@ export function computeResourceAssignments(ctx: ReportContext, opts: ResourceAss
       start: taskStart(t),
       finish: taskFinish(t),
       remainingDays: remainingDays(ctx, t),
+      remaining: remainingMeasure(t),
       unitsPerDay: a.unitsPerDay,
       completion: t.time.completion,
       isCritical: t.time.isCritical,

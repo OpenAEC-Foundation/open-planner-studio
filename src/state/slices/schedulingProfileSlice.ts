@@ -76,7 +76,7 @@ export const createSchedulingProfileSlice: AppSliceFactory<SchedulingProfileSlic
       s.project.modifiedAt = new Date().toISOString();
       runtime.finishMutation(s, { stale: true });
     });
-    get().runCPM();
+    get().runCPM({ withinEvent: true });
     const after = get();
     if (clampedAnchors > 0) {
       after.notify({

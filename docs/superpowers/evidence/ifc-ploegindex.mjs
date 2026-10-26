@@ -13,7 +13,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { deserialize, serialize } from 'node:v8';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
-const base = 'fbd4a3f9dcc7bdd308ab86b992d0b26f4670a553';
+const base = 'aaf77b15a5bf971b4734351df309ae2d02d3e84f';
 const writerPath = 'src/services/ifc/ifcWriter.ts';
 const harnessPath = 'docs/superpowers/evidence/ifc-ploegindex.mjs';
 const fixturePath = 'tests/planning/ifcCrewIndexFixture.ts';

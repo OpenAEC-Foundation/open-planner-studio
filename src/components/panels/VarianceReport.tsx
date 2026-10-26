@@ -3,7 +3,7 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { computeVariance, type VarianceResult, type VarianceStatus } from '@/engine/variance';
-import { useDisplayDate } from '@/hooks/displayDate';
+import { useTaskIdDateText } from '@/hooks/displayDate';
 import { formatSignedReportNumber } from '@/utils/reportNumber';
 
 /**
@@ -54,7 +54,8 @@ export function fmtDelta(v: number | undefined, locale?: string): string {
 export function VarianceReport() {
   const { t, i18n } = useTranslation('report');
   const { rows } = useVarianceResult();
-  const dd = useDisplayDate();
+  // B4: een tijd alleen als het moment midden op de werkdag valt.
+  const taskDate = useTaskIdDateText();
 
   return (
     <table className="w-full text-small leading-4" style={{ borderCollapse: 'collapse' }}>
@@ -75,10 +76,10 @@ export function VarianceReport() {
           <tr key={r.taskId} style={{ borderBottom: '1px solid var(--theme-border-light)' }}>
             <td className="px-2 py-1.5">{r.wbs}</td>
             <td className="px-2 py-1.5">{r.name}</td>
-            <td className="px-2 py-1.5">{dd.date(r.baselineStart) || '—'}</td>
-            <td className="px-2 py-1.5">{dd.date(r.baselineFinish) || '—'}</td>
-            <td className="px-2 py-1.5">{dd.date(r.currentStart) || '—'}</td>
-            <td className="px-2 py-1.5">{dd.date(r.currentFinish) || '—'}</td>
+            <td className="px-2 py-1.5">{taskDate(r.taskId, r.baselineStart, 'start') || '—'}</td>
+            <td className="px-2 py-1.5">{taskDate(r.taskId, r.baselineFinish, 'end') || '—'}</td>
+            <td className="px-2 py-1.5">{taskDate(r.taskId, r.currentStart, 'start') || '—'}</td>
+            <td className="px-2 py-1.5">{taskDate(r.taskId, r.currentFinish, 'end') || '—'}</td>
             <td className="px-2 py-1.5 text-right" style={r.deltaStart !== undefined && r.deltaStart > 0 ? { color: '#DC2626', fontWeight: 600 } : undefined}>
               {fmtDelta(r.deltaStart, i18n.language)}
             </td>

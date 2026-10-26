@@ -16,7 +16,7 @@ async function seed(page: Page, tasks: SeedTask[]): Promise<string[]> {
   return page.evaluate(({ inputs, band }) => {
     const ops = window.__OPS__!;
     const s = ops.store.getState();
-    s.setUI({ enableHourPlanning: true, showPropertiesPanel: true, rightPanelCollapsed: false, showTaskTypes: true });
+    s.setUI({ showPropertiesPanel: true, rightPanelCollapsed: false, showTaskTypes: true });
     s.setProject({ name: 'DCP-03 nagebootst', startDate: '2026-09-07' });
     s.setViewStartDate('2026-09-07');
     s.setCalendar({

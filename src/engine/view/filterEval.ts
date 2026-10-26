@@ -253,5 +253,12 @@ export function evaluate(node: FilterNode, task: Task, ctx: ViewContext): boolea
     return evaluateActiveDuring(task, node.value, node.value2);
   }
   const v = resolveField(node.field, task, ctx);
+  // Een datumfilter omvat de hele ingevoerde dag, ook sinds D1/D2 momenten opslaan.
+  // Een expliciete tijd in de filterwaarde blijft een vergelijking op momenten.
+  if (node.field.src === 'builtin' && (node.field.key === 'start' || node.field.key === 'finish')
+    && typeof v === 'string' && typeof node.value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(node.value)
+    && (node.value2 === undefined || (typeof node.value2 === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(node.value2)))) {
+    return applyOperator(node.operator, v.slice(0, 10), node.value, node.value2);
+  }
   return applyOperator(node.operator, v, node.value, node.value2);
 }

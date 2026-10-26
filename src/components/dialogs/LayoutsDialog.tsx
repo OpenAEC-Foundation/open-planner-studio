@@ -70,7 +70,7 @@ export function LayoutsDialog() {
   const setUI = useAppStore(s => s.setUI);
   const targetId = useAppStore(s => s.ui.layoutDialogTargetId);
   const view = useAppStore(s => s.view);
-  const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
+
   const applyViewSettings = useAppStore(s => s.applyViewSettings);
   const activeSurface = useAppStore(s => taskGridSurfaceForRibbonTab(s.ui.activeRibbonTab));
   const columns = useAppStore(s => s.taskGridSurfaces[activeSurface].columns);
@@ -158,7 +158,7 @@ export function LayoutsDialog() {
     </span>
   );
 
-  const timeScales: TimeScale[] = ['year', 'quarter', 'month', 'week', 'day', ...(enableHourPlanning ? ['hour' as TimeScale] : [])];
+  const timeScales: TimeScale[] = ['year', 'quarter', 'month', 'week', 'day', 'hour'];
 
   const partEditor = (part: LayoutPart) => {
     switch (part) {

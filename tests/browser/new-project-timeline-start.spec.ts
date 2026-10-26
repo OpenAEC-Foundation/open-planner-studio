@@ -1,3 +1,4 @@
+// F2: taakdatums worden op D1/D2/D7-momenten vergeleken (§4.2); de echte handeling blijft gelijk.
 // Checkstap 14 (2026-10-15): na Home › Nieuw › Maken toonde de tijdlijn de vroegste feestdag van
 // de kalender in plaats van de projectstart. Hetzelfde gold voor de app-start, een nieuw document en
 // het sluiten van het laatste tabblad. De test leest de positie bij de renderer zelf

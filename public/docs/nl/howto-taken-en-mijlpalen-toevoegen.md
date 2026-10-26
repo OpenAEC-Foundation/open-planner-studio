@@ -6,7 +6,7 @@ Doel: een nieuwe taak of mijlpaal in je planning zetten, op de plek waar hij hoo
 
 Je bouwt een planning op, er komt werk bij, of je wilt een moment vastleggen, zoals de oplevering of een keuring.
 
-Een **taak** is werk dat tijd kost. Een nieuwe taak duurt standaard 5 werkdagen (bij urenplanning kan de projectstandaard uren zijn). Een **mijlpaal** is een moment zonder duur: 0 dagen. Een taak met subtaken heet een **samenvattingstaak**, in de bouw vaak een fase. Haar duur en datums volgen uit haar subtaken, zodra je **Bereken** (F5) gebruikt.
+Een **taak** is werk dat tijd kost. Een nieuwe taak duurt standaard 5 werkdagen (de projectstandaard kan ook uren zijn). Een **mijlpaal** is een moment zonder duur: 0 dagen. Een taak met subtaken heet een **samenvattingstaak**, in de bouw vaak een fase. Haar duur en datums volgen uit haar subtaken, zodra je **Bereken** (F5) gebruikt.
 
 ## Stappen
 

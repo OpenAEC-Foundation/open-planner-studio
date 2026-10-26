@@ -689,9 +689,11 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
     const durMinutes = raw.durationRaw / 10;
     const durSignal = isSubDayMinutes(durMinutes, cal.hoursPerDay);
     const anchor = mppAnchorClock(cal);
-    const dateSignal =
-      (raw.startTs != null && hasNonAnchorTime(formatInstant(raw.startTs, 'hour'), anchor)) ||
-      (raw.finishTs != null && hasNonAnchorTime(formatInstant(raw.finishTs, 'hour'), anchor));
+    // Ook een werkelijke datum met een eigen tijd telt: een feit uit de bron. Anders blijft de kalender
+    // scalair, kapt `formatField` "11:00" af tot de datum, en maakt de laadnormalisatie er het blokeinde
+    // van (review ronde 3 van PR #559, deel B; zelfde regel als mspdiReader).
+    const dateSignal = [raw.startTs, raw.finishTs, raw.actualStartTs, raw.actualFinishTs]
+      .some(ts => ts != null && hasNonAnchorTime(formatInstant(ts, 'hour'), anchor));
     if (durSignal || dateSignal) cSignalCals.add(cal);
   }
   const hourModeCals = promoteCalendarsForHourMode(calResult.calendarByUniqueId, cSignalCals, calResult.fileHoursPerDay);
@@ -938,6 +940,8 @@ export function parseProjectProperties(
     // `src/types/project.ts`). Out-of-sequence-hervatting is veldgedreven: `task.time.resume`
     // (MPP-veld-id 99) is het signaal, er is geen projectvlag.
     schedulingProfile: builtInProfile('msproject'),
+    // Dezelfde grens als bij de opgeslagen speling, ook na F5 en IFC-opslag behouden.
+    schedulingOptions: { criticalDefinition: { mode: 'totalFloat', threshold: criticalSlackLimitDaysOf(props) } },
   };
 
   // Statusdatum mét tijd: MS Project bewaart hem op de standaard eindtijd (17:00 = einde van die
@@ -1616,7 +1620,6 @@ export function readMPP(bytes: Uint8Array, labels?: ImportLabels): ImportResult 
     cfb, taskFieldMap, resourceFieldMap, assignmentFieldMap,
     taskUniqueIds: new Set(taskIdByUniqueId.keys()),
     resourceUniqueIds: new Set(resourceIdByUniqueId.keys()),
-    criticalSlackLimitDays: criticalSlackLimitDaysOf(projectProps),
   });
 
   return {

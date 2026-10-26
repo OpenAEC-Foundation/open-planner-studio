@@ -221,7 +221,10 @@
     "msProjectLostFixedCosts_one": "De faste omkostninger for {{count}} opgave er ikke overtaget.",
     "msProjectLostFixedCosts_other": "De faste omkostninger for {{count}} opgaver er ikke overtaget.",
     "msProjectLostResourceRates_one": "Standardsatsen for {{count}} ressource er ikke overtaget.",
-    "msProjectLostResourceRates_other": "Standardsatserne for {{count}} ressourcer er ikke overtaget."
+    "msProjectLostResourceRates_other": "Standardsatserne for {{count}} ressourcer er ikke overtaget.",
+    "minuteModelConverted_one": "{{document}}: {{count}} opgave har efter konverteringen en anden start eller slutdato; den største forskydning er {{days}} arbejdsdage. Ctrl+Z gendanner de gemte datoer.",
+    "minuteModelConverted_other": "{{document}}: {{count}} opgaver har efter konverteringen en anden start eller slutdato; den største forskydning er {{days}} arbejdsdage. Ctrl+Z gendanner de gemte datoer.",
+    "minuteModelCalendarRepaired": "Kalender „{{calendar}}“ er repareret: slutningen eller pausen passede ikke til den gemte arbejdstid."
   },
   "scheduleErrors": {
     "cycle": "Cirkulær afhængighed mellem opgaver: {{path}}",
@@ -335,16 +338,17 @@
     "themeHighContrast": "Høj kontrast",
     "themeFollowSystem": "Følg systemtema",
     "themeSystemHint": "Følger farveskemaet på dit system (nu: {{theme}}).",
-    "hourPlanningSection": "Timeplanlægning",
-    "enableHourPlanning": "Slå timeplanlægning til",
-    "enableHourPlanningHint": "Slår time- og minutplanlægning til: en tidsskala med timer, arbejdsskift med arbejdstidsbånd og timepræcise opgavebjælker. Fra ⇒ appen er helt dagsbaseret som før.",
     "showTaskTypes": "Brug opgavetyper",
     "showTaskTypesHint": "Vælg per opgave, hvad der justeres, når varighed, tildelingsenheder eller arbejde ændres, som Task Type i MS Project og Duration Type i P6. Fra: varighed og tildelingsenheder bliver stående. En fil med opgavetyper eller gemt arbejde viser dem også, når dette er fra.",
     "allowMixedDayHour": "Tillad blandet dag/timeplanlægning",
     "defaultTaskDurationUnit": "Standardenhed for nye opgaver",
-    "defaultTaskDurationUnitHint": "Bestemmer, om nye opgaver som standard starter i arbejdsdage eller arbejdstimer. Eksisterende opgaver ændrer sig ikke.",
+    "defaultTaskDurationUnitHint": "Dagsenhed: en varighed tælles i arbejdsdage i kalenderen. Timeenhed: en varighed tælles i arbejdstimer. Eksisterende opgaver ændrer sig ikke. En opgave med fast arbejde har altid timeenheden.",
+    "defaultTaskDurationUnitDays": "Dagsenhed",
+    "defaultTaskDurationUnitHours": "Timeenhed",
+    "defaultTaskDurationUnitLocked": "Profilen {{profile}} regner en varighed i timer. Nye opgaver får derfor timeenheden.",
     "durationDisplay": "Varighedsvisning",
     "durationDisplayHint": "Bestemmer, hvordan opgavevarighed vises, uafhængigt af den enhed opgaven selv er registreret i.",
+    "durationDisplayOpsHint": "I OPS-profilen viser hver opgave sin egen enhed.",
     "durationDisplayAuto": "Automatisk (egen enhed pr. opgave)",
     "durationDisplayDays": "Altid dage",
     "durationDisplayHours": "Altid timer",
@@ -1116,10 +1120,6 @@
     "month": "måned",
     "year": "år"
   },
-  "hourData": {
-    "notice": "Denne fil indeholder timeplanlægning.",
-    "enable": "Slå timeplanlægning til"
-  },
   "recordedDates": {
     "activeCount_one": "Du ser tidsplanen, som Primavera gemte den; ved at genberegne forskydes {{count}} opgave.",
     "activeCount_other": "Du ser tidsplanen, som Primavera gemte den; ved at genberegne forskydes {{count}} opgaver.",
@@ -1483,6 +1483,14 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "ALAP-opgaver så sent som de efterfølgende opgaver tillader",
       "help": "Kun ved timeplanlægning, for en opgave der ikke er startet, som ikke er manuelt planlagt, og som har begrænsningen „så sent som muligt“ (ALAP). De tidligste datoer for dens efterfølgende opgaver bestemmer dens placering til præcis minut; efterfølgende opgaver regnes først. Dens egen planlagte start tæller ikke; foregående opgaver, statusdatoen og en anden begrænsning gælder stadig. Uden efterfølgende opgave bruger den sin seneste slutdato. ALAP-trinnet er tilgængeligt i alle profiler."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Løse milepæle ved arbejdsdagens slutning",
+      "help": "En løs milepæl eller en slutmilepæl uden foregående opgave placeres ved slutningen af dens arbejdsdag."
+    },
+    "workdayDurationMeasure": {
+      "label": "Varighed i arbejdsdage",
+      "help": "En varighed, forsinkelse eller resterende varighed i dage tælles i arbejdsdage: hver arbejdsdag tæller som 1, uanset hvor lang dagen er. Fra: en dag tæller som antallet af arbejdstimer pr. dag i kalenderen. En forsinkelse i procent følger enheden for den foregående opgave. Forløbet varighed tæller aldrig i arbejdsdage."
     }
   },
   "profiles": {
@@ -1521,6 +1529,7 @@
       "float": "Slæk og seneste datoer",
       "instants": "Datoer og tidspunkter fra filen",
       "msproject": "Fremdrift som i Microsoft Project",
+      "durations": "Varighed og enhed",
       "ownProfilesOnly": "Kun egne profiler"
     },
     "ownProfilesOnlyNote": "Disse konventioner er slået fra i alle indbyggede profiler, også i Primavera P6. Kun en egen beregningsprofil kan slå dem til. Vælg Ny profil for at gøre det.",

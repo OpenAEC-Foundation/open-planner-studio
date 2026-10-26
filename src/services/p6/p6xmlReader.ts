@@ -4,7 +4,7 @@ import { p6ConstraintFromCodeOrLabel } from './p6ConstraintTypes';
 import { Task, TaskConstraint, ConstraintType } from '@/types/task';
 import type { P6CompletePctType, P6DurationType } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
-import { effHoursPerDay, hourTaskScheduleDuration } from '@/utils/taskDuration';
+import { effHoursPerDay } from '@/utils/taskDuration';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, ResourceType, ResourceCurve } from '@/types/resource';
 import { Project } from '@/types/project';
@@ -13,6 +13,11 @@ import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { generateId } from '@/utils/id';
 import { parseInstant, localTodayIso, parseDate, formatDate, addCalendarDays } from '@/utils/dateUtils';
 import { UNNAMED_HOLIDAY_NAME, UNNAMED_WORKING_EXCEPTION_NAME } from '@/services/calendarRecurrence';
+import {
+  OPS_DAY_MEASURE_DURATIONS_NAME, OPS_DAY_MEASURE_LAGS_NAME, OPS_EXACT_MINUTES_NAME, OPS_LAG_CALENDAR_NAME,
+  dayMeasureMinutesPerDay, lagFromRecord, lagRecordHolds, lagRecordKey, lagWorkMinutesPerDay, normalizeKeepingDayRest,
+  parseFieldRecords, parseLagCalendarOption, parseLagRecords, readMeasure, type LagRecord,
+} from '@/services/xmlDayMeasure';
 import { normalizeImportedProgress, deriveImportedWorkRules, reconstructResourceIds } from '@/services/importNormalize';
 import { flattenOrder } from '@/utils/wbs';
 import { emptyMissingScheduleDates, importDateTimeOrUndefined, isoDatePrefixOrToday, parseImportedInstant, resolveMissingScheduleDates } from '@/services/importDates';
@@ -24,7 +29,7 @@ import type { CustomTaskType } from '@/types/taskType';
 import type { TaskTimephasedContour } from '@/types/task';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
-import { calendarForEngine } from '@/utils/effectiveWorkTime';
+import { calendarForEngine, seedScalarBands } from '@/utils/effectiveWorkTime';
 import { isFlatCurveValues, matchCurveValues, normalizeCurveValues } from '@/engine/contour/contourEngine';
 import { attachContours, axisOffsetMinutes, collectContour, p6SpreadToContourPeriods } from '@/services/contourIo';
 import { importedAssignmentRate, importedWorkFields } from '@/engine/work/workRuleMapping';
@@ -44,8 +49,8 @@ import {
   DAY_TIME_ANCHOR, decodeCustomTaskType, isTaskDurationUnit, OPS_DURATION_UNIT_NAME, statusDateFromXml,
 } from '@/services/xmlInterchange';
 import {
-  canonicalizeBands, clockToMinutes, hasNonAnchorTime, isSubDayMinutes,
-  promoteHourCalendars, registerCalendarBands,
+  canonicalizeBands, clockToMinutes, hasNonAnchorTime, isSubDayMinutes, opsDayWithBreak,
+  promoteHourCalendars, registerCalendarBands, sameBlocks,
 } from '@/services/subdayIo';
 
 // De rauwe-bandenregistry en `synth*BandsFromScalar` staan in subdayIo. P6_NAME_TO_CURVE (P6-curvenaam
@@ -168,9 +173,12 @@ const SEQUENCE_TYPE_BY_P6: Partial<Record<string, SequenceType>> = {
   ...invertRecord(P6_LINK_TYPE),
 };
 
+/** De twee duurvelden van P6 XML, zoals de writer ze als sleutel in de records gebruikt. */
+const P6_DURATION_FIELDS = { duration: 'PlannedDuration', remaining: 'RemainingDuration' } as const;
+
 function p6HoursToDays(hours: number, hoursPerDay: number): number {
   if (hoursPerDay <= 0) hoursPerDay = 8;
-  return Math.round(hours / hoursPerDay);
+  return hours / hoursPerDay;
 }
 
 /**
@@ -270,10 +278,38 @@ export function parseP6StandardWorkWeek(calEl: Element, alwaysLastMinute = false
   return { workDays, workStartHour, workEndHour, rawByWeekday };
 }
 
-/** Canonicaliseer de rauwe banden en registreer ze + de afwijking (a/b) op de kalender. */
-function registerP6Bands(cal: WorkCalendar, rawByWeekday: Partial<Record<1 | 2 | 3 | 4 | 5 | 6 | 7, { start: number; end: number }[]>>): void {
+/** Canonicaliseer de rauwe banden en registreer ze + de afwijking (a/b) op de kalender.
+ *
+ *  Dagkalender met pauze uit een eigen export (`writtenByOps`): de writer zet de effectieve blokken van
+ *  een dagkalender (`effectiveWorkTimeBands`, met de pauze) op elke werkdag. Die twee blokken zijn dan
+ *  geen afwijking: de kalender blijft een dagkalender, met begin, einde en uren per dag op de minuut, en
+ *  de pauzevelden als de afleiding zonder pauzevelden (`seedScalarBands`) andere blokken geeft. Zoals de
+ *  MSPDI-lezer (`applyCalendarBody`). Alleen als de netto blokken gelijk zijn aan `HoursPerDay` uit het
+ *  bestand: anders kan de dagkalender de blokken niet dragen, en blijft het een uurkalender. */
+function registerP6Bands(
+  cal: WorkCalendar,
+  rawByWeekday: Partial<Record<1 | 2 | 3 | 4 | 5 | 6 | 7, { start: number; end: number }[]>>,
+  writtenByOps: boolean,
+  fileHoursPerDay: number,
+): void {
   const { bands, deviates } = canonicalizeBands(rawByWeekday);
-  registerCalendarBands(cal, { canonical: bands, deviates });
+  const dayWithBreak = writtenByOps ? opsDayWithBreak(bands) : undefined;
+  const netHours = dayWithBreak
+    ? ((dayWithBreak[0].end - dayWithBreak[0].start) + (dayWithBreak[1].end - dayWithBreak[1].start)) / 60
+    : undefined;
+  const keepDay = dayWithBreak !== undefined && netHours !== undefined
+    && (fileHoursPerDay <= 0 || Math.abs(fileHoursPerDay - netHours) < 1e-9);
+  if (keepDay) {
+    const [first, second] = dayWithBreak;
+    cal.workStartHour = first.start / 60;
+    cal.workEndHour = second.end / 60;
+    cal.hoursPerDay = netHours;
+    if (!sameBlocks(seedScalarBands(first.start, second.end, netHours), dayWithBreak)) {
+      cal.simpleBreakStartMinute = first.end;
+      cal.simpleBreakDurationMinutes = second.start - first.end;
+    }
+  }
+  registerCalendarBands(cal, { canonical: bands, deviates: deviates && !keepDay });
 }
 
 /** Feestdagen/exceptions teruglezen (spiegel van `writeHolidayOrExceptions`).
@@ -596,6 +632,18 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
     if (objectId >= 0) durationUnitUdfIds.add(objectId);
   }
   const writtenByOps = durationUnitUdfIds.size > 0;
+  // De maatrecords (T21, T14; `xmlDayMeasure.ts`): Activity-Text-UDF's met een OPS-titel. De definitie van
+  // `OPS_DayMeasureDurations` zegt ook dat de writer de dagenmaat in de werktijd per dag schreef (T13);
+  // zonder die definitie (OPS tot en met F5a-1) telt een dag de opgeslagen `HoursPerDay`.
+  const recordUdfIds = (title: string): Set<number> => new Set(scopedElements(scope, 'UDFType')
+    .filter(el => getElementText(el, 'SubjectArea') === 'Activity' && getElementText(el, 'DataType') === 'Text'
+      && getElementText(el, 'Title') === title)
+    .map(el => getElementInt(el, 'ObjectId', -1))
+    .filter(id => id >= 0));
+  const dayMeasureDurationUdfIds = recordUdfIds(OPS_DAY_MEASURE_DURATIONS_NAME);
+  const exactMinutesUdfIds = recordUdfIds(OPS_EXACT_MINUTES_NAME);
+  const dayMeasureLagUdfIds = recordUdfIds(OPS_DAY_MEASURE_LAGS_NAME);
+  const workdayIsWorkTime = dayMeasureDurationUdfIds.size > 0;
   const lastMinute = p6FinishUsesLastMinute(scope.root, writtenByOps);
 
   // Projectkalender: de kalender die het project als standaard voor activiteiten aanwijst
@@ -605,7 +653,7 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
   const defaultCalObjId = scope.project ? getElementInt(scope.project, 'ActivityDefaultCalendarObjectId', -1) : -1;
   const projectCalEl = calElements.find(el => defaultCalObjId >= 0 && getElementInt(el, 'ObjectId', -1) === defaultCalObjId)
     ?? calElements[0];
-  const calendar = projectCalEl ? readP6Calendar(projectCalEl, lastMinute) : createDefaultCalendar();
+  const calendar = projectCalEl ? readP6Calendar(projectCalEl, lastMinute, writtenByOps) : createDefaultCalendar();
   // Een eigen, geldige `HoursPerDay` per kalender; hij gaat na de uur-promotie terug (zie daar).
   const fileHoursPerDay = new Map<WorkCalendar, number>();
   const noteFileHoursPerDay = (cal: WorkCalendar, calEl: Element): void => {
@@ -614,7 +662,6 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
   };
   if (projectCalEl) noteFileHoursPerDay(calendar, projectCalEl);
   const projectCalObjId = projectCalEl ? getElementInt(projectCalEl, 'ObjectId', -1) : -1;
-  const hoursPerDay = calendar.hoursPerDay;
 
   // Bibliotheekkalenders (taak- en resourcekalenders): elke andere <Calendar> met Type=Resource
   // (zo schrijft de eigen writer ze), plus elke andere kalender waar een activiteit of resource van
@@ -632,7 +679,7 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
     const objId = getElementInt(calEl, 'ObjectId', -1);
     if (objId < 0 || objId === projectCalObjId || calObjIdToId.has(objId)) continue;
     if (getElementText(calEl, 'Type') !== 'Resource' && !referencedCalObjIds.has(objId)) continue;
-    const cal = readP6Calendar(calEl, lastMinute);
+    const cal = readP6Calendar(calEl, lastMinute, writtenByOps);
     noteFileHoursPerDay(cal, calEl);
     cal.id = generateId('rescal');
     calObjIdToId.set(objId, cal.id);
@@ -703,6 +750,21 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
 
   // Parse project
   const project = parseProject(scope.project);
+  // De lagkalender (I7) staat in de project-UDF `OPS_LagCalendar`. Zonder die waarde rekent de lezer met
+  // de standaard (de voorganger); een lagrecord dat met een andere lagkalender is geschreven, telt dan niet
+  // (`lagRecordHolds`; review #585 r1, punt 1).
+  const lagCalendarUdfIds = new Set(scopedElements(scope, 'UDFType')
+    .filter(el => getElementText(el, 'SubjectArea') === 'Project' && getElementText(el, 'DataType') === 'Text'
+      && getElementText(el, 'Title') === OPS_LAG_CALENDAR_NAME)
+    .map(el => getElementInt(el, 'ObjectId', -1))
+    .filter(objectId => objectId >= 0));
+  const lagCalendarUdf = scope.project && lagCalendarUdfIds.size > 0
+    ? directChildrenByLocalName(scope.project, 'UDF').find(el => lagCalendarUdfIds.has(getElementInt(el, 'TypeObjectId', -1)))
+    : undefined;
+  const lagCalendarOption = lagCalendarUdf ? parseLagCalendarOption(getElementText(lagCalendarUdf, 'TextValue')) : undefined;
+  if (lagCalendarOption) project.schedulingOptions = { ...project.schedulingOptions, lagCalendar: lagCalendarOption };
+  /** De effectieve kalender per taak (na de uur-promotie), voor de lagkalender van een lagrecord. */
+  const effCalByTaskId = new Map<string, WorkCalendar>();
   // Ontbrekende geplande datums (gedeelde regel `resolveMissingScheduleDates`, vóór de voortgang-
   // invarianten). Zonder <PlannedStartDate> op het project dragen ook de WBS-samenvattingen (die op
   // de projectstart worden aangemaakt) de vandaag-plaatshouder — die tellen dan mee als ontbrekend.
@@ -786,7 +848,6 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
   const actObjIdToId = new Map<number, string>();
   const leafTasks: Task[] = [];
   const customTaskTypes = new Map<string, CustomTaskType>();
-  const taskHourById = new Map<string, boolean>(); // taak-id → uur-modus (voor lag-eenheid)
 
   // UDF-waarden per activiteit. Echte P6 (en de writer sinds 2026-10) zet ze IN de activiteit
   // (`<UDF><TypeObjectId/><TextValue/></UDF>`); oudere OPS-exports schreven losse `<UDFValue>`-
@@ -826,7 +887,7 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
   // PlannedDuration is in P6 altijd een hoeveelheid uren en zegt dus niet of OPS die taak als
   // werkdagen of als exacte werkuren moet behandelen. Alleen onze exact benoemde Activity-Text-UDF
   // is expliciet (`durationUnitUdfIds`, bovenaan); zonder definitie blijven vreemde/legacy bestanden
-  // op de bestaande kalenderprecisie-regel.
+  // altijd op de urenmaat (T15).
   const explicitUnitByActivityObjectId = new Map<number, 'days' | 'hours'>();
   for (const entry of udfEntries) {
     if (!durationUnitUdfIds.has(entry.typeObjId)) continue;
@@ -834,6 +895,17 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
       explicitUnitByActivityObjectId.set(entry.activityObjId, entry.text);
     }
   }
+  // De tekst van de maatrecords per activiteit (de eerste waarde per soort).
+  const recordTextByActivity = (ids: ReadonlySet<number>): Map<number, string> => {
+    const out = new Map<number, string>();
+    for (const entry of udfEntries) {
+      if (ids.has(entry.typeObjId) && entry.activityObjId >= 0 && !out.has(entry.activityObjId)) out.set(entry.activityObjId, entry.text);
+    }
+    return out;
+  };
+  const dayMeasureDurationText = recordTextByActivity(dayMeasureDurationUdfIds);
+  const exactMinutesText = recordTextByActivity(exactMinutesUdfIds);
+  const dayMeasureLagText = recordTextByActivity(dayMeasureLagUdfIds);
 
   // Taakbeschrijving: oudere OPS-exports schreven `<Description>` op de activiteit (geen
   // schemaveld); de writer schrijft sinds 2026-10 een `<ActivityNote>` onder het notitieonderwerp
@@ -855,6 +927,13 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
   const calById = new Map<string, WorkCalendar>([calendar, ...resourceCalendars].map(c => [c.id, c]));
   const effCalIdOf = (calObjId: number): string => calObjIdToId.get(calObjId) ?? calendar.id;
 
+  // Werkelijke datums. `Not Started` wint van werkelijke datums (zoals het percentage,
+  // `p6ActivityCompletionPercent`): sommige tools vullen ActualStart/Finish met een vuldatum
+  // (aspose_p6_multiproject: 2000-01-01), en dan opende elke niet-gestarte taak als 100 % klaar. Bij een
+  // OPS-export is de status geen bron. Dezelfde regel geldt voor de uur-modus-beslissing hieronder.
+  const actualDateRaw = (actEl: Element, field: 'ActualStartDate' | 'ActualFinishDate'): string =>
+    !writtenByOps && getElementText(actEl, 'Status').trim() === 'Not Started' ? '' : getElementText(actEl, field);
+
   const cSignalCalIds = new Set<string>();
   for (const actEl of activityElements) {
     const calId = effCalIdOf(getElementInt(actEl, 'CalendarObjectId', -1));
@@ -862,15 +941,28 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
     if (!cal) continue;
     const durHours = getElementFloat(actEl, 'PlannedDuration');
     const durSignal = durHours > 0 && isSubDayMinutes(Math.round(durHours * 60), cal.hoursPerDay);
-    const dateSignal = ['PlannedStartDate', 'PlannedFinishDate'].some(field => {
-      const raw = getElementText(actEl, field);
-      return hasNonAnchorTime(raw, DAY_TIME_ANCHOR) && importDateTimeOrUndefined(raw, true) !== undefined;
-    });
+    // Ook een werkelijke datum met een eigen tijd telt: een feit uit de bron. Anders blijft de kalender
+    // scalair, kapt de lezer "11:00" af tot de datum, en maakt de laadnormalisatie er 16:00 van (review
+    // ronde 3 van PR #559, deel B: een voltooide eindmijlpaal met geplande datums op het anker).
+    const dateSignal = [
+      getElementText(actEl, 'PlannedStartDate'),
+      getElementText(actEl, 'PlannedFinishDate'),
+      actualDateRaw(actEl, 'ActualStartDate'),
+      actualDateRaw(actEl, 'ActualFinishDate'),
+    ].some(raw => hasNonAnchorTime(raw, DAY_TIME_ANCHOR) && importDateTimeOrUndefined(raw, true) !== undefined);
     if (durSignal || dateSignal) cSignalCalIds.add(calId);
   }
   // P6 valt terug op de scalar-synth zodra de geregistreerde canonical geen werkdag draagt
   // (preferCanonicalWhenEmpty = false) — zie `promoteHourCalendar`.
   const hourModeCalIds = promoteHourCalendars(calById, id => cSignalCalIds.has(id), false);
+  // Een uurkalender rekent met zijn blokken; de pauzevelden van een dagkalender met pauze
+  // (`registerP6Bands`) horen daar niet bij.
+  for (const id of hourModeCalIds) {
+    const promoted = calById.get(id);
+    if (!promoted) continue;
+    delete promoted.simpleBreakStartMinute;
+    delete promoted.simpleBreakDurationMinutes;
+  }
   // Een eigen `HoursPerDay` uit het bestand (authoritatief, zie `readP6Calendar`) gaat na de promotie
   // terug, zoals bij XER en IFC: de omrekening tussen dagen en uren mag afwijken van de blokken.
   for (const [cal, fileHpd] of fileHoursPerDay) cal.hoursPerDay = fileHpd;
@@ -911,12 +1003,13 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
     // Uur- vs dag-modus voor deze taak.
     const effCalId = effCalIdOf(calObjId);
     const explicitUnit = explicitUnitByActivityObjectId.get(objId);
-    const isHour = explicitUnit ? explicitUnit === 'hours' : hourModeCalIds.has(effCalId);
+    const isHour = explicitUnit !== 'days';
     // Datumprecisie volgt de KALENDER, niet de duureenheid — zoals mspdiReader en de IFC-lezer: een
     // dagtaak op een urenkalender blijft een dagtaak (eenheid uit de OPS-marker), maar haar datums
     // (ook de actuals) houden hun echte tijd.
     const hourDates = hourModeCalIds.has(effCalId);
     const effCal = calById.get(effCalId) ?? calendar;
+    effCalByTaskId.set(id, effCal);
     const effHpd = effCal.hoursPerDay;
     // Datum-parser: uur ⇒ echte tijd (`parseInstant`+`formatInstant`), dag ⇒ tijd-strippen.
     const parseTaskDate = (raw: string): string | undefined => importDateTimeOrUndefined(raw, hourDates);
@@ -929,7 +1022,7 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
     if (sourceFinish === undefined) missingDates.finish.add(id);
 
     {
-      const recordedDate = (raw: string): string | undefined => importDateTimeOrUndefined(raw, isHour);
+      const recordedDate = (raw: string): string | undefined => importDateTimeOrUndefined(raw, hourDates);
       const floatDays = (raw: string): number | undefined => {
         if (!raw) return undefined;
         const hours = Number.parseFloat(raw);
@@ -953,27 +1046,39 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
       if (recorded) recordedTimes[id] = recorded;
     }
 
-    // Actuals — leeg ⇒ undefined (invarianten via normalizeImportedProgress).
-    // `Not Started` wint van werkelijke datums (zoals het percentage, `p6ActivityCompletionPercent`):
-    // sommige tools vullen ActualStart/Finish met een vuldatum (aspose_p6_multiproject: 2000-01-01),
-    // en dan opende elke niet-gestarte taak als 100 % klaar. Bij een OPS-export is de status geen bron.
-    const notStarted = !writtenByOps && getElementText(actEl, 'Status').trim() === 'Not Started';
-    const actualStartRaw = notStarted ? '' : getElementText(actEl, 'ActualStartDate');
-    const actualFinishRaw = notStarted ? '' : getElementText(actEl, 'ActualFinishDate');
+    // Actuals — leeg ⇒ undefined (invarianten via normalizeImportedProgress). `Not Started` wint:
+    // zie `actualDateRaw`.
+    const actualStartRaw = actualDateRaw(actEl, 'ActualStartDate');
+    const actualFinishRaw = actualDateRaw(actEl, 'ActualFinishDate');
     const remainingRaw = getElementText(actEl, 'RemainingDuration');
     const actualStart = parseTaskDate(actualStartRaw);
     const actualFinish = parseTaskDate(actualFinishRaw);
-    // RemainingDuration: uur ⇒ minuten (`uren × 60`, geen afronding); dag ⇒ het dag-pad.
-    const remainingMinutes = isHour && remainingRaw ? Math.round(parseFloat(remainingRaw) * 60) : undefined;
-    // Zelfde `effHpd` als de duur hieronder — symmetrisch met de writer.
-    const remainingTime = !isHour && remainingRaw ? p6HoursToDays(parseFloat(remainingRaw), effHpd) : undefined;
-
-    // Duur: uur ⇒ minuten (`uren × 60`) als bron van waarheid, dagengetal via
-    // `hourTaskScheduleDuration`; dag ⇒ `Math.round(uren/hpd)` met de opgeslagen `HoursPerDay`.
-    const durationMinutes = isHour ? Math.round(plannedDuration * 60) : undefined;
-    const durationDays = isHour
-      ? hourTaskScheduleDuration(durationMinutes!, effCal)
-      : p6HoursToDays(plannedDuration, effHpd);
+    // Duur en rest (alleen uren §3.10; `readMeasure`). Urenmaat ⇒ minuten (`uren × 60`, op de hele minuut)
+    // als bron van waarheid, dagengetal via `hourTaskScheduleDuration`; een `OPS_ExactMinutes`-record geeft
+    // een breuk in minuten terug. Dagenmaat (OPS-markering `days`) ⇒ het record `[dagen, minuten]` zolang
+    // de duur nog de geschreven minuten draagt, anders minuten ÷ minuten per dag. Een dag is de werktijd
+    // per dag (T13), of in een ouder OPS-bestand de opgeslagen `HoursPerDay`. Rest en duur gebruiken
+    // dezelfde dag, symmetrisch met de writer.
+    const dayHoursPerDay = workdayIsWorkTime ? dayMeasureMinutesPerDay(effCal, false) / 60 : effHpd;
+    const markerUnit = isHour ? 'hours' : 'days';
+    const remainingHours = remainingRaw ? parseFloat(remainingRaw) : NaN;
+    const hasRemaining = Number.isFinite(remainingHours);
+    const measure = readMeasure({
+      unit: markerUnit,
+      durationMinutes: plannedDuration * 60,
+      // Zonder geldig record: uren ÷ uren per dag, zoals voorheen (`p6HoursToDays`).
+      durationDays: p6HoursToDays(plannedDuration, dayHoursPerDay),
+      remainingMinutes: hasRemaining ? remainingHours * 60 : undefined,
+      ...(hasRemaining ? { remainingDays: p6HoursToDays(remainingHours, dayHoursPerDay) } : {}),
+      minutesPerDay: (dayHoursPerDay > 0 ? dayHoursPerDay : 8) * 60,
+      calendar: effCal,
+      dayRecords: markerUnit === 'days' ? parseFieldRecords(dayMeasureDurationText.get(objId), P6_DURATION_FIELDS) : {},
+      exactRecords: markerUnit === 'hours' ? parseFieldRecords(exactMinutesText.get(objId), P6_DURATION_FIELDS) : {},
+    });
+    const remainingMinutes = measure.remainingMinutes;
+    const remainingTime = measure.remainingTime;
+    const durationMinutes = measure.durationMinutes;
+    const durationDays = measure.scheduleDuration;
     const isMilestone = p6Type.includes('Milestone');
     // P6 onderscheidt Start/Finish Milestone — bewaar de soort expliciet.
     const milestoneKind = !isMilestone ? undefined
@@ -1027,8 +1132,9 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
       ...(constraint ? { constraint } : {}),
       ...(constraint2 ? { constraint2 } : {}),
       time: {
-        durationType: 'WORKTIME',
-        durationUnit: isHour ? 'hours' : 'days',
+        // P6 kent geen kalendertijd per activiteit; een geldig OPS-record met `ed`/`eu` zegt het wel.
+        durationType: measure.durationType ?? 'WORKTIME',
+        durationUnit: measure.durationUnit,
         scheduleDuration: durationDays,
         ...(durationMinutes != null ? { durationMinutes } : {}),
         scheduleStart: plannedStart,
@@ -1051,7 +1157,6 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
     };
 
     leafTasks.push(task);
-    taskHourById.set(id, isHour);
 
     // Add to parent's children
     if (parentId) {
@@ -1072,8 +1177,9 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
   project.startDate = resolveMissingScheduleDates(tasks, missingDates, projectStartRaw ? project.startDate : '',
     (task) => resolveCalendar(task.calendarId, resourceCalendars, calendar));
 
-  // Voortgang-invarianten op de rauw ingelezen actuals.
-  normalizeImportedProgress(tasks, project.statusDate);
+  // Voortgang-invarianten op de rauw ingelezen actuals. De vastgelegde rest van een taak in de dagenmaat
+  // blijft exact (B3), zoals de restminuten van een urentaak.
+  normalizeKeepingDayRest(tasks, () => normalizeImportedProgress(tasks, project.statusDate));
   deriveImportedWorkRules(tasks); // werkregel uit <DurationType>
 
   // Parse relationships
@@ -1084,6 +1190,25 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
   // relaties zijn daar nooit solverinvoer). Hij telt mee in het verslag.
   const crossProjectRelations = new Set<string>();
   const ownProjectObjId = scope.projectObjectId;
+  // De lagrecords (T21) staan als één UDF op de opvolger, met als sleutel voorganger-ObjectId plus
+  // relatietype. Een sleutel die bij één opvolger twee keer voorkomt, is dubbelzinnig en telt niet.
+  const lagKeyOf = (relEl: Element): string => lagRecordKey(getElementInt(relEl, 'PredecessorActivityObjectId', -1),
+    SEQUENCE_TYPE_BY_P6[getElementText(relEl, 'Type')] ?? 'FINISH_START');
+  const lagKeyCount = new Map<string, number>();
+  for (const relEl of relElements) {
+    const key = `${getElementInt(relEl, 'SuccessorActivityObjectId', -1)}>${lagKeyOf(relEl)}`;
+    lagKeyCount.set(key, (lagKeyCount.get(key) ?? 0) + 1);
+  }
+  const lagRecordsBySuccessor = new Map<number, Map<string, LagRecord>>();
+  const lagRecordOf = (relEl: Element, succObjId: number): LagRecord | undefined => {
+    if (lagKeyCount.get(`${succObjId}>${lagKeyOf(relEl)}`) !== 1) return undefined;
+    let records = lagRecordsBySuccessor.get(succObjId);
+    if (!records) {
+      records = parseLagRecords(dayMeasureLagText.get(succObjId));
+      lagRecordsBySuccessor.set(succObjId, records);
+    }
+    return records.get(lagKeyOf(relEl));
+  };
   for (const relEl of relElements) {
     const predObjId = getElementInt(relEl, 'PredecessorActivityObjectId', -1);
     const succObjId = getElementInt(relEl, 'SuccessorActivityObjectId', -1);
@@ -1104,16 +1229,22 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
     const p6Type = getElementText(relEl, 'Type');
     const lagHours = getElementFloat(relEl, 'Lag');
 
-    // Een uur-opvolger ⇒ lag minuut-precies (`uren × 60`, geen dag-afronding); anders het dag-pad.
-    const lagHourMode = taskHourById.get(succId) ?? false;
+    // P6 bewaart lag in uren; de opvolgereenheid verandert die lengte niet (I5). Een lagrecord geeft de
+    // dagenmaat (of de kalendertijd, die P6 per relatie niet kent) terug, zolang `Lag` nog de geschreven
+    // minuten draagt; anders is de lag urenmaat (T21, T15).
+    const record = lagRecordOf(relEl, succObjId);
     const seq: Sequence = {
       id: generateId('seq'),
       predecessorId: predId,
       successorId: succId,
       type: SEQUENCE_TYPE_BY_P6[p6Type] ?? 'FINISH_START',
-      lagDays: lagHourMode ? 0 : p6HoursToDays(lagHours, hoursPerDay),
+      lagDays: 0,
     };
-    if (lagHourMode) seq.lagMinutes = Math.round(lagHours * 60);
+    if (lagRecordHolds(record, lagHours * 60, lagWorkMinutesPerDay(seq, lagCalendarOption, calendar, effCalByTaskId))) {
+      Object.assign(seq, lagFromRecord(record));
+    } else {
+      seq.lagMinutes = Math.round(lagHours * 60);
+    }
     sequences.push(seq);
   }
 
@@ -1330,7 +1461,7 @@ function parseProject(projEl: Element | null): Project {
  * Eén P6-<Calendar> → WorkCalendar. `lastMinute`: de eindtijdregel van het hele bestand
  * (`p6FinishUsesLastMinute`).
  */
-function readP6Calendar(calEl: Element, lastMinute = false): WorkCalendar {
+function readP6Calendar(calEl: Element, lastMinute = false, writtenByOps = false): WorkCalendar {
   const calendar = createDefaultCalendar();
   calendar.name = getElementText(calEl, 'Name') || calendar.name;
   // P6 kent geen regelset-herkomst — createDefaultCalendar() zet 'm altijd; een uit P6 gelezen
@@ -1346,7 +1477,7 @@ function readP6Calendar(calEl: Element, lastMinute = false): WorkCalendar {
   if (ww.workDays.length > 0) calendar.workDays = ww.workDays.sort((a, b) => a - b);
   if (ww.workStartHour !== undefined) calendar.workStartHour = ww.workStartHour;
   if (ww.workEndHour !== undefined) calendar.workEndHour = ww.workEndHour;
-  registerP6Bands(calendar, ww.rawByWeekday);
+  registerP6Bands(calendar, ww.rawByWeekday, writtenByOps, hpd);
 
   // Een kalender met een eigen werkweek is een volledige P6-kalender: zonder uitzonderingen heeft hij
   // géén feestdagen. De NL-feestdagen van `createDefaultCalendar()` blijven alleen staan bij een kale

@@ -9,6 +9,12 @@ import { descendantLeaves, summaryProgressOf, taskWorkDays, writeSummaryProgress
 import { finishInstant, latestFinish } from '@/utils/taskDates';
 import { minOf } from '@/utils/collections';
 
+/** `minOf` over velden die kunnen ontbreken: ontbreekt er één (of is de lijst leeg), dan `undefined`. */
+function minOfDefined(values: (number | undefined)[]): number | undefined {
+  if (values.length === 0 || values.some(v => v === undefined)) return undefined;
+  return minOf(values as number[]);
+}
+
 /**
  * Schrijf een CPM-resultaat terug op de taken: per blad de berekende velden, daarna de
  * verzameltaak-rollup.
@@ -64,7 +70,7 @@ function applyDerivedSummaryDuration(task: Task, engine: CalendarEngine): void {
   // `workDaysBetween` beide kalenderdagen inclusief, dus daar blijft het de dagstart.
   const ef = engine.isHourMode ? finishInstant(task.time.earlyFinish) : parseInstant(task.time.earlyFinish);
   if (Number.isNaN(es.getTime()) || Number.isNaN(ef.getTime())) return;
-  writeDerivedSpan(task, es, ef, engine);
+  writeDerivedSpan(task, es, ef, engine, true);
 }
 
 export function applyCpmResult(tasks: Task[], result: CPMResult, cals: ApplyCpmCalendars): void {
@@ -77,6 +83,9 @@ export function applyCpmResult(tasks: Task[], result: CPMResult, cals: ApplyCpmC
     task.time.lateFinish = r.lateFinish;
     task.time.totalFloat = r.totalFloat;
     task.time.freeFloat = r.freeFloat;
+    // Alleen uren §3.4: de speling in minuten (bron); afwezig in het resultaat ⇒ het veld wissen.
+    task.time.totalFloatMinutes = r.totalFloatMinutes;
+    task.time.freeFloatMinutes = r.freeFloatMinutes;
     task.time.isCritical = r.isCritical;
     // Analyse-afleidingen. `interferingFloat` is ALTIJD aanwezig (tf−ff);
     // `isNearCritical`/`floatPath` alleen wanneer de bijbehorende optie draait — afwezig ⇒ het veld
@@ -206,6 +215,8 @@ export function rollupSummaryTasks(
       task.time.lateFinish = finish;
       task.time.totalFloat = 0;
       task.time.freeFloat = 0;
+      task.time.totalFloatMinutes = 0;
+      task.time.freeFloatMinutes = 0;
       task.time.interferingFloat = 0;
       task.time.isCritical = children.some(c => c.time.isCritical);
       return;
@@ -230,6 +241,9 @@ export function rollupSummaryTasks(
       // Een verzameltaak kan maar zo veel opschuiven als zijn krapste kind: min over de kinderen.
       task.time.totalFloat = minOf(children.map(c => c.time.totalFloat));
       task.time.freeFloat = minOf(children.map(c => c.time.freeFloat));
+      // Alleen uren §3.4: dezelfde rollup in minuten, alleen als elk kind minuten draagt.
+      task.time.totalFloatMinutes = minOfDefined(children.map(c => c.time.totalFloatMinutes));
+      task.time.freeFloatMinutes = minOfDefined(children.map(c => c.time.freeFloatMinutes));
       // Interfererende speling op de samenvatting = tf−ff — houdt de
       // invariant ook op verzameltaken en vult de kolom voor WBS-rijen.
       task.time.interferingFloat = task.time.totalFloat - task.time.freeFloat;
