@@ -35,6 +35,27 @@ test('document-plus kiest eerst nieuw of bestaand; annuleren verandert geen docu
     expect((await state(page)).tasks).toEqual(before.tasks);
     await toast.locator('[data-ops-toast-close]').click();
   }
+  // Onbekende XML: Engelse technische details, maar een vertaalde melding voor de planner.
+  ops.acceptError(/Failed to open file:.*Unknown XML format/);
+  for (const [locale, message] of [
+    ['nl', 'Onbekend XML-planningsformaat. Open een MS Project-XML (Project) of Primavera P6-XML (APIBusinessObjects).'],
+    ['en', 'Unknown XML schedule format. Open an MS Project XML (Project) or Primavera P6 XML (APIBusinessObjects).'],
+  ] as const) {
+    await page.evaluate(async (lang) => {
+      const modulePath = '/src/i18n/config.ts';
+      const { setLocale } = await import(/* @vite-ignore */ modulePath);
+      await setLocale(lang);
+    }, locale);
+    const chooser = page.waitForEvent('filechooser');
+    await page.locator('button.ribbon-btn').filter({ hasText: /^(Open|Openen)$/ }).click();
+    await (await chooser).setFiles({ name: 'lijst.xml', mimeType: 'application/xml', buffer: Buffer.from('<Lijst/>') });
+    const toast = page.locator('.ops-toast', { hasText: message });
+    await expect(toast).toBeVisible();
+    await expect(toast).toContainText('Unknown XML format:');
+    expect((await state(page)).documentIds).toEqual(before.documentIds);
+    expect((await state(page)).tasks).toEqual(before.tasks);
+    await toast.locator('[data-ops-toast-close]').click();
+  }
   await open(planning);
   await expect.poll(() => state(page).then(s => s.tasks.length)).toBeGreaterThan(0);
 });
