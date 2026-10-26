@@ -95,7 +95,7 @@ If you set the bricklayer's *Max units* to 2, there is no overallocation any mor
 
 **Material is not leveled.** If material asks more than its capacity on a day, the app reports that as overallocation, but leveling leaves it.
 
-**Pinned tasks.** If all tasks that clash are on priority 1000, the window reports *No tasks need to move — the schedule is already conflict-free.*, while the overallocation stays. So after applying, look at the *Overallocation* message in the ribbon.
+**Pinned tasks.** Tasks at priority 1000 do not move for capacity. Their remaining overallocation is reported per task and conflict day. Change the priority, demand or capacity to resolve it. Also check *Overallocation* in the ribbon after applying.
 
 ## See also
 

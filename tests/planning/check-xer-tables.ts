@@ -1,3 +1,4 @@
+import { decodeWindows1252 } from '@/utils/windows1252';
 import {
   parseXerNumber,
   parseXerTables,
@@ -301,6 +302,38 @@ eq('8 TASK zonder verplichte P6-kolommen is getypeerd fataal', caughtXerError(()
   table: 'TASK',
   missingColumns: ['proj_id', 'task_code'],
 });
+
+// Knownbug 90: geen testskip op een afwijkende ICU-build. Alle bytes hebben een vaste mapping.
+{
+  const special = '€\u0081‚ƒ„…†‡ˆ‰Š‹Œ\u008dŽ\u008f\u0090‘’“”•–—˜™š›œ\u009džŸ';
+  const expected = Array.from({ length: 256 }, (_, byte) =>
+    byte >= 0x80 && byte <= 0x9f ? special[byte - 0x80] : String.fromCharCode(byte)).join('');
+  const bytes = Uint8Array.from({ length: 256 }, (_, i) => i);
+  eq('90 alle 256 bytewaarden volgen de vaste CP1252-tabel', decodeWindows1252(bytes), expected);
+  eq('90 lege invoer', decodeWindows1252(new Uint8Array()), '');
+  eq('90 subarray respecteert de bytegrenzen', decodeWindows1252(bytes.subarray(0x7f, 0xa1)),
+    '\u007f' + special + '\u00a0');
+  const large = Uint8Array.from({ length: 256 * 1025 }, (_, i) => i % 256);
+  eq('90 grote invoer blijft exact over chunkgrenzen', decodeWindows1252(large), expected.repeat(1025));
+
+  const NativeDecoder = globalThis.TextDecoder;
+  let cp1252Calls = 0;
+  globalThis.TextDecoder = class extends NativeDecoder {
+    constructor(label = 'utf-8', options?: TextDecoderOptions) {
+      if (label === 'windows-1252') { cp1252Calls++; throw new Error('nagebootste defecte ICU-decoder'); }
+      super(label, options);
+    }
+  };
+  try {
+    const encoded = windows1252(['ERMHDR\t23.12', '%T\tPROJECT', '%F\tproj_id\tproj_name',
+      '%R\tP1\tCafé \u0080 \u0093tekst\u0094', '%E'].join('\n'));
+    eq('90 echte XER-parser behoudt euro/aanhalingstekens ondanks defecte systeemdecoder',
+      encodingOutcome(encoded), { encoding: 'windows-1252', name: 'Café € “tekst”' });
+    eq('90 XER gebruikt de defecte CP1252-decoder niet', cp1252Calls, 0);
+  } finally {
+    globalThis.TextDecoder = NativeDecoder;
+  }
+}
 
 const encodingText = [
   'ERMHDR\t23.12',
