@@ -416,14 +416,6 @@ en noem het in je rapport of PR-tekst.
     `gh api --method PATCH repos/OpenAEC-Foundation/open-planner-studio/pulls/479 -F body=@<bestand>`.
     Voorstel: de GitHub CLI op de host bijwerken; de repo zelf is niet aangepast hiervoor. — B
 
-204. **`headless-api.yml` meldt "token staat in de log" als het image niet bouwt.** De stap *Logs bevatten
-    geen token en geen IFC-inhoud* draait ook na een mislukte stap *Image bouwen*. Dan bestaat er geen
-    container, en `grep -qF "$OPS_API_TOKEN"` vindt een treffer in de foutmelding van Docker, zodat de job
-    een tweede, misleidende fout geeft. Gezien op PR #567, run 39950724242 (job *container + smoke-test*),
-    waar de echte oorzaak een ontbrekend bestand in de Dockerfile was. Voorstel: de stap alleen draaien als
-    de container bestaat, of eerst controleren dat het token niet leeg is. Niet onderzocht waarom het
-    token-grep matcht. — S
-
 208. **`scripts/build-core.mjs` bouwt de licentiegegevens onnodig om.** `scripts/build-core.mjs:138–148` zet
     de pakketnamen om in een `Map` en de sectietekst in een array met één element; `notices.packages.join(',
     ')` en `notices.sections` volstaan. Gevonden in review ronde 1 van PR #567 (GPT-6.1-Sol). — B
