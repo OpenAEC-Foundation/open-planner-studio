@@ -27,7 +27,7 @@ const report = {
   timing: 'Helper: één aanroep. Browser: eerste echte input/keydown tot twee rAFs na de verwachte DOM-lijst; één fill-input of Ctrl+A/Backspace. CDP uit tijdens tijden.',
   warmups: { helper: 2, browser: 1 }, repeats: { helper: 9, browser: 5 },
   harnessHashes: Object.fromEntries(['measure.mjs', 'fixture.mjs'].map(name => [name, hash(readFileSync(new URL(name, import.meta.url)))])),
-  sides: [], helper: [], browser: [], coverage: [], errors: [],
+  sides: [], fixtures: [], helper: [], browser: [], coverage: [], errors: [],
 };
 const save = () => writeFileSync(join(out, 'resultaten.json'), JSON.stringify(report, null, 2));
 const order = round => round % 2 ? [...sides].reverse() : sides;
@@ -65,7 +65,7 @@ async function seed(side, tasks) {
     store.getState().recomputeViewRows();
     s.setViewStartDate('2026-09-07');
   }, tasks);
-  await page.locator('[data-grid-data-row="true"][data-grid-row-key="zoek-0"]').first().click();
+  await page.locator('[data-grid-data-row="true"][data-grid-row-key="zoek-0"] [data-grid-column-id="name"]').first().click();
   await page.locator('[data-ops-dependency-add]').click();
   await expect(options(page)).toHaveCount(8);
   await settle(page);
@@ -209,6 +209,7 @@ try {
     const inputHash = hash(tasks);
     for (const query of queries) {
       const expected = sides[0].helper(tasks, 'zoek-0', query).slice(0, 8);
+      report.fixtures.push({ size, query, inputHash, expected });
       assert.deepEqual(sides[1].helper(tasks, 'zoek-0', query), sides[0].helper(tasks, 'zoek-0', query), 'onbegrensde aanroeper blijft gelijk');
       for (let round = -2; round < 9; round++) {
         for (const side of order(round)) {
