@@ -412,15 +412,19 @@ export interface SchedulingOptions {
    *  `positionAlapFromSuccessors`). Een `constraint2` blijft gelden: SNLT/FNLT begrenzen de vroege finish
    *  van boven, SNET/FNET de start van onder (`backwardBoundOf`/`forwardBoundOf`); bij een botsing wint
    *  de ondergrens (eigen keuze, niet tegen P6 geijkt).
-   *  Bewuste beperkingen (geen P6-bron, geijkt op het corpus): alleen een UURkalender — een ALAP-taak op
-   *  een dagkalender houdt de gewone OPS-stap in hele werkdagen (ongemeten; niet veranderen zonder meting); en
-   *  alleen niet-gestarte taken (een voltooide ALAP-taak kwam anders verder van P6 te staan).
+   *  Bewuste beperkingen (geen P6-bron, geijkt op het corpus): alleen een kalender met eigen werkblokken —
+   *  een ALAP-taak op een andere kalender volgt de gewone stap (hieronder; sinds de aanval na #600 voor een
+   *  niet-gestarte taak met haar duur tot de grens van de opvolgers, niet meer in hele werkdagen; de
+   *  corpusmeting daarvan staat open); en alleen niet-gestarte taken (een voltooide ALAP-taak kwam anders
+   *  verder van P6 te staan).
    *
    *  - P6: aan. Oracle P6 Help, constraint "As Late As Possible": zo laat als kan zonder de opvolgers te
    *    vertragen, dus binnen de vrije speling. Empirisch (HarbourPointe, ALAP-keten).
    *  - MS Project: uit. Plant ALAP vanaf de late datums van de taak (ongemeten).
-   *  - OPS: uit (de gewone stap: de vroege datums schuiven in hele werkdagen op met de vrije speling, in
-   *    topologische volgorde, ook bij een gestarte taak). */
+   *  - OPS: uit (de gewone stap, `CPMSolver.applyAlap`, opvolgers eerst: een niet-gestarte taak eindigt op
+   *    de laatste grens die haar opvolgers met hun vroege datums toestaan, met haar duur in de maat van het
+   *    profiel, en schuift alleen later; een gestarte taak en een hammock schuiven in hele werkdagen op met
+   *    de vrije speling). */
   p6AlapPositionedFromSuccessors?: boolean;
   /** Dagenmaat (spec alleen-uren §3.14): telt een taak, lag of rest in de dagenmaat (`durationUnit: 'days'`,
    *  `lagDays` zonder `lagMinutes`) als werkdagen op de kalender, en niet als uren?
