@@ -116,6 +116,17 @@ uitgevoerd (exit 0). Exacte head, bron-/harnashashes, invoer-/uitvoerhashes, ver
 ruwe tijden en eventuele foutstacks komen in `resultaat.json` in het CI-artifact.
 Een eventuele latere resultaatnotitie moet naar de werkelijk gemeten head verwijzen.
 
+Beide pogingen van [run 40306183322 op 07248b1](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/runs/40306183322)
+stopten na ongeveer 27 respectievelijk 30 seconden meetproces met exitcode 143.
+De laatste fase was telkens de eerste rijke roundtrip in IFC4X3_ADD2, ruim vóór
+de interne twaalfminutenlimiet. De logs noemen geen assertion-/JavaScript-fout
+of verklaarde stopreden; gerichte checks en artifactupload zijn overgeslagen.
+Dit stelt geen oorzaak of productregressie vast. De diagnostiek onderscheidt nu
+invoersnapshot, beide schrijfacties, invoerbehoud, laden van de verse lezermodule,
+lezen en volledige uitvoervergelijking. Iedere fase meldt procesgeheugen in bytes
+en cumulatieve CPU-tijd in microseconden. Deze diagnostiek staat buiten de
+writerklok en bewijst geen piekgeheugen of snelheid van de toepassing.
+
 De poging op `3e55648b415ed089c2871fd72e0b12cd7e81990d`,
 [run 40299449231](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/runs/40299449231),
 is geannuleerd terwijl de meetstap liep. De eenmalige inzage gaf geen log of artifact

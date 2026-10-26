@@ -68,7 +68,8 @@ const evidence = {
 const save = () => writeFileSync(out, `${JSON.stringify(evidence, null, 2)}\n`);
 const started = performance.now();
 const progress = (phase, details = {}) => {
-  evidence.progress = { phase, elapsedMs: performance.now() - started, ...details };
+  evidence.progress = { phase, elapsedMs: performance.now() - started,
+    memoryBytes: process.memoryUsage(), cpuMicroseconds: process.cpuUsage(), ...details };
   console.log(JSON.stringify(evidence.progress));
   save();
 };
@@ -148,32 +149,55 @@ try {
   });
   evidence.hashes.readerBundle = hash(readFileSync(readerFile));
   let readerNumber = 0;
-  async function readFresh(output) {
-    const reader = await import(`${pathToFileURL(readerFile).href}?read=${readerNumber++}`);
-    return reader.readIFC(output);
+  async function readFresh(output, context = {}) {
+    const number = readerNumber++;
+    progress('lezermodule laden', { ...context, readerNumber: number, outputBytes: Buffer.byteLength(output) });
+    const reader = await import(`${pathToFileURL(readerFile).href}?read=${number}`);
+    progress('IFC lezen', { ...context, readerNumber: number });
+    const payload = reader.readIFC(output);
+    progress('IFC gelezen', { ...context, readerNumber: number,
+      tasks: payload.tasks.length, resources: payload.resources.length });
+    return payload;
   }
 
   async function parity(label, input, schemaValid = true) {
-    progress('volledige roundtrip vergelijken', { label, schema: input.project.ifcSchema });
+    const context = { label, schema: input.project.ifcSchema };
+    progress('invoersnapshot maken', { ...context, tasks: input.tasks.length, resources: input.resources.length });
     const snapshot = inputSnapshot(input);
+    progress('invoersnapshot klaar', { ...context, inputBytes: snapshot.bytes.byteLength,
+      objects: snapshot.prototypes.length });
     const first = {};
     const second = {};
     const payloads = {};
     for (const version of ['before', 'after']) {
+      progress('eerste IFC schrijven', { ...context, version });
       first[version] = modules[version].writeIFC(input);
+      progress('eerste IFC geschreven', { ...context, version,
+        outputBytes: Buffer.byteLength(first[version]), outputHash: hash(first[version]) });
+      progress('eerste invoerbehoud controleren', { ...context, version });
       assertInputPreserved(input, snapshot, `${label}/${version}: invoerbehoud`);
-      payloads[version] = await readFresh(first[version]);
+      progress('eerste invoerbehoud gelijk', { ...context, version });
+      payloads[version] = await readFresh(first[version], { ...context, version, round: 'eerste' });
+      progress('heropende invoersnapshot maken', { ...context, version });
       const reopened = inputSnapshot(payloads[version]);
+      progress('tweede IFC schrijven', { ...context, version, inputBytes: reopened.bytes.byteLength });
       second[version] = modules[version].writeIFC(payloads[version]);
+      progress('tweede IFC geschreven', { ...context, version,
+        outputBytes: Buffer.byteLength(second[version]), outputHash: hash(second[version]) });
+      progress('tweede invoerbehoud controleren', { ...context, version });
       assertInputPreserved(payloads[version], reopened, `${label}/${version}: heropende invoerbehoud`);
+      progress('tweede invoerbehoud gelijk', { ...context, version });
     }
+    progress('volledige uitvoer vergelijken', context);
     assert.equal(first.before, first.after, `${label}: volledige eerste IFC-uitvoer incl. STEP-nummers`);
     assert.deepStrictEqual(payloads.before, payloads.after, `${label}: volledige readerpayload incl. GlobalIds/bibliotheek/herkomst`);
     assert.equal(second.before, second.after, `${label}: volledige tweede IFC-uitvoer`);
-    const secondPayload = await readFresh(second.after);
-    assert.deepStrictEqual(await readFresh(second.before), secondPayload, `${label}: volledige tweede readerpayload`);
+    const secondPayload = await readFresh(second.after, { ...context, version: 'after', round: 'tweede' });
+    assert.deepStrictEqual(await readFresh(second.before, { ...context, version: 'before', round: 'tweede' }),
+      secondPayload, `${label}: volledige tweede readerpayload`);
     if (schemaValid) {
       for (const [stage, output] of [['eerste', first.after], ['tweede', second.after]]) {
+        progress('schema controleren', { ...context, round: stage });
         const check = modules.after.checkIfcSchema(`${label}/${stage}`, output, undefined, input.project.ifcSchema);
         assert.deepEqual(check.failures, [], `${label}/${stage}: schema`);
       }
