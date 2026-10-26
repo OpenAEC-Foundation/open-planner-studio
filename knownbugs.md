@@ -352,13 +352,6 @@ en noem het in je rapport of PR-tekst.
     Gevonden in review ronde 1 en 2 van PR #573 (GPT-6.1-Sol). Resterend: de bestaande echte-app-route
     uitbreiden met echte bestandsacties, inhoud en opruiming. — B
 
-223. **Telling in de Chinese bulk-toast wordt alleen als deeltekst gecontroleerd.**
-    `tests/browser/structural-transition.spec.ts:80` zoekt met `toContainText` naar `2 个任务…`.
-    Een melding met `12 个任务…` of `22 个任务…` bevat dezelfde deeltekst. Dit gold ook voor de oude
-    letterlijke verwachting. Bevestigd in de tweede onafhankelijke review van PR #604. Voorstel:
-    vergelijk de volledige tekst van `.ops-toast-message` exact; laat de taaknamen apart gecontroleerd.
-    Geen fout in de huidige producttelling aangetoond. — B
-
 224. **RTL-balksleeptest faalt incidenteel zonder aangetoonde oorzaak.** In PR #635 op
     `3ca78f26234ddfed8e6fd4341a8f9e0ee44ec66a`, run 40157918525 poging 1, bleef bij
     `gantt-drag-undo.spec.ts:313` de taakvolgorde na balkslepen ongewijzigd, terwijl de voorafgaande
