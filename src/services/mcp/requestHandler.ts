@@ -161,6 +161,7 @@ function recordRequestActivity(reqBody: string, respBody: string, durationMs: nu
     let tool = '?';
     let argsJson = '';
     let summary = '';
+    let summaryKind: ActivityEntry['summaryKind'];
     try {
       const req = JSON.parse(reqBody) as { method?: unknown; params?: any };
       method = typeof req.method === 'string' ? req.method : '?';
@@ -176,18 +177,21 @@ function recordRequestActivity(reqBody: string, respBody: string, durationMs: nu
         summary = method;
       }
     } catch {
-      summary = 'onparseerbaar request';
+      summary = 'Unparseable request';
+      summaryKind = 'unparseableRequest';
     }
 
     let ok = true;
     let error: string | undefined;
+    let errorKind: ActivityEntry['errorKind'];
     try {
       const resp = JSON.parse(respBody) as { error?: any; result?: any };
       if (resp.error) {
         ok = false;
         const code = resp.error.code;
         const msg = typeof resp.error.message === 'string' ? resp.error.message : '';
-        error = code != null ? `${code}: ${msg}` : (msg || 'fout');
+        error = code != null ? `${code}: ${msg}` : (msg || 'Error');
+        if (code == null && !msg) errorKind = 'error';
       } else if (resp.result && resp.result.isError === true) {
         ok = false;
         error = extractToolError(resp.result);
@@ -195,13 +199,16 @@ function recordRequestActivity(reqBody: string, respBody: string, durationMs: nu
     } catch {
       // Onparseerbaar antwoord: markeer als fout zodat het in het paneel opvalt.
       ok = false;
-      error = 'onparseerbaar antwoord';
+      error = 'Unparseable response';
+      errorKind = 'unparseableResponse';
     }
 
     const entry: ActivityEntry = {
       ts: Date.now(),
       tool,
       summary,
+      ...(summaryKind ? { summaryKind } : {}),
+      ...(errorKind ? { errorKind } : {}),
       durationMs,
       ok,
       ...(error ? { error } : {}),

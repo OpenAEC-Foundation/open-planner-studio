@@ -468,6 +468,10 @@
     "openErr": "Map openen mislukt: {{error}}"
   },
   "aiActivity": {
+    "unparseableRequest": "Onparseerbaar verzoek",
+    "unparseableResponse": "Onparseerbaar antwoord",
+    "error": "Fout",
+    "truncated": "… afgekapt",
     "title": "MCP-activiteit",
     "panelButton": "Activiteitenpaneel",
     "clear": "Wissen",
