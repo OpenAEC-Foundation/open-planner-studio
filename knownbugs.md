@@ -236,6 +236,12 @@ en noem het in je rapport of PR-tekst.
     review ronde 1 van PR #573 (GPT-6.1-Sol). Voorstel: de ACL op Windows controleren (ook tijdelijk bestand
     en bestaande map), of geen token publiceren als de bescherming onvoldoende is. — B
 
+332. **De XML-parser van de headless server zoekt bij elk element zonder prefix de hele ouderketen af.**
+    `headless/mcp-server/src/xmlDom.ts:143` roept `namespaceFor('', scope)` aan en gooit het resultaat weg. Bij
+    8.000 niveaus nesting kost parsen circa 499 ms tegen 12 ms op de basis (kwadratische groei). Zeldzame invoer.
+    Voorstel: `namespaceFor` alleen aanroepen als de elementprefix niet leeg is. Gevonden in review r1 van #608
+    (GPT-6.1-Sol). — B
+
 ## Bestanden en herstel
 
 35. **Showcase-voorbeelden openen als gewijzigd** (`applyDemoLibraryToShowcaseProject`). — S
