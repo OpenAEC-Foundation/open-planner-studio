@@ -441,6 +441,12 @@ en noem het in je rapport of PR-tekst.
     vergelijk de volledige tekst van `.ops-toast-message` exact; laat de taaknamen apart gecontroleerd.
     Geen fout in de huidige producttelling aangetoond. — B
 
+326. **De controle bij het annuleren van een faseovergang vergelijkt toewijzingen alleen op id.**
+    `tests/browser/structural-transition.spec.ts:113` vergelijkt toewijzingen als `[id, taskId]`. Een gewijzigde
+    resource of inzet glipt daar doorheen. Dit stond al op `main`. Voorstel: daar ook de volledige
+    toewijzingswaarden vergelijken, zoals de mijlpaalroute nu doet. Gevonden in review r1 van #622
+    (GPT-6.1-Sol). — B
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen en de selectie niet lezen.
