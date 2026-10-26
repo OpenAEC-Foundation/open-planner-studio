@@ -170,6 +170,12 @@ test('bibliotheekhint verwijst alleen naar kalenders en de knop promoveert een p
     await confirm.getByRole('button', { name: /^(Cancel|Annuleren)$/ }).click();
     await expect(confirm).toBeHidden();
     expect(await poolState()).toEqual(beforeRemove);
+    // Enter op de gefocuste Annuleren-knop annuleert; alleen Enter zonder knopfocus bevestigt.
+    await sourceRow.locator('.danger-icon').click();
+    await expect(confirm.getByRole('button', { name: /^(Cancel|Annuleren)$/ })).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(confirm).toBeHidden();
+    expect(await poolState()).toEqual(beforeRemove);
     await sourceRow.locator('.danger-icon').click();
     await confirm.getByRole('button', { name: /^(Delete|Verwijderen)$/ }).click();
     await expect(confirm).toBeHidden();
