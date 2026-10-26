@@ -353,7 +353,25 @@ en noem het in je rapport of PR-tekst.
      een taak nagespeeld: welke invoer een kalendertijdduur of -lag geeft die geen heel aantal ms is, is niet
      onderzocht (`.mpp` en MSPDI tellen in tienden, en die kloppen). De werktijdwandelingen rekenen sinds fixronde 7
      van #591 in hele ms (`CalendarEngine.walkMs`, was 385 en 388). Voorstel: dezelfde afronding hier. Gevonden in
-     fixronde 7 van #591. — B
+     fixronde 7 van #591. Review ronde 8 van #591 (GPT-6.1-Sol) speelde het wel via een taak na: invoer
+     `0,166667d` in kalendertijd wordt 240,00048 klokminuten; na Bereken vroege start ma 08:00, late start 07:59,
+     totale speling −1 ms. Met start ma 00:00 wordt de late start zo 31 mei 23:59, een andere dag. Op main
+     `17adcdf83` precies zo (24 taakgevallen gelijk), dus niet door F5b. Voorstel van de review: één afrondingsregel
+     op hele ms voor beide klokfuncties en de kalendertijdlag, met behoud van de klem- en tekenregels. — B
+
+390. **De werkplaatsing kapt af waar de kalenderwandeling nu afrondt.** `src/engine/scheduler/workPlacement.ts:114`,
+     `:119`, `:122`, `:123` (gebruikt door `ResourceLoad.ts:274` en `ResourceLeveler.ts:497`). Vanaf ma 08:00 met
+     1920/7 min geeft `addWorkMinutes` sinds fixronde 7 van #591 12:34:17,143, `workPlacement` 12:34:17,142; op main
+     gaven beide ,142. Een andere getoonde dag of capaciteitsbeslissing is niet aangetoond; de plaatsings- en
+     splitchecks zijn groen. Voorstel: dezelfde ms-afronding in de plaatsingslus en een check die het eindmoment
+     tegen de kalenderwandeling legt. Gevonden in review ronde 8 van #591 (GPT-6.1-Sol). — B
+
+391. **Een duur korter dan een halve milliseconde komt bij de spiegel op het vorige werkeinde uit.** Ma–vr
+     08:00–16:00, vanaf ma 1 juni 2026 08:00: `addWorkMinutes(t, 0,000001)` geeft ma 08:00, `subtractWorkMinutes`
+     daarna vr 29 mei 16:00. `walkMs` maakt de lengte 0, maar beide functies normaliseren het startmoment elk in hun
+     eigen richting (`src/engine/scheduler/CalendarEngine.ts:828`, `:857`). Op main ook zo. Geen gewoon importgeval
+     gevonden. Voorstel: na de ms-omzetting een lengte 0 als 0 behandelen, apart toetsen. Gevonden in review ronde 8
+     van #591 (GPT-6.1-Sol). — B
 
 ## Tabel, invoer en bediening
 

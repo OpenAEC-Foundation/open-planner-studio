@@ -512,7 +512,9 @@ normalisatie draait altijd; de markering `TimeModel` stuurt alleen de B5-overgan
   bij een bandgrens soms een minieme rest over, en dan koos de terugwandeling het vorige werkeinde. Een XER-duur van
   8,72 u (523,2 min) gaf zo een late start op het werkeinde van de dag ervoor (ma 16:00 in plaats van di 08:00),
   960 min minder speling op een 24/7-voorganger en een verkeerde ALAP-plek. Nu blijft
-  `subtractWorkMinutes(addWorkMinutes(t, m), m) === t` voor elke breuk (`check-kalender-ms-wandeling.ts`). Regel A:
+  `subtractWorkMinutes(addWorkMinutes(t, m), m) === t` vanaf een werkmoment, getoetst voor tienden 0,1–5000 min,
+  uren 0,01–83 u en hele minuten (`check-kalender-ms-wandeling.ts`); een lengte onder een halve ms valt erbuiten
+  (knownbug 391). Regel A:
   P6 zonder celverschil, MS Project gelijk aan de stand ervoor (meting 2026-10-26).
 
 ### 3.10 Adapters
