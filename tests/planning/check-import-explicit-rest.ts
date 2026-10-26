@@ -337,12 +337,12 @@ function xer(dateOnly: boolean): ImportResult {
   eq('voltooid → IFC → heropenen: rest 0', state(leaf(reopen(solved(imported)))), ['COMPLETED', 'hours', 0, 0]);
 }
 
-// ── 8. Knownbug 357: de IFC-lezer zet de rest niet opnieuw uit het percentage ───────────────────
+// ── 8. Knownbug 357 (gesloten): de IFC-lezer zet de rest niet opnieuw uit het percentage ─────────
 // Kalender ma–do 07:00–14:45 (465 min), vr 07:00–12:00. Lopende taak C: dagenmaat, 3 d, rest 5/6 d,
 // 13/18. De lezer zet de rest uit het dagenrecord; `normalizeImportedProgress` maakte daar 3 × 5/18 =
 // 0,833333333333333 van, en een tweede export schreef 387 in plaats van 388 min. Nu blijft de waarde uit
-// het record staan. Dat dat record zelf de 388 min verklaart (geen afronding op zes decimalen), regelt
-// PR #658 (`recordDayValue`); pas met beide blijft de rest bij elke ronde 388 min.
+// het record staan, en het record verklaart zelf de 388 min (`recordDayValue`, #658). Drie keer exporteren
+// en heropenen na elkaar geeft daarom elke keer 388 min.
 {
   const LONG = [{ start: 420, end: 885 }];
   const SHORT = [{ start: 420, end: 720 }];
@@ -362,16 +362,19 @@ function xer(dateOnly: boolean): ImportResult {
       completion: 13 / 18, remainingTime: 5 / 6,
     },
   }];
-  /** De dagen in het `RemainingTime`-record van het bestand. */
-  const recordDays = (ifc: string) => Number(ifc.match(/"RemainingTime":\[([^,\]]+),\d+\]/)?.[1]);
-  const first = writeIFC(buildWriteIFCInput(prepareLoadedPayload(p, { recompute: true })));
-  eq('357: de eerste export schrijft 388 min (5/6 × 465)', first.includes("'PT6H28M0S'"), true);
-  const back = readIFC(first);
-  eq('357 ronde 1: na heropenen is de rest de waarde uit het record, niet 3 × 5/18',
-    back.tasks[0].time.remainingTime, recordDays(first));
-  const second = writeIFC(buildWriteIFCInput(payloadFromImport(back, null)));
-  eq('357 ronde 2: na heropenen is de rest de waarde uit het record',
-    readIFC(second).tasks[0].time.remainingTime, recordDays(second));
+  /** Het `RemainingTime`-record van het bestand: [dagen, minuten]. */
+  const record = (ifc: string) => ifc.match(/"RemainingTime":\[([^,\]]+),(\d+)\]/)?.slice(1, 3).map(Number);
+  /** De restduur van C als IFC-duur (de enige duur van 6 uur en iets in dit bestand). */
+  const restDurations = (ifc: string) => ifc.match(/'PT6H\d+M0S'/g) ?? [];
+  let ifc = writeIFC(buildWriteIFCInput(prepareLoadedPayload(p, { recompute: true })));
+  for (const round of [1, 2, 3]) {
+    eq(`357 export ${round}: de rest is 388 min (5/6 × 465), ook in het record`,
+      [restDurations(ifc), record(ifc)?.[1]], [["'PT6H28M0S'"], 388]);
+    const back = readIFC(ifc);
+    eq(`357 heropenen ${round}: de rest is de waarde uit het record, niet 3 × 5/18`,
+      back.tasks[0].time.remainingTime, record(ifc)?.[0]);
+    ifc = writeIFC(buildWriteIFCInput(payloadFromImport(back, null)));
+  }
 }
 
 // ── 9–11. Lopend op 100 % zonder werkelijk einde houdt zijn bronrest (review r2 van #663) ─────────
@@ -473,6 +476,12 @@ function mspdi(over: { actualFinish?: string; rest?: string } = {}): ImportResul
   const viaMs = (q: ImportResult) => readMSPDI(writeMSPDI(q.project, q.calendar, q.tasks, q.sequences, [], [], q.resourceCalendars ?? []));
   const state = (r: ImportResult) => [leaf(r).status, leaf(r).time.remainingMinutes, leaf(r).time.actualFinish ?? null];
   eq('OPS → P6 XML → OPS: lopend op 100 % houdt 1920 min en geen werkelijk einde', state(viaP6(p6xml())), ['STARTED', 1920, null]);
+  // Bijvondst bij review r2 van #663: de writer schreef `Completed` voor een taak die nog loopt op 100 %; P6 zag haar
+  // dan als klaar. Nu `In Progress`. Een voltooide taak blijft `Completed`.
+  const p6Status = (q: ImportResult) => writeP6XML(q.project, q.calendar, q.tasks, q.sequences, [], [], q.resourceCalendars ?? [])
+    .match(/<Status>([^<]*)<\/Status>/g)?.filter(x => x !== '<Status>Active</Status>' && x !== '<Status>Planned</Status>');
+  eq('P6-XML-export: lopend op 100 % ⇒ In Progress, voltooid ⇒ Completed',
+    [p6Status(p6xml()), p6Status(p6xml({ status: 'Completed' }))], [['<Status>In Progress</Status>'], ['<Status>Completed</Status>']]);
   eq('OPS → MSPDI → OPS: lopend op 100 % houdt 1920 min en geen werkelijk einde', state(viaMs(p6xml())), ['STARTED', 1920, null]);
   const done = p6xml({ status: 'Completed' });
   eq('OPS → P6 XML → OPS: voltooid blijft voltooid met rest 0', state(viaP6(done)).slice(0, 2), ['COMPLETED', 0]);

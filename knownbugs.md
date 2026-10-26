@@ -861,17 +861,6 @@ en noem het in je rapport of PR-tekst.
      bronduur en duurmaat van hammocks vastleggen en terugzetten. Gevonden in de review van de fix voor aanval
      a05 (GPT-6.1-Sol). — B
 
-357. **De IFC-lezer leidt de rest van een lopende dagenmaat-taak opnieuw af uit het percentage.**
-     `ifcReader.ts:1600` zet de rest uit het record, maar `normalizeImportedProgress` (`ifcReader.ts:369`, via
-     `applyRemainingDuration` en `exactWorkdays`, `taskMutationRules.ts:199`, `:215`) overschrijft die met
-     duur × (1 − completion) op 15 cijfers. Kalender ma–do 07:00–14:45 (465 min), vr 07:00–12:00; taak C: 3 d,
-     rest 5/6 d, completion 13/18. De eerste export schrijft `RemainingTime` `PT6H28M0S` met het record; na
-     inlezen is de rest 0,833333333333333 d, en een tweede export schrijft `PT6H27M0S`. MSPDI en P6 XML
-     beschermen de rest met `normalizeKeepingDayRest` (`xmlDayMeasure.ts`); de IFC-lezer niet. Al op
-     `9a636ec69`. De duur en de lags drijven sinds PR #658 niet meer (`recordDayValue`). Voorstel: roep
-     `normalizeImportedProgress` in de IFC-lezer aan via `normalizeKeepingDayRest`, zoals de XML-lezers.
-     Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
-
 372. **Een kalendertijdtaak met een breuk in dagen verliest bij heropenen uit MSPDI een minuut.** ELAPSEDTIME-taak
      5/6 ed vanaf 1 juni 2026 07:00: vóór export eindigt ze 2 juni 03:00, na heropenen en doorrekenen 02:59. Het
      record houdt zes decimalen, omdat 5/6 en 0,833333 allebei afgerond 1200 minuten geven; de solver telt
