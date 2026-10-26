@@ -245,6 +245,35 @@ en noem het in je rapport of PR-tekst.
      ingevuld werkelijk einde werkt wel. Op `main` faalt dezelfde invoer ook. Voorstel: gebruik de bestaande
      mijlpaalkant. Gevonden in review #563 r2, nagespeeld in review r1 van #600. — B
 
+341. **Een maatwissel vervangt een expliciete restduur door de afleiding uit het percentage.**
+     `src/engine/work/workRuleApply.ts:990`: begintoestand 4 d, 50 % gereed, expliciet 1 d rest (toegelaten
+     import- of extensiedata); alleen wisselen naar 32 uur geeft `remainingMinutes = 960` (16 u) in plaats van
+     480 (8 u). De eenheidswisseltak rekent `totaal × (1 − percentage)` en laat de expliciete rest vallen. Undo
+     herstelt, redo verdubbelt opnieuw. Stond al zo op `fbd4a3f9d` (met Urenplanning aan). Voorstel: ook bij een
+     maatwissel de bestaande Δ-restregel in minuten toepassen; het percentage alleen als de expliciete rest
+     ontbreekt. Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
+
+358. **Een gestarte taak op 0 % die naar duur 0 gaat, houdt onder vast werk restwerk.**
+     `src/engine/work/workRuleApply.ts:435-437` (`settleDurationEdit`), `durationEditProgress` (`:940`) en
+     `src/engine/work/workTriangle.ts:177`. Voorbeeld: 4 d, werkelijke start, 0 %, één arbeidsresource; onder
+     vast werk of vaste duur en werk verlengd naar 6 d en dan duur 0. De kern weigert rest 0 en de toewijzing
+     houdt 1920 min restwerk; de belasting is 0, want de taak heeft geen duur meer. Stond al zo op
+     `fbd4a3f9d`. Voorstel: deze overgang weigeren of expliciet afhandelen, in plaats van na de weigering van
+     de kern een half bijgewerkte toestand te laten staan. Gevonden bij de fix van aanval a03 en in review r1
+     van #662 (GPT-6.1-Sol). — B
+
+367. **Duur en voortgang samen opslaan boekt de voortgang niet in de werkvelden.**
+     `src/engine/work/workRuleApply.ts:1096` (`settleProgressWork` slaat een andere totale duur over) en
+     `src/state/taskDialogSave.ts:253`. Voorbeeld: 4 d, 50 %, één arbeidsresource op inzet 1, verlengd naar
+     6 d (960 min verricht, 1920 rest); daarna in één opslag 8 d en 75 %. Main en #662 houden 960 verricht +
+     960 rest = 1920; verwacht is 2880 verricht + 960 rest = 3840. Op `fbd4a3f9d` was de totale belasting
+     wel 3840 (afgeleid, zonder werkpaar), dus de fout bestaat sinds #600. Bij 8 d en 100 % zit dezelfde
+     fout (verwacht 3840 verricht); #662 laat dat geval bewust op het gedrag van main (960 + 1920). Fout op
+     de dialoog en de interne MCP-draft (`updateTaskFields`/`patchTaskFields`); `planner_update_tasks` en
+     `planner_batch` verwerken duur en voortgang na elkaar en geven wel de juiste uitkomst. Voorstel: eerst
+     de duur verwerken met behoud van het verrichte werk, dan de expliciete voortgang boeken zoals
+     `settleProgressWork`. Gevonden bij de fix van aanval a03 en in review r1 van #662 (GPT-6.1-Sol). — B
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
@@ -285,7 +314,12 @@ en noem het in je rapport of PR-tekst.
      niet af (B3), maar de urenmaat telt verder in hele minuten (`applyRemainingDuration`). Een taak met
      een kleine negatieve speling kan in een filter op negatieve speling verschijnen. Voorstel: de duur van
      de urenmaat in de werkdriehoek op hele minuten zetten, of de speling op hele minuten vergelijken;
-     motorwerk, buiten F4b. Gevonden bij het meten voor knownbugs 252. — B
+     motorwerk, buiten F4b. Gevonden bij het meten voor knownbugs 252.
+     Dezelfde gemengde precisie weigert ook een gewone verkorting (review van #662, GPT-6.1-Sol): vast werk,
+     kalender van 465 minuten, 3,75 d op 40%, verlengd naar 6,75 d en terug naar 1,5 d. De afgeronde rest geeft
+     een negatieve rest van 0,25 minuut, en store, raster, MCP en dialoog weigeren de invoer
+     (`src/engine/taskMutationRules.ts:204`, `src/engine/work/workRuleApply.ts:981`). Al zo op `9a636ec69`.
+     Voorstel: één precisie voor totale, verrichte en resterende duur. — B
 284. **Een opgeslagen Tabel-indeling houdt Start en Einde op 100 px; een datum met tijd valt dan weg.**
      Sinds B4 toont een moment midden op de werkdag datum en tijd ("04-11-2026 11:00"). Die tekst is 89 px
      breed, plus 14 px opvulling; de oude standaardbreedte was 100 px (gemeten in de browser, Inter 11 px).
