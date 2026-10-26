@@ -165,13 +165,6 @@ en noem het in je rapport of PR-tekst.
     in review ronde 3 van PR #572 (GPT-6.1-Sol). Voorstel: de tekst over de tijdslimiet eerlijk maken en grote
     bestanden op trage opslag meten voordat er een andere procesopzet komt. — B
 
-219. **Headless MCP-server: een scopeweigering tijdens de bewerking komt niet als `SCOPE` bij de client.**
-    `src/services/mcp/tools/fileTools.ts:337` maakt van elke schrijffout `INTERNAL`, `fileTools.ts:434` van
-    elke leesfout `NOT_FOUND`; een `ScopeEscapeError` na een mapwissel krijgt dus de verkeerde code (de
-    toegang wordt wel geweigerd). De tests controleren alleen het fouttype van `nodeFs`. Gevonden in review
-    ronde 3 van PR #572 (GPT-6.1-Sol). Voorstel: een klein gedeeld foutcontract en één test door de echte
-    toolhandler. — B
-
 220. **Headless MCP-server: terugzetten van de procesmap is een poging, geen garantie.**
     `headless/mcp-server/src/nodeFs.ts:253`: verdwijnt de oorspronkelijke procesmap tijdens een bewerking, dan
     blijft het proces in `realRoot`; is ook die weg, dan gooit de `finally` opnieuw, verdringt de

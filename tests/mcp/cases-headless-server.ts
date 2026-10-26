@@ -1,3 +1,4 @@
+import { fileToolDeps } from '@/services/mcp/tools/fileTools';
 // Headless MCP-server (issue #570, `headless/mcp-server/`): de `planner_*`-tools zonder app, op Node.
 //
 // Twee routes, beide met de OFFICIËLE MCP-client (`@modelcontextprotocol/sdk`):
@@ -272,6 +273,60 @@ test('A2 bevinding 4: paden die alleen in hoofdletters verschillen tellen niet a
   const fs = await createNodeFileFs(upper);
   const reason = await fs.confine!(join(upper, 'naar-kleine-letters', 'geheim.ifc'));
   assert(reason !== null && reason.includes('outside the working folder'), `link naar de map met kleine letters: ${reason}`);
+});
+
+// Knownbug 219: scopeverlies ná de voorcontrole blijft SCOPE door echte toolhandler en HTTP-client.
+test('A2 late scopeweigering bereikt de MCP-client bij import en export zonder buitenwerkmap-I/O', async () => {
+  const originalGetFs = fileToolDeps.getFs;
+  const outsideDir = join(tmp, 'scope-219-outside');
+  mkdirSync(outsideDir);
+  writeFileSync(join(outsideDir, 'plan.ifc'), 'BUITEN BLIJFT INTACT');
+  app.store.getState().setUI({ aiPaused: false, aiReadOnly: false });
+  app.store.getState().newDocument();
+  const { client } = await connectClient(httpA.url, { Authorization: `Bearer ${TOKEN}` });
+  try {
+    for (const operation of ['import', 'export'] as const) {
+      const dir = join(rootA, 'scope-219-' + operation);
+      mkdirSync(dir);
+      const original = readFileSync(EXAMPLE, 'utf8');
+      writeFileSync(join(dir, 'plan.ifc'), original);
+      let swapped = false;
+      const fs = await createNodeFileFs(rootA, undefined, { afterCheck: phase => {
+        if (!swapped && phase === (operation === 'import' ? 'open' : 'create')) {
+          swapped = true;
+          renameSync(dir, dir + '-held');
+          symlinkSync(outsideDir, dir, 'dir');
+        }
+      } });
+      fileToolDeps.getFs = async () => fs;
+      const taskCount = app.store.getState().tasks.length;
+      await refused(client, operation === 'import' ? 'planner_import_schedule' : 'planner_export_ifc',
+        { path: join(dir, 'plan.ifc'), ...(operation === 'export' ? { overwrite: true } : {}) }, 'SCOPE', operation);
+      assert(swapped, 'de map wisselde tijdens de operatie, niet vóór de voorcontrole');
+      assertEq(readFileSync(join(outsideDir, 'plan.ifc'), 'utf8'), 'BUITEN BLIJFT INTACT', 'buitenbestand ongewijzigd');
+      assertEq(readFileSync(join(dir + '-held', 'plan.ifc'), 'utf8'), original, 'origineel ongewijzigd');
+      assertEq(app.store.getState().tasks.length, taskCount, 'geen document geïmporteerd');
+      assertEq(tmpFiles(outsideDir), [], 'geen halffabricaat buiten de werkmap');
+    }
+    fileToolDeps.getFs = async () => createNodeFileFs(rootA);
+    await refused(client, 'planner_import_schedule', { path: join(rootA, 'ordinary-missing.ifc') },
+      'NOT_FOUND', 'gewone ontbrekende bron behoudt code');
+    const ordinaryTarget = join(rootA, 'ordinary-write.ifc');
+    writeFileSync(ordinaryTarget, 'OUD GEWOON');
+    fileToolDeps.getFs = async () => createNodeFileFs(rootA, undefined, { fault: phase => {
+      if (phase === 'write') {
+        const error = new Error('ordinary write failure');
+        error.name = 'ScopeEscapeError'; // Alleen een gelijknamige Error is niet het gedeelde contract.
+        throw error;
+      }
+    } });
+    await refused(client, 'planner_export_ifc', { path: ordinaryTarget, overwrite: true },
+      'INTERNAL', 'gewone schrijffout behoudt code');
+    assertEq(readFileSync(ordinaryTarget, 'utf8'), 'OUD GEWOON', 'gewone fout behoudt origineel');
+  } finally {
+    fileToolDeps.getFs = originalGetFs;
+    await client.close();
+  }
 });
 
 test('A: afsluiten', async () => { await httpA.close(); });
