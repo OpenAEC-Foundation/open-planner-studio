@@ -24,6 +24,33 @@ const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8'
 const hash = value => createHash('sha256').update(value).digest('hex');
 // V8-serialisatie bewaart ook undefined, NaN en typed arrays; vergelijkingen zijn deepStrictEqual.
 const inputHash = value => hash(serialize(value));
+// structuredClone verandert null-prototypewoordenboeken. Bewaar daarom de volledige data en
+// de oorspronkelijke prototypes apart; de schrijver mag geen van beide veranderen.
+function inputSnapshot(input) {
+  const prototypes = [];
+  const seen = new Set();
+  const visit = value => {
+    if (value === null || typeof value !== 'object' || seen.has(value)) return;
+    seen.add(value);
+    prototypes.push(Object.getPrototypeOf(value));
+    if (value instanceof Map) {
+      for (const [key, item] of value) { visit(key); visit(item); }
+    } else if (value instanceof Set) {
+      for (const item of value) visit(item);
+    } else if (!ArrayBuffer.isView(value) && !(value instanceof ArrayBuffer)) {
+      for (const item of Object.values(value)) visit(item);
+    }
+  };
+  visit(input);
+  return { bytes: serialize(input), prototypes };
+}
+function assertInputPreserved(input, snapshot, label) {
+  const after = inputSnapshot(input);
+  assert.deepStrictEqual(after.bytes, snapshot.bytes, `${label}: volledige data`);
+  assert.equal(after.prototypes.length, snapshot.prototypes.length, `${label}: objectaantal`);
+  after.prototypes.forEach((prototype, i) =>
+    assert.equal(prototype, snapshot.prototypes[i], `${label}: prototype ${i}`));
+}
 const RealDate = Date;
 const realRandom = Math.random;
 const fixedTime = '2026-10-26T10:00:00.000Z';
@@ -41,6 +68,15 @@ const evidence = {
 const save = () => writeFileSync(out, `${JSON.stringify(evidence, null, 2)}\n`);
 const temp = mkdtempSync(join(tmpdir(), 'ops-ifc-ploegindex-'));
 try {
+  // De bewaker accepteert een ongewijzigd null-prototypeobject en weigert beide soorten mutatie.
+  const probe = Object.assign(Object.create(null), { nested: { value: NaN, bytes: new Uint8Array([1, 2]) } });
+  const probeSnapshot = inputSnapshot(probe);
+  assertInputPreserved(probe, probeSnapshot, 'bewaker zelfcontrole');
+  Object.setPrototypeOf(probe, Object.prototype);
+  assert.throws(() => assertInputPreserved(probe, probeSnapshot, 'gewijzigd prototype'), { code: 'ERR_ASSERTION' });
+  Object.setPrototypeOf(probe, null);
+  probe.nested.value = 1;
+  assert.throws(() => assertInputPreserved(probe, probeSnapshot, 'gewijzigde data'), { code: 'ERR_ASSERTION' });
   const changed = git('diff', '--name-only', base, 'HEAD', '--', 'src').split('\n').filter(Boolean);
   assert.deepEqual(changed, [writerPath], 'Nulmeting geldt alleen voor deze ene productwijziging');
   assert.equal(git('status', '--porcelain', '--untracked-files=no', '--', 'src', harnessPath, fixturePath), '');
@@ -109,17 +145,17 @@ try {
   }
 
   async function parity(label, input, schemaValid = true) {
-    const snapshot = structuredClone(input);
+    const snapshot = inputSnapshot(input);
     const first = {};
     const second = {};
     const payloads = {};
     for (const version of ['before', 'after']) {
       first[version] = modules[version].writeIFC(input);
-      assert.deepStrictEqual(input, snapshot, `${label}/${version}: invoerbehoud`);
+      assertInputPreserved(input, snapshot, `${label}/${version}: invoerbehoud`);
       payloads[version] = await readFresh(first[version]);
-      const reopened = structuredClone(payloads[version]);
+      const reopened = inputSnapshot(payloads[version]);
       second[version] = modules[version].writeIFC(payloads[version]);
-      assert.deepStrictEqual(payloads[version], reopened, `${label}/${version}: heropende invoerbehoud`);
+      assertInputPreserved(payloads[version], reopened, `${label}/${version}: heropende invoerbehoud`);
     }
     assert.equal(first.before, first.after, `${label}: volledige eerste IFC-uitvoer incl. STEP-nummers`);
     assert.deepStrictEqual(payloads.before, payloads.after, `${label}: volledige readerpayload incl. GlobalIds/bibliotheek/herkomst`);
@@ -182,7 +218,7 @@ try {
   for (const size of [1_000, 5_000, 10_000]) {
     for (const crews of [0, 1, 8, size / 5]) {
       const input = modules.after.ifcCrewIndexFixture(size, crews);
-      const snapshot = structuredClone(input);
+      const snapshot = inputSnapshot(input);
       const row = { resources: size, crews, tasks: input.tasks.length, inputHash: inputHash(input), warmupMs: { before: [], after: [] }, samples: [] };
       let expected;
       const run = version => {
@@ -203,7 +239,7 @@ try {
         for (const version of sample.order) sample[version] = Array.from({ length: row.callsPerSample }, () => run(version));
         row.samples.push(sample);
       }
-      assert.deepStrictEqual(input, snapshot, 'Schaalmeting muteert geen invoer');
+      assertInputPreserved(input, snapshot, 'Schaalmeting muteert geen invoer');
       // Apart van de klok: tel echte parentId-lezingen aan de volledige writergrens.
       // Alleen deze extra aanroepen gebruiken getters; geen productinstrumentatie of tijdclaim.
       row.parentIdReads = {};

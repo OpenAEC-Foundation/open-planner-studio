@@ -63,6 +63,12 @@ opnieuw uit via een modulegebonden teller en `Math.random`. Iedere vergelijkings
 krijgt daarom een verse module (teller op nul) en dezelfde vaste toevalsinvoer (0,5).
 Zo blijven ook die id-velden volledig vergelijkbaar, zonder productbron aan te passen.
 Dit staat los van de tijdmeting, die uitsluitend de writer aanroept.
+Invoerbehoud wordt getoetst met de volledige V8-serialisatie plus de oorspronkelijke
+prototypeverwijzing van ieder object. `structuredClone` is daarvoor geen oracle:
+de XER-fixture bevat woordenboeken met een null-prototype dat de kloon niet behoudt.
+De bewaker controleert zichzelf op een ongewijzigd null-prototypeobject en weigert
+zowel een prototypewijziging als een datawijziging. De rechtstreekse vergelijking
+van beide readerpayloads met `deepStrictEqual` blijft daarnaast intact.
 Bestaande readernormalisatie tussen
 de eerste en tweede export mag bestaan; oude en nieuwe schrijver moeten op elke
 zelfde invoer en in elke ronde exact gelijk zijn. V8-serialisatie voor invoer- en
