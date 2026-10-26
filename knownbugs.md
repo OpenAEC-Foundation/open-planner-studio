@@ -172,14 +172,6 @@ en noem het in je rapport of PR-tekst.
     absolute paden, dus geen bekende route naar verkeerd opgeslagen bestanden. Gevonden in review ronde 3 van
     PR #572 (GPT-6.1-Sol). Voorstel: de terugval documenteren en beide fouten bewaren of melden. — B
 
-207. **`.mcpb`-bundel: na sessieverlies weigert de proxy ook een nieuw leeg plan en importeren.**
-    `integrations/claude-desktop/src/proxy.ts:389–392` blokkeert `planner_new_document` en
-    `planner_import_schedule` zolang de blokkade staat; Claude moet eerst een bestaand plan kiezen met
-    `planner_switch_document`. Veilig, maar een onnodige omweg. Gevonden in review ronde 3 van PR #567
-    (GPT-6.1-Sol). Voorstel: beide toestaan als losse herstelactie, zonder automatische herhaling en met
-    ontgrendeling alleen na succes; `planner_duplicate_document` niet, want die gebruikt het actieve document.
-    — B
-
 209. **MCP-ontdekking: een schrijffout kan een tijdelijk bestand met het token laten liggen.**
     `src/services/mcp/discoveryFiles.ts:95–105`: `writeNew` staat buiten de opruim-`try`; slaagt het aanmaken
     maar faalt het schrijven (bijv. schijfquota), dan blijft het tijdelijke bestand achter, mogelijk al met
@@ -215,6 +207,10 @@ en noem het in je rapport of PR-tekst.
     Dat maakt bij elke render onnodige arrays; een merkbare vertraging is niet aangetoond. Voorstel: één
     resourcelijst en één kalenderlijst per render, en die hergebruiken. Gevonden in review r1 van #635
     (GPT-6.1-Sol). — B
+
+324. **Een tak in de herstelcontrole van de MCP-proxy is onbereikbaar.** `integrations/claude-desktop/src/proxy.ts:396`:
+    de tak `toolName === null` kan niet meer optreden zodra `mutates` waar is. Voorstel: die deelvoorwaarde weg;
+    de concrete herstelset blijft voldoende. Gevonden in review r1 van #605 (GPT-6.1-Sol). — B
 
 ## Bestanden en herstel
 
