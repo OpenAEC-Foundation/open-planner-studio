@@ -18,7 +18,7 @@ export { ScopeEscapeError } from '@/services/mcp/fileScopeError';
 // alleen een controle vooraf; een ander proces kan daarna een map door een link vervangen, of een map
 // mét inhoud naar buiten verplaatsen. Node kent geen `openat`/`renameat`, maar wel de werkmap van het
 // proces: die wijst naar een map-OBJECT, niet naar een pad. Daarom doet elke operatie dit, in één
-// synchroon blok (geen andere code kan ertussen, en de procesmap gaat erna terug):
+// synchroon blok (geen andere code kan ertussen, en de procesmap wordt erna hersteld, met de werkmap als terugval; beide kunnen verdwijnen):
 //   - `chdir` naar de echte map van het bestand;
 //   - `realpath('.')` (de native variant: de kernel geeft het huidige pad van dát map-object) moet binnen
 //     de werkmap liggen, en de werkmap zelf moet nog dezelfde `dev`/`ino` hebben;
@@ -57,6 +57,14 @@ function errCode(e: unknown): string | undefined {
   return e && typeof e === 'object' && 'code' in e ? String((e as { code: unknown }).code) : undefined;
 }
 
+/** Beide herstelpaden zijn verdwenen: bewaar de operatie- én herstelfouten zonder ErrorOptions/ES2021. */
+export class WorkingDirectoryRestoreError extends Error {
+  constructor(readonly errors: readonly unknown[]) {
+    super('Could not restore the process working directory or its fallback; '
+      + 'the process directory remains unrestored. ' + errors.map(String).join(' | '));
+    this.name = 'WorkingDirectoryRestoreError';
+  }
+}
 /** `dev` + `ino` van een bestand of map. */
 interface Identity { dev: bigint; ino: bigint }
 const idOf = (s: BigIntStats): Identity => ({ dev: s.dev, ino: s.ino });
@@ -227,7 +235,7 @@ export async function createNodeFileFs(
     if (!isInside(realRoot, where)) throw outside(target);
   }
 
-  /** Voer `fn` synchroon uit met `dir` als procesmap, na de ligging te controleren; zet de procesmap terug. */
+  /** Voer `fn` synchroon uit in de gecontroleerde map; probeer daarna de oude map of de werkmap. */
   function inDir<T>(dir: string, target: string, fn: () => T): T {
     let previous: string;
     try {
@@ -242,11 +250,27 @@ export async function createNodeFileFs(
       if (code === 'ENOENT' || code === 'ENOTDIR' || code === 'ELOOP') throw changed(target);
       throw e;
     }
+    let operationFailed = false;
+    let operationError: unknown;
     try {
       assertHere(target);
       return fn();
+    } catch (error) {
+      operationFailed = true;
+      operationError = error;
+      throw error;
     } finally {
-      try { process.chdir(previous); } catch { process.chdir(realRoot); }
+      try {
+        process.chdir(previous);
+      } catch (restoreError) {
+        try {
+          process.chdir(realRoot);
+        } catch (fallbackError) {
+          throw new WorkingDirectoryRestoreError([
+            ...(operationFailed ? [operationError] : []), restoreError, fallbackError,
+          ]);
+        }
+      }
     }
   }
 

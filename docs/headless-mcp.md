@@ -121,7 +121,7 @@ logging gaat naar stderr.
 een map door een link vervangen, of een map mét inhoud naar buiten verplaatsen en een link terugleggen.
 Node kent geen `openat` of `renameat`, maar wel de procesmap: die wijst naar een map-object, niet naar een
 pad. Elke bestandsoperatie loopt daarom in één synchroon blok (er draait geen andere code tussendoor; de
-procesmap gaat erna terug):
+procesmap wordt erna teruggezet voor zover de oorspronkelijke map of de terugval nog bestaat):
 
 1. `chdir` naar de echte map van het bestand. Ontbrekende mappen maakt de server één voor één aan, elk
    relatief aan de vorige.
@@ -150,6 +150,13 @@ Wat overblijft, per besturingssysteem:
   map door een junction vervangen; de controle erna ziet dat, maar de operatie is dan al gebeurd. Windows
   laat een map die een procesmap is niet hernoemen of verwijderen; dat beperkt het venster (VERMOED, niet
   getest). Niet getest in CI.
+
+**Procesmap terugzetten.** Na elke gebonden bestandsoperatie probeert de server de oorspronkelijke
+procesmap terug te zetten. Is die verdwenen, dan gebruikt hij de geconfigureerde werkmap als terugval.
+Mislukt ook dat, dan blijft de tijdelijke procesmap actief en wordt dit expliciet gemeld. De fout bewaart
+zowel een eventuele oorspronkelijke operatiefout als beide herstelfouten; de laatste `chdir`-fout
+verbergt dus niet de reden waarom de bestandsbewerking mislukte. Dit is geen garantie dat een verdwenen
+map hersteld kan worden. CLI-, backup- en importpaden blijven absoluut.
 
 Wie een tweede proces met schrijfrechten in de werkmap niet vertrouwt, draait de server als eigen
 gebruiker of in een container met alleen de werkmap.

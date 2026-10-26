@@ -157,13 +157,6 @@ en noem het in je rapport of PR-tekst.
     in review ronde 3 van PR #572 (GPT-6.1-Sol). Voorstel: de tekst over de tijdslimiet eerlijk maken en grote
     bestanden op trage opslag meten voordat er een andere procesopzet komt. — B
 
-220. **Headless MCP-server: terugzetten van de procesmap is een poging, geen garantie.**
-    `headless/mcp-server/src/nodeFs.ts:253`: verdwijnt de oorspronkelijke procesmap tijdens een bewerking, dan
-    blijft het proces in `realRoot`; is ook die weg, dan gooit de `finally` opnieuw, verdringt de
-    oorspronkelijke fout en blijft de tijdelijke procesmap actief. CLI-, backup- en importpaden gebruiken
-    absolute paden, dus geen bekende route naar verkeerd opgeslagen bestanden. Gevonden in review ronde 3 van
-    PR #572 (GPT-6.1-Sol). Voorstel: de terugval documenteren en beide fouten bewaren of melden. — B
-
 210. **MCP-ontdekking: een update via de updater ruimt `runtime.json` en `open-files.json` niet op.** Alleen
     `src/hooks/useAppCloseGuard.ts:33` roept `shutdown()` aan;
     `src/services/updater/updaterService.ts:170–182` installeert en herstart rechtstreeks, en op Windows
