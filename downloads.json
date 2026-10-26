@@ -2,7 +2,8 @@
   "schemaVersion": 1,
   "source": "github-releases",
   "repo": "OpenAEC-Foundation/open-planner-studio",
-  "generatedAt": "2026-10-26T16:05:50.250Z",
+  "generatedAt": "2026-10-26T16:06:43.180Z",
+  "downloads": 2827,
   "releases": [
     {
       "tag": "v2026.43.0",
