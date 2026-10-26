@@ -2438,6 +2438,7 @@ if (corpusPresent) {
   function buildMsTaskFixedDataRecord(opts: {
     uniqueId: number; id: number; durationRaw: number;
     startTime: number; startDays: number; finishTime: number; finishDays: number;
+    actualFinishTime?: number; actualFinishDays?: number;
   }): Uint8Array {
     const out = new Uint8Array(130);
     const view = new DataView(out.buffer);
@@ -2450,6 +2451,11 @@ if (corpusPresent) {
     view.setUint16(66, opts.startDays, true);
     view.setUint16(68, opts.finishTime, true);
     view.setUint16(70, opts.finishDays, true);
+    // Werkelijk einde (`fieldMap14`: ActualFinish op offset 76); zonder dag blijft het leeg (null).
+    if (opts.actualFinishDays !== undefined) {
+      view.setUint16(76, opts.actualFinishTime ?? 0, true);
+      view.setUint16(78, opts.actualFinishDays, true);
+    }
     view.setInt32(118, -1, true); // geen taak-kalender-override — gebruik de projectkalender
     return out;
   }
@@ -2490,6 +2496,7 @@ if (corpusPresent) {
   interface MsTaskSpec {
     name: string; uniqueId: number; id: number; milestone: boolean; durationRaw: number;
     startTime: number; startDays: number; finishTime: number; finishDays: number;
+    actualFinishTime?: number; actualFinishDays?: number;
   }
 
   /** Bouwt één compleet CFB-bestand met N taken op ÉÉN gedeelde kalender — spiegelt de UURMODUS-
@@ -2648,6 +2655,31 @@ if (corpusPresent) {
       const task = result.tasks[0];
       truthy('[T11 dagmodus] taak is mijlpaal', task?.isMilestone === true);
       truthy('[T11 dagmodus] GEEN milestoneKind (afleiding geldt alleen in uur-modus)', task?.milestoneKind === undefined);
+    }
+  }
+
+  // ── Fixture E2 (review ronde 3 van PR #559, deel B): dezelfde mijlpaal op het anker, nu voltooid met
+  // een werkelijk einde om 11:00 of om 00:00. Die tijd is een feit uit de bron en telt mee in de
+  // uur-modus-beslissing; anders kapte `formatField` hem af tot de datum en werd het na het laden het
+  // blokeinde 16:00. Mutatiebewijs: zonder de werkelijke datums in `dateSignal` blijft de kalender
+  // scalair en is het werkelijke einde `2025-01-24`. ───────────────────────────────────────────────
+  for (const [clock, time] of [['11:00', 6600], ['00:00', 0]] as const) {
+    const bytes = buildMilestoneKindFixture([
+      { name: 'ActualMilestone', uniqueId: 10, id: 1, milestone: true, durationRaw: 0, startTime: 4800, startDays: 15000,
+        finishTime: 4800, finishDays: 15000, actualFinishTime: time, actualFinishDays: 15000 },
+    ]);
+    let result: ReturnType<typeof readMPP> | null = null;
+    let threw: string | null = null;
+    try {
+      result = readMPP(bytes);
+    } catch (err) {
+      threw = err instanceof Error ? err.message : String(err);
+    }
+    truthy(`[werkelijk ${clock}] readMPP gooit niet (${threw ?? ''})`, threw === null);
+    if (result) {
+      truthy(`[werkelijk ${clock}] de werkelijke tijd maakt de kalender een urenkalender`, !!result.calendar.workTime);
+      const actual = result.tasks[0]?.time.actualFinish;
+      truthy(`[werkelijk ${clock}] werkelijk einde houdt zijn tijd (${actual})`, actual === `2025-01-24T${clock}`);
     }
   }
 
@@ -5657,8 +5689,8 @@ function z4MakeTask(id: string, scheduleStart: Date, childIds: string[] = []): T
     }
     truthy(`[Z4-her-check A] dag-modus gooit niet (${threw ?? ''})`, threw === null);
     truthy(
-      '[Z4-her-check A] dag-modus: taak-B krijgt shift 0 (ONgeschoven gat op 240, niet 720 zoals in de uur-modus-variant)',
-      z4GapsEqual(dayModeResult?.get('task-B') ?? [], [{ afterMinutes: 240, gapMinutes: 240 }]),
+      '[Z4-her-check A] F2: effectieve werkblokken geven dezelfde verschuiving als de expliciete blokken (T11)',
+      z4GapsEqual(dayModeResult?.get('task-B') ?? [], [{ afterMinutes: 720, gapMinutes: 240 }]),
     );
   }
 }

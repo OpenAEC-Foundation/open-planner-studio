@@ -1,16 +1,17 @@
 import { WORK_RULES, type WorkRule } from '@/types/workRule';
-import { carryRemainingThroughDurationEdit } from '@/engine/work/workRuleApply';
+import {
+  carryRemainingThroughDurationEdit, effectiveWorkRule, routeFixedWorkDurationToHours, workRuleApplies,
+} from '@/engine/work/workRuleApply';
 import { validateConstraintPair, withPrimaryConstraint } from '@/engine/scheduler/constraintValidation';
 import { milestoneRefusal, taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 import { decodeDynamicTaskColumnId } from '@/engine/taskGrid/fieldIds';
 import {
   applyCompletionEdit,
   applyProgressInvariants,
-  defaultActualStart,
   assignTaskActivityCode,
   assignTaskCustomField,
   fillMissingActualStart,
-  isActualPastStatusDate,
+  actualDateSide, isActualPastStatusDate, normalizeActualDate,
 } from '@/engine/taskMutationRules';
 import type { ActivityCodeType, CustomFieldDef, CustomFieldValue } from '@/types/structure';
 import type {
@@ -32,6 +33,7 @@ import type {
 import { parseDate, parseInstant } from '@/utils/dateUtils';
 import {
   convertTaskDurationUnit,
+  elapsedClockDuration,
   type ParsedTaskDuration,
 } from '@/utils/taskDurationInput';
 import {
@@ -46,10 +48,12 @@ import {
   reconcileHourInputFinish,
 } from '@/utils/taskDefaults';
 import { sameValue } from '@/utils/sameValue';
-import { taskWorkMinutes } from '@/engine/contour/contourEngine';
+import { durationHoursPerDay } from '@/utils/taskDuration';
+import { taskAxisMinutes } from '@/engine/contour/contourEngine';
 import { finishIsActual, shownFinish, shownStart, startAnchorAfterEdit, startIsActual } from '@/utils/taskDates';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
-import { isPinnedComplete, isZeroDurationMilestone } from '@/engine/scheduler/duration';
+import { isElapsedTask, isPinnedComplete, isZeroDurationMilestone } from '@/engine/scheduler/duration';
+import { taskCountsInWorkdays } from '@/engine/scheduler/conventions/durationMeasure';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { isFiniteNumber } from '@/utils/guards';
 import { isManuallyScheduled } from '@/utils/manualScheduling';
@@ -76,10 +80,12 @@ export interface TaskEditPlanEnvironment {
   calendarIds: ReadonlySet<string>;
   effectiveHoursPerDay: number;
   hourMode: boolean;
+  /** De maatconventie van het effectieve rekenprofiel (`workdayDurationMeasure`): aan in OPS, uit onder
+   *  P6 en MS Project. Een eenheidswissel en een getypt einde tellen een dag zoals de motor. */
+  workdayDurationMeasure: boolean;
   effectiveCalendar?: WorkCalendar;
   /** De kalender waarin een taak met dit `calendarId` rekent (leeg ⇒ projectkalender). */
   calendarFor?: (calendarId: string | undefined) => WorkCalendar;
-  enableHourPlanning?: boolean;
   customTaskTypeIds?: ReadonlySet<string>;
   activityCodeTypes: readonly ActivityCodeType[];
   customFieldDefs: readonly CustomFieldDef[];
@@ -87,6 +93,9 @@ export interface TaskEditPlanEnvironment {
    *  (`utils/taskDefaults.ts`'s `contourKeepsWork`). Afwezig ⇒ de MSP-afleiding in
    *  `rescaleTaskContours`. */
   contourKeepsWork?: boolean;
+  /** `Project.defaultWorkRule`, voor de effectieve werkregel van een taak zonder eigen regel. Vast
+   *  werk is altijd urenmaat (B1a): een duur in werkdagen gaat dan naar de urenbron. */
+  defaultWorkRule?: WorkRule;
   /** Wordt de start van DEZE taak door een voorganger bepaald (`predecessorDrivenTaskIds`)? Alleen
    *  nodig voor een getypte start (kolommen Start/Geplande start); afwezig ⇒ nee. Een getypte start
    *  wordt dan een beperking "Start niet eerder dan" (`startConstraintAfterEdit`). */
@@ -190,10 +199,17 @@ function finishDurationEdit(
 ): GridResult<boolean, readonly CellValidationError[]> {
   const hoursPerDay = environment.effectiveHoursPerDay;
   const usableHours = Number.isFinite(hoursPerDay) && hoursPerDay > 0;
-  const oldWorkMinutes = taskWorkMinutes(before, hoursPerDay);
+  // B1a: vast werk is altijd urenmaat. Een duur in werkdagen ("5d", een kaal getal op een oude
+  // dagtaak, een nieuw einde) gaat eerst naar de urenbron; de nazorg hieronder rekent dan in minuten.
+  routeFixedWorkDurationToHours(task, before, task.time, environment.defaultWorkRule, hoursPerDay);
+  // Op de contour-as, net als store en MCP (`taskWorkMinutesOf`): bij kalendertijd klokdagen × werktijd
+  // per dag, zodat een eenheidswissel op dezelfde klokuren niets herschaalt (knownbug 265).
+  const oldWorkMinutes = taskAxisMinutes(before, hoursPerDay);
   // De rest schuift mee met de duurwijziging, het percentage volgt;
-  // korter dan het gedane werk wordt geweigerd.
-  if (usableHours && carryRemainingThroughDurationEdit(task, before, hoursPerDay, environment.statusDate)?.refused) {
+  // korter dan het gedane werk wordt geweigerd. Kalendertijd (24 klokuren per dag) regelt
+  // `durationEditProgress` zelf; hier gaat de werktijd per dag mee, net als in store en MCP.
+  const calendar = environment.calendarFor?.(task.calendarId) ?? environment.effectiveCalendar;
+  if (usableHours && carryRemainingThroughDurationEdit(task, before, hoursPerDay, environment.statusDate, calendar)?.refused) {
     return failure('durationBelowDoneWork', edit);
   }
   return {
@@ -309,7 +325,6 @@ function applyParsedDuration(
   // waardevergelijking als store en MCP (`taskTriggerChanges`).
   const before: TaskTriggerFields = { ...task, time: { ...task.time } };
   if (parsed.unit === 'hours') {
-    if (environment.enableHourPlanning !== true) return failure('hourPlanningDisabled', edit);
     if (!isFiniteNumber(parsed.durationMinutes) || parsed.durationMinutes < 0) return failure('duration', edit);
     if (!Number.isFinite(environment.effectiveHoursPerDay) || environment.effectiveHoursPerDay <= 0) {
       return failure('calendarHours', edit);
@@ -318,8 +333,8 @@ function applyParsedDuration(
     task.time.durationMinutes = parsed.durationMinutes;
     task.time.scheduleDuration = parsed.durationMinutes / (environment.effectiveHoursPerDay * 60);
   } else {
-    if (!isFiniteNumber(parsed.scheduleDuration) || !Number.isInteger(parsed.scheduleDuration)
-      || parsed.scheduleDuration < 0) return failure('duration', edit);
+    // De dagenmaat mag een breuk hebben (spec "alleen uren" §3.2, B1).
+    if (!isFiniteNumber(parsed.scheduleDuration) || parsed.scheduleDuration < 0) return failure('duration', edit);
     task.time.durationUnit = 'days';
     task.time.scheduleDuration = parsed.scheduleDuration;
     task.time.durationMinutes = undefined;
@@ -331,14 +346,18 @@ function applyParsedDuration(
 /**
  * De duur waarmee een automatisch geplande taak op `finish` eindigt, gerekend vanaf de GETOONDE
  * start: de omkering van `CPMSolver.addDuration`, dezelfde telling als de rechterrand-sleep in de
- * Gantt (`useBarDrag`). Dagtaak: inclusieve werkdagen (`workDaysBetween`, minimaal één). Urentaak:
- * werkminuten in de effectieve uurbanden van de taakkalender (`calendarForEngine`, zoals de solver).
- * De eenheid van de taak blijft wat hij was.
+ * Gantt (`useBarDrag`). Dagtaak in de dagenmaat (`taskCountsInWorkdays`, OPS-profiel): werkdagen met
+ * hun deel (`measuredWorkdaysBetween`). Dagtaak onder P6/MSP: de werkminuten gedeeld door de werktijd
+ * per dag, want de motor telt daar dagen × werktijd per dag (`CPMSolver.workMinutesOf`). Een oude taak
+ * met alleen datums telt inclusieve werkdagen (`workDaysBetween`, minimaal één). Urentaak: werkminuten
+ * in de effectieve uurbanden van de taakkalender (`calendarForEngine`, zoals de solver). De eenheid van
+ * de taak blijft wat hij was.
  */
 function durationForShownFinish(
   task: Task,
   finish: string,
   calendar: WorkCalendar,
+  measure: Pick<TaskEditPlanEnvironment, 'workdayDurationMeasure'>,
 ): { ok: true; value: ParsedTaskDuration } | { ok: false; code: string } {
   if (task.time.durationUnit === 'hours') {
     const engine = new CalendarEngine(calendarForEngine(calendar));
@@ -348,7 +367,26 @@ function durationForShownFinish(
     if (!(end.getTime() > start.getTime())) return { ok: false, code: 'finishBeforeStart' };
     return { ok: true, value: { unit: 'hours', durationMinutes: engine.workMinutesBetween(start, end), explicitUnit: true } };
   }
-  const start = parseDate(shownStart(task).slice(0, 10));
+  // Dagtaak met momenten (sinds F2 elke taak). In de dagenmaat: de werkdagen met hun deel tussen start
+  // en einde (`measuredWorkdaysBetween`, dezelfde telling als de motor, §3.14). Een einde op het
+  // blokeinde van een werkdag telt die dag dus heel; een einde om 12:00 een halve dag. Onder P6/MSP:
+  // werkminuten ÷ (werktijd per dag × 60), zodat de motor precies die werkminuten terugrekent.
+  const startIso = shownStart(task);
+  const engine = new CalendarEngine(calendarForEngine(calendar));
+  if (engine.isHourMode && startIso.includes('T') && finish.includes('T')) {
+    const start = parseInstant(startIso);
+    const end = parseInstant(finish);
+    if (!(end.getTime() > start.getTime())) return { ok: false, code: 'finishBeforeStart' };
+    const dayMeasure = taskCountsInWorkdays(
+      { time: { durationUnit: 'days', durationType: task.time.durationType } }, measure,
+    );
+    const days = dayMeasure
+      ? engine.measuredWorkdaysBetween(start, end)
+      : engine.workMinutesBetween(start, end) / (engine.hoursPerDay * 60);
+    if (!(days > 0)) return { ok: false, code: 'finishBeforeStart' };
+    return { ok: true, value: { unit: 'days', scheduleDuration: Number(days.toFixed(6)), explicitUnit: true } };
+  }
+  const start = parseDate(startIso.slice(0, 10));
   const end = parseDate(finish.slice(0, 10));
   if (!(end.getTime() >= start.getTime())) return { ok: false, code: 'finishBeforeStart' };
   const days = new CalendarEngine(calendar).workDaysBetween(start, end);
@@ -408,11 +446,11 @@ function applyScheduleEdit(
     if (edit.value !== 'days' && edit.value !== 'hours') return failure('enum', edit);
     const target = edit.value as TaskDurationUnit;
     if (target === task.time.durationUnit) return { ok: true, value: false };
-    if (target === 'hours' && environment.enableHourPlanning !== true) {
-      return failure('hourPlanningDisabled', edit);
-    }
+    // B1a: geen invoer maakt een taak onder vast werk dagenmaat (spec §3.12, B8).
+    if (target === 'days' && workRuleApplies(task)
+      && effectiveWorkRule(task, environment.defaultWorkRule) === 'FIXED_WORK') return failure('fixedWorkIsHours', edit);
     if (!environment.effectiveCalendar) return failure('calendarNotFound', edit);
-    const proposal = convertTaskDurationUnit(task, target, environment.effectiveCalendar);
+    const proposal = convertTaskDurationUnit(task, target, environment.effectiveCalendar, environment);
     if (!proposal) return failure('durationConversionNotExact', edit);
     task.time.durationUnit = proposal.unit;
     if (proposal.unit === 'days') {
@@ -435,13 +473,24 @@ function applyScheduleEdit(
     }
     if (!isFiniteNumber(edit.value) || edit.value < 0) return failure('duration', edit);
     if (task.isHammock) return failure('readOnly', edit);
+    // Kalendertijd: het getal zijn klokminuten (de Duur-kolom leest een dag dan als 24 u). Als
+    // expliciete duur, anders deelt de regel hieronder ze door de WERKtijd per dag en wordt "1d 0u"
+    // drie kalenderdagen.
+    if (task.time.durationType === 'ELAPSEDTIME') {
+      const clock = elapsedClockDuration(task, edit.value);
+      if (!clock) return failure('duration', edit);
+      return applyParsedDuration(task, clock, edit, environment, timeBefore);
+    }
     const hoursPerDay = environment.effectiveHoursPerDay;
     if (!Number.isFinite(hoursPerDay) || hoursPerDay <= 0) return failure('calendarHours', edit);
     const days = edit.value / (hoursPerDay * 60);
+    // Een urenmaat-taak houdt haar minutenbron, ook op een kalender zonder eigen werkblokken: anders
+    // bleef er een urentaak zonder `durationMinutes` over ("Ongeldige urenduur").
+    const writeMinutes = minuteAxis(task, environment);
     if (task.time.scheduleDuration !== days
-      || (environment.hourMode ? task.time.durationMinutes !== edit.value : task.time.durationMinutes !== undefined)) {
+      || (writeMinutes ? task.time.durationMinutes !== edit.value : task.time.durationMinutes !== undefined)) {
       task.time.scheduleDuration = days;
-      if (environment.hourMode) task.time.durationMinutes = edit.value;
+      if (writeMinutes) task.time.durationMinutes = edit.value;
       else delete task.time.durationMinutes;
       const finished = finishDurationEdit(task, timeBefore, environment, edit);
       if (!finished.ok) return finished;
@@ -483,7 +532,7 @@ function applyScheduleEdit(
     if (isZeroDurationMilestone(task) || task.time.durationType === 'ELAPSEDTIME'
       || (task.splitGaps?.length ?? 0) > 0) return failure('finishFromDuration', edit);
     if (!environment.effectiveCalendar) return failure('calendarNotFound', edit);
-    const duration = durationForShownFinish(task, edit.value, environment.effectiveCalendar);
+    const duration = durationForShownFinish(task, edit.value, environment.effectiveCalendar, environment);
     if (!duration.ok) return failure(duration.code, edit);
     return applyParsedDuration(task, duration.value, edit, environment, timeBefore);
   } else if (id === 'task.time.scheduleStart' || id === 'task.time.scheduleFinish') {
@@ -556,7 +605,7 @@ function applyMilestoneEdit(
   return scheduleChanged ? finishDurationEdit(task, timeBefore, environment, edit) : { ok: true, value: false };
 }
 
-function applyStatus(task: Task, status: TaskStatus, statusDate: string | undefined): void {
+function applyStatus(task: Task, status: TaskStatus, statusDate: string | undefined, calendar?: WorkCalendar): void {
   if (status === 'NOT_STARTED') {
     task.time.completion = 0;
     task.time.actualStart = undefined;
@@ -564,38 +613,48 @@ function applyStatus(task: Task, status: TaskStatus, statusDate: string | undefi
   } else if (status === 'STARTED') {
     if (task.time.completion >= 1) task.time.completion = 0;
     task.time.actualFinish = undefined;
-    fillMissingActualStart(task.time, statusDate);
+    fillMissingActualStart(task, statusDate, calendar);
   } else {
     task.time.completion = 1;
     // Zelfde regel als setTaskProgress en de completion-cel: zonder actualStart geldt de eigen
     // geplande start, niet AS = AF (dan kromp de voltooide balk tot zijn laatste dag).
-    task.time.actualStart ||= defaultActualStart(task.time);
+    fillMissingActualStart(task, statusDate, calendar);
   }
-  applyProgressInvariants(task, statusDate);
+}
+
+/** Rekent deze taak in minuten? In uurmodus, of als de taak zelf urenmaat is: dan is `durationMinutes`
+ *  haar bron, ook op een kalender zonder eigen werkblokken (bv. vast werk, B1a). */
+function minuteAxis(task: Task, environment: TaskEditPlanEnvironment): boolean {
+  return environment.hourMode || task.time.durationUnit === 'hours';
 }
 
 /** Voortgang die een ingevoerde actuele (`remaining` onwaar) of resterende duur in minuten
- *  impliceert, op de as van de taak: minuten in uurmodus, werkdagen anders. Zonder duur (of met een
- *  onbruikbaar totaal) telt de taak als voltooid. */
+ *  impliceert, op de as van de taak: minuten op de minutenas ({@link minuteAxis}), werkdagen anders.
+ *  Zonder duur (of met een onbruikbaar totaal) telt de taak als voltooid. */
 function completionFromDuration(
   task: Task,
   minutes: number,
   remaining: boolean,
   environment: TaskEditPlanEnvironment,
 ): number {
-  const hoursPerDay = environment.effectiveHoursPerDay;
-  const total = environment.hourMode
+  // Bij kalendertijd is een dag 24 klokuren (`durationHoursPerDay`), zoals bij het lezen van de invoer.
+  const hoursPerDay = durationHoursPerDay(task, environment.effectiveHoursPerDay);
+  const inMinutes = minuteAxis(task, environment);
+  const total = inMinutes
     ? task.time.durationMinutes ?? task.time.scheduleDuration * hoursPerDay * 60
     : task.time.scheduleDuration;
   if (!(total > 0)) return 1;
-  const own = (environment.hourMode ? minutes : minutes / (hoursPerDay * 60)) / total;
+  const own = (inMinutes ? minutes : minutes / (hoursPerDay * 60)) / total;
   return Math.max(0, Math.min(1, remaining ? 1 - own : own));
 }
 
-/** Een ingevoerde resterende duur (minuten, of gewist) in dagen; `remainingMinutes` alleen in uurmodus. */
+/** Een ingevoerde resterende duur (minuten, of gewist) in dagen; `remainingMinutes` alleen op de
+ *  minutenas ({@link minuteAxis}): bij een urentaak is dat de bron van de rest (spec §3.5). Bij
+ *  kalendertijd zijn de minuten klokminuten en de dagen kalenderdagen (24 u per dag,
+ *  `durationHoursPerDay`, dezelfde factor als `parseTaskDuration` bij het lezen). */
 function writeRemaining(task: Task, minutes: number | undefined, environment: TaskEditPlanEnvironment): void {
-  task.time.remainingTime = minutes === undefined ? undefined : minutes / (environment.effectiveHoursPerDay * 60);
-  task.time.remainingMinutes = environment.hourMode && minutes !== undefined ? minutes : undefined;
+  task.time.remainingTime = minutes === undefined ? undefined : minutes / (durationHoursPerDay(task, environment.effectiveHoursPerDay) * 60);
+  task.time.remainingMinutes = minuteAxis(task, environment) && minutes !== undefined ? minutes : undefined;
 }
 
 function applyProgressEdit(
@@ -603,22 +662,29 @@ function applyProgressEdit(
   edit: CellEditIntent,
   environment: TaskEditPlanEnvironment,
 ): GridResult<void, readonly CellValidationError[]> {
+  const calendar = environment.calendarFor?.(task.calendarId) ?? environment.effectiveCalendar;
+  if (edit.columnId === 'task.time.actualStart' || edit.columnId === 'task.time.actualFinish') {
+    const field = edit.columnId === 'task.time.actualFinish' ? 'actualFinish' : 'actualStart';
+    if (optionalString(edit.value)) edit = {
+      ...edit, value: normalizeActualDate(task, field, edit.value, environment.statusDate, calendar),
+    };
+  }
   const id = String(edit.columnId);
   if (id === 'task.status') {
     if (typeof edit.value !== 'string' || !TASK_STATUSES.includes(edit.value as TaskStatus)) {
       return failure('enum', edit);
     }
-    applyStatus(task, edit.value as TaskStatus, environment.statusDate);
+    applyStatus(task, edit.value as TaskStatus, environment.statusDate, calendar);
   } else if (id === 'task.time.completion') {
     if (!isFiniteNumber(edit.value) || edit.value < 0 || edit.value > 1) return failure('percentage', edit);
     // Zelfde regel als store (`setTaskProgress`) en MCP: een afgeleide werkelijke start valt
     // nooit ná het werkelijke einde (100% met een statusdatum vóór de geplande start).
-    applyCompletionEdit(task.time, edit.value, environment.statusDate);
-    applyProgressInvariants(task, environment.statusDate);
+    applyCompletionEdit(task, edit.value, environment.statusDate, calendar);
   } else if (id === 'task.time.actualStart' || id === 'task.time.actualFinish') {
     if (!optionalString(edit.value)) return failure('date', edit);
     if (edit.value && environment.statusDate
-      && isActualPastStatusDate(edit.value, environment.statusDate)) {
+      && isActualPastStatusDate(edit.value, environment.statusDate, isElapsedTask(task) ? undefined : calendar,
+        actualDateSide(task, edit.columnId === 'task.time.actualFinish' ? 'actualFinish' : 'actualStart'))) {
       return failure('actualAfterStatusDate', edit);
     }
     if (id === 'task.time.actualStart') task.time.actualStart = edit.value || undefined;
@@ -630,32 +696,33 @@ function applyProgressEdit(
       && parseInstant(task.time.actualFinish).getTime() < parseInstant(task.time.actualStart).getTime()) {
       return failure('actualFinishBeforeStart', edit);
     }
-    applyProgressInvariants(task, environment.statusDate);
   } else if (id === 'task.time.actualDuration' || id === 'task.time.remainingTime') {
     if (edit.value !== undefined && (!isFiniteNumber(edit.value) || edit.value < 0)) {
       return failure('duration', edit);
     }
-    const hoursPerDay = environment.effectiveHoursPerDay;
-    if (!Number.isFinite(hoursPerDay) || hoursPerDay <= 0) return failure('calendarHours', edit);
+    if (!Number.isFinite(environment.effectiveHoursPerDay) || environment.effectiveHoursPerDay <= 0) {
+      return failure('calendarHours', edit);
+    }
+    const hoursPerDay = durationHoursPerDay(task, environment.effectiveHoursPerDay);
     const remaining = id === 'task.time.remainingTime';
     if (edit.value === undefined) {
       if (remaining) writeRemaining(task, undefined, environment);
       else task.time.actualDuration = undefined;
-      applyProgressInvariants(task, environment.statusDate);
-      return { ok: true, value: undefined };
+    } else {
+      if (remaining) writeRemaining(task, edit.value, environment);
+      else task.time.actualDuration = edit.value / (hoursPerDay * 60);
+      applyCompletionEdit(
+        task,
+        completionFromDuration(task, edit.value, remaining, environment),
+        environment.statusDate,
+        calendar,
+      );
     }
-    if (remaining) writeRemaining(task, edit.value, environment);
-    else task.time.actualDuration = edit.value / (hoursPerDay * 60);
-    applyCompletionEdit(
-      task.time,
-      completionFromDuration(task, edit.value, remaining, environment),
-      environment.statusDate,
-    );
-    applyProgressInvariants(task, environment.statusDate);
-    if (remaining) writeRemaining(task, edit.value, environment);
   } else {
     return failure('plannerNotAvailable', edit);
   }
+  applyProgressInvariants(task, environment.statusDate, calendar);
+  if (id === 'task.time.remainingTime' && edit.value !== undefined) writeRemaining(task, edit.value as number, environment);
   return { ok: true, value: undefined };
 }
 
@@ -727,6 +794,16 @@ function applyProgressEdits(
   edits: readonly CellEditIntent[],
   environment: TaskEditPlanEnvironment,
 ): GridResult<void, readonly CellValidationError[]> {
+  const calendar = environment.calendarFor?.(task.calendarId) ?? environment.effectiveCalendar;
+  edits = edits.map(edit => {
+    if ((edit.columnId === 'task.time.actualStart' || edit.columnId === 'task.time.actualFinish')
+      && optionalString(edit.value)) return {
+      ...edit, value: normalizeActualDate(task,
+        edit.columnId === 'task.time.actualFinish' ? 'actualFinish' : 'actualStart',
+        edit.value, environment.statusDate, calendar),
+    };
+    return edit;
+  });
   const byId = new Map(edits.map(edit => [String(edit.columnId), edit] as const));
   const first = edits[0]!;
   const statusEdit = byId.get('task.status');
@@ -743,7 +820,8 @@ function applyProgressEdits(
   for (const edit of [actualStartEdit, actualFinishEdit]) {
     if (!edit) continue;
     if (!optionalString(edit.value)) return failure('date', edit);
-    if (edit.value && environment.statusDate && isActualPastStatusDate(edit.value, environment.statusDate)) {
+    if (edit.value && environment.statusDate && isActualPastStatusDate(edit.value, environment.statusDate, isElapsedTask(task) ? undefined : calendar,
+        actualDateSide(task, edit.columnId === 'task.time.actualFinish' ? 'actualFinish' : 'actualStart'))) {
       return failure('actualAfterStatusDate', edit);
     }
   }
@@ -822,7 +900,7 @@ function applyProgressEdits(
   if (actualDurationEdit) {
     task.time.actualDuration = actualDurationEdit.value === undefined
       ? undefined
-      : (actualDurationEdit.value as number) / (environment.effectiveHoursPerDay * 60);
+      : (actualDurationEdit.value as number) / (durationHoursPerDay(task, environment.effectiveHoursPerDay) * 60);
   }
   if (remainingEdit) writeRemaining(task, remainingEdit.value as number | undefined, environment);
   if (actualStartEdit) task.time.actualStart = desiredActualStart;
@@ -833,16 +911,16 @@ function applyProgressEdits(
     // Pas ná het vastleggen van het einde: een afgeleide werkelijke start valt nooit ná het
     // (opgegeven of straks afgeleide) werkelijke einde — zelfde uitkomst als het enkele-celpad.
     // Een in deze rij opgegeven Actual Start staat er dan al en blijft ongemoeid.
-    if (desiredCompletion > 0) fillMissingActualStart(task.time, environment.statusDate);
+    if (desiredCompletion > 0) fillMissingActualStart(task, environment.statusDate, calendar);
   }
   if (desiredStatus === 'NOT_STARTED') {
     task.time.actualStart = undefined;
     task.time.actualFinish = undefined;
   } else if (desiredStatus === 'STARTED') {
     task.time.actualFinish = undefined;
-    fillMissingActualStart(task.time, environment.statusDate);
+    fillMissingActualStart(task, environment.statusDate, calendar);
   }
-  applyProgressInvariants(task, environment.statusDate);
+  applyProgressInvariants(task, environment.statusDate, calendar);
   if (remainingEdit) writeRemaining(task, remainingEdit.value as number | undefined, environment);
   if (desiredStatus !== undefined && task.status !== desiredStatus) {
     return failure('conflictingProgressInputs', statusEdit!);

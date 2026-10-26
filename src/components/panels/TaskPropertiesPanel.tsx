@@ -139,7 +139,7 @@ export function TaskPropertiesPanel() {
       <TaskCodesFieldsSection taskId={task.id} />
 
       <button
-        onClick={runCPM}
+        onClick={() => runCPM()}
         className="btn btn--sm btn--primary mt-2"
         style={{ boxShadow: 'var(--shadow-glow)' }}
       >

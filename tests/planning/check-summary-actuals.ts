@@ -1,3 +1,4 @@
+// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 // Werkelijke datums van een verzameltaak (fase) — headless tegen de ECHTE store.
 //
 // Vervolg op check-summary-progress.ts (besluit A: fasevoortgang is afgeleid en alleen-lezen). De
@@ -94,12 +95,12 @@ function completeAll(ids: ReturnType<typeof reset>): void {
   eq('Vooraf: fase zonder werkelijke datums', actualsOf(task(ids.P)), { as: null, af: null });
   ok('Blad K2 begint', S().setActualStart(ids.K2, '2026-03-04'));
   S().runCPM();
-  eq('Eén blad begonnen ⇒ fase-start = die start, nog geen einde', actualsOf(task(ids.P)), { as: '2026-03-04', af: null });
+  eq('Eén blad begonnen ⇒ fase-start = die start, nog geen einde', actualsOf(task(ids.P)), { as: "2026-03-04T07:00", af: null });
   eq('Subfase zonder begonnen blad ⇒ geen werkelijke datums', actualsOf(task(ids.Q)), { as: null, af: null });
   ok('Blad L1 (in de subfase) begint eerder', S().setActualStart(ids.L1, '2026-03-03'));
   S().runCPM();
-  eq('Vroegere start dieper in de boom ⇒ fase-start = de vroegste over alle bladen', actualsOf(task(ids.P)).as, '2026-03-03');
-  eq('Subfase-start = haar eigen blad', actualsOf(task(ids.Q)).as, '2026-03-03');
+  eq('Vroegere start dieper in de boom ⇒ fase-start = de vroegste over alle bladen', actualsOf(task(ids.P)).as, "2026-03-03T07:00");
+  eq('Subfase-start = haar eigen blad', actualsOf(task(ids.Q)).as, "2026-03-03T07:00");
   eq('Fase-status volgt (bestaande regel)', task(ids.P).status, 'STARTED');
 
   // Voortgang zonder expliciete datum: `setTaskProgress` leidt de werkelijke start van het blad af,
@@ -125,20 +126,20 @@ function completeAll(ids: ReturnType<typeof reset>): void {
   S().setActualStart(ids.L1, '2026-03-09'); S().setActualFinish(ids.L1, '2026-03-12');
   S().setActualStart(ids.K3, '2026-03-09');
   S().runCPM();
-  eq('Drie van vier bladen klaar ⇒ fase heeft een start maar GEEN einde', actualsOf(task(ids.P)), { as: '2026-03-02', af: null });
-  eq('Subfase met haar enige blad klaar ⇒ start + einde', actualsOf(task(ids.Q)), { as: '2026-03-09', af: '2026-03-12' });
+  eq('Drie van vier bladen klaar ⇒ fase heeft een start maar GEEN einde', actualsOf(task(ids.P)), { as: "2026-03-02T07:00", af: null });
+  eq('Subfase met haar enige blad klaar ⇒ start + einde', actualsOf(task(ids.Q)), { as: "2026-03-09T07:00", af: "2026-03-12T16:00" });
   eq('Subfase is dan 100% voltooid', progressOf(task(ids.Q)), { completion: 1, status: 'COMPLETED' });
 
   S().setActualFinish(ids.K3, '2026-03-11');
   S().runCPM();
   eq('Alle bladen klaar ⇒ fase-einde = het LAATSTE werkelijke einde (niet het laatst gezette)',
-    actualsOf(task(ids.P)), { as: '2026-03-02', af: '2026-03-13' });
+    actualsOf(task(ids.P)), { as: "2026-03-02T07:00", af: "2026-03-13T16:00" });
   eq('... en de fase is 100% voltooid: 100% ⇔ werkelijk einde, ook op de fase',
     progressOf(task(ids.P)), { completion: 1, status: 'COMPLETED' });
 
   S().setActualFinish(ids.K3, undefined);
   S().runCPM();
-  eq('Eén blad weer open ⇒ het fase-einde vervalt, de start blijft', actualsOf(task(ids.P)), { as: '2026-03-02', af: null });
+  eq('Eén blad weer open ⇒ het fase-einde vervalt, de start blijft', actualsOf(task(ids.P)), { as: "2026-03-02T07:00", af: null });
   eq('... en de fase is weer "bezig"', task(ids.P).status, 'STARTED');
 }
 
@@ -149,7 +150,7 @@ function completeAll(ids: ReturnType<typeof reset>): void {
   S().updateTask(ids.P, { manuallyScheduled: true, status: 'STARTED' });
   setTime(ids.P, { actualStart: '2026-02-26', completion: 0.1 });
   S().runCPM();
-  eq('Handmatige fase: opgeslagen werkelijke start blijft staan', actualsOf(task(ids.P)), { as: '2026-02-26', af: null });
+  eq('Handmatige fase: opgeslagen werkelijke start blijft staan', actualsOf(task(ids.P)), { as: "2026-02-26T07:00", af: null });
   eq('Automatische subfase eronder rolt wél op (geen begonnen blad)', actualsOf(task(ids.Q)), { as: null, af: null });
 }
 
@@ -169,7 +170,7 @@ function completeAll(ids: ReturnType<typeof reset>): void {
   eq('Raster-transactie: werkelijke start op een fase geweigerd met reden', grid.ok ? null : grid.errors[0]?.code, 'summaryProgress');
   eq('Geweigerde schrijfpogingen veranderen niets', J(S().tasks) === before, true);
   S().runCPM();
-  eq('Na herberekenen: nog steeds de afgeleide start', actualsOf(task(ids.P)), { as: '2026-03-04', af: null });
+  eq('Na herberekenen: nog steeds de afgeleide start', actualsOf(task(ids.P)), { as: "2026-03-04T07:00", af: null });
 }
 
 // ── 5. Project verplaatsen: een fase telt niet dubbel als "taak met werkelijke datums" ─────────
@@ -204,7 +205,7 @@ function completeAll(ids: ReturnType<typeof reset>): void {
   const ids = reset();
   completeAll(ids);
   const saved = readIFC(writeIFC(buildWriteIFCInput(S()))).tasks.find(t => t.name === 'Fase')!;
-  eq('Opslaan: het IFC draagt de afgeleide fase-actuals', actualsOf(saved), { as: '2026-03-02', af: '2026-03-13' });
+  eq('Opslaan: het IFC draagt de afgeleide fase-actuals', actualsOf(saved), { as: "2026-03-02", af: "2026-03-13" });
 
   // Oud bestand A (typisch vóór deze wijziging): de fase draagt geen werkelijke datums en de oude
   // 0% "Niet gestart", terwijl haar bladen klaar zijn.
@@ -213,8 +214,8 @@ function completeAll(ids: ReturnType<typeof reset>): void {
   const oldA = writeIFC(buildWriteIFCInput(S()));
   eq('Fixture A: het bestand draagt geen fase-actuals', actualsOf(readIFC(oldA).tasks.find(t => t.name === 'Fase')!), { as: null, af: null });
   S().applyLoadedProject(readIFC(oldA), { filePath: null, recompute: true });
-  eq('Oud bestand A openen: de fase krijgt de afgeleide datums', actualsOf(byName('Fase')), { as: '2026-03-02', af: '2026-03-13' });
-  eq('Oud bestand A openen: bladen ongewijzigd', actualsOf(byName('K2')), { as: '2026-03-02', af: '2026-03-13' });
+  eq('Oud bestand A openen: de fase krijgt de afgeleide datums', actualsOf(byName('Fase')), { as: "2026-03-02T07:00", af: "2026-03-13T16:00" });
+  eq('Oud bestand A openen: bladen ongewijzigd', actualsOf(byName('K2')), { as: "2026-03-02T07:00", af: "2026-03-13T16:00" });
 
   // Oud bestand B: de fase draagt BEVROREN werkelijke datums (MSP-import of een oude paneelinvoer),
   // en K3 staat later opgeslagen dan de berekening, zodat openen "datums zoals opgeslagen" aanbiedt.
@@ -223,7 +224,7 @@ function completeAll(ids: ReturnType<typeof reset>): void {
   setTime(idsB.P, { actualStart: '2026-02-20', actualFinish: '2026-03-20' });
   setTime(idsB.K3, { earlyStart: '2026-03-16', earlyFinish: '2026-03-20' });
   const oldB = writeIFC(buildWriteIFCInput(S()));
-  eq('Fixture B: het bestand draagt de bevroren fase-actuals', actualsOf(readIFC(oldB).tasks.find(t => t.name === 'Fase')!), { as: '2026-02-20', af: '2026-03-20' });
+  eq('Fixture B: het bestand draagt de bevroren fase-actuals', actualsOf(readIFC(oldB).tasks.find(t => t.name === 'Fase')!), { as: "2026-02-20", af: "2026-03-20" });
   // Dit deel toetst openen BUITEN de modus: bestand B is buiten de modus opgeslagen en draagt dus
   // geen `recordedSourceFormat` (`ifcSaveInput.ts` schrijft die alleen in de modus). Tot #371 zette
   // deze fixture die bronvlag wél, alleen zodat openen de modus AANBOOD (heropen-beleid 2026-09-24).
@@ -231,18 +232,18 @@ function completeAll(ids: ReturnType<typeof reset>): void {
   // weer IN de modus, en daar toont de fase haar opgeslagen datums (het tweede deel hieronder).
   // Zelfde fixturekeuze als check-summary-progress.ts.
   S().applyLoadedProject(readIFC(oldB), { filePath: null, recompute: true });
-  eq('Oud bestand B openen: afgeleid, niet bevroren', actualsOf(byName('Fase')), { as: '2026-03-02', af: '2026-03-13' });
+  eq('Oud bestand B openen: afgeleid, niet bevroren', actualsOf(byName('Fase')), { as: "2026-03-02T07:00", af: "2026-03-13T16:00" });
   const resaved = readIFC(writeIFC(buildWriteIFCInput(S()))).tasks.find(t => t.name === 'Fase')!;
-  eq('Oud bestand B openen + opslaan: het bestand draagt nu de afgeleide waarde', actualsOf(resaved), { as: '2026-03-02', af: '2026-03-13' });
+  eq('Oud bestand B openen + opslaan: het bestand draagt nu de afgeleide waarde', actualsOf(resaved), { as: "2026-03-02", af: "2026-03-13" });
 
   // Geen aanbod-stand meer (eigenaar, 2026-10-17): een buiten de modus opgeslagen eigen IFC vergeet
   // de opgeslagen datums. Hetzelfde bestand als ONBEWERKT (vlag aan) opent in de modus.
   ok('Fixture B (buiten de modus opgeslagen): openen vergeet de opgeslagen datums', S().recordedDates === null && !S().datesAsRecorded);
   S().applyLoadedProject({ ...readIFC(oldB), recordedSourceFormat: 'mspdi', importPristine: true }, { filePath: null, recompute: true });
   ok('Fixture B (onbewerkt): opent in "datums zoals opgeslagen"', S().datesAsRecorded);
-  eq('"Datums zoals opgeslagen": de fase toont haar opgeslagen werkelijke datums', actualsOf(byName('Fase')), { as: '2026-02-20', af: '2026-03-20' });
+  eq('"Datums zoals opgeslagen": de fase toont haar opgeslagen werkelijke datums', actualsOf(byName('Fase')), { as: "2026-02-20T07:00", af: "2026-03-20T16:00" });
   S().runCPM();
-  eq('Herberekenen verlaat de modus: weer afgeleid', actualsOf(byName('Fase')), { as: '2026-03-02', af: '2026-03-13' });
+  eq('Herberekenen verlaat de modus: weer afgeleid', actualsOf(byName('Fase')), { as: "2026-03-02T07:00", af: "2026-03-13T16:00" });
 }
 
 if (diffs.length === 0) {

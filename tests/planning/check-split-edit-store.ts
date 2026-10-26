@@ -1,3 +1,4 @@
+// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 // check-split-edit-store.ts — de STORE-kant van gebruikerssplits (issue #146, spec
 // 2026-09-19-taken-splitsen-bewerken-design.md §2): de solver-fix voor een dag-taak op een
 // kalender met werktijdbanden, en `taskSlice.setTaskSplits` als tijdbasis-bewerking.
@@ -117,8 +118,8 @@ console.log('-- split-edit-store: setTaskSplits, undo/redo en scheduleFinish (T6
   ok('T6.1 isDirty', S().isDirty);
   ok('T6.1 scheduleStale', S().scheduleStale);
   // 10 werkdagen werk + 5 werkdagen pauze = 15 werkdagen vanaf ma 2026-06-01 ⇒ vr 2026-06-19.
-  eq('T6.1 eigen scheduleFinish groeit mee', t.time.scheduleFinish, '2026-06-19');
-  eq('T6.1 ook earlyFinish, want dáár tekent de renderer de balk uit', t.time.earlyFinish, '2026-06-19');
+  eq('T6.1 eigen scheduleFinish groeit mee', t.time.scheduleFinish, "2026-06-19T16:00");
+  eq('T6.1 ook earlyFinish, want dáár tekent de renderer de balk uit', t.time.earlyFinish, "2026-06-19T16:00");
 
   S().undo();
   const undone = S().tasks.find(x => x.id === id)!;
@@ -294,19 +295,19 @@ console.log('-- split-edit-store: opgeschoven opvolger houdt zijn balk op earlyS
   S().addSequence({ predecessorId: pred, successorId: succ, type: 'FINISH_START', lagDays: 0 });
   S().runCPM();
   const before = S().tasks.find(x => x.id === succ)!;
-  eq('#171 het anker blijft op de projectstart', before.time.scheduleStart, '2026-06-01');
-  eq('#171 de balk begint na de voorganger', before.time.earlyStart, '2026-06-15');
+  eq('#171 het anker blijft op de projectstart', before.time.scheduleStart, "2026-06-01T07:00");
+  eq('#171 de balk begint na de voorganger', before.time.earlyStart, "2026-06-15T07:00");
   // 5 werkdagen werk, 1 werkdag pauze, 5 werkdagen werk ⇒ spanne 11 werkdagen vanaf 15 juni.
   const refusal = S().setTaskSplits(succ, [
     { kind: 'work', minutes: 2400 }, { kind: 'gap', minutes: 480, source: 'user' }, { kind: 'work', minutes: 2400 },
   ] as SplitPiece[]);
   eq('#171 split geaccepteerd', refusal, null);
   const after = S().tasks.find(x => x.id === succ)!;
-  eq('#171 voorlopig einde telt vanaf de balkstart', after.time.earlyFinish, '2026-06-29');
+  eq('#171 voorlopig einde telt vanaf de balkstart', after.time.earlyFinish, "2026-06-29T16:00");
   // Het invoerpaar scheduleStart/scheduleFinish blijft een consistent anker (11 werkdagen vanaf 1 juni).
-  eq('#171 het ankereinde blijft bij het anker', after.time.scheduleFinish, '2026-06-15');
+  eq('#171 het ankereinde blijft bij het anker', after.time.scheduleFinish, "2026-06-15T16:00");
   S().runCPM();
-  eq('#171 de herberekening bevestigt hetzelfde einde', S().tasks.find(x => x.id === succ)!.time.earlyFinish, '2026-06-29');
+  eq('#171 de herberekening bevestigt hetzelfde einde', S().tasks.find(x => x.id === succ)!.time.earlyFinish, "2026-06-29T16:00");
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────

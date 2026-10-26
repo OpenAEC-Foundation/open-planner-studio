@@ -4,6 +4,7 @@
     "applyShape": "Použít tvar:",
     "hoursPerDay": "{{hours}} h za pracovní den",
     "stripHint": "Přetáhněte hranici a prodlužte nebo zkraťte fázi. Přetáhněte horní okraj a nastavte jednotky přiřazení. Dvojklikem na den fázi rozdělte.",
+    "partialDayHint": "Začíná-li nebo končí-li úkol uprostřed pracovního dne, počítá se tento den poměrně: hodiny jsou dány jednotkami přiřazení × částí dne. Histogram se počítá stejně.",
     "from": "Od",
     "to": "Do",
     "days": "Dny",
@@ -181,8 +182,8 @@
       "calendar": "Vyberte kalendář ze seznamu.",
       "calendarNotFound": "Zvolený kalendář neexistuje.",
       "calendarHours": "Kalendář tohoto úkolu nemá pracovní hodiny za den.",
-      "hourPlanningDisabled": "Plánování v hodinách je vypnuto v „Nastavení“ aplikace.",
-      "durationConversionNotExact": "Tuto dobu trvání nelze přesně převést na druhou jednotku.",
+      "durationConversionNotExact": "Tuto dobu trvání nelze v tomto kalendáři převést na druhou jednotku.",
+      "fixedWorkIsHours": "Úkol typu pevná práce má vždy jednotku hodin.",
       "milestoneRequired": "Toto pole platí jen pro milníky.",
       "milestoneUnavailable": "Souhrnný úkol s dílčími úkoly nemůže být milník.",
       "actualAfterStatusDate": "Skutečné datum je po datu stavu.",
@@ -336,11 +337,8 @@
     "unit": "Jednotka doby trvání",
     "days": "Dny",
     "hours": "Hodiny",
-    "invalid": "Zadejte celé číslo dnů nebo hodin, například 2d nebo 12h.",
-    "enableHourPlanningFirst": "Zapněte plánování v hodinách, abyste mohli upravit tento hodinový úkol.",
-    "enableHourPlanning": "Zapnout plánování v hodinách",
-    "requiresWorkBlocks": "Tento kalendář nemá platné pracovní hodiny. Zkontrolujte pracovní dny a pracovní hodiny.",
-    "conversionNotExact": "{{value}} v tomto kalendáři nevychází na celé dny. Jednotka se nezměnila.",
+    "invalid": "Zadejte počet dnů nebo hodin, například 2,5d nebo 12h.",
+    "conversionNotExact": "{{value}} nelze v tomto kalendáři převést na druhou jednotku. Jednotka se nezměnila.",
     "unitInfo": "Zvolená jednotka patří k tomuto úkolu. Dny se počítají jako pracovní dny; hodiny se počítají jako pracovní hodiny v rámci kalendáře. Jiný kalendář nezmění jednotku ani zadanou dobu trvání, ale může změnit datum dokončení."
   },
   "dialog": {
@@ -383,7 +381,6 @@
       "resourceAddsWork": "Další zdroj přidá práci.",
       "resourceSharesWork": "Další zdroj převezme část práce; jednotky přiřazení na jeden zdroj klesnou.",
       "resourceShorter": "Další zdroj zkrátí úkol.",
-      "resourceShorterWholeDays": "Další zdroj zkrátí úkol, zaokrouhleno na celé dny.",
       "resourceAddsWorkSameDuration": "Další zdroj přidá práci; doba trvání zůstane stejná."
     },
     "info": "Vysvětlení typu úkolu"
@@ -667,5 +664,11 @@
     "pieceHours_many": "Část: {{count}} hodiny",
     "pieceHours_other": "Část: {{count}} hodin",
     "merged": "Sloučit"
+  },
+  "dateTimeInput": {
+    "time": "Čas: {{field}}",
+    "timeHint": "Prázdné: začátek nebo konec pracovního dne. S časem: přesně tento okamžik.",
+    "later": "O čtvrt hodiny později",
+    "earlier": "O čtvrt hodiny dříve"
   }
 }

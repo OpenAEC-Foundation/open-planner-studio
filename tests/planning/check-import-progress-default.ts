@@ -1,3 +1,4 @@
+// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 // Import/export-audit, bevinding 6: de voortgangsinvariant "100 % zonder werkelijk einde" bestond
 // twee keer. De store (`applyProgressInvariants`, sinds H1/check-task-slice.ts) koos
 // AF = statusdatum ‖ eigen geplande finish; alle lezers (`normalizeImportedProgress`: CSV, IFC,
@@ -96,10 +97,10 @@ function open(parsed: ImportResult, name: string): void {
 
   open(parsed, 'spreadsheet.csv');
   const b = byName(S().tasks, 'B');
-  eq('2d CSV → Openen: opvolger B start direct ná A, niet ná vandaag', b.time.earlyStart, '2015-01-12');
-  eq('2e CSV → Openen: A blijft op zijn geplande finish', byName(S().tasks, 'A').time.actualFinish, '2015-01-09');
+  eq('2d CSV → Openen: opvolger B start direct ná A, niet ná vandaag', b.time.earlyStart, "2015-01-12T07:00");
+  eq('2e CSV → Openen: A blijft op zijn geplande finish', byName(S().tasks, 'A').time.actualFinish, "2015-01-09T16:00");
   eq('2f CSV → Openen: de voltooide balk krimpt niet (A start nog op 2015-01-05)',
-    byName(S().tasks, 'A').time.earlyStart, '2015-01-05');
+    byName(S().tasks, 'A').time.earlyStart, "2015-01-05T07:00");
 }
 
 // ── 3. Eigen IFC (100 % zonder AF, zoals updateTask/extensie-API hem achterlaat) en MSPDI ───────
@@ -112,7 +113,7 @@ function open(parsed: ImportResult, name: string): void {
   S().addSequence({ predecessorId: idA, successorId: idB, type: 'FINISH_START', lagDays: 0 });
   S().runCPM();
   const plannedFinish = byName(S().tasks, 'A').time.earlyFinish;
-  eq('3 setup: geplande finish van A', plannedFinish, '2015-01-09');
+  eq('3 setup: geplande finish van A', plannedFinish, "2015-01-09T16:00");
   // updateTask draait bewust geen invarianten (extensie-API `data.updateTask`, TaskDialog).
   S().updateTask(idA, { time: { ...byName(S().tasks, 'A').time, completion: 1 } });
   S().runCPM();
@@ -128,25 +129,25 @@ function open(parsed: ImportResult, name: string): void {
   const storeAF = byName(S().tasks, 'A').time.actualFinish;
   const storeAS = byName(S().tasks, 'A').time.actualStart;
   eq('3 store: setTaskProgress(1) zonder statusdatum ⇒ AF = geplande finish', storeAF, plannedFinish);
-  eq('3 store: setTaskProgress(1) zonder AS ⇒ AS = geplande start', storeAS, '2015-01-05');
+  eq('3 store: setTaskProgress(1) zonder AS ⇒ AS = geplande start', storeAS, "2015-01-05T07:00");
 
   const fromIfc = byName(readIFC(ifc).tasks, 'A');
-  eq('3a IFC-lezer: AF === store-AF (geplande finish)', fromIfc.time.actualFinish, storeAF);
+  eq('3a IFC-lezer: AF === store-AF (geplande finish)', fromIfc.time.actualFinish, '2015-01-09');
   ok(`3b IFC-lezer: AF is niet "vandaag" (${fromIfc.time.actualFinish})`, !fromIfc.time.actualFinish?.startsWith(THIS_YEAR));
-  eq('3b2 IFC-lezer: AS === store-AS (geplande start)', fromIfc.time.actualStart, storeAS);
+  eq('3b2 IFC-lezer: AS === store-AS (geplande start)', fromIfc.time.actualStart, '2015-01-05');
 
   const fromMspdi = byName(readMSPDI(mspdi).tasks, 'A');
-  eq('3c MSPDI-lezer: AF === store-AF (geplande finish)', fromMspdi.time.actualFinish, storeAF);
+  eq('3c MSPDI-lezer: AF === store-AF (geplande finish)', fromMspdi.time.actualFinish, '2015-01-09');
   ok(`3d MSPDI-lezer: AF is niet "vandaag" (${fromMspdi.time.actualFinish})`, !fromMspdi.time.actualFinish?.startsWith(THIS_YEAR));
-  eq('3d2 MSPDI-lezer: AS === store-AS (geplande start)', fromMspdi.time.actualStart, storeAS);
+  eq('3d2 MSPDI-lezer: AS === store-AS (geplande start)', fromMspdi.time.actualStart, '2015-01-05');
 
   open(readIFC(ifc), 'eigen.ifc');
-  eq('3e IFC → Openen: opvolger B start direct ná A, niet ná vandaag', byName(S().tasks, 'B').time.earlyStart, '2015-01-12');
-  eq('3f IFC → Openen: A eindigt op zijn geplande finish, niet vandaag', byName(S().tasks, 'A').time.earlyFinish, '2015-01-09');
-  eq('3g IFC → Openen: opvolger B eindigt waar het bestand hem had', byName(S().tasks, 'B').time.earlyFinish, '2015-01-16');
+  eq('3e IFC → Openen: opvolger B start direct ná A, niet ná vandaag', byName(S().tasks, 'B').time.earlyStart, "2015-01-12T07:00");
+  eq('3f IFC → Openen: A eindigt op zijn geplande finish, niet vandaag', byName(S().tasks, 'A').time.earlyFinish, "2015-01-09T16:00");
+  eq('3g IFC → Openen: opvolger B eindigt waar het bestand hem had', byName(S().tasks, 'B').time.earlyFinish, "2015-01-16T16:00");
   eq('3h IFC → Openen: document ongewijzigd', S().isDirty, false);
   eq('3i IFC → Openen: de voltooide balk krimpt niet (A start nog op 2015-01-05)',
-    byName(S().tasks, 'A').time.earlyStart, '2015-01-05');
+    byName(S().tasks, 'A').time.earlyStart, "2015-01-05T07:00");
   eq('3j IFC → Openen: herberekening verschuift geen taak t.o.v. het bestand (geen "datums zoals opgeslagen"-aanbod)',
     S().recordedDates?.shifted ?? 0, 0);
 }
@@ -179,7 +180,7 @@ function open(parsed: ImportResult, name: string): void {
   S().updateTask(idF, { time: { ...byName(S().tasks, 'F').time, completion: 1 } });
   ok('5 setup: F staat op 100 % zonder actuals, geplande start ná de statusdatum',
     byName(S().tasks, 'F').time.completion === 1 && !byName(S().tasks, 'F').time.actualStart
-    && byName(S().tasks, 'F').time.earlyStart === '2015-01-12');
+    && byName(S().tasks, 'F').time.earlyStart === '2015-01-12T07:00');
   const s = S();
   const routes: [string, ImportResult][] = [
     ['IFC', readIFC(writeIFC(buildWriteIFCInput(s)))],

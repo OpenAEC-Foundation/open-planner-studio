@@ -60,7 +60,7 @@ async function store(page: Page) {
       earlyFinish: task?.time.earlyFinish,
       dateNotation: s.ui.dateNotation,
       timeNotation: s.ui.timeNotation,
-      enableHourPlanning: s.ui.enableHourPlanning,
+
     };
   });
 }
@@ -77,7 +77,6 @@ test('statusdatum met tijd: lint toont datum én 17:00, tijd naar 12:00 + F5 ver
   // zichtbaar omdat de projectkalender van de fixture werktijdblokken heeft (uur-modus), niet door de schakelaar.
   expect(before.dateNotation).toBe('dmy');
   expect(before.timeNotation).toBe('24h');
-  expect(before.enableHourPlanning).toBe(false);
   expect(before.earlyFinish?.slice(0, 10)).toBe('2006-09-22');
 
   await page.locator('.ribbon-tab').filter({ hasText: /^Planning$/ }).click();
@@ -137,7 +136,6 @@ test('dag-modus: geen tijdveld, ook met Urenplanning aan en een statusdatum met 
     s.setProject({ statusDate: `${iso}T17:00` });
   }, day);
   const [yyyy, mm, dd] = day.split('-');
-  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ enableHourPlanning: true }));
   await page.locator('.ribbon-tab').filter({ hasText: /^Planning$/ }).click();
   const group = page.getByRole('group', { name: /^(Status date|Statusdatum)$/ }).first();
   await expect(group).toBeVisible();

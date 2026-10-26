@@ -1,3 +1,4 @@
+// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 // Issue #145 — de AFGELEIDE duur van een verzameltaak, headless tegen de ECHTE store.
 //
 // Gemeld gedrag: "on adding child task the summary task duration does not update. I used
@@ -214,7 +215,7 @@ function parentWithChild(days: number): { parent: string; child: string } {
   S().runCPM();
   eq('Manual verzameltaak houdt haar eigen duur en datums',
     [task(parent).time.scheduleDuration, task(parent).time.earlyStart, task(parent).time.earlyFinish],
-    [3, '2026-09-01', '2026-09-03']);
+    [3, "2026-09-01T07:00", "2026-09-03T16:00"]);
 }
 
 // ── 10. De Duur-cel van een verzameltaak is niet bewerkbaar ──────────────────────────────────

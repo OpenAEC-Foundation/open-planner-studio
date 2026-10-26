@@ -3,21 +3,12 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
-import { parseDate } from '@/utils/dateUtils';
+import { useDisplayDate, useTaskIdDateText } from '@/hooks/displayDate';
+import { calendarClock, momentLabel } from '@/utils/taskDateLabel';
 import { LEVELING_REASON_KEY } from '@/utils/levelingReasonKey';
 import { levelInBackground, LevelingCancelledError, type BackgroundLeveling } from '@/services/leveling/backgroundLeveling';
 import { LEVELING_HELP_ARTICLE_ID } from '@/state/helpArticles';
 import { LevelingPreviewTable } from './LevelingPreviewTable';
-
-function fmt(iso: string): string {
-  if (!iso) return '—';
-  try {
-    const d = parseDate(iso);
-    return `${String(d.getUTCDate()).padStart(2, '0')}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${d.getUTCFullYear()}`;
-  } catch {
-    return iso;
-  }
-}
 
 /**
  * Nivelleer-dialoog. Opties → Berekenen (roept `levelResources` aan, GEEN
@@ -28,6 +19,13 @@ export function LevelingDialog() {
   const { t, i18n } = useTranslation('common');
   const resources = useAppStore(s => s.resources);
   const tasks = useAppStore(s => s.tasks);
+  // Datums in de notatie van de app en volgens B4: een start of einde met tijd alleen midden op de
+  // werkdag, zoals in de tabel en de statusbalk.
+  const dd = useDisplayDate();
+  const taskDate = useTaskIdDateText();
+  const projectCalendar = useAppStore(s => s.calendar);
+  const fmtEnd = (iso: string) => (iso ? dd.dateTime(momentLabel(calendarClock(projectCalendar), iso, 'end')) : '—');
+  const fmtStart = (taskId: string, iso: string) => (iso ? taskDate(taskId, iso, 'start') : '—');
   const cpmResult = useAppStore(s => s.cpmResult);
   const levelingInput = useAppStore(s => s.levelingInput);
   const applyLeveling = useAppStore(s => s.applyLeveling);
@@ -216,14 +214,14 @@ export function LevelingDialog() {
             <div className="flex flex-col gap-3 border-t border-border pt-3">
               <div className="!text-body" style={{ color: endChanged ? 'var(--error)' : 'var(--theme-text-dim)' }}>
                 {endChanged
-                  ? t('resource.leveling.projectEndChanged', { before: fmt(result.projectEndBefore), after: fmt(result.projectEndAfter) })
-                  : t('resource.leveling.projectEndUnchanged', { date: fmt(result.projectEndAfter) })}
+                  ? t('resource.leveling.projectEndChanged', { before: fmtEnd(result.projectEndBefore), after: fmtEnd(result.projectEndAfter) })
+                  : t('resource.leveling.projectEndUnchanged', { date: fmtEnd(result.projectEndAfter) })}
               </div>
 
               {rows.length === 0 && conflicts.length === 0 && (
                 <div className="text-text-secondary">{t('resource.leveling.noChanges')}</div>
               )}
-              {rows.length > 0 && <LevelingPreviewTable rows={rows} formatDate={fmt} />}
+              {rows.length > 0 && <LevelingPreviewTable rows={rows} formatStart={fmtStart} />}
 
               {conflicts.length > 0 && (
                 <div className="flex flex-col gap-1">

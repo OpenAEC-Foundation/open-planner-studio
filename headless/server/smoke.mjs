@@ -24,7 +24,7 @@ const base = baseArg.replace(/\/+$/, '');
 const here = dirname(fileURLToPath(import.meta.url));
 const EXAMPLE = join(here, '..', '..', 'examples', '01-grachtenpand-amsterdam.ifc');
 // Dezelfde verwachte uitkomst als scripts/verify-core-package.mjs.
-const EXPECTED = { name: 'New-Build Canal House, Amsterdam', start: '2027-03-01', finish: '2028-01-12', tasks: 51 };
+const EXPECTED = { name: 'New-Build Canal House, Amsterdam', start: '2027-03-01', finish: '2028-01-12T16:00', tasks: 51 };
 
 let failures = 0;
 let checks = 0;

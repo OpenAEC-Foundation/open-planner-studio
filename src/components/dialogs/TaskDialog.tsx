@@ -14,7 +14,7 @@ import { shownStart, startIsActual } from '@/utils/taskDates';
 import { milestoneRefusal } from '@/engine/taskMilestoneTransition';
 import { milestoneRefusalNotices } from '@/state/structuralTransition';
 import { Select } from '@/components/common/Select';
-import { DateTextInput } from '@/components/common/DateTextInput';
+import { TaskDateTimeInput } from '@/components/common/TaskDateTimeInput';
 import { X } from 'lucide-react';
 import { Dialog, DialogHelpButton } from '@/components/common/Dialog';
 import { Field } from '@/components/task-sections/shared';
@@ -32,6 +32,7 @@ import { TaskWorkRuleField } from '@/components/task-sections/TaskWorkRuleField'
 import { TaskCodesFieldsSection } from '@/components/task-sections/TaskCodesFieldsSection';
 import { TaskDurationField } from '@/components/task-sections/TaskDurationField';
 import { TASK_PROPERTIES_HELP_ARTICLE_ID } from '@/state/helpArticles';
+import { defaultTaskMeasure } from '@/state/newTaskMeasure';
 
 /** Lege draft voor de (in de praktijk onbereikbare) "nieuwe taak"-tak:
  *  een vangnet, geen actieve UI-ingang roept de dialoog ooit met `editingTaskId: null` aan. */
@@ -59,7 +60,7 @@ export function TaskDialog() {
   const setTaskWorkRule = useAppStore(s => s.setTaskWorkRule);
   const project = useAppStore(s => s.project);
   const constructionMode = useAppStore(s => s.ui.constructionMode);
-  const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
+
 
   const editingTask = editingTaskId ? tasks.find(t => t.id === editingTaskId) : null;
 
@@ -68,7 +69,8 @@ export function TaskDialog() {
   // `onChange(patch)` — commit pas op Save. De RELATIONELE secties (afhankelijkheden/toewijzingen/
   // codes&velden/CPM-resultaat) werken rechtstreeks op de store via `taskId` (identiek aan het
   // paneel) en raken de draft niet.
-  const newTaskUnit = enableHourPlanning ? (project.defaultTaskDurationUnit ?? 'days') : 'days';
+  // Standaardmaat voor nieuwe taken (B1a): de gekozen maat, of urenmaat onder P6/MSP (`newTaskMeasure.ts`).
+  const newTaskUnit = defaultTaskMeasure(project);
   const [draft, setDraft] = useState<Task>(() => blankDraft(project.startDate, constructionMode, newTaskUnit));
   const onChange = (patch: Partial<Task>) => setDraft(d => ({ ...d, ...patch }));
 
@@ -147,7 +149,7 @@ export function TaskDialog() {
   draftRef.current = draft;
   const enterDraftProgress = (edit: ProgressEdit, opts?: { actualStart?: string }): ProgressEntryResult => {
     const plan = planProgressEntry(draftRef.current, edit, {
-      statusDate: project.statusDate, today: localTodayIso(), actualStart: opts?.actualStart,
+      statusDate: project.statusDate, today: localTodayIso(), actualStart: opts?.actualStart, calendar: effCal,
     });
     if (!plan.ok) return plan;
     if (plan.change) {
@@ -348,7 +350,10 @@ export function TaskDialog() {
           <span className="ui-card-header !text-small !leading-4">{t('properties.time')}</span>
           <div className="grid grid-cols-2 gap-3">
             <Field label={t('dialog.startDate')}>
-              <DateTextInput
+              <TaskDateTimeInput
+                task={draft}
+                side="start"
+                dataAttribute="dialog-start"
                 value={startLocked ? shownStart(draft) : startDate}
                 required
                 disabled={startLocked}

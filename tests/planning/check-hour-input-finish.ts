@@ -1,3 +1,4 @@
+// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 // Het ingevoerde einde ("Gepland einde", `scheduleFinish`) van een urentaak blijft coherent met
 // start + duur — aan de INVOERKANT (B1-vervolg, critreview 24-09). Exit 0 = groen.
 //
@@ -67,7 +68,6 @@ const H12: WorkCalendar = {
 function freshContext() {
   const ctx = createAppStoreContext();
   const S = ctx.store.getState;
-  S().setUI({ enableHourPlanning: true });
   S().setCalendar(H8);
   S().setProject({ defaultTaskDurationUnit: 'hours', startDate: '2026-09-07' });
   return ctx;
@@ -180,9 +180,9 @@ const cell = (taskId: string, columnId: string, value: unknown): CellEditIntent 
   const S3 = c.store.getState;
   S3().setProject({ startDate: '2026-09-07' });
   const d = S3().addTask({ name: 'Dag' });
-  eq('18 dagtaak: einde uit createDefaultTaskTime (5 werkdagen, zonder tijd)', sf(c, d), '2026-09-11');
+  eq('18 dagtaak: einde uit createDefaultTaskTime (5 werkdagen, zonder tijd)', sf(c, d), "2026-09-11T16:00");
   S3().updateTask(d, { time: part({ scheduleDuration: 2 }) });
-  eq('19 dagtaak: een duurwijziging raakt het ingevoerde einde niet (ongewijzigd gedrag)', sf(c, d), '2026-09-11');
+  eq('19 dagtaak: een duurwijziging raakt het ingevoerde einde niet (ongewijzigd gedrag)', sf(c, d), "2026-09-11T16:00");
 }
 
 // 11. IFC: IfcTaskTime.ScheduleFinish en het werkplan-einde dragen het coherente einde, en heropenen
@@ -222,7 +222,7 @@ const cell = (taskId: string, columnId: string, value: unknown): CellEditIntent 
   const t2 = Sx().addTask({ name: 'L2' });
   withGap(t2);
   Sx().setTaskCalendar(t2, h12);
-  eq('26 setTaskCalendar met nivelleergat: 5 u op 07–19 vanaf de dagstart 07:00', sf(c, t2), '2026-09-07T12:00');
+  eq('26 setTaskCalendar met nivelleergat: 5 u op 07–19 vanaf de dagstart 07:00', sf(c, t2), '2026-09-07T13:00');
   const tx = createMcpTransactions(c);
   const t3 = Sx().addTask({ name: 'L3' });
   withGap(t3);
@@ -270,7 +270,7 @@ const cell = (taskId: string, columnId: string, value: unknown): CellEditIntent 
   const withFinish = api.data.addTask({ name: 'ExtF', time: ext({ scheduleStart: '2026-09-07T08:00', durationUnit: 'hours', durationMinutes: 180, scheduleFinish: '2026-09-07T16:00' }) });
   eq('34 extensie-addTask met eigen einde: dat einde wint', sf(c, withFinish), '2026-09-07T16:00');
   const day = api.data.addTask({ name: 'ExtD', time: ext({ scheduleStart: '2026-09-07', durationUnit: 'days', scheduleDuration: 3 }) });
-  eq('35 extensie-addTask, dagtaak zonder einde: ongewijzigd (einde = start)', sf(c, day), '2026-09-07');
+  eq('35 extensie-addTask, dagtaak zonder einde: ongewijzigd (einde = start)', sf(c, day), "2026-09-07T17:00");
   // Critreview 2e ronde: een meegegeven earlyFinish zonder scheduleFinish maakt het einde niet incoherent.
   const early = api.data.addTask({ name: 'ExtE', time: ext({ scheduleStart: '2026-09-07T08:00', durationUnit: 'hours', durationMinutes: 180, earlyFinish: '2026-09-09T10:00' }) });
   eq('36 extensie-addTask met alleen earlyFinish: gepland en vroegst einde beide afgeleid', [sf(c, early), ef(c, early)],
@@ -296,13 +296,13 @@ const cell = (taskId: string, columnId: string, value: unknown): CellEditIntent 
   const tx = createMcpTransactions(c);
   const k1 = Sz().addTask({ name: 'K1' });
   Sz().updateTask(k1, { calendarId: h12 });
-  eq('38 updateTask({calendarId}) op een urentaak: einde volgt de nieuwe kalender (5 u vanaf 07:00)', sf(c, k1), '2026-09-07T12:00');
+  eq('38 updateTask({calendarId}) op een urentaak: einde volgt de nieuwe kalender (5 u vanaf 07:00)', sf(c, k1), '2026-09-07T13:00');
   const k2 = Sz().addTask({ name: 'K2' });
   tx.run(() => { tx.draft.updateTaskFields(k2, { calendarId: h12 }); });
-  eq('39 MCP updateTaskFields({calendarId}): einde volgt de nieuwe kalender', sf(c, k2), '2026-09-07T12:00');
+  eq('39 MCP updateTaskFields({calendarId}): einde volgt de nieuwe kalender', sf(c, k2), '2026-09-07T13:00');
   const k3 = Sz().addTask({ name: 'K3' });
   tx.run(() => { tx.draft.patchTaskFields(k3, { calendarId: h12 }); });
-  eq('40 MCP patchTaskFields({calendarId}): einde volgt de nieuwe kalender', sf(c, k3), '2026-09-07T12:00');
+  eq('40 MCP patchTaskFields({calendarId}): einde volgt de nieuwe kalender', sf(c, k3), '2026-09-07T13:00');
   const gap = (id: string) => c.store.setState((s) => {
     s.tasks.find(k => k.id === id)!.splitGaps = [{ afterMinutes: 120, gapMinutes: 960, source: 'leveling' }];
   });
@@ -310,7 +310,7 @@ const cell = (taskId: string, columnId: string, value: unknown): CellEditIntent 
   gap(k4);
   Sz().updateTask(k4, { calendarId: h12 });
   eq('41 updateTask({calendarId}) wist het nivelleergat (valkuil a, store)', [taskOf(c, k4).splitGaps ?? [], sf(c, k4)],
-    [[], '2026-09-07T12:00']);
+    [[], '2026-09-07T13:00']);
   const k5 = Sz().addTask({ name: 'K5' });
   gap(k5);
   tx.run(() => { tx.draft.updateTaskFields(k5, { calendarId: h12 }); });
@@ -325,7 +325,7 @@ const cell = (taskId: string, columnId: string, value: unknown): CellEditIntent 
   const res = Sz().runGridMutation([cell(k6, 'task.calendarId', h12)]);
   eq('43 raster: kalenderwissel via runGridMutation wist het nivelleergat en herleidt het einde',
     [res.ok, taskOf(c, k6).calendarId === h12, taskOf(c, k6).splitGaps ?? [], sf(c, k6)],
-    [true, true, [], '2026-09-07T12:00']);
+    [true, true, [], '2026-09-07T13:00']);
 }
 
 // 17. Baan 2 van de overname van PR #101 — B1 × de werkdriehoek (dossier 2026-09-24 §3a). Onder Vast

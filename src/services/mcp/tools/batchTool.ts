@@ -1,3 +1,4 @@
+import { keepsRecordedDates } from '@/state/recordedDateEditGate';
 // MCP-bridge — `planner_batch`: de batch-executor.
 //
 // Eén call met een DECLARATIEF draaiboek: `steps: [{ tool, args }, …]` (max 100), synchroon en in
@@ -232,7 +233,8 @@ function formatReport(report: StepReport[]): string {
  * een structurele stapfout: gooien, zodat de hele batch schoon terugrolt.
  */
 export function recomputeMidBatch(ctx: McpContext): void {
-  ctx.app.store.getState().runCPM();
+  if (keepsRecordedDates(ctx.app)) return;
+  ctx.app.store.getState().runCPM({ withinEvent: true });
   ctx.app.store.getState().recomputeViewRows();
   ctx.app.store.getState().recomputeResourceLoad();
   const err = ctx.app.store.getState().cpmResult?.error;

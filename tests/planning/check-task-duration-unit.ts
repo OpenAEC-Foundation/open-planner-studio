@@ -168,12 +168,12 @@ eq('los wissen kan de native minutenbron van een urentaak niet verwijderen', mer
 eq('atomair wisselen naar dagen wist de oude minutenbron wel', mergeTaskTime(hourBase, { durationUnit: 'days', scheduleDuration: 2, durationMinutes: undefined }).durationMinutes, undefined);
 
 // Compacte weergave houdt de native uuridentiteit zichtbaar.
-eq('auto toont dagtaak in dagen', formatTaskDurationDisplay(day2, h8, 'auto', true), '2d');
-eq('auto toont 12 uur als uren', formatTaskDurationDisplay(hour12, h8, 'auto', true), '12h');
-eq('auto toont ook een exact volle urentaak in haar gekozen eenheid', formatTaskDurationDisplay(task('hours', 16), h8, 'auto', true), '16h');
+eq('auto toont dagtaak in dagen', formatTaskDurationDisplay(day2, h8, 'auto'), '2d');
+eq('auto toont 12 uur als uren', formatTaskDurationDisplay(hour12, h8, 'auto'), '12h');
+eq('auto toont ook een exact volle urentaak in haar gekozen eenheid', formatTaskDurationDisplay(task('hours', 16), h8, 'auto'), '16h');
 eq('pure helper respecteert urenbron ook na kalenderwissel', taskDurationMinutes(hour12, h10), 720);
-eq('geforceerde dagenweergave houdt uurbron herkenbaar', formatTaskDurationDisplay(hour12, h8, 'days', true), '1.5d(12h)');
-eq('geforceerde urenweergave houdt dagbron herkenbaar', formatTaskDurationDisplay(day2, h8, 'hours', true), '16h(2d)');
+eq('geforceerde dagenweergave houdt uurbron herkenbaar', formatTaskDurationDisplay(hour12, h8, 'days'), '1.5d(12h)');
+eq('geforceerde urenweergave houdt dagbron herkenbaar', formatTaskDurationDisplay(day2, h8, 'hours'), '16h(2d)');
 
 // Dialoog en paneel delen deze ene parser/conversielaag.
 deepEq('suffix d kiest dagen', parseTaskDurationInput('2d', 'hours'), { unit: 'days', scheduleDuration: 2, explicitUnit: true });
@@ -198,8 +198,10 @@ deepEq('scalaire 07-16/8u-bandresolver materialiseert de middagpauze', effective
   { start: 420, end: 720 }, { start: 780, end: 960 },
 ]);
 eq('scalaire kalender levert effectieve werkblokken', hasConcreteWorkBlocks(scalarH8), true);
+// Het OPS-profiel (dagenmaat aan); P6/MSP en kalendertijd staan in check-f4b-review-r1.
+const OPS_MEASURE = { workdayDurationMeasure: true };
 deepEq('2d op scalaire 07-16/8u-kalender krijgt exact 16h als voorstel',
-  proposeTaskDurationConversion(day2, 'hours', scalarH8), { unit: 'hours', durationMinutes: 960, explicitUnit: true });
+  proposeTaskDurationConversion(day2, 'hours', scalarH8, OPS_MEASURE), { unit: 'hours', durationMinutes: 960, explicitUnit: true });
 const scalarBeforeSolve = JSON.stringify(scalarH8);
 const hourOnScalar = { ...hour12, time: { ...hour12.time } };
 const hourOnScalarResult = solveProject(opsSolveInput({
@@ -212,21 +214,21 @@ eq('scalar-oplossing bewaart uur-unit', hourOnScalar.time.durationUnit, 'hours')
 eq('scalar-oplossing bewaart exacte minuten', hourOnScalar.time.durationMinutes, 720);
 const invalidScalar = { ...scalarH8, id: 'invalid-scalar', workDays: [] };
 eq('lege scalaire kalender heeft geen effectieve werkblokken', hasConcreteWorkBlocks(invalidScalar), false);
-eq('lege scalaire kalender heeft geen conversievoorstel', proposeTaskDurationConversion(day2, 'hours', invalidScalar), null);
+eq('lege scalaire kalender heeft geen conversievoorstel', proposeTaskDurationConversion(day2, 'hours', invalidScalar, OPS_MEASURE), null);
 eq('lege scalaire kalender geeft een duidelijke validatiefout', solveError(hour12, invalidScalar), 'Calendar has no working days configured');
-deepEq('2d op H8 krijgt exact 16h als voorstel', proposeTaskDurationConversion(day2, 'hours', h8), { unit: 'hours', durationMinutes: 960, explicitUnit: true });
-deepEq('0h wordt exact 0d en niet stil een werkdag', proposeTaskDurationConversion(task('hours', 0), 'days', h8), { unit: 'days', scheduleDuration: 0, explicitUnit: true });
-eq('12h wordt niet stil naar 1,5d afgerond', proposeTaskDurationConversion(hour12, 'days', h8), null);
-deepEq('16h wordt exact naar 2d voorgesteld', proposeTaskDurationConversion(task('hours', 16), 'days', h8), { unit: 'days', scheduleDuration: 2, explicitUnit: true });
+deepEq('2d op H8 krijgt exact 16h als voorstel', proposeTaskDurationConversion(day2, 'hours', h8, OPS_MEASURE), { unit: 'hours', durationMinutes: 960, explicitUnit: true });
+deepEq('0h wordt exact 0d en niet stil een werkdag', proposeTaskDurationConversion(task('hours', 0), 'days', h8, OPS_MEASURE), { unit: 'days', scheduleDuration: 0, explicitUnit: true });
+// Alleen uren §3.2 (B1): een dagenmaat-taak mag een breuk hebben; de omzetting houdt het eindmoment.
+deepEq('12h wordt exact 1,5d (breuk, geen afronding)', proposeTaskDurationConversion(hour12, 'days', h8, OPS_MEASURE), { unit: 'days', scheduleDuration: 1.5, explicitUnit: true });
+deepEq('16h wordt exact naar 2d voorgesteld', proposeTaskDurationConversion(task('hours', 16), 'days', h8, OPS_MEASURE), { unit: 'days', scheduleDuration: 2, explicitUnit: true });
 // Gedeelde ingang voor paneel, dialoog en raster: exact ⇒ meteen de omgezette duur; niet exact ⇒ null (eenheid blijft).
-deepEq('eenheidswissel 16h → dagen geeft meteen 2d', convertTaskDurationUnit(task('hours', 16), 'days', h8), { unit: 'days', scheduleDuration: 2, explicitUnit: true });
-deepEq('eenheidswissel 2d → uren geeft meteen 16h', convertTaskDurationUnit(day2, 'hours', h8), { unit: 'hours', durationMinutes: 960, explicitUnit: true });
-eq('eenheidswissel 12h → dagen op H8 is niet exact en wijzigt niets', convertTaskDurationUnit(hour12, 'days', h8), null);
+deepEq('eenheidswissel 16h → dagen geeft meteen 2d', convertTaskDurationUnit(task('hours', 16), 'days', h8, OPS_MEASURE), { unit: 'days', scheduleDuration: 2, explicitUnit: true });
+deepEq('eenheidswissel 2d → uren geeft meteen 16h', convertTaskDurationUnit(day2, 'hours', h8, OPS_MEASURE), { unit: 'hours', durationMinutes: 960, explicitUnit: true });
+deepEq('eenheidswissel 12h → dagen op H8 geeft exact 1,5d', convertTaskDurationUnit(hour12, 'days', h8, OPS_MEASURE), { unit: 'days', scheduleDuration: 1.5, explicitUnit: true });
 
 // Storecontract: projectdefault, normale mutatie, undo/redo, clipboard en documentwissel.
 const context = createAppStoreContext();
 const store = context.store;
-store.getState().setUI({ enableHourPlanning: true });
 store.getState().setCalendar(h8);
 store.getState().setProject({ defaultTaskDurationUnit: 'hours' });
 const storeTaskId = store.getState().addTask({ name: 'Nieuwe urentaak' });
@@ -234,7 +236,6 @@ eq('projectdefault maakt nieuwe handmatige taak uren', store.getState().tasks[0]
 eq('standaardhoeveelheid wordt als vijf uur opgeslagen', store.getState().tasks[0]?.time.durationMinutes, 300);
 eq('vijf uur krijgt op H8 een coherent dagequivalent', store.getState().tasks[0]?.time.scheduleDuration, 0.625);
 const noBandsContext = createAppStoreContext();
-noBandsContext.store.getState().setUI({ enableHourPlanning: true });
 noBandsContext.store.getState().setProject({ defaultTaskDurationUnit: 'hours' });
 noBandsContext.store.getState().addTask({ name: 'Veilige dagtaak zonder werkblokken' });
 eq('urenprojectdefault maakt op de geldige scalaire standaardkalender een urentaak',

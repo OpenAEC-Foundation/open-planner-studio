@@ -56,7 +56,7 @@ const hourCal = { ...dayCal, workTime: { byWeekday: { 1: [{ start: 480, end: 102
 same('§1 dagkalender ⇒ geen tijdveld', isHourModeCalendar(dayCal), false);
 same('§1 uurkalender ⇒ tijdveld', isHourModeCalendar(hourCal), true);
 // Zelfde predicaat als de rekenkern: `CalendarEngine.isHourMode` van de projectkalender.
-same('§1 dagkalender: zelfde uitkomst als de rekenkern', isHourModeCalendar(dayCal), new CalendarEngine(dayCal).isHourMode);
+same('§1 F2: scalaire bron, engine met effectieve werkblokken', [isHourModeCalendar(dayCal), new CalendarEngine(dayCal).isHourMode], [false, true]);
 same('§1 uurkalender: zelfde uitkomst als de rekenkern', isHourModeCalendar(hourCal), new CalendarEngine(hourCal).isHourMode);
 same('§1 dag-modus: label zonder tijd', statusDateAsUsed('2006-09-20T17:00', false), '2006-09-20');
 same('§1 uur-modus: label met tijd', statusDateAsUsed('2006-09-20T17:00', true), '2006-09-20T17:00');
@@ -79,7 +79,7 @@ same('§2 standaard (geen notatie meegegeven) = dmy 24 uur', label('2006-09-20T1
 same('§2 dag-modus: tijd valt weg', label('2006-09-20T17:00', false, 'dmy', '24h'), '20-09-2006');
 
 // ── §3 ──────────────────────────────────────────────────────────────────────
-const OPEN = { filePath: null, fileHandle: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: true } as const;
+const OPEN = { filePath: null, fileHandle: null, recompute: true, fit: false, linkedOpen: true } as const;
 function openStore(parsed: OpenedImport) {
   const ctx = createAppStoreContext();
   ctx.store.getState().applyOpenedImport(parsed, OPEN);

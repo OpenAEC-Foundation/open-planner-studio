@@ -331,6 +331,7 @@ const TM = {
     scheduleStart: '2026-07-24T00:00', scheduleFinish: '2026-07-24T00:00',
     earlyStart: '2026-07-24T00:00', earlyFinish: '2026-07-24T00:00', lateStart: '2026-07-24T00:00', lateFinish: '2026-07-24T00:00',
     freeFloat: 2, totalFloat: 3, isCritical: true,
+    totalFloatMinutes: 1440, freeFloatMinutes: 960, // alleen uren §3.4, T5: OPS_Analysis.ExactFloat (F3c)
     interferingFloat: 1.5, isNearCritical: true, floatPath: 1, // (a) analyse-gaps
     actualStart: '2026-07-24T00:00', actualFinish: '2026-07-24T00:00', actualDuration: 0,
     remainingTime: 0, remainingMinutes: 0, // remainingMinutes: (b) uur-modus-gap
@@ -597,10 +598,14 @@ const TIME_CANON = {
   earlyStart: KEEP, earlyFinish: KEEP, lateStart: KEEP, lateFinish: KEEP,
   freeFloat: KEEP, totalFloat: KEEP, isCritical: KEEP,
   // De drie analyse-velden round-trippen sinds pakket K BEWUST niet meer mee: de writer schrijft
-  // `OPS_Analysis` niet langer omdat het pure runCPM-uitvoer is die élk laadpad herberekent (zie
-  // ifcWriter.WRITTEN_PER_TASK_PSETS). Ze staan als (a)-gap in KNOWN_GAPS; het verlies zelf wordt
+  // ze niet langer in `OPS_Analysis` omdat het pure runCPM-uitvoer is die élk laadpad herberekent (zie
+  // ifcWriter.emitPerTaskPsets). Ze staan als (a)-gap in KNOWN_GAPS; het verlies zelf wordt
   // in blok (3) apart geassserteerd. De LEESkant blijft bestaande bestanden gewoon accepteren.
   interferingFloat: { skip: '(a) afgeleid; OPS_Analysis wordt sinds pakket K niet meer geschreven' },
+  // Alleen uren §3.4, T5 (F3c): de speling in minuten gaat met de exacte dagen naar
+  // `OPS_Analysis.ExactFloat`; IfcTaskTime draagt hele dagen. Eigen toetsen: check-ifc-dagenmaat.ts.
+  totalFloatMinutes: KEEP,
+  freeFloatMinutes: KEEP,
   isNearCritical: { skip: '(a) afgeleid; OPS_Analysis wordt sinds pakket K niet meer geschreven' },
   floatPath: { skip: '(a) afgeleid; OPS_Analysis wordt sinds pakket K niet meer geschreven' },
   actualStart: KEEP, actualFinish: KEEP, actualDuration: KEEP, remainingTime: KEEP,
@@ -1127,6 +1132,8 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   assert(tmOut.time.interferingFloat === undefined && def(TM.time.interferingFloat), '(a) time.interferingFloat — afgeleid, OPS_Analysis niet meer geschreven');
   assert(tmOut.time.isNearCritical === undefined && def(TM.time.isNearCritical), '(a) time.isNearCritical — afgeleid, OPS_Analysis niet meer geschreven');
   assert(tmOut.time.floatPath === undefined && def(TM.time.floatPath), '(a) time.floatPath — afgeleid, OPS_Analysis niet meer geschreven');
+  // De (a)-gap van de speling in minuten (alleen uren §3.4) is in F3c gedicht: `totalFloatMinutes` en
+  // `freeFloatMinutes` lopen nu door de echte vergelijking (TIME_CANON).
   assert(tmOut.time.durationUnit === 'hours' && tmOut.time.durationMinutes === 480,
     '(b) time.durationUnit/durationMinutes blijven native uren met exacte minuten');
   assert(tmOut.time.remainingMinutes === 0, '(b) time.remainingMinutes blijft exact nul in uur-modus');
@@ -1690,7 +1697,7 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   const expected9a = 0.4 * full.scheduleDuration / 4;
   const afterPartial = S().tasks.find(t => t.id === id)!.time;
   assert(afterPartial.completion === expected9a, `(9a) een partiële time-update mag completion niet wissen (gedane werk blijft) — kreeg ${afterPartial.completion}, verwacht ${expected9a}`);
-  assert(afterPartial.scheduleStart === '2026-09-01', `(9a) de daadwerkelijk opgegeven scheduleStart moet wél doorkomen — kreeg ${afterPartial.scheduleStart}`);
+  assert(afterPartial.scheduleStart === '2026-09-01T07:00', `(9a) de daadwerkelijk opgegeven scheduleStart moet wél doorkomen — kreeg ${afterPartial.scheduleStart}`);
 
   let threw: unknown;
   let ifcOut = '';
@@ -1781,7 +1788,7 @@ const hasP6BoundarySequence = (input: ImportResult) =>
 
   const afterExt = S().tasks.find(t => t.id === id)!.time;
   assert(afterExt.completion === 0.4, `(9c) api.data.updateTask-pad mag completion niet wissen bij een partiële time-update — kreeg ${afterExt.completion}`);
-  assert(afterExt.scheduleStart === '2026-09-03', `(9c) de daadwerkelijk opgegeven scheduleStart moet wél doorkomen — kreeg ${afterExt.scheduleStart}`);
+  assert(afterExt.scheduleStart === '2026-09-03T07:00', `(9c) de daadwerkelijk opgegeven scheduleStart moet wél doorkomen — kreeg ${afterExt.scheduleStart}`);
 
   let threw: unknown;
   let ifcOut = '';
@@ -1935,13 +1942,13 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     const t = S().tasks.find(x => x.id === id)!.time;
     assert(t.completion === 0.4, `${label} completion moet 0.4 blijven — kreeg ${t.completion}`);
     assert(t.durationMinutes === 240, `${label} durationMinutes moet 240 blijven — kreeg ${t.durationMinutes}`);
-    assert(t.actualStart === '2026-08-01', `${label} actualStart moet blijven — kreeg ${t.actualStart}`);
-    assert(t.actualFinish === '2026-08-03', `${label} actualFinish moet blijven — kreeg ${t.actualFinish}`);
+    assert(t.actualStart === '2026-08-01T07:00', `${label} actualStart moet blijven — kreeg ${t.actualStart}`);
+    assert(t.actualFinish === '2026-08-03T16:00', `${label} actualFinish moet blijven — kreeg ${t.actualFinish}`);
     assert(t.remainingTime === 1, `${label} remainingTime moet blijven — kreeg ${t.remainingTime}`);
     assert(t.remainingMinutes === 60, `${label} remainingMinutes moet blijven — kreeg ${t.remainingMinutes}`);
     // Z14 — de twee nieuwe cases (zie setFullProgress hierboven).
-    assert(t.resume === '2026-08-02', `${label} resume moet blijven — kreeg ${t.resume}`);
-    assert(t.stop === '2026-08-02', `${label} stop moet blijven — kreeg ${t.stop}`);
+    assert(t.resume === '2026-08-02T07:00', `${label} resume moet blijven — kreeg ${t.resume}`);
+    assert(t.stop === '2026-08-02T16:00', `${label} stop moet blijven — kreeg ${t.stop}`);
   };
 
   // Pad 1: taskSlice.updateTask rechtstreeks.
@@ -2415,6 +2422,11 @@ const hasP6BoundarySequence = (input: ImportResult) =>
 //      en via crashherstel, dat ook writeIFC → readIFC doet. De hoofd-fixture hierboven kiest bewust
 //      hele dagen; dit blok dekt de fractionele kant, plus de lees-gevallen die alleen een vreemd of
 //      ouder bestand bevat (het `H`-pad, beide negatief-notaties, een oude exponent).
+//      Sinds F3c (alleen uren §3.10, §5.4, T5 en T21) schrijft de writer NOOIT meer een gebroken `P…D`:
+//      de lezer van v2026.9.0 las die nog steeds als 5. Een breuk gaat als `PT…` (dagen × werktijd per
+//      dag) met een record `[dagen, geschreven minuten]`; speling als hele dagen met de exacte waarde in
+//      `OPS_Analysis.ExactFloat`. De waarden hieronder komen dus via die records exact terug; de vormen
+//      en de leesregel toetst check-ifc-dagenmaat.ts.
 {
   const mkFrac = (id: string, dur: number, extra: Partial<TaskTime> = {}): Task => ({
     id, name: `FR-${id}`, description: '', wbsCode: '', taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
@@ -2448,9 +2460,13 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   const frTime = (r: ImportResult, id: string): TaskTime | undefined => r.tasks.find(t => t.name === `FR-${id}`)?.time;
   const b = (id: string) => frTime(rt18, id);
 
-  // (18a) De writer schrijft de fractie als gewoon decimaal getal.
-  for (const lit of ["'P0Y0M2.5D'", "'P0Y0M0.5D'", "'P0Y0M1.25D'", "'P0Y0M1.5D'"]) {
-    assert(ifc18.includes(lit), `(18a) writer emitteert ${lit} letterlijk`);
+  // (18a) De writer schrijft een breuk als `PT…` met de lengte in minuten (projectkalender 8 u per dag),
+  //       nooit als gebroken `P…D` (B1: alleen uren §3.10, T21; v2026.9.0 leest `P0Y0M2.5D` als 5).
+  for (const lit of ["'PT20H0M0S'", "'PT4H0M0S'", "'PT10H0M0S'", "'PT12H0M0S'", "IFCDURATION('-PT12H0M0S')"]) {
+    assert(ifc18.includes(lit), `(18a) writer emitteert ${lit} voor een breuk in dagen`);
+  }
+  for (const lit of ["'P0Y0M2.5D'", "'P0Y0M0.5D'", "'P0Y0M1.25D'", "'P0Y0M1.5D'", "'P0.5D'", "'-P1.5D'"]) {
+    assert(!ifc18.includes(lit), `(18a) writer schrijft geen gebroken dag-duur ${lit} meer`);
   }
 
   // (18b) De duur komt EXACT terug (was 5 / 5 / 25).

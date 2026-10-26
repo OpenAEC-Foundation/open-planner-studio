@@ -31,7 +31,7 @@ async function openText(name: string, text: string): Promise<Task[]> {
   // XER leest de bytes zelf (codering); de andere formaten de tekst.
   const parsed = await parseOpenedFile(name.endsWith('.xer') ? { name, text, bytes: new TextEncoder().encode(text) } : { name, text });
   S().newProject();
-  S().applyOpenedImport(parsed, { filePath: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: true });
+  S().applyOpenedImport(parsed, { filePath: null, recompute: true, fit: false, linkedOpen: true });
   return S().tasks;
 }
 const byCode = (tasks: Task[], code: string) => {

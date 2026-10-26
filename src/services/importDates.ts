@@ -3,6 +3,7 @@ import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
+import { isDateOnly } from '@/engine/calendar/workdayRules';
 
 /**
  * Gedeelde datum-parse voor de import-readers. Externe planningsbestanden dragen datums als
@@ -36,10 +37,14 @@ export function isoDatePrefixOrToday(s: string): string {
 }
 
 /** Een datetime uit MSPDI/P6 in de modus van de taak: UUR ⇒ de echte tijd-van-de-dag
- *  (`YYYY-MM-DDTHH:mm`), DAG ⇒ de datum-prefix. Lege invoer ⇒ vandaag, zoals hierboven. */
+ *  (`YYYY-MM-DDTHH:mm`), DAG ⇒ de datum-prefix. Lege invoer ⇒ vandaag, zoals hierboven.
+ *  Een datum ZONDER tijd blijft ook in de uurmodus een datum: hij draagt geen moment. De normalisatie
+ *  op de laadgrens zet hem per veld en kalender om (T17, D1–D7; `payloadFromImport`). Als middernacht
+ *  gelezen werd een werkelijk einde het begin van die dag, en de normalisatie liet dat moment staan
+ *  (review ronde 2 van PR #559, deel B). Een expliciete `T00:00` blijft een moment. */
 export function importDateTime(s: string, hour: boolean): string {
   if (!s) return localTodayIso();
-  return hour ? formatInstant(parseImportedInstant(s), 'hour') : s.substring(0, 10);
+  return hour && !isDateOnly(s) ? formatInstant(parseImportedInstant(s), 'hour') : s.substring(0, 10);
 }
 
 /** `importDateTime` voor een datum die ook mag ONTBREKEN (taakdatums en MSPDI Baseline 0): lege of onleesbare

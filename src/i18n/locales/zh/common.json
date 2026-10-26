@@ -164,7 +164,9 @@
     "msProjectLostNotes_other": "{{count}} 条备注未导入。",
     "msProjectLostHyperlinks_other": "{{count}} 个超链接未导入。",
     "msProjectLostFixedCosts_other": "{{count}} 个任务的固定成本未导入。",
-    "msProjectLostResourceRates_other": "{{count}} 个资源的费率未导入。"
+    "msProjectLostResourceRates_other": "{{count}} 个资源的费率未导入。",
+    "minuteModelConverted_other": "{{document}}: {{count}} 个任务在转换后的开始或完成日期不同; 最大偏移为 {{days}} 个工作日. 按 Ctrl+Z 恢复已记录的日期.",
+    "minuteModelCalendarRepaired": "日历 “{{calendar}}” 已修复: 结束时间或休息时间与已保存的工作时间不符."
   },
   "scheduleErrors": {
     "cycle": "任务之间存在循环依赖：{{path}}",
@@ -277,16 +279,17 @@
     "themeHighContrast": "高对比度",
     "themeFollowSystem": "跟随系统主题",
     "themeSystemHint": "跟随系统的配色方案（当前：{{theme}}）。",
-    "hourPlanningSection": "小时计划",
-    "enableHourPlanning": "启用小时计划",
-    "enableHourPlanningHint": "启用小时/分钟排程：小时级时间刻度、带工作时间段的班次，以及精确到小时的任务条。关闭 ⇒ 应用将保持与之前一样完全按天粒度运行。",
     "showTaskTypes": "使用任务类型",
     "showTaskTypesHint": "为每个任务选择：当工期、单位或工时变化时，哪一项随之调整，如同 MS Project 中的 Task Type 和 P6 中的 Duration Type。关闭时：工期和单位保持不变。即使关闭，含有任务类型或已保存工时的文件仍会显示它们。",
     "allowMixedDayHour": "允许混合按天/按小时计划",
-    "defaultTaskDurationUnit": "新任务的默认单位",
-    "defaultTaskDurationUnitHint": "决定新任务以工作日还是工作小时开始。现有任务不会改变。",
+    "defaultTaskDurationUnit": "新任务的默认工期单位",
+    "defaultTaskDurationUnitHint": "按天：工期按日历的工作日计算。按小时：工期按工作小时计算。现有任务不会改变。带固定工时的任务始终使用按小时。",
+    "defaultTaskDurationUnitDays": "天单位",
+    "defaultTaskDurationUnitHours": "小时单位",
+    "defaultTaskDurationUnitLocked": "{{profile}} 配置按小时计算工期. 因此新任务使用小时单位.",
     "durationDisplay": "工期显示",
     "durationDisplayHint": "决定任务工期的显示方式，与任务本身记录的单位无关。",
+    "durationDisplayOpsHint": "在 OPS 配置中, 每个任务显示自己的单位.",
     "durationDisplayAuto": "自动（按任务自身单位）",
     "durationDisplayDays": "始终按天",
     "durationDisplayHours": "始终按小时",
@@ -1051,10 +1054,6 @@
     "month": "月",
     "year": "年"
   },
-  "hourData": {
-    "notice": "此文件包含按小时的计划。",
-    "enable": "启用小时计划"
-  },
   "recordedDates": {
     "activeCount_other": "你正在查看 Primavera 记录的进度计划；重新计算将使 {{count}} 个任务偏移。",
     "activeCountNeutral_other": "你正在查看文件中记录的日期；重新计算将使 {{count}} 个任务偏移。",
@@ -1411,6 +1410,14 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "ALAP 任务尽可能晚，以后续任务允许为限",
       "help": "仅在小时计划下生效，适用于未开始、非手动计划且带有约束“越晚越好”（ALAP）的任务。后续任务的最早日期精确到分钟决定其位置；后续任务先计算。其自身的计划开始不计入；前置任务、状态日期和第二个约束仍然适用。没有后续任务时，使用其最晚完成。普通 ALAP 步骤在每个计划配置中都可用。"
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "工作日结束时的独立里程碑",
+      "help": "没有前置任务的独立里程碑或完成里程碑, 会放在其工作日结束时."
+    },
+    "workdayDurationMeasure": {
+      "label": "工期以工作日计",
+      "help": "以天为单位的工期、延隔或剩余工期按工作日计算: 每个工作日计为 1, 无论该日有多长. 关闭时: 一天按日历中每天的工作小时数计算. 按百分比的延隔跟随前置任务的单位. 已用时间永远不按工作日计算."
     }
   },
   "profiles": {
@@ -1449,6 +1456,7 @@
       "float": "浮时与最晚日期",
       "instants": "文件中的日期与时刻",
       "msproject": "按 Microsoft Project 的进度",
+      "durations": "工期和单位",
       "ownProfilesOnly": "仅用于自定义配置"
     },
     "ownProfilesOnlyNote": "这些约定在每个内置计算配置文件中都是关闭的，包括 Primavera P6。只有自定义计算配置文件才能开启它们：为此请选择“新建配置文件”。",

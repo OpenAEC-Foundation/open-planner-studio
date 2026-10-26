@@ -30,7 +30,8 @@ import { createNodeFileFs, isInside, ScopeEscapeError, WorkingDirectoryRestoreEr
 import { XmlDomParser } from '../../headless/mcp-server/src/xmlDom';
 import { decodeXmlBytes } from '../../headless/mcp-server/src/xmlEncoding';
 import { FileTextDecodingError } from '@/services/mcp/fileTextError';
-import { readIFC } from '@/services/ifc/ifcReader';
+import { createAppStoreContext } from '@/state/appStoreFactory';
+import { parseOpenedFile } from '@/services/formatRegistry';
 import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
 import { writeCSV } from '@/services/csv/csvWriter';
@@ -776,12 +777,22 @@ test('XML byte-decoding (214): beide bytevolgordes, BOM, declaratie en ongeldige
 
 test('B stdio bevinding 3: MSPDI, P6 XML, CSV en XER openen in de losse server, met taken en datums', async () => {
   const source = readFileSync(EXAMPLE, 'utf8');
-  const src = readIFC(source);
   writeFileSync(join(work, 'bron.ifc'), source);
+  // De bronbestanden komen uit de stand van de app na openen, zoals Exporteren ze schrijft
+  // (`fileSlice.ts`), niet uit de ruwe `readIFC`-uitvoer. Het voorbeeld is een bestand van vóór het
+  // minutenmodel: de app rekent het bij openen opnieuw door, en de urenmotor rekent de procentlag
+  // exact (B7), dus de berekende datums wijken af van de opgeslagen dagdatums. Een MSPDI uit de ruwe
+  // `readIFC`-uitvoer, met die opgeslagen datums, opent in "datums zoals opgeslagen" en toont dan niet
+  // de datums van het IFC. De ruwe writers verwachten genormaliseerde invoer (knownbugs 256).
+  const app = createAppStoreContext();
+  app.store.getState().openAsDocument(await parseOpenedFile({ name: 'bron.ifc', text: source }),
+    { name: 'bron.ifc', ref: { kind: 'path', path: join(work, 'bron.ifc') } });
+  if (app.store.getState().scheduleStale || !app.store.getState().cpmResult) app.store.getState().runCPM();
+  const src = app.store.getState();
   writeFileSync(join(work, 'bron-mspdi.xml'), writeMSPDI(src.project, src.calendar, src.tasks, src.sequences, src.resources,
-    src.assignments, src.resourceCalendars ?? [], src.baselines ?? [], src.activeBaselineId ?? null, src.customTaskTypes ?? []));
+    src.assignments, src.calendars, src.baselines, src.activeBaselineId, src.customTaskTypes));
   writeFileSync(join(work, 'bron-p6.xml'), writeP6XML(src.project, src.calendar, src.tasks, src.sequences, src.resources,
-    src.assignments, src.resourceCalendars ?? [], src.customTaskTypes ?? []));
+    src.assignments, src.calendars, src.customTaskTypes));
   writeFileSync(join(work, 'bron.csv'), writeCSV(src.project, src.calendar, src.tasks, src.sequences, src.resources, src.assignments));
   cpSync(join(ROOT, 'tests/browser/fixtures/xer/zonder-bijzonderheden.xer'), join(work, 'bron.xer'));
 

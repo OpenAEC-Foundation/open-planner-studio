@@ -1,3 +1,4 @@
+// F2: taakdatums worden op D1/D2/D7-momenten vergeleken (§4.2); de echte handeling blijft gelijk.
 // W2-vervolg (besluit eigenaar "zoals MS Project"): een getypte startdatum op een taak MET
 // voorganger wordt een beperking "Start niet eerder dan" (SNET), met een melding. Vóór de fix schreef
 // elke route alleen het anker `scheduleStart`; de solver leest dat alleen voor een taak zónder
@@ -60,7 +61,7 @@ async function typeDate(group: Locator, digits: string): Promise<void> {
 
 test('Tabel: Start typen op een taak met voorganger wordt SNET, F5 toont de datum, Ctrl+Z haalt alles weg', async ({ page, ops: _ops }) => {
   const { b } = await seedChain(page);
-  expect((await taskState(page, b)).start).toBe('2026-06-08');
+  expect((await taskState(page, b)).start).toBe("2026-06-08T07:00");
   await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
   await expect(surface(page).locator('[role="grid"]')).toBeVisible();
 
@@ -74,22 +75,22 @@ test('Tabel: Start typen op een taak met voorganger wordt SNET, F5 toont de datu
   await page.keyboard.press('Enter');
 
   await expect.poll(() => taskState(page, b)).toMatchObject({
-    constraint: { type: 'SNET', date: '2026-06-15' },
-    anchor: '2026-06-15',
+    constraint: { type: 'SNET', date: "2026-06-15T07:00" },
+    anchor: "2026-06-15T07:00",
   });
   await expect(toast(page)).toContainText('SNET');
   await expect(toast(page)).toContainText('Metselwerk');
   expect((await state(page)).undoDepth).toBe(undoBefore + 1);
 
   await page.keyboard.press('F5');
-  await expect.poll(async () => (await taskState(page, b)).start).toBe('2026-06-15');
+  await expect.poll(async () => (await taskState(page, b)).start).toBe("2026-06-15T07:00");
   await expect(cell).toHaveText('15-06-2026');
 
   // Ongedaan maken: eerst de herberekening telt niet mee (runCPM is geen undo-stap), dan in één stap
   // de start én de beperking.
   await cell.click();
   await page.keyboard.press('Control+z');
-  await expect.poll(() => taskState(page, b)).toMatchObject({ constraint: null, anchor: '2026-06-01' });
+  await expect.poll(() => taskState(page, b)).toMatchObject({ constraint: null, anchor: "2026-06-01T07:00" });
 });
 
 test('eigenschappenpaneel: Start typen op een taak met voorganger wordt SNET in één undo-stap', async ({ page, ops: _ops }) => {
@@ -104,8 +105,8 @@ test('eigenschappenpaneel: Start typen op een taak met voorganger wordt SNET in 
   await page.keyboard.press('Enter');
 
   await expect.poll(() => taskState(page, b)).toMatchObject({
-    constraint: { type: 'SNET', date: '2026-06-15' },
-    anchor: '2026-06-15',
+    constraint: { type: 'SNET', date: "2026-06-15T07:00" },
+    anchor: "2026-06-15T07:00",
   });
   await expect(toast(page)).toContainText('SNET');
   expect((await state(page)).undoDepth).toBe(undoBefore + 1);
@@ -118,7 +119,7 @@ test('eigenschappenpaneel: Start typen op een taak met voorganger wordt SNET in 
   expect((await state(page)).undoDepth).toBe(undoBefore + 1);
 
   await page.keyboard.press('F5');
-  await expect.poll(async () => (await taskState(page, b)).start).toBe('2026-06-15');
+  await expect.poll(async () => (await taskState(page, b)).start).toBe("2026-06-15T07:00");
 });
 
 test('Taak bewerken: Startdatum typen op een taak met voorganger wordt SNET bij Opslaan', async ({ page, ops: _ops }) => {
@@ -136,14 +137,14 @@ test('Taak bewerken: Startdatum typen op een taak met voorganger wordt SNET bij 
   await expect(dialog).toHaveCount(0);
 
   await expect.poll(() => taskState(page, b)).toMatchObject({
-    constraint: { type: 'SNET', date: '2026-06-15' },
-    anchor: '2026-06-15',
+    constraint: { type: 'SNET', date: "2026-06-15T07:00" },
+    anchor: "2026-06-15T07:00",
   });
   await expect(toast(page)).toContainText('SNET');
   expect((await state(page)).undoDepth).toBe(undoBefore + 1);
 
   await page.keyboard.press('F5');
-  await expect.poll(async () => (await taskState(page, b)).start).toBe('2026-06-15');
+  await expect.poll(async () => (await taskState(page, b)).start).toBe("2026-06-15T07:00");
 });
 
 test('Taak bewerken: een in dezelfde dialoog gekozen constraint wint van de getypte start', async ({ page, ops: _ops }) => {
@@ -161,7 +162,7 @@ test('Taak bewerken: een in dezelfde dialoog gekozen constraint wint van de gety
 
   const after = await taskState(page, b);
   expect(after.constraint).toMatchObject({ type: 'MSO' });
-  expect(after.anchor).toBe('2026-06-15');
+  expect(after.anchor).toBe("2026-06-15T07:00");
   await expect(toast(page)).toHaveCount(0);
 });
 
@@ -198,40 +199,40 @@ test('Gantt: balk van een taak met voorganger verschuiven wordt SNET in één un
   await dragBar(page, b, 'body', 7);
 
   await expect.poll(() => taskState(page, b)).toMatchObject({
-    constraint: { type: 'SNET', date: '2026-06-15' },
-    anchor: '2026-06-15',
+    constraint: { type: 'SNET', date: "2026-06-15T07:00" },
+    anchor: "2026-06-15T07:00",
   });
   await expect(toast(page)).toContainText('SNET');
   await expect(toast(page)).toContainText('Metselwerk');
   expect((await state(page)).undoDepth).toBe(undoBefore + 1);
 
   await page.keyboard.press('F5');
-  await expect.poll(async () => (await taskState(page, b)).start).toBe('2026-06-15');
+  await expect.poll(async () => (await taskState(page, b)).start).toBe("2026-06-15T07:00");
   await page.keyboard.press('Control+z');
-  await expect.poll(() => taskState(page, b)).toMatchObject({ constraint: null, anchor: '2026-06-01' });
+  await expect.poll(() => taskState(page, b)).toMatchObject({ constraint: null, anchor: "2026-06-01T07:00" });
 });
 
 test('Gantt: linkerrand slepen wordt SNET op de nieuwe start; vóór de voorganger wint de voorganger', async ({ page, ops: _ops }) => {
   const { b } = await seedChainForDrag(page);
   await dragBar(page, b, 'left', 1);
   await expect.poll(() => taskState(page, b)).toMatchObject({
-    constraint: { type: 'SNET', date: '2026-06-09' },
-    anchor: '2026-06-09',
+    constraint: { type: 'SNET', date: "2026-06-09T07:00" },
+    anchor: "2026-06-09T07:00",
   });
   await page.keyboard.press('F5');
-  await expect.poll(async () => (await taskState(page, b)).start).toBe('2026-06-09');
+  await expect.poll(async () => (await taskState(page, b)).start).toBe("2026-06-09T07:00");
 
   // Vijf dagen vóór wat de voorganger toelaat: de SNET komt er, maar na F5 wint de voorganger.
   await dragBar(page, b, 'body', -6);
-  await expect.poll(async () => (await taskState(page, b)).constraint).toEqual({ type: 'SNET', date: '2026-06-03' });
+  await expect.poll(async () => (await taskState(page, b)).constraint).toEqual({ type: 'SNET', date: "2026-06-03T07:00" });
   await page.keyboard.press('F5');
-  await expect.poll(async () => (await taskState(page, b)).start).toBe('2026-06-08');
+  await expect.poll(async () => (await taskState(page, b)).start).toBe("2026-06-08T07:00");
 });
 
 test('Gantt: taak met MSO en voorganger slepen past niets toe en meldt de constraint', async ({ page, ops: _ops }) => {
   const { b } = await seedChainForDrag(page, { type: 'MSO', date: '2026-06-10' });
   const before = await taskState(page, b);
-  expect(before.start).toBe('2026-06-10');
+  expect(before.start).toBe("2026-06-10T07:00");
   const undoBefore = (await state(page)).undoDepth;
   await dragBar(page, b, 'body', 7);
 
@@ -245,13 +246,13 @@ test('Gantt: taak met MSO en voorganger slepen past niets toe en meldt de constr
 test('Gantt: rechterrand en een taak zonder voorganger blijven zonder constraint', async ({ page, ops: _ops }) => {
   const { a, b } = await seedChainForDrag(page);
   await dragBar(page, b, 'right', 2);
-  await expect.poll(async () => (await taskState(page, b)).anchor).toBe('2026-06-01');
+  await expect.poll(async () => (await taskState(page, b)).anchor).toBe("2026-06-01T07:00");
   await expect.poll(() => page.evaluate(id => window.__OPS__!.store.getState().tasks.find(t => t.id === id)!.time.scheduleDuration, b))
     .toBe(5);
   expect((await taskState(page, b)).constraint).toBeNull();
 
   await dragBar(page, a, 'body', 7);
-  await expect.poll(async () => (await taskState(page, a)).anchor).toBe('2026-06-08');
+  await expect.poll(async () => (await taskState(page, a)).anchor).toBe("2026-06-08T07:00");
   expect((await taskState(page, a)).constraint).toBeNull();
   await expect(toast(page)).toHaveCount(0);
 });

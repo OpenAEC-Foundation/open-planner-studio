@@ -40,6 +40,9 @@ const ORDER: Readonly<Record<string, readonly string[]>> = {
   Project: [
     'ActivityDefaultCalendarObjectId', 'DataDate', 'Description', 'Id', 'MustFinishByDate', 'Name', 'ObjectId',
     'PlannedStartDate', 'Status',
+    // Een project-UDF (`UDFAssignmentType`) na de gewone velden, vóór WBS en activiteiten: zo staat hij in
+    // echte P6-exports (corpus `pmxml-samples/UploadScheduleP6.xml`, `EC00850_V2.xml`).
+    'UDF',
     'WBS', 'Activity', 'ResourceAssignment', 'ActivityNote', 'Relationship',
   ],
   Calendar: ['HoursPerDay', 'HoursPerMonth', 'HoursPerWeek', 'HoursPerYear', 'Name', 'ObjectId', 'Type', 'StandardWorkWeek', 'HolidayOrExceptions'],

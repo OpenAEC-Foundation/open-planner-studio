@@ -47,6 +47,7 @@ import { installDOMParser } from './xmldom-shim';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 
 declare const process: { exit(code: number): never };
 
@@ -136,11 +137,10 @@ const imported = quiet(() => single(readXER(XER_BYTES)));
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // §3 De echte openroute, een rasterbewerking, opslaan als IFC en heropenen
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-const OPEN = { filePath: null, fileHandle: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: true } as const;
+const OPEN = { filePath: null, fileHandle: null, recompute: true, fit: false, linkedOpen: true } as const;
 function openInStore(parsed: OpenedImport) {
   const ctx = createAppStoreContext();
   quiet(() => ctx.store.getState().applyOpenedImport(parsed, OPEN));
-  ctx.store.setState((s) => { s.ui.enableHourPlanning = true; });
   return ctx;
 }
 type Ctx = ReturnType<typeof openInStore>;
@@ -217,7 +217,7 @@ const loadCtx = openInStore(await parseOpenedFile({ name: 'dag-is-werktijd.xer',
 {
   const s = loadCtx.store.getState();
   const a = taskIn(loadCtx, 'A');
-  const res = computeResourceLoad(s.resources, s.assignments, s.tasks, s.calendar, s.calendars);
+  const res = computeResourceLoad(s.resources, s.assignments, s.tasks, s.calendar, s.calendars, effectiveSchedulingOptions(s.project));
   const bucket = Object.values(res.load)[0] ?? {};
   const days = Object.keys(bucket).sort();
   same('§5 belasting: 187 belaste dagen, 187 eenheden, 1870 u',
@@ -279,7 +279,7 @@ const loadCtx = openInStore(await parseOpenedFile({ name: 'dag-is-werktijd.xer',
   const perDay = Object.fromEntries(s.assignments.map((a) => [a.resourceId, a.unitsPerDay]));
   same('§7 tempo per dag: Beton 1 × 10, Wapening 2 × 10 (taakdag, niet de 8 u van zijn eigen kalender), Zand 3 × 8 (dagtaak; niet × 10 van zijn blokken)',
     perDay, { 'xer-resource:M1': 10, 'xer-resource:M2': 20, 'xer-resource:M3': 24 });
-  const res = computeResourceLoad(s.resources, s.assignments, s.tasks, s.calendar, s.calendars);
+  const res = computeResourceLoad(s.resources, s.assignments, s.tasks, s.calendar, s.calendars, effectiveSchedulingOptions(s.project));
   const total = (rid: string) => Math.round(Object.values(res.load[rid] ?? {}).reduce((x, y) => x + y, 0) * 1000) / 1000;
   same('§7 materiaaltotaal = tempo × uren: 1 × 1870, 2 × 1870, 3 × 40',
     [total('xer-resource:M1'), total('xer-resource:M2'), total('xer-resource:M3')], [1870, 3740, 120]);

@@ -1,3 +1,4 @@
+// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 // Plakken in een ANDER document (audit taakmutaties §8): het klembord is app-globaal, dus een tak uit
 // document A kan verwijzingen meebrengen naar definities die alleen in A bestaan — een taakkalender,
 // een eigen taaktype, activity codes en gebruikersvelden. Voorheen landden die id's ongezien in B:
@@ -38,7 +39,7 @@ S().setTaskActivityCode(T, codeType, codeValue);
 S().setTaskCustomField(T, field, 42);
 S().runCPM();
 const inA = S().tasks.find(t => t.id === T)!;
-eq('A: einde op de 7/7-kalender', inA.time.earlyFinish, '2026-03-08');
+eq('A: einde op de 7/7-kalender', inA.time.earlyFinish, "2026-03-08T16:00");
 S().copyTasks([T]);
 
 // ── Binnen hetzelfde document plakken: alle verwijzingen bestaan, niets wordt gewist ──
