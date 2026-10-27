@@ -117,8 +117,10 @@ en noem het in je rapport of PR-tekst.
     Een bisect over de merges van main op 2026-10-26 wijst merge #494 (`363bb638f`, korte
     MPP-resourceplaatsaanduidingen overslaan) aan als eerste rode merge; #446 (`811999328`) is nog
     groen.
-    Oorzaak (onderzocht op 2026-10-27): de uitkomst is vast, niet wisselend. Ze verandert alleen met de
-    commit; klok, tijdzone, taal, pad, omgeving en volgorde veranderen niets. #494 is juist
+    Oorzaak (onderzocht op 2026-10-27): bij dezelfde bestandsbytes, dezelfde meetdekking (`OPS_MPP_CORPUS` en
+    `OPS_MPP_CRAWL`, 661 bestanden) en de gewone toetsmodus is de uitkomst vast rood; klok, tijdzone, taal,
+    pad en volgorde veranderen dat niet, alleen de commit. Zonder `OPS_MPP_CRAWL` meet de check dit bestand
+    niet en eindigt hij groen (zie 427). #494 is juist
     (`src/services/mpp/mppEntities.ts:302`, knownbug 119): de lezer slaat nu de korte records van 16 bytes
     over en leest Resource 8a en 8b uit de volle records. Die zijn LABOR, zoals in MPXJ; de oude lezer
     maakte er MATERIAL van. Daardoor laat de MATERIAL-filter (`src/services/mpp/mppReader.ts:1501`, zie
@@ -1315,14 +1317,30 @@ en noem het in je rapport of PR-tekst.
      control-relaties over, na kalender en metadata; voeg een gerichte regressiecheck toe.
      Vastgesteld door twee onafhankelijke broncontroles bij PR #641; niet uitgevoerd. — B
 
-427. **`run.sh check-mpp-fidelity.ts` eindigt op "alle checks groen" als er geen `.mpp`-bestand gescand is.**
-     Zonder `OPS_MPP_CORPUS` en `OPS_MPP_CRAWL` (ook als alleen `OPS_XER_CORPUS` gezet is) slaat
-     `tests/planning/check-mpp-fidelity.ts` de corpus- en de crawllus over. Dat staat in tussenregels (`:720`,
-     `:735`), maar de slotregel (`:888`) zegt "alle checks groen (678)" en de suite eindigt op GROEN, exit 0. Wie
-     alleen op de slotregel of de exitcode oordeelt, ziet zo een vals groen voor de MS Project-meting. De CI
-     draait bewust zonder corpus, dus een faal is niet de oplossing. Voorstel: bij 0 gescande bestanden een
-     slotregel die dat zegt ("corpus en crawl overgeslagen, 0 bestanden gescand"). `measure:profiles` is hier
-     al streng (0 gescand is rood). Gevonden bij het onderzoek naar 187 op 2026-10-27. — B
+427. **De MS Project-meting eindigt groen als het crawl-corpus ontbreekt, ook in `measure:profiles`.**
+     `tests/planning/check-mpp-fidelity.ts` slaat de corpus- en de crawllus over als `OPS_MPP_CORPUS` of
+     `OPS_MPP_CRAWL` ontbreekt. Dat staat in tussenregels (`:720`, `:735`), maar de slotregel (`:888`) zegt toch
+     "alle checks groen". Twee gevallen:
+     - Geen van beide gezet (ook als alleen `OPS_XER_CORPUS` gezet is): 0 bestanden, "alle checks groen (678)",
+       exit 0. `measure:profiles` noemt dit wel rood ("niet gemeten").
+     - Alleen `OPS_MPP_CORPUS` gezet: 3 bestanden, "alle checks groen (703)", exit 0. Ook `classifyMsp` in
+       `scripts/measure-profiles-status.mjs:116–122` geeft dan GROEN (`scanned: 3`). De 658 crawlbestanden,
+       met `timephased-cost-rollup.mpp` (knownbug 187), zijn dan niet gemeten.
+     Wie alleen op de slotregel of de exitcode oordeelt, ziet zo een vals groen. De CI draait bewust zonder
+     corpus, dus een faal in de check zelf is niet de oplossing. Voorstel: de slotregel noemt het aantal
+     gescande bestanden en welke lus is overgeslagen; `measure:profiles` meldt een gedeeltelijke meting
+     (een lus overgeslagen) apart en niet als GROEN. Gevonden bij het onderzoek naar 187 en in review ronde 1
+     van #712 (GPT-6.1-Sol), 2026-10-27. — B
+
+428. **`check-mpp-import.ts` toetst voor `mpp14resource.mpp` nog de oude resource-indeling.**
+     `tests/planning/check-mpp-import.ts:3255–3265` noemt Wade Golden en Jon Iles MATERIAL en eist voor "Task A"
+     precies één wandeling. Sinds #494 (zie 187 en 426) leest de lezer alle drie de toewijzingen als LABOR en
+     geeft hij drie wandelingen van 1440 werkminuten. Met het bestand aanwezig
+     (`OPS_MPP_RESOURCE_FIXTURE=…/testdata-crawl/mpxj/junit/data/mpp14resource.mpp`) is de check rood: 1 afwijking
+     van 3117, alleen deze assertie; de einddatum van "Task A" (2006-08-30 08:00, zoals MS Project) klopt nog.
+     Het standaardpad (`:3208`) is `/home/nozzit/…`; op aia09-mp50 en in de CI wordt de case daarom overgeslagen,
+     op de laptop van de eigenaar waarschijnlijk niet. Voorstel: de assertie en het commentaar aanpassen aan
+     LABOR en drie wandelingen, samen met 426. Gevonden in review ronde 1 van #712 (GPT-6.1-Sol), 2026-10-27. — B
 
 ## Wensen en open taken (geen bug)
 
