@@ -435,12 +435,15 @@ export async function removeExtension(
 
   // Instellingen van deze extensie opruimen
   const prefix = `ops-ext:${id}:`;
-  const keysToRemove: string[] = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key?.startsWith(prefix)) keysToRemove.push(key);
-  }
-  keysToRemove.forEach((k) => localStorage.removeItem(k));
+  // Binnen een try: al het lezen van de global kan gooien (afgeschermde opslag, #583).
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith(prefix)) keysToRemove.push(key);
+    }
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
+  } catch { /* opslag geblokkeerd: niets op te ruimen */ }
 }
 
 /** Verwijder een onuitvoerbaar opslagrecord via zijn bewaarde IndexedDB-sleutel. */

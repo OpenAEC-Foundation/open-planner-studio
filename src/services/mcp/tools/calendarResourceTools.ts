@@ -48,6 +48,7 @@ import { isFiniteNumber } from '@/utils/guards';
 import { hasLevelingOutput } from '@/utils/taskDefaults';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { markDocumentEdited } from '@/state/documentEdited';
+import type { ClearableProjectKey } from '@/state/projectPatch';
 import { holidayIssue, ISO_DATE_ONLY } from '@/utils/holidayRange';
 import {
   calendarScalarBreakIssue, simpleBreakNetHours, simpleBreakPatch, type ScalarBreakIssue,
@@ -1269,17 +1270,6 @@ const updateCalendar: BatchStepTool = {
           'concrete work blocks to be calculated.',
         );
       }
-      // De schakelaar Urenplanning is puur UI (de solver rekent sowieso uur-native): meld het. Het
-      // kalendervenster toont de werkblokken van een uurkalender altijd (besluit eigenaar 2026-10-13,
-      // optie 2), maar de rest van de app (duur in uren, tijdschaal Uur) toont geen uren.
-      if (rows.some((r) => r.mode === 'hour') && !ctx.app.store.getState().ui.enableHourPlanning) {
-        warnings.push(
-          'There is now an HOUR calendar in this document while the app setting "Enable hour planning" is ' +
-          'OFF. The schedule is calculated hour-native. The Calendars dialog shows and edits the work ' +
-          'blocks of this calendar, but the rest of the app (durations in hours, the Hour time scale) shows ' +
-          'no hours until the user turns that setting on (App settings → Planning → Enable hour planning).',
-        );
-      }
       return { calendars: rows, warnings, projectEnd, ...(cappedTaskIds ? { cappedTaskIds } : {}) };
     });
   },
@@ -1865,7 +1855,7 @@ const PROJECT_REFUSED: Record<string, string> = {
   schedulingProfile:
     'the calculation profile (P6 / MS Project / OPS / custom) is NOT settable via the bridge: a switch ' +
     'shifts dates of the whole document. Choose it in the app under File → Project settings → Calculation ' +
-    'profile; `planner_get_project_info` shows the active profile with its twenty-seven resolved conventions.',
+    'profile; `planner_get_project_info` shows the active profile with its twenty-nine resolved conventions.',
   leveling:
     '`leveling` belongs in `project.schedulingOptions`: the leveling settings from the source file (P6 ' +
     'SCHEDOPTIONS/RSRCLEVELLIST) are read and kept, but NOT applied yet and not settable via the bridge. ' +
@@ -1994,22 +1984,21 @@ function updateProjectCore(
   // `draft.setProject` levert het aantal wortel-ankers dat het klemde (zelfde
   // bewerkbescherming als de UI, `projectSlice.setProject`) — meegeven in `data` zodat óók het
   // `planner_batch`-pad (dat rechtstreeks `updateProjectCore` gebruikt, zonder `enrichOk`) dit ziet.
-  const anchorsClamped = ctx.transactions.draft.setProject(p.updates);
-  if (p.clearStatusDate || p.clearProgressMode || p.clearDefaultWorkRule) {
-    ctx.app.store.setState((s) => {
-      // `delete` i.p.v. `= undefined`: de IFC-serialisatie en de solver-defaults lezen op
-      // sleutel-AANWEZIGHEID (zelfde conventie als de store-actie `setStatusDate`).
-      if (p.clearStatusDate) delete s.project.statusDate;
-      if (p.clearProgressMode) delete s.project.progressMode;
-      if (p.clearDefaultWorkRule) delete s.project.defaultWorkRule;
-      s.project.modifiedAt = new Date().toISOString();
-      markDocumentEdited(s);
-    });
-  }
+  // `delete` i.p.v. `= undefined` voor een gewist veld: de IFC-serialisatie en de solver-defaults
+  // lezen op sleutel-AANWEZIGHEID (zelfde conventie als de store-actie `setStatusDate`). Het wissen
+  // gaat door dezelfde patch, zodat ook een gewiste projectstandaard de taken omzet die hem erven.
+  const clear: ClearableProjectKey[] = [
+    ...(p.clearStatusDate ? ['statusDate' as const] : []),
+    ...(p.clearProgressMode ? ['progressMode' as const] : []),
+    ...(p.clearDefaultWorkRule ? ['defaultWorkRule' as const] : []),
+  ];
+  const { clampedAnchors: anchorsClamped, measureChangedTaskIds } = ctx.transactions.draft.setProject(p.updates, clear);
   return {
     data: {
       updated: p.touched,
       ...(anchorsClamped > 0 ? { anchorsClamped } : {}),
+      // B1a: een nieuwe standaard *Vast werk* zette deze taken (zonder eigen `workRule`) om naar de urenmaat.
+      ...(measureChangedTaskIds.length > 0 ? { hourMeasureTaskIds: measureChangedTaskIds } : {}),
       ...(p.updates.statusDate ? { statusDateNote: STATUS_DATE_NOTE } : {}),
     },
   };
@@ -2073,7 +2062,10 @@ const updateProject: BatchStepTool = {
         description:
           'Project default task type (`workRule`) for tasks without their own `workRule` — see ' +
           'planner_update_tasks `fields.workRule` for the four values. null = the default ' +
-          'FIXED_DURATION_RATE. Switching changes no number.',
+          'FIXED_DURATION_RATE. A FIXED_WORK task always has the hour measure: switching the default to ' +
+          'FIXED_WORK converts every task without its own `workRule` from the day measure to the hour measure ' +
+          '(days × working time per day; listed in `hourMeasureTaskIds`) and recalculates. Switching back ' +
+          'keeps the hour measure. Any other switch changes no number.',
       },
     },
     additionalProperties: false,
@@ -2103,6 +2095,10 @@ const updateProject: BatchStepTool = {
       res.ok && res.data && typeof res.data === 'object' && 'anchorsClamped' in res.data
         ? (res.data as { anchorsClamped: number }).anchorsClamped
         : 0;
+    const hourMeasureTaskIds =
+      res.ok && res.data && typeof res.data === 'object' && 'hourMeasureTaskIds' in res.data
+        ? (res.data as { hourMeasureTaskIds: string[] }).hourMeasureTaskIds
+        : [];
     return enrichOk(res, () => {
       const state = ctx.app.store.getState();
       const p = state.project;
@@ -2122,6 +2118,7 @@ const updateProject: BatchStepTool = {
           'predecessor/constraint that lie before the new date move along TO that date — see ' +
           '`anchorsClamped`. Use planner_move_project to shift the WHOLE existing schedule (every anchor).',
         ...(anchorsClamped > 0 ? { anchorsClamped } : {}),
+        ...(hourMeasureTaskIds.length > 0 ? { hourMeasureTaskIds } : {}),
         ...(statusDateTouched
           ? {
               statusDateEffect: {

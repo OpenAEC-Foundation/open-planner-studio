@@ -1,3 +1,4 @@
+// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 // moveTask-cykelguard + addTask.notes-checks (fase 2.10 onderdeel 2, QA-fixes P1 en 4) —
 // headless tegen de ECHTE Zustand-store (zelfde `useAppStore.getState()`-patroon als
 // harness.ts/check-move-assignment.ts). Bewijst met echte code:
@@ -93,12 +94,12 @@ eq('19 addTask: geen notes-arg ⇒ undefined (byte-identiek default)', task(idNo
 S().setProject({ startDate: '2027-03-01' });
 
 const idDefTime = S().addTask({ name: 'ZonderTijd' });
-eq('20 addTask zonder time: start = project.startDate (niet vandaag)', task(idDefTime)?.time.scheduleStart, '2027-03-01');
+eq('20 addTask zonder time: start = project.startDate (niet vandaag)', task(idDefTime)?.time.scheduleStart, "2027-03-01T07:00");
 eq('21 addTask zonder time: duur 5 werkdagen voor een gewone taak', task(idDefTime)?.time.scheduleDuration, 5);
 
 const idDefMilestone = S().addTask({ name: 'ZonderTijdMijlpaal', isMilestone: true });
 eq('22 addTask zonder time: mijlpaal krijgt duur 0', task(idDefMilestone)?.time.scheduleDuration, 0);
-eq('23 addTask zonder time: mijlpaal start ook op project.startDate', task(idDefMilestone)?.time.scheduleStart, '2027-03-01');
+eq('23 addTask zonder time: mijlpaal start ook op project.startDate', task(idDefMilestone)?.time.scheduleStart, "2027-03-01T07:00");
 
 // Een expliciete `time` moet nog steeds voorrang houden — anders zouden de callsites die hem
 // wél om een reden meegeven (sjablonen, import, de SDK) stil overschreven worden.
@@ -106,7 +107,7 @@ const idExplicit = S().addTask({
   name: 'EigenTijd',
   time: { ...task(idDefTime)!.time, scheduleStart: '2027-06-15', scheduleDuration: 12 },
 });
-eq('24 addTask mét time: expliciete waarde wint van de default', task(idExplicit)?.time.scheduleStart, '2027-06-15');
+eq('24 addTask mét time: expliciete waarde wint van de default', task(idExplicit)?.time.scheduleStart, "2027-06-15T07:00");
 eq('25 addTask mét time: expliciete duur wint van de default', task(idExplicit)?.time.scheduleDuration, 12);
 
 // ── 5) moveTask zonder position: WBS-volgorde moet childIds-volgorde volgen (regressie voor de

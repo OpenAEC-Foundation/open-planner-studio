@@ -19,8 +19,12 @@ const PUB_DIR = join(ROOT, 'public', 'examples');
  *  oude grens zat er dus al bijna tegenaan. Opgehoogd naar 850 kB op 2026-09-03: de writer schrijft
  *  sinds eind augustus per taak `OPS_TaskIdentity` (padstabiele externe relatietokens) en per
  *  kalender/resource `HoursPerDay`/`Color`, waardoor de selectie van 673 naar 807 KiB groeide en
- *  een regeneratie op de 700-grens stukliep. Dit blijft een bloat-vangnet, geen streefwaarde. */
-const PUBLIC_BUDGET_KB = 850;
+ *  een regeneratie op de 700-grens stukliep. Opgehoogd naar 1050 kB op 2026-10-26: de voorbeelden
+ *  zijn opnieuw gegenereerd in het minutenmodel (spec alleen uren), en de writer schrijft per taak de
+ *  exacte speling (`OPS_Analysis.ExactFloat`, T5) plus `OPS_Project.TimeModel` en `LiteralTimes`. Gemeten:
+ *  816 KiB vóór, 975 KiB erna (+19 %, het grootste deel `ExactFloat`). Dit blijft een bloat-vangnet,
+ *  geen streefwaarde. */
+const PUBLIC_BUDGET_KB = 1050;
 
 function main() {
   if (!existsSync(EX_DIR)) mkdirSync(EX_DIR, { recursive: true });

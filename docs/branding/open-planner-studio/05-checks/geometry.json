@@ -1,0 +1,55 @@
+{
+  "orthographic": true,
+  "board_dimensions": [
+    4.4,
+    4.4,
+    4.4
+  ],
+  "task_intervals": [
+    [
+      0.55,
+      2.45,
+      2.95
+    ],
+    [
+      5.6,
+      7.25,
+      2.95
+    ],
+    [
+      2.85,
+      5.45,
+      2.05
+    ],
+    [
+      6.5,
+      8.05,
+      2.05
+    ],
+    [
+      0.85,
+      2.25,
+      1.15
+    ],
+    [
+      5.95,
+      7.75,
+      1.15
+    ]
+  ],
+  "finish_to_start_positive_lag": true,
+  "all_tasks_inside_board": true,
+  "depth_edges_parallel_equal": true,
+  "cube_all_dimensions_equal": true,
+  "one_single_closed_corner_task": true,
+  "task_count": 6,
+  "vertical_faces_open_transparent": true,
+  "timeline_crosses_shared_corner": true,
+  "task_axis_unwrapped_length": 8.8,
+  "emission_materials_no_lighting_gradient": true,
+  "master_camera_offset": [
+    -12,
+    -12,
+    12
+  ]
+}

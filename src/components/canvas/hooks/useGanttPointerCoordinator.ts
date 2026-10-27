@@ -41,7 +41,8 @@ export function useGanttPointerCoordinator(
     splitMode,
     scrollMode,
     enableQuarterHourZoom,
-    enableHourPlanning,
+    workdayDurationMeasure,
+
     compressNonWorkdays,
     selectTask,
     selectTasks,
@@ -106,7 +107,7 @@ export function useGanttPointerCoordinator(
   const barDrag = useBarDrag({
     zoom: view.zoom,
     enableQuarterHourZoom,
-    enableHourPlanning,
+
     calendar,
     effectiveCalById: effectiveCalendarByTaskId,
     compressNonWorkdays,
@@ -121,6 +122,7 @@ export function useGanttPointerCoordinator(
     notify,
     dateNotation,
     timeNotation,
+    workdayDurationMeasure,
   });
   // Het splitsgebaar. Bewust ná `useDependencyDraw` gedeclareerd — beide tekenen op
   // hetzelfde overlay-canvas, en de twee modi sluiten elkaar uit, dus de laatst gemounte teken-
@@ -135,7 +137,8 @@ export function useGanttPointerCoordinator(
     effectiveCalById: effectiveCalendarByTaskId,
     zoom: view.zoom,
     enableQuarterHourZoom,
-    enableHourPlanning,
+    workdayDurationMeasure,
+
     getTask,
     setTaskSplits,
     undo,
@@ -433,10 +436,10 @@ export function useGanttPointerCoordinator(
         setHoverCursor(renderer.getSplitGapAt(x, y) ? 'not-allowed' : 'default');
         return;
       }
-      const splittable = splitRefusalFor(hit.task) === null;
+      const splittable = splitRefusalFor(hit.task) === null
+        && splitGesture.updateHover(event.clientX, event.clientY);
       setHoverCursor(splittable ? 'col-resize' : 'not-allowed');
-      if (splittable) splitGesture.updateHover(event.clientX, event.clientY);
-      else splitGesture.clearHover();
+      if (!splittable) splitGesture.clearHover();
       return;
     }
     if (hit) {

@@ -27,6 +27,8 @@ import { getTool, registerAllTools } from '@/services/mcp/toolRegistry';
 import { handleMcpMessage } from '@/services/mcp/dispatcher';
 import type { McpContext, McpToolResult, McpToolOk, McpToolErr } from '@/services/mcp/contracts';
 import { writeIFC } from '@/services/ifc/ifcWriter';
+import { prepareLoadedPayload } from '@/state/documentActivation';
+import { payloadFromImport } from '@/state/documentContract';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 
@@ -456,7 +458,7 @@ test('15. baselines (meerdere, namen met apostrof) + actief-markering overleven 
   await callOk('planner_activate_baseline', { baselineId: a });
 
   const ifc = writeIFC(buildWriteIFCInput(S()));
-  const back = readIFC(ifc);
+  const back = prepareLoadedPayload(payloadFromImport(readIFC(ifc), null), { recompute: false });
   assertEq(back.baselines?.length, 2, 'beide baselines komen terug');
   assertEq(back.baselines?.map((x) => x.name), ["Nulmeting 'A', v2", 'Tweede meting'], 'namen (incl. apostrof/komma) intact');
   assertEq(back.baselines?.map((x) => x.id), [a, b], "id's intact");

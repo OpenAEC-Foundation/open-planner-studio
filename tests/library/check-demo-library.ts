@@ -82,6 +82,8 @@ function assert(cond: boolean, msg: string): void {
   const schilderId = useAppStore.getState().addResource({ name: 'Painters', type: 'LABOR', description: '', maxUnits: 4 });
   const onbekendeId = useAppStore.getState().addResource({ name: 'Onbekende Specialist', type: 'LABOR', description: '', maxUnits: 1 });
 
+  // Een net geladen voorbeeld is schoon vóór de aanvullende demo-bedrading.
+  useAppStore.setState({ isDirty: false });
   applyDemoLibraryToShowcaseProject();
 
   const after = useAppStore.getState();
@@ -96,6 +98,11 @@ function assert(cond: boolean, msg: string): void {
 
   // Geen afwijkingenscherm/-signaal opgedrongen (dit is een demo, geen vraag).
   assert(after.ui.showLibraryLinkDialog === false, 'wiring: geen afwijkingenscherm getoond (auto-link zonder gebruikersvraag)');
+  assert(after.isDirty === false, 'knownbug 35: demo-koppeling maakt een schoon voorbeeld niet gewijzigd');
+  useAppStore.getState().setProject({ name: 'Door gebruiker aangepast' });
+  assert(useAppStore.getState().isDirty, 'echte gebruikersbewerking maakt het voorbeeld gewijzigd');
+  applyDemoLibraryToShowcaseProject();
+  assert(useAppStore.getState().isDirty, 'bestaand gewijzigd werk blijft gewijzigd na demo-bedrading');
 }
 
 // --- F2 (critreview, issue #19): een showcase-kalender met een naam die de demo-pool ook draagt

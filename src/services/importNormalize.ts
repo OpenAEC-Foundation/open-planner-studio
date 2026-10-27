@@ -38,14 +38,23 @@ export function deriveImportedWorkRules(tasks: Task[]): void {
  *
  * Golden rule: een taak ZONDER enig voortgangssignaal (geen actuals, completion 0) blijft
  * volledig ongemoeid — status NOT_STARTED, geen `remainingTime` gezet — zodat bestaande
- * bestanden ongewijzigd round-trippen. De restduur is afgeleid uit `completion`
- * (`applyRemainingDuration`): een afwijkende geïmporteerde dag-restduur wordt naar de afgeleide
- * genormaliseerd (gedocumenteerd verlies); vastgelegde restduur-minuten van een urentaak blijven
- * staan.
+ * bestanden ongewijzigd round-trippen. De restduur die het bestand van een lopende taak vastlegt,
+ * blijft staan: de restduur-minuten van een urentaak en de dagenrest van een dagtaak. Alleen zonder
+ * bronrest leidt `applyRemainingDuration` hem af uit `completion` (dezelfde regel als de store); een
+ * voltooide taak krijgt rest 0.
  *
- * `runningAtFullIds`: smalle uitzondering voor de IFC-lezer. Een taak in deze set met `completion >= 1`
- * en ZONDER werkelijk einde blijft STARTED (zie de tak hieronder). Met een werkelijk einde, of onder
- * 100 %, telt de set niet: dan geldt de gewone regel. Andere lezers geven de set niet mee.
+ * `runningAtFullIds`: smalle uitzondering voor een taak die volgens het bestand nog loopt. Een taak in deze
+ * set met `completion >= 1` en ZONDER werkelijk einde blijft STARTED (zie de tak hieronder). Met een
+ * werkelijk einde, of onder 100 %, telt de set niet: dan geldt de gewone regel. De lezers vullen haar uit
+ * de bron: IFC uit `IfcTask.Status` = 'STARTED', P6 XML uit de status `In Progress`, MSPDI, MPP en een
+ * P6-XML-export van OPS uit een rest groter dan 0 zonder werkelijk einde (MS Project zet dat einde zodra
+ * een taak klaar is). De XER-lezer neemt de status zelf over en roept deze functie niet aan; CSV kent geen
+ * status en geen rest.
+ *
+ * Ook een IFC van een oudere versie houdt zijn opgeslagen rest, al schreef die versie een dagenrest
+ * afgerond (`Math.round`): het bestand zegt niet of een rest ingevoerd of afgeleid was, en een MPP-rest
+ * van 4 d bij 33 % ziet er net zo uit als een afgeronde afleiding. De opgeslagen waarde is dan het feit.
+ * Eigenaarsbesluit B3 (2026-10-20) staat een verschuiving van oude bestanden toe, maar eist haar niet.
  */
 export function normalizeImportedProgress(
   tasks: Task[],
@@ -74,8 +83,8 @@ export function normalizeImportedProgress(
       if (!t.actualStart) t.actualStart = t.actualFinish;
       task.status = 'COMPLETED';
     } else if (t.completion >= 1 && runningAtFullIds?.has(task.id)) {
-      // Lopend op 100 %, zo gemarkeerd in het bestand (alleen IFC: `IfcTask.Status` = 'STARTED',
-      // eigenaarsbesluit 2026-10-14). Houd hem lopend: geen afgeleid werkelijk einde, geen afgeleide
+      // Lopend op 100 %, zo vastgelegd in het bestand (IFC: `IfcTask.Status` = 'STARTED', eigenaarsbesluit
+      // 2026-10-14; zie `runningAtFullIds`). Houd hem lopend: geen afgeleid werkelijk einde, geen afgeleide
       // werkelijke start, en de restduur zoals het bestand hem vastlegde (geen afleiding uit
       // `completion`), zodat de taak na opslaan en heropenen gelijk is aan de import.
       t.completion = 1;
@@ -85,10 +94,11 @@ export function normalizeImportedProgress(
       t.completion = 1;
       // Zelfde volgorde en regels als de store (`setTaskProgress`): eerst de impliciete start (de
       // eigen geplande start, niet AS = AF — anders krimpt de voltooide balk), dan de AF-default.
-      if (!t.actualStart) t.actualStart = defaultActualStart(t);
+      const startWasDerived = !t.actualStart;
+      if (startWasDerived) t.actualStart = defaultActualStart(t);
       t.actualFinish = defaultActualFinish(t, statusDate);
-      // Geplande start ná de statusdatum ⇒ AS lag ná het afgeleide einde; zelfde regel als de store.
-      orderActualsAfterDerivedFinish(t, statusDate);
+      // Alleen een ontbrekende start mag terug naar de statusdatum; aanwezige feiten blijven staan.
+      orderActualsAfterDerivedFinish(t, statusDate, startWasDerived);
       task.status = 'COMPLETED';
     } else {
       // In progress: actualStart gezet óf completion > 0 (impliciete start dekt het
@@ -96,10 +106,11 @@ export function normalizeImportedProgress(
       task.status = 'STARTED';
     }
 
-    // Restduur afgeleid met dezelfde regel als de store, in de vorm van de duur: een
-    // dagtaak hele werkdagen (een geïmporteerde waarde wordt overschreven), een urentaak minuten plus
-    // een onafgeronde werkdagfractie. Uitzondering: in het bestand vastgelegde restduur-MINUTEN
-    // blijven staan (MSP's eigen exacte restduur bij een afgeronde voortgang).
+    // Restduur in de vorm van de duur: een dagtaak in werkdagen, een urentaak in minuten plus een
+    // onafgeronde werkdagfractie. De in het bestand vastgelegde rest van een lopende taak blijft staan
+    // (MSP's eigen exacte restduur bij een afgerond percentage, P6's rest naast een fysiek percentage,
+    // een eerder opgeslagen IFC); zonder bronrest leidt dezelfde regel als de store hem af uit
+    // `completion`. Een voltooide taak krijgt rest 0.
     applyRemainingDuration(task, true);
   }
 }

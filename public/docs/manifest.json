@@ -170,10 +170,10 @@
       "kind": "howto"
     },
     {
-      "id": "howto-urenplanning-aanzetten",
+      "id": "howto-taak-in-uren-plannen",
       "title": {
-        "nl": "Urenplanning aanzetten",
-        "en": "Turning on hour planning"
+        "nl": "Een taak in uren plannen",
+        "en": "Plan a task in hours"
       },
       "kind": "howto"
     },
@@ -672,6 +672,7 @@
     "gids-taaktypen": "ref-taak-eigenschappen",
     "ref-waarschuwingen": "ref-meldingen",
     "ref-sneltoetsen-lijst": "ref-sneltoetsen",
-    "ref-instellingen-lijst": "ref-instellingen"
+    "ref-instellingen-lijst": "ref-instellingen",
+    "howto-urenplanning-aanzetten": "howto-taak-in-uren-plannen"
   }
 }

@@ -23,6 +23,17 @@
  * beide (de parent alleen als die same-origin is). Anders mist de tool het startbestand als zijn
  * opstartcontrole al voorbij is.
  *
+ * ## Het welkomstvenster overslaan
+ *
+ * Zet de host `skipWelcome: true`, dan toont de tool bij de start geen welkomstvenster (issue #583).
+ * Bedoeld voor een host waar de tool geen instellingen kan bewaren, bijvoorbeeld een sandbox-iframe
+ * zonder `localStorage`: daar zou het venster bij elke start terugkomen. Dit veld vraagt GEEN
+ * `storage`; een host mag alleen het welkomstvenster uitzetten. Alleen strikt `true` telt. De tool
+ * kijkt bij de start en nog eens vlak voordat het venster zou openen (na de herstelvraag). Zet de
+ * host daarom vóór de tool start: staat het venster al open, dan sluit een latere host het niet, en
+ * het event `openaec-host-ready` verandert daar niets aan. De handmatige ingangen (lint, backstage)
+ * blijven werken.
+ *
  * ## De vier functies
  *
  * - `list({ extensions })` — de bestanden die de tool kan openen. `extensions` zijn extensies zonder
@@ -50,7 +61,8 @@
  *
  * De tool schrijft ALLEEN naar de site als de gebruiker opslaat (Opslaan of Opslaan als). Automatisch
  * opslaan staat voor een site-bestand uit: elke ronde zou een nieuwe versie maken. Crashherstel blijft
- * lokaal in de browser.
+ * lokaal in de browser. Weigert de browser IndexedDB (bijv. in een sandbox-iframe zonder
+ * `allow-same-origin`), dan gaat crashherstel stil uit voor die sessie; opslaan via de site werkt gewoon.
  *
  * Staat de host op `window.parent`, dan komen objecten uit twee vensters. De tool controleert de
  * inhoud daarom zonder `instanceof`; de site doet er goed aan hetzelfde te doen met de `Blob` die de
@@ -98,6 +110,8 @@ export interface OpenAECHost {
   storage?: SiteStorage;
   /** Open dit bestand (nieuwste versie) bij de start, als de tool nog een leeg document heeft. */
   initialFileId?: string;
+  /** Toon bij de start geen welkomstvenster (alleen strikt `true`). Werkt ook zonder `storage`. */
+  skipWelcome?: boolean;
 }
 
 /** Event waarmee een site meldt dat `openaecHost` er nu staat; op het venster waar de host staat
@@ -183,6 +197,14 @@ export function siteInitialFileId(): string | null {
     return typeof id === 'string' && id.length > 0 ? id : null;
   }
   return null;
+}
+
+/**
+ * Wil een host dat de tool het welkomstvenster bij de start overslaat? Alleen bij `skipWelcome`
+ * strikt `true`, en ook zonder geldige opslag: dit veld staat los van `storage`. Desktop nooit.
+ */
+export function siteSkipsWelcome(): boolean {
+  return candidateHosts().some((host) => host.skipWelcome === true);
 }
 
 function siteErrorCode(err: unknown): unknown {

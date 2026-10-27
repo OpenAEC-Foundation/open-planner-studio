@@ -5,6 +5,7 @@ import type { LayoutOverlays, ViewState } from '@/types/view';
 import type { AppState } from './appStore';
 import { deriveViewRows } from './viewRows';
 import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import type { ViewRow } from '@/engine/view/visibleRows';
 
 export const MAX_SESSION_HISTORY_EVENTS_PER_SCOPE = 100;
@@ -204,6 +205,7 @@ export function materializeHistoryTarget(
         isolated.tasks,
         isolated.calendar,
         isolated.calendars,
+        effectiveSchedulingOptions(isolated.project),
       ),
       isDirty: true,
       clearImportPristine: delta.nonEdit !== true,

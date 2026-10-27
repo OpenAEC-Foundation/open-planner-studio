@@ -124,6 +124,12 @@ geen contractwijziging: `loadProject` met hetzelfde project-id houdt de projectd
 resultaat niet kan dragen, een ander id krijgt geen opslagdoel, en na elke load is het document
 gewijzigd; een importer-resultaat opent als nieuw document (zie *API-overzicht*).
 
+`1.5.0` voegt `api.data.getSelectedTaskIds()` toe. De methode geeft een verse, muteerbare lijst
+van taak-ID's in selectievolgorde uit de gebonden documentcontext (leeg als niets geselecteerd is).
+De lijst aanpassen verandert de selectie niet. Elke aanroep leest de actuele selectie; bij een
+actief-documentwissel volgt die de documentcontext net als `getTasks()`. Het is een kern-API-methode
+zonder extra permissie, geen schrijfmethode. Extensies die haar gebruiken declareren `apiVersion: "1.5"`.
+
 > **Migratie (audit P16):**
 > - De permissie `commands` is verwijderd — die had nooit een API-oppervlak. Een nieuwe installatie met een manifest dat haar (of een andere onbekende waarde) noemt, wordt geweigerd. Alleen al opgeslagen legacy-installaties blijven werken: daar worden onbekende permissies weggefilterd met een waarschuwing.
 > - `backstage` is nu de permissie voor `api.importers.*`. Bestaande importer-extensies die haar niet declareren blijven werken (warn-modus); **declareer `backstage` in nieuwe extensies met een importer** — in een toekomstige versie wordt dit hard.
@@ -231,7 +237,7 @@ module.exports = {
 | Onderdeel | Functies |
 |---|---|
 | `api.importers` | `register(def)`, `unregister(id)` |
-| `api.data` | `getProject/getCalendar/getTasks/getSequences/getResources/getAssignments`, `getImportSourceInfo/getImportSourceIssue/getImportSourceChunk/getImportSourceCatalogPage` (permissie `importSource`, zie hieronder), `addTask`, `updateTask`, `addSequence`, `loadProject(result)`, `recalculate()`, `batch(fn)` |
+| `api.data` | `getProject/getCalendar/getTasks/getSelectedTaskIds/getSequences/getResources/getAssignments`, `getImportSourceInfo/getImportSourceIssue/getImportSourceChunk/getImportSourceCatalogPage` (permissie `importSource`, zie hieronder), `addTask`, `updateTask`, `addSequence`, `loadProject(result)`, `recalculate()`, `batch(fn)` |
 | `api.events` | `on/off/emit` (permissie `events`) |
 | `api.ui` | `addRibbonButton(reg)` (permissie `ribbon`), `showNotification(msg, type?)` — zichtbare melding voor de gebruiker, zie hieronder |
 | `api.settings` | `get(key, default)`, `set(key, value)` — per extensie geprefixt in localStorage |
@@ -521,7 +527,7 @@ module.exports = {
 
 `data.getProject()` levert sinds contractversie `1.2.0` het veld `schedulingProfile`: het rekenprofiel
 van het project (`id`, `baseId` ∈ `p6`/`msproject`/`ops`, `name` — leeg bij een ingebouwd profiel —
-en `conventions`, de opgeloste conventies — sinds X12 brok 2 zevenentwintig). Het veld is **alleen-lezen**: de app neemt het
+en `conventions`, de opgeloste conventies — nu negenentwintig). Het veld is **alleen-lezen**: de app neemt het
 nooit over uit wat een extensie teruggeeft. Het profiel kiest de gebruiker in Bestand → Projectinstellingen.
 
 Wat `loadProject(result)` met het profiel doet, hangt af van `result.project.id`:

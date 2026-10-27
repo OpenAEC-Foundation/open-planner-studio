@@ -323,6 +323,7 @@ components:
                   - RELATION_IGNORED
                   - HAMMOCK_WITHOUT_FINISH_DRIVER
                   - XER_ARCHIVE_DROPPED
+                  - MINUTE_MODEL_CONVERTED
               ids:
                 type: array
                 items:
@@ -330,6 +331,13 @@ components:
               detail:
                 type: string
                 description: Short fixed reason, only for codes that have one (`XER_ARCHIVE_DROPPED`).
+              maxShiftWorkdays:
+                type: number
+                description: |
+                  Only for `MINUTE_MODEL_CONVERTED`: the dates in the file were not calculated in minutes
+                  (an IFC from an older version of the app), so opening recalculated them; `ids` are the
+                  tasks with a different start or finish, and this is the largest shift in workdays (one
+                  decimal).
     TaskSummary:
       type: object
       required: [id, name, wbs, parentId, summary, milestone, start, finish, lateStart, lateFinish, totalFloat, critical]

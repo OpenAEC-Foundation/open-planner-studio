@@ -74,7 +74,7 @@ Elke wijziging in voortgang of statusdatum maakt de planning verouderd: de statu
 
 **De duur van een lopende taak wijzigen.** Het gedane werk blijft gedaan en het percentage past zich aan. Een taak van 5 werkdagen op 60 % die je op 10 werkdagen zet, staat daarna op 30 %. Een duur die korter is dan het gedane werk weigert de app: *‘Binnenspouwblad metselen’ is al voor 60% gedaan: een duur korter dan het gedane werk kan niet. De duur is niet gewijzigd.* In de tabel meldt de cel *Deze duur is korter dan het werk dat al gedaan is.*
 
-**De restduur is afgerond.** De app rondt de restduur af op hele werkdagen. Bij een taak van 2 werkdagen geven 50 % en 75 % allebei een rest van 1 werkdag.
+**De restduur is exact.** De app rondt de restduur niet af op hele werkdagen. Bij een taak van 2 werkdagen geeft 75 % een rest van 0,5 werkdag.
 
 **Een fase.** Een fase heeft geen eigen voortgang. In het paneel staat *Afgeleid uit de onderliggende taken: wijzig de voortgang daar. De samenvattende taak volgt na berekenen (F5).* In de tabel meldt de cel *De voortgang van een samenvattende taak wordt afgeleid uit de onderliggende taken en kan hier niet worden gewijzigd.*
 

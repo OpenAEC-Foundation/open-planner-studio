@@ -126,10 +126,24 @@ jobs:
       - name: Logs bevatten geen token en geen IFC-inhoud
         if: always()
         run: |
-          docker logs api > container.log 2>&1 || true
-          cat container.log
+          # Een eerdere build/start-fout laat soms helemaal geen container of testtoken achter.
+          # Docker zelf moet bereikbaar zijn; een fout daarop is geen bewijs dat api ontbreekt.
+          containers="$(docker ps --all --format '{{.Names}}')"
+          if ! grep -Fxq api <<< "$containers"; then
+            echo "Geen api-container: logcontrole niet uitgevoerd. Zie de eerdere build/start-stappen."
+            exit 0
+          fi
+          if [ -z "${OPS_API_TOKEN:-}" ]; then
+            echo "Testtoken ontbreekt: tokencontrole niet uitvoerbaar."
+            exit 1
+          fi
+          if ! docker logs api > container.log 2>&1; then
+            echo "Containerlog kon niet worden gelezen."
+            exit 1
+          fi
           if grep -qF "$OPS_API_TOKEN" container.log; then echo "token staat in de log"; exit 1; fi
           if grep -q 'ISO-10303-21' container.log; then echo "IFC-inhoud staat in de log"; exit 1; fi
+          cat container.log
       - name: Stopt netjes op SIGTERM
         run: |
           docker stop -t 30 api

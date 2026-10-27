@@ -90,6 +90,40 @@ test('gantt: de subtaak-plus staat rechts in de naamkolom, achter de tekst', asy
   const gapToEdge = cellBox.x + cellBox.width - (plusBox.x + plusBox.width);
   expect(gapToEdge).toBeGreaterThanOrEqual(5);
   expect(gapToEdge).toBeLessThanOrEqual(12);
+
+
+  // Knownbug 60: de 'd' van 2d moet in de standaard Gantt-kolommen volledig zichtbaar blijven.
+  // Alleen de fixture wijzigen; kolombreedten, paneelbreedte en scrollstand blijven standaard.
+  await page.evaluate(id => {
+    const s = window.__OPS__!.store.getState();
+    const task = s.tasks.find(candidate => candidate.id === id)!;
+    s.updateTask(id, { time: { ...task.time, scheduleDuration: 2 } });
+    window.__OPS__!.store.getState().runCPM();
+  }, tree.leaf1);
+  const duration = taskCell(page, tree.leaf1, 'task.time.scheduleDuration', 'gantt-task-grid');
+  for (const viewport of [{ width: 1600, height: 1000 }, { width: 1366, height: 768 }]) {
+    await page.setViewportSize(viewport);
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
+    await expect(duration).toHaveText('2d');
+    await expect.poll(() => duration.evaluate(cell => {
+      const content = cell.querySelector<HTMLElement>('.task-grid-cell-content')!;
+      const range = document.createRange();
+      range.selectNodeContents(content);
+      const text = range.getBoundingClientRect();
+      const clippedBy: string[] = [];
+      for (let parent: HTMLElement | null = content; parent; parent = parent.parentElement) {
+        const style = getComputedStyle(parent);
+        if (style.overflowX === 'visible') continue;
+        const box = parent.getBoundingClientRect();
+        const left = box.left + parent.clientLeft;
+        const right = left + parent.clientWidth;
+        if (text.left < left - 0.5 || text.right > right + 0.5) clippedBy.push(parent.className);
+      }
+      const hit = document.elementFromPoint(text.right - 1, (text.top + text.bottom) / 2);
+      return { clippedBy, suffixInsideCell: hit !== null && cell.contains(hit) };
+    }), { message: `volledige duurtekst zichtbaar op ${viewport.width}px` })
+      .toEqual({ clippedBy: [], suffixInsideCell: true });
+  }
 });
 
 test('tabel: één tooltip per cel — geen taakkaart op gewone cellen, waarde alleen bij afknippen', async ({ page, ops: _ops }) => {
@@ -133,7 +167,7 @@ test('tabel: één tooltip per cel — geen taakkaart op gewone cellen, waarde a
   const startCell = taskCell(page, shortId, 'task.time.start');
   await expect(startCell).toHaveText('07-09-2026');
   await startCell.hover();
-  await expect(bubble).toHaveText('2026-09-07');
+  await expect(bubble).toHaveText('2026-09-07T07:00');
   await expect(tooltip).toHaveCount(0);
 
   // Een afgeknipte naam: de volledige waarde als bubbel, nog steeds geen taakkaart. De meting

@@ -278,7 +278,11 @@
     "msProjectLostFixedCosts_other": "Costul fix de la {{count}} de activități nu a fost preluat.",
     "msProjectLostResourceRates_one": "Tariful standard de la {{count}} resursă nu a fost preluat.",
     "msProjectLostResourceRates_few": "Tarifele standard de la {{count}} resurse nu au fost preluate.",
-    "msProjectLostResourceRates_other": "Tarifele standard de la {{count}} de resurse nu au fost preluate."
+    "msProjectLostResourceRates_other": "Tarifele standard de la {{count}} de resurse nu au fost preluate.",
+    "minuteModelConverted_one": "{{document}}: {{count}} activitate are după conversie un început sau un sfârșit diferit; cea mai mare deplasare este de {{days}} zile lucrătoare. Ctrl+Z restabilește datele salvate.",
+    "minuteModelConverted_few": "{{document}}: {{count}} activități au după conversie un început sau un sfârșit diferit; cea mai mare deplasare este de {{days}} zile lucrătoare. Ctrl+Z restabilește datele salvate.",
+    "minuteModelConverted_other": "{{document}}: {{count}} de activități au după conversie un început sau un sfârșit diferit; cea mai mare deplasare este de {{days}} zile lucrătoare. Ctrl+Z restabilește datele salvate.",
+    "minuteModelCalendarRepaired": "Calendarul „{{calendar}}” a fost reparat: sfârșitul sau pauza nu corespundeau timpului de lucru salvat."
   },
   "scheduleErrors": {
     "cycle": "Dependență circulară între activități: {{path}}",
@@ -393,16 +397,17 @@
     "themeHighContrast": "Contrast ridicat",
     "themeFollowSystem": "Urmează tema sistemului",
     "themeSystemHint": "Urmează schema de culori a sistemului (acum: {{theme}}).",
-    "hourPlanningSection": "Planificare pe ore",
-    "enableHourPlanning": "Activare planificare pe ore",
-    "enableHourPlanningHint": "Pornește planificarea pe ore și minute: o scară de timp pe ore, ture cu benzi de timp de lucru și bare de activitate exacte pe ore. Dezactivat ⇒ aplicația rămâne complet pe zile, ca înainte.",
     "showTaskTypes": "Tipuri de activitate",
     "showTaskTypesHint": "Alegeți pentru fiecare activitate ce se modifică atunci când se schimbă durata, unitățile de atribuire sau lucrul, ca Task Type în MS Project și Duration Type în P6. Dezactivat: durata și unitățile de atribuire rămân fixe. Un fișier cu tipuri de activitate sau cu lucru salvat le afișează chiar dacă această opțiune este dezactivată.",
     "allowMixedDayHour": "Permitere planificare pe ore și zile combinate",
     "defaultTaskDurationUnit": "Unitate implicită pentru activități noi",
-    "defaultTaskDurationUnitHint": "Stabilește dacă activitățile noi încep implicit în zile lucrătoare sau în ore de lucru. Activitățile existente nu se modifică.",
+    "defaultTaskDurationUnitHint": "Unitate pe zile: durata se măsoară în zile lucrătoare ale calendarului. Unitate pe ore: durata se măsoară în ore de lucru. Activitățile existente nu se modifică. O activitate cu muncă fixă folosește întotdeauna unitatea pe ore.",
+    "defaultTaskDurationUnitDays": "Unitate în zile",
+    "defaultTaskDurationUnitHours": "Unitate în ore",
+    "defaultTaskDurationUnitLocked": "Profilul {{profile}} calculează o durată în ore. Prin urmare, activitățile noi primesc unitatea în ore.",
     "durationDisplay": "Afișare durată",
     "durationDisplayHint": "Stabilește cum se afișează durata activității, independent de unitatea în care este înregistrată activitatea însăși.",
+    "durationDisplayOpsHint": "În profilul OPS, fiecare activitate își afișează propria unitate.",
     "durationDisplayAuto": "Automat (unitatea proprie a fiecărei activități)",
     "durationDisplayDays": "Întotdeauna zile",
     "durationDisplayHours": "Întotdeauna ore",
@@ -1181,10 +1186,6 @@
     "month": "lună",
     "year": "an"
   },
-  "hourData": {
-    "notice": "Acest fișier conține planificare pe ore.",
-    "enable": "Activare planificare pe ore"
-  },
   "recordedDates": {
     "activeCount_one": "Vizualizați planificarea așa cum a salvat-o Primavera; la recalculare, {{count}} activitate s-ar deplasa.",
     "activeCount_few": "Vizualizați planificarea așa cum a salvat-o Primavera; la recalculare, {{count}} activități s-ar deplasa.",
@@ -1555,6 +1556,14 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "Activități ALAP cât mai târziu permit succesorii",
       "help": "Doar la planificarea pe ore, pentru o activitate nepornită, care nu este planificată manual, cu restricția „cât mai târziu posibil“ (ALAP). Datele cele mai devreme ale succesorilor ei stabilesc poziționarea până la minut; succesorii se calculează primii. Propriul ei început planificat nu se ia în calcul; predecesorii, data raportului de stare și o a doua restricție rămân valabile. Fără succesor, ea folosește sfârșitul târziu. Pasul ALAP obișnuit rămâne disponibil în fiecare profil."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Jaloane izolate la sfârșitul zilei lucrătoare",
+      "help": "Un jalon izolat sau un jalon de sfârșit fără predecesor se află la sfârșitul zilei sale lucrătoare."
+    },
+    "workdayDurationMeasure": {
+      "label": "Durată în zile lucrătoare",
+      "help": "O durată, un decalaj sau o durată rămasă exprimată în zile contează în zile lucrătoare: fiecare zi lucrătoare contează ca 1, oricât de lungă ar fi ziua respectivă. Dezactivat: o zi contează ca numărul de ore de lucru pe zi din calendar. Un decalaj în procente urmează unitatea predecesorului. Timpul scurs nu contează niciodată în zile lucrătoare."
     }
   },
   "profiles": {
@@ -1593,6 +1602,7 @@
       "float": "Marjă și date târzii",
       "instants": "Date și momente din fișier",
       "msproject": "Progres ca în Microsoft Project",
+      "durations": "Durată și unitate",
       "ownProfilesOnly": "Doar pentru profiluri proprii"
     },
     "ownProfilesOnlyNote": "Aceste convenții de calcul sunt dezactivate în fiecare profil de calcul integrat, inclusiv în Primavera P6. Doar un profil de calcul propriu le poate activa: alegeți pentru aceasta „Creare profil”.",

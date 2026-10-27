@@ -1,3 +1,4 @@
+// F2: taakdatums worden op D1/D2/D7-momenten vergeleken (§4.2); de echte handeling blijft gelijk.
 // "Taak bewerken" → Opslaan, met echte events (dubbelklik op de balk, schuif via het toetsenbord,
 // klik op Opslaan, Ctrl+Z). Twee eigenschappen die de dialoog met het eigenschappenpaneel moet delen:
 //
@@ -140,8 +141,79 @@ test('Taak bewerken: voortgang opslaan volgt dezelfde regels als het eigenschapp
   await recalculate(page);
 
   const panelAt100 = await progressOf(page, panelId);
-  expect(panelAt100).toMatchObject({ completion: 1, status: 'COMPLETED', actualFinish: '2026-03-13', remainingTime: 0 });
+  expect(panelAt100).toMatchObject({ completion: 1, status: 'COMPLETED', actualFinish: "2026-03-13T16:00", remainingTime: 0 });
   expect(await progressOf(page, dialogId)).toEqual(panelAt100);
+
+  // F1: een datumloos werkelijk einde op de statusdag krijgt het blokeinde of het statusmoment.
+  for (const [statusDate, finish] of [
+    ['2026-03-13', '2026-03-13T16:00'],
+    ['2026-03-13T12:00', '2026-03-13T12:00'],
+  ]) {
+    await page.evaluate(({ id, statusDate }) => {
+      const store = window.__OPS__!.store.getState();
+      const bands = [{ start: 480, end: 960 }];
+      store.setCalendar({ ...store.calendar, workTime: { byWeekday: {
+        1: bands, 2: bands, 3: bands, 4: bands, 5: bands, 6: [], 7: [],
+      } } });
+      store.setProject({ statusDate });
+      const task = window.__OPS__!.store.getState().tasks.find(task => task.id === id)!;
+      store.updateTask(id, { status: 'STARTED', time: {
+        ...task.time, durationUnit: 'hours', durationMinutes: 4800, completion: 0.2,
+        actualStart: '2026-03-02T08:00', actualFinish: undefined,
+      } });
+      window.__OPS__!.store.getState().runCPM();
+    }, { id: dialogId, statusDate });
+    dialog = await openDialogByDoubleClick(page, dialogId);
+    const finishGroup = dialog.getByRole('group', { name: /^(Actual finish|Werkelijk einde|Werkelijke einde)$/i });
+    const segments = finishGroup.getByRole('textbox');
+    for (const [index, value] of ['13', '03', '2026'].entries()) await segments.nth(index).fill(value);
+    await dialog.locator('[data-ops-progress-slider]').focus();
+    await dialog.locator('[data-ops-task-save]').click();
+    await expect(dialog).toBeHidden();
+    await expect.poll(() => readTask(page, dialogId).then(task => task.actualFinish)).toBe(finish);
+    await recalculate(page);
+    expect((await readTask(page, dialogId)).earlyFinish).toBe(finish);
+  }
+  // Review #563: bij 100% blijft een vastgelegde start staan, ook ná het afgeleide blokeinde.
+  for (const [actualStart, actualFinish] of [
+    ['2026-06-03T10:00', '2026-06-03T16:00'],
+    ['2026-06-03T18:00', '2026-06-03T18:00'],
+  ]) {
+    await page.evaluate(({ ids, actualStart }) => {
+      const s = window.__OPS__!.store.getState();
+      s.setProject({ startDate: '2026-06-01', statusDate: '2026-06-03' });
+      for (const id of ids) {
+        const task = window.__OPS__!.store.getState().tasks.find(t => t.id === id)!;
+        s.updateTask(id, { status: 'STARTED', time: {
+          ...task.time, scheduleStart: '2026-06-03T08:00', durationUnit: 'hours',
+          durationMinutes: 480, scheduleDuration: 1, completion: 0.5,
+          actualStart, actualFinish: undefined,
+        } });
+      }
+      const after = window.__OPS__!.store.getState();
+      after.runCPM();
+      after.setViewStartDate('2026-06-01');
+      after.setScroll(0, 0);
+    }, { ids: [panelId, dialogId], actualStart });
+    // Na de fixturewissel kan de vorige balkgeometrie nog staan; de rasterrij heeft een vaste plek.
+    await page.locator(`[data-grid-row-key="${panelId}"] [data-grid-column-id="task.name"]`).first().click();
+    await pressSlider(page, page.locator('[data-ops-progress-slider]').first(), { end: true });
+    await expect.poll(() => readTask(page, panelId).then(t => t.completion)).toBe(1);
+    await page.locator(`[data-grid-row-key="${dialogId}"] [data-grid-column-id="task.name"]`).first().click({ button: 'right' });
+    await page.getByRole('button', { name: /^(Edit|Bewerken)\.\.\.$/ }).click();
+    dialog = page.locator('[data-ops-task-dialog]');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.locator('[data-ops-task-name]')).toBeFocused();
+    await pressSlider(page, dialog.locator('[data-ops-progress-slider]'), { end: true });
+    await dialog.locator('[data-ops-task-save]').click();
+    await expect(dialog).toBeHidden();
+    for (const id of [panelId, dialogId]) expect(await readTask(page, id)).toMatchObject({
+      completion: 1, status: 'COMPLETED', actualStart, actualFinish,
+    });
+    await recalculate(page);
+    for (const id of [panelId, dialogId]) expect(await readTask(page, id)).toMatchObject({ actualStart, actualFinish });
+  }
+  await page.screenshot({ path: 'qa/uren-f1b-status.png' });
 });
 
 test('Taak bewerken: voortgang alleen via de dialoog zet de status (gestart, voltooid)', async ({ page, ops: _ops }) => {
@@ -153,7 +225,7 @@ test('Taak bewerken: voortgang alleen via de dialoog zet de status (gestart, vol
   await expect(dialog).toBeHidden();
   expect(await readTask(page, taskId)).toMatchObject({
     // Onbegonnen werk staat na de statusdatum (6 maart) gepland; de afgeleide start volgt die.
-    completion: 0.4, status: 'STARTED', actualStart: '2026-03-06', actualFinish: null, remainingTime: 6,
+    completion: 0.4, status: 'STARTED', actualStart: "2026-03-06T07:00", actualFinish: null, remainingTime: 6,
   });
 
   dialog = await openDialogByDoubleClick(page, taskId);
@@ -161,7 +233,7 @@ test('Taak bewerken: voortgang alleen via de dialoog zet de status (gestart, vol
   await dialog.locator('[data-ops-task-save]').click();
   await expect(dialog).toBeHidden();
   expect(await readTask(page, taskId)).toMatchObject({
-    completion: 1, status: 'COMPLETED', actualStart: '2026-03-06', actualFinish: '2026-03-06', remainingTime: 0,
+    completion: 1, status: 'COMPLETED', actualStart: "2026-03-06T07:00", actualFinish: "2026-03-06T16:00", remainingTime: 0,
   });
 });
 

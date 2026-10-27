@@ -82,9 +82,10 @@ export function createDefaultTaskGridPreferences(
     column('task.name', 240),
     column('task.time.scheduleDuration', 60),
     // De getoonde datums (zelfde bron als de Gantt-balk), niet de invoerankers "Geplande
-    // start/einde" — die blijven kiesbaar.
-    column('task.time.start', 100),
-    column('task.time.finish', 100),
+    // start/einde" — die blijven kiesbaar. Breed genoeg voor een datum met tijd (B4, spec "alleen
+    // uren"), ook in 12-uursnotatie: "04-11-2026 11:00 AM".
+    column('task.time.start', 130),
+    column('task.time.finish', 130),
     column('task.taskType', 80),
     column('task.time.isCritical', 50),
     column('task.time.totalFloat', 50),

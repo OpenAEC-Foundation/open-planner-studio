@@ -37,7 +37,7 @@ export function TaskWorkRuleField({ task, onChange }: {
   // Elke zin op een eigen regel (`\n`), de eerste vet (`data-tooltip-lead`). Geen spatie tussen
   // zinnen: die is taalafhankelijk (zh/ja kennen hem niet).
   const explain = (rule: WorkRule): string => {
-    const ex = workRuleExplanation(rule, effortDriven, task.time.durationUnit === 'hours' ? 'hours' : 'days');
+    const ex = workRuleExplanation(rule, effortDriven);
     return [ex.lead, ...ex.rest].map(s => t(`workRule.explain.${s}`)).join('\n');
   };
   return (
