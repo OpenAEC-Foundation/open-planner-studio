@@ -2,7 +2,7 @@ import type { Task } from '@/types/task';
 import type { Sequence, LagUnit } from '@/types/sequence';
 import type { CalendarEngine } from './CalendarEngine';
 import { addCalendarDays, MS_PER_DAY } from '@/utils/dateUtils';
-import { isElapsedTask, isZeroDurationMilestone } from './duration';
+import { elapsedMilliseconds, isElapsedTask, isZeroDurationMilestone } from './duration';
 
 /**
  * Relatie-wiskunde (FS/SS/FF/SF) voor `CPMSolver.ts`, forward/backward × dag-/uur-modus.
@@ -617,7 +617,7 @@ function forwardHour(
   // Zonder soort volgt een nulduurmijlpaal de bindende eindrelatie (N1).
   const succIsFinishMs = flags.succIsFinishMs || (isZeroDurationMilestone(successor)
     && !successor.milestoneKind && (seq.type === 'FINISH_FINISH' || seq.type === 'START_FINISH'));
-  const elapsedMin = () => deps.resolveElapsedMinutes(seq, predTask) * MS_PER_MIN;
+  const elapsedMin = () => elapsedMilliseconds(deps.resolveElapsedMinutes(seq, predTask));
   // Zie forwardDay se `succElapsed` — dezelfde definitie, hier voor de uurtak. Een
   // ELAPSEDTIME-opvolger heeft dezelfde behoefte als een EINDmijlpaal-opvolger (geen
   // werk-instant-normalisatie op zijn geëiste finish, want 24/7), dus de kortsluitingen hieronder
@@ -834,7 +834,7 @@ function sfReqFinishHour(
   const elapsed = seq.lagUnit === 'ELAPSEDTIME';
   const lagEng = deps.lagEngine(pe, se);
   const { predStartsNextDay, succIsFinishMs } = flags;
-  const elapsedMin = () => deps.resolveElapsedMinutes(seq, predTask) * MS_PER_MIN;
+  const elapsedMin = () => elapsedMilliseconds(deps.resolveElapsedMinutes(seq, predTask));
   const succElapsed = isElapsedTask(successor);
 
   // T8: een dagtaak bindt aan het echte startmoment, ook bij een eindmijlpaal.
@@ -865,7 +865,7 @@ function backwardHour(
   const elapsed = seq.lagUnit === 'ELAPSEDTIME';
   const lagEng = deps.lagEngine(pe, se);
   const { predEndsBeginOfDay, predStartsNextDay, succIsFinishMs, succIsStartMs } = flags;
-  const elapsedMin = () => deps.resolveElapsedMinutes(seq, predTask) * MS_PER_MIN;
+  const elapsedMin = () => elapsedMilliseconds(deps.resolveElapsedMinutes(seq, predTask));
   // Zie backwardDay se `predElapsed` — dezelfde definitie en status, hier voor de uur-FS-tak
   // (`prevWorkInstant` hieronder is de uur-tegenhanger van `prevWorkDayBefore`, met dezelfde
   // over-knijp-fout voor een ELAPSEDTIME-voorganger).
