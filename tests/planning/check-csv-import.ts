@@ -355,9 +355,12 @@ const lagsByLink = (r: ImportResult) => {
   // datum) is de hele werkdag en wordt het einde van die dag, niet de starttijd (nulduur).
   const startOnly = csvOf(['Name', 'Duration', 'Start', 'Finish', 'Completion (%)', 'Actual Start', 'Actual Finish'],
     [['A', '1', '2026-06-01', '2026-06-01', '100', '2026-06-01T10:15', '']]);
-  eq('352 alleen start: lezer behoudt de starttijd en leidt het einde als datum af',
-    actuals(readCSV(startOnly).tasks), ['2026-06-01T10:15', '2026-06-01']);
   const derived = ['2026-06-01T10:15', '2026-06-01T16:00'];
+  eq('352 alleen start: lezer behoudt de starttijd en zet het einde op het einde van de werkdag',
+    actuals(readCSV(startOnly).tasks), derived);
+  // Een starttijd ná het einde van de werkdag: het einde valt nooit vóór de vastgelegde start.
+  const lateStart = readCSV(startOnly.replace('2026-06-01T10:15', '2026-06-01T18:00'));
+  eq('352 alleen start na werktijd: einde wordt de start', actuals(lateStart.tasks), ['2026-06-01T18:00', '2026-06-01T18:00']);
   const startOnlyContext = createAppStoreContext();
   startOnlyContext.store.getState().applyLoadedProject(readCSV(startOnly), { recompute: true });
   eq('352 alleen start: laden en berekenen geeft het einde van de werkdag', actuals(startOnlyContext.store.getState().tasks), derived);

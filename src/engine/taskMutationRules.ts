@@ -162,9 +162,16 @@ export function applyProgressInvariants(task: Task, statusDate: string | undefin
     time.actualFinish = normalizeActualDate(task, 'actualFinish', defaultActualFinish(time, statusDate), statusDate, calendar);
     const startWasDerived = !time.actualStart;
     if (startWasDerived) time.actualStart = time.actualFinish;
-    // Een aanwezige start blijft staan; alleen het afgeleide einde mag dan opschuiven. Zonder kalender
-    // blijft het afgeleide einde een datum; die vergelijkt de gedeelde regel op dagniveau.
-    orderActualsAfterDerivedFinish(time, statusDate, startWasDerived);
+    const finish = time.actualFinish!;
+    if (!startWasDerived && isDateOnly(finish)) {
+      // Zonder kalender blijft het afgeleide einde een datum; de store zet hem bij het schrijven om
+      // (D2/D6, `normalizeTaskDates`). Zo'n datum is de hele werkdag. Als 00:00 gelezen lag hij vóór
+      // een start om 07:00 op dezelfde dag, en werd het einde die start. Vergelijk daarom op dagniveau.
+      if (time.actualStart!.slice(0, 10) > finish) time.actualFinish = time.actualStart;
+    } else {
+      // Een aanwezige start blijft staan; alleen het afgeleide einde mag dan opschuiven.
+      orderActualsAfterDerivedFinish(time, statusDate, startWasDerived);
+    }
     task.status = 'COMPLETED';
   } else if (time.actualStart) {
     task.status = 'STARTED';

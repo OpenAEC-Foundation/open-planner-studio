@@ -461,8 +461,9 @@ export function readCSV(content: string): ImportResult {
   const calendar = createDefaultCalendar();
   const projectStart = resolveMissingScheduleDates(tasks, missing, '', () => calendar);
 
-  // Voortgang-invarianten op de rauw ingelezen actuals. CSV kent geen statusdatum.
-  normalizeImportedProgress(tasks, undefined);
+  // Voortgang-invarianten op de rauw ingelezen actuals. CSV kent geen statusdatum; de kalender zet een
+  // afgeleid einde naast een starttijd op het einde van de werkdag.
+  normalizeImportedProgress(tasks, undefined, undefined, calendar);
 
   // Parent-child-hiërarchie: 'Outline Level'-kolom + rijvolgorde, met de gepunte WBS als
   // scheidsrechter én terugval — beslisregel bij `rebuildImportedHierarchy` (gedeeld met MSPDI).
