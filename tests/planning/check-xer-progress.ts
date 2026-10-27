@@ -242,10 +242,11 @@ if (!isMultiDocumentImport(multi)) {
 } else {
   eq('X7-6 file-wide index is lineair maar lekt geen gelijke task_id tussen projecten',
     multi.documents.map(document => document.result.tasks.filter(task => !task.isSummary).map(task => [
-      task.p6ProjectId, task.p6TaskId, task.name, task.p6CompletePctType, task.time.remainingTime,
+      // Sinds F5b de urenmaat (alleen uren §3.10, T15): de rest in minuten (6 u en 2 u), niet in dagen.
+      task.p6ProjectId, task.p6TaskId, task.name, task.p6CompletePctType, task.time.remainingMinutes,
     ])), [
-      [['P1', 'GELIJK', 'P1-taak', 'CP_Drtn', 0.75]],
-      [['P2', 'GELIJK', 'P2-taak', 'CP_Phys', 0.25]],
+      [['P1', 'GELIJK', 'P1-taak', 'CP_Drtn', 360]],
+      [['P2', 'GELIJK', 'P2-taak', 'CP_Phys', 120]],
     ]);
 }
 

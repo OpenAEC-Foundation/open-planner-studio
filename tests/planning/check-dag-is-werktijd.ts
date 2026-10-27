@@ -11,7 +11,8 @@ import './domStub';
 //
 // Fixture: een kleine XER met kalender "Lange dagen" (day_hr_cnt 8, ma–vr 07:00–17:00 = 10 u) en een
 // urentaak van 1870 u, plus een dagkalender met een dagtaak van 40 u (5 d).
-//  §1 XER-import: dagengetal 187; de kalender houdt 8; de dagtaak blijft 5 d.
+//  §1 XER-import: dagengetal 187; de kalender houdt 8; de taak op de dagkalender blijft 5 d (sinds F5b in
+//     de urenmaat: 2400 min, alleen uren §3.10, T15).
 //  §2 IFC-round-trip (lezer en schrijver): 187 en 8; de geschreven duur blijft 1870 u.
 //  §3 de echte openroute, een rasterbewerking (1870 u en 1880 u), daarna opslaan als IFC en heropenen.
 //  §4 export: P6 XML `HoursPerDay` 8 en `PlannedDuration` 1870; MSPDI `MinutesPerDay` 480, `<Duration>` en
@@ -102,7 +103,9 @@ const taskCoded = (tasks: readonly Task[], code: string) => tasks.find((t) => t.
 /** Het taakbeeld dat deze check toetst: eenheid, minuten, dagengetal. */
 const shape = (t: Task | undefined) => t && ({ unit: t.time.durationUnit, min: t.time.durationMinutes ?? null, sd: t.time.scheduleDuration });
 const HOUR_TASK = { unit: 'hours', min: 112200, sd: 187 };
-const DAY_TASK = { unit: 'days', min: null, sd: 5 };
+// De taak op de dagkalender: sinds F5b leest XER elke taak in de urenmaat (alleen uren §3.10, T15). Het
+// dagengetal blijft 5 (2400 min ÷ 480).
+const DAY_TASK = { unit: 'hours', min: 2400, sd: 5 };
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // §1 XER-import
