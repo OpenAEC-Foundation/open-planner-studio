@@ -1224,10 +1224,15 @@ en noem het in je rapport of PR-tekst.
     PR-head was groen. Screenshot/trace: artefact 12585687942. Geen Gantt-code in deze PR gewijzigd;
     timing-/geometrieoorzaak en productreproduceerbaarheid nog niet vastgesteld. — S
 
-321. **De browsertest voor een kapot `.mpp`-bestand toetst geen bestaand werk.** `tests/browser/new-open-task-flow.spec.ts:58`
-    zegt dat bestaand werk behouden blijft, maar vergelijkt met een leeg beginproject (de fixture doet
-    `newProject()` en voegt geen taak toe). Een losse probe met gewijzigd werk slaagt wel. Voorstel: één taak in
-    de beginstaat en ook de dirty-vlag controleren. Gevonden in review r1 van #636 (GPT-6.1-Sol). — B
+401. **De slotcontrole voor geldig openen kan slagen op de bestaande taak.**
+     `tests/browser/new-open-task-flow.spec.ts:97` eist na open(planning) alleen
+     tasks.length groter dan nul. De nieuwe beginstaat heeft dan al één taak; de
+     MPP-controles bewijzen juist dat die bleef staan. Ook wanneer de geldige
+     openroute niets laadt zonder foutmelding, slaagt deze controle dus. Controleer
+     een nieuw actief document en herkenbare inhoud uit het geopende IFC-bestand.
+     Een verlies aan testdekking; geen aangetoonde productfout. Twee onafhankelijke
+     broncontroles bij PR #674; niet lokaal uitgevoerd.
+     — B
 
 325. **Zes browserroutes toetsen geen smal scherm meer.** Sinds de standaardtakenlijst 400 px breed is, zetten zes
     specs het venster op 1600×900, onder meer `tests/browser/duration-display.spec.ts:5`. De handelingen en
