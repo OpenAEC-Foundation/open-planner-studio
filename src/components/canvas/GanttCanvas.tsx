@@ -414,7 +414,7 @@ export function GanttCanvas({
     // De klik kiest alleen de start, niet een expliciete dagenmaat. Gebruik dezelfde standaard-
     // en omzettingsregels als addTask, vóór de volledige tijd aan de store wordt doorgegeven.
     const state = useAppStore.getState();
-    const task = buildNewTask(partial, { id: '', parentId: null, constructionMode: state.ui.constructionMode,
+    const task = buildNewTask(partial, { id: '', parentId: null, parentTask: undefined, constructionMode: state.ui.constructionMode,
       time: createDefaultTaskTime(date, milestone ? 0 : 5, newTaskTimeUnit(state.project), calendar) });
     const hoursPerDay = effHoursPerDay(calendar);
     deriveScheduleDurationFromMinutes(task.time, hoursPerDay);
