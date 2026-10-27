@@ -220,8 +220,6 @@ export interface MppImportLossInput {
   taskUniqueIds: ReadonlySet<number>;
   /** De resources die de lezer echt inlas (`resourceIdByUniqueId`). */
   resourceUniqueIds: ReadonlySet<number>;
-  /** `criticalSlackLimitDaysOf(projectProps)`. */
-  criticalSlackLimitDays: number;
 }
 
 /** Telt per categorie wat `readMPP` niet overneemt. Fouten in een deel (kapotte stream) laten dat deel
@@ -344,6 +342,5 @@ export function scanMppImportLoss(input: MppImportLossInput): MsProjectImportRep
 
   report.baselines = baselines.size;
   report.customFields = customFields.size;
-  report.criticalSlackLimitDays = input.criticalSlackLimitDays;
   return report;
 }

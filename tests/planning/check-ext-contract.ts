@@ -164,7 +164,8 @@ const NIET_PUBLIEK = {
   calendar: ['generation', 'libraryOrigin', 'p6NonWorkPenaltyDatesState'] as readonly string[],
   resource: ['availability', 'libraryOrigin'] as readonly string[],
   task: [] as readonly string[],
-  taskTime: [] as readonly string[],
+  // Alleen uren §3.4: de speling in minuten is nog geen extensieveld (F3c); de API toont `totalFloat`/`freeFloat`.
+  taskTime: ['totalFloatMinutes', 'freeFloatMinutes'] as readonly string[],
   sequence: [] as readonly string[],
   // Het begrote tempo naast een P6-resttempo (resttempo-besluit 2026-10-15) is bronreferentie voor de
   // P6 XML-export, geen extensie-invoer. Het extensiecontract (apiVersion) blijft ongewijzigd. Een
@@ -210,6 +211,8 @@ const VOL_TIME = {
   lateFinish: '2026-06-08',
   freeFloat: 1,
   totalFloat: 2,
+  totalFloatMinutes: 960,
+  freeFloatMinutes: 480,
   isCritical: false,
   interferingFloat: 1,
   isNearCritical: true,
@@ -371,7 +374,9 @@ eq('X12 extensie leest de P6-relatievlag uit maar voert haar niet generiek terug
   // Taaktypes (PR #101): workRule/defaultWorkRule/werkvelden zijn een MINOR-toevoeging ⇒ 1.3.0;
   // Help & begeleiding (`api.help.*`, permissie `help`) is de volgende MINOR ⇒ 1.4.0
   // (tests/planning/check-ext-help.ts).
-  eq('C8-04 contractversie 1.4.1 (1.2.0 profiel + 1.3.0 taaktypes + 1.4.0 help + 1.4.1 loadProject-fix)', EXTENSION_API_VERSION, '1.4.1');
+  eq('C8-04 contractversie 1.5.0 (1.2.0 profiel + 1.3.0 taaktypes + 1.4.0 help + 1.4.1 loadProject-fix)', EXTENSION_API_VERSION, '1.5.0');
+  eq('C8 selectie-API vereist minor 1.5 op oudere host', checkApiCompatibility('1.5', '1.4.1').ok, false);
+  eq('C8 oudere extensie blijft compatibel', checkApiCompatibility('1.4', EXTENSION_API_VERSION).ok, true);
   // Host-events horen bij het contract (namen via `sdk.hostEvents`). `tutorialRequested` kwam erbij
   // in 1.4.0, dat nog niet was uitgebracht — dus geen nieuwe contractversie. Een naam wijzigen of
   // weghalen breekt extensies: dan hoort hier (en in apiVersion.ts) een MAJOR bij.
@@ -382,9 +387,9 @@ eq('X12 extensie leest de P6-relatievlag uit maar voert haar niet generiek terug
     tutorialRequested: 'host:tutorial-requested',
   });
   const custom = toExtProject(VOL_PROJECT).schedulingProfile;
-  eq('C8-05 eigen profiel: id, basis, naam en de zevenentwintig opgeloste conventies',
+  eq('C8-05 eigen profiel: id, basis, naam en de negenentwintig opgeloste conventies (B6, dagenmaat)',
     [custom?.id, custom?.baseId, custom?.name, Object.keys(custom?.conventions ?? {}).length, custom?.conventions.clampNegativeFreeFloat],
-    ['eigen-1', 'msproject', 'Eigen', 27, true]);
+    ['eigen-1', 'msproject', 'Eigen', 29, true]);
 }
 
 {
@@ -590,7 +595,10 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
     fromExtCalendar(toExtCalendar(VOL_CALENDAR)), stripNietPubliek(VOL_CALENDAR, [...NIET_PUBLIEK.calendar, ...LEES_ALLEEN_EXT.calendar]));
   eq('21 taak-readmodel reist alleen naar buiten; P6-herkomst komt generiek niet terug',
     fromExtTask(toExtTask(VOL_TASK)),
-    stripNietPubliek(VOL_TASK, [...NIET_PUBLIEK.task, ...LEES_ALLEEN_EXT.task]));
+    {
+      ...stripNietPubliek(VOL_TASK, [...NIET_PUBLIEK.task, ...LEES_ALLEEN_EXT.task]),
+      time: stripNietPubliek(VOL_TIME, [...NIET_PUBLIEK.taskTime, ...LEES_ALLEEN_EXT.taskTime]),
+    });
   eq('22 relatie round-trip bewaart geen native-XER-solvervlag via generieke extensie-invoer',
     fromExtSequence(toExtSequence(VOL_SEQUENCE)),
     stripNietPubliek(VOL_SEQUENCE, [...NIET_PUBLIEK.sequence, ...LEES_ALLEEN_EXT.sequence]));
@@ -859,7 +867,7 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
     api.data.getImportSourceChunk(0), api.data.getImportSourceCatalogPage('taskSourceRows'),
   ], [null, null]);
   const applied = useAppStore.getState().applyOpenedImport(opened, {
-    filePath: null, recompute: false, fit: false, hourDataNotice: false, linkedOpen: true,
+    filePath: null, recompute: false, fit: false, linkedOpen: true,
   });
   const p2DocumentId = applied.documentIds[1];
   if (p2DocumentId) useAppStore.getState().switchDocument(p2DocumentId);
@@ -1304,7 +1312,7 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
       s.resources = [{ ...VOL_RESOURCE, parentId: undefined, libraryOrigin: undefined, calendarId: 'cal-ploeg' }];
       const taak = s.tasks.find((t) => t.id === taakId);
       if (taak) taak.calendarId = 'cal-ploeg';
-      s.baselines = [{ id: 'bl-1', name: 'Start', createdAt: '2026-01-01T00:00:00Z', tasks: [], projectEnd: '2026-02-01', projectDuration: 20 }];
+      s.baselines = [{ id: 'bl-1', name: 'Start', createdAt: '2026-01-01T00:00:00Z', tasks: [], projectEnd: '2026-02-01T16:00', projectDuration: 20 }];
       s.activeBaselineId = 'bl-1';
       s.activityCodeTypes = [{ id: 'act-fase', name: 'Fase', values: [{ id: 'v-ruw', code: 'RUW' }] }];
       s.customFieldDefs = [{ id: 'cf-kosten', name: 'Kosten', type: 'cost' }];

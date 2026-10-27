@@ -144,7 +144,7 @@ export function lagPatchOf(lag: ParsedLag): Pick<Sequence, 'lagDays' | 'lagPerce
 export function parseLag(raw: unknown): { ok: true; value: ParsedLag } | { ok: false; reason: string } {
   if (raw === undefined || raw === null) return { ok: true, value: { days: 0 } };
   if (typeof raw === 'number') {
-    if (!Number.isFinite(raw)) return { ok: false, reason: '`lag` must be a finite number (working days)' };
+    if (!Number.isFinite(raw)) return { ok: false, reason: '`lag` must be a finite number of days (day measure)' };
     return { ok: true, value: { days: raw } };
   }
   if (typeof raw === 'string') {
@@ -164,12 +164,12 @@ export function parseLag(raw: unknown): { ok: true; value: ParsedLag } | { ok: f
     return {
       ok: false,
       reason:
-        `\`lag\` '${s}' is not a valid lag; give working days (a fraction such as 0.5 is allowed) as a ` +
+        `\`lag\` '${s}' is not a valid lag; give days in the day measure (a fraction such as 0.5 is allowed) as a ` +
         'number (2, -1), as a string ("+2d", "-1d", "2") or a percentage lag of the predecessor duration ' +
         '("+50%")',
     };
   }
-  return { ok: false, reason: `\`lag\` must be a number of working days (or a string such as "+2d"/"+50%"), got ${typeof raw}` };
+  return { ok: false, reason: `\`lag\` must be a number of days in the day measure (or a string such as "+2d"/"+50%"), got ${typeof raw}` };
 }
 
 // --- Gedeelde schema-fragmenten -----------------------------------------------------------------
@@ -185,10 +185,12 @@ export const SEQ_TYPE_SCHEMA = {
 export const LAG_SCHEMA = {
   type: ['number', 'string'],
   description:
-    'Lag. As a number (2, -1) or as the read-side string ("+2d", "-1d", "2") = WORKING DAYS; a fraction ' +
-    '(0.5, "+0.5d") is allowed and not rounded (negative = lead); as a percentage string ("+50%") = ' +
-    'percentage of the PREDECESSOR DURATION, re-evaluated on every recalculation. Any other form is refused ' +
-    '— never silently set to 0.',
+    'Lag. As a number (2, -1) or as the read-side string ("+2d", "-1d", "2") = days in the DAY MEASURE: in ' +
+    'the OPS profile working days on the calendar (one working day counts as one day, whatever its hours), in ' +
+    'the P6 and MS Project profiles days × the working time per day. A fraction (0.5, "+0.5d") is allowed and ' +
+    'not rounded (negative = lead). As a percentage string ("+50%") = percentage of the PREDECESSOR DURATION, ' +
+    'in its measure and exact, re-evaluated on every recalculation. Any other form is refused — never ' +
+    'silently set to 0.',
 };
 
 /** Gedeelde documentatiezin over de lag-notatie voor de tool-descriptions. */

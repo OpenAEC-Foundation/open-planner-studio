@@ -1054,7 +1054,7 @@ export function TimeScaleGroupContent() {
   const setZoom = useAppStore(s => s.setZoom);
   const setTimeScale = useAppStore(s => s.setTimeScale);
   const requestFitToProject = useAppStore(s => s.requestFitToProject);
-  const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
+
 
   const zoomInOutButtons = (
     <>
@@ -1074,15 +1074,15 @@ export function TimeScaleGroupContent() {
   );
   const dropdown = (
     <RibbonDropdown
-      value={scaleFromZoom(zoom, enableHourPlanning)}
+      value={scaleFromZoom(zoom)}
       options={[
         { value: 'year', label: tMenu('ribbon.year') },
         { value: 'quarter', label: tMenu('ribbon.quarter') },
         { value: 'month', label: tMenu('ribbon.month') },
         { value: 'week', label: tMenu('ribbon.week') },
         { value: 'day', label: tMenu('ribbon.day') },
-        // De uur-schaal is alleen bereikbaar met Urenplanning aan.
-        ...(enableHourPlanning ? [{ value: 'hour' as TimeScale, label: tMenu('ribbon.hour') }] : []),
+        // De uurschaal is altijd beschikbaar.
+        { value: 'hour', label: tMenu('ribbon.hour') },
       ]}
       onChange={v => setTimeScale(v as TimeScale)}
     />

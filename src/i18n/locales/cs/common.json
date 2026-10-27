@@ -335,7 +335,12 @@
     "msProjectLostResourceRates_one": "Standardní sazby pro {{count}} zdroj nebyly převzaty.",
     "msProjectLostResourceRates_few": "Standardní sazby pro {{count}} zdroje nebyly převzaty.",
     "msProjectLostResourceRates_many": "Standardní sazby pro {{count}} zdroje nebyly převzaty.",
-    "msProjectLostResourceRates_other": "Standardní sazby pro {{count}} zdrojů nebyly převzaty."
+    "msProjectLostResourceRates_other": "Standardní sazby pro {{count}} zdrojů nebyly převzaty.",
+    "minuteModelConverted_one": "{{document}}: {{count}} úkol má po převodu jiný začátek nebo dokončení; největší posun (v pracovních dnech): {{days}}. Ctrl+Z vrátí uložené datumy zpět.",
+    "minuteModelConverted_few": "{{document}}: {{count}} úkoly mají po převodu jiný začátek nebo dokončení; největší posun (v pracovních dnech): {{days}}. Ctrl+Z vrátí uložené datumy zpět.",
+    "minuteModelConverted_many": "{{document}}: {{count}} úkolu má po převodu jiný začátek nebo dokončení; největší posun (v pracovních dnech): {{days}}. Ctrl+Z vrátí uložené datumy zpět.",
+    "minuteModelConverted_other": "{{document}}: {{count}} úkolů má po převodu jiný začátek nebo dokončení; největší posun (v pracovních dnech): {{days}}. Ctrl+Z vrátí uložené datumy zpět.",
+    "minuteModelCalendarRepaired": "Kalendář „{{calendar}}“ byl opraven: dokončení nebo přestávka neodpovídaly uložené pracovní době."
   },
   "scheduleErrors": {
     "cycle": "Cyklus závislostí mezi úkoly: {{path}}",
@@ -451,16 +456,17 @@
     "themeHighContrast": "Vysoký kontrast",
     "themeFollowSystem": "Podle systémového motivu",
     "themeSystemHint": "Řídí se barevným schématem systému (nyní: {{theme}}).",
-    "hourPlanningSection": "Plánování v hodinách",
-    "enableHourPlanning": "Zapnout plánování v hodinách",
-    "enableHourPlanningHint": "Zapíná plánování po hodinách a minutách: časovou osu v hodinách, směny s pásy pracovní doby a pruhy úkolů přesné na hodinu. Vypnuto ⇒ aplikace pracuje po celých dnech jako dříve.",
     "showTaskTypes": "Používat typy úkolů",
     "showTaskTypesHint": "Vyberte u každého úkolu, co se změní, když se změní doba trvání, jednotky přiřazení nebo práce, jako Task Type v MS Projectu a Duration Type v P6. Vypnuto: doba trvání a jednotky přiřazení zůstanou beze změny. Soubor s typy úkolů nebo uloženou prací je zobrazí i tehdy, když je toto vypnuto.",
     "allowMixedDayHour": "Povolit smíšené plánování po dnech a v hodinách",
     "defaultTaskDurationUnit": "Výchozí jednotka pro nové úkoly",
-    "defaultTaskDurationUnitHint": "Určuje, zda nové úkoly standardně začínají v pracovních dnech, nebo v pracovních hodinách. Stávající úkoly se nemění.",
+    "defaultTaskDurationUnitHint": "Denní jednotka: doba trvání se počítá v pracovních dnech kalendáře. Hodinová jednotka: doba trvání se počítá v pracovních hodinách. Stávající úkoly se nemění. Úkol s pevnou prací má vždy hodinovou jednotku.",
+    "defaultTaskDurationUnitDays": "Jednotka: dny",
+    "defaultTaskDurationUnitHours": "Jednotka: hodiny",
+    "defaultTaskDurationUnitLocked": "Profil {{profile}} počítá dobu trvání v hodinách. Nové úkoly proto dostanou hodinovou jednotku.",
     "durationDisplay": "Zobrazení doby trvání",
     "durationDisplayHint": "Určuje, jak se zobrazí doba trvání úkolu, nezávisle na jednotce, ve které je úkol sám zapsán.",
+    "durationDisplayOpsHint": "V profilu OPS zobrazuje každý úkol svou vlastní jednotku.",
     "durationDisplayAuto": "Automaticky (vlastní jednotka každého úkolu)",
     "durationDisplayDays": "Vždy dny",
     "durationDisplayHours": "Vždy hodiny",
@@ -1246,10 +1252,6 @@
     "month": "měsíc",
     "year": "rok"
   },
-  "hourData": {
-    "notice": "Tento soubor obsahuje plánování v hodinách.",
-    "enable": "Zapnout plánování v hodinách"
-  },
   "recordedDates": {
     "activeCount_one": "Vidíte plán tak, jak ho Primavera uložila; při přepočítání se odchýlí {{count}} úkol.",
     "activeCount_few": "Vidíte plán tak, jak ho Primavera uložila; při přepočítání se odchýlí {{count}} úkoly.",
@@ -1627,6 +1629,14 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "Úkoly ALAP co nejpozději, jak dovolují následníci",
       "help": "Pouze při plánování v hodinách, pro nezahájený úkol, který není ručně plánovaný, s omezením „co nejpozději“ (ALAP). Nejdřívější data jejích následníků určují jeho umístění přesně na minutu. Nejdřív se řeší následníci. Jeho vlastní plánované zahájení se nepočítá. Předchůdci, datum stavu a druhé omezení platí dál. Úkol bez následníka použije své pozdní dokončení. Běžný krok ALAP zůstává dostupný v každém profilu."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Samostatné milníky na konci pracovního dne",
+      "help": "Samostatný milník nebo milník dokončení bez předchůdce se umístí na konec svého pracovního dne."
+    },
+    "workdayDurationMeasure": {
+      "label": "Doba trvání v pracovních dnech",
+      "help": "Doba trvání, prodleva nebo zbývající doba trvání ve dnech se počítá v pracovních dnech: každý pracovní den se počítá jako 1, ať je dlouhý jakkoli. Vypnuto: den se počítá jako počet hodin pracovní doby na den v kalendáři. Prodleva v procentech se řídí jednotkou předchůdce. Uplynulá doba trvání se v pracovních dnech nikdy nepočítá."
     }
   },
   "profiles": {
@@ -1665,6 +1675,7 @@
       "float": "Časová rezerva a pozdní termíny",
       "instants": "Data a časy ze souboru",
       "msproject": "Průběh jako v Microsoft Project",
+      "durations": "Doba trvání a jednotka",
       "ownProfilesOnly": "Pouze pro vlastní profily"
     },
     "ownProfilesOnlyNote": "Tyto konvence jsou vypnuté ve všech vestavěných profilech, včetně Primavera P6. Jen vlastní profil je může zapnout. Zvolte k tomu „Vytvořit profil“.",

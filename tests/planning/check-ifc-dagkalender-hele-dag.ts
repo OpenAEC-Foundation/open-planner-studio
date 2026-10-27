@@ -72,7 +72,7 @@ function buildProject(): ImportResult {
   };
 }
 
-const OPEN = { filePath: null, fileHandle: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: true } as const;
+const OPEN = { filePath: null, fileHandle: null, recompute: true, fit: false, linkedOpen: true } as const;
 function openAndRecalc(parsed: OpenedImport): DocumentPayload {
   const store = createAppStoreContext().store;
   store.getState().applyOpenedImport(parsed, OPEN);
@@ -113,7 +113,9 @@ const ifc = writeIFC(buildWriteIFCInput(before));
     ['HoursPerDay=IFCREAL(8.)', 'IsHourCalendar=IFCBOOLEAN(.F.)']);
   same('§1 bibliotheekkalender 0–24: HoursPerDay 8 en IsHourCalendar .F.', calProps('Bibliotheek 24 uur'),
     ['HoursPerDay=IFCREAL(8.)', 'IsHourCalendar=IFCBOOLEAN(.F.)']);
-  same('§1 gewone dagkalender 08–16: geen OPS_Calendar-markering (bestand ongewijzigd)', calProps('Gewoon'), []);
+  // T17: deze fixture draagt niet-afleidbare tijden, dus de hele kalender schrijft letterlijk.
+  same('§1 gewone dagkalender 08–16: LiteralTimes houdt de bron scalaire kalender', calProps('Gewoon'),
+    ['LiteralTimes=IFCBOOLEAN(.T.)', 'IsHourCalendar=IFCBOOLEAN(.F.)']);
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════

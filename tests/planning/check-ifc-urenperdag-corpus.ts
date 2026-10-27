@@ -69,7 +69,7 @@ function findByName(dir: string, name: string): string[] {
   return out;
 }
 
-const OPEN = { filePath: null, fileHandle: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: true } as const;
+const OPEN = { filePath: null, fileHandle: null, recompute: true, fit: false, linkedOpen: true } as const;
 function openInStore(parsed: OpenedImport): DocumentPayload[] {
   const store = createAppStoreContext().store;
   store.getState().applyOpenedImport(parsed, OPEN);
@@ -88,9 +88,9 @@ function taskView(p: DocumentPayload) {
     const x = t.time;
     return [t.id, {
       dur: x.scheduleDuration, min: x.durationMinutes ?? null,
-      auto: formatTaskDurationDisplay(t, cal, 'auto', true),
-      days: formatTaskDurationDisplay(t, cal, 'days', true),
-      hours: formatTaskDurationDisplay(t, cal, 'hours', true),
+      auto: formatTaskDurationDisplay(t, cal, 'auto'),
+      days: formatTaskDurationDisplay(t, cal, 'days'),
+      hours: formatTaskDurationDisplay(t, cal, 'hours'),
       dates: [x.scheduleStart, x.scheduleFinish, x.earlyStart, x.earlyFinish, x.lateStart, x.lateFinish],
     }];
   }));

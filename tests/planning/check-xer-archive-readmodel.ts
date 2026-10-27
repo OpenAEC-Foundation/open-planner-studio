@@ -708,7 +708,7 @@ const store = () => useAppStore.getState();
 store().newProject();
 store().applyOpenedImport(opened, {
   filePath: null, fileHandle: null, recompute: false, fit: false,
-  hourDataNotice: false, linkedOpen: false,
+  linkedOpen: false,
 });
 store().duplicateDocument();
 for (let index = 0; index < 100; index += 1) store().setProject({ description: `readmodel-${index}` });

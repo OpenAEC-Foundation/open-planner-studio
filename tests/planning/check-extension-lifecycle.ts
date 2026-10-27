@@ -53,6 +53,40 @@ const register = (id: string, manifest = manifestFor(id)) => {
   useAppStore.getState().registerReadyExtension({ kind: 'ready', id, manifest: m.value, status: 'disabled' });
 };
 
+// Knownbug 64: het echte tutorial-id krijgt bij opstart geen speciale inschakelroute meer.
+// Geen aanname over auteur/catalogus: dit is zelf aangeleverde code met hetzelfde id.
+{
+  const id = 'tutorials';
+  g.__tutorialStartupEffects = 0;
+  const code = `globalThis.__tutorialStartupEffects += 1;
+    module.exports = { onLoad() { globalThis.__tutorialStartupEffects += 1; } };`;
+  const mem = memoryStorage({ [id]: record(id, code, false) });
+  await loadAllExtensions(mem.storage);
+  eq('64 uitgeschakelde tutorials blijft disabled bij opstart',
+    useAppStore.getState().installedExtensions[id]?.status, 'disabled');
+  eq('64 geen evaluatie of onLoad zonder expliciet inschakelen', g.__tutorialStartupEffects, 0);
+  eq('64 geen actieve plugin of stil teruggeschreven enabled-vlag',
+    [getActivePlugins().has(id), mem.records[id].enabled, mem.saved], [false, false, []]);
+  await loadAllExtensions(mem.storage);
+  eq('64 herhaalde bootstrap voert geen code uit', g.__tutorialStartupEffects, 0);
+
+  // Positieve controle: expliciet inschakelen blijft werken (ook gebruikt door de tutorialvraag).
+  await enableExtension(id, mem.storage);
+  eq('64 expliciete keuze evalueert module en voert onLoad uit', g.__tutorialStartupEffects, 2);
+  eq('64 expliciete keuze activeert en bewaart enabled',
+    [getActivePlugins().has(id), mem.records[id].enabled], [true, true]);
+  await disableExtension(id, mem.storage);
+  eq('64 handmatig uitschakelen wordt bewaard', mem.records[id].enabled, false);
+  useAppStore.getState().unregisterExtension(id);
+  const writesBeforeReload = mem.saved.length;
+  await loadAllExtensions(mem.storage);
+  eq('64 opnieuw laden uit opslag respecteert de nieuwe uitschakeling',
+    [useAppStore.getState().installedExtensions[id]?.status, getActivePlugins().has(id),
+      g.__tutorialStartupEffects, mem.saved.length], ['disabled', false, 2, writesBeforeReload]);
+  useAppStore.getState().unregisterExtension(id);
+  delete g.__tutorialStartupEffects;
+}
+
 // 1. Verwijderen tijdens onLoad.
 {
   const id = 'traag.verwijderd';

@@ -278,7 +278,11 @@
     "msProjectLostFixedCosts_other": "I costi fissi di {{count}} attività non sono stati importati.",
     "msProjectLostResourceRates_one": "Le tariffe di {{count}} risorsa non sono state importate.",
     "msProjectLostResourceRates_many": "Le tariffe di {{count}} risorse non sono state importate.",
-    "msProjectLostResourceRates_other": "Le tariffe di {{count}} risorse non sono state importate."
+    "msProjectLostResourceRates_other": "Le tariffe di {{count}} risorse non sono state importate.",
+    "minuteModelConverted_one": "{{document}}: {{count}} attività ha un inizio o una fine diversi dopo la conversione; lo spostamento maggiore è di {{days}} giorni lavorativi. Ctrl+Z ripristina le date salvate.",
+    "minuteModelConverted_many": "{{document}}: {{count}} di attività hanno un inizio o una fine diversi dopo la conversione; lo spostamento maggiore è di {{days}} giorni lavorativi. Ctrl+Z ripristina le date salvate.",
+    "minuteModelConverted_other": "{{document}}: {{count}} attività hanno un inizio o una fine diversi dopo la conversione; lo spostamento maggiore è di {{days}} giorni lavorativi. Ctrl+Z ripristina le date salvate.",
+    "minuteModelCalendarRepaired": "Il calendario «{{calendar}}» è stato riparato: la fine o la pausa non corrispondeva agli orari di lavoro salvati."
   },
   "scheduleErrors": {
     "cycle": "Dipendenza circolare tra attività: {{path}}",
@@ -393,16 +397,17 @@
     "themeHighContrast": "Alto contrasto",
     "themeFollowSystem": "Segui il tema di sistema",
     "themeSystemHint": "Segue lo schema di colori del sistema (ora: {{theme}}).",
-    "hourPlanningSection": "Pianificazione oraria",
-    "enableHourPlanning": "Attiva pianificazione oraria",
-    "enableHourPlanningHint": "Attiva la pianificazione ora/minuto: una scala temporale oraria, turni con fasce orarie di lavoro e barre attività precise all'ora. Disattivato ⇒ l'app resta completamente granulare per giorni, come prima.",
     "showTaskTypes": "Usa tipi di attività",
     "showTaskTypesHint": "Scegli per ogni attività cosa cambia quando cambiano durata, unità o lavoro, come Task Type in MS Project e Duration Type in P6. Disattivato: durata e unità restano fisse. Un file con tipi di attività o lavoro salvato li mostra anche se è disattivato.",
     "allowMixedDayHour": "Consenti pianificazione mista giorno/ora",
     "defaultTaskDurationUnit": "Unità predefinita per le nuove attività",
-    "defaultTaskDurationUnitHint": "Stabilisce se le nuove attività iniziano in giorni lavorativi o ore di lavoro. Le attività esistenti non cambiano.",
+    "defaultTaskDurationUnitHint": "Unità in giorni: una durata conta in giorni lavorativi del calendario. Unità in ore: una durata conta in ore di lavoro. Le attività esistenti non cambiano. Un'attività con lavoro fisso usa sempre l'unità in ore.",
+    "defaultTaskDurationUnitDays": "Unità in giorni",
+    "defaultTaskDurationUnitHours": "Unità in ore",
+    "defaultTaskDurationUnitLocked": "Il profilo {{profile}} conta la durata in ore. Le nuove attività ricevono quindi l'unità in ore.",
     "durationDisplay": "Visualizzazione della durata",
     "durationDisplayHint": "Determina come viene mostrata la durata dell'attività, indipendentemente dall'unità in cui l'attività stessa è registrata.",
+    "durationDisplayOpsHint": "Nel profilo OPS ogni attività mostra la propria unità.",
     "durationDisplayAuto": "Automatica (unità propria per attività)",
     "durationDisplayDays": "Sempre giorni",
     "durationDisplayHours": "Sempre ore",
@@ -1181,10 +1186,6 @@
     "month": "mese",
     "year": "anno"
   },
-  "hourData": {
-    "notice": "Questo file contiene una pianificazione oraria.",
-    "enable": "Attiva pianificazione oraria"
-  },
   "recordedDates": {
     "activeCount_one": "Stai visualizzando la pianificazione come registrata da Primavera; un ricalcolo sposterebbe {{count}} attività.",
     "activeCount_many": "Stai visualizzando la pianificazione come registrata da Primavera; un ricalcolo sposterebbe {{count}} attività.",
@@ -1555,6 +1556,14 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "Attività ALAP il più tardi consentito dai successori",
       "help": "Solo con pianificazione oraria, per un'attività non iniziata e non pianificata manualmente con il vincolo «il più tardi possibile» (ALAP). Le date anticipate dei successori ne determinano la posizione fino al minuto; prima vengono i successori. La sua data di inizio pianificata non conta; restano validi predecessori, data di stato e un secondo vincolo. Senza successori usa la sua fine posticipata. Il normale passo ALAP resta disponibile in ogni profilo."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Attività cardine isolate a fine giorno lavorativo",
+      "help": "Un'attività cardine isolata o un'attività cardine di fine senza predecessore viene collocata alla fine del suo giorno lavorativo."
+    },
+    "workdayDurationMeasure": {
+      "label": "Durata in giorni lavorativi",
+      "help": "Una durata, un ritardo o una durata rimanente in giorni conta in giorni lavorativi: ogni giorno lavorativo conta come 1, indipendentemente dalla sua lunghezza. Disattivato: un giorno conta come il numero di ore lavorative al giorno del calendario. Un ritardo in percentuale segue l'unità del predecessore. Il tempo trascorso non conta mai in giorni lavorativi."
     }
   },
   "profiles": {
@@ -1593,6 +1602,7 @@
       "float": "Margine e date più tarde",
       "instants": "Date e istanti dal file",
       "msproject": "Avanzamento come in Microsoft Project",
+      "durations": "Durata e unità",
       "ownProfilesOnly": "Solo per profili personalizzati"
     },
     "ownProfilesOnlyNote": "Queste convenzioni sono disattivate in ogni profilo integrato, anche in Primavera P6. Solo un profilo personalizzato può attivarle: scegli per questo «Nuovo profilo».",

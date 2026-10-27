@@ -100,10 +100,9 @@ ${opts.resourceTimes ? `<Calendar><UID>2</UID><Name>Ploeg</Name><IsBaseCalendar>
   same('§1 MSPDI één blok 07–16: ongewijzigd 7/16, hpd 9', scalar(single.calendar), { start: 7, end: 16, hpd: 9 });
 }
 
-// §1b. MSPDI-lag zonder <MinutesPerDay> op een opvolger op een DAGkalender (B: datums op het dag-anker,
-// duur een hele werkdag, dus geen (c)-signaal): de tussenwaarde van de projectkalender (vóór promotie)
-// rekent de lag om (`mspdiReader` §lags). Netto 8 h ⇒ 24000 tienden-minuut (40 h) = 5 dagen. Vóór de fix
-// was de tussenwaarde einde − begin van het eerste blok (4 h ⇒ 10 dagen); de klokspanne (9 h) gaf 4.
+// §1b. MSPDI-lag zonder <MinutesPerDay> op een opvolger met een dagkalender:
+// 24000 tienden-minuut (40 h) blijft exact 2400 minuten, onafhankelijk van de taakmaat en
+// kalenderblokken. De import zet de lag niet meer om naar dagen via de projectkalender.
 {
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <Project xmlns="http://schemas.microsoft.com/project"><Name>Lag</Name><StartDate>2026-01-05T08:00:00</StartDate><CalendarUID>1</CalendarUID>
@@ -117,8 +116,8 @@ ${opts.resourceTimes ? `<Calendar><UID>2</UID><Name>Ploeg</Name><IsBaseCalendar>
 <PredecessorLink><PredecessorUID>1</PredecessorUID><Type>1</Type><LinkLag>24000</LinkLag><LagFormat>7</LagFormat></PredecessorLink></Task>
 </Tasks></Project>`;
   const r = readMSPDI(xml);
-  same('§1b MSPDI-lag zonder MinutesPerDay: 40 h = 5 dagen (netto 8 h)',
-    r.sequences.map(s => [s.lagDays, s.lagMinutes ?? null]), [[5, null]]);
+  same('§1b MSPDI-lag zonder MinutesPerDay: 40 h blijft 2400 minuten',
+    r.sequences.map(s => [s.lagDays, s.lagMinutes ?? null]), [[0, 2400]]);
 }
 
 // ── §2 `.mpp` (synthetische TBkndCal, één basiskalender met twee blokken op ma–vr) ─────────────────
@@ -284,7 +283,7 @@ const hourCal = (start: number, end: number): Partial<WorkCalendar> => ({
   const ctx = createAppStoreContext();
   ctx.store.setState({ companies: fx.companies, pools: { [cid]: structuredClone(rawPool) } });
   ctx.store.getState().applyOpenedImport(await parseOpenedFile({ name: 'oud.ifc', text: ifc }), {
-    filePath: null, recompute: true, linkedOpen: true, hourDataNotice: false,
+    filePath: null, recompute: true, linkedOpen: true,
   });
   same('§5 openroute: kalender 8/17 en geen afwijkingsdialoog',
     [ctx.store.getState().calendar.workEndHour, ctx.store.getState().ui.showLibraryLinkDialog ?? false], [17, false]);

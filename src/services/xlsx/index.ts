@@ -7,7 +7,7 @@
  *  hoort daarmee niet in de hoofdbundel. Hij bestaat voor de tests en voor afnemers die beide
  *  kanten nodig hebben. */
 export { escapeXmlAttr, escapeXmlText, unescapeXml } from './xmlText';
-export { MIN_READABLE_SERIAL_1900, isoToSerial, serialToIso } from './serialDate';
+export { MIN_READABLE_SERIAL_1900, isoHasClock, isoToSerial, serialToIso } from './serialDate';
 export {
   buildProgressXlsxParts,
   writeProgressSheetXLSX,

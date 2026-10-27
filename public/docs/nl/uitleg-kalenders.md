@@ -94,7 +94,7 @@ De datums van *Metselwerk* veranderen niet. Wel staat vrijdag 4 juni in het hist
 
 **"De feestdagen staan er toch?"** Feestdagen bestaan alleen voor de jaren waarvoor ze zijn aangemaakt. Een dag daarbuiten is gewoon een werkdag. In de kalenderdialoog meldt de app dat met *Feestdagen dekken 2025–2028; opnieuw genereren tot en met 2030?*
 
-**"Meer uren per dag maakt mijn taak korter."** Niet bij een taak in dagen: die telt hele werkdagen, of de dag nu 6 of 8 uur heeft. Alleen bij een taak met resources en het taaktype *Vast werk* of *Vaste inzet* verandert de duur mee.
+**"Meer uren per dag maakt mijn taak korter."** Niet bij een taak in dagen: die telt werkdagen, of de dag nu 6 of 8 uur heeft. Een taak in uren houdt haar uren; op kortere werkdagen beslaat ze meer werkdagen. Alleen bij een taak in dagen met resources en het taaktype *Vaste inzet* verandert de duur mee, want het werk blijft staan. *Vast werk* is altijd een taak in uren.
 
 **Een kalender zonder werkdagen** kan de app niet doorrekenen. De berekening meldt *De kalender heeft geen werkdagen ingesteld*.
 

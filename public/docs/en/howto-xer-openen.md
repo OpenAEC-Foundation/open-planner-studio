@@ -11,7 +11,7 @@ A client or main contractor works in Primavera and delivers their schedule as an
 1. Choose *Home › File › Open* or press Ctrl+O. Choose the `.xer` file.
 2. The app opens one tab for each project that has tasks. The project with the most tasks is the active tab. A tab is called *Project name (Project ID)* if the P6 project ID differs from the name. *Project settings* shows only the name. If you rename the project, the project ID stays after it. A window then briefly explains what the app took over from the file and how saving works; see [Opening and saving a file](docs://howto-bestand-openen-en-opslaan).
 3. Read the message at the bottom. For a file with three projects it can look like this: *XER file opened: 3 project documents.* Below it are lines that explain what the app did. See the heading below.
-4. Check whether there is a bar under the ribbon: *You're viewing the schedule as Primavera recorded it; recalculating would shift 1 task.* Primavera records its own calculated dates in the file. If the app's calculation differs from them, the app shows Primavera's dates as long as you change nothing. A task that has started or is complete always sits on its actual dates, as in Primavera. What that means and how you switch to the app's own calculation is in [Dates as recorded](docs://uitleg-datums-zoals-opgeslagen). The message *This file contains hour-based planning.* can also appear, with the button *Enable hour planning*. See [Turning on hour planning](docs://howto-urenplanning-aanzetten).
+4. Check whether there is a bar under the ribbon: *You're viewing the schedule as Primavera recorded it; recalculating would shift 1 task.* Primavera records its own calculated dates in the file. If the app's calculation differs from them, the app shows Primavera's dates as long as you change nothing. A task that has started or is complete always sits on its actual dates, as in Primavera. What that means and how you switch to the app's own calculation is in [Dates as recorded](docs://uitleg-datums-zoals-opgeslagen).
 5. Save your project with Ctrl+S. Because an `.xer` is never overwritten, the app asks where the new IFC file should go. It suggests *Project name (Project ID)* as the file name.
 
 ### The lines below the message
@@ -67,6 +67,6 @@ Nothing opens then. Check the file in P6, or ask the sender for a new export.
 - [Files and formats](docs://uitleg-bestanden): why an `.xer` is only read and what an export loses.
 - [Dates as recorded](docs://uitleg-datums-zoals-opgeslagen): the view of Primavera's own dates.
 - [Opening an MS Project file (.mpp)](docs://howto-mpp-openen): the same for MS Project.
-- [Turning on hour planning](docs://howto-urenplanning-aanzetten): if the file contains data in hours.
+- [Plan a task in hours](docs://howto-taak-in-uren-plannen): if the file contains data in hours.
 - [Import and export formats](docs://ref-import-exportformaten): per format what is carried over and what is not.
 - [Calculation profiles and conventions](docs://uitleg-rekenprofielen): why a P6 file opens with its own calculation profile.

@@ -89,6 +89,7 @@ const inputs: OccupancyDocInput[] = payloads.map(({ docId, payload }) => ({
   tasks: payload.tasks,
   calendar: payload.calendar,
   calendars: payload.calendars,
+  loadOptions: solveOptionsFor(payload.project).schedulingOptions,
   solveInput: {
     tasks: payload.tasks,
     sequences: payload.sequences,

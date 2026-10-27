@@ -2,7 +2,7 @@
  * Rekenprofielen — het conventieregister.
  *
  * Twee lagen, disjuncte sleutels:
- *  - **Conventies** (`ConventionKey`, zevenentwintig booleans): regels die per planningspakket verschillen.
+ *  - **Conventies** (`ConventionKey`, negenentwintig booleans): regels die per planningspakket verschillen.
  *    Ze leven in het profiel (`Project.schedulingProfile`), als basis + afwijkingen.
  *  - **Projectopties** (`ProjectOptionKey`, elf sleutels): per-bestand projectinstellingen
  *    (lagCalendar, kritiek-definitie, TF-modus, SS-lag-variant, nivelleerinstellingen als data, …). Ze blijven in `Project.schedulingOptions`.
@@ -29,10 +29,11 @@ export const BUILT_IN_PROFILE_IDS = ['p6', 'msproject', 'ops'] as const satisfie
  *  - `instants`: een datum of tijdstip uit het bestand dat letterlijk blijft staan (geplande start,
  *    werkelijke datums, constraintmoment).
  *  - `msproject`: de twee voortgangsconventies van Microsoft Project.
+ *  - `durations`: duur en maat — telt een duur, lag of rest in werkdagen of in uren.
  */
-export type ConventionTheme = 'completedWork' | 'relationsLag' | 'milestones' | 'float' | 'instants' | 'msproject';
+export type ConventionTheme = 'completedWork' | 'relationsLag' | 'milestones' | 'float' | 'instants' | 'msproject' | 'durations';
 export const CONVENTION_THEMES = [
-  'completedWork', 'relationsLag', 'milestones', 'float', 'instants', 'msproject',
+  'completedWork', 'relationsLag', 'milestones', 'float', 'instants', 'msproject', 'durations',
 ] as const satisfies readonly ConventionTheme[];
 
 export interface ConventionDescriptor {
@@ -51,11 +52,13 @@ export interface ConventionDescriptor {
    *  motorgedrag; los van `group` (dat is de herkomst in het register, geen onderwerp). */
   theme: ConventionTheme;
   /** De waarde die geldt wanneer een bestand MÉT `OPS_SchedulingProfile` deze sleutel niet kent (een
-   *  bestand van vóór `since`). Per constructie de OPS-waarde (`builtIn.ops`, dus voor elke conventie
-   *  `false`): zo'n bestand rekende zonder de regel, en onder een P6-basis verschijnt de ontbrekende
-   *  sleutel dan eerlijk als afwijking. Nooit de waarde van de GEKOZEN basis. Geldt niet voor de
-   *  legacy-migratie van bestanden zonder die pset — daarvoor zie `legacyOptionsToProfile`. */
+   *  bestand van vóór `since`). Standaard de OPS-waarde (`builtIn.ops`): een oudere profielkeuze
+   *  blijft zo zichtbaar. Met `legacyFromBase` geldt de basiswaarde, omdat het oude bestand
+   *  over die nieuwe conventie niets koos (T12). Bestanden zonder profiel-pset gebruiken
+   *  `legacyOptionsToProfile`. */
   legacyValue: boolean;
+  /** Nieuwe regel: een ouder profiel koos hierover niets (T12). */
+  legacyFromBase?: true;
   /** Was deze conventie vóór de rekenprofielen alleen actief onder de XER-bronmarkering? Zo ja, dan
    *  was een losse vlag zonder die markering inert en gooit de legacy-migratie hem weg. */
   gatedByP6Source: boolean;
@@ -74,8 +77,10 @@ export interface ConventionDescriptor {
  * en als GEDRAG getoetst in `check-conventions-p6-flags` (sectie "`requires` als gedrag"):
  *  - `hourPlanning`: de conventie doet alleen iets bij uurplanning. De motor rekent een taak in uren
  *    als haar kalender werkblokken heeft (`workTime`) óf als de taak zelf in uren staat
- *    (`engineForTaskCalendar`); ook de interne 24-uurs lag-kalender is uurplanning. Zonder dat alles
- *    (dagkalender, taken in dagen) verandert aan/uit niets.
+ *    (`engineForTaskCalendar`); ook de interne 24-uurs lag-kalender is uurplanning. Sinds alleen uren
+ *    F3 telt ook een taak in dagen als uren wanneer de dagenmaat (`workdayDurationMeasure`) uit staat,
+ *    zoals onder P6 en MSP (§3.2). Zonder dat alles (dagkalender, taken in dagen met de dagenmaat aan)
+ *    verandert aan/uit niets.
  *  - `xerOrigin`: de conventie werkt alleen op taken (of relaties) met P6-herkomst uit een `.xer`
  *    (`p6ProjectId`/`p6TaskId` en verwante velden, of de B1-relatievlag).
  */
@@ -137,6 +142,7 @@ function convention(
 /** Het register, in vaste volgorde (die volgorde is ook de sleutelvolgorde in de IFC-JSON).
   *  Registernummers: A12, A13, A15–A20, A22, A23, B1–B5, C1–C9, C11, C12, C14 (C10 en C13 bestaan niet). */
 export const CONVENTIONS: readonly ConventionDescriptor[] = [
+  { ...convention('milestoneWithoutPredecessorAtDayEnd', 'C', 'milestones', { p6: false, msproject: false, ops: true }, false, '2026-10-23'), legacyFromBase: true },
   // A17, B3 en B4 staan in elk ingebouwd profiel uit: geen effect op P6-doorgerekende bestanden (ze
   // komen uit rehab-2, P3-uitvoer); aan of uit verandert geen enkele gemeten cel.
   // Thema per regel: het ONDERWERP van de conventie (zie `ConventionTheme`), met de reden erachter.
@@ -174,6 +180,9 @@ export const CONVENTIONS: readonly ConventionDescriptor[] = [
   convention('p6FinishNotBeforeFinishFinishBound', 'C', 'relationsLag', P6_ONLY, false, SINCE_X12_BROK8),        // C12 eind-eindgrens
   // C13 is geen registerconventie maar een regel binnen C5.
   convention('p6AlapPositionedFromSuccessors', 'C', 'float', P6_ONLY, false, SINCE_X12_BROK10),      // C14 ALAP-taak zo laat als de opvolgers toestaan
+  // Alleen uren §3.14: de dagenmaat. Een ouder profiel koos hierover niets, dus een ontbrekende sleutel
+  // volgt de basis (T12), net als B6.
+  { ...convention('workdayDurationMeasure', 'C', 'durations', { p6: false, msproject: false, ops: true }, false, '2026-10-23'), legacyFromBase: true },
 ];
 
 // ── Compile-time: register ⇔ ConventionKey, en projectopties ⊥ conventies ─────────────────────────
@@ -182,6 +191,7 @@ export const CONVENTIONS: readonly ConventionDescriptor[] = [
 // conventie is, is per constructie onmogelijk (`ProjectOptionKey` is het complement) — de assertie
 // hieronder maakt dat expliciet.
 const _everyConventionNamed: Record<ConventionKey, true> = {
+  milestoneWithoutPredecessorAtDayEnd: true,
   preserveActualDatesInBackwardPass: true, clampNegativeFreeFloat: true,
   p6ZeroDurationUsesPlannedBoundary: true, p6UseTaskPlannedStartFloor: true,
   p6FinishMilestoneBoundaryWindow: true, p6PreserveActualInstants: true,
@@ -194,6 +204,7 @@ const _everyConventionNamed: Record<ConventionKey, true> = {
   p6FinishFinishStartMilestoneLateFinish: true, p6StartedTaskIgnoresPlannedStartFloor: true,
   p6LateFinishOnOwnCalendar: true, p6ProgressOverrideIgnoresStartedSuccessor: true,
   p6FinishNotBeforeFinishFinishBound: true, p6AlapPositionedFromSuccessors: true,
+  workdayDurationMeasure: true,
 };
 export const CONVENTION_KEYS = Object.keys(_everyConventionNamed) as readonly ConventionKey[];
 type Overlap = Extract<ProjectOptionKey, ConventionKey>;
@@ -236,7 +247,7 @@ export function displayNameKey(id: BuiltInProfileId): string {
   return `profiles.builtIn.${id}`;
 }
 
-/** Basis + afwijkingen ⇒ alle zevenentwintig conventies. Afwezig profiel ≡ `ops` zonder afwijkingen.
+/** Basis + afwijkingen ⇒ alle negenentwintig conventies. Afwezig profiel ≡ `ops` zonder afwijkingen.
  *  Alleen bekende conventiesleutels met een boolean tellen; de rest van `overrides` wordt genegeerd. */
 export function resolveConventions(profile: SchedulingProfile | undefined): SchedulingConventions {
   const out = builtInConventions(profile?.baseId ?? 'ops');

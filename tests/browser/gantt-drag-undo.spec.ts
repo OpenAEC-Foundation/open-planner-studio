@@ -1,7 +1,12 @@
+// F2: taakdatums worden op D1/D2/D7-momenten vergeleken (§4.2); de echte handeling blijft gelijk.
 // Karakterisering vóór de structurele Gantt-/store-refactors: de echte canvas-sleep en Ctrl+Z
 // moeten samen exact één undoable handeling blijven vormen.
 import type { Locator, Page } from '@playwright/test';
 import { barPoint, expect, seedProject, state, test } from './fixtures/ops';
+
+// Deze route bedient tijdlijnbalken naast de takenlijst en de eigenschappenrail.
+// Reserveer expliciet genoeg canvasruimte, onafhankelijk van de standaard paneelbreedte.
+test.use({ viewport: { width: 1600, height: 900 } });
 
 async function addTaskDuringGesture(page: Page, name: string): Promise<string> {
   const id = await page.evaluate((taskName) => {
@@ -98,8 +103,8 @@ test('Gantt-rij vertical slepen verplaatst de taak zonder haar datums te wijzige
     .toEqual([secondId, firstId, thirdId]);
   const after = await state(page);
   expect(after.tasks.find(task => task.id === firstId)).toMatchObject({
-    scheduleStart: '2026-09-07',
-    scheduleFinish: '2026-09-18',
+    scheduleStart: "2026-09-07T07:00",
+    scheduleFinish: "2026-09-18T16:00",
   });
   expect(after.undoDepth).toBe(before.undoDepth + 1);
 });
@@ -135,8 +140,8 @@ test('Gantt-balk vertical slepen verplaatst de taak zonder haar datums te wijzig
     .toEqual([secondId, thirdId, firstId]);
   const after = await state(page);
   expect(after.tasks.find(task => task.id === firstId)).toMatchObject({
-    scheduleStart: '2026-09-07',
-    scheduleFinish: '2026-09-18',
+    scheduleStart: "2026-09-07T07:00",
+    scheduleFinish: "2026-09-18T16:00",
   });
   expect(after.undoDepth).toBe(before.undoDepth + 1);
   // De afsluitende canvas-click van het gebaar mag de selectie niet meer aanraken: de mousedown

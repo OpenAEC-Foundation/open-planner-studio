@@ -398,7 +398,11 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   const rest = (t: Task | undefined) => [t?.time.remainingMinutes, t?.time.remainingTime];
   eq('restduur: voorwaarde urentaak 5 u op 40 %', rest(lopend), [180, 0.375]);
   eq('restduur: voorwaarde teruggezette urentaak', rest(terug), [300, 0.625]);
-  eq('restduur: voorwaarde dagtaak 5 d op 30 %', rest(dag), [undefined, 4]);
+  // B1 (spec "alleen uren" §3.5, besluit B3): de rest van een dagtaak is exact, 5 d op 30 % = 3,5 d (was
+  // round = 4 d). De adapters schrijven die breuk: MSPDI en P6 28 u, IFC ook 28 u als `PT…` met het record
+  // [3,5, 1680] (§3.10, T21: nooit een gebroken P…D, want v2026.9.0 leest die verkeerd, I10). De dagen komen
+  // terug uit het record (hieronder: dagtaak terug 3,5).
+  eq('restduur: voorwaarde dagtaak 5 d op 30 %', rest(dag), [undefined, 3.5]);
   const efOf = (tk: Task[], cal: WorkCalendar, statusDate: string | undefined): string | undefined => {
     solveProject(opsSolveInput({ tasks: tk, sequences: [], calendar: cal, calendars: [], dataDate: statusDate, projectStartDate: projS.startDate }));
     return tk.find(t => t.name === 'Lopend')?.time.earlyFinish;
@@ -411,17 +415,17 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   const restSlot = (text: string, name: string) =>
     new RegExp(`IFCTASKTIME\\('${name} Time'.*,('[^']*'|\\$),[0-9.]+\\);`).exec(text)?.[1];
   eq('restduur IFC: geschreven slot urentaak', restSlot(ifc, 'Lopend'), "'PT3H0M0S'");
-  eq('restduur IFC: geschreven slot dagtaak', restSlot(ifc, 'Dagtaak'), "'P0Y0M4D'");
+  eq('restduur IFC: geschreven slot dagtaak (PT…, geen gebroken P…D)', restSlot(ifc, 'Dagtaak'), "'PT28H0M0S'");
   const mspdi = writeMSPDI(projS, H8, [lopend, terug, dag], [], [], [], []);
   const p6 = writeP6XML(projS, H8, [lopend, terug, dag], [], [], [], []);
   const remXml = (xml: string, name: string) =>
     new RegExp(`<Name>${name}</Name>[\\s\\S]*?<RemainingDuration>([^<]*)</RemainingDuration>`).exec(xml)?.[1];
   eq('restduur MSPDI: geschreven urentaak', remXml(mspdi, 'Lopend'), 'PT3H0M0S');
   eq('restduur MSPDI: geschreven teruggezette urentaak', remXml(mspdi, 'Teruggezet'), 'PT5H0M0S');
-  eq('restduur MSPDI: geschreven dagtaak', remXml(mspdi, 'Dagtaak'), 'PT32H0M0S');
+  eq('restduur MSPDI: geschreven dagtaak', remXml(mspdi, 'Dagtaak'), 'PT28H0M0S');
   eq('restduur P6: geschreven urentaak (uren)', remXml(p6, 'Lopend'), '3');
   eq('restduur P6: geschreven teruggezette urentaak (uren)', remXml(p6, 'Teruggezet'), '5');
-  eq('restduur P6: geschreven dagtaak (uren)', remXml(p6, 'Dagtaak'), '32');
+  eq('restduur P6: geschreven dagtaak (uren)', remXml(p6, 'Dagtaak'), '28');
 
   for (const [label, back] of [
     ['IFC', readIFC(ifc)], ['MSPDI', readMSPDI(mspdi)], ['P6', readP6XML(p6)],
@@ -429,7 +433,7 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     const byName = (n: string) => back.tasks.find(t => t.name === n);
     eq(`restduur ${label}: urentaak terug`, rest(byName('Lopend')), [180, 0.375]);
     eq(`restduur ${label}: teruggezette urentaak terug (minuten)`, byName('Teruggezet')?.time.remainingMinutes, 300);
-    eq(`restduur ${label}: dagtaak terug`, rest(byName('Dagtaak')), [undefined, 4]);
+    eq(`restduur ${label}: dagtaak terug`, rest(byName('Dagtaak')), [undefined, 3.5]);
     eq(`restduur ${label}: EF lopende urentaak na opslaan + openen`, efOf(back.tasks, back.calendar, back.project.statusDate), efBefore);
   }
   eq('restduur IFC: teruggezette urentaak terug (werkdagfractie)', readIFC(ifc).tasks.find(t => t.name === 'Teruggezet')?.time.remainingTime, 0.625);
@@ -447,7 +451,10 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
 
 // ── Dag-bestand-discriminator (geen uur-lek + identieke leaf-schedule) ──────
 {
-  const src = readFileSync(join(HERE, '..', '..', 'examples', '03-kantoorgebouw-zuidas.ifc'), 'utf8');
+  // Een ECHT dagbestand: het voorbeeld van vóór het minutenmodel, als vaste fixture. Het opnieuw
+  // gegenereerde `examples/03-…` is geen dagbestand meer in de zin van de discriminator: elke datum is
+  // daar een moment (07:00, 16:00), en dat is tijdsignaal (c) in `subdayIo.ts`.
+  const src = readFileSync(join(HERE, 'fixtures', 'minute-model-examples-f0', '03-kantoorgebouw-zuidas.ifc'), 'utf8');
   const M = readIFC(src);
   const startOf = (t: Task) => (t.time.earlyStart || t.time.scheduleStart).substring(0, 10);
   const digest = (ts: Task[]) => ts.filter(t => t.childIds.length === 0)
@@ -556,13 +563,15 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     eq(`P6 soft ${type} blijft soft`, p6Back?.hard ?? false, false);
   }
 
-  // (d) Hard-round-trip incl. datum, alle drie de formaten (IFC/P6/MSPDI).
+  // (d) Hard-round-trip incl. datum, alle drie de formaten (IFC/P6/MSPDI). Sinds F5b (I8) geven de
+  //     XML-schrijvers een datum zonder tijd zijn moment (D1–D7, zoals de laadgrens): MSO is startachtig,
+  //     dus het begin van de werkdag (07:00). IFC houdt het daganker.
   for (const fmt of ['IFC', 'P6', 'MSPDI'] as const) {
     const tk = mkT({ constraint: { type: 'MSO', date: D, hard: true } });
     const back = readT(fmt, tk).constraint;
     eq(`${fmt} hard MSO type`, back?.type, 'MSO');
     eq(`${fmt} hard MSO hard`, back?.hard, true);
-    eq(`${fmt} hard MSO date`, back?.date, D);
+    eq(`${fmt} hard MSO date`, back?.date, fmt === 'IFC' ? D : `${D}T07:00`);
   }
 
   // (e) Secundaire constraint: IFC + P6 round-trippen 'm (native); MSPDI laat 'm vallen + warn.
@@ -571,7 +580,8 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     for (const fmt of ['IFC', 'P6'] as const) {
       const c2 = readT(fmt, tk).constraint2;
       eq(`${fmt} secundair type`, c2?.type, 'FNLT');
-      eq(`${fmt} secundair date`, c2?.date, D);
+      // FNLT is eindachtig: in P6 XML het einde van de werkdag (15:00) sinds F5b (I8); IFC houdt het daganker.
+      eq(`${fmt} secundair date`, c2?.date, fmt === 'IFC' ? D : `${D}T15:00`);
       eq(`${fmt} secundair niet-hard`, c2?.hard ?? false, false);
     }
     const { out: mspTk, warns } = withWarns(() => readMSPDI(writeMSPDI(dayProj, dayCal, tk, [], [], [])).tasks.find(t => t.name === 'X')!);
@@ -592,8 +602,9 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     assert(mw.some(w => w.includes('hammock')), 'MSPDI hammock → warn');
   }
 
-  // (g) OPS_SchedulingOptions-pset: IFC round-trippt het VOLLE blok; MSPDI alleen
-  //     criticalDefinition.threshold via CriticalSlackLimit (rest weggelaten + warn); P6 niets + warn.
+  // (g) OPS_SchedulingOptions-pset: IFC round-trippt het VOLLE blok; MSPDI criticalDefinition.threshold via
+  //     CriticalSlackLimit en de lagkalender via `OPS_LagCalendar` (F5a-2, review #585 r1 punt 1; rest
+  //     weggelaten + warn); P6 alleen de lagkalender via de project-UDF `OPS_LagCalendar` + warn.
   {
     const so = {
       criticalDefinition: { mode: 'totalFloat' as const, threshold: 2 },
@@ -606,7 +617,7 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     eq('IFC schedulingOptions volledig round-trip', ifcBack, so);
     const { out: mspBack, warns: mw } = withWarns(() => readMSPDI(writeMSPDI(proj2, dayCal, tk, [], [], [])).project.schedulingOptions);
     eq('MSPDI CriticalSlackLimit → threshold', mspBack?.criticalDefinition, { mode: 'totalFloat', threshold: 2 });
-    eq('MSPDI lagCalendar/floatPaths weg', [mspBack?.lagCalendar, mspBack?.floatPaths], [undefined, undefined]);
+    eq('MSPDI lagCalendar terug (OPS_LagCalendar), floatPaths weg', [mspBack?.lagCalendar, mspBack?.floatPaths], ['successor', undefined]);
     assert(mw.some(w => w.includes('lagCalendar')), 'MSPDI schedulingOptions-verlies-warn');
     // Speling-modus: MSPDI heeft er geen veld voor en heropent als *Automatisch* (afwezig). Ook
     // 'smallest' (de P6-modus) is dus verlies en moet gemeld worden; afwezig is verliesvrij.
@@ -620,7 +631,7 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     }
     assert(!tfOnly().warns.some(w => w.includes('totalFloatMode')), 'MSPDI zonder totalFloatMode (automatisch) → geen warn');
     const { out: p6Back, warns: pw } = withWarns(() => readP6XML(writeP6XML(proj2, dayCal, tk, [], [], [])).project.schedulingOptions);
-    eq('P6 schedulingOptions niet uitdrukbaar', p6Back ?? null, null);
+    eq('P6 schedulingOptions: alleen de lagkalender (OPS_LagCalendar)', p6Back ?? null, { lagCalendar: 'successor' });
     assert(pw.some(w => w.includes('scheduling-opties')), 'P6 schedulingOptions-verlies-warn');
   }
 }
@@ -947,8 +958,9 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
 // werktijd-duur — de conservatieve keuze is dan ook weggelaten-met-warn i.p.v. een halve
 // round-trip die zich als vol voordoet. Deze case bewijst BEIDE kanten: (a) de warn vuurt met het
 // juiste aantal wanneer er een ELAPSEDTIME-taak in zit, en NIET wanneer alle taken WORKTIME zijn;
-// (b) de herimport laat zien dat de taak inderdaad als WORKTIME terugkomt (de eerlijke, gemeten
-// realiteit die de warn-tekst beschrijft — "geëxporteerd als gewone werktijd-duur").
+// (b) de herimport: MSPDI draagt ELAPSEDTIME native (DurationFormat). P6 krijgt de taak als gewone
+// werktijd-duur (de warn-tekst), maar OPS leest de kalendertijd terug uit het OPS-record met de eenheid
+// `eu` (F5a-2, review #585 r1 punt 3).
 {
   const projE: Project = {
     id: 'p-elapsed', name: 'Elapsed', description: '', startDate: '2026-07-06', endDate: '2026-07-31',
@@ -1017,7 +1029,8 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     const backP = readP6XML(p6Xml);
     const elapsedBackP = backP.tasks.find(t => t.name === 'Storttijd beton (24/7)');
     assert(!!elapsedBackP, 'H5 P6-round-trip: elapsed-taak komt terug (op naam)');
-    eq('H5 P6-round-trip: durationType valt terug op WORKTIME', elapsedBackP?.time.durationType, 'WORKTIME');
+    eq('H5 P6-round-trip: het OPS-record bewaart ELAPSEDTIME', [elapsedBackP?.time.durationType, elapsedBackP?.time.durationMinutes],
+      ['ELAPSEDTIME', 4320]);
 
     const { out: csvText, warns: wC } = withWarnings(() => writeCSV(projE, H8, mixedTasks, [], [], []));
     assert(
