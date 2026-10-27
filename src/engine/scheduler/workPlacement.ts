@@ -96,8 +96,13 @@ export function workPlacement(engine: CalendarEngine, placement: WorkPlacement):
   // Bij een duur ligt het einde op de split-as vast zoals bij de solver (`addDurationChecked`): het werk plus
   // de gaten ervóór (`splitTotalSpanMinutes`). Zo is het einde gelijk aan `addWorkMinutes`, ook op een
   // bandgrens (was knownbug 390: de lus telde kommagetalminuten op en een `Date` kapte af).
+  // Alleen de tijdas rekent in hele ms. Het geboekte werk blijft de bronhoeveelheid: elk werkstuk boekt zijn
+  // lengte en het laatste de rest van de duur (`rest`). Zo maakt een afgerond einde geen extra werk; drie
+  // taken van samen precies 8 u maakten anders een volle dag overbezet (review #694 r1). Een plaatsing met
+  // alleen een einde boekt de werktijd tussen start en einde.
   const toMs = CalendarEngine.walkMs;
   let axisEndMs = placement.duration !== undefined ? toMs(splitTotalSpanMinutes(gaps, remaining)) : Infinity;
+  let rest = remaining;
   let gapIndex = 0;
   let axisMs = 0;
   let finish = start;
@@ -120,7 +125,8 @@ export function workPlacement(engine: CalendarEngine, placement: WorkPlacement):
         const step = Math.min(end - cursor, boundary - axisMs, axisEndMs - axisMs);
         if (!(step > 0)) { axisEndMs = axisMs; break; }
         if (!inGap) {
-          const minutes = step / 60_000;
+          const minutes = axisMs + step >= axisEndMs ? rest : Math.min(step / 60_000, rest);
+          rest -= minutes;
           ranges.push({ afterMinutes: axisMs / 60_000, axisMinutes: minutes, minutes, share: minutes / denominator });
         }
         axisMs += step;
@@ -134,6 +140,17 @@ export function workPlacement(engine: CalendarEngine, placement: WorkPlacement):
       share: ranges.reduce((sum, r) => sum + r.share, 0),
     });
     day = addCalendarDays(day, 1);
+  }
+  // Eindigt de as in een gat (de werkrest erna is korter dan een halve ms), dan boekt het laatste werkstuk
+  // die rest.
+  const tail = days[days.length - 1];
+  if (tail && rest > 0 && Number.isFinite(rest)) {
+    const range = tail.ranges[tail.ranges.length - 1];
+    range.minutes += rest;
+    range.axisMinutes += rest;
+    range.share += rest / denominator;
+    tail.minutes += rest;
+    tail.share += rest / denominator;
   }
   return { days, finish };
 }

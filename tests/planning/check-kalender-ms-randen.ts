@@ -8,15 +8,21 @@
 //  391: een lengte onder een halve ms is in hele ms 0, maar `addWorkMinutes` normaliseerde de start vooruit en
 //       `subtractWorkMinutes` achteruit. Vanaf ma 1 juni 08:00 kwam 0,000001 min terug op vr 29 mei 16:00.
 //
+// Alleen de tijdas rekent in hele ms. Het geboekte werk blijft de bronhoeveelheid (review #694 r1): boekte de
+// plaatsing de afgeronde lengte, dan maakten drie XER-taken van samen precies 8 u een volle dag overbezet.
+//
 // Wat deze check vastlegt:
 //  (a) het einde van de plaatsing is op de ms gelijk aan `addWorkMinutes` vanaf ma 08:00, de plaatsing boekt
-//      geen dag na dat einde en het geboekte werk wijkt minder dan een halve ms af van de duur: tienden
+//      geen dag na dat einde, en het geboekte werk is de duur (alleen floatruis, geen halve ms): tienden
 //      0,1–5000 min, uren met twee decimalen 0,01–83 u, en breuken die geen heel aantal ms zijn (1920/7,
 //      1600,00002, 2407,40742 en twee band-einden plus 0,3 ms); op ma–vr 08:00–16:00 en op 08–12 + 13–17.
-//      Met splits is het einde `addWorkMinutes` over het werk plus de gaten ervóór, zoals de solver;
-//  (a2) hetzelfde via de echte keten van belasting en nivelleerder (`taskLoadPlacement`, `computeResourceLoad`,
-//      `levelResources`): A 480,000005 min op ma, B 480 min op di, één resource met capaciteit 1. A geeft
-//      geen belasting op dinsdag, dinsdag is niet overbezet, en de nivelleerder schuift niets;
+//      Met splits is het einde `addWorkMinutes` over het werk plus de gaten ervóór, zoals de solver, en het
+//      geboekte werk de duur, ook als de as in een gat eindigt;
+//  (a2) via de keten van de belasting (`taskLoadPlacement`, `computeResourceLoad`): A 480,000005 min op ma, B
+//      480 min op di, één resource met capaciteit 1. A boekt niets op dinsdag, dus dinsdag is precies vol;
+//  (a3) de volle dag uit review #694 r1 via de echte openroute (XER → store → Bereken → nivelleren →
+//      Toepassen), onder OPS, P6 en MS Project: maandag precies 1 belast, 8 u werk, geen overbezetting, en
+//      de nivelleerder schuift niemand, ook niet na Toepassen;
 //  (b) de spiegel `subtractWorkMinutes(addWorkMinutes(t, m), m)` voor m = 0, 0,000001, 0,000008 (net onder een
 //      halve ms) en 0,0000083334 (net boven), vanaf ma 08:00, ma 12:00 en vr 16:00, op beide kalenders. Onder
 //      een halve ms is de uitkomst `t` zelf. Vanaf een band-eind geeft 1 ms de volgende bandstart terug:
@@ -26,16 +32,17 @@
 //      de plaatsing van zo'n duur is leeg, met de start als einde, net als `addWorkMinutes`.
 //
 // Draait via run.sh (esbuild-bundel, ook in de tijdzone-matrix). Alleen de exitcode telt.
+import './domStub';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { workPlacement } from '@/engine/scheduler/workPlacement';
 import { computeResourceLoad, taskLoadPlacement } from '@/engine/scheduler/ResourceLoad';
-import { levelResources } from '@/engine/scheduler/ResourceLeveler';
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { splitTotalSpanMinutes } from '@/engine/scheduler/duration';
 import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
+import { createAppStoreContext } from '@/state/appStore';
+import { parseOpenedFile } from '@/services/formatRegistry';
 import { formatDate, parseInstant } from '@/utils/dateUtils';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
-import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 
@@ -59,6 +66,9 @@ const CALENDARS = [DAY, LUNCH];
 const MONDAY = new Date('2026-06-01T08:00:00Z');
 /** Een halve ms in minuten: de grens waaronder een lengte in hele ms 0 is. */
 const HALF_MS_MIN = 0.5 / 60_000;
+/** Floatruis bij het optellen van geboekte minuten; ver onder een halve ms (8,3e-6 min). */
+const WORK_EPS_MIN = 1e-9;
+const bookedMinutes = (days: readonly { minutes: number }[]): number => days.reduce((sum, d) => sum + d.minutes, 0);
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // (a) Het einde van de plaatsing is het einde van de kalenderwandeling
@@ -79,12 +89,12 @@ for (const calendar of CALENDARS) {
       const walked = engine.addWorkMinutes(MONDAY, m);
       const placed = workPlacement(engine, { start: MONDAY, duration: m, measure: 'minutes' });
       const lastDay = formatDate(walked);
-      const booked = placed.days.reduce((sum, d) => sum + d.minutes, 0);
+      const booked = bookedMinutes(placed.days);
       if (placed.finish.getTime() !== walked.getTime()) {
         misses.push(`${m} min: plaatsing ${iso(placed.finish)}, wandeling ${iso(walked)}`);
       } else if (placed.days.some(d => d.iso > lastDay)) {
         misses.push(`${m} min: belasting na ${lastDay} (${placed.days.map(d => d.iso).join(' ')})`);
-      } else if (!(Math.abs(booked - m) <= HALF_MS_MIN + 1e-9)) {
+      } else if (!(Math.abs(booked - m) <= WORK_EPS_MIN)) {
         misses.push(`${m} min: geboekt ${booked} min`);
       }
     }
@@ -97,12 +107,14 @@ for (const calendar of CALENDARS) {
   const placed = workPlacement(engine, { start: MONDAY, duration: 1920 / 7, measure: 'minutes' });
   eq('(a) het geval uit de knownbug: 1920/7 min vanaf ma 08:00', iso(placed.finish), '2026-06-01T12:34:17.143Z');
   const tail = workPlacement(engine, { start: MONDAY, duration: 480.000005, measure: 'minutes' });
-  eq('(a) band-eind plus 0,3 ms: alleen maandag, einde ma 16:00',
-    [tail.days.map(d => d.iso), iso(tail.finish)], [['2026-06-01'], '2026-06-01T16:00:00.000Z']);
+  eq('(a) band-eind plus 0,3 ms: alleen maandag, einde ma 16:00, geboekt de bronduur',
+    [tail.days.map(d => d.iso), iso(tail.finish), bookedMinutes(tail.days)],
+    [['2026-06-01'], '2026-06-01T16:00:00.000Z', 480.000005]);
 }
 // Met splits: het einde op de split-as is het werk plus de gaten ervóór, één keer afgerond, zoals de solver
 // (`addDurationChecked`: `addWorkMinutes(start, splitTotalSpanMinutes(gaps, werk))`). Werk en gaten los
-// afronden zou bij 1920/7 min werk, gat en werk 1 ms te laat eindigen.
+// afronden zou bij 1920/7 min werk, gat en werk 1 ms te laat eindigen. Het geboekte werk is de duur, ook als
+// de as in een gat eindigt (480,000005 min met een gat van 60 min na 480 min: het werk na het gat is 0,3 ms).
 for (const calendar of CALENDARS) {
   const engine = new CalendarEngine(calendar);
   const piece = 1920 / 7;
@@ -110,17 +122,22 @@ for (const calendar of CALENDARS) {
     { work: 3 * piece, gaps: [{ afterMinutes: piece, gapMinutes: piece }] },
     { work: 480, gaps: [{ afterMinutes: 240, gapMinutes: 240.000005 }] },
     { work: 2407.40742, gaps: [{ afterMinutes: 1600.00002, gapMinutes: 0.1 }, { afterMinutes: 1600.05, gapMinutes: piece }] },
+    { work: 480.000005, gaps: [{ afterMinutes: 480, gapMinutes: 60 }] },
   ];
   for (const { work, gaps } of cases) {
     const placed = workPlacement(engine, { start: MONDAY, duration: work, measure: 'minutes', gaps });
     eq(`(a) ${calendar.id}, ${work} min werk met ${gaps.length} gat(en): einde = addWorkMinutes(werk + gaten)`,
       iso(placed.finish), iso(engine.addWorkMinutes(MONDAY, splitTotalSpanMinutes(gaps, work))));
+    eq(`(a) ${calendar.id}, ${work} min werk met ${gaps.length} gat(en): geboekt werk = de duur`,
+      Math.abs(bookedMinutes(placed.days) - work) <= WORK_EPS_MIN, true);
   }
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-// (a2) Belasting en nivelleerder via de echte plaatsing
+// (a2) De belasting via de echte plaatsing
 // ════════════════════════════════════════════════════════════════════════════════════════════════
+// A boekt haar bronwerk binnen haar eigen spanne, dus niets op dinsdag. Haar rest van 0,3 ms boven de volle
+// maandag blijft op maandag; wat de belasting daarmee doet, legt deze check niet vast (zie de PR-tekst).
 const OPS = effectiveSchedulingOptions({});
 function hourTask(id: string, start: string, minutes: number): Task {
   return {
@@ -154,19 +171,63 @@ function hourTask(id: string, start: string, minutes: number): Task {
     { id: 'rb', taskId: 'b', resourceId: 'r', unitsPerDay: 1, curve: 'UNIFORM' as const },
   ];
   const load = computeResourceLoad(resources, assignments, [a, b], DAY, [], OPS);
-  eq('(a2) belasting: ma en di elk precies één dag', Object.keys(load.load.r ?? {}).sort(), ['2026-06-01', '2026-06-02']);
-  eq('(a2) belasting: geen overbezette dag', load.overallocatedDays.r ?? [], []);
+  eq('(a2) belasting: alleen ma en di belast', Object.keys(load.load.r ?? {}).sort(), ['2026-06-01', '2026-06-02']);
+  eq('(a2) belasting: dinsdag precies vol en niet overbezet',
+    [load.load.r?.['2026-06-02'], (load.overallocatedDays.r ?? []).includes('2026-06-02')], [1, false]);
+}
 
-  const stub: CPMResult = {
-    tasks: new Map(), criticalPath: [], drivingSequenceIds: [], sequenceFreeFloat: {},
-    truncatedLeadSequenceIds: [], violatedConstraintTaskIds: [], missedDeadlineTaskIds: [],
-    outOfSequenceSequenceIds: [], nearCriticalTaskIds: [], criticalPaths: [], floatPathByTask: {},
-    hammockNoFinishDriverTaskIds: [], projectEnd: b.time.earlyFinish!, projectDuration: 0,
-  };
-  const leveled = levelResources([a, b], [], resources, assignments, DAY, [], stub,
-    { constrainToFloat: false }, { schedulingOptions: OPS });
-  eq('(a2) nivelleerder: niets geschoven, geen conflict',
-    [leveled.delays, leveled.shifts, leveled.unresolved], [{}, {}, {}]);
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// (a3) Een volle dag via de echte openroute (review #694 r1)
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// Drie niet-gestarte XER-taken van 2,285711 + 2,285711 + 3,428578 u = precies 8 u (de lezer: 137,14266 +
+// 137,14266 + 205,71468 = 480 min), alle drie vanaf ma 1 juni 08:00 op één medewerker met capaciteit 1. Geen
+// van die duren is een heel aantal ms, en elk einde rondt naar boven af. Boekte de plaatsing de afgeronde
+// lengte, dan was maandag 1,0000000347 belast (8,0000003 u), en schoof de nivelleerder B naar dinsdag.
+const FULL_DAY_HOURS = ['2.285711', '2.285711', '3.428578'];
+const XER_WEEK = '(0||CalendarData()((0||DaysOfWeek()((0||1()())'
+  + [2, 3, 4, 5, 6].map(d => `(0||${d}()((0||0(s|08:00|f|16:00)())))`).join('') + '(0||7()())))(0||Exceptions()())))';
+const FULL_DAY_XER = [
+  'ERMHDR\t23.12\t2026-06-01\t\t\t\t\t\tEUR',
+  '%T\tPROJECT', '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date', '%R\tP1\tVolle dag\tC1\t2026-06-01 08:00',
+  '%T\tCALENDAR', '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+  `%R\tC1\tDagkalender\tP1\tCA_Project\t8\t40\t${XER_WEEK}`,
+  '%T\tTASK', '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tstatus_code\tcomplete_pct_type'
+    + '\tcomplete_pct\tphys_complete_pct\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date',
+  ...FULL_DAY_HOURS.map((h, i) => {
+    const code = 'ABC'[i];
+    return `%R\tT${i + 1}\tP1\tC1\t${code}\t${code}\tTT_Task\tTK_NotStart\tCP_Phys\t0\t0\t${h}\t${h}`
+      + '\t2026-06-01 08:00\t2026-06-01 16:00';
+  }),
+  '%E',
+].join('\n');
+const OPEN = { filePath: null, fileHandle: null, recompute: true, fit: false, linkedOpen: true } as const;
+for (const profile of ['ops', 'p6', 'msproject'] as const) {
+  const store = createAppStoreContext().store;
+  const opened = await parseOpenedFile({ name: 'volle-dag.xer', bytes: new TextEncoder().encode(FULL_DAY_XER) });
+  store.getState().applyOpenedImport(opened, OPEN);
+  store.getState().applySchedulingSettings({
+    profile: { id: profile, baseId: profile, name: '', overrides: {} },
+    options: store.getState().project.schedulingOptions,
+  });
+  const r = store.getState().addResource({ name: 'Een medewerker', description: '', type: 'LABOR', maxUnits: 1 });
+  const leaves = () => store.getState().tasks.filter(t => !t.isSummary);
+  for (const t of leaves()) store.getState().assignResource(t.id, r, 1);
+  store.getState().runCPM();
+  const s = store.getState();
+  eq(`(a3) ${profile}: drie taken van samen 480 min, alle drie vanaf ma 08:00`,
+    [leaves().reduce((sum, t) => sum + (t.time.durationMinutes ?? 0), 0), leaves().map(t => t.time.earlyStart)],
+    [480, ['2026-06-01T08:00', '2026-06-01T08:00', '2026-06-01T08:00']]);
+  const monday = s.resourceLoadResult?.load[r]?.['2026-06-01'] ?? NaN;
+  eq(`(a3) ${profile}: maandag belast met precies 1, zonder marge`, [monday <= 1, monday], [true, 1]);
+  eq(`(a3) ${profile}: 8 u werk (alleen floatruis)`, Math.abs((s.resourceLoadResult?.hours[r] ?? NaN) - 8) <= 1e-9, true);
+  eq(`(a3) ${profile}: geen overbezette dag`, s.resourceLoadResult?.overallocatedDays[r] ?? [], []);
+  const level = s.levelResources({ constrainToFloat: false });
+  eq(`(a3) ${profile}: de nivelleerder schuift niemand`, [level.delays, level.shifts, level.unresolved], [{}, {}, {}]);
+  s.applyLeveling(level);
+  const after = store.getState();
+  eq(`(a3) ${profile}: na Toepassen staan A, B en C nog op ma 08:00, zonder overbezetting`,
+    [leaves().map(t => [t.name, t.time.earlyStart]), after.resourceLoadResult?.overallocatedDays[r] ?? []],
+    [[['A', '2026-06-01T08:00'], ['B', '2026-06-01T08:00'], ['C', '2026-06-01T08:00']], []]);
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
