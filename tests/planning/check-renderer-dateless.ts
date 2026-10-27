@@ -210,8 +210,8 @@ if (renderError === null) {
   }
 
   // 5. Relatie-hittest (spec 2026-08-14). Bewust een ÁNDERE functie dan getTaskBarBounds: die
-  //    laatste armt slepen/resizen en moet mijlpalen blijven weigeren (een ruit heeft geen duur
-  //    om te resizen, een verzamelbalk heeft afgeleide datums).
+  //    laatste armt slepen/resizen. Een ruit mag sinds issue #691 verplaatst worden maar niet
+  //    gerekt (hij heeft geen duur), een verzamelbalk blijft geweigerd (afgeleide datums).
   if (healthyBars.length > 0) {
     const bar = healthyBars[0];
     const midX = bar.x + bar.w / 2;
@@ -235,9 +235,20 @@ if (renderError === null) {
     ok('getRelationSourceAt accepteert een datumloze taak',
       renderer.getRelationSourceAt(TTW + 5, rowMidY(1)) === null);
 
-    // Regressie-anker de andere kant op: de sleep/resize-hittest is NIET versoepeld.
-    ok('getTaskBarBounds armt nu wél drag op een mijlpaal (mag niet)',
-      renderer.getTaskBarBounds(bar.x, rowMidY(5)) === null);
+    // Issue #691 (eigenaarsbesluit 2026-10-27, "mijlpalen moeten gewoon sleepbaar worden"): de ruit
+    // verplaatst, maar rekt nooit. Op én naast het anker (binnen de greep) is het altijd 'body',
+    // nooit 'left'/'right'; ruim ernaast geen greep. De verzamelbalk blijft geweigerd.
+    const msX = renderer.getTaskBarRect('ms-dated');
+    const msAnchor = msX ? (msX.left + msX.right) / 2 : bar.x;
+    for (const dx of [-5, -1, 0, 1, 5]) {
+      const hit = renderer.getTaskBarBounds(msAnchor + dx, rowMidY(5));
+      ok(`getTaskBarBounds: mijlpaal op anker${dx >= 0 ? '+' : ''}${dx} is geen verplaatsgreep (kreeg ${JSON.stringify(hit && { id: hit.task.id, edge: hit.edge })})`,
+        hit?.task.id === 'ms-dated' && hit.edge === 'body');
+    }
+    ok('getTaskBarBounds: mijlpaal ruim naast de ruit (anker+20) armt toch een greep',
+      renderer.getTaskBarBounds(msAnchor + 20, rowMidY(5)) === null);
+    ok('getTaskBarRect: greepvlak van de mijlpaal ligt niet om het ruitanker',
+      msX !== null && Math.abs(msAnchor - renderer.dateToX(parseInstant(datedMilestone.time.earlyStart!))) < 0.5);
     ok('getTaskBarBounds armt nu wél drag op een verzamelbalk (mag niet)',
       renderer.getTaskBarBounds(midX, rowMidY(6)) === null);
 
@@ -268,7 +279,7 @@ if (renderError === null) {
       renderer.getRelationSourceAt(startOnlyX + 4, rowMidY(8))?.id === 'ms-start-only');
     ok('getRelationSourceAt weigert de start-only mijlpaal ruim buiten de marge',
       renderer.getRelationSourceAt(startOnlyX + 20, rowMidY(8)) === null);
-    // Regressie-anker de andere kant op: sleep/resize blijft geweigerd (een ruit heeft geen duur).
+    // Zonder einde blijft hij buiten de sleep: de sleep rekent vanaf begin én einde (datumloos-guard).
     ok('getTaskBarBounds armt drag op de start-only mijlpaal (mag niet)',
       renderer.getTaskBarBounds(startOnlyX, rowMidY(8)) === null);
   }

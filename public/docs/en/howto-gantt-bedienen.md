@@ -17,6 +17,8 @@ If the task has a predecessor, the app records the new start as the constraint *
 
 If you drag mostly up or down instead of sideways, you move the task to another row and the dates stay. The direction you choose in the first few pixels applies to the whole drag, so one gesture never changes dates and structure at the same time. See [Adjusting the structure](docs://howto-structuur-aanpassen).
 
+You move a milestone (the diamond) the same way: press on the diamond and drag sideways. It stays a milestone without duration. A milestone has no edges, so you cannot change the duration of a milestone. If the milestone was at the end of a working day, it lands at the end of a working day again, also on a shorter day; if it was at the start, it lands at the start. If you let go on a day off, it moves on to the first working day in the direction you dragged. You cannot drag a summary task: its dates follow from the tasks below it.
+
 ### Adjusting the duration
 
 1. Move the mouse to the right edge of the bar. The cursor becomes an arrow pointing left and right.

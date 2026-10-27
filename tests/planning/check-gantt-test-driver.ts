@@ -106,7 +106,13 @@ renderer.render();
 
 ok('onbekend taak-id levert geen fictieve rechthoek', renderer.getTaskBarRect('bestaat-niet') === null);
 ok('datumloze taak levert geen fictieve sleeprechthoek', renderer.getTaskBarRect(dateless.id) === null);
-ok('mijlpaal volgt bestaand hit-testbeleid en levert geen sleeprechthoek', renderer.getTaskBarRect(milestone.id) === null);
+// Issue #691: een ruit is verplaatsbaar, dus de testnaad levert zijn greepvlak; het midden ervan is body.
+const milestoneRect = renderer.getTaskBarRect(milestone.id);
+ok('mijlpaal levert een greepvlak rond de ruit', milestoneRect !== null);
+if (milestoneRect) {
+  const hit = renderer.getTaskBarBounds((milestoneRect.left + milestoneRect.right) / 2, (milestoneRect.top + milestoneRect.bottom) / 2);
+  ok('midden van het mijlpaalgreepvlak is een verplaatsgreep (body)', hit?.task.id === milestone.id && hit.edge === 'body');
+}
 ok('summary volgt bestaand hit-testbeleid en levert geen sleeprechthoek', renderer.getTaskBarRect(summary.id) === null);
 
 const rect = renderer.getTaskBarRect(healthy.id);

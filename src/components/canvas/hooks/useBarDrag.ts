@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { holdAutoCalc } from '@/state/editHold';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
-import { parseDate, parseInstant, formatDate, formatInstant } from '@/utils/dateUtils';
+import { parseDate, parseInstant, formatDate, formatInstant, utcDayStart } from '@/utils/dateUtils';
 import { isCompressedEffective } from '@/engine/renderer/workdayAxis';
 import { shiftByDisplayedColumns } from '@/engine/renderer/barDragMath';
-import { ELAPSED_DRAG_CLOCK, resolveDayMeasureBarDrag, resolveHourBarDrag } from '@/engine/renderer/hourBarDragMath';
+import {
+  ELAPSED_DRAG_CLOCK, resolveDayMeasureBarDrag, resolveHourBarDrag, resolveMilestoneDayDrag, resolveMilestoneHourDrag,
+} from '@/engine/renderer/hourBarDragMath';
 import { taskSplitMeasure } from '@/engine/renderer/splitBarGeometry';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
-import { durationMinutesOf, isElapsedTask, taskDurationUnit } from '@/engine/scheduler/duration';
+import { durationMinutesOf, isElapsedTask, isZeroDurationMilestone, taskDurationUnit } from '@/engine/scheduler/duration';
 import { taskCountsInWorkdays } from '@/engine/scheduler/conventions/durationMeasure';
 import {
   canSplitTask, setGapLength, setWorkLength, splitUnitMinutes, toSplitPieces, workAxisMinutesBetween,
@@ -390,6 +392,51 @@ export function useBarDrag({
       return true;
     };
 
+    // Een nulduurmijlpaal (ruit) heeft alleen een body (`getTaskBarBounds`, issue #691): hij verschuift en
+    // houdt duur 0. Met momenten rekent hij op zijn eigen moment (`resolveMilestone…Drag`); een mijlpaal met
+    // alleen datums loopt via de dagsleep hieronder, die begin en einde gelijk verschuift.
+    const milestone = isZeroDurationMilestone(draggedTask) && hasInstants;
+    const handleMilestoneDrag = (event: MouseEvent) => {
+      const canvas = canvasRef.current;
+      const rect = canvas?.getBoundingClientRect();
+      if (!rect || !dragState.pointerStart) return;
+      const baseTime = getTask(dragState.taskId)?.time;
+      if (!baseTime) return;
+      const engine = new CalendarEngine(calendarForEngine(effectiveCalById.get(dragState.taskId) ?? calendar));
+      const original = parseInstant(dragState.originalStart);
+      const columns = Math.round((event.clientX - dragState.startX) / zoom);
+      const at = quantumMin === 1440
+        ? resolveMilestoneDayDrag({
+          calendar: engine,
+          original,
+          milestoneKind: draggedTask.milestoneKind,
+          targetDay: shiftByDisplayedColumns(axisCalEngine, utcDayStart(original), columns, compressed),
+          direction: Math.sign(columns),
+        })
+        : resolveMilestoneHourDrag({
+          calendar: engine,
+          original,
+          milestoneKind: draggedTask.milestoneKind,
+          pointerStart: dragState.pointerStart,
+          pointerCurrent: axis.xToDate(event.clientX - rect.left),
+          snapMinutes: quantumMin,
+        });
+      const next = formatInstant(at, 'hour');
+      if (startBlocked(next !== dragState.originalStart)) return;
+      if (baseTime.scheduleStart === next && baseTime.scheduleFinish === next
+        && baseTime.earlyStart === next && baseTime.earlyFinish === next) return;
+      updateTask(dragState.taskId, {
+        time: {
+          ...baseTime,
+          scheduleStart: next,
+          scheduleFinish: next,
+          earlyStart: next,
+          earlyFinish: next,
+        },
+        ...constraintForStart(next),
+      }, { coalesceKey: undoKey });
+    };
+
     const handleHourDrag = (event: MouseEvent) => {
       const canvas = canvasRef.current;
       const rect = canvas?.getBoundingClientRect();
@@ -574,6 +621,10 @@ export function useBarDrag({
       const lock = actualLockRef.current;
       if (lock) {
         if (Math.abs(pixelDelta) >= ROW_DRAG_THRESHOLD) lock.tried = true;
+        return;
+      }
+      if (milestone) {
+        handleMilestoneDrag(e);
         return;
       }
       if (dragKind === 'hours' || dragKind === 'daysAsHours') {

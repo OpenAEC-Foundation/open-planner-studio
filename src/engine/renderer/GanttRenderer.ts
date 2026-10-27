@@ -1745,6 +1745,15 @@ export class GanttRenderer {
     return milestoneAnchorX(task, date => this.dateToX(date), this.opts.view.zoom);
   }
 
+  /** Het greepvlak van een nulduurmijlpaal: het anker van de getekende ruit (`drawMilestone`) en de
+   *  halve breedte. Minstens 6 px naar elke kant, dezelfde marge als `getRelationSourceAt`: een ruit
+   *  in een lage rij is anders nauwelijks te raken. */
+  private milestoneGrab(task: Task): { x: number; half: number } | null {
+    const x = this.milestoneAnchorX(task);
+    if (x === null) return null;
+    return { x, half: Math.max(6, this.bar.barHeight * 0.4) };
+  }
+
   private drawMilestone(task: Task, y: number, height: number, isSelected: boolean, overrideColor?: string): void {
     const ctx = this.ctx;
     // Zelfde guard als barGeometry: een datumloze mijlpaal heeft niets om op te
@@ -2451,22 +2460,27 @@ export class GanttRenderer {
 
   /** Dev/browser-testnaad: vind de werkelijk getekende sleepbalk zonder geometrie te dupliceren.
    *  De methode blijft bewust in de renderer: alleen die bezit rijpositie, tijdas en hit-testbeleid.
-   *  Datumloze terugvalstubs, nulduurmijlpalen en verzameltaken zijn niet sleepbaar en leveren
-   *  daarom net als `getTaskBarBounds` geen fictieve rechthoek op. */
+   *  Datumloze terugvalstubs en verzameltaken zijn niet sleepbaar en leveren daarom net als
+   *  `getTaskBarBounds` geen fictieve rechthoek op. Een nulduurmijlpaal levert zijn greepvlak rond
+   *  de ruit (`milestoneGrab`), want die mag verplaatst worden (issue #691). */
   getTaskBarRect(taskId: string): { left: number; right: number; top: number; bottom: number } | null {
     const rowIndex = this.rowIndexByTask.get(taskId);
     if (rowIndex === undefined) return null;
     const row = this.rows[rowIndex];
     if (row?.kind !== 'task') return null;
     const task = row.task;
-    if (isSummaryTask(task) || isZeroDurationMilestone(task)) return null;
+    if (isSummaryTask(task)) return null;
     if (!shownStart(task) || !shownFinish(task)) {
       return null;
     }
 
-    const { x1, x2 } = this.barGeometry(task);
     const { barHeight, barOffset } = this.bar;
     const top = this.rowToY(rowIndex) + barOffset;
+    if (isZeroDurationMilestone(task)) {
+      const grab = this.milestoneGrab(task);
+      return grab && { left: grab.x - grab.half, right: grab.x + grab.half, top, bottom: top + barHeight };
+    }
+    const { x1, x2 } = this.barGeometry(task);
     return {
       left: x1,
       right: x1 + Math.max(x2 - x1, 4),
@@ -2499,15 +2513,21 @@ export class GanttRenderer {
   } | null {
     if (canvasX < 0 || canvasX >= this.opts.canvasWidth) return null;
     const task = this.getTaskAtY(canvasY);
-    // `isZeroDurationMilestone` — een mijlpaal-met-duur tekent als
-    // gewone balk en moet dus ook gewoon sleep-/resize-baar zijn, zoals elke andere
-    // taak met een echte duur.
-    if (!task || isSummaryTask(task) || isZeroDurationMilestone(task)) return null;
+    if (!task || isSummaryTask(task)) return null;
     // Datumloos-guard: barGeometry tekent voor zo'n taak een terugval-stub op de
     // viewstart, maar die mag geen sleep/resize armen — de drag-hooks zouden met undefined
     // originalStart/originalFinish rekenen.
     if (!shownStart(task) || !shownFinish(task)) {
       return null;
+    }
+    // Een nulduurmijlpaal (ruit) is verplaatsbaar maar niet rekbaar (issue #691): hij heeft alleen
+    // een body, rond de getekende ruit. Een mijlpaal-met-duur (`isZeroDurationMilestone` is dan
+    // false) tekent als gewone balk en houdt hieronder zijn randen, zoals elke taak met duur.
+    if (isZeroDurationMilestone(task)) {
+      const grab = this.milestoneGrab(task);
+      return grab && Math.abs(canvasX - grab.x) <= grab.half
+        ? { task, edge: 'body', segmentIndex: 0, segmentCount: 1 }
+        : null;
     }
     const edgeZone = 6; // pixels for edge detection
 
@@ -2568,9 +2588,9 @@ export class GanttRenderer {
    * Hit test: mag hier een RELATIE-sleep starten?
    *
    * Bewust een aparte methode náást `getTaskBarBounds` en géén versoepeling daarvan. Die functie
-   * armt slepen én resizen, en weigert mijlpalen en verzamelbalken om goede redenen: een ruit heeft
-   * geen duur om te resizen, en de datums van een verzamelbalk zijn afgeleid uit de kinderen.
-   * Voor een relatie-sleep slaat de mijlpaal-clausule nergens op: een mijlpaal is een bladtaak met
+   * armt slepen én resizen, en weigert verzamelbalken (hun datums zijn afgeleid uit de kinderen);
+   * een ruit krijgt daar alleen een body, want hij heeft geen duur om te resizen (issue #691).
+   * Een relatie-sleep mag wél vanaf beide: een mijlpaal is een bladtaak met
    * duur 0 die de solver volledig ondersteunt als voorganger én opvolger.
    *
    * VERZAMELTAKEN ZIJN EXPLICIET WÉL TOEGESTAAN ALS BRON: `expandSummaryRelations`

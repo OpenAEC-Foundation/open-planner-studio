@@ -78,6 +78,37 @@ test('Gantt bodydrag wijzigt de datum en Ctrl+Z herstelt exact één handeling',
   expect(restoredTask.scheduleFinish).toBe(beforeTask.scheduleFinish);
   expect(restored.undoDepth).toBe(before.undoDepth);
   expect(restored.redoDepth).toBe(before.redoDepth + 1);
+
+  // Issue #691: een mijlpaal (ruit) verschuift met dezelfde sleep en dezelfde ene undo-stap. Hij houdt
+  // duur 0: begin en einde blijven één moment. Ook vanaf de rechterkant van de ruit verschuift hij;
+  // rekken bestaat niet.
+  const milestoneId = await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    const id = s.addTask({ name: 'Oplevering', isMilestone: true, milestoneKind: 'FINISH' });
+    window.__OPS__!.store.getState().runCPM();
+    return id;
+  });
+  const milestoneTime = () => page.evaluate((id) => {
+    const t = window.__OPS__!.store.getState().tasks.find(task => task.id === id)!;
+    return { start: t.time.scheduleStart, finish: t.time.scheduleFinish, duration: t.time.scheduleDuration };
+  }, milestoneId);
+  const msBefore = await milestoneTime();
+  expect(msBefore.duration).toBe(0);
+  const msUndoBefore = (await state(page)).undoDepth;
+  for (const edge of ['body', 'right'] as const) {
+    const msPoint = await barPoint(page, milestoneId, edge);
+    await page.mouse.move(msPoint.x - (edge === 'right' ? 1 : 0), msPoint.y);
+    await page.mouse.down();
+    await page.mouse.move(msPoint.x + 72, msPoint.y, { steps: 6 });
+    await page.mouse.up();
+    await expect.poll(() => milestoneTime().then(t => t.start)).not.toBe(msBefore.start);
+    const moved = await milestoneTime();
+    expect(moved.finish).toBe(moved.start);
+    expect(moved.duration).toBe(0);
+    expect((await state(page)).undoDepth).toBe(msUndoBefore + 1);
+    await page.keyboard.press('Control+z');
+    await expect.poll(() => milestoneTime()).toEqual(msBefore);
+  }
 });
 
 // De gedeelde DOM-taakgrid bezit de structurele rijdrag; het tijdlijncanvas bezit uitsluitend

@@ -17,6 +17,8 @@ Heeft de taak een voorganger, dan legt de app de nieuwe start vast als constrain
 
 Sleep je overwegend omhoog of omlaag in plaats van opzij, dan verplaats je de taak naar een andere rij en blijven de datums staan. De richting die je in de eerste paar pixels kiest, geldt voor de hele sleepbeweging, dus één gebaar verandert nooit tegelijk datums en structuur. Zie [Structuur aanpassen](docs://howto-structuur-aanpassen).
 
+Een mijlpaal (de ruit) verplaats je op dezelfde manier: druk op de ruit en sleep opzij. Hij blijft een mijlpaal zonder duur. Een mijlpaal heeft geen randen, dus de duur aanpassen kan bij een mijlpaal niet. Stond de mijlpaal aan het einde van een werkdag, dan landt hij weer aan het einde van een werkdag, ook op een kortere dag; stond hij aan het begin, dan aan het begin. Laat je hem los op een vrije dag, dan schuift hij door naar de eerste werkdag in de richting waarin je sleepte. Een samenvattingstaak kun je niet verslepen: haar datums volgen uit de taken eronder.
+
 ### De duur aanpassen
 
 1. Beweeg de muis naar de rechterrand van de balk. De cursor wordt een pijl naar links en rechts.
