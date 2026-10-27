@@ -64,6 +64,9 @@ type ProductV2 = ProductBaselineV2;
 type ProductEnvelope = ProductEnvelopeV2;
 
 const EXPECTED = {
+  // BEVESTIGD 2026-10-27 (#690 fase 1 punt 1, `main` @ 433cca3b2, mét corpus op aia09-mp50): `npm run
+  // measure:profiles` geeft X12 76 met cel-delta 0/0/0/0; `OPS_XER_V2_WRITE=1` en `OPS_XER_CELLS_WRITE=1`
+  // schrijven byte-gelijke bestanden. Geen enkele pin hieronder veranderd; de stand van 2026-09-24 geldt nog.
   // Manifestpinnen 2026-09-23 (populatie, tweede toepassing van het eigenaarsbesluit van 2026-09-23,
   // handmatige reviewstap): de vier byte-identieke DCP-03-Baseline-kopieën (0611f9054a4b) zijn
   // generatoruitvoer van build_programmes.py → reader-only. Orakels 13 → 9, byte-uniek 10 → 9,

@@ -952,15 +952,6 @@ en noem het in je rapport of PR-tekst.
      de IFC-vastlegging toelaten zonder verplicht bronformaat; actief en slapend herstel toetsen. Gevonden in de
      aanval na #600 (GPT-6.1-Sol). — B
 
-352. **CSV gooit de kloktijd van een werkelijke datum weg, ook als de app hem zelf schreef.**
-     `src/services/importDates.ts:75` (`csvDate`) knipt een ISO-waarde af op de datum (`substring(0, 10)`);
-     `parseDate` in `src/services/csv/csvReader.ts:349` en `:350` gebruikt hem voor Actual Start en Actual Finish.
-     Gemeten: `writeCSV` schrijft Actual Start `2026-06-01T10:15` en Actual Finish `2026-06-01T11:45`; `readCSV`
-     leest beide als `2026-06-01`, en na laden op de standaardkalender staan ze op 07:00 en 16:00. Al op
-     `fbd4a3f9d`. Voorstel: een ISO-waarde met kloktijd lezen met de bestaande parser voor kloktijden uit een
-     bestand (`importDateTime`/`parseImportedInstant` in `importDates.ts`), en alleen een kale datum via de
-     datumroute; geen tweede CSV-datumparser. Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
-
 382. **MSPDI en MPP zonder `ActualFinish` maar op 100 % met een rest komen binnen als lopend.** Sinds #663 geldt
      "geen werkelijk einde en rest > 0" als teken voor lopend op 100 % (`src/services/msproject/mspdiReader.ts:643`,
      `src/services/mpp/mppReader.ts:857`). Een bron met 100 %, geen `ActualFinish` en één minuut rest wordt
@@ -1254,6 +1245,18 @@ en noem het in je rapport of PR-tekst.
      invoer is niet aangetoond. Richting: sla voor `Number.isNaN(cal.id)` alleen de
      control-relaties over, na kalender en metadata; voeg een gerichte regressiecheck toe.
      Vastgesteld door twee onafhankelijke broncontroles bij PR #641; niet uitgevoerd. — B
+
+412. **De MS Project-meting van `measure:profiles` wisselt tussen runs op één bestand.** `check-mpp-fidelity.ts`
+     met corpus gaf op 2026-10-27 op aia09-mp50 soms 3 afwijkingen in `mpxj/junit/data/timephased-cost-rollup.mpp`
+     (Task 5 en 6 einde 2026-02-17 17:00 in plaats van 02-20 17:00, Task 8 02-16 13:59 in plaats van 02-20), soms 0.
+     Rood op `main` @ `433cca3b2` (twee runs, 19:55 en 20:05), daarna groen op dezelfde commit (drie runs, 20:21).
+     Een bisect wees eerst #536 en daarna #538 aan; beide zijn bij herhaling groen en raken geen rekencode. Het
+     corpusbestand is niet veranderd (mtime 2026-08-14). Ook een run op 2026-10-23 (een andere branch) gaf deze 3.
+     De groene runs liepen alle in een losse worktree (`/tmp/690-bisect`); in de reviewworktree van #707 was het
+     5 van 5 keer rood. Het kan dus ook aan de worktree liggen, niet alleen aan het moment.
+     De check leest geen klok of cache die ik vond. Voorstel: de check een paar keer achter elkaar draaien en de
+     uitkomst van de lezer en de motor voor dit bestand vergelijken tussen een rode en een groene run. Gevonden bij
+     #690 fase 1 punt 1. — S
 
 ## Wensen en open taken (geen bug)
 
