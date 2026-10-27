@@ -1313,6 +1313,16 @@ en noem het in je rapport of PR-tekst.
      door een assert dat het openen al een verse, berekende stand geeft. Gevonden in review ronde 1 van
      PR #590 (GPT-6.1-Sol, VERVOLG). — B
 
+401. **De slotcontrole voor geldig openen kan slagen op de bestaande taak.**
+     `tests/browser/new-open-task-flow.spec.ts:97` eist na open(planning) alleen
+     tasks.length groter dan nul. De nieuwe beginstaat heeft dan al één taak; de
+     MPP-controles bewijzen juist dat die bleef staan. Ook wanneer de geldige
+     openroute niets laadt zonder foutmelding, slaagt deze controle dus. Controleer
+     een nieuw actief document en herkenbare inhoud uit het geopende IFC-bestand.
+     Een verlies aan testdekking; geen aangetoonde productfout. Twee onafhankelijke
+     broncontroles bij PR #674; niet lokaal uitgevoerd.
+     — B
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
