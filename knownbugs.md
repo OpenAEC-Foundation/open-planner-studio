@@ -1195,14 +1195,6 @@ en noem het in je rapport of PR-tekst.
     Gevonden in review ronde 1 en 2 van PR #573 (GPT-6.1-Sol). Resterend: de bestaande echte-app-route
     uitbreiden met echte bestandsacties, inhoud en opruiming. — B
 
-262. **`check-recovery-refused-later.ts` scheidt de twee routes niet die de opslag als werkend markeren.**
-    De check laat eerst een lezing én een save slagen en geeft pas daarna een `SecurityError`
-    (`tests/planning/check-recovery-refused-later.ts`, rond regel 47). Hij blijft groen als één van de twee
-    plekken die `webStorageProven` zetten (`readWebRecovery` of `saveRecovery` in
-    `src/services/recovery/recoveryStore.ts`) wegvalt. Ook een overlappende startlezing en save, en de lege
-    terugval na een opstartleesfout (zet de vlag bewust niet), hebben geen eigen toets. Bevestigd in review
-    ronde 2 van PR #644 (GPT-6.1-Sol). Voorstel: per route een eigen proces (alleen lezing, alleen save). — B
-
 263. **Crashherstel en welkomstvenster zijn niet bewezen in de echte werkplek.** Sinds #706 draait
     `tests/browser/welcome-dialog.spec.ts` de app in een echte opaque origin (CSP-sandbox op het document; de
     test controleert `self.origin === 'null'` en de `SecurityError`s). Dat is het hoofddocument op de
@@ -1352,3 +1344,11 @@ en noem het in je rapport of PR-tekst.
      Richting: maak de hele-dagherkenning bestand tegen deze afronding en voeg die
      kalender toe aan `check-drag-duration-badge.ts`. Gevonden in review r2 van #699
      (GPT-6.1-Sol). — B
+
+421. **O1 in `check-recovery-refused-later.ts` bewijst niet dat lezen en opslaan dezelfde sessieclaim afwachten.**
+     De check kijkt na één microtask alleen of beide promises nog lopen
+     (`tests/planning/check-recovery-refused-later.ts`, rond regel 79). De save loopt via
+     `recoveryWriteTail.then(...)` en verdere `await`-stappen, dus `saved` kan ook zonder wachten nog `false`
+     zijn. De lockdubbel (rond regel 55) geeft elke volgende aanvraag meteen vrij, zodat twee aparte claims
+     niet opvallen. Geen aangetoonde productfout, wel een gat in het testbewijs. Richting: tel de
+     lockaanvragen en eis vóór `releaseClaim()` precies één. Gevonden in review r1 van #709 (GPT-6.1-Sol). — B
