@@ -374,12 +374,6 @@ en noem het in je rapport of PR-tekst.
 16. **Taken kopiëren** heeft geen zichtbare bediening; alleen Ctrl+C/V met de Gantt in focus. — B
 17. **Verwijderen zonder bevestiging**: `confirm.deleteTask` staat in de locales maar wordt nergens gebruikt. — S
 
-333. **De bevestigingsdialoog let bij Enter niet op `isComposing`.** `src/components/dialogs/ConfirmDialog.tsx:36–44`:
-    een synthetische IME-Enter verwijderde in een browserprobe de kalender, toen de focus bewust achter de open
-    dialoog stond. De focus-trap zet de focus normaal op Annuleren; een gewone gebruikersroute naar dit geval is
-    niet aangetoond. Voorstel: na `stopPropagation()` een guard voor `isComposing` die ook de standaardactie
-    tegenhoudt. Gevonden in review r2 van #628 (GPT-6-Sol). — B
-
 241. **Hetzelfde externe anker opnieuw invoeren als datum zonder tijd geeft een extra undo-stap en zet
      de planning op verouderd.** `updateExternalLink` vergelijkt het ruwe anker, niet het genormaliseerde.
      Gevonden in fixronde 1 van F2 (laadfix). — B
@@ -422,13 +416,6 @@ en noem het in je rapport of PR-tekst.
      "Herstel standaard" kiest. De cel kapt de tekst af met een beletselteken. Voorstel: bij het laden een
      opgeslagen breedte van precies 100 px voor deze twee kolommen naar 130 px zetten, of de kolom laten
      meegroeien; een besluit over opgeslagen voorkeuren. — B
-286. **De kant van een beperkingsdatum wordt op twee plekken opnieuw bepaald.** `constraintDateSide`
-     (`src/engine/calendar/workdayRules.ts:42`) zegt al of een beperkingsdatum startachtig of eindachtig
-     is. `constraintSide` in `TaskConstraintFields.tsx:16` en `guardSideOf` in `MilestoneReport.tsx:62`
-     bouwen dat opnieuw uit `constraintDateField` en `taskDateFieldSide`. De uitkomst is nu gelijk; het
-     risico is dat een vierde beperkingstype op één plek wel en op een andere niet meekomt. Voorstel: beide
-     helpers vervangen door `constraintDateSide` en de losse imports weghalen. Gevonden in de review van
-     PR #584 (r1, VERVOLG), in de code nagelezen. — B
 288. **Het duurlabel tijdens het slepen rekent kalendertijd met de werktijd per dag.** `GanttRenderer.dragDurationText`
      (`src/engine/renderer/GanttRenderer.ts:1996-2008`) neemt voor een dagtaak `taskDurationMinutes` (dagen ×
      werktijd per dag, `utils/taskDuration.ts:94`) en zet dat om met `effHoursPerDay`. Bij een
@@ -636,21 +623,9 @@ en noem het in je rapport of PR-tekst.
     conflicten wel goed. Voorstel: een ontbrekende reden expliciet in het typecontract, en de MCP-uitleg daarop
     aanpassen. Gevonden in review r1 van #594 (GPT-6.1-Sol). — B
 
-320. **De koppeldialoog bouwt dezelfde optielijst drie keer per kandidaat.** `src/components/dialogs/LibraryLinkDialog.tsx:47`
-    mapt de volledige bronlijst; regels 96–98 roepen dat apart aan voor `options`, `disabled` en `placeholder`.
-    Dat maakt bij elke render onnodige arrays; een merkbare vertraging is niet aangetoond. Voorstel: één
-    resourcelijst en één kalenderlijst per render, en die hergebruiken. Gevonden in review r1 van #635
-    (GPT-6.1-Sol). — B
-
 324. **Een tak in de herstelcontrole van de MCP-proxy is onbereikbaar.** `integrations/claude-desktop/src/proxy.ts:396`:
     de tak `toolName === null` kan niet meer optreden zodra `mutates` waar is. Voorstel: die deelvoorwaarde weg;
     de concrete herstelset blijft voldoende. Gevonden in review r1 van #605 (GPT-6.1-Sol). — B
-
-331. **Met de werkmap `/` weigert de MCP-server `~/plan.ifc` als UNC-pad.** `src/services/mcp/tools/fileTools.ts:142–145`:
-    bij `home="/"` maakt de tilde-expansie van `~/plan.ifc` eerst `//plan.ifc`, en de nieuwe UNC-controle weigert
-    dat. Op `main` werd het `/plan.ifc`; het expliciete pad `/plan.ifc` werkt nog wel. Zeldzaam, geen dataverlies.
-    Voorstel: bij tilde-expansie precies één scheidingsteken toevoegen, en de wortelmap aan de bestaande test
-    toevoegen. Gevonden in review r1 van #626 (GPT-6.1-Sol). — B
 
 332. **De XML-parser van de headless server zoekt bij elk element zonder prefix de hele ouderketen af.**
     `headless/mcp-server/src/xmlDom.ts:143` roept `namespaceFor('', scope)` aan en gooit het resultaat weg. Bij
@@ -831,12 +806,6 @@ en noem het in je rapport of PR-tekst.
     stille `idb*`-helpers: `loadRecents` leest daar altijd een lege lijst, dus `addRecent` geeft alleen de nieuwe
     regel terug. Geen melding. Alleen in de code nagelopen, niet in de app nagespeeld. Voorstel: in die omgeving
     de lijst in het geheugen houden, of Recent daar verbergen (de site heeft een eigen bestandslijst). — S
-
-328. **De verliescategorie `criticalSlackLimitDays` is dode code.** `src/services/importTypes.ts:454` en
-    `src/state/msProjectImportNotice.ts:22` houden de categorie, maar de importeurs zetten haar sinds de fix van
-    knownbug 46 altijd op nul. Voor het commentaar over "bewaarde oude verslagen" is in de repo geen opslag- of
-    leespad. Voorstel: veld, nulinitialisatie en meldingsregel weg, of het compatibiliteitscontract onderbouwen.
-    Gevonden in review r1 van #634 (GPT-6.1-Sol). — B
 
 330. **Een herstelmanifest `documents` zonder `isDirty` markeert een schoon document als gewijzigd.**
     `src/services/recovery/recoveryStore.ts:1361`: bij een geaccepteerd `documents`-manifest zonder `isDirty`, en
@@ -1034,14 +1003,6 @@ en noem het in je rapport of PR-tekst.
      minuten rest terecht lopend. Voorstel: alleen met een echte bronfixture aanpassen, eventueel met een
      importmelding; geen drempel die echte rest wist. Gevonden in review ronde 3 van #663 (GPT-6.1-Sol). — S
 
-383. **`normalizeKeepingDayRest` bewaart de dagenrest dubbel en een commentaar in de P6 XML-lezer is achterhaald.**
-     Sinds #663 bewaart `normalizeImportedProgress` een ingelezen dagenrest zelf; de functie van twaalf regels in
-     `src/services/xmlDayMeasure.ts:336` en de twee omhulselaanroepen in de MSPDI- en P6 XML-lezer doen niets
-     meer (met de laag uitgeschakeld blijven 46 importcontroles en 72 afrondingscontroles groen). Het commentaar
-     bij `src/services/p6/p6xmlReader.ts:979` zegt nog dat de writer op 100 % altijd `Completed` schrijft.
-     Voorstel: de functie en de aanroepen weghalen en het commentaar bijwerken. Gevonden in review ronde 3 van
-     #663 (GPT-6.1-Sol). — B
-
 356. **Een hammock houdt in "Datums zoals opgeslagen" de nulduur van de verworpen berekening.** Hammock B met
      opgeslagen datums 16–20 maart en duur 5 dagen: de verworpen berekening schrijft duur 0
      (`writeDerivedSpan`, `src/engine/scheduler/CPMSolver.ts:2106`); de modus zet de datums terug, maar laat
@@ -1213,14 +1174,6 @@ en noem het in je rapport of PR-tekst.
      `monthLabel` expliciet terugvallen op `en` als `Intl` de locale niet kent, of de toets de locale laten
      vastzetten. — B
 
-285. **`hour-data-notice-document.spec.ts` is wisselvallig: na `page.reload()` komt het welkomstvenster
-     over het paneel.** De test herlaadt de pagina per voorkeur (aan, uit), maar wacht daarna niet op het
-     welkomstvenster en sluit het niet, zoals de fixture bij de start doet (`waitForWelcomeDialog`,
-     `fixtures/ops.ts:88`). Komt het venster net na `fill('6h')`, dan gaat Enter niet naar het duurveld:
-     "minutes 240, verwacht 360". Gezien in CI op #584 (`293acf1c9`, shard 1); de error-context toont
-     "Welcome to Open Planner Studio" open en het duurveld op "4". Lokaal 5 van 5 groen. Voorstel: na de
-     reload `waitForWelcomeDialog` en `setUI({ showWelcomeDialog: false })`, zoals de fixture. — B
-
 264. **De browsertest "Gantt-balk vertical slepen landt in RTL op dezelfde plek als een rijsleep" is
      wisselvallig.** `tests/browser/gantt-drag-undo.spec.ts:273`. De rijsleep en de undo slagen, maar na de
      balksleep blijft de volgorde die van vóór de sleep: de eerste taak staat nog bovenaan ("Timeout 5000ms
@@ -1279,38 +1232,16 @@ en noem het in je rapport of PR-tekst.
     `newProject()` en voegt geen taak toe). Een losse probe met gewijzigd werk slaagt wel. Voorstel: één taak in
     de beginstaat en ook de dirty-vlag controleren. Gevonden in review r1 van #636 (GPT-6.1-Sol). — B
 
-323. **De regressietest van de MCP-proxy mist annuleren na een 404.** `tests/mcp/cases-mcpb.ts:411` toetst
-    annuleren tijdens verbinden vanuit offline toestand, maar niet de registratie vóór de tweede
-    verbindingspoging na `404`. Een losse proef van de reviewer bevestigt dat die route werkt. Daarnaast zijn de
-    annuleringscontroles op `integrations/claude-desktop/src/proxy.ts:402` en `:418` overbodig: op die routes zit
-    sinds de vorige controle geen nieuwe asynchrone onderbreking. Voorstel: de 404-route in de test, en de twee
-    regels weg. Gevonden in review r1 van #603 (GPT-6.1-Sol). — B
-
 325. **Zes browserroutes toetsen geen smal scherm meer.** Sinds de standaardtakenlijst 400 px breed is, zetten zes
     specs het venster op 1600×900, onder meer `tests/browser/duration-display.spec.ts:5`. De handelingen en
     controles blijven, maar de smallere beginstand wordt niet meer bewaakt. Geen productfout op die breedte
     aangetoond. Voorstel: één gerichte interactieroute op een smaller scherm houden. Gevonden in review r1 van
     #627 (GPT-6.1-Sol). — B
 
-326. **De controle bij het annuleren van een faseovergang vergelijkt toewijzingen alleen op id.**
-    `tests/browser/structural-transition.spec.ts:113` vergelijkt toewijzingen als `[id, taskId]`. Een gewijzigde
-    resource of inzet glipt daar doorheen. Dit stond al op `main`. Voorstel: daar ook de volledige
-    toewijzingswaarden vergelijken, zoals de mijlpaalroute nu doet. Gevonden in review r1 van #622
-    (GPT-6.1-Sol). — B
-
 334. **`tests/browser/assignments-block.spec.ts:235` faalt soms in CI.** De test verwachtte `UNIFORM` en kreeg `BELL`,
     na een time-out van 5 s, in run 40286556225 (job `verify (browser 2-4)`) op PR #595, die alleen de herstelspec
     wijzigt. Dezelfde test slaagt lokaal op die head, en de herhaalde poging liep apart. De oorzaak is niet
     bewezen. Gevonden in fixronde 1 en review r2 van #595 (GPT-6.1-Sol). — S
-
-310. **De formaatvergelijking in de headless-servertest ziet een verschuiving binnen een dag niet.**
-     `tests/mcp/cases-headless-server.ts:483` (`leafSchedule`) vergelijkt per bladtaak alleen de startdatum
-     op dagniveau (`.slice(0, 10)`). Eindmomenten, de maat en exacte minuten vergelijkt de test niet, dus
-     een verschuiving van 08:36 naar 16:00 op dezelfde dag valt niet op. Verder kan de extra `runCPM()` op
-     r.498 een fout laadpad repareren voordat de vergelijking begint. Richting: volledige begin- en
-     eindmomenten vergelijken, een fixture met de nieuwe maatrecords gebruiken, en `runCPM()` vervangen
-     door een assert dat het openen al een verse, berekende stand geeft. Gevonden in review ronde 1 van
-     PR #590 (GPT-6.1-Sol, VERVOLG). — B
 
 403. **De oudere tooltipmelding 294 blijft naast de opgeloste melding 379 open staan.**
      `knownbugs.md` punt 294 beschrijft dezelfde test en dezelfde afwijking als
@@ -1321,6 +1252,25 @@ en noem het in je rapport of PR-tekst.
      niet afzonderlijk bewezen; punt 294 is daarom niet stil verwijderd.
      Twee onafhankelijke broncontroles van het register; geen productfixronde.
      — B
+
+310. **De formaatvergelijking in de headless-servertest ziet een verschuiving binnen een dag niet.**
+     `tests/mcp/cases-headless-server.ts:483` (`leafSchedule`) vergelijkt per bladtaak alleen de startdatum
+     op dagniveau (`.slice(0, 10)`). Eindmomenten, de maat en exacte minuten vergelijkt de test niet, dus
+     een verschuiving van 08:36 naar 16:00 op dezelfde dag valt niet op. Verder kan de extra `runCPM()` op
+     r.498 een fout laadpad repareren voordat de vergelijking begint. Richting: volledige begin- en
+     eindmomenten vergelijken, een fixture met de nieuwe maatrecords gebruiken, en `runCPM()` vervangen
+     door een assert dat het openen al een verse, berekende stand geeft. Gevonden in review ronde 1 van
+     PR #590 (GPT-6.1-Sol, VERVOLG). — B
+
+393. **Een beschadigd numeriek kalender-id `NaN` krijgt bij opslaan onbedoeld koppelingen.**
+     `src/services/ifc/ifcWriter.ts:1465` en `:1473`: de kalenderindex gebruikt `Map.get`,
+     dat `NaN` aan zichzelf koppelt. De eerdere vergelijking met `===` deed dat niet.
+     Bij een kalender met `id: NaN` en taken/resources met `calendarId: NaN` schrijft de
+     nieuwe schrijver extra `IFCRELASSIGNSTOCONTROL`-relaties. Bij heropenen krijgen zij
+     daardoor een echte kalenderkoppeling. Een gewone gebruikersroute naar deze beschadigde
+     invoer is niet aangetoond. Richting: sla voor `Number.isNaN(cal.id)` alleen de
+     control-relaties over, na kalender en metadata; voeg een gerichte regressiecheck toe.
+     Vastgesteld door twee onafhankelijke broncontroles bij PR #641; niet uitgevoerd. — B
 
 ## Wensen en open taken (geen bug)
 

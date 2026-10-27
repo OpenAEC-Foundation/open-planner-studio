@@ -455,9 +455,6 @@ export interface MsProjectImportReport {
   levelingDelays: number;
   /** Alleen MSPDI: inactieve taken, ingelezen als actieve taak. */
   inactiveTasks: number;
-  /** Historisch verliesveld voor oude `.mpp`-importverslagen. Nieuwe imports nemen de grens
-   *  als projectinstelling over en laten dit op 0; bewaarde oude verslagen blijven leesbaar. */
-  criticalSlackLimitDays: number;
 }
 
 /** Een leeg verslag: alles 0. */
@@ -465,7 +462,6 @@ export function emptyMsProjectImportReport(format: MsProjectImportReport['format
   return {
     format, baselines: 0, baselineWorkCost: 0, assignmentBaselineDates: 0, customFields: 0, notes: 0, hyperlinks: 0, fixedCosts: 0, resourceRates: 0,
     subprojects: 0, externalTasks: 0, manualTasks: 0, levelingDelays: 0, inactiveTasks: 0,
-    criticalSlackLimitDays: 0,
   };
 }
 
