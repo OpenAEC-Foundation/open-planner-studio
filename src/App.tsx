@@ -8,6 +8,7 @@ import { installSiteDialogAskers } from '@/state/siteDialogBridge';
 import { installIfcSchemaAsker } from '@/state/ifcSchemaQuestionBridge';
 import { getGuideView, subscribeGuideView } from '@/extensions/guideRuntime';
 import { EXTENSIONS_ENABLED } from '@/utils/buildFlags';
+import { isTauri } from '@/utils/platform';
 import { TitleBar } from '@/components/layout/TitleBar/TitleBar';
 import '@/components/layout/TitleBar/TitleBar.css';
 import { Ribbon } from '@/components/layout/Ribbon/Ribbon';
@@ -177,6 +178,14 @@ function AppContent() {
   // Bestand van de host bij de start: na de herstelkeuze, alleen in een leeg document. Zonder site
   // gebeurt er niets.
   useSiteInitialFile(recoveryResolved, recovery);
+  // Dev-link `?open=<pad>` (alleen de browser op de dev-server, docs/dev-link.md): opent na de
+  // herstelkeuze een bestand uit de repo, bijv. `examples/…`, via de gewone openroute. Niet in Tauri-dev. Valt
+  // met de dynamische import uit elke productiebouw, net als de haken in main.tsx.
+  useEffect(() => {
+    if (import.meta.env.DEV && !isTauri() && recoveryResolved && recovery === null) {
+      void import('@/utils/devOpenLink').then(({ openDevLinkOnce }) => openDevLinkOnce());
+    }
+  }, [recoveryResolved, recovery]);
 
   // Bedrijfsbibliotheek laden bij opstarten: zet de opgeslagen bibliotheek in de store en
   // hijst `libraryLoaded`, zodat latere mutaties persisteren (vóór dit punt is persist een no-op).
