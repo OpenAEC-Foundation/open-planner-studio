@@ -630,12 +630,6 @@ en noem het in je rapport of PR-tekst.
     conflicten wel goed. Voorstel: een ontbrekende reden expliciet in het typecontract, en de MCP-uitleg daarop
     aanpassen. Gevonden in review r1 van #594 (GPT-6.1-Sol). — B
 
-320. **De koppeldialoog bouwt dezelfde optielijst drie keer per kandidaat.** `src/components/dialogs/LibraryLinkDialog.tsx:47`
-    mapt de volledige bronlijst; regels 96–98 roepen dat apart aan voor `options`, `disabled` en `placeholder`.
-    Dat maakt bij elke render onnodige arrays; een merkbare vertraging is niet aangetoond. Voorstel: één
-    resourcelijst en één kalenderlijst per render, en die hergebruiken. Gevonden in review r1 van #635
-    (GPT-6.1-Sol). — B
-
 324. **Een tak in de herstelcontrole van de MCP-proxy is onbereikbaar.** `integrations/claude-desktop/src/proxy.ts:396`:
     de tak `toolName === null` kan niet meer optreden zodra `mutates` waar is. Voorstel: die deelvoorwaarde weg;
     de concrete herstelset blijft voldoende. Gevonden in review r1 van #605 (GPT-6.1-Sol). — B
