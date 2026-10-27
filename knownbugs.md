@@ -448,6 +448,28 @@ en noem het in je rapport of PR-tekst.
     vergelijk de volledige tekst van `.ops-toast-message` exact; laat de taaknamen apart gecontroleerd.
     Geen fout in de huidige producttelling aangetoond. — B
 
+399. **De oude dagen-cache uit de prestatiebranch past niet op de huidige werkplaatsing.**
+     PR #646 gebruikt nog assignmentDayUnits en workDaysOf in ResourceLoad.ts.
+     De huidige main gebruikt assignmentDaily en taskPlacementCache. Acht uur vanaf
+     maandag 11:00 op werkblokken 07:00-15:00 hoort 0,5 op maandag en 0,5 op dinsdag
+     te geven; de oude route boekt 1 op maandag. Kies bij het mergeconflict dus niet
+     ongewijzigd de oude PR-zijde. Behoud de huidige plaatsing, maatconventie,
+     contourverdeling en histogrambegrenzing. Main deelt de taakplaatsing al; bewijs
+     eerst welke extra prestatieverbetering nog resteert. Integratiebeperking van de
+     ongewijzigde oude branch, geen nieuwe productfout op die oude basis.
+     Twee onafhankelijke broncontroles, inclusief check-placement-load.ts:63-66.
+     — B
+
+400. **De regressie en meetbasis van de oude resourcecache volgen het huidige contract niet.**
+     PR #646: check-resource-load-reuse.ts:17 geeft vijf argumenten aan
+     computeResourceLoad; main vereist zes, inclusief LoadOptions. De fixture
+     resourceLoadReuseFixture.ts:74 mist schedulingOptions. De meetvergelijker op
+     measure-resource-load-reuse.mjs:21 staat bovendien vast op de oude basis en
+     weigert andere productwijzigingen na een gewone main-merge. Pas contracten en
+     meetbasis inhoudelijk aan en draai daarna nieuwe CI op de geïntegreerde head.
+     Twee onafhankelijke broncontroles; geen lokale uitvoering.
+     — B
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen en de selectie niet lezen.
