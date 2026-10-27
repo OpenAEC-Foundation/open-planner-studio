@@ -19,7 +19,6 @@ function lines(report: MsProjectImportReport): [number, LineKey][] {
     [report.inactiveTasks, 'notifications.msProjectLostInactiveTasks'],
     [report.manualTasks, 'notifications.msProjectLostManualTasks'],
     [report.levelingDelays, 'notifications.msProjectLostLevelingDelays'],
-    [report.criticalSlackLimitDays, 'notifications.msProjectLostCriticalSlack'],
     [report.baselines, report.format === 'mspdi'
       ? 'notifications.msProjectLostExtraBaselines'
       : 'notifications.msProjectLostBaselines'],
