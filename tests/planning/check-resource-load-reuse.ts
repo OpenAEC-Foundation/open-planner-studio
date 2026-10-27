@@ -87,18 +87,16 @@ parity(mixed, 'volgende aanroep na kalender-, datum-, split-, voltooiings- en co
 const skipped = makeResourceLoadReuseFixture(8, 4);
 skipped.tasks[1].isMilestone = true;
 skipped.tasks[2].childIds = ['samenvattingskind'];
-// Lege verdelingen vóór, tussen en na niet-lege verdelingen van dezelfde taak.
+// Nulduur heeft geen plaatsingsdagen, ongeacht het aantal toewijzingen.
 skipped.tasks[0].time.scheduleDuration = 0;
-skipped.tasks[0].timephasedContours = ['r1', 'r2'].map(resourceId => ({
-  resourceUid: null, resourceId, periods: [{ afterMinutes: 0, minutes: 480, workMinutes: 480, kind: 'remaining' }],
-}));
-for (const [index, resourceId] of [[0, 'r0'], [1, 'r1'], [2, 'r0'], [3, 'r2']] as const) {
-  skipped.assignments.find(a => a.id === `a0-${index}`)!.resourceId = resourceId;
-}
-skipped.assignments.push({ id: 'laatste-leeg', taskId: 't0', resourceId: 'r0', unitsPerDay: 1 });
+const zeroDuration = {
+  ...skipped, tasks: [skipped.tasks[0]],
+  assignments: skipped.assignments.filter(a => a.taskId === skipped.tasks[0].id),
+};
+eq(load(zeroDuration).load, {}, 'nulduur boekt voor geen enkele toewijzing belasting');
 skipped.assignments.push({ id: 'spook', taskId: 'ontbreekt', resourceId: 'r0', unitsPerDay: 1 });
 skipped.assignments.push({ id: 'wees', taskId: 't7', resourceId: 'ontbreekt', unitsPerDay: 1 });
-parity(skipped, 'lege verdelingen, mijlpaal, samenvatting en ontbrekende taak/resource');
+parity(skipped, 'nulduur, mijlpaal, samenvatting en ontbrekende taak/resource');
 
 function calendarCalls<T>(run: () => T): { value: T; calls: number } {
   const original = CalendarEngine.prototype.effectiveBandsOn;

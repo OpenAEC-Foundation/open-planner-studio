@@ -12,8 +12,9 @@ expliciete urentaak van acht uur vanaf maandag 11:00 op blokken 07:00–15:00 mo
 ook vergeleken met afzonderlijke taakvoorkomens per toewijzing. De schaalpoort telt
 `effectiveBandsOn`, de kalenderroute die de huidige plaatsing daadwerkelijk gebruikt.
 
-De workflow krijgt de actuele basis expliciet uit het PR-event. De broncontrole
-eist geen productdiff en gelijke dependencies. De basis moet de regressie eveneens
-doorstaan; een verwachte rode oude dagenroute hoort niet meer bij deze vergelijking.
-De tijden zijn controles van dezelfde huidige code, geen nieuwe snelheidsclaim.
-CI moet de geïntegreerde head en de gewone volledige poort bevestigen.
+De afzonderlijke voor/nameting en tijdelijke workflow zijn verwijderd: zij maten
+twee uitvoeringen van dezelfde huidige productcode. De regressie en kalender-
+aanroepteller leveren het relevante bewijs en draaien automatisch mee in de gewone
+planningssuite. De nulduurproef eist expliciet dat geen enkele toewijzing belasting
+boekt; contourconstructies die daar geen dagen konden toevoegen zijn verwijderd.
+Er is geen nieuwe snelheidsclaim. CI moet de geïntegreerde head bevestigen.
