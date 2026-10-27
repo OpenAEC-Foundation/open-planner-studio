@@ -345,7 +345,7 @@ test('move_project: niet-bestaande of vervuilde datum ⇒ VALIDATION, niets vers
 /** Herstel-achtige toestand: een geladen project ZONDER doorrekenen ⇒ cpmResult null + niet-stale. */
 function neverCalculatedProject(): void {
   const gen = generateBenchmarkProject(30);
-  S().applyLoadedProject(gen, { filePath: null, recompute: false });
+  S().applyLoadedProject({ ...gen, timeModel: 'MINUTES-1' }, { filePath: null, recompute: false });
 }
 
 test('H9: nooit-berekend document (cpmResult null, niet-stale) ⇒ ensureFreshSchedule REKENT', () => {

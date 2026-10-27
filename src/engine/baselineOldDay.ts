@@ -101,6 +101,6 @@ export function createBaselineOldDayCheck(
     if (task.time.durationUnit !== 'hours') return false;
     const cal = resolveCalendar(task.calendarId, calendars as WorkCalendar[], projectCalendar);
     if (!dayLengths(cal)) return false;
-    return baselineHasOldDayCount(task, baselineTask, cal, engineForTaskCalendar(engines, cal, task));
+    return baselineHasOldDayCount(task, baselineTask, cal, engineForTaskCalendar(engines, cal));
   };
 }

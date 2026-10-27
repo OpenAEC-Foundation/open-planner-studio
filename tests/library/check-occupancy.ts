@@ -114,6 +114,7 @@ function doc(docId: string, opts: DocOpts = {}): OccupancyDocInput {
     tasks: opts.tasks ?? [],
     calendar: cal(),
     calendars: [],
+    loadOptions: neutralSolveOptions().schedulingOptions,
     ...(opts.skipSolve === true ? { skipEphemeralSolve: true } : {}),
     ...(opts.solveTasks !== undefined
       ? { solveInput: { tasks: opts.solveTasks, sequences: opts.solveSequences ?? [], options: neutralSolveOptions() } }
@@ -301,7 +302,7 @@ function pool(resources: Resource[]): CompanyPool {
   const { rows } = computeLibraryOccupancy('c1', p, [d1]);
 
   // Referentie: exact dezelfde engine-aanroep als de kern per document hoort te doen.
-  const ref = computeResourceLoad(d1.resources, d1.assignments, d1.tasks, d1.calendar, d1.calendars);
+  const ref = computeResourceLoad(d1.resources, d1.assignments, d1.tasks, d1.calendar, d1.calendars, d1.loadOptions);
   const refDaily = ref.load['d1-r1'];
   const refDays = Object.keys(refDaily).sort();
   const refPeak = Math.max(...refDays.map(iso => refDaily[iso]));
@@ -344,7 +345,7 @@ function pool(resources: Resource[]): CompanyPool {
   // Referentie per document — dezelfde som-invariant als case 9, nu per dag over twee documenten.
   const refSum = new Map<string, number>();
   for (const d of [d1, d2]) {
-    const ref = computeResourceLoad(d.resources, d.assignments, d.tasks, d.calendar, d.calendars);
+    const ref = computeResourceLoad(d.resources, d.assignments, d.tasks, d.calendar, d.calendars, d.loadOptions);
     const daily = ref.load[d.resources[0].id];
     for (const [iso, units] of Object.entries(daily)) {
       if (units > 0) refSum.set(iso, (refSum.get(iso) ?? 0) + units);
@@ -515,7 +516,7 @@ function pool(resources: Resource[]): CompanyPool {
   // computeResourceLoad — precies wat F5-in-het-document + het projecthistogram zouden opleveren.
   const refTasks = cloneTasksForSolve(staleTasks);
   const refResult = solveProject({ tasks: refTasks, sequences: [], calendar: cal(), calendars: [], ...neutralSolveOptions() });
-  const refLoad = computeResourceLoad(d1.resources, d1.assignments, refTasks, cal(), []);
+  const refLoad = computeResourceLoad(d1.resources, d1.assignments, refTasks, cal(), [], d1.loadOptions);
   const refDaily = refLoad.load['d1-r1'];
   const refDays = Object.keys(refDaily).filter(iso => refDaily[iso] > 0).sort();
 
@@ -678,7 +679,7 @@ function pool(resources: Resource[]): CompanyPool {
   assert(actiefBooking?.counted === true, 'case 23: het overgeslagen document telt mee (geen vangnet)');
   assert(actiefBooking?.ephemeralComputed === false, 'case 23: ephemeralComputed false — de cijfers komen niet uit een solve');
   assert(actiefBooking?.scheduleStale === true, 'case 23: scheduleStale blijft staan als markering');
-  const refLoad = computeResourceLoad(actief.resources, actief.assignments, actiefTasks, cal(), []);
+  const refLoad = computeResourceLoad(actief.resources, actief.assignments, actiefTasks, cal(), [], actief.loadOptions);
   const refDaily = refLoad.load['d-actief-r1'];
   assert(
     JSON.stringify(actiefBooking?.dailyLoad) ===
@@ -796,7 +797,7 @@ let afterPayload: DocumentPayload | null = null;
   // opleveren (addSequence weigert dat via relationRules): precies het crashherstel-geval, waar elke
   // niet-actieve payload per definitie `scheduleStale: true` draagt.
   const recoveryDoc = (id: string, tasks: Task[], sequences: Sequence[]): RecoveryDocInput => ({
-    id, filePath: null, isDirty: false, datesAsRecorded: false,
+    id, filePath: null, isDirty: false, datesAsRecorded: false, timeModel: 'MINUTES-1',
     project: { ...createDefaultProject(), name: id },
     calendar: createDefaultCalendar(),
     tasks, sequences, resources: [], assignments: [],
@@ -937,6 +938,7 @@ let afterPayload: DocumentPayload | null = null;
 // een verouderd anker (07-20) vóór de projectstart. Zonder vloer start B op 07-30, mét op 08-03.
 {
   const start = '2026-08-03';
+  const startInstant = `${start}T07:00`; // D1: de projectvloer krijgt nu een moment.
   const a = task('ps-a', start, start, 1);
   const b = task('ps-b', '2026-07-20', '2026-07-21', 2);
   const c = task('ps-c', '2026-07-20', '2026-07-21', 2);
@@ -947,7 +949,7 @@ let afterPayload: DocumentPayload | null = null;
   };
   const solved = ephemeralSolve(d);
   const bStart = solved?.find(t => t.id === 'ps-b')?.time.earlyStart;
-  assert(bStart === start, `case 24a: de efemere solve respecteert de projectstart-vloer (kreeg ${bStart})`);
+  assert(bStart === startInstant, `case 24a: de efemere solve respecteert de projectstart-vloer (kreeg ${bStart})`);
 
   // Dezelfde planning als slapend document in de echte store.
   S().newProject();
@@ -961,13 +963,13 @@ let afterPayload: DocumentPayload | null = null;
   S().updateTask(sc, { time: { ...timeOf(sc), scheduleStart: '2026-07-20', scheduleDuration: 2 } });
   S().addSequence({ predecessorId: sa, successorId: sb, type: 'FINISH_START', lagDays: -3 });
   S().runCPM();
-  assert(timeOf(sb).earlyStart === start, `case 24b setup: runCPM zet B op de projectstart (kreeg ${timeOf(sb).earlyStart})`);
+  assert(timeOf(sb).earlyStart === startInstant, `case 24b setup: runCPM zet B op de projectstart (kreeg ${timeOf(sb).earlyStart})`);
   S().updateTask(sb, { name: 'B (stale)' }); // weer stale, zonder de planning inhoudelijk te wijzigen
   const slaperId = S().activeDocumentId;
   S().newDocument();
   S().recalculateStaleSleepingDocuments();
   const herrekend = sleeping(slaperId)?.tasks.find(t => t.id === sb)?.time.earlyStart;
-  assert(herrekend === start,
+  assert(herrekend === startInstant,
     `case 24b: de slapende doorrekening geeft dezelfde B-start als runCPM (kreeg ${herrekend}, verwacht ${start})`);
 
   // 24c/d: het bezettingsoverzicht bouwt de efemere invoer uit de payload. Die liet
@@ -980,7 +982,7 @@ let afterPayload: DocumentPayload | null = null;
     solveInput: occupancySolveInputFor({ tasks: [a, b, c], sequences: [lead], project }),
   };
   const bViaPayload = ephemeralSolve(viaPayload)?.find(t => t.id === 'ps-b')?.time.earlyStart;
-  assert(bViaPayload === start,
+  assert(bViaPayload === startInstant,
     `case 24c: invoer uit een payload draagt de projectstart-vloer mee (kreeg ${bViaPayload})`);
   const viewSrc = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', '..',
     'src', 'components', 'panels', 'ResourceOccupancyView.tsx'), 'utf8');

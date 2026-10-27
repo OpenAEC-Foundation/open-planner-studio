@@ -1,3 +1,5 @@
+import { normalizeTaskDates } from '@/state/migrations/minuteModel';
+// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 // "Project verplaatsen"-checks (pakket D1) — headless tegen de ECHTE Zustand-store en de PURE
 // engine-helpers (`src/engine/moveProject.ts`), zelfde patroon als `check-move-assignment.ts`.
 //
@@ -247,8 +249,8 @@ eq('90 preview: state volledig ONGEWIJZIGD (droogrun muteert niets)',
   }),
   snapshotBefore);
 eq('91 preview.deltaDays', prev.deltaDays, 21);
-eq('92 preview.endBefore (huidige planning)', prev.endBefore, '2026-06-10');
-eq('93 preview.endAfter — over de bouwvakweek heen', prev.endAfter, '2026-07-08');
+eq('92 preview.endBefore (huidige planning)', prev.endBefore, "2026-06-10T16:00");
+eq('93 preview.endAfter — over de bouwvakweek heen', prev.endAfter, "2026-07-08T16:00");
 // HET PUNT van de preview (ontwerpbesluit 2): het einde schuift 28 dagen terwijl delta 21 is.
 eq('94 preview.endDeltaDays wijkt af van deltaDays => de kalender heeft ingegrepen', prev.endDeltaDays, 28);
 eq('95 preview: projectduur in werkdagen blijft gelijk', [prev.durationBefore, prev.durationAfter], [8, 8]);
@@ -278,11 +280,11 @@ eq('115 project.createdAt ongemoeid', S().project.createdAt, createdAtBefore);
 // ONTWERPBESLUIT 2 — het hart van de feature: de KALENDER schuift NIET mee.
 eq('116 kalender-feestdagen BLIJVEN op hun absolute datums staan', JSON.stringify(S().calendar.holidays), holidaysBefore);
 eq('117 taakanker A schuift (zonder dit doet moveProject niets aan de planning)',
-  S().tasks.find(t => t.id === tA)?.time.scheduleStart, '2026-06-22');
+  S().tasks.find(t => t.id === tA)?.time.scheduleStart, "2026-06-22T07:00");
 eq('118 resource.availabilitySteps[].from schuift mee',
   S().resources.find(r => r.id === rid)?.availabilitySteps?.[0].from, '2026-06-22');
 eq('119 de planning is vers doorgerekend (runCPM draaide mee)', S().scheduleStale, false);
-eq('120 projecteinde na de verschuiving (over de bouwvak heen)', S().cpmResult?.projectEnd, '2026-07-08');
+eq('120 projecteinde na de verschuiving (over de bouwvak heen)', S().cpmResult?.projectEnd, "2026-07-08T16:00");
 eq('121 het verplaatste project wordt in beeld gebracht (pendingFit)', S().view.pendingFit, true);
 eq('122 document als gewijzigd gemarkeerd', S().isDirty, true);
 
@@ -290,11 +292,11 @@ eq('122 document als gewijzigd gemarkeerd', S().isDirty, true);
 S().undo();
 eq('130 undo herstelt project.startDate', S().project.startDate, '2026-06-01');
 eq('131 undo herstelt project.endDate', S().project.endDate, '2026-06-30');
-eq('132 undo herstelt het taakanker', S().tasks.find(t => t.id === tA)?.time.scheduleStart, '2026-06-01');
+eq('132 undo herstelt het taakanker', S().tasks.find(t => t.id === tA)?.time.scheduleStart, "2026-06-01T07:00");
 eq('133 undo herstelt de capaciteitsstap', S().resources.find(r => r.id === rid)?.availabilitySteps?.[0].from, '2026-06-01');
 S().redo();
 eq('134 redo verschuift opnieuw, inclusief de projectdatum', S().project.startDate, '2026-06-22');
-eq('135 redo herstelt het taakanker', S().tasks.find(t => t.id === tA)?.time.scheduleStart, '2026-06-22');
+eq('135 redo herstelt het taakanker', S().tasks.find(t => t.id === tA)?.time.scheduleStart, "2026-06-22T07:00");
 
 // --- X7/Hooke: actieve P6 Expected Finish volgt exact hetzelfde expliciete shift-verdict. ---
 // Dit is bewust een echte store-actie (niet alleen een shiftIso-unitcheck): met de projectoptie aan
@@ -399,14 +401,14 @@ eq('151 round-trip: contractuele project.endDate identiek terug (niet de afgelei
   back.project?.endDate, movedProject.end);
 eq('152 de verschuiving zelf was wél correct toegepast op endDate', movedProject.end, '2026-10-06');
 eq('153 round-trip: taakankers (scheduleStart/scheduleFinish) identiek terug',
-  back.tasks.map(t => [t.name, t.time.scheduleStart, t.time.scheduleFinish]).sort(),
+  back.tasks.map(t => normalizeTaskDates(t, S())).map(t => [t.name, t.time.scheduleStart, t.time.scheduleFinish]).sort(),
   [...movedAnchors].sort());
 eq('154 round-trip: verschoven constraint-datum identiek terug',
-  back.tasks.find(t => t.name === 'B')?.constraint?.date, movedConstraint);
+  back.tasks.map(t => normalizeTaskDates(t, S())).find(t => t.name === 'B')?.constraint?.date, movedConstraint);
 eq('155 round-trip: verschoven deadline identiek terug',
-  back.tasks.find(t => t.name === 'B')?.deadline, movedDeadline);
+  back.tasks.map(t => normalizeTaskDates(t, S())).find(t => t.name === 'B')?.deadline, movedDeadline);
 eq('156 de verschuiving is echt aangekomen (geen toevallig gelijke waarden)',
-  [movedProject.start, movedConstraint], ['2026-09-07', '2026-09-14']);
+  [movedProject.start, movedConstraint], ['2026-09-07', "2026-09-14T07:00"]);
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {

@@ -102,9 +102,13 @@ function placementStyle(p: ToastPlacement): CSSProperties | undefined {
  * tot één regel met een teller (`dedupeKey`), zie `notify` in uiSlice.
  */
 /** `numberParams` in de notatie van de app-taal, op het moment van tonen (zie `AppNotification`). */
-function localizedNumberParams(numbers: Record<string, number> | undefined, locale: string): Record<string, string> {
+function localizedNumberParams(numbers: Record<string, number> | undefined, locale: string, conversion = false): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const [key, value] of Object.entries(numbers ?? {})) out[key] = formatReportNumber(value, locale);
+  for (const [key, value] of Object.entries(numbers ?? {})) {
+    out[key] = conversion && key === 'days'
+      ? new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false, numberingSystem: 'latn' }).format(value)
+      : formatReportNumber(value, locale);
+  }
   return out;
 }
 
@@ -158,7 +162,7 @@ export function NotificationHost() {
             <X size={14} aria-hidden="true" />
           </button>
           <div className="ops-toast-message">
-            {t(n.messageKey, { ...n.params, ...localizedNumberParams(n.numberParams, i18n.language) })}
+            {t(n.messageKey, { ...n.params, ...localizedNumberParams(n.numberParams, i18n.language, n.messageKey === 'notifications.minuteModelConverted') })}
             {n.count > 1 && <span className="ops-toast-count">{`×${n.count}`}</span>}
           </div>
           {/* Een vertaalbare reden (solverfout als code + parameters) gaat vóór de rauwe tekst. */}

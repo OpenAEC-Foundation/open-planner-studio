@@ -91,7 +91,7 @@ expect('0 de synthetische bron levert twee documenten met één archief',
 const store = () => useAppStore.getState();
 store().newProject();
 store().applyOpenedImport(opened, {
-  filePath: null, fileHandle: null, recompute: false, fit: false, hourDataNotice: false, linkedOpen: false,
+  filePath: null, fileHandle: null, recompute: false, fit: false, linkedOpen: false,
 });
 
 const tracker = new RecoveryDeltaTracker();

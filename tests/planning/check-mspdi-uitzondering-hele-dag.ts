@@ -111,7 +111,7 @@ const bandsOf = (c: WorkCalendar | undefined) =>
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // §2 + §3 De echte open- en opslaanroute: F5 vóór en ná een IFC-rondgang
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-const OPEN = { filePath: null, fileHandle: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: true } as const;
+const OPEN = { filePath: null, fileHandle: null, recompute: true, fit: false, linkedOpen: true } as const;
 function openAndRecalc(parsed: OpenedImport): DocumentPayload {
   const store = createAppStoreContext().store;
   store.getState().applyOpenedImport(parsed, OPEN);

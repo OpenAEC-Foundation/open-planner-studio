@@ -12,7 +12,8 @@ test('Backstage export: annuleren blijft staan, ook bij poolbestand; succesvolle
     Object.defineProperty(window, 'showOpenFilePicker', { configurable: true, value: async () => [] });
     Object.defineProperty(window, 'showSaveFilePicker', {
       configurable: true,
-      value: async () => {
+      value: async (options: { suggestedName: string }) => {
+        sessionStorage.setItem('ops-test-export-suggested-name', options.suggestedName);
         sessionStorage.setItem('ops-test-export-picker-calls', String(Number(sessionStorage.getItem('ops-test-export-picker-calls')) + 1));
         throw new DOMException('Geannuleerd', 'AbortError');
       },
@@ -23,6 +24,7 @@ test('Backstage export: annuleren blijft staan, ook bij poolbestand; succesvolle
   const cards = page.locator('.backstage-export-card');
   const csv = cards.filter({ has: page.getByRole('heading', { name: 'CSV (semicolon-separated)', exact: true }) });
   const xlsx = cards.filter({ has: page.getByRole('heading', { name: 'Progress sheet (Excel)', exact: true }) });
+  const progressCsv = cards.filter({ has: page.getByRole('heading', { name: 'Progress sheet (CSV)', exact: true }) });
   const ifc = cards.filter({ has: page.getByRole('heading', { name: 'IFC', exact: true }) });
   const inExport = () => page.evaluate(() => {
     const ui = window.__OPS__!.store.getState().ui;
@@ -31,11 +33,15 @@ test('Backstage export: annuleren blijft staan, ook bij poolbestand; succesvolle
 
   let expectedCalls = 0;
   const pickerCalls = () => page.evaluate(() => Number(sessionStorage.getItem('ops-test-export-picker-calls')));
-  for (const card of [csv, xlsx, csv]) {
+  for (const card of [csv, xlsx, progressCsv, csv]) {
     await card.click();
     await expect.poll(pickerCalls).toBe(++expectedCalls);
     await expect.poll(inExport).toEqual(['file', 'export']);
     await expect(cards.first()).toBeVisible();
+    if (card === xlsx || card === progressCsv) {
+      await expect.poll(() => page.evaluate(() => sessionStorage.getItem('ops-test-export-suggested-name')))
+        .toMatch(card === xlsx ? /-progress\.xlsx$/ : /-progress\.csv$/);
+    }
   }
 
   // Twee-bestandenroute: project is al gedownload, maar de tweede kiezer wordt geannuleerd.
@@ -45,7 +51,8 @@ test('Backstage export: annuleren blijft staan, ook bij poolbestand; succesvolle
     sessionStorage.setItem('ops-test-export-picker-calls', '0');
     Object.defineProperty(window, 'showSaveFilePicker', {
       configurable: true,
-      value: async () => {
+      value: async (options: { suggestedName: string }) => {
+        sessionStorage.setItem('ops-test-export-suggested-name', options.suggestedName);
         calls++;
         sessionStorage.setItem('ops-test-export-picker-calls', String(calls));
         if (calls === 1) throw new DOMException('Eenmalig geen gebruikersactivatie', 'SecurityError');
@@ -57,6 +64,7 @@ test('Backstage export: annuleren blijft staan, ook bij poolbestand; succesvolle
   await ifc.click();
   await projectDownload;
   await expect.poll(pickerCalls).toBe(2);
+  await expect.poll(() => page.evaluate(() => sessionStorage.getItem('ops-test-export-suggested-name'))).toMatch(/-library\.ifc$/);
   await expect.poll(inExport).toEqual(['file', 'export']);
 
   // Nieuwe poging zonder pool: een echte download is wel succes en sluit Backstage.

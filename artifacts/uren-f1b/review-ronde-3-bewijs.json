@@ -1,0 +1,173 @@
+{
+  "begincommit": "1d3d1f7b1db57775def5da746a8e2caf77a82cbd",
+  "codecommit": "75593922becfad311c586f39a760f2b9684d2b12",
+  "omgeving": {
+    "node": "22.23.4",
+    "npm": "10.9.9",
+    "branch": "claude/uren-f1b-urenfouten",
+    "begin_werkboom_schoon": true,
+    "integratiebasis_opnieuw_gemerged": false
+  },
+  "fix": {
+    "bestand": "src/engine/scheduler/relationMath.ts",
+    "regel": 688,
+    "bereik": "Alleen de FS/ELAPSEDTIME-arm in forwardHour: een voltooide voorganger met uurkalender en expliciet werkelijk eindtijdstip gebruikt dat feit als laganker."
+  },
+  "mutatie": {
+    "commando": "bash tests/planning/run.sh check-hours-f1-review.ts",
+    "werkwijze": "Goede relationMath.ts met cp bewaard; beginbron met cp teruggezet; volledige src-diff tegenover begincommit was leeg; daarna goede bron met cp hersteld en met cmp gecontroleerd.",
+    "beginbron_sha256": "d120bd91be8742836907e05c0d02df19397701ade101734036fc536e29104b11",
+    "herstelde_bron_sha256": "9d2d158b52f12fcc4a9ddbd0dd8ccc6f89c96e234a04d864f1919daeaa68d620",
+    "begincommit_exit": 1,
+    "na_herstel_exit": 0,
+    "oude_bron": [
+      "XX R3 ops FS 960 ELAPSEDTIME: opvolger: \"2026-06-04T08:00\" != \"2026-06-04T10:00\"",
+      "XX R3 p6 FS 960 ELAPSEDTIME: opvolger: \"2026-06-04T08:00\" != \"2026-06-04T10:00\"",
+      "XX R3 msproject FS 960 ELAPSEDTIME: opvolger: \"2026-06-04T08:00\" != \"2026-06-04T10:00\"",
+      "F1 reviewrondes 1 t/m 3: 352 controles, 3 fouten",
+      "EINDOORDEEL planningssuite: ROOD (exit 1) — zoek hierboven naar regels met 'XX' of 'ROOD'"
+    ],
+    "herstelde_bron": [
+      "F1 reviewrondes 1 t/m 3: 352 controles, 0 fouten",
+      "EINDOORDEEL planningssuite: GROEN (exit 0)"
+    ]
+  },
+  "reviewerprobe": {
+    "bron": "/tmp/review563-r3/completed-clocklag.ts",
+    "bron_sha256": "27a764bca57a3499dace57632563689210c45e04b1df58d68a8c720773bb9162",
+    "uitvoering": "Opnieuw gebundeld via /tmp/review563-r3/bundle.sh, daarna node op de nieuwe bundel.",
+    "begincommit_exit": 1,
+    "na_fix_exit": 0,
+    "voor": [
+      {
+        "profiel": "ops",
+        "werkelijke_start": "2026-06-03T18:00",
+        "werkelijk_einde": "2026-06-03T18:00",
+        "duur_minuten": 480,
+        "restduur_minuten": 0,
+        "opvolger_start": "2026-06-04T08:00",
+        "vereiste_start": "2026-06-04T10:00",
+        "schending": true
+      },
+      {
+        "profiel": "p6",
+        "werkelijke_start": "2026-06-03T18:00",
+        "werkelijk_einde": "2026-06-03T18:00",
+        "duur_minuten": 480,
+        "restduur_minuten": 0,
+        "opvolger_start": "2026-06-04T08:00",
+        "vereiste_start": "2026-06-04T10:00",
+        "schending": true
+      },
+      {
+        "profiel": "msproject",
+        "werkelijke_start": "2026-06-03T18:00",
+        "werkelijk_einde": "2026-06-03T18:00",
+        "duur_minuten": 480,
+        "restduur_minuten": 0,
+        "opvolger_start": "2026-06-04T08:00",
+        "vereiste_start": "2026-06-04T10:00",
+        "schending": true
+      }
+    ],
+    "na": [
+      {
+        "profiel": "ops",
+        "werkelijke_start": "2026-06-03T18:00",
+        "werkelijk_einde": "2026-06-03T18:00",
+        "duur_minuten": 480,
+        "restduur_minuten": 0,
+        "opvolger_start": "2026-06-04T10:00",
+        "vereiste_start": "2026-06-04T10:00",
+        "schending": false
+      },
+      {
+        "profiel": "p6",
+        "werkelijke_start": "2026-06-03T18:00",
+        "werkelijk_einde": "2026-06-03T18:00",
+        "duur_minuten": 480,
+        "restduur_minuten": 0,
+        "opvolger_start": "2026-06-04T10:00",
+        "vereiste_start": "2026-06-04T10:00",
+        "schending": false
+      },
+      {
+        "profiel": "msproject",
+        "werkelijke_start": "2026-06-03T18:00",
+        "werkelijk_einde": "2026-06-03T18:00",
+        "duur_minuten": 480,
+        "restduur_minuten": 0,
+        "opvolger_start": "2026-06-04T10:00",
+        "vereiste_start": "2026-06-04T10:00",
+        "schending": false
+      }
+    ]
+  },
+  "gerichte_controles": {
+    "commando": "bash tests/planning/run.sh cases-hours.json cases-hours-blokgrenzen.json cases-hours-relations.json cases-msp-pariteit.json cases-progress.json cases-lag-advanced.json cases-milestone-kinds.json cases-milestones.json check-auto-actual-start.ts check-hours-f1-status.ts check-dcma.ts",
+    "exit": 0,
+    "uitvoer": [
+      "OK  auto-actual-start: 135/135",
+      "F1-statusregel: 114 controles, 0 fouten",
+      "OK  dcma: 41 checks groen",
+      "OK  hours: 31/31",
+      "OK  hours-blokgrenzen: 48/48",
+      "OK  hours-relations: 36/36",
+      "OK  msp-pariteit: 65/65",
+      "OK  progress: 33/33",
+      "OK  lag-advanced: 23/23",
+      "OK  milestone-kinds: 26/26",
+      "OK  milestones: 17/17",
+      "TOTAAL: 279/279  (alles groen)",
+      "EINDOORDEEL planningssuite: GROEN (exit 0)"
+    ],
+    "werktijdvariant": "Onder OPS, P6 en MSP blijft FS +480 werkminuten vrijdag 5 juni 08:00. Deze assertie slaagt ook met de beginbron."
+  },
+  "minutenmodel": [
+    {
+      "run": 1,
+      "commando": "OPS_MINUTE_MODEL_RUN=1 node tests/planning/.harness.mjs <alle 24 cases-*.json behalve cases-p6-verified.json>",
+      "exit": 0,
+      "uitvoer": [
+        "MM run 1 (dagenmaat) TOTAAL: dagcases 422, rood zonder redencodes 19; na redencodes gelijk 400, rood 7, bewust 10, bewust maar rood 5, niet omzetbaar 0; urencases overgeslagen 186",
+        "OK  minutenmodel run 1 (dagenmaat): de niet-gelijke cases kloppen met minute-model-runs.json"
+      ]
+    },
+    {
+      "run": 2,
+      "commando": "OPS_MINUTE_MODEL_RUN=2 node tests/planning/.harness.mjs <alle 24 cases-*.json behalve cases-p6-verified.json>",
+      "exit": 0,
+      "uitvoer": [
+        "MM run 2 (urenmaat) TOTAAL: dagcases 422, rood zonder redencodes 25; na redencodes gelijk 397, rood 9, bewust 14, bewust maar rood 1, niet omzetbaar 1; urencases overgeslagen 186",
+        "OK  minutenmodel run 2 (urenmaat): de niet-gelijke cases kloppen met minute-model-runs.json"
+      ]
+    }
+  ],
+  "statisch": [
+    {
+      "commando": "npm run typecheck",
+      "exit": 0
+    },
+    {
+      "commando": "npm run lint",
+      "exit": 0
+    }
+  ],
+  "CPMSolver": {
+    "gewijzigde_regels": [],
+    "bytegelijk_aan_begincommit": true,
+    "sha256": "6df87a61e96969e197ce43fae281984db61ec11d612340dadc9f83936f47c35e"
+  },
+  "niet_uitgevoerd": [
+    "Volledige planningssuite",
+    "Tijdzone-matrix",
+    "npm run verify",
+    "Corpus- en profielmetingen",
+    "Browsertests",
+    "Tauri-build",
+    "De aparte 42/288/192-reviewprobes",
+    "IFC-, MSPDI- en P6-XML-round-tripprobes van de voltooide 18:00-taak"
+  ],
+  "open_na_F1": "Reviewronde 3, vervolg: start woensdag 18:00, duur 8 uur, 50% geeft een getoond einde woensdag 12:00 onder OPS en P6. Volgens de review al aanwezig op 12abaabf2. Niet aangepast en in deze ronde niet opnieuw onderzocht.",
+  "bijvondsten": "Geen nieuwe productbijvondsten; geen knownbugs-nummers toegevoegd."
+}

@@ -1,3 +1,4 @@
+// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 // De Tabel toont Start en Einde uit DEZELFDE bron als Gantt, paneel en tooltip (`shownStart`/
 // `shownFinish`), en een bewerking verzet alleen iets bij een ECHTE wijziging (audit "weergaven",
 // bevinding 2). Tegen de echte store, de echte grid-adapter en de echte commitgrens van de
@@ -56,6 +57,7 @@ function adapter(): TaskGridAdapter {
     customTaskTypes: s.customTaskTypes, scheduleStale: s.scheduleStale,
     wbsAutoNumber: s.project.wbsAutoNumber === true, dateNotation: 'dmy',
     effectiveHoursPerDay: t => effHoursPerDay(effectiveCalendarOf(t, s.calendar, s.calendars)),
+    effectiveCalendar: t => effectiveCalendarOf(t, s.calendar, s.calendars),
     signedWorkDaysBetween: (a, b) => signedWorkDaysBetween(engine, a, b),
     labelForColumn: key => key,
     rows: s.viewRows,
@@ -138,9 +140,9 @@ function setup(): { a: string; b: string } {
 
   const moved = type(a, 'task.time.start', '03-06-2026');
   eq('Start van A verzetten: commit slaagt', moved.ok, true);
-  eq('Start van A verzetten: anker = ingevoerde datum', task(a).time.scheduleStart, '2026-06-03');
+  eq('Start van A verzetten: anker = ingevoerde datum', task(a).time.scheduleStart, "2026-06-03T07:00");
   S().runCPM();
-  eq('Start van A na F5 = ingevoerde datum', shownStart(task(a)), '2026-06-03');
+  eq('Start van A na F5 = ingevoerde datum', shownStart(task(a)), "2026-06-03T07:00");
   eq('Start-cel van A na F5 toont de nieuwe datum', cell(a, 'task.time.start')?.text, '03-06-2026');
 }
 
@@ -148,7 +150,7 @@ function setup(): { a: string; b: string } {
 {
   const { b } = setup();
   const start = shownStart(task(b));
-  eq('Opzet: B loopt 08-06 t/m 10-06', [start, shownFinish(task(b))], ['2026-06-08', '2026-06-10']);
+  eq('Opzet: B loopt 08-06 t/m 10-06', [start, shownFinish(task(b))], ["2026-06-08T07:00", "2026-06-10T16:00"]);
   const durationBefore = task(b).time.scheduleDuration;
   const same = type(b, 'task.time.finish', dmy(shownFinish(task(b))));
   eq('Einde ongewijzigd teruggetypt: commit slaagt', same.ok, true);
@@ -159,14 +161,14 @@ function setup(): { a: string; b: string } {
   eq('Einde → 17-06: commit slaagt', edited.ok, true);
   eq('Einde → 17-06: duur = werkdagen van getoonde start t/m nieuw einde', task(b).time.scheduleDuration, 8);
   S().runCPM();
-  eq('Einde na F5 = ingevoerde datum (Gantt-balk)', shownFinish(task(b)), '2026-06-17');
+  eq('Einde na F5 = ingevoerde datum (Gantt-balk)', shownFinish(task(b)), "2026-06-17T16:00");
   eq('Start blijft na F5 gelijk', shownStart(task(b)), start);
   eq('Einde-cel na F5 toont de nieuwe datum', cell(b, 'task.time.finish')?.text, '17-06-2026');
 
   const before = type(b, 'task.time.finish', '01-06-2026');
   eq('Einde vóór de start: geweigerd', before.ok, false);
   eq('Einde vóór de start: eigen reden', !before.ok && before.error.message, 'taskGrid.validation.finishBeforeStart');
-  eq('Einde vóór de start: planning onaangeroerd', shownFinish(task(b)), '2026-06-17');
+  eq('Einde vóór de start: planning onaangeroerd', shownFinish(task(b)), "2026-06-17T16:00");
 }
 
 // ── 5. "Gepland einde" is alleen-lezen voor niet-handmatige taken, met een duidelijke reden ────
@@ -189,14 +191,14 @@ function setup(): { a: string; b: string } {
   const manual = type(m, 'task.time.scheduleFinish', '12-06-2026');
   eq('Gepland einde (handmatig): commit slaagt', manual.ok, true);
   S().runCPM();
-  eq('Gepland einde (handmatig) na F5 = ingevoerde datum', shownFinish(task(m)), '2026-06-12');
+  eq('Gepland einde (handmatig) na F5 = ingevoerde datum', shownFinish(task(m)), "2026-06-12T16:00");
 
   // Einde van een handmatige taak schrijft hetzelfde anker.
   const viaFinish = type(m, 'task.time.finish', '15-06-2026');
   eq('Einde (handmatig): commit slaagt', viaFinish.ok, true);
-  eq('Einde (handmatig): schrijft het ingevoerde einde', task(m).time.scheduleFinish, '2026-06-15');
+  eq('Einde (handmatig): schrijft het ingevoerde einde', task(m).time.scheduleFinish, "2026-06-15T16:00");
   S().runCPM();
-  eq('Einde (handmatig) na F5 = ingevoerde datum', shownFinish(task(m)), '2026-06-15');
+  eq('Einde (handmatig) na F5 = ingevoerde datum', shownFinish(task(m)), "2026-06-15T16:00");
 }
 
 // ── 6. Afgeleide datums (verzameltaak) zijn alleen-lezen, geen dode invoer ──────────────────────
@@ -213,7 +215,6 @@ function setup(): { a: string; b: string } {
 {
   S().newProject();
   S().setProject({ startDate: '2026-06-01', name: 'Uren' });
-  useAppStore.setState(state => { state.ui.enableHourPlanning = true; });
   S().setCalendar({
     ...S().calendar, workDays: [1, 2, 3, 4, 5], holidays: [], hoursPerDay: 8, workStartHour: 8, workEndHour: 16,
     workTime: { byWeekday: { 1: [{ start: 480, end: 960 }], 2: [{ start: 480, end: 960 }], 3: [{ start: 480, end: 960 }], 4: [{ start: 480, end: 960 }], 5: [{ start: 480, end: 960 }] } },
@@ -354,9 +355,9 @@ for (const profile of ['p6', 'ops'] as const) {
   const y = S().addTask({ name: 'Y', parentId: phase, time: { scheduleDuration: 3 } as Task['time'] });
   S().setActualStart(x, '2026-06-10');
   S().runCPM();
-  eq('11 opzet: X gestart op 10-06, Y begint 01-06', [shownStart(task(x)), shownStart(task(y))], ['2026-06-10', '2026-06-01']);
-  eq('11 opzet: de fase draagt de opgerolde werkelijke start 10-06', task(phase).time.actualStart, '2026-06-10');
-  eq('11 de fase begint op het vroegste kind (01-06), niet op haar werkelijke start', shownStart(task(phase)), '2026-06-01');
+  eq('11 opzet: X gestart op 10-06, Y begint 01-06', [shownStart(task(x)), shownStart(task(y))], ["2026-06-10T07:00", "2026-06-01T07:00"]);
+  eq('11 opzet: de fase draagt de opgerolde werkelijke start 10-06', task(phase).time.actualStart, "2026-06-10T07:00");
+  eq('11 de fase begint op het vroegste kind (01-06), niet op haar werkelijke start', shownStart(task(phase)), "2026-06-01T07:00");
   eq('11 de fase is geen blad: Start volgt de kinderen (derivedDates), niet startIsActual', startIsActual(task(phase)), false);
 }
 

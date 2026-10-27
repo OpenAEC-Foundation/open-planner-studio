@@ -63,6 +63,8 @@ const TASK_TIME_VERDICTS = {
   lateFinish: 'derived',
   freeFloat: 'derived',
   totalFloat: 'derived',
+  totalFloatMinutes: 'derived',
+  freeFloatMinutes: 'derived',
   isCritical: 'derived',
   interferingFloat: 'derived',
   isNearCritical: 'derived',

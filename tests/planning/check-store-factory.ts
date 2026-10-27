@@ -242,6 +242,21 @@ eq('2b maar niet met hetzelfde state-object', A.getState() === B.getState(), fal
   eq('18b data.getTasks leest document B',
     api.data.getTasks().map(task => task.name),
     ['Voorganger B', 'Opvolger B', 'Bulk B 1', 'Bulk B 2']);
+  // Knownbug 45: selectie leest de documentcontext, niet de apphost of singleton.
+  A.getState().selectTasks([A.getState().tasks[0].id], false);
+  B.getState().selectTasks([opvolger, voorganger], false);
+  const historyBeforeSelectionRead = appliedHistoryDepth(B);
+  const dirtyBeforeSelectionRead = B.getState().isDirty;
+  eq('18 selectie volgt document B en behoudt volgorde', api.data.getSelectedTaskIds(), [opvolger, voorganger]);
+  eq('18 peer leest A, niet zijn host B', peerApi.data.getSelectedTaskIds(), [A.getState().tasks[0].id]);
+  const selectedCopy = api.data.getSelectedTaskIds();
+  selectedCopy.reverse();
+  selectedCopy.push('extensie-eigen');
+  eq('18 selectie is een verse muteerbare kopie', api.data.getSelectedTaskIds(), [opvolger, voorganger]);
+  B.getState().selectTasks([], false);
+  eq('18 volgende lezing ziet lege selectie', api.data.getSelectedTaskIds(), []);
+  eq('18 selectie lezen maakt geen undo-stap', appliedHistoryDepth(B), historyBeforeSelectionRead);
+  eq('18 selectie lezen verandert dirty niet', B.getState().isDirty, dirtyBeforeSelectionRead);
   eq('18c data.getSequences leest document B', api.data.getSequences().length, 1);
   eq('18d data.getResources leest document B', api.data.getResources().map(r => r.name), ['Kraan B']);
   eq('18e data.getAssignments leest document B', api.data.getAssignments().length, 1);

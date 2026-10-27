@@ -1,3 +1,6 @@
+import { markDocumentUnsaved } from '../documentEdited';
+import { capturePayload } from '../documentContract';
+import { minuteModelTransition, minuteModelNotice, recordMinuteModelTransition } from '../minuteModelTransition';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type { RecordedDatesState } from '@/engine/scheduler/recordedDates';
 import { cloneTasksForSolve, solveProject } from '@/engine/scheduler/solveProject';
@@ -5,6 +8,7 @@ import type { TaskTime } from '@/types/task';
 import { solveInputFor, solveOptionsFor } from '@/engine/scheduler/solveInput';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
 import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import {
   levelResources as computeLeveling,
   type LevelingInput,
@@ -41,7 +45,8 @@ export interface ScheduleSlice {
   recordedDates: RecordedDatesState | null;
   /** Staat de modus aan: toont de app de opgeslagen datums in plaats van de herberekende? */
   datesAsRecorded: boolean;
-  runCPM: () => void;
+  minuteModelPending: boolean;
+  runCPM: (options?: { withinEvent?: boolean }) => void;
   /** Herbereken ALLEEN de resource-belasting op de bestaande CPM-datums: pure resource-
    *  mutaties (toewijzen, capaciteit, kalender) verversen zo het histogram direct, ZONDER runCPM en
    *  ZONDER de datums aan te raken — past binnen "manual, not reactive". Datum-rakende mutaties
@@ -77,6 +82,7 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
   scheduleStale: false,
   recordedDates: null,
   datesAsRecorded: false,
+  minuteModelPending: false,
 
   recomputeResourceLoad: () => {
     // Rekenen BUITEN de producer, alleen het resultaat erin — zelfde vorm als `recomputeViewRows`.
@@ -86,27 +92,31 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
     // dezelfde (bevroren, dus veilig te lezen) staat plain.
     const s = get();
     const result = computeReliableResourceLoad(
-      s.cpmResult, s.resources, s.assignments, s.tasks, s.calendar, s.calendars,
+      s.cpmResult, s.resources, s.assignments, s.tasks, s.calendar, s.calendars, effectiveSchedulingOptions(s.project),
     );
     set((st) => { st.resourceLoadResult = result; });
   },
 
-  runCPM: () => {
+  runCPM: (options) => {
     // De solver en belasting lezen veel meer dan ze schrijven. Reken op gewone objecten:
     // lezen via de draft maakt voor alle taken, relaties en kalenders Immer-proxies aan.
     // Alleen time en de afgeleide samenvattingsstatus worden gewijzigd; de bestaande kloon
     // beschermt de bevroren invoer én undo-snapshots. Alles blijft synchroon tot de ene commit.
     const before = get();
     const tasks = cloneTasksForSolve(before.tasks);
-    const result = solveProject(solveInputFor(
-      before.project, tasks, before.sequences, before.calendar, before.calendars,
-    ));
+    const input = solveInputFor(before.project, tasks, before.sequences, before.calendar, before.calendars);
+    const result = solveProject(input);
+    // De belasting leest dezelfde maatconventie als de solver (het profiel van het project).
     const resourceLoad = computeReliableResourceLoad(
-      result, before.resources, before.assignments, tasks, before.calendar, before.calendars,
+      result, before.resources, before.assignments, tasks, before.calendar, before.calendars, input.schedulingOptions,
     );
 
+    const computed = { ...capturePayload(before), tasks, cpmResult: result, resourceLoadResult: resourceLoad,
+      scheduleStale: false, datesAsRecorded: false, recordedDates: null };
+    const conversion = minuteModelTransition(capturePayload(before), computed);
+    const ownConversionEvent = conversion.shifted.length > 0 && !options?.withinEvent;
     set((s) => {
-      const refreshPreviousEventAfter = s.scheduleStale && !s.datesAsRecorded;
+      const refreshPreviousEventAfter = !ownConversionEvent && s.scheduleStale && !s.datesAsRecorded;
       let openedHistory = false;
       // "Datums zoals opgeslagen": dit is de ENIGE situatie waarin `runCPM` een undo-snapshot
       // pusht. Buiten de modus blijft de invariant
@@ -129,7 +139,7 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
       // (moveProject, applyLeveling, clearLeveling) verlaten de modus in hun eigen producer, via
       // `finishMutation({ stale: true })`. Zo blijft het bij één undo-stap in plaats van twee, met
       // een tussentoestand die de gebruiker nooit gezien heeft.
-      if (s.datesAsRecorded) {
+      if (s.datesAsRecorded && !ownConversionEvent) {
         runtime.beginUndoable(s);
         openedHistory = true;
         s.datesAsRecorded = false;
@@ -157,11 +167,18 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
         if (task.status !== before.tasks[i].status) s.tasks[i].status = task.status;
       }
       s.cpmResult = result;
+      s.minuteModelPending = conversion.after.minuteModelPending;
+      s.datesAsRecorded = false;
+      s.recordedDates = null;
+      if (conversion.shifted.length > 0) markDocumentUnsaved(s);
       // De belasting is op dezelfde zojuist berekende datums bepaald, inclusief de rollup.
       s.resourceLoadResult = resourceLoad;
-      if (openedHistory) runtime.finishUndoable(s, { nonEdit: true });
+      if (ownConversionEvent) recordMinuteModelTransition(s, conversion);
+      else if (openedHistory) runtime.finishUndoable(s, { nonEdit: true });
       else if (refreshPreviousEventAfter) runtime.refreshLatestDocumentDataHistoryAfter(s);
     });
+    const conversionNotice = minuteModelNotice(conversion);
+    if (conversionNotice) get().notify(conversionNotice);
 
     // Filter/sort kunnen op de zojuist bijgewerkte totalFloat/isCritical/earlyStart keyen.
     get().recomputeViewRows();
@@ -237,7 +254,7 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
     if (roundedCount > 0) {
       notifyLevelingDelayRounded(get().notify, get().activeDocumentId, roundedCount);
     }
-    get().runCPM();
+    get().runCPM({ withinEvent: true });
   },
 
   clearLeveling: () => {
@@ -259,6 +276,6 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
     if (roundedCount > 0) {
       notifyLevelingDelayRounded(get().notify, get().activeDocumentId, roundedCount);
     }
-    if (changed) get().runCPM();
+    if (changed) get().runCPM({ withinEvent: true });
   },
 });

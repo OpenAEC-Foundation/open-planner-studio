@@ -1,3 +1,4 @@
+import { assertMinuteModelTaskDates, migrateToMinuteModel } from './migrations/minuteModel';
 import { hasTaskTypeData } from '@/state/taskTypesVisibility';
 import type { Project } from '@/types/project';
 import type { WorkCalendar } from '@/types/calendar';
@@ -64,6 +65,8 @@ export interface DocumentPayload {
   recordedDates: RecordedDatesState | null;
   /** "Datums zoals opgeslagen" — zie `ScheduleSlice.datesAsRecorded`. */
   datesAsRecorded: boolean;
+  /** Oud bestand: de eerstvolgende blijvende berekening rondt de omzetting af (B5). */
+  minuteModelPending: boolean;
   /** Baselines per document. `statusDate`/`progressMode` rijden mee in `project`. */
   baselines: Baseline[];
   activeBaselineId: string | null;
@@ -270,6 +273,7 @@ export const DOCUMENT_FIELDS = [
   // De invariant uit snapshot.ts geldt: élke mutator van deze velden pusht een snapshot.
   field({ key: 'recordedDates', get: (s) => s.recordedDates, set: (s, v) => { s.recordedDates = v; }, fresh: () => null, snapshot: 'derived', fromPayload: (p) => p.recordedDates ?? null }),
   field({ key: 'datesAsRecorded', get: (s) => s.datesAsRecorded, set: (s, v) => { s.datesAsRecorded = v; }, fresh: () => false, snapshot: 'derived', fromPayload: (p) => p.datesAsRecorded ?? false }),
+  field({ key: 'minuteModelPending', get: (s) => s.minuteModelPending, set: (s, v) => { s.minuteModelPending = v; }, fresh: () => false, snapshot: 'derived', fromPayload: (p) => p.minuteModelPending ?? false }),
   field({ key: 'baselines', get: (s) => s.baselines, set: (s, v) => { s.baselines = v; }, fresh: () => [], snapshot: 'data', fromPayload: (p) => p.baselines ?? [] }),
   // 'data', niet 'derived': de gebruiker kiest hem en hij gaat mee in het bestand. Als 'derived'
   // zag `documentDataChanged` een activatie niet, en telde een MCP-transactie die alleen de actieve
@@ -412,6 +416,7 @@ export function hydratePayload(s: AppState, p: DocumentPayload): void {
   // één (idempotent — no-op als de entry al bestaat, bv. bij een gewone switchDocument/undo).
   promoteProjectCalendarToLibrary(s);
   syncProjectCalendar(s); // Gedenormaliseerde projectkalender-cache gelijkzetten ná hydrate/switch.
+  if (import.meta.env?.DEV) assertMinuteModelTaskDates(s.tasks);
 }
 
 /** Verse, lege document-payload (nieuw project). */
@@ -459,7 +464,7 @@ export function payloadFromInput(d: RecoveryDocInput): DocumentPayload {
  *  worden overgenomen; selectie/cpm/history/scheduleStale starten vers. `view`/`collapsedTaskIds`
  *  vult de aanroeper (`applyLoadedProject` behoudt die van het huidige document — load-semantiek). */
 export function payloadFromImport(parsed: ImportResult, filePath: string | null): DocumentPayload {
-  return {
+  const payload: DocumentPayload = {
     ...freshPayload(),
     project: parsed.project,
     calendar: parsed.calendar,
@@ -488,6 +493,8 @@ export function payloadFromImport(parsed: ImportResult, filePath: string | null)
     filePath,
     isDirty: false,
   };
+  const migrated = migrateToMinuteModel(payload, { timeModel: parsed.timeModel, milestonesAtDayEnd: parsed.milestonesAtDayEnd });
+  return { ...migrated.payload, minuteModelPending: migrated.report.conversionPending };
 }
 
 /** Zie `ImportResult.recordedTimesOrigin`: verse import (automatisch aan bij afwijkingen) versus

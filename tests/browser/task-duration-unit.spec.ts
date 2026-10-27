@@ -5,7 +5,7 @@ async function seedDurationTask(page: Page, unit: 'days' | 'hours' = 'days', amo
   return page.evaluate(({ nativeUnit, nativeAmount }) => {
     const state = window.__OPS__!.store.getState();
     state.setUI({
-      enableHourPlanning: true,
+
       allowMixedDayHour: true,
       showPropertiesPanel: true,
       rightPanelCollapsed: false,
@@ -124,7 +124,7 @@ test('duurwaarde blijft de brede primaire invoer met controls op normale, gelijk
   expect(Math.abs(dialogGeometry.info.height - dialogGeometry.unit.height)).toBeLessThanOrEqual(2);
 });
 
-test('de app-brede uren- en gemengde-planningpoorten regelen beide gedeelde duurvelden zonder taakdata te herschrijven', async ({ page, ops: _ops }) => {
+test('de gemengde voorkeur regelt beide gedeelde duurvelden zonder taakdata te herschrijven', async ({ page, ops: _ops }) => {
   const taskId = await seedDurationTask(page, 'hours', 12);
   const panelDuration = page.locator('[data-ops-task-duration]').first();
   await openDialog(page, taskId);
@@ -151,14 +151,14 @@ test('de app-brede uren- en gemengde-planningpoorten regelen beide gedeelde duur
     }
   };
 
-  // Hoofdschakelaar uit wint, ook als de bewaarde gemengde voorkeur aan staat.
-  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ enableHourPlanning: false, allowMixedDayHour: true }));
-  await assertControls(false);
-  await expect(panelDuration.locator('[data-ops-duration-value]')).toBeDisabled();
+  // De gemengde voorkeur bepaalt uitsluitend de eenheidsbediening.
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ allowMixedDayHour: true }));
+  await assertControls(true);
+  await expect(panelDuration.locator('[data-ops-duration-value]')).toBeEnabled();
 
   // Uren aan maar gemengd uit verbergt uitsluitend de eenheidsbediening. De bestaande urentaak
   // blijft intact en de numerieke waarde is weer bewerkbaar.
-  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ enableHourPlanning: true, allowMixedDayHour: false }));
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ allowMixedDayHour: false }));
   await assertControls(false);
   await expect(panelDuration.locator('[data-ops-duration-value]')).toBeEnabled();
   await expect.poll(() => page.evaluate((id) => {
@@ -166,23 +166,18 @@ test('de app-brede uren- en gemengde-planningpoorten regelen beide gedeelde duur
     return { unit: task.time.durationUnit, minutes: task.time.durationMinutes };
   }, taskId)).toEqual({ unit: 'hours', minutes: 720 });
 
-  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ enableHourPlanning: true, allowMixedDayHour: true }));
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ allowMixedDayHour: true }));
   await assertControls(true);
 });
 
-test('gemengde dag/uur-planning is een verborgen onderliggende, gepersisteerde instelling', async ({ page, ops: _ops }) => {
+test('gemengde dag/uur-planning staat onder Duurweergave en blijft bewaard', async ({ page, ops: _ops }) => {
   await page.evaluate(() => {
     localStorage.setItem('ops-allowMixedDayHour', 'false');
     window.__OPS__!.store.getState().setUI({ allowMixedDayHour: false, showSettingsDialog: true });
   });
   const settings = page.getByRole('dialog', { name: /^(App settings|App-instellingen)$/ });
-  // Urenplanning zit sinds U1 op de Planning-tab (gelijke naam in nl/en), niet meer op de
-  // voormalige "Timeline / Zoom"-tab.
-  await settings.getByRole('button', { name: /^Planning$/, exact: true }).click();
+  await settings.getByRole('button', { name: /^(Appearance|Weergave)$/, exact: true }).click();
   const mixed = settings.getByLabel(/^(Allow mixed day\/hour planning|Gemengde dag\/uur-planning toestaan)$/);
-  await expect(mixed).toHaveCount(0);
-
-  await settings.getByLabel(/^(Enable hour planning|Urenplanning inschakelen)$/).check();
   await expect(mixed).not.toBeChecked();
   await mixed.check();
   await expect.poll(() => page.evaluate(() => localStorage.getItem('ops-allowMixedDayHour'))).toBe('true');
@@ -281,17 +276,17 @@ test('scalaire standaardkalender converteert naar uren met middagpauze; ongeldig
     state.runCPM();
     const task = state.tasks.find(candidate => candidate.id === id)!;
     return { unit: task.time.durationUnit, minutes: task.time.durationMinutes, finish: task.time.earlyFinish };
-  }, dayTaskId)).toEqual({ unit: 'hours', minutes: 720, finish: '2026-09-08T11:00' });
+  }, dayTaskId)).toEqual({ unit: 'hours', minutes: 720, finish: '2026-09-08T12:00' });
 
-  // De geplande start is 07:00. Acht uur eindigt alleen via de afgeleide 12:00-13:00-pauze op
-  // maandag 16:00; een ruwe 07:00-16:00-band zou ten onrechte maandag 15:00 opleveren.
+  // N0: kalenderwissel bewaart de oorspronkelijke start 08:00. Door de afgeleide
+  // pauze 12:00–13:00 eindigen acht werkuren dinsdag 08:00.
   await duration.locator('[data-ops-duration-value]').fill('8h');
   await duration.locator('[data-ops-duration-value]').blur();
   await expect.poll(() => page.evaluate((id) => {
     const state = window.__OPS__!.store.getState();
     state.runCPM();
     return state.tasks.find(candidate => candidate.id === id)!.time.earlyFinish;
-  }, dayTaskId)).toBe('2026-09-07T16:00');
+  }, dayTaskId)).toBe('2026-09-08T08:00');
 
   await page.evaluate(() => {
     const state = window.__OPS__!.store.getState();
@@ -299,24 +294,22 @@ test('scalaire standaardkalender converteert naar uren met middagpauze; ongeldig
   });
   await duration.getByRole('button', { name: /^(Duration unit|Duureenheid)$/ }).click();
   await page.getByRole('option', { name: /^(Days|Dagen)$/ }).click();
-  await expect(duration.locator('[data-ops-duration-message]')).toContainText(/(valid working times|geldige werktijden)/i);
+  await expect(duration.locator('[data-ops-duration-not-exact]')).toBeVisible();
 
+  // Sinds de dagenmaat een breuk mag hebben (spec "alleen uren" B1, §3.2) is 12 u op een werkdag van 8 u
+  // exact 1,5 d: de wissel houdt het eindmoment en meldt niets.
   const hourTaskId = await seedDurationTask(page, 'hours', 12);
   const hourDuration = page.locator('[data-ops-task-duration]').first();
-  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ enableHourPlanning: false }));
-  await expect(hourDuration.locator('[data-ops-duration-value]')).toBeDisabled();
-  await expect(hourDuration.getByRole('button', { name: /^(Duration unit|Duureenheid)$/ })).toHaveCount(0);
-  await expect(hourDuration.locator('[data-ops-duration-hour-planning-blocked]'))
-    .toContainText(/(enable hour planning|schakel urenplanning)/i);
-  await hourDuration.locator('[data-ops-duration-hour-planning-blocked]').getByRole('button').click();
   await expect(hourDuration.locator('[data-ops-duration-value]')).toBeEnabled();
+  await expect(hourDuration.locator('[data-ops-duration-hour-planning-blocked]')).toHaveCount(0);
   await hourDuration.getByRole('button', { name: /^(Duration unit|Duureenheid)$/ }).click();
   await page.getByRole('option', { name: /^(Days|Dagen)$/ }).click();
-  await expect(hourDuration.locator('[data-ops-duration-not-exact]')).toContainText(/(whole days|hele dagen)/i);
+  await expect(hourDuration.locator('[data-ops-duration-not-exact]')).toHaveCount(0);
   await expect.poll(() => page.evaluate((id) => {
     const task = window.__OPS__!.store.getState().tasks.find(candidate => candidate.id === id)!;
-    return { unit: task.time.durationUnit, minutes: task.time.durationMinutes };
-  }, hourTaskId)).toEqual({ unit: 'hours', minutes: 720 });
+    return { unit: task.time.durationUnit, days: task.time.scheduleDuration };
+  }, hourTaskId)).toEqual({ unit: 'days', days: 1.5 });
+  await expect(hourDuration.locator('[data-ops-duration-value]')).toHaveValue('1.5');
 });
 
 test('eenheid kiezen zet een exacte duur meteen om en undo zet het in één stap terug', async ({ page, ops: _ops }) => {
@@ -354,8 +347,18 @@ test('eenheid kiezen zet een exacte duur meteen om en undo zet het in één stap
   await expect(dialogDuration.locator('[data-ops-duration-message]')).toBeHidden();
 });
 
+/** Een kalender zonder werktijd: de enige plek waar een eenheidswissel niet om te rekenen is (sinds B1 is
+ *  elke omzetting op een leesbare kalender exact, want de dagenmaat mag een breuk hebben). */
+async function unreadableCalendar(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const state = window.__OPS__!.store.getState();
+    state.setCalendar({ ...state.calendar, workDays: [], workTime: undefined });
+  });
+}
+
 test('niet exact: duidelijk waarschuwingsblok, eenheid blijft, geen toast; blok verdwijnt bij nieuwe waarde en andere taak', async ({ page, ops: _ops }) => {
   const hourTaskId = await seedDurationTask(page, 'hours', 12);
+  await unreadableCalendar(page);
   const notificationCount = () => page.evaluate(() => window.__OPS__!.store.getState().ui.notifications.length);
   const notificationsBefore = await notificationCount();
   const duration = page.locator('[data-ops-task-duration]').first();
@@ -366,7 +369,7 @@ test('niet exact: duidelijk waarschuwingsblok, eenheid blijft, geen toast; blok 
   await expect(block).toBeVisible();
   await expect(block).toHaveAttribute('role', 'alert');
   await expect(block).toContainText('12h');
-  await expect(block).toContainText(/(whole days|hele dagen)/i);
+  await expect(block).toContainText(/(cannot be converted|niet om te rekenen)/i);
   // Waarschuwingskleur uit de --warning-token, geen grijze bijschrifttekst.
   const colors = await block.evaluate((el) => {
     const css = getComputedStyle(el);
@@ -410,6 +413,7 @@ test('niet exact: duidelijk waarschuwingsblok, eenheid blijft, geen toast; blok 
 
   // De taakdialoog toont hetzelfde blok.
   const dialogTaskId = await seedDurationTask(page, 'hours', 12);
+  await unreadableCalendar(page);
   await openDialog(page, dialogTaskId);
   const dialogDuration = page.getByRole('dialog').locator('[data-ops-task-duration]');
   await dialogDuration.getByRole('button', { name: /^(Duration unit|Duureenheid)$/ }).click();

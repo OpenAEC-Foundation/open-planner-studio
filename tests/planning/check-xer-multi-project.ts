@@ -1,3 +1,4 @@
+// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -644,7 +645,7 @@ const solvedLinkB = solveProject(opsSolveInput({
   calendars: linkImport.documents[1].result.resourceCalendars ?? [],
 }));
 eq('11 cross-projectlink stuurt de losse documentsolve niet',
-  solvedLinkB.tasks.get('LB')?.earlyStart, '2026-01-02');
+  solvedLinkB.tasks.get('LB')?.earlyStart, "2026-01-02T07:00");
 
 // Breuk die dit vangt: mapperresultaten rechtstreeks doorgeven of één gedeelde array/object na
 // payloadFromImport tussen twee geopende documenten laten bestaan.

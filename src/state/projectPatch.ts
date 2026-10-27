@@ -4,14 +4,25 @@
 // `isDirty`/`scheduleStale` en wat er met het aantal geklemde ankers gebeurt (UI: herberekenen +
 // melding; MCP: in het tool-resultaat).
 import type { Project } from '@/types/project';
-import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
-import type { WorkCalendar } from '@/types/calendar';
 import { clampProjectStartAnchors } from '@/engine/scheduler/projectStartAnchorClamp';
+import { settleDefaultWorkRuleSwitch, type DefaultWorkRuleSwitchState } from './defaultWorkRuleSwitch';
+
+/** Projectvelden die de MCP-draft kan WISSEN (sleutel echt weg: IFC en solver lezen op aanwezigheid). */
+export type ClearableProjectKey = 'statusDate' | 'progressMode' | 'defaultWorkRule';
+
+export interface ProjectPatchOutcome {
+  /** Het aantal wortel-ankers dat de projectstart-vloer klemde. */
+  clampedAnchors: number;
+  /** Taken die door een nieuwe projectstandaard (vast werk) de urenmaat kregen. Niet leeg ⇒ de
+   *  aanroeper behandelt de bewerking als planning (geval 11c): modus uit, planning verouderd. */
+  measureChangedTaskIds: string[];
+}
 
 /**
- * Merge `updates` in het project, bump `modifiedAt` en klem bij een NIEUWE `startDate` de verouderde
- * wortel-ankers die nu vóór het projectbegin liggen. Retourneert het aantal geklemde ankers.
+ * Merge `updates` in het project (en wis de sleutels in `clear`), bump `modifiedAt`, zet bij een
+ * nieuwe projectstandaard voor het taaktype de taken om die hem erven (`settleDefaultWorkRuleSwitch`)
+ * en klem bij een NIEUWE `startDate` de verouderde wortel-ankers die nu vóór het projectbegin liggen.
  *
  * De projectstart-vloer hoort bij het bewerkmoment, niet in de solver (CPMSolver is MSP-getrouw — een
  * ingelezen anker wordt nooit door de vloer overruled, zie `CPMSolver.ownAnchor`). Alléén hier
@@ -22,15 +33,20 @@ import { clampProjectStartAnchors } from '@/engine/scheduler/projectStartAnchorC
  * documentcontract). De klem-mechaniek zelf zit in `clampProjectStartAnchors`.
  */
 export function applyProjectPatch(
-  s: { project: Project; tasks: Task[]; sequences: Sequence[]; calendar: WorkCalendar; calendars: WorkCalendar[] },
+  s: DefaultWorkRuleSwitchState & { sequences: Sequence[] },
   updates: Partial<Project>,
-): number {
+  clear: readonly ClearableProjectKey[] = [],
+): ProjectPatchOutcome {
   const prevStartDate = s.project.startDate;
+  const previousDefault = s.project.defaultWorkRule;
   Object.assign(s.project, updates);
+  for (const key of clear) delete s.project[key];
   s.project.modifiedAt = new Date().toISOString();
-  if (typeof updates.startDate !== 'string') return 0;
-  return clampProjectStartAnchors({
+  // Een nieuwe projectstandaard voor het taaktype geldt meteen voor elke taak die hem erft.
+  const measureChangedTaskIds = settleDefaultWorkRuleSwitch(s, previousDefault);
+  const clampedAnchors = typeof updates.startDate !== 'string' ? 0 : clampProjectStartAnchors({
     tasks: s.tasks, sequences: s.sequences, calendar: s.calendar, calendars: s.calendars,
     prevStartDate, nextStartDate: updates.startDate,
   });
+  return { clampedAnchors, measureChangedTaskIds };
 }

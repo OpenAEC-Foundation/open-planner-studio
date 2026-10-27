@@ -61,21 +61,21 @@ test('statusdatum op nul voortgang: de planning schuift ECHT op en de respons me
   const ids = planningZonderVoortgang();
   const eindVoor = S().cpmResult!.projectEnd;
   const eersteVoor = S().tasks.find((t) => t.id === ids[0])!.time.earlyStart;
-  assertEq(eindVoor, '2026-08-28', 'voorwaarde: projecteinde zonder statusdatum');
-  assertEq(eersteVoor, '2026-07-27', 'voorwaarde: de mijlpaal staat op de projectstart');
+  assertEq(eindVoor, '2026-08-28T16:00', 'voorwaarde: projecteinde zonder statusdatum');
+  assertEq(eersteVoor, '2026-07-27T07:00', 'voorwaarde: de mijlpaal staat op de projectstart');
 
   const data = await callOk('planner_update_project', { statusDate: '2026-08-17' });
 
   // Het gedrag zelf (data-date-vloer): zelfs de mijlpaal met completion 0 schuift naar de peildatum.
-  assertEq(S().tasks.find((t) => t.id === ids[0])!.time.earlyStart, '2026-08-17',
+  assertEq(S().tasks.find((t) => t.id === ids[0])!.time.earlyStart, '2026-08-17T07:00',
     'de niet-gestarte mijlpaal is naar de statusdatum geschoven');
   assertEq(S().project.startDate, '2026-07-27', 'project.startDate blijft ongemoeid');
-  assertEq(S().cpmResult!.projectEnd, '2026-09-18', 'het projecteinde is drie weken opgeschoven');
+  assertEq(S().cpmResult!.projectEnd, '2026-09-18T16:00', 'het projecteinde is drie weken opgeschoven');
 
   // En dát is precies wat de respons nu meldt — het echte voor/ná-verschil, niet alleen `updated`.
   assert(data.statusDateEffect, 'de respons mist `statusDateEffect`');
   assertEq(data.statusDateEffect.projectEndBefore, eindVoor, 'projectEndBefore = de stand vóór de call');
-  assertEq(data.statusDateEffect.projectEndAfter, '2026-09-18', 'projectEndAfter = de nieuwe stand');
+  assertEq(data.statusDateEffect.projectEndAfter, '2026-09-18T16:00', 'projectEndAfter = de nieuwe stand');
   assertEq(data.statusDateEffect.shifted, true, '`shifted` staat aan want het einde verschoof');
   assertEq(data.statusDateEffect.staleBefore, false, 'de voor-meting was niet verouderd');
   assert(/DATA DATE/.test(data.statusDateEffect.note), 'de toelichting benoemt de data-date-semantiek');
@@ -84,13 +84,13 @@ test('statusdatum op nul voortgang: de planning schuift ECHT op en de respons me
 test('statusdatum wissen: het effect wordt óók gemeld, en de planning valt exact terug', async () => {
   const ids = planningZonderVoortgang();
   await callOk('planner_update_project', { statusDate: '2026-08-17' });
-  assertEq(S().cpmResult!.projectEnd, '2026-09-18', 'voorwaarde: opgeschoven');
+  assertEq(S().cpmResult!.projectEnd, '2026-09-18T16:00', 'voorwaarde: opgeschoven');
 
   const data = await callOk('planner_update_project', { statusDate: null });
-  assertEq(S().tasks.find((t) => t.id === ids[0])!.time.earlyStart, '2026-07-27', 'de mijlpaal staat terug');
-  assertEq(S().cpmResult!.projectEnd, '2026-08-28', 'het projecteinde staat exact terug');
-  assertEq(data.statusDateEffect.projectEndBefore, '2026-09-18', 'voor-meting');
-  assertEq(data.statusDateEffect.projectEndAfter, '2026-08-28', 'ná-meting');
+  assertEq(S().tasks.find((t) => t.id === ids[0])!.time.earlyStart, '2026-07-27T07:00', 'de mijlpaal staat terug');
+  assertEq(S().cpmResult!.projectEnd, '2026-08-28T16:00', 'het projecteinde staat exact terug');
+  assertEq(data.statusDateEffect.projectEndBefore, '2026-09-18T16:00', 'voor-meting');
+  assertEq(data.statusDateEffect.projectEndAfter, '2026-08-28T16:00', 'ná-meting');
   assertEq(data.statusDateEffect.shifted, true, 'ook het terugvallen is een verschuiving');
   assertEq(data.statusDateEffect.statusDate, null, 'de gewiste statusdatum staat als null in het effect');
 });
@@ -108,7 +108,7 @@ test('batch-pad: de stap meldt het mechanisme (daar is geen enrichOk en dus geen
   });
   const blob = JSON.stringify(data);
   assert(/DATA DATE/.test(blob), `de batch-stap verzwijgt het mechanisme: ${blob}`);
-  assertEq(S().cpmResult!.projectEnd, '2026-09-18', 'de batch heeft de verschuiving ook echt doorgevoerd');
+  assertEq(S().cpmResult!.projectEnd, '2026-09-18T16:00', 'de batch heeft de verschuiving ook echt doorgevoerd');
 });
 
 test('beschrijvingen: update_project én get_project_info benoemen de data-date-werking', () => {
@@ -189,14 +189,14 @@ test('get_task meldt het verschil tussen de gerekende finish en de actualFinish'
   const data = await callOk('planner_get_task', { taskId: asbest });
 
   // Het gedrag zelf (ongewijzigd): de finish is de laatste werkdag op-of-vóór het feit.
-  assertEq(data.schedule.earlyFinish, '2026-07-31', 'de gerekende finish snapt terug naar vr 31 juli');
-  assertEq(data.progress.actualFinish, '2026-08-04', 'de actual zelf blijft ongewijzigd bewaard');
+  assertEq(data.schedule.earlyFinish, '2026-07-31T16:00', 'de gerekende finish snapt terug naar vr 31 juli');
+  assertEq(data.progress.actualFinish, '2026-08-04T16:00', 'de actual zelf blijft ongewijzigd bewaard');
 
   // Nieuw: het verschil wordt niet meer verzwegen.
   const adj = data.progress.actualFinishAdjusted;
   assert(adj, 'get_task verzwijgt nog steeds dat earlyFinish ≠ actualFinish');
-  assertEq(adj.actualFinish, '2026-08-04', 'het effect noemt het feit');
-  assertEq(adj.earlyFinish, '2026-07-31', 'het effect noemt de gerekende finish');
+  assertEq(adj.actualFinish, '2026-08-04T16:00', 'het effect noemt het feit');
+  assertEq(adj.earlyFinish, '2026-07-31T16:00', 'het effect noemt de gerekende finish');
   assert(/outside the working time/.test(adj.reason), `de reden legt de kalender-oorzaak uit: ${adj.reason}`);
   assert(/planner_update_calendar/.test(adj.reason), 'de reden noemt de uitweg (kalender werkbaar maken)');
 });
@@ -205,7 +205,7 @@ test('valt de actualFinish gewoon op een werkdag, dan is er niets te melden', as
   // Zelfde opzet, maar de actualFinish (vr 31 juli) ligt vóór het bouwvak ⇒ geen snap, geen ruis.
   const { asbest } = voltooidInBouwvak('2026-07-29', '2026-07-31');
   const data = await callOk('planner_get_task', { taskId: asbest });
-  assertEq(data.schedule.earlyFinish, '2026-07-31', 'gerekende finish = de actual');
+  assertEq(data.schedule.earlyFinish, '2026-07-31T16:00', 'gerekende finish = de actual');
   assertEq(data.progress.actualFinishAdjusted, undefined, 'geen effect-blok wanneer er niets afwijkt');
 });
 
@@ -215,10 +215,10 @@ test('een voltooide taak landt NOOIT ná zijn actualFinish, ook niet als het hel
   // dus afgerond werk in de TOEKOMST, plus een dag vertraging voor de opvolger.
   const { asbest, nieuwbouw } = voltooidInBouwvak('2026-08-05', '2026-08-10');
   const t = S().tasks.find((x) => x.id === asbest)!;
-  assertEq(t.time.earlyStart, '2026-07-31', 'de start is meegetrokken naar de laatste werkdag vóór het feit');
-  assertEq(t.time.earlyFinish, '2026-07-31', 'de finish ligt op-of-vóór de actualFinish, niet erna');
+  assertEq(t.time.earlyStart, '2026-07-31T16:00', 'de start is meegetrokken naar de laatste werkdag vóór het feit');
+  assertEq(t.time.earlyFinish, '2026-07-31T16:00', 'de finish ligt op-of-vóór de actualFinish, niet erna');
   assert(t.time.earlyFinish <= S().project.statusDate!, 'afgerond werk ligt nooit ná de statusdatum');
-  assertEq(S().tasks.find((x) => x.id === nieuwbouw)!.time.earlyStart, '2026-08-24',
+  assertEq(S().tasks.find((x) => x.id === nieuwbouw)!.time.earlyStart, '2026-08-24T07:00',
     'de opvolger start op de eerste werkdag ná het bouwvak, niet een dag later');
 
   const data = await callOk('planner_get_task', { taskId: asbest });

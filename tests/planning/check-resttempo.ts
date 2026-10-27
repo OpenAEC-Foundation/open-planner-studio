@@ -184,7 +184,7 @@ console.log('-- (d) bij openen rekent de app niets om: belasting = opgeslagen we
 
 console.log('-- (e) bewerking: duur 9 → 10 h onder vaste duur en inzet geeft 340 h --');
 const S = () => useAppStore.getState();
-const OPEN_OPTIONS = { filePath: null, fileHandle: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: true } as const;
+const OPEN_OPTIONS = { filePath: null, fileHandle: null, recompute: true, fit: false, linkedOpen: true } as const;
 {
   S().applyOpenedImport(openXer(), OPEN_OPTIONS);
   const task = S().tasks.find((t) => t.wbsCode === 'A10530')!;

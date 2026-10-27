@@ -4,6 +4,10 @@ import type { Page } from '@playwright/test';
 import { barPoint, expect, seedProject, state, test } from './fixtures/ops';
 import { measureGanttHover } from '../performance/gantt-hover/measure';
 
+// Deze route bedient tijdlijnbalken naast de takenlijst en de eigenschappenrail.
+// Reserveer expliciet genoeg canvasruimte, onafhankelijk van de standaard paneelbreedte.
+test.use({ viewport: { width: 1600, height: 900 } });
+
 async function seedResourceLoad(page: Page): Promise<{
   taskIds: string[];
   overId: string;

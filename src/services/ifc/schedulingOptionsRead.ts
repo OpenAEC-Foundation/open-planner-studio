@@ -107,6 +107,8 @@ function sanitizeLeveling(value: unknown): LevelingSettings | undefined {
 /** Compile-time: elke sleutel van `LegacySchedulingOptions` moet hieronder een tak hebben. */
 type HandledKeys =
   | (typeof BOOLEAN_KEYS)[number]
+  | 'milestoneWithoutPredecessorAtDayEnd' // In oude opties bewust genegeerd; uitsluitend profieldata.
+  | 'workdayDurationMeasure' // Idem (§3.14): oudere versies kennen geen maat.
   | 'p6Source' | 'lagCalendar' | 'criticalDefinition' | 'totalFloatMode'
   | 'nearCriticalThreshold' | 'floatPaths' | 'startToStartLagFrom' | 'leveling';
 type MissingKeys = Exclude<keyof LegacySchedulingOptions, HandledKeys>;
@@ -203,7 +205,7 @@ export function carriesProfile(profile: SchedulingProfile | undefined): profile 
  *  - geen object ⇒ `undefined` (de lezer valt terug op de legacy-migratie);
  *  - onbekende/ontbrekende `baseId` ⇒ `ops`;
  *  - `conventions`: per conventie een boolean ⇒ die waarde; ONTBREKENDE sleutel (een bestand van
- *    vóór die conventie) of ongeldig getypeerde waarde ⇒ `legacyValue`, nooit de basiswaarde;
+ *    vóór die conventie) of ongeldig getypeerde waarde ⇒ `legacyValue`, of de basis bij `legacyFromBase` (T12);
  *    onbekende sleutels ⇒ genegeerd. `overrides` = verschil met de basis, dus de
  *    bestandswaarden winnen en de state blijft compact;
  *  - `overrides` (letterlijk weggeschreven): elke letterlijke afwijking die
@@ -221,7 +223,7 @@ export function sanitizeSchedulingProfile(input: unknown): SchedulingProfile | u
   const resolved: Partial<SchedulingConventions> = {};
   for (const d of CONVENTIONS) {
     const value = raw[d.id];
-    resolved[d.id] = typeof value === 'boolean' ? value : d.legacyValue;
+    resolved[d.id] = typeof value === 'boolean' ? value : d.legacyFromBase ? d.builtIn[baseId] : d.legacyValue;
   }
   let id = validId(input.id) ? input.id : baseId;
   if (isBuiltInProfileId(id) && id !== baseId) id = baseId;
@@ -242,7 +244,7 @@ export function sanitizeSchedulingProfile(input: unknown): SchedulingProfile | u
 }
 
 /** Het JSON-object dat de IFC-schrijver voor een profiel wegschrijft (spiegel van de sanitizer):
- *  alle zevenentwintig conventies OPGELOST, zodat een bestand overal gelijk rekent, ook waar het eigen
+ *  alle negenentwintig conventies OPGELOST, zodat een bestand overal gelijk rekent, ook waar het eigen
  *  profiel ontbreekt. `name` alleen voor eigen profielen (ingebouwde nooit vertaald wegschrijven). */
 export function schedulingProfileToJson(profile: SchedulingProfile): {
   id: string; baseId: BuiltInProfileId; conventions: SchedulingConventions;

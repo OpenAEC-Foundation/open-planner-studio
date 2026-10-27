@@ -7,6 +7,7 @@ import { milestoneRefusalNotices } from '@/state/structuralTransition';
 import { descendantLeaves } from '@/engine/scheduler/summaryProgress';
 import { isLeafTask } from '@/utils/taskHierarchy';
 import { localTodayIso } from '@/utils/dateUtils';
+import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { planProgressEntry } from '@/engine/progressEntry';
 import { askActualStart, type ActualStartAnswers } from '@/state/actualStartQuestion';
 
@@ -154,7 +155,8 @@ export const contextMenuBulk = {
     const questions = ids.flatMap((id) => {
       const task = byId.get(id);
       if (!task) return [];
-      const plan = planProgressEntry(task, edit, { statusDate: state.project.statusDate, today });
+      const plan = planProgressEntry(task, edit, { statusDate: state.project.statusDate, today,
+        calendar: resolveCalendar(task.calendarId, state.calendars, state.calendar) });
       return !plan.ok && plan.reason === 'needsActualStart' ? [{ ...plan.question, taskName: task.name }] : [];
     });
     let answers: ActualStartAnswers = {};
