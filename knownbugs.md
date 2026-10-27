@@ -1223,12 +1223,6 @@ en noem het in je rapport of PR-tekst.
     browserhandeling. Bevestigd in review ronde 1 van PR #708 (GPT-6.1-Sol). Voorstel: wachten op een
     aantoonbaar afgehandelde herstelpoging (de bestaande flush), en de taak met een echte handeling maken. — B
 
-408. **Geen browsertest meer voor `skipWelcome` bij werkende opslag.** #706 verving de browsertest met
-    `skipWelcome: true` door een test zonder dat veld. `tests/planning/check-site-storage.ts` (A12) toetst
-    `siteSkipsWelcome()` nog, maar niet de koppeling met `useSettingsBootstrap`. Bevestigd in review ronde 1
-    van PR #708 (GPT-6.1-Sol). Voorstel: één stap met werkende `localStorage` en een host met
-    `skipWelcome: true` in een bestaande welkomsttest. — B
-
 405. **Nivelleren in de achtergrond start vermoedelijk niet in een opaque origin.** Gezien bij #706.
     `src/services/leveling/backgroundLeveling.ts:34` maakt `new Worker(new URL(…, import.meta.url))` zonder
     try. Een document zonder `allow-same-origin` (de SuperCloud-werkplek) haalt een workerscript op met modus

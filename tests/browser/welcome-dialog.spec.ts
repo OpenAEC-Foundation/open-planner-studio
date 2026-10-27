@@ -28,6 +28,45 @@ test('welkomstdialoog past taal, thema en automatisch berekenen live toe en bewa
   await expect(page.locator('html')).toHaveAttribute('lang', 'nl');
   expect(await page.evaluate(() => localStorage.getItem('ops-locale'))).toBe('nl');
   await expect(dialog.getByRole('button', { name: 'Taal', exact: true })).toBeVisible();
+
+  // 408: bij werkende opslag beslist de expliciete hostvlag, niet een opslagweigering of
+  // een eerder gezien venster. Herladen doorloopt de echte bootstrap, zonder setUI-ingreep.
+  await page.addInitScript((ifc) => {
+    localStorage.removeItem('ops-welcomeSeen');
+    const file = { id: 'welcome-host', name: 'Planning.ifc', version: '1' };
+    (window as unknown as { openaecHost: unknown }).openaecHost = {
+      skipWelcome: localStorage.getItem('test-host-skip-welcome') !== 'false',
+      initialFileId: file.id,
+      storage: {
+        list: async () => [file],
+        open: async () => ({ file, data: ifc }),
+        save: async () => { throw new Error('niet in deze test'); },
+        versions: async () => [{ version: '1' }],
+      },
+    };
+  }, IFC);
+  for (const round of ['host overslaan', 'host opnieuw overslaan']) {
+    await page.reload();
+    await waitForOps(page);
+    await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().siteFileId), { timeout: 20_000, message: round })
+      .toBe('welcome-host');
+    expect(await page.evaluate(() => {
+      localStorage.setItem('test-storage-probe', 'werkt');
+      const result = localStorage.getItem('test-storage-probe');
+      localStorage.removeItem('test-storage-probe');
+      return [result, localStorage.getItem('ops-welcomeSeen')];
+    }), round).toEqual(['werkt', null]);
+    await expect(dialog, round).toHaveCount(0);
+    expect(await page.evaluate(() => {
+      const ui = window.__OPS__!.store.getState().ui;
+      return [ui.welcomePending, ui.showTourOverlay, ui.showTutorialOffer];
+    }), round).toEqual([false, false, false]);
+  }
+  // Negatieve controle: dezelfde host en werkende opslag, maar zonder overslaan komt welkom terug.
+  await page.evaluate(() => localStorage.setItem('test-host-skip-welcome', 'false'));
+  await page.reload();
+  await waitForOps(page);
+  await expect(dialog).toBeVisible();
 });
 
 // SuperCloud-werkplek (#582, #583, #706): de tool draait in een sandbox zonder `allow-same-origin`
