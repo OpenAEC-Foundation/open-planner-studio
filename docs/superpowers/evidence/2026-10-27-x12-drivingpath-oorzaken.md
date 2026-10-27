@@ -16,7 +16,9 @@ dezelfde datums en dezelfde speling als P6. Het verschil zit alleen in wat de as
 
 Alle negen projecten hebben in P6 zelf `PROJECT.critical_path_type = CT_TotFloat` met
 `critical_drtn_hr_cnt = 0`. P6 noemt daar dus ook "kritiek = speling ≤ 0". De as legt de kritiek-vlag
-van OPS naast een ander P6-veld (langste pad). Daarom telt hij niet in het zesassige nuldoel.
+van OPS naast een ander P6-veld (langste pad). De as telt niet in het zesassige nuldoel, maar is wel
+een regressiepoort: `drivingPath` is de zevende as van de cel-ratchet (`tests/planning/fidelityCells.ts`,
+`CELL_AXES`). Een nu exacte cel die inexact wordt, maakt de meting rood; de 145 bestaande staan gepind.
 
 ## Verdeling
 
@@ -24,14 +26,15 @@ van OPS naast een ander P6-veld (langste pad). Daarom telt hij niet in het zesas
 |---|---:|---|---|---:|
 | A. Op het langste pad, maar met positieve speling | 49 | 3211 (35, TF 8 u), 9031 (6), 9040 (6), 2666 (2, TF 1 u) | ja / nee | 12 blijven |
 | B1. Speling 0, niet op het langste pad | 67 | 2666 | nee / ja | 0 blijven |
-| B2. Speling 0 door een verplichte start (`CS_MSOA`) | 2 | 9032, 10096 | nee / ja | 0 blijven |
+| B2. Speling 0 bij een start-op-of-na-beperking (`CS_MSOA`, in OPS SNET) | 2 | 9032, 10096 | nee / ja | 0 blijven |
 | B3. Negatieve speling, niet op het langste pad | 4 | 9049 (TF −16 en −64 u) | nee / ja | 0 blijven |
 | C. Voltooide taak op het langste pad | 13 | 4408 (7), 9032 (3), 10096 (3) | ja / nee | 13 blijven |
 | D. LOE op het langste pad | 10 | 4508 | ja / nee | 10 blijven |
 | **totaal** | **145** | | | **35** |
 
 A, B1, B2 en B3 (122 taken) zijn het definitieverschil zelf: speling ≤ 0 is niet hetzelfde als
-het langste pad. Bij 3211 heeft het hele langste pad 8 u speling. Dat past bij één werkdag tussen
+het langste pad. Bij B2 draagt de taak een SNET-beperking (`CS_MSOA`, `xerReader.ts`); of die de
+speling van 0 veroorzaakt, is niet apart nagegaan. Bij 3211 heeft het hele langste pad 8 u speling. Dat past bij één werkdag tussen
 het berekende einde (`scd_end_date` 2013-02-27 17:00) en het geplande projecteinde
 (`plan_end_date` 2013-03-01); niet apart nagegaan.
 
@@ -55,10 +58,11 @@ de keten waar OPS de "driving"-relaties kiest.
 
 ## Wat dit betekent voor een besluit
 
-De as is nu geen poort, alleen rapportage. Twee feiten voor het eigenaarsbesluit (#690, fase 1
-punt 3):
+De as is al een regressiepoort (cel-ratchet), maar zit niet in het zesassige nuldoel. Open voor
+de eigenaar (#690, fase 1 punt 3) is dus niet óf de as bewaakt wordt, maar met welke definitie hij
+vergelijkt en of hij een nuldoel krijgt. Twee feiten daarvoor:
 
 1. Onder de eigen P6-instelling van deze projecten (`CT_TotFloat`, 0 u) zijn 122 van de 145 geen
-   rekenfout maar een andere definitie. Als poort zou de as die als fout tellen.
-2. Wie de as als poort wil, kan hem beter vergelijken met de OPS-modus "langste pad". Dan blijven
-   35 taken over: 23 door de regels voor voltooide taken en LOE's, 12 onverklaard.
+   rekenfout maar een andere definitie. Een nuldoel op de huidige vergelijking zou die als fout tellen.
+2. Vergelijkt de as met de OPS-modus "langste pad", dan blijven 35 taken over: 23 door de regels voor
+   voltooide taken en LOE's, 12 onverklaard.

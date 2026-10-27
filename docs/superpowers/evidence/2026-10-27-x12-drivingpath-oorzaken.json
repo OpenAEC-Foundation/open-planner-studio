@@ -1403,7 +1403,7 @@
    "status": "TK_NotStart",
    "p6TotalFloatUren": "0",
    "beperking": "CS_MSOA",
-   "oorzaak": "B2-mandatory-start-tf0",
+   "oorzaak": "B2-snet-start-op-of-na-tf0",
    "nogAfwijkendBijLangstePad": false
   },
   {
@@ -1415,7 +1415,7 @@
    "status": "TK_NotStart",
    "p6TotalFloatUren": "0",
    "beperking": "CS_MSOA",
-   "oorzaak": "B2-mandatory-start-tf0",
+   "oorzaak": "B2-snet-start-op-of-na-tf0",
    "nogAfwijkendBijLangstePad": false
   },
   {
