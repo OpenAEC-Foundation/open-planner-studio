@@ -7,7 +7,7 @@
 import type { Task, TaskSplitGap, TaskTimephasedContour } from '@/types/task';
 import type { ResourceAssignment } from '@/types/resource';
 import type { EffectiveSchedulingOptions } from '@/types/project';
-import type { CalendarEngine } from './CalendarEngine';
+import { CalendarEngine } from './CalendarEngine';
 import { taskCountsInWorkdays } from './conventions/durationMeasure';
 import { durationMinutesOf, isPinnedComplete, isPinnedInProgress, splitTotalSpanMinutes } from './duration';
 import { isDateOnly } from '@/engine/calendar/workdayRules';
@@ -76,7 +76,7 @@ const AXIS_EPS = 1e-9;
 export function workPlacement(engine: CalendarEngine, placement: WorkPlacement): PlacementResult {
   const { start, measure } = placement;
   const endMs = placement.finish?.getTime() ?? Infinity;
-  let remaining = placement.duration ?? Infinity;
+  const remaining = placement.duration ?? Infinity;
   const days: PlacementDay[] = [];
   if (!Number.isFinite(start.getTime()) || Number.isNaN(endMs) || endMs <= start.getTime()
     || !(remaining > 0) || !engine.isHourMode || !engine.hasWorkingDays()) return { days, finish: start };
@@ -92,34 +92,39 @@ export function workPlacement(engine: CalendarEngine, placement: WorkPlacement):
       : undefined;
     return measuredWorkdayWalk(engine, start, Math.min(endMs, spanEnd ?? Infinity), remaining, gaps, spanEnd);
   }
+  // De urenmaat wandelt in hele ms, met dezelfde omzetting als de kalenderwandeling (`CalendarEngine.walkMs`).
+  // Bij een duur ligt het einde op de split-as vast zoals bij de solver (`addDurationChecked`): het werk plus
+  // de gaten ervóór (`splitTotalSpanMinutes`). Zo is het einde gelijk aan `addWorkMinutes`, ook op een
+  // bandgrens (was knownbug 390: de lus telde kommagetalminuten op en een `Date` kapte af).
+  const toMs = CalendarEngine.walkMs;
+  let axisEndMs = placement.duration !== undefined ? toMs(splitTotalSpanMinutes(gaps, remaining)) : Infinity;
   let gapIndex = 0;
-  let axis = 0;
+  let axisMs = 0;
   let finish = start;
   const denominator = engine.hoursPerDay * 60;
   // Ook de staart van een nachtblok van een eerdere dag kan de start bevatten.
   let day = addCalendarDays(utcDayStart(start), -2);
-  for (let scanned = 0; scanned < 200_000 && day.getTime() < endMs && remaining > 1e-12; scanned++) {
+  for (let scanned = 0; scanned < 200_000 && day.getTime() < endMs && axisMs < axisEndMs; scanned++) {
     const bands = engine.effectiveBandsOn(day);
     const dayMinutes = bands.reduce((sum, b) => sum + b.end - b.start, 0);
     const ranges: PlacementRange[] = [];
     for (const band of bands) {
       let cursor = Math.max(start.getTime(), day.getTime() + band.start * 60_000);
       const end = Math.min(endMs, day.getTime() + band.end * 60_000);
-      while (cursor < end && remaining > 1e-12) {
+      while (cursor < end && axisMs < axisEndMs) {
         // Overlappende en aaneensluitende gaten delen dezelfde cumulatieve as.
-        while (gapIndex < gaps.length && gaps[gapIndex].afterMinutes + gaps[gapIndex].gapMinutes <= axis) gapIndex++;
+        while (gapIndex < gaps.length && toMs(gaps[gapIndex].afterMinutes + gaps[gapIndex].gapMinutes) <= axisMs) gapIndex++;
         const gap = gaps[gapIndex];
-        const inGap = gap && gap.afterMinutes <= axis;
-        const boundary = gap ? (inGap ? gap.afterMinutes + gap.gapMinutes : gap.afterMinutes) : Infinity;
-        const available = Math.min((end - cursor) / 60_000, boundary - axis);
-        const minutes = inGap ? available : Math.min(available, remaining);
-        if (!(minutes > 0)) { remaining = 0; break; }
+        const inGap = gap && toMs(gap.afterMinutes) <= axisMs;
+        const boundary = gap ? toMs(inGap ? gap.afterMinutes + gap.gapMinutes : gap.afterMinutes) : Infinity;
+        const step = Math.min(end - cursor, boundary - axisMs, axisEndMs - axisMs);
+        if (!(step > 0)) { axisEndMs = axisMs; break; }
         if (!inGap) {
-          ranges.push({ afterMinutes: axis, axisMinutes: minutes, minutes, share: minutes / denominator });
-          remaining -= minutes;
+          const minutes = step / 60_000;
+          ranges.push({ afterMinutes: axisMs / 60_000, axisMinutes: minutes, minutes, share: minutes / denominator });
         }
-        axis += minutes;
-        cursor += minutes * 60_000;
+        axisMs += step;
+        cursor += step;
         finish = new Date(cursor);
       }
     }
