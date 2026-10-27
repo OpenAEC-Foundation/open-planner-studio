@@ -1318,6 +1318,16 @@ en noem het in je rapport of PR-tekst.
      door een assert dat het openen al een verse, berekende stand geeft. Gevonden in review ronde 1 van
      PR #590 (GPT-6.1-Sol, VERVOLG). — B
 
+396. **De vaste meetbasis voor het invoegen van taaktakken breekt na de main-merge.**
+     `tests/planning/measure-inserted-branch.mjs:12-19` vergelijkt de volledige
+     productcode met de vaste oude basis. Na bijwerken met main stopt de scopecontrole
+     vóór de toestandvergelijking en tijdmeting. Run 40539760984, job 122314649257,
+     eindigt met AssertionError en exit 1. De gerichte plak- en relatiecontroles
+     slagen wel. Richting: controleer de actuele PR-basis en verwissel uitsluitend
+     insertedBranch.ts tussen twee verder gelijke actuele bundels.
+     De fout en de vaste basis zijn onafhankelijk in bron en CI-log gecontroleerd.
+     — B
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
