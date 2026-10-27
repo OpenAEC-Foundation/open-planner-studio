@@ -101,7 +101,7 @@ const taskOf = (id: string) => S().tasks.find(t => t.id === id)!;
 // Ook de bestaande terugval blijft staan: een deadline is eindachtig, een ongedateerd type met
 // toch een datum startachtig. Geen herberekening nodig voor deze pure rapportprojectie.
 const sample = S().tasks.find(t => t.isMilestone)!;
-for (const milestoneKind of ['START', 'FINISH', 'AUTO'] as const) {
+for (const milestoneKind of ['START', 'FINISH', undefined] as const) {
   for (const [type, side] of [
     ['SNET', 'start'], ['SNLT', 'start'], ['MSO', 'start'],
     ['FNET', 'end'], ['FNLT', 'end'], ['MFO', 'end'], ['ASAP', 'start'], ['ALAP', 'start'],
