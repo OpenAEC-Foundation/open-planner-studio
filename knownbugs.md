@@ -1057,6 +1057,22 @@ en noem het in je rapport of PR-tekst.
 
 ## Tests
 
+409. **Het pre-paintscript negeert `?theme=` van de dev-link.** Met bewaard `light` en `?theme=dark`
+     zet `index.html:31` eerst `data-theme=light`; de store-default (`peekTheme`) is dan `dark`. Na de
+     mount klopt het thema; de flits is alleen in de browser op de dev-server en niet gemeten.
+     Richting: het dev-thema ook vóór de eerste paint toepassen, zonder dat het in de productiebouw
+     komt. VERVOLG uit review #703 r1. — B
+
+410. **`?open=` van de dev-link heeft geen browsertest.** `check-dev-open-link.ts` dekt de padregel,
+     de Tauri-guard en het wegvallen in productie; de echte appstart (StrictMode, herstelkeuze,
+     site-host) is alleen met de hand nagelopen. VERVOLG uit review #703 r1. — S
+
+413. **De dev-link vindt een bestand met `#` in het pad niet.** `?open=probe%20data/plan%20%231.ifc`
+     wordt goed gecodeerd (`devFilePath`), maar Vite geeft voor dat pad de HTML-terugval, dus de link
+     meldt "niet gevonden". Spaties werken wel. De voorbeelden in `examples/` hebben geen `#`. Richting:
+     de beperking in `docs/dev-link.md` noemen, of oplossen met een echte HTTP-check. VERVOLG uit
+     review #703 r3. — B
+
 313. **De bulkprestatiepoort kan in een volledige run falen terwijl beide gerichte controles slagen.**
     Tijdens een volledige corpusloze F1b-suite die deels met andere controles overlapte, meet `check-bulk-scale.ts`
     17.188 ms voor voortgang op 2000 van 8000 taken, bij de vaste grens van 15.000 ms.
