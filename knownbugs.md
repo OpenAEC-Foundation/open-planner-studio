@@ -1249,6 +1249,14 @@ en noem het in je rapport of PR-tekst.
     dus de tooltip leest mogelijk een waarde van vóór de herberekening. De herhaalde poging slaagde; main was op
     dat moment groen. Oorzaak niet bewezen. Gevonden bij het mergen van de aanvalfixes na #600. — S
 
+394. **De nieuwe scrollmatrix raakt interne randen van gesplitste balken niet gericht.**
+     `tests/planning/check-render-caches.ts:162`: `hitSnapshot` belooft meetpunten bij elk
+     zichtbaar balkstuk en elke pauze. De zeven x-posities komen uit de rechthoek van de
+     volledige balk. Interne segmentranden en pauzes worden daardoor niet afzonderlijk
+     bemonsterd. Voeg die punten toe aan de scrollmatrix voor de renderafhankelijke
+     splitscache. Bestaande splittests controleren zulke punten los van deze matrix.
+     Twee onafhankelijke broncontroles bij PR #643; geen productfout aangetoond. — B
+
 310. **De formaatvergelijking in de headless-servertest ziet een verschuiving binnen een dag niet.**
      `tests/mcp/cases-headless-server.ts:483` (`leafSchedule`) vergelijkt per bladtaak alleen de startdatum
      op dagniveau (`.slice(0, 10)`). Eindmomenten, de maat en exacte minuten vergelijkt de test niet, dus
