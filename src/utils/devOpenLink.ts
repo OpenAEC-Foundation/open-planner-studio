@@ -1,8 +1,9 @@
 // Dev-link voor handmatige controle, alleen op de dev-server: `?open=<pad>` opent een bestand uit de
 // repo (pad vanaf de root, bijv. `examples/03-kantoorgebouw-zuidas.ifc`) via dezelfde route als
-// Bestand › Openen (formaatherkenning, bestandsnaam, meldingen). `?theme=light|dark` zet het thema voor die sessie (zie `devSessionTheme` in
-// settingsStore.ts). Valt uit elke productiebouw: main.tsx importeert deze module alleen dynamisch
-// achter `import.meta.env.DEV`. Uitleg: `docs/dev-link.md`.
+// Bestand › Openen (formaatherkenning, bestandsnaam, meldingen). `?theme=light|dark` zet het thema
+// voor die sessie (zie `devSessionTheme` in settingsStore.ts). Valt uit elke productiebouw: App.tsx
+// importeert deze module alleen dynamisch achter `import.meta.env.DEV && !isTauri()`.
+// Uitleg: `docs/dev-link.md`.
 import i18n from '@/i18n/config';
 import { buildImportLabels } from '@/i18n/importLabels';
 import { useAppStore } from '@/state/appStore';
