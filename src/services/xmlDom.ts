@@ -27,6 +27,28 @@ export function directChildText(parent: Element, tagName: string): string {
   return '';
 }
 
+/** De namen (`localName`) van de directe kindelementen van `parent`, in documentvolgorde. Voor de
+ *  vingerafdruk van een oude OPS-export (knownbug 300): de vorm van een element, niet zijn inhoud. */
+export function childElementNames(parent: Element): string[] {
+  const names: string[] = [];
+  for (let i = 0; i < parent.children.length; i++) names.push(parent.children[i].localName);
+  return names;
+}
+
+/** De directe kindelementen van `parent` met deze `localName`, in documentvolgorde. */
+export function childElements(parent: Element, localName: string): Element[] {
+  const found: Element[] = [];
+  for (let i = 0; i < parent.children.length; i++) {
+    if (parent.children[i].localName === localName) found.push(parent.children[i]);
+  }
+  return found;
+}
+
+/** Begint `names` met precies `prefix`? */
+export function startsWithNames(names: readonly string[], prefix: readonly string[]): boolean {
+  return prefix.every((name, i) => names[i] === name);
+}
+
 /** `parseInt` (radix-loos, zoals de readers deden) met `fallback` bij een niet-numerieke waarde. */
 export function toInt(text: string, fallback = 0): number {
   const n = parseInt(text);

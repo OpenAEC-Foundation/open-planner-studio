@@ -98,7 +98,9 @@ eq('4c variance: op schema', variance(imported!).map(row => row[4]), ['onSchedul
 //     Regel: onleesbaar = ontbrekend ⇒ de taak krijgt geen baseline-entry. Vergelijk met hetzelfde
 //     bestand zonder die kapotte baselines: taken en de overige baselines moeten gelijk zijn.
 function project(dayMode: boolean, broken: boolean): string {
-  const at = (d: string, h: string) => `${d}T${dayMode ? '08:00' /* dag-anker: geen uursignaal */ : (h === 'S' ? '09:00' : '12:00')}:00`;
+  // 08:00 geeft geen uursignaal: de kalender blijft scalair. Sinds F5b (I8) is het in een bestand zonder
+  // OPS-markering wel een echte tijd, die de datum houdt.
+  const at = (d: string, h: string) => `${d}T${dayMode ? '08:00' : (h === 'S' ? '09:00' : '12:00')}:00`;
   const dur = dayMode ? 'PT8H0M0S' : 'PT3H0M0S';
   const bl = (start: string, finish: string) =>
     `<Baseline><Number>0</Number>${start}${finish}<Duration>${dur}</Duration></Baseline>`;
@@ -137,7 +139,7 @@ for (const dayMode of [false, true]) {
   };
   eq(`5d ${tag}: alleen de geldige baseline, ongewijzigd`, named(got), named(ref));
   eq(`5e ${tag}: geldige baseline zoals in het bestand`, named(got)?.tasks.map(e => [e.taskId, e.start, e.finish]),
-    [['Geldig', dayMode ? '2026-03-02' : '2026-03-02T09:00', dayMode ? '2026-03-02' : '2026-03-02T12:00']]);
+    [['Geldig', dayMode ? '2026-03-02T08:00' : '2026-03-02T09:00', dayMode ? '2026-03-02T08:00' : '2026-03-02T12:00']]);
   const today = localTodayIso();
   eq(`5f ${tag}: geen verzonnen of onleesbare baselinedatum`,
     (named(got)?.tasks ?? []).flatMap(e => [e.start, e.finish]).filter(d => d.startsWith(today) || !/^\d{4}-\d{2}-\d{2}/.test(d)), []);

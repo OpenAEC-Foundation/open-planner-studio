@@ -813,21 +813,30 @@ export class CalendarEngine {
     return this.addPhysicalWorkMinutes(startInstant, minutes);
   }
 
-  /** De fysieke bandwandeling. */
+  /** De lengte van een wandeling in hele milliseconden. Beide fysieke wandelingen rekenen alleen in hele ms,
+   *  ook de rest na elke band (review #591 r7, was knownbug 385 en 388). Met kommagetalminuten bleef bij een
+   *  bandgrens soms een rest van ~10⁻¹³ min of een deel van een ms over; de terugwandeling koos dan het vorige
+   *  werkeinde. Voorbeeld: 523,2 min (8,72 u) gaf LS ma 16:00 in plaats van di 08:00, en 1600,00002 min gaf
+   *  vr 15:59:59,999. Een `Date` draagt toch alleen hele ms. */
+  private static walkMs(minutes: number): number {
+    return Math.round(Math.min(minutes, CalendarEngine.MAX_MINUTES) * CalendarEngine.MS_PER_MIN);
+  }
+
+  /** De fysieke bandwandeling, in hele ms (`walkMs`). */
   private addPhysicalWorkMinutes(startInstant: Date, minutes: number): Date {
     if (minutes <= 0) return new Date(startInstant.getTime());
-    let remaining = Math.min(minutes, CalendarEngine.MAX_MINUTES);
+    let remaining = CalendarEngine.walkMs(minutes);
     let curMs = this.nextWorkInstant(startInstant).getTime();
     let steps = 0;
     while (remaining > 0) {
       const band = this.findContaining(curMs, false);
       if (!band) break; // geen werk (kapotte kalender) — niet vastlopen
-      const availMin = (band.end - curMs) / CalendarEngine.MS_PER_MIN;
-      if (remaining <= availMin) {
-        curMs += remaining * CalendarEngine.MS_PER_MIN;
+      const availMs = band.end - curMs;
+      if (remaining <= availMs) {
+        curMs += remaining;
         remaining = 0;
       } else {
-        remaining -= availMin;
+        remaining -= availMs;
         curMs = this.nextWorkInstant(new Date(band.end)).getTime(); // band-eind ⇒ volgende bandstart
       }
       if (++steps > CalendarEngine.MAX_DAYS) break;
@@ -841,21 +850,22 @@ export class CalendarEngine {
     return this.subtractPhysicalWorkMinutes(endInstant, minutes);
   }
 
-  /** De fysieke achterwaartse bandwandeling. */
+  /** De fysieke achterwaartse bandwandeling, in hele ms (`walkMs`), zodat hij de exacte spiegel van
+   *  `addPhysicalWorkMinutes` blijft. */
   private subtractPhysicalWorkMinutes(endInstant: Date, minutes: number): Date {
     if (minutes <= 0) return new Date(endInstant.getTime());
-    let remaining = Math.min(minutes, CalendarEngine.MAX_MINUTES);
+    let remaining = CalendarEngine.walkMs(minutes);
     let curMs = this.prevWorkInstant(endInstant).getTime();
     let steps = 0;
     while (remaining > 0) {
       const band = this.findContaining(curMs, true);
       if (!band) break;
-      const availMin = (curMs - band.start) / CalendarEngine.MS_PER_MIN;
-      if (remaining <= availMin) {
-        curMs -= remaining * CalendarEngine.MS_PER_MIN;
+      const availMs = curMs - band.start;
+      if (remaining <= availMs) {
+        curMs -= remaining;
         remaining = 0;
       } else {
-        remaining -= availMin;
+        remaining -= availMs;
         curMs = this.prevWorkInstant(new Date(band.start)).getTime(); // bandstart ⇒ vorig band-eind
       }
       if (++steps > CalendarEngine.MAX_DAYS) break;
