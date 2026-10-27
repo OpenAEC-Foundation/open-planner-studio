@@ -12,7 +12,8 @@
 //  (a) het einde van de plaatsing is op de ms gelijk aan `addWorkMinutes` vanaf ma 08:00, de plaatsing boekt
 //      geen dag na dat einde en het geboekte werk wijkt minder dan een halve ms af van de duur: tienden
 //      0,1–5000 min, uren met twee decimalen 0,01–83 u, en breuken die geen heel aantal ms zijn (1920/7,
-//      1600,00002, 2407,40742 en twee band-einden plus 0,3 ms); op ma–vr 08:00–16:00 en op 08–12 + 13–17;
+//      1600,00002, 2407,40742 en twee band-einden plus 0,3 ms); op ma–vr 08:00–16:00 en op 08–12 + 13–17.
+//      Met splits is het einde `addWorkMinutes` over het werk plus de gaten ervóór, zoals de solver;
 //  (a2) hetzelfde via de echte keten van belasting en nivelleerder (`taskLoadPlacement`, `computeResourceLoad`,
 //      `levelResources`): A 480,000005 min op ma, B 480 min op di, één resource met capaciteit 1. A geeft
 //      geen belasting op dinsdag, dinsdag is niet overbezet, en de nivelleerder schuift niets;
@@ -30,6 +31,7 @@ import { workPlacement } from '@/engine/scheduler/workPlacement';
 import { computeResourceLoad, taskLoadPlacement } from '@/engine/scheduler/ResourceLoad';
 import { levelResources } from '@/engine/scheduler/ResourceLeveler';
 import { solveProject } from '@/engine/scheduler/solveProject';
+import { splitTotalSpanMinutes } from '@/engine/scheduler/duration';
 import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { formatDate, parseInstant } from '@/utils/dateUtils';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
@@ -97,6 +99,23 @@ for (const calendar of CALENDARS) {
   const tail = workPlacement(engine, { start: MONDAY, duration: 480.000005, measure: 'minutes' });
   eq('(a) band-eind plus 0,3 ms: alleen maandag, einde ma 16:00',
     [tail.days.map(d => d.iso), iso(tail.finish)], [['2026-06-01'], '2026-06-01T16:00:00.000Z']);
+}
+// Met splits: het einde op de split-as is het werk plus de gaten ervóór, één keer afgerond, zoals de solver
+// (`addDurationChecked`: `addWorkMinutes(start, splitTotalSpanMinutes(gaps, werk))`). Werk en gaten los
+// afronden zou bij 1920/7 min werk, gat en werk 1 ms te laat eindigen.
+for (const calendar of CALENDARS) {
+  const engine = new CalendarEngine(calendar);
+  const piece = 1920 / 7;
+  const cases: { work: number; gaps: { afterMinutes: number; gapMinutes: number }[] }[] = [
+    { work: 3 * piece, gaps: [{ afterMinutes: piece, gapMinutes: piece }] },
+    { work: 480, gaps: [{ afterMinutes: 240, gapMinutes: 240.000005 }] },
+    { work: 2407.40742, gaps: [{ afterMinutes: 1600.00002, gapMinutes: 0.1 }, { afterMinutes: 1600.05, gapMinutes: piece }] },
+  ];
+  for (const { work, gaps } of cases) {
+    const placed = workPlacement(engine, { start: MONDAY, duration: work, measure: 'minutes', gaps });
+    eq(`(a) ${calendar.id}, ${work} min werk met ${gaps.length} gat(en): einde = addWorkMinutes(werk + gaten)`,
+      iso(placed.finish), iso(engine.addWorkMinutes(MONDAY, splitTotalSpanMinutes(gaps, work))));
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
