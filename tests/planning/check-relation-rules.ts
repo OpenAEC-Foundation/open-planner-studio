@@ -20,6 +20,8 @@ import {
   relationStructureVerdict, relationVerdict, isSummaryTask, isAncestorRelation, type TaskLookup,
 } from '@/state/relationRules';
 import { useAppStore } from '@/state/appStore';
+import { produce } from 'immer';
+import { insertRemappedRelations } from '@/state/insertedBranch';
 
 let checks = 0;
 const diffs: string[] = [];
@@ -340,6 +342,53 @@ try {
 } finally {
   if (previousStorage) Object.defineProperty(globalThis, 'localStorage', previousStorage);
   else Reflect.deleteProperty(globalThis, 'localStorage');
+}
+
+// Lookup-pariteit: dubbele ids, ongeldige eindpunten, levende drafts en vaste overslagvolgorde.
+{
+  const base = { tasks: [
+    task('root', ['a']), task('a', [], 'root'), task('a', [], 'b'), task('b'),
+    task('c', [], 'd'), task('d', [], 'c'), task(''),
+  ], sequences: [] as Sequence[] };
+  const ids = new Map(base.tasks.map(t => [t.id, t.id]));
+  const run = (legacy: boolean) => {
+    let skipped: string[] = [];
+    const result = produce(base, s => {
+      const seq = (p: string, n: string): Omit<Sequence, 'id'> => ({
+        predecessorId: p, successorId: n, type: FS, lagDays: 0, lagMinutes: -90, lagUnit: 'ELAPSEDTIME',
+      });
+      const relations = [
+        seq('a', 'b'), seq('a', 'b'), seq('a', 'root'), seq('root', 'a'), seq('a', 'a'),
+        seq('a', 'ontbreekt'), seq('c', 'b'), seq('b', 'a'), seq('', 'b'),
+        { ...seq('a', 'b'), type: 'START_START' as const },
+        { ...seq('a', 'root'), get lagDays() {
+          s.tasks[1].parentId = null; s.tasks[1].name = 'Live gewijzigd'; return 0;
+        } },
+        seq('a', 'a'),
+        { ...seq('a', 'a'), get lagDays() {
+          Reflect.deleteProperty(s.tasks[1], 'name'); return 0;
+        } },
+      ];
+      if (!legacy) { skipped = insertRemappedRelations(s, relations, ids); return; }
+      const lookup = (id: string) => s.tasks.find(t => t.id === id);
+      for (const relation of relations) {
+        const candidate = { ...relation, predecessorId: ids.get(relation.predecessorId)!,
+          successorId: ids.get(relation.successorId)! };
+        if (!relationVerdict(lookup, s.sequences, candidate).ok) {
+          skipped.push(`${lookup(candidate.predecessorId)?.name ?? '?'} → ${lookup(candidate.successorId)?.name ?? '?'}`);
+        } else s.sequences.push({ ...candidate, id: 'alleen-test-id' });
+      }
+    });
+    return { skipped, tasks: result.tasks, sequences: result.sequences.map(({ id: _id, ...rest }) => rest) };
+  };
+  const actual = run(false);
+  ok('ingevoegde relaties: volledige find-pariteit met levende draftvelden',
+    JSON.stringify(actual) === JSON.stringify(run(true)));
+  ok('ingevoegde relaties: overslagvolgorde en namen blijven exact', JSON.stringify(actual.skipped) === JSON.stringify([
+    'a → b', 'a → root', 'root → a', 'a → a', 'a → ?', 'Live gewijzigd → Live gewijzigd', '? → ?',
+  ]));
+  ok('ingevoegde relaties: bestaande kringsemantiek blijft gelijk (geen nieuwe per-relatie-kringcheck)',
+    actual.sequences.some(r => r.predecessorId === 'b' && r.successorId === 'a'));
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
