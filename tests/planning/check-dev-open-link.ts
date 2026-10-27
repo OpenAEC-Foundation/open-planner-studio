@@ -1,4 +1,4 @@
-// Dev-link `?open=` / `?theme=` (docs/dev-link.md): de padregel voor `dev-files/`, en het bewijs dat
+// Dev-link `?open=` / `?theme=` (docs/dev-link.md): de padregel voor `?open=<pad>` (vanaf de repo-root), en het bewijs dat
 // de dev-code uit een productiebouw valt. Vite minificeert een productiebouw met esbuild, met
 // `import.meta.env.DEV` vervangen door false. Deze check doet dat per bronbestand en kijkt of de
 // dode takken weg zijn. Daarnaast: `devOpenLink` wordt alleen dynamisch geladen, vanuit App.tsx.
@@ -20,8 +20,8 @@ const check = (ok: boolean, label: string) => {
   if (!ok) failures++;
 };
 
-// 1. Padregel: alleen paden binnen dev-files/, submappen mogen, tekens gecodeerd.
-check(devFilePath('plan.ifc') === 'plan.ifc', 'gewone naam');
+// 1. Padregel: pad vanaf de repo-root, submappen mogen, tekens gecodeerd.
+check(devFilePath('examples/03-kantoorgebouw-zuidas.ifc') === 'examples/03-kantoorgebouw-zuidas.ifc', 'voorbeeld uit examples/');
 check(devFilePath('ronde 2/plan #1.xer') === 'ronde%202/plan%20%231.xer', 'submap en tekens gecodeerd');
 for (const bad of [null, '', '../package.json', 'a/../../x', '/etc/passwd', 'a//b', './a', 'a\\b']) {
   check(devFilePath(bad) === null, `geweigerd: ${JSON.stringify(bad)}`);

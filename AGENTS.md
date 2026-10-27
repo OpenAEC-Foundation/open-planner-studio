@@ -290,8 +290,8 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
 - `.mcp.json` wires up a Playwright MCP server (headless Chromium) to drive the browser dev build.
   `window.__OPS__` (`src/utils/devBridge.ts`) exposes store, log bus, `extensions.*` and observer-only geometry;
   prefer asserting on store state over canvas pixels.
-- For a manual check, hand the owner a dev-server link that opens a test file: `?open=<file>&theme=dark` opens
-  `dev-files/<file>` through the normal open route (dev only, never in a build). Detail: `docs/dev-link.md`. The app's own MCP bridge (`planner_*`) is the AI-assistant
+- For a manual check, hand the owner a dev-server link that opens a file: `?open=examples/03-kantoorgebouw-zuidas.ifc&theme=dark`
+  opens that repo file through the normal open route (browser dev server only, never in a build). Detail: `docs/dev-link.md`. The app's own MCP bridge (`planner_*`) is the AI-assistant
   surface, not a test hook. Detail: `docs/self-test-harness.md`.
 
 ## Conventions
