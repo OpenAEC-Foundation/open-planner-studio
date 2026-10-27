@@ -1073,12 +1073,15 @@ en noem het in je rapport of PR-tekst.
    `read-only`) en de doeltalen. De UI zegt nu *MCP-client*. Voorstel: het begrip omzetten via de
    vertaalstraat (`concepts-merge`, `apply-terms`) vóór de volgende release. — B
 
-327. **`apply-terms` eindigt met exit 0 als een deel van de pakketten geweigerd is.** `scripts/translate/cli.ts:275`
-    slaat een pakket met een ongeldig zegel over; is een ander pakket geldig, dan schrijft hij dat en eindigt
-    succesvol. Nagespeeld: intact `terms-01.json`, gewijzigd `terms-02.json` → uitvoer `XX … veranderd na
-    prepare`, alleen de eerste term toegepast, exit 0. Automatisering ziet half werk dan als geslaagd. Voorstel:
-    een weigeringsteller en een afsluitende exit 1, zoals bij `apply ui`. Gevonden in review r1 van #618
-    (GPT-6.1-Sol). — B
+398. **De rapportcontrole bij gedeeltelijke termenweigering kan een oud bestand accepteren.**
+     `tests/planning/check-translate-tbx.ts:248` controleert alleen of
+     terms-check-report.md bestaat. De eerdere stap op regels 224-226 maakt dat
+     rapport al. De volgende terms-lookup ruimt alleen JSON-bestanden op
+     (`scripts/translate/cli.ts:122`). Vervalt het nieuwe rapport bij gedeeltelijke
+     weigering, dan kan deze controle toch slagen. Verwijder het oude rapport vóór
+     de aanroep, of controleer de nieuwe rapportinhoud. Een testgat; geen gewone
+     productfout aangetoond. Twee onafhankelijke broncontroles; niet uitgevoerd.
+     — B
 
 ## Tests
 
