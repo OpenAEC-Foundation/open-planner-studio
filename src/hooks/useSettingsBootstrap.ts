@@ -1,12 +1,17 @@
 import { useEffect, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
-import { loadWelcomeSeen, welcomeSeenAtStartup } from '@/utils/settingsStore';
+import { loadWelcomeSeen, localStorageAvailable, welcomeSeenAtStartup } from '@/utils/settingsStore';
 import { loadAllSettings } from '@/utils/settingsRegistry';
 import { loadAllExtensions } from '@/extensions';
 import { EXTENSIONS_ENABLED } from '@/utils/buildFlags';
 import type { RecoveryState } from './useRecoveryRestore';
 import { bootstrapTaskGridPreferences } from '@/state/taskGridBootstrap';
 import { siteSkipsWelcome } from '@/services/fileAccess/siteHost';
+
+// Geen welkomstvenster als de host dat vraagt (#583), of als de tool niet kan onthouden dat het al
+// gezien is: zonder localStorage (sandbox-iframe zonder `allow-same-origin`, #706) kwam het anders
+// bij elke start terug.
+const skipWelcome = () => siteSkipsWelcome() || !localStorageAvailable();
 
 // Bootstrap van app-instellingen bij het opstarten: hydrateert de store uit localStorage
 // (thema, locale, zoom, panelen, urenplanning, …) plus extensies, en toont de eerste-keer
@@ -17,9 +22,9 @@ export function useSettingsBootstrap(recoveryResolved: boolean, recovery: Recove
   useEffect(() => {
     // Eerste start? Hier, bij mount, vastgelegd — vóórdat de welkomstdialoog `ops-welcomeSeen` kan
     // zetten (zie `welcomeSeenAtStartup`). Komt de welkomst nog, dan wacht "Update beschikbaar"
-    // daarop (`welcomePending`, `isOnboardingActive`). Zet de host `skipWelcome` (#583, bijv. een
-    // sandbox-iframe zonder localStorage), dan komt de welkomst niet en wacht er dus ook niets.
-    if (!welcomeSeenAtStartup() && !siteSkipsWelcome()) setUI({ welcomePending: true });
+    // daarop (`welcomePending`, `isOnboardingActive`). Slaan we de welkomst over (`skipWelcome`),
+    // dan komt ze niet en wacht er dus ook niets.
+    if (!welcomeSeenAtStartup() && !skipWelcome()) setUI({ welcomePending: true });
     // initLocale() is naar main.tsx verhuisd (pré-render, zodat de actieve taal-chunk vóór
     // de eerste paint geladen is). Hier alleen nog de overige app-instellingen hydrateren.
     // Eén registergedreven hydratatie: `loadAllSettings` itereert het `SETTINGS`-register + de drie
@@ -61,7 +66,7 @@ export function useSettingsBootstrap(recoveryResolved: boolean, recovery: Recove
   // afgerond) — zo vuurt dit effect pas nadat de recovery-flow ECHT klaar is (geen data gevonden,
   // of de gebruiker heeft hersteld/verworpen/uitgesteld), nooit gelijktijdig met een zichtbare
   // `RecoveryDialog`. Werkt zowel in Tauri als browser-build — de `welcomeSeen`-vlag leeft in
-  // localStorage, dat overal werkt.
+  // localStorage; zonder localStorage komt er geen venster (`skipWelcome`).
   const welcomeChecked = useRef(false);
   useEffect(() => {
     if (welcomeChecked.current) return;
@@ -69,12 +74,12 @@ export function useSettingsBootstrap(recoveryResolved: boolean, recovery: Recove
     if (recovery !== null) return; // RecoveryDialog is zichtbaar — welkomstdialoog wacht
     welcomeChecked.current = true;
 
-    // Host met `skipWelcome` (#583): opnieuw kijken, want een host mag ook ná het laden komen. Dan
-    // alleen de wachtvlag uit en geen dialoog. Bewust GEEN `saveWelcomeSeen`: de host beslist per
-    // start, en zonder host (of later in een gewone browser) hoort het venster nog één keer te komen.
+    // Overslaan (`skipWelcome`): opnieuw kijken, want de host kan intussen gezet zijn. Dan alleen de
+    // wachtvlag uit en geen dialoog. Bewust GEEN `saveWelcomeSeen`: de host beslist per start, en
+    // zonder host (of later in een gewone browser) hoort het venster nog één keer te komen.
     // Zonder welkomst start ook de rondleiding niet (die opent alleen vanuit het venster), en dus
     // ook de tutorialvraag niet; de handmatige ingangen blijven werken.
-    if (siteSkipsWelcome()) {
+    if (skipWelcome()) {
       setUI({ welcomePending: false });
       return;
     }
