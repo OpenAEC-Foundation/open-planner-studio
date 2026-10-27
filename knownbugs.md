@@ -1338,3 +1338,9 @@ en noem het in je rapport of PR-tekst.
      Richting: maak de hele-dagherkenning bestand tegen deze afronding en voeg die
      kalender toe aan `check-drag-duration-badge.ts`. Gevonden in review r2 van #699
      (GPT-6.1-Sol). — B
+425. **De browsertest van mijlpaal slepen controleert Ctrl+Z na heen-en-terug niet.** De stap aan het eind van
+    het eerste blok in `tests/browser/gantt-drag-undo.spec.ts` (losse mijlpaal op 24/7) vergelijkt na heen en
+    terug slepen alleen `time` en staat hoogstens één extra undo-stap toe. Hij controleert niet dat Ctrl+Z
+    daarna een eerdere bewerking intact laat. De hookproef van review #704 r8 liet zien dat het goed gaat;
+    de regressiecontrole ontbreekt. Richting: vóór de sleep een naam wijzigen, na de sleep Ctrl+Z, dan
+    `time` gelijk en de naam nog gewijzigd. VERVOLG uit review #704 r8. — B
