@@ -369,6 +369,22 @@ dropAt('SNET di 23:30, terug vanaf do 22:00', { constraint: { type: 'SNET', date
 dropAt('FNET di 23:30, terug vanaf do 22:00', { constraint: { type: 'FNET', date: '2026-09-08T23:30' } }, '2026-09-09T00:00', { start: '2026-09-10T22:00' });
 dropAt('SNET di 23:50, kwartierzoom', { constraint: { type: 'SNET', date: '2026-09-08T23:50' } }, '2026-09-09T00:00', { start: '2026-09-10T22:00', snap: 15 });
 
+// Review #704 r7: een blok dat om 00:00 begint en korter is dan de snapstap. Dinsdag werkt tot 24:00, woensdag
+// alleen 00:00–00:30 (of 00:10 bij kwartiersnap). De ruit landt op het blokeinde, niet buiten werktijd.
+for (const [blockEnd, snap, expected] of [[30, 60, '2026-09-09T00:30'], [10, 15, '2026-09-09T00:10']] as const) {
+  const full = [{ start: 0, end: 1440 }];
+  project({ 1: full, 2: full, 3: [{ start: 0, end: blockEnd }], 4: full, 5: full, 6: [], 7: [] });
+  const m = S().addTask({ name: `kort blok ${blockEnd}`, isMilestone: true });
+  const t0 = S().tasks.find(x => x.id === m)!;
+  S().updateTask(m, { time: { ...t0.time, scheduleStart: '2026-09-10T22:00', scheduleFinish: '2026-09-10T22:00' } });
+  S().runCPM();
+  const before = shownStart(S().tasks.find(t => t.id === m)!);
+  const hours = (parseInstant('2026-09-09T00:00').getTime() - parseInstant(before).getTime()) / 3_600_000;
+  const { dropped, calculated } = dragThenCalculate(m, 'hour', hours, snap);
+  eq(`kort blok tot 00:${String(blockEnd).padStart(2, '0')}: landt op het blokeinde`, dropped, expected);
+  eq(`kort blok tot 00:${String(blockEnd).padStart(2, '0')}: F5 houdt het`, calculated, dropped);
+}
+
 if (failures.length === 0) {
   console.log(`OK  milestone-drag: alle checks groen (${checks})`);
   process.exit(0);

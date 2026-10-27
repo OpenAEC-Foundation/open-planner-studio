@@ -315,13 +315,15 @@ export function resolveMilestoneDayDrag(input: {
  *
  * Eén uitzondering: een losse mijlpaal onder B6 (`isLooseDayEndMilestone`) op een dageinde dat ook een blokbegin
  * is (24/7: middernacht). Als anker leest de motor dat als dagbegin, en B6 zet hem dan een dag verder. Zo'n
- * moment kan de motor voor deze mijlpaal niet bewaren; de ruit landt daarom één snapstap later, binnen de
- * werktijd. Dat moment ligt ná elke ondergrens die vóór het doel lag, dus F5 laat het staan.
+ * moment kan de motor voor deze mijlpaal niet bewaren; de ruit landt daarom één snapstap later, of op het
+ * einde van het blok als dat korter is. Dat moment ligt ná elke ondergrens die vóór het doel lag, dus F5
+ * laat het staan.
  */
 export function milestoneDragLanding(calendar: CalendarEngine, at: Date, looseAtDayEnd: boolean, stepMinutes: number): Date {
   if (!looseAtDayEnd || !calendar.isWorkInstant(at)) return at;
   const workday = workdayDateOfInstant(calendar, at, 'end');
   const bands = calendar.effectiveBandsOn(workday);
   if (bands.length === 0 || workday.getTime() + bands[bands.length - 1].end * 60_000 !== at.getTime()) return at;
-  return new Date(at.getTime() + stepMinutes * 60_000);
+  const later = new Date(at.getTime() + stepMinutes * 60_000);
+  return calendar.isWorkInstant(later) ? later : calendar.prevWorkInstant(later);
 }

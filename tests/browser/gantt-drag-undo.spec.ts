@@ -125,6 +125,41 @@ test('Gantt bodydrag wijzigt de datum en Ctrl+Z herstelt exact één handeling',
     return { start: t.time.earlyStart, constraint: t.constraint?.type };
   }, milestoneId);
   expect(calculated).toEqual({ start: dropped.start, constraint: 'SNET' });
+
+  // Review #704 r7: een sleep zonder netto snapstap laat de mijlpaal ongemoeid, ook een losse mijlpaal op
+  // 24/7-middernacht (B6), waar een echte sleep een uur later landt. Heen en terug zet de oorspronkelijke
+  // velden terug, met hun eigen anker; een beweging onder de snapdrempel schrijft niets.
+  const looseId = await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    const b = [{ start: 0, end: 1440 }];
+    s.setCalendar({
+      ...s.calendar, workDays: [1, 2, 3, 4, 5, 6, 7], workStartHour: 0, workEndHour: 24, hoursPerDay: 24,
+      simpleBreakStartMinute: undefined, simpleBreakDurationMinutes: undefined,
+      workTime: { byWeekday: { 1: b, 2: b, 3: b, 4: b, 5: b, 6: b, 7: b } },
+    });
+    const id = window.__OPS__!.store.getState().addTask({ name: 'Los moment', isMilestone: true });
+    window.__OPS__!.store.getState().runCPM();
+    return id;
+  });
+  const looseTime = () => page.evaluate((id) => window.__OPS__!.store.getState().tasks.find(t => t.id === id)!.time, looseId);
+  const looseBefore = await looseTime();
+  const looseUndo = (await state(page)).undoDepth;
+  const loosePoint = await barPoint(page, looseId);
+  await page.mouse.move(loosePoint.x, loosePoint.y);
+  await page.mouse.down();
+  await page.mouse.move(loosePoint.x + 72, loosePoint.y, { steps: 6 });
+  await expect.poll(() => looseTime().then(t => t.earlyStart)).not.toBe(looseBefore.earlyStart);
+  await page.mouse.move(loosePoint.x, loosePoint.y, { steps: 6 });
+  await page.mouse.up();
+  await expect.poll(() => looseTime()).toEqual(looseBefore);
+  const looseUndoAfter = (await state(page)).undoDepth;
+  expect(looseUndoAfter).toBeLessThanOrEqual(looseUndo + 1);
+  await page.mouse.move(loosePoint.x, loosePoint.y);
+  await page.mouse.down();
+  await page.mouse.move(loosePoint.x + 8, loosePoint.y, { steps: 2 });
+  await page.mouse.up();
+  expect(await looseTime()).toEqual(looseBefore);
+  expect((await state(page)).undoDepth).toBe(looseUndoAfter);
 });
 
 // De gedeelde DOM-taakgrid bezit de structurele rijdrag; het tijdlijncanvas bezit uitsluitend

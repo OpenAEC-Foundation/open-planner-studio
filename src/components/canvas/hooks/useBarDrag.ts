@@ -245,7 +245,7 @@ export function useBarDrag({
   /** Bij pointer-down vastgelegd voor een gesleepte nulduurmijlpaal: de landingskant (`milestoneSitsAtFinish`)
    *  en of B6 hem op het dageinde zet (`looseDayEndMilestone`). Wisselt niet midden in het gebaar en
    *  overleeft een effectherstart. `null` ⇒ geen mijlpaal. */
-  const milestoneGestureRef = useRef<{ finishSide: boolean; loose: boolean } | null>(null);
+  const milestoneGestureRef = useRef<{ finishSide: boolean; loose: boolean; time: Task['time'] } | null>(null);
   const hourSnapMinutes = hourSnapMinutesFor(zoom, enableQuarterHourZoom);
   const snapAt = useCallback(
     (x: number, hourMode: boolean) => snapTimelineDate(axis, x, hourMode, hourSnapMinutes),
@@ -330,6 +330,7 @@ export function useBarDrag({
           parseInstant(next.originalStart), original.milestoneKind, driven, loose,
         ),
         loose,
+        time: original.time,
       }
       : null;
     setDragState({ ...next, pointerStart, split });
@@ -440,8 +441,16 @@ export function useBarDrag({
           candidate: axis.xToDate(axis.dateToX(original) + pixelDelta),
           snapMinutes: quantumMin,
         });
+      const gesture = milestoneGestureRef.current;
+      // Netto geen snapstap (ook na heen en terug): de oorspronkelijke velden terug, met hun eigen anker.
+      if (at.getTime() === original.getTime()) {
+        if (!gesture || startBlocked(false) || baseTime === gesture.time) return;
+        updateTask(dragState.taskId, { time: gesture.time, ...constraintForStart(dragState.originalStart) },
+          { coalesceKey: undoKey });
+        return;
+      }
       // Een moment dat F5 laat staan (B6 op een 24/7-middernacht, `milestoneDragLanding`).
-      const next = formatInstant(milestoneDragLanding(engine, at, milestoneGestureRef.current?.loose === true,
+      const next = formatInstant(milestoneDragLanding(engine, at, gesture?.loose === true,
         quantumMin === 1440 ? 60 : quantumMin), 'hour');
       if (startBlocked(next !== dragState.originalStart)) return;
       if (baseTime.scheduleStart === next && baseTime.scheduleFinish === next
