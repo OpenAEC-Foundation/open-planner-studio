@@ -579,7 +579,7 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
       const oracleBefore = JSON.stringify(oracle);
       const captured = route === 'orakel' ? captureRecordedDates([task], undefined, oracle) : currentRecordedTimes({ tasks: [task] });
       task.time.scheduleDuration = 0; task.time.durationUnit = 'hours'; task.time.durationMinutes = 0;
-      applyRecordedTimesToTasks([task], captured.times, input.calendar, input.calendars ?? []);
+      applyRecordedTimesToTasks([task], captured.times, input.calendar, []);
       eq(`356 ${durationUnit}/${route}: onafhankelijke duurkopie`, duration(task), want);
       eq(`356 ${durationUnit}/${route}: bronorakel ongewijzigd`, JSON.stringify(oracle), oracleBefore);
     }
