@@ -563,13 +563,15 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     eq(`P6 soft ${type} blijft soft`, p6Back?.hard ?? false, false);
   }
 
-  // (d) Hard-round-trip incl. datum, alle drie de formaten (IFC/P6/MSPDI).
+  // (d) Hard-round-trip incl. datum, alle drie de formaten (IFC/P6/MSPDI). Sinds F5b (I8) geven de
+  //     XML-schrijvers een datum zonder tijd zijn moment (D1–D7, zoals de laadgrens): MSO is startachtig,
+  //     dus het begin van de werkdag (07:00). IFC houdt het daganker.
   for (const fmt of ['IFC', 'P6', 'MSPDI'] as const) {
     const tk = mkT({ constraint: { type: 'MSO', date: D, hard: true } });
     const back = readT(fmt, tk).constraint;
     eq(`${fmt} hard MSO type`, back?.type, 'MSO');
     eq(`${fmt} hard MSO hard`, back?.hard, true);
-    eq(`${fmt} hard MSO date`, back?.date, D);
+    eq(`${fmt} hard MSO date`, back?.date, fmt === 'IFC' ? D : `${D}T07:00`);
   }
 
   // (e) Secundaire constraint: IFC + P6 round-trippen 'm (native); MSPDI laat 'm vallen + warn.
@@ -578,7 +580,8 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     for (const fmt of ['IFC', 'P6'] as const) {
       const c2 = readT(fmt, tk).constraint2;
       eq(`${fmt} secundair type`, c2?.type, 'FNLT');
-      eq(`${fmt} secundair date`, c2?.date, D);
+      // FNLT is eindachtig: in P6 XML het einde van de werkdag (15:00) sinds F5b (I8); IFC houdt het daganker.
+      eq(`${fmt} secundair date`, c2?.date, fmt === 'IFC' ? D : `${D}T15:00`);
       eq(`${fmt} secundair niet-hard`, c2?.hard ?? false, false);
     }
     const { out: mspTk, warns } = withWarns(() => readMSPDI(writeMSPDI(dayProj, dayCal, tk, [], [], [])).tasks.find(t => t.name === 'X')!);

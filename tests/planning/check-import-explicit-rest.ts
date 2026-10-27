@@ -16,6 +16,12 @@
 // (check-ifc-legacy-arity 2c). De eenheidsregels van `normalizeImportedProgress` staan in
 // check-remaining-duration.ts (sectie 5).
 //
+// Sinds F5b (#591, alleen uren §3.10, T15) leest `.mpp` en XER duur en rest altijd in de urenmaat, in
+// minuten zonder afronding; de dagenmaat van deze lezers bestaat niet meer. De secties 1, 1b, 2, 3 en 11
+// toetsen daarom dezelfde regel in minuten: 4 d is 1920 min, 2,5 d is 1200 min (8 u per dag). Sectie 6
+// zet haar twee taken zelf in de dagenmaat, zoals de lezer van vóór F5b ze gaf, want B1a en B5 hebben een
+// dagtaak nodig.
+//
 // Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { installDOMParser } from './xmldom-shim';
@@ -52,8 +58,9 @@ function eq(label: string, got: unknown, want: unknown): void {
 // ── Fixture: MPP14-taken op een kalender ma–vr 08:00–16:00 ────────────────────────────────────
 // De standaardtaak heeft dezelfde bytes als de aanvalsprobe (`a07-rest.mpp`): duur 28800 tienden =
 // 2880 min = 6 d, rest 19200 tienden = 1920 min = 4 d, 33 %, werkelijke start ma 1 juni 2026 08:00,
-// statusdatum wo 3 juni 08:00. Geplande start en einde liggen op het kalenderanker 08:00: de lezer
-// kiest de dagenmaat (een werkelijk einde op een andere kloktijd maakt de kalender een uurkalender).
+// statusdatum wo 3 juni 08:00. Geplande start en einde liggen op het kalenderanker 08:00: de kalender
+// blijft een dagkalender (een werkelijk einde op een andere kloktijd maakt hem een uurkalender). De maat
+// van de taak is sinds F5b toch de urenmaat (T15).
 const MPP_EPOCH_DAY = Math.round((Date.UTC(2026, 5, 1) - Date.UTC(1983, 11, 31)) / 86400000);
 const utf16 = (s: string): Uint8Array => {
   const out = new Uint8Array(s.length * 2);
@@ -191,9 +198,10 @@ const leaf = (r: { tasks: Task[] }): Task => r.tasks.find(t => t.childIds.length
 {
   const imported = readMPP(runningMpp());
   const t = leaf(imported);
-  eq('MPP: voorwaarde lopend, dagenmaat, 6 d, 33 %',
-    [t.status, t.time.durationUnit, t.time.scheduleDuration, t.time.completion], ['STARTED', 'days', 6, 0.33]);
-  eq('MPP: bronrest 19200 tienden = 1920 min blijft 4 d (niet 6 × 0,67 = 4,02)', t.time.remainingTime, 4);
+  eq('MPP: voorwaarde lopend, urenmaat (F5b), 6 d, 33 %',
+    [t.status, t.time.durationUnit, t.time.scheduleDuration, t.time.completion], ['STARTED', 'hours', 6, 0.33]);
+  eq('MPP: bronrest 19200 tienden = 1920 min = 4 d blijft staan (niet 6 × 0,67 = 1930 min = 4,02 d)',
+    [t.time.remainingMinutes, t.time.remainingTime], [1920, 4]);
   const d = solved(imported);
   eq('MPP: einde na F5 volgt de bronrest (ma 8 juni 16:00, niet di 9 juni 08:10)', leaf(d).time.earlyFinish, '2026-06-08T16:00');
   const back = reopen(d);
@@ -202,18 +210,21 @@ const leaf = (r: { tasks: Task[] }): Task => r.tasks.find(t => t.childIds.length
 }
 
 // ── 1b. MPP: een gebroken dagenrest komt exact binnen ───────────────────────────────────────────
-// De rest is geen signaal voor de uurmodus: een dagtaak kan een rest van een halve dag dragen. 7 d
-// (33600 tienden), rest 2,5 d (12000 tienden), 64 %: exact 2,5 d; afgeleid zou 2,52 d geven, en de
-// afronding van de duur (`tenthsOfMinutesToDays`) 3 d.
+// De rest is geen signaal voor de uurmodus: een taak op een dagkalender kan een rest van een halve dag
+// dragen. 7 d (33600 tienden), rest 2,5 d (12000 tienden), 64 %: exact 1200 min = 2,5 d; afgeleid zou
+// 1210 min = 2,52 d geven, en een afronding op hele dagen 3 d. Sinds F5b in minuten (vóór F5b: `days`, 2,5).
 {
   const t = leaf(readMPP(runningMpp({ duration: 33600, rest: 12000, pct: 64 })));
-  eq('MPP: gebroken bronrest 2,5 d blijft 2,5 d (niet 2,52 d, niet 3 d)',
-    [t.time.durationUnit, t.time.scheduleDuration, t.time.remainingTime], ['days', 7, 2.5]);
+  eq('MPP: gebroken bronrest 2,5 d = 1200 min blijft staan (niet 2,52 d, niet 3 d)',
+    [t.time.durationUnit, t.time.scheduleDuration, t.time.durationMinutes, t.time.remainingMinutes, t.time.remainingTime],
+    ['hours', 7, 3360, 1200, 2.5]);
 }
 
-// ── 2. XER in dagenmaat (datums zonder kloktijd): de rest uit de bron overleeft IFC ──────────────
+// ── 2. XER met datums zonder kloktijd: de rest uit de bron overleeft IFC ─────────────────────────
 // Drie voortgangsfamilies, 48 u duur (6 d van 8 u), 32 u rest. CP_Drtn leidt de rest uit het
 // duurpercentage af (25 % ⇒ 36 u = 4,5 d, ook in de lezer); CP_Phys en CP_Units houden de 32 u.
+// Vóór F5b gaf dit bestand de dagenmaat; sinds F5b is elke XER-taak urenmaat (T15). De XER-lezer roept
+// `normalizeImportedProgress` niet aan, dus direct na lezen staat alleen de rest in minuten.
 function xer(dateOnly: boolean): ImportResult {
   const fields = ['task_id', 'proj_id', 'clndr_id', 'task_code', 'task_name', 'task_type', 'duration_type', 'status_code',
     'complete_pct_type', 'complete_pct', 'phys_complete_pct', 'target_drtn_hr_cnt', 'remain_drtn_hr_cnt',
@@ -247,12 +258,13 @@ function xer(dateOnly: boolean): ImportResult {
 }
 {
   const imported = xer(true);
-  const rest = (r: { tasks: Task[] }) => r.tasks.map(t => [t.time.durationUnit, t.time.completion, t.time.remainingTime]);
-  eq('XER dagenmaat: direct na lezen 4,5 / 4 / 4 d rest', rest(imported),
-    [['days', 0.25, 4.5], ['days', 0.75, 4], ['days', 0.5, 4]]);
+  const minutes = (r: { tasks: Task[] }) => r.tasks.map(t => [t.time.durationUnit, t.time.completion, t.time.remainingMinutes]);
+  eq('XER zonder kloktijd: direct na lezen 2160 / 1920 / 1920 min rest (4,5 / 4 / 4 d)', minutes(imported),
+    [['hours', 0.25, 2160], ['hours', 0.75, 1920], ['hours', 0.5, 1920]]);
   const back = reopen(solved(imported));
-  eq('XER dagenmaat → IFC → heropenen: CP_Phys houdt 4 d = 32 u (niet 1,5 d), CP_Units 4 d (niet 3 d)', rest(back),
-    [['days', 0.25, 4.5], ['days', 0.75, 4], ['days', 0.5, 4]]);
+  const rest = (r: { tasks: Task[] }) => r.tasks.map(t => [t.time.durationUnit, t.time.completion, t.time.remainingMinutes, t.time.remainingTime]);
+  eq('XER zonder kloktijd → IFC → heropenen: CP_Phys houdt 32 u = 4 d (niet 1,5 d), CP_Units 4 d (niet 3 d)', rest(back),
+    [['hours', 0.25, 2160, 4.5], ['hours', 0.75, 1920, 4], ['hours', 0.5, 1920, 4]]);
 }
 {
   // Met kloktijden (urenmaat) bleven de bronminuten al staan; dit houdt dat zo.
@@ -271,7 +283,10 @@ function xer(dateOnly: boolean): ImportResult {
   S().setTaskProgress(id, 0.5);
   eq('store: 50 % in de app ⇒ rest 6 × 0,5 = 3 d (afgeleid, B3)', [task().time.completion, task().time.remainingTime], [0.5, 3]);
   S().setTaskProgress(id, 0.33);
-  eq('store: terug naar 33 % ⇒ rest exact 6 × 0,67 = 4,02 d (afgeleid, niet de oude bronrest)', task().time.remainingTime, 4.02);
+  // Urenmaat (F5b): de afgeleide rest staat in hele minuten, zoals de duur (B3, `applyRemainingDuration`):
+  // 2880 × 0,67 = 1929,6 ⇒ 1930 min = 4,0208… d. Vóór F5b (dagenmaat) was dat exact 4,02 d.
+  eq('store: terug naar 33 % ⇒ rest 2880 × 0,67 = 1930 min (afgeleid, niet de oude bronrest 1920)',
+    [task().time.remainingMinutes, task().time.remainingTime], [1930, 1930 / 480]);
 }
 
 // ── 4. De route van de app: openen, meteen opslaan (zonder F5), heropenen ─────────────────────────
@@ -306,11 +321,22 @@ function xer(dateOnly: boolean): ImportResult {
 // Review r1 van #663: een minutenbestand met een vastwerktaak in dagen (B1a zet haar om naar uren, B5
 // maakt daar één undo-stap van) en een lopende dagtaak met 4 d rest. Ctrl+Z op de omzetting zet
 // `minuteModelPending` terug op `true`; de writer laat `TimeModel` dan weg. Heropenen gaf 4,02 d.
+// Sinds F5b geeft `readMPP` urentaken; zonder dagtaak heeft B1a niets om te zetten. De sectie zet de twee
+// taken daarom zelf in de dagenmaat, met de waarden die de lezer vóór F5b gaf (3 d en 6 d, rest 3 d en 4 d).
 {
   const q = readMPP(mpp([
     { name: 'Vast werk nog dagen', duration: 14400, rest: 14400, pct: 0, start: [480, 2], finish: [480, 6] },
     { ...RUNNING, name: 'Lopend expliciete rest' },
   ]));
+  for (const task of q.tasks) {
+    const t = task.time;
+    t.durationUnit = 'days';
+    if (t.remainingMinutes != null) t.remainingTime = t.remainingMinutes / 480; // 8 u per dag (Props)
+    delete t.durationMinutes;
+    delete t.remainingMinutes;
+  }
+  eq('B1a/B5: voorwaarde (twee dagtaken van 3 en 6 d, rest 3 en 4 d)',
+    q.tasks.map(t => [t.time.durationUnit, t.time.scheduleDuration, t.time.remainingTime]), [['days', 3, 3], ['days', 6, 4]]);
   q.tasks[0].workRule = 'FIXED_WORK';
   q.tasks[1].workRule = 'FIXED_DURATION_RATE';
   const app = createAppStore();
@@ -454,11 +480,13 @@ function mspdi(over: { actualFinish?: string; rest?: string } = {}): ImportResul
 }
 
 // ── 11. MPP: 100 %, geen werkelijk einde, 4 d rest ──────────────────────────────────────────────
-// Dezelfde regel als MSPDI, in de dagenmaat (sectie 1) en in de urenmaat (een werkelijke start om 09:15).
+// Dezelfde regel als MSPDI, op een dagkalender (sectie 1) en op een uurkalender (een werkelijke start om
+// 09:15). Sinds F5b zijn beide taken urenmaat; de rest staat dan in minuten. Een lopende taak op 100 % slaat
+// de afleiding over (`runningAtFullIds`), dus de werkdagfractie is er pas na IFC opslaan en heropenen.
 {
-  eq('MPP dagenmaat 100 % zonder werkelijk einde met 4 d rest: STARTED, 4 d (lezen, openen, IFC heropenen)',
-    threePoints(readMPP(runningMpp({ name: 'Lopend 100', pct: 100 })), 'lopend100.mpp').map(p => [p[0], p[2], p[3]]),
-    thrice(['STARTED', 4, null]));
+  eq('MPP op een dagkalender 100 % zonder werkelijk einde met 4 d rest: STARTED, 1920 min (lezen, openen, IFC heropenen)',
+    threePoints(readMPP(runningMpp({ name: 'Lopend 100', pct: 100 })), 'lopend100.mpp').map(p => [p[0], p[1], p[3]]),
+    thrice(['STARTED', 1920, null]));
   eq('MPP urenmaat 100 % zonder werkelijk einde met 1920 min rest: STARTED, 1920 min',
     threePoints(readMPP(runningMpp({ name: 'Lopend 100 uur', pct: 100, actualStart: [555, 0] })), 'lopend100u.mpp')
       .map(p => [p[0], p[1], p[3]]), thrice(['STARTED', 1920, null]));
