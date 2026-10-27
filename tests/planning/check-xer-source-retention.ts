@@ -363,7 +363,7 @@ state().applyLoadedProject(hydrateInput, {
   fileHandle: null,
   recompute: false,
   fit: false,
-  hourDataNotice: false,
+
   linkedOpen: true,
 });
 const baseline = sourceSignature(state());

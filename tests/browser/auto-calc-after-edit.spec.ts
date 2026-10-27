@@ -8,6 +8,10 @@
 import type { Page } from '@playwright/test';
 import { barPoint, expect, seedProject, test } from './fixtures/ops';
 
+// Deze route bedient tijdlijnbalken naast de takenlijst en de eigenschappenrail.
+// Reserveer expliciet genoeg canvasruimte, onafhankelijk van de standaard paneelbreedte.
+test.use({ viewport: { width: 1600, height: 900 } });
+
 async function countCpmRuns(page: Page): Promise<void> {
   await page.evaluate(() => {
     let runs = 0;

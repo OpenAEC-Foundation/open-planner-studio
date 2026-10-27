@@ -1,4 +1,5 @@
-import { type ReportContext, isNearCritical, activityTasks, progressState, remainingDays, taskFinish, taskStart } from './reportCommon';
+import type { MeasuredDuration } from '@/utils/taskDuration';
+import { type ReportContext, isNearCritical, activityTasks, progressState, remainingDays, remainingMeasure, taskFinish, taskStart } from './reportCommon';
 
 /**
  * Kritiek-en-near-critical-rapport: welke activiteiten bepalen het
@@ -17,6 +18,8 @@ export interface CriticalRow {
   start: string;
   finish: string;
   remainingDays: number;
+  /** De restduur in de maat van de taak (B8), voor de weergave. */
+  remaining: MeasuredDuration;
   totalFloat: number;
   freeFloat: number;
   floatPath?: number;
@@ -52,6 +55,7 @@ export function computeCriticalReport(ctx: ReportContext, opts: CriticalReportOp
       start: taskStart(t),
       finish: taskFinish(t),
       remainingDays: remainingDays(ctx, t),
+      remaining: remainingMeasure(t),
       totalFloat: t.time.totalFloat,
       freeFloat: t.time.freeFloat,
       floatPath: t.time.floatPath,

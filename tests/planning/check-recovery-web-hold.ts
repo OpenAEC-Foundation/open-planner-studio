@@ -155,10 +155,34 @@ for (const version of [1, 2, 3, 4, 5]) {
 idb.store('records').set(webRecord.id, webRecord);
 idb.store('records').set(webManifest.id, { id: webManifest.id, kind: 'manifest', sessionId: webSid,
   activeDocumentId: 'oud', docIds: ['oud'], addedAt: 1 });
-eq('versieloos webmanifest: bestaand pad, dirty-terugval en geen verzonnen datumstand/site-doel',
+eq('versieloos webmanifest: bestaand pad, bewaarde dirty-vlag en geen verzonnen datumstand/site-doel',
   (await loadRecovery()).docs.map(d => [d.id, d.filePath, d.isDirty, d.datesAsRecorded, d.siteFileId ?? null]),
-  [['oud', 'oud.ifc', true, false, null]]);
+  [['oud', 'oud.ifc', false, false, null]]);
 await clearRecovery();
+
+// Knownbug 201: oude docIds-generaties bewaren de vlag in het documentrecord.
+for (const version of [null, 1, 2]) {
+  for (const dirty of [false, true, undefined]) {
+    const record: Omit<typeof webRecord, 'isDirty'> & { isDirty?: boolean } = { ...webRecord, isDirty: dirty };
+    if (dirty === undefined) delete record.isDirty;
+    idb.store('records').set(record.id, record);
+    idb.store('records').set(webManifest.id, { id: webManifest.id, kind: 'manifest', sessionId: webSid,
+      ...(version === null ? {} : { version }), activeDocumentId: 'oud', docIds: ['oud'], addedAt: 1 });
+    const before = webBytes();
+    eq(`docIds v${version} dirty=${dirty}: opgeslagen vlag of veilige ontbrekend-terugval`,
+      (await loadRecovery()).docs.map(d => d.isDirty), [dirty ?? true]);
+    eq(`docIds v${version} dirty=${dirty}: lezen verandert de generatie niet`, webBytes(), before);
+    await clearRecovery();
+  }
+}
+// Moderne metadata is gezaghebbend, ook wanneer het oude record juist het omgekeerde zegt.
+for (const dirty of [false, true]) {
+  idb.store('records').set(webRecord.id, { ...webRecord, isDirty: !dirty });
+  idb.store('records').set(webManifest.id, { ...webManifest,
+    documents: webManifest.documents.map(d => ({ ...d, isDirty: dirty })) });
+  eq(`v5 manifest dirty=${dirty}: manifest wint van oud record`, (await loadRecovery()).docs.map(d => d.isDirty), [dirty]);
+  await clearRecovery();
+}
 
 for (const version of [null, 1, 2]) {
   idb.store('records').set(webManifest.id, { id: webManifest.id, kind: 'manifest', sessionId: webSid,

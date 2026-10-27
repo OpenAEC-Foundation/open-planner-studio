@@ -267,7 +267,7 @@ test('een uur-kalender zónder één band ⇒ harde fout + VOLLEDIGE rollback (g
   // weigert, en die weigering rolt de HELE call terug (transactie-invariant). Dat is precies goed:
   // een kalender zonder werktijd komt er niet half in. De boodschap moet wel uitlegbaar zijn.
   assertEq(res.ok, false, 'de call faalt hard i.p.v. een onbruikbare kalender te committen');
-  assert(/geen werkdagen/i.test((res as any).error), `begrijpelijke fout: ${(res as any).error}`);
+  assertEq((res as any).error, 'Calendar has no working days configured', 'begrijpelijke Engelse kalenderfout');
   assertEq(JSON.stringify(S().calendars), voor, 'de kalender is volledig teruggerold');
   assertEq(S().historyEvents.filter(event => event.state === 'applied').length, undoVoor, 'geen achtergebleven undo-stap');
 });

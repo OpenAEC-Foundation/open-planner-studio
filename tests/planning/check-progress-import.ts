@@ -609,8 +609,10 @@ const stubDeps: ProgressPlanDeps = { planEdits: stubPlanEdits };
   const rowLStart = makeRow(5, { taskId: idL, completion: pct(0.3), actualStart: dateVal('2026-01-06') });
   S().applyProgressImport([rowLStart], undefined, { today: TODAY });
   const l = S().tasks.find((t) => t.id === idL)!;
+  // F2 (spec §3.6, invoer; §4.2 D1): de datum uit het blad wordt het begin van de werkdag.
+  // Fixronde 1 deel B, B1.
   eq('6f mét werkelijke start in het blad ⇒ toegepast zoals opgegeven',
-    [l.time.completion, l.time.actualStart], [0.3, '2026-01-06']);
+    [l.time.completion, l.time.actualStart], [0.3, '2026-01-06T07:00']);
 
   // Headless vangnet: zonder `today` de oude regels (geen vraag, de start wordt afgeleid).
   const idH = S().addTask({ name: 'H', time: createDefaultTaskTime('2026-02-02', 5) });

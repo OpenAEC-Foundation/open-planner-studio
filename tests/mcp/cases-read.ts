@@ -204,7 +204,6 @@ test('list_tasks van/tot: een urentaak die op de tot-dag begint telt mee (audit 
   // Zelfde overlaptest als het filter "Actief tussen" en de rapportvensters (`shownSpanOverlapsDays`):
   // als tekst is "2026-06-03T08:00" groter dan "2026-06-03", maar de taak loopt op de tot-dag.
   cleanProject();
-  S().setUI({ enableHourPlanning: true });
   const band = [{ start: 8 * 60, end: 16 * 60 }];
   S().setCalendar({
     ...S().calendar, hoursPerDay: 8, workStartHour: 8, workEndHour: 16,

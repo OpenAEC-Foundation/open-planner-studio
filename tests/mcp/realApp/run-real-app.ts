@@ -146,6 +146,13 @@ test('echte app: open-files.json bestaat met hetzelfde pid en 0600', async () =>
     assert(read.status === 'valid', `register niet geldig volgens het contract: ${JSON.stringify(read)}`);
     const file = read.status === 'valid' ? read.file : null;
     assert(pidAlive(file!.pid), `pid ${file!.pid} leeft niet`);
+    // Twee levende processen zijn niet noodzakelijk dezelfde app (knownbug 212).
+    const runtimePath = discoveryFile('runtime');
+    assert(runtimePath, `geen runtime-bestand in ${MCP_DIR}`);
+    const runtime = readRuntimeFile(readFileSync(runtimePath!, 'utf8'));
+    assert(runtime.status === 'valid', 'runtime-bestand niet geldig voor de pid-vergelijking');
+    const runtimeFile = runtime.status === 'valid' ? runtime.file : null;
+    assertEq(file!.pid, runtimeFile!.pid, 'open-files en runtime horen bij hetzelfde proces');
     assertEq(file!.appVersion, APP_VERSION, 'versie');
     assertEq(statSync(path!).mode & 0o777, 0o600, 'rechten 0600');
   });

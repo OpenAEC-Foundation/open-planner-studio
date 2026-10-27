@@ -23,7 +23,7 @@ export async function openMspdiAndCalendarDialog(page: Page, xml: string) {
   await openButton.click();
   await (await chooser).setFiles({ name: 'blokken.xml', mimeType: 'application/xml', buffer: Buffer.from(xml) });
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().calendar.name)).toBe('Standard');
-  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showCalendarDialog: true, enableHourPlanning: false }));
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showCalendarDialog: true, }));
   const dialog = page.locator('[data-ops-calendar-dialog]');
   await expect(dialog).toBeVisible();
   return dialog;

@@ -105,7 +105,7 @@ export async function openFromPathWithIO(path: string, io: FormatIO) {
     siteFileId: target.siteFileId,
     recompute: true,
     fit: true,
-    hourDataNotice: true,
+
     linkedOpen: true,
   });
   return { path, ...opened, ...counts(useAppStore.getState()) };

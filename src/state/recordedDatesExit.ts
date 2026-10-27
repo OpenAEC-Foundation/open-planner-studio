@@ -7,6 +7,13 @@
  * Bladmodule: importeert niets uit `slices/` of `appStore`, dus geen cyclus-risico.
  */
 
+/** Het deel van een sessie-event dat het verlaat-besluit leest (structureel, zodat dit een bladmodule
+ *  blijft; `SessionHistoryEvent` past erop). */
+export interface HistoryEventStatus {
+  id: string;
+  state: 'applied' | 'undone';
+}
+
 /** Waarneming van de store waar het verlaat-besluit op stuurt. */
 export interface RecordedDatesObservation {
   /** Het actieve document — de overgang telt alleen bínnen één document (zie hieronder). */
@@ -15,6 +22,28 @@ export interface RecordedDatesObservation {
   inMode: boolean;
   /** Is de planning verouderd? */
   scheduleStale: boolean;
+  /** De sessiehistorie (`historyEvents`, dezelfde referentie als in de store). */
+  history: readonly HistoryEventStatus[];
+}
+
+/**
+ * Was de stap tussen twee waarnemingen een HISTORIEHERSTEL (undo of redo)?
+ *
+ * Alleen een herstel wisselt de status van een bestaand event (`applyHistoryEvent` in
+ * `historySlice.ts`, en de terugdraai van een bibliotheekverdeling in `librarySlice.ts`). Een
+ * bewerking voegt een event toe of ruimt undone events op, maar wisselt nooit een status. Dezelfde
+ * array (geen historiewijziging) is dus nooit een herstel.
+ */
+export function restoredFromHistory(
+  prev: readonly HistoryEventStatus[],
+  next: readonly HistoryEventStatus[],
+): boolean {
+  if (prev === next) return false;
+  const before = new Map(prev.map(event => [event.id, event.state]));
+  return next.some(event => {
+    const state = before.get(event.id);
+    return state !== undefined && state !== event.state;
+  });
 }
 
 /**
@@ -28,6 +57,13 @@ export interface RecordedDatesObservation {
  * dat ándere document ongevraagd doorrekenen: een stille F5 op werk waar de gebruiker niets aan
  * deed. Vandaar dat de overgang alleen telt wanneer het document hetzelfde bleef.
  *
+ * HISTORIEHERSTEL. Een undo of redo kan de modus ook uitzetten zonder bewerking: de B5-overgang
+ * zet een document in de modus als vóór-toestand, en een tweede Ctrl+Z gaat daar voorbij naar de
+ * toestand van vóór een eerdere bewerking (verouderd, modus uit; spec §5.2, regressiegeval 6). Die
+ * toestand is precies wat de historie vastlegde. Rekenen zou de opgeslagen datums overschrijven en de
+ * vlag "omzetting open" wissen. Een stap die de historie herstelt, telt daarom niet als verlaten
+ * (`restoredFromHistory`).
+ *
  * `scheduleStale` speelt hier bewust GEEN rol: op het moment van de overgang kan de bijbehorende
  * bulk-transactie nog lopen (zie `needsExitRecompute`). Of er écht gerekend moet worden, wordt pas
  * bij het uitvoeren beslist.
@@ -37,7 +73,8 @@ export function leftRecordedDatesMode(
   next: RecordedDatesObservation,
 ): boolean {
   if (next.documentId !== prev.documentId) return false;
-  return prev.inMode && !next.inMode;
+  if (!prev.inMode || next.inMode) return false;
+  return !restoredFromHistory(prev.history, next.history);
 }
 
 /**

@@ -1,8 +1,9 @@
+import type { MeasuredDuration } from '@/utils/taskDuration';
 import { parseDate } from '@/utils/dateUtils';
 import { signedWorkDaysBetween } from '@/engine/variance';
 import {
   type ReportContext, type ProgressState, dayOf, durationDays, isNearCritical, activityTasks, makeEngineCache, progressState, scheduleSlip,
-  remainingDays, resolvePeriodFor, round1, taskFinish, taskStart,
+  remainingDays, remainingMeasure, resolvePeriodFor, round1, taskFinish, taskStart,
 } from './reportCommon';
 import { type ReportingPeriod, periodDays, windowEnd } from './reportingPeriod';
 
@@ -45,6 +46,8 @@ export interface ProgressRow {
   actualFinish?: string;
   completion: number;
   remainingDays: number;
+  /** De restduur in de maat van de taak (B8), voor de weergave. */
+  remaining: MeasuredDuration;
   totalFloat: number;
   isCritical: boolean;
   isNearCritical: boolean;
@@ -126,6 +129,7 @@ export function computeProgressReport(ctx: ReportContext, opts: ProgressReportOp
       actualFinish: t.time.actualFinish,
       completion: t.time.completion,
       remainingDays: remainingDays(ctx, t),
+      remaining: remainingMeasure(t),
       totalFloat: t.time.totalFloat,
       isCritical: t.time.isCritical,
       isNearCritical: isNearCritical(t, opts.nearCriticalDays),

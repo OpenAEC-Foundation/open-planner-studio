@@ -1,3 +1,4 @@
+// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 // DCMA 14-puntsbeoordeling (`src/engine/reports/dcmaAssessment.ts`), het blok bovenaan het rapport
 // Planningsgezondheid.
 //
@@ -194,7 +195,7 @@ const summary = (m: DcmaMetric) => (m.result === 'na' ? [m.result, m.naReason] :
   const ctx = ctxFromStore();
   const b = ctx.tasks.find(t => t.id === B)!;
   const m = ctx.tasks.find(t => t.id === M)!;
-  eq('s4: scenario — B en M volgens de handberekening', [b.time.earlyFinish, m.time.earlyFinish], ['2026-09-23', '2026-10-01']);
+  eq('s4: scenario — B en M volgens de handberekening', [b.time.earlyFinish, m.time.earlyFinish], ["2026-09-23T16:00", "2026-10-01T07:00"]);
   const d = dcmaOf(ctx);
   eq('s4: noemer taken', d.incompleteCount, 2);
   eq('s4: 9 ongeldige datums', summary(metric(d, 'invalidDates')), ['pass', 0, 2, 0]);
@@ -206,7 +207,7 @@ const summary = (m: DcmaMetric) => (m.result === 'na' ? [m.result, m.naReason] :
 
   const h = computeScheduleHealth(ctx, OPTS);
   const items = (id: string) => h.checks.find(c => c.id === id)!.items;
-  eq('s4: bevinding gemiste taak (met baseline-einde)', items('missedTask').map(i => [i.name, i.detail.date]), [['B', '2026-09-18']]);
+  eq('s4: bevinding gemiste taak (met baseline-einde)', items('missedTask').map(i => [i.name, i.detail.date]), [['B', "2026-09-18T16:00"]]);
   eq('s4: bevinding zonder resource', items('missingResource').map(i => i.name), ['C']);
   eq('s4: geen voortgangsuitzonderingen', items('progressException').length, 0);
 
@@ -261,7 +262,7 @@ const summary = (m: DcmaMetric) => (m.result === 'na' ? [m.result, m.naReason] :
     '%E',
   ].join('\r\n'));
   S().newProject();
-  S().applyOpenedImport(readXER(bytes) as ImportResult, { filePath: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: true });
+  S().applyOpenedImport(readXER(bytes) as ImportResult, { filePath: null, recompute: true, fit: false, linkedOpen: true });
   const fund = () => S().tasks.find(t => t.name === 'Fundering')!;
   eq('s5: laden opent de modus; Fundering toont P6-speling, niet kritiek', [S().datesAsRecorded, fund().time.totalFloat, fund().time.isCritical], [true, 15, false]);
   eq('s5: in de modus is punt 12 n.v.t. (niet berekend)', summary(metric(dcmaOf(ctxFromStore()), 'criticalPathTest')), ['na', 'notCalculated']);

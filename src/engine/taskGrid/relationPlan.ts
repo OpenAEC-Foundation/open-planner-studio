@@ -3,6 +3,7 @@ import { expandSummaryRelations, type ExpandSummaryRelationsResult } from '@/eng
 import {
   exclusiveExternalLag,
   externalAnchorSideIsCompatible,
+  isValidExternalLagValue,
   sourceProjectKeyFor,
   type ExternalDirection,
   type ExternalRelationType,
@@ -54,8 +55,9 @@ function isExternalLag(value: unknown): boolean {
   const hasDays = hasOwn(value, 'lagDays');
   const hasMinutes = hasOwn(value, 'lagMinutes');
   if (hasDays === hasMinutes) return false;
-  const lag = hasMinutes ? value.lagMinutes : value.lagDays;
-  return typeof lag === 'number' && Number.isSafeInteger(lag) && Math.abs(lag) <= 1_000_000_000;
+  return hasMinutes
+    ? isValidExternalLagValue('lagMinutes', value.lagMinutes)
+    : isValidExternalLagValue('lagDays', value.lagDays);
 }
 
 function hasOptionalString(value: Record<string, unknown>, key: string): boolean {
