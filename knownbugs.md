@@ -1357,16 +1357,6 @@ en noem het in je rapport of PR-tekst.
     verwacht je het Excel-gedrag: vastleggen en een kolom verder (Shift+Tab terug). Gezien bij review
     vader, punt 1. — B
 
-411. **Het sleeplabel toont bij een werkdag van 8 u 20 m geen hele dagen meer.**
-     `src/engine/renderer/GanttRenderer.ts:2002` rondt de uit dagen afgeleide minuten
-     af (PR #699). `formatDuration` rekent de dagdeler opnieuw uit: 8⅓ × 60 =
-     `500.00000000000006` (`src/utils/durationFormat.ts:117`). De modulocontrole voor
-     hele dagen faalt daardoor. Een dagtaak op 08:00–16:20 toont bij weergave Automatisch
-     `8u 20m` en `16u 40m` in plaats van `1d` en `2d`. De duur zelf klopt.
-     Richting: maak de hele-dagherkenning bestand tegen deze afronding en voeg die
-     kalender toe aan `check-drag-duration-badge.ts`. Gevonden in review r2 van #699
-     (GPT-6.1-Sol). — B
-
 421. **O1 in `check-recovery-refused-later.ts` bewijst niet dat lezen en opslaan dezelfde sessieclaim afwachten.**
      De check kijkt na één microtask alleen of beide promises nog lopen
      (`tests/planning/check-recovery-refused-later.ts`, rond regel 79). De save loopt via
