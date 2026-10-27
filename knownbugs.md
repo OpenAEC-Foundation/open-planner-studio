@@ -368,6 +368,14 @@ en noem het in je rapport of PR-tekst.
      het deel onder de minuut vast over daggrenzen; een gewone dagtaak in de regressie. Gevonden in review ronde 1 van
      #687 (GPT-6.1-Sol). — B
 
+405. **Late start van een lopende P6-taak toont de rekendatum, waar P6 de werkelijke start toont.** In de
+     referentiecasussen 08 A en 10 B draagt de LS-cel van P6 de werkelijke start met " A" (`cases-p6-verified.json`).
+     Onze motor zet onder A19 de late start op de reststart (08 A: 2026-01-12, P6 2026-01-06 A). De app toont die
+     rekendatum in het taakpaneel (`src/components/task-sections/TaskCpmResultSection.tsx:38`). De Start-kolom volgt
+     sinds 2026-10-12 wel de werkelijke start (`shownStart`). `check-p6-verified-cases-engine.ts` telt de LS-cel sinds
+     #690 tegen `shownStart` en dus als gelijk; de getoonde Late start wijkt nog af. Voorstel: eigenaarsbesluit of Late
+     start voor een gestarte taak ook de werkelijke start toont, zoals P6. Gevonden bij #690 fase 1 punt 2. — S
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B

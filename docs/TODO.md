@@ -660,9 +660,11 @@ met de dwingende volgorde, en het werkt alléén zolang de oude sleutel er nog i
   zet onder A19 de vroege start op de statusdatum (de reststart, zoals P6's eigen Early Start), dus
   de vier cellen vergelijken twee verschillende velden; er is geen motorfout aangetoond. Sinds het
   eigenaarsbesluit van 2026-10-12 (optie 1) toont de app als Start óók de werkelijke start
-  (`shownStart`, `utils/taskDates.ts`); voor 08 A en 10 B is dat precies de " A"-datum. Open: de
-  meetlat in `check-p6-verified-cases-engine.ts` voor " A"-cellen tegen de getoonde start leggen in
-  plaats van tegen `earlyStart`, en daarna de pin `DEVIATING_CELLS_PIN` herzien.
+  (`shownStart`, `utils/taskDates.ts`); voor 08 A en 10 B is dat precies de " A"-datum.
+  **Meetlat bijgewerkt (2026-10-27, #690):** `check-p6-verified-cases-engine.ts` legt " A"-cellen
+  tegen de getoonde start/het getoonde einde; `DEVIATING_CELLS_PIN` is leeg, 160 van 160. Nog open:
+  de kolom Late start toont voor een lopende taak de rekendatum, waar P6 de werkelijke start toont
+  (zie `knownbugs.md`).
 
 - [ ] **Geen enkele poort raakt het Tauri-asset-protocol — een hele klasse desktopbugs is
   structureel onzichtbaar.** Aangetoond 2026-07-28: in de uitgeleverde `.deb` v2026.7.13 toonde

@@ -283,6 +283,10 @@ robuustheidsbestanden en het 8-byte-DROID-skelet) tellen niet in de fidelity-poo
        wordt de vroege start van een bezig zijnde taak de reststart, waar P6 de werkelijke start
        opneemt (het orakel draagt daar het `A`-suffix); zie §9. Op de echte bytes zijn het 77/160
        door de projecteinde-fout (`docs/TODO.md`), 156/160 zonder die optie.
+       *Bijgewerkt 2026-10-27 (#690):* het `A`-suffix markeert P6's kolom Start (de werkelijke
+       start), niet zijn Early Start; de check legt zo'n cel sindsdien tegen de getoonde start
+       (`shownStart`) en staat op 160/160. De motor rekent ES/LS van 08 A en 10 B nog steeds op de
+       reststart; dat blijft gepind (sectie 5 van de check).
      **Bewijsstatus klasse (i) (her-review 7a, 2026-09-07).** De poort van
      `p6CompletedLateFromRemainingWindow` (`DT_FixedDUR2` + `rem_target_link_flag=Y` + expliciet
      targetvenster + `CP_Drtn`) is CORRELATIONEEL, geen P6-mechanisme: de winst is echt en per cel
@@ -761,7 +765,7 @@ dan P6) zijn niet onderzocht. Hoort bij een volgende brok.
   10, p6diff 8+7, HarbourPointe 7, Harbour Point DCP-03 7, sample-target 4, stack_data_center 4.
   Of die as poort wordt is een eigenaarsbesluit (§3).
 
-### C10 ALAP-positionering (geparkeerd; vóór 23-09 "C9" genoemd) + duur uit toewijzingen (HarbourPointe) (2026-09-23)
+### C10 ALAP-positionering (tot 24-09 geparkeerd, daarna geland als C14; vóór 23-09 "C9" genoemd) + duur uit toewijzingen (HarbourPointe) (2026-09-23)
 
 *In gewone taal: de regel voor "zo laat mogelijk"-taken (C10) klopt en maakt 27 cellen exact, maar
 drie cellen komen verder van P6 te staan. Dat komt niet door ALAP maar doordat P6 één taak (EC1430)
@@ -843,8 +847,19 @@ in de "6604"-groep zijn echte duren (EC2280 hangt alleen aan EC2090; late spans 
 **De invoerkolommen scheiden de twee groepen niet**; daarom is er geen C10 gebouwd.
 
 **Open vraag.** Welke toewijzing bepaalt in P6 de duur van een `DT_FixedDrtn`-activiteit bij
-gelijke invoer? Mogelijk een niet-geëxporteerde "Drive activity dates"-vlag per toewijzing. Zolang
-dat open is, blijft C10 geparkeerd.
+gelijke invoer? Mogelijk een niet-geëxporteerde "Drive activity dates"-vlag per toewijzing. Dat
+hield C10 geparkeerd tot 24-09. Toen landde C10 als C14 (zie "Geland 2026-09-24" hierboven), nadat
+de eigenaar EC1430 en EC1420 uit de meetlat haalde (vraag 8 en 13). De vraag zelf is nog open.
+
+**Open vraag (#690, 2026-10-27): verouderde uitvoer of duur uit toewijzingen?** Het manifest
+(`tests/planning/xer-corpus-manifest.json`, `excludeTasks` van HarbourPointe) noemt de acht taken
+"uitvoer verouderd t.o.v. de invoer". De meting hierboven past een andere verklaring: vijf van de acht
+(EC2170, EC2200, EC2410, EC1680, EC2060) volgen de regel "langste toewijzingsduur zonder
+toewijzingslag", met een actuele P6-uitvoer. Voor de andere drie (EC1430, EC2380, EC1590) scheidt
+geen invoerkolom de twee groepen. Uit de bestanden is niet af te lezen welke verklaring klopt. Dat
+beslist alleen een nieuwe P6-run van HarbourPointe (#690, fase 3). Tot dan is "verouderd" in het
+manifest een werkhypothese, geen bevinding. De manifesttekst blijft staan: zijn bytes zitten in de
+hash-pins van de corpusloze poort.
 
 **B15 (vrije speling over gelagde relaties op de eigen kalender; in brok 5 "C8" genoemd — C8 is sinds
 brok 4 `p6StartedTaskIgnoresPlannedStartFloor`)** is gemeten maar niet geland: +2/−1 (Hotel +1, rehab-2 +1 en −1). De patch staat in
