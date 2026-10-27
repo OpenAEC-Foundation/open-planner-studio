@@ -416,13 +416,6 @@ en noem het in je rapport of PR-tekst.
      "Herstel standaard" kiest. De cel kapt de tekst af met een beletselteken. Voorstel: bij het laden een
      opgeslagen breedte van precies 100 px voor deze twee kolommen naar 130 px zetten, of de kolom laten
      meegroeien; een besluit over opgeslagen voorkeuren. — B
-286. **De kant van een beperkingsdatum wordt op twee plekken opnieuw bepaald.** `constraintDateSide`
-     (`src/engine/calendar/workdayRules.ts:42`) zegt al of een beperkingsdatum startachtig of eindachtig
-     is. `constraintSide` in `TaskConstraintFields.tsx:16` en `guardSideOf` in `MilestoneReport.tsx:62`
-     bouwen dat opnieuw uit `constraintDateField` en `taskDateFieldSide`. De uitkomst is nu gelijk; het
-     risico is dat een vierde beperkingstype op één plek wel en op een andere niet meekomt. Voorstel: beide
-     helpers vervangen door `constraintDateSide` en de losse imports weghalen. Gevonden in de review van
-     PR #584 (r1, VERVOLG), in de code nagelezen. — B
 288. **Het duurlabel tijdens het slepen rekent kalendertijd met de werktijd per dag.** `GanttRenderer.dragDurationText`
      (`src/engine/renderer/GanttRenderer.ts:1996-2008`) neemt voor een dagtaak `taskDurationMinutes` (dagen ×
      werktijd per dag, `utils/taskDuration.ts:94`) en zet dat om met `effHoursPerDay`. Bij een
