@@ -344,29 +344,43 @@ en noem het in je rapport of PR-tekst.
      niet-werktijd; de basis geeft in dit geval ook een herberekeningsverschil. Voorstel: bij SF de bestaande
      `forwardFinishFloor` meenemen. Gevonden in review ronde 2 van #660 (GPT-6.1-Sol). — B
 
-390. **De werkplaatsing kapt af waar de kalenderwandeling nu afrondt.** `src/engine/scheduler/workPlacement.ts:114`,
-     `:119`, `:122`, `:123` (gebruikt door `ResourceLoad.ts:274` en `ResourceLeveler.ts:497`). Vanaf ma 08:00 met
-     1920/7 min geeft `addWorkMinutes` sinds fixronde 7 van #591 12:34:17,143, `workPlacement` 12:34:17,142; op main
-     gaven beide ,142. Een andere getoonde dag of capaciteitsbeslissing is niet aangetoond; de plaatsings- en
-     splitchecks zijn groen. Voorstel: dezelfde ms-afronding in de plaatsingslus en een check die het eindmoment
-     tegen de kalenderwandeling legt. Gevonden in review ronde 8 van #591 (GPT-6.1-Sol). — B
-
-391. **Een duur korter dan een halve milliseconde komt bij de spiegel op het vorige werkeinde uit.** Ma–vr
-     08:00–16:00, vanaf ma 1 juni 2026 08:00: `addWorkMinutes(t, 0,000001)` geeft ma 08:00, `subtractWorkMinutes`
-     daarna vr 29 mei 16:00. `walkMs` maakt de lengte 0, maar beide functies normaliseren het startmoment elk in hun
-     eigen richting (`src/engine/scheduler/CalendarEngine.ts:828`, `:857`). Op main ook zo. Geen gewoon importgeval
-     gevonden. Voorstel: na de ms-omzetting een lengte 0 als 0 behandelen, apart toetsen. Gevonden in review ronde 8
-     van #591 (GPT-6.1-Sol). — B
-
 392. **Een gewone OPS-dagtaak houdt bij een kloklag in breuken een paar ms negatieve speling.** De dagenmaat-loper
-     draagt het deel onder de minuut van zijn startanker niet over een daggrens (`src/engine/scheduler/CalendarEngine.ts:1125`,
-     `:1141`, `:1150`). Nagespeeld via de store en Bereken: OPS, 24/7-kalender, A en B gewone taken van 1 d, A start
+     draagt het deel onder de minuut van zijn startanker niet over een daggrens (`src/engine/scheduler/CalendarEngine.ts:1131`,
+     `:1147`, `:1156`). Nagespeeld via de store en Bereken: OPS, 24/7-kalender, A en B gewone taken van 1 d, A start
      ma 1 juni 2026 08:00, FS naar B met lag `+0,166667` kalenderdag. B start di 12:00:00,029; de loper rondt het einde
      naar wo 12:00:00,000; terugtellen geeft di 12:00:00,000, dus B −29 ms speling (op main −28 ms). A heeft op beide
      −29 ms, en een late finish 07:59 tegenover een vroege finish 08:00. Ook bij SS en FF. Eén werkdag optellen en weer
      aftrekken vanaf 12:00:00,028 verliest 28 ms, ook op main. Geen getoonde dag verspringt. Voorstel: de loper houdt
      het deel onder de minuut vast over daggrenzen; een gewone dagtaak in de regressie. Gevonden in review ronde 1 van
      #687 (GPT-6.1-Sol). — B
+
+395. **Een positieve duur die op nul ms rondt, is bij een rauw MS Project-werkeinde nog geen nulduur voor de
+     solver.** `src/engine/scheduler/CPMSolver.ts:1281–1284`: de wacht toetst `totalMinutes > 0` en verlegt een rauw
+     werkeinde eerst naar het begin van dezelfde dag; pas daarna behandelt de kalender de lengte als 0. Via de store:
+     MS Project-profiel, ma–vr 08–16, projectstart 1 juni 2026 08:00, worteltaak met eigen start vr 29 mei 16:00 en
+     duur 0,000001 min. Uitkomst: ES vr 16:00, EF vr 08:00 (een omgekeerde spanne), LS vr 16:00, speling 0. Een
+     letterlijke nulduur houdt ES en EF op vr 16:00. Op main dezelfde omgekeerde vroege spanne, plus LS do 16:00 en
+     −480 min speling; #694 veroorzaakt of verergert dit niet. Voorstel: de wacht toetst de lengte na de
+     ms-omzetting (`CalendarEngine.walkMs`). Gevonden in review ronde 1 van #694 (GPT-6.1-Sol). — B
+
+399. **Een contourperiode na een split-gat korter dan een halve ms kan een fantoomoverbezetting geven.**
+     `src/engine/scheduler/workPlacement.ts` (`placementResidueAxis`): de rest buiten de afgeronde spanne loopt op de
+     as vanaf het afgeronde einde, zo lang als het restwerk. Valt er ook een gat korter dan een halve ms in die
+     afronding, dan is de echte rest op de as langer dan het restwerk. Ma–vr 08:00–16:00, 480,000005 min werk, een
+     gat van 0,000001 min na 480 min, en een contour met [0; 480) 480 min en [480,000001; 480,000006) 0,000005 min:
+     maandag is 1,0000000021 belast, boven de marge van 1e-9, dus overbezet. Zonder contour, en bij een gat van een
+     halve ms of meer, gebeurt dit niet; ook de contourdialoog schrijft de rest goed. Geen invoerroute gevonden die
+     zo'n gat maakt (splits tellen in minuten of seconden). Voorstel: de plaatsing geeft het exacte einde van de
+     spanne mee, en de rest loopt tot daar. Gevonden in fixronde 2 van #694. — B
+
+400. **Ongewijzigd Toepassen van een BELL-verdeling verliest een fractie werk.** `src/engine/contour/contourPhases.ts:33–43`
+     (aangeroepen door `ContourDialog.tsx:102` en `contourDays.ts:68`) voegt bijna gelijke daginzetten samen tot één
+     fase en bewaart alleen de eerste inzet. Nagespeeld via de store: XER 17,777778 u, toewijzing 0,9, Vast werk of
+     Vaste inzet, inzet naar 1, BELL, Bereken, contourdialoog ongewijzigd Toepassen. Het werk gaat van
+     960,0000120000003 naar 959,9999943600001 min (ongeveer 1 ms minder). Undo herstelt het; opslaan in IFC bewaart de
+     lagere waarde. Onder alle drie profielen en beide werkregels, op main precies zo. Voorstel: bij het samenvoegen
+     het totale werk bewaren (een naar dagdeel gewogen inzet), of verschillende inzetten als aparte fasen houden.
+     Gevonden in review ronde 3 van #694 (GPT-6.1-Sol). — B
 
 ## Tabel, invoer en bediening
 

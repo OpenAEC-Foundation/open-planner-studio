@@ -513,9 +513,17 @@ normalisatie draait altijd; de markering `TimeModel` stuurt alleen de B5-overgan
   8,72 u (523,2 min) gaf zo een late start op het werkeinde van de dag ervoor (ma 16:00 in plaats van di 08:00),
   960 min minder speling op een 24/7-voorganger en een verkeerde ALAP-plek. Nu blijft
   `subtractWorkMinutes(addWorkMinutes(t, m), m) === t` vanaf een werkmoment, getoetst voor tienden 0,1–5000 min,
-  uren 0,01–83 u en hele minuten (`check-kalender-ms-wandeling.ts`); een lengte onder een halve ms valt erbuiten
-  (knownbug 391). Regel A:
-  P6 zonder celverschil, MS Project gelijk aan de stand ervoor (meting 2026-10-26).
+  uren 0,01–83 u en hele minuten (`check-kalender-ms-wandeling.ts`). Een lengte die in hele ms 0 is (onder een
+  halve ms), gedraagt zich in beide richtingen als een lengte 0: het moment blijft staan, ook buiten werktijd (was
+  knownbug 391). De werkplaatsing van belasting en nivelleerder (`workPlacement.ts`, urenmaat) wandelt met
+  dezelfde omzetting in hele ms. Haar einde is gelijk aan `addWorkMinutes`, met splits over het werk plus de gaten
+  ervóór (was knownbug 390). Alleen de tijdas rondt af: het geboekte werk blijft de bronhoeveelheid (review #694
+  r1). Valt er minder dan een halve ms werk buiten de afgeronde spanne, dan telt die rest als werk (uren, kosten),
+  niet als belasting (`PlacementDay.residueMinutes`, review #694 r2, was knownbug 396). Anders gaf een taak van
+  480,000006 min op een dag van 8 u na een gewone inzetbewerking een overbezette dag en een onoplosbaar conflict.
+  Beide staan in `check-kalender-ms-randen.ts`. Regel A:
+  P6 zonder celverschil, MS Project gelijk aan de stand ervoor (meting 2026-10-26, voor 390 en 391 opnieuw op
+  2026-10-27).
 
 ### 3.10 Adapters
 
