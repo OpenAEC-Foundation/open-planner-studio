@@ -4,12 +4,31 @@
 // (dus de gewone melding `autoSaveFailed` in `useAutoSave`). Zie ook `check-recovery-refused*.ts`.
 //
 // Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
+import { spawnSync } from 'node:child_process';
 import {
   clearRecovery, fullRecoverySave, holdRecoveryForLater, loadRecovery, saveRecovery,
   recoveryStorageUnavailable, RecoveryStorageUnavailableError,
 } from '@/services/recovery/recoveryStore';
 import { notifyRecoveryError } from '@/state/recoveryManifestNotice';
 import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
+
+// Elke route krijgt een schone module- en sessietoestand; geen product-resetpoort voor de test.
+const routes = ['read', 'save', 'both', 'overlap', 'fallback'] as const;
+const route = process.argv[2];
+if (!route) {
+  for (const name of routes) {
+    const child = spawnSync(process.execPath, [process.argv[1]!, name], { encoding: 'utf8', timeout: 20_000 });
+    process.stdout.write(child.stdout ?? '');
+    process.stderr.write(child.stderr ?? '');
+    if (child.error || child.status !== 0 || !child.stdout?.includes(`OK  recovery-refused-later/${name}:`)) {
+      console.error(`XX  recovery-refused-later: route ${name}`, child.error ?? child.status);
+      process.exit(1);
+    }
+  }
+  console.log('OK  recovery-refused-later: vijf geïsoleerde routes groen');
+  process.exit(0);
+}
+if (!routes.some(name => name === route)) throw new Error(`Onbekende route: ${route}`);
 
 const diffs: string[] = [];
 let checks = 0;
@@ -19,7 +38,12 @@ const eq = (label: string, got: unknown, want: unknown) => {
 };
 
 let failTransaction: (() => Error) | null = null;
-installFakeRecoveryIndexedDb({ onTransaction: () => { if (failTransaction) throw failTransaction(); } });
+let failRead = route === 'fallback';
+installFakeRecoveryIndexedDb({
+  onTransaction: () => { if (failTransaction) throw failTransaction(); },
+  onRead: () => { if (failRead) throw new Error('Tijdelijke leesfout, geen opslagweigering'); },
+});
+let releaseClaim: (() => void) | undefined;
 const session = new Map<string, string>();
 (globalThis as unknown as { sessionStorage: unknown }).sessionStorage = {
   getItem: (k: string) => session.get(k) ?? null,
@@ -29,7 +53,8 @@ const session = new Map<string, string>();
 Object.defineProperty(globalThis, 'navigator', {
   configurable: true,
   value: { locks: { request: (name: string, _options: unknown, callback: (lock: object | null) => unknown) => {
-    callback({ name });
+    if (route === 'overlap' && !releaseClaim) releaseClaim = () => { callback({ name }); };
+    else callback({ name });
     return Promise.resolve();
   } } },
 });
@@ -43,32 +68,60 @@ const security = () => new DOMException('Access is denied for this document.', '
 const isPlainSecurityError = (error: unknown) =>
   error instanceof DOMException && error.name === 'SecurityError' && !(error instanceof RecoveryStorageUnavailableError);
 
-// De opstartcontrole slaagt: de opslag is bewezen.
-eq('L1 voorwaarde: de opstartlezing slaagt', (await loadRecovery()).docs.length, 0);
-await saveRecovery(fullRecoverySave('A', [doc]));
-eq('L2 voorwaarde: een schrijfronde slaagt', (await loadRecovery()).docs.map(d => d.id), ['A']);
+// Bewijs de lees- en schrijfroute afzonderlijk: geen tweede actie mag een ontbrekende vlag maskeren.
+if (route === 'read' || route === 'both' || route === 'fallback') {
+  eq('L1 opstartlezing levert leeg', (await loadRecovery()).docs.length, 0);
+}
+if (route === 'save' || route === 'both') {
+  eq('L2 schrijfronde slaagt zonder aanvullende lezing', await caught(() => saveRecovery(fullRecoverySave('A', [doc]))), null);
+}
+if (route === 'both') eq('L2c opgeslagen document wordt teruggelezen', (await loadRecovery()).docs.map(d => d.id), ['A']);
+if (route === 'overlap') {
+  let loaded = false;
+  let saved = false;
+  const reading = loadRecovery().then(() => { loaded = true; });
+  const writing = saveRecovery(fullRecoverySave('A', [doc])).then(() => { saved = true; });
+  // Beide aanroepen zijn gestart terwijl de gedeelde sessieclaim nog wacht.
+  await Promise.resolve();
+  eq('O1 beide acties wachten op de claim', [loaded, saved, typeof releaseClaim], [false, false, 'function']);
+  releaseClaim!();
+  await Promise.all([reading, writing]);
+  eq('O2 beide overlappende acties ronden af', [loaded, saved], [true, true]);
+}
+eq('L2b vóór de weigering staat crashherstel niet uit', recoveryStorageUnavailable(), false);
+failRead = false;
+if (route === 'fallback') {
+  // Een lege terugval na een gewone leesfout bewijst géén werkende opslag.
+  failTransaction = security;
+  const refused = await caught(() => saveRecovery(fullRecoverySave('A', [doc])));
+  eq('F1 volgende SecurityError is nog een eerste weigering', refused instanceof RecoveryStorageUnavailableError, true);
+  eq('F2 die eerste weigering zet de sessievlag', recoveryStorageUnavailable(), true);
+  let notified = 0;
+  eq('F3 stille afhandeling zonder gewone foutmelding', [notifyRecoveryError(refused, () => { notified++; }), notified], [true, 0]);
+  eq('F4 precies één consoleregel', infoLines.length, 1);
+} else {
+  // Daarna weigert de browser alsnog: dat is een gewone, zichtbare fout.
+  failTransaction = security;
+  const later = await caught(() => saveRecovery(fullRecoverySave('A', [doc])));
+  eq('L3 saveRecovery geeft de SecurityError zelf door', isPlainSecurityError(later), true);
+  eq('L4 geen sessievlag', recoveryStorageUnavailable(), false);
+  let notified = 0;
+  eq('L5 notifyRecoveryError laat hem aan de gewone foutroute', [notifyRecoveryError(later, () => { notified++; }), notified], [false, 0]);
+  eq('L6 clearRecovery geeft de fout door', isPlainSecurityError(await caught(() => clearRecovery())), true);
+  eq('L7 holdRecoveryForLater geeft de fout door', isPlainSecurityError(await caught(() => holdRecoveryForLater())), true);
+  eq('L8 nog steeds geen sessievlag', recoveryStorageUnavailable(), false);
+  eq('L9 geen consoleregel over uitgezet crashherstel', infoLines.length, 0);
 
-// Daarna weigert de browser alsnog: dat is een gewone, zichtbare fout.
-failTransaction = security;
-const later = await caught(() => saveRecovery(fullRecoverySave('A', [doc])));
-eq('L3 saveRecovery geeft de SecurityError zelf door', isPlainSecurityError(later), true);
-eq('L4 geen sessievlag', recoveryStorageUnavailable(), false);
-let notified = 0;
-eq('L5 notifyRecoveryError laat hem aan de gewone foutroute', [notifyRecoveryError(later, () => { notified++; }), notified], [false, 0]);
-eq('L6 clearRecovery geeft de fout door', isPlainSecurityError(await caught(() => clearRecovery())), true);
-eq('L7 holdRecoveryForLater geeft de fout door', isPlainSecurityError(await caught(() => holdRecoveryForLater())), true);
-eq('L8 nog steeds geen sessievlag', recoveryStorageUnavailable(), false);
-eq('L9 geen consoleregel over uitgezet crashherstel', infoLines.length, 0);
+  // Herstelt de opslag zich, dan schrijft crashherstel gewoon weer.
+  failTransaction = null;
+  eq('L10 na herstel slaagt de volgende schrijfronde', await caught(() => saveRecovery(fullRecoverySave('A', [doc]))), null);
 
-// Herstelt de opslag zich, dan schrijft crashherstel gewoon weer.
-failTransaction = null;
-eq('L10 na herstel slaagt de volgende schrijfronde', await caught(() => saveRecovery(fullRecoverySave('A', [doc]))), null);
-
+}
 console.info = originalInfo;
 
 if (diffs.length) {
-  console.log(`XX  recovery-refused-later: ${diffs.length} van de ${checks} checks FOUT`);
+  console.log(`XX  recovery-refused-later/${route}: ${diffs.length} van de ${checks} checks FOUT`);
   for (const d of diffs) console.log(`    - ${d}`);
   process.exit(1);
 }
-console.log(`OK  recovery-refused-later: ${checks} checks — uitval ná werkende opslag blijft zichtbaar`);
+console.log(`OK  recovery-refused-later/${route}: ${checks} checks — opslagbewijs en foutclassificatie`);

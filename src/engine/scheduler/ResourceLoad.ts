@@ -18,8 +18,8 @@ import { resolveCalendar } from './resolveCalendar';
 import { enumerateTaskWorkDays } from './splitWalk';
 import { createTaskEngineCache } from './taskEngineCache';
 import {
-  assignmentPlacementLoad, taskWorkPlacement, workPlacement, type PlacementDay, type PlacementOptions,
-  type PlacementResult,
+  assignmentPlacementLoad, assignmentPlacementWork, taskWorkPlacement, workPlacement, type PlacementDay,
+  type PlacementOptions, type PlacementResult,
 } from './workPlacement';
 import { isPinnedComplete } from './duration';
 import {
@@ -435,7 +435,9 @@ export function computeResourceLoad(
   for (const a of validAssignments) {
     const task = taskById.get(a.taskId)!;
     const taskEngine = engineForTask(task);
-    const { isos: workDayIsos, units: days } = assignmentDaily(task, a, taskEngine, contourOf(task, a), placedOf(task));
+    const contour = contourOf(task, a);
+    const placed = placedOf(task);
+    const { isos: workDayIsos, units: days } = assignmentDaily(task, a, taskEngine, contour, placed);
     if (days.length === 0) continue;
 
     if (!load[a.resourceId]) load[a.resourceId] = {};
@@ -446,8 +448,11 @@ export function computeResourceLoad(
       bucket[iso] = (bucket[iso] ?? 0) + days[i];
       units += days[i];
     }
-    // Uren van precies de geboekte eenheden, op de uren per dag van de taakkalender.
-    hours[a.resourceId] = (hours[a.resourceId] ?? 0) + units * taskEngine.hoursPerDay;
+    // Uren van precies de geboekte eenheden, op de uren per dag van de taakkalender. Op een plaatsing telt
+    // ook een rest van het bronwerk buiten de afgeronde spanne mee: werk, geen belasting
+    // (`assignmentPlacementWork`, `PlacementDay.residueMinutes`).
+    const work = placed ? assignmentPlacementWork(days, placed.days, contour, taskEngine.hoursPerDay * 60) : units;
+    hours[a.resourceId] = (hours[a.resourceId] ?? 0) + work * taskEngine.hoursPerDay;
   }
 
   // 4. Capaciteit — alleen op de dagen waar ook belasting bestaat (zie DailyLoad-doc hierboven).

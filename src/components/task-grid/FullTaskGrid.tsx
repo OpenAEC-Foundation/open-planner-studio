@@ -65,7 +65,8 @@ import {
   lastTaskRow,
   retargetGhostIntents,
 } from '@/engine/taskGrid/ghostRow';
-import { buildNewTask, createDefaultTaskTime } from '@/utils/taskDefaults';
+import { buildNewTask, createDefaultTaskTime, deriveScheduleDurationFromMinutes, seedNewHourTaskFinish } from '@/utils/taskDefaults';
+import { newTaskTimeUnit, settleNewTaskMeasure } from '@/state/newTaskMeasure';
 import { recordedGridBinding } from '@/state/recordedDatesSelectors';
 import { useEffectiveDurationDisplay, useProfileCountsWorkdays } from '@/hooks/useDurationMeasure';
 import { useAppStore } from '@/state/appStore';
@@ -348,14 +349,20 @@ export function TaskGridSurface({
   const ghostTask = useMemo<Task>(() => {
     const last = lastTaskRow(viewRows);
     const parentId = last?.task.parentId ?? null;
-    return buildNewTask({ name: '' }, {
+    const task = buildNewTask({ name: '' }, {
       id: GHOST_TASK_ID,
       parentId,
       parentTask: parentId ? tasks.find(task => task.id === parentId) : undefined,
       constructionMode,
-      time: createDefaultTaskTime(project.startDate || localTodayIso(), 5, 'days', calendar),
+      time: createDefaultTaskTime(project.startDate || localTodayIso(), 5, newTaskTimeUnit(project), calendar),
     });
-  }, [calendar, constructionMode, project.startDate, tasks, viewRows]);
+    // Ook het editorsjabloon volgt profiel, eigen maatkeuze en vast werk, zoals de echte aanmaak.
+    const hoursPerDay = effHoursPerDay(calendar);
+    deriveScheduleDurationFromMinutes(task.time, hoursPerDay);
+    settleNewTaskMeasure(task, project, false, hoursPerDay);
+    seedNewHourTaskFinish(task, undefined, calendar);
+    return task;
+  }, [calendar, constructionMode, project, tasks, viewRows]);
   const gridRows = useMemo(
     () => (showGhostRow ? appendGhostRow(viewRows, ghostTask) : viewRows),
     [ghostTask, showGhostRow, viewRows],
