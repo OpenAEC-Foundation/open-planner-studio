@@ -279,9 +279,11 @@ if (renderError === null) {
       renderer.getRelationSourceAt(startOnlyX + 4, rowMidY(8))?.id === 'ms-start-only');
     ok('getRelationSourceAt weigert de start-only mijlpaal ruim buiten de marge',
       renderer.getRelationSourceAt(startOnlyX + 20, rowMidY(8)) === null);
-    // Zonder einde blijft hij buiten de sleep: de sleep rekent vanaf begin én einde (datumloos-guard).
-    ok('getTaskBarBounds armt drag op de start-only mijlpaal (mag niet)',
-      renderer.getTaskBarBounds(startOnlyX, rowMidY(8)) === null);
+    // Review #704 r1: de ruit staat er, dus hij verplaatst ook (de sleep leent het einde van de start).
+    ok('getTaskBarBounds geeft de start-only mijlpaal geen verplaatsgreep',
+      renderer.getTaskBarBounds(startOnlyX, rowMidY(8))?.edge === 'body');
+    ok('getTaskBarBounds geeft de start-only mijlpaal ruim naast de ruit toch een greep',
+      renderer.getTaskBarBounds(startOnlyX + 20, rowMidY(8)) === null);
   }
 }
 

@@ -81,13 +81,15 @@ test('Gantt bodydrag wijzigt de datum en Ctrl+Z herstelt exact één handeling',
 
   // Issue #691: een mijlpaal (ruit) verschuift met dezelfde sleep en dezelfde ene undo-stap. Hij houdt
   // duur 0: begin en einde blijven één moment. Ook vanaf de rechterkant van de ruit verschuift hij;
-  // rekken bestaat niet.
-  const milestoneId = await page.evaluate(() => {
+  // rekken bestaat niet. Een mijlpaal zonder soort na een FF-voorganger staat op het einde van de dag; de
+  // sleep zet een SNET, en na F5 staat hij nog op het gesleepte moment (review #704 r1).
+  const milestoneId = await page.evaluate((predecessorId) => {
     const s = window.__OPS__!.store.getState();
-    const id = s.addTask({ name: 'Oplevering', isMilestone: true, milestoneKind: 'FINISH' });
+    const id = s.addTask({ name: 'Oplevering', isMilestone: true });
+    window.__OPS__!.store.getState().addSequence({ predecessorId, successorId: id, type: 'FINISH_FINISH', lagDays: 0 });
     window.__OPS__!.store.getState().runCPM();
     return id;
-  });
+  }, taskId);
   const milestoneTime = () => page.evaluate((id) => {
     const t = window.__OPS__!.store.getState().tasks.find(task => task.id === id)!;
     return { start: t.time.scheduleStart, finish: t.time.scheduleFinish, duration: t.time.scheduleDuration };
@@ -109,6 +111,20 @@ test('Gantt bodydrag wijzigt de datum en Ctrl+Z herstelt exact één handeling',
     await page.keyboard.press('Control+z');
     await expect.poll(() => milestoneTime()).toEqual(msBefore);
   }
+  const msPoint = await barPoint(page, milestoneId);
+  await page.mouse.move(msPoint.x, msPoint.y);
+  await page.mouse.down();
+  await page.mouse.move(msPoint.x + 72, msPoint.y, { steps: 6 });
+  await page.mouse.up();
+  await expect.poll(() => milestoneTime().then(t => t.start)).not.toBe(msBefore.start);
+  const dropped = await milestoneTime();
+  await page.keyboard.press('F5');
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().scheduleStale)).toBe(false);
+  const calculated = await page.evaluate((id) => {
+    const t = window.__OPS__!.store.getState().tasks.find(task => task.id === id)!;
+    return { start: t.time.earlyStart, constraint: t.constraint?.type };
+  }, milestoneId);
+  expect(calculated).toEqual({ start: dropped.start, constraint: 'SNET' });
 });
 
 // De gedeelde DOM-taakgrid bezit de structurele rijdrag; het tijdlijncanvas bezit uitsluitend

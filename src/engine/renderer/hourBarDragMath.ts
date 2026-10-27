@@ -3,6 +3,7 @@ import { addElapsedMinutes, splitTotalSpanMinutes, subtractElapsedMinutes } from
 import { toSplitPieces } from '@/engine/scheduler/splitEdit';
 import type { MilestoneKind, TaskSplitGap } from '@/types/task';
 import { addCalendarDays, utcDayStart } from '@/utils/dateUtils';
+import { shiftByDisplayedColumns } from './barDragMath';
 
 /** De vier lopers van een uursleep: de werkblokken van de taakkalender (`CalendarEngine`), of de klok van een
  *  kalendertijdtaak (`ELAPSED_DRAG_CLOCK`). */
@@ -230,60 +231,79 @@ function worksOn(calendar: CalendarEngine, day: Date): boolean {
 }
 
 /**
- * Een ruit verschuift bij uurzoom per snapstap, net als een balkbody (`resolveHourBarDrag`): het moment
- * schuift mee met de pointer en landt op een werkmoment. Een mijlpaal aan de EINDkant (soort Einde, of zonder
- * soort op een blokeinde) landt in vrije tijd op het vorige blokeinde, een mijlpaal aan de beginkant op het
- * volgende blokbegin. Zo springt een eindmijlpaal die je naar de avond sleept niet naar de volgende ochtend.
- * Er komt nooit een duur bij: begin en einde blijven hetzelfde moment.
+ * Staat deze mijlpaal aan de EINDkant van een werkblok, en moet hij daar na het slepen blijven? Zo ja, dan landt
+ * hij op een blokeinde, anders op een blokbegin. Dezelfde keuze als de motor bij F5 (`snapSuccessorEarlyStart`,
+ * B6 in `CPMSolver`): een eindmijlpaal blijft op een blokeinde; een mijlpaal zonder sturende voorganger op een
+ * blokeinde ook. Een mijlpaal die een voorganger stuurt, krijgt bij het slepen een SNET, en die bewaart de motor
+ * alleen op een werkmoment: dan dus het blokbegin.
+ */
+export function milestoneSitsAtFinish(
+  calendar: CalendarEngine, original: Date, milestoneKind: MilestoneKind | undefined, drivenByPredecessor: boolean,
+): boolean {
+  if (milestoneKind === 'FINISH') return true;
+  if (drivenByPredecessor) return false;
+  return !calendar.isWorkInstant(original)
+    && calendar.effectiveBandsOn(original).some(band => band.end === minuteOfDay(original));
+}
+
+/** Een moment op de werktijd van de eigen kant: een blokeinde (`prevWorkInstant`, `(begin, einde]`) of een
+ *  blokbegin (`nextWorkInstant`, `[begin, einde)`). */
+const landOn = (calendar: CalendarEngine, t: Date, finishSide: boolean): Date =>
+  finishSide ? calendar.prevWorkInstant(t) : calendar.nextWorkInstant(t);
+
+/**
+ * Een ruit verschuift bij uurzoom per snapstap, net als een balkbody (`resolveHourBarDrag`). `candidate` is de
+ * datum op de getekende as waar de ruit nu zou staan (anker plus de pointerverschuiving in pixels). Zo telt een
+ * mijlpaal op een verborgen vrije dag vanaf zijn getekende plek, niet vanaf het verborgen moment. Er komt nooit
+ * een duur bij: begin en einde blijven hetzelfde moment.
  */
 export function resolveMilestoneHourDrag(input: {
   calendar: CalendarEngine;
   original: Date;
-  milestoneKind?: MilestoneKind;
-  pointerStart: Date;
-  pointerCurrent: Date;
+  finishSide: boolean;
+  candidate: Date;
   snapMinutes: number;
 }): Date {
-  const { calendar, original, milestoneKind, pointerStart, pointerCurrent, snapMinutes } = input;
-  const deltaMs = snappedDeltaMs(pointerStart, pointerCurrent, snapMinutes);
+  const { calendar, original, finishSide, candidate, snapMinutes } = input;
+  const deltaMs = snappedDeltaMs(original, candidate, snapMinutes);
   if (deltaMs === 0) return new Date(original.getTime());
-  const finishSide = milestoneKind === 'FINISH'
-    || (milestoneKind === undefined && !calendar.isWorkInstant(original)
-      && calendar.effectiveBandsOn(original).some(band => band.end === minuteOfDay(original)));
-  const candidate = new Date(original.getTime() + deltaMs);
-  // `prevWorkInstant` laat een moment in `(blokbegin, blokeinde]` staan, `nextWorkInstant` een moment in
-  // `[blokbegin, blokeinde)`: elk de grens van zijn eigen kant.
-  return finishSide ? calendar.prevWorkInstant(candidate) : calendar.nextWorkInstant(candidate);
+  return landOn(calendar, new Date(original.getTime() + deltaMs), finishSide);
 }
 
 /**
- * Een ruit verschuift bij dagzoom per getoonde kolom, net als een balkbody. `targetDay` is de kalenderdag
- * onder de verschoven kolom (`shiftByDisplayedColumns` vanaf de dag van de mijlpaal); is die vrij, dan landt
- * de ruit op de eerstvolgende werkdag in de sleeprichting (zelfde regel als `dragWorkdaySteps`).
+ * Een ruit verschuift bij dagzoom per getoonde kolom, net als een balkbody. De kolommen tellen op de getekende as
+ * (`shiftByDisplayedColumns`, projectkalender, ook onder compressie) vanaf de dag van de mijlpaal. Valt die dag
+ * onder compressie weg, dan telt de zichtbare werkdag aan de eigen kant: het einde van de dag ervoor, of het begin
+ * van de dag erna. Is de doeldag vrij voor de taakkalender, dan landt de ruit op de eerstvolgende werkdag in de
+ * sleeprichting (zelfde regel als `dragWorkdaySteps`).
  *
- * De plek in de dag: stond de mijlpaal op het begin van zijn werkdag, dan op het begin van de nieuwe werkdag;
- * stond hij op het einde, dan op het einde van de nieuwe werkdag (ook als die korter is, zoals een korte
- * vrijdag). Anders houdt hij zijn kloktijd. Op een vrije dag beslist de soort (Begin/Einde).
+ * De plek in de dag: stond de mijlpaal op een blokgrens, dan op het einde of het begin van de nieuwe werkdag
+ * (de eigen kant, ook op een kortere dag). Anders houdt hij zijn kloktijd, op de werktijd van de eigen kant.
  */
 export function resolveMilestoneDayDrag(input: {
   calendar: CalendarEngine;
+  axisCalendar: CalendarEngine;
+  compressed: boolean;
   original: Date;
-  milestoneKind?: MilestoneKind;
-  targetDay: Date;
-  /** Het teken van het aantal verschoven kolommen; 0 ⇒ de mijlpaal blijft staan. */
-  direction: number;
+  finishSide: boolean;
+  columns: number;
 }): Date {
-  const { calendar, original, milestoneKind, targetDay, direction } = input;
-  if (direction === 0) return new Date(original.getTime());
-  let day = utcDayStart(targetDay);
-  for (let i = 0; i < 3660 && !worksOn(calendar, day); i++) day = addCalendarDays(day, Math.sign(direction));
+  const { calendar, axisCalendar, compressed, original, finishSide, columns } = input;
+  if (columns === 0) return new Date(original.getTime());
+  const direction = Math.sign(columns);
+  let base = utcDayStart(original);
+  if (compressed && !axisCalendar.isWorkDay(base)) {
+    base = finishSide ? axisCalendar.prevWorkDay(base) : axisCalendar.nextWorkDay(base);
+  }
+  let day = utcDayStart(shiftByDisplayedColumns(axisCalendar, base, columns, compressed));
+  for (let i = 0; i < 3660 && !worksOn(calendar, day); i++) day = addCalendarDays(day, direction);
   if (!worksOn(calendar, day)) return new Date(original.getTime());
   const minute = minuteOfDay(original);
   const origBands = calendar.effectiveBandsOn(original);
   const bands = calendar.effectiveBandsOn(day);
   if (bands.length === 0) return new Date(day.getTime() + minute * 60_000);
-  const atStart = origBands.length > 0 ? minute === origBands[0].start : milestoneKind === 'START';
-  const atEnd = origBands.length > 0 ? minute === origBands[origBands.length - 1].end : milestoneKind === 'FINISH';
-  const target = atEnd ? bands[bands.length - 1].end : atStart ? bands[0].start : minute;
-  return new Date(day.getTime() + target * 60_000);
+  const onBoundary = origBands.length === 0
+    || origBands.some(band => band.start === minute || band.end === minute);
+  const target = onBoundary ? (finishSide ? bands[bands.length - 1].end : bands[0].start) : minute;
+  return landOn(calendar, new Date(day.getTime() + target * 60_000), finishSide);
 }

@@ -390,8 +390,10 @@ export function useGanttPointerCoordinator(
         // De datums waarop de renderer de balk tekent (`shownStart`/`shownFinish`): de rechterrand van een lopende
         // taak rekent zo de duur vanaf haar werkelijke start, net als de Tabel-kolom Einde
         // (`taskEditPlan.durationForShownFinish`).
-        originalStart: shownStart(hit.task),
-        originalFinish: shownFinish(hit.task),
+        // Een ruit met maar één datum leent de andere kant, zoals de renderer hem tekent (`milestoneAnchorX`);
+        // voor elke andere hit staan beide datums er al (datumloos-guard in `getTaskBarBounds`).
+        originalStart: shownStart(hit.task) || shownFinish(hit.task),
+        originalFinish: shownFinish(hit.task) || shownStart(hit.task),
         originalDuration: hit.task.time.scheduleDuration,
         originalDurationMinutes: hit.task.time.durationMinutes,
       });

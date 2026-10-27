@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { holdAutoCalc } from '@/state/editHold';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
-import { parseDate, parseInstant, formatDate, formatInstant, utcDayStart } from '@/utils/dateUtils';
+import { parseDate, parseInstant, formatDate, formatInstant } from '@/utils/dateUtils';
 import { isCompressedEffective } from '@/engine/renderer/workdayAxis';
 import { shiftByDisplayedColumns } from '@/engine/renderer/barDragMath';
 import {
-  ELAPSED_DRAG_CLOCK, resolveDayMeasureBarDrag, resolveHourBarDrag, resolveMilestoneDayDrag, resolveMilestoneHourDrag,
+  ELAPSED_DRAG_CLOCK, milestoneSitsAtFinish, resolveDayMeasureBarDrag, resolveHourBarDrag, resolveMilestoneDayDrag,
+  resolveMilestoneHourDrag,
 } from '@/engine/renderer/hourBarDragMath';
 import { taskSplitMeasure } from '@/engine/renderer/splitBarGeometry';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
@@ -148,6 +149,9 @@ export interface DragState {
   /** Gezet door `startBarDrag` wanneer dit een stuk- of stukrandsleep is; anders ongedefinieerd en
    *  loopt het gebaar over de gewone body/rand-takken. */
   split?: SplitDragContext;
+  /** Gezet door `startBarDrag`: stuurt een voorganger de start (dan zet de sleep een SNET)? Eén keer per
+   *  gebaar bepaald, zodat de landingskant van een mijlpaal niet midden in de sleep wisselt. */
+  drivenByPredecessor?: boolean;
 }
 
 interface UseBarDragOptions {
@@ -315,7 +319,7 @@ export function useBarDrag({
     directionRef.current = 'undecided';
     lastAppliedDeltaRef.current = 0;
     setSplitLabel(null);
-    setDragState({ ...next, pointerStart, split });
+    setDragState({ ...next, pointerStart, split, drivenByPredecessor: driven });
   }, [axis, canvasRef, prepareSplitDrag, getTask, isStartDrivenByPredecessor]);
 
   // Automatisch berekenen wacht tot de sleep af is: elke mousemove commit, en een CPM-run midden in
@@ -399,26 +403,30 @@ export function useBarDrag({
     const handleMilestoneDrag = (event: MouseEvent) => {
       const canvas = canvasRef.current;
       const rect = canvas?.getBoundingClientRect();
-      if (!rect || !dragState.pointerStart) return;
+      if (!rect) return;
       const baseTime = getTask(dragState.taskId)?.time;
       if (!baseTime) return;
       const engine = new CalendarEngine(calendarForEngine(effectiveCalById.get(dragState.taskId) ?? calendar));
       const original = parseInstant(dragState.originalStart);
-      const columns = Math.round((event.clientX - dragState.startX) / zoom);
+      const finishSide = milestoneSitsAtFinish(engine, original, draggedTask.milestoneKind,
+        dragState.drivenByPredecessor === true);
+      const pixelDelta = event.clientX - dragState.startX;
       const at = quantumMin === 1440
         ? resolveMilestoneDayDrag({
           calendar: engine,
+          axisCalendar: axisCalEngine,
+          compressed,
           original,
-          milestoneKind: draggedTask.milestoneKind,
-          targetDay: shiftByDisplayedColumns(axisCalEngine, utcDayStart(original), columns, compressed),
-          direction: Math.sign(columns),
+          finishSide,
+          columns: Math.round(pixelDelta / zoom),
         })
-        : resolveMilestoneHourDrag({
+        // De plek op de getekende as: het anker plus de pixelverschuiving. Zo telt ook een mijlpaal op een
+        // verborgen vrije dag (compressie) vanaf de naad waar hij staat.
+        : pixelDelta === 0 ? original : resolveMilestoneHourDrag({
           calendar: engine,
           original,
-          milestoneKind: draggedTask.milestoneKind,
-          pointerStart: dragState.pointerStart,
-          pointerCurrent: axis.xToDate(event.clientX - rect.left),
+          finishSide,
+          candidate: axis.xToDate(axis.dateToX(original) + pixelDelta),
           snapMinutes: quantumMin,
         });
       const next = formatInstant(at, 'hour');

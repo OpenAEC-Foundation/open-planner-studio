@@ -2470,15 +2470,15 @@ export class GanttRenderer {
     if (row?.kind !== 'task') return null;
     const task = row.task;
     if (isSummaryTask(task)) return null;
-    if (!shownStart(task) || !shownFinish(task)) {
-      return null;
-    }
-
     const { barHeight, barOffset } = this.bar;
     const top = this.rowToY(rowIndex) + barOffset;
+    // Een ruit met maar één datum staat er wel (`milestoneAnchorX`) en is dus ook te verplaatsen.
     if (isZeroDurationMilestone(task)) {
       const grab = this.milestoneGrab(task);
       return grab && { left: grab.x - grab.half, right: grab.x + grab.half, top, bottom: top + barHeight };
+    }
+    if (!shownStart(task) || !shownFinish(task)) {
+      return null;
     }
     const { x1, x2 } = this.barGeometry(task);
     return {
@@ -2514,20 +2514,21 @@ export class GanttRenderer {
     if (canvasX < 0 || canvasX >= this.opts.canvasWidth) return null;
     const task = this.getTaskAtY(canvasY);
     if (!task || isSummaryTask(task)) return null;
-    // Datumloos-guard: barGeometry tekent voor zo'n taak een terugval-stub op de
-    // viewstart, maar die mag geen sleep/resize armen — de drag-hooks zouden met undefined
-    // originalStart/originalFinish rekenen.
-    if (!shownStart(task) || !shownFinish(task)) {
-      return null;
-    }
     // Een nulduurmijlpaal (ruit) is verplaatsbaar maar niet rekbaar (issue #691): hij heeft alleen
-    // een body, rond de getekende ruit. Een mijlpaal-met-duur (`isZeroDurationMilestone` is dan
-    // false) tekent als gewone balk en houdt hieronder zijn randen, zoals elke taak met duur.
+    // een body, rond de getekende ruit, ook als hij maar één datum heeft (`milestoneAnchorX` leent
+    // dan van de andere kant; de sleep doet dat ook). Een mijlpaal-met-duur (`isZeroDurationMilestone`
+    // is dan false) tekent als gewone balk en houdt hieronder zijn randen, zoals elke taak met duur.
     if (isZeroDurationMilestone(task)) {
       const grab = this.milestoneGrab(task);
       return grab && Math.abs(canvasX - grab.x) <= grab.half
         ? { task, edge: 'body', segmentIndex: 0, segmentCount: 1 }
         : null;
+    }
+    // Datumloos-guard: barGeometry tekent voor zo'n taak een terugval-stub op de
+    // viewstart, maar die mag geen sleep/resize armen — de drag-hooks zouden met undefined
+    // originalStart/originalFinish rekenen.
+    if (!shownStart(task) || !shownFinish(task)) {
+      return null;
     }
     const edgeZone = 6; // pixels for edge detection
 
