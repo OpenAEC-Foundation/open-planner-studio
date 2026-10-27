@@ -39,7 +39,7 @@ import { taskDurationUnit } from '@/engine/scheduler/duration';
 import { groupBy } from '@/utils/collections';
 import { effHoursPerDay } from '@/utils/taskDuration';
 import {
-  DAY_MEASURE_LAGS_PROP, ELAPSED_MINUTES_PER_DAY, dayMeasureRecord, dayTaskWritesMinutes, exactFloatRecord,
+  DAY_MEASURE_LAGS_PROP, ELAPSED_MINUTES_PER_DAY, EXACT_MINUTE_LAGS_PROP, dayMeasureRecord, dayTaskWritesMinutes, exactFloatRecord,
   exactMinutesRecord, isWholeDays, taskMinutesPerDay,
   type DayMeasureDurationKey, type DayMeasureRecord, type ExactFloatKey, type ExactFloatRecord,
   type ExactMinutesKey, type ExactMinutesRecord,
@@ -506,14 +506,17 @@ export function writeIFC(input: WriteIFCInput): string {
   }
 
   // Sequences. Een lag in dagen met een breuk gaat als `PT…` met een record in `OPS_Sequences` (T21);
-  // de minuten tellen in de werktijd per dag van de lagkalender, zoals de motor en de MSPDI-writer.
+  // de minuten tellen in de werktijd per dag van de lagkalender, zoals de motor en de MSPDI-writer. Een
+  // minutenlag met een breuk krijgt daar ook een record (`ExactMinuteLags`).
   const dayMeasureLags: [string, DayMeasureRecord][] = [];
+  const exactMinuteLags: [string, ExactMinutesRecord][] = [];
   for (const seq of sequences) {
-    const record = writeSequence(ctx, seq, ownerHistId,
+    const { record, exactMinutes } = writeSequence(ctx, seq, ownerHistId,
       lagMinutesPerDay(seq, project.schedulingOptions?.lagCalendar, calendar, effCalByTask));
     if (record) dayMeasureLags.push([objectGuid(ctx, 'seq', seq.id), record]);
+    if (exactMinutes) exactMinuteLags.push([objectGuid(ctx, 'seq', seq.id), exactMinutes]);
   }
-  writeSequenceMeta(ctx, workSchedId, sequences, dayMeasureLags, ownerHistId);
+  writeSequenceMeta(ctx, workSchedId, sequences, dayMeasureLags, exactMinuteLags, ownerHistId);
 
   // Resources
   for (const res of resources) {
@@ -1588,16 +1591,19 @@ function writeWBSNesting(ctx: WriteContext, tasks: Task[], ownerHistId: number):
 // IFCRATIOMEASURE voor procent-lag (IFC 4.3 zelf: ratio 0.5 = "start wanneer de voorganger 50%
 // gereed is"). Een lead (negatieve lag) krijgt het ISO-8601-voorloopteken ('-P2D') — dat is de
 // standaardnotatie; niet elke externe tool leest het teken, maar onze round-trip behoudt het.
-function ifcLagValue(seq: Sequence, minutesPerDay: number): { value: string; record?: DayMeasureRecord } {
+function ifcLagValue(seq: Sequence, minutesPerDay: number): { value: string; record?: DayMeasureRecord; exactMinutes?: ExactMinutesRecord } {
   if (typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent)) {
     // REAL met decimale punt (`stepReal`): 100 % ⇒ `IFCRATIOMEASURE(1.)`, niet `(1)`. De guard
     // hierboven maakt het getal eindig, dus `stepReal` geeft altijd een waarde.
     return { value: `IFCRATIOMEASURE(${stepReal(seq.lagPercent / 100)!})` };
   }
   // Uur-lag (`lagMinutes`, bron van waarheid) als minuut-precieze IFCDURATION met
-  // tijdcomponent; de reader herkent de `T`-component en zet `lagMinutes` terug.
+  // tijdcomponent; de reader herkent de `T`-component en zet `lagMinutes` terug. Het slot draagt hele
+  // minuten; een breuk (een `.mpp`-lag in tienden: 150,5 min) krijgt het record `[exacte minuten, geschreven
+  // minuten]`, zoals de duur van een urentaak (`ExactMinutes`, T14; review #591 r2).
   if (typeof seq.lagMinutes === 'number' && Number.isFinite(seq.lagMinutes)) {
-    return { value: `IFCDURATION('${minutesToIsoDuration(seq.lagMinutes)}')` };
+    const exactMinutes = exactMinutesRecord(seq.lagMinutes);
+    return { value: `IFCDURATION('${minutesToIsoDuration(seq.lagMinutes)}')`, ...(exactMinutes ? { exactMinutes } : {}) };
   }
   const d = Number.isFinite(seq.lagDays) ? seq.lagDays : 0;
   // Een lag in dagen met een breuk (dagenmaat 0,5 d, kalendertijd 1,5 ed) gaat als `PT…` met de lengte
@@ -1628,10 +1634,13 @@ function lagMinutesPerDay(
   return effHoursPerDay(cal) * 60;
 }
 
-/** Schrijft de relatie; geeft het record van de dagenmaat terug als de lag als `PT…` ging. */
-function writeSequence(ctx: WriteContext, seq: Sequence, ownerHistId: number, minutesPerDay: number): DayMeasureRecord | undefined {
+/** Schrijft de relatie; geeft het record van de lag terug als het slot niet alles zegt: de dagenmaat met een
+ *  breuk (`record`), of een minutenlag met een breuk (`exactMinutes`). */
+function writeSequence(ctx: WriteContext, seq: Sequence, ownerHistId: number, minutesPerDay: number):
+  { record?: DayMeasureRecord; exactMinutes?: ExactMinutesRecord } {
   let lagRef = '$';
   let record: DayMeasureRecord | undefined;
+  let exactMinutes: ExactMinutesRecord | undefined;
   const hasPercent = typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent);
   const hasMinutes = typeof seq.lagMinutes === 'number' && Number.isFinite(seq.lagMinutes) && seq.lagMinutes !== 0;
   if (seq.lagDays !== 0 || hasPercent || hasMinutes) {
@@ -1641,6 +1650,7 @@ function writeSequence(ctx: WriteContext, seq: Sequence, ownerHistId: number, mi
     const durationType = seq.lagUnit === 'ELAPSEDTIME' ? 'ELAPSEDTIME' : 'WORKTIME';
     const lag = ifcLagValue(seq, minutesPerDay);
     record = lag.record;
+    exactMinutes = lag.exactMinutes;
     const lagId = addLine(ctx, `lag_${seq.id}`,
       `IFCLAGTIME('Lag',.PREDICTED.,$,${lag.value},.${durationType}.)`);
     lagRef = `#${lagId}`;
@@ -1648,7 +1658,7 @@ function writeSequence(ctx: WriteContext, seq: Sequence, ownerHistId: number, mi
 
   addLine(ctx, `seq_${seq.id}`,
     `IFCRELSEQUENCE(${ifcStr(objectGuid(ctx, 'seq', seq.id))},#${ownerHistId},$,$,${ref(ctx, `task_${seq.predecessorId}`)},${ref(ctx, `task_${seq.successorId}`)},${lagRef},.${seq.type}.,$)`);
-  return record;
+  return { ...(record ? { record } : {}), ...(exactMinutes ? { exactMinutes } : {}) };
 }
 
 /**
@@ -1659,13 +1669,16 @@ function writeSequence(ctx: WriteContext, seq: Sequence, ownerHistId: number, mi
  * alleen als er iets in staat:
  *  - `P6StartAtPredecessorFinishBoundarySequenceGuids`: de P6/XER-ankerrelaties;
  *  - `DayMeasureLags`: per relatie met een lag in dagen met een breuk het record
- *    `[dagen, geschreven minuten]` (T21, alleen uren §3.3), bijvoorbeeld `{"<guid>": [0.5, 240]}`.
+ *    `[dagen, geschreven minuten]` (T21, alleen uren §3.3), bijvoorbeeld `{"<guid>": [0.5, 240]}`;
+ *  - `ExactMinuteLags`: per relatie met een minutenlag met een breuk het record
+ *    `[exacte minuten, geschreven minuten]` (zoals `ExactMinutes`, T14), bijvoorbeeld `{"<guid>": [150.5, 151]}`.
  */
 function writeSequenceMeta(
   ctx: WriteContext,
   workSchedId: number,
   sequences: readonly Sequence[],
   dayMeasureLags: readonly (readonly [string, DayMeasureRecord])[],
+  exactMinuteLags: readonly (readonly [string, ExactMinutesRecord])[],
   ownerHistId: number,
 ): void {
   const boundarySequenceGuids = sequences
@@ -1679,6 +1692,10 @@ function writeSequenceMeta(
   if (dayMeasureLags.length > 0) {
     propIds.push(addLine(ctx, '_ps_seq_daymeasure',
       `IFCPROPERTYSINGLEVALUE(${ifcStr(DAY_MEASURE_LAGS_PROP)},$,IFCTEXT(${ifcJson(Object.fromEntries(dayMeasureLags))}),$)`));
+  }
+  if (exactMinuteLags.length > 0) {
+    propIds.push(addLine(ctx, '_ps_seq_exactminutes',
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(EXACT_MINUTE_LAGS_PROP)},$,IFCTEXT(${ifcJson(Object.fromEntries(exactMinuteLags))}),$)`));
   }
   if (propIds.length === 0) return;
   const setId = addLine(ctx, '_pset_sequences',
@@ -1768,9 +1785,13 @@ function writeResourceMeta(ctx: WriteContext, resources: Resource[], ownerHistId
  */
 function writeCrewNesting(ctx: WriteContext, resources: Resource[], ownerHistId: number): void {
   const crews = resources.filter(r => r.type === 'CREW');
+  if (crews.length === 0) return;
+  // Eén index per schrijfronde; groupBy bewaart ledenvolgorde en dubbele voorkomens.
+  const resourcesByParent = groupBy(resources, r => r.parentId);
   for (const crew of crews) {
-    const memberRefs = resources
-      .filter(r => r.parentId === crew.id)
+    // Ook bij beschadigde invoer blijft NaN, anders dan bij Map.get, ongelijk aan zichzelf.
+    if (Number.isNaN(crew.id)) continue;
+    const memberRefs = (resourcesByParent.get(crew.id) ?? [])
       .map(r => ref(ctx, `res_${r.id}`))
       .filter(r => r !== '#0');
     if (memberRefs.length === 0) continue;

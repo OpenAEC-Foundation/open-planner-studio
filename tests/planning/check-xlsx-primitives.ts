@@ -6,7 +6,7 @@
 //      tijdzone-onafhankelijk is. De suite draait deze check ook onder de tijdzone-matrix.
 // De verwachte waarden komen van buiten de implementatie: uit wat Excel/OOXML voorschrijft.
 import { escapeXmlText, escapeXmlAttr, unescapeXml } from '@/services/xlsx/xmlText';
-import { isoToSerial, serialToIso } from '@/services/xlsx/serialDate';
+import { isoHasClock, isoToSerial, serialToIso } from '@/services/xlsx/serialDate';
 
 let checks = 0;
 const diffs: string[] = [];
@@ -37,6 +37,9 @@ eq('1901-01-01 is 367',          isoToSerial('1901-01-01'), 367);
 eq('2026-06-09 round-trip',      serialToIso(isoToSerial('2026-06-09')!), '2026-06-09');
 eq('tijddeel overleeft',         serialToIso(isoToSerial('2026-06-09T08:30')!), '2026-06-09T08:30');
 eq('middernacht is datum-only',  serialToIso(isoToSerial('2026-06-09T00:00')!), '2026-06-09');
+eq('middernacht met klok blijft moment', serialToIso(isoToSerial('2026-06-09T00:00')!, false, true), '2026-06-09T00:00');
+eq('T00:00 draagt een klok',     isoHasClock('2026-06-09T00:00'), true);
+eq('een kale datum niet',        isoHasClock('2026-06-09'), false);
 eq('onder 61 is onleesbaar',     serialToIso(59), undefined);
 eq('1904-stelsel leest anders',  serialToIso(1, true), '1904-01-02');
 eq('geen datum in een datumcel', isoToSerial('volgende week'), undefined);

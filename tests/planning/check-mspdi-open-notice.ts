@@ -224,15 +224,16 @@ async function main(): Promise<void> {
   eq('6k2 baselines met hun tijden', baselineDates(hourBaselines),
     [['2026-03-02T09:00', '2026-03-02T12:00'], ['2026-03-02T11:00', '2026-03-02T14:00']]);
   eq('6k3 geen verslag', hourBaselines.msProjectReport, undefined);
-  // 6l T15 maakt de taak urenmaat; de scalaire kalender houdt de baseline op datumprecisie.
+  // 6l T15 maakt de taak urenmaat. Sinds F5b (I8) houdt de baseline in een bestand zonder OPS-markering zijn
+  //    echte tijd, ook op de scalaire kalender (vóór F5b: alleen de datum).
   const dayTask = (start: string, finish: string) => readMSPDI(wrap(`<Tasks><Task><UID>1</UID><ID>1</ID><Name>Dag</Name>
     <OutlineLevel>1</OutlineLevel><Start>2026-03-02T08:00:00</Start><Finish>2026-03-03T08:00:00</Finish><Duration>PT16H0M0S</Duration>
     <Baseline><Number>0</Number><Start>${start}</Start><Finish>${finish}</Finish><Duration>PT16H0M0S</Duration></Baseline></Task></Tasks>`));
   const day0817 = dayTask('2026-03-02T08:00:00', '2026-03-03T17:00:00');
-  eq('6l urentaak op scalaire kalender met baseline 08:00–17:00: alleen datum, geen verslag',
-    [day0817.tasks[0]?.time.durationUnit, baselineDates(day0817), day0817.msProjectReport], ['hours', [['2026-03-02', '2026-03-03']], undefined]);
-  eq('6l2 dagtaak met baseline 09:00–12:00: alleen datum, geen verslag',
-    (r => [baselineDates(r), r.msProjectReport])(dayTask('2026-03-02T09:00:00', '2026-03-02T12:00:00')), [[['2026-03-02', '2026-03-02']], undefined]);
+  eq('6l urentaak op scalaire kalender met baseline 08:00–17:00: met tijd, geen verslag',
+    [day0817.tasks[0]?.time.durationUnit, baselineDates(day0817), day0817.msProjectReport], ['hours', [['2026-03-02T08:00', '2026-03-03T17:00']], undefined]);
+  eq('6l2 dagtaak met baseline 09:00–12:00: met tijd, geen verslag',
+    (r => [baselineDates(r), r.msProjectReport])(dayTask('2026-03-02T09:00:00', '2026-03-02T12:00:00')), [[['2026-03-02T09:00', '2026-03-02T12:00']], undefined]);
   // 6l3 Het scenario van review ronde 5: urentaak nu 09:00–12:00, baseline 08:00–17:00 op dezelfde dag.
   //     Ingelezen met tijd; na herexport staat er weer 08:00–17:00 (niet 08:00–08:00).
   const review5 = readMSPDI(wrap(`<Tasks>${hourTask(1, '2026-03-02T08:00:00', '2026-03-02T17:00:00')}</Tasks>`));
