@@ -295,7 +295,8 @@ tegen. v2026.9.0 leest de hele minuten van het slot.
 
 **Lag (T21).** De vorm hangt af van de maat van de lag:
 
-- urenmaat: `PT…`;
+- urenmaat: `PT…` op de hele minuut; met een breuk in minuten (een `.mpp`-lag telt in tienden: 150,5 min) ook
+  een record;
 - hele dagen: `P{n}D`;
 - dagen met een breuk: `PT…` (dagen × de werktijd per dag van de lagkalender), plus een record;
 - kalendertijd in hele dagen: `P{n}D` met `ELAPSEDTIME`;
@@ -305,8 +306,11 @@ tegen. v2026.9.0 leest de hele minuten van het slot.
 De lagkalender volgt `schedulingOptions.lagCalendar` (voorganger, opvolger, projectkalender of 24 uur),
 zoals de motor en de MSPDI-writer. De werktijd per dag is die van de motor (`CalendarEngine.hoursPerDay`:
 bij een blokkenkalender de modale dagsom van de blokken). De writer houdt de maat in elk rekenprofiel; onder
-P6 telt de motor een lag in dagen als uren, en `PT…` draagt precies die minuten. Alle lagrecords staan in één eigenschap `DayMeasureLags` in `OPS_Sequences` op het
-`IfcWorkSchedule`, met de GlobalId van de relatie als sleutel: `{"<GlobalId>":[0.5,240]}`.
+P6 telt de motor een lag in dagen als uren, en `PT…` draagt precies die minuten. De records van de dagenmaat staan in één eigenschap `DayMeasureLags` in `OPS_Sequences` op het
+`IfcWorkSchedule`, met de GlobalId van de relatie als sleutel: `{"<GlobalId>":[0.5,240]}`. Een minutenlag
+met een breuk krijgt daarnaast het record `[exacte minuten, geschreven minuten]` in de eigenschap
+`ExactMinuteLags` van dezelfde pset, zoals `ExactMinutes` bij de duur: `{"<GlobalId>":[150.5,151]}`. Beide
+records tellen alleen als het `PT…`-slot nog de geschreven minuten draagt.
 
 **Speling (T5).** `TotalFloat` en `FreeFloat` in `IfcTaskTime` dragen hele dagen (afgerond,
 `wholeFloatDays`). De exacte dagen en de minuten (`totalFloatMinutes`, `freeFloatMinutes`) staan in de

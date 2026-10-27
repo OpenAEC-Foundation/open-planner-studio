@@ -137,9 +137,10 @@ function open(parsed: ImportResult, name: string): void {
   eq('3b2 IFC-lezer: AS === store-AS (geplande start)', fromIfc.time.actualStart, '2015-01-05');
 
   const fromMspdi = byName(readMSPDI(mspdi).tasks, 'A');
-  eq('3c MSPDI-lezer: AF === store-AF (geplande finish)', fromMspdi.time.actualFinish, '2015-01-09');
+  // Sinds F5b (I8) draagt de MSPDI-export de echte tijden en leest de lezer ze terug: precies de store-waarden.
+  eq('3c MSPDI-lezer: AF === store-AF (geplande finish)', fromMspdi.time.actualFinish, storeAF);
   ok(`3d MSPDI-lezer: AF is niet "vandaag" (${fromMspdi.time.actualFinish})`, !fromMspdi.time.actualFinish?.startsWith(THIS_YEAR));
-  eq('3d2 MSPDI-lezer: AS === store-AS (geplande start)', fromMspdi.time.actualStart, '2015-01-05');
+  eq('3d2 MSPDI-lezer: AS === store-AS (geplande start)', fromMspdi.time.actualStart, storeAS);
 
   open(readIFC(ifc), 'eigen.ifc');
   eq('3e IFC → Openen: opvolger B start direct ná A, niet ná vandaag', byName(S().tasks, 'B').time.earlyStart, "2015-01-12T07:00");
