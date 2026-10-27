@@ -1318,6 +1318,16 @@ en noem het in je rapport of PR-tekst.
      door een assert dat het openen al een verse, berekende stand geeft. Gevonden in review ronde 1 van
      PR #590 (GPT-6.1-Sol, VERVOLG). — B
 
+397. **De vaste meetbasis voor histogramhover breekt na bijwerken met main.**
+     `tests/performance/gantt-hover/run.py:12,38` eist dat vanaf een vaste
+     oude basis uitsluitend de histogramhook wijzigt. De gewone main-merge brengt
+     meer actuele productwijzigingen mee. Run 40540110460, job 122315889056, stopt
+     daarom op de scope-assert met exitcode 1, vóór de vier metingen. De negen
+     gerichte histogramroutes slagen wel. Richting: geef de gecontroleerde actuele
+     PR-basis expliciet door; behoud de scopecontrole en de bronherkomst.
+     Twee onafhankelijke broncontroles en de concrete CI-fout.
+     — B
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
