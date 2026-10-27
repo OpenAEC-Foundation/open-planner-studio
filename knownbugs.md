@@ -1270,6 +1270,16 @@ en noem het in je rapport of PR-tekst.
      control-relaties over, na kalender en metadata; voeg een gerichte regressiecheck toe.
      Vastgesteld door twee onafhankelijke broncontroles bij PR #641; niet uitgevoerd. — B
 
+412. **De MS Project-meting van `measure:profiles` wisselt tussen runs op één bestand.** `check-mpp-fidelity.ts`
+     met corpus gaf op 2026-10-27 op aia09-mp50 soms 3 afwijkingen in `mpxj/junit/data/timephased-cost-rollup.mpp`
+     (Task 5 en 6 einde 2026-02-17 17:00 in plaats van 02-20 17:00, Task 8 02-16 13:59 in plaats van 02-20), soms 0.
+     Rood op `main` @ `433cca3b2` (twee runs, 19:55 en 20:05), daarna groen op dezelfde commit (drie runs, 20:21).
+     Een bisect wees eerst #536 en daarna #538 aan; beide zijn bij herhaling groen en raken geen rekencode. Het
+     corpusbestand is niet veranderd (mtime 2026-08-14). Ook een run op 2026-10-23 (een andere branch) gaf deze 3.
+     De check leest geen klok of cache die ik vond. Voorstel: de check een paar keer achter elkaar draaien en de
+     uitkomst van de lezer en de motor voor dit bestand vergelijken tussen een rode en een groene run. Gevonden bij
+     #690 fase 1 punt 1. — S
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
