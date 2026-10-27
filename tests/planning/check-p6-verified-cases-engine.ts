@@ -17,11 +17,13 @@
  * onder punt 5. De ECHTE bytes (sectie 7) gaven 77/160 zoals gelezen door de projecteinde-fout;
  * sinds X12-brok 1 (2026-09-23) 156/160 zoals gelezen — exact deze transcriptie.
  *
- * Sinds 2026-10-27 (#690, fase 1 punt 2) staat het op 160/160: een P6-cel met het achtervoegsel " A"
- * is een WERKELIJKE datum (P6's kolom Start/Finish), geen rekendatum. Zo'n cel gaat tegen de datum
- * die de app toont (`shownStart`/`shownFinish`, `utils/taskDates.ts`, eigenaarsbesluit 2026-10-12);
- * elke andere cel blijft tegen de rekendatum (`earlyStart` enz.). De vier vroegere verschillen waren
- * dus twee verschillende velden, geen motorfout; de rekendatums zelf blijven gepind in 5b/5c.
+ * Sinds 2026-10-27 (#690, fase 1 punt 2) staat het op 160/160: 152 rekencellen plus 8 cellen met
+ * het achtervoegsel " A". Zo'n cel is een WERKELIJKE datum, geen rekendatum: het capturescript van de
+ * bron zet bij een gestarte taak de werkelijke start in ES én LS, en bij een voltooide het werkelijke
+ * einde in EF én LF (sectie 5). Zo'n cel gaat tegen de datum die de app toont
+ * (`shownStart`/`shownFinish`, `utils/taskDates.ts`, eigenaarsbesluit 2026-10-12); elke andere cel
+ * blijft tegen de rekendatum (`earlyStart` enz.). De vier vroegere verschillen vergeleken dus twee
+ * verschillende velden, geen motorfout; de rekendatums zelf blijven gepind in 5b/5c.
  *
  * BRONGETROUWHEID (her-review 2026-09-07, bevinding 1). De transcriptie volgt de ÉCHTE P6-export
  * van precies deze dertien casussen — `cpp-cpm-engine/validation/p6-comparison/cases-import.xer`,
@@ -378,7 +380,7 @@ function isActualCell(raw: string): boolean {
   return / A$/.test(raw);
 }
 
-/** Onze waarde tegenover één P6-cel. Een " A"-cel (werkelijke datum, P6's kolom Start/Finish) gaat
+/** Onze waarde tegenover één P6-cel. Een " A"-cel (werkelijke datum, zie sectie 5) gaat
  *  tegen de getoonde datum: start-assen tegen `shownStart`, einde-assen tegen `shownFinish`. Elke
  *  andere cel gaat tegen de rekendatum van die as. */
 function oursForCell(ours: Measured, axis: Axis, raw: string): string | number | undefined {
@@ -596,19 +598,22 @@ eq('4 agreement met P6 23.12 per casus (karakterisering, geen doel)', summary, {
 });
 
 // ── 5. De " A"-cellen en de rekendatum eronder ──────────────────────────────────────────────────
-// Casus 08 A en 10 B zijn bezig zijnde taken rond de statusdatum. `rem_target_link_flag = Y` zet in de
-// lezer `p6UseRemainingStartForProgress` (A19); dan is de VROEGE START van zo'n taak de reststart
-// (statusdatum, of ná de voorganger): 08 A 2026-01-12, 10 B 2026-01-26. Dat is ook wat P6 in zijn
-// eigen Early Start rekent. De meetset toont in de ES- en LS-cel echter de WERKELIJKE start met het
-// achtervoegsel " A" (08 A 2026-01-06, 10 B 2026-01-08): dat is P6's kolom Start, die voor een
-// gestarte taak de werkelijke start laat zien (verklaring `docs/TODO.md`, 2026-10-12).
+// Casus 08 A en 10 B zijn bezig zijnde taken rond de statusdatum. In het P6-profiel staat A19
+// (`p6UseRemainingStartForProgress`) aan; `rem_target_link_flag` stuurt dat niet, die vlag is alleen
+// diagnose (`xerScheduleOptions.ts`, `reportRemainingTargetLinkFlag`). Onder A19 is de VROEGE START van
+// zo'n taak de reststart (statusdatum, of ná de voorganger): 08 A 2026-01-12, 10 B 2026-01-26.
+// De meetset draagt in de ES- én de LS-cel de WERKELIJKE start met " A" (08 A 2026-01-06, 10 B
+// 2026-01-08). Dat is geen P6-rekenuitvoer: het capturescript van de bron
+// (`cpp-cpm-engine/validation/p6-comparison/db-read-capture.py` r. 188–190, commit `c279a5c4`)
+// schrijft bij een gestarte taak `ACT_START_DATE + " A"` in ES en LS, en bij een voltooide
+// `ACT_END_DATE + " A"` in EF en LF. P6's eigen `EARLY_START_DATE`/`LATE_START_DATE` staan voor die
+// taken niet in de meetset. Een " A"-cel is dus een projectie van de werkelijke datum.
 // De vergelijking tot 2026-10-27 legde die cel tegen `earlyStart` en vond vier verschillen; die
-// vergeleek twee verschillende velden. Sinds #690 gaat een " A"-cel tegen de getoonde start
-// (`shownStart`), die sinds het eigenaarsbesluit van 2026-10-12 voor een gestarte taak de werkelijke
-// start is. EF/LF/TF/FF waren al gelijk. De rekendatums (Vroegste start) blijven hieronder gepind
-// (5b/5c), zodat een verschuiving in de motor niet stil verdwijnt achter de getoonde datum.
-// Let op: de app toont de late start van een lopende taak nog als rekendatum (kolom Late start,
-// `TaskCpmResultSection`); de LS-cel klopt hier op de gemeten waarde, niet op die kolom.
+// vergeleek twee verschillende velden. Sinds #690 gaat een " A"-cel tegen de getoonde datum
+// (`shownStart`/`shownFinish`, eigenaarsbesluit 2026-10-12). Dat toetst alleen dat de app de
+// werkelijke datum toont; over P6's Late Start zegt het niets. EF/LF/TF/FF waren al gelijk. De
+// rekendatums (Vroegste start) blijven hieronder gepind (5b/5c), zodat een verschuiving in de motor
+// niet stil verdwijnt achter de getoonde datum.
 // Niet door `p6CompletedLateFromRemainingWindow` veroorzaakt (assertie 1: de poort staat overal dicht).
 {
   eq('5 precies deze P6-cellen zijn een werkelijke datum (" A") en gaan tegen de getoonde datum',

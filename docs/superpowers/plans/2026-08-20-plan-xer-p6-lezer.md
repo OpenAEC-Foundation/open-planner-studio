@@ -283,10 +283,12 @@ robuustheidsbestanden en het 8-byte-DROID-skelet) tellen niet in de fidelity-poo
        wordt de vroege start van een bezig zijnde taak de reststart, waar P6 de werkelijke start
        opneemt (het orakel draagt daar het `A`-suffix); zie §9. Op de echte bytes zijn het 77/160
        door de projecteinde-fout (`docs/TODO.md`), 156/160 zonder die optie.
-       *Bijgewerkt 2026-10-27 (#690):* het `A`-suffix markeert P6's kolom Start (de werkelijke
-       start), niet zijn Early Start; de check legt zo'n cel sindsdien tegen de getoonde start
-       (`shownStart`) en staat op 160/160. De motor rekent ES/LS van 08 A en 10 B nog steeds op de
-       reststart; dat blijft gepind (sectie 5 van de check).
+       *Bijgewerkt 2026-10-27 (#690):* het `A`-suffix is geen P6-rekenuitvoer. Het capturescript
+       van de bron (`db-read-capture.py` r. 188–190) zet bij een gestarte taak de werkelijke start
+       in ES én LS. De check legt zo'n cel sindsdien tegen de getoonde start (`shownStart`) en staat
+       op 160/160 (152 rekencellen plus 8 " A"-cellen). De motor rekent ES/LS van 08 A en 10 B nog
+       steeds op de reststart; dat blijft gepind (sectie 5 van de check). De oorzaak is A19 in het
+       P6-profiel, niet `rem_target_link_flag` (die vlag is alleen diagnose).
      **Bewijsstatus klasse (i) (her-review 7a, 2026-09-07).** De poort van
      `p6CompletedLateFromRemainingWindow` (`DT_FixedDUR2` + `rem_target_link_flag=Y` + expliciet
      targetvenster + `CP_Drtn`) is CORRELATIONEEL, geen P6-mechanisme: de winst is echt en per cel
