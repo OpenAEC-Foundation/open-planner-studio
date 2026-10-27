@@ -718,8 +718,9 @@ eq('4 agreement met P6 23.12 per casus (karakterisering, geen doel)', summary, {
 // (`docs/TODO.md`, afgevinkt): `sched_use_project_end_date_for_float = Y` + geen enkele
 // `target_end_date`/`plan_end_date` ⇒ het taak-afgeleide projecteinde viel terug op de projectSTART
 // en de hele late zijde verankerde daarop (77/160). X12-brok 1 zet de optie dan gerapporteerd uit
-// (P6 rekent zonder Must Finish By terug vanaf max(EF)); beide tellers staan nu op 156/160 en blijven
-// gepind zodat een regressie het gat zichtbaar heropent.
+// (P6 rekent zonder Must Finish By terug vanaf max(EF)); beide tellers stonden toen op 156/160, sinds
+// #690 op 160/160 (152 rekencellen plus 8 " A"-cellen, sectie 5), en blijven gepind zodat een
+// regressie het gat zichtbaar heropent.
 {
   const corpus = process.env.OPS_XER_CORPUS;
   const real = corpus ? join(corpus, 'cpp-cpm-engine', 'validation', 'p6-comparison', 'cases-import.xer') : undefined;
