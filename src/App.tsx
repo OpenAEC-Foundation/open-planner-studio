@@ -177,6 +177,14 @@ function AppContent() {
   // Bestand van de host bij de start: na de herstelkeuze, alleen in een leeg document. Zonder site
   // gebeurt er niets.
   useSiteInitialFile(recoveryResolved, recovery);
+  // Dev-link `?open=<bestand>` (alleen dev-server, docs/dev-link.md): opent na de herstelkeuze een
+  // testbestand uit `dev-files/` via de gewone openroute. Valt met de dynamische import uit elke
+  // productiebouw, net als de haken in main.tsx.
+  useEffect(() => {
+    if (import.meta.env.DEV && recoveryResolved && recovery === null) {
+      void import('@/utils/devOpenLink').then(({ openDevLinkOnce }) => openDevLinkOnce());
+    }
+  }, [recoveryResolved, recovery]);
 
   // Bedrijfsbibliotheek laden bij opstarten: zet de opgeslagen bibliotheek in de store en
   // hijst `libraryLoaded`, zodat latere mutaties persisteren (vóór dit punt is persist een no-op).

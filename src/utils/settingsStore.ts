@@ -118,7 +118,18 @@ export const THEME_MIGRATION: Record<string, UITheme> = {
   'system': 'system',
 };
 
+/** Dev-link `?theme=light|dark` (alleen dev-server, docs/dev-link.md): het thema voor deze sessie.
+ *  `initTheme`/`peekTheme` geven het terug zonder `ops-theme` te schrijven, dus de bewaarde voorkeur
+ *  blijft staan. In een productiebouw is `import.meta.env.DEV` false en valt dit weg. */
+function devSessionTheme(): UITheme | null {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return null;
+  const theme = new URLSearchParams(window.location.search).get('theme');
+  return theme === 'light' || theme === 'dark' ? theme : null;
+}
+
 export async function initTheme(): Promise<UITheme> {
+  const session = devSessionTheme();
+  if (session) return session;
   const saved = readLocal('ops-theme');
   if (!saved) return 'dark';
 
@@ -137,6 +148,8 @@ export async function initTheme(): Promise<UITheme> {
  *  geen localStorage) valt dit terug op 'dark'; `initTheme` blijft de persisterende bron. */
 export function peekTheme(): UITheme {
   try {
+    const session = devSessionTheme();
+    if (session) return session;
     const saved = readLocal('ops-theme');
     if (!saved) return 'dark';
     return THEME_MIGRATION[saved] ?? 'dark';
