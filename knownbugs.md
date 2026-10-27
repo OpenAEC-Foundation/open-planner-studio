@@ -1310,6 +1310,17 @@ en noem het in je rapport of PR-tekst.
      door een assert dat het openen al een verse, berekende stand geeft. Gevonden in review ronde 1 van
      PR #590 (GPT-6.1-Sol, VERVOLG). — B
 
+402. **De nieuwe MCP-waarschuwing zegt te ruim dat vastgepinde taken niet verschuiven.**
+     `src/services/mcp/tools/calendarResourceTools.ts:1618` zegt dat pins niet
+     verplaatsen. ResourceLeveler.ts:786 laat een pin juist zijn verschoven
+     voorgangers volgen. Een voorganger die één werkdag uitwijkt, kan zo een pin
+     verplaatsen en daar een pinconflict geven. De respons kan die verschuiving
+     samen met de ontkennende waarschuwing bevatten. Zeg dat pins niet zelfstandig
+     voor capaciteit uitwijken, maar hun voorgangers wel volgen. Maak dezelfde
+     nuance in distribute.ts:101. Alleen tekst; geen nieuwe gedragsfout.
+     Twee onafhankelijke broncontroles bij PR #678; niet lokaal uitgevoerd.
+     — B
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
