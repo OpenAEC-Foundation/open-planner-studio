@@ -11,6 +11,7 @@
 //
 // De lichtheden lopen bewust sterk uiteen: band 1/12 breed per kleur.
 import type { Resource } from '@/types/resource';
+import { contrastRatio } from '@/engine/renderer/themePalette';
 
 // Samengesteld op lichtheid (relatieve lichtheid via 0.2126R+0.7152G+0.0722B): twaalf tinten over
 // het volle bereik ~0.16 … ~0.87, elk ≥ ~0.06 uit elkaar — 10 van de 12 lichtheidsbanden uniek
@@ -155,4 +156,25 @@ export function ensureCustomBarVisible(hex: string, dark: boolean): string {
   let nl = l;
   for (let i = 0; i < 60 && hexLuminance(hslToHex(h, s, nl)) > 0.30; i++) nl = Math.max(0, nl - 0.02);
   return hslToHex(h, s, nl);
+}
+
+/** Hoog contrast gebruikt de echte achtergrond en de bestaande grens van 7:1. */
+export function ensureHighContrastBarVisible(hex: string, background: string): string {
+  const rgb = (value: string): [number, number, number] | null => {
+    const match = /^#([0-9a-f]{6})$/i.exec(value);
+    if (!match) return null;
+    return [0, 2, 4].map(i => parseInt(match[1].slice(i, i + 2), 16)) as [number, number, number];
+  };
+  const bg = rgb(background) ?? [10, 10, 10];
+  const original = rgb(hex);
+  if (!original || contrastRatio(original, bg) >= 7) return hex;
+  const { h, s, l } = hexToHsl(hex);
+  const towardWhite = contrastRatio([255, 255, 255], bg) >= contrastRatio([0, 0, 0], bg);
+  let lightness = l;
+  for (let i = 0; i < 100; i++) {
+    lightness = Math.max(0, Math.min(1, lightness + (towardWhite ? 0.01 : -0.01)));
+    const result = hslToHex(h, s, lightness);
+    if (contrastRatio(rgb(result)!, bg) >= 7) return result;
+  }
+  return towardWhite ? '#ffffff' : '#000000';
 }

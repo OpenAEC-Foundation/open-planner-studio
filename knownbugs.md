@@ -1077,6 +1077,11 @@ en noem het in je rapport of PR-tekst.
 
 ## Tests
 
+405. **De kleurkeuze voor het kritieke pad heeft nog geen blijvende browsercontrole.**
+    De route is in een losse browserpagina met de echte lintcomponent gecontroleerd, maar de
+    CI-browsertests doorlopen kleur kiezen, modus wisselen en herstellen nog niet. Voeg die
+    handelingen toe aan een passend bestaand scenario. — B
+
 313. **De bulkprestatiepoort kan in een volledige run falen terwijl beide gerichte controles slagen.**
     Tijdens een volledige corpusloze F1b-suite die deels met andere controles overlapte, meet `check-bulk-scale.ts`
     17.188 ms voor voortgang op 2000 van 8000 taken, bij de vaste grens van 15.000 ms.

@@ -2,7 +2,7 @@ import './domStub';
 import { useAppStore } from '@/state/appStore';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
-import { readGanttPalette } from '@/engine/renderer/themePalette';
+import { readGanttPalette, contrastRatio } from '@/engine/renderer/themePalette';
 import { renderReport } from '@/services/print/printPreview';
 import { loadBarColorSelection } from '@/utils/barColorSettings';
 import { loadLayouts, saveLayouts } from '@/utils/settingsStore';
@@ -58,17 +58,22 @@ function print(selection:any){
  return {bars:fills.filter(f=>f.h>10 && f.h<16 && f.x>=dims.tableWidth).map(f=>({y:f.y,fill:f.style})),legend:fills.filter(f=>f.h===10).map(f=>({y:f.y,fill:f.style}))};
 }
 console.log('REPORT',JSON.stringify(print(state.ui.barColorSelection)));
-console.log('SETTING_RELOAD',JSON.stringify(await loadBarColorSelection()));
+const loaded = await loadBarColorSelection();
+console.log('SETTING_RELOAD', JSON.stringify(loaded));
 await saveLayouts([{id:'review701',name:'Eigen kleuren',overlays:currentOverlays(S().ui)}]);
 const [layout]=await loadLayouts();
 S().setOverlays({barColors:{mode:'auto'}});
 S().applyLayout(layout);
-console.log('LAYOUT_APPLY',JSON.stringify(S().ui.barColorSelection));
+const applied = S().ui.barColorSelection;
+console.log('LAYOUT_APPLY', JSON.stringify(applied));
 S().undo();
-console.log('LAYOUT_UNDO',JSON.stringify(S().ui.barColorSelection));
+const undone = S().ui.barColorSelection;
+console.log('LAYOUT_UNDO', JSON.stringify(undone));
 S().redo();
-console.log('LAYOUT_REDO',JSON.stringify(S().ui.barColorSelection));
-console.log('LAYOUT_RELOAD_SETTING',JSON.stringify(await loadBarColorSelection()));
+const redone = S().ui.barColorSelection;
+console.log('LAYOUT_REDO', JSON.stringify(redone));
+const reloaded = await loadBarColorSelection();
+console.log('LAYOUT_RELOAD_SETTING', JSON.stringify(reloaded));
 console.log('DEFAULT_SCREEN_LIGHT',JSON.stringify(screen(false,{mode:'critical'})));
 console.log('DEFAULT_SCREEN_DARK',JSON.stringify(screen(true,{mode:'critical'})));
 console.log('ONLY_NORMAL_EDIT_LIGHT',JSON.stringify(screen(false,{mode:'critical',colors:{normal:'#005500'}})));
@@ -98,11 +103,20 @@ const baseReport = print({ mode: 'critical' });
 const editedReport = print(normalOnly);
 const failures: string[] = [];
 function check(ok: boolean, label: string): void { if (!ok) failures.push(label); }
+check(JSON.stringify(loaded) === JSON.stringify(custom), 'keuze overleeft herladen');
+check(JSON.stringify(applied) === JSON.stringify(custom), 'layout past kleuren toe');
+check(JSON.stringify(undone) === JSON.stringify({ mode: 'auto' }), 'undo herstelt vorige keuze');
+check(JSON.stringify(redone) === JSON.stringify(custom), 'redo herstelt kleuren');
+check(JSON.stringify(reloaded) === JSON.stringify(custom), 'redo bewaart kleuren');
 check(JSON.stringify(baseLight[0]?.fills) === JSON.stringify(editedLight[0]?.fills), 'kritieke standaard blijft in licht');
 check(JSON.stringify(baseLight[1]?.fills) === JSON.stringify(editedLight[1]?.fills), 'bijna-kritieke standaard blijft in licht');
 check(JSON.stringify(baseDark[0]?.fills) === JSON.stringify(editedDark[0]?.fills), 'kritieke standaard blijft in donker');
 check(baseReport.bars[1]?.fill === editedReport.bars[1]?.fill, 'bijna-kritieke standaard blijft in rapport');
-check(!screen(false, { mode: 'critical', colors: { critical: '#000000' } }, true)[0]?.fills.includes('#000000'), 'zwart kritiek blijft zichtbaar in hoog contrast');
+for (const color of ['#000000', '#333333', '#777777', '#aaaaaa']) {
+  const drawn = screen(false, { mode: 'critical', colors: { critical: color } }, true)[0]?.fills[0] ?? '#000000';
+  const rgb = (hex: string): [number, number, number] => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)) as [number, number, number];
+  check(contrastRatio(rgb(drawn), rgb('#0a0a0a')) >= 7, `hoog contrast: ${color} als ${drawn} haalt 7:1`);
+}
 const floatOptions = legacyOptionsToProfile({ floatPaths: { enabled: true, method: 'FREE_FLOAT', maxPaths: 10 } });
 S().setProject({ schedulingOptions: floatOptions.options }); S().runCPM(); state = S();
 const floatScreen = screen(false, normalOnly);
