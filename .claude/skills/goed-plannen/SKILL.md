@@ -43,7 +43,10 @@ Check names and schemas in `tools/list`; never guess them.
    working hours, public holidays, the construction holiday and foreseeable closures. Do this before
    step 3: every duration counts in that calendar.
 3. **WBS and tasks.** `planner_add_tasks` (milestones, phases and subtasks in one call, with `tempId`s
-   that start with `tmp-`), always with an explicit `duration`; `planner_update_tasks` for fields;
+   that start with `tmp-`), always with an explicit `duration` and its `durationUnit` (`days` or
+   `hours`); `planner_update_tasks` for fields. To change the duration of an existing task, send the
+   unit the task has (`durationUnit` from `planner_get_task`) with the new `duration`: without
+   `durationUnit` the number counts in days, so 40 for a task of 32 hours means 40 days, not 40 hours.
    `planner_move_task` for structure; `planner_delete_tasks` to clean up (it takes the whole subtree).
    Never give a summary task a duration. Work that is suspended and resumed later is one task with
    interruptions (`planner_set_task_splits`), not separate tasks.

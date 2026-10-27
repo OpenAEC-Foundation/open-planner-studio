@@ -41,7 +41,7 @@ function must(label, r) {
 // Verwachte uitkomst voor één vast voorbeeld. Wijzigt het voorbeeld (`npm run gen:examples`), pas
 // deze waarden dan aan; de app-gelijkheid zelf bewaakt check-headless-core.ts.
 const EXAMPLE = join(root, 'examples', '01-grachtenpand-amsterdam.ifc');
-const EXPECTED = { name: 'New-Build Canal House, Amsterdam', start: '2027-03-01', finish: '2028-01-12', tasks: 51 };
+const EXPECTED = { name: 'New-Build Canal House, Amsterdam', start: '2027-03-01', finish: '2028-01-12T16:00', tasks: 51 };
 
 try {
   const appPkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));

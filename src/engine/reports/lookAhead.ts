@@ -1,7 +1,8 @@
+import type { MeasuredDuration } from '@/utils/taskDuration';
 import type { Task } from '@/types/task';
 import {
   type ReportContext, assignedResourceNamesIndex, isNearCritical, activityTasks, overlapsWindow,
-  progressState, remainingDays, resolvePeriodFor, scheduleSlip, taskFinish, taskStart,
+  progressState, remainingDays, remainingMeasure, resolvePeriodFor, scheduleSlip, taskFinish, taskStart,
 } from './reportCommon';
 import type { ReportingPeriod } from './reportingPeriod';
 
@@ -33,6 +34,8 @@ export interface LookAheadRow {
   start: string;
   finish: string;
   remainingDays: number;
+  /** De restduur in de maat van de taak (B8), voor de weergave. */
+  remaining: MeasuredDuration;
   completion: number;
   totalFloat: number;
   isCritical: boolean;
@@ -88,6 +91,7 @@ export function computeLookAhead(ctx: ReportContext, opts: LookAheadOptions): Lo
       start: taskStart(t),
       finish: taskFinish(t),
       remainingDays: remainingDays(ctx, t),
+      remaining: remainingMeasure(t),
       completion: t.time.completion,
       totalFloat: t.time.totalFloat,
       isCritical: t.time.isCritical,

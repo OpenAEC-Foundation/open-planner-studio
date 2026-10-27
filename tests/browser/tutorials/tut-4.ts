@@ -1,9 +1,9 @@
-// Tutorial 4 — Plannen in uren (`tut-4-uren`): urenplanning aanzetten, de stort en twee kraaninzetten in uren.
+// De dagenmaat (§3.14): de waarden zijn die van de urenreferentie (minute-model-tutorial-f3.json).
+// Tutorial 4 — Plannen in uren (`tut-4-uren`): de stort en twee kraaninzetten in uren.
 import { l, type Action, type Check, type L, type Snap, type TutorialScript } from './dsl';
 import { T, taskIs } from './project';
 
 const statusBar = { anchor: 'status-bar' } as const;
-const dialog = { dialog: true } as const;
 const notStale: Check = { state: (s: Snap) => (s.stale ? ['planning nog verouderd'] : []) };
 const status = (nl: string, en: string): Check => ({ see: statusBar, text: l(nl, en) });
 const END_AND_PATH: Check[] = [status('Einde: 01-09-2027', 'End: 01-09-2027'), status('Kritiek pad: 8 taken, 48 werkdagen', 'Critical path: 8 tasks, 48 work days')];
@@ -25,20 +25,6 @@ export const TUTORIAL_4: TutorialScript = {
       id: 'startpunt',
       do: [],
       expect: [notStale, ...END_AND_PATH, { see: { cell: { task: T.pour, column: l('Duur', 'Duration') } }, text: '1d' }],
-    },
-    {
-      id: 'urenplanning',
-      do: [
-        { ribbon: 'instellingen:projectSettings', label: l('App-instellingen', 'App settings') },
-        { waitFor: dialog },
-        { click: { button: l('Planning', 'Planning'), within: dialog } },
-        { click: { text: l('Urenplanning inschakelen', 'Enable hour planning'), within: dialog } },
-        { check: { visible: { text: l('Gemengde dag/uur-planning toestaan', 'Allow mixed day/hour planning'), within: dialog } } },
-        { check: { state: s => (s.ui.enableHourPlanning ? [] : ['urenplanning staat uit']) } },
-        { shot: { name: 'tut-4-urenplanning', of: dialog, pad: 0 } },
-        { click: { button: l('Sluiten', 'Close'), within: dialog } },
-      ],
-      expect: [{ gone: dialog }, { state: s => (s.ui.enableHourPlanning ? [] : ['urenplanning staat uit']) }],
     },
     {
       id: 'stort',
@@ -71,12 +57,12 @@ export const TUTORIAL_4: TutorialScript = {
         notStale,
         ...END_AND_PATH,
         { state: (s, lang) => [
-          ...taskIs(s, lang, T.pour, { earlyStart: '2027-06-18T07:00', earlyFinish: '2027-06-18T14:00', totalFloat: 3.25 }),
-          ...taskIs(s, lang, T.floor, { earlyStart: '2027-06-28T07:00', earlyFinish: '2027-06-28T12:00', totalFloat: 3.375 }),
-          ...taskIs(s, lang, T.roofElements, { earlyStart: '2027-07-06T07:00', earlyFinish: '2027-07-06T14:00', totalFloat: 3.25 }),
+          ...taskIs(s, lang, T.pour, { earlyStart: '2027-06-18T07:00', earlyFinish: '2027-06-18T14:00', totalFloat: 3.875 }),
+          ...taskIs(s, lang, T.floor, { earlyStart: '2027-06-25T14:00', earlyFinish: '2027-06-28T10:00', totalFloat: 3.875 }),
+          ...taskIs(s, lang, T.roofElements, { earlyStart: '2027-07-05T10:00', earlyFinish: '2027-07-06T08:00', totalFloat: 3.875 }),
         ] },
-        { see: { cell: { task: T.pour, column: l('Start', 'Start') } }, text: '07:00' },
-        { see: { cell: { task: T.floor, column: l('Totale speling', 'Total float') } }, text: l('3,38', '3.38') },
+        { see: { cell: { task: T.pour, column: l('Start', 'Start') } }, text: '18-06-2027' },
+        { see: { cell: { task: T.floor, column: l('Totale speling', 'Total float') } }, text: l('3,88', '3.88') },
       ],
       shots: [{
         name: 'tut-4-kloktijden',
@@ -91,9 +77,9 @@ export const TUTORIAL_4: TutorialScript = {
         notStale,
         ...END_AND_PATH,
         { state: (s, lang) => [
-          ...taskIs(s, lang, T.roofElements, { minutes: 720, earlyStart: '2027-07-06T07:00', earlyFinish: '2027-07-07T11:00', totalFloat: 2.5 }),
-          ...taskIs(s, lang, T.roofing, { earlyStart: '2027-07-08', earlyFinish: '2027-07-09', totalFloat: 2 }),
-          ...taskIs(s, lang, T.innerLeaf, { totalFloat: 2 }),
+          ...taskIs(s, lang, T.roofElements, { minutes: 720, earlyStart: '2027-07-05T10:00', earlyFinish: '2027-07-06T15:00', totalFloat: 3.125 }),
+          ...taskIs(s, lang, T.roofing, { earlyStart: '2027-07-06T15:00', earlyFinish: '2027-07-08T15:00', totalFloat: 3.125 }),
+          ...taskIs(s, lang, T.innerLeaf, { totalFloat: 3.125 }),
         ] },
       ],
     },
@@ -104,8 +90,8 @@ export const TUTORIAL_4: TutorialScript = {
         notStale,
         ...END_AND_PATH,
         { state: (s, lang) => [
-          ...taskIs(s, lang, T.roofElements, { minutes: 360, earlyFinish: '2027-07-06T14:00', totalFloat: 3.25 }),
-          ...taskIs(s, lang, T.roofing, { earlyStart: '2027-07-07' }),
+          ...taskIs(s, lang, T.roofElements, { minutes: 360, earlyFinish: '2027-07-06T08:00', totalFloat: 3.875 }),
+          ...taskIs(s, lang, T.roofing, { earlyStart: '2027-07-06T08:00' }),
         ] },
       ],
     },

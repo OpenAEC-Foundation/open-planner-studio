@@ -89,7 +89,7 @@ test('tutorials uit het register: genummerde leerroute met Vorige/Volgende en be
     await page.locator('#help-docslang').selectOption(lang);
     for (const link of [
       { label: { en: 'Settings', nl: 'Instellingen' }, id: 'ref-instellingen',
-        title: { en: 'App settings', nl: 'App-instellingen' }, text: { en: 'Enable hour planning', nl: 'Urenplanning inschakelen' } },
+        title: { en: 'App settings', nl: 'App-instellingen' }, text: { en: 'Duration display', nl: 'Duurweergave' } },
       { label: { en: 'Leveling options', nl: 'Nivelleringsopties' }, id: 'howto-overbezetting-oplossen',
         title: { en: 'Resolving overallocation', nl: 'Overbezetting oplossen' }, text: { en: '3. Leveling', nl: '3. Nivelleren' } },
     ]) {

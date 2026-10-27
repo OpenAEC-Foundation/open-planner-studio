@@ -335,7 +335,12 @@
     "msProjectLostResourceRates_one": "Štandardné sadzby pri {{count}} zdroji neboli prevzaté.",
     "msProjectLostResourceRates_few": "Štandardné sadzby pri {{count}} zdrojoch neboli prevzaté.",
     "msProjectLostResourceRates_many": "Štandardné sadzby pri {{count}} zdroji neboli prevzaté.",
-    "msProjectLostResourceRates_other": "Štandardné sadzby pri {{count}} zdrojoch neboli prevzaté."
+    "msProjectLostResourceRates_other": "Štandardné sadzby pri {{count}} zdrojoch neboli prevzaté.",
+    "minuteModelConverted_one": "{{document}}: {{count}} úloha má po prevode iný začiatok alebo dokončenie; najväčší posun v pracovných dňoch je {{days}}. Ctrl+Z obnoví uložené dátumy.",
+    "minuteModelConverted_few": "{{document}}: {{count}} úlohy majú po prevode iný začiatok alebo dokončenie; najväčší posun v pracovných dňoch je {{days}}. Ctrl+Z obnoví uložené dátumy.",
+    "minuteModelConverted_many": "{{document}}: {{count}} úlohy majú po prevode iný začiatok alebo dokončenie; najväčší posun v pracovných dňoch je {{days}}. Ctrl+Z obnoví uložené dátumy.",
+    "minuteModelConverted_other": "{{document}}: {{count}} úloh má po prevode iný začiatok alebo dokončenie; najväčší posun v pracovných dňoch je {{days}}. Ctrl+Z obnoví uložené dátumy.",
+    "minuteModelCalendarRepaired": "Kalendár „{{calendar}}“ bol opravený: dokončenie alebo prestávka nezodpovedala uloženému pracovnému času."
   },
   "scheduleErrors": {
     "cycle": "Kruhová závislosť medzi úlohami: {{path}}",
@@ -451,16 +456,17 @@
     "themeHighContrast": "Vysoký kontrast",
     "themeFollowSystem": "Podľa motívu systému",
     "themeSystemHint": "Riadi sa farebnou schémou vášho systému (teraz: {{theme}}).",
-    "hourPlanningSection": "Plánovanie v hodinách",
-    "enableHourPlanning": "Zapnúť plánovanie v hodinách",
-    "enableHourPlanningHint": "Zapína plánovanie v hodinách a minútach: časová os s hodinami, pracovné zmeny s pásmami pracovného času a pruhy úloh presné na hodinu. Vypnuté ⇒ aplikácia zostane úplne na úrovni dní ako predtým.",
     "showTaskTypes": "Používať typy úloh",
     "showTaskTypesHint": "Vyberte pre každú úlohu, čo sa zmení, keď sa zmení trvanie, jednotky priradenia alebo práca, ako Task Type v MS Project a Duration Type v P6. Vypnuté: trvanie a jednotky priradenia zostanú pevné. Súbor s typmi úloh alebo uloženou prácou ich zobrazí aj vtedy, keď je toto vypnuté.",
     "allowMixedDayHour": "Povoliť zmiešané plánovanie dní/hodín",
     "defaultTaskDurationUnit": "Predvolená jednotka pre nové úlohy",
-    "defaultTaskDurationUnitHint": "Určuje, či nové úlohy začínajú v pracovných dňoch alebo pracovných hodinách. Existujúce úlohy sa nemenia.",
+    "defaultTaskDurationUnitHint": "Dňová jednotka: trvanie sa počíta v pracovných dňoch kalendára. Hodinová jednotka: trvanie sa počíta v pracovných hodinách. Existujúce úlohy sa nemenia. Úloha s pevnou prácou má vždy hodinovú jednotku.",
+    "defaultTaskDurationUnitDays": "Mierka dní",
+    "defaultTaskDurationUnitHours": "Mierka hodín",
+    "defaultTaskDurationUnitLocked": "Profil „{{profile}}“ počíta trvanie v hodinách. Nové úlohy preto dostanú mierku hodín.",
     "durationDisplay": "Zobrazenie trvania",
     "durationDisplayHint": "Určuje, ako sa zobrazuje trvanie úlohy, nezávisle od jednotky, v ktorej je úloha zaznamenaná.",
+    "durationDisplayOpsHint": "V profile OPS zobrazuje každá úloha svoju vlastnú mierku.",
     "durationDisplayAuto": "Automaticky (vlastná jednotka každej úlohy)",
     "durationDisplayDays": "Vždy dni",
     "durationDisplayHours": "Vždy hodiny",
@@ -1246,10 +1252,6 @@
     "month": "mesiac",
     "year": "rok"
   },
-  "hourData": {
-    "notice": "Tento súbor obsahuje plánovanie v hodinách.",
-    "enable": "Zapnúť plánovanie v hodinách"
-  },
   "recordedDates": {
     "activeCount_one": "Zobrazujete plán tak, ako ho uložil Primavera; pri prepočítaní sa posunie {{count}} úloha.",
     "activeCount_few": "Zobrazujete plán tak, ako ho uložil Primavera; pri prepočítaní sa posunú {{count}} úlohy.",
@@ -1627,6 +1629,14 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "Úlohy ALAP tak neskoro, ako dovolia nasledujúce úlohy",
       "help": "Len pri plánovaní v hodinách, pre nezačatú úlohu, ktorá nie je manuálne plánovaná, s obmedzením „čo najneskôr“ (ALAP). Skoré dátumy jej nasledujúcich úloh určujú jej umiestnenie presne na minútu; nasledujúce úlohy sa spracujú prvé. Jej vlastný plánovaný začiatok sa nepočíta; predchádzajúce úlohy, dátum kontroly stavu a druhé obmedzenie zostávajú v platnosti. Bez nasledujúcej úlohy použije svoje neskoré dokončenie. Bežný krok ALAP zostáva dostupný v každom výpočtovom profile."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Samostatné medzníky na konci pracovného dňa",
+      "help": "Samostatný medzník alebo medzník dokončenia bez predchádzajúcej úlohy je na konci svojho pracovného dňa."
+    },
+    "workdayDurationMeasure": {
+      "label": "Trvanie v pracovných dňoch",
+      "help": "Trvanie, oneskorenie alebo zostávajúce trvanie v dňoch sa počíta v pracovných dňoch: každý pracovný deň sa počíta ako 1, bez ohľadu na to, ako dlhý je. Vypnuté: deň sa počíta ako počet pracovných hodín na deň podľa kalendára. Oneskorenie v percentách sa riadi mierkou predchádzajúcej úlohy. Uplynulé trvanie sa nikdy nepočíta v pracovných dňoch."
     }
   },
   "profiles": {
@@ -1665,6 +1675,7 @@
       "float": "Časová rezerva a neskoré dátumy",
       "instants": "Dátumy a časy zo súboru",
       "msproject": "Postup ako v Microsoft Project",
+      "durations": "Trvanie a mierka",
       "ownProfilesOnly": "Len pre vlastné profily"
     },
     "ownProfilesOnlyNote": "Tieto pravidlá výpočtu sú vypnuté vo všetkých vstavaných profiloch, aj v Primavera P6. Zapnúť ich môže len vlastný profil: vyberte na to Nový profil.",

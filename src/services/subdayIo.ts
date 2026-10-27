@@ -85,6 +85,24 @@ export function minutesToIsoDuration(minutes: number): string {
   return `${sign}PT${h}H${m}M0S`;
 }
 
+/** De grootste ruis van uren met zes decimalen, in minuten: 0,5 × 10⁻⁶ u × 60. */
+export const SIX_DECIMAL_HOUR_NOISE_MINUTES = 0.00003;
+
+/**
+ * Uren uit een bron met zes decimalen (XER, P6 XML) → minuten. Een hele minuut is meestal geen eindige
+ * decimale breuk van een uur: 40 min staat er als 0,666667 u, dus 40,00002 min. Ligt `uren × 60` binnen
+ * `SIX_DECIMAL_HOUR_NOISE_MINUTES` van een hele minuut, dan is het die hele minuut. Een echte breuk blijft
+ * staan (0,33 u = 19,8 min), alleen zonder de floatruis van uren × 60, op een miljoenste minuut
+ * (0,12 u × 60 = 7,199999999999999 ⇒ 7,2). Reden: 40 min is 40 min. Met de ruis werden 29 P6-cellen onexact
+ * (regel A), en sprong met de oude kalenderwandeling een late datum een dag terug (was knownbug 385).
+ */
+export function sixDecimalHoursToMinutes(hours: number): number {
+  const minutes = hours * 60;
+  const whole = Math.round(minutes);
+  if (Math.abs(minutes - whole) <= SIX_DECIMAL_HOUR_NOISE_MINUTES) return whole;
+  return Math.round(minutes * 1e6) / 1e6;
+}
+
 /**
  * Parse een ISO-8601-duurstring naar minuten ALS hij een tijdcomponent (`T..H/M/S`) draagt; anders
  * `null` — een pure dag-duur (`P0Y0M5D`, `P5D`) houdt het dag-substraat ongewijzigd. Dit is de
@@ -155,6 +173,37 @@ export function canonicalizeBands(
     byWeekday[wd] = norm;
   }
   return { bands: { byWeekday }, deviates };
+}
+
+/** Twee bloklijsten met dezelfde begin- en eindminuten, in dezelfde volgorde. */
+export function sameBlocks(
+  a: ReadonlyArray<{ start: number; end: number }>, b: ReadonlyArray<{ start: number; end: number }>,
+): boolean {
+  return a.length === b.length && a.every((x, i) => x.start === b[i].start && x.end === b[i].end);
+}
+
+/** De blokken die elke werkdag met blokken deelt (canonieke banden); `'verschilt'` als twee werkdagen
+ *  andere blokken hebben; `undefined` als geen dag blokken heeft. */
+export function sharedWeekBlocks(bands: WorkTimeBands): ReadonlyArray<{ start: number; end: number }> | 'verschilt' | undefined {
+  let shared: ReadonlyArray<{ start: number; end: number }> | undefined;
+  for (let wd = 1 as 1 | 2 | 3 | 4 | 5 | 6 | 7; wd <= 7; wd = (wd + 1) as 1 | 2 | 3 | 4 | 5 | 6 | 7) {
+    const day = bands.byWeekday[wd];
+    if (day.length === 0) continue;
+    if (!shared) shared = day;
+    else if (!sameBlocks(shared, day)) return 'verschilt';
+  }
+  return shared;
+}
+
+/** De twee blokken van een dagkalender met pauze, zoals de eigen MSPDI- en P6 XML-writer die schrijven:
+ *  op elke werkdag dezelfde twee blokken (`effectiveWorkTimeBands` van een dagkalender), met een echte
+ *  pauze ertussen, binnen de dag. Anders `undefined`. Alleen voor een bestand van OPS zelf: een bestand
+ *  van een ander programma met 08:00–12:00 + 13:00–17:00 blijft een uurkalender. */
+export function opsDayWithBreak(bands: WorkTimeBands): ReadonlyArray<{ start: number; end: number }> | undefined {
+  const shared = sharedWeekBlocks(bands);
+  return Array.isArray(shared) && shared.length === 2
+    && shared[0].end < shared[1].start && shared[1].end <= MIN_PER_DAY
+    ? shared : undefined;
 }
 
 /**
@@ -572,9 +621,8 @@ export function hasConcreteWorkBlocks(calendar: WorkCalendar): boolean {
 
 /**
  * True als een geladen project urenplanning-data draagt: minstens één kalender met
- * `workTime` (uur-kalender) of minstens één taak met `durationMinutes`. Gebruikt om de
- * niet-blokkerende uur-data-melding te tonen wanneer de hoofdschakelaar Urenplanning uit staat —
- * nooit stil wegronden.
+ * `workTime` (uur-kalender) of minstens één taak met `durationMinutes`.
+ * Het rekenprofiel gebruikt deze detectie bij het openen.
  */
 export function fileHasHourData(tasks: Task[], calendars: WorkCalendar[]): boolean {
   if (calendars.some(isHourModeCalendar)) return true;

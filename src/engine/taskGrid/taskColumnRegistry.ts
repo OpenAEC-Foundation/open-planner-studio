@@ -46,16 +46,18 @@ import { parseDuration as parseDurationMinutes, parseableHourSuffix } from '@/ut
 import {
   formatTaskDurationInput,
   parseTaskDurationInput,
+  taskDurationInputContext,
   type ParsedTaskDuration,
+  type DurationInputContext,
 } from '@/utils/taskDurationInput';
 import { finishIsActual, shownStart, shownFinish, startIsActual } from '@/utils/taskDates';
 import {
-  formatRemainingDurationText, formatTaskDurationText, formatWorkDaysText, type DurationTextFormat,
+  durationHoursPerDay, formatRemainingDurationText, formatTaskDurationText, formatWorkDaysText, type DurationTextFormat,
 } from '@/utils/taskDuration';
 import { isStrictIsoDateTime } from '@/utils/dateUtils';
 import { isFiniteNumber } from '@/utils/guards';
 import { isManuallyScheduled } from '@/utils/manualScheduling';
-import { formatReportNumber } from '@/utils/reportNumber';
+import { formatReportNumber, localizeDecimalPoint } from '@/utils/reportNumber';
 
 export const TASK_COLUMN_CATEGORY_ORDER: readonly TaskColumnCategory[] = [
   'task', 'planning', 'constraints', 'relations', 'resources',
@@ -391,7 +393,9 @@ function effectiveHoursPerDay(task: Task, ctx: TaskColumnContext): number {
 
 const parseTaskDuration: Parser = (text, task, ctx) => {
   if (text.trim() === '') return success(undefined);
-  const hoursPerDay = effectiveHoursPerDay(task, ctx);
+  // Resterende en Werkelijke duur: een dag is de werktijd per dag, bij kalendertijd 24 klokuren
+  // (`durationHoursPerDay`, zoals de Duur-kolom); de transactie rekent terug met dezelfde factor.
+  const hoursPerDay = durationHoursPerDay(task, effectiveHoursPerDay(task, ctx));
   const minutes = parseDurationMinutes(text, hoursPerDay);
   // De editor-/pastegrens draagt minuten. Task 12's bewaakte duurplanner houdt daaruit de
   // opgeslagen dag- en minutenvelden samen consistent; hier al terugdelen zou subdaginformatie
@@ -404,8 +408,9 @@ function isParsedTaskDuration(value: unknown): value is ParsedTaskDuration {
   if (!value || typeof value !== 'object') return false;
   const parsed = value as Partial<ParsedTaskDuration>;
   if (parsed.unit === 'days') {
+    // De dagenmaat mag een breuk hebben (spec "alleen uren" §3.2, B1).
     return typeof parsed.scheduleDuration === 'number'
-      && Number.isSafeInteger(parsed.scheduleDuration)
+      && Number.isFinite(parsed.scheduleDuration)
       && parsed.scheduleDuration >= 0;
   }
   return parsed.unit === 'hours'
@@ -414,13 +419,25 @@ function isParsedTaskDuration(value: unknown): value is ParsedTaskDuration {
     && parsed.durationMinutes >= 0;
 }
 
+/** Wat een getypte duur in deze cel betekent (B8, §3.12): de gedeelde regel van paneel en dialoog
+ *  (`taskDurationInputContext`), met het profiel, de taakkalender en de Duurweergave van het raster. */
+function durationInputContext(task: Task, ctx: TaskColumnContext): DurationInputContext {
+  return taskDurationInputContext(task, {
+    countsWorkdays: ctx.workdayDurationMeasure !== false,
+    hoursPerDay: effectiveHoursPerDay(task, ctx),
+    display: ctx.durationDisplay ?? 'auto',
+  });
+}
+
 const parseScheduledTaskDuration: Parser = (text, task, ctx) => {
-  const parsed = parseTaskDurationInput(text, task.time.durationUnit);
+  const input = durationInputContext(task, ctx);
+  const parsed = parseTaskDurationInput(text, task.time.durationUnit, input);
   if (parsed) return success(parsed);
   // Achterwaartse klembordcompatibiliteit: de bestaande rasterparser accepteert samengestelde
   // invoer zoals `2d 4u` en draagt die als minuten naar de oude transactieroute. Nieuwe enkelvoudige
   // invoer (`2d`, `12h`, of een getal in de huidige taakeenheid) gebruikt het expliciete unitobject.
-  const legacyMinutes = parseDurationMinutes(text, effectiveHoursPerDay(task, ctx));
+  // Een dag telt met dezelfde uren als hierboven (kalendertijd: 24).
+  const legacyMinutes = parseDurationMinutes(text, input.hoursPerDay ?? effectiveHoursPerDay(task, ctx));
   return legacyMinutes === null ? failure('duration', text) : success(legacyMinutes);
 };
 const validateScheduledTaskDuration: Validator = value =>
@@ -429,11 +446,26 @@ const validateScheduledTaskDuration: Validator = value =>
     ? success(value)
     : failure('duration', value);
 
-/** Kopieertekst van de Duur-kolom: de eigen taakeenheid in parsebare vorm ("2d", "1.5u" in nl,
- *  "1.5h" in en), zodat plakken terug hetzelfde oplevert. De WEERGAVE loopt via {@link durationCellText}. */
+/** Kopieertekst van de Duur-kolom: de eigen taakeenheid in parsebare vorm ("2.5d", "1.5u" in nl,
+ *  "1.5h" in en), zodat plakken terug hetzelfde oplevert. De WEERGAVE loopt via {@link durationCellText}.
+ *  Waar "d" niet de dagenmaat is (P6, MSP; B8) gaat een dagenmaat-taak als uren, zodat plakken haar
+ *  lengte houdt. Kalendertijd blijft in dagen: daar is "d" in elk profiel een kalenderdag van 24 klokuren
+ *  (`taskDurationInputContext`). Kopiëren en plakken lezen zo dezelfde regel. */
 function scheduledTaskDurationText(task: Task, ctx: TaskColumnContext): string {
-  if (task.time.durationUnit !== 'hours') return `${formatTaskDurationInput(task)}d`;
-  return `${formatTaskDurationInput(task)}${parseableHourSuffix(ctx.labelForText?.('duration.suffixHour'), 'h')}`;
+  const hourSuffix = parseableHourSuffix(ctx.labelForText?.('duration.suffixHour'), 'h');
+  if (task.time.durationUnit === 'hours') return `${formatTaskDurationInput(task)}${hourSuffix}`;
+  const input = durationInputContext(task, ctx);
+  if (!input.dayMeasure) {
+    return `${formatTaskDurationInput(task, { shownUnit: 'hours', hoursPerDay: input.hoursPerDay })}${hourSuffix}`;
+  }
+  return `${formatTaskDurationInput(task)}d`;
+}
+
+/** Bewerktekst van de Duur-kolom: een kaal getal in de eenheid die de cel toont, met het decimaalteken
+ *  van de app-taal ("2,5" in nl). De parser leest punt en komma. */
+function scheduledTaskDurationEditText(task: Task, ctx: TaskColumnContext): string {
+  const input = durationInputContext(task, ctx);
+  return localizeDecimalPoint(formatTaskDurationInput(task, { shownUnit: input.shownUnit, hoursPerDay: input.hoursPerDay }), ctx.numberLocale);
 }
 
 /** De vertaalde duur-afkortingen en weergave-instellingen van het raster, voor de gedeelde formatter. */
@@ -913,12 +945,12 @@ function fixedTaskColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[
     readonlyColumn({ id: 'task.customFields.technical', labelKey: 'taskGrid.columns.customFieldData', category: 'technical', valueKind: 'technical', read: task => task.customFields, format: (value, _task, ctx) => value && typeof value === 'object' && Object.keys(value).length ? ctx.labelForText?.('taskGrid.summary.customFields', { count: Object.keys(value).length }) ?? String(Object.keys(value).length) : '—', copy: task => canonicalGridJson(task.customFields ?? {}) }),
     editableColumn({ id: 'task.color', labelKey: 'taskGrid.columns.color', category: 'task', valueKind: 'text', editorKind: 'color', read: task => task.color, parse: parseOptionalText, validate: value => value === undefined || typeof value === 'string' ? success(value) : failure('color', value) }),
     editableColumn({ id: 'task.constraint.type', labelKey: 'taskGrid.columns.constraintType', category: 'constraints', valueKind: 'enum', editorKind: 'enum', editorOptions: enumOptions('constraintType', CONSTRAINT_TYPES), route: 'task-constraint', read: task => task.constraint?.type ?? 'ASAP', parse: enumParser(CONSTRAINT_TYPES), validate: enumValidator(CONSTRAINT_TYPES) }),
-    editableColumn({ id: 'task.constraint.date', labelKey: 'taskGrid.columns.constraintDate', category: 'constraints', valueKind: 'date', editorKind: 'date', route: 'task-constraint', read: task => task.constraint?.date, parse: parseDate, validate: validateDate }),
+    editableColumn({ id: 'task.constraint.date', labelKey: 'taskGrid.columns.constraintDate', category: 'constraints', valueKind: 'datetime', editorKind: 'datetime', route: 'task-constraint', read: task => task.constraint?.date, parse: parseDate, validate: validateDate }),
     editableColumn({ id: 'task.constraint.hard', labelKey: 'taskGrid.columns.constraintHard', category: 'constraints', valueKind: 'boolean', editorKind: 'boolean', route: 'task-constraint', read: task => task.constraint?.hard, readOnly: task => task.constraint?.type !== 'MSO' && task.constraint?.type !== 'MFO', parse: parseBoolean, validate: validateBoolean }),
     editableColumn({ id: 'task.constraint2.type', labelKey: 'taskGrid.columns.constraint2Type', category: 'constraints', valueKind: 'enum', editorKind: 'enum', editorOptions: enumOptions('constraintType', CONSTRAINT_TYPES, true), route: 'task-constraint', read: task => task.constraint2?.type, parse: enumParser(CONSTRAINT_TYPES, true), validate: enumValidator(CONSTRAINT_TYPES, true) }),
-    editableColumn({ id: 'task.constraint2.date', labelKey: 'taskGrid.columns.constraint2Date', category: 'constraints', valueKind: 'date', editorKind: 'date', route: 'task-constraint', read: task => task.constraint2?.date, parse: parseDate, validate: validateDate }),
+    editableColumn({ id: 'task.constraint2.date', labelKey: 'taskGrid.columns.constraint2Date', category: 'constraints', valueKind: 'datetime', editorKind: 'datetime', route: 'task-constraint', read: task => task.constraint2?.date, parse: parseDate, validate: validateDate }),
     editableColumn({ id: 'task.isHammock', labelKey: 'taskGrid.columns.hammock', category: 'planning', valueKind: 'boolean', editorKind: 'boolean', route: 'task-hammock', read: task => task.isHammock, readOnly: task => task.isMilestone || task.childIds.length > 0, parse: parseBoolean, validate: validateBoolean }),
-    editableColumn({ id: 'task.deadline', labelKey: 'taskGrid.columns.deadline', category: 'constraints', valueKind: 'date', editorKind: 'date', route: 'task-constraint', read: task => task.deadline, parse: parseDate, validate: validateDate }),
+    editableColumn({ id: 'task.deadline', labelKey: 'taskGrid.columns.deadline', category: 'constraints', valueKind: 'datetime', editorKind: 'datetime', route: 'task-constraint', read: task => task.deadline, parse: parseDate, validate: validateDate }),
     editableColumn({ id: 'task.calendarId', labelKey: 'taskGrid.columns.calendar', category: 'planning', valueKind: 'enum', editorKind: 'enum', route: 'task-schedule', read: task => task.calendarId ?? '', parse: parseOptionalText, validate: validateAny }),
     editableColumn({
       id: 'task.notes', labelKey: 'taskGrid.columns.notes', category: 'task', valueKind: 'text', defaultWidth: 240,
@@ -954,7 +986,7 @@ function fixedTimeColumns(): TaskColumnDescriptor[] {
   return [
     editableColumn({ id: 'task.time.durationType', labelKey: 'taskGrid.columns.durationType', category: 'planning', valueKind: 'enum', editorKind: 'enum', editorOptions: enumOptions('durationType', ['WORKTIME', 'ELAPSEDTIME']), route: 'task-schedule', read: task => task.time.durationType, parse: enumParser(['WORKTIME', 'ELAPSEDTIME']), validate: enumValidator(['WORKTIME', 'ELAPSEDTIME']) }),
     editableColumn({ id: 'task.time.durationUnit', labelKey: 'duration.unit', category: 'planning', valueKind: 'enum', editorKind: 'enum', editorOptions: [{ value: 'days', labelKey: 'duration.days' }, { value: 'hours', labelKey: 'duration.hours' }], route: 'task-schedule', read: task => task.time.durationUnit, readOnly: task => task.isHammock === true || task.childIds.length > 0 || task.isMilestone, parse: enumParser(['days', 'hours']), validate: enumValidator(['days', 'hours']) }),
-    editableColumn({ id: 'task.time.scheduleDuration', labelKey: 'taskGrid.columns.duration', category: 'planning', valueKind: 'duration', editorKind: 'duration', route: 'task-schedule', read: task => task.time.durationUnit === 'hours' ? task.time.durationMinutes : task.time.scheduleDuration, readOnly: task => task.isHammock === true || task.childIds.length > 0 || (task.isMilestone && task.time.scheduleDuration === 0), format: (_value, task, ctx) => durationCellText(task, ctx), copy: (task, ctx) => scheduledTaskDurationText(task, ctx), editText: task => formatTaskDurationInput(task), parse: parseScheduledTaskDuration, validate: validateScheduledTaskDuration }),
+    editableColumn({ id: 'task.time.scheduleDuration', labelKey: 'taskGrid.columns.duration', category: 'planning', valueKind: 'duration', editorKind: 'duration', route: 'task-schedule', read: task => task.time.durationUnit === 'hours' ? task.time.durationMinutes : task.time.scheduleDuration, readOnly: task => task.isHammock === true || task.childIds.length > 0 || (task.isMilestone && task.time.scheduleDuration === 0), format: (_value, task, ctx) => durationCellText(task, ctx), copy: (task, ctx) => scheduledTaskDurationText(task, ctx), editText: scheduledTaskDurationEditText, parse: parseScheduledTaskDuration, validate: validateScheduledTaskDuration }),
     readonlyColumn({ id: 'task.time.durationMinutes', labelKey: 'taskGrid.columns.durationMinutes', category: 'technical', valueKind: 'number', read: task => task.time.durationMinutes }),
     // Start/Einde: de GETOONDE datums, dezelfde bron als Gantt-balk, tooltip, paneel en afdruk
     // (`shownStart`/`shownFinish`: een gestarte taak begint op haar werkelijke start, een voltooide

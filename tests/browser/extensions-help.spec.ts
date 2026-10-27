@@ -73,6 +73,10 @@ module.exports = {
       },
     });
     api.ui.addRibbonButton({
+      tab: 'start', group: 'Tutorials', label: 'Read selection',
+      onClick: () => api.ui.showNotification('Selection: ' + JSON.stringify(api.data.getSelectedTaskIds())),
+    });
+    api.ui.addRibbonButton({
       tab: 'start', group: 'Tutorials', label: 'Say done',
       onClick: () => api.ui.showNotification('<b>Done!</b>'),
     });
@@ -118,6 +122,7 @@ const action = (page: Page, name: string) => panel(page).locator(`[data-ops-guid
 
 test('help-API: tutorial in Help, meegeleverd project openen, begeleiding met controle, opruimen bij uitschakelen', async ({ page, ops: _ops }) => {
   test.setTimeout(60_000);
+  await page.setViewportSize({ width: 1600, height: 950 });
   await installTestExtension(page);
 
   // Eigen werk in het actieve document: dat mag de projectlink niet overschrijven. (Een leeg,
@@ -125,6 +130,11 @@ test('help-API: tutorial in Help, meegeleverd project openen, begeleiding met co
   await page.locator('[data-tour-anchor="ribbon:start:addTask"]').click();
   await expect.poll(async () => (await state(page)).tasks.length).toBe(1);
   const ownWork = await state(page);
+  await page.getByRole('button', { name: 'Read selection', exact: true }).click();
+  const selectionToast = page.locator('.ops-toast-message').filter({ hasText: 'Selection:' });
+  await expect(selectionToast).toContainText('Selection: ' + JSON.stringify(ownWork.selectedTaskIds));
+  expect(ownWork.selectedTaskIds).toHaveLength(1);
+  await page.locator('.ops-toast').filter({ hasText: 'Selection:' }).locator('[data-ops-toast-close]').click();
 
   // ── Artikel onder Tutorials, en de projectlink opent een NIEUW document ──
   await openHelp(page);
@@ -142,6 +152,12 @@ test('help-API: tutorial in Help, meegeleverd project openen, begeleiding met co
   await expect(page.locator('.help-panel')).toHaveCount(0);
   await expect(page.locator('[data-tour-anchor="ribbon-tab:start"]')).toHaveClass(/active/);
 
+  // Dezelfde extensie leest na projectwissel geen achtergebleven selectie uit het vorige document.
+  await page.getByRole('button', { name: 'Read selection', exact: true }).click();
+  await expect(selectionToast).toContainText('Selection: ' + JSON.stringify(opened.selectedTaskIds));
+  expect(opened.selectedTaskIds).toEqual([]);
+  await page.locator('.ops-toast').filter({ hasText: 'Selection:' }).locator('[data-ops-toast-close]').click();
+
   // ── Begeleiding starten via de lintknop van de extensie ──
   await page.getByRole('button', { name: 'Start guide', exact: true }).click();
   await expect(panel(page)).toBeVisible();
@@ -158,6 +174,36 @@ test('help-API: tutorial in Help, meegeleverd project openen, begeleiding met co
   await expect(addTask).toBeVisible();
   await expect(page.locator('[data-ops-tour-spotlight]')).toHaveCount(0);
 
+  // Knownbug 62: de blijvende meldingen mogen de begeleidingsknoppen niet bedekken,
+  // ook niet wanneer de melding naast een open Baselines-venster terechtkomt.
+  await page.evaluate(() => {
+    for (let i = 0; i < 3; i++) window.__OPS__!.store.getState().notify({
+      severity: 'error', messageKey: 'notifications.openFailed', dedupeKey: `guide-overlap-${i}`,
+      detail: 'Langere testmelding om de begeleidingsknoppen onderaan zichtbaar te bewaken.',
+    });
+  });
+  const expectGuideUncovered = async () => {
+    await expect.poll(() => panel(page).evaluate(el => {
+      const panelBox = el.getBoundingClientRect();
+      const panelZ = Number(getComputedStyle(el).zIndex);
+      return [...document.querySelectorAll<HTMLElement>('.ops-toast')].every(toast => {
+        const box = toast.getBoundingClientRect();
+        const z = Number(getComputedStyle(toast.closest('.ops-toast-stack')!).zIndex);
+        return z < panelZ || box.right <= panelBox.left || box.left >= panelBox.right
+          || box.bottom <= panelBox.top || box.top >= panelBox.bottom;
+      });
+    })).toBe(true);
+  };
+  await expect(page.locator('.ops-toast')).toHaveCount(3);
+  await expectGuideUncovered();
+  await page.getByRole('button', { name: 'Planning', exact: true }).first().click();
+  await page.getByRole('button', { name: 'Manage baselines…', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expectGuideUncovered();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.locator('[data-tour-anchor="ribbon-tab:start"]').click();
+
   // Slepen aan de kop: het paneel blijft waar de gebruiker het neerzet; de sluitknop in de kop
   // blijft een gewone knop (die test volgt hieronder bij Sluiten).
   const head = panel(page).locator('[data-ops-guide-drag]');
@@ -173,6 +219,7 @@ test('help-API: tutorial in Help, meegeleverd project openen, begeleiding met co
   if (!moved) throw new Error('paneel niet gemeten');
   expect(Math.abs(moved.x - (panelBefore.x - 300))).toBeLessThan(2);
   expect(Math.abs(moved.y - (panelBefore.y - 200))).toBeLessThan(2);
+  await expectGuideUncovered();
 
   // De echte handeling: Taak in het lint ⇒ de controle slaagt.
   const tasksBefore = (await state(page)).tasks.length;
@@ -213,6 +260,8 @@ test('help-API: tutorial in Help, meegeleverd project openen, begeleiding met co
   await action(page, 'close').click();
   await expect(panel(page)).toHaveCount(0);
   await expect(page.locator('[data-ops-tour-spotlight]')).toHaveCount(0);
+
+  await expect(page.locator('.ops-toast-stack')).toHaveAttribute('data-ops-toast-placement', 'default');
 
   // ── Uitschakelen ruimt alles op: paneel, artikel, lintknop ──
   await page.getByRole('button', { name: 'Start guide', exact: true }).click();

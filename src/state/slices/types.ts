@@ -183,6 +183,8 @@ export type NotificationSeverity = 'error' | 'info';
  * Een release vereist volledige, actuele UI-vertalingen in alle 28 talen (`verify:translations`).
  */
 export type NotificationMessageKey =
+  | 'notifications.minuteModelConverted'
+  | 'notifications.minuteModelCalendarRepaired'
   | 'notifications.openFailed'
   | 'notifications.csvInvalidDate'
   | 'notifications.extGuideCallbackFailed'
@@ -209,6 +211,7 @@ export type NotificationMessageKey =
   | 'notifications.browserCannotOverwrite'
   | 'notifications.browserSavesAsDownload'
   | 'notifications.autoSaveFailed'
+  | 'notifications.autoSaveNotWritable'
   | 'notifications.recoveryManifestBlocked'
   | 'notifications.recoveryStorageBlocked'
   | 'notifications.recoveryReadFailed'
@@ -252,6 +255,8 @@ export type NotificationMessageKey =
   | 'notifications.phaseRefusedDuplicateResource'
   | 'notifications.phaseQuestionOutdated'
   | 'notifications.mppLegacy'
+  | 'notifications.xmlUnknownSchedule'
+  | 'notifications.mppInvalidContainer'
   | 'notifications.mppEncrypted'
   | 'notifications.xerInvalidInput'
   | 'notifications.xerInvalidFile'
@@ -668,8 +673,7 @@ export interface UIState {
 
   dateNotation: DateNotation;                // persisted — weergavenotatie voor datums; opslag blijft ISO
   timeNotation: TimeNotation;                // persisted — weergave/invoer van kloktijden (24 of 12 uur); opslag blijft ISO
-  // --- Urenplanning-instellingen; ontbrekende sleutel ⇒ default (geen reset) ---
-  enableHourPlanning: boolean;               // persisted — hoofdschakelaar Urenplanning (default UIT)
+  // --- Duurinstellingen; ontbrekende sleutel ⇒ default (geen reset) ---
   /** persisted (`ops-showTaskTypes`) — toon de werkregel (taaktype) en het
    *  resterende werk per toewijzing in paneel, dialoog en raster. Default UIT; een document dat al
    *  taaktypedata draagt ontsluit de weergave voor zichzelf (`taskTypesVisible`, DOCUMENT_FIELDS). */
@@ -680,12 +684,7 @@ export interface UIState {
   // «Alleen werkbare dagen tonen» — comprimeert de Gantt/Histogram-tijd-as (weekenden+feestdagen
   // weggelaten). Globaal (geen ViewState).
   compressNonWorkdays: boolean;               // persisted — default UIT
-  /** session — id van het document waarvan het geladen bestand uur-data bevat terwijl Urenplanning
-   *  uit staat; `null` = geen melding. Een id en geen vlag: de strook hoort bij DAT document. Een
-   *  nieuw of ander document toont hem niet, terug naar dat document wel. Grens: opent u twee
-   *  bestanden met uur-data, dan houdt alleen het laatst geopende de strook. Geen enkel wisselpad
-   *  hoeft hem dus te wissen. */
-  hourDataNotice: string | null;
+
   /** session — teller voor de "structuur vergrendeld"-melding: elke geweigerde
    *  structuurpoging hoogt hem op, zodat de melding ook opnieuw verschijnt als hij al zichtbaar
    *  was. 0 = niets te tonen. */

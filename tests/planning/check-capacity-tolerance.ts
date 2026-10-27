@@ -19,6 +19,7 @@ import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import { legacyCpmOptions } from './legacySolveOptions';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 
 let checks = 0;
 const diffs: string[] = [];
@@ -86,7 +87,7 @@ const timmerman = res('r-tim', 1);
 const taak = dayTask('t-ruis');
 const ruisAssign = assign('a-ruis', 't-ruis', 'r-tim', 1, 9 * MPD);
 {
-  const r = computeResourceLoad([timmerman], [ruisAssign], [taak], CAL, []);
+  const r = computeResourceLoad([timmerman], [ruisAssign], [taak], CAL, [], effectiveSchedulingOptions({}));
   const loads = DAYS.map(d => r.load['r-tim']?.[d] ?? 0);
   // Voorwaarde: de ruis bestaat echt. Zonder ruis bewijst deze check niets.
   eq('voorwaarde: minstens één dag boekt strikt meer dan 1 (rekenruis)', loads.some(l => l > 1), true);
@@ -102,7 +103,7 @@ console.log('-- capacity-tolerance: computeHistogramReport --');
 {
   const rep = computeHistogramReport({
     tasks: [taak], sequences: [], assignments: [ruisAssign], resources: [timmerman],
-    calendar: CAL, calendars: [], cpmResult: null, bucket: 'dag',
+    calendar: CAL, calendars: [], cpmResult: null, bucket: 'dag', schedulingOptions: effectiveSchedulingOptions({}),
   });
   const over = rep.resources.flatMap(r => r.buckets.flatMap(b => b.overallocatedDays));
   eq('histogramrapport: geen overbezette dagen', over, []);
@@ -128,11 +129,11 @@ console.log('-- capacity-tolerance: echte overbezetting van 1 minuut per dag --'
 {
   const klein = dayTask('t-klein');
   const assigns = [ruisAssign, assign('a-klein', 't-klein', 'r-tim', 1 / MPD, 9)];
-  const r = computeResourceLoad([timmerman], assigns, [taak, klein], CAL, []);
+  const r = computeResourceLoad([timmerman], assigns, [taak, klein], CAL, [], effectiveSchedulingOptions({}));
   eq('alle 9 dagen overbezet', r.overallocatedDays['r-tim'] ?? [], DAYS);
   const rep = computeHistogramReport({
     tasks: [taak, klein], sequences: [], assignments: assigns, resources: [timmerman],
-    calendar: CAL, calendars: [], cpmResult: null, bucket: 'dag',
+    calendar: CAL, calendars: [], cpmResult: null, bucket: 'dag', schedulingOptions: effectiveSchedulingOptions({}),
   });
   eq('histogramrapport: alle 9 dagen overbezet',
     rep.resources.flatMap(x => x.buckets.flatMap(b => b.overallocatedDays)).sort(), DAYS);

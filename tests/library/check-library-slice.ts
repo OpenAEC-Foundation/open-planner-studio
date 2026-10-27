@@ -2247,16 +2247,18 @@ for (const size of [1000, 5000]) {
 // een kalender laat taken met een werkregel meebewegen in ÉLK gekoppeld document — het actieve én de
 // slapende (settle op hun eigen taken en toewijzingen) — buiten undo en isDirty, zoals de verversing
 // zelf. De melding ("N taken aangepast") staat bij het document waar ze over gaat: het actieve meteen,
-// een slapend document bij zijn activering. Eigen storecontext, zodat de rest van dit bestand niets merkt. ---
+// een slapend document bij zijn activering. Eigen storecontext, zodat de rest van dit bestand niets merkt.
+// Alleen uren B1a (spec §3.2): vast werk is urenmaat en houdt bij een kalenderwissel zijn minuten; de regel
+// verandert dan geen duur. De taken hier hebben daarom Vaste inzet, die de duur in dagen uit het werk haalt. ---
 {
   const ctx = createAppStore();
   const g = () => ctx.getState();
   const durKey = 'notifications.workRuleDurationsChanged';
   const durMsgs = () => g().ui.notifications.filter(n => n.messageKey === durKey).map(n => n.params?.count);
-  const fixedWorkTask = (name: string): string => {
+  const fixedRateTask = (name: string): string => {
     const t = g().addTask({ name, time: createDefaultTaskTime('2026-06-01', 4) });
     g().assignResource(t, g().addResource({ name: `ploeg ${name}`, type: 'LABOR', description: '', maxUnits: 1 }), 1);
-    g().setTaskWorkRule(t, 'FIXED_WORK'); // 4 d × 8 u = 32 u
+    g().setTaskWorkRule(t, 'FIXED_RATE'); // 4 d × 8 u = 32 u
     return t;
   };
   // Document A: projectkalender naar de bibliotheek gepromoveerd.
@@ -2265,7 +2267,7 @@ for (const size of [1000, 5000]) {
   const cid = g().addCompany('H6 Bouw BV');
   g().bindProjectToCompany(cid);
   const poolCalId = g().promoteCalendarToPool(cid, g().calendars.find(c => c.id === g().project.calendarId)!)!;
-  const tA = fixedWorkTask('A');
+  const tA = fixedRateTask('A');
   const docA = g().activeDocumentId;
   // Document B: dezelfde bibliotheekkalender als projectkalender.
   g().newDocument();
@@ -2273,7 +2275,7 @@ for (const size of [1000, 5000]) {
   g().bindProjectToCompany(cid);
   const copyId = g().addLibraryCalendarToProject(cid, poolCalId).calendarId!;
   g().setProjectCalendar(copyId);
-  const tB = fixedWorkTask('B');
+  const tB = fixedRateTask('B');
   const docB = g().activeDocumentId;
   g().switchDocument(docA);
   ctx.setState((st) => {
@@ -2287,8 +2289,8 @@ for (const size of [1000, 5000]) {
   g().updatePoolCalendar(cid, poolCalId, { ...structuredClone(poolCal), workEndHour: 13, hoursPerDay: 6 });
   const payloadB = g().documents.find(d => d.id === docB)!.payload!;
   const durB = payloadB.tasks.find(t => t.id === tB)!.time.scheduleDuration;
-  assert(g().tasks.find(t => t.id === tA)!.time.scheduleDuration === 6, 'H6: actief document — Vast werk 32 u op 8→6 u/d ⇒ 6 d');
-  assert(durB === 6, `H6: slapend document — settle op zijn eigen taken ⇒ 6 d (kreeg ${durB})`);
+  assert(g().tasks.find(t => t.id === tA)!.time.scheduleDuration === 16 / 3, 'H6: actief document — Vaste inzet 32 u op 8→6 u/d ⇒ 16/3 d');
+  assert(durB === 16 / 3, `H6: slapend document — settle op zijn eigen taken ⇒ 16/3 d (kreeg ${durB})`);
   assert(payloadB.assignments.find(a => a.taskId === tB)!.remainingWorkMinutes === 32 * 60, 'H6: slapend document — werk blijft 32 u');
   assert(g().historyEvents.length === eventsBefore, 'H6: verversing + settle zijn niet-undoable (geen history-event)');
   assert(!g().isDirty && !payloadB.isDirty, 'H6: verversing + settle zetten geen isDirty (actief noch slapend)');
@@ -2309,7 +2311,7 @@ for (const size of [1000, 5000]) {
   });
   const boundary = materializeLibraryBoundary({ payload: capturePayload(g()), companies: g().companies, pools: g().pools, mode: 'open-boundary' });
   assert(boundary.signals.refreshed === 1 && boundary.workRuleSettle?.changed === 1, `H6: de grens ververst de achterlopende kalender en meldt 1 aangepaste taak (kreeg ${JSON.stringify(boundary.signals)})`);
-  assert(boundary.payload.tasks.find(t => t.id === tB)!.time.scheduleDuration === 6, 'H6: de grens settelt de taak op de payload (6 d)');
+  assert(boundary.payload.tasks.find(t => t.id === tB)!.time.scheduleDuration === 16 / 3, 'H6: de grens settelt de taak op de payload (16/3 d)');
   assert(g().tasks.find(t => t.id === tB)!.time.scheduleDuration === 4, 'H6: de grens raakt de store niet aan (pure materialisatie)');
 }
 

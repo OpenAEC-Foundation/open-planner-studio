@@ -2,6 +2,7 @@
 // uit de tutorials: het venster Kalenders is 860 breed en bijna schermhoog, het paneel 320 breed.
 // knownbugs 91 (paneel over Toepassen), 59 (paneel springt niet terug) en het vanzelf inklappen.
 import { placeGuidePanel, type GuidePlacementInput, type PlacementRect } from '@/components/guide/guidePlacement';
+import { computeToastPlacement } from '@/components/layout/toastPlacement';
 
 const failures: string[] = [];
 const expect = (label: string, got: unknown, want: unknown) => {
@@ -72,6 +73,21 @@ expect('klein venster in het midden → uitgeklapt',
 expect('venster rechts, anker links → ingeklapt, knopje links',
   placeGuidePanel({ ...layout(1280, 1050), current: 'end', anchor: rect(20, 700, 200, 40), dialogs: [rect(900, 300, 370, 700)] }),
   { side: 'start', autoCompact: true });
+
+// Knownbug 62: de toast-host behandelt een zichtbaar begeleidingspaneel als zwevend obstakel,
+// samen met echte dialogen. Ook zonder dialoog is de ruimte boven/naast de knoppen beschermd.
+expect('melding naast begeleiding rechts',
+  computeToastPlacement({ width: 1600, height: 950 }, [rect(1268, 514, 320, 400)], []),
+  { kind: 'side', left: 16, right: 348, bottom: 24 });
+expect('melding naast dialoog én begeleiding rechts',
+  computeToastPlacement({ width: 1600, height: 950 }, [rect(480, 150, 640, 650), rect(1268, 514, 320, 400)], []),
+  { kind: 'side', left: 16, right: 1136, bottom: 24 });
+expect('begeleiding links: melding wijkt naar rechts',
+  computeToastPlacement({ width: 1600, height: 950 }, [rect(12, 514, 320, 400)], []),
+  { kind: 'side', left: 348, right: 16, bottom: 24 });
+expect('geen ruimte naast begeleiding: meldingen eronder in de stapelvolgorde',
+  computeToastPlacement({ width: 360, height: 640 }, [rect(12, 204, 336, 400)], []),
+  { kind: 'underModal' });
 
 if (failures.length > 0) {
   console.log(`XX guide-placement: ${failures.length} afwijking(en)`);

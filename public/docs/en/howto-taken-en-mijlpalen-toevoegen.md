@@ -6,7 +6,7 @@ Goal: put a new task or milestone in your schedule, in the place where it belong
 
 You are building a schedule, work is added, or you want to record a moment such as handover or an inspection.
 
-A **task** is work that takes time. A new task lasts 5 work days by default (with hour planning the project default can be hours). A **milestone** is a moment without duration: 0 days. A task with subtasks is called a **summary task**, in construction often a phase. Its duration and dates follow from its subtasks as soon as you use **Calculate** (F5).
+A **task** is work that takes time. A new task lasts 5 work days by default (the project default can also be hours). A **milestone** is a moment without duration: 0 days. A task with subtasks is called a **summary task**, in construction often a phase. Its duration and dates follow from its subtasks as soon as you use **Calculate** (F5).
 
 ## Steps
 

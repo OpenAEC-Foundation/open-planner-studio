@@ -4,6 +4,7 @@
     "applyShape": "Anvend form:",
     "hoursPerDay": "{{hours}} timer pr. arbejdsdag",
     "stripHint": "Træk i en grænse for at gøre en fase længere eller kortere. Træk i den øverste kant for at sætte tildelingsenhederne. Dobbeltklik på en dag for at dele en fase.",
+    "partialDayHint": "Starter eller slutter opgaven midt på en arbejdsdag, så tæller den dag forholdsmæssigt: timerne er tildelingsenhederne × den del af dagen. Histogrammet tæller på samme måde.",
     "from": "Fra",
     "to": "Til",
     "days": "Dage",
@@ -181,8 +182,8 @@
       "calendar": "Vælg en kalender fra listen.",
       "calendarNotFound": "Den valgte kalender findes ikke.",
       "calendarHours": "Kalenderen for denne opgave har ingen arbejdstimer pr. dag.",
-      "hourPlanningDisabled": "Timeplanlægning er slået fra under „Indstillinger“.",
-      "durationConversionNotExact": "Denne varighed kan ikke præcist omregnes til den anden enhed.",
+      "durationConversionNotExact": "Denne varighed kan ikke omregnes til den anden enhed på denne kalender.",
+      "fixedWorkIsHours": "En opgave med fast arbejde bruger altid timer som måleenhed.",
       "milestoneRequired": "Dette felt gælder kun for milepæle.",
       "milestoneUnavailable": "En hovedopgave med underopgaver kan ikke blive en milepæl.",
       "actualAfterStatusDate": "Den faktiske dato ligger efter statusdatoen.",
@@ -328,11 +329,8 @@
     "unit": "Varighedsenhed",
     "days": "Dage",
     "hours": "Timer",
-    "invalid": "Indtast et helt antal dage eller timer, for eksempel 2d eller 12t.",
-    "enableHourPlanningFirst": "Slå timeplanlægning til for at redigere denne timeopgave.",
-    "enableHourPlanning": "Slå timeplanlægning til",
-    "requiresWorkBlocks": "Denne kalender har ingen gyldige arbejdstimer. Kontrollér arbejdsdage og arbejdstimer.",
-    "conversionNotExact": "{{value}} svarer ikke til hele dage i denne kalender. Enheden er ikke ændret.",
+    "invalid": "Indtast et antal dage eller timer, for eksempel 2,5d eller 12t.",
+    "conversionNotExact": "{{value}} kan ikke omregnes til den anden enhed på denne kalender. Enheden er ikke ændret.",
     "unitInfo": "Den valgte enhed hører til denne opgave. Dage tæller arbejdsdage; timer tæller arbejdstimer inden for kalenderen. En anden kalender ændrer ikke enheden eller den indtastede varighed, men den kan ændre slutdatoen."
   },
   "dialog": {
@@ -375,7 +373,6 @@
       "resourceAddsWork": "En ekstra ressource tilføjer arbejde.",
       "resourceSharesWork": "En ekstra ressource overtager en del af arbejdet; tildelingsenhederne pr. ressource falder.",
       "resourceShorter": "En ekstra ressource gør opgaven kortere.",
-      "resourceShorterWholeDays": "En ekstra ressource gør opgaven kortere, afrundet til hele dage.",
       "resourceAddsWorkSameDuration": "En ekstra ressource tilføjer arbejde; varigheden forbliver den samme."
     },
     "info": "Forklaring af opgavetypen"
@@ -651,5 +648,11 @@
     "pieceHours_one": "Stykke: {{count}} time",
     "pieceHours_other": "Stykke: {{count}} timer",
     "merged": "Sammenlæg"
+  },
+  "dateTimeInput": {
+    "time": "Klokkeslæt for {{field}}",
+    "timeHint": "Tomt: start eller slut på arbejdsdagen. Med et klokkeslæt: præcis det tidspunkt.",
+    "later": "Et kvarter senere",
+    "earlier": "Et kvarter tidligere"
   }
 }

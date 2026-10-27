@@ -29,6 +29,8 @@ Dit is een instelling van de app, niet van het projectbestand. Bevat een bestand
 
 *Projectstandaard* is de eerste keuze en staat er standaard. Tussen de haakjes staat het taaktype dat het project nu als standaard heeft. Er is in de app geen knop om die projectstandaard te wijzigen: hij komt uit een import (bijvoorbeeld uit MS Project of Primavera P6) of uit de MCP-koppeling. Wil je voor één taak een ander taaktype, kies dat dan hier.
 
+Zet de MCP-koppeling de projectstandaard op *Vast werk*, dan wordt elke taak die de standaard volgt een taak in uren, want vast werk is altijd een taak in uren. Een taak van 5 werkdagen wordt dan 40 uur. De datums blijven gelijk.
+
 Je kunt het taaktype ook in de tabel kiezen. Klik op de **+** rechts in de kop van de takenlijst (*Kolom toevoegen*) en kies onder *Planning* de kolom *Taaktype*.
 
 Een taak zonder toewijzing heeft niets om te koppelen, dus het taaktype doet daar niets. Wijs eerst een resource toe (zie [Resources toewijzen met een curve](docs://howto-resource-toewijzen)).
@@ -56,9 +58,9 @@ Verandert daardoor de duur van de taak, dan meldt de statusbalk *Verouderd — h
 
 **Het veld *Taaktype* ontbreekt.** Dan staat de instelling *Taaktypes gebruiken* uit en heeft het bestand nog geen taaktypes, of je hebt een mijlpaal, een fase, een hangmat of een taak met het duurtype *Verstreken tijd* geselecteerd. Daar bestaat geen taaktype. Selecteer een gewone taak.
 
-**De duur verandert zonder dat ik hem wijzig.** Onder *Vast werk* en *Vaste inzet* volgt de duur uit inzet en werk. Wijzig je een van die twee of het aantal resources, dan past de app de duur aan, afgerond op hele werkdagen. Bij een taak in uren rondt de app af op hele minuten.
+**De duur verandert zonder dat ik hem wijzig.** Onder *Vast werk* en *Vaste inzet* volgt de duur uit inzet en werk. Wijzig je een van die twee of het aantal resources, dan past de app de duur aan. De app rondt de duur niet af: bij inzet 3 op 32 uur werk wordt de duur 10 uur en 40 minuten.
 
-**Het werk klopt niet precies met inzet × duur.** Door de afronding kan dat. In het veld *Werk (u)* staat dan een waarschuwingsteken, *Wijkt af van inzet × duur*. Het histogram volgt het opgeslagen werk.
+**Het werk klopt niet precies met inzet × duur.** Dat kan bij een taak uit P6 of MS Project, als het bestand een ander restwerk bevat. In het veld *Werk (u)* staat dan een waarschuwingsteken, *Wijkt af van inzet × duur*. Het histogram volgt het opgeslagen werk. Een wijziging die je zelf maakt, geeft geen afwijking, want de app rondt niet af.
 
 **Materiaal telt niet mee.** Bij een materiaalresource staat in *Werk (u)* een streepje. Materiaal stuurt de duur nooit.
 

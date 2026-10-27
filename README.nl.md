@@ -7,7 +7,7 @@
 **Open-source bouwplanning. Kritiek pad, MS Project- en Primavera P6-bestanden, IFC 4.3 als eigen formaat en een MCP-server.**
 
 [![Versie](https://img.shields.io/github/package-json/v/OpenAEC-Foundation/open-planner-studio?label=versie&color=blue)](https://github.com/OpenAEC-Foundation/open-planner-studio/releases)
-[![Downloads](https://img.shields.io/github/downloads/OpenAEC-Foundation/open-planner-studio/total?label=downloads&color=success)](https://github.com/OpenAEC-Foundation/open-planner-studio/releases)
+[![Downloads](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FOpenAEC-Foundation%2Fopen-planner-studio%2Fstats%2Fdownloads.json&query=%24.downloads&label=downloads&color=success)](https://github.com/OpenAEC-Foundation/open-planner-studio/releases)
 [![CI](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/workflows/ci.yml)
 [![Talen](https://img.shields.io/badge/talen-28-informational)](src/i18n/config.ts)
 [![Licentie](https://img.shields.io/github/license/OpenAEC-Foundation/open-planner-studio)](#licentie)

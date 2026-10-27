@@ -101,7 +101,7 @@ expect('2a de echte fixture bevat per project niet-triviale assignment- én issu
 store().newProject();
 store().applyOpenedImport(opened, {
   filePath: null, fileHandle: null, recompute: false, fit: false,
-  hourDataNotice: false, linkedOpen: false,
+  linkedOpen: false,
 });
 const twelve = store().getOpenDocumentPayloads();
 expect('3 applyOpenedImport levert twaalf echte documenttabs', twelve.length === 12);

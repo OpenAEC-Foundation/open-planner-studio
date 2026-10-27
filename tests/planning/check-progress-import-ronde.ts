@@ -323,9 +323,12 @@ let partA: {
   eq('C1 drie rijen toegepast', [plan.appliedCount, plan.refusedCount], [3, 0]);
   const t = (id: string) => S().tasks.find(x => x.id === id)!.time;
   ok(`C2 "33,3" (komma) ⇒ 0,333 (kreeg ${t(idA).completion})`, Math.abs(t(idA).completion - 0.333) < 1e-9);
-  eq('C2 "17-02-2026" ⇒ 2026-02-17', t(idA).actualStart, '2026-02-17');
-  eq('C3 ISO naast dd-mm-jjjj in hetzelfde blad', [t(idB).actualStart, t(idB).actualFinish], ['2026-02-18', '2026-02-24']);
-  eq('C4 "12.5" (punt) ⇒ 0,125 en "17-2-2026" zonder voorloopnul', [t(idC).completion, t(idC).actualStart], [0.125, '2026-02-17']);
+  // F2 (spec §3.6, invoer; §4.2 D1/D2): een datum uit het blad wordt een moment; de start het begin,
+  // het einde het einde van de werkdag (07:00–16:00). Het lezen van het datumformaat zelf blijft
+  // getoetst. Fixronde 1 deel B, B1.
+  eq('C2 "17-02-2026" ⇒ 2026-02-17', t(idA).actualStart, '2026-02-17T07:00');
+  eq('C3 ISO naast dd-mm-jjjj in hetzelfde blad', [t(idB).actualStart, t(idB).actualFinish], ['2026-02-18T07:00', '2026-02-24T16:00']);
+  eq('C4 "12.5" (punt) ⇒ 0,125 en "17-2-2026" zonder voorloopnul', [t(idC).completion, t(idC).actualStart], [0.125, '2026-02-17T07:00']);
 
   // De valkuil uit de gids: een komma die een andere landinstelling als duizendtalscheider las.
   const { rows: outRows } = rowsFromCsv(`OPS Task ID;Completion (%)\r\n${idA};838`, S().tasks);

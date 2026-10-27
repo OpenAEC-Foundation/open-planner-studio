@@ -37,7 +37,6 @@ const H = 60;
 function setup(workHours: number[]): { taskIds: string[]; assignmentIds: string[]; resourceId: string } {
   S().newProject();
   S().setProject({ startDate: '2024-01-09' });
-  S().setUI({ enableHourPlanning: true });
   S().setCalendar({
     ...S().calendar, hoursPerDay: 8, workStartHour: 8, workEndHour: 16,
     workTime: { byWeekday: { 1: BAND, 2: BAND, 3: BAND, 4: BAND, 5: BAND, 6: [], 7: [] } },
