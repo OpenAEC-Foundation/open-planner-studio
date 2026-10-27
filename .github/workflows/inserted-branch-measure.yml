@@ -1,0 +1,99 @@
+name: Ingevoegde tak meten (opt-in)
+
+# Tijdelijk meetpad voor deze upgrade. Andere product-PR's krijgen geen vaste oude basis opgelegd.
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/inserted-branch-measure.yml'
+      - 'tests/planning/insertedBranchMeasure.ts'
+      - 'tests/planning/measure-inserted-branch.mjs'
+      - 'tests/planning/check-paste-references.ts'
+      - 'tests/browser/paste-references.spec.ts'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: inserted-branch-measure-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  measure:
+    if: github.head_ref == 't3/speed-inserted-branches'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 12
+    env:
+      PERF_BASE_REVISION: ${{ github.event.pull_request.base.sha }}
+      TZ: Europe/Amsterdam
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Controleer de vertalingsmerge
+        run: |
+          npm run i18n:resolve
+          git diff --exit-code HEAD -- src/i18n i18n
+      - name: Echte tak kopiëren, plakken en ongedaan maken in Chromium
+        run: |
+          npx playwright install --with-deps --only-shell chromium
+          node scripts/run-browser-tests.mjs tests/browser/paste-references.spec.ts
+      - name: Oude productbron faalt uitsluitend op de zes leesbudgetten
+        run: |
+          mkdir -p qa
+          backup=$(mktemp)
+          cp src/state/insertedBranch.ts "$backup"
+          trap 'cp "$backup" src/state/insertedBranch.ts; rm -f "$backup"' EXIT
+          git show "$PERF_BASE_REVISION:src/state/insertedBranch.ts" > src/state/insertedBranch.ts
+          set +e
+          bash tests/planning/run.sh check-paste-references.ts > qa/inserted-branch-before.log 2>&1
+          result=$?
+          set -e
+          cat qa/inserted-branch-before.log
+          echo "Oude productbron: exit $result"
+          test "$result" -eq 1
+          python3 - <<'PY'
+          from pathlib import Path
+          lines = Path('qa/inserted-branch-before.log').read_text().splitlines()
+          failures = [line.strip() for line in lines if line.startswith('   - ')]
+          expected = [
+              f'- {size}/100 {label}: verwacht true, kreeg false'
+              for size in (1000, 2000)
+              for label in (
+                  'normaliseren: hooguit één id-lezing per documenttaak',
+                  'relaties: hooguit één id-lezing per documenttaak',
+                  'handmatige WBS: afleiding plus één id-lezing per documenttaak',
+              )
+          ]
+          assert failures == expected, failures
+          print('Bevestigd: precies zes leesbudgetten rood; geen fixture- of pariteitsfout.')
+          PY
+      - name: Gerichte bestaande regressies met leesbudget
+        run: |
+          bash tests/planning/run.sh check-paste-references.ts
+          bash tests/planning/run.sh check-relation-rules.ts
+      - name: Voor en na op dezelfde runner, volledige toestandshashes
+        run: timeout 330s node tests/planning/measure-inserted-branch.mjs qa/inserted-branch.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: inserted-branch-${{ github.event.pull_request.head.sha }}
+          path: |
+            qa/inserted-branch.json
+            qa/inserted-branch-before.log
+          if-no-files-found: warn
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: inserted-branch-browser-${{ github.event.pull_request.head.sha }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 14
