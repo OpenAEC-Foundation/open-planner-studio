@@ -2,8 +2,7 @@ import { useMemo } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { useTaskIdDateText } from '@/hooks/displayDate';
-import { constraintDateField, taskDateFieldSide } from '@/state/migrations/minuteModel';
-import type { InstantSide } from '@/engine/calendar/workdayRules';
+import { constraintDateSide, type InstantSide } from '@/engine/calendar/workdayRules';
 import type { Task } from '@/types/task';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import { shownStart } from '@/utils/taskDates';
@@ -51,20 +50,12 @@ export function computeMilestoneRows(tasks: readonly Task[], cpmResult: CPMResul
         // De getoonde datum, zoals de ruit in de Gantt: een behaalde mijlpaal staat op zijn werkelijke datum.
         date: shownStart(t),
         guardDate: t.constraint?.date ?? t.deadline ?? '',
-        guardSide: guardSideOf(t),
+        guardSide: t.constraint?.date ? (constraintDateSide(t.constraint.type) ?? 'start') : 'end',
         float: tf,
         mandatory: !!t.mandatory,
         status,
       };
     });
-}
-
-function guardSideOf(t: Task): InstantSide {
-  if (t.constraint?.date) {
-    const field = constraintDateField(t.constraint.type);
-    return field ? taskDateFieldSide(field) : 'start';
-  }
-  return 'end';
 }
 
 export function useMilestoneRows(): MilestoneRow[] {

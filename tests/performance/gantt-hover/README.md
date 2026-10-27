@@ -1,3 +1,9 @@
+De integratie van 27 oktober krijgt de gecontroleerde PR-basis expliciet via
+`PERF_BASE_REVISION` uit het PR-event. Het harnas controleert SHA, voorouderschap,
+gelijke dependencies en uitsluitend de histogramhook als productverschil. De vier
+browsermetingen en bronherkomst blijven behouden. Eerdere cijfers gelden alleen
+voor hun historische basis; de nieuwe CI moet de geïntegreerde head bewijzen.
+
 # Histogramhover meten
 
 Deze meting hoort bij de luie taak- en resourceindexen in
@@ -9,8 +15,7 @@ histogramtestbestanden wijzigt. Er is geen meetpoort voor gewone product-PR's.
 De workflow controleert typen, lint en de bestaande histogramroutes. Daarna
 voert `run.py` het uitgebreide bestaande hoverscenario viermaal uit: voor,
 na, na, voor, op dezelfde runner, met nul retries en begrensde looptijden.
-De productbasis is vastgepind op
-`fbd4a3f9dcc7bdd308ab86b992d0b26f4670a553`. Alleen het testharnas wordt naar de
+De productbasis wordt expliciet vastgelegd door het PR-event. Alleen het testharnas wordt naar de
 baseline gekopieerd; de productboom daar blijft ongewijzigd.
 
 De grote fixture bevat 10.000 taken, 32 resources en 40.000 toewijzingen over

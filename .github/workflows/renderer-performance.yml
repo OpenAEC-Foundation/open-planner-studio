@@ -1,0 +1,93 @@
+name: Gantt-rijbereik meten
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tests/planning/check-render-caches.ts'
+      - '.github/workflows/renderer-performance.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: renderer-performance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compare:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    env:
+      TZ: UTC
+      PR_BASE: ${{ github.event.pull_request.base.sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Bundel dezelfde invoer met beide rendererrevisies
+        shell: bash
+        run: |
+          set -euo pipefail
+          baseline=$(git merge-base "$PR_BASE" HEAD)
+          printf '%s\n' "$baseline" > "$RUNNER_TEMP/renderer-base-sha"
+          # Deze meting isoleert één bronbestand. Een gecombineerde bronwijziging vereist een
+          # nieuwe meetopzet; de trigger staat daarom alleen op de eigen test en workflow.
+          changed=$(git diff --name-only "$baseline" HEAD -- src/)
+          test "$changed" = 'src/engine/renderer/GanttRenderer.ts'
+          git show "$baseline:src/engine/renderer/GanttRenderer.ts" > src/engine/renderer/.GanttRenderer-baseline.ts
+          for revision in base head; do
+            aliases=(--alias:@="$GITHUB_WORKSPACE/src")
+            if [ "$revision" = base ]; then
+              aliases+=(--alias:@/engine/renderer/GanttRenderer="$GITHUB_WORKSPACE/src/engine/renderer/.GanttRenderer-baseline.ts")
+            fi
+            node_modules/.bin/esbuild tests/planning/check-render-caches.ts \
+              --bundle --platform=node --format=esm "${aliases[@]}" \
+              --external:react-dom/server \
+              --define:import.meta.env.DEV=false --define:import.meta.env.PROD=true \
+              --define:import.meta.env.MODE='"production"' --define:__OPS_DEV_INSTANCE__='"test"' \
+              --outfile="$RUNNER_TEMP/renderer-$revision.mjs"
+          done
+      - name: Meet afwisselend en eis exacte uitvoerpariteit
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p output/renderer-performance
+          for pair in 1 2; do
+            revisions=(base head)
+            if [ "$pair" = 2 ]; then revisions=(head base); fi
+            for revision in "${revisions[@]}"; do
+              sha=$(git rev-parse HEAD)
+              if [ "$revision" = base ]; then sha=$(cat "$RUNNER_TEMP/renderer-base-sha"); fi
+              OPS_RENDER_REVISION="$sha" \
+                OPS_RENDER_BENCHMARK_OUT="output/renderer-performance/$revision-$pair.json" \
+                node "$RUNNER_TEMP/renderer-$revision.mjs"
+            done
+          done
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path('output/renderer-performance')
+          for pair in (1, 2):
+              base = json.loads((root / f'base-{pair}.json').read_text())
+              head = json.loads((root / f'head-{pair}.json').read_text())
+              assert base['revision'] != head['revision']
+              for before, after in zip(base['measurements'], head['measurements'], strict=True):
+                  for key in ('count', 'inputHash', 'drawHash', 'hitHash'):
+                      assert before[key] == after[key], (pair, key, before, after)
+                  assert after['rowVisits'] < before['rowVisits'], (before, after)
+                  print(f"Paar {pair}, {after['count']} rijen: rowToY {before['rowVisits']} -> {after['rowVisits']}; mediaan {before['medianMs']:.3f} -> {after['medianMs']:.3f} ms; invoer/tekenen/hits exact gelijk")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: renderer-performance
+          path: output/renderer-performance/
+          if-no-files-found: error
+          retention-days: 7

@@ -142,7 +142,7 @@ type ScopeCheck = { ok: true; path: string } | { ok: false; reason: string };
  */
 export function checkScope(home: string, input: string): ScopeCheck {
   const expanded = input === '~' || input.startsWith('~/') || input.startsWith('~\\')
-    ? `${home}/${input.slice(2)}`
+    ? `${home.replace(/[\\/]+$/, '')}/${input.slice(2)}`
     : input;
   if ([expanded, home].some(path => path.replace(/\\/g, '/').startsWith('//'))) {
     return {

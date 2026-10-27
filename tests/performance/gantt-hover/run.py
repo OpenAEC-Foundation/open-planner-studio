@@ -9,7 +9,8 @@ import subprocess
 
 
 ROOT = Path.cwd()
-BASE = "fbd4a3f9dcc7bdd308ab86b992d0b26f4670a553"
+BASE = os.environ["PERF_BASE_REVISION"]
+assert len(BASE) == 40 and all(c in "0123456789abcdef" for c in BASE), BASE
 OUT = ROOT / "output" / "gantt-hover-comparison"
 OUT.mkdir(parents=True, exist_ok=True)
 BEFORE = Path(os.environ["RUNNER_TEMP"]) / "gantt-hover-before"
@@ -34,6 +35,8 @@ def digest(path):
 
 
 head = git("rev-parse", "HEAD")
+git("merge-base", "--is-ancestor", BASE, head)
+assert git("diff", "--name-only", BASE, head, "--", "package.json", "package-lock.json") == ""
 changed_product = git("diff", "--name-only", BASE, head, "--", "src").splitlines()
 assert changed_product == [HOOK], changed_product
 run(["git", "worktree", "add", "--detach", str(BEFORE), BASE])
