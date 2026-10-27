@@ -18,6 +18,8 @@
 // Draait via run.sh (esbuild-bundel, ook in de tijdzone-matrix). Alleen de exitcode telt.
 import './domStub';
 import { installDOMParser } from './xmldom-shim';
+import { addElapsedMinutes, subtractElapsedMinutes } from '@/engine/scheduler/duration';
+import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { createAppStoreContext } from '@/state/appStore';
 import { parseOpenedFile } from '@/services/formatRegistry';
@@ -229,6 +231,60 @@ for (const tenths of [5120, 5122]) {
   ok(`(d) opzet .mpp B ${tenths / 10} min: twee taken en één relatie`, doc.tasks.length === 2 && doc.sequences.length === 1);
   eq(`(d) .mpp B ${tenths / 10} min: B LS gelijk aan B ES, zonder speling`,
     [b?.time.durationMinutes, b?.time.lateStart, b?.time.totalFloatMinutes], [tenths / 10, b?.time.earlyStart, 0]);
+}
+
+// (e) Knownbug 389: klokduur en kloklag gebruiken dezelfde hele-ms-spiegel, ook rond middernacht.
+for (const anchor of ['2026-06-01T00:00:00Z', '2026-06-01T08:00:00Z']) {
+  const start = new Date(anchor);
+  for (const minutes of [1920 / 7, 1600.00002, 2407.40742, 240.00048, 512.2, 0.5 / 60_000, -0.5 / 60_000, -240.00048, 0]) {
+    const delta = Math.sign(minutes) * Math.round(Math.abs(minutes) * 60_000);
+    const finish = addElapsedMinutes(start, minutes);
+    eq(`(e) ${anchor}, ${minutes}: klokduur op afgeronde ms`, finish.getTime() - start.getTime(), delta);
+    eq(`(e) ${anchor}, ${minutes}: exacte klokspiegel`, subtractElapsedMinutes(finish, minutes).getTime(), start.getTime());
+  }
+  for (const minutes of [NaN, Infinity, -Infinity]) {
+    eq(`(e) ${anchor}: niet-eindige duur blijft no-op`, [addElapsedMinutes(start, minutes).getTime(),
+      subtractElapsedMinutes(start, minutes).getTime()], [start.getTime(), start.getTime()]);
+  }
+  for (const sign of [-1, 1]) {
+    const cap = sign * 200_000 * 24 * 60 * 60_000;
+    eq(`(e) ${anchor}, teken ${sign}: bestaande duurklem`, addElapsedMinutes(start, sign * 1e12).getTime() - start.getTime(), cap);
+  }
+}
+function elapsedStore(profile: BuiltInProfileId, start: string) {
+  const app = createAppStoreContext().store;
+  app.setState(state => {
+    state.project.startDate = start;
+    state.project.schedulingProfile = { id: profile, baseId: profile, name: '', overrides: {} };
+    state.calendar = { ...state.calendar, workDays: [0, 1, 2, 3, 4, 5, 6], workStartHour: 0, workEndHour: 24,
+      hoursPerDay: 24, holidays: [], workTime: { byWeekday: Object.fromEntries(
+        [0, 1, 2, 3, 4, 5, 6].map(d => [d, [{ start: 0, end: 1440 }]])) } };
+    state.calendars = [];
+  });
+  return app;
+}
+for (const profile of ['ops', 'p6', 'msproject'] as const) {
+  for (const start of ['2026-06-01T00:00', '2026-06-01T08:00']) {
+    const app = elapsedStore(profile, start);
+    const id = app.getState().addTask({ name: 'Klokduur', time: { ...createDefaultTaskTime(start, 0.166667), durationType: 'ELAPSEDTIME' } });
+    app.getState().runCPM();
+    const task = app.getState().tasks.find(t => t.id === id)!;
+    eq(`(e) ${profile}/${start}: 0,166667 ed geen vorige minuut/dag`, task.time.lateStart, task.time.earlyStart);
+    eq(`(e) ${profile}/${start}: geen negatieve ms-speling`, task.time.totalFloatMinutes, 0);
+  }
+  for (const type of ['FINISH_START', 'START_START', 'FINISH_FINISH', 'START_FINISH'] as const) {
+    for (const sign of [-1, 1]) {
+      const start = '2026-06-01T08:00';
+      const app = elapsedStore(profile, start);
+      const time = { ...createDefaultTaskTime(start, 8, 'hours'), durationType: 'ELAPSEDTIME' as const };
+      const a = app.getState().addTask({ name: 'A', time });
+      const b = app.getState().addTask({ name: 'B', time: { ...time } });
+      app.getState().addSequence({ predecessorId: a, successorId: b, type, lagUnit: 'ELAPSEDTIME', lagDays: sign * 0.166667 });
+      app.getState().runCPM();
+      ok(`(e) ${profile}/${type}/${sign}: geen negatieve lagruis`,
+        app.getState().tasks.every(t => (t.time.totalFloatMinutes ?? -Infinity) >= 0));
+    }
+  }
 }
 
 if (errors.length) {
