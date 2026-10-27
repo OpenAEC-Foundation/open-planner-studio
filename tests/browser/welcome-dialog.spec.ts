@@ -43,7 +43,7 @@ test('welkomstdialoog past taal, thema en automatisch berekenen live toe en bewa
 test('werkplek in een opaque origin: de app start, geen welkomstvenster en geen herstelmelding, ook niet na herladen', async ({ page }) => {
   await page.route('**/*', async (route) => {
     const response = await route.fetch();
-    const headers = { ...response.headers(), 'access-control-allow-origin': '*' };
+    const headers: Record<string, string> = { ...response.headers(), 'access-control-allow-origin': '*' };
     if (route.request().resourceType() === 'document') headers['content-security-policy'] = 'sandbox allow-scripts allow-modals';
     await route.fulfill({ response, headers });
   });
