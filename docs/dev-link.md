@@ -1,7 +1,7 @@
 # Dev-link: een testbestand openen met één link
 
-Gereedschap voor de controle van nieuwe onderdelen, geen functie voor gebruikers. Het werkt alleen op de
-dev-server (`npm run dev`).
+Gereedschap voor de controle van nieuwe onderdelen, geen functie voor gebruikers. Het werkt alleen in de
+browser op de dev-server (`npm run dev`), niet in Tauri-dev.
 
 ```
 http://<host>:<poort>/?open=<bestand>&theme=dark
@@ -33,6 +33,6 @@ importeert, en de Tauri-app pakt alleen `dist/` in. Zet er geen klantdata in; de
 
 ## Niet in een productiebouw
 
-Alle drie de ingangen staan achter `import.meta.env.DEV`. De app laadt `devOpenLink` alleen met een
+Alle drie de ingangen staan achter `import.meta.env.DEV` en `!isTauri()`. De app laadt `devOpenLink` alleen met een
 dynamische import vanuit die tak. `tests/planning/check-dev-open-link.ts` bewijst dat de takken in een
-productiebouw wegvallen (esbuild-minify met `DEV=false`, zoals Vite), met een tegenproef in dev.
+productiebouw wegvallen (esbuild-minify met `DEV=false`, zoals Vite), met een tegenproef in dev. Hij bewijst ook dat `?theme=` met de Tauri-marker niets doet.

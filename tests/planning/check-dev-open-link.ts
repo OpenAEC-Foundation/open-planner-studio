@@ -3,9 +3,9 @@
 // `import.meta.env.DEV` vervangen door false. Deze check doet dat per bronbestand en kijkt of de
 // dode takken weg zijn. Daarnaast: `devOpenLink` wordt alleen dynamisch geladen, vanuit App.tsx.
 import { execFileSync } from 'node:child_process';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 // De store en i18n zetten bij import de documenttaal; dit is de kleinste DOM-vorm daarvoor.
 (globalThis as unknown as { document: { documentElement: { dir: string; lang: string } } }).document = {
@@ -45,7 +45,24 @@ const devTransform = (file: string) => execFileSync(esbuild, [join(root, file), 
 check(devTransform('src/App.tsx').includes('devOpenLink'), 'tegenproef: App.tsx in dev houdt de import');
 check(devTransform('src/utils/settingsStore.ts').includes('location.search'), 'tegenproef: settingsStore.ts in dev leest ?theme');
 
-// 3. Geen andere ingang naar devOpenLink dan de dynamische import in App.tsx.
+// 3. Niet in Tauri-dev (dezelfde Vite-server): met DEV=true, het linkthema alleen in de browser,
+//    nooit met de Tauri-marker. App.tsx: de `isTauri()`-guard staat in dezelfde voorwaarde.
+const probe = join(dirname(fileURLToPath(import.meta.url)), '.dev-open-link-theme-probe.mjs');
+execFileSync(esbuild, [join(root, 'src/utils/settingsStore.ts'), '--bundle', '--platform=node', '--format=esm',
+  '--log-level=error', `--alias:@=${join(root, 'src')}`, '--define:import.meta.env.DEV=true',
+  '--define:import.meta.env.PROD=false', `--outfile=${probe}`]);
+const probeTheme = (tauri: boolean) => execFileSync(process.execPath, ['--input-type=module', '-e', `
+  globalThis.localStorage = { getItem: () => 'light', setItem() {}, removeItem() {} };
+  globalThis.window = { location: { search: '?theme=dark' } ${tauri ? ', __TAURI_INTERNALS__: {}' : ''} };
+  const { peekTheme, initTheme } = await import(${JSON.stringify(pathToFileURL(probe).href)});
+  console.log(peekTheme() + ',' + await initTheme());`], { encoding: 'utf8' }).trim();
+check(probeTheme(false) === 'dark,dark', `browser-dev: ?theme=dark geeft dark (${probeTheme(false)})`);
+check(probeTheme(true) === 'light,light', `Tauri-dev: ?theme=dark negeert de link, bewaard light blijft (${probeTheme(true)})`);
+rmSync(probe, { force: true });
+check(/import\.meta\.env\.DEV && !isTauri\(\) &&[^\n]*\n\s*void import\(['"]@\/utils\/devOpenLink['"]\)/
+  .test(readFileSync(join(root, 'src/App.tsx'), 'utf8')), 'App.tsx: ?open alleen met DEV en zonder Tauri');
+
+// 4. Geen andere ingang naar devOpenLink dan de dynamische import in App.tsx.
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
     const p = join(dir, name);

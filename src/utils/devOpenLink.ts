@@ -10,7 +10,7 @@ import { openedFromFile } from '@/services/fileAccess/webBackend';
 import { binaryExtensions } from '@/services/formatRegistry';
 
 /** De vaste map in de repo; de dev-server serveert hem, een build neemt hem niet mee. */
-export const DEV_FILES_DIR = 'dev-files';
+const DEV_FILES_DIR = 'dev-files';
 
 /** `?open=` → pad binnen `dev-files/`, of `null` bij een leeg of ongeldig pad (geen `..`, geen
  *  absoluut pad, geen backslash). Submappen mogen. */
@@ -21,7 +21,7 @@ export function devFilePath(raw: string | null): string | null {
   return parts.map(encodeURIComponent).join('/');
 }
 
-export async function openDevFile(raw: string): Promise<void> {
+async function openDevFile(raw: string): Promise<void> {
   const path = devFilePath(raw);
   if (!path) throw new Error(`?open=${raw}: alleen een pad binnen ${DEV_FILES_DIR}/, zonder ..`);
   const res = await fetch(`${import.meta.env.BASE_URL}${DEV_FILES_DIR}/${path}`);

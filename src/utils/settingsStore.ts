@@ -20,6 +20,7 @@ import type { LayoutOverlays } from '@/types/view';
 import type { FeatureFlagValues } from '@/utils/featureFlags';
 import { migrateSavedFilters } from '@/engine/view/layoutPresets';
 import { AI_MODE_AVAILABLE } from '@/utils/buildFlags';
+import { isTauri } from '@/utils/platform';
 import {
   legacyLayoutColumnsToTaskGridPreferences,
   normalizePersistedTaskGridPreferences,
@@ -118,11 +119,12 @@ export const THEME_MIGRATION: Record<string, UITheme> = {
   'system': 'system',
 };
 
-/** Dev-link `?theme=light|dark` (alleen dev-server, docs/dev-link.md): het thema voor deze sessie.
- *  `initTheme`/`peekTheme` geven het terug zonder `ops-theme` te schrijven, dus de bewaarde voorkeur
- *  blijft staan. In een productiebouw is `import.meta.env.DEV` false en valt dit weg. */
+/** Dev-link `?theme=light|dark` (alleen de browser op de dev-server, docs/dev-link.md): het thema
+ *  voor deze sessie. `initTheme`/`peekTheme` geven het terug zonder `ops-theme` te schrijven, dus de
+ *  bewaarde voorkeur blijft staan. Niet in Tauri-dev; in een productiebouw is `import.meta.env.DEV`
+ *  false en valt dit weg. */
 function devSessionTheme(): UITheme | null {
-  if (!import.meta.env.DEV || typeof window === 'undefined') return null;
+  if (!import.meta.env.DEV || typeof window === 'undefined' || isTauri()) return null;
   const theme = new URLSearchParams(window.location.search).get('theme');
   return theme === 'light' || theme === 'dark' ? theme : null;
 }
