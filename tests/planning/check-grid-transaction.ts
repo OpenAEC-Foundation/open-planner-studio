@@ -527,7 +527,7 @@ function observed(state: AppState): unknown {
     const task = S().tasks.find(candidate => candidate.id === taskId)!;
     eq(`Geldig gezamenlijk actualvenster slaagt ${reverse}`, result.ok, true);
     eq(`Actualvenster eindigt onafhankelijk van volgorde ${reverse}`,
-      [task.time.actualStart, task.time.actualFinish], ['2026-01-03', '2026-01-04']);
+      [task.time.actualStart, task.time.actualFinish], ['2026-01-03T07:00', '2026-01-04T16:00']);
   }
 
   const conflictOutcomes: unknown[] = [];
@@ -593,7 +593,7 @@ function observed(state: AppState): unknown {
     S().setTaskProgress(viaStore, 1);
     const grid = S().tasks.find(candidate => candidate.id === viaGrid)!;
     const store = S().tasks.find(candidate => candidate.id === viaStore)!;
-    eq('Opzet: geplande start ligt vóór de statusdatum', plannedStart, '2026-01-05');
+    eq('Opzet: geplande start ligt vóór de statusdatum', plannedStart, '2026-01-05T07:00');
     eq('Status-cel voltooid zonder actualStart ⇒ AS = geplande start',
       { ok: result.ok, actualStart: grid.time.actualStart }, { ok: true, actualStart: plannedStart });
     eq('Status-cel voltooid geeft dezelfde actuals als setTaskProgress(1)',

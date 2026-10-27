@@ -33,4 +33,7 @@ export function applyDemoLibraryToShowcaseProject(): void {
     .filter((c) => c.kind === 'resource' && c.suggestedPoolId !== null)
     .map((c) => ({ kind: c.kind, projectId: c.projectId, poolId: c.suggestedPoolId as string }));
   if (links.length > 0) store.linkRecognizedItems(links);
+  // Dit is het afronden van het laden, geen gebruikersbewerking (knownbug 35).
+  // Alleen een vooraf schoon document blijft schoon; bestaand gewijzigd werk nooit wissen.
+  if (!store.isDirty) useAppStore.setState({ isDirty: false });
 }

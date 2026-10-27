@@ -135,7 +135,7 @@ test('Gantt viewport: Ctrl+0 past de hele projectspan en reset Y', async ({ page
   await page.keyboard.press('Control+0');
 
   await expect.poll(() => state(page).then(s => s.view.scrollY)).toBe(0);
-  await expect.poll(() => state(page).then(s => s.view.viewStartDate)).toBe('2026-01-05');
+  await expect.poll(() => state(page).then(s => s.view.viewStartDate)).toBe('2026-01-05T07:00');
   await expect.poll(() => state(page).then(s => s.view.zoom)).not.toBe(before.view.zoom);
   await expect.poll(() => page.evaluate(() => window.__OPS__!.gantt.paintCount('primary'))).toBeGreaterThan(paintsBefore);
   const bounds = await primaryCanvasBounds(page);

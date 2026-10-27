@@ -12,7 +12,6 @@ Een aannemer, adviseur of opdrachtgever stuurt je zijn planning als `.mpp`-besta
 2. Het project opent in een nieuw tabblad, of in het huidige tabblad als dat nog leeg en ongewijzigd was. Het project heeft geen bestand: *Opslaan* schrijft later een nieuw IFC-bestand. Daarna legt een venster kort uit wat de app uit het bestand overnam en hoe opslaan werkt; zie [Een bestand openen en opslaan](docs://howto-bestand-openen-en-opslaan).
 3. Lees de melding onderaan: *Dit project rekent als Microsoft Project. Aanpassen via Bestand → Projectinstellingen → Rekenprofiel en reken-opties.* De app rekent dit project door met de rekenregels van MS Project: het rekenprofiel *Microsoft Project*. Met *Rekenprofiel openen* ga je naar de instelling, *Lees meer* opent de Help over rekenprofielen.
 4. Kijk of er een strook onder het lint staat: *Je ziet de datums zoals ze in het bestand staan; bij herberekenen wijken 4 taken af.* Dan wijkt de uitkomst van de app op die taken af van de datums die MS Project opsloeg. Onder de melding uit stap 3 staat dan ook een regel: *4 taken tonen de datums zoals ze in het bestand staan (niet herberekend).* Wat dat betekent en hoe je terugschakelt naar de eigen berekening, staat in [Datums zoals opgeslagen](docs://uitleg-datums-zoals-opgeslagen).
-5. Staat er *Dit bestand bevat urenplanning.* met de knop *Urenplanning aanzetten*, dan bevat het bestand gegevens in uren. Zie [Urenplanning aanzetten](docs://howto-urenplanning-aanzetten).
 
 Bevat het bestand taken met onderbrekingen, nivellering of een resource-gedreven planning, dan komt er nog een melding bij, zoals *Dit MS Project-bestand bevat 3 taken met een onderbroken, genivelleerde of resource-gedreven planning. Die worden als zodanig ingelezen en getoond.* Bij één taak staat de melding in het enkelvoud.
 
@@ -29,8 +28,9 @@ Bevat het bestand taken met onderbrekingen, nivellering of een resource-gedreven
 - hyperlinks;
 - de vaste kosten van taken;
 - de tarieven van resources: uit een `.mpp` geen enkel tarief, uit MS Project XML alleen het standaardtarief;
-- alleen bij MS Project XML: handmatig geplande taken (de app plant ze automatisch), inactieve taken (ze tellen mee in de berekening) en de nivelleringsvertraging;
-- alleen bij een `.mpp`: de drempel voor kritiek uit MS Project; de app rekent met drempel 0.
+- alleen bij MS Project XML: handmatig geplande taken (de app plant ze automatisch), inactieve taken (ze tellen mee in de berekening) en de nivelleringsvertraging.
+
+De drempel voor kritiek uit MS Project wordt als projectinstelling overgenomen, zowel uit `.mpp` als XML. Hij blijft gelden na herberekenen en opslaan als IFC.
 
 Een WBS-code die je zelf in MS Project invulde, neemt de app wel over; anders nummert ze de taken volgens de structuur.
 
@@ -38,7 +38,7 @@ Een WBS-code die je zelf in MS Project invulde, neemt de app wel over; anders nu
 
 **Een bestand met wachtwoord.** De app meldt: *Dit .mpp-bestand is met een wachtwoord beveiligd. Exporteer het in MS Project als XML (Bestand → Opslaan als → XML) en open dat bestand.* Ook hier staat achter de melding een technische reden in het Engels.
 
-**Een bestand dat geen `.mpp` blijkt.** Je krijgt *Bestand openen mislukt*, met een technische reden erbij.
+**Een ongeldige bestandsstructuur.** Kan de CFB-container van het MPP-bestand niet worden gelezen, dan meldt de app dat de bestandsstructuur ongeldig is. De uitleg staat in de gekozen interfacetaal, met daaronder een technische CFB-diagnose in het Engels. Andere onherkenbare bestanden kunnen nog *Bestand openen mislukt* geven.
 
 **De XML-route rekent anders.** Open je de MS Project XML-export in plaats van het `.mpp`, dan rekent de app met het rekenprofiel *Open Planner Studio* en zie je de melding over *Microsoft Project* niet. De datums kunnen dan anders uitkomen dan bij het `.mpp`-bestand. Ook bij de XML-export zegt de app wat ze niet overneemt; zie *Niet alles komt mee*.
 
@@ -50,7 +50,7 @@ Een WBS-code die je zelf in MS Project invulde, neemt de app wel over; anders nu
 
 - [Bestanden en formaten](docs://uitleg-bestanden): waarom een `.mpp` alleen gelezen wordt en wat opslaan schrijft.
 - [Datums zoals opgeslagen](docs://uitleg-datums-zoals-opgeslagen): de weergave van MS Project's eigen datums.
-- [Urenplanning aanzetten](docs://howto-urenplanning-aanzetten): als het bestand gegevens in uren bevat.
+- [Een taak in uren plannen](docs://howto-taak-in-uren-plannen): als het bestand gegevens in uren bevat.
 - [Een Primavera P6-bestand (.xer) openen](docs://howto-xer-openen): hetzelfde voor Primavera.
 - [Import- en exportformaten](docs://ref-import-exportformaten): per formaat wat meegaat en wat niet.
 - [Rekenprofielen en conventies](docs://uitleg-rekenprofielen): waarom een MS Project-bestand met een eigen rekenprofiel opent.

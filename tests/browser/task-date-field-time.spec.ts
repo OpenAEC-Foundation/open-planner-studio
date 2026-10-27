@@ -65,6 +65,8 @@ async function openShowcaseTask(page: Page, opts: { notStarted?: boolean } = {})
     () => page.evaluate(name => window.__OPS__!.store.getState().tasks.some(task => task.name === name), TASK),
     { timeout: 20_000 },
   ).toBe(true);
+  // Openen plus automatische demo-koppeling is geen gebruikersbewerking (knownbug 35).
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().isDirty)).toBe(false);
   const id = await page.evaluate((name) => {
     const s = window.__OPS__!.store.getState();
     const task = s.tasks.find(candidate => candidate.name === name)!;

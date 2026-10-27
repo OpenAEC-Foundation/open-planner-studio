@@ -50,7 +50,8 @@ export function LibrarySection() {
   // geen stale UI-state.
   const [promotePanel, setPromotePanel] = useState<'calendar' | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  useEffect(() => { setPromotePanel(null); setNotice(null); setEditingCalendarId(null); }, [selected.id]);
+  const [pendingRemoveCalendar, setPendingRemoveCalendar] = useState<{ companyId: string; calendarId: string; name: string } | null>(null);
+  useEffect(() => { setPromotePanel(null); setNotice(null); setEditingCalendarId(null); setPendingRemoveCalendar(null); }, [selected.id]);
 
   const onPromoteCalendar = (cal: WorkCalendar) => {
     const id = promoteCalendarToPool(selected.id, cal);
@@ -175,7 +176,8 @@ export function LibrarySection() {
               <div className="library-promote-panel" data-ops-promote-calendar-panel>
                 <ul>
                   {projectCalendars.map(cal => {
-                    const linked = cal.libraryOrigin?.companyId === selected.id;
+                    const linked = cal.libraryOrigin?.companyId === selected.id
+                      && pool.calendars.some(source => source.id === cal.libraryOrigin?.libraryItemId);
                     return (
                       <li key={cal.id}>
                         <span>{cal.name}</span>
@@ -214,7 +216,7 @@ export function LibrarySection() {
                     <span>{cal.name}</span>
                     <div className="library-pool-item-actions">
                       <button className="edit-icon" onClick={() => startEditCalendar(cal)} title={t('companyLibrary.editItem')}><Pencil size={12} /></button>
-                      <button className="danger-icon" onClick={() => removePoolCalendar(selected.id, cal.id)}><Trash2 size={12} /></button>
+                      <button className="danger-icon" aria-label={`${t('delete')} ${cal.name}`} onClick={() => setPendingRemoveCalendar({ companyId: selected.id, calendarId: cal.id, name: cal.name })}><Trash2 size={12} /></button>
                     </div>
                   </li>
                 )
@@ -227,6 +229,18 @@ export function LibrarySection() {
           </p>
         </section>
       </div>
+
+      {pendingRemoveCalendar && (
+        <ConfirmDialog
+          message={t('companyLibrary.removeCalendarConfirm', { name: pendingRemoveCalendar.name })}
+          danger
+          onConfirm={() => {
+            removePoolCalendar(pendingRemoveCalendar.companyId, pendingRemoveCalendar.calendarId);
+            setPendingRemoveCalendar(null);
+          }}
+          onCancel={() => setPendingRemoveCalendar(null)}
+        />
+      )}
 
       {pendingRemoveCompany && (
         // In-app bevestiging i.p.v. `window.confirm()`, zie `onRemoveCompany` hierboven.

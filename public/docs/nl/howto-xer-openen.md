@@ -11,7 +11,7 @@ Een opdrachtgever of hoofdaannemer werkt in Primavera en levert zijn planning al
 1. Kies *Start › Bestand › Openen* of druk op Ctrl+O. Kies het `.xer`-bestand.
 2. De app opent één tabblad per project met taken. Het project met de meeste taken is het actieve tabblad. Een tabblad heet *Projectnaam (Project-ID)* als het P6-project-ID afwijkt van de naam. In *Projectinstellingen* staat alleen de naam. Hernoem je het project, dan blijft het project-ID erachter staan. Daarna legt een venster kort uit wat de app uit het bestand overnam en hoe opslaan werkt; zie [Een bestand openen en opslaan](docs://howto-bestand-openen-en-opslaan).
 3. Lees de melding onderaan. Bij een bestand met drie projecten kan die er zo uitzien: *XER-bestand geopend: 3 projectdocumenten.* Daaronder staan regels die uitleggen wat de app deed. Zie het kopje hieronder.
-4. Kijk of er een strook onder het lint staat: *Je ziet de planning zoals Primavera hem opsloeg; bij herberekenen wijkt 1 taak af.* Primavera legt zijn eigen berekende datums in het bestand vast. Wijkt de berekening van de app daarvan af, dan toont de app die datums van Primavera zolang je niets wijzigt. Een taak die gestart of klaar is, staat altijd op zijn werkelijke datums, net als in Primavera. Wat dat betekent en hoe je terugschakelt naar de eigen berekening, staat in [Datums zoals opgeslagen](docs://uitleg-datums-zoals-opgeslagen). Ook de melding *Dit bestand bevat urenplanning.* kan verschijnen, met de knop *Urenplanning aanzetten*. Zie [Urenplanning aanzetten](docs://howto-urenplanning-aanzetten).
+4. Kijk of er een strook onder het lint staat: *Je ziet de planning zoals Primavera hem opsloeg; bij herberekenen wijkt 1 taak af.* Primavera legt zijn eigen berekende datums in het bestand vast. Wijkt de berekening van de app daarvan af, dan toont de app die datums van Primavera zolang je niets wijzigt. Een taak die gestart of klaar is, staat altijd op zijn werkelijke datums, net als in Primavera. Wat dat betekent en hoe je terugschakelt naar de eigen berekening, staat in [Datums zoals opgeslagen](docs://uitleg-datums-zoals-opgeslagen).
 5. Sla je project op met Ctrl+S. Omdat een `.xer` nooit wordt overschreven, vraagt de app waar het nieuwe IFC-bestand moet komen. Ze stelt *Projectnaam (Project-ID)* voor als bestandsnaam.
 
 ### De regels onder de melding
@@ -67,6 +67,6 @@ Er opent dan niets. Controleer het bestand in P6, of vraag de afzender een nieuw
 - [Bestanden en formaten](docs://uitleg-bestanden): waarom een `.xer` alleen gelezen wordt en wat een export verliest.
 - [Datums zoals opgeslagen](docs://uitleg-datums-zoals-opgeslagen): de weergave van Primavera's eigen datums.
 - [Een MS Project-bestand (.mpp) openen](docs://howto-mpp-openen): hetzelfde voor MS Project.
-- [Urenplanning aanzetten](docs://howto-urenplanning-aanzetten): als het bestand gegevens in uren bevat.
+- [Een taak in uren plannen](docs://howto-taak-in-uren-plannen): als het bestand gegevens in uren bevat.
 - [Import- en exportformaten](docs://ref-import-exportformaten): per formaat wat meegaat en wat niet.
 - [Rekenprofielen en conventies](docs://uitleg-rekenprofielen): waarom een P6-bestand met een eigen rekenprofiel opent.

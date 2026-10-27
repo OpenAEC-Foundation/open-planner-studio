@@ -111,6 +111,9 @@ export const TASK_TIME_FIELD_COVERAGE = {
   lateFinish: field('derived', 'task.time.lateFinish'),
   freeFloat: field('derived', 'task.time.freeFloat'),
   totalFloat: field('derived', 'task.time.totalFloat'),
+  // Alleen uren §3.4: de minuten zijn de bron van de spelingkolommen; die kolommen tonen ze.
+  totalFloatMinutes: field('derived', 'task.time.totalFloat'),
+  freeFloatMinutes: field('derived', 'task.time.freeFloat'),
   isCritical: field('derived', 'task.time.isCritical'),
   interferingFloat: field('derived', 'task.time.interferingFloat'),
   isNearCritical: field('derived', 'task.time.isNearCritical'),

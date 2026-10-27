@@ -94,7 +94,7 @@ Je hebt bij een afwijking twee keuzes:
 
 **Je kiest bij Resourcebibliotheek een andere bibliotheek of *geen bibliotheek (los project)*.** De herkomststempels van de vorige bibliotheek verdwijnen. De resources blijven in het project staan als gewone projectresources. Bij een andere bibliotheek zoekt de app opnieuw naar resources met dezelfde naam.
 
-**Een resource heeft in *Herkennen* geen voorstel.** Er staat *Geen voorstel — kies handmatig*, maar dit venster heeft daarvoor geen knop. Dat lijkt een tekortkoming. Zet zo'n resource met *Naar de bibliotheek* (stap 4) in de bibliotheek.
+**Een resource of kalender heeft in *Herkennen* geen voorstel.** Kies het gewenste bibliotheekitem via *Kiezen en koppelen…*. De keuze koppelt meteen en neemt de bibliotheekwaarden over, net als *Koppelen* bij een voorstel. Resources tonen alleen bibliotheekresources; kalenders alleen bibliotheekkalenders. Zijn er geen items van die soort, dan is de kiezer uitgeschakeld. Voeg dan eerst een item van die soort aan de bibliotheek toe. Met Ongedaan maken kun je een koppeling terugdraaien.
 
 ## Zie ook
 

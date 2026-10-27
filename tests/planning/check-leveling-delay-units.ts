@@ -1,3 +1,4 @@
+// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 // check-leveling-delay-units.ts — B1c-plan-2 taak 1 (M10): `levelingDelayMinutes` heeft in
 // `CPMSolver.shiftByLevelingDelay` VOORRANG op `levelingDelay`, maar applyLeveling/clearLeveling en
 // de leveler-baseline kenden alleen `levelingDelay` — een stille no-op-familie op elk
@@ -88,7 +89,7 @@ console.log('-- leveling-delay-units: levelingDelayMinutes wint van levelingDela
   const solved = solveProject(opsSolveInput({ tasks: [taskT], sequences: [], calendar: PROJECT_CAL, calendars: [] }));
   ok('solveProject rekent zonder fout door', !solved.error);
   eq('levelingDelayMinutes wint van levelingDelay: T landt op 2026-06-08, niet 2026-06-02',
-    taskT.time.earlyStart, '2026-06-08');
+    taskT.time.earlyStart, "2026-06-08T08:00");
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -149,7 +150,7 @@ S().applyLeveling({ delays: { [idT]: 2 }, gaps: {} });
   eq('applyLeveling wist de elapsed-vlag', t.levelingDelayElapsed, undefined);
   eq('applyLeveling zet de nieuwe (hele-werkdagen) delay', t.levelingDelay, 2);
   eq('de CPM past de NIEUWE delay toe: PF (2026-06-01) + 2 werkdagen = 2026-06-03 (woensdag)',
-    t.time.earlyStart, '2026-06-03');
+    t.time.earlyStart, "2026-06-03T07:00");
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

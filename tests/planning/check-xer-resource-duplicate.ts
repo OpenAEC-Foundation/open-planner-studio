@@ -60,7 +60,7 @@ if (isMultiDocumentImport(parsed)) {
     fileHandle: null,
     recompute: false,
     fit: false,
-    hourDataNotice: false,
+
     linkedOpen: true,
   });
   const sourceDocumentId = store.getState().activeDocumentId;

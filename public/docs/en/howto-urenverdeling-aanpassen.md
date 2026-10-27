@@ -51,6 +51,8 @@ If the assignment has a distribution of its own, the window also has *Release di
 
 **Everything applies to this one assignment.** The app says so itself: *The distribution only changes the hours per day of this assignment; task dates and splits stay as they are.* Other resources on the same task keep their own distribution.
 
+**Part of a working day counts pro rata.** If the task starts partway through a working day, for example Wed at 11:00 on a working day from 07:00 to 16:00 with a one-hour break, it works 4 of the 8 hours that day. That day counts for half: at effort 1 the app books 4 hours, like the histogram. A phase keeps its effort; the column *Hours* counts the part of the day. A short explanation then appears below the strip.
+
 **Leveling follows the distribution.** The leveler counts the same hours per day as the histogram.
 
 **Undoing.** *Apply* and *Release distribution* are each one step for *Undo* (Ctrl+Z).

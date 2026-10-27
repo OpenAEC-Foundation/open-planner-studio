@@ -1,3 +1,4 @@
+// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 // check-split-smoke.ts — rooktests voor de oppervlakken die de critreview van het splits-ontwerp NIET
 // naliep (issue #146, spec §"Niet gecontroleerd door de review"): print/PDF, de tabelrapporten, de
 // verzameltaak-rollup en baseline/variance, elk met een GEBRUIKERSsplit (`source: 'user'`) die via de
@@ -52,7 +53,7 @@ S().runCPM();
 S().saveBaseline('B0');
 S().setActiveBaseline(S().baselines[0].id);
 const task = (id: string) => S().tasks.find(t => t.id === id)!;
-eq('opzet: T eindigt zonder split op vr 06-12', task(T).time.earlyFinish, '2026-06-12');
+eq('opzet: T eindigt zonder split op vr 06-12', task(T).time.earlyFinish, "2026-06-12T16:00");
 
 const refusal = S().setTaskSplits(T, [
   { kind: 'work', minutes: 2400 }, { kind: 'gap', minutes: 1440, source: 'user' }, { kind: 'work', minutes: 2400 },
@@ -60,7 +61,7 @@ const refusal = S().setTaskSplits(T, [
 eq('opzet: setTaskSplits weigert niet', refusal, null);
 S().runCPM();
 eq('opzet: gebruikersgat staat op T', task(T).splitGaps, [{ afterMinutes: 2400, gapMinutes: 1440, source: 'user' }]);
-eq('opzet: T eindigt na de pauze op wo 06-17', task(T).time.earlyFinish, '2026-06-17');
+eq('opzet: T eindigt na de pauze op wo 06-17', task(T).time.earlyFinish, "2026-06-17T16:00");
 
 // ── (a) print/PDF: segmenten getekend, geen throw ────────────────────────────
 function makeD2D(): { d2d: Draw2D; count(): number } {
@@ -119,7 +120,7 @@ const ctx: ReportContext = {
 // ── (c) verzameltaak-rollup: de ouder eindigt op het einde van het laatste stuk ─
 eq('rollup: Fase eindigt waar het laatste stuk van T eindigt', task(fase).time.earlyFinish, task(T).time.earlyFinish);
 eq('rollup: Fase start op de projectstart', task(fase).time.earlyStart?.slice(0, 10), '2026-06-01');
-ok('rollup: U verandert niet door de split van T', task(U).time.earlyFinish === '2026-06-04');
+ok('rollup: U verandert niet door de split van T', task(U).time.earlyFinish === '2026-06-04T16:00');
 
 // ── (d) baseline/variance: einddata vergeleken, geen throw ───────────────────
 {

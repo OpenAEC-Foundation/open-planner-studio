@@ -81,7 +81,7 @@ function commitPendingTextEdit(target: EventTarget | null, opts: { recalculate: 
   el.blur();
   // Alleen vóór opslaan; F5 rekent zelf al (anders twee solves en bij een kring een melding ×2).
   const s = useAppStore.getState();
-  if (opts.recalculate && s.ui.autoCalcCPM && s.scheduleStale && !isAutoCalcHeld()) s.runCPM();
+  if (opts.recalculate && s.ui.autoCalcCPM && s.scheduleStale && !isAutoCalcHeld()) s.runCPM({ withinEvent: true });
   if (el.isConnected) {
     el.dataset.opsRefocus = 'true';
     try { el.focus({ preventScroll: true }); } finally { delete el.dataset.opsRefocus; }

@@ -45,7 +45,7 @@ test('LATERE startDate klemt een wortel-taak zonder voorganger/constraint, en de
 
   const data = await callOk('planner_update_project', { startDate: '2026-08-17' });
 
-  assertEq(S().tasks.find((t) => t.id === a)!.time.scheduleStart, '2026-08-17',
+  assertEq(S().tasks.find((t) => t.id === a)!.time.scheduleStart, '2026-08-17T07:00',
     'het taakanker is naar de nieuwe startdatum geklemd');
   assertEq(data.anchorsClamped, 1, 'de respons meldt precies 1 geklemd anker');
   assertEq(S().scheduleStale, false, 'H3c: de transactie herrekent al — geen stale planning ná de call');
@@ -72,7 +72,7 @@ test('een taak MET voorganger blijft ongemoeid, ook met een even vroeg eigen ank
 
   const data = await callOk('planner_update_project', { startDate: '2026-08-17' });
 
-  assertEq(S().tasks.find((t) => t.id === b)!.time.scheduleStart, '2026-05-01', 'B (heeft een voorganger) blijft op zijn eigen anker');
+  assertEq(S().tasks.find((t) => t.id === b)!.time.scheduleStart, '2026-05-01T07:00', 'B (heeft een voorganger) blijft op zijn eigen anker');
   assertEq(data.anchorsClamped, 1, 'alleen C (de wortel) telt mee, niet B');
 });
 
@@ -85,7 +85,7 @@ test('een taak MET een expliciete SNET-constraint blijft ongemoeid', async () =>
 
   const data = await callOk('planner_update_project', { startDate: '2026-08-17' });
 
-  assertEq(S().tasks.find((t) => t.id === d)!.time.scheduleStart, '2026-05-01', 'D blijft op zijn eigen anker — de constraint wint');
+  assertEq(S().tasks.find((t) => t.id === d)!.time.scheduleStart, '2026-05-01T07:00', 'D blijft op zijn eigen anker — de constraint wint');
   assertEq(data.anchorsClamped, undefined, 'niets geklemd ⇒ geen `anchorsClamped` in de respons (geen ruis)');
 });
 
@@ -98,7 +98,7 @@ test('L1 — een dateless ASAP-constraint blokkeert de klem NIET', async () => {
 
   const data = await callOk('planner_update_project', { startDate: '2026-08-17' });
 
-  assertEq(S().tasks.find((t) => t.id === e)!.time.scheduleStart, '2026-08-17',
+  assertEq(S().tasks.find((t) => t.id === e)!.time.scheduleStart, '2026-08-17T07:00',
     'ASAP heeft geen forward-effect in de solver — de klem behandelt hem als geen constraint');
   assertEq(data.anchorsClamped, 1, 'E telt gewoon mee');
 });
@@ -110,9 +110,9 @@ test('L2 — een hammock-wortel telt niet mee (de solver negeert zijn anker toch
 
   const data = await callOk('planner_update_project', { startDate: '2026-08-17' });
 
-  assertEq(S().tasks.find((t) => t.id === hamm)!.time.scheduleStart, '2026-05-01',
+  assertEq(S().tasks.find((t) => t.id === hamm)!.time.scheduleStart, '2026-05-01T07:00',
     'de hammock-taak zijn eigen scheduleStart blijft ongemoeid — de klem-lus slaat hem over');
-  assertEq(S().tasks.find((t) => t.id === f)!.time.scheduleStart, '2026-08-17', 'de gewone wortel-taak klemt gewoon');
+  assertEq(S().tasks.find((t) => t.id === f)!.time.scheduleStart, '2026-08-17T07:00', 'de gewone wortel-taak klemt gewoon');
   assertEq(data.anchorsClamped, 1, 'alleen F telt mee, de hammock blaast het aantal niet op');
 });
 
@@ -170,8 +170,8 @@ test('uurtaak op de scalaire standaardkalender klemt naar het eerste werkmoment 
     'uurtaak-anker = eerste werkmoment van de effectieve uurbanden, geen middernacht');
   assertEq(uNa.time.earlyStart, uNa.time.scheduleStart,
     'klem en solver kiezen hetzelfde moment (anker = door de transactie herberekende vroegste start)');
-  assertEq(S().tasks.find((t) => t.id === d)!.time.scheduleStart, '2026-08-17',
-    'dagtaak op dezelfde kalender: kale datum zonder tijd, zoals vóór de fix');
+  assertEq(S().tasks.find((t) => t.id === d)!.time.scheduleStart, '2026-08-17T07:00',
+    'dagtaak op dezelfde kalender: startmoment volgens D1');
   assertEq(data.anchorsClamped, 2, 'beide wortel-ankers tellen mee');
 });
 
@@ -189,7 +189,7 @@ test('uurtaak op een scalaire BIBLIOTHEEKkalender (task.calendarId) klemt naar d
   const uNa = S().tasks.find((t) => t.id === u)!;
   assertEq(uNa.time.scheduleStart, '2026-08-17T06:00', 'de taak-eigen kalender bepaalt het werkmoment (06:00)');
   assertEq(uNa.time.earlyStart, uNa.time.scheduleStart, 'klem en solver kiezen hetzelfde moment');
-  assertEq(S().tasks.find((t) => t.id === d)!.time.scheduleStart, '2026-08-17', 'dagtaak op die kalender blijft een kale datum');
+  assertEq(S().tasks.find((t) => t.id === d)!.time.scheduleStart, '2026-08-17T06:00', 'ook de dagtaak krijgt het werkmoment van zijn eigen kalender');
 });
 
 test('batch-pad: de klem werkt óók door `planner_batch`, en het aantal komt mee in de stap-data', async () => {
@@ -207,12 +207,12 @@ test('undo herstelt de klem samen met de startDate', async () => {
   versProject();
   const a = S().addTask({ name: 'A', time: createDefaultTaskTime('2026-05-01', 5) });
   await callOk('planner_update_project', { startDate: '2026-08-17' });
-  assertEq(S().tasks.find((t) => t.id === a)!.time.scheduleStart, '2026-08-17', 'voorwaarde: geklemd');
+  assertEq(S().tasks.find((t) => t.id === a)!.time.scheduleStart, '2026-08-17T07:00', 'voorwaarde: geklemd');
 
   await callOk('planner_undo', {});
 
   assertEq(S().project.startDate, '2026-06-01', 'undo herstelt project.startDate');
-  assertEq(S().tasks.find((t) => t.id === a)!.time.scheduleStart, '2026-05-01', 'undo herstelt het taakanker');
+  assertEq(S().tasks.find((t) => t.id === a)!.time.scheduleStart, '2026-05-01T07:00', 'undo herstelt het taakanker');
 });
 
 test('beschrijving: update_project verzwijgt de bewerkbescherming niet meer', () => {
