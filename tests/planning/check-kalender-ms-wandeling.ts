@@ -256,9 +256,11 @@ function elapsedStore(profile: BuiltInProfileId, start: string) {
   app.setState(state => {
     state.project.startDate = start;
     state.project.schedulingProfile = { id: profile, baseId: profile, name: '', overrides: {} };
-    state.calendar = { ...state.calendar, workDays: [0, 1, 2, 3, 4, 5, 6], workStartHour: 0, workEndHour: 24,
-      hoursPerDay: 24, holidays: [], workTime: { byWeekday: Object.fromEntries(
-        [0, 1, 2, 3, 4, 5, 6].map(d => [d, [{ start: 0, end: 1440 }]])) } };
+    const bands = [{ start: 0, end: 1440 }];
+    state.calendar = { ...state.calendar, workDays: [1, 2, 3, 4, 5, 6, 7], workStartHour: 0, workEndHour: 24,
+      hoursPerDay: 24, holidays: [], workTime: { byWeekday: {
+        1: bands, 2: bands, 3: bands, 4: bands, 5: bands, 6: bands, 7: bands,
+      } } };
     state.calendars = [];
   });
   return app;
