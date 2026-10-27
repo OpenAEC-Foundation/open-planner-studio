@@ -5,12 +5,12 @@
  * contractdata en bewaakt drie verschillende beweringen die CI zonder corpus nog kan doen:
  *
  *  A. 93 publieke bronoccurrences met hun volledige SHA-256, rol en inclusiebesluit;
- *  B. de onafhankelijke, na byte- en schema-dedup geselecteerde 9 orakelentries (populatie: alleen
- *     aantoonbaar door P6 doorgerekende bestanden, eigenaarsbesluit 2026-09-23);
+ *  B. de 9 orakelentries (populatie: alleen aantoonbaar door P6 doorgerekende bestanden,
+ *     eigenaarsbesluit 2026-09-23) en de 8 die na byte- en schema-dedup onafhankelijk geselecteerd zijn;
  *  D. de openbare task-replay-pin die A en B kruist zonder een replay uit te voeren.
  *
  * Laag C is een compacte maar volledig uitgepakte v2-karakteriseringssnapshot: hij bewaakt de
- * 9 entries en 21 projecten, maar verklaart zijn strict-nulpoort expliciet rood en ongeaccepteerd.
+ * 8 geselecteerde entries en 18 projecten (`PINS.selected`/`PINS.projects`), maar verklaart zijn strict-nulpoort expliciet rood en ongeaccepteerd.
  * Daardoor kan corpusloze CI niet veinzen dat productfidelity nul is. `readXER`, scanner,
  * dedupbuilder, solveProject en de product-/replayadapter zijn hier daarom verboden imports.
  */

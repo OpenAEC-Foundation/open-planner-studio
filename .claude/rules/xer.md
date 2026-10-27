@@ -83,8 +83,10 @@ alleen de aantoonbaar door P6 doorgerekende bestanden (`xer-corpus-manifest.json
 rehab-2 = P3-uitvoer, de DCP-03-Baseline-kopieën = generatoruitvoer en de synthetische bestanden zijn
 `reader-only`). Binnen een orakelbestand kan een eigenaarsbesluit bovendien projecten of taken uit de
 meetlat halen (`excludeProjects`/`excludeTasks` met `decision`; sinds 2026-09-23: OZB project 9033
-(genivelleerd), Hotel project CR, 8 HarbourPointe-taken met verouderde P6-uitvoer; sinds 2026-09-24 ook
-HarbourPointe EC1420, dat zijn datums uit die verouderde EC1430 krijgt — 42 taken, hun
+(genivelleerd), Hotel project CR, 8 HarbourPointe-taken waarvan de P6-span korter is dan de opgeslagen restduur (het
+manifest zegt "verouderde uitvoer"; de oorzaak is open, het kan ook duur uit toewijzingen zijn, zie het
+XER-lezerplan bij C10); sinds 2026-09-24 ook HarbourPointe EC1420, dat zijn datums uit die uitgesloten
+EC1430 krijgt — 42 taken, hun
 afwijkingen staan als niet-stijgende pin `excludedHidden` in het cellenbestand). Het manifestveld
 `leveledProjects` (`tests/planning/xerManifestLeveling.ts`) is het meetmechanisme voor de toekomstige
 nivellering, zonder data en zonder invloed op de telling. Het nuldoel van plan §1
