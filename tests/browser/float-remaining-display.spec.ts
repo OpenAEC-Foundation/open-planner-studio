@@ -51,6 +51,24 @@ test('speling en restduur van een urentaak: leesbaar en overal gelijk', async ({
     .locator('xpath=following-sibling::input[1]');
   await expect(remaining).toHaveValue('3h');
 
+  // Een importtaak kan op 100 % nog lopen met een expliciete bronrest (knownbug 387).
+  // Zet die fixture zonder een voortgangsbewerking, die de rest bewust opnieuw zou afleiden.
+  await page.evaluate(id => window.__OPS__!.store.setState(s => {
+    const t = s.tasks.find(t => t.id === id)!;
+    t.status = 'STARTED';
+    t.time.completion = 1;
+    t.time.remainingMinutes = 1920;
+    t.time.actualFinish = undefined;
+  }), ids.A);
+  await expect(remaining).toHaveValue('32h');
+  // Herstel de oorspronkelijke lopende fixture voor de bestaande speling- en hoverroute.
+  await page.evaluate(id => window.__OPS__!.store.setState(s => {
+    const t = s.tasks.find(t => t.id === id)!;
+    t.time.completion = 0.4;
+    t.time.remainingMinutes = 180;
+  }), ids.A);
+  await expect(remaining).toHaveValue('3h');
+
   // Dezelfde resultaatsectie: enkelvoud/meervoud volgt de zichtbare afgeronde speling.
   for (const locale of ['en', 'nl']) {
     await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: true }));
