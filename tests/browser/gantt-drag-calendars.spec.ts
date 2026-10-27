@@ -165,7 +165,7 @@ test('Dag: een kalendertijdtaak schuift op de klok, niet op werkuren', async ({ 
   await page.mouse.move(p.x + 100, p.y, { steps: 6 });
   await expect.poll(() => facts(page, id)).toMatchObject({ days: 1 });
   await expect.poll(() => page.evaluate(() =>
-    (window as Window & { __opsDragText: string[] }).__opsDragText.includes('24h'))).toBe(true);
+    (window as Window & { __opsDragText?: string[] }).__opsDragText?.includes('24h') ?? false)).toBe(true);
   await page.mouse.up();
   expect(await facts(page, id)).toMatchObject({ start: '2026-06-03T00:00', finish: '2026-06-04T00:00', days: 1 });
 });
