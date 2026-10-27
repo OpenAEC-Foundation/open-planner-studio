@@ -53,7 +53,7 @@ jobs:
       deploy_path: /var/www/open-planner-studio.open-aec.com
       node_version: "22"
       install_command: npm ci
-      build_command: npm run build
+      build_command: npm run build && node scripts/web-statistics.mjs
       deploy_source: dist
     secrets:
       deploy_ssh_key: ${{ secrets.DEPLOY_SSH_KEY }}
