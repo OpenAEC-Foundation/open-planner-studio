@@ -374,12 +374,6 @@ en noem het in je rapport of PR-tekst.
 16. **Taken kopiëren** heeft geen zichtbare bediening; alleen Ctrl+C/V met de Gantt in focus. — B
 17. **Verwijderen zonder bevestiging**: `confirm.deleteTask` staat in de locales maar wordt nergens gebruikt. — S
 
-333. **De bevestigingsdialoog let bij Enter niet op `isComposing`.** `src/components/dialogs/ConfirmDialog.tsx:36–44`:
-    een synthetische IME-Enter verwijderde in een browserprobe de kalender, toen de focus bewust achter de open
-    dialoog stond. De focus-trap zet de focus normaal op Annuleren; een gewone gebruikersroute naar dit geval is
-    niet aangetoond. Voorstel: na `stopPropagation()` een guard voor `isComposing` die ook de standaardactie
-    tegenhoudt. Gevonden in review r2 van #628 (GPT-6-Sol). — B
-
 241. **Hetzelfde externe anker opnieuw invoeren als datum zonder tijd geeft een extra undo-stap en zet
      de planning op verouderd.** `updateExternalLink` vergelijkt het ruwe anker, niet het genormaliseerde.
      Gevonden in fixronde 1 van F2 (laadfix). — B
