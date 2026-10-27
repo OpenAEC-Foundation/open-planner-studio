@@ -1245,11 +1245,15 @@ en noem het in je rapport of PR-tekst.
     wijzigt. Dezelfde test slaagt lokaal op die head, en de herhaalde poging liep apart. De oorzaak is niet
     bewezen. Gevonden in fixronde 1 en review r2 van #595 (GPT-6.1-Sol). — S
 
-379. **`tests/browser/float-remaining-display.spec.ts:89` faalt soms in CI.** De tooltip van de balk toonde
-    `1d` waar `0,67d` hoort, in run 40344140298 (job `verify (browser 1-4)`) op PR #658. Het eigenschappenpaneel
-    toonde vlak daarvoor wel `0,67 dagen`; de test zet eerst testwaarden tot 1,004 en rekent dan met F5 opnieuw,
-    dus de tooltip leest mogelijk een waarde van vóór de herberekening. De herhaalde poging slaagde; main was op
-    dat moment groen. Oorzaak niet bewezen. Gevonden bij het mergen van de aanvalfixes na #600. — S
+403. **De oudere tooltipmelding 294 blijft naast de opgeloste melding 379 open staan.**
+     `knownbugs.md` punt 294 beschrijft dezelfde test en dezelfde afwijking als
+     het in PR #679 verwijderde punt 379: float-remaining-display.spec.ts:89 toont
+     1d in plaats van 0,67d, rond F5 en een mogelijk oud taakobject. Handel beide
+     meldingen samen af met hetzelfde bewijs, zodat dit symptoom niet dubbel als
+     open werk blijft staan. De historische oorzaak van iedere eerdere fout is
+     niet afzonderlijk bewezen; punt 294 is daarom niet stil verwijderd.
+     Twee onafhankelijke broncontroles van het register; geen productfixronde.
+     — B
 
 394. **De nieuwe scrollmatrix raakt interne randen van gesplitste balken niet gericht.**
      `tests/planning/check-render-caches.ts:162`: `hitSnapshot` belooft meetpunten bij elk
