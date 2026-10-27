@@ -1021,13 +1021,13 @@ en noem het in je rapport of PR-tekst.
 
 68. **Een gidsstap die eenmaal "gedaan" is, blijft gedaan**, ook na wisselen naar een leeg project. Gezien bij
     tutorial 6 stap 8; niet uitgezocht of dat bedoeld is. — S
-265. **Commentaar noemt een ingang die het welkomstvenster opnieuw toont, maar die bestaat niet.**
-    `src/state/slices/types.ts` (doc van `showWelcomeDialog`) zegt dat "herstart-ingangen (ribbon/backstage)"
-    het venster handmatig openen. In `src/` zet alleen `useSettingsBootstrap.ts` `showWelcomeDialog: true`;
-    lint, backstage en instellingen starten alleen de rondleiding. Ook "het bootstrap-effect in App.tsx" klopt
-    niet meer (het staat in `useSettingsBootstrap`). Voorstel: commentaar bijwerken, of bewust een ingang
-    toevoegen. — B (grep in de code)
-
+404. **Commentaar bij het welkomstvenster mist de ontbrekende instelling.**
+     `src/state/slices/types.ts:773` zegt dat `loadWelcomeSeen()` `false` geeft.
+     Zonder `ops-welcomeSeen` geeft de functie juist `undefined`
+     (`src/utils/settingsStore.ts:73-76,602-604`). Ook dan opent het venster
+     (`src/hooks/useSettingsBootstrap.ts:84-85`). Richting: noem beide waarden,
+     of schrijf dat de vlag niet waar is. Alleen commentaar; het gedrag klopt.
+     Vastgesteld bij de onafhankelijke broncontrole van PR #698. — B
 
 ## Teksten en helpteksten
 
