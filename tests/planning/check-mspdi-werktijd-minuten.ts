@@ -170,14 +170,15 @@ const exportMSPDI = (p: DocumentPayload) => quiet(() => writeMSPDI(p.project, p.
 const exportIFC = (p: DocumentPayload) => quiet(() => writeIFC(buildWriteIFCInput(p)));
 {
   const before = openAndRecalc(await parseOpenedFile({ name: 'werktijd-minuten.xml', text: XML }));
-  // §2: T15 maakt ook de taak van 85 u een urentaak. Op de scalaire kalender telt 08:00 nog als
-  // daganker: de solve begint om 07:30 en eindigt na 10 werkdagen op 30 oktober 16:00. Het behoud
-  // van de brontijd 08:00 valt buiten F5a-1 (datumprecisie, F5b/F2).
+  // §2: T15 maakt ook de taak van 85 u een urentaak. Sinds F5b (I8) is 08:00 in een bestand zonder
+  // OPS-markering een echte tijd, ook op de scalaire kalender: de solve begint om 08:00 (de brontijd), niet
+  // om 07:30. 85 u: ma 19 okt 08:00–16:00 (8 u), di–vr 4 × 8,5 u, de week erna 5 × 8,5 u = 84,5 u; het
+  // laatste half uur op maandag 2 november van 07:30 tot 08:00.
   // Urentaak: ma 19 okt 08:00–16:00 (8 u), di–vr 4 × 8,5 u, de week erna 5 × 8,5 u = 84,5 u op vrijdag
   // 30 oktober 16:00; de laatste 5,5 u op maandag 2 november van 07:30 tot 13:00. Met 9 u per dag was het
   // een dagtaak die vrijdag 30 oktober eindigde.
   same('§2 F5 na MSPDI-import', dates(before), {
-    'Dagtaak halfuur': ['2026-10-19T07:30', '2026-10-30T16:00'],
+    'Dagtaak halfuur': ['2026-10-19T08:00', '2026-11-02T08:00'],
     'Urentaak halfuur': ['2026-10-19T08:00', '2026-11-02T13:00'],
   });
 

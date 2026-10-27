@@ -1,7 +1,5 @@
 import { Task, TaskConstraint } from '@/types/task';
 import { minuteModelWriteView } from '@/services/ifc/minuteModelWrite';
-import { DayClockCache, mapTaskDates, normalizeTaskDate, taskDateContext, type TaskDateField } from '@/state/migrations/minuteModel';
-import { isDateOnly } from '@/engine/calendar/workdayRules';
 import { isP6DialogDefaultLeveling } from '@/services/leveling/levelingInput';
 import { resolveConventions } from '@/engine/scheduler/conventions/registry';
 import { Sequence, SequenceType } from '@/types/sequence';
@@ -17,7 +15,9 @@ import {
 import { taskDurationUnit } from '@/engine/scheduler/duration';
 import { effHoursPerDay } from '@/utils/taskDuration';
 import { createBaselineOldDayCheck } from '@/engine/baselineOldDay';
-import { encodeCustomTaskType, escapeXml, OPS_DURATION_UNIT_NAME, toXmlDateTime } from '@/services/xmlInterchange';
+import {
+  encodeCustomTaskType, escapeXml, literalCalendarsJson, OPS_DURATION_UNIT_NAME, OPS_LITERAL_CALENDARS_NAME, toXmlDateTime,
+} from '@/services/xmlInterchange';
 import {
   LagRecordCollector, OPS_DAY_MEASURE_DURATIONS_NAME, OPS_DAY_MEASURE_LAGS_NAME, OPS_EXACT_MINUTES_NAME,
   OPS_LAG_CALENDAR_NAME, dayMeasureMinutesPerDay, fieldRecordsJson, lagRecordKey, lagWorkMinutesPerDay, writeDays, writeMinutes,
@@ -82,6 +82,10 @@ export const OPS_DAY_MEASURE_LAGS_FIELD_ID = '188744012';
  *  (UID 0): Text25 = 188744011. Zonder deze waarde rekent de lezer met de standaard, de voorganger, en telt
  *  een lagrecord dat met een andere lagkalender geschreven is niet (review #585 r1, punt 1). */
 export const OPS_LAG_CALENDAR_FIELD_ID = '188744011';
+/** De letterlijke kalenders van deze export (T17, I8; `OPS_LiteralCalendars`) op de projectsamenvattingstaak
+ *  (UID 0): Text24 = 188744010. Altijd gedefinieerd: de definitie zegt de lezer dat elke taakdatum zijn echte
+ *  tijd draagt, ook 08:00 (`xmlTimeRule`). */
+export const OPS_LITERAL_CALENDARS_FIELD_ID = '188744010';
 
 // WorkContour-enum (MSPDI-schemadocumentatie/MPXJ): 0=Flat, 1=BackLoaded, 2=FrontLoaded,
 // 3=DoublePeak, 4=EarlyPeak, 5=LatePeak, 6=Bell, 7=Turtle; 8 (Contoured) is geen vorm maar het signaal
@@ -115,10 +119,6 @@ export const MSP_LINK_TYPE_CODE: Record<SequenceType, number> = {
 function durationToISO8601(days: number, hoursPerDay: number): string {
   return minutesToIsoDuration(days * hoursPerDay * 60);
 }
-
-/** De startvelden van de planning (knownbug 256). Een beperking, deadline of extern anker blijft zoals hij
- *  is, net als in de write view (`minuteModelWrite.ts`). */
-const PLANNING_START_FIELDS: ReadonlySet<TaskDateField> = new Set(['scheduleStart', 'earlyStart', 'lateStart', 'actualStart']);
 
 /** Eén OPS-tekstveld op een taak (`<ExtendedAttribute>`), alleen met een waarde. */
 function pushOpsTaskField(lines: string[], indent: (level: number) => string, fieldId: string, value: string | undefined): void {
@@ -306,18 +306,15 @@ export function writeMSPDI(
   activeBaselineId: string | null = null,
   customTaskTypes: readonly CustomTaskType[] = [],
 ): string {
-  // Afleidbare D1/D2-momenten behouden de bestaande dagankers. Anders zouden alleen
-  // de genormaliseerde kloktijden een scalaire kalender na herimport promoveren.
+  // Elke taakdatum gaat met zijn echte tijd (I8, F5b): een einde 16:00 blijft 16:00, niet het anker 08:00.
+  // Een veld zonder tijd krijgt zijn moment volgens D1–D7, zoals de laadgrens; dat geldt ook voor een kale
+  // start op een letterlijke kalender (knownbug 256, MSPDI-deel). Welke kalenders letterlijk zijn (T17),
+  // gaat apart mee in `OPS_LiteralCalendars`: zonder die lijst zouden de echte tijden elke scalaire kalender
+  // na herimport promoveren. Een automatische mijlpaal op het dageinde maakt zijn kalender letterlijk,
+  // zoals vóór F5b (MSPDI heeft geen AtDayEnd-hint).
   const writeView = minuteModelWriteView({ tasks, calendar, resourceCalendars, baselines },
-    { literalAutomaticMilestones: true });
-  // Knownbug 256: op een letterlijke kalender laat de write view een kale planningsstart staan, en
-  // `toXmlDateTime` maakte er het anker 08:00 van (kalender 09:00–17:00: een uur te vroeg). Zo'n start
-  // krijgt hier zijn moment volgens zijn veldregel (D1: het begin van de werkdag), zoals de laadgrens.
-  const clocks = new DayClockCache(calendar, resourceCalendars);
-  tasks = writeView.tasks.map(task => (writeView.literalCalendarIds.has(resolveCalendar(task.calendarId, resourceCalendars, calendar).id)
-    ? mapTaskDates(task, (value, field) => (PLANNING_START_FIELDS.has(field) && isDateOnly(value)
-      ? normalizeTaskDate(value, field, taskDateContext(task, clocks, writeView.atDayEnd)) ?? value : value))
-    : task));
+    { literalAutomaticMilestones: true, realTimes: true });
+  tasks = writeView.tasks;
   baselines = writeView.baselines;
   const lines: string[] = [];
   const indent = (level: number) => '  '.repeat(level);
@@ -452,6 +449,11 @@ export function writeMSPDI(
     lines.push(`${indent(3)}<Alias>${name}</Alias>`);
     lines.push(`${indent(2)}</ExtendedAttribute>`);
   }
+  lines.push(`${indent(2)}<ExtendedAttribute>`);
+  lines.push(`${indent(3)}<FieldID>${OPS_LITERAL_CALENDARS_FIELD_ID}</FieldID>`);
+  lines.push(`${indent(3)}<FieldName>${OPS_LITERAL_CALENDARS_NAME}</FieldName>`);
+  lines.push(`${indent(3)}<Alias>${OPS_LITERAL_CALENDARS_NAME}</Alias>`);
+  lines.push(`${indent(2)}</ExtendedAttribute>`);
   const lagCalendarOption = project.schedulingOptions?.lagCalendar;
   if (lagCalendarOption) {
     lines.push(`${indent(2)}<ExtendedAttribute>`);
@@ -552,6 +554,8 @@ export function writeMSPDI(
   lines.push(`${indent(3)}<OutlineLevel>0</OutlineLevel>`);
   lines.push(`${indent(3)}<Summary>1</Summary>`);
   pushOpsTaskField(lines, indent, OPS_LAG_CALENDAR_FIELD_ID, lagCalendarOption);
+  pushOpsTaskField(lines, indent, OPS_LITERAL_CALENDARS_FIELD_ID, literalCalendarsJson(
+    [...writeView.literalCalendarIds].flatMap(id => calUidMap.get(id) ?? [])));
   lines.push(`${indent(2)}</Task>`);
 
   for (let i = 0; i < tasks.length; i++) {

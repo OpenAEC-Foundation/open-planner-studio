@@ -9,8 +9,8 @@ import { Baseline, BaselineTask } from '@/types/baseline';
 import { generateId } from '@/utils/id';
 import { parseInstant, parseDate, localTodayIso } from '@/utils/dateUtils';
 import { normalizeImportedProgress, deriveImportedWorkRules, rebuildImportedHierarchy, reconstructResourceIds } from '@/services/importNormalize';
-import { emptyMissingScheduleDates, importDateTimeOrUndefined, isoDatePrefixOrToday, parseImportedInstant, resolveMissingScheduleDates } from '@/services/importDates';
-import { descendantText, toInt, toFloat } from '@/services/xmlDom';
+import { emptyMissingScheduleDates, isoDatePrefixOrToday, parseImportedInstant, resolveMissingScheduleDates } from '@/services/importDates';
+import { childElementNames, childElements, descendantText, directChildText, startsWithNames, toInt, toFloat } from '@/services/xmlDom';
 import { hasMsProjectImportLoss, type ImportResult } from '@/services/importTypes';
 import { scanMspdiImportLoss } from '@/services/msproject/mspdiImportLoss';
 import type { CustomTaskType } from '@/types/taskType';
@@ -24,6 +24,7 @@ import {
   OPS_DAY_MEASURE_LAGS_FIELD_ID,
   OPS_EXACT_MINUTES_FIELD_ID,
   OPS_LAG_CALENDAR_FIELD_ID,
+  OPS_LITERAL_CALENDARS_FIELD_ID,
   OPS_MILESTONE_KIND_FIELD_ID,
   OPS_MILESTONE_KIND_FIELD_NAME,
   WORKCONTOUR_TO_CURVE,
@@ -36,10 +37,11 @@ import {
 } from '@/services/xmlDayMeasure';
 import { ELAPSED_MINUTES_PER_DAY } from '@/services/ifc/dayMeasureIo';
 import {
-  DAY_TIME_ANCHOR, decodeCustomTaskType, statusDateFromXml,
+  decodeCustomTaskType, OPS_LITERAL_CALENDARS_NAME, parseLiteralCalendars, statusDateFromXml, xmlTaskDate,
+  xmlTimeRule, xmlTimeSignal, type XmlTimeRule,
 } from '@/services/xmlInterchange';
 import {
-  canonicalizeBands, clockToMinutes, hasNonAnchorTime, isSubDayMinutes,
+  canonicalizeBands, clockToMinutes, isSubDayMinutes,
   milestoneKindAt, opsDayWithBreak, promoteHourCalendars, registerCalendarBands, workDayFromBlocks,
   deriveHoursPerDay, sameBlocks, scalarHourFromClock, sharedWeekBlocks,
 } from '@/services/subdayIo';
@@ -90,6 +92,31 @@ function hasOpsFieldDefinition(root: Element, fieldId: string, fieldName: string
     }
   }
   return false;
+}
+
+/** De vingerafdruk van een MSPDI-export van OPS v2026.6.0 tot en met v2026.8.1 (knownbug 300). Die writers
+ *  schreven nog geen OPS-markering, maar wel steeds dezelfde vorm. MS Project, MPXJ en de 160 MSPDI-bestanden
+ *  van het corpus hebben die vorm niet; 43 daarvan missen `<SaveVersion>` en vallen op de kop af.
+ *  - geen `<SaveVersion>`, en de kop begint met Name, Title, Author, Company, CreationDate, StartDate;
+ *  - `<CreationDate>` staat op het anker (`…T08:00:00`): de writer kortte het aanmaakmoment in tot de datum;
+ *  - de projectsamenvattingstaak (UID 0) heeft precies UID, ID, Name, OutlineLevel en Summary;
+ *  - elke andere taak begint met UID, ID, Name, Duration, Start, Finish, WBS, OutlineLevel, Summary, Milestone.
+ *  Sinds v2026.9.0 schrijft OPS `OPS_TaskDurationUnit` (en een taak met `DurationFormat` na `Duration`); die
+ *  bestanden herkent de lezer aan de markering. Bewezen met de echte writers van v2026.6.0, v2026.7.0,
+ *  v2026.7.14, v2026.8.0 en v2026.8.1 (`tests/fixtures/legacyOpsExports.ts`). */
+export function isLegacyOpsMspdi(root: Element): boolean {
+  const head = childElementNames(root);
+  if (root.localName !== 'Project' || head.includes('SaveVersion')
+    || !startsWithNames(head, ['Name', 'Title', 'Author', 'Company', 'CreationDate', 'StartDate'])) return false;
+  if (!/^\d{4}-\d{2}-\d{2}T08:00:00$/.test(directChildText(root, 'CreationDate'))) return false;
+  const containers = childElements(root, 'Tasks');
+  if (containers.length !== 1) return false;
+  const tasks = childElements(containers[0], 'Task');
+  const summary = tasks[0];
+  if (!summary || directChildText(summary, 'UID') !== '0'
+    || childElementNames(summary).join() !== 'UID,ID,Name,OutlineLevel,Summary') return false;
+  return tasks.slice(1).every(te => startsWithNames(childElementNames(te),
+    ['UID', 'ID', 'Name', 'Duration', 'Start', 'Finish', 'WBS', 'OutlineLevel', 'Summary', 'Milestone']));
 }
 
 /** De eerste geldige waarde (uit `allowed`) van het OPS-taakveld `fieldId` op deze taak (direct-kind
@@ -279,9 +306,15 @@ export function readMSPDI(content: string): ImportResult {
   const exactMinutesEnabled = hasOpsFieldDefinition(root, OPS_EXACT_MINUTES_FIELD_ID, OPS_EXACT_MINUTES_NAME);
   const dayMeasureLagsEnabled = hasOpsFieldDefinition(root, OPS_DAY_MEASURE_LAGS_FIELD_ID, OPS_DAY_MEASURE_LAGS_NAME);
   const workdayIsWorkTime = dayMeasureDurationsEnabled;
+  // De tijdregel van dit bestand (I8, `xmlTimeRule`): 08:00 is alleen een anker in een bestand van OPS.
+  // De definitie van de duureenheid zegt "OPS schreef dit" (zoals `opsFile` in `readCalendars`), en voor
+  // v2026.9.0 de vingerafdruk van die writers (`isLegacyOpsMspdi`, alleen voor de tijdregel). De definitie
+  // van `OPS_LiteralCalendars` zegt "sinds F5b: elke taakdatum met zijn echte tijd".
+  const literalCalendarsEnabled = hasOpsFieldDefinition(root, OPS_LITERAL_CALENDARS_FIELD_ID, OPS_LITERAL_CALENDARS_NAME);
+  const timeRule = xmlTimeRule(durationUnitMarkerFieldId !== null || isLegacyOpsMspdi(root), literalCalendarsEnabled);
 
   // Parse project
-  const project = parseProject(root);
+  const project = parseProject(root, timeRule);
   // De lagkalender (I7) staat in `OPS_LagCalendar` op de projectsamenvattingstaak (UID 0). Zonder dat veld
   // rekent de lezer met de standaard (de voorganger); een lagrecord dat met een andere lagkalender is
   // geschreven, telt dan niet (`lagRecordHolds`).
@@ -297,12 +330,16 @@ export function readMSPDI(content: string): ImportResult {
       hasOpsFieldDefinition(root, OPS_LAG_CALENDAR_FIELD_ID, OPS_LAG_CALENDAR_NAME)))
     : undefined;
   if (lagCalendarOption) project.schedulingOptions = { ...project.schedulingOptions, lagCalendar: lagCalendarOption };
+  // De letterlijke kalenders van een F5b-export (kalender-UID's); geen geldige lijst ⇒ `null`.
+  const literalCalendarUids = summaryTask
+    ? parseLiteralCalendars(opsTaskFieldText(summaryTask, OPS_LITERAL_CALENDARS_FIELD_ID, literalCalendarsEnabled))
+    : null;
   const projectStartRaw = getElementText(root, 'StartDate');
   const missingDates = emptyMissingScheduleDates();
   // Eén gedeeld `HolidayBudget` over ALLE kalenders in dit document (projectkalender + elke
   // resourcekalender) — zie `applyCalendarBody`.
   const holidayBudget = newHolidayBudget();
-  const { calendar, resourceCalendars, calUidToId, projectFileHoursPerDay } = readCalendars(root, holidayBudget);
+  const { calendar, resourceCalendars, calUidToId, projectCalUid, projectFileHoursPerDay } = readCalendars(root, holidayBudget);
   const hoursPerDay = calendar.hoursPerDay;
 
   // Resources
@@ -348,6 +385,11 @@ export function readMSPDI(content: string): ImportResult {
   const tasks: Task[] = [];
   /** Zie de toelichting bij de vastlegging in de taaklus. */
   const recordedTimes: Record<string, RecordedTime> = {};
+  // Taken die nog lopen: geen werkelijk einde en een rest groter dan 0. MSPDI kent geen statusveld, maar MS
+  // Project zet een werkelijk einde zodra een taak klaar is. Op 100 % is het hele percentage dan afgerond
+  // (OPS schrijft `Math.round`), of het is P6 "Physical 100 %". Zie `runningAtFullIds` in
+  // `normalizeImportedProgress`: alleen op 100 % zonder werkelijk einde telt de set.
+  const runningAtFullIds = new Set<string>();
   const customTaskTypes = new Map<string, CustomTaskType>();
   const uidToId = new Map<number, string>();
   const uidToWbs = new Map<number, string>();
@@ -366,6 +408,11 @@ export function readMSPDI(content: string): ImportResult {
   // projectkalender).
   const calById = new Map<string, WorkCalendar>([calendar, ...resourceCalendars].map(c => [c.id, c]));
   const effCalIdOfUid = (calUid: number): string => calUidToId.get(calUid) ?? calendar.id;
+  // `opsLiteral` met een geldige lijst: de lijst beslist over de tijdsignalen, niet de tijden zelf (die zijn
+  // allemaal echt, ook op een scalaire kalender). Een onbekend nummer telt niet.
+  const literalCalIds = timeRule === 'opsLiteral' && literalCalendarUids
+    ? new Set([...literalCalendarUids].flatMap(uid => uid === projectCalUid ? [calendar.id] : calUidToId.has(uid) ? [calUidToId.get(uid)!] : []))
+    : null;
 
   const cSignalCalIds = new Set<string>();
   for (let i = 0; i < taskElements.length; i++) {
@@ -378,11 +425,10 @@ export function readMSPDI(content: string): ImportResult {
     const durSignal = durMin != null && isSubDayMinutes(durMin, cal.hoursPerDay);
     // Ook een werkelijke datum met een eigen tijd telt: een feit uit de bron. Anders blijft de kalender
     // scalair, kapt de lezer "11:00" af tot de datum, en maakt de laadnormalisatie er het blokeinde van
-    // (review ronde 3 van PR #559, deel B).
-    const dateSignal = ['Start', 'Finish', 'ActualStart', 'ActualFinish'].some(field => {
-      const raw = getElementText(te, field);
-      return hasNonAnchorTime(raw, DAY_TIME_ANCHOR) && importDateTimeOrUndefined(raw, true) !== undefined;
-    });
+    // (review ronde 3 van PR #559, deel B). In een F5b-export beslist de lijst (`literalCalIds`).
+    const dateSignal = literalCalIds
+      ? literalCalIds.has(calId)
+      : ['Start', 'Finish', 'ActualStart', 'ActualFinish'].some(field => xmlTimeSignal(getElementText(te, field)));
     if (durSignal || dateSignal) cSignalCalIds.add(calId);
   }
   // MSPDI valt terug op de scalar-synth zodra de geregistreerde canonical geen werkdag draagt
@@ -474,7 +520,9 @@ export function readMSPDI(content: string): ImportResult {
     const duration = measure.scheduleDuration;
     const startRaw = getElementText(te, 'Start');
     const finishRaw = getElementText(te, 'Finish');
-    const parseTaskDate = (raw: string): string | undefined => importDateTimeOrUndefined(raw, isHour);
+    // De tijdregel van het bestand (I8, `xmlTaskDate`): in een OPS-export zonder lijst beslist de kalender
+    // (`isHour`), zoals die writers schreven; anders is elke tijd echt.
+    const parseTaskDate = (raw: string): string | undefined => xmlTaskDate(raw, timeRule, isHour);
     const sourceStart = parseTaskDate(startRaw);
     const sourceFinish = parseTaskDate(finishRaw);
     const start = sourceStart ?? localTodayIso();
@@ -569,11 +617,11 @@ export function readMSPDI(content: string): ImportResult {
       const bEl = baselineEls[b];
       if (bEl.parentElement !== te) continue;
       if (getElementInt(bEl, 'Number', -1) !== 0) continue;
-      // Dezelfde modus als de taakdatums: een urentaak houdt het tijdstip van haar baseline
-      // (`YYYY-MM-DDTHH:mm`, zoals `saveBaseline` hem zelf vastlegt), een dagtaak alleen de datum
-      // (PR #392, fixronde 5).
-      const baselineStart = importDateTimeOrUndefined(getElementText(bEl, 'Start'), isHour);
-      const baselineFinish = importDateTimeOrUndefined(getElementText(bEl, 'Finish'), isHour);
+      // Dezelfde regel als de taakdatums (`parseTaskDate`): op een urenkalender houdt de baseline zijn
+      // tijdstip (`YYYY-MM-DDTHH:mm`, zoals `saveBaseline` hem zelf vastlegt; PR #392, fixronde 5), en sinds
+      // F5b ook in een vreemd bestand of een F5b-export (I8).
+      const baselineStart = parseTaskDate(getElementText(bEl, 'Start'));
+      const baselineFinish = parseTaskDate(getElementText(bEl, 'Finish'));
       // Onleesbaar (`NA`) = ontbrekend: zonder start én einde krijgt de taak geen baseline-entry, want
       // `BaselineTask` eist beide datums en een verzonnen datum (vandaag) zou een valse afwijking tonen.
       // Vóór deze regel brak `NA` bij een urentaak de hele import af (`RangeError`, VERVOLG 13 van #392).
@@ -635,6 +683,7 @@ export function readMSPDI(content: string): ImportResult {
       ...(effortDriven ? { effortDriven: true } : {}),
     });
     outlineLevels.push(getElementText(te, 'OutlineLevel') ? outlineLevel : undefined);
+    if (!actualFinish && ((remainingMinutes ?? 0) > 0 || (remainingTime ?? 0) > 0)) runningAtFullIds.add(id);
 
     // Parse predecessor links within task element. De lagrecords van deze opvolger (T21) staan in één
     // OPS-veld, met als sleutel voorganger-UID plus relatietype. Een sleutel die hier twee keer voorkomt,
@@ -705,7 +754,9 @@ export function readMSPDI(content: string): ImportResult {
       lagWorkMinutesPerDay(seq, lagCalendarOption, calendar, effCalByTaskId))) {
       Object.assign(seq, lagFromRecord(link.record));
     } else {
-      seq.lagMinutes = Math.round(link.lag / 10);
+      // Tienden van een minuut blijven staan (§3.10 "lag in minuten zonder afronding"; review #591 r2): de
+      // writer schrijft `LinkLag` = minuten × 10, dus 150,5 min gaat als 1505 en komt zo terug.
+      seq.lagMinutes = link.lag / 10;
       if (ELAPSED_DURATION_FORMATS.has(link.lagFormat)) seq.lagUnit = 'ELAPSEDTIME';
     }
     sequences.push(seq);
@@ -828,8 +879,8 @@ export function readMSPDI(content: string): ImportResult {
     (task) => resolveCalendar(task.calendarId, resourceCalendars, calendar));
 
   // Voortgang-invarianten op de rauw ingelezen actuals. De vastgelegde rest van een taak in de dagenmaat
-  // blijft exact (B3), zoals de restminuten van een urentaak.
-  normalizeKeepingDayRest(tasks, () => normalizeImportedProgress(tasks, project.statusDate));
+  // blijft exact (B3), zoals de restminuten van een urentaak. Een lopende taak op 100 % blijft lopend.
+  normalizeKeepingDayRest(tasks, () => normalizeImportedProgress(tasks, project.statusDate, runningAtFullIds));
   deriveImportedWorkRules(tasks); // werkregel uit <Type>/<EffortDriven>
 
   // Importverslag (issue #391): wat deze lezer niet overneemt. De OPS-transportvelden die hierboven
@@ -864,7 +915,7 @@ export function readMSPDI(content: string): ImportResult {
   };
 }
 
-function parseProject(root: Element): Project {
+function parseProject(root: Element, timeRule: XmlTimeRule): Project {
   // Een ontbrekende FinishDate blijft leeg (de writer laat hem weg voor een project zonder
   // einddatum); `parseMSPDate` zou er de datum van vandaag van maken.
   const finishRaw = getElementText(root, 'FinishDate');
@@ -880,10 +931,10 @@ function parseProject(root: Element): Project {
     author: getElementText(root, 'Author'),
     company: getElementText(root, 'Company'),
   };
-  // Statusdatum → project.statusDate. Alleen wanneer aanwezig; de tijd blijft (uur-modus), het
-  // dag-anker betekent "geen tijd" — gedeeld met P6 (`statusDateFromXml`).
+  // Statusdatum → project.statusDate. Alleen wanneer aanwezig; de tijd blijft (uur-modus). In een bestand
+  // van OPS betekent het dag-anker "geen tijd" — gedeeld met P6 (`statusDateFromXml`).
   const statusDateRaw = getElementText(root, 'StatusDate');
-  if (statusDateRaw) project.statusDate = statusDateFromXml(statusDateRaw);
+  if (statusDateRaw) project.statusDate = statusDateFromXml(statusDateRaw, timeRule);
   // CriticalSlackLimit → criticalDefinition.threshold (dagen, mode 'totalFloat'). Alleen wanneer het
   // element aanwezig is (spiegel van de writer). threshold 0 is de default (tf≤0) en dus inert. De
   // overige opties zitten niet in MSPDI (alleen via IFC).
@@ -1271,6 +1322,8 @@ function effectiveWeek(own: WeekEntry[], baseWeek: WeekEntry[] | null): WeekEntr
  *  cyclus eindigt (ook een zelfverwijzing) of langer is dan `MAX_BASE_CHAIN_DEPTH`, erft niet. */
 function readCalendars(root: Element, budget: HolidayBudget): {
   calendar: WorkCalendar; resourceCalendars: WorkCalendar[]; calUidToId: Map<number, string>;
+  /** De UID van de projectkalender (niet in `calUidToId`); ontbreekt zonder kalenders. */
+  projectCalUid?: number;
   /** `<MinutesPerDay>` / 60 als hij op de projectkalender staat; zie de promotie in `readMSPDI`. */
   projectFileHoursPerDay?: number;
 } {
@@ -1373,5 +1426,5 @@ function readCalendars(root: Element, budget: HolidayBudget): {
     calUidToId.set(uid, cal.id);
     resourceCalendars.push(cal);
   }
-  return { calendar, resourceCalendars, calUidToId, ...(projectFileHoursPerDay !== undefined ? { projectFileHoursPerDay } : {}) };
+  return { calendar, resourceCalendars, calUidToId, projectCalUid, ...(projectFileHoursPerDay !== undefined ? { projectFileHoursPerDay } : {}) };
 }

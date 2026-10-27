@@ -31,7 +31,8 @@ import {
   OPS_LEGACY_LITERAL_APP_VERSION, PSET, PER_TASK_PSET_BY_NAME, readDayMeasureDurations, readExactFloat, readExactMinutes, readIfcDate,
 } from './ifcPsets';
 import {
-  DAY_MEASURE_LAGS_PROP, parseDayMeasureLags, taskMinutesPerDay, wholeFloatDays, type DayMeasureRecord,
+  DAY_MEASURE_LAGS_PROP, EXACT_MINUTE_LAGS_PROP, parseDayMeasureLags, taskMinutesPerDay,
+  wholeFloatDays, type DayMeasureRecord, type ExactMinutesRecord,
 } from './dayMeasureIo';
 import {
   IFC_TASKTIME_SLOTS, ALL_RECORDED_SLOT_KEYS, TASK_SLOT, TASKTIME_SLOT, IFC_TASK_STATUS_RUNNING,
@@ -239,14 +240,14 @@ export function readIFC(
   const { tasks, taskStepIdMap, taskTimeEntities, recordedFields, runningStatusIds } = extractTasks(
     entities, entityMap, baselineTaskStepIds, taskIdentityByStepId, calendar.hoursPerDay,
   );
-  const { boundaryGuids: p6BoundarySequenceGuids, dayMeasureLags } = extractSequenceMeta(
+  const { boundaryGuids: p6BoundarySequenceGuids, dayMeasureLags, exactMinuteLags } = extractSequenceMeta(
     entities, entityMap, new Set(taskStepIdMap.keys()),
   );
   // Intern id → GlobalId per object uit dit bestand (zie `collectIfcGlobalIds`); de extractors
   // hieronder vullen hem terwijl ze id's uit GlobalIds afleiden.
   const guidLog: Record<string, string> = {};
   const sequences = extractSequences(
-    entities, entityMap, taskStepIdMap, p6BoundarySequenceGuids, dayMeasureLags, calendar.hoursPerDay, guidLog,
+    entities, entityMap, taskStepIdMap, p6BoundarySequenceGuids, dayMeasureLags, exactMinuteLags, calendar.hoursPerDay, guidLog,
   );
   extractNesting(entities, entityMap, tasks, taskStepIdMap);
   // BEWUST GEEN normalisatie van `isMilestone` op taken met kinderen: de app zelf laat een mijlpaal
@@ -1960,6 +1961,7 @@ function extractSequences(
   taskStepIdMap: Map<string, string>,
   p6BoundarySequenceGuids: ReadonlySet<string>,
   dayMeasureLags: ReadonlyMap<string, DayMeasureRecord>,
+  exactMinuteLags: ReadonlyMap<string, ExactMinutesRecord>,
   hoursPerDay: number,
   guidLog: Record<string, string>,
 ): Sequence[] {
@@ -2049,6 +2051,13 @@ function extractSequences(
       lagDays = dayRecord[0];
       lagMinutes = undefined;
     }
+    // Een minutenlag met een breuk (`.mpp` telt in tienden: 150,5 min) staat als `PT…` op de hele minuut, met
+    // het record `[exacte minuten, geschreven minuten]` in `OPS_Sequences.ExactMinuteLags`, zoals de duur van
+    // een urentaak (`ExactMinutes`, T14). Zelfde leesregel: alleen als het slot nog de geschreven minuten draagt.
+    const exactRecord = exactMinuteLags.get(stripQuotes(se.args[0] || ''));
+    if (exactRecord && lagMinutes !== undefined && lagPercent === undefined && lagMinutes === exactRecord[1]) {
+      lagMinutes = exactRecord[0];
+    }
 
     const seq: Sequence = {
       id: stableIdFromGuid('seq', 'seq', se, usedIds, guidLog),
@@ -2070,8 +2079,8 @@ function extractSequences(
 }
 
 /**
- * Lees de relationele metadata uit `OPS_Sequences`: de P6-grensrelaties en de records van de dagenmaat
- * (`DayMeasureLags`, T21). De pset hangt schema-geldig op de IfcWorkSchedule; de payload bevat daarom
+ * Lees de relationele metadata uit `OPS_Sequences`: de P6-grensrelaties, de records van de dagenmaat
+ * (`DayMeasureLags`, T21) en die van een minutenlag met een breuk (`ExactMinuteLags`). De pset hangt schema-geldig op de IfcWorkSchedule; de payload bevat daarom
  * IfcRelSequence-GlobalIds in plaats van vluchtige OPS-relatie-id's.
  * Corrupt/ongeldig metadata blijft inert: alleen een volledige string-array activeert een vlag, en alleen
  * een JSON-object met geldige records `[dagen, hele minuten]` levert records.
@@ -2080,7 +2089,7 @@ function extractSequenceMeta(
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
   liveTaskStepIds: ReadonlySet<string>,
-): { boundaryGuids: Set<string>; dayMeasureLags: Map<string, DayMeasureRecord> } {
+): { boundaryGuids: Set<string>; dayMeasureLags: Map<string, DayMeasureRecord>; exactMinuteLags: Map<string, ExactMinutesRecord> } {
   // Alleen een niet-baseline schema dat de daadwerkelijk ingelezen live taken bestuurt/nest,
   // is voor deze import het relevante IfcWorkSchedule. Een gelijknamige losse pset is geen bewijs.
   const relevantScheduleIds = new Set<string>();
@@ -2104,6 +2113,7 @@ function extractSequenceMeta(
 
   const accepted: Set<string>[] = [];
   const acceptedDayMeasure: Map<string, DayMeasureRecord>[] = [];
+  const acceptedExactMinutes: Map<string, ExactMinutesRecord>[] = [];
   for (const { pset: entity, objectRefs: owners } of propertySetRelations(entities, entityMap, PSET.Sequences)) {
     if (owners.length !== 1 || !relevantScheduleIds.has(owners[0])) continue;
     for (const propRef of parseRefs(entity.args[4] || '')) {
@@ -2113,6 +2123,12 @@ function extractSequenceMeta(
       if (propName === DAY_MEASURE_LAGS_PROP) {
         const records = parseDayMeasureLags(parseTypedValue(prop.args[2] || ''));
         if (records) acceptedDayMeasure.push(records);
+        continue;
+      }
+      if (propName === EXACT_MINUTE_LAGS_PROP) {
+        // Zelfde vorm als `DayMeasureLags` (GlobalId → twee getallen), dus dezelfde parser.
+        const records = parseDayMeasureLags(parseTypedValue(prop.args[2] || ''));
+        if (records) acceptedExactMinutes.push(records);
         continue;
       }
       if (propName !== 'P6StartAtPredecessorFinishBoundarySequenceGuids') continue;
@@ -2132,6 +2148,7 @@ function extractSequenceMeta(
   return {
     boundaryGuids: accepted.length === 1 ? accepted[0] : new Set(),
     dayMeasureLags: acceptedDayMeasure.length === 1 ? acceptedDayMeasure[0] : new Map(),
+    exactMinuteLags: acceptedExactMinutes.length === 1 ? acceptedExactMinutes[0] : new Map(),
   };
 }
 
