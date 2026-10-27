@@ -960,15 +960,6 @@ en noem het in je rapport of PR-tekst.
      de IFC-vastlegging toelaten zonder verplicht bronformaat; actief en slapend herstel toetsen. Gevonden in de
      aanval na #600 (GPT-6.1-Sol). — B
 
-352. **CSV gooit de kloktijd van een werkelijke datum weg, ook als de app hem zelf schreef.**
-     `src/services/importDates.ts:75` (`csvDate`) knipt een ISO-waarde af op de datum (`substring(0, 10)`);
-     `parseDate` in `src/services/csv/csvReader.ts:349` en `:350` gebruikt hem voor Actual Start en Actual Finish.
-     Gemeten: `writeCSV` schrijft Actual Start `2026-06-01T10:15` en Actual Finish `2026-06-01T11:45`; `readCSV`
-     leest beide als `2026-06-01`, en na laden op de standaardkalender staan ze op 07:00 en 16:00. Al op
-     `fbd4a3f9d`. Voorstel: een ISO-waarde met kloktijd lezen met de bestaande parser voor kloktijden uit een
-     bestand (`importDateTime`/`parseImportedInstant` in `importDates.ts`), en alleen een kale datum via de
-     datumroute; geen tweede CSV-datumparser. Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
-
 382. **MSPDI en MPP zonder `ActualFinish` maar op 100 % met een rest komen binnen als lopend.** Sinds #663 geldt
      "geen werkelijk einde en rest > 0" als teken voor lopend op 100 % (`src/services/msproject/mspdiReader.ts:643`,
      `src/services/mpp/mppReader.ts:857`). Een bron met 100 %, geen `ActualFinish` en één minuut rest wordt
@@ -1174,13 +1165,13 @@ en noem het in je rapport of PR-tekst.
     Gevonden in review ronde 1 en 2 van PR #573 (GPT-6.1-Sol). Resterend: de bestaande echte-app-route
     uitbreiden met echte bestandsacties, inhoud en opruiming. — B
 
-263. **De stille uitschakeling van crashherstel is niet bewezen in een echt sandbox-iframe.** De browsertest
-    (`tests/browser/site-storage.spec.ts`, iframe-route rond regel 593) draait de tool in een same-origin
-    iframe en vervangt `IDBFactory.prototype.open` door een functie die een `SecurityError` gooit. Een echte
-    opaque origin (`sandbox="allow-scripts"` zonder `allow-same-origin`) weigert ook `sessionStorage`,
-    `localStorage` en Web Locks, en de Vite-dev-server weigert waarschijnlijk CORS voor origin `null`.
-    Bevestigd in review ronde 2 van PR #644 (GPT-6.1-Sol). Voorstel: een test met een echt sandbox-iframe
-    tegen een productiebuild, of een handmatige check in de SuperCloud-werkplek. — B
+263. **Crashherstel en welkomstvenster zijn niet bewezen in de echte werkplek.** Sinds #706 draait
+    `tests/browser/welcome-dialog.spec.ts` de app in een echte opaque origin (CSP-sandbox op het document; de
+    test controleert `self.origin === 'null'` en de `SecurityError`s). Dat is het hoofddocument op de
+    Vite-dev-server, met kunstmatige CORS-headers en een geïnjecteerde host. Niet getest: een ingebedde
+    productieplatformbouw onder `/werkplek/app/planner/`, de echte hostbrug en de echte serverheaders.
+    Bevestigd in review ronde 2 van PR #644 en ronde 1 van PR #708 (GPT-6.1-Sol). Voorstel: een handmatige
+    check in de SuperCloud-werkplek. — B
 
 373. **Een synchrone `SecurityError` van Web Locks kan crashherstel ten onrechte uitzetten.** In
     `src/services/recovery/recoveryStore.ts` (`loadRecovery`, rond regel 1538) vangt de opvang rond heel
@@ -1189,6 +1180,35 @@ en noem het in je rapport of PR-tekst.
     crashherstel toch stil uit. Een browser die dit doet is niet gevonden; een afgewezen promise vangt `claimLock`
     al af. Bevestigd in review ronde 3 van PR #644 (GPT-6.1-Sol). Voorstel: de classificatie beperken tot de
     IndexedDB-grens. — B
+
+406. **Het welkomstvenster hangt af van de `localStorage`-getter, niet van werkende opslag.** Sinds #706
+    slaat `src/hooks/useSettingsBootstrap.ts` (`skipWelcome`) het venster over in elke omgeving waar het
+    lezen van `localStorage` gooit, ook buiten de werkplek: dan vervallen ook de eerste taalkeuze, de
+    automatische rondleiding en de tutorialvraag (handmatig blijven ze bereikbaar). Omgekeerd kijkt
+    `localStorageAvailable()` (`src/utils/settingsStore.ts:41`) alleen naar de getter: bestaat het object
+    maar weigert `getItem`/`setItem`, dan komt het venster nog bij elke start terug. Bevestigd in review
+    ronde 1 van PR #708 (GPT-6.1-Sol). Voorstel: de bredere keuze vastleggen, of de voorwaarde op een
+    mislukte schrijfproef zetten. — B
+
+407. **De opaque-origin-test bewijst geen crashherstelronde na de wijziging.**
+    `tests/browser/welcome-dialog.spec.ts` wacht 2 s na `addTask` en kijkt dan of er geen melding is. Maar
+    `useAutoSave.ts:98` zet `lastSaveAt` bij elke geplande ronde, ook als die meteen terugkeert; de volgende
+    ronde kan dan tot 10 s later komen. De wijziging gaat bovendien via de storebrug, niet via een
+    browserhandeling. Bevestigd in review ronde 1 van PR #708 (GPT-6.1-Sol). Voorstel: wachten op een
+    aantoonbaar afgehandelde herstelpoging (de bestaande flush), en de taak met een echte handeling maken. — B
+
+408. **Geen browsertest meer voor `skipWelcome` bij werkende opslag.** #706 verving de browsertest met
+    `skipWelcome: true` door een test zonder dat veld. `tests/planning/check-site-storage.ts` (A12) toetst
+    `siteSkipsWelcome()` nog, maar niet de koppeling met `useSettingsBootstrap`. Bevestigd in review ronde 1
+    van PR #708 (GPT-6.1-Sol). Voorstel: één stap met werkende `localStorage` en een host met
+    `skipWelcome: true` in een bestaande welkomsttest. — B
+
+405. **Nivelleren in de achtergrond start vermoedelijk niet in een opaque origin.** Gezien bij #706.
+    `src/services/leveling/backgroundLeveling.ts:34` maakt `new Worker(new URL(…, import.meta.url))` zonder
+    try. Een document zonder `allow-same-origin` (de SuperCloud-werkplek) haalt een workerscript op met modus
+    `same-origin`, en een opaque origin is met geen enkel adres same-origin. De constructor gooit dan, of de
+    worker meldt een fout; in beide gevallen mislukt nivelleren. Alleen in de code nagelopen, niet gedraaid.
+    Voorstel: bij een fout van de worker terugvallen op de bestaande route zonder `Worker` (regel 23). — S
 
 224. **RTL-balksleeptest faalt incidenteel zonder aangetoonde oorzaak.** In PR #635 op
     `3ca78f26234ddfed8e6fd4341a8f9e0ee44ec66a`, run 40157918525 poging 1, bleef bij
@@ -1255,6 +1275,18 @@ en noem het in je rapport of PR-tekst.
      control-relaties over, na kalender en metadata; voeg een gerichte regressiecheck toe.
      Vastgesteld door twee onafhankelijke broncontroles bij PR #641; niet uitgevoerd. — B
 
+412. **De MS Project-meting van `measure:profiles` wisselt tussen runs op één bestand.** `check-mpp-fidelity.ts`
+     met corpus gaf op 2026-10-27 op aia09-mp50 soms 3 afwijkingen in `mpxj/junit/data/timephased-cost-rollup.mpp`
+     (Task 5 en 6 einde 2026-02-17 17:00 in plaats van 02-20 17:00, Task 8 02-16 13:59 in plaats van 02-20), soms 0.
+     Rood op `main` @ `433cca3b2` (twee runs, 19:55 en 20:05), daarna groen op dezelfde commit (drie runs, 20:21).
+     Een bisect wees eerst #536 en daarna #538 aan; beide zijn bij herhaling groen en raken geen rekencode. Het
+     corpusbestand is niet veranderd (mtime 2026-08-14). Ook een run op 2026-10-23 (een andere branch) gaf deze 3.
+     De groene runs liepen alle in een losse worktree (`/tmp/690-bisect`); in de reviewworktree van #707 was het
+     5 van 5 keer rood. Het kan dus ook aan de worktree liggen, niet alleen aan het moment.
+     De check leest geen klok of cache die ik vond. Voorstel: de check een paar keer achter elkaar draaien en de
+     uitkomst van de lezer en de motor voor dit bestand vergelijken tussen een rode en een groene run. Gevonden bij
+     #690 fase 1 punt 1. — S
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
@@ -1282,3 +1314,11 @@ en noem het in je rapport of PR-tekst.
      Richting: maak de hele-dagherkenning bestand tegen deze afronding en voeg die
      kalender toe aan `check-drag-duration-badge.ts`. Gevonden in review r2 van #699
      (GPT-6.1-Sol). — B
+
+421. **O1 in `check-recovery-refused-later.ts` bewijst niet dat lezen en opslaan dezelfde sessieclaim afwachten.**
+     De check kijkt na één microtask alleen of beide promises nog lopen
+     (`tests/planning/check-recovery-refused-later.ts`, rond regel 79). De save loopt via
+     `recoveryWriteTail.then(...)` en verdere `await`-stappen, dus `saved` kan ook zonder wachten nog `false`
+     zijn. De lockdubbel (rond regel 55) geeft elke volgende aanvraag meteen vrij, zodat twee aparte claims
+     niet opvallen. Geen aangetoonde productfout, wel een gat in het testbewijs. Richting: tel de
+     lockaanvragen en eis vóór `releaseClaim()` precies één. Gevonden in review r1 van #709 (GPT-6.1-Sol). — B
