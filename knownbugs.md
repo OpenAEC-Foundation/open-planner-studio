@@ -460,6 +460,10 @@ en noem het in je rapport of PR-tekst.
      voltooid. Voor urentaken al zo op main; F5b (`mppReader.ts:806`) laat deze importvorm er ook langs lopen. De
      opgeslagen rest blijft goed. Voorstel: de formatter de voltooiingsstatus en een aanwezige bronrest laten volgen.
      Gevonden in review ronde 5 van PR #591 (GPT-6.1-Sol). — B
+420. **Een onbereikbare keuze in de Gantt-route voor een nieuwe taak.** `src/components/canvas/GanttCanvas.tsx:421`
+     (`addAtClickedDate`) schrijft `milestone ? 0 : 5`, maar een mijlpaal is drie regels eerder al teruggekeerd.
+     Geen gedragsfout, alleen opruimwerk. Voorstel: vervang de keuze door `5`. Gevonden in review ronde 2 van
+     PR #702 (GPT-6.1-Sol). — B
 
 ## Kalenders
 
