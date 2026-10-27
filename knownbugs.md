@@ -1360,11 +1360,3 @@ en noem het in je rapport of PR-tekst.
      Richting: maak de hele-dagherkenning bestand tegen deze afronding en voeg die
      kalender toe aan `check-drag-duration-badge.ts`. Gevonden in review r2 van #699
      (GPT-6.1-Sol). — B
-
-421. **O1 in `check-recovery-refused-later.ts` bewijst niet dat lezen en opslaan dezelfde sessieclaim afwachten.**
-     De check kijkt na één microtask alleen of beide promises nog lopen
-     (`tests/planning/check-recovery-refused-later.ts`, rond regel 79). De save loopt via
-     `recoveryWriteTail.then(...)` en verdere `await`-stappen, dus `saved` kan ook zonder wachten nog `false`
-     zijn. De lockdubbel (rond regel 55) geeft elke volgende aanvraag meteen vrij, zodat twee aparte claims
-     niet opvallen. Geen aangetoonde productfout, wel een gat in het testbewijs. Richting: tel de
-     lockaanvragen en eis vóór `releaseClaim()` precies één. Gevonden in review r1 van #709 (GPT-6.1-Sol). — B
