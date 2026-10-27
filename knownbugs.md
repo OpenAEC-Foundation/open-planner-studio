@@ -1311,6 +1311,16 @@ en noem het in je rapport of PR-tekst.
      door een assert dat het openen al een verse, berekende stand geeft. Gevonden in review ronde 1 van
      PR #590 (GPT-6.1-Sol, VERVOLG). — B
 
+398. **De rapportcontrole bij gedeeltelijke termenweigering kan een oud bestand accepteren.**
+     `tests/planning/check-translate-tbx.ts:248` controleert alleen of
+     terms-check-report.md bestaat. De eerdere stap op regels 224-226 maakt dat
+     rapport al. De volgende terms-lookup ruimt alleen JSON-bestanden op
+     (`scripts/translate/cli.ts:122`). Vervalt het nieuwe rapport bij gedeeltelijke
+     weigering, dan kan deze controle toch slagen. Verwijder het oude rapport vóór
+     de aanroep, of controleer de nieuwe rapportinhoud. Een testgat; geen gewone
+     productfout aangetoond. Twee onafhankelijke broncontroles; niet uitgevoerd.
+     — B
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
