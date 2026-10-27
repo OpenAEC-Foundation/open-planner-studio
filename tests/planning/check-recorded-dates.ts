@@ -561,6 +561,47 @@ const idOfWbs = (wbs: string) => S().tasks.find((t) => t.wbsCode === wbs)!.id;
 /** `earlyStart` van een taak in de levende store. */
 const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.earlyStart;
 
+// Knownbug 356: de verworpen solve mag de bronduur van een hammock niet op nul laten staan.
+{
+  const input = buildWriteIFCInput(createAppStoreContext().store.getState());
+  for (const durationUnit of ['days', 'hours'] as const) {
+    const hammock = mk('hammock', {
+      scheduleDuration: 5, durationUnit, ...(durationUnit === 'hours' ? { durationMinutes: 2400 } : {}),
+      scheduleStart: '2026-03-16T07:00', scheduleFinish: '2026-03-20T16:00',
+      earlyStart: '2026-03-16T07:00', earlyFinish: '2026-03-20T16:00',
+    }, { isHammock: true });
+    const duration = (task: Task) => [task.time.scheduleDuration, task.time.durationUnit, task.time.durationMinutes];
+    const want = duration(hammock);
+    // Ook bron-orakels (XER/XML) en B5-vóór-snapshots bewaren een onafhankelijke duurkopie.
+    for (const route of ['orakel', 'snapshot'] as const) {
+      const task = { ...hammock, time: { ...hammock.time } };
+      const oracle = { [task.id]: { start: task.time.earlyStart, finish: task.time.earlyFinish } };
+      const oracleBefore = JSON.stringify(oracle);
+      const captured = route === 'orakel' ? captureRecordedDates([task], undefined, oracle) : currentRecordedTimes({ tasks: [task] });
+      task.time.scheduleDuration = 0; task.time.durationUnit = 'hours'; task.time.durationMinutes = 0;
+      applyRecordedTimesToTasks([task], captured.times, input.calendar, input.calendars ?? []);
+      eq(`356 ${durationUnit}/${route}: onafhankelijke duurkopie`, duration(task), want);
+      eq(`356 ${durationUnit}/${route}: bronorakel ongewijzigd`, JSON.stringify(oracle), oracleBefore);
+    }
+    let text = writeIFC({ ...input, project: { ...input.project, startDate: '2026-03-02' }, tasks: [hammock], recordedSourceFormat: 'ifc' });
+    for (let round = 1; round <= 2; round++) {
+      const app = createAppStoreContext().store;
+      const parsed = readIFC(text);
+      eq(`356 ${durationUnit}/${round}: lezer houdt bronduur`, duration(parsed.tasks[0]), want);
+      app.getState().applyLoadedProject(parsed, { recompute: true });
+      eq(`356 ${durationUnit}/${round}: opgeslagen modus`, app.getState().datesAsRecorded, true);
+      eq(`356 ${durationUnit}/${round}: bronduur na verworpen solve`, duration(app.getState().tasks[0]), want);
+      eq(`356 ${durationUnit}/${round}: brondatums`, [app.getState().tasks[0].time.earlyStart,
+        app.getState().tasks[0].time.earlyFinish], ['2026-03-16T07:00', '2026-03-20T16:00']);
+      text = writeIFC(buildWriteIFCInput(app.getState()));
+      app.getState().runCPM();
+      eq(`356 ${durationUnit}/${round}: expliciet Bereken mag duur afleiden`, app.getState().tasks[0].time.scheduleDuration, 0);
+      app.getState().undo();
+      eq(`356 ${durationUnit}/${round}: undo geeft bronduur terug`, duration(app.getState().tasks[0]), want);
+    }
+  }
+}
+
 // ── (7) Detectie bij het laden ───────────────────────────────────────────────
 // Bestand met vastgelegde datums die NIET uit de logica volgen: b staat vast op 2026-03-16 terwijl
 // de FS-relatie hem direct ná a (finish 2026-03-06) zou plaatsen.
