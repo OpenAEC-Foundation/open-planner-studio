@@ -39,11 +39,13 @@ const eq = (label: string, got: unknown, want: unknown) => {
 
 let failTransaction: (() => Error) | null = null;
 let failRead = route === 'fallback';
+let transactions = 0;
 installFakeRecoveryIndexedDb({
-  onTransaction: () => { if (failTransaction) throw failTransaction(); },
+  onTransaction: () => { transactions++; if (failTransaction) throw failTransaction(); },
   onRead: () => { if (failRead) throw new Error('Tijdelijke leesfout, geen opslagweigering'); },
 });
 let releaseClaim: (() => void) | undefined;
+let claims = 0;
 const session = new Map<string, string>();
 (globalThis as unknown as { sessionStorage: unknown }).sessionStorage = {
   getItem: (k: string) => session.get(k) ?? null,
@@ -53,6 +55,7 @@ const session = new Map<string, string>();
 Object.defineProperty(globalThis, 'navigator', {
   configurable: true,
   value: { locks: { request: (name: string, _options: unknown, callback: (lock: object | null) => unknown) => {
+    claims++;
     if (route === 'overlap' && !releaseClaim) releaseClaim = () => { callback({ name }); };
     else callback({ name });
     return Promise.resolve();
@@ -81,12 +84,16 @@ if (route === 'overlap') {
   let saved = false;
   const reading = loadRecovery().then(() => { loaded = true; });
   const writing = saveRecovery(fullRecoverySave('A', [doc])).then(() => { saved = true; });
-  // Beide aanroepen zijn gestart terwijl de gedeelde sessieclaim nog wacht.
-  await Promise.resolve();
+  // Laat ook de via recoveryWriteTail ingeplande save en alle microtasks aan bod komen.
+  // Eén microtask kon een aparte, vrijgegeven schrijfclaim nog maskeren (421).
+  await new Promise<void>(resolve => { setImmediate(resolve); });
   eq('O1 beide acties wachten op de claim', [loaded, saved, typeof releaseClaim], [false, false, 'function']);
+  eq('O1b lezen en opslaan delen precies één lockaanvraag', claims, 1);
+  eq('O1c geen IndexedDB-transactie vóór de claim is vrijgegeven', transactions, 0);
   releaseClaim!();
   await Promise.all([reading, writing]);
   eq('O2 beide overlappende acties ronden af', [loaded, saved], [true, true]);
+  eq('O2b na afronden nog steeds dezelfde ene claim', claims, 1);
 }
 eq('L2b vóór de weigering staat crashherstel niet uit', recoveryStorageUnavailable(), false);
 failRead = false;
