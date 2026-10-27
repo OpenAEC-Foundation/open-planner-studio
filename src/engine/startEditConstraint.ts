@@ -2,6 +2,7 @@ import type { Sequence } from '@/types/sequence';
 import type { Task, TaskConstraint } from '@/types/task';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
 import { computedStart } from '@/utils/taskDates';
+import { addCalendarDays, parseDate, parseInstant } from '@/utils/dateUtils';
 import { isManuallyScheduled } from '@/utils/manualScheduling';
 
 /**
@@ -59,6 +60,25 @@ export function isLooseDayEndMilestone(
   const expanded = expandSummaryRelations(tasks, sequences).sequences;
   if (expanded.some(seq => seq.successorId === task.id)) return false;
   return task.milestoneKind === 'FINISH' || !expanded.some(seq => seq.predecessorId === task.id);
+}
+
+/**
+ * De laatste bekende ondergrens van een losse mijlpaal: de statusdatum (een niet-gestarte taak begint niet
+ * ervóór) en een SNET of FNET, ook als tweede beperking. Een datum zonder tijd telt ruim: een statusdatum en
+ * een FNET als het einde van die dag, een SNET als het begin. De motor legt deze grenzen vóór B6 op; ligt er
+ * een binnen de werkdag van een sleepdoel, dan kan het dagbegin-anker van `milestoneDragLanding` niet werken.
+ */
+export function milestoneLowerBound(task: Task, statusDate: string | undefined): Date | null {
+  const at = (value: string, endOfDay: boolean) => value.includes('T')
+    ? parseInstant(value)
+    : endOfDay ? addCalendarDays(parseDate(value), 1) : parseDate(value);
+  const bounds: Date[] = [];
+  if (statusDate) bounds.push(at(statusDate, true));
+  for (const c of [task.constraint, task.constraint2]) {
+    if ((c?.type === 'SNET' || c?.type === 'FNET') && c.date) bounds.push(at(c.date, c.type === 'FNET'));
+  }
+  const valid = bounds.filter(d => !Number.isNaN(d.getTime()));
+  return valid.length === 0 ? null : new Date(Math.max(...valid.map(d => d.getTime())));
 }
 
 /** Wat de regel met de beperking deed: een nieuwe SNET, of de datum van de bestaande bijgewerkt. */

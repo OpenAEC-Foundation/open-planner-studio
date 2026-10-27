@@ -16,10 +16,12 @@ import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { formatInstant, parseInstant } from '@/utils/dateUtils';
 import {
-  milestoneDragAnchor, milestoneSitsAtFinish, resolveMilestoneDayDrag, resolveMilestoneHourDrag,
+  milestoneDragLanding, milestoneSitsAtFinish, resolveMilestoneDayDrag, resolveMilestoneHourDrag,
 } from '@/engine/renderer/hourBarDragMath';
 import { resolveGanttAxis } from '@/engine/renderer/workdayAxis';
-import { constraintForDraggedStart, isLooseDayEndMilestone, predecessorDrivenTaskIds } from '@/engine/startEditConstraint';
+import {
+  constraintForDraggedStart, isLooseDayEndMilestone, milestoneLowerBound, predecessorDrivenTaskIds,
+} from '@/engine/startEditConstraint';
 import { builtInProfile, effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { dragWorkdaySteps } from '@/components/canvas/hooks/timelineSnap';
 import { shownStart } from '@/utils/taskDates';
@@ -133,17 +135,20 @@ function dragThenCalculate(id: string, zoom: 'day' | 'hour', amount: number): { 
   const original = parseInstant(shownStart(orig));
   const driven = predecessorDrivenTaskIds(S().tasks, S().sequences).has(id);
   const loose = isLooseDayEndMilestone(orig, S().tasks, S().sequences,
-    effectiveSchedulingOptions(S().project).milestoneWithoutPredecessorAtDayEnd);
+    effectiveSchedulingOptions(S().project).milestoneWithoutPredecessorAtDayEnd)
+    ? { floor: milestoneLowerBound(orig, S().project.statusDate) }
+    : null;
   const eng = new CalendarEngine(calendarForEngine(S().calendar));
-  const finishSide = milestoneSitsAtFinish(eng, original, orig.milestoneKind, driven, loose);
+  const finishSide = milestoneSitsAtFinish(eng, original, orig.milestoneKind, driven, loose !== null);
   const landed = zoom === 'day'
     ? resolveMilestoneDayDrag({
       calendar: eng, original, finishSide,
       workdaySteps: dragWorkdaySteps(original, finishSide ? 'end' : 'start', amount, new CalendarEngine(S().calendar), false, eng, S().calendar),
     })
     : resolveMilestoneHourDrag({ calendar: eng, original, finishSide, candidate: new Date(original.getTime() + amount * 3600_000), snapMinutes: 60 });
-  const dropped = formatInstant(landed, 'hour');
-  const anchor = formatInstant(milestoneDragAnchor(eng, landed, loose), 'hour');
+  const landing = milestoneDragLanding(eng, landed, loose, 60);
+  const dropped = formatInstant(landing.at, 'hour');
+  const anchor = formatInstant(landing.anchor, 'hour');
   const snet = driven ? constraintForDraggedStart(orig, dropped, true) : undefined;
   S().updateTask(id, {
     time: { ...orig.time, scheduleStart: anchor, scheduleFinish: anchor, earlyStart: dropped, earlyFinish: dropped },
@@ -264,6 +269,38 @@ for (const allDay of [false, true]) {
     eq(`handmatig ${allDay ? '24/7' : 'blok'}, ${zoom}zoom: F5 houdt ${dropped}`, calculated, dropped);
     S().runCPM();
     eq(`handmatig ${allDay ? '24/7' : 'blok'}, ${zoom}zoom: tweede F5 houdt het`, shownStart(S().tasks.find(t => t.id === m)!), dropped);
+  }
+}
+
+// Ondergrens binnen de werkdag (review #704 r5): statusdatum, SNET, tweede SNET of FNET op di 10:00. Een sleep
+// naar een geldig moment erna blijft na F5 staan. Op 07:00–16:00 is dat het dageinde zelf (di 16:00). Op 24/7 is
+// middernacht dan onbereikbaar (B6 vuurt niet meer na de ondergrens); de ruit landt één snapstap eerder.
+for (const allDay of [false, true]) {
+  for (const floor of ['status', 'SNET', 'tweede SNET', 'FNET'] as const) {
+    project(weekBlocks);
+    if (allDay) {
+      const b = [{ start: 0, end: 1440 }];
+      S().setCalendar({
+        ...S().calendar, workDays: [1, 2, 3, 4, 5, 6, 7], workStartHour: 0, workEndHour: 24, hoursPerDay: 24,
+        simpleBreakStartMinute: undefined, simpleBreakDurationMinutes: undefined,
+        workTime: { byWeekday: { 1: b, 2: b, 3: b, 4: b, 5: b, 6: b, 7: b } },
+      });
+    }
+    if (floor === 'status') S().setProject({ statusDate: '2026-09-08T10:00' });
+    const m = S().addTask({ name: `ondergrens ${floor}`, isMilestone: true });
+    if (floor !== 'status') {
+      S().updateTask(m, floor === 'tweede SNET'
+        ? { constraint2: { type: 'SNET', date: '2026-09-08T10:00' } }
+        : { constraint: { type: floor, date: '2026-09-08T10:00' } });
+    }
+    S().runCPM();
+    const tag = `ondergrens ${floor}, ${allDay ? '24/7' : '07–16'}`;
+    eq(`${tag}: uitgangspunt di 10:00`, shownStart(S().tasks.find(t => t.id === m)!), '2026-09-08T10:00');
+    const { dropped, calculated } = dragThenCalculate(m, 'hour', allDay ? 14 : 6);
+    eq(`${tag}: landt op ${allDay ? 'di 23:00 (middernacht onbereikbaar)' : 'di 16:00'}`, dropped, allDay ? '2026-09-08T23:00' : '2026-09-08T16:00');
+    eq(`${tag}: F5 houdt het`, calculated, dropped);
+    S().runCPM();
+    eq(`${tag}: tweede F5 houdt het`, shownStart(S().tasks.find(t => t.id === m)!), dropped);
   }
 }
 

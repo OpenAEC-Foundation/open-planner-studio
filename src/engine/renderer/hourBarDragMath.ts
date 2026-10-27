@@ -311,15 +311,28 @@ export function resolveMilestoneDayDrag(input: {
 }
 
 /**
- * Het startanker (`scheduleStart`) dat bij het neergezette moment `at` hoort. Meestal `at` zelf. Een losse
- * mijlpaal die B6 op het einde van zijn werkdag zet (`looseAtDayEnd`), krijgt op dat dageinde het BEGIN van die
- * werkdag als anker, precies zoals de motor hem na F5 achterlaat (`scheduleStart` dagbegin, `earlyStart`
- * dageinde). Anders schuift B6 een dageinde dat ook een blokbegin is (24/7: middernacht) bij F5 een dag door.
+ * Het moment en het startanker (`scheduleStart`) die bij het neergezette moment `at` horen. Meestal allebei `at`.
+ *
+ * Eén uitzondering: een losse mijlpaal onder B6 (`loose`, zie `isLooseDayEndMilestone`) op een dageinde dat ook
+ * een blokbegin is (24/7: middernacht). Als anker zou de motor dat lezen als dagbegin en B6 zet hem een dag verder.
+ * Daarom krijgt hij het BEGIN van zijn werkdag als anker, zoals de motor hem zelf na F5 achterlaat. Ligt er een
+ * ondergrens (`loose.floor`, `milestoneLowerBound`) ná dat dagbegin, dan tilt de motor het anker op en vuurt B6
+ * niet: het dageinde is dan onbereikbaar en de ruit landt één snapstap eerder. Een gewoon dageinde (16:00 met
+ * vrije tijd erna) bewaart de motor als anker zelf, ook met een ondergrens ervóór.
  */
-export function milestoneDragAnchor(calendar: CalendarEngine, at: Date, looseAtDayEnd: boolean): Date {
-  if (!looseAtDayEnd) return at;
+export function milestoneDragLanding(
+  calendar: CalendarEngine,
+  at: Date,
+  loose: { floor: Date | null } | null,
+  stepMinutes: number,
+): { at: Date; anchor: Date } {
+  const plain = { at, anchor: at };
+  if (!loose || !calendar.isWorkInstant(at)) return plain;
   const workday = workdayDateOfInstant(calendar, at, 'end');
   const bands = calendar.effectiveBandsOn(workday);
-  if (bands.length === 0 || workday.getTime() + bands[bands.length - 1].end * 60_000 !== at.getTime()) return at;
-  return new Date(workday.getTime() + bands[0].start * 60_000);
+  if (bands.length === 0 || workday.getTime() + bands[bands.length - 1].end * 60_000 !== at.getTime()) return plain;
+  const dayStart = new Date(workday.getTime() + bands[0].start * 60_000);
+  if (!loose.floor || loose.floor.getTime() <= dayStart.getTime()) return { at, anchor: dayStart };
+  const earlier = new Date(at.getTime() - stepMinutes * 60_000);
+  return { at: earlier, anchor: earlier };
 }
