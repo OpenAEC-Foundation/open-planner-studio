@@ -23,6 +23,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 12
     env:
+      PERF_BASE_REVISION: ${{ github.event.pull_request.base.sha }}
       TZ: Europe/Amsterdam
     steps:
       - uses: actions/checkout@v5
@@ -34,6 +35,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Controleer de vertalingsmerge
+        run: |
+          npm run i18n:resolve
+          git diff --exit-code HEAD -- src/i18n i18n
       - name: Echte tak kopiëren, plakken en ongedaan maken in Chromium
         run: |
           npx playwright install --with-deps --only-shell chromium
@@ -41,8 +46,10 @@ jobs:
       - name: Oude productbron faalt uitsluitend op de zes leesbudgetten
         run: |
           mkdir -p qa
-          trap 'git restore --source=HEAD -- src/state/insertedBranch.ts' EXIT
-          git show fbd4a3f9dcc7bdd308ab86b992d0b26f4670a553:src/state/insertedBranch.ts > src/state/insertedBranch.ts
+          backup=$(mktemp)
+          cp src/state/insertedBranch.ts "$backup"
+          trap 'cp "$backup" src/state/insertedBranch.ts; rm -f "$backup"' EXIT
+          git show "$PERF_BASE_REVISION:src/state/insertedBranch.ts" > src/state/insertedBranch.ts
           set +e
           bash tests/planning/run.sh check-paste-references.ts > qa/inserted-branch-before.log 2>&1
           result=$?

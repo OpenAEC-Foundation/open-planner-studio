@@ -1,20 +1,23 @@
 // T25: oude voorkeuren blijven staan en hebben geen invloed op bewerken of uurzoom.
-import { expect, test, waitForOps } from './fixtures/ops';
+import { expect, test, waitForOps, waitForWelcomeDialog } from './fixtures/ops';
 
 test('oude urenplanningvoorkeur aan en uit verandert niets; urentaak blijft bewerkbaar', async ({ page, ops: _ops }) => {
   for (const legacy of ['true', 'false']) {
     await page.evaluate(value => localStorage.setItem('ops-enableHourPlanning', value), legacy);
     await page.reload();
     await waitForOps(page);
+    // 285: eerst de asynchrone bootstrap afwachten, anders onderschept het late welkom Enter.
+    await waitForWelcomeDialog(page);
     const id = await page.evaluate(() => {
       const s = window.__OPS__!.store.getState();
-      s.setUI({ showPropertiesPanel: true, rightPanelCollapsed: false, allowMixedDayHour: true });
+      s.setUI({ showWelcomeDialog: false, showPropertiesPanel: true, rightPanelCollapsed: false, allowMixedDayHour: true });
       const id = s.addTask({ name: 'Altijd bewerkbare uren', manuallyScheduled: true });
       const task = window.__OPS__!.store.getState().tasks.find(t => t.id === id)!;
       s.updateTask(id, { time: { ...task.time, durationUnit: 'hours', durationMinutes: 240, scheduleDuration: 0.5 } });
       s.selectTask(id);
       return id;
     });
+    await expect(page.locator('[data-ops-welcome-dialog]')).toHaveCount(0);
     const input = page.locator('[data-ops-task-duration] [data-ops-duration-value]').first();
     await expect(input).toBeEnabled();
     await input.fill('6h');

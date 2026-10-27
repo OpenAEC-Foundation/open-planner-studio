@@ -9,8 +9,10 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const baseline = 'fbd4a3f9dcc7bdd308ab86b992d0b26f4670a553';
+const baseline = process.env.PERF_BASE_REVISION;
+if (!/^[a-f0-9]{40}$/.test(baseline ?? '')) throw new Error('PERF_BASE_REVISION moet de gecontroleerde PR-basis zijn');
 const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
+execFileSync('git', ['merge-base', '--is-ancestor', baseline, head], { cwd: root });
 const path = 'src/state/insertedBranch.ts';
 const oldSource = execFileSync('git', ['show', `${baseline}:${path}`], { cwd: root, encoding: 'utf8' });
 const newSource = readFileSync(join(root, path), 'utf8');
