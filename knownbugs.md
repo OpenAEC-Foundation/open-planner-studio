@@ -1077,6 +1077,11 @@ en noem het in je rapport of PR-tekst.
 
 ## Tests
 
+406. **De standaard kritieke balk haalt in hoog contrast geen 7:1 op de weekband.**
+    Op de gecomprimeerde werkdagenas meet de bestaande kleur `#ff6b6b` tegen weekband
+    `#141414` ongeveer 6,64:1. Dit is ook op de basis van PR #701 aanwezig; de
+    bestaande thema-contrasttest controleert alleen het gewone vlak `#0a0a0a`. — B
+
 405. **De kleurkeuze voor het kritieke pad heeft nog geen blijvende browsercontrole.**
     De route is in een losse browserpagina met de echte lintcomponent gecontroleerd, maar de
     CI-browsertests doorlopen kleur kiezen, modus wisselen en herstellen nog niet. Voeg die

@@ -159,22 +159,23 @@ export function ensureCustomBarVisible(hex: string, dark: boolean): string {
 }
 
 /** Hoog contrast gebruikt de echte achtergrond en de bestaande grens van 7:1. */
-export function ensureHighContrastBarVisible(hex: string, background: string): string {
+export function ensureHighContrastBarVisible(hex: string, backgrounds: readonly string[]): string {
   const rgb = (value: string): [number, number, number] | null => {
     const match = /^#([0-9a-f]{6})$/i.exec(value);
     if (!match) return null;
     return [0, 2, 4].map(i => parseInt(match[1].slice(i, i + 2), 16)) as [number, number, number];
   };
-  const bg = rgb(background) ?? [10, 10, 10];
+  const bgs = backgrounds.map(bg => rgb(bg) ?? [10, 10, 10] as [number, number, number]);
+  const minimumContrast = (color: [number, number, number]) => Math.min(...bgs.map(bg => contrastRatio(color, bg)));
   const original = rgb(hex);
-  if (!original || contrastRatio(original, bg) >= 7) return hex;
+  if (!original || minimumContrast(original) >= 7) return hex;
   const { h, s, l } = hexToHsl(hex);
-  const towardWhite = contrastRatio([255, 255, 255], bg) >= contrastRatio([0, 0, 0], bg);
+  const towardWhite = minimumContrast([255, 255, 255]) >= minimumContrast([0, 0, 0]);
   let lightness = l;
   for (let i = 0; i < 100; i++) {
     lightness = Math.max(0, Math.min(1, lightness + (towardWhite ? 0.01 : -0.01)));
     const result = hslToHex(h, s, lightness);
-    if (contrastRatio(rgb(result)!, bg) >= 7) return result;
+    if (minimumContrast(rgb(result)!) >= 7) return result;
   }
   return towardWhite ? '#ffffff' : '#000000';
 }

@@ -45,9 +45,9 @@ const custom={mode:'critical',colors:{critical:'#661122',nearCritical:'#553311',
 S().setOverlays({barColors:custom});
 let state=S();
 console.log('SOLVED',JSON.stringify(state.tasks.map(t=>({name:t.name,critical:t.time.isCritical,near:t.time.isNearCritical,path:t.time.floatPath,float:t.time.totalFloat}))));
-function screen(dark:boolean, selection:any=state.ui.barColorSelection, highContrast=false){
+function screen(dark:boolean, selection:any=state.ui.barColorSelection, highContrast=false, compressed=false){
  const {ctx,fills}=makeCtx();
- new GanttRenderer(ctx,{rows:state.tasks.map(t=>({kind:'task',rowKey:t.id,task:t,depth:0,dimmed:false})),sequences:state.sequences,calendar:state.calendar,view:{...state.view,scrollX:0,scrollY:0},selectedTaskIds:[],canvasWidth:1200,canvasHeight:400,rowHeight:28,headerHeight:60,barColorSelection:selection,darkTheme:dark,highContrast,palette:highContrast?{...readGanttPalette(),bg:"#0a0a0a",critical:"#FF6B6B",normal:"#60A5FA",milestone:"#D9A6FF"}:undefined,showFloatBand:false}).render();
+ new GanttRenderer(ctx,{rows:state.tasks.map(t=>({kind:'task',rowKey:t.id,task:t,depth:0,dimmed:false})),sequences:state.sequences,calendar:state.calendar,view:{...state.view,scrollX:0,scrollY:0},selectedTaskIds:[],canvasWidth:1200,canvasHeight:400,rowHeight:28,headerHeight:60,barColorSelection:selection,darkTheme:dark,highContrast,palette:highContrast?{...readGanttPalette(),bg:"#0a0a0a",gridWeekBand:"#141414",gridWeekend:"#1c1c1c",critical:"#FF6B6B",normal:"#60A5FA",milestone:"#D9A6FF"}:undefined,showFloatBand:false,compressNonWorkdays:compressed}).render();
  return state.tasks.map((t,i)=>({name:t.name,fills:fills.filter(f=>f.y>=60+i*28 && f.y+f.h<=60+(i+1)*28 && f.w>4).map(f=>f.style)}));
 }
 console.log('SCREEN_LIGHT',JSON.stringify(screen(false)));
@@ -112,10 +112,12 @@ check(JSON.stringify(baseLight[0]?.fills) === JSON.stringify(editedLight[0]?.fil
 check(JSON.stringify(baseLight[1]?.fills) === JSON.stringify(editedLight[1]?.fills), 'bijna-kritieke standaard blijft in licht');
 check(JSON.stringify(baseDark[0]?.fills) === JSON.stringify(editedDark[0]?.fills), 'kritieke standaard blijft in donker');
 check(baseReport.bars[1]?.fill === editedReport.bars[1]?.fill, 'bijna-kritieke standaard blijft in rapport');
-for (const color of ['#000000', '#333333', '#777777', '#aaaaaa']) {
-  const drawn = screen(false, { mode: 'critical', colors: { critical: color } }, true)[0]?.fills[0] ?? '#000000';
+for (const color of ['#000000', '#333333', '#777777', '#aaaaaa', '#0000ff', '#ff0000', '#663399']) {
   const rgb = (hex: string): [number, number, number] => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)) as [number, number, number];
-  check(contrastRatio(rgb(drawn), rgb('#0a0a0a')) >= 7, `hoog contrast: ${color} als ${drawn} haalt 7:1`);
+  for (const [compressed, bg] of [[true, '#141414'], [false, '#1c1c1c']] as const) {
+    const drawn = screen(false, { mode: 'critical', colors: { critical: color } }, true, compressed)[0]?.fills[0] ?? '#000000';
+    for (const surface of ['#0a0a0a', bg]) check(contrastRatio(rgb(drawn), rgb(surface)) >= 7, `hoog contrast: ${color} als ${drawn} op ${surface} haalt 7:1`);
+  }
 }
 const floatOptions = legacyOptionsToProfile({ floatPaths: { enabled: true, method: 'FREE_FLOAT', maxPaths: 10 } });
 S().setProject({ schedulingOptions: floatOptions.options }); S().runCPM(); state = S();

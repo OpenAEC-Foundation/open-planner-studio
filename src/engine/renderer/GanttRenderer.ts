@@ -414,7 +414,7 @@ export class GanttRenderer {
     const selection = this.opts.barColorSelection;
     const custom = selection?.mode === 'critical' ? selection.colors : undefined;
     const visible = (color: string) => this.highContrast
-      ? ensureHighContrastBarVisible(color, this.colors.bg)
+      ? ensureHighContrastBarVisible(color, [this.colors.bg, this.compressed ? this.colors.gridWeekBand : this.colors.gridWeekend])
       : ensureCustomBarVisible(color, this.opts.darkTheme === true);
     if (task.time.isCritical) return custom?.critical ? visible(custom.critical) : this.colors.critical;
     if (task.time.isNearCritical) return custom?.nearCritical ? visible(custom.nearCritical) : this.colors.nearCritical;
