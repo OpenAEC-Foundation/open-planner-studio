@@ -2,6 +2,7 @@
 // commit met Enter en bewaart één undo-stap.
 import type { Locator, Page } from '@playwright/test';
 import { expect, seedProject, state, test } from './fixtures/ops';
+import { checkPublishedSelection } from './fixtures/publishedSelection';
 
 function taskRow(page: Page, taskId: string, surfaceId = 'full-task-grid'): Locator {
   return page.locator(
@@ -46,7 +47,7 @@ async function rowPoint(row: Locator, zone: 'center' | 'after' = 'center'): Prom
   };
 }
 
-test('table surface: TableEditor navigeert, commit en Ctrl+Z via echte toetsen', async ({ page, ops: _ops }) => {
+test('table surface: TableEditor navigeert, commit en Ctrl+Z via echte toetsen', async ({ page, ops: _ops }, info) => {
   const [firstId, secondId] = await seedProject(page, [
     { name: 'Oorspronkelijke naam', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
     { name: 'Volgende rij', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
@@ -101,6 +102,7 @@ test('table surface: TableEditor navigeert, commit en Ctrl+Z via echte toetsen',
   const restored = await state(page);
   expect(restored.undoDepth).toBe(before.undoDepth);
   expect(restored.redoDepth).toBe(before.redoDepth + 1);
+  await checkPublishedSelection(page, info);
 });
 
 /**

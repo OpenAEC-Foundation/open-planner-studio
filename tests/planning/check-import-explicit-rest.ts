@@ -427,12 +427,12 @@ const thrice = <T,>(want: T): T[] => [want, want, want];
 // ── 9. P6 XML: `In Progress`, fysiek 100 %, 48 u duur, 32 u rest, geen werkelijk einde ──────────
 // De invoer van de reviewer (r2). Vóór de fix: 1920 → 0 restminuten, status COMPLETED en een afgeleid
 // werkelijk einde op de statusdatum, op alle drie de meetpunten.
-function p6xml(over: { status?: string; actualFinish?: string } = {}): ImportResult {
+function p6xml(over: { status?: string; actualFinish?: string; restHours?: number } = {}): ImportResult {
   const finish = over.actualFinish ? `<ActualFinishDate>${over.actualFinish}</ActualFinishDate>` : '';
   return readP6XML(`<?xml version="1.0"?><APIBusinessObjects><Project><ObjectId>1</ObjectId><Name>P</Name>`
     + '<PlannedStartDate>2026-06-01T08:00:00</PlannedStartDate><DataDate>2026-06-03T08:00:00</DataDate>'
     + '<Activity><ObjectId>1</ObjectId><Id>X</Id><Name>Lopend, fysiek 100 procent</Name>'
-    + '<PlannedDuration>48</PlannedDuration><RemainingDuration>32</RemainingDuration>'
+    + `<PlannedDuration>48</PlannedDuration><RemainingDuration>${over.restHours ?? 32}</RemainingDuration>`
     + '<PlannedStartDate>2026-06-01T09:15:00</PlannedStartDate><PlannedFinishDate>2026-06-08T15:15:00</PlannedFinishDate>'
     + `<Status>${over.status ?? 'In Progress'}</Status><ActualStartDate>2026-06-01T09:15:00</ActualStartDate>${finish}`
     + '<PercentCompleteType>Physical</PercentCompleteType><PhysicalPercentComplete>1</PhysicalPercentComplete>'
@@ -496,9 +496,9 @@ function mspdi(over: { actualFinish?: string; rest?: string } = {}): ImportResul
 }
 
 // ── 12. Export door OPS naar P6 XML of MSPDI en terug: lopend op 100 % blijft lopend ─────────────
-// De P6-XML-writer schrijft `Completed` op 100 %; in een OPS-export is de status geen bron. De lezer kijkt dan
-// naar het werkelijke einde en de rest, zoals bij MSPDI. Een voltooide taak heeft in OPS altijd een werkelijk
-// einde en blijft voltooid met rest 0.
+// Oude P6-XML-exports schreven `Completed` op 100 %; positieve rest zonder werkelijk einde blijft daar
+// het compatibiliteitsteken. Nieuwe exports schrijven expliciet `In Progress`, ook bij rest 0.
+// Een werkelijk einde blijft doorslaggevend voor voltooid.
 {
   const viaP6 = (q: ImportResult) => readP6XML(writeP6XML(q.project, q.calendar, q.tasks, q.sequences, [], [], q.resourceCalendars ?? []));
   const viaMs = (q: ImportResult) => readMSPDI(writeMSPDI(q.project, q.calendar, q.tasks, q.sequences, [], [], q.resourceCalendars ?? []));
@@ -510,6 +510,17 @@ function mspdi(over: { actualFinish?: string; rest?: string } = {}): ImportResul
     .match(/<Status>([^<]*)<\/Status>/g)?.filter(x => x !== '<Status>Active</Status>' && x !== '<Status>Planned</Status>');
   eq('P6-XML-export: lopend op 100 % ⇒ In Progress, voltooid ⇒ Completed',
     [p6Status(p6xml()), p6Status(p6xml({ status: 'Completed' }))], [['<Status>In Progress</Status>'], ['<Status>Completed</Status>']]);
+  const exportP6 = (q: ImportResult) => writeP6XML(q.project, q.calendar, q.tasks, q.sequences, [], [], q.resourceCalendars ?? []);
+  const zero = p6xml({ restHours: 0 });
+  eq('381 bron loopt op 100 % met nul rest', state(zero), ['STARTED', 0, null]);
+  eq('381 eigen P6-export houdt lopend bij nul rest: lezen, openen en IFC',
+    threePoints(viaP6(zero), 'eigen-p6-rest0.xml').map(p => [p[0], p[1], p[3]]), thrice(['STARTED', 0, null]));
+  const oldExport = exportP6(p6xml()).replace('<Status>In Progress</Status>', '<Status>Completed</Status>');
+  eq('381 oude OPS-export met Completed en positieve rest blijft lopend', state(readP6XML(oldExport)), ['STARTED', 1920, null]);
+  const actualEnd = exportP6(zero).replace('<Status>In Progress</Status>',
+    '<Status>In Progress</Status><ActualFinishDate>2026-06-02T15:00:00</ActualFinishDate>');
+  eq('381 eigen export: werkelijk einde wint ook van In Progress met nul rest', state(readP6XML(actualEnd)),
+    ['COMPLETED', 0, '2026-06-02T15:00']);
   eq('OPS → MSPDI → OPS: lopend op 100 % houdt 1920 min en geen werkelijk einde', state(viaMs(p6xml())), ['STARTED', 1920, null]);
   const done = p6xml({ status: 'Completed' });
   eq('OPS → P6 XML → OPS: voltooid blijft voltooid met rest 0', state(viaP6(done)).slice(0, 2), ['COMPLETED', 0]);

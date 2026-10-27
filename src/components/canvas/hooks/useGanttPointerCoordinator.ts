@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import { editableSplitPieces, useBarDrag } from './useBarDrag';
@@ -472,6 +472,11 @@ export function useGanttPointerCoordinator(
     setTooltip(null);
     splitGesture.clearHover();
   }, [splitGesture]);
+  // Een hit bevat de taak van de laatst getekende frame. Na F5 kan die achterlopen en een
+  // stilstaande muis levert geen nieuwe hit. Gebruik daarom live taakdata voor de tooltip (379).
+  const tooltipTaskId = tooltip?.task.id;
+  const tooltipTask = useMemo(() => tooltipTaskId ? tasks.find(task => task.id === tooltipTaskId) : undefined, [tasks, tooltipTaskId]);
+
   const closeContextMenu = useCallback(() => setContextMenu(null), []);
   const closeRelationPopover = useCallback(() => setRelationPopover(null), []);
 
@@ -508,7 +513,7 @@ export function useGanttPointerCoordinator(
     },
     contextMenu,
     relationPopover,
-    tooltip,
+    tooltip: tooltip && tooltipTask ? { ...tooltip, task: tooltipTask } : null,
     closeContextMenu,
     closeRelationPopover,
   };
