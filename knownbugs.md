@@ -114,10 +114,34 @@ en noem het in je rapport of PR-tekst.
     (pin 0); ook de verzameling afwijkende bestanden wijkt daardoor af. Dezelfde uitslag met
     `CPMSolver.ts` en `ResourceLeveler.ts` uit die main-commit, zonder de PF-optimalisatie.
     De gecombineerde `measure:profiles` eindigt op exit 1; de P6-cellen zijn ongewijzigd.
-    Geen baseline of motorcode hiervoor aangepast; oorzaak niet verder onderzocht.
     Een bisect over de merges van main op 2026-10-26 wijst merge #494 (`363bb638f`, korte
     MPP-resourceplaatsaanduidingen overslaan) aan als eerste rode merge; #446 (`811999328`) is nog
-    groen. — B
+    groen.
+    Oorzaak (onderzocht op 2026-10-27): bij dezelfde bestandsbytes, dezelfde meetdekking (corpus en crawl,
+    661 bestanden op aia09-mp50) en de gewone toetsmodus is de uitkomst vast rood; klok, tijdzone, taal, pad
+    en volgorde veranderen dat niet, alleen de commit. Wordt de crawlmap niet gescand, dan meet de check dit
+    bestand niet en kan hij groen eindigen (zie 427). #494 is juist
+    (`src/services/mpp/mppEntities.ts:302`, knownbug 119): de lezer slaat nu de korte records van 16 bytes
+    over en leest Resource 8a en 8b uit de volle records. Die zijn LABOR, zoals in MPXJ; de oude lezer
+    maakte er MATERIAL van. Daardoor laat de MATERIAL-filter (`src/services/mpp/mppReader.ts:1501`, zie
+    426) beide toewijzingen van Task 8 meewandelen. De wandeling (`src/engine/scheduler/CPMSolver.ts:3040`,
+    `walk.workMinutes ?? durMin`) loopt de werkminuten zonder de inzet van 12,5 % (de beperking bij
+    `mppReader.ts:1356`). Task 8 eindigt zo op 2026-02-16 13:59 in plaats van 02-20 17:00 (MS Project);
+    Task 5 en 6 volgen met 02-17 17:00 in plaats van 02-20 17:00.
+    Werk gedeeld door inzet als vaste regel is geen oplossing: over de 661 bestanden van de meting
+    komen dan 3 taken dichter bij MS Project en 32 verder weg (OzBuild Workshop 17 en 18: een toewijzing
+    met inzet 0,0006 en 30 werkminuten wordt 50.000 min). Een pin van 6 botst met de nulpoort
+    `GOAL_ZERO_DEVIATIONS` (`tests/planning/check-mpp-fidelity.ts:770`, orkestratorbesluit O1 van
+    2026-08-17); een uitzondering daarop ligt bij de eigenaar. Pin en poort zijn niet aangepast. — B
+
+426. **De MATERIAL-filter in de `.mpp`-lezer steunt voor zijn voorbeeld op een verkeerde aanname.**
+    `src/services/mpp/mppReader.ts:1495–1501` sluit MATERIAL-toewijzingen uit van de wandeling en noemt als
+    reden `timephased-cost-rollup.mpp`, "Task 8": ~4 werkdagen te vroeg. Die resources (8a, 8b) waren alleen
+    MATERIAL door een leesfout in de oude lezer (de korte records van 16 bytes, opgelost in #494); in de bron
+    en in MPXJ zijn ze LABOR. De filter kwam dus goed uit om de verkeerde reden, en het commentaar klopt niet
+    meer. Of de filter voor echte MATERIAL-toewijzingen juist is, is niet apart getoetst. Voorstel: het
+    commentaar herschrijven en de filter toetsen met een bestand dat echt MATERIAL-toewijzingen met werk heeft.
+    Zie 187. Gevonden bij het onderzoek naar 187 op 2026-10-27. — B
 
 311. **Een urentaak na een FF-relatie met een kalendertijdlead kan vóór haar finish-ondergrens eindigen.**
     Nagespeeld in de minutenmodelmeting van F1b: kalender ma-vr 07-12 + 13-16, A 48 u eindigt ma
@@ -1287,17 +1311,33 @@ en noem het in je rapport of PR-tekst.
      control-relaties over, na kalender en metadata; voeg een gerichte regressiecheck toe.
      Vastgesteld door twee onafhankelijke broncontroles bij PR #641; niet uitgevoerd. — B
 
-412. **De MS Project-meting van `measure:profiles` wisselt tussen runs op één bestand.** `check-mpp-fidelity.ts`
-     met corpus gaf op 2026-10-27 op aia09-mp50 soms 3 afwijkingen in `mpxj/junit/data/timephased-cost-rollup.mpp`
-     (Task 5 en 6 einde 2026-02-17 17:00 in plaats van 02-20 17:00, Task 8 02-16 13:59 in plaats van 02-20), soms 0.
-     Rood op `main` @ `433cca3b2` (twee runs, 19:55 en 20:05), daarna groen op dezelfde commit (drie runs, 20:21).
-     Een bisect wees eerst #536 en daarna #538 aan; beide zijn bij herhaling groen en raken geen rekencode. Het
-     corpusbestand is niet veranderd (mtime 2026-08-14). Ook een run op 2026-10-23 (een andere branch) gaf deze 3.
-     De groene runs liepen alle in een losse worktree (`/tmp/690-bisect`); in de reviewworktree van #707 was het
-     5 van 5 keer rood. Het kan dus ook aan de worktree liggen, niet alleen aan het moment.
-     De check leest geen klok of cache die ik vond. Voorstel: de check een paar keer achter elkaar draaien en de
-     uitkomst van de lezer en de motor voor dit bestand vergelijken tussen een rode en een groene run. Gevonden bij
-     #690 fase 1 punt 1. — S
+427. **De MS Project-meting eindigt groen als de crawlmap niet gescand wordt, ook in `measure:profiles`.**
+     `tests/planning/check-mpp-fidelity.ts` neemt `OPS_MPP_CORPUS` en `OPS_MPP_CRAWL`, of zonder die variabelen
+     een vast pad onder `/home/nozzit/…` (`:492–493`). Een lus wordt overgeslagen als die effectieve map
+     ontbreekt of geen `.mpp`-bestand bevat (`:715–725`, `:731–741`). Dat staat in tussenregels (`:720`, `:735`),
+     maar de slotregel (`:888`) zegt toch "alle checks groen". Gemeten op aia09-mp50, waar de `/home/nozzit/…`-
+     paden niet bestaan:
+     - Geen van beide variabelen gezet (ook als alleen `OPS_XER_CORPUS` gezet is): 0 bestanden, "alle checks
+       groen (678)", exit 0. `measure:profiles` noemt dit wel rood ("niet gemeten").
+     - Alleen `OPS_MPP_CORPUS` gezet: 3 bestanden, "alle checks groen (703)", exit 0. Ook `classifyMsp` in
+       `scripts/measure-profiles-status.mjs:116–122` geeft dan GROEN (`scanned: 3`). De 658 crawlbestanden,
+       met `timephased-cost-rollup.mpp` (knownbug 187), zijn dan niet gemeten.
+     Op een machine waar de crawl op het vaste pad staat, wordt hij ook zonder `OPS_MPP_CRAWL` gescand. Wie
+     alleen op de slotregel of de exitcode oordeelt, ziet zo een vals groen. De CI draait bewust zonder
+     corpus, dus een faal in de check zelf is niet de oplossing. Voorstel: de slotregel noemt het aantal
+     gescande bestanden en welke lus is overgeslagen; `measure:profiles` meldt een gedeeltelijke meting
+     (een lus overgeslagen) apart en niet als GROEN. Gevonden bij het onderzoek naar 187 en in review ronde 1
+     van #712 (GPT-6.1-Sol), 2026-10-27. — B
+
+428. **`check-mpp-import.ts` toetst voor `mpp14resource.mpp` nog de oude resource-indeling.**
+     `tests/planning/check-mpp-import.ts:3255–3265` noemt Wade Golden en Jon Iles MATERIAL en eist voor "Task A"
+     precies één wandeling. Sinds #494 (zie 187 en 426) leest de lezer alle drie de toewijzingen als LABOR en
+     geeft hij drie wandelingen van 1440 werkminuten. Met het bestand aanwezig
+     (`OPS_MPP_RESOURCE_FIXTURE=…/testdata-crawl/mpxj/junit/data/mpp14resource.mpp`) is de check rood: 1 afwijking
+     van 3117, alleen deze assertie; de einddatum van "Task A" (2006-08-30 08:00, zoals MS Project) klopt nog.
+     Het standaardpad (`:3208`) is `/home/nozzit/…`; op aia09-mp50 en in de CI wordt de case daarom overgeslagen,
+     op de laptop van de eigenaar waarschijnlijk niet. Voorstel: de assertie en het commentaar aanpassen aan
+     LABOR en drie wandelingen, samen met 426. Gevonden in review ronde 1 van #712 (GPT-6.1-Sol), 2026-10-27. — B
 
 ## Wensen en open taken (geen bug)
 
