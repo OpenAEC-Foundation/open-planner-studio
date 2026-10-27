@@ -354,6 +354,26 @@ en noem het in je rapport of PR-tekst.
      het deel onder de minuut vast over daggrenzen; een gewone dagtaak in de regressie. Gevonden in review ronde 1 van
      #687 (GPT-6.1-Sol). — B
 
+395. **Een positieve duur die op nul ms rondt, is bij een rauw MS Project-werkeinde nog geen nulduur voor de
+     solver.** `src/engine/scheduler/CPMSolver.ts:1281–1284`: de wacht toetst `totalMinutes > 0` en verlegt een rauw
+     werkeinde eerst naar het begin van dezelfde dag; pas daarna behandelt de kalender de lengte als 0. Via de store:
+     MS Project-profiel, ma–vr 08–16, projectstart 1 juni 2026 08:00, worteltaak met eigen start vr 29 mei 16:00 en
+     duur 0,000001 min. Uitkomst: ES vr 16:00, EF vr 08:00 (een omgekeerde spanne), LS vr 16:00, speling 0. Een
+     letterlijke nulduur houdt ES en EF op vr 16:00. Op main dezelfde omgekeerde vroege spanne, plus LS do 16:00 en
+     −480 min speling; #694 veroorzaakt of verergert dit niet. Voorstel: de wacht toetst de lengte na de
+     ms-omzetting (`CalendarEngine.walkMs`). Gevonden in review ronde 1 van #694 (GPT-6.1-Sol). — B
+
+396. **Een duur die minder dan een halve ms voorbij een werkeinde reikt, boekt die rest op de dag van dat
+     werkeinde.** Sinds #694 rekent de werkplaatsing (`src/engine/scheduler/workPlacement.ts`, urenmaat) de tijdas in
+     hele ms en boekt ze de bronduur. Ma–vr 08:00–16:00, één taak van 480,000005 min vanaf ma 08:00: het einde is
+     ma 16:00 (zoals `addWorkMinutes`), en maandag krijgt alle 480,000005 min. Bij capaciteit 1 is maandag dan
+     1,0000000104 belast, boven de marge van 1e-9 (`capacityTolerance.ts`): de belasting meldt maandag overbezet en
+     de nivelleerder geeft de taak een onoplosbaar conflict op maandag. Op main ging de rest van 0,3 ms naar dinsdag
+     (een dag na het einde van de solver), en bleef maandag precies vol. Geen gewoon importgeval gevonden: XER-uren
+     met zes decimalen geven een rest van een veelvoud van 3,6 ms, `.mpp` en MSPDI tellen in tienden van minuten.
+     Voorstel: de eigenaar kiest of een rest onder een halve ms meetelt voor de capaciteit. Gevonden in fixronde 1
+     van #694. — B
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
