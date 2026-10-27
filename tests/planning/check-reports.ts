@@ -798,6 +798,22 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   ok('curve lang project: hoogstens 240 punten', lr.earlyCurve.length <= PROGRESS_CURVE_MAX_SAMPLES, String(lr.earlyCurve.length));
   eq('curve lang project: as tot het laatste einde', lr.axis?.to, '2028-06-30');
   eq('curve lang project: eindigt op 100 %', lr.earlyCurve[lr.earlyCurve.length - 1].pct, 100);
+  // Review #705 r1: de statusdag ligt bij een lang project tussen twee meetpunten; elke curve heeft
+  // toch een exact punt op de statusdatum, gelijk aan het kerncijfer *Gepland*.
+  const pointAt = (c: CurvePoint[] | undefined, day: string) => c?.find(p => p.day === day)?.pct;
+  near('curve: geplande curve op de statusdatum = gepland %', pointAt(r.plannedCurve, '2026-09-18'), r.plannedPct, 0.05);
+  const twee = ctx.tasks
+    .filter(t => t.id === G || t.id === D)
+    .map(t => ({ ...t, time: { ...t.time, ...(t.id === G
+      ? { earlyStart: '2026-09-18', earlyFinish: '2026-09-18', lateStart: '2026-09-18', lateFinish: '2026-09-18', scheduleDuration: 1 }
+      : { earlyStart: '2028-09-18', earlyFinish: '2028-09-18', lateStart: '2028-09-18', lateFinish: '2028-09-18', scheduleDuration: 1 }),
+      actualStart: undefined, actualFinish: undefined, completion: 0 }, constraint: undefined }));
+  const tr = computeProgressCurve({ ...ctx, tasks: twee, baseline: null });
+  ok('curve twee jaar: meetstap groter dan één dag', tr.earlyCurve.length <= PROGRESS_CURVE_MAX_SAMPLES + 1);
+  near('curve twee jaar: gepland % = de helft (één van twee gelijke taken)', tr.plannedPct, 50, 0.05);
+  near('curve twee jaar: vroegste curve op de statusdatum = gepland %', pointAt(tr.earlyCurve, '2026-09-18'), tr.plannedPct, 0.05);
+  near('curve twee jaar: laatste curve op de statusdatum', pointAt(tr.lateCurve, '2026-09-18'), 50, 0.05);
+  ok('curve twee jaar: punten blijven op volgorde', tr.earlyCurve.every((p, i) => i === 0 || tr.earlyCurve[i - 1].day < p.day));
   ok('curve lang project: maandstrepen', lr.ticks.length > 0 && lr.ticks.length <= 13 && lr.ticks.every(t => t.kind === 'month' && t.day.endsWith('-01')));
 }
 

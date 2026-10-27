@@ -368,6 +368,13 @@ en noem het in je rapport of PR-tekst.
      het deel onder de minuut vast over daggrenzen; een gewone dagtaak in de regressie. Gevonden in review ronde 1 van
      #687 (GPT-6.1-Sol). — B
 
+405. **De voortgangscurve rekent een urenproject op dagstand.** `src/engine/reports/progressCurve.ts`
+     (`elapsedFraction`, `referenceDay`): de statusdatum telt als een hele, gewerkte dag. Een taak van 08:00 tot
+     16:00 met statusdatum 12:00 en 50 % gereed geeft *Gepland* 100 % tegen *Werkelijk* 50 %, dus een schijnbare
+     achterstand. Zo staat het ook in de spec (`2026-10-27-voortgangscurve-rapport.md`) en zo rekent het
+     voortgangsrapport al. Richting: bij een statusmoment met tijd op dat moment vergelijken, of de dagstand in het
+     rapport noemen. Gevonden in review ronde 1 van #705 (GPT-6.1-Sol). — B
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
@@ -1273,6 +1280,11 @@ en noem het in je rapport of PR-tekst.
      invoer is niet aangetoond. Richting: sla voor `Number.isNaN(cal.id)` alleen de
      control-relaties over, na kalender en metadata; voeg een gerichte regressiecheck toe.
      Vastgesteld door twee onafhankelijke broncontroles bij PR #641; niet uitgevoerd. — B
+
+406. **De voortgangscurve heeft geen browsertest op de getekende lijnen.** `tests/browser/table-reports.spec.ts`
+     kijkt alleen of de vier kaarten en de grafiek er staan; de ligging zelf toetst `check-print-report.ts` op
+     `layoutCurveChart` en de PDF-tekenaar. Een fout alleen in de SVG-weergave (`CurveChartView.tsx`) valt zo niet
+     op. Gevonden bij #705. — S
 
 ## Wensen en open taken (geen bug)
 

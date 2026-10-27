@@ -91,7 +91,8 @@ export interface ProgressCurveResult {
 export const PROGRESS_CURVE_MAX_SAMPLES = 240;
 
 const DAY_MS = 86_400_000;
-function dayNum(iso: string): number {
+/** Dagnummer (dagen sinds 1970-01-01, UTC) van de dag-component van een ISO-datum. */
+export function isoDayNumber(iso: string): number {
   const [y, m, d] = iso.slice(0, 10).split('-').map(Number);
   return Math.round(Date.UTC(y, m - 1, d) / DAY_MS);
 }
@@ -130,16 +131,16 @@ function curveOver(
   const n = samples.length;
   const sums = new Array<number>(n).fill(0);
   const full = new Array<number>(n + 1).fill(0);
-  const first = dayNum(samples[0]);
-  const step = n > 1 ? dayNum(samples[1]) - first : 1;
+  const first = isoDayNumber(samples[0]);
+  const step = n > 1 ? isoDayNumber(samples[1]) - first : 1;
   for (const it of items) {
     const win = windowOf(it);
     if (!win) continue;
     const amount = it.weight * valueScale(it);
     if (amount <= 0) continue;
     // Eerste punt op of na de startdag; vanaf het eerste punt op of na de einddag is de taak "vol".
-    const i0 = Math.max(0, Math.ceil((dayNum(win.start) - first) / step));
-    const iFull = Math.max(0, Math.ceil((dayNum(win.finish) - first) / step));
+    const i0 = Math.max(0, Math.ceil((isoDayNumber(win.start) - first) / step));
+    const iFull = Math.max(0, Math.ceil((isoDayNumber(win.finish) - first) / step));
     for (let i = i0; i < Math.min(iFull, n); i++) sums[i] += amount * elapsedFraction(it.eng, win, samples[i]);
     if (iFull < n) full[iFull] += amount;
   }
@@ -180,7 +181,7 @@ function axisTicks(from: number, to: number): { day: string; kind: 'month' | 'we
   if (Number(f.slice(8, 10)) !== 1) { m++; if (m > 12) { m = 1; y++; } }
   for (;;) {
     const iso = `${y}-${String(m).padStart(2, '0')}-01`;
-    if (dayNum(iso) > to) break;
+    if (isoDayNumber(iso) > to) break;
     months.push(iso);
     m++; if (m > 12) { m = 1; y++; }
   }
@@ -246,8 +247,8 @@ export function computeProgressCurve(ctx: ReportContext): ProgressCurveResult {
   const span = (w: Window | undefined) => {
     if (!w) return;
     // Eén dag vóór de eerste start, zodat elke curve op 0 % begint; tot de laatste einddag (100 %).
-    lo = Math.min(lo, dayNum(w.start) - 1);
-    hi = Math.max(hi, dayNum(w.finish));
+    lo = Math.min(lo, isoDayNumber(w.start) - 1);
+    hi = Math.max(hi, isoDayNumber(w.finish));
   };
   for (const it of items) {
     span(earlyWin(it));
@@ -258,7 +259,7 @@ export function computeProgressCurve(ctx: ReportContext): ProgressCurveResult {
   let axis: ProgressCurveResult['axis'];
   let samples: string[] = [];
   if (items.length > 0 && Number.isFinite(lo)) {
-    const refNum = dayNum(ref);
+    const refNum = isoDayNumber(ref);
     lo = Math.min(lo, refNum);
     hi = Math.max(hi, refNum);
     const step = Math.max(1, Math.ceil((hi - lo) / (PROGRESS_CURVE_MAX_SAMPLES - 1)));
@@ -267,11 +268,21 @@ export function computeProgressCurve(ctx: ReportContext): ProgressCurveResult {
     axis = { from: samples[0], to: samples[samples.length - 1] };
   }
 
-  const toPoints = (vals: number[]) => vals.map((pct, i) => ({ day: samples[i], pct: round2(pct) }));
+  // Elke curve krijgt naast het raster een exact punt OP de statusdatum: bij een lang project ligt de
+  // statusdag tussen twee meetpunten, en dan moet *Gepland* toch gelijk zijn aan het punt in de grafiek.
   const one = () => 1;
-  const earlyCurve = samples.length ? toPoints(curveOver(items, earlyWin, one, samples, totalWeight)) : [];
-  const plannedCurve = hasBaseline && samples.length ? toPoints(curveOver(items, plannedWin, one, samples, totalWeight)) : undefined;
-  const lateCurve = hasLateDates && samples.length ? toPoints(curveOver(items, lateWin, one, samples, totalWeight)) : undefined;
+  const curve = (windowOf: (w: Weighted) => Window | undefined): CurvePoint[] => {
+    const pts = curveOver(items, windowOf, one, samples, totalWeight).map((pct, i) => ({ day: samples[i], pct: round2(pct) }));
+    const at = { day: ref, pct: round2(valueAt(items, windowOf, ref, totalWeight)) };
+    const i = pts.findIndex(p => p.day >= ref);
+    if (i < 0) pts.push(at);
+    else if (pts[i].day === ref) pts[i] = at;
+    else pts.splice(i, 0, at);
+    return pts;
+  };
+  const earlyCurve = samples.length ? curve(earlyWin) : [];
+  const plannedCurve = hasBaseline && samples.length ? curve(plannedWin) : undefined;
+  const lateCurve = hasLateDates && samples.length ? curve(lateWin) : undefined;
 
   // Werkelijk: de meetpunten vóór de statusdatum, plus een exact punt OP de statusdatum.
   const actualPct = totalWeight > 0 ? (actualSum / totalWeight) * 100 : 0;
@@ -322,7 +333,7 @@ export function computeProgressCurve(ctx: ReportContext): ProgressCurveResult {
     if (t.isMilestone) {
       const day = dayOf(finish);
       if (day && (!next || day < next.day || (day === next.day && t.wbsCode.localeCompare(nextWbs) < 0))) {
-        next = { taskId: t.id, name: t.name, day, daysUntil: dayNum(day) - dayNum(ref) };
+        next = { taskId: t.id, name: t.name, day, daysUntil: isoDayNumber(day) - isoDayNumber(ref) };
         nextWbs = t.wbsCode;
       }
     }
@@ -351,7 +362,7 @@ export function computeProgressCurve(ctx: ReportContext): ProgressCurveResult {
     earlyCurve,
     lateCurve,
     actualCurve,
-    ticks: axis ? axisTicks(dayNum(axis.from), dayNum(axis.to)) : [],
+    ticks: axis ? axisTicks(isoDayNumber(axis.from), isoDayNumber(axis.to)) : [],
     lateTasks: { count: lateCount, critical: lateCritical, basis: hasBaseline ? 'baseline' : 'schedule' },
     negativeFloat: { count: negCount, minDays: minFloat === undefined ? undefined : round1(minFloat) },
     nextMilestone: next,

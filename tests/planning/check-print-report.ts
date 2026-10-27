@@ -20,6 +20,7 @@ import {
 } from '@/services/print/printPreview';
 import { computeTileLayout, footerLayoutWidthFor, PAPER_PT } from '@/services/print/tileLayout';
 import { fitColumnsToHeaders, makeSectionedRenderReport, makeTableRenderReport } from '@/services/pdf/pdfTable';
+import { drawCurveChart, layoutCurveChart } from '@/services/pdf/pdfCurveChart';
 import {
   computePreviewRasterLimits,
   PREVIEW_MAX_PAGE_PIXELS,
@@ -907,6 +908,19 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
     for (const want of ['40%', 'gepland 50%', 'Statusdatum', 'Werkelijk', 'Doelband', 'benaderd', 'sep 2026', '100%']) {
       ok(lines.includes(want), `voortgangscurve: PDF tekent "${want}"`);
     }
+    // Review #705 r1: bij nul speling vallen vroegst en laatst samen; de band moet dan als lijn
+    // zichtbaar blijven (randen in de bandkleur), niet als leeg vlak.
+    const strokes: string[] = [];
+    const strokeStub: Draw2D = { ...stub, stroke() { strokes.push(this.strokeStyle); } };
+    const flatSpec = {
+      from: '2026-08-31', to: '2026-09-30', ariaLabel: 'S', series: [],
+      band: { key: 'band', label: 'Doelband', color: '#10B981', upper: curvePts, lower: curvePts },
+      xTicks: [], yTicks: [],
+    };
+    const flat = layoutCurveChart(flatSpec);
+    ok(flat.band?.edges.length === 2 && flat.band.edges[0].length === curvePts.length, 'voortgangscurve: band heeft twee randen');
+    drawCurveChart(strokeStub, flat, 0, 0, 'Inter');
+    ok(strokes.filter(c => c === '#10B981').length === 2, `voortgangscurve: PDF tekent beide bandranden bij nul speling (got ${strokes.join(',')})`);
     const noChart = makeSectionedRenderReport({ title: 'T', summary: [], sections: [], chart: { emptyText: 'geen curve' } })(() => recStub);
     ok(lines.includes('geen curve') && noChart.height < 120, 'voortgangscurve: zonder curve alleen de lege-staattekst');
   }

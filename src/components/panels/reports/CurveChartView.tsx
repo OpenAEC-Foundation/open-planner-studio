@@ -14,7 +14,7 @@ const path = (pts: readonly Pt[], close = false) =>
 
 export function CurveChartView({ spec }: { spec: CurveChartSpec }) {
   const layout = useMemo(() => layoutCurveChart(spec), [spec]);
-  const { plot } = layout;
+  const { plot, band } = layout;
   const legend = curveLegendItems(spec);
   return (
     <div data-ops-report-chart>
@@ -31,8 +31,13 @@ export function CurveChartView({ spec }: { spec: CurveChartSpec }) {
             <text x={plot.x - 6} y={t.y} textAnchor="end" dominantBaseline="middle" fontSize={10} fill="var(--theme-text-muted)">{t.label}</text>
           </g>
         ))}
-        {layout.band && (
-          <path d={path(layout.band.polygon, true)} fill={layout.band.color} fillOpacity={CURVE_BAND_OPACITY} stroke="none" data-ops-chart-band />
+        {band && (
+          <g data-ops-chart-band>
+            <path d={path(band.polygon, true)} fill={band.color} fillOpacity={CURVE_BAND_OPACITY} stroke="none" />
+            {band.edges.map((edge, i) => (
+              <path key={i} d={path(edge)} fill="none" stroke={band.color} strokeWidth={1} strokeLinejoin="round" />
+            ))}
+          </g>
         )}
         <line x1={plot.x} x2={plot.x + plot.w} y1={plot.y + plot.h} y2={plot.y + plot.h} stroke="var(--theme-border)" strokeWidth={1} />
         {layout.xTicks.map((t, i) => (

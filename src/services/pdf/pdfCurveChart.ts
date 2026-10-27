@@ -9,6 +9,7 @@
  */
 import type { Draw2D } from './draw2d';
 import { ellipsize } from '@/engine/renderer/textFit';
+import { isoDayNumber as dayNum } from '@/engine/reports/progressCurve';
 
 export interface CurveChartPoint { day: string; pct: number }
 
@@ -59,15 +60,12 @@ export interface CurveChartLayout {
   yTicks: { y: number; label: string }[];
   xTicks: { x: number; label: string }[];
   lines: { key: string; color: string; dashed: boolean; pts: Pt[] }[];
-  band?: { color: string; polygon: Pt[] };
+  /** De band als vlak plus zijn twee randen: bij nul speling vallen de randen samen en is het vlak
+   *  leeg, dan blijft de doelvoortgang toch als lijn zichtbaar. */
+  band?: { color: string; polygon: Pt[]; edges: [Pt[], Pt[]] };
   marker?: { x: number; label: string; color: string; labelAlign: 'left' | 'right' };
 }
 
-const DAY_MS = 86_400_000;
-function dayNum(iso: string): number {
-  const [y, m, d] = iso.slice(0, 10).split('-').map(Number);
-  return Math.round(Date.UTC(y, m - 1, d) / DAY_MS);
-}
 
 export function layoutCurveChart(spec: CurveChartSpec, width = CURVE_CHART_WIDTH, height = CURVE_CHART_HEIGHT): CurveChartLayout {
   const plot = { x: MARGIN.left, y: MARGIN.top, w: width - MARGIN.left - MARGIN.right, h: height - MARGIN.top - MARGIN.bottom };
@@ -84,7 +82,11 @@ export function layoutCurveChart(spec: CurveChartSpec, width = CURVE_CHART_WIDTH
     xTicks: spec.xTicks.filter(t => inRange(t.day)).map(t => ({ x: xOf(t.day), label: t.label })),
     lines: spec.series.filter(s => s.points.length > 0).map(s => ({ key: s.key, color: s.color, dashed: !!s.dashed, pts: pts(s.points) })),
     band: spec.band && spec.band.upper.length > 0
-      ? { color: spec.band.color, polygon: [...pts(spec.band.upper), ...pts(spec.band.lower).reverse()] }
+      ? {
+        color: spec.band.color,
+        polygon: [...pts(spec.band.upper), ...pts(spec.band.lower).reverse()],
+        edges: [pts(spec.band.upper), pts(spec.band.lower)],
+      }
       : undefined,
     marker: spec.marker && markerX !== undefined
       ? { x: markerX, label: spec.marker.label, color: spec.marker.color, labelAlign: markerX > plot.x + plot.w * 0.75 ? 'right' : 'left' }
@@ -130,6 +132,13 @@ export function drawCurveChart(d2d: Draw2D, layout: CurveChartLayout, x0: number
     layout.band.polygon.forEach(([x, y], i) => (i === 0 ? d2d.moveTo(X(x), Y(y)) : d2d.lineTo(X(x), Y(y))));
     d2d.closePath();
     d2d.fill();
+    d2d.strokeStyle = layout.band.color;
+    d2d.lineWidth = 1;
+    for (const edge of layout.band.edges) {
+      d2d.beginPath();
+      edge.forEach(([x, y], i) => (i === 0 ? d2d.moveTo(X(x), Y(y)) : d2d.lineTo(X(x), Y(y))));
+      d2d.stroke();
+    }
   }
   // X-as met strepen en labels.
   d2d.strokeStyle = PRINT.axis;
