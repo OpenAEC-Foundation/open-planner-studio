@@ -1189,13 +1189,13 @@ en noem het in je rapport of PR-tekst.
     terugval na een opstartleesfout (zet de vlag bewust niet), hebben geen eigen toets. Bevestigd in review
     ronde 2 van PR #644 (GPT-6.1-Sol). Voorstel: per route een eigen proces (alleen lezing, alleen save). — B
 
-263. **De stille uitschakeling van crashherstel is niet bewezen in een echt sandbox-iframe.** De browsertest
-    (`tests/browser/site-storage.spec.ts`, iframe-route rond regel 593) draait de tool in een same-origin
-    iframe en vervangt `IDBFactory.prototype.open` door een functie die een `SecurityError` gooit. Een echte
-    opaque origin (`sandbox="allow-scripts"` zonder `allow-same-origin`) weigert ook `sessionStorage`,
-    `localStorage` en Web Locks, en de Vite-dev-server weigert waarschijnlijk CORS voor origin `null`.
-    Bevestigd in review ronde 2 van PR #644 (GPT-6.1-Sol). Voorstel: een test met een echt sandbox-iframe
-    tegen een productiebuild, of een handmatige check in de SuperCloud-werkplek. — B
+263. **Crashherstel en welkomstvenster zijn niet bewezen in de echte werkplek.** Sinds #706 draait
+    `tests/browser/welcome-dialog.spec.ts` de app in een echte opaque origin (CSP-sandbox op het document; de
+    test controleert `self.origin === 'null'` en de `SecurityError`s). Dat is het hoofddocument op de
+    Vite-dev-server, met kunstmatige CORS-headers en een geïnjecteerde host. Niet getest: een ingebedde
+    productieplatformbouw onder `/werkplek/app/planner/`, de echte hostbrug en de echte serverheaders.
+    Bevestigd in review ronde 2 van PR #644 en ronde 1 van PR #708 (GPT-6.1-Sol). Voorstel: een handmatige
+    check in de SuperCloud-werkplek. — B
 
 373. **Een synchrone `SecurityError` van Web Locks kan crashherstel ten onrechte uitzetten.** In
     `src/services/recovery/recoveryStore.ts` (`loadRecovery`, rond regel 1538) vangt de opvang rond heel
@@ -1204,6 +1204,28 @@ en noem het in je rapport of PR-tekst.
     crashherstel toch stil uit. Een browser die dit doet is niet gevonden; een afgewezen promise vangt `claimLock`
     al af. Bevestigd in review ronde 3 van PR #644 (GPT-6.1-Sol). Voorstel: de classificatie beperken tot de
     IndexedDB-grens. — B
+
+406. **Het welkomstvenster hangt af van de `localStorage`-getter, niet van werkende opslag.** Sinds #706
+    slaat `src/hooks/useSettingsBootstrap.ts` (`skipWelcome`) het venster over in elke omgeving waar het
+    lezen van `localStorage` gooit, ook buiten de werkplek: dan vervallen ook de eerste taalkeuze, de
+    automatische rondleiding en de tutorialvraag (handmatig blijven ze bereikbaar). Omgekeerd kijkt
+    `localStorageAvailable()` (`src/utils/settingsStore.ts:41`) alleen naar de getter: bestaat het object
+    maar weigert `getItem`/`setItem`, dan komt het venster nog bij elke start terug. Bevestigd in review
+    ronde 1 van PR #708 (GPT-6.1-Sol). Voorstel: de bredere keuze vastleggen, of de voorwaarde op een
+    mislukte schrijfproef zetten. — B
+
+407. **De opaque-origin-test bewijst geen crashherstelronde na de wijziging.**
+    `tests/browser/welcome-dialog.spec.ts` wacht 2 s na `addTask` en kijkt dan of er geen melding is. Maar
+    `useAutoSave.ts:98` zet `lastSaveAt` bij elke geplande ronde, ook als die meteen terugkeert; de volgende
+    ronde kan dan tot 10 s later komen. De wijziging gaat bovendien via de storebrug, niet via een
+    browserhandeling. Bevestigd in review ronde 1 van PR #708 (GPT-6.1-Sol). Voorstel: wachten op een
+    aantoonbaar afgehandelde herstelpoging (de bestaande flush), en de taak met een echte handeling maken. — B
+
+408. **Geen browsertest meer voor `skipWelcome` bij werkende opslag.** #706 verving de browsertest met
+    `skipWelcome: true` door een test zonder dat veld. `tests/planning/check-site-storage.ts` (A12) toetst
+    `siteSkipsWelcome()` nog, maar niet de koppeling met `useSettingsBootstrap`. Bevestigd in review ronde 1
+    van PR #708 (GPT-6.1-Sol). Voorstel: één stap met werkende `localStorage` en een host met
+    `skipWelcome: true` in een bestaande welkomsttest. — B
 
 405. **Nivelleren in de achtergrond start vermoedelijk niet in een opaque origin.** Gezien bij #706.
     `src/services/leveling/backgroundLeveling.ts:34` maakt `new Worker(new URL(…, import.meta.url))` zonder

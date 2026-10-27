@@ -84,8 +84,9 @@ test('werkplek in een opaque origin: de app start, geen welkomstvenster en geen 
       return { welcomePending: u.welcomePending, showTourOverlay: u.showTourOverlay, showTutorialOffer: u.showTutorialOffer };
     });
     expect(ui, round).toEqual({ welcomePending: false, showTourOverlay: false, showTutorialOffer: false });
-    // Een wijziging start meteen een crashherstelronde. Die blijft stil: geen melding, alleen de ene
-    // consoleregel van de start. Geen afwezigheid zonder wachttijd te bewijzen, dus even wachten.
+    // Na een wijziging geen melding, en alleen de ene consoleregel van de start. Let op: de wachttijd
+    // bewijst niet dat er een crashherstelronde liep (de throttle kan die tot 10 s uitstellen,
+    // knownbug 407); de stille weigering zelf is bij de start al herkend.
     await page.evaluate(() => { window.__OPS__!.store.getState().addTask({ name: 'In de werkplek' }); });
     await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().isDirty), { message: round }).toBe(true);
     await page.waitForTimeout(2_000);
