@@ -1245,13 +1245,6 @@ en noem het in je rapport of PR-tekst.
     `newProject()` en voegt geen taak toe). Een losse probe met gewijzigd werk slaagt wel. Voorstel: één taak in
     de beginstaat en ook de dirty-vlag controleren. Gevonden in review r1 van #636 (GPT-6.1-Sol). — B
 
-323. **De regressietest van de MCP-proxy mist annuleren na een 404.** `tests/mcp/cases-mcpb.ts:411` toetst
-    annuleren tijdens verbinden vanuit offline toestand, maar niet de registratie vóór de tweede
-    verbindingspoging na `404`. Een losse proef van de reviewer bevestigt dat die route werkt. Daarnaast zijn de
-    annuleringscontroles op `integrations/claude-desktop/src/proxy.ts:402` en `:418` overbodig: op die routes zit
-    sinds de vorige controle geen nieuwe asynchrone onderbreking. Voorstel: de 404-route in de test, en de twee
-    regels weg. Gevonden in review r1 van #603 (GPT-6.1-Sol). — B
-
 325. **Zes browserroutes toetsen geen smal scherm meer.** Sinds de standaardtakenlijst 400 px breed is, zetten zes
     specs het venster op 1600×900, onder meer `tests/browser/duration-display.spec.ts:5`. De handelingen en
     controles blijven, maar de smallere beginstand wordt niet meer bewaakt. Geen productfout op die breedte
