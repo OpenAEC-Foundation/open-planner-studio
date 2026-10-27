@@ -34,7 +34,14 @@ function parseFieldRef(raw: unknown): FieldRef | undefined {
 export function parseBarColorSelection(raw: unknown): BarColorSelection | undefined {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
   const selection = raw as Record<string, unknown>;
-  if (selection.mode === 'critical') return { mode: 'critical' };
+  if (selection.mode === 'critical') {
+    if (selection.colors === undefined) return { mode: 'critical' };
+    const colors = selection.colors;
+    if (!colors || typeof colors !== 'object' || Array.isArray(colors)) return undefined;
+    const c = colors as Record<string, unknown>;
+    if (![c.critical, c.nearCritical, c.normal].every(v => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v))) return undefined;
+    return { mode: 'critical', colors: { critical: c.critical as string, nearCritical: c.nearCritical as string, normal: c.normal as string } };
+  }
   if (selection.mode === 'auto') return { mode: 'auto' };
   if (selection.mode !== 'category') return undefined;
   const field = parseFieldRef(selection.field);

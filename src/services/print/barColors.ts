@@ -107,7 +107,7 @@ function computeSelectionColors(
   barPx?: number,
 ): BarFill {
   if (selection.mode === 'critical') {
-    return { kind: 'solid', fill: criticalFill(task, palette) };
+    return { kind: 'solid', fill: criticalFill(task, { ...palette, ...selection.colors }) };
   }
 
   const outline = task.time.isCritical ? palette.critical : undefined;

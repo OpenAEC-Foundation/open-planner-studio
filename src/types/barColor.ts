@@ -1,8 +1,14 @@
 import type { FieldRef } from '@/types/view';
 
+export interface CriticalBarColors {
+  critical: string;
+  nearCritical: string;
+  normal: string;
+}
+
 /** Eén app-globale keuze die zowel de scherm-Gantt als de rapportexport aanstuurt. */
 export type BarColorSelection =
-  | { mode: 'critical' }
+  | { mode: 'critical'; colors?: CriticalBarColors }
   | { mode: 'auto' }
   | { mode: 'category'; field: FieldRef };
 

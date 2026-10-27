@@ -162,6 +162,19 @@ const withAssignments = (assignments: ResourceAssignment[]): BarColorContext => 
   ok(plain.kind === 'solid' && plain.fill === PAL.normal, 'critical-modus: gewone taak blauw');
 }
 
+// Eigen kleuren voor elk van de drie statussen.
+{
+  const selection = { mode: 'critical', colors: { critical: '#112233', nearCritical: '#445566', normal: '#778899' } } as const;
+  for (const [task, expected] of [
+    [mkTask('critical', { time: mkTime({ isCritical: true }) }), '#112233'],
+    [mkTask('near', { time: mkTime({ isNearCritical: true }) }), '#445566'],
+    [mkTask('normal'), '#778899'],
+  ] as const) {
+    const result = computeBarColors(task, selection, CTX, PAL);
+    ok(result.kind === 'solid' && result.fill === expected, `eigen kleur ${expected}`);
+  }
+}
+
 // 8. Task.color is inert: dezelfde taakuitkomst in iedere overgebleven modus, ongeacht legacydata.
 {
   const modes = [
