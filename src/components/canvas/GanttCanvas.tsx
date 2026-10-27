@@ -57,7 +57,7 @@ import {
   type GanttRenderOptionsSourceInput,
 } from './ganttRenderOptions';
 import { buildTrace } from '@/engine/taskGrid/trace';
-import { isLooseDayEndMilestone, milestoneLowerBound, predecessorDrivenTaskIds } from '@/engine/startEditConstraint';
+import { isLooseDayEndMilestone, predecessorDrivenTaskIds } from '@/engine/startEditConstraint';
 import { useGanttRendererHost, useGanttRendererRefs } from './hooks/useGanttRendererHost';
 import { useGanttViewportCoordinator } from './hooks/useGanttViewportCoordinator';
 import { useGanttHistogramInteraction } from './hooks/useGanttHistogramInteraction';
@@ -223,10 +223,8 @@ export function GanttCanvas({
     const task = tasks.find(t => t.id === taskId);
     const dayEnd = effectiveSchedulingOptions({ schedulingProfile, schedulingOptions: projectSchedulingOptions })
       .milestoneWithoutPredecessorAtDayEnd;
-    return task && isLooseDayEndMilestone(task, tasks, allSequences, dayEnd)
-      ? { floor: milestoneLowerBound(task, statusDate) }
-      : null;
-  }, [tasks, allSequences, schedulingProfile, projectSchedulingOptions, statusDate]);
+    return !!task && isLooseDayEndMilestone(task, tasks, allSequences, dayEnd);
+  }, [tasks, allSequences, schedulingProfile, projectSchedulingOptions]);
   const showBaselineOverlay = useAppStore(s => s.ui.showBaselineOverlay);
   const showProgressLine = useAppStore(s => s.ui.showProgressLine);
   // Resource-accent + de bijbehorende resources/toewijzingen (zelfde bron als de histogram/

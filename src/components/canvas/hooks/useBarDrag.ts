@@ -183,9 +183,8 @@ interface UseBarDragOptions {
    *  een gesleepte start dezelfde regel als een getypte (`constraintForDraggedStart`,
    *  `constraintBlockingStart`). Afwezig ⇒ nooit. */
   isStartDrivenByPredecessor?: (taskId: string) => boolean;
-  /** Zet de motor deze mijlpaal op het dageinde (B6, `isLooseDayEndMilestone`)? Dan zijn laatste bekende
-   *  ondergrens, anders `null`. Afwezig ⇒ nooit. */
-  looseDayEndMilestone?: (taskId: string) => { floor: Date | null } | null;
+  /** Zet de motor deze mijlpaal op het dageinde (B6, `isLooseDayEndMilestone`)? Afwezig ⇒ nooit. */
+  looseDayEndMilestone?: (taskId: string) => boolean;
   /** Het ene meldkanaal en de datumnotatie voor de startmelding na het loslaten. */
   notify?: (notification: NotifyInput) => void;
   dateNotation?: DateNotation;
@@ -244,9 +243,9 @@ export function useBarDrag({
   // Werkelijke datums van dit gebaar (zie `ActualDatesLock`); hoort net zo bij het GEBAAR.
   const actualLockRef = useRef<ActualDatesLock | null>(null);
   /** Bij pointer-down vastgelegd voor een gesleepte nulduurmijlpaal: de landingskant (`milestoneSitsAtFinish`)
-   *  en of B6 hem op het dageinde zet, met zijn ondergrens (`looseDayEndMilestone`). Wisselt niet midden in het
-   *  gebaar en overleeft een effectherstart. `null` ⇒ geen mijlpaal. */
-  const milestoneGestureRef = useRef<{ finishSide: boolean; loose: { floor: Date | null } | null } | null>(null);
+   *  en of B6 hem op het dageinde zet (`looseDayEndMilestone`). Wisselt niet midden in het gebaar en
+   *  overleeft een effectherstart. `null` ⇒ geen mijlpaal. */
+  const milestoneGestureRef = useRef<{ finishSide: boolean; loose: boolean } | null>(null);
   const hourSnapMinutes = hourSnapMinutesFor(zoom, enableQuarterHourZoom);
   const snapAt = useCallback(
     (x: number, hourMode: boolean) => snapTimelineDate(axis, x, hourMode, hourSnapMinutes),
@@ -323,12 +322,12 @@ export function useBarDrag({
     directionRef.current = 'undecided';
     lastAppliedDeltaRef.current = 0;
     setSplitLabel(null);
-    const loose = original && isZeroDurationMilestone(original) ? looseDayEndMilestone?.(original.id) ?? null : null;
+    const loose = !!original && isZeroDurationMilestone(original) && (looseDayEndMilestone?.(original.id) ?? false);
     milestoneGestureRef.current = original && isZeroDurationMilestone(original)
       ? {
         finishSide: milestoneSitsAtFinish(
           new CalendarEngine(calendarForEngine(effectiveCalById.get(original.id) ?? calendar)),
-          parseInstant(next.originalStart), original.milestoneKind, driven, loose !== null,
+          parseInstant(next.originalStart), original.milestoneKind, driven, loose,
         ),
         loose,
       }
@@ -441,19 +440,17 @@ export function useBarDrag({
           candidate: axis.xToDate(axis.dateToX(original) + pixelDelta),
           snapMinutes: quantumMin,
         });
-      // Moment en startanker zo dat F5 de ruit laat staan (B6 op een 24/7-middernacht, `milestoneDragLanding`).
-      const landing = milestoneDragLanding(engine, at, milestoneGestureRef.current?.loose ?? null,
-        quantumMin === 1440 ? 60 : quantumMin);
-      const next = formatInstant(landing.at, 'hour');
-      const anchor = formatInstant(landing.anchor, 'hour');
+      // Een moment dat F5 laat staan (B6 op een 24/7-middernacht, `milestoneDragLanding`).
+      const next = formatInstant(milestoneDragLanding(engine, at, milestoneGestureRef.current?.loose === true,
+        quantumMin === 1440 ? 60 : quantumMin), 'hour');
       if (startBlocked(next !== dragState.originalStart)) return;
-      if (baseTime.scheduleStart === anchor && baseTime.scheduleFinish === anchor
+      if (baseTime.scheduleStart === next && baseTime.scheduleFinish === next
         && baseTime.earlyStart === next && baseTime.earlyFinish === next) return;
       updateTask(dragState.taskId, {
         time: {
           ...baseTime,
-          scheduleStart: anchor,
-          scheduleFinish: anchor,
+          scheduleStart: next,
+          scheduleFinish: next,
           earlyStart: next,
           earlyFinish: next,
         },

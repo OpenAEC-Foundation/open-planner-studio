@@ -234,9 +234,9 @@ export interface GanttPointerCoordinatorInput {
    *  volgt dan dezelfde regel als een getypte: SNET, of — bij een andere constraint — niets toepassen
    *  en melden (`src/engine/startEditConstraint.ts`). */
   isStartDrivenByPredecessor: (taskId: string) => boolean;
-  /** Zet de motor deze mijlpaal op het dageinde (B6, `isLooseDayEndMilestone`)? Dan de laatste bekende
-   *  ondergrens (`milestoneLowerBound`), anders `null`. Een gesleepte ruit landt dan zo dat F5 hem laat staan. */
-  looseDayEndMilestone: (taskId: string) => { floor: Date | null } | null;
+  /** Zet de motor deze mijlpaal op het dageinde (B6, `isLooseDayEndMilestone`)? Dan landt een gesleepte
+   *  ruit zo dat F5 hem laat staan (`milestoneSitsAtFinish`, `milestoneDragLanding`). */
+  looseDayEndMilestone: (taskId: string) => boolean;
   /** Het ene meldkanaal en de datumnotatie voor die startmelding na het loslaten. */
   notify: (notification: NotifyInput) => void;
   dateNotation: DateNotation;

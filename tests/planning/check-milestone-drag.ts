@@ -19,13 +19,11 @@ import {
   milestoneDragLanding, milestoneSitsAtFinish, resolveMilestoneDayDrag, resolveMilestoneHourDrag,
 } from '@/engine/renderer/hourBarDragMath';
 import { resolveGanttAxis } from '@/engine/renderer/workdayAxis';
-import {
-  constraintForDraggedStart, isLooseDayEndMilestone, milestoneLowerBound, predecessorDrivenTaskIds,
-} from '@/engine/startEditConstraint';
+import { constraintForDraggedStart, isLooseDayEndMilestone, predecessorDrivenTaskIds } from '@/engine/startEditConstraint';
 import { builtInProfile, effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { dragWorkdaySteps } from '@/components/canvas/hooks/timelineSnap';
 import { shownStart } from '@/utils/taskDates';
-import type { MilestoneKind } from '@/types/task';
+import type { MilestoneKind, Task } from '@/types/task';
 import type { SequenceType } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 
@@ -130,28 +128,24 @@ const S = () => useAppStore.getState();
 
 /** Precies wat `useBarDrag` bij één gebaar doet (zonder compressie), gevolgd door F5. Geeft het neergezette
  *  en het berekende moment terug. `amount` is kolommen (dagzoom) of uren (uurzoom). */
-function dragThenCalculate(id: string, zoom: 'day' | 'hour', amount: number): { dropped: string; calculated: string } {
+function dragThenCalculate(id: string, zoom: 'day' | 'hour', amount: number, snapMinutes = 60): { dropped: string; calculated: string } {
   const orig = S().tasks.find(t => t.id === id)!;
   const original = parseInstant(shownStart(orig));
   const driven = predecessorDrivenTaskIds(S().tasks, S().sequences).has(id);
   const loose = isLooseDayEndMilestone(orig, S().tasks, S().sequences,
-    effectiveSchedulingOptions(S().project).milestoneWithoutPredecessorAtDayEnd)
-    ? { floor: milestoneLowerBound(orig, S().project.statusDate) }
-    : null;
+    effectiveSchedulingOptions(S().project).milestoneWithoutPredecessorAtDayEnd);
   const eng = new CalendarEngine(calendarForEngine(S().calendar));
-  const finishSide = milestoneSitsAtFinish(eng, original, orig.milestoneKind, driven, loose !== null);
+  const finishSide = milestoneSitsAtFinish(eng, original, orig.milestoneKind, driven, loose);
   const landed = zoom === 'day'
     ? resolveMilestoneDayDrag({
       calendar: eng, original, finishSide,
       workdaySteps: dragWorkdaySteps(original, finishSide ? 'end' : 'start', amount, new CalendarEngine(S().calendar), false, eng, S().calendar),
     })
-    : resolveMilestoneHourDrag({ calendar: eng, original, finishSide, candidate: new Date(original.getTime() + amount * 3600_000), snapMinutes: 60 });
-  const landing = milestoneDragLanding(eng, landed, loose, 60);
-  const dropped = formatInstant(landing.at, 'hour');
-  const anchor = formatInstant(landing.anchor, 'hour');
+    : resolveMilestoneHourDrag({ calendar: eng, original, finishSide, candidate: new Date(original.getTime() + amount * 3600_000), snapMinutes });
+  const dropped = formatInstant(milestoneDragLanding(eng, landed, loose, zoom === 'day' ? 60 : snapMinutes), 'hour');
   const snet = driven ? constraintForDraggedStart(orig, dropped, true) : undefined;
   S().updateTask(id, {
-    time: { ...orig.time, scheduleStart: anchor, scheduleFinish: anchor, earlyStart: dropped, earlyFinish: dropped },
+    time: { ...orig.time, scheduleStart: dropped, scheduleFinish: dropped, earlyStart: dropped, earlyFinish: dropped },
     ...(snet ? { constraint: snet.constraint } : {}),
   });
   S().runCPM();
@@ -173,6 +167,15 @@ function milestone(name: string, kind: MilestoneKind | undefined, rel: SequenceT
   if (rel) S().addSequence({ predecessorId: p, successorId: m, type: rel, lagDays: 0 });
   S().runCPM();
   return m;
+}
+
+function allDayCalendar(): void {
+  const b = [{ start: 0, end: 1440 }];
+  S().setCalendar({
+    ...S().calendar, workDays: [1, 2, 3, 4, 5, 6, 7], workStartHour: 0, workEndHour: 24, hoursPerDay: 24,
+    simpleBreakStartMinute: undefined, simpleBreakDurationMinutes: undefined,
+    workTime: { byWeekday: { 1: b, 2: b, 3: b, 4: b, 5: b, 6: b, 7: b } },
+  });
 }
 
 const dayBlocks = [{ start: 420, end: 960 }];
@@ -273,8 +276,8 @@ for (const allDay of [false, true]) {
 }
 
 // Ondergrens binnen de werkdag (review #704 r5): statusdatum, SNET, tweede SNET of FNET op di 10:00. Een sleep
-// naar een geldig moment erna blijft na F5 staan. Op 07:00–16:00 is dat het dageinde zelf (di 16:00). Op 24/7 is
-// middernacht dan onbereikbaar (B6 vuurt niet meer na de ondergrens); de ruit landt één snapstap eerder.
+// naar een geldig moment erna blijft na F5 staan. Op 07:00–16:00 is dat het dageinde zelf (di 16:00). Op 24/7
+// kan de motor middernacht voor een losse mijlpaal niet bewaren; de ruit landt één snapstap later (wo 01:00).
 for (const allDay of [false, true]) {
   for (const floor of ['status', 'SNET', 'tweede SNET', 'FNET'] as const) {
     project(weekBlocks);
@@ -297,16 +300,16 @@ for (const allDay of [false, true]) {
     const tag = `ondergrens ${floor}, ${allDay ? '24/7' : '07–16'}`;
     eq(`${tag}: uitgangspunt di 10:00`, shownStart(S().tasks.find(t => t.id === m)!), '2026-09-08T10:00');
     const { dropped, calculated } = dragThenCalculate(m, 'hour', allDay ? 14 : 6);
-    eq(`${tag}: landt op ${allDay ? 'di 23:00 (middernacht onbereikbaar)' : 'di 16:00'}`, dropped, allDay ? '2026-09-08T23:00' : '2026-09-08T16:00');
+    eq(`${tag}: landt op ${allDay ? 'wo 01:00' : 'di 16:00'}`, dropped, allDay ? '2026-09-09T01:00' : '2026-09-08T16:00');
     eq(`${tag}: F5 houdt het`, calculated, dropped);
     S().runCPM();
     eq(`${tag}: tweede F5 houdt het`, shownStart(S().tasks.find(t => t.id === m)!), dropped);
   }
 }
 
-// 24/7 (review #704 r3): het dageinde om middernacht is ook het volgende blokbegin. Een losse mijlpaal blijft
-// na slepen en F5 op het neergezette moment, met een scalaire en met een expliciete kalender, onder OPS (B6)
-// en P6.
+// 24/7 (review #704 r3, r6): het dageinde om middernacht is ook het volgende blokbegin. Onder OPS (B6) kan de motor
+// dat moment voor een losse mijlpaal niet bewaren; de ruit landt één snapstap later (een uur). Onder P6 (geen B6)
+// landt hij op middernacht. Beide blijven na F5 en een tweede F5 staan, scalair en met expliciete blokken.
 for (const profile of ['ops', 'p6'] as const) {
   for (const explicit of [false, true]) {
     for (const zoom of ['day', 'hour'] as const) {
@@ -323,13 +326,48 @@ for (const profile of ['ops', 'p6'] as const) {
       const before = shownStart(S().tasks.find(t => t.id === m)!);
       const tag = `24/7 ${profile}, ${explicit ? 'expliciet' : 'scalair'}, ${zoom}zoom`;
       const { dropped, calculated } = dragThenCalculate(m, zoom, zoom === 'day' ? 1 : 24);
-      eq(`${tag}: één dag verder (${before} → ${dropped})`, parseInstant(dropped).getTime() - parseInstant(before).getTime(), 86_400_000);
+      eq(`${tag}: één dag verder${profile === 'ops' ? ' plus een uur' : ''} (${before} → ${dropped})`,
+        parseInstant(dropped).getTime() - parseInstant(before).getTime(), 86_400_000 + (profile === 'ops' ? 3_600_000 : 0));
       eq(`${tag}: F5 houdt het`, calculated, dropped);
       S().runCPM();
       eq(`${tag}: tweede F5 houdt het`, shownStart(S().tasks.find(t => t.id === m)!), dropped);
     }
   }
 }
+
+// Review #704 r6: grenzen die de motor vóór B6 oplegt, op 24/7 met een sleep naar wo 00:00. De ruit landt wo 01:00,
+// ná elke grens; F5 en een tweede F5 laten hem staan. Geen nagebouwde ondergrens in de sleep nodig.
+function dropAt(label: string, patch: Partial<Task>, target: string, opts: { status?: string; start?: string; snap?: number } = {}): void {
+  project();
+  allDayCalendar();
+  if (opts.status) S().setProject({ statusDate: opts.status });
+  const m = S().addTask({ name: label, isMilestone: true });
+  if (Object.keys(patch).length) S().updateTask(m, patch);
+  if (opts.start) {
+    const t = S().tasks.find(x => x.id === m)!;
+    S().updateTask(m, { time: { ...t.time, scheduleStart: opts.start, scheduleFinish: opts.start } });
+  }
+  S().runCPM();
+  const before = shownStart(S().tasks.find(t => t.id === m)!);
+  const hours = (parseInstant(target).getTime() - parseInstant(before).getTime()) / 3_600_000;
+  const { dropped, calculated } = dragThenCalculate(m, 'hour', hours, opts.snap ?? 60);
+  eq(`${label}: F5 houdt ${dropped}`, calculated, dropped);
+  S().runCPM();
+  eq(`${label}: tweede F5 houdt het`, shownStart(S().tasks.find(t => t.id === m)!), dropped);
+}
+for (const relType of ['FS', 'SS', 'FF', 'SF'] as const) {
+  dropAt(`externe voorganger ${relType} di 10:00`, {
+    externalLinks: [{
+      id: 'extern', direction: 'predecessor', relType, anchorDate: '2026-09-08T10:00', lagDays: 0,
+      sourceRef: { projectId: 'extern', taskId: 'bron' }, sourceMissing: false,
+    }],
+  }, '2026-09-09T00:00');
+}
+dropAt('statusdatum zonder tijd', {}, '2026-09-09T00:00', { status: '2026-09-08' });
+dropAt('statusdatum di 20:00', {}, '2026-09-09T00:00', { status: '2026-09-08T20:00' });
+dropAt('SNET di 23:30, terug vanaf do 22:00', { constraint: { type: 'SNET', date: '2026-09-08T23:30' } }, '2026-09-09T00:00', { start: '2026-09-10T22:00' });
+dropAt('FNET di 23:30, terug vanaf do 22:00', { constraint: { type: 'FNET', date: '2026-09-08T23:30' } }, '2026-09-09T00:00', { start: '2026-09-10T22:00' });
+dropAt('SNET di 23:50, kwartierzoom', { constraint: { type: 'SNET', date: '2026-09-08T23:50' } }, '2026-09-09T00:00', { start: '2026-09-10T22:00', snap: 15 });
 
 if (failures.length === 0) {
   console.log(`OK  milestone-drag: alle checks groen (${checks})`);
