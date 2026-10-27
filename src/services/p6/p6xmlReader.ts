@@ -15,7 +15,7 @@ import { parseInstant, localTodayIso, parseDate, formatDate, addCalendarDays } f
 import { UNNAMED_HOLIDAY_NAME, UNNAMED_WORKING_EXCEPTION_NAME } from '@/services/calendarRecurrence';
 import {
   OPS_DAY_MEASURE_DURATIONS_NAME, OPS_DAY_MEASURE_LAGS_NAME, OPS_EXACT_MINUTES_NAME, OPS_LAG_CALENDAR_NAME,
-  dayMeasureMinutesPerDay, lagFromRecord, lagRecordHolds, lagRecordKey, lagWorkMinutesPerDay, normalizeKeepingDayRest,
+  dayMeasureMinutesPerDay, lagFromRecord, lagRecordHolds, lagRecordKey, lagWorkMinutesPerDay,
   parseFieldRecords, parseLagCalendarOption, parseLagRecords, readMeasure, type LagRecord,
 } from '@/services/xmlDayMeasure';
 import { normalizeImportedProgress, deriveImportedWorkRules, reconstructResourceIds } from '@/services/importNormalize';
@@ -1014,8 +1014,9 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
   // Activiteiten die volgens de bron lopen (`In Progress`). Op 100 % zonder werkelijk einde blijven ze lopend,
   // met de rest uit het bestand: P6 "Physical 100 %" plant die rest nog in (knownbugs 114), zoals de XER-lezer
   // een `TK_Active` op 100 % aflevert. Zie `runningAtFullIds` in `normalizeImportedProgress`. In een OPS-export
-  // is de status geen bron (`p6ActivityCompletionPercent`; de writer schrijft `Completed` op 100 %). Daar geldt
-  // hetzelfde teken als bij MSPDI: geen werkelijk einde en een rest groter dan 0.
+  // blijft de status voor compatibiliteit informatief (`p6ActivityCompletionPercent`): oudere writers
+  // schreven `Completed` op 100 %, ook bij lopend werk. Daarom geldt daar hetzelfde teken als bij MSPDI:
+  // geen werkelijk einde en een rest groter dan 0. De huidige writer bewaart de lopende status wel.
   const runningAtFullIds = new Set<string>();
 
   for (const actEl of activityElements) {
@@ -1227,7 +1228,7 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
 
   // Voortgang-invarianten op de rauw ingelezen actuals. De vastgelegde rest van een taak in de dagenmaat
   // blijft exact (B3), zoals de restminuten van een urentaak. Een lopende activiteit op 100 % blijft lopend.
-  normalizeKeepingDayRest(tasks, () => normalizeImportedProgress(tasks, project.statusDate, runningAtFullIds));
+  normalizeImportedProgress(tasks, project.statusDate, runningAtFullIds);
   deriveImportedWorkRules(tasks); // werkregel uit <DurationType>
 
   // Parse relationships
