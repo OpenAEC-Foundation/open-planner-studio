@@ -12,7 +12,7 @@ import './domStub';
 import { useAppStore } from '@/state/appStore';
 import { computeMilestoneRows } from '@/components/panels/MilestoneReport';
 import type { WorkCalendar } from '@/types/calendar';
-import type { TaskTime } from '@/types/task';
+import type { Task, TaskTime } from '@/types/task';
 import type { SchedulingOptions } from '@/types/project';
 
 const S = () => useAppStore.getState();
@@ -95,6 +95,30 @@ const taskOf = (id: string) => S().tasks.find(t => t.id === id)!;
   S().runCPM();
   eq('4 opzet: M heeft speling en is niet kritiek', [taskOf(M).time.totalFloat > 0, taskOf(M).time.isCritical], [true, false]);
   eq('4a Mijlpalen-overzicht: M op schema', rowOf(M)?.status, 'onSchedule');
+}
+
+// 5. De bewaakte datum houdt haar kant, onafhankelijk van de soort mijlpaal (knownbug 286).
+// Ook de bestaande terugval blijft staan: een deadline is eindachtig, een ongedateerd type met
+// toch een datum startachtig. Geen herberekening nodig voor deze pure rapportprojectie.
+const sample = S().tasks.find(t => t.isMilestone)!;
+for (const milestoneKind of ['START', 'FINISH', 'AUTO'] as const) {
+  for (const [type, side] of [
+    ['SNET', 'start'], ['SNLT', 'start'], ['MSO', 'start'],
+    ['FNET', 'end'], ['FNLT', 'end'], ['MFO', 'end'], ['ASAP', 'start'], ['ALAP', 'start'],
+  ] as const) {
+    const probe: Task = { ...sample, milestoneKind, constraint: { type, date: '2026-06-03T07:00' }, deadline: '2026-06-05T16:00' };
+    const row = computeMilestoneRows([probe], null)[0];
+    eq(`5 ${milestoneKind} ${type}: beperking gaat voor deadline met eigen kant`,
+      [row.guardDate, row.guardSide], ['2026-06-03T07:00', side]);
+  }
+  for (const constraint of [undefined, { type: 'SNET' as const }]) {
+    const probe: Task = { ...sample, milestoneKind, constraint, deadline: '2026-06-05T16:00' };
+    const row = computeMilestoneRows([probe], null)[0];
+    eq(`5 ${milestoneKind} zonder beperkingsdatum: deadline is eindachtig`,
+      [row.guardDate, row.guardSide], ['2026-06-05T16:00', 'end']);
+  }
+  const row = computeMilestoneRows([{ ...sample, milestoneKind, constraint: undefined, deadline: undefined }], null)[0];
+  eq(`5 ${milestoneKind} zonder bewaakte datum`, [row.guardDate, row.guardSide], ['', 'end']);
 }
 
 if (diffs.length === 0) {
