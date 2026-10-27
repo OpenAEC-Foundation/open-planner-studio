@@ -363,6 +363,16 @@ en noem het in je rapport of PR-tekst.
      −480 min speling; #694 veroorzaakt of verergert dit niet. Voorstel: de wacht toetst de lengte na de
      ms-omzetting (`CalendarEngine.walkMs`). Gevonden in review ronde 1 van #694 (GPT-6.1-Sol). — B
 
+399. **Een contourperiode na een split-gat korter dan een halve ms kan een fantoomoverbezetting geven.**
+     `src/engine/scheduler/workPlacement.ts` (`placementResidueAxis`): de rest buiten de afgeronde spanne loopt op de
+     as vanaf het afgeronde einde, zo lang als het restwerk. Valt er ook een gat korter dan een halve ms in die
+     afronding, dan is de echte rest op de as langer dan het restwerk. Ma–vr 08:00–16:00, 480,000005 min werk, een
+     gat van 0,000001 min na 480 min, en een contour met [0; 480) 480 min en [480,000001; 480,000006) 0,000005 min:
+     maandag is 1,0000000021 belast, boven de marge van 1e-9, dus overbezet. Zonder contour, en bij een gat van een
+     halve ms of meer, gebeurt dit niet; ook de contourdialoog schrijft de rest goed. Geen invoerroute gevonden die
+     zo'n gat maakt (splits tellen in minuten of seconden). Voorstel: de plaatsing geeft het exacte einde van de
+     spanne mee, en de rest loopt tot daar. Gevonden in fixronde 2 van #694. — B
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
