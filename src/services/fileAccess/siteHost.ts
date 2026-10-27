@@ -26,8 +26,9 @@
  * ## Het welkomstvenster overslaan
  *
  * Zet de host `skipWelcome: true`, dan toont de tool bij de start geen welkomstvenster (issue #583).
- * Bedoeld voor een host waar de tool geen instellingen kan bewaren, bijvoorbeeld een sandbox-iframe
- * zonder `localStorage`: daar zou het venster bij elke start terugkomen. Dit veld vraagt GEEN
+ * Weigert de browser `localStorage` (een sandbox-iframe zonder `allow-same-origin`), dan slaat de
+ * tool het venster zelf al over (issue #706): hij kan niet onthouden dat het gezien is. Het veld is
+ * dus voor een host waar `localStorage` wel werkt maar niet bewaard blijft. Dit veld vraagt GEEN
  * `storage`; een host mag alleen het welkomstvenster uitzetten. Alleen strikt `true` telt. De tool
  * kijkt bij de start en nog eens vlak voordat het venster zou openen (na de herstelvraag). Zet de
  * host daarom vóór de tool start: staat het venster al open, dan sluit een latere host het niet, en
