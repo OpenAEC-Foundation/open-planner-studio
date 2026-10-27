@@ -182,18 +182,25 @@ export function elapsedMinutesOf(task: Task, effCal: DurationCalendar): number {
   return task.time.scheduleDuration * 24 * 60;
 }
 
+/** Eén getekende klokverplaatsing op hele ms. Rond de lengte vóór optellen/aftrekken af,
+ *  zodat Date geen verschillende fracties afkapt. Een halve ms rondt van nul af; negatieve
+ *  leads blijven de exacte spiegel. De aanroeper behoudt zijn eigen invoerklem. */
+export function elapsedMilliseconds(minutes: number): number {
+  return Math.sign(minutes) * Math.round(Math.abs(minutes) * MS_PER_MIN);
+}
+
 /** Tel `minutes` KLOK-minuten op bij `start` (24/7, geen kalenderband-toetsing) — de
  *  ELAPSEDTIME-tegenhanger van `CalendarEngine.addWorkMinutes`/`addWorkDaysChecked`. Geklemd:
  *  zie `MAX_ELAPSED_MINUTES` hierboven. */
 export function addElapsedMinutes(start: Date, minutes: number): Date {
-  return new Date(start.getTime() + clampElapsedMinutes(minutes) * MS_PER_MIN);
+  return new Date(start.getTime() + elapsedMilliseconds(clampElapsedMinutes(minutes)));
 }
 
 /** Trek `minutes` KLOK-minuten af van `end` (24/7, spiegel van `addElapsedMinutes`) — de
  *  ELAPSEDTIME-tegenhanger van `CalendarEngine.subtractWorkMinutes`/`subtractWorkDays`. Geklemd:
  *  zie `MAX_ELAPSED_MINUTES` hierboven. */
 export function subtractElapsedMinutes(end: Date, minutes: number): Date {
-  return new Date(end.getTime() - clampElapsedMinutes(minutes) * MS_PER_MIN);
+  return new Date(end.getTime() - elapsedMilliseconds(clampElapsedMinutes(minutes)));
 }
 
 /**

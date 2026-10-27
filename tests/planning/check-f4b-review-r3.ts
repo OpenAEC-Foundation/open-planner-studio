@@ -35,12 +35,11 @@
 //  - Gereed: geen weigering (een voltooide taak heeft geen rest om mee te schuiven); de duur volgt de
 //    invoer, de werkelijke datums en het einde blijven, 100 % blijft.
 //  - Ook de kolom Eenheid (dagen naar uren) op een lopende taak: dezelfde voortgangsoverdracht.
-//  - BEKENDE AFWIJKING (knownbug 266, motor, al op de basis): `durationEditProgress` (`workRuleApply.ts`) rekent bij een
-//    eenheidswissel de rest als 720 × (1 − 1/3) = 480,00000000000006 min. Die ruis legt het einde net
-//    voorbij de bandgrens: wo 3 juni 07:00 in plaats van di 2 juni 16:00 (hetzelfde werkmoment, een
-//    andere dag in de Tabel). De verwachting hieronder blijft de met de hand gerekende di 16:00; de vier
-//    rijen in `KNOWN_DRIFT` mogen alleen precies de gemeten afwijking geven. Verdwijnt die (motorfix),
-//    dan wordt de rij rood: haal hem dan uit `KNOWN_DRIFT`.
+//  - Was een BEKENDE AFWIJKING (knownbug 266): `durationEditProgress` (`workRuleApply.ts`) rekent bij een
+//    eenheidswissel de rest als 720 × (1 − 1/3) = 480,00000000000006 min. Die ruis legde het einde net
+//    voorbij de bandgrens: wo 3 juni 07:00 in plaats van di 2 juni 16:00. Sinds de kalenderwandelingen in
+//    hele ms rekenen (review #591 r7) is het einde di 16:00; de vier rijen zijn uit `KNOWN_DRIFT`. Een rij in
+//    `KNOWN_DRIFT` mag alleen precies de gemeten afwijking geven; verdwijnt die, dan wordt de rij rood.
 // Exit 0 = groen.
 import './domStub';
 import { createAppStoreContext } from '@/state/appStore';
@@ -409,11 +408,9 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
 
 // Taakstand lopend en gereed: de Duur-cel en plakken, en (lopend) de kolom Eenheid.
 const UNIT = taskColumnId('task.time.durationUnit');
-/** Zie de kop: ruis in de rest van `durationEditProgress` bij een eenheidswissel (knownbug 266). Gemeten einde. */
-const KNOWN_DRIFT: ReadonlyMap<string, string> = new Map([
-  'lopend p6 werktijd "1,5d" cel', 'lopend p6 werktijd "1,5d" plakken',
-  'lopend msproject werktijd "1,5d" cel', 'lopend msproject werktijd "1,5d" plakken',
-].map(label => [label, '2026-06-03T07:00']));
+/** Zie de kop: label ⇒ het gemeten einde van een bekende motorafwijking. Leeg sinds review #591 r7 (de vier rijen
+ *  "lopend p6/msproject werktijd "1,5d" cel/plakken" geven nu het met de hand gerekende einde di 16:00). */
+const KNOWN_DRIFT: ReadonlyMap<string, string> = new Map();
 const known: string[] = [];
 function startedRow(label: string, accepted: boolean, unchanged: boolean, got: ProgressOutcome, want: P): void {
   rows++;
