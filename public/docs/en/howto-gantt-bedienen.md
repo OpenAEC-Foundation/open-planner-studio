@@ -17,7 +17,12 @@ If the task has a predecessor, the app records the new start as the constraint *
 
 If you drag mostly up or down instead of sideways, you move the task to another row and the dates stay. The direction you choose in the first few pixels applies to the whole drag, so one gesture never changes dates and structure at the same time. See [Adjusting the structure](docs://howto-structuur-aanpassen).
 
-You move a milestone (the diamond) the same way: press on the diamond and drag sideways. It stays a milestone without duration. A milestone has no edges, so you cannot change the duration of a milestone. A finish milestone lands at the end of a working day, also on a shorter day. Any other milestone with a predecessor lands at the start of a working day: there the constraint *SNET* holds it when you recalculate. If you let go on a day off, it moves on to the first working day in the direction you dragged. You cannot drag a summary task: its dates follow from the tasks below it.
+You move a milestone (the diamond) the same way: press on the diamond and drag sideways. It stays a milestone without duration. A milestone has no edges, so you cannot change its duration. Where the diamond lands depends on the zoom and on the side of the milestone:
+
+- If you see days, the diamond moves per working day. If it was at the end of a working day, it lands at the end again, also on a shorter day. If it was at the start, it lands at the start. If you let go on a day off, it moves on to the first working day in the direction you dragged.
+- If you see hours, the diamond moves per hour or per quarter of an hour, to the time under the mouse. If that time is outside working time, a milestone on the finish side goes back to the end of the working time before it. A milestone on the start side goes on to the start of the next working time.
+
+A finish milestone is on the finish side. In the scheduling profile *Open Planner Studio*, a milestone without predecessor and without successor is also on the finish side. Any other milestone with a predecessor is on the start side: the app records the new date as *SNET*, and that holds it there. So the diamond stays where you let go after *Calculate* (F5). You cannot drag a summary task: its dates follow from the tasks below it.
 
 ### Adjusting the duration
 

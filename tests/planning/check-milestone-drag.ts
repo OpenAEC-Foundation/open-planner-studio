@@ -16,7 +16,7 @@ import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { formatInstant, parseInstant } from '@/utils/dateUtils';
 import {
-  milestoneSitsAtFinish, resolveMilestoneDayDrag, resolveMilestoneHourDrag,
+  milestoneDragAnchor, milestoneSitsAtFinish, resolveMilestoneDayDrag, resolveMilestoneHourDrag,
 } from '@/engine/renderer/hourBarDragMath';
 import { resolveGanttAxis } from '@/engine/renderer/workdayAxis';
 import { constraintForDraggedStart, isLooseDayEndMilestone, predecessorDrivenTaskIds } from '@/engine/startEditConstraint';
@@ -143,9 +143,10 @@ function dragThenCalculate(id: string, zoom: 'day' | 'hour', amount: number): { 
     })
     : resolveMilestoneHourDrag({ calendar: eng, original, finishSide, candidate: new Date(original.getTime() + amount * 3600_000), snapMinutes: 60 });
   const dropped = formatInstant(landed, 'hour');
+  const anchor = formatInstant(milestoneDragAnchor(eng, landed, loose), 'hour');
   const snet = driven ? constraintForDraggedStart(orig, dropped, true) : undefined;
   S().updateTask(id, {
-    time: { ...orig.time, scheduleStart: dropped, scheduleFinish: dropped, earlyStart: dropped, earlyFinish: dropped },
+    time: { ...orig.time, scheduleStart: anchor, scheduleFinish: anchor, earlyStart: dropped, earlyFinish: dropped },
     ...(snet ? { constraint: snet.constraint } : {}),
   });
   S().runCPM();
@@ -235,6 +236,33 @@ for (const kind of [undefined, 'START'] as (MilestoneKind | undefined)[]) {
   eq('B6: F5 houdt di 10:00', first.calculated, first.dropped);
   const second = dragThenCalculate(m, 'hour', 21);
   eq('B6: F5 houdt het moment na slepen naar wo 07:00', second.calculated, second.dropped);
+}
+
+// 24/7 (review #704 r3): het dageinde om middernacht is ook het volgende blokbegin. Een losse mijlpaal blijft
+// na slepen en F5 op het neergezette moment, met een scalaire en met een expliciete kalender, onder OPS (B6)
+// en P6.
+for (const profile of ['ops', 'p6'] as const) {
+  for (const explicit of [false, true]) {
+    for (const zoom of ['day', 'hour'] as const) {
+      S().newProject();
+      S().setProject({ startDate: '2026-09-07', schedulingProfile: builtInProfile(profile) });
+      const allDay = [{ start: 0, end: 1440 }];
+      S().setCalendar({
+        ...S().calendar, workDays: [1, 2, 3, 4, 5, 6, 7], workStartHour: 0, workEndHour: 24, hoursPerDay: 24,
+        simpleBreakStartMinute: undefined, simpleBreakDurationMinutes: undefined,
+        workTime: explicit ? { byWeekday: { 1: allDay, 2: allDay, 3: allDay, 4: allDay, 5: allDay, 6: allDay, 7: allDay } } : undefined,
+      });
+      const m = S().addTask({ name: `24/7 ${profile}`, isMilestone: true });
+      S().runCPM();
+      const before = shownStart(S().tasks.find(t => t.id === m)!);
+      const tag = `24/7 ${profile}, ${explicit ? 'expliciet' : 'scalair'}, ${zoom}zoom`;
+      const { dropped, calculated } = dragThenCalculate(m, zoom, zoom === 'day' ? 1 : 24);
+      eq(`${tag}: één dag verder (${before} → ${dropped})`, parseInstant(dropped).getTime() - parseInstant(before).getTime(), 86_400_000);
+      eq(`${tag}: F5 houdt het`, calculated, dropped);
+      S().runCPM();
+      eq(`${tag}: tweede F5 houdt het`, shownStart(S().tasks.find(t => t.id === m)!), dropped);
+    }
+  }
 }
 
 if (failures.length === 0) {

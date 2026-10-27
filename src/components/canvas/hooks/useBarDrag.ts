@@ -5,7 +5,7 @@ import { parseDate, parseInstant, formatDate, formatInstant } from '@/utils/date
 import { isCompressedEffective } from '@/engine/renderer/workdayAxis';
 import { shiftByDisplayedColumns } from '@/engine/renderer/barDragMath';
 import {
-  ELAPSED_DRAG_CLOCK, milestoneSitsAtFinish, resolveDayMeasureBarDrag, resolveHourBarDrag, resolveMilestoneDayDrag,
+  ELAPSED_DRAG_CLOCK, milestoneDragAnchor, milestoneSitsAtFinish, resolveDayMeasureBarDrag, resolveHourBarDrag, resolveMilestoneDayDrag,
   resolveMilestoneHourDrag,
 } from '@/engine/renderer/hourBarDragMath';
 import { taskSplitMeasure } from '@/engine/renderer/splitBarGeometry';
@@ -242,9 +242,10 @@ export function useBarDrag({
   const startRuleRef = useRef<StartRuleGesture | null>(null);
   // Werkelijke datums van dit gebaar (zie `ActualDatesLock`); hoort net zo bij het GEBAAR.
   const actualLockRef = useRef<ActualDatesLock | null>(null);
-  /** De landingskant van een gesleepte nulduurmijlpaal (`milestoneSitsAtFinish`), bij pointer-down vastgelegd:
-   *  hij wisselt niet midden in het gebaar en overleeft een effectherstart. `null` ⇒ geen mijlpaal. */
-  const milestoneFinishSideRef = useRef<boolean | null>(null);
+  /** Bij pointer-down vastgelegd voor een gesleepte nulduurmijlpaal: de landingskant (`milestoneSitsAtFinish`)
+   *  en of B6 hem op het dageinde zet (`isLooseDayEndMilestone`). Wisselt niet midden in het gebaar en
+   *  overleeft een effectherstart. `null` ⇒ geen mijlpaal. */
+  const milestoneGestureRef = useRef<{ finishSide: boolean; loose: boolean } | null>(null);
   const hourSnapMinutes = hourSnapMinutesFor(zoom, enableQuarterHourZoom);
   const snapAt = useCallback(
     (x: number, hourMode: boolean) => snapTimelineDate(axis, x, hourMode, hourSnapMinutes),
@@ -321,12 +322,15 @@ export function useBarDrag({
     directionRef.current = 'undecided';
     lastAppliedDeltaRef.current = 0;
     setSplitLabel(null);
-    milestoneFinishSideRef.current = original && isZeroDurationMilestone(original)
-      ? milestoneSitsAtFinish(
-        new CalendarEngine(calendarForEngine(effectiveCalById.get(original.id) ?? calendar)),
-        parseInstant(next.originalStart), original.milestoneKind, driven,
-        isLooseDayEndMilestone?.(original.id) ?? false,
-      )
+    const loose = !!original && isZeroDurationMilestone(original) && (isLooseDayEndMilestone?.(original.id) ?? false);
+    milestoneGestureRef.current = original && isZeroDurationMilestone(original)
+      ? {
+        finishSide: milestoneSitsAtFinish(
+          new CalendarEngine(calendarForEngine(effectiveCalById.get(original.id) ?? calendar)),
+          parseInstant(next.originalStart), original.milestoneKind, driven, loose,
+        ),
+        loose,
+      }
       : null;
     setDragState({ ...next, pointerStart, split });
   }, [axis, canvasRef, prepareSplitDrag, getTask, isStartDrivenByPredecessor, isLooseDayEndMilestone, effectiveCalById, calendar]);
@@ -415,7 +419,7 @@ export function useBarDrag({
       const cal = effectiveCalById.get(dragState.taskId) ?? calendar;
       const engine = new CalendarEngine(calendarForEngine(cal));
       const original = parseInstant(dragState.originalStart);
-      const finishSide = milestoneFinishSideRef.current === true;
+      const finishSide = milestoneGestureRef.current?.finishSide === true;
       const pixelDelta = event.clientX - dragState.startX;
       // Onder compressie staat een mijlpaal op een verborgen vrije dag op de naad: het einde van de werkdag
       // ervoor of het begin van die erna, naar zijn kant. Daar begint het tellen van de kolommen.
@@ -437,14 +441,16 @@ export function useBarDrag({
           snapMinutes: quantumMin,
         });
       const next = formatInstant(at, 'hour');
+      // Het startanker: meestal het moment zelf; bij een B6-mijlpaal op zijn dageinde het dagbegin.
+      const anchor = formatInstant(milestoneDragAnchor(engine, at, milestoneGestureRef.current?.loose === true), 'hour');
       if (startBlocked(next !== dragState.originalStart)) return;
-      if (baseTime.scheduleStart === next && baseTime.scheduleFinish === next
+      if (baseTime.scheduleStart === anchor && baseTime.scheduleFinish === anchor
         && baseTime.earlyStart === next && baseTime.earlyFinish === next) return;
       updateTask(dragState.taskId, {
         time: {
           ...baseTime,
-          scheduleStart: next,
-          scheduleFinish: next,
+          scheduleStart: anchor,
+          scheduleFinish: anchor,
           earlyStart: next,
           earlyFinish: next,
         },

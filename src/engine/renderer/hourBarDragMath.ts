@@ -309,3 +309,17 @@ export function resolveMilestoneDayDrag(input: {
   const target = onBoundary ? (finishSide ? bands[bands.length - 1].end : bands[0].start) : offset;
   return landOn(calendar, new Date(day.getTime() + target * 60_000), finishSide);
 }
+
+/**
+ * Het startanker (`scheduleStart`) dat bij het neergezette moment `at` hoort. Meestal `at` zelf. Een losse
+ * mijlpaal die B6 op het einde van zijn werkdag zet (`looseAtDayEnd`), krijgt op dat dageinde het BEGIN van die
+ * werkdag als anker, precies zoals de motor hem na F5 achterlaat (`scheduleStart` dagbegin, `earlyStart`
+ * dageinde). Anders schuift B6 een dageinde dat ook een blokbegin is (24/7: middernacht) bij F5 een dag door.
+ */
+export function milestoneDragAnchor(calendar: CalendarEngine, at: Date, looseAtDayEnd: boolean): Date {
+  if (!looseAtDayEnd) return at;
+  const workday = workdayDateOfInstant(calendar, at, 'end');
+  const bands = calendar.effectiveBandsOn(workday);
+  if (bands.length === 0 || workday.getTime() + bands[bands.length - 1].end * 60_000 !== at.getTime()) return at;
+  return new Date(workday.getTime() + bands[0].start * 60_000);
+}
