@@ -3,9 +3,9 @@
 //   1. de rekenstap van die sleep (`resolveMilestoneHourDrag` bij uurzoom, `resolveMilestoneDayDrag` bij
 //      dagzoom) op een kalender met een middagpauze, een korte vrijdag en een vrije dinsdag;
 //   2. de landingskant (`milestoneSitsAtFinish`);
-//   3. de keten met de echte store: slepen (dezelfde velden en dezelfde SNET als `useBarDrag`) → F5 → de
-//      mijlpaal staat nog op het gesleepte moment (review #704 r1, punt 1). Ook onder werkdagencompressie
-//      vanaf een verborgen weekend (punt 2).
+//   3. de keten met de echte store: slepen (dezelfde velden, kant en SNET als `useBarDrag`) → F5 → de
+//      mijlpaal staat nog op het gesleepte moment (review #704 r1 punt 1, r2: nachtploeg en B6). Ook onder
+//      werkdagencompressie vanaf een verborgen weekend (r1 punt 2).
 // De hit-test (alleen body, geen randen, ook met één datum) staat in check-renderer-dateless.ts.
 //
 // Draait via run.sh. Exit 0 = alles groen.
@@ -19,7 +19,9 @@ import {
   milestoneSitsAtFinish, resolveMilestoneDayDrag, resolveMilestoneHourDrag,
 } from '@/engine/renderer/hourBarDragMath';
 import { resolveGanttAxis } from '@/engine/renderer/workdayAxis';
-import { constraintForDraggedStart, predecessorDrivenTaskIds } from '@/engine/startEditConstraint';
+import { constraintForDraggedStart, isLooseDayEndMilestone, predecessorDrivenTaskIds } from '@/engine/startEditConstraint';
+import { builtInProfile, effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
+import { dragWorkdaySteps } from '@/components/canvas/hooks/timelineSnap';
 import { shownStart } from '@/utils/taskDates';
 import type { MilestoneKind } from '@/types/task';
 import type { SequenceType } from '@/types/sequence';
@@ -66,18 +68,21 @@ function hour(original: string, deltaMinutes: number, finishSide: boolean, snapM
 }
 
 function dayDrag(original: string, columns: number, finishSide: boolean, compressed = false): string {
-  return show(resolveMilestoneDayDrag({
-    calendar: engine, axisCalendar: engine, compressed, original: at(original), finishSide, columns,
-  }));
+  // Zelfde naadregel als `useBarDrag`: onder compressie telt een verborgen vrije dag vanaf zijn kant.
+  const o = at(original);
+  const anchor = compressed && !engine.isWorkDay(o) ? (finishSide ? engine.prevWorkInstant(o) : engine.nextWorkInstant(o)) : o;
+  const workdaySteps = dragWorkdaySteps(anchor, finishSide ? 'end' : 'start', columns, engine, compressed, engine, calendar);
+  return show(workdaySteps === 0 ? o : resolveMilestoneDayDrag({ calendar: engine, original: anchor, finishSide, workdaySteps }));
 }
 
 // ── 1. Landingskant ──────────────────────────────────────────────────────────────────────────────
-const side = (t: string, kind: MilestoneKind | undefined, driven: boolean) => milestoneSitsAtFinish(engine, at(t), kind, driven);
+const side = (t: string, kind: MilestoneKind | undefined, driven: boolean, loose = false) =>
+  milestoneSitsAtFinish(engine, at(t), kind, driven, loose);
 eq('eindmijlpaal: altijd eindkant', side('2026-09-07T07:00', 'FINISH', true), true);
 eq('zonder soort, niet gestuurd, op een blokeinde: eindkant', side('2026-09-07T16:00', undefined, false), true);
-eq('beginmijlpaal, niet gestuurd, op een blokeinde (B6, losse mijlpaal): eindkant', side('2026-09-07T16:00', 'START', false), true);
 eq('zonder soort, gestuurd (SNET), op een blokeinde: beginkant', side('2026-09-07T16:00', undefined, true), false);
 eq('zonder soort, niet gestuurd, midden op de dag: beginkant', side('2026-09-07T10:00', undefined, false), false);
+eq('losse mijlpaal (B6) midden op de dag: eindkant', side('2026-09-07T10:00', undefined, false, true), true);
 
 // ── 2. Uurzoom ───────────────────────────────────────────────────────────────────────────────────
 eq('beginkant ma 07:00, +2 u', hour('2026-09-07T07:00', 120, false), '2026-09-07T09:00');
@@ -118,9 +123,54 @@ eq('compressie: zaterdag-beginmijlpaal, één kolom ⇒ telt vanaf maandag ⇒ d
   eq('compressie, uurzoom: eindmijlpaal op zaterdag naar ma 08:00 ⇒ ma 08:00, niet vrijdag 16:00', show(landed), '2026-09-14T08:00');
 }
 
-// ── 5. Slepen → F5 → zelfde moment (echte store, standaard- en blokkalender) ─────────────────────
+// ── 5. Slepen → F5 → zelfde moment (echte store) ─────────────────────────────────────────────────
 const S = () => useAppStore.getState();
-const blocks = [{ start: 420, end: 960 }];
+
+/** Precies wat `useBarDrag` bij één gebaar doet (zonder compressie), gevolgd door F5. Geeft het neergezette
+ *  en het berekende moment terug. `amount` is kolommen (dagzoom) of uren (uurzoom). */
+function dragThenCalculate(id: string, zoom: 'day' | 'hour', amount: number): { dropped: string; calculated: string } {
+  const orig = S().tasks.find(t => t.id === id)!;
+  const original = parseInstant(shownStart(orig));
+  const driven = predecessorDrivenTaskIds(S().tasks, S().sequences).has(id);
+  const loose = isLooseDayEndMilestone(orig, S().tasks, S().sequences,
+    effectiveSchedulingOptions(S().project).milestoneWithoutPredecessorAtDayEnd);
+  const eng = new CalendarEngine(calendarForEngine(S().calendar));
+  const finishSide = milestoneSitsAtFinish(eng, original, orig.milestoneKind, driven, loose);
+  const landed = zoom === 'day'
+    ? resolveMilestoneDayDrag({
+      calendar: eng, original, finishSide,
+      workdaySteps: dragWorkdaySteps(original, finishSide ? 'end' : 'start', amount, new CalendarEngine(S().calendar), false, eng, S().calendar),
+    })
+    : resolveMilestoneHourDrag({ calendar: eng, original, finishSide, candidate: new Date(original.getTime() + amount * 3600_000), snapMinutes: 60 });
+  const dropped = formatInstant(landed, 'hour');
+  const snet = driven ? constraintForDraggedStart(orig, dropped, true) : undefined;
+  S().updateTask(id, {
+    time: { ...orig.time, scheduleStart: dropped, scheduleFinish: dropped, earlyStart: dropped, earlyFinish: dropped },
+    ...(snet ? { constraint: snet.constraint } : {}),
+  });
+  S().runCPM();
+  const after = S().tasks.find(t => t.id === id)!;
+  eq(`duur blijft 0 (${orig.name})`, after.time.scheduleDuration, 0);
+  return { dropped, calculated: shownStart(after) };
+}
+
+function project(byWeekday?: Record<number, { start: number; end: number }[]>): void {
+  S().newProject();
+  S().setProject({ startDate: '2026-09-07' });
+  if (byWeekday) S().setCalendar({ ...S().calendar, workTime: { byWeekday } });
+}
+function milestone(name: string, kind: MilestoneKind | undefined, rel: SequenceType | null): string {
+  const p = S().addTask({ name: `${name} voorganger` });
+  const pt = S().tasks.find(t => t.id === p)!;
+  S().updateTask(p, { time: { ...pt.time, scheduleDuration: 1, durationMinutes: undefined } });
+  const m = S().addTask({ name, isMilestone: true, ...(kind ? { milestoneKind: kind } : {}) });
+  if (rel) S().addSequence({ predecessorId: p, successorId: m, type: rel, lagDays: 0 });
+  S().runCPM();
+  return m;
+}
+
+const dayBlocks = [{ start: 420, end: 960 }];
+const weekBlocks = { 1: dayBlocks, 2: dayBlocks, 3: dayBlocks, 4: dayBlocks, 5: dayBlocks, 6: [], 7: [] };
 for (const explicit of [false, true]) {
   for (const kind of [undefined, 'START', 'FINISH'] as (MilestoneKind | undefined)[]) {
     for (const rel of [null, 'FINISH_START', 'FINISH_FINISH'] as (SequenceType | null)[]) {
@@ -129,40 +179,62 @@ for (const explicit of [false, true]) {
         // net als bij een balk. Dat pint deze check niet; alleen de vrije richtingen. Zonder voorganger staat
         // de mijlpaal op de projectstart, een ondergrens: die stap begint daarom een week verder (+7).
         for (const step of rel ? [1, 2] : [1, 2, -1]) {
-          S().newProject();
-          S().setProject({ startDate: '2026-09-07' });
-          if (explicit) {
-            S().setCalendar({ ...S().calendar, workTime: { byWeekday: { 1: blocks, 2: blocks, 3: blocks, 4: blocks, 5: blocks, 6: [], 7: [] } } });
-          }
-          const p = S().addTask({ name: 'P' });
-          const pt = S().tasks.find(t => t.id === p)!;
-          S().updateTask(p, { time: { ...pt.time, scheduleDuration: 1, durationMinutes: undefined } });
-          const m = S().addTask({ name: 'M', isMilestone: true, ...(kind ? { milestoneKind: kind } : {}) });
-          if (rel) S().addSequence({ predecessorId: p, successorId: m, type: rel, lagDays: 0 });
-          S().runCPM();
-          const orig = S().tasks.find(t => t.id === m)!;
-          const original = parseInstant(shownStart(orig));
-          const driven = predecessorDrivenTaskIds(S().tasks, S().sequences).has(m);
-          const eng = new CalendarEngine(calendarForEngine(S().calendar));
-          const finishSide = milestoneSitsAtFinish(eng, original, kind, driven);
-          const landed = zoom === 'day'
-            ? resolveMilestoneDayDrag({ calendar: eng, axisCalendar: new CalendarEngine(S().calendar), compressed: false, original, finishSide, columns: step + (rel ? 0 : 7) })
-            : resolveMilestoneHourDrag({ calendar: eng, original, finishSide, candidate: new Date(original.getTime() + (step * 3 + (rel ? 0 : 7 * 24)) * 3600_000), snapMinutes: 60 });
-          const next = formatInstant(landed, 'hour');
-          const snet = driven ? constraintForDraggedStart(orig, next, true) : undefined;
-          S().updateTask(m, {
-            time: { ...orig.time, scheduleStart: next, scheduleFinish: next, earlyStart: next, earlyFinish: next },
-            ...(snet ? { constraint: snet.constraint } : {}),
-          });
-          S().runCPM();
-          const after = S().tasks.find(t => t.id === m)!;
-          const tag = `${explicit ? 'blokkalender' : 'standaardkalender'}, soort ${kind ?? '-'}, relatie ${rel ?? '-'}, ${zoom}zoom ${step}`;
-          eq(`F5 na slepen (${tag}, ${shownStart(orig)} → ${next})`, shownStart(after), next);
-          eq(`duur blijft 0 (${tag})`, after.time.scheduleDuration, 0);
+          project(explicit ? weekBlocks : undefined);
+          const m = milestone('M', kind, rel);
+          const before = shownStart(S().tasks.find(t => t.id === m)!);
+          const amount = zoom === 'day' ? step + (rel ? 0 : 7) : step * 3 + (rel ? 0 : 7 * 24);
+          const { dropped, calculated } = dragThenCalculate(m, zoom, amount);
+          const tag = `${explicit ? 'blokkalender' : 'standaardkalender'}, soort ${kind ?? '-'}, relatie ${rel ?? '-'}, ${zoom}zoom ${amount}`;
+          eq(`F5 na slepen (${tag}, ${before} → ${dropped})`, calculated, dropped);
         }
       }
     }
   }
+}
+
+// Nachtploeg (review #704 r2, punt 1): blok ma–vr 22:00–06:00. Een losse mijlpaal staat na F5 op di 06:00
+// (einde van het maandagblok). Eén kolom verder hoort wo 06:00 te zijn, niet wo 22:00 of do 06:00.
+for (const kind of [undefined, 'START'] as (MilestoneKind | undefined)[]) {
+  const night = [{ start: 1320, end: 1800 }];
+  project({ 1: night, 2: night, 3: night, 4: night, 5: night, 6: [], 7: [] });
+  const m = milestone(`nacht ${kind ?? '-'}`, kind, null);
+  eq(`nachtploeg (${kind ?? '-'}): uitgangspunt na F5`, shownStart(S().tasks.find(t => t.id === m)!), '2026-09-08T06:00');
+  const { dropped, calculated } = dragThenCalculate(m, 'day', 1);
+  eq(`nachtploeg (${kind ?? '-'}): één kolom ⇒ einde van het volgende blok`, dropped, '2026-09-09T06:00');
+  eq(`nachtploeg (${kind ?? '-'}): F5 houdt het`, calculated, dropped);
+  const hour1 = dragThenCalculate(m, 'hour', -2);
+  eq(`nachtploeg (${kind ?? '-'}): uurzoom −2 u, F5 houdt het`, hour1.calculated, hour1.dropped);
+}
+
+// Nachtploeg zonder B6 (P6-profiel): een mijlpaal met een ingevoerd moment op het einde van het maandagblok
+// (di 06:00) staat aan de eindkant, ook al begint dat blok de dag ervoor. Zo telt de herkenning van het
+// blokeinde (`milestoneSitsAtFinish`), niet B6.
+{
+  const night = [{ start: 1320, end: 1800 }];
+  project({ 1: night, 2: night, 3: night, 4: night, 5: night, 6: [], 7: [] });
+  S().setProject({ schedulingProfile: builtInProfile('p6') });
+  const m = S().addTask({ name: 'nacht p6', isMilestone: true });
+  const mt = S().tasks.find(t => t.id === m)!;
+  S().updateTask(m, { time: { ...mt.time, scheduleStart: '2026-09-08T06:00', scheduleFinish: '2026-09-08T06:00' } });
+  S().runCPM();
+  eq('nachtploeg P6: uitgangspunt di 06:00', shownStart(S().tasks.find(t => t.id === m)!), '2026-09-08T06:00');
+  const hourDrag = dragThenCalculate(m, 'hour', 3);
+  eq('nachtploeg P6: +3 u (vrije tijd) blijft op het blokeinde', hourDrag.dropped, '2026-09-08T06:00');
+  const { dropped, calculated } = dragThenCalculate(m, 'day', 1);
+  eq('nachtploeg P6: één kolom ⇒ wo 06:00', dropped, '2026-09-09T06:00');
+  eq('nachtploeg P6: F5 houdt het', calculated, dropped);
+}
+
+// B6 (review #704 r2, punt 2): een losse mijlpaal ma 16:00 → di 10:00 (uurzoom) → F5 → naar wo 07:00 → F5.
+{
+  project(weekBlocks);
+  const m = milestone('los', undefined, null);
+  eq('B6: uitgangspunt ma 16:00', shownStart(S().tasks.find(t => t.id === m)!), '2026-09-07T16:00');
+  const first = dragThenCalculate(m, 'hour', 18);
+  eq('B6: naar di 10:00', first.dropped, '2026-09-08T10:00');
+  eq('B6: F5 houdt di 10:00', first.calculated, first.dropped);
+  const second = dragThenCalculate(m, 'hour', 21);
+  eq('B6: F5 houdt het moment na slepen naar wo 07:00', second.calculated, second.dropped);
 }
 
 if (failures.length === 0) {

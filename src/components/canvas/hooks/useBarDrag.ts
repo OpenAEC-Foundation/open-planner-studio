@@ -149,9 +149,6 @@ export interface DragState {
   /** Gezet door `startBarDrag` wanneer dit een stuk- of stukrandsleep is; anders ongedefinieerd en
    *  loopt het gebaar over de gewone body/rand-takken. */
   split?: SplitDragContext;
-  /** Gezet door `startBarDrag`: stuurt een voorganger de start (dan zet de sleep een SNET)? Eén keer per
-   *  gebaar bepaald, zodat de landingskant van een mijlpaal niet midden in de sleep wisselt. */
-  drivenByPredecessor?: boolean;
 }
 
 interface UseBarDragOptions {
@@ -186,6 +183,8 @@ interface UseBarDragOptions {
    *  een gesleepte start dezelfde regel als een getypte (`constraintForDraggedStart`,
    *  `constraintBlockingStart`). Afwezig ⇒ nooit. */
   isStartDrivenByPredecessor?: (taskId: string) => boolean;
+  /** Zet de motor deze mijlpaal op het dageinde (B6, `isLooseDayEndMilestone`)? Afwezig ⇒ nooit. */
+  isLooseDayEndMilestone?: (taskId: string) => boolean;
   /** Het ene meldkanaal en de datumnotatie voor de startmelding na het loslaten. */
   notify?: (notification: NotifyInput) => void;
   dateNotation?: DateNotation;
@@ -217,7 +216,7 @@ interface UseBarDragOptions {
 // (body en linkerrand) en elke ongesplitste balk lopen over de gewone code hieronder.
 export function useBarDrag({
   zoom, enableQuarterHourZoom, calendar, effectiveCalById, compressNonWorkdays, getTask,
-  updateTask, onVerticalBodyDrag, axis, canvasRef, setTaskSplits, barTopOf, isStartDrivenByPredecessor,
+  updateTask, onVerticalBodyDrag, axis, canvasRef, setTaskSplits, barTopOf, isStartDrivenByPredecessor, isLooseDayEndMilestone,
   notify, dateNotation = 'dmy', timeNotation = '24h', workdayDurationMeasure = true,
 }: UseBarDragOptions) {
   const [dragState, setDragState] = useState<DragState | null>(null);
@@ -243,6 +242,9 @@ export function useBarDrag({
   const startRuleRef = useRef<StartRuleGesture | null>(null);
   // Werkelijke datums van dit gebaar (zie `ActualDatesLock`); hoort net zo bij het GEBAAR.
   const actualLockRef = useRef<ActualDatesLock | null>(null);
+  /** De landingskant van een gesleepte nulduurmijlpaal (`milestoneSitsAtFinish`), bij pointer-down vastgelegd:
+   *  hij wisselt niet midden in het gebaar en overleeft een effectherstart. `null` ⇒ geen mijlpaal. */
+  const milestoneFinishSideRef = useRef<boolean | null>(null);
   const hourSnapMinutes = hourSnapMinutesFor(zoom, enableQuarterHourZoom);
   const snapAt = useCallback(
     (x: number, hourMode: boolean) => snapTimelineDate(axis, x, hourMode, hourSnapMinutes),
@@ -319,8 +321,15 @@ export function useBarDrag({
     directionRef.current = 'undecided';
     lastAppliedDeltaRef.current = 0;
     setSplitLabel(null);
-    setDragState({ ...next, pointerStart, split, drivenByPredecessor: driven });
-  }, [axis, canvasRef, prepareSplitDrag, getTask, isStartDrivenByPredecessor]);
+    milestoneFinishSideRef.current = original && isZeroDurationMilestone(original)
+      ? milestoneSitsAtFinish(
+        new CalendarEngine(calendarForEngine(effectiveCalById.get(original.id) ?? calendar)),
+        parseInstant(next.originalStart), original.milestoneKind, driven,
+        isLooseDayEndMilestone?.(original.id) ?? false,
+      )
+      : null;
+    setDragState({ ...next, pointerStart, split });
+  }, [axis, canvasRef, prepareSplitDrag, getTask, isStartDrivenByPredecessor, isLooseDayEndMilestone, effectiveCalById, calendar]);
 
   // Automatisch berekenen wacht tot de sleep af is: elke mousemove commit, en een CPM-run midden in
   // het gebaar laat de balk onder de muis verspringen. Het effect laat ook los bij een afgebroken
@@ -401,25 +410,23 @@ export function useBarDrag({
     // alleen datums loopt via de dagsleep hieronder, die begin en einde gelijk verschuift.
     const milestone = isZeroDurationMilestone(draggedTask) && hasInstants;
     const handleMilestoneDrag = (event: MouseEvent) => {
-      const canvas = canvasRef.current;
-      const rect = canvas?.getBoundingClientRect();
-      if (!rect) return;
       const baseTime = getTask(dragState.taskId)?.time;
       if (!baseTime) return;
-      const engine = new CalendarEngine(calendarForEngine(effectiveCalById.get(dragState.taskId) ?? calendar));
+      const cal = effectiveCalById.get(dragState.taskId) ?? calendar;
+      const engine = new CalendarEngine(calendarForEngine(cal));
       const original = parseInstant(dragState.originalStart);
-      const finishSide = milestoneSitsAtFinish(engine, original, draggedTask.milestoneKind,
-        dragState.drivenByPredecessor === true);
+      const finishSide = milestoneFinishSideRef.current === true;
       const pixelDelta = event.clientX - dragState.startX;
+      // Onder compressie staat een mijlpaal op een verborgen vrije dag op de naad: het einde van de werkdag
+      // ervoor of het begin van die erna, naar zijn kant. Daar begint het tellen van de kolommen.
+      const dayAnchor = compressed && !axisCalEngine.isWorkDay(original)
+        ? (finishSide ? engine.prevWorkInstant(original) : engine.nextWorkInstant(original))
+        : original;
+      const workdaySteps = quantumMin === 1440
+        ? dragWorkdaySteps(dayAnchor, finishSide ? 'end' : 'start', Math.round(pixelDelta / zoom), axisCalEngine, compressed, engine, cal)
+        : 0;
       const at = quantumMin === 1440
-        ? resolveMilestoneDayDrag({
-          calendar: engine,
-          axisCalendar: axisCalEngine,
-          compressed,
-          original,
-          finishSide,
-          columns: Math.round(pixelDelta / zoom),
-        })
+        ? (workdaySteps === 0 ? original : resolveMilestoneDayDrag({ calendar: engine, original: dayAnchor, finishSide, workdaySteps }))
         // De plek op de getekende as: het anker plus de pixelverschuiving. Zo telt ook een mijlpaal op een
         // verborgen vrije dag (compressie) vanaf de naad waar hij staat.
         : pixelDelta === 0 ? original : resolveMilestoneHourDrag({

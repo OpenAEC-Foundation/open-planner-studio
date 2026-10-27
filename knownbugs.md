@@ -1274,15 +1274,6 @@ en noem het in je rapport of PR-tekst.
      control-relaties over, na kalender en metadata; voeg een gerichte regressiecheck toe.
      Vastgesteld door twee onafhankelijke broncontroles bij PR #641; niet uitgevoerd. — B
 
-410. **Een losse mijlpaal die je bij uurzoom precies op het dagbegin sleept, staat na F5 op het dageinde.**
-     `src/engine/renderer/hourBarDragMath.ts` (`milestoneSitsAtFinish`, `resolveMilestoneHourDrag`): een
-     mijlpaal zonder voorganger en zonder opvolger (of soort Einde) die midden op de dag staat, landt aan de
-     beginkant. Sleep je hem bij uurzoom naar exact het eerste blokbegin van een dag (bv. 07:00), dan zet de
-     OPS-regel B6 (`milestoneWithoutPredecessorAtDayEnd`, `CPMSolver` rond r.2754) hem bij F5 op het einde van
-     die dag. Alleen onder het OPS-profiel en alleen voor een mijlpaal die al buiten een blokgrens stond.
-     Richting: de B6-voorwaarde (profiel, geen voorganger, geen opvolger) aan de sleep meegeven, of na het
-     loslaten de landing door de motor laten bepalen. Eigen bevinding bij PR #704 (issue #691). — S
-
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
