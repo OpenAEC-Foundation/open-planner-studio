@@ -12,7 +12,7 @@ import {
   formatInstant,
 } from '@/utils/dateUtils';
 import {
-  durationMinutesOf, elapsedMinutesOf, addElapsedMinutes, subtractElapsedMinutes,
+  durationMinutesOf, elapsedMinutesOf, elapsedMilliseconds, addElapsedMinutes, subtractElapsedMinutes,
   signedElapsedSpan, isZeroDurationMilestone, splitTotalSpanMinutes, splitTotalSpanDays,
   taskDurationUnit, writeDerivedSpan, isPinnedComplete, isPinnedInProgress, isElapsedTask,
 } from './duration';
@@ -685,7 +685,7 @@ export class CPMSolver {
   private physicalPointLag(anchor: Date, seq: Sequence, predTask: Task, lagEng: CalendarEngine, sign: 1 | -1): Date {
     if (seq.lagUnit === 'ELAPSEDTIME') {
       const minutes = this.resolveElapsedMinutes(seq, predTask);
-      return new Date(anchor.getTime() + sign * minutes * 60_000);
+      return new Date(anchor.getTime() + sign * elapsedMilliseconds(minutes));
     }
     const minutes = sign * this.resolveLagMinutes(seq, predTask, lagEng);
     if (minutes > 0) return lagEng.addWorkMinutes(anchor, minutes);
