@@ -1174,14 +1174,6 @@ en noem het in je rapport of PR-tekst.
     Gevonden in review ronde 1 en 2 van PR #573 (GPT-6.1-Sol). Resterend: de bestaande echte-app-route
     uitbreiden met echte bestandsacties, inhoud en opruiming. — B
 
-262. **`check-recovery-refused-later.ts` scheidt de twee routes niet die de opslag als werkend markeren.**
-    De check laat eerst een lezing én een save slagen en geeft pas daarna een `SecurityError`
-    (`tests/planning/check-recovery-refused-later.ts`, rond regel 47). Hij blijft groen als één van de twee
-    plekken die `webStorageProven` zetten (`readWebRecovery` of `saveRecovery` in
-    `src/services/recovery/recoveryStore.ts`) wegvalt. Ook een overlappende startlezing en save, en de lege
-    terugval na een opstartleesfout (zet de vlag bewust niet), hebben geen eigen toets. Bevestigd in review
-    ronde 2 van PR #644 (GPT-6.1-Sol). Voorstel: per route een eigen proces (alleen lezing, alleen save). — B
-
 263. **De stille uitschakeling van crashherstel is niet bewezen in een echt sandbox-iframe.** De browsertest
     (`tests/browser/site-storage.spec.ts`, iframe-route rond regel 593) draait de tool in een same-origin
     iframe en vervangt `IDBFactory.prototype.open` door een functie die een `SecurityError` gooit. Een echte
