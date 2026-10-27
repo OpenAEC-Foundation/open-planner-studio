@@ -91,6 +91,7 @@ afwijkingen staan als niet-stijgende pin `excludedHidden` in het cellenbestand).
 `leveledProjects` (`tests/planning/xerManifestLeveling.ts`) is het meetmechanisme voor de toekomstige
 nivellering, zonder data en zonder invloed op de telling. Het nuldoel van plan §1
 is niet gehaald (76 zesassige afwijkingen over 8 geselecteerde entries en 18 projecten op 2026-09-24, na C14;
+cel voor cel bevestigd op 2026-10-27, na de urenomzetting;
 daarvoor 15.056 op het oude, bredere orakel); mét corpus staat de suite daarom by design rood op precies die drie
 nuldoelregels. Het cellenbestand (`xer-product-fidelity-cells.json`, versie 2) is een ratchet per cel
 op emmer én afwijkingsgrootte, met een eenmalige `ratchetDebt` (14 Roads-cellen, sinds X12 brok 6 op 0) die alleen mag dalen;
