@@ -306,6 +306,26 @@ for (const hoursPerDay of [4, 8, 10]) {
   }
 }
 
+// Review #699: een uursleep slaat dagen op zes decimalen op (useBarDrag), dus 47 u kalendertijd
+// = 1.958333 d en 10 u werktijd bij 9 u per dag = 1.111111 d. Het label toont hele minuten.
+for (const [durationType, hoursPerDay, hours] of [['ELAPSEDTIME', 8, 47], ['WORKTIME', 9, 10]] as const) {
+  const cal: WorkCalendar = { ...S().calendar, hoursPerDay, workStartHour: 8,
+    workEndHour: 8 + hoursPerDay, workTime: undefined };
+  const dayHours = durationType === 'ELAPSEDTIME' ? 24 : hoursPerDay;
+  const probe: Task = { ...wide, time: { ...wide.time, durationType, durationUnit: 'days',
+    scheduleDuration: Math.round((hours / dayHours) * 1e6) / 1e6, durationMinutes: undefined,
+    scheduleStart: '2026-08-03T08:00', earlyStart: '2026-08-03T08:00',
+    scheduleFinish: '2026-08-05T07:00', earlyFinish: '2026-08-05T07:00' } };
+  const row: ViewRow = { kind: 'task', rowKey: probe.id, task: probe, depth: 0, dimmed: false };
+  for (const display of ['hours', 'auto'] as const) {
+    const opts = baseOpts([row], 100, 0, { calendar: cal, durationDisplay: display,
+      durationSuffixes: { day: 'd', hour: 'u', minute: 'm' } });
+    const label = `review #699 ${durationType}/${hours}u/${display}`;
+    const b = badge(opts, { taskId: probe.id, edge: 'right' }, label);
+    eq(`${label}: tekst`, b.text.text, `${hours}u`);
+  }
+}
+
 // ── Uitkomst ─────────────────────────────────────────────────────────────────
 if (diffs.length) {
   for (const d of diffs) console.log(`   XX ${d}`);

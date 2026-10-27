@@ -1996,8 +1996,10 @@ export class GanttRenderer {
       const cal = this.opts.effectiveCalById?.get(task.id) ?? this.opts.calendar;
       // Een kalendertijddag telt 24 klokuren, ook op een kortere werkdag (zoals de duurkolom).
       const hoursPerDay = durationHoursPerDay(task, effHoursPerDay(cal));
+      // Uit dagen afgeleide minuten afronden: een sleep slaat dagen op zes decimalen op
+      // (47 u = 1.958333 d), en zonder afronding wordt dat "46h 59.9995m".
       const minutes = task.time.durationMinutes
-        ?? (taskDurationUnit(task) === 'hours' ? 0 : task.time.scheduleDuration * hoursPerDay * 60);
+        ?? (taskDurationUnit(task) === 'hours' ? 0 : Math.round(task.time.scheduleDuration * hoursPerDay * 60));
       return formatDuration(minutes, hoursPerDay, this.opts.durationDisplay ?? 'auto', sfx);
     }
     return this.durationText(task);
