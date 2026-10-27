@@ -146,3 +146,13 @@ export function ensureThemeVisible(hex: string, dark: boolean): string {
   for (let i = 0; i < 60 && hexLuminance(hslToHex(h, s, nl)) < DARK_THEME_MIN_LUMA; i++) nl = Math.min(1, nl + 0.02);
   return hslToHex(h, s, nl);
 }
+
+/** Houd ook lichte eigen kleuren zichtbaar op een lichte achtergrond. */
+export function ensureCustomBarVisible(hex: string, dark: boolean): string {
+  if (dark) return ensureThemeVisible(hex, true);
+  if (hexLuminance(hex) <= 0.30) return hex;
+  const { h, s, l } = hexToHsl(hex);
+  let nl = l;
+  for (let i = 0; i < 60 && hexLuminance(hslToHex(h, s, nl)) > 0.30; i++) nl = Math.max(0, nl - 0.02);
+  return hslToHex(h, s, nl);
+}

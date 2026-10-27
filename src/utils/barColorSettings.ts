@@ -34,18 +34,19 @@ function parseFieldRef(raw: unknown): FieldRef | undefined {
 export function parseBarColorSelection(raw: unknown): BarColorSelection | undefined {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
   const selection = raw as Record<string, unknown>;
-  if (selection.mode === 'critical') {
-    if (selection.colors === undefined) return { mode: 'critical' };
-    const colors = selection.colors;
-    if (!colors || typeof colors !== 'object' || Array.isArray(colors)) return undefined;
-    const c = colors as Record<string, unknown>;
+  let colors: import('@/types/barColor').CriticalBarColors | undefined;
+  if (selection.colors !== undefined) {
+    const rawColors = selection.colors;
+    if (!rawColors || typeof rawColors !== 'object' || Array.isArray(rawColors)) return undefined;
+    const c = rawColors as Record<string, unknown>;
     if (![c.critical, c.nearCritical, c.normal].every(v => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v))) return undefined;
-    return { mode: 'critical', colors: { critical: c.critical as string, nearCritical: c.nearCritical as string, normal: c.normal as string } };
+    colors = { critical: c.critical as string, nearCritical: c.nearCritical as string, normal: c.normal as string };
   }
-  if (selection.mode === 'auto') return { mode: 'auto' };
+  const extra = colors ? { colors } : {};
+  if (selection.mode === 'critical' || selection.mode === 'auto') return { mode: selection.mode, ...extra };
   if (selection.mode !== 'category') return undefined;
   const field = parseFieldRef(selection.field);
-  return field ? { mode: 'category', field } : undefined;
+  return field ? { mode: 'category', field, ...extra } : undefined;
 }
 
 function parseLegacyMode(raw: unknown): LegacyBarColorMode | undefined {

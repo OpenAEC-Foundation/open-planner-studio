@@ -323,6 +323,11 @@ function isLayoutOverlays(value: unknown): value is LayoutOverlays {
   if (!flags.every(flag => typeof o[flag] === 'boolean')) return false;
   const colors = o.barColors as Record<string, unknown> | null | undefined;
   if (!colors || typeof colors !== 'object') return false;
+  if (colors.colors !== undefined) {
+    if (!colors.colors || typeof colors.colors !== 'object' || Array.isArray(colors.colors)) return false;
+    const custom = colors.colors as Record<string, unknown>;
+    if (![custom.critical, custom.nearCritical, custom.normal].every(v => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v))) return false;
+  }
   if (colors.mode === 'critical' || colors.mode === 'auto') return true;
   const field = colors.field as Record<string, unknown> | null | undefined;
   return colors.mode === 'category' && !!field && typeof field === 'object' && typeof field.src === 'string';

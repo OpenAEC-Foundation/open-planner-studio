@@ -1460,7 +1460,7 @@ export function ReportPanel() {
                 value={barColorSelection.mode}
                 onChange={value => {
                   if (value === 'critical' || value === 'auto') {
-                    const next = { mode: value } as const;
+                    const next = { mode: value, colors: barColorSelection.colors } as const;
                     setOverlays({ barColors: next });
                     return;
                   }
@@ -1468,7 +1468,7 @@ export function ReportPanel() {
                     ? barColorControl.effective.field
                     : barColorFields[0]?.field;
                   if (!field) return;
-                  const next = { mode: 'category', field } as const;
+                  const next = { mode: 'category', field, colors: barColorSelection.colors } as const;
                   setOverlays({ barColors: next });
                 }}
                 options={[
@@ -1486,7 +1486,7 @@ export function ReportPanel() {
                   aria-label={t('barColorFieldLabel')}
                   value={encodeFieldRef(barColorControl.effective.field)}
                   onChange={value => {
-                    const next = { mode: 'category', field: decodeFieldRef(value) } as const;
+                    const next = { mode: 'category', field: decodeFieldRef(value), colors: barColorSelection.colors } as const;
                     setOverlays({ barColors: next });
                   }}
                   options={barColorFields.map(option => ({

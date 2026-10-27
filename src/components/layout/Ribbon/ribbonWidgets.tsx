@@ -1,3 +1,4 @@
+import { CriticalBarColorsEditor } from '@/components/viewControls/CriticalBarColors';
 import { useCallback, useMemo, useState, useRef, useEffect } from 'react';
 import { Popover } from '@/components/common/Popover';
 import { useAppStore } from '@/state/appStore';
@@ -741,14 +742,14 @@ export function ScreenColorsPopoverButton() {
   const updateSelection = (next: typeof selection) => setOverlays({ barColors: next });
   const selectMode = (mode: 'critical' | 'auto' | 'category') => {
     if (mode === 'critical' || mode === 'auto') {
-      updateSelection({ mode });
+      updateSelection({ mode, colors: selection.colors });
       setOpen(false);
       return;
     }
     const effectiveField = control.effective.mode === 'category'
       ? control.effective.field
       : fields[0]?.field;
-    if (effectiveField) updateSelection({ mode: 'category', field: effectiveField });
+    if (effectiveField) updateSelection({ mode: 'category', field: effectiveField, colors: selection.colors });
   };
   const effectiveFieldValue = control.effective.mode === 'category'
     ? encodeFieldRef(control.effective.field)
@@ -784,11 +785,12 @@ export function ScreenColorsPopoverButton() {
           <span className="ribbon-btn-label">{tMenu(`ribbon.screenColors_${mode}`)}</span>
         </button>
       ))}
+      {selection.mode === 'critical' && <CriticalBarColorsEditor colors={selection.colors} onChange={colors => updateSelection({ ...selection, colors })} />}
       {selection.mode === 'category' && fields.length > 0 && (
         <RibbonInlineSelect
           value={effectiveFieldValue}
           options={fields.map(option => ({ value: encodeFieldRef(option.field), label: option.label }))}
-          onChange={value => updateSelection({ mode: 'category', field: decodeFieldRef(value) })}
+          onChange={value => updateSelection({ mode: 'category', field: decodeFieldRef(value), colors: selection.colors })}
           ariaLabel={tMenu('ribbon.screenColors_category')}
         />
       )}

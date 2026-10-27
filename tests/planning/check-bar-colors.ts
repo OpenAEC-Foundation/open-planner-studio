@@ -1,3 +1,4 @@
+import { ensureCustomBarVisible } from '@/engine/renderer/resourcePalette';
 /**
  * Resourcepalet + kleurtoewijzing (#21 punt 1-nieuw) — regressiebatterij.
  *
@@ -164,15 +165,23 @@ const withAssignments = (assignments: ResourceAssignment[]): BarColorContext => 
 
 // Eigen kleuren voor elk van de drie statussen.
 {
-  const selection = { mode: 'critical', colors: { critical: '#112233', nearCritical: '#445566', normal: '#778899' } } as const;
+  const selection = { mode: 'critical', colors: { critical: '#112233', nearCritical: '#223344', normal: '#112233' } } as const;
   for (const [task, expected] of [
     [mkTask('critical', { time: mkTime({ isCritical: true }) }), '#112233'],
-    [mkTask('near', { time: mkTime({ isNearCritical: true }) }), '#445566'],
-    [mkTask('normal'), '#778899'],
+    [mkTask('near', { time: mkTime({ isNearCritical: true }) }), '#223344'],
+    [mkTask('normal'), '#112233'],
   ] as const) {
     const result = computeBarColors(task, selection, CTX, PAL);
     ok(result.kind === 'solid' && result.fill === expected, `eigen kleur ${expected}`);
   }
+}
+
+// Eigen kleuren blijven zichtbaar op een lichte of donkere achtergrond.
+{
+  const light = ensureCustomBarVisible('#ffffff', false);
+  const dark = ensureCustomBarVisible('#000000', true);
+  ok(light !== '#ffffff', 'lichte kleur wordt zichtbaar op een lichte achtergrond');
+  ok(dark !== '#000000', 'donkere kleur wordt zichtbaar op een donkere achtergrond');
 }
 
 // 8. Task.color is inert: dezelfde taakuitkomst in iedere overgebleven modus, ongeacht legacydata.
