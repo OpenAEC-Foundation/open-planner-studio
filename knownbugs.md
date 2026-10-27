@@ -117,10 +117,10 @@ en noem het in je rapport of PR-tekst.
     Een bisect over de merges van main op 2026-10-26 wijst merge #494 (`363bb638f`, korte
     MPP-resourceplaatsaanduidingen overslaan) aan als eerste rode merge; #446 (`811999328`) is nog
     groen.
-    Oorzaak (onderzocht op 2026-10-27): bij dezelfde bestandsbytes, dezelfde meetdekking (`OPS_MPP_CORPUS` en
-    `OPS_MPP_CRAWL`, 661 bestanden) en de gewone toetsmodus is de uitkomst vast rood; klok, tijdzone, taal,
-    pad en volgorde veranderen dat niet, alleen de commit. Zonder `OPS_MPP_CRAWL` meet de check dit bestand
-    niet en eindigt hij groen (zie 427). #494 is juist
+    Oorzaak (onderzocht op 2026-10-27): bij dezelfde bestandsbytes, dezelfde meetdekking (corpus en crawl,
+    661 bestanden op aia09-mp50) en de gewone toetsmodus is de uitkomst vast rood; klok, tijdzone, taal, pad
+    en volgorde veranderen dat niet, alleen de commit. Wordt de crawlmap niet gescand, dan meet de check dit
+    bestand niet en kan hij groen eindigen (zie 427). #494 is juist
     (`src/services/mpp/mppEntities.ts:302`, knownbug 119): de lezer slaat nu de korte records van 16 bytes
     over en leest Resource 8a en 8b uit de volle records. Die zijn LABOR, zoals in MPXJ; de oude lezer
     maakte er MATERIAL van. Daardoor laat de MATERIAL-filter (`src/services/mpp/mppReader.ts:1501`, zie
@@ -1317,16 +1317,19 @@ en noem het in je rapport of PR-tekst.
      control-relaties over, na kalender en metadata; voeg een gerichte regressiecheck toe.
      Vastgesteld door twee onafhankelijke broncontroles bij PR #641; niet uitgevoerd. — B
 
-427. **De MS Project-meting eindigt groen als het crawl-corpus ontbreekt, ook in `measure:profiles`.**
-     `tests/planning/check-mpp-fidelity.ts` slaat de corpus- en de crawllus over als `OPS_MPP_CORPUS` of
-     `OPS_MPP_CRAWL` ontbreekt. Dat staat in tussenregels (`:720`, `:735`), maar de slotregel (`:888`) zegt toch
-     "alle checks groen". Twee gevallen:
-     - Geen van beide gezet (ook als alleen `OPS_XER_CORPUS` gezet is): 0 bestanden, "alle checks groen (678)",
-       exit 0. `measure:profiles` noemt dit wel rood ("niet gemeten").
+427. **De MS Project-meting eindigt groen als de crawlmap niet gescand wordt, ook in `measure:profiles`.**
+     `tests/planning/check-mpp-fidelity.ts` neemt `OPS_MPP_CORPUS` en `OPS_MPP_CRAWL`, of zonder die variabelen
+     een vast pad onder `/home/nozzit/…` (`:492–493`). Een lus wordt overgeslagen als die effectieve map
+     ontbreekt of geen `.mpp`-bestand bevat (`:715–725`, `:731–741`). Dat staat in tussenregels (`:720`, `:735`),
+     maar de slotregel (`:888`) zegt toch "alle checks groen". Gemeten op aia09-mp50, waar de `/home/nozzit/…`-
+     paden niet bestaan:
+     - Geen van beide variabelen gezet (ook als alleen `OPS_XER_CORPUS` gezet is): 0 bestanden, "alle checks
+       groen (678)", exit 0. `measure:profiles` noemt dit wel rood ("niet gemeten").
      - Alleen `OPS_MPP_CORPUS` gezet: 3 bestanden, "alle checks groen (703)", exit 0. Ook `classifyMsp` in
        `scripts/measure-profiles-status.mjs:116–122` geeft dan GROEN (`scanned: 3`). De 658 crawlbestanden,
        met `timephased-cost-rollup.mpp` (knownbug 187), zijn dan niet gemeten.
-     Wie alleen op de slotregel of de exitcode oordeelt, ziet zo een vals groen. De CI draait bewust zonder
+     Op een machine waar de crawl op het vaste pad staat, wordt hij ook zonder `OPS_MPP_CRAWL` gescand. Wie
+     alleen op de slotregel of de exitcode oordeelt, ziet zo een vals groen. De CI draait bewust zonder
      corpus, dus een faal in de check zelf is niet de oplossing. Voorstel: de slotregel noemt het aantal
      gescande bestanden en welke lus is overgeslagen; `measure:profiles` meldt een gedeeltelijke meting
      (een lus overgeslagen) apart en niet als GROEN. Gevonden bij het onderzoek naar 187 en in review ronde 1
