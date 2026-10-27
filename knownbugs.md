@@ -1318,6 +1318,14 @@ en noem het in je rapport of PR-tekst.
      door een assert dat het openen al een verse, berekende stand geeft. Gevonden in review ronde 1 van
      PR #590 (GPT-6.1-Sol, VERVOLG). — B
 
+394. **De nieuwe scrollmatrix raakt interne randen van gesplitste balken niet gericht.**
+     `tests/planning/check-render-caches.ts:162`: `hitSnapshot` belooft meetpunten bij elk
+     zichtbaar balkstuk en elke pauze. De zeven x-posities komen uit de rechthoek van de
+     volledige balk. Interne segmentranden en pauzes worden daardoor niet afzonderlijk
+     bemonsterd. Voeg die punten toe aan de scrollmatrix voor de renderafhankelijke
+     splitscache. Bestaande splittests controleren zulke punten los van deze matrix.
+     Twee onafhankelijke broncontroles bij PR #643; geen productfout aangetoond. — B
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
