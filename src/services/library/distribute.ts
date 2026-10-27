@@ -113,6 +113,9 @@ export interface DistributionDocResult {
    *  uitkomst, geen generieke capaciteitsmelding. */
   cannotMove: boolean;
   delays: Record<string, number>;
+  /** Dezelfde vertraging in minuten (`LevelingResult.delayMinutes`, spec §3.11); `applyLeveling`
+   *  schrijft ze als `levelingDelayMinutes`, zodat de solver op het getoetste moment start. */
+  delayMinutes?: Record<string, number>;
   /** Volledige, te schrijven `splitGaps` per taak (leeg wanneer `allowSplits` uit staat). */
   gaps: Record<string, TaskSplitGap[]>;
   projectEndBefore: string;
@@ -484,6 +487,7 @@ export function computeDistribution(
       participated: true,
       cannotMove: false,
       delays: result.delays,
+      ...(result.delayMinutes ? { delayMinutes: result.delayMinutes } : {}),
       gaps: result.gaps,
       projectEndBefore: result.projectEndBefore,
       projectEndAfter: result.projectEndAfter,

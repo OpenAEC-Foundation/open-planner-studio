@@ -109,7 +109,6 @@ function typeDuration(taskId: string, text: string): number | string {
 
 // ── Opzet: urenplanning aan, een urentaak van 80 uur en een opvolger met 2 uur lag ──
 S().newProject();
-S().setUI({ enableHourPlanning: true });
 S().setProject({ startDate: '2026-06-01', name: 'Uren zonder spatie' });
 const A = S().addTask({ name: 'A ontwerp', time: { durationUnit: 'hours', durationMinutes: 80 * H } as TaskTime });
 const B = S().addTask({ name: 'B uitvoering', time: { scheduleDuration: 3 } as TaskTime });

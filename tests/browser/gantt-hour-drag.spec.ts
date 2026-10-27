@@ -1,9 +1,15 @@
 import { barPoint, expect, state, test } from './fixtures/ops';
 
+// Deze route bedient tijdlijnbalken naast de takenlijst en de eigenschappenrail.
+// Reserveer expliciet genoeg canvasruimte, onafhankelijk van de standaard paneelbreedte
+// (knownbug 60, #627: de standaardbreedte van de takenlijst is 400 px). Bij kwartierzoom is de
+// urentaak 1000 px breed en ligt het midden van de balk anders onder de eigenschappenrail.
+test.use({ viewport: { width: 1600, height: 900 } });
+
 async function seedHourTask(page: import('@playwright/test').Page, start = '2026-09-07T07:00', finish = '2026-09-07T16:00'): Promise<string> {
   const id = await page.evaluate(({ taskStart, taskFinish }) => {
     const state = window.__OPS__!.store.getState();
-    state.setUI({ enableHourPlanning: true, allowMixedDayHour: true, compressNonWorkdays: false });
+    state.setUI({ allowMixedDayHour: true, compressNonWorkdays: false });
     state.setCalendar({
       ...state.calendar,
       workDays: [1, 2, 3, 4, 5],
@@ -137,30 +143,49 @@ test('urentaak-bodydrag blijft één undo-stap en herstelt exacte minuten en dat
   await expect.poll(() => state(page).then(snapshot => snapshot.undoDepth)).toBe(undoDepthBefore);
 });
 
-test('bestaande urentaak behoudt zijn werkminuten wanneer urenplanning uit staat', async ({ page, ops: _ops }) => {
+test('voorinstelling Dag sleept per hele dag en Uur per uur', async ({ page, ops: _ops }) => {
   const id = await seedHourTask(page);
-  await page.evaluate(() => {
-    const state = window.__OPS__!.store.getState();
-    state.setUI({ enableHourPlanning: false });
-    // De dagmodus begrenst 1000px/dag naar 400px/dag; volg die bestaande viewportregel in plaats
-    // van een punt uit een niet meer zichtbare balk als dragstart te gebruiken.
-    state.setScroll(14 * 400 + 80, 0);
-  });
-  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())));
-  const point = await barPoint(page, id, 'body');
-
-  await page.mouse.move(point.x, point.y);
-  await page.mouse.down();
-  await expect(page.getByTestId('gantt-primary-canvas')).toHaveCSS('cursor', 'grabbing');
-  // Zonder urenplanning is de actieve rasterstap een dag, maar de reeds bestaande taak mag niet
-  // naar een dagtaak worden omgezet of zijn minuten kwijtraken.
-  await page.mouse.move(point.x + 400, point.y, { steps: 6 });
-  await page.mouse.up();
-
-  await expect.poll(() => hourState(page, id)).toMatchObject({
-    start: '2026-09-08T07:00', finish: '2026-09-08T16:00',
-    unit: 'hours', minutes: 480,
-  });
+  await page.locator('.ribbon-tab').filter({ hasText: /^(View|Beeld)$/ }).click();
+  const scale = page.locator('[data-tour-anchor="ribbon-group:beeld:timeScale"] button').filter({ hasText: /▼/ });
+  for (const [preset, zoom, pixels, expected] of [
+    [/^(Day|Dag)$/, 100, 100, '2026-09-08T07:00'],
+    [/^(Hour|Uur)$/, 1000, 1000 / 24, '2026-09-08T08:00'],
+    [/^(Hour|Uur)$/, 1000, 1000 / 96, '2026-09-08T08:15'],
+  ] as const) {
+    if (pixels === 1000 / 96) await page.evaluate(() => window.__OPS__!.store.getState().setUI({ enableQuarterHourZoom: true }));
+    await scale.click();
+    await page.getByRole('button', { name: preset, exact: true }).click();
+    await expect.poll(() => state(page).then(s => s.view.zoom)).toBe(zoom);
+    await paintedAfter(page, () => page.evaluate(taskId => {
+      const s = window.__OPS__!.store.getState();
+      const left = window.__OPS__!.gantt.taskBarPoint(taskId, 'left')!;
+      const canvas = document.querySelector('[data-testid="gantt-primary-canvas"]')!.getBoundingClientRect();
+      s.setScroll(s.view.scrollX + left.x - canvas.left - 100, 0);
+    }, id));
+    const point = await settledBarPoint(page, id);
+    if (zoom === 100) {
+      const before = await hourState(page, id);
+      await page.mouse.move(point.x, point.y);
+      await page.mouse.down();
+      await page.mouse.move(point.x + 100 / 24, point.y, { steps: 2 });
+      await page.mouse.up();
+      await expect.poll(() => hourState(page, id)).toMatchObject(before);
+    }
+    await page.mouse.move(point.x, point.y);
+    await page.mouse.down();
+    await expect(page.getByTestId('gantt-primary-canvas')).toHaveCSS('cursor', 'grabbing');
+    await page.mouse.move(point.x + pixels, point.y, { steps: 6 });
+    await page.mouse.up();
+    await expect.poll(() => hourState(page, id)).toMatchObject({ start: expected, unit: 'hours', minutes: 480 });
+    if (pixels === 1000 / 96) continue;
+    const canvas = page.getByTestId('gantt-primary-canvas');
+    const box = await canvas.boundingBox();
+    if (!box) throw new Error('Tijdkop ontbreekt');
+    for (const uiTheme of ['light', 'dark'] as const) {
+      await paintedAfter(page, () => page.evaluate(theme => window.__OPS__!.store.getState().setUI({ uiTheme: theme }), uiTheme));
+      await page.screenshot({ path: `artifacts/uren-f4a/tijdkop-${zoom === 100 ? 'dag' : 'uur'}-${uiTheme}.png`, clip: { x: box.x, y: box.y, width: Math.min(box.width, 1000), height: 100 } });
+    }
+  }
 });
 
 test('urentaak-rechterrand telt alleen werkuren en landt op de bandgrens vóór de pauze', async ({ page, ops: _ops }) => {

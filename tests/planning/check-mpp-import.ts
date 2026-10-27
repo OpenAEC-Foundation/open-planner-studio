@@ -74,7 +74,6 @@ import {
 } from '@/services/mpp/mppReader';
 import { readCalendars, type CalendarReadResult } from '@/services/mpp/mppCalendars';
 import { MAX_VAR_TEXT_BYTES, MAX_MANUAL_DURATION_TENTHS } from '@/services/mpp/limits';
-import { tenthsOfMinutesToDays } from '@/services/importDurations';
 import { formatInstant } from '@/utils/dateUtils';
 import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { writeMSPDI } from '@/services/msproject/mspdiWriter';
@@ -132,17 +131,6 @@ let softChecksTotal = 0;
   }
   truthy('00 niet-CFB-bytes: constructor gooit', threw);
   truthy('00b niet-CFB-bytes: nette CFB-foutmelding', message.startsWith('CFB:'));
-}
-
-// ── T7-restpunt (N1/N2): tenthsOfMinutesToDays met een NIET-dyadische hoursPerDay (7,6667u/dag =
-// 460 minuten/dag) — het geval waar de afrondingsvolgorde daadwerkelijk uitmaakt (zie de
-// toelichting in importDurations.ts). 16100 tienden-van-minuut = 1610 minuten; 1610/460 = 3,5
-// dagen, en JS' Math.round rondt .5 naar boven ⇒ 4. ─────────────────────────────────────────────
-{
-  truthy(
-    '00c tenthsOfMinutesToDays(16100, 460/60) === 4 (niet-dyadische hoursPerDay, halve-dag-grens)',
-    tenthsOfMinutesToDays(16100, 460 / 60) === 4,
-  );
 }
 
 // ── Z8-herwerkronde (2026-08-18) — INSTRUMENTFIX: `canonicalizeBands`/`promoteHourCalendar`
@@ -1183,9 +1171,9 @@ const PROPSKEY_ASSIGNMENT_FIELD_MAP = 131095;
   if (result) {
     truthy('I4 end-to-end readMPP: project.name uit Props/TITLE', result.project.name === 'Fixture Project');
     // Rekenprofielen C3/C4: de twee MPP-eigen conventies staan in het MS Project-profiel; de lezer zet
-    // geen projectopties meer.
-    truthy('I4 end-to-end readMPP: zonder XER-floatbron geen projectopties, MS Project-profiel',
-      result.project.schedulingOptions === undefined
+    // geen conventie-overrides meer; de bronkritiekgrens is wel een projectinstelling.
+    truthy('I4 end-to-end readMPP: alleen bronkritiekgrens als projectoptie, MS Project-profiel',
+      JSON.stringify(result.project.schedulingOptions) === JSON.stringify({ criticalDefinition: { mode: 'totalFloat', threshold: 0 } })
         && JSON.stringify(result.project.schedulingProfile) === JSON.stringify(builtInProfile('msproject')));
     truthy('I4 end-to-end readMPP: project en kalender krijgen nooit XER-provenance',
       result.project.schedulingProfile?.id === 'msproject' && result.calendar.p6Source === undefined);
@@ -1460,8 +1448,10 @@ const PROPSKEY_ASSIGNMENT_FIELD_MAP = 131095;
       truthy('uurmodus-fixture (dag-contrast): 1 taak', result.tasks.length === 1);
       const task = result.tasks[0];
       truthy('uurmodus-fixture (dag-contrast): projectkalender.workTime NIET gezet (geen lek)', !result.calendar.workTime);
-      truthy('uurmodus-fixture (dag-contrast): expliciete taakeenheid is days', task?.time.durationUnit === 'days');
-      truthy('uurmodus-fixture (dag-contrast): durationMinutes NIET gezet (geen lek)', task?.time.durationMinutes === undefined);
+      // Sinds F5b altijd de urenmaat (alleen uren §3.10, T15; I4): de kalender blijft scalair (geen lek),
+      // maar de duur is de minuten uit het bestand.
+      truthy('uurmodus-fixture (dag-contrast): taakmaat is de urenmaat (T15)', task?.time.durationUnit === 'hours');
+      truthy('uurmodus-fixture (dag-contrast): durationMinutes === 480 (de minuten uit het bestand)', task?.time.durationMinutes === 480);
       truthy('uurmodus-fixture (dag-contrast): scheduleDuration === 1 dag', task?.time.scheduleDuration === 1);
       truthy('uurmodus-fixture (dag-contrast): scheduleStart is dag-alleen (geen "T")', !task?.time.scheduleStart.includes('T'));
       truthy('uurmodus-fixture (dag-contrast): scheduleFinish is dag-alleen (geen "T")', !task?.time.scheduleFinish.includes('T'));
@@ -1513,7 +1503,8 @@ const PROPSKEY_ASSIGNMENT_FIELD_MAP = 131095;
         `uurmodus-fixture (scalar-vs-promoted): projectkalender.workTime NIET gezet (scalar hpd=4, 240%240===0) — hoursPerDay=${result.calendar.hoursPerDay}`,
         !result.calendar.workTime,
       );
-      truthy('uurmodus-fixture (scalar-vs-promoted): durationMinutes NIET gezet', task?.time.durationMinutes === undefined);
+      // De kalender beslist (workTime hierboven); de duur is sinds F5b altijd de urenmaat (T15).
+      truthy('uurmodus-fixture (scalar-vs-promoted): durationMinutes === 240 (urenmaat, T15)', task?.time.durationMinutes === 240);
     }
   }
 
@@ -1560,7 +1551,8 @@ const PROPSKEY_ASSIGNMENT_FIELD_MAP = 131095;
         'uurmodus-fixture (ankerdivergentie, mpp-kant): projectkalender.workTime NIET gezet (kalender-eigen anker 09:00 == taaktijden)',
         !result.calendar.workTime,
       );
-      truthy('uurmodus-fixture (ankerdivergentie, mpp-kant): durationMinutes NIET gezet (dagmodus)', result.tasks[0]?.time.durationMinutes === undefined);
+      // De kalender blijft in dagmodus (workTime hierboven); de duur is sinds F5b altijd de urenmaat (T15).
+      truthy('uurmodus-fixture (ankerdivergentie, mpp-kant): durationMinutes === 480 (urenmaat, T15)', result.tasks[0]?.time.durationMinutes === 480);
     }
 
     // Dezelfde taak/kalender als minimale MSPDI-XML — bewijst de ANDERE kant van de divergentie.
@@ -1632,12 +1624,11 @@ const PROPSKEY_ASSIGNMENT_FIELD_MAP = 131095;
       truthy('uurmodus-fixture (T10 dag-modus elapsed): 1 taak', result.tasks.length === 1);
       const task = result.tasks[0];
       truthy('uurmodus-fixture (T10 dag-modus elapsed): projectkalender.workTime NIET gezet (dagmodus, geen lek)', !result.calendar.workTime);
-      truthy('uurmodus-fixture (T10 dag-modus elapsed): durationMinutes NIET gezet (dagmodus)', task?.time.durationMinutes === undefined);
+      // Sinds F5b de urenmaat (T15): de duur is de KLOK-minuten uit het bestand (2 × 1440), zonder
+      // omrekening via een uren-per-dag. Het dagengetal is afgeleid zoals bij elke urentaak.
+      truthy(`uurmodus-fixture (T10 dag-modus elapsed): durationMinutes === 2880 klokminuten (kreeg ${task?.time.durationMinutes})`, task?.time.durationMinutes === 2880);
       truthy('uurmodus-fixture (T10 dag-modus elapsed): durationType === ELAPSEDTIME', task?.time.durationType === 'ELAPSEDTIME');
-      truthy(
-        `uurmodus-fixture (T10 dag-modus elapsed): scheduleDuration === 2 (klok-dagen, GEEN dubbele hoursPerDay-deling — kreeg ${task?.time.scheduleDuration})`,
-        task?.time.scheduleDuration === 2,
-      );
+      truthy('uurmodus-fixture (T10 dag-modus elapsed): taakmaat is de urenmaat (T15)', task?.time.durationUnit === 'hours');
     }
   }
 
@@ -1670,8 +1661,9 @@ const PROPSKEY_ASSIGNMENT_FIELD_MAP = 131095;
 // eindtijd). Besluit eigenaar: tijd overnemen (17:00 = einde van die dag). De MSPDI-lezer doet dat
 // sinds `statusDateFromXml`; voor hetzelfde project moet `.mpp` exact hetzelfde opleveren. MS
 // Project schrijft de waarde in MSPDI als `<StatusDate>` in xsd:dateTime-vorm (wandklok, zonder
-// zone) — die string is hier de referentie. Het dag-anker 08:00 betekent in MSPDI "geen tijd"; voor
-// pariteit geldt dat ook hier (een statusdatum op 08:00 komt exact als `YYYY-MM-DD` terug).
+// zone) — die string is hier de referentie. Het dag-anker 08:00 betekent alleen in een MSPDI van OPS zelf
+// "geen tijd"; sinds F5b (I8) is 08:00 in een vreemd bestand een echte tijd. Een `.mpp` komt van MS
+// Project, dus ook hier: een statusdatum op 08:00 komt als `YYYY-MM-DDT08:00` terug, net als in MSPDI.
 // ═══════════════════════════════════════════════════════════════════════════════════════════
 {
   installDOMParser();
@@ -1693,7 +1685,7 @@ const PROPSKEY_ASSIGNMENT_FIELD_MAP = 131095;
     ['12:30', 7500, '2026-07-06T12:30:00', '2026-07-06T12:30'],
     ['23:59 (de datum schuift niet)', 14390, '2026-07-06T23:59:00', '2026-07-06T23:59'],
     ['00:00', 0, '2026-07-06T00:00:00', '2026-07-06T00:00'],
-    ['08:00 (dag-anker: geen tijd, exact de datum)', 4800, '2026-07-06T08:00:00', '2026-07-06'],
+    ['08:00 (een echte tijd in een vreemd bestand, F5b I8)', 4800, '2026-07-06T08:00:00', '2026-07-06T08:00'],
   ];
   for (const [label, time, xsd, want] of cases) {
     const got = fromMpp(time, DAYS_2026_07_06);
@@ -2438,6 +2430,7 @@ if (corpusPresent) {
   function buildMsTaskFixedDataRecord(opts: {
     uniqueId: number; id: number; durationRaw: number;
     startTime: number; startDays: number; finishTime: number; finishDays: number;
+    actualFinishTime?: number; actualFinishDays?: number;
   }): Uint8Array {
     const out = new Uint8Array(130);
     const view = new DataView(out.buffer);
@@ -2450,6 +2443,11 @@ if (corpusPresent) {
     view.setUint16(66, opts.startDays, true);
     view.setUint16(68, opts.finishTime, true);
     view.setUint16(70, opts.finishDays, true);
+    // Werkelijk einde (`fieldMap14`: ActualFinish op offset 76); zonder dag blijft het leeg (null).
+    if (opts.actualFinishDays !== undefined) {
+      view.setUint16(76, opts.actualFinishTime ?? 0, true);
+      view.setUint16(78, opts.actualFinishDays, true);
+    }
     view.setInt32(118, -1, true); // geen taak-kalender-override — gebruik de projectkalender
     return out;
   }
@@ -2490,6 +2488,7 @@ if (corpusPresent) {
   interface MsTaskSpec {
     name: string; uniqueId: number; id: number; milestone: boolean; durationRaw: number;
     startTime: number; startDays: number; finishTime: number; finishDays: number;
+    actualFinishTime?: number; actualFinishDays?: number;
   }
 
   /** Bouwt één compleet CFB-bestand met N taken op ÉÉN gedeelde kalender — spiegelt de UURMODUS-
@@ -2648,6 +2647,31 @@ if (corpusPresent) {
       const task = result.tasks[0];
       truthy('[T11 dagmodus] taak is mijlpaal', task?.isMilestone === true);
       truthy('[T11 dagmodus] GEEN milestoneKind (afleiding geldt alleen in uur-modus)', task?.milestoneKind === undefined);
+    }
+  }
+
+  // ── Fixture E2 (review ronde 3 van PR #559, deel B): dezelfde mijlpaal op het anker, nu voltooid met
+  // een werkelijk einde om 11:00 of om 00:00. Die tijd is een feit uit de bron en telt mee in de
+  // uur-modus-beslissing; anders kapte `formatField` hem af tot de datum en werd het na het laden het
+  // blokeinde 16:00. Mutatiebewijs: zonder de werkelijke datums in `dateSignal` blijft de kalender
+  // scalair en is het werkelijke einde `2025-01-24`. ───────────────────────────────────────────────
+  for (const [clock, time] of [['11:00', 6600], ['00:00', 0]] as const) {
+    const bytes = buildMilestoneKindFixture([
+      { name: 'ActualMilestone', uniqueId: 10, id: 1, milestone: true, durationRaw: 0, startTime: 4800, startDays: 15000,
+        finishTime: 4800, finishDays: 15000, actualFinishTime: time, actualFinishDays: 15000 },
+    ]);
+    let result: ReturnType<typeof readMPP> | null = null;
+    let threw: string | null = null;
+    try {
+      result = readMPP(bytes);
+    } catch (err) {
+      threw = err instanceof Error ? err.message : String(err);
+    }
+    truthy(`[werkelijk ${clock}] readMPP gooit niet (${threw ?? ''})`, threw === null);
+    if (result) {
+      truthy(`[werkelijk ${clock}] de werkelijke tijd maakt de kalender een urenkalender`, !!result.calendar.workTime);
+      const actual = result.tasks[0]?.time.actualFinish;
+      truthy(`[werkelijk ${clock}] werkelijk einde houdt zijn tijd (${actual})`, actual === `2025-01-24T${clock}`);
     }
   }
 
@@ -5657,8 +5681,8 @@ function z4MakeTask(id: string, scheduleStart: Date, childIds: string[] = []): T
     }
     truthy(`[Z4-her-check A] dag-modus gooit niet (${threw ?? ''})`, threw === null);
     truthy(
-      '[Z4-her-check A] dag-modus: taak-B krijgt shift 0 (ONgeschoven gat op 240, niet 720 zoals in de uur-modus-variant)',
-      z4GapsEqual(dayModeResult?.get('task-B') ?? [], [{ afterMinutes: 240, gapMinutes: 240 }]),
+      '[Z4-her-check A] F2: effectieve werkblokken geven dezelfde verschuiving als de expliciete blokken (T11)',
+      z4GapsEqual(dayModeResult?.get('task-B') ?? [], [{ afterMinutes: 720, gapMinutes: 240 }]),
     );
   }
 }

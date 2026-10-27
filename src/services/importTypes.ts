@@ -220,6 +220,10 @@ export type RecordedTimesOrigin = 'xer' | 'xer-archive' | 'p6xml' | 'mspdi' | 'm
 export type RecordedSourceFormat = NonNullable<RecordedDatesState['sourceFormat']>;
 
 export interface ImportResult {
+  /** Markering van de opgeslagen rekenuitvoer; stuurt alleen de schemaovergang. */
+  timeModel?: string;
+  /** Tijdelijke leeshint D7, geen kalender- of taakdata in de store. */
+  milestonesAtDayEnd?: ReadonlySet<string>;
   // Kernvelden — door elk formaat geleverd.
   project: Project;
   calendar: WorkCalendar;
@@ -451,8 +455,8 @@ export interface MsProjectImportReport {
   levelingDelays: number;
   /** Alleen MSPDI: inactieve taken, ingelezen als actieve taak. */
   inactiveTasks: number;
-  /** Alleen `.mpp`: de kritiek-drempel (dagen) uit het bestand; niet overgenomen als projectinstelling
-   *  (knownbugs 46). 0 ⇒ geen regel. */
+  /** Historisch verliesveld voor oude `.mpp`-importverslagen. Nieuwe imports nemen de grens
+   *  als projectinstelling over en laten dit op 0; bewaarde oude verslagen blijven leesbaar. */
   criticalSlackLimitDays: number;
 }
 

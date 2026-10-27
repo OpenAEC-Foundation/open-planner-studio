@@ -179,10 +179,10 @@ export function setGapLength(pieces: readonly SplitPiece[], gapIndex: number, mi
   return { ok: true, pieces: pieces.map((p, k) => (k === i ? { kind: 'gap', minutes: next, source: 'user' } : p)) };
 }
 
-export function setWorkLength(pieces: readonly SplitPiece[], workIndex: number, minutes: number, unitMinutes: number): SplitEditResult {
+export function setWorkLength(pieces: readonly SplitPiece[], workIndex: number, minutes: number, unitMinutes: number, minimumMinutes = unitMinutes): SplitEditResult {
   const i = arrayIndexOf(pieces, 'work', workIndex);
   if (i < 0) return { ok: false, reason: 'index-out-of-range' };
-  const next = Math.max(unitMinutes, snap(minutes, unitMinutes));
+  const next = Math.max(minimumMinutes, snap(minutes, unitMinutes));
   return { ok: true, pieces: pieces.map((p, k) => (k === i ? { kind: 'work', minutes: next } : p)) };
 }
 

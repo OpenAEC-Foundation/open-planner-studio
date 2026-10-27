@@ -1,0 +1,56 @@
+OPEN PLANNER STUDIO — LOGOPAKKET / KUBUS V4
+
+Zes Gantt-taakblokken op drie rijen, verdeeld over twee open zijvlakken.
+Eén taakblok en de tijdlijn lopen fysiek om de hoek. Beide zijvlakken
+hebben geen vulling: ook tussen de taakblokken is de PNG echt transparant.
+Het bovenvlak houdt de warme bruine kleur uit de vorige versie.
+
+01-png: beeldmerk 2048 x 2048 en logo met tekst 3600 x 1440, donker en
+transparant. De submap app-icons bevat PNG's van 64 t/m 1024 pixels.
+02-models: bewerkbaar .blend en .glb, zowel los beeldmerk als met tekst.
+De Blender-tekstscene bevat de ingepakte Space Grotesk-fonts. GLB-tekst
+is meshgeometrie; wijzig tekst in het Blender-bestand.
+03-views: zes controleaanzichten en een gecombineerd overzicht.
+04-source: reproduceerbaar Blender-script, fonts, SIL OFL en bronnen.
+05-checks: controles van geometrie, scènes, exports en PNG's; SHA256-hashes.
+preview.png: presentatie van het logo op antraciet.
+
+KLEUREN / sRGB
+#F59E0B contouren en tijdlijn
+#D97706 taakblokken en Planner
+#2A2A32 achtergrond van de donkere uitvoer
+#FAFAF9 Open en STUDIO
+#594124 bovenvlak
+
+Space Grotesk Bold 700 voor Open Planner; Medium 500 voor STUDIO.
+Vlakke emission-materialen, Standard-weergave, geen dithering of verloop.
+GLB gebruikt KHR_materials_unlit voor dezelfde vlakke kleurweergave.
+
+GEOMETRIE
+De kubuscontour heeft breedte, diepte en hoogte van 4,4 logo-eenheden.
+De camera staat exact isometrisch op (-12,-12,12), orthografisch.
+Dit is een open frame met gevuld bovenvlak. De verticale zijvlakken,
+achterwanden en bodem hebben geen vulling. Alleen de negen contourranden
+zichtbaar vanuit de mastercamera zijn opgenomen, zodat geen achterste
+lijnen door de open planning heen lopen. De controleaanzichten laten
+deze bewuste open constructie zien.
+De hoekbalk is één gesloten L-vormige 3D-mesh.
+
+GEBRUIK
+Plaats de transparante versie bij voorkeur op een donkere achtergrond,
+vanwege de witte tekst en de amberkleurige contouren. De achtergrond
+blijft zichtbaar tussen de blokken. Behoud beeldverhouding en marges.
+Voor kleine toepassingen: gebruik het beeldmerk zonder tekst; vanaf
+ongeveer 128 px blijft de uitgebreidere planning beter leesbaar.
+
+BEWERKEN
+Open de .blend-bestanden in Blender 4.0.2 of nieuwer. Meshes, contourcurves
+en tekst zijn benoemd en bewerkbaar. Het model heeft geen bouwkundige schaal.
+Herbouw van masters, modellen, aanzichten en geometry.json:
+  blender -b -t 8 --python 04-source/build_planner.py
+Dit overschrijft de betreffende bestanden binnen de uitgepakte pakketmap.
+Afgeleide previews, iconen en controleverslagen worden apart opgebouwd.
+
+De oorspronkelijke referenties en eerdere logoversies zijn ongewijzigd.
+De fontlicentie staat in 04-source/fonts/OFL.txt. Niet gepubliceerd naar
+applicatie of website.

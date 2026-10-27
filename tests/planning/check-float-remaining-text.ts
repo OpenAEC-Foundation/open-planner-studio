@@ -55,7 +55,6 @@ const taskOf = (id: string) => S().tasks.find(t => t.id === id)!;
 
 // ── Urenplanning, 9-uurskalender: A 5h naast B 9h, C na beide ⇒ A heeft 4 werkuren speling ──
 S().newProject();
-S().setUI({ enableHourPlanning: true });
 const band = [{ start: 8 * 60, end: 17 * 60 }];
 S().setCalendar({
   ...S().calendar, workDays: [1, 2, 3, 4, 5], holidays: [], hoursPerDay: 9, workStartHour: 8, workEndHour: 17,

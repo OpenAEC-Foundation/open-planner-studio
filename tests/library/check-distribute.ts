@@ -20,6 +20,7 @@ import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 import { neutralSolveOptions } from './neutralSolveOptions';
+import { normalizeTaskDates } from '@/state/migrations/minuteModel';
 
 declare const process: { exit(code: number): never };
 
@@ -98,6 +99,7 @@ function distDoc(docId: string, opts: DistDocOpts = {}): DistributionDocInput {
     tasks,
     calendar,
     calendars: [],
+    loadOptions: neutralSolveOptions().schedulingOptions,
     ...(opts.omitSolveInput ? {} : { solveInput: { tasks, sequences, options: neutralSolveOptions() } }),
     rank: opts.rank ?? 1,
     pinned: opts.pinned ?? false,
@@ -787,7 +789,12 @@ console.log('-- distribute: na-boeking buiten de voor-dagen, endShiftWorkdays is
 for (const manual of [true, false]) {
   const p = pool([poolRes('lib-1', 'Gedeelde kraan', 1)]);
   const mk = (docId: string, rank: number): DistributionDocInput => {
-    const t = task(`${docId}-t1`, '2026-09-07', '2026-09-18', 10, { manuallyScheduled: manual });
+    // F3c (B1, spec §3.11 eis 4 en §4.2 D1/D2): een handmatig geplande taak boekt op haar eigen
+    // spanne, en de solver neemt haar datums rauw over. De laadgrens normaliseert een datum zonder
+    // tijd (einde = einde van die werkdag); de fixture doet dat nu ook, anders leest de solver het
+    // einde '2026-09-18' als 18 sep 00:00 (= einde van de 17e) en boekt B maar negen dagen.
+    const t = normalizeTaskDates(task(`${docId}-t1`, '2026-09-07', '2026-09-18', 10, { manuallyScheduled: manual }),
+      { calendar: cal(), calendars: [] });
     return distDoc(docId, {
       rank,
       resources: [stamped(`${docId}-r1`, 'lib-1')],

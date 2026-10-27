@@ -211,7 +211,6 @@ export function computeFitToProject(
   tasks: Task[],
   timelineWidth: number,
   enableQuarterHourZoom: boolean,
-  enableHourPlanning = false,
   /** As-afstand (`axisDayDistance`); afwezig ⇒ kalenderdagen, ongewijzigd. */
   dayDistance: (from: Date, to: Date) => number = diffCalendarDays,
 ): FitToProject | null {
@@ -228,7 +227,7 @@ export function computeFitToProject(
   }
   if (!minStart || !maxFinish) return null;
   const span = Math.max(1, dayDistance(parseDate(minStart), parseDate(maxFinish)) + 1);
-  const max = maxGanttZoom(enableQuarterHourZoom, enableHourPlanning);
+  const max = maxGanttZoom(enableQuarterHourZoom);
   const zoom = Math.max(0.5, Math.min(max, timelineWidth / span));
   // Gebruik exact de effectieve oorsprong van de renderer en pan van daaruit naar de eerste taak
   // (dat is 14 × zoom).

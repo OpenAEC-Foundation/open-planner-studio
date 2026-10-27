@@ -93,10 +93,10 @@ eq('03e ongewijzigde geankerde zoom is een expliciete no-op', computeAnchoredZoo
 // G1: uren- en kwartierlabels zijn alleen bruikbaar als de zoomgrens de breedte van hun cellen
 // toelaat. Bewaak zowel de pure grens als de twee store-paden die alle zoomgebaar-/ribbonresultaten
 // uiteindelijk klemmen.
-eq('03f dagmodus blijft tot 400 px/dag begrensd', maxGanttZoom(false, false), 400);
-eq('03g urenmodus bereikt 1000 px/dag', maxGanttZoom(false, true), 1000);
-eq('03h kwartiermodus bereikt 4000 px/dag', maxGanttZoom(true, true), 4000);
-S().setUI({ enableHourPlanning: true, enableQuarterHourZoom: false });
+eq('03f zonder kwartierzoom geldt altijd de uurgrens', maxGanttZoom(false), 1000);
+eq('03g urenmodus bereikt 1000 px/dag', maxGanttZoom(false), 1000);
+eq('03h kwartiermodus bereikt 4000 px/dag', maxGanttZoom(true), 4000);
+S().setUI({ enableQuarterHourZoom: false });
 S().setZoom(1000);
 eq('03i setZoom kapt urenmodus niet voortijdig af', S().view.zoom, 1000);
 S().setUI({ enableQuarterHourZoom: true });

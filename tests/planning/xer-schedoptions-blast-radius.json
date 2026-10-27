@@ -526,7 +526,7 @@
       "tasks": 120,
       "oracleNegativeFloatTasks": 0,
       "houseNegativeFloatTasks": 0,
-      "xerDefaultsNegativeFloatTasks": 8,
+      "xerDefaultsNegativeFloatTasks": 0,
       "defaults": {
         "totalFloatFinish": {
           "chosenNegativeFloatTasks": 0,
@@ -710,7 +710,7 @@
       "tasks": 120,
       "oracleNegativeFloatTasks": 0,
       "houseNegativeFloatTasks": 0,
-      "xerDefaultsNegativeFloatTasks": 13,
+      "xerDefaultsNegativeFloatTasks": 0,
       "defaults": {
         "totalFloatFinish": {
           "chosenNegativeFloatTasks": 0,

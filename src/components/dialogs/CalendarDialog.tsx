@@ -86,7 +86,7 @@ export function CalendarDialog() {
   // ongewijzigd) en slaan we ook de herberekening over — anders zou "even kijken en Toepassen" een
   // document in de modus "datums zoals opgeslagen" alsnog herberekenen.
   const commit = useCallback(() => {
-    if (commitCalendarLibrary(localCalendars.map(withCanonicalHolidayEnds), localProjectId)) runCPM();
+    if (commitCalendarLibrary(localCalendars.map(withCanonicalHolidayEnds), localProjectId)) runCPM({ withinEvent: true });
     setCommittedSnapshot(JSON.stringify([localCalendars, localProjectId]));
   }, [commitCalendarLibrary, localCalendars, localProjectId, runCPM]);
   const dirty = ready && JSON.stringify([localCalendars, localProjectId]) !== committedSnapshot;

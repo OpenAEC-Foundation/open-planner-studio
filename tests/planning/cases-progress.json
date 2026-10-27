@@ -515,11 +515,19 @@
         { "name": "A", "dur": 6, "durationType": "ELAPSEDTIME", "start": "2026-07-10", "completion": 0.5, "actualStart": "2026-07-10" }
       ],
       "links": [],
+      "minuteModel": {
+        "reason": "KALENDERTIJD-EINDE",
+        "note": "§4.2 D5 en §4.5 T16: status vr 07:00 plus drie keer 24 uur geeft een exclusief einde ma 07:00; de oude datum ma 00:00 is daarvoor geen orakel.",
+        "expect": { "tasks": { "A": { "ef": "2026-07-13T07:00" } }, "projectEnd": "2026-07-13T07:00" }
+      },
       "expect": {
         "tasks": {
-          "A": { "es": "2026-07-10", "ef": "2026-07-13" }
+          "A": {
+            "es": "2026-07-10",
+            "ef": "2026-07-13T07:00"
+          }
         },
-        "projectEnd": "2026-07-13",
+        "projectEnd": "2026-07-13T07:00",
         "error": false
       }
     },

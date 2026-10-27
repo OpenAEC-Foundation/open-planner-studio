@@ -39,7 +39,8 @@
  * nieuw document, zoals de ingebouwde formaten (review #169 N3, PR #329). Een manifest met
  * `"apiVersion": "1.4"` blijft passen.
  */
-export const EXTENSION_API_VERSION = '1.4.1';
+/** 1.5.0 — alleen-lezen taakselectie via data.getSelectedTaskIds(). */
+export const EXTENSION_API_VERSION = '1.5.0';
 
 export interface ApiCompatibility {
   ok: boolean;

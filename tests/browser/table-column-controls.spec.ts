@@ -177,16 +177,16 @@ test('kolomkop: verplaatsen, verbreden, passend maken, vastzetten en verwijderen
   await page.mouse.move(box.x + box.width / 2 + 20, box.y + box.height / 2, { steps: 4 });
   await page.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 2, { steps: 4 });
   await page.mouse.up();
-  await expect.poll(() => widthOf(page, surface, 'task.time.start')).toBe(140);
+  await expect.poll(() => widthOf(page, surface, 'task.time.start')).toBe(170);
   expect(await undoDepth(page)).toBe(++depth);
 
   // Toetsenbord op de rand: pijl rechts +8, Shift+pijl rechts +32. (De focus zetten is opzet; de
   // geteste handeling is de toets.)
   await startHandle.focus();
   await page.keyboard.press('ArrowRight');
-  await expect.poll(() => widthOf(page, surface, 'task.time.start')).toBe(148);
+  await expect.poll(() => widthOf(page, surface, 'task.time.start')).toBe(178);
   await page.keyboard.press('Shift+ArrowRight');
-  await expect.poll(() => widthOf(page, surface, 'task.time.start')).toBe(180);
+  await expect.poll(() => widthOf(page, surface, 'task.time.start')).toBe(210);
   depth += 2;
   expect(await undoDepth(page)).toBe(depth);
 
@@ -250,7 +250,7 @@ test('kolomkop: verplaatsen, verbreden, passend maken, vastzetten en verwijderen
   // Elke handeling was één stap: Ctrl+Z zet ze een voor een terug, tot de standaardindeling.
   for (let step = 0; step < 7; step++) await page.keyboard.press('Control+z');
   await expect.poll(() => headerIds(page, surface)).toEqual(TABLE_DEFAULT_IDS);
-  expect(await widthOf(page, surface, 'task.time.start')).toBe(100);
+  expect(await widthOf(page, surface, 'task.time.start')).toBe(130);
   expect(await widthOf(page, surface, 'task.name')).toBe(240);
   expect((await storeColumns(page, surface)).every(column => !column.pinned)).toBe(true);
   // De planning zelf is niet aangeraakt.

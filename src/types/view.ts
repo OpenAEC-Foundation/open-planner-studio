@@ -10,8 +10,7 @@
 import type { TaskGridColumnPreference } from '@/types/taskGrid';
 import type { BarColorSelection } from '@/types/barColor';
 
-// 'hour' is alleen bereikbaar/zichtbaar als de hoofdschakelaar Urenplanning aan staat;
-// `scaleFromZoom` levert 'hour' uitsluitend met die vlag.
+// De getoonde schaal volgt de vaste zoomgrenzen van `scaleFromZoom`.
 export type TimeScale = 'day' | 'week' | 'month' | 'quarter' | 'year' | 'hour';
 
 // Datumnotatie: bepaalt ALLEEN hoe datums aan de gebruiker getoond worden

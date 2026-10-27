@@ -335,7 +335,12 @@
     "msProjectLostResourceRates_one": "Stawka w {{count}} zasobie nie została zaimportowana.",
     "msProjectLostResourceRates_few": "Stawki w {{count}} zasobach nie zostały zaimportowane.",
     "msProjectLostResourceRates_many": "Stawki w {{count}} zasobach nie zostały zaimportowane.",
-    "msProjectLostResourceRates_other": "Stawka w {{count}} zasobie nie została zaimportowana."
+    "msProjectLostResourceRates_other": "Stawka w {{count}} zasobie nie została zaimportowana.",
+    "minuteModelConverted_one": "{{document}}: {{count}} zadanie ma po konwersji inny początek lub zakończenie; największe przesunięcie w dniach roboczych: {{days}}. Ctrl+Z przywraca zapisane daty.",
+    "minuteModelConverted_few": "{{document}}: {{count}} zadania mają po konwersji inny początek lub zakończenie; największe przesunięcie w dniach roboczych: {{days}}. Ctrl+Z przywraca zapisane daty.",
+    "minuteModelConverted_many": "{{document}}: {{count}} zadań ma po konwersji inny początek lub zakończenie; największe przesunięcie w dniach roboczych: {{days}}. Ctrl+Z przywraca zapisane daty.",
+    "minuteModelConverted_other": "{{document}}: {{count}} zadania mają po konwersji inny początek lub zakończenie; największe przesunięcie w dniach roboczych: {{days}}. Ctrl+Z przywraca zapisane daty.",
+    "minuteModelCalendarRepaired": "Kalendarz „{{calendar}}” został naprawiony: zakończenie lub przerwa nie odpowiadała zapisanym godzinom pracy."
   },
   "scheduleErrors": {
     "cycle": "Zależność cykliczna między zadaniami: {{path}}",
@@ -451,16 +456,17 @@
     "themeHighContrast": "Wysoki kontrast",
     "themeFollowSystem": "Zgodnie z motywem systemu",
     "themeSystemHint": "Zgodnie ze schematem kolorów systemu (teraz: {{theme}}).",
-    "hourPlanningSection": "Planowanie godzinowe",
-    "enableHourPlanning": "Włącz planowanie godzinowe",
-    "enableHourPlanningHint": "Włącza planowanie godzinowo-minutowe: skalę czasu w godzinach, zmiany z pasmami czasu pracy i paski zadań z dokładnością do godziny. Wyłączone ⇒ aplikacja pozostaje w pełni dniowa, tak jak wcześniej.",
     "showTaskTypes": "Używaj typów zadań",
     "showTaskTypesHint": "Wybierz dla każdego zadania, co się zmienia, gdy zmieni się czas trwania, jednostki lub praca, jak Task Type w MS Project i Duration Type w P6. Wyłączone: czas trwania i jednostki pozostają bez zmian. Plik z typami zadań lub zapisaną pracą pokazuje je także wtedy, gdy to jest wyłączone.",
     "allowMixedDayHour": "Zezwól na mieszane planowanie dniowo-godzinowe",
     "defaultTaskDurationUnit": "Domyślna jednostka nowych zadań",
-    "defaultTaskDurationUnitHint": "Określa, czy nowe zadania zaczynają się w dniach roboczych, czy godzinach pracy. Istniejące zadania się nie zmieniają.",
+    "defaultTaskDurationUnitHint": "Jednostka dniowa: czas trwania liczy się w dniach roboczych kalendarza. Jednostka godzinowa: czas trwania liczy się w godzinach pracy. Istniejące zadania nie zmieniają się. Zadanie ze stałą pracą zawsze używa jednostki godzinowej.",
+    "defaultTaskDurationUnitDays": "Miara w dniach",
+    "defaultTaskDurationUnitHours": "Miara w godzinach",
+    "defaultTaskDurationUnitLocked": "Profil {{profile}} liczy czas trwania w godzinach. Nowe zadania dostają dlatego miarę w godzinach.",
     "durationDisplay": "Wyświetlanie czasu trwania",
     "durationDisplayHint": "Określa sposób wyświetlania czasu trwania zadania, niezależnie od jednostki, w jakiej samo zadanie jest zapisane.",
+    "durationDisplayOpsHint": "W profilu OPS każde zadanie pokazuje własną miarę.",
     "durationDisplayAuto": "Automatycznie (własna jednostka dla zadania)",
     "durationDisplayDays": "Zawsze w dniach",
     "durationDisplayHours": "Zawsze w godzinach",
@@ -1246,10 +1252,6 @@
     "month": "miesiąc",
     "year": "rok"
   },
-  "hourData": {
-    "notice": "Ten plik zawiera planowanie godzinowe.",
-    "enable": "Włącz planowanie godzinowe"
-  },
   "recordedDates": {
     "activeCount_one": "Widzisz harmonogram tak, jak zapisał go Primavera; ponowne przeliczenie przesunęłoby {{count}} zadanie.",
     "activeCount_few": "Widzisz harmonogram tak, jak zapisał go Primavera; ponowne przeliczenie przesunęłoby {{count}} zadania.",
@@ -1627,6 +1629,14 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "Zadania ALAP tak późno, jak pozwalają następniki",
       "help": "Tylko przy planowaniu godzinowym, dla nierozpoczętego zadania, które nie jest planowane ręcznie i ma ograniczenie „Jak najpóźniej” (ALAP). Najwcześniejsze daty jej następników określają jej położenie co do minuty. Najpierw idą następnicy. Jej własny planowany start się nie liczy. Poprzednicy, data statusu i drugie ograniczenie nadal obowiązują. Bez następnika używa swojego najpóźniejszego zakończenia. Zwykły krok ALAP pozostaje dostępny w każdym profilu."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Pojedyncze kamienie milowe na końcu dnia roboczego",
+      "help": "Pojedynczy kamień milowy lub kamień milowy zakończenia bez poprzednika trafia na koniec swojego dnia roboczego."
+    },
+    "workdayDurationMeasure": {
+      "label": "Czas trwania w dniach roboczych",
+      "help": "Czas trwania, opóźnienie lub pozostały czas trwania w dniach liczy się w dniach roboczych: każdy dzień roboczy liczy się jako 1, niezależnie od tego, jak długi jest ten dzień. Wyłączone: dzień liczy się jako liczba godzin pracy dziennie według kalendarza. Opóźnienie w procentach podąża za miarą poprzednika. Czas, który upłynął, nigdy nie liczy się w dniach roboczych."
     }
   },
   "profiles": {
@@ -1665,6 +1675,7 @@
       "float": "Zapas i późne terminy",
       "instants": "Daty i chwile z pliku",
       "msproject": "Postęp jak w Microsoft Project",
+      "durations": "Czas trwania i miara",
       "ownProfilesOnly": "Tylko dla własnych profili"
     },
     "ownProfilesOnlyNote": "Te konwencje są wyłączone w każdym wbudowanym profilu, także w Primavera P6. Włączyć je może tylko własny profil: wybierz do tego Nowy profil.",

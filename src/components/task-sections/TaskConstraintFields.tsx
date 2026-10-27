@@ -2,13 +2,21 @@ import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Task, ConstraintType } from '@/types/task';
 import { validateConstraintPair, withPrimaryConstraint } from '@/engine/scheduler/constraintValidation';
-import { DateTextInput } from '@/components/common/DateTextInput';
+import { TaskDateTimeInput } from '@/components/common/TaskDateTimeInput';
+import { constraintDateField, taskDateFieldSide } from '@/state/migrations/minuteModel';
+import type { InstantSide } from '@/engine/calendar/workdayRules';
 import { Select } from '@/components/common/Select';
 import { Field } from './shared';
 import { readLocal, writeLocal } from '@/utils/settingsStore';
 
 const PRIMARY_TYPES: ConstraintType[] = ['ASAP', 'ALAP', 'SNET', 'SNLT', 'FNET', 'FNLT', 'MSO', 'MFO'];
 const SECONDARY_TYPES: ConstraintType[] = ['SNET', 'FNET', 'SNLT', 'FNLT'];
+
+/** De kant van een beperkingsdatum (B4, D1/D2): SNET/SNLT/MSO startachtig, FNET/FNLT/MFO eindachtig. */
+function constraintSide(type: string): InstantSide {
+  const field = constraintDateField(type);
+  return field ? taskDateFieldSide(field) : 'start';
+}
 
 /**
  * Constraint + hard-pin + secundaire constraint + validatie — sectie van
@@ -58,7 +66,11 @@ export function TaskConstraintFields({ task, onChange }: {
       </Field>
       {task.constraint && task.constraint.type !== 'ALAP' && (
         <Field label={t('properties.constraintDate')}>
-          <DateTextInput
+          <TaskDateTimeInput
+            task={task}
+            side={constraintSide(task.constraint.type)}
+            milestoneOwn={false}
+            dataAttribute="constraint"
             className="input !text-small !leading-4 !px-2.5 !py-1.5"
             ariaLabel={t('properties.constraintDate')}
             value={task.constraint.date ?? ''}
@@ -133,7 +145,11 @@ export function TaskConstraintFields({ task, onChange }: {
           </Field>
           {task.constraint2 && (
             <Field label={t('properties.constraint2Date')}>
-              <DateTextInput
+              <TaskDateTimeInput
+                task={task}
+                side={constraintSide(task.constraint2.type)}
+                milestoneOwn={false}
+                dataAttribute="constraint2"
                 className="input !text-small !leading-4 !px-2.5 !py-1.5"
                 ariaLabel={t('properties.constraint2Date')}
                 value={task.constraint2.date ?? ''}

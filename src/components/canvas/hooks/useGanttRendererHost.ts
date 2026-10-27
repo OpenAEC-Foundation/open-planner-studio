@@ -10,6 +10,9 @@ import { buildGanttRenderOptions, type GanttRenderOptionsSourceInput } from '../
 import { useCanvasLayer } from './useCanvasLayer';
 import type { GanttRendererHost, GanttRendererHostInput } from './ganttCoordinatorTypes';
 
+// Dezelfde expliciete opt-in als de testbrug in main.tsx; gewone productie blijft vrij van observatie.
+const OBSERVE_GANTT = import.meta.env.DEV || import.meta.env.VITE_OPS_BENCH_BRIDGE === '1';
+
 /**
  * De ene constructieroute voor primaire en secundaire Gantt-paints. De aanroeper levert alle
  * inhoudelijke opties; alleen de op painttijd gemeten canvasafmetingen worden hier toegevoegd.
@@ -29,7 +32,7 @@ function renderGantt(
   }));
   rendererRef.current = renderer;
   renderer.render();
-  if (import.meta.env.DEV) recordGanttPaint(surface, width, height);
+  if (OBSERVE_GANTT) recordGanttPaint(surface, width, height);
 }
 
 /** Maakt de stabiele refs waarmee pointercoördinatie vóór de renderoptie-afleiding kan worden samengesteld. */
@@ -70,10 +73,10 @@ export function useGanttRendererHost(
     dependencyCanvasRef,
   } = refs;
 
-  // Dev-only browsernaad: uitsluitend de levende canvas-/rendererrefs; geen rendererdata en geen
+  // Dev-/benchmark-browsernaad: uitsluitend de levende canvas-/rendererrefs; geen rendererdata en geen
   // mogelijkheid om vanuit de driver een paint of productmutatie te starten.
   useEffect(() => {
-    if (!import.meta.env.DEV) return;
+    if (!OBSERVE_GANTT) return;
     const unregisterPrimary = registerGanttTestSurface('primary', {
       canvas: primaryCanvasRef,
       renderer: primaryRendererRef,
@@ -141,7 +144,7 @@ export function useGanttRendererHost(
     });
     histogramRendererRef.current = renderer;
     renderer.render();
-    if (import.meta.env.DEV) recordGanttPaint('histogram', width, height);
+    if (OBSERVE_GANTT) recordGanttPaint('histogram', width, height);
   }, [input.histogram, histogramRendererRef]);
 
   useCanvasLayer({

@@ -6,11 +6,12 @@ import { ifcSchemaBlocksSilentWrite } from '@/services/ifc/ifcSchemaQuestion';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { RecoveryDeltaTracker, type RecoverySourceDocument } from '@/services/recovery/recoveryDelta';
 import { runRecoveryTick } from '@/services/recovery/recoverySnapshot';
+import { recoveryStorageUnavailable } from '@/services/recovery/recoveryStore';
 import { createRecoverySnapshotSerializer } from '@/services/recovery/recoverySnapshotSerializer';
 import { createRecoveryTickQueue } from '@/services/recovery/recoveryTickQueue';
 import { registerRecoveryFlush } from '@/services/recovery/recoveryFlush';
 import { canWriteToRefWithoutPrompt, saveTargetRef, saveToRefWithoutPrompt } from '@/services/fileAccess';
-import { actualAutoSaveDelay, createActualAutoSaveController, type ActualAutoSaveCandidate } from '@/services/actualAutosave/actualAutoSave';
+import { AutoSaveTargetUnavailableError, actualAutoSaveDelay, createActualAutoSaveController, type ActualAutoSaveCandidate } from '@/services/actualAutosave/actualAutoSave';
 import { isProjectFileWriteBusy, runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import { sameIFCSource } from '@/state/ifcSaveInput';
 import { notifyRecoveryError } from '@/state/recoveryManifestNotice';
@@ -42,6 +43,9 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
       // Wacht tot de recovery-keuze gemaakt is: anders zou deze schrijfactie de
       // recovery-snapshots overschrijven vóórdat de gebruiker heeft gekozen.
       if (!enabled()) return;
+      // De browser weigert IndexedDB (sandbox-iframe zonder `allow-same-origin`, issue #582): er is
+      // geen plek voor een snapshot. Sla de hele ronde over, ook de IFC-serialisatie.
+      if (recoveryStorageUnavailable()) return;
       const state = useAppStore.getState();
       const docs = state.getOpenDocumentPayloads();
       // Een verse, volledig schone sessie hoeft geen crashsnapshot te maken. Vanaf de eerste
@@ -149,7 +153,10 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
       onFailure: (_candidate, error) => {
         console.error('Werkelijke AutoSave mislukt:', error);
         useAppStore.getState().notify({
-          severity: 'error', messageKey: 'notifications.autoSaveFailed', detail: (error as Error).message,
+          severity: 'error',
+          messageKey: error instanceof AutoSaveTargetUnavailableError
+            ? 'notifications.autoSaveNotWritable' : 'notifications.autoSaveFailed',
+          detail: error instanceof AutoSaveTargetUnavailableError ? undefined : (error as Error).message,
           dedupeKey: 'actual-autosave',
         });
       },
