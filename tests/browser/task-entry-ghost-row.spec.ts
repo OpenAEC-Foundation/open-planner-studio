@@ -65,6 +65,34 @@ test('spookregel: alleen een duur invullen maakt "New task" in één undo-stap',
   await page.keyboard.press('Control+z');
   await expect.poll(() => state(page).then(s => s.tasks.length)).toBe(1);
   expect(await dirty(page)).toBe(wasDirty);
+
+  // 250: de editor van de nog lege regel volgt de maatkeuze, het profiel en vast werk.
+  for (const [profile, unit, fixedWork, seed] of [
+    ['ops', 'hours', false, '5'], ['p6', 'days', false, '40'],
+    ['msproject', 'days', false, '40'], ['ops', 'days', true, '40'],
+  ] as const) {
+    await page.evaluate(({ profile, unit, fixedWork }) => {
+      window.__OPS__!.store.getState().setProject({
+        schedulingProfile: { baseId: profile, id: profile, name: '', overrides: {} },
+        defaultTaskDurationUnit: unit,
+        defaultWorkRule: fixedWork ? 'FIXED_WORK' : 'FIXED_DURATION_RATE',
+      });
+    }, { profile, unit, fixedWork });
+    const depth = (await state(page)).undoDepth;
+    await ghostCell(page, 'task.time.scheduleDuration').click();
+    // Een klik selecteert de cel; Enter opent de editor met de standaardwaarde geselecteerd.
+    await page.keyboard.press('Enter');
+    await expect(ghostRow(page).locator('.task-grid-editor-input')).toHaveValue(seed);
+    await page.keyboard.type('3');
+    await page.keyboard.press('Enter');
+    await expect.poll(() => page.evaluate(() => {
+      const t = window.__OPS__!.store.getState().tasks.at(-1)!;
+      return [t.time.durationUnit, t.time.durationMinutes];
+    })).toEqual(['hours', 180]);
+    expect((await state(page)).undoDepth).toBe(depth + 1);
+    await page.keyboard.press('Control+z');
+    await expect.poll(() => state(page).then(s => s.tasks.length)).toBe(1);
+  }
 });
 
 test('spookregel: met pijltje omlaag erin en een naam typen', async ({ page, ops: _ops }) => {
@@ -153,6 +181,7 @@ test('Gantt: rechtsklik op lege ruimte → Nieuwe taak begint op de aangeklikte 
   ]);
   await page.evaluate(() => {
     const s = window.__OPS__!.store.getState();
+    s.setProject({ defaultTaskDurationUnit: 'hours' });
     s.setZoom(30);
     s.setScroll(0, 0);
   });
@@ -166,8 +195,12 @@ test('Gantt: rechtsklik op lege ruimte → Nieuwe taak begint op de aangeklikte 
 
   await expect.poll(() => state(page).then(s => s.tasks.length)).toBe(2);
   const created = (await state(page)).tasks[1];
-  expect(created.scheduleStart.slice(0, 10) >= '2026-09-07').toBe(true);
-  expect(created.scheduleStart.slice(0, 10) <= '2026-09-11').toBe(true);
+  expect(await page.evaluate(() => {
+    const t = window.__OPS__!.store.getState().tasks[1];
+    return [t.time.durationUnit, t.time.durationMinutes];
+  })).toEqual(['hours', 300]);
+  // Het midden van de balk 7–11 september is woensdag 9 september; die datum moet blijven.
+  expect(created.scheduleStart.slice(0, 10)).toBe('2026-09-09');
   await page.evaluate(id => window.__OPS__!.store.getState().copyTasks([id]), first);
   const beforePaste = await state(page);
   const pasteBar = await barPoint(page, first);
@@ -187,6 +220,23 @@ test('Gantt: rechtsklik op lege ruimte → Nieuwe taak begint op de aangeklikte 
     const t = window.__OPS__!.store.getState().tasks.find(t => t.isMilestone);
     return t && [t.taskType, t.milestoneKind, t.parentId, t.mandatory ?? false];
   })).toEqual(['USERDEFINED', 'FINISH', null, false]);
+  // Ook onder de urenmaat liggen begin en einde van de nieuwe ruit op hetzelfde moment, en een echte
+  // klik raakt hem vóór herberekening (review #702).
+  // De ruit staat op de rij onder de geplakte taak; midden in de dagcel van 9 september valt hij
+  // binnen de grijpzone, wat het tijdstip van de ruit binnen die dag ook is.
+  const milestoneId = await page.evaluate(() => window.__OPS__!.store.getState().tasks.find(t => t.isMilestone)!.id);
+  const [newBar, pastedBar] = [await barPoint(page, afterPaste.tasks[1].id), await barPoint(page, afterPaste.tasks[2].id)];
+  const canvasBox = (await page.getByTestId('gantt-primary-canvas').boundingBox())!;
+  const dayX = (await page.evaluate(() => window.__OPS__!.gantt.dateX('2026-09-09')))!;
+  await page.evaluate(() => window.__OPS__!.store.getState().deselectAll());
+  await page.mouse.click(canvasBox.x + dayX + 15, pastedBar.y + (pastedBar.y - newBar.y));
+  await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([milestoneId]);
+  const milestone = await page.evaluate(() => {
+    const t = window.__OPS__!.store.getState().tasks.find(t => t.isMilestone)!.time;
+    return [t.scheduleStart, t.scheduleFinish, t.earlyStart, t.earlyFinish, t.lateStart, t.lateFinish];
+  });
+  expect(milestone[0].slice(0, 10)).toBe('2026-09-09');
+  expect(new Set(milestone).size).toBe(1);
 
   // Op een bestaande taak blijft het een subtaak, maar eveneens een gewone eindmijlpaal.
   const parentBar = await barPoint(page, first);
@@ -196,4 +246,29 @@ test('Gantt: rechtsklik op lege ruimte → Nieuwe taak begint op de aangeklikte 
     const t = window.__OPS__!.store.getState().tasks.find(t => t.isMilestone && t.parentId === parentId);
     return t && [t.taskType, t.milestoneKind, t.mandatory ?? false];
   }, first)).toEqual(['USERDEFINED', 'FINISH', false]);
+
+  // Dezelfde menuroute onder de vaste urenmaat en vast werk: vijf werkdagen worden 40 uur.
+  for (const [profile, fixedWork] of [['p6', false], ['msproject', false], ['ops', true]] as const) {
+    await page.evaluate(() => window.__OPS__!.store.getState().newProject());
+    const [anchor] = await seedProject(page, [
+      { name: 'Anker', start: '2026-09-07', finish: '2026-09-11', durationDays: 5 },
+    ]);
+    await page.evaluate(({ profile, fixedWork }) => {
+      const s = window.__OPS__!.store.getState();
+      s.setProject({ schedulingProfile: { baseId: profile, id: profile, name: '', overrides: {} },
+        defaultTaskDurationUnit: 'days', defaultWorkRule: fixedWork ? 'FIXED_WORK' : 'FIXED_DURATION_RATE' });
+      s.setZoom(30);
+      s.setScroll(0, 0);
+    }, { profile, fixedWork });
+    const point = await barPoint(page, anchor);
+    const depth = (await state(page)).undoDepth;
+    await page.mouse.click(point.x, point.y + 120, { button: 'right' });
+    await page.getByRole('button', { name: 'New task', exact: true }).click();
+    await expect.poll(() => page.evaluate(() => {
+      const t = window.__OPS__!.store.getState().tasks[1];
+      return t && [t.time.durationUnit, t.time.durationMinutes];
+    })).toEqual(['hours', 2400]);
+    expect((await state(page)).undoDepth).toBe(depth + 1);
+    expect((await state(page)).tasks[1].scheduleStart.slice(0, 10)).toBe('2026-09-09');
+  }
 });
