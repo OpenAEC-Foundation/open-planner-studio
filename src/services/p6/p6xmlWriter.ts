@@ -15,7 +15,10 @@ import { documentProjectCode } from '@/utils/documentProjectCode';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import { flattenOrder } from '@/utils/wbs';
 import type { CustomTaskType } from '@/types/taskType';
-import { encodeCustomTaskType, OPS_DURATION_UNIT_NAME, toXmlDateTime } from '@/services/xmlInterchange';
+import {
+  encodeCustomTaskType, literalCalendarsJson, OPS_DURATION_UNIT_NAME, OPS_LITERAL_CALENDARS_NAME, toXmlDateTime,
+} from '@/services/xmlInterchange';
+import { minuteModelWriteView } from '@/services/ifc/minuteModelWrite';
 import { p6ConstraintLabel } from './p6ConstraintTypes';
 import { leaf, node, renderP6XmlWithReport, P6_ID_MAX_LENGTH, type P6Node } from './p6xmlSchemaOrder';
 import { isElapsedTask, taskDurationUnit } from '@/engine/scheduler/duration';
@@ -46,6 +49,10 @@ const OPS_DAY_MEASURE_LAGS_UDF_OBJECT_ID = 900000005;
 /** De lagkalender van het project (`schedulingOptions.lagCalendar`, I7) als project-UDF. Zonder deze waarde
  *  rekent de lezer met de standaard, de voorganger (review #585 r1, punt 1). */
 const OPS_LAG_CALENDAR_UDF_OBJECT_ID = 900000006;
+/** De letterlijke kalenders van deze export (T17, I8; `OPS_LiteralCalendars`) als project-UDF: een JSON-lijst
+ *  met kalender-`ObjectId`'s. Altijd gedefinieerd: de definitie zegt de lezer dat elke taakdatum zijn echte
+ *  tijd draagt, ook 08:00, en welke kalenders letterlijk zijn (`xmlTimeRule`). */
+const OPS_LITERAL_CALENDARS_UDF_OBJECT_ID = 900000007;
 
 // Curve-/contour-naammapping. De curve wordt SCHEMA-NATIEF geschreven als `<ResourceCurve>`-object
 // (21 waarden, MPXJ `XmlContextWriter.writeResourceCurves`) plus `<ResourceCurveObjectId>` op de
@@ -350,6 +357,14 @@ export function writeP6XMLWithReport(
   // TODO(X9/P6XML): pas na een gevalideerde Oracle-schema-/corpusmapping eventueel individuele
   // DurationType/ActivityType/progressvelden lezen/schrijven, met een nieuwe parity-test.
 
+  // Elke taakdatum gaat met zijn echte tijd (I8, F5b); een veld zonder tijd krijgt zijn moment volgens
+  // D1–D7, zoals de laadgrens, en niet het anker 08:00. De letterlijke kalenders (T17) gaan apart mee in
+  // `OPS_LiteralCalendars`, met dezelfde regel als MSPDI. Zonder die lijst promoveerde de lezer elke
+  // kalender met een einde 16:00 tot urenkalender.
+  const writeView = minuteModelWriteView({ tasks, calendar, resourceCalendars, baselines: [] },
+    { literalAutomaticMilestones: true, realTimes: true });
+  tasks = writeView.tasks;
+
   // Build object ID maps
   const taskObjMap = new Map<string, number>();
   let nextObjId = 1;
@@ -410,6 +425,12 @@ export function writeP6XMLWithReport(
       ...leaf('Title', title),
     ]));
   }
+  top.push(node('UDFType', [
+    ...leaf('DataType', 'Text'),
+    ...leaf('ObjectId', OPS_LITERAL_CALENDARS_UDF_OBJECT_ID),
+    ...leaf('SubjectArea', 'Project'),
+    ...leaf('Title', OPS_LITERAL_CALENDARS_NAME),
+  ]));
   const lagCalendarOption = project.schedulingOptions?.lagCalendar;
   if (lagCalendarOption) {
     top.push(node('UDFType', [
@@ -778,6 +799,10 @@ export function writeP6XMLWithReport(
     ...(lagCalendarOption
       ? [node('UDF', [...leaf('TypeObjectId', OPS_LAG_CALENDAR_UDF_OBJECT_ID), ...leaf('TextValue', lagCalendarOption)])]
       : []),
+    node('UDF', [
+      ...leaf('TypeObjectId', OPS_LITERAL_CALENDARS_UDF_OBJECT_ID),
+      ...leaf('TextValue', literalCalendarsJson([...writeView.literalCalendarIds].flatMap(id => calObjMap.get(id) ?? []))),
+    ]),
     ...inProject,
   ]));
 

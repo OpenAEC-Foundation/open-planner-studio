@@ -85,6 +85,24 @@ export function minutesToIsoDuration(minutes: number): string {
   return `${sign}PT${h}H${m}M0S`;
 }
 
+/** De grootste ruis van uren met zes decimalen, in minuten: 0,5 × 10⁻⁶ u × 60. */
+export const SIX_DECIMAL_HOUR_NOISE_MINUTES = 0.00003;
+
+/**
+ * Uren uit een bron met zes decimalen (XER, P6 XML) → minuten. Een hele minuut is meestal geen eindige
+ * decimale breuk van een uur: 40 min staat er als 0,666667 u, dus 40,00002 min. Ligt `uren × 60` binnen
+ * `SIX_DECIMAL_HOUR_NOISE_MINUTES` van een hele minuut, dan is het die hele minuut. Een echte breuk blijft
+ * staan (0,33 u = 19,8 min), alleen zonder de floatruis van uren × 60, op een miljoenste minuut
+ * (0,12 u × 60 = 7,199999999999999 ⇒ 7,2). Reden: 40 min is 40 min. Met de ruis werden 29 P6-cellen onexact
+ * (regel A), en sprong met de oude kalenderwandeling een late datum een dag terug (was knownbug 385).
+ */
+export function sixDecimalHoursToMinutes(hours: number): number {
+  const minutes = hours * 60;
+  const whole = Math.round(minutes);
+  if (Math.abs(minutes - whole) <= SIX_DECIMAL_HOUR_NOISE_MINUTES) return whole;
+  return Math.round(minutes * 1e6) / 1e6;
+}
+
 /**
  * Parse een ISO-8601-duurstring naar minuten ALS hij een tijdcomponent (`T..H/M/S`) draagt; anders
  * `null` — een pure dag-duur (`P0Y0M5D`, `P5D`) houdt het dag-substraat ongewijzigd. Dit is de
