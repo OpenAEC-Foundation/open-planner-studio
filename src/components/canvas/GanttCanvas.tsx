@@ -411,6 +411,9 @@ export function GanttCanvas({
       ...(milestone ? { isMilestone: true, milestoneKind: 'FINISH' as const, taskType: 'USERDEFINED' as const } : {}),
     };
     if (!date) { addTaskAtEnd(partial); return; }
+    // Een mijlpaal houdt het dagenpad: start en einde normaliseren dan naar hetzelfde moment. Met de
+    // urenmaat kreeg het einde 00:00 en de start het dageinde, en raakte geen klik de ruit (review #702).
+    if (milestone) { addTaskAtEnd({ ...partial, time: createDefaultTaskTime(date, 0, 'days', calendar) }); return; }
     // De klik kiest alleen de start, niet een expliciete dagenmaat. Gebruik dezelfde standaard-
     // en omzettingsregels als addTask, vóór de volledige tijd aan de store wordt doorgegeven.
     const state = useAppStore.getState();

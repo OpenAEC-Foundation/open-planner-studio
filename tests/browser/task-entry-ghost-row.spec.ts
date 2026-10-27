@@ -199,8 +199,8 @@ test('Gantt: rechtsklik op lege ruimte → Nieuwe taak begint op de aangeklikte 
     const t = window.__OPS__!.store.getState().tasks[1];
     return [t.time.durationUnit, t.time.durationMinutes];
   })).toEqual(['hours', 300]);
-  expect(created.scheduleStart.slice(0, 10) >= '2026-09-07').toBe(true);
-  expect(created.scheduleStart.slice(0, 10) <= '2026-09-11').toBe(true);
+  // Het midden van de balk 7–11 september is woensdag 9 september; die datum moet blijven.
+  expect(created.scheduleStart.slice(0, 10)).toBe('2026-09-09');
   await page.evaluate(id => window.__OPS__!.store.getState().copyTasks([id]), first);
   const beforePaste = await state(page);
   const pasteBar = await barPoint(page, first);
@@ -220,6 +220,23 @@ test('Gantt: rechtsklik op lege ruimte → Nieuwe taak begint op de aangeklikte 
     const t = window.__OPS__!.store.getState().tasks.find(t => t.isMilestone);
     return t && [t.taskType, t.milestoneKind, t.parentId, t.mandatory ?? false];
   })).toEqual(['USERDEFINED', 'FINISH', null, false]);
+  // Ook onder de urenmaat liggen begin en einde van de nieuwe ruit op hetzelfde moment, en een echte
+  // klik raakt hem vóór herberekening (review #702).
+  // De ruit staat op de rij onder de geplakte taak; midden in de dagcel van 9 september valt hij
+  // binnen de grijpzone, wat het tijdstip van de ruit binnen die dag ook is.
+  const milestoneId = await page.evaluate(() => window.__OPS__!.store.getState().tasks.find(t => t.isMilestone)!.id);
+  const [newBar, pastedBar] = [await barPoint(page, afterPaste.tasks[1].id), await barPoint(page, afterPaste.tasks[2].id)];
+  const canvasBox = (await page.getByTestId('gantt-primary-canvas').boundingBox())!;
+  const dayX = (await page.evaluate(() => window.__OPS__!.gantt.dateX('2026-09-09')))!;
+  await page.evaluate(() => window.__OPS__!.store.getState().deselectAll());
+  await page.mouse.click(canvasBox.x + dayX + 15, pastedBar.y + (pastedBar.y - newBar.y));
+  await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([milestoneId]);
+  const milestone = await page.evaluate(() => {
+    const t = window.__OPS__!.store.getState().tasks.find(t => t.isMilestone)!.time;
+    return [t.scheduleStart, t.scheduleFinish, t.earlyStart, t.earlyFinish, t.lateStart, t.lateFinish];
+  });
+  expect(milestone[0].slice(0, 10)).toBe('2026-09-09');
+  expect(new Set(milestone).size).toBe(1);
 
   // Op een bestaande taak blijft het een subtaak, maar eveneens een gewone eindmijlpaal.
   const parentBar = await barPoint(page, first);
@@ -252,7 +269,6 @@ test('Gantt: rechtsklik op lege ruimte → Nieuwe taak begint op de aangeklikte 
       return t && [t.time.durationUnit, t.time.durationMinutes];
     })).toEqual(['hours', 2400]);
     expect((await state(page)).undoDepth).toBe(depth + 1);
-    const start = (await state(page)).tasks[1].scheduleStart.slice(0, 10);
-    expect(start >= '2026-09-07' && start <= '2026-09-11').toBe(true);
+    expect((await state(page)).tasks[1].scheduleStart.slice(0, 10)).toBe('2026-09-09');
   }
 });
