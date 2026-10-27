@@ -1199,14 +1199,6 @@ en noem het in je rapport of PR-tekst.
     Bevestigd in review ronde 2 van PR #644 en ronde 1 van PR #708 (GPT-6.1-Sol). Voorstel: een handmatige
     check in de SuperCloud-werkplek. — B
 
-373. **Een synchrone `SecurityError` van Web Locks kan crashherstel ten onrechte uitzetten.** In
-    `src/services/recovery/recoveryStore.ts` (`loadRecovery`, rond regel 1538) vangt de opvang rond heel
-    `loadWeb()` elke eerste `SecurityError` als opslagweigering. Werkt `sessionStorage` wel, maar gooit de getter
-    `navigator.locks` of `locks.request()` synchroon zo'n fout, dan komt de code niet bij IndexedDB en gaat
-    crashherstel toch stil uit. Een browser die dit doet is niet gevonden; een afgewezen promise vangt `claimLock`
-    al af. Bevestigd in review ronde 3 van PR #644 (GPT-6.1-Sol). Voorstel: de classificatie beperken tot de
-    IndexedDB-grens. — B
-
 406. **Het welkomstvenster hangt af van de `localStorage`-getter, niet van werkende opslag.** Sinds #706
     slaat `src/hooks/useSettingsBootstrap.ts` (`skipWelcome`) het venster over in elke omgeving waar het
     lezen van `localStorage` gooit, ook buiten de werkplek: dan vervallen ook de eerste taalkeuze, de
