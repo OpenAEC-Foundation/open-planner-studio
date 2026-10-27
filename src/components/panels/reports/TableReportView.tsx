@@ -1,5 +1,6 @@
 import { forwardRef } from 'react';
 import type { TableReportSpec, ReportSection } from './tableReportSpec';
+import { CurveChartView } from './CurveChartView';
 
 /**
  * DOM-weergave van een gesectioneerd tabelrapport. Tekent exact wat `makeSectionedRenderReport`
@@ -74,6 +75,24 @@ export const TableReportView = forwardRef<HTMLDivElement, { spec: TableReportSpe
               <span style={{ color: item.color, fontWeight: 600 }}>{item.value}</span>
             </div>
           ))}
+        </div>
+      )}
+      {spec.kpis && spec.kpis.length > 0 && (
+        <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: `repeat(${spec.kpis.length}, minmax(0, 1fr))`, maxWidth: 760 }} data-ops-report-kpis>
+          {spec.kpis.map((k, i) => (
+            <div key={i} className="px-2 py-1.5 min-w-0" style={{ border: '1px solid var(--theme-border-light)', borderRadius: 'var(--radius-sm)' }} data-ops-report-kpi>
+              <div className="text-small leading-4 truncate" style={{ color: 'var(--theme-text-muted)' }}>{k.label}</div>
+              <div className="text-heading leading-5 font-semibold truncate" style={{ color: k.color ?? 'var(--theme-text)' }}>{k.value}</div>
+              {k.detail && <div className="text-small leading-4 truncate" style={{ color: 'var(--theme-text-muted)' }}>{k.detail}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+      {spec.chart && (
+        <div className="mb-4">
+          {spec.chart.spec
+            ? <CurveChartView spec={spec.chart.spec} />
+            : <div className="text-small leading-4" style={{ color: 'var(--theme-text-dim)' }}>{spec.chart.emptyText}</div>}
         </div>
       )}
       {spec.sections.map(s => (

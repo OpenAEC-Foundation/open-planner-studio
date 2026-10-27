@@ -13,6 +13,10 @@
 import type { Draw2D } from './draw2d';
 import type { RenderReportResult } from '@/services/print/printPreview';
 import { ellipsize } from '@/engine/renderer/textFit';
+import {
+  CURVE_CHART_FOOTNOTE_HEIGHT, CURVE_CHART_HEIGHT, CURVE_CHART_LEGEND_HEIGHT, CURVE_CHART_WIDTH, type CurveChartSpec,
+  drawCurveChart, drawCurveLegend, layoutCurveChart,
+} from './pdfCurveChart';
 
 export type PdfTableAlign = 'left' | 'right' | 'center';
 
@@ -64,7 +68,20 @@ export interface PdfSectionedReportSpec {
    *  één ellipsis-regel: het zijn correctheidsmeldingen over de getallen eronder. */
   notes?: string[];
   summary: { label: string; value: string; color?: string }[];
+  /** Kerncijfers als kaarten op één rij, onder de samenvatting (voortgangscurve). */
+  kpis?: PdfReportKpi[];
+  /** Curvegrafiek onder de kerncijfers (voortgangscurve). */
+  chart?: { spec?: CurveChartSpec; emptyText?: string };
   sections: PdfReportSection[];
+}
+
+/** Eén kerncijfer: label, groot getal, regel eronder. Spiegelt de kaart in `TableReportView`. */
+export interface PdfReportKpi {
+  label: string;
+  value: string;
+  detail?: string;
+  /** Nadrukkleur van het getal (CSS-kleur). */
+  color?: string;
 }
 
 // Zelfde gevendorde Inter-familie als de Gantt-render (printPreview.ts) — deterministisch en
@@ -97,6 +114,9 @@ const SUMMARY_GAP = 10;
 const SECTION_HEADING_HEIGHT = 30;
 const SECTION_GAP = 14;
 const SUMMARY_COLUMN_WIDTH = 260;
+const KPI_HEIGHT = 66;
+const KPI_GAP = 10;
+const BLOCK_GAP = 14;
 
 /** Meet tekst op een letter (CSS-fontstring) — het paneel levert dit vanuit een canvas. */
 export type MeasureText = (text: string, font: string) => number;
@@ -274,14 +294,20 @@ export function makeSectionedRenderReport(
     : spec.sections;
   return (makeDraw2D) => {
     const sectionWidths = sections.map(s => s.columns.reduce((sum, c) => sum + c.width, 0));
-    const width = Math.max(SUMMARY_COLUMN_WIDTH, ...sectionWidths);
+    const width = Math.max(SUMMARY_COLUMN_WIDTH, ...sectionWidths, spec.chart ? CURVE_CHART_WIDTH : 0);
+    const kpis = spec.kpis ?? [];
+    const kpiH = kpis.length > 0 ? KPI_HEIGHT + BLOCK_GAP : 0;
+    const chartSpec = spec.chart?.spec;
+    const chartH = !spec.chart ? 0
+      : chartSpec ? CURVE_CHART_HEIGHT + CURVE_CHART_LEGEND_HEIGHT + (chartSpec.footnote ? CURVE_CHART_FOOTNOTE_HEIGHT : 0) + BLOCK_GAP
+      : SUBTITLE_HEIGHT + BLOCK_GAP;
     const subtitleH = spec.subtitle ? SUBTITLE_HEIGHT : 0;
     const notes = spec.notes ?? [];
     const notesH = notes.length * SUBTITLE_HEIGHT;
     // Samenvatting in twee kolommen (zoals het DOM-blok): ceil(n/2) regels.
     const summaryLines = Math.ceil(spec.summary.length / 2);
     const summaryH = summaryLines > 0 ? summaryLines * SUMMARY_LINE_HEIGHT + SUMMARY_GAP : 0;
-    let height = TITLE_HEIGHT + subtitleH + notesH + summaryH;
+    let height = TITLE_HEIGHT + subtitleH + notesH + summaryH + kpiH + chartH;
     for (const s of sections) {
       height += (s.heading ? SECTION_HEADING_HEIGHT : 0) + tableHeight(s.rows.length) + SECTION_GAP;
     }
@@ -333,8 +359,58 @@ export function makeSectionedRenderReport(
       y += summaryH;
     }
 
+    if (kpis.length > 0) {
+      const boxW = (width - KPI_GAP * (kpis.length - 1)) / kpis.length;
+      kpis.forEach((k, i) => {
+        const x = i * (boxW + KPI_GAP);
+        d2d.strokeStyle = COLORS.rowBorder;
+        d2d.lineWidth = 1;
+        d2d.strokeRect(x + 0.5, y + 0.5, boxW - 1, KPI_HEIGHT - 1);
+        d2d.textAlign = 'left';
+        d2d.textBaseline = 'middle';
+        d2d.font = `${BODY_FONT_SIZE - 1}px ${FONT_FAMILY}`;
+        d2d.fillStyle = COLORS.textMuted;
+        d2d.fillText(ellipsize(d2d, k.label, boxW - 2 * CELL_PAD_X), x + CELL_PAD_X, y + 14);
+        d2d.font = `bold 18px ${FONT_FAMILY}`;
+        d2d.fillStyle = k.color ?? COLORS.text;
+        d2d.fillText(ellipsize(d2d, k.value, boxW - 2 * CELL_PAD_X), x + CELL_PAD_X, y + 35);
+        if (k.detail) {
+          d2d.font = `${BODY_FONT_SIZE - 1}px ${FONT_FAMILY}`;
+          d2d.fillStyle = COLORS.textMuted;
+          d2d.fillText(ellipsize(d2d, k.detail, boxW - 2 * CELL_PAD_X), x + CELL_PAD_X, y + 54);
+        }
+      });
+      y += kpiH;
+    }
+
+    if (spec.chart) {
+      if (chartSpec) {
+        drawCurveChart(d2d, layoutCurveChart(chartSpec), 0, y, FONT_FAMILY);
+        y += CURVE_CHART_HEIGHT;
+        drawCurveLegend(d2d, chartSpec, 0, y, width, FONT_FAMILY, COLORS.text);
+        y += CURVE_CHART_LEGEND_HEIGHT;
+        if (chartSpec.footnote) {
+          d2d.fillStyle = COLORS.textMuted;
+          d2d.font = `${BODY_FONT_SIZE - 1}px ${FONT_FAMILY}`;
+          d2d.textAlign = 'left';
+          d2d.textBaseline = 'middle';
+          d2d.fillText(ellipsize(d2d, chartSpec.footnote, width), 0, y + CURVE_CHART_FOOTNOTE_HEIGHT / 2);
+          y += CURVE_CHART_FOOTNOTE_HEIGHT;
+        }
+      } else {
+        d2d.fillStyle = COLORS.textDim;
+        d2d.font = `${BODY_FONT_SIZE}px ${FONT_FAMILY}`;
+        d2d.textAlign = 'left';
+        d2d.textBaseline = 'middle';
+        d2d.fillText(ellipsize(d2d, spec.chart.emptyText ?? '', width), 0, y + SUBTITLE_HEIGHT / 2);
+        y += SUBTITLE_HEIGHT;
+      }
+      y += BLOCK_GAP;
+    }
+
+    // Kop, samenvatting, kerncijfers en grafiek zijn één blok: een pagina breekt er niet doorheen.
     const breakOffsets: number[] = [];
-    if (spec.summary.length > 0 || spec.subtitle || notes.length > 0) breakOffsets.push(y);
+    if (spec.summary.length > 0 || spec.subtitle || notes.length > 0 || kpis.length > 0 || spec.chart) breakOffsets.push(y);
     for (const s of sections) {
       if (s.heading) {
         d2d.fillStyle = COLORS.text;

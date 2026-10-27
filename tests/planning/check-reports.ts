@@ -13,6 +13,7 @@ import {
   type ReportContext, type ReportingPeriod, type SolvedReportContext,
   computeLookAhead, computeCriticalReport, computeProgressReport, computeScheduleHealth,
   computeResourceLoading, computeResourceAssignments, computeResourceGanttRows, computeWbsSummary, progressState,
+  computeProgressCurve, PROGRESS_CURVE_MAX_SAMPLES, type CurvePoint,
   remainingDays, resourceBandLabels, taskDepths, taskFinish, taskStart,
 } from '@/engine/reports';
 import { assignmentCurveState, contouredAssignmentIds } from '@/engine/contour/curveState';
@@ -739,6 +740,65 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   ok('resourceGantt: geen toewijzingen ⇒ leeg', computeResourceGanttRows({ ...base, assignments: [] }, opts).rows.length === 0);
   const leeg = computeResourceGanttRows({ tasks: [], resources: base.resources, assignments: base.assignments }, { ...opts, includeUnassigned: true });
   eq('resourceGantt: leeg project ⇒ geen rijen, nultellingen', [leeg.rows.length, leeg.counts], [0, { resources: 0, assignments: 0, unassignedTasks: 0, outsidePeriod: 0, inPeriod: 0 }]);
+}
+
+// ── Voortgangscurve (issue #689) ─────────────────────────────────────────────────────────────────
+{
+  const r = computeProgressCurve(ctx);
+  const pr = computeProgressReport(ctx, { period: { preset: 'last2Weeks' }, nearCriticalDays: 5 });
+  const rising = (c: CurvePoint[]) => c.every((p, i) => i === 0 || p.pct + 1e-9 >= c[i - 1].pct);
+  eq('curve: statusdatum', [r.statusDate, r.statusDateMissing], ['2026-09-18', false]);
+  eq('curve: met baseline', [r.hasBaseline, r.plannedBasis, r.hasLateDates, r.hasProgress], [true, 'baseline', true, true]);
+  near('curve: werkelijk % = gewogen voortgang van het voortgangsrapport', r.actualPct, pr.summary.actualPct);
+  near('curve: gepland % = voortgangsrapport (zelfde vensters in dit scenario)', r.plannedPct, pr.summary.plannedPct);
+  ok('curve: as en meetpunten', !!r.axis && r.earlyCurve.length > 2 && r.earlyCurve.length <= PROGRESS_CURVE_MAX_SAMPLES);
+  for (const [name, c] of [['vroegst', r.earlyCurve], ['laatst', r.lateCurve ?? []], ['gepland', r.plannedCurve ?? []]] as const) {
+    ok(`curve ${name}: begint op 0 %`, c[0]?.pct === 0, String(c[0]?.pct));
+    ok(`curve ${name}: eindigt op 100 %`, c[c.length - 1]?.pct === 100, String(c[c.length - 1]?.pct));
+    ok(`curve ${name}: stijgt nooit af`, rising(c));
+  }
+  ok('curve: band — vroegst ligt nooit onder laatst', r.earlyCurve.every((p, i) => p.pct + 0.01 >= (r.lateCurve?.[i]?.pct ?? 0)));
+  const last = r.actualCurve[r.actualCurve.length - 1];
+  eq('curve werkelijk: eindigt op de statusdatum', last?.day, '2026-09-18');
+  near('curve werkelijk: laatste punt = werkelijk %', last?.pct, r.actualPct, 0.05);
+  ok('curve werkelijk: stijgt nooit af', rising(r.actualCurve));
+  ok('curve werkelijk: geen punt na de statusdatum', r.actualCurve.every(p => p.day <= '2026-09-18'));
+  // C (5 → 8 wd) eindigt 3 wd later dan de baseline; B (40 %, rest 6 wd) haalt zijn baseline-einde nog.
+  const rc = r.riskRows.find(x => x.taskId === C);
+  eq('curve: C is te laat, 3 wd na de baseline', [rc?.late, rc?.finishVarianceDays], [true, 3]);
+  ok('curve: B is geen risico', !r.riskRows.some(x => x.taskId === B));
+  eq('curve: telling te laat = risicorijen met late', r.lateTasks.count, r.riskRows.filter(x => x.late).length);
+  ok('curve: voltooide A is geen risico', !r.riskRows.some(x => x.taskId === A));
+  eq('curve: volgende mijlpaal is E', r.nextMilestone?.taskId, E);
+  ok('curve: E ligt na de statusdatum', (r.nextMilestone?.daysUntil ?? -1) > 0);
+  ok('curve: risicorijen op speling gesorteerd', r.riskRows.every((x, i) => i === 0 || r.riskRows[i - 1].totalFloat <= x.totalFloat));
+
+  // Zonder baseline: geen geplande curve, gepland uit de vroegste data, te laat alleen volgens planning.
+  const nb = computeProgressCurve({ ...ctx, baseline: null });
+  eq('curve zonder baseline', [nb.plannedCurve, nb.plannedBasis, nb.lateTasks.basis], [undefined, 'current', 'schedule']);
+  ok('curve zonder baseline: C niet meer te laat (alleen de planning telt)', !nb.riskRows.some(x => x.late && x.taskId === C));
+
+  // Niet berekend: geen laatste data, dus geen band.
+  const nc = computeProgressCurve({ ...ctx, cpmResult: null });
+  eq('curve niet berekend: geen band', [nc.hasLateDates, nc.lateCurve], [false, undefined]);
+
+  // Geen voortgang: de werkelijke curve ligt op 0.
+  const fresh = ctx.tasks.map(t => ({ ...t, status: 'NOT_STARTED' as Task['status'], time: { ...t.time, completion: 0, actualStart: undefined, actualFinish: undefined } }));
+  const np = computeProgressCurve({ ...ctx, tasks: fresh });
+  eq('curve zonder voortgang', [np.hasProgress, np.actualPct], [false, 0]);
+  ok('curve zonder voortgang: werkelijke curve plat op 0', np.actualCurve.every(p => p.pct === 0));
+
+  // Alleen mijlpalen: geen curve, wel kerncijfers.
+  const ms = computeProgressCurve({ ...ctx, tasks: ctx.tasks.filter(t => t.id === E) });
+  eq('curve alleen mijlpaal: geen as', [ms.axis, ms.weightedTasks, ms.nextMilestone?.taskId], [undefined, 0, E]);
+
+  // Lang project: meer dan 240 dagen ⇒ hoogstens 240 meetpunten, eind nog steeds 100 %.
+  const long = ctx.tasks.map(t => (t.id === F ? { ...t, time: { ...t.time, earlyFinish: '2028-06-30', lateFinish: '2028-06-30' } } : t));
+  const lr = computeProgressCurve({ ...ctx, tasks: long });
+  ok('curve lang project: hoogstens 240 punten', lr.earlyCurve.length <= PROGRESS_CURVE_MAX_SAMPLES, String(lr.earlyCurve.length));
+  eq('curve lang project: as tot het laatste einde', lr.axis?.to, '2028-06-30');
+  eq('curve lang project: eindigt op 100 %', lr.earlyCurve[lr.earlyCurve.length - 1].pct, 100);
+  ok('curve lang project: maandstrepen', lr.ticks.length > 0 && lr.ticks.length <= 13 && lr.ticks.every(t => t.kind === 'month' && t.day.endsWith('-01')));
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────────────────────────
