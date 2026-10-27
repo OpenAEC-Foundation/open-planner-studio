@@ -195,7 +195,7 @@ for (const [label, cal] of CASES) {
 /** De kalenderregels van het bestand, met STEP-ids relatief aan de eerste kalenderregel (`#+n`) en
  *  verwijzingen naar eerdere regels als `#<`; zo maakt een extra entiteit vóór de kalender niets uit. */
 function calendarLines(ifc: string): string[] {
-  const keep = /=IFC(TIMEPERIOD|RECURRENCEPATTERN|WORKTIME|WORKCALENDAR)\(|'OPS_Calendar'|IFCPROPERTYSINGLEVALUE\('(WorkStartHour|WorkEndHour|HoursPerDay|IsHourCalendar|LegacyWorkTimeIds|SimpleBreakStart|SimpleBreakDuration)'/;
+  const keep = /=IFC(TIMEPERIOD|RECURRENCEPATTERN|WORKTIME|WORKCALENDAR)\(|'OPS_Calendar'|IFCPROPERTYSINGLEVALUE\('(WorkStartHour|WorkEndHour|HoursPerDay|IsHourCalendar|LiteralTimes|LegacyWorkTimeIds|SimpleBreakStart|SimpleBreakDuration)'/;
   const lines = ifc.split('\n').map((l) => l.trim()).filter((l) => keep.test(l));
   const base = Number(/^#(\d+)=/.exec(lines[0])![1]);
   return lines.map((l) => l.replace(/#(\d+)/g, (_, n: string) => (Number(n) >= base ? `#+${Number(n) - base}` : '#<')));
@@ -227,9 +227,10 @@ const UNIFORM_GOLDEN = [
     "#+2=IFCRECURRENCEPATTERN(.WEEKLY.,$,(1,2,3,4,5),$,$,$,$,(#+0,#+1));",
     "#+3=IFCWORKTIME('Standard work week',.PREDICTED.,$,#+2,$,$);",
     "#+4=IFCWORKCALENDAR('2uNGXnRewWtJPOazG2o4_7',#<,'Uniforme uurweek',$,$,$,(#+3),$,.FIRSTSHIFT.);",
-    "#+5=IFCPROPERTYSINGLEVALUE('WorkEndHour',$,IFCREAL(16.),$);",
-    "#+6=IFCPROPERTYSINGLEVALUE('IsHourCalendar',$,IFCBOOLEAN(.T.),$);",
-    "#+7=IFCPROPERTYSET('263IQ2FKK_eiUDl$xw9qpv',#<,'OPS_Calendar',$,(#+5,#+6));",
+    "#+5=IFCPROPERTYSINGLEVALUE('LiteralTimes',$,IFCBOOLEAN(.T.),$);",
+    "#+6=IFCPROPERTYSINGLEVALUE('WorkEndHour',$,IFCREAL(16.),$);",
+    "#+7=IFCPROPERTYSINGLEVALUE('IsHourCalendar',$,IFCBOOLEAN(.T.),$);",
+    "#+8=IFCPROPERTYSET('263IQ2FKK_eiUDl$xw9qpv',#<,'OPS_Calendar',$,(#+5,#+6,#+7));",
 ];
 const GOLDEN: [string, () => string, string[]][] = [
   ['uniforme uurweek', () => write(uniformWeek), UNIFORM_GOLDEN],
@@ -250,10 +251,11 @@ const GOLDEN: [string, () => string, string[]][] = [
     "#+3=IFCWORKTIME('Standard work week',.PREDICTED.,$,#+2,$,$);",
     "#+4=IFCWORKTIME('Kerst',.PREDICTED.,$,$,'2026-12-25','2026-12-26');",
     "#+5=IFCWORKCALENDAR('2uNGXnRewWtJPOazG2o4_7',#<,'Dagkalender',$,$,$,(#+3),(#+4),.FIRSTSHIFT.);",
-    "#+6=IFCPROPERTYSINGLEVALUE('HoursPerDay',$,IFCREAL(8.),$);",
-    "#+7=IFCPROPERTYSINGLEVALUE('WorkEndHour',$,IFCREAL(16.),$);",
-    "#+8=IFCPROPERTYSINGLEVALUE('IsHourCalendar',$,IFCBOOLEAN(.F.),$);",
-    "#+9=IFCPROPERTYSET('263IQ2FKK_eiUDl$xw9qpv',#<,'OPS_Calendar',$,(#+6,#+7,#+8));",
+    "#+6=IFCPROPERTYSINGLEVALUE('LiteralTimes',$,IFCBOOLEAN(.T.),$);",
+    "#+7=IFCPROPERTYSINGLEVALUE('HoursPerDay',$,IFCREAL(8.),$);",
+    "#+8=IFCPROPERTYSINGLEVALUE('WorkEndHour',$,IFCREAL(16.),$);",
+    "#+9=IFCPROPERTYSINGLEVALUE('IsHourCalendar',$,IFCBOOLEAN(.F.),$);",
+    "#+10=IFCPROPERTYSET('263IQ2FKK_eiUDl$xw9qpv',#<,'OPS_Calendar',$,(#+6,#+7,#+8,#+9));",
   ]],
 ];
 for (const [label, writeFor, want] of GOLDEN) {

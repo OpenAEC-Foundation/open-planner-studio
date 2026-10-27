@@ -31,6 +31,8 @@ export function useExitRecordedDates(): void {
         documentId: s.activeDocumentId,
         inMode: s.datesAsRecorded,
         scheduleStale: s.scheduleStale,
+        // Om undo en redo te herkennen: die verlaten de modus zonder bewerking (geval 6).
+        history: s.historyEvents,
       };
     };
 
@@ -52,7 +54,7 @@ export function useExitRecordedDates(): void {
         if (doc === null) return;
         const s = useAppStore.getState();
         if (!needsExitRecompute(doc, observe())) return;
-        s.runCPM();
+        s.runCPM({ withinEvent: true });
       }, 0);
     });
 

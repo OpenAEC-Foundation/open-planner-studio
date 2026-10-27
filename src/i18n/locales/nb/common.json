@@ -221,7 +221,10 @@
     "msProjectLostFixedCosts_one": "Den faste kostnaden for {{count}} aktivitet er ikke overtatt.",
     "msProjectLostFixedCosts_other": "De faste kostnadene for {{count}} aktiviteter er ikke overtatt.",
     "msProjectLostResourceRates_one": "Standardsatsene for {{count}} ressurs er ikke overtatt.",
-    "msProjectLostResourceRates_other": "Standardsatsene for {{count}} ressurser er ikke overtatt."
+    "msProjectLostResourceRates_other": "Standardsatsene for {{count}} ressurser er ikke overtatt.",
+    "minuteModelConverted_one": "{{document}}: {{count}} aktivitet har en annen start eller slutt etter konverteringen; den største forskyvningen er {{days}} arbeidsdager. Ctrl+Z setter de lagrede datoene tilbake.",
+    "minuteModelConverted_other": "{{document}}: {{count}} aktiviteter har en annen start eller slutt etter konverteringen; den største forskyvningen er {{days}} arbeidsdager. Ctrl+Z setter de lagrede datoene tilbake.",
+    "minuteModelCalendarRepaired": "Kalenderen «{{calendar}}» er reparert: slutten eller pausen passet ikke til den lagrede arbeidstiden."
   },
   "scheduleErrors": {
     "cycle": "Sirkulær avhengighet mellom aktiviteter: {{path}}",
@@ -335,16 +338,17 @@
     "themeHighContrast": "Høy kontrast",
     "themeFollowSystem": "Følg systemtema",
     "themeSystemHint": "Følger fargeskjemaet til systemet ditt (nå: {{theme}}).",
-    "hourPlanningSection": "Timeplanlegging",
-    "enableHourPlanning": "Slå på timeplanlegging",
-    "enableHourPlanningHint": "Slår på planlegging i timer og minutter: en timeskala, skift med arbeidstidsbånd og timepresise aktivitetslinjer. Av ⇒ appen er helt dagbasert, som før.",
     "showTaskTypes": "Bruk aktivitetstyper",
     "showTaskTypesHint": "Velg per aktivitet hva som endrer seg når varighet, tildelingsenheter eller arbeid endres, som Task Type i MS Project og Duration Type i P6. Av: varighet og tildelingsenheter forblir uendret. En fil med aktivitetstyper eller lagret arbeid viser dem også når dette er av.",
     "allowMixedDayHour": "Tillat blandet dag/timeplanlegging",
     "defaultTaskDurationUnit": "Standardenhet for nye aktiviteter",
-    "defaultTaskDurationUnitHint": "Bestemmer om nye aktiviteter standard starter i arbeidsdager eller arbeidstimer. Eksisterende aktiviteter endres ikke.",
+    "defaultTaskDurationUnitHint": "Dagsenhet: en varighet telles i arbeidsdager i kalenderen. Timeenhet: en varighet telles i arbeidstimer. Eksisterende aktiviteter endres ikke. En aktivitet med fast arbeid bruker alltid timeenheten.",
+    "defaultTaskDurationUnitDays": "Dagsenhet",
+    "defaultTaskDurationUnitHours": "Timeenhet",
+    "defaultTaskDurationUnitLocked": "Profilen {{profile}} regner varighet i timer. Nye aktiviteter får derfor timeenheten.",
     "durationDisplay": "Varighetsvisning",
     "durationDisplayHint": "Bestemmer hvordan varigheten av en aktivitet vises, uavhengig av enheten aktiviteten er registrert i.",
+    "durationDisplayOpsHint": "I OPS-profilen viser hver aktivitet sin egen enhet.",
     "durationDisplayAuto": "Automatisk (egen enhet per aktivitet)",
     "durationDisplayDays": "Alltid dager",
     "durationDisplayHours": "Alltid timer",
@@ -1116,10 +1120,6 @@
     "month": "måned",
     "year": "år"
   },
-  "hourData": {
-    "notice": "Denne filen inneholder timeplanlegging.",
-    "enable": "Slå på timeplanlegging"
-  },
   "recordedDates": {
     "activeCount_one": "Du ser tidsplanen slik Primavera lagret den. Ved omberegning avviker {{count}} aktivitet.",
     "activeCount_other": "Du ser tidsplanen slik Primavera lagret den. Ved omberegning avviker {{count}} aktiviteter.",
@@ -1483,6 +1483,14 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "ALAP-aktiviteter så seint som etterfølgerne tillater",
       "help": "Bare ved timeplanlegging, for en aktivitet som ikke er startet og ikke er manuelt planlagt, med begrensningen «Så sent som mulig» (ALAP). Etterfølgernes tidligste datoer bestemmer plasseringen til minuttet; etterfølgerne går først. Dens egen planlagte start teller ikke. Forgjengere, statusdato og en annen begrensning gjelder fortsatt. Uten etterfølger bruker den sin seneste slutt. Det vanlige ALAP-trinnet er fortsatt tilgjengelig i alle profiler."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Frittstående milepæler ved arbeidsdagens slutt",
+      "help": "En frittstående milepæl eller en sluttmilepæl uten forgjenger plasseres ved slutten av arbeidsdagen."
+    },
+    "workdayDurationMeasure": {
+      "label": "Varighet i arbeidsdager",
+      "help": "En varighet, forsinkelse eller gjenstående varighet i dager regnes i arbeidsdager: hver arbeidsdag regnes som 1, uansett hvor lang den dagen er. Av: en dag regnes som antall arbeidstimer per dag i kalenderen. En forsinkelse i prosent følger enheten til forgjengeren. Forløpt tid regnes aldri i arbeidsdager."
     }
   },
   "profiles": {
@@ -1521,6 +1529,7 @@
       "float": "Slakk og seneste datoer",
       "instants": "Datoer og tidspunkter fra filen",
       "msproject": "Fremdrift slik som i Microsoft Project",
+      "durations": "Varighet og enhet",
       "ownProfilesOnly": "Bare for egne profiler"
     },
     "ownProfilesOnlyNote": "Disse beregningsreglene er av i alle innebygde profiler, også under «Primavera P6». Bare en egen profil kan slå dem på: velg «Ny profil» for det.",

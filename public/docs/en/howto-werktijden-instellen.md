@@ -6,7 +6,7 @@ Goal: record per weekday at which clock times a calendar works, so that tasks in
 
 Friday afternoon is off. The crew works from 06:00 to 22:00 in two shifts. There is a night crew. The break is shorter than an hour. As long as you plan only in days, *Start (hour)*, *End (hour)* and the break are enough ([Creating and assigning a calendar](docs://howto-kalender-maken-en-toewijzen)). If you plan tasks in hours, the app counts working minutes within the **working-time blocks** of the calendar. In the app those blocks are called *bands*: a block is a continuous stretch of working time on one weekday, and a gap between two blocks is a break. What that means for your schedule is covered in [Days and hours](docs://uitleg-dagen-en-uren).
 
-To give an ordinary calendar working-time blocks, you need *Enable hour planning* ([Turning on hour planning](docs://howto-urenplanning-aanzetten)). If the calendar already has blocks, for example from an MS Project file, the *Working times* block is always there and you change the blocks also with hour planning off.
+The *Working times* block is available for every calendar.
 
 ## Steps
 
@@ -49,13 +49,12 @@ A preset of your own is stored on this device, not in the project file.
 
 **Day buttons change the blocks.** If you turn a day off under *Work days*, the blocks of that day disappear. Turn it on again and it gets back the blocks it had when you opened the dialog (or after the last preset), or otherwise those of the first working day. *Mon–Fri* does that for Monday through Friday and removes the blocks of Saturday and Sunday. *Continuous (24/7)* replaces all blocks: every day gets 00:00 to 24:00.
 
-**Adjusting working times with hour planning off.** A calendar with working-time blocks keeps the *Working times* block, also when you turn hour planning off. You simply change the blocks there. If you choose *Day shift*, it becomes an ordinary calendar again with the fields *Start (hour)*, *End (hour)* and the break; putting blocks back is then only possible with hour planning on.
 
 **No usable working times.** A calendar without blocks or without work days cannot carry a task in hours. The app then reports *This calendar has no valid working times. Check its working days and times.*
 
 ## See also
 
 - [Days and hours](docs://uitleg-dagen-en-uren): how the app counts working hours and derives the standard workday.
-- [Turning on hour planning](docs://howto-urenplanning-aanzetten): planning a task in hours.
+- [Plan a task in hours](docs://howto-taak-in-uren-plannen): planning a task in hours.
 - [Calendars and working days](docs://uitleg-kalenders): which calendar applies to which task.
 - [Calendar windows](docs://ref-kalenders): all fields of the calendar windows.

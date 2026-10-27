@@ -61,7 +61,8 @@ function cellText(cell: XlsxCell | undefined, epoch1904: boolean): string | unde
   if (cell === undefined) return undefined;
   if (cell.num !== undefined) {
     if (cell.isDate === true) {
-      const iso = serialToIso(cell.num, epoch1904);
+      // Een cel MET kloktijd houdt `T00:00`: dat is een moment, geen kale datum (aanval a11).
+      const iso = serialToIso(cell.num, epoch1904, cell.hasTime === true);
       // Onleesbaar serieel getal ⇒ de rauwe tekst door, zodat de rij zichtbaar onleesbaar wordt.
       // Hier wordt NOOIT een datum geraden.
       return iso ?? cell.text;

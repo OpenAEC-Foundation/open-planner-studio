@@ -61,7 +61,6 @@ A strip sits directly under the ribbon, above the workspace. It has a text and o
 
 - **Link mode** — *Link mode: drag from one bar to another in the Gantt to create a relation. Press Esc to stop.* It stays as long as link mode is on. Button: *Stop*. See [Adding relations](docs://howto-relaties-leggen).
 - **Split mode** — *Click a bar on the day the break starts and drag right for its length. Press Esc to stop.* It stays as long as *Split task* is on. Button: *Stop*.
-- **Hour planning in the file** — *This file contains hour-based planning.* It appears when an opened file contains hour planning while *Enable hour planning* is off. Button: *Enable hour planning*. See [Turning on hour planning](docs://howto-urenplanning-aanzetten).
 - **Structure locked** — *Not available while filtering/grouping/sorting*. It appears when indenting or outdenting is refused because the task list is filtered, grouped or sorted. Button: *Clear*, which removes the filter, grouping and sorting.
 - **Dates as recorded** — after opening a file where recalculating moved dates: *Recalculation moved N of M tasks away from the dates in the file.* with the button *Show recorded dates*. While the view is on: *You're viewing the dates as recorded in the file …* with the button *Recalculate*. See [Dates as recorded](docs://uitleg-datums-zoals-opgeslagen).
 

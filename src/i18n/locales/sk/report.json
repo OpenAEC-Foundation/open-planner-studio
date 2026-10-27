@@ -398,7 +398,7 @@
       "title": "Súhrn WBS",
       "baselineStart": "Začiatok pôvodného plánu",
       "baselineFinish": "Dokončenie pôvodného plánu",
-      "duration": "Trvanie (wd)",
+      "duration": "Trvanie (pd)",
       "finishVariance": "Δ dokončenie (wd)",
       "minFloat": "Min. TF",
       "activities": "Úl.",

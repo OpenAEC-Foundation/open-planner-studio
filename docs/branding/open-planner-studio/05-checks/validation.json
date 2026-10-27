@@ -1,0 +1,143 @@
+{
+  "date": "2026-10-23",
+  "result": "PASS",
+  "png": {
+    "symbol": {
+      "size": [
+        2048,
+        2048
+      ],
+      "rgba": true,
+      "background_hex": "2A2A32",
+      "transparent_background": true,
+      "open_side_interiors_alpha_zero": true,
+      "exact_brand_colors_present": true,
+      "bounding_box": [
+        309,
+        200,
+        1739,
+        1847
+      ],
+      "margins_left_top_right_bottom_px": [
+        309,
+        200,
+        309,
+        201
+      ]
+    },
+    "wordmark": {
+      "size": [
+        3600,
+        1440
+      ],
+      "rgba": true,
+      "background_hex": "2A2A32",
+      "transparent_background": true,
+      "open_side_interiors_alpha_zero": true,
+      "exact_brand_colors_present": true,
+      "bounding_box": [
+        560,
+        100,
+        3042,
+        1338
+      ],
+      "margins_left_top_right_bottom_px": [
+        560,
+        100,
+        558,
+        102
+      ]
+    }
+  },
+  "glb_render_comparison": {
+    "symbol": {
+      "mean_absolute_channel_difference_0_to_255": 0.0,
+      "pixel_identical": true
+    },
+    "wordmark": {
+      "mean_absolute_channel_difference_0_to_255": 1.4949845679012345e-06,
+      "pixel_identical": false
+    }
+  },
+  "blender": {
+    "open-planner-studio-wordmark.blend": {
+      "opens_successfully": true,
+      "objects": 37,
+      "camera": "ORTHO",
+      "dither": 0,
+      "texts": [
+        {
+          "body": "Open",
+          "font": "Space Grotesk Bold",
+          "font_packed": true
+        },
+        {
+          "body": "Planner",
+          "font": "Space Grotesk Bold",
+          "font_packed": true
+        },
+        {
+          "body": "STUDIO",
+          "font": "Space Grotesk Medium",
+          "font_packed": true
+        }
+      ],
+      "all_materials_emission": true,
+      "cube_dimensions_equal": true,
+      "one_corner_bar_closed_manifold": true,
+      "six_task_blocks": true,
+      "no_vertical_face_fill_mesh": true
+    },
+    "open-planner-studio.blend": {
+      "opens_successfully": true,
+      "objects": 34,
+      "camera": "ORTHO",
+      "dither": 0,
+      "texts": [],
+      "all_materials_emission": true,
+      "cube_dimensions_equal": true,
+      "one_corner_bar_closed_manifold": true,
+      "six_task_blocks": true,
+      "no_vertical_face_fill_mesh": true
+    }
+  },
+  "glb": {
+    "open-planner-studio.glb": {
+      "valid_glb_header": true,
+      "valid_accessors_and_indices": true,
+      "finite_positions": true,
+      "object_names_match_blend": true,
+      "vertex_counts_match_blend": true,
+      "objects": 34,
+      "vertices": 1296,
+      "triangles": 1538,
+      "reconstructed_in_blender_and_rendered": true
+    },
+    "open-planner-studio-wordmark.glb": {
+      "valid_glb_header": true,
+      "valid_accessors_and_indices": true,
+      "finite_positions": true,
+      "object_names_match_blend": true,
+      "vertex_counts_match_blend": true,
+      "objects": 37,
+      "vertices": 6463,
+      "triangles": 6687,
+      "reconstructed_in_blender_and_rendered": true
+    }
+  },
+  "visual_inspection": {
+    "orthographic_parallel_lines": true,
+    "correct_task_connections": true,
+    "readable_wordmark": true,
+    "consistent_flat_colors": true,
+    "clear_margins": true,
+    "six_geometry_views": true,
+    "continuous_corner_planning": true,
+    "transparency_on_dark_and_gray": true
+  },
+  "notes": [
+    "Exterior and both vertical planning faces are transparent; top face and task blocks remain opaque.",
+    "GLB materials require KHR_materials_unlit support.",
+    "GLB render comparison was made by decoding the exported vertices, indices and colors into fresh Blender meshes."
+  ]
+}

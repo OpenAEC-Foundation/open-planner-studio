@@ -18,6 +18,8 @@ What needs no permission is the basis of the extension interface: reading the pr
 
 **The manifest.** The permissions are in the manifest as a list. An extension that you install now, with a permission that this app version does not know, is refused. For an already stored older extension, the app drops unknown permissions and reports it in the log.
 
+Since extension contract 1.5.0, an extension can also read the selected task IDs with `data.getSelectedTaskIds()`. This does not change the selection or add write access; it belongs to the ordinary project data without an extra permission.
+
 ## How the app asks
 
 On installing, from the catalogue (*File › Extensions › Browse › Install*) or from a file (*ZIP* or *JS*), the app shows the window *Install extension?*. The question comes once, at install time: not every time you switch the extension on.

@@ -629,7 +629,7 @@ S().applyOpenedImport(x10Import(), {
   fileHandle: null,
   recompute: false,
   fit: false,
-  hourDataNotice: false,
+
   linkedOpen: true,
 });
 eq('111 XER met twaalf documenten toont precies één bestandsmelding', N().length, 1);
@@ -661,7 +661,7 @@ S().applyOpenedImport(x10Import(), {
   fileHandle: null,
   recompute: false,
   fit: false,
-  hourDataNotice: false,
+
   linkedOpen: true,
 });
 eq('117 twee afzonderlijke XER-imports tonen twee afzonderlijke meldingen', N().length, 2);
@@ -670,7 +670,7 @@ eq('118 ook de tweede melding is de samengestelde XER-melding', N()[1]?.messageK
 // B4 (gebruikstest rekenprofielen 24-09): heropenen uit eigen IFC — `readIFC` zet `xerOrigin:
 // 'xer-archive'` naast de archief-`xer` — meldt niets. MUTATIEBEWIJS: filter uit `xerImportNotice` ⇒ rood.
 S().applyOpenedImport({ ...x10Result(0), xerOrigin: 'xer-archive' }, {
-  filePath: null, fileHandle: null, recompute: false, fit: false, hourDataNotice: false, linkedOpen: true,
+  filePath: null, fileHandle: null, recompute: false, fit: false, linkedOpen: true,
 });
 eq('118c heropende IFC met XER-archief geeft geen extra melding', N().length, 2);
 

@@ -45,7 +45,7 @@ import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 import type { CompanyPool } from '@/types/library';
-import { computeResourceLoad, maxUnitsOn } from '@/engine/scheduler/ResourceLoad';
+import { computeResourceLoad, maxUnitsOn, type LoadOptions } from '@/engine/scheduler/ResourceLoad';
 import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProject';
 import { solveOptionsFor, type ProjectSolveOptions, type SolveProjectFields } from '@/engine/scheduler/solveInput';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
@@ -91,6 +91,9 @@ export interface OccupancyDocInput {
   tasks: Task[];
   calendar: WorkCalendar;   // projectkalender
   calendars: WorkCalendar[];
+  /** De maatconventie van dít document (`effectiveSchedulingOptions(project)`): de belasting leest
+   *  dezelfde maat als de solver van dat document. Verplicht, ook zonder efemere solve. */
+  loadOptions: LoadOptions;
   /** Invoer voor de efemere solve. Alleen gelezen wanneer `scheduleStale` waar is; afwezig
    *  ⇒ dat document valt op het vangnetpad. Optioneel zodat aanroepers die geen planning
    *  kunnen aanleveren (of bewust niet willen doorrekenen) gewoon het vangnet krijgen. */
@@ -290,7 +293,7 @@ export function computeLibraryOccupancy(
     // efemeer doorgerekend document zijn dat de KLOON-taken met de zojuist berekende datums; de
     // taken uit de payload blijven ongemoeid.
     const loadTasks = solvedTasks ?? doc.tasks;
-    const loadResult = computeResourceLoad(doc.resources, doc.assignments, loadTasks, doc.calendar, doc.calendars);
+    const loadResult = computeResourceLoad(doc.resources, doc.assignments, loadTasks, doc.calendar, doc.calendars, doc.loadOptions);
 
     for (const resource of stampedResources) {
       const daily = loadResult.load[resource.id];

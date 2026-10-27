@@ -61,7 +61,6 @@ Een strook staat direct onder het lint, boven de werkruimte. Hij heeft een tekst
 
 - **Relatiemodus** — *Relatiemodus: sleep in de Gantt van de ene balk naar de andere om een relatie te leggen. Esc stopt.* Staat zolang de relatiemodus aan staat. Knop: *Stoppen*. Zie [Relaties leggen](docs://howto-relaties-leggen).
 - **Splits-modus** — *Klik op een balk op de dag waar de onderbreking begint en sleep naar rechts voor de lengte. Esc stopt.* Staat zolang *Taak splitsen* aan staat. Knop: *Stoppen*.
-- **Urenplanning in het bestand** — *Dit bestand bevat urenplanning.* Verschijnt als een geopend bestand urenplanning bevat terwijl *Urenplanning inschakelen* uit staat. Knop: *Urenplanning aanzetten*. Zie [Urenplanning aanzetten](docs://howto-urenplanning-aanzetten).
 - **Structuur vergrendeld** — *Niet beschikbaar tijdens filteren/groeperen/sorteren*. Verschijnt als inspringen of uitspringen wordt geweigerd omdat de takenlijst is gefilterd, gegroepeerd of gesorteerd. Knop: *Wissen*, die filter, groepering en sortering opheft.
 - **Datums zoals opgeslagen** — na het openen van een bestand waarvan herberekenen datums verschoof: *Herberekening verschoof N van de M taken ten opzichte van de datums in het bestand.* met de knop *Opgeslagen datums tonen*. Zolang de weergave aan staat: *Je ziet de datums zoals ze in het bestand staan …* met de knop *Herberekenen*. Zie [Datums zoals opgeslagen](docs://uitleg-datums-zoals-opgeslagen).
 

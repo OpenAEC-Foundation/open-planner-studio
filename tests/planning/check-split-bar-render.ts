@@ -38,6 +38,7 @@ import { computeSplitSegments } from '@/engine/renderer/splitBarGeometry';
 import { doneBarTones, readGanttPalette } from '@/engine/renderer/themePalette';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { parseInstant, formatInstant } from '@/utils/dateUtils';
+import { taskDurationUnit } from '@/engine/scheduler/duration';
 
 const S = () => useAppStore.getState();
 
@@ -245,8 +246,13 @@ console.log('-- split-bar-render: 2 gaten ⇒ 3 segmenten op de juiste x-positie
     { afterMinutes: 120, gapMinutes: 60 },
     { afterMinutes: 300, gapMinutes: 60 },
   ];
+  // F3 (alleen uren §3.14): dit is weer het oorspronkelijke scenario, een DAGtaak (1 d) op een kalender met
+  // werkblokken. De renderer wandelt haar pauzes in de dagenmaat, net als de motor, dus een pauze van een
+  // uur blijft een uur (B3, knownbug 242: in F2 werden de gaten hele dagen en de stukken 2 px breed).
+  const twoGapTask = hourTask('row0', '2026-06-01T08:00', '2026-06-01T16:00', twoGaps);
+  eq('geval 1 is een dagtaak (de dagenmaat)', taskDurationUnit(twoGapTask), 'days');
   const rows: ViewRow[] = [
-    { kind: 'task', rowKey: 'row0', task: hourTask('row0', '2026-06-01T08:00', '2026-06-01T16:00', twoGaps), depth: 0, dimmed: false },
+    { kind: 'task', rowKey: 'row0', task: twoGapTask, depth: 0, dimmed: false },
   ];
   // barSplitMode:'never' — bewijst meteen mede dat de necking-instelling hier NIET aan te pas komt
   // (O5): met 'never' zou de kalender-necking nooit splitsen, maar `splitGaps` doet het toch.

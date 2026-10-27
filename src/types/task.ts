@@ -75,11 +75,20 @@ export interface ExternalLink {
 export type DurationType = 'WORKTIME' | 'ELAPSEDTIME';
 
 /**
- * De door de gebruiker gekozen, blijvende eenheid van een taakduur.
+ * De MAAT van een taak (spec "alleen uren" §3.2, besluit B1): de blijvende keuze hoe haar duur telt.
+ *  - `'days'` = dagenmaat. Bron: `scheduleDuration`, in werkdagen van de taakkalender; een breuk mag
+ *    (2,5). Of het profiel die dagenmaat ook in werkdagen telt, zegt de conventie
+ *    `workdayDurationMeasure` (`taskCountsInWorkdays`): onder P6 en MS Project telt hij als uren
+ *    (werkdagen × werktijd per dag × 60).
+ *  - `'hours'` = urenmaat. Bron: `durationMinutes`, in werkminuten; `scheduleDuration` is daarvan
+ *    afgeleid (minuten ÷ werktijd per dag × 60).
+ * Een taak met vast werk (`FIXED_WORK`) is altijd urenmaat (B1a). Een nieuwe taak krijgt de
+ * standaardmaat van het project (`Project.defaultTaskDurationUnit`, `state/newTaskMeasure.ts`).
  *
  * INVARIANT: bij `days` is `scheduleDuration` de enige invoerbron; bij `hours` is
  * `durationMinutes` de enige invoerbron. Een kalender bepaalt uitsluitend waar die hoeveelheid
- * past en mag deze identiteit nooit afleiden, converteren of overschrijven.
+ * past en mag deze identiteit nooit afleiden, converteren of overschrijven. Alleen een
+ * planningsbewerking verandert de maat (een maatwissel, of vast werk; spec §5.2 geval 11c).
  */
 export type TaskDurationUnit = 'days' | 'hours';
 
@@ -184,7 +193,9 @@ export type MilestoneKind = 'START' | 'FINISH';
 export interface TaskTime {
   durationType: DurationType;
   durationUnit: TaskDurationUnit;
-  /** Canonieke invoerbron wanneer `durationUnit === 'days'`: gehele werkbare kalenderdagen. */
+  /** Duur in werkdagen. Bron bij de dagenmaat (`durationUnit === 'days'`): werkdagen op de taakkalender,
+   *  een breuk mag (2,5). Bij de urenmaat afgeleid van `durationMinutes` (minuten ÷ werktijd per dag × 60).
+   *  Bij kalendertijd (`ELAPSEDTIME`) kalenderdagen van 24 u. */
   scheduleDuration: number;
   /** Canonieke invoerbron wanneer `durationUnit === 'hours'`: exacte werkminuten. Oude data zonder
    *  `durationUnit` migreert deterministisch naar uren zodra dit veld aanwezig is; minuutprecisie
@@ -214,6 +225,10 @@ export interface TaskTime {
   lateFinish: string;
   freeFloat: number;   // work days (fractioneel in uur-modus)
   totalFloat: number;  // work days (fractioneel in uur-modus)
+  /** Totale speling in werkminuten op de taakkalender; bij kalendertijd klokminuten. Berekend (§3.4). */
+  totalFloatMinutes?: number;
+  /** Vrije speling in werkminuten op de taakkalender; bij kalendertijd klokminuten. Berekend (§3.4). */
+  freeFloatMinutes?: number;
   isCritical: boolean;
   /** Interfererende speling = totalFloat − freeFloat (getekend, fractioneel in uur-modus). Afwezig
    *  zolang er niet is doorgerekend. */
@@ -227,8 +242,9 @@ export interface TaskTime {
   actualStart?: string;
   actualFinish?: string;
   actualDuration?: number;
-  /** Restduur in werkdagen, in de vorm van `scheduleDuration`: hele dagen bij een dagtaak, een
-   *  onafgeronde fractie (afgeleid van `remainingMinutes`) bij een urentaak (`applyRemainingDuration`). */
+  /** Restduur in werkdagen, in de vorm van `scheduleDuration`: bij de dagenmaat de bron, exact (een breuk
+   *  mag, besluit B3); bij de urenmaat een onafgeronde fractie, afgeleid van `remainingMinutes`
+   *  (`applyRemainingDuration`). */
   remainingTime?: number;
   /** Resterend werk in integer MINUTEN: de restduur van een urentaak, in de vorm van
    *  `durationMinutes`. */
@@ -265,10 +281,12 @@ export type TaskTimeComputed = Pick<
 
 /** ANALYSE — afgeleiden bovenop de CPM-output. `interferingFloat` (= tf − ff) wordt
  *  ALTIJD elke `runCPM` (her)berekend en teruggeschreven; `isNearCritical`/`floatPath` alleen wanneer
- *  de bijbehorende optie/drempel draait (anders gewist, om stale markering te voorkomen). */
+ *  de bijbehorende optie/drempel draait (anders gewist, om stale markering te voorkomen).
+ *  `totalFloatMinutes`/`freeFloatMinutes` (alleen uren §3.4) staan hier en niet in `TaskTimeComputed`:
+ *  ze zijn optioneel, en `TaskTimeComputed` is gekoppeld aan de IFC-rekenslots (`RECORDED_SLOT_KEYS`). */
 export type TaskTimeAnalysis = Pick<
   TaskTime,
-  'interferingFloat' | 'isNearCritical' | 'floatPath'
+  'interferingFloat' | 'isNearCritical' | 'floatPath' | 'totalFloatMinutes' | 'freeFloatMinutes'
 >;
 
 /** TRACKING — voortgang/actuals; door de gebruiker geschreven, niet door de solver. */

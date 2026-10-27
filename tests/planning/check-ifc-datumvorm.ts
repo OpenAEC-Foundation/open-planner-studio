@@ -211,7 +211,7 @@ for (const [value, typed, back] of [
 // §5 De echte open- en opslaanroute: de motor rekent met de constraint
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 {
-  const OPEN = { filePath: null, fileHandle: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: true } as const;
+  const OPEN = { filePath: null, fileHandle: null, recompute: true, fit: false, linkedOpen: true } as const;
   const openInStore = (parsed: OpenedImport): DocumentPayload => {
     const store = createAppStoreContext().store;
     store.getState().applyOpenedImport(parsed, OPEN);

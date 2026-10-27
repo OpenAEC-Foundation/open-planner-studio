@@ -27,8 +27,11 @@ import {
 
 /** Bestandsoperaties binnen de map `<appDataDir>/mcp/`; namen zijn kale bestandsnamen. */
 export interface DiscoveryDirFs {
-  /** Schrijf een NIEUW bestand (faalt als het al bestaat) met de gegeven Unix-rechten. */
-  writeNew(name: string, text: string, mode: number): Promise<void>;
+  /** Maak exclusief aan: alleen succes geeft eigendom om later op te ruimen. */
+  createNew(name: string, mode: number): Promise<{
+    write(text: string): Promise<void>;
+    close(): Promise<void>;
+  }>;
   /** Vervang `to` door `from` (zelfde map, dus atomair). */
   rename(from: string, to: string): Promise<void>;
   /** Verwijder; een ontbrekend bestand is geen fout. */
@@ -94,7 +97,24 @@ export function createDiscoveryWriter(deps: DiscoveryWriterDeps): DiscoveryWrite
 
   async function writeAtomic(name: string, text: string): Promise<void> {
     const tmp = `${name}.${deps.tmpId()}${MCP_DISCOVERY_TMP_SUFFIX}`;
-    await deps.fs.writeNew(tmp, text, MCP_DISCOVERY_FILE_MODE);
+    const file = await deps.fs.createNew(tmp, MCP_DISCOVERY_FILE_MODE);
+    // Na exclusieve aanmaak is het halffabricaat van ons, ook als schrijven deels faalt.
+    const removeOwnTemp = async () => {
+      try { await deps.fs.remove(tmp); } catch (error) { log('MCP-ontdekking: eigen halffabricaat opruimen mislukt', error); }
+    };
+    try {
+      await file.write(text);
+    } catch (error) {
+      try { await file.close(); } catch { /* behoud de oorspronkelijke schrijffout */ }
+      await removeOwnTemp();
+      throw error;
+    }
+    try {
+      await file.close(); // Windows: sluiten vóór rename of remove.
+    } catch (error) {
+      await removeOwnTemp();
+      throw error;
+    }
     try {
       await deps.fs.rename(tmp, name);
     } catch (first) {
@@ -102,7 +122,7 @@ export function createDiscoveryWriter(deps: DiscoveryWriterDeps): DiscoveryWrite
       try {
         await deps.fs.rename(tmp, name);
       } catch {
-        try { await deps.fs.remove(tmp); } catch { /* halffabricaat blijft mogelijk achter */ }
+        await removeOwnTemp();
         throw first;
       }
     }
@@ -248,9 +268,24 @@ function createLiveDirFs(): DiscoveryDirFs {
     return join(await dir(), name);
   };
   return {
-    async writeNew(name, text, mode) {
-      const { writeTextFile } = await import('@tauri-apps/plugin-fs');
-      await writeTextFile(await pathOf(name), text, { createNew: true, mode });
+    async createNew(name, mode) {
+      const { open } = await import('@tauri-apps/plugin-fs');
+      const file = await open(await pathOf(name), { read: false, write: true, createNew: true, mode });
+      return {
+        write: async text => {
+          const bytes = new TextEncoder().encode(text);
+          let offset = 0;
+          // plugin-fs gebruikt File::write: ook korte writes volledig afmaken.
+          while (offset < bytes.length) {
+            const written = await file.write(bytes.subarray(offset));
+            if (!Number.isInteger(written) || written <= 0 || written > bytes.length - offset) {
+              throw new Error('Incomplete discovery file write');
+            }
+            offset += written;
+          }
+        },
+        close: () => file.close(),
+      };
     },
     async rename(from, to) {
       const { rename } = await import('@tauri-apps/plugin-fs');

@@ -164,7 +164,9 @@
     "msProjectLostNotes_other": "메모 {{count}}개를 가져오지 않았습니다.",
     "msProjectLostHyperlinks_other": "하이퍼링크 {{count}}개를 가져오지 않았습니다.",
     "msProjectLostFixedCosts_other": "작업 {{count}}개의 고정 비용을 가져오지 않았습니다.",
-    "msProjectLostResourceRates_other": "리소스 {{count}}개의 단가를 가져오지 않았습니다."
+    "msProjectLostResourceRates_other": "리소스 {{count}}개의 단가를 가져오지 않았습니다.",
+    "minuteModelConverted_other": "{{document}}: 변환 후 {{count}}개 작업의 시작 또는 완료일이 달라졌습니다. 가장 큰 이동은 {{days}}근무일입니다. Ctrl+Z를 누르면 저장된 날짜가 복원됩니다.",
+    "minuteModelCalendarRepaired": "달력 “{{calendar}}”의 종료 시각 또는 휴식 시간이 저장된 근무 시간과 맞지 않아 복구되었습니다."
   },
   "scheduleErrors": {
     "cycle": "작업 간 순환 관계: {{path}}",
@@ -277,16 +279,17 @@
     "themeHighContrast": "고대비",
     "themeFollowSystem": "시스템 테마 따르기",
     "themeSystemHint": "시스템 색상 구성을 따릅니다(현재: {{theme}}).",
-    "hourPlanningSection": "시간 단위 계획",
-    "enableHourPlanning": "시간 단위 계획 사용",
-    "enableHourPlanningHint": "시간/분 단위 스케줄링을 켭니다: 시간 단위 시간축, 근무 시간대가 있는 교대, 시간 단위로 정확한 작업 막대. 끄면 ⇒ 앱은 이전처럼 완전히 일 단위로 유지됩니다.",
     "showTaskTypes": "작업 유형 사용",
     "showTaskTypesHint": "작업마다 기간, 단위 또는 작업량이 바뀔 때 무엇이 함께 바뀔지 고르세요. MS Project의 Task Type, P6의 Duration Type과 같습니다. 끄면 기간과 단위는 그대로 유지됩니다. 작업 유형이나 저장된 작업량이 있는 파일은 이 설정이 꺼져 있어도 이를 표시합니다.",
     "allowMixedDayHour": "일/시간 혼합 계획 허용",
     "defaultTaskDurationUnit": "새 작업의 기본 단위",
-    "defaultTaskDurationUnitHint": "새 작업을 근무일 또는 근무 시간 중 어떤 단위로 시작할지 정합니다. 기존 작업은 바뀌지 않습니다.",
+    "defaultTaskDurationUnitHint": "일 단위: 기간은 달력의 근무일로 셉니다. 시간 단위: 기간은 근무 시간으로 셉니다. 기존 작업은 바뀌지 않습니다. 고정 작업량이 있는 작업은 항상 시간 단위를 사용합니다.",
+    "defaultTaskDurationUnitDays": "일 단위",
+    "defaultTaskDurationUnitHours": "시간 단위",
+    "defaultTaskDurationUnitLocked": "{{profile}} 프로필은 기간을 시간으로 계산합니다. 따라서 새 작업에는 시간 단위가 적용됩니다.",
     "durationDisplay": "기간 표시",
     "durationDisplayHint": "작업 자체가 기록된 단위와 무관하게 작업 기간을 표시하는 방식을 결정합니다.",
+    "durationDisplayOpsHint": "OPS 프로필에서는 각 작업이 자체 단위로 기간을 표시합니다.",
     "durationDisplayAuto": "자동 (작업별 고유 단위)",
     "durationDisplayDays": "항상 일",
     "durationDisplayHours": "항상 시간",
@@ -1051,10 +1054,6 @@
     "month": "월",
     "year": "년"
   },
-  "hourData": {
-    "notice": "이 파일에는 시간 단위 계획이 포함되어 있습니다.",
-    "enable": "시간 단위 계획 사용"
-  },
   "recordedDates": {
     "activeCount_other": "Primavera에 기록된 일정을 보고 있습니다. 다시 계산하면 {{count}}개의 작업이 이동합니다.",
     "activeCountNeutral_other": "파일에 기록된 날짜를 보고 있습니다. 다시 계산하면 {{count}}개의 작업이 이동합니다.",
@@ -1411,6 +1410,14 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "ALAP 작업을 후속 작업이 허용하는 만큼 늦게",
       "help": "시간 단위 계획에서만 적용됩니다. 시작되지 않았고 수동 일정이 아니며 ‘가능한 한 늦게’ 제약 조건(ALAP)이 있는 작업에 해당합니다. 후속 작업의 빠른 날짜가 이 작업의 위치를 분 단위까지 정하며, 후속 작업이 먼저 계산됩니다. 이 작업의 계획 시작은 고려하지 않습니다. 선행 작업, 상태 날짜, 두 번째 제약 조건은 계속 적용됩니다. 후속 작업이 없으면 늦은 완료를 사용합니다. 일반 ALAP 단계는 모든 규칙에서 계속 사용할 수 있습니다."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "단독 마일스톤을 근무일 끝에 배치",
+      "help": "단독 마일스톤 또는 선행 작업이 없는 완료 마일스톤은 해당 근무일 끝에 배치됩니다."
+    },
+    "workdayDurationMeasure": {
+      "label": "기간을 근무일 단위로",
+      "help": "일 단위 기간, 지연 또는 남은 기간은 근무일로 계산됩니다. 각 근무일은 길이와 관계없이 1로 계산됩니다. 끄면 하루가 달력의 하루 근무 시간 수로 계산됩니다. 퍼센트 지연은 선행 작업의 단위를 따릅니다. 경과 시간은 근무일로 계산되지 않습니다."
     }
   },
   "profiles": {
@@ -1449,6 +1456,7 @@
       "float": "여유 및 늦은 날짜",
       "instants": "파일의 날짜와 시각",
       "msproject": "Microsoft Project 방식의 진행",
+      "durations": "기간 및 단위",
       "ownProfilesOnly": "사용자 프로필 전용"
     },
     "ownProfilesOnlyNote": "이 규칙은 모든 기본 제공 프로필에서 꺼져 있습니다. 여기에는 Primavera P6 프로필도 포함됩니다. 켜려면 사용자 프로필만 가능하므로 ‘새 프로필’을 선택하세요.",

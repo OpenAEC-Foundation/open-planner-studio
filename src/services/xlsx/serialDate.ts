@@ -32,6 +32,17 @@ const ISO_RE = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?$/;
 const pad2 = (n: number): string => String(n).padStart(2, '0');
 
 /**
+ * Draagt de ISO-string een kloktijd (`THH:MM`)? Ook `T00:00` telt: dat is een moment (bijvoorbeeld
+ * het exclusieve einde van een volle dag op een kalender van 00:00–24:00), geen kale datum. Het
+ * seriële getal kan dat niet laten zien — bij middernacht is het geheel — dus de schrijver kiest de
+ * celopmaak op déze vraag, niet op `Number.isInteger(serial)`.
+ */
+export function isoHasClock(iso: string): boolean {
+  const m = ISO_RE.exec(iso.trim());
+  return m !== null && m[4] !== undefined;
+}
+
+/**
  * Zet een ISO-datum (`YYYY-MM-DD`, eventueel met `THH:MM`) om in een serieel getal.
  *
  * Geeft `undefined` bij alles wat geen eenduidige datum is: vrije tekst, een onmogelijke datum
@@ -64,10 +75,14 @@ export function isoToSerial(iso: string, epoch1904 = false): number | undefined 
  * Zet een serieel getal terug in een ISO-string: `YYYY-MM-DD` als de tijd middernacht is, anders
  * `YYYY-MM-DDTHH:MM`. Geeft `undefined` voor waarden die niet eenduidig leesbaar zijn.
  *
+ * Met `withClock` (de cel draagt een opmaak MET kloktijd) komt de tijd er altijd bij, ook `T00:00`:
+ * een eindmoment om middernacht is iets anders dan een kale datum, die de voortgangsimport als
+ * "einde van die werkdag" leest.
+ *
  * De fractie wordt op hele minuten afgerond — Excel bewaart een tijd als binaire breuk, dus 08:30
  * komt terug als 0.35416666666666663 en zou zonder afronding 08:29 worden.
  */
-export function serialToIso(serial: number, epoch1904 = false): string | undefined {
+export function serialToIso(serial: number, epoch1904 = false, withClock = false): string | undefined {
   if (!Number.isFinite(serial)) return undefined;
   if (epoch1904 ? serial < 0 : serial < MIN_READABLE_SERIAL_1900) return undefined;
   const days = Math.floor(serial);
@@ -82,6 +97,6 @@ export function serialToIso(serial: number, epoch1904 = false): string | undefin
   const dt = new Date(ms);
   if (!Number.isFinite(dt.getTime())) return undefined;
   const date = `${dt.getUTCFullYear()}-${pad2(dt.getUTCMonth() + 1)}-${pad2(dt.getUTCDate())}`;
-  if (minutes === 0) return date;
+  if (minutes === 0 && !withClock) return date;
   return `${date}T${pad2(Math.floor(minutes / 60))}:${pad2(minutes % 60)}`;
 }

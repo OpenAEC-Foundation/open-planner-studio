@@ -12,11 +12,12 @@ import { refusalNotice, refusedNamesLine, refusedSetKey } from './refusalNotice'
  *  - `blocked`: een andere constraint houdt de start tegen, dus de start is niet toegepast.
  */
 export type StartEditNotice =
-  | { kind: 'snet'; name: string; /** De nieuwe SNET-datum (ISO, zoals opgeslagen). */ date: string; change: StartConstraintChange }
+  | { kind: 'snet'; name: string; /** De nieuwe SNET-datum (ISO, zoals opgeslagen). */ date: string; change: StartConstraintChange; dateLabel?: string }
   | {
     kind: 'blocked'; name: string; constraint: TaskConstraint;
     /** Voor het samenvouwen per taak: tien pogingen op dezelfde taak = één regel met een teller. */
     taskId: string;
+    dateLabel?: string;
   };
 
 /** De gids die uitlegt hoe een nieuwe start op een taak met voorganger met constraints samenhangt. */
@@ -43,7 +44,7 @@ export function startEditNotifications(
     out.push({
       severity: 'info',
       messageKey: notice.change === 'created' ? 'notifications.startSnetCreated' : 'notifications.startSnetUpdated',
-      params: { name: notice.name, date: displayDateTime(notice.date, notation, timeNotation) },
+      params: { name: notice.name, date: displayDateTime(notice.dateLabel ?? notice.date, notation, timeNotation) },
       helpArticleId: HELP_ARTICLE_ID,
     });
   } else if (snet.length > 1) {
@@ -55,11 +56,11 @@ export function startEditNotifications(
     });
   }
   if (blocked.length === 1) {
-    const [{ name, constraint, taskId }] = blocked;
+    const [{ name, constraint, taskId, dateLabel }] = blocked;
     out.push(refusalNotice({
       messageKey: constraint.date ? 'notifications.startBlockedByConstraint' : 'notifications.startBlockedByConstraintNoDate',
       params: constraint.date
-        ? { name, type: constraint.type, date: displayDateTime(constraint.date, notation, timeNotation) }
+        ? { name, type: constraint.type, date: displayDateTime(dateLabel ?? constraint.date, notation, timeNotation) }
         : { name, type: constraint.type },
       dedupeKey: `start-blocked:${taskId}`,
       helpArticleId: HELP_ARTICLE_ID,

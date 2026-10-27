@@ -1,3 +1,6 @@
+import { changesOnlyDateNeutralFields } from '../taskDateChanges';
+import { normalizeTaskDates, normalizeTaskPatch } from '../migrations/minuteModel';
+import { isElapsedTask } from '@/engine/scheduler/duration';
 import { Task, type ExternalLink } from '@/types/task';
 import { taskAssignmentDrafts, taskIndexById } from '@/state/immerDraft';
 import { type SplitPiece, type SplitRefusal } from '@/engine/scheduler/splitEdit';
@@ -42,13 +45,14 @@ import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import {
   captureCalendarChange, captureTriangle, carryRemainingThroughDurationEdit, durationEditRefusal, settleCalendarChange,
   settleDurationEdit, settleRuleChange, captureProgressWork, settleProgressWork, type RecomputedRemainingWork,
+  hourSourceOf, routeFixedWorkDurationToHours,
 } from '@/engine/work/workRuleApply';
 import { mergeStepRecomputedWork, remainingWorkRecomputedNotice } from '../remainingWorkNotice';
+import { newTaskTimeUnit, settleNewTaskMeasure } from '../newTaskMeasure';
 import type { WorkRule } from '@/types/workRule';
 import type { AppSlice, AppSliceFactory, NotifyInput, PhaseAssignmentQuestion, SiblingDirection } from './types';
 import type { AppState } from '../appStore';
 import type { StoreRuntime } from '../runtime/storeRuntime';
-import { hasConcreteWorkBlocks } from '@/services/subdayIo';
 import { effHoursPerDay } from '@/utils/taskDuration';
 import { buildTaskEditPlanEnvironment } from '../gridTransaction';
 import { planTaskCellEdits } from '@/engine/taskGrid/taskEditPlan';
@@ -262,7 +266,7 @@ function progressImportDeps(s: AppState, today: string | undefined): ProgressPla
       const question = actualStartQuestionFor(task, planned.value.task, statusDate, {
         actualStart: wrote('task.time.actualStart'),
         actualFinish: wrote('task.time.actualFinish'),
-      });
+      }, isElapsedTask(task) ? undefined : resolveCalendar(task.calendarId, s.calendars, s.calendar));
       if (!question) return planned;
       return {
         ok: false,
@@ -822,9 +826,14 @@ function commitProgressEdit(
   // Actuals liggen nooit ná de statusdatum — weigeren i.p.v. stil klemmen, zonder snapshot.
   // `isActualPastStatusDate` vergelijkt geparste instanten i.p.v. rauwe
   // ISO-strings (het uur-precies-op-de-statusdatum-dag-gat).
-  const plan = planProgressEntry(task, edit, { ...ctx, statusDate: s.project.statusDate });
+  const plan = planProgressEntry(task, edit, { ...ctx, statusDate: s.project.statusDate,
+    calendar: resolveCalendar(task.calendarId, s.calendars, s.calendar) });
   if (!plan.ok) return plan;
   if (!plan.change) return { ok: true };
+  // D1/D2/D7 gelden vóór de waardevergelijking: dezelfde kalenderdatum invullen mag
+  // geen undo-stap of verlies van nivelleergaten veroorzaken.
+  const normalized = normalizeTaskDates(plan.change.task, s);
+  if (sameValue(task, normalized) && !plan.change.statusDateToday) return { ok: true };
   runtime.beginUndoable(s, opts); // `opts` = coalesceKey (slider-sleep / per-toetsaanslag-commits = 1 stap).
   // Voortgang verplaatst opgeslagen werk van rest naar verricht — momentopname op de ongewijzigde
   // taak, settle ná de mutatie. Ná de no-op-check, zodat een no-op ook het werk niet raakt.
@@ -834,7 +843,7 @@ function commitProgressEdit(
     s.project.statusDate = statusDateToday;
     s.project.modifiedAt = new Date().toISOString();
   }
-  task.time = plan.change.task.time;
+  task.time = normalized.time;
   task.status = plan.change.task.status;
   settleProgressWork(task, taskAssignmentDrafts(s, task.id), progressWork); // eigen toewijzingen, zonder proxy per stuk
   // Invalidatie van nivelleergaten, klasse voortgang. Voortgang loopt buiten `updateTask` om, dus
@@ -922,25 +931,13 @@ function finishStructural(get: () => AppState, outcome: StructuralOutcome): void
  *  - `taskType`/`customTaskTypeId`: een IFC-classificatie; de motor leest ze niet.
  *  - `workRule`: `settleRuleChange` legt hooguit het restwerk vast ("Typewissel: geen enkel getal
  *    verandert", `applyRuleChange` in `workTriangle.ts`) — hetzelfde als `setTaskWorkRule`, dat
- *    daarom ook zonder `stale` sluit.
+ *    daarom ook zonder `stale` sluit. Uitzondering: maakt de wissel een dagenmaat-taak urenmaat (B1a,
+ *    vast werk), dan is het planning (spec §5.2, geval 11c; `durationUnitChanged`).
  *
  * Gebruik: een patch die ALLEEN deze velden verandert, laat "datums zoals opgeslagen" staan (de
  * getoonde datums blijven dan kloppen met het bestand). Zie de gids `uitleg-datums-zoals-opgeslagen`:
  * "Een naam wijzigen doet dat niet."
  */
-const DATE_NEUTRAL_TASK_FIELDS: ReadonlySet<string> = new Set([
-  'name', 'description', 'wbsCode', 'color', 'notes', 'activityCodes', 'customFields',
-  'taskType', 'customTaskTypeId', 'workRule',
-]);
-
-function changesOnlyDateNeutralFields(before: Task, after: Task): boolean {
-  const keys = new Set([...Object.keys(before), ...Object.keys(after)]) as Set<keyof Task>;
-  for (const key of keys) {
-    if (sameValue(before[key], after[key])) continue;
-    if (!DATE_NEUTRAL_TASK_FIELDS.has(key)) return false;
-  }
-  return true;
-}
 
 export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, get) => {
   // De handeling die op het antwoord van "Taak wordt een samenvattingstaak" wacht. Een functie is geen state en
@@ -1029,15 +1026,12 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
 
       const now = s.project.startDate || localTodayIso();
       const effectiveNewTaskCalendar = resolveCalendar(partial.calendarId, s.calendars, s.calendar);
-      const defaultDurationUnit = s.ui.enableHourPlanning
-        && s.project.defaultTaskDurationUnit === 'hours'
-        && hasConcreteWorkBlocks(effectiveNewTaskCalendar)
-        ? 'hours'
-        : 'days';
+      // Standaardmaat voor nieuwe taken (B1a, `newTaskMeasure.ts`): de tijd ontstaat in de gekozen
+      // maat, en `settleNewTaskMeasure` maakt hem urenmaat onder vast werk of een vaste urenmaat.
       const initialTime = mergeTaskTime(createDefaultTaskTime(
         now,
         partial.isMilestone ? 0 : 5,
-        defaultDurationUnit,
+        newTaskTimeUnit(s.project),
         effectiveNewTaskCalendar,
       ), partial.time);
       deriveScheduleDurationFromMinutes(initialTime, effHoursPerDay(effectiveNewTaskCalendar));
@@ -1047,9 +1041,12 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       const task = buildNewTask(partial, {
         id, parentId, parentTask, constructionMode: s.ui.constructionMode, time: initialTime,
       });
+      const madeHours = settleNewTaskMeasure(task, s.project, partial.time?.durationUnit !== undefined, effHoursPerDay(effectiveNewTaskCalendar));
       // De solve schrijft `scheduleFinish` niet terug, dus een nieuwe urentaak krijgt
       // hier haar ingevoerde einde (start + duur op de echte kalender), zie `seedNewHourTaskFinish`.
-      seedNewHourTaskFinish(task, partial.time, effectiveNewTaskCalendar);
+      // Werd de taak hierboven urenmaat, dan hoorde een meegegeven einde bij de dagenmaat: opnieuw zaaien.
+      seedNewHourTaskFinish(task, madeHours ? undefined : partial.time, effectiveNewTaskCalendar);
+      Object.assign(task, normalizeTaskDates(task, s));
       if (partial.workRule !== undefined) s.taskTypesVisible = true; // een gezette regel ontsluit de UI
 
       // Zonder `position` (of een onbekende anker): achteraan.
@@ -1062,7 +1059,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         const insertAt = partial.position!.where === 'above' ? anchorIdx : anchorIdx + 1;
         s.tasks.splice(insertAt, 0, task);
       } else {
-        s.tasks.push(task);
+        s.tasks.push(task); // al genormaliseerd hierboven, net als de taak die `splice` invoegt.
       }
 
       // Add to parent's children
@@ -1139,7 +1136,17 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // wordt afgedwongen) stil bestaande verplichte velden (completion/floats/…), en crasht writeIFC
       // later op die lege plek. Zie
       // `mergeTaskTime` in taskDefaults.ts voor de ADD-vs-UPDATE-basissemantiek.
-      const next = mergeTaskUpdate(task, updates);
+      const next = normalizeTaskDates(mergeTaskUpdate(task, updates), s);
+      // B1a: een duur in werkdagen onder vast werk gaat naar de urenbron (`routeFixedWorkDurationToHours`).
+      // Hier, vóór de no-op-toets en de weigering, zodat ook die de minuten zien.
+      if (updates.time && routeFixedWorkDurationToHours(next, task.time, next.time, s.project.defaultWorkRule,
+        taskCalendarHoursPerDay(next, s.calendars, s.calendar))) {
+        updates = { ...updates, time: { ...updates.time, ...hourSourceOf(next.time) } };
+      }
+      // Eén genormaliseerde wijziging voor de no-op-toets, de gevolgregels en het schrijven: een
+      // opnieuw ingevoerde datum zonder tijd is dan gelijk aan het opgeslagen moment, en wist geen
+      // nivelleerpauze (`normalizeTaskPatch`).
+      updates = normalizeTaskPatch(updates, next);
       // Per saldo niets gewijzigd — "Taak bewerken" → OK zonder wijziging stuurt álle velden terug
       // (TaskDialog.handleSave) — ⇒ net als een onbekend id: geen snapshot, geen isDirty, geen
       // gevolgregel en dus ook geen melding.
@@ -1147,7 +1154,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // In "datums zoals opgeslagen" laat een patch die alleen datumneutrale velden echt verandert
       // (naam, omschrijving, …) de modus staan — zie `DATE_NEUTRAL_TASK_FIELDS`. Gemeten vóór de
       // mutatie, op dezelfde merge als de no-op-guard hierboven.
-      const keepsRecordedMode = s.datesAsRecorded && changesOnlyDateNeutralFields(task, next);
+      let keepsRecordedMode = s.datesAsRecorded && changesOnlyDateNeutralFields(task, next);
       // Een nieuwe duur korter dan het gedane werk van een
       // lopende taak wordt geweigerd — vóór de snapshot, dus niets veranderd, met een melding
       // (paneel, Gantt, extensie-API). Dezelfde regel die hieronder de rest laat meeschuiven, zie
@@ -1205,7 +1212,8 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         // mee met het duurverschil, het percentage volgt (`carryRemainingThroughDurationEdit`; de
         // weigering stond hierboven al). Vóór de driehoekstap, die de rest leest. Niet als de patch
         // zelf voortgang opgaf: die wint.
-        carryRemainingThroughDurationEdit(task, timeBefore, contourHpd, s.project.statusDate);
+        carryRemainingThroughDurationEdit(task, timeBefore, contourHpd, s.project.statusDate,
+          resolveCalendar(task.calendarId, s.calendars, s.calendar));
         // Duur-/datumwijziging: contour meeschalen (werkbehoud volgens de werkregel), gebruikersgaten
         // afknippen, laag 3/4 ontkoppelen en nivelleergaten wissen — de gevolgregels die
         // dit pad deelt met het taakraster en de MCP-draft, zie `applyDurationChangeRules` in
@@ -1222,7 +1230,9 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       }
       settleProgressWork(task, s.assignments, progressWork);
       if ('workRule' in updates && task.workRule !== workRule) {
-        settleRuleChange(task, s.assignments, s, workRule);
+        // Een feitelijke maatwijziging (B1a: vast werk maakt een dagenmaat-taak urenmaat) is planning,
+        // ook als de patch verder alleen datumneutrale velden had (spec §5.2, geval 11c).
+        if (settleRuleChange(task, s.assignments, s, workRule).durationUnitChanged) keepsRecordedMode = false;
         if (workRule !== undefined) s.taskTypesVisible = true; // elk schrijfpad ontsluit.
       }
       reconcileP6SuspendResume(task);
@@ -1247,6 +1257,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // Datum-rakende mutatie (duur/start/constraint/mijlpaal → planning verouderd tot F5). Alleen
       // een datumneutrale patch ín de modus laat de modus staan; buiten de modus blijft dit pad
       // ongewijzigd `stale`.
+      Object.assign(task, normalizeTaskDates(task, s));
       runtime.finishMutation(s, { stale: !keepsRecordedMode });
     });
     for (const notice of refusedNotices) get().notify(notice);
@@ -1260,9 +1271,11 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       const task = s.tasks.find(t => t.id === id);
       if (!task || task.workRule === rule) return; // onbekend id of ongewijzigd: geen snapshot.
       runtime.beginUndoable(s);
-      settleRuleChange(task, s.assignments, s, rule);
+      const { durationUnitChanged } = settleRuleChange(task, s.assignments, s, rule);
       s.taskTypesVisible = true; // wie een regel zet, ziet de regel (documentontsluiting).
-      runtime.finishMutation(s); // geen `stale`: een typewissel raakt geen datum.
+      // Een maatwijziging is planning (spec §5.2, geval 11c): de modus gaat uit en de planning wordt
+      // verouderd, in deze ene undo-stap. Een wissel zonder maatwijziging blijft datumneutraal.
+      runtime.finishMutation(s, { stale: durationUnitChanged });
     });
     get().recomputeResourceLoad(); // een vastgelegd restwerk kan de vierde bron van `assignmentDayUnits` activeren.
     get().recomputeViewRows();
@@ -1326,6 +1339,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       clearLevelingGaps(task);
       // Ingevoerd einde bijwerken — ná `clearLevelingGaps`, zie `updateTask`.
       reconcileHourInputFinish(task, finishBasis, resolveCalendar(calendarId, s.calendars, s.calendar));
+      Object.assign(task, normalizeTaskDates(task, s));
       runtime.finishMutation(s, { stale: true }); // taak-kalender-toewijzing is datum-beïnvloedend.
     });
     if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);
@@ -1340,6 +1354,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       runtime.beginUndoable(s);
       const full: ExternalLink = { ...link, id };
       task.externalLinks = [...(task.externalLinks ?? []), full];
+      Object.assign(task, normalizeTaskDates(task, s));
       runtime.finishMutation(s, { stale: true }); // een bevroren datum-grens is datum-beïnvloedend.
     });
     get().recomputeViewRows();
@@ -1361,6 +1376,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       task.externalLinks = task.externalLinks.map((candidate, candidateIndex) => (
         candidateIndex === index ? next : candidate
       ));
+      Object.assign(task, normalizeTaskDates(task, s));
       runtime.finishMutation(s, { stale: true });
       changed = true;
     });
@@ -1551,7 +1567,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         const id = idMap.get(tt.id)!;
         const parent = tt.parentId ? idMap.get(tt.parentId)! : parentId;
         if (tt.parentId === null) newRootId = id;
-        s.tasks.push({
+        s.tasks.push(normalizeTaskDates({
           id,
           name: tt.name,
           description: tt.description,
@@ -1566,7 +1582,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
           // handmatig nieuw-taakgetal dat door de projectstandaard van betekenis mag veranderen.
           time: createDefaultTaskTime(startDate, tt.isMilestone ? 0 : tt.durationDays, 'days'),
           resourceIds: [],
-        });
+        }, s));
       }
       if (parentId && newRootId) {
         const parent = s.tasks.find(t => t.id === parentId);
@@ -1668,7 +1684,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         if (index >= 0) {
           // Zelfde werkverplaatsing als `setTaskProgress`.
           const progressWork = captureProgressWork(s.tasks[index], s);
-          s.tasks[index] = row.plannedTask!;
+          s.tasks[index] = normalizeTaskDates(row.plannedTask!, s);
           settleProgressWork(s.tasks[index], s.assignments, progressWork);
         }
       }
