@@ -136,7 +136,7 @@ same('dialoog: Startdatum', fields(src('components', 'dialogs', 'TaskDialog.tsx'
 same('voortgang: werkelijke datum, start en einde', fields(src('components', 'task-sections', 'TaskProgressFields.tsx')),
   ['actual-date=end', 'actual-start=start', 'actual-finish=end']);
 same('beperkingen: kant volgens het type, zonder mijlpaalregel', fields(src('components', 'task-sections', 'TaskConstraintFields.tsx')),
-  ['constraint=constraintSide(task.constraint.type):eigen-kant', 'constraint2=constraintSide(task.constraint2.type):eigen-kant']);
+  ["constraint=constraintDateSide(task.constraint.type) ?? 'start':eigen-kant", "constraint2=constraintDateSide(task.constraint2.type) ?? 'start':eigen-kant"]);
 same('deadline: eindachtig, zonder mijlpaalregel', fields(src('components', 'task-sections', 'TaskDeadlineField.tsx')), ['deadline=end:eigen-kant']);
 
 if (failures.length > 0) {

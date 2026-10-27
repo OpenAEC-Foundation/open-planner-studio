@@ -411,13 +411,6 @@ en noem het in je rapport of PR-tekst.
      "Herstel standaard" kiest. De cel kapt de tekst af met een beletselteken. Voorstel: bij het laden een
      opgeslagen breedte van precies 100 px voor deze twee kolommen naar 130 px zetten, of de kolom laten
      meegroeien; een besluit over opgeslagen voorkeuren. — B
-286. **De kant van een beperkingsdatum wordt op twee plekken opnieuw bepaald.** `constraintDateSide`
-     (`src/engine/calendar/workdayRules.ts:42`) zegt al of een beperkingsdatum startachtig of eindachtig
-     is. `constraintSide` in `TaskConstraintFields.tsx:16` en `guardSideOf` in `MilestoneReport.tsx:62`
-     bouwen dat opnieuw uit `constraintDateField` en `taskDateFieldSide`. De uitkomst is nu gelijk; het
-     risico is dat een vierde beperkingstype op één plek wel en op een andere niet meekomt. Voorstel: beide
-     helpers vervangen door `constraintDateSide` en de losse imports weghalen. Gevonden in de review van
-     PR #584 (r1, VERVOLG), in de code nagelezen. — B
 288. **Het duurlabel tijdens het slepen rekent kalendertijd met de werktijd per dag.** `GanttRenderer.dragDurationText`
      (`src/engine/renderer/GanttRenderer.ts:1996-2008`) neemt voor een dagtaak `taskDurationMinutes` (dagen ×
      werktijd per dag, `utils/taskDuration.ts:94`) en zet dat om met `effHoursPerDay`. Bij een
@@ -629,12 +622,6 @@ en noem het in je rapport of PR-tekst.
     de tak `toolName === null` kan niet meer optreden zodra `mutates` waar is. Voorstel: die deelvoorwaarde weg;
     de concrete herstelset blijft voldoende. Gevonden in review r1 van #605 (GPT-6.1-Sol). — B
 
-332. **De XML-parser van de headless server zoekt bij elk element zonder prefix de hele ouderketen af.**
-    `headless/mcp-server/src/xmlDom.ts:143` roept `namespaceFor('', scope)` aan en gooit het resultaat weg. Bij
-    8.000 niveaus nesting kost parsen circa 499 ms tegen 12 ms op de basis (kwadratische groei). Zeldzame invoer.
-    Voorstel: `namespaceFor` alleen aanroepen als de elementprefix niet leeg is. Gevonden in review r1 van #608
-    (GPT-6.1-Sol). — B
-
 347. **De belasting telt dagdelen van verschillende kalenders op: vier beschikbare uren tellen als een volle dag.**
     `src/engine/scheduler/ResourceLoad.ts:446` telt per resource de dagdelen van elke taakkalender bij elkaar op;
     `:468` geeft de resource op een werkdag van haar eigen kalender de volle capaciteit, anders 0. Taak ma 1 juni
@@ -808,12 +795,6 @@ en noem het in je rapport of PR-tekst.
     stille `idb*`-helpers: `loadRecents` leest daar altijd een lege lijst, dus `addRecent` geeft alleen de nieuwe
     regel terug. Geen melding. Alleen in de code nagelopen, niet in de app nagespeeld. Voorstel: in die omgeving
     de lijst in het geheugen houden, of Recent daar verbergen (de site heeft een eigen bestandslijst). — S
-
-328. **De verliescategorie `criticalSlackLimitDays` is dode code.** `src/services/importTypes.ts:454` en
-    `src/state/msProjectImportNotice.ts:22` houden de categorie, maar de importeurs zetten haar sinds de fix van
-    knownbug 46 altijd op nul. Voor het commentaar over "bewaarde oude verslagen" is in de repo geen opslag- of
-    leespad. Voorstel: veld, nulinitialisatie en meldingsregel weg, of het compatibiliteitscontract onderbouwen.
-    Gevonden in review r1 van #634 (GPT-6.1-Sol). — B
 
 330. **Een herstelmanifest `documents` zonder `isDirty` markeert een schoon document als gewijzigd.**
     `src/services/recovery/recoveryStore.ts:1361`: bij een geaccepteerd `documents`-manifest zonder `isDirty`, en
@@ -994,14 +975,6 @@ en noem het in je rapport of PR-tekst.
      bestand (`importDateTime`/`parseImportedInstant` in `importDates.ts`), en alleen een kale datum via de
      datumroute; geen tweede CSV-datumparser. Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
 
-381. **Een lopende taak op 100 % met rest 0 komt uit de eigen P6 XML-export terug als voltooid.** Een XER-taak
-     met `TK_Active`, 100 %, rest 0 en geen werkelijk einde schrijft sinds #663 `In Progress`
-     (`src/services/p6/p6xmlWriter.ts:114`), maar de lezer maakt er `COMPLETED` van en verzint een werkelijk
-     einde op de statusdatum (`src/services/p6/p6xmlReader.ts:1166`). Op `aaf77b15a` eindigt dezelfde route ook
-     zo (de writer schreef daar `Completed`). Voorstel: bij een eigen P6-export ook de expliciete lopende status
-     bij rest 0 herkennen, met behoud van oude exports waarin de status alleen informatief was. Gevonden in
-     review ronde 3 van #663 (GPT-6.1-Sol). — B
-
 382. **MSPDI en MPP zonder `ActualFinish` maar op 100 % met een rest komen binnen als lopend.** Sinds #663 geldt
      "geen werkelijk einde en rest > 0" als teken voor lopend op 100 % (`src/services/msproject/mspdiReader.ts:643`,
      `src/services/mpp/mppReader.ts:857`). Een bron met 100 %, geen `ActualFinish` en één minuut rest wordt
@@ -1043,13 +1016,13 @@ en noem het in je rapport of PR-tekst.
 
 68. **Een gidsstap die eenmaal "gedaan" is, blijft gedaan**, ook na wisselen naar een leeg project. Gezien bij
     tutorial 6 stap 8; niet uitgezocht of dat bedoeld is. — S
-265. **Commentaar noemt een ingang die het welkomstvenster opnieuw toont, maar die bestaat niet.**
-    `src/state/slices/types.ts` (doc van `showWelcomeDialog`) zegt dat "herstart-ingangen (ribbon/backstage)"
-    het venster handmatig openen. In `src/` zet alleen `useSettingsBootstrap.ts` `showWelcomeDialog: true`;
-    lint, backstage en instellingen starten alleen de rondleiding. Ook "het bootstrap-effect in App.tsx" klopt
-    niet meer (het staat in `useSettingsBootstrap`). Voorstel: commentaar bijwerken, of bewust een ingang
-    toevoegen. — B (grep in de code)
-
+404. **Commentaar bij het welkomstvenster mist de ontbrekende instelling.**
+     `src/state/slices/types.ts:773` zegt dat `loadWelcomeSeen()` `false` geeft.
+     Zonder `ops-welcomeSeen` geeft de functie juist `undefined`
+     (`src/utils/settingsStore.ts:73-76,602-604`). Ook dan opent het venster
+     (`src/hooks/useSettingsBootstrap.ts:84-85`). Richting: noem beide waarden,
+     of schrijf dat de vlag niet waar is. Alleen commentaar; het gedrag klopt.
+     Vastgesteld bij de onafhankelijke broncontrole van PR #698. — B
 
 ## Teksten en helpteksten
 
@@ -1087,12 +1060,15 @@ en noem het in je rapport of PR-tekst.
    `read-only`) en de doeltalen. De UI zegt nu *MCP-client*. Voorstel: het begrip omzetten via de
    vertaalstraat (`concepts-merge`, `apply-terms`) vóór de volgende release. — B
 
-327. **`apply-terms` eindigt met exit 0 als een deel van de pakketten geweigerd is.** `scripts/translate/cli.ts:275`
-    slaat een pakket met een ongeldig zegel over; is een ander pakket geldig, dan schrijft hij dat en eindigt
-    succesvol. Nagespeeld: intact `terms-01.json`, gewijzigd `terms-02.json` → uitvoer `XX … veranderd na
-    prepare`, alleen de eerste term toegepast, exit 0. Automatisering ziet half werk dan als geslaagd. Voorstel:
-    een weigeringsteller en een afsluitende exit 1, zoals bij `apply ui`. Gevonden in review r1 van #618
-    (GPT-6.1-Sol). — B
+398. **De rapportcontrole bij gedeeltelijke termenweigering kan een oud bestand accepteren.**
+     `tests/planning/check-translate-tbx.ts:248` controleert alleen of
+     terms-check-report.md bestaat. De eerdere stap op regels 224-226 maakt dat
+     rapport al. De volgende terms-lookup ruimt alleen JSON-bestanden op
+     (`scripts/translate/cli.ts:122`). Vervalt het nieuwe rapport bij gedeeltelijke
+     weigering, dan kan deze controle toch slagen. Verwijder het oude rapport vóór
+     de aanroep, of controleer de nieuwe rapportinhoud. Een testgat; geen gewone
+     productfout aangetoond. Twee onafhankelijke broncontroles; niet uitgevoerd.
+     — B
 
 ## Tests
 
@@ -1235,10 +1211,15 @@ en noem het in je rapport of PR-tekst.
     PR-head was groen. Screenshot/trace: artefact 12585687942. Geen Gantt-code in deze PR gewijzigd;
     timing-/geometrieoorzaak en productreproduceerbaarheid nog niet vastgesteld. — S
 
-321. **De browsertest voor een kapot `.mpp`-bestand toetst geen bestaand werk.** `tests/browser/new-open-task-flow.spec.ts:58`
-    zegt dat bestaand werk behouden blijft, maar vergelijkt met een leeg beginproject (de fixture doet
-    `newProject()` en voegt geen taak toe). Een losse probe met gewijzigd werk slaagt wel. Voorstel: één taak in
-    de beginstaat en ook de dirty-vlag controleren. Gevonden in review r1 van #636 (GPT-6.1-Sol). — B
+401. **De slotcontrole voor geldig openen kan slagen op de bestaande taak.**
+     `tests/browser/new-open-task-flow.spec.ts:97` eist na open(planning) alleen
+     tasks.length groter dan nul. De nieuwe beginstaat heeft dan al één taak; de
+     MPP-controles bewijzen juist dat die bleef staan. Ook wanneer de geldige
+     openroute niets laadt zonder foutmelding, slaagt deze controle dus. Controleer
+     een nieuw actief document en herkenbare inhoud uit het geopende IFC-bestand.
+     Een verlies aan testdekking; geen aangetoonde productfout. Twee onafhankelijke
+     broncontroles bij PR #674; niet lokaal uitgevoerd.
+     — B
 
 325. **Zes browserroutes toetsen geen smal scherm meer.** Sinds de standaardtakenlijst 400 px breed is, zetten zes
     specs het venster op 1600×900, onder meer `tests/browser/duration-display.spec.ts:5`. De handelingen en
@@ -1251,11 +1232,23 @@ en noem het in je rapport of PR-tekst.
     wijzigt. Dezelfde test slaagt lokaal op die head, en de herhaalde poging liep apart. De oorzaak is niet
     bewezen. Gevonden in fixronde 1 en review r2 van #595 (GPT-6.1-Sol). — S
 
-379. **`tests/browser/float-remaining-display.spec.ts:89` faalt soms in CI.** De tooltip van de balk toonde
-    `1d` waar `0,67d` hoort, in run 40344140298 (job `verify (browser 1-4)`) op PR #658. Het eigenschappenpaneel
-    toonde vlak daarvoor wel `0,67 dagen`; de test zet eerst testwaarden tot 1,004 en rekent dan met F5 opnieuw,
-    dus de tooltip leest mogelijk een waarde van vóór de herberekening. De herhaalde poging slaagde; main was op
-    dat moment groen. Oorzaak niet bewezen. Gevonden bij het mergen van de aanvalfixes na #600. — S
+403. **De oudere tooltipmelding 294 blijft naast de opgeloste melding 379 open staan.**
+     `knownbugs.md` punt 294 beschrijft dezelfde test en dezelfde afwijking als
+     het in PR #679 verwijderde punt 379: float-remaining-display.spec.ts:89 toont
+     1d in plaats van 0,67d, rond F5 en een mogelijk oud taakobject. Handel beide
+     meldingen samen af met hetzelfde bewijs, zodat dit symptoom niet dubbel als
+     open werk blijft staan. De historische oorzaak van iedere eerdere fout is
+     niet afzonderlijk bewezen; punt 294 is daarom niet stil verwijderd.
+     Twee onafhankelijke broncontroles van het register; geen productfixronde.
+     — B
+
+394. **De nieuwe scrollmatrix raakt interne randen van gesplitste balken niet gericht.**
+     `tests/planning/check-render-caches.ts:162`: `hitSnapshot` belooft meetpunten bij elk
+     zichtbaar balkstuk en elke pauze. De zeven x-posities komen uit de rechthoek van de
+     volledige balk. Interne segmentranden en pauzes worden daardoor niet afzonderlijk
+     bemonsterd. Voeg die punten toe aan de scrollmatrix voor de renderafhankelijke
+     splitscache. Bestaande splittests controleren zulke punten los van deze matrix.
+     Twee onafhankelijke broncontroles bij PR #643; geen productfout aangetoond. — B
 
 310. **De formaatvergelijking in de headless-servertest ziet een verschuiving binnen een dag niet.**
      `tests/mcp/cases-headless-server.ts:483` (`leafSchedule`) vergelijkt per bladtaak alleen de startdatum
