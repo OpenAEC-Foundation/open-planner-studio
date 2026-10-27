@@ -1312,6 +1312,16 @@ en noem het in je rapport of PR-tekst.
      door een assert dat het openen al een verse, berekende stand geeft. Gevonden in review ronde 1 van
      PR #590 (GPT-6.1-Sol, VERVOLG). — B
 
+403. **De oudere tooltipmelding 294 blijft naast de opgeloste melding 379 open staan.**
+     `knownbugs.md` punt 294 beschrijft dezelfde test en dezelfde afwijking als
+     het in PR #679 verwijderde punt 379: float-remaining-display.spec.ts:89 toont
+     1d in plaats van 0,67d, rond F5 en een mogelijk oud taakobject. Handel beide
+     meldingen samen af met hetzelfde bewijs, zodat dit symptoom niet dubbel als
+     open werk blijft staan. De historische oorzaak van iedere eerdere fout is
+     niet afzonderlijk bewezen; punt 294 is daarom niet stil verwijderd.
+     Twee onafhankelijke broncontroles van het register; geen productfixronde.
+     — B
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
