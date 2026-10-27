@@ -38,7 +38,9 @@ import { ContextMenu } from './ContextMenu';
 // als ÉÉN undo-stap. DOM-vrij afgezonderd zodat de regressiebatterij dezelfde functies draait.
 import { contextMenuOutlineScope, contextMenuBulk } from './contextMenuScope';
 import { addTaskAtEnd } from '@/state/taskInsertActions';
-import { createDefaultTaskTime } from '@/utils/taskDefaults';
+import { buildNewTask, createDefaultTaskTime, deriveScheduleDurationFromMinutes, seedNewHourTaskFinish } from '@/utils/taskDefaults';
+import { newTaskTimeUnit, settleNewTaskMeasure } from '@/state/newTaskMeasure';
+import { effHoursPerDay } from '@/utils/taskDuration';
 import { RelationTypePopover } from './RelationTypePopover';
 import { createRelationDraftWithFeedback } from '@/state/relationActions';
 // Hover-tooltip die zichzelf binnen het venster houdt (nodig zodra de titel wrapt).
@@ -404,11 +406,21 @@ export function GanttCanvas({
   // anker van de solver, dus de taak blijft na Berekenen op die datum staan.
   const addAtClickedDate = (milestone: boolean) => {
     const date = pointer.contextMenu?.clickDate;
-    addTaskAtEnd({
+    const partial = {
       name: milestone ? defaultMilestoneName : defaultTaskName,
       ...(milestone ? { isMilestone: true, milestoneKind: 'FINISH' as const, taskType: 'USERDEFINED' as const } : {}),
-      ...(date ? { time: createDefaultTaskTime(date, milestone ? 0 : 5, 'days', calendar) } : {}),
-    });
+    };
+    if (!date) { addTaskAtEnd(partial); return; }
+    // De klik kiest alleen de start, niet een expliciete dagenmaat. Gebruik dezelfde standaard-
+    // en omzettingsregels als addTask, vóór de volledige tijd aan de store wordt doorgegeven.
+    const state = useAppStore.getState();
+    const task = buildNewTask(partial, { id: '', parentId: null, constructionMode: state.ui.constructionMode,
+      time: createDefaultTaskTime(date, milestone ? 0 : 5, newTaskTimeUnit(state.project), calendar) });
+    const hoursPerDay = effHoursPerDay(calendar);
+    deriveScheduleDurationFromMinutes(task.time, hoursPerDay);
+    settleNewTaskMeasure(task, state.project, false, hoursPerDay);
+    seedNewHourTaskFinish(task, undefined, calendar);
+    addTaskAtEnd({ ...partial, time: task.time });
   };
   const revealTaskIfOffscreen = useCallback((task: Task) => {
     const canvas = canvasRef.current;
