@@ -393,7 +393,7 @@ export function createBridgeProxy(opts: BridgeProxyOptions, send: (message: JSON
     }
     // De documentkeuze zelf mag altijd door (en na sessieverlies herhaald worden): zij heft de blokkade op.
     const mutates = toolName !== null && !readOnlyTools.has(toolName) && toolName !== DOCUMENT_CHOICE_TOOL;
-    if (mutates && documentCheckNeeded && (toolName === null || !DOCUMENT_RECOVERY_TOOLS.has(toolName))) {
+    if (mutates && documentCheckNeeded && !DOCUMENT_RECOVERY_TOOLS.has(toolName)) {
       await toolError(id, SESSION_RESET_MESSAGE);
       return;
     }
@@ -405,7 +405,6 @@ export function createBridgeProxy(opts: BridgeProxyOptions, send: (message: JSON
         return;
       }
     }
-    if (cancelledIds.has(id)) return;
     queuedIds.delete(id); // vanaf deze POST is de aanvraag bij de bridge, niet meer lokaal wachtend
     let result = await post(message, true);
     if (result.type === 'session-lost') {
@@ -421,7 +420,6 @@ export function createBridgeProxy(opts: BridgeProxyOptions, send: (message: JSON
         await toolError(id, SESSION_RESET_MESSAGE);
         return;
       }
-      if (cancelledIds.has(id)) return;
       queuedIds.delete(id);
       result = await post(message, true);
       if (result.type === 'session-lost') {

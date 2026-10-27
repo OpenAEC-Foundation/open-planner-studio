@@ -449,6 +449,19 @@ export function matchByName<T extends { name: string }>(name: string, candidates
   return hits.length === 1 ? hits[0] : null;
 }
 
+/** Bouw voor één herkenningsronde dezelfde uniek-of-null-matcher met één poolscan.
+ *  Elke positie telt mee: ook hetzelfde object of dezelfde id tweemaal maakt een naam ambigu.
+ *  De aanroeper bouwt een verse matcher zodra de pool opnieuw wordt bekeken. */
+export function createNameMatcher<T extends { name: string }>(candidates: T[]): (name: string) => T | null {
+  const byName = new Map<string, T | null>();
+  for (const candidate of candidates) {
+    const name = normalizeName(candidate.name);
+    if (!name) continue;
+    byName.set(name, byName.has(name) ? null : candidate);
+  }
+  return (name) => byName.get(normalizeName(name)) ?? null;
+}
+
 /**
  * Los een naamsbotsing op voor een NIEUW bedrijf ("Toevoegen als nieuwe resourcebibliotheek" in
  * `PoolImportDialog`): bestaat `rawName` al onder de gegeven bestaande namen

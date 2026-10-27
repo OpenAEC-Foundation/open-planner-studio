@@ -1,3 +1,11 @@
+# Integratiecontrole van 27 oktober 2026
+
+De meetbasis komt nu expliciet uit `PERF_BASE_REVISION`, door de workflow gevuld
+met de actuele PR-basis. Het harnas controleert een volledige commit-SHA, voorouderschap
+en uitsluitend een productverschil in `ifcReader.ts`. Het verwisselt alleen die bron
+in twee verder gelijke actuele bundels. De reeds vastgelegde cijfers en JSON hieronder
+zijn historisch; een nieuwe CI-run levert het bewijs voor de geïntegreerde head.
+
 # IFC-lezen van brede taakhiërarchieën
 
 PR: https://github.com/OpenAEC-Foundation/open-planner-studio/pull/647

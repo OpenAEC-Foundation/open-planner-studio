@@ -58,6 +58,20 @@ test('document-plus kiest eerst nieuw of bestaand; annuleren verandert geen docu
   }
   // Ook een ongeldige MPP-container laat bestaand werk intact. De kop vertaalt, de
   // technische CFB-diagnose blijft Engels, zoals bij andere importfouten.
+  // 321: maak echt onopgeslagen werk, niet alleen een leeg nieuw document.
+  await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    s.addTask({ name: 'Onopgeslagen werk behouden', manuallyScheduled: true });
+  });
+  const mppSnapshot = () => page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    return { activeDocumentId: s.activeDocumentId, documentIds: s.documents.map(d => d.id),
+      project: s.project, tasks: s.tasks, sequences: s.sequences, assignments: s.assignments, isDirty: s.isDirty };
+  });
+  const beforeMpp = await mppSnapshot();
+  expect(beforeMpp.tasks).toHaveLength(1);
+  expect(beforeMpp.tasks[0].name).toBe('Onopgeslagen werk behouden');
+  expect(beforeMpp.isDirty).toBe(true);
   ops.acceptError(/Failed to open file:.*CFB: file too small for a valid header/);
   for (const [locale, message] of [
     ['nl', 'Dit MPP-bestand heeft een ongeldige bestandsstructuur en kan niet worden geopend.'],
@@ -76,8 +90,7 @@ test('document-plus kiest eerst nieuw of bestaand; annuleren verandert geen docu
       return notice && { severity: notice.severity, refusal: notice.refusal ?? false };
     })).toEqual({ severity: 'error', refusal: false });
     await expect(toast.locator('.ops-toast-detail')).toHaveText('CFB: file too small for a valid header (7 bytes, minimum 512)');
-    expect((await state(page)).documentIds).toEqual(before.documentIds);
-    expect((await state(page)).tasks).toEqual(before.tasks);
+    expect(await mppSnapshot()).toEqual(beforeMpp);
     await toast.locator('[data-ops-toast-close]').click();
   }
   await open(planning);

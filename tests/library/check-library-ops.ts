@@ -5,7 +5,7 @@ import {
   copyCalendarToProject, copyResourceToProject,
   diffCalendarVsPool, diffResourceVsPool, applyResourceUpdate, applyCalendarUpdate,
   computeCalendarHash, computeResourceHash, CALENDAR_DIFF_FIELDS, diffKey,
-  normalizeName, matchByName,
+  normalizeName, matchByName, createNameMatcher,
   classifyCalendarOnOpen, classifyResourceOnOpen,
   resolveUniqueCompanyName, isReservedCompanyId, isSafeFileCompanyId, resolvePoolImportPreselection,
   classifyPoolImportIdentityHint,
@@ -329,6 +329,73 @@ const genId = (prefix: string) => `${prefix}-gen-${++n}`;
   // ("İ".toLocaleLowerCase('tr') === "i" met puntloze variant-subtiliteiten) wordt NIET toegepast;
   // een simpele ASCII "I" → "i" blijft de machine-onafhankelijke uitkomst.
   assert(normalizeName('I') === 'i', 'F6: normalizeName gebruikt toLowerCase (machine-onafhankelijk), geen locale-specifieke casing');
+}
+
+// --- Eenmalige naamindex: dezelfde kandidaatobjecten als de bestaande matcher ---
+{
+  const repeated = { id: 'herhaald', name: 'Zelfde object' };
+  const candidates = [
+    { id: 'accent', name: 'Café' }, { id: 'kraan', name: 'Kraan1' },
+    { id: 'ploeg', name: ' Ploeg\t A ' }, { id: 'leeg', name: '' },
+    { id: 'onzichtbaar', name: '\u200b\u200c\u200d\ufeff\u00ad \t' },
+    { id: 'ambigu-a', name: 'Timmerman' }, { id: 'ambigu-b', name: 'timmerman' },
+    repeated, repeated,
+    { id: 'dubbel', name: 'Dubbel id' }, { id: 'dubbel', name: 'Dubbel id' },
+    { id: 'idgenoot', name: 'Idgenoot A' }, { id: 'idgenoot', name: 'Idgenoot B' },
+    { id: 'prototype', name: '__proto__' }, { id: 'constructor', name: 'constructor' },
+    { id: 'ascii-i', name: 'I' }, { id: 'unicode-i', name: 'İ' },
+  ];
+  const queries = [
+    ...candidates.map(c => c.name), 'CAFE\u0301', ' \tPLOEG\u00a0 A ', 'TIMMERMAN',
+    ...['\u200b', '\u200c', '\u200d', '\ufeff', '\u00ad'].map(c => `Kraan${c}1`),
+    '', '\t \n', '\u200b\ufeff', 'Niet gevonden', 'Kraan 1', 'i', 'i\u0307', 'ı',
+  ];
+  for (const ordered of [candidates, [...candidates].reverse(), [], [{ id: 'enige', name: '' }]]) {
+    const match = createNameMatcher(ordered);
+    for (const query of queries) {
+      assert(match(query) === matchByName(query, ordered),
+        `naamindex: dezelfde objectidentiteit/null als scan voor ${JSON.stringify(query)} (${ordered.length} kandidaten)`);
+    }
+  }
+  assert(createNameMatcher(candidates)('Zelfde object') === null, 'naamindex: hetzelfde object tweemaal blijft ambigu');
+  assert(createNameMatcher(candidates)('Dubbel id') === null, 'naamindex: dezelfde id en naam tweemaal blijven ambigu');
+  assert(createNameMatcher(candidates)('idgenoot b') === candidates[12], 'naamindex: gedeelde id met andere naam blijft uniek');
+
+  const changed = [{ id: 'veranderlijk', name: 'Oud' }];
+  const first = createNameMatcher(changed);
+  assert(first('Oud') === changed[0], 'naamindex: oorspronkelijke poolnaam matcht');
+  changed[0].name = 'Nieuw';
+  const next = createNameMatcher(changed);
+  assert(next('Oud') === null && next('Nieuw') === changed[0], 'naamindex: volgende index gebruikt gewijzigde naam, zonder blijvende cache');
+}
+
+// Een deterministisch werkbudget vervangt een tijdslimiet: iedere poolnaam één keer lezen en
+// normaliseren, iedere zoeknaam één keer normaliseren. Ook de volledige uitkomst blijft gelijk.
+for (const size of [1000, 5000]) {
+  let reads = 0;
+  const candidates = Array.from({ length: size }, (_, i) => ({
+    id: `budget-${i}`,
+    get name() { reads++; return `Équipe ${i}`; },
+  }));
+  const queries = candidates.map((_, i) => ` E\u0301QUIPE\t${i}\u200b `);
+  const expected = queries.map(q => matchByName(q, candidates));
+  reads = 0;
+  const originalNormalize = String.prototype.normalize;
+  let normalizations = 0;
+  let actual: (typeof candidates[number] | null)[] = [];
+  try {
+    String.prototype.normalize = function (this: string, form?: string) {
+      normalizations++;
+      return originalNormalize.call(this, form);
+    };
+    const match = createNameMatcher(candidates);
+    actual = queries.map(match);
+  } finally {
+    String.prototype.normalize = originalNormalize;
+  }
+  assert(actual.every((c, i) => c === expected[i]), `naamindex ${size}: alle kandidaatobjecten gelijk aan de scan`);
+  assert(reads === size, `naamindex ${size}: poolnaam exact eenmaal gelezen (zag ${reads})`);
+  assert(normalizations === size * 2, `naamindex ${size}: exact m+n normalisaties (zag ${normalizations})`);
 }
 
 // --- Afwijkingsclassificatie bij openen (spec §3) ---

@@ -11,8 +11,10 @@ import { deepStrictEqual } from 'node:assert';
 
 const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
 const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
-const base = 'fbd4a3f9dcc7bdd308ab86b992d0b26f4670a553';
+const base = process.env.PERF_BASE_REVISION;
+if (!/^[a-f0-9]{40}$/.test(base ?? '')) throw new Error('PERF_BASE_REVISION moet de gecontroleerde PR-basis zijn');
 const head = git('rev-parse', 'HEAD');
+git('merge-base', '--is-ancestor', base, head);
 const reader = 'src/services/ifc/ifcReader.ts';
 const changedProductFiles = git('diff', '--name-only', base, head, '--', 'src').split('\n');
 deepStrictEqual(changedProductFiles, [reader], 'deze vergelijking is uitsluitend geldig voor de zelfstandige reader-PR');
