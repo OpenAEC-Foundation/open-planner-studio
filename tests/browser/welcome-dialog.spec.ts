@@ -123,12 +123,24 @@ test('werkplek in een opaque origin: de app start, geen welkomstvenster en geen 
       return { welcomePending: u.welcomePending, showTourOverlay: u.showTourOverlay, showTutorialOffer: u.showTutorialOffer };
     });
     expect(ui, round).toEqual({ welcomePending: false, showTourOverlay: false, showTutorialOffer: false });
-    // Na een wijziging geen melding, en alleen de ene consoleregel van de start. Let op: de wachttijd
-    // bewijst niet dat er een crashherstelronde liep (de throttle kan die tot 10 s uitstellen,
-    // knownbug 407); de stille weigering zelf is bij de start al herkend.
-    await page.evaluate(() => { window.__OPS__!.store.getState().addTask({ name: 'In de werkplek' }); });
+    // 407: een echte invoerhandeling, daarna de geregistreerde herstelronde afwachten via dezelfde
+    // flush als de updater. Geen vaste 2 s-slaap die korter is dan de 10 s-throttle.
+    const count = await page.evaluate(() => window.__OPS__!.store.getState().tasks.length);
+    await page.locator('[data-task-grid-surface-id="gantt-task-grid"] [data-grid-row-key][data-grid-column-id="task.name"]').first().click();
+    await page.keyboard.press('Insert');
+    await page.keyboard.type('In de werkplek');
+    await page.keyboard.press('Enter');
+    await expect.poll(() => page.evaluate(() => {
+      const tasks = window.__OPS__!.store.getState().tasks;
+      return [tasks.length, tasks.some(task => task.name === 'In de werkplek')];
+    }), { message: round }).toEqual([count + 1, true]);
     await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().isDirty), { message: round }).toBe(true);
-    await page.waitForTimeout(2_000);
+    await page.evaluate(async () => {
+      const path = '/src/services/recovery/recoveryFlush.ts';
+      const recovery = await import(/* @vite-ignore */ path) as { flushRecoveryNow: () => Promise<void> };
+      await recovery.flushRecoveryNow();
+      await recovery.flushRecoveryNow();
+    });
     expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.notifications.map((n) => n.messageKey)), round).toEqual([]);
     expect(recoveryOff, round).toHaveLength(1);
   }
