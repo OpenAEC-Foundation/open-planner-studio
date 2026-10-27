@@ -361,6 +361,21 @@ const lagsByLink = (r: ImportResult) => {
   // Een starttijd ná het einde van de werkdag: het einde valt nooit vóór de vastgelegde start.
   const lateStart = readCSV(startOnly.replace('2026-06-01T10:15', '2026-06-01T18:00'));
   eq('352 alleen start na werktijd: einde wordt de start', actuals(lateStart.tasks), ['2026-06-01T18:00', '2026-06-01T18:00']);
+  // Nulduurmijlpaal: D7 zet het einde op de startkant (07:00); de vastgelegde start om 10:15 wint.
+  const milestone = readCSV(startOnly.replace('A;1;', 'A;0;'));
+  const milestoneActuals = ['2026-06-01T10:15', '2026-06-01T10:15'];
+  eq('352 alleen start, mijlpaal: lezer', actuals(milestone.tasks), milestoneActuals);
+  for (const [label, parsed, want] of [
+    ['na werktijd', lateStart, ['2026-06-01T18:00', '2026-06-01T18:00']],
+    ['mijlpaal', milestone, milestoneActuals],
+  ] as const) {
+    const loaded = createAppStoreContext();
+    loaded.store.getState().applyLoadedProject(parsed, { recompute: true });
+    eq(`352 alleen start, ${label}: laden en berekenen`, actuals(loaded.store.getState().tasks), want);
+    const back = createAppStoreContext();
+    back.store.getState().applyLoadedProject(readIFC(writeIFC(buildWriteIFCInput(loaded.store.getState()))), { recompute: true });
+    eq(`352 alleen start, ${label}: IFC opslaan en heropenen`, actuals(back.store.getState().tasks), want);
+  }
   const startOnlyContext = createAppStoreContext();
   startOnlyContext.store.getState().applyLoadedProject(readCSV(startOnly), { recompute: true });
   eq('352 alleen start: laden en berekenen geeft het einde van de werkdag', actuals(startOnlyContext.store.getState().tasks), derived);
