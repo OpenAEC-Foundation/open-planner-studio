@@ -1205,6 +1205,13 @@ en noem het in je rapport of PR-tekst.
     al af. Bevestigd in review ronde 3 van PR #644 (GPT-6.1-Sol). Voorstel: de classificatie beperken tot de
     IndexedDB-grens. — B
 
+405. **Nivelleren in de achtergrond start vermoedelijk niet in een opaque origin.** Gezien bij #706.
+    `src/services/leveling/backgroundLeveling.ts:34` maakt `new Worker(new URL(…, import.meta.url))` zonder
+    try. Een document zonder `allow-same-origin` (de SuperCloud-werkplek) haalt een workerscript op met modus
+    `same-origin`, en een opaque origin is met geen enkel adres same-origin. De constructor gooit dan, of de
+    worker meldt een fout; in beide gevallen mislukt nivelleren. Alleen in de code nagelopen, niet gedraaid.
+    Voorstel: bij een fout van de worker terugvallen op de bestaande route zonder `Worker` (regel 23). — S
+
 224. **RTL-balksleeptest faalt incidenteel zonder aangetoonde oorzaak.** In PR #635 op
     `3ca78f26234ddfed8e6fd4341a8f9e0ee44ec66a`, run 40157918525 poging 1, bleef bij
     `gantt-drag-undo.spec.ts:313` de taakvolgorde na balkslepen ongewijzigd, terwijl de voorafgaande

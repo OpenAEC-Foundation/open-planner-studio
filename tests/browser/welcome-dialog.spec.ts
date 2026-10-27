@@ -30,25 +30,26 @@ test('welkomstdialoog past taal, thema en automatisch berekenen live toe en bewa
   await expect(dialog.getByRole('button', { name: 'Taal', exact: true })).toBeVisible();
 });
 
-// Werkplek zonder localStorage (#583): de host zet `skipWelcome: true`. Bewust zonder de `ops`-fixture,
-// want die wacht juist op de welkomst en schrijft localStorage. Zoals in een sandbox-iframe zonder
-// `allow-same-origin` (opaque origin) gooit al het LEZEN van `localStorage` en `sessionStorage` een
-// `SecurityError`; de app moet dan toch starten (IndexedDB blijft hier wel bruikbaar). Het
-// startbestand van de host is het ijkpunt: `useSiteInitialFile` opent het in dezelfde ronde als de
-// welkomstcheck (na de herstelcontrole). Staat het er, dan is die check voorbij en had een
-// welkomstvenster al moeten verschijnen. Een onafgevangen fout faalt de test; console-fouten komen
-// alleen in de log (de recovery-route is hier geen onderwerp).
-test('host met skipWelcome zonder localStorage: de app start, geen welkomstvenster, ook niet na herladen', async ({ page }) => {
+// SuperCloud-werkplek (#582, #583, #706): de tool draait in een sandbox zonder `allow-same-origin`
+// (CSP `sandbox allow-scripts allow-modals`), dus in een ECHTE opaque origin. Hier krijgt het document
+// zelf die CSP-header, zoals in de werkplek; de browser weigert dan zelf localStorage, sessionStorage
+// en IndexedDB. Een opaque origin haalt modules op met CORS, dus elk antwoord van de dev-server krijgt
+// `Access-Control-Allow-Origin: *`. De host zet GEEN `skipWelcome`, net als de werkplek: zonder
+// localStorage slaat de tool het venster zelf over. Bewust zonder de `ops`-fixture, want die wacht
+// juist op de welkomst en schrijft localStorage. Het startbestand van de host is het ijkpunt:
+// `useSiteInitialFile` opent het in dezelfde ronde als de welkomstcheck (na de herstelcontrole).
+// Staat het er, dan is die check voorbij en had een welkomstvenster al moeten verschijnen. Een
+// onafgevangen fout faalt de test.
+test('werkplek in een opaque origin: de app start, geen welkomstvenster en geen herstelmelding, ook niet na herladen', async ({ page }) => {
+  await page.route('**/*', async (route) => {
+    const response = await route.fetch();
+    const headers = { ...response.headers(), 'access-control-allow-origin': '*' };
+    if (route.request().resourceType() === 'document') headers['content-security-policy'] = 'sandbox allow-scripts allow-modals';
+    await route.fulfill({ response, headers });
+  });
   await page.addInitScript((ifc) => {
-    for (const name of ['localStorage', 'sessionStorage']) {
-      Object.defineProperty(window, name, {
-        configurable: true,
-        get() { throw new DOMException(`${name} is niet beschikbaar (opaque origin).`, 'SecurityError'); },
-      });
-    }
     const file = { id: 'p1', name: 'Planning.ifc', version: '1' };
     (window as unknown as { openaecHost: unknown }).openaecHost = {
-      skipWelcome: true,
       initialFileId: 'p1',
       storage: {
         list: async () => [file],
@@ -60,13 +61,21 @@ test('host met skipWelcome zonder localStorage: de app start, geen welkomstvenst
   }, IFC);
   const pageErrors: string[] = [];
   page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
+  const recoveryOff: string[] = [];
   page.on('console', (message) => {
-    if (message.type() === 'error') console.log(`[zonder localStorage] console.error: ${message.text()}`);
+    if (message.text().includes('Crashherstel staat uit')) recoveryOff.push(message.text());
+    if (message.type() === 'error') console.log(`[opaque origin] console.error: ${message.text()}`);
   });
   const welcome = page.locator('[data-ops-welcome-dialog]');
   for (const round of ['eerste start', 'na herladen']) {
+    recoveryOff.length = 0;
     if (round === 'eerste start') await page.goto('/'); else await page.reload();
     await waitForOps(page);
+    // Echt een opaque origin: de browser zelf weigert de opslag.
+    expect(await page.evaluate(() => {
+      const refused = (read: () => unknown) => { try { read(); return 'werkt'; } catch (error) { return (error as Error).name; } };
+      return { origin: self.origin, localStorage: refused(() => localStorage), sessionStorage: refused(() => sessionStorage) };
+    }), round).toEqual({ origin: 'null', localStorage: 'SecurityError', sessionStorage: 'SecurityError' });
     await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().siteFileId), { timeout: 20_000, message: round })
       .toBe('p1');
     await expect(welcome, round).toHaveCount(0);
@@ -75,6 +84,13 @@ test('host met skipWelcome zonder localStorage: de app start, geen welkomstvenst
       return { welcomePending: u.welcomePending, showTourOverlay: u.showTourOverlay, showTutorialOffer: u.showTutorialOffer };
     });
     expect(ui, round).toEqual({ welcomePending: false, showTourOverlay: false, showTutorialOffer: false });
+    // Een wijziging start meteen een crashherstelronde. Die blijft stil: geen melding, alleen de ene
+    // consoleregel van de start. Geen afwezigheid zonder wachttijd te bewijzen, dus even wachten.
+    await page.evaluate(() => { window.__OPS__!.store.getState().addTask({ name: 'In de werkplek' }); });
+    await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().isDirty), { message: round }).toBe(true);
+    await page.waitForTimeout(2_000);
+    expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.notifications.map((n) => n.messageKey)), round).toEqual([]);
+    expect(recoveryOff, round).toHaveLength(1);
   }
-  expect(pageErrors, 'onafgevangen fouten zonder localStorage').toEqual([]);
+  expect(pageErrors, 'onafgevangen fouten in een opaque origin').toEqual([]);
 });

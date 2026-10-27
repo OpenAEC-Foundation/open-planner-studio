@@ -99,10 +99,11 @@ Afspraken:
   nooit een site.
 - Zet de site de host pas na het laden en gebruikt ze `initialFileId`, stuur dan één keer het event
   `openaec-host-ready` op het venster waar de host staat (het eigen venster van de tool, of de pagina eromheen).
-- Kan de tool geen instellingen bewaren (bijvoorbeeld een sandbox-iframe zonder `localStorage`), zet dan
-  `skipWelcome: true`. Anders komt het welkomstvenster bij elke start terug. De tool kijkt bij de start en nog
-  eens vlak voordat het venster zou openen. Zet de host daarom vóór de tool start: een venster dat al open
-  staat, sluit een latere host niet.
+- Weigert de browser `localStorage` (een sandbox-iframe zonder `allow-same-origin`), dan toont de tool geen
+  welkomstvenster; daar hoeft de host niets voor te doen. Werkt `localStorage` wel maar blijft het niet bewaard,
+  zet dan `skipWelcome: true`. Anders komt het welkomstvenster bij elke start terug. De tool kijkt bij de start
+  en nog eens vlak voordat het venster zou openen. Zet de host daarom vóór de tool start: een venster dat al
+  open staat, sluit een latere host niet.
 - `list` krijgt de extensies zonder punt (`ifc`, `csv`, `xml`, `mpp`, `xer`). De site mag erop filteren; de
   tool filtert daarna zelf ook.
 - `open` zonder `version` geeft de nieuwste versie, met `file.version` erbij; zonder versie weigert de tool het
