@@ -1318,6 +1318,16 @@ en noem het in je rapport of PR-tekst.
      door een assert dat het openen al een verse, berekende stand geeft. Gevonden in review ronde 1 van
      PR #590 (GPT-6.1-Sol, VERVOLG). — B
 
+395. **De vaste meetbasis voor IFC-nesting werkt niet na bijwerken met main.**
+     `docs/superpowers/evidence/ifc-nesting-index.mjs:14-18` zet de basis vast op
+     `fbd4a3f9dcc7bdd308ab86b992d0b26f4670a553`. Na een gewone merge met main
+     telt de afbakeningscontrole daardoor ook alle latere main-wijzigingen mee.
+     Run 40539722006, job 122314510956, stopt vóór de vergelijking met AssertionError
+     en exitcode 1. De 33 gerichte nestingcontroles slagen wel. Richting: vergelijk
+     met de actuele PR-basis, behoud de afbakeningscontrole en vernieuw het meetbewijs.
+     Twee broncontroles; de concrete CI-fout is onafhankelijk gelezen.
+     — B
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
