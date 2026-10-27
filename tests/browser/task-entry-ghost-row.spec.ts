@@ -80,6 +80,8 @@ test('spookregel: alleen een duur invullen maakt "New task" in één undo-stap',
     }, { profile, unit, fixedWork });
     const depth = (await state(page)).undoDepth;
     await ghostCell(page, 'task.time.scheduleDuration').click();
+    // Een klik selecteert de cel; Enter opent de editor met de standaardwaarde geselecteerd.
+    await page.keyboard.press('Enter');
     await expect(ghostRow(page).locator('.task-grid-editor-input')).toHaveValue(seed);
     await page.keyboard.type('3');
     await page.keyboard.press('Enter');
