@@ -17,7 +17,10 @@
  *    als het standaardveld nog de afgeronde dagen van het record draagt;
  *  - urenmaat met een breuk in minuten (T14, de werkdriehoek rondt niet af): duur en rest gaan als `PT…`
  *    op de hele minuut, met een record `[exacte minuten, geschreven minuten]` in de eigenschap
- *    `ExactMinutes` van `OPS_WorkRule` (zie {@link exactMinutesRecord}). Zelfde leesregel.
+ *    `ExactMinutes` van `OPS_WorkRule` (zie {@link exactMinutesRecord}). Zelfde leesregel;
+ *  - een lag in de urenmaat met een breuk in minuten (§3.10, `.mpp` telt in tienden; review #591 r2): hetzelfde
+ *    record `[exacte minuten, geschreven minuten]`, in de eigenschap `ExactMinuteLags` van `OPS_Sequences`, met
+ *    de GlobalId van de relatie als sleutel, naast `DayMeasureLags`. Zelfde leesregel.
  *
  * Dit bestand importeert alleen typen en de duurhelper van de motor, zodat writer, reader en
  * `ifcPsets.ts` het zonder cyclus delen.
@@ -51,6 +54,7 @@ export type ExactMinutesRecords = Partial<Record<ExactMinutesKey, ExactMinutesRe
 export const DAY_MEASURE_DURATIONS_PROP = 'DayMeasureDurations';
 export const EXACT_MINUTES_PROP = 'ExactMinutes';
 export const DAY_MEASURE_LAGS_PROP = 'DayMeasureLags';
+export const EXACT_MINUTE_LAGS_PROP = 'ExactMinuteLags';
 export const EXACT_FLOAT_PROP = 'ExactFloat';
 
 /** Klokminuten per kalendertijd-dag. */
@@ -218,7 +222,8 @@ export function parseExactFloat(raw: unknown): ExactFloatRecords | undefined {
 }
 
 /** `DayMeasureLags` lezen: GlobalId van de relatie → record. Alleen een object telt; een ongeldig record
- *  valt weg. `undefined` = geen geldige bron. */
+ *  valt weg. `undefined` = geen geldige bron. `ExactMinuteLags` heeft dezelfde vorm (twee getallen, nu
+ *  `[exacte minuten, geschreven minuten]`) en gaat door dezelfde parser. */
 export function parseDayMeasureLags(raw: unknown): Map<string, DayMeasureRecord> | undefined {
   const obj = parseJsonObject(raw);
   if (!obj) return undefined;

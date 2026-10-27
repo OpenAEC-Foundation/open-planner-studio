@@ -344,17 +344,26 @@ typewijziging. "Fase" verwijst naar §7.
     werktijd per dag wordt 0,3 d 136,8 min, geschreven als `PT2H17M0S`, en dat is terug 0,30044 d (BEVESTIGD,
     §10.5).
   - *IFC (F3):* urenmaat `PT…` (zoals nu). Dagenmaat in hele dagen `P{n}D` (zoals nu). Dagenmaat met een breuk
-    `PT…` = werkdagen × werktijd per dag van de lagkalender, plus het record. Alle records staan in één eigenschap
+    `PT…` = werkdagen × werktijd per dag van de lagkalender, plus het record. Alle dagrecords staan in één eigenschap
     `DayMeasureLags` (naam voorlopig) in de bestaande pset `OPS_Sequences`, als JSON met de GUID van de relatie
     als sleutel, bijvoorbeeld `{"<guid>": [0.5, 240]}`. Die pset en die vorm bestaan al
     (`P6StartAtPredecessorFinishBoundarySequenceGuids`, `writeSequenceMeta`, `ifcWriter.ts:1521-1543`), want een
     `IfcRelSequence` kan geen pset dragen. Er komt geen nieuwe pset. Kalendertijd in hele dagen `P{n}D` met
     `ELAPSEDTIME` (zoals nu); kalendertijd met een breuk `PT…` (dagen × 1440 min) met `ELAPSEDTIME`, plus het
     record. Procentlag `IFCRATIOMEASURE` (zoals nu). Elke relatie zonder geldig record leest de lezer zoals nu.
+  - *IFC, urenmaat met een breuk in minuten (F5b; review #591 r2 en r3):* een `.mpp` telt een lag in tienden van
+    een minuut, en XER en P6 XML in uren als kommagetal (0,33 u = 19,8 min). Het slot `PT…` draagt hele minuten
+    (`minutesToIsoDuration`). Bij een breuk schrijft OPS daarom een minutenrecord `[exacte minuten, geschreven
+    minuten]`, bijvoorbeeld `{"<guid>": [150.5, 151]}`. Dat is hetzelfde record als `ExactMinutes` bij de duur van
+    een urentaak (T14). Het staat in een eigen eigenschap `ExactMinuteLags` in dezelfde pset `OPS_Sequences`, naast
+    `DayMeasureLags`, met de GUID van de relatie als sleutel. Reden voor een eigen eigenschap: in `DayMeasureLags`
+    betekent het eerste getal dagen, dus `[150.5, 151]` zou daar 150,5 dagen zijn. Zelfde leesregel: de exacte
+    minuten tellen alleen als het slot nog precies de geschreven minuten draagt. Anders geldt het slot. Een lag in
+    hele minuten krijgt geen record. v2026.9.0 kent de eigenschap niet en leest het slot (151 min).
   - *Waarom deze vorm:* v2026.9.0 leest `PT4H0M0S` als lag van 240 min en `PT36H0M0S` met `ELAPSEDTIME` als
     2160 kalenderminuten; `OPS_Sequences` kent hij niet (BEVESTIGD, §10.5). Hij leest dus een urenmaat-lag met
-    dezelfde lengte, nooit 5 dagen. Het is de kleinste vorm: een record alleen voor een breuk in dagen; een lag
-    in hele dagen of in uren zegt zijn maat al met de duurvorm.
+    dezelfde lengte, nooit 5 dagen. Het is de kleinste vorm: een record alleen voor een breuk in dagen (of, in de
+    urenmaat, voor een breuk in minuten); een lag in hele dagen of in hele minuten zegt zijn maat al met de duurvorm.
   - *MSPDI en P6 XML (F5a):* de lengte in minuten, zoals nu (dagenmaat: werkdagen × werktijd per dag van de
     lagkalender, I7). Daarnaast de OPS-markering, zoals bij de taak (T15): één tekstveld op de opvolger met het
     record per relatie. MSPDI: een `ExtendedAttribute` naast `OPS_TaskDurationUnit` (`mspdiWriter.ts:43-45`). P6
@@ -365,8 +374,11 @@ typewijziging. "Fase" verwijst naar §7.
     opvolger en type bestaan niet. Dezelfde leesregel: de dagen tellen alleen als `LinkLag` (MSPDI) of `Lag`
     (P6 XML) nog de geschreven minuten draagt. Zonder record, of bij een andere lengte, maakt de lezer een lag in
     urenmaat (T15). Kalendertijd heeft geen markering nodig: `LagFormat` 8 (ed) of 6 (eu) zegt de eenheid, en de
-    lezer rondt niet meer af (I2). Of MSP en P6 zo'n veld bij hun eigen opslaan bewaren, is niet getoetst (geen
-    MSP of P6 op deze machine).
+    lezer rondt niet meer af (I2). Een breuk in minuten heeft in MSPDI en P6 XML geen record nodig: `LinkLag` telt
+    in tienden van een minuut en P6 `Lag` in uren als kommagetal. De lezers ronden een echte breuk niet af op de
+    hele minuut (F5b); alleen de floatruis van uren × 60 valt weg, op een miljoenste minuut. In P6 `Lag` (en de
+    XER-lag) wordt de ruis van zes decimalen de hele minuut: 0,666667 u wordt 40 min (fixronde 6, zie §3.10). Of
+    MSP en P6 zo'n veld bij hun eigen opslaan bewaren, is niet getoetst (geen MSP of P6 op deze machine).
   - *Kalendertijd in P6 XML (F5a-2; besluit orkestrator 2026-10-24, bevestigd in review #585 r1):* P6 kent geen
     kalendertijd per relatie of per activiteit, dus P6 krijgt werktijd (1,5 ed wordt 12 u). Het record krijgt
     daarom een derde element met de eenheid: `[1.5, 720, "ed"]` voor kalenderdagen en `[180, 180, "eu"]` voor
@@ -495,6 +507,15 @@ normalisatie draait altijd; de markering `TimeModel` stuurt alleen de B5-overgan
   projecten die nu een dagkalender hebben. F2 vervangt die test daarom door een expliciete vlag "de kalender
   had eigen werkblokken" (`isHourModeCalendar` op de opgeslagen kalender). Zo verandert hun bereik niet. Of ze
   later breder gaan gelden, is een aparte meting met `measure:profiles` (regel A).
+- **Wandelingen in hele milliseconden (F5b, fixronde 7 van #591):** `addWorkMinutes` en `subtractWorkMinutes`
+  rekenen intern in hele ms, ook de rest na elke band (`CalendarEngine.walkMs`). Reden: met kommagetalminuten bleef
+  bij een bandgrens soms een minieme rest over, en dan koos de terugwandeling het vorige werkeinde. Een XER-duur van
+  8,72 u (523,2 min) gaf zo een late start op het werkeinde van de dag ervoor (ma 16:00 in plaats van di 08:00),
+  960 min minder speling op een 24/7-voorganger en een verkeerde ALAP-plek. Nu blijft
+  `subtractWorkMinutes(addWorkMinutes(t, m), m) === t` vanaf een werkmoment, getoetst voor tienden 0,1–5000 min,
+  uren 0,01–83 u en hele minuten (`check-kalender-ms-wandeling.ts`); een lengte onder een halve ms valt erbuiten
+  (knownbug 391). Regel A:
+  P6 zonder celverschil, MS Project gelijk aan de stand ervoor (meting 2026-10-26).
 
 ### 3.10 Adapters
 
@@ -510,6 +531,20 @@ normalisatie draait altijd; de markering `TimeModel` stuurt alleen de B5-overgan
   minuten ÷ werktijd per dag, zoals nu. Nu maakt de XER-lezer een dagtaak op een kalender
   zonder tijdsignaal (`xerReader.ts:831-834`); dat verdwijnt. Een lezer maakt alleen nog een urenkalender als de
   kalender per dag verschilt of eigen werkblokken heeft; anders blijft hij scalair (§3.1).
+  *Uren met zes decimalen (F5b, fixronde 6 van #591):* XER en P6 XML tellen in uren met zes decimalen. Een hele
+  minuut is dan meestal geen exact getal: 40 min staat er als 0,666667 u, dus 40,00002 min. Ligt uren × 60 binnen
+  0,00003 min (0,5 × 10⁻⁶ u × 60) van een hele minuut, dan leest de lezer die hele minuut. Een echte breuk blijft
+  (0,33 u = 19,8 min, 40,33 u = 2419,8 min), zonder de floatruis van uren × 60 (`sixDecimalHoursToMinutes`,
+  `subdayIo.ts`). Dat geldt voor de XER-duur, de XER-rest en de lag in XER en P6 XML. Reden: met de ruis werden
+  29 P6-cellen onexact (regel A; `measure:profiles` met het P6-corpus, meting 2026-10-26), en sprong een late datum
+  een dag terug (was knownbug 385, zie §3.9). Op de hele minuut blijven, zoals op main: de rest die de XER-lezer uit
+  het percentage van een lopende `CP_Drtn`-taak berekent (40,33 u bij 33,33 % gaf anders 1613,28066 min, en met de
+  oude kalenderwandeling sprong LS een dag terug), en duur en rest in P6 XML zonder `ExactMinutes`-record
+  (`readMeasure`, `xmlDayMeasure.ts:293`). Grens van
+  het bewijs: de corpora (XER: 20.815 duren, 20.598 resten, 32.181 lags; P6 XML: 489, 697 en 434) hebben geen echte
+  breuk in minuten, alleen vier XER-resten met de ruis (`HarbourPointe_AssistedLiving.xer`). Een bron die een echte
+  breuk bedoelt, is dus niet gezien. Een echte breuk laat de late datums niet meer springen: de kalenderwandelingen
+  rekenen sinds fixronde 7 in hele milliseconden (§3.9).
 - **Schrijven:** urenmaat: minuten. Dagenmaat: werkdagen × werktijd per dag (technische keuze T13), plus de
   OPS-markering, en bij een breuk het record (T21). Reden: dat is precies wat het P6- en het MSP-profiel rekenen, het
   hangt niet af van de plek, en OPS → P6 → OPS geeft de dagenmaat terug. Nu gebruikt `taskMinutesForWrite` het
