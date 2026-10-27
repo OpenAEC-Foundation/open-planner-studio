@@ -374,12 +374,6 @@ en noem het in je rapport of PR-tekst.
 16. **Taken kopiëren** heeft geen zichtbare bediening; alleen Ctrl+C/V met de Gantt in focus. — B
 17. **Verwijderen zonder bevestiging**: `confirm.deleteTask` staat in de locales maar wordt nergens gebruikt. — S
 
-333. **De bevestigingsdialoog let bij Enter niet op `isComposing`.** `src/components/dialogs/ConfirmDialog.tsx:36–44`:
-    een synthetische IME-Enter verwijderde in een browserprobe de kalender, toen de focus bewust achter de open
-    dialoog stond. De focus-trap zet de focus normaal op Annuleren; een gewone gebruikersroute naar dit geval is
-    niet aangetoond. Voorstel: na `stopPropagation()` een guard voor `isComposing` die ook de standaardactie
-    tegenhoudt. Gevonden in review r2 van #628 (GPT-6-Sol). — B
-
 241. **Hetzelfde externe anker opnieuw invoeren als datum zonder tijd geeft een extra undo-stap en zet
      de planning op verouderd.** `updateExternalLink` vergelijkt het ruwe anker, niet het genormaliseerde.
      Gevonden in fixronde 1 van F2 (laadfix). — B
@@ -636,21 +630,9 @@ en noem het in je rapport of PR-tekst.
     conflicten wel goed. Voorstel: een ontbrekende reden expliciet in het typecontract, en de MCP-uitleg daarop
     aanpassen. Gevonden in review r1 van #594 (GPT-6.1-Sol). — B
 
-320. **De koppeldialoog bouwt dezelfde optielijst drie keer per kandidaat.** `src/components/dialogs/LibraryLinkDialog.tsx:47`
-    mapt de volledige bronlijst; regels 96–98 roepen dat apart aan voor `options`, `disabled` en `placeholder`.
-    Dat maakt bij elke render onnodige arrays; een merkbare vertraging is niet aangetoond. Voorstel: één
-    resourcelijst en één kalenderlijst per render, en die hergebruiken. Gevonden in review r1 van #635
-    (GPT-6.1-Sol). — B
-
 324. **Een tak in de herstelcontrole van de MCP-proxy is onbereikbaar.** `integrations/claude-desktop/src/proxy.ts:396`:
     de tak `toolName === null` kan niet meer optreden zodra `mutates` waar is. Voorstel: die deelvoorwaarde weg;
     de concrete herstelset blijft voldoende. Gevonden in review r1 van #605 (GPT-6.1-Sol). — B
-
-331. **Met de werkmap `/` weigert de MCP-server `~/plan.ifc` als UNC-pad.** `src/services/mcp/tools/fileTools.ts:142–145`:
-    bij `home="/"` maakt de tilde-expansie van `~/plan.ifc` eerst `//plan.ifc`, en de nieuwe UNC-controle weigert
-    dat. Op `main` werd het `/plan.ifc`; het expliciete pad `/plan.ifc` werkt nog wel. Zeldzaam, geen dataverlies.
-    Voorstel: bij tilde-expansie precies één scheidingsteken toevoegen, en de wortelmap aan de bestaande test
-    toevoegen. Gevonden in review r1 van #626 (GPT-6.1-Sol). — B
 
 332. **De XML-parser van de headless server zoekt bij elk element zonder prefix de hele ouderketen af.**
     `headless/mcp-server/src/xmlDom.ts:143` roept `namespaceFor('', scope)` aan en gooit het resultaat weg. Bij
@@ -1034,14 +1016,6 @@ en noem het in je rapport of PR-tekst.
      minuten rest terecht lopend. Voorstel: alleen met een echte bronfixture aanpassen, eventueel met een
      importmelding; geen drempel die echte rest wist. Gevonden in review ronde 3 van #663 (GPT-6.1-Sol). — S
 
-383. **`normalizeKeepingDayRest` bewaart de dagenrest dubbel en een commentaar in de P6 XML-lezer is achterhaald.**
-     Sinds #663 bewaart `normalizeImportedProgress` een ingelezen dagenrest zelf; de functie van twaalf regels in
-     `src/services/xmlDayMeasure.ts:336` en de twee omhulselaanroepen in de MSPDI- en P6 XML-lezer doen niets
-     meer (met de laag uitgeschakeld blijven 46 importcontroles en 72 afrondingscontroles groen). Het commentaar
-     bij `src/services/p6/p6xmlReader.ts:979` zegt nog dat de writer op 100 % altijd `Completed` schrijft.
-     Voorstel: de functie en de aanroepen weghalen en het commentaar bijwerken. Gevonden in review ronde 3 van
-     #663 (GPT-6.1-Sol). — B
-
 356. **Een hammock houdt in "Datums zoals opgeslagen" de nulduur van de verworpen berekening.** Hammock B met
      opgeslagen datums 16–20 maart en duur 5 dagen: de verworpen berekening schrijft duur 0
      (`writeDerivedSpan`, `src/engine/scheduler/CPMSolver.ts:2106`); de modus zet de datums terug, maar laat
@@ -1213,14 +1187,6 @@ en noem het in je rapport of PR-tekst.
      `monthLabel` expliciet terugvallen op `en` als `Intl` de locale niet kent, of de toets de locale laten
      vastzetten. — B
 
-285. **`hour-data-notice-document.spec.ts` is wisselvallig: na `page.reload()` komt het welkomstvenster
-     over het paneel.** De test herlaadt de pagina per voorkeur (aan, uit), maar wacht daarna niet op het
-     welkomstvenster en sluit het niet, zoals de fixture bij de start doet (`waitForWelcomeDialog`,
-     `fixtures/ops.ts:88`). Komt het venster net na `fill('6h')`, dan gaat Enter niet naar het duurveld:
-     "minutes 240, verwacht 360". Gezien in CI op #584 (`293acf1c9`, shard 1); de error-context toont
-     "Welcome to Open Planner Studio" open en het duurveld op "4". Lokaal 5 van 5 groen. Voorstel: na de
-     reload `waitForWelcomeDialog` en `setUI({ showWelcomeDialog: false })`, zoals de fixture. — B
-
 264. **De browsertest "Gantt-balk vertical slepen landt in RTL op dezelfde plek als een rijsleep" is
      wisselvallig.** `tests/browser/gantt-drag-undo.spec.ts:273`. De rijsleep en de undo slagen, maar na de
      balksleep blijft de volgorde die van vóór de sleep: de eerste taak staat nog bovenaan ("Timeout 5000ms
@@ -1274,24 +1240,21 @@ en noem het in je rapport of PR-tekst.
     PR-head was groen. Screenshot/trace: artefact 12585687942. Geen Gantt-code in deze PR gewijzigd;
     timing-/geometrieoorzaak en productreproduceerbaarheid nog niet vastgesteld. — S
 
-323. **De regressietest van de MCP-proxy mist annuleren na een 404.** `tests/mcp/cases-mcpb.ts:411` toetst
-    annuleren tijdens verbinden vanuit offline toestand, maar niet de registratie vóór de tweede
-    verbindingspoging na `404`. Een losse proef van de reviewer bevestigt dat die route werkt. Daarnaast zijn de
-    annuleringscontroles op `integrations/claude-desktop/src/proxy.ts:402` en `:418` overbodig: op die routes zit
-    sinds de vorige controle geen nieuwe asynchrone onderbreking. Voorstel: de 404-route in de test, en de twee
-    regels weg. Gevonden in review r1 van #603 (GPT-6.1-Sol). — B
+401. **De slotcontrole voor geldig openen kan slagen op de bestaande taak.**
+     `tests/browser/new-open-task-flow.spec.ts:97` eist na open(planning) alleen
+     tasks.length groter dan nul. De nieuwe beginstaat heeft dan al één taak; de
+     MPP-controles bewijzen juist dat die bleef staan. Ook wanneer de geldige
+     openroute niets laadt zonder foutmelding, slaagt deze controle dus. Controleer
+     een nieuw actief document en herkenbare inhoud uit het geopende IFC-bestand.
+     Een verlies aan testdekking; geen aangetoonde productfout. Twee onafhankelijke
+     broncontroles bij PR #674; niet lokaal uitgevoerd.
+     — B
 
 325. **Zes browserroutes toetsen geen smal scherm meer.** Sinds de standaardtakenlijst 400 px breed is, zetten zes
     specs het venster op 1600×900, onder meer `tests/browser/duration-display.spec.ts:5`. De handelingen en
     controles blijven, maar de smallere beginstand wordt niet meer bewaakt. Geen productfout op die breedte
     aangetoond. Voorstel: één gerichte interactieroute op een smaller scherm houden. Gevonden in review r1 van
     #627 (GPT-6.1-Sol). — B
-
-326. **De controle bij het annuleren van een faseovergang vergelijkt toewijzingen alleen op id.**
-    `tests/browser/structural-transition.spec.ts:113` vergelijkt toewijzingen als `[id, taskId]`. Een gewijzigde
-    resource of inzet glipt daar doorheen. Dit stond al op `main`. Voorstel: daar ook de volledige
-    toewijzingswaarden vergelijken, zoals de mijlpaalroute nu doet. Gevonden in review r1 van #622
-    (GPT-6.1-Sol). — B
 
 334. **`tests/browser/assignments-block.spec.ts:235` faalt soms in CI.** De test verwachtte `UNIFORM` en kreeg `BELL`,
     na een time-out van 5 s, in run 40286556225 (job `verify (browser 2-4)`) op PR #595, die alleen de herstelspec
@@ -1313,15 +1276,15 @@ en noem het in je rapport of PR-tekst.
      door een assert dat het openen al een verse, berekende stand geeft. Gevonden in review ronde 1 van
      PR #590 (GPT-6.1-Sol, VERVOLG). — B
 
-401. **De slotcontrole voor geldig openen kan slagen op de bestaande taak.**
-     `tests/browser/new-open-task-flow.spec.ts:97` eist na open(planning) alleen
-     tasks.length groter dan nul. De nieuwe beginstaat heeft dan al één taak; de
-     MPP-controles bewijzen juist dat die bleef staan. Ook wanneer de geldige
-     openroute niets laadt zonder foutmelding, slaagt deze controle dus. Controleer
-     een nieuw actief document en herkenbare inhoud uit het geopende IFC-bestand.
-     Een verlies aan testdekking; geen aangetoonde productfout. Twee onafhankelijke
-     broncontroles bij PR #674; niet lokaal uitgevoerd.
-     — B
+393. **Een beschadigd numeriek kalender-id `NaN` krijgt bij opslaan onbedoeld koppelingen.**
+     `src/services/ifc/ifcWriter.ts:1465` en `:1473`: de kalenderindex gebruikt `Map.get`,
+     dat `NaN` aan zichzelf koppelt. De eerdere vergelijking met `===` deed dat niet.
+     Bij een kalender met `id: NaN` en taken/resources met `calendarId: NaN` schrijft de
+     nieuwe schrijver extra `IFCRELASSIGNSTOCONTROL`-relaties. Bij heropenen krijgen zij
+     daardoor een echte kalenderkoppeling. Een gewone gebruikersroute naar deze beschadigde
+     invoer is niet aangetoond. Richting: sla voor `Number.isNaN(cal.id)` alleen de
+     control-relaties over, na kalender en metadata; voeg een gerichte regressiecheck toe.
+     Vastgesteld door twee onafhankelijke broncontroles bij PR #641; niet uitgevoerd. — B
 
 ## Wensen en open taken (geen bug)
 

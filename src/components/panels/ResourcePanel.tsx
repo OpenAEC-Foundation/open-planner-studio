@@ -620,7 +620,7 @@ export function ResourcePanel() {
                     showParentColumn
                     costLabel={cost === undefined ? '—' : numberFmt.format(cost)}
                     confirmingDelete={confirmDelete === r.id}
-                    confirmMessage={t('resource.panel.confirmDelete', { name: r.name || r.id, count: assignmentCount(r.id) })}
+                    confirmMessage={confirmDelete === r.id ? t('resource.panel.confirmDelete', { name: r.name || r.id, count: assignmentCount(r.id) }) : ''}
                     onToggleSteps={() => setExpandedSteps(stepsOpen ? null : r.id)}
                     onPatch={updates => patch(r.id, updates)}
                     onRequestRemove={() => requestRemove(r.id)}

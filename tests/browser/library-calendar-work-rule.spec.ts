@@ -232,6 +232,24 @@ test('bibliotheekhint verwijst alleen naar kalenders en de knop promoveert een p
     // Enter op de gefocuste Annuleren-knop annuleert; alleen Enter zonder knopfocus bevestigt.
     await sourceRow.locator('.danger-icon').click();
     await expect(confirm.getByRole('button', { name: /^(Cancel|Annuleren)$/ })).toBeFocused();
+    // Knownbug 333: browser-eventprobe voor IME-Enter; geen claim van een echte OS-IME-sessie.
+    // Dezelfde vraag met focus op Annuleren, Verwijderen en zonder knopfocus.
+    for (const focus of ['cancel', 'confirm', 'none'] as const) {
+      if (focus === 'cancel') await confirm.getByRole('button', { name: /^(Cancel|Annuleren)$/ }).focus();
+      if (focus === 'confirm') await confirm.getByRole('button', { name: /^(Delete|Verwijderen)$/ }).focus();
+      const prevented = await page.evaluate(clearFocus => {
+        if (clearFocus && document.activeElement instanceof HTMLElement) document.activeElement.blur();
+        const event = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', isComposing: true,
+          bubbles: true, cancelable: true });
+        (document.activeElement ?? document.body).dispatchEvent(event);
+        return event.defaultPrevented;
+      }, focus === 'none');
+      expect(prevented).toBe(true);
+      await expect(confirm).toBeVisible();
+      expect(await poolState()).toEqual(beforeRemove);
+      expect(await projectCopy()).toEqual(beforeCopy);
+    }
+    await confirm.getByRole('button', { name: /^(Cancel|Annuleren)$/ }).focus();
     await page.keyboard.press('Enter');
     await expect(confirm).toBeHidden();
     expect(await poolState()).toEqual(beforeRemove);
