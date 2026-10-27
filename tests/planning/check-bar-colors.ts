@@ -184,6 +184,15 @@ const withAssignments = (assignments: ResourceAssignment[]): BarColorContext => 
   ok(dark !== '#000000', 'donkere kleur wordt zichtbaar op een donkere achtergrond');
 }
 
+// Eén eigen kleur mag de standaard van de overige statussen niet veranderen.
+{
+  const selection = { mode: 'critical', colors: { normal: '#005500' } } as const;
+  const critical = computeBarColors(mkTask('critical', { time: mkTime({ isCritical: true }) }), selection, CTX, PAL);
+  const near = computeBarColors(mkTask('near', { time: mkTime({ isNearCritical: true }) }), selection, CTX, PAL);
+  ok(critical.kind === 'solid' && critical.fill === PAL.critical, 'kritiek blijft standaard bij alleen eigen normaal');
+  ok(near.kind === 'solid' && near.fill === PAL.nearCritical, 'bijna-kritiek blijft standaard bij alleen eigen normaal');
+}
+
 // 8. Task.color is inert: dezelfde taakuitkomst in iedere overgebleven modus, ongeacht legacydata.
 {
   const modes = [

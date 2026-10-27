@@ -206,6 +206,7 @@
     "screenColors_critical": "ເສັ້ນທາງວິກິດ",
     "screenColors_auto": "ຕາມແຕ່ລະວຽກ — ອັດຕະໂນມັດ",
     "screenColors_category": "ຕາມໝວດໝູ່",
+    "screenColorsNearCritical": "ໃກ້ວິກິດ",
     "screenColorsMissingField": "ບໍ່ມີຫ້ອງຂໍ້ມູນນີ້ໃນໂຄງການນີ້. ລະບົບຈະໃຊ້ໝວດວຽກຊົ່ວຄາວ.",
     "screenColorsHint": "ນອກຈາກເສັ້ນທາງວິກິດແລ້ວ, ຂອບສີແດງຈະໝາຍບອກເສັ້ນທາງວິກິດໄວ້.",
     "addLayout": "ໂຄງຮ່າງການຈັດວາງໃໝ່",

@@ -208,6 +208,7 @@
     "screenColors_critical": "Chemin critique",
     "screenColors_auto": "Par tâche — automatique",
     "screenColors_category": "Par catégorie",
+    "screenColorsNearCritical": "Quasi critique",
     "screenColorsMissingField": "Ce champ n’existe pas dans ce projet. La catégorie de travaux est utilisée temporairement.",
     "screenColorsHint": "Hors du mode Chemin critique, un contour rouge marque le chemin critique.",
     "addLayout": "Nouvelle disposition",

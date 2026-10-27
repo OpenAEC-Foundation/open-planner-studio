@@ -54,6 +54,11 @@ localStorage.clear();
 await saveBarColorSelection(custom);
 ok(deepEqual(await loadBarColorSelection(), custom), 'eigen kleuren overleven opslag');
 
+const partial = { mode: 'critical', colors: { normal: '#005500' } } as const;
+localStorage.clear();
+await saveBarColorSelection(partial);
+ok(deepEqual(await loadBarColorSelection(), partial), 'afzonderlijk gekozen kleur blijft afzonderlijk bij opslag');
+
 localStorage.clear();
 await saveBarColorSelection(category);
 ok(deepEqual(await loadBarColorSelection(), category), 'canonieke selectie round-tript');

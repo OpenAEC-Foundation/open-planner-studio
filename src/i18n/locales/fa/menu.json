@@ -207,6 +207,7 @@
     "screenColors_critical": "مسیر بحرانی",
     "screenColors_auto": "به ازای هر کار — خودکار",
     "screenColors_category": "بر اساس دسته",
+    "screenColorsNearCritical": "نزدیک به بحرانی",
     "screenColorsMissingField": "این فیلد در این پروژه وجود ندارد. دسته‌بندی کار به‌طور موقت استفاده می‌شود.",
     "screenColorsHint": "خارج از حالت مسیر بحرانی، حاشیه قرمز مسیر بحرانی را نشان می‌دهد.",
     "addLayout": "چیدمان جدید",

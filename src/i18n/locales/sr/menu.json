@@ -208,6 +208,7 @@
     "screenColors_critical": "Критична путања",
     "screenColors_auto": "По задатку — аутоматски",
     "screenColors_category": "По категорији",
+    "screenColorsNearCritical": "Готово критичан",
     "screenColorsMissingField": "Ово поље не постоји у овом пројекту. Врста радова се привремено користи.",
     "screenColorsHint": "Ван критичног пута, црвена ивица означава критични пут.",
     "addLayout": "Нови изглед",

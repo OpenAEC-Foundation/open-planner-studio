@@ -413,14 +413,16 @@ export class GanttRenderer {
     if (overrideColor) return overrideColor;
     const selection = this.opts.barColorSelection;
     const custom = selection?.mode === 'critical' ? selection.colors : undefined;
-    if (task.time.isCritical) return custom ? ensureCustomBarVisible(custom.critical, this.opts.darkTheme === true) : this.colors.critical;
-    if (task.time.isNearCritical) return custom ? ensureCustomBarVisible(custom.nearCritical, this.opts.darkTheme === true) : this.colors.nearCritical;
+    const dark = this.opts.darkTheme === true || this.highContrast;
+    if (task.time.isCritical) return custom?.critical ? ensureCustomBarVisible(custom.critical, dark) : this.colors.critical;
+    if (task.time.isNearCritical) return custom?.nearCritical ? ensureCustomBarVisible(custom.nearCritical, dark) : this.colors.nearCritical;
+    if (custom?.normal) return ensureCustomBarVisible(custom.normal, dark);
     const fp = task.time.floatPath;
     if (fp !== undefined && fp > 1) {
       const tints = this.colors.floatPathTints;
       return tints[(fp - 2) % tints.length];
     }
-    return custom ? ensureCustomBarVisible(custom.normal, this.opts.darkTheme === true) : this.colors.normal;
+    return this.colors.normal;
   }
 
   /** Duurkolom-tekst: de blijvende taakeenheid blijft óók zichtbaar wanneer de globale

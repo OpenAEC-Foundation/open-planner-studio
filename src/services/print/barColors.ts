@@ -107,8 +107,8 @@ function computeSelectionColors(
   barPx?: number,
 ): BarFill {
   if (selection.mode === 'critical') {
-    const fill = criticalFill(task, { ...palette, ...selection.colors });
-    return { kind: 'solid', fill: selection.colors && !task.isMilestone ? ensureCustomBarVisible(fill, false) : fill };
+    const custom = task.isMilestone ? undefined : task.time.isCritical ? selection.colors?.critical : task.time.isNearCritical ? selection.colors?.nearCritical : selection.colors?.normal;
+    return { kind: 'solid', fill: custom ? ensureCustomBarVisible(custom, false) : criticalFill(task, palette) };
   }
 
   const outline = task.time.isCritical ? palette.critical : undefined;

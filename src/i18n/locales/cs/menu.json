@@ -209,6 +209,7 @@
     "screenColors_critical": "Kritická cesta",
     "screenColors_auto": "Podle úkolu — automaticky",
     "screenColors_category": "Podle kategorie",
+    "screenColorsNearCritical": "Téměř kritický",
     "screenColorsMissingField": "Toto pole v tomto projektu neexistuje. Dočasně se použije druh práce.",
     "screenColorsHint": "Mimo režim Kritická cesta označuje červený okraj kritickou cestu.",
     "addLayout": "Nové rozložení",

@@ -207,6 +207,7 @@
     "screenColors_critical": "Kriittinen polku",
     "screenColors_auto": "Tehtävittäin — automaattinen",
     "screenColors_category": "Luokittain",
+    "screenColorsNearCritical": "Lähes kriittinen",
     "screenColorsMissingField": "Tätä kenttää ei ole tässä projektissa. Työlajia käytetään väliaikaisesti.",
     "screenColorsHint": "Muualla kuin tilassa Kriittinen polku punainen reunus merkitsee kriittisen polun.",
     "addLayout": "Uusi asettelu",

@@ -39,8 +39,8 @@ export function parseBarColorSelection(raw: unknown): BarColorSelection | undefi
     const rawColors = selection.colors;
     if (!rawColors || typeof rawColors !== 'object' || Array.isArray(rawColors)) return undefined;
     const c = rawColors as Record<string, unknown>;
-    if (![c.critical, c.nearCritical, c.normal].every(v => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v))) return undefined;
-    colors = { critical: c.critical as string, nearCritical: c.nearCritical as string, normal: c.normal as string };
+    if (!['critical', 'nearCritical', 'normal'].every(key => c[key] === undefined || (typeof c[key] === 'string' && /^#[0-9a-f]{6}$/i.test(c[key] as string)))) return undefined;
+    colors = Object.fromEntries(Object.entries(c).filter(([key, value]) => ['critical', 'nearCritical', 'normal'].includes(key) && value !== undefined));
   }
   const extra = colors ? { colors } : {};
   if (selection.mode === 'critical' || selection.mode === 'auto') return { mode: selection.mode, ...extra };

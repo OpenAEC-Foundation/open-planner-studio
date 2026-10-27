@@ -207,6 +207,7 @@
     "screenColors_critical": "Kritisk vej",
     "screenColors_auto": "Pr. opgave — automatisk",
     "screenColors_category": "Efter kategori",
+    "screenColorsNearCritical": "Næsten kritisk",
     "screenColorsMissingField": "Dette felt findes ikke i dette projekt. Arbejdskategori bruges midlertidigt.",
     "screenColorsHint": "Når Kritisk vej ikke er valgt, markerer en rød kant den kritiske vej.",
     "addLayout": "Opret layout",
