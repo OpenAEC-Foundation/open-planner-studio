@@ -1,0 +1,61 @@
+{
+  "toelichting": "Vangnet van de minutenmodel-runs (spec 2026-10-20-alleen-uren-design.md §6.1): per run en per batterij de dagcases die na de redencodes niet gelijk zijn op dagniveau (ROOD, BEWUST_ROOD, NIET_OMZETBAAR). Bijwerken: zie tests/planning/README.md.",
+  "run1": {
+    "advanced-cpm": [],
+    "baselines": [],
+    "boundary": [],
+    "calendar": [],
+    "calibration": [],
+    "constraints": [],
+    "driving": [],
+    "edge": [],
+    "float": [],
+    "hours": [],
+    "hours-blokgrenzen": [],
+    "hours-relations": [],
+    "kalenders": [],
+    "lag-advanced": [],
+    "milestone-kinds": [],
+    "milestones": [],
+    "move-project": [],
+    "msp-pariteit": [],
+    "probes": [],
+    "progress": [],
+    "relations": [],
+    "resource-leveling": [],
+    "resource-load": [],
+    "view": []
+  },
+  "run2": {
+    "advanced-cpm": [],
+    "baselines": [],
+    "boundary": [],
+    "calendar": [],
+    "calibration": [],
+    "constraints": [],
+    "driving": [],
+    "edge": [],
+    "float": [],
+    "hours": [],
+    "hours-blokgrenzen": [],
+    "hours-relations": [],
+    "kalenders": [],
+    "lag-advanced": [
+      "lagadv-ff-lead-ed"
+    ],
+    "milestone-kinds": [
+      "mk-05a"
+    ],
+    "milestones": [],
+    "move-project": [],
+    "msp-pariteit": [
+      "msp-20-t8-review-elapsed-keten"
+    ],
+    "probes": [],
+    "progress": [],
+    "relations": [],
+    "resource-leveling": [],
+    "resource-load": [],
+    "view": []
+  }
+}

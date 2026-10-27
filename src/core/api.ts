@@ -38,11 +38,18 @@ export interface ScheduleWarning {
      *  weggelaten; `toIfc()` schrijft het niet meer mee. `detail` is de reden
      *  (`schema-version`, `hash-mismatch`, `truncated`, `bytes-missing`, `metadata-invalid`,
      *  `structure`). `ids` is leeg. */
-    | 'XER_ARCHIVE_DROPPED';
+    | 'XER_ARCHIVE_DROPPED'
+    /** De datums in het bestand zijn niet in minuten berekend (een IFC van een oudere versie van de
+     *  app). Het openen rekende het project om, net als de app, en daarbij kregen deze taken een
+     *  ander begin of einde. `ids` zijn die taken; `maxShiftWorkdays` is de grootste verschuiving.
+     *  `toIfc()` schrijft de nieuwe datums. */
+    | 'MINUTE_MODEL_CONVERTED';
   /** Taak-id's (of relatie-id's bij `OUT_OF_SEQUENCE`/`RELATION_IGNORED`) waar het om gaat. */
   ids: string[];
   /** Een korte vaste reden, alleen bij codes die er een hebben. */
   detail?: string;
+  /** Alleen bij `MINUTE_MODEL_CONVERTED`: de grootste verschuiving in werkdagen, op één decimaal. */
+  maxShiftWorkdays?: number;
 }
 
 /** Eén taak in de samenvatting. Datums zijn ISO-8601-tekst zoals de app ze bewaart (datum of
@@ -98,6 +105,10 @@ export interface ScheduleSummary {
 
 /** Eén geopend document. Elk document heeft een eigen, losse rekencontext; documenten delen niets. */
 export interface PlannerDocument {
+  /** De waarschuwingen van het openen (`XER_ARCHIVE_DROPPED`, `MINUTE_MODEL_CONVERTED`), direct na
+   *  `openIfc()`, dus ook vóór `toIfc()` zonder `schedule()`. Elke samenvatting van `schedule()`
+   *  bevat ze ook. Leeg als het openen niets te melden had. */
+  readonly openWarnings: ScheduleWarning[];
   /** Reken het project door zoals de knop Berekenen (F5) in de app doet, en geef de samenvatting.
    *  Het document is bij het openen al eens doorgerekend, zoals in de app; `schedule()` rekent
    *  opnieuw en verlaat een eventuele stand "datums zoals opgeslagen".

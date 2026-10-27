@@ -15,6 +15,9 @@ import { useAppStore } from '@/state/appStore';
 import { msProjectImportNotice } from '@/state/msProjectImportNotice';
 import { rtfHasVisibleText } from '@/services/mpp/mppImportLoss';
 import { CfbFile } from '@/services/mpp/cfb';
+import { writeIFC } from '@/services/ifc/ifcWriter';
+import { readIFC } from '@/services/ifc/ifcReader';
+import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { readMPP } from '@/services/mpp/mppReader';
 import { Var2Data } from '@/services/mpp/mppPrimitives';
 import { activeImportResult, isMultiDocumentImport, type OpenedImport } from '@/services/importTypes';
@@ -287,7 +290,7 @@ async function open(name: string, bytes: Uint8Array): Promise<OpenedImport> {
   const parsed = await parseOpenedFile({ name, bytes });
   S().newProject();
   useAppStore.setState(st => { st.ui.notifications = []; });
-  S().applyOpenedImport(parsed, { filePath: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: true });
+  S().applyOpenedImport(parsed, { filePath: null, recompute: true, fit: false, linkedOpen: true });
   return parsed;
 }
 const resultsOf = (parsed: OpenedImport) => isMultiDocumentImport(parsed) ? parsed.results : [parsed];
@@ -494,12 +497,12 @@ async function main(): Promise<void> {
   eq('2a drie taken ingelezen', result.tasks.map(t => t.name), ['Fundering', 'Deelproject installaties', 'Oplevering (extern)']);
   eq('2b verslag', result.msProjectReport, {
     format: 'mpp', baselines: 4, baselineWorkCost: 0, assignmentBaselineDates: 0, customFields: 3, notes: 4, hyperlinks: 2, fixedCosts: 1, resourceRates: 1,
-    subprojects: 1, externalTasks: 1, manualTasks: 0, levelingDelays: 0, inactiveTasks: 0, criticalSlackLimitDays: 3,
+    subprojects: 1, externalTasks: 1, manualTasks: 0, levelingDelays: 0, inactiveTasks: 0,
   });
-  // De lezer neemt geen aantekening, baseline of kritiek-drempel over (het verslag klopt dus).
+  // Aantekeningen en baselines ontbreken nog; de kritiekgrens komt wel mee.
   eq('2c taakaantekening niet overgenomen', result.tasks[0]?.description ?? '', '');
   eq('2d geen baseline overgenomen', result.baselines ?? [], []);
-  eq('2e kritiek-drempel niet als projectinstelling', result.project.schedulingOptions?.criticalDefinition?.threshold ?? 0, 0);
+  eq('2e kritiek-drempel als projectinstelling', result.project.schedulingOptions?.criticalDefinition, { mode: 'totalFloat', threshold: 3 });
 
   // (3) Eén melding, met per categorie een regel; de rekenprofielregel van .mpp staat erboven.
   const notices = S().ui.notifications.filter(n => n.messageKey === 'notifications.msProjectImportLoss');
@@ -510,7 +513,6 @@ async function main(): Promise<void> {
     ['notifications.schedulingProfileApplied', undefined],
     ['notifications.msProjectLostSubprojects', 1],
     ['notifications.msProjectLostExternalTasks', 1],
-    ['notifications.msProjectLostCriticalSlack', 3],
     ['notifications.msProjectLostBaselines', 4],
     ['notifications.msProjectLostCustomFields', 3],
     ['notifications.msProjectLostNotes', 4],
@@ -539,6 +541,25 @@ async function main(): Promise<void> {
   eq('4e1 metadata: geen verslag', activeImportResult(parsed).msProjectReport, undefined);
   eq('4e2 metadata: geen melding', msProjectImportNotice(resultsOf(parsed)), undefined);
   eq('4e3 metadata: geen melding in de store', S().ui.notifications.some(n => n.messageKey === 'notifications.msProjectImportLoss'), false);
+
+  // Knownbug 46: echte MPP-bytes → open/store → F5 → IFC → heropenen.
+  for (const [raw, expected] of [[undefined, 0], [0, 0], [3, 3], [-2, -2], [36500, 36500], [36501, 0]] as const) {
+    const imported = activeImportResult(await open('kritiek.mpp', buildMpp({ ...CLEAN, criticalSlackLimit: raw })));
+    const want = { mode: 'totalFloat', threshold: expected };
+    eq(`46 ${raw}: lezer bewaart de grens`, imported.project.schedulingOptions?.criticalDefinition, want);
+    eq(`46 ${raw}: geen onterechte verliesmelding`, imported.msProjectReport, undefined);
+    eq(`46 ${raw}: store neemt de grens over`, S().project.schedulingOptions?.criticalDefinition, want);
+    S().runCPM();
+    eq(`46 ${raw}: F5 behoudt de grens`, S().project.schedulingOptions?.criticalDefinition, want);
+    eq(`46 ${raw}: berekening slaagt`, !!S().cpmResult?.error, false);
+    eq(`46 ${raw}: twee bladtaken getoetst`, S().tasks.length, 2);
+    eq(`46 ${raw}: berekende kritiekvlag gebruikt de grens`,
+      S().tasks.map(task => task.time.isCritical), S().tasks.map(task => task.time.totalFloat <= expected));
+    const restored = readIFC(writeIFC(buildWriteIFCInput(S())));
+    eq(`46 ${raw}: IFC-round-trip behoudt de grens`, restored.project.schedulingOptions?.criticalDefinition, want);
+    S().applyOpenedImport(restored, { filePath: null, recompute: true, fit: false, linkedOpen: true });
+    eq(`46 ${raw}: heropend project behoudt de grens`, S().project.schedulingOptions?.criticalDefinition, want);
+  }
 
   // (4f) Gedeelde tokenizer voor taak/resource/toewijzing: zichtbare tekst, bin-grenzen en CR/LF.
   parsed = await open('inhoud.mpp', buildMpp({

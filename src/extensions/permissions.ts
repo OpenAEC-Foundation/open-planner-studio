@@ -71,6 +71,7 @@ export const API_PERMISSIONS: Record<string, PermissionCheck | null> = {
   'data.getProject': null,
   'data.getCalendar': null,
   'data.getTasks': null,
+  'data.getSelectedTaskIds': null,
   'data.getSequences': null,
   'data.getResources': null,
   'data.getAssignments': null,

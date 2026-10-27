@@ -112,7 +112,7 @@ async function runProbe(label: string, mode: ProbeMode, filePath: string): Promi
   state.newProject();
   state.applyOpenedImport(opened, {
     filePath: null, fileHandle: null, recompute: false, fit: false,
-    hourDataNotice: false, linkedOpen: false,
+    linkedOpen: false,
   });
   const docs = useAppStore.getState().getOpenDocumentPayloads();
   const ifcs = docs.map(document => writeIFC(buildWriteIFCInput(document.payload)));

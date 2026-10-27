@@ -473,8 +473,10 @@ test('werkregel: i-icoon per optie en naast het veld, met de uitleg van de regel
   await expect(tip).toBeVisible();
   await expect(tip.locator('strong')).toHaveText(nl ? 'De duur volgt uit het werk en de inzet.' : 'Duration follows from work and units.');
   await expect(tip).toContainText(nl ? 'Wijzig je de duur, dan past het werk zich aan.' : 'If you change the duration, the work adjusts.');
-  // Dagtaak: de rekenkern rondt af op hele werkdagen, dus de zin noemt dat (besluit eigenaar 2026-10-15).
-  await expect(tip).toContainText(nl ? 'Een extra resource maakt de taak korter, afgerond op hele dagen.' : 'An extra resource makes the task shorter, rounded to whole days.');
+  // B1 (spec "alleen uren" T14, F3a): de werkdriehoek rondt een dagtaak niet meer af op hele werkdagen.
+  // De zin "afgerond op hele dagen" (sleutel `resourceShorterWholeDays`) bestaat daarom niet meer; ook een
+  // dagtaak krijgt de korte zin.
+  await expect(tip.locator('.ops-tooltip__line').last()).toHaveText(nl ? 'Een extra resource maakt de taak korter.' : 'An extra resource makes the task shorter.');
 });
 
 // Besluit eigenaar 2026-10-15: "afgerond op hele dagen" alleen bij een dagtaak. Een urentaak rondt af op

@@ -125,7 +125,7 @@ const xer = readXER(new TextEncoder().encode([
 ].join('\n')));
 const imported = isMultiDocumentImport(xer) ? xer.results[0]! : xer;
 ctx.store.getState().applyOpenedImport(imported, {
-  filePath: null, fileHandle: null, recompute: false, fit: false, hourDataNotice: false, linkedOpen: false,
+  filePath: null, fileHandle: null, recompute: false, fit: false, linkedOpen: false,
 });
 const xerSource = capturePayload(s());
 assert.ok(xerSource.xerSourceArchive);

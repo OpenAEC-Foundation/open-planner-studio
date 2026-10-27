@@ -23,7 +23,7 @@ g.getComputedStyle = () => ({ getPropertyValue: () => '' });
 
 import { useAppStore } from '@/state/appStore';
 import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
-import { parseDate, parseInstant } from '@/utils/dateUtils';
+import { parseInstant } from '@/utils/dateUtils';
 import type { Task } from '@/types/task';
 import type { ViewRow } from '@/engine/view/visibleRows';
 
@@ -260,7 +260,8 @@ if (renderError === null) {
     //    onafhankelijk van `barGeometry`/`roundRect` (een mijlpaal tekent geen rechthoek).
     //    `milestoneKind` is hier onbekend (AUTO) ⇒ zelfde dag-gecentreerde anker als drawMilestone
     //    (anchor = zoom / 2), dus + view.zoom / 2 t.o.v. de dagcelstart.
-    const startOnlyX = renderer.dateToX(parseDate(startOnlyMilestone.time.earlyStart!)) + view.zoom / 2;
+    // F2: de geladen start is een exact D1-moment; de ruit heeft geen dagcel-offset.
+    const startOnlyX = renderer.dateToX(parseInstant(startOnlyMilestone.time.earlyStart!));
     ok('getRelationSourceAt weigert een MIJLPAAL MET ALLEEN EEN START (dit is de bug die we repareren)',
       renderer.getRelationSourceAt(startOnlyX, rowMidY(8))?.id === 'ms-start-only');
     ok('getRelationSourceAt vindt de start-only mijlpaal ook net binnen de marge (startOnlyX+4)',

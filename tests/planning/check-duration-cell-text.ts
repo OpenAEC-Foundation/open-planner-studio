@@ -40,7 +40,6 @@ const SUFFIXES: DurationSuffixes = { day: 'd', hour: 'h', minute: 'm' };
 
 // ── Project: 9-uurskalender, een urentaak van 5h, een dagtaak van 2d en een mijlpaal ──
 S().newProject();
-S().setUI({ enableHourPlanning: true });
 const band = [{ start: 8 * 60, end: 17 * 60 }];
 S().setCalendar({
   ...S().calendar, workDays: [1, 2, 3, 4, 5], holidays: [], hoursPerDay: 9, workStartHour: 8, workEndHour: 17,
@@ -75,7 +74,7 @@ function gridCell(taskId: string, display: DurationDisplay): string | undefined 
 function tooltip(taskId: string, display: DurationDisplay): string {
   const s = S();
   const task = s.tasks.find(t => t.id === taskId)!;
-  return formatTaskDurationDisplay(task, effectiveCalendarOf(task, s.calendar, s.calendars), display, true, SUFFIXES, LOCALE);
+  return formatTaskDurationDisplay(task, effectiveCalendarOf(task, s.calendar, s.calendars), display, SUFFIXES, LOCALE);
 }
 
 /** De Duur-cel per taak in de Gantt-afdruk, plus wat het paneel voor die kolom meet. Zoals in

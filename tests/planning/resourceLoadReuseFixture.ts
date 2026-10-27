@@ -1,4 +1,5 @@
 // Synthetische, deterministische invoer voor regressie en de vergelijking van beide revisies.
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import type { HistogramInput } from '@/engine/scheduler/ResourceLoad';
 import { CONTOUR_SHAPE_VALUES } from '@/engine/contour/contourEngine';
 import type { Task } from '@/types/task';
@@ -72,6 +73,7 @@ export function makeResourceLoadReuseFixture(taskCount: number, assignmentsPerTa
   }
   return {
     tasks, assignments, calendar, calendars, sequences: [], cpmResult: null,
+    schedulingOptions: effectiveSchedulingOptions({}),
     resources: Array.from({ length: 4 }, (_, i) => ({
       id: `r${i}`, name: `Resource ${i}`, description: '', type: i === 3 ? 'MATERIAL' : 'LABOR',
       maxUnits: 3, calendarId: i === 1 ? 'kort' : undefined,

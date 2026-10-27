@@ -221,7 +221,10 @@
     "msProjectLostFixedCosts_one": "{{count}} görevin sabit maliyeti aktarılmadı.",
     "msProjectLostFixedCosts_other": "{{count}} görevin sabit maliyeti aktarılmadı.",
     "msProjectLostResourceRates_one": "{{count}} kaynağın ücreti aktarılmadı.",
-    "msProjectLostResourceRates_other": "{{count}} kaynağın ücretleri aktarılmadı."
+    "msProjectLostResourceRates_other": "{{count}} kaynağın ücretleri aktarılmadı.",
+    "minuteModelConverted_one": "{{document}}: Dönüştürme sonrası {{count}} görevde başlangıç veya bitiş değişti; en büyük kayma {{days}} iş günü. Ctrl+Z kaydedilen tarihleri geri yükler.",
+    "minuteModelConverted_other": "{{document}}: Dönüştürme sonrası {{count}} görevde başlangıç veya bitiş değişti; en büyük kayma {{days}} iş günü. Ctrl+Z kaydedilen tarihleri geri yükler.",
+    "minuteModelCalendarRepaired": "'{{calendar}}' takvimi onarıldı: bitiş veya mola, kayıtlı çalışma saatleri ile uyuşmuyordu."
   },
   "scheduleErrors": {
     "cycle": "Görevler arasında döngüsel ilişki: {{path}}",
@@ -335,16 +338,17 @@
     "themeHighContrast": "Yüksek Kontrast",
     "themeFollowSystem": "Sistem temasını izle",
     "themeSystemHint": "Sisteminizin renk şemasını izler (şu anda: {{theme}}).",
-    "hourPlanningSection": "Saat planlaması",
-    "enableHourPlanning": "Saat planlamasını etkinleştir",
-    "enableHourPlanningHint": "Saat/dakika zamanlamasını açar: saatlik zaman ölçeği, çalışma saati bantlarına sahip vardiyalar ve saat hassasiyetinde görev çubukları. Kapalı ⇒ uygulama önceki gibi tamamen gün bazlı kalır.",
     "showTaskTypes": "Görev türlerini kullanın",
     "showTaskTypesHint": "Her görev için, süre, birim veya iş değiştiğinde neyin değişeceğini seçin. Bu, MS Project'teki Task Type ve P6'daki Duration Type gibidir. Kapalı: süre ve birimler sabit kalır. Görev türü veya kayıtlı iş içeren bir dosya bunları, bu ayar kapalı olsa bile gösterir.",
     "allowMixedDayHour": "Karma gün/saat planlamasına izin ver",
-    "defaultTaskDurationUnit": "Yeni görevler için varsayılan birim",
-    "defaultTaskDurationUnitHint": "Yeni görevlerin iş günüyle mi çalışma saatiyle mi başlayacağını belirler. Mevcut görevler değişmez.",
+    "defaultTaskDurationUnit": "Yeni görevler için varsayılan ölçü",
+    "defaultTaskDurationUnitHint": "Gün ölçüsü: bir süre, takvimin iş günlerinde sayılır. Saat ölçüsü: bir süre, çalışma saatlerinde sayılır. Mevcut görevler değişmez. Sabit işi olan bir görev her zaman saat ölçüsünü kullanır.",
+    "defaultTaskDurationUnitDays": "Gün birimi",
+    "defaultTaskDurationUnitHours": "Saat birimi",
+    "defaultTaskDurationUnitLocked": "{{profile}} profili süreyi saat cinsinden hesaplar. Bu nedenle yeni görevler saat birimini alır.",
     "durationDisplay": "Süre gösterimi",
     "durationDisplayHint": "Görev süresinin, görevin kendi kaydedildiği birimden bağımsız olarak nasıl gösterileceğini belirler.",
+    "durationDisplayOpsHint": "OPS profilinde her görev kendi birimini gösterir.",
     "durationDisplayAuto": "Otomatik (göreve özgü birim)",
     "durationDisplayDays": "Her zaman gün",
     "durationDisplayHours": "Her zaman saat",
@@ -1116,10 +1120,6 @@
     "month": "ay",
     "year": "yıl"
   },
-  "hourData": {
-    "notice": "Bu dosya saat bazlı planlama içeriyor.",
-    "enable": "Saat planlamasını aç"
-  },
   "recordedDates": {
     "activeCount_one": "Planı Primavera'nın kaydettiği şekilde görüntülüyorsunuz; yeniden hesaplama {{count}} görevi kaydırır.",
     "activeCount_other": "Planı Primavera'nın kaydettiği şekilde görüntülüyorsunuz; yeniden hesaplama {{count}} görevi kaydırır.",
@@ -1483,6 +1483,14 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "ALAP görevleri ardılların izin verdiği kadar geç",
       "help": "Yalnızca saat planlamasında, elle planlanmamış, başlamamış bir görev için ve “Mümkün olduğunca geç” (ALAP) kısıtlaması ile çalışır. Ardıllarının erken tarihleri, görevin yerini dakikasına kadar belirler; ardıllar önce hesaplanır. Görevin kendi planlanan başlangıcı sayılmaz; öncüller, durum tarihi ve ikinci bir kısıtlama hâlâ geçerlidir. Ardılı yoksa geç bitişini kullanır. Olağan ALAP adımı her profilde kullanılabilir kalır."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Bağlantısız kilometre taşları iş gününün sonunda",
+      "help": "Öncülü olmayan bağlantısız bir kilometre taşı veya bitiş kilometre taşı, iş gününün sonunda yerleştirilir."
+    },
+    "workdayDurationMeasure": {
+      "label": "Süre iş günü cinsinden",
+      "help": "Gün cinsinden bir süre, gecikme veya kalan süre iş günü olarak sayılır: her iş günü, o günün uzunluğu ne olursa olsun 1 sayılır. Kapalıyken bir gün, takvimdeki günlük çalışma saati sayısı kadar sayılır. Yüzde cinsinden bir gecikme, öncülün birimini izler. Geçen süre hiçbir zaman iş günü olarak sayılmaz."
     }
   },
   "profiles": {
@@ -1521,6 +1529,7 @@
       "float": "Bolluk ve geç tarihler",
       "instants": "Dosyadaki tarihler ve anlar",
       "msproject": "Microsoft Project gibi ilerleme",
+      "durations": "Süre ve birim",
       "ownProfilesOnly": "Yalnızca özel profiller için"
     },
     "ownProfilesOnlyNote": "Bu kurallar, Primavera P6 dahil her yerleşik hesaplama profilinde kapalıdır. Bunları yalnızca özel bir hesaplama profili açabilir: bunun için “Yeni profil” seçin.",

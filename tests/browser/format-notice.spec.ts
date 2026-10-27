@@ -1,3 +1,4 @@
+// F2: taakdatums worden op D1/D2/D7-momenten vergeleken (§4.2); de echte handeling blijft gelijk.
 // Uitleg na het openen van een ander formaat dan IFC (eigenaarsbesluit 2026-10-12, optie 1).
 // Echte gebruikersflow: bestanden via de ribbonknop Openen en de bestandskiezer, de dialoog en de
 // instelling met echte klikken. `window.__OPS__` zet alleen de beginstand (uitleg aan; de fixture
@@ -229,9 +230,9 @@ test('formaatuitleg: P6 XML en CSV openen met uitleg; onleesbare imports geven a
     })).toEqual({
       filePath: null,
       tasks: [
-        { name: 'ISO', start: '2015-01-05', finish: '2015-01-05', actualStart: null, actualFinish: null },
-        { name: 'DMY', start: '2015-01-06', finish: '2015-01-06', actualStart: null, actualFinish: null },
-        { name: 'Leeg', start: '2015-01-05', finish: '2015-01-05', actualStart: null, actualFinish: null },
+        { name: 'ISO', start: "2015-01-05T07:00", finish: "2015-01-05T16:00", actualStart: null, actualFinish: null },
+        { name: 'DMY', start: "2015-01-06T07:00", finish: "2015-01-06T16:00", actualStart: null, actualFinish: null },
+        { name: 'Leeg', start: "2015-01-05T07:00", finish: "2015-01-05T16:00", actualStart: null, actualFinish: null },
       ],
     });
     await notice(page).locator('[data-ops-format-notice-close]').click();

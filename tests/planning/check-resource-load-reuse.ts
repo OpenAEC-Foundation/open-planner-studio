@@ -14,7 +14,7 @@ function eq(actual: unknown, expected: unknown, label: string): void {
   checks++;
 }
 function load(input: HistogramInput) {
-  return computeResourceLoad(input.resources, input.assignments, input.tasks, input.calendar, input.calendars);
+  return computeResourceLoad(input.resources, input.assignments, input.tasks, input.calendar, input.calendars, input.schedulingOptions);
 }
 
 function withoutSharedTasks(input: HistogramInput) {
@@ -55,6 +55,19 @@ function parity(input: HistogramInput, label: string): void {
   eq(JSON.stringify(input), before, `${label}: invoer blijft ongewijzigd`);
 }
 
+// De actuele werkplaatsing verdeelt acht uur vanaf maandag 11:00 over twee halve dagen.
+const shifted = makeResourceLoadReuseFixture(1, 1);
+Object.assign(shifted.calendar, { workStartHour: 7, workEndHour: 15, hoursPerDay: 8 });
+shifted.calendars = [];
+Object.assign(shifted.tasks[0].time, {
+  durationUnit: 'hours', durationMinutes: 480, remainingMinutes: 480, scheduleDuration: 1,
+  earlyStart: '2026-10-19T11:00', earlyFinish: '2026-10-20T11:00',
+});
+Object.assign(shifted.assignments[0], { resourceId: 'r0', unitsPerDay: 1, curve: 'UNIFORM' });
+eq(load(shifted).load.r0, { '2026-10-19': 0.5, '2026-10-20': 0.5 },
+  'uurplaatsing behoudt beide halve werkdagen');
+parity(shifted, 'acht uur vanaf 11:00');
+
 const mixed = makeResourceLoadReuseFixture(24, 8);
 parity(mixed, 'kalenders, uitzonderingen, elapsed, voltooid, voortgang, urensplits en contourlengtes');
 mixed.assignments.reverse();
@@ -88,11 +101,11 @@ skipped.assignments.push({ id: 'wees', taskId: 't7', resourceId: 'ontbreekt', un
 parity(skipped, 'lege verdelingen, mijlpaal, samenvatting en ontbrekende taak/resource');
 
 function calendarCalls<T>(run: () => T): { value: T; calls: number } {
-  const original = CalendarEngine.prototype.isWorkDay;
+  const original = CalendarEngine.prototype.effectiveBandsOn;
   let calls = 0;
-  CalendarEngine.prototype.isWorkDay = function(date) { calls++; return original.call(this, date); };
+  CalendarEngine.prototype.effectiveBandsOn = function(date) { calls++; return original.call(this, date); };
   try { return { value: run(), calls }; }
-  finally { CalendarEngine.prototype.isWorkDay = original; }
+  finally { CalendarEngine.prototype.effectiveBandsOn = original; }
 }
 
 function scaleInput(taskCount: number, count: number): HistogramInput {

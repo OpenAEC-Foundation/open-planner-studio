@@ -25,7 +25,9 @@ import { RESOURCE_LOAD_NEUTRAL_TASK_KEYS, resourceLoadInputsUnchanged } from '@/
 import { parseTaskDurationInput } from '@/utils/taskDurationInput';
 import type { CellEditIntent } from '@/types/taskGrid';
 import type { Task } from '@/types/task';
+import type { SchedulingOptions, SchedulingProfile } from '@/types/project';
 import { createLargeSchedule } from './largeScheduleFixture';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 
 const fails: string[] = [];
 let checks = 0;
@@ -50,7 +52,7 @@ const project = createLargeSchedule({ tasks: 600, assignmentsPerTask: 3, sequenc
       return Reflect.get(target, key, receiver) as unknown;
     },
   }));
-  computeResourceLoad(project.resources, project.assignments, proxied, project.calendar, []);
+  computeResourceLoad(project.resources, project.assignments, proxied, project.calendar, [], effectiveSchedulingOptions({}));
   const leaked = [...RESOURCE_LOAD_NEUTRAL_TASK_KEYS].filter(k => read.has(k));
   ok('2 de belastingmotor leest geen neutrale taaksleutel', leaked.length === 0, leaked.join(', '));
   ok('2 de proxy zag de motor echt lezen (anders pint 2 niets)', read.has('time') && read.has('id'), [...read].join(', '));
@@ -59,7 +61,8 @@ const project = createLargeSchedule({ tasks: 600, assignmentsPerTask: 3, sequenc
 // ── 3. De beslisfunctie ───────────────────────────────────────────────────────────────────────────
 {
   const base = { tasks: project.tasks, assignments: project.assignments, resources: project.resources,
-    calendar: project.calendar, calendars: [] as typeof project.calendar[], cpmResult: null };
+    calendar: project.calendar, calendars: [] as typeof project.calendar[], cpmResult: null,
+    project: {} as { schedulingProfile?: SchedulingProfile; schedulingOptions?: SchedulingOptions } };
   const leaf = project.tasks.findIndex(t => t.childIds.length === 0 && !t.isMilestone && t.resourceIds.length > 0);
   const withTask = (patch: Partial<Task>) => {
     const tasks = project.tasks.slice();
@@ -94,6 +97,10 @@ const project = createLargeSchedule({ tasks: 600, assignmentsPerTask: 3, sequenc
   ok('3h nieuwe resourcelijst ⇒ herberekenen', !resourceLoadInputsUnchanged(base, { ...base, resources: project.resources.slice() }));
   ok('3i nieuwe projectkalender ⇒ herberekenen', !resourceLoadInputsUnchanged(base, { ...base, calendar: { ...project.calendar } }));
   ok('3j nieuwe kalenderlijst ⇒ herberekenen', !resourceLoadInputsUnchanged(base, { ...base, calendars: [] }));
+  // De belasting leest de maatconventie van het profiel: een ander profiel of andere opties ⇒ herberekenen.
+  ok('3l ander rekenprofiel ⇒ herberekenen', !resourceLoadInputsUnchanged(base,
+    { ...base, project: { schedulingProfile: { baseId: 'p6', id: 'p6', name: 'P6', overrides: {} } } }));
+  ok('3m andere projectopties ⇒ herberekenen', !resourceLoadInputsUnchanged(base, { ...base, project: { schedulingOptions: {} } }));
 }
 
 // ── 4. Via de store ───────────────────────────────────────────────────────────────────────────────
@@ -115,7 +122,7 @@ const project = createLargeSchedule({ tasks: 600, assignmentsPerTask: 3, sequenc
   ok('4c duurbewerking slaagt', res.ok, JSON.stringify(res));
   const after = S().resourceLoadResult;
   ok('4d duurbewerking rekent opnieuw (nieuw object)', after !== before);
-  const fresh = computeReliableResourceLoad(S().cpmResult, S().resources, S().assignments, S().tasks, S().calendar, S().calendars);
+  const fresh = computeReliableResourceLoad(S().cpmResult, S().resources, S().assignments, S().tasks, S().calendar, S().calendars, effectiveSchedulingOptions(S().project));
   ok('4e en dat resultaat is gelijk aan een verse berekening', JSON.stringify(after) === JSON.stringify(fresh));
   ok('4f de duur raakte de belasting echt (anders pint 4d/4e niets)', JSON.stringify(after) !== JSON.stringify(before));
 }

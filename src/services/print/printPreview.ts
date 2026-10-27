@@ -1,7 +1,7 @@
 import { Task } from '@/types/task';
 import { Sequence } from '@/types/sequence';
 import { isHourModeCalendar, WorkCalendar } from '@/types/calendar';
-import { parseDate, parseInstant, formatDate, addCalendarDays, getWeekNumberFor, diffCalendarDays, isoDayOfWeek, utcDayStart, localNowOnDayAxis } from '@/utils/dateUtils';
+import { parseDate, formatDate, addCalendarDays, getWeekNumberFor, diffCalendarDays, isoDayOfWeek, utcDayStart, localNowOnDayAxis } from '@/utils/dateUtils';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import type { DateNotation, DurationDisplay, TimeNotation } from '@/types/view';
 import type { Draw2D } from '@/services/pdf/draw2d';
@@ -10,7 +10,9 @@ import { printableWidthLogicalPx, type TileLayout } from '@/services/print/tileL
 // Print-vriendelijk kleurschema uit het centrale themapalet.
 import { PRINT_PALETTE as PRINT_COLORS, doneBarTones } from '@/engine/renderer/themePalette';
 import { isCompressedEffective, resolveGanttAxis } from '@/engine/renderer/workdayAxis';
-import { computeSplitSegments } from '@/engine/renderer/splitBarGeometry';
+import { taskSplitSegments } from '@/engine/renderer/splitBarGeometry';
+import { milestoneAnchorX, taskBarSpan } from '@/engine/renderer/barSpan';
+import { taskDateLabel } from '@/utils/taskDateLabel';
 import { paintProgressBarPiece } from '@/engine/renderer/barPaint';
 import { snapToChoice } from '@/utils/numberChoice';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
@@ -395,7 +397,7 @@ interface TaskTableCellTexts extends Record<AutoColumnKey, string> {
 }
 
 type CellTextOptions = Pick<PrintOptions,
-  'dateNotation' | 'numberLocale' | 'curveLabels' | 'durationDisplay' | 'durationSuffixes' | 'calendars'> & {
+  'dateNotation' | 'timeNotation' | 'numberLocale' | 'curveLabels' | 'durationDisplay' | 'durationSuffixes' | 'calendars'> & {
   /** De projectkalender: terugval voor de effectieve taakkalender van de Duur-kolom. Afwezig ⇒ 8 u/dag
    *  (dan zijn alleen de omrekeningen tussen dagen en uren een schatting; de eigen eenheid niet). */
   calendar?: WorkCalendar;
@@ -418,17 +420,23 @@ function durationCellText(task: Task, options: CellTextOptions): string {
   });
 }
 
+/** Een datum van een taak in de tabel: B4 (een tijd alleen als het moment midden op de werkdag valt), in
+ *  de kalender van de taak. Zonder projectkalender alleen de datum. Ontbreekt de notatie ⇒ dd-mm-jjjj. */
+function taskDateCellText(task: Task, value: string, side: 'start' | 'end', options: CellTextOptions): string {
+  const notation = options.dateNotation ?? 'dmy';
+  if (!value || !options.calendar) return displayDate(value, notation);
+  const calendar = effectiveCalendarOf(task, options.calendar, options.calendars ?? []);
+  return displayDateTime(taskDateLabel(task, value, side, calendar), notation, options.timeNotation ?? '24h');
+}
+
 function taskTableCellTexts(row: PrintRow, options: CellTextOptions): TaskTableCellTexts {
   const task = row.kind === 'task' ? row.task : undefined;
-  const startStr = task && shownStart(task);
-  const endStr = task && shownFinish(task);
   const assignment = row.assignment;
   return {
     wbs: task?.wbsCode || '',
     duration: task ? durationCellText(task, options) : '',
-    // Ontbreekt de datumnotatie ⇒ dd-mm-jjjj.
-    start: displayDate(startStr, options.dateNotation ?? 'dmy'),
-    end: displayDate(endStr, options.dateNotation ?? 'dmy'),
+    start: task ? taskDateCellText(task, shownStart(task), 'start', options) : '',
+    end: task ? taskDateCellText(task, shownFinish(task), 'end', options) : '',
     complete: task ? formatCompletion(task.time.completion) : '',
     units: assignment ? formatReportNumber(assignment.unitsPerDay, options.numberLocale) : '',
     curve: assignment ? (assignment.curve === null ? '—' : (options.curveLabels?.[assignment.curve] ?? assignment.curve)) : '',
@@ -691,8 +699,12 @@ export interface PrintOptions {
   durationDisplay?: DurationDisplay;
   /** Vertaalde duur-afkortingen (`durationSuffixesFrom`) — print heeft geen `t()`; afwezig ⇒ d/h/m. */
   durationSuffixes?: DurationSuffixes;
-  /** De kalenderbibliotheek, voor de uren per dag van de effectieve taakkalender in de Duur-kolom. */
+  /** De kalenderbibliotheek, voor de uren per dag van de effectieve taakkalender in de Duur-kolom, de
+   *  datums volgens B4 en de stukken van een onderbroken taak. */
   calendars?: WorkCalendar[];
+  /** Telt het rekenprofiel een dagenmaat in werkdagen (conventie `workdayDurationMeasure`)? Kiest de maat
+   *  van de split-as, zoals de Gantt. Afwezig ⇒ aan (OPS-profiel). */
+  workdayDurationMeasure?: boolean;
   /**
    * Lettergrootte van het GEGENEREERDE RAPPORT als percentage. 100 (of ontbrekend) = ongeschaald.
    * Werkt bewust RELATIEF: tekst, rijhoogtes,
@@ -1225,18 +1237,18 @@ export function renderReport(
             const rowMid = rowTop + m.rowHeight / 2;
             let px = statusLineX!;
             const row = printRows[i];
-            if (row.kind === 'task' && row.task && !row.task.isMilestone && isLeafTask(row.task)) {
-              const s = parseDate(shownStart(row.task));
-              const f = parseDate(shownFinish(row.task));
-              const bx1 = dateToX(s);
-              const bx2 = dateToX(f) + zoom;
+            // De balkgrenzen van het scherm (`taskBarSpan`), dus ook de klaar/niet-gestart-referentie.
+            const bar = row.kind === 'task' && row.task && !row.task.isMilestone && isLeafTask(row.task)
+              ? taskBarSpan(row.task, dateToX, zoom)
+              : null;
+            if (row.task && bar) {
               const c = Math.max(0, Math.min(1, row.task.time.completion || 0));
-              const finishRef = statusUsesTime ? parseInstant(shownFinish(row.task)).getTime() : utcDayStart(f).getTime();
-              const startRef = statusUsesTime ? parseInstant(shownStart(row.task)).getTime() : utcDayStart(s).getTime();
+              const finishRef = statusUsesTime ? bar.end.getTime() : utcDayStart(bar.end).getTime();
+              const startRef = statusUsesTime ? bar.start.getTime() : utcDayStart(bar.start).getTime();
               const statusRef = statusUsesTime ? statusInstant.getTime() : utcDayStart(statusDay).getTime();
               const fullyDone = c >= 1 && finishRef <= statusRef;
               const notStarted = c === 0 && startRef >= statusRef;
-              if (!fullyDone && !notStarted) px = clampX(bx1 + (bx2 - bx1) * c);
+              if (!fullyDone && !notStarted) px = clampX(bar.x1 + (bar.x2 - bar.x1) * c);
             }
             d2d.lineTo(statusLineX!, rowTop);
             d2d.lineTo(px, rowMid);
@@ -1318,9 +1330,8 @@ export function renderReport(
     const task = row.task!;
 
     if (task.isMilestone) {
-      // Milestone diamond
-      const date = parseDate(shownStart(task));
-      const x = dateToX(date) + zoom / 2;
+      // Milestone diamond, op hetzelfde anker als het scherm (een mijlpaal met een moment op dat moment).
+      const x = milestoneAnchorX(task, dateToX, zoom) ?? Number.NaN;
       const cy = y + barHeight / 2;
       const size = barHeight * 0.45;
       // Tijdvenster: een ruit die het chartgebied helemaal mist wordt niet getekend; een ruit op de
@@ -1354,11 +1365,11 @@ export function renderReport(
         }
       }
     } else if (isSummaryTask(task)) {
-      // Summary bracket bar
-      const start = parseDate(shownStart(task));
-      const end = parseDate(shownFinish(task));
-      const rawX1 = dateToX(start);
-      const rawX2 = dateToX(end) + zoom;
+      // Summary bracket bar, met de balkgrenzen van het scherm (`taskBarSpan`): een fase van momenten
+      // eindigt op haar eindmoment, niet een dag later.
+      const bar = taskBarSpan(task, dateToX, zoom);
+      const rawX1 = bar?.x1 ?? Number.NaN;
+      const rawX2 = bar?.x2 ?? Number.NaN;
       // Tijdvenster: geklemd op het chartgebied; een afgekapt uiteinde krijgt geen haakje (dat zou
       // een echt begin/einde suggereren). Valt de hele haak buiten het venster, dan niets.
       const x1 = clampX(rawX1);
@@ -1403,11 +1414,13 @@ export function renderReport(
         barLabelJobs.push({ name: task.name, barRightX: x1 + width, barLeftX: x1, y: y + barHeight / 2 + m.s(3), bold: true });
       }
     } else {
-      // Normal task bar
-      const start = parseDate(shownStart(task));
-      const end = parseDate(shownFinish(task));
-      const rawX1 = dateToX(start);
-      const rawX2 = dateToX(end) + zoom;
+      // Normal task bar, met de balkgrenzen van het scherm (`taskBarSpan`): met momenten van het startmoment
+      // tot het exclusieve eindmoment, alleen bij datums zonder tijd tot het einde van de einddag.
+      const bar = taskBarSpan(task, dateToX, zoom);
+      const start = bar?.start ?? new Date(Number.NaN);
+      const end = bar?.end ?? new Date(Number.NaN);
+      const rawX1 = bar?.x1 ?? Number.NaN;
+      const rawX2 = bar?.x2 ?? Number.NaN;
       const width = Math.max(rawX2 - rawX1, 3);
       // Tijdvenster: de balkuiteinden geklemd op het chartgebied; de voortgangsgrens en de
       // speling hieronder klemmen op dezelfde manier. Een balk die helemaal buiten het venster
@@ -1420,8 +1433,12 @@ export function renderReport(
       // kleurverhouding komt terug in elk werkblok van één taak.
       const advies = colorAdvice(task, width);
       const baseColor = advies.kind === 'segments' ? advies.segments[0].color : advies.fill;
+      // Dezelfde stukken als de Gantt (knownbug 245): de getoonde momenten, de maat van de taak en de
+      // werkblokken van haar kalender (`taskSplitSegments`). De buitenranden zijn die van de hele balk
+      // (`taskBarSpan`); de tussengrenzen liggen op hun moment, dus ook een pauze korter dan een dag is te zien.
       const segments = task.splitGaps && task.splitGaps.length > 0
-        ? computeSplitSegments(task.splitGaps, start, end, false, calEngine)
+        ? taskSplitSegments(task, effectiveCalendarOf(task, calendar, options.calendars ?? []), options.workdayDurationMeasure ?? true)
+          ?? [{ start, end }]
         : [{ start, end }];
       const segs = segments.map((s, i) => {
         const rx1 = i === 0 ? rawX1 : dateToX(s.start);
@@ -1486,10 +1503,10 @@ export function renderReport(
         }
       }
 
-      // Float indicator — tot het einde van "Laatste einde" (`floatBandEnd`, dezelfde helper als
-      // het scherm en het datumbereik hierboven), op dagniveau zoals de balk zelf.
+      // Float indicator — tot "Laatste einde" (`floatBandEnd`, dezelfde helper als het scherm): een
+      // moment op zijn moment, een datum zonder tijd tot het einde van die dag, net als de balk zelf.
       // Een voltooide taak heeft geen speling meer om te bewaken (zelfde regel als het scherm).
-      const bandEnd = options.showFloat && !isDone ? floatBandEnd(task, true) : null;
+      const bandEnd = options.showFloat && !isDone ? floatBandEnd(task) : null;
       const floatEndX = bandEnd ? clampX(dateToX(bandEnd)) : x2;
       if (bandEnd && floatEndX > x2) {
         d2d.fillStyle = PRINT_COLORS.float + '40';
@@ -2452,20 +2469,14 @@ function drawDependencies(
     // Ankerpunten + looprichtingen per relatietype (spiegel van het scherm).
     //   predStart  (voorganger-anker = start/linkerrand): SS, SF
     //   succFinish (opvolger-anker  = finish/rechterrand): FF, SF
-    let fromX: number;
-    let toX: number;
+    // De ankers liggen op de balkgrenzen van het scherm (`taskBarSpan`, zoals `relationAnchorX` daar):
+    // bij momenten op het moment zelf, bij datums zonder tijd op de dagcelranden.
     const predStart = seq.type === 'START_START' || seq.type === 'START_FINISH';
     const succFinish = seq.type === 'FINISH_FINISH' || seq.type === 'START_FINISH';
-    if (predStart) {
-      fromX = dateToX(parseDate(shownStart(pred)));
-    } else {
-      fromX = dateToX(parseDate(shownFinish(pred))) + zoom;
-    }
-    if (succFinish) {
-      toX = dateToX(parseDate(shownFinish(succ))) + zoom;
-    } else {
-      toX = dateToX(parseDate(shownStart(succ)));
-    }
+    const predBar = taskBarSpan(pred, dateToX, zoom);
+    const succBar = taskBarSpan(succ, dateToX, zoom);
+    const fromX = (predStart ? predBar?.x1 : predBar?.x2) ?? Number.NaN;
+    const toX = (succFinish ? succBar?.x2 : succBar?.x1) ?? Number.NaN;
     // dirOut = uitlooprichting bij de voorganger (weg van de balk); dirIn = aankomstkant bij de
     // opvolger: start-anker (FS/SS) komt van LINKS (−1, kop wijst naar rechts); finish-anker
     // (FF/SF) van RECHTS (+1, kop wijst naar links).

@@ -6,6 +6,7 @@ import { loadAllExtensions } from '@/extensions';
 import { EXTENSIONS_ENABLED } from '@/utils/buildFlags';
 import type { RecoveryState } from './useRecoveryRestore';
 import { bootstrapTaskGridPreferences } from '@/state/taskGridBootstrap';
+import { siteSkipsWelcome } from '@/services/fileAccess/siteHost';
 
 // Bootstrap van app-instellingen bij het opstarten: hydrateert de store uit localStorage
 // (thema, locale, zoom, panelen, urenplanning, …) plus extensies, en toont de eerste-keer
@@ -16,8 +17,9 @@ export function useSettingsBootstrap(recoveryResolved: boolean, recovery: Recove
   useEffect(() => {
     // Eerste start? Hier, bij mount, vastgelegd — vóórdat de welkomstdialoog `ops-welcomeSeen` kan
     // zetten (zie `welcomeSeenAtStartup`). Komt de welkomst nog, dan wacht "Update beschikbaar"
-    // daarop (`welcomePending`, `isOnboardingActive`).
-    if (!welcomeSeenAtStartup()) setUI({ welcomePending: true });
+    // daarop (`welcomePending`, `isOnboardingActive`). Zet de host `skipWelcome` (#583, bijv. een
+    // sandbox-iframe zonder localStorage), dan komt de welkomst niet en wacht er dus ook niets.
+    if (!welcomeSeenAtStartup() && !siteSkipsWelcome()) setUI({ welcomePending: true });
     // initLocale() is naar main.tsx verhuisd (pré-render, zodat de actieve taal-chunk vóór
     // de eerste paint geladen is). Hier alleen nog de overige app-instellingen hydrateren.
     // Eén registergedreven hydratatie: `loadAllSettings` itereert het `SETTINGS`-register + de drie
@@ -66,6 +68,16 @@ export function useSettingsBootstrap(recoveryResolved: boolean, recovery: Recove
     if (!recoveryResolved) return; // wacht tot de recovery-flow (incl. eventuele keuze) echt klaar is
     if (recovery !== null) return; // RecoveryDialog is zichtbaar — welkomstdialoog wacht
     welcomeChecked.current = true;
+
+    // Host met `skipWelcome` (#583): opnieuw kijken, want een host mag ook ná het laden komen. Dan
+    // alleen de wachtvlag uit en geen dialoog. Bewust GEEN `saveWelcomeSeen`: de host beslist per
+    // start, en zonder host (of later in een gewone browser) hoort het venster nog één keer te komen.
+    // Zonder welkomst start ook de rondleiding niet (die opent alleen vanuit het venster), en dus
+    // ook de tutorialvraag niet; de handmatige ingangen blijven werken.
+    if (siteSkipsWelcome()) {
+      setUI({ welcomePending: false });
+      return;
+    }
 
     // Eén patch: `welcomePending` gaat pas uit terwijl de dialoog tegelijk opengaat (regel 3 in
     // `state/onboarding.ts`); was hij intussen toch gezien, dan alleen de wachtvlag uit.

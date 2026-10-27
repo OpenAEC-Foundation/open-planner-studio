@@ -74,7 +74,7 @@ Every change to progress or the status date makes the schedule out of date: the 
 
 **Changing the duration of a running task.** The work done stays done and the percentage adjusts. A task of 5 work days at 60% that you set to 10 work days ends up at 30%. The app refuses a duration shorter than the work already done: *‘Build inner cavity leaf’ is already 60% done: a duration shorter than the work already done isn't possible. The duration was not changed.* In the table the cell reports *This duration is shorter than the work already done.*
 
-**The remaining duration is rounded.** The app rounds the remaining duration to whole work days. For a task of 2 work days, 50% and 75% both give a remainder of 1 work day.
+**The remaining duration is exact.** The app does not round the remaining duration to whole work days. For a task of 2 work days, 75% gives a remainder of 0.5 work day.
 
 **A phase.** A phase has no progress of its own. In the panel it says *Derived from the subtasks: change progress there. The summary task follows after calculating (F5).* In the table the cell reports *The progress of a summary task is derived from its subtasks and cannot be changed here.*
 

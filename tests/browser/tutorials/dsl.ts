@@ -132,7 +132,7 @@ export interface Snap {
   overallocated: string[];
   ui: {
     tab: string;
-    enableHourPlanning: boolean;
+
     showTaskTypes: boolean;
     showHistogram: boolean;
     histogramResource: string | null;

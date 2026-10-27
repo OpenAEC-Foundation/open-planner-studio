@@ -17,8 +17,10 @@ const out = resolve(outputPath);
 await mkdir(out, { recursive: true });
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
 const head = git('rev-parse', 'HEAD');
-// Deze smalle vergelijking geldt alleen voor deze ene productieaanpassing.
-assert.equal(git('diff', '--name-only', baseRef, head, '--', 'src'), 'src/engine/scheduler/ResourceLoad.ts');
+// De huidige main deelt de plaatsing al; deze PR bewaakt dat contract zonder productdiff.
+git('merge-base', '--is-ancestor', baseRef, head);
+assert.equal(git('diff', '--name-only', baseRef, head, '--', 'src'), '');
+assert.equal(git('diff', '--name-only', baseRef, head, '--', 'package.json', 'package-lock.json'), '');
 assert.equal(git('diff', '--name-only', 'HEAD', '--', 'src', 'tests/planning'), '');
 const sha = value => createHash('sha256').update(value).digest('hex');
 const fixturePath = join(root, 'tests/planning/resourceLoadReuseFixture.ts');
@@ -45,7 +47,8 @@ for (const [name, sourceRoot] of [['voor', resolve(beforePath)], ['na', root]]) 
 }
 
 const result = {
-  base: baseRef, head, node: process.version, platform: `${platform()} ${release()}`,
+  base: baseRef, head, productChange: false,
+  interpretation: 'De plaatsingscache bestaat al op main; tijden zijn controles, geen nieuwe snelheidsclaim.', node: process.version, platform: `${platform()} ${release()}`,
   cpu: cpus()[0]?.model, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   runUrl: process.env.GITHUB_RUN_ID
     ? `https://github.com/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}` : null,
@@ -57,18 +60,18 @@ for (const [taskCount, assignmentsPerTask] of [[1000, 1], [1000, 4], [1000, 8], 
   const inputJson = JSON.stringify(input);
   for (const operation of ['belasting', 'histogram']) {
     const invoke = name => operation === 'belasting'
-      ? modules[name].computeResourceLoad(input.resources, input.assignments, input.tasks, input.calendar, input.calendars)
+      ? modules[name].computeResourceLoad(input.resources, input.assignments, input.tasks, input.calendar, input.calendars, input.schedulingOptions)
       : modules[name].computeHistogramReport(input);
     const expected = JSON.stringify(invoke('voor'));
     const times = { voor: [], na: [] };
     const calls = {};
     for (const name of ['voor', 'na']) {
       const prototype = modules[name].CalendarEngine.prototype;
-      const original = prototype.isWorkDay;
+      const original = prototype.effectiveBandsOn;
       calls[name] = 0;
-      prototype.isWorkDay = function(date) { calls[name]++; return original.call(this, date); };
+      prototype.effectiveBandsOn = function(date) { calls[name]++; return original.call(this, date); };
       try { assert.equal(JSON.stringify(invoke(name)), expected, `${name}: volledige uitvoer`); }
-      finally { prototype.isWorkDay = original; }
+      finally { prototype.effectiveBandsOn = original; }
     }
     for (let round = -result.warmups; round < result.rounds; round++) {
       const order = round % 2 === 0 ? ['voor', 'na'] : ['na', 'voor'];

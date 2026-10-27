@@ -14,6 +14,7 @@ import { xerProjectCode } from '@/utils/xerDocumentName';
 import { nameWithProjectCode } from '@/utils/projectCodeName';
 import { documentTitle, documentFileBase } from '@/utils/documents';
 import { readFileSync } from 'node:fs';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -680,6 +681,7 @@ const emptyWbsLoad = computeResourceLoad(
   poisonedSummaryTasks,
   emptyWbsResult.calendar,
   emptyWbsResult.resourceCalendars ?? [],
+  effectiveSchedulingOptions({}),
 );
 eq('20 resourcebelasting behandelt lege PROJWBS niet als bladtaak', emptyWbsLoad.load, {});
 const emptyWbsLeveling = levelResources(

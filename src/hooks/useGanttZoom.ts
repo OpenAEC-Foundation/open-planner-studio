@@ -9,7 +9,6 @@ interface UseGanttZoomOpts {
   containerRef: React.RefObject<HTMLDivElement | null>;
   view: ViewState;
   enableQuarterHourZoom: boolean;
-  enableHourPlanning: boolean;
   scrollMode: ScrollMode;
   positionDivision: PositionDivision;
   modifierMap: ModifierMap;
@@ -25,7 +24,7 @@ export function useGanttZoom({
   containerRef,
   view,
   enableQuarterHourZoom,
-  enableHourPlanning,
+
   scrollMode,
   positionDivision,
   modifierMap,
@@ -34,18 +33,18 @@ export function useGanttZoom({
   prepareScrollBounds,
 }: UseGanttZoomOpts) {
   // Latest values in a ref so the wheel handler doesn't re-attach every render
-  const latest = useRef({ view, enableQuarterHourZoom, enableHourPlanning, scrollMode, positionDivision, modifierMap });
-  latest.current = { view, enableQuarterHourZoom, enableHourPlanning, scrollMode, positionDivision, modifierMap };
+  const latest = useRef({ view, enableQuarterHourZoom, scrollMode, positionDivision, modifierMap });
+  latest.current = { view, enableQuarterHourZoom, scrollMode, positionDivision, modifierMap };
 
   // Cursor-anchored zoom step. anchorX is canvas-X (pixels from canvas left edge).
   const zoomAt = useCallback((newZoom: number, anchorX: number) => {
-    const { view: v, enableQuarterHourZoom: enableQH, enableHourPlanning: enableHours } = latest.current;
+    const { view: v, enableQuarterHourZoom: enableQH } = latest.current;
     const next = computeTimelineZoom(
       v.zoom,
       newZoom,
       v.scrollX,
       anchorX,
-      maxGanttZoom(enableQH, enableHours),
+      maxGanttZoom(enableQH),
     );
     if (next.zoom === v.zoom) return;
     // Grenzen voor de nieuwe zoom vóór de scroll, anders klemt die op de grens van de oude zoom.

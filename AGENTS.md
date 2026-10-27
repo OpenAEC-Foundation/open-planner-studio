@@ -8,19 +8,21 @@ imports it (`@AGENTS.md`) so Claude Code loads it automatically — never put co
 depth lives in `.claude/rules/` (see *Where the depth lives*); Claude Code loads those per path, other agents
 should read the matching rule file before touching that area.
 
-**Server restriction for all agents, including subagents:** never start Node.js processes directly
-on this server; it cannot handle that workload. This includes `node`, `npm`, `npx`, dependency
-installation, builds, tests, dev servers and scripts that launch Node indirectly. Run that work in
-GitHub CI and inspect the results with `gh`. This rule takes precedence over all local execution,
-testing and self-testing instructions below and in skills or area-specific rules.
+**Server load on aia09-mp50, for all agents including subagents:** light Node work may run on this
+server: a dev server, `lint`/`lint:fast`, a `typecheck`, or a targeted test of a few files or one browser
+spec, one at a time (`flock /tmp/ops-zwaar.lock <command>`). Heavy work runs in GitHub CI and you inspect
+the result with `gh`: the full `npm test` or `npm run verify`, `measure:profiles` and corpus scans,
+Playwright runs over many specs, production, Rust or Tauri builds, and several dev servers at once.
+If heavy local work is truly needed, ask the owner first. Owner decision 2026-10-24; it replaces the
+stricter rule of 2026-10-22.
 
 Exception: the scheduled weekly release job on aia09-mp50 may run only the listed light Node
 steps in its own release worktree, including package checks by its Haiku translation stations
 (website generators in a temporary copy there); see
 [`.claude/skills/release/SKILL.md`](.claude/skills/release/SKILL.md) and its exact list in `referentie.md`.
 Owner decision 9, clarified by the orchestrator on 2026-10-23. This does not cover agents outside
-that job or maintenance of the skill.
-Tests, app builds, the full `npm run verify` and dev servers remain CI-only.
+that job or maintenance of the skill. Within that job, tests, app builds, the full `npm run verify` and
+dev servers stay CI-only.
 
 ## Commands
 
@@ -219,6 +221,11 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   `ui.autoCalcCPM`, runs it via `useAutoCalcCPM`). Always set `scheduleStale` via `markScheduleStale`
   (`state/transaction.ts`), never directly. `CPMSolver.ts` (~4k lines): grep the method, do not read it whole.
   Write-back: `applyCpmResult.ts`; relations/lag: `relationMath.ts`.
+- **Minute model.** Scheduling engines use effective work blocks for scalar and explicit calendars.
+  Task dates normalize to instants at load and input; project dates keep their entered form (D1/D5/D2
+  at calculation). `minuteModelPending` carries the undoable conversion of old documents; persistent
+  calculations inside an editing event call `runCPM({ withinEvent: true })`. IFC writes `TimeModel`
+  after conversion and chooses anchor dates or `LiteralTimes` per calendar and per document.
 - **Scheduling profiles, not a format flag.** P6/MSP/OPS behaviour runs through named conventions in
   `src/engine/scheduler/conventions/registry.ts`; the solver only gets `EffectiveSchedulingOptions` via
   `solveOptionsFor`/`solveInputFor`. Never an `if` on the source format in the engine (`verify:conventions`);

@@ -1,3 +1,4 @@
+// F2: taakdatums worden op D1/D2/D7-momenten vergeleken (§4.2); de echte handeling blijft gelijk.
 // Voortgang INVULLEN via de UI (`engine/progressEntry.ts`), met echte events: klik op de balk,
 // het eigenschappenpaneel, het contextmenu, Ctrl+Z.
 //
@@ -100,15 +101,21 @@ async function seedActualDates(
   const origin = computeEffectiveViewStart(fixture.tasks, fixture.view.viewStartDate);
   let point: { x: number; y: number } | null = null;
   await expect.poll(async () => {
-    const observed = await page.evaluate(({ id, start, finish, viewOrigin, nextDay, paints, expectedZoom }) => {
+    const observed = await page.evaluate(({ id, start, finish, viewOrigin, nextDay, paints }) => {
       const { gantt } = window.__OPS__!;
       const bounds = document.querySelector<HTMLCanvasElement>('[data-testid="gantt-primary-canvas"]')!
         .getBoundingClientRect();
       const left = gantt.taskBarPoint(id, 'left');
       const right = gantt.taskBarPoint(id, 'right');
       const body = gantt.taskBarPoint(id);
-      const startX = gantt.dateX(start);
-      const finishX = gantt.dateX(finish);
+      // dateX observeert de kalenderdag; de native momenten liggen binnen die dag.
+      const instantX = (iso: string) => {
+        const x = gantt.dateX(iso.slice(0, 10));
+        const minutes = iso.includes('T') ? Number(iso.slice(11, 13)) * 60 + Number(iso.slice(14, 16)) : 0;
+        return x === null ? null : x + minutes / 1440 * window.__OPS__!.store.getState().view.zoom;
+      };
+      const startX = instantX(start);
+      const finishX = instantX(finish);
       const originX = gantt.dateX(viewOrigin);
       const nextX = gantt.dateX(nextDay);
       return {
@@ -118,12 +125,13 @@ async function seedActualDates(
         dayWidth: originX !== null && nextX !== null ? nextX - originX : null,
         startMatches: left !== null && startX !== null && Math.abs(left.x - bounds.left - startX) < 0.01,
         finishMatches: right !== null && finishX !== null
-          && Math.abs(right.x - bounds.left - finishX - expectedZoom) < 0.01,
+          && Math.abs(right.x - bounds.left - finishX) < 0.01,
         visible: body !== null && body.x >= bounds.left && body.x < bounds.right
           && body.y >= bounds.top && body.y < bounds.bottom,
       };
     }, {
-      id: taskId, start: actualStart, finish: actualFinish, viewOrigin: origin,
+      id: taskId, start: fixture.tasks.find(task => task.id === taskId)!.time.actualStart!,
+      finish: fixture.tasks.find(task => task.id === taskId)!.time.actualFinish!, viewOrigin: origin,
       nextDay: shiftDays(origin, 1), paints: fixture.paints, expectedZoom: fixture.view.zoom,
     });
     point = observed.point;
@@ -190,7 +198,7 @@ test('Regel 1, paneel: voortgang zonder statusdatum zet hem op vandaag, meldt da
   await seedActualDates(page, B);
   await page.locator(`[data-grid-row-key="${B}"] [data-grid-column-id="task.name"]`).first().click();
   await rejectReversedDates(page, page.locator('body'), B);
-  expect((await readProgress(page, B)).actualStart).toBe('2026-09-11');
+  expect((await readProgress(page, B)).actualStart).toBe("2026-09-11T07:00");
 });
 
 test('Regel 1, contextmenu: 50 % zonder statusdatum zet hem op vandaag', async ({ page, ops: _ops }) => {
@@ -444,7 +452,7 @@ test('Regel 2, paneel: de app vraagt de werkelijke start; annuleren verandert ni
   await expect(question.getByRole('alert')).toHaveCount(0);
   await question.locator('[data-ops-actual-start-confirm]').click();
   await expect(question).toBeHidden();
-  await expect.poll(() => readProgress(page, B)).toEqual({ statusDate, completion: 0.01, actualStart });
+  await expect.poll(() => readProgress(page, B)).toEqual({ statusDate, completion: 0.01, actualStart: `${actualStart}T07:00` });
   expect((await state(page)).undoDepth).toBe(before.undoDepth + 1);
 });
 
@@ -470,7 +478,7 @@ test('Regel 2, schuif slepen: de vraag komt pas bij het loslaten, met de gesleep
 
   await expect(question).toBeVisible();
   await question.locator('[data-ops-actual-start-confirm]').click();
-  await expect.poll(() => readProgress(page, B)).toEqual({ statusDate, completion: dragged / 100, actualStart: statusDate });
+  await expect.poll(() => readProgress(page, B)).toEqual({ statusDate, completion: dragged / 100, actualStart: `${statusDate}T07:00` });
 });
 
 test('Regel 2, taakraster: % typen vraagt de werkelijke start en herhaalt de invoer mét die datum', async ({ page, ops: _ops }) => {
@@ -496,7 +504,7 @@ test('Regel 2, taakraster: % typen vraagt de werkelijke start en herhaalt de inv
   // Enter bevestigt de vraag (en niets anders).
   await page.keyboard.press('Enter');
   await expect(question).toBeHidden();
-  await expect.poll(() => readProgress(page, B)).toEqual({ statusDate, completion: 0.4, actualStart });
+  await expect.poll(() => readProgress(page, B)).toEqual({ statusDate, completion: 0.4, actualStart: `${actualStart}T07:00` });
 });
 
 test('Regel 2, Taak bewerken: de vraag stapelt boven de dialoog; Enter bevestigt alleen de vraag', async ({ page, ops: _ops }) => {
@@ -544,7 +552,7 @@ test('Regel 2, Taak bewerken: de vraag stapelt boven de dialoog; Enter bevestigt
 
   await taskDialog.locator('[data-ops-task-save]').click();
   await expect(taskDialog).toBeHidden();
-  await expect.poll(() => readProgress(page, B)).toEqual({ statusDate, completion: 1, actualStart });
+  await expect.poll(() => readProgress(page, B)).toEqual({ statusDate, completion: 1, actualStart: `${actualStart}T07:00` });
   // Heropen dezelfde taak in twee zichtbare standen. Ook als de werkelijke datums al bekend
   // zijn, moet de nieuwe tijdas klaar zijn; coördinaten uit de vorige stand missen de balk.
   for (const [viewStart, zoom] of [['2026-09-01', 18], ['2026-09-05', 12]] as const) {
@@ -552,10 +560,10 @@ test('Regel 2, Taak bewerken: de vraag stapelt boven de dialoog; Enter bevestigt
     await page.mouse.dblclick(reopened.x, reopened.y);
     await expect(taskDialog).toBeVisible();
     await rejectReversedDates(page, taskDialog, B);
-    expect((await readProgress(page, B)).actualStart).toBe('2026-09-10');
+    expect((await readProgress(page, B)).actualStart).toBe("2026-09-10T07:00");
     await taskDialog.locator('[data-ops-task-save]').click();
     await expect(taskDialog).toBeHidden();
-    expect((await readProgress(page, B)).actualStart).toBe('2026-09-11');
+    expect((await readProgress(page, B)).actualStart).toBe("2026-09-11T07:00");
   }
 
   // Vraag afgehandeld: de vertrekacties en de bestaande projectlinks zijn weer beschikbaar.

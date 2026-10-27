@@ -9,7 +9,6 @@ import { barPoint, expect, test } from './fixtures/ops';
 test('speling en restduur van een urentaak: leesbaar en overal gelijk', async ({ page, ops: _ops }) => {
   const ids = await page.evaluate(() => {
     const g = () => window.__OPS__!.store.getState();
-    g().setUI({ enableHourPlanning: true });
     const band = [{ start: 8 * 60, end: 17 * 60 }]; // 9 werkuren per dag
     g().setCalendar({
       ...g().calendar, workDays: [1, 2, 3, 4, 5], holidays: [], hoursPerDay: 9, workStartHour: 8, workEndHour: 17,
@@ -86,6 +85,17 @@ test('speling en restduur van een urentaak: leesbaar en overal gelijk', async ({
   await page.mouse.move(body.x, body.y);
   const tooltip = page.locator('.gantt-tooltip');
   await expect(tooltip).toBeVisible();
+  await expect(tooltip.locator('.tooltip-row').filter({ hasText: /^(Total float|Totale speling):?/ }).locator('.tooltip-value'))
+    .toHaveText(/^0[.,]67d$/);
+
+  // 379: de muis blijft op dezelfde balk terwijl de brondata verandert. De tooltip mag
+  // geen snapshot van de vorige rendererframe blijven tonen; F5 herstelt daarna de echte speling.
+  await page.evaluate(id => window.__OPS__!.store.setState(s => {
+    s.tasks.find(t => t.id === id)!.time.totalFloat = 2;
+  }), ids.A);
+  await expect(tooltip.locator('.tooltip-row').filter({ hasText: /^(Total float|Totale speling):?/ }).locator('.tooltip-value'))
+    .toHaveText('2d');
+  await page.keyboard.press('F5');
   await expect(tooltip.locator('.tooltip-row').filter({ hasText: /^(Total float|Totale speling):?/ }).locator('.tooltip-value'))
     .toHaveText(/^0[.,]67d$/);
 

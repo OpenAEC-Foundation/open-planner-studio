@@ -25,7 +25,7 @@ import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
 import { readP6XML } from '@/services/p6/p6xmlReader';
-import { detectXmlFlavor, parseOpenedFile } from '@/services/formatRegistry';
+import { detectXmlFlavor, parseOpenedFile, UnknownScheduleXmlError, importErrorMessageKey } from '@/services/formatRegistry';
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import type { Task, MilestoneKind } from '@/types/task';
@@ -142,8 +142,10 @@ async function main(): Promise<void> {
       eq(`176/${label}: letterlijke XML-inhoud`, xml.match(/<StartDate>([\s\S]*?)<\/StartDate>/)?.[1], xmlText);
       const back = readMSPDI(xml);
       eq(`176/${label}: heropenen volgt bestaande projectstartregel`, back.project.startDate, importedStart);
+      // Sinds F5b (I8) schrijft MSPDI elke taakdatum met zijn echte tijd (D1 08:00, D2 16:00) en leest de
+      // lezer die terug; vóór F5b ging het als daganker 08:00 en kwam de datum terug.
       eq(`176/${label}: taak blijft heropenbaar`, back.tasks.map(t => [t.name, t.time.scheduleStart, t.time.scheduleFinish]),
-        [['Ankertaak', '2026-07-07', '2026-07-08']]);
+        [['Ankertaak', '2026-07-07T08:00', '2026-07-08T16:00']]);
     }
 
     // De oorspronkelijke route: geldige XML draagt ongeldige datumtekst. De reader bewaart de
@@ -196,8 +198,9 @@ async function main(): Promise<void> {
         assert(!xml.includes('<Injected/>'), `185/${field}/${label}: geen ingevoegd element`);
         const back = readMSPDI(xml);
         eq(`185/${field}/${label}: bestaande leesregel`, back.project[field], field === 'endDate' ? importedEnd : importedStatus);
+        // Echte tijden sinds F5b (I8), zie 176.
         eq(`185/${field}/${label}: taak blijft heropenbaar`, back.tasks.map(t => [t.name, t.time.scheduleStart, t.time.scheduleFinish]),
-          [['Ankertaak', '2026-07-07', '2026-07-08']]);
+          [['Ankertaak', '2026-07-07T08:00', '2026-07-08T16:00']]);
       }
     }
     const withoutStatus = writeMSPDI(project, cal, tasks, [], [], []);
@@ -284,7 +287,12 @@ async function main(): Promise<void> {
     // leeg project.
     let threw = false;
     try { await parseOpenedFile({ name: 'lijst.xml', text: '<?xml version="1.0"?><Lijst><Naam>Primavera</Naam></Lijst>' }); }
-    catch { threw = true; }
+    catch (error) {
+      threw = true;
+      assert(error instanceof UnknownScheduleXmlError, '#3 onbekende XML heeft een getypeerde fout');
+      eq('#3 UI-sleutel', importErrorMessageKey(error), 'notifications.xmlUnknownSchedule');
+      eq('#3 technische tekst is Engels', (error as Error).message, 'Unknown XML format: the root element is not an MS Project (Project) or Primavera P6 (APIBusinessObjects) schedule');
+    }
     assert(threw, '#3 onbekende XML-root met "Primavera" in de tekst: gooit (geen leeg P6-project)');
 
     // De gedeelde beslissing zelf (ook gebruikt door het MCP-label `formatOf`).
@@ -330,8 +338,9 @@ async function main(): Promise<void> {
     const back = readMSPDI(xml);
     eq('#4 round-trip "+3eu"', lagFields(lagInto(back, 'B')), { lagDays: 0, lagMinutes: 180, lagUnit: 'ELAPSEDTIME' });
     eq('#4 round-trip "+2u" ongewijzigd', lagFields(lagInto(back, 'C')), { lagDays: 0, lagMinutes: 120 });
-    eq('#4 round-trip "+2ed" ongewijzigd', lagFields(lagInto(back, 'D')), { lagDays: 2, lagUnit: 'ELAPSEDTIME' });
-    eq('#4 round-trip "+2d" ongewijzigd (uur-opvolger ⇒ werkminuten)', lagFields(lagInto(back, 'E')), { lagDays: 0, lagMinutes: 960 });
+    // F5a-2 (§3.3, T21): `LagFormat` 8 zegt kalenderdagen, en het OPS-record geeft de dagenmaat terug.
+    eq('#4 round-trip "+2ed" als kalenderdagen (LagFormat 8, §3.3)', lagFields(lagInto(back, 'D')), { lagDays: 2, lagUnit: 'ELAPSEDTIME' });
+    eq('#4 round-trip "+2d" ongewijzigd (record T21)', lagFields(lagInto(back, 'E')), { lagDays: 2 });
 
     // Planning: B start 3 klokuren na het einde van A (12:00 → 15:00), vóór én na de rondreis.
     const orig = { tasks: structuredClone(tasks), sequences, calendar: cal };
@@ -374,11 +383,12 @@ async function main(): Promise<void> {
     assert(asForeignLag(dXml, 1, 1) !== dXml, 'setup: dag-fixture bevat de te vervangen link');
     const d12 = readMSPDI(asForeignLag(dXml, 7200, 6));
     eq('#4 lezer dagproject "12 ehr" (LagFormat 6)', lagFields(lagInto(d12, 'B')), { lagDays: 0, lagMinutes: 720, lagUnit: 'ELAPSEDTIME' });
-    // Dagplanning identiek aan de oude lezing (hele elapsed dag, Math.round(0,5) = 1).
+    // §3.3/I11: de vroegere afronding van 12 klokuren naar een hele dag verdwijnt.
     const oldStyle = { tasks: structuredClone(dTasks), sequences: [seq('g-s', 'g-a', 'g-b', { lagDays: 1, lagUnit: 'ELAPSEDTIME' })], calendar: dcal };
     solve(oldStyle);
+    eq('#4 oude hele-dag-afronding blijft een dag later', byName(oldStyle, 'B')?.time.earlyStart, '2026-07-09T08:00');
     solve(d12);
-    eq('#4 planning dagproject "12 ehr": B.earlyStart gelijk aan de hele-dag-afronding', byName(d12, 'B')?.time.earlyStart, byName(oldStyle, 'B')?.time.earlyStart);
+    eq('#4 §3.3/I11: 12 ehr blijft exact, ook bij een dagenmaat-voorganger', byName(d12, 'B')?.time.earlyStart, '2026-07-08T08:00');
     const d8 = readMSPDI(asForeignLag(dXml, 4800, 6));
     eq('#4 lezer dagproject "8 ehr" (LagFormat 6)', lagFields(lagInto(d8, 'B')), { lagDays: 0, lagMinutes: 480, lagUnit: 'ELAPSEDTIME' });
   }
@@ -416,7 +426,7 @@ async function main(): Promise<void> {
       const sequences = [seq('m-s1', 'm-a', 'm-m'), seq('m-s2', 'm-m', 'm-b')];
       const back = readMSPDI(writeMSPDI(proj('Mijlpaal', cal.id, '2027-07-05'), cal, tasks, sequences, [], []));
       solve(back);
-      eq('#7 eindmijlpaal "Hoogste punt" na MSPDI-rondreis op vrijdag 2027-07-09', byName(back, 'Hoogste punt')?.time.earlyStart, '2027-07-09');
+      eq('#7 eindmijlpaal "Hoogste punt" na MSPDI-rondreis op vrijdag 2027-07-09', byName(back, 'Hoogste punt')?.time.earlyStart, '2027-07-09T16:00'); // D7/N1: het echte eindmoment.
     }
 
     // Uurmodus: een AUTOMATISCHE mijlpaal op een bandgrens (16:00) blijft automatisch — zonder de
@@ -436,12 +446,14 @@ async function main(): Promise<void> {
       const foreign = readMSPDI(xml.replace(/\s*<ExtendedAttributes>[\s\S]*?<\/ExtendedAttributes>/, ''));
       eq('#7 MSP-bestand zonder OPS-definitie: uurmodus leidt FINISH af uit 16:00 (ongewijzigd)', byName(foreign, 'Gestort')?.milestoneKind, 'FINISH');
       eq('#7 MSP-bestand zonder OPS-definitie: uurmodus leidt START af uit 08:00 (ongewijzigd)', byName(foreign, 'Start')?.milestoneKind, 'START');
-      // Dagmodus zonder OPS-definitie: nog steeds geen afleiding (ongewijzigd).
+      // Dagmodus zonder OPS-definitie. Sinds F5b (I8) staat de eindmijlpaal in de export op zijn echte
+      // eindmoment 16:00, niet op het daganker 08:00. Zonder de OPS-definities is dat een vreemd bestand
+      // met een uursignaal: de lezer leidt FINISH af, zoals bij elk MS Project-bestand (MS Project-semantiek).
       const dcal = DAY();
       const dayXml = writeMSPDI(proj('Dag', dcal.id, '2027-07-05'), dcal,
         [mkDay('m-m', 'Hoogste punt', '1', '2027-07-09', '2027-07-09', 0, { milestoneKind: 'FINISH' })], [], [], []);
       const dayForeign = readMSPDI(dayXml.replace(/\s*<ExtendedAttributes>[\s\S]*?<\/ExtendedAttributes>/, ''));
-      eq('#7 MSP-bestand zonder OPS-definitie: dagmodus zonder soort (ongewijzigd)', byName(dayForeign, 'Hoogste punt')?.milestoneKind, undefined);
+      eq('#7 MSP-bestand zonder OPS-definitie: eindmijlpaal op 16:00 ⇒ FINISH (F5b, I8)', byName(dayForeign, 'Hoogste punt')?.milestoneKind, 'FINISH');
     }
   }
 

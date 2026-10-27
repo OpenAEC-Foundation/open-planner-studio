@@ -10,7 +10,7 @@ import {
 } from '@/engine/startEditConstraint';
 import { notifyStartEdit } from '@/state/startConstraintNotice';
 import { Task } from '@/types/task';
-import { DateTextInput } from '@/components/common/DateTextInput';
+import { TaskDateTimeInput } from '@/components/common/TaskDateTimeInput';
 import { Field } from './shared';
 import { TaskDurationField } from './TaskDurationField';
 import { TaskRecordedDatesNotice } from './TaskRecordedDatesNotice';
@@ -64,7 +64,11 @@ export function TaskTimeFields({ task, onChange }: {
           paneelbreedte; de dialoog heeft onafhankelijk daarvan voldoende ruimte voor twee kolommen. */}
       <div className="grid grid-cols-1 gap-2">
         <Field label={t('properties.start')}>
-          <DateTextInput
+          {/* B4 en §3.6: de datum, en een tijd als de start midden op de werkdag valt. */}
+          <TaskDateTimeInput
+            task={task}
+            side="start"
+            dataAttribute="start"
             className="input !text-small !leading-4 !px-2.5 !py-1.5"
             ariaLabel={t('properties.start')}
             title={actualLocked ? t('taskGrid.validation.startIsActual') : t('properties.scheduleStartHint')}

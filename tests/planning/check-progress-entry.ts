@@ -1,3 +1,4 @@
+// F2: D1/D2/D7 normaliseren de ingevoerde kalenderdatum vóór de vergelijking (§4.2).
 // Voortgang INVULLEN via de UI (`engine/progressEntry.ts`) — de besluiten van de eigenaar, per regel
 // headless tegen de ECHTE store, via exact de functies die de UI-routes aanroepen:
 //   - eigenschappenpaneel: `enterTaskProgress` (TaskPropertiesPanel.tsx);
@@ -122,7 +123,7 @@ function expectRule1(label: string, S: () => AppState, B: string, depthBefore: n
     S().enterTaskProgress(B, { field: 'actualStart', value: as }, { today: TODAY }), { ok: true });
   eq('1b paneel (werkelijke start): statusdatum = vandaag', S().project.statusDate, TODAY);
   eq('1b paneel (werkelijke start): start staat, één undo-stap',
-    { as: taskOf(S, B).time.actualStart, steps: undoDepth(S) - d0 }, { as, steps: 1 });
+    { as: taskOf(S, B).time.actualStart, steps: undoDepth(S) - d0 }, { as: `${as}T07:00`, steps: 1 });
 }
 {
   const S = () => useAppStore.getState();
@@ -231,7 +232,7 @@ const UNTOUCHED = { completion: 0, status: 'NOT_STARTED', as: null, af: null };
     S().enterTaskProgress(B, { field: 'completion', value: 0.5 }, { today: TODAY, actualStart: answer }), { ok: true });
   eq('3a werkelijke start = het antwoord, geen verzonnen datum; één undo-stap',
     { p: progressOf(S, B), steps: undoDepth(S) - d0 },
-    { p: { completion: 0.5, status: 'STARTED', as: answer, af: null }, steps: 1 });
+    { p: { completion: 0.5, status: 'STARTED', as: `${answer}T07:00`, af: null }, steps: 1 });
 }
 {
   const { S } = fresh();
@@ -241,7 +242,7 @@ const UNTOUCHED = { completion: 0, status: 'NOT_STARTED', as: null, af: null };
   const answer = daysBeforeToday(6);
   S().enterTaskProgress(B, { field: 'completion', value: 1 }, { today: TODAY, actualStart: answer });
   eq('3b 100 % met antwoord: start = antwoord, einde volgt de bestaande regel (statusdatum)',
-    progressOf(S, B), { completion: 1, status: 'COMPLETED', as: answer, af: SD });
+    progressOf(S, B), { completion: 1, status: 'COMPLETED', as: `${answer}T07:00`, af: `${SD}T16:00` });
 }
 {
   const { S } = fresh();
@@ -249,7 +250,7 @@ const UNTOUCHED = { completion: 0, status: 'NOT_STARTED', as: null, af: null };
   const af = daysBeforeToday(3);
   eq('3c werkelijk einde zonder start: vraag, met dat einde als uiterste datum',
     S().enterTaskProgress(B, { field: 'actualFinish', value: af }, { today: TODAY }),
-    { ok: false, reason: 'needsActualStart', question: { taskId: B, statusDate: SD, latest: af } });
+    { ok: false, reason: 'needsActualStart', question: { taskId: B, statusDate: SD, latest: `${af}T16:00` } });
   eq('3c antwoord ná het werkelijke einde: gemeld, niets veranderd',
     { res: S().enterTaskProgress(B, { field: 'actualFinish', value: af }, { today: TODAY, actualStart: daysBeforeToday(2) }), p: progressOf(S, B) },
     { res: { ok: false, reason: 'actualFinishBeforeStart' }, p: UNTOUCHED });
@@ -258,7 +259,7 @@ const UNTOUCHED = { completion: 0, status: 'NOT_STARTED', as: null, af: null };
     { res: { ok: false, reason: 'afterStatusDate' }, p: UNTOUCHED });
   const answer = daysBeforeToday(8);
   S().enterTaskProgress(B, { field: 'actualFinish', value: af }, { today: TODAY, actualStart: answer });
-  eq('3c geldig antwoord: start en einde zoals opgegeven', progressOf(S, B), { completion: 1, status: 'COMPLETED', as: answer, af });
+  eq('3c geldig antwoord: start en einde zoals opgegeven', progressOf(S, B), { completion: 1, status: 'COMPLETED', as: `${answer}T07:00`, af: `${af}T16:00` });
 }
 {
   const { S } = fresh();
@@ -266,7 +267,7 @@ const UNTOUCHED = { completion: 0, status: 'NOT_STARTED', as: null, af: null };
   const date = daysBeforeToday(2);
   eq('3d mijlpaal met een werkelijke datum: geen vraag (start = einde)',
     S().enterTaskProgress(M, { field: 'actualFinish', value: date }, { today: TODAY }), { ok: true });
-  eq('3d mijlpaal: werkelijke datum staat', progressOf(S, M), { completion: 1, status: 'COMPLETED', as: date, af: date });
+  eq('3d mijlpaal: werkelijke datum staat', progressOf(S, M), { completion: 1, status: 'COMPLETED', as: `${date}T07:00`, af: `${date}T07:00` });
 }
 {
   // Regel 1 + 2: geen statusdatum, taak begint na vandaag ⇒ vraag tegen VANDAAG; pas het antwoord
@@ -281,7 +282,7 @@ const UNTOUCHED = { completion: 0, status: 'NOT_STARTED', as: null, af: null };
   S().enterTaskProgress(B, { field: 'completion', value: 0.3 }, { today: TODAY, actualStart: TODAY });
   eq('3e met antwoord: statusdatum vandaag + voortgang, één undo-stap',
     { sd: S().project.statusDate, as: taskOf(S, B).time.actualStart, steps: undoDepth(S) - d0 },
-    { sd: TODAY, as: TODAY, steps: 1 });
+    { sd: TODAY, as: `${TODAY}T07:00`, steps: 1 });
 }
 {
   // Geen vraag: taak met een vastgelegde werkelijke start, of een taak die volgens plan al begonnen is.
@@ -315,13 +316,13 @@ const UNTOUCHED = { completion: 0, status: 'NOT_STARTED', as: null, af: null };
   );
   eq('3g raster mét de antwoorden: toegepast, één undo-stap',
     { ok: retry.ok, b: progressOf(S, B), c: progressOf(S, C), steps: undoDepth(S) - d0 },
-    { ok: true, b: { completion: 0.5, status: 'STARTED', as: answer, af: null }, c: { completion: 0.5, status: 'STARTED', as: answer, af: null }, steps: 1 });
+    { ok: true, b: { completion: 0.5, status: 'STARTED', as: `${answer}T07:00`, af: null }, c: { completion: 0.5, status: 'STARTED', as: `${answer}T07:00`, af: null }, steps: 1 });
   const af = daysBeforeToday(2);
   const { S: S2 } = fresh();
   const { B: B2 } = setupFuture(S2, SD);
   const afRes = S2().runGridMutation([cell(B2, 'task.time.actualFinish', af)], { progressEntry: { today: TODAY } });
   eq('3g raster werkelijk einde: vraag met dat einde als uiterste datum',
-    afRes.ok ? 'ok' : afRes.errors.map(e => e.value), [{ statusDate: SD, latest: af }]);
+    afRes.ok ? 'ok' : afRes.errors.map(e => e.value), [{ statusDate: SD, latest: `${af}T16:00` }]);
   const status = S2().runGridMutation([cell(B2, 'task.status', 'STARTED')], { progressEntry: { today: TODAY } });
   eq('3g raster status "gestart": ook de vraag', status.ok ? 'ok' : status.errors.map(e => e.code), ['actualStartRequired']);
 }
@@ -346,17 +347,17 @@ const UNTOUCHED = { completion: 0, status: 'NOT_STARTED', as: null, af: null };
   await done;
   eq('3h beantwoord: beide toegepast met hun eigen start, één undo-stap',
     { b: taskOf(S, B).time.actualStart, c: taskOf(S, C).time.actualStart, steps: undoDepth(S) - d0 },
-    { b: daysBeforeToday(2), c: daysBeforeToday(3), steps: 1 });
+    { b: `${daysBeforeToday(2)}T07:00`, c: `${daysBeforeToday(3)}T07:00`, steps: 1 });
 }
 {
   // "Taak bewerken": de concepttaak volgt dezelfde beslissing (planProgressEntry).
   const { S } = fresh();
   const { B } = setupFuture(S, SD);
   const draft = taskOf(S, B);
-  const plan = planProgressEntry(draft, { field: 'completion', value: 0.5 }, { statusDate: SD, today: TODAY });
+  const plan = planProgressEntry(draft, { field: 'completion', value: 0.5 }, { statusDate: SD, today: TODAY , calendar: S().calendar });
   eq('3i dialoog-concept: dezelfde vraag', plan.ok ? 'ok' : plan.reason, 'needsActualStart');
-  const answered = planProgressEntry(draft, { field: 'completion', value: 0.5 }, { statusDate: SD, today: TODAY, actualStart: SD });
-  eq('3i dialoog-concept met antwoord', answered.ok && answered.change ? answered.change.task.time.actualStart : null, SD);
+  const answered = planProgressEntry(draft, { field: 'completion', value: 0.5 }, { statusDate: SD, today: TODAY, actualStart: SD , calendar: S().calendar });
+  eq('3i dialoog-concept met antwoord', answered.ok && answered.change ? answered.change.task.time.actualStart : null, `${SD}T07:00`);
 }
 {
   // Het vangnet: de setters zonder invoerbeleid leiden de start nog steeds af (import, generatoren).
@@ -370,7 +371,7 @@ const UNTOUCHED = { completion: 0, status: 'NOT_STARTED', as: null, af: null };
 for (const edit of [
   { field: 'actualStart' as const, value: '2026-09-21' },
   { field: 'actualFinish' as const, value: '2026-09-09' },
-  { field: 'actualStart' as const, value: '2026-09-20T13:00' },
+  { field: 'actualStart' as const, value: '2026-09-20T17:00' },
 ]) {
   const { S } = fresh();
   const { B } = setup(S);
@@ -385,7 +386,7 @@ for (const edit of [
     res, { ok: false, reason: 'actualFinishBeforeStart' });
   eq('4 weigering wijzigt geen taak/undo/dirty', [JSON.stringify(taskOf(S, B)), undoDepth(S), S().isDirty],
     [before, depth, dirty]);
-  const plan = planProgressEntry(taskOf(S, B), edit, { statusDate: '2026-10-01', today: '2026-10-01' });
+  const plan = planProgressEntry(taskOf(S, B), edit, { statusDate: '2026-10-01', today: '2026-10-01' , calendar: S().calendar });
   eq('4 dialoog-concept weigert dezelfde bewerking', plan, { ok: false, reason: 'actualFinishBeforeStart' });
   eq('4 conceptberekening muteert bron niet', JSON.stringify(taskOf(S, B)), before);
 }
@@ -401,7 +402,7 @@ for (const edit of [
     { field: 'actualStart' as const, value: '2026-09-09' },
     { field: 'actualFinish' as const, value: undefined },
   ]) {
-    const plan = planProgressEntry(taskOf(S, B), edit, { statusDate: '2026-10-01', today: '2026-10-01' });
+    const plan = planProgressEntry(taskOf(S, B), edit, { statusDate: '2026-10-01', today: '2026-10-01' , calendar: S().calendar });
     eq('4 gelijke/grensdatums en wissen blijven toegestaan ' + edit.field + edit.value, plan.ok, true);
   }
 }

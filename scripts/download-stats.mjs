@@ -115,9 +115,14 @@ export function aggregate(releases) {
   }
 
   perRelease.sort((a, b) => String(b.publishedAt).localeCompare(String(a.publishedAt)));
+  // `downloads` is het totaal zoals de app en de README-badge het tonen (installers plus de
+  // Linux-mengvorm, zonder updater-pakketten, `latest.json` en `.sig`). De shields-badge
+  // `github/downloads/total` telt wél alle assets mee en kwam zo bijna drie keer te hoog uit.
+  const downloads = OS_ORDER.reduce((sum, os) => sum + userDownloads(totals[os]), 0);
   // `schemaVersion` is het contract voor afnemers van `downloads.json` op de stats-branch
-  // (zie scripts/publish-stats-branch.sh): verhoog 'm bij elke wijziging aan deze vorm.
-  return { schemaVersion: 1, source: 'github-releases', repo: undefined, generatedAt: undefined, releases: perRelease, totals, polls, unknown };
+  // (zie scripts/publish-stats-branch.sh): verhoog 'm bij elke wijziging aan deze vorm. Een
+  // extra veld zoals `downloads` breekt geen afnemer: de app-parser negeert onbekende velden.
+  return { schemaVersion: 1, source: 'github-releases', repo: undefined, generatedAt: undefined, downloads, releases: perRelease, totals, polls, unknown };
 }
 
 /** Wat een gebruiker "downloads" noemt: installers plus de Linux-mengvorm, zonder updater-pakketten. */
