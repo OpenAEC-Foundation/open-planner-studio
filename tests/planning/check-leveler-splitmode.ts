@@ -1,3 +1,4 @@
+// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 // check-leveler-splitmode.ts — B1c-plan-2 taak 9: "Onderbrekingen toestaan" (spec §4, stap 0).
 // `allowSplits` laat de nivelleerder een taak dag-voor-dag plaatsen (leveling-gaten) i.p.v. haar
 // als geheel te laten uitlopen, MAAR uitsluitend als fallback: de bestaande aaneengesloten-scan
@@ -141,7 +142,7 @@ console.log('-- leveler-splitmode: uit=uitloop, aan=onderbreking (geval 1) --');
   // (opgerekte) finish is vr 06-05 — later dan de blokker A se eigen finish (do 06-04) — dus B moet
   // de projecteinddatum bepalen wanneer (en alleen wanneer) de trial-solve het gat daadwerkelijk ziet.
   eq('projectEndAfter houdt rekening met de opgerekte spanne van B (via het gat)',
-    rOn.projectEndAfter, '2026-06-05');
+    rOn.projectEndAfter, "2026-06-05T16:00");
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

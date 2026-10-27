@@ -8,6 +8,7 @@ import {
 } from '@/state/sessionHistory';
 import { computeResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import type { TaskColumnId, TaskGridSurfacePreferences } from '@/types/taskGrid';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -48,6 +49,7 @@ const expectedLoad = computeResourceLoad(
   targetSnapshot.tasks,
   targetSnapshot.calendar,
   targetSnapshot.calendars,
+  effectiveSchedulingOptions(targetSnapshot.project),
 );
 ok('Opzet draagt een berekende CPM-uitkomst', targetCpm !== null);
 eq('Opzet draagt bewust de stale-vlag naast die oude berekening', targetSnapshot.scheduleStale, true);

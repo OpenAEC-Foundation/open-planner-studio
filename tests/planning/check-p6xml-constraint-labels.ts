@@ -115,7 +115,7 @@ async function main(): Promise<void> {
     </Project>`);
     const parsed = await parseOpenedFile({ name: 'constraints.xml', text: xml });
     S().newProject();
-    S().applyOpenedImport(parsed, { filePath: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: true });
+    S().applyOpenedImport(parsed, { filePath: null, recompute: true, fit: false, linkedOpen: true });
     const byCode = (c: string) => S().tasks.find(t => t.wbsCode === c);
     eq('4a OZ1060 constraint in de store', [byCode('OZ1060')?.constraint?.type, byCode('OZ1060')?.constraint?.date?.slice(0, 10)], ['SNET', '2025-01-08']);
     S().runCPM(); // F5

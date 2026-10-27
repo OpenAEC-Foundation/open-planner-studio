@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { Plus, Trash2 } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { useDisplayDate } from '@/hooks/displayDate';
-import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { durationMinutesOf, taskDurationUnit } from '@/engine/scheduler/duration';
 import { isSummaryTask } from '@/engine/scheduler/relationRules';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
@@ -11,8 +10,10 @@ import {
   canSplitTask, completedWorkMinutes, removeGap, setGapLength, setWorkLength, splitAt,
   splitUnitMinutes, toSplitPieces, type SplitEditResult, type SplitPiece,
 } from '@/engine/scheduler/splitEdit';
-import { computeSplitSegments } from '@/engine/scheduler/splitWalk';
-import { formatDate, formatInstant, parseDate, parseInstant } from '@/utils/dateUtils';
+import { splitEngineFor, taskSplitSegments } from '@/engine/renderer/splitBarGeometry';
+import { formatDate, formatInstant } from '@/utils/dateUtils';
+import { taskDateLabel } from '@/utils/taskDateLabel';
+import { useProfileCountsWorkdays } from '@/hooks/useDurationMeasure';
 import { taskCalendarHoursPerDay } from '@/utils/taskDefaults';
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
@@ -67,26 +68,23 @@ function SplitNumberInput({ value, onCommit, label, dataAttr }: {
   );
 }
 
-/** Van–tot per werkstuk NA een pauze, op exact dezelfde as als de Gantt-balk: dezelfde datums
- *  (`shownStart`/`shownFinish`, zoals `GanttRenderer.barGeometry`), dezelfde kalender-engine
- *  (`engineForAnyMode`) en dezelfde wandeling (`computeSplitSegments`). Tussengrenzen zijn daar
- *  EXCLUSIEF; in dag-modus wordt de einddag dus de werkdag vóór die grens. */
-function segmentRanges(task: Task, cal: WorkCalendar): { from: string; to: string }[] {
-  const startStr = shownStart(task) || '';
-  const endStr = shownFinish(task) || '';
-  if (!startStr || !endStr) return [];
-  const hourMode = startStr.includes('T') || endStr.includes('T');
-  const start = hourMode ? parseInstant(startStr) : parseDate(startStr);
-  const end = hourMode ? parseInstant(endStr) : parseDate(endStr);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return [];
-  const eng = new CalendarEngine(cal);
-  const segments = computeSplitSegments(task.splitGaps, start, end, hourMode, eng);
+/** Van–tot per werkstuk NA een pauze, op exact dezelfde as als de Gantt-balk: dezelfde stukken
+ *  (`taskSplitSegments`: de getoonde momenten, de maat van de taak en de werkblokken van haar kalender).
+ *  Tussengrenzen zijn daar EXCLUSIEF; het einde van een stuk is dus het laatste werkmoment vóór die grens
+ *  (`prevWorkInstant`: een stuk tot de volgende ochtend 07:00 eindigt op het blokeinde van de dag ervoor).
+ *  De labels volgen B4: een tijd alleen als het moment midden op de werkdag valt (knownbug 244). Een taak
+ *  met alleen datums (van vóór het minutenmodel) houdt hele werkdagen. */
+export function splitPieceRanges(task: Task, cal: WorkCalendar, workdayDurationMeasure: boolean): { from: string; to: string }[] {
+  const segments = taskSplitSegments(task, cal, workdayDurationMeasure);
+  if (!segments) return [];
+  const eng = splitEngineFor(cal);
+  const instants = (shownStart(task) || '').includes('T') || (shownFinish(task) || '').includes('T');
   return segments.slice(1).map((s, k) => {
     const last = k === segments.length - 2;
-    const to = hourMode || last ? s.end : eng.prevWorkDayBefore(s.end);
-    return hourMode
-      ? { from: formatInstant(s.start, 'hour'), to: formatInstant(to, 'hour') }
-      : { from: formatDate(s.start), to: formatDate(to) };
+    if (!instants) return { from: formatDate(s.start), to: formatDate(last ? s.end : eng.prevWorkDayBefore(s.end)) };
+    const from = formatInstant(eng.nextWorkInstant(s.start), 'hour');
+    const to = formatInstant(eng.prevWorkInstant(s.end), 'hour');
+    return { from: taskDateLabel(task, from, 'start', cal), to: taskDateLabel(task, to, 'end', cal) };
   });
 }
 
@@ -111,6 +109,7 @@ export function TaskSplitsSection({ taskId }: { taskId: string }) {
   const calendar = useAppStore(s => s.calendar);
   const calendars = useAppStore(s => s.calendars);
   const setTaskSplits = useAppStore(s => s.setTaskSplits);
+  const workdayDurationMeasure = useProfileCountsWorkdays();
 
   if (!task) return null;
   const hoursPerDay = taskCalendarHoursPerDay(task, calendars, calendar);
@@ -122,7 +121,7 @@ export function TaskSplitsSection({ taskId }: { taskId: string }) {
   const unitLabel = t(hourUnit ? 'properties.splits.unitHours' : 'properties.splits.unitDays');
   const workMinutes = durationMinutesOf(task, { isHourMode: hourUnit, hoursPerDay });
   const pieces = refusal === null ? toSplitPieces(task.splitGaps, workMinutes) : null;
-  const ranges = segmentRanges(task, resolveCalendar(task.calendarId, calendars, calendar));
+  const ranges = splitPieceRanges(task, resolveCalendar(task.calendarId, calendars, calendar), workdayDurationMeasure);
   const showDate = (iso: string) => (iso.includes('T') ? dateTime(iso) : date(iso));
 
   /** `false` = geweigerd of niets veranderd ⇒ het veld springt terug, geen undo-stap. */

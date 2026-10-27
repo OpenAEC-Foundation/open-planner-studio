@@ -2,7 +2,7 @@ import type { IfcSchemaId, Project, ProgressMode, ProjectSchedulingOptions, Sche
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Task } from '@/types/task';
-import { createDefaultTaskTime, deriveScheduleDurationFromMinutes } from '@/utils/taskDefaults';
+import { createDefaultTaskTime, deriveScheduleDurationFromMinutes, seedNewHourTaskFinish } from '@/utils/taskDefaults';
 import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
@@ -25,6 +25,7 @@ import {
 } from '@/engine/moveProject';
 import { syncProjectCalendar, promoteProjectCalendarToLibrary } from '../syncProjectCalendar';
 import { freshPayload, hydratePayload } from '../documentContract';
+import { normalizeTaskDates } from '../migrations/minuteModel';
 import { HOST_EVENTS } from '@/services/extensionEvents';
 import { clearTimephasedLossNoticeForDoc } from '../timephasedLossNotice';
 import { clearTaskTypesNoticeForDoc, notifyWorkRuleDurationsChanged } from '../taskTypesNotice';
@@ -40,6 +41,7 @@ import type { XerSourceArchive } from '@/services/xerSourceArchive';
 // De fabriek woont in de bladmodule `../defaults` (breekt de import-cyclus met
 // documentContract/snapshot). Hier alleen doorgegeven voor bestaande importers.
 import { createDefaultProject } from '../defaults';
+import { newTaskTimeUnit, settleNewTaskMeasure } from '../newTaskMeasure';
 import { removeSessionHistoryForDocumentFromState } from '../sessionHistory';
 import { copyProfile, normalizeOptions, normalizeProfile } from '../schedulingProfileDraft';
 export { createDefaultProject };
@@ -233,25 +235,35 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
     // teller die de producer vult, waarna de aanroeper ná `set()` op de VOLTOOIDE state reageert;
     // `get().notify(...)`/`get().runCPM()` binnen een actieve producer aanroepen kan niet).
     let clampedAnchors = 0;
+    let measureChanged = false;
     set((s) => {
       // No-op-guard vóór de snapshot: een opslag met identieke waarden verandert niets —
       // geen undo-stap, geen `modifiedAt`-bump, geen isDirty.
       if (!projectChanges(s.project, updates)) return;
       runtime.beginUndoable(s);
       // Merge + `modifiedAt` + de projectstart-vloer op het bewerkmoment (verouderde wortel-
-      // ankers klemmen) — gedeeld met `draft.setProject`, zie `applyProjectPatch` (projectPatch.ts)
-      // voor het waarom. Wie de hele planning wil opschuiven gebruikt `moveProject` hieronder.
-      clampedAnchors = applyProjectPatch(s, updates);
-      // Alleen de projectstart raakt de planning (anker van de forward pass); naam/auteur niet.
-      runtime.finishMutation(s, { stale: 'startDate' in updates });
+      // ankers klemmen) + de taken die een nieuwe projectstandaard voor het taaktype erven —
+      // gedeeld met `draft.setProject`, zie `applyProjectPatch` (projectPatch.ts) voor het waarom.
+      // Wie de hele planning wil opschuiven gebruikt `moveProject` hieronder.
+      const outcome = applyProjectPatch(s, updates);
+      clampedAnchors = outcome.clampedAnchors;
+      measureChanged = outcome.measureChangedTaskIds.length > 0;
+      // De projectstart raakt de planning (anker van de forward pass); naam/auteur niet. Een nieuwe
+      // standaard *Vast werk* die taken urenmaat maakt, is ook planning (geval 11c): de modus gaat
+      // uit en de planning wordt verouderd, in deze ene undo-stap.
+      runtime.finishMutation(s, { stale: 'startDate' in updates || measureChanged });
     });
+    if (measureChanged) {
+      get().recomputeResourceLoad();
+      get().recomputeViewRows();
+    }
     if (clampedAnchors > 0) {
       // Ná een DAADWERKELIJKE klem meteen herberekenen — anders is de melding ("meegeschoven")
       // op het moment dat hij verschijnt nog niet waar (de taken staan dan wel op hun nieuwe anker,
       // maar early/late-datums en het kritieke pad zijn nog niet bijgewerkt). Buiten `setProject`'s
       // gebruikelijke "scheduling is handmatig"-regel (AGENTS.md) — bewust smal: alleen wanneer er
       // écht iets geklemd is, niet bij elke `setProject`-aanroep.
-      get().runCPM();
+      get().runCPM({ withinEvent: true });
       get().notify({
         severity: 'info',
         messageKey: 'notifications.projectStartAnchorsClamped',
@@ -373,7 +385,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       out = { moved: true, deltaDays: delta, taskCount: s.tasks.length };
     });
     if (out.moved) {
-      get().runCPM();
+      get().runCPM({ withinEvent: true });
       // "Toon het verplaatste project" — één definitie van in-beeld (computeFitToProject),
       // niet een tweede die view.viewStartDate met Δ zou schuiven (fout zodra het einde verspringt).
       get().requestFitToProject();
@@ -536,10 +548,12 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       payload.project = proj;
       payload.calendar = opts.calendar;
       const phaseHoursPerDay = effHoursPerDay(opts.calendar);
-      payload.tasks = opts.phaseNames.map((name, i) => {
-        const time = createDefaultTaskTime(proj.startDate, 5, proj.defaultTaskDurationUnit, opts.calendar); // uur-einde op de echte kalender
+      payload.tasks = opts.phaseNames.map((name, i): Task => {
+        // Standaardmaat voor nieuwe taken (B1a, `newTaskMeasure.ts`): de tijd ontstaat in de gekozen
+        // maat, en wordt urenmaat onder een profiel dat geen dagenmaat telt. Uur-einde op de echte kalender.
+        const time = createDefaultTaskTime(proj.startDate, 5, newTaskTimeUnit(proj), opts.calendar);
         deriveScheduleDurationFromMinutes(time, phaseHoursPerDay);
-        return {
+        const task: Task = {
           id: generateId('task'),
           name,
           description: '',
@@ -555,7 +569,11 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
           time,
           resourceIds: [],
         };
+        if (settleNewTaskMeasure(task, proj, false, phaseHoursPerDay)) seedNewHourTaskFinish(task, undefined, opts.calendar);
+        return task;
       });
+      // Ook de wizard is een invoergrens: hydratePayload verwacht al D1/D2-momenten.
+      payload.tasks = payload.tasks.map(task => normalizeTaskDates(task, { calendar: opts.calendar, calendars: [opts.calendar] }));
       // Een leeg project (template 'Leeg') is nog niet 'dirty'; met fasen wél.
       payload.isDirty = opts.phaseNames.length > 0;
       // De tijdlijn begint bij de projectstart (de verse view staat op vandaag). Ook bij een
@@ -595,7 +613,6 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
     get().applyLoadedProject(loaded, {
       recompute: true,
       fit: false,
-      hourDataNotice: false,
       viewStartDate: opts?.viewStartDate,
     });
   },

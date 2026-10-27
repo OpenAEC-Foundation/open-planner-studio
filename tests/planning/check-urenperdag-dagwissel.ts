@@ -168,7 +168,7 @@ const view = (p: Partial<WorkCalendar>) => ({ workDays: p.workDays, hoursPerDay:
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // §4 De route van het venster, daarna opslaan als IFC en heropenen
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-const OPEN = { filePath: null, fileHandle: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: true } as const;
+const OPEN = { filePath: null, fileHandle: null, recompute: true, fit: false, linkedOpen: true } as const;
 const quiet = <T>(fn: () => T): T => {
   const warn = console.warn;
   console.warn = () => {};
@@ -203,7 +203,7 @@ const taskView = (p: DocumentPayload) => Object.fromEntries(p.tasks.map((t) => {
   const x = t.time;
   return [t.id, {
     dur: x.scheduleDuration, min: x.durationMinutes ?? null,
-    days: formatTaskDurationDisplay(t, cal, 'days', true),
+    days: formatTaskDurationDisplay(t, cal, 'days'),
     dates: [x.scheduleStart, x.scheduleFinish, x.earlyStart, x.earlyFinish, x.lateStart, x.lateFinish],
   }];
 }));
@@ -234,7 +234,7 @@ const changedIds = (a: Record<string, unknown>, b: Record<string, unknown>) =>
   // Eigenaarsbesluit 2026-10-15, optie 2: de dagwaarde is werkminuten ÷ de werktijd per dag van de blokken
   // (40 / 10), net als de getoonde duur en de motor; de uren per dag (8) blijven alleen voor de export.
   same('§4 urentaak van 40 u op Late ploeg: dagwaarde 4 (40 / 10 klokuren), getoond 4d',
-    [lateTask.time.scheduleDuration, formatTaskDurationDisplay(lateTask, before.calendar, 'days', true)], [4, '4d(40h)']);
+    [lateTask.time.scheduleDuration, formatTaskDurationDisplay(lateTask, before.calendar, 'days')], [4, '4d(40h)']);
 
   const afterCtx = openInStore(await parseOpenedFile({ name: 'dagwissel.ifc', text: writeIFC(buildWriteIFCInput(before)) }));
   const after = payloadOf(afterCtx);

@@ -241,6 +241,9 @@ export interface ExtensionApi {
     getProject(): ExtProject;
     getCalendar(): ExtCalendar;
     getTasks(): ExtTask[];
+    /** Verse kopie van de taakselectie in de gebonden documentcontext, in selectievolgorde.
+     *  Lezen verandert geen selectie, document of undo-historie. Sinds contract 1.5.0. */
+    getSelectedTaskIds(): string[];
     getSequences(): ExtSequence[];
     getResources(): ExtResource[];
     getAssignments(): ExtAssignment[];

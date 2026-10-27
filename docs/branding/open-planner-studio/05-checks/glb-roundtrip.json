@@ -1,0 +1,24 @@
+{
+  "open-planner-studio.glb": {
+    "valid_glb_header": true,
+    "valid_accessors_and_indices": true,
+    "finite_positions": true,
+    "object_names_match_blend": true,
+    "vertex_counts_match_blend": true,
+    "objects": 34,
+    "vertices": 1296,
+    "triangles": 1538,
+    "reconstructed_in_blender_and_rendered": true
+  },
+  "open-planner-studio-wordmark.glb": {
+    "valid_glb_header": true,
+    "valid_accessors_and_indices": true,
+    "finite_positions": true,
+    "object_names_match_blend": true,
+    "vertex_counts_match_blend": true,
+    "objects": 37,
+    "vertices": 6463,
+    "triangles": 6687,
+    "reconstructed_in_blender_and_rendered": true
+  }
+}

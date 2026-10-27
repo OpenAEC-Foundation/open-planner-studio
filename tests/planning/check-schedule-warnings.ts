@@ -1,3 +1,4 @@
+// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 // Waarschuwingenpaneel (issue #53): de pure verzamelaar `collectScheduleWarnings`, de solver-
 // uitbreiding `cycleTaskIds`, de navigatie `revealScheduleWarning` op een ECHTE store, en de
 // `setUI`-invarianten voor het derde railpaneel.
@@ -64,10 +65,10 @@ S().runCPM();
   eq('04 overbezetting op de kraan aanwezig', kinds.includes('overallocation'), true);
   const dl = w.find(x => x.kind === 'missedDeadline')!;
   eq('05 deadline-rij wijst naar B', dl.target, { type: 'task', taskId: b });
-  eq('06 deadline-rij draagt deadline + vroegste einde', [dl.facts.deadline, !!dl.facts.finish], ['2026-09-11', true]);
+  eq('06 deadline-rij draagt deadline + vroegste einde', [dl.facts.deadline, !!dl.facts.finish], ["2026-09-11T16:00", true]);
   eq('07 id is stabiel: kind:doel', dl.id, `missedDeadline:${b}`);
   const vc = w.find(x => x.kind === 'violatedConstraint')!;
-  eq('08 constraint-rij draagt type + datum', [vc.facts.constraintType, vc.facts.constraintDate], ['SNLT', '2026-09-09']);
+  eq('08 constraint-rij draagt type + datum', [vc.facts.constraintType, vc.facts.constraintDate], ['SNLT', "2026-09-09T07:00"]);
   const oa = w.find(x => x.kind === 'overallocation')!;
   eq('09 overbezettingsrij wijst naar de resource met dagtelling', [oa.target, (oa.facts.days ?? 0) > 0], [{ type: 'resource', resourceId: r }, true]);
   // R1: deze overbezetting komt van twee parallelle toewijzingen op de projectkalender (geen

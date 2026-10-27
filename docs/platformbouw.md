@@ -76,6 +76,8 @@ interface OpenAECHost {
   storage?: SiteStorage;
   /** Open dit bestand bij de start, als de tool nog een leeg document heeft. */
   initialFileId?: string;
+  /** Toon bij de start geen welkomstvenster (alleen strikt `true`). Werkt ook zonder `storage`. */
+  skipWelcome?: boolean;
 }
 
 interface SiteStorage {
@@ -97,6 +99,10 @@ Afspraken:
   nooit een site.
 - Zet de site de host pas na het laden en gebruikt ze `initialFileId`, stuur dan één keer het event
   `openaec-host-ready` op het venster waar de host staat (het eigen venster van de tool, of de pagina eromheen).
+- Kan de tool geen instellingen bewaren (bijvoorbeeld een sandbox-iframe zonder `localStorage`), zet dan
+  `skipWelcome: true`. Anders komt het welkomstvenster bij elke start terug. De tool kijkt bij de start en nog
+  eens vlak voordat het venster zou openen. Zet de host daarom vóór de tool start: een venster dat al open
+  staat, sluit een latere host niet.
 - `list` krijgt de extensies zonder punt (`ifc`, `csv`, `xml`, `mpp`, `xer`). De site mag erop filteren; de
   tool filtert daarna zelf ook.
 - `open` zonder `version` geeft de nieuwste versie, met `file.version` erbij; zonder versie weigert de tool het
@@ -125,7 +131,10 @@ Alleen als er een site is; zonder site verandert er niets.
   doel, en **Opslaan als**, tonen "Opslaan op de site" met een naamveld en een knop "Op deze pc…".
 - **Recente bestanden** tonen site-bestanden met het label "Op de site". Heropenen haalt de nieuwste versie.
 - **Crashherstel** werkt met een site-bestand: na herstel schrijft Ctrl+S weer naar dezelfde plek op de site,
-  met dezelfde basisversie (het herstelmanifest bewaart `siteFileId` en `siteFileVersion`).
+  met dezelfde basisversie (het herstelmanifest bewaart `siteFileId` en `siteFileVersion`). Crashherstel blijft
+  lokaal in de browser. Weigert de browser IndexedDB (bijv. in een sandbox-iframe zonder `allow-same-origin`,
+  zoals de SuperCloud-werkplek), dan gaat crashherstel stil uit voor die sessie: geen melding, één regel in de
+  console. Opslaan via de site werkt gewoon.
 - **Automatisch opslaan** staat uit voor een site-bestand: elke ronde zou een nieuwe versie op de site maken. De
   knop in de titelbalk is grijs en zegt waarom; crashherstel blijft actief.
 - Exporteren blijft altijd een download of bestandskiezer.

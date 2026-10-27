@@ -1,3 +1,4 @@
+// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { isMultiDocumentImport } from '@/services/importTypes';
 import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
@@ -118,7 +119,7 @@ eq('all-date-only-contrast blijft door IFC exact date-only', {
   flag: true,
 });
 eq('all-date-only-contrast houdt Expected Finish als daganker',
-  solve(dayReloaded).get('D'), '2026-08-12');
+  solve(dayReloaded).get('D'), "2026-08-12T16:00");
 
 // Reviewfinding A: elk X7-bronveld bezit zijn eigen precisie. Een klok in een buurveld mag de
 // vorm van een date-only suspend/resume of Expected Finish niet kalenderbreed promoveren.

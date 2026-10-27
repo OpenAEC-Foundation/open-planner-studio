@@ -1,7 +1,10 @@
 // check-work-rule-library.ts — H6 (R1-rest, eigenaarsbesluit 2026-09-26 "zelfde regel als de dialoog"):
 // een bibliotheekverversing van een kalender volgt de werkregel, net als de kalenderdialoog
-// (`commitCalendarLibrary`, #170). Per route: Vast werk 4 d × 8 u = 32 u; de (effectieve) kalender van
-// de taak gaat via de bibliotheek van 8 naar 6 u/d ⇒ 6 d, werk blijft 32 u, melding "1 taak".
+// (`commitCalendarLibrary`, #170). Per route: Vaste inzet 4 d × 8 u = 32 u; de (effectieve) kalender van
+// de taak gaat via de bibliotheek van 8 naar 6 u/d ⇒ 16/3 d, werk blijft 32 u, melding "1 taak".
+// Alleen uren B1a (spec §3.2): vast werk is urenmaat en houdt bij een kalenderwissel zijn minuten, net als
+// de urentaak `h` hieronder; de regel verandert dan geen duur. De taak waarvan de regel de duur in dagen
+// uit het werk haalt, is daarom Vaste inzet (tot F3c was dat Vast werk).
 //
 // Routes (alle via `captureCalendarLibraryChange`/`settleCalendarLibraryChange`, state/calendarTasks.ts):
 //   (a) `refreshAllDocumentsFromPool` — actief document (bibliotheekkalender bewerken ⇒ `updatePoolCalendar`)
@@ -41,12 +44,12 @@ const LOST_KEY = 'notifications.mppTimephasedSteeringLost';
 interface Fixture {
   store: Store;
   S: () => ReturnType<Store['getState']>;
-  /** Vast werk op de gekoppelde projectkalender. */
+  /** Vaste inzet op de gekoppelde projectkalender: de regel haalt de duur in dagen uit het werk. */
   t: string;
   r: string;
   /** Standaardregel op dezelfde kalender (duur blijft). */
   q: string;
-  /** Urentaak op dezelfde kalender (buiten de regel); '' zonder urentaak. */
+  /** Urentaak met vast werk op dezelfde kalender (urenmaat, buiten de regel); '' zonder urentaak. */
   h: string;
   cid: string;
   poolId: string;
@@ -61,10 +64,10 @@ function fixture(opts: { link?: boolean; hourTask?: boolean } = {}): Fixture {
   const S = () => store.getState();
   S().setProject({ startDate: '2026-06-01' });
   S().ensureProjectCalendarInLibrary();
-  const t = S().addTask({ name: 'Vast werk', time: createDefaultTaskTime('2026-06-01', 4) });
+  const t = S().addTask({ name: 'Vaste inzet', time: createDefaultTaskTime('2026-06-01', 4) });
   const r = S().addResource({ name: 'Ploeg', type: 'LABOR', description: '', maxUnits: 1 });
   S().assignResource(t, r, 1);
-  S().setTaskWorkRule(t, 'FIXED_WORK'); // 4 d × 8 u = 32 u vastgelegd
+  S().setTaskWorkRule(t, 'FIXED_RATE'); // 4 d × 8 u = 32 u
   const q = S().addTask({ name: 'Standaard', time: createDefaultTaskTime('2026-06-01', 4) });
   S().assignResource(q, S().addResource({ name: 'Ploeg q', type: 'LABOR', description: '', maxUnits: 1 }), 1);
   let h = '';
@@ -96,7 +99,7 @@ const asgOf = (f: Fixture, id: string): ResourceAssignment => f.S().assignments.
 const dur = (f: Fixture, id: string) => taskOf(f, id).time.scheduleDuration;
 const msgs = (f: Fixture, key: string) => f.S().ui.notifications.filter((n) => n.messageKey === key).map((n) => n.params?.count);
 const appliedEvents = (f: Fixture) => f.S().historyEvents.filter((e) => e.state === 'applied').length;
-/** De afwijkende kopie: pool 6 u, projectkopie lokaal terug naar 8 u (Vast werk ⇒ weer 4 d). */
+/** De afwijkende kopie: pool 6 u, projectkopie lokaal terug naar 8 u (Vaste inzet ⇒ weer 4 d). */
 function deviatedToEight(f: Fixture): void {
   f.S().updatePoolCalendar(f.cid, f.poolId, sixHours(poolCal(f)));
   f.S().updateCalendar(f.S().project.calendarId, { workEndHour: 16, hoursPerDay: 8 });
@@ -113,9 +116,9 @@ console.log('-- (a) refreshAllDocumentsFromPool, actief document --');
   const ev0 = appliedEvents(f);
   f.S().updatePoolCalendar(f.cid, f.poolId, sixHours(poolCal(f)));
   eq('a0 voorwaarde: projectkopie ververst naar 6 u', f.S().calendar.hoursPerDay, 6);
-  eq('a1 Vast werk 32 u, kalender 8→6 u/d ⇒ 6 d, werk blijft 32 u', [dur(f, f.t), asgOf(f, f.t).remainingWorkMinutes], [6, 32 * 60]);
+  eq('a1 Vaste inzet 32 u, kalender 8→6 u/d ⇒ 16/3 d, werk blijft 32 u', [dur(f, f.t), asgOf(f, f.t).remainingWorkMinutes], [16 / 3, 32 * 60]);
   eq('a2 standaardregel op dezelfde kalender: duur blijft 4, geen werkveld', [dur(f, f.q), asgOf(f, f.q).remainingWorkMinutes], [4, qWorkBefore]);
-  // De urentaak valt buiten de regel: minuten, datums en toewijzing blijven byte-identiek. Alleen haar
+  // De urentaak (vast werk, urenmaat) valt buiten de regel: minuten, datums en toewijzing blijven byte-identiek. Alleen haar
   // verborgen dagengetal volgt de nieuwe werktijd per dag: 600 min ÷ 6 u (eigenaarsbesluit 2026-10-15,
   // optie 2 — `hourTaskScheduleDuration`, ook bij een kalenderwissel).
   const hAfter = JSON.parse(hBefore) as { time: Task['time']; asg: ResourceAssignment };
@@ -127,7 +130,7 @@ console.log('-- (a) refreshAllDocumentsFromPool, actief document --');
   quiet(f.store);
   const pr = f.S().addPoolResource(f.cid, { name: 'Los', type: 'LABOR', description: '', maxUnits: 1 })!;
   f.S().updatePoolResource(f.cid, pr, { maxUnits: 2 });
-  eq('a6 poolbewerking zonder kalenderwijziging: duur blijft 6, geen melding', [dur(f, f.t), msgs(f, DUR_KEY)], [6, []]);
+  eq('a6 poolbewerking zonder kalenderwijziging: duur blijft 16/3 d, geen melding', [dur(f, f.t), msgs(f, DUR_KEY)], [16 / 3, []]);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -137,7 +140,8 @@ console.log('-- (a-lost) verlies van tijdgefaseerde sturing: dezelfde melding al
   f.S().updateTask(f.t, { timephasedFinishFloor: '2026-06-04T17:00', timephasedStartAnchor: '2026-06-01T08:00' });
   quiet(f.store);
   f.S().updatePoolCalendar(f.cid, f.poolId, sixHours(poolCal(f)));
-  eq('al1 Z8-venster gewist bij de duurwijziging uit de werkregel', [dur(f, f.t), taskOf(f, f.t).timephasedFinishFloor], [6, undefined]);
+  eq('al1-duur 32 u op 6 u/d ⇒ 16/3 d', dur(f, f.t), 16 / 3);
+  eq('al1-nazorg Z8-venster gewist bij de duurwijziging uit de werkregel', taskOf(f, f.t).timephasedFinishFloor, undefined);
   eq('al2 melding "sturing verloren" voor 1 taak', msgs(f, LOST_KEY), [1]);
 }
 
@@ -154,12 +158,12 @@ console.log('-- (b) refreshAllDocumentsFromPool, SLAPEND document --');
   f.S().updatePoolCalendar(f.cid, f.poolId, sixHours(poolCal(f)));
   const pt = payloadOf().tasks.find((x) => x.id === f.t)!;
   const pa = payloadOf().assignments.find((a) => a.taskId === f.t)!;
-  eq('b1 slapende payload: settle op zijn eigen taken (8→7→6 u ⇒ 6 d, werk 32 u)', [payloadOf().calendar.hoursPerDay, pt.time.scheduleDuration, pa.remainingWorkMinutes], [6, 6, 32 * 60]);
+  eq('b1 slapende payload: settle op zijn eigen taken (8→7→6 u ⇒ 16/3 d, werk 32 u)', [payloadOf().calendar.hoursPerDay, pt.time.scheduleDuration, pa.remainingWorkMinutes], [6, 16 / 3, 32 * 60]);
   eq('b2 …niet-undoable en niet gewijzigd: geen history, isDirty blijft false, wel stale', [f.S().historyEvents.length - ev0, payloadOf().isDirty, payloadOf().scheduleStale], [0, false, true]);
   eq('b3 geen melding zolang het document slaapt (het actieve document is niet geraakt)', msgs(f, DUR_KEY), []);
   f.S().switchDocument(docA);
   eq('b4 bij activeren: één samenvattende melding voor het document, de taak één keer geteld', msgs(f, DUR_KEY), [1]);
-  eq('b5 …en de taak staat op 6 d', dur(f, f.t), 6);
+  eq('b5 …en de taak staat op 16/3 d', dur(f, f.t), 16 / 3);
   quiet(f.store);
   const docB = f.S().documents.find((d) => d.id !== docA)!.id;
   f.S().switchDocument(docB);
@@ -175,12 +179,12 @@ console.log('-- (c) updateProjectCalendarFromLibrary: settle in dezelfde undo-st
   eq('c0 voorwaarde: afwijkende kopie 8 u, taak 4 d', [f.S().calendar.hoursPerDay, dur(f, f.t)], [8, 4]);
   const ev0 = appliedEvents(f);
   f.S().updateProjectCalendarFromLibrary(f.S().project.calendarId);
-  eq('c1 bijwerken vanuit de bibliotheek 8→6 u ⇒ 6 d, werk 32 u', [f.S().calendar.hoursPerDay, dur(f, f.t), asgOf(f, f.t).remainingWorkMinutes], [6, 6, 32 * 60]);
+  eq('c1 bijwerken vanuit de bibliotheek 8→6 u ⇒ 16/3 d, werk 32 u', [f.S().calendar.hoursPerDay, dur(f, f.t), asgOf(f, f.t).remainingWorkMinutes], [6, 16 / 3, 32 * 60]);
   eq('c2 één undo-stap, melding "1 taak"', [appliedEvents(f) - ev0, msgs(f, DUR_KEY)], [1, [1]]);
   f.S().undo();
   eq('c3 undo zet kalender én duur in één stap terug', [f.S().calendar.hoursPerDay, dur(f, f.t)], [8, 4]);
   f.S().redo();
-  eq('c4 redo: weer 6 u en 6 d', [f.S().calendar.hoursPerDay, dur(f, f.t)], [6, 6]);
+  eq('c4 redo: weer 6 u en 16/3 d', [f.S().calendar.hoursPerDay, dur(f, f.t)], [6, 16 / 3]);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -193,7 +197,7 @@ console.log('-- (d) linkRecognizedItems: settle in dezelfde undo-stap --');
   quiet(f.store);
   const ev0 = appliedEvents(f);
   f.S().linkRecognizedItems([{ kind: 'calendar', projectId: f.S().project.calendarId, poolId }]);
-  eq('d1 koppelen aan de 6-u-bibliotheekkalender ⇒ 6 d, werk 32 u', [f.S().calendar.hoursPerDay, dur(f, f.t), asgOf(f, f.t).remainingWorkMinutes], [6, 6, 32 * 60]);
+  eq('d1 koppelen aan de 6-u-bibliotheekkalender ⇒ 16/3 d, werk 32 u', [f.S().calendar.hoursPerDay, dur(f, f.t), asgOf(f, f.t).remainingWorkMinutes], [6, 16 / 3, 32 * 60]);
   eq('d2 één undo-stap, melding "1 taak"', [appliedEvents(f) - ev0, msgs(f, DUR_KEY)], [1, [1]]);
   f.S().undo();
   eq('d3 undo zet kalender, koppeling én duur in één stap terug', [f.S().calendar.hoursPerDay, f.S().calendar.libraryOrigin, dur(f, f.t)], [8, undefined, 4]);
@@ -211,7 +215,7 @@ console.log('-- (e) resolveDeviation(company): "Bibliotheekwaarden gebruiken", n
   deviatedToEight(f);
   const ev0 = appliedEvents(f);
   f.S().resolveDeviation({ kind: 'calendar', projectId: f.S().project.calendarId }, 'company');
-  eq('e1 bibliotheekwaarden 6 u ⇒ 6 d, werk 32 u', [f.S().calendar.hoursPerDay, dur(f, f.t), asgOf(f, f.t).remainingWorkMinutes], [6, 6, 32 * 60]);
+  eq('e1 bibliotheekwaarden 6 u ⇒ 16/3 d, werk 32 u', [f.S().calendar.hoursPerDay, dur(f, f.t), asgOf(f, f.t).remainingWorkMinutes], [6, 16 / 3, 32 * 60]);
   eq('e2 geen undo-stap, geen isDirty, wel stale; melding "1 taak"', [appliedEvents(f) - ev0, f.S().isDirty, f.S().scheduleStale, msgs(f, DUR_KEY)], [0, false, true, [1]]);
 }
 
@@ -225,7 +229,7 @@ console.log('-- (f) activatiegrens: openen van een bestand dat achterloopt, en w
   f.S().updatePoolCalendar(f.cid, f.poolId, sixHours(poolCal(f)));
   quiet(f.store);
   f.S().applyLoadedProject(readIFC(ifc), { linkedOpen: true, recompute: true, filePath: null });
-  eq('f1 openen: kalender ververst naar 6 u en Vast werk ⇒ 6 d, werk 32 u', [f.S().calendar.hoursPerDay, dur(f, f.t), asgOf(f, f.t).remainingWorkMinutes], [6, 6, 32 * 60]);
+  eq('f1 openen: kalender ververst naar 6 u en Vaste inzet ⇒ 16/3 d, werk 32 u', [f.S().calendar.hoursPerDay, dur(f, f.t), asgOf(f, f.t).remainingWorkMinutes], [6, 16 / 3, 32 * 60]);
   eq('f2 …standaardregel blijft 4 d; melding "1 taak"; niet gewijzigd', [dur(f, f.q), msgs(f, DUR_KEY), f.S().isDirty], [4, [1], false]);
 }
 {
@@ -242,7 +246,8 @@ console.log('-- (f) activatiegrens: openen van een bestand dat achterloopt, en w
   eq('f3 voorwaarde: slapend document nog niet ververst (4 d)', pt.time.scheduleDuration, 4);
   quiet(f.store);
   f.S().switchDocument(docA);
-  eq('f4 activeren: ververst naar 6 u en Vast werk ⇒ 6 d; melding "1 taak"', [f.S().calendar.hoursPerDay, dur(f, f.t), msgs(f, DUR_KEY)], [6, 6, [1]]);
+  eq('f4-duur activeren: ververst naar 6 u en Vaste inzet ⇒ 16/3 d', [f.S().calendar.hoursPerDay, dur(f, f.t)], [6, 16 / 3]);
+  eq('f4-melding activeren: melding "1 taak"', msgs(f, DUR_KEY), [1]);
   eq('f5 …activeren is geen bewerking: niet gewijzigd', f.S().isDirty, false);
 }
 
@@ -258,7 +263,7 @@ console.log('-- (g) idempotentie: heropenen zonder opslaan geeft hetzelfde resul
     q: [dur(f, f.q), asgOf(f, f.q).remainingWorkMinutes, asgOf(f, f.q).unitsPerDay],
   });
   const afterRefresh = snap();
-  eq('g1 voorwaarde: verversing gaf 6 d en liet het document ongewijzigd', [afterRefresh.t[0], f.S().isDirty], [6, false]);
+  eq('g1 voorwaarde: verversing gaf 16/3 d en liet het document ongewijzigd', [afterRefresh.t[0], f.S().isDirty], [16 / 3, false]);
   // Nog een keer dezelfde grens over het al-ververste document: niets meer te doen.
   const again = materializeBehindOnlyRefresh({ payload: capturePayload(f.S()), companies: f.S().companies, pools: f.S().pools });
   eq('g2 dezelfde grens nogmaals: 0 kalenders ververst, taken ongemoeid', [again.calendarsChanged, again.payload.tasks === f.S().tasks], [0, true]);

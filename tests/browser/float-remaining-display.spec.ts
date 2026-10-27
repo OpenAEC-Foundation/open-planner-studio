@@ -9,7 +9,6 @@ import { barPoint, expect, test } from './fixtures/ops';
 test('speling en restduur van een urentaak: leesbaar en overal gelijk', async ({ page, ops: _ops }) => {
   const ids = await page.evaluate(() => {
     const g = () => window.__OPS__!.store.getState();
-    g().setUI({ enableHourPlanning: true });
     const band = [{ start: 8 * 60, end: 17 * 60 }]; // 9 werkuren per dag
     g().setCalendar({
       ...g().calendar, workDays: [1, 2, 3, 4, 5], holidays: [], hoursPerDay: 9, workStartHour: 8, workEndHour: 17,

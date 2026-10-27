@@ -39,7 +39,7 @@ The worked examples below show what each task type does.
 
 ### Rounding
 
-The duration that follows from the sum is rounded up by the app. For a task in days that is to whole work days, for a task in hours to whole minutes. Work and units stay what you entered or what the app took from the sum. As a result the sum sometimes no longer holds exactly. The example below shows what happens then.
+The app does not round the duration that follows from the sum, not even to whole work days. A task may take part of a work day, for example 1.33 work days. As a result work, units and duration agree: the work is the units × the duration. Only a file from P6 or MS Project can hold work that does not agree with them. The example below shows both.
 
 ### Several resources
 
@@ -77,6 +77,8 @@ The plastering takes 4 work days. One plasterer is assigned to it, with units of
 
 ### Fixed work
 
+Fixed work is always a task in hours. If you choose Fixed work, the column *Duration* of the plastering shows 32h: 4 work days of 8 hours. The examples below give the duration in work days.
+
 - You make the duration 6 work days: the work stays 32 hours, the units drop to 0.67.
 - You set the units to 2: the work stays 32 hours and the duration becomes 2 work days. This is the step you take in tutorial 5.
 - You type 48 hours in *Work (h)*: the units stay 1 and the duration becomes 6 work days.
@@ -89,21 +91,21 @@ The plastering takes 4 work days. One plasterer is assigned to it, with units of
 - You type 48 hours in *Work (h)*: the units stay 1 and the duration becomes 6 work days.
 - You assign a second resource, for example *Plasterer 2*, with units of 1: the 32 hours are divided, 16 hours each, and the duration becomes 2 work days.
 
-### When the sum does not come out
+### A duration with part of a work day
 
-Under Fixed work you set the units to 3. The work is 32 hours, so the duration becomes 32 ÷ (3 × 8) = 1.33 work days. The app rounds that up to 2 work days. Work (32 hours) and units (3) stay, but 2 × 3 × 8 is 48 hours. The histogram therefore spreads the 32 hours over the 2 work days: 2 units per day, not 3. In the *Work (h)* field a warning sign appears, *Differs from units × duration*, to show this.
+Under Fixed work you set the units to 3. The work is 32 hours, so the duration becomes 32 ÷ 3 = 10 hours and 40 minutes, that is 1.33 work days. Work (32 hours), units (3) and duration agree, so there is no warning sign. The plastering starts on Friday 23 July at 07:00 and finishes on Monday 26 July at 09:40. The histogram shows 3 on Friday and 1 on Monday: on Monday the task works 2 hours and 40 minutes, a third of the 8-hour work day.
 
-With two resources with different units it works the same way. If, under Fixed work, you add a second resource, for example *Plasterer 2*, with units of 2 to the plasterer with units of 1, the app divides the 32 hours in the ratio 1 : 2, so 10.7 and 21.3 hours. Both then need 1.33 work days. The duration becomes 2 work days.
+With two resources with different units it works the same way. If, under Fixed work, you add a second resource, for example *Plasterer 2*, with units of 2 to the plasterer with units of 1, the app divides the 32 hours in the ratio 1 : 2, so 10.7 and 21.3 hours. Both then need 10 hours and 40 minutes, 1.33 work days. That is also the duration.
 
 A file from P6 or MS Project can also hold a *Work (rem.)* that is not equal to units × remaining duration. The same warning sign then appears. The app does not change this work by itself. If you change the duration of such a task, the app follows the task type, also when the remaining work came from the file. Under *Fixed duration and units* and *Fixed units* the remaining work becomes units × new remaining duration. Under *Fixed duration and work* and *Fixed work* the work stays and the units adjust. If a remaining work from the file disappears this way, you get a notification with the old and the new number of hours. Ctrl+Z restores the old value. The explanation at the warning sign tells you per task which of the two happens.
 
 ### A different calendar
 
-Under Fixed work the calendar's work day goes from 8 to 6 hours. The work stays 32 hours, so the duration becomes 32 ÷ 6 = 5.33, rounded up to 6 work days. How the app counts work days and work hours is explained in [Calendars and working days](docs://uitleg-kalenders). The app reports: *After the calendar change the task type adjusted the duration of 1 task (work stays, hours per day changed).*
+Under Fixed work the calendar's work day goes from 8 to 6 hours. The plastering is a task in hours, so the duration stays 32 hours. On work days of 6 hours that is 32 ÷ 6 = 5.33 work days: the finish moves from Wednesday 28 July to Friday 30 July at 09:00. Under *Fixed units* the plastering is a task in days. Then the work stays 32 hours and the duration becomes 5.33 work days, with the same finish. The app then reports: *After the calendar change the task type adjusted the duration of 1 task (work stays, hours per day changed).* How the app counts work days and work hours is explained in [Calendars and working days](docs://uitleg-kalenders).
 
 ### A task with progress
 
-The inner cavity leaf takes 5 work days and is 40% done: 2 work days are done and 3 work days (24 hours) remain. Under Fixed work you set the units from 1 to 2. The remaining work stays 24 hours and the remaining duration becomes 1.5, rounded up to 2 work days. The task now takes 2 + 2 = 4 work days and the progress is 50%. The percentage moves along, because the part that is done stays the same and the remainder gets shorter.
+The inner cavity leaf takes 5 work days and is 40% done: 2 work days (16 hours) are done and 3 work days (24 hours) remain. If you choose Fixed work, it becomes a task in hours of 40 hours. If you set the units from 1 to 2, the remaining work stays 24 hours and the remaining duration becomes 12 hours, 1.5 work days. The task now takes 16 + 12 = 28 hours, 3.5 work days, and the progress is 57%. The percentage moves along, because the part that is done stays the same and the remainder gets shorter.
 
 ## Consequences and misconceptions
 

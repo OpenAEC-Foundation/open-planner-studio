@@ -1,3 +1,4 @@
+import { isElapsedTask } from '@/engine/scheduler/duration';
 import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
@@ -5,6 +6,7 @@ import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { answerActualStartQuestion, type ActualStartAnswers } from '@/state/actualStartQuestion';
 import { ACTUAL_START_HELP_ARTICLE_ID } from '@/state/helpArticles';
+import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { actualStartAnswerIssue } from '@/engine/progressEntry';
 import { displayDate, displayDateTime } from '@/utils/displayDate';
 import { statusDateAsUsed } from '@/utils/statusDateTime';
@@ -39,7 +41,9 @@ type Issue = 'required' | 'afterStatusDate' | 'actualFinishBeforeStart';
 
 function issueOf(value: string, item: ActualStartQuestionItem): Issue | null {
   if (!value) return 'required';
-  return actualStartAnswerIssue(value, item);
+  const state = useAppStore.getState();
+  const task = state.tasks.find(task => task.id === item.taskId);
+  return actualStartAnswerIssue(value, item, task && isElapsedTask(task) ? undefined : resolveCalendar(task?.calendarId, state.calendars, state.calendar));
 }
 
 function ActualStartDialogBody({ request }: { request: ActualStartQuestionRequest }) {

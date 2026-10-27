@@ -63,7 +63,7 @@
     },
     {
       "id": "msp-01c-h1-uur-voorganger-dag-eindmijlpaal",
-      "title": "H1 (Opus-review): spiegel van msp-03 — UUR-voorganger A (H9) eindigt di 17:00 -> DAG-eindmijlpaal Mf via FS+0. Mf's datumSTRINGS zijn in de foutieve variant identiek aan de correcte (bug onzichtbaar in de datumweergave); de tf-assertie tegen de dag-referentie P(5d, projecteinde vrijdag) legt 'm wél vast.",
+      "title": "N1: het echte einde di 17:00 valt na de eindgrens 16:00 van de opvolgerkalender; de eindmijlpaal landt wo 07:00.",
       "note": "P is een onafhankelijke parallelle dagtaak zonder relatie naar A/Mf, uitsluitend om het projecteinde op vrijdag te zetten zodat Mf (sink, geen opvolger) een meetbare speling krijgt (LF = projectEnd via backwardPass). Rekenkern (`workDaysBetween`, CalendarEngine.ts): `totalDays = floor((endMs-startMs)/MS_PER_DAY)+1` — een spook-tijdscomponent van 17:00 op Mf.ef verkleint die ms-afstand met 17 uur t.o.v. de projecteinde-middernacht, genoeg om er een hele dag af te laten vallen (tf 3->2), ook al blijft `startIdx` (en dus de geformatteerde datum) hetzelfde.",
       "anchor": "2026-07-06",
       "calendars": [{ "name": "H9", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [], "7": [] } } }],
@@ -75,8 +75,20 @@
       "links": [{ "pred": "A", "succ": "Mf", "type": "FINISH_START" }],
       "expect": {
         "tasks": {
-          "Mf": { "es": "2026-07-07", "ef": "2026-07-07", "ls": "2026-07-10", "lf": "2026-07-10", "tf": 3, "crit": false },
-          "P": { "es": "2026-07-06", "ef": "2026-07-10", "tf": 0, "crit": true }
+          "Mf": {
+            "es": "2026-07-08T07:00",
+            "ef": "2026-07-08T07:00",
+            "ls": "2026-07-10",
+            "lf": "2026-07-10",
+            "tf": 3,
+            "crit": false
+          },
+          "P": {
+            "es": "2026-07-06",
+            "ef": "2026-07-10",
+            "tf": 0,
+            "crit": true
+          }
         },
         "projectEnd": "2026-07-10",
         "error": false
@@ -84,7 +96,7 @@
     },
     {
       "id": "msp-03-fs-crossmode-daypred-finishms-ongemoeid",
-      "title": "CONTROLE (crash-guard): FS+0 cross-modus, DAG-voorganger D(2d) -> uur-EINDmijlpaal Mf. `pe` is hier dag-modus (geen `workTime`) — de nieuwe nul-lag-kortsluiting moet dit pad NIET raken (anders crasht `nextWorkInstant` op de non-null assertion). Verwacht ongewijzigd: Mf op 07-07 08:00 (zusjes-case rr-fs-crossmode-daypred-hourfinishms in cases-hours-relations.json).",
+      "title": "N1: één minutenpad bewaart het echte voorgangereinde di 16:00 voor een FS-eindmijlpaal, zonder daganker 08:00.",
       "anchor": "2026-07-06",
       "calendars": [{ "name": "H9", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 1020 }], "2": [{ "start": 480, "end": 1020 }], "3": [{ "start": 480, "end": 1020 }], "4": [{ "start": 480, "end": 1020 }], "5": [{ "start": 480, "end": 1020 }], "6": [], "7": [] } } }],
       "tasks": [
@@ -94,8 +106,18 @@
       "links": [{ "pred": "D", "succ": "Mf", "type": "FINISH_START" }],
       "expect": {
         "tasks": {
-          "D": { "es": "2026-07-06", "ef": "2026-07-07", "tf": 0, "crit": true },
-          "Mf": { "es": "2026-07-07T08:00", "ef": "2026-07-07T08:00", "tf": 0, "crit": true }
+          "D": {
+            "es": "2026-07-06",
+            "ef": "2026-07-07",
+            "tf": 0,
+            "crit": true
+          },
+          "Mf": {
+            "es": "2026-07-07T16:00",
+            "ef": "2026-07-07T16:00",
+            "tf": 0,
+            "crit": true
+          }
         },
         "error": false
       }
@@ -361,12 +383,38 @@
         { "name": "B", "dur": 2, "durationType": "ELAPSEDTIME" }
       ],
       "links": [{ "pred": "A", "succ": "B", "type": "FINISH_FINISH" }],
+      "minuteModel": {
+        "reason": "KALENDERTIJD-EINDE",
+        "note": "T16: FF+0 legt het einde van B op het eindmoment van A (wo 16:00). Het dagpad schreef dezelfde datum als exclusief einde, dus B eindigde daar een dag eerder dan A.",
+        "expect": {
+          "tasks": {
+            "B": {
+              "ef": "2026-07-08T16:00"
+            }
+          }
+        }
+      },
       "expect": {
         "tasks": {
-          "A": { "es": "2026-07-06", "ef": "2026-07-08", "tf": 0, "ff": 0, "crit": true },
-          "B": { "es": "2026-07-06", "ef": "2026-07-08", "tf": 0, "ff": 0, "crit": true }
+          "A": {
+            "es": "2026-07-06",
+            "ef": "2026-07-08",
+            "tf": 0,
+            "ff": 0,
+            "crit": true
+          },
+          "B": {
+            "es": "2026-07-06",
+            "ef": "2026-07-08T16:00",
+            "tf": 0,
+            "ff": 0,
+            "crit": true
+          }
         },
-        "criticalPathSet": ["A", "B"],
+        "criticalPathSet": [
+          "A",
+          "B"
+        ],
         "projectEnd": "2026-07-08",
         "error": false
       }
@@ -400,12 +448,45 @@
         { "name": "B", "dur": 1 }
       ],
       "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "minuteModel": {
+        "reason": "KALENDERTIJD-EINDE",
+        "note": "T16: A eindigt zo 00:00 (exclusief), B begint ma 07:00. A krijgt de speling in kalendertijd: 31 u = 1,29 d. Spec §4.5 noemt 1 d; de meting liet A om 07:00 beginnen, D3 zet het begin op 00:00.",
+        "expect": {
+          "tasks": {
+            "A": {
+              "ls": "2026-07-11",
+              "lf": "2026-07-13",
+              "tf": 1.2916666666666667,
+              "crit": false
+            }
+          },
+          "criticalPathSet": [
+            "B"
+          ]
+        }
+      },
       "expect": {
         "tasks": {
-          "A": { "es": "2026-07-10", "ef": "2026-07-12", "ls": "2026-07-10", "lf": "2026-07-12", "tf": 0, "ff": 0, "crit": true },
-          "B": { "es": "2026-07-13", "ef": "2026-07-13", "tf": 0, "ff": 0, "crit": true }
+          "A": {
+            "es": "2026-07-10",
+            "ef": "2026-07-12",
+            "ls": "2026-07-11",
+            "lf": "2026-07-13",
+            "tf": 1.2916666666666667,
+            "ff": 0,
+            "crit": false
+          },
+          "B": {
+            "es": "2026-07-13",
+            "ef": "2026-07-13",
+            "tf": 0,
+            "ff": 0,
+            "crit": true
+          }
         },
-        "criticalPathSet": ["A", "B"],
+        "criticalPathSet": [
+          "B"
+        ],
         "projectEnd": "2026-07-13",
         "error": false
       }
@@ -442,13 +523,59 @@
         { "pred": "A", "succ": "B", "type": "FINISH_FINISH" },
         { "pred": "B", "succ": "C", "type": "FINISH_START" }
       ],
+      "minuteModel": {
+        "reason": "KALENDERTIJD-EINDE",
+        "note": "T16: B eindigt met A op wo 16:00 (FF), C begint do 07:00. B krijgt de nacht als speling: 15 u = 0,625 d. A.lf (do 07:00, een blokbegin) staat hier bewust niet in: N1 dekt dit eindmoment niet; open punt voor F1.",
+        "expect": {
+          "tasks": {
+            "B": {
+              "ef": "2026-07-08T16:00",
+              "ls": "2026-07-07",
+              "lf": "2026-07-09",
+              "tf": 0.625,
+              "crit": false
+            }
+          },
+          "criticalPathSet": [
+            "A",
+            "C"
+          ]
+        }
+      },
       "expect": {
         "tasks": {
-          "A": { "es": "2026-07-06", "ef": "2026-07-08", "ls": "2026-07-06", "lf": "2026-07-08", "tf": 0, "ff": 0, "crit": true },
-          "B": { "es": "2026-07-06", "ef": "2026-07-08", "ls": "2026-07-06", "lf": "2026-07-08", "tf": 0, "ff": 0, "crit": true },
-          "C": { "es": "2026-07-09", "ef": "2026-07-09", "ls": "2026-07-09", "lf": "2026-07-09", "tf": 0, "ff": 0, "crit": true }
+          "A": {
+            "es": "2026-07-06",
+            "ef": "2026-07-08",
+            "ls": "2026-07-06",
+            "lf": "2026-07-08",
+            "tf": 0,
+            "ff": 0,
+            "crit": true
+          },
+          "B": {
+            "es": "2026-07-06",
+            "ef": "2026-07-08T16:00",
+            "ls": "2026-07-07",
+            "lf": "2026-07-09",
+            "tf": 0.625,
+            "ff": 0,
+            "crit": false
+          },
+          "C": {
+            "es": "2026-07-09",
+            "ef": "2026-07-09",
+            "ls": "2026-07-09",
+            "lf": "2026-07-09",
+            "tf": 0,
+            "ff": 0,
+            "crit": true
+          }
         },
-        "criticalPathSet": ["A", "B", "C"],
+        "criticalPathSet": [
+          "A",
+          "C"
+        ],
         "projectEnd": "2026-07-09",
         "error": false
       }
@@ -466,13 +593,53 @@
         { "pred": "A", "succ": "C", "type": "FINISH_START" },
         { "pred": "A2", "succ": "C", "type": "FINISH_START" }
       ],
+      "minuteModel": {
+        "reason": "KALENDERTIJD-EINDE",
+        "note": "T16: A eindigt za 00:00 (exclusief), C begint di 07:00. Speling in kalendertijd 79 u = 3,29 d. Spec §4.5 noemt 3; de meting liet A om 07:00 beginnen, D3 zet het begin op 00:00.",
+        "expect": {
+          "tasks": {
+            "A": {
+              "ls": "2026-07-13",
+              "lf": "2026-07-14",
+              "tf": 3.2916666666666665
+            }
+          }
+        }
+      },
       "expect": {
         "tasks": {
-          "A": { "es": "2026-07-10", "ef": "2026-07-11", "ls": "2026-07-12", "lf": "2026-07-13", "tf": 2, "ff": 1, "crit": false },
-          "A2": { "es": "2026-07-10", "ef": "2026-07-13", "ls": "2026-07-10", "lf": "2026-07-13", "tf": 0, "ff": 0, "crit": true },
-          "C": { "es": "2026-07-14", "ef": "2026-07-14", "ls": "2026-07-14", "lf": "2026-07-14", "tf": 0, "ff": 0, "crit": true }
+          "A": {
+            "es": "2026-07-10",
+            "ef": "2026-07-11",
+            "ls": "2026-07-13",
+            "lf": "2026-07-14",
+            "tf": 3.2916666666666665,
+            "ff": 1,
+            "crit": false
+          },
+          "A2": {
+            "es": "2026-07-10",
+            "ef": "2026-07-13",
+            "ls": "2026-07-10",
+            "lf": "2026-07-13",
+            "tf": 0,
+            "ff": 0,
+            "crit": true
+          },
+          "C": {
+            "es": "2026-07-14",
+            "ef": "2026-07-14",
+            "ls": "2026-07-14",
+            "lf": "2026-07-14",
+            "tf": 0,
+            "ff": 0,
+            "crit": true
+          }
         },
-        "criticalPathSet": ["A2", "C"],
+        "criticalPathSet": [
+          "A2",
+          "C"
+        ],
         "projectEnd": "2026-07-14",
         "error": false
       }
@@ -502,10 +669,27 @@
         { "name": "B", "dur": 6, "durationType": "ELAPSEDTIME" }
       ],
       "links": [{ "pred": "A", "succ": "B", "type": "FINISH_FINISH" }],
+      "minuteModel": {
+        "reason": "KALENDERTIJD-EINDE",
+        "note": "T16: FF+0 legt het einde van B op het eindmoment van A (vr 16:00); zie msp-16.",
+        "expect": {
+          "tasks": {
+            "B": {
+              "ef": "2026-07-10T16:00"
+            }
+          }
+        }
+      },
       "expect": {
         "tasks": {
-          "A": { "es": "2026-07-06", "ef": "2026-07-10" },
-          "B": { "es": "2026-07-04", "ef": "2026-07-10" }
+          "A": {
+            "es": "2026-07-06",
+            "ef": "2026-07-10"
+          },
+          "B": {
+            "es": "2026-07-04",
+            "ef": "2026-07-10T16:00"
+          }
         },
         "projectEnd": "2026-07-10",
         "error": false
@@ -541,10 +725,27 @@
         { "name": "B", "dur": 3, "durationType": "ELAPSEDTIME" }
       ],
       "links": [{ "pred": "A", "succ": "B", "type": "START_FINISH" }],
+      "minuteModel": {
+        "reason": "KALENDERTIJD-EINDE",
+        "note": "T16 met T8: SF+0 legt het einde van B op het startmoment van A (wo 07:00). Het dagpad schreef de startdatum van A als exclusief einde (wo 00:00).",
+        "expect": {
+          "tasks": {
+            "B": {
+              "ef": "2026-07-08T07:00"
+            }
+          }
+        }
+      },
       "expect": {
         "tasks": {
-          "A": { "es": "2026-07-08", "ef": "2026-07-08" },
-          "B": { "es": "2026-07-05", "ef": "2026-07-08" }
+          "A": {
+            "es": "2026-07-08",
+            "ef": "2026-07-08"
+          },
+          "B": {
+            "es": "2026-07-05",
+            "ef": "2026-07-08T07:00"
+          }
         },
         "projectEnd": "2026-07-08",
         "error": false
@@ -552,7 +753,7 @@
     },
     {
       "id": "msp-26-t8-review-h2-crossmodus-bekende-beperking",
-      "title": "T8-hercheck, punt 3 (bekende-beperking-pin, GEEN fix): backwardHour's cross-modus-scanlus (dag-voorganger/uur-opvolger, arm (b) in relationMath.ts) doorzoekt uitsluitend WERKdagen van de dag-voorganger — voor een ELAPSEDTIME dag-voorganger A is dat een te smalle zoekruimte. Dit pint het HUIDIGE (bewust ongefixte) gedrag zodat een latere fix hem bewust omzet, niet stilzwijgend. A (ELAPSEDTIME, 2 dagen, vr->zo) -FS+0-> B (WORKTIME, 8u, op een uur-kalender H8). Verwacht (correct, MSP-pariteit, NIET wat deze case pint): A.tf zou 0 moeten zijn (A.ef=zo=B's vroegste mogelijke aanleiding, geen slappe). GEPIND (huidig, FOUT): de scanlus vindt de eerstvolgende WERKdag terug vanaf B's late start i.p.v. de eerstvolgende KALENDERdag ⇒ A.lf te vroeg (07-10 i.p.v. 07-12) ⇒ drie zichtbare symptomen: (1) A.ls (07-08) VÓÓR A's eigen anker (07-10) — schendt 'ls nooit vóór het eigen anker', (2) A.tf=-2 — NEGATIEF zonder enige constraint/deadline, (3) A.ff(0) > A.tf(-2) is weliswaar geen `ff>tf`-schending numeriek, maar A.ff=0 naast A.tf=-2 is zelf al onzinnig (geen enkele relatie zou hier moeten binden). Alle drie handmatig herleid uit de scanlus-semantiek en geverifieerd tegen de daadwerkelijke solver-uitvoer (niet gegist) — GEEN mutatiebewijs voor deze case (ze pint een bug, geen fix). Plan-registratie voor T13/T15: orkestrator.",
+      "title": "T16/N1: één minutenpad heft de oude crossmodus-scanbeperking op. Kalendertijd A houdt zo 00:00 als einde, met ma 08:00 als late finish: 32 uur speling.",
       "anchor": "2026-07-10",
       "calendars": [
         { "name": "H8", "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } }
@@ -564,8 +765,18 @@
       "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
       "expect": {
         "tasks": {
-          "A": { "es": "2026-07-10", "ef": "2026-07-12", "ls": "2026-07-08", "lf": "2026-07-10", "tf": -2, "ff": 0 },
-          "B": { "es": "2026-07-13T08:00", "ef": "2026-07-13T16:00" }
+          "A": {
+            "es": "2026-07-10",
+            "ef": "2026-07-12",
+            "ls": "2026-07-11T08:00",
+            "lf": "2026-07-13T08:00",
+            "tf": 1.3333333333333333,
+            "ff": 0
+          },
+          "B": {
+            "es": "2026-07-13T08:00",
+            "ef": "2026-07-13T16:00"
+          }
         },
         "projectEnd": "2026-07-13",
         "error": false
@@ -591,7 +802,7 @@
     },
     {
       "id": "msp-28-t8-review-uur-ss-bekende-beperking",
-      "title": "T8-hercheck 3 (bekende-beperking-pin, GEEN fix): het uur-SS-gat dat de reviewer construeerde — zie `forwardHour`'s START_START-tak in relationMath.ts, waar het al gedocumenteerd staat. `deps.shiftLagPred` normaliseert bij lag=0 zelf óók via `CalendarEngine.addWorkingMinutesSigned`'s `nextWorkInstant(base)`, in de VOORGANGER-engine — vóór de `succElapsed`-bypass (T8-hercheck-BLOCKER) ooit gezien wordt. A (ELAPSEDTIME, wortel, EIGEN anker za 09:00 — buiten elke werkband van de H8-kalender) -SS+0-> B (ELAPSEDTIME): B.es MOET gelijk zijn aan A.es (za 09:00, MSP-pariteit — een SS+0 tekent de opvolger-start exact op de voorganger-start, kloktijd, ongeacht beider werkkalender). GEPIND (huidig, FOUT): B.es landt op ma 08:00 — bijna twee volle dagen relatieschending, dezelfde klasse fout als de BLOCKER maar nu via de VOORGANGER-zijde van `shiftLagPred` i.p.v. de opvolger-zijde die de blocker-fix al afdekt. Niet gefixt (zie relationMath.ts): `shiftLagPred` is een gedeeld pad met 9 aanroepplekken; FF/SF ontsnappen via hun eigen `lagIsZero`-detectie-en-vervang-mechanisme (`landRawInstant`), SS heeft dat niet — een blinde aanpassing van het gedeelde pad zou FF/SF se zorgvuldig afgestemde gedrag kunnen meeraken. Deze case legt het HUIDIGE gedrag vast zodat een latere fix hem BEWUST omzet (rood wordt bij de fix, in plaats van dat niemand het merkt). Plan-registratie voor T13/T15: orkestrator.",
+      "title": "F1: SS + 0 naar kalendertijd bewaart het rauwe zaterdaganker. Voor de fix verschoof B naar maandag 08:00.",
       "anchor": "2026-07-06",
       "calendar": { "workTime": { "byWeekday": { "1": [{ "start": 480, "end": 960 }], "2": [{ "start": 480, "end": 960 }], "3": [{ "start": 480, "end": 960 }], "4": [{ "start": 480, "end": 960 }], "5": [{ "start": 480, "end": 960 }], "6": [], "7": [] } } },
       "tasks": [
@@ -602,9 +813,9 @@
       "expect": {
         "tasks": {
           "A": { "es": "2026-07-11T09:00", "ef": "2026-07-11T10:00" },
-          "B": { "es": "2026-07-13T08:00", "ef": "2026-07-13T09:00" }
+          "B": { "es": "2026-07-11T09:00", "ef": "2026-07-11T10:00" }
         },
-        "projectEnd": "2026-07-13T09:00",
+        "projectEnd": "2026-07-11T10:00",
         "error": false
       }
     },
@@ -667,10 +878,27 @@
         { "name": "B", "dur": 6, "durationType": "ELAPSEDTIME", "milestone": true }
       ],
       "links": [{ "pred": "A", "succ": "B", "type": "FINISH_FINISH" }],
+      "minuteModel": {
+        "reason": "KALENDERTIJD-EINDE",
+        "note": "T16: FF+0 legt het einde van B op het eindmoment van A (vr 16:00); zie msp-16.",
+        "expect": {
+          "tasks": {
+            "B": {
+              "ef": "2026-07-10T16:00"
+            }
+          }
+        }
+      },
       "expect": {
         "tasks": {
-          "A": { "es": "2026-07-06", "ef": "2026-07-10" },
-          "B": { "es": "2026-07-04", "ef": "2026-07-10" }
+          "A": {
+            "es": "2026-07-06",
+            "ef": "2026-07-10"
+          },
+          "B": {
+            "es": "2026-07-04",
+            "ef": "2026-07-10T16:00"
+          }
         },
         "projectEnd": "2026-07-10",
         "error": false
@@ -1218,8 +1446,18 @@
         { "setLevelingDelay": { "task": "A", "days": 2 } },
         { "runCPM": true }
       ],
+      "minuteModel": {
+        "reason": "KALENDERTIJD-EINDE",
+        "note": "§4.2 D1 en §4.5 T16: na de relatie en twee kalenderdagen vertraging start A za 07:00; twee keer 24 uur eindigt exclusief ma 07:00.",
+        "expect": { "tasks": { "A": { "es": "2026-06-06T07:00", "ef": "2026-06-08T07:00" } } }
+      },
       "expect": {
-        "tasks": { "A": { "es": "2026-06-06", "ef": "2026-06-08" } },
+        "tasks": {
+          "A": {
+            "es": "2026-06-06T07:00",
+            "ef": "2026-06-08T07:00"
+          }
+        },
         "error": false
       }
     },

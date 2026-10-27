@@ -61,7 +61,7 @@ function render() {
     rows: st.viewRows, sequences: st.sequences, calendar: st.calendar,
     view: { ...st.view, viewStartDate: '2026-05-28', zoom: 48, scrollX: 0, scrollY: 0 },
     selectedTaskIds: [], canvasWidth: 3000, canvasHeight: 400, rowHeight: 28, headerHeight: 60,
-    enableHourPlanning: true,
+
   });
   renderer.render();
   const summary = rects.find(r => r.fill.toUpperCase() === SUMMARY_FILL);
@@ -71,7 +71,6 @@ function render() {
 // ── 1. Dagkind en urenkind eindigen op dezelfde dag (het gerapporteerde geval) ──
 {
   S().newProject();
-  S().setUI({ enableHourPlanning: true });
   S().setCalendar({ ...S().calendar, workDays: [1, 2, 3, 4, 5], holidays: [] } as WorkCalendar);
   S().setProject({ startDate: '2026-06-01', name: 'Gemengde fase' });
   const hourCal = S().addCalendar({ name: 'Kraan (uren)', description: '', ...hourCalendarFields } as Omit<WorkCalendar, 'id'>);
@@ -80,15 +79,16 @@ function render() {
   const H = S().addTask({ name: 'Urentaak', parentId: F, calendarId: hourCal, time: { durationUnit: 'hours', durationMinutes: 37 * 60 } as TaskTime });
   S().runCPM();
   eq('1 opzet: dagkind eindigt 05-06, urenkind 05-06 13:00',
-    [taskOf(D).time.earlyFinish, taskOf(H).time.earlyFinish], ['2026-06-05', '2026-06-05T13:00']);
+    [taskOf(D).time.earlyFinish, taskOf(H).time.earlyFinish], ['2026-06-05T16:00', '2026-06-05T13:00']);
   const f = taskOf(F);
-  eq('1a fase-einde = het einde van de dag van het dagkind', f.time.earlyFinish, '2026-06-05');
+  eq('1a fase-einde = het einde van de dag van het dagkind', f.time.earlyFinish, '2026-06-05T16:00');
   // Laatste einde: het latere van de twee late einden, als tijdstip.
   const lateD = taskOf(D).time.lateFinish;
   const lateH = taskOf(H).time.lateFinish;
   const latestLate = finishInstant(lateD) >= finishInstant(lateH) ? lateD : lateH;
   eq('1b fase-Laatste einde = het laatste late einde als tijdstip', f.time.lateFinish, latestLate);
-  eq('1c afgeleide faseduur blijft 5d', [f.time.durationUnit, f.time.scheduleDuration], ['days', 5]);
+  eq('1c F2: afgeleide blokken behouden de dagenmaat van de fase (T11)',
+    [f.time.durationUnit, f.time.scheduleDuration, f.time.durationMinutes], ['days', 5, undefined]);
   const { renderer, summaryRight } = render();
   near('1d fasebalk eindigt waar de balk van het dagkind eindigt', summaryRight, renderer.getTaskBarRect(D)?.right);
 }
@@ -97,7 +97,6 @@ function render() {
 // H (1 werkdag op de uurkalender) op ma 01-06, D (4d) daarna. Fase: ES "…T08:00", EF = einde van D (zonder tijd).
 {
   S().newProject();
-  S().setUI({ enableHourPlanning: true });
   S().setCalendar({ ...S().calendar, workDays: [1, 2, 3, 4, 5], holidays: [] } as WorkCalendar);
   S().setProject({ startDate: '2026-06-01', name: 'Gemengde fase 2' });
   const hourCal = S().addCalendar({ name: 'Kraan (uren)', description: '', ...hourCalendarFields } as Omit<WorkCalendar, 'id'>);
@@ -107,8 +106,8 @@ function render() {
   S().addSequence({ predecessorId: H, successorId: D, type: 'FINISH_START', lagDays: 0 });
   S().runCPM();
   const f = taskOf(F);
-  eq('2 opzet: fase start met tijd en eindigt zonder tijd (op het einde van het dagkind)',
-    [f.time.earlyStart, f.time.earlyFinish.includes('T'), f.time.earlyFinish], ['2026-06-01T08:00', false, taskOf(D).time.earlyFinish]);
+  eq('2 opzet: fase start en eindigt met tijd, op de grenzen van haar kinderen',
+    [f.time.earlyStart, f.time.earlyFinish.includes('T'), f.time.earlyFinish], ['2026-06-01T08:00', true, taskOf(D).time.earlyFinish]);
   const { renderer, summaryRight } = render();
   near('2a fasebalk eindigt waar de balk van het dagkind eindigt (niet een dag eerder)', summaryRight, renderer.getTaskBarRect(D)?.right);
 }
@@ -118,7 +117,6 @@ function render() {
 // dagkind is dat 5 × 8 = 40 uur, niet 37 (einde urenkind) en niet 32 (dag-einde als middernacht).
 {
   S().newProject();
-  S().setUI({ enableHourPlanning: true });
   S().setCalendar({ ...S().calendar, ...hourCalendarFields } as WorkCalendar);
   S().setProject({ startDate: '2026-06-01', name: 'Gemengde fase 3' });
   const dayCal = S().addCalendar({ name: 'Dagen', description: '', workDays: [1, 2, 3, 4, 5], workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [] } as Omit<WorkCalendar, 'id'>);
@@ -127,9 +125,9 @@ function render() {
   const H = S().addTask({ name: 'Urentaak', parentId: F, time: { durationUnit: 'hours', durationMinutes: 37 * 60 } as TaskTime });
   S().runCPM();
   eq('3 opzet: dagkind eindigt 05-06, urenkind 05-06 13:00',
-    [taskOf(D).time.earlyFinish, taskOf(H).time.earlyFinish], ['2026-06-05', '2026-06-05T13:00']);
+    [taskOf(D).time.earlyFinish, taskOf(H).time.earlyFinish], ['2026-06-05T16:00', '2026-06-05T13:00']);
   const f = taskOf(F);
-  eq('3a fase-einde = het einde van de dag van het dagkind', f.time.earlyFinish, '2026-06-05');
+  eq('3a fase-einde = het einde van de dag van het dagkind', f.time.earlyFinish, '2026-06-05T16:00');
   eq('3b afgeleide faseduur (uur-projectkalender) = 40 uur', [f.time.durationUnit, f.time.durationMinutes], ['hours', 40 * 60]);
 }
 
