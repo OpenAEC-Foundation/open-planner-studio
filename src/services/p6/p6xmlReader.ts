@@ -15,7 +15,7 @@ import { parseInstant, localTodayIso, parseDate, formatDate, addCalendarDays } f
 import { UNNAMED_HOLIDAY_NAME, UNNAMED_WORKING_EXCEPTION_NAME } from '@/services/calendarRecurrence';
 import {
   OPS_DAY_MEASURE_DURATIONS_NAME, OPS_DAY_MEASURE_LAGS_NAME, OPS_EXACT_MINUTES_NAME, OPS_LAG_CALENDAR_NAME,
-  dayMeasureMinutesPerDay, lagFromRecord, lagRecordHolds, lagRecordKey, lagWorkMinutesPerDay, normalizeKeepingDayRest,
+  dayMeasureMinutesPerDay, lagFromRecord, lagRecordHolds, lagRecordKey, lagWorkMinutesPerDay,
   parseFieldRecords, parseLagCalendarOption, parseLagRecords, readMeasure, type LagRecord,
 } from '@/services/xmlDayMeasure';
 import { normalizeImportedProgress, deriveImportedWorkRules, reconstructResourceIds } from '@/services/importNormalize';
@@ -1228,7 +1228,7 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
 
   // Voortgang-invarianten op de rauw ingelezen actuals. De vastgelegde rest van een taak in de dagenmaat
   // blijft exact (B3), zoals de restminuten van een urentaak. Een lopende activiteit op 100 % blijft lopend.
-  normalizeKeepingDayRest(tasks, () => normalizeImportedProgress(tasks, project.statusDate, runningAtFullIds));
+  normalizeImportedProgress(tasks, project.statusDate, runningAtFullIds);
   deriveImportedWorkRules(tasks); // werkregel uit <DurationType>
 
   // Parse relationships
