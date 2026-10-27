@@ -28,6 +28,7 @@ g.getComputedStyle = () => ({
 import { useAppStore } from '@/state/appStore';
 import { GanttRenderer, type GanttRenderOptions } from '@/engine/renderer/GanttRenderer';
 import type { ViewRow } from '@/engine/view/visibleRows';
+import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 
 const S = () => useAppStore.getState();
@@ -275,6 +276,33 @@ const wOf = (label: string) => label.length * CHAR_W + PAD_X * 2;
     const opts = baseOpts(rowsOf(hourTask.id), zoom, 0, { effectiveCalById });
     const b = badge(opts, { taskId: hourTask.id, edge: 'right' }, `uurtaak(zoom=${zoom})`);
     eq(`uurtaak(zoom=${zoom}): label in uren`, b.text.text, '5h');
+  }
+}
+
+// 288: een kalendertijddag telt 24 uur, ook naast een werkdag van 4/8/10 uur.
+// De echte renderer tekent de tekst; dit is geen kopie van de formatter.
+for (const hoursPerDay of [4, 8, 10]) {
+  const cal: WorkCalendar = { ...S().calendar, hoursPerDay, workStartHour: 8,
+    workEndHour: 8 + hoursPerDay, workTime: undefined };
+  for (const durationType of ['ELAPSEDTIME', 'WORKTIME'] as const) {
+    const dayHours = durationType === 'ELAPSEDTIME' ? 24 : hoursPerDay;
+    for (const durationUnit of ['days', 'hours'] as const) {
+      const probe: Task = { ...wide, time: { ...wide.time, durationType, durationUnit,
+        scheduleDuration: 2, durationMinutes: durationUnit === 'hours' ? 2 * dayHours * 60 : undefined,
+        scheduleStart: '2026-08-03T08:00', earlyStart: '2026-08-03T08:00',
+        scheduleFinish: '2026-08-05T08:00', earlyFinish: '2026-08-05T08:00' } };
+      const row: ViewRow = { kind: 'task', rowKey: probe.id, task: probe, depth: 0, dimmed: false };
+      for (const effective of [false, true]) {
+        for (const display of ['hours', 'days', 'auto'] as const) {
+          const opts = baseOpts([row], 100, 0, { calendar: effective ? S().calendar : cal,
+            effectiveCalById: effective ? new Map([[probe.id, cal]]) : undefined,
+            durationDisplay: display, durationSuffixes: { day: 'd', hour: 'u', minute: 'm' } });
+          const label = `288 ${durationType}/${durationUnit}/${hoursPerDay}/${effective}/${display}`;
+          const b = badge(opts, { taskId: probe.id, edge: 'right' }, label);
+          eq(`${label}: tekst`, b.text.text, display === 'hours' ? `${2 * dayHours}u` : '2d');
+        }
+      }
+    }
   }
 }
 

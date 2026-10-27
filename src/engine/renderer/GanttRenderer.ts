@@ -8,7 +8,7 @@ import { formatAxisClock } from '@/utils/displayTime';
 import { parseDate, parseInstant, addCalendarDays, diffCalendarDays, isoDayOfWeek, getWeekNumberFor, utcDayStart, localNowOnDayAxis, MS_PER_DAY } from '@/utils/dateUtils';
 import { holidayEndDate, isHourModeCalendar, WorkCalendar } from '@/types/calendar';
 import { calendarWithEffectiveWorkTime } from '@/utils/effectiveWorkTime';
-import { effHoursPerDay, formatTaskDurationDisplay, taskDurationMinutes } from '@/utils/taskDuration';
+import { durationHoursPerDay, effHoursPerDay, formatTaskDurationDisplay } from '@/utils/taskDuration';
 import { formatDuration, DEFAULT_DURATION_SUFFIXES, type DurationSuffixes } from '@/utils/durationFormat';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { isZeroDurationMilestone, taskDurationUnit } from '@/engine/scheduler/duration';
@@ -1980,8 +1980,11 @@ export class GanttRenderer {
     const hourMode = startStr.includes('T') || endStr.includes('T');
     if (hourMode) {
       const cal = this.opts.effectiveCalById?.get(task.id) ?? this.opts.calendar;
-      const minutes = task.time.durationMinutes ?? taskDurationMinutes(task, cal);
-      return formatDuration(minutes, effHoursPerDay(cal), this.opts.durationDisplay ?? 'auto', sfx);
+      // Een kalendertijddag telt 24 klokuren, ook op een kortere werkdag (zoals de duurkolom).
+      const hoursPerDay = durationHoursPerDay(task, effHoursPerDay(cal));
+      const minutes = task.time.durationMinutes
+        ?? (taskDurationUnit(task) === 'hours' ? 0 : task.time.scheduleDuration * hoursPerDay * 60);
+      return formatDuration(minutes, hoursPerDay, this.opts.durationDisplay ?? 'auto', sfx);
     }
     return this.durationText(task);
   }

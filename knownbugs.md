@@ -416,13 +416,6 @@ en noem het in je rapport of PR-tekst.
      "Herstel standaard" kiest. De cel kapt de tekst af met een beletselteken. Voorstel: bij het laden een
      opgeslagen breedte van precies 100 px voor deze twee kolommen naar 130 px zetten, of de kolom laten
      meegroeien; een besluit over opgeslagen voorkeuren. — B
-288. **Het duurlabel tijdens het slepen rekent kalendertijd met de werktijd per dag.** `GanttRenderer.dragDurationText`
-     (`src/engine/renderer/GanttRenderer.ts:1996-2008`) neemt voor een dagtaak `taskDurationMinutes` (dagen ×
-     werktijd per dag, `utils/taskDuration.ts:94`) en zet dat om met `effHoursPerDay`. Bij een
-     kalendertijdtaak onder P6/MSP met Duurweergave "Altijd uren" toont het label dan 8 u per dag in plaats
-     van 24. Cel, tooltip, afdruk en tabelrapport rekenen sinds fixronde 2 van F4b wel met 24 u
-     (`durationHoursPerDay`). Dit stond al zo op de basis van F4b. Voorstel: in het sleeplabel
-     `durationHoursPerDay` gebruiken; rendererwerk. Alleen in de code gelezen, niet in de app nagespeeld. — S
 342. **Werkdagencompressie knipt zes uur van de vrijdagse nachtdienst weg.** `src/engine/renderer/workdayAxis.ts:184`:
     kalender ma–vr 22:00–06:00, taak vr 5 juni 22:00 – za 6 juni 06:00. Bij zoom 240 beslaan acht klokuren 80 px;
     met compressie blijven 20 px over, en za 06:00 komt op de maandagnaad 00:00. De terugweg (`xToDate`) maakt van
