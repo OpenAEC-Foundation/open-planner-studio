@@ -44,7 +44,7 @@ export function predecessorDrivenTaskIds(
 /**
  * Zet de motor deze nulduurmijlpaal op het einde van zijn dag als hij op een dagbegin staat? Dat is B6
  * (`milestoneWithoutPredecessorAtDayEnd`, `CPMSolver.forwardPass`): een losse mijlpaal zonder voorganger, van
- * soort Einde of zonder opvolger, zonder MSO/MFO. De Gantt-sleep landt zo'n mijlpaal daarom aan de eindkant
+ * soort Einde of zonder opvolger, zonder MSO/MFO, niet handmatig gepland. De Gantt-sleep landt zo'n mijlpaal daarom aan de eindkant
  * (`milestoneSitsAtFinish`), anders verspringt hij bij F5. Dezelfde relatiebron als `predecessorDrivenTaskIds`.
  */
 export function isLooseDayEndMilestone(
@@ -53,7 +53,8 @@ export function isLooseDayEndMilestone(
   sequences: readonly Sequence[],
   dayEndConvention: boolean,
 ): boolean {
-  if (!dayEndConvention || !task.isMilestone) return false;
+  // Een handmatig geplande taak neemt de motor letterlijk over, vóór B6 (`CPMSolver.forwardPass`).
+  if (!dayEndConvention || !task.isMilestone || isManuallyScheduled(task)) return false;
   if ([task.constraint, task.constraint2].some(c => c?.type === 'MSO' || c?.type === 'MFO')) return false;
   const expanded = expandSummaryRelations(tasks, sequences).sequences;
   if (expanded.some(seq => seq.successorId === task.id)) return false;

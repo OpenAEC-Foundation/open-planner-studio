@@ -238,6 +238,35 @@ for (const kind of [undefined, 'START'] as (MilestoneKind | undefined)[]) {
   eq('B6: F5 houdt het moment na slepen naar wo 07:00', second.calculated, second.dropped);
 }
 
+// Handmatig gepland (review #704 r4): de motor neemt de opgeslagen datums letterlijk over, zonder B6. De sleep
+// mag dan geen dagbegin als anker schrijven; het neergezette moment blijft na F5 staan.
+for (const allDay of [false, true]) {
+  S().newProject();
+  S().setProject({ startDate: '2026-09-07' });
+  if (allDay) {
+    const b = [{ start: 0, end: 1440 }];
+    S().setCalendar({
+      ...S().calendar, workDays: [1, 2, 3, 4, 5, 6, 7], workStartHour: 0, workEndHour: 24, hoursPerDay: 24,
+      simpleBreakStartMinute: undefined, simpleBreakDurationMinutes: undefined,
+      workTime: { byWeekday: { 1: b, 2: b, 3: b, 4: b, 5: b, 6: b, 7: b } },
+    });
+  } else {
+    S().setCalendar({ ...S().calendar, workTime: { byWeekday: weekBlocks } });
+  }
+  const m = S().addTask({ name: `handmatig ${allDay ? '24/7' : 'blok'}`, isMilestone: true });
+  S().runCPM();
+  S().updateTask(m, { manuallyScheduled: true });
+  S().runCPM();
+  eq(`handmatig ${allDay ? '24/7' : 'blok'}: geen B6-mijlpaal`,
+    isLooseDayEndMilestone(S().tasks.find(t => t.id === m)!, S().tasks, S().sequences, true), false);
+  for (const zoom of ['day', 'hour'] as const) {
+    const { dropped, calculated } = dragThenCalculate(m, zoom, zoom === 'day' ? 1 : 24);
+    eq(`handmatig ${allDay ? '24/7' : 'blok'}, ${zoom}zoom: F5 houdt ${dropped}`, calculated, dropped);
+    S().runCPM();
+    eq(`handmatig ${allDay ? '24/7' : 'blok'}, ${zoom}zoom: tweede F5 houdt het`, shownStart(S().tasks.find(t => t.id === m)!), dropped);
+  }
+}
+
 // 24/7 (review #704 r3): het dageinde om middernacht is ook het volgende blokbegin. Een losse mijlpaal blijft
 // na slepen en F5 op het neergezette moment, met een scalaire en met een expliciete kalender, onder OPS (B6)
 // en P6.
