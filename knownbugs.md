@@ -1208,13 +1208,6 @@ en noem het in je rapport of PR-tekst.
     ronde 1 van PR #708 (GPT-6.1-Sol). Voorstel: de bredere keuze vastleggen, of de voorwaarde op een
     mislukte schrijfproef zetten. — B
 
-407. **De opaque-origin-test bewijst geen crashherstelronde na de wijziging.**
-    `tests/browser/welcome-dialog.spec.ts` wacht 2 s na `addTask` en kijkt dan of er geen melding is. Maar
-    `useAutoSave.ts:98` zet `lastSaveAt` bij elke geplande ronde, ook als die meteen terugkeert; de volgende
-    ronde kan dan tot 10 s later komen. De wijziging gaat bovendien via de storebrug, niet via een
-    browserhandeling. Bevestigd in review ronde 1 van PR #708 (GPT-6.1-Sol). Voorstel: wachten op een
-    aantoonbaar afgehandelde herstelpoging (de bestaande flush), en de taak met een echte handeling maken. — B
-
 408. **Geen browsertest meer voor `skipWelcome` bij werkende opslag.** #706 verving de browsertest met
     `skipWelcome: true` door een test zonder dat veld. `tests/planning/check-site-storage.ts` (A12) toetst
     `siteSkipsWelcome()` nog, maar niet de koppeling met `useSettingsBootstrap`. Bevestigd in review ronde 1
