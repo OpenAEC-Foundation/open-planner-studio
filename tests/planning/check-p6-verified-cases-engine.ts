@@ -13,9 +13,17 @@
  * per as of wij het eens zijn met P6 (`agreement`), zodat zowel een verbetering als een
  * verslechtering mechanisch opvalt. Gemeten stand (brongetrouwe transcriptie, 2026-09-07): elf van
  * de dertien casussen kloppen volledig, 156 van de 160 door P6 vastgelegde cellen; de vier
- * verschillen (casus 08 en 10, bezig zijnde taken rond de statusdatum) staan cel voor cel gepind
+ * verschillen (casus 08 en 10, bezig zijnde taken rond de statusdatum) stonden cel voor cel gepind
  * onder punt 5. De ECHTE bytes (sectie 7) gaven 77/160 zoals gelezen door de projecteinde-fout;
  * sinds X12-brok 1 (2026-09-23) 156/160 zoals gelezen — exact deze transcriptie.
+ *
+ * Sinds 2026-10-27 (#690, fase 1 punt 2) staat het op 160/160: 152 rekencellen plus 8 cellen met
+ * het achtervoegsel " A". Zo'n cel is een WERKELIJKE datum, geen rekendatum: het capturescript van de
+ * bron zet bij een gestarte taak de werkelijke start in ES én LS, en bij een voltooide het werkelijke
+ * einde in EF én LF (sectie 5). Zo'n cel gaat tegen de datum die de app toont
+ * (`shownStart`/`shownFinish`, `utils/taskDates.ts`, eigenaarsbesluit 2026-10-12); elke andere cel
+ * blijft tegen de rekendatum (`earlyStart` enz.). De vier vroegere verschillen vergeleken dus twee
+ * verschillende velden, geen motorfout; de rekendatums zelf blijven gepind in 5b/5c.
  *
  * BRONGETROUWHEID (her-review 2026-09-07, bevinding 1). De transcriptie volgt de ÉCHTE P6-export
  * van precies deze dertien casussen — `cpp-cpm-engine/validation/p6-comparison/cases-import.xer`,
@@ -47,6 +55,8 @@ import { readXER } from '@/services/xer/xerReader';
 import { activeImportResult, isMultiDocumentImport } from '@/services/importTypes';
 import type { ProjectSchedulingOptions } from '@/types/project';
 import { parseInstant } from '@/utils/dateUtils';
+import { shownFinish, shownStart } from '@/utils/taskDates';
+import type { Task } from '@/types/task';
 import { explainP6CompletedDataDateWindow } from '@/engine/scheduler/p6CompletedTargetWindow';
 import { explainP6CompletedLateRemainingWindowEligibilityResolved } from '@/engine/scheduler/p6CompletedRouteTrace';
 import { solveOptionsFor } from '@/engine/scheduler/solveInput';
@@ -323,11 +333,17 @@ const AXES: readonly Axis[] = ['es', 'ef', 'ls', 'lf', 'tf', 'ff'];
 const GATE_REASONS_PIN = ['missingExplicitTargetWindow'];
 const GATE_REASON_CASE_09_B = 'missingExplicitTargetWindow';
 // X12-brok 1 (2026-09-23): 77 → 156 zoals gelezen (+79) — het gat met 7b is dicht.
-const REAL_AS_READ_PIN = { cellen: 160, eens: 156 };
-const REAL_WITHOUT_PROJECT_END_PIN = { cellen: 160, eens: 156 };
+// #690 (2026-10-27): 156 → 160, de vier " A"-cellen van 08 A en 10 B gaan tegen de getoonde start.
+const REAL_AS_READ_PIN = { cellen: 160, eens: 160 };
+const REAL_WITHOUT_PROJECT_END_PIN = { cellen: 160, eens: 160 };
 const REAL_PROJECT_RANGE_PIN = { start: '2026-01-05T08:00', end: '2026-01-05T08:00', flag: false };
-const DEVIATING_CELLS_PIN: Record<string, Record<string, string[]>> = {
+// #690 (2026-10-27): leeg. Tot dan `08 A: es, ls` en `10 B: es, ls` — " A"-cellen tegen `earlyStart`.
+const DEVIATING_CELLS_PIN: Record<string, Record<string, string[]>> = {};
+// De P6-cellen met " A" (werkelijke datum) die tegen de getoonde datum gaan. Gepind zodat de regel
+// niet stil verbreedt naar een cel zonder achtervoegsel.
+const ACTUAL_CELLS_PIN: Record<string, Record<string, string[]>> = {
   '08-in-progress-retained-logic': { A: ['es', 'ls'] },
+  '09-completed-successor': { B: ['es', 'ef', 'ls', 'lf'] },
   '10-out-of-sequence-progress': { B: ['es', 'ls'] },
 };
 const CASE_10_B_PIN = { es: '2026-01-26T08:00', ls: '2026-01-26T08:00' };
@@ -336,7 +352,42 @@ const CASE_08_PIN = {
   B: { es: '2026-01-21T08:00', ef: '2026-01-27T17:00', ls: '2026-01-21T08:00', lf: '2026-01-27T17:00', tf: 0, ff: 0 },
 };
 
-interface Measured { es?: string; ef?: string; ls?: string; lf?: string; tf: number; ff: number }
+interface Measured {
+  es?: string; ef?: string; ls?: string; lf?: string; tf: number; ff: number;
+  /** De getoonde start en het getoonde einde (`shownStart`/`shownFinish`) na deze berekening. */
+  shownStart: string; shownFinish: string;
+}
+
+/** De rekendatums en de getoonde datums van één taak na de berekening. De getoonde datums lezen de
+ *  vroege datums uit de uitkomst, zoals `applyCpmResult` ze terugschrijft. */
+function measure(
+  task: Task,
+  solved: { earlyStart?: string; earlyFinish?: string; lateStart?: string; lateFinish?: string; totalFloat: number; freeFloat: number },
+): Measured {
+  const view: Task = {
+    ...task,
+    time: { ...task.time, earlyStart: solved.earlyStart ?? '', earlyFinish: solved.earlyFinish ?? '' },
+  };
+  return {
+    es: solved.earlyStart, ef: solved.earlyFinish, ls: solved.lateStart, lf: solved.lateFinish,
+    tf: solved.totalFloat, ff: solved.freeFloat,
+    shownStart: shownStart(view), shownFinish: shownFinish(view),
+  };
+}
+
+/** Is deze P6-cel een werkelijke datum (achtervoegsel " A")? */
+function isActualCell(raw: string): boolean {
+  return / A$/.test(raw);
+}
+
+/** Onze waarde tegenover één P6-cel. Een " A"-cel (werkelijke datum, zie sectie 5) gaat
+ *  tegen de getoonde datum: start-assen tegen `shownStart`, einde-assen tegen `shownFinish`. Elke
+ *  andere cel gaat tegen de rekendatum van die as. */
+function oursForCell(ours: Measured, axis: Axis, raw: string): string | number | undefined {
+  if (axis === 'tf' || axis === 'ff') return ours[axis];
+  if (isActualCell(raw)) return axis === 'es' || axis === 'ls' ? ours.shownStart : ours.shownFinish;
+  return ours[axis];
+}
 
 function solveCase(item: EngineCase): { measured: Map<string, Measured>; gate: Record<string, string> } {
   const imported = activeImportResult(readXER(caseBytes(item)));
@@ -359,12 +410,9 @@ function solveCase(item: EngineCase): { measured: Map<string, Measured>; gate: R
   const measured = new Map<string, Measured>();
   for (const activity of item.activities) {
     const solved = result.tasks.get(activity.code);
-    if (!solved) throw new Error(`${item.id}: taak ${activity.code} ontbreekt in de uitkomst`);
-    measured.set(activity.code, {
-      es: solved.earlyStart, ef: solved.earlyFinish,
-      ls: solved.lateStart, lf: solved.lateFinish,
-      tf: solved.totalFloat, ff: solved.freeFloat,
-    });
+    const task = imported.tasks.find(candidate => candidate.id === activity.code);
+    if (!solved || !task) throw new Error(`${item.id}: taak ${activity.code} ontbreekt in de uitkomst`);
+    measured.set(activity.code, measure(task, solved));
   }
   const dataDate = imported.project.statusDate ? parseInstant(imported.project.statusDate) : null;
   const gate: Record<string, string> = {};
@@ -382,6 +430,7 @@ function solveCase(item: EngineCase): { measured: Map<string, Measured>; gate: R
  * zodat elke verschuiving, in beide richtingen, zichtbaar wordt.
  */
 const agreement: Record<string, Record<string, Record<string, boolean | null>>> = {};
+const actualCells: Record<string, Record<string, string[]>> = {};
 const gates: Record<string, Record<string, string>> = {};
 for (const item of CASES) {
   const { measured, gate } = solveCase(item);
@@ -395,12 +444,10 @@ for (const item of CASES) {
     const perAxis: Record<string, boolean | null> = {};
     for (const axis of AXES) {
       const raw = row[`${axis.toUpperCase()}_p6`]!;
-      if (axis === 'tf' || axis === 'ff') {
-        const want = p6Number(raw);
-        perAxis[axis] = want === null ? null : ours[axis] === want;
-      } else {
-        const want = p6Instant(raw);
-        perAxis[axis] = want === null ? null : ours[axis] === want;
+      const want = axis === 'tf' || axis === 'ff' ? p6Number(raw) : p6Instant(raw);
+      perAxis[axis] = want === null ? null : oursForCell(ours, axis, raw) === want;
+      if (isActualCell(raw)) {
+        ((actualCells[item.id] ??= {})[row.activity_code] ??= []).push(axis);
       }
     }
     agreement[item.id]![row.activity_code] = perAxis;
@@ -539,50 +586,59 @@ eq('4 agreement met P6 23.12 per casus (karakterisering, geen doel)', summary, {
   '05-negative-float': { cellen: 12, eens: 12 },
   '06-multiple-calendars': { cellen: 12, eens: 12 },
   '07-ontario-holidays': { cellen: 6, eens: 6 },
-  // Brongetrouw (her-review bevinding 1): 156 van 160 — exact gelijk aan de echte bytes zónder de
-  // projecteinde-fout (sectie 7b) en, sinds X12-brok 1, aan de echte bytes zoals gelezen (7a). De vier
-  // afwijkende cellen staan in sectie 5 gepind.
-  '08-in-progress-retained-logic': { cellen: 12, eens: 10 },
+  // Brongetrouw (her-review bevinding 1): 160 van 160 — exact gelijk aan de echte bytes zoals gelezen
+  // (7a) en zónder de projecteinde-fout (7b). Tot #690 (2026-10-27) 156: de " A"-cellen van 08 A en
+  // 10 B gingen tegen `earlyStart` in plaats van tegen de getoonde start (sectie 5).
+  '08-in-progress-retained-logic': { cellen: 12, eens: 12 },
   '09-completed-successor': { cellen: 10, eens: 10 },
-  '10-out-of-sequence-progress': { cellen: 12, eens: 10 },
+  '10-out-of-sequence-progress': { cellen: 12, eens: 12 },
   '11-mandatory-start-finish': { cellen: 12, eens: 12 },
   '12-snet-fnlt': { cellen: 12, eens: 12 },
   '13-alap': { cellen: 18, eens: 18 },
 });
 
-// ── 5. De bekende verschillen, cel voor cel ───────────────────────────────────────────────────
-// Brongetrouw gemeten (her-review bevinding 1): met `rem_target_link_flag = Y` en de
-// `target_start_date` uit de bron verschuiven de verschillen. Casus 10 (out-of-sequence): A klopt
-// nu volledig met P6 (LS = ES, TF 0) — de eerdere "A −12"-afwijking was een artefact van de
-// onbrongetrouwe transcriptie — maar B's vroege/late START wijkt af. Casus 08 (in-progress,
-// retained logic) verliest twee cellen: A's ES/LS.
-// Eén gemeenschappelijke oorzaak, geen twee: `rem_target_link_flag = Y` zet in de lezer
-// `p6UseRemainingStartForProgress`, en dan wordt de VROEGE START van een bezig zijnde taak de
-// reststart (statusdatum, of ná de voorganger) — casus 08 A: 2026-01-12, casus 10 B: 2026-01-26 —
-// terwijl P6 23.12 in `early_start_date` de WERKELIJKE start opneemt (01-06 resp. 01-08) en de
-// reststart apart bewaart (`restart_date`, bak 2). Vier cellen, beide casussen; EF/LF/TF/FF
-// kloppen wél. Dat is klasse (ii)-materiaal (bezig zijnde taken rond de statusdatum, X5-vlag),
-// NIET door `p6CompletedLateFromRemainingWindow` veroorzaakt (assertie 1: de poort staat overal
-// dicht, de vlag is inert). Gepind zodat het niet stil verdwijnt of groeit; dossier in plan §9.
+// ── 5. De " A"-cellen en de rekendatum eronder ──────────────────────────────────────────────────
+// Casus 08 A en 10 B zijn bezig zijnde taken rond de statusdatum. In het P6-profiel staat A19
+// (`p6UseRemainingStartForProgress`) aan; `rem_target_link_flag` stuurt dat niet, die vlag is alleen
+// diagnose (`xerScheduleOptions.ts`, `reportRemainingTargetLinkFlag`). Onder A19 is de VROEGE START van
+// zo'n taak de reststart (statusdatum, of ná de voorganger): 08 A 2026-01-12, 10 B 2026-01-26.
+// De meetset draagt in de ES- én de LS-cel de WERKELIJKE start met " A" (08 A 2026-01-06, 10 B
+// 2026-01-08). Dat is geen P6-rekenuitvoer: het capturescript van de bron
+// (`cpp-cpm-engine/validation/p6-comparison/db-read-capture.py` r. 188–190, commit `c279a5c4`)
+// schrijft bij een gestarte taak `ACT_START_DATE + " A"` in ES en LS, en bij een voltooide
+// `ACT_END_DATE + " A"` in EF en LF. P6's eigen `EARLY_START_DATE`/`LATE_START_DATE` staan voor die
+// taken niet in de meetset. Een " A"-cel is dus een projectie van de werkelijke datum.
+// De vergelijking tot 2026-10-27 legde die cel tegen `earlyStart` en vond vier verschillen; die
+// vergeleek twee verschillende velden. Sinds #690 gaat een " A"-cel tegen de getoonde datum
+// (`shownStart`/`shownFinish`, eigenaarsbesluit 2026-10-12). Dat toetst alleen dat de app de
+// werkelijke datum toont; over P6's Late Start zegt het niets. EF/LF/TF/FF waren al gelijk. De
+// rekendatums (Vroegste start) blijven hieronder gepind (5b/5c), zodat een verschuiving in de motor
+// niet stil verdwijnt achter de getoonde datum.
+// Niet door `p6CompletedLateFromRemainingWindow` veroorzaakt (assertie 1: de poort staat overal dicht).
 {
+  eq('5 precies deze P6-cellen zijn een werkelijke datum (" A") en gaan tegen de getoonde datum',
+    actualCells, ACTUAL_CELLS_PIN);
   const deviating = Object.fromEntries(Object.entries(agreement).map(([id, rows]) => [
     id,
     Object.fromEntries(Object.entries(rows).map(([code, axes]) => [
       code, Object.entries(axes).filter(([, value]) => value === false).map(([axis]) => axis),
     ]).filter(([, axes]) => (axes as string[]).length > 0)),
   ]).filter(([, rows]) => Object.keys(rows).length > 0));
-  eq('5 precies deze cellen wijken af van P6 23.12', deviating, DEVIATING_CELLS_PIN);
+  eq('5 geen enkele cel wijkt af van P6 23.12', deviating, DEVIATING_CELLS_PIN);
   const case10 = solveCase(CASES.find(item => item.id === '10-out-of-sequence-progress')!).measured;
   eq('5a casus 10: onze A is nu gelijk aan P6 (LS 2026-01-12T08:00, LF 2026-01-23T17:00, TF 0)',
     { ls: case10.get('A')!.ls, lf: case10.get('A')!.lf, tf: case10.get('A')!.tf },
     { ls: '2026-01-12T08:00', lf: '2026-01-23T17:00', tf: 0 });
-  eq('5b casus 10: onze B tegenover P6 (P6: ES 2026-01-08T08:00, LS 2026-01-08T08:00)',
-    { es: case10.get('B')!.es, ls: case10.get('B')!.ls }, CASE_10_B_PIN);
+  eq('5b casus 10: B rekent ES/LS op de reststart, toont de werkelijke start (P6: 2026-01-08T08:00 A)',
+    { es: case10.get('B')!.es, ls: case10.get('B')!.ls, shownStart: case10.get('B')!.shownStart },
+    { ...CASE_10_B_PIN, shownStart: '2026-01-08T08:00' });
   const case08 = solveCase(CASES.find(item => item.id === '08-in-progress-retained-logic')!).measured;
-  eq('5c casus 08: de twee afwijkende cellen', {
+  eq('5c casus 08: de rekendatums van A en B (A rekent op de reststart)', {
     A: { es: case08.get('A')!.es, ef: case08.get('A')!.ef, ls: case08.get('A')!.ls, lf: case08.get('A')!.lf, tf: case08.get('A')!.tf, ff: case08.get('A')!.ff },
     B: { es: case08.get('B')!.es, ef: case08.get('B')!.ef, ls: case08.get('B')!.ls, lf: case08.get('B')!.lf, tf: case08.get('B')!.tf, ff: case08.get('B')!.ff },
   }, CASE_08_PIN);
+  eq('5d casus 08: A toont de werkelijke start (P6: 2026-01-06T08:00 A)',
+    case08.get('A')!.shownStart, '2026-01-06T08:00');
 }
 
 // ── 6. Transcriptiepariteit met de publieke bron (alleen wanneer die gemount is) ────────────────
@@ -662,8 +718,9 @@ eq('4 agreement met P6 23.12 per casus (karakterisering, geen doel)', summary, {
 // (`docs/TODO.md`, afgevinkt): `sched_use_project_end_date_for_float = Y` + geen enkele
 // `target_end_date`/`plan_end_date` ⇒ het taak-afgeleide projecteinde viel terug op de projectSTART
 // en de hele late zijde verankerde daarop (77/160). X12-brok 1 zet de optie dan gerapporteerd uit
-// (P6 rekent zonder Must Finish By terug vanaf max(EF)); beide tellers staan nu op 156/160 en blijven
-// gepind zodat een regressie het gat zichtbaar heropent.
+// (P6 rekent zonder Must Finish By terug vanaf max(EF)); beide tellers stonden toen op 156/160, sinds
+// #690 op 160/160 (152 rekencellen plus 8 " A"-cellen, sectie 5), en blijven gepind zodat een
+// regressie het gat zichtbaar heropent.
 {
   const corpus = process.env.OPS_XER_CORPUS;
   const real = corpus ? join(corpus, 'cpp-cpm-engine', 'validation', 'p6-comparison', 'cases-import.xer') : undefined;
@@ -696,17 +753,14 @@ eq('4 agreement met P6 23.12 per casus (karakterisering, geen doel)', summary, {
         for (const row of oracleCase.activities) {
           const task = imported.tasks.find(candidate => candidate.wbsCode === row.activity_code);
           const solved = task ? result.tasks.get(task.id) : undefined;
-          if (!solved) throw new Error(`${item.id} (echt): activiteit ${row.activity_code} niet gesolved`);
-          const ours: Measured = {
-            es: solved.earlyStart, ef: solved.earlyFinish, ls: solved.lateStart, lf: solved.lateFinish,
-            tf: solved.totalFloat, ff: solved.freeFloat,
-          };
+          if (!task || !solved) throw new Error(`${item.id} (echt): activiteit ${row.activity_code} niet gesolved`);
+          const ours = measure(task, solved);
           for (const axis of AXES) {
             const raw = row[`${axis.toUpperCase()}_p6`]!;
             const want = axis === 'tf' || axis === 'ff' ? p6Number(raw) : p6Instant(raw);
             if (want === null) continue;
             caseCells++;
-            if (ours[axis] === want) caseEens++;
+            if (oursForCell(ours, axis, raw) === want) caseEens++;
           }
         }
         cells += caseCells; eens += caseEens;

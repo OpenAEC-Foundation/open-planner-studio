@@ -808,7 +808,8 @@ export class CalendarEngine {
   /** Tel `minutes` werkminuten op vanaf `startInstant`: verbruik over opeenvolgende banden,
    *  spring bij een bandgrens naar de volgende bandstart. Een verbruik dat exact op een band-eind
    *  landt geeft die eindgrens terug (legitiem finish-moment). `minutes ≤ 0` ⇒ start ongewijzigd
-   *  (spiegelt `addWorkDays`' `≤0`-tak, voor mijlpalen). */
+   *  (spiegelt `addWorkDays`' `≤0`-tak, voor mijlpalen). Een lengte die in hele ms 0 is (onder een halve
+   *  ms, zie `walkMs`) is een lengte 0: ook dan blijft de start ongewijzigd. */
   addWorkMinutes(startInstant: Date, minutes: number): Date {
     return this.addPhysicalWorkMinutes(startInstant, minutes);
   }
@@ -817,15 +818,20 @@ export class CalendarEngine {
    *  ook de rest na elke band (review #591 r7, was knownbug 385 en 388). Met kommagetalminuten bleef bij een
    *  bandgrens soms een rest van ~10⁻¹³ min of een deel van een ms over; de terugwandeling koos dan het vorige
    *  werkeinde. Voorbeeld: 523,2 min (8,72 u) gaf LS ma 16:00 in plaats van di 08:00, en 1600,00002 min gaf
-   *  vr 15:59:59,999. Een `Date` draagt toch alleen hele ms. */
-  private static walkMs(minutes: number): number {
+   *  vr 15:59:59,999. Een `Date` draagt toch alleen hele ms.
+   *
+   *  Openbaar voor de werkplaatsing (`workPlacement.ts`): die wandelt dezelfde banden en rondt op dezelfde
+   *  manier af, zodat haar einde gelijk is aan `addWorkMinutes` (was knownbug 390). */
+  static walkMs(minutes: number): number {
     return Math.round(Math.min(minutes, CalendarEngine.MAX_MINUTES) * CalendarEngine.MS_PER_MIN);
   }
 
-  /** De fysieke bandwandeling, in hele ms (`walkMs`). */
+  /** De fysieke bandwandeling, in hele ms (`walkMs`). Een lengte die in hele ms 0 is, gedraagt zich als
+   *  `minutes ≤ 0`: de start blijft staan. Anders normaliseerde de wandeling de start vooruit en de spiegel
+   *  achteruit, en kwam een duur van 0,000001 min vanaf ma 08:00 terug op vr 16:00 (was knownbug 391). */
   private addPhysicalWorkMinutes(startInstant: Date, minutes: number): Date {
-    if (minutes <= 0) return new Date(startInstant.getTime());
     let remaining = CalendarEngine.walkMs(minutes);
+    if (minutes <= 0 || remaining === 0) return new Date(startInstant.getTime());
     let curMs = this.nextWorkInstant(startInstant).getTime();
     let steps = 0;
     while (remaining > 0) {
@@ -851,10 +857,10 @@ export class CalendarEngine {
   }
 
   /** De fysieke achterwaartse bandwandeling, in hele ms (`walkMs`), zodat hij de exacte spiegel van
-   *  `addPhysicalWorkMinutes` blijft. */
+   *  `addPhysicalWorkMinutes` blijft; ook een lengte die in hele ms 0 is, laat het eind staan. */
   private subtractPhysicalWorkMinutes(endInstant: Date, minutes: number): Date {
-    if (minutes <= 0) return new Date(endInstant.getTime());
     let remaining = CalendarEngine.walkMs(minutes);
+    if (minutes <= 0 || remaining === 0) return new Date(endInstant.getTime());
     let curMs = this.prevWorkInstant(endInstant).getTime();
     let steps = 0;
     while (remaining > 0) {

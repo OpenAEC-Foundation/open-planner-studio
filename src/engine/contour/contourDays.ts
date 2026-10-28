@@ -94,6 +94,11 @@ export function ratesFromShapeWork(work: readonly number[], shares: readonly num
 /**
  * De contourperiodes na Toepassen: de bestaande `actual`-periodes blijven, de rest wordt één periode per
  * werkdag (aaneensluitende stukken samen), met werk = inzet × deel × werktijd per dag.
+ *
+ * Een rest van het bronwerk buiten de afgeronde spanne (`PlacementDay.residueMinutes`, minder dan een
+ * halve ms) hoort bij het werk van het laatste stuk: de periode ervoor loopt de rest in, met de inzet van
+ * de laatste dag met werktijd. Zo blijft het werk na Toepassen de bronhoeveelheid, en leest de belasting
+ * die rest als werk, niet als belasting (`placementResidueAxis` in `workPlacement.ts`).
  */
 export function contourPeriodsFromRates(
   existing: readonly TimephasedContourPeriod[] | undefined,
@@ -103,12 +108,22 @@ export function contourPeriodsFromRates(
 ): TimephasedContourPeriod[] {
   const actual = (existing ?? []).filter(p => p.kind === 'actual');
   const remaining: TimephasedContourPeriod[] = [];
+  // De inzet van de laatste dag met werktijd: daar hoort een rest bij die na een gat op een eigen dag ligt.
+  let lastRate = 0;
   days.forEach((d, i) => {
     const rate = Number.isFinite(rates[i]) && rates[i] > 0 ? rates[i] : 0;
+    const residue = d.residueMinutes ?? 0;
+    const residueRate = d.share > 0 ? rate : lastRate;
     // Aaneensluitende stukken van één dag (twee werkblokken rond de pauze) worden één periode.
-    let open: { afterMinutes: number; minutes: number; share: number } | null = null;
+    let open: { afterMinutes: number; minutes: number; share: number; residue: number } | null = null;
     const close = () => {
-      if (open) remaining.push({ afterMinutes: open.afterMinutes, minutes: open.minutes, workMinutes: rate * open.share * mpd, kind: 'remaining' });
+      if (open) {
+        const work = rate * open.share * mpd;
+        remaining.push({
+          afterMinutes: open.afterMinutes, minutes: open.minutes,
+          workMinutes: open.residue > 0 ? work + residueRate * open.residue : work, kind: 'remaining',
+        });
+      }
       open = null;
     };
     for (const r of d.ranges) {
@@ -118,10 +133,21 @@ export function contourPeriodsFromRates(
         open.share += r.share;
       } else {
         close();
-        open = { afterMinutes: r.afterMinutes, minutes: r.axisMinutes, share: r.share };
+        open = { afterMinutes: r.afterMinutes, minutes: r.axisMinutes, share: r.share, residue: 0 };
+      }
+    }
+    if (residue > 0 && residueRate > 0) {
+      const from = Math.max(...d.ranges.map(r => r.afterMinutes + r.axisMinutes));
+      if (open && Math.abs(open.afterMinutes + open.minutes - from) < 1e-9) {
+        open.minutes += residue;
+        open.residue = residue;
+      } else {
+        close();
+        open = { afterMinutes: from, minutes: residue, share: 0, residue };
       }
     }
     close();
+    if (d.share > 0) lastRate = rate;
   });
   return [...actual, ...remaining];
 }

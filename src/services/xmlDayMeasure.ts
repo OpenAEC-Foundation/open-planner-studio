@@ -34,7 +34,6 @@
  * daaraan een bestand dat de dagenmaat in de werktijd per dag schreef (T13). Een ouder OPS-bestand
  * schreef dagen × de opgeslagen uren per dag; dat leest hij zoals voorheen.
  */
-import type { Task } from '@/types/task';
 import type { Sequence, SequenceType } from '@/types/sequence';
 import type { Project } from '@/types/project';
 import type { WorkCalendar } from '@/types/calendar';
@@ -323,25 +322,4 @@ export function lagFromRecord(record: LagRecord): Pick<Sequence, 'lagDays' | 'la
   if (record.length === 3 && record[2] === 'eu') return { lagDays: 0, lagMinutes: record[0], lagUnit: 'ELAPSEDTIME' };
   if (record.length === 3 && record[2] === 'ed') return { lagDays: record[0], lagUnit: 'ELAPSEDTIME' };
   return { lagDays: record[0] };
-}
-
-/**
- * Voortgangsnormalisatie zonder verlies van de rest van een dagenmaat-taak (B3: rest exact). De gedeelde
- * normalisatie (`normalizeImportedProgress` → `applyRemainingDuration`) leidt de rest van een lopende dagtaak
- * af uit het percentage. MSPDI bewaart dat percentage als heel getal: 3 d met 1 d rest werd 67 % en dus
- * 0,99 d. Voor een urentaak blijven de vastgelegde restminuten al staan; dit doet hetzelfde voor de
- * vastgelegde rest van een taak in de dagenmaat (alleen een OPS-bestand draagt de dagenmaat-markering).
- * Een voltooide taak houdt rest 0.
- */
-export function normalizeKeepingDayRest(tasks: Task[], normalize: () => void): void {
-  const recorded = new Map<string, number>();
-  for (const task of tasks) {
-    const rest = task.time.remainingTime;
-    if (task.time.durationUnit === 'days' && rest != null && Number.isFinite(rest)) recorded.set(task.id, rest);
-  }
-  normalize();
-  for (const task of tasks) {
-    const rest = recorded.get(task.id);
-    if (rest !== undefined && task.status === 'STARTED' && task.time.completion < 1) task.time.remainingTime = rest;
-  }
 }
