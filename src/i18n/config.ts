@@ -1,6 +1,7 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import { readLocal, syncSettingToLocalStorage } from '@/utils/settingsStore';
+import { runsEmbedded, siteLanguageHints } from '@/services/fileAccess/siteHost';
 import { LOCALES, RTL_LOCALES, localeDirection, type Locale } from './locales';
 
 // --- Alleen de fallback-taal (en) wordt eager geïmporteerd. De overige 27 talen
@@ -113,13 +114,30 @@ export async function setLocale(lng: Locale): Promise<void> {
   await i18n.changeLanguage(lng);
 }
 
+/** Ingebed onder een host (#716): de eerste taal van de host die de app kent, anders `null`. De
+ *  volgorde van de bronnen staat in `siteLanguageHints` (`siteHost.ts`). */
+export function embeddedLocale(): Locale | null {
+  if (!runsEmbedded()) return null;
+  for (const hint of siteLanguageHints()) {
+    const lng = localeFromBrowserLanguage(hint);
+    if (lng) return lng;
+  }
+  return null;
+}
+
 /**
  * Detect the best locale at startup:
+ * 0. Embedded under a host (#716): the host's language, not saved
  * 1. Saved preference in Tauri Store / localStorage
  * 2. OS locale via Tauri OS plugin
  * 3. Fallback to 'en'
  */
 export async function initLocale(): Promise<void> {
+  const hostLang = embeddedLocale();
+  if (hostLang) {
+    if (hostLang !== i18n.language) await setLocale(hostLang);
+    return;
+  }
   // Try saved preference first
   await syncSettingToLocalStorage('locale', 'ops-locale');
   const saved = readLocal('ops-locale');
