@@ -491,17 +491,16 @@ en noem het in je rapport of PR-tekst.
      vanuit dezelfde toestand zonder vervallen nivelleerpauzes. Gevonden in de review van de fix voor aanval a09
      (GPT-6.1-Sol). — B
 
-387. **Een lopende taak op 100 % met een bronrest toont in het paneel een rest van nul.** `src/utils/taskDuration.ts:201`,
-     aangeroepen voor het veld Resterend in `src/components/task-sections/TaskProgressFields.tsx:214`. Een MPP-taak van
-     6 d op 100 % zonder werkelijk einde, met 1920 min bronrest, blijft na openen, berekenen en twee IFC-rondgangen
-     STARTED met die rest. Het paneel toont `0u`; verwacht `32u` (op main `4d`). De helper ziet het percentage al als
-     voltooid. Voor urentaken al zo op main; F5b (`mppReader.ts:806`) laat deze importvorm er ook langs lopen. De
-     opgeslagen rest blijft goed. Voorstel: de formatter de voltooiingsstatus en een aanwezige bronrest laten volgen.
-     Gevonden in review ronde 5 van PR #591 (GPT-6.1-Sol). — B
 420. **Een onbereikbare keuze in de Gantt-route voor een nieuwe taak.** `src/components/canvas/GanttCanvas.tsx:421`
      (`addAtClickedDate`) schrijft `milestone ? 0 : 5`, maar een mijlpaal is drie regels eerder al teruggekeerd.
      Geen gedragsfout, alleen opruimwerk. Voorstel: vervang de keuze door `5`. Gevonden in review ronde 2 van
      PR #702 (GPT-6.1-Sol). — B
+431. **Rapporten tellen een lopende importtaak op 100 % als voltooid.** `progressState` in
+    `src/engine/scheduler/summaryProgress.ts` geeft bij `completion >= 1` altijd `complete`, ook met
+    status STARTED, geen werkelijk einde en 1920 min bronrest. `remainingMeasure` in
+    `src/engine/reports/reportCommon.ts` overschrijft daardoor de aanwezige rest met nul. Alleen in de
+    code vastgesteld bij knownbug 387; samenvattings- en rapportroutes nog niet doorgemeten.
+    Voorstel: de voortgangsclassificatie met de importstatus afstemmen en de rollups gericht toetsen. — B
 
 ## Kalenders
 
