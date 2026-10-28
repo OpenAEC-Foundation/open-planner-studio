@@ -1,0 +1,1206 @@
+{
+  "base": "fbd4a3f9dcc7bdd308ab86b992d0b26f4670a553",
+  "head": "38b9986d2761b683e5f581b65f13276bb3c2bd06",
+  "sourceHashes": {
+    "baseReader": "d62eaf7bec764c2c09374ac80d07c5c24eac543a7b86d928f5d7482288144736",
+    "headReader": "1257a5f96ea5e995b094e8b91a08ed1be14a485f5da27d2bb92679b4a95765ef",
+    "fixture": "4a82d18563b139168ad73c192363b52d3477b744fc9d47ed894514960fc27ede",
+    "measurement": "dff256becf8db6ea9711cff3139541150c762ae5ea812851f7829dc187fa34c8"
+  },
+  "node": "v22.23.3",
+  "runner": {
+    "name": "GitHub Actions 1000050105",
+    "os": "Linux",
+    "image": "ubuntu24",
+    "imageVersion": "20261023.334.3",
+    "runId": "40285702465",
+    "runAttempt": "1"
+  },
+  "cpu": "AMD EPYC 7763 64-Core Processor",
+  "logicalCpus": 4,
+  "timezone": "Europe/Amsterdam",
+  "clock": "2026-10-26T08:00:00.000Z",
+  "warmups": 2,
+  "repeats": 7,
+  "measured": "Alleen readIFC: STEP-parsing en alle extractors; geen UI, schijf-I/O, store of F5",
+  "summary": [
+    {
+      "shape": "breed",
+      "size": 1000,
+      "basisMedianMs": 45.73463000000038,
+      "nieuwMedianMs": 40.871848999999884,
+      "improvementPercent": 10.6326015975213
+    },
+    {
+      "shape": "breed",
+      "size": 5000,
+      "basisMedianMs": 301.9950749999989,
+      "nieuwMedianMs": 226.1137200000012,
+      "improvementPercent": 25.126686254733784
+    },
+    {
+      "shape": "breed",
+      "size": 10000,
+      "basisMedianMs": 957.109464000001,
+      "nieuwMedianMs": 446.21329700000206,
+      "improvementPercent": 53.37907378585888
+    },
+    {
+      "shape": "verdeeld",
+      "size": 1000,
+      "basisMedianMs": 37.37938600000052,
+      "nieuwMedianMs": 37.25441300000239,
+      "improvementPercent": 0.3343366849261081
+    },
+    {
+      "shape": "verdeeld",
+      "size": 5000,
+      "basisMedianMs": 212.87299799999164,
+      "nieuwMedianMs": 208.70224999998754,
+      "improvementPercent": 1.9592658717590192
+    },
+    {
+      "shape": "verdeeld",
+      "size": 10000,
+      "basisMedianMs": 453.82764300001145,
+      "nieuwMedianMs": 455.14999199999147,
+      "improvementPercent": -0.2913769181706697
+    }
+  ],
+  "rows": [
+    {
+      "shape": "breed",
+      "size": 1000,
+      "repeat": 1,
+      "order": [
+        "basis",
+        "nieuw"
+      ],
+      "inputSha256": "f34eb9bcf9741296f805c364729c14481eab33e82a91d50da436b906c3fccbfa",
+      "inputBytes": 882680,
+      "maxChildren": 999,
+      "oldMembershipComparisons": 498501,
+      "basisMs": 58.257339,
+      "nieuwMs": 63.243312999999944,
+      "basisHashes": {
+        "import": "e7f2af8ac9ebd355604f3146f6cfadb88bf6c13d703752f865f6a11b790d82f1",
+        "save": "e55d781a0f354cf017bc99a38860f8f944bf8b49836da2d33bcf56b2416e142e",
+        "reopen": "21408ac7674bdbf93a224025c9a94a114dd0f7f067cdb810f8898f559e3c30a0",
+        "secondExport": "e55d781a0f354cf017bc99a38860f8f944bf8b49836da2d33bcf56b2416e142e"
+      },
+      "nieuwHashes": {
+        "import": "e7f2af8ac9ebd355604f3146f6cfadb88bf6c13d703752f865f6a11b790d82f1",
+        "save": "e55d781a0f354cf017bc99a38860f8f944bf8b49836da2d33bcf56b2416e142e",
+        "reopen": "21408ac7674bdbf93a224025c9a94a114dd0f7f067cdb810f8898f559e3c30a0",
+        "secondExport": "e55d781a0f354cf017bc99a38860f8f944bf8b49836da2d33bcf56b2416e142e"
+      }
+    },
+    {
+      "shape": "breed",
+      "size": 1000,
+      "repeat": 2,
+      "order": [
+        "nieuw",
+        "basis"
+      ],
+      "inputSha256": "f34eb9bcf9741296f805c364729c14481eab33e82a91d50da436b906c3fccbfa",
+      "inputBytes": 882680,
+      "maxChildren": 999,
+      "oldMembershipComparisons": 498501,
+      "basisMs": 45.633831999999984,
+      "nieuwMs": 40.871848999999884,
+      "basisHashes": {
+        "import": "686f7797e0b51946c4e6ae487f5abb9e6926c19694b14df9b4f3de79f7186acd",
+        "save": "e55d781a0f354cf017bc99a38860f8f944bf8b49836da2d33bcf56b2416e142e",
+        "reopen": "899f47b5afdaba4f73454615659b37bb2d84a594eac8c9288463fc91a6c32096",
+        "secondExport": "e55d781a0f354cf017bc99a38860f8f944bf8b49836da2d33bcf56b2416e142e"
+      },
+      "nieuwHashes": {
+        "import": "686f7797e0b51946c4e6ae487f5abb9e6926c19694b14df9b4f3de79f7186acd",
+        "save": "e55d781a0f354cf017bc99a38860f8f944bf8b49836da2d33bcf56b2416e142e",
+        "reopen": "899f47b5afdaba4f73454615659b37bb2d84a594eac8c9288463fc91a6c32096",
+        "secondExport": "e55d781a0f354cf017bc99a38860f8f944bf8b49836da2d33bcf56b2416e142e"
+      }
+    },
+    {
+      "shape": "breed",
+      "size": 1000,
+      "repeat": 3,
+      "order": [
+        "basis",
+        "nieuw"
+      ],
+      "inputSha256": "f34eb9bcf9741296f805c364729c14481eab33e82a91d50da436b906c3fccbfa",
+      "inputBytes": 882680,
+      "maxChildren": 999,
+      "oldMembershipComparisons": 498501,
+      "basisMs": 53.74946500000033,
+      "nieuwMs": 40.897508000000016,
+      "basisHashes": {
+        "import": "7119848b2fe166ddea8f8a0b255076e4c61fb053be624825432a99ba2fbbacc6",
+        "save": "e55d781a0f354cf017bc99a38860f8f944bf8b49836da2d33bcf56b2416e142e",
+        "reopen": "82742ad9ab2d95bc22e58b3e5d200c7208b4e0f2ce4d4675e453faf4dadf0787",
+        "secondExport": "e55d781a0f354cf017bc99a38860f8f944bf8b49836da2d33bcf56b2416e142e"
+      },
+      "nieuwHashes": {
+        "import": "7119848b2fe166ddea8f8a0b255076e4c61fb053be624825432a99ba2fbbacc6",
+        "save": "e55d781a0f354cf017bc99a38860f8f944bf8b49836da2d33bcf56b2416e142e",
+        "reopen": "82742ad9ab2d95bc22e58b3e5d200c7208b4e0f2ce4d4675e453faf4dadf0787",
+        "secondExport": "e55d781a0f354cf017bc99a38860f8f944bf8b49836da2d33bcf56b2416e142e"
+      }
+    },
+    {
+      "shape": "breed",
+      "size": 1000,
+      "repeat": 4,
+      "order": [
+        "nieuw",
+        "basis"
+      ],
+      "inputSha256": "f34eb9bcf9741296f805c364729c14481eab33e82a91d50da436b906c3fccbfa",
+      "inputBytes": 882680,
+      "maxChildren": 999,
+      "oldMembershipComparisons": 498501,
+      "basisMs": 44.53204799999958,
+      "nieuwMs": 38.04401800000005,
+      "basisHashes": {
+        "import": "65686ea9413a427e523c2726566524de933efe81101c137fb75f81ed7f59c032",
+        "save": "e55d781a0f354cf017bc99a38860f8f944bf8b49836da2d33bcf56b2416e142e",
+        "reopen": "98687f44af7289c9bea8b4b0b0f1724c0a8925dcdc43eb36bb17b4f05b18e64c",
+        "secondExport": "e55d781a0f354cf017bc99a38860f8f944bf8b49836da2d33bcf56b2416e142e"
+      },
+      "nieuwHashes": {
+        "import": "65686ea9413a427e523c2726566524de933efe81101c137fb75f81ed7f59c032",
+        "save": "e55d781a0f354cf017bc99a38860f8f944bf8b49836da2d33bcf56b2416e142e",
+        "reopen": "98687f44af7289c9bea8b4b0b0f1724c0a8925dcdc43eb36bb17b4f05b18e64c",
+        "secondExport": "e55d781a0f354cf017bc99a38860f8f944bf8b49836da2d33bcf56b2416e142e"
+      }
+    },
+    {
+      "shape": "breed",
+      "size": 1000,
+      "repeat": 5,
+      "order": [
+        "basis",
+        "nieuw"
+      ],
+      "inputSha256": "f34eb9bcf9741296f805c364729c14481eab33e82a91d50da436b906c3fccbfa",
+      "inputBytes": 882680,
+      "maxChildren": 999,
+      "oldMembershipComparisons": 498501,
+      "basisMs": 43.69871000000012,
+      "nieuwMs": 39.33178100000032,
+      "basisHashes": {
+        "import": "cdc1faff5597c22c108b347a38646f6232e59bfe0e2efb12ba4217e4eace5191",
+        "save": "e55d781a0f354cf017bc99a38860f8f944bf8b49836da2d33bcf56b2416e142e",
+        "reopen": "2ad719438223a64ad839b11ac9a752666171baf2e4fe2f000c607b6637f5b2ac",
+        "secondExport": "e55d781a0f354cf017bc99a38860f8f944bf8b49836da2d33bcf56b2416e142e"
+      },
+      "nieuwHashes": {
+        "import": "cdc1faff5597c22c108b347a38646f6232e59bfe0e2efb12ba4217e4eace5191",
+        "save": "e55d781a0f354cf017bc99a38860f8f944bf8b49836da2d33bcf56b2416e142e",
+        "reopen": "2ad719438223a64ad839b11ac9a752666171baf2e4fe2f000c607b6637f5b2ac",
+        "secondExport": "e55d781a0f354cf017bc99a38860f8f944bf8b49836da2d33bcf56b2416e142e"
+      }
+    },
+    {
+      "shape": "breed",
+      "size": 1000,
+      "repeat": 6,
+      "order": [
+        "nieuw",
+        "basis"
+      ],
+      "inputSha256": "f34eb9bcf9741296f805c364729c14481eab33e82a91d50da436b906c3fccbfa",
+      "inputBytes": 882680,
+      "maxChildren": 999,
+      "oldMembershipComparisons": 498501,
+      "basisMs": 48.19033300000001,
+      "nieuwMs": 44.81561200000033,
+      "basisHashes": {
+        "import": "b6c99e353db952d86a4cd8105c4399f47caa85dadc761e3c3eb84615d2ab6915",
+        "save": "e55d781a0f354cf017bc99a38860f8f944bf8b49836da2d33bcf56b2416e142e",
+        "reopen": "d3c47d9f89797e90ed2c19c9e401608fd44f786f25523e466482ff19fd230db7",
+        "secondExport": "e55d781a0f354cf017bc99a38860f8f944bf8b49836da2d33bcf56b2416e142e"
+      },
+      "nieuwHashes": {
+        "import": "b6c99e353db952d86a4cd8105c4399f47caa85dadc761e3c3eb84615d2ab6915",
+        "save": "e55d781a0f354cf017bc99a38860f8f944bf8b49836da2d33bcf56b2416e142e",
+        "reopen": "d3c47d9f89797e90ed2c19c9e401608fd44f786f25523e466482ff19fd230db7",
+        "secondExport": "e55d781a0f354cf017bc99a38860f8f944bf8b49836da2d33bcf56b2416e142e"
+      }
+    },
+    {
+      "shape": "breed",
+      "size": 1000,
+      "repeat": 7,
+      "order": [
+        "basis",
+        "nieuw"
+      ],
+      "inputSha256": "f34eb9bcf9741296f805c364729c14481eab33e82a91d50da436b906c3fccbfa",
+      "inputBytes": 882680,
+      "maxChildren": 999,
+      "oldMembershipComparisons": 498501,
+      "basisMs": 45.73463000000038,
+      "nieuwMs": 39.859946000000036,
+      "basisHashes": {
+        "import": "6f20d99ce07ee530247800fcafa0de4c11009768097566531651d58a5cf68b92",
+        "save": "e55d781a0f354cf017bc99a38860f8f944bf8b49836da2d33bcf56b2416e142e",
+        "reopen": "abe1cb997da8ec908b93bdd94c7ef9708ae5ee461f71762fa8b92f83fb48a364",
+        "secondExport": "e55d781a0f354cf017bc99a38860f8f944bf8b49836da2d33bcf56b2416e142e"
+      },
+      "nieuwHashes": {
+        "import": "6f20d99ce07ee530247800fcafa0de4c11009768097566531651d58a5cf68b92",
+        "save": "e55d781a0f354cf017bc99a38860f8f944bf8b49836da2d33bcf56b2416e142e",
+        "reopen": "abe1cb997da8ec908b93bdd94c7ef9708ae5ee461f71762fa8b92f83fb48a364",
+        "secondExport": "e55d781a0f354cf017bc99a38860f8f944bf8b49836da2d33bcf56b2416e142e"
+      }
+    },
+    {
+      "shape": "breed",
+      "size": 5000,
+      "repeat": 1,
+      "order": [
+        "basis",
+        "nieuw"
+      ],
+      "inputSha256": "afd0ca9e078d34892cca6b7be14da4d233e13cd381415a1491382e50243b6165",
+      "inputBytes": 4493856,
+      "maxChildren": 4999,
+      "oldMembershipComparisons": 12492501,
+      "basisMs": 285.0339760000006,
+      "nieuwMs": 229.84241199999997,
+      "basisHashes": {
+        "import": "5c1999b33dee06926368688c26099f0790168f47451a790ba0b88122920c3d25",
+        "save": "29c659178a0acf7a18452d87fd956dda6ec72d6d29e69d7abf95ebb8e5b52274",
+        "reopen": "49956f483346167bf2d5a44f131eabdec4addd8e37db4a0ef7b6ba43c5affe63",
+        "secondExport": "29c659178a0acf7a18452d87fd956dda6ec72d6d29e69d7abf95ebb8e5b52274"
+      },
+      "nieuwHashes": {
+        "import": "5c1999b33dee06926368688c26099f0790168f47451a790ba0b88122920c3d25",
+        "save": "29c659178a0acf7a18452d87fd956dda6ec72d6d29e69d7abf95ebb8e5b52274",
+        "reopen": "49956f483346167bf2d5a44f131eabdec4addd8e37db4a0ef7b6ba43c5affe63",
+        "secondExport": "29c659178a0acf7a18452d87fd956dda6ec72d6d29e69d7abf95ebb8e5b52274"
+      }
+    },
+    {
+      "shape": "breed",
+      "size": 5000,
+      "repeat": 2,
+      "order": [
+        "nieuw",
+        "basis"
+      ],
+      "inputSha256": "afd0ca9e078d34892cca6b7be14da4d233e13cd381415a1491382e50243b6165",
+      "inputBytes": 4493856,
+      "maxChildren": 4999,
+      "oldMembershipComparisons": 12492501,
+      "basisMs": 307.43286699999953,
+      "nieuwMs": 224.42622400000073,
+      "basisHashes": {
+        "import": "8c087ffd8bd168f75e93dfb7975f7c8455ad9fead3c7facaba4a02aaac0699ac",
+        "save": "29c659178a0acf7a18452d87fd956dda6ec72d6d29e69d7abf95ebb8e5b52274",
+        "reopen": "3e4248dc569962e7f24a41273069b767657e4610a6c19b6ce4f5ba758f86234c",
+        "secondExport": "29c659178a0acf7a18452d87fd956dda6ec72d6d29e69d7abf95ebb8e5b52274"
+      },
+      "nieuwHashes": {
+        "import": "8c087ffd8bd168f75e93dfb7975f7c8455ad9fead3c7facaba4a02aaac0699ac",
+        "save": "29c659178a0acf7a18452d87fd956dda6ec72d6d29e69d7abf95ebb8e5b52274",
+        "reopen": "3e4248dc569962e7f24a41273069b767657e4610a6c19b6ce4f5ba758f86234c",
+        "secondExport": "29c659178a0acf7a18452d87fd956dda6ec72d6d29e69d7abf95ebb8e5b52274"
+      }
+    },
+    {
+      "shape": "breed",
+      "size": 5000,
+      "repeat": 3,
+      "order": [
+        "basis",
+        "nieuw"
+      ],
+      "inputSha256": "afd0ca9e078d34892cca6b7be14da4d233e13cd381415a1491382e50243b6165",
+      "inputBytes": 4493856,
+      "maxChildren": 4999,
+      "oldMembershipComparisons": 12492501,
+      "basisMs": 281.7677299999996,
+      "nieuwMs": 230.45464600000014,
+      "basisHashes": {
+        "import": "96538df12315d63095575b484daeb129d18900fdef9b812e2319cb29188212c7",
+        "save": "29c659178a0acf7a18452d87fd956dda6ec72d6d29e69d7abf95ebb8e5b52274",
+        "reopen": "0fb0548b6c5a98e394f084ad39c4160ed9cb291ef8f9efc9766a3871082649c1",
+        "secondExport": "29c659178a0acf7a18452d87fd956dda6ec72d6d29e69d7abf95ebb8e5b52274"
+      },
+      "nieuwHashes": {
+        "import": "96538df12315d63095575b484daeb129d18900fdef9b812e2319cb29188212c7",
+        "save": "29c659178a0acf7a18452d87fd956dda6ec72d6d29e69d7abf95ebb8e5b52274",
+        "reopen": "0fb0548b6c5a98e394f084ad39c4160ed9cb291ef8f9efc9766a3871082649c1",
+        "secondExport": "29c659178a0acf7a18452d87fd956dda6ec72d6d29e69d7abf95ebb8e5b52274"
+      }
+    },
+    {
+      "shape": "breed",
+      "size": 5000,
+      "repeat": 4,
+      "order": [
+        "nieuw",
+        "basis"
+      ],
+      "inputSha256": "afd0ca9e078d34892cca6b7be14da4d233e13cd381415a1491382e50243b6165",
+      "inputBytes": 4493856,
+      "maxChildren": 4999,
+      "oldMembershipComparisons": 12492501,
+      "basisMs": 301.9950749999989,
+      "nieuwMs": 226.1137200000012,
+      "basisHashes": {
+        "import": "c83ee0eaae6f072f96973146d25f5569c7753803c66f790254615da1043fdc60",
+        "save": "29c659178a0acf7a18452d87fd956dda6ec72d6d29e69d7abf95ebb8e5b52274",
+        "reopen": "9d803589539b43b15d014ba93c45eef280db753f2223062f43007b538387b955",
+        "secondExport": "29c659178a0acf7a18452d87fd956dda6ec72d6d29e69d7abf95ebb8e5b52274"
+      },
+      "nieuwHashes": {
+        "import": "c83ee0eaae6f072f96973146d25f5569c7753803c66f790254615da1043fdc60",
+        "save": "29c659178a0acf7a18452d87fd956dda6ec72d6d29e69d7abf95ebb8e5b52274",
+        "reopen": "9d803589539b43b15d014ba93c45eef280db753f2223062f43007b538387b955",
+        "secondExport": "29c659178a0acf7a18452d87fd956dda6ec72d6d29e69d7abf95ebb8e5b52274"
+      }
+    },
+    {
+      "shape": "breed",
+      "size": 5000,
+      "repeat": 5,
+      "order": [
+        "basis",
+        "nieuw"
+      ],
+      "inputSha256": "afd0ca9e078d34892cca6b7be14da4d233e13cd381415a1491382e50243b6165",
+      "inputBytes": 4493856,
+      "maxChildren": 4999,
+      "oldMembershipComparisons": 12492501,
+      "basisMs": 304.5531379999993,
+      "nieuwMs": 225.19257699999798,
+      "basisHashes": {
+        "import": "bc53251b582e41186a539c7495661b070188392496f0cd2078f7487ba3d9468e",
+        "save": "29c659178a0acf7a18452d87fd956dda6ec72d6d29e69d7abf95ebb8e5b52274",
+        "reopen": "b1dc9fb659555c91754550547aefd7d267d5183c19e57868164191785fa97309",
+        "secondExport": "29c659178a0acf7a18452d87fd956dda6ec72d6d29e69d7abf95ebb8e5b52274"
+      },
+      "nieuwHashes": {
+        "import": "bc53251b582e41186a539c7495661b070188392496f0cd2078f7487ba3d9468e",
+        "save": "29c659178a0acf7a18452d87fd956dda6ec72d6d29e69d7abf95ebb8e5b52274",
+        "reopen": "b1dc9fb659555c91754550547aefd7d267d5183c19e57868164191785fa97309",
+        "secondExport": "29c659178a0acf7a18452d87fd956dda6ec72d6d29e69d7abf95ebb8e5b52274"
+      }
+    },
+    {
+      "shape": "breed",
+      "size": 5000,
+      "repeat": 6,
+      "order": [
+        "nieuw",
+        "basis"
+      ],
+      "inputSha256": "afd0ca9e078d34892cca6b7be14da4d233e13cd381415a1491382e50243b6165",
+      "inputBytes": 4493856,
+      "maxChildren": 4999,
+      "oldMembershipComparisons": 12492501,
+      "basisMs": 341.01395499999853,
+      "nieuwMs": 219.6045520000007,
+      "basisHashes": {
+        "import": "9e07a683d0924827d66721239f26d1e3c3cac0c542d20e3ab1f2d7dc893b6d1f",
+        "save": "29c659178a0acf7a18452d87fd956dda6ec72d6d29e69d7abf95ebb8e5b52274",
+        "reopen": "9ca49f6713041ec06269130f37254df7d4b80e329aa27794b189a079c0e44021",
+        "secondExport": "29c659178a0acf7a18452d87fd956dda6ec72d6d29e69d7abf95ebb8e5b52274"
+      },
+      "nieuwHashes": {
+        "import": "9e07a683d0924827d66721239f26d1e3c3cac0c542d20e3ab1f2d7dc893b6d1f",
+        "save": "29c659178a0acf7a18452d87fd956dda6ec72d6d29e69d7abf95ebb8e5b52274",
+        "reopen": "9ca49f6713041ec06269130f37254df7d4b80e329aa27794b189a079c0e44021",
+        "secondExport": "29c659178a0acf7a18452d87fd956dda6ec72d6d29e69d7abf95ebb8e5b52274"
+      }
+    },
+    {
+      "shape": "breed",
+      "size": 5000,
+      "repeat": 7,
+      "order": [
+        "basis",
+        "nieuw"
+      ],
+      "inputSha256": "afd0ca9e078d34892cca6b7be14da4d233e13cd381415a1491382e50243b6165",
+      "inputBytes": 4493856,
+      "maxChildren": 4999,
+      "oldMembershipComparisons": 12492501,
+      "basisMs": 289.0006250000006,
+      "nieuwMs": 253.79225000000224,
+      "basisHashes": {
+        "import": "c96542b8c58942b1e3f6e0b10faadf34489307ca3dec16e292ae7d7a43a2b645",
+        "save": "29c659178a0acf7a18452d87fd956dda6ec72d6d29e69d7abf95ebb8e5b52274",
+        "reopen": "e4ac230e30c4045bf025f2be0ba776ba14e03f55f77a632eb8a9722dacb5a2d1",
+        "secondExport": "29c659178a0acf7a18452d87fd956dda6ec72d6d29e69d7abf95ebb8e5b52274"
+      },
+      "nieuwHashes": {
+        "import": "c96542b8c58942b1e3f6e0b10faadf34489307ca3dec16e292ae7d7a43a2b645",
+        "save": "29c659178a0acf7a18452d87fd956dda6ec72d6d29e69d7abf95ebb8e5b52274",
+        "reopen": "e4ac230e30c4045bf025f2be0ba776ba14e03f55f77a632eb8a9722dacb5a2d1",
+        "secondExport": "29c659178a0acf7a18452d87fd956dda6ec72d6d29e69d7abf95ebb8e5b52274"
+      }
+    },
+    {
+      "shape": "breed",
+      "size": 10000,
+      "repeat": 1,
+      "order": [
+        "basis",
+        "nieuw"
+      ],
+      "inputSha256": "acc93d3df21626b17ab4cdf8ec601c7821e1f5edaad9aa93604620f2fb628feb",
+      "inputBytes": 8981747,
+      "maxChildren": 9999,
+      "oldMembershipComparisons": 49985001,
+      "basisMs": 957.109464000001,
+      "nieuwMs": 451.2455259999988,
+      "basisHashes": {
+        "import": "8325baf35fb919c664f8535af8eb9e8b88570bbe41784ca28698c3d3546e91ce",
+        "save": "650e449def0d87c40c943067418026e972ef6daf16ff29c197fb4414c1db8069",
+        "reopen": "bc09e43dc78b56205f28fdca5c73438e2f9b961a7c7faa9e9232c6d0241dfb7a",
+        "secondExport": "650e449def0d87c40c943067418026e972ef6daf16ff29c197fb4414c1db8069"
+      },
+      "nieuwHashes": {
+        "import": "8325baf35fb919c664f8535af8eb9e8b88570bbe41784ca28698c3d3546e91ce",
+        "save": "650e449def0d87c40c943067418026e972ef6daf16ff29c197fb4414c1db8069",
+        "reopen": "bc09e43dc78b56205f28fdca5c73438e2f9b961a7c7faa9e9232c6d0241dfb7a",
+        "secondExport": "650e449def0d87c40c943067418026e972ef6daf16ff29c197fb4414c1db8069"
+      }
+    },
+    {
+      "shape": "breed",
+      "size": 10000,
+      "repeat": 2,
+      "order": [
+        "nieuw",
+        "basis"
+      ],
+      "inputSha256": "acc93d3df21626b17ab4cdf8ec601c7821e1f5edaad9aa93604620f2fb628feb",
+      "inputBytes": 8981747,
+      "maxChildren": 9999,
+      "oldMembershipComparisons": 49985001,
+      "basisMs": 985.3679790000024,
+      "nieuwMs": 448.0840030000036,
+      "basisHashes": {
+        "import": "dabe1d785f1b5f9b7dd5b2edca3932b869355a580b3d62c2a5751685dadcfec0",
+        "save": "650e449def0d87c40c943067418026e972ef6daf16ff29c197fb4414c1db8069",
+        "reopen": "82c640c7cffc2d8e65bb6f6a8714bdcb2c4253f6e97fac980aa0cdf57b726935",
+        "secondExport": "650e449def0d87c40c943067418026e972ef6daf16ff29c197fb4414c1db8069"
+      },
+      "nieuwHashes": {
+        "import": "dabe1d785f1b5f9b7dd5b2edca3932b869355a580b3d62c2a5751685dadcfec0",
+        "save": "650e449def0d87c40c943067418026e972ef6daf16ff29c197fb4414c1db8069",
+        "reopen": "82c640c7cffc2d8e65bb6f6a8714bdcb2c4253f6e97fac980aa0cdf57b726935",
+        "secondExport": "650e449def0d87c40c943067418026e972ef6daf16ff29c197fb4414c1db8069"
+      }
+    },
+    {
+      "shape": "breed",
+      "size": 10000,
+      "repeat": 3,
+      "order": [
+        "basis",
+        "nieuw"
+      ],
+      "inputSha256": "acc93d3df21626b17ab4cdf8ec601c7821e1f5edaad9aa93604620f2fb628feb",
+      "inputBytes": 8981747,
+      "maxChildren": 9999,
+      "oldMembershipComparisons": 49985001,
+      "basisMs": 933.8764479999954,
+      "nieuwMs": 437.37625199999457,
+      "basisHashes": {
+        "import": "de3e25b29009404c54253e4fe74a28d308b9ac56d32cb5aa680378f79cfb1eb4",
+        "save": "650e449def0d87c40c943067418026e972ef6daf16ff29c197fb4414c1db8069",
+        "reopen": "33f6955d6150d1ffe3aea56bd367b73378a30fc5ae432268b65dfd558b355297",
+        "secondExport": "650e449def0d87c40c943067418026e972ef6daf16ff29c197fb4414c1db8069"
+      },
+      "nieuwHashes": {
+        "import": "de3e25b29009404c54253e4fe74a28d308b9ac56d32cb5aa680378f79cfb1eb4",
+        "save": "650e449def0d87c40c943067418026e972ef6daf16ff29c197fb4414c1db8069",
+        "reopen": "33f6955d6150d1ffe3aea56bd367b73378a30fc5ae432268b65dfd558b355297",
+        "secondExport": "650e449def0d87c40c943067418026e972ef6daf16ff29c197fb4414c1db8069"
+      }
+    },
+    {
+      "shape": "breed",
+      "size": 10000,
+      "repeat": 4,
+      "order": [
+        "nieuw",
+        "basis"
+      ],
+      "inputSha256": "acc93d3df21626b17ab4cdf8ec601c7821e1f5edaad9aa93604620f2fb628feb",
+      "inputBytes": 8981747,
+      "maxChildren": 9999,
+      "oldMembershipComparisons": 49985001,
+      "basisMs": 926.5310259999969,
+      "nieuwMs": 439.6454819999999,
+      "basisHashes": {
+        "import": "70618d64a5724f73c4e3282c975fd9a7aec06c2586fcf5fa3ef6ee9fd25ce387",
+        "save": "650e449def0d87c40c943067418026e972ef6daf16ff29c197fb4414c1db8069",
+        "reopen": "35a01edf6398a158d60f92979fb6666cda555bb3ef05946fcee5fa282977c493",
+        "secondExport": "650e449def0d87c40c943067418026e972ef6daf16ff29c197fb4414c1db8069"
+      },
+      "nieuwHashes": {
+        "import": "70618d64a5724f73c4e3282c975fd9a7aec06c2586fcf5fa3ef6ee9fd25ce387",
+        "save": "650e449def0d87c40c943067418026e972ef6daf16ff29c197fb4414c1db8069",
+        "reopen": "35a01edf6398a158d60f92979fb6666cda555bb3ef05946fcee5fa282977c493",
+        "secondExport": "650e449def0d87c40c943067418026e972ef6daf16ff29c197fb4414c1db8069"
+      }
+    },
+    {
+      "shape": "breed",
+      "size": 10000,
+      "repeat": 5,
+      "order": [
+        "basis",
+        "nieuw"
+      ],
+      "inputSha256": "acc93d3df21626b17ab4cdf8ec601c7821e1f5edaad9aa93604620f2fb628feb",
+      "inputBytes": 8981747,
+      "maxChildren": 9999,
+      "oldMembershipComparisons": 49985001,
+      "basisMs": 995.3861619999952,
+      "nieuwMs": 446.21329700000206,
+      "basisHashes": {
+        "import": "51eaf1f6aac3527dbd3a5f49fd23aadc953b0d9d6aafb58944dd7169eb887d5f",
+        "save": "650e449def0d87c40c943067418026e972ef6daf16ff29c197fb4414c1db8069",
+        "reopen": "7890dea9f6ad368749e76a07854a1ad122e2a906bdd3feac72e1add9e7c05732",
+        "secondExport": "650e449def0d87c40c943067418026e972ef6daf16ff29c197fb4414c1db8069"
+      },
+      "nieuwHashes": {
+        "import": "51eaf1f6aac3527dbd3a5f49fd23aadc953b0d9d6aafb58944dd7169eb887d5f",
+        "save": "650e449def0d87c40c943067418026e972ef6daf16ff29c197fb4414c1db8069",
+        "reopen": "7890dea9f6ad368749e76a07854a1ad122e2a906bdd3feac72e1add9e7c05732",
+        "secondExport": "650e449def0d87c40c943067418026e972ef6daf16ff29c197fb4414c1db8069"
+      }
+    },
+    {
+      "shape": "breed",
+      "size": 10000,
+      "repeat": 6,
+      "order": [
+        "nieuw",
+        "basis"
+      ],
+      "inputSha256": "acc93d3df21626b17ab4cdf8ec601c7821e1f5edaad9aa93604620f2fb628feb",
+      "inputBytes": 8981747,
+      "maxChildren": 9999,
+      "oldMembershipComparisons": 49985001,
+      "basisMs": 1019.956726000004,
+      "nieuwMs": 433.9010419999977,
+      "basisHashes": {
+        "import": "798ffefccc922e1f4e79d6b545f67eb1168192c92e87a37421ef827cbb4d813c",
+        "save": "650e449def0d87c40c943067418026e972ef6daf16ff29c197fb4414c1db8069",
+        "reopen": "5e329827e4c83d5da1ed8df2dd3393040cf56a63f0ca106eed701f66948738a8",
+        "secondExport": "650e449def0d87c40c943067418026e972ef6daf16ff29c197fb4414c1db8069"
+      },
+      "nieuwHashes": {
+        "import": "798ffefccc922e1f4e79d6b545f67eb1168192c92e87a37421ef827cbb4d813c",
+        "save": "650e449def0d87c40c943067418026e972ef6daf16ff29c197fb4414c1db8069",
+        "reopen": "5e329827e4c83d5da1ed8df2dd3393040cf56a63f0ca106eed701f66948738a8",
+        "secondExport": "650e449def0d87c40c943067418026e972ef6daf16ff29c197fb4414c1db8069"
+      }
+    },
+    {
+      "shape": "breed",
+      "size": 10000,
+      "repeat": 7,
+      "order": [
+        "basis",
+        "nieuw"
+      ],
+      "inputSha256": "acc93d3df21626b17ab4cdf8ec601c7821e1f5edaad9aa93604620f2fb628feb",
+      "inputBytes": 8981747,
+      "maxChildren": 9999,
+      "oldMembershipComparisons": 49985001,
+      "basisMs": 939.9744890000002,
+      "nieuwMs": 456.2614039999971,
+      "basisHashes": {
+        "import": "d4ef2e30b4658cbf6493c43da621ff56dd4cf3bb4c5c9070b55f74d39aa65bca",
+        "save": "650e449def0d87c40c943067418026e972ef6daf16ff29c197fb4414c1db8069",
+        "reopen": "5a22a0db18f5a94b1ed78364e127d4214bc38b7a5332dc99d3ca97f9ad5b630e",
+        "secondExport": "650e449def0d87c40c943067418026e972ef6daf16ff29c197fb4414c1db8069"
+      },
+      "nieuwHashes": {
+        "import": "d4ef2e30b4658cbf6493c43da621ff56dd4cf3bb4c5c9070b55f74d39aa65bca",
+        "save": "650e449def0d87c40c943067418026e972ef6daf16ff29c197fb4414c1db8069",
+        "reopen": "5a22a0db18f5a94b1ed78364e127d4214bc38b7a5332dc99d3ca97f9ad5b630e",
+        "secondExport": "650e449def0d87c40c943067418026e972ef6daf16ff29c197fb4414c1db8069"
+      }
+    },
+    {
+      "shape": "verdeeld",
+      "size": 1000,
+      "repeat": 1,
+      "order": [
+        "basis",
+        "nieuw"
+      ],
+      "inputSha256": "49e9fdf7f93a23467e59bc9d61e70aa87b038cb0ef1f417b748227c391f85eb5",
+      "inputBytes": 889893,
+      "maxChildren": 23,
+      "oldMembershipComparisons": 6188,
+      "basisMs": 36.22744299999613,
+      "nieuwMs": 36.13307600000553,
+      "basisHashes": {
+        "import": "e493ffd1f429cccc535690f22b587cf0367239a5e6f04eea2dcac0232b0ec988",
+        "save": "a807377c6b92aea504edb0f88600ddcfd9976ad34b5e05533a3f22cbdaa6d4d8",
+        "reopen": "f466373d7b62798a5533c7a06734fdd646137354bbd6d31ac7caaaf1ece674cb",
+        "secondExport": "a807377c6b92aea504edb0f88600ddcfd9976ad34b5e05533a3f22cbdaa6d4d8"
+      },
+      "nieuwHashes": {
+        "import": "e493ffd1f429cccc535690f22b587cf0367239a5e6f04eea2dcac0232b0ec988",
+        "save": "a807377c6b92aea504edb0f88600ddcfd9976ad34b5e05533a3f22cbdaa6d4d8",
+        "reopen": "f466373d7b62798a5533c7a06734fdd646137354bbd6d31ac7caaaf1ece674cb",
+        "secondExport": "a807377c6b92aea504edb0f88600ddcfd9976ad34b5e05533a3f22cbdaa6d4d8"
+      }
+    },
+    {
+      "shape": "verdeeld",
+      "size": 1000,
+      "repeat": 2,
+      "order": [
+        "nieuw",
+        "basis"
+      ],
+      "inputSha256": "49e9fdf7f93a23467e59bc9d61e70aa87b038cb0ef1f417b748227c391f85eb5",
+      "inputBytes": 889893,
+      "maxChildren": 23,
+      "oldMembershipComparisons": 6188,
+      "basisMs": 36.08297200000379,
+      "nieuwMs": 38.36831499999971,
+      "basisHashes": {
+        "import": "69b2d5cc18c40e07fdad959bb7a774f7276cd0752b0f1b88e44039c7be85c701",
+        "save": "a807377c6b92aea504edb0f88600ddcfd9976ad34b5e05533a3f22cbdaa6d4d8",
+        "reopen": "3220e19cd57e0aba0c4cf0a79a9396c07d6de62b1bea481bcf39feedf538f776",
+        "secondExport": "a807377c6b92aea504edb0f88600ddcfd9976ad34b5e05533a3f22cbdaa6d4d8"
+      },
+      "nieuwHashes": {
+        "import": "69b2d5cc18c40e07fdad959bb7a774f7276cd0752b0f1b88e44039c7be85c701",
+        "save": "a807377c6b92aea504edb0f88600ddcfd9976ad34b5e05533a3f22cbdaa6d4d8",
+        "reopen": "3220e19cd57e0aba0c4cf0a79a9396c07d6de62b1bea481bcf39feedf538f776",
+        "secondExport": "a807377c6b92aea504edb0f88600ddcfd9976ad34b5e05533a3f22cbdaa6d4d8"
+      }
+    },
+    {
+      "shape": "verdeeld",
+      "size": 1000,
+      "repeat": 3,
+      "order": [
+        "basis",
+        "nieuw"
+      ],
+      "inputSha256": "49e9fdf7f93a23467e59bc9d61e70aa87b038cb0ef1f417b748227c391f85eb5",
+      "inputBytes": 889893,
+      "maxChildren": 23,
+      "oldMembershipComparisons": 6188,
+      "basisMs": 35.831372000000556,
+      "nieuwMs": 36.549394000001485,
+      "basisHashes": {
+        "import": "3291baee151dc0679d3569c8bcaeca4dd885aadf01608d58ec0da064d93d6118",
+        "save": "a807377c6b92aea504edb0f88600ddcfd9976ad34b5e05533a3f22cbdaa6d4d8",
+        "reopen": "50065f309356552784ebe5eaf3c4bc6753696139c3473138bbc28b29211bc355",
+        "secondExport": "a807377c6b92aea504edb0f88600ddcfd9976ad34b5e05533a3f22cbdaa6d4d8"
+      },
+      "nieuwHashes": {
+        "import": "3291baee151dc0679d3569c8bcaeca4dd885aadf01608d58ec0da064d93d6118",
+        "save": "a807377c6b92aea504edb0f88600ddcfd9976ad34b5e05533a3f22cbdaa6d4d8",
+        "reopen": "50065f309356552784ebe5eaf3c4bc6753696139c3473138bbc28b29211bc355",
+        "secondExport": "a807377c6b92aea504edb0f88600ddcfd9976ad34b5e05533a3f22cbdaa6d4d8"
+      }
+    },
+    {
+      "shape": "verdeeld",
+      "size": 1000,
+      "repeat": 4,
+      "order": [
+        "nieuw",
+        "basis"
+      ],
+      "inputSha256": "49e9fdf7f93a23467e59bc9d61e70aa87b038cb0ef1f417b748227c391f85eb5",
+      "inputBytes": 889893,
+      "maxChildren": 23,
+      "oldMembershipComparisons": 6188,
+      "basisMs": 38.4090109999961,
+      "nieuwMs": 36.80646500000148,
+      "basisHashes": {
+        "import": "bb4041eb9a0ec2fba475b91ceaa52d656868db9bda19630ca1ee38df9b8bfe03",
+        "save": "a807377c6b92aea504edb0f88600ddcfd9976ad34b5e05533a3f22cbdaa6d4d8",
+        "reopen": "55644b8dec4b766b0ee6875ace212bc1304a884fc4c0bf1147480067a78f0c29",
+        "secondExport": "a807377c6b92aea504edb0f88600ddcfd9976ad34b5e05533a3f22cbdaa6d4d8"
+      },
+      "nieuwHashes": {
+        "import": "bb4041eb9a0ec2fba475b91ceaa52d656868db9bda19630ca1ee38df9b8bfe03",
+        "save": "a807377c6b92aea504edb0f88600ddcfd9976ad34b5e05533a3f22cbdaa6d4d8",
+        "reopen": "55644b8dec4b766b0ee6875ace212bc1304a884fc4c0bf1147480067a78f0c29",
+        "secondExport": "a807377c6b92aea504edb0f88600ddcfd9976ad34b5e05533a3f22cbdaa6d4d8"
+      }
+    },
+    {
+      "shape": "verdeeld",
+      "size": 1000,
+      "repeat": 5,
+      "order": [
+        "basis",
+        "nieuw"
+      ],
+      "inputSha256": "49e9fdf7f93a23467e59bc9d61e70aa87b038cb0ef1f417b748227c391f85eb5",
+      "inputBytes": 889893,
+      "maxChildren": 23,
+      "oldMembershipComparisons": 6188,
+      "basisMs": 37.37938600000052,
+      "nieuwMs": 39.144045000000915,
+      "basisHashes": {
+        "import": "5179b7f5a410971ad7d72599826be347e5a6827a1738f6cc818c8d9ca8cb5774",
+        "save": "a807377c6b92aea504edb0f88600ddcfd9976ad34b5e05533a3f22cbdaa6d4d8",
+        "reopen": "36bc21f797c37391b93c1f48b4f354f6027a5b6791ccacc4c7ad5fd41abc91a8",
+        "secondExport": "a807377c6b92aea504edb0f88600ddcfd9976ad34b5e05533a3f22cbdaa6d4d8"
+      },
+      "nieuwHashes": {
+        "import": "5179b7f5a410971ad7d72599826be347e5a6827a1738f6cc818c8d9ca8cb5774",
+        "save": "a807377c6b92aea504edb0f88600ddcfd9976ad34b5e05533a3f22cbdaa6d4d8",
+        "reopen": "36bc21f797c37391b93c1f48b4f354f6027a5b6791ccacc4c7ad5fd41abc91a8",
+        "secondExport": "a807377c6b92aea504edb0f88600ddcfd9976ad34b5e05533a3f22cbdaa6d4d8"
+      }
+    },
+    {
+      "shape": "verdeeld",
+      "size": 1000,
+      "repeat": 6,
+      "order": [
+        "nieuw",
+        "basis"
+      ],
+      "inputSha256": "49e9fdf7f93a23467e59bc9d61e70aa87b038cb0ef1f417b748227c391f85eb5",
+      "inputBytes": 889893,
+      "maxChildren": 23,
+      "oldMembershipComparisons": 6188,
+      "basisMs": 37.55681799999729,
+      "nieuwMs": 37.907022999999754,
+      "basisHashes": {
+        "import": "9e78e044c96e5ae7332196c563d8102acfc87f96e93a6f933c514119579f0c29",
+        "save": "a807377c6b92aea504edb0f88600ddcfd9976ad34b5e05533a3f22cbdaa6d4d8",
+        "reopen": "b1a954e4a0cbd08f32049496089398e7c632c1b9e5740c48d43ac8e7abac6edb",
+        "secondExport": "a807377c6b92aea504edb0f88600ddcfd9976ad34b5e05533a3f22cbdaa6d4d8"
+      },
+      "nieuwHashes": {
+        "import": "9e78e044c96e5ae7332196c563d8102acfc87f96e93a6f933c514119579f0c29",
+        "save": "a807377c6b92aea504edb0f88600ddcfd9976ad34b5e05533a3f22cbdaa6d4d8",
+        "reopen": "b1a954e4a0cbd08f32049496089398e7c632c1b9e5740c48d43ac8e7abac6edb",
+        "secondExport": "a807377c6b92aea504edb0f88600ddcfd9976ad34b5e05533a3f22cbdaa6d4d8"
+      }
+    },
+    {
+      "shape": "verdeeld",
+      "size": 1000,
+      "repeat": 7,
+      "order": [
+        "basis",
+        "nieuw"
+      ],
+      "inputSha256": "49e9fdf7f93a23467e59bc9d61e70aa87b038cb0ef1f417b748227c391f85eb5",
+      "inputBytes": 889893,
+      "maxChildren": 23,
+      "oldMembershipComparisons": 6188,
+      "basisMs": 38.402798999995866,
+      "nieuwMs": 37.25441300000239,
+      "basisHashes": {
+        "import": "9e717ff2d203cf0de03004b14f47b01a4c2975d5b850897bd86189e2fd7165ba",
+        "save": "a807377c6b92aea504edb0f88600ddcfd9976ad34b5e05533a3f22cbdaa6d4d8",
+        "reopen": "0430d274bfa859a7838ec2a64e53ee4ec137948fe2c3ed5f8ff79a8797126e8b",
+        "secondExport": "a807377c6b92aea504edb0f88600ddcfd9976ad34b5e05533a3f22cbdaa6d4d8"
+      },
+      "nieuwHashes": {
+        "import": "9e717ff2d203cf0de03004b14f47b01a4c2975d5b850897bd86189e2fd7165ba",
+        "save": "a807377c6b92aea504edb0f88600ddcfd9976ad34b5e05533a3f22cbdaa6d4d8",
+        "reopen": "0430d274bfa859a7838ec2a64e53ee4ec137948fe2c3ed5f8ff79a8797126e8b",
+        "secondExport": "a807377c6b92aea504edb0f88600ddcfd9976ad34b5e05533a3f22cbdaa6d4d8"
+      }
+    },
+    {
+      "shape": "verdeeld",
+      "size": 5000,
+      "repeat": 1,
+      "order": [
+        "basis",
+        "nieuw"
+      ],
+      "inputSha256": "9e85b4e7aeb8c27c519e539ca9e8e0e0dc4e58232dbb2c1e226c273d675308ee",
+      "inputBytes": 4531117,
+      "maxChildren": 23,
+      "oldMembershipComparisons": 31136,
+      "basisMs": 212.87299799999164,
+      "nieuwMs": 224.27935399999842,
+      "basisHashes": {
+        "import": "0df97165145532b1a75b8444b95b77f9314418bc66054f6f0426da9c07171a07",
+        "save": "d23db65c21efbd40bcc4762dd6ece007f865b76c731725ea0e27908ac835cacd",
+        "reopen": "53ead6d140f06ababf7b816c2635706d02e31695d82cce36a72b247517fb02dd",
+        "secondExport": "d23db65c21efbd40bcc4762dd6ece007f865b76c731725ea0e27908ac835cacd"
+      },
+      "nieuwHashes": {
+        "import": "0df97165145532b1a75b8444b95b77f9314418bc66054f6f0426da9c07171a07",
+        "save": "d23db65c21efbd40bcc4762dd6ece007f865b76c731725ea0e27908ac835cacd",
+        "reopen": "53ead6d140f06ababf7b816c2635706d02e31695d82cce36a72b247517fb02dd",
+        "secondExport": "d23db65c21efbd40bcc4762dd6ece007f865b76c731725ea0e27908ac835cacd"
+      }
+    },
+    {
+      "shape": "verdeeld",
+      "size": 5000,
+      "repeat": 2,
+      "order": [
+        "nieuw",
+        "basis"
+      ],
+      "inputSha256": "9e85b4e7aeb8c27c519e539ca9e8e0e0dc4e58232dbb2c1e226c273d675308ee",
+      "inputBytes": 4531117,
+      "maxChildren": 23,
+      "oldMembershipComparisons": 31136,
+      "basisMs": 209.58567299999413,
+      "nieuwMs": 208.70224999998754,
+      "basisHashes": {
+        "import": "001b8833ee800153f9a1cc5d6ea2adf75f9d08991347cf675944bdfdaa83ce54",
+        "save": "d23db65c21efbd40bcc4762dd6ece007f865b76c731725ea0e27908ac835cacd",
+        "reopen": "29f13f32fd0cdc831d91c6ad88bb17113922c1eadc66b70d5d00629bae0cb5b8",
+        "secondExport": "d23db65c21efbd40bcc4762dd6ece007f865b76c731725ea0e27908ac835cacd"
+      },
+      "nieuwHashes": {
+        "import": "001b8833ee800153f9a1cc5d6ea2adf75f9d08991347cf675944bdfdaa83ce54",
+        "save": "d23db65c21efbd40bcc4762dd6ece007f865b76c731725ea0e27908ac835cacd",
+        "reopen": "29f13f32fd0cdc831d91c6ad88bb17113922c1eadc66b70d5d00629bae0cb5b8",
+        "secondExport": "d23db65c21efbd40bcc4762dd6ece007f865b76c731725ea0e27908ac835cacd"
+      }
+    },
+    {
+      "shape": "verdeeld",
+      "size": 5000,
+      "repeat": 3,
+      "order": [
+        "basis",
+        "nieuw"
+      ],
+      "inputSha256": "9e85b4e7aeb8c27c519e539ca9e8e0e0dc4e58232dbb2c1e226c273d675308ee",
+      "inputBytes": 4531117,
+      "maxChildren": 23,
+      "oldMembershipComparisons": 31136,
+      "basisMs": 221.00782099999196,
+      "nieuwMs": 205.72071600001073,
+      "basisHashes": {
+        "import": "8474429838f37f09261b1c7a6f69557cae013a067b2907da24e27944999f2e30",
+        "save": "d23db65c21efbd40bcc4762dd6ece007f865b76c731725ea0e27908ac835cacd",
+        "reopen": "cb354e41ca4c44e2b00d6c6abaa1c87f3fd788319f53a452b21a18b4b04a4b77",
+        "secondExport": "d23db65c21efbd40bcc4762dd6ece007f865b76c731725ea0e27908ac835cacd"
+      },
+      "nieuwHashes": {
+        "import": "8474429838f37f09261b1c7a6f69557cae013a067b2907da24e27944999f2e30",
+        "save": "d23db65c21efbd40bcc4762dd6ece007f865b76c731725ea0e27908ac835cacd",
+        "reopen": "cb354e41ca4c44e2b00d6c6abaa1c87f3fd788319f53a452b21a18b4b04a4b77",
+        "secondExport": "d23db65c21efbd40bcc4762dd6ece007f865b76c731725ea0e27908ac835cacd"
+      }
+    },
+    {
+      "shape": "verdeeld",
+      "size": 5000,
+      "repeat": 4,
+      "order": [
+        "nieuw",
+        "basis"
+      ],
+      "inputSha256": "9e85b4e7aeb8c27c519e539ca9e8e0e0dc4e58232dbb2c1e226c273d675308ee",
+      "inputBytes": 4531117,
+      "maxChildren": 23,
+      "oldMembershipComparisons": 31136,
+      "basisMs": 241.3157429999992,
+      "nieuwMs": 206.5769650000002,
+      "basisHashes": {
+        "import": "3c1b7ec86324157ad390f03da75805bc9636f585d01ddbac7824fc88b7950f19",
+        "save": "d23db65c21efbd40bcc4762dd6ece007f865b76c731725ea0e27908ac835cacd",
+        "reopen": "554aa15a40df4f7f3780da02c753e6d0b7ae30fed6de1f8253ce7bbbdfb74577",
+        "secondExport": "d23db65c21efbd40bcc4762dd6ece007f865b76c731725ea0e27908ac835cacd"
+      },
+      "nieuwHashes": {
+        "import": "3c1b7ec86324157ad390f03da75805bc9636f585d01ddbac7824fc88b7950f19",
+        "save": "d23db65c21efbd40bcc4762dd6ece007f865b76c731725ea0e27908ac835cacd",
+        "reopen": "554aa15a40df4f7f3780da02c753e6d0b7ae30fed6de1f8253ce7bbbdfb74577",
+        "secondExport": "d23db65c21efbd40bcc4762dd6ece007f865b76c731725ea0e27908ac835cacd"
+      }
+    },
+    {
+      "shape": "verdeeld",
+      "size": 5000,
+      "repeat": 5,
+      "order": [
+        "basis",
+        "nieuw"
+      ],
+      "inputSha256": "9e85b4e7aeb8c27c519e539ca9e8e0e0dc4e58232dbb2c1e226c273d675308ee",
+      "inputBytes": 4531117,
+      "maxChildren": 23,
+      "oldMembershipComparisons": 31136,
+      "basisMs": 205.9166050000058,
+      "nieuwMs": 235.0507970000035,
+      "basisHashes": {
+        "import": "6d57bbd81d44fa644e85fbe70c9ecb3be8d793210a30613e6a6e58fb9dff33d8",
+        "save": "d23db65c21efbd40bcc4762dd6ece007f865b76c731725ea0e27908ac835cacd",
+        "reopen": "3b150037ce2179704b91738a939129153294a7cb22c057886db870e3ab7a5b62",
+        "secondExport": "d23db65c21efbd40bcc4762dd6ece007f865b76c731725ea0e27908ac835cacd"
+      },
+      "nieuwHashes": {
+        "import": "6d57bbd81d44fa644e85fbe70c9ecb3be8d793210a30613e6a6e58fb9dff33d8",
+        "save": "d23db65c21efbd40bcc4762dd6ece007f865b76c731725ea0e27908ac835cacd",
+        "reopen": "3b150037ce2179704b91738a939129153294a7cb22c057886db870e3ab7a5b62",
+        "secondExport": "d23db65c21efbd40bcc4762dd6ece007f865b76c731725ea0e27908ac835cacd"
+      }
+    },
+    {
+      "shape": "verdeeld",
+      "size": 5000,
+      "repeat": 6,
+      "order": [
+        "nieuw",
+        "basis"
+      ],
+      "inputSha256": "9e85b4e7aeb8c27c519e539ca9e8e0e0dc4e58232dbb2c1e226c273d675308ee",
+      "inputBytes": 4531117,
+      "maxChildren": 23,
+      "oldMembershipComparisons": 31136,
+      "basisMs": 210.99266400000488,
+      "nieuwMs": 238.94589199998882,
+      "basisHashes": {
+        "import": "b18521ec0770dc08ea42f0e3fbf464ad514af51089525ea657deedfde8d2e36c",
+        "save": "d23db65c21efbd40bcc4762dd6ece007f865b76c731725ea0e27908ac835cacd",
+        "reopen": "a7e365fcfe7e10eb99b6f80da2397fa6a0f24f7dec025624150fd6e74b8f1b7f",
+        "secondExport": "d23db65c21efbd40bcc4762dd6ece007f865b76c731725ea0e27908ac835cacd"
+      },
+      "nieuwHashes": {
+        "import": "b18521ec0770dc08ea42f0e3fbf464ad514af51089525ea657deedfde8d2e36c",
+        "save": "d23db65c21efbd40bcc4762dd6ece007f865b76c731725ea0e27908ac835cacd",
+        "reopen": "a7e365fcfe7e10eb99b6f80da2397fa6a0f24f7dec025624150fd6e74b8f1b7f",
+        "secondExport": "d23db65c21efbd40bcc4762dd6ece007f865b76c731725ea0e27908ac835cacd"
+      }
+    },
+    {
+      "shape": "verdeeld",
+      "size": 5000,
+      "repeat": 7,
+      "order": [
+        "basis",
+        "nieuw"
+      ],
+      "inputSha256": "9e85b4e7aeb8c27c519e539ca9e8e0e0dc4e58232dbb2c1e226c273d675308ee",
+      "inputBytes": 4531117,
+      "maxChildren": 23,
+      "oldMembershipComparisons": 31136,
+      "basisMs": 216.15419099999417,
+      "nieuwMs": 206.6471889999957,
+      "basisHashes": {
+        "import": "51edf48d69cfe0528481f2cf678f4c5184d734952c242c01606bd49aed5e18f4",
+        "save": "d23db65c21efbd40bcc4762dd6ece007f865b76c731725ea0e27908ac835cacd",
+        "reopen": "9301da65ab77af4655e0c5a2ca0fa54b7fd8b5290640ed657c43abc8c7314d45",
+        "secondExport": "d23db65c21efbd40bcc4762dd6ece007f865b76c731725ea0e27908ac835cacd"
+      },
+      "nieuwHashes": {
+        "import": "51edf48d69cfe0528481f2cf678f4c5184d734952c242c01606bd49aed5e18f4",
+        "save": "d23db65c21efbd40bcc4762dd6ece007f865b76c731725ea0e27908ac835cacd",
+        "reopen": "9301da65ab77af4655e0c5a2ca0fa54b7fd8b5290640ed657c43abc8c7314d45",
+        "secondExport": "d23db65c21efbd40bcc4762dd6ece007f865b76c731725ea0e27908ac835cacd"
+      }
+    },
+    {
+      "shape": "verdeeld",
+      "size": 10000,
+      "repeat": 1,
+      "order": [
+        "basis",
+        "nieuw"
+      ],
+      "inputSha256": "b0874ecf4e29ea4174a5f83c536c7045c3905c472b44c449442650085804ce3a",
+      "inputBytes": 9057180,
+      "maxChildren": 26,
+      "oldMembershipComparisons": 62225,
+      "basisMs": 453.82764300001145,
+      "nieuwMs": 448.4343070000032,
+      "basisHashes": {
+        "import": "9a29f807ce21eb0863328a21939f854ab85c5f0ea6ec8174b78a5bb8f96d946d",
+        "save": "bf07ef8b116f4574379ab8d798544ad58b40d892bd33713b9957e459d9e10638",
+        "reopen": "034104dfbae846987eb6415dc5d4d8bb1c1890373b54b1b74e9b5d7cc0bdb353",
+        "secondExport": "bf07ef8b116f4574379ab8d798544ad58b40d892bd33713b9957e459d9e10638"
+      },
+      "nieuwHashes": {
+        "import": "9a29f807ce21eb0863328a21939f854ab85c5f0ea6ec8174b78a5bb8f96d946d",
+        "save": "bf07ef8b116f4574379ab8d798544ad58b40d892bd33713b9957e459d9e10638",
+        "reopen": "034104dfbae846987eb6415dc5d4d8bb1c1890373b54b1b74e9b5d7cc0bdb353",
+        "secondExport": "bf07ef8b116f4574379ab8d798544ad58b40d892bd33713b9957e459d9e10638"
+      }
+    },
+    {
+      "shape": "verdeeld",
+      "size": 10000,
+      "repeat": 2,
+      "order": [
+        "nieuw",
+        "basis"
+      ],
+      "inputSha256": "b0874ecf4e29ea4174a5f83c536c7045c3905c472b44c449442650085804ce3a",
+      "inputBytes": 9057180,
+      "maxChildren": 26,
+      "oldMembershipComparisons": 62225,
+      "basisMs": 444.97030800000357,
+      "nieuwMs": 457.7000340000086,
+      "basisHashes": {
+        "import": "e28d4904f5a7af82a7bbaa4f6d1c2737d6c7b6efd310772c269dd7185f6f1344",
+        "save": "bf07ef8b116f4574379ab8d798544ad58b40d892bd33713b9957e459d9e10638",
+        "reopen": "c56b26695aa736792a360d9c8110eff5cc883d20ffd3cf3df9ea31aef0a8841c",
+        "secondExport": "bf07ef8b116f4574379ab8d798544ad58b40d892bd33713b9957e459d9e10638"
+      },
+      "nieuwHashes": {
+        "import": "e28d4904f5a7af82a7bbaa4f6d1c2737d6c7b6efd310772c269dd7185f6f1344",
+        "save": "bf07ef8b116f4574379ab8d798544ad58b40d892bd33713b9957e459d9e10638",
+        "reopen": "c56b26695aa736792a360d9c8110eff5cc883d20ffd3cf3df9ea31aef0a8841c",
+        "secondExport": "bf07ef8b116f4574379ab8d798544ad58b40d892bd33713b9957e459d9e10638"
+      }
+    },
+    {
+      "shape": "verdeeld",
+      "size": 10000,
+      "repeat": 3,
+      "order": [
+        "basis",
+        "nieuw"
+      ],
+      "inputSha256": "b0874ecf4e29ea4174a5f83c536c7045c3905c472b44c449442650085804ce3a",
+      "inputBytes": 9057180,
+      "maxChildren": 26,
+      "oldMembershipComparisons": 62225,
+      "basisMs": 462.36995500000194,
+      "nieuwMs": 452.6558919999952,
+      "basisHashes": {
+        "import": "1e4968f9aa7d859dc8e1e4145302c8626c61e62177f582451c46c8c84e1ee0b5",
+        "save": "bf07ef8b116f4574379ab8d798544ad58b40d892bd33713b9957e459d9e10638",
+        "reopen": "1674bed1011811e621150de29e54c7ae66f9504dc66e43beea8325d02d9bbeec",
+        "secondExport": "bf07ef8b116f4574379ab8d798544ad58b40d892bd33713b9957e459d9e10638"
+      },
+      "nieuwHashes": {
+        "import": "1e4968f9aa7d859dc8e1e4145302c8626c61e62177f582451c46c8c84e1ee0b5",
+        "save": "bf07ef8b116f4574379ab8d798544ad58b40d892bd33713b9957e459d9e10638",
+        "reopen": "1674bed1011811e621150de29e54c7ae66f9504dc66e43beea8325d02d9bbeec",
+        "secondExport": "bf07ef8b116f4574379ab8d798544ad58b40d892bd33713b9957e459d9e10638"
+      }
+    },
+    {
+      "shape": "verdeeld",
+      "size": 10000,
+      "repeat": 4,
+      "order": [
+        "nieuw",
+        "basis"
+      ],
+      "inputSha256": "b0874ecf4e29ea4174a5f83c536c7045c3905c472b44c449442650085804ce3a",
+      "inputBytes": 9057180,
+      "maxChildren": 26,
+      "oldMembershipComparisons": 62225,
+      "basisMs": 448.95687400001043,
+      "nieuwMs": 542.1531339999929,
+      "basisHashes": {
+        "import": "6cc6ef100ccfc06363e41d07f7e2a960e0606ca8b1c6dbb60bab360e17f44ebc",
+        "save": "bf07ef8b116f4574379ab8d798544ad58b40d892bd33713b9957e459d9e10638",
+        "reopen": "c5710dad4d167d8db5710f56f777924ebfd078a4e0b2be1c8a1de3e3f3775f63",
+        "secondExport": "bf07ef8b116f4574379ab8d798544ad58b40d892bd33713b9957e459d9e10638"
+      },
+      "nieuwHashes": {
+        "import": "6cc6ef100ccfc06363e41d07f7e2a960e0606ca8b1c6dbb60bab360e17f44ebc",
+        "save": "bf07ef8b116f4574379ab8d798544ad58b40d892bd33713b9957e459d9e10638",
+        "reopen": "c5710dad4d167d8db5710f56f777924ebfd078a4e0b2be1c8a1de3e3f3775f63",
+        "secondExport": "bf07ef8b116f4574379ab8d798544ad58b40d892bd33713b9957e459d9e10638"
+      }
+    },
+    {
+      "shape": "verdeeld",
+      "size": 10000,
+      "repeat": 5,
+      "order": [
+        "basis",
+        "nieuw"
+      ],
+      "inputSha256": "b0874ecf4e29ea4174a5f83c536c7045c3905c472b44c449442650085804ce3a",
+      "inputBytes": 9057180,
+      "maxChildren": 26,
+      "oldMembershipComparisons": 62225,
+      "basisMs": 456.2592799999984,
+      "nieuwMs": 455.14191700000083,
+      "basisHashes": {
+        "import": "7a7967e0213eb727f3c687c38d2b87c54a6dfb37df7fbd45779b3bac63caf9bb",
+        "save": "bf07ef8b116f4574379ab8d798544ad58b40d892bd33713b9957e459d9e10638",
+        "reopen": "0b09b57799a64ab21450f84c438770aef157807771b346078b16011d4063649e",
+        "secondExport": "bf07ef8b116f4574379ab8d798544ad58b40d892bd33713b9957e459d9e10638"
+      },
+      "nieuwHashes": {
+        "import": "7a7967e0213eb727f3c687c38d2b87c54a6dfb37df7fbd45779b3bac63caf9bb",
+        "save": "bf07ef8b116f4574379ab8d798544ad58b40d892bd33713b9957e459d9e10638",
+        "reopen": "0b09b57799a64ab21450f84c438770aef157807771b346078b16011d4063649e",
+        "secondExport": "bf07ef8b116f4574379ab8d798544ad58b40d892bd33713b9957e459d9e10638"
+      }
+    },
+    {
+      "shape": "verdeeld",
+      "size": 10000,
+      "repeat": 6,
+      "order": [
+        "nieuw",
+        "basis"
+      ],
+      "inputSha256": "b0874ecf4e29ea4174a5f83c536c7045c3905c472b44c449442650085804ce3a",
+      "inputBytes": 9057180,
+      "maxChildren": 26,
+      "oldMembershipComparisons": 62225,
+      "basisMs": 445.7832679999992,
+      "nieuwMs": 455.14999199999147,
+      "basisHashes": {
+        "import": "a01bab387b786dc2391f85af94d203e0c8ee2dbcc9bfc526e1f5d1474066ee91",
+        "save": "bf07ef8b116f4574379ab8d798544ad58b40d892bd33713b9957e459d9e10638",
+        "reopen": "de69fc850b14f40706e58d84825185bc49cea606432f20078d99e2150e8e9c87",
+        "secondExport": "bf07ef8b116f4574379ab8d798544ad58b40d892bd33713b9957e459d9e10638"
+      },
+      "nieuwHashes": {
+        "import": "a01bab387b786dc2391f85af94d203e0c8ee2dbcc9bfc526e1f5d1474066ee91",
+        "save": "bf07ef8b116f4574379ab8d798544ad58b40d892bd33713b9957e459d9e10638",
+        "reopen": "de69fc850b14f40706e58d84825185bc49cea606432f20078d99e2150e8e9c87",
+        "secondExport": "bf07ef8b116f4574379ab8d798544ad58b40d892bd33713b9957e459d9e10638"
+      }
+    },
+    {
+      "shape": "verdeeld",
+      "size": 10000,
+      "repeat": 7,
+      "order": [
+        "basis",
+        "nieuw"
+      ],
+      "inputSha256": "b0874ecf4e29ea4174a5f83c536c7045c3905c472b44c449442650085804ce3a",
+      "inputBytes": 9057180,
+      "maxChildren": 26,
+      "oldMembershipComparisons": 62225,
+      "basisMs": 458.260958999992,
+      "nieuwMs": 550.5030139999872,
+      "basisHashes": {
+        "import": "d0b0d0b0229b78ba59576136b62d0e641b4427dcd1d31880e93fc930ffb16efc",
+        "save": "bf07ef8b116f4574379ab8d798544ad58b40d892bd33713b9957e459d9e10638",
+        "reopen": "dd5351a84c9e4bc803d045fe3b58115c880f69c9fb84b3d1f26f1e1e96de286f",
+        "secondExport": "bf07ef8b116f4574379ab8d798544ad58b40d892bd33713b9957e459d9e10638"
+      },
+      "nieuwHashes": {
+        "import": "d0b0d0b0229b78ba59576136b62d0e641b4427dcd1d31880e93fc930ffb16efc",
+        "save": "bf07ef8b116f4574379ab8d798544ad58b40d892bd33713b9957e459d9e10638",
+        "reopen": "dd5351a84c9e4bc803d045fe3b58115c880f69c9fb84b3d1f26f1e1e96de286f",
+        "secondExport": "bf07ef8b116f4574379ab8d798544ad58b40d892bd33713b9957e459d9e10638"
+      }
+    }
+  ]
+}

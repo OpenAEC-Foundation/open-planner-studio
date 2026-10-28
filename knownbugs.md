@@ -114,10 +114,34 @@ en noem het in je rapport of PR-tekst.
     (pin 0); ook de verzameling afwijkende bestanden wijkt daardoor af. Dezelfde uitslag met
     `CPMSolver.ts` en `ResourceLeveler.ts` uit die main-commit, zonder de PF-optimalisatie.
     De gecombineerde `measure:profiles` eindigt op exit 1; de P6-cellen zijn ongewijzigd.
-    Geen baseline of motorcode hiervoor aangepast; oorzaak niet verder onderzocht.
     Een bisect over de merges van main op 2026-10-26 wijst merge #494 (`363bb638f`, korte
     MPP-resourceplaatsaanduidingen overslaan) aan als eerste rode merge; #446 (`811999328`) is nog
-    groen. — B
+    groen.
+    Oorzaak (onderzocht op 2026-10-27): bij dezelfde bestandsbytes, dezelfde meetdekking (corpus en crawl,
+    661 bestanden op aia09-mp50) en de gewone toetsmodus is de uitkomst vast rood; klok, tijdzone, taal, pad
+    en volgorde veranderen dat niet, alleen de commit. Wordt de crawlmap niet gescand, dan meet de check dit
+    bestand niet en kan hij groen eindigen (zie 427). #494 is juist
+    (`src/services/mpp/mppEntities.ts:302`, knownbug 119): de lezer slaat nu de korte records van 16 bytes
+    over en leest Resource 8a en 8b uit de volle records. Die zijn LABOR, zoals in MPXJ; de oude lezer
+    maakte er MATERIAL van. Daardoor laat de MATERIAL-filter (`src/services/mpp/mppReader.ts:1501`, zie
+    426) beide toewijzingen van Task 8 meewandelen. De wandeling (`src/engine/scheduler/CPMSolver.ts:3040`,
+    `walk.workMinutes ?? durMin`) loopt de werkminuten zonder de inzet van 12,5 % (de beperking bij
+    `mppReader.ts:1356`). Task 8 eindigt zo op 2026-02-16 13:59 in plaats van 02-20 17:00 (MS Project);
+    Task 5 en 6 volgen met 02-17 17:00 in plaats van 02-20 17:00.
+    Werk gedeeld door inzet als vaste regel is geen oplossing: over de 661 bestanden van de meting
+    komen dan 3 taken dichter bij MS Project en 32 verder weg (OzBuild Workshop 17 en 18: een toewijzing
+    met inzet 0,0006 en 30 werkminuten wordt 50.000 min). Een pin van 6 botst met de nulpoort
+    `GOAL_ZERO_DEVIATIONS` (`tests/planning/check-mpp-fidelity.ts:770`, orkestratorbesluit O1 van
+    2026-08-17); een uitzondering daarop ligt bij de eigenaar. Pin en poort zijn niet aangepast. — B
+
+426. **De MATERIAL-filter in de `.mpp`-lezer steunt voor zijn voorbeeld op een verkeerde aanname.**
+    `src/services/mpp/mppReader.ts:1495–1501` sluit MATERIAL-toewijzingen uit van de wandeling en noemt als
+    reden `timephased-cost-rollup.mpp`, "Task 8": ~4 werkdagen te vroeg. Die resources (8a, 8b) waren alleen
+    MATERIAL door een leesfout in de oude lezer (de korte records van 16 bytes, opgelost in #494); in de bron
+    en in MPXJ zijn ze LABOR. De filter kwam dus goed uit om de verkeerde reden, en het commentaar klopt niet
+    meer. Of de filter voor echte MATERIAL-toewijzingen juist is, is niet apart getoetst. Voorstel: het
+    commentaar herschrijven en de filter toetsen met een bestand dat echt MATERIAL-toewijzingen met werk heeft.
+    Zie 187. Gevonden bij het onderzoek naar 187 op 2026-10-27. — B
 
 311. **Een urentaak na een FF-relatie met een kalendertijdlead kan vóór haar finish-ondergrens eindigen.**
     Nagespeeld in de minutenmodelmeting van F1b: kalender ma-vr 07-12 + 13-16, A 48 u eindigt ma
@@ -344,23 +368,9 @@ en noem het in je rapport of PR-tekst.
      niet-werktijd; de basis geeft in dit geval ook een herberekeningsverschil. Voorstel: bij SF de bestaande
      `forwardFinishFloor` meenemen. Gevonden in review ronde 2 van #660 (GPT-6.1-Sol). — B
 
-390. **De werkplaatsing kapt af waar de kalenderwandeling nu afrondt.** `src/engine/scheduler/workPlacement.ts:114`,
-     `:119`, `:122`, `:123` (gebruikt door `ResourceLoad.ts:274` en `ResourceLeveler.ts:497`). Vanaf ma 08:00 met
-     1920/7 min geeft `addWorkMinutes` sinds fixronde 7 van #591 12:34:17,143, `workPlacement` 12:34:17,142; op main
-     gaven beide ,142. Een andere getoonde dag of capaciteitsbeslissing is niet aangetoond; de plaatsings- en
-     splitchecks zijn groen. Voorstel: dezelfde ms-afronding in de plaatsingslus en een check die het eindmoment
-     tegen de kalenderwandeling legt. Gevonden in review ronde 8 van #591 (GPT-6.1-Sol). — B
-
-391. **Een duur korter dan een halve milliseconde komt bij de spiegel op het vorige werkeinde uit.** Ma–vr
-     08:00–16:00, vanaf ma 1 juni 2026 08:00: `addWorkMinutes(t, 0,000001)` geeft ma 08:00, `subtractWorkMinutes`
-     daarna vr 29 mei 16:00. `walkMs` maakt de lengte 0, maar beide functies normaliseren het startmoment elk in hun
-     eigen richting (`src/engine/scheduler/CalendarEngine.ts:828`, `:857`). Op main ook zo. Geen gewoon importgeval
-     gevonden. Voorstel: na de ms-omzetting een lengte 0 als 0 behandelen, apart toetsen. Gevonden in review ronde 8
-     van #591 (GPT-6.1-Sol). — B
-
 392. **Een gewone OPS-dagtaak houdt bij een kloklag in breuken een paar ms negatieve speling.** De dagenmaat-loper
-     draagt het deel onder de minuut van zijn startanker niet over een daggrens (`src/engine/scheduler/CalendarEngine.ts:1125`,
-     `:1141`, `:1150`). Nagespeeld via de store en Bereken: OPS, 24/7-kalender, A en B gewone taken van 1 d, A start
+     draagt het deel onder de minuut van zijn startanker niet over een daggrens (`src/engine/scheduler/CalendarEngine.ts:1131`,
+     `:1147`, `:1156`). Nagespeeld via de store en Bereken: OPS, 24/7-kalender, A en B gewone taken van 1 d, A start
      ma 1 juni 2026 08:00, FS naar B met lag `+0,166667` kalenderdag. B start di 12:00:00,029; de loper rondt het einde
      naar wo 12:00:00,000; terugtellen geeft di 12:00:00,000, dus B −29 ms speling (op main −28 ms). A heeft op beide
      −29 ms, en een late finish 07:59 tegenover een vroege finish 08:00. Ook bij SS en FF. Eén werkdag optellen en weer
@@ -368,29 +378,43 @@ en noem het in je rapport of PR-tekst.
      het deel onder de minuut vast over daggrenzen; een gewone dagtaak in de regressie. Gevonden in review ronde 1 van
      #687 (GPT-6.1-Sol). — B
 
+395. **Een positieve duur die op nul ms rondt, is bij een rauw MS Project-werkeinde nog geen nulduur voor de
+     solver.** `src/engine/scheduler/CPMSolver.ts:1281–1284`: de wacht toetst `totalMinutes > 0` en verlegt een rauw
+     werkeinde eerst naar het begin van dezelfde dag; pas daarna behandelt de kalender de lengte als 0. Via de store:
+     MS Project-profiel, ma–vr 08–16, projectstart 1 juni 2026 08:00, worteltaak met eigen start vr 29 mei 16:00 en
+     duur 0,000001 min. Uitkomst: ES vr 16:00, EF vr 08:00 (een omgekeerde spanne), LS vr 16:00, speling 0. Een
+     letterlijke nulduur houdt ES en EF op vr 16:00. Op main dezelfde omgekeerde vroege spanne, plus LS do 16:00 en
+     −480 min speling; #694 veroorzaakt of verergert dit niet. Voorstel: de wacht toetst de lengte na de
+     ms-omzetting (`CalendarEngine.walkMs`). Gevonden in review ronde 1 van #694 (GPT-6.1-Sol). — B
+
+399. **Een contourperiode na een split-gat korter dan een halve ms kan een fantoomoverbezetting geven.**
+     `src/engine/scheduler/workPlacement.ts` (`placementResidueAxis`): de rest buiten de afgeronde spanne loopt op de
+     as vanaf het afgeronde einde, zo lang als het restwerk. Valt er ook een gat korter dan een halve ms in die
+     afronding, dan is de echte rest op de as langer dan het restwerk. Ma–vr 08:00–16:00, 480,000005 min werk, een
+     gat van 0,000001 min na 480 min, en een contour met [0; 480) 480 min en [480,000001; 480,000006) 0,000005 min:
+     maandag is 1,0000000021 belast, boven de marge van 1e-9, dus overbezet. Zonder contour, en bij een gat van een
+     halve ms of meer, gebeurt dit niet; ook de contourdialoog schrijft de rest goed. Geen invoerroute gevonden die
+     zo'n gat maakt (splits tellen in minuten of seconden). Voorstel: de plaatsing geeft het exacte einde van de
+     spanne mee, en de rest loopt tot daar. Gevonden in fixronde 2 van #694. — B
+
+400. **Ongewijzigd Toepassen van een BELL-verdeling verliest een fractie werk.** `src/engine/contour/contourPhases.ts:33–43`
+     (aangeroepen door `ContourDialog.tsx:102` en `contourDays.ts:68`) voegt bijna gelijke daginzetten samen tot één
+     fase en bewaart alleen de eerste inzet. Nagespeeld via de store: XER 17,777778 u, toewijzing 0,9, Vast werk of
+     Vaste inzet, inzet naar 1, BELL, Bereken, contourdialoog ongewijzigd Toepassen. Het werk gaat van
+     960,0000120000003 naar 959,9999943600001 min (ongeveer 1 ms minder). Undo herstelt het; opslaan in IFC bewaart de
+     lagere waarde. Onder alle drie profielen en beide werkregels, op main precies zo. Voorstel: bij het samenvoegen
+     het totale werk bewaren (een naar dagdeel gewogen inzet), of verschillende inzetten als aparte fasen houden.
+     Gevonden in review ronde 3 van #694 (GPT-6.1-Sol). — B
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
 16. **Taken kopiëren** heeft geen zichtbare bediening; alleen Ctrl+C/V met de Gantt in focus. — B
 17. **Verwijderen zonder bevestiging**: `confirm.deleteTask` staat in de locales maar wordt nergens gebruikt. — S
 
-333. **De bevestigingsdialoog let bij Enter niet op `isComposing`.** `src/components/dialogs/ConfirmDialog.tsx:36–44`:
-    een synthetische IME-Enter verwijderde in een browserprobe de kalender, toen de focus bewust achter de open
-    dialoog stond. De focus-trap zet de focus normaal op Annuleren; een gewone gebruikersroute naar dit geval is
-    niet aangetoond. Voorstel: na `stopPropagation()` een guard voor `isComposing` die ook de standaardactie
-    tegenhoudt. Gevonden in review r2 van #628 (GPT-6-Sol). — B
-
 241. **Hetzelfde externe anker opnieuw invoeren als datum zonder tijd geeft een extra undo-stap en zet
      de planning op verouderd.** `updateExternalLink` vergelijkt het ruwe anker, niet het genormaliseerde.
      Gevonden in fixronde 1 van F2 (laadfix). — B
-
-250. **Twee ingangen voor een nieuwe taak negeren de *Standaardmaat voor nieuwe taken*.** Rechtsklik in
-     de Gantt → *Nieuwe taak* geeft een tijd met een vaste dagenmaat mee (`GanttCanvas.tsx:401`,
-     `createDefaultTaskTime(date, 5, 'days', …)`), en de spookregel onderaan de tabel toont een taak van
-     5 d (`FullTaskGrid.tsx:353`). Een meegegeven maat blijft staan (`settleNewTaskMeasure`, zie
-     `check-new-task-measure.ts` s5). Met de gekozen urenmaat, of onder P6/MSP, krijgt zo'n taak dus toch
-     de dagenmaat; alleen vast werk zet hem om. Voorstel: geef in beide de maat van `newTaskTimeUnit`
-     mee, of laat de tijd weg en geef alleen de start. Alleen in de code gezien, plus het storegedrag. — S
 
 281. **De motor rondt een externe lag in minuten nog af op hele dagen, maar alleen in dagmodus.** De invoer
      houdt sinds fixronde 1 van F4b de breuk ("0,5d" is een halve werkdag, ook bij een externe relatie;
@@ -422,20 +446,6 @@ en noem het in je rapport of PR-tekst.
      "Herstel standaard" kiest. De cel kapt de tekst af met een beletselteken. Voorstel: bij het laden een
      opgeslagen breedte van precies 100 px voor deze twee kolommen naar 130 px zetten, of de kolom laten
      meegroeien; een besluit over opgeslagen voorkeuren. — B
-286. **De kant van een beperkingsdatum wordt op twee plekken opnieuw bepaald.** `constraintDateSide`
-     (`src/engine/calendar/workdayRules.ts:42`) zegt al of een beperkingsdatum startachtig of eindachtig
-     is. `constraintSide` in `TaskConstraintFields.tsx:16` en `guardSideOf` in `MilestoneReport.tsx:62`
-     bouwen dat opnieuw uit `constraintDateField` en `taskDateFieldSide`. De uitkomst is nu gelijk; het
-     risico is dat een vierde beperkingstype op één plek wel en op een andere niet meekomt. Voorstel: beide
-     helpers vervangen door `constraintDateSide` en de losse imports weghalen. Gevonden in de review van
-     PR #584 (r1, VERVOLG), in de code nagelezen. — B
-288. **Het duurlabel tijdens het slepen rekent kalendertijd met de werktijd per dag.** `GanttRenderer.dragDurationText`
-     (`src/engine/renderer/GanttRenderer.ts:1996-2008`) neemt voor een dagtaak `taskDurationMinutes` (dagen ×
-     werktijd per dag, `utils/taskDuration.ts:94`) en zet dat om met `effHoursPerDay`. Bij een
-     kalendertijdtaak onder P6/MSP met Duurweergave "Altijd uren" toont het label dan 8 u per dag in plaats
-     van 24. Cel, tooltip, afdruk en tabelrapport rekenen sinds fixronde 2 van F4b wel met 24 u
-     (`durationHoursPerDay`). Dit stond al zo op de basis van F4b. Voorstel: in het sleeplabel
-     `durationHoursPerDay` gebruiken; rendererwerk. Alleen in de code gelezen, niet in de app nagespeeld. — S
 342. **Werkdagencompressie knipt zes uur van de vrijdagse nachtdienst weg.** `src/engine/renderer/workdayAxis.ts:184`:
     kalender ma–vr 22:00–06:00, taak vr 5 juni 22:00 – za 6 juni 06:00. Bij zoom 240 beslaan acht klokuren 80 px;
     met compressie blijven 20 px over, en za 06:00 komt op de maandagnaad 00:00. De terugweg (`xToDate`) maakt van
@@ -488,6 +498,10 @@ en noem het in je rapport of PR-tekst.
      voltooid. Voor urentaken al zo op main; F5b (`mppReader.ts:806`) laat deze importvorm er ook langs lopen. De
      opgeslagen rest blijft goed. Voorstel: de formatter de voltooiingsstatus en een aanwezige bronrest laten volgen.
      Gevonden in review ronde 5 van PR #591 (GPT-6.1-Sol). — B
+420. **Een onbereikbare keuze in de Gantt-route voor een nieuwe taak.** `src/components/canvas/GanttCanvas.tsx:421`
+     (`addAtClickedDate`) schrijft `milestone ? 0 : 5`, maar een mijlpaal is drie regels eerder al teruggekeerd.
+     Geen gedragsfout, alleen opruimwerk. Voorstel: vervang de keuze door `5`. Gevonden in review ronde 2 van
+     PR #702 (GPT-6.1-Sol). — B
 
 ## Kalenders
 
@@ -635,28 +649,6 @@ en noem het in je rapport of PR-tekst.
     `calendarResourceTools.ts:1611` verwijst dan naar een lege `unresolvedReasons`. De dialoog toont de
     conflicten wel goed. Voorstel: een ontbrekende reden expliciet in het typecontract, en de MCP-uitleg daarop
     aanpassen. Gevonden in review r1 van #594 (GPT-6.1-Sol). — B
-
-320. **De koppeldialoog bouwt dezelfde optielijst drie keer per kandidaat.** `src/components/dialogs/LibraryLinkDialog.tsx:47`
-    mapt de volledige bronlijst; regels 96–98 roepen dat apart aan voor `options`, `disabled` en `placeholder`.
-    Dat maakt bij elke render onnodige arrays; een merkbare vertraging is niet aangetoond. Voorstel: één
-    resourcelijst en één kalenderlijst per render, en die hergebruiken. Gevonden in review r1 van #635
-    (GPT-6.1-Sol). — B
-
-324. **Een tak in de herstelcontrole van de MCP-proxy is onbereikbaar.** `integrations/claude-desktop/src/proxy.ts:396`:
-    de tak `toolName === null` kan niet meer optreden zodra `mutates` waar is. Voorstel: die deelvoorwaarde weg;
-    de concrete herstelset blijft voldoende. Gevonden in review r1 van #605 (GPT-6.1-Sol). — B
-
-331. **Met de werkmap `/` weigert de MCP-server `~/plan.ifc` als UNC-pad.** `src/services/mcp/tools/fileTools.ts:142–145`:
-    bij `home="/"` maakt de tilde-expansie van `~/plan.ifc` eerst `//plan.ifc`, en de nieuwe UNC-controle weigert
-    dat. Op `main` werd het `/plan.ifc`; het expliciete pad `/plan.ifc` werkt nog wel. Zeldzaam, geen dataverlies.
-    Voorstel: bij tilde-expansie precies één scheidingsteken toevoegen, en de wortelmap aan de bestaande test
-    toevoegen. Gevonden in review r1 van #626 (GPT-6.1-Sol). — B
-
-332. **De XML-parser van de headless server zoekt bij elk element zonder prefix de hele ouderketen af.**
-    `headless/mcp-server/src/xmlDom.ts:143` roept `namespaceFor('', scope)` aan en gooit het resultaat weg. Bij
-    8.000 niveaus nesting kost parsen circa 499 ms tegen 12 ms op de basis (kwadratische groei). Zeldzame invoer.
-    Voorstel: `namespaceFor` alleen aanroepen als de elementprefix niet leeg is. Gevonden in review r1 van #608
-    (GPT-6.1-Sol). — B
 
 347. **De belasting telt dagdelen van verschillende kalenders op: vier beschikbare uren tellen als een volle dag.**
     `src/engine/scheduler/ResourceLoad.ts:446` telt per resource de dagdelen van elke taakkalender bij elkaar op;
@@ -832,12 +824,6 @@ en noem het in je rapport of PR-tekst.
     regel terug. Geen melding. Alleen in de code nagelopen, niet in de app nagespeeld. Voorstel: in die omgeving
     de lijst in het geheugen houden, of Recent daar verbergen (de site heeft een eigen bestandslijst). — S
 
-328. **De verliescategorie `criticalSlackLimitDays` is dode code.** `src/services/importTypes.ts:454` en
-    `src/state/msProjectImportNotice.ts:22` houden de categorie, maar de importeurs zetten haar sinds de fix van
-    knownbug 46 altijd op nul. Voor het commentaar over "bewaarde oude verslagen" is in de repo geen opslag- of
-    leespad. Voorstel: veld, nulinitialisatie en meldingsregel weg, of het compatibiliteitscontract onderbouwen.
-    Gevonden in review r1 van #634 (GPT-6.1-Sol). — B
-
 330. **Een herstelmanifest `documents` zonder `isDirty` markeert een schoon document als gewijzigd.**
     `src/services/recovery/recoveryStore.ts:1361`: bij een geaccepteerd `documents`-manifest zonder `isDirty`, en
     `isDirty: false` in het documentrecord, gaf de basis `false` en geeft de nieuwe expressie `true`. Zeldzaam; het
@@ -1008,23 +994,6 @@ en noem het in je rapport of PR-tekst.
      de IFC-vastlegging toelaten zonder verplicht bronformaat; actief en slapend herstel toetsen. Gevonden in de
      aanval na #600 (GPT-6.1-Sol). — B
 
-352. **CSV gooit de kloktijd van een werkelijke datum weg, ook als de app hem zelf schreef.**
-     `src/services/importDates.ts:75` (`csvDate`) knipt een ISO-waarde af op de datum (`substring(0, 10)`);
-     `parseDate` in `src/services/csv/csvReader.ts:349` en `:350` gebruikt hem voor Actual Start en Actual Finish.
-     Gemeten: `writeCSV` schrijft Actual Start `2026-06-01T10:15` en Actual Finish `2026-06-01T11:45`; `readCSV`
-     leest beide als `2026-06-01`, en na laden op de standaardkalender staan ze op 07:00 en 16:00. Al op
-     `fbd4a3f9d`. Voorstel: een ISO-waarde met kloktijd lezen met de bestaande parser voor kloktijden uit een
-     bestand (`importDateTime`/`parseImportedInstant` in `importDates.ts`), en alleen een kale datum via de
-     datumroute; geen tweede CSV-datumparser. Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
-
-381. **Een lopende taak op 100 % met rest 0 komt uit de eigen P6 XML-export terug als voltooid.** Een XER-taak
-     met `TK_Active`, 100 %, rest 0 en geen werkelijk einde schrijft sinds #663 `In Progress`
-     (`src/services/p6/p6xmlWriter.ts:114`), maar de lezer maakt er `COMPLETED` van en verzint een werkelijk
-     einde op de statusdatum (`src/services/p6/p6xmlReader.ts:1166`). Op `aaf77b15a` eindigt dezelfde route ook
-     zo (de writer schreef daar `Completed`). Voorstel: bij een eigen P6-export ook de expliciete lopende status
-     bij rest 0 herkennen, met behoud van oude exports waarin de status alleen informatief was. Gevonden in
-     review ronde 3 van #663 (GPT-6.1-Sol). — B
-
 382. **MSPDI en MPP zonder `ActualFinish` maar op 100 % met een rest komen binnen als lopend.** Sinds #663 geldt
      "geen werkelijk einde en rest > 0" als teken voor lopend op 100 % (`src/services/msproject/mspdiReader.ts:643`,
      `src/services/mpp/mppReader.ts:857`). Een bron met 100 %, geen `ActualFinish` en één minuut rest wordt
@@ -1033,14 +1002,6 @@ en noem het in je rapport of PR-tekst.
      geval ontbreekt. De tegenproef klopt: 99,6 % wordt bij de eigen MSPDI-export 100 % en blijft met twaalf
      minuten rest terecht lopend. Voorstel: alleen met een echte bronfixture aanpassen, eventueel met een
      importmelding; geen drempel die echte rest wist. Gevonden in review ronde 3 van #663 (GPT-6.1-Sol). — S
-
-383. **`normalizeKeepingDayRest` bewaart de dagenrest dubbel en een commentaar in de P6 XML-lezer is achterhaald.**
-     Sinds #663 bewaart `normalizeImportedProgress` een ingelezen dagenrest zelf; de functie van twaalf regels in
-     `src/services/xmlDayMeasure.ts:336` en de twee omhulselaanroepen in de MSPDI- en P6 XML-lezer doen niets
-     meer (met de laag uitgeschakeld blijven 46 importcontroles en 72 afrondingscontroles groen). Het commentaar
-     bij `src/services/p6/p6xmlReader.ts:979` zegt nog dat de writer op 100 % altijd `Completed` schrijft.
-     Voorstel: de functie en de aanroepen weghalen en het commentaar bijwerken. Gevonden in review ronde 3 van
-     #663 (GPT-6.1-Sol). — B
 
 356. **Een hammock houdt in "Datums zoals opgeslagen" de nulduur van de verworpen berekening.** Hammock B met
      opgeslagen datums 16–20 maart en duur 5 dagen: de verworpen berekening schrijft duur 0
@@ -1074,13 +1035,13 @@ en noem het in je rapport of PR-tekst.
 
 68. **Een gidsstap die eenmaal "gedaan" is, blijft gedaan**, ook na wisselen naar een leeg project. Gezien bij
     tutorial 6 stap 8; niet uitgezocht of dat bedoeld is. — S
-265. **Commentaar noemt een ingang die het welkomstvenster opnieuw toont, maar die bestaat niet.**
-    `src/state/slices/types.ts` (doc van `showWelcomeDialog`) zegt dat "herstart-ingangen (ribbon/backstage)"
-    het venster handmatig openen. In `src/` zet alleen `useSettingsBootstrap.ts` `showWelcomeDialog: true`;
-    lint, backstage en instellingen starten alleen de rondleiding. Ook "het bootstrap-effect in App.tsx" klopt
-    niet meer (het staat in `useSettingsBootstrap`). Voorstel: commentaar bijwerken, of bewust een ingang
-    toevoegen. — B (grep in de code)
-
+404. **Commentaar bij het welkomstvenster mist de ontbrekende instelling.**
+     `src/state/slices/types.ts:773` zegt dat `loadWelcomeSeen()` `false` geeft.
+     Zonder `ops-welcomeSeen` geeft de functie juist `undefined`
+     (`src/utils/settingsStore.ts:73-76,602-604`). Ook dan opent het venster
+     (`src/hooks/useSettingsBootstrap.ts:84-85`). Richting: noem beide waarden,
+     of schrijf dat de vlag niet waar is. Alleen commentaar; het gedrag klopt.
+     Vastgesteld bij de onafhankelijke broncontrole van PR #698. — B
 
 ## Teksten en helpteksten
 
@@ -1118,14 +1079,33 @@ en noem het in je rapport of PR-tekst.
    `read-only`) en de doeltalen. De UI zegt nu *MCP-client*. Voorstel: het begrip omzetten via de
    vertaalstraat (`concepts-merge`, `apply-terms`) vóór de volgende release. — B
 
-327. **`apply-terms` eindigt met exit 0 als een deel van de pakketten geweigerd is.** `scripts/translate/cli.ts:275`
-    slaat een pakket met een ongeldig zegel over; is een ander pakket geldig, dan schrijft hij dat en eindigt
-    succesvol. Nagespeeld: intact `terms-01.json`, gewijzigd `terms-02.json` → uitvoer `XX … veranderd na
-    prepare`, alleen de eerste term toegepast, exit 0. Automatisering ziet half werk dan als geslaagd. Voorstel:
-    een weigeringsteller en een afsluitende exit 1, zoals bij `apply ui`. Gevonden in review r1 van #618
-    (GPT-6.1-Sol). — B
+398. **De rapportcontrole bij gedeeltelijke termenweigering kan een oud bestand accepteren.**
+     `tests/planning/check-translate-tbx.ts:248` controleert alleen of
+     terms-check-report.md bestaat. De eerdere stap op regels 224-226 maakt dat
+     rapport al. De volgende terms-lookup ruimt alleen JSON-bestanden op
+     (`scripts/translate/cli.ts:122`). Vervalt het nieuwe rapport bij gedeeltelijke
+     weigering, dan kan deze controle toch slagen. Verwijder het oude rapport vóór
+     de aanroep, of controleer de nieuwe rapportinhoud. Een testgat; geen gewone
+     productfout aangetoond. Twee onafhankelijke broncontroles; niet uitgevoerd.
+     — B
 
 ## Tests
+
+409. **Het pre-paintscript negeert `?theme=` van de dev-link.** Met bewaard `light` en `?theme=dark`
+     zet `index.html:31` eerst `data-theme=light`; de store-default (`peekTheme`) is dan `dark`. Na de
+     mount klopt het thema; de flits is alleen in de browser op de dev-server en niet gemeten.
+     Richting: het dev-thema ook vóór de eerste paint toepassen, zonder dat het in de productiebouw
+     komt. VERVOLG uit review #703 r1. — B
+
+410. **`?open=` van de dev-link heeft geen browsertest.** `check-dev-open-link.ts` dekt de padregel,
+     de Tauri-guard en het wegvallen in productie; de echte appstart (StrictMode, herstelkeuze,
+     site-host) is alleen met de hand nagelopen. VERVOLG uit review #703 r1. — S
+
+413. **De dev-link vindt een bestand met `#` in het pad niet.** `?open=probe%20data/plan%20%231.ifc`
+     wordt goed gecodeerd (`devFilePath`), maar Vite geeft voor dat pad de HTML-terugval, dus de link
+     meldt "niet gevonden". Spaties werken wel. De voorbeelden in `examples/` hebben geen `#`. Richting:
+     de beperking in `docs/dev-link.md` noemen, of oplossen met een echte HTTP-check. VERVOLG uit
+     review #703 r3. — B
 
 313. **De bulkprestatiepoort kan in een volledige run falen terwijl beide gerichte controles slagen.**
     Tijdens een volledige corpusloze F1b-suite die deels met andere controles overlapte, meet `check-bulk-scale.ts`
@@ -1183,6 +1163,7 @@ en noem het in je rapport of PR-tekst.
     `gh api --method PATCH repos/OpenAEC-Foundation/open-planner-studio/pulls/479 -F body=@<bestand>`.
     Voorstel: de GitHub CLI op de host bijwerken; de repo zelf is niet aangepast hiervoor. — B
 
+
 151. **De feedbacktests in de browsersuite falen in CI wisselvallig met "Maximum update depth exceeded".** Gezien
      in de job `verify (browser 2-4)`: op PR #402 vier tests in `tests/browser/feedback-venster.spec.ts`; op `main`
      `e98b83e48` (#395, run 39410998771) acht tests in `tests/browser/feedback-studio.spec.ts`; ook op de branch
@@ -1202,13 +1183,6 @@ en noem het in je rapport of PR-tekst.
      dezelfde samenvoeging, en `verify:i18n` gaf exit 0. Het script meldt dus een fout waar
      geen fout is. Voorstel: gelijke resultaten vanaf beide bases als eenduidig accepteren. — S
 
-285. **`hour-data-notice-document.spec.ts` is wisselvallig: na `page.reload()` komt het welkomstvenster
-     over het paneel.** De test herlaadt de pagina per voorkeur (aan, uit), maar wacht daarna niet op het
-     welkomstvenster en sluit het niet, zoals de fixture bij de start doet (`waitForWelcomeDialog`,
-     `fixtures/ops.ts:88`). Komt het venster net na `fill('6h')`, dan gaat Enter niet naar het duurveld:
-     "minutes 240, verwacht 360". Gezien in CI op #584 (`293acf1c9`, shard 1); de error-context toont
-     "Welcome to Open Planner Studio" open en het duurveld op "4". Lokaal 5 van 5 groen. Voorstel: na de
-     reload `waitForWelcomeDialog` en `setUI({ showWelcomeDialog: false })`, zoals de fixture. — B
 
 264. **De browsertest "Gantt-balk vertical slepen landt in RTL op dezelfde plek als een rijsleep" is
      wisselvallig.** `tests/browser/gantt-drag-undo.spec.ts:273`. De rijsleep en de undo slagen, maar na de
@@ -1232,29 +1206,30 @@ en noem het in je rapport of PR-tekst.
     Gevonden in review ronde 1 en 2 van PR #573 (GPT-6.1-Sol). Resterend: de bestaande echte-app-route
     uitbreiden met echte bestandsacties, inhoud en opruiming. — B
 
-262. **`check-recovery-refused-later.ts` scheidt de twee routes niet die de opslag als werkend markeren.**
-    De check laat eerst een lezing én een save slagen en geeft pas daarna een `SecurityError`
-    (`tests/planning/check-recovery-refused-later.ts`, rond regel 47). Hij blijft groen als één van de twee
-    plekken die `webStorageProven` zetten (`readWebRecovery` of `saveRecovery` in
-    `src/services/recovery/recoveryStore.ts`) wegvalt. Ook een overlappende startlezing en save, en de lege
-    terugval na een opstartleesfout (zet de vlag bewust niet), hebben geen eigen toets. Bevestigd in review
-    ronde 2 van PR #644 (GPT-6.1-Sol). Voorstel: per route een eigen proces (alleen lezing, alleen save). — B
+263. **Crashherstel en welkomstvenster zijn niet bewezen in de echte werkplek.** Sinds #706 draait
+    `tests/browser/welcome-dialog.spec.ts` de app in een echte opaque origin (CSP-sandbox op het document; de
+    test controleert `self.origin === 'null'` en de `SecurityError`s). Dat is het hoofddocument op de
+    Vite-dev-server, met kunstmatige CORS-headers en een geïnjecteerde host. Niet getest: een ingebedde
+    productieplatformbouw onder `/werkplek/app/planner/`, de echte hostbrug en de echte serverheaders.
+    Bevestigd in review ronde 2 van PR #644 en ronde 1 van PR #708 (GPT-6.1-Sol). Voorstel: een handmatige
+    check in de SuperCloud-werkplek. — B
 
-263. **De stille uitschakeling van crashherstel is niet bewezen in een echt sandbox-iframe.** De browsertest
-    (`tests/browser/site-storage.spec.ts`, iframe-route rond regel 593) draait de tool in een same-origin
-    iframe en vervangt `IDBFactory.prototype.open` door een functie die een `SecurityError` gooit. Een echte
-    opaque origin (`sandbox="allow-scripts"` zonder `allow-same-origin`) weigert ook `sessionStorage`,
-    `localStorage` en Web Locks, en de Vite-dev-server weigert waarschijnlijk CORS voor origin `null`.
-    Bevestigd in review ronde 2 van PR #644 (GPT-6.1-Sol). Voorstel: een test met een echt sandbox-iframe
-    tegen een productiebuild, of een handmatige check in de SuperCloud-werkplek. — B
+406. **Het welkomstvenster hangt af van de `localStorage`-getter, niet van werkende opslag.** Sinds #706
+    slaat `src/hooks/useSettingsBootstrap.ts` (`skipWelcome`) het venster over in elke omgeving waar het
+    lezen van `localStorage` gooit, ook buiten de werkplek: dan vervallen ook de eerste taalkeuze, de
+    automatische rondleiding en de tutorialvraag (handmatig blijven ze bereikbaar). Omgekeerd kijkt
+    `localStorageAvailable()` (`src/utils/settingsStore.ts:41`) alleen naar de getter: bestaat het object
+    maar weigert `getItem`/`setItem`, dan komt het venster nog bij elke start terug. Bevestigd in review
+    ronde 1 van PR #708 (GPT-6.1-Sol). Voorstel: de bredere keuze vastleggen, of de voorwaarde op een
+    mislukte schrijfproef zetten. — B
 
-373. **Een synchrone `SecurityError` van Web Locks kan crashherstel ten onrechte uitzetten.** In
-    `src/services/recovery/recoveryStore.ts` (`loadRecovery`, rond regel 1538) vangt de opvang rond heel
-    `loadWeb()` elke eerste `SecurityError` als opslagweigering. Werkt `sessionStorage` wel, maar gooit de getter
-    `navigator.locks` of `locks.request()` synchroon zo'n fout, dan komt de code niet bij IndexedDB en gaat
-    crashherstel toch stil uit. Een browser die dit doet is niet gevonden; een afgewezen promise vangt `claimLock`
-    al af. Bevestigd in review ronde 3 van PR #644 (GPT-6.1-Sol). Voorstel: de classificatie beperken tot de
-    IndexedDB-grens. — B
+
+405. **Nivelleren in de achtergrond start vermoedelijk niet in een opaque origin.** Gezien bij #706.
+    `src/services/leveling/backgroundLeveling.ts:34` maakt `new Worker(new URL(…, import.meta.url))` zonder
+    try. Een document zonder `allow-same-origin` (de SuperCloud-werkplek) haalt een workerscript op met modus
+    `same-origin`, en een opaque origin is met geen enkel adres same-origin. De constructor gooit dan, of de
+    worker meldt een fout; in beide gevallen mislukt nivelleren. Alleen in de code nagelopen, niet gedraaid.
+    Voorstel: bij een fout van de worker terugvallen op de bestaande route zonder `Worker` (regel 23). — S
 
 224. **RTL-balksleeptest faalt incidenteel zonder aangetoonde oorzaak.** In PR #635 op
     `3ca78f26234ddfed8e6fd4341a8f9e0ee44ec66a`, run 40157918525 poging 1, bleef bij
@@ -1263,17 +1238,15 @@ en noem het in je rapport of PR-tekst.
     PR-head was groen. Screenshot/trace: artefact 12585687942. Geen Gantt-code in deze PR gewijzigd;
     timing-/geometrieoorzaak en productreproduceerbaarheid nog niet vastgesteld. — S
 
-321. **De browsertest voor een kapot `.mpp`-bestand toetst geen bestaand werk.** `tests/browser/new-open-task-flow.spec.ts:58`
-    zegt dat bestaand werk behouden blijft, maar vergelijkt met een leeg beginproject (de fixture doet
-    `newProject()` en voegt geen taak toe). Een losse probe met gewijzigd werk slaagt wel. Voorstel: één taak in
-    de beginstaat en ook de dirty-vlag controleren. Gevonden in review r1 van #636 (GPT-6.1-Sol). — B
-
-323. **De regressietest van de MCP-proxy mist annuleren na een 404.** `tests/mcp/cases-mcpb.ts:411` toetst
-    annuleren tijdens verbinden vanuit offline toestand, maar niet de registratie vóór de tweede
-    verbindingspoging na `404`. Een losse proef van de reviewer bevestigt dat die route werkt. Daarnaast zijn de
-    annuleringscontroles op `integrations/claude-desktop/src/proxy.ts:402` en `:418` overbodig: op die routes zit
-    sinds de vorige controle geen nieuwe asynchrone onderbreking. Voorstel: de 404-route in de test, en de twee
-    regels weg. Gevonden in review r1 van #603 (GPT-6.1-Sol). — B
+401. **De slotcontrole voor geldig openen kan slagen op de bestaande taak.**
+     `tests/browser/new-open-task-flow.spec.ts:97` eist na open(planning) alleen
+     tasks.length groter dan nul. De nieuwe beginstaat heeft dan al één taak; de
+     MPP-controles bewijzen juist dat die bleef staan. Ook wanneer de geldige
+     openroute niets laadt zonder foutmelding, slaagt deze controle dus. Controleer
+     een nieuw actief document en herkenbare inhoud uit het geopende IFC-bestand.
+     Een verlies aan testdekking; geen aangetoonde productfout. Twee onafhankelijke
+     broncontroles bij PR #674; niet lokaal uitgevoerd.
+     — B
 
 325. **Zes browserroutes toetsen geen smal scherm meer.** Sinds de standaardtakenlijst 400 px breed is, zetten zes
     specs het venster op 1600×900, onder meer `tests/browser/duration-display.spec.ts:5`. De handelingen en
@@ -1281,22 +1254,28 @@ en noem het in je rapport of PR-tekst.
     aangetoond. Voorstel: één gerichte interactieroute op een smaller scherm houden. Gevonden in review r1 van
     #627 (GPT-6.1-Sol). — B
 
-326. **De controle bij het annuleren van een faseovergang vergelijkt toewijzingen alleen op id.**
-    `tests/browser/structural-transition.spec.ts:113` vergelijkt toewijzingen als `[id, taskId]`. Een gewijzigde
-    resource of inzet glipt daar doorheen. Dit stond al op `main`. Voorstel: daar ook de volledige
-    toewijzingswaarden vergelijken, zoals de mijlpaalroute nu doet. Gevonden in review r1 van #622
-    (GPT-6.1-Sol). — B
-
 334. **`tests/browser/assignments-block.spec.ts:235` faalt soms in CI.** De test verwachtte `UNIFORM` en kreeg `BELL`,
     na een time-out van 5 s, in run 40286556225 (job `verify (browser 2-4)`) op PR #595, die alleen de herstelspec
     wijzigt. Dezelfde test slaagt lokaal op die head, en de herhaalde poging liep apart. De oorzaak is niet
     bewezen. Gevonden in fixronde 1 en review r2 van #595 (GPT-6.1-Sol). — S
 
-379. **`tests/browser/float-remaining-display.spec.ts:89` faalt soms in CI.** De tooltip van de balk toonde
-    `1d` waar `0,67d` hoort, in run 40344140298 (job `verify (browser 1-4)`) op PR #658. Het eigenschappenpaneel
-    toonde vlak daarvoor wel `0,67 dagen`; de test zet eerst testwaarden tot 1,004 en rekent dan met F5 opnieuw,
-    dus de tooltip leest mogelijk een waarde van vóór de herberekening. De herhaalde poging slaagde; main was op
-    dat moment groen. Oorzaak niet bewezen. Gevonden bij het mergen van de aanvalfixes na #600. — S
+403. **De oudere tooltipmelding 294 blijft naast de opgeloste melding 379 open staan.**
+     `knownbugs.md` punt 294 beschrijft dezelfde test en dezelfde afwijking als
+     het in PR #679 verwijderde punt 379: float-remaining-display.spec.ts:89 toont
+     1d in plaats van 0,67d, rond F5 en een mogelijk oud taakobject. Handel beide
+     meldingen samen af met hetzelfde bewijs, zodat dit symptoom niet dubbel als
+     open werk blijft staan. De historische oorzaak van iedere eerdere fout is
+     niet afzonderlijk bewezen; punt 294 is daarom niet stil verwijderd.
+     Twee onafhankelijke broncontroles van het register; geen productfixronde.
+     — B
+
+394. **De nieuwe scrollmatrix raakt interne randen van gesplitste balken niet gericht.**
+     `tests/planning/check-render-caches.ts:162`: `hitSnapshot` belooft meetpunten bij elk
+     zichtbaar balkstuk en elke pauze. De zeven x-posities komen uit de rechthoek van de
+     volledige balk. Interne segmentranden en pauzes worden daardoor niet afzonderlijk
+     bemonsterd. Voeg die punten toe aan de scrollmatrix voor de renderafhankelijke
+     splitscache. Bestaande splittests controleren zulke punten los van deze matrix.
+     Twee onafhankelijke broncontroles bij PR #643; geen productfout aangetoond. — B
 
 310. **De formaatvergelijking in de headless-servertest ziet een verschuiving binnen een dag niet.**
      `tests/mcp/cases-headless-server.ts:483` (`leafSchedule`) vergelijkt per bladtaak alleen de startdatum
@@ -1306,6 +1285,57 @@ en noem het in je rapport of PR-tekst.
      eindmomenten vergelijken, een fixture met de nieuwe maatrecords gebruiken, en `runCPM()` vervangen
      door een assert dat het openen al een verse, berekende stand geeft. Gevonden in review ronde 1 van
      PR #590 (GPT-6.1-Sol, VERVOLG). — B
+
+393. **Een beschadigd numeriek kalender-id `NaN` krijgt bij opslaan onbedoeld koppelingen.**
+     `src/services/ifc/ifcWriter.ts:1465` en `:1473`: de kalenderindex gebruikt `Map.get`,
+     dat `NaN` aan zichzelf koppelt. De eerdere vergelijking met `===` deed dat niet.
+     Bij een kalender met `id: NaN` en taken/resources met `calendarId: NaN` schrijft de
+     nieuwe schrijver extra `IFCRELASSIGNSTOCONTROL`-relaties. Bij heropenen krijgen zij
+     daardoor een echte kalenderkoppeling. Een gewone gebruikersroute naar deze beschadigde
+     invoer is niet aangetoond. Richting: sla voor `Number.isNaN(cal.id)` alleen de
+     control-relaties over, na kalender en metadata; voeg een gerichte regressiecheck toe.
+     Vastgesteld door twee onafhankelijke broncontroles bij PR #641; niet uitgevoerd. — B
+
+427. **De MS Project-meting eindigt groen als de crawlmap niet gescand wordt, ook in `measure:profiles`.**
+     `tests/planning/check-mpp-fidelity.ts` neemt `OPS_MPP_CORPUS` en `OPS_MPP_CRAWL`, of zonder die variabelen
+     een vast pad onder `/home/nozzit/…` (`:492–493`). Een lus wordt overgeslagen als die effectieve map
+     ontbreekt of geen `.mpp`-bestand bevat (`:715–725`, `:731–741`). Dat staat in tussenregels (`:720`, `:735`),
+     maar de slotregel (`:888`) zegt toch "alle checks groen". Gemeten op aia09-mp50, waar de `/home/nozzit/…`-
+     paden niet bestaan:
+     - Geen van beide variabelen gezet (ook als alleen `OPS_XER_CORPUS` gezet is): 0 bestanden, "alle checks
+       groen (678)", exit 0. `measure:profiles` noemt dit wel rood ("niet gemeten").
+     - Alleen `OPS_MPP_CORPUS` gezet: 3 bestanden, "alle checks groen (703)", exit 0. Ook `classifyMsp` in
+       `scripts/measure-profiles-status.mjs:116–122` geeft dan GROEN (`scanned: 3`). De 658 crawlbestanden,
+       met `timephased-cost-rollup.mpp` (knownbug 187), zijn dan niet gemeten.
+     Op een machine waar de crawl op het vaste pad staat, wordt hij ook zonder `OPS_MPP_CRAWL` gescand. Wie
+     alleen op de slotregel of de exitcode oordeelt, ziet zo een vals groen. De CI draait bewust zonder
+     corpus, dus een faal in de check zelf is niet de oplossing. Voorstel: de slotregel noemt het aantal
+     gescande bestanden en welke lus is overgeslagen; `measure:profiles` meldt een gedeeltelijke meting
+     (een lus overgeslagen) apart en niet als GROEN. Gevonden bij het onderzoek naar 187 en in review ronde 1
+     van #712 (GPT-6.1-Sol), 2026-10-27. — B
+
+428. **`check-mpp-import.ts` toetst voor `mpp14resource.mpp` nog de oude resource-indeling.**
+     `tests/planning/check-mpp-import.ts:3255–3265` noemt Wade Golden en Jon Iles MATERIAL en eist voor "Task A"
+     precies één wandeling. Sinds #494 (zie 187 en 426) leest de lezer alle drie de toewijzingen als LABOR en
+     geeft hij drie wandelingen van 1440 werkminuten. Met het bestand aanwezig
+     (`OPS_MPP_RESOURCE_FIXTURE=…/testdata-crawl/mpxj/junit/data/mpp14resource.mpp`) is de check rood: 1 afwijking
+     van 3117, alleen deze assertie; de einddatum van "Task A" (2006-08-30 08:00, zoals MS Project) klopt nog.
+     Het standaardpad (`:3208`) is `/home/nozzit/…`; op aia09-mp50 en in de CI wordt de case daarom overgeslagen,
+     op de laptop van de eigenaar waarschijnlijk niet. Voorstel: de assertie en het commentaar aanpassen aan
+     LABOR en drie wandelingen, samen met 426. Gevonden in review ronde 1 van #712 (GPT-6.1-Sol), 2026-10-27. — B
+429. **De keuze van de eerste bekende hosttaal wordt niet bij een echte start getest.** A13 in
+     `tests/planning/check-site-storage.ts:325` toetst alleen de lijst met ruwe taalbronnen van
+     `embeddedLocale()` (`src/i18n/config.ts:119`). De browsertests geven alleen een bekende hosttaal mee
+     (`fr`, `de`). Niet getest: hosttaal `xx`, oudertaal `de-AT`, hash `taal=es` en bewaarde keuze `nl` moeten
+     samen `de` geven; ook de terugval op alleen de hash of alleen de bewaarde keuze. Voorstel: de bestaande
+     browserroutes met deze gevallen uitbreiden en `<html lang>` en `ops-locale` controleren. Gevonden in
+     review van #717 (GPT-6.1-Sol), 2026-10-28. — B
+430. **De platformtest zet `ops-welcomeSeen` vooraf en ziet daardoor een kapotte platformtak niet.**
+     `tests/browser/platform-build.spec.ts:84` zet `ops-welcomeSeen=true`. Gaat de platformtak van
+     `runsEmbedded()` stuk, dan blijft het welkomstvenster in die test toch weg, en de hosttests dekken die tak
+     niet. Voorstel: de platformroute eerst zonder host en zonder `ops-welcomeSeen` laten starten en controleren
+     dat welkom, rondleiding en tutorialvraag dicht blijven. Gevonden in review van #717 (GPT-6.1-Sol),
+     2026-10-28. — B
 
 ## Wensen en open taken (geen bug)
 
@@ -1324,3 +1354,13 @@ en noem het in je rapport of PR-tekst.
     zonder naar de volgende kolom te gaan. Bij snel invoeren via de spookregel (typ naam, Tab, typ duur)
     verwacht je het Excel-gedrag: vastleggen en een kolom verder (Shift+Tab terug). Gezien bij review
     vader, punt 1. — B
+
+411. **Het sleeplabel toont bij een werkdag van 8 u 20 m geen hele dagen meer.**
+     `src/engine/renderer/GanttRenderer.ts:2002` rondt de uit dagen afgeleide minuten
+     af (PR #699). `formatDuration` rekent de dagdeler opnieuw uit: 8⅓ × 60 =
+     `500.00000000000006` (`src/utils/durationFormat.ts:117`). De modulocontrole voor
+     hele dagen faalt daardoor. Een dagtaak op 08:00–16:20 toont bij weergave Automatisch
+     `8u 20m` en `16u 40m` in plaats van `1d` en `2d`. De duur zelf klopt.
+     Richting: maak de hele-dagherkenning bestand tegen deze afronding en voeg die
+     kalender toe aan `check-drag-duration-badge.ts`. Gevonden in review r2 van #699
+     (GPT-6.1-Sol). — B

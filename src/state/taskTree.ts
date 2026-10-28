@@ -34,11 +34,12 @@ import type { ResourceAssignment } from '@/types/resource';
  * Haalt `id` uit de `childIds` van zijn HUIDIGE ouder. Laat `task.parentId` met rust — de
  * aanroeper zet die zelf, meestal direct daarna. Doet niets als de taak geen ouder heeft of de
  * ouder niet (meer) bestaat.
+ * Een optionele index moet de eerste taak per id uit dezelfde, niet herschikte lijst bevatten.
  */
-export function detachFromParent(tasks: Task[], id: string): void {
-  const task = tasks.find(t => t.id === id);
+export function detachFromParent(tasks: Task[], id: string, byId?: ReadonlyMap<string, Task>): void {
+  const task = byId ? byId.get(id) : tasks.find(t => t.id === id);
   if (!task?.parentId) return;
-  const parent = tasks.find(t => t.id === task.parentId);
+  const parent = byId ? byId.get(task.parentId) : tasks.find(t => t.id === task.parentId);
   if (parent) parent.childIds = parent.childIds.filter(cid => cid !== id);
 }
 
@@ -51,13 +52,16 @@ export function detachFromParent(tasks: Task[], id: string): void {
  * Roep hiervóór {@link detachFromParent} aan; deze functie haalt de taak NIET bij zijn oude ouder
  * weg. Die splitsing is bewust — een verplaatsing binnen dezelfde ouder moet eerst verwijderen en
  * dán invoegen, anders staat de taak er twee keer in.
+ * Voor de optionele index geldt hetzelfde contract als bij {@link detachFromParent}.
  */
-export function attachToParent(tasks: Task[], id: string, parentId: string | null, index?: number): void {
-  const task = tasks.find(t => t.id === id);
+export function attachToParent(
+  tasks: Task[], id: string, parentId: string | null, index?: number, byId?: ReadonlyMap<string, Task>,
+): void {
+  const task = byId ? byId.get(id) : tasks.find(t => t.id === id);
   if (!task) return;
   task.parentId = parentId;
   if (parentId === null) return;
-  const parent = tasks.find(t => t.id === parentId);
+  const parent = byId ? byId.get(parentId) : tasks.find(t => t.id === parentId);
   if (!parent) return;
   const at = index === undefined
     ? parent.childIds.length
