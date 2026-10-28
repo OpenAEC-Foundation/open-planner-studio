@@ -1336,6 +1336,12 @@ en noem het in je rapport of PR-tekst.
      niet. Voorstel: de platformroute eerst zonder host en zonder `ops-welcomeSeen` laten starten en controleren
      dat welkom, rondleiding en tutorialvraag dicht blijven. Gevonden in review van #717 (GPT-6.1-Sol),
      2026-10-28. — B
+432. **De regressietest van `monthLabel` dwingt de oorspronkelijke foutconditie niet af.** De nieuwe controles
+     in `tests/planning/check-reports.ts:467–479` erven de taal van het proces, en de CI zet geen niet-Engelse
+     taal (de matrix wisselt alleen tijdzones). Onder een Engelse standaardtaal geven oude en nieuwe code voor
+     `xx-YY` allebei Engels, dus het weghalen van de `supportedLocalesOf`-controle valt niet op. Voorstel: alleen
+     deze batterij één keer extra draaien onder `LANG=nl_NL.UTF-8`, en vooraf controleren dat `Intl` dan echt
+     Nederlands kiest. Gevonden in review van #696 (GPT-6.1-Sol), 2026-10-28. — B
 
 ## Wensen en open taken (geen bug)
 
