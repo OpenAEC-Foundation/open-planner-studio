@@ -1162,9 +1162,6 @@ en noem het in je rapport of PR-tekst.
     `gh api --method PATCH repos/OpenAEC-Foundation/open-planner-studio/pulls/479 -F body=@<bestand>`.
     Voorstel: de GitHub CLI op de host bijwerken; de repo zelf is niet aangepast hiervoor. — B
 
-149. **`check-reports.ts` (`monthLabel`) hangt af van de taalinstelling van de machine.** Rood als de machine in
-     de systeemtaal nl_NL draait, groen met `LANG=en_US.UTF-8`. Gemeld door de coördinator op 2026-10-20; niet
-     door deze agent nagespeeld. — S
 
 151. **De feedbacktests in de browsersuite falen in CI wisselvallig met "Maximum update depth exceeded".** Gezien
      in de job `verify (browser 2-4)`: op PR #402 vier tests in `tests/browser/feedback-venster.spec.ts`; op `main`
@@ -1185,12 +1182,6 @@ en noem het in je rapport of PR-tekst.
      dezelfde samenvoeging, en `verify:i18n` gaf exit 0. Het script meldt dus een fout waar
      geen fout is. Voorstel: gelijke resultaten vanaf beide bases als eenduidig accepteren. — S
 
-282. **`check-reports.ts` hangt af van de taal van het systeem.** De regel "monthLabel: onbekende locale
-     valt terug op Engels" verwacht "Sep 2026", maar met `LANG=nl_NL.UTF-8` geeft Node "sep 2026" (de
-     onbekende locale valt terug op de systeemtaal, niet op Engels). Met `LANG=C.UTF-8` is de batterij groen.
-     Gezien op aia09-mp50 bij F4b; de CI draait met een Engelse locale en ziet het niet. Voorstel: in
-     `monthLabel` expliciet terugvallen op `en` als `Intl` de locale niet kent, of de toets de locale laten
-     vastzetten. — B
 
 264. **De browsertest "Gantt-balk vertical slepen landt in RTL op dezelfde plek als een rijsleep" is
      wisselvallig.** `tests/browser/gantt-drag-undo.spec.ts:273`. De rijsleep en de undo slagen, maar na de
@@ -1344,6 +1335,12 @@ en noem het in je rapport of PR-tekst.
      niet. Voorstel: de platformroute eerst zonder host en zonder `ops-welcomeSeen` laten starten en controleren
      dat welkom, rondleiding en tutorialvraag dicht blijven. Gevonden in review van #717 (GPT-6.1-Sol),
      2026-10-28. — B
+432. **De regressietest van `monthLabel` dwingt de oorspronkelijke foutconditie niet af.** De nieuwe controles
+     in `tests/planning/check-reports.ts:467–479` erven de taal van het proces, en de CI zet geen niet-Engelse
+     taal (de matrix wisselt alleen tijdzones). Onder een Engelse standaardtaal geven oude en nieuwe code voor
+     `xx-YY` allebei Engels, dus het weghalen van de `supportedLocalesOf`-controle valt niet op. Voorstel: alleen
+     deze batterij één keer extra draaien onder `LANG=nl_NL.UTF-8`, en vooraf controleren dat `Intl` dan echt
+     Nederlands kiest. Gevonden in review van #696 (GPT-6.1-Sol), 2026-10-28. — B
 
 ## Wensen en open taken (geen bug)
 

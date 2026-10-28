@@ -22,7 +22,7 @@ import {
   isValidReportingPeriod, periodDays, projectSpan, resolveReportingPeriod, weeksToPreset,
 } from '@/engine/reports';
 import { addCalendarMonths, formatDate, parseDate } from '@/utils/dateUtils';
-import { makeMonthLabeler } from '@/utils/monthLabel';
+import { gregorianDateFormat, makeMonthLabeler } from '@/utils/monthLabel';
 import { DEFAULT_TABLE_REPORT_OPTIONS, parseReportingPeriod, parseTableReportOptions } from '@/utils/reportSettings';
 import type { Task } from '@/types/task';
 import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
@@ -465,6 +465,19 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
     }
     ok('monthLabel: fa is niet de Solar-Hijri-kalender', !makeMonthLabeler('fa')('2026-09-01').includes('1405'));
     eq('monthLabel: onbekende locale valt terug op Engels', makeMonthLabeler('xx-YY')('2026-09-01'), 'Sep 2026');
+    for (const loc of ['xx-YY', 'zz', 'xx-YY-u-ca-persian-nu-arab', 'nl_NL', '']) {
+      const options = gregorianDateFormat(loc, { month: 'short', year: 'numeric' }).resolvedOptions();
+      eq(`monthLabel: ${loc || '(leeg)'} heeft expliciet Engelse terugval`, options.locale.split('-')[0], 'en');
+      eq(`monthLabel: ${loc || '(leeg)'} terugval houdt kalender, cijfers en tijdzone`,
+        [options.calendar, options.numberingSystem, options.timeZone], ['gregory', 'latn', 'UTC']);
+      eq(`monthLabel: ${loc || '(leeg)'} heeft een Engels label`, makeMonthLabeler(loc)('2026-09-01'), 'Sep 2026');
+    }
+    for (const loc of ['nl-NL', 'de-DE', 'fa-u-ca-persian-nu-arab']) {
+      const options = gregorianDateFormat(loc, { month: 'short', year: 'numeric' }).resolvedOptions();
+      eq(`monthLabel: ondersteunde ${loc} houdt haar taal`, options.locale.split('-')[0], loc.split('-')[0]);
+      eq(`monthLabel: ondersteunde ${loc} houdt Gregoriaans, Latijns en UTC`,
+        [options.calendar, options.numberingSystem, options.timeZone], ['gregory', 'latn', 'UTC']);
+    }
   }
 }
 
