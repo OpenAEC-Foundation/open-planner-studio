@@ -1462,6 +1462,10 @@ function writeCalendarLibrary(
     const { calStepId } = written;
     writeCalendarGenerationMeta(ctx, cal, ownerHistId, written);
 
+    // Behoud de oude ===-semantiek voor beschadigde numerieke NaN-id's: Map.get koppelt
+    // NaN wel aan zichzelf. Kalender en metadata blijven staan, alleen deze relaties niet (393).
+    if (Number.isNaN(cal.id)) continue;
+
     const resRefs = (resourcesByCalendar.get(cal.id) ?? [])
       .map(r => ref(ctx, `res_${r.id}`))
       .filter(r => r !== '#0');

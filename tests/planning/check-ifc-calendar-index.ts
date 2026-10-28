@@ -51,6 +51,38 @@ for (const schema of IFC_SCHEMAS) {
   }
 }
 
+// 393: Map gebruikt SameValueZero (NaN is een eigen sleutel), terwijl de oude ===-filter
+// beschadigde numerieke NaN-id's nooit koppelde. De tekst "NaN" blijft een gewone geldige id.
+for (const schema of IFC_SCHEMAS) {
+  for (const invalid of [true, false]) {
+    const data = ifcCalendarIndexFixture(2, 1);
+    data.project.ifcSchema = schema;
+    const id = invalid ? Number.NaN as unknown as string : 'NaN';
+    const calendar = data.resourceCalendars![1];
+    calendar.id = id;
+    calendar.name = 'Kalender met afwijkend id';
+    calendar.hoursPerDay = 6.25;
+    data.tasks[0].calendarId = id;
+    data.resources[0].calendarId = id;
+    const ifc = writeIFC(data);
+    const entities = parseStep(ifc);
+    const calendars = entities.filter(e => e.type === 'IFCWORKCALENDAR');
+    same(`${schema}/${invalid}: kalender blijft aanwezig`, calendars.length, 2);
+    const controls = entities.filter(e => e.type === 'IFCRELASSIGNSTOCONTROL'
+      && e.args[6]?.k === 'ref' && e.args[6].id === calendars[1].id);
+    same(`${schema}/${invalid}: alleen geldige tekst-id koppelt taak en resource`, controls.length, invalid ? 0 : 2);
+    const read = readIFC(ifc);
+    const restored = read.resourceCalendars?.find(c => c.name === calendar.name);
+    same(`${schema}/${invalid}: metadata blijft behouden`, restored?.hoursPerDay, 6.25);
+    same(`${schema}/${invalid}: taak krijgt geen onbedoelde koppeling`,
+      read.tasks[0].calendarId === restored?.id, !invalid);
+    same(`${schema}/${invalid}: resource krijgt geen onbedoelde koppeling`,
+      read.resources[0].calendarId === restored?.id, !invalid);
+    same(`${schema}/${invalid}: schrijver wijzigt het id niet`,
+      invalid ? Number.isNaN(calendar.id) : calendar.id === 'NaN', true);
+  }
+}
+
 // Tel de echte kalenderlezingen in de volledige schrijver; geen tijdsgrens die van de runner afhangt.
 // De oude lus deed bij 64 kalenders meer dan 64 lezingen per taak/resource.
 for (const calendarCount of [0, 1, 64]) {
