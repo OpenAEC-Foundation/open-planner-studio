@@ -1351,10 +1351,3 @@ en noem het in je rapport of PR-tekst.
     verwacht je het Excel-gedrag: vastleggen en een kolom verder (Shift+Tab terug). Gezien bij review
     vader, punt 1. — B
 
-421. **O1 in `check-recovery-refused-later.ts` bewijst niet dat lezen en opslaan dezelfde sessieclaim afwachten.**
-     De check kijkt na één microtask alleen of beide promises nog lopen
-     (`tests/planning/check-recovery-refused-later.ts`, rond regel 79). De save loopt via
-     `recoveryWriteTail.then(...)` en verdere `await`-stappen, dus `saved` kan ook zonder wachten nog `false`
-     zijn. De lockdubbel (rond regel 55) geeft elke volgende aanvraag meteen vrij, zodat twee aparte claims
-     niet opvallen. Geen aangetoonde productfout, wel een gat in het testbewijs. Richting: tel de
-     lockaanvragen en eis vóór `releaseClaim()` precies één. Gevonden in review r1 van #709 (GPT-6.1-Sol). — B
