@@ -1332,6 +1332,19 @@ en noem het in je rapport of PR-tekst.
      Het standaardpad (`:3208`) is `/home/nozzit/…`; op aia09-mp50 en in de CI wordt de case daarom overgeslagen,
      op de laptop van de eigenaar waarschijnlijk niet. Voorstel: de assertie en het commentaar aanpassen aan
      LABOR en drie wandelingen, samen met 426. Gevonden in review ronde 1 van #712 (GPT-6.1-Sol), 2026-10-27. — B
+429. **De keuze van de eerste bekende hosttaal wordt niet bij een echte start getest.** A13 in
+     `tests/planning/check-site-storage.ts:325` toetst alleen de lijst met ruwe taalbronnen van
+     `embeddedLocale()` (`src/i18n/config.ts:119`). De browsertests geven alleen een bekende hosttaal mee
+     (`fr`, `de`). Niet getest: hosttaal `xx`, oudertaal `de-AT`, hash `taal=es` en bewaarde keuze `nl` moeten
+     samen `de` geven; ook de terugval op alleen de hash of alleen de bewaarde keuze. Voorstel: de bestaande
+     browserroutes met deze gevallen uitbreiden en `<html lang>` en `ops-locale` controleren. Gevonden in
+     review van #717 (GPT-6.1-Sol), 2026-10-28. — B
+430. **De platformtest zet `ops-welcomeSeen` vooraf en ziet daardoor een kapotte platformtak niet.**
+     `tests/browser/platform-build.spec.ts:84` zet `ops-welcomeSeen=true`. Gaat de platformtak van
+     `runsEmbedded()` stuk, dan blijft het welkomstvenster in die test toch weg, en de hosttests dekken die tak
+     niet. Voorstel: de platformroute eerst zonder host en zonder `ops-welcomeSeen` laten starten en controleren
+     dat welkom, rondleiding en tutorialvraag dicht blijven. Gevonden in review van #717 (GPT-6.1-Sol),
+     2026-10-28. — B
 
 ## Wensen en open taken (geen bug)
 

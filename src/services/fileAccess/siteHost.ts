@@ -23,17 +23,26 @@
  * beide (de parent alleen als die same-origin is). Anders mist de tool het startbestand als zijn
  * opstartcontrole al voorbij is.
  *
- * ## Het welkomstvenster overslaan
+ * ## Ingebed starten: geen welkomstvenster, de taal van de host
  *
- * Zet de host `skipWelcome: true`, dan toont de tool bij de start geen welkomstvenster (issue #583).
- * Weigert de browser `localStorage` (een sandbox-iframe zonder `allow-same-origin`), dan slaat de
- * tool het venster zelf al over (issue #706): hij kan niet onthouden dat het gezien is. Het veld is
- * dus voor een host waar `localStorage` wel werkt maar niet bewaard blijft. Dit veld vraagt GEEN
- * `storage`; een host mag alleen het welkomstvenster uitzetten. Alleen strikt `true` telt. De tool
- * kijkt bij de start en nog eens vlak voordat het venster zou openen (na de herstelvraag). Zet de
- * host daarom vóór de tool start: staat het venster al open, dan sluit een latere host het niet, en
- * het event `openaec-host-ready` verandert daar niets aan. De handmatige ingangen (lint, backstage)
- * blijven werken.
+ * Staat er een host (elk object op `window.openaecHost`, ook zonder `storage`), of is dit de
+ * platformbouw, dan draait de tool ingebed (issue #716). Hij toont dan bij de start geen
+ * welkomstvenster, en dus ook geen taalvraag en geen rondleiding (die opent alleen vanuit dat venster).
+ * De handmatige ingangen (lint, backstage, de taalkeuze in de instellingen) blijven werken. Het oude
+ * veld `skipWelcome` (#583) is daarom niet meer nodig; een host die het zet, werkt gewoon. Zonder
+ * `localStorage` slaat de tool het venster ook buiten een host over (#706): hij kan niet onthouden dat
+ * het gezien is.
+ *
+ * De taal komt ingebed van de host, in deze volgorde: `taal` op de host (bijv. `'nl'`, `'de'`), dan de
+ * `lang` van een same-origin parentpagina (`<html lang="nl">`), dan `taal=` in de hash van de url
+ * (`#taal=nl`). De eerste taal die de tool kent, wint, ook boven een eerder bewaarde keuze; een
+ * regiocode valt terug op de taal (`de-AT` wordt `de`). Kent de tool geen enkele, dan kiest hij zoals
+ * buiten een host (bewaarde keuze, dan de browsertaal). De tool bewaart de taal van de host niet.
+ *
+ * Zet de host vóór de tool start. De tool kiest de taal één keer, vóór de eerste weergave, en kijkt
+ * voor het welkomstvenster bij de start en nog eens vlak voordat het zou openen (na de herstelvraag).
+ * Een latere host verandert de taal niet en sluit een venster dat al open staat niet, ook niet met het
+ * event `openaec-host-ready`.
  *
  * ## De vier functies
  *
@@ -71,6 +80,8 @@
  * Een `save` zonder `id` met een naam die al bestaat: wat er dan gebeurt (nieuw bestand of weigeren)
  * beslist de site.
  */
+
+import { PLATFORM_BUILD } from '@/utils/buildFlags';
 
 /** Eén bestand op de site. */
 export interface SiteFileInfo {
@@ -111,7 +122,9 @@ export interface OpenAECHost {
   storage?: SiteStorage;
   /** Open dit bestand (nieuwste versie) bij de start, als de tool nog een leeg document heeft. */
   initialFileId?: string;
-  /** Toon bij de start geen welkomstvenster (alleen strikt `true`). Werkt ook zonder `storage`. */
+  /** De taal van de site (bijv. `'nl'`); de tool start in die taal als hij hem kent (#716). */
+  taal?: string;
+  /** Niet meer nodig (#716): elke host slaat het welkomstvenster al over. Blijft geldig. */
   skipWelcome?: boolean;
 }
 
@@ -201,11 +214,41 @@ export function siteInitialFileId(): string | null {
 }
 
 /**
- * Wil een host dat de tool het welkomstvenster bij de start overslaat? Alleen bij `skipWelcome`
- * strikt `true`, en ook zonder geldige opslag: dit veld staat los van `storage`. Desktop nooit.
+ * Draait de tool ingebed (#716): de platformbouw, of een host op `window.openaecHost` (eigen venster
+ * of same-origin parent, ook zonder opslag). Kijkt op het moment van aanroepen. Desktop nooit.
  */
-export function siteSkipsWelcome(): boolean {
-  return candidateHosts().some((host) => host.skipWelcome === true);
+export function runsEmbedded(): boolean {
+  return PLATFORM_BUILD || candidateHosts().length > 0;
+}
+
+/**
+ * De taalcodes die de host doorgeeft (#716), in volgorde: `taal` op de host, de `lang` van een
+ * same-origin parentpagina, `taal=` in de hash van de url. Ruwe tekst; de i18n-laag kiest de eerste
+ * die hij kent. Alleen zinvol als `runsEmbedded()`.
+ */
+export function siteLanguageHints(): string[] {
+  if (typeof window === 'undefined') return [];
+  const hints: string[] = [];
+  for (const host of candidateHosts()) {
+    if (typeof host.taal === 'string') hints.push(host.taal);
+  }
+  const lang = readSafely(() => {
+    const p = window.parent;
+    return p && p !== window ? p.document.documentElement.lang : undefined;
+  });
+  if (lang) hints.push(lang);
+  const hash = readSafely(() => /(?:^#|[?&])taal=([^&]*)/.exec(window.location.hash)?.[1]);
+  if (hash) hints.push(readSafely(() => decodeURIComponent(hash)) ?? hash);
+  return hints;
+}
+
+/** Een cross-origin parent gooit al bij het lezen (`SecurityError`); dat telt als "niets". */
+function readSafely(read: () => string | undefined): string | undefined {
+  try {
+    return read();
+  } catch {
+    return undefined;
+  }
 }
 
 function siteErrorCode(err: unknown): unknown {

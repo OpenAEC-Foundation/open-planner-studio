@@ -177,7 +177,9 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   new site version); without a host nothing changes, and the
   desktop app never has one. A document carries `siteFileId` and `siteFileVersion` (the base for conflict detection) next to
   `filePath`/`fileHandle`; derive the save
-  target only via `saveTargetRef`. Dev: `?fakeSite=1` installs a fake site. Detail: `docs/platformbouw.md`.
+  target only via `saveTargetRef`. With any host (or in the platform build) the tool runs embedded: no welcome dialog,
+  so no language question or tour, and the language comes from the host (`taal`). Dev: `?fakeSite=1` installs a fake
+  site. Detail: `docs/platformbouw.md`.
 - **IFC building-model guard.** Opening files with `IfcProduct`/`IfcTypeProduct` objects is temporarily
   blocked before import (knownbug 110): the planning writer does not preserve them. The checked-in
   type inventory comes from official IFC2X3 TC1, IFC4 ADD2 TC1 and IFC4X3 ADD2 schemas; regenerate
