@@ -76,7 +76,7 @@ const kindName = (kind: MilestoneKind | undefined) => kind ?? 'zonder soort';
 const STATUS = '2026-06-05';
 
 /** Welke groepen `fixture` naast "Oplevering" en "Start bouw" bouwt; standaard alle. De opbouw kost de meeste
- *  tijd van deze check (ongeveer 2 ms per taak, knownbug 452); een sectie laat weg wat ze niet gebruikt. */
+ *  tijd van deze check (ongeveer 2 ms per taak, knownbug 500); een sectie laat weg wat ze niet gebruikt. */
 interface Parts { midden?: boolean; los?: boolean; taak?: boolean }
 /** Een planning met de mijlpalen van het besluit en één per soort, in een vers project. */
 function fixture(profile: Profile, calendarOf?: (c: WorkCalendar) => WorkCalendar, parts: Parts = {}) {
@@ -254,7 +254,7 @@ for (const profile of PROFILES) for (const route of ROUTES) for (const field of 
   }
   {
     // Typ je zelf een tijd, dan geldt die — ook bij een mijlpaal met een andere geplande tijd. Alleen de
-    // mijlpalen die dit blok gebruikt (slank, knownbug 452).
+    // mijlpalen die dit blok gebruikt (slank, knownbug 500).
     const f = fixture(profile, undefined, { midden: false, taak: false });
     eq(`${tag}: getypte tijd 09:30 gaat voor (Oplevering)`,
       enter(f, route, f.oplevering, field, '2026-06-03T09:30'), '2026-06-03T09:30');
@@ -840,7 +840,7 @@ for (const profile of PROFILES) for (const route of ROUTES) {
 
 // 8f. De uitwerking door de orkestrator, de aanvulling van Ethan voor een dienst die vóór de geplande kloktijd
 // eindigt (voorheen knownbug 450, geval 1; zie ook 8j) en het geval dat besluit en uitwerking niet dekken
-// (knownbug 454, gemeld in PR #724). Steeds geldt "de dag komt van wat je typt": het moment hoort bij de getypte
+// (knownbug 501, gemeld in PR #724). Steeds geldt "de dag komt van wat je typt": het moment hoort bij de getypte
 // werkdag.
 {
   // Uitwerking (fixronde 3): de kloktijd valt in de dienst van een andere werkdag ⇒ de dichtstbijzijnde rand.
@@ -849,15 +849,15 @@ for (const profile of PROFILES) for (const route of ROUTES) {
   // aanvulling van Ethan (het einde van die dienst). De uitkomst blijft za 02:00.
   const satShift = (c: WorkCalendar) => weekCalendar(c, weekOf(MON_THU, NIGHT, { 5: blocks([1320, 1560]), 6: blocks([240, 720]) }), 1);
   // Aanvulling van Ethan: de dienst van vr eindigt vóór de geplande kloktijd (za 05:00) ⇒ het einde van vr.
-  // Knownbug 454 (ook zo op main): 24 uur ma–do, vr 00:00–12:00; START op vr 12:00, afgemeld op ma ⇒ di 00:00
+  // Knownbug 501 (ook zo op main): 24 uur ma–do, vr 00:00–12:00; START op vr 12:00, afgemeld op ma ⇒ di 00:00
   // leest START als di, dus het begin van ma.
   const SPECIAL = [
     { name: 'uitwerking: za-dienst', cal: satShift, kind: undefined, planned: '2026-06-02T05:00', typed: '2026-06-05', want: '2026-06-06T02:00', label: '2026-06-05' },
     { name: 'uitwerking: za-dienst FINISH', cal: satShift, kind: 'FINISH' as const, planned: '2026-06-02T05:00', typed: '2026-06-05', want: '2026-06-06T02:00', label: '2026-06-05' },
     { name: 'aanvulling 450: de vrijdagdienst eindigt vóór 05:00', cal: nightShortFri, kind: undefined, planned: '2026-06-02T05:00', typed: '2026-06-05', want: '2026-06-06T02:00', label: '2026-06-05' },
     { name: 'aanvulling 450: de vrijdagdienst eindigt vóór 05:00, START', cal: nightShortFri, kind: 'START' as const, planned: '2026-06-02T05:00', typed: '2026-06-05', want: '2026-06-06T02:00', label: '2026-06-05' },
-    { name: 'knownbug 454: START op het einde van een 24-uursvrijdag', cal: day24ShortFri, kind: 'START' as const, planned: '2026-06-05T12:00', typed: '2026-06-08', want: '2026-06-08T00:00', label: '2026-06-08' },
-    { name: 'knownbug 454: FINISH houdt het einde', cal: day24ShortFri, kind: 'FINISH' as const, planned: '2026-06-05T12:00', typed: '2026-06-08', want: '2026-06-09T00:00', label: '2026-06-08' },
+    { name: 'knownbug 501: START op het einde van een 24-uursvrijdag', cal: day24ShortFri, kind: 'START' as const, planned: '2026-06-05T12:00', typed: '2026-06-08', want: '2026-06-08T00:00', label: '2026-06-08' },
+    { name: 'knownbug 501: FINISH houdt het einde', cal: day24ShortFri, kind: 'FINISH' as const, planned: '2026-06-05T12:00', typed: '2026-06-08', want: '2026-06-09T00:00', label: '2026-06-08' },
   ];
   // De gevallen van één kalender staan samen in één opstelling per profiel en route (review ronde 4: niet
   // voor elk geval dezelfde planning opnieuw opbouwen); ze hebben per kalender dezelfde getypte dag.
@@ -949,7 +949,7 @@ const FIXED: FixedCase[] = [
   { cal: 'sol', side: 'start', planned: '2026-06-01T08:00', plannedLabel: '2026-06-01', typed: '2026-06-07', want: '2026-06-07T22:00', label: '2026-06-07', why: 'einde van ma op de vrije zo: het D4-einde (ma 06:00) ligt midden in echte werktijd, dus het begin van zo' },
   { cal: 'sol', side: 'start', planned: '2026-06-01T04:00', plannedLabel: '2026-06-01', typed: '2026-06-02', want: '2026-06-02T22:00', label: '2026-06-02', why: 'begin van ma ⇒ begin van di' },
   { cal: 'sol', side: 'start', planned: '2026-06-03T02:00', plannedLabel: '2026-06-03T02:00', typed: '2026-06-08', want: '2026-06-08T08:00', label: '2026-06-08', why: 'midden in de nacht van di; dezelfde afstand op ma 8 jun is di 9 jun 02:00, na het einde van de maandagdienst (08:00) ⇒ het einde van die dienst (tweede aanvulling van Ethan)' },
-  { cal: 'sol', side: 'end', planned: '2026-06-03T02:00', plannedLabel: '2026-06-03T02:00', typed: '2026-06-03', want: '2026-06-04T02:00', label: '2026-06-04T02:00', why: 'midden in de nacht van di ⇒ midden in de nacht van wo (knownbug 451)' },
+  { cal: 'sol', side: 'end', planned: '2026-06-03T02:00', plannedLabel: '2026-06-03T02:00', typed: '2026-06-03', want: '2026-06-04T02:00', label: '2026-06-04T02:00', why: 'midden in de nacht van di ⇒ midden in de nacht van wo (knownbug 499)' },
   { cal: 'nacht', side: 'start', planned: '2026-06-02T06:00', plannedLabel: '2026-06-01', typed: '2026-06-05', want: '2026-06-06T02:00', label: '2026-06-05', why: 'het nachtvoorbeeld: einde van de dienst ⇒ einde van de vrijdagdienst' },
   { cal: 'nacht', side: 'end', planned: '2026-06-02T06:00', plannedLabel: '2026-06-01', typed: '2026-06-06', want: '2026-06-07T06:00', label: '2026-06-06', why: 'einde ⇒ D4-einde van de vrije za' },
   { cal: 'nacht', side: 'start', planned: '2026-06-06T02:00', plannedLabel: '2026-06-05', typed: '2026-06-08', want: '2026-06-09T06:00', label: '2026-06-08', why: 'einde van de korte vr ⇒ einde van ma' },
@@ -967,7 +967,7 @@ const FIXED: FixedCase[] = [
   { cal: '24u', side: 'end', planned: '2026-06-02T00:00', plannedLabel: '2026-06-01', typed: '2026-06-03', want: '2026-06-04T00:00', label: '2026-06-03', why: 'gedeelde rand, FINISH: einde van ma ⇒ einde van wo' },
   { cal: '24u', side: 'start', planned: '2026-06-02T00:00', plannedLabel: '2026-06-02', typed: '2026-06-03', want: '2026-06-03T00:00', label: '2026-06-03', why: 'gedeelde rand, START: begin van di ⇒ begin van wo' },
   { cal: '24u', side: 'end', planned: '2026-06-05T12:00', plannedLabel: '2026-06-05', typed: '2026-06-08', want: '2026-06-09T00:00', label: '2026-06-08', why: 'einde van vr ⇒ einde van ma' },
-  { cal: '24u', side: 'start', planned: '2026-06-05T12:00', plannedLabel: '2026-06-05', typed: '2026-06-08', want: '2026-06-08T00:00', label: '2026-06-08', why: 'het einde van ma leest START als di ⇒ het begin van ma (knownbug 454, ook zo op main)' },
+  { cal: '24u', side: 'start', planned: '2026-06-05T12:00', plannedLabel: '2026-06-05', typed: '2026-06-08', want: '2026-06-08T00:00', label: '2026-06-08', why: 'het einde van ma leest START als di ⇒ het begin van ma (knownbug 501, ook zo op main)' },
   { cal: '24u', side: 'start', planned: '2026-06-01T10:00', plannedLabel: '2026-06-01T10:00', typed: '2026-06-05', want: '2026-06-05T10:00', label: '2026-06-05T10:00', why: 'midden op de dag' },
   { cal: '24u vol', side: 'start', planned: '2026-06-01T00:00', plannedLabel: '2026-06-01', typed: '2026-06-06', want: '2026-06-06T00:00', label: '2026-06-06', why: 'START op za 00:00 is het begin van de vrije za (D4), niet het einde van vr' },
   { cal: '24u vol', side: 'end', planned: '2026-06-01T00:00', plannedLabel: '2026-05-31', typed: '2026-06-03', want: '2026-06-04T00:00', label: '2026-06-03', why: 'FINISH op ma 00:00 is het D4-einde van zo, zoals op main; einde ⇒ einde van wo' },

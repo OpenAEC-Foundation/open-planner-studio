@@ -231,7 +231,7 @@ export function workdayEdgeAt(clock: DayClock, day: string, value: string): Inst
  *  gepland moment buiten die spanne (een handmatig anker om 18:00 bij 07:00–16:00) houdt de kloktijd, zoals
  *  het besluit zelf zegt: ma 18:00, afgemeld op vr ⇒ vr 18:00.
  *
- * Eén geval dekken het besluit en de uitwerking niet (gemeld in PR #724, knownbug 454). Hier gaat ook "de dag
+ * Eén geval dekken het besluit en de uitwerking niet (gemeld in PR #724, knownbug 501). Hier gaat ook "de dag
  * komt van wat je typt" voor, anders toont de tabel een andere dag en weigert de statuscontrole de statusdag:
  *  5. De rand van de getypte dag hoort bij een andere werkdag: de andere rand van de getypte dag. Dat gebeurt
  *     als de soort een gedeelde rand aan de buurdag geeft, of als de D4-rand van een getypte vrije dag midden

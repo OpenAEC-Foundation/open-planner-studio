@@ -889,7 +889,7 @@ Zo zette de meting het ook om.
   nulduur-mijlpaal hoort dat moment bij za: weergave, afmelden en statusregel lezen zijn werkdag uit de
   werkspanne, met D4 voor een dag zonder werkblok (*De werkdag van een mijlpaal* onder B10 hieronder,
   `milestoneWorkdayOf` in `src/engine/calendar/workdayRules.ts`; fixronde 2 en 3 van #724). Bij een gewone taak
-  nog niet: die weergave en die statusregel lezen zo (knownbug 449).
+  nog niet: die weergave en die statusregel lezen zo (knownbug 498).
 - **D5 statusdatum:** de motor leest hem als startachtig (D1). De statusdatum is het moment waarop het restwerk
   begint (`src/types/project.ts:548-550`: "restwerk start niet vóór deze datum"). Gemeten: als begin van de dag
   3 rode dagcases in `cases-progress`, als einde van de dag 17. Opgeslagen blijft hij zoals ingevoerd (§3.6).
@@ -1004,7 +1004,7 @@ Zo zette de meting het ook om.
     houdt de kloktijd zoals het besluit zelf zegt: ma 18:00, afgemeld op vr, wordt vr 18:00 (keuze van de bouwer
     in fixronde 5, gemeld in #724: geen van de aanvullingen noemt zo'n moment).
   - **Een geval dat besluit en uitwerking niet dekken** (keuze van de bouwer in fixronde 3 van #724, niet
-    besloten; gemeld in de PR; knownbug 454). Ook hier gaat "de dag komt van wat je typt" voor; anders toont de
+    besloten; gemeld in de PR; knownbug 501). Ook hier gaat "de dag komt van wat je typt" voor; anders toont de
     tabel een andere dag en weigert de statusregel de statusdag. De rand van de getypte dag is ook een rand van
     de buurdag, en de soort leest hem als die buurdag: de andere rand van de getypte dag. Voorbeeld: 24 uur
     ma–do, vr 00:00–12:00; een START-mijlpaal op vr 12:00 (het einde van vr), afgemeld op ma ⇒ het einde van ma
@@ -2208,7 +2208,7 @@ dan gaat "de dag komt van wat je typt" voor; het moment komt op de dichtstbijzij
 (fixronde 3).
 
 Eén geval dekken besluit, aanvullingen en uitwerking niet; de bouwer koos daar ook "de dag komt van wat je typt"
-(§4.2, niet besloten, gemeld in #724, knownbug 454). Main geeft daar dezelfde uitkomst; het is geen uitzondering die
+(§4.2, niet besloten, gemeld in #724, knownbug 501). Main geeft daar dezelfde uitkomst; het is geen uitzondering die
 Ethan besloot.
 
 **Uitwerking:** §4.2 (*Afmelden van een mijlpaal*, met *De werkdag van een mijlpaal*) en statusregel 4 (§4.2): de
@@ -2218,8 +2218,8 @@ statusdag zonder werkblok (fixronde 2) en op een kortere dienst (fixronde 3). Ee
 moment midden in echte werktijd niet naar een vrije dag (fixronde 4), en wint ook niet van het echte begin of
 einde van een werkdag op hetzelfde moment (fixronde 5). Het gezondheidsrapport leest de
 statusdag met de taakkalender, zoals DCMA (fixronde 2, voorheen knownbug 316). De laadgrens houdt D7. Bekende
-randgevallen: knownbug 447 (de rauwe veldtoegang van extensies houdt D7), 448 (een afgeleide werkelijke start bij
-nachtwerk) en 449 (een gewone taak op een statusdag zonder werkblok bij nachtwerk).
+randgevallen: knownbug 447 (de rauwe veldtoegang van extensies houdt D7), 497 (een afgeleide werkelijke start bij
+nachtwerk) en 498 (een gewone taak op een statusdag zonder werkblok bij nachtwerk).
 
 **Wie, wanneer, bron:** Ethan, 2026-10-29; vloot-wiki, `besluiten/2026-10-29 afgemelde mijlpaal houdt de geplande
 tijd.md` (het besluit en de alinea "Aanvulling", gesprek in Yappo; de alinea "Nog een aanvulling", gesprek in

@@ -55,7 +55,7 @@ export function taskDateClock(task: Task, calendar: WorkCalendar): DayClock {
  * Dezelfde werkdag gebruiken het afmelden (B10, `milestoneMomentOn`) en de statusregel
  * (`isTaskActualPastStatusDate`). Stond de mijlpaal op een dagrand, dan toont de tabel na afmelden de dag die
  * de planner typte. Midden op de dag toont hij het moment met zijn klokdatum (B4); bij een nachtdienst kan
- * dat de dag na de getypte zijn (knownbug 451). Een gewone taak krijgt deze regel niet; haar weergave blijft
+ * dat de dag na de getypte zijn (knownbug 499). Een gewone taak krijgt deze regel niet; haar weergave blijft
  * gelijk.
  */
 export function momentLabel(clock: DayClock, value: string, side: InstantSide, milestoneSide?: InstantSide): string {

@@ -499,7 +499,7 @@ en noem het in je rapport of PR-tekst.
     `src/engine/reports/reportCommon.ts` overschrijft daardoor de aanwezige rest met nul. Alleen in de
     code vastgesteld bij knownbug 387; samenvattings- en rapportroutes nog niet doorgemeten.
     Voorstel: de voortgangsclassificatie met de importstatus afstemmen en de rollups gericht toetsen. — B
-448. **Nachtploeg: alleen een werkelijk einde op de statusdag geeft een werkelijke start die DCMA "ná de
+497. **Nachtploeg: alleen een werkelijk einde op de statusdag geeft een werkelijke start die DCMA "ná de
      statusdatum" noemt.** Kalender ma–vr 22:00–06:00, taak van 8 u op ma 1 jun 22:00, statusdatum wo 3 jun.
      Typ alleen bij *Werkelijk einde* "03-06-2026". Dat wordt do 4 jun 06:00 (D6, het einde van de nacht van
      wo), en `applyProgressInvariants` (`src/engine/taskMutationRules.ts:258`) zet de ontbrekende werkelijke
@@ -509,7 +509,7 @@ en noem het in je rapport of PR-tekst.
      (`3c2c1ec12`) en op de kop; #724 verandert dit niet. Een nulduur-mijlpaal heeft het niet: daar telt de
      werkdag van zijn moment (`milestoneWorkdayOf`), dezelfde als in de tabel. Voorstel: een afgeleide start die gelijk is aan het einde, krijgt bij de
      statusregel de werkdag van het einde. — B
-449. **Nachtploeg: een gewone taak is op een statusdag zonder werkblok niet af te melden.** Kalender ma–vr
+498. **Nachtploeg: een gewone taak is op een statusdag zonder werkblok niet af te melden.** Kalender ma–vr
      22:00–06:00, taak van 16 u vanaf ma 1 jun 22:00, werkelijke start 01-06-2026, statusdatum za 6 jun. Typ
      bij *Werkelijk einde* "06-06-2026". D2 met D4 maakt daar zo 7 jun 06:00 van, het einde van de typische
      nacht van za. De statusregel (`isActualPastStatusDate`, `src/engine/taskMutationRules.ts`) leest dat
@@ -521,7 +521,7 @@ en noem het in je rapport of PR-tekst.
      de basis van #724 (`3c2c1ec12`), op de kop vóór en na fixronde 2: overal geweigerd. Voorstel: dezelfde
      D4-herkenning in `workdayBoundaryLabel` en `workdayOfInstant` aan de eindkant, voor elke taak; dat
      verandert de weergave van gewone taken en hoort daarom in een eigen PR. — B
-451. **Mijlpaal midden in een nachtdienst: na afmelden toont de tabel de klokdatum erna.** Kalender ma–do
+499. **Mijlpaal midden in een nachtdienst: na afmelden toont de tabel de klokdatum erna.** Kalender ma–do
      22:00–06:00, vr 22:00–02:00. Een mijlpaal op di 2 jun 02:00 (midden in de nacht van ma), afgemeld met
      03-06-2026, wordt do 4 jun 02:00: de geplande kloktijd in de nacht van wo (B10). De tabel toont
      "04-06-2026 02:00" (B4: midden op de werkdag de klokdatum met tijd), terwijl de planner 03-06-2026 typte.
@@ -533,7 +533,7 @@ en noem het in je rapport of PR-tekst.
      tabel de getypte dag toont. Gemeten met `meet-gevallen.ts` (geval D) en `check-mijlpaal-afmelden.ts`
      sectie 8d en 8h. Voorstel: voorleggen of de tabel een moment midden in een dienst na middernacht met de
      werkdag moet tonen. — B
-452. **`check-mijlpaal-afmelden.ts` is nog zwaar.** Review ronde 4 van #724 (Sol) mat 55,54 s voor de check;
+500. **`check-mijlpaal-afmelden.ts` is nog zwaar.** Review ronde 4 van #724 (Sol) mat 55,54 s voor de check;
      de brede matrix van sectie 8h speelde bovendien de productieregel na en bleef groen bij een fout. Fixronde 4
      verving die matrix door vaste, letterlijk uitgeschreven gevallen (sectie 8h) en bouwt in 5b, 5d, 8b en 8f
      één opstelling per profiel en route in plaats van per veld of per geval; de nieuwe secties 8i en 8j kwamen
@@ -551,7 +551,7 @@ en noem het in je rapport of PR-tekst.
      controles. Per sectie nu: sectie 1 5,9 s, 8a 5,0 s, 8d 5,4 s, 5d 4,5 s, 8h 4,3 s, 8k 3,2 s. Voorstel: in
      sectie 1, 8a en 8d nog minder taken per opstelling (bijvoorbeeld de gewone taak en de losse mijlpalen
      alleen waar een blok ze toetst); daarna opnieuw meten. — B
-454. **Afmelden van een mijlpaal: START op een rand die de buurdag deelt, wordt het begin (bestaat ook op
+501. **Afmelden van een mijlpaal: START op een rand die de buurdag deelt, wordt het begin (bestaat ook op
      main).** B10 met de aanvulling "einde blijft einde" zegt hier niets; #724 kiest "de dag komt van wat je
      typt" (`milestoneMomentOn`, regel 5, `src/engine/calendar/workdayRules.ts`). Kalender 24 uur ma–do, vr
      00:00–12:00, weekend vrij. Een START-mijlpaal op vr 5 jun 12:00 (het einde van vr), afgemeld met
@@ -563,7 +563,7 @@ en noem het in je rapport of PR-tekst.
      2026-10-29 een aanvulling van Ethan op B10 (spec §4.2 en §8 B10). Getoetst in
      `tests/planning/check-mijlpaal-afmelden.ts` sectie 8f (elk profiel, elke route) en 8h (vaste gevallen).
      Voorstel: in een eigen PR oplossen zonder een eindmoment als beginmoment te lezen. — B
-455. **Afmelden van een mijlpaal: de regel "de dichtste rand" bij overlappende diensten heeft geen vaste test.**
+502. **Afmelden van een mijlpaal: de regel "de dichtste rand" bij overlappende diensten heeft geen vaste test.**
      `milestoneMomentOn` (`src/engine/calendar/workdayRules.ts`) zet een gepland moment midden in de dienst op
      dezelfde afstand in de getypte dag. Hoort dat moment bij een andere werkdag, terwijl het binnen de
      werkspanne van de getypte dag ligt, dan kiest de code de rand van de getypte dag die het dichtst bij ligt
@@ -573,7 +573,7 @@ en noem het in je rapport of PR-tekst.
      vrijdagdienst). Gemeten in fixronde 5: met "altijd eerst het begin" in plaats van "de dichtste rand" blijft
      `check-mijlpaal-afmelden.ts` groen (13.670 controles, 0 fouten). Voorstel: een vaste uitkomst met twee
      overlappende diensten in sectie 8h, na een besluit of zo'n kalender in de app kan bestaan. — B
-456. **Afmelden van een mijlpaal buiten de werkspanne van zijn werkdag: de geplande kloktijd blijft (keuze van de
+503. **Afmelden van een mijlpaal buiten de werkspanne van zijn werkdag: de geplande kloktijd blijft (keuze van de
      bouwer).** Een handmatig anker of een import kan een mijlpaal buiten de werktijd zetten, bijvoorbeeld ma
      18:00 bij ma–do 07:00–16:00 en vr 07:00–12:00. Afgemeld met alleen een datum houdt hij in #724 de
      kloktijd: vr 5 jun wordt vr 18:00, wo 3 jun wordt wo 18:00. Het besluit B10 zegt "de tijd uit de
