@@ -1,3 +1,4 @@
+// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 import './domStub';
 // LOPEND OP 100 % OVERLEEFT IFC (eigenaarsbesluit 2026-10-14, optie 1). Een P6-taak `TK_Active` op 100 %
 // komt uit de XER-lezer binnen als status STARTED, `completion` 1 en zonder werkelijk einde. De IFC-lezer
@@ -128,7 +129,7 @@ ok('0a opzet: L is lopend op 100 % zonder werkelijk einde',
   byName(before.tasks, 'L').status === 'STARTED' && byName(before.tasks, 'L').time.completion === 1
   && !byName(before.tasks, 'L').time.actualFinish);
 
-const OPEN = { filePath: null, fileHandle: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: true } as const;
+const OPEN = { filePath: null, fileHandle: null, recompute: true, fit: false, linkedOpen: true } as const;
 async function openIfc(text: string): Promise<{ doc: DocumentPayload; resave: () => string }> {
   const store = createAppStoreContext().store;
   store.getState().applyOpenedImport(await parseOpenedFile({ name: 'rondgang.ifc', text }), OPEN);
@@ -144,7 +145,10 @@ const progress = (t: Task) => ({
 });
 const dates = (t: Task) => {
   const x = t.time;
-  return [x.scheduleStart, x.scheduleFinish, x.earlyStart, x.earlyFinish, x.lateStart, x.lateFinish, x.totalFloat, x.isCritical];
+  // F3 (alleen uren §3.5, B3): de rest is exact, dus de opgerolde speling is geen geheel aantal dagen
+  // meer (2,99167 d). IfcTaskTime draagt dagen met zes decimalen; vergelijk de speling daarom op 10⁻⁶.
+  const totalFloat = Math.round(x.totalFloat * 1e6) / 1e6;
+  return [x.scheduleStart, x.scheduleFinish, x.earlyStart, x.earlyFinish, x.lateStart, x.lateFinish, totalFloat, x.isCritical];
 };
 
 // ── 1. Vorm in het bestand ────────────────────────────────────────────────────────────────────────
@@ -194,7 +198,7 @@ const dates = (t: Task) => {
   const fase = (id: string) => [at(id).status, at(id).time.completion, at(id).time.actualFinish ?? null];
   eq('1e opzet: F1 (taken klaar + niet-gestarte mijlpaal) is STARTED op 1 zonder werkelijk einde', fase(f1), ['STARTED', 1, null]);
   eq('1f opzet: F2 (99,96 %) is STARTED op 1 zonder werkelijk einde', fase(f2), ['STARTED', 1, null]);
-  eq('1g opzet: W is STARTED op 1 mét werkelijk einde', fase(w), ['STARTED', 1, '2015-01-06']);
+  eq('1g opzet: W is STARTED op 1 mét werkelijk einde', fase(w), ['STARTED', 1, "2015-01-06T16:00"]);
   const fIfc = writeIFC(buildWriteIFCInput(G()));
   eq('1h F1 (fase): IfcTask.Status blijft $', argsOf(fIfc, 'IFCTASK', 'F1')[STATUS], '$');
   eq('1i F2 (fase): IfcTask.Status blijft $', argsOf(fIfc, 'IFCTASK', 'F2')[STATUS], '$');
@@ -236,7 +240,7 @@ const after = opened.doc;
   }
   eq('2c L blijft lopend', byName(after.tasks, 'L').status, 'STARTED');
   eq('2d V blijft voltooid met zijn eigen werkelijke einde', [byName(after.tasks, 'V').status, byName(after.tasks, 'V').time.actualFinish],
-    ['COMPLETED', '2015-01-06']);
+    ['COMPLETED', "2015-01-06T16:00"]);
   // Nog een keer: opslaan na heropenen schrijft dezelfde Status.
   const again = opened.resave();
   eq('2e tweede ronde: L houdt Status STARTED', argsOf(again, 'IFCTASK', 'L')[STATUS], "'STARTED'");

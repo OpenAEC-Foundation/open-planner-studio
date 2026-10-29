@@ -217,7 +217,7 @@ export function useGanttViewportCoordinator(
       current.tasks,
       rect.width,
       current.enableQuarterHourZoom,
-      current.enableHourPlanning,
+
       dayDistance,
     );
     if (!fit) return;
@@ -231,7 +231,7 @@ export function useGanttViewportCoordinator(
     containerRef: primaryContainerRef,
     view: input.view,
     enableQuarterHourZoom: input.enableQuarterHourZoom,
-    enableHourPlanning: input.enableHourPlanning,
+
     scrollMode: input.scrollMode,
     positionDivision: input.positionDivision,
     modifierMap: input.modifierMap,
@@ -262,7 +262,7 @@ export function useGanttViewportCoordinator(
       current.tasks,
       rect.width,
       current.enableQuarterHourZoom,
-      current.enableHourPlanning,
+
       dayDistance,
     );
     current.clearPendingFit();
@@ -271,7 +271,7 @@ export function useGanttViewportCoordinator(
     current.setZoom(fit.zoom);
     current.setViewStartDate(fit.viewStartDate);
     current.setScroll(fit.scrollX, 0);
-  }, [input.view.pendingFit, input.tasks, input.enableQuarterHourZoom, input.enableHourPlanning, input.clearPendingFit, input.setZoom, input.setViewStartDate, input.setScroll, dayDistance, registerBoundsForZoom]);
+  }, [input.view.pendingFit, input.tasks, input.enableQuarterHourZoom, input.clearPendingFit, input.setZoom, input.setViewStartDate, input.setScroll, dayDistance, registerBoundsForZoom]);
 
   useEffect(() => {
     const current = latest.current;
@@ -415,7 +415,7 @@ export function useGanttViewportCoordinator(
           requestedZoom,
           currentSplit.secondaryScrollX,
           anchorX,
-          maxGanttZoom(current.enableQuarterHourZoom, current.enableHourPlanning),
+          maxGanttZoom(current.enableQuarterHourZoom),
         );
         if (next.zoom !== currentSplit.secondaryZoom) current.setSplitView({
           ...currentSplit,

@@ -17,16 +17,15 @@
 //   2. Taakduur bij meerdere toewijzingen: R = max over de werkresources van W_i / I_i.
 //      Direct ná een evenredige herverdeling is dat W / ΣI; "R = W / ΣI" wordt hier nooit als losse
 //      formule gebruikt.
-//   3. Na afronding (dagmodus: hele werkdagen, uurmodus: hele minuten, beide naar boven) zijn W en I
-//      de opgeslagen grootheden en is R afgeleid; een volgende bewerking rekent uit de exacte W en I,
-//      nooit terug uit de afgeronde R.
+//   3. W en I zijn de opgeslagen grootheden en R is exact afgeleid, in beide maten (T14).
+//      Een volgende bewerking rekent uit W en I, zonder afronding op dagen of minuten.
 //
 // "Afwezig ⇒ afgeleid": een toewijzing zonder `remainingWorkMinutes` heeft werk R × I. Een regel
 // die werk beschermt legt dat werk vast (schrijft het veld) op het moment dat ze het nodig heeft;
 // een regel die de inzet beschermt laat een afwezig veld afwezig.
 // Uitzondering: FIXED_RATE herleidt bij een inzet- of slotwissel de duur UIT het
 // werk van de bewerkte toewijzing en legt dat werk dan ook vast — anders rekent de volgende bewerking
-// terug uit de afgeronde R (regel 3). De ándere toewijzingen volgen nog steeds `followRule`.
+// terug uit een andere afgeleide R (regel 3). De ándere toewijzingen volgen nog steeds `followRule`.
 import type { WorkRule } from '@/types/workRule';
 
 export interface TriangleAssignment {
@@ -51,9 +50,6 @@ export interface TriangleState {
   remainingMinutes: number;
   /** Werkminuten per werkdag (`hoursPerDay × 60`). */
   slotMinutes: number;
-  /** Dagmodus: R wordt naar boven op hele werkdagen (veelvouden van `slotMinutes`) afgerond;
-   *  uurmodus: op hele minuten. */
-  wholeDays: boolean;
   assignments: readonly TriangleAssignment[];
 }
 
@@ -69,8 +65,6 @@ export type TriangleResult =
   | { ok: false; reason: TriangleRejection };
 
 // ── Hulpfuncties ────────────────────────────────────────────────────────────────────────────────
-
-const EPS = 1e-9;
 
 const isPositive = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n) && n > 0;
 
@@ -97,19 +91,6 @@ export function remainingWorkOf(a: TriangleAssignment, remainingMinutes: number)
   return a.remainingWorkMinutes ?? remainingMinutes * a.unitsPerDay;
 }
 
-/** Afronding van een afgeleide restduur (regel 3): naar boven op hele werkdagen in dagmodus,
- *  op hele minuten in uurmodus. Nooit onder één slot resp. één minuut. Een ongeldig `slotMinutes`
- *  (≤ 0) valt in dagmodus stil terug op minuutafronding — de bedrading levert altijd
- *  `hoursPerDay × 60`, dit is de tweede grendel. */
-export function roundUpRemaining(minutes: number, state: Pick<TriangleState, 'slotMinutes' | 'wholeDays'>): number {
-  if (!Number.isFinite(minutes) || minutes <= 0) return 0;
-  if (state.wholeDays) {
-    const slot = Math.max(1, state.slotMinutes);
-    return Math.max(slot, Math.ceil(minutes / slot - EPS) * slot);
-  }
-  return Math.max(1, Math.ceil(minutes - EPS));
-}
-
 /**
  * Uitgangsvalidatie: een regel mag nooit een restduur ≤ 0 of een inzet ≤ 0 / niet-eindig
  * opleveren — dan wordt de bewerking geweigerd en blijft de oude toestand staan. Dit vangt in één
@@ -127,27 +108,36 @@ function validated(state: TriangleState): TriangleResult {
   return { ok: true, state };
 }
 
-/** R = max_i(W_i / I_i) over de werkresources, met W_i afgeleid waar het veld ontbreekt (regel 2),
- *  daarna afgerond (regel 3). Zonder werkresources blijft de huidige restduur staan; is al het
+/** De restduur die ÉÉN toewijzing zelf vraagt: W_i / I_i (de term van regel 2), met W_i afgeleid
+ *  waar het veld ontbreekt, zonder afronding (regel 3). `null` voor een toewijzing die de duur niet
+ *  stuurt (materiaal) of zonder geldige inzet. De taakduur is het maximum hiervan over de
+ *  werkresources ({@link derivedRemaining}); de `.mpp`-lezer gebruikt dezelfde term voor de
+ *  wandeling per toewijzing (`deriveTimephasedWindowsForTasks`). */
+export function assignmentRemainingMinutes(a: TriangleAssignment, remainingMinutes: number): number | null {
+  if (!a.drivesDuration || !isPositive(a.unitsPerDay)) return null;
+  return remainingWorkOf(a, remainingMinutes) / a.unitsPerDay;
+}
+
+/** R = max_i(W_i / I_i) over de werkresources ({@link assignmentRemainingMinutes}, regel 2),
+ *  zonder afronding (regel 3). Zonder werkresources blijft de huidige restduur staan; is al het
  *  restwerk 0, dan komt er 0 uit en weigert `validated` de bewerking. */
 function derivedRemaining(state: TriangleState, assignments: readonly TriangleAssignment[]): number {
   let max = 0;
   let any = false;
   for (const a of assignments) {
-    if (!a.drivesDuration || !isPositive(a.unitsPerDay)) continue;
+    const own = assignmentRemainingMinutes(a, state.remainingMinutes);
+    if (own === null) continue;
     any = true;
-    max = Math.max(max, remainingWorkOf(a, state.remainingMinutes) / a.unitsPerDay);
+    max = Math.max(max, own);
   }
   if (!any) return state.remainingMinutes;
-  return roundUpRemaining(max, state);
+  return max;
 }
 
 /** Nadat R is herleid: de ANDERE toewijzingen volgen de beschermde hoek van de regel — werk vast ⇒
  *  inzet = W / R; inzet vast ⇒ een aanwezig werkveld wordt R × I, een afwezig veld blijft afwezig.
- *  Let op bij de inzetbeschermende regels: een veldloze toewijzing heeft afgeleid werk R × I, dus
- *  wordt R door een ándere toewijzing naar boven afgerond, dan groeit haar werk met die afronding
- *  mee. Dat volgt uit "afwezig ⇒ afgeleid" (de inzet is wat de gebruiker koos) en is de enige plek
- *  waar afrondingsruis in een later vastgelegd werkveld kan belanden. */
+ *  Een veldloze toewijzing heeft afgeleid werk R × I: verandert een andere toewijzing de duur,
+ *  dan volgt dat werk de nieuwe exacte R. De inzet is wat de gebruiker koos. */
 function followRule(
   state: TriangleState,
   assignments: readonly TriangleAssignment[],
@@ -196,7 +186,7 @@ const drivingCount = (assignments: readonly TriangleAssignment[]): number =>
  */
 export function applyDurationEdit(state: TriangleState, newRemainingMinutes: number): TriangleResult {
   if (!isPositive(newRemainingMinutes)) return { ok: false, reason: 'invalid-duration' };
-  const R = roundUpRemaining(newRemainingMinutes, state);
+  const R = newRemainingMinutes;
   const keepWork = durationEditKeepsWork(state.rule, state.effortDriven);
   const assignments = state.assignments.map((a) => {
     if (!a.drivesDuration) return a;
@@ -233,7 +223,7 @@ export function applyUnitsEdit(state: TriangleState, assignmentId: string, newUn
     return validated({ ...state, assignments: replaceAt(state.assignments, idx, edited) });
   }
   // Duur herleid uit W_oud / I'. Zowel FIXED_WORK als FIXED_RATE leggen W_oud vast: zo rekent
-  // een volgende bewerking uit het exacte W en niet terug uit de afgeronde R (regel 3). Onder
+  // een volgende bewerking uit het exacte W en niet terug uit een andere R (regel 3). Onder
   // FIXED_RATE is dat MS Projects Fixed Units, dat Work per toewijzing altijd bewaart — inzet heen en
   // terug geeft daar de oude duur.
   const workBefore = remainingWorkOf(target, state.remainingMinutes);
@@ -371,12 +361,11 @@ export function applyRuleChange(state: TriangleState, rule: WorkRule): TriangleR
  *  - FIXED_DURATION_RATE: duur en inzet blijven, het werk volgt (alleen een aanwezig veld wordt
  *    herschreven; afwezig blijft afwezig);
  *  - FIXED_DURATION_WORK: duur en werk blijven, de inzet wordt W / R';
- *  - FIXED_WORK / FIXED_RATE: werk en inzet blijven, R = max_i(W_i / I_i) in de nieuwe slot (naar
- *    boven op hele dagen) — minder uren per dag maakt de taak langer.
+ *  - FIXED_WORK / FIXED_RATE: werk en inzet blijven, R = max_i(W_i / I_i) in de nieuwe slot,
+ *    zonder afronding — minder uren per dag maakt de taak langer.
  * Uurtaken hebben geen slotafhankelijke duur; de aanroeper (brug) roept dit dan niet aan.
  * FIXED_WORK én FIXED_RATE leggen het anker vast als werkveld (regel 3: heen en terug van 8 naar 6
- * en weer 8 u/dag geeft de oude duur, zoals MS Project dat Work bewaart). Zonder dat veld loopt de
- * duur bij heen-en-weer op (5 → 7 → 6 d).
+ * en weer 8 u/dag geeft de oude duur, zoals MS Project dat Work bewaart).
  * Eén bewuste afwijking van `applyDurationEdit`:
  *  - de `effortDriven`-uitzondering speelt hier niet: die uitzondering geldt een DUURbewerking in
  *    dagen, en een slotwissel verandert de restduur in dagen juist niet. Een MSP-import met

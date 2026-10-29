@@ -1,3 +1,5 @@
+import { minuteModelTransition, minuteModelNotice, recordMinuteModelTransition, type MinuteModelTransition } from '../minuteModelTransition';
+import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
 import { castDraft } from 'immer';
 import type { AppState } from '../appStore';
 import type { AppSliceFactory } from './types';
@@ -406,6 +408,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       // vastlegging/modus tot de kopie zelf een bewerking of berekening krijgt.
       recordedDates: src.recordedDates,
       datesAsRecorded: src.datesAsRecorded,
+      minuteModelPending: src.minuteModelPending,
       selectedTaskIds: [],
       activeTaskId: null,
       view: deepClone(src.view),
@@ -627,6 +630,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     let active: RecoveryDocInput | null = null;
     let prepared: DocumentPayload | null = null;
     let activation: DocumentActivationMaterialization | null = null;
+    let conversion: MinuteModelTransition | null = null;
     for (const candidate of tryOrder) {
       try {
         const rawPayload = payloadFromInput(candidate);
@@ -642,8 +646,12 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
         const a = materializeLibraryBoundary({
           payload: p, companies: state.companies, pools: state.pools, mode: 'open-boundary',
         });
+        // `minuteModelTransition` normaliseert de vastlegging zelf (één normalisatie per grens).
+        conversion = minuteModelTransition(rawPayload, a.payload,
+          captureRecordedDates(rawPayload.tasks, candidate.recordedFields, candidate.recordedTimes));
+        a.payload = conversion.after;
         active = candidate;
-        prepared = p;
+        prepared = conversion.after;
         activation = a;
         break;
       } catch (err) {
@@ -708,8 +716,11 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       resetDocumentScopedUI(s);
       if (activation2.invalidateRedoScope) invalidateDocumentRedo(s, activeDoc.id);
       publishActivation(s, activation2);
+      if (conversion) recordMinuteModelTransition(s, conversion, activeDoc.id);
     });
     announceWorkRuleSettle(get().notify, activeDoc.id, null, activation2);
+    const conversionNotice = conversion && minuteModelNotice(conversion);
+    if (conversionNotice) get().notify(conversionNotice);
     // De solve gebeurde al op de geïsoleerde actieve payload. Herstel nu alleen dezelfde zichtbare
     // foutmelding en extension-eventsemantiek als een gewone runCPM, ná de atomaire publicatie.
     const cpm = activePayload.cpmResult;
@@ -746,7 +757,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     for (const entry of state.documents) {
       if (entry.id === state.activeDocumentId) continue; // eigen pad (useAutoCalcCPM → runCPM).
       const payload = entry.payload;
-      if (!payload || !payload.scheduleStale) continue;
+      if (!payload || !payload.scheduleStale || payload.minuteModelPending) continue;
 
       let next: DocumentPayload;
       try {

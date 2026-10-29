@@ -1,6 +1,7 @@
 import type { Baseline, BaselineTask } from '@/types/baseline';
 import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
 import type { Task } from '@/types/task';
+import type { WorkCalendar } from '@/types/calendar';
 import type { WorkRule } from '@/types/workRule';
 import type { DurationDisplay, TimeNotation } from '@/types/view';
 import type { TaskRelationIndex } from '@/engine/taskGrid/relationIndex';
@@ -144,9 +145,15 @@ export interface TaskColumnContext {
   /** Projectinstellingen die alleen de descriptorbewerkbaarheid/-parser sturen. */
   wbsAutoNumber?: boolean;
   effectiveHoursPerDay?: (task: Task) => number;
+  /** B4: de werkdaggrenzen voor datumweergave, ook op een scalaire kalender. */
+  effectiveCalendar?: (task: Task) => WorkCalendar;
   /** Instelling Duurweergave voor de weergavetekst van de Duur-kolom (edit- en kopieertekst blijven
-   *  de eigen, parsebare eenheid); ontbreekt ⇒ `'auto'`. */
+   *  de eigen, parsebare eenheid); ontbreekt ⇒ `'auto'`. In het OPS-profiel geeft het raster hier
+   *  altijd `'auto'` door (B9, `effectiveDurationDisplay`). */
   durationDisplay?: DurationDisplay;
+  /** Telt het rekenprofiel een dagenmaat in werkdagen (conventie `workdayDurationMeasure`)? Aan of
+   *  afwezig ⇒ "5d" is de dagenmaat; uit (P6, MSP) ⇒ "5d" is de urenmaat (B8, §3.12). */
+  workdayDurationMeasure?: boolean;
   /** App-taal voor het decimaalteken van duren en speling; ontbreekt ⇒ punt. */
   numberLocale?: string;
   /** De echte projectkalenderberekening voor baselineafwijkingen (`variance.signedWorkDaysBetween`).

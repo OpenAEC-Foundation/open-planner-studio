@@ -883,8 +883,67 @@ const WEB_KIND_INDEX = 'kind';
 // Na een geblokkeerde detectie is de oude herstelkeuze nog niet gemaakt. Laat een late ontgrendeling
 // daarom niet alsnog schrijven/wissen/roteren; alleen een nieuwe paginastart probeert herstel opnieuw.
 let webUpgradeBlocked: IndexedDbUpgradeBlockedError | null = null;
+
+/**
+ * De browser weigert IndexedDB voor deze pagina (issue #582). Voorbeeld: de SuperCloud-werkplek
+ * draait de webbuild in een sandbox-iframe zonder `allow-same-origin`; de origin is dan opaque en
+ * `indexedDB.open` gooit een `SecurityError`, of `indexedDB` ontbreekt helemaal. Crashherstel gaat
+ * dan stil uit voor deze sessie: geen melding, één regel in de console. Opslaan via de site
+ * (`window.openaecHost`) staat hier los van en werkt gewoon.
+ *
+ * Alleen zolang de opslag in deze sessie nog niet werkte: na de eerste geslaagde opslagactie
+ * (`webStorageProven`) is een `SecurityError` een gewone fout met de bestaande zichtbare foutroute.
+ * Anders zou een latere uitval in een gewone browser het crashherstel stil uitzetten.
+ */
+export class RecoveryStorageUnavailableError extends Error {
+  constructor(readonly refusal?: unknown) {
+    super('Crashherstel is niet beschikbaar: de browser weigert IndexedDB voor deze pagina.');
+    this.name = 'RecoveryStorageUnavailableError';
+  }
+}
+
+let webStorageUnavailable = false;
+/**
+ * De webopslag werkte in deze sessie al: een geslaagde lezing in `readWebRecovery` (de opstartcontrole)
+ * of een geslaagde save, wis- of uitstelactie. Daarna wordt geen enkele fout meer een stille weigering.
+ */
+let webStorageProven = false;
+
+/** `true` als de webopslag voor crashherstel in deze sessie geweigerd is. Desktop: altijd `false`. */
+export function recoveryStorageUnavailable(): boolean {
+  return !isTauri() && webStorageUnavailable;
+}
+
+/** Alleen een weigering van de opslag zelf, en alleen vóór de eerste geslaagde opslagactie; een
+ *  quota-, lees- of upgradefout, en elke fout ná `webStorageProven`, houdt haar eigen route. */
+const isStorageRefusal = (error: unknown): boolean =>
+  error instanceof RecoveryStorageUnavailableError
+  || (!webStorageProven && typeof error === 'object' && error !== null
+    && (error as { name?: unknown }).name === 'SecurityError');
+
+/** Zet de sessievlag (één consoleregel, alleen de eerste keer) en geef de fout voor de aanroeper. */
+function markStorageUnavailable(cause: unknown): RecoveryStorageUnavailableError {
+  if (cause instanceof RecoveryStorageUnavailableError) return cause;
+  if (!webStorageUnavailable) {
+    webStorageUnavailable = true;
+    console.info('Crashherstel staat uit voor deze sessie: de browser weigert IndexedDB.', cause);
+  }
+  return new RecoveryStorageUnavailableError(cause);
+}
+
+/** Een weigering wordt `RecoveryStorageUnavailableError`; elke andere fout blijft ongewijzigd. */
+const asStorageRefusal = (error: unknown): unknown => (isStorageRefusal(error) ? markStorageUnavailable(error) : error);
+
 const openRecoveryDb = async (): Promise<IDBDatabase> => {
   if (webUpgradeBlocked) throw webUpgradeBlocked;
+  if (webStorageUnavailable) throw new RecoveryStorageUnavailableError();
+  // Lezen van `indexedDB` kan zelf al gooien (opaque origin in sommige browsers), of de waarde
+  // ontbreekt. Beide tellen als weigering, net als een `SecurityError` bij het openen.
+  // Na bewezen werkende opslag blijft ook dit een gewone fout.
+  const refuse = (cause: unknown) => (webStorageProven ? cause : markStorageUnavailable(cause));
+  let factory: unknown;
+  try { factory = (globalThis as { indexedDB?: unknown }).indexedDB; } catch (error) { throw refuse(error); }
+  if (!factory) throw refuse(new Error('indexedDB ontbreekt'));
   try {
     return await openDbStores(
       WEB_DB, WEB_DB_VERSION, [WEB_STORE, WEB_ARCHIVE_STORE],
@@ -892,7 +951,7 @@ const openRecoveryDb = async (): Promise<IDBDatabase> => {
     );
   } catch (error) {
     if (error instanceof IndexedDbUpgradeBlockedError) webUpgradeBlocked = error;
-    throw error;
+    throw asStorageRefusal(error);
   }
 };
 const SESSION_KEY = 'ops-recovery-session';
@@ -909,16 +968,22 @@ const CLAIM_RETRY_MS = 150;
  * voor een "page lease". `ifAvailable` zorgt dat we niet gaan wachten maar meteen weten of iemand
  * anders hem al heeft.
  */
-function claimLock(name: string): Promise<boolean> {
-  const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
-  if (!locks) return Promise.resolve(true); // geen Web Locks → geen detectie mogelijk
-  return new Promise<boolean>((resolve) => {
-    locks.request(name, { mode: 'exclusive', ifAvailable: true }, (lock) => {
-      resolve(lock !== null);
-      if (!lock) return undefined;
-      return new Promise<never>(() => { /* nooit vrijgeven: leeft zolang deze pagina leeft */ });
-    }).catch(() => resolve(false));
-  });
+async function claimLock(name: string): Promise<boolean> {
+  try {
+    const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
+    if (!locks) return true; // geen Web Locks → geen detectie mogelijk
+    return await new Promise<boolean>((resolve, reject) => {
+      locks.request(name, { mode: 'exclusive', ifAvailable: true }, (lock) => {
+        resolve(lock !== null);
+        if (!lock) return undefined;
+        return new Promise<never>(() => { /* nooit vrijgeven: leeft zolang deze pagina leeft */ });
+      }).catch(reject);
+    });
+  } catch {
+    // Ook een synchrone fout in getter/request betekent een onzekere claim, geen geweigerde
+    // IndexedDB. Volg dezelfde retry/nieuwe-id-route als bij een afgewezen lock-promise (373).
+    return false;
+  }
 }
 
 const delay = (ms: number) => new Promise<void>((r) => { setTimeout(r, ms); });
@@ -1299,7 +1364,7 @@ async function saveWeb(input: RecoverySaveInput): Promise<void> {
 async function readWebRecovery(strict = false): Promise<{ records: WebRecord[]; archives: Map<string, Uint8Array> }> {
   try {
     const db = await openRecoveryDb();
-    return await new Promise((resolve, reject) => {
+    const read = await new Promise<{ records: WebRecord[]; archives: Map<string, Uint8Array> }>((resolve, reject) => {
       const tx = db.transaction([WEB_STORE, WEB_ARCHIVE_STORE], 'readonly');
       const allRequest = tx.objectStore(WEB_STORE).getAll();
       allRequest.onerror = () => reject(allRequest.error);
@@ -1321,16 +1386,26 @@ async function readWebRecovery(strict = false): Promise<{ records: WebRecord[]; 
         }
       };
     });
+    webStorageProven = true;
+    return read;
   } catch (error) {
-    if (strict || error instanceof IndexedDbUpgradeBlockedError) throw error;
+    // Ook een weigering bij de eerste transactie zet de sessievlag (issue #582).
+    const refusal = asStorageRefusal(error);
+    if (strict || error instanceof IndexedDbUpgradeBlockedError) throw refusal;
     return { records: [], archives: new Map() };
   }
 }
 
 async function loadWeb(): Promise<LoadedRecovery> {
+  // Eerst de sessieclaims, dan pas de herstelread (review PR #644): een gedupliceerd tabblad wacht
+  // hier op de lock; las het vóór die wachttijd, dan kon het een oudere generatie herstellen en daarna
+  // bij het wissen de nieuwere generatie van het andere tabblad weggooien. In een opaque origin kost
+  // dit niets extra: daar weigert sessionStorage en geeft `resolveSessionId` meteen `'default'`.
   const sid = await sessionId();
   const held = await heldSessionIds();
   const { records: all, archives: allArchives } = await readWebRecovery();
+  // Bij een geweigerde opslag (issue #582) is er niets te herstellen.
+  if (webStorageUnavailable) return emptyRecovery();
   const candidates = webManifestCandidates(all);
   checkWebGenerations(candidates, [sid, ...held]);
   const docs: LoadedRecoveryDoc[] = [];
@@ -1434,12 +1509,46 @@ function serializeRecoveryWrite(action: () => Promise<void>): Promise<void> {
   return run;
 }
 
+/** Lege herstelset: dezelfde vorm als een webstart zonder snapshots. */
+const emptyRecovery = (): LoadedRecovery => ({ activeDocumentId: null, docs: [], archives: new Map() });
+
+/** Webtak van wis- en uitstelacties: na een geweigerde opslag stil een no-op (issue #582). */
+async function quietWhenRefused(action: () => Promise<void>): Promise<void> {
+  if (webStorageUnavailable) return;
+  try { await action(); webStorageProven = true; } catch (error) {
+    if (isStorageRefusal(error)) { markStorageUnavailable(error); return; }
+    throw error;
+  }
+}
+
+/**
+ * Weigert de browser IndexedDB, dan gooit de webtak `RecoveryStorageUnavailableError` in plaats van
+ * stil over te slaan. Bewuste keuze: `runRecoveryTick` legt pas na een geslaagde `saveRecovery` vast
+ * dat de bron bewaard is (`RecoveryDeltaTracker.commit`). Een stille overslag zou dat ten onrechte
+ * doen. De fout zelf blijft stil: `notifyRecoveryError` handelt hem af zonder melding, en
+ * `useAutoSave` slaat volgende rondes over via `recoveryStorageUnavailable()`. Werkte de opslag in
+ * deze sessie al (`webStorageProven`), dan is een `SecurityError` een gewone fout met een melding.
+ */
 export function saveRecovery(input: RecoverySaveInput): Promise<void> {
-  return serializeRecoveryWrite(() => (isTauri() ? saveTauri(input) : saveWeb(input)));
+  return serializeRecoveryWrite(async () => {
+    if (isTauri()) { await saveTauri(input); return; }
+    if (webStorageUnavailable) throw new RecoveryStorageUnavailableError();
+    try { await saveWeb(input); } catch (error) { throw asStorageRefusal(error); }
+    webStorageProven = true;
+  });
 }
 
 export async function loadRecovery(): Promise<LoadedRecovery> {
-  const loaded = await (isTauri() ? loadTauri() : loadWeb());
+  let loaded: LoadedRecovery;
+  if (isTauri()) loaded = await loadTauri();
+  else if (webStorageUnavailable) return emptyRecovery();
+  else {
+    try { loaded = await loadWeb(); } catch (error) {
+      // Geweigerde opslag: er kan geen herstelset zijn. Geen fout, geen melding.
+      if (isStorageRefusal(error)) { markStorageUnavailable(error); return emptyRecovery(); }
+      throw error;
+    }
+  }
   // De herstelverificatie (lengte + SHA-256 per blob) en de reconstructie hashen synchroon; reken de
   // digests hier vooraf native uit (`crypto.subtle`), zodat dat niet in pure JS op de hoofdthread loopt.
   for (const bytes of loaded.archives.values()) await precomputeSha256(bytes);
@@ -1447,13 +1556,14 @@ export async function loadRecovery(): Promise<LoadedRecovery> {
 }
 
 export function clearRecovery(): Promise<void> {
-  return serializeRecoveryWrite(() => (isTauri() ? clearTauri() : clearWeb()));
+  return serializeRecoveryWrite(() => (isTauri() ? clearTauri() : quietWhenRefused(clearWeb)));
 }
 
 /**
  * Schone afsluiting van de desktopapp: alleen de eigen snapshots van deze start weghalen; uitgestelde
  * of nog niet aangeboden snapshots blijven voor de volgende start (zie `planRecoveryExitClear`).
- * Web: no-op (daar is geen afsluitmoment; `beforeunload` in `useAutoSave`).
+ * Web: no-op (daar is geen afsluitmoment; `beforeunload` in `useAutoSave`), dus ook na een
+ * geweigerde opslag.
  */
 export function clearOwnRecovery(): Promise<void> {
   return serializeRecoveryWrite(() => (isTauri() ? clearOwnTauri() : Promise.resolve()));
@@ -1467,5 +1577,5 @@ export function clearOwnRecovery(): Promise<void> {
  * na een geslaagde nieuwe snapshot-/manifestcommit worden opgeruimd. Uitstellen geeft geen ids.
  */
 export function holdRecoveryForLater(restoredDocumentIds: readonly string[] = []): Promise<void> {
-  return serializeRecoveryWrite(() => (isTauri() ? holdTauri(restoredDocumentIds) : holdWeb()));
+  return serializeRecoveryWrite(() => (isTauri() ? holdTauri(restoredDocumentIds) : quietWhenRefused(holdWeb)));
 }

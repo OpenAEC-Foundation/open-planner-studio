@@ -1,3 +1,6 @@
+import { normalizeTaskDates } from '../migrations/minuteModel';
+import { minuteModelTransition, minuteModelNotice, recordMinuteModelTransition, type MinuteModelTransition } from '../minuteModelTransition';
+import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
 import { claimTaskTypesNotice, notifyTaskTypesUnlocked, notifyTaskTypesUnlockedClaimed, TASK_TYPES_DETAIL_LINE } from '../taskTypesNotice';
 import { taskTypesNeedNotice } from '../taskTypesVisibility';
 import { writeIFC, ifcObjectSeed } from '@/services/ifc/ifcWriter';
@@ -7,7 +10,7 @@ import { flattenOrder, inferWbsAutoNumberOnOpen } from '@/utils/wbs';
 import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { writeP6XMLWithReport } from '@/services/p6/p6xmlWriter';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
-import { openFileDialog, saveFileDialog, saveBytesDialog, saveToRef, readFromRef, readBytesFromRef, saveTargetRef, type FileRef, type SaveOutcome } from '@/services/fileAccess';
+import { openFileDialog, saveFileDialog, saveBytesDialog, saveToRef, readFromRef, readBytesFromRef, saveTargetRef, type FileRef, type OpenedFile, type SaveOutcome } from '@/services/fileAccess';
 import { isSiteConflict, isSiteNotFound, siteErrorMessage, siteStorageAvailable } from '@/services/fileAccess/siteHost';
 import { openSiteFile, saveNewSiteFile, saveSiteFileVersion } from '@/services/fileAccess/siteBackend';
 import { askSiteOpen, askSiteSave, type SiteOpenChoice } from '@/services/fileAccess/siteDialogs';
@@ -33,7 +36,6 @@ import { applyRecordedDatesOnLoad, materializeLibraryBoundary, prepareLoadedPayl
 import { notifyCalendarLibrarySettle } from '../calendarTasks';
 import { unrecordedExportGate } from '../recordedDatesSelectors';
 import { buildExportIFCInput, buildWriteIFCInput, sameIFCSource } from '../ifcSaveInput';
-import { fileHasHourData } from '@/services/subdayIo';
 import { documentFileBase } from '@/utils/documents';
 import { documentProjectCode } from '@/utils/documentProjectCode';
 import { refreshExternalAnchors, type ExternalSourceDoc } from '@/engine/externalLinks';
@@ -380,8 +382,6 @@ export interface ApplyLoadedProjectOpts {
   recompute?: boolean;
   /** Canvas op het hele project passen (requestFitToProject). Open-paden: true; loadState: false. */
   fit?: boolean;
-  /** Uur-data-melding berekenen en zetten. Open-paden: true; loadState: false. */
-  hourDataNotice?: boolean;
   /** True = een echt open-pad (`openAsDocument`: openFile/openRecentFile/MCP-import): behoud
    *  bedrijfsbinding + stempels en draai de grens-1-check. False (default) = een volledig-
    *  vervangende load (loadState: Backstage/extensie-import): laad LOS — strip
@@ -417,12 +417,20 @@ export interface AppliedOpenedImport {
   documentIds: string[];
   activeDocumentId: string;
   reusedActiveTab: boolean;
+  /** B5: per geopend oud document waarvan het openen taken verschoof, dezelfde telling en grootste
+   *  verschuiving als de melding `notifications.minuteModelConverted`. Voor aanroepers die het
+   *  meldingenkanaal niet zien (MCP, de headless kern); leeg als niets verschoof. */
+  minuteModelConversions: (Pick<MinuteModelTransition, 'shifted' | 'maxWorkdays'> & { documentId: string })[];
 }
 
 export interface FileSlice {
   /** `labels` — vertaalde teksten die de UI aanlevert omdat de store-laag geen `t(...)` heeft (zie
    *  `ImportLabels`); weglaten geeft de Engelse default. Geldt voor elk laadpad hieronder. */
   openFile: (labels?: ImportLabels) => Promise<void>;
+  /** De rest van `openFile` zodra er een bestand is: herkennen, openen als document, meldingen,
+   *  recents. Ook voor de dev-link `?open=` (`src/utils/devOpenLink.ts`), zodat die geen eigen
+   *  inleesroute heeft. */
+  openOpenedFile: (opened: OpenedFile, labels?: ImportLabels) => Promise<void>;
   saveFile: () => Promise<void>;
   /** Bewaar exact het bedoelde document en meld of zijn ongewijzigde snapshot is vastgelegd. */
   saveFileForDocument: (documentId: string) => Promise<boolean>;
@@ -458,8 +466,10 @@ export interface FileSlice {
   /** Eén gedeelde load-implementatie: vul de ACTIEVE document-state met een geparsed
    *  project en voer de opt-afhankelijke nastappen uit (runCPM/fit/uur-melding/extensie-event).
    *  Neemt géén besluit over een nieuw tabblad — dat blijft bij de aanroeper vóór de load.
-   *  `loadState`, `applyProjectEdit` en de drie open-paden lopen hier allemaal doorheen. */
-  applyLoadedProject: (parsed: ImportResult, opts: ApplyLoadedProjectOpts) => void;
+   *  `loadState`, `applyProjectEdit` en de drie open-paden lopen hier allemaal doorheen.
+   *  Geeft de B5-overgang van het geladen document terug (`null` zonder overgang); de melding gaat
+   *  daarnaast zoals altijd via het meldingenkanaal. */
+  applyLoadedProject: (parsed: ImportResult, opts: ApplyLoadedProjectOpts) => MinuteModelTransition | null;
   /** Pas IFC-editorinhoud toe als bewerking van het actieve document, met één undo-stap. */
   applyProjectEdit: (parsed: ImportResult, opts?: { viewStartDate?: string }) => void;
   /**
@@ -892,6 +902,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         pools: current.pools,
         mode: opts.linkedOpen && !editing ? 'open-boundary' : 'silent-switch',
       });
+      const conversion = opts.recompute && !editing
+        // `minuteModelTransition` normaliseert de vastlegging zelf (één normalisatie per grens).
+        ? minuteModelTransition(payload, activation.payload,
+            captureRecordedDates(payload.tasks, parsed.recordedFields, parsed.recordedTimes))
+        : null;
+      if (conversion) activation.payload = conversion.after;
       set((s) => {
         // Een nieuwe projectinhoud: de vorige weigeringen gaan weg, net als bij een documentwissel
         // of een bewerking (eigenaarsbesluit 2026-10-19 5b). Vóór de meldingen hieronder.
@@ -902,20 +918,22 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           invalidateDocumentRedo(s, s.activeDocumentId);
         }
         hydratePayload(s, activation.payload);
+        if (conversion) recordMinuteModelTransition(s, conversion);
         s.viewRows = [...activation.viewRows];
         s.resourceLoadResult = activation.resourceLoadResult;
         s.ui.showLibraryLinkDialog = activation.signals.showLibraryLinkDialog;
         s.ui.libraryRefreshNotice = activation.signals.libraryRefreshNotice;
-        if (opts.hourDataNotice) {
-          const showNotice = !s.ui.enableHourPlanning && fileHasHourData(s.tasks, [s.calendar, ...s.calendars]);
-          // De melding hoort bij één document: het laatst geopende bestand met uur-data. Een ander
-          // bestand zonder uur-data laat hem staan; opent u er twee met uur-data, dan houdt alleen
-          // het laatste de strook.
-          if (showNotice) s.ui.hourDataNotice = s.activeDocumentId;
-          else if (s.ui.hourDataNotice === s.activeDocumentId) s.ui.hourDataNotice = null;
-        }
         if (editing) runtime.finishMutation(s);
       });
+      for (const cal of [payload.calendar, ...payload.calendars].filter((cal, i, all) => all.findIndex(c => c.id === cal.id) === i)) {
+        const source = cal.id === parsed.calendar.id ? parsed.calendar : parsed.resourceCalendars?.find(c => c.id === cal.id);
+        if (source && (source.workEndHour !== cal.workEndHour || source.simpleBreakStartMinute !== cal.simpleBreakStartMinute
+          || source.simpleBreakDurationMinutes !== cal.simpleBreakDurationMinutes)) {
+          get().notify({ severity: 'info', messageKey: 'notifications.minuteModelCalendarRepaired', params: { calendar: cal.name }, sticky: true });
+        }
+      }
+      const conversionNotice = conversion && minuteModelNotice(conversion);
+      if (conversionNotice) get().notify(conversionNotice);
       // De open-grens ververste een achterlopende bibliotheekkalender en de werkregel paste taken
       // aan — dezelfde melding als de kalenderdialoog.
       notifyCalendarLibrarySettle(get().notify, get().activeDocumentId, activation.workRuleSettle);
@@ -991,6 +1009,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         sequences: parsed.sequences.length,
         resources: parsed.resources.length,
       });
+      return conversion;
     },
 
     applyOpenedImport: (parsed, opts) => {
@@ -999,6 +1018,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
       const reusedActiveTab = isActivePristine(get());
       const openedDocumentIds: string[] = [];
+      const minuteModelConversions: AppliedOpenedImport['minuteModelConversions'] = [];
       // Som over alle zojuist geopende documenten in de modus van `recordedDates.total` (het aantal
       // taken dat de opgeslagen datums TOONT) — per document eigen vlag/eigen vastlegging (elk
       // document leest zijn eigen `recordedTimes` uit zijn eigen `ImportResult`), maar de MELDING
@@ -1019,7 +1039,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         openedDocumentIds.push(get().activeDocumentId);
         // `applyLoadedProject` draait de open-/bibliotheekgrens zelf (materializeLibraryBoundary),
         // dus elk document krijgt hem — geen aparte runOpenBoundary-aanroep meer nodig.
-        get().applyLoadedProject(result, { ...opts, deferTaskTypesNotice: true });
+        const conversion = get().applyLoadedProject(result, { ...opts, deferTaskTypesNotice: true });
+        // Dezelfde voorwaarde als `minuteModelNotice`: alleen een daadwerkelijke verschuiving telt.
+        if (conversion && conversion.shifted.length > 0) {
+          minuteModelConversions.push({ documentId: get().activeDocumentId,
+            shifted: [...conversion.shifted], maxWorkdays: conversion.maxWorkdays });
+        }
         // Taaktypes: ontsloten door de bestandsdata terwijl de instelling uit staat ⇒ één keer
         // per document geclaimd, maar gemeld in de ene bestandsmelding hieronder.
         // Alleen melden bij opgeslagen werk, een projectstandaard of
@@ -1091,6 +1116,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         documentIds: openedDocumentIds,
         activeDocumentId: get().activeDocumentId,
         reusedActiveTab,
+        minuteModelConversions,
       };
     },
 
@@ -1114,13 +1140,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         siteFileVersion: target.siteFileId ? source.siteFileVersion ?? null : null,
         recompute: true,
         fit: true,
-        hourDataNotice: true,
         linkedOpen: true,
       });
     },
 
     openFile: async (labels) => {
       if (siteQuestionOpen()) return;
+      let opened: OpenedFile | null;
       try {
         // Site-opslag aanwezig: eerst "Openen van de site" (met "Van deze pc…" voor de gewone
         // kiezer). Zonder site-opslag komt deze vraag nooit en blijft alles zoals het was.
@@ -1133,8 +1159,17 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
             return;
           }
         }
-        const opened = await openFileDialog(openDialogFilters(), { binaryExtensions: binaryExtensions() });
-        if (!opened) return;
+        opened = await openFileDialog(openDialogFilters(), { binaryExtensions: binaryExtensions() });
+      } catch (err) {
+        console.error('Failed to open file:', err);
+        get().notify(importFailureNotice(err, saveErrorDetail(err)));
+        return;
+      }
+      if (opened) await get().openOpenedFile(opened, labels);
+    },
+
+    openOpenedFile: async (opened, labels) => {
+      try {
         const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels);
 
         // Eén open-semantiek voor elk echt open-pad (tabblad, opslagdoel, gekoppeld laden),
@@ -1413,13 +1448,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           // ankers al ververst zijn. Deze verversing verandert taakdatums en draait meteen
           // `runCPM` — een gewone, zichtbare datamutatie dus, en die hoort ongedaan te kunnen.
           runtime.beginUndoable(s);
-          s.tasks = result.tasks;
+          s.tasks = result.tasks.map(task => normalizeTaskDates(task, s));
           runtime.finishMutation(s, { stale: true });
           applied = true;
         });
         if (applied) {
           get().recomputeViewRows();
-          get().runCPM();
+          get().runCPM({ withinEvent: true });
         }
       }
       return { refreshed: result.refreshed, missing: result.missing };
@@ -1516,13 +1551,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         set((s) => {
           if (s.activeDocumentId !== targetDocumentId) return;
           runtime.beginUndoable(s);
-          s.tasks = tasks;
+          s.tasks = tasks.map(task => normalizeTaskDates(task, s));
           runtime.finishMutation(s, { stale: true });
           applied = true;
         });
         if (applied) {
           get().recomputeViewRows();
-          get().runCPM();
+          get().runCPM({ withinEvent: true });
         }
       }
       return { refreshed, missing, sources: sourceDocs.length };
@@ -1595,7 +1630,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           siteFileId: null,
           recompute: true,
           fit: true,
-          hourDataNotice: true,
         });
         const archiveNotice = withOpenNoticeSticky(withXerArchiveIssueNotice(undefined, [parsed.xerArchiveIssue]));
         if (archiveNotice) get().notify(archiveNotice);

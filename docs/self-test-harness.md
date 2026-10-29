@@ -16,6 +16,9 @@ Daarnaast bestaat de app-eigen MCP-bridge (Tier 1½, hieronder): geen dev-only t
 echte AI-assistent-oppervlak van de app (de `planner_*`-tools) — Tauri-only en een bewuste
 gebruikerskeuze (`ui.aiMode`), geen vervanging van Tier 1 of 2.
 
+Een testbestand met één link openen voor handmatige controle (`?open=examples/…&theme=dark`, alleen dev-server):
+zie [`dev-link.md`](dev-link.md).
+
 ## Gecommitteerde browserpoort
 
 De vaste regressiesuite staat in `tests/browser/` en draait als vijfde gedragssuite achter zowel

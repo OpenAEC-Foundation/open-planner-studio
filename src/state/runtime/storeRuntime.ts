@@ -1,3 +1,4 @@
+import { assertMinuteModelTaskDates } from '../migrations/minuteModel';
 import { createSnapshot, type Snapshot } from '../snapshot';
 import { currentAppState } from '../immerDraft';
 import {
@@ -266,6 +267,7 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
     },
 
     finishMutation(state, opts) {
+      if (import.meta.env?.DEV) assertMinuteModelTaskDates(state.tasks);
       const pending = pendingByDraft.get(state as object);
       if (pending) pending.edited = true;
       markDocumentEdited(state);

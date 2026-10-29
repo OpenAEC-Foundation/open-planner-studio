@@ -184,6 +184,20 @@ export function sourceProjectKeyFor(sourceRef: ExternalSourceRef, origin: Extern
   return externalSourcePathKey(sourceRef.filePath) ?? `id-only:${origin.ownerTaskId}:${origin.linkId}`;
 }
 
+/** Een lag in werkdagen van een externe relatie: eindig en niet onveilig groot. Een breuk mag (I12, zoals
+ *  bij een interne relatie). Een lag in minuten blijft een heel getal. Gedeeld door de invoer, het
+ *  klembord en het relatieplan, zodat de drie routes dezelfde grens hebben. */
+export function isValidExternalLagValue(key: 'lagDays' | 'lagMinutes', value: unknown): value is number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || Math.abs(value) > MAX_LAG_ABS) return false;
+  return key === 'lagDays' || Number.isSafeInteger(value);
+}
+
+/** Een lag in werkdagen op zes decimalen, zoals de lag van een interne relatie (`parseLagInput`) en de
+ *  opslag in IFC; zo wordt "1/3" geen lange staart. Zonder `-0`. */
+function externalLagDays(value: number): number {
+  return Number(value.toFixed(6)) || 0;
+}
+
 export function parseExternalLagInput(input: string): ExternalLag | null {
   const normalized = input.trim().toLowerCase().replace(/\s+/g, '');
   if (!normalized) return { lagDays: 0 };
@@ -192,12 +206,14 @@ export function parseExternalLagInput(input: string): ExternalLag | null {
   const value = Number.parseFloat(match[1].replace(',', '.'));
   if (!Number.isFinite(value) || Math.abs(value) > MAX_LAG_ABS) return null;
   const suffix = match[2] ?? 'd';
-  // Daginvoer gebruikt dezelfde symmetrische afronding als interne relaties.
-  const storedValue = suffix === 'u' || suffix === 'h'
-    ? Math.round(value * 60)
-    : (Math.sign(value) * Math.round(Math.abs(value)) || 0);
-  if (!Number.isSafeInteger(storedValue) || Math.abs(storedValue) > MAX_LAG_ABS) return null;
-  return suffix === 'u' || suffix === 'h' ? { lagMinutes: storedValue } : { lagDays: storedValue };
+  // Uren worden hele minuten. Dagen houden hun breuk (I12): "0,5d" is een halve werkdag, net als bij
+  // een interne relatie. Vroeger rondde deze invoer half van nul af ("0,5d" werd 1 werkdag).
+  if (suffix === 'u' || suffix === 'h') {
+    const lagMinutes = Math.round(value * 60) || 0;
+    return isValidExternalLagValue('lagMinutes', lagMinutes) ? { lagMinutes } : null;
+  }
+  const lagDays = externalLagDays(value);
+  return isValidExternalLagValue('lagDays', lagDays) ? { lagDays } : null;
 }
 
 /** De lag van een externe relatie is óf minuten óf dagen, nooit beide: minuten winnen zodra ze
@@ -211,7 +227,8 @@ function canonicalLag(lag: ExternalLagFields): ExternalLag {
     return { lagMinutes: Math.round(lag.lagMinutes) };
   }
   if (isFiniteNumber(lag.lagDays)) {
-    return { lagDays: Math.round(lag.lagDays) };
+    // De breuk blijft (I12): de weergave en het klembord tonen de lag zoals hij rekent.
+    return { lagDays: lag.lagDays || 0 };
   }
   return { lagDays: 0 };
 }
@@ -224,7 +241,7 @@ export function formatExternalLagShort(lag: ExternalLagFields, hourSuffix: 'u' |
     return hours === 0 ? '' : `${hours > 0 ? '+' : ''}${trimNumber(hours, 2)}${hourSuffix}`;
   }
   const days = canonical.lagDays ?? 0;
-  return days === 0 ? '' : `${days > 0 ? '+' : ''}${days}d`;
+  return days === 0 ? '' : `${days > 0 ? '+' : ''}${trimNumber(days, 6)}d`;
 }
 
 /**
@@ -396,8 +413,7 @@ function parsePayload(json: string): ExternalRelationClipboardV1 | null {
     || !validString(value.anchorDate, MAX_DATE_LENGTH)
     || !validIsoAnchor(value.anchorDate)
     || typeof value.sourceMissing !== 'boolean') return null;
-  const lag = value[lagKey];
-  if (typeof lag !== 'number' || !Number.isSafeInteger(lag) || Math.abs(lag) > MAX_LAG_ABS) return null;
+  if (!isValidExternalLagValue(lagKey, value[lagKey])) return null;
 
   const parsed = value as unknown as ExternalRelationClipboardV1;
   return payloadJson(parsed) === json ? parsed : null;

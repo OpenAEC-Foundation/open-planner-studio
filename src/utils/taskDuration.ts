@@ -7,6 +7,26 @@ import { formatReportNumber } from '@/utils/reportNumber';
 import type { DurationDisplay } from '@/types/view';
 import { isZeroDurationMilestone, taskDurationUnit } from '@/engine/scheduler/duration';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
+import type { Project } from '@/types/project';
+
+/**
+ * Telt het rekenprofiel van dit project een dagenmaat in werkdagen (conventie `workdayDurationMeasure`)?
+ * Aan in het OPS-profiel, uit onder P6 en MS Project. Bepaalt wat "d" betekent bij invoer (B8: aan ⇒ de
+ * dagenmaat, uit ⇒ de urenmaat) en of Duurweergave meetelt (B9).
+ */
+export function profileCountsWorkdays(project: Pick<Project, 'schedulingProfile' | 'schedulingOptions'>): boolean {
+  return effectiveSchedulingOptions(project).workdayDurationMeasure === true;
+}
+
+/**
+ * B9 = optie 1 (spec §3.12): in een profiel met de dagenmaat toont elke taak haar eigen maat, een
+ * dagenmaat-taak in d en een urenmaat-taak in u. Duurweergave ("Altijd dagen", "Altijd uren") heeft dan
+ * geen effect; onder P6 en MS Project werkt de instelling zoals voorheen.
+ */
+export function effectiveDurationDisplay(display: DurationDisplay, countsWorkdays: boolean): DurationDisplay {
+  return countsWorkdays ? 'auto' : display;
+}
 
 /**
  * Bouw de vertaalde duur-suffixen uit de i18n-`t` (common-namespace). Licht adapter-laagje zodat de PURE
@@ -40,6 +60,16 @@ export function effectiveCalendarOf(
  */
 export function effHoursPerDay(cal: WorkCalendar): number {
   return isHourModeCalendar(cal) ? deriveHoursPerDay(cal.workTime!, cal.hoursPerDay) : cal.hoursPerDay;
+}
+
+/**
+ * De uren per dag waarmee de duur van DEZE taak tussen dagen en uren omrekent. Kalendertijd
+ * (`ELAPSEDTIME`) telt een dag als 24 klokuren, in elk profiel (de motor: `elapsedMinutesOf`); een
+ * andere taak de werktijd per dag van haar kalender (`hoursPerDay`, meestal {@link effHoursPerDay}; de
+ * motor: `durationMinutesOf`). Invoer, kopieertekst en weergave van een duur gebruiken deze factor.
+ */
+export function durationHoursPerDay(task: Pick<Task, 'time'>, hoursPerDay: number): number {
+  return task.time.durationType === 'ELAPSEDTIME' ? 24 : hoursPerDay;
 }
 
 /**
@@ -119,24 +149,42 @@ function hoursText(minutes: number, hoursPerDay: number, suffixes: DurationSuffi
  * - `auto` ⇒ de door de gebruiker gekozen, blijvende taakeenheid ("5h", "2d");
  * - `days`/`hours` ⇒ die eenheid, met de eigen eenheid erachter als ze verschilt ("18h(2d)").
  * Een nulduur-mijlpaal is "0d". `hoursPerDay` is die van de effectieve taakkalender (de omrekening
- * tussen dagen en uren); de EDIT-tekst van het raster blijft bewust de parsebare eigen vorm.
+ * tussen dagen en uren; bij kalendertijd 24 u, zie {@link durationHoursPerDay}); de EDIT-tekst van het
+ * raster blijft bewust de parsebare eigen vorm.
  */
 export function formatTaskDurationText(task: Task, hoursPerDay: number, fmt?: DurationTextFormat): string {
+  if (isZeroDurationMilestone(task)) return `0${suffixesOf(fmt).day}`;
+  // Kalendertijd rekent met 24 klokuren per dag, niet met de werktijd (`durationHoursPerDay`).
+  return formatMeasuredDurationText(taskMeasuredDuration(task), durationHoursPerDay(task, hoursPerDay), fmt);
+}
+
+/** Een duur in de maat van een taak (B8): werkdagen in de dagenmaat, werkminuten in de urenmaat. */
+export type MeasuredDuration = { unit: 'days'; days: number } | { unit: 'hours'; minutes: number };
+
+/** De duur van een taak in haar eigen maat. */
+export function taskMeasuredDuration(task: Task): MeasuredDuration {
+  return taskDurationUnit(task) === 'hours'
+    ? { unit: 'hours', minutes: task.time.durationMinutes ?? 0 }
+    : { unit: 'days', days: task.time.scheduleDuration };
+}
+
+/**
+ * Een duur in zijn maat als weergavetekst, de regel van {@link formatTaskDurationText}: `auto` ⇒ de eigen
+ * maat ("2,5d", "40h"); `days`/`hours` ⇒ die eenheid met de eigen maat erachter als ze verschilt
+ * ("18h(2d)"). `hoursPerDay` is die van de taakkalender en telt alleen bij een omrekening.
+ */
+export function formatMeasuredDurationText(duration: MeasuredDuration, hoursPerDay: number, fmt?: DurationTextFormat): string {
   const suffixes = suffixesOf(fmt);
-  if (isZeroDurationMilestone(task)) return `0${suffixes.day}`;
-  const nativeUnit = taskDurationUnit(task);
-  const minutes = nativeUnit === 'hours'
-    ? task.time.durationMinutes ?? 0
-    : task.time.scheduleDuration * hoursPerDay * 60;
-  const native = nativeUnit === 'days'
-    ? formatWorkDaysText(task.time.scheduleDuration, fmt)
+  const minutes = duration.unit === 'hours' ? duration.minutes : duration.days * hoursPerDay * 60;
+  const native = duration.unit === 'days'
+    ? formatWorkDaysText(duration.days, fmt)
     : hoursText(minutes, hoursPerDay, suffixes);
 
   // Automatisch betekent letterlijk de door de gebruiker gekozen, blijvende taakeenheid. Houd de
   // exacte kalenderwandeling voor een bewuste eenheidswissel in TaskDurationField; de renderer mag
   // niet bij iedere tekenronde duizenden werkdagen doorlopen om een presentatie-equivalent te zoeken.
   const display = fmt?.display ?? 'auto';
-  if (display === 'auto' || display === nativeUnit) return native;
+  if (display === 'auto' || display === duration.unit) return native;
   const converted = display === 'days'
     ? formatWorkDaysText(hoursPerDay > 0 ? minutes / (hoursPerDay * 60) : NaN, fmt)
     : hoursText(minutes, hoursPerDay, suffixes);
@@ -145,12 +193,14 @@ export function formatTaskDurationText(task: Task, hoursPerDay: number, fmt?: Du
 
 /**
  * De resterende duur van een urentaak in MINUTEN — dezelfde bron als de planning (`CPMSolver`,
- * IN-PROGRESS-tak): `remainingMinutes` als die er is, anders duur × (1 − voortgang). Voltooid ⇒ 0.
- * `remainingTime` is voor een urentaak onbruikbaar als weergave: `applyProgressInvariants` rondt hem
- * op HELE dagen af, dus een taak van 5h op 40% stond als "0" terwijl er 3 uur werk openstaat.
+ * IN-PROGRESS-tak): `remainingMinutes` als die er is, anders duur × (1 − voortgang).
+ * Voltooide status of werkelijk einde ⇒ 0.
+ * Een lopende importtaak op 100 % kan nog een expliciete bronrest hebben.
+ * `remainingTime` is voor een urentaak onbruikbaar als weergave: `applyProgressInvariants` rondde hem
+ * vroeger op hele dagen af, dus een taak van 5h op 40% stond als "0" terwijl er 3 uur werk openstaat.
  */
 export function remainingTaskMinutes(task: Task): number {
-  if (task.time.completion >= 1 || task.time.actualFinish) return 0;
+  if (task.status === 'COMPLETED' || task.time.actualFinish) return 0;
   return Math.max(0, task.time.remainingMinutes
     ?? Math.round((task.time.durationMinutes ?? 0) * (1 - task.time.completion)));
 }
@@ -161,25 +211,28 @@ export function remainingTaskMinutes(task: Task): number {
  * speling en duur ({@link formatWorkDaysText}). De eenheid staat in de waarde, niet in het label.
  */
 export function formatRemainingDurationText(task: Task, fmt?: DurationTextFormat): string {
-  if (taskDurationUnit(task) === 'hours') return hoursText(remainingTaskMinutes(task), 1, suffixesOf(fmt));
-  const days = task.time.remainingTime ?? Math.round(task.time.scheduleDuration * (1 - task.time.completion));
-  return formatWorkDaysText(days, fmt);
+  return formatMeasuredDurationText(remainingTaskMeasure(task), 1, { ...fmt, display: 'auto' });
+}
+
+/** De restduur van een taak in haar eigen maat: een urentaak in minuten ({@link remainingTaskMinutes}),
+ *  een dagtaak in werkdagen (`remainingTime`, anders duur × (1 − voortgang)). Exact, zonder afronding
+ *  op hele dagen (B3): een nieuwe taak van 0,25 d heeft 0,25 d rest, niet 0 d (aanval a08 na #600). */
+export function remainingTaskMeasure(task: Task): MeasuredDuration {
+  if (taskDurationUnit(task) === 'hours') return { unit: 'hours', minutes: remainingTaskMinutes(task) };
+  return { unit: 'days', days: task.time.remainingTime ?? task.time.scheduleDuration * (1 - task.time.completion) };
 }
 
 /**
  * Geformatteerde duur voor tabellen/panelen/tooltips op basis van de effectieve kalender:
- * {@link formatTaskDurationText} met de uren per dag van `cal`. `enableHourPlanning` doet bewust
- * niets — de blijvende taakeenheid blijft ook zichtbaar als de schakelaar uit staat.
+ * {@link formatTaskDurationText} met de uren per dag van `cal`.
  */
 export function formatTaskDurationDisplay(
   task: Task,
   cal: WorkCalendar,
   display: DurationDisplay,
-  enableHourPlanning: boolean,
   suffixes?: DurationSuffixes,
   locale?: string,
 ): string {
-  void enableHourPlanning;
   return formatTaskDurationText(task, effHoursPerDay(cal), { display, suffixes, locale });
 }
 

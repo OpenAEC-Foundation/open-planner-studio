@@ -96,7 +96,7 @@ Generators/helpers: `npm run gen:examples` (regenerates `public/examples`), `npm
 (tutorial screenshots as WebP from the step scripts in `tests/browser/tutorials/`, which `test:browser` runs without
 capturing), `npm run gen:release-highlights-json`,
 `npm run publish:wiki` (dry run; `-- --push` publishes), `npm run stats:downloads` (downloads per OS from the
-GitHub Releases API; the workflow publishes the JSON weekly to the `stats` data branch).
+GitHub Releases API; the workflow publishes the JSON every 2 hours to the `stats` data branch).
 
 Node 22 (see CI). Rust stable only for the `tauri:*` commands.
 
@@ -177,7 +177,9 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   new site version); without a host nothing changes, and the
   desktop app never has one. A document carries `siteFileId` and `siteFileVersion` (the base for conflict detection) next to
   `filePath`/`fileHandle`; derive the save
-  target only via `saveTargetRef`. Dev: `?fakeSite=1` installs a fake site. Detail: `docs/platformbouw.md`.
+  target only via `saveTargetRef`. With any host (or in the platform build) the tool runs embedded: no welcome dialog,
+  so no language question or tour, and the language comes from the host (`taal`). Dev: `?fakeSite=1` installs a fake
+  site. Detail: `docs/platformbouw.md`.
 - **IFC building-model guard.** Opening files with `IfcProduct`/`IfcTypeProduct` objects is temporarily
   blocked before import (knownbug 110): the planning writer does not preserve them. The checked-in
   type inventory comes from official IFC2X3 TC1, IFC4 ADD2 TC1 and IFC4X3 ADD2 schemas; regenerate
@@ -221,6 +223,11 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   `ui.autoCalcCPM`, runs it via `useAutoCalcCPM`). Always set `scheduleStale` via `markScheduleStale`
   (`state/transaction.ts`), never directly. `CPMSolver.ts` (~4k lines): grep the method, do not read it whole.
   Write-back: `applyCpmResult.ts`; relations/lag: `relationMath.ts`.
+- **Minute model.** Scheduling engines use effective work blocks for scalar and explicit calendars.
+  Task dates normalize to instants at load and input; project dates keep their entered form (D1/D5/D2
+  at calculation). `minuteModelPending` carries the undoable conversion of old documents; persistent
+  calculations inside an editing event call `runCPM({ withinEvent: true })`. IFC writes `TimeModel`
+  after conversion and chooses anchor dates or `LiteralTimes` per calendar and per document.
 - **Scheduling profiles, not a format flag.** P6/MSP/OPS behaviour runs through named conventions in
   `src/engine/scheduler/conventions/registry.ts`; the solver only gets `EffectiveSchedulingOptions` via
   `solveOptionsFor`/`solveInputFor`. Never an `if` on the source format in the engine (`verify:conventions`);
@@ -284,7 +291,9 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   worktree and commit containing that change; otherwise state the exact localhost URL.
 - `.mcp.json` wires up a Playwright MCP server (headless Chromium) to drive the browser dev build.
   `window.__OPS__` (`src/utils/devBridge.ts`) exposes store, log bus, `extensions.*` and observer-only geometry;
-  prefer asserting on store state over canvas pixels. The app's own MCP bridge (`planner_*`) is the AI-assistant
+  prefer asserting on store state over canvas pixels.
+- For a manual check, hand the owner a dev-server link that opens a file: `?open=examples/03-kantoorgebouw-zuidas.ifc&theme=dark`
+  opens that repo file through the normal open route (browser dev server only, never in a build). Detail: `docs/dev-link.md`. The app's own MCP bridge (`planner_*`) is the AI-assistant
   surface, not a test hook. Detail: `docs/self-test-harness.md`.
 
 ## Conventions

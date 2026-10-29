@@ -9,7 +9,12 @@ import type { DistributionProposal } from './distribute';
 export interface DistributionWrite {
   docId: string;
   scopeTaskIds: string[];
-  write: { delays: Record<string, number>; gaps: Record<string, TaskSplitGap[]> };
+  write: {
+    delays: Record<string, number>;
+    gaps: Record<string, TaskSplitGap[]>;
+    /** De minuutvertraging van de nivelleerder (`LevelingResult.delayMinutes`, spec §3.11). */
+    delayMinutes?: Record<string, number>;
+  };
 }
 
 /** `ok: false` ⇒ dit voorstel mag NIET geschreven worden: geblokkeerd, een tekort (geldige preview,
@@ -101,7 +106,7 @@ export function planDistributionWrites(
     writes.push({
       docId: doc.docId,
       scopeTaskIds: scopeTaskIdsByDoc[doc.docId] ?? [],
-      write: { delays: doc.delays, gaps: doc.gaps },
+      write: { delays: doc.delays, gaps: doc.gaps, ...(doc.delayMinutes ? { delayMinutes: doc.delayMinutes } : {}) },
     });
   }
   if (writes.length === 0) return { ok: false, reason: 'nothing-to-write' };

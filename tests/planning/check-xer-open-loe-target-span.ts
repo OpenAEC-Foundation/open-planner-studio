@@ -1,3 +1,4 @@
+// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { explainOpenXerLoeTargetSpanEligibilityResolved } from '@/engine/scheduler/p6OpenLoeTargetSpanTrace';
@@ -203,7 +204,7 @@ eq('open XER LOE dagmodus: echte reader bewaart provenance en expliciet doelvens
   hourMode: dayModeCalendar.isHourMode,
 }, {
   profile: 'p6', activity: 'TT_LOE', targetWindow: true,
-  start: '2026-01-05', finish: '2026-01-16', workTime: undefined, hourMode: false,
+  start: '2026-01-05', finish: '2026-01-16', workTime: undefined, hourMode: true,
 });
 eq('open XER LOE dagmodus: uur-native route sluit fail-closed',
   explainOpenXerLoeTargetSpanEligibilityResolved(
@@ -226,7 +227,7 @@ try {
 }
 eq('open XER LOE dagmodus: echte readXER-naar-solveProject-route gooit niet', dayModeSolveError, undefined);
 eq('open XER LOE dagmodus: generieke hammockroute bewaart alle zes solverassen', dayModeAxes, {
-  es: '2026-01-05', ef: '2026-01-05', ls: '2026-01-05', lf: '2026-01-05', tf: 0, ff: 0,
+  es: "2026-01-05T08:00", ef: "2026-01-05T08:00", ls: "2026-01-05T08:00", lf: "2026-01-05T08:00", tf: 0, ff: 0,
 });
 
 const changedTargetEnd = importedFixture({ targetEnd: '2026-01-19 17:00' });

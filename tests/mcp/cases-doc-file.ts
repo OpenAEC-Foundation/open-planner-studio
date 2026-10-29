@@ -577,11 +577,28 @@ test('bestandstools weigeren UNC/devicepaden vóór bestandstoegang (knownbug 21
   assertEq(normalizeAbsolutePath('/home/tester//sub/../plan.ifc'), '/home/tester/plan.ifc', 'lokaal POSIX blijft werken');
   assertEq(normalizeAbsolutePath(String.raw`C:\Users\tester\sub\..\plan.ifc`), 'C:/Users/tester/plan.ifc', 'driveletter blijft werken');
   assert(checkScope('C:/Users/tester', 'c:/users/TESTER/plan.ifc').ok, 'lokale Windows-scope blijft hoofdletterongevoelig');
+  // 331: een lokale wortelmap mag bij tilde-expansie geen kunstmatig UNC-pad worden.
+  for (const [home, expected] of [['/', '/plan.ifc'], ['/home/tester/', '/home/tester/plan.ifc'],
+    ['C:/', 'C:/plan.ifc'], ['C:\\', 'C:/plan.ifc']]) {
+    for (const input of ['~/plan.ifc', String.raw`~\plan.ifc`]) {
+      const scope = checkScope(home, input);
+      assert(scope.ok, `lokale tilde-expansie toegestaan: ${home} + ${input}`);
+      if (scope.ok) assertEq(scope.path, expected, 'precies één scheidingsteken aan de wortel');
+    }
+  }
+  assert(!checkScope('/', '~/../plan.ifc').ok, 'boven de lokale wortel blijft geweigerd');
+  const rootFs = installFakeFs();
+  rootFs.homeDir = async () => '/';
+  const rootExport = await exportRpc('~/plan.ifc');
+  assert(rootExport.ok, 'echte dispatcher expandeert tilde onder de lokale wortel');
+  assert(files.has('/plan.ifc') && !files.has('//plan.ifc'), 'export schrijft alleen het lokale pad via de fake fs');
 
   for (const [home, path] of [
     ...unsupported.map(path => [HOME, path]),
     [String.raw`\\server\share`, '~/plan.ifc'],
     ['//server/share', '/server/share/plan.ifc'],
+    ['//', '~/plan.ifc'],
+    ['//server/share/', '~/plan.ifc'],
   ]) {
     const fs = installFakeFs();
     fs.homeDir = async () => home;

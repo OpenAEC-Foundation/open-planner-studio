@@ -93,6 +93,10 @@ Claude Code: `claude mcp add --transport http open-planner http://127.0.0.1:3878
   geen knop om te pauzeren. Dialogen bestaan niet, dus `DIALOG_OPEN` komt niet voor.
 - **Undo.** `planner_undo` en `planner_redo` werken op de undo-stapel van het document in het
   geheugen.
+- **Meldingen.** De server heeft geen meldingenkanaal. Wat de agent moet weten, staat in het
+  toolantwoord. Voorbeeld: een oud bestand (een IFC zonder `TimeModel`) wordt bij het openen
+  omgerekend; verschuiven er taken, dan geeft `planner_import_schedule` per document
+  `minuteModelConversion` (`shiftedTasks`, `maxShiftWorkdays`) en een `notice`.
 
 ## Beveiliging
 

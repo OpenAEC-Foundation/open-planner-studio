@@ -10,6 +10,8 @@
  * Extra URL-vlaggen, alleen om paden te kunnen proberen:
  *  - `fakeSiteConflict=1`: elke opslag van een nieuwe versie wordt geweigerd met `code: 'conflict'`.
  *  - `fakeSiteInitial=1`: de host zet `initialFileId` op het eerste bestand (startbestand).
+ *  - `skipWelcome=1`: de host zet `skipWelcome: true` (#583). Dat staat er meteen, nog vóór de
+ *    database gevuld is, zodat de welkomstcheck (na de herstelcontrole) het in de regel al ziet.
  *
  * De host komt pas na het vullen van de database, dus via het event `openaec-host-ready` — precies de
  * route van een site die de host na het laden zet.
@@ -142,12 +144,15 @@ async function seedIfEmpty(): Promise<void> {
 
 /** Installeer de nep-site op `window.openaecHost` en meld dat met `openaec-host-ready`. */
 export async function installFakeSiteHost(): Promise<void> {
+  const skipWelcome = flag('skipWelcome');
+  // Alleen het welkomstveld, zonder opslag: zo is er nog geen site tot de database klaar is.
+  if (skipWelcome) window.openaecHost = { skipWelcome: true } satisfies OpenAECHost;
   try {
     await seedIfEmpty();
   } catch (err) {
     console.error('[nep-site] Startbestanden laden mislukt:', err);
   }
-  const host: OpenAECHost = { storage };
+  const host: OpenAECHost = { storage, ...(skipWelcome ? { skipWelcome: true } : {}) };
   if (flag('fakeSiteInitial')) {
     const first = (await storage.list())[0];
     if (first) host.initialFileId = first.id;

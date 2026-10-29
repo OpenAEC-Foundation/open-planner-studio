@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { useDisplayDate } from '@/hooks/displayDate';
+import { useTaskIdDateText } from '@/hooks/displayDate';
+import { constraintDateSide, type InstantSide } from '@/engine/calendar/workdayRules';
 import type { Task } from '@/types/task';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import { shownStart } from '@/utils/taskDates';
@@ -21,6 +22,9 @@ export interface MilestoneRow {
   kind: 'AUTO' | 'START' | 'FINISH';
   date: string;
   guardDate: string;
+  /** De kant van de bewaakte datum (B4): een start-beperking startachtig, een eind-beperking en een
+   *  deadline eindachtig. */
+  guardSide: InstantSide;
   float: number | undefined;
   mandatory: boolean;
   status: 'late' | 'critical' | 'onSchedule';
@@ -46,6 +50,7 @@ export function computeMilestoneRows(tasks: readonly Task[], cpmResult: CPMResul
         // De getoonde datum, zoals de ruit in de Gantt: een behaalde mijlpaal staat op zijn werkelijke datum.
         date: shownStart(t),
         guardDate: t.constraint?.date ?? t.deadline ?? '',
+        guardSide: t.constraint?.date ? (constraintDateSide(t.constraint.type) ?? 'start') : 'end',
         float: tf,
         mandatory: !!t.mandatory,
         status,
@@ -69,7 +74,8 @@ export const STATUS_COLOR: Record<MilestoneRow['status'], string> = {
 export function MilestoneReport() {
   const { t } = useTranslation('report');
   const rows = useMilestoneRows();
-  const dd = useDisplayDate();
+  // B4: een tijd alleen als het moment midden op de werkdag valt.
+  const taskDate = useTaskIdDateText();
 
   return (
     <table className="w-full text-small leading-4" style={{ borderCollapse: 'collapse' }}>
@@ -91,8 +97,8 @@ export function MilestoneReport() {
             <td className="px-2 py-1.5">{r.wbs}</td>
             <td className="px-2 py-1.5">{r.mandatory ? '◆ ' : ''}{r.name}</td>
             <td className="px-2 py-1.5">{t(`milestoneReport.kind_${r.kind}`)}</td>
-            <td className="px-2 py-1.5">{dd.date(r.date)}</td>
-            <td className="px-2 py-1.5">{dd.date(r.guardDate) || '—'}</td>
+            <td className="px-2 py-1.5">{taskDate(r.id, r.date, 'start')}</td>
+            <td className="px-2 py-1.5">{taskDate(r.id, r.guardDate, r.guardSide, { milestoneOwn: false }) || '—'}</td>
             <td className="px-2 py-1.5 text-right" style={r.float !== undefined && r.float < 0 ? { color: '#DC2626', fontWeight: 600 } : undefined}>
               {r.float === undefined ? '—' : r.float}
             </td>

@@ -1,3 +1,4 @@
+// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 import { CPMSolver } from '@/engine/scheduler/CPMSolver';
 import { createDefaultProject } from '@/state/defaults';
 import {
@@ -155,7 +156,7 @@ const successorLag = new CPMSolver(
 eq(
   'successor-lag gebruikt de zesdaagse opvolgerkalender',
   successorLag.tasks.get('S')?.earlyStart,
-  '2026-06-06',
+  "2026-06-06T08:00",
 );
 
 const predLagCalendar: WorkCalendar = {
@@ -201,10 +202,10 @@ eq('vier lagkalenders kiezen ieder hun eigen bron', {
   projectDefault: solveLag('projectDefault'),
   '24hour': solveLag('24hour'),
 }, {
-  predecessor: '2026-06-08',
-  successor: '2026-06-05',
-  projectDefault: '2026-06-09',
-  '24hour': '2026-06-04',
+  predecessor: "2026-06-08T08:00",
+  successor: "2026-06-05T08:00",
+  projectDefault: "2026-06-09T08:00",
+  '24hour': "2026-06-04T08:00",
 });
 
 const elapsedTail = task('ELAPSED-END', 10, 'lag-project');
@@ -322,7 +323,7 @@ const sixDayCalendar: WorkCalendar = {
 const endTasks = [task('LONG', 6, 'six-day'), task('SHORT', 1, 'end-project')];
 const ordinaryEnd = new CPMSolver(endTasks, [], endProjectCalendar, [sixDayCalendar], legacyCpmOptions()).solve();
 eq('één project gebruikt één gemeenschappelijk projecteinde zonder taakkalender-snap',
-  ordinaryEnd.tasks.get('SHORT')?.lateFinish, '2026-06-06');
+  ordinaryEnd.tasks.get('SHORT')?.lateFinish, "2026-06-06T16:00");
 
 function sourceWithoutXerFloatValue(options?: LegacySchedulingOptions): unknown {
   return [...new CPMSolver(
@@ -804,6 +805,10 @@ eq('default 6/8: verwachte einddatums als bewaard bronbeleid (solverconsumptie v
 const P6_PROFILE = resolveConventions(builtInProfile('p6'));
 const byKey = (value: object) => Object.fromEntries(Object.entries(value).sort(([a], [b]) => (a < b ? -1 : 1)));
 eq('P6-profiel ≡ hand-lijst (A19 aan sinds 2026-09-24)', byKey(P6_PROFILE), byKey({
+  // B6: de losse mijlpaal aan het dageinde staat alleen in het OPS-profiel aan.
+  milestoneWithoutPredecessorAtDayEnd: false,
+  // Alleen uren §3.14: de dagenmaat staat alleen in het OPS-profiel aan.
+  workdayDurationMeasure: false,
   preserveActualDatesInBackwardPass: true, clampNegativeFreeFloat: true,
   p6ZeroDurationUsesPlannedBoundary: true, p6UseTaskPlannedStartFloor: true,
   p6FinishMilestoneBoundaryWindow: false, p6PreserveActualInstants: true,
@@ -883,7 +888,7 @@ const defaultLagSolve = new CPMSolver(
   },
 ).solve();
 eq('XER-default gebruikt aantoonbaar de voorgangerskalender in een multi-kalendernet',
-  defaultLagSolve.tasks.get('LS')?.earlyStart, '2026-06-08');
+  defaultLagSolve.tasks.get('LS')?.earlyStart, "2026-06-08T08:00");
 
 const mapped = deriveXerScheduleOptions(parseXerTables(xer(
   ['proj_id', 'critical_path_type', 'critical_drtn_hr_cnt'],

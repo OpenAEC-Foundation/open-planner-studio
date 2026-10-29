@@ -290,7 +290,7 @@ async function open(name: string, bytes: Uint8Array): Promise<OpenedImport> {
   const parsed = await parseOpenedFile({ name, bytes });
   S().newProject();
   useAppStore.setState(st => { st.ui.notifications = []; });
-  S().applyOpenedImport(parsed, { filePath: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: true });
+  S().applyOpenedImport(parsed, { filePath: null, recompute: true, fit: false, linkedOpen: true });
   return parsed;
 }
 const resultsOf = (parsed: OpenedImport) => isMultiDocumentImport(parsed) ? parsed.results : [parsed];
@@ -497,7 +497,7 @@ async function main(): Promise<void> {
   eq('2a drie taken ingelezen', result.tasks.map(t => t.name), ['Fundering', 'Deelproject installaties', 'Oplevering (extern)']);
   eq('2b verslag', result.msProjectReport, {
     format: 'mpp', baselines: 4, baselineWorkCost: 0, assignmentBaselineDates: 0, customFields: 3, notes: 4, hyperlinks: 2, fixedCosts: 1, resourceRates: 1,
-    subprojects: 1, externalTasks: 1, manualTasks: 0, levelingDelays: 0, inactiveTasks: 0, criticalSlackLimitDays: 0,
+    subprojects: 1, externalTasks: 1, manualTasks: 0, levelingDelays: 0, inactiveTasks: 0,
   });
   // Aantekeningen en baselines ontbreken nog; de kritiekgrens komt wel mee.
   eq('2c taakaantekening niet overgenomen', result.tasks[0]?.description ?? '', '');
@@ -557,7 +557,7 @@ async function main(): Promise<void> {
       S().tasks.map(task => task.time.isCritical), S().tasks.map(task => task.time.totalFloat <= expected));
     const restored = readIFC(writeIFC(buildWriteIFCInput(S())));
     eq(`46 ${raw}: IFC-round-trip behoudt de grens`, restored.project.schedulingOptions?.criticalDefinition, want);
-    S().applyOpenedImport(restored, { filePath: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: true });
+    S().applyOpenedImport(restored, { filePath: null, recompute: true, fit: false, linkedOpen: true });
     eq(`46 ${raw}: heropend project behoudt de grens`, S().project.schedulingOptions?.criticalDefinition, want);
   }
 

@@ -224,6 +224,36 @@ const concepts: Concept[] = [
     const checked = run('apply-terms', 'cs');
     eq(`102 intacte blinde controle maakt rapport (${checked.output})`, checked.status, 0);
     ok('102 rapport koppelt t1 aan gap', readFileSync(join(dir, 'terms-check-report.md'), 'utf8').includes('- gap (en *gap*)'));
+    // 327: één groen en één geweigerd pakket mag nooit een succesvolle CLI-run opleveren.
+    write(join(work, 'i18n/termbase/concepts.json'), [
+      { id: 'gap', kind: 'term', nl: 'gat', en: ['gap'], definition: 'Onderbreking.' },
+      { id: 'pause', kind: 'term', nl: 'pauze', en: ['pause'], definition: 'Pauze.' },
+    ]);
+    write(tbPath, { _style: { address: 'formal' } });
+    eq('327 twee afzonderlijke bronpakketten', run('terms-lookup', 'cs', '--size', '1').status, 0);
+    const second = join(dir, 'terms-02.json');
+    const secondSource = readFileSync(second, 'utf8');
+    const secondOutput = { pause: { term: 'pauza', forms: ['pauza'], source: 'model', status: 'model' } };
+    write(join(dir, 'terms-01.out.json'), output);
+    write(join(dir, 'terms-02.out.json'), secondOutput);
+    writeFileSync(second, secondSource + '\n');
+    const partial = run('apply-terms', 'cs');
+    eq('327 gemengd zegelresultaat eindigt rood', partial.status, 1);
+    ok('327 weigeringsteller zichtbaar', partial.output.includes('1 rood overgeslagen'));
+    eq('327 groen pakket blijft toegepast', JSON.parse(readFileSync(tbPath, 'utf8')).gap.term, 'mezera');
+    eq('327 geweigerde term ontbreekt', JSON.parse(readFileSync(tbPath, 'utf8')).pause, undefined);
+    // Ook de vroege return na het rapport van de blinde controle behoudt exit 1.
+    write(join(dir, 'terms-check-01.out.json'), { t1: { backTranslation: 'gap', standard: true } });
+    eq('327 rapporttak eindigt ook rood', run('apply-terms', 'cs').status, 1);
+    ok('327 rapport wordt wel gemaakt', existsSync(join(dir, 'terms-check-report.md')));
+    writeFileSync(second, secondSource);
+    write(join(dir, 'terms-02.out.json'), {});
+    eq('327 ongeldig uitvoerschema naast groen pakket eindigt rood', run('apply-terms', 'cs').status, 1);
+    eq('327 schemaweigering past term niet toe', JSON.parse(readFileSync(tbPath, 'utf8')).pause, undefined);
+    write(join(dir, 'terms-02.out.json'), secondOutput);
+    eq('327 alle pakketten hersteld eindigt groen', run('apply-terms', 'cs').status, 0);
+    eq('327 herstelde term toegepast', JSON.parse(readFileSync(tbPath, 'utf8')).pause.term, 'pauza');
+
   } finally {
     rmSync(work, { recursive: true, force: true });
   }

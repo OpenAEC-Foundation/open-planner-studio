@@ -107,6 +107,25 @@ const tree = (): Task[] => [
   eq('13 verplaatsen binnen dezelfde ouder: geen duplicaat', ts.find(x => x.id === 'a')?.childIds, ['a2', 'a1']);
 }
 
+// ── Geïndexeerd losmaken en vastmaken ──────────────────────────────────────
+{
+  // De bulk-inspringroute gebruikt een index. Hij moet dezelfde eerste taak kiezen als find,
+  // en gewijzigde parentId/childIds direct lezen; de index mag geen oude veldwaarden bewaren.
+  for (const source of [tree(), [...tree(), t('a', 'root2', ['dubbel'])], tree().filter(task => task.id !== 'a')]) {
+    const plain = structuredClone(source);
+    const indexed = structuredClone(source);
+    const byId = new Map<string, Task>();
+    for (const task of indexed) if (!byId.has(task.id)) byId.set(task.id, task);
+    for (const id of ['a1', 'onbekend', 'root2', 'a2', 'a1']) {
+      detachFromParent(plain, id);
+      attachToParent(plain, id, 'a');
+      detachFromParent(indexed, id, byId);
+      attachToParent(indexed, id, 'a', undefined, byId);
+    }
+    eq('index: losmaken en vastmaken blijven gelijk bij dubbele/ontbrekende ids en ouders', indexed, plain);
+  }
+}
+
 // ── isSelfOrDescendant (de cyklusguard) ─────────────────────────────────────
 {
   const ts = tree();

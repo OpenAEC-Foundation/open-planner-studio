@@ -48,9 +48,9 @@ ok('Ctrl+Home werkdagen-as: (werkdagen − 3) × zoom', on === (workDays - 3) * 
 // een te lage zoom én een scroll die de eerste dagen van het project uit beeld schuift.
 {
   const width = 400;
-  const fitCal = computeFitToProject([t1, t2], width, false, false, axisDayDistance(calendar, false))!;
-  const fitWork = computeFitToProject([t1, t2], width, false, false, axisDayDistance(calendar, true))!;
-  const fitLegacy = computeFitToProject([t1, t2], width, false, false)!;
+  const fitCal = computeFitToProject([t1, t2], width, false, axisDayDistance(calendar, false))!;
+  const fitWork = computeFitToProject([t1, t2], width, false, axisDayDistance(calendar, true))!;
+  const fitLegacy = computeFitToProject([t1, t2], width, false)!;
   ok('fit kalender-as ongewijzigd t.o.v. de oude aanroep', JSON.stringify(fitCal) === JSON.stringify(fitLegacy));
   ok('fit kalender-as: zoom = breedte / 26 dagen', Math.abs(fitCal.zoom - width / 26) < 1e-9, String(fitCal.zoom));
   ok('fit werkdagen-as: zoom = breedte / 20 werkdagen', Math.abs(fitWork.zoom - width / 20) < 1e-9, String(fitWork.zoom));

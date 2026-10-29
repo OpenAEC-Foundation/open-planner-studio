@@ -77,14 +77,23 @@ export function taskIs(s: Snap, lang: Lang, name: L, want: TaskExpect): string[]
   cmp('fase', t.parent, want.parent === undefined ? undefined : want.parent === null ? null : want.parent[lang]);
   cmp('duur (werkdagen)', t.days, want.days);
   cmp('duur (minuten)', t.minutes, want.minutes);
-  cmp('vroegste start', t.earlyStart, want.earlyStart);
-  cmp('vroegste einde', t.earlyFinish, want.earlyFinish);
+  // D1/D2/D7: de tutorialkalender is 07:00–16:00; expliciete tijden blijven exact.
+  const instant = (value: string | null | undefined, end: boolean, actual = false) => {
+    if (!value || value.includes('T')) return value;
+    const loose = !s.links.some(link => link.includes(` → ${t.name} `));
+    const atEnd = t.milestone && t.days === 0
+      ? t.milestoneKind === 'FINISH' || (!actual && loose) // B6
+      : end;
+    return `${value}T${atEnd ? '16:00' : '07:00'}`;
+  };
+  cmp('vroegste start', t.earlyStart, instant(want.earlyStart, false));
+  cmp('vroegste einde', t.earlyFinish, instant(want.earlyFinish, true));
   cmp('totale speling', t.totalFloat, want.totalFloat);
   cmp('kritiek', t.critical, want.critical);
-  cmp('constraint', t.constraint, want.constraint);
-  cmp('deadline', t.deadline, want.deadline);
+  cmp('constraint', t.constraint, want.constraint?.replace(/^(\w+) (\d{4}-\d\d-\d\d)$/, (_match, type: string, day: string) => `${type} ${day}T${type.startsWith('F') || type === 'MFO' ? '16:00' : '07:00'}`) ?? want.constraint);
+  cmp('deadline', t.deadline, instant(want.deadline, true));
   cmp('voortgang', t.completion, want.completion);
-  cmp('werkelijke start', t.actualStart, want.actualStart);
-  cmp('werkelijk einde', t.actualFinish, want.actualFinish);
+  cmp('werkelijke start', t.actualStart, instant(want.actualStart, false, true));
+  cmp('werkelijk einde', t.actualFinish, instant(want.actualFinish, true, true));
   return out;
 }

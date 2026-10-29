@@ -374,7 +374,7 @@ useAppStore.getState().applyOpenedImport(multiOpened, {
   fileHandle: null,
   recompute: true,
   fit: false,
-  hourDataNotice: false,
+
   linkedOpen: true,
 });
 const openedDocs = useAppStore.getState().getOpenDocumentPayloads();

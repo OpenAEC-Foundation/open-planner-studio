@@ -5,8 +5,8 @@ import { originalSequenceId } from '@/engine/scheduler/expandSummaryRelations';
 import { resolveEffectiveLagDays } from '@/engine/scheduler/CPMSolver';
 import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProject';
 import type { ProjectSolveOptions } from '@/engine/scheduler/solveInput';
-import { taskDurationUnit } from '@/engine/scheduler/duration';
-import { isActualPastStatusDate } from '@/engine/taskMutationRules';
+import { isElapsedTask, taskDurationUnit } from '@/engine/scheduler/duration';
+import { actualDateSide, isActualPastStatusDate } from '@/engine/taskMutationRules';
 import { effHoursPerDay, effectiveCalendarOf } from '@/utils/taskDuration';
 import { parseDate } from '@/utils/dateUtils';
 import { signedWorkDaysBetween } from '@/engine/variance';
@@ -193,7 +193,20 @@ function criticalPathTest(ctx: ReportContext, solve: ProjectSolveOptions): DcmaM
   const leaves0 = activityTasks(first);
   const end = completionTask(leaves0);
   if (!end) return na(12, 'criticalPathTest', norm, 'noTasks');
-  const candidates = leaves0
+  const endPinned = !!end.constraint?.hard || !!end.constraint2?.hard;
+  const unpin = (tasks: Task[]) => {
+    const e = tasks.find(x => x.id === end.id);
+    if (!e) return;
+    // De pin valt weg. Een zachte MSO/MFO legt in de motor hetzelfde moment vast, met dezelfde
+    // speling stroomopwaarts; dan blijft er geen kritieke kandidaat over.
+    if (e.constraint?.hard) delete e.constraint;
+    if (e.constraint2?.hard) delete e.constraint2;
+  };
+  // Dezelfde eindtaak zonder pin geldt ook bij de kandidaatkeuze. Een harde MFO op het
+  // einde van een latere werkdag kan anders alle activiteiten positieve speling geven (D2).
+  const before = endPinned ? run(unpin) : first;
+  if (!before) return na(12, 'criticalPathTest', norm, 'notCalculated');
+  const candidates = activityTasks(before)
     .map((t, i) => ({ t, i }))
     .filter(({ t }) => t.time.isCritical && !t.isMilestone && t.id !== end.id && progressState(t) !== 'complete'
       && !t.constraint?.hard && !t.constraint2?.hard)
@@ -201,14 +214,6 @@ function criticalPathTest(ctx: ReportContext, solve: ProjectSolveOptions): DcmaM
   const pick = candidates[0]?.t;
   if (!pick) return na(12, 'criticalPathTest', norm, 'noCandidate');
 
-  const endPinned = !!end.constraint?.hard || !!end.constraint2?.hard;
-  const unpin = (tasks: Task[]) => {
-    const e = tasks.find(x => x.id === end.id);
-    if (!e) return;
-    if (e.constraint?.hard) e.constraint = { ...e.constraint, hard: false };
-    if (e.constraint2?.hard) e.constraint2 = { ...e.constraint2, hard: false };
-  };
-  const before = endPinned ? run(unpin) : first;
   const hpd = effHoursPerDay(effectiveCalendarOf(pick, ctx.calendar, ctx.calendars as WorkCalendar[]));
   const after = run(tasks => {
     if (endPinned) unpin(tasks);
@@ -312,7 +317,8 @@ export function computeDcmaAssessment(ctx: ReportContext, logic: LogicIndex): Dc
     metrics.push(na(9, 'invalidDates', invalidNorm, 'noStatusDate'));
   } else {
     const sd = ctx.statusDate;
-    metrics.push(percentMetric(9, 'invalidDates', invalidNorm, count(t => invalidDateReasons(t, sd, statusDay, !!cpm).length > 0), n));
+    metrics.push(percentMetric(9, 'invalidDates', invalidNorm, count(t => invalidDateReasons(t, sd, statusDay, !!cpm,
+      effectiveCalendarOf(t, ctx.calendar, ctx.calendars as WorkCalendar[])).length > 0), n));
   }
 
   const resourceNorm: DcmaNorm = { kind: 'maxPercent', value: 0 };
@@ -378,11 +384,11 @@ export function computeDcmaAssessment(ctx: ReportContext, logic: LogicIndex): Dc
  */
 export type InvalidDateReason = 'actualStartAfterStatusDate' | 'actualFinishAfterStatusDate' | 'forecastStartBeforeStatusDate' | 'forecastFinishBeforeStatusDate';
 
-export function invalidDateReasons(t: Task, statusDate: string, statusDay: string, withForecast: boolean): InvalidDateReason[] {
+export function invalidDateReasons(t: Task, statusDate: string, statusDay: string, withForecast: boolean, calendar?: WorkCalendar): InvalidDateReason[] {
   const out: InvalidDateReason[] = [];
   const { actualStart, actualFinish } = t.time;
-  if (actualStart && isActualPastStatusDate(actualStart, statusDate)) out.push('actualStartAfterStatusDate');
-  if (actualFinish && isActualPastStatusDate(actualFinish, statusDate)) out.push('actualFinishAfterStatusDate');
+  if (actualStart && isActualPastStatusDate(actualStart, statusDate, isElapsedTask(t) ? undefined : calendar, actualDateSide(t, 'actualStart'))) out.push('actualStartAfterStatusDate');
+  if (actualFinish && isActualPastStatusDate(actualFinish, statusDate, isElapsedTask(t) ? undefined : calendar, actualDateSide(t, 'actualFinish'))) out.push('actualFinishAfterStatusDate');
   if (!withForecast) return out;
   const state = progressState(t);
   if (state === 'notStarted' && dayOf(taskStart(t)) < statusDay) out.push('forecastStartBeforeStatusDate');
