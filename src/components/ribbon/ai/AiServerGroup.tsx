@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
-import { Play, Square, Circle } from 'lucide-react';
+import { Icon } from '@/components/icons';
+import type { IconId } from '@/components/icons';
 import { useAppStore } from '@/state/appStore';
 import { isTauri } from '@/utils/platform';
 import { startMcpServer, stopMcpServer } from '@/services/mcp/server';
@@ -22,6 +23,14 @@ import type { McpServerStatus } from '@/services/mcp/contracts';
  */
 
 /** Statuskleur per bridge-toestand — gedeeld met het statusbalk-dotje (zelfde semantiek). */
+/** Het B2-statusteken per bridgetoestand: off/live/poortbezet/fout zijn vier echte toestanden. */
+export const AI_STATUS_ICON: Record<McpServerStatus['state'], IconId> = {
+  off: 'status.bridge-off',
+  live: 'status.bridge-live',
+  'port-busy': 'status.warning',
+  error: 'status.error',
+};
+
 export const AI_STATUS_COLOR: Record<McpServerStatus['state'], string> = {
   off: 'var(--theme-text-muted)',
   live: 'var(--success)',
@@ -61,7 +70,7 @@ export function AiServerGroup() {
 
   const toggleButton = (
     <RibbonButton
-      icon={running ? <Square size={20} /> : <Play size={20} />}
+      icon={running ? <Icon id="ai.bridge-stop" size={24} /> : <Icon id="ai.bridge-start" size={24} />}
       label={running ? t('ai.stop') : t('ai.start')}
       primary={!running}
       active={running}
@@ -84,7 +93,7 @@ export function AiServerGroup() {
       <span title={!tauri ? t('ai.desktopOnly') : undefined}>{toggleButton}</span>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 130 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Circle size={10} fill={AI_STATUS_COLOR[status.state]} color={AI_STATUS_COLOR[status.state]} />
+          <Icon id={AI_STATUS_ICON[status.state]} size={10} mono color={AI_STATUS_COLOR[status.state]} />
           <span className="ribbon-info">{statusText}</span>
         </div>
         {!tauri && (

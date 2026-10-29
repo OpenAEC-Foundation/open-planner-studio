@@ -127,6 +127,14 @@ aangeroepen:
 - `example-resources.ts` — de resourcepool
 - `example-topologies.json` — de relatienetwerken (117 kB data, geen code)
 
+## Huisstijl (OpenAEC-Blueprint)
+
+`python3 scripts/style-icons.py` → `src/components/icons/b2/icons.generated.ts` + `b2.lock.json`: de
+B2-iconen van de vastgezette Blueprint-release (tag + commit in het lockbestand) als compacte paden voor
+`Icon`. `--check` (exit 1 bij afwijking), `--tag <tag>` (andere release vastzetten), `--latest` (nieuwste
+tag printen), `--report <md>` (iconen die de code gebruikt maar die de Blueprint niet meer levert, met
+bestand en regel). Alleen Python-stdlib. Zie `docs/superpowers/specs/2026-10-23-openaec-style-repo-harmonisatie.md`.
+
 ## Tutorialproject genereren
 
 `npm run gen:tutorial-project` → `generate-tutorial-project.ts`, met de opbouw in

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pause, Play, Lock, Unlock, DatabaseBackup, Save, FolderOpen, Check, AlertTriangle } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { useAppStore } from '@/state/appStore';
 import { isTauri } from '@/utils/platform';
 import { basename } from '@/utils/filePath';
@@ -91,7 +91,7 @@ export function AiSafetyGroup() {
       <div style={{ display: 'flex', gap: 6 }}>
         <span title={t('aiSafety.pauseHint')}>
           <RibbonButton
-            icon={paused ? <Play size={20} /> : <Pause size={20} />}
+            icon={paused ? <Icon id="ai.resume" size={24} /> : <Icon id="ai.pause" size={24} />}
             label={paused ? t('aiSafety.resume') : t('aiSafety.pause')}
             active={paused}
             danger={paused}
@@ -100,7 +100,7 @@ export function AiSafetyGroup() {
         </span>
         <span title={t('aiSafety.readOnlyHint')}>
           <RibbonButton
-            icon={readOnly ? <Lock size={20} /> : <Unlock size={20} />}
+            icon={readOnly ? <Icon id="ai.read-only-toggle" size={24} /> : <Icon id="ai.read-only-toggle" size={24} />}
             label={t('aiSafety.readOnly')}
             active={readOnly}
             onClick={() => setAiReadOnly(!readOnly)}
@@ -112,7 +112,7 @@ export function AiSafetyGroup() {
       <div style={{ display: 'flex', gap: 6 }}>
         <span title={t('aiSafety.autoBackupHint')}>
           <RibbonButton
-            icon={<DatabaseBackup size={20} />}
+            icon={<Icon id="backup.auto" size={24} />}
             label={autoBackup ? t('aiSafety.autoBackupOn') : t('aiSafety.autoBackupOff')}
             active={autoBackup}
             onClick={onToggleAutoBackup}
@@ -120,7 +120,7 @@ export function AiSafetyGroup() {
         </span>
         <span title={!tauri ? t('ai.desktopOnly') : undefined}>
           <RibbonButton
-            icon={<Save size={20} />}
+            icon={<Icon id="backup.create" size={24} />}
             label={t('aiSafety.backupNow')}
             disabled={!tauri || busy}
             onClick={() => void onManualBackup()}
@@ -128,7 +128,7 @@ export function AiSafetyGroup() {
         </span>
         <span title={!tauri ? t('ai.desktopOnly') : undefined}>
           <RibbonButton
-            icon={<FolderOpen size={20} />}
+            icon={<Icon id="backup.folder" size={24} />}
             label={t('aiSafety.openFolder')}
             disabled={!tauri}
             onClick={onOpenFolder}
@@ -145,7 +145,7 @@ export function AiSafetyGroup() {
             color: feedback.kind === 'ok' ? 'var(--success)' : 'var(--theme-critical-text)',
           }}
         >
-          {feedback.kind === 'ok' ? <Check size={13} /> : <AlertTriangle size={13} />}
+          {feedback.kind === 'ok' ? <Icon id="status.success" size={13} /> : <Icon id="status.error" size={13} />}
           <span>{feedback.text}</span>
         </div>
       )}

@@ -29,3 +29,13 @@
 .oa-icon--text-secondary {
   --icon-accent: currentColor;
 }
+
+/* Lint: op een gevulde knop (actief, primair, gevaar bij hover) en op een uitgeschakelde knop tekent het
+   accentdeel in de hoofdkleur, anders verdwijnt het accent tegen de accentachtergrond. */
+.ribbon-btn.active .oa-icon,
+.ribbon-btn.primary .oa-icon,
+.ribbon-btn.danger:hover .oa-icon,
+.ribbon-btn.disabled .oa-icon,
+.ribbon-btn:disabled .oa-icon {
+  --icon-accent: currentColor;
+}
