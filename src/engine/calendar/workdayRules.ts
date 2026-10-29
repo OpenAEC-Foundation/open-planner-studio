@@ -130,10 +130,16 @@ export function dayEndInstant(clock: DayClock, date: string): string | null {
  * begin van zijn eerste werkblok tot het einde van zijn laatste (D1 tot D2, randen inbegrepen); een datum
  * zonder werkblok (weekend, feestdag) heeft de spanne van de typische werkdag (D4).
  *
- * Bevatten meer spannes het moment, dan wint eerst de rand van `side` (de soort van de mijlpaal: FINISH de
- * eindkant, anders de startkant), dan de andere rand, dan een moment binnen de spanne; bij een gelijke stand
- * gaat een datum met eigen werkblokken voor D4. Zo is di 00:00 op een 24-uurskalender bij FINISH "ma" en
- * anders "di", en za 00:00 na een 24-uursvrijdag bij START "za" (het begin van de typische werkdag, D4).
+ * Bevatten meer spannes het moment:
+ *  1. Ligt het moment binnen de spanne van een datum met eigen werkblokken, dus niet op haar rand, dan telt
+ *     geen datum zonder werkblok (D4) mee. Een verzonnen D4-rand trekt echte werktijd niet naar de vrije dag
+ *     (review ronde 4 van #724). Voorbeeld: ma 04:00–08:00, di–vr 22:00–06:00, weekend vrij; de typische
+ *     werkdag is 22:00–06:00, dus D4 laat zo eindigen op ma 06:00. Ma 06:00 ligt midden in de echte
+ *     maandagdienst en is "ma", niet "zo".
+ *  2. Dan wint de rand van `side` (de soort van de mijlpaal: FINISH de eindkant, anders de startkant), dan
+ *     de andere rand, dan een moment binnen de spanne; bij een gelijke stand gaat een datum met eigen
+ *     werkblokken voor D4. Zo is di 00:00 op een 24-uurskalender bij FINISH "ma" en anders "di", en za 00:00
+ *     na een 24-uursvrijdag bij START "za" (het begin van de typische werkdag, D4), zoals op main.
  * Voorbeeld: ma–do 22:00–06:00, vr 22:00–02:00, weekend vrij. Za 02:00 is het einde van vr: "vr". Zo 06:00
  * is het einde van de typische werkdag op za (D4): "za". Za 05:00 ligt in geen spanne.
  *
@@ -152,7 +158,8 @@ export function milestoneWorkdayOf(clock: DayClock, value: string, side: Instant
     // Een werkdag eindigt uiterlijk 2880 minuten na het begin van zijn datum (canonieke wrap-band), dus de
     // spanne die `t` bevat, hoort bij de datum van `t` of bij een van de twee datums ervoor.
     const day0 = utcDayIndex(t) * MS_PER_DAY;
-    let best: { date: string; rank: number } | null = null;
+    const candidates: { date: string; rank: number; own: boolean }[] = [];
+    let insideOwn = false;
     for (let k = 0; k >= -2; k--) {
       const date = formatDate(new Date(day0 + k * MS_PER_DAY));
       const start = dayStartInstant(clock, date);
@@ -161,10 +168,16 @@ export function milestoneWorkdayOf(clock: DayClock, value: string, side: Instant
       const s = parseInstant(start).getTime();
       const e = parseInstant(end).getTime();
       if (t < s || t > e) continue;
+      const own = blocksOn(clock, date).length > 0;
+      if (own && s < t && t < e) insideOwn = true;
       const ownEdge = side === 'start' ? t === s : t === e;
       const otherEdge = side === 'start' ? t === e : t === s;
-      const rank = (ownEdge ? 0 : otherEdge ? 2 : 4) + (blocksOn(clock, date).length > 0 ? 0 : 1);
-      if (!best || rank < best.rank) best = { date, rank };
+      candidates.push({ date, rank: (ownEdge ? 0 : otherEdge ? 2 : 4) + (own ? 0 : 1), own });
+    }
+    let best: { date: string; rank: number } | null = null;
+    for (const c of candidates) {
+      if (insideOwn && !c.own) continue; // regel 1: geen D4 tegen echte werktijd
+      if (!best || c.rank < best.rank) best = c;
     }
     if (best) return best.date;
   }
@@ -200,15 +213,18 @@ export function workdayEdgeAt(clock: DayClock, day: string, value: string): Inst
  *     za, dus het einde van vr: za 02:00. Valt de kloktijd niet in de dienst van een andere werkdag, dan
  *     blijft hij staan: dagkalender, ma 14:00, afgemeld op een vrijdag 07:00–12:00 ⇒ vr 14:00.
  *
- * Twee gevallen dekken het besluit en de uitwerking niet (gemeld in PR #724). Hier gaat ook "de dag komt
- * van wat je typt" voor, anders toont de tabel een andere dag en weigert de statuscontrole de statusdag:
- *  4. De kloktijd valt in geen dienst, maar op een andere klokdatum dan de getypte dag: de dichtstbijzijnde
- *     rand. Voorbeeld: ma–do 22:00–06:00, vr 22:00–02:00, weekend vrij; di 05:00 afgemeld op vr ⇒ za 05:00
- *     ligt na het einde van vr en hoort bij za; dus za 02:00.
- *  5. De rand van de getypte dag is ook een rand van de buurdag, en de soort leest hem als die buurdag: de
- *     andere rand van de getypte dag. Voorbeeld: 24 uur ma–do, vr 00:00–12:00; een START-mijlpaal op
- *     vr 12:00 (einde vr), afgemeld op ma ⇒ het einde van ma is di 00:00, en START leest dat als "di"; dus
- *     het begin van ma: ma 00:00.
+ *  4. Aanvulling van Ethan op B10 (2026-10-29, voorheen knownbug 450, geval 1): eindigt de dienst van de
+ *     getypte dag vóór de geplande kloktijd, dan krijgt de mijlpaal het einde van die dienst. Het moment valt
+ *     dan in geen dienst, op een andere klokdatum dan de getypte dag. Voorbeeld: ma–do 22:00–06:00,
+ *     vr 22:00–02:00, weekend vrij; di 05:00 afgemeld op vr ⇒ za 05:00 ligt na het einde van vr; dus za 02:00.
+ *
+ * Eén geval dekken het besluit en de uitwerking niet (gemeld in PR #724, knownbug 454). Hier gaat ook "de dag
+ * komt van wat je typt" voor, anders toont de tabel een andere dag en weigert de statuscontrole de statusdag:
+ *  5. De rand van de getypte dag hoort bij een andere werkdag: de andere rand van de getypte dag. Dat gebeurt
+ *     als de soort een gedeelde rand aan de buurdag geeft, of als de D4-rand van een getypte vrije dag midden
+ *     in echte werktijd ligt. Voorbeeld: 24 uur ma–do, vr 00:00–12:00; een START-mijlpaal op vr 12:00
+ *     (einde vr), afgemeld op ma ⇒ het einde van ma is di 00:00, en START leest dat als "di"; dus het begin
+ *     van ma: ma 00:00. Op main geeft dezelfde invoer ook ma 00:00 (D7, START = begin).
  *
  * Kort: het moment uit 1 of 2 blijft staan als {@link milestoneWorkdayOf} er de getypte dag van maakt;
  * anders de rand van de getypte dag die het dichtst bij ligt en er wel bij hoort.

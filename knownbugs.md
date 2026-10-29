@@ -521,25 +521,42 @@ en noem het in je rapport of PR-tekst.
      de basis van #724 (`3c2c1ec12`), op de kop vóór en na fixronde 2: overal geweigerd. Voorstel: dezelfde
      D4-herkenning in `workdayBoundaryLabel` en `workdayOfInstant` aan de eindkant, voor elke taak; dat
      verandert de weergave van gewone taken en hoort daarom in een eigen PR. — B
-450. **Afmelden van een mijlpaal: twee gevallen die het besluit niet dekt.** B10 met de aanvulling "einde
-     blijft einde" en de uitwerking van de orkestrator (spec §4.2) zeggen hier niets. #724 koos in beide gevallen
-     "de dag komt van wat je typt" (`milestoneMomentOn`, `src/engine/calendar/workdayRules.ts`). (1) De geplande
-     kloktijd valt in geen dienst, maar op een andere klokdatum dan de getypte dag. Kalender ma–do 22:00–06:00,
-     vr 22:00–02:00, weekend vrij; een mijlpaal op di 2 jun 05:00 (midden in de nacht van ma), afgemeld met
-     05-06-2026, wordt za 6 jun 02:00, het einde van vr. Letterlijk zou het za 05:00 zijn; dan toont de tabel za
-     en weigert statusdatum vr. (2) De rand van de getypte dag is ook een rand van de buurdag, en de soort leest
-     hem als die buurdag. 24 uur ma–do, vr 00:00–12:00; een START-mijlpaal op vr 5 jun 12:00 (het einde van vr),
-     afgemeld met 08-06-2026, wordt ma 8 jun 00:00, het begin. Het einde van ma is di 00:00, en dat leest START
-     als di. Getoetst in `tests/planning/check-mijlpaal-afmelden.ts` sectie 8f, in elk profiel en langs elke
-     route. Voorstel: de eigenaar laten bevestigen of een andere keuze laten maken. — B
 451. **Mijlpaal midden in een nachtdienst: na afmelden toont de tabel de klokdatum erna.** Kalender ma–do
      22:00–06:00, vr 22:00–02:00. Een mijlpaal op di 2 jun 02:00 (midden in de nacht van ma), afgemeld met
      03-06-2026, wordt do 4 jun 02:00: de geplande kloktijd in de nacht van wo (B10). De tabel toont
      "04-06-2026 02:00" (B4: midden op de werkdag de klokdatum met tijd), terwijl de planner 03-06-2026 typte.
      De statusregel klopt: statusdatum wo mag, di niet. Op de kop vóór fixronde 3 van #724 (`57b0b7bba`) werd
-     het wo 3 jun 02:00, in de nacht van di, en accepteerde statusdatum di die invoer ten onrechte. Gemeten met
-     `meet-gevallen.ts` (geval D) en `check-mijlpaal-afmelden.ts` sectie 8d. Voorstel: voorleggen of de tabel
-     een moment midden in een dienst na middernacht met de werkdag moet tonen. — B
+     het wo 3 jun 02:00, in de nacht van di, en accepteerde statusdatum di die invoer ten onrechte. Review ronde
+     4 van #724 (Sol, in alle profielen en soorten): een gewone, zichtbare verwarring bij nachtwerk, maar het
+     opgeslagen moment klopt; do 02:00 ligt in de dienst van wo. Het commentaar bij `momentLabel`
+     (`src/utils/taskDateLabel.ts`) belooft sinds fixronde 4 alleen voor een mijlpaal op een dagrand dat de
+     tabel de getypte dag toont. Gemeten met `meet-gevallen.ts` (geval D) en `check-mijlpaal-afmelden.ts`
+     sectie 8d en 8h. Voorstel: voorleggen of de tabel een moment midden in een dienst na middernacht met de
+     werkdag moet tonen. — B
+452. **`check-mijlpaal-afmelden.ts` is nog zwaar.** Review ronde 4 van #724 (Sol) mat 55,54 s voor de check;
+     de brede matrix van sectie 8h speelde bovendien de productieregel na en bleef groen bij een fout. Fixronde 4
+     verving die matrix door vaste, letterlijk uitgeschreven gevallen (sectie 8h) en bouwt in 5b, 5d, 8b en 8f
+     één opstelling per profiel en route in plaats van per veld of per geval; de nieuwe secties 8i en 8j kwamen
+     erbij. Gemeten op deze pc, oud en nieuw om de beurt in één slot, twee rondes (belasting 2–4): 67,5 en 65,8 s
+     ⇒ 50,9 en 49,1 s; 83.063 ⇒ 11.888 controles. Wat overblijft, per sectie gemeten bij belasting 1: sectie 1
+     (6,6 s) bouwt per profiel, route en veld twee keer de volledige planning, sectie 8a (6,5–7,2 s) per veld,
+     en sectie 8d (4,4–5,1 s) zet 27 mijlpalen in één project. De check draait in CI ook in de tijdzonematrix
+     (vijf zones extra). Een poging om 8a met een tweede set mijlpalen per veld in één project te bouwen, gaf
+     geen winst (6,5 ⇒ 6,8 s); vermoedelijk groeien de kosten per invoer met het aantal taken. Voorstel: in
+     sectie 1 en 8a een slanke opstelling per veld met alleen de mijlpalen en voorgangers die de gevallen nodig
+     hebben, zoals `nightFieldsFixture`; daarna opnieuw meten. — B
+454. **Afmelden van een mijlpaal: START op een rand die de buurdag deelt, wordt het begin (bestaat ook op
+     main).** B10 met de aanvulling "einde blijft einde" zegt hier niets; #724 kiest "de dag komt van wat je
+     typt" (`milestoneMomentOn`, regel 5, `src/engine/calendar/workdayRules.ts`). Kalender 24 uur ma–do, vr
+     00:00–12:00, weekend vrij. Een START-mijlpaal op vr 5 jun 12:00 (het einde van vr), afgemeld met
+     08-06-2026, wordt ma 8 jun 00:00, het begin. Het einde van ma is di 00:00, en dat leest START als di; dus de
+     andere rand. Dit kan ook door Berekenen ontstaan (OPS, losse START-mijlpaal, projectstart vr: vr 12:00;
+     review ronde 4 van #724). Main geeft met dezelfde invoer ook ma 00:00 (D7, START = begin; review ronde 4 en
+     fixronde 4, gemeten op `1c4c8a2b6`). Het is geen besluit van Ethan, maar een gat dat al op main zat: een
+     eindmoment wordt als beginmoment gelezen. Voorheen knownbug 450, geval 2; geval 1 van 450 is sinds
+     2026-10-29 een aanvulling van Ethan op B10 (spec §4.2 en §8 B10). Getoetst in
+     `tests/planning/check-mijlpaal-afmelden.ts` sectie 8f (elk profiel, elke route) en 8h (vaste gevallen).
+     Voorstel: in een eigen PR oplossen zonder een eindmoment als beginmoment te lezen. — B
 
 ## Kalenders
 
