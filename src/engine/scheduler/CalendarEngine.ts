@@ -43,6 +43,11 @@ interface MeasurePosition {
  *  duizendste minuut op elke echte werkdag, en ruim groter dan de afrondingsruis van een double. */
 const MEASURE_EPS = 1e-9;
 
+/** De werkblokken van een kalender zonder werktijd: elke weekdag leeg. Gedeeld en nooit gemuteerd. */
+const EMPTY_WEEK: WorkTimeBands = Object.freeze({
+  byWeekday: Object.freeze({ 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [] }),
+}) as WorkTimeBands;
+
 /** WeakMap kalender-object → gedeelde band-cache. Bewust op het OBJECT (identiteit), niet per
  *  engine-instantie, zodat parallelle engines op dezelfde kalender de uitrol delen. */
 const bandCacheRegistry = new WeakMap<WorkCalendar, BandCache>();
@@ -108,7 +113,7 @@ export class CalendarEngine {
   // ── Uur-modus-state (dood in dag-modus) ─────────────────────────
   private mode: 'day' | 'hour' = 'day';
   private derivedHpd = 0;
-  private bandCache?: BandCache;
+  private bandCache!: BandCache;
   // De banden van een "normale werkdag" van deze
   // kalender — fallback voor een band-loze werkende uitzondering op een dag die zelf géén weekdag-
   // banden heeft (bv. een werkende zaterdag in een ma-vr-uurkalender). Zie `computeStandardWorkdayBands`.
@@ -150,19 +155,20 @@ export class CalendarEngine {
     this.workingExceptionOnNonWorkWeekdayIdxSorted = [...this.workingExceptionDaySet]
       .filter((idx) => !this.workDayMask[isoDayOfWeek(new Date(idx * MS_PER_DAY))])
       .sort((a, b) => a - b);
-    // ── Modus-detectie + uur-setup. Afwezige `workTime` ⇒ dag-modus:
-    //    dan wordt niets hieronder geraakt en draaien de bevroren dag-lussen ongewijzigd.
+    // ── Modus-detectie + uur-setup. Afwezige `workTime` ⇒ dag-modus.
     this.mode = isHourModeCalendar(calendar) ? 'hour' : 'day';
-    if (this.mode === 'hour') {
-      this.derivedHpd = this.computeDerivedHoursPerDay();
-      this.standardWorkdayBands = this.computeStandardWorkdayBands();
-      let cache = bandCacheRegistry.get(calendar);
-      if (!cache) {
-        cache = { days: new Map(), fills: 0, measure: new Map() };
-        bandCacheRegistry.set(calendar, cache);
-      }
-      this.bandCache = cache;
+    // Alleen uren (F6): ook een kalender zonder werktijd (geen werkblokken en geen geldige
+    // begin/einde/uren per dag) krijgt een bandset, een lege week. Een uurmethode vindt daar dan geen
+    // werk in plaats van te crashen op een ontbrekende cache. De dagvelden blijven gelijk.
+    if (!this.calendar.workTime) this.calendar = { ...this.calendar, workTime: EMPTY_WEEK };
+    this.derivedHpd = this.computeDerivedHoursPerDay();
+    this.standardWorkdayBands = this.computeStandardWorkdayBands();
+    let cache = bandCacheRegistry.get(calendar);
+    if (!cache) {
+      cache = { days: new Map(), fills: 0, measure: new Map() };
+      bandCacheRegistry.set(calendar, cache);
     }
+    this.bandCache = cache;
   }
 
   private buildHolidaySet(): void {
@@ -658,7 +664,7 @@ export class CalendarEngine {
    *  banden (zaterdag in een ma-vr-kalender) niet stilzwijgend 0 minuten oplevert terwijl `isWorkDay`
    *  "werkend" zegt. Zonder `workingExceptions` is `workingExceptionDaySet` leeg en speelt dit niet. */
   private bandsStartingOn(dayMs: number): BandInterval[] {
-    const cache = this.bandCache!;
+    const cache = this.bandCache;
     const hit = cache.days.get(dayMs);
     if (hit) return hit;
     cache.fills++;
@@ -940,7 +946,7 @@ export class CalendarEngine {
   /** Som van de volle werkminuten van de dagen met index `fromDay` ≤ d < `toDay` (UTC-dagindex), uit de
    *  lopende som op het kalender-object. Groeit de som, dan ruim (minstens een jaar extra aan elke kant). */
   private fullDayMinutes(fromDay: number, toDay: number): number {
-    const cache = this.bandCache!;
+    const cache = this.bandCache;
     let prefix = cache.minutePrefix;
     if (!prefix || fromDay < prefix.firstDay || toDay > prefix.firstDay + prefix.cum.length - 1) {
       const pad = Math.max(366, prefix ? prefix.cum.length : 0);
@@ -982,7 +988,7 @@ export class CalendarEngine {
   /** De dagenmaat-gegevens van kalenderdag `dayMs` (UTC-middernacht): de blokken die er beginnen, op
    *  volgorde, en hun som in werkminuten. Gecachet op het kalender-object, net als `bandsStartingOn`. */
   private measureDay(dayMs: number): MeasureDay {
-    const cache = this.bandCache!;
+    const cache = this.bandCache;
     const hit = cache.measure.get(dayMs);
     if (hit) return hit;
     const bands = [...this.bandsStartingOn(dayMs)]
@@ -1243,10 +1249,10 @@ export class CalendarEngine {
   }
 
   // ── Introspectie voor de memoization-test. Twee engines op hetzelfde kalender-object
-  //    delen deze cache-identiteit en teller. In dag-modus is er geen cache (0 / undefined). ──
+  //    delen deze cache-identiteit en teller. ──
   /** Aantal dag-materialisaties (cache-misses) op de GEDEELDE kalender-object-cache. */
   materializationCount(): number {
-    return this.bandCache ? this.bandCache.fills : 0;
+    return this.bandCache.fills;
   }
   /** Identiteit van de gedeelde band-cache (voor een `===`-check tussen twee engines). */
   bandCacheRef(): unknown {
