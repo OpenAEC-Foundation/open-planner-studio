@@ -38,11 +38,16 @@ Elke optie werkt als CLI-vlag en als omgevingsvariabele. De vlag wint.
 | `--no-backup` | `OPS_MCP_BACKUP=off` | aan | geen MCP-backup vóór de eerste wijziging per document |
 | `--read-only` | `OPS_MCP_READ_ONLY=1` | uit | elke wijzigende tool geeft `READ_ONLY` |
 | `--open <bestand>` | `OPS_MCP_OPEN` | — | open dit bestand bij de start (pad in de werkmap) |
+| `--discovery-dir <map>` | `OPS_MCP_DISCOVERY_DIR` | mappen van de app | waar de desktop-app zijn open bestanden bijhoudt (`open-files*.json`); zie *Bestanden* |
 | `--version`, `--help` | — | — | versie of hulp tonen en stoppen |
 
 De standaard gegevensmap is `$XDG_DATA_HOME/open-planner-studio-mcp` (Linux, anders
 `~/.local/share/…`), `~/Library/Application Support/open-planner-studio-mcp` (macOS) of
 `%LOCALAPPDATA%\open-planner-studio-mcp` (Windows).
+
+Zonder `--discovery-dir` leest de server de map `mcp/` in de gegevensmap van de desktop-app
+(`mcpDiscoveryDirs` in `src/services/mcp/discoveryContract.ts`; op Linux ook de Snap-map). Een lege
+`OPS_MCP_DISCOVERY_DIR` of een niet-ingevulde manifestvariabele (`${…}`) telt als niet gezet.
 
 Een HTTP-token is verplicht en heeft minstens 32 zichtbare ASCII-tekens, bijvoorbeeld
 `openssl rand -hex 32`. Zonder geldig token, of met een `--host` die geen loopback is, start de
@@ -88,7 +93,8 @@ Claude Code: `claude mcp add --transport http open-planner http://127.0.0.1:3878
   geweigerd: kies een lokale werkmap en een lokaal absoluut bestandspad. De tool zet een netwerkpad
   nooit om in een lokaal pad.
 - **Instructies.** `initialize.instructions` bevat de vaste instructies van de app plus een korte
-  headless uitleg (werkmap, opslaan, geen gebruikersinterface).
+  headless uitleg (werkmap, opslaan, geen bestand schrijven dat in de desktop-app open staat, geen
+  gebruikersinterface).
 - **Veiligheidsvlaggen.** `--read-only` zet `ui.aiReadOnly`. `paused` blijft altijd `false`: er is
   geen knop om te pauzeren. Dialogen bestaan niet, dus `DIALOG_OPEN` komt niet voor.
 - **Undo.** `planner_undo` en `planner_redo` werken op de undo-stapel van het document in het
@@ -125,7 +131,7 @@ mogen daarvoor niet worden afgezwakt.
 **stdio.** Eén proces is één client en één sessie. stdout is alleen voor het protocol; alle
 logging gaat naar stderr.
 
-**Bestanden.** Twee poorten vóór elke lees- of schrijfactie:
+**Bestanden.** Twee poorten vóór elke lees- of schrijfactie, en een derde vóór elke schrijfactie:
 
 1. Lexicaal (`checkScope` in `fileTools.ts`, dezelfde code als de app): het pad wordt
    genormaliseerd (`..`, `.`, `~`) en moet in de werkmap liggen.
@@ -134,9 +140,32 @@ logging gaat naar stderr.
    vergelijking is exact, teken voor teken. Er is geen aanname over hoofdletters per besturingssysteem:
    een hoofdlettergevoelig volume op macOS bestaat, en een link naar `plans` naast `Plans` ligt buiten.
    Een andere schrijfwijze van een bestaand pad wordt dus geweigerd, nooit toegelaten. De server weigert
-   met `SCOPE`: een symlink of junction naar buiten, een dode link, een bestand met meer dan één harde
-   link (dan is niet te bewijzen dat elke naam in de werkmap ligt), en een bestand dat in de app open
-   staat (slot-haak, nu altijd vrij).
+   met `SCOPE`: een symlink of junction naar buiten, een dode link, en een bestand met meer dan één harde
+   link (dan is niet te bewijzen dat elke naam in de werkmap ligt).
+3. Slot, alleen bij schrijven (`headless/mcp-server/src/appLock.ts`, aangeroepen in `writeChecked`): de
+   server schrijft geen bestand dat open staat in de desktop-app. Lezen blijft mogen. Bij elke
+   schrijfactie leest hij opnieuw elk `open-files*.json` in de registermappen (ook `open-files.<slug>.json`
+   van dev-builds; namen op `.tmp` niet). Per register beslist `openFilesWritePolicy` met de toestand van
+   het pid (`process.kill(pid, 0)`: `ESRCH` = dood, `EPERM` = leeft, anders onbekend). Het contract staat
+   in `docs/mcp-ontdekking.md`. Geweigerd met `SCOPE`:
+   - het doel heeft dezelfde bestandsidentiteit als een pad in een geldig register van een (mogelijk)
+     levende app: `realpath`, dan `stat` (`dev` + `ino`). Een symlink, een andere schrijfwijze of `..`
+     naar het open bestand telt dus ook;
+   - een register bestaat maar is onbruikbaar en de app leeft mogelijk, of het register heeft geen geldig
+     pid: dan schrijft de server geen enkel bestand;
+   - een registermap of register bestaat maar is niet te lezen (bijvoorbeeld `EACCES`): idem;
+   - de identiteit is onzeker: `realpath` of `stat` faalt voor het doel of een registerpad om een andere
+     reden dan "bestaat aantoonbaar niet", zoals een dode link of een relatief pad in het register.
+
+   Een pad dat aantoonbaar niet bestaat (`ENOENT`/`ENOTDIR` op het pad zelf) krijgt als sleutel de
+   `realpath` van de diepste bestaande bovenmap plus de rest van het pad, letterlijk. Bestaan doel en
+   registerpad allebei niet en zijn die sleutels gelijk, dan weigert de server. Het contract noemt hier de
+   oudermap; de diepste bestaande bovenmap is de ruimere vorm, omdat de server bij opslaan ontbrekende
+   mappen aanmaakt. Op macOS en Windows vergelijkt hij die sleutels zonder onderscheid in hoofdletters
+   (alleen meer weigeringen). Een map uit de lijst die niet bestaat, is geen fout.
+
+   Het register is een voorcontrole, geen slot van het besturingssysteem: opent de gebruiker het bestand
+   tussen de controle en het schrijven, dan merkt de server dat niet.
 
 **De operatie is gebonden aan de ligging.** Poort 2 is een controle vooraf. Een ander proces kan daarna
 een map door een link vervangen, of een map mét inhoud naar buiten verplaatsen en een link terugleggen.
@@ -241,7 +270,7 @@ bestaat geen tool, ook niet in de app.
 |---|---|
 | ingang, opties | `headless/mcp-server/src/main.ts`, `options.ts` |
 | host: storecontext en host-functies | `headless/mcp-server/src/host.ts` |
-| bestandstoegang, slot-haak | `headless/mcp-server/src/nodeFs.ts`, `appLock.ts` |
+| bestandstoegang, slot voor schrijfacties | `headless/mcp-server/src/nodeFs.ts`, `appLock.ts` |
 | XML-parser voor MSPDI en P6 XML | `headless/mcp-server/src/xmlDom.ts` |
 | MCP-backups | `headless/mcp-server/src/backupFs.ts` |
 | transports | `headless/mcp-server/src/stdio.ts`, `http.ts` |
@@ -278,23 +307,17 @@ modules hierboven. `verify:cycles` kijkt ook naar de servercode.
 nu `http.ts`. Er is dus één Node-kopie van het HTTP-contract van de bridge. Wijzigt `mcp_bridge.rs`,
 pas dan `http.ts` mee aan.
 
-## Later: één plugin, drie situaties
+## Claude Desktop-bundel
 
-Ontwerp op #570 (besluit eigenaar, 2026-10-23). Nog niet gebouwd; de server is erop voorbereid:
-
-- **Schakelstuk.** `handleMessage` (`McpMessageHandler` in `host.ts`) is de enige naad tussen de
-  transports en de toolafhandeling: rauwe JSON-RPC in, rauwe JSON-RPC uit. Een schakelstuk komt daar
-  vóór en kiest per aanvraag tussen doorsturen naar de bridge van de app en de headless afhandeling.
-- **Slot.** `isPathOpenInApp(path)` (`appLock.ts`) wordt vóór elke bestandsoperatie aangeroepen.
-  Geeft hij `true`, dan weigert de tool met `SCOPE`. Nu geeft hij altijd `false`; het register van
-  open bestanden in de app is apart werk.
+De bundel voor Claude Desktop (`integrations/claude-desktop/`, issue #730) start deze server zelf, op de
+werkmap uit het installatievenster, als de desktop-app niet draait. Uitleg: `docs/mcp-verificatie.md`.
 
 ## Tests
 
 | test | wat hij bewijst |
 |---|---|
-| `tests/mcp/cases-headless-server.ts` (deel A) | De host achter `http.ts` doorstaat dezelfde controles als de bridge (`externalClient.ts`): sessies, 400/404, token, Origin, alleen lezen, pauze, documentanker. Verder: de MCP-backup, de opties en de slot-haak. |
-| `tests/mcp/cases-headless-server.ts` (deel B) | Bouwt `server.mjs`, kopieert de uitvoer naar een lege map buiten de repo en start hem daar. Over stdio met de officiële SDK-client: `tools/list` = de registry, gids en skills ingebed, een voorbeeld openen → taken en relaties toevoegen → rekenen → opslaan → opnieuw openen → vergelijken, de backup, en de padbeveiliging (buiten de werkmap, `..`, symlinks, dode link, relatief pad). Over HTTP: `tools/list`, fout token, Origin, ontbrekende en onbekende sessie-id, en de startweigeringen. |
+| `tests/mcp/cases-headless-server.ts` (deel A) | De host achter `http.ts` doorstaat dezelfde controles als de bridge (`externalClient.ts`): sessies, 400/404, token, Origin, alleen lezen, pauze, documentanker. Verder: de MCP-backup en de opties. Het slot (A1): de echte `createAppLock` in `createNodeFileFs` met een tijdelijke registermap: open bestand geweigerd en byte-gelijk, lezen mag, ander bestand vrij, symlink en andere schrijfwijze geweigerd, dood pid vrij, onbruikbaar register (met levend pid, zonder pid, onleesbare map) weigert alles, `.tmp` genegeerd, `open-files.<slug>.json` telt, doel en registerpad allebei niet bestaand en gelijk geweigerd, dode link in het register geweigerd. |
+| `tests/mcp/cases-headless-server.ts` (deel B) | Bouwt `server.mjs`, kopieert de uitvoer naar een lege map buiten de repo en start hem daar. Over stdio met de officiële SDK-client: `tools/list` = de registry, gids en skills ingebed, een voorbeeld openen → taken en relaties toevoegen → rekenen → opslaan → opnieuw openen → vergelijken, de backup, en de padbeveiliging (buiten de werkmap, `..`, symlinks, dode link, relatief pad), en het slot met `OPS_MCP_DISCOVERY_DIR` op een tijdelijke map (`planner_export_ifc` met `overwrite: true` op een open bestand geweigerd en byte-gelijk, lezen mag, symlink, dev-register, `.tmp`, dood pid, onbruikbaar register). Over HTTP: `tools/list`, fout token, Origin, ontbrekende en onbekende sessie-id, en de startweigeringen. |
 | `cases-externe-client.ts` | Ongewijzigd; draait nu via `http.ts`. |
 
 ## Niet getest
@@ -308,4 +331,6 @@ Ontwerp op #570 (besluit eigenaar, 2026-10-23). Nog niet gebouwd; de server is e
   `stat`; route B: een map verhuist mét het halffabricaat naar buiten) zijn getest met een haak in
   hetzelfde proces (zelfde module als in de bundel), niet tegen het losse bestand: een race is van
   buitenaf niet op het juiste moment te maken. Alleen op Linux.
+- Het slot op macOS en Windows (bestandsidentiteit, hoofdletters, `process.kill` op Windows) en met een
+  echte draaiende desktop-app: de tests schrijven het register zelf.
 - UNC-werkmap op Windows (`\\server\share`): het lexicale pad wordt nu `/server/share/…`. Vervolgwerk.

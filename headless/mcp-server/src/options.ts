@@ -2,6 +2,7 @@
 // configuratie van een MCP-client of plugin). Een CLI-vlag wint van de omgevingsvariabele.
 // Puur: geen bestandstoegang, geen proces-globals behalve de meegegeven `env`/`cwd`.
 import path from 'node:path';
+import { MCP_DISCOVERY_DIR_ENV } from '@/services/mcp/discoveryContract';
 
 export type Transport = 'stdio' | 'http';
 
@@ -20,6 +21,9 @@ export interface ServerOptions {
   readOnly: boolean;
   /** Bestand dat bij de start als document wordt geopend (zoals `planner_import_schedule`). */
   open: string | null;
+  /** Map met het register van open bestanden van de desktop-app (`open-files*.json`). `null` = de mappen
+   *  van de app op dit platform (`mcpDiscoveryDirs`). */
+  discoveryDir: string | null;
   help: boolean;
   version: boolean;
 }
@@ -42,6 +46,8 @@ Options (each also as an environment variable; the flag wins):
   --no-backup               OPS_MCP_BACKUP=off  no MCP backup before the first change per document
   --read-only               OPS_MCP_READ_ONLY=1 refuse every mutating tool (READ_ONLY)
   --open <file>             OPS_MCP_OPEN        open this schedule at start (path inside --root)
+  --discovery-dir <dir>     ${MCP_DISCOVERY_DIR_ENV} folder where the desktop app lists its open files;
+                                                default: the app's data folder(s) on this system
   --version                                     print the version and exit
   --help                                        print this help and exit
 `;
@@ -74,7 +80,7 @@ export function isLoopbackHost(host: string): boolean {
 /** Lees argv + env. Gooit een `Error` met een Engelse uitleg bij een ongeldige optie. */
 export function parseOptions(argv: readonly string[], env: NodeJS.ProcessEnv, cwd: string): ServerOptions {
   const flags = new Map<string, string | true>();
-  const valued = new Set(['transport', 'root', 'host', 'port', 'token-file', 'data-dir', 'open']);
+  const valued = new Set(['transport', 'root', 'host', 'port', 'token-file', 'data-dir', 'open', 'discovery-dir']);
   const switches = new Set(['no-backup', 'read-only', 'help', 'version']);
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -118,6 +124,12 @@ export function parseOptions(argv: readonly string[], env: NodeJS.ProcessEnv, cw
   const tokenFile = resolveFrom(pick('token-file', 'OPS_MCP_TOKEN_FILE'));
   const token = env.OPS_MCP_TOKEN !== undefined && env.OPS_MCP_TOKEN !== '' ? env.OPS_MCP_TOKEN : null;
   if (token !== null && tokenFile !== null) throw new Error('Set OPS_MCP_TOKEN or a token file, not both');
+  // Zoals `mcpDiscoveryDirs`: een lege waarde of een niet-ingevulde manifestvariabele (`${…}`) telt als niet gezet.
+  const discoveryFlag = flags.get('discovery-dir');
+  const discoveryEnv = (env[MCP_DISCOVERY_DIR_ENV] ?? '').trim();
+  const discoveryDir = typeof discoveryFlag === 'string'
+    ? path.resolve(cwd, discoveryFlag)
+    : discoveryEnv !== '' && !discoveryEnv.startsWith('${') ? path.resolve(cwd, discoveryEnv) : null;
 
   return {
     transport: transportRaw,
@@ -130,6 +142,7 @@ export function parseOptions(argv: readonly string[], env: NodeJS.ProcessEnv, cw
     backup: flags.has('no-backup') ? false : envBool(env, 'OPS_MCP_BACKUP', true),
     readOnly: flags.has('read-only') ? true : envBool(env, 'OPS_MCP_READ_ONLY', false),
     open: pick('open', 'OPS_MCP_OPEN'),
+    discoveryDir,
     help: flags.has('help'),
     version: flags.has('version'),
   };

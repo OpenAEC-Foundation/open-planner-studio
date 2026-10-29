@@ -6,6 +6,7 @@ import { MCP_SERVER_VERSION } from '@/services/mcp/dispatcher';
 import { EMBEDDED_ASSETS } from 'ops:embedded-assets';
 import { parseOptions, validateToken, OPTION_HELP, type ServerOptions } from './options';
 import { createHeadlessHost } from './host';
+import { platformDiscoveryDirs } from './appLock';
 import { defaultDataDir } from './backupFs';
 import { runStdio } from './stdio';
 import { startHttpTransport } from './http';
@@ -59,11 +60,14 @@ async function main(): Promise<number> {
   }
 
   const dataDir = opts.dataDir ?? defaultDataDir();
+  const discoveryDirs = opts.discoveryDir !== null ? [opts.discoveryDir] : platformDiscoveryDirs();
   const host = await createHeadlessHost({
     root: opts.root, dataDir, backup: opts.backup, readOnly: opts.readOnly, assets: EMBEDDED_ASSETS, open: opts.open,
+    discoveryDirs,
   });
   log(`version ${MCP_SERVER_VERSION}; working folder ${host.root}; ` +
-    `MCP backups ${opts.backup ? `in ${dataDir}` : 'off'}${opts.readOnly ? '; read-only' : ''}`);
+    `MCP backups ${opts.backup ? `in ${dataDir}` : 'off'}${opts.readOnly ? '; read-only' : ''}; ` +
+    `files open in the desktop app from ${discoveryDirs.join(', ')}`);
 
   if (opts.transport === 'stdio') {
     await runStdio({
