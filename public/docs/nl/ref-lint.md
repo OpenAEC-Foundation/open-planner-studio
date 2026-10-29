@@ -5,6 +5,7 @@ Het lint bovenin het scherm heeft tabbladen, en elk tabblad heeft groepen met kn
 ## Hoe het lint zich gedraagt
 
 - **Tabbladen** — links staat *Bestand*, daarna *Start*, *Planning*, *Resources*, *Beeld*, *Instellingen*, *Tabel*, *IFC*, *Rapport* en, alleen met de MCP-koppeling aan, *MCP*.
+- **Wisselen met het muiswiel** — draai het muiswiel boven de tabbladen. Omlaag gaat naar het volgende tabblad, omhoog naar het vorige. Bij het eerste en het laatste tabblad stopt het. *Bestand* doet niet mee. Boven de knoppen doet het wiel niets. Uitzetten: *App-instellingen*, tabblad *Weergave*, onderdeel *Lint*.
 - **Smal venster** — past het lint niet, dan krimpen knoppen van rechts naar links tot een icoon. De naam staat dan als tooltip op de knop. Elke knop zonder eigen tooltip toont zijn naam.
 - **Lint inklappen** — het pijltje rechtsonder in het lint maakt er een platte strip van, met alleen iconen. De groep *Baselines & voortgang* en de groep *Verbinding* op het MCP-tabblad verdwijnen dan achter één knop met een uitklapvenster. Standaard: uitgeklapt. De keuze blijft bewaard.
 - **Extensieknoppen** — een extensie kan achteraan een tabblad een eigen groep zetten. Zo'n knop doet wat de extensie hem meegeeft.

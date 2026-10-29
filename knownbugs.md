@@ -1413,6 +1413,12 @@ en noem het in je rapport of PR-tekst.
      nagespeeld: 23/23 groen, exit 0). Voorstel: ook de controles voor gewone taken op hun eigen rij filteren,
      met de rijfilter die de samenvattingscontroles al gebruiken. Gevonden in review van #731 (GPT-6.1-Sol),
      2026-10-29. — B
+490. **Lint-muiswiel: de poort voor een openstaande vraag heeft geen teststap.** `useRibbonTabWheel.ts`
+     wisselt niet als het bewaren van het actieve veld een vraag opent (`isBlockingDialogOpen`). De stap in
+     `tests/browser/ribbon-toggles.spec.ts` toetst alleen een duur, en die opent geen vraag. Route die de
+     reviewer met de hand naliep: taak in de toekomst zonder werkelijke start → werkelijk einde invullen →
+     wiel boven de tabs; de startvraag opent, Tabel blijft actief. Voorstel: die route als stap aan hetzelfde
+     scenario toevoegen. Gevonden in review van #732 (GPT-6.1-Sol), 2026-10-29. — B
 
 402. **De nieuwe MCP-waarschuwing zegt te ruim dat vastgepinde taken niet verschuiven.**
      `src/services/mcp/tools/calendarResourceTools.ts:1618` zegt dat pins niet

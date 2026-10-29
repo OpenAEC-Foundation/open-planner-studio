@@ -593,6 +593,7 @@ export interface UIState {
   debugTerminalOpen: boolean;     // session
   documentChromeStyle: DocumentChromeStyle; // persisted — multi-document wisselstijl
   ribbonCompact: boolean; // persisted — compacte ribbon voor kleine schermen
+  ribbonWheelSwitchesTabs: boolean; // persisted — muiswiel boven de lint-tabs wisselt van tab (#688)
   showProjectOverview: boolean;             // session — projectoverzicht-overlay open
   pendingCloseDocId: string | null;         // session — document met openstaande sluit-bevestiging
   /** Session — de gebruiker sluit de hele app: `useAppCloseGuard` loopt de documenten met
