@@ -1350,6 +1350,12 @@ en noem het in je rapport of PR-tekst.
      boom. Met de cron van elke 2 uur zijn dat 12 commits per dag. Voorstel: `generatedAt` buiten de
      vergelijking houden; let op dat de app `generatedAt` toont als bronmoment (`DownloadStatsSection.tsx:148`).
      Gevonden in review van #725 (GPT-6.1-Sol), 2026-10-29. — B
+491. **De datumcontroles in de miniaturentest en -meting bewaken het tijdsdeel niet.**
+     `tests/browser/document-switch.spec.ts:150` en `scripts/measure-document-thumbnails.mjs:176` vergelijken
+     met `slice(0, 10)`. Daardoor slagen `2026-09-25`, `2026-09-25T07:00` en `2026-09-25T16:00` alle drie, en
+     blijft een terugval naar datums zonder tijd onopgemerkt. De volledige meetsnapshots bewaren de tijden wel.
+     Voorstel: vergelijk in deze vaste fixtures de volledige verwachte tijdstippen. Gevonden in review van #654
+     (GPT-6.1-Sol), 2026-10-29. — B
 
 ## Wensen en open taken (geen bug)
 
