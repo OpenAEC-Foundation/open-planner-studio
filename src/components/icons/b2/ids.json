@@ -1,7 +1,5 @@
 [
   "calendar.manage",
-  "file.export",
-  "file.import",
   "panel.warnings",
   "planning.bar-colors",
   "planning.baseline-overlay",
@@ -11,6 +9,8 @@
   "planning.move-date",
   "planning.progress-line",
   "planning.progress-menu",
+  "planning.progress-sheet-export",
+  "planning.progress-sheet-import",
   "planning.relations-menu",
   "planning.relations-visible",
   "planning.resource-accent",

@@ -10,7 +10,8 @@ const ICONS: Readonly<Record<IconId, IconDef>> = B2_ICONS;
  * icoon, dus de `id` is de FUNCTIE (`task.add`, `calendar.holiday-add`), niet de vorm (`Plus`).
  *
  * - Master zoals de Style Repo voorschrijft: tot en met 18 px de 16 px-tekening, daarboven de 24 px-tekening;
- *   de `viewBox` schaalt naar `size`.
+ *   de `viewBox` schaalt naar `size`. Boven 18 px gaat de 16 px-tekening verborgen mee, voor plekken waar CSS
+ *   het icoon op 16 px zet (zie `icons.css`).
  * - Hoofdkleur `currentColor`, accent `var(--icon-accent)` (gezet in `icons.css` per thema; `oa-icon--mono`
  *   schakelt het accent uit). Een icoon met `semantic` kleurt mee met de statuskleur van het thema.
  * - Standaard decoratief (`aria-hidden`); met `aria-label` of `title` wordt het een `role="img"`.
@@ -54,14 +55,27 @@ export function Icon({ id, size = 16, mono = false, className, style, title, ...
       {...rest}
     >
       {title ? <title>{title}</title> : null}
-      {master.parts.map(([kind, tone, d], index) => {
-        const paint = tone === 1 ? 'var(--icon-accent, currentColor)' : 'currentColor';
-        return kind === 0
-          ? <path key={index} d={d} fill="none" stroke={paint} strokeWidth={master.w} strokeLinecap="round" strokeLinejoin="round" />
-          : <path key={index} d={d} fill={paint} fillRule="evenodd" />;
-      })}
+      {box === 16
+        ? renderParts(master)
+        : (
+          <>
+            <g className="oa-icon__m24">{renderParts(master)}</g>
+            {/* De 16 px-master op het 24-raster (×1,5). `icons.css` toont hem waar het lint een groot icoon
+                op 16 px zet (mini-stand, ingeklapt lint); dan staat hij op ware grootte en blijft hij scherp. */}
+            <g className="oa-icon__m16" transform="scale(1.5)">{renderParts(def.s16)}</g>
+          </>
+        )}
     </svg>
   );
+}
+
+function renderParts(master: IconMaster) {
+  return master.parts.map(([kind, tone, d], index) => {
+    const paint = tone === 1 ? 'var(--icon-accent, currentColor)' : 'currentColor';
+    return kind === 0
+      ? <path key={index} d={d} fill="none" stroke={paint} strokeWidth={master.w} strokeLinecap="round" strokeLinejoin="round" />
+      : <path key={index} d={d} fill={paint} fillRule="evenodd" />;
+  });
 }
 
 /** Typeguard voor ids uit opgeslagen data (layouts, extensies): onbekend ⇒ `undefined`. */

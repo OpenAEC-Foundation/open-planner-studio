@@ -112,7 +112,7 @@ export function BaselinesProgressGroupContent() {
             title={tMenu('ribbon.statusDateClear')}
             aria-label={tMenu('ribbon.statusDateClear')}
             onClick={() => setStatusDate(undefined)}
-            style={{ padding: 2 }}
+            style={{ padding: 0 }}
           >
             <Icon id="planning.clear-status-date" size={16} />
           </button>

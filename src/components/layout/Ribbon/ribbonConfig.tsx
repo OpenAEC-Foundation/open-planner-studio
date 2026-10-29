@@ -363,7 +363,7 @@ const moveProjectButton: RibbonButtonSpec = {
  *  én Rapport (één bron, drie callsites; zelfde patroon als `openResourcePanelButton`/`calcButton`).
  *  Uitgeschakeld zonder taken: een blad kan dan sowieso niets koppelen (zelfde lijn als `moveProjectButton`). */
 const progressImportButton: RibbonButtonSpec = {
-  kind: 'small', id: 'progressImport', icon: <Icon id="file.import" size={16} />, labelKey: 'menu:ribbon.progressImport',
+  kind: 'small', id: 'progressImport', icon: <Icon id="planning.progress-sheet-import" size={16} />, labelKey: 'menu:ribbon.progressImport',
   use: () => {
     const setUI = useAppStore(s => s.setUI);
     const hasTasks = useAppStore(s => s.tasks.length > 0);
@@ -379,7 +379,7 @@ const progressImportButton: RibbonButtonSpec = {
  *  exportkaart in Backstage → Exporteren en een leesbaar importformaat. Het knoplabel
  *  (`menu:ribbon.progressExport`) noemt bewust geen formaat. */
 const progressExportButton: RibbonButtonSpec = {
-  kind: 'small', id: 'progressExport', icon: <Icon id="file.export" size={16} />, labelKey: 'menu:ribbon.progressExport',
+  kind: 'small', id: 'progressExport', icon: <Icon id="planning.progress-sheet-export" size={16} />, labelKey: 'menu:ribbon.progressExport',
   use: () => {
     const exportAs = useAppStore(s => s.exportAs);
     const hasTasks = useAppStore(s => s.tasks.length > 0);

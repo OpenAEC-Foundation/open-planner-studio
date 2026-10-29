@@ -43,7 +43,16 @@
 /* Alleen hele mastermaten (16 of 24 px): een B2-master die verkleind wordt (de mini-stand van het lint
    zette 15 px), valt met zijn lijnen van 1,25 px nog verder buiten het pixelraster en wordt vaag.
    Meting en achtergrond: https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint/issues/35 */
-.ribbon-btn[data-ribbon-mini] .ribbon-btn-icon svg.oa-icon {
+.ribbon-btn[data-ribbon-mini] .ribbon-btn-icon svg.oa-icon,
+.ribbon-container.compact .ribbon-btn-icon svg.oa-icon {
   width: 16px;
   height: 16px;
 }
+
+/* Een groot icoon (24 px-master) draagt ook de 16 px-master mee. Zet het lint hem op 16 px, dan tekent de
+   16 px-master op ware grootte in plaats van de 24 px-master verkleind (te dunne lijnen naast het raster). */
+.oa-icon__m16 { display: none; }
+.ribbon-btn[data-ribbon-mini] .ribbon-btn-icon svg.oa-icon > .oa-icon__m16,
+.ribbon-container.compact .ribbon-btn-icon svg.oa-icon > .oa-icon__m16 { display: inline; }
+.ribbon-btn[data-ribbon-mini] .ribbon-btn-icon svg.oa-icon > .oa-icon__m24,
+.ribbon-container.compact .ribbon-btn-icon svg.oa-icon > .oa-icon__m24 { display: none; }

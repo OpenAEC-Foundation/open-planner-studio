@@ -2,8 +2,8 @@
   "blueprint": "https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint",
   "source": "local",
   "branch": "iconen/planning",
-  "commit": "508afa0ef100c89aa4d189c71541c67f8299af9c",
+  "commit": "173567c73d2d6372c7132616c764a8ee209f12f0",
   "b2Revision": 107,
-  "manifestSha256": "976b72fcfba7d27f9bca8a12ec0ec867f9aabcc379f9ba2a9050f49c830dfb6b",
+  "manifestSha256": "9ee78b727691784d65a469a9ddc912a4cb0056b6abcb056848f1e51574559e7c",
   "ids": "src/components/icons/b2/ids.json"
 }
