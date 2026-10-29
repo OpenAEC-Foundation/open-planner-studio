@@ -1044,6 +1044,13 @@ en noem het in je rapport of PR-tekst.
      `baselines` geldt voor elk project met een baseline bij MSPDI-export (alleen de taakwaarden van de actieve
      baseline gaan mee). — B
 
+482. **De exportverliestest bewaakt een primaire constraint op een P6-verzameltaak niet apart.**
+     `tests/planning/check-xer-export-loss.ts` (scenario "Native verzameltaak met constraints") geeft de
+     verzameltaak een primaire én een secundaire constraint. Een fout die alleen de primaire mist (in
+     `hasConstraintLoss`, tak `activities`, alleen `constraint2` controleren) blijft zo groen. Voorstel: in
+     hetzelfde scenario ook een verzameltaak met alleen SNET of ALAP, met waarschuwing én teruggelezen verlies.
+     Gevonden in review ronde 3 van #727 (GPT-6.1-Sol), met een mutatie nagespeeld. — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 68. **Een gidsstap die eenmaal "gedaan" is, blijft gedaan**, ook na wisselen naar een leeg project. Gezien bij
