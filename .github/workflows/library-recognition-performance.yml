@@ -1,0 +1,123 @@
+name: Naamherkenning resourcebibliotheken
+
+# Deze meting behoort uitsluitend bij de naamindex en zijn eigen tests. Geen productie-uitrol.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tests/library/recognition-fixture.ts'
+      - 'tests/library/benchmark-recognition.ts'
+      - '.github/workflows/library-recognition-performance.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: library-recognition-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  recognition:
+    name: Gerichte tests en basis/head op dezelfde runner
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      BASE_SHA: fbd4a3f9dcc7bdd308ab86b992d0b26f4670a553
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.HEAD_SHA }}
+          path: head
+          persist-credentials: false
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.BASE_SHA }}
+          path: base
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: head/package-lock.json
+      - name: Exacte bronnen en gelijke afhankelijkheden controleren
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C base rev-parse HEAD)" = "$BASE_SHA"
+          test "$(git -C head rev-parse HEAD)" = "$HEAD_SHA"
+          cmp base/package-lock.json head/package-lock.json
+          cmp base/package.json head/package.json
+      - name: Afhankelijkheden installeren
+        working-directory: head
+        run: npm ci --no-audit --no-fund
+      - name: Bestaande ops- en storebatterijen inclusief nieuwe contracten
+        working-directory: head
+        run: bash tests/library/run.sh check-library-ops.ts check-library-slice.ts
+      - name: Dezelfde meetinvoer en meetcode bundelen voor basis en head
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir evidence
+          ln -s "$GITHUB_WORKSPACE/head/node_modules" base/node_modules
+          # Alleen de twee meetbestanden komen uit head; de volledige productcode blijft per commit.
+          cp head/tests/library/recognition-fixture.ts base/tests/library/recognition-fixture.ts
+          cp head/tests/library/benchmark-recognition.ts base/tests/library/benchmark-recognition.ts
+          sha256sum head/tests/library/recognition-fixture.ts head/tests/library/benchmark-recognition.ts > evidence/meetcode.sha256
+          for variant in base head; do
+            head/node_modules/.bin/esbuild "$variant/tests/library/benchmark-recognition.ts" \
+              --bundle --platform=node --format=esm --alias:@="$GITHUB_WORKSPACE/$variant/src" \
+              --define:import.meta.env.DEV=false --define:import.meta.env.PROD=true \
+              --define:import.meta.env.MODE='"production"' --define:__OPS_DEV_INSTANCE__='"recognition-ci"' \
+              --outfile="evidence/$variant.mjs"
+          done
+      - name: Volledige computeRecognition meten op dezelfde runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          OPS_RECOGNITION_VARIANT=base OPS_RECOGNITION_REVISION="$BASE_SHA" node evidence/base.mjs evidence/base.json
+          OPS_RECOGNITION_VARIANT=head OPS_RECOGNITION_REVISION="$HEAD_SHA" node evidence/head.mjs evidence/head.json
+      - name: Alle uitvoervelden vergelijken en ruwe tijden bewaren
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, statistics
+          from pathlib import Path
+          base = json.loads(Path('evidence/base.json').read_text())
+          head = json.loads(Path('evidence/head.json').read_text())
+          assert base['revision'] == os.environ['BASE_SHA']
+          assert head['revision'] == os.environ['HEAD_SHA']
+          for field in ['node', 'platform', 'arch', 'cpu']:
+              assert base[field] == head[field], field
+          assert len(base['cases']) == len(head['cases']) == 2
+          lines = [f"Basis: {base['revision']}", f"Head: {head['revision']}"]
+          for old, new in zip(base['cases'], head['cases']):
+              for field in old:
+                  if field not in ['samplesMs', 'stampedSamplesMs']:
+                      assert old[field] == new[field], (field, old[field], new[field])
+              size = old['sizePerKind']
+              for field in ['samplesMs', 'stampedSamplesMs']:
+                  before = statistics.median(old[field])
+                  after = statistics.median(new[field])
+                  lines.append(f"{size} per soort, {field}: basis={old[field]}, head={new[field]}")
+                  lines.append(f"Mediaan: {before:.3f} ms -> {after:.3f} ms ({before / after:.2f}x)")
+              lines.append(f"Invoer-SHA256: {old['inputHash']}")
+              lines.append(f"Volledig voorstel-SHA256: {old['proposalHash']}")
+          lines.append('Alle invoer-, voorstel-, toepassen- en undo-hashes identiek; exit 0.')
+          report = '\n'.join(lines) + '\n'
+          Path('evidence/resultaat.txt').write_text(report)
+          print(report)
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+              summary.write('```text\n' + report + '```\n')
+          PY
+      - name: Ruwe metingen en bewijshashes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: library-recognition-${{ github.event.pull_request.head.sha }}
+          path: |
+            evidence/*.json
+            evidence/*.sha256
+            evidence/*.txt
+          if-no-files-found: warn
+          retention-days: 14

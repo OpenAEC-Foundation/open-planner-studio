@@ -76,7 +76,9 @@ interface OpenAECHost {
   storage?: SiteStorage;
   /** Open dit bestand bij de start, als de tool nog een leeg document heeft. */
   initialFileId?: string;
-  /** Toon bij de start geen welkomstvenster (alleen strikt `true`). Werkt ook zonder `storage`. */
+  /** De taal van de site (bijv. `'nl'`); de tool start in die taal als hij hem kent (#716). */
+  taal?: string;
+  /** Niet meer nodig (#716): elke host slaat het welkomstvenster al over. Blijft geldig. */
   skipWelcome?: boolean;
 }
 
@@ -99,10 +101,18 @@ Afspraken:
   nooit een site.
 - Zet de site de host pas na het laden en gebruikt ze `initialFileId`, stuur dan één keer het event
   `openaec-host-ready` op het venster waar de host staat (het eigen venster van de tool, of de pagina eromheen).
-- Kan de tool geen instellingen bewaren (bijvoorbeeld een sandbox-iframe zonder `localStorage`), zet dan
-  `skipWelcome: true`. Anders komt het welkomstvenster bij elke start terug. De tool kijkt bij de start en nog
-  eens vlak voordat het venster zou openen. Zet de host daarom vóór de tool start: een venster dat al open
-  staat, sluit een latere host niet.
+- Ingebed (er staat een host, ook zonder de vier functies, of dit is de platformbouw) toont de tool bij de start
+  geen welkomstvenster, en dus geen taalvraag en geen rondleiding (#716). De gebruiker opent ze zelf via het lint,
+  de backstage of de instellingen; daar blijft ook de taalkeuze. `skipWelcome` is daarvoor niet meer nodig.
+  Zonder `localStorage` slaat de tool het venster ook buiten een host over (#706).
+- De taal komt van de host: eerst `taal` op de host (`nl`, `en`, `de`, `fr`, `es`, `tr`, of een andere taal van
+  de tool), dan de `lang` van een same-origin parentpagina (`<html lang="nl">`), dan `taal=` in de hash van de
+  url (`#taal=nl`). De eerste taal die de tool kent, wint, ook boven een eerder bewaarde keuze; `de-AT` wordt
+  `de`. Kent de tool geen enkele, dan kiest hij zoals buiten een host (bewaarde keuze, dan de browsertaal). De
+  tool bewaart de taal van de host niet.
+- Zet de host vóór de tool start. De tool kiest de taal één keer, vóór de eerste weergave, en kijkt voor het
+  welkomstvenster bij de start en nog eens vlak voordat het zou openen. Een latere host verandert de taal niet
+  en sluit een venster dat al open staat niet.
 - `list` krijgt de extensies zonder punt (`ifc`, `csv`, `xml`, `mpp`, `xer`). De site mag erop filteren; de
   tool filtert daarna zelf ook.
 - `open` zonder `version` geeft de nieuwste versie, met `file.version` erbij; zonder versie weigert de tool het

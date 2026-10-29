@@ -1,7 +1,9 @@
 import type { Task } from '@/types/task';
+import type { WorkCalendar } from '@/types/calendar';
 import type { ResourceAssignment } from '@/types/resource';
 import type { ImportResult } from '@/services/importTypes';
-import { applyRemainingDuration, defaultActualFinish, defaultActualStart } from '@/engine/taskMutationRules';
+import { applyRemainingDuration, defaultActualFinish, defaultActualStart, normalizeActualDate } from '@/engine/taskMutationRules';
+import { isDateOnly } from '@/engine/calendar/workdayRules';
 import { orderActualsAfterDerivedFinish } from '@/engine/actualDatesOrder';
 import { workRuleFromMsp, workRuleFromXerDurationType } from '@/engine/work/workRuleMapping';
 import { minOf } from '@/utils/collections';
@@ -54,12 +56,17 @@ export function deriveImportedWorkRules(tasks: Task[]): void {
  * Ook een IFC van een oudere versie houdt zijn opgeslagen rest, al schreef die versie een dagenrest
  * afgerond (`Math.round`): het bestand zegt niet of een rest ingevoerd of afgeleid was, en een MPP-rest
  * van 4 d bij 33 % ziet er net zo uit als een afgeronde afleiding. De opgeslagen waarde is dan het feit.
- * Eigenaarsbesluit B3 (2026-10-20) staat een verschuiving van oude bestanden toe, maar eist haar niet.
+ * Eigenaarsbesluit B3 (2026-10-20) staat een verschuiving van oude bestanden toe, maar eist haar niet. *
+ * `calendar`: de kalender van de taken, als de lezer hem kent (nu alleen CSV). Een afgeleid einde zonder
+ * tijd naast een vastgelegde start mét tijd gaat dan eerst door dezelfde kalenderregel als in de store
+ * (D2/D6, `normalizeActualDate`), vóór de volgordevergelijking. Anders telt het als 00:00, ligt het vóór
+ * een start om 10:15 op dezelfde dag en wordt het einde die start (nulduur).
  */
 export function normalizeImportedProgress(
   tasks: Task[],
   statusDate?: string,
   runningAtFullIds?: ReadonlySet<string>,
+  calendar?: WorkCalendar,
 ): void {
   for (const task of tasks) {
     const t = task.time;
@@ -97,6 +104,9 @@ export function normalizeImportedProgress(
       const startWasDerived = !t.actualStart;
       if (startWasDerived) t.actualStart = defaultActualStart(t);
       t.actualFinish = defaultActualFinish(t, statusDate);
+      if (!startWasDerived && !isDateOnly(t.actualStart!)) {
+        t.actualFinish = normalizeActualDate(task, 'actualFinish', t.actualFinish, statusDate, calendar);
+      }
       // Alleen een ontbrekende start mag terug naar de statusdatum; aanwezige feiten blijven staan.
       orderActualsAfterDerivedFinish(t, statusDate, startWasDerived);
       task.status = 'COMPLETED';

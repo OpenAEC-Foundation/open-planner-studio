@@ -35,6 +35,9 @@ export function ConfirmDialog({ message, onConfirm, onCancel, confirmLabel, canc
       if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onCancel(); }
       else if (e.key === 'Enter') {
         e.stopPropagation();
+        // IME-Enter bevestigt alleen de tekstcompositie, nooit deze (mogelijk destructieve) vraag.
+        // Ook de standaard knopactivatie blokkeren, ongeacht waar de focus staat.
+        if (e.isComposing) { e.preventDefault(); return; }
         // Focus op een knop van déze dialoog (na openen staat die op Annuleren): geen
         // preventDefault, zodat de browser die knop zelf activeert. Anders verwijderde Enter op
         // Annuleren toch (knownbug 33-review).

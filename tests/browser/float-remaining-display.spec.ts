@@ -51,6 +51,24 @@ test('speling en restduur van een urentaak: leesbaar en overal gelijk', async ({
     .locator('xpath=following-sibling::input[1]');
   await expect(remaining).toHaveValue('3h');
 
+  // Een importtaak kan op 100 % nog lopen met een expliciete bronrest (knownbug 387).
+  // Zet die fixture zonder een voortgangsbewerking, die de rest bewust opnieuw zou afleiden.
+  await page.evaluate(id => window.__OPS__!.store.setState(s => {
+    const t = s.tasks.find(t => t.id === id)!;
+    t.status = 'STARTED';
+    t.time.completion = 1;
+    t.time.remainingMinutes = 1920;
+    t.time.actualFinish = undefined;
+  }), ids.A);
+  await expect(remaining).toHaveValue('32h');
+  // Herstel de oorspronkelijke lopende fixture voor de bestaande speling- en hoverroute.
+  await page.evaluate(id => window.__OPS__!.store.setState(s => {
+    const t = s.tasks.find(t => t.id === id)!;
+    t.time.completion = 0.4;
+    t.time.remainingMinutes = 180;
+  }), ids.A);
+  await expect(remaining).toHaveValue('3h');
+
   // Dezelfde resultaatsectie: enkelvoud/meervoud volgt de zichtbare afgeronde speling.
   for (const locale of ['en', 'nl']) {
     await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: true }));
@@ -85,6 +103,17 @@ test('speling en restduur van een urentaak: leesbaar en overal gelijk', async ({
   await page.mouse.move(body.x, body.y);
   const tooltip = page.locator('.gantt-tooltip');
   await expect(tooltip).toBeVisible();
+  await expect(tooltip.locator('.tooltip-row').filter({ hasText: /^(Total float|Totale speling):?/ }).locator('.tooltip-value'))
+    .toHaveText(/^0[.,]67d$/);
+
+  // 379: de muis blijft op dezelfde balk terwijl de brondata verandert. De tooltip mag
+  // geen snapshot van de vorige rendererframe blijven tonen; F5 herstelt daarna de echte speling.
+  await page.evaluate(id => window.__OPS__!.store.setState(s => {
+    s.tasks.find(t => t.id === id)!.time.totalFloat = 2;
+  }), ids.A);
+  await expect(tooltip.locator('.tooltip-row').filter({ hasText: /^(Total float|Totale speling):?/ }).locator('.tooltip-value'))
+    .toHaveText('2d');
+  await page.keyboard.press('F5');
   await expect(tooltip.locator('.tooltip-row').filter({ hasText: /^(Total float|Totale speling):?/ }).locator('.tooltip-value'))
     .toHaveText(/^0[.,]67d$/);
 

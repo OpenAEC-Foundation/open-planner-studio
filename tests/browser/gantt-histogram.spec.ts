@@ -2,6 +2,7 @@
 // echte canvas-/DOM-coördinaten bediend; state en painttellers worden uitsluitend geobserveerd.
 import type { Page } from '@playwright/test';
 import { barPoint, expect, seedProject, state, test } from './fixtures/ops';
+import { measureGanttHover } from '../performance/gantt-hover/measure';
 
 // Deze route bedient tijdlijnbalken naast de takenlijst en de eigenschappenrail.
 // Reserveer expliciet genoeg canvasruimte, onafhankelijk van de standaard paneelbreedte.
@@ -121,6 +122,74 @@ test('histogram picker wisselt echte resourceserie en hover op de plot toont bij
     await page.mouse.move(bounds!.x - 20, bounds!.y - 20);
     await expect(tooltip).toHaveCount(0);
   }
+
+  // Warm beide indexen op; wijzig daarna de echte invoerarrays. Binnen dezelfde dag blijft de
+  // bestaande tekst staan, de volgende dag moet de actuele taaknaam en het resourcetype lezen.
+  await page.evaluate(({ taskId, resourceId }) => {
+    const bridge = window.__OPS__!;
+    const s = bridge.store.getState();
+    const template = s.tasks.find(task => task.id === taskId)!;
+    bridge.store.setState({
+      tasks: [...s.tasks, { ...template, id: 'tooltip-plot', name: 'Blijvende plotbijdrage', resourceIds: [resourceId] }],
+      assignments: [...s.assignments, { id: 'tooltip-plot-assignment', taskId: 'tooltip-plot', resourceId, unitsPerDay: 1 }],
+    });
+    bridge.store.getState().recomputeResourceLoad();
+  }, { taskId: taskIds[1], resourceId: spareId });
+  await clickPickerRow(page, 0);
+  await page.mouse.move(taskStart.x + 5, bounds!.y + 70);
+  await expect(tooltip.locator('.tooltip-row')).toHaveText(['Overbelaste bijdrage A', 'Overbelaste bijdrage B', 'Blijvende plotbijdrage']);
+  await page.evaluate(({ taskId, resourceId }) => {
+    const s = window.__OPS__!.store.getState();
+    s.updateTask(taskId, { name: 'Actuele bijdrage B' });
+    window.__OPS__!.store.getState().updateResource(resourceId, { type: 'MATERIAL', unitOfMeasure: 'm³' });
+  }, { taskId: taskIds[1], resourceId: overId });
+  await page.mouse.move(taskStart.x + 6, bounds!.y + 71);
+  await expect(tooltip.locator('.tooltip-row')).toHaveText(['Overbelaste bijdrage A', 'Overbelaste bijdrage B', 'Blijvende plotbijdrage']);
+  const nextDayOffset = await page.evaluate(() => (
+    window.__OPS__!.gantt.dateX('2026-09-08')! - window.__OPS__!.gantt.dateX('2026-09-07')!
+  ));
+  await page.mouse.move(taskStart.x + nextDayOffset + 5, bounds!.y + 70);
+  await expect(tooltip.locator('.tooltip-title')).toHaveText(/^(1 taak draagt bij op|1 task contributes on) 2026-09-08$/);
+  await expect(tooltip.locator('.tooltip-row')).toHaveText(['Blijvende plotbijdrage']);
+  await clickPickerRow(page, 1);
+  await page.mouse.move(taskStart.x + nextDayOffset + 5, bounds!.y + 70);
+  await expect(tooltip.locator('.tooltip-row')).toHaveText(['Actuele bijdrage B']);
+
+  // Defensieve karakterisering: eerste dubbele id wint, namen zijn uniek in assignmentvolgorde,
+  // lege namen vallen terug op de id en de titel telt ook de namen voorbij de acht zichtbare.
+  await page.mouse.move(bounds!.x - 20, bounds!.y - 20);
+  const names = await page.evaluate(({ taskId, resourceId, laborId }) => {
+    const bridge = window.__OPS__!;
+    const s = bridge.store.getState();
+    const original = s.tasks.find(task => task.id === taskId)!;
+    const extras = Array.from({ length: 10 }, (_, index) => ({
+      ...original, id: `tooltip-extra-${index}`, name: index === 0 ? '' : `Bijdrage ${index}`,
+    }));
+    bridge.store.setState({
+      tasks: [...s.tasks, { ...original, name: 'Verkeerde dubbele taak' }, ...extras,
+        { ...extras[1], id: 'tooltip-gelijke-naam' }],
+      resources: [...s.resources, { ...s.resources.find(resource => resource.id === resourceId)!, type: 'LABOR' }],
+      assignments: [...s.assignments,
+        ...extras.map((task, index) => ({ id: `tooltip-assignment-${index}`, taskId: task.id, resourceId: laborId, unitsPerDay: 1 })),
+        { id: 'tooltip-dubbele-naam', taskId: extras[0].id, resourceId: laborId, unitsPerDay: 1 },
+        { id: 'tooltip-gelijke-naam-assignment', taskId: 'tooltip-gelijke-naam', resourceId: laborId, unitsPerDay: 1 },
+        { id: 'tooltip-onbekende-taak', taskId: 'ontbreekt', resourceId: laborId, unitsPerDay: 1 },
+        { id: 'tooltip-onbekende-resource', taskId, resourceId: 'ontbreekt', unitsPerDay: 1 },
+      ],
+    });
+    return extras.map(task => task.name || task.id);
+  }, { taskId: taskIds[1], resourceId: overId, laborId: spareId });
+  await clickPickerRow(page, 0);
+  await page.mouse.move(taskStart.x + nextDayOffset + 5, bounds!.y + 70);
+  await expect(tooltip.locator('.tooltip-title')).toHaveText(/^(11 taken dragen bij op|11 tasks contribute on) 2026-09-08$/);
+  await expect(tooltip.locator('.tooltip-row')).toHaveText(['Blijvende plotbijdrage', ...names.slice(0, 7)]);
+  await clickPickerRow(page, 1);
+  await page.mouse.move(taskStart.x + nextDayOffset + 5, bounds!.y + 70);
+  await expect(tooltip.locator('.tooltip-row')).toHaveText(['Actuele bijdrage B']);
+  await page.mouse.move(bounds!.x - 20, bounds!.y - 20);
+  await expect(tooltip).toHaveCount(0);
+
+  if (process.env.OPS_MEASURE_GANTT_HOVER) await measureGanttHover(page, test.info());
 });
 
 test('taakselectie beperkt resourcedock en histogram en wissen herstelt beide', async ({ page, ops: _ops }) => {
@@ -159,9 +228,18 @@ test('taakselectie beperkt resourcedock en histogram en wissen herstelt beide', 
   await expect(dockResource('Schilder taak 73')).toHaveCount(0);
   await expect.poll(() => digest(page)).not.toBe(unfilteredHistogram);
 
+  const histogramBounds = await page.getByTestId('gantt-histogram-canvas').boundingBox();
+  expect(histogramBounds).not.toBeNull();
+  const foundationStart = await barPoint(page, taskIds[0], 'left');
+  await page.mouse.move(foundationStart.x + 5, histogramBounds!.y + 70);
+  await expect(page.locator('.gantt-tooltip .tooltip-row')).toHaveText(['Fundering']);
+  await page.mouse.move(histogramBounds!.x - 20, histogramBounds!.y - 20);
+
   await gantt.click({ position: { x: ganttBounds!.width - 40, y: ganttBounds!.height - 40 } });
   await expect.poll(() => state(page).then(snapshot => snapshot.selectedTaskIds)).toEqual([]);
   await expect(dockResource('Schilder taak 73')).toBeVisible();
+  await page.mouse.move(foundationStart.x + 5, histogramBounds!.y + 70);
+  await expect(page.locator('.gantt-tooltip .tooltip-row')).toHaveText(['Fundering', 'Afwerking']);
 });
 
 test('histogram splitter persisteert pas bij mouseup en paints worden weer stil', async ({ page, ops: _ops }) => {

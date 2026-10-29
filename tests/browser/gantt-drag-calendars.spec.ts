@@ -143,6 +143,31 @@ test('Dag: een kalendertijdtaak schuift op de klok, niet op werkuren', async ({ 
   // 48 klokuren, van middernacht tot middernacht; geen 07:00 – 16:00.
   await expect.poll(() => facts(page, id)).toMatchObject({ start: '2026-06-02T00:00', finish: '2026-06-04T00:00', days: 2 });
   expect(await recalculated(page, id)).toMatchObject({ start: '2026-06-02T00:00', finish: '2026-06-04T00:00', days: 2 });
+
+  // 288: tijdens verkorten onder P6 + Altijd uren toont één kalendertijddag 24h, niet 8h.
+  await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    s.setProject({ schedulingProfile: { baseId: 'p6', id: 'p6', name: '', overrides: {} } });
+    s.setUI({ durationDisplay: 'hours' });
+    const original = CanvasRenderingContext2D.prototype.fillText;
+    const drawn: string[] = [];
+    CanvasRenderingContext2D.prototype.fillText = function fillText(text: string, x: number, y: number, maxWidth?: number) {
+      if (this.canvas.dataset.testid === 'gantt-primary-canvas') drawn.push(String(text));
+      if (maxWidth === undefined) original.call(this, text, x, y);
+      else original.call(this, text, x, y, maxWidth);
+    };
+    Object.defineProperty(window, '__opsDragText', { configurable: true, value: drawn });
+  });
+  const p = await grabPoint(page, id, 'left');
+  await page.mouse.move(p.x, p.y);
+  await page.mouse.down();
+  await expect(page.getByTestId('gantt-primary-canvas')).toHaveCSS('cursor', 'ew-resize');
+  await page.mouse.move(p.x + 100, p.y, { steps: 6 });
+  await expect.poll(() => facts(page, id)).toMatchObject({ days: 1 });
+  await expect.poll(() => page.evaluate(() =>
+    (window as Window & { __opsDragText?: string[] }).__opsDragText?.includes('24h') ?? false)).toBe(true);
+  await page.mouse.up();
+  expect(await facts(page, id)).toMatchObject({ start: '2026-06-03T00:00', finish: '2026-06-04T00:00', days: 1 });
 });
 
 test('Dag: de linkerrand en het eerste stuk van een gesplitste dagtaak volgen de splitsom', async ({ page, ops: _ops }) => {

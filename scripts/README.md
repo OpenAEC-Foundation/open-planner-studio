@@ -603,7 +603,7 @@ Let op in Git Bash op Windows: die zet een argument als `/pad/` om naar een Wind
 | `verify-package-docs.mjs` | `.github/workflows/snap.yml`, direct na de Snap-build | leest de executable uit de zojuist gebouwde Snap en eist dat het manifest plus de aanwezige Help-artikelen (en per taal `index.json`) uit elke taalmap onder `public/docs/` als Tauri-assets zijn ingesloten, vóór upload of Store-publicatie |
 | `publish-wiki.mjs` | `npm run publish:wiki` | genereert de GitHub-wiki uit `public/docs/en`, `docs/wiki/*` en de changelog. De wiki is een build-artefact — nooit met de hand bewerken |
 | `check-wiki-links.ts` | `node scripts/run-ts.mjs scripts/check-wiki-links.ts [map]` | controleert de gegenereerde wiki (standaard `.wiki-build`), slaat codevoorbeelden over en faalt bij echte dode links; publiceert niets |
-| `download-stats.mjs` | `npm run stats:downloads` en `.github/workflows/download-stats.yml` (wekelijks + op verzoek) | downloadcijfers per besturingssysteem uit de `download_count` per release-asset van de GitHub Releases-API — tekst, markdown of JSON. Let op: Linux is install+update samen (de updater haalt hetzelfde `.deb`/`.rpm`/`.AppImage` op), de Snap Store zit er niet in, `.sig`-bestanden tellen niet mee. Het veld `downloads` is het totaal dat de README-badge toont (shields dynamic JSON op de stats-branch). Unit-test: `tests/dev-server/download-stats.test.mjs` |
+| `download-stats.mjs` | `npm run stats:downloads` en `.github/workflows/download-stats.yml` (elke 2 uur + op verzoek) | downloadcijfers per besturingssysteem uit de `download_count` per release-asset van de GitHub Releases-API — tekst, markdown of JSON. Let op: Linux is install+update samen (de updater haalt hetzelfde `.deb`/`.rpm`/`.AppImage` op), de Snap Store zit er niet in, `.sig`-bestanden tellen niet mee. Het veld `downloads` is het totaal dat de README-badge toont (shields dynamic JSON op de stats-branch). Unit-test: `tests/dev-server/download-stats.test.mjs` |
 | `windows-sign.ps1` | `.github/workflows/release.yml` (build-windows) en `.github/workflows/windows-sign-check.yml` | Authenticode met Azure Artifact Signing. `-Setup`: haalt de Microsoft-signeerclient (NuGet `Microsoft.ArtifactSigning.Client`, vaste versie, SHA512 gecontroleerd) en schrijft een Tauri-config-override met `bundle.windows.signCommand`; `<bestand>`: tekent één bestand (signtool, SHA256, RFC 3161-tijdstempel). Uitleg: `docs/release-verificatie.md` |
 | `verify-release.mjs` | `.github/workflows/release-verify.yml` (Linux-jobs); met de hand: `node scripts/verify-release.mjs [<tag>] [--dir <map>] [--out <rapport.md>]` | controleert de assets van één release: elke updater-`.sig` (minisign, tegen de pubkey in `tauri.conf.json`), `latest.json` (URL → asset, signature = asset-`.sig`), sha256 tegen de GitHub-`digest`, en informatief de codesign in de macOS-`app.tar.gz`. Markdown-rapport; exit 0 OK, 1 FOUT, 2 crash. Uitleg: `docs/release-verificatie.md`. Unit-test: `tests/dev-server/verify-release.test.mjs` |
 | `release-check.ps1` | `.github/workflows/release-verify.yml` (Windows-job, dot-source) | `Record` (zelfde TSV-log als `release-check.sh`) en `Test-Alive`: start een programma en registreert alleen OK als er na de wachttijd echt een proces draait; een mislukte start is FOUT. Test: `tests/dev-server/release-check.test.mjs` (als `pwsh` er is) |
@@ -628,11 +628,8 @@ Lokaal controleren: `node --test scripts/aur/render-pkgbuild.test.mjs` en
 
 - `run-ts.mjs` — de TypeScript-runner waarmee de `.ts`-scripts hierboven draaien (esbuild → Node).
   Alle `node scripts/run-ts.mjs scripts/x.ts`-aanroepen in `package.json` gaan hierlangs.
-- `generate-icon.py` — leidt alle app- en installer-iconen af uit het logopakket in
-  `docs/branding/open-planner-studio/` (alleen het beeldmerk). Eerst maakt
-  `branding/bovenvlak_open.py` twee masters met een doorzichtig bovenvlak in `docs/branding/app-iconbron/`
-  (besluit eigenaar 2026-10-23). Daaruit komen `app-icon.png`, `src-tauri/icons/*` (via
-  `npx tauri icon`), `snap/gui/icon.png`, en in `public/` het titelbalkicoon, de favicons en de
-  apple-touch-icon. Draai vanuit de root met `python3 scripts/generate-icon.py`; vraagt Pillow,
-  numpy en scipy. Het pakket zelf blijft ongewijzigd (SHA256SUMS). Uitleg per bestand staat
-  bovenin het script.
+- `generate-icon.mjs` — genereert het app-icoon uit code (het vorige logo, dat de app en de
+  installers weer gebruiken; besluit eigenaar 2026-10-29). **Draait niet zonder extra installatie:**
+  hij importeert `sharp`, en dat staat bewust niet in `package.json` (het is een zware native
+  dependency voor een handeling die je hooguit bij een rebranding doet). Wil je hem draaien:
+  `npm i --no-save sharp` en dan `node scripts/generate-icon.mjs`.

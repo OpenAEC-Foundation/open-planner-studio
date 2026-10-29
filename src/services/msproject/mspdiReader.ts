@@ -32,7 +32,7 @@ import {
 import { invertRecord } from '@/utils/collections';
 import {
   OPS_DAY_MEASURE_DURATIONS_NAME, OPS_DAY_MEASURE_LAGS_NAME, OPS_EXACT_MINUTES_NAME, OPS_LAG_CALENDAR_NAME,
-  dayMeasureMinutesPerDay, lagFromRecord, lagRecordHolds, lagRecordKey, lagWorkMinutesPerDay, normalizeKeepingDayRest,
+  dayMeasureMinutesPerDay, lagFromRecord, lagRecordHolds, lagRecordKey, lagWorkMinutesPerDay,
   parseFieldRecords, parseLagCalendarOption, parseLagRecords, readMeasure, type LagRecord,
 } from '@/services/xmlDayMeasure';
 import { ELAPSED_MINUTES_PER_DAY } from '@/services/ifc/dayMeasureIo';
@@ -880,7 +880,7 @@ export function readMSPDI(content: string): ImportResult {
 
   // Voortgang-invarianten op de rauw ingelezen actuals. De vastgelegde rest van een taak in de dagenmaat
   // blijft exact (B3), zoals de restminuten van een urentaak. Een lopende taak op 100 % blijft lopend.
-  normalizeKeepingDayRest(tasks, () => normalizeImportedProgress(tasks, project.statusDate, runningAtFullIds));
+  normalizeImportedProgress(tasks, project.statusDate, runningAtFullIds);
   deriveImportedWorkRules(tasks); // werkregel uit <Type>/<EffortDriven>
 
   // Importverslag (issue #391): wat deze lezer niet overneemt. De OPS-transportvelden die hierboven

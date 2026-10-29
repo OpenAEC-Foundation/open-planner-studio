@@ -4,7 +4,7 @@ import { Project } from '@/types/project';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { generateId } from '@/utils/id';
 import { normalizeImportedProgress, rebuildImportedHierarchy } from '@/services/importNormalize';
-import { csvDate, csvDateOrToday, csvDateOrUndefined, emptyMissingScheduleDates, resolveMissingScheduleDates } from '@/services/importDates';
+import { csvDate, csvDateOrToday, csvDateOrUndefined, importDateTimeOrUndefined, emptyMissingScheduleDates, resolveMissingScheduleDates } from '@/services/importDates';
 import { DEFAULT_PRIORITY } from '@/services/ifc/ifcConstants';
 import { parseSheetPercent } from '@/services/progressImport/sheetValues';
 import { LAG_UNIT_SUFFIXES, parseLagInput } from '@/utils/lagFormat';
@@ -140,8 +140,14 @@ function parseTaskType(s: string): TaskType {
 }
 
 /** CSV-datum: ISO of `DD-MM-YYYY`/`DD/MM/YYYY`; gedeeld met de import-datumhelper. */
-function parseDate(s: string, row: number, column: string): string {
-  // Alleen onherkende, gevulde cellen weigeren; geen strengere kalender-/tijdvalidatie invoeren.
+function parseDate(s: string, row: number, column: string, preserveTime = false): string {
+  // Werkelijke ISO-momenten behouden hun wandklok, ook bij een dagenmaat-taak (352).
+  if (preserveTime && /^\d{4}-\d{2}-\d{2}T/.test(s)) {
+    const instant = importDateTimeOrUndefined(s, true);
+    if (instant === undefined) throw new CsvDateImportError(row, column, s);
+    return instant;
+  }
+  // Voor de datumroute alleen onherkende, gevulde cellen weigeren; geen strengere kalendervalidatie.
   // De bestaande terugval voor lege datums en de drie herkende vormen blijven gelijk.
   if (s.trim() && csvDate(s) === undefined) throw new CsvDateImportError(row, column, s);
   return csvDateOrToday(s);
@@ -346,8 +352,8 @@ export function readCSV(content: string): ImportResult {
       taskType: get('taskType', 'CONSTRUCTION'),
       customTaskTypeId: get('customTaskTypeId').trim(),
       completion,
-      actualStart: actualStartRaw ? parseDate(actualStartRaw, i + 1, headers[colMap.actualStart]) : undefined,
-      actualFinish: actualFinishRaw ? parseDate(actualFinishRaw, i + 1, headers[colMap.actualFinish]) : undefined,
+      actualStart: actualStartRaw ? parseDate(actualStartRaw, i + 1, headers[colMap.actualStart], true) : undefined,
+      actualFinish: actualFinishRaw ? parseDate(actualFinishRaw, i + 1, headers[colMap.actualFinish], true) : undefined,
       critical: get('critical', 'No').toLowerCase() === 'yes',
       totalFloat: numberOr(get('totalFloat', '0'), 0),
       description: get('description'),
@@ -455,8 +461,9 @@ export function readCSV(content: string): ImportResult {
   const calendar = createDefaultCalendar();
   const projectStart = resolveMissingScheduleDates(tasks, missing, '', () => calendar);
 
-  // Voortgang-invarianten op de rauw ingelezen actuals. CSV kent geen statusdatum.
-  normalizeImportedProgress(tasks, undefined);
+  // Voortgang-invarianten op de rauw ingelezen actuals. CSV kent geen statusdatum; de kalender zet een
+  // afgeleid einde naast een starttijd op het einde van de werkdag.
+  normalizeImportedProgress(tasks, undefined, undefined, calendar);
 
   // Parent-child-hiërarchie: 'Outline Level'-kolom + rijvolgorde, met de gepunte WBS als
   // scheidsrechter én terugval — beslisregel bij `rebuildImportedHierarchy` (gedeeld met MSPDI).

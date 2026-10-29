@@ -770,8 +770,9 @@ export interface UIState {
   pendingNewResource: boolean;
   // --- First-startup (welkomstdialoog + rondleiding) ---
   /** session — welkomstdialoog (2 stappen: voorkeuren + rondleiding-aanbod) open. Ephemeral:
-   *  het bootstrap-effect in App.tsx zet 'm op true bij een verse `!loadWelcomeSeen()`, of de
-   *  herstart-ingangen (ribbon/backstage) zetten 'm handmatig, ongeacht welcomeSeen. */
+   *  `useSettingsBootstrap` opent hem na de herstelafhandeling als `loadWelcomeSeen()` false geeft
+   *  en de host hem niet overslaat. De handmatige ingangen starten alleen de rondleiding,
+   *  niet dit welkomstvenster. */
   showWelcomeDialog: boolean;
   /** session — rondleiding-overlay (TourOverlay) open. */
   showTourOverlay: boolean;
