@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useState, useSyncExternalStore } fr
 import { useTranslation } from 'react-i18next';
 import { setNoneLabelValue, setResourceTypeLabelsValue } from '@/utils/noneLabel';
 import { useResolvedUITheme, useSystemColorSchemeSync } from '@/hooks/useResolvedUITheme';
+import { applyThemeAttributes } from '@/utils/theme';
 import { appLog } from '@/services/debug/appLog';
 import { installConsentDialogAsker } from '@/extensions/consentBridge';
 import { installSiteDialogAskers } from '@/state/siteDialogBridge';
@@ -233,10 +234,10 @@ function AppContent() {
   // Systeemkleurschema volgen (thema 'Systeem'): één abonnement voor de hele app.
   useSystemColorSchemeSync();
 
-  // Apply theme to document — de VOORKEUR met 'system' al opgelost naar dark/light; het
-  // `data-theme`-attribuut kent geen 'system'-blok in globals.css.
+  // Apply theme to document — de VOORKEUR met 'system' al opgelost naar dark/light; er is geen
+  // 'system'-blok in globals.css. Zet `data-theme` en `data-oa-theme` samen.
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', resolvedTheme);
+    applyThemeAttributes(document.documentElement, resolvedTheme);
   }, [resolvedTheme]);
 
   // Lettertype-interface toepassen: de schaal stuurt de rem-basis (html font-size),

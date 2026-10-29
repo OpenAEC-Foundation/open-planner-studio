@@ -96,6 +96,7 @@ test('een expliciet gekozen thema negeert de systeemwissel', async ({ page, ops:
   await expect(settings).toBeVisible();
   await settings.locator('[data-ops-theme-card="light"]').click();
   await expect.poll(() => documentTheme(page)).toBe('light');
+  expect(await page.evaluate(() => document.documentElement.getAttribute('data-oa-theme'))).toBe('light');
 
   await page.emulateMedia({ colorScheme: 'dark' });
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.systemPrefersDark)).toBe(true);
@@ -107,7 +108,8 @@ test('bij het opstarten staat het systeemthema er vóór de eerste paint', async
     localStorage.setItem('ops-theme', 'system');
     localStorage.setItem('ops-welcomeSeen', 'true');
   });
-  await page.emulateMedia({ colorScheme: 'dark' });
+  // Licht, want de terugval zonder pre-paint is donker: alleen zo bewijst het spoor iets.
+  await page.emulateMedia({ colorScheme: 'light' });
 
   // Registreer élke waarde die `data-theme` ooit heeft gehad, vanaf documentcreatie. Zou de
   // pre-paint-spiegel de systeemvoorkeur niet kennen, dan staat er eerst 'dark' zonder reden of
@@ -117,27 +119,31 @@ test('bij het opstarten staat het systeemthema er vóór de eerste paint', async
     (window as unknown as { __themeTrail: (string | null)[] }).__themeTrail = trail;
     // Op dit moment bestaat `<html>` nog niet (het initscript draait bij documentcreatie), dus
     // observeren we het document zelf met `subtree` en lezen we het attribuut pas als er iets is.
+    // `data-theme` en `data-oa-theme` als paar: de brugblokken hangen aan het tweede attribuut,
+    // dus ook dat moet er vóór de eerste paint staan.
     const push = () => {
       const root: HTMLElement | null = document.documentElement;
-      if (root) trail.push(root.getAttribute('data-theme'));
+      if (root) trail.push(`${root.getAttribute('data-theme')}|${root.getAttribute('data-oa-theme')}`);
     };
     push();
     new MutationObserver(push).observe(document, {
       attributes: true,
       subtree: true,
-      attributeFilter: ['data-theme'],
+      attributeFilter: ['data-theme', 'data-oa-theme'],
     });
   });
 
   await page.reload();
   await expect.poll(() => page.evaluate(() => window.__OPS__ !== undefined), { timeout: 15_000 }).toBe(true);
-  await expect.poll(() => documentTheme(page)).toBe('dark');
+  await expect.poll(() => documentTheme(page)).toBe('light');
 
   const trail = await page.evaluate(
     () => (window as unknown as { __themeTrail: (string | null)[] }).__themeTrail,
   );
-  // `null` = het attribuut bestond nog niet (de observer start vóór het pre-paint-script).
-  // De eerste eis maakt de tweede pas zinvol: een leeg spoor zou de filtercheck vacuüm groen maken.
-  expect(trail).toContain('dark');
-  expect(trail.filter(value => value !== null && value !== 'dark')).toEqual([]);
+  // `null|null` = de attributen bestonden nog niet (de observer start vóór het pre-paint-script).
+  // De observer meldt pas ná het hele script, dus beide attributen horen er samen te staan; een
+  // `light|null` betekent dat pas React `data-oa-theme` zette. De eerste eis maakt de tweede pas
+  // zinvol: een leeg spoor zou de filtercheck vacuüm groen maken.
+  expect(trail).toContain('light|light');
+  expect(trail.filter(value => value !== 'null|null' && value !== 'light|light')).toEqual([]);
 });

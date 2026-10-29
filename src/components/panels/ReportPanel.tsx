@@ -1170,12 +1170,17 @@ export function ReportPanel() {
       // achtergrond onleesbaar wordt. Forceer daarom kort het lichte thema tijdens de capture
       // (zodat tekst donker-op-wit uitvalt) en herstel daarna het thema van de gebruiker.
       const rootEl = document.documentElement;
-      const prevTheme = rootEl.getAttribute('data-theme');
-      rootEl.setAttribute('data-theme', 'light');
+      // Beide attributen: de brugblokken in globals.css hangen aan `data-oa-theme`.
+      const themeAttrs = ['data-theme', 'data-oa-theme'] as const;
+      const prevThemes = themeAttrs.map(name => rootEl.getAttribute(name));
+      for (const name of themeAttrs) rootEl.setAttribute(name, 'light');
       const shot = await domToCanvas(node, { scale: pixelRatio, backgroundColor: '#ffffff' })
         .finally(() => {
-          if (prevTheme !== null) rootEl.setAttribute('data-theme', prevTheme);
-          else rootEl.removeAttribute('data-theme');
+          themeAttrs.forEach((name, i) => {
+            const prev = prevThemes[i];
+            if (prev !== null) rootEl.setAttribute(name, prev);
+            else rootEl.removeAttribute(name);
+          });
         });
 
       return paginateCanvasToPdfBytes(shot, {

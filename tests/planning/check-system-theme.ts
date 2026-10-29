@@ -5,6 +5,7 @@ import { UI_THEMES } from '@/state/slices/types';
 import type { UITheme } from '@/state/slices/types';
 import { initTheme, peekTheme } from '@/utils/settingsStore';
 import {
+  OA_THEME_FOR,
   SYSTEM_DARK_QUERY,
   detectSystemPrefersDark,
   resolveUITheme,
@@ -145,11 +146,14 @@ ok(
 // de compiler al: `ResolvedUITheme` = `Exclude<UITheme, 'system'>` (een runtime-vergelijking
 // daarop is dode code, TS2367).
 const globalsCss = repoFile('src/styles/globals.css');
+// Licht en donker zijn brugblokken op `data-oa-theme`; hoog contrast heeft nog een eigen
+// `data-theme`-blok. Elk thema moet een van beide hebben.
 for (const { id } of UI_THEMES) {
   const resolved = resolveUITheme(id as UITheme, false);
+  const oa = OA_THEME_FOR[resolved];
   ok(
-    globalsCss.includes(`[data-theme="${resolved}"]`),
-    `themakeuze ${id} lost op naar een bestaand [data-theme="${resolved}"]-blok`,
+    globalsCss.includes(`[data-oa-theme="${oa}"] {`) || globalsCss.includes(`[data-theme="${resolved}"] {`),
+    `themakeuze ${id} lost op naar een bestaand [data-oa-theme="${oa}"]- of [data-theme="${resolved}"]-blok`,
   );
 }
 

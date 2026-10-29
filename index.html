@@ -9,7 +9,8 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <script>
-      // Anti-thema-flits (issue #61): zet het opgeslagen thema op <html> vóór de eerste paint.
+      // Anti-thema-flits (issue #61): zet het opgeslagen thema op <html> vóór de eerste paint,
+      // als `data-theme` én `data-oa-theme` (OpenAEC-tokens 0.4).
       // Zonder dit valt de eerste paint op de :root-default (dark) en klapt de app pas ná de
       // React-mount (App.tsx → data-theme-effect) naar het gekozen thema — een zichtbare flits bij
       // Light. Dit script is bewust een minimale spiegel van `initTheme()`
@@ -38,7 +39,11 @@
         // Alleen bereikbaar als matchMedia ontbreekt of gooit; 'light' spiegelt exact wat
         // `resolveUITheme('system', false)` in TS doet, zodat er ook dán geen flits ontstaat.
         if (theme === 'system') theme = 'light';
+        // Spiegel van `OA_THEME_FOR` (src/utils/theme.ts): de brugblokken in globals.css hangen aan
+        // `data-oa-theme`, dus zonder dit attribuut flitst licht alsnog donker.
+        var oaTheme = { 'dark': 'dark', 'light': 'light', 'high-contrast': 'high-contrast-dark' };
         document.documentElement.setAttribute('data-theme', theme);
+        document.documentElement.setAttribute('data-oa-theme', oaTheme[theme] || 'dark');
       })();
     </script>
   </head>

@@ -77,8 +77,9 @@ const DONE_MIN_CONTRAST = 3;
 // Elk thema met zijn eigen kaartkleur en de lat die daar geldt. Hoog contrast bestaat om de norm
 // te halen, dus daar 7:1 in plaats van de 3:1-ondergrens voor grafische objecten.
 const THEMAS: { selector: string; kaart: string; lat: number; moetZetten: boolean }[] = [
-  { selector: '[data-theme="high-contrast"]', kaart: '#0a0a0a', lat: 7, moetZetten: true },
-  { selector: '[data-theme="light"]', kaart: '#FAFAFA', lat: 3, moetZetten: false },
+  { selector: '[data-theme="high-contrast"] {', kaart: '#0a0a0a', lat: 7, moetZetten: true },
+  // De lichte kaart is --oa-panel uit de tokens 0.4 (wit).
+  { selector: '[data-oa-theme="light"] {', kaart: '#FFFFFF', lat: 3, moetZetten: false },
 ];
 
 for (const { selector, kaart, lat, moetZetten } of THEMAS) {
@@ -111,16 +112,17 @@ for (const { selector, kaart, lat, moetZetten } of THEMAS) {
   const pal = readGanttPalette();
   for (const base of [pal.critical, pal.normal]) {
     const grey = doneBarTones(base, true).fill;
-    const c = contrastRatio(rgbOf(grey), rgbOf('#2E3239'));
+    // De donkere kaart is --oa-panel uit de tokens 0.4.
+    const c = contrastRatio(rgbOf(grey), rgbOf('#33333C'));
     // Het donkere grijs is bewust ingetogen: het moet van de kaart loskomen, niet ermee wedijveren.
-    ok(`[data-theme="dark"] grijs voltooid deel ${grey} haalt ${c.toFixed(2)} >= 1.5 op #2E3239`, c >= 1.5);
+    ok(`[data-oa-theme="dark"] grijs voltooid deel ${grey} haalt ${c.toFixed(2)} >= 1.5 op #33333C`, c >= 1.5);
   }
 }
 
 // ── 3. Licht en donker zetten ze bewust NIET ────────────────────────────────
 // Zou een van beide er een gaan zetten, dan is de aanname "licht en donker delen één balkset"
 // stilzwijgend vervallen — dat moet een bewuste wijziging zijn, geen verrassing.
-for (const selector of ['[data-theme="light"]', '[data-theme="dark"]']) {
+for (const selector of ['[data-oa-theme="light"] {', '[data-oa-theme="dark"] {']) {
   const vars = themeBlock(selector);
   const gezet = BALK_VARS.filter(v => vars[v] !== undefined);
   ok(`${selector} laat de balktinten aan BRAND over (kreeg ${gezet.join(', ') || 'geen'})`, gezet.length === 0);
