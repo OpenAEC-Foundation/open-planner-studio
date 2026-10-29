@@ -594,7 +594,8 @@
     "customFieldSuffix": "eigen veld"
   },
   "tooltip": {
-    "status": "Status"
+    "status": "Status",
+    "baselineActive": "actief"
   },
   "externalLinks": {
     "action": "Externe koppeling…",

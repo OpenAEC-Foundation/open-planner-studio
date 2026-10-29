@@ -116,6 +116,7 @@ export function createDefaultUI(): UIState {
     debugTerminalOpen: false,
     documentChromeStyle: 'tabs',
     ribbonCompact: false,
+    ribbonWheelSwitchesTabs: true,
     showProjectOverview: false,
     pendingCloseDocId: null,
     appQuitPending: false,
