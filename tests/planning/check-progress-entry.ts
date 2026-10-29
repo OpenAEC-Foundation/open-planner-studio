@@ -267,7 +267,10 @@ const UNTOUCHED = { completion: 0, status: 'NOT_STARTED', as: null, af: null };
   const date = daysBeforeToday(2);
   eq('3d mijlpaal met een werkelijke datum: geen vraag (start = einde)',
     S().enterTaskProgress(M, { field: 'actualFinish', value: date }, { today: TODAY }), { ok: true });
-  eq('3d mijlpaal: werkelijke datum staat', progressOf(S, M), { completion: 1, status: 'COMPLETED', as: `${date}T07:00`, af: `${date}T07:00` });
+  // Een losse mijlpaal zonder soort staat in OPS om 16:00 (B6). Afgemeld met alleen een datum houdt hij
+  // die klokketijd (besluit Ethan 2026-10-29; D7 gaf 07:00). Zie check-mijlpaal-afmelden.ts.
+  eq('3d mijlpaal: geplande tijd 16:00', taskOf(S, M).time.earlyStart?.slice(11), '16:00');
+  eq('3d mijlpaal: werkelijke datum staat, met de geplande tijd', progressOf(S, M), { completion: 1, status: 'COMPLETED', as: `${date}T16:00`, af: `${date}T16:00` });
 }
 {
   // Regel 1 + 2: geen statusdatum, taak begint na vandaag ⇒ vraag tegen VANDAAG; pas het antwoord

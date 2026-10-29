@@ -8,7 +8,9 @@
   midden op de werkdag), B5 (berekenen en melden), B6 (losse mijlpaal aan het einde van de werkdag in het
   OPS-profiel), B7 (procentlag exact) en B8 ("d" is in het OPS-profiel de dagenmaat; de urenmaat staat in u).
   Besloten door de eigenaar op 2026-10-23 in het orkestratorgesprek: B9 = optie 1 (Duurweergave heeft in het
-  OPS-profiel geen effect; elke taak toont zijn eigen maat, §3.12).
+  OPS-profiel geen effect; elke taak toont zijn eigen maat, §3.12). Besloten door Ethan op 2026-10-29: B10 (een
+  mijlpaal die met alleen een datum wordt afgemeld, houdt de klokketijd uit de planning; vervangt D7 voor
+  afmelden, §4.2).
 - **Review:** ronde 1 (GPT-6.1-Sol, Codex, reasoning xhigh; oordeel NEE) is verwerkt: de laadgrens en B5 (§5.2),
   de normalisatie en de markering (§3.6, §5.2), de adapters in de eerste release (§7), de belasting per werkdag
   (§3.11), de beperkte N1/N2 (§4.3), de statusregel (§4.2), `project.endDate` (§4.2), de eindsemantiek van
@@ -110,7 +112,8 @@ nodig heeft. Het document gebruikt daarna steeds precies deze woorden.
   kalender van de taak. Bij kalendertijd zijn de dagranden 00:00 en 24:00.
 - **Klokdatum:** de datum van een moment op de klok, van 00:00 tot 23:59. Het eindmoment wo 06:00 van een
   nachtblok heeft klokdatum wo en werkdag di.
-- **Normalisatie:** het omzetten van een datum zonder tijd naar een moment, met de regels D1–D7 (§4.2).
+- **Normalisatie:** het omzetten van een datum zonder tijd naar een moment, met de regels D1–D7 (§4.2); bij afmelden
+  van een mijlpaal met B10 (§4.2).
 - **Afleidbaar moment:** een moment dat de normalisatie van zijn werkdag, met de regel van zijn veld, precies
   teruggeeft. Op de standaardkalender: een start om 07:00 en een einde om 16:00. Niet afleidbaar: een start om
   11:00.
@@ -437,7 +440,9 @@ typewijziging. "Fase" verwijst naar §7.
   - Invoer: in de store-acties die datums zetten (`setActualStart`/`setActualFinish`, `taskSlice.ts:1448,1455`;
     `applyProgressInvariants`, `taskMutationRules.ts:110`; de setters voor beperking en deadline; het aanmaken
     van taken). Zo krijgen paneel, dialoog, raster, MCP en extensies dezelfde regel. F4 verandert alleen wat
-    de invoervelden tonen.
+    de invoervelden tonen. Uitzondering sinds B10 (2026-10-29): een werkelijke datum van een mijlpaal krijgt op de
+    voortgangsroutes de klokketijd uit de planning (`normalizeActualDate`, §4.2). De rauwe veldtoegang van
+    extensies (`api.data.updateTask`) draait geen voortgangsregels en houdt daar D7.
   - In ontwikkelmodus controleert het documentcontract na het laden en na elke mutatie dat er geen datum zonder
     tijd in zo'n veld staat.
 - **Projectdatums blijven zoals ingevoerd.** `project.startDate`, `project.statusDate` en `project.endDate`
@@ -893,7 +898,30 @@ Zo zette de meting het ook om.
   programma) D1. Reden: met alleen D1 en D2 per veld krijgt een mijlpaal begin 07:00 en einde 16:00. Dan is hij
   op een ankerkalender nooit afleidbaar, en wordt elke kalender met een mijlpaal letterlijk (§3.6). Of D1 voor een
   oud bestand de werkelijke datum van een voltooide mijlpaal zonder soort gelijk houdt op dagniveau, toetst F0
-  met een dagcase (VERMOED).
+  met een dagcase (VERMOED). **D7 geldt sinds 2026-10-29 niet meer voor afmelden** (B10, hieronder). Op de
+  laadgrens (openen, de IFC-hint `AtDayEnd`, MSPDI, P6, `.mpp`, CSV), voor de geplande datums en voor de rauwe
+  veldtoegang van extensies blijft D7 de regel.
+- **Afmelden van een mijlpaal (B10, besluit Ethan, 2026-10-29):** een nulduur-mijlpaal die bij werkelijk begin of
+  werkelijk einde een datum zonder tijd krijgt, krijgt de dag van de invoer en de klokketijd die hij in de planning
+  had. Een getypte tijd gaat voor. Dit geldt voor elke soort mijlpaal en in elk profiel. Voorbeeld:
+  "Oplevering" staat gepland op ma 1 jun 16:00; 3-6-2026 wordt wo 3 jun 16:00. "Start bouw", gepland ma 1 jun
+  07:00, afgemeld op 2-6-2026, wordt di 2 jun 07:00. Uitwerking (`normalizeActualDate`,
+  `src/engine/taskMutationRules.ts`):
+  - *De planning* is de getoonde start van de mijlpaal vóór de invoer (`shownStart`): de berekende `earlyStart`,
+    vóór de eerste berekening het anker `scheduleStart`, en bij een al afgemelde mijlpaal zijn werkelijke datum.
+    Daar tekent de Gantt ook de ruit. Niet `scheduleStart` alleen: dat is het anker en niet de uitkomst van de
+    logica (een mijlpaal na een taak van 3 u staat om 10:00, zijn anker om 07:00). Een tweede afmelding houdt zo
+    de afgemelde tijd, ook in P6, waar C5 de vroege start van een voltooide taak op de statusdatum zet.
+  - *De dag* is de dag die de tabel bij dat moment toont (B4); de tijd is de afstand tot middernacht van die
+    dag. Op een gewone kalender is dat de kloktijd. Alleen bij een blokeinde na middernacht wijkt het af: een
+    FINISH-mijlpaal om di 00:00 (24:00-regel) of wo 06:00 (nachtblok di 22:00–wo 06:00) toont "ma" of "di";
+    wie een andere dag typt, krijgt het blokeinde van die dag, en de tabel toont de getypte dag.
+  - Zonder moment met tijd in de planning geldt D7. Een gewone taak houdt D1 en D2.
+  - De klem op het statusmoment (statusregel 2 hieronder) en de andere controles blijven. Een datumloze invoer
+    op de statuswerkdag na een statusmoment met tijd wordt dat statusmoment, ook als de planning later op de dag
+    ligt.
+  - Ook het afgeleide einde bij 100 % zonder datum (`applyProgressInvariants`: de statusdatum zonder tijd) krijgt
+    de klokketijd uit de planning.
 
 **D3 per veld: wat de datum van een kalendertijd-taak nu betekent** (review ronde 1, punt 8). Het dagpad schrijft
 het einde als start + n kalenderdagen, maar leest de datum daarna als inclusief. Probes (BEVESTIGD, harness):
@@ -1690,6 +1718,7 @@ nodig heeft. B2, B4 en B8 zijn besloten (2026-10-20) en bepalen F4. B9 = optie 1
 Besloten op 2026-10-20: B1, B1a, B2, B3, B4, B5, B6, B7 en B8. De regel voor `isDirty` bij B5 is geen besluit van de
 eigenaar, maar een technische keuze van de orkestrator (2026-10-20; §5.2). De eigenaar besloot op 2026-10-23 in het
 orkestratorgesprek: B9 = optie 1. Duurweergave heeft in het OPS-profiel geen effect; elke taak toont zijn eigen maat.
+Ethan besloot op 2026-10-29 B10: een afgemelde mijlpaal houdt de klokketijd uit de planning.
 
 ### B1. Wat is één dag (welke maat)? — besloten: optie 3, een maat per taak
 
@@ -1916,6 +1945,9 @@ B ma 1 tot di 2 jun).
 **Uitwerking:** de conventie staat in §3.14 en komt in F2. Nu hangt de plaats af van de kalender (dagkalender:
 einde; urenkalender: begin). Een oud OPS-bestand met een urenkalender verschuift dus; de melding van B5 telt het.
 
+**Bij afmelden (B10, 2026-10-29):** zo'n mijlpaal houdt bij een datum zonder tijd zijn geplande 16:00. Eerder zette
+D7 hem bij afmelden op het begin van de dag, 9 uur terug.
+
 **Wie, wanneer, bron:** de eigenaar, 2026-10-20, via de coördinator in dit gesprek.
 
 ### B7. Procentlag — besloten: exact, ook in het OPS-profiel
@@ -1985,12 +2017,37 @@ korte vrijdag). Dan betekent "u" twee dingen, terwijl de maat bepaalt hoe een ta
 
 **Wie, wanneer, bron:** de eigenaar, 2026-10-23, in het orkestratorgesprek.
 
+### B10. Afgemelde mijlpaal — besloten: hij houdt de klokketijd uit de planning
+
+**Besluit (Ethan, 2026-10-29, letterlijk):** "Meld je een mijlpaal af met alleen een datum, dan houdt hij de
+klokketijd die hij in de planning had. De dag komt van wat je typt, de tijd uit de planning. Typ je zelf een tijd,
+dan geldt die."
+
+**Wat de planner ziet** (standaardkalender 07:00–16:00). "Oplevering" staat gepland op ma 1 jun 16:00. Hij typt bij
+werkelijk 3-6-2026; de mijlpaal wordt wo 3 jun 16:00. "Start bouw", gepland ma 1 jun 07:00, afgemeld op 2-6-2026,
+wordt di 2 jun 07:00. Een mijlpaal die door de logica om 10:00 uitkomt, krijgt bij afmelden ook 10:00, en de tabel
+toont die tijd.
+
+**Waarom:** B6 zet een losse mijlpaal zonder soort in de planning op het einde van de werkdag. D7 (§4.2, fixronde 2,
+geschreven door de ontwerpagent) zette hem bij afmelden op het begin van de dag. Daardoor sprong de mijlpaal 9 uur
+terug. Twee andere keuzes vielen af: altijd 16:00 (een mijlpaal zonder soort is een afrondingsmoment) en altijd
+07:00 (een beginmoment, ook in de planning). Deze regel werkt voor elke soort mijlpaal en in elk profiel, zonder
+opnieuw te bepalen wat "zonder soort" betekent. Nadeel: komt een mijlpaal door de logica midden op de dag uit, dan
+krijgt de afgemelde datum ook die tijd.
+
+**Uitwerking:** §4.2 (*Afmelden van een mijlpaal*). De laadgrens houdt D7. Bekende randgevallen: knownbugs 445
+(nachtploeg: de statusregel kijkt bij een mijlpaal zonder soort naar de startkant) en 447 (de rauwe veldtoegang van
+extensies houdt D7).
+
+**Wie, wanneer, bron:** Ethan, 2026-10-29; vloot-wiki, `besluiten/2026-10-29 afgemelde mijlpaal houdt de geplande
+tijd.md`.
+
 ### Technische keuzes die dit ontwerp zelf neemt
 
 | # | Keuze | Reden |
 |---|---|---|
 | T1 | Uren per dag > spanne: einde verlengen, melden | §3.1 |
-| T2 | Regels D1–D7 voor datums zonder tijd, met D3 per veld (ook het baseline-einde) en D7 voor mijlpalen | §4.2; review ronde 2, punt 7 |
+| T2 | Regels D1–D7 voor datums zonder tijd, met D3 per veld (ook het baseline-einde) en D7 voor mijlpalen; bij afmelden van een mijlpaal geldt sinds 2026-10-29 B10 | §4.2; review ronde 2, punt 7; B10 |
 | T3 | 24:00-regel | §4.2, B4 |
 | T4 | Grensregels N0–N3, alleen op benoemde plekken (herzien na review ronde 1) | §4.3; een algemene snap breekt `z13-*` en P6-grenzen |
 | T5 | Speling in IFC als hele dagen plus minuten in de pset | §3.4, forward-compat |
@@ -2282,7 +2339,8 @@ De probe van review ronde 7 (`/tmp/uren-review7/splits.log`) liet de gaten zien.
 - Of MSP en P6 een `ExtendedAttribute` of UDF voor de lagmaat bewaren als een planner het bestand daar opslaat
   (§3.3). De nieuwe markeringen en records in MSPDI en P6 XML (T21) zijn alleen als leesregel nagebootst, niet
   integraal door schrijver en lezer getoetst.
-- Of D1 voor een mijlpaal zonder soort in een oud bestand de werkelijke datum gelijk houdt op dagniveau (D7).
+- Of D1 voor een mijlpaal zonder soort in een oud bestand de werkelijke datum gelijk houdt op dagniveau (D7). Dit
+  gaat alleen nog over de laadgrens; bij afmelden geldt sinds 2026-10-29 B10 (§4.2).
 - De precieze weging van een curve, contour of opgeslagen werk over een eerste en laatste deeldag (§3.11), en wat
   de vraag per kandidaat de nivelleerder aan tijd kost.
 - De punten van knownbugs 145–148 zijn gemeld door de bouwer van #402 en niet door deze agent nagespeeld.

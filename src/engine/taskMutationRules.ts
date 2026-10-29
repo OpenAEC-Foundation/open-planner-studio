@@ -47,12 +47,14 @@ export function actualDateSide(task: Task, field: 'actualStart' | 'actualFinish'
  * elk profiel en voor elke soort mijlpaal. Voorbeeld: "Oplevering" staat op ma 1 jun 16:00; 3-6-2026
  * wordt wo 3 jun 16:00.
  *
- * "De planning" is het moment dat de mijlpaal nu toont: {@link shownStart}. Voor een mijlpaal die nog
- * niet is afgemeld is dat de berekende `earlyStart` (vóór de eerste berekening het anker
- * `scheduleStart`); is hij al afgemeld, dan zijn werkelijke datum. Niet `scheduleStart` alleen: dat is
- * het ingevoerde anker en niet de uitkomst van de logica (een mijlpaal na een taak van 3 u staat om
- * 10:00, zijn anker om 07:00). Voor een mijlpaal zijn begin en einde hetzelfde moment, dus één veld
- * voor beide actuals.
+ * "De planning" is het moment dat de mijlpaal nu toont: {@link shownStart}, waar de Gantt ook de ruit
+ * tekent (`milestoneAnchorX`). Voor een mijlpaal die nog niet is afgemeld is dat de berekende
+ * `earlyStart` (vóór de eerste berekening het anker `scheduleStart`); is hij al afgemeld, dan zijn
+ * werkelijke datum. Zo houdt een tweede afmelding de tijd, ook in P6, waar C5 de vroege start van een
+ * voltooide taak op de statusdatum zet. Niet `scheduleStart` alleen: dat is het ingevoerde anker en
+ * niet de uitkomst van de logica (een mijlpaal na een taak van 3 u staat om 10:00, zijn anker om
+ * 07:00). Na een berekening zijn begin en einde van een mijlpaal hetzelfde moment, dus één veld voor
+ * beide actuals.
  *
  * "De dag" is de dag die de tabel bij dat moment toont (B4, `taskDateLabel`); de tijd is de afstand tot
  * middernacht van die dag. Op een gewone kalender is dat de kloktijd (ma 16:00 geeft 16:00). Alleen bij

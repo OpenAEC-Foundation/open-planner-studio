@@ -405,6 +405,12 @@ en noem het in je rapport of PR-tekst.
      lagere waarde. Onder alle drie profielen en beide werkregels, op main precies zo. Voorstel: bij het samenvoegen
      het totale werk bewaren (een naar dagdeel gewogen inzet), of verschillende inzetten als aparte fasen houden.
      Gevonden in review ronde 3 van #694 (GPT-6.1-Sol). — B
+446. **Een losse FINISH-mijlpaal op een 24-uurskalender staat een dag later dan een losse mijlpaal zonder
+     soort.** OPS-profiel, kalender ma–vr 00:00–24:00, projectstart ma 1 jun 2026, drie losse mijlpalen zonder
+     relaties, Bereken: zonder soort en START staan op di 2 jun 00:00 (het einde van ma, B6), FINISH op wo 3 jun
+     00:00 (het einde van di). Op de standaardkalender staan alle drie op ma 16:00. Gemeten met een probe bij de
+     PR voor het afmelden van mijlpalen (besluit 2026-10-29); dat dit fout is, leid ik af uit B6 ("aan het einde
+     van zijn werkdag"). Niet verder onderzocht: de plaatsing zit in `CPMSolver.ts`. — S
 
 ## Tabel, invoer en bediening
 
@@ -501,6 +507,16 @@ en noem het in je rapport of PR-tekst.
     `src/engine/reports/reportCommon.ts` overschrijft daardoor de aanwezige rest met nul. Alleen in de
     code vastgesteld bij knownbug 387; samenvattings- en rapportroutes nog niet doorgemeten.
     Voorstel: de voortgangsclassificatie met de importstatus afstemmen en de rollups gericht toetsen. — B
+445. **Nachtploeg: een losse mijlpaal zonder soort of met soort START is op de statusdag niet af te melden.**
+     OPS-profiel, kalender ma–vr 22:00–06:00, losse mijlpaal zonder soort: B6 zet hem op di 2 jun 06:00 (het einde
+     van het blok van ma), de tabel toont "01-06-2026". Statusdatum 3 jun zonder tijd; typ bij *Werkelijke datum*
+     "03-06-2026". Sinds het besluit van 2026-10-29 (een afgemelde mijlpaal houdt de klokketijd uit de planning)
+     wordt dat do 4 jun 06:00, het einde van het blok van wo 3 jun; de tabel zou "03-06-2026" tonen. De
+     statusregel (`isActualPastStatusDate`, `src/engine/taskMutationRules.ts`) kijkt bij een mijlpaal zonder
+     soort naar de startkant, ziet do 4 jun en weigert: *Actuals kunnen niet ná de statusdatum liggen*. Met D7
+     gaf het wo 3 jun 22:00 en werd het geaccepteerd. Een FINISH-mijlpaal heeft het niet (eindkant), en met
+     statusdatum 4 jun gaat het goed. Omweg: typ een tijd. Gemeten met een probe op alle drie de soorten.
+     Voorstel: laat de statusregel bij een mijlpaal dezelfde dag gebruiken als de tabel (`taskDateLabel`). — B
 
 ## Kalenders
 
@@ -741,6 +757,14 @@ en noem het in je rapport of PR-tekst.
     Hetzelfde geldt al voor `XER_ARCHIVE_DROPPED`. Voorstel: een contractkeuze, bijvoorbeeld een
     gedocumenteerde responseheader met de waarschuwingscodes. Gevonden in de review van de fix voor aanval
     a10 (GPT-6.1-Sol). — B
+447. **De extensie-API meldt een mijlpaal af met D7, niet met de geplande tijd.** `api.data.updateTask` met
+     `time.actualFinish: '2026-06-03'` op een losse mijlpaal zonder soort (OPS, gepland ma 1 jun 16:00) geeft
+     2026-06-03T07:00, waar paneel, tabel, Taak bewerken, voortgangsimport en MCP sinds het besluit van
+     2026-10-29 16:00 geven. Oorzaak: de route is rauwe veldtoegang (`fromExtTaskUpdates` →
+     `taskSlice.updateTask` → `normalizeTaskDates`, D1–D7) en draait geen voortgangsregels; ook status en
+     werkelijke start blijven daar ongemoeid (status NOT_STARTED bij completion 1). Gemeten met een probe op de
+     store-aanroep die de API doet. Voorstel: een eigen voortgangsactie in de extensie-API, of bewust zo laten en
+     in de API-docs noemen. — B
 
 ## Bestanden en herstel
 
