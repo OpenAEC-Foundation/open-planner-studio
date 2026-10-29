@@ -412,8 +412,9 @@ function normalizeTaskDurationUnit(task: Task): Task {
  *  - `clearTimephasedDurationWalks` — LAAG 4 (`timephasedDurationWalks`). `CPMSolver.ts` wandelt
  *    `task.time.durationMinutes` (live) door de EIGEN resourcekalender van elke toewijzing bij elke
  *    `runCPM` — maar alleen voor een item ZONDER `workMinutes`. Bij >1 toewijzing zet `mppReader.ts`
- *    per item een BEVROREN `workMinutes` (apportionering), en `timephasedFinish` gebruikt
- *    `walk.workMinutes ?? durMin`: die bevroren waarde wint dan van elke latere duur-/datumwijziging.
+ *    per item een BEVROREN `workMinutes` (de werktijd van de toewijzing, werk ÷ inzet), en
+ *    `timephasedFinish` gebruikt `walk.workMinutes ?? durMin`: die bevroren waarde wint dan van elke
+ *    latere duur-/datumwijziging.
  *    Daarnaast is elk item een bevroren import-snapshot PER TOEWIJZING (`{ anchor,
  *    resourceCalendarId }`, `deriveTimephasedWindowsForTasks`): verandert de TOEWIJZINGENSET (mogelijk
  *    een andere resourcekalender — precies de laag-4-activeringsvoorwaarde,
