@@ -3009,11 +3009,16 @@ export class CPMSolver {
    * gezet is, anders de VOLLE `task.time.durationMinutes`. `mppReader.ts` zet `workMinutes`
    * UITSLUITEND bij >1 toewijzing (`deriveTimephasedWindowsForTasks`'s finalisatielus): bij meerdere
    * GELIJKTIJDIGE toewijzingen wandelt geen enkele toewijzing de volle taakduur — elke toewijzing
-   * wandelt alleen haar eigen werk-aandeel (geen partitie: de som over de toewijzingen hoeft niet
-   * gelijk te zijn aan de taakduur), niet de volle taakduur (die aanname bleek BEWEZEN onjuist —
+   * die de duur stuurt wandelt haar eigen WERKTIJD (geen partitie: de som over de toewijzingen hoeft
+   * niet gelijk te zijn aan de taakduur), niet de volle taakduur (die aanname bleek BEWEZEN onjuist —
    * `mpp14resource.mpp`'s "Task A", drie toewijzingen, gaf zonder apportionering een ~2× te late
-   * datum). LET OP: leid uit een lijst van lengte 1 NIET af dat `workMinutes` ontbreekt — 19
-   * corpustaken dragen een lengte-1-lijst mét `workMinutes` (de MATERIAL-gefilterde >1-tak in
+   * datum). Die werktijd is haar werk ÷ haar inzet, de term van regel 2 van de werkdriehoek
+   * (`assignmentRemainingMinutes`, `workTriangle.ts`); de lezer rekent hem bij de import uit, dus
+   * de inzet zit al in `workMinutes` (knownbug 187: `timephased-cost-rollup.mpp` "Task 8", 300 min
+   * werk op 12,5% ⇒ 2400 werkminuten). Toewijzingen die de duur niet sturen (materiaal, een MSP-
+   * kostenresource) staan niet in de lijst. Dit pad leest dus geen bronformaat en geen inzet: het
+   * wandelt alleen het getal. LET OP: leid uit een lijst van lengte 1 NIET af dat `workMinutes`
+   * ontbreekt — corpustaken dragen een lengte-1-lijst mét `workMinutes` (de gefilterde >1-tak in
    * `mppReader.ts`); de garantie zit op de producerende tak, dus dit pad toetst per item
    * `walk.workMinutes ?? durMin` en nooit de lengte.
    */
@@ -3035,8 +3040,8 @@ export class CPMSolver {
           const resCal = resolveCalendar(walk.resourceCalendarId, this.registry, this.projectCal);
           const resEng = this.engineForCal(resCal);
           if (!resEng.isHourMode) continue;
-          // Apportionering: `workMinutes` (alleen gezet bij >1 toewijzing) wint van de volle
-          // taakduur — zie het docblok hierboven.
+          // Apportionering: `workMinutes` (alleen gezet bij >1 toewijzing; de werktijd van de
+          // toewijzing, werk ÷ inzet) wint van de volle taakduur — zie het docblok hierboven.
           const walkMinutes = walk.workMinutes ?? durMin;
           const candidate = resEng.addWorkMinutes(parseInstant(walk.anchor), walkMinutes);
           if (!windowValue || candidate > windowValue) windowValue = candidate;
