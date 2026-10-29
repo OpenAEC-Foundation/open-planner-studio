@@ -235,6 +235,8 @@
     "invalidDayDuration": "Invalid duration in days for task '{{task}}'",
     "invalidHourDuration": "Invalid duration in hours for task '{{task}}'",
     "hourTaskWithoutWorkHours": "Hour task '{{task}}' has no valid working hours in its calendar",
+    "taskWithoutWorkHours": "Task '{{task}}' has no valid working hours in its calendar",
+    "noWorkingHours": "The project calendar has no valid working hours",
     "invalidStartDate": "Invalid start date for task '{{task}}'"
   },
   "yes": "Yes",

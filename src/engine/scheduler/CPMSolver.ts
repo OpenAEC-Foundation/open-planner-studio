@@ -312,12 +312,14 @@ export type ScheduleErrorCode =
   | 'invalidDayDuration'
   | 'invalidHourDuration'
   | 'hourTaskWithoutWorkHours'
+  | 'taskWithoutWorkHours'
+  | 'noWorkingHours'
   | 'invalidStartDate';
 
 /** Solverfout als code + parameters; de vertaling hoort in de UI-laag, niet in de solver. */
 export interface ScheduleErrorInfo {
   code: ScheduleErrorCode;
-  /** De betrokken taak (alle codes behalve `cycle` en `noWorkingDays`). */
+  /** De betrokken taak (alle codes behalve `cycle`, `noWorkingDays` en `noWorkingHours`). */
   taskName?: string;
   /** Alleen `cycle`: de taaknamen van de kring in loopvolgorde; de eerste staat ook achteraan. */
   cycleNames?: string[];
@@ -332,6 +334,8 @@ function scheduleErrorLegacyText(info: ScheduleErrorInfo): string {
     case 'invalidDayDuration': return `Invalid day duration for task "${name}"`;
     case 'invalidHourDuration': return `Invalid hour duration for task "${name}"`;
     case 'hourTaskWithoutWorkHours': return `Hour-based task "${name}" has no valid working hours in its calendar`;
+    case 'taskWithoutWorkHours': return `Task "${name}" has no valid working hours in its calendar`;
+    case 'noWorkingHours': return 'Project calendar has no valid working hours';
     case 'invalidStartDate': return `Invalid start date for task "${name}"`;
   }
 }
@@ -1738,6 +1742,20 @@ export class CPMSolver {
         && !this.calendarFor(task).isHourMode) {
         return emptyResult({ code: 'hourTaskWithoutWorkHours', taskName: task.name });
       }
+    }
+
+    // Alleen uren (F6): er is geen dagpad meer. Een kalender zonder werkblokken en zonder geldige
+    // begin/einde/uren per dag (bv. uren per dag groter dan de spanne, of 0) kan dus geen enkele taak
+    // plaatsen, ook geen dagtaak of kalendertijd-taak. Dezelfde stop als voor een urentaak hierboven;
+    // die blijft eerst staan, zodat zijn melding niet verandert. Daarna de projectkalender zelf: hij
+    // snapt de statusdatum en de projectstart, en is de lagkalender bij `projectDefault`.
+    for (const task of this.tasks.values()) {
+      if (!this.calendarFor(task).isHourMode) {
+        return emptyResult({ code: 'taskWithoutWorkHours', taskName: task.name });
+      }
+    }
+    if (!this.projectEngine.isHourMode) {
+      return emptyResult({ code: 'noWorkingHours' });
     }
 
     // Guard: een taak met een onparseerbare startdatum zou anders Invalid Dates

@@ -92,6 +92,13 @@ const cases: { code: ScheduleErrorCode; result: CPMResult; legacy: string; info:
     legacy: 'Invalid hour duration for task "Stellen"', info: { code: 'invalidHourDuration', taskName: 'Stellen' } },
   { code: 'hourTaskWithoutWorkHours', result: solve([task('a', 'Stellen', { durationUnit: 'hours', durationMinutes: 240, durationType: 'WORKTIME' })], [], bandless),
     legacy: 'Hour-based task "Stellen" has no valid working hours in its calendar', info: { code: 'hourTaskWithoutWorkHours', taskName: 'Stellen' } },
+  // F6 (alleen uren): zonder dagpad kan ook een dagtaak niet op zo'n kalender rekenen. De projectkalender
+  // zelf zonder werktijd stopt de solve ook als geen taak hem gebruikt (statusdatum, projectstart, lag).
+  { code: 'taskWithoutWorkHours', result: solve([task('a', 'Fundering')], [], bandless),
+    legacy: 'Task "Fundering" has no valid working hours in its calendar', info: { code: 'taskWithoutWorkHours', taskName: 'Fundering' } },
+  { code: 'noWorkingHours', result: solveProject(opsSolveInput({ tasks: [{ ...task('a', 'Fundering'), calendarId: 'cal-eigen' } as Task], sequences: [],
+      calendar: bandless, calendars: [bandless, { ...createDefaultCalendar(), id: 'cal-eigen' }] })),
+    legacy: 'Project calendar has no valid working hours', info: { code: 'noWorkingHours' } },
   { code: 'invalidStartDate', result: solve([task('a', 'Grondwerk', { scheduleStart: '' })]),
     legacy: 'Invalid start date for task "Grondwerk"', info: { code: 'invalidStartDate', taskName: 'Grondwerk' } },
 ];
@@ -127,7 +134,7 @@ for (const l of locales) {
     // de vertaalstraat vult hem vóór een release); wat er wél staat, moet kloppen.
     if (text === undefined && l !== 'nl' && l !== 'en') continue;
     truthy(`2 ${l}: scheduleErrors.${code} bestaat`, typeof text === 'string' && text.trim() !== '');
-    const want = code === 'cycle' ? ['{{path}}'] : code === 'noWorkingDays' ? [] : ['{{task}}'];
+    const want = code === 'cycle' ? ['{{path}}'] : code === 'noWorkingDays' || code === 'noWorkingHours' ? [] : ['{{task}}'];
     eq(`2 ${l}: scheduleErrors.${code} placeholders`, (String(text).match(/\{\{\w+\}\}/g) ?? []), want);
   }
 }
