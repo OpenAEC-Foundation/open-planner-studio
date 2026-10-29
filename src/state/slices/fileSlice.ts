@@ -7,7 +7,7 @@ import { writeIFC, ifcObjectSeed } from '@/services/ifc/ifcWriter';
 import { writeCSV, writeProgressSheetCSV } from '@/services/csv/csvWriter';
 import { CsvDateImportError } from '@/services/csv/csvReader';
 import { flattenOrder, inferWbsAutoNumberOnOpen } from '@/utils/wbs';
-import { writeMSPDI } from '@/services/msproject/mspdiWriter';
+import { writeMSPDIWithReport } from '@/services/msproject/mspdiWriter';
 import { writeP6XMLWithReport } from '@/services/p6/p6xmlWriter';
 import type { XerWriteLoss } from '@/services/xerWriteTypes';
 import { exportXerLossNotice } from '@/state/xerExportNotice';
@@ -20,7 +20,9 @@ import { withXerArchiveIssueNotice } from '@/state/xerArchiveIssueNotice';
 import { P6XmlImportError } from '@/services/p6/p6xmlErrors';
 import { withOpenNoticeSticky } from '@/state/openNoticeSticky';
 import { clearRefusals } from '@/state/refusalNotice';
-import { P6XML_IMPORT_HELP_ARTICLE_ID, RECORDED_DATES_HELP_ARTICLE_ID, XER_IMPORT_HELP_ARTICLE_ID } from '@/state/helpArticles';
+import {
+  EXPORT_LOSS_HELP_ARTICLE_ID, P6XML_IMPORT_HELP_ARTICLE_ID, RECORDED_DATES_HELP_ARTICLE_ID, XER_IMPORT_HELP_ARTICLE_ID,
+} from '@/state/helpArticles';
 import { formatNoticeToShow } from '@/services/formatNotice';
 import { openDialogFilters, binaryExtensions, readFormatForFile, parseOpenedFile, importErrorMessageKey, saveTargetFor, readFormatInput, readIFCWithXerReconstruction, writeXerExport, type ExportFormat } from '@/services/formatRegistry';
 import { loadRecents, addRecent, removeRecent, type RecentEntry } from '@/services/fileAccess/recentFiles';
@@ -348,6 +350,15 @@ export function exportSplitsLostNotice(format: ExportFormat, tasks: readonly Tas
 export function exportP6TruncatedNotice(format: ExportFormat, truncated: number): NotifyInput | null {
   if (format !== 'p6' || truncated <= 0) return null;
   return { severity: 'info', messageKey: 'notifications.exportP6Truncated', params: { count: truncated } };
+}
+
+/**
+ * MSPDI en P6 XML vervangen een teken dat XML 1.0 niet toestaat door U+FFFD (`replaceInvalidXmlChars`, #588);
+ * de writer telt dat zelf. Hier wordt dat aantal een `info`-melding, zoals de andere verliesmeldingen.
+ */
+export function exportInvalidXmlCharsNotice(format: ExportFormat, replaced: number): NotifyInput | null {
+  if ((format !== 'mspdi' && format !== 'p6') || replaced <= 0) return null;
+  return { severity: 'info', messageKey: 'notifications.exportInvalidXmlChars', params: { count: replaced } };
 }
 
 /** Resultaat van `exportAs`: bij een cyclische planning wordt de export afgebroken vóór de
@@ -1232,6 +1243,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       let ext: string;
       let p6Truncated = 0;
       let xerLoss: readonly XerWriteLoss[] | null = null;
+      let invalidXmlChars = 0;
       let filters: { name: string; extensions: string[] }[];
       let mime: string | undefined;
       // Het slanke voortgangsblad krijgt een eigen bestandsnaamsuffix
@@ -1316,14 +1328,18 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           break;
         }
         case 'mspdi':
-          payload = writeMSPDI(
-            state.project, state.calendar, state.tasks,
-            state.sequences, state.resources, state.assignments, state.calendars,
-            // Baselines meegeven: de actieve baseline gaat naar MSPDI-slot 0. Zonder deze twee
-            // argumenten valt de writer terug op zijn defaults ([] / null) en gaat de baseline stil
-            // verloren bij export, terwijl de reader hem wél inleest.
-            state.baselines, state.activeBaselineId, state.customTaskTypes,
-          );
+          {
+            const written = writeMSPDIWithReport(
+              state.project, state.calendar, state.tasks,
+              state.sequences, state.resources, state.assignments, state.calendars,
+              // Baselines meegeven: de actieve baseline gaat naar MSPDI-slot 0. Zonder deze twee
+              // argumenten valt de writer terug op zijn defaults ([] / null) en gaat de baseline stil
+              // verloren bij export, terwijl de reader hem wél inleest.
+              state.baselines, state.activeBaselineId, state.customTaskTypes,
+            );
+            payload = written.xml;
+            invalidXmlChars = written.invalidXmlChars;
+          }
           ext = 'xml';
           filters = [{ name: 'XML Files', extensions: ['xml'] }];
           break;
@@ -1336,6 +1352,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
             );
             payload = written.xml;
             p6Truncated = written.truncated;
+            invalidXmlChars = written.invalidXmlChars;
           }
           ext = 'xml';
           filters = [{ name: 'XML Files', extensions: ['xml'] }];
@@ -1382,17 +1399,28 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (!outcome) return { ok: true, warnings: [], cancelled: true };
       if (exportGoesToRecents(format)) await pushRecent(outcome.ref, outcome.name);
       noticeIfDownloaded(outcome);
+      // Eén verliesmelding per export. XER: de writer telt zelf per soort, plus de XER-broninformatie.
+      // Anders: de XER-melding noemt XER-broninformatie en hoort alleen bij een XER-document; een
+      // document zonder XER-herkomst krijgt de algemene melding (#554).
+      const lossFormat = format === 'mspdi' ? 'MSPDI' : format.toUpperCase();
       if (xerLoss) {
-        // XER: één melding met alles wat niet (precies) meeging, ook de XER-broninformatie.
         const notice = exportXerLossNotice(xerLoss, warnings.flatMap(w => w.categories));
         if (notice) get().notify(notice);
-      } else if (warnings.length > 0) {
+      } else if (warnings.some(warning => warning.code === 'XER_ONLY_DATA_NOT_EXPRESSIBLE')) {
         get().notify({
           severity: 'info',
           messageKey: 'notifications.xerExportLoss',
-          params: { format: format === 'mspdi' ? 'MSPDI' : format.toUpperCase() },
+          params: { format: lossFormat },
           dedupeKey: `xer-export-loss:${state.activeDocumentId}:${format}`,
           helpArticleId: XER_IMPORT_HELP_ARTICLE_ID,
+        });
+      } else if (warnings.some(warning => warning.code === 'EXPORT_DATA_NOT_EXPRESSIBLE')) {
+        get().notify({
+          severity: 'info',
+          messageKey: 'notifications.exportDataLoss',
+          params: { format: lossFormat },
+          dedupeKey: `export-data-loss:${state.activeDocumentId}:${format}`,
+          helpArticleId: EXPORT_LOSS_HELP_ARTICLE_ID,
         });
       }
       // Alleen na een GESLAAGDE export (geannuleerde dialoog ⇒ hierboven al teruggekeerd).
@@ -1400,6 +1428,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (splitsLost) get().notify(splitsLost);
       const truncated = exportP6TruncatedNotice(format, p6Truncated);
       if (truncated) get().notify(truncated);
+      const invalidChars = exportInvalidXmlCharsNotice(format, invalidXmlChars);
+      if (invalidChars) get().notify(invalidChars);
       return { ok: true, warnings };
     },
 

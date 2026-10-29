@@ -623,6 +623,20 @@ for (const [token, rule] of [['DT_FixedQty', 'FIXED_WORK'], ['DT_FixedRate', 'FI
   eq(`R12e ${token}: tweede export, zelfde duration_type`, rowsOf(exportDoc(doc1).bytes, 'TASK').find(r => r.task_name === 'Bron')?.duration_type, 'DT_FixedDrtn');
 }
 
+// ── R13: constraint op een samenvattingstaak (na de merge van #727) ───────────────────────────────
+// Een samenvattingstaak wordt een WBS-element; P6 kent daar geen constraint. De export meldt dat, net als
+// de P6 XML-export (`hasConstraintLoss`), in plaats van het stil te laten vallen.
+{
+  const input = baseInput();
+  const child = leaf('Kind', 2);
+  const parent = leaf('Fase', 2, { childIds: [child.id], constraint: { type: 'SNET', date: '2026-06-03' } as Task['constraint'] });
+  child.parentId = parent.id;
+  input.tasks.push(parent, child, leaf('Los', 1, { constraint: { type: 'SNET', date: '2026-06-02' } as Task['constraint'] }));
+  const w = writeXER(input);
+  eq('R13a de export telt één constraint op een samenvattingstaak', w.loss.find(l => l.code === 'summaryConstraints')?.count, 1);
+  ok('R13b de constraint van de gewone taak gaat mee (cstr_type)', rowsOf(w.bytes, 'TASK').find(r => r.task_name === 'Los')?.cstr_type);
+}
+
 for (const note of notes) console.log(`   · ${note}`);
 if (diffs.length === 0) {
   console.log(`OK  xer-writer-review: ${checks} checks groen`);

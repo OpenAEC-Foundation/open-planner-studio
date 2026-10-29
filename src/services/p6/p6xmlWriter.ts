@@ -299,7 +299,8 @@ export function writeP6XML(...args: Parameters<typeof writeP6XMLWithReport>): st
 
 /**
  * Als `writeP6XML`, plus het aantal namen en codes dat tot de schemagrens is ingekort
- * (`renderP6XmlWithReport`; de exportmelding `exportP6TruncatedNotice` gebruikt dit getal).
+ * (`renderP6XmlWithReport`; de exportmelding `exportP6TruncatedNotice` gebruikt dit getal) en het aantal
+ * tekens dat XML 1.0 niet toestaat (`exportInvalidXmlCharsNotice`).
  *
  * `projectCode`: de P6 Project-ID van het document (`documentProjectCode`); de aanroeper geeft hem mee,
  * zodat ook een XER-document zijn code als `<Id>` krijgt. Weggelaten ⇒ die van `project` zelf.
@@ -314,7 +315,7 @@ export function writeP6XMLWithReport(
   resourceCalendars: WorkCalendar[] = [],
   customTaskTypes: readonly CustomTaskType[] = [],
   projectCode: string | null | undefined = documentProjectCode(project),
-): { xml: string; truncated: number } {
+): { xml: string; truncated: number; invalidXmlChars: number } {
   // Externe (cross-project) dependencies zijn in P6-XML niet uitdrukbaar buiten de
   // master/subproject-context ⇒ weggelaten (de ghost-weergave blijft in-app). Één warn.
   const extLinkCount = tasks.reduce((n, t) => n + (t.externalLinks?.length ?? 0), 0);

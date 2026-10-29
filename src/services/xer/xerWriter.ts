@@ -960,6 +960,9 @@ export function writeXER(input: XerWriteInput): XerWriteResult {
   }
   // P6 kent alleen notities op een activiteit (TASKMEMO); die van een WBS-element gaan niet mee.
   lose('summaryNotes', wbsTasks.reduce((n, t) => n + (t.notes ?? []).filter(note => note.text.trim()).length, 0));
+  // Een samenvattingstaak wordt een WBS-element; P6 kent daar geen constraint (zelfde regel als
+  // `hasConstraintLoss` voor P6 XML, `xerExportLoss.ts`).
+  lose('summaryConstraints', wbsTasks.filter(t => (t.constraint !== undefined && t.constraint.type !== 'ASAP') || t.constraint2 !== undefined).length);
 
   // ── Samenstellen ─────────────────────────────────────────────────────────────────────────────
   const tables: Table[] = [

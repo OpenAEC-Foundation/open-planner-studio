@@ -48,6 +48,7 @@
     "notifications.xerImportDatesAsRecorded": "8d09508d9f1a29bf",
     "notifications.importDatesAsRecorded": "d9d43736b88d5fbf",
     "notifications.xerExportLoss": "8e4a2df2cda6fa10",
+    "notifications.exportDataLoss": "ebf8308985af4c9b",
     "notifications.mppLegacy": "7bb4221aad8f40b2",
     "notifications.xmlUnknownSchedule": "6188e914cac08905",
     "notifications.mppEncrypted": "2102dc4a416bd1e5",
@@ -78,6 +79,7 @@
     "notifications.mppSourceScheduleNotes": "627ccafa8cb3196d",
     "notifications.exportSplitsLost": "2ad7b860bf260cc9",
     "notifications.exportP6Truncated": "86ce575329791e77",
+    "notifications.exportInvalidXmlChars": "82194e47290e523b",
     "notifications.exportXerLoss": "e088a9904e9c39f2",
     "notifications.projectStartAnchorsClamped": "534a9e8fea92f60f",
     "notifications.mppTimephasedSteeringLost": "f39d8e5dccf2cedd",
@@ -1382,7 +1384,9 @@
     "notifications.p6xmlImportUnassignedActivities_one": "19b2ef64150a3f72",
     "notifications.p6xmlImportUnassignedActivities_other": "34a478771a3daf6f",
     "notifications.exportP6Truncated_one": "95e5a50366fdaaa3",
-    "notifications.exportP6Truncated_other": "ae64ca54c96c61a4"
+    "notifications.exportP6Truncated_other": "ae64ca54c96c61a4",
+    "notifications.exportXerLossItem.summaryConstraints_one": "33d7e1b1d5c3284b",
+    "notifications.exportXerLossItem.summaryConstraints_other": "bb2b5082e9158310"
   },
   "task": {
     "contourDialog.title": "2c88619a7af281e3",
