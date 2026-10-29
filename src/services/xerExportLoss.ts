@@ -1,6 +1,7 @@
 import type { ExportFormat } from './formatRegistry';
 import type { XerImportMetadata } from './importTypes';
 import type { XerSourceArchive } from './xerSourceArchive';
+import { mspdiCriticalSlackLimit } from './msproject/mspdiCriticalSlackLimit';
 import type { BuiltInProfileId, Project, ProjectSchedulingOptions } from '@/types/project';
 import { CONVENTION_KEYS, builtInConventions, resolveConventions } from '@/engine/scheduler/conventions/registry';
 import type { Task } from '@/types/task';
@@ -200,13 +201,8 @@ function hasAssignmentLoss(
 }
 
 function isMspdiCriticalSlackLimit(options: ProjectSchedulingOptions): boolean {
-  const definition = options.criticalDefinition;
-  if (!definition
-    || definition.mode !== 'totalFloat'
-    || typeof definition.threshold !== 'number'
-    || !Number.isInteger(definition.threshold)
-    || definition.threshold < 0
-    || definition.thresholdHours !== undefined) return false;
+  // Dezelfde beslissing als de MSPDI-writer: wat hij niet als CriticalSlackLimit schrijft, is verlies.
+  if (mspdiCriticalSlackLimit(options.criticalDefinition) === undefined) return false;
   return Object.entries(options).every(([key, value]) =>
     value === undefined || key === 'criticalDefinition');
 }

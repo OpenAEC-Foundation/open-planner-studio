@@ -23,6 +23,8 @@ import {
   OPS_LAG_CALENDAR_NAME, dayMeasureMinutesPerDay, fieldRecordsJson, lagRecordKey, lagWorkMinutesPerDay, writeDays, writeMinutes,
   type LagRecord, type WrittenAmount,
 } from '@/services/xmlDayMeasure';
+import { mspdiCriticalSlackLimit } from '@/services/msproject/mspdiCriticalSlackLimit';
+import { availabilityPeriodsOf } from '@/services/msproject/mspdiAvailability';
 import { ELAPSED_MINUTES_PER_DAY, dayMeasureMinutes, dayMeasureRecord } from '@/services/ifc/dayMeasureIo';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { effectiveWorkTimeBands, calendarForEngine } from '@/utils/effectiveWorkTime';
@@ -471,7 +473,8 @@ export function writeMSPDIWithReport(
   lines.push(`${indent(1)}</ExtendedAttributes>`);
 
   // Scheduling-options: alleen wat MSPDI native kan. `CriticalSlackLimit` (dagen) draagt een triviale
-  // kritiek-drempel (`criticalDefinition.mode==='totalFloat'` met een niet-negatieve integer-drempel);
+  // kritiek-drempel (`mspdiCriticalSlackLimit`: `totalFloat` met een niet-negatieve hele dagdrempel en
+  // zonder `thresholdHours`, #561; dezelfde beslissing als de verliesdetector);
   // al het overige (longest-path, fractionele/uur-drempel, lag-kalender, float-paths, near-critical,
   // TF-modus) is niet native uitdrukbaar ⇒ weggelaten + warn. De volle set round-tript via IFC
   // OPS_SchedulingOptions. Golden rule: geen schedulingOptions ⇒ geen element.
@@ -479,11 +482,11 @@ export function writeMSPDIWithReport(
   const lost: string[] = [];
   if (so) {
     const cd = so.criticalDefinition;
-    if (cd && cd.mode === 'totalFloat' && typeof cd.threshold === 'number'
-      && Number.isInteger(cd.threshold) && cd.threshold >= 0) {
-      lines.push(`${indent(1)}<CriticalSlackLimit>${cd.threshold}</CriticalSlackLimit>`);
+    const slackLimit = mspdiCriticalSlackLimit(cd);
+    if (slackLimit !== undefined) {
+      lines.push(`${indent(1)}<CriticalSlackLimit>${slackLimit}</CriticalSlackLimit>`);
     } else if (cd) {
-      console.warn(`MSPDI-export: kritiek-definitie (${cd.mode}${cd.threshold != null ? `, drempel ${cd.threshold}` : ''}) niet uitdrukbaar als CriticalSlackLimit — weggelaten (§6).`);
+      console.warn(`MSPDI-export: kritiek-definitie (${cd.mode}${cd.threshold != null ? `, drempel ${cd.threshold}` : ''}${cd.thresholdHours != null ? `, drempel ${cd.thresholdHours} u` : ''}) niet uitdrukbaar als CriticalSlackLimit — weggelaten (§6).`);
     }
     if (so.lagCalendar && so.lagCalendar !== 'predecessor') lost.push('lagCalendar');
     // Elke EXPLICIETE speling-modus gaat verloren: MSPDI kent er geen veld voor, en zowel MS Project
@@ -754,6 +757,20 @@ export function writeMSPDIWithReport(
     lines.push(`${indent(3)}<CalendarUID>${calUid}</CalendarUID>`);
     if (res.costPerHour !== undefined) {
       lines.push(`${indent(3)}<StandardRate>${res.costPerHour}</StandardRate>`);
+    }
+    // Tijdsafhankelijke capaciteit (#556): sluitende periodes over de hele tijdlijn; `MaxUnits` hierboven
+    // blijft de vlakke waarde. Een vlakke resource krijgt geen periodes.
+    const periods = availabilityPeriodsOf(res);
+    if (periods.length > 0) {
+      lines.push(`${indent(3)}<AvailabilityPeriods>`);
+      for (const period of periods) {
+        lines.push(`${indent(4)}<AvailabilityPeriod>`);
+        lines.push(`${indent(5)}<AvailableFrom>${period.from}T00:00:00</AvailableFrom>`);
+        lines.push(`${indent(5)}<AvailableTo>${period.to}T23:59:00</AvailableTo>`);
+        lines.push(`${indent(5)}<AvailableUnits>${period.units}</AvailableUnits>`);
+        lines.push(`${indent(4)}</AvailabilityPeriod>`);
+      }
+      lines.push(`${indent(3)}</AvailabilityPeriods>`);
     }
     lines.push(`${indent(2)}</Resource>`);
   }
