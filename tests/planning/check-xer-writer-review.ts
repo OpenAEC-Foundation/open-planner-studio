@@ -631,9 +631,14 @@ for (const [token, rule] of [['DT_FixedQty', 'FIXED_WORK'], ['DT_FixedRate', 'FI
   const child = leaf('Kind', 2);
   const parent = leaf('Fase', 2, { childIds: [child.id], constraint: { type: 'SNET', date: '2026-06-03' } as Task['constraint'] });
   child.parentId = parent.id;
-  input.tasks.push(parent, child, leaf('Los', 1, { constraint: { type: 'SNET', date: '2026-06-02' } as Task['constraint'] }));
+  const child2 = leaf('Kind 2', 2);
+  const parent2 = leaf('Fase 2', 2, { childIds: [child2.id], constraint: { type: 'SNET', date: '2026-06-03' } as Task['constraint'],
+    constraint2: { type: 'FNLT', date: '2026-06-20' } as Task['constraint2'] });
+  child2.parentId = parent2.id;
+  input.tasks.push(parent, child, parent2, child2, leaf('Los', 1, { constraint: { type: 'SNET', date: '2026-06-02' } as Task['constraint'] }));
   const w = writeXER(input);
-  eq('R13a de export telt één constraint op een samenvattingstaak', w.loss.find(l => l.code === 'summaryConstraints')?.count, 1);
+  // Ronde 9 (VERVOLG): de telling is per constraint; Fase 2 draagt er twee.
+  eq('R13a de export telt drie constraints op samenvattingstaken', w.loss.find(l => l.code === 'summaryConstraints')?.count, 3);
   ok('R13b de constraint van de gewone taak gaat mee (cstr_type)', rowsOf(w.bytes, 'TASK').find(r => r.task_name === 'Los')?.cstr_type);
 }
 

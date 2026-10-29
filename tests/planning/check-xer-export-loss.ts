@@ -277,6 +277,11 @@ resetProject('Native handmatig en hammock');
       result.ok === true && result.warnings[0]?.code === 'EXPORT_DATA_NOT_EXPRESSIBLE'
       && JSON.stringify(result.warnings[0]?.categories) === JSON.stringify(['manual-scheduling', 'hammock-tasks']));
   }
+  // XER schrijft een hammock als `TT_LOE` (#393, review ronde 9): geen hammock-categorie, wel handmatig.
+  const xerResult = await store().exportAs('xer');
+  const xerCategories: readonly string[] = xerResult.ok ? xerResult.warnings[0]?.categories ?? [] : [];
+  expect('xer: hammock gaat mee als TT_LOE, handmatige planning blijft in de envelope (#393)',
+    xerResult.ok === true && !xerCategories.includes('hammock-tasks') && xerCategories.includes('manual-scheduling'));
 }
 
 // Negatief 2: alleen een lege archive/importmetadata-binding is geen verliescategorie.

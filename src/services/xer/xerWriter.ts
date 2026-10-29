@@ -962,7 +962,9 @@ export function writeXER(input: XerWriteInput): XerWriteResult {
   lose('summaryNotes', wbsTasks.reduce((n, t) => n + (t.notes ?? []).filter(note => note.text.trim()).length, 0));
   // Een samenvattingstaak wordt een WBS-element; P6 kent daar geen constraint (zelfde regel als
   // `hasConstraintLoss` voor P6 XML, `xerExportLoss.ts`).
-  lose('summaryConstraints', wbsTasks.filter(t => (t.constraint !== undefined && t.constraint.type !== 'ASAP') || t.constraint2 !== undefined).length);
+  // Telt constraints, niet taken: een primaire en een secundaire op dezelfde samenvattingstaak zijn er twee.
+  lose('summaryConstraints', wbsTasks.reduce((n, t) =>
+    n + (t.constraint !== undefined && t.constraint.type !== 'ASAP' ? 1 : 0) + (t.constraint2 !== undefined ? 1 : 0), 0));
 
   // ── Samenstellen ─────────────────────────────────────────────────────────────────────────────
   const tables: Table[] = [
