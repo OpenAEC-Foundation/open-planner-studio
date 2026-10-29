@@ -26,6 +26,7 @@ BOOT_TIMEOUT="${MCP_REAL_APP_BOOT_TIMEOUT:-1800}"
 mkdir -p "$OPS_DIR" "$LOG_DIR"
 rm -f "$OPS_DIR/ready.json" "$OPS_DIR/cmd.json" "$OPS_DIR/res.json"
 
+# De banner: de stdio-client van de SDK (voor de bundeltest) laadt `cross-spawn`, dat `require` gebruikt.
 OUT="$DIR/.run-real-app.mjs"
 "$ROOT/node_modules/.bin/esbuild" "$DIR/run-real-app.ts" \
   --bundle --platform=node --format=esm --alias:@="$ROOT/src" \
@@ -33,6 +34,7 @@ OUT="$DIR/.run-real-app.mjs"
   --define:import.meta.env.PROD=true \
   --define:import.meta.env.MODE='"production"' \
   --define:__OPS_DEV_INSTANCE__='"test"' \
+  --banner:js="import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);" \
   --outfile="$OUT" --log-level=warning
 
 # De Claude Desktop-bundel (#730): run-real-app.ts start hem tegen de echte bridge.
