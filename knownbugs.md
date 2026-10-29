@@ -379,7 +379,9 @@ en noem het in je rapport of PR-tekst.
      gemeten bestanden heeft geen enkele taak met één walk zo'n resource (alle 22 zijn werkresources), en geen taak met
      meer walks krijgt haar startanker van een toewijzing die de duur niet stuurt. Voorstel: in beide takken alleen
      toewijzingen die de duur sturen laten meetellen, met een corpusvrije fixture. Gevonden bij de fix van 187
-     (2026-10-29). — S
+     (2026-10-29). Review van #722 (Sol, ronde 1): nagespeeld met een eigen bytefixture met één COST-toewijzing en
+     een afwijkende resourcekalender; op de kop en op main `3c2c1ec12` een walk met de volle taakduur op die
+     kalender (`mppReader.ts:1517` filtert die tak niet op duursturing). — B
 441. **Een kostenresource uit `.mpp` of MSPDI wordt LABOR en stuurt daarna in de werkregelbrug de duur.**
      `ResourceType` kent geen COST, dus `readResourcesUnsafe` (`src/services/mpp/mppEntities.ts`) en de MSPDI-lezer
      maken er LABOR van. De `.mpp`-wandeling sluit ze sinds de fix van 187 uit (`ReadResourcesResult.costResourceIds`),
@@ -387,7 +389,22 @@ en noem het in je rapport of PR-tekst.
      niet-MATERIAL resource als duursturend: een inzet- of werkbewerking op zo'n toewijzing (in OzBuild inzet 0,0006)
      kan onder Vaste eenheden of Vast werk de taakduur veranderen, wat MS Project niet doet. Niet nagespeeld in de app.
      Voorstel: een kostenresource als niet-duursturend in het document bewaren (een eigen type of vlag), na een besluit
-     over de vorm. Gevonden bij de fix van 187 (2026-10-29). — S
+     over de vorm. Gevonden bij de fix van 187 (2026-10-29). Review van #722 (Sol, ronde 1): nagespeeld via de echte
+     store-actie (`workRuleApply.ts:106`). In OzBuild Workshop 17 het werk van "Specialist Consultant" op 600 min
+     zetten en herberekenen geeft een taakduur van ongeveer een miljoen minuten en einde `2033-01-07T10:40`, op de kop
+     en op main `3c2c1ec12` gelijk. — B
+443. **Een IFC die vóór de fix van 187 uit een `.mpp` is opgeslagen, houdt de oude walkwaarden.** `ifcWriter.ts`
+     (rond regel 1951) schrijft `timephasedDurationWalks[].workMinutes` letterlijk en `ifcReader.ts` (rond regel 3737)
+     leest ze letterlijk terug. Een IFC die met main `3c2c1ec12` uit `timephased-cost-rollup.mpp` is gemaakt, houdt na
+     heropenen en herberekenen met de fix `[299.99996875, 299.99996875]`, en Task 8 eindigt nog op
+     `2026-02-16T13:59`. Een nieuwe import geeft `[2400, 2400]` en `2026-02-20T17:00`. Geen nieuw dataverlies: de
+     oude, fout afgeleide waarde blijft staan. Een planner moet het `.mpp`-bestand opnieuw importeren. Het veld heeft
+     geen versie, dus de waarde bij het openen opnieuw door de inzet delen zou nieuwe bestanden beschadigen; een
+     herkenbare migratie is een apart werk. Gevonden in de review van #722 (Sol, ronde 1, 2026-10-29). — B
+444. **Het commentaar over de `.mpp`-wandeling staat vier keer.** `mppReader.ts` (rond regel 1294, 1363 en 1527) en
+     `CPMSolver.ts` (rond regel 3009) herhalen dezelfde uitleg en dezelfde corpusvoorbeelden. Eén uitleg bij de tak die
+     de walks maakt, met verwijzingen op de andere plekken, is genoeg (ongeveer 20–30 regels minder). Alleen opruimen;
+     het gedrag verandert niet. Gevonden in de review van #722 (Sol, ronde 1, 2026-10-29). — B
 
 ## Tabel, invoer en bediening
 
