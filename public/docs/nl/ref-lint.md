@@ -68,7 +68,7 @@ Klik je op *Bestand*, dan neemt een eigen scherm (de Backstage) de werkruimte ov
 De knop *Bereken* is dezelfde als op *Start*.
 
 - **Project verplaatsen…** — opent het venster *Project verplaatsen*. Uitgeschakeld zonder projectstartdatum. Zie [Project verplaatsen](docs://howto-project-verplaatsen).
-- **Waarschuwingen** — toont of verbergt het paneel *Waarschuwingen* in de rechterkolom. De knop licht op zolang je het paneel ziet. Aanzetten klapt een ingeklapte kolom uit. Wat erin staat, lees je in [Meldingen en waarschuwingen](docs://ref-meldingen).
+- **Waarschuwingspaneel** — toont of verbergt het paneel *Waarschuwingen* in de rechterkolom. De knop licht op zolang je het paneel ziet. Aanzetten klapt een ingeklapte kolom uit. Wat erin staat, lees je in [Meldingen en waarschuwingen](docs://ref-meldingen).
 
 ### Planning › Relaties
 
@@ -175,7 +175,7 @@ Deze groep staat ook op *Tabel* en *Rapport*.
 
 - **Eigensch.** — toont of verbergt het paneel *Eigenschappen* in de rechterkolom. Standaard: aan. Zie [Taakdialoog en eigenschappenpaneel](docs://ref-taak-eigenschappen).
 
-De knoppen *Resources*, *Resourcedock* en *Histogram* zijn dezelfde als op *Resources*, en *Waarschuwingen* is dezelfde als op *Planning*.
+De knoppen *Resources*, *Resourcedock* en *Histogram* zijn dezelfde als op *Resources*, en *Waarschuwingspaneel* is dezelfde als op *Planning*.
 
 **De rechterkolom.** De kolom rechts van de Gantt staat er zodra minstens één van de panelen *Eigenschappen*, *Resourcedock* of *Waarschuwingen* aan staat. Staat er geen aan, dan is er geen kolom. Neemt een volledig paneel de werkruimte over, bijvoorbeeld het volledige resourcepaneel, dan verdwijnt de kolom. Alleen op het tabblad *Tabel* blijft hij staan.
 

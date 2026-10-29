@@ -27,7 +27,7 @@ De balk onderaan toont van links naar rechts:
 
 ## Het paneel Waarschuwingen
 
-- **Openen** — *Planning › Planning › Waarschuwingen*, *Beeld › Panelen › Waarschuwingen*, of een teller in de statusbalk. Het paneel staat in de rechterkolom, onder *Eigenschappen* en de resourcedock, en klapt een ingeklapte kolom uit. Standaard is het dicht en het wordt niet onthouden tussen sessies. De hoogte, als het onder andere panelen staat, sleep je aan de rand en wordt wel onthouden. Het kruisje rechtsboven sluit het (*Waarschuwingen sluiten*).
+- **Openen** — *Planning › Planning › Waarschuwingspaneel*, *Beeld › Panelen › Waarschuwingspaneel*, of een teller in de statusbalk. Het paneel staat in de rechterkolom, onder *Eigenschappen* en de resourcedock, en klapt een ingeklapte kolom uit. Standaard is het dicht en het wordt niet onthouden tussen sessies. De hoogte, als het onder andere panelen staat, sleep je aan de rand en wordt wel onthouden. Het kruisje rechtsboven sluit het (*Waarschuwingen sluiten*).
 - **Kopregel** — *N fout(en), N waarschuwing(en)*. Is er nog niet berekend, dan staat er *Nog niet berekend — druk op Bereken (F5) om de controles uit te voeren.*
 - **Bereken** — een knop in de kopregel, zichtbaar zolang de planning verouderd of nog niet berekend is. Hij doet hetzelfde als *Bereken* in het lint.
 - **Waarschuwingsteken in de kopregel** — als de planning verouderd is, met de tooltip *Planning verouderd — deze lijst komt van de laatste berekening. Herbereken (F5).* De lijst wordt niet verborgen, alleen benoemd als verouderd.

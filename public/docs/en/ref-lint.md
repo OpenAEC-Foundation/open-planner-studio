@@ -68,7 +68,7 @@ Clicking *File* makes a screen of its own (the Backstage) take over the workspac
 The *Calculate* button is the same as on *Home*.
 
 - **Move project…** — opens the *Move project* window. Disabled without a project start date. See [Moving a project](docs://howto-project-verplaatsen).
-- **Warnings** — shows or hides the *Warnings* panel in the right-hand column. The button lights up while you can see the panel. Turning it on expands a collapsed column. What is in it is described in [Notifications and warnings](docs://ref-meldingen).
+- **Warnings panel** — shows or hides the *Warnings* panel in the right-hand column. The button lights up while you can see the panel. Turning it on expands a collapsed column. What is in it is described in [Notifications and warnings](docs://ref-meldingen).
 
 ### Planning › Relations
 
@@ -175,7 +175,7 @@ This group is also on *Table* and *Report*.
 
 - **Properties** — shows or hides the *Properties* panel in the right-hand column. Default: on. See [Task dialog and properties panel](docs://ref-taak-eigenschappen).
 
-The *Resources*, *Resource dock* and *Histogram* buttons are the same as on *Resources*, and *Warnings* is the same as on *Planning*.
+The *Resources*, *Resource dock* and *Histogram* buttons are the same as on *Resources*, and *Warnings panel* is the same as on *Planning*.
 
 **The right-hand column.** The column to the right of the Gantt is there as soon as at least one of the panels *Properties*, *Resource dock* or *Warnings* is on. If none is on, there is no column. If a full panel takes over the workspace, for example the full resource panel, the column disappears. Only on the *Table* tab does it stay.
 
