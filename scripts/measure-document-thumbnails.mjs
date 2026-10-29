@@ -91,6 +91,7 @@ async function fixture(page, size, documents) {
   await page.evaluate(async ({ size, documents }) => {
     const { freshPayload, hydratePayload } = await import('/src/state/documentContract.ts');
     const { buildNewTask, createDefaultTaskTime } = await import('/src/utils/taskDefaults.ts');
+    const { normalizeTaskDates } = await import('/src/state/migrations/minuteModel.ts');
     const payloads = Array.from({ length: documents }, (_, d) => {
       const p = freshPayload();
       p.project = { ...p.project, id: `project-${d}`, name: d < 2 ? '' : 'Project C',
@@ -105,9 +106,10 @@ async function fixture(page, size, documents) {
         const time = createDefaultTaskTime(date.toISOString().slice(0, 10), i === 7 ? 0 : 5 + i % 6);
         time.isCritical = i % 7 === 2;
         // Opzettelijk identieke taak-ID's tussen documenten, met andere datums en kleuren.
-        return buildNewTask({ name: `Document ${d} taak ${i}`, manuallyScheduled: true, isMilestone: i === 7 }, {
+        // Het minutenmodel eist tijden op taakdatums, net als na laden en invoer.
+        return normalizeTaskDates(buildNewTask({ name: `Document ${d} taak ${i}`, manuallyScheduled: true, isMilestone: i === 7 }, {
           id: `task-${i}`, parentId: null, parentTask: undefined, constructionMode: false, time,
-        });
+        }), p);
       });
       return p;
     });
