@@ -123,13 +123,15 @@ T13, T21, I7): duur, rest, lag en toewijzingsuren gaan via de helpers van `xmlDa
 `OPS_DayMeasureDurations`, `OPS_ExactMinutes` en `OPS_DayMeasureLags` (sleutel `voorganger-task_id:type`);
 op PROJECT `OPS_DefaultWorkRule` (alleen gelezen zolang `def_duration_type` nog het geschreven token draagt);
 op RSRC `OPS_FlatCapacity` (een vaste capaciteit blijft vast zolang de resource één RSRCRATE-rij met precies
-die waarde heeft; anders een stap, zoals op main). De herkenning is PER TAAK (T15, zoals `p6xmlReader.ts`):
+die waarde heeft; anders een stap, zoals op main) en `OPS_CapacitySteps` (materiaalstappen staan per uur in
+`max_qty_per_hr`; het record per startdatum geeft de dagwaarde terug zolang de rij de geschreven waarde draagt).
+De herkenning is PER TAAK (T15, zoals `p6xmlReader.ts`):
 een activiteit zonder eenheidswaarde leest als op main en verandert de andere niet. Een bestand zonder OPS-UDF's
 leest precies als op main. `xerMetadata.ts` laat elke OPS-definitie weg uit de eigen velden. Er is geen
 kalendermarkering: kalenders lezen met de gewone regels (`xerCalendarData.ts` = main), dus een scalaire
 OPS-kalender komt terug als urenkalender met dezelfde banden. Tot F6 rekent de engine daar soms anders mee
 (P6-regels alleen op een kalender met eigen werkblokken); `check-xer-writer.ts` stelt de kalendersoort gelijk
-en telt de afwijkingen zonder die gelijkstelling in een notitie. Pins: `check-xer-writer-review.ts` (R1, A, RB, RD, RE).
+en telt de afwijkingen zonder die gelijkstelling in een notitie (knownbug 466). Pins: `check-xer-writer-review.ts` (R1, A, RB, RD, M, RE).
 (4) **Geplande datums** (`target_*`) = `scheduleStart`/`scheduleFinish` (het omgekeerde van de lezer),
 niet de berekende datums: onder P6-herkomst leest de lezer `target_*` als ondergrens.
 Codering: Windows-1252 (MPXJ-default, BEVESTIGD in de MPXJ-bron); past een teken niet, dan UTF-8 zonder BOM

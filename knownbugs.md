@@ -512,6 +512,21 @@ en noem het in je rapport of PR-tekst.
     uitzondering overlappen 00:00–06:00). Nagespeeld met `workMinutesBetween(za, zo)` = 1800. De XER-schrijver
     (`xerWriter.ts`, `workOnDate`) verenigt de banden tot 1.440, zonder melding; zie de vervolgpunten van PR #393
     (punt G). Voorstel: overlappende banden in de engine verenigen. — B
+466. **Een scalaire OPS-kalender komt na XER-export en heropenen terug als urenkalender, en rekent dan anders.**
+    De XER-lezer leest kalenders met de gewone regels (`xerCalendarData.ts`, gelijk aan main): elke kalender met
+    banden in `clndr_data` wordt een urenkalender (`workTime`). Een kalender die in OPS alleen begin, einde en
+    uren per dag had, komt zo terug met dezelfde banden, maar als urenkalender. De engine rekent daar anders
+    mee: ze onderscheidt een kalender met en zonder eigen werkblokken (`mode` en `hasOwnWorkBlocks` in
+    `src/engine/scheduler/CalendarEngine.ts`), en sommige P6-regels gelden alleen met eigen werkblokken
+    (bijvoorbeeld de vroege datums van een voltooide taak op de statusdatum). `check-xer-writer.ts` meet het:
+    met de kalendersoort gelijkgesteld wijkt niets af; zonder gelijkstelling wijken zoveel datums en spelingen af:
+    rijwoningen 336, appartementencomplex 98, kantoorgebouw Zuidas 13, brugvervanging 10, zorgcentrum 10,
+    datacentrum 10, villa 7, verbouwing 0, het synthetische project 11. Volgens de spec
+    (`docs/superpowers/specs/2026-10-20-alleen-uren-design.md`, §3.1 en §7 F6) verdwijnt `mode` in F6; of F6
+    ook de regels achter `hasOwnWorkBlocks` gelijk trekt, is niet nagegaan. Er is geen kalendermarkering: een
+    lijst op `clndr_id` (zoals `OPS_LiteralCalendars` in P6 XML) breekt als P6 de kalenders hernummert, net als
+    review punt B van PR #393. Het besluit (wachten op F6, of een markering op kalendernaam) ligt bij de
+    eigenaar. — B
 
 ## Bibliotheek, bezetting, extensies, AI
 
