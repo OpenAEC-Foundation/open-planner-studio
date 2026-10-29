@@ -48,6 +48,10 @@ You read a filled-in progress sheet back through *File › Import*. See [Importi
 
 **A project from Primavera loses source information.** If you export such a project to CSV, MS Project XML or P6 XML, the app reports: *Exporting to CSV loses XER source information.* For MS Project XML it says *MSPDI*, for P6 XML *P6*. See [Opening a Primavera P6 file (.xer)](docs://howto-xer-openen).
 
+**A project you made yourself also loses data.** If the format cannot hold something from your project, such as notes, a secondary constraint or manual scheduling, the app reports after the export: *Exporting to CSV drops data that CSV cannot hold, such as notes or a secondary constraint. The IFC project file keeps everything.* For MS Project XML it says *MSPDI*, for P6 XML *P6*. The *Read more* link brings you to this page.
+
+**Characters that XML does not allow are replaced.** A control character in a name or text, for example from an imported CSV file, cannot be in an XML file. For MS Project XML and P6 XML the app replaces such a character with �. The app then reports: *2 characters that XML does not allow were replaced with � in the export.* For one character it says *1 character that XML does not allow was replaced with � in the export.* Search the exported file for � to find the place.
+
 **Split tasks lose their splits.** MS Project and Primavera only know a split as an hour distribution. If your project contains split tasks without an hour distribution, the app reports after an export to MS Project XML or P6 XML: *2 tasks with breaks were exported without their breaks: MS Project/P6 only know breaks as a work distribution.* For one task it says *1 task with breaks was exported without its breaks: MS Project/P6 only know breaks as a work distribution.* See [Splitting a task](docs://howto-taak-splitsen).
 
 **A schedule in the view *Dates as recorded*.** If you export to CSV while you see the dates from the source file, the app leaves `Critical` and `Total Float` empty for tasks for which the source file did not record that. See [Dates as recorded](docs://uitleg-datums-zoals-opgeslagen).

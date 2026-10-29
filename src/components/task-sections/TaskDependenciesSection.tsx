@@ -93,9 +93,11 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
     setDraft(null);
   }, [taskId]);
 
+  // Alleen zoekinvoer bepaalt de treffers; pijlen, type, richting en lag wijzigen het concept ook.
+  const query = draft?.query;
   const options = useMemo(
-    () => (draft ? relationTaskOptions(tasks, taskId, draft.query).slice(0, MAX_OPTIONS) : []),
-    [draft, taskId, tasks],
+    () => (query === undefined ? [] : relationTaskOptions(tasks, taskId, query, MAX_OPTIONS)),
+    [query, taskId, tasks],
   );
 
   const drivingIds = knownDrivingSequenceIds(cpmResult);
