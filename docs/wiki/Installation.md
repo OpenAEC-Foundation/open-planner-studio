@@ -20,8 +20,8 @@ Download the latest installer for your platform from the
 - **Linux** — an AppImage, a `.deb`, an `.rpm`, or a `.snap` package. Arch Linux users can use the
   `open-planner-studio-bin` AUR package. AppImage launches add a menu entry and icon for your user.
 
-For Claude Desktop, install the release's `.mcpb` extension and enter the connection details from
-the running app's MCP tab. See [Connecting an MCP client](docs://howto-ai-assistent-koppelen).
+For Claude Desktop, install the release's `.mcpb` extension and choose a working folder. It works with
+the running app and without it. See [Connecting an MCP client](docs://howto-ai-assistent-koppelen).
 
 ## Automatic updates
 

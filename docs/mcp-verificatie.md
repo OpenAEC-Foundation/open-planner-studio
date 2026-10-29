@@ -1,6 +1,6 @@
 # MCP-server: wat geleverd is en hoe het getoetst wordt
 
-Stand 2026-10-23, bij issue #429 (ecosystem readiness, deelpunten MCP en Claude Desktop/Code). Dit document
+Stand 2026-10-29 (Claude Desktop-bundel: issue #730), bij issue #429 (ecosystem readiness, deelpunten MCP en Claude Desktop/Code). Dit document
 legt vast wat de app als MCP-server levert, wat niet, en welke test het bewijst. De architectuur zelf staat in
 `.claude/rules/mcp.md`; de gebruikersgids is `public/docs/{nl,en}/howto-ai-assistent-koppelen.md`.
 
@@ -125,24 +125,39 @@ legt vast wat de app als MCP-server levert, wat niet, en welke test het bewijst.
    - Claude Desktop met `mcp-remote` en het fragment uit de gids: getest door de eigenaar op 2026-10-23,
      tegen de desktop-app. De `.mcpb`-bundel zelf is nog niet in Claude Desktop geïnstalleerd (zie punt 4).
 4. **`tests/mcp/cases-mcpb.ts`** (in `npm test`, suite `tests/mcp/`). Bouwt de Claude Desktop-bundel met
-   `scripts/build-mcpb.mjs`, leest de `.mcpb` met de ZIP-lezer van de app (precies zes bestanden, PNG-icoon,
-   server onder 1 MB, licenties van de SDK erbij) en controleert de manifestvelden waar de stekker op leunt
-   (versie = appversie, `mcp_config`, `user_config.token` verplicht en `sensitive`, `user_config.port`
-   standaard gelijk aan `MCP_DEFAULT_PORT`). Daarna start hij de server **uit de ZIP** zoals Claude Desktop dat
-   doet (`node server/index.mjs`, token en poort in `env`) en praat er met de SDK-client
-   (`Client` over een eigen stdio-transport met de `ReadBuffer` van de SDK) tegen de spiegel uit punt 1: `initialize` met serverInfo en instructions van de
-   bridge, `tools/list` met alle `planner_*`-tools, een leestool; een app-herstart op dezelfde poort (nieuwe
-   sessietabel): de leestool wordt herhaald en slaagt, `planner_add_tasks` blijft geweigerd (ook na een
-   leestool) tot `planner_switch_document`, daarna slaagt hij één keer; een sessie gebonden aan plan A,
-   app-herstart met plan B actief, een `ping` ontdekt het verlies: de wachtende en de volgende wijziging worden
-   geweigerd en er komt niets op B; idem maar een leesaanvraag ontdekt het verlies: (a) de wijziging erachter
-   wordt geweigerd, (b) na lezen en een tabwissel naar plan C blijft elke wijziging geweigerd, (c) na
-   `planner_switch_document` naar B landt de wijziging op B en na een tabwissel weigert de drift-guard van de
-   app (`DOC_DRIFT`); een geannuleerde wijziging achter een trage leesaanvraag bereikt de bridge nooit; Stop/Start van
-   de bridge met behouden sessie: statustool en terug, elk met `notifications/tools/list_changed`, en
-   `initialize` kondigt altijd `listChanged` aan; fout token, geen token en een bridge die uit staat geven elk
-   een heldere Engelse fout; start de app daarna, dan verbindt de bundel, stuurt
-   `notifications/tools/list_changed` en werkt de leestool (review ronde 1 van PR #567).
+   `scripts/build-mcpb.mjs`, leest de `.mcpb` met de ZIP-lezer van de app (precies zeven bestanden, PNG-icoon,
+   schakelstuk onder 1 MB, `server/headless.mjs` is de headless server, licenties van beide erbij) en controleert
+   de manifestvelden waar de bundel op leunt (versie = appversie, `mcp_config` met de werkmap in `env`, alleen
+   `user_config.workdir`: `directory` en verplicht). Daarna start hij de servers **uit de ZIP** zoals Claude
+   Desktop dat doet (`node server/index.mjs`, de werkmap in `env`) en praat er met de SDK-client tegen
+   (`Client` over een eigen stdio-transport met de `ReadBuffer` van de SDK). De "app" is de spiegel uit punt 1,
+   gevonden via een `runtime.json` in een tijdelijke map (`OPS_MCP_DISCOVERY_DIR`). Getoetst:
+   - **beide standen met dezelfde tool**: met de app komt `planner_get_project_info` uit de app (serverInfo en
+     instructies van de bridge plus de bundeluitleg); zonder `runtime.json` komt hij uit de headless planner op
+     de werkmap, met precies dezelfde tools, beschrijvingen, schema's en annotaties; de logregels van beide
+     standen staan op stderr;
+   - **terugval zonder app**: een `runtime.json` van een gestopt proces, een poort waar niets luistert en een
+     geweigerd token (401) geven elk de stand zonder app, met een logregel;
+   - **wisselen zonder werk te verliezen**: de app gaat dicht ⇒ melding vooraan het volgende antwoord,
+     `notifications/tools/list_changed`, een wijziging wordt geweigerd tot een bestand geopend is, en het werk
+     in de app blijft onaangeroerd; de app gaat open terwijl de headless planner nog niet opgeslagen werk heeft
+     ⇒ de aanvragen blijven zonder app (met melding) tot `planner_export_ifc`, daarna wissel naar de app,
+     weigering tot `planner_switch_document`, en het bestand bevat beide taken; het kindproces stopt
+     onverwacht ⇒ melding, en wijzigen pas na opnieuw openen;
+   - **sessies met de app** (zoals vóór #730): een app-herstart op dezelfde poort (nieuwe sessietabel): de
+     leestool wordt herhaald en slaagt, `planner_add_tasks` blijft geweigerd (ook na een leestool) tot
+     `planner_switch_document`, daarna slaagt hij één keer; een nieuwe `runtime.json` (andere poort) geeft een
+     nieuwe sessie met dezelfde blokkade; een sessie gebonden aan plan A, app-herstart met plan B actief, een
+     `ping` ontdekt het verlies: de wachtende en de volgende wijziging worden geweigerd en er komt niets op B;
+     idem maar een leesaanvraag ontdekt het verlies: (a) de wijziging erachter wordt geweigerd, (b) na lezen en
+     een tabwissel naar plan C blijft elke wijziging geweigerd, (c) na `planner_switch_document` naar B landt de
+     wijziging op B en na een tabwissel weigert de drift-guard van de app (`DOC_DRIFT`); herstel via nieuw of
+     import (207); een geannuleerde wijziging achter een trage leesaanvraag bereikt de bridge nooit, ook niet
+     tijdens opnieuw verbinden (206/323);
+   - **geen van beide**: Stop/Start van de bridge zonder werkmap met behouden sessie: statustool en terug, elk
+     met `notifications/tools/list_changed`, daarna wijzigen zonder blokkade; geen app en geen werkmap, of een
+     werkmap die niet bestaat: alleen de statustool, met een Engelse fout die beide uitwegen noemt, en verbinden
+     zodra de app of de map er is.
 5. **`.github/workflows/mcpb.yml`** (apart, niet in `verify`; draait op elke push naar `main` en op een PR die
    de bundel raakt). Bouwt de bundel, controleert het manifest met de officiële CLI
    (`npx @anthropic-ai/mcpb@2.1.2 validate`, vaste versie) en bewaart de `.mcpb` 7 dagen als artifact.
@@ -168,52 +183,87 @@ paden per OS, leesregels en toetsen: [MCP-ontdekking](mcp-ontdekking.md).
 
 ## Claude Desktop-bundel (`.mcpb`)
 
-Besluit eigenaar (Nozzit, 2026-10-23): een stekker naar de draaiende app, geen losse kern zonder app. Dit is een
-tussenstap: volgens het ontwerp "één plugin, drie situaties" (#570) gaat de bundel later op in één plugin die
-ook headless werkt en het token zelf uit `<appDataDir>/mcp/runtime.json` leest.
+Eén installatie met twee standen (issue #730, besluit eigenaar Nozzit 2026-10-29, "1"). Staat de app open met de
+bridge, dan werkt de bundel via de bridge in de app (zoals in #567). Staat de app dicht, dan start de bundel zelf de
+headless MCP-server (#572) op een werkmap. Dit is het schakelstuk uit het ontwerp "één plugin, drie situaties" op #570.
 
 - Formaat: MCP Bundle volgens https://github.com/modelcontextprotocol/mcpb (`MANIFEST.md`, `manifest_version`
-  `0.3`). Een `.mcpb` is een ZIP met `manifest.json`, `icon.png` (het app-icoon, 512×512, de maat die `mcpb validate` aanraadt), `server/index.mjs`,
-  `LICENSE`, `LICENSE.GPL` en `THIRD-PARTY-NOTICES.md`. Claude Desktop installeert hem met een dubbelklik en
-  toont een venster voor de `user_config`: *Token* (verplicht, `sensitive`: afgeschermd ingevoerd en veilig bewaard door
-  Claude Desktop) en *Port* (standaard 3877). Claude Desktop levert zelf Node.js mee; de gebruiker installeert niets.
-- Bron: `integrations/claude-desktop/` (`manifest.json`, `src/main.ts`, `src/config.ts` en de doorstuurmodule
-  `src/proxy.ts`, die geen manifest, transport of client kent en later in de headless server terugkomt). Bouwen:
+  `0.3`). Een `.mcpb` is een ZIP met `manifest.json`, `icon.png` (het app-icoon, 512×512, de maat die `mcpb validate`
+  aanraadt), `server/index.mjs` (het schakelstuk), `server/headless.mjs` (de headless server), `LICENSE`,
+  `LICENSE.GPL` en `THIRD-PARTY-NOTICES.md`. Claude Desktop installeert hem met een dubbelklik en toont een venster
+  voor de `user_config`: alleen *Working folder* (`directory`, verplicht). Poort en token vraagt het venster niet
+  meer: de bundel leest ze uit `runtime.json`. De werkmap gaat via `env` (`OPS_MCP_ROOT`), niet via `args`: Claude
+  Desktop breekt op Windows een argument met een spatie. Claude Desktop levert zelf Node.js mee; de gebruiker
+  installeert niets.
+- Bron: `integrations/claude-desktop/`: `manifest.json`, `src/main.ts` (stdio en bedrading), `src/config.ts`
+  (werkmap uit `env`), `src/discovery.ts` (`runtime.json` lezen), `src/headlessChild.ts` (het kindproces) en
+  `src/proxy.ts` (het schakelstuk; kent geen manifest, transport, bestanden of processen). Bouwen:
   `npm run build:mcpb` → `dist-mcpb/open-planner-studio-<versie>.mcpb` en de uitgepakte inhoud in
-  `dist-mcpb/bundle/`. De server is één ESM-bestand (esbuild, `node18`, geminificeerd), zonder
-  runtime-dependencies; hij bevat alleen `@modelcontextprotocol/sdk` (`StdioServerTransport`) en zod. De
-  bouw faalt als app-code (`src/`) erin komt of als de manifestversie afwijkt van `package.json`.
+  `dist-mcpb/bundle/`. Het schakelstuk is één ESM-bestand (esbuild, `node18`, geminificeerd), zonder
+  runtime-dependencies; het bevat `@modelcontextprotocol/sdk` (`StdioServerTransport`), zod en uit de app alleen
+  het ontdekkingscontract `src/services/mcp/discoveryContract.ts` (importeert niets). De bouw faalt als andere
+  app-code erin komt of als de manifestversie afwijkt van `package.json`. `server/headless.mjs` is ongewijzigd de
+  uitvoer van `scripts/build-mcp-server.mjs`, met de grenscontrole van die bouw.
 - Versie: `manifest.json` staat in het versieregister van `scripts/bump-version.js` (`npm run bump`,
   `--check`).
-- Werking: elk stdio-bericht gaat als `POST http://127.0.0.1:<poort>/mcp` naar de bridge, met het token en de
-  `Mcp-Session-Id`; het antwoord gaat ongewijzigd terug. Bewust `127.0.0.1` en niet `localhost`. Berichten
-  lopen strikt na elkaar, net als in de bridge.
-- Draait de app niet, staat de bridge uit of klopt het token niet, dan beantwoordt de bundel `initialize` zelf
-  en biedt hij één tool aan: `open_planner_studio_status`. Elke andere aanroep geeft een Engelse fout die zegt
-  wat de gebruiker moet doen ("Open Planner Studio is not running or the MCP bridge is off …", "… refused the
-  token (HTTP 401) …"). Bij elk volgend bericht probeert de bundel opnieuw te verbinden. Bij elke wissel
-  tussen statustool en plannertools stuurt hij `notifications/tools/list_changed`, ook als de sessie bleef
-  staan (Stop/Start van de bridge); `initialize` kondigt daarom altijd `listChanged: true` aan.
-- Sessieverlies (`404`, de app is herstart), ontdekt door welk bericht ook (ook een `ping` of notificatie): de
-  bundel opent een nieuwe sessie met de oorspronkelijke `initialize`-parameters en herhaalt een request dat
-  niets wijzigt (alles behalve `tools/call`, en tools met `readOnlyHint: true` uit de laatste `tools/list`).
-  Het drift-anker van de oude sessie is weg, dus een wijziging kon op een ander document landen. Daarom
-  weigert de bundel daarna elke wijzigende tool (ook een onbekende, en ook aanvragen die al in de wachtrij
-  stonden) met "… this change was NOT carried out … confirm it with planner_switch_document …", tot een
-  geslaagde `planner_switch_document` het anker van de nieuwe sessie expliciet vastlegt (`bindExpectedDoc`).
-  Een leestool heft niets op: hij bindt geen anker, en de eerste wijziging zou het lege anker anders aan het
-  document binden dat toevallig actief is (review ronde 2 van PR #567). `planner_switch_document` zelf mag
-  altijd door. Ook een expliciete `planner_new_document` of `planner_import_schedule` mag als losse
-  herstelactie door: alleen na succes wordt de blokkade opgeheven. Deze twee mutaties worden bij
-  nieuw sessieverlies nooit automatisch herhaald. `planner_duplicate_document` blijft geblokkeerd,
-  omdat die het actieve document gebruikt. Na Stop/Start van de bridge in de app blijft de sessie geldig; dan is er geen sessieverlies en
-  geen blokkade.
+- **Kiezen per aanvraag.** Vóór elke aanvraag leest de bundel `runtime.json` in `<appDataDir>/mcp/`
+  (`mcpDiscoveryDirs`: Linux ook de Snap-map, macOS, Windows; tabel in [MCP-ontdekking](mcp-ontdekking.md)). Een
+  geldig bestand van een levend proces ⇒ de app: `POST http://127.0.0.1:<poort>/mcp` met het token en de
+  `Mcp-Session-Id`; het antwoord gaat ongewijzigd terug. Bewust `127.0.0.1` en niet `localhost`. Geen bestand,
+  een onbruikbaar bestand of een gestopt proces ⇒ zonder app. Antwoordt de bridge niet of weigert hij het token
+  (401), dan ook zonder app (regel 3 van het contract). Een time-out geeft een fout en geen wissel: dan is niet
+  bekend of de app de aanvraag uitvoerde. Berichten lopen strikt na elkaar, net als in de bridge.
+- **Zonder app.** De bundel start `server/headless.mjs` als kindproces (`node headless.mjs --transport stdio
+  --root <werkmap>`), met dezelfde Node en dezelfde omgeving, en hergebruikt het zolang de sessie zonder app
+  werkt. Een kindproces en geen import, omdat de headless server per bestandsoperatie de procesmap zet. Vóór het
+  starten controleert de bundel: een werkmap ingevuld, Node 22 of nieuwer (het schakelstuk zelf draait vanaf
+  Node 18), en de map bestaat. Lukt dat niet, dan noemt de fout de reden. De logregels van het kind gaan met het
+  voorvoegsel `headless:` naar stderr. De headless server schrijft geen bestand dat open staat in de app
+  (`open-files.json`, slot in `headless/mcp-server/src/appLock.ts`, zie [Headless MCP-server](headless-mcp.md)).
+- **Dezelfde tools.** In beide standen gelden dezelfde 41 `planner_*`-tools, met dezelfde namen, beschrijvingen,
+  schema's en annotaties (getoetst). Geen tool heeft een scherm nodig; Gantt, dialogen, lint, afdrukken en PDF
+  hebben geen tool, ook niet in de app. `initialize.instructions` is die van de planner, met een korte uitleg van
+  de bundel erachter (`bundleInstructions`).
+- **Wisselen tijdens een sessie zonder werk te verliezen.**
+  - App → zonder app (de app ging dicht of de bridge stopte): het werk staat in de app, die bij sluiten zelf om
+    opslaan vraagt. De bundel weigert daarna elke wijzigende tool tot een geslaagde `planner_import_schedule`,
+    `planner_new_document` of `planner_switch_document`: de documenten van de app zijn hier niet open.
+  - Zonder app → app (de app ging open): alleen als de headless planner geen wijzigingen meer heeft die nog niet
+    met `planner_export_ifc` op schijf staan. De bundel houdt dat per document bij uit de antwoorden: een
+    geslaagde wijzigende tool markeert het actieve document, een geslaagde export maakt het weer schoon (import,
+    nieuw en wisselen niet). Is er nog zulk werk, dan blijven de aanvragen zonder app, met één melding, tot het is
+    opgeslagen. Daarna stopt het kindproces en weigert de bundel wijzigingen tot een documentkeuze in de app.
+  - Na elke wissel krijgt het eerstvolgende toolantwoord een korte melding vooraan (een extra tekstblok; de
+    `structuredContent` blijft gelijk), en de client krijgt `notifications/tools/list_changed`.
+  - Stopt het kindproces onverwacht, dan is zijn geheugen weg: melding, en wijzigen pas na opnieuw openen.
+- **Sessies met de app.** Sessieverlies (`404`, de app is herstart), ontdekt door welk bericht ook (ook een
+  `ping` of notificatie), of een nieuwe `runtime.json` (ander pid, andere poort of nieuw token): de bundel opent
+  een nieuwe sessie met de oorspronkelijke `initialize`-parameters en herhaalt een request dat niets wijzigt
+  (alles behalve `tools/call`, en tools met `readOnlyHint: true` uit de laatste `tools/list`). Het drift-anker van
+  de oude sessie is weg, dus een wijziging kon op een ander document landen. Daarom weigert de bundel daarna elke
+  wijzigende tool (ook een onbekende, en ook aanvragen die al in de wachtrij stonden) met "… this change was NOT
+  carried out … confirm it with planner_switch_document …", tot een geslaagde `planner_switch_document` het anker
+  van de nieuwe sessie expliciet vastlegt (`bindExpectedDoc`). Een leestool heft niets op (review ronde 2 van PR
+  #567). Ook een expliciete `planner_new_document` of `planner_import_schedule` mag als losse herstelactie door:
+  alleen na succes wordt de blokkade opgeheven, en ze worden nooit automatisch herhaald.
+  `planner_duplicate_document` blijft geblokkeerd, omdat die het actieve document gebruikt. Komt een aanvraag
+  niet aan maar is het dezelfde bridge (zelfde pid, poort en token, bijv. Stop/Start), dan probeert de bundel de
+  oude sessie eerst te hervatten met een `ping`; lukt dat, dan is er geen blokkade.
+- **Geen van beide.** Kan de bundel de app niet bereiken en niet zonder app werken, dan beantwoordt hij
+  `initialize` zelf en biedt hij één tool aan: `open_planner_studio_status`. Elke andere aanroep geeft een
+  Engelse fout die beide uitwegen noemt (de app met de bridge starten, of een werkmap kiezen). Bij elk volgend
+  bericht probeert de bundel het opnieuw. Bij elke wissel tussen statustool en plannertools stuurt hij
+  `notifications/tools/list_changed`; `initialize` kondigt daarom altijd `listChanged: true` aan.
 - Annuleren (`notifications/cancelled`, ook na een time-out van de client): de bundel legt de annulering vast
   zodra hij binnenkomt, niet achter in de wachtrij. Een geannuleerde aanvraag die nog wachtte, gaat nooit naar
-  de bridge en krijgt geen antwoord (MCP 2025-06-18, *cancellation*). Een aanvraag die al bij de bridge was,
-  loopt door; de bridge voert hem strikt na de vorige uit.
-- Niet getoetst: installeren en het installatievenster in Claude Desktop zelf, en Claude Desktop op Windows en
-  macOS met de bundel. De bundel is niet ondertekend (`mcpb sign`); Claude Desktop meldt dat bij installeren.
+  een planner en krijgt geen antwoord (MCP 2025-06-18, *cancellation*). Een aanvraag die al bij een planner was,
+  loopt door.
+- Voor tests en ontwikkelaars, niet in het manifest: `OPS_MCP_DISCOVERY_DIR` (lees de ontdekkingsbestanden uit
+  deze map) en `OPS_MCP_DEV_INSTANCE` (lees `runtime.<slug>.json` van een dev-build).
+- Niet getoetst: installeren en het installatievenster in Claude Desktop zelf (er is geen Claude Desktop voor
+  Linux), Claude Desktop op Windows en macOS met de bundel, en welke Node Claude Desktop meelevert (de stand
+  zonder app vraagt Node 22). De bundel is niet ondertekend (`mcpb sign`); Claude Desktop meldt dat bij
+  installeren.
 - **Custom connectors** (Claude, *Customize › Connectors*) passen niet: "Claude connects to your remote MCP
   server from Anthropic's cloud infrastructure, rather than from your local device" en de server "must be
   reachable over the public internet". Bron:
@@ -223,6 +273,4 @@ ook headless werkt en het token zelf uit `<appDataDir>/mcp/runtime.json` leest.
 
 - Geen ondertekende `.mcpb`: de bundel is niet ondertekend, en er is geen downloadknop in het koppelvenster van de app.
 - Geen Claude-connector en geen interactieve MCP App: de bridge is niet publiek bereikbaar en heeft geen OAuth.
-- Geen losse (headless) MCP-server: de tools draaien alleen in een open desktop-app, op het plan dat daar open
-  staat. De stdio-server in de `.mcpb` stuurt alleen door naar die app.
 - Geen MCP-resources, -prompts, -sampling of -notificaties van de server naar de client.

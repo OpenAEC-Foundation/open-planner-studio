@@ -3,8 +3,8 @@
   "name": "open-planner-studio",
   "display_name": "Open Planner Studio",
   "version": "2026.43.0",
-  "description": "Connects Claude Desktop to the Open Planner Studio desktop app, so Claude can read and edit your open construction schedule.",
-  "long_description": "This extension connects Claude Desktop to the MCP bridge of the Open Planner Studio desktop app on your own computer. It contains no planner of its own: the app must be running, with the MCP bridge started on the MCP tab. Claude then gets the planner_ tools of the app: read and change tasks, relations, resources, calendars and baselines, and calculate the schedule. Every change is one undo step in the app, and the app can pause the MCP client or allow reading only.\n\nPaste the token from the app (MCP tab › Connection › Connect) into the Token field. Change the port only if you changed it in the app.",
+  "description": "Lets Claude read and edit your construction schedules in Open Planner Studio: in the open desktop app, or in a working folder when the app is closed.",
+  "long_description": "This extension gives Claude the planner_ tools of Open Planner Studio: read and change tasks, relations, resources, calendars and baselines, and calculate the schedule. It works in two ways, and chooses by itself for each request.\n\nWith the app: when the Open Planner Studio desktop app runs with its MCP bridge started (MCP tab › Start bridge), Claude works in the plan that is open in the app. Every change is one undo step in the app, and the app can pause the MCP client or allow reading only. The extension finds the app by itself; you do not paste a token.\n\nWithout the app: when the app is closed, the extension starts its own planner. Claude then works on schedule files in the working folder that you choose below, and only there. There is no auto-save: Claude keeps changes by writing them to a file. A file that is open in the app is never overwritten.\n\nWhen the app opens or closes during a conversation, the extension switches and tells Claude.",
   "author": {
     "name": "OpenAEC Foundation",
     "url": "https://github.com/OpenAEC-Foundation"
@@ -24,8 +24,7 @@
       "command": "node",
       "args": ["${__dirname}/server/index.mjs"],
       "env": {
-        "OPS_MCP_TOKEN": "${user_config.token}",
-        "OPS_MCP_PORT": "${user_config.port}"
+        "OPS_MCP_ROOT": "${user_config.workdir}"
       }
     }
   },
@@ -33,21 +32,11 @@
   "keywords": ["planning", "scheduling", "construction", "gantt", "ifc", "open-planner-studio"],
   "license": "LGPL-3.0-or-later",
   "user_config": {
-    "token": {
-      "type": "string",
-      "title": "Token",
-      "description": "The token from Open Planner Studio: MCP tab › Connection › Connect. It gives access to the open plan; do not share it.",
-      "sensitive": true,
+    "workdir": {
+      "type": "directory",
+      "title": "Working folder",
+      "description": "The folder with your schedules (.ifc, .xml, .xer, .mpp or .csv). Claude uses it only while the Open Planner Studio app is closed, and reads and writes only inside this folder.",
       "required": true
-    },
-    "port": {
-      "type": "number",
-      "title": "Port",
-      "description": "The port of the MCP bridge in Open Planner Studio (MCP tab › Connection › Port). Default 3877.",
-      "default": 3877,
-      "min": 1,
-      "max": 65535,
-      "required": false
     }
   },
   "compatibility": {

@@ -85,8 +85,9 @@ bridge and automatic updates.
   out of reach entirely.
 - **Desktop only, off by default** — the bridge runs in the desktop shell; it can optionally start
   automatically with the app.
-- **Claude Desktop extension** — the release includes a `.mcpb` bundle that forwards calls to the
-  running desktop app. Enter the token and port from the MCP tab; the bundle contains no planner.
+- **Claude Desktop extension** — the release includes a `.mcpb` bundle. While the desktop app runs
+  with its MCP bridge, Claude works in the open plan; when the app is closed, the bundle starts its own
+  planner on a working folder that you choose at install. It finds the app by itself: no token to paste.
 - **Headless MCP server** — developers can build the same tools as a standalone Node program,
   with stdio or authenticated loopback HTTP transport and file access limited to a working folder.
   See [the headless MCP documentation](https://github.com/OpenAEC-Foundation/open-planner-studio/blob/main/docs/headless-mcp.md).

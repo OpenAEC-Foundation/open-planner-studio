@@ -147,7 +147,7 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
 | i18n key | `npm run verify:i18n` |
 | UI change | `node scripts/run-browser-tests.mjs tests/browser/smoke.spec.ts` (or a targeted spec), plus `window.__OPS__` |
 | MCP tool | `bash tests/mcp/run.sh cases-<x>.ts` |
-| Claude Desktop bundle (`integrations/claude-desktop/`) | `bash tests/mcp/run.sh cases-mcpb.ts` (builds the bundle, runs it over stdio against `bridgeMirror`) |
+| Claude Desktop bundle (`integrations/claude-desktop/`) | `bash tests/mcp/run.sh cases-mcpb.ts` (builds the bundle, runs it over stdio against `bridgeMirror` and without the app) |
 | library code | `bash tests/library/run.sh [check-<x>.ts]` |
 | in-app docs/guides | `npm run verify:docs` |
 | before push | the targeted checks above; the full `npm run verify` runs in CI on the PR |
@@ -162,11 +162,15 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   none of the platform switches. Differences go only through the constants in `src/utils/buildFlags.ts` (extensions, demo start and
   AI mode are off there) — never read `VITE_OPS_PLATFORM` directly. Own assets always via `import.meta.env.BASE_URL`.
   Detail: `docs/platformbouw.md`.
-- **Claude Desktop bundle = a plug, not a planner.** `integrations/claude-desktop/` (`manifest.json` +
-  `src/proxy.ts`) is an MCP Bundle (`.mcpb`) whose stdio server forwards every message to the bridge of the
-  running desktop app (`127.0.0.1:<port>/mcp`, token and port from the install dialog). It must never contain
-  app code; `build:mcpb` fails if `src/` ends up in the bundle. Keep `proxy.ts` free of manifest, transport and
-  client code (that lives in `main.ts`/`config.ts`): it is an interim step and moves into the single plugin of #570. Its manifest version is in the bump register;
+- **Claude Desktop bundle = a switch plus the headless server.** `integrations/claude-desktop/` is an MCP Bundle
+  (`.mcpb`, #730) with two programs. `server/index.mjs` (the switch, `src/proxy.ts`) reads `runtime.json` for
+  every request: the app runs with its bridge ⇒ forward to `127.0.0.1:<port>/mcp` (port and token from that file);
+  otherwise ⇒ the unchanged headless MCP server (`server/headless.mjs`, from `build:mcp-server`) as a child
+  process on the working folder from the install dialog. A switch during a session blocks changes until an
+  explicit document choice, and never leaves the headless planner while it has work not written with
+  `planner_export_ifc`. The switch contains no app code except `discoveryContract.ts`; `build:mcpb` fails
+  otherwise. Keep `proxy.ts` free of manifest, transport, file and process code (that lives in `main.ts`,
+  `config.ts`, `discovery.ts`, `headlessChild.ts`). Its manifest version is in the bump register;
   `release.yml` (job `build-mcpb`) attaches it to every release. Detail: `docs/mcp-verificatie.md`.
 - **Rust is thin.** Exactly three commands (`install_kind`, `mcp_bridge_start`, `mcp_bridge_stop`); every new
   command is public surface. File I/O: extend `src/services/fileAccess/`, not a Rust command. One command-less

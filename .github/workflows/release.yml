@@ -599,7 +599,8 @@ jobs:
 
           Write-Host "Windows updater entries set to the .nsis.zip with matching signature"
 
-  # De Claude Desktop-bundel (`.mcpb`): een stekker naar de AI-bridge van de app, zonder signing.
+  # De Claude Desktop-bundel (`.mcpb`): met de app via de bridge, zonder app via de ingebouwde headless
+  # server (#730); zonder signing.
   # Bouwt met `npm run build:mcpb`, controleert het manifest met de officiële CLI (vaste versie,
   # dezelfde als mcpb.yml) en zet het bestand als asset op de draft. Zie docs/mcp-verificatie.md.
   build-mcpb:

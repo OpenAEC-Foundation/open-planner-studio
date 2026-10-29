@@ -6,6 +6,11 @@ de app draait). De typen, de bestandsnamen en de leesregels staan in code in
 `src/services/mcp/discoveryContract.ts`; dat bestand importeert niets en mag door de plugin gebundeld worden.
 Een wijziging daar is een contractwijziging.
 
+Sinds issue #730 zijn er twee lezers. De Claude Desktop-bundel leest `runtime.json` om per aanvraag te kiezen
+tussen de app en de stand zonder app (`integrations/claude-desktop/src/discovery.ts`, uitleg in
+[MCP-verificatie](mcp-verificatie.md)). De headless MCP-server leest `open-files*.json` vóór elke schrijfactie
+(`headless/mcp-server/src/appLock.ts`, uitleg in [Headless MCP-server](headless-mcp.md)).
+
 ## Waarom
 
 De plugin kiest per aanvraag tussen twee standen:
@@ -29,10 +34,15 @@ Beide bestanden staan in de map `mcp/` in de `appDataDir` van de app (identifier
 | macOS | `~/Library/Application Support/org.openaec.planner/mcp/` |
 | Windows | `%APPDATA%\org.openaec.planner\mcp\` (Roaming) |
 
+De mappen staan ook in code: `mcpDiscoveryDirs` in `discoveryContract.ts` (`MCP_APP_IDENTIFIER` is de identifier
+uit `tauri.conf.json`; een test bewaakt dat). `XDG_DATA_HOME` telt alleen als absoluut pad. De omgevingsvariabele
+`OPS_MCP_DISCOVERY_DIR` vervangt de mappen door één map, voor tests en dev-builds.
+
 Een productiebuild gebruikt de namen `runtime.json` en `open-files.json`. Een dev-instantie (`npm run tauri:dev`,
 worktree-slug in `OPS_DEV_INSTANCE`) schrijft `runtime.<slug>.json` en `open-files.<slug>.json`, zodat twee
-dev-builds elkaars bestanden niet overschrijven. Een plugin voor gebruikers leest alleen de canonieke namen. Wie
-ook dev-builds wil beschermen, leest voor de weigerregel elk `open-files*.json` in de map.
+dev-builds elkaars bestanden niet overschrijven. Een plugin voor gebruikers leest alleen de canonieke naam
+`runtime.json` (de bundel leest `runtime.<slug>.json` alleen met `OPS_MCP_DEV_INSTANCE`). Voor de weigerregel leest
+de headless server elk `open-files*.json` in de map, dus ook die van dev-builds.
 
 ## `runtime.json`
 
@@ -179,4 +189,7 @@ bestandsnaam veranderen.
 - `tests/mcp/realApp/run-real-app.ts` (`.github/workflows/mcp-real-app.yml`, Linux): de echte app schrijft
   `runtime.json` met de juiste poort, het juiste token, een levend pid en rechten `0600`; het register bestaat;
   na Stop is `runtime.json` weg en blijft het register staan.
+- `tests/mcp/cases-discovery.ts` toetst ook `mcpDiscoveryDirs` per besturingssysteem en de identifier.
+- `tests/mcp/cases-mcpb.ts` (bundel) en `tests/mcp/cases-headless-server.ts` (slot) toetsen de lezers met
+  bestanden in een tijdelijke map (`OPS_MCP_DISCOVERY_DIR`): geldig, achtergebleven (dood pid), onbruikbaar.
 - Niet getoetst: de ACL op Windows, de paden op macOS en Windows, en de Snap-map.

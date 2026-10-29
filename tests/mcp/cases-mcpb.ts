@@ -1,16 +1,20 @@
-// Claude Desktop-bundel (`.mcpb`): bouwt hem met `scripts/build-mcpb.mjs`, controleert de ZIP en het
-// manifest, en laat de MEEGELEVERDE doorstuurserver (uit de ZIP gehaald) via stdio praten met de
-// bridge-spiegel (`bridgeMirror.ts`) rond de echte TS-kant op een eigen headless store. De client is
-// de officiële SDK-client; het stdio-transport hieronder start de server zoals Claude Desktop dat doet
-// (`node server/index.mjs`). Niet de `StdioClientTransport` van de SDK: die sleept `cross-spawn` (CommonJS)
-// mee, en dat laadt niet in de ESM-testbundel van `run.sh`.
+// Claude Desktop-bundel (`.mcpb`, issue #567 en #730): bouwt hem met `scripts/build-mcpb.mjs`, controleert de
+// ZIP en het manifest, en start de MEEGELEVERDE servers (uit de ZIP gehaald) zoals Claude Desktop dat doet
+// (`node server/index.mjs`). Twee planners achter het schakelstuk:
+//   - de app: de bridge-spiegel (`bridgeMirror.ts`) rond de echte TS-kant op een eigen headless store, gevonden
+//     via een `runtime.json` in een tijdelijke ontdekkingsmap (`OPS_MCP_DISCOVERY_DIR`);
+//   - zonder app: `server/headless.mjs` uit de ZIP, als kindproces van het schakelstuk, op een tijdelijke werkmap.
+// De client is de officiële SDK-client; het stdio-transport hieronder start de server zelf. Niet de
+// `StdioClientTransport` van de SDK: die sleept `cross-spawn` (CommonJS) mee, en dat laadt niet in de
+// ESM-testbundel van `run.sh`.
 //
-// Wat dit NIET bewijst: dat Claude Desktop de bundel installeert en het installatievenster toont.
-// De volledige schemacontrole van het manifest doet de officiële `mcpb validate` in
-// `.github/workflows/mcpb.yml` en `release.yml`; hier staan de velden waar de stekker op leunt.
+// Wat dit NIET bewijst: dat Claude Desktop de bundel installeert en het installatievenster toont, en de echte
+// Rust-bridge en het echte `runtime.json` van de app (dat doet `tests/mcp/realApp/`). De volledige
+// schemacontrole van het manifest doet de officiële `mcpb validate` in `.github/workflows/mcpb.yml` en
+// `release.yml`; hier staan de velden waar de bundel op leunt.
 import { test, assert, assertEq, run } from './harness';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -24,19 +28,26 @@ import { createAppStoreContext } from '@/state/appStore';
 import { buildMcpContext, createMcpSessionTable, type McpSessionTable } from '@/services/mcp/server';
 import type { McpContext } from '@/services/mcp/contracts';
 import { handleMcpMessage, MCP_INSTRUCTIONS, MCP_SERVER_NAME } from '@/services/mcp/dispatcher';
+import { buildRuntimeFile, serializeDiscoveryFile } from '@/services/mcp/discoveryContract';
 import { fileToolDeps } from '@/services/mcp/tools/fileTools';
 import { getTools } from '@/services/mcp/toolRegistry';
 import { parseZipEntries } from '@/services/zip';
-import { MCP_DEFAULT_PORT } from '@/utils/settingsStore';
 import { startBridgeMirror, type BridgeMirror } from './bridgeMirror';
-import { DEFAULT_BRIDGE_PORT, SESSION_RESET_MESSAGE, STATUS_TOOL_NAME } from '../../integrations/claude-desktop/src/proxy';
-import { readProxyConfig } from '../../integrations/claude-desktop/src/config';
+import {
+  HEADLESS_RESTART_NOTE, SESSION_RESET_MESSAGE, STATUS_TOOL_NAME, SWITCH_TO_APP_MESSAGE, SWITCH_TO_APP_NOTE,
+  UNSAVED_STAY_NOTE, bundleInstructions, headlessLostMessage, switchToHeadlessMessage, switchToHeadlessNote,
+} from '../../integrations/claude-desktop/src/proxy';
+import { readBundleConfig } from '../../integrations/claude-desktop/src/config';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const appPkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { version: string; license: string };
 const work = mkdtempSync(join(tmpdir(), 'ops-mcpb-'));
 const outDir = join(work, 'out');
 const serverFile = join(work, 'extracted', 'server', 'index.mjs');
+/** MCP-backups van de headless planner: niet in de gegevensmap van wie de test draait. */
+const dataDir = join(work, 'data');
+const EXAMPLE = join(ROOT, 'public/examples/showcase-verbouwing-eengezinswoning.ifc');
+const EXAMPLE_NAME = 'Refurbishment & Extension of a Family Home';
 
 type Json = Record<string, any>;
 let manifest: Json = {};
@@ -45,7 +56,8 @@ let entries = new Map<string, Uint8Array>();
 // --- De headless app achter de spiegel -----------------------------------------------------------
 
 const app = createAppStoreContext();
-app.store.getState().setProject({ name: 'Claude Desktop-bundel' });
+const APP_PROJECT = 'Claude Desktop-bundel';
+app.store.getState().setProject({ name: APP_PROJECT });
 app.store.getState().ensureProjectCalendarInLibrary();
 app.store.getState().addTask({ name: 'warmup' });
 app.store.getState().undo();
@@ -79,6 +91,37 @@ async function freePort(): Promise<number> {
   return port;
 }
 
+/** Het pid van een proces dat al gestopt is. */
+function deadPid(): number {
+  const r = spawnSync(process.execPath, ['-e', 'process.stdout.write(String(process.pid))'], { encoding: 'utf8' });
+  return Number(r.stdout);
+}
+
+let dirCount = 0;
+/** Een lege ontdekkingsmap (`<appDataDir>/mcp` van een nep-app). */
+function newDiscoveryDir(): string {
+  const dir = join(work, `discovery-${++dirCount}`);
+  mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+/** Een werkmap met één planning (`plan.ifc`). */
+function newRoot(): string {
+  const dir = join(work, `root-${++dirCount}`);
+  mkdirSync(dir, { recursive: true });
+  copyFileSync(EXAMPLE, join(dir, 'plan.ifc'));
+  return dir;
+}
+
+/** Schrijft `runtime.json` zoals de app dat doet als de bridge draait. */
+function writeRuntime(dir: string, port: number, opts: { token?: string; pid?: number } = {}): void {
+  const file = buildRuntimeFile({
+    pid: opts.pid ?? process.pid, port, token: opts.token ?? TOKEN, appVersion: appPkg.version, startedAt: new Date(),
+  });
+  writeFileSync(join(dir, 'runtime.json'), serializeDiscoveryFile(file), { mode: 0o600 });
+}
+const removeRuntime = (dir: string) => rmSync(join(dir, 'runtime.json'), { force: true });
+
 interface Session {
   client: Client;
   listChanged: () => number;
@@ -110,7 +153,7 @@ function stdioTransport(env: Record<string, string>, onStderr: (text: string) =>
       child.stdin.end();
       if (child.exitCode === null) {
         await new Promise<void>((resolve) => {
-          const timer = setTimeout(() => { child.kill(); resolve(); }, 2000);
+          const timer = setTimeout(() => { child.kill(); resolve(); }, 4000);
           child.once('close', () => { clearTimeout(timer); resolve(); });
         });
       }
@@ -119,13 +162,12 @@ function stdioTransport(env: Record<string, string>, onStderr: (text: string) =>
   return transport;
 }
 
-/** Start de meegeleverde server zoals Claude Desktop: `node server/index.mjs` met token en poort in env. */
-async function startExtension(token: string, port: number): Promise<Session> {
+/** Start de meegeleverde server zoals Claude Desktop: `node server/index.mjs`, met de werkmap in env. */
+async function startExtension(opts: { discovery: string; root?: string }): Promise<Session> {
   let log = '';
-  const transport = stdioTransport(
-    { PATH: process.env.PATH ?? '', OPS_MCP_TOKEN: token, OPS_MCP_PORT: String(port) },
-    (text) => { log += text; },
-  );
+  const env: Record<string, string> = { PATH: process.env.PATH ?? '', OPS_MCP_DISCOVERY_DIR: opts.discovery, OPS_MCP_DATA_DIR: dataDir };
+  if (opts.root) env.OPS_MCP_ROOT = opts.root;
+  const transport = stdioTransport(env, (text) => { log += text; });
   const client = new Client({ name: 'ops-mcpb-test', version: '1.0.0' });
   let changes = 0;
   client.setNotificationHandler(ToolListChangedNotificationSchema, () => { changes++; });
@@ -133,21 +175,27 @@ async function startExtension(token: string, port: number): Promise<Session> {
   return { client, listChanged: () => changes, stderr: () => log };
 }
 
-interface ToolResult { isError: boolean; text: string; structured: Json }
+/** De bundel met een draaiende app (de spiegel op `port`), zonder werkmap: zoals vóór #730. */
+const startWithApp = (port: number) => {
+  const discovery = newDiscoveryDir();
+  writeRuntime(discovery, port);
+  return startExtension({ discovery });
+};
+
+interface ToolResult { isError: boolean; text: string; texts: string[]; structured: Json }
 
 async function call(session: Session, name: string, args: Json = {}): Promise<ToolResult> {
   const res = await session.client.callTool({ name, arguments: args }, undefined, { timeout: 30_000 });
   const content = (res.content ?? []) as Array<{ type: string; text?: string }>;
-  return {
-    isError: res.isError === true,
-    text: content.filter((c) => c.type === 'text').map((c) => c.text ?? '').join('\n'),
-    structured: (res.structuredContent ?? {}) as Json,
-  };
+  const texts = content.filter((c) => c.type === 'text').map((c) => c.text ?? '');
+  return { isError: res.isError === true, text: texts.join('\n'), texts, structured: (res.structuredContent ?? {}) as Json };
 }
 
 async function toolNames(session: Session): Promise<string[]> {
   return (await session.client.listTools()).tools.map((t) => t.name);
 }
+
+const projectName = (res: ToolResult) => res.structured.data?.project?.name as string | undefined;
 
 // --- Bouwen en de ZIP ----------------------------------------------------------------------------
 
@@ -161,19 +209,25 @@ test('de .mcpb is een geldige ZIP met precies de verwachte bestanden', async () 
   const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
   const list = await parseZipEntries(buffer);
   entries = new Map(list.map((e) => [e.name, e.data]));
-  assertEq([...entries.keys()].sort(), ['LICENSE', 'LICENSE.GPL', 'THIRD-PARTY-NOTICES.md', 'icon.png', 'manifest.json', 'server/index.mjs'], 'inhoud van de bundel');
+  assertEq([...entries.keys()].sort(),
+    ['LICENSE', 'LICENSE.GPL', 'THIRD-PARTY-NOTICES.md', 'icon.png', 'manifest.json', 'server/headless.mjs', 'server/index.mjs'],
+    'inhoud van de bundel');
   const server = entries.get('server/index.mjs') as Uint8Array;
   assert(server.length < 1024 * 1024, `server/index.mjs is ${server.length} bytes; verwacht onder 1 MB`);
+  const headless = new TextDecoder().decode(entries.get('server/headless.mjs'));
+  assert(headless.startsWith('#!/usr/bin/env node\n// @openaec/open-planner-mcp-server'), 'headless.mjs is de headless MCP-server');
   const png = entries.get('icon.png') as Uint8Array;
   assertEq([...png.slice(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], 'icon.png is een PNG');
   const notices = new TextDecoder().decode(entries.get('THIRD-PARTY-NOTICES.md'));
   assert(notices.includes('@modelcontextprotocol/sdk'), 'THIRD-PARTY-NOTICES.md noemt de SDK');
+  assert(notices.includes('## server/headless.mjs'), 'THIRD-PARTY-NOTICES.md dekt ook headless.mjs');
   mkdirSync(dirname(serverFile), { recursive: true });
   writeFileSync(serverFile, server);
+  writeFileSync(join(dirname(serverFile), 'headless.mjs'), entries.get('server/headless.mjs') as Uint8Array);
   manifest = JSON.parse(new TextDecoder().decode(entries.get('manifest.json'))) as Json;
 });
 
-test('manifest.json: de velden waar de stekker op leunt', () => {
+test('manifest.json: de velden waar de bundel op leunt', () => {
   const allowed = new Set([
     'manifest_version', 'name', 'display_name', 'version', 'description', 'long_description', 'author', 'repository',
     'homepage', 'documentation', 'support', 'icon', 'icons', 'screenshots', 'server', 'tools', 'tools_generated',
@@ -191,51 +245,219 @@ test('manifest.json: de velden waar de stekker op leunt', () => {
   assert(entries.has(manifest.icon), `icon ${manifest.icon} zit in de bundel`);
   assertEq(manifest.server?.type, 'node', 'server.type');
   assert(entries.has(manifest.server?.entry_point), 'server.entry_point zit in de bundel');
+  // De werkmap via env, niet via args: Claude Desktop breekt op Windows een argument met een spatie.
   assertEq(manifest.server?.mcp_config, {
     command: 'node',
     args: ['${__dirname}/server/index.mjs'],
-    env: { OPS_MCP_TOKEN: '${user_config.token}', OPS_MCP_PORT: '${user_config.port}' },
+    env: { OPS_MCP_ROOT: '${user_config.workdir}' },
   }, 'server.mcp_config');
-  assertEq(manifest.user_config?.token?.type, 'string', 'token: type');
-  assertEq(manifest.user_config?.token?.sensitive, true, 'token: sensitive');
-  assertEq(manifest.user_config?.token?.required, true, 'token: required');
-  assertEq(manifest.user_config?.port?.type, 'number', 'port: type');
-  assertEq(manifest.user_config?.port?.default, MCP_DEFAULT_PORT, 'port: standaard = standaardpoort van de app');
-  assertEq([manifest.user_config?.port?.min, manifest.user_config?.port?.max], [1, 65535], 'port: grenzen');
-  assertEq(DEFAULT_BRIDGE_PORT, MCP_DEFAULT_PORT, 'standaardpoort van de doorstuurserver = die van de app');
+  assertEq(Object.keys(manifest.user_config ?? {}), ['workdir'], 'alleen de werkmap; poort en token komen uit runtime.json');
+  assertEq(manifest.user_config.workdir.type, 'directory', 'workdir: type');
+  assertEq(manifest.user_config.workdir.required, true, 'workdir: verplicht');
+  assertEq(manifest.compatibility?.runtimes?.node, '>=18.0.0', 'Node-eis van het schakelstuk');
 });
 
-test('instellingen: lege of letterlijke manifestvariabelen en een ongeldige poort', () => {
-  assertEq(readProxyConfig({ OPS_MCP_TOKEN: ' abc ', OPS_MCP_PORT: '4000' }), { port: 4000, token: 'abc', notes: [] }, 'gewone waarden');
-  assertEq(readProxyConfig({ OPS_MCP_TOKEN: '${user_config.token}', OPS_MCP_PORT: '${user_config.port}' }),
-    { port: MCP_DEFAULT_PORT, token: '', notes: [] }, 'niet ingevuld');
-  const bad = readProxyConfig({ OPS_MCP_TOKEN: 'x', OPS_MCP_PORT: '70000' });
-  assertEq([bad.port, bad.notes.length], [MCP_DEFAULT_PORT, 1], 'poort buiten 1..65535');
+test('instellingen: werkmap, een letterlijke manifestvariabele en de dev-slug', () => {
+  assertEq(readBundleConfig({ OPS_MCP_ROOT: ' /p ' }), { root: '/p', devInstance: null, notes: [] }, 'gewone werkmap');
+  assertEq(readBundleConfig({ OPS_MCP_ROOT: '${user_config.workdir}' }).root, null, 'niet ingevuld');
+  assertEq(readBundleConfig({ OPS_MCP_DEV_INSTANCE: 'wt-a' }).devInstance, 'wt-a', 'dev-slug');
+  const bad = readBundleConfig({ OPS_MCP_DEV_INSTANCE: '../x' });
+  assertEq([bad.devInstance, bad.notes.length], [null, 1], 'ongeldige slug genegeerd, met melding');
 });
 
-// --- De doorstuurserver via stdio ----------------------------------------------------------------
+// --- Twee standen, dezelfde tool -------------------------------------------------------------------
 
 let mirror: BridgeMirror;
+let appTools: Json[] = [];
 
-test('via stdio: initialize, tools/list met de planner_-tools en één leestool', async () => {
+test('met de app: runtime.json → de bridge; instructies, toollijst en een leestool van de app', async () => {
   mirror = await startMirror();
-  const s = await startExtension(TOKEN, mirror.port);
+  const root = newRoot();
+  const discovery = newDiscoveryDir();
+  writeRuntime(discovery, mirror.port);
+  const s = await startExtension({ discovery, root });
   try {
     assertEq(s.client.getServerVersion()?.name, MCP_SERVER_NAME, 'serverInfo komt van de bridge, niet van de bundel');
-    assertEq(s.client.getInstructions(), MCP_INSTRUCTIONS, 'instructions van de bridge gaan ongewijzigd door');
+    assertEq(s.client.getInstructions(), MCP_INSTRUCTIONS + bundleInstructions(root), 'instructies van de bridge plus de bundeluitleg');
     assertEq(s.client.getServerCapabilities()?.tools?.listChanged, true, 'listChanged ook bij een online initialize (review r1, 3)');
-    const names = await toolNames(s);
-    assertEq(names.length, getTools().length, 'aantal tools');
-    assert(names.every((n) => n.startsWith('planner_')), `alleen planner_-tools: ${names.join(', ')}`);
+    appTools = (await s.client.listTools()).tools as unknown as Json[];
+    assertEq(appTools.length, getTools().length, 'aantal tools');
+    assert(appTools.every((t) => String(t.name).startsWith('planner_')), 'alleen planner_-tools');
     const res = await call(s, 'planner_get_project_info');
     assert(!res.isError && res.structured.ok === true, `leestool faalde: ${res.text}`);
+    assertEq(projectName(res), APP_PROJECT, 'het antwoord komt uit de app');
+    assert(s.stderr().includes(`mode: the app (http://127.0.0.1:${mirror.port}/mcp)`), `logregel van de stand:\n${s.stderr()}`);
   } finally {
     await s.client.close();
   }
 });
 
+test('zonder app: geen runtime.json → de headless planner op de werkmap; dezelfde tools en dezelfde leestool', async () => {
+  const root = newRoot();
+  const s = await startExtension({ discovery: newDiscoveryDir(), root });
+  try {
+    assertEq(s.client.getServerVersion()?.name, MCP_SERVER_NAME, 'serverInfo van de headless planner');
+    const instructions = s.client.getInstructions() ?? '';
+    assert(instructions.startsWith(MCP_INSTRUCTIONS) && instructions.includes('Headless mode')
+      && instructions.endsWith(bundleInstructions(root)), 'instructies: app, headless uitleg, bundeluitleg');
+    const tools = (await s.client.listTools()).tools as unknown as Json[];
+    const shape = (list: Json[]) => list.map((t) => JSON.stringify([t.name, t.description, t.inputSchema, t.annotations])).sort();
+    assertEq(shape(tools), shape(appTools), 'dezelfde tools, beschrijvingen, schema\'s en annotaties als met de app');
+    const fresh = await call(s, 'planner_get_project_info');
+    assert(!fresh.isError && fresh.structured.ok === true, `leestool zonder app: ${fresh.text}`);
+    const opened = await call(s, 'planner_import_schedule', { path: '~/plan.ifc' });
+    assert(!opened.isError && opened.structured.ok === true, `plan openen: ${opened.text}`);
+    const info = await call(s, 'planner_get_project_info');
+    assertEq(projectName(info), EXAMPLE_NAME, 'het antwoord komt uit het bestand in de werkmap');
+    assert(s.stderr().includes(`mode: without the app (the working folder '${root}')`), `logregel van de stand:\n${s.stderr()}`);
+    assert(/headless: \[ops-mcp\] version \S+; working folder /.test(s.stderr()), 'de logregels van de headless planner gaan mee');
+  } finally {
+    await s.client.close();
+  }
+});
+
+test('achtergebleven runtime.json (dood pid), geen verbinding of een geweigerd token: zonder app', async () => {
+  const cases: Array<[string, (d: string) => Promise<void> | void, RegExp]> = [
+    ['dood pid', (d) => writeRuntime(d, mirror.port, { pid: deadPid() }), /is left over: process \d+ is not running/],
+    ['niemand op de poort', async (d) => writeRuntime(d, await freePort()), /does not answer on http:\/\/127\.0\.0\.1:\d+\/mcp/],
+    ['ander token', (d) => writeRuntime(d, mirror.port, { token: 'd'.repeat(64) }), /refused the token from its runtime file \(HTTP 401\)/],
+  ];
+  for (const [label, prepare, logLine] of cases) {
+    const discovery = newDiscoveryDir();
+    await prepare(discovery);
+    const s = await startExtension({ discovery, root: newRoot() });
+    try {
+      const res = await call(s, 'planner_import_schedule', { path: '~/plan.ifc' });
+      assert(!res.isError && res.structured.ok === true, `${label}: zonder app openen: ${res.text}`);
+      assert(s.stderr().includes('mode: without the app'), `${label}: stand zonder app:\n${s.stderr()}`);
+      assert(logLine.test(s.stderr()), `${label}: logregel ${logLine}:\n${s.stderr()}`);
+    } finally {
+      await s.client.close();
+    }
+  }
+});
+
+test('wissel app → zonder app tijdens een sessie: melding, list_changed, wijzigen pas na een geopend bestand; niets kwijt', async () => {
+  const root = newRoot();
+  const discovery = newDiscoveryDir();
+  const bridge = await startMirror();
+  writeRuntime(discovery, bridge.port);
+  const s = await startExtension({ discovery, root });
+  let open = true;
+  const before = app.store.getState().tasks.length;
+  try {
+    await toolNames(s);
+    const inApp = await call(s, 'planner_add_tasks', { tasks: [{ tempId: 'tmp-app', name: 'In de app', duration: 1 }] });
+    assert(!inApp.isError && inApp.structured.ok === true, `wijziging in de app: ${inApp.text}`);
+    assertEq(app.store.getState().tasks.length, before + 1, 'de taak staat in de app');
+
+    // De app gaat dicht: de app verwijdert runtime.json en de bridge stopt.
+    removeRuntime(discovery);
+    await bridge.close();
+    open = false;
+    const read = await call(s, 'planner_get_project_info');
+    assert(!read.isError, `lezen na de wissel: ${read.text}`);
+    assertEq(read.texts[0], switchToHeadlessNote(root), 'melding vooraan het eerste antwoord');
+    assert(projectName(read) !== APP_PROJECT, 'het antwoord komt niet meer uit de app');
+    await waitFor(() => s.listChanged() >= 1);
+    assertEq(s.listChanged(), 1, 'list_changed bij de wissel');
+    const refused = await call(s, 'planner_add_tasks', { tasks: [{ tempId: 'tmp-x', name: 'Hoort bij de app', duration: 1 }] });
+    assertEq(refused.text, switchToHeadlessMessage(root), 'wijziging na de wissel geweigerd');
+    assertEq(app.store.getState().tasks.length, before + 1, 'het werk in de app is onaangeroerd');
+
+    const opened = await call(s, 'planner_import_schedule', { path: '~/plan.ifc' });
+    assert(!opened.isError && opened.structured.ok === true, `bestand openen: ${opened.text}`);
+    const added = await call(s, 'planner_add_tasks', { tasks: [{ tempId: 'tmp-h', name: 'Zonder app 1', duration: 1 }] });
+    assert(!added.isError && added.structured.ok === true, `wijziging zonder app: ${added.text}`);
+    const saved = await call(s, 'planner_export_ifc', { path: '~/plan-claude.ifc' });
+    assert(!saved.isError && saved.structured.ok === true, `opslaan: ${saved.text}`);
+    assert(readFileSync(join(root, 'plan-claude.ifc'), 'utf8').includes("'Zonder app 1'"), 'de taak staat in het bestand');
+    assert(s.stderr().includes('switched to working without the app'), `logregel van de wissel:\n${s.stderr()}`);
+  } finally {
+    await s.client.close();
+    if (open) await bridge.close();
+    while (app.store.getState().tasks.length > before) app.store.getState().undo();
+  }
+});
+
+test('wissel zonder app → app: niet weggeschreven werk houdt de aanvraag zonder app tot het is opgeslagen', async () => {
+  const root = newRoot();
+  const discovery = newDiscoveryDir();
+  const s = await startExtension({ discovery, root });
+  let bridge: BridgeMirror | null = null;
+  const before = app.store.getState().tasks.length;
+  try {
+    await toolNames(s);
+    const opened = await call(s, 'planner_import_schedule', { path: '~/plan.ifc' });
+    assert(!opened.isError && opened.structured.ok === true, `bestand openen: ${opened.text}`);
+    const added = await call(s, 'planner_add_tasks', { tasks: [{ tempId: 'tmp-u', name: 'Nog niet opgeslagen', duration: 1 }] });
+    assert(!added.isError && added.structured.ok === true, `wijziging zonder app: ${added.text}`);
+
+    // De app gaat open en start de bridge.
+    bridge = await startMirror();
+    writeRuntime(discovery, bridge.port);
+    const read = await call(s, 'planner_get_project_info');
+    assertEq(read.texts[0], UNSAVED_STAY_NOTE, 'melding: blijft zonder app tot het werk is weggeschreven');
+    assertEq(projectName(read), EXAMPLE_NAME, 'nog steeds de headless planner');
+    const more = await call(s, 'planner_add_tasks', { tasks: [{ tempId: 'tmp-v', name: 'Ook nog zonder app', duration: 1 }] });
+    assert(!more.isError && more.structured.ok === true, `tweede wijziging zonder app: ${more.text}`);
+    assertEq(app.store.getState().tasks.length, before, 'niets in de app gezet');
+
+    const saved = await call(s, 'planner_export_ifc', { path: '~/plan.ifc', overwrite: true });
+    assert(!saved.isError && saved.structured.ok === true, `opslaan: ${saved.text}`);
+    const written = readFileSync(join(root, 'plan.ifc'), 'utf8');
+    assert(written.includes("'Nog niet opgeslagen'") && written.includes("'Ook nog zonder app'"), 'beide taken staan in het bestand');
+
+    const next = await call(s, 'planner_get_project_info');
+    assertEq(next.texts[0], SWITCH_TO_APP_NOTE, 'na het opslaan: melding van de wissel naar de app');
+    assertEq(projectName(next), APP_PROJECT, 'het antwoord komt uit de app');
+    await waitFor(() => s.listChanged() >= 1);
+    assertEq(s.listChanged(), 1, 'list_changed bij de wissel');
+    const refused = await call(s, 'planner_add_tasks', { tasks: [{ tempId: 'tmp-w', name: 'Zonder keuze', duration: 1 }] });
+    assertEq(refused.text, SWITCH_TO_APP_MESSAGE, 'wijziging na de wissel geweigerd');
+    const chosen = await call(s, 'planner_switch_document', { documentId: app.store.getState().activeDocumentId });
+    assert(!chosen.isError && chosen.structured.ok === true, `document kiezen: ${chosen.text}`);
+    const inApp = await call(s, 'planner_add_tasks', { tasks: [{ tempId: 'tmp-a2', name: 'Bewust in de app', duration: 1 }] });
+    assert(!inApp.isError && inApp.structured.ok === true, `wijziging in de app: ${inApp.text}`);
+    assertEq(app.store.getState().tasks.length, before + 1, 'één taak in de app');
+    assert(s.stderr().includes('staying without the app') && s.stderr().includes('stopped the planner without the app')
+      && s.stderr().includes('switched to the app'), `logregels van de wissel:\n${s.stderr()}`);
+  } finally {
+    await s.client.close();
+    if (bridge) await bridge.close();
+    while (app.store.getState().tasks.length > before) app.store.getState().undo();
+  }
+});
+
+test('de headless planner stopt onverwacht: melding, en wijzigen pas na opnieuw openen', async () => {
+  const root = newRoot();
+  const s = await startExtension({ discovery: newDiscoveryDir(), root });
+  try {
+    await toolNames(s);
+    const opened = await call(s, 'planner_import_schedule', { path: '~/plan.ifc' });
+    assert(!opened.isError && opened.structured.ok === true, `bestand openen: ${opened.text}`);
+    const pid = Number(/starting the planner without the app \(pid (\d+)\)/.exec(s.stderr())?.[1]);
+    assert(Number.isInteger(pid) && pid > 0, `pid van het kindproces in de log:\n${s.stderr()}`);
+    process.kill(pid, 'SIGKILL');
+    await waitFor(() => { try { process.kill(pid, 0); return false; } catch { return true; } });
+    await sleep(100);
+    const read = await call(s, 'planner_get_project_info');
+    assertEq(read.texts[0], HEADLESS_RESTART_NOTE, 'melding na de herstart');
+    const refused = await call(s, 'planner_add_tasks', { tasks: [{ tempId: 'tmp-k', name: 'Na de crash', duration: 1 }] });
+    assertEq(refused.text, headlessLostMessage(root, 'the process ended'), 'wijziging geweigerd tot opnieuw openen');
+    const again = await call(s, 'planner_import_schedule', { path: '~/plan.ifc' });
+    assert(!again.isError && again.structured.ok === true, `opnieuw openen: ${again.text}`);
+    const added = await call(s, 'planner_add_tasks', { tasks: [{ tempId: 'tmp-l', name: 'Na opnieuw openen', duration: 1 }] });
+    assert(!added.isError && added.structured.ok === true, `wijziging na opnieuw openen: ${added.text}`);
+  } finally {
+    await s.client.close();
+  }
+});
+
+// --- Met de app: sessies, herstarts en annuleren (zoals vóór #730, nu via runtime.json) ------------
+
 test('app-herstart (sessie kwijt): leestool wordt herhaald, schrijftool niet', async () => {
-  const s = await startExtension(TOKEN, mirror.port);
+  const s = await startWithApp(mirror.port);
   try {
     await toolNames(s); // de bundel leert welke tools alleen lezen
     const restart = async () => {
@@ -273,8 +495,29 @@ test('app-herstart (sessie kwijt): leestool wordt herhaald, schrijftool niet', a
   }
 });
 
+test('nieuwe runtime.json (andere bridge) tijdens de sessie: nieuwe sessie, wijzigingen geblokkeerd tot een keuze', async () => {
+  const discovery = newDiscoveryDir();
+  writeRuntime(discovery, mirror.port);
+  const s = await startExtension({ discovery });
+  const other = await startMirror();
+  const before = app.store.getState().tasks.length;
+  try {
+    await toolNames(s);
+    writeRuntime(discovery, other.port); // de app herstartte de bridge op een andere poort
+    const read = await call(s, 'planner_get_project_info');
+    assert(!read.isError && read.structured.ok === true, `lezen bij de nieuwe bridge: ${read.text}`);
+    const refused = await call(s, 'planner_add_tasks', { tasks: [{ tempId: 'tmp-n', name: 'Nieuwe bridge', duration: 1 }] });
+    assertEq(refused.text, SESSION_RESET_MESSAGE, 'wijziging na een nieuwe bridge geweigerd');
+    assertEq(app.store.getState().tasks.length, before, 'niets uitgevoerd');
+    assert(s.stderr().includes(`port ${other.port}`), `logregel noemt de nieuwe poort:\n${s.stderr()}`);
+  } finally {
+    await s.client.close();
+    await other.close();
+  }
+});
+
 test('app-herstart met een ander plan actief, ontdekt door een ping: wachtende en volgende wijzigingen geweigerd (review r1, 1)', async () => {
-  const s = await startExtension(TOKEN, mirror.port);
+  const s = await startWithApp(mirror.port);
   const docA = app.store.getState().activeDocumentId;
   let docB: string | null = null;
   try {
@@ -311,7 +554,7 @@ test('app-herstart met een ander plan actief, ontdekt door een ping: wachtende e
 });
 
 test('na sessieverlies: lezen heft niets op, expliciete documentkeuze wel; daarna houdt de drift-guard stand (review r2)', async () => {
-  const s = await startExtension(TOKEN, mirror.port);
+  const s = await startWithApp(mirror.port);
   const docA = app.store.getState().activeDocumentId;
   const opened: string[] = [];
   const count = () => app.store.getState().tasks.length;
@@ -365,7 +608,7 @@ test('na sessieverlies: lezen heft niets op, expliciete documentkeuze wel; daarn
 });
 
 test('sessieherstel via nieuw/import: alleen expliciet, alleen na succes en zonder herhaling (207)', async () => {
-  const s = await startExtension(TOKEN, mirror.port);
+  const s = await startWithApp(mirror.port);
   const docA = app.store.getState().activeDocumentId;
   const beforeIds = new Set(app.store.getState().getOpenDocuments().map(d => d.id));
   const previousFs = fileToolDeps.getFs;
@@ -444,7 +687,7 @@ test('geannuleerde wijziging in de wachtrij gaat nooit naar de bridge (review r1
       return handleMcpMessage(body, ctx);
     },
   });
-  const s = await startExtension(TOKEN, gated.port);
+  const s = await startWithApp(gated.port);
   try {
     await toolNames(s);
     const before = app.store.getState().tasks.length;
@@ -480,7 +723,7 @@ test('geannuleerde wijziging in de wachtrij gaat nooit naar de bridge (review r1
 
 test('knownbugs 206/323: annuleren tijdens verbinden en na 404 voorkomt de tool-POST', async () => {
   const port = await freePort();
-  const s = await startExtension(TOKEN, port); // lokale initialize terwijl de bridge nog uit staat
+  const s = await startWithApp(port); // lokale initialize terwijl de bridge nog uit staat (geen werkmap)
   let release = () => {};
   let holding = false;
   const bodies: string[] = [];
@@ -540,25 +783,28 @@ test('knownbugs 206/323: annuleren tijdens verbinden en na 404 voorkomt de tool-
   }
 });
 
-test('bridge Stop/Start met behouden sessie: statustool en terug, elk met list_changed (review r1, 3)', async () => {
+// --- Geen van beide planners: de statustool ------------------------------------------------------
+
+test('bridge Stop/Start zonder werkmap, sessie behouden: statustool en terug, elk met list_changed (review r1, 3)', async () => {
   const sessions = createMcpSessionTable();
   let bridge = await startMirror(undefined, { sessions });
   const port = bridge.port;
-  const s = await startExtension(TOKEN, port);
+  const s = await startWithApp(port);
   try {
     assert((await toolNames(s)).includes('planner_get_project_info'), 'online: plannertools');
     assertEq(s.listChanged(), 0, 'nog geen list_changed');
 
-    await bridge.close(); // Stop in de app
+    await bridge.close(); // Stop in de app (runtime.json blijft hier staan: de bundel moet het zelf merken)
     const off = await call(s, 'planner_get_project_info');
-    assert(off.isError && off.text.startsWith('Open Planner Studio is not running'), `bridge gestopt: ${off.text}`);
+    assert(off.isError && off.text.startsWith(`Open Planner Studio does not answer on http://127.0.0.1:${port}/mcp`), `bridge gestopt: ${off.text}`);
+    assert(off.text.includes('No working folder is set'), `de fout noemt de ontbrekende werkmap: ${off.text}`);
     await waitFor(() => s.listChanged() >= 1);
     assertEq(s.listChanged(), 1, 'list_changed bij de overgang naar de statustool');
     assertEq(await toolNames(s), [STATUS_TOOL_NAME], 'toollijst met de bridge gestopt');
 
     bridge = await startMirror(port, { sessions }); // Start in de app: dezelfde sessies
     const status = await call(s, STATUS_TOOL_NAME);
-    assert(!status.isError && status.text.startsWith('Connected to Open Planner Studio'), `statustool: ${status.text}`);
+    assert(!status.isError && status.text.startsWith('Connected to the Open Planner Studio app'), `statustool: ${status.text}`);
     await waitFor(() => s.listChanged() >= 2);
     assertEq(s.listChanged(), 2, 'list_changed bij de overgang terug naar de plannertools');
     const names = await toolNames(s);
@@ -567,6 +813,7 @@ test('bridge Stop/Start met behouden sessie: statustool en terug, elk met list_c
     const write = await call(s, 'planner_add_tasks', { tasks: [{ tempId: 'tmp-s', name: 'Na Stop/Start', duration: 1 }] });
     assert(!write.isError && write.structured.ok === true, `sessie behouden, dus wijzigen mag: ${write.text}`);
     assertEq(app.store.getState().tasks.length, before + 1, 'één taak toegevoegd');
+    assert(s.stderr().includes('is still valid; continuing'), `logregel van de hervatte sessie:\n${s.stderr()}`);
     app.store.getState().undo();
   } finally {
     await s.client.close();
@@ -574,46 +821,23 @@ test('bridge Stop/Start met behouden sessie: statustool en terug, elk met list_c
   }
 });
 
-test('fout token: alleen de statustool, en een heldere fout', async () => {
-  const s = await startExtension('d'.repeat(64), mirror.port);
+test('geen app en geen werkmap: alleen de statustool met een heldere fout; daarna start de app', async () => {
+  const discovery = newDiscoveryDir();
+  const s = await startExtension({ discovery });
   try {
     assertEq(s.client.getServerVersion()?.name, 'open-planner-studio', 'lokale serverInfo');
-    assertEq(await toolNames(s), [STATUS_TOOL_NAME], 'toollijst zonder verbinding');
+    assertEq(await toolNames(s), [STATUS_TOOL_NAME], 'toollijst zonder planner');
     const res = await call(s, 'planner_get_project_info');
-    assert(res.isError, 'leestool hoort te falen');
-    assert(res.text.startsWith('Open Planner Studio refused the token (HTTP 401).'), `fout token: ${res.text}`);
-    const status = await call(s, STATUS_TOOL_NAME);
-    assert(status.isError && status.text.includes('refused the token'), `statustool: ${status.text}`);
-  } finally {
-    await s.client.close();
-  }
-});
+    assert(res.isError && res.text.startsWith('The Open Planner Studio desktop app is not running, or its MCP bridge is off.'),
+      `geen app: ${res.text}`);
+    assert(res.text.includes('No working folder is set') && res.text.includes('"Start bridge"'), `beide uitwegen: ${res.text}`);
 
-test('geen token ingevuld: een heldere fout', async () => {
-  const s = await startExtension('', mirror.port);
-  try {
-    const res = await call(s, 'planner_get_project_info');
-    assert(res.isError && res.text.startsWith('No token is set for Open Planner Studio.'), `geen token: ${res.text}`);
-  } finally {
-    await s.client.close();
-  }
-});
-
-test('bridge uit: een heldere fout; daarna start de app en verschijnen de tools', async () => {
-  const port = await freePort();
-  const s = await startExtension(TOKEN, port);
-  try {
-    assertEq(await toolNames(s), [STATUS_TOOL_NAME], 'toollijst zonder app');
-    const res = await call(s, 'planner_get_project_info');
-    assert(res.isError, 'leestool hoort te falen');
-    assert(res.text.startsWith('Open Planner Studio is not running or the MCP bridge is off'), `bridge uit: ${res.text}`);
-    assert(res.text.includes(`127.0.0.1:${port}`), 'de fout noemt de poort');
-
-    const late = await startMirror(port);
+    const late = await startMirror();
+    writeRuntime(discovery, late.port);
     try {
       const status = await call(s, STATUS_TOOL_NAME);
-      assert(!status.isError && status.text.startsWith('Connected to Open Planner Studio'), `statustool: ${status.text}`);
-      for (let i = 0; i < 50 && s.listChanged() === 0; i++) await new Promise((r) => setTimeout(r, 20));
+      assert(!status.isError && status.text.startsWith('Connected to the Open Planner Studio app'), `statustool: ${status.text}`);
+      await waitFor(() => s.listChanged() >= 1);
       assertEq(s.listChanged(), 1, 'notifications/tools/list_changed na verbinden');
       const names = await toolNames(s);
       assert(names.includes('planner_get_project_info') && !names.includes(STATUS_TOOL_NAME), `tools na verbinden: ${names.length}`);
@@ -622,6 +846,25 @@ test('bridge uit: een heldere fout; daarna start de app en verschijnen de tools'
     } finally {
       await late.close();
     }
+  } finally {
+    await s.client.close();
+  }
+});
+
+test('werkmap bestaat niet en geen app: de statustool noemt de map', async () => {
+  const missing = join(work, 'bestaat-niet');
+  const s = await startExtension({ discovery: newDiscoveryDir(), root: missing });
+  try {
+    assertEq(await toolNames(s), [STATUS_TOOL_NAME], 'toollijst zonder planner');
+    const status = await call(s, STATUS_TOOL_NAME);
+    assert(status.isError && status.text.includes(`The working folder '${missing}' does not exist.`), `statustool: ${status.text}`);
+    mkdirSync(missing);
+    copyFileSync(EXAMPLE, join(missing, 'plan.ifc'));
+    const ok = await call(s, STATUS_TOOL_NAME);
+    assert(!ok.isError && ok.text.startsWith(`Connected to the planner without the app, in the working folder '${missing}'`), `statustool: ${ok.text}`);
+    const opened = await call(s, 'planner_import_schedule', { path: '~/plan.ifc' });
+    assert(!opened.isError && opened.structured.ok === true, `openen na het aanmaken van de map: ${opened.text}`);
+    assert(existsSync(join(missing, 'plan.ifc')), 'het bestand staat er');
   } finally {
     await s.client.close();
   }

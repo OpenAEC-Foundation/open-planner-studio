@@ -23,7 +23,7 @@ kwam, zit pas vanaf de volgende release in de installers.
 | MCP-server | ja, in de desktopapp | streamable HTTP op `127.0.0.1` (standaardpoort 3877), Bearer-token; 39 `planner_*`-tools in v2026.9.0, 41 in `main` | desktoprelease; niet in de browserversie | [MCP-verificatie](mcp-verificatie.md) |
 | Headless MCP-server | ja, niet gepubliceerd | Node.js ≥ 22, één ESM-bestand; stdio (standaard) of streamable HTTP op loopback; dezelfde 41 `planner_*`-tools | bouwartefact `dist-mcp-server/` (`npm run build:mcp-server`) | [headless MCP-server](headless-mcp.md) |
 | Claude Code | ja | `claude mcp add --transport http …` | gids in de app | [MCP-verificatie](mcp-verificatie.md) |
-| Claude Desktop | ja: `.mcpb`-bundel (stekker naar de app); reserve `mcp-remote`, getest door de eigenaar op 2026-10-23 | stdio-brug naar de lokale server; Claude Desktop levert Node mee | `.mcpb` als asset bij elke GitHub-release; gids in de app | [MCP-verificatie](mcp-verificatie.md) |
+| Claude Desktop | ja: `.mcpb`-bundel (met de app via de bridge, zonder app op een werkmap); reserve `mcp-remote`, getest door de eigenaar op 2026-10-23 | stdio-brug naar de lokale server; Claude Desktop levert Node mee | `.mcpb` als asset bij elke GitHub-release; gids in de app | [MCP-verificatie](mcp-verificatie.md) |
 | Claude-connector, MCP App | nee | — | — | zie *Claude* hieronder |
 | Native DLL / `.so` | nee, niet van toepassing | — | — | zie *Native library* hieronder |
 | ARM64 voor Windows en Linux | nee | — | — | niet gebouwd |
@@ -81,19 +81,20 @@ MCP-sessies (`Mcp-Session-Id`); dat komt met de volgende release.
 
 Zonder app: de [headless MCP-server](headless-mcp.md) biedt dezelfde tools op Node, op een IFC-bestand op
 schijf. `tests/mcp/cases-headless-server.ts` draait dezelfde SDK-controles ertegen, en ook tegen het gebouwde
-bestand in een lege map, over stdio en HTTP. Niet gepubliceerd; een plugin voor Claude Code en Codex en een
-stand zonder app in de `.mcpb`-bundel zijn vervolgwerk (#570).
+bestand in een lege map, over stdio en HTTP. Niet gepubliceerd als los pakket; de `.mcpb`-bundel bevat hem sinds #730 als stand zonder app. Een plugin
+voor Claude Code en Codex is vervolgwerk (#570).
 
 ### 7. Claude Desktop en Claude Code
 
-- Claude Code verbindt rechtstreeks over HTTP. Claude Desktop verbindt via de **`.mcpb`-bundel**: een
-  stdio-stekker die elk bericht doorstuurt naar de bridge van de draaiende app (besluit eigenaar, 2026-10-23:
-  een stekker naar de app, geen losse kern). Installeren is een dubbelklik en het token plakken; de gebruiker
-  hoeft geen Node.js te installeren. De reserve is `mcp-remote` in `claude_desktop_config.json`.
+- Claude Code verbindt rechtstreeks over HTTP. Claude Desktop verbindt via de **`.mcpb`-bundel** (#730,
+  besluit eigenaar 2026-10-29): draait de app met de bridge, dan stuurt de bundel elk bericht daarheen (poort en
+  token uit `runtime.json`); staat de app dicht, dan start hij de headless MCP-server op een werkmap.
+  Installeren is een dubbelklik en een werkmap kiezen; de gebruiker hoeft geen Node.js te installeren. De
+  reserve is `mcp-remote` in `claude_desktop_config.json`.
 - Getest: Claude Code 2.1.306 en `mcp-remote` 0.15.2, tegen de Node-kopie van de bridge. Tegen de echte
   desktopapp draaide de officiële SDK. Claude Desktop met `mcp-remote`: getest door de eigenaar op
-  2026-10-23. De bundel: in CI via stdio tegen de Node-kopie van de bridge (`tests/mcp/cases-mcpb.ts`) en
-  met `mcpb validate`; installeren in Claude Desktop zelf is nog niet getest.
+  2026-10-23. De bundel: in CI via stdio tegen de Node-kopie van de bridge en zonder app (`tests/mcp/cases-mcpb.ts`),
+  en met `mcpb validate`; installeren in Claude Desktop zelf is nog niet getest.
 - Een Claude-connector ("custom connector") werkt niet: die verbindt vanuit de cloud van Anthropic en
   heeft een publiek bereikbare server nodig, terwijl de MCP-server alleen op `127.0.0.1` luistert.
 - Niet geleverd: een MCP App, een losse MCP-server zonder app, een ondertekende bundel en een downloadknop in de app.

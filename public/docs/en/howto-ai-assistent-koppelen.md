@@ -48,14 +48,19 @@ claude mcp add --transport http open-planner-studio http://localhost:3877/mcp --
 
 You can also put the snippet in the file `.mcp.json` in your project folder. Then do not put that file in git, because the token gives access to your plan. A server from `.mcp.json` must be approved the first time in Claude Code.
 
-**Claude Desktop.** For Claude Desktop there is an extension: the file `open-planner-studio-<version>.mcpb`. Claude Desktop installs it with a double-click. You do not need Node.js for it.
+**Claude Desktop.** For Claude Desktop there is an extension: the file `open-planner-studio-<version>.mcpb`. Claude Desktop installs it with a double-click. You do not need Node.js for it. The extension works with the app and without the app.
 
 1. Download the `.mcpb` file from the latest release: `https://github.com/OpenAEC-Foundation/open-planner-studio/releases/latest`.
 2. Double-click the file. Claude Desktop opens and shows the extension *Open Planner Studio*. Install it. If a double-click does not work, open *Settings › Extensions* in Claude Desktop and install the file there.
-3. Paste the token from the window *Connection details* into *Token*. Keep *Port* at 3877, unless you chose another port in the app.
+3. At *Working folder*, choose the folder with your schedule files. Claude uses this folder only when the app is closed. Claude then reads and writes only in that folder.
 4. Turn on the extension and start a new chat. Ask Claude which tools of Open Planner Studio it sees.
 
-The extension contains no planner. It passes everything on to the app on your own computer. If the app does not run, or the bridge is off, Claude sees only the tool `open_planner_studio_status`, with a message that tells you what to do. Then start the app and the bridge. Claude gets the tools at its next call. If you restart the app while Claude works, the extension does not carry out a change that arrives at that moment. Claude gets a message about it and can send the change again.
+You do not enter a token or a port: while the bridge runs, the extension finds the app by itself. For each question from Claude, the extension chooses again:
+
+- *The app is open and the bridge runs*: Claude works in the plan that is open in the app. You see each change in the app at once.
+- *The app is closed, or the bridge is off*: Claude works on a schedule file in the working folder. A change is in the file only when Claude saves the file. There is no automatic saving. Claude does not overwrite a file that is open in the app.
+
+If the app opens or closes while Claude works, the extension switches and tells Claude. Claude then first chooses or opens the plan again, and only then changes something. If Claude still has changes without the app that are not saved, the extension keeps working without the app until Claude has saved them. This way no work is lost. If the extension cannot reach the app and there is no usable working folder, Claude sees only the tool `open_planner_studio_status`, with a message that tells you what to do.
 
 **Claude Desktop without the extension.** If you cannot use the extension, connect Claude Desktop with the external tool `mcp-remote`. The configuration snippet does not fit Claude Desktop directly: in the file `claude_desktop_config.json` you name a program that Claude Desktop starts itself, not an address. `mcp-remote` needs Node.js. In Claude Desktop choose *Settings › Developer › Edit Config*, put this in the file (with your own token) and start Claude Desktop again:
 
@@ -75,7 +80,7 @@ The token is in `env` and not in `args` on purpose: on Windows, Claude Desktop b
 
 In the group *Connection* there is also the field *Token*. It is a long, random code that the app makes for you and stores on this computer. In the window it says *This token grants access to the open plan. Do not share it with others.* With the icon *New token* you make a new token. The app first asks *Generating a new token breaks all existing connections. Continue?* If the bridge is running, it restarts with the new token and the old one no longer works.
 
-**Prepared for automatic discovery.** While the bridge runs, the desktop app writes the port and the token to the file `mcp/runtime.json` in the app's data folder. The current Claude Desktop extension still uses the port and token you enter yourself; a plugin that finds the app through this file is not yet available. On Linux and macOS, only your user account can read the file. On Windows, the default ACL of your profile folder protects the file; the app does not check this separately. When you stop the bridge or turn off the MCP connection, the app removes the file. The app also keeps a list of open files in `mcp/open-files.json`, even when the MCP connection is off. This inventory is intended for a future plugin; the current headless server does not check it yet. Do not open the same file in the app and the headless server at the same time.
+**How the extension finds the app.** While the bridge runs, the desktop app writes the port and the token to the file `mcp/runtime.json` in the app's data folder. The extension for Claude Desktop reads that file for each question. On Linux and macOS, only your user account can read the file. On Windows, the default ACL of your profile folder protects the file; the app does not check this separately. When you stop the bridge or turn off the MCP connection, the app removes the file. The app also keeps a list of open files in `mcp/open-files.json`, even when the MCP connection is off. The extension and the headless MCP server do not write to a file in that list. Reading is allowed: Claude then sees the version on disk, without your changes that are not saved yet.
 
 ### 4. See what the MCP client does
 
@@ -121,7 +126,7 @@ Whether the MCP client really read the guide you can see in the *Activity panel*
 
 **The status is *Port 3877 in use*.** Another program is using the port. The app's message is shown below it. The port field then stays locked (*Only editable while the server is stopped.*), even though the bridge is not running, and there is no stop button. That is a known shortcoming. Until it is fixed: turn *Allow MCP connection* off and on again. The status is then back to *Off* and you can choose another port. Then copy the connection details again, because the endpoint contains the port.
 
-**The client cannot connect after a new token.** A new token breaks all existing connections. Give the client the new token, or paste the configuration snippet again. If you use the extension in Claude Desktop, paste the new token into *Token* in *Settings › Extensions*.
+**The client cannot connect after a new token.** A new token breaks all existing connections. Give the client the new token, or paste the configuration snippet again. The extension in Claude Desktop reads the new token by itself; you do not have to do anything there.
 
 **You stopped the bridge yourself and it does not start by itself.** *Start bridge automatically* works once each time the app starts. If you stop the bridge yourself, the app does not quietly turn it on again.
 
@@ -132,6 +137,8 @@ Whether the MCP client really read the guide you can see in the *Activity panel*
 ## Without the app
 
 There is also an MCP server that works without the desktop app: the **headless MCP server**. It offers the same `planner_*` tools, but it works on a schedule file on disk instead of on your open project. So you do not see the changes in the Gantt chart, and *Undo* in the app does not apply to them. Use it when you do not want the app open, or on a computer without a screen.
+
+The extension for Claude Desktop starts this server by itself when the app is closed (see step 3). The steps below are for another MCP client, such as Claude Code.
 
 The release does not include a ready-made server download. You build it from the source code with `npm run build:mcp-server`; for that you need Node.js 22 or newer. The result is one file, `server.mjs`.
 
@@ -146,7 +153,7 @@ For step 2 in Claude Code, give this command in a terminal, with your own paths:
 claude mcp add open-planner -- node /path/to/server.mjs --root /path/to/working-folder
 ```
 
-Before the first change per document, the server makes an MCP backup, like the app. An MCP client that chooses a path outside the working folder, also through a shortcut (symbolic link), gets a refusal.
+Before the first change per document, the server makes an MCP backup, like the app. An MCP client that chooses a path outside the working folder, also through a shortcut (symbolic link), gets a refusal. The server does not write a file that is open in the app.
 
 ## See also
 
