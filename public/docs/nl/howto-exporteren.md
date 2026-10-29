@@ -22,7 +22,7 @@ De lijst op het tabblad *Start* en de kaarten in *Bestand › Exporteren* bieden
 - *CSV (;)*, op de kaart *CSV (puntkomma-gescheiden)*: een taaklijst die je in een spreadsheet opent.
 - *MS Project XML*: te openen in Microsoft Project.
 - *Primavera P6 XML*: voor Oracle Primavera P6.
-- *Primavera P6 XER*: voor Oracle Primavera P6, als `.xer`-bestand. Na het opslaan meldt de app wat niet of niet precies meeging.
+- *Primavera P6 XER*: voor Oracle Primavera P6, als `.xer`-bestand. Deze keuze heeft het label *Experimenteel*: de export is nog niet getest door het bestand in Primavera P6 zelf te openen, en er gaat veel niet of niet precies mee. Na het opslaan meldt de app wat niet of niet precies meeging. Controleer de planning na het openen in P6.
 - *IFC*: het eigen formaat van de app, met alles erin, in het IFC-schema van het project (standaard IFC 4.3 ADD2).
 
 ### Een IFC-export met bibliotheekbestand

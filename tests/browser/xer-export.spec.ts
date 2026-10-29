@@ -36,6 +36,9 @@ test('XER-export: kaart Primavera P6 XER levert een leesbaar .xer en één verli
   const card = page.locator('button.backstage-export-card').filter({ has: page.locator('h4', { hasText: 'Primavera P6 XER' }) });
   await expect(card).toHaveCount(1);
   await expect(card.locator('.backstage-export-icon')).toHaveText('XER');
+  // Label "Experimenteel" (eigenaar, 2026-10-29): alleen op de XER-kaart.
+  await expect(card.locator('[data-ops-experimental-badge]')).toHaveText(/^(Experimenteel|Experimental)$/);
+  await expect(page.locator('button.backstage-export-card [data-ops-experimental-badge]')).toHaveCount(1);
   const downloadPromise = page.waitForEvent('download');
   await card.click();
   const download = await downloadPromise;
@@ -61,4 +64,10 @@ test('XER-export: kaart Primavera P6 XER levert een leesbaar .xer en één verli
   const toast = page.locator('.ops-toast').filter({ hasText: /XER-export is opgeslagen|XER export is saved/ });
   await expect(toast).toBeVisible();
   await expect(toast.locator('[data-ops-toast-detail="notifications.exportXerLossItem.deadlines"]')).toHaveText(/1 deadline/);
+
+  // Dezelfde keuze in de lintlijst (Start › Exporteren) draagt hetzelfde label, en alleen daar.
+  await page.locator('button.ribbon-btn').filter({ has: page.locator('.ribbon-btn-label', { hasText: /^(Export|Exporteren)$/ }) }).click();
+  const ribbonXer = page.locator('button').filter({ hasText: /^Primavera P6 XER/ }).filter({ has: page.locator('[data-ops-experimental-badge]') });
+  await expect(ribbonXer).toHaveCount(1);
+  await expect(page.locator('button:not(.backstage-export-card) [data-ops-experimental-badge]')).toHaveCount(1);
 });

@@ -306,6 +306,9 @@ export interface ExportFormatMeta {
   /** Korte variant voor de ribbon-exportdropdown (ExportDropdown); alleen csv wijkt af van
    *  `labelKey` — de overige drie hergebruiken hun volle label. */
   shortLabelKey?: string;
+  /** Toon het label "Experimenteel" bij deze keuze (Backstage-kaart en ExportDropdown). Voor een
+   *  export die niet in het doelprogramma zelf getest is en waarbij veel verloren gaat (eigenaar, 2026-10-29). */
+  experimental?: boolean;
 }
 
 /** Volgorde = de Backstage-volgorde (en die van ExportDropdown). */
@@ -315,6 +318,6 @@ export const EXPORT_FORMATS = [
   { format: 'csv', icon: 'CSV', labelKey: 'export.csvLabel', descKey: 'export.csvDesc', shortLabelKey: 'export.csvShort' },
   { format: 'mspdi', icon: 'XML', labelKey: 'export.mspdiLabel', descKey: 'export.mspdiDesc', shortLabelKey: undefined },
   { format: 'p6', icon: 'P6', labelKey: 'export.p6Label', descKey: 'export.p6Desc', shortLabelKey: undefined },
-  { format: 'xer', icon: 'XER', labelKey: 'export.xerLabel', descKey: 'export.xerDesc', shortLabelKey: undefined },
+  { format: 'xer', icon: 'XER', labelKey: 'export.xerLabel', descKey: 'export.xerDesc', shortLabelKey: undefined, experimental: true },
   { format: 'ifc', icon: 'IFC', labelKey: 'export.ifcLabel', descKey: 'export.ifcDesc', shortLabelKey: undefined },
 ] as const satisfies readonly ExportFormatMeta[];

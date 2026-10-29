@@ -444,8 +444,8 @@ function ExportSection() {
     if (!companyId) setAlsoPool(false);
   }, [companyId]);
 
-  const formats: { format: ExportFormat; label: string; desc: string; icon: string }[] = EXPORT_FORMATS.map(
-    (f) => ({ format: f.format, label: tMenu(f.labelKey), desc: tMenu(f.descKey), icon: f.icon }),
+  const formats: { format: ExportFormat; label: string; desc: string; icon: string; experimental: boolean }[] = EXPORT_FORMATS.map(
+    (f) => ({ format: f.format, label: tMenu(f.labelKey), desc: tMenu(f.descKey), icon: f.icon, experimental: 'experimental' in f && f.experimental }),
   );
 
   // Bij een cyclische planning geeft exportAs { ok: false } met cpmResult.error terug.
@@ -483,7 +483,10 @@ function ExportSection() {
           <button key={f.format} className="backstage-export-card" onClick={() => void handleExport(f.format)}>
             <span className="backstage-export-icon">{f.icon}</span>
             <span className="backstage-export-info">
-              <h4>{f.label}</h4>
+              <h4>
+                {f.label}
+                {f.experimental && <span className="ops-experimental-badge" data-ops-experimental-badge>{tMenu('export.experimentalBadge')}</span>}
+              </h4>
               <p>{f.desc}</p>
             </span>
           </button>

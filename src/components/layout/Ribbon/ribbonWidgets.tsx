@@ -552,8 +552,8 @@ export function ExportDropdown() {
   const [open, setOpen] = useState(false);
   const exportAs = useAppStore(s => s.exportAs);
 
-  const formats: { label: string; format: ExportFormat }[] = EXPORT_FORMATS.map(
-    (f) => ({ label: tMenu(f.shortLabelKey ?? f.labelKey), format: f.format }),
+  const formats: { label: string; format: ExportFormat; experimental: boolean }[] = EXPORT_FORMATS.map(
+    (f) => ({ label: tMenu(f.shortLabelKey ?? f.labelKey), format: f.format, experimental: 'experimental' in f && f.experimental }),
   );
 
   return (
@@ -584,6 +584,7 @@ export function ExportDropdown() {
           }}
         >
           {f.label}
+          {f.experimental && <span className="ops-experimental-badge" data-ops-experimental-badge>{tMenu('export.experimentalBadge')}</span>}
         </RibbonMenuItem>
       ))}
     </Popover>
