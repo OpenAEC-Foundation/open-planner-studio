@@ -9,7 +9,7 @@ Na spotkaniu chcesz zobaczyć termin ostateczny i zapas całkowity przy każdym 
 Są dwie tabele zadań, każda z własnymi kolumnami:
 
 - **Tabela zadań obok wykresu Gantt** znajduje się po lewej stronie osi czasu, na kartach m.in. *Start*, *Planowanie* i *Widok*. Domyślnie ma *WBS*, *Nazwa zadania* i *Czas trwania*, więc zostaje miejsce na oś czasu.
-- **Tabela na karcie *Tabela*** zajmuje cały obszar roboczy. Domyślnie ma *WBS*, *Nazwa zadania*, *Czas trwania*, *Początek*, *Koniec*, *Typ zadania*, *Krytyczne*, *Zapas całkowity* i *Postęp*, a także kolumnę dla każdego kodu czynności i pola niestandardowego projektu.
+- **Tabela na karcie *Tabela*** zajmuje cały obszar roboczy. Domyślnie ma *WBS*, *Nazwa zadania*, *Czas trwania*, *Początek*, *Koniec*, *Rodzaj robót*, *Krytyczne*, *Zapas całkowity* i *Postęp*, a także kolumnę dla każdego kodu czynności i pola niestandardowego projektu.
 
 Zmiana w jednej tabeli nie zmienia drugiej.
 

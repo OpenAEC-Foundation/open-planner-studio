@@ -1,124 +1,172 @@
+**English** · [Nederlands](README.nl.md)
+
+<div align="center">
+
 # Open Planner Studio
 
-[![Version](https://img.shields.io/github/package-json/v/OpenAEC-Foundation/open-planner-studio?label=versie&color=blue)](https://github.com/OpenAEC-Foundation/open-planner-studio/releases)
-[![Downloads](https://img.shields.io/github/downloads/OpenAEC-Foundation/open-planner-studio/total?label=downloads&color=success)](https://github.com/OpenAEC-Foundation/open-planner-studio/releases)
+**Open-source construction scheduling. Critical path, MS Project and Primavera P6 files, IFC 4.3 as the native format, and an MCP server.**
+
+[![Version](https://img.shields.io/github/package-json/v/OpenAEC-Foundation/open-planner-studio?label=version&color=blue)](https://github.com/OpenAEC-Foundation/open-planner-studio/releases)
+[![Downloads](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FOpenAEC-Foundation%2Fopen-planner-studio%2Fstats%2Fdownloads.json&query=%24.downloads&label=downloads&color=success)](https://github.com/OpenAEC-Foundation/open-planner-studio/releases)
 [![CI](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/workflows/ci.yml)
-[![Live deploy](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/workflows/live.yml/badge.svg)](https://open-planner-studio.open-aec.com)
-[![Testsuites](https://img.shields.io/badge/testsuites-planning%20%C2%B7%20library%20%C2%B7%20mcp%20%C2%B7%20dev--server%20%C2%B7%20browser-informational)](tests/planning/README.md)
-[![Talen](https://img.shields.io/badge/talen-28-informational)](src/i18n/config.ts)
-[![License](https://img.shields.io/github/license/OpenAEC-Foundation/open-planner-studio)](#licentie)
+[![Languages](https://img.shields.io/badge/languages-28-informational)](src/i18n/config.ts)
+[![License](https://img.shields.io/github/license/OpenAEC-Foundation/open-planner-studio)](#license)
 
-Open-source bouwplanningapplicatie voor de bouwsector. Native IFC-bestandsformaat.
+### [Try in your browser](https://open-planner-studio.open-aec.com/) &nbsp;·&nbsp; [Download](https://github.com/OpenAEC-Foundation/open-planner-studio/releases/latest)
 
-![Open Planner Studio](screenshot.png)
+![Demo: add a relation, change a duration, recalculate, read the critical path](docs/images/readme/demo.gif)
 
-## Kenmerken
+</div>
 
-- **Gantt-diagrammen** met interactieve Canvas-rendering, drag & drop (ook verticaal, om taken te herschikken of te herparenten), en zoom
-- **Critical Path Method (CPM)** — automatische berekening kritiek pad en float
-- **Work Breakdown Structure (WBS)** — hierarchische taakstructuur met inklapbare hoofdstukken
-- **IFC-native** — opslaan en openen in IFC 4.3 (buildingSMART standaard)
-- **Ribbon toolbar** — Microsoft Office-achtige ribbon met tabbladen
-- **Meertalig** — 28 talen: Nederlands, English, Français, Deutsch, Español, 中文, Italiano, Português, Polski, Türkçe, العربية, 日本語, 한국어, فارسی, Русский, Українська, Čeština, Slovenčina, Српски, Hrvatski, Български, Magyar, Română, Svenska, Norsk bokmål, Dansk, Suomi, ລາວ (incl. RTL voor Arabisch en Perzisch)
-- **Tabelweergave** — spreadsheet-achtige editor: één klik op een cel bewerkt hem direct
-- **Resourcebibliotheken** — resources en kalenders in een gedeelde, bedrijfsbrede bibliotheek waar meerdere projecten uit putten, met herkomststempels per item
-- **AI-assistent (MCP)** — de app kan zichzelf openstellen als MCP-server, zodat een AI-assistent live met de open planning meewerkt, met veiligheidsvlaggen (pauze/alleen-lezen/auto-backup) en een activiteitenlog
-- **Rapportage** — live afdrukvoorbeeld in de ribbon met instelbare opties
-- **Context menu** — rechtermuisknop voor snelle acties op taken
-- **Bouwsector-specifiek** — feestdagen, bouwvak, inspectiemomenten, fasering
-- **Basis voor 4D BIM** — IFC 4.3 als native formaat; koppeling van taken aan bouwelementen uit een IFC-gebouwmodel staat op de roadmap
+Open Planner Studio (OPS) is a free scheduling application for the construction industry. It calculates a schedule with the Critical Path Method, opens and writes the file formats planners already use, and saves in IFC 4.3, the open building standard.
 
-![Rapport Tab](screenshot-rapport.png)
+It runs in your browser with nothing to install, or as a small native desktop app on Windows, macOS and Linux.
 
-![Context Menu](screenshot-context-menu.png)
+## Try it
 
-## Snel starten
+**[Open the browser version](https://open-planner-studio.open-aec.com/)**. It starts with a realistic example project, so you can start clicking right away. More examples are under *File › Examples*.
+
+The built-in Help has **78 published articles** in English and Dutch, with translations in the other UI languages. You can also read the [wiki](https://github.com/OpenAEC-Foundation/open-planner-studio/wiki) or visit the [website](https://open-aec.com/open-planner-studio/).
+
+## Download
+
+Every release is on the [releases page](https://github.com/OpenAEC-Foundation/open-planner-studio/releases/latest).
+
+| Platform | Installer |
+|----------|-----------|
+| **Windows** | `.exe` installer (x64) |
+| **macOS** | `.dmg` (universal: Apple silicon and Intel) |
+| **Linux** | `.deb`, `.rpm`, `.AppImage`, or the [Snap Store](https://snapcraft.io/open-planner-studio) |
+
+Installed apps update themselves when a new version is out (Windows, macOS, `.deb`, `.rpm` and AppImage). The Snap version updates through the Snap Store.
+
+## Why use it?
+
+- **Free and open.** LGPL-3.0. No licence fees, no account, no lock-in.
+- **Open formats.** IFC 4.3 is the native project format. There is no private binary format.
+- **Works with your existing files.** Open Microsoft Project (`.mpp`, `.xml`) and Primavera P6 (`.xer`, `.xml`) files, and export to MS Project XML, P6 XML and CSV.
+- **Scheduling rules you can choose.** Calculate with Primavera P6, Microsoft Project or Open Planner Studio conventions, per project.
+- **Built for construction.** Public holidays, building-trade holidays, work calendars, inspection milestones, phasing, resource levelling.
+- **MCP.** A built-in MCP server lets an AI assistant read and edit your schedule, with safety switches you control.
+- **Multilingual.** 28 languages, including right-to-left Arabic and Persian.
+
+## Screenshots
+
+| | |
+|---|---|
+| ![Critical path](docs/images/readme/critical-path.png) **Critical path and float** | ![Table editing](docs/images/readme/table-editing.png) **Spreadsheet-style task table** |
+| ![Resource histogram](docs/images/readme/resources-histogram.png) **Resource histogram and levelling** | ![Calendar](docs/images/readme/calendar-dialog.png) **Calendars and working time** |
+| ![Report preview](docs/images/readme/report-preview.png) **Reports with live preview** | ![AI tab](docs/images/readme/ai-tab.png) **MCP** |
+| ![Export formats](docs/images/readme/formats.png) **Export to other formats** | ![Help](docs/images/readme/help-viewer.png) **In-app help** |
+
+## Advanced scheduling
+
+- **Critical Path Method** with total, free and interfering float, negative float, and a recalculation you trigger yourself (or switch to automatic).
+- **All eight constraint types:** As Soon As Possible, As Late As Possible, Start/Finish No Earlier Than, Start/Finish No Later Than, Must Start On, Must Finish On (optionally mandatory, "pin logic"), plus task deadlines. See [Constraints](public/docs/en/uitleg-constraints.md).
+- **All four relationship types** (FS, SS, FF, SF) with positive and negative lag, in days or hours.
+- **Hammock tasks** (level of effort) that follow the work they hang on. See [Creating a hammock](public/docs/en/howto-hammock.md).
+- **External (cross-project) relations.** A task can depend on a task in another project file through a stored anchor date. The link is not live: the other project is not recalculated. See [External relations](public/docs/en/howto-externe-relaties.md).
+- **Near-critical tasks** with a threshold you set, and **multiple float paths** (path 1, 2, 3 ...) to see more than the single longest chain.
+- **Calculation profiles.** Three built-in profiles: *Open Planner Studio*, *Primavera P6* and *Microsoft Project*. A profile is a set of conventions for the places where the two products calculate differently. See [Calculation profiles](public/docs/en/uitleg-rekenprofielen.md).
+- **Task types (work rules).** Choose fixed duration and units, fixed duration and work, fixed work or fixed units per task. Duration, resource units and work adjust together when you edit them. Assignments have one row per resource, with units and remaining work in hours. See [Task types](public/docs/en/uitleg-werkregels.md).
+- **Days and hours.** Choose the duration unit per task; hours display as `10h` in English (`10u` in Dutch).
+- Work breakdown structure, baselines, progress and status date, task splitting in the Gantt, resource levelling and a cross-project occupancy view.
+- **Resource libraries.** Share resources and calendars across projects, with provenance recorded for each item.
+
+## Interoperability
+
+IFC 4.3 ADD2 is the default native format, written as schema-valid IFC. Every other format is an adapter. What works per format (full detail in [Import and export formats](public/docs/en/ref-import-exportformaten.md)):
+
+| Format | Open | Save / export |
+|--------|------|---------------|
+| **IFC** (4 and 4.3) | Yes | Yes, the only format you save to. Carries the whole project |
+| **MS Project XML** (MSPDI) | Yes | Export |
+| **MS Project `.mpp`** (2010 to 2021) | Yes, read-only | No |
+| **Primavera P6 XML** | Yes, several projects per file | Export |
+| **Primavera P6 `.xer`** | Yes, read-only; one tab per project | No |
+| **CSV** | Yes | Export |
+
+The original `.xer` is kept inside the saved IFC. **Dates as recorded** shows the dates saved by P6 or MS Project before you recalculate.
+
+Progress can also go through a spreadsheet: export a progress sheet (`.xlsx` or `.csv`), fill it in on site, and read it back into the open project.
+
+Some data does not survive every format, for example baselines in `.mpp`, or activity codes in MS Project XML. The documentation lists exactly what goes along and what changes. The `.mpp` reader was written for OPS and is derived from the structure knowledge of [MPXJ](https://github.com/joniles/mpxj) (LGPL-2.1).
+
+## Reporting
+
+Eleven report types, with a live preview, exported to PDF (A4 to A1):
+
+Gantt chart, Resource diagram, Milestone overview, Variance, Look-ahead, Critical and near-critical, Progress report, Schedule health, Resource loading, Resource assignments, WBS summary.
+
+Schedule health includes a DCMA 14-point check. Reports can cover a reporting period, compare against a baseline and follow the filter and grouping of your screen (Gantt chart). See [Report types](public/docs/en/ref-rapporttypes.md).
+
+## MCP
+
+OPS can run a local **MCP server** (Model Context Protocol) so that an AI assistant works with the schedule you have open. It offers 41 `planner_*` tools to read and change tasks, relations, resources, calendars, baselines and documents. You decide what the assistant may do: pause, read-only mode, automatic backups and an activity log are on the *AI* tab. The server is off by default and runs in the desktop app only.
+
+See [Connecting an AI assistant](public/docs/en/howto-ai-assistent-koppelen.md) and the [tool reference](public/docs/en/ref-ai-tools.md).
+
+## Testing and reliability
+
+**Tested on real MS Project and P6 schedules.** The counts below come from the code and pinned test manifests in this repository. They describe test coverage, not a guarantee for every file.
+
+- **573 data-driven scheduling cases** in 24 batteries (`tests/planning/cases-*.json`). Expected values are worked out by hand from CPM theory, not copied from the engine's own output.
+- **424 further contract-check files** (`tests/planning/check-*.ts`), and a timezone matrix across five time zones.
+- **Browser tests.** 135 Playwright spec files drive real Chromium with real mouse and keyboard events (`tests/browser/`).
+- **MS Project fidelity.** A pinned baseline of 216 `.mpp` files (3,413 tasks) records that after recalculation every start and finish equals the dates MS Project saved in the file. The files themselves are not in this repository, so this gate runs only on a machine that has them. The baseline is in [`tests/planning/mpp-fidelity-baseline.json`](tests/planning/mpp-fidelity-baseline.json).
+- **Primavera P6 comparison.** 93 public `.xer` files are classified by origin. Nine of them, calculated by P6 itself, serve as the reference ([`tests/planning/xer-corpus-manifest.json`](tests/planning/xer-corpus-manifest.json)).
+- **Other formats.** MS Project XML (MSPDI), P6 XML, CSV and IFC have import/export and round-trip contract checks in `tests/planning/`; there is no single external-corpus count stated for them.
+- **Five suites** run behind `npm test`: `planning`, `library`, `mcp`, `dev-server` and `browser`.
+- CI runs the whole gate (`npm run verify`) on every pull request. A red suite blocks the deploy and the release.
+
+Count sources: [`public/docs/manifest.json`](public/docs/manifest.json) (published articles; drafts excluded), [`src/i18n/locales.ts`](src/i18n/locales.ts) (28 languages), [`src/services/mcp/toolRegistry.ts`](src/services/mcp/toolRegistry.ts) and its registered modules (41 tools). Scheduling and browser counts use the file patterns above.
+
+## Current limitations
+
+OPS is young software. Know these before you rely on it:
+
+- **`.mpp` and `.xer` are read-only.** You cannot write either format. Save goes to IFC. Export to MS Project XML or P6 XML to hand a schedule back.
+- **`.mpp` does not bring baselines, costs, rates, notes or custom fields.** Files from MS Project 2007 or older, and password-protected files, are refused.
+- **No cost management.** Resources can carry an hourly rate, but OPS has no cost reports or cost curves. It schedules time and resources.
+- **Cross-project relations use a fixed anchor date.** They are not recalculated live with the other project.
+- **P6 XML export drops** baselines, deadlines, activity codes, custom fields and notes.
+- **The MCP server needs the desktop app.** In the browser the AI tab is visible but the bridge does not start.
+- **4D BIM is on the roadmap, not built.** Linking tasks to elements of an IFC building model is not implemented yet. Because the schedule is a standard IFC 4.3 file, you can already merge it with a building model and link tasks to elements in other IFC tools, such as IfcOpenShell or Bonsai. See [Choosing the IFC schema](public/docs/en/howto-ifc-schema-kiezen.md). We give no guarantees about how those tools behave.
+- **Known issues.** [`knownbugs.md`](knownbugs.md) lists open problems, for example around some constraint edge cases and the hour-based scheduling of progress.
+- **Calculation parity is measured, not guaranteed.** OPS follows P6 and MS Project conventions closely, but an exotic schedule can still calculate differently. Compare critical results before you hand off.
+
+Found something? [Open an issue](https://github.com/OpenAEC-Foundation/open-planner-studio/issues).
+
+## Under the hood
+
+The desktop app is built with Tauri 2, so the installers are small and use the web view of the system. The Rust part is a thin native shell with three commands. The scheduling engine is written in TypeScript. It is the same code in the browser and on the desktop. The user interface is React 19, and the Gantt timeline is drawn on a Canvas 2D surface.
+
+## Contributing
+
+- **Try it on a real project** and report bugs or missing features: use the feedback button in the app, or [open a GitHub issue](https://github.com/OpenAEC-Foundation/open-planner-studio/issues/new).
+- **Share ideas or ask questions** in [GitHub Discussions](https://github.com/OpenAEC-Foundation/open-planner-studio/discussions).
+- **Send test files.** `.mpp`, `.xer` and P6 XML files help us improve the import, and a large set of test files may later help us improve the export as well. See [the discussion on test files](https://github.com/OpenAEC-Foundation/open-planner-studio/discussions/71). Remove confidential data first.
+- **Write code.** Read [CONTRIBUTING.md](CONTRIBUTING.md) and open a pull request.
+
+## Quick start (developers)
 
 ```bash
-# Installeer dependencies (ci, niet install — de lockfile is bindend)
-npm ci
-
-# Start de dev-server; hij print zelf op welke poort hij draait
-npm run dev
+npm ci        # not "install": the lockfile is binding
+npm run dev   # prints the port it runs on
 ```
 
-`npm run dev` wijst deze map een vaste poort toe in het bereik 3007–3106 en houdt
-die vast over herstarts heen, zodat meerdere kopieën van de repo naast elkaar
-kunnen draaien zonder elkaars poort af te pakken.
+Requires Node 22. Rust is needed only for `npm run tauri:dev` and `npm run tauri:build`.
 
-Meebouwen? Zie [CONTRIBUTING.md](CONTRIBUTING.md).
+Stack: Tauri 2, React 19 and TypeScript, Canvas 2D for the Gantt timeline, Zustand and Immer, TailwindCSS 4, Vite, react-i18next.
 
-## Technologiestack
+For architecture, the test gate and conventions, read [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md). The roadmap is in [PLAN.md](PLAN.md). Report security problems through [SECURITY.md](SECURITY.md), not an issue.
 
-| Laag | Technologie |
-|------|-------------|
-| Desktop | Tauri 2 |
-| Frontend | React 19 + TypeScript |
-| Rendering | HTML5 Canvas 2D |
-| State | Zustand + Immer |
-| Styling | TailwindCSS 4 + component-CSS |
-| i18n | react-i18next (28 talen) |
-| Build | Vite 7 |
+Open Planner Studio is part of the [OpenAEC Foundation](https://github.com/OpenAEC-Foundation) family of apps.
 
-## Projectstructuur
+## License
 
-```
-src/
-  components/        # React-schil: ribbon (incl. ribbon/ai), backstage, panelen, dialogen, canvas-chrome
-  engine/            # renderer/ (Canvas 2D), scheduler/ (CPM + resources), calendar/, view/
-  services/          # ifc/ (het native formaat) · import/export (csv, msproject, p6)
-                     # · fileAccess/ (Tauri↔web) · recovery/ · print/ · pdf/ · updater/
-                     # · feedback/ · library/ · mcp/ · benchmark/ · debug/
-  state/             # Zustand+Immer store: slices/ + het documentcontract
-  extensions/        # Extensiesysteem (types, api, loader, service)
-  i18n/              # Vertalingen, 28 talen × 4 namespaces
-  hooks/  types/  utils/  styles/
-public/docs/         # In-app handleiding: 78 artikelen in nl+en (bron), andere talen via de vertaalstraat (how-to, uitleg, referentie; voedt ook de wiki)
-examples/            # Voorbeeldplanningen in IFC
-tests/               # planning · library · mcp · dev-server · browser
-src-tauri/           # De Rust-schil (dun: precies drie native commands)
-```
+LGPL-3.0. See [LICENSE](LICENSE).
 
-Deze boom is bewust grofmazig — een uitgeschreven versie loopt binnen een maand
-achter. Voor de details en de architectuurbeslissingen: [AGENTS.md](AGENTS.md)
-(de kern) en de per-onderdeel-uitwerking in [`.claude/rules/`](.claude/rules/).
+## Trademarks
 
-## Ribbon Tabs
-
-| Tab | Functie |
-|-----|---------|
-| **Start** | Bestand, Bewerken, Taken toevoegen, CPM berekenen, Zoom |
-| **Planning** | CPM, Relaties beheren, Kalender, Structuur (codes/velden, in-/uitspringen), Baselines |
-| **Resources** | Resources toewijzen, histogram, nivellering |
-| **Beeld** | Zoom, Tijdschaal, Panelen, Groeperen/filteren |
-| **Instellingen** | Projectinstellingen, App-instellingen, Kalender, Sneltoetsen |
-| **Tabel** | Spreadsheet-achtige tabelweergave, één klik bewerkt een cel |
-| **IFC** | IFC 4.3 code-editor met genereren/toepassen |
-| **Rapport** | Live afdrukvoorbeeld met instelbare opties |
-| **AI** *(standaard uit, aan te zetten in App-instellingen)* | MCP-bridge starten/verbinden, veiligheidsvlaggen, activiteitenlog |
-
-Plus **Bestand** — de Backstage: recent, voorbeelden, importeren/exporteren,
-printen, projectgegevens, instellingen, extensies, bibliotheek en help.
-
-## Architectuur
-
-Onderdeel van de OpenAEC-Foundation-familie van desktop-apps, die een gedeeld patroon delen (Tauri 2 + React + Canvas, Office-achtige ribbon, `lucide-react`). De algehele shell volgt [Open 2D Studio](https://github.com/OpenAEC-Foundation/Open-2D-Studio) en [Open FEM2D Studio](https://github.com/OpenAEC-Foundation/Open-FEM2D-Studio); het [extensiesysteem](docs/extensions.md) en de huidige styling zijn gemodelleerd naar [Open Calc Studio](https://github.com/OpenAEC-Foundation/open-calc-studio).
-
-Zie [PLAN.md](PLAN.md) voor de roadmap. Let op: hoofdstuk 4 daarvan is een
-aangenomen ontwerp uit de ontwerpfase en beschrijft de huidige code niet — er
-staat een waarschuwing boven.
-
-## Voorbeelden
-
-Zie de [`examples/`](examples/) map voor voorbeeldplanningen in IFC-formaat.
-
-## Bijdragen
-
-Zie [CONTRIBUTING.md](CONTRIBUTING.md) — opzetten, de poort (`npm run verify`,
-met de vijf testsuites `planning`/`library`/`mcp`/`dev-server`/`browser`), en de
-vier dingen die het vaakst stil misgaan. Beveiligingsproblemen niet via een
-issue maar via [SECURITY.md](SECURITY.md).
-
-## Licentie
-
-LGPL-3.0
+Microsoft Project is a trademark of Microsoft Corporation. Oracle Primavera P6 is a trademark of Oracle. Open Planner Studio is an independent project and is not affiliated with, endorsed by or sponsored by Microsoft or Oracle. These names appear only to describe file compatibility.

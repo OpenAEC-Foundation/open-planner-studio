@@ -6,7 +6,7 @@ Goal: put a new task or milestone in your schedule, in the place where it belong
 
 You are building a schedule, work is added, or you want to record a moment such as handover or an inspection.
 
-A **task** is work that takes time. A new task lasts 5 work days by default (with hour planning the project default can be hours). A **milestone** is a moment without duration: 0 days. A task with subtasks is called a **summary task**, in construction often a phase. Its duration and dates follow from its subtasks as soon as you use **Calculate** (F5).
+A **task** is work that takes time. A new task lasts 5 work days by default (the project default can also be hours). A **milestone** is a moment without duration: 0 days. A task with subtasks is called a **summary task**, in construction often a phase. Its duration and dates follow from its subtasks as soon as you use **Calculate** (F5).
 
 ## Steps
 
@@ -61,8 +61,8 @@ If you turn it off again, it stays an ordinary task with duration 0: enter a dur
 
 ### Other ways
 
-- Ctrl+M (⌘+M on a Mac) puts a new milestone at the bottom of the list, even if a task is selected. The *Properties* panel does not open.
-- A milestone that you make with Ctrl+M or through the right-click menu gets the work category *Inspection*. A *Start milestone* or *Finish milestone* from *Milestone ▾* gets *Other*. Change the work category in *Properties* if you need to.
+- Ctrl+M (⌘+M on a Mac) creates an ordinary finish milestone using the same insertion route as the ribbon: below the selection in tree view, otherwise at the bottom. The new milestone is selected and the *Properties* panel opens with its name ready to type.
+- Ordinary milestones from the ribbon, Ctrl+M or the right-click menu get the work category *Other*. Ctrl+M and the right-click menu create a finish milestone. Only the explicit inspection-point choice creates a mandatory milestone with the work category *Inspection*.
 - *Add milestone* in a task's right-click menu makes the milestone a subtask of that task, not a sibling.
 
 ### Copying a task or a whole branch

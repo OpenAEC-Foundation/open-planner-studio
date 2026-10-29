@@ -50,7 +50,7 @@ Mit *Glättung* darf ein Vorgang nicht später beginnen als sein spätester Anfa
 
 ## Praxisbeispiel: der Maurer an zwei Wänden
 
-Das Beispiel ist das Übungsprojekt *House extension* aus den Tutorials, so wie es kurz vor dem Kapazitätsabgleich in Tutorial 5 steht. In Tutorial 5 machen Sie das selbst und prüfen die Zahlen. In diesem Beispiel steht das Verputzen auf *Feste Arbeit*, und der Verputzer arbeitet mit Einheiten von 2, wie in [Arbeitsregeln: Dauer, Einheiten und Arbeit](docs://uitleg-werkregels).
+Das Beispiel ist das Übungsprojekt *House extension* aus den Tutorials, so wie es kurz vor dem Kapazitätsabgleich in Tutorial 5 steht. In Tutorial 5 machen Sie das selbst und prüfen die Zahlen. In diesem Beispiel steht das Verputzen auf *Feste Arbeit*, und der Verputzer arbeitet mit Einheiten von 2, wie in [Vorgangsarten: Dauer, Einheiten und Arbeit](docs://uitleg-werkregels).
 
 Nachdem die Hohlkerndecke am Montag, 28. Juni, fertig ist, beginnen die innere Mauerschale (5 Arbeitstage) und die äußere Mauerschale (6 Arbeitstage) beide am Dienstag, 29. Juni. Beide sind beim Maurer eingeplant, mit Einheiten von 1 und *Max. Einheiten* von 1. Nach der inneren Mauerschale folgen die Dachelemente (6 Stunden Kranarbeit) und die Dachdeckung (2 Arbeitstage). Die Fensterrahmen warten auf die Dachdeckung und auf die äußere Mauerschale. Die Übergabe ist am Montag, 30. August.
 
@@ -66,14 +66,14 @@ Beide Vorgänge haben Priorität 500. Die Fensterrahmen werden erst am 14. Juli 
 
 Die äußere Mauerschale kann nicht am 29. Juni beginnen. Der erste Tag, an dem der Maurer wieder frei ist, ist Dienstag, 6. Juli. Das sind 5 Arbeitstage später als der früheste Anfang, also ist die Abgleichsverzögerung 5. Die äußere Mauerschale läuft nun vom 6. Juli bis einschließlich 13. Juli. Die Fensterrahmen beginnen ohnehin erst am 14. Juli, daher bleibt die Übergabe am Montag, 30. August. Das Fenster meldet *Projektende: unverändert (30-08-2027)* und zeigt eine Zeile: *Build outer cavity leaf*, alter Anfang 29-06-2027, neuer Anfang 06-07-2027, *5 d*.
 
-Die 5 Arbeitstage Verschiebung sind genau der Puffer der äußeren Mauerschale. Deshalb gibt *Glättung* hier dasselbe Ergebnis. Die äußere Mauerschale hat jetzt keinen Puffer mehr und ist kritisch.
+Die Verschiebung um 5 Arbeitstage ist genau der Puffer der äußeren Mauerschale. Deshalb gibt *Kapazitätsabgleich* hier dasselbe Ergebnis. Die äußere Mauerschale hat jetzt keinen Puffer mehr und ist kritisch.
 
 ### Was, wenn die Fensterrahmen nicht am 14. Juli kommen
 
 Ohne diese Einschränkung können die Fensterrahmen am Freitag, 9. Juli, beginnen, und die Übergabe ist am Mittwoch, 25. August. Die äußere Mauerschale hat dann nur 2 Arbeitstage Puffer.
 
-- Ohne *Glättung* verschiebt sich die äußere Mauerschale trotzdem um 5 Arbeitstage. Jetzt müssen die Fensterrahmen warten: Sie beginnen am 14. Juli, 3 Arbeitstage später. Alles danach verschiebt sich mit, und die Übergabe geht von 25. August auf 30. August, ebenfalls 3 Arbeitstage später.
-- Mit *Glättung* verschiebt sich nichts. Die äußere Mauerschale passt nicht in ihre 2 Arbeitstage Puffer. Das Fenster zeigt den Konflikt *Build outer cavity leaf*, 5 day(s), mit dem Grund *Nicht genug freie Kapazität innerhalb des Puffers, um diesen Konflikt zu lösen.*
+- Ohne *Kapazitätsabgleich* verschiebt sich die äußere Mauerschale trotzdem um 5 Arbeitstage. Jetzt müssen die Fensterrahmen warten: Sie beginnen am 14. Juli, 3 Arbeitstage später. Alles danach verschiebt sich mit, und die Übergabe geht von 25. August auf 30. August, ebenfalls 3 Arbeitstage später.
+- Mit *Kapazitätsabgleich* verschiebt sich nichts. Die äußere Mauerschale passt nicht in ihre 2 Arbeitstage Puffer. Das Fenster zeigt den Konflikt *Build outer cavity leaf*, 5 Tag(e), mit dem Grund *Nicht genug freie Kapazität innerhalb des Puffers, um diesen Konflikt zu lösen.*
 
 ### Was, wenn die äußere Mauerschale Priorität bekommt
 
@@ -101,5 +101,5 @@ Wenn Sie *Max. Einheiten* des Maurers auf 2 setzen, gibt es keine Überlastung m
 
 - [Eine Überlastung auflösen](docs://howto-overbezetting-oplossen): die Schritte, um Überlastung zu finden und abzugleichen.
 - [Kritischer Pfad und Puffer](docs://uitleg-kritiek-pad): was der Puffer ist und warum ein Vorgang kritisch wird.
-- [Arbeitsregeln: Dauer, Einheiten und Arbeit](docs://uitleg-werkregels): wie die Dauer eines Vorgangs mit den Einheiten mitwandert.
+- [Vorgangsarten: Dauer, Einheiten und Arbeit](docs://uitleg-werkregels): wie die Dauer eines Vorgangs mit den Einheiten mitwandert.
 - [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): drei Türme, die dieselben Teams und denselben Turmdrehkran brauchen, und was der Kapazitätsabgleich damit macht.

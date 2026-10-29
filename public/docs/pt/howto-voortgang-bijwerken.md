@@ -14,11 +14,12 @@ A data de estado é o dia em que faz o balanço. Defina-a antes de introduzir o 
 
 1. Vá a *Planeamento › Linhas de base e progresso › Data de estado*.
 2. Escreva a data nas três caixas de dia, mês e ano (na ordem da sua notação de datas), por exemplo 28, 06 e 2027, e prima Enter. A aplicação passa sozinha para a caixa seguinte.
-3. Com a pequena cruz ao lado do campo, apague de novo a data de estado.
+3. O calendário do projeto tem faixas de tempo de trabalho (a faixa *Horários de trabalho* na janela *Calendários*)? Então a aplicação calcula em horas e aparece um campo de hora à direita, por exemplo 17:00. Escreva outra hora, por exemplo 12:00, e prima Enter. Se esvaziar o campo de hora, fica só a data. Se alterar só a data, a hora mantém-se. A hora segue a sua notação de horas (24 ou 12 horas). Sem faixas de tempo de trabalho, a aplicação calcula em dias inteiros: então não há campo de hora e a linha da data de estado fica no início do dia.
+4. Com a pequena cruz ao lado do campo, apague de novo a data de estado.
 
 Se fizer o balanço à sexta-feira depois do horário de trabalho, defina a data de estado para o dia útil seguinte, segunda-feira. A aplicação planeia o trabalho restante a partir do início da data de estado.
 
-Se introduzir progresso enquanto ainda não houver data de estado, a aplicação define-a para hoje e indica: *Data de estado definida para hoje (…).* Por isso, é melhor fazer primeiro este passo manualmente.
+Se introduzir progresso enquanto ainda não houver data de estado, a aplicação define-a para hoje e indica: *Data de estado definida para hoje (…).* Por isso, é melhor fazer este passo primeiro, manualmente.
 
 ### 2. Introduza o progresso
 
@@ -41,9 +42,9 @@ Um marco tem um só campo, *Data real*.
 
 1. Clique no **+** à direita do cabeçalho da tabela de tarefas (*Adicionar coluna*) e abra a categoria *Progresso*. Adicione as colunas *Início real*, *Fim real*, *Restante* e *Estado*. A coluna *Progresso* já está no separador *Tabela*.
 2. Faça duplo clique numa célula, escreva o valor e prima Enter. Escreva a percentagem como `50` ou `50%`, a data como `25-06-2027` e a duração restante como `1`.
-3. Em *Estado*, depois de duplo clique, prima Enter e escolha *Não iniciada*, *Em andamento* ou *Concluída*.
+3. Em *Estado*, depois de um duplo clique, prima Enter e escolha *Não iniciada*, *Em andamento* ou *Concluída*.
 
-Se introduzir uma duração restante, a aplicação calcula de volta a percentagem: numa tarefa de 2 dias úteis, um restante de 1 dá uma percentagem de 50. Um restante de 0 conclui a tarefa. Se escolher *Não iniciada* em *Estado*, a percentagem passa para 0 e as datas reais desaparecem.
+Se introduzir uma duração restante, a aplicação calcula de volta a percentagem: numa tarefa de 2 dias úteis, um restante de 1 dá uma percentagem de 50. Um restante de 0 conclui a tarefa. A coluna *Duração real* (também na categoria *Progresso*) funciona ao contrário: escreva quanto trabalho já está feito e a aplicação calcula a percentagem. Numa tarefa de 4 dias úteis, uma duração real de 1 dá 25%. Se escolher *Não iniciada* em *Estado*, a percentagem passa para 0 e as datas reais desaparecem.
 
 **Tudo de uma tarefa na janela Editar tarefa.** Clique com o botão direito na tarefa e escolha *Editar...*. Os campos de progresso também lá estão. Só se aplicam depois de clicar em *Guardar*.
 
@@ -51,7 +52,7 @@ Se introduzir uma duração restante, a aplicação calcula de volta a percentag
 
 ### 3. Recalcule o planeamento
 
-Cada alteração ao progresso ou à data de estado deixa o planeamento desatualizado: a barra de estado indica *Desatualizado — recalcule (F5)*. Prima **Calcular** (F5), por exemplo em *Planeamento › Agendamento › Calcular*. Se *Calcular automaticamente* estiver ativo (em *Definições › Projeto › Definições*, separador *Planeamento*), a aplicação faz isto sozinha.
+Cada alteração ao progresso ou à data de estado deixa o planeamento desatualizado: a barra de estado indica *Desatualizado — recalcule (F5)*. Prima **Calcular** (F5), por exemplo em *Planeamento › Agendamento › Calcular*. Se *Calcular automaticamente* estiver ativo (em *Definições › Projeto › Definições da app*, separador *Planeamento*), a aplicação faz isto sozinha.
 
 ## Verificar o resultado
 

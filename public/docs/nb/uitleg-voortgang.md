@@ -16,7 +16,7 @@ En **grunnlinje** er et øyeblikksbilde av tidsplanen på et bestemt tidspunkt, 
 
 Eksemplet under bruker beregningsprofilen *Open Planner Studio*, som et nytt prosjekt beregnes med. Lenger fram kan du lese hva som er annerledes i profilene for Primavera P6 og Microsoft Project.
 
-Appen omberegner ikke av seg selv. Etter hver endring av fremdrift eller statusdato viser statuslinjen *Utdatert — omberegn (F5)*. Trykk **Beregn** (F5), for eksempel via *Tidsplan › Tidsplan › Beregn*. Hvis *Beregne automatisk* er på (under *Innstillinger › Prosjekt › Innstillinger*, fanen *Tidsplan*, overskriften *Beregning*), gjør appen dette selv.
+Appen omberegner ikke av seg selv. Etter hver endring av fremdrift eller statusdato viser statuslinjen *Utdatert — omberegn (F5)*. Trykk **Beregn** (F5), for eksempel via *Tidsplan › Tidsplan › Beregn*. Hvis *Beregne automatisk* er på (under *Innstillinger › Prosjekt › Appinnstillinger*, fanen *Tidsplan*, overskriften *Beregning*), gjør appen dette selv.
 
 ### Statusdatoen
 
@@ -28,7 +28,7 @@ For det andre kan arbeid som ikke har startet, ikke ligge i fortiden. Hvis en sl
 
 For det tredje begynner det gjenstående arbeidet på en aktivitet som allerede kjører, på statusdatoen selv. Appen regner statusdatoen som starten av den dagen. Hvis du gjør status fredag etter arbeidstid, setter du statusdatoen til mandag. Setter du den til fredag, planlegger appen fortsatt det gjenstående arbeidet den fredagen.
 
-Hvis du ikke har en statusdato ennå og du registrerer fremdrift, setter appen statusdatoen til i dag og sier fra om det. En annen dato setter du under *Tidsplan › Grunnlinjer og fremdrift › Statusdato*. Uten statusdato regner appen en kjørende aktivitet fremover med gjenstående varighet, men bakover med hele varigheten. Slakket blir da negativt, og aktiviteten ser kritisk ut uten grunn.
+Hvis du ikke har en statusdato ennå og du registrerer fremdrift, setter appen statusdatoen til i dag og sier fra om det. En annen dato setter du under *Tidsplan › Grunnlinjer og fremdrift › Statusdato*. Uten statusdato regner appen en kjørende aktivitet fremover med gjenstående varighet, men bakover med hele varigheten. Slakken blir da negativ, og aktiviteten ser kritisk ut uten grunn.
 
 ### Prosent, faktiske datoer og gjenstående varighet
 
@@ -51,18 +51,18 @@ En kjørende aktivitet beholder sin faktiske start. Bare det gjenstående arbeid
 
 ### Retained Logic og Progress Override
 
-Hva gjør appen hvis en aktivitet allerede er startet, mens forgjengeren fortsatt kjører? En slik avhengighet kalles **fremdrift utenfor rekkefølge**: fremdriften strider mot rekkefølgen. Tenk på maleren som allerede begynner i et rom som er gipset, mens gipseren fortsatt jobber et annet sted.
+Hva gjør appen hvis en aktivitet allerede er startet, mens forgjengeren fortsatt kjører? En slik avhengighet kalles **fremdrift utenfor rekkefølge**: fremdriften strider mot rekkefølgen. Tenk på maleren som allerede begynner i et rom som er pusset, mens pusseren fortsatt jobber et annet sted.
 
-To fremdriftsmodi bestemmer hvordan appen regner det ut:
+To fremdriftsmoduser bestemmer hvordan appen regner det ut:
 
 - **Retained Logic** (standard): avhengigheten gjelder fortsatt. Det gjenstående arbeidet på etterfølgeren følger avhengigheten: med slutt-til-start starter det først når forgjengeren er ferdig, og aldri før statusdatoen.
 - **Progress Override**: virkeligheten vinner. Det gjenstående arbeidet på etterfølgeren starter på statusdatoen, uten å vente på forgjengeren.
 
-I denne profilen ligger forskjellen bare i det gjenstående arbeidet på aktiviteter som allerede er startet, mens forgjengeren ikke er ferdig. Andre aktiviteter regnes likt i begge modi. Appen rapporterer en slik avhengighet i begge modi: i statuslinjen som *1 avhengighet(er) utenfor rekkefølge* og i panelet *Advarsler*.
+I denne profilen ligger forskjellen bare i det gjenstående arbeidet på aktiviteter som allerede er startet, mens forgjengeren ikke er ferdig. Andre aktiviteter regnes likt i begge moduser. Appen rapporterer en slik avhengighet i begge moduser: i statuslinjen som *1 avhengighet(er) utenfor rekkefølge* og i panelet *Advarsler*.
 
 ### Grunnlinjer og avvik
 
-Når du lagrer, registrerer appen for hver aktivitet uten delaktiviteter den tidligste starten, den tidligste slutten, varigheten og milepæltypen. Faser er ikke med. Det du endrer senere, rører ikke grunnlinjen. Du kan ha flere grunnlinjer. Nøyaktig én er **aktiv**. Gantt, Avviksrapporten og Fremdriftsrapporten bruker den aktive grunnlinjen.
+Når du lagrer, registrerer appen for hver aktivitet uten delaktiviteter den tidligste starten, den tidligste slutten, varigheten og milepæltypen. Faser er ikke med. Det du endrer senere, rører ikke grunnlinjen. Du kan ha flere grunnlinjer. Nøyaktig én er **aktiv**. Gantt, avviksrapporten og fremdriftsrapporten bruker den aktive grunnlinjen.
 
 **Avviket** er forskjellen i arbeidsdager mellom grunnlinjen og den nåværende tidsplanen. Et pluss betyr senere, et minus tidligere. Appen teller i prosjektets kalender. Avviksrapporten gir avviket for start og slutt per aktivitet. Statusen følger bare av sluttdatoen: *Forsinket* ved pluss, *Tidligere* ved minus, ellers *Etter tidsplan*. En aktivitet som er lagt til etter grunnlinjen, heter *Ny*. En aktivitet som ikke finnes lenger, er *Fjernet*.
 
@@ -124,40 +124,40 @@ Hvis du bare setter statusdatoen til mandag 28. juni og ikke registrerer noe, ha
 
 ## Arbeidseksempel: pusser og maler
 
-Nå kommer et eksempel på fremdriftsmodus. Samme tilbygg, men en annen tilstand: det er onsdag 21. juli 2027. Alt til og med *Install building services* er ferdig etter planen. *Plastering* (4 arbeidsdager) startet tirsdag 20. juli og er på 25 %. *Painting* (3 arbeidsdager) følger etter pussarbeidet, men maleren har allerede startet i dag og er på 33 %.
+Nå kommer et eksempel på fremdriftsmodus. Samme tilbygg, men en annen tilstand: det er onsdag 21. juli 2027. Alt til og med *Install building services* er ferdig etter planen. *Plastering* (4 arbeidsdager) startet tirsdag 20. juli og er på 25%. *Painting* (3 arbeidsdager) følger etter *Plastering*, men maleren har allerede startet i dag og er på 33%.
 
-Uten fremdrift var pussarbeidet planlagt fra tirsdag 20. til fredag 23. juli. Malingen var planlagt fra mandag 26. til onsdag 28. juli. Statuslinjen melder nå *1 avhengighet(er) utenfor rekkefølge*: malingen er startet, mens pussarbeidet ikke er ferdig. I panelet *Advarsler* står det: *Utenfor rekkefølge: fremdriften til etterfølgeren strider mot avhengigheten*.
+Uten fremdrift var *Plastering* planlagt fra tirsdag 20. til fredag 23. juli. *Painting* var planlagt fra mandag 26. til onsdag 28. juli. Statuslinjen melder nå *1 avhengighet(er) utenfor rekkefølge*: *Painting* er startet, mens *Plastering* ikke er ferdig. I panelet *Advarsler* står det: *Utenfor rekkefølge: fremdriften til etterfølgeren strider mot avhengigheten*.
 
-Pussarbeidet har 4 × (1 − 0,25) = 3 arbeidsdager gjenstående arbeid: 21., 22. og 23. juli. Malingen har 3 × (1 − 0,33) = 2 arbeidsdager gjenstående arbeid.
+*Plastering* har 4 × (1 − 0,25) = 3 arbeidsdager gjenstående arbeid: 21., 22. og 23. juli. *Painting* har 3 × (1 − 0,33) = 2 arbeidsdager gjenstående arbeid.
 
-- Med **Retained Logic** kan det gjenstående arbeidet bare starte når pussarbeidet er ferdig. Det er fredag 23. juli. Malingen starter derfor mandag 26. juli og er ferdig tirsdag 27. juli. Stolpen går fra den faktiske starten 21. juli til 27. juli. Totalslakken er 7 arbeidsdager.
-- Med **Progress Override** starter det gjenstående arbeidet på statusdatoen. Malingen er ferdig torsdag 22. juli, før pussarbeidet er ferdig. Totalslakken er 10 arbeidsdager.
+- Med **Retained Logic** kan det gjenstående arbeidet bare starte når *Plastering* er ferdig. Det er fredag 23. juli. *Painting* starter derfor mandag 26. juli og er ferdig tirsdag 27. juli. Stolpen går fra den faktiske starten 21. juli til 27. juli. Totalslakken er 7 arbeidsdager.
+- Med **Progress Override** starter det gjenstående arbeidet på statusdatoen. *Painting* er ferdig torsdag 22. juli, før *Plastering* er ferdig. Totalslakken er 10 arbeidsdager.
 
-Overleveringen blir fredag 6. august i begge tilfeller: malingen hadde uansett slakk.
+Overleveringen blir fredag 6. august i begge tilfeller: *Painting* hadde uansett slakk.
 
 ### Andre beregningsprofiler
 
-I profilene Primavera P6 og Microsoft Project er malingen i dette eksemplet ferdig på samme datoer (27. og 22. juli). De skiller seg på følgende punkter. Dette er beregningsregler i profilen. Du finner dem under *Innstillinger › Prosjekt › Prosjektinfo*, i blokken *Beregningsprofil og beregningsalternativer*.
+I profilene Primavera P6 og Microsoft Project er *Painting* i dette eksemplet ferdig på samme datoer (27. og 22. juli). De skiller seg på følgende punkter. Dette er beregningsregler i profilen. Du finner dem under *Innstillinger › Prosjekt › Prosjektinnstillinger*, i blokken *Beregningsprofil og beregningsalternativer*.
 
 - I Microsoft Project-profilen flyttes aktiviteter som ikke er startet, ikke til statusdatoen (beregningsregel *Ikke-startede aktiviteter flyttes ikke til statusdatoen*). Hvis du i eksemplet over bare setter en statusdato og ikke registrerer noe, blir overleveringen i den profilen fredag 6. august.
-- I Microsoft Project-profilen starter det gjenstående arbeidet heller ikke tidligere enn den faktiske starten pluss den forløpte tiden (beregningsregel *Gjenstående arbeid fortsetter etter forløpt tid*). Det er en ekstra nedre grense ved siden av statusdatoen: den seneste av de to gjelder. Tenk deg aktiviteten *Build inner cavity leaf* (5 arbeidsdager). Den er startet tirsdag 29. juni og er på 40 % onsdag 30. juni, som er statusdatoen. To mannskaper murer samtidig, så 40 % er allerede gjort etter én dag. Alt før den er ferdig etter planen. Open Planner Studio og Primavera P6 lar aktiviteten bli ferdig fredag 2. juli. Microsoft Project lar den bli ferdig mandag 5. juli, fordi tirsdag 29. juni pluss 2 forløpte arbeidsdager er torsdag 1. juli, etter statusdatoen.
-- Primavera P6 viser som tidligste start for en pågående aktivitet starten på det gjenstående arbeidet, ikke den faktiske starten (i eksemplet med innermuren onsdag 30. juni).
-- I Primavera P6-profilen teller også avhengigheten til en etterfølger som allerede er startet, ikke for forgjengeren når du bruker Progress Override. Den begrenser ikke lenger forgjengerens seneste datoer og fri slakk (beregningsregel *Progress Override ignorerer en startet etterfølger også bakover*). I eksemplet med pusser og maler ser du ikke dette, fordi pussarbeidet uansett er kritisk via gulvavretningen. De seneste datoene og den frie slakken er like under Retained Logic og Progress Override.
+- I Microsoft Project-profilen starter det gjenstående arbeidet heller ikke tidligere enn den faktiske starten pluss den forløpte tiden (beregningsregel *Gjenstående arbeid fortsetter etter forløpt tid*). Det er en ekstra nedre grense ved siden av statusdatoen: den seneste av de to gjelder. Tenk deg aktiviteten *Build inner cavity leaf* (5 arbeidsdager). Den er startet tirsdag 29. juni og er på 40% onsdag 30. juni, som er statusdatoen. To mannskaper murer samtidig, så 40% er allerede gjort etter én dag. Alt før den er ferdig etter planen. Open Planner Studio og Primavera P6 lar aktiviteten bli ferdig fredag 2. juli. Microsoft Project lar den bli ferdig mandag 5. juli, fordi tirsdag 29. juni pluss 2 forløpte arbeidsdager er torsdag 1. juli, etter statusdatoen.
+- Primavera P6 viser som tidligste start for en pågående aktivitet starten på det gjenstående arbeidet, ikke den faktiske starten (i eksemplet med *Build inner cavity leaf* onsdag 30. juni). Kolonnen *Start* og stolpen viser i alle profiler den faktiske starten.
+- I Primavera P6-profilen teller også ikke avhengigheten til en etterfølger som allerede er startet, for forgjengeren når du bruker Progress Override. Den begrenser ikke lenger forgjengerens seneste datoer og fri slakk (beregningsregel *Progress Override ignorerer en startet etterfølger også bakover*). I eksemplet med pusser og maler ser du ikke dette, fordi *Plastering* uansett er kritisk via gulvavrettingen. De seneste datoene og den fri slakken er like under Retained Logic og Progress Override.
 - Når du åpner en .xer-fil, henter appen fremdriftsmodusen fra filen. Actual Dates, den tredje P6-modusen, kjenner appen ikke. En slik fil regnes som Retained Logic.
 
 ## Konsekvenser og misforståelser
 
 **«Jeg flytter bare statusdatoen.»** Hvis du flytter den, starter det gjenstående arbeidet for pågående aktiviteter på den nye datoen. Aktiviteter som ikke er startet ennå, kan aldri ligge før den datoen. Flytt derfor statusdatoen bare sammen med en oppdatering av fremdriften.
 
-**«Å sette 100 % registrerer den faktiske slutten.»** Bare hvis du også registrerer faktisk slutt. Hvis du setter en aktivitet til 100 % uten faktisk slutt, blir faktisk slutt lik statusdatoen. Var aktiviteten faktisk ferdig tidligere, fyll inn faktisk slutt.
+**«Å sette 100% registrerer den faktiske slutten.»** Bare hvis du også registrerer faktisk slutt. Hvis du setter en aktivitet til 100% uten faktisk slutt, blir faktisk slutt lik statusdatoen. Var aktiviteten faktisk ferdig tidligere, fyll inn faktisk slutt.
 
-**«0 % betyr ikke startet.»** Har en aktivitet en faktisk start, regnes den som startet, også på 0 %. Det gjenstående arbeidet er da hele varigheten og starter på statusdatoen. Tøm faktisk start for at aktiviteten igjen skal regnes som ikke startet.
+**«0% betyr ikke startet.»** Har en aktivitet en faktisk start, regnes den som startet, også på 0%. Det gjenstående arbeidet er da hele varigheten og starter på statusdatoen. Tøm faktisk start for at aktiviteten igjen skal regnes som ikke startet.
 
 **«Progress Override løser advarselen.»** Meldingen om fremdrift utenfor rekkefølge blir stående. Modusen bestemmer bare hvordan appen beregner. Hvis avhengigheten ikke lenger er riktig, endrer du avhengigheten.
 
-**«Pausen i en delt aktivitet faller bort.»** Nei: en pause i delen som gjenstår, blir værende i det gjenstående arbeidet. Tenk deg en aktivitet på 5 arbeidsdager med en pause på 1 dag etter 2 dagers arbeid. Den er startet tirsdag 29. juni. Med statusdatoen onsdag 30. juni er den på 40 %. Det gjenstående arbeidet på 3 arbeidsdager starter på statusdatoen og går gjennom pausen. Slutten er mandag 5. juli. Uten pausen var den fredag 2. juli.
+**«Pausen i en delt aktivitet faller bort.»** Nei: en pause i delen som gjenstår, blir værende i det gjenstående arbeidet. Tenk deg en aktivitet på 5 arbeidsdager med en pause på 1 dag etter 2 dagers arbeid. Den er startet tirsdag 29. juni. Med statusdatoen onsdag 30. juni er den på 40%. Det gjenstående arbeidet på 3 arbeidsdager starter på statusdatoen og går gjennom pausen. Slutten er mandag 5. juli. Uten pausen var den fredag 2. juli.
 
-**Timer og statusdatoen.** Du kan ikke skrive inn et klokkeslett i båndet. Du fyller inn statusdatoen som dato. Gjør du status etter arbeidstid, setter du statusdatoen til neste arbeidsdag. En aktivitet i timer beregner det gjenstående arbeidet fra starten av statusdatoen. Tenk deg *Lay hollow-core floor* i øvelsesprosjektet etter opplæring 4: 5 timer, mandag 28. juni, arbeidsdag fra 07:00. Med statusdatoen mandag 28. juni og aktiviteten på 40 % har den 3 timer gjenstående arbeid, fra 07:00 til 10:00. Det gjelder selv om det allerede er gjort arbeid den morgenen. Hvordan appen teller timer, står forklart i [Dager og timer](docs://uitleg-dagen-en-uren).
+**Timer og statusdatoen.** Du kan ikke skrive inn et klokkeslett i båndet. Du fyller inn statusdatoen som dato. Gjør du status etter arbeidstid, setter du statusdatoen til neste arbeidsdag. En aktivitet i timer beregner det gjenstående arbeidet fra starten av statusdatoen. Tenk deg *Lay hollow-core floor* i øvelsesprosjektet etter opplæring 4, på det punktet der alt før den er ferdig: 5 timer, mandag 28. juni, arbeidsdag fra 07:00. Med statusdatoen mandag 28. juni og aktiviteten på 40% har den 3 timer gjenstående arbeid, fra 07:00 til 10:00. Det gjelder selv om det allerede er gjort arbeid den morgenen. Hvordan appen teller timer, står forklart i [Dager og timer](docs://uitleg-dagen-en-uren).
 
 **Oppdatere grunnlinjen.** Det er ikke mulig. Du lagrer en ny og sletter den gamle. Hvis du flytter prosjektet, flytter de faktiske datoene og statusdatoen seg med. Grunnlinjene gjør det som standard ikke. Slik blir forskyvningen synlig som avvik. Se [Flytte et prosjekt](docs://howto-project-verplaatsen).
 

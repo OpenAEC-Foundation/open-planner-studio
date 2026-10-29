@@ -89,7 +89,7 @@ async function exportPdf(page: Page): Promise<Uint8Array> {
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: /^(Export PDF|Exporteer PDF)$/ }).click();
   const download = await downloadPromise;
-  expect(download.suggestedFilename()).toMatch(/-planning\.pdf$/);
+  expect(download.suggestedFilename()).toMatch(/-schedule\.pdf$/);
   const path = await download.path();
   expect(path).not.toBeNull();
   return new Uint8Array(await readFile(path!));

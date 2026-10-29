@@ -1830,6 +1830,17 @@
     "source": "model",
     "status": "model"
   },
+  "work-category": {
+    "term": "вид работа",
+    "forms": [
+      "вид работа",
+      "вида работа",
+      "видове работа",
+      "видовете работа"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "работни часове",
     "forms": [

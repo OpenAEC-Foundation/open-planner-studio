@@ -16,11 +16,11 @@ La **planificación por horas** está desactivada de forma predeterminada. Mient
 
 ## Cómo calcula la aplicación
 
-### Horarios laborales y horas netas
+### Horarios laborales y día laborable estándar
 
 Cada calendario tiene **bandas de horario laboral** para cada día laborable (en la aplicación se llaman *bandas*). El calendario estándar tiene de 07:00 a 12:00 y de 13:00 a 16:00. El hueco entre ambas es la pausa. La aplicación deriva esas bandas de *Inicio (hora)*, *Fin (hora)* y la pausa del calendario; usted no tiene que configurar nada para ello. Si define bandas propias por día de la semana, estas tienen prioridad.
 
-Las **horas netas por día** son la suma de las bandas de un día laborable. Si los días laborables tienen distinta duración, se aplica el total diario más frecuente y, en caso de empate, el más alto. Con cuatro días de 8 horas y un viernes de 5 horas, las horas netas por día son, por tanto, 8.
+El **día laborable estándar** es el día laborable que más se repite; su duración es la suma de sus bandas. No es un promedio: con el lunes de 16 horas y de martes a viernes de 10 horas, el día laborable estándar es de 10 horas. Si los días laborables tienen distinta duración, se aplica el total diario más frecuente y, en caso de empate, el más alto. Con cuatro días de 8 horas y un viernes de 5 horas, el día laborable estándar es, por tanto, de 8 horas. Un calendario con sus propias horas por día (por ejemplo, procedente de Primavera P6) también calcula con este total diario, y la ventana del calendario lo muestra. Su propio valor se conserva para la exportación. Si difiere, la ventana del calendario muestra un bloque naranja debajo de *Día laborable estándar*. Una tarea de 1870 horas, con días laborables de 10 horas, dura 187 días, aunque su valor propio sea de 8 horas por día.
 
 ### Una tarea horaria
 
@@ -32,7 +32,7 @@ La aplicación cuenta días laborables completos. Las horas por día no intervie
 
 ### Convertir días y horas
 
-Un día equivale a las horas netas por día del calendario de la tarea. La aplicación lo usa en tres lugares:
+Un día equivale al día laborable estándar del calendario de la tarea. La aplicación lo usa en tres lugares:
 
 - Para *Visualización de la duración*. En *Configuración › Proyecto › Configuración*, en la pestaña *Apariencia*, usted elige *Automática (unidad propia por tarea)*, *Siempre días* o *Siempre horas*. Una tarea de 18 horas se muestra con *Siempre días* como `2.25d(18h)`: la unidad propia queda entre paréntesis.
 - Para un desfase en horas después de una tarea en días (véase *Redondeo*).
@@ -51,17 +51,17 @@ Las reglas siguientes se aplican a una relación fin-comienzo en un calendario s
 La aplicación redondea, o rechaza, en cuatro lugares:
 
 - **Una tarea en días después de una tarea horaria** empieza el día laborable siguiente. La tarea horaria se redondea, por así decirlo, hacia arriba hasta días completos.
-- **Un desfase en horas** se cuenta en el calendario del desfase, de forma predeterminada el del predecesor. Si el predecesor es una tarea en días en un calendario sin bandas de horario laboral propias, como el calendario estándar, la aplicación convierte el desfase en días laborables completos: el desfase dividido entre las horas netas por día, redondeado a un número entero; medio día se redondea hacia arriba. Con 8 horas por día, 1 hora cuenta como 0 días, 4 horas como 1 día y 12 horas como 2 días. Esto también se aplica si el sucesor es una tarea horaria. Si el predecesor es una tarea horaria, o su calendario tiene bandas de horario laboral propias, el desfase se cuenta exactamente en horas laborables y la pausa no cuenta.
-- **Una duración en días** es siempre un número entero. Si escribe `1.5d`, la aplicación muestra *Introduce un número entero de días u horas, por ejemplo 2d o 12h.* Una duración en horas puede ser `1.5h` o `1h 30m`.
+- **Un desfase en horas** se cuenta en el calendario del desfase, de forma predeterminada el del predecesor. Si el predecesor es una tarea en días en un calendario sin bandas de horario laboral propias, como el calendario estándar, la aplicación convierte el desfase en días laborables completos: el desfase dividido entre las horas del día laborable estándar, redondeado a un número entero; medio día se redondea hacia arriba. Con 8 horas por día, 1 hora cuenta como 0 días, 4 horas como 1 día y 12 horas como 2 días. Esto también se aplica si el sucesor es una tarea horaria. Si el predecesor es una tarea horaria, o su calendario tiene bandas de horario laboral propias, el desfase se cuenta exactamente en horas laborables y la pausa no cuenta.
+- **Una duración en días** es siempre un número entero. Si escribe `1.5d`, la aplicación muestra *Introduzca un número entero de días u horas, por ejemplo 2d o 12h.* Una duración en horas puede ser `1.5h` o `1h 30m`.
 - **Cambiar la unidad** solo se hace si el resultado es exacto (véase más arriba).
 
 ## Ejemplo práctico: la grúa
 
-El calendario es de lunes a viernes, de 07:00 a 12:00 y de 13:00 a 16:00: 8 horas netas por día. El inicio del proyecto es el lunes 7 de junio de 2027.
+El calendario es de lunes a viernes, de 07:00 a 12:00 y de 13:00 a 16:00: un día laborable estándar de 8 horas. El inicio del proyecto es el lunes 7 de junio de 2027.
 
 ### Hora, hora y día
 
-*Place crane* dura 12 horas. El lunes tiene 8 horas laborables (5 hasta las 12:00 y 3 después de la pausa) y el martes, las 4 horas restantes. La tarea va del lunes a las 07:00 hasta el **martes 8 de junio a las 11:00**.
+*Place crane* dura 12 horas. El lunes tiene 8 horas laborables (5 hasta las 12:00 y 3 después de la pausa) y el martes, las 4 horas restantes. La tarea va del lunes a las 07:00 al **martes 8 de junio a las 11:00**.
 
 *Adjust elements* dura 8 horas y sigue con una relación fin-comienzo. Empieza de inmediato el martes a las 11:00: eso son 1 hora hasta la pausa y 3 horas después de ella. Las 4 horas restantes son el miércoles de 07:00 a 11:00. El fin es el **miércoles 9 de junio a las 11:00**.
 
@@ -81,7 +81,7 @@ Después de una tarea en días, un desfase funciona de otra manera. *Pour founda
 
 ### Una tarde libre el viernes
 
-Ahora el viernes tiene una sola banda, de 07:00 a 12:00: 5 horas. Los demás días siguen con 8 horas. Las horas netas por día siguen siendo 8, porque ese es el total diario más frecuente. Una semana tiene ahora 37 horas laborables.
+Ahora el viernes tiene una sola banda, de 07:00 a 12:00: 5 horas. Los demás días siguen con 8 horas. El día laborable estándar sigue siendo de 8 horas, porque es el total diario más frecuente. Una semana tiene ahora 37 horas laborables.
 
 Una tarea de 40 horas desde el lunes 7 de junio a las 07:00 ocupa del lunes al jueves (32 horas) y el viernes (5 horas). Las últimas 3 horas caen el lunes siguiente, de 07:00 a 10:00. El fin es el **lunes 14 de junio a las 10:00**. Una tarea de 5 días ocuparía 37 horas desde el lunes, y eso es lo que propone la aplicación si cambia la unidad de 5 días a horas.
 
@@ -91,7 +91,7 @@ En el tutorial 4, sobre planificación por horas, usted mismo planifica un traba
 
 **«8 horas son 1 día.»** Solo si el calendario tiene días de 8 horas. En el calendario con la tarde libre del viernes, 5 días son 37 horas, no 40.
 
-**«Si pongo más horas por día, mi tarea en días termina antes.»** No. Una tarea en días cuenta días laborables completos. Las horas por día solo cambian lo que vale un día en horas, por ejemplo en la visualización y en un desfase en horas. Solo en una tarea con recursos y con la regla de trabajo *Trabajo fijo* o *Unidades fijas* cambia la duración, porque el trabajo sigue siendo el mismo: 40 horas de trabajo son 5 días a 8 horas por día y 7 días a 6 horas por día.
+**«Si pongo más horas por día, mi tarea en días termina antes.»** No. Una tarea en días cuenta días laborables completos. Las horas por día solo cambian lo que vale un día en horas, por ejemplo en la visualización y en un desfase en horas. Solo en una tarea con recursos y con el tipo de tarea *Trabajo fijo* o *Unidades fijas* cambia la duración con ello, porque el trabajo sigue siendo el mismo: 40 horas de trabajo son 5 días a 8 horas por día y 7 días a 6 horas por día.
 
 **«Una tarea de 8 horas dura un día.»** Solo si empieza al inicio del día. Si empieza más tarde, como *Adjust elements* el martes a las 11:00, continúa al día siguiente.
 

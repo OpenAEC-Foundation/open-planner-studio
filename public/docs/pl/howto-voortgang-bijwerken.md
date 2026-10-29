@@ -14,7 +14,8 @@ Data statusu to dzień, w którym robisz podsumowanie. Ustaw ją, zanim wpiszesz
 
 1. Przejdź do *Planowanie › Plan bazowy i postęp › Data statusu*.
 2. Wpisz datę w trzech polach dnia, miesiąca i roku (w kolejności, jaką używasz w zapisie dat), na przykład 28, 06 i 2027, i naciśnij Enter. Aplikacja sama przechodzi do następnego pola.
-3. Małym krzyżykiem obok pola opróżniasz datę statusu.
+3. Czy kalendarz projektu ma pasma czasu pracy (*Godziny pracy* w oknie *Kalendarze*)? Wtedy aplikacja liczy w godzinach i po prawej stronie pokazuje się pole czasu, na przykład 17:00. Wpisz inny czas, na przykład 12:00, i naciśnij Enter. Jeśli opróżnisz pole czasu, zostaje tylko data. Jeśli zmienisz tylko datę, czas zostaje. Godzina zależy od Twojego zapisu czasu (24- lub 12-godzinnego). Bez pasm czasu pracy aplikacja liczy w pełnych dniach: wtedy nie ma pola czasu, a linia daty statusu stoi na początku dnia.
+4. Małym krzyżykiem obok pola opróżniasz datę statusu.
 
 Jeśli robisz podsumowanie w piątek po godzinach pracy, ustaw datę statusu na następny dzień roboczy, poniedziałek. Aplikacja planuje pozostałą pracę od początku daty statusu.
 
@@ -43,7 +44,7 @@ Kamień milowy ma jedno pole: *Rzeczywista data*.
 2. Dwukrotnie kliknij komórkę, wpisz wartość i naciśnij Enter. Procent wpisujesz jako `50` albo `50%`, datę jako `25-06-2027`, pozostały czas trwania jako `1`.
 3. W kolumnie *Stan* kliknij dwukrotnie, naciśnij Enter i wybierz *Nierozpoczęte*, *W toku* albo *Ukończone*.
 
-Jeśli wpiszesz pozostały czas trwania, aplikacja wylicza z tego procent: przy zadaniu trwającym 2 dni robocze pozostałość 1 daje procent 50. Pozostałość 0 kończy zadanie. Jeśli wybierzesz *Nierozpoczęte* w kolumnie *Stan*, procent spada do 0, a daty rzeczywiste znikają.
+Jeśli wpiszesz pozostały czas trwania, aplikacja wylicza z tego procent: przy zadaniu trwającym 2 dni robocze pozostałość 1 daje procent 50. Pozostałość 0 kończy zadanie. Kolumna *Rzeczywisty czas trwania* (także w kategorii *Postęp*) działa odwrotnie: wpisz, ile pracy jest już wykonane, a aplikacja oblicza procent. Przy zadaniu trwającym 4 dni robocze rzeczywisty czas trwania 1 daje 25%. Jeśli wybierzesz *Nierozpoczęte* w kolumnie *Stan*, procent spada do 0, a daty rzeczywiste znikają.
 
 **Wszystko o jednym zadaniu w oknie edycji zadania.** Kliknij prawym przyciskiem zadanie i wybierz *Edytuj...*. Pola postępu są tam także. Zaczynają obowiązywać dopiero po kliknięciu *Zapisz*.
 
@@ -51,7 +52,7 @@ Jeśli wpiszesz pozostały czas trwania, aplikacja wylicza z tego procent: przy 
 
 ### 3. Przelicz harmonogram
 
-Każda zmiana postępu lub daty statusu sprawia, że harmonogram jest nieaktualny: pasek stanu pokazuje *Nieaktualne — przelicz (F5)*. Naciśnij **Oblicz** (F5), na przykład przez *Planowanie › Harmonogram › Oblicz*. Jeśli opcja *Oblicz automatycznie* jest włączona (w *Ustawienia › Projekt › Ustawienia*, na karcie *Planowanie*), aplikacja robi to sama.
+Każda zmiana postępu lub daty statusu sprawia, że harmonogram jest nieaktualny: pasek stanu pokazuje *Nieaktualne — przelicz (F5)*. Naciśnij **Oblicz** (F5), na przykład przez *Planowanie › Harmonogram › Oblicz*. Jeśli opcja *Oblicz automatycznie* jest włączona (w *Ustawienia › Projekt › Ustawienia aplikacji*, na karcie *Planowanie*), aplikacja robi to sama.
 
 ## Sprawdzenie wyniku
 

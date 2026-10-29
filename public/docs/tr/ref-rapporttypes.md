@@ -26,19 +26,19 @@
 
 Planlama bir çubuk grafiği olarak gösterilir: solda bir tablo, sağda bir zaman çizelgesi ve gerekirse birden çok sayfa. Önizleme; sayfa üstbilgisi, tablo, zaman çizelgesi ve açıklamayla birlikte kağıdı gösterir. *Özet* bloğu *Görevler:*, *Yaprak görevler:*, *Kritik:* ve *İlişkiler:* sayılarını gösterir. Tüm seçenekler *Ayarlar* altındadır.
 
-**Şirket:** — sayfa üstbilgisindeki şirket. Varsayılan: proje bilgisindeki şirket. Etkisi: yalnızca raporun üstbilgisi; burada yazdığınız şey saklanmaz. Şirketi değiştirmek için *Ayarlar › Proje › Proje bilgisi* penceresini açın; *Müşteri/kurum* alanına yazın ve *Uygula* ile onaylayın.
+**Şirket:** — sayfa üstbilgisindeki şirket. Varsayılan: proje ayarlarındaki şirket. Etkisi: yalnızca raporun üstbilgisi; burada yazdığınız şey saklanmaz. Şirketi *Ayarlar › Proje › Proje ayarları* içinde değiştirin: *Müşteri/kurum* alanına yazın ve *Uygula* ile onaylayın.
 
-**Yazar:** — sayfa üstbilgisindeki yazar. Salt okunur: uygulama bunu proje bilgisinden alır.
+**Yazar:** — sayfa üstbilgisindeki yazar. Salt okunur: uygulama bunu proje ayarlarından alır.
 
 **Yazı boyutu:** — raporda metnin ve tablonun boyutu. %90, %100, %110 ve %125 arasından seçin. Varsayılan: %100. Etkisi: yazı büyüdükçe metin, satırlar ve tablo büyür; zaman çizelgesi daralır. Ayarlardaki *Metin boyutu* ile bağımsızdır.
 
-**Çubuk renkleri:** — çubuğun rengi neye bağlıdır. *Kritik yol*, *Görev başına — otomatik* ve *Kategoriye göre* arasından seçin; *Kategoriye göre* seçiliyse açılır liste *Kategori alanı* için kullanılır. Varsayılan: *Kritik yol*. Etkisi: bu, *Görünüm* sekmesindeki *Çubuk renkleri* ile aynı seçimdir: burada değiştirirseniz ekrandaki Gantt şeması da değişir. Seçilen alan bu projede yoksa şu metin görünür: *Bu alan bu projede yok. Geçici olarak görev türü kullanılıyor.*
+**Çubuk renkleri:** — çubuğun rengi neye bağlıdır. *Kritik yol*, *Görev başına — otomatik* ve *Kategoriye göre* arasından seçin; *Kategoriye göre* seçiliyse açılır liste *Kategori alanı* için kullanılır. Varsayılan: *Kritik yol*. Etkisi: bu, *Görünüm* sekmesindeki *Çubuk renkleri* ile aynı seçimdir: burada değiştirirseniz ekrandaki Gantt şeması da değişir. Seçilen alan bu projede yoksa şu metin görünür: *Bu alan bu projede yok. Geçici olarak iş kategorisi kullanılıyor.*
 
 **Durum çizgisi:** — durum tarihinde bir çizgi. *Yok*, *Durum tarihi çizgisi* ve *İlerleme çizgisi* arasından seçin. Varsayılan: *Yok*. Etkisi: *Durum tarihi çizgisi* durum tarihinde bir çizgi çizer; *İlerleme çizgisi* her görevin ilerlemesine göre uzanan zikzak çizgiyi çizer. Projede durum tarihi yoksa şu metin görünür: *Önce bir durum tarihi belirleyin* ve rapor hiçbir şey çizmez.
 
 **Görünüme uy (filtre, gruplama, sıralama)** — yalnızca Gantt şeması için. Varsayılan: kapalı. Etkisi: kapalıyken tüm görev ağacı kağıda konur. Açıkken tam olarak ekrandaki satırlar çizilir: filtreniz, gruplamanız, sıralamanız ve daraltılmış aşamalarınızla birlikte.
 
-**Kağıda otomatik sığdır** — zaman çizelgesini sayfa genişliğine ölçekler. Varsayılan: açık. Etkisi: açıkken zaman çizelgesi sayfa genişliğine göre ölçeklenir; sayfa sayısı yüksekliğe bağlıdır. Kapalıyken sabit bir ölçek kullanılır (*Yakınlaştırma:*) ve sayfalar genişlik boyunca da yan yana dizilir; bu hızla çok sayfa yapar.
+**Kağıda otomatik sığdır** — zaman çizelgesini sayfa genişliğine ölçekler. Varsayılan: açık. Etkisi: açıkken zaman çizelgesi sayfa genişliğine göre ölçeklenir; sayfa sayısı yüksekliğe bağlıdır. Kapalıyken sabit bir ölçek kullanılır (*Yakınlaştırma:*) ve sayfalar genişlik boyunca da yan yana dizilir; bu hızla çok sayfa oluşturur.
 
 **Yakınlaştırma:** — zaman çizelgesinin sabit ölçeği. Yalnızca *Kağıda otomatik sığdır* kapalıyken görünür. Kaydırıcı 1 ile 40 arasında. Varsayılan: 22. Etkisi: daha büyük bir değer zaman çizelgesini genişletir; yan yana daha çok sayfa olur.
 
@@ -50,7 +50,7 @@ Planlama bir çubuk grafiği olarak gösterilir: solda bir tablo, sağda bir zam
 
 **Görev adları çubuklarda** — Varsayılan: açık. Etkisi: görevin adı, yer varsa çubukta yazılır.
 
-**Tamamlanmayı göster** — Varsayılan: açık. Etkisi: çubuğun tamamlanan kısmı Gantt şemasındaki gibi gri olur ve tabloda *Tamam.* sütunu görünür. Tamamlanmış bir görevde bolluk bandı çizilmez.
+**Tamamlanmayı göster** — Varsayılan: açık. Etkisi: çubuğun tamamlanan kısmı Gantt şemasındaki gibi gri olur ve tabloda *Tamam* sütunu görünür. Tamamlanmış bir görevde bolluk şeridi çizilmez.
 
 **Görev adlarını kısalt** — Varsayılan: açık. Etkisi: açıkken tablodaki adlar *Ad sütunu:* genişliğinde kesilir. Kapalıyken sütun en uzun ada göre büyür; bu durumda şu metin görünür: *Ad sütunu en uzun görev adına göre ayarlanır.*
 
@@ -60,11 +60,11 @@ Planlama bir çubuk grafiği olarak gösterilir: solda bir tablo, sağda bir zam
 
 **Kritik yol** — Varsayılan: açık. Etkisi: yalnızca iki kritik görev arasındaki kırmızı ilişki çizgilerini ve açıklama çizgisini denetler. Çubuklar kendileri bu onay kutusuna bakmadan *Çubuk renkleri:* ayarını izler.
 
-**Bolluğu göster** — Varsayılan: açık. Etkisi: kritik olmayan çubukların arkasında bolluk bandı.
+**Bolluğu göster** — Varsayılan: açık. Etkisi: kritik olmayan çubukların arkasında bolluk şeridi.
 
 **İlişkiler** — ilişki çizgileri. Varsayılan: açık. Etkisi: çubuklar arasında oklar çizer.
 
-**Yalnızca iş günlerini göster** — bu raporda zaman çizelgesi eksenini sıkıştırır. Varsayılan: kapalı. Etkisi: hafta sonları ve tatiller atlanır; hafta sonu gölgelendirmesi yerine hafta bantları gelir. Ekrandaki Gantt şeması için aynı ayardan bağımsızdır.
+**Yalnızca iş günlerini göster** — bu raporda zaman çizelgesi eksenini sıkıştırır. Varsayılan: kapalı. Etkisi: hafta sonları ve tatiller atlanır; hafta sonu gölgelendirmesi yerine hafta şeritleri gelir. Ekrandaki Gantt şeması için aynı ayardan bağımsızdır.
 
 **Hafta sonları** — Varsayılan: açık. Etkisi: ölçek günleri ayırt edilebilir yaptığı sürece zaman çizelgesinde hafta sonlarını ve tatilleri gölgelendirir. Sıkıştırılmış eksende (*Yalnızca iş günlerini göster*) bu onay kutusunun etkisi yoktur.
 
@@ -78,11 +78,11 @@ Gantt şemasındakiyle aynı çubuklar, kaynak başına gruplanmış: kim ne zam
 
 **Her kaynak yeni sayfada** — Varsayılan: kapalı. Etkisi: her kaynak yeni bir sayfada başlar; böylece her ekip veya çalışan için ayrı bir sayfa verebilirsiniz. Kapalıyken tek ve kesintisiz bir belge çıkar.
 
-**Kaynaksız görevleri dahil et** — Varsayılan: kapalı. Etkisi: kaynağı olmayan görevler diyagramda son bant olarak gelir; henüz kimseye atanmamış işleri görmek için.
+**Kaynaksız görevleri dahil et** — Varsayılan: kapalı. Etkisi: kaynağı olmayan görevler diyagramda son grup olarak gelir; henüz kimseye atanmamış işleri görmek için.
 
-**Kaynak türüne göre grupla** — Varsayılan: kapalı. Etkisi: üstte bir katman: önce kaynak türü başına bir bant (işçilik, ekip, taşeron, ekipman, malzeme), bunun içinde kaynak başına.
+**Kaynak türüne göre grupla** — Varsayılan: kapalı. Etkisi: üstte bir katman: önce kaynak türü başına bir grup (işçilik, ekip, taşeron, ekipman, malzeme), bunun içinde kaynak başına.
 
-**Birim/gün ve eğriyi göster** — Varsayılan: açık. Etkisi: görev adından sonra iki sütun: kaynağın günlük birimleri ve o bantın dağılım eğrisi. Zaman çizelgesi için yer azsa rapor bu sütunları dışarıda bırakır ve şunu yazar: *Birim/gün ve Eğri sütunları bırakıldı: …*; daha fazla yer, daha büyük bir kağıt boyutu veya yatay yönle, daha küçük bir yazı boyutuyla ya da daha dar bir tabloyla sağlanır.
+**Birim/gün ve eğriyi göster** — Varsayılan: açık. Etkisi: görev adından sonra iki sütun: kaynağın günlük birimleri ve o grubun dağılım eğrisi. Zaman çizelgesi için yer azsa rapor bu sütunları dışarıda bırakır ve şunu yazar: *Birim/gün ve Eğri sütunları bırakıldı: …*; daha fazla yer, daha büyük bir kağıt boyutu veya yatay yönle, daha küçük bir yazı boyutuyla ya da daha dar bir tabloyla sağlanır.
 
 **Rapor dönemi:** — yalnızca döneme dokunan görevler. Varsayılan: *Tüm proje*. Etkisi: zaman ekseni tam olarak dönem boyunca çalışır. Dönemde hiçbir şey yoksa şu metin görünür: *Rapor döneminde görev yok — başka bir dönem veya Tüm proje seçin.* Aşağıdaki *Rapor dönemi* bölümüne bakın.
 
@@ -116,11 +116,11 @@ Rapor, kritik (çözücüye ve projenin kritik tanımına göre) veya kritiğe y
 
 Projenin durum tarihindeki durumu. Seçenekler *Rapor seçenekleri* altındadır.
 
-**Rapor dönemi:** — Varsayılan: *Geçen ay*. Etkisi: *Geçen dönemde tamamlananlar* dönem içinde sayılır. *Gelecek dönemde başlayanlar* durum tarihinden ileriye bakar, *İleriye bakış bitişi* tarihine kadar; *Geçen* dönemde ise ileriye bakış, dönemin geriye baktığı kadardır.
+**Rapor dönemi:** — Varsayılan: *Geçen ay*. Etkisi: *Geçen dönemde tamamlananlar* dönem içinde sayılır. *Gelecek dönemde başlayanlar* durum tarihinden ileriye bakar, *İleriye bakış bitişi* tarihine kadar; *Geçen* dönem seçiliyse ileriye bakış, dönemin geriye baktığı kadardır.
 
 **Kritiğe yakın ≤ (ig):** — Varsayılan: 5. İleriye bakış ile aynıdır.
 
-*Özet* bloğu *Durum tarihi*, *Dönem*, *İleriye bakış bitişi*, *Temel plan bitişi*, *Tahmini bitiş*, *Δ bitiş (ig)*, *Planlanan* (*(temel plan)* veya *(mevcut program)*), *Gerçekleşen* ve sayıları *Tamamlandı*, *Devam ediyor*, *Başlamadı*, *Gecikmiş* ve *Kritik* gösterir. *Planlanan* ve *Gerçekleşen* değerler, görevlerin süresine göre ağırlıklandırılır. *Planlanan*, etkin bir temel plan varsa temel plana göre, yoksa mevcut planlamaya göre ölçülür. Bölümler: *Geçen dönemde tamamlananlar*, *Devam ediyor*, *Gelecek dönemde başlayanlar*, *Gecikmiş* ve *Açık kritik aktiviteler*; bir görev birden çok bölümde olabilir.
+*Özet* bloğu *Durum tarihi*, *Dönem*, *İleriye bakış bitişi*, *Temel plan bitişi*, *Tahmini bitiş*, *Δ bitiş (ig)*, *Planlanan* (*(temel plan)* veya *(mevcut program)*), *Gerçekleşen* ve sayıları *Tamamlandı*, *Devam ediyor*, *Başlamadı*, *Gecikmiş* ve *Kritik* gösterir. *Planlanan* ve *Gerçekleşen* değerler, görevlerin süresine göre ağırlıklandırılır. *Planlanan*, etkin bir temel plan varsa temel plana göre, yoksa mevcut planlamaya göre ölçülür. Bölümler: *Geçen dönemde tamamlananlar*, *Devam ediyor*, *Gelecek dönemde başlayanlar*, *Gecikmiş* ve *Açık kritik aktiviteler*; bir görev birden çok bölümde olabilir. Her bölümde aynı sütunlar vardır: *WBS*, *Ad*, *Temel plan bitişi*, *Tahmini bitiş*, *Tamam*, *Kalan (ig)*, *TB (ig)* (TF), *Kritik* ve *Durum*. Her satırın durumu şunlardan biridir: *Tamamlandı*, *Devam ediyor*, *Başlamadı*, *Başlamış olmalıydı* veya *Bitmiş olmalıydı*.
 
 ## Planlama sağlığı
 
@@ -149,7 +149,7 @@ Bölüm tamamlanmamış yaprak görevlerini sayar; kilometre taşlarını ve ham
 - *Geçersiz tarihler*: durum tarihinden sonra gelen bir gerçek başlangıç veya gerçek bitiş, ya da durum tarihinden önce gelen bir tahmini başlangıç veya tahmini bitiş. Eşik: yok. Bir durum tarihi gerekir.
 - *Kaynaklar*: kaynağı olmayan görevler. Eşik: yok. Yalnız proje kaynak kullanıyorsa; aksi halde yok.
 - *Kaçırılan görevler*: temel plana göre durum tarihinde veya daha önce bitmesi gereken görevlerden, daha geç biten ya da tahmini bitişi daha geç olanların payı. Eşik: en fazla %5. Bir durum tarihi ve etkin bir temel plan gerekir.
-- *Kritik yol testi*: uygulama bir kritik görevi 100 iş günü uzatır ve bir kopyada yeniden hesaplar; proje değişmez. Projenin son görevi bu durumda o görevden önce bitmiyorsa test geçer. Test, en erken başlangıcı olan kritik ve tamamlanmamış görevi sınar; ayrıntıda görevin adı ve bitişin kaç iş günü kaydığı yazılır.
+- *Kritik yol testi*: uygulama bir kritik görevi 100 iş günü uzatır ve bir kopyada yeniden hesaplar; proje değişmez. Projenin son görevi bu durumda o görevden önce bitmiyorsa test geçer. Test, en erken başlangıcı olan kritik ve tamamlanmamış görevi sınar; ayrıntıda görevin adı ve bitişin kaç iş günü kaydığı yazılır. *Kaydedilen tarihler* görünümünde bu test yok (*hesaplanmadı*): test hesaplama yapar ve rapor o zaman kaynak dosyadaki tarihleri gösterir. Hesapla (F5) komutuna basın; test yeniden çalışır.
 - *CPLI*: (kritik yol uzunluğu + bolluk) / kritik yol uzunluğu. Uzunluk, durum tarihinden son görevin bitişine kadar olan iş günlerini sayar; bolluk, o görevin temel plan bitişiyle arasındaki farktır, ya da görev temel planda değilse hesaplanan bolluktur. Eşik: en az 0,95. Bir durum tarihi gerekir.
 - *BEI* (temel plan uygulama endeksi): durum tarihinde tamamlanmış görevlerin sayısı, bölü temel plana göre o tarihe kadar tamamlanması gereken görevlerin sayısı artı temel planı olmayan görevler. Eşik: en az 0,95. Bir durum tarihi ve etkin bir temel plan gerekir.
 
@@ -177,7 +177,7 @@ Kaynak başına, kaynağın bağlı olduğu görevler: bu ekip veya vinç ne yap
 
 **Tamamlanan görevleri dahil et** — Varsayılan: kapalı. Etkisi: açık olduğunda tamamlanmış görevlerin atamalarını da dahil eder.
 
-Satırlar kaynak başına gruplanır; bir kaynağın içinde başlangıca göre sıralanır. Blok *Özet*, *Kaynaklar*, *Atamalar* ve *Kaynaksız görevler* sayar. Sütunlar arasında kaynak, görev, başlangıç ve bitiş, *Kalan (ig)*, *Birim/gün*, *Tamam.*, *Kritik* ve *Durum* bulunur.
+Satırlar kaynak başına gruplanır; bir kaynağın içinde başlangıca göre sıralanır. Blok *Özet*, *Kaynaklar*, *Atamalar* ve *Kaynaksız görevler* sayar. Sütunlar şunlardır: *Kaynak*, *Tür*, *WBS*, *Ad*, *Başlangıç*, *Bitiş*, *Kalan (ig)*, *Birim/gün*, *Tamam.*, *Kritik* ve *Durum*. *Kaynak* ve *Tür* yalnız bir kaynağın ilk satırında yer alır. Satırdaki durum, *İlerleme raporu* ile aynıdır: *Tamamlandı*, *Devam ediyor*, *Başlamadı*, *Başlamış olmalıydı* veya *Bitmiş olmalıydı*.
 
 ## WBS özeti
 

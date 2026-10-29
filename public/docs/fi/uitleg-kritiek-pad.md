@@ -38,22 +38,23 @@ Kokonaispelivara voidaan jakaa. Jos kaksi ei-kriittistä tehtävää seuraavat t
 
 ### Negatiivinen pelivara
 
-Pelivara voi myös olla negatiivinen. Näin käy, kun tehtävällä on tavoitepäivä tai rajoite, joka asettaa viimeisen päivän, ja tämä päivä on ennen sovelluksen tehtävälle laskemaa päivää. Paperilla tehtävä on jo myöhässä, ja tehtävä sekä sitä edeltävä ketju muuttuvat kriittisiksi.
+Pelivara voi myös olla negatiivinen. Näin käy, kun tehtävällä on tavoitepäivä tai rajoite, joka asettaa viimeisen päivän, ja tämä päivä on ennen sovelluksen tehtävälle laskemaa päivää. Aikataulun mukaan tehtävä on jo myöhässä, ja tehtävä sekä sitä edeltävä ketju muuttuvat kriittisiksi.
 
 ### Milloin tehtävä on kriittinen?
 
-Oletuksena tehtävä on kriittinen, kun sen kokonaispelivara on 0 tai vähemmän. Tätä voi muuttaa kohdassa *Asetukset › Projekti › Projektitiedot*, osiossa *Laskentaprofiili ja laskentavaihtoehdot*, kohdassa *Tämän projektin laskentavaihtoehdot*. Kun valitset *Käytä*, sovellus laskee aikataulun heti uudelleen. Vaihtoehdot kuuluvat projektitiedostoon, eivät sovellukseen.
+Oletuksena tehtävä on kriittinen, kun sen kokonaispelivara on 0 tai vähemmän. Tätä voi muuttaa kohdassa *Asetukset › Projekti › Projektin asetukset*, osiossa *Laskentaprofiili ja laskentavaihtoehdot*, kohdassa *Tämän projektin laskentavaihtoehdot*. Kun valitaan *Käytä*, sovellus laskee aikataulun heti uudelleen. Vaihtoehdot kuuluvat projektitiedostoon, eivät sovellukseen.
 
-- **Kriittisyyden määritelmä** kohdassa *Kokonaispelivara ≤ kynnysarvo* ja kentässä *Kynnysarvo (työpäivinä)*. Kynnysarvo on oletuksena 0. Puskurin varmistamiseksi aseta arvoksi esimerkiksi 2: jokainen tehtävä, jonka pelivara on 2 työpäivää tai vähemmän, lasketaan kriittiseksi ja muuttuu punaiseksi.
+- **Kriittisyyden määritelmä** kohdassa *Kokonaispelivara ≤ kynnysarvo* ja kentässä *Kynnysarvo (työpäivinä)*. Kynnysarvo on oletuksena 0. Puskurin varmistamiseksi aseta arvoksi esimerkiksi 2: jokainen tehtävä, jonka pelivara on 2 työpäivää tai vähemmän, lasketaan kriittiseksi ja muuttuu punaiseksi. Jos valitaan *Pisin polku*, tehtävä on kriittinen, kun se on pisimmällä ketjulla viimeiseen loppuun. Sen pelivaralla ei ole silloin merkitystä.
+- **Useita pelivarapolkuja** numeroi ketjut niiden pelivaran mukaan sarakkeessa *Pelivarapolku*. Polku 1 on kriittinen polku. Katso [Laskentavaihtoehdot ja laskentasäännöt](docs://ref-rekenopties-en-conventies).
 - **Merkitse lähes kriittiset** omalla *Kynnysarvo*-asetuksellaan, oletuksena 2 työpäivää. Tehtävä, jonka pelivara on yli 0 mutta enintään tämän verran, saa keltaisen palkin. Näin näkee, mitkä tehtävät ovat jäljellä lähes ilman marginaalia, ilman että niitä kutsutaan kriittisiksi.
 - **Avoimet tehtävät ovat kriittisiä**: tehtävä, jolla ei ole seuraajaa ja jota ei ole vielä saatu valmiiksi, lasketaan kriittiseksi. Hyödyllinen turvaverkko unohtuneita riippuvuuksia vastaan (katso alla olevat väärinkäsitykset).
-- **Pelivaran laskentatapa** määrää, mitataanko kokonaispelivara tehtävän alusta, lopusta vai näistä pienempänä. Uudet projektit ovat asetuksella *Automaattinen (oletus)*. Jos halutaan noudattaa Primavera P6:n laskentatapaa, *Käytä tämän profiilin oletusasetuksia* asettaa tämän valinnan arvoon *Loppupelivara*. MS Project -ohjelman kohdalla sama painike palauttaa asetuksen arvoon *Automaattinen (oletus)*: kun raportointipäivä on asetettu, MS Project itse laskee näin.
+- **Pelivaran laskentatapa** määrää, mitataanko kokonaispelivara tehtävän alusta, lopusta vai näistä pienempänä. Uudet projektit ovat asetuksella *Automaattinen (oletus)*. Jos projektissa on Primavera P6 -profiili eikä tämä valinta ole *Loppupelivara*, Projektin asetuksissa näkyy oranssi ruutu, joka kertoo sen. Sen painike asettaa valinnan arvoon *Loppupelivara*. MS Project -ohjelmassa sama painike palauttaa valinnan arvoon *Automaattinen (oletus)*: kun raportointipäivä on asetettu, MS Project laskee näin itse.
 
 ### Missä sen näkee
 
 Kriittisillä tehtävillä on punainen palkki Gantt-kaaviossa. Ei-kriittisen palkin takana on vihreä nauha tehtävän myöhäisimpään valmistumispäivään asti: se on pelivara. Nauhan voi kytkeä päälle tai pois valinnalla *Näkymä › Perustasot ja edistyminen › Pelivaranauha*.
 
-Kun tehtävä on valittuna, *Ominaisuudet*-paneeli näyttää kaiken kohdassa *CPM-tulos*: varhaisin ja myöhäisin alkamispäivä sekä valmistumispäivä, kokonais-, vapaa- ja häiritsevä pelivara sekä se, onko tehtävä kriittisellä polulla. Kaikkien tehtävien pelivara näkyy rinnakkain sarakkeissa kohdassa *Lasketut* (**+** taulukon otsikkorivin oikealla puolella), kuten *Kokonaispelivara*, *Vapaa pelivara*, *Kriittinen* ja *Lähes kriittinen*.
+Kun tehtävä on valittuna, *Ominaisuudet*-paneeli näyttää kaiken kohdassa *CPM-tulos*: varhaisin ja myöhäisin alkamispäivä sekä varhaisin ja myöhäisin valmistumispäivä, kokonais-, vapaa- ja häiritsevä pelivara sekä se, onko tehtävä kriittisellä polulla. Kaikkien tehtävien pelivara näkyy rinnakkain sarakkeissa kohdassa *Lasketut* (**+** taulukon otsikkorivin oikealla puolella), kuten *Kokonaispelivara*, *Vapaa pelivara*, *Kriittinen* ja *Lähes kriittinen*.
 
 Alareunan tilarivi laskee kriittiset tehtävät, esimerkiksi *Kriittinen polku: 21 tehtävää, 45 työpäivää*.
 

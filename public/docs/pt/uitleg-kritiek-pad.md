@@ -16,7 +16,7 @@ O método de cálculo chama-se **CPM** (Critical Path Method). Por isso o bloco 
 
 ## Como a aplicação calcula
 
-A aplicação não recalcula o planeamento por si só. O cálculo começa com **Calcular** (F5), por exemplo através de *Início › Agendamento › Calcular*. Se algo mudou desde o último cálculo, a barra de estado mostra *Desatualizado — recalcule (F5)*. Se *Calcular automaticamente* estiver ativo (em *Definições › Projeto › Definições*, separador *Planeamento*, grupo *Cálculo*), a aplicação faz isto sozinha.
+A aplicação não recalcula o planeamento por si só. O cálculo começa com **Calcular** (F5), por exemplo através de *Início › Agendamento › Calcular*. Se algo mudou desde o último cálculo, a barra de estado mostra *Desatualizado — recalcule (F5)*. Se *Calcular automaticamente* estiver ativo (em *Definições › Projeto › Definições da aplicação*, separador *Planeamento*, grupo *Cálculo*), a aplicação faz isto sozinha.
 
 Um cálculo faz duas passagens pela rede.
 
@@ -42,12 +42,13 @@ A folga também pode ficar negativa. Isso acontece quando uma tarefa tem um praz
 
 ### Quando é uma tarefa crítica?
 
-Por padrão, uma tarefa é crítica quando a sua folga total é 0 ou menos. Isto pode ser alterado em *Definições › Projeto › Info do projeto*, no bloco *Perfil de cálculo e opções*, em *Opções de cálculo deste projeto*. Quando clica em *Aplicar*, a aplicação recalcula logo o planeamento. As opções pertencem ao ficheiro do projeto, não à aplicação.
+Por padrão, uma tarefa é crítica quando a sua folga total é 0 ou menos. Isto pode ser alterado em *Definições › Projeto › Definições do projeto*, no bloco *Perfil de cálculo e opções*, em *Opções de cálculo deste projeto*. Quando clica em *Aplicar*, a aplicação recalcula logo o planeamento. As opções pertencem ao ficheiro do projeto, não à aplicação.
 
-- **Definição de crítica** com *Folga total ≤ limiar* e o campo *Limiar (dias úteis)*. O limiar é 0 por padrão. Para proteger uma reserva, defina-o para 2, por exemplo: cada tarefa com 2 dias úteis de folga ou menos conta como crítica e fica vermelha.
+- **Definição de crítica** com *Folga total ≤ limiar* e o campo *Limiar (dias úteis)*. O limiar é 0 por padrão. Para proteger uma reserva, defina-o para 2, por exemplo: cada tarefa com 2 dias úteis de folga ou menos conta como crítica e fica vermelha. Se escolher *Caminho mais longo*, uma tarefa é crítica quando está no caminho mais longo até ao último fim. Nesse caso, a folga não tem importância.
+- **Vários caminhos de folga** numera as cadeias pela sua folga na coluna *Caminho de folga*. O caminho 1 é o caminho crítico. Veja [Opções de cálculo e convenções](docs://ref-rekenopties-en-conventies).
 - **Marcar quase crítico** com o seu próprio *Limiar*, por padrão 2 dias úteis. Uma tarefa com mais de 0 mas no máximo essa folga fica com uma barra âmbar. Assim vê quais as tarefas que quase não têm folga, sem as chamar críticas.
 - **Tarefas de extremidade aberta críticas**: uma tarefa sem sucessora que ainda não está terminada conta como crítica. Útil como rede de segurança contra relações esquecidas (ver os equívocos abaixo).
-- **Cálculo da folga** decide se a folga total é medida no início da tarefa, no seu fim, ou como o menor dos dois. Os projetos novos ficam com *Automático (predefinido)*. Se seguir a forma de cálculo do Primavera P6, *Aplicar as opções predefinidas deste perfil* define esta escolha como *Folga de fim*. Para o MS Project, o mesmo botão repõe *Automático (predefinido)*: com uma data de estado, o próprio MS Project calcula dessa forma.
+- **Cálculo da folga** decide se a folga total é medida no início da tarefa, no seu fim, ou como o menor dos dois. Os projetos novos ficam com *Automático (predefinido)*. Se o projeto usa o perfil Primavera P6 e esta escolha não é *Folga de fim*, um bloco laranja em *Definições do projeto* indica isso; o botão desse bloco define a escolha como *Folga de fim*. Para o MS Project, o mesmo botão repõe *Automático (predefinido)*: com uma data de estado, o próprio MS Project calcula dessa forma.
 
 ### Onde o vê
 

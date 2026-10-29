@@ -11,7 +11,7 @@ V diagrame Gantt vidíte, že murovanie musí začať o dva dni neskôr, alebo �
 ### Presúvanie pruhu
 
 1. Stlačte stred pruhu úlohy a ťahajte vodorovne. Začiatok a dokončenie sa presunú spolu, po celých dňoch. Trvanie zostane rovnaké.
-2. Pustite tlačidlo myši. Pruh zostane na novom mieste. Plán je potom neaktuálny: stlačte *Prepočítať* (F5), alebo nechajte, aby aplikácia plán počítala sama, ak je zapnutý *Automatický prepočet*.
+2. Pustite tlačidlo myši. Pruh zostane na novom mieste. Plán je potom neaktuálny: stlačte *Prepočítať* (F5), alebo nechajte, aby aplikácia plán prepočítala sama, ak je zapnutý *Automatický prepočet*.
 
 Ak má úloha predchádzajúcu úlohu, aplikácia zapíše nový začiatok ako obmedzenie *Začiatok nie skôr ako (SNET)* a po pustení tlačidla to oznámi. Prečo tak je a čo sa stane pri inom obmedzení, je v článku [Obmedzenia a termíny](docs://uitleg-constraints). Ak ťaháte späť na pôvodný začiatok, vráti sa aj pôvodné obmedzenie.
 
@@ -23,7 +23,7 @@ Ak ťaháte hlavne nahor alebo nadol namiesto do strany, presuniete úlohu na in
 2. Ťahajte okraj. Počas ťahania sa zobrazí malá bublina v akcentovej farbe motívu (štandardne oranžová). Bublina ukazuje trvanie, ktoré by úloha teraz dostala, napríklad *4d*. Bublina sa mení priebežne, takže novú dĺžku vidíte ešte pred pustením. Na pravom okraji je bublina vnútri pruhu, na ľavom okraji tesne vľavo od neho. Bublina ukazuje trvanie tak, ako ho ukazuje stĺpec trvania.
 3. Pustite tlačidlo myši. Trvanie je to, ktoré ukázala bublina.
 
-Ľavý okraj posúva začiatok a dokončenie nechá na mieste, takže úloha sa skráti alebo predĺži na začiatku. Pre tento okraj platí rovnaké pravidlo SNET ako pri presúvaní. Ak ťaháte stred pruhu, bublina sa nezobrazí: trvanie sa nemení.
+Ľavý okraj posúva začiatok, dokončenie zostane nezmenené, takže úloha sa skráti alebo predĺži na začiatku. Pre tento okraj platí rovnaké pravidlo SNET ako pri presúvaní. Ak ťaháte stred pruhu, bublina sa nezobrazí: trvanie sa nemení.
 
 Trvanie sa počíta v pracovných dňoch kalendára úlohy. Víkendy a dni voľna sa nerátajú. Úloha v dňoch nemôže byť kratšia ako jeden pracovný deň. Pre úlohu v hodinách aplikácia zaokrúhli na krok časovej osi pod kurzorom: najmenej na jednu hodinu, alebo na štvrťhodinu, ak priblížite dostatočne a je zapnuté *Zobraziť štvrťhodiny pri silnom priblížení*.
 
@@ -31,10 +31,10 @@ Jedno ťahanie je jeden krok v *Vrátiť späť*, bez ohľadu na to, ako dlho ť
 
 ### Posúvanie časovej osi
 
-Čo robí ťahanie po prázdnom pozadí, závisí od režimu posúvania. Vyberiete ho v okne *Nastavenia*, na karte *Vzhľad*, v časti *Gantt › Posúvanie a zoom*, položka *Režim*:
+Čo robí ťahanie po prázdnom pozadí, závisí od režimu posúvania. Vyberiete ho v okne *Nastavenia aplikácie*, na karte *Vzhľad*, v časti *Gantt › Posúvanie a zoom*, položka *Režim*:
 
-- **Zoom + ťahanie** (predvolené): ak ťaháte po prázdnom pozadí ľavým tlačidlom myši, časová os sa pohybuje spolu s myšou, ako mapa. Kurzor je ruka. Na pruhu ťahanie len spustí gesto pruhu.
-- **Poloha** a **Klávesy**: to isté ťahanie vytvorí výberový rámček. Časovú os posúvate kolieskom (pozri [Nastavenia](docs://ref-instellingen)) alebo stredným tlačidlom myši.
+- **Zoom + ťahanie** (predvolené): ak ťaháte po prázdnom pozadí ľavým tlačidlom myši, časová os sa pohybuje spolu s myšou, ako mapa. Kurzor sa zmení na ruku. Na pruhu ťahanie len spustí gesto pruhu.
+- **Poloha** a **Klávesy**: to isté ťahanie vytvorí výberový rámček. Časovú os posúvate kolieskom (pozri [Nastavenia aplikácie](docs://ref-instellingen)) alebo stredným tlačidlom myši.
 
 **Stredné tlačidlo myši** (stlačené koliesko) posúva časovú os v každom režime, aj keď začnete na pruhu. Nefunguje, kým prebieha iné gesto, napríklad ťahanie pruhu.
 
@@ -50,13 +50,17 @@ Viac o výbere je v článku [Výber, odstránenie a vrátenie úloh späť](doc
 
 ### Priblíženie a oddialenie
 
-1. Použite *Priblížiť +* a *Oddialiť -* (*Začiatok › Priblíženie*), alebo klávesy + a -. Koliesko myši tiež približuje; kedy to robí, závisí od režimu posúvania (pozri [Nastavenia](docs://ref-instellingen)).
+1. Použite *Priblížiť +* a *Oddialiť -* (*Začiatok › Priblíženie*), alebo klávesy + a -. Koliesko myši tiež približuje; kedy to robí, závisí od režimu posúvania (pozri [Nastavenia aplikácie](docs://ref-instellingen)).
 2. Ak chcete vidieť celý projekt, zvoľte *Zobrazenie › Časová škála › Prispôsobiť projektu* alebo stlačte Ctrl+0. *Obnoviť* (na karte *Zobrazenie*) alebo klávesa 0 vráti priblíženie na predvolené.
 3. V pravom dolnom rohu stavového riadku je priblíženie v pixeloch na deň, napríklad *Priblíženie: 15 px/deň*.
 
 Čím viac oddialite, tým menej mriežkových čiar je. Pri 8 pixeloch na deň alebo viac je čiara pre každý deň, s hrubšou čiarou na hranici týždňa. Medzi 2 a 8 pixelmi na deň zostáva len hranica týždňa. Pod 2 pixelmi na deň, na úrovni roka, zostávajú len hranice mesiacov. Inak by plátno bolo rovnomerným pásikovým vzorom a pruhy úloh by v ňom zanikli. Sivé víkendy a dni voľna a pásy týždňov, ktoré sa striedajú vo farbe, zostávajú na každej úrovni; nesú štruktúru týždňov, keď čiary zmiznú. V hlavičke časovej osi sa čísla týždňov a čísla dní zobrazia len vtedy, keď je na ne miesto. Od 40 pixelov na deň sa pred číslo dňa zobrazí aj deň v týždni.
 
 Názov úlohy sa zobrazí v pruhu, ak sa tam celý zmestí. Ak sa nezmestí, napríklad pri oddialení, celý názov sa zobrazí napravo od pruhu.
+
+### Podrobnosti o úlohe
+
+Podržte myš nehybne nad pruhom. Zobrazí sa malý panel s názvom úlohy a s poľami *WBS*, *Trvanie*, *Začiatok*, *Dokončenie*, *Stav*, *Kritická* a *Celková časová rezerva*. Počas ťahania, posúvania, výberového rámčeka alebo kontextovej ponuky panel zmizne.
 
 ## Nástrahy a čo aplikácia vtedy urobí
 
@@ -72,5 +76,5 @@ Názov úlohy sa zobrazí v pruhu, ak sa tam celý zmestí. Ak sa nezmestí, nap
 
 - [Kontextové ponuky](docs://ref-contextmenus): ponuky na pruhu, na riadku a na hlavičke skupiny.
 - [Klávesové skratky](docs://ref-sneltoetsen): klávesy pre priblíženie a pre zrušenie gesta.
-- [Nastavenia](docs://ref-instellingen): režim posúvania a časová os.
+- [Nastavenia aplikácie](docs://ref-instellingen): režim posúvania a časová os.
 - [Obmedzenia a termíny](docs://uitleg-constraints): prečo sa presunutý začiatok stane obmedzením.

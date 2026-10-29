@@ -86,6 +86,8 @@ for (const rejected of ['50%', '-25e%', '3ed', '2eu', '2eh']) {
 eq('externe dagformatter', formatExternalLagShort({ lagDays: 2 }), '+2d');
 eq('externe uurformatter', formatExternalLagShort({ lagMinutes: 90 }), '+1.5u');
 eq('externe nulformatter', formatExternalLagShort({ lagDays: 0 }), '');
+eq('expliciet nul minuten verbergt een oud positief dagveld', formatExternalLagShort({ lagMinutes: 0, lagDays: 9 }), '');
+eq('expliciet nul minuten verbergt een oud negatief dagveld', formatExternalLagShort({ lagMinutes: 0, lagDays: -9 }), '');
 
 const link: ExternalLink = {
   id: 'ext-17',

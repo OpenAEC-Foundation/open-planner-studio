@@ -50,34 +50,34 @@ Przy *wygładzaniu* zadanie nie może zacząć się później niż jego najpóź
 
 ## Przykład: murarz przy dwóch ścianach
 
-Przykład pochodzi z praktycznego projektu samouczków *House extension*, w takim stanie, jaki jest tuż przed bilansowaniem w samouczku 5. W samouczku 5 robisz to sam i sprawdzasz liczby. W tym przykładzie tynkowanie ma typ *Stała praca*, a tynkarz pracuje z jednostkami 2, jak w [Reguły pracy: czas trwania, jednostki i praca](docs://uitleg-werkregels).
+Przykład pochodzi z praktycznego projektu samouczków *House extension*, w takim stanie, jaki jest tuż przed bilansowaniem w samouczku 5. W samouczku 5 robisz to sam i sprawdzasz liczby. W tym przykładzie tynkowanie ma typ zadania *Stała praca*, a tynkarz pracuje z jednostkami 2, jak w [Typy zadań: czas trwania, jednostki i praca](docs://uitleg-werkregels).
 
 Po stropie z płyt drążonych, ukończonym w poniedziałek 28 czerwca, wewnętrzna warstwa murowa (5 dni roboczych) i zewnętrzna warstwa murowa (6 dni roboczych) zaczynają się obie we wtorek 29 czerwca. Obie są przypisane do murarza, z jednostkami 1 i *Maks. jednostki* 1. Po wewnętrznej warstwie idą elementy dachu (praca dźwigu 6 godzin) i pokrycie dachu (2 dni robocze). Ramy czekają na pokrycie dachu i na zewnętrzną warstwę murową. Odbiór jest w poniedziałek 30 sierpnia.
 
 ### Przeciążenie
 
-Wewnętrzna warstwa biegnie od 29 czerwca do 5 lipca włącznie, zewnętrzna od 29 czerwca do 6 lipca włącznie. Od 29 czerwca do 5 lipca włącznie to 5 dni roboczych, w których harmonogram wymaga 2 jednostek od murarza ze zdolnością 1. Murarz jest w tych 5 dniach przeciążony.
+Wewnętrzna warstwa biegnie od 29 czerwca do 5 lipca włącznie, zewnętrzna od 29 czerwca do 6 lipca włącznie. Od 29 czerwca do 5 lipca włącznie to 5 dni roboczych, w których harmonogram wymaga 2 jednostki od murarza ze zdolnością 1. Murarz jest w tych 5 dniach przeciążony.
 
 ### Kolejność
 
-Oba zadania mają priorytet 500. Ramy okienne są dostarczane dopiero 14 lipca (w samouczku 3 ustawiasz dla nich ograniczenie *Rozpocznij nie wcześniej niż (SNET)*). Przez to wewnętrzna warstwa ma 3 dni robocze zapasu, a zewnętrzna 5. Wewnętrzna warstwa ma najmniejszy zapas, więc wchodzi pierwsza. Zostaje od 29 czerwca do 5 lipca włącznie.
+Oba zadania mają priorytet 500. Ramy okienne są dostarczane dopiero 14 lipca (w samouczku 3 ustawiasz dla nich ograniczenie *Rozpocznij nie wcześniej niż (SNET)*). Przez to wewnętrzna warstwa ma zapas 3 dni roboczych, a zewnętrzna 5. Wewnętrzna warstwa ma najmniejszy zapas, więc wchodzi pierwsza. Zostaje od 29 czerwca do 5 lipca włącznie.
 
 ### Przesunięcie
 
 Zewnętrzna warstwa nie może zacząć się 29 czerwca. Pierwszy dzień, w którym murarz znów jest wolny, to wtorek 6 lipca. To 5 dni roboczych później niż najwcześniejsze rozpoczęcie, więc opóźnienie bilansowania wynosi 5. Zewnętrzna warstwa biegnie teraz od 6 lipca do 13 lipca włącznie. Ramy i tak zaczynają się dopiero 14 lipca, więc odbiór zostaje w poniedziałek 30 sierpnia. Okno pokazuje *Data zakończenia projektu: bez zmian (30-08-2027)* i jedną linię: *Build outer cavity leaf*, stary start 29-06-2027, nowy start 06-07-2027, *5 d*.
 
-Przesunięcie o 5 dni roboczych to dokładnie zapas zewnętrznej warstwy. Dlatego *wygładzanie* daje tutaj ten sam wynik. Zewnętrzna warstwa nie ma już zapasu i jest krytyczna.
+Przesunięcie o 5 dni roboczych to dokładnie zapas zewnętrznej warstwy. Dlatego *bilansowanie* daje tutaj ten sam wynik. Zewnętrzna warstwa nie ma już zapasu i jest krytyczna.
 
 ### Co, jeśli ramy nie przyjdą 14 lipca
 
-Bez tego ograniczenia ramy mogą zacząć się w piątek 9 lipca, a odbiór przypada w środę 25 sierpnia. Zewnętrzna warstwa ma wtedy tylko 2 dni robocze zapasu.
+Bez tego ograniczenia ramy mogą zacząć się w piątek 9 lipca, a odbiór przypada w środę 25 sierpnia. Zewnętrzna warstwa ma wtedy zapas tylko 2 dni roboczych.
 
-- Bez *wygładzania* zewnętrzna warstwa i tak przesuwa się o 5 dni roboczych. Teraz ramy muszą czekać: zaczynają się 14 lipca, czyli 3 dni robocze później. Wszystko po nich przesuwa się razem z nimi, a odbiór przechodzi z 25 sierpnia na 30 sierpnia, także 3 dni robocze później.
-- Przy *wygładzaniu* nic się nie przesuwa. Zewnętrzna warstwa nie mieści się w swoich 2 dniach roboczych zapasu. Okno pokazuje konflikt *Build outer cavity leaf*, 5 dni, z powodem *Za mało wolnej zdolności w ramach zapasu, aby rozwiązać ten konflikt*.
+- Bez *bilansowania* zewnętrzna warstwa i tak przesuwa się o 5 dni roboczych. Teraz ramy muszą czekać: zaczynają się 14 lipca, czyli 3 dni roboczych później. Wszystko po nich przesuwa się razem z nimi, a odbiór przechodzi z 25 sierpnia na 30 sierpnia, także 3 dni roboczych później.
+- Przy *bilansowaniu* nic się nie przesuwa. Zewnętrzna warstwa nie mieści się w swoich 2 dniach roboczych zapasu. Okno pokazuje konflikt *Build outer cavity leaf*, 5 dni, z powodem *Za mało wolnej zdolności w ramach zapasu, aby rozwiązać ten konflikt*.
 
 ### Co, jeśli zewnętrzna warstwa dostanie priorytet
 
-Jeśli dasz zewnętrznej warstwie priorytet *Wysoki* (900), wejdzie pierwsza. Zostaje na 29 czerwca, a wtedy wewnętrzna warstwa ustępuje: przesuwa się o 6 dni roboczych, od 7 lipca do 13 lipca włącznie. Wewnętrzna warstwa ma tylko 3 dni robocze zapasu, więc przesunięcie o 6 dni roboczych to 3 dni za dużo. Elementy dachu, ramy i wszystko po nich przesuwają się razem z nimi. Odbiór przechodzi z poniedziałku 30 sierpnia na czwartek 2 września. To samo przeciążenie daje więc inną datę zakończenia, zależnie od tego, które zadanie się nie przesuwa.
+Jeśli dasz zewnętrznej warstwie priorytet *Wysoki* (900), wejdzie pierwsza. Zostaje na 29 czerwca, a wtedy wewnętrzna warstwa ustępuje: przesuwa się o 6 dni roboczych, od 7 lipca do 13 lipca włącznie. Wewnętrzna warstwa ma zapas tylko 3 dni roboczych, więc przesunięcie o 6 dni roboczych to 3 dni za dużo. Elementy dachu, ramy i wszystko po nich przesuwają się razem z nimi. Odbiór przechodzi z poniedziałku 30 sierpnia na czwartek 2 września. To samo przeciążenie daje więc inną datę zakończenia, zależnie od tego, które zadanie się nie przesuwa.
 
 ### Co, jeśli przyjdzie drugi murarz
 
@@ -101,5 +101,5 @@ Jeśli ustawisz *Maks. jednostki* murarza na 2, przeciążenie znika. *Oblicz* z
 
 - [Rozwiązywanie przeciążenia](docs://howto-overbezetting-oplossen): kroki, aby znaleźć przeciążenie i je zbilansować.
 - [Ścieżka krytyczna i zapas](docs://uitleg-kritiek-pad): czym jest zapas i kiedy zadanie staje się krytyczne.
-- [Reguły pracy: czas trwania, jednostki i praca](docs://uitleg-werkregels): jak czas trwania zadania przesuwa się razem z jednostkami.
+- [Typy zadań: czas trwania, jednostki i praca](docs://uitleg-werkregels): jak czas trwania zadania przesuwa się razem z jednostkami.
 - [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): trzy wieże, które potrzebują tych samych ekip i dźwigu wieżowego, oraz to, co bilansowanie z tym robi.

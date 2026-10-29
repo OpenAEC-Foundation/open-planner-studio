@@ -40,7 +40,7 @@ Nie przesuwa się:
 
 ## Pułapki i co robi aplikacja
 
-**Koniec projektu przesuwa się o inną liczbę dni.** Jeśli podgląd zauważy, że koniec projektu przesuwa się o więcej lub mniej dni kalendarzowych niż początek, albo że czas trwania projektu w dniach roboczych się zmienia, pokaże czerwone ostrzeżenie z liczbami. Wtedy nadal możesz anulować.
+**Zakończenie projektu przesuwa się o inną liczbę dni.** Jeśli podgląd zauważy, że zakończenie przesuwa się o więcej lub mniej dni kalendarzowych niż początek, albo że czas trwania projektu w dniach roboczych się zmienia, pokaże czerwone ostrzeżenie z liczbami. Wtedy nadal możesz anulować.
 
 **Plany bazowe pozostają ustalone.** Plan bazowy służy do mierzenia odchylenia. Jeśli przesuniesz projekt przy wyłączonym polu wyboru, zobaczysz przesunięcie jako odchylenie od planu bazowego. Jeśli włączysz pole wyboru, plany bazowe przesuwają się razem z harmonogramem. Przesuwają się tylko ich daty; data zapisania planu bazowego się nie zmienia.
 
@@ -52,10 +52,10 @@ Nie przesuwa się:
 
 **Data leży w przeszłości.** To jest dozwolone, ale podgląd o tym wspomina: *Nowa data rozpoczęcia jest w przeszłości.*
 
-**Zmiana początku projektu w Info o projekcie to coś innego.** Jeśli zmienisz datę rozpoczęcia w *Ustawienia › Projekt › Info o projekcie* i wybierzesz *Zastosuj*, harmonogram się nie przesuwa. Tylko zadania bez poprzednika ani ograniczenia, które po zmianie leżałyby przed nowym początkiem, przesuwają się do tej daty, a aplikacja podaje, ile ich jest. Jeśli chcesz przesunąć wszystko, użyj *Przesuń projekt…*.
+**Zmiana początku projektu w ustawieniach projektu to coś innego.** Jeśli zmienisz datę rozpoczęcia w *Ustawienia › Projekt › Ustawienia projektu* i wybierzesz *Zastosuj*, harmonogram się nie przesuwa. Tylko zadania bez poprzednika ani ograniczenia, które po zmianie leżałyby przed nowym początkiem, przesuwają się do tej daty, a aplikacja podaje, ile ich jest. Jeśli chcesz przesunąć wszystko, użyj *Przesuń projekt…*.
 
 ## Zobacz także
 
-- [Ścieżka krytyczna i zapas](docs://uitleg-kritiek-pad): jak harmonogram się oblicza i dlaczego przesuwa się koniec projektu.
+- [Ścieżka krytyczna i zapas](docs://uitleg-kritiek-pad): jak harmonogram się oblicza i dlaczego przesuwa się zakończenie projektu.
 - [Dodawanie relacji](docs://howto-relaties-leggen): relacje po prostu pozostają ustalone przy przesuwaniu.
-- [Nowy projekt i info o projekcie](docs://ref-projectinfo): co robi data rozpoczęcia w info o projekcie.
+- [Nowy projekt i ustawienia projektu](docs://ref-projectinfo): co robi data rozpoczęcia w ustawieniach projektu.

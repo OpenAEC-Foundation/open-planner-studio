@@ -50,13 +50,13 @@ Med *utjämning* får en uppgift inte starta senare än sin senaste start, allts
 
 ## Exempel: muraren på två väggar
 
-Exemplet är övningsprojektet i självstudierna, *House extension*, så som det ser ut precis före utjämningen i självstudie 5. I självstudie 5 gör du det själv och kontrollerar siffrorna. I det här exemplet ligger putsningen på *Fast arbete* och putsaren arbetar med tilldelningsenheter på 2, som i [Arbetsregler: varaktighet, tilldelningsenheter och arbete](docs://uitleg-werkregels).
+Exemplet är övningsprojektet i självstudierna, *House extension*, så som det ser ut precis före utjämningen i självstudie 5. I självstudie 5 gör du det själv och kontrollerar siffrorna. I det här exemplet ligger putsningen på *Fast arbete* och putsaren arbetar med tilldelningsenheter på 2, som i [Uppgiftstyper: varaktighet, tilldelningsenheter och arbete](docs://uitleg-werkregels).
 
 Efter håldäcket, klart måndag 28 juni, börjar både innerskalet (5 arbetsdagar) och ytterskalet (6 arbetsdagar) tisdag 29 juni. Båda har samma murare som resurs, med tilldelningsenheter på 1 och *Max enheter* på 1. Efter innerskalet kommer takelementen (ett kranjobb på 6 timmar) och takläggningen (2 arbetsdagar). Fönsterramarna väntar på takläggningen och på ytterskalet. Överlämningen är måndag 30 augusti.
 
 ### Överbeläggningen
 
-Innerskalet löper från 29 juni till och med 5 juli, ytterskalet från 29 juni till och med 6 juli. Från 29 juni till och med 5 juli, det är 5 arbetsdagar, begär tidsplanen 2 enheter av en murare med kapacitet 1. Muraren har därför överbeläggning under de 5 dagarna.
+Innerskalet löper från 29 juni till och med 5 juli, ytterskalet från 29 juni till och med 6 juli. Från 29 juni till och med 5 juli, det är 5 arbetsdagar, begär tidsplanen 2 enheter av en murare med kapacitet 1. Muraren har överbeläggning under de 5 dagarna.
 
 ### Ordningen
 
@@ -81,7 +81,7 @@ Om du ger ytterskalet prioritet *Hög* (900) kommer det först. Det ligger kvar 
 
 ### Tänk om en andra murare kommer
 
-Om du sätter murarens *Max enheter* till 2 finns ingen överbeläggning längre. *Beräkna* visar *Inga uppgifter behöver flyttas — tidsplanen är redan konfliktfri.*
+Om du sätter murarens *Max enheter* till 2 finns ingen överbeläggning längre. *Beräkna* visar *Inga uppgifter behöver flyttas — tidsplanen är redan konfliktfri*.
 
 ## Konsekvenser och missuppfattningar
 
@@ -101,5 +101,5 @@ Om du sätter murarens *Max enheter* till 2 finns ingen överbeläggning längre
 
 - [Åtgärda överbeläggning](docs://howto-overbezetting-oplossen): stegen för att hitta överbeläggning och jämna ut den.
 - [Kritisk linje och slack](docs://uitleg-kritiek-pad): vad slack är och varför en uppgift blir kritisk.
-- [Arbetsregler: varaktighet, tilldelningsenheter och arbete](docs://uitleg-werkregels): hur en uppgifts varaktighet följer med tilldelningsenheterna.
+- [Uppgiftstyper: varaktighet, tilldelningsenheter och arbete](docs://uitleg-werkregels): hur en uppgifts varaktighet följer med tilldelningsenheterna.
 - [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): tre torn som behöver samma arbetslag och tornkranen, och vad utjämning gör med det.

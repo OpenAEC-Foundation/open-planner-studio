@@ -1,99 +1,167 @@
 // @ts-check
-// Versie-sync: trekt alle app-versie-bronnen gelijk vanuit één commando.
-//
-//   node scripts/bump-version.js 2026.7.0
-//   npm run bump 2026.7.0
-//
-// Werkt deze versievelden bij (CalVer: jaar.maand.patch):
-//   - package.json            top-level "version"
-//   - src-tauri/tauri.conf.json  "version"
-//   - package-lock.json       beide root "version"-velden (regels ~3 en ~9)
-//
-// RAAKT NIET: src-tauri/Cargo.toml (Rust-crate, blijft 0.1.0) en
-//             .github/workflows/release.yml.
-//
-// Alleen Node-ingebouwde modules; behoudt JSON-opmaak (2 spaties + trailing
-// newline) zodat de diff minimaal blijft.
-//
-// Dit bestand draait als ESM (package.json heeft "type": "module").
+// Versie-sync: JJJJ.W.N = ISO-weekjaar, ISO-week en volgnummer vanaf 0.
+// npm run bump kiest de eerstvolgende versie uit vandaag, actuele origin-tags en de huidige versie.
+// npm run bump 2026.43.1 zet een expliciete versie; --check controleert zonder schrijven.
+// OPS_BUMP_DATE=2027-01-01 maakt de datum reproduceerbaar; tests injecteren ook de tags.
 
+import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
+import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const repoRoot = join(__dirname, '..');
+const repoRoot = fileURLToPath(new URL('..', import.meta.url));
+const VERSION_RE = /^([1-9]\d{3})\.([1-9]\d?)\.(0|[1-9]\d*)$/;
 
-const VERSION_RE = /^\d{4}\.\d+\.\d+$/;
-
-function usage(message) {
-  if (message) console.error(`Fout: ${message}\n`);
-  console.error('Gebruik: node scripts/bump-version.js <X.Y.Z>');
-  console.error('         npm run bump <X.Y.Z>');
-  console.error('');
-  console.error('  <X.Y.Z>  CalVer-versie jaar.maand.patch, bv. 2026.7.0');
-  process.exit(1);
+/** Vandaag volgens de lokale kalender, zonder tijdzoneverschuiving door toISOString(). */
+function today() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
-const newVersion = process.argv[2];
-
-if (!newVersion) {
-  usage('geen versie-argument opgegeven.');
+/** @param {string} date Datum als JJJJ-MM-DD. */
+export function isoWeek(date) {
+  const thursday = new Date(`${date}T00:00:00Z`);
+  if (!/^[1-9]\d{3}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(thursday.getTime()) || thursday.toISOString().slice(0, 10) !== date) {
+    throw new Error(`Ongeldige datum: ${date}; verwacht JJJJ-MM-DD.`);
+  }
+  // De donderdag bepaalt zowel de ISO-week als het ISO-weekjaar (ook rond nieuwjaar).
+  thursday.setUTCDate(thursday.getUTCDate() + 4 - (thursday.getUTCDay() || 7));
+  const year = thursday.getUTCFullYear();
+  const week = Math.ceil(((thursday.getTime() - Date.UTC(year, 0, 1)) / 86_400_000 + 1) / 7);
+  return { year, week };
 }
-if (!VERSION_RE.test(newVersion)) {
-  usage(`"${newVersion}" is geen geldige CalVer-versie (verwacht jaar.maand.patch, bv. 2026.7.0).`);
+
+/** @param {string} version */
+export function parseVersion(version) {
+  const match = VERSION_RE.exec(version);
+  if (match) {
+    const [year, week, sequence] = match.slice(1).map(Number);
+    if (week <= isoWeek(`${year}-12-28`).week && Number.isSafeInteger(sequence)) {
+      return [year, week, sequence];
+    }
+  }
+  throw new Error(`"${version}" is geen geldige versie JJJJ.W.N (ISO-weekjaar, week zonder voorloopnul, volgnummer vanaf 0).`);
+}
+
+/** @param {string} date @param {string[]} tags */
+export function nextVersion(date, tags) {
+  const { year, week } = isoWeek(date);
+  const prefix = `v${year}.${week}.`;
+  let highest = -1;
+  for (const tag of tags) {
+    if (!tag.startsWith(prefix) || !/^v[1-9]\d{3}\.[1-9]\d?\.(0|[1-9]\d*)$/.test(tag)) continue;
+    const [, , sequence] = parseVersion(tag.slice(1));
+    highest = Math.max(highest, sequence);
+  }
+  const version = `${year}.${week}.${highest + 1}`;
+  parseVersion(version);
+  return version;
+}
+
+/** Actuele tags ophalen zonder lokale refs te wijzigen; een onbereikbare origin blokkeert de bump.
+ * @param {string} root
+ */
+function readOriginTags(root) {
+  let output;
+  try {
+    output = execFileSync('git', ['ls-remote', '--tags', 'origin', 'v*'], {
+      cwd: root,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+      timeout: 30_000,
+    });
+  } catch {
+    throw new Error("Kan de actuele tags van origin niet lezen (git ls-remote --tags origin 'v*'). Controleer origin en de netwerkverbinding; er zijn geen bestanden gewijzigd.");
+  }
+  return output.split(/\r?\n/).flatMap(line => {
+    const ref = line.split('\t')[1];
+    // Een annotated tag heeft ook een peeled ref met ^{}; beide wijzen naar dezelfde versie.
+    return ref?.startsWith('refs/tags/') ? [ref.slice('refs/tags/'.length).replace(/\^\{\}$/, '')] : [];
+  });
+}
+
+// Alleen eigen pakketvelden; dependency-, extensie-, API-contract- en bestandsformaatversies
+// hebben hun eigen levenscyclus. De OpenAPI-info is de documentversie van deze appbouw.
+const VERSION_FIELDS = [
+  { path: 'package.json', matcher: /("version"\s*:\s*")([^"]*)(")/g, expected: 1 },
+  { path: 'package-lock.json', matcher: /("name"\s*:\s*"open-planner-studio",\s*\n\s*"version"\s*:\s*")([^"]*)(")/g, expected: 2 },
+  { path: 'src-tauri/tauri.conf.json', matcher: /("version"\s*:\s*")([^"]*)(")/g, expected: 1 },
+  { path: 'src-tauri/Cargo.toml', matcher: /(\[package\]\s*\nname = "open-planner-studio"\s*\nversion = ")([^"]*)(")/g, expected: 1 },
+  { path: 'src-tauri/Cargo.lock', matcher: /(\[\[package\]\]\s*\nname = "open-planner-studio"\s*\nversion = ")([^"]*)(")/g, expected: 1 },
+  { path: 'headless/server/package.json', matcher: /("version"\s*:\s*")([^"]*)(")/g, expected: 1 },
+  { path: 'headless/consumer-example/package.json', matcher: /("version"\s*:\s*")([^"]*)(")/g, expected: 1 },
+  { path: 'headless/server/openapi.yaml', matcher: /(^  version: )([^\r\n]*)(\r?$)/gm, expected: 1 },
+  { path: 'snap/snapcraft.yaml', matcher: /(^version: ')([^']*)(')/gm, expected: 1 },
+  { path: 'integrations/claude-desktop/manifest.json', matcher: /("version"\s*:\s*")([^"]*)(")/g, expected: 1 },
+];
+
+/** @param {string} root @param {string} version */
+function prepareVersionFiles(root, version) {
+  return VERSION_FIELDS.map(({ path, matcher, expected }) => {
+    const original = readFileSync(join(root, path), 'utf8');
+    /** @type {string[]} */
+    const values = [];
+    const updated = original.replace(matcher, (_match, pre, value, post) => {
+      values.push(value);
+      return `${pre}${version}${post}`;
+    });
+    if (values.length !== expected) {
+      throw new Error(`${path}: verwachtte ${expected} versieveld(en), vond er ${values.length}.`);
+    }
+    return { path, original, updated, values };
+  });
+}
+
+/** Hetzelfde register controleert bij een release alle versievelden tegen de tag.
+ * @param {string} version @param {string} [root]
+ */
+export function checkVersionFiles(version, root = repoRoot) {
+  parseVersion(version);
+  const mismatches = prepareVersionFiles(root, version).filter(file => file.values.some(value => value !== version));
+  if (mismatches.length) {
+    throw new Error(`Versies wijken af van ${version}: ${mismatches.map(file => `${file.path}=${file.values.join(',')}`).join('; ')}. Draai npm run bump.`);
+  }
 }
 
 /**
- * Vervangt een specifiek "version": "..."-veld in JSON-brontekst, zonder de
- * rest van de opmaak aan te tasten. Werkt op de ruwe tekst i.p.v. parse/stringify
- * om de exacte indentatie/whitespace te behouden.
- *
- * @param {string} relPath  pad t.o.v. repo-root
- * @param {object} opts
- * @param {number} [opts.expected]  verwacht aantal vervangingen (default 1)
- * @param {RegExp} [opts.matcher]   regex met 3 capture-groepen (pre, oude waarde,
- *                                  post) waarvan de middelste de versie is. Default
- *                                  matcht het eerste/elk "version"-veld in het bestand.
+ * Bereidt alle vervangingen voor vóór er wordt geschreven. Maakt geen commit of tag.
+ * @param {{ root?: string, version?: string, date?: string, tags?: string[] }} [options]
  */
-function bumpJsonVersionField(relPath, opts = {}) {
-  const expected = opts.expected ?? 1;
-  const absPath = join(repoRoot, relPath);
-  const original = readFileSync(absPath, 'utf8');
-
-  // Matcht  "version": "1.2.3"  met behoud van omliggende whitespace.
-  const fieldRe = opts.matcher ?? /("version"\s*:\s*")([^"]*)(")/g;
-
-  const oldValues = [];
-  const updated = original.replace(fieldRe, (match, pre, oldVal, post) => {
-    oldValues.push(oldVal);
-    return `${pre}${newVersion}${post}`;
-  });
-
-  if (oldValues.length !== expected) {
-    console.error(
-      `Fout: ${relPath} — verwachtte ${expected} "version"-veld(en), vond er ${oldValues.length}.`
-    );
-    process.exit(1);
+export function bumpVersion({ root = repoRoot, version, date = process.env.OPS_BUMP_DATE ?? today(), tags } = {}) {
+  const currentVersion = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version;
+  const current = parseVersion(currentVersion);
+  if (version === undefined) {
+    isoWeek(date);
+    const originTags = tags ?? readOriginTags(root);
+    // Ook een nog niet getagde bump binnen deze week moet een hoger volgnummer krijgen.
+    version = nextVersion(date, [...originTags, `v${currentVersion}`]);
   }
-
-  const oldDisplay = [...new Set(oldValues)].join(', ');
-  if (updated !== original) {
-    writeFileSync(absPath, updated);
+  const requested = parseVersion(version);
+  const different = requested.findIndex((value, index) => value !== current[index]);
+  if (different >= 0 && requested[different] < current[different]) {
+    throw new Error(`Versie ${version} is lager dan de huidige versie ${currentVersion}.`);
   }
-  console.log(`  ${relPath.padEnd(28)} ${oldDisplay} -> ${newVersion}`);
+  const files = prepareVersionFiles(root, version);
+  for (const file of files) {
+    if (file.updated !== file.original) writeFileSync(join(root, file.path), file.updated);
+  }
+  return version;
 }
 
-console.log(`Versie gelijktrekken naar ${newVersion}:`);
-bumpJsonVersionField('package.json', { expected: 1 });
-bumpJsonVersionField('src-tauri/tauri.conf.json', { expected: 1 });
-
-// package-lock.json bevat een "version"-veld voor ELKE dependency; de twee root-
-// versies (regels ~3 en ~9) zijn de enige die direct vooraf worden gegaan door
-// het eigen pakketnaam-veld. Anker daarop zodat we de transitieve dep-versies
-// met rust laten.
-bumpJsonVersionField('package-lock.json', {
-  expected: 2,
-  matcher: /("name"\s*:\s*"open-planner-studio",\s*\n\s*"version"\s*:\s*")([^"]*)(")/g,
-});
-console.log('Klaar.');
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try {
+    const args = process.argv.slice(2);
+    if (args[0] === '--check' && args.length === 2) {
+      checkVersionFiles(args[1]);
+      console.log(`Alle versievelden zijn gelijk aan ${args[1]}.`);
+    } else if (args.length <= 1 && !args[0]?.startsWith('-')) {
+      console.log(`Alle versievelden gelijkgetrokken naar ${bumpVersion({ version: args[0] })}.`);
+    } else {
+      throw new Error('Gebruik: npm run bump [JJJJ.W.N] of node scripts/bump-version.js --check JJJJ.W.N.');
+    }
+  } catch (error) {
+    console.error(`Fout: ${error instanceof Error ? error.message : String(error)}`);
+    process.exitCode = 1;
+  }
+}

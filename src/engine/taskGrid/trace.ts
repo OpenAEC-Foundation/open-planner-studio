@@ -1,3 +1,4 @@
+import { knownDrivingSequenceIds } from '@/engine/scheduler/drivingInfo';
 import { traceFrom } from '@/engine/scheduler/graphWalk';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type { Sequence } from '@/types/sequence';
@@ -44,16 +45,18 @@ export function buildTrace(
 ): TaskTrace | undefined {
   if (traceMode === 'off' || selectedTaskIds.length === 0) return undefined;
   const focusId = selectedTaskIds[0];
-  const drivingIds = cpmResult && !cpmResult.error
-    ? new Set(cpmResult.drivingSequenceIds)
-    : undefined;
-  const traced = traceFrom(focusId, sequences, drivingIds);
+  const drivingIds = knownDrivingSequenceIds(cpmResult);
+  const traced = traceFrom(focusId, sequences, drivingIds === undefined ? undefined : new Set(drivingIds));
+  // Zonder berekening is er geen onderscheid in nadruk: toon het hele pad even sterk.
+  // Een berekende lege lijst blijft juist een pad zonder bepalende keten.
+  const drivingPredecessors = drivingIds === undefined ? traced.predecessors : traced.drivingPredecessors;
+  const drivenSuccessors = drivingIds === undefined ? traced.successors : traced.drivenSuccessors;
   return {
     focusId,
     predecessors: traceMode !== 'successors' ? [...traced.predecessors] : [],
-    drivingPredecessors: traceMode !== 'successors' ? [...traced.drivingPredecessors] : [],
+    drivingPredecessors: traceMode !== 'successors' ? [...drivingPredecessors] : [],
     successors: traceMode !== 'predecessors' ? [...traced.successors] : [],
-    drivenSuccessors: traceMode !== 'predecessors' ? [...traced.drivenSuccessors] : [],
+    drivenSuccessors: traceMode !== 'predecessors' ? [...drivenSuccessors] : [],
   };
 }
 

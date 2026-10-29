@@ -69,14 +69,14 @@ Vous tapez un décalage dans la case à côté du type, avec chacune des façons
 - `3` ou `3d` : 3 jours ouvrés. Un week-end ne compte pas. L'application affiche `+3d`.
 - `3ed` : 3 jours calendaires. Le week-end compte, comme pour du béton qui durcit aussi le samedi et le dimanche.
 - `-1` : un décalage négatif (avance). Le successeur peut démarrer un jour plus tôt, de sorte que les tâches se chevauchent.
-- `4h` : 4 heures ouvrées ; l'application l'affiche comme `+4u`. Si le prédécesseur est une tâche en jours sur un calendrier sans plages horaires propres, comme le calendrier standard, l'application convertit ceci en jours ouvrés entiers, arrondis au jour le plus proche : `4h` agit alors comme 1 jour, `2h` comme 0. Sur un calendrier avec ses propres plages horaires, ou après une tâche en heures, le décalage compte exactement en heures.
+- `4h` : 4 heures ouvrées ; l'application l'affiche comme `+4h`. Si le prédécesseur est une tâche en jours sur un calendrier sans plages horaires propres, comme le calendrier standard, l'application convertit ceci en jours ouvrés entiers, arrondis au jour le plus proche : `4h` agit alors comme 1 jour, `2h` comme 0. Sur un calendrier avec ses propres plages horaires, ou après une tâche en heures, le décalage compte exactement en heures.
 - `50%` : la moitié de la durée du prédécesseur.
 
 Exemple : le béton de la fondation doit durcir avant que le maçon puisse travailler dessus. *Pour foundation → Foundation brickwork* reçoit donc une relation FS avec le décalage `3`. Si le coulage a lieu le vendredi 18 juin 2027, la maçonnerie démarre après **Calculer** le jeudi 24 juin : du lundi au mercredi, c'est du temps d'attente. Avec `3ed`, le week-end compte et la maçonnerie démarre le mardi 22 juin.
 
 ### Enfin : recalculer
 
-Une nouvelle relation ne déplace pas encore de barres ; la barre d'état affiche *Obsolète — recalculer (F5)*. Appuyez sur **Calculer** (F5), par exemple via *Accueil › Planification › Calculer*. Ce n'est qu'alors que les successeurs reçoivent leurs nouvelles dates. Si vous voulez que l'application le fasse pour vous, activez *Calculer automatiquement* dans *Paramètres › Projet › Paramètres*, onglet *Planification*.
+Une nouvelle relation ne déplace pas encore de barres ; la barre d'état affiche *Obsolète — recalculer (F5)*. Appuyez sur **Calculer** (F5), par exemple via *Accueil › Planification › Calculer*. Ce n'est qu'alors que les successeurs reçoivent leurs nouvelles dates. Si vous voulez que l'application le fasse pour vous, activez *Calculer automatiquement* dans *Paramètres › Projet › Paramètres de l'app*, onglet *Planification*.
 
 ## Pièges et comportement de l'application
 

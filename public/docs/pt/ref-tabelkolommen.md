@@ -4,14 +4,14 @@ A tabela de tarefas tem 86 colunas fixas, mais uma coluna por código de ativida
 
 ## Onde escolhe as colunas
 
-A tabela de tarefas ao lado do Gantt e a tabela no separador *Tabela* têm, cada uma, a sua própria escolha de colunas. O sinal de mais à direita do cabeçalho abre o seletor de colunas (título da janela *Escolher coluna*); no separador *Tabela* pode também usar *Tabela › Colunas › Colunas…*. O seletor lista as colunas por categoria: *Tarefa*, *Planeamento*, *Restrições*, *Relações*, *Recursos*, *Progresso*, *Calculado*, *Linha de base*, *Personalizado* e *Técnico*. Pode procurar pelo nome, e *Usadas recentemente* fica no topo. *Repor predefinição* restaura as colunas predefinidas.
+A tabela de tarefas ao lado do Gantt e a tabela no separador *Tabela* têm, cada uma, a sua própria escolha de colunas. O sinal de mais à direita do cabeçalho abre o seletor de colunas (título da janela *Escolher coluna*); no separador *Tabela* pode também usar *Tabela › Colunas › Colunas…*. O seletor lista as colunas por categoria: *Tarefa*, *Planeamento*, *Restrições*, *Relações*, *Recursos*, *Progresso*, *Calculado*, *Linha de base*, *Personalizado* e *Técnico*. Pode procurar pelo nome, e *Usadas recentemente* fica no topo. *Repor predefinição* restaura as colunas padrão.
 
-Por padrão, a tabela ao lado do Gantt mostra *WBS*, *Nome da tarefa* e *Duração*. A tabela do separador *Tabela* mostra *WBS*, *Nome da tarefa*, *Duração*, *Início*, *Fim*, *Tipo de tarefa*, *Crítica*, *Folga total* e *Progresso*, mais uma coluna por código de atividade e campo personalizado do projeto.
+Por padrão, a tabela ao lado do Gantt mostra *WBS*, *Nome da tarefa* e *Duração*. A tabela do separador *Tabela* mostra *WBS*, *Nome da tarefa*, *Duração*, *Início*, *Fim*, *Categoria de trabalho*, *Crítica*, *Folga total* e *Progresso*, mais uma coluna por código de atividade e campo personalizado do projeto.
 
 ## Como os valores são lidos e editados
 
-- **Colunas calculadas** — as colunas da categoria *Calculado* e algumas outras são só leitura: vêm do cálculo. Se tentar editar uma célula em só leitura, a aplicação indica *Esta coluna calculada não pode ser editada.* Esta é a mensagem geral para cada célula em só leitura, também quando a coluna não é calculada. Se estiverem desatualizadas por ter alterado algo, aparece *obsoleto* ao lado delas até premir *Calcular*.
-- **Datas** — aparecem no formato que escolheu em *Definições*, separador *Visualização*, secção *Formato de data*.
+- **Colunas calculadas** — as colunas da categoria *Calculado* e algumas outras são só leitura: vêm do cálculo. Se tentar editar uma célula só leitura, a aplicação indica *Esta coluna calculada não pode ser editada*. Esta é a mensagem geral para cada célula só leitura, também quando a coluna não é calculada. Se estiverem desatualizadas por ter alterado algo, aparece *obsoleto* ao lado delas até premir *Calcular*.
+- **Datas** — aparecem no formato que escolheu em *Definições da app*, separador *Aparência*, secção *Formato de data*.
 - **Durações e folga** — uma duração aparece na unidade da tarefa (`5d`, `12h`) ou segundo *Exibição da duração* no mesmo separador (*Automática (unidade própria por tarefa)*, *Sempre dias* ou *Sempre horas*). A folga aparece em dias úteis, com duas casas decimais e com o separador decimal da sua língua.
 - **Sim/Não** — um valor sim/não aparece como *Sim* ou *Não*; um valor vazio aparece como travessão (—).
 - **Edição** — escreva ou escolha um valor. Um valor inválido é recusado, com um motivo debaixo da célula, por exemplo *Introduza uma duração válida, como 5d ou 8h.* ou *Introduza uma percentagem entre 0 e 100.* Colar um bloco de células funciona célula a célula; as células só leitura são ignoradas e a aplicação indica quantas.
@@ -21,9 +21,9 @@ Por padrão, a tabela ao lado do Gantt mostra *WBS*, *Nome da tarefa* e *Duraç�
 - **Nome da tarefa** — o nome da tarefa. Editável; obrigatório. Uma tarefa de resumo aparece a negrito, com um fundo ligeiramente colorido na célula do nome; um marco aparece a negrito na cor de marco (da mesma família de cores do marco no Gantt). Uma tarefa comum fica como está. Isto é só formatação: selecionar, arrastar e editar funcionam da mesma forma.
 - **Descrição** — a descrição. Editável; texto livre.
 - **WBS** — o código WBS. Editável e obrigatório, mas só leitura enquanto *WBS auto* estiver ativo.
-- **Tipo de tarefa** — o tipo de tarefa (*Construção*, *Instalação*, *Demolição*, *Logística*, *Inspecção*, *Transferência*, *Renovação*, *Manutenção* ou *Outro*). Editável com uma lista.
-- **Tipo de tarefa personalizado** — o tipo de tarefa personalizado do projeto, ou um travessão. Editável com uma lista dos tipos personalizados do projeto.
-- **Cor** — a cor guardada da tarefa, como um código de cor, por exemplo `#1a73e8`. Editável com um seletor de cores. Fica guardada no ficheiro IFC, mas nenhuma barra ou relatório a usa; defina as cores das barras em *Visualização › Linhas de base e progresso › Cores das barras*.
+- **Categoria de trabalho** — a categoria de trabalho (*Construção*, *Instalação*, *Demolição*, *Logística*, *Inspecção*, *Transferência*, *Renovação*, *Manutenção* ou *Outro*). Editável com uma lista.
+- **Categoria de trabalho personalizada** — a categoria de trabalho personalizada do projeto, ou um travessão. Editável com uma lista das categorias de trabalho personalizadas do projeto.
+- **Cor** — a cor guardada da tarefa, como código de cor, por exemplo `#1a73e8`. Editável com um seletor de cores. Fica guardada no ficheiro IFC, mas nenhuma barra ou relatório a usa; defina as cores das barras em *Visualização › Linhas de base e progresso › Cores das barras*.
 - **Notas** — as notas no formato `✓ texto; ○ texto`. Editáveis enquanto houver no máximo uma nota (edita-se então o seu texto); com mais notas, só leitura.
 
 ## Planeamento
@@ -32,17 +32,17 @@ Por padrão, a tabela ao lado do Gantt mostra *WBS*, *Nome da tarefa* e *Duraç�
 - **Tipo de marco** — *Marco de início* ou *Marco de fim*, ou um travessão para automático. Só editável num marco.
 - **Marco obrigatório** — o indicador *Obrigatório (contratual)*. Só editável num marco.
 - **Prioridade de nivelamento** — um número inteiro de 0 a 1000, por padrão 500. Editável. 1000 fixa a tarefa para o nivelamento.
-- **Lacunas de divisão** — o número de interrupções, como `Lacunas de divisão: 2`, ou um travessão. Só leitura; edita-as no painel *Propriedades*.
-- **Regra de trabalho** — a regra de trabalho da tarefa; vazio significa o padrão do projeto. Editável com uma lista, mas vazia e só leitura num marco, numa tarefa de resumo ou numa hammock. Só aparece no seletor quando as regras de trabalho estão visíveis (*Mostrar regras de trabalho e trabalho*, ou quando o ficheiro contém regras de trabalho).
+- **Lacunas de divisão** — o número de interrupções, como `Lacunas de divisão: 2`, ou um travessão. Só leitura; edite-as no painel *Propriedades*.
+- **Tipo de tarefa** — o tipo de tarefa; vazio é o padrão do projeto. Editável com uma lista, mas vazio e só leitura num marco, numa tarefa de resumo ou numa hammock. Só aparece no seletor quando os tipos de tarefa estão visíveis (*Usar tipos de tarefa*, ou o ficheiro contém tipos de tarefa).
 - **Hammock (duração derivada)** — se a tarefa é uma hammock. Editável, exceto num marco ou numa tarefa de resumo.
 - **Calendário** — o ID do calendário próprio da tarefa; vazio (—) é o calendário do projeto. Escreva ou escolha um ID entre as sugestões; um ID desconhecido é recusado. Nota: a célula mostra, de momento, o ID interno em vez do nome; é melhor escolher um calendário no painel *Propriedades*.
 - **Tipo de duração** — *Tempo de trabalho* (a duração conta em dias úteis ou em horário de trabalho do calendário) ou *Tempo decorrido* (a duração conta em tempo de relógio contínuo, sem calendário). Editável.
 - **Unidade da duração** — *Dias* ou *Horas*. Editável, exceto numa tarefa de resumo, numa hammock ou num marco; a troca só funciona se a conversão for exata e *Ativar planeamento por horas* estiver ativo.
-- **Duração** — a duração da tarefa, na unidade da tarefa ou segundo *Exibição da duração*. Editável: escreva `5d`, `12h` ou `1h 30m`; também um número na unidade da tarefa. Só leitura numa tarefa de resumo, numa hammock e num marco com duração 0.
-- **Início** — o início mostrado, a mesma data que a barra do Gantt. Editável. Uma tarefa com predecessora, à qual atribui um novo início, recebe a restrição *Não começar antes de (SNET)* nessa data. Só leitura numa tarefa de resumo ou numa hammock, salvo se estiver agendada manualmente.
-- **Fim** — o fim mostrado. Editável: um novo fim torna-se uma nova duração. A aplicação recusa-o para uma tarefa concluída, um marco, uma tarefa em tempo decorrido e uma tarefa com interrupções, e para um fim anterior ao início (*O fim é anterior ao início.*). Só leitura numa tarefa de resumo ou numa hammock, salvo se estiver agendada manualmente.
+- **Duração** — a duração da tarefa, na unidade da tarefa ou segundo *Exibição da duração*. Editável: escreva `5d`, `12h` ou `1h 30m`; também um número na unidade da tarefa. Em só leitura numa tarefa de resumo, numa hammock e num marco com duração 0.
+- **Início** — o início mostrado, a mesma data que a barra do Gantt. Para uma tarefa que já começou, é o início real. Editável. Uma tarefa com predecessora, à qual atribui um novo início, recebe a restrição *Não começar antes de (SNET)* nessa data. Em só leitura numa tarefa de resumo ou numa hammock, salvo se estiver agendada manualmente, e numa tarefa que já começou (*Esta tarefa já começou; o seu início é o início real. Altere-o através do progresso*).
+- **Fim** — o fim mostrado. Para uma tarefa concluída, é o fim real. Editável: um novo fim torna-se uma nova duração. A aplicação recusa-o para um marco, uma tarefa em tempo decorrido e uma tarefa com interrupções, e para um fim anterior ao início (*O fim é anterior ao início*). Em só leitura numa tarefa de resumo ou numa hammock, salvo se estiver agendada manualmente, e numa tarefa concluída (*Esta tarefa está concluída; o seu fim é o fim real. Altere-o através do progresso*).
 - **Início planeado** — a âncora de planeamento a partir da qual o cálculo parte (não é necessariamente o início mostrado). Editável; tem o mesmo efeito que escrever em *Início*.
-- **Fim planeado** — o fim introduzido. Só editável numa tarefa agendada manualmente; caso contrário, a aplicação indica *O fim planeado só se aplica a uma tarefa agendada manualmente. Altere o fim através da coluna Fim ou da duração.*
+- **Fim planeado** — o fim introduzido. Só editável numa tarefa agendada manualmente; caso contrário, a aplicação indica *O fim planeado só se aplica a uma tarefa agendada manualmente. Altere o fim através da coluna Fim ou da duração*.
 
 ## Restrições
 
@@ -63,12 +63,13 @@ Por padrão, a tabela ao lado do Gantt mostra *WBS*, *Nome da tarefa* e *Duraç�
 
 ## Recursos
 
-- **Recursos atribuídos** — os nomes dos recursos atribuídos, separados por vírgulas. Editável: ao acrescentar um nome, o recurso fica atribuído com 1 unidade por dia; ao remover um nome, a atribuição é eliminada. Só leitura num marco ou numa tarefa de resumo.
-- **Unidades de atribuição por dia** — as unidades por recurso, como `Nome: 1; Nome: 0.5`. Editável numa tarefa com atribuições.
-- **Curva de atribuição** — a curva por recurso, como `Nome: Uniforme`. Editável numa tarefa com atribuições.
-- **Início da janela de trabalho** e **Fim da janela de trabalho** — a janela de trabalho por recurso, de um ficheiro importado, como `Nome: data`. Só leitura.
-- **Trabalho previsto (horas)** e **Trabalho real (horas)** — o trabalho previsto e real por recurso em horas, como `Nome: 12`, de um ficheiro importado. Só leitura.
-- **Trabalho restante (horas)** — o trabalho restante por recurso em horas, como `Nome: 6`: o trabalho guardado; caso contrário, a duração restante × unidades. Editável numa tarefa com atribuições às quais se aplica uma regra de trabalho. Só aparece no seletor quando as regras de trabalho estão visíveis.
+- **Recursos atribuídos** — os nomes dos recursos atribuídos, separados por vírgulas. Editável: ao acrescentar um nome, o recurso fica atribuído com 1 unidade por dia; ao remover um nome, a atribuição é eliminada. Em só leitura num marco ou numa tarefa de resumo.
+- **Unidades de atribuição por dia** — as unidades por recurso, como `Name: 1; Name: 0,5`, com no máximo duas casas decimais. O valor guardado mantém-se exato. Editável numa tarefa com atribuições.
+- **Unidades planeadas por dia** — o valor planeado por recurso, como `Name: 1.11`, com no máximo duas casas decimais, como em *Unidades de atribuição por dia*. Só para uma atribuição de Primavera P6 com um valor restante diferente; *Unidades de atribuição por dia* mostra então o valor restante. Só leitura.
+- **Curva de atribuição** — a curva por recurso, como `Name: Uniforme`. Editável numa tarefa com atribuições.
+- **Início da janela de trabalho** e **Fim da janela de trabalho** — a janela de trabalho por recurso, de um ficheiro importado, como `Name: data`. Só leitura.
+- **Trabalho previsto (horas)** e **Trabalho real (horas)** — o trabalho previsto e real por recurso em horas, como `Name: 617,14`, com no máximo duas casas decimais, de um ficheiro importado. Só leitura.
+- **Trabalho restante (horas)** — o trabalho restante por recurso em horas, como `Name: 6` ou `Name: 26,67`: o trabalho guardado; caso contrário, duração restante × unidades. Editável numa tarefa com atribuições à qual se aplica um tipo de tarefa, com vírgula ou ponto como separador decimal. Só aparece no seletor quando os tipos de tarefa estão visíveis. Um ⚠ amarelo na célula indica que o trabalho guardado difere de unidades × duração restante, como o ⚠ em *Trabalho (rest.)* no painel da tarefa.
 
 ## Progresso
 
@@ -86,16 +87,16 @@ As colunas de progresso seguem as regras de progresso da aplicação: uma data r
 
 Todas as colunas desta categoria são só leitura.
 
-- **Atraso de nivelamento** — em quantos dias úteis o nivelamento atrasou a tarefa; um travessão se não foi aplicado nenhum nivelamento.
-- **Início antecipado** e **Fim antecipado** — as datas mais cedo do cálculo.
+- **Atraso de nivelamento** — em quantos dias úteis o nivelamento atrasou a tarefa; um travessão se não tiver sido aplicado nenhum nivelamento.
+- **Início antecipado** e **Fim antecipado** — as datas mais cedo do cálculo. Numa tarefa que já começou, podem ser diferentes de *Início* e *Fim*: o perfil de cálculo *Primavera P6* põe o início antecipado de uma tarefa em curso ou concluída na data de estado.
 - **Início tardio** e **Fim tardio** — as datas mais tardias em que a tarefa ainda pode começar ou acabar sem atrasar o projeto.
 - **Folga livre** — os dias úteis em que a tarefa pode atrasar-se sem atrasar uma sucessora.
 - **Folga total** — os dias úteis em que a tarefa pode atrasar-se sem atrasar o fim do projeto. Negativa se uma restrição ou um prazo não puder ser cumprido.
 - **Crítica** — *Sim* se a tarefa estiver no caminho crítico.
 - **Folga interferente** — folga total menos folga livre.
-- **Quase crítica** — *Sim* numa tarefa quase crítica. Só é preenchida se *Marcar quase crítico* estiver ativo (*Info do projeto*, bloco *Perfil de cálculo e opções*); caso contrário, um travessão.
+- **Quase crítica** — *Sim* numa tarefa quase crítica. Só é preenchida se *Marcar quase crítico* estiver ativo (*Definições do projeto*, bloco *Perfil de cálculo e opções*); caso contrário, um travessão.
 - **Caminho de folga** — o número do caminho de folga; 1 é o mais crítico. Só é preenchido se *Múltiplos caminhos de folga* estiver ativo; caso contrário, um travessão.
-- **Origem das datas registadas** — para um ficheiro com datas registadas: *Diverge* ou *Parcialmente não registado*. Só aparece no seletor para esse ficheiro. Num eixo não registado, *Não registado* aparece nas colunas de datas mais tardias e de folga.
+- **Origem das datas registadas** — enquanto a aplicação mostrar as datas do ficheiro: *Parcialmente não registado* numa tarefa para a qual o ficheiro não contém tudo. Só aparece no seletor nessa vista. Num eixo não registado, *Não registado* aparece nas colunas de datas tardias e de folga.
 
 Veja [Caminho crítico e folga](docs://uitleg-kritiek-pad).
 

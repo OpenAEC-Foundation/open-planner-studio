@@ -22,11 +22,11 @@ Bez sviatkov aplikácia jednoducho naplánuje prácu na Vianoce alebo na Deň kr
 
 Pre Holandsko aplikácia každý rok zapíše do zoznamu: Nieuwjaar (Nový rok), Goede Vrijdag (Veľký piatok), Pasen (Veľká noc, dva dni), Koningsdag (Deň kráľa), Hemelvaart (Nanebovstúpenie), Pinksteren (Turíce, dva dni) a Kerst (Vianoce, 25. a 26. decembra). Ak Deň kráľa pripadne na nedeľu, je 26. apríla. Bevrijdingsdag (Deň oslobodenia) je v zozname iba v rokoch deliteľných piatimi, napríklad 2025 a 2030.
 
-Roky vychádzajú z obdobia projektu: od roka pred dátumom začiatku do roka po dátume konca. Ak projekt nemá dátum konca, najviac tri roky po roku začiatku. Začiatok a koniec upravíte v *Nastavenia › Projekt › Info o projekte*.
+Roky vychádzajú z obdobia projektu: od roka pred dátumom začiatku do roka po dátume konca. Ak projekt nemá dátum konca, najviac tri roky po roku začiatku. Začiatok a koniec upravíte v *Nastavenia › Projekt › Nastavenia projektu*.
 
 ### Opätovné generovanie po zmene obdobia projektu
 
-Ak sa projekt posunie alebo dostane neskorší dátum konca, sviatky už nepokrývajú nové roky. Aplikácia to ukáže v okne *Kalendáre*, napríklad: *Sviatky pokrývajú 2025–2028; projekt beží do 2030. Chcete ich vygenerovať znova?* Kliknite na *Vygenerovať znova*. Aplikácia použije pre roky projektu rovnaké voľby ako naposledy: krajinu, región a stavebnú dovolenku. Potom kliknite na *Použiť*. Túto správu vidíte iba pri kalendári, ktorého sviatky sa vygenerovali skôr.
+Ak sa projekt posunie alebo dostane neskorší dátum konca, sviatky už nepokrývajú nové roky. Aplikácia to ukáže v okne *Kalendáre*, napríklad: *Sviatky pokrývajú 2025–2028; vygenerovať znova až do roku 2030?* Kliknite na *Vygenerovať znova*. Aplikácia použije pre roky projektu rovnaké voľby ako naposledy: krajinu, región a stavebnú dovolenku. Potom kliknite na *Použiť*. Túto správu vidíte iba pri kalendári, ktorého sviatky sa vygenerovali skôr.
 
 ### Pridanie vlastného dňa alebo obdobia voľna
 
@@ -58,5 +58,5 @@ V poli *Krajina* zvoľte *Žiadne sviatky* a kliknite na *Vygenerovať*. Zoznam 
 - [Kalendáre a pracovné dni](docs://uitleg-kalenders): ako aplikácia zohľadňuje sviatky a stavebnú dovolenku pri počítaní pracovných dní.
 - [Vytvorenie a priradenie kalendára](docs://howto-kalender-maken-en-toewijzen): vytvorenie vlastného kalendára pre sviatky.
 - [Okná kalendára](docs://ref-kalenders): všetky polia okien kalendára.
-- [Nový projekt a Info o projekte](docs://ref-projectinfo): súbor sviatkov pre nový projekt.
+- [Nový projekt a Nastavenia projektu](docs://ref-projectinfo): súbor sviatkov pre nový projekt.
 - [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): okrem sviatkov má kalendár projektu obdobie voľna *Frost delay, foundations*.

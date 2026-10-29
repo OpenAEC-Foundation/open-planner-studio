@@ -10,7 +10,7 @@ Otwórz kartę *Raport* (lub naciśnij Ctrl+P). Po lewej stronie jest kolumna *R
 
 **Eksportuj PDF** — tworzy plik PDF. Skutek: wynik to tylko plik PDF; aplikacja nic nie wysyła do drukarki. Jeśli harmonogram jest nieaktualny, aplikacja najpierw go oblicza. Jeśli obliczenie zwróci błąd, na przykład przez pętlę w relacjach, przycisk nie utworzy pliku i pokaże błąd. Gdzie: *Raport*, na dole kolumny *Raport*.
 
-**Zapamiętane.** Aplikacja zapamiętuje wszystkie opcje raportu na tym urządzeniu, dla wszystkich projektów. Nie należą do pliku projektu. Tylko pole *Firma*: wykresu Gantt nie jest zapamiętywane.
+**Zapamiętane.** Aplikacja zapamiętuje wszystkie opcje raportu na tym urządzeniu, dla wszystkich projektów. Nie należą do pliku projektu. Tylko pole *Firma*: wykresu typu Gantt nie jest zapamiętywane.
 
 **Aktualny harmonogram.** Raporty używają ostatniego obliczenia. Jeśli harmonogram zmienił się od tej pory, raporty tabelaryczne pokazują u góry *Harmonogram zmienił się od ostatniego obliczenia — naciśnij Oblicz (F5), aby zobaczyć aktualne wartości.* Jeśli nic nie zostało jeszcze obliczone, pojawia się *Jeszcze nie obliczono — naciśnij Oblicz (F5), aby uzyskać daty i zapasy.* Jeśli projekt jest w widoku *Daty zapisane*, raporty pokazują daty z pliku źródłowego, a komunikat na górze to zaznacza.
 
@@ -18,27 +18,27 @@ Otwórz kartę *Raport* (lub naciśnij Ctrl+P). Po lewej stronie jest kolumna *R
 
 ## Papier i orientacja
 
-**Papier:** — rozmiar papieru PDF. Wybierz z A4, A3, A2 i A1. Domyślnie: A3. Skutek: strony są ułożone dla tego rozmiaru. Jest jeden wybór dla wszystkich raportów: wybór dla jednego raportu obowiązuje też dla pozostałych. Na pionowym A4 szeroka tabela staje się mała, bo tabela jest skalowana do szerokości strony. Gdzie: *Ustawienia* (wykres Gantt i diagram zasobów) albo *Opcje raportu* (siedem raportów tabelarycznych). Przegląd kamieni milowych i Odchylenie nie pokazują wyborów.
+**Papier:** — rozmiar papieru PDF. Wybierz jeden z rozmiarów: A4, A3, A2 i A1. Domyślnie: A3. Skutek: strony są ułożone dla tego rozmiaru. Jest jeden wybór dla wszystkich raportów: wybór dla jednego raportu obowiązuje też dla pozostałych. Na pionowym A4 szeroka tabela staje się mała, bo tabela jest skalowana do szerokości strony. Gdzie: *Ustawienia* (wykres typu Gantt i diagram zasobów) albo *Opcje raportu* (siedem raportów tabelarycznych). Przegląd kamieni milowych i Odchylenie nie pokazują wyborów.
 
-**Orientacja:** — pozioma lub pionowa. Wybierz z *Poziomo* i *Pionowo*. Domyślnie: *Poziomo*. Skutek: tak samo jak przy ustawieniu *Papier:*. Gdzie: w tym samym miejscu co *Papier:*.
+**Orientacja:** — pozioma lub pionowa. Wybierz jedną z opcji: *Poziomo* lub *Pionowo*. Domyślnie: *Poziomo*. Skutek: tak samo jak przy ustawieniu *Papier:*. Gdzie: w tym samym miejscu co *Papier:*.
 
 ## Wykres Gantta
 
 Harmonogram jako wykres słupkowy, z tabelą po lewej i osią czasu po prawej, na kilku stronach, jeśli trzeba. Podgląd pokazuje papier z nagłówkiem strony, tabelą, osią czasu i legendą. Blok *Podsumowanie* liczy *Zadania*:, *Zadania końcowe*:, *Krytyczne*: i *Relacje*:. Wszystkie opcje są w sekcji *Ustawienia*.
 
-**Firma:** — firma w nagłówku strony. Domyślnie: firma z info o projekcie. Skutek: tylko nagłówek raportu; to, co tutaj wpiszesz, nie jest zapamiętywane. Zmień firmę w *Ustawienia › Projekt › Info o projekcie*, w polu *Zleceniodawca/organizacja*, i potwierdź przyciskiem *Zastosuj*.
+**Firma:** — firma w nagłówku strony. Domyślnie: firma z ustawień projektu. Skutek: tylko nagłówek raportu; to, co tutaj wpiszesz, nie jest zapamiętywane. Zmień firmę w *Ustawienia › Projekt › Ustawienia projektu*, w polu *Zleceniodawca/organizacja*, i potwierdź przyciskiem *Zastosuj*.
 
-**Autor:** — autor w nagłówku strony. Tylko do odczytu: aplikacja pobiera go z info o projekcie.
+**Autor:** — autor w nagłówku strony. Tylko do odczytu: aplikacja pobiera go z ustawień projektu.
 
-**Rozmiar czcionki:** — rozmiar tekstu i tabeli w raporcie. Wybierz z 90%, 100%, 110% i 125%. Domyślnie: 100%. Skutek: przy większej czcionce tekst, wiersze i tabela rosną, a oś czasu traci szerokość. Niezależne od ustawienia *Rozmiar tekstu* w ustawieniach.
+**Rozmiar czcionki:** — rozmiar tekstu i tabeli w raporcie. Wybierz jedną z wartości: 90%, 100%, 110% lub 125%. Domyślnie: 100%. Skutek: przy większej czcionce tekst, wiersze i tabela rosną, a oś czasu traci szerokość. Niezależne od ustawienia *Rozmiar tekstu* w ustawieniach.
 
-**Kolory słupków:** — od czego zależy kolor paska. Wybierz z *Ścieżka krytyczna*, *Na zadanie — automatycznie* i *Według kategorii*, z rozwijaną listą *Pole kategorii* dla *Według kategorii*. Domyślnie: *Ścieżka krytyczna*. Skutek: to ten sam wybór co *Kolory słupków* na karcie *Widok*: zmiana tutaj zmienia też wykres Gantt na ekranie. Jeśli wybrane pole nie istnieje w tym projekcie, pojawia się komunikat *To pole nie istnieje w tym projekcie. Tymczasowo używany jest typ zadania.*
+**Kolory słupków:** — od czego zależy kolor paska. Wybierz jedną z opcji: *Ścieżka krytyczna*, *Na zadanie — automatycznie* lub *Według kategorii*, z rozwijaną listą *Pole kategorii* dla *Według kategorii*. Domyślnie: *Ścieżka krytyczna*. Skutek: to ten sam wybór co *Kolory słupków* na karcie *Widok*: zmiana tutaj zmienia też wykres typu Gantt na ekranie. Jeśli wybrane pole nie istnieje w tym projekcie, pojawia się komunikat *To pole nie istnieje w tym projekcie. Tymczasowo używany jest rodzaj robót.*
 
-**Linia statusu:** — linia przy dacie statusu. Wybierz z *Brak*, *Linia daty statusu* i *Linia postępu*. Domyślnie: *Brak*. Skutek: *Linia daty statusu* rysuje linię przy dacie statusu; *Linia postępu* rysuje zygzakowatą linię, która wybrzusza się do postępu każdego zadania. Jeśli projekt nie ma daty statusu, pojawia się *Najpierw ustaw datę statusu* i raport nic nie rysuje.
+**Linia statusu:** — linia przy dacie statusu. Wybierz jedną z opcji: *Brak*, *Linia daty statusu* lub *Linia postępu*. Domyślnie: *Brak*. Skutek: *Linia daty statusu* rysuje linię przy dacie statusu; *Linia postępu* rysuje zygzakowatą linię, która wybrzusza się do postępu każdego zadania. Jeśli projekt nie ma daty statusu, pojawia się *Najpierw ustaw datę statusu* i raport nic nie rysuje.
 
 **Podążaj za widokiem (filtr, grupowanie, sortowanie)** — tylko dla wykresu Gantta. Domyślnie: wyłączone. Skutek: wyłączone umieszcza na papierze całe drzewo zadań. Włączone rysuje dokładnie wiersze z ekranu: z Twoim filtrem, grupowaniem, sortowaniem i zwiniętymi fazami.
 
-**Dopasuj do papieru** — skaluje oś czasu do szerokości strony. Domyślnie: włączone. Skutek: włączone skaluje oś czasu do szerokości strony; liczba stron wynika z wysokości. Wyłączone używa stałej skali (*Powiększenie*:) i dzieli oś czasu także na szerokość, co szybko daje wiele stron.
+**Dopasuj do papieru** — skaluje oś czasu do szerokości strony. Domyślnie: włączone. Skutek: włączone skaluje oś czasu do szerokości strony; liczba stron wynika z wysokości. Wyłączone używa stałej skali (*Powiększenie:*) i dzieli oś czasu także na szerokość, co szybko daje wiele stron.
 
 **Powiększenie:** — stała skala osi czasu. Widoczne tylko, gdy *Dopasuj do papieru* jest wyłączone. Suwak od 1 do 40. Domyślnie: 22. Skutek: większa wartość rozszerza oś czasu, więc więcej stron w szerokości.
 
@@ -70,11 +70,11 @@ Harmonogram jako wykres słupkowy, z tabelą po lewej i osią czasu po prawej, n
 
 **Legenda** — Domyślnie: włączone. Skutek: legenda w stopce.
 
-**Jakość podglądu** — jak ostry jest podgląd. Wybierz z *Standardowa*, *Wysoka* i *Maksymalna*. Domyślnie: *Wysoka*. Skutek: tylko ostrość podglądu na ekranie; PDF się nie zmienia. Gdzie: *Raport*, nad podglądem.
+**Jakość podglądu** — jak ostry jest podgląd. Wybierz jedną z opcji: *Standardowa*, *Wysoka* lub *Maksymalna*. Domyślnie: *Wysoka*. Skutek: tylko ostrość podglądu na ekranie; PDF się nie zmienia. Gdzie: *Raport*, nad podglądem.
 
 ## Diagram zasobów
 
-Te same paski co wykres Gantt, pogrupowane na zasób: kto wykonuje co i kiedy. Blok *Podsumowanie* liczy *Zasoby*:, *Przydziały*: i *Bez zasobu*: (przy okresie także *Poza okresem*:). Diagram ma wszystkie opcje wykresu Gantt, oprócz *Podążaj za widokiem (filtr, grupowanie, sortowanie)*, *Ścieżka krytyczna* i *Zależności*: wiersze nie pochodzą z ekranu, zadanie może być pod kilkoma zasobami, a relacje nie są tam rysowane. Pole wyboru *Ścieżka krytyczna* jest ukryte i włączone. Dochodzą opcje wykresu Gantt w sekcji *Ustawienia* oraz te cztery pola wyboru i okres:
+Te same paski co na wykresie typu Gantt, pogrupowane według zasobów: kto wykonuje co i kiedy. Blok *Podsumowanie* liczy *Zasoby*:, *Przydziały*: i *Bez zasobu*: (przy okresie także *Poza okresem*:). Diagram ma wszystkie opcje wykresu typu Gantt, oprócz *Podążaj za widokiem (filtr, grupowanie, sortowanie)*, *Ścieżka krytyczna* i *Zależności*: wiersze nie pochodzą z ekranu, zadanie może być pod kilkoma zasobami, a relacje nie są tam rysowane. Pole wyboru *Ścieżka krytyczna* jest ukryte i włączone. Dochodzą opcje wykresu typu Gantt w sekcji *Ustawienia* oraz te cztery pola wyboru i okres:
 
 **Każdy zasób na nowej stronie** — Domyślnie: wyłączone. Skutek: każdy zasób zaczyna się na nowej stronie, więc możesz rozdać kartkę na ekipę lub pracownika. Wyłączone daje jeden ciągły dokument.
 
@@ -118,9 +118,9 @@ Stan projektu na dacie statusu. Opcje są w sekcji *Opcje raportu*.
 
 **Okres raportu:** — Domyślnie: *Ostatni miesiąc*. Skutek: *Ukończone w minionym okresie* liczy się w okresie. *Rozpoczynające się w następnym okresie* patrzy w przód od daty statusu, aż do daty ustawionej w polu *Wybiegając do*; przy okresie *Ostatni miesiąc* tak daleko w przód, jak okres sięga wstecz.
 
-**Prawie krytyczne ≤ (dr):** — Domyślnie: 5. Jak przy Spojrzeniu naprzód.
+**Prawie krytyczne ≤ (dr):** — Domyślnie: 5. Jak w polu *Wybiegając do*.
 
-Blok *Podsumowanie* pokazuje *Data statusu*, *Okres*, *Wybiegając do*, *Koniec planu bazowego*, *Prognozowany koniec*, *Δ koniec (dr)*, *Planowane* (z *(plan bazowy)* albo *(bieżący harmonogram)*), *Rzeczywiste* oraz liczby *Ukończone*, *W toku*, *Nierozpoczęte*, *Zaległe* i *Krytyczne*. Planowane i rzeczywiste są ważone czasem trwania zadań. Planowane mierzy względem planu bazowego, jeśli jest aktywny; w przeciwnym razie względem bieżącego harmonogramu. Sekcje to *Ukończone w minionym okresie*, *W toku*, *Rozpoczynające się w następnym okresie*, *Zaległe* i *Otwarte czynności krytyczne*; zadanie może być w więcej niż jednej sekcji.
+Blok *Podsumowanie* pokazuje *Data statusu*, *Okres*, *Wybiegając do*, *Koniec planu bazowego*, *Prognozowany koniec*, *Δ koniec (dr)*, *Planowane* (z *(plan bazowy)* albo *(bieżący harmonogram)*), *Rzeczywiste* oraz liczby *Ukończone*, *W toku*, *Nierozpoczęte*, *Zaległe* i *Krytyczne*. Planowane i rzeczywiste są ważone czasem trwania zadań. Planowane mierzy względem planu bazowego, jeśli jest aktywny; w przeciwnym razie względem bieżącego harmonogramu. Sekcje to *Ukończone w minionym okresie*, *W toku*, *Rozpoczynające się w następnym okresie*, *Zaległe* i *Otwarte czynności krytyczne*; zadanie może być w więcej niż jednej sekcji. Każda sekcja ma te same kolumny: *WBS*, *Nazwa*, *Koniec planu bazowego*, *Prognozowany koniec*, *Post*, *Pozost. (dr)*, *ZC (dr)* (TF), *Krytyczne* i *Stan*. Stan w każdym wierszu to *Ukończone*, *W toku*, *Nierozpoczęte*, *Powinno się rozpocząć* albo *Powinno się zakończyć*.
 
 ## Kondycja harmonogramu
 
@@ -149,9 +149,9 @@ Liczy niezakończone zadania końcowe, bez kamieni milowych i hamaków, oraz rel
 - *Nieprawidłowe daty*: rzeczywiste rozpoczęcie lub rzeczywiste zakończenie późniejsze niż data statusu albo prognozowane rozpoczęcie lub prognozowany koniec wcześniejszy niż data statusu. Próg: brak. Wymaga daty statusu.
 - *Zasoby*: zadania bez zasobu. Próg: brak. Tylko gdy projekt używa zasobów; w przeciwnym razie nd.
 - *Nietrzymane zadania*: spośród zadań, które plan bazowy wskazuje jako zakończone do daty statusu włącznie, udział tych, które kończą się później albo mają późniejszy prognozowany koniec. Próg: co najwyżej 5%. Wymaga daty statusu i aktywnego planu bazowego.
-- *Test ścieżki krytycznej*: aplikacja wydłuża zadanie krytyczne o 100 dni roboczych i wykonuje przeliczenie na kopii, bez zmiany projektu. Test jest zaliczony, jeśli ostatnie zadanie projektu nie kończy się wtedy przed tym zadaniem. Testuje niezakończone zadanie krytyczne z najwcześniejszym rozpoczęciem; w szczegółach podano nazwę zadania i o ile dni roboczych przesunęło się zakończenie.
+- *Test ścieżki krytycznej*: aplikacja wydłuża zadanie krytyczne o 100 dni roboczych i wykonuje przeliczenie na kopii, bez zmiany projektu. Test jest zaliczony, jeśli ostatnie zadanie projektu nie kończy się wtedy przed tym zadaniem. Testuje niezakończone zadanie krytyczne z najwcześniejszym rozpoczęciem; w szczegółach podano nazwę zadania i o ile dni roboczych przesunęło się zakończenie. W widoku *Daty zapisane* test ma wynik *nd* (*nie obliczono*): test oblicza, a raport pokazuje wtedy daty z pliku źródłowego. Naciśnij Oblicz (F5), a test uruchomi się ponownie.
 - *CPLI*: (długość ścieżki krytycznej + zapas) / długość ścieżki krytycznej. Długość to liczba dni roboczych od daty statusu do zakończenia ostatniego zadania; zapas to różnica względem zakończenia tego zadania w planie bazowym, a gdy zadania nie ma w planie bazowym, obliczony zapas. Próg: co najmniej 0,95. Wymaga daty statusu.
-- *BEI*: liczba zadań zakończonych do daty statusu włącznie, podzielona przez sumę liczby zadań, które plan bazowy wskazuje jako zakończone do tego dnia, i zadań bez planu bazowego. Próg: co najmniej 0,95. Wymaga daty statusu i aktywnego planu bazowego.
+- *BEI* (wskaźnik realizacji planu bazowego): liczba zadań zakończonych do daty statusu włącznie, podzielona przez sumę liczby zadań, które plan bazowy wskazuje jako zakończone do tego dnia, i zadań bez planu bazowego. Próg: co najmniej 0,95. Wymaga daty statusu i aktywnego planu bazowego.
 
 Dwa punkty różnią się od broszury, bo aplikacja nie zna tego pojęcia: *Wysoki czas trwania* liczy każde niezakończone zadanie, a broszura ogranicza je do szczegółowego okresu planowania (rolling wave), a *Zasoby* bierze pod uwagę tylko przypisane zasoby, nie koszty. Broszura nie podaje liczby dla testu ścieżki krytycznej; 100 dni roboczych to wybór aplikacji.
 
@@ -177,7 +177,7 @@ Dla każdego zasobu zadania, do których jest przypisany: co robi ta ekipa albo 
 
 **Uwzględnij zakończone zadania** — Domyślnie: wyłączone. Efekt: włączona opcja uwzględnia także przydziały zakończonych zadań.
 
-Wiersze są pogrupowane według zasobu, a w obrębie zasobu według rozpoczęcia. Blok *Podsumowanie* liczy *Zasoby*, *Przydziały* i *Zadania bez zasobu*. Kolumny obejmują zasób, zadanie, rozpoczęcie i zakończenie, *Pozost. (dr)*, *Jedn./dzień*, *Ukoń*, *Krytyczne* i *Stan*.
+Wiersze są pogrupowane według zasobu, a w obrębie zasobu według rozpoczęcia. Blok *Podsumowanie* liczy *Zasoby*, *Przydziały* i *Zadania bez zasobu*. Kolumny to *Zasób*, *Typ*, *WBS*, *Nazwa*, *Początek*, *Zakończ*, *Pozost. (dr)*, *Jedn./dzień*, *Ukoń*, *Krytyczne* i *Stan*. *Zasób* i *Typ* pojawiają się tylko w pierwszym wierszu danego zasobu. Stan w każdym wierszu jest taki sam jak w raporcie postępu: *Ukończone*, *W toku*, *Nierozpoczęte*, *Powinno się rozpocząć* albo *Powinno się zakończyć*.
 
 ## Podsumowanie WBS
 

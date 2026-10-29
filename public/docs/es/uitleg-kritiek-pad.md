@@ -16,7 +16,7 @@ El método de cálculo se llama **CPM** (Critical Path Method, método de la rut
 
 ## Cómo calcula la aplicación
 
-La aplicación no recalcula la planificación por sí sola. El cálculo empieza con **Calcular** (F5), por ejemplo en *Inicio › Programación › Calcular*. Si algo cambió desde el último cálculo, la barra de estado muestra *Desactualizado — recalcula (F5)*. Si *Calcular automáticamente* está activado (en *Configuración › Proyecto › Configuración*, pestaña *Planificación*, encabezado *Cálculo*), la aplicación lo hace sola.
+La aplicación no recalcula la planificación por sí sola. El cálculo empieza con **Calcular** (F5), por ejemplo a través de *Inicio › Programación › Calcular*. Si algo cambió desde el último cálculo, la barra de estado muestra *Desactualizado — recalcula (F5)*. Si *Calcular automáticamente* está activado (en *Configuración › Proyecto › Configuración*, pestaña *Planificación*, encabezado *Cálculo*), la aplicación lo hace sola.
 
 Un cálculo recorre la red dos veces.
 
@@ -34,7 +34,7 @@ La diferencia entre las fechas tardías y las tempranas de una tarea es su **hol
 
 La **holgura libre** es más estricta. Es el margen que tiene una tarea antes de que un sucesor tenga que empezar más tarde. Ese margen puede usarlo sin que otra tarea lo note.
 
-La holgura total puede compartirse. Si dos tareas no críticas siguen una a otra, comparten el mismo margen. Si la primera lo gasta, a la segunda no le queda nada. La primera tiene entonces holgura total, pero no holgura libre. La parte de la holgura total que no es libre se llama **holgura interferente**: si la usa, las tareas posteriores también se mueven. El ejemplo de abajo lo muestra con números.
+La holgura total puede compartirse. Si dos tareas no críticas siguen una a otra, comparten el mismo margen. Si la primera lo gasta, a la segunda no le queda nada. La primera tiene entonces holgura total, pero no holgura libre. La parte de la holgura total que no es libre se llama **holgura interferente**: si la utiliza, las tareas posteriores también se mueven. El ejemplo de abajo lo muestra con números.
 
 ### Holgura negativa
 
@@ -42,12 +42,13 @@ La holgura también puede ser negativa. Eso pasa cuando una tarea tiene una fech
 
 ### ¿Cuándo es crítica una tarea?
 
-De forma predeterminada, una tarea es crítica cuando su holgura total es 0 o menor. Esto se puede cambiar en *Configuración › Proyecto › Info del proyecto*, en el bloque *Perfil de cálculo y opciones*, en *Opciones de cálculo de este proyecto*. Cuando pulse *Aplicar*, la aplicación recalcula la planificación de inmediato. Las opciones pertenecen al archivo del proyecto, no a la aplicación.
+De forma predeterminada, una tarea es crítica cuando su holgura total es 0 o menor. Puede cambiarlo en *Configuración › Proyecto › Ajustes del proyecto*, en el bloque *Perfil de cálculo y opciones*, en *Opciones de cálculo de este proyecto*. Cuando pulse *Aplicar*, la aplicación recalcula la planificación de inmediato. Las opciones pertenecen al archivo del proyecto, no a la aplicación.
 
-- **Definición de crítica** con *Holgura total ≤ umbral* y el campo *Umbral (días laborables)*. El umbral es 0 de forma predeterminada. Para proteger un margen de seguridad, póngalo en 2, por ejemplo: toda tarea con 2 días laborables de holgura o menos cuenta como crítica y se muestra en rojo.
+- **Definición de crítica** con *Holgura total ≤ umbral* y el campo *Umbral (días laborables)*. El umbral es 0 de forma predeterminada. Para proteger un margen de seguridad, póngalo en 2, por ejemplo: toda tarea con 2 días laborables de holgura o menos cuenta como crítica y se muestra en rojo. Si elige *Ruta más larga*, una tarea es crítica cuando está en la cadena más larga hasta el último fin. Su holgura no importa entonces.
+- **Varias rutas de holgura** numera las cadenas según su holgura, en la columna *Ruta de holgura*. La ruta 1 es la ruta crítica. Véase [Opciones de cálculo y convenciones](docs://ref-rekenopties-en-conventies).
 - **Marcar casi crítico** con su propio *Umbral*, 2 días laborables de forma predeterminada. Una tarea con más de 0 y como máximo esa holgura recibe una barra ámbar. Así se ven las tareas que casi no tienen margen, sin llamarlas críticas.
-- **Tareas de extremo abierto críticas**: una tarea sin sucesor que aún no está terminada cuenta como crítica. Es útil como red de seguridad contra relaciones olvidadas (véase más abajo).
-- **Cálculo de la holgura** decide si la holgura total se mide al inicio de la tarea, al final o como la menor de las dos. Los proyectos nuevos tienen *Automático (predeterminado)*. Si sigue el método de cálculo de Primavera P6, *Aplicar las opciones predeterminadas de este perfil* pone esta opción en *Holgura de fin*. Para MS Project, el mismo botón la devuelve a *Automático (predeterminado)*: con una fecha de estado, MS Project calcula así por sí mismo.
+- **Tareas de extremo abierto críticas**: una tarea sin sucesor que aún no está terminada cuenta como crítica. Es útil como red de seguridad contra relaciones olvidadas (véanse los malentendidos más abajo).
+- **Cálculo de la holgura** decide si la holgura total se mide al inicio de la tarea, al final o como la menor de las dos. Los proyectos nuevos tienen *Automático (predeterminado)*. Si el proyecto usa el perfil Primavera P6 y esta opción no es *Holgura de fin*, un bloque naranja en Ajustes del proyecto lo indica; su botón pone la opción en *Holgura de fin*. Para MS Project, el mismo botón la devuelve a *Automático (predeterminado)*: con una fecha de estado, MS Project calcula así por sí mismo.
 
 ### Dónde se ve
 

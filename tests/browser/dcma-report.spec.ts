@@ -19,7 +19,7 @@ test('planningsgezondheid: DCMA-sectie toont de veertien punten met uitslag', as
   await page.getByLabel(/^(Report type|Rapporttype)$/).first().click();
   await page.getByRole('option', { name: /^(Schedule health|Planningsgezondheid)$/ }).click();
 
-  const report = page.locator('[data-ops-table-report="gezondheid"]');
+  const report = page.locator('[data-ops-table-report]');
   await expect(report).toBeVisible();
   const rows = report.locator('[data-ops-report-section="dcma"] tbody tr');
   await expect(rows).toHaveCount(14);

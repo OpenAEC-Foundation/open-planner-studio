@@ -39,13 +39,13 @@ Viive voidaan ilmaista neljällä tavalla:
 - Prosentteina edeltäjän kestosta (`40%`): sovellus laskee tämän uudelleen jokaisella laskennalla ja pyöristää kokonaisiksi päiviksi (2,5 päivää tulee 3 päiväksi).
 - Työtunteina (`4h`): sovellus laskee viiveen viivekalenterissa, oletuksena edeltäjän kalenterissa. Jos edeltäjä on päivätehtävä kalenterissa ilman omia työaikalohkoja, kuten vakiokalenterissa, sovellus muuntaa tunnit kokonaisiksi työpäiviksi. Pyöristys tehdään lähimpään kokonaiseen päivään, ja puolikas päivä pyöristyy ylöspäin. Kun työpäivä on 8 tuntia, `2h` ja `3h` antavat 0 päivää, `4h`–`11h` antavat 1 päivän ja `12h` antaa 2 päivää. Jos kalenterissa on omia työaikalohkoja tai edeltäjä on tuntitehtävä, viive lasketaan tarkasti työtunteina.
 
-Säännön mukaan viive N työpäivää FS-riippuvuudella toimii näin: N työpäivää edeltäjän lopun jälkeen ovat odotusaikaa, ja seuraaja alkaa sitä seuraavana työpäivänä. SS- ja FF-riippuvuudella viive lisätään edeltäjän alkuun tai loppuun. Limitys lasketaan taaksepäin. Limitys 1 työpäivä FS-riippuvuudella antaa seuraajan alkaa sinä päivänä, jona edeltäjä päättyy.
+Säännön mukaan viive N työpäivää FS-riippuvuudella toimii näin: N työpäivää edeltäjän lopun jälkeen ovat odotusaikaa, ja seuraaja alkaa sitä seuraavana työpäivänä. SS-riippuvuudella viive lisätään edeltäjän alkuun ja FF-riippuvuudella edeltäjän loppuun. Limitys lasketaan taaksepäin. Limitys 1 työpäivä FS-riippuvuudella antaa seuraajan alkaa sinä päivänä, jona edeltäjä päättyy.
 
 Limitys ei voi siirtää tehtävää ennen projektin aloituspäivää. Jos niin kävisi, sovellus pitää seuraajan projektin aloituspäivässä ja ilmoitetaan *Varoitukset*-paneelissa: *Limitys katkaistu projektin aloituspäivän vuoksi — riippuvuutta ei noudateta täysin*.
 
 ### Missä kalenterissa viive lasketaan
 
-Jokaisella tehtävällä voi olla oma kalenteri. Kun viive on työpäivinä, on tärkeää, mikä kalenteri laskee työpäivät. Asetus *Viiveen kalenteri* päättää tämän. Neljä vaihtoehtoa on valittavana: *Edeltäjä*, *Seuraaja*, *24 tunnin* ja *Projektikalenteri*. Oletuksena viive lasketaan **edeltäjän** kalenterissa. Asetus löytyy valikosta *Asetukset › Projekti › Projektitiedot*, osiosta *Laskentaprofiili ja laskentavaihtoehdot*, kohdasta *Tämän projektin laskentavaihtoehdot*. Valinta kuuluu projektitiedostoon ja tulee voimaan vasta, kun napsautetaan *Käytä*. Sen jälkeen aikataulu lasketaan uudelleen.
+Jokaisella tehtävällä voi olla oma kalenteri. Kun viive on työpäivinä, on tärkeää, mikä kalenteri laskee työpäivät. Asetus *Viiveen kalenteri* päättää tämän. Neljä vaihtoehtoa on valittavana: *Edeltäjä*, *Seuraaja*, *24 tunnin* ja *Projektikalenteri*. Oletuksena viive lasketaan **edeltäjän** kalenterissa. Asetus löytyy valikosta *Asetukset › Projekti › Projektin asetukset*, osiosta *Laskentaprofiili ja laskentavaihtoehdot*, kohdasta *Tämän projektin laskentavaihtoehdot*. Valinta kuuluu projektitiedostoon ja tulee voimaan vasta, kun napsautetaan *Käytä*. Sen jälkeen aikataulu lasketaan uudelleen.
 
 Viive kalenteripäivinä (`3ed`) lasketaan aina kaikki päivät, riippumatta siitä, mikä *Viiveen kalenteri* on valittu.
 
@@ -55,7 +55,7 @@ Riippuvuuden voi asettaa vaiheelle (yhteenvetotehtävälle) sen sisällä olevan
 
 - Vaihe **edeltäjänä** FS- tai FF-riippuvuudella: seuraaja odottaa, kunnes vaiheen viimeinen tehtävä on päättynyt.
 - Vaihe **seuraajana** FS- tai SS-riippuvuudella: jokainen vaiheen tehtävä odottaa edeltäjää, riippumatta muista vaiheen tehtävistä.
-- Vaihe **edeltäjänä** SS- tai SF-riippuvuudella: seuraaja odottaa sen vaiheen tehtävän alkua, joka alkaa **viimeisenä**, ei vaiheen alkua itseään. Tämä on varovaisempaa kuin voi odottaa: seuraaja ei koskaan ala liian aikaisin, mutta mahdollisesti myöhemmin kuin on tarkoitus. Jos seuraajan halutaan seuraavan vaiheen alkua, riippuvuus asetetaan vaiheen ensimmäiselle tehtävälle.
+- Vaihe **edeltäjänä** SS- tai SF-riippuvuudella: seuraaja odottaa sen vaiheen tehtävän alkua, joka alkaa **viimeisenä**, ei vaiheen alkua itseään. Tämä on varovaisempaa kuin voi odottaa: seuraaja ei koskaan ala liian aikaisin, mutta mahdollisesti myöhemmin kuin on tarkoitus. Jos halutaan, että seuraaja seuraa vaiheen alkua, riippuvuus asetetaan vaiheen ensimmäiselle tehtävälle.
 - Vaihe **seuraajana** FF- tai SF-riippuvuudella: jokaisen vaiheen tehtävän on täytettävä loppuvaatimus itse. FF:llä lopun on oltava edeltäjän lopun jälkeen tai samana päivänä, SF:llä lopun on oltava edeltäjän alun jälkeen tai samana päivänä. Tämä pätee, vaikka tehtävä olisi voitu tehdä paljon aikaisemmin. Aseta tällainen riippuvuus mieluummin vaiheen viimeiselle tehtävälle.
 
 Riippuvuus tehtävän ja sen oman vaiheen välillä ei ole sallittu.

@@ -21,6 +21,8 @@ Dobro razmislite prije instaliranja. Proširenje je programski kod koji radi s i
 
 Nakon instalacije proširenje se odmah omogućuje. Na pločici u *Pregledaj* sada piše *Instalirano*. Što proširenje dodaje, vidite u samoj aplikaciji: novi gumb u vrpci ili format uvoza u *Datoteka › Uvezi*. Neka proširenja prikazuju i poruku. Prepoznajete je po prefiksu *Proširenje*, nakon kojeg slijedi naziv proširenja.
 
+**Lekcije.** Lekcije su proširenje. Ako vidite gumb *Instaliraj vodiče* pod *Lekcije* u odjeljku *Pomoć*, otvara se *Datoteka › Proširenja* na kartici *Pregledaj*. Pitanje nakon prvog obilaska također instalira to proširenje. Oba puta prikazuju isto pitanje o dopuštenjima; možete ga odbiti.
+
 ### Instalacija proširenja iz datoteke
 
 Ako ste proširenje dobili kao datoteku, instalirajte ga ovako.
@@ -29,26 +31,18 @@ Ako ste proširenje dobili kao datoteku, instalirajte ga ovako.
 2. Gore desno kliknite *ZIP* za ZIP-datoteku ili *JS* za zasebnu JavaScript-datoteku.
 3. Odaberite datoteku. Otvara se prozor *Instalirati proširenje?*, kao gore.
 
-ZIP-datoteka mora sadržavati `manifest.json` i glavnu datoteku proširenja. Ako instalirate proširenje koje je već instalirano, nova verzija zamjenjuje staru. Ako aplikacija ne može instalirati datoteku, na primjer zato što je ZIP-datoteka oštećena, ništa se ne događa. Aplikacija za ZIP i JS ne prikazuje poruku o grešci, a proširenje se ne pojavljuje na popisu. Razlog je ipak u debug-terminalu. Uključite ga u *Postavke › Projekt › Postavke*, na kartici *Napredno*: *Omogući debug-terminal*. Otvorite ga gumbom *Prikaži debug-terminal* u traci stanja. Tamo piše, na primjer, *[Extensies] ZIP-installatie mislukt: Error: Geen manifest.json gevonden in ZIP* (aplikacija ovaj tehnički tekst piše na nizozemskom).
+ZIP-datoteka mora sadržavati `manifest.json` i glavnu datoteku proširenja. Ako instalirate proširenje koje je već instalirano, nova verzija zamjenjuje staru. Ako aplikacija ne može instalirati datoteku, na primjer zato što je ZIP-datoteka oštećena, ništa se ne događa. Aplikacija za ZIP i JS ne prikazuje poruku o grešci, a proširenje se ne pojavljuje na popisu. Razlog je ipak u debug-terminalu. Uključite ga u *Postavke › Projekt › Postavke aplikacije*, na kartici *Napredno*: *Omogući debug-terminal*. Otvorite ga gumbom *Prikaži debug-terminal* u traci stanja. Tamo piše, na primjer, *[Extensies] ZIP-installatie mislukt: Error: Geen manifest.json gevonden in ZIP* (aplikacija ovaj tehnički tekst piše na nizozemskom).
 
 ### Čitanje pitanja o dopuštenjima
 
 Pitanje pokazuje što trebate odlučiti.
 
 - *Autor* i *Repozitorij* govore tko je napravio proširenje i gdje je izvorni kod.
-- *Podrijetlo* govori odakle datoteka dolazi: *Iz internetskog kataloga proširenja*, *Iz ZIP-datoteke na ovom računalu* ili *Iz JavaScript-datoteke na ovom računalu*. Ispod toga piše je li datoteka provjerena. Za katalog piše *Preuzimanje je provjereno pomoću kontrolnog zbroja iz kataloga.* Ako katalog nema kontrolni zbroj, crveno piše *Katalog ne navodi kontrolni zbroj; ovo preuzimanje nije provjereno.* Za vlastitu datoteku piše *Odabrali ste ovu datoteku sami; nema vanjskog izvora za provjeru.*
-- *Na što pristajete* kaže: *Proširenje je programski kod koji radi s istim pravima kao sam Open Planner Studio. Ništa ga ne ograničava. Instalirajte samo proširenja čijem autoru vjerujete.* Ispod toga piše što to znači na vašoj platformi. U desktop-aplikaciji piše *U desktop-aplikaciji to uključuje: čitanje i pisanje datoteka bilo gdje u vašoj korisničkoj mapi te pristup projektima, postavkama i međuspremniku.* U pregledniku piše *U pregledniku to znači: pristup spremljenim projektima i postavkama, datotekama kojima ste dali pristup te mreži.*
-- *Što ovo proširenje navodno koristi* prikazuje dopuštenja koja je autor naveo kao male oznake. To je izjava autora, a ne ograničenje: *Ovo je izjava autora, a ne ograničenje; kod ipak može više.* Ako nema oznaka, piše *Ništa nije navedeno.* To ne znači da proširenje ne može ništa. Čak i bez oznaka proširenje može čitati i mijenjati podatke vašeg rasporeda te prikazivati poruke.
+- *Podrijetlo* govori odakle datoteka dolazi i je li provjerena. Ako crveno piše da preuzimanje nije provjereno, instalirajte samo ako poznajete izvor.
+- *Na što pristajete* ponavlja da je proširenje programski kod koji radi s istim pravima kao sama aplikacija, i što to znači na vašoj platformi. Instalirajte samo proširenja čijem autoru vjerujete.
+- *Što ovo proširenje navodno koristi* prikazuje dopuštenja koja je autor naveo kao male oznake. To je izjava, a ne ograničenje. Ako piše *Ništa nije navedeno.*, proširenje i dalje može čitati i mijenjati podatke vašeg rasporeda.
 
-Oznake znače sljedeće:
-
-- *ribbon*: proširenje stavlja gumbe u vrpcu.
-- *events*: proširenje prati događaje u aplikaciji.
-- *backstage*: proširenje dodaje formate uvoza u *Datoteka › Uvezi*.
-- *pdf-fonts*: proširenje daje font za PDF-izvoz.
-- *importSource*: proširenje smije čitati sve izvorne bajtove svake datoteke koju uvezete, na primjer sirovu Primavera-datoteku, uključujući polja koja ne završe u vašem projektu. I prozor to sam objašnjava.
-- *help*: proširenje smije dodavati članke pomoći, otvarati ugrađene projekte kao novi dokument i prikazivati vodič koji pokazuje dijelove aplikacije. I prozor to sam objašnjava.
-- *filesystem* i *network*: to su samo naznake onoga što autor namjerava. Aplikacija za njih nema funkciju.
+Što znači svaka oznaka i točni tekstovi prozora opisani su u [Dopuštenja proširenja](docs://ref-extensiepermissies).
 
 ### Onemogućivanje, ponovno omogućivanje ili uklanjanje proširenja
 

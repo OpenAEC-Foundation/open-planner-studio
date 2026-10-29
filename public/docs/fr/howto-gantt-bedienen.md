@@ -31,10 +31,10 @@ Un glissement correspond à une étape dans *Annuler*, quelle que soit sa longue
 
 ### Décaler la ligne de temps
 
-Ce que fait un glissement sur le fond vide dépend de votre mode de défilement. Vous le choisissez dans *Paramètres*, onglet *Apparence*, sous *Gantt › Défilement & zoom*, à *Mode* :
+Ce que fait un glissement sur le fond vide dépend de votre mode de défilement. Vous le choisissez dans *Paramètres de l'app*, onglet *Apparence*, sous *Gantt › Défilement & zoom*, à *Mode* :
 
 - **Zoom + glisser** (par défaut) : si vous glissez sur le fond vide avec le bouton gauche de la souris, la ligne de temps suit la souris, comme une carte. Le curseur est une main. Sur une barre, un glissement démarre simplement un geste sur la barre.
-- **Position** et **Touches** : le même glissement crée un cadre de sélection. Vous décalez la ligne de temps avec la molette (voir [Paramètres](docs://ref-instellingen)) ou avec le bouton central de la souris.
+- **Position** et **Touches** : le même glissement crée un cadre de sélection. Vous décalez la ligne de temps avec la molette (voir [Paramètres de l'app](docs://ref-instellingen)) ou avec le bouton central de la souris.
 
 **Le bouton central de la souris** (la molette enfoncée) décale la ligne de temps dans tous les modes. Il le fait aussi si vous commencez sur une barre. Il ne fonctionne pas pendant un autre geste, comme le glissement d'une barre.
 
@@ -50,13 +50,17 @@ Plus d'informations sur la sélection : [Sélectionner, supprimer et annuler des
 
 ### Zoomer et dézoomer
 
-1. Utilisez *Zoom +* et *Zoom -* (*Début › Zoom*), ou les touches + et -. La molette zoome aussi. Quand cela se produit dépend de votre mode de défilement (voir [Paramètres](docs://ref-instellingen)).
+1. Utilisez *Zoom +* et *Zoom -* (*Début › Zoom*), ou les touches + et -. La molette zoome aussi. Quand cela se produit dépend de votre mode de défilement (voir [Paramètres de l'app](docs://ref-instellingen)).
 2. Si vous voulez voir tout le projet, choisissez *Affichage › Échelle de temps › Ajuster au projet*, ou appuyez sur Ctrl+0. *Réinitialiser* (dans l'onglet *Affichage*) ou la touche 0 remet le zoom à sa valeur par défaut.
 3. En bas à droite de la barre d'état se trouve le zoom, en pixels par jour, par exemple *Zoom : 15px/jour*.
 
 Plus vous dézoomez, moins il y a de lignes de grille. À partir de 8 pixels par jour ou plus, il y a une ligne par jour, avec une ligne plus épaisse à la limite de semaine. Entre 2 et 8 pixels par jour, seule la limite de semaine reste. En dessous de 2 pixels par jour, au niveau de l'année, seules les limites de mois restent. Sinon, le canevas deviendrait une bande rayée uniforme dans laquelle les barres disparaissent. Les week-ends et les jours de congé en gris, ainsi que les bandes de semaine teintées en alternance, restent à chaque niveau. Ils montrent la structure des semaines quand les lignes disparaissent. Dans l'en-tête de l'échelle de temps, les numéros de semaine et les numéros de jour n'apparaissent que s'il y a assez de place. À partir de 40 pixels par jour, le jour de la semaine s'affiche aussi, avant le numéro du jour.
 
 Le nom de la tâche s'affiche dans la barre s'il y tient entièrement. S'il n'y tient pas, par exemple quand vous dézoomez, le nom complet s'affiche à droite de la barre.
+
+### Voir les détails d'une tâche
+
+Maintenez la souris immobile sur une barre. Une petite carte apparaît avec le nom de la tâche, *WBS*, *Durée*, *Début*, *Fin*, *Statut*, *Critique* et *Marge totale*. Pendant un glissement, un défilement de la ligne de temps, un cadre de sélection ou un menu contextuel, la carte disparaît.
 
 ## Pièges et ce que fait alors l'application
 
@@ -72,5 +76,5 @@ Le nom de la tâche s'affiche dans la barre s'il y tient entièrement. S'il n'y 
 
 - [Menus contextuels](docs://ref-contextmenus) : les menus d'une barre, d'une ligne et d'un en-tête de groupe.
 - [Raccourcis clavier](docs://ref-sneltoetsen) : les touches pour zoomer et pour annuler un geste.
-- [Paramètres](docs://ref-instellingen) : le mode de défilement et l'axe du temps.
+- [Paramètres de l'app](docs://ref-instellingen) : le mode de défilement et l'axe du temps.
 - [Contraintes et échéances](docs://uitleg-constraints) : pourquoi un début déplacé devient une contrainte.

@@ -9,7 +9,7 @@ Laptopul s-a defectat, aplicația a înghețat sau fila din browser s-a blocat, 
 ## Pași
 
 1. Porniți din nou aplicația. În browser reîncărcați aceeași filă: copia de restaurare aparține doar acelei file.
-2. Dacă aplicația a găsit copii, apare fereastra *Restaurare lucru nesalvat*. *Open Planner Studio nu s-a închis normal. Următoarele documente aveau modificări nesalvate care pot fi restaurate:* Pentru fiecare proiect se afișează numele, calea fișierului dacă proiectul are un fișier (în browser doar numele fișierului), numărul de activități și ora copiei, de exemplu *21 de activități* și *Salvat: 29 sept. 2026, 9:41 AM*. Fereastra poate afișa și proiecte pe care nu le-ați modificat.
+2. Dacă aplicația a găsit copii, apare fereastra *Restaurare lucru nesalvat*. *Open Planner Studio nu s-a închis normal. Următoarele documente aveau modificări nesalvate care pot fi restaurate:* Pentru fiecare proiect se afișează numele, calea fișierului dacă proiectul are un fișier (în browser doar numele fișierului), numărul de activități și ora copiei, de exemplu *21 de activități* și *Salvat: 29 sept. 2026, 9:41 AM*. Ora urmează setarea dumneavoastră *Format oră*. Fereastra poate afișa și proiecte pe care nu le-ați modificat.
 3. Alegeți *Restaurare*. Aplicația deschide toate proiectele din listă, fiecare într-o filă, cu starea ultimei copii. Tasta Enter face același lucru.
 4. Verificați proiectele și salvați-le imediat cu Ctrl+S.
 

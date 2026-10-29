@@ -51,7 +51,7 @@ Fai clic destro sull'attività e scegli *Aggiungi sottoattività*. La nuova atti
 I tre tipi si comportano in modo diverso:
 
 - Un *Cardine di inizio* va all'inizio del giorno, un *Cardine di fine* alla fine del giorno. Nel diagramma di Gantt il rombo si trova rispettivamente a sinistra o a destra della colonna del giorno. Conta anche per il successore. Supponi che un cardine sia martedì 29 settembre 2026 e che un'attività lo segua con una relazione fine-inizio: dopo un cardine di inizio, quell'attività inizia lo stesso martedì; dopo un cardine di fine, inizia mercoledì 30 settembre.
-- Un *Punto di ispezione (obbligatorio)* è un cardine di fine con il tipo di attività *Ispezione* e la spunta *Obbligatoria (contrattuale)*.
+- Un *Punto di ispezione (obbligatorio)* è un cardine di fine con la categoria di lavoro *Ispezione* e la spunta *Obbligatoria (contrattuale)*.
 
 ### Trasformare un'attività esistente in cardine
 
@@ -62,6 +62,7 @@ Se lo disattivi di nuovo, resta un'attività normale con durata 0: inserisci tu 
 ### Altri modi
 
 - Ctrl+M (⌘+M su Mac) mette un nuovo cardine in fondo all'elenco, anche se un'attività è selezionata. Il pannello *Proprietà* non si apre.
+- Un cardine che crei con Ctrl+M o con il menu del clic destro riceve la categoria di lavoro *Ispezione*. Un *Cardine di inizio* o *Cardine di fine* da *Cardine ▾* riceve *Altro*. Cambia la categoria di lavoro in *Proprietà*, se ti serve.
 - *Aggiungi cardine* nel menu del clic destro di un'attività rende il cardine una sottoattività di quell'attività, non un elemento allo stesso livello.
 
 ### Copiare un'attività o un intero ramo
@@ -72,7 +73,7 @@ Se lo disattivi di nuovo, resta un'attività normale con durata 0: inserisci tu 
 
 La copia ha lo stesso nome, le stesse date e lo stesso avanzamento. Va inserita allo stesso livello dell'attività selezionata (con più attività: quella su cui hai fatto clic per prima), in fondo tra quelle di pari livello. Se non è selezionato nulla, va in fondo all'elenco. Le attività copiate sono selezionate dopo l'operazione, i codici WBS (il numero di ciascuna attività nell'albero, per esempio 1.2; vedi [Modificare la struttura](docs://howto-structuur-aanpassen)) vengono assegnati di nuovo e la pianificazione non è più aggiornata.
 
-Gli appunti sono condivisi da tutta l'app, quindi puoi incollare anche in un altro documento. Ciò che lì non esiste, per esempio un calendario attività, un tipo di attività personalizzato, un codice attività o un campo personalizzato, l'app lo cancella e te lo segnala.
+Gli appunti sono condivisi da tutta l'app, quindi puoi incollare anche in un altro documento. Ciò che lì non esiste, per esempio un calendario attività, una categoria di lavoro personalizzata, un codice attività o un campo personalizzato, l'app lo cancella e te lo segnala.
 
 ### Dopo
 
@@ -82,7 +83,7 @@ Una nuova attività non cambia ancora le altre date. La barra di stato mostra *N
 
 **Ogni nuova attività inizia alla data di inizio del progetto.** Senza relazioni un'attività non aspetta nulla. Aggiungi relazioni, vedi [Aggiungere relazioni](docs://howto-relaties-leggen).
 
-**Filtro, raggruppamento o ordinamento sono attivi.** L'ordine che vedi allora non è l'ordine della pianificazione. Con un'attività selezionata, *Attività* e *Cardine ▾* aggiungono la nuova attività in fondo, e compare la striscia *Non disponibile durante filtro/raggruppamento/ordinamento*. *Inserisci sopra* e *Inserisci sotto* sono rifiutati, con la stessa striscia. Il pulsante *Cancella* nella striscia rimuove filtro, raggruppamento e ordinamento in una sola volta. Questo non fa parte di *Annulla*: Ctrl+Z non li ripristina.
+**Filtro, raggruppamento o ordinamento sono attivi.** L'ordine che vedi allora non è l'ordine della pianificazione. Con un'attività selezionata, *Attività* e *Cardine ▾* aggiungono la nuova attività in fondo. Compare una notifica rossa con il testo *La nuova attività si trova in fondo. Durante il filtraggio, il raggruppamento o l'ordinamento, l'app non può metterla sotto la tua selezione*. *Inserisci sopra* e *Inserisci sotto* sono rifiutati, con la striscia *Non disponibile durante filtro/raggruppamento/ordinamento*. Il pulsante *Cancella* nella notifica o nella striscia rimuove filtro, raggruppamento e ordinamento in una sola volta. Questo non fa parte di *Annulla*: Ctrl+Z non li ripristina.
 
 **Una sottoattività sotto un'attività con assegnazioni di risorse.** L'attività diventa un'attività di riepilogo, e un'attività di riepilogo non ha assegnazioni proprie. L'app sposta le assegnazioni sulla nuova sottoattività e te lo segnala. Se non è possibile, per esempio perché hai scelto *Aggiungi cardine* e un cardine non può avere assegnazioni, l'app non aggiunge nulla e spiega perché.
 

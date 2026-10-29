@@ -40,7 +40,7 @@ Na vrpci kartice *Izvješće* nema gumba *Izračunaj*, ali F5 ovdje radi. *Izvez
 
 ### 4. Prilagodite izvješće
 
-U odjeljku *Postavke* nalaze se izbori za Gantt ispis i Dijagram resursa. Izvješća Look-ahead, Kritični i gotovo kritični, Izvješće o napretku, Stanje rasporeda, Opterećenje resursa, Dodjele resursa i Sažetak WBS-a imaju samo *Papir:* i *Orijentacija:*, plus dio *Opcije izvješća* s izborima tog izvješća. Pregled kontrolnih točaka i Odstupanja nemaju vlastite izbore. Razdoblje izvješća pogledajte u članku [Odabir razdoblja izvješća](docs://howto-rapportageperiode-kiezen).
+U odjeljku *Postavke* nalaze se izbori za Gantt ispis i Dijagram resursa. Izvješća Look-ahead, Kritični i gotovo kritični, Izvješće o napretku, Stanje rasporeda, Opterećenje resursa, Dodjele resursa i Sažetak WBS-a imaju samo *Papir:* i *Orijentacija:*, te dio *Opcije izvješća* s izborima tog izvješća. Pregled kontrolnih točaka i Odstupanja nemaju vlastite izbore. Razdoblje izvješća pogledajte u članku [Odabir razdoblja izvješća](docs://howto-rapportageperiode-kiezen).
 
 - *Papir:* i *Orijentacija:* određuju list. Zadano je A3 vodoravno. To je zgodno za raspored gradnje, ali nisu svi pisači u stanju ispisati A3. Ako imate A4 pisač, odaberite odmah A4. Aplikacija tada prelama stranice za A4, a vi ih ne morate kasnije smanjivati.
 - Uz Dijagram resursa, potvrdni okvir *Svaki resurs na novoj stranici* daje list za svaku ekipu.
@@ -51,7 +51,7 @@ U odjeljku *Postavke* nalaze se izbori za Gantt ispis i Dijagram resursa. Izvje�
 
 ### 5. Provjerite pregled
 
-Za Gantt ispis i Dijagram resursa vidite papir sa zaglavljem stranice, tablicom, vremenskom osi i legendom. Listajte da biste pogledali stranice. *Kvaliteta pregleda* određuje samo oštrinu pregleda na zaslonu. PDF se zbog toga ne mijenja. Ako ispod stranica piše *… i još 1 stranica — izvezite za cijeli dokument* (uz više stranica *… i još 2 stranice — izvezite za cijeli dokument*), pregled nema sve stranice spremne. PDF sadrži sve stranice.
+Za Gantt ispis i Dijagram resursa vidite papir sa zaglavljem stranice, tablicom, vremenskom osi i legendom. Listajte da biste pogledali stranice. *Kvaliteta pregleda* određuje samo oštrinu pregleda na zaslonu. PDF se time ne mijenja. Ako ispod stranica piše *… i još 1 stranica — izvezite za cijeli dokument* (uz više stranica *… i još 2 stranice — izvezite za cijeli dokument*), pregled nema sve stranice spremne. PDF sadrži sve stranice.
 
 Ostala izvješća se na zaslonu prikazuju kao tablica. Ono što vidite jest ono što završi u PDF-u.
 
@@ -70,7 +70,7 @@ Otvorite PDF u čitaču PDF-a i ispišite ga tamo. Ako ispišete A3 PDF na A4 pi
 
 **Gumb Ispiši i Ctrl+P ne ispisuju.** Gumb *Ispiši* u grupi *Izvješće* nalazi se na samoj kartici i ne radi ništa dodatno. Ctrl+P vas vodi na ovu karticu. U aplikaciji nema zasebne naredbe za ispis: put do papira vodi preko PDF-a. Ako Ctrl+P ne radi (vidi korak 1), u pregledniku se otvara dijalog za ispis preglednika. Taj ispisuje zaslon, a ne izvješće.
 
-**Tvrtka: prepisivanje se ne čuva.** Polje *Tvrtka:* u Gantt ispisu počinje s tvrtkom iz podataka o projektu. Ono što upišete preko njega, ne čuva se. Ovdje ne možete upisivati u polje *Autor:*. Oboje mijenjate u *Postavke › Projekt › Podaci o projektu*, u poljima *Naručitelj/organizacija* i *Autor*, a potvrđujete gumbom *Primijeni*.
+**Tvrtka: prepisivanje se ne čuva.** Polje *Tvrtka:* u Gantt ispisu počinje s tvrtkom iz podataka o projektu. Ono što upišete preko njega, ne čuva se. Ovdje ne možete upisivati u polje *Autor:*. Oboje mijenjate u *Postavke › Projekt › Postavke projekta*, u poljima *Naručitelj/organizacija* i *Autor*, a potvrđujete gumbom *Primijeni*.
 
 **Boje traka vrijede i za vaš zaslon.** Izbor *Boje traka:* u izvješću isti je kao izbor *Boje traka* na kartici Prikaz. Ako ga promijenite u izvješću, vaš Gantt na zaslonu mijenja se s njim.
 

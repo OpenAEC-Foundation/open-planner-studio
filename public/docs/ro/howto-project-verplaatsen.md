@@ -52,10 +52,10 @@ Ce nu se mută:
 
 **Data se află în trecut.** Acest lucru este permis, dar previzualizarea îl menționează: *Noua dată de început se află în trecut.*
 
-**Modificarea începutului proiectului în Informații proiect este altceva.** Dacă modificați data de început în *Setări › Proiect › Informații proiect* și alegeți *Aplicare*, planificarea nu se mută. Se mută către noua dată numai activitățile fără predecesor sau restricție care s-ar afla altfel înaintea noului început, iar aplicația vă spune câte sunt. Dacă doriți să mutați totul, folosiți *Mutare proiect…*.
+**Modificarea începutului proiectului în Setări proiect este altceva.** Dacă modificați data de început în *Setări › Proiect › Setări proiect* și alegeți *Aplicare*, planificarea nu se mută. Se mută către noua dată numai activitățile fără predecesor sau restricție care s-ar afla altfel înaintea noului început, iar aplicația vă spune câte sunt. Dacă doriți să mutați totul, folosiți *Mutare proiect…*.
 
 ## Vezi și
 
 - [Drum critic și marjă](docs://uitleg-kritiek-pad): cum calculează planificarea și de ce se mută sfârșitul.
 - [Adăugarea dependențelor](docs://howto-relaties-leggen): dependențele rămân pur și simplu pe loc când mutați.
-- [Proiect nou și Informații proiect](docs://ref-projectinfo): ce face data de început din Informații proiect.
+- [Proiect nou și Setări proiect](docs://ref-projectinfo): ce face data de început din Setări proiect.

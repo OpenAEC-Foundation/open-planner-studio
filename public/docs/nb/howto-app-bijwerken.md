@@ -22,7 +22,7 @@ Rett før oppdateringen installeres, lager appen også en automatisk sikkerhetsk
 
 ### Sjekk selv om det finnes en ny versjon
 
-1. Velg *Innstillinger › Prosjekt › Innstillinger*. Du kan også velge *Fil › Innstillinger*, eller tannhjulet øverst.
+1. Velg *Innstillinger › Prosjekt › Appinnstillinger*. Du kan også velge *Fil › Appinnstillinger*, eller tannhjulet øverst.
 2. Velg fanen *Avansert*. Under *Versjon* står nummeret på den gjeldende versjonen din.
 3. Klikk på *Se etter oppdateringer*. Vinduet *Programvareoppdatering* åpnes og viser *Sjekker…*. Etterpå viser det enten *Du bruker den nyeste versjonen*, eller meldingen om at det finnes en ny versjon, med samme knapp *Last ned og installer*.
 
@@ -30,14 +30,14 @@ I nettleseren gjør denne knappen ingenting spesielt: vinduet viser straks *Du b
 
 ### Les hva som er nytt
 
-1. Starter du skrivebordsappen for første gang i en annen versjon enn sist, eller etter en ny installasjon, åpnes et vindu av seg selv. Vinduet heter *Du er oppdatert!*
-2. Øverst vises hoppet fra forrige versjon til den nye versjonen. Etter en ny installasjon vises bare den nye versjonen.
+1. Starter du skrivebordsappen for første gang i en annen versjon enn sist, åpnes et vindu av seg selv. Vinduet heter *Du er oppdatert!* Etter en ny installasjon åpnes det ikke: første oppstart er ikke en oppdatering. Vil du likevel se det, bruk knappen *Hva er nytt* (se nedenfor).
+2. Øverst vises hoppet fra forrige versjon til den nye versjonen. Med knappen *Hva er nytt* vises bare den nye versjonen.
 3. Har appen en oppsummering innebygd for denne versjonen, ser du ett hovedpunkt og fire mindre punkter. Hovedpunktet kan ha en knapp *Les veiledningen*. Ellers ser du bare hoppet mellom versjonene og det som står under.
 4. Med *Se alle utgivelsesnotatene* åpner du endringsloggen på GitHub. Fungerer ikke det, står det *Utgivelsesnotatene kunne ikke åpnes.*
 5. Under *Denne oppdateringen i tall* står antall dager siden forrige utgivelse, antall commits og antall lagt til kodelinjer. Kan appen finne størrelsesforskjellen på installasjonspakken, vises den også. Hvert tall vises bare hvis det er tilgjengelig.
 6. Klikk på *Forstått* for å lukke vinduet.
 
-Vil du se dette vinduet én gang til senere, velg *Innstillinger › Prosjekt › Innstillinger*, fanen *Avansert*, og under *Versjon* knappen *Hva er nytt*. Vinduet åpnes da for den gjeldende versjonen din, uten en forrige versjon.
+Vil du se dette vinduet én gang til senere, velg *Innstillinger › Prosjekt › Appinnstillinger*, fanen *Avansert*, og under *Versjon* knappen *Hva er nytt*. Vinduet åpnes da for den gjeldende versjonen din, uten en forrige versjon.
 
 ## Feil og hva appen gjør da
 

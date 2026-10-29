@@ -36,7 +36,7 @@ Pentru culoarea barelor alegeți *Vizualizare › Referințe și progres › Cul
 
 ## Capcane și ce face aplicația
 
-**Ștergerea elimină valorile de la activități.** Dacă ștergeți un tip de cod, o valoare sau un câmp cu pictograma coșului de gunoi, aplicația nu cere confirmare, iar valorile de pe toate activitățile dispar odată cu el. O grupare sau o sortare după acel tip de cod sau câmp își pierde și ea efectul. *Anulare* (Ctrl+Z) readuce tipul de cod, valoarea sau câmpul și valorile completate, dar nu gruparea sau sortarea: le configurați din nou.
+**Ștergerea elimină valorile de la activități.** Dacă ștergeți un tip de cod, o valoare sau un câmp cu pictograma coșului de gunoi, aplicația nu cere confirmare, iar valorile de pe toate activitățile dispar odată cu el. O grupare sau o sortare după acel tip de cod sau câmp își pierde și ea efectul. *Anulare* (Ctrl+Z, închideți mai întâi fereastra) readuce tipul de cod, valoarea sau câmpul și valorile completate, dar nu gruparea sau sortarea: le configurați din nou.
 
 **Două valori cu același cod.** *Adăugare valoare* continuă numerotarea după numărul de valori care există deja. Dacă ștergeți una și adăugați alta, un cod poate apărea deci de două ori. Dacă tastați acest cod într-o celulă de coloană, aplicația refuză cu mesajul *Această valoare de cod de activitate apare de mai multe ori. Alegeți-o din listă.* Dați fiecărei valori un cod propriu.
 

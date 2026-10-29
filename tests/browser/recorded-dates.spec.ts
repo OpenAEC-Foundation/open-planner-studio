@@ -7,6 +7,7 @@
 // `tests/planning/check-xer-recorded-times.ts`: T1 legt vroege datums vast die van onze
 // herberekening afwijken (⇒ de modus gaat vanzelf aan), T3 legt alleen het vroege paar vast
 // (⇒ laat-start/-einde en speling zijn "niet vastgelegd").
+import { externIfc } from '../fixtures/recordedDatesIfc';
 import type { Locator, Page } from '@playwright/test';
 import { expect, state, test } from './fixtures/ops';
 import { MSPDI_FIXTURE, P6XML_FIXTURE } from '../fixtures/recordedTimesFormats';
@@ -30,6 +31,9 @@ const XER_FIXTURE = [
   `%F\t${FIXTURE_HEADER}`,
   '%R\tT1\tP1\tC1\tA1\tDeviates\tTT_Task\tDT_FixedDUR\tTK_NotStart\t40\t40\t2026-01-02\t2026-01-09\t2026-01-05\t2026-01-12\t2026-01-10\t2026-01-17\t40\t8',
   '%R\tT3\tP1\tC1\tA3\tEarlyOnly\tTT_Task\tDT_FixedDUR\tTK_NotStart\t16\t16\t2026-03-01\t2026-03-03\t2026-03-01\t2026-03-03\t\t\t\t',
+  '%T\tTASKPRED',
+  '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+  '%R\tR1\tT3\tT1\tP1\tP1\tPR_FS\t0',
   '%E',
 ].join('\n');
 
@@ -54,6 +58,8 @@ async function openXerViaFileChooser(page: Page): Promise<void> {
 }
 
 test('datums zoals opgeslagen: een XER met restverschillen opent in de modus, met "niet vastgelegd" in tabel en badge', async ({ page, ops: _ops }) => {
+  // Lange werkroute: XER, B5 geval 2, 5 en 6 achter elkaar.
+  test.setTimeout(60_000);
   await openXerViaFileChooser(page);
 
   // De modus gaat vanzelf aan (verse XER-import mét verschoven taken) en de strook zegt het.
@@ -72,6 +78,7 @@ test('datums zoals opgeslagen: een XER met restverschillen opent in de modus, me
   });
   expect(ids.datesAsRecorded).toBe(true);
   expect(ids.scheduleStale).toBe(false);
+  expect((await state(page)).sequences).toHaveLength(1);
 
   // Tabel: de late-start-kolom erbij (een productinstelling, via dezelfde actie als de kolomkiezer)
   // en dan de CELTEKST lezen — met de product-datumnotatie, want dat is de naad waar een verzonnen
@@ -96,19 +103,82 @@ test('datums zoals opgeslagen: een XER met restverschillen opent in de modus, me
   await expect(taskCell(page, ids.deviates, 'task.time.lateStart')).toHaveText(/10.01.2026|2026.01.10|01.10.2026/);
   await expect(taskCell(page, ids.deviates, 'task.time.lateStart')).not.toHaveText(/^(Niet vastgelegd|Not recorded)$/);
 
+  // Knownbug 183: dezelfde onbekende status in Bepalend én de relatiechips, in beide richtingen.
+  // De brug zet alleen de kolomvoorkeur; aanwijzen en springen blijven echte browserhandelingen.
+  await page.evaluate(() => {
+    const columns = window.__OPS__!.store.getState().taskGridSurfaces['full-task-grid'].columns;
+    window.__OPS__!.store.getState().setTaskGridColumns('full-task-grid', [
+      { id: 'task.name', width: 170, pinned: true },
+      { id: 'relation.predecessors', width: 150, pinned: false },
+      { id: 'relation.successors', width: 150, pinned: false },
+      { id: 'relation.driving', width: 130, pinned: false },
+      { id: 'task.time.totalFloat', width: 110, pinned: false },
+    ].map(column => ({ ...column, id: column.id as typeof columns[number]['id'] })));
+  });
+  const unknownText = /^(Onbekend|Unknown)$/;
+  const unknownExplanation = /^(Bepalende relaties onbekend zonder berekening\.|Driving relationships unknown without a calculation\.)$/;
+  const predecessorCell = taskCell(page, ids.earlyOnly, 'relation.predecessors');
+  const successorCell = taskCell(page, ids.deviates, 'relation.successors');
+  for (const id of [ids.deviates, ids.earlyOnly]) {
+    await expect(taskCell(page, id, 'relation.driving')).toHaveText(unknownText);
+  }
+  for (const cell of [predecessorCell, successorCell]) {
+    await expect(cell.getByRole('img', { name: unknownExplanation })).toBeVisible();
+    await expect(cell.locator('.task-grid-relation-chip--driving')).toHaveCount(0);
+  }
+  await predecessorCell.locator('.task-grid-relation-jump').hover();
+  await expect(page.locator('.gantt-tooltip')).toContainText(/Bepalende relaties onbekend zonder berekening\.|Driving relationships unknown without a calculation\./);
+  const beforeJump = await state(page);
+  await predecessorCell.locator('.task-grid-relation-jump').click();
+  await expect.poll(() => state(page).then(snapshot => snapshot.selectedTaskIds)).toEqual([ids.deviates]);
+  expect((await state(page)).sequences).toEqual(beforeJump.sequences);
+  expect((await state(page)).undoDepth).toBe(beforeJump.undoDepth);
+
   // Eigenschappenpaneel: de badge zegt per taak hetzelfde als de tabel, en noemt Primavera alleen
   // omdat dit een XER-herkomst is.
-  await page.evaluate((taskId) => {
-    const s = window.__OPS__!.store.getState();
-    s.selectTask(taskId);
-    s.setUI({ showPropertiesPanel: true, rightPanelCollapsed: false });
-  }, ids.earlyOnly);
+  await page.evaluate(() => {
+    window.__OPS__!.store.getState().setUI({ showPropertiesPanel: true, rightPanelCollapsed: false });
+  });
+  await taskCell(page, ids.earlyOnly, 'task.name').click();
   // Besluit 4 (eigenaar 2026-10-19, optie 3): één oranje blok, de ontbrekende velden als derde regel.
   await expect(page.locator('[data-ops-task-recorded-dates="active"][data-ops-task-recorded-dates-missing]')).toBeVisible();
-  await page.evaluate((taskId) => { window.__OPS__!.store.getState().selectTask(taskId); }, ids.deviates);
+  await taskCell(page, ids.deviates, 'task.name').click();
   const activeBadge = page.locator('[data-ops-task-recorded-dates="active"]:not([data-ops-task-recorded-dates-missing])');
   await expect(activeBadge).toBeVisible();
   await expect(activeBadge).toContainText(/Primavera/);
+
+  // Knownbug 105: het paneel onderscheidt onbekende driving van een berekende lege lijst.
+  const dependencies = page.locator('[data-ops-rail-panel="properties"] .dependency-list');
+  const unknownDriving = dependencies.getByRole('img', {
+    name: /^(Bepalende relaties onbekend zonder berekening\.|Driving relationships unknown without a calculation\.)$/,
+  });
+  await unknownDriving.scrollIntoViewIfNeeded();
+  await expect(unknownDriving).toBeVisible();
+  await expect(dependencies.locator('.lucide-zap')).toHaveCount(0);
+
+  // Echte bediening: richtingen aanzetten, selectie wisselen, dezelfde trace naar de Gantt meenemen.
+  const beforeTrace = await state(page);
+  await taskCell(page, ids.earlyOnly, 'task.name').click();
+  await page.getByRole('button', { name: /^(Predecessors|Voorgangers)$/, exact: true }).click();
+  const tableRow = (id: string) => taskCell(page, id, 'task.name').locator('..');
+  await expect(tableRow(ids.deviates)).toHaveAttribute('data-grid-trace-role', 'predecessor-driving');
+  await page.getByRole('button', { name: /^(Successors|Opvolgers)$/, exact: true }).click();
+  await taskCell(page, ids.deviates, 'task.name').click();
+  await expect(tableRow(ids.earlyOnly)).toHaveAttribute('data-grid-trace-role', 'successor-driving');
+  await page.getByRole('button', { name: /^(Planning)$/ }).click();
+  const ganttName = (id: string) => page.locator(
+    `[data-task-grid-surface-id="gantt-task-grid"] [data-grid-row-key="${id}"] [data-grid-column-id="task.name"]`,
+  );
+  await expect(ganttName(ids.earlyOnly).locator('..')).toHaveAttribute('data-grid-trace-role', 'successor-driving');
+  // De bestaande springknop in het taakpaneel verzet de focus; de trace volgt mee.
+  await dependencies.locator('.dependency-wbs-link').click();
+  await expect(ganttName(ids.deviates).locator('..')).toHaveAttribute('data-grid-trace-role', 'predecessor-driving');
+  expect((await state(page)).selectedTaskIds).toEqual([ids.earlyOnly]);
+  expect((await state(page)).undoDepth).toBe(beforeTrace.undoDepth);
+  expect(await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    return { mode: s.ui.traceMode, recorded: s.datesAsRecorded, unknown: s.cpmResult?.drivingUnknown };
+  })).toEqual({ mode: 'both', recorded: true, unknown: true });
 
   // Eindreview bevinding 6: de rapporten kennen de "niet vastgelegd"-cel niet; in de modus staat
   // daarom boven elk rapport (hier het standaardtype, de Gantt-afdruk) één melding die zegt dat je
@@ -125,6 +195,167 @@ test('datums zoals opgeslagen: een XER met restverschillen opent in de modus, me
   await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
   await expect.poll(() => state(page).then(() => page.evaluate(() => window.__OPS__!.store.getState().datesAsRecorded))).toBe(false);
   await expect(taskCell(page, ids.earlyOnly, 'task.time.totalFloat')).not.toHaveText(/^(Niet vastgelegd|Not recorded)$/);
+  // De geplande start in maart blijft onder het P6-profiel een ondergrens. De voorganger in
+  // januari is daardoor bekend niet-driving: geen onbekend-badge of bliksem, wel de gewone trace.
+  await expect(unknownDriving).toHaveCount(0);
+  await expect(dependencies.locator('.dependency-wbs-link')).toHaveCount(1);
+  await expect(dependencies.locator('.lucide-zap')).toHaveCount(0);
+  expect(await page.evaluate(() => {
+    const cpm = window.__OPS__!.store.getState().cpmResult;
+    return { unknown: cpm?.drivingUnknown === true, driving: cpm?.drivingSequenceIds };
+  })).toEqual({ unknown: false, driving: [] });
+  await expect(tableRow(ids.deviates)).toHaveAttribute('data-grid-trace-role', 'predecessor');
+  for (const id of [ids.deviates, ids.earlyOnly]) {
+    await expect(taskCell(page, id, 'relation.driving')).toHaveText('—');
+  }
+  for (const cell of [predecessorCell, successorCell]) {
+    await expect(cell.getByRole('img', { name: unknownExplanation })).toHaveCount(0);
+    await expect(cell.locator('.task-grid-relation-chip--driving')).toHaveCount(0);
+    await expect(cell.locator('.task-grid-relation-jump')).toHaveCount(1);
+  }
+  await predecessorCell.locator('.task-grid-relation-jump').hover();
+  await expect(page.locator('.gantt-tooltip')).toContainText(/Niet bepalend|Not driving/);
+  expect((await state(page)).sequences).toEqual(beforeJump.sequences);
+  await page.getByRole('button', { name: /^(Predecessors|Voorgangers)$/, exact: true }).click();
+  await page.getByRole('button', { name: /^(Successors|Opvolgers)$/, exact: true }).click();
+  await expect(tableRow(ids.deviates)).not.toHaveAttribute('data-grid-trace-role');
+  expect((await state(page)).selectedTaskIds).toEqual([ids.earlyOnly]);
+
+  // B5 met de echte hooks: Ctrl+Z mag niet na de automatische berekentermijn verdwijnen.
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ autoCalcCPM: true }));
+  const ownOldIfc = externIfc('b5-browser').replace('DATA;', "DATA;\n#900=IFCAPPLICATION($,'0.2','Open Planner Studio','OPS');");
+  await openViaFileChooser(page, 'oud-minutenmodel.ifc', 'application/x-step', ownOldIfc);
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().tasks.find(t => t.name === 'B')?.time.earlyStart))
+    .toBe('2026-03-09T07:00');
+  await expect(page.getByText(/grootste verschuiving is 5,0 werkdagen|largest shift is 5\.0 workdays/)).toBeVisible();
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect(strip).toBeVisible();
+  await page.waitForTimeout(300);
+  const oldB = await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    const b = s.tasks.find(t => t.name === 'B')!;
+    return { id: b.id, start: b.time.earlyStart, pending: s.minuteModelPending, stale: s.scheduleStale };
+  });
+  expect(oldB).toMatchObject({ start: '2026-03-16T07:00', pending: true, stale: false });
+  await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
+  const nameCell = taskCell(page, oldB.id, 'task.name');
+  await nameCell.click();
+  await page.keyboard.press('F2');
+  const nameInput = nameCell.locator('input');
+  await expect(nameInput).toBeVisible();
+  await nameInput.fill('B hernoemd');
+  await nameInput.press('Enter');
+  await page.waitForTimeout(300);
+  expect(await page.evaluate(id => {
+    const s = window.__OPS__!.store.getState();
+    return { start: s.tasks.find(t => t.id === id)!.time.earlyStart, mode: s.datesAsRecorded };
+  }, oldB.id)).toEqual({ start: '2026-03-16T07:00', mode: true });
+  await page.keyboard.press('F5');
+  await expect.poll(() => page.evaluate(id => window.__OPS__!.store.getState().tasks.find(t => t.id === id)!.time.earlyStart, oldB.id))
+    .toBe('2026-03-09T07:00');
+
+  // B5 geval 5: het echte bezettingsoverzicht mag een slapende open omzetting niet publiceren.
+  // Een tweede, moderne slaper bewijst dat de achtergrondhook daadwerkelijk doorrekent.
+  const sleepingBefore = await page.evaluate(() => {
+    const app = window.__OPS__!.store;
+    const current = app.getState();
+    const company = current.companies[0];
+    const make = (id: string, name: string, modern: boolean) => ({
+      id, filePath: null, isDirty: false, datesAsRecorded: false,
+      timeModel: modern ? 'MINUTES-1' : undefined,
+      recordedTimesOrigin: 'ifc-own' as const, importPristine: false,
+      project: { ...current.project, name, companyId: company.id, companyName: company.name },
+      calendar: current.calendar, resourceCalendars: current.calendars,
+      tasks: current.tasks.map(task => task.name === 'B hernoemd' ? {
+        ...task, time: { ...task.time, earlyStart: '2026-03-16T07:00', earlyFinish: '2026-03-20T16:00' },
+      } : task),
+      sequences: current.sequences, resources: current.resources, assignments: current.assignments,
+    });
+    app.getState().restoreDocuments([
+      make('b5-active', 'B5 actief', true), make('b5-old', 'B5 slapend oud', false), make('b5-modern', 'B5 slapend modern', true),
+    ], 'b5-active');
+    return JSON.stringify(app.getState().documents.find(d => d.id === 'b5-old')!.payload);
+  });
+  await page.getByRole('button', { name: /^(Resources)$/, exact: true }).click();
+  await page.locator('button.ribbon-btn[data-ops-ribbon-item="openResourcePanel"]').click();
+  await page.locator('[data-ops-occupancy-view-button]').click();
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().documents
+    .find(d => d.id === 'b5-modern')!.payload!.scheduleStale)).toBe(false);
+  await page.waitForTimeout(300);
+  expect(await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    const old = s.documents.find(d => d.id === 'b5-old')!.payload!;
+    return { payload: JSON.stringify(old), pending: old.minuteModelPending, stale: old.scheduleStale, events: s.historyEvents.length };
+  })).toEqual({ payload: sleepingBefore, pending: true, stale: true, events: 0 });
+  await page.getByRole('tab', { name: 'B5 slapend oud', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().minuteModelPending)).toBe(false);
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().historyEvents.length)).toBe(1);
+  await page.keyboard.press('ControlOrMeta+z');
+  await page.waitForTimeout(300);
+  expect(await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    return { start: s.tasks.find(t => t.name === 'B hernoemd')!.time.earlyStart, mode: s.datesAsRecorded,
+      pending: s.minuteModelPending, stale: s.scheduleStale };
+  })).toEqual({ start: '2026-03-16T07:00', mode: true, pending: true, stale: false });
+
+  // B5 geval 6 (spec §5.2): slapend herstel, Automatisch berekenen uit, eerst een bewerking en dan F5:
+  // twee events. Ctrl+Z geeft eerst de modus mét de bewerking, daarna de toestand van vóór de
+  // bewerking. Die tweede Ctrl+Z verlaat de modus zonder bewerking; `useExitRecordedDates` mocht dat
+  // niet als bewerking zien en doorrekenen (review ronde 1 van PR #559, deel B, punt 2: B sprong
+  // naar 9 maart en de omzettingsvlag ging uit). De brug zet alleen de fixture en leest de toestand.
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ autoCalcCPM: false }));
+  await page.evaluate(() => {
+    const app = window.__OPS__!.store;
+    const current = app.getState();
+    const company = current.companies[0];
+    const make = (id: string, name: string, modern: boolean) => ({
+      id, filePath: null, isDirty: false, datesAsRecorded: false,
+      timeModel: modern ? 'MINUTES-1' : undefined,
+      recordedTimesOrigin: 'ifc-own' as const, importPristine: false,
+      project: { ...current.project, name, companyId: company.id, companyName: company.name },
+      calendar: current.calendar, resourceCalendars: current.calendars,
+      tasks: current.tasks.map(task => task.name === 'B hernoemd' ? {
+        ...task, name: 'B', time: { ...task.time, earlyStart: '2026-03-16T07:00', earlyFinish: '2026-03-20T16:00' },
+      } : task),
+      sequences: current.sequences, resources: current.resources, assignments: current.assignments,
+    });
+    app.getState().restoreDocuments([
+      make('g6-active', 'B5 geval 6 actief', true), make('g6-old', 'B5 geval 6 slapend', false),
+    ], 'g6-active');
+  });
+  await page.getByRole('tab', { name: 'B5 geval 6 slapend', exact: true }).click();
+  const case6 = () => page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    const b = s.tasks.find(t => t.name === 'B' || t.name === 'B gewijzigd')!;
+    return { id: b.id, name: b.name, start: b.time.earlyStart, mode: s.datesAsRecorded,
+      pending: s.minuteModelPending, stale: s.scheduleStale, events: s.historyEvents.length };
+  });
+  await expect.poll(async () => (await case6()).name).toBe('B');
+  await page.waitForTimeout(300);
+  const initial6 = await case6();
+  expect(initial6).toMatchObject({ name: 'B', start: '2026-03-16T07:00', mode: false, pending: true, stale: true, events: 0 });
+  // Het bezettingsoverzicht uit geval 5 bedekt de tabel: sluit het resourcepaneel zoals een planner.
+  await page.locator('div:has(> [data-ops-resources-view-toggle])').getByTitle(/^(Close|Sluiten)$/).click();
+  await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
+  const case6Name = taskCell(page, initial6.id, 'task.name');
+  await case6Name.click();
+  await page.keyboard.press('F2');
+  const case6Input = case6Name.locator('input');
+  await expect(case6Input).toBeVisible();
+  await case6Input.fill('B gewijzigd');
+  await case6Input.press('Enter');
+  await expect.poll(async () => (await case6()).name).toBe('B gewijzigd');
+  await page.keyboard.press('F5');
+  await expect.poll(async () => (await case6()).start).toBe('2026-03-09T07:00');
+  expect(await case6()).toMatchObject({ pending: false, stale: false, events: 2 });
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect.poll(async () => (await case6()).mode).toBe(true);
+  expect(await case6()).toMatchObject({ name: 'B gewijzigd', start: '2026-03-16T07:00', pending: true, stale: false });
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect.poll(async () => (await case6()).name).toBe('B');
+  // Ook na de uitgestelde hook (timer 0) en een korte wachttijd: niet doorgerekend.
+  await page.waitForTimeout(300);
+  expect(await case6()).toMatchObject({ name: 'B', start: '2026-03-16T07:00', mode: false, pending: true, stale: true });
 });
 
 // Eigenaarsbesluit 2026-09-09: "het moet altijd gaan zoals het nu bij XER werkt". Dezelfde

@@ -64,7 +64,7 @@ Un archivo de proyecto contiene sus propias copias de los recursos. Si también 
 
 1. Abra un proyecto vinculado a una biblioteca y elija *Archivo › Exportar*.
 2. Marque *Guardar también el archivo de biblioteca*. La casilla solo aparece en un proyecto vinculado.
-3. Elija la tarjeta *IFC 4x3* y guarde el archivo. Después la aplicación pide también un segundo archivo. Se llama igual que el proyecto, con `-bibliotheek` al final, y contiene la biblioteca.
+3. Elija la tarjeta *IFC* y guarde el archivo. Después la aplicación pide también un segundo archivo. Se llama igual que el proyecto, con `-bibliotheek` al final, y contiene la biblioteca.
 
 La casilla solo funciona en la exportación IFC, no en los demás formatos de exportación. Su compañero importa el segundo archivo tal como se describe arriba.
 
@@ -72,7 +72,7 @@ La casilla solo funciona en la exportación IFC, no en los demás formatos de ex
 
 **Dos planificadores, dos bibliotecas.** La aplicación no sincroniza bibliotecas entre equipos. La ventana de importar muestra siempre un aviso al respecto: *Nota: las bibliotecas no se sincronizan entre equipos. Si dos planificadores trabajan con la misma biblioteca de recursos, las bibliotecas pueden divergir. Si su organización comparte cuadrillas entre empresas operativas, elija deliberadamente un pool compartido.*
 
-**Reemplazar sobrescribe todo.** Todo lo que tenía en la biblioteca elegida desaparece, y un cambio en la biblioteca queda fuera de *Deshacer*. Exporte primero si no está seguro.
+**Reemplazar sobrescribe todo.** Todo lo que tenía en la biblioteca elegida desaparece, y un cambio en la biblioteca queda fuera de *Deshacer*. Exporte primero si no está seguro. Sus proyectos conservan sus copias. La aplicación actualiza las copias que siguen existiendo en el archivo nuevo. Las copias que ya no están en él reciben la marca *ya no está en la biblioteca* y siguen funcionando. Si una copia difiere, se abre la ventana *Vincular biblioteca de recursos* (véase [Usar la biblioteca de recursos](docs://howto-resourcebibliotheek-gebruiken)).
 
 **Eliminar un calendario de la lista se hace de inmediato.** La aplicación no pide confirmación, mientras que al eliminar un recurso sí la pide. Eso parece una deficiencia. Los cambios en la biblioteca quedan fuera de *Deshacer*.
 

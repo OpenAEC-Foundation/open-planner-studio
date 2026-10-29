@@ -35,17 +35,17 @@ Dette er nedre grenser. Etterfølgeren starter senere hvis en annen avhengighet 
 En forsinkelse kan uttrykkes på fire måter:
 
 - I **arbeidsdager** (`3` eller `3d`): appen hopper over fridager og helger. Dette er standard.
-- I **kalenderdager** (`3ed`, e står for *elapsed*, altså forløpt tid): hver dag teller, også lørdag og søndag. Dette er enheten for noe som fortsetter uten at det utføres arbeid, for eksempel herding.
+- I **kalenderdager** (`3ed`, e står for *elapsed*, altså forløpt tid): hver dag teller, også lørdag og søndag. Dette er enheten for noe som fortsetter uten at noen gjør noe med det, for eksempel herding.
 - Som en **prosent** av varigheten til forgjengeren (`40%`): appen regner det ut på nytt ved hver beregning, og runder av til hele dager (2,5 dager blir 3).
 - I **arbeidstimer** (`4h`): appen teller forsinkelsen i forsinkelseskalenderen. Som standard er det kalenderen til forgjengeren. Er forgjengeren en dagbasert aktivitet i en kalender uten egne tidsbånd, for eksempel standardkalenderen, da omregner appen timene til hele arbeidsdager. Det rundes av til nærmeste hele dag, en halv dag rundes opp. Med en arbeidsdag på 8 timer blir `2h` og `3h` derfor 0 dager, `4h` til og med `11h` blir 1 dag, og `12h` blir 2 dager. Har den kalenderen egne tidsbånd, eller er forgjengeren en timebasert aktivitet, teller forsinkelsen nøyaktig i arbeidstimer.
 
-Regelen for en forsinkelse på N arbeidsdager med FS: de N arbeidsdagene etter forgjengerens slutt er ventetid, og etterfølgeren starter den arbeidsdagen etter dette. Med SS og FF legges forsinkelsen til henholdsvis forgjengerens start og slutt. En negativ forsinkelse teller tilbake. En ledetid på 1 arbeidsdag med FS lar etterfølgeren starte den dagen forgjengeren er ferdig.
+Regelen for en forsinkelse på N arbeidsdager med FS: de N arbeidsdagene etter forgjengerens slutt er ventetid, og etterfølgeren starter den arbeidsdagen etter dette. Med SS og FF legges forsinkelsen til henholdsvis forgjengerens start og slutt. En negativ ledetid teller tilbake. En ledetid på 1 arbeidsdag med FS lar etterfølgeren starte den dagen forgjengeren er ferdig.
 
 En ledetid kan ikke sette en aktivitet før prosjektstarten. Skulle det skje, holder appen etterfølgeren på prosjektstarten. Den melder det i panelet *Advarsler*: *Ledetid kappet av prosjektstarten — avhengigheten er ikke fullt utnyttet*.
 
 ### I hvilken kalender forsinkelsen teller
 
-Hver aktivitet kan ha sin egen kalender. Med en forsinkelse i arbeidsdager er det viktig hvilken kalender som teller arbeidsdagene. Med innstillingen *Forsinkelseskalender* velger du det, mellom fire valg: *Forgjenger*, *Etterfølger*, *24-timers* og *Prosjektkalender*. Som standard teller forsinkelsen i kalenderen til **forgjengeren**. Du finner innstillingen under *Innstillinger › Prosjekt › Prosjektinfo*, i blokken *Beregningsprofil og beregningsalternativer*, under *Beregningsalternativer for dette prosjektet*. Valget hører til prosjektfilen og gjelder først etter at du klikker på *Bruk*. Tidsplanen omberegnes da.
+Hver aktivitet kan ha sin egen kalender. Med en forsinkelse i arbeidsdager er det viktig hvilken kalender som teller arbeidsdagene. Med innstillingen *Forsinkelseskalender* velger du det, mellom fire valg: *Forgjenger*, *Etterfølger*, *24-timers* og *Prosjektkalender*. Som standard teller forsinkelsen i kalenderen til **forgjengeren**. Du finner innstillingen under *Innstillinger › Prosjekt › Prosjektinnstillinger*, i blokken *Beregningsprofil og beregningsalternativer*, under *Beregningsalternativer for dette prosjektet*. Valget hører til prosjektfilen og gjelder først etter at du klikker på *Bruk*. Tidsplanen omberegnes da.
 
 En forsinkelse i kalenderdager (`3ed`) teller alltid alle dager, uansett hvilken *Forsinkelseskalender* du velger.
 

@@ -14,7 +14,8 @@ Rapportdatumet är dagen då du gör en lägesbedömning. Ange det innan du ange
 
 1. Gå till *Tidsplan › Baslinjer & framdrift › Rapportdatum*.
 2. Skriv datumet i de tre rutorna för dag, månad och år (i den ordning som din datumnotation använder), till exempel 28, 06 och 2027, och tryck på Enter. Appen hoppar själv till nästa ruta.
-3. Med det lilla krysset bredvid fältet tömmer du rapportdatumet igen.
+3. Har projektkalendern band för arbetstid (avsnittet *Arbetstider* i fönstret *Kalendrar*)? Då räknar appen i timmar och ett tidsfält visas till höger, till exempel 17:00. Skriv en annan tid, till exempel 12:00, och tryck på Enter. Om du tömmer tidsfältet återstår bara datumet. Om du bara ändrar datumet behålls tiden. Tiden följer din tidsnotation (24 eller 12 timmar). Utan band för arbetstid räknar appen i hela dagar. Då finns inget tidsfält och raden för rapportdatum ligger i början av dagen.
+4. Med det lilla krysset bredvid fältet tömmer du rapportdatumet igen.
 
 Om du gör lägesbedömningen på fredag efter arbetstid anger du rapportdatumet till nästa arbetsdag, måndag. Appen planerar det återstående arbetet från början av rapportdatumet.
 
@@ -35,7 +36,7 @@ En milstolpe har ett fält, *Verkligt datum*.
 **Välja en procentsats i menyn.** Användbart för en snabb lägesbild.
 
 1. Högerklicka på balken i Gantt.
-2. Välj *Framdrift* och välj sedan 0 %, 25 %, 50 %, 75 % eller 100 %.
+2. Välj *Framdrift* och välj sedan 0%, 25%, 50%, 75% eller 100%.
 
 **Flera uppgifter i tabellen.** Användbart när du uppdaterar en hel lista.
 
@@ -43,7 +44,7 @@ En milstolpe har ett fält, *Verkligt datum*.
 2. Dubbelklicka på en cell, skriv värdet och tryck på Enter. Du skriver en procentsats som `50` eller `50%`, ett datum som `25-06-2027` och en återstående varaktighet som `1`.
 3. För *Status* dubbelklickar du, trycker på Enter och väljer *Inte startad*, *Pågår* eller *Klar*.
 
-Om du skriver en återstående varaktighet räknar appen tillbaka till procenten: för en uppgift på 2 arbetsdagar ger en rest på 1 en procentsats på 50. En rest på 0 gör uppgiften klar. Om du väljer *Inte startad* vid *Status* blir procenten 0 och de verkliga datumen försvinner.
+Om du skriver en återstående varaktighet räknar appen tillbaka till procenten: för en uppgift på 2 arbetsdagar ger en rest på 1 en procentsats på 50. En rest på 0 gör uppgiften klar. Kolumnen *Verklig varaktighet* (även den i kategorin *Framdrift*) fungerar omvänt: skriv hur mycket arbete som redan är gjort, så räknar appen ut procenten. För en uppgift på 4 arbetsdagar ger en verklig varaktighet på 1 en procentsats på 25%. Om du väljer *Inte startad* vid *Status* blir procenten 0 och de verkliga datumen försvinner.
 
 **Allt för en uppgift i fönstret Redigera uppgift.** Högerklicka på uppgiften och välj *Redigera...*. Framdriftsfälten finns där också. De gäller först när du klickar på *Spara*.
 
@@ -51,7 +52,7 @@ Om du skriver en återstående varaktighet räknar appen tillbaka till procenten
 
 ### 3. Beräkna om tidsplanen
 
-Varje ändring av framdrift eller rapportdatum gör tidsplanen inaktuell. Statusfältet visar *Inaktuell — beräkna om (F5)*. Tryck på **Beräkna** (F5), till exempel via *Tidsplan › Tidsplan › Beräkna*. Om *Beräkna automatiskt* är på (under *Inställningar › Projekt › Inställningar*, flik *Tidsplan*), gör appen det själv.
+Varje ändring av framdrift eller rapportdatum gör tidsplanen inaktuell. Statusfältet visar *Inaktuell — beräkna om (F5)*. Tryck på **Beräkna** (F5), till exempel via *Tidsplan › Tidsplan › Beräkna*. Om *Beräkna automatiskt* är på (under *Inställningar › Projekt › Appinställningar*, flik *Tidsplan*), gör appen det själv.
 
 ## Kontrollera resultatet
 

@@ -16,11 +16,11 @@ Du använder timmar för arbete som inte ryms i hela dagar: en kran som du hyr i
 
 ## Så räknar appen
 
-### Arbetstider och nettotimmar
+### Arbetstider och standardarbetsdag
 
 Varje kalender har **band** för varje arbetsdag (i appen heter de *band*). Standardkalendern har 07:00 till 12:00 och 13:00 till 16:00. Glappet är rasten. Appen härleder de banden från kalenderns *Start (timme)*, *Slut (timme)* och rasten. Du behöver inte ställa in något för det. Om du ställer in egna band per veckodag har de företräde.
 
-**Nettotimmar per dag** är summan av banden för en arbetsdag. Om arbetsdagarna har olika längd gäller den vanligaste dagtotalen. Vid lika antal gäller den högsta. Med fyra dagar på 8 timmar och en fredag på 5 timmar är nettotimmarna per dag alltså 8.
+**Standardarbetsdagen** är den arbetsdag som förekommer oftast. Dess längd är summan av dess band. Det är alltså inget medelvärde: med måndag på 16 timmar och tisdag till fredag på 10 timmar är standardarbetsdagen 10 timmar. Om arbetsdagarna har olika längd gäller den vanligaste dagtotalen, och vid lika antal den högsta. Med fyra dagar på 8 timmar och en fredag på 5 timmar är standardarbetsdagen alltså 8 timmar. En kalender med egna timmar per dag (till exempel från Primavera P6) räknar också med den här dagtotalen, och kalenderfönstret visar den. Det egna värdet behålls för exporten. Om de skiljer sig åt visar kalenderfönstret en orange markering under *Standardarbetsdag*. En uppgift på 1870 timmar med band på 10 timmar varar alltså 187 dagar, även om dess eget värde är 8 timmar per dag.
 
 ### En uppgift i timmar
 
@@ -32,9 +32,9 @@ Appen räknar hela arbetsdagar. Timmarna per dag spelar ingen roll. En uppgift p
 
 ### Omvandla dagar och timmar
 
-En dag är nettotimmarna per dag i uppgiftens kalender. Appen använder det på tre ställen:
+En dag är standardarbetsdagen i uppgiftens kalender. Appen använder det på tre ställen:
 
-- För *Visning av varaktighet*. Under *Inställningar › Projekt › Inställningar*, fliken *Utseende*, väljer du *Automatiskt (egen enhet per uppgift)*, *Alltid dagar* eller *Alltid timmar*. En uppgift på 18 timmar visas under *Alltid dagar* som `2.25d(18h)`: den egna enheten står inom parentes.
+- För *Visning av varaktighet*. Under *Inställningar › Projekt › Appinställningar*, fliken *Utseende*, väljer du *Automatiskt (egen enhet per uppgift)*, *Alltid dagar* eller *Alltid timmar*. En uppgift på 18 timmar visas under *Alltid dagar* som `2.25d(18h)`: den egna enheten står inom parentes.
 - För en fördröjning i timmar efter en daguppgift (se *Avrundning*).
 - När du byter enhet för en uppgift. Appen räknar då dagarna från uppgiftens start, där varje dag har sina egna timmar. Den omvandlar varaktigheten direkt om resultatet är exakt. Två dagar blir `16h`. I en kalender där fredagen har 5 timmar blir 5 dagar från måndag `37h`. Tolv timmar kan inte göras om till hela dagar i en kalender med dagar på 8 timmar: då lämnar appen enheten som den är.
 
@@ -51,13 +51,13 @@ Reglerna nedan gäller för ett samband slut-till-start i en kalender utan egna 
 Appen avrundar eller vägrar på fyra ställen:
 
 - **En daguppgift efter en timuppgift** börjar nästa arbetsdag. Timuppgiften avrundas, om man så vill, uppåt till hela dagar.
-- **En fördröjning i timmar** räknas i fördröjningens kalender, som standard den för den föregående uppgiften. Om den föregående uppgiften är en daguppgift i en kalender utan egna band, till exempel standardkalendern, omvandlar appen fördröjningen till hela arbetsdagar: fördröjningen delat med nettotimmarna per dag, avrundat till ett helt tal. En halv dag avrundas uppåt. Vid 8 timmar per dag räknas 1 timme som 0 dagar, 4 timmar som 1 dag och 12 timmar som 2 dagar. Det gäller också om den efterföljande uppgiften är en timuppgift. Om den föregående uppgiften är en timuppgift, eller om dess kalender har egna band, räknas fördröjningen exakt i arbetstimmar, och rasten räknas inte med.
+- **En fördröjning i timmar** räknas i fördröjningens kalender, som standard den för den föregående uppgiften. Om den föregående uppgiften är en daguppgift i en kalender utan egna band, till exempel standardkalendern, omvandlar appen fördröjningen till hela arbetsdagar: fördröjningen delat med timmarna i standardarbetsdagen, avrundat till ett helt tal. En halv dag avrundas uppåt. Vid 8 timmar per dag räknas 1 timme som 0 dagar, 4 timmar som 1 dag och 12 timmar som 2 dagar. Det gäller också om den efterföljande uppgiften är en timuppgift. Om den föregående uppgiften är en timuppgift, eller om dess kalender har egna band, räknas fördröjningen exakt i arbetstimmar, och rasten räknas inte med.
 - **En varaktighet i dagar** är alltid ett helt tal. Skriver du `1.5d` visar appen *Ange ett helt antal dagar eller timmar, till exempel 2d eller 12h.* En varaktighet i timmar kan vara `1.5h` eller `1h 30m`.
 - **Byta enhet** sker bara om resultatet är exakt (se ovan).
 
 ## Genomarbetat exempel: kranen
 
-Kalendern är måndag till fredag från 07:00 till 12:00 och från 13:00 till 16:00: 8 nettotimmar per dag. Projektet börjar måndag 7 juni 2027.
+Kalendern är måndag till fredag från 07:00 till 12:00 och från 13:00 till 16:00: en standardarbetsdag på 8 timmar. Projektet börjar måndag 7 juni 2027.
 
 ### Timuppgift, timuppgift och daguppgift
 
@@ -81,7 +81,7 @@ Efter en daguppgift fungerar en fördröjning på ett annat sätt. *Pour foundat
 
 ### En ledig fredagseftermiddag
 
-Nu har fredagen bara ett band, från 07:00 till 12:00: 5 timmar. De andra dagarna har kvar 8 timmar. Nettotimmarna per dag är kvar 8, eftersom det är den vanligaste dagtotalen. En vecka har nu 37 arbetstimmar.
+Nu har fredagen bara ett band, från 07:00 till 12:00: 5 timmar. De andra dagarna har kvar 8 timmar. Standardarbetsdagen är kvar 8 timmar, eftersom det är den vanligaste dagtotalen. En vecka har nu 37 arbetstimmar.
 
 En uppgift på 40 timmar från måndag 7 juni 07:00 använder måndag till torsdag (32 timmar) och fredagen (5 timmar). De sista 3 timmarna infaller på följande måndag, från 07:00 till 10:00. Slutet är **måndag 14 juni 10:00**. En uppgift på 5 dagar skulle ta 37 timmar i anspråk från måndag, och det är vad appen föreslår om du byter enheten för 5 dagar till timmar.
 
@@ -91,7 +91,7 @@ I självstudie 4 om timplanering planerar du själv ett kranjobb i timmar.
 
 **”8 timmar är 1 dag.”** Bara om kalendern har dagar på 8 timmar. I kalendern med den lediga fredagseftermiddagen är 5 dagar 37 timmar, inte 40.
 
-**”Om jag ställer in fler timmar per dag blir min daguppgift klar tidigare.”** Nej. En daguppgift räknar hela arbetsdagar. Timmarna per dag ändrar bara vad en dag är värd i timmar, till exempel i visningen och för en fördröjning i timmar. Bara för en uppgift med resurser och arbetsregeln *Fast arbete* eller *Fasta enheter* ändras varaktigheten med det, eftersom arbetet är detsamma: 40 timmars arbete är 5 dagar vid 8 timmar per dag och 7 dagar vid 6 timmar per dag.
+**”Om jag ställer in fler timmar per dag blir min daguppgift klar tidigare.”** Nej. En daguppgift räknar hela arbetsdagar. Timmarna per dag ändrar bara vad en dag är värd i timmar, till exempel i visningen och för en fördröjning i timmar. Bara för en uppgift med resurser och uppgiftstypen *Fast arbete* eller *Fasta enheter* ändras varaktigheten med det, eftersom arbetet är detsamma: 40 timmars arbete är 5 dagar vid 8 timmar per dag och 7 dagar vid 6 timmar per dag.
 
 **”En uppgift på 8 timmar varar en dag.”** Bara om den börjar i början av dagen. Om den börjar senare, till exempel *Adjust elements* tisdag 11:00, fortsätter den till nästa dag.
 

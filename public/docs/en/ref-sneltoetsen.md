@@ -98,7 +98,7 @@ Indent, outdent and inserting above or below a selected task only work in the pl
 
 **Ctrl+1** to **Ctrl+9** — *Switch document*: goes to the first to ninth open document. If that document does not exist, nothing happens. Not in a dialog and not with unapplied Project settings.
 
-**Ctrl+Home** — *Jump to today*: scrolls the timeline so that a date is at the left of the view. That is the status date if you have set one, otherwise today. So the label says "today", even when the timeline jumps to the status date. Zoom and the start of the timeline stay as they were. If a cell of the task grid has focus, Ctrl+Home instead goes to the first cell of the grid (see *Table*).
+**Ctrl+Home** — *Jump to status date or today*: scrolls the timeline so that a date is at the left of the view. That is the status date if you have set one, otherwise today. Zoom and the start of the timeline stay as they were. If a cell of the task grid has focus, Ctrl+Home instead goes to the first cell of the grid (see *Table*).
 
 ## Table
 

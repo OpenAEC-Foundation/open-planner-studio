@@ -16,7 +16,7 @@
 //
 // Het script weigert (en schrijft dan niets) als nl of en ontbreekt, een opgegeven taal niet precies
 // haar CLDR-meervoudscategorieën heeft, of de {{invulplekken}} afwijken van nl. Een bestaande sleutel
-// wijzigen kan alleen met --update (bijv. een label inkorten: één commando i.p.v. 14 bestanden).
+// wijzigen kan alleen met --update (bijv. een label inkorten: nl + en in één commando, overige talen optioneel).
 // --after <broer> plaatst een nieuwe sleutel direct na die broer; anders achteraan in zijn object.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';

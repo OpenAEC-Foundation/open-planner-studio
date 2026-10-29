@@ -24,7 +24,7 @@ Se un'attività è selezionata, l'istogramma mostra solo il carico di quell'atti
 ### 2. Scegli una soluzione
 
 - **Più capacità.** Se arriva davvero un secondo muratore, imposta *Unità max* su 2 (vedi [Gestire le risorse](docs://howto-resources-beheren)). La risorsa non è più sovrassegnata.
-- **Meno unità al giorno.** Abbassa *Unità/giorno* o scegli un'altra curva per l'assegnazione (vedi [Assegnare risorse con una curva](docs://howto-resource-toewijzen)).
+- **Meno unità al giorno.** Abbassa *Unità* o scegli un'altra curva per l'assegnazione (vedi [Assegnare risorse con una curva](docs://howto-resource-toewijzen)).
 - **Metti le attività una dopo l'altra.** Aggiungi una relazione tra le due attività, così la seconda inizia solo quando la prima è completata (vedi [Aggiungere relazioni](docs://howto-relaties-leggen)).
 - **Livellamento.** L'app fa iniziare un'attività più tardi.
 
@@ -51,7 +51,7 @@ Se vuoi decidere tu quale attività resta ferma, dalle una priorità più alta. 
 
 - *Annulla* (Ctrl+Z) annulla *Applica* in un solo passo.
 - *Risorse › Livellamento › Cancella livellamento* rimuove tutto il livellamento dalle attività. Il pulsante è grigio finché non c'è livellamento. Così la risorsa torna sovrassegnata, come prima.
-- Se da allora hai cambiato la pianificazione, scegli di nuovo *Livella…*. L'app riparte da zero: i vecchi slittamenti non contano.
+- Se da allora hai cambiato la pianificazione, basta scegliere di nuovo *Livella…*. L'app riparte da zero: i vecchi slittamenti non contano.
 
 ## Problemi e cosa fa l'app
 

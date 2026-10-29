@@ -5,12 +5,12 @@
  * contractdata en bewaakt drie verschillende beweringen die CI zonder corpus nog kan doen:
  *
  *  A. 93 publieke bronoccurrences met hun volledige SHA-256, rol en inclusiebesluit;
- *  B. de onafhankelijke, na byte- en schema-dedup geselecteerde 9 orakelentries (populatie: alleen
- *     aantoonbaar door P6 doorgerekende bestanden, eigenaarsbesluit 2026-09-23);
+ *  B. de 9 orakelentries (populatie: alleen aantoonbaar door P6 doorgerekende bestanden,
+ *     eigenaarsbesluit 2026-09-23) en de 8 die na byte- en schema-dedup onafhankelijk geselecteerd zijn;
  *  D. de openbare task-replay-pin die A en B kruist zonder een replay uit te voeren.
  *
  * Laag C is een compacte maar volledig uitgepakte v2-karakteriseringssnapshot: hij bewaakt de
- * 9 entries en 21 projecten, maar verklaart zijn strict-nulpoort expliciet rood en ongeaccepteerd.
+ * 8 geselecteerde entries en 18 projecten (`PINS.selected`/`PINS.projects`), maar verklaart zijn strict-nulpoort expliciet rood en ongeaccepteerd.
  * Daardoor kan corpusloze CI niet veinzen dat productfidelity nul is. `readXER`, scanner,
  * dedupbuilder, solveProject en de product-/replayadapter zijn hier daarom verboden imports.
  */
@@ -64,6 +64,9 @@ type ProductV2 = ProductBaselineV2;
 type ProductEnvelope = ProductEnvelopeV2;
 
 const EXPECTED = {
+  // BEVESTIGD 2026-10-27 (#690 fase 1 punt 1, `main` @ 433cca3b2, mét corpus op aia09-mp50): `npm run
+  // measure:profiles` geeft X12 76 met cel-delta 0/0/0/0; `OPS_XER_V2_WRITE=1` en `OPS_XER_CELLS_WRITE=1`
+  // schrijven byte-gelijke bestanden. Geen enkele pin hieronder veranderd; de stand van 2026-09-24 geldt nog.
   // Manifestpinnen 2026-09-23 (populatie, tweede toepassing van het eigenaarsbesluit van 2026-09-23,
   // handmatige reviewstap): de vier byte-identieke DCP-03-Baseline-kopieën (0611f9054a4b) zijn
   // generatoruitvoer van build_programmes.py → reader-only. Orakels 13 → 9, byte-uniek 10 → 9,

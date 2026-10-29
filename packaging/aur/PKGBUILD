@@ -1,0 +1,42 @@
+# Maintainer: OpenAEC Foundation <https://github.com/OpenAEC-Foundation>
+#
+# Bron van dit pakket: packaging/aur/ in https://github.com/OpenAEC-Foundation/open-planner-studio
+# .github/workflows/aur.yml zet na elke stabiele release pkgver en sha256sums, test het pakket met
+# makepkg en namcap in een archlinux-container en pusht dan naar de AUR. Wijzig het pakket in de
+# repo, niet in de AUR-git: de volgende release overschrijft die.
+#
+# Herverpakt de .deb van de stabiele GitHub-release (zelfde binary als de .deb, AppImage en Snap).
+# De app werkt zichzelf hier niet bij: updates komen via je AUR-helper (yay -Syu, paru).
+
+pkgname=open-planner-studio-bin
+_pkgname=open-planner-studio
+pkgver=2026.9.0
+pkgrel=1
+pkgdesc='Construction scheduling with Gantt charts and the Critical Path Method, on IFC 4.3'
+arch=('x86_64')
+url='https://github.com/OpenAEC-Foundation/open-planner-studio'
+license=('LGPL-3.0-or-later')
+depends=(
+  'cairo'
+  'dbus'
+  'gdk-pixbuf2'
+  'glib2'
+  'glibc'
+  'gtk3'
+  'hicolor-icon-theme'
+  'libgcc'
+  'libsoup3'
+  'webkit2gtk-4.1'
+)
+provides=("$_pkgname")
+conflicts=("$_pkgname")
+options=('!strip' '!debug')
+source_x86_64=("$_pkgname-$pkgver.deb::$url/releases/download/v$pkgver/Open.Planner.Studio_${pkgver}_amd64.deb")
+sha256sums_x86_64=('56b89b953237ebb228f2875ee5e8d429fd05487d0cbe8cd577170b41f9173ee5')
+
+package() {
+  # makepkg pakt de .deb (een ar-archief) al uit; data.tar.* bevat /usr. Alles in de .deb is
+  # root:root, en fakeroot meldt nieuwe bestanden als root:root; --no-same-owner slaat alleen de
+  # (overbodige) chown over, die in sommige containers zonder gemapte uid 0 faalt.
+  bsdtar --no-same-owner -xf data.tar.* -C "$pkgdir"
+}

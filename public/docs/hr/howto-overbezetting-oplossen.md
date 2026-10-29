@@ -24,7 +24,7 @@ Ako je odabran zadatak, histogram prikazuje samo opterećenje tog zadatka i samo
 ### 2. Odaberite rješenje
 
 - **Više kapaciteta.** Ako zaista dolazi drugi zidar, postavite *Maksimalan postotak jedinica* na 2 (vidi [Upravljanje resursima](docs://howto-resources-beheren)). Preopterećenje tada nestaje.
-- **Manje jedinica po danu.** Smanjite *Jed./dan* ili za dodjelu odaberite drugu krivulju (vidi [Dodjela resursa s krivuljom](docs://howto-resource-toewijzen)).
+- **Manje jedinica po danu.** Smanjite *Jedinice dodjele* ili za dodjelu odaberite drugu krivulju (vidi [Dodjela resursa s krivuljom](docs://howto-resource-toewijzen)).
 - **Zadatke postavite jedan za drugim.** Dodajte ovisnost između dva zadatka, tako da drugi počinje tek kad se prvi završi (vidi [Dodavanje ovisnosti](docs://howto-relaties-leggen)).
 - **Uravnoteživanje.** Aplikacija pomiče zadatak tako da počinje kasnije.
 

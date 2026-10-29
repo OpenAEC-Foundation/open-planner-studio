@@ -28,7 +28,7 @@ Na aplicação planeia-se à mão: altera-se algo e depois carrega-se em *Calcul
 
 ### Um script é um só passo
 
-Um assistente pode enviar uma série de passos como um todo com `planner_batch`, um script de no máximo 100 passos. Isso dá um só passo de desfazer, um só recálculo e uma só cópia de segurança. Se um passo falhar de forma estrutural, por exemplo uma ferramenta desconhecida ou uma referência circular, a aplicação anula o script inteiro. Nunca se fica com um planeamento a meio. A recusa de um item dentro de um passo de massa, como uma linha de progresso inválida em vinte, é mais leve: esse item fica de fora e o resto é executado. As recusas aparecem no topo da resposta.
+Um assistente pode enviar uma série de passos como um todo com `planner_batch`, um script de no máximo 100 passos. Isso dá um só passo de desfazer, um só recálculo e uma só cópia de segurança. Se um passo falhar de forma estrutural, por exemplo uma ferramenta desconhecida ou uma referência circular, a aplicação anula o script inteiro. Nunca se fica com um planeamento a meio. A recusa de um item dentro de um passo de massa, como uma entrada de progresso inválida em vinte, é mais leve: esse item fica de fora e o resto é executado. As recusas aparecem no topo da resposta.
 
 ### Os seus limites
 
@@ -45,7 +45,7 @@ Acresce o seu *Desfazer* normal (Ctrl+Z). O assistente partilha esse histórico 
 
 A ponte é deliberadamente mais estreita do que a aplicação. O que o assistente não consegue fazer tem normalmente uma de três razões.
 
-**Vai além do projeto.** O assistente não consegue alterar a biblioteca de recursos. A biblioteca de recursos é partilhada por todos os seus projetos e fica fora do histórico de desfazer; uma única alteração de tarifa faria então efeito em projetos que nem sequer estão abertos. Para um recurso de uma biblioteca, o nome, o tipo, a descrição, a tarifa horária e a unidade ficam fixos, tal como no painel de recursos. O que decide o projeto fica com o assistente: unidades máximas, disponibilidade ao longo do tempo, calendário e equipa. Também não pode escolher qual é o calendário do projeto. Pode ler o perfil de cálculo e as opções de cálculo, mas não as alterar; só pode definir o modo de progresso e o padrão do projeto para a regra de trabalho. Não existem ferramentas para definições, tema, idioma, extensões ou atualizações.
+**Vai além do projeto.** O assistente não consegue alterar a biblioteca de recursos. A biblioteca de recursos é partilhada por todos os seus projetos e fica fora do histórico de desfazer; uma única alteração de tarifa faria então efeito em projetos que nem sequer estão abertos. Para um recurso de uma biblioteca, o nome, o tipo, a descrição, a tarifa horária e a unidade ficam fixos, tal como no painel de recursos. O que decide o projeto fica com o assistente: unidades máximas, disponibilidade ao longo do tempo, calendário e equipa. Também não pode escolher qual é o calendário do projeto. Pode ler o perfil de cálculo e as opções de cálculo, mas não as alterar; só pode definir o modo de progresso e o padrão do projeto para o tipo de tarefa. Não existem ferramentas para definições, tema, idioma, extensões ou atualizações.
 
 **Não se presta a uma validação fiável.** O assistente não consegue definir um hammock, planear uma tarefa manualmente, definir uma segunda restrição, preencher notas, cores, códigos de atividade, campos personalizados ou relações externas, e não consegue definir um atraso de nivelamento à mão. Também não escolhe um código WBS; a aplicação deriva-o por si.
 

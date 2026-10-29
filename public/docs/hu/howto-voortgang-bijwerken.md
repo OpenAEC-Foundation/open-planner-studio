@@ -14,7 +14,8 @@ Az állapotdátum az a nap, amelyen felmérést készít. Állítsa be, mielőtt
 
 1. Lépjen az *Ütemezés › Alaptervek és előrehaladás › Állapotdátum* menüpontra.
 2. Írja be a dátumot a három mezőbe: nap, hónap és év (a dátum szokásos sorrendjében), például 28, 06 és 2027, majd nyomja meg az Enter billentyűt. Az alkalmazás magától a következő mezőre ugrik.
-3. A mező melletti kis kereszttel újra kiürítheti az állapotdátumot.
+3. Vannak a projektnaptárban idősávok (a *Naptárak* ablak *Munkaórák* blokkja)? Akkor az alkalmazás órában számít, és jobbra megjelenik egy időmező, például 17:00. Írjon be másik időpontot, például 12:00, majd nyomja meg az Enter billentyűt. Ha kiüríti az időmezőt, csak a dátum marad meg. Ha csak a dátumot módosítja, az idő megmarad. Az idő az időformátumát követi (24 vagy 12 órás). Idősávok nélkül az alkalmazás egész napokban számít. Ekkor nincs időmező, és az állapotdátum a nap elejére kerül.
+4. A mező melletti kis kereszttel újra kiürítheti az állapotdátumot.
 
 Ha pénteken munkaidő után készít felmérést, állítsa az állapotdátumot a következő munkanapra, a hétfőre. Az alkalmazás a hátralévő munkát az állapotdátum kezdetétől ütemezi.
 
@@ -39,11 +40,11 @@ Egy mérföldkőnek egy mezője van: a *Tényleges dátum*.
 
 **Több tevékenység a tevékenységtáblázatban.** Hasznos, ha egy egész listát frissít.
 
-1. Kattintson a tevékenységtáblázat fejlécének jobb szélén lévő **+** jelre (*Oszlop hozzáadása*), és nyissa meg az *Előrehaladás* kategóriát. Adja hozzá ezeket az oszlopokat: *Tényleges kezdés*, *Tényleges befejezés*, *Hátralévő* és *Státusz*. Az *Előrehaladás* oszlop már rajta van a *Táblázat* lapon.
+1. Kattintson a tevékenységtáblázat fejlécének jobb szélén lévő **+** jelre (*Oszlop hozzáadása*), és nyissa meg az *Előrehaladás* kategóriát. Adja hozzá ezeket az oszlopokat: *Tényleges kezdés*, *Tényleges befejezés*, *Hátralévő* és *Státusz*. Az *Előrehaladás* oszlop már szerepel a *Táblázat* lapon.
 2. Kattintson duplán egy cellára, írja be az értéket, és nyomja meg az Enter billentyűt. A százalékot `50` vagy `50%` alakban írja be, a dátumot `25-06-2027` alakban, a hátralévő időtartamot `1` alakban.
 3. A *Státusz* oszlopban kattintson duplán, nyomja meg az Enter billentyűt, és válassza a *Nem kezdődött el*, a *Folyamatban* vagy a *Befejezett* értéket.
 
-Ha hátralévő időtartamot ír be, az alkalmazás visszaszámolja a százalékot: 2 munkanapos tevékenységnél az 1 maradék 50 százalékot jelent. A 0 maradék befejezetté teszi a tevékenységet. Ha a *Státusz* oszlopban a *Nem kezdődött el* értéket választja, a százalék 0 lesz, és a tényleges dátumok eltűnnek.
+Ha hátralévő időtartamot ír be, az alkalmazás visszaszámolja a százalékot: 2 munkanapos tevékenységnél az 1 munkanap maradék 50 százalékot jelent. A 0 maradék a tevékenységet befejezetté teszi. Ha a *Státusz* oszlopban a *Nem kezdődött el* értéket választja, a százalék 0 lesz, és a tényleges dátumok eltűnnek. A *Tényleges időtartam* oszlop (ugyancsak az *Előrehaladás* kategóriában) fordítva működik: írja be, mennyi munka van már kész, és az alkalmazás kiszámítja a százalékot. 4 munkanapos tevékenységnél 1 tényleges időtartam 25 százalékot jelent.
 
 **Egy tevékenység minden adata a tevékenységszerkesztő ablakban.** Kattintson a tevékenységre jobb gombbal, és válassza a *Szerkesztés...* lehetőséget. Az előrehaladási mezők is ott vannak. Ezek csak a *Mentés* gombra kattintás után érvényesülnek.
 

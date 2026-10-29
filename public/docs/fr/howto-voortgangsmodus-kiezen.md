@@ -31,9 +31,9 @@ Comment choisir ?
 
 **Il appartient au projet.** Le choix est enregistré avec le fichier du projet, s'applique à tout le projet et peut être annulé avec Ctrl+Z. Un nouveau projet est réglé sur Retained Logic.
 
-**Un fichier P6.** Si vous ouvrez un fichier Primavera P6 (.xer), l'application prend le mode du fichier. À côté de Retained Logic et Progress Override, P6 connaît aussi Actual Dates. L'application ne connaît pas ce troisième mode ; un tel fichier se calcule avec Retained Logic. Le message d'importation le compte comme *1 paramètre de planification P6 a utilisé un repli sûr.*
+**Un fichier P6.** Si vous ouvrez un fichier Primavera P6 (.xer), l'application prend le mode du fichier. À côté de Retained Logic et Progress Override, P6 propose aussi le mode Actual Dates. L'application ne connaît pas ce troisième mode ; un tel fichier se calcule avec Retained Logic. Le message d'importation le compte comme *1 paramètre de planification P6 a utilisé un repli sûr.*
 
-**Le profil de calcul.** Dans le profil Primavera P6, Progress Override agit aussi en arrière, sur les dates au plus tard et la marge libre du prédécesseur (convention *Progress Override ignore aussi en arrière un successeur commencé*). Dans les profils Open Planner Studio et Microsoft Project, ce n'est pas le cas. Vous trouvez les conventions sous *Paramètres › Projet › Info projet*, dans le bloc *Profil de calcul et options*. Dans l'exemple de l'explication, cet effet en arrière ne se voit pas.
+**Le profil de calcul.** Dans le profil Primavera P6, Progress Override agit aussi en arrière, sur les dates au plus tard et la marge libre du prédécesseur (convention *Progress Override ignore aussi en arrière un successeur commencé*). Dans les profils Open Planner Studio et Microsoft Project, ce n'est pas le cas. Vous trouvez les conventions sous *Paramètres › Projet › Paramètres du projet*, dans le bloc *Profil de calcul et options*. Dans l'exemple de l'explication, cet effet en arrière ne se voit pas.
 
 ## Voir aussi
 

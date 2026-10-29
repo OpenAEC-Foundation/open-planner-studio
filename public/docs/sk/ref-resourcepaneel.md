@@ -14,23 +14,23 @@ Panel zdrojov je miesto, kde spravujete zdroje. Vidíte tu, kto a čo je k dispo
 - **Nový zdroj v projekte** (v zobrazení *Knižnica* ako *Nový zdroj v knižnici*) — tlačidlo vpravo hore. Otvorí koncept riadka na konci tabuľky. Nič sa nevytvorí, kým nezadáte názov a neopustíte riadok alebo nestlačíte Enter. Ak kliknete mimo prázdneho riadka alebo stlačíte Esc, nezostane nič: žiadny zdroj a žiadny krok v *Vrátiť späť*. Polia môžete vyplniť v ľubovoľnom poradí. Všetko sa uloží naraz. Enter alebo šípka nadol uloží riadok a otvorí nový koncept. Shift+Enter alebo šípka nahor uloží riadok a vráti vás do tabuľky. Koncept nemá rozbaľovač kapacity, ceruzku kalendára ani kôš, lebo sa týkajú zdroja, ktorý ešte neexistuje. Tlačidlo *Vytvoriť zdroj* v ponuke *Zdroje › Zostava* robí to isté.
 - **Navigácia v mriežke** — v tabuľke sa kurzor medzi riadkami presúva klávesmi Enter, Shift+Enter a šípkami nahor a nadol. Enter na poslednom riadku otvorí nový koncept.
 
-## Zobrazenie Projekt
+## Zobrazenie projektu
 
 Tabuľka toho, čo tento projekt používa. Každý riadok je jeden zdroj. Zmeny textu a sadzby sa uplatnia, keď opustíte pole. Každá takáto zmena je jeden krok v *Vrátiť späť*.
 
 - **Farba** — výber farby. Predvolené: prvá voľná farba z palety. Účinok: farba pruhu zdroja pod diagramom Gantt (*Zobrazenie › Smerné plány a postup › Zvýraznenie zdrojov*) a farba štvorčeka v ukotvenom paneli.
 - **Názov** — názov zdroja. Prázdny názov sa neuloží; pole sa vráti k starému názvu.
-- **Typ** — *Práca*, *Zariadenie*, *Materiál*, *Subdodávateľ* alebo *Pracovná zmena*. Predvolené pre nový zdroj: *Práca*. Účinok: *Materiál* má *Jednotku* a nepočíta sa do súčtu *Všetky zdroje* v histograme. Vyvažovanie preskočí materiál. Zdroj typu *Pracovná zmena* môže byť *Pracovnou zmenou* iných zdrojov. Ostatné typy sa počítajú rovnako.
-- **Maximálny počet jednotiek** — koľko zo zdroja je k dispozícii za deň. Číslo nad 0, zlomky sú povolené. Predvolené: 1. Účinok: kapacita za deň. Ak je zaťaženie vyššie, zdroj je preťažený. Šípka vedľa poľa rozbalí *Časovo fázovanú kapacitu*. Číslo pri šípke je počet krokov.
-- **Časovo fázovaná kapacita** — kroky s *Od* (dátum) a *Maximálnym počtom jednotiek*. *Pridať krok* pridá krok s dnešným dátumom a hodnotou 1. Bez krokov sa zobrazí *Žiadne kroky — rovný maximálny počet jednotiek platí vždy.* Účinok: od dátumu kroku platí jeho *Maximálny počet jednotiek* namiesto rovnej hodnoty. Pre daný deň platí posledný krok s dátumom v ten deň alebo skôr.
+- **Typ** — *Práca*, *Zariadenie*, *Materiál*, *Subdodávateľ* alebo *Pracovná zmena*. Predvolené pre nový zdroj: *Práca*. Účinok: *Materiál* má pole *Jednotka* a nepočíta sa do súčtu *Všetky zdroje* v histograme. Vyvažovanie preskočí materiál. Zdroj typu *Pracovná zmena* sa dá vybrať ako *Pracovná zmena* iných zdrojov. Ostatné typy sa počítajú rovnako.
+- **Maximálny počet jednotiek** — koľko zo zdroja je k dispozícii za deň. Číslo nad 0, zlomky sú povolené. Predvolené: 1. Účinok: kapacita za deň. Ak je zaťaženie vyššie, zdroj je preťažený. Šípka vedľa poľa rozbalí položku *Časovo fázovaná kapacita*. Číslo pri šípke je počet krokov.
+- **Časovo fázovaná kapacita** — kroky s poľami *Od* (dátum) a *Maximálny počet jednotiek*. *Pridať krok* pridá krok s dnešným dátumom a hodnotou 1. Bez krokov sa zobrazí *Žiadne kroky — rovný maximálny počet jednotiek platí vždy.* Účinok: od dátumu kroku platí jeho *Maximálny počet jednotiek* namiesto rovnej hodnoty. Pre daný deň platí posledný krok s dátumom v ten deň alebo skôr.
 - **Kalendár** — zoznam s položkou *Projektový kalendár* (predvolené), kalendármi projektu a *+ Kalendár zdroja* pre nový kalendár. Ceruzka (*Upraviť…*) otvorí zvolený kalendár. Pri položke *Projektový kalendár* je ceruzka vypnutá. Účinok: dni, keď zdroj pracuje. V deň voľna je kapacita 0. Ak sa v ten deň plánuje práca, zdroj je preťažený s dôvodom *Podľa kalendára „…“ sa v tento deň nepracuje*. Kalendár zdroja nemení termíny úlohy. Pozrite [Okná kalendárov](docs://ref-kalenders).
 - **Štandardná sadzba/hod** — náklad za hodinu. Prázdne pole = žiadna sadzba. Neplatné číslo sa nahradí predošlou hodnotou. Účinok: žiadny vplyv na plán ani na zaťaženie. Sadzba určuje stĺpec *Celkom*, uloží sa v súbore IFC a pri exporte sa zapíše do MS Project (štandardná sadzba) a do Primavera P6 XML (cena za jednotku).
 - **Celkom** — iba na čítanie: naložené hodiny × sadzba, s dvoma desatinnými miestami. *—* bez sadzby alebo zaťaženia. Na konci riadok *Celkom* sčíta všetky zdroje. Hodiny vychádzajú z posledného prepočtu a počítajú sa ako jednotky × hodiny za deň podľa kalendára úlohy. Nie sú aktuálne? Stlačte *Prepočítať*.
-- **Jednotka** — mernú jednotku materiálu, napríklad `m³`. Dá sa vyplniť len pri type *Materiál* (popisok *Vyplňte len pri zdrojoch typu Materiál.*). Účinok: iba popis, nič sa nevypočíta.
+- **Jednotka** — merná jednotka materiálu, napríklad `m³`. Dá sa vyplniť len pri type *Materiál* (popisok *Vyplňte len pri zdrojoch typu Materiál.*). Účinok: iba popis, nič sa nevypočíta.
 - **Pracovná zmena** — pracovná zmena, do ktorej zdroj patrí, zo zdrojov typu *Pracovná zmena*. Predvolené: *Žiadna*. Účinok: iba zoskupenie. Kapacita a zaťaženie pracovnej zmeny nie sú súčtom jej členov.
 - **Odstrániť** (kôš) — odstráni zdroj. Ak má zdroj priradenia, aplikácia sa najprv opýta *„…“ má počet priradení: … — odstrániť?* so značkou na potvrdenie a krížikom na zrušenie.
 - **Do knižnice** — len ak projekt patrí do knižnice zdrojov, pri zdroji s názvom, ktorý ešte nepochádza z knižnice. Uloží zdroj do knižnice alebo ho prepojí s existujúcou položkou s rovnakým názvom. Aplikácia oznámi, čo sa stalo: *Pridané.*, *Už bolo v knižnici. Teraz je prepojené.* alebo *Prepojené s existujúcou položkou knižnice. Hodnoty sa líšia, pozrite si označenie.*
-- **Odpojiť od knižnice** — ikona odpojenia pri zdroji, ktorý pochádza z knižnice. Odstráni väzbu na pôvod. Potom sú všetky polia voľné.
+- **Odpojiť od knižnice** — ikona odpojenia pri zdroji, ktorý pochádza z knižnice. Odstráni väzbu na pôvod. Potom sú všetky polia opäť voľné.
 
 Bez zdrojov sa zobrazí *Zatiaľ žiadne zdroje. Pridajte aspoň jeden, aby ste mohli začať.* Ak projekt patrí do knižnice, zobrazí sa *Tento projekt zatiaľ nepoužíva žiadne zdroje z knižnice.* s nápovedou.
 
@@ -80,7 +80,7 @@ Kde to vidíte:
 - **Zdroje › Preťaženie** — počet preťažených zdrojov, alebo *Žiadne*.
 - **Stavový riadok** — *Preťažené zdroje: N*. Kliknutím sa otvorí panel *Upozornenia*.
 - **Upozornenia** — riadok na zdroj *Preťaženie, počet dní: N (prvý – posledný)*. Ak sú všetky dni dňami voľna, pridá sa *zdroj v tieto dni nepracuje podľa svojho kalendára*. Pri zmesi sa pridá *z toho N dní zdroj podľa svojho kalendára nepracuje*. Pozrite [Oznámenia a upozornenia](docs://ref-meldingen).
-- **Histogram** — červené časti pruhov a červená bodka vo výbere.
+- **Histogram** — červené časti stĺpcov a červená bodka vo výbere.
 - **Ukotvený panel** — trojuholník *Preťažený*.
 
-Vyvažovanie môže vyriešiť preťaženie tak, že presunie úlohy v rámci ich časovej rezervy. Nevyrieši zdroj, ktorý musí pracovať v deň voľna. Pozrite [Vyvažovanie](docs://uitleg-nivelleren).
+Vyvažovanie môže vyriešiť preťaženie tak, že úlohy začnú neskôr. Predvolene sa dátum dokončenia projektu môže posunúť; pri *vyhladzovaní* zostane v rámci časovej rezervy. Vyvažovanie nevyrieši zdroj, ktorý musí pracovať v deň voľna. Pozrite [Vyvažovanie](docs://uitleg-nivelleren).

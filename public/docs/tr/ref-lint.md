@@ -11,7 +11,7 @@ Ekranın üstündeki şeritte sekmeler vardır. Her sekmede düğme grupları va
 
 ## Dosya
 
-*Dosya* öğesini tıklarsanız kendi ekranı (Backstage) çalışma alanını kaplar. Bu ekranda şerit yoktur. *Geri* ekranı kapatır. *Proje bilgisi* altında bir şeyi değiştirip *Uygula* demediyseniz, uygulama önce ne yapacağınızı sorar.
+*Dosya* öğesini tıklarsanız kendi ekranı (Backstage) çalışma alanını kaplar. Bu ekranda şerit yoktur. *Geri* ekranı kapatır. *Proje ayarları* altında bir şeyi değiştirdiyseniz ve *Uygula* demediyseniz, uygulama önce ne yapılacağını sorar.
 
 - **Yeni** — *Yeni proje* penceresini açar ve Backstage'i kapatır. Alanlar [Yeni proje ve Proje bilgisi](docs://ref-projectinfo) sayfasında yer alır.
 - **Aç** — Bir dosya seçer ve dosyayı belge olarak açar. Backstage'i kapatır.
@@ -19,14 +19,14 @@ Ekranın üstündeki şeritte sekmeler vardır. Her sekmede düğme grupları va
 - **Örnekler** — Uygulamayla gelen örnek planlar. Bunlar *Tam kapsamlı örnek planlar* (rozet *Tüm özellikler*) ve *Basit örnekler* olarak ayrılmıştır. Bir tıklama birini yeni bir sekmede açar.
 - **Kaydet** — Projeyi bu belgenin dosyasına yazar. Belgenin henüz bir dosyası yoksa, önce bir ad ve yer seçersiniz. IFC dışındaki bir biçimde açtığınız dosyanın üzerine hiçbir zaman yazılmaz. Bu durumda *Kaydet* bir IFC dosyası için ad ve yer ister.
 - **Farklı kaydet** — Yeni bir ad veya yer seçer ve oraya IFC olarak kaydeder.
-- **Dışa aktar** — Her dışa aktarma biçimi için bir açıklamalı kart. Bir tıklama projeyi dönüştürür ve kaydeder, ardından sizi *Ana sayfa* sekmesine geri götürür. Planlamada bir döngü varsa, hata Backstage'de görünür ve siz orada kalırsınız. Proje bir kaynak kitaplığına bağlıysa, altta *Kitaplık dosyasını da kaydet* onay kutusu görünür; bu yalnızca IFC kartında çalışır.
+- **Dışa aktar** — Her dışa aktarma biçimi için açıklamalı bir kart. Bir tıklama projeyi dönüştürür ve kaydeder, ardından sizi *Ana sayfa* sekmesine geri götürür. Planlamada bir döngü varsa, hata Backstage'de görünür ve siz orada kalırsınız. Proje bir kaynak kitaplığına bağlıysa, altta *Kitaplık dosyasını da kaydet* onay kutusu görünür; bu yalnızca IFC kartında çalışır.
 - **İçe aktar** — Üstte *Bir tablodan ilerlemeyi güncelle* kartı yer alır (görev yoksa devre dışıdır). Altında uzantıların eklediği içe aktarıcılar yer alır.
 - **Yazdır** — *Baskı önizlemeyi aç* düğmesi sizi *Rapor* sekmesine götürür.
-- **Proje bilgisi** — Bu projenin meta verileri ve hesaplama profili. Değişiklikler yalnızca *Uygula* düğmesinden sonra etkili olur. Bkz. [Yeni proje ve Proje bilgisi](docs://ref-projectinfo) ve [Hesaplama profilleri ve kurallar](docs://uitleg-rekenprofielen).
-- **Ayarlar** — *Ayarlar* penceresiyle aynı ayarlar.
+- **Proje ayarları** — Bu projenin meta verileri ve hesaplama profili. Değişiklikler yalnızca *Uygula* düğmesinden sonra etkili olur. Bkz. [Yeni proje ve Proje bilgisi](docs://ref-projectinfo) ve [Hesaplama profilleri ve kurallar](docs://uitleg-rekenprofielen).
+- **Ayarlar** — *Uygulama ayarları* penceresiyle aynı ayarlar.
 - **Uzantılar** — Uzantıların yönetimi ve kurulumu; bkz. [Bir uzantıyı kurma ve yönetme](docs://howto-extensie-installeren).
 - **Kaynak kitaplığı** — Kaynak kitaplıklarının yönetimi; bkz. [Kaynak kitaplıklarını yönetme ve paylaşma](docs://howto-bibliotheken-beheren).
-- **Yardım** — Uygulamanın yerleşik belgeleri, ayrıca F1 ile de açılır. Arama alanı başlıklarda, alt başlıklarda ve metinde arar. Makaleler dört bölümde yer alır: *Eğitimler*, *Nasıl yapılır*, *Açıklamalar* ve *Referans*. *Belge dili* altında *Uygulama dilini takip et*, *Nederlands* veya *English* seçersiniz. Yardım yalnızca Hollandaca ve İngilizce olarak vardır. Uygulama başka bir dildeyse, bir bildirimle birlikte İngilizce sürümü okursunuz. Seçim bu cihazda saklanır ve uygulamanın dilinden ayrıdır. Pencerelerden veya panellerden de Yardım'a ulaşabilirsiniz: birçok pencerede ve *Özellikler*, *Kaynaklar* ve *Uyarılar* panellerinde sağ üstte bir soru işareti vardır (*Bu konuyla ilgili yardım*). Bu, o pencere veya panel hakkındaki makaleyi açar. Pencerede henüz kaydedilmemiş bir şey girdiyseniz, uygulama önce *Kaydet*, *İptal* (girdiğiniz şeyi atar) veya *Geri* (pencerede kalır) sorar. Sonra pencere kapanır ve Yardım açılır. Bazı pencereler, örneğin *Görevi düzenle* ve *Kaynakları dengele*, her zaman sorar. Giriş yoksa Yardım hemen açılır.
+- **Yardım** — Uygulamanın yerleşik belgeleri; F1 ile de açılır. Arama alanı başlıkları, alt başlıkları ve metnin kendisini arar. Makaleler dört bölümde yer alır: *Eğitimler*, *Nasıl yapılır*, *Açıklamalar* ve *Referans*. *Belge dili* altında *Uygulama dilini takip et* seçersiniz ya da listeden bir dil seçersiniz. Hollandaca ve İngilizce kaynak dillerdir; diğer dillerde yalnızca çevrilmiş makaleler vardır. Bir makale sizin dilinizde yoksa, bir bildirimle birlikte İngilizce sürümünü okursunuz. Bu seçim bu cihazda saklanır ve uygulamanın dilinden ayrıdır. Birçok pencerede ve *Özellikler*, *Kaynaklar* ve *Uyarılar* panellerinde sağ üstte bir soru işareti vardır (*Bu konuyla ilgili yardım*). Bu, o pencere veya panel hakkındaki makaleyi açar. Pencerede henüz kaydedilmemiş bir şey girdiyseniz, uygulama önce *Kaydet*, *İptal* (girdiğiniz şeyi atar) veya *Geri* (pencerede kalır) sorar. Sonra pencere kapanır ve Yardım açılır. Bazı pencereler, örneğin *Görevi düzenle* ve *Kaynakları dengele*, her zaman sorar. Giriş yoksa Yardım hemen açılır.
 - **Turu başlat** — Backstage'i kapatır ve turu 1. adımda başlatır.
 - **Projeyi kapat** — Etkin belgeyi kapatır. Kaydedilmemiş değişiklikleri varsa, uygulama onay ister.
 
@@ -35,7 +35,7 @@ Ekranın üstündeki şeritte sekmeler vardır. Her sekmede düğme grupları va
 ### Ana sayfa › Dosya
 
 - **Yeni**, **Kaydet**, **Aç** ve **Farklı kaydet** — *Dosya* sekmesindekiyle aynı işlemler.
-- **Son açılanlar** — Son projelerin açılır listesi; bir tıklama birini açar. Yalnızca *Son açılanlar* ile aynı koşulda görünür. Son açılan dosya yoksa *Son açılan dosya yok* yazar.
+- **Son açılanlar** — Son projelerin açılır listesi; bir tıklama birini açar. Yalnızca *Dosya › Son açılanlar* ile aynı koşulda görünür. Son açılan dosya yoksa *Son açılan dosya yok* yazar.
 - **Dışa aktar** — Dışa aktarma biçimlerinin (kısa adlarıyla) açılır listesi. Bir tıklama projeyi dönüştürür ve kaydeder.
 
 ### Ana sayfa › Düzenle
@@ -46,14 +46,14 @@ Ekranın üstündeki şeritte sekmeler vardır. Her sekmede düğme grupları va
 
 ### Ana sayfa › Görevler
 
-- **Görev** — *Yeni görev* adında bir görev ekler; süresi 5 iş günüdür ve proje başlangıcında başlar. (*Saat planlamasını etkinleştir* açıksa ve *Proje bilgisi* içindeki *Yeni görevler için varsayılan birim* saat ise süre 5 saattir.) Bir görev seçiliyse ve görünüm düz ağaçsa, yeni görev seçili en alttaki görevin hemen altına gelir (ipucu: *Yeni görev, seçimin hemen altına eklenir*). Seçim yoksa en alta eklenir (ipucu: *Yeni görev listenin sonuna eklenir*). Bir seçim varken ama filtreleme, gruplama veya sıralama sırasında, yeni görev yine en alta eklenir ve bir bilgi satırı *Filtreleme/gruplama/sıralama sırasında kullanılamaz* yazar. Yeni görev tek seçim olur, Gantt oraya atlar ve adı *Özellikler* panelinde üzerine yazılmaya hazırdır.
-- **Kilometre taşı ▾** — Bir kilometre taşı (süresi 0) ekleyen açılır liste; yeri *Görev* ile aynıdır. *Başlangıç kilometre taşı* ve *Bitiş kilometre taşı* kilometre taşının türünü belirler. Yeni kilometre taşı *Yeni kilometre taşı* adını alır ve görev türü *Diğer* olur. *Denetim noktası (zorunlu)* bir bitiş kilometre taşı oluşturur. Görev türü *Denetim* olur ve işareti *Zorunlu (sözleşmesel)* olur. Adı *Yeni denetim noktası* olur.
+- **Görev** — *Yeni görev* adında bir görev ekler; süresi 5 iş günüdür ve proje başlangıcında başlar. (*Saat planlamasını etkinleştir* açıksa ve *Proje ayarları* altındaki *Yeni görevler için varsayılan birim* saat ise süre 5 saattir.) Bir görev seçiliyse ve görünüm düz bir ağaçsa, yeni görev seçili en alt görevin hemen altına gelir (ipucu: *Yeni görev, seçimin hemen altına eklenir*). Seçim yoksa en alta eklenir (ipucu: *Yeni görev listenin sonuna eklenir*). Seçim varken filtreleme, gruplama veya sıralama yapılıyorsa, yeni görev yine en alta eklenir. Kırmızı bir bildirim, uygulamanın yeni görevi seçiminizin altına koyamadığını söyler; bildirimde *Temizle* düğmesi vardır. Yeni görev tek seçim olur, Gantt oraya atlar ve adı *Özellikler* panelinde üzerine yazılmaya hazırdır.
+- **Kilometre taşı ▾** — Bir kilometre taşı (süresi 0) ekleyen açılır liste; yeri *Görev* ile aynıdır. *Başlangıç kilometre taşı* ve *Bitiş kilometre taşı* kilometre taşının türünü belirler. Yeni kilometre taşı *Yeni kilometre taşı* adını alır ve iş kategorisi *Diğer* olur. *Denetim noktası (zorunlu)* bir bitiş kilometre taşı oluşturur; iş kategorisi *Denetim* olur ve *Zorunlu (sözleşmesel)* işaretini alır. Adı *Yeni denetim noktası* olur.
 - **Bağla ▾** — Dört sabit işlemi olan açılır liste. Ana düğmenin anlamı hiç değişmez. Dört işlem için bkz. *Planlama › İlişkiler*.
-- **Görevi böl** — Bölme modunu açar veya kapatır. Açıkken şeridin altında bir bilgi satırı, bölmenin başlayacağı çubuğa tıklayıp uzunluğu kadar sağa sürüklemeniz gerektiğini açıklar. Gantt görünmüyorsa devre dışıdır (*Tablo*, *IFC* ve *Rapor* sekmelerinde ve tam kaynak panelinin altında). İpucu o zaman *Yalnızca Gantt şeması görünürken kullanılabilir* yazar. Bkz. [Bir görevi bölme](docs://howto-taak-splitsen).
+- **Görevi böl** — Bölme modunu açar veya kapatır. Açıkken şeridin altında bir bilgi satırı, bölmenin başlayacağı çubuğa tıklayıp uzunluğu kadar sağa sürüklemeniz gerektiğini açıklar. Gantt görünmüyorsa devre dışıdır (*Tablo*, *IFC* ve *Rapor* sekmelerinde ve tam kaynak paneli altında). İpucu o zaman *Yalnızca Gantt şeması görünürken kullanılabilir* yazar. Bkz. [Bir görevi bölme](docs://howto-taak-splitsen).
 
 ### Ana sayfa › Planlama
 
-- **Hesapla** — Planlamayı hesaplar: tarihler, bolluk, kritik yol ve kaynak yükü. Bu kendiliğinden olmaz. Yalnızca *Otomatik hesapla* açıksa olur (*Ayarlar*, sekme *Planlama*, başlık *Hesaplama*). Planlama güncel değilken durum çubuğu *Güncel değil — yeniden hesaplayın (F5)* yazar.
+- **Hesapla** — Planlamayı hesaplar: tarihler, bolluk, kritik yol ve kaynak yükü. Bu kendiliğinden olmaz. Yalnızca *Otomatik hesapla* açıksa olur (*Uygulama ayarları*, *Planlama* sekmesi, *Hesaplama* başlığı). Planlama güncel değilken durum çubuğu *Güncel değil — yeniden hesaplayın (F5)* yazar.
 
 ### Ana sayfa › Yakınlaştırma
 
@@ -71,10 +71,10 @@ Ekranın üstündeki şeritte sekmeler vardır. Her sekmede düğme grupları va
 
 ### Planlama › İlişkiler
 
-Bu grupta *Bağla ▾* düğmesi (dört işlemle) ve *Görevi böl* düğmesi vardır (*Ana sayfa* ile aynı). Dört işlem:
+Bu grupta *Bağla ▾* düğmesi (dört işlemle) ve *Görevi böl* düğmesi vardır (*Ana sayfa* sekmesiyle aynı). Dört işlem:
 
-- **İlişki çiz** — Bağlama modunu açar veya kapatır. Açıkken onay işareti görünür ve ana düğme vurgulanır. Bir ilişki oluşturmak için Gantt'ta bir çubuktan diğerine sürüklersiniz. Şeridin altındaki bir bilgi satırı nasıl durduracağınızı açıklar (*Durdur* veya Esc). Gantt görünmüyorsa devre dışıdır.
-- **Seçili görevleri bağla** — İki görev arasında gecikmesiz bir bitiş-başlangıç ilişkisi oluşturur; önce seçilen görev öncül olur. Yalnızca tam olarak iki görev seçiliyken kullanılabilir (aksi halde *Tam olarak iki görev seçin*). Yinelenen bir ilişki veya bir döngü bir mesajla reddedilir.
+- **İlişki çiz** — Bağlama modunu açar veya kapatır. Açıkken onay işareti görünür ve ana düğme vurgulanır. Bir ilişki oluşturmak için Gantt'ta bir çubuktan diğerine sürüklersiniz. Şeridin altındaki bir bilgi satırı, nasıl durdurabileceğinizi açıklar (*Durdur* veya Esc). Gantt görünmüyorsa devre dışıdır.
+- **Seçili görevleri bağla** — İki görev arasında gecikmesiz bir bitiş-başlangıç ilişkisi oluşturur; önce seçilen görev öncül olur. Yalnızca tam olarak iki görev seçiliyken kullanılabilir (aksi halde *Tam olarak iki görev seçin*). Yinelenen bir ilişki veya bir döngü, bir mesajla reddedilir.
 - **Dış ilişki ekle…** — Seçili göreve dış bir öncül veya ardıl eklemek için bir pencere açar. Yalnızca tam olarak bir görev seçiliyken kullanılabilir (aksi halde *Tam olarak bir görev seçin*).
 - **Tüm dış ilişkileri yenile** — Tüm dış ilişkilerin bağlantı noktalarını yeniler ve menüde kaç tanesinin güncellendiğini veya eksik olduğunu bildirir. Yalnızca projede dış ilişki varsa kullanılabilir (aksi halde *Bu projede dış ilişki yok*).
 
@@ -85,7 +85,7 @@ Bu grupta *Bağla ▾* düğmesi (dört işlemle) ve *Görevi böl* düğmesi va
 - **Öncüller** — Gantt'ta seçili görevlerin öncüllerini zincir zincir vurgular.
 - **Ardıllar** — Seçili görevlerin ardıllarını vurgular.
 
-Her ikisini de aynı anda açabilirsiniz. Bir düğmeye ikinci kez tıklamak o yönü yeniden kapatır. Belirleyici ilişkiler daha güçlü bir tonla vurgulanır. Bkz. [Bir yolu izleme](docs://howto-pad-traceren).
+Bu iki seçeneği aynı anda açabilirsiniz; bir düğmeye ikinci kez tıklamak o yönü yeniden kapatır. Belirleyici ilişkiler daha güçlü bir tonla vurgulanır. Bkz. [Bir yolu izleme](docs://howto-pad-traceren).
 
 ### Planlama › Takvim
 
@@ -93,24 +93,24 @@ Her ikisini de aynı anda açabilirsiniz. Bir düğmeye ikinci kez tıklamak o y
 
 ### Planlama › Yapı
 
-- **Kodlar ve alanlar** — Etkinlik kodları ve özel alanlar için *Kodlar ve alanlar* penceresini açar. Bkz. [Kodlar ve özel alanlar](docs://howto-codes-en-velden).
-- **WBS auto** — WBS kodlarının otomatik numaralandırmasını açar veya kapatır. Varsayılan: kapalı. Açıkken tüm ağaç bir seferde yeniden numaralanır, kodlar her yapı değişikliğini izler ve *WBS Kodu* alanı panelde ve iletişim kutusunda devre dışı kalır.
+- **Kodlar ve alanlar** — *Kodlar ve alanlar* penceresini açar; etkinlik kodları ve özel alanlar için. Bkz. [Kodlar ve özel alanlar](docs://howto-codes-en-velden).
+- **WBS auto** — WBS kodlarının otomatik numaralandırmasını açar veya kapatır. Varsayılan: yeni bir projede açık. Ayar olmayan bir dosya açtığınızda: açık, dosya boşsa veya kodlar ağacın numaralandırmasıyla zaten eşleşiyorsa; aksi halde kapalı. Açıkken tüm ağaç bir seferde yeniden numaralanır, kodlar her yapı değişikliğini izler ve paneldeki ve iletişim kutusundaki *WBS Kodu* alanı devre dışı kalır.
 - **WBS'yi yeniden numaralandır** — WBS kodlarını ağaçtaki konuma göre bir kez yeniden numaralandırır (1.2.3). *WBS auto* açıkken devre dışıdır.
 - **Şablonlar** — Kaydedilmiş WBS şablonlarının açılır listesi; her şablonda görev ve ilişki sayısı yazar. Bir tıklama şablonu seçili görevin altına ekler; seçim yoksa en üst düzeye ekler. Çöp kutusu simgesi bir şablonu siler. Şablon yoksa, bunun nasıl kaydedileceğini yazar (bir özet göreve sağ tıklayın, *Dalı şablon olarak kaydet*). Bkz. [WBS şablonlarını kaydetme ve ekleme](docs://howto-wbs-sjablonen).
-- **Girintile** — Seçili görevleri, önlerindeki görevin alt görevi yapar. Seçim yoksa veya filtreleme, gruplama veya sıralama yapıyorsanız devre dışıdır. İpucu o zaman *Filtreleme/gruplama/sıralama sırasında kullanılamaz* yazar.
+- **Girintile** — Seçili görevleri, önlerindeki görevin alt görevi yapar. Seçim yoksa ve filtreleme, gruplama veya sıralama yaptığınız anda devre dışıdır; ipucu o zaman *Filtreleme/gruplama/sıralama sırasında kullanılamaz* yazar.
 - **Girintiyi azalt** — Seçili görevleri bir düzey yukarı taşır; doğrudan şu anki üst görevlerinin arkasına. Aynı koşullar *Girintile* için de geçerlidir.
 
 ### Planlama › Temel plan ve ilerleme
 
 - **Temel planları yönet…** — Temel plan penceresini açar. Bkz. [Temel plan kaydetme ve yönetme](docs://howto-baseline-opslaan-en-beheren).
-- **Durum tarihi** — İlerlemeyi ölçtüğünüz tarih. Bir tarih yazın; çarpı (*Durum tarihini temizle*) bunu kaldırır. Sonuç: ilerleme bu tarihe kadar ölçülür. Gantt'taki durum tarihi çizgisi ile ilerleme çizgisi bu tarihte yer alır. Bkz. [İlerleme, durum tarihi ve temel plan](docs://uitleg-voortgang).
+- **Durum tarihi** — İlerlemeyi ölçtüğünüz tarih. Bir tarih yazın; çarpı (*Durum tarihini temizle*) bunu kaldırır. Proje takviminde çalışma saati bantları varsa, uygulama saat cinsinden hesaplar ve tarihin yanında bir saat alanı görünür (MS Project genellikle 17:00 saklar). Saat dikkate alınır: 17:00 yerine 12:00 girilirse kalan işte yarım gün fark çıkar. Çalışma saati bantları yoksa uygulama tam günlerle hesaplar ve saat alanı yoktur. Sonuç: ilerleme bu tarihe kadar ölçülür; Gantt'taki durum tarihi çizgisi ile ilerleme çizgisi bu tarihte yer alır. Bkz. [İlerleme, durum tarihi ve temel plan](docs://uitleg-voortgang).
 - **İlerleme modu** — *Retained Logic* ile *Progress Override* arasında bir seçim. Varsayılan: *Retained Logic*. Sonuç: *Retained Logic* ile başlamış bir ardılın kalan işi ilişkiyi izler. *Progress Override* ile kalan iş, öncülü beklemeden durum tarihinde başlar. Bkz. [İlerleme modunu seçme](docs://howto-voortgangsmodus-kiezen).
 
 Daraltılmış şeritte bu üç düğme, *Temel plan ve ilerleme* başlıklı tek bir bayrak düğmesinin arkasında yer alır.
 
 ### Planlama › İlerleme
 
-- **İlerleme sayfasını dışa aktar** — Görevleri içeren bir `.xlsx` sayfası oluşturur; uygulama dışında ilerleme doldurmak için. Görev yoksa devre dışıdır.
+- **İlerleme sayfasını dışa aktar** — Görevleri içeren bir `.xlsx` sayfası oluşturur; uygulama dışında ilerlemeyi doldurmak için. Görev yoksa devre dışıdır.
 - **Bir tablodan ilerlemeyi güncelle** — Geri gelen bir sayfa için içe aktarma penceresini açar. Görev yoksa devre dışıdır. Bkz. [Bir tablodan ilerleme içe aktarma](docs://howto-voortgang-importeren).
 
 Bu grup *Tablo* ve *Rapor* sekmelerinde de vardır.
@@ -147,12 +147,12 @@ Bu grup *Tablo* ve *Rapor* sekmelerinde de vardır.
 
 - **Yakınlaştır +** ve **Yakınlaştır -** — zaman eksenini günde 10 piksel yakınlaştırır veya uzaklaştırır.
 - **Sıfırla** — yakınlaştırmayı varsayılan değere, günde 30 piksele geri ayarlar.
-- **Projeye sığdır** — yakınlaştırır ve kaydırır, böylece tüm proje görünümde sığar.
+- **Projeye sığdır** — yakınlaştırır ve kaydırır, böylece tüm proje görünüme sığar.
 - **Ölçek seçimi** — içinde *Yıl*, *Çeyrek*, *Ay*, *Hafta*, *Gün* bulunan bir liste ve yalnızca *Saat planlamasını etkinleştir* açık olduğunda *Saat*. Bir seçim sabit bir yakınlaştırma ayarlar. Gösterilen değer geçerli yakınlaştırmayı izler; altında bu yakınlaştırma günde piksel olarak gösterilir.
 
 ### Görünüm › Görüntüleme
 
-- **Sütunlar…**, **Filtre…**, **Grupla…** ve **Sırala…** — yalnızca *Klasik görünüm düğmelerini göster* açık olduğunda görünür (*Ayarlar*, *Gelişmiş* sekmesi, başlık *Eski özellikler*). Varsayılan: kapalı. *Sütunlar*… sizi *Tablo* sekmesine götürür ve sütun seçiciyi orada açar. *Filtre*… kayıtlı filtre yoksa hemen filtre penceresini açar. Kayıtlı filtreler varsa bir menü açılır; bu menüde *Filtre*…, *Temizle* (yalnızca bir filtre etkinken) ve kayıtlı filtreler bulunur. *Grupla*… en fazla iki düzeye izin verir. *Sırala*… daha fazla düzeye izin verir. Bir düğme, ilgili görünüm ayarı etkin olduğunda yanar. Geçerli şeritte bunu düzen düğmeleriyle yaparsınız; bkz. [Düzen oluşturma ve kullanma](docs://howto-layouts-gebruiken).
+- **Sütunlar…**, **Filtre…**, **Grupla…** ve **Sırala…** — yalnızca *Klasik görünüm düğmelerini göster* açık olduğunda görünür (*Uygulama ayarları*, sekme *Gelişmiş*, başlık *Eski özellikler*). Varsayılan: kapalı. *Sütunlar*… sizi *Tablo* sekmesine götürür ve sütun seçiciyi orada açar. *Filtre*… kayıtlı filtre yoksa hemen filtre penceresini açar. Kayıtlı filtreler varsa bir menü açılır; bu menüde *Filtre*…, *Temizle* (yalnızca bir filtre etkinken) ve kayıtlı filtreler bulunur. *Grupla*… en fazla iki düzeye izin verir. *Sırala*… daha fazla düzeye izin verir. Bir düğme, ilgili görünüm ayarı etkin olduğunda yanar. Geçerli şeritte bunu düzen düğmeleriyle yaparsınız; bkz. [Düzen oluşturma ve kullanma](docs://howto-layouts-gebruiken).
 
 ### Görünüm › Ana hat
 
@@ -166,15 +166,23 @@ Bu grup *Tablo* ve *Rapor* sekmelerinde de vardır.
 
 ### Görünüm › Sunum
 
-- **Sunum** — sunum modunu açar veya kapatır (durdurmak için F11 veya Esc): yalnızca Gantt ekranın tamamını doldurur. Bkz. [Büyük ekranda sunmak](docs://howto-presentatie).
-- **Bölünmüş görünüm** — Gantt'ı iki zaman penceresine böler. İkisi de geçerli yakınlaştırma ve konumunuzla başlar (yüzde 50 bölünme). Ya da onu yeniden tek pencereye çevirir. Varsayılan: kapalı. Bkz. [Bölünmüş görünümü ve mini haritayı kullanma](docs://howto-split-view-en-mini-map).
+- **Sunum** — sunum modunu açar veya kapatır (durdurmak için Esc; masaüstü uygulamasında ayrıca F11): yalnızca Gantt ekranın tamamını doldurur. Bkz. [Büyük ekranda sunmak](docs://howto-presentatie).
+- **Bölünmüş görünüm** — Gantt'ı iki zaman penceresine böler. İkisi de geçerli yakınlaştırma ve konumunuzla başlar (yüzde 50 bölünme). Ya da onu yeniden tek pencereye döndürür. Varsayılan: kapalı. Bkz. [Bölünmüş görünümü ve mini haritayı kullanma](docs://howto-split-view-en-mini-map).
 - **Mini harita** — mini haritayı gösterir veya gizler. Varsayılan: kapalı. Seçiminiz hatırlanır.
 
 ### Görünüm › Paneller
 
 - **Özellikler** — sağ sütundaki *Özellikler* panelini gösterir veya gizler. Varsayılan: açık. Bkz. [Görev penceresi ve özellikler paneli](docs://ref-taak-eigenschappen).
 
-Düğmeler *Kaynaklar*, *Kaynak doku* ve *Histogram*, *Kaynaklar* üzerindekilerle aynıdır. *Uyarılar* düğmesi de *Planlama* üzerindekiyle aynıdır.
+*Kaynaklar*, *Kaynak doku* ve *Histogram* düğmeleri *Kaynaklar* üzerindekilerle aynıdır; *Uyarılar* düğmesi de *Planlama* üzerindekiyle aynıdır.
+
+**Sağ sütun.** Gantt'ın sağındaki sütun, *Özellikler*, *Kaynak doku* veya *Uyarılar* panellerinden en az biri açık olduğu anda görünür. Hiçbiri açık değilse sütun yoktur. Tam bir panel çalışma alanını kaplarsa, örneğin tam kaynak paneli, sütun kaybolur. Yalnızca *Tablo* sekmesinde kalır.
+
+- **Genişlik** — çalışma alanı ile sütun arasındaki ayırıcıyı sürükleyin. Tek bir genişlik, sütundaki tüm paneller için geçerlidir.
+- **Bölme** — iki panel açıksa, aralarındaki kenarlığı sürükleyin. Bir panel açıksa, o panel sütunun tamamını doldurur.
+- **Daralt** — üstbilgideki *Yan sütunu daralt* düğmesi sütunu gizler. Üzerinde *Yan sütunu genişlet* düğmesi bulunan dar bir alan, sütunu önceki panellerle birlikte geri getirir.
+- **Kapat** — her panelin başlığında bir çarpı vardır. Bu, şeritteki düğmeyle aynı anahtardır.
+- **Tam panel** — kaynak doku içinde *Tam panel* düğmesi tam kaynak panelini açar.
 
 ### Görünüm › Temel planlar ve ilerleme
 
@@ -182,8 +190,8 @@ Bu grubun adı *Planlama* üzerindeki grupla aynıdır, ama Gantt'ın çizim se�
 
 - **Temel plan kaplaması** — etkin temel planı her görev çubuğunun altında ince bir çubuk olarak gösterir. Varsayılan: açık. Etkin bir temel plan yoksa görülecek bir şey yoktur.
 - **İlerleme çizgisi** — durum tarihinde bir çizgi çizer; bu çizgi her görev için ilerlemesine göre dışa doğru kabarır. Varsayılan: açık. Durum tarihi yoksa görülecek bir şey yoktur. İlerleme çizgisi açık olduğunda bu çizgi aynı zamanda durum tarihinin işaretidir.
-- **Durum tarihi çizgisi** — durum tarihinde kesikli bir çizgi çizer. Varsayılan: açık. Bu çizgiyi yalnızca ilerleme çizgisi kapalıyken görürsünüz; aksi halde o çizgi onun yerini alır. Başlıktaki tarihi gösteren etiket, bu iki çizgiden en az biri açık olduğu sürece kalır.
-- **Çubuk renkleri** — çubukların nasıl renkleneceğini seçer: *Kritik yol* (varsayılan), *Görev başına — otomatik* veya alan seçimiyle *Kategoriye göre*. Bu alan bu projede yoksa menü, *Görev türü* alanının geçici olarak kullanıldığını söyler. *Kritik yol* dışında kırmızı bir kontur kritik yolu işaretler. Bu seçim rapor için de geçerlidir.
+- **Durum tarihi çizgisi** — durum tarihinde kesikli bir çizgi çizer. Varsayılan: açık. Bu çizgiyi yalnızca ilerleme çizgisi kapalıyken görürsünüz; aksi halde o çizgi onun yerini alır. Başlıktaki tarihi gösteren etiket, bu iki çizgiden en az biri açık olduğu sürece kalır. Etiket tarih biçiminizi izler, örneğin 20-09-2006. Uygulama saat cinsinden hesaplıyorsa çizgi ve etiket o saatte konumlanır; etiket ayrıca saati de gösterir, örneğin 20-09-2006 17:00.
+- **Çubuk renkleri** — çubukların nasıl renkleneceğini seçer: *Kritik yol* (varsayılan), *Görev başına — otomatik* veya alan seçimiyle *Kategoriye göre*. Bu alan bu projede yoksa menü, *İş kategorisi* alanının geçici olarak kullanıldığını söyler. *Kritik yol* dışında, kırmızı bir kontur kritik yolu işaretler. Bu seçim rapor için de geçerlidir.
 - **Kaynak vurgusu** — her yaprak çubuğun altına kaynağın renginde ince bir çizgi çizer. Çizgi, günlük birimlere orantılı olarak bölünür. Varsayılan: kapalı.
 - **Bolluk alanı** — kritik olmayan bir çubuğun arkasına, görevin geç bitişine kadar yeşil bir alan çizer. Varsayılan: açık.
 - **İlişki çizgileri** — görevler arasındaki ilişki çizgilerini gösterir veya gizler. Varsayılan: açık. Bu seçim belgeye ve düzene aittir.
@@ -192,12 +200,12 @@ Bu grubun adı *Planlama* üzerindeki grupla aynıdır, ama Gantt'ın çizim se�
 
 ### Ayarlar › Proje
 
-- **Proje bilgisi** — *Proje bilgisi* penceresini açar: projenin meta verileri ve *Hesaplama profili ve seçenekleri* bölümünde projenin nasıl hesaplandığı. Bkz. [Yeni proje ve Proje bilgisi](docs://ref-projectinfo).
-- **Ayarlar** — *Ayarlar* penceresini açar; sekmeler *Görünüm*, *Planlama* ve *Gelişmiş*. Aynı ayarlar *Dosya › Ayarlar* altındadır.
+- **Proje ayarları** — *Proje ayarları* penceresini açar: projenin meta verileri ve *Hesaplama profili ve seçenekleri* bloğunda projenin nasıl hesaplandığı. Bkz. [Yeni proje ve Proje ayarları](docs://ref-projectinfo).
+- **Uygulama ayarları** — *Uygulama ayarları* penceresini açar; sekmeler *Görünüm*, *Planlama* ve *Gelişmiş*. Aynı ayarlar *Dosya › Uygulama ayarları* altındadır.
 
 ### Ayarlar › Takvim
 
-*Takvim* düğmesi, *Planlama* sekmesindekiyle aynıdır.
+*Takvim* düğmesi, *Planlama* üzerindekiyle aynıdır.
 
 ### Ayarlar › Klavye kısayolları
 
@@ -213,7 +221,7 @@ Bu grubun adı *Planlama* üzerindeki grupla aynıdır, ama Gantt'ın çizim se�
 
 ## IFC
 
-Bu sekme çalışma alanında IFC panelini gösterir. Şeritte burada düğme yoktur; yalnızca *IFC 4x3 - Industry Foundation Classes* metin satırı vardır.
+Sekme çalışma alanında IFC panelini gösterir. Şeritte burada düğme yoktur; yalnızca *IFC - Industry Foundation Classes, projenin şemasında (varsayılan IFC 4.3 ADD2)* metin satırı vardır.
 
 ## Rapor
 
@@ -223,7 +231,7 @@ Bu sekme çalışma alanında IFC panelini gösterir. Şeritte burada düğme yo
 
 ## Yapay Zeka
 
-Sekme *Yapay Zeka* yalnızca *Yapay zeka modunu etkinleştir* açık olduğunda bulunur (*Ayarlar*, *Gelişmiş* sekmesi, başlık *Yapay zeka modu*). Varsayılan: kapalı. Bunu kapatmak sekmeyi kaldırır ve köprüyü durdurur. Bir yapay zeka asistanı, burada başlattığınız bir MCP köprüsü üzerinden planlamanızla çalışır. Bkz. [Bir yapay zeka asistanı bağlama (MCP)](docs://howto-ai-assistent-koppelen).
+*Yapay Zeka* sekmesi yalnızca *Yapay zeka modunu etkinleştir* açıkken bulunur (*Uygulama ayarları*, sekme *Gelişmiş*, başlık *Yapay zeka modu*). Varsayılan: kapalı. Bunu kapatmak sekmeyi kaldırır ve köprüyü durdurur. Bir yapay zeka asistanı, burada başlattığınız bir MCP köprüsü üzerinden planlamanızla çalışır. Bkz. [Bir yapay zeka asistanı bağlama (MCP)](docs://howto-ai-assistent-koppelen).
 
 ### Yapay Zeka › Sunucu
 

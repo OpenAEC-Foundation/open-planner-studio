@@ -9,7 +9,7 @@ Der Laptop ist ausgefallen, die App hat nicht mehr reagiert oder der Browser-Tab
 ## Schritte
 
 1. Starten Sie die App erneut. Im Browser laden Sie denselben Tab neu: Die Wiederherstellungskopie gehört zu genau diesem Tab.
-2. Wenn die App Kopien gefunden hat, erscheint das Fenster *Nicht gespeicherte Arbeit wiederherstellen*: *Open Planner Studio wurde nicht normal beendet. Die folgenden Dokumente enthielten nicht gespeicherte Änderungen, die wiederhergestellt werden können:* Für jedes Projekt zeigt es den Namen, den Pfad der Datei, wenn das Projekt eine Datei hat (im Browser nur den Dateinamen), die Anzahl der Vorgänge und die Zeit der Kopie, zum Beispiel *21 Vorgänge* und *Gespeichert: 29. Sep. 2026, 9:41*. Das Fenster kann auch Projekte zeigen, die Sie nicht geändert haben.
+2. Wenn die App Kopien gefunden hat, erscheint das Fenster *Nicht gespeicherte Arbeit wiederherstellen*: *Open Planner Studio wurde nicht normal beendet. Die folgenden Dokumente enthielten nicht gespeicherte Änderungen, die wiederhergestellt werden können:* Für jedes Projekt zeigt es den Namen, den Pfad der Datei, wenn das Projekt eine Datei hat (im Browser nur den Dateinamen), die Anzahl der Vorgänge und die Zeit der Kopie, zum Beispiel *21 Vorgänge* und *Gespeichert: 29. Sep. 2026, 9:41*. Die Uhrzeit richtet sich nach Ihrer Einstellung *Uhrzeitformat*. Das Fenster kann auch Projekte zeigen, die Sie nicht geändert haben.
 3. Wählen Sie *Wiederherstellen*. Die App öffnet alle Projekte in der Liste, jedes in einem Tab, mit dem Stand der letzten Kopie. Mit Enter geschieht dasselbe.
 4. Prüfen Sie Ihre Projekte und speichern Sie sie sofort mit Strg+S.
 

@@ -1026,6 +1026,11 @@ if (!root) {
     // 97058f72-1 5 → 0. Dit zijn projecten zonder P6-uitvoer die tot dan zonder A19 rekenden (lege vlag);
     // een lopende taak op haar historische werkelijke start gaf daar negatieve speling. Detectie- en
     // populatietellers en de defaults-fidelity (0 meetbaar) ongewijzigd; measure:profiles vóór/ná identiek.
+    // Herpin 2026-10-23 (F3c motor, alleen uren §3.5 besluit B3 "rest exact", B1): alleen
+    // `files[].xerDefaultsNegativeFloatTasks` beweegt, in twee reader-only bestanden en alleen omlaag —
+    // 49aea658-1 8 → 0, 5d71eac4-1 13 → 0. Hun taken hebben geen duurkolommen (duur 0 d); een lopende taak
+    // kreeg met de rest op hele dagen een spookdag rest, die de keten erachter verschoof. Met de rest exact
+    // is die rest 0. Orakel- en huistellingen, detectie, populatie en measure:profiles ongewijzigd.
     const measuredById = new Map(measured.files.map(file => [file.id, file]));
     for (const file of committed.files) {
       eq(`files[${file.id}] (state, taken, negatieve-floattellingen per defaultset) exact als gemeten`,

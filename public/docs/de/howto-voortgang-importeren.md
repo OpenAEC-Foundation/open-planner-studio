@@ -28,8 +28,8 @@ Das Excel-Blatt ist geschützt, ohne Passwort: nur die drei Ausfüllspalten lass
 
 Für jeden Vorgang trägt der Bauleiter Folgendes ein:
 
-- `Completion (%)`: 0 bis einschließlich 100. Im Excel-Blatt sind Dezimalzahlen erlaubt (zum Beispiel 33,3); in der CSV-Datei verlangt die Anweisung ganze Zahlen.
-- `Actual Start` und `Actual Finish`: in Excel als Datum in Ihrer eigenen Ländereinstellung; in der CSV-Datei als dd-mm-yyyy.
+- `Completion (%)`: 0 bis einschließlich 100. Die App liest auch Dezimalzahlen mit Komma oder Punkt ein (zum Beispiel 33,3 oder 33.3). Die Anweisung in der CSV-Datei verlangt aber weiterhin ganze Zahlen: Eine Tabellenkalkulation mit einer anderen Ländereinstellung kann 8,38 als 838 lesen.
+- `Actual Start` und `Actual Finish`: in Excel als Datum in Ihrer eigenen Ländereinstellung; in der CSV-Datei als dd-mm-yyyy oder als yyyy-mm-dd.
 
 Was leer bleibt, ändert nichts. Eine leere Zelle löscht also auch keinen vorhandenen Fortschritt; das geht nur in der App. Bei einem Vorgang, der noch nicht begonnen hat, lässt er die Zellen ganz leer.
 

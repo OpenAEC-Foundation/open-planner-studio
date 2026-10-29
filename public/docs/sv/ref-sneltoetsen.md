@@ -6,15 +6,15 @@ Alla tangentkombinationer i appen, grupperade som i fönstret *Kortkommandon*. T
 
 **Mac.** Där den här artikeln skriver Ctrl använder du Cmd (⌘) på en Mac. Alt är Option (⌥). På en Mac visar fönstret *Kortkommandon* symbolerna ⌥, ⇧ och ⌘ i stället för Alt, Shift och Ctrl. Ctrl fungerar också i appen på en Mac.
 
-**Exakt kombination.** Appen jämför Ctrl, Shift och Alt exakt. Ctrl+Alt+S gör därför ingenting. Tangenterna måste stämma exakt med listan.
+**Exakt kombination.** Appen jämför Ctrl, Shift och Alt exakt. Ctrl+Alt+S gör därför ingenting: tangenterna måste stämma exakt med listan.
 
-**Öppna fönstret.** Tryck på Ctrl+/ eller välj *Inställningar › Kortkommandon › Kortkommandon*. Ctrl+/ stänger också fönstret igen. Fönstret går bara att läsa. Du kan inte ändra något i det. Det visar inte alla tangenter i den här artikeln. Av tabelltangenterna visas bara de första sex posterna. Dialogtangenterna längst ned i artikeln visas inte.
+**Öppna fönstret.** Tryck på Ctrl+/ eller välj *Inställningar › Kortkommandon › Kortkommandon*. Ctrl+/ stänger också fönstret igen. Fönstret går bara att läsa. Det visar inte alla tangenter i den här artikeln. Av tabelltangenterna visas bara de första sex posterna, och dialogtangenterna längst ned i artikeln visas inte.
 
 **När en tangent inte fungerar.** Varje post anger sina begränsningar. Tre regler gäller nästan överallt:
 
-- I ett inmatningsfält, en rullgardinslista eller en textruta fångar appen inte tangenterna. Du kan alltså skriva direkt. Undantag: F5, Ctrl+S, F11 och Esc under presentationen fungerar också i ett fält. I den färdiga appen (skrivbordsappen och webbversionen på webbplatsen) gäller det även för Ctrl+Shift+S, Ctrl+O och Ctrl+N.
-- Medan en dialogruta eller ett annat fönster är öppet fungerar inte de tangenter som är märkta *Inte i en dialogruta* nedan. Det gäller också för presentationsläget, rundturen, välkomstdialogrutan och frågor som väntar på svar. Det gäller också godkännandet när du installerar ett tillägg.
-- Byte mellan dokument (Ctrl+1 till 9, Ctrl+N, Ctrl+O) fungerar inte heller så länge *Fil › Projektinfo* har ändringar som du ännu inte har bekräftat med *Tillämpa*. Kassera eller tillämpa dem först.
+- I ett inmatningsfält, en rullgardinslista eller en textruta fångar appen inte tangenterna, så du kan skriva direkt. Undantag: F5, Ctrl+S, F11 och Esc under presentationen fungerar också i ett fält. Om fokus står på en stängd rullgardinslista fungerar också tangenterna med Ctrl, till exempel Ctrl+Z efter ett val (inte Ctrl+Delete och Ctrl+Backspace). Det gäller inte i en öppen lista eller i en dialogruta. I den färdiga appen (skrivbordsappen och webbversionen på webbplatsen) gäller det också för Ctrl+Shift+S, Ctrl+O och Ctrl+N.
+- Medan en dialogruta eller ett annat fönster är öppet fungerar inte de tangenter som är märkta *Inte i en dialogruta* nedan. Det gäller också för rundturen, välkomstdialogrutan och frågor som väntar på svar, till exempel frågan om du vill spara dina ändringar, och för godkännandet när du installerar ett tillägg. De flesta av dessa tangenter fungerar inte heller i presentationsläget. Undantag: redigeringstangenterna Ctrl+C, Ctrl+V, Ctrl+Z, Ctrl+Y och Delete/Backspace fungerar under presentationen.
+- Byte av dokument (Ctrl+1 till 9, Ctrl+N, Ctrl+O) fungerar inte heller så länge *Fil › Projektinställningar* har ändringar som du ännu inte har bekräftat med *Tillämpa*. Kassera eller tillämpa dem först.
 
 ## Fil
 
@@ -24,29 +24,29 @@ Alla tangentkombinationer i appen, grupperade som i fönstret *Kortkommandon*. T
 
 **Ctrl+Shift+S** — *Spara som*: frågar var filen ska sparas. I en utvecklingsversion fungerar den inte i ett inmatningsfält.
 
-**Ctrl+O** — *Öppna*: öppnar en fil, oftast i en ny flik. *Inte i en dialogruta* och inte när projektinfo har ändringar som inte är tillämpade.
+**Ctrl+O** — *Öppna*: öppnar en fil, oftast i en ny flik. *Inte i en dialogruta* och inte när projektinställningarna har ändringar som inte är tillämpade.
 
-**Ctrl+N** — *Nytt projekt*: öppnar fönstret *Nytt projekt*. *Inte i en dialogruta* och inte när projektinfo har ändringar som inte är tillämpade.
+**Ctrl+N** — *Nytt projekt*: öppnar fönstret *Nytt projekt*. *Inte i en dialogruta* och inte när projektinställningarna har ändringar som inte är tillämpade.
 
 Den färdiga appen (skrivbordsappen och webbversionen på webbplatsen) blockerar också ett antal webbläsartangenter, så att de inte stör: Ctrl+R och Ctrl+Shift+R (ladda om), F12, Ctrl+Shift+I och Ctrl+Shift+J (utvecklarverktyg), Ctrl+U (visa källkod) samt Ctrl+G, Ctrl+F och Ctrl+L (sök och adressfältet). Ctrl+S, Ctrl+Shift+S, Ctrl+O, Ctrl+N och F5 går till appen själv.
 
 ## Redigera
 
-**Ctrl+C** — *Kopiera*: kopierar de markerade uppgifterna. Bara när något är markerat. I uppgiftstabellen kopierar Ctrl+C de markerade cellerna. Tabellen sköter det själv.
+**Ctrl+C** — *Kopiera*: kopierar de markerade uppgifterna. Bara när något är markerat. *Inte i en dialogruta*. Inte i *Fil*, inte på flikarna *Rapport* och *IFC* och inte när den fullständiga resurspanelen är öppen. I uppgiftstabellen kopierar Ctrl+C de markerade cellerna. Tabellen sköter det själv.
 
-**Ctrl+V** — *Klistra in*: klistrar in kopierade uppgifter. I uppgiftstabellen klistrar den in cellerna.
+**Ctrl+V** — *Klistra in*: klistrar in kopierade uppgifter. *Inte i en dialogruta*. Inte i *Fil*, inte på flikarna *Rapport* och *IFC* och inte när den fullständiga resurspanelen är öppen, eftersom uppgiftstabellen inte syns där. I uppgiftstabellen klistrar den in cellerna.
 
-**Ctrl+Z** — *Ångra*.
+**Ctrl+Z** — *Ångra*. *Inte i en dialogruta*: stäng fönstret först.
 
-**Ctrl+Y** eller **Ctrl+Shift+Z** — *Gör om*: upprepar det du ångrade.
+**Ctrl+Y** eller **Ctrl+Shift+Z** — *Gör om*: upprepar det du ångrade. *Inte i en dialogruta*.
 
-**Delete** eller **Backspace** — *Ta bort*: tar bort de markerade uppgifterna. Bara när något är markerat. I en cell i uppgiftstabellen rensar Delete och Backspace bara cellinnehållet (se *Tabell*).
+**Delete** eller **Backspace** — *Ta bort*: tar bort de markerade uppgifterna. Bara när något är markerat. *Inte i en dialogruta*. Inte i *Fil*, inte på flikarna *Rapport* och *IFC* och inte när den fullständiga resurspanelen är öppen, eftersom uppgiftstabellen inte syns där. I en cell i uppgiftstabellen rensar Delete och Backspace bara cellinnehållet (se *Tabell*).
 
-**F2** — *Redigera...*: öppnar dialogrutan för den första markerade uppgiften. Bara när något är markerat. *Inte i en dialogruta*. I en cell i uppgiftstabellen börjar F2 redigera cellen.
+**F2** — *Redigera...*: öppnar uppgiftsdialogrutan för den första markerade uppgiften. Bara när något är markerat. *Inte i en dialogruta*. I en cell i uppgiftstabellen börjar F2 redigera cellen.
 
 **Ctrl+A** — *Markera allt*: markerar alla uppgifter. *Inte i en dialogruta*.
 
-**Esc** — *Avmarkera*: tar bort markeringen. Samtidigt stängs sambandsläget, delningsläget och läget för att spåra drivkedja av. Esc stänger också dialogrutan för uppgiften och projektöversikten. Under presentationen stänger Esc bara presentationen (se *Visa*). I ett inmatningsfält gör Esc ingen av dessa saker.
+**Esc** — *Avmarkera*: tar bort markeringen. Samtidigt stängs sambandsläget, delningsläget och läget för att spåra drivkedja av. Esc stänger också uppgiftsdialogrutan och projektöversikten. Under presentationen stänger Esc bara presentationen (se *Visa*). I ett inmatningsfält gör Esc ingen av dessa saker.
 
 ## Struktur
 
@@ -68,7 +68,7 @@ Indrag, dra ut och infoga ovanför eller under en markerad uppgift fungerar bara
 
 ## Visa
 
-**F11** — *Presentation*: slår presentationsläget på eller av. Appen ber också webbläsaren eller fönstret om helskärm. Fungerar också i ett inmatningsfält.
+**F11** — *Presentation*: slår presentationsläget på eller av. Appen begär också helskärm för fönstret. Fungerar också i ett inmatningsfält. I webbläsaren startar F11 inte presentationen: webbläsaren sätter själv fönstret i helskärm och appen är kvar som den är. F11 stoppar däremot en pågående presentation i webbläsaren.
 
 **Esc** (under presentationen) — *Avsluta presentation*. Fungerar också i ett inmatningsfält. Detta går före *Avmarkera*.
 
@@ -76,7 +76,7 @@ Indrag, dra ut och infoga ovanför eller under en markerad uppgift fungerar bara
 
 **Ctrl+-** — *Zooma ut*: zoomar ut med ett fast steg.
 
-**+** eller **=** — *Zooma in*: zoomar in med 10% runt mitten av Gantt-området. Inte i ett inmatningsfält. Det fungerar bara när Gantt-tidslinjen syns, alltså inte på flikarna *Tabell*, *IFC* och *Rapport*.
+**+** eller **=** — *Zooma in*: zoomar in med 10% runt mitten av Gantt-området. Inte i ett inmatningsfält, och bara när Gantt-tidslinjen syns (alltså inte på flikarna *Tabell*, *IFC* och *Rapport*).
 
 **-** — *Zooma ut*: zoomar ut med 10%. Samma begränsningar.
 
@@ -94,9 +94,9 @@ Indrag, dra ut och infoga ovanför eller under en markerad uppgift fungerar bara
 
 **Ctrl+P** — *Gå till menyfliken Rapport*: tar dig till fliken *Rapport*. Det är alltså inget utskriftskommando. *Inte i en dialogruta*.
 
-**F1** — *Öppna hjälp*: öppnar *Fil › Hjälp*. Inte i ett inmatningsfält och inte i en dialogruta. I ett fönster använder du frågetecknet uppe till höger. Det öppnar hjälpen om artikeln om just det fönstret (se [Menyfliksområdet, flik för flik](docs://ref-lint), under *Hjälp*).
+**F1** — *Öppna hjälp*: öppnar *Fil › Hjälp*. Inte i ett inmatningsfält och inte i en dialogruta. I ett fönster använder du frågetecknet uppe till höger. Det öppnar hjälpartikeln för just det fönstret (se [Menyfliksområdet, flik för flik](docs://ref-lint), under *Hjälp*).
 
-**Ctrl+1** till **Ctrl+9** — *Byta dokument*: går till det första till det nionde öppna dokumentet. Om dokumentet inte finns händer ingenting. *Inte i en dialogruta* och inte när projektinfo har ändringar som inte är tillämpade.
+**Ctrl+1** till **Ctrl+9** — *Byta dokument*: går till det första till det nionde öppna dokumentet. Om dokumentet inte finns händer ingenting. *Inte i en dialogruta* och inte när projektinställningarna har ändringar som inte är tillämpade.
 
 **Ctrl+Home** — *Hoppa till idag*: rullar tidslinjen så att ett datum hamnar till vänster i bilden. Det är rapportdatumet om du har angett ett, annars idag. Etiketten säger alltså ”idag”, även när tidslinjen hoppar till rapportdatumet. Zoomen och början av tidslinjen ligger kvar som de var. Om en cell i uppgiftstabellen har fokus går Ctrl+Home i stället till den första cellen i tabellen (se *Tabell*).
 

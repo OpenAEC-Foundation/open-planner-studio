@@ -30,8 +30,8 @@ Selainversiossa tämä painike ei tee mitään erityistä. Ikkuna kertoo heti *K
 
 ### Lue, mitä on uutta
 
-1. Jos työpöytäsovellus käynnistetään ensimmäistä kertaa eri versiolla kuin viimeksi tai tuoreen asennuksen jälkeen, ikkuna avautuu itsestään. Ikkunan otsikko on *Päivitys on tehty!*.
-2. Ylhäällä näkyy siirtymä edellisestä versiosta uuteen. Tuoreen asennuksen jälkeen näkyy vain uusi versio.
+1. Jos työpöytäsovellus käynnistetään ensimmäistä kertaa eri versiolla kuin viimeksi, ikkuna avautuu itsestään. Ikkunan otsikko on *Päivitys on tehty!*. Tuoreen asennuksen jälkeen ikkuna ei avaudu, koska ensimmäinen käynnistys ei ole päivitys. Jos ikkuna halutaan silti nähdä, käytä painiketta *Mitä on uutta* (katso alla).
+2. Ylhäällä näkyy siirtymä edellisestä versiosta uuteen. Painikkeella *Mitä on uutta* näkyy vain uusi versio.
 3. Jos sovelluksessa on tälle versiolle sisäänrakennettu yhteenveto, näkyy yksi pääkohta ja neljä pienempää kohtaa. Pääkohdassa voi olla painike *Lue opas*. Muuten näkyy vain versiosiirtymä ja sen alla oleva sisältö.
 4. Valitsemalla *Näytä koko julkaisutiedot* avataan muutosloki GitHubissa. Jos avaaminen ei onnistu, ikkunassa lukee *Julkaisutietoja ei voitu avata*.
 5. Kohdassa *Tämä päivitys lukuina* näkyy päivien määrä edellisestä julkaisusta, muutosten (commit) määrä ja lisättyjen koodirivien määrä. Jos sovellus voi hakea asennuspaketin koon muutoksen, sekin näkyy. Jokainen luku näkyy vain, jos sen tieto on saatavilla.

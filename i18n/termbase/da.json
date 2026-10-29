@@ -1989,6 +1989,17 @@
     "source": "model",
     "status": "model"
   },
+  "work-category": {
+    "term": "arbejdskategori",
+    "forms": [
+      "arbejdskategori",
+      "arbejdskategorien",
+      "arbejdskategorier",
+      "arbejdskategorierne"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "arbejdstimer",
     "forms": [

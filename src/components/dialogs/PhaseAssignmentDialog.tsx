@@ -25,8 +25,7 @@ import type { PhaseAssignmentQuestion, PhaseAssignmentQuestionItem } from '@/sta
  * bewerken" (`z-[60]`); de toetsen lopen via de dialoogstapel van `Dialog` (alleen de bovenste
  * reageert): Escape = Annuleren, Enter = de knop met focus, anders de primaire keuze. Alle globale
  * sneltoetsen staan dicht zolang de vraag open is (`isGlobalShortcutFrozen`). Geen backdrop-klik:
- * kiezen gaat alleen met een knop. Geen ?-knop: die zou Help áchter "Taak bewerken" openen
- * (zelfde keuze als `ActualStartDialog`).
+ * kiezen gaat alleen met een knop. Geen ?-knop: die zou Help áchter "Taak bewerken" openen.
  */
 /** "Jan, Piet en Klaas" in de taal van de app. Een onbekende taalcode ⇒ een kale kommalijst. */
 function formatNameList(locale: string, names: readonly string[]): string {

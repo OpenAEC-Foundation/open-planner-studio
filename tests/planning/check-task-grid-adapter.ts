@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { createTaskGridAdapter } from '@/engine/taskGrid/taskGridAdapter';
 import { taskColumnId } from '@/engine/taskGrid/fieldIds';
+import { buildTaskRelationAnalysisItems } from '@/engine/taskGrid/relationCell';
 import type { ViewRow } from '@/engine/view/visibleRows';
 import type { Task } from '@/types/task';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
@@ -141,6 +142,41 @@ eq('Plannerafgeleide relatiekolom meldt stale buiten de computed-categorie', (()
   const cell = gantt.getCell('occurrence-a', taskColumnId('relation.freeFloat'));
   return { stale: cell?.stale, statusText: cell?.statusText, text: cell?.text };
 })(), { stale: true, statusText: 'taskGrid.status.stale', text: '← 1.0: 0d' });
+
+// De volledige adapterroute krijgt een CPMResult, dus de reconstructievlag en een fout mogen
+// niet verloren gaan bij het versmallen naar relatieanalyse. Persoonlijke datumnotatie staat
+// ook aan: die productroute moet voor scherm én klembord dezelfde analysestatus opleveren.
+const drivingCases: readonly [string, CPMResult | null, string, boolean | undefined][] = [
+  ['nog niet berekend', null, 'Onbekend', undefined],
+  ['opgeslagen datums', { ...cpmResult, drivingUnknown: true, drivingSequenceIds: [] }, 'Onbekend', undefined],
+  ['opgeslagen datums met oude ids', { ...cpmResult, drivingUnknown: true }, 'Onbekend', undefined],
+  ['mislukte berekening met oude ids', { ...cpmResult, error: 'kring' }, 'Onbekend', undefined],
+  ['bekend leeg', { ...cpmResult, drivingSequenceIds: [] }, '—', false],
+  ['bekend bepalend', cpmResult, '← 1.0', true],
+];
+for (const [label, cpm, expected, expectedDriving] of drivingCases) {
+  for (const surfaceId of ['gantt-task-grid', 'full-task-grid'] as const) {
+    const adapter = createTaskGridAdapter({
+      ...baseInput, surfaceId, cpmResult: cpm, dateNotation: 'dmy',
+      labelForText: key => ({
+        'relations.drivingUnknown': 'Onbekend',
+        'properties.drivingUnknown': 'Bepalende relaties onbekend zonder berekening.',
+      }[key] ?? key),
+    });
+    const cell = adapter.getCell('occurrence-a', taskColumnId('relation.driving'))!;
+    eq(`${label}, ${surfaceId}: kolomtekst en klembord onderscheiden de drie toestanden`,
+      [cell.text, cell.copyText], [expected, expected]);
+    eq(`${label}, ${surfaceId}: onbekende analyse heeft uitleg`, cell.tooltip,
+      expected === 'Onbekend' ? 'Bepalende relaties onbekend zonder berekening.' : undefined);
+    eq(`${label}, ${surfaceId}: interne relatiechip kent de analysestatus`,
+      buildTaskRelationAnalysisItems(task, adapter.context).map(item => item.driving), [expectedDriving]);
+    const predecessorCell = adapter.getCell('occurrence-a', taskColumnId('relation.predecessors'))!;
+    eq(`${label}, ${surfaceId}: relatiecel blijft leesbaar en kopieerbaar`,
+      [predecessorCell.text, predecessorCell.copyText, predecessorCell.editText], ['1.0 FS', '1.0 FS', '1.0 FS']);
+    const paste = adapter.planEdit('occurrence-a', taskColumnId('relation.predecessors'), predecessorCell.copyText);
+    ok(`${label}, ${surfaceId}: gekopieerde relatie blijft geldig als plakinvoer`, paste.ok);
+  }
+}
 eq('Boolean-editor krijgt een taalneutrale canonieke startwaarde',
   personalDates.getCell('occurrence-a', taskColumnId('task.isMilestone'))?.editText,
   'false');
@@ -247,6 +283,32 @@ for (const source of componentSources) {
   const text = readFileSync(`src/components/task-grid/${source}`, 'utf8');
   ok(`${source}: taakgrid importeert geen resourcepanelen`,
     !text.includes('ResourcePanel') && !text.includes('ResourcePanelCompact'));
+}
+
+// Kalendernamen horen in de cel en de keuzelijst; ids blijven de canonieke schrijf-/klembordwaarde.
+{
+  const options = [
+    { value: '', label: 'Projectkalender: Basis' },
+    { value: 'cal-a', label: 'Ploegkalender' },
+    { value: 'cal-b', label: 'Ploegkalender' },
+  ];
+  for (const [calendarId, label] of [
+    [undefined, 'Projectkalender: Basis'], ['cal-a', 'Ploegkalender'],
+    ['cal-b', 'Ploegkalender'], ['verdwenen', 'verdwenen'],
+  ] as const) {
+    const calendarTask = { ...task, calendarId };
+    const adapter = createTaskGridAdapter({
+      ...baseInput, surfaceId: 'full-task-grid', tasks: [calendarTask],
+      rows: [{ kind: 'task', rowKey: task.id, task: calendarTask, depth: 0, dimmed: false }],
+      calendarOptions: options,
+    });
+    const cell = adapter.getCell(task.id, taskColumnId('task.calendarId'))!;
+    eq('kalendercel toont naam of onbekend-id als terugval: ' + calendarId, cell.text, label);
+    eq('kalendereditor behoudt id ook bij dubbele namen: ' + calendarId, cell.editText, calendarId ?? '');
+    eq('kalenderklembord behoudt canoniek id: ' + calendarId, cell.copyText, calendarId ?? '');
+    eq('kalender heeft een keuzelijst: ' + calendarId,
+      adapter.descriptorsById.get(taskColumnId('task.calendarId'))?.editorKind, 'enum');
+  }
 }
 
 if (diffs.length) {

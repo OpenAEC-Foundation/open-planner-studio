@@ -36,7 +36,7 @@ För balkfärgen väljer du *Visa › Baslinjer & framdrift › Stapelfärger*, 
 
 ## Fallgropar och vad appen gör
 
-**Borttagning tar bort värdena på uppgifterna.** Om du tar bort en kodtyp, ett värde eller ett fält med papperskorgen frågar appen inte efter bekräftelse. Alla kopplingarna på alla uppgifter försvinner då också. En gruppering eller sortering på den kodtypen eller fältet upphör också att gälla. *Ångra* (Ctrl+Z) återställer kodtypen, värdet eller fältet och de ifyllda värdena, men inte grupperingen eller sorteringen. Dem ställer du in igen.
+**Borttagning tar bort värdena på uppgifterna.** Om du tar bort en kodtyp, ett värde eller ett fält med papperskorgen frågar appen inte efter bekräftelse. Alla tilldelningarna på alla uppgifter försvinner då också. En gruppering eller sortering på den kodtypen eller fältet upphör också att gälla. *Ångra* (Ctrl+Z, stäng fönstret först) återställer kodtypen, värdet eller fältet och de ifyllda värdena, men inte grupperingen eller sorteringen. Dem ställer du in igen.
 
 **Två värden med samma kod.** *Lägg till värde* räknar upp från antalet värden som finns. Om du tar bort ett och lägger till ett kan en kod därför förekomma två gånger. Skriver du den koden i en kolumncell, vägrar appen med *Det här värdet för uppgiftskoden förekommer mer än en gång. Välj det i listan.* Ge varje värde en egen kod.
 

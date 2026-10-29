@@ -11,6 +11,7 @@ import type { McpContext, McpToolResult, McpToolOk } from '@/services/mcp/contra
 import { generateBenchmarkProject } from '@/services/benchmark/generateProject';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import type { WorkCalendar } from '@/types/calendar';
+import { holdAutoCalc } from '@/state/editHold';
 import { countCriticalActivities } from '@/engine/scheduler/scheduleAnalysis';
 
 const S = () => useAppStore.getState();
@@ -203,7 +204,6 @@ test('list_tasks van/tot: een urentaak die op de tot-dag begint telt mee (audit 
   // Zelfde overlaptest als het filter "Actief tussen" en de rapportvensters (`shownSpanOverlapsDays`):
   // als tekst is "2026-06-03T08:00" groter dan "2026-06-03", maar de taak loopt op de tot-dag.
   cleanProject();
-  S().setUI({ enableHourPlanning: true });
   const band = [{ start: 8 * 60, end: 16 * 60 }];
   S().setCalendar({
     ...S().calendar, hoursPerDay: 8, workStartHour: 8, workEndHour: 16,
@@ -243,6 +243,28 @@ test('list_tasks zonder_relaties: vindt precies de leaf-wezen (geen verzameltake
   // WEES en KIND zijn beide leaves zonder relatie; PARENT is een verzameltaak (uitgesloten).
   assertEq(foundNames, ['KIND', 'WEES'], 'precies de leaf-wezen, verzameltaak uitgesloten');
   assert(!data.tasks.some((t: any) => t.id === p || t.id === q), 'gelinkte taken zijn geen wees');
+  // Een relatie op een fase geldt ook voor diep geneste bladtaken, niet voor losse zustertakken.
+  const sub = S().addTask({ name: 'SUB', parentId: parent, time: createDefaultTaskTime('2026-06-01', 1) });
+  S().addTask({ name: 'DIEP', parentId: sub, time: createDefaultTaskTime('2026-06-01', 1) });
+  const names = () => callOk('planner_list_tasks', { zonder_relaties: true, limit: 1000 }).tasks.map((t: any) => t.name).sort();
+  assertEq(names(), ['DIEP', 'KIND', 'WEES'], 'zonder faserelatie blijven de kinderen wezen');
+  const incoming = S().addSequence({ predecessorId: p, successorId: parent, type: 'START_START', lagDays: 0 });
+  if (!incoming) throw new Error('Faserelatie moet kunnen worden toegevoegd: incoming');
+  assertEq(names(), ['WEES'], 'inkomende faserelatie verbindt alle afstammelingen');
+  S().removeSequence(incoming);
+  const outgoing = S().addSequence({ predecessorId: parent, successorId: q, type: 'FINISH_START', lagDays: 0 });
+  if (!outgoing) throw new Error('Faserelatie moet kunnen worden toegevoegd: outgoing');
+  assertEq(names(), ['WEES'], 'uitgaande faserelatie verbindt ook diep geneste kinderen');
+  S().removeSequence(outgoing);
+  const nested = S().addSequence({ predecessorId: sub, successorId: q, type: 'FINISH_START', lagDays: 0 });
+  if (!nested) throw new Error('Faserelatie moet kunnen worden toegevoegd: nested');
+  assertEq(names(), ['KIND', 'WEES'], 'relatie op subfase verbindt geen zustertak');
+  S().removeSequence(nested);
+  assertEq(names(), ['DIEP', 'KIND', 'WEES'], 'verwijderde relaties worden niet gecachet');
+  const page = callOk('planner_list_tasks', { zonder_relaties: true, limit: 1 });
+  assertEq(page.total, 3, 'paginatotaal telt de gefilterde wezen');
+  assertEq(page.tasks.length, 1, 'paginering blijft werken');
+
 });
 
 // =================================================================================================
@@ -371,6 +393,48 @@ test('get_critical_path: driving-relaties hebben BEIDE eindpunten kritiek', () =
   assert(!('criticalPaths' in data), 'criticalPaths ontbreekt in merged-modus');
   // Elke kritieke taak heeft float ≤ 0 (kritiek-definitie).
   assert(data.criticalTasks.every((t: any) => t.totalFloat <= 0), 'kritieke taken hebben tf ≤ 0');
+});
+
+test('get_critical_path: berekend zonder relaties is een bekende lege lijst', () => {
+  cleanProject();
+  const taskId = S().addTask({ name: 'Losse kritieke taak', time: createDefaultTaskTime('2026-06-01', 3) });
+  S().runCPM();
+  const data = callOk('planner_get_critical_path');
+  assertEq(data.hasResult, true, 'geldige berekening');
+  assertEq(data.drivingRelations, [], 'berekend zonder relaties blijft [], geen null');
+  assertEq(data.criticalTasks.map((task: { id: string }) => task.id), [taskId], 'kritieke taak blijft beschikbaar');
+  assertEq(data.note, undefined, 'geen onbekend-melding na een geldige berekening');
+  // Een echte relatie kan door de projectstart-vloer niet bepalend zijn: dit blijft bekend leeg.
+  const successorId = S().addTask({ name: 'Niet gedreven', time: createDefaultTaskTime('2026-06-01', 3) });
+  S().addSequence({ predecessorId: taskId, successorId, type: 'START_START', lagDays: -1 });
+  S().runCPM();
+  assertEq(S().cpmResult!.drivingSequenceIds, [], 'opzet: de relatie drijft niet door de projectstart-vloer');
+  assertEq(callOk('planner_get_critical_path').drivingRelations, [], 'ook met een relatie blijft berekend leeg []');
+});
+
+test('get_critical_path: ontbrekende of mislukte berekening geeft onbekende driving', () => {
+  cleanProject();
+  // Een lopende UI-bewerking houdt de automatische lees-refresh tegen.
+  const release = holdAutoCalc();
+  try {
+    const missing = callOk('planner_get_critical_path');
+    assertEq(missing.hasResult, false, 'nog geen resultaat tijdens een bewerking');
+    assertEq(missing.drivingRelations, null, 'ontbrekend resultaat is onbekend');
+    const a = S().addTask({ name: 'A' });
+    const b = S().addTask({ name: 'B' });
+    S().addSequence({ predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 0 });
+    // Een geïmporteerde kring kan bestaan, ook al weigert de UI hem bij het aanmaken.
+    useAppStore.setState(s => {
+      s.sequences.push({ id: 'cycle', predecessorId: b, successorId: a, type: 'FINISH_START', lagDays: 0 });
+    });
+    S().runCPM();
+    const failed = callOk('planner_get_critical_path');
+    assertEq(failed.hasResult, false, 'ongeldige berekening blijft ongeldig');
+    assert(typeof failed.error === 'string', 'berekenfout blijft beschikbaar');
+    assertEq(failed.drivingRelations, null, 'mislukte berekening is onbekend');
+  } finally {
+    release();
+  }
 });
 
 // =================================================================================================

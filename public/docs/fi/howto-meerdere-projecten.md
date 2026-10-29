@@ -24,6 +24,8 @@ Projekti tulee omalle välilehdelleen ja on heti aktiivinen. Myös *Uusi* ja *Av
 
 Jokaisessa välilehdessä on projektin värillinen piste. Välilehdessä, jonka perässä on pieni piste, on tallentamattomia muutoksia.
 
+Jos välilehdet eivät mahdu leveyteen kokonaan, välilehtien ja plusmerkin väliin ilmestyy kaksi nuolta (*Vieritä välilehtiä alkuun* ja *Vieritä välilehtiä loppuun*). Jokainen napsautus siirtää välilehtiä kaksi paikkaa. Nuoli on harmaa, kun ollaan jo alussa tai lopussa. Voit vierittää myös hiiren rullalla välilehtien päällä. Valitsemasi välilehti siirtyy aina näkyviin itsestään.
+
 ### Projektin sulkeminen
 
 Napsauta välilehden nimen vieressä olevaa ruksia (*Sulje*) tai yleiskatsauksen kortin ruksia. Projekti, jossa ei ole muutoksia, sulkeutuu heti. Jos siinä on tallentamattomia muutoksia, sovellus kysyy *Tallentamattomat muutokset* ja tarjoaa kolme vaihtoehtoa:
@@ -38,7 +40,7 @@ Kun viimeinen projekti suljetaan, jäljelle jää tyhjä aikataulu nimeltä *Uus
 
 ### Vaihtotyylin valitseminen
 
-Välilehtien tyyli on valittavissa. Avaa asetusikkuna otsikkorivin vaihdekuvakkeesta, siirry välilehdelle *Ulkonäkö* ja valitse kohdasta *Asiakirjan vaihtotyyli*:
+Välilehtien tyyli on valittavissa. Avaa *Asetukset* -ikkuna otsikkorivin vaihdekuvakkeesta, siirry *Ulkonäkö* -välilehdelle ja valitse kohdasta *Asiakirjan vaihtotyyli*:
 
 - *Vaakasuuntaiset välilehdet*: oletus. Rivi välilehtiä valintanauhan alla.
 - *Pystysuuntaiset välilehdet*: kapea kaistale vasemmalla, jossa on painike jokaiselle projektille (nimen ensimmäiset kirjaimet) ja plusmerkki. Kun osoitin on painikkeen päällä, näkyy nimi, tiedostonimi, tehtävien määrä, kriittisten tehtävien määrä ja loppupäivä. Ylin painike avaa yleiskatsauksen.
@@ -50,7 +52,7 @@ Kaikki kolme tyyliä avaavat saman yleiskatsauksen, ja Ctrl+1 – Ctrl+9 toimii 
 
 **Mikä kuuluu projektille ja mikä on yhteistä.** Jokaisella projektilla on oma näkymä: zoomaus ja sijainti, aktiivinen asettelu suodattimineen, ryhmittelyineen tai lajitteluineen, jaettu näkymä, riippuvuusviivat ja supistetut vaiheet. Kun toiseen projektiin vaihdetaan, siellä näkyy sen oma näkymä. Kaikille projekteille yhteisiä ovat valintanauhan valittu välilehti, pienoiskartta, peitot (perustason peitto, edistymisviiva ja muut), sarakevalinta, asettelut ja raporttivalinnat.
 
-**Vaihtaminen ei onnistu, kun ikkuna on auki.** Niin kauan kuin ikkuna on auki, esimerkiksi asetusikkuna tai tehtäväikkuna, Ctrl+1 – Ctrl+9 eivät tee mitään sovelluksessa. Selaimessa ne vaihtavat selaimen välilehteä. Sulje ensin ikkuna. Myös Backstagen *Projektitiedot*-kohdan muutos, jota ei ole vielä otettu käyttöön, estää vaihtamisen.
+**Vaihtaminen ei onnistu, kun ikkuna on auki.** Niin kauan kuin ikkuna on auki, esimerkiksi *Asetukset* -ikkuna tai tehtäväikkuna, Ctrl+1 – Ctrl+9 eivät tee mitään sovelluksessa. Selaimessa ne vaihtavat selaimen välilehteä. Sulje ensin ikkuna. Myös Backstagen *Projektin asetukset* -kohdan muutos, jota ei ole vielä otettu käyttöön, estää vaihtamisen.
 
 **Ctrl+1 – Ctrl+9 laskevat järjestyksen mukaan.** Pikanäppäin vie siihen projektiin, joka on rivissä tietyssä kohdassa. Kun projekti suljetaan, muut kohdat siirtyvät vasemmalle. Kun yli yhdeksän projektia on auki, loput projektit saavutetaan vain välilehtien tai yleiskatsauksen kautta.
 

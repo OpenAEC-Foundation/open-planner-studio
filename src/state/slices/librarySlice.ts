@@ -1,6 +1,8 @@
 import { castDraft, current } from 'immer';
+import i18next from 'i18next';
 import type { AppSlice, AppSliceFactory, NotifyInput } from './types';
 import type { Company, CompanyPool, CompanyLibrary } from '@/types/library';
+import { createNameMatcher } from '@/services/library/libraryOps';
 import { createDefaultLibrary, createEmptyPool, DEFAULT_COMPANY_ID } from '@/types/library';
 import { generateId } from '@/utils/id';
 import { sameValue } from '@/utils/sameValue';
@@ -411,7 +413,12 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
 
   addCompany: (name) => {
     const id = generateId('company');
-    const company: Company = { id, name: name.trim() || 'Nieuwe resourcebibliotheek' };
+    const company: Company = {
+      id,
+      name: name.trim() || (i18next.isInitialized
+        ? i18next.t('companyLibrary.newCompany', { ns: 'common' })
+        : 'Nieuwe resourcebibliotheek'),
+    };
     set((s) => {
       s.companies.push(company);
       s.pools[id] = createEmptyPool(company);
@@ -1146,18 +1153,23 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
     const pool = s.pools[companyId];
     if (!pool) return [];
     const out: RecognitionCandidate[] = [];
+    // Alleen binnen deze aanroep; volledig gestempelde itemsoorten hoeven geen index te bouwen.
+    let matchResourceName: ReturnType<typeof createNameMatcher<typeof pool.resources[number]>> | undefined;
+    let matchCalendarName: ReturnType<typeof createNameMatcher<typeof pool.calendars[number]>> | undefined;
     for (const r of s.resources) {
       // Herkenning is UITSLUITEND voor stempel-loze items — een item
       // met een stempel van een ANDER bedrijf (bijv. ná omkoppelen-zonder-undo, of een undo die de
       // strip-tak ongedaan maakte terwijl het project inmiddels aan B gekoppeld is) hoort hier niet
       // als kandidaat te verschijnen.
       if (r.libraryOrigin) continue;
-      const m = matchByName(r.name, pool.resources);
+      matchResourceName ??= createNameMatcher(pool.resources);
+      const m = matchResourceName(r.name);
       out.push({ kind: 'resource', projectId: r.id, projectName: r.name, suggestedPoolId: m?.id ?? null, suggestedPoolName: m?.name ?? null });
     }
     for (const c of s.calendars) {
       if (c.libraryOrigin) continue;
-      const m = matchByName(c.name, pool.calendars);
+      matchCalendarName ??= createNameMatcher(pool.calendars);
+      const m = matchCalendarName(c.name);
       out.push({ kind: 'calendar', projectId: c.id, projectName: c.name, suggestedPoolId: m?.id ?? null, suggestedPoolName: m?.name ?? null });
     }
     return out;

@@ -31,9 +31,9 @@
 
 **它属于项目。** 此选择会与项目文件一起保存，适用于整个项目，并可用 Ctrl+Z 撤销。新项目使用 Retained Logic。
 
-**一个 P6 文件。** 如果你打开 Primavera P6 文件（.xer），应用会从文件中读取模式。除了 Retained Logic 和 Progress Override，P6 还有实际日期。应用不认识第三种模式；这样的文件会按 Retained Logic 计算。导入消息会将其计为 *使用安全回退的 P6 排程设置：1*。
+**一个 P6 文件。** 如果你打开 Primavera P6 文件（.xer），应用会从文件中读取模式。除了 Retained Logic 和 Progress Override，P6 还有 Actual Dates。应用不认识第三种模式；这样的文件会按 Retained Logic 计算。导入消息会将其计为 *使用安全回退的 P6 排程设置：1*。
 
-**计算配置文件。** 在 Primavera P6 配置文件中，Progress Override 也会逆向生效，影响前置任务的最晚日期和自由浮时（约定 *进度覆盖在逆推时也忽略已开始的紧后作业*）。在 Open Planner Studio 和 Microsoft Project 配置文件中，情况并非如此。你可以在 *设置 › 项目 › 项目信息* 下的 *计算配置文件和选项* 块中找到这些约定。在说明中的示例里，看不到这种逆向影响。
+**计算配置文件。** 在 Primavera P6 配置文件中，Progress Override 也会逆向生效，影响前置任务的最晚日期和自由浮时（约定 *进度覆盖在逆推时也忽略已开始的紧后作业*）。在 Open Planner Studio 和 Microsoft Project 配置文件中，情况并非如此。你可以在 *设置 › 项目 › 项目设置* 下的 *计算配置文件和选项* 块中找到这些约定。在说明中的示例里，看不到这种逆向影响。
 
 ## 另请参阅
 

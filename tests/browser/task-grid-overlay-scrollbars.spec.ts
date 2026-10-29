@@ -8,6 +8,12 @@ import { chooseLocale, LOCALE_CASES } from './fixtures/locale';
 
 test.use({ launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'] } });
 
+// Deze routes bewijzen horizontale OVERLOOP; de nieuwe standaardbreedte past alle kolommen.
+// Een bewust smaller gebruikerspaneel houdt de bestaande scrollbarfixture intact.
+test.beforeEach(async ({ page, ops: _ops }) => {
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ leftPanelWidth: 350 }));
+});
+
 type Box = { x: number; y: number; width: number; height: number };
 
 async function box(locator: Locator): Promise<Box> {
@@ -572,13 +578,32 @@ test('Tabel na de Gantt in een kleiner venster: store volgt het raster tot onder
   await expect(page.locator('.gantt-task-grid [data-testid="task-grid-vscroll"]')).toBeVisible();
   await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
   const viewport = page.viewportSize()!;
-  await page.setViewportSize({ width: viewport.width, height: Math.max(420, viewport.height - 260) });
+  const resizedViewport = { width: viewport.width, height: Math.max(420, viewport.height - 260) };
+  await page.setViewportSize(resizedViewport);
   const shell = '[data-task-grid-surface-id="full-task-grid"] .task-grid-shell';
   const core = page.locator(`${shell} .task-grid-core`);
   await expect(page.locator(`${shell} [data-testid="task-grid-vscroll"]`)).toBeVisible();
+  // De balk is ook vóór de resize zichtbaar. Wacht tot de ResizeObserver-maat door React in de
+  // core staat: anders kan het oude middelpunt inmiddels onder de tabel liggen (knownbug 189).
+  await expect.poll(() => core.evaluate((node: HTMLElement) => {
+    const surface = node.closest<HTMLElement>('[data-task-grid-surface-id]')!.getBoundingClientRect();
+    const rect = node.getBoundingClientRect();
+    return {
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+      followsSurface: Math.abs(rect.width - surface.width) < 0.5 && Math.abs(rect.height - surface.height) < 0.5,
+      insideViewport: rect.left >= 0 && rect.top >= 0 && rect.right <= window.innerWidth && rect.bottom <= window.innerHeight,
+    };
+  })).toEqual({ viewport: resizedViewport, followsSurface: true, insideViewport: true });
   const coreBox = await box(core);
-  await page.mouse.move(coreBox.x + coreBox.width / 2, coreBox.y + coreBox.height / 2);
-  for (let step = 0; step < 20; step++) await page.mouse.wheel(0, 800);
+  const wheelPoint = { x: coreBox.x + coreBox.width / 2, y: coreBox.y + coreBox.height / 2 };
+  await page.mouse.move(wheelPoint.x, wheelPoint.y);
+  expect(await core.evaluate((node: HTMLElement, point) => {
+    const row = document.elementFromPoint(point.x, point.y)?.closest('[data-grid-data-row]');
+    return !!row && node.contains(row);
+  }, wheelPoint), 'het wielpunt raakt een echte rij in het verkleinde raster').toBe(true);
+  await page.mouse.wheel(0, 800);
+  await expect.poll(() => core.evaluate((node: HTMLElement) => node.scrollTop)).toBeGreaterThan(0);
+  for (let step = 1; step < 20; step++) await page.mouse.wheel(0, 800);
   await settledScrollTop(core);
   const geometry = await page.evaluate(selector => {
     const grid = document.querySelector<HTMLElement>(selector)!;

@@ -10,7 +10,7 @@
 // de browserflow in `tests/browser/recorded-dates.spec.ts`.
 import { readP6XML } from '@/services/p6/p6xmlReader';
 import { readMSPDI } from '@/services/msproject/mspdiReader';
-import { readCSV } from '@/services/csv/csvReader';
+import { CsvDateImportError, readCSV } from '@/services/csv/csvReader';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { criticalSlackLimitDaysOf, mppTotalSlackTenths, openMppProject, parseProjectProperties, readMPP, readTasks } from '@/services/mpp/mppReader';
@@ -20,7 +20,6 @@ import type { ImportResult } from '@/services/importTypes';
 import type { RecordedTime } from '@/engine/scheduler/recordedDates';
 import { externIfc } from '../fixtures/recordedDatesIfc';
 import { CSV_FIXTURE, CSV_FIXTURE_DATES_ONLY, CSV_FIXTURE_UNREADABLE_DATES, MSPDI_FIXTURE, P6XML_FIXTURE } from '../fixtures/recordedTimesFormats';
-import { csvDateOrToday } from '@/services/importDates';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { installDOMParser } from './xmldom-shim';
@@ -53,22 +52,23 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
 {
   const r = readP6XML(P6XML_FIXTURE);
   eq('1a herkomst p6xml', r.recordedTimesOrigin, 'p6xml');
+  // Sinds F5b (I8) is 08:00 in een bestand zonder OPS-markering een echte tijd: de vastlegging houdt hem.
   eq('1b A: alle zes assen + kritiek uit het bestand (40 u op 8 u/dag = 5 dagen)', recordedOf(r, '1.1'), {
-    start: '2026-03-02', finish: '2026-03-06', lateStart: '2026-03-09', lateFinish: '2026-03-13',
+    start: '2026-03-02T08:00', finish: '2026-03-06T08:00', lateStart: '2026-03-09T08:00', lateFinish: '2026-03-13T08:00',
     totalFloat: 5, freeFloat: 0, isCritical: false,
   });
   eq('1c B: alleen het vroege paar — vier assen "niet vastgelegd", geen 0-terugval', recordedOf(r, '1.2'), {
-    start: '2026-03-16', finish: '2026-03-20',
+    start: '2026-03-16T08:00', finish: '2026-03-20T08:00',
   });
   eq('1d C: zonder datums geen vastlegging', recordedOf(r, '1.3'), undefined);
   eq('1e task.time blijft de geplande invoer (late = gepland, speling 0 — de bestaande vulling), NIET de vastlegging',
-    [byWbs(r, '1.1')?.time.lateStart, byWbs(r, '1.1')?.time.totalFloat], ['2026-03-02', 0]);
+    [byWbs(r, '1.1')?.time.lateStart, byWbs(r, '1.1')?.time.totalFloat], ['2026-03-02T08:00', 0]);
   // Terugval StartDate/FinishDate wanneer een export geen Early*-elementen draagt (P6 schrijft ze
   // wel, maar "vergelijk wat er is" geldt óók voor een uitgeklede export).
   const noEarly = P6XML_FIXTURE.replace(/<EarlyStartDate>[^<]*<\/EarlyStartDate>\s*<EarlyFinishDate>[^<]*<\/EarlyFinishDate>/g, '')
     .replace('<PlannedStartDate>2026-03-16T08:00:00</PlannedStartDate>', '<PlannedStartDate>2026-03-16T08:00:00</PlannedStartDate><StartDate>2026-03-17T08:00:00</StartDate><FinishDate>2026-03-23T08:00:00</FinishDate>');
   const r2 = readP6XML(noEarly);
-  eq('1f zonder Early*: StartDate/FinishDate zijn de vastlegging', recordedOf(r2, '1.2'), { start: '2026-03-17', finish: '2026-03-23' });
+  eq('1f zonder Early*: StartDate/FinishDate zijn de vastlegging', recordedOf(r2, '1.2'), { start: '2026-03-17T08:00', finish: '2026-03-23T08:00' });
   eq('1g zonder Early* én zonder StartDate: geen vastlegging (A verloor zijn early-paar, houdt late/speling niet zonder start/einde)', recordedOf(r2, '1.1'), undefined);
 }
 
@@ -76,15 +76,16 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
 {
   const r = readMSPDI(MSPDI_FIXTURE);
   eq('2a herkomst mspdi', r.recordedTimesOrigin, 'mspdi');
+  // Sinds F5b (I8) is 08:00 in een bestand zonder OPS-markering een echte tijd: de vastlegging houdt hem.
   eq('2b A: zes assen + Critical (24.000 tienden van een minuut = 2.400 min = 5 dagen van 8 u)', recordedOf(r, '1.1'), {
-    start: '2026-03-02', finish: '2026-03-06', lateStart: '2026-03-09', lateFinish: '2026-03-13',
+    start: '2026-03-02T08:00', finish: '2026-03-06T08:00', lateStart: '2026-03-09T08:00', lateFinish: '2026-03-13T08:00',
     totalFloat: 5, freeFloat: 0, isCritical: false,
   });
-  eq('2c B: alleen het vroege paar', recordedOf(r, '1.2'), { start: '2026-03-16', finish: '2026-03-20' });
+  eq('2c B: alleen het vroege paar', recordedOf(r, '1.2'), { start: '2026-03-16T08:00', finish: '2026-03-20T08:00' });
   eq('2d C: geen datums ⇒ geen vastlegging', recordedOf(r, '1.3'), undefined);
-  eq('2e task.time ongewijzigd (lateStart = start, speling 0 — de bestaande vulling)', [byWbs(r, '1.1')?.time.lateStart, byWbs(r, '1.1')?.time.totalFloat], ['2026-03-02', 0]);
+  eq('2e task.time ongewijzigd (lateStart = start, speling 0 — de bestaande vulling)', [byWbs(r, '1.1')?.time.lateStart, byWbs(r, '1.1')?.time.totalFloat], ['2026-03-02T08:00', 0]);
   const noEarly = MSPDI_FIXTURE.replace(/<EarlyStart>[^<]*<\/EarlyStart>\s*<EarlyFinish>[^<]*<\/EarlyFinish>/g, '');
-  eq('2f zonder Early*: Start/Finish zijn de vastlegging', recordedOf(readMSPDI(noEarly), '1.2'), { start: '2026-03-16', finish: '2026-03-20' });
+  eq('2f zonder Early*: Start/Finish zijn de vastlegging', recordedOf(readMSPDI(noEarly), '1.2'), { start: '2026-03-16T08:00', finish: '2026-03-20T08:00' });
   // Critreview PR #167, bevinding 6: MS Project schrijft EarlyStart ook op samenvattingen; die
   // tellen niet mee in "N taken" (zoals bij XER). A wordt hier de samenvatting boven B.
   const withSummary = MSPDI_FIXTURE
@@ -93,7 +94,7 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   const rs = readMSPDI(withSummary);
   eq('2g tegenproef: A is nu de ouder van B', byWbs(rs, '1.1')?.childIds.length, 1);
   eq('2h de samenvatting krijgt geen eigen vastlegging, het blad wel',
-    [recordedOf(rs, '1.1'), recordedOf(rs, '1.2')], [undefined, { start: '2026-03-16', finish: '2026-03-20' }]);
+    [recordedOf(rs, '1.1'), recordedOf(rs, '1.2')], [undefined, { start: '2026-03-16T08:00', finish: '2026-03-20T08:00' }]);
 }
 
 // ── (3) CSV ─────────────────────────────────────────────────────────────────────────────────────
@@ -110,13 +111,14 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   eq('3e zonder speling-/kritiekkolom: alleen start/einde', recordedOf(r2, '1.1'), { start: '2026-03-02', finish: '2026-03-06' });
   const r3 = readCSV(['WBS,Name,Duration', '1.1,A,5'].join('\n'));
   eq('3f zonder datumkolommen: geen kanaal en geen herkomst', [r3.recordedTimes, r3.recordedTimesOrigin], [undefined, undefined]);
-  // Critreview op ded4d8c3, bevinding 1: een GEVULDE maar onleesbare datumcel ("Mon 3/2/26",
-  // "2 maart 2026") is geen vastlegging — de vergevende lezing zou er "vandaag" van maken.
-  const r4 = readCSV(CSV_FIXTURE_UNREADABLE_DATES);
-  eq('3g onleesbare datumcellen ("Mon 3/2/26", "2 maart 2026") ⇒ geen vastlegging, geen kanaal, geen herkomst',
-    [r4.recordedTimes, r4.recordedTimesOrigin], [undefined, undefined]);
-  eq('3h …terwijl task.time de gewone, vergevende lezing houdt (vandaag-terugval, byte-identiek aan csvDateOrToday)',
-    [byWbs(r4, '1.1')?.time.scheduleStart, byWbs(r4, '1.2')?.time.scheduleStart], [csvDateOrToday('Mon 3/2/26'), csvDateOrToday('2 maart 2026')]);
+  // Knownbug 128: onherkende gevulde datums mogen geen taak-/vastleggingspayload opleveren.
+  let unreadableError: unknown;
+  try { readCSV(CSV_FIXTURE_UNREADABLE_DATES); } catch (err) { unreadableError = err; }
+  truthy('3g onleesbare datum ⇒ expliciete importweigering', unreadableError instanceof CsvDateImportError);
+  eq('3h weigering noemt het eerste onleesbare veld',
+    unreadableError instanceof CsvDateImportError
+      ? [unreadableError.row, unreadableError.column, unreadableError.value] : undefined,
+    [2, 'Start', 'Mon 3/2/26']);
   const r5 = readCSV(['WBS,Name,Duration,Start,Finish', '1.1,A,5,2026-02-31,2026-03-06', '1.2,B,5,02-03-2026,06/03/2026'].join('\n'));
   eq('3i een niet-bestaande datum (31 februari) is evenmin een vastlegging', recordedOf(r5, '1.1'), undefined);
   eq('3j DD-MM-YYYY en DD/MM/YYYY blijven herkend', recordedOf(r5, '1.2'), { start: '2026-03-02', finish: '2026-03-06' });
@@ -177,8 +179,10 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   S().applyOpenedImport(reopened, { filePath: null, recompute: true });
   eq('6d heropend (ongewijzigd, optie B): weer in de modus', [S().datesAsRecorded, S().recordedDates?.origin], [true, 'ifc-own']);
   eq('6e B houdt na heropenen vier assen "niet vastgelegd"', unrecordedAxes(S().recordedDates?.times[idOf('1.2')]), ['ls', 'lf', 'tf', 'ff']);
+  // D1/D2 normaliseren ook de vastgelegde assen op de echte laadgrens (§4.2). Sinds F5b (I8) draagt dit
+  // vreemde bestand echte tijden (08:00); die blijven, er valt niets te normaliseren.
   eq('6f A houdt zijn vastgelegde late datums en speling', S().recordedDates?.times[idOf('1.1')], {
-    start: '2026-03-02', finish: '2026-03-06', lateStart: '2026-03-09', lateFinish: '2026-03-13',
+    start: '2026-03-02T08:00', finish: '2026-03-06T08:00', lateStart: '2026-03-09T08:00', lateFinish: '2026-03-13T08:00',
     totalFloat: 5, freeFloat: 0, isCritical: false,
   });
   // Critreview PR #167, bevinding 2: heropenen van het eigen, ongewijzigde IFC gaat automatisch de
@@ -248,7 +252,7 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   const eigenZonderBron = writeIFC(buildWriteIFCInput(S()));
   truthy('8e0 het eigen bestand zonder bron draagt geen SourceFormat', !eigenZonderBron.includes("'SourceFormat'"));
   const bStart = S().tasks.find(t => t.wbsCode === '1.2')!.time.earlyStart;
-  const verschoven = eigenZonderBron.replace(new RegExp(`'${bStart}T`, 'g'), "'2026-03-23T");
+  const verschoven = eigenZonderBron.replace(new RegExp(`'${bStart.slice(0, 10)}T`, 'g'), "'2026-03-23T");
   truthy('8e1 tegenproef: de fixture verschuift B echt in het bestand', verschoven !== eigenZonderBron);
   S().newProject();
   S().applyOpenedImport(readIFC(verschoven), { filePath: null, recompute: true });
@@ -291,7 +295,7 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   const slaap = S().documents.find(d => d.id === 'rec-9-slaap')?.payload;
   eq('9c crashherstel (slapend, in de modus): ook 2 vastgelegd', [slaap?.recordedDates?.total, slaap?.datesAsRecorded], [2, true]);
   eq('9c2 …en C staat op zijn eigen anker, niet op "vandaag"',
-    slaap?.tasks.find(t => t.wbsCode === '1.3')?.time.earlyStart, cSchedule);
+    slaap?.tasks.find(t => t.wbsCode === '1.3')?.time.earlyStart, `${cSchedule}T07:00`);
   eq('9c3 crashherstel (actief, in de modus): ook 2 vastgelegd', [S().recordedDates?.total, S().datesAsRecorded], [2, true]);
 
   // Samenvattingen: een nieuwe fase "S" (MS Project schrijft ook daar EarlyStart) boven A en B; B

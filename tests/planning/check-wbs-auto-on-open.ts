@@ -15,7 +15,8 @@ import { selectUndoHistoryEvent } from '@/state/sessionHistory';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { buildExportIFCInput } from '@/state/ifcSaveInput';
-import { flattenOrder } from '@/utils/wbs';
+import { flattenOrder, deriveWbsCodes } from '@/utils/wbs';
+import type { Task } from '@/types/task';
 import { installDOMParser } from './xmldom-shim';
 
 declare const process: { exitCode?: number };
@@ -153,6 +154,24 @@ async function main(): Promise<void> {
   eq('f2 loadState: geen undo-stap', undoEventCount(), 0);
   S().loadState(emptyProject);
   eq('f3 loadState: leeg ⇒ vlag blijft undefined', S().project.wbsAutoNumber, undefined);
+
+  // (g) De iteratieve WBS-wandeling (168) houdt de rauwe siblingvolgorde aan, óók als
+  // childIds een andere volgorde draagt. Wezen en parentId-kringen houden hun oude vangnet.
+  const node = (id: string, parentId: string | null, childIds: string[] = []): Task => ({
+    ...resD.tasks[0], id, parentId, childIds,
+  });
+  const awkward = [
+    node('R', null, ['B', 'A']), node('A', 'R', ['G']), node('B', 'R'), node('G', 'A'),
+    node('S', null), node('O', 'ontbreekt', ['K']), node('K', 'O'),
+    node('X', 'Y', ['Y']), node('Y', 'X', ['X']),
+  ];
+  const before = JSON.stringify(awkward);
+  eq('g1 WBS volgt array-siblings, diepte-eerst, daarna wezen en kring',
+    flattenOrder(awkward).map(t => t.id), ['R', 'A', 'G', 'B', 'S', 'O', 'K', 'X', 'Y']);
+  eq('g2 nummering volgt dezelfde volgorde met cyclusbewaking', [...deriveWbsCodes(awkward)],
+    [['R', '1'], ['A', '1.1'], ['G', '1.1.1'], ['B', '1.2'], ['S', '2'],
+      ['O', '3'], ['K', '3.1'], ['X', '4'], ['Y', '4.1']]);
+  eq('g3 afleiden verandert geen identiteiten of boomgegevens', JSON.stringify(awkward), before);
 
   if (fails.length) {
     for (const f of fails) console.log(`XX  ${f}`);

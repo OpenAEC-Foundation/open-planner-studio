@@ -29,11 +29,11 @@ Bu sayfada, yapay zeka asistanının köprü üzerinden çağırabildiği tüm a
 
 ## Görevler ve yapı
 
-- `planner_add_tasks` (değiştirme, toplu) — görev oluşturur. Bir çağrıda iç içe bir WBS de oluşturabilir. Her göreve kendi geçici adı (`tmp-…`) verilir, böylece bir alt görev üst görevine başvurabilir. Süre verilmezse görev 5 iş günü alır. Bir kilometre taşının süresi 0'dır. Bir çağrının tüm görevleri birlikte başarılı olur veya birlikte başarısız olur.
-- `planner_update_tasks` (değiştirme, toplu) — mevcut görevlerin alanlarını değiştirir: ad, açıklama, süre ve birim (gün veya saat), süre türü, görev türü, kilometre taşı, zorunlu, öncelik, kısıtlama, son tarih, takvim ve iş kuralı. Ayrıca bir ilerleme yolu vardır: tamamlanma yüzdesi, gerçek başlangıç ve gerçek bitiş. Başka her anahtar bir nedenle reddedilir.
+- `planner_add_tasks` (değiştirme, toplu) — görev oluşturur. Tek bir çağrıda iç içe bir WBS de oluşturabilir. Her göreve kendi geçici adı (`tmp-…`) verilir, böylece bir alt görev üst görevine başvurabilir. Süre verilmezse görev 5 iş günü alır. Bir kilometre taşının süresi 0'dır. Bir çağrının tüm görevleri birlikte başarılı olur veya birlikte başarısız olur.
+- `planner_update_tasks` (değiştirme, toplu) — mevcut görevlerin alanlarını değiştirir: ad, açıklama, süre ve birim (gün veya saat), süre türü, iş kategorisi, kilometre taşı, zorunlu, öncelik, kısıtlama, son tarih, takvim ve görev türü. Ayrıca bir ilerleme yolu vardır: tamamlanma yüzdesi, gerçek başlangıç ve gerçek bitiş. Başka her anahtar bir nedenle reddedilir.
 - `planner_delete_tasks` (değiştirme) — görevleri siler, alt ağaçlarıyla, ilişkileri ve atamalarıyla birlikte. Yanıt, onlarla birlikte neyin gittiğini tam olarak belirtir.
-- `planner_move_task` (değiştirme) — bir görevi başka bir üst göreve, bir konumla birlikte taşır. Bir döngü oluşturan taşıma veya bir görevi kendi altına koymak reddedilir.
-- `planner_set_task_splits` (değiştirme) — bir görevin kesintilerini ayarlar: kaç iş günü (veya çalışma saati) çalıştıktan sonra, ve kaç iş günü (veya çalışma saati) duraklama. Boş bir liste tüm kesintileri kaldırır. Bkz. [Görev bölme](docs://howto-taak-splitsen).
+- `planner_move_task` (değiştirme) — bir görevi bir konumla birlikte başka bir üst göreve taşır. Döngüsel bir başvuru oluşturan taşıma veya bir görevi kendi altına koymak reddedilir.
+- `planner_set_task_splits` (değiştirme) — bir görevin kesintilerini ayarlar: kaç iş günü (veya çalışma saati) çalıştıktan sonra ve kaç iş günü (veya çalışma saati) duraklama. Boş bir liste tüm kesintileri kaldırır. Bkz. [Görev bölme](docs://howto-taak-splitsen).
 
 ## İlişkiler
 
@@ -43,15 +43,15 @@ Bu sayfada, yapay zeka asistanının köprü üzerinden çağırabildiği tüm a
 
 ## Proje ve takvimler
 
-- `planner_update_project` (değiştirme) — ad, açıklama, yazar, şirket, başlangıç tarihi, bitiş tarihi, durum tarihi, ilerleme modu ve projenin iş kuralı için varsayılan. Proje başlangıcı, yeni görevler için bir çapadır. Yapay zeka asistanı bunu daha sonra ayarlarsa, yalnızca serbest görevler taşınır. Serbest görevler, öncülü olmayan ve alt sınır koyan bir kısıtlaması olmayan görevlerdir, örneğin *şu tarihten önce başlamaz (SNET)*. Yanıt taşınan görev sayısını `anchorsClamped` olarak bildirir. Geri kalan planlama yerinde kalır. Bkz. [Yeni proje ve Proje bilgisi](docs://ref-projectinfo). Durum tarihi bir etiket değildir. Hesaplamanın referans tarihidir. İlerlemesi olmayan bir planlamada her şey birlikte hareket eder. Bitiş tarihi yalnızca metadatadır.
+- `planner_update_project` (değiştirme) — ad, açıklama, yazar, şirket, başlangıç tarihi, bitiş tarihi, durum tarihi, ilerleme modu ve projenin görev türü için varsayılanı. Proje başlangıcı, yeni görevler için bir çapadır. Yapay zeka asistanı bunu daha sonra ayarlarsa, yalnızca serbest görevler taşınır. Serbest görevler, öncülü olmayan ve *şu tarihten önce başlamaz (SNET)* gibi bir alt sınır koyan bir kısıtlaması olmayan görevlerdir. Yanıt taşınan görev sayısını `anchorsClamped` olarak bildirir. Planlamanın geri kalanı yerinde kalır. Bkz. [Yeni proje ve Proje bilgisi](docs://ref-projectinfo). Durum tarihi bir etiket değildir. Hesaplamanın referans tarihidir. İlerlemesi olmayan bir planlamada her şey birlikte hareket eder. Bitiş tarihi yalnızca metadatadır.
 - `planner_move_project` (değiştirme) — tüm mevcut planlamayı yeni bir başlangıç tarihine taşır. Takvimler birlikte taşınmaz. Bu yüzden bitiş, başlangıçtan farklı sayıda gün kayabilir. Temel planlar yerinde kalır, yapay zeka asistanı açıkça bunların da taşınmasını istemedikçe. Bkz. [Projeyi taşıma](docs://howto-project-verplaatsen).
 - `planner_update_calendar` (değiştirme, toplu) — takvimleri değiştirir veya oluşturur: iş günleri, çalışma saatleri, mola, saat bantları, tatiller (bir ülke ve bölge için oluşturulan veya olduğu gibi verilen) ve çalışma istisnaları. Hangi takvimin proje takvimi olduğunu değiştiremez.
 
 ## Kaynaklar ve birimler
 
 - `planner_manage_resources` (değiştirme, toplu) — kaynakları oluşturur, değiştirir veya siler: ad, tür (işçilik, ekipman, malzeme, taşeron veya ekip), açıklama, maks. birim, saat başına maliyet, birim, takvim, ekip ve zamana bağlı uygunluk. Atamaları olan bir kaynağı, yapay zeka asistanı açıkça onaylayana kadar silmeyi reddeder. Bir kaynak kitaplığından gelen bir kaynak için ad, tür, açıklama, saatlik ücret ve birim sabittir.
-- `planner_manage_assignments` (değiştirme, toplu) — atamaları ekler, değiştirir, taşır veya kaldırır: iş günü başına birim, eğri ve kalan iş. Yalnızca alt görevi olmayan bir görevde ve aynı kaynak bir görevde yalnızca bir kez. Birim değişikliğinin süreye ne yaptığı, görevin iş kuralına bağlıdır. Bkz. [İş kuralları: süre, birim ve iş](docs://uitleg-werkregels).
-- `planner_level_resources` (değiştirme) — aşırı atanmayı dengeler. Varsayılan olarak bolluk içinde kalır, bu yüzden bitiş tarihi değişmez. `constrainToFloat: false` ile bitiş tarihi kayabilir. Deneme çalıştırmasıyla yapay zeka asistanı önce bir önizleme alır, hiçbir şey değişmeden. Malzemeyi atlar. Bkz. [Kaynak dengeleme](docs://uitleg-nivelleren).
+- `planner_manage_assignments` (değiştirme, toplu) — atamaları ekler, değiştirir, taşır veya kaldırır: iş günü başına birim, eğri ve kalan iş. Atama yalnızca alt görevi olmayan bir görevde yapılabilir; aynı kaynak bir görevde yalnızca bir kez atanabilir. Birim değişikliğinin süreye ne yaptığı, görevin görev türüne bağlıdır. Bkz. [Görev türleri: süre, birim ve iş](docs://uitleg-werkregels).
+- `planner_level_resources` (değiştirme) — aşırı atanmayı dengeler. Varsayılan olarak bolluk içinde kalır, bu yüzden bitiş tarihi değişmez. `constrainToFloat: false` ile bitiş tarihi kayabilir. Deneme çalıştırmasıyla yapay zeka asistanı önce, hiçbir şeyi değiştirmeden, bir önizleme alır. Malzemeyi atlar. Bkz. [Kaynak dengeleme](docs://uitleg-nivelleren).
 - `planner_clear_leveling` (değiştirme) — tüm dengeleme gecikmelerini temizler.
 
 ## Temel planları yönetme
@@ -71,13 +71,13 @@ Bu sayfada, yapay zeka asistanının köprü üzerinden çağırabildiği tüm a
 - `planner_new_document` — kendi sekmesinde yeni, boş bir belge oluşturur. *Yeni proje* penceresi açılmaz.
 - `planner_duplicate_document` — etkin belgeyi yeni bir sekmeye kopyalar, bir ne-olur analizi veya bir ihale varyantı için. Kopya bağımsızdır ve bir dosya yolu yoktur.
 - `planner_switch_document` — başka bir belgeyi etkin yapar. Sekme değiştirdikten sonra, yapay zeka asistanının hangi belgeyle çalıştığını onaylamanın yolu da budur.
-- `planner_import_schedule` — diskteki bir planlama dosyasını belge olarak açar: `.ifc`, `.xml` (Primavera P6 veya MS Project, içeriğinden tanınır), `.csv`, `.xer` ve `.mpp` (MS Project 2010 ile 2021 arası). Hiçbir şey geçerli planla birleştirilmez. Bir CSV'nin takvimi yoktur, bu yüzden tarihler kayabilir. Yalnızca kullanıcı klasörünüzde çalışır. Bir CSV, XML veya `.mpp` içe aktarımından sonra belgenin kayıt hedefi yoktur. Yalnızca bir IFC kendi yolunu devralır.
-- `planner_export_ifc` — etkin belgeyi bir IFC 4.3 dosyası olarak yazar. Yalnızca kullanıcı klasörünüzde. Mevcut bir dosyanın üzerine yalnızca açık isteğiniz üzerine yazılır. Proje kaydedilmemiş kalır.
+- `planner_import_schedule` — diskteki bir planlama dosyasını belge olarak açar: `.ifc`, `.xml` (Primavera P6 veya MS Project, içeriğinden tanınır), `.csv`, `.xer` ve `.mpp` (MS Project 2010 ile 2021 arası). Hiçbir şey mevcut planla birleştirilmez. Bir CSV'nin takvimi yoktur, bu yüzden tarihler kayabilir. Yalnızca kullanıcı klasörünüzde çalışır. Bir CSV, XML veya `.mpp` içe aktarımından sonra belgenin kayıt hedefi yoktur. Yalnızca bir IFC kendi yolunu devralır.
+- `planner_export_ifc` — etkin belgeyi bir IFC dosyası olarak yazar, projenin IFC şemasında (varsayılan IFC 4.3 ADD2). Yalnızca kullanıcı klasörünüzde. Mevcut bir dosyanın üzerine yalnızca açık isteğiniz üzerine yazılır. Belge, uygulamanın yazamadığı bir şemada açıldıysa (IFC2X3 gibi), araç o dosyanın üzerine kendisi yazmayı reddeder. Proje kaydedilmemiş kalır.
 
 ## Kılavuz ve kaynak kökeni
 
-- `planner_get_planning_guide` (okuma) — yapay zeka asistanları için İngilizce kılavuzu verir: [İyi planlama](docs://gids-goed-plannen) ilkeleri, her ilke için araçlarla birlikte. Ayrıca iki beceriyi verir: *goed-plannen* (bir planlama kurmak) ve *progress-update* (ilerlemeyi güncellemek). Ya da hepsini. `part` ile seçin: `guide`, `skill` (iki beceri) veya `both`. Varsayılan `both`. Her beceri için nereye ait olduğunu ve indirme adreslerini döndürür. `language` parametresi eski asistanlar için hâlâ kabul edilir, ama metin her zaman İngilizcedir. Planlamaya dokunmaz.
-- `planner_inspect_xer_provenance` (okuma) — açık bir Primavera P6 dosyasının (`.xer`) saklanan kaynak anlamını inceler: dosyada ne vardı, içe aktarım ve tanılama sayılarıyla. Dosyadaki serbest metin alanları varsayılan olarak görünmez. Yapay zeka asistanının bunları açıkça istemesi gerekir. Bir betikte kullanılamaz.
+- `planner_get_planning_guide` (okuma) — yapay zeka asistanları için İngilizce kılavuzu verir: [İyi planlama](docs://gids-goed-plannen) ilkeleri, her ilke için araçlarla birlikte. Ayrıca iki beceriyi verir: *goed-plannen* (bir planlama kurmak) ve *progress-update* (ilerlemeyi güncellemek). Ya da hepsini. `part` ile seçin: `guide`, `skill` (iki beceri) veya `both`. Varsayılan `both`. Her beceri için ait olduğu yerleri ve indirme adreslerini döndürür. `language` parametresi eski asistanlar için hâlâ kabul edilir, ama metin her zaman İngilizcedir. Planlamaya dokunmaz.
+- `planner_inspect_xer_provenance` (okuma) — açık bir Primavera P6 dosyasının (`.xer`) saklanan kaynak anlamını inceler: dosyada ne vardı, içe aktarım ve tanılama sayılarıyla. Dosyadaki serbest metin alanları varsayılan olarak görünmez. Yapay zeka asistanının bunları açıkça istemesi gerekir. Kaynak adları da varsayılan olarak gizlidir, çünkü bir P6 kaynağı genellikle bir kişidir. Kaynak kodları görünür kalır. Yapay zeka asistanı adları istemeden önce sizden izin istemelidir, çünkü adlar o zaman yapay zeka sağlayıcısına gider. Bir betikte kullanılamaz.
 
 ## Betik
 
@@ -115,7 +115,7 @@ Görev başına yapay zeka asistanı şunları ayarlayamaz: hamak, elle planlama
 
 ## Ayrıca bakın
 
-- [Yapay zeka bağlantısı nasıl çalışır](docs://uitleg-ai-koppeling): bu köprünün neden böyle kurulduğu ve yapay zeka asistanının neyi yapıp neyi yapamayacağı.
+- [Yapay zeka bağlantısı nasıl çalışır](docs://uitleg-ai-koppeling): bu köprünün neden böyle kurulduğu ve yapay zeka asistanının neyi yapabileceği ve neyi yapamayacağı.
 - [Yapay zeka asistanını bağlamak (MCP)](docs://howto-ai-assistent-koppelen): köprüyü başlatın, bağlanın ve beceriyi kurun.
 - [Ayarlar](docs://ref-instellingen): iki yapay zeka anahtarı.
 - [Bildirimler ve uyarılar](docs://ref-meldingen): durum çubuğundaki yapay zeka noktası.

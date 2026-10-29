@@ -16,11 +16,11 @@ Godziny stosujesz przy pracy, która nie mieści się w pełnych dniach: dźwigu
 
 ## Jak aplikacja oblicza
 
-### Godziny pracy i godziny netto
+### Godziny pracy i standardowy dzień roboczy
 
 Każdy kalendarz ma **pasma godzin pracy** dla każdego dnia roboczego (w aplikacji nazywane *pasmami*). Standardowy kalendarz ma godziny od 07:00 do 12:00 oraz od 13:00 do 16:00. Luka między nimi to przerwa. Aplikacja wyznacza te pasma na podstawie *Początek (godz.)*, *Koniec (godz.)* i przerwy w kalendarzu. Nie musisz nic w tym celu ustawiać. Jeśli sam ustawisz pasma dla każdego dnia tygodnia, mają one pierwszeństwo.
 
-**Godziny netto na dzień** to suma pasm dnia roboczego. Jeśli dni robocze różnią się długością, obowiązuje najczęstsza suma dzienna, a przy remisie najwyższa. Przy czterech dniach po 8 godzin i piątku po 5 godzin godziny netto na dzień wynoszą więc 8.
+**Standardowy dzień roboczy** to dzień roboczy, który występuje najczęściej. Jego długość to suma jego pasm. Nie jest to średnia: jeśli poniedziałek ma 16 godzin, a wtorek do piątku po 10 godzin, standardowy dzień roboczy wynosi 10 godzin. Jeśli dni robocze różnią się długością, obowiązuje najczęstsza suma dzienna, a przy remisie najwyższa. Przy czterech dniach po 8 godzin i piątku po 5 godzin standardowy dzień roboczy wynosi więc 8 godzin. Kalendarz z własnymi godzinami dziennymi (na przykład z Primavera P6) także liczy z tą sumą dzienną, a okno kalendarza ją pokazuje. Jego własna wartość zostaje zachowana dla eksportu. Jeśli się różni, okno kalendarza pokazuje pod *Standardowy dzień roboczy* pomarańczowy pasek. Zadanie na 1870 godzin, przy dniach po 10 godzinach pracy, trwa zatem 187 dni, nawet jeśli jego własna wartość to 8 godzin dziennie.
 
 ### Zadanie godzinowe
 
@@ -32,9 +32,9 @@ Aplikacja liczy pełne dni robocze. Godziny dziennie nie mają tu znaczenia. Zad
 
 ### Przeliczanie dni i godzin
 
-Dzień to godziny netto na dzień w kalendarzu zadania. Aplikacja z tego korzysta w trzech miejscach:
+Dzień to standardowy dzień roboczy kalendarza zadania. Aplikacja z tego korzysta w trzech miejscach:
 
-- Dla ustawienia *Wyświetlanie czasu trwania*. W *Ustawienia › Projekt › Ustawienia*, na karcie *Wygląd* wybierasz *Automatycznie (własna jednostka dla zadania)*, *Zawsze w dniach* albo *Zawsze w godzinach*. Zadanie na 18 godzin pokazuje się przy *Zawsze w dniach* jako `2.25d(18h)`: własna jednostka zostaje w nawiasie.
+- Dla ustawienia *Wyświetlanie czasu trwania*. W *Ustawienia › Projekt › Ustawienia aplikacji*, na karcie *Wygląd* wybierasz *Automatycznie (własna jednostka dla zadania)*, *Zawsze w dniach* albo *Zawsze w godzinach*. Zadanie na 18 godzin pokazuje się przy *Zawsze w dniach* jako `2.25d(18h)`: własna jednostka zostaje w nawiasie.
 - Dla opóźnienia w godzinach po zadaniu w dniach (zobacz *Zaokrąglanie*).
 - Gdy zmieniasz jednostkę zadania. Aplikacja liczy wtedy dni od początku zadania, każdy dzień z jego własnymi godzinami, i od razu przelicza czas trwania, gdy wynik jest dokładny. Dwa dni zamieniają się w `16h`. W kalendarzu, w którym piątek ma 5 godzin, 5 dni od poniedziałku zamieniają się w `37h`. Dwunastu godzin nie można zamienić na pełne dni w kalendarzu z dniami po 8 godzin: aplikacja wtedy zostawia jednostkę bez zmian.
 
@@ -51,19 +51,19 @@ Poniższe reguły dotyczą relacji zakończenie-rozpoczęcie w kalendarzu bez w�
 Aplikacja zaokrągla lub odrzuca wartość w czterech miejscach:
 
 - **Zadanie w dniach po zadaniu godzinowym** zaczyna się następnego dnia roboczego. Zadanie godzinowe jest niejako zaokrąglone w górę do pełnych dni.
-- **Opóźnienie w godzinach** liczy się w kalendarzu opóźnienia, domyślnie w kalendarzu poprzednika. Jeśli poprzednik jest zadaniem w dniach w kalendarzu bez własnych pasm godzin pracy, na przykład w standardowym kalendarzu, aplikacja zamienia opóźnienie na pełne dni robocze: opóźnienie podzielone przez godziny netto na dzień, zaokrąglone do liczby całkowitej; pół dnia zaokrągla się w górę. Przy 8 godzinach dziennie 1 godzina liczy się jako 0 dni, 4 godziny jako 1 dzień, a 12 godzin jako 2 dni. To dotyczy także sytuacji, gdy następnik jest zadaniem godzinowym. Jeśli poprzednik jest zadaniem godzinowym albo jego kalendarz ma własne pasma godzin pracy, opóźnienie liczy się dokładnie w godzinach pracy, a przerwa się nie liczy.
+- **Opóźnienie w godzinach** liczy się w kalendarzu opóźnienia, domyślnie w kalendarzu poprzednika. Jeśli poprzednik jest zadaniem w dniach w kalendarzu bez własnych pasm godzin pracy, na przykład w standardowym kalendarzu, aplikacja zamienia opóźnienie na pełne dni robocze: opóźnienie podzielone przez godziny standardowego dnia roboczego, zaokrąglone do liczby całkowitej; pół dnia zaokrągla się w górę. Przy 8 godzinach dziennie 1 godzina liczy się jako 0 dni, 4 godziny jako 1 dzień, a 12 godzin jako 2 dni. To dotyczy także sytuacji, gdy następnik jest zadaniem godzinowym. Jeśli poprzednik jest zadaniem godzinowym albo jego kalendarz ma własne pasma godzin pracy, opóźnienie liczy się dokładnie w godzinach pracy, a przerwa się nie liczy.
 - **Czas trwania w dniach** jest zawsze liczbą całkowitą. Jeśli wpiszesz `1.5d`, aplikacja pokazuje komunikat *Wprowadź całkowitą liczbę dni lub godzin, na przykład 2d albo 12h.* Czas trwania w godzinach może wynosić `1.5h` albo `1h 30m`.
 - **Zmiana jednostki** następuje tylko wtedy, gdy wynik jest dokładny (zobacz wyżej).
 
 ## Przykład praktyczny: dźwig
 
-Kalendarz obejmuje dni od poniedziałku do piątku, od 07:00 do 12:00 i od 13:00 do 16:00: 8 godzin netto dziennie. Projekt zaczyna się w poniedziałek 7 czerwca 2027 r.
+Kalendarz obejmuje dni od poniedziałku do piątku, od 07:00 do 12:00 i od 13:00 do 16:00: standardowy dzień roboczy to 8 godzin. Projekt zaczyna się w poniedziałek 7 czerwca 2027 r.
 
 ### Dwa zadania godzinowe i zadanie w dniach
 
 *Place crane* trwa 12 godzin. Poniedziałek ma 8 godzin pracy (5 do 12:00 i 3 po przerwie), a wtorek ostatnie 4 godziny. Zadanie trwa od poniedziałku 07:00 do **wtorku 8 czerwca 11:00**.
 
-*Adjust elements* trwa 8 godzin i następuje po nim relacja zakończenie-rozpoczęcie. Zaczyna się od razu we wtorek o 11:00: to 1 godzina do przerwy i 3 godziny po niej. Ostatnie 4 godziny to środa od 07:00 do 11:00. Zakończenie to **środa 9 czerwca 11:00**.
+*Adjust elements* trwa 8 godzin i następuje po *Place crane* w relacji zakończenie-rozpoczęcie. Zaczyna się od razu we wtorek o 11:00: to 1 godzina do przerwy i 3 godziny po niej. Ostatnie 4 godziny to środa od 07:00 do 11:00. Zakończenie to **środa 9 czerwca 11:00**.
 
 *Finishing* trwa 2 dni i następuje po *Adjust elements*. Zadanie w dniach nie zaczyna się w środku dnia, więc zaczyna się **w czwartek 10 czerwca** i kończy w piątek 11 czerwca.
 
@@ -81,17 +81,17 @@ Po zadaniu w dniach opóźnienie działa inaczej. *Pour foundation* kończy się
 
 ### Wolne popołudnie w piątek
 
-Teraz piątek ma tylko jedno pasmo, od 07:00 do 12:00: 5 godzin. Pozostałe dni mają nadal po 8 godzin. Godziny netto na dzień pozostają 8, bo to najczęstsza suma dzienna. Tydzień ma teraz 37 godzin pracy.
+Teraz piątek ma tylko jedno pasmo, od 07:00 do 12:00: 5 godzin. Pozostałe dni mają nadal po 8 godzin. Standardowy dzień roboczy pozostaje 8 godzin, bo to najczęstsza suma dzienna. Tydzień ma teraz 37 godzin pracy.
 
 Zadanie na 40 godzin od poniedziałku 7 czerwca 07:00 obejmuje od poniedziałku do czwartku (32 godziny) i piątek (5 godzin). Ostatnie 3 godziny przypadają na kolejny poniedziałek, od 07:00 do 10:00. Zakończenie to **poniedziałek 14 czerwca 10:00**. Zadanie na 5 dni zajęłoby od poniedziałku 37 godzin i to aplikacja proponuje, jeśli zmienisz jednostkę z 5 dni na godziny.
 
-W samouczku 4 o planowaniu godzinowym planujesz samodzielnie pracę z dźwigiem w godzinach.
+W samouczku 4 o planowaniu godzinowym planujesz samodzielnie zadanie z dźwigiem w godzinach.
 
 ## Konsekwencje i nieporozumienia
 
 **„8 godzin to 1 dzień.”** Tylko wtedy, gdy kalendarz ma dni po 8 godzin. W kalendarzu z wolnym piątkowym popołudniem 5 dni to 37 godzin, nie 40.
 
-**„Jeśli ustawię więcej godzin dziennie, moje zadanie w dniach skończy się szybciej.”** Nie. Zadanie w dniach liczy pełne dni robocze. Godziny dziennie zmieniają tylko to, ile godzin jest wart dzień, na przykład w wyświetlaniu i przy opóźnieniu w godzinach. Tylko przy zadaniu z zasobami, z regułą pracy *Stała praca* albo *Stałe jednostki*, czas trwania zmienia się razem z liczbą godzin dziennie, bo praca pozostaje taka sama: 40 godzin pracy to 5 dni po 8 godzin dziennie i 7 dni po 6 godzin dziennie.
+**„Jeśli ustawię więcej godzin dziennie, moje zadanie w dniach skończy się szybciej.”** Nie. Zadanie w dniach liczy pełne dni robocze. Godziny dziennie zmieniają tylko to, ile godzin jest warty dzień, na przykład w wyświetlaniu i przy opóźnieniu w godzinach. Tylko przy zadaniu z zasobami, z typem zadania *Stała praca* albo *Stałe jednostki*, czas trwania zmienia się razem z liczbą godzin dziennie, bo praca pozostaje taka sama: 40 godzin pracy to 5 dni po 8 godzin dziennie i 7 dni po 6 godzin dziennie.
 
 **„Zadanie na 8 godzin trwa jeden dzień.”** Tylko wtedy, gdy zaczyna się na początku dnia. Jeśli zaczyna się później, jak *Adjust elements* we wtorek o 11:00, trwa dalej następnego dnia.
 

@@ -26,7 +26,10 @@ test('resourcepaneel: Totaal = uren van de contourdialoog × tarief, ook op een 
   });
 
   // Contourdialoog: echte klik op de toewijzing in het eigenschappenpaneel.
-  await page.locator('[data-ops-assignment-row]').first().locator('[data-ops-assignment-contour]').click();
+  // (Eerst uitklappen: Urenverdeling… staat onder de resourcenaam.)
+  const row = page.locator('[data-ops-assignment-row]').first();
+  await row.locator('[data-ops-assignment-expand]').click();
+  await row.locator('[data-ops-assignment-contour]').click();
   const dialog = page.locator('[data-ops-contour-dialog]');
   await expect(dialog).toBeVisible();
   await expect(dialog.locator('[data-ops-contour-total]')).toHaveText('50');

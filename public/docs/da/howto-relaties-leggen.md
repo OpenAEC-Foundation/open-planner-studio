@@ -22,15 +22,15 @@ Nyttigt, når du arbejder i opgavetabellen.
 
 1. I opgavetabellen klikker du på den opgave, der kommer først: den foregående opgave.
 2. Hold Ctrl (⌘ på en Mac) nede, og klik på den opgave, der kommer efter: den efterfølgende opgave.
-3. Vælg *Start › Opgaver › Sammenkæd › Sammenkæd valgte opgaver*. Den samme knap findes også under *Tidsplan › Afhængigheder*.
+3. Vælg *Start › Opgaver › Sammenkæd ▾ › Sammenkæd valgte opgaver*. Den samme knap findes også under *Tidsplan › Afhængigheder*.
 
-Appen opretter en afhængighed af typen slut til start uden forsinkelse. Du ser den som en pil i Gantt-diagrammet og i kolonnen *Foregående opgaver*; en meddelelse vises kun, hvis appen afviser afhængigheden. Knappen virker kun, når du har valgt præcis to opgaver.
+Appen opretter en afhængighed af typen slut til start uden forsinkelse. Du ser den som en pil i Gantt-diagrammet og i kolonnen *Foregående opgaver*. En meddelelse vises kun, hvis appen afviser afhængigheden. Knappen virker kun, når du har valgt præcis to opgaver.
 
 ### Tegn en afhængighed i Gantt-diagrammet
 
 Nyttigt, når du tilføjer mange afhængigheder efter hinanden.
 
-1. Vælg *Start › Opgaver › Sammenkæd › Tegn afhængighed*. Over tidsplanen vises meddelelsen *Afhængighedstilstand: træk i Gantt fra én bjælke til en anden for at oprette en afhængighed. Esc stopper.*
+1. Vælg *Start › Opgaver › Sammenkæd ▾ › Tegn afhængighed*. Over tidsplanen vises meddelelsen *Afhængighedstilstand: træk i Gantt fra én bjælke til en anden for at oprette en afhængighed. Esc stopper.*
 2. Hold museknappen nede på den foregående opgaves bjælke, og træk til den efterfølgende opgaves bjælke. En stiplet linje med en pil følger din markør.
 3. Slip museknappen. Et lille vindue *Type afhængighed* vises med typen (FS som standard) og et felt til forsinkelsen.
 4. Ændr typen eller forsinkelsen, hvis det er nødvendigt, og tryk på Enter, eller klik uden for vinduet. Afhængigheden oprettes.
@@ -60,7 +60,7 @@ Nyttigt, når du arbejder hurtigt med tastaturet og kender WBS-numrene.
 3. Skriv WBS-nummeret for den foregående opgave, et mellemrum og typen, fx `2.6 FS`. Skriv en forsinkelse lige efter: `2.6 FS+1d`. Adskil flere foregående opgaver med semikolon eller komma: `3.1 FS; 3.2 SS+2d`.
 4. Tryk på Enter.
 
-Det du skriver, erstatter hele cellen. Står der allerede foregående opgaver i cellen, skriv dem også med (se faldgruberne). Trykker du på Enter eller F2 i cellen i stedet for at skrive, åbnes et felt, der beholder de eksisterende afhængigheder. Du søger efter en opgave med WBS-nummer eller navn, og vælger typen og forsinkelsen for hver afhængighed.
+Det, du skriver, erstatter hele cellen. Står der allerede foregående opgaver i cellen, skriv dem også med (se faldgruberne). Trykker du på Enter eller F2 i cellen i stedet for at skrive, åbnes et felt, der beholder de eksisterende afhængigheder. Du søger efter en opgave med WBS-nummer eller navn, og vælger typen og forsinkelsen for hver afhængighed.
 
 ### Sæt eller ændr en forsinkelse
 
@@ -69,14 +69,14 @@ Du skriver en forsinkelse i feltet ved siden af typen, på hver af måderne oven
 - `3` eller `3d`: 3 arbejdsdage. En weekend tæller ikke med. Appen viser `+3d`.
 - `3ed`: 3 kalenderdage. Weekenden tæller med, ligesom ved beton, der også hærder lørdag og søndag.
 - `-1`: et forskud. Den efterfølgende opgave må starte en dag tidligere, så opgaverne overlapper.
-- `4h`: 4 arbejdstimer. Appen viser det som `+4t`. Er den foregående opgave en dagopgave i en kalender uden egne tidsbånd, fx standardkalenderen, omregner appen det til hele arbejdsdage, afrundet til nærmeste hele dag: `4h` gælder så som 1 dag, `2h` som 0. I en kalender med egne tidsbånd, eller efter en timeopgave, tæller forsinkelsen præcist i timer.
+- `4h`: 4 arbejdstimer. Appen viser det som `+4h`. Er den foregående opgave en dagopgave i en kalender uden egne tidsbånd, fx standardkalenderen, omregner appen det til hele arbejdsdage, afrundet til nærmeste hele dag: `4h` gælder så som 1 dag, `2h` som 0. I en kalender med egne tidsbånd, eller efter en timeopgave, tæller forsinkelsen præcist i timer.
 - `50%`: halvdelen af den foregående opgaves varighed.
 
 Eksempel: fundamentsbetonen skal hærde, før murerne kan arbejde på den, så *Pour foundation → Foundation brickwork* får en FS-afhængighed med forsinkelse `3`. Hvis støbningen er fredag den 18. juni 2027, starter murværket efter **Beregn** torsdag den 24. juni: mandag til onsdag er ventetid. Med `3ed` tæller weekenden med, og murværket starter tirsdag den 22. juni.
 
 ### Til sidst: genberegn
 
-En ny afhængighed flytter endnu ikke nogen bjælker. Statuslinjen siger *Forældet — genberegn (F5)*. Tryk på **Beregn** (F5), fx via *Start › Tidsplan › Beregn*. Først da får de efterfølgende opgaver deres nye datoer. Vil du have appen til at gøre det for dig, slår du *Beregn automatisk* til under *Indstillinger › Projekt › Indstillinger*, fanen *Tidsplan*.
+En ny afhængighed flytter endnu ikke nogen bjælker. Statuslinjen siger *Forældet — genberegn (F5)*. Tryk på **Beregn** (F5), fx via *Start › Tidsplan › Beregn*. Først da får de efterfølgende opgaver deres nye datoer. Vil du have appen til at gøre det for dig, slår du *Beregn automatisk* til under *Indstillinger › Projekt › App-indstillinger*, fanen *Tidsplan*.
 
 ## Faldgruber og hvad appen gør
 

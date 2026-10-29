@@ -24,6 +24,8 @@ Projekt se pojavi na vlastitoj kartici i odmah je aktivan. *Novo* i *Otvori* na 
 
 Svaka kartica ima obojenu točku koja pripada projektu. Kartica s malom točkom iza nje ima nespremljene promjene.
 
+Ako kartice ne stanu u širinu, između kartica i plusa pojave se dvije strelice (*Pomakni kartice na početak* i *Scroll tabs towards the end*). Svaki klik pomiče kartice za dvije. Strelica je siva kad ste već na početku ili na kraju. Kartice možete pomicati i kotačićem miša iznad kartica. Kartica koju odaberete uvijek se sama pomakne u vidno polje.
+
 ### Zatvaranje projekta
 
 Kliknite križić pored naziva na kartici (*Zatvori*) ili križić na pločici u pregledu. Projekt bez promjena odmah se zatvara. Ako ima nespremljene promjene, aplikacija pita *Nespremljene promjene* i nudi tri izbora:
@@ -38,7 +40,7 @@ Ako zatvorite posljednji projekt, ostaje prazan raspored pod nazivom *Novi raspo
 
 ### Odabir stila prebacivanja
 
-Način prebacivanja možete izabrati. Otvorite prozor postavki zupčanikom u naslovnoj traci, idite na karticu *Prikaz* i pri *Stil prebacivanja dokumenata* odaberite:
+Način prebacivanja možete odabrati. Otvorite prozor *Postavke aplikacije* pomoću zupčanika u naslovnoj traci, idite na karticu *Prikaz* i u postavci *Stil prebacivanja dokumenata* odaberite:
 
 - *Vodoravne kartice*: zadano. Red kartica ispod vrpce.
 - *Okomite kartice*: uska traka lijevo s gumbom za svaki projekt (prva slova naziva) i gumbom plus. Ako zadržite pokazivač iznad gumba, vidite naziv, naziv datoteke, broj zadataka, broj kritičnih zadataka i datum završetka. Gumb na vrhu otvara pregled.
@@ -50,9 +52,9 @@ Sva tri stila otvaraju isti pregled, a Ctrl+1 do Ctrl+9 radi u svakom stilu.
 
 **Što pripada projektu, a što je zajedničko.** Svaki projekt ima vlastiti pogled: zumiranje i položaj, aktivni izgled s filtrom, grupiranjem ili sortiranjem, podijeljeni prikaz, linije ovisnosti i sažete faze. Kad se prebacite na drugi projekt, tamo vidite njegov pogled. Zajednički su za sve projekte: odabrana kartica na vrpci, mini-karta, preklopi (preklop temeljnog plana, linija napretka i ostali), vaš izbor stupaca, vaši izgledi i postavke izvješća.
 
-**Ne možete se prebaciti dok je dijalog otvoren.** Dok je dijalog otvoren, na primjer prozor postavki ili prozor zadatka, Ctrl+1 do Ctrl+9 ne radi ništa u aplikaciji. U pregledniku tada prebacuju kartice preglednika. Najprije zatvorite dijalog. Promjena u *Podaci o projektu* u Backstageu koja još nije primijenjena također blokira prebacivanje.
+**Ne možete se prebaciti dok je dijalog otvoren.** Dok je dijalog otvoren, na primjer prozor *Postavke aplikacije* ili prozor zadatka, Ctrl+1 do Ctrl+9 u aplikaciji ne radi ništa. U pregledniku tada prebacuju kartice preglednika. Najprije zatvorite dijalog. Promjena u *Postavke projekta* u Backstageu koja još nije primijenjena također blokira prebacivanje.
 
-**Ctrl+1 do Ctrl+9 broje po redoslijedu.** Prečac ide na projekt na tom mjestu u nizu. Ako zatvorite projekt, ostali projekti dobivaju niži broj. Ako imate otvoreno više od devet projekata, do ostalih dolazite samo preko kartica ili pregleda.
+**Ctrl+1 do Ctrl+9 broje redom.** Prečac ide na projekt na tom mjestu u nizu. Ako zatvorite projekt, ostali projekti dobivaju niži broj. Ako imate otvoreno više od devet projekata, do ostalih dolazite samo preko kartica ili pregleda.
 
 **Izračunaj i izvješća rade na aktivnom projektu.** Izračunaj (F5), *Izvezi PDF* i izvješća odnose se na projekt koji je sada aktivan.
 

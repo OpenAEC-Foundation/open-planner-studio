@@ -137,8 +137,9 @@ export function saveBytesDialog(
 // alleen de opslaanroute van de store (`saveSiteFileVersion` in `siteBackend.ts`). Ze geven voor een
 // site-ref dus `false`. Lezen mag wel. Zonder site-refs verandert er niets.
 
-/** In-place opslaan naar een bestaande ref. `false` als onmogelijk (fallback-web of geweigerde
- *  permissie) → de aanroeper valt terug op `saveFileDialog`. Een site-ref: altijd `false` (zie boven). */
+/** In-place opslaan naar een bestaande ref. `false` als onmogelijk (fallback-web, geweigerde
+ *  permissie of annulering) → de aanroeper kan terugvallen op `saveFileDialog`. Echte schrijffouten
+ *  gooien: de aanroeper meldt ze vóór een eventuele terugval. Een site-ref: altijd `false` (zie boven). */
 export function saveToRef(ref: FileRef, content: string): Promise<boolean> {
   if (ref.kind === 'site') return Promise.resolve(false);
   return isTauri() ? saveToRefTauri(ref, content) : saveToRefWeb(ref, content);

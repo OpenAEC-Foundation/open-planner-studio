@@ -30,7 +30,7 @@ Všechny nástroje, které může AI asistent volat přes most, podle skupiny, s
 ## Úkoly a struktura
 
 - `planner_add_tasks` (změna, dávka) — vytvoří úkoly, včetně vnořeného WBS v jednom volání. Každý úkol dostane vlastní dočasný název (`tmp-…`), aby podřízený úkol mohl odkázat na nadřazený. Bez doby trvání dostane úkol 5 pracovních dnů. Milník má dobu trvání 0. Všechny úkoly jednoho volání buď uspějí společně, nebo selžou společně.
-- `planner_update_tasks` (změna, dávka) — změní pole existujících úkolů: název, popis, dobu trvání s jednotkou (dny nebo hodiny), typ doby trvání, typ úkolu, milník, povinný, prioritu, omezení, konečný termín, kalendář a pravidlo pevné veličiny. Také pole pro průběh: dokončeno %, skutečné zahájení a skutečné dokončení. Jakýkoli jiný klíč se odmítne s důvodem.
+- `planner_update_tasks` (změna, dávka) — změní pole existujících úkolů: název, popis, dobu trvání s jednotkou (dny nebo hodiny), typ doby trvání, druh práce, milník, povinný, prioritu, omezení, konečný termín, kalendář a typ úkolu. Také pole pro průběh: dokončeno %, skutečné zahájení a skutečné dokončení. Jakýkoli jiný klíč se odmítne s uvedením důvodu.
 - `planner_delete_tasks` (změna) — smaže úkoly včetně celého podstromu, závislostí a přiřazení. Odpověď přesně uvede, co s nimi zmizelo.
 - `planner_move_task` (změna) — přesune úkol pod jiný nadřazený úkol, na zadanou pozici. Vznik cyklu nebo zařazení úkolu pod sebe sama se odmítne.
 - `planner_set_task_splits` (změna) — nastaví přerušení práce u jednoho úkolu: po kolika pracovních dnech (nebo pracovních hodinách) práce a kolik pracovních dnů (nebo hodin) pauzy. Prázdný seznam zruší všechna přerušení práce. Viz [Rozdělení úkolu](docs://howto-taak-splitsen).
@@ -43,14 +43,14 @@ Všechny nástroje, které může AI asistent volat přes most, podle skupiny, s
 
 ## Projekt a kalendáře
 
-- `planner_update_project` (změna) — název, popis, autor, společnost, datum zahájení, datum dokončení, datum stavu, režim průběhu a výchozí pravidlo pevné veličiny pro projekt. Datum zahájení je kotva pro nové úkoly. Pokud je asistent později nastaví, posunou se jen volné úkoly (bez předchůdce a bez omezení, které stanoví spodní mez, například *zahájit nejdříve*). Odpověď uvede jejich počet jako `anchorsClamped`. Zbytek plánu zůstane na místě, viz [Nový projekt a info o projektu](docs://ref-projectinfo). Datum stavu není popisek, ale referenční datum výpočtu: u plánu bez průběhu se všechno posune spolu. Datum dokončení je pouze metadata.
+- `planner_update_project` (změna) — název, popis, autor, společnost, datum zahájení, datum dokončení, datum stavu, režim průběhu a výchozí typ úkolu pro projekt. Datum zahájení je kotva pro nové úkoly. Pokud asistent datum zahájení nastaví později, posunou se jen volné úkoly (bez předchůdce a bez omezení, které stanoví spodní mez, například *zahájit nejdříve*). Odpověď uvede jejich počet jako `anchorsClamped`. Zbytek plánu zůstane na místě, viz [Nový projekt a info o projektu](docs://ref-projectinfo). Datum stavu není popisek, ale referenční datum výpočtu: u plánu bez průběhu se všechno posune spolu. Datum dokončení je jen metadata.
 - `planner_move_project` (změna) — přesune celý stávající plán na nové datum zahájení. Kalendáře se nepřesouvají, takže dokončení může skočit o jiný počet dnů než zahájení. Směrné plány zůstanou, pokud je asistent výslovně nepřesune také. Viz [Přesun projektu](docs://howto-project-verplaatsen).
 - `planner_update_calendar` (změna, dávka) — změní nebo vytvoří kalendáře: pracovní dny, pracovní hodiny, přestávku, bloky hodin, svátky (vygenerovat pro zemi a region, nebo zadat doslova) a výjimky pracovní doby. Nemůže změnit, který kalendář je kalendářem projektu.
 
 ## Zdroje a jednotky přiřazení
 
 - `planner_manage_resources` (změna, dávka) — vytvoří, změní nebo smaže zdroje: název, typ (labor, equipment, material, subcontractor nebo crew), popis, maximální počet jednotek, náklady za hodinu, jednotku, kalendář, posádku a dostupnost v čase. Nástroj odmítne smazat zdroj, který má přiřazení, dokud asistent výslovně nepotvrdí. U zdroje z knihovny zdrojů jsou název, typ, popis, standardní sazba za hodinu a jednotka pevné.
-- `planner_manage_assignments` (změna, dávka) — přidá, změní, přesune nebo odebere přiřazení: jednotky za pracovní den, křivku a zbývající práci. Jen u úkolu bez podúkolů a stejný zdroj jen jednou u každého úkolu. Co změna jednotek udělá s dobou trvání, závisí na pravidle pevné veličiny úkolu, viz [Pravidla pevné veličiny: doba trvání, jednotky a práce](docs://uitleg-werkregels).
+- `planner_manage_assignments` (změna, dávka) — přidá, změní, přesune nebo odebere přiřazení: jednotky za pracovní den, křivku a zbývající práci. Jen u úkolu bez podúkolů a stejný zdroj jen jednou u každého úkolu. Co změna jednotek udělá s dobou trvání, závisí na typu úkolu, viz [Typy úkolů: doba trvání, jednotky a práce](docs://uitleg-werkregels).
 - `planner_level_resources` (změna) — vyrovná přetížení. Ve výchozím nastavení v rámci časové rezervy, takže datum dokončení zůstane. S `constrainToFloat: false` se dokončení může posunout. Při zkušebním běhu dostane asistent nejdřív náhled bez jakékoli změny. Materiálové zdroje přeskočí. Viz [Vyrovnání zdrojů](docs://uitleg-nivelleren).
 - `planner_clear_leveling` (změna) — smaže všechna zpoždění vyrovnání.
 
@@ -72,12 +72,12 @@ Všechny nástroje, které může AI asistent volat přes most, podle skupiny, s
 - `planner_duplicate_document` — zkopíruje aktivní dokument na novou kartu, pro variantu „co když“ nebo variantu nabídky. Kopie je odpojená a nemá cestu k souboru.
 - `planner_switch_document` — nastaví jiný dokument jako aktivní. Je to také způsob, jak potvrdit, na kterém dokumentu asistent pracuje, poté co jste přepnuli karty.
 - `planner_import_schedule` — otevře soubor plánu z disku jako dokument: `.ifc`, `.xml` (Primavera P6 nebo MS Project, rozpozná se podle obsahu), `.csv`, `.xer` a `.mpp` (MS Project 2010 až 2021). Nic se nesloučí s aktuálním plánem. CSV nemá kalendář, takže se termíny mohou posunout. Jen uvnitř vaší uživatelské složky. Po importu CSV, XML nebo `.mpp` nemá dokument cíl pro uložení. Jen IFC převezme cestu k souboru.
-- `planner_export_ifc` — zapíše aktivní dokument jako soubor IFC 4.3. Jen uvnitř vaší uživatelské složky. Existující soubor se přepíše jen na výslovnou žádost. Projekt zůstane neuložený.
+- `planner_export_ifc` — zapíše aktivní dokument jako soubor IFC ve schématu projektu (výchozí IFC 4.3 ADD2). Jen uvnitř vaší uživatelské složky. Existující soubor se přepíše jen na výslovnou žádost. Pokud byl dokument otevřen ve schématu, které aplikace nedokáže zapsat (například IFC2X3), nástroj zápis do tohoto souboru sám odmítne. Projekt zůstane neuložený.
 
 ## Průvodce a původ zdrojů
 
 - `planner_get_planning_guide` (čtení) — anglický průvodce pro asistenty (zásady [Dobré plánování](docs://gids-goed-plannen) s nástroji pro každou zásadu), dvě dovednosti *goed-plannen* (sestavení plánu) a *progress-update* (aktualizace průběhu), nebo vše. Vyberte pomocí `part`: `guide`, `skill` (obě dovednosti) nebo `both`; výchozí je `both`. Pro každou dovednost vrátí místa, kam patří, a adresy ke stažení. Parametr `language` se stále přijímá kvůli starším asistentům, ale text je vždy v angličtině. Plán nijak nemění.
-- `planner_inspect_xer_provenance` (čtení) — zkontroluje zachovaný význam zdrojových dat otevřeného souboru Primavera P6 (`.xer`): co soubor obsahoval, s počty importu a diagnostiky. Volná textová pole ze souboru zůstanou ve výchozím nastavení neviditelná. Asistent je musí výslovně vyžádat. Nedá se použít ve skriptu.
+- `planner_inspect_xer_provenance` (čtení) — zkontroluje zachovaný význam zdrojových dat otevřeného souboru Primavera P6 (`.xer`): co soubor obsahoval, s počty importu a diagnostiky. Volná textová pole ze souboru zůstanou ve výchozím nastavení neviditelná. Asistent je musí výslovně vyžádat. Názvy zdrojů zůstanou ve výchozím nastavení skryté, protože zdroj v P6 je obvykle osoba; kódy zdrojů zůstanou viditelné. Asistent musí před vyžádáním názvů požádat vás o souhlas, protože se pak odešlou poskytovateli AI. Nedá se použít ve skriptu.
 
 ## Skript
 

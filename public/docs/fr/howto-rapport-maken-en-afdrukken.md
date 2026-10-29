@@ -70,7 +70,7 @@ Ouvrez le PDF dans votre lecteur PDF et imprimez-le depuis celui-ci. Si vous imp
 
 **Le bouton Imprimer et Ctrl+P n'impriment pas.** Le bouton *Imprimer* du groupe *Rapport* se trouve sur l'onglet Rapport lui-même et ne fait rien de plus. Ctrl+P vous amène à cet onglet. L'application n'a pas de commande d'impression séparée : pour obtenir du papier, il faut passer par le PDF. Si Ctrl+P ne fonctionne pas (voir l'étape 1), la boîte de dialogue d'impression du navigateur s'ouvre, et elle imprime l'écran, pas le rapport.
 
-**Entreprise : ce que vous écrivez par-dessus n'est pas conservé.** Le champ *Entreprise* du diagramme de Gantt commence avec l'entreprise des informations du projet. Ce que vous saisissez par-dessus n'est pas conservé. Vous ne pouvez pas saisir *Auteur* ici. Vous modifiez les deux dans *Paramètres › Projet › Info projet*, dans les champs *Client/organisation* et *Auteur*, puis validez avec *Appliquer*.
+**Entreprise : ce que vous écrivez par-dessus n'est pas conservé.** Le champ *Entreprise* du diagramme de Gantt commence avec l'entreprise des paramètres du projet. Ce que vous saisissez par-dessus n'est pas conservé. Vous ne pouvez pas saisir *Auteur* ici. Vous modifiez les deux dans *Paramètres › Projet › Paramètres du projet*, dans les champs *Client/organisation* et *Auteur*, puis validez avec *Appliquer*.
 
 **Couleurs des barres : s'applique aussi à votre écran.** Le choix *Couleurs des barres* dans le rapport est le même que *Couleurs des barres* sous l'onglet Affichage. Si vous le modifiez dans le rapport, votre diagramme de Gantt à l'écran change aussi.
 

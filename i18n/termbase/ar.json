@@ -1641,6 +1641,17 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "work-category": {
+    "term": "فئة العمل",
+    "forms": [
+      "فئة العمل",
+      "فئات العمل",
+      "لفئة العمل",
+      "بفئة العمل"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "ساعات العمل",
     "forms": [

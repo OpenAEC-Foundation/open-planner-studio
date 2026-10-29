@@ -12,7 +12,7 @@ Imate stalnu ekipu zidara, dizalicu i žbukara koji se pojavljuju u više projek
 
 ### 1. Povežite projekt s bibliotekom
 
-S bibliotekom radite samo ako je projekt povezan s njom. Ako projekt nije povezan, okno *Resursi* ne prikazuje preklopnik *Biblioteka*, *Projekt* i *Zauzetost*.
+S bibliotekom radite samo ako je projekt povezan s njom. Ako projekt nije povezan, okno resursa ne prikazuje preklopnik *Biblioteka*, *Projekt* i *Zauzetost*.
 
 Za novi projekt:
 
@@ -22,7 +22,7 @@ Za novi projekt:
 
 Za postojeći projekt:
 
-1. Odaberite *Datoteka › Podaci o projektu*.
+1. Odaberite *Datoteka › Postavke projekta*.
 2. U polju *Biblioteka resursa* odaberite biblioteku.
 3. Kliknite *Primijeni*. Dotad na dnu piše *Promjene nisu primijenjene — kliknite Primijeni da ih zadržite.*
 
@@ -30,7 +30,7 @@ Ako projekt već ima resurse s istim nazivom kao stavka u biblioteci, otvara se 
 
 ### 2. Stavite resurs u biblioteku
 
-1. Odaberite *Resursi › Upravljanje › Resursi*. Okno resursa preuzima cijeli radni prostor. Uvijek se otvara u prikazu *Projekt*, i za povezan projekt.
+1. Odaberite *Resursi › Upravljanje › Resursi*. Okno resursa preuzima cijeli radni prostor. Uvijek se otvara u prikazu *Projekt*, čak i za povezan projekt.
 2. Gore desno odaberite *Biblioteka*. Iznad tablice piše *Ovo uređuje biblioteku i vrijedi za sve projekte. Ovo se ne može poništiti.*
 3. Kliknite *Novi resurs u biblioteci*. Na dnu tablice pojavljuje se prazan redak.
 4. Upišite naziv, na primjer *Bricklayer*, i pritisnite Enter. Resurs je sada u biblioteci i odmah se otvara prazan redak za sljedeći. Kada ste gotovi, pritisnite Esc. Bez naziva aplikacija ne stvara ništa.
@@ -41,7 +41,7 @@ Svaka promjena u biblioteci odmah se prenosi na nepromijenjene kopije u vašim o
 ### 3. Dodijelite resurs svom projektu
 
 1. U prikazu *Biblioteka* odaberite *Dodijeli projektu* na resursu. Iznad tablice piše *Dodano.* Ako kliknete ponovno, piše *Već je u projektu.* i ne pojavljuje se druga kopija.
-2. Odaberite *Projekt*. Kopija je u tablici s malom ikonom biblioteke uz naziv, s oznakom *Iz biblioteke*. Naziv, vrsta, standardna tarifa i jedinica mjere su običan tekst. Ako zadržite miš iznad njih, vidite *Vrijednost iz biblioteke — uredite je u prikazu Biblioteka ili odvojite ovaj resurs od biblioteke.*
+2. Odaberite *Projekt*. Kopija je u tablici s malom ikonom biblioteke uz naziv, s oznakom *Iz biblioteke*. Naziv, vrsta, standardna tarifa i jedinica mjere su običan tekst. Ako zadržite pokazivač miša iznad njih, vidite *Vrijednost iz biblioteke — uredite je u prikazu Biblioteka ili odvojite ovaj resurs od biblioteke.*
 3. Postavite *Maksimalan postotak jedinica* za ovaj projekt. Polje na početku ima vrijednost iz biblioteke i u projektu ga možete uređivati.
 4. Sada dodijelite resurs zadacima kao i svaki drugi resurs; vidi [Dodjela resursa s krivuljom](docs://howto-resource-toewijzen). *Resursi › Dodjela › Dodijeli* prikazuje samo resurse koji su već u projektu, zato prvo resurs iz biblioteke dodijelite projektu na ovaj način.
 
@@ -49,7 +49,7 @@ Svaka promjena u biblioteci odmah se prenosi na nepromijenjene kopije u vašim o
 
 ### 4. Prenesite resurs iz projekta u biblioteku
 
-To radite za resurs koji ste napravili u projektu i češće ga koristite, na primjer unajmljenu dizalicu.
+Ovo radite za resurs koji ste napravili u projektu i češće ga koristite, na primjer unajmljenu dizalicu.
 
 1. U prikazu *Projekt* odaberite *Prebaci u biblioteku* na resursu. Gumb se pojavljuje samo kod resursa koji ima naziv i još ne dolazi iz biblioteke, u povezanom projektu.
 2. Pročitajte poruku iznad tablice.
@@ -73,7 +73,7 @@ S *Poništi* (Ctrl+Z) poništavate odvajanje.
 
 Kopija s oznakom *odstupa — odlučite* razlikuje se od stavke u biblioteci. Aplikacija ne odlučuje koja je vrijednost ispravna.
 
-1. Kliknite oznaku *odstupa — odlučite* na resursu. Otvara se prozor *Poveži biblioteku resursa*. Otvara se i sam kada otvorite datoteku s takvom kopijom.
+1. Kliknite oznaku *odstupa — odlučite* na resursu. Otvara se prozor *Poveži biblioteku resursa*. Prozor se otvara i sam kada otvorite datoteku s takvom kopijom.
 2. U odjeljku *Odstupanja* odaberite što želite za tu stavku, vidi u nastavku.
 3. Kliknite *Odluči kasnije* ako još ne želite birati. Prozor se zatvara, a oznaka ostaje.
 

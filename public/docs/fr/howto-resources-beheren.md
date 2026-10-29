@@ -41,7 +41,7 @@ Une nouvelle étape commence à la date du jour avec 1 unité. Modifiez les deux
 1. Cliquez sur la corbeille dans la ligne.
 2. Si la ressource a des affectations, l'application demande une confirmation, par exemple *« Bricklayer » a 4 affectation(s) — supprimer ?* Cliquez sur la coche pour supprimer ou sur la croix pour annuler. Sans affectations, la ressource disparaît tout de suite.
 
-Les affectations de la ressource disparaissent avec elle. Si une tâche a une règle de travail autre que *Durée et unités fixes*, l'application répartit le travail de la ressource supprimée entre les ressources restantes. Selon la règle, cela modifie leurs unités ou la durée de la tâche. Si la durée change, le planning n'est plus à jour.
+Les affectations de la ressource disparaissent avec elle. Si une tâche a un type de tâche autre que *Durée et unités fixes*, l'application répartit le travail de la ressource supprimée entre les ressources restantes. Selon le type de tâche, cela modifie leurs unités ou la durée de la tâche. Si la durée change, le planning n'est plus à jour.
 
 Vous pouvez annuler la création, la modification et la suppression avec *Annuler* (Ctrl+Z).
 

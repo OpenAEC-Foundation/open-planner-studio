@@ -13,13 +13,15 @@ Rifletti bene prima di installarne una. Un'estensione è codice di programma che
 ### Installare un'estensione dal catalogo
 
 1. Scegli *File › Estensioni*.
-2. Scegli la scheda *Sfoglia*. L'app carica il catalogo mentre mostra *Caricamento catalogo...*. Il contenuto del catalogo lo decide la OpenAEC Foundation che lo mantiene, e può cambiare.
-3. Cerca un'estensione con il campo *Cerca estensioni...*. Cerca in nome, descrizione, autore e tag.
+2. Scegli la scheda *Sfoglia*. L'app carica il catalogo mentre mostra *Caricamento catalogo...*. Ciò che si trova nel catalogo lo decide la OpenAEC Foundation che lo mantiene, e può cambiare.
+3. Cerca un'estensione con il campo *Cerca estensioni...*. La ricerca avviene su nome, descrizione, autore e tag.
 4. Ogni riquadro mostra nome, versione, categoria, descrizione e autore. Fai clic su *Installa*.
-5. Si apre la finestra *Installare l'estensione?*. Leggila, poi vedi il passaggio successivo.
+5. Si apre la finestra *Installare l'estensione?*. Leggila, poi vai al passaggio successivo.
 6. Fai clic su *Installa* per continuare. Con *Non installare* non succede nulla. Esc o un clic accanto alla finestra vale anche come rifiuto, e l'app non mostra allora alcun messaggio di errore.
 
-Dopo l'installazione l'estensione è subito attiva. Nella scheda *Sfoglia* il riquadro dell'estensione ora mostra *Installata*. Ciò che l'estensione aggiunge lo vedi nell'app stessa: un nuovo pulsante nella barra multifunzione, oppure un formato di importazione in *File › Importa*. Alcune estensioni mostrano anche un messaggio. Lo riconosci dal prefisso *Estensione* seguito dal nome dell'estensione.
+Dopo l'installazione l'estensione è attiva subito. Sulla scheda *Sfoglia* il riquadro dell'estensione ora dice *Installata*. Ciò che l'estensione aggiunge lo vedi nell'app stessa: un nuovo pulsante nella barra multifunzione, oppure un formato di importazione in *File › Importa*. Alcune estensioni mostrano anche un messaggio. Lo riconosci dal prefisso *Estensione* seguito dal nome dell'estensione.
+
+**I tutorial.** I tutorial sono un'estensione. Se vedi il pulsante *Installa i tutorial* sotto *Tutorial* in *Guida*, si apre *File › Estensioni* sulla scheda *Sfoglia*. La domanda dopo il primo giro guidato installa anche questa estensione. Entrambe le strade mostrano la stessa domanda sui permessi; puoi rifiutarla.
 
 ### Installare un'estensione da un file
 
@@ -29,31 +31,23 @@ Se hai ricevuto un'estensione come file, installala così.
 2. In alto a destra fai clic su *ZIP* per un file ZIP, oppure su *JS* per un file JavaScript separato.
 3. Scegli il file. Si apre la finestra *Installare l'estensione?*, come sopra.
 
-Un file ZIP deve contenere un `manifest.json` e il file principale dell'estensione. Se installi un'estensione già installata, la nuova versione sostituisce quella vecchia. Se l'app non riesce a installare il file, per esempio perché un file ZIP è danneggiato, non succede nulla: per ZIP e JS l'app non mostra alcun messaggio di errore, e l'estensione non compare nell'elenco. Il motivo però si trova nel terminale di debug. Attivalo in *Impostazioni › Progetto › Impostazioni*, scheda *Avanzate*, *Abilita il terminale di debug*, e aprilo con il pulsante *Mostra terminale di debug* nella barra di stato. Lì compare per esempio *[Extensies] ZIP-installatie mislukt: Error: Geen manifest.json gevonden in ZIP* (l'app scrive questo testo tecnico in olandese).
+Un file ZIP deve contenere un `manifest.json` e il file principale dell'estensione. Se installi un'estensione già installata, la nuova versione sostituisce quella vecchia. Se l'app non riesce a installare il file, per esempio perché un file ZIP è danneggiato, non succede nulla: per ZIP e JS l'app non mostra alcun messaggio di errore, e l'estensione non compare nell'elenco. Il motivo però si trova nel terminale di debug. Attivalo in *Impostazioni › Progetto › Impostazioni app*, scheda *Avanzate*, *Abilita il terminale di debug*, e aprilo con il pulsante *Mostra terminale di debug* nella barra di stato. Lì compare, per esempio, *[Extensies] ZIP-installatie mislukt: Error: Geen manifest.json gevonden in ZIP* (l'app scrive questo testo tecnico in olandese).
 
 ### Leggere la domanda sui permessi
 
-La domanda mostra cosa devi decidere.
+La domanda mostra ciò che devi decidere.
 
 - *Autore* e *Repository* indicano chi ha realizzato l'estensione e dove si trova il codice sorgente.
-- *Provenienza* indica da dove viene il file: *Dal catalogo estensioni online*, *Da un file ZIP su questo computer* o *Da un file JavaScript su questo computer*. Sotto indica se il file è stato verificato. Per il catalogo indica *Download verificato con il checksum del catalogo*. Se il catalogo non ha un checksum, in rosso indica *Il catalogo non fornisce un checksum: questo download non è stato verificato*. Per un file scelto da te indica *Hai scelto tu questo file; non esiste una fonte esterna con cui verificarlo*.
-- *A cosa stai dicendo di sì* indica: *Un'estensione è codice che viene eseguito con gli stessi diritti di Open Planner Studio. Nulla lo delimita. Installa solo estensioni di cui ti fidi dell'autore*. Sotto indica che cosa significa sulla tua piattaforma. Nell'app desktop indica *Nell'app desktop ciò comprende: leggere e scrivere file ovunque nella tua cartella utente, oltre all'accesso a progetti, impostazioni e appunti*. Nel browser indica *Nel browser significa: accesso ai progetti e alle impostazioni salvate, ai file per cui hai concesso l'accesso e alla rete*.
-- *Ciò che questa estensione dichiara di usare* mostra i permessi che l'autore ha dichiarato, come piccole etichette. È una dichiarazione dell'autore e non una restrizione: *È la dichiarazione dell'autore, non una restrizione: il codice può comunque fare di più*. Se non c'è nessuna etichetta, indica *Nulla di dichiarato*. Questo non significa che l'estensione non possa fare nulla: anche senza etichette un'estensione può leggere e modificare i dati della tua pianificazione e mostrare messaggi.
+- *Provenienza* indica da dove viene il file e se è stato verificato. Se in rosso indica che il download non è verificato, installa solo se conosci la fonte.
+- *A cosa stai dicendo di sì* ripete che un'estensione è codice di programma che viene eseguito con gli stessi diritti dell'app stessa, e che cosa questo significa sulla tua piattaforma. Installa solo estensioni di un autore di cui ti fidi.
+- *Ciò che questa estensione dichiara di usare* mostra i permessi che l'autore ha dichiarato, come piccole etichette. È una dichiarazione e non una restrizione. Se indica *Nulla di dichiarato.*, l'estensione può comunque leggere e modificare i dati della tua pianificazione.
 
-Le etichette hanno questo significato:
-
-- *ribbon*: l'estensione mette pulsanti nella barra multifunzione.
-- *events*: l'estensione ascolta gli eventi nell'app.
-- *backstage*: l'estensione aggiunge formati di importazione a *File › Importa*.
-- *pdf-fonts*: l'estensione fornisce un font per l'esportazione PDF.
-- *importSource*: l'estensione può leggere tutti i byte originali di ogni file che importi, per esempio un file Primavera grezzo, inclusi i campi che non finiscono nel tuo progetto. Anche la finestra lo spiega.
-- *help*: l'estensione può aggiungere articoli della Guida, aprire progetti inclusi come nuovo documento e mostrare una guida che indica parti dell'app. Anche la finestra lo spiega.
-- *filesystem* e *network*: sono solo indicazioni di ciò che l'autore intende fare. L'app non ha funzioni per questi.
+Che cosa significa ogni etichetta e i testi esatti della finestra si trovano in [Permessi delle estensioni](docs://ref-extensiepermissies).
 
 ### Disattivare, riattivare o rimuovere un'estensione
 
 1. Scegli *File › Estensioni* e la scheda *Installate*. Ogni estensione ha un riquadro con nome, versione, categoria, descrizione e autore.
-2. Con l'interruttore sul riquadro disattivi l'estensione (*Disattiva*) o la riattivi (*Attiva*). Quando è disattivata, i pulsanti e i formati di importazione che l'estensione aggiungeva scompaiono, ma l'estensione resta installata. Resta spenta anche dopo un riavvio dell'app. Un'estensione attiva si avvia da sola quando si avvia l'app.
+2. Con l'interruttore sul riquadro disattivi l'estensione (*Disattiva*) o la riattivi (*Attiva*). Quando è disattivata, i pulsanti e i formati di importazione che l'estensione aggiungeva scompaiono, ma l'estensione resta installata. Resta disattivata anche dopo un riavvio dell'app. Un'estensione attiva si avvia da sola quando si avvia l'app.
 3. Fai clic su *Rimuovi*. Il pulsante diventa *Conferma*, con la spiegazione *Fai clic di nuovo per rimuovere definitivamente*. Fai clic ancora una volta per rimuovere l'estensione. L'app elimina anche le impostazioni che l'estensione ha salvato.
 
 ## Problemi possibili e cosa fa l'app

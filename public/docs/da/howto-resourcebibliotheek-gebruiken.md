@@ -16,25 +16,25 @@ Du arbejder kun med biblioteket, hvis projektet er sammenkædet med det. Uden en
 
 For et nyt projekt:
 
-1. Vælg *Fil › Ny*. Vinduet *Nyt projekt* åbnes.
+1. Vælg *Fil › Ny*. Vinduet *Opret nyt projekt* åbnes.
 2. Se på *Ressourcebibliotek*. Feltet står på standardbiblioteket. Du kan vælge et andet, *intet bibliotek (frit projekt)* eller *+ Opret nyt ressourcebibliotek…*.
 3. Klik på *Opret*.
 
 For et eksisterende projekt:
 
-1. Vælg *Fil › Projektinfo*.
+1. Vælg *Fil › Projektindstillinger*.
 2. Under *Ressourcebibliotek* vælger du biblioteket.
 3. Klik på *Anvend*. Indtil da står der nederst *Ændringer er ikke anvendt — klik på Anvend for at gemme dem.*
 
-Har projektet allerede ressourcer med samme navn som et bibliotekselement, åbnes vinduet *Sammenkæd ressourcebibliotek* med afsnittet *Genkendt*. Hver ressource med et match siger *Forslag: Bricklayer*. Klik på *Sammenkæd* for at sammenkæde den ene, eller på *Sammenkæd alle forslag*, hvis der er mere end ét forslag. Appen sammenligner navne uden hensyn til store og små bogstaver eller dobbelte mellemrum. Når du sammenkæder, overtager ressourcen navn, type, standardsats og enhed fra bibliotekselementet. *Maksimalt antal enheder* bliver det, du havde i projektet. Vinduet viser også kalendere i projektet, der har samme navn som en bibliotekskalender. Med *Beslut senere* lukker du vinduet uden at sammenkæde.
+Har projektet allerede ressourcer med samme navn som et bibliotekselement, åbnes vinduet *Sammenkæd ressourcebibliotek* med afsnittet *Genkendt*. Hver ressource, der har et tilsvarende bibliotekselement, siger *Forslag: Bricklayer*. Klik på *Sammenkæd* for at sammenkæde den ene, eller på *Sammenkæd alle forslag*, hvis der er mere end ét forslag. Appen sammenligner navne uden hensyn til store og små bogstaver eller dobbelte mellemrum. Når du sammenkæder, overtager ressourcen navn, type, standardsats, enhed og beskrivelse fra bibliotekselementet. *Maksimalt antal enheder* bliver det, du havde i projektet. Vinduet viser også kalendere i projektet, der har samme navn som en bibliotekskalender. Med *Beslut senere* lukker du vinduet uden at sammenkæde.
 
 ### 2. Læg en ressource i biblioteket
 
-1. Vælg *Ressourcer › Administrer › Ressourcer*. Ressourcepanelet fylder hele området. Det åbner altid på *Projekt*, også for et projekt, der er sammenkædet med et bibliotek.
+1. Vælg *Ressourcer › Administrer › Ressourcer*. Ressourcepanelet fylder hele området. Det åbner altid på *Projekt*, også for et sammenkædet projekt.
 2. Øverst til højre vælger du *Bibliotek*. Over tabellen står der *Dette redigerer biblioteket og gælder for alle projekter — kan ikke fortrydes.*
 3. Klik på *Opret ressource i biblioteket*. En tom række vises nederst i tabellen.
 4. Skriv navnet, for eksempel *Bricklayer*, og tryk på Enter. Ressourcen er nu i biblioteket, og der åbnes straks en tom række til den næste. Tryk på Esc, når du er færdig. Uden navn opretter appen ingenting.
-5. Udfyld resten af rækken. *Type* står som standard på *Arbejde*. Under *Maksimalt antal enheder* skriver du, hvor mange af denne ressource der er i alt, for eksempel 3 for tre murere. Belægningsoversigten bruger dette tal som kapacitet. *Standardsats/time* er valgfrit. Du kan kun udfylde *Enhed* for typen *Materiale*. Under *Kalender* vælger du en kalender fra biblioteket, eller *+ Ressourcekalender* for at lave en, se [Opsætning af en ressourcekalender](docs://howto-resourcekalender-instellen). Appen gemmer navn, standardsats og enhed, når du forlader feltet, og de andre felter med det samme.
+5. Udfyld resten af rækken. *Type* står som standard på *Arbejde*. Under *Maksimalt antal enheder* skriver du, hvor mange af denne ressource der er i alt, for eksempel 3, hvis der er tre murere. Belægningsoversigten bruger dette tal som kapacitet. *Standardsats/time* er valgfrit. Du kan kun udfylde *Enhed* for typen *Materiale*. Under *Kalender* vælger du en kalender fra biblioteket, eller *+ Ressourcekalender* for at lave en, se [Opsætning af en ressourcekalender](docs://howto-resourcekalender-instellen). Appen gemmer navn, standardsats og enhed, når du forlader feltet, og de andre felter med det samme.
 
 Hver ændring i biblioteket slår straks igennem til de ikke-redigerede kopier i dine åbne projekter.
 
@@ -73,7 +73,7 @@ Med *Fortryd* (Ctrl+Z) fortryder du frakoblingen.
 
 En kopi, der siger *afviger — beslut*, afviger fra bibliotekselementet. Appen vælger ikke, hvem der har ret.
 
-1. Klik på markeringen *afviger — beslut* på ressourcen. Vinduet *Sammenkæd ressourcebibliotek* åbnes. Det åbnes også af sig selv, når du åbner en fil med en sådan kopi.
+1. Klik på markeringen *afviger — beslut* på ressourcen. Vinduet *Sammenkæd ressourcebibliotek* åbnes. Det åbner også af sig selv, når du åbner en fil med en sådan kopi.
 2. I afsnittet *Afvigelser* vælger du, hvad du vil have for elementet, se nedenfor.
 3. Klik på *Beslut senere*, hvis du ikke vil vælge endnu. Vinduet lukkes, og markeringen bliver.
 

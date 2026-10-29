@@ -22,6 +22,8 @@ Projekt se zobrazí na vlastní kartě a je hned aktivní. Také *Nový* a *Otev
 - Stiskněte Ctrl+1 až Ctrl+9 (na macOS ⌘ místo Ctrl) pro projekt na dané pozici v řadě, počítáno zleva doprava.
 - Klikněte na ikonu nabídky vlevo od karet (*Všechny projekty*). Přehled *Otevřené projekty* ukazuje pro každý projekt dlaždici s názvem, názvem souboru (pokud má projekt soubor), náhledem plánu, počtem úkolů, počtem kritických úkolů a datem konce. Kliknutím na dlaždici tam přejdete. Klávesa Esc přehled zavře.
 
+Pokud se karty nevejdou do šířky, objeví se mezi kartami a plusem dvě šipky (*Posunout karty na začátek* a *Posunout karty na konec*). Každé kliknutí posune karty o dvě. Šipka je šedá, když jste už na začátku nebo na konci. Karty můžete posouvat také kolečkem myši nad kartami. Zvolená karta se vždy posune do zobrazení sama.
+
 Každá karta má barevnou tečku, která patří k projektu. Karta, za kterou je malá tečka, má neuložené změny.
 
 ### Zavření projektu
@@ -38,7 +40,7 @@ Když zavřete poslední projekt, zůstane prázdný plán s názvem *Nový plá
 
 ### Volba stylu přepínání
 
-Podobu karet můžete zvolit. Otevřete okno nastavení přes ozubené kolečko v záhlaví okna, přejděte na kartu *Zobrazení* a v položce *Styl přepínání dokumentů* zvolte:
+Podobu karet můžete zvolit. Otevřete okno *Nastavení aplikace* přes ozubené kolečko v záhlaví okna, přejděte na kartu *Zobrazení* a v položce *Styl přepínání dokumentů* zvolte:
 
 - *Vodorovné karty*: výchozí volba. Řada karet pod pásem karet.
 - *Svislé karty*: úzký panel vlevo s tlačítkem pro každý projekt (prvními písmeny názvu) a s plusem. Když nad tlačítkem najedete myší, uvidíte název, název souboru, počet úkolů, počet kritických úkolů a datum konce. Tlačítko nahoře otevře přehled.
@@ -50,7 +52,7 @@ Všechny tři styly otevřou stejný přehled a Ctrl+1 až Ctrl+9 funguje ve vš
 
 **Co patří projektu a co je sdílené.** Každý projekt má vlastní pohled: přiblížení a polohu, aktivní rozložení s filtrem, seskupením nebo řazením, rozdělené zobrazení, čáry závislostí a sbalené fáze. Když přepnete na jiný projekt, uvidíte tam jeho vlastní pohled. Sdílené pro všechny projekty jsou vybraná karta na pásu karet, minimapa, překryvné vrstvy (překryv směrného plánu, čára průběhu a další), váš výběr sloupců, vaše rozložení a volby sestav.
 
-**S otevřeným dialogem nelze přepínat.** Dokud je otevřený dialog, například okno nastavení nebo okno úkolu, Ctrl+1 až Ctrl+9 v aplikaci nic neudělají. V prohlížeči pak přepínají karty prohlížeče. Nejprve dialog zavřete. Také neuplatněná změna v *Info o projektu* v Backstage blokuje přepínání.
+**S otevřeným dialogem nelze přepínat.** Dokud je otevřený dialog, například okno *Nastavení aplikace* nebo okno úkolu, Ctrl+1 až Ctrl+9 v aplikaci nic neudělají. V prohlížeči pak přepínají karty prohlížeče. Nejprve dialog zavřete. Také neuplatněná změna v *Nastavení projektu* v Backstage blokuje přepínání.
 
 **Ctrl+1 až Ctrl+9 počítají podle pořadí.** Zkratka vede na projekt na dané pozici v řadě. Když zavřete projekt, ostatní pozice se posunou nahoru. Když máte otevřeno více než devět projektů, k zbylým se dostanete jen přes karty nebo přehled.
 

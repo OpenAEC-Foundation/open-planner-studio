@@ -22,13 +22,13 @@ Zoznam na karte *Domov* a karty v *Súbor › Exportovať* ponúkajú rovnaké f
 - *CSV (;)*, na karte *CSV (oddelené bodkočiarkou)*: zoznam úloh, ktorý otvoríte v tabuľkovom procesore.
 - *MS Project XML*: dá sa otvoriť v Microsoft Project.
 - *Primavera P6 XML*: pre Oracle Primavera P6.
-- *IFC 4x3*: vlastný formát aplikácie, ktorý obsahuje všetko.
+- *IFC*: vlastný formát aplikácie, ktorý obsahuje všetko, v schéme IFC projektu (predvolene IFC 4.3 ADD2).
 
 ### IFC export so súborom knižnice
 
-Ak je váš projekt prepojený s knižnicou, začiarkavacie políčko *Uložiť súbor knižnice vedľa* je pod kartami v *Súbor › Exportovať*. Ak ho začiarknete a zvolíte *IFC 4x3*, aplikácia dvakrát pýta miesto: najprv pre projekt, potom pre *projectname-bibliotheek.ifc*. Toto políčko je len v *Súbor › Exportovať*, nie v zozname na karte *Domov*.
+Ak je váš projekt prepojený s knižnicou, začiarkavacie políčko *Uložiť súbor knižnice vedľa* je pod kartami v *Súbor › Exportovať*. Ak ho začiarknete a zvolíte *IFC*, aplikácia dvakrát zobrazí okno na výber miesta: najprv pre projekt, potom pre *projectname-bibliotheek.ifc*. Toto políčko je len v *Súbor › Exportovať*, nie v zozname na karte *Domov*.
 
-### Obnovenie hárka postupu
+### Načítanie vyplneného hárka postupu
 
 Vyplnený hárok postupu načítate späť cez *Súbor › Importovať*. Pozrite si [Import postupu z tabuľkového hárka](docs://howto-voortgang-importeren).
 

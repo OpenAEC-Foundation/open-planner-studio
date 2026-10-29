@@ -4,12 +4,12 @@ Koliko radnih dana traje zadatak, a na koji datum je završen? To ovisi o kalend
 
 ## Pojam
 
-Raspored se računa u **radnim danima**, a ne u kalendarskim danima. „Pet dana zidanja“ znači pet dana na kojima se radi. Vikend ili državni praznik se ne broji, pa zadatak u dnevniku traje dulje od pet dana.
+Raspored se računa u **radnim danima**, a ne u kalendarskim danima. „Pet dana zidanja“ znači pet dana na kojima se radi. Vikend ili državni praznik se ne broji, pa zadatak u kalendarskim danima traje dulje od pet dana.
 
 Koji su dani radni, zapisano je u **kalendaru**. Kalendar određuje tri stvari:
 
 - **Radni tjedan**: dani u tjednu na koje se radi. Zadano je od ponedjeljka do petka.
-- **Radno vrijeme**: početak, kraj i pauza. Ono daje **neto sate po danu**. Zadano je od 07:00 do 16:00 s jednosatnom pauzom, dakle 8 sati.
+- **Radno vrijeme**: početak, kraj i pauza. Ono daje **standardni radni dan**. Zadano je od 07:00 do 16:00 s jednosatnom pauzom, dakle 8 sati.
 - **Praznici**: pojedinačni dani ili cijeli nizovi uzastopnih dana na koje se ne radi, na primjer Dan kralja, Božić ili kolektivni godišnji odmor u građevinarstvu.
 
 Projekt ima jednu biblioteku kalendara. Jedan od njih je **kalendar projekta**. Primjenjuje se na svaki zadatak koji nema vlastiti kalendar. Pojedinom zadatku dajete drugi kalendar, na primjer radni tjedan od šest dana za podizvođača koji radi i subotom. Resurs također može imati vlastiti kalendar, ali to radi nešto drugo (vidi dolje).
@@ -20,7 +20,7 @@ Ovaj članak opisuje standardni izračun: profil izračuna *Open Planner Studio*
 
 ### Brojanje radnih dana
 
-Prvi radni dan zadatka broji se kao dan 1. Zadatak od 5 dana završava se tako na petom radnom danu. Ako početak pada na neradni dan, zadatak počinje sljedećeg radnog dana. Praznik ili kolektivni godišnji odmor u građevinarstvu usred zadatka se ne broji: zadatak jednostavno prolazi kroz njega i u dnevniku traje dulje.
+Prvi radni dan zadatka broji se kao dan 1. Zadatak od 5 dana završava se tako na petom radnom danu. Ako početak pada na neradni dan, zadatak počinje sljedećeg radnog dana. Praznik ili kolektivni godišnji odmor u građevinarstvu usred zadatka se ne broji: zadatak jednostavno prolazi kroz njega i u kalendarskim danima traje dulje.
 
 Sati po danu nemaju nikakav udio u datumima zadatka u danima. Računaju se samo radni tjedan i praznici. Radno vrijeme dolazi do izražaja samo kod zadatka u satima; to je opisano u [Dani i sati](docs://uitleg-dagen-en-uren).
 
@@ -40,14 +40,14 @@ Kalendar **resursa** ne utječe na datume. U rasporedu koji sami izrađujete u a
 Kada su dva zadatka s različitim kalendarima povezana, vrijedi sljedeće:
 
 - Kod ovisnosti završetak-početak nasljednik počinje prvog radnog dana nakon završetka prethodnika, računano u kalendaru **nasljednika**. Ako zadatak završava u petak, nasljednik s radnim tjednom od šest dana počinje u subotu.
-- **Vrijeme odgode** se zadano računa u kalendaru **prethodnika**. To možete promijeniti pod *Postavke › Projekt › Podaci o projektu*, u bloku *Profil izračuna i opcije izračuna*, pod *Opcije izračuna ovog projekta*, s izborom *Kalendar vremena odgode*: *Prethodnik* (zadano), *Nasljednik*, *24-satni* ili *Kalendar projekta*.
+- **Vrijeme odgode** se zadano računa u kalendaru **prethodnika**. To možete promijeniti pod *Postavke › Projekt › Postavke projekta*, u bloku *Profil izračuna i opcije izračuna*, pod *Opcije izračuna ovog projekta*, s izborom *Kalendar vremena odgode*: *Prethodnik* (zadano), *Nasljednik*, *24-satni* ili *Kalendar projekta*.
 - **Ukupan slobodni hod** računa se u radnim danima kalendara samog zadatka. U ovom profilu **slobodni hod** računa se u kalendaru nasljednika.
 
 Što je vrijeme odgode točno, opisano je u [Dodavanje ovisnosti](docs://howto-relaties-leggen); što je vremenska rezerva, u [Kritični put i vremenska rezerva](docs://uitleg-kritiek-pad).
 
 ### U Gantt-dijagramu
 
-Siva pozadina u Gantt-dijagramu uvijek prikazuje neradne dane **kalendara projekta**. Zadatak na vlastitom kalendaru može zato prolaziti preko sivog dana, na primjer zadatak od šest dana preko subote. Niz praznika širine tri dana ili više dobije prikazan naziv, na primjer *Bouwvak (Noord)*. To se ne događa kada je uključeno *Prikaži samo radne dane*. Ako ne želite vidjeti sive dane uopće, uključite *Prikaži samo radne dane* pod *Postavke › Projekt › Postavke*, na kartici *Prikaz*, u naslovu *Vremenska os*.
+Siva pozadina u Gantt-dijagramu uvijek prikazuje neradne dane **kalendara projekta**. Zadatak na vlastitom kalendaru može zato prolaziti preko sivog dana, na primjer zadatak od šest dana preko subote. Niz praznika širine tri dana ili više dobije prikazan naziv, na primjer *Bouwvak (Noord)*. To se ne događa kada je uključeno *Prikaži samo radne dane*. Ako ne želite vidjeti sive dane uopće, uključite *Prikaži samo radne dane* pod *Postavke › Projekt › Postavke aplikacije*, na kartici *Prikaz*, u naslovu *Vremenska os*.
 
 ## Primjer: raspored građevinskih radova
 
@@ -92,9 +92,9 @@ Datumi zadatka *Brickwork* se ne mijenjaju. Ali petak, 4. lipnja je u histogramu
 
 **„Ako promijenim kalendar projekta, sve se pomakne.“** Pomiču se samo zadaci bez vlastitog kalendara. Zadatak kojem ste sami dodijelili kalendar s popisa zadržava ga, čak i ako je to slučajno stari kalendar projekta. Ako izbrišete kalendar, zadaci i resursi koji su ga koristili vraćaju se na kalendar projekta.
 
-**„Praznici su tu, zar ne?“** Praznici postoje samo za godine za koje su stvoreni. Dan izvan tih godina jednostavno je radni dan. U dijalogu kalendara aplikacija to kaže porukom *Praznici pokrivaju 2025–2028; projekt traje do 2030. Želite li ponovno generirati?*
+**„Praznici su tu, zar ne?“** Praznici postoje samo za godine za koje su stvoreni. Dan izvan tih godina jednostavno je radni dan. U dijalogu kalendara aplikacija to kaže porukom *Praznici pokrivaju 2025–2028; želite li ponovno generirati do uključivo 2030?*
 
-**„Više sati po danu skraćuje moj zadatak.“** Ne kod zadatka u danima: broje se cijeli radni dani, bez obzira na to ima li dan 6 ili 8 sati. Trajanje se mijenja samo za zadatak s resursima i pravilom rada *Fiksni rad* ili *Fiksne jedinice*.
+**„Više sati po danu skraćuje moj zadatak.“** Ne kod zadatka u danima: broje se cijeli radni dani, bez obzira na to ima li dan 6 ili 8 sati. Trajanje se mijenja samo za zadatak s resursima i vrstom zadatka *Fiksni rad* ili *Fiksne jedinice*.
 
 **Kalendar bez radnih dana** aplikacija ne može izračunati. Izračun prijavljuje *Kalendar nema postavljene radne dane*.
 

@@ -9,7 +9,7 @@ Laptopen døde, appen frøs, eller browserfanen gik ned, og du havde endnu ikke 
 ## Trin
 
 1. Start appen igen. I browseren genindlæser du den samme fane: gendannelseskopien hører til netop den ene fane.
-2. Hvis appen fandt kopier, vises vinduet *Gendan ikke-gemt arbejde*: *Open Planner Studio lukkede ikke normalt. Følgende dokumenter havde ikke-gemte ændringer, som kan gendannes:* For hvert projekt vises navnet, stien til filen, hvis projektet har en fil (i browseren kun filnavnet), antallet af opgaver og tidspunktet for kopien, for eksempel *21 opgaver* og *Gemt: Sep 29, 2026, 9:41 AM*. Vinduet kan også vise projekter, som du ikke har ændret.
+2. Hvis appen fandt kopier, vises vinduet *Gendan ikke-gemt arbejde*: *Open Planner Studio lukkede ikke normalt. Følgende dokumenter havde ikke-gemte ændringer, som kan gendannes:* For hvert projekt vises navnet, stien til filen, hvis projektet har en fil (i browseren kun filnavnet), antallet af opgaver og tidspunktet for kopien, for eksempel *21 opgaver* og *Gemt: Sep 29, 2026 9:41 AM*. Tidspunktet følger indstillingen *Tidsformat*. Vinduet kan også vise projekter, som du ikke har ændret.
 3. Vælg *Gendan*. Appen åbner alle projekter i listen, hvert i sin fane, med tilstanden fra den seneste kopi. Enter gør det samme.
 4. Kontroller dine projekter, og gem dem med det samme med Ctrl+S.
 

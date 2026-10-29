@@ -9,7 +9,7 @@ Pendant la réunion, vous souhaitez voir l'échéance et la marge totale à côt
 Il existe deux tableaux des tâches, chacun avec ses propres colonnes :
 
 - Le **tableau des tâches à côté du Gantt** se trouve à gauche de la frise temporelle, entre autres dans les onglets *Accueil*, *Planification* et *Affichage*. Par défaut, il contient *WBS*, *Nom de tâche* et *Durée*, afin de laisser de la place à la frise temporelle.
-- Le **tableau de l'onglet** *Tableau* occupe tout l'espace de travail. Par défaut, il contient *WBS*, *Nom de tâche*, *Durée*, *Début*, *Fin*, *Type de tâche*, *Critique*, *Marge totale* et *Avancement*, ainsi qu'une colonne par code d'activité et par champ personnalisé du projet.
+- Le **tableau de l'onglet *Tableau*** occupe tout l'espace de travail. Par défaut, il contient *WBS*, *Nom de tâche*, *Durée*, *Début*, *Fin*, *Catégorie de travaux*, *Critique*, *Marge totale* et *Avancement*, ainsi qu'une colonne par code d'activité et par champ personnalisé du projet.
 
 Une modification d'un tableau ne change pas l'autre.
 

@@ -28,10 +28,10 @@ La feuille Excel est protégée, sans mot de passe : seules les trois colonnes �
 
 Pour chaque tâche, le chef de chantier remplit :
 
-- `Completion (%)` : de 0 à 100 inclus. Dans la feuille Excel, les décimales sont permises (par exemple 33.3). Dans le CSV, l'instruction demande des nombres entiers.
-- `Actual Start` et `Actual Finish` : dans Excel, sous forme de date selon vos paramètres régionaux ; dans le CSV, au format dd-mm-yyyy.
+- `Completion (%)` : de 0 à 100 inclus. L'application lit aussi les décimales, avec une virgule ou un point (par exemple 33,3 ou 33.3). L'instruction du CSV demande toutefois des nombres entiers : un tableur avec un autre réglage régional peut lire 8,38 comme 838.
+- `Actual Start` et `Actual Finish` : dans Excel, sous forme de date selon vos paramètres régionaux ; dans le CSV, au format dd-mm-yyyy ou yyyy-mm-dd.
 
-Ce qui reste vide ne change rien. Une cellule vide n'efface donc pas non plus l'avancement existant ; cela ne se fait que dans l'application. Pour une tâche qui n'a pas commencé, il laisse les cellules entièrement vides.
+Ce qui reste vide ne change rien. Une cellule vide n'efface donc pas non plus l'avancement existant ; cela ne se fait que dans l'application. Pour une tâche qui n'a pas commencé, laissez les cellules entièrement vides.
 
 ### 4. Importez la feuille
 
@@ -45,7 +45,7 @@ Vous ne pouvez pas sauter l'aperçu. Le bouton *Appliquer* est désactivé tant 
 
 ### 5. Recalculez le planning
 
-La lecture ne recalcule pas le planning d'elle-même. Appuyez sur **Calculer** (F5), par exemple via *Planification › Planification › Calculer*, sauf si *Calculer automatiquement* est activé.
+L'importation ne recalcule pas le planning d'elle-même. Appuyez sur **Calculer** (F5), par exemple via *Planification › Planification › Calculer*, sauf si *Calculer automatiquement* est activé.
 
 ## Lignes qui ne correspondent pas directement
 

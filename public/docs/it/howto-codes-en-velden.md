@@ -36,7 +36,7 @@ Per il colore delle barre scegli *Vista › Baseline e progresso › Colori barr
 
 ## Problemi e cosa fa l'app
 
-**Eliminare rimuove i valori sulle attività.** Se elimini un tipo di codice, un valore o un campo con il cestino, l'app non chiede conferma, e con esso spariscono i valori su tutte le attività. Anche un raggruppamento o un ordinamento su quel tipo di codice o campo decade. *Annulla* (Ctrl+Z) ripristina il tipo di codice, il valore o il campo e i valori compilati, ma non il raggruppamento o l'ordinamento: li imposti di nuovo.
+**Eliminare rimuove i valori sulle attività.** Se elimini un tipo di codice, un valore o un campo con il cestino, l'app non chiede conferma, e con esso spariscono le assegnazioni su tutte le attività. Anche un raggruppamento o un ordinamento su quel tipo di codice o campo decade. *Annulla* (Ctrl+Z, chiudi prima la finestra) ripristina il tipo di codice, il valore o il campo e i valori compilati, ma non il raggruppamento o l'ordinamento: li imposti di nuovo.
 
 **Due valori con lo stesso codice.** *Aggiungi valore* continua la numerazione dal numero di valori che ci sono. Se elimini un valore e ne aggiungi uno, un codice può quindi comparire due volte. Se scrivi quel codice in una cella di colonna, l'app rifiuta con *Questo valore del codice attività compare più volte. Sceglilo dall'elenco*. Dai a ogni valore un codice proprio.
 

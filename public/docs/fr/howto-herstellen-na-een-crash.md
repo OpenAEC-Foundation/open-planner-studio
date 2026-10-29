@@ -9,7 +9,7 @@ Votre ordinateur portable est tombé en panne, l'application s'est figée ou l'o
 ## Étapes
 
 1. Relancez l'application. Dans le navigateur, vous rechargez le même onglet : la copie de récupération appartient à cet onglet seul.
-2. Si l'application a trouvé des copies, la fenêtre *Restaurer le travail non enregistré* s'affiche : *Open Planner Studio ne s'est pas fermé normalement. Les documents suivants comportaient des modifications non enregistrées qui peuvent être restaurées :* Pour chaque projet, elle affiche le nom, le chemin du fichier si le projet en a un (dans le navigateur, seul le nom du fichier), le nombre de tâches et l'heure de la copie, par exemple *21 tâches* et *Enregistré : Sep 29, 2026, 9:41 AM*. La fenêtre peut aussi afficher des projets que vous n'avez pas modifiés.
+2. Si l'application a trouvé des copies, la fenêtre *Restaurer le travail non enregistré* s'affiche : *Open Planner Studio ne s'est pas fermé normalement. Les documents suivants comportaient des modifications non enregistrées qui peuvent être restaurées :* Pour chaque projet, elle affiche le nom, le chemin du fichier si le projet en a un (dans le navigateur, seul le nom du fichier), le nombre de tâches et l'heure de la copie, par exemple *21 tâches* et *Enregistré : Sep 29, 2026 9:41 AM*. L'heure suit le réglage *Format de l'heure*. La fenêtre peut aussi afficher des projets que vous n'avez pas modifiés.
 3. Choisissez *Restaurer*. L'application ouvre tous les projets de la liste, chacun dans un onglet, avec l'état de la dernière copie. La touche Entrée a le même effet.
 4. Vérifiez vos projets et enregistrez-les immédiatement avec Ctrl+S.
 

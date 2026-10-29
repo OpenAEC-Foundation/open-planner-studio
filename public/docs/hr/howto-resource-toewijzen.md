@@ -6,7 +6,7 @@ Cilj: dodijeliti resurs zadatku, s jedinicama dodjele po danu i krivuljom koja o
 
 Čim želite vidjeti tko radi gdje i kada: zidar na vanjskom sloju šupljeg zida, toranj-dizalica na šupljim međukatnim pločama. Bez dodjele nema opterećenja, pa nema ni histograma ni preopterećenja resursa.
 
-Dva pojma. **Jedinice dodjele** (u aplikaciji *Jed./dan*) su koliko resursa radi na zadatku po radnom danu: 1 je jedan zidar, 2 su dva zidara, 0,5 je pola radnog dana. **Krivulja** određuje kako se ukupno, jedinice dodjele puta trajanje, raspoređuje po radnim danima zadatka. Rad je rijetko ravnomjeran: na zidu je početak miran, sredina intenzivna, a kraj opet miran.
+Dva pojma. **Jedinice dodjele** (u oknu je to stupac *Jedinice dodjele*, a u prozoru *Dodijeli* polje *Jed./dan*) su koliko resursa radi na zadatku po radnom danu: 1 je jedan zidar, 2 su dva zidara, 0,5 je pola radnog dana. **Krivulja** određuje kako se ukupno, jedinice dodjele puta trajanje, raspoređuje po radnim danima zadatka. Rad je rijetko ravnomjeran: na zidu je početak miran, sredina intenzivna, a kraj opet miran.
 
 Vanjski sloj šupljeg zida traje 6 radnih dana. S jednim zidarom i krivuljom *Ujednačeno* to je 1 jedinica na svakom od 6 dana, 6 zajedno. S krivuljom *Zvonasto* ostaje 6 jedinica zajedno, ali raspodjela postaje 0, 1, 2, 2, 1 i 0.
 
@@ -27,9 +27,9 @@ Za drugi resurs ponovno otvorite prozor. Resursi koji su već na zadatku nisu u 
 
 1. Odaberite zadatak. Okno *Svojstva* je desno; ako ga ne vidite, uključite ga s *Prikaz › Paneli › Svojstva*.
 2. U bloku *Dodjele*, odmah na dnu, odaberite resurs kod *Dodijeli resurs*. Dodjela počinje s jedinicama dodjele 1 i krivuljom *Ujednačeno*.
-3. Za svaku dodjelu promijenite *Jed./dan* i u polju *Krivulja* odaberite drugu krivulju.
+3. Za svaku dodjelu promijenite *Jedinice dodjele*. Kliknite ime resursa da se prikaže *Krivulja*, i tamo odaberite drugu krivulju.
 
-Tako mijenjate i postojeću dodjelu. Ikonom kante (*Ukloni*) pored imena uklanjate dodjelu sa zadatka. Sam resurs ostaje. S *Premjesti na…* premještate dodjelu na drugi zadatak.
+Tako mijenjate i postojeću dodjelu. Ikonom kante (*Ukloni*) na kraju retka uklanjate dodjelu sa zadatka. Sam resurs ostaje. S *Premjesti na…* (prikazuje se nakon klika na ime) premještate dodjelu na drugi zadatak.
 
 ### Krivulje
 
@@ -56,7 +56,7 @@ Krivulja mijenja samo raspodjelu. Trajanje, datumi i ukupno ostaju isti. Nakon t
 
 **Materijal.** Za materijalni resurs jedinice dodjele su količina po danu, u mjernoj jedinici resursa, na primjer m³. Materijal se ne računa u trajanje zadatka.
 
-**Pravilo rada može prilagoditi trajanje.** Ako je zadatak vrste *Fiksni rad* ili *Fiksne jedinice*, drugi resurs mijenja trajanje zadatka. Raspored tada nije ažuran; pritisnite **Izračunaj** (F5). Pogledajte [Pravila rada: trajanje, jedinice i rad](docs://uitleg-werkregels).
+**Vrsta zadatka može prilagoditi trajanje.** Ako je zadatak vrste *Fiksni rad* ili *Fiksne jedinice*, drugi resurs mijenja trajanje zadatka. Raspored tada nije ažuran; pritisnite **Izračunaj** (F5). Pogledajte [Vrste zadataka: trajanje, jedinice i rad](docs://uitleg-werkregels).
 
 **Vlastita raspodjela.** Ako dodjela već ima vlastitu raspodjelu sati, krivulja je onemogućena i prikazuje *Obris*. Prvo otpustite tu raspodjelu putem *Raspodijeli sate…*.
 
@@ -66,6 +66,6 @@ Krivulja mijenja samo raspodjelu. Trajanje, datumi i ukupno ostaju isti. Nakon t
 
 - [Prilagodba raspodjele sati](docs://howto-urenverdeling-aanpassen): sami postavljate sate po danu.
 - [Rješavanje preopterećenja resursa](docs://howto-overbezetting-oplossen): što učiniti kad resurs ima previše posla u jednom danu.
-- [Pravila rada: trajanje, jedinice i rad](docs://uitleg-werkregels): što se događa s trajanjem kad promijenite jedinice dodjele.
+- [Vrste zadataka: trajanje, jedinice i rad](docs://uitleg-werkregels): što se događa s trajanjem kad promijenite jedinice dodjele.
 - [Okno resursa](docs://ref-resourcepaneel): sva polja i gumbi okna resursa.
-- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): svih pet vrsta resursa, svih šest krivulja i toranj-dizalica s korakom kapaciteta od 30. kolovoza 2027.
+- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): svih pet vrsta resursa, šest od osam krivulja i toranj-dizalica s korakom kapaciteta od 30. kolovoza 2027.

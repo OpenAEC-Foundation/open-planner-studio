@@ -19,7 +19,9 @@ Pense bem antes de instalar uma. Uma extensão é código de programa que corre 
 5. Abre-se a janela *Instalar a extensão?*. Leia-a e veja o passo seguinte.
 6. Clique em *Instalar* para continuar. Com *Não instalar* não acontece nada. Esc ou clicar ao lado da janela também conta como recusa, e a aplicação não mostra então nenhuma mensagem de erro.
 
-Depois da instalação, a extensão fica ativada de imediato. No cartão em *Explorar* diz agora *Instalada*. Vai ver o que a extensão acrescenta na própria aplicação: um novo botão no friso, ou um formato de importação em *Ficheiro › Importar*. Algumas extensões mostram também uma mensagem. Reconhece-a pelo prefixo *Extensão* seguido do nome da extensão.
+Depois da instalação, a extensão fica ativada de imediato. No cartão em *Explorar* diz agora *Instalada*. Pode ver o que a extensão acrescenta na própria aplicação: um novo botão no friso, ou um formato de importação em *Ficheiro › Importar*. Algumas extensões mostram também uma mensagem. Reconhece-a pelo prefixo *Extensão* seguido do nome da extensão.
+
+**Tutoriais.** Os tutoriais são uma extensão. Se vir o botão *Instalar tutoriais* na secção *Tutoriais* da *Ajuda*, abre-se *Ficheiro › Extensões* no separador *Explorar*. A pergunta depois da primeira visita guiada também instala esta extensão. Os dois caminhos mostram a mesma pergunta sobre permissões; pode recusá-la.
 
 ### Instalar uma extensão a partir de um ficheiro
 
@@ -29,31 +31,23 @@ Se recebeu uma extensão num ficheiro, instale-a assim.
 2. No canto superior direito, clique em *ZIP* para um ficheiro ZIP, ou em *JS* para um ficheiro JavaScript separado.
 3. Escolha o ficheiro. Abre-se a janela *Instalar a extensão?*, como acima.
 
-Um ficheiro ZIP tem de conter um `manifest.json` e o ficheiro principal da extensão. Se instalar uma extensão que já está instalada, a nova versão substitui a antiga. Se a aplicação não conseguir instalar o ficheiro, por exemplo porque um ficheiro ZIP está danificado, não acontece nada: a aplicação não mostra nenhuma mensagem de erro para ZIP e JS, e a extensão não aparece na lista. A causa fica, no entanto, no terminal de depuração. Ative-o em *Definições › Projeto › Definições*, separador *Avançado*, *Activar terminal de depuração*, e abra-o com o botão *Mostrar terminal de depuração* na barra de estado. Aí aparece, por exemplo, *[Extensies] ZIP-installatie mislukt: Error: Geen manifest.json gevonden in ZIP* (a aplicação apresenta este texto técnico em neerlandês).
+Um ficheiro ZIP tem de conter um `manifest.json` e o ficheiro principal da extensão. Se instalar uma extensão que já está instalada, a nova versão substitui a antiga. Se a aplicação não conseguir instalar o ficheiro, por exemplo porque um ficheiro ZIP está danificado, não acontece nada: a aplicação não mostra nenhuma mensagem de erro para ZIP e JS, e a extensão não aparece na lista. A causa fica, no entanto, no terminal de depuração. Ative-o em *Definições › Projeto › Definições da aplicação*, separador *Avançado*, *Activar terminal de depuração*, e abra-o com o botão *Mostrar terminal de depuração* na barra de estado. Aí aparece, por exemplo, *[Extensies] ZIP-installatie mislukt: Error: Geen manifest.json gevonden in ZIP* (a aplicação apresenta este texto técnico em neerlandês).
 
 ### Ler a pergunta sobre permissões
 
 A pergunta mostra o que tem de decidir.
 
 - *Autor* e *Repositório* indicam quem fez a extensão e onde está o código-fonte.
-- *Proveniência* indica de onde vem o ficheiro: *Do catálogo de extensões online*, *De um ficheiro ZIP neste computador* ou *De um ficheiro JavaScript neste computador*. Por baixo indica se o ficheiro foi verificado. No caso do catálogo, diz *Transferência verificada com a soma de verificação do catálogo.* Se o catálogo não tiver soma de verificação, diz a vermelho *O catálogo não fornece soma de verificação — esta transferência não foi verificada.* Para um ficheiro seu, diz *Escolheu este ficheiro por si; não há fonte externa com que o verificar.*
-- *Aquilo a que está a dizer que sim* diz: *Uma extensão é código que corre com os mesmos direitos que o próprio Open Planner Studio. Nada o delimita. Instale apenas extensões em cujo autor confia.* Por baixo indica o que isso significa na sua plataforma. Na aplicação de ambiente de trabalho diz *Na aplicação de ambiente de trabalho isso inclui: ler e escrever ficheiros em toda a sua pasta de utilizador, além do acesso a projetos, definições e área de transferência.* No navegador diz *No navegador significa: acesso aos seus projetos e definições guardados, aos ficheiros a que deu acesso e à rede.*
-- *O que esta extensão declara usar* mostra as permissões que o autor declarou, como pequenas etiquetas. É uma declaração do autor e não uma restrição: *É a declaração do autor, não uma restrição — o código pode fazer mais de qualquer forma.* Se não houver etiqueta, diz *Nada declarado.* Isso não quer dizer que a extensão não possa fazer nada: mesmo sem etiquetas, uma extensão pode ler e alterar os dados do seu planeamento e mostrar mensagens.
+- *Proveniência* indica de onde vem o ficheiro e se foi verificado. Se disser a vermelho que a transferência não foi verificada, instale só se conhecer a origem.
+- *Aquilo a que está a dizer que sim* repete que uma extensão é código de programa que corre com os mesmos direitos da própria aplicação, e o que isso significa na sua plataforma. Instale apenas extensões de autores em quem confia.
+- *O que esta extensão declara usar* mostra as permissões que o autor declarou, como pequenas etiquetas. É uma declaração e não uma restrição. Se disser *Nada declarado.*, a extensão pode, mesmo assim, ler e alterar os dados do seu planeamento.
 
-As etiquetas significam o seguinte:
-
-- *ribbon*: a extensão coloca botões no friso.
-- *events*: a extensão acompanha os eventos da aplicação.
-- *backstage*: a extensão acrescenta formatos de importação a *Ficheiro › Importar*.
-- *pdf-fonts*: a extensão fornece um tipo de letra para a exportação para PDF.
-- *importSource*: a extensão pode ler os bytes originais completos de cada ficheiro que importar, por exemplo um ficheiro Primavera em bruto, incluindo campos que não acabam no seu projeto. A janela também o explica.
-- *help*: a extensão pode acrescentar artigos de Ajuda, abrir projetos incluídos como um novo documento e mostrar um guia que aponta para partes da aplicação. A janela também o explica.
-- *filesystem* e *network*: são apenas indicações do que o autor pretende. A aplicação não tem função para estas.
+O que significa cada etiqueta e os textos exatos da janela estão em [Permissões de extensões](docs://ref-extensiepermissies).
 
 ### Desativar, reativar ou remover uma extensão
 
 1. Escolha *Ficheiro › Extensões* e o separador *Instaladas*. Cada extensão tem um cartão com o nome, a versão, a categoria, a descrição e o autor.
-2. Com o interruptor no cartão, desativa a extensão (*Desativar*) ou volta a ativá-la (*Ativar*). Quando está desativada, os botões e formatos de importação que a extensão acrescentou desaparecem, mas a extensão continua instalada. Continua também desativada depois de reiniciar a aplicação. Uma extensão ativada arranca sozinha quando a aplicação arranca.
+2. Com o interruptor no cartão, desative a extensão (*Desativar*) ou volte a ativá-la (*Ativar*). Quando está desativada, os botões e formatos de importação que a extensão acrescentou desaparecem, mas a extensão continua instalada. Continua também desativada depois de reiniciar a aplicação. Uma extensão ativada arranca sozinha quando a aplicação arranca.
 3. Clique em *Remover*. O botão muda para *Confirmar*, com a explicação *Clique novamente para remover definitivamente*. Clique mais uma vez para remover a extensão. A aplicação também limpa as definições que a extensão guardou.
 
 ## Problemas e o que a aplicação faz então

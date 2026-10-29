@@ -16,7 +16,7 @@ Harmonogram jest prognozą. Gdy praca już trwa, chcesz wiedzieć, co jest ukoń
 
 Przykład poniżej używa profilu obliczeń *Open Planner Studio*, z którym nowy projekt jest obliczany. Dalej przeczytasz, co różni się w profilach Primavera P6 i Microsoft Project.
 
-Po każdej zmianie postępu lub daty statusu pasek stanu pokazuje *Nieaktualne — przelicz (F5)*. Naciśnij **Oblicz** (F5), na przykład przez *Planowanie › Harmonogram › Oblicz*. Jeśli *Oblicz automatycznie* jest włączone (w *Ustawienia › Projekt › Ustawienia*, karta *Planowanie*, nagłówek *Obliczanie*), aplikacja robi to sama.
+Aplikacja sama z siebie nie przelicza. Po każdej zmianie postępu lub daty statusu pasek stanu pokazuje *Nieaktualne — przelicz (F5)*. Naciśnij **Oblicz** (F5), na przykład przez *Planowanie › Harmonogram › Oblicz*. Jeśli *Oblicz automatycznie* jest włączone (w *Ustawienia › Projekt › Ustawienia aplikacji*, karta *Planowanie*, nagłówek *Obliczanie*), aplikacja robi to sama.
 
 ### Data statusu
 
@@ -24,7 +24,7 @@ Data statusu robi trzy rzeczy.
 
 Po pierwsze aplikacja odrzuca rzeczywistą datę, która przypada po dacie statusu. Data równa dacie statusu jest w porządku.
 
-Po drugie zadanie, które jeszcze się nie zaczęło, nie może leżeć w przeszłości. Jeśli takie zadanie jest zaplanowane przed datą statusu, aplikacja przesuwa je na datę statusu. Dotyczy to także zadań po nim, które przesuwają się przez swoje relacje. Efekt zobaczysz w poniższym przykładzie. W profilu Microsoft Project aplikacja tego nie robi.
+Po drugie zadanie, które jeszcze się nie zaczęło, nie może leżeć w przeszłości. Jeśli takie zadanie jest planowane przed datą statusu, aplikacja przesuwa je na datę statusu. Dotyczy to także zadań po nim, które przesuwają się przez swoje relacje. Efekt zobaczysz w poniższym przykładzie. W profilu Microsoft Project aplikacja tego nie robi.
 
 Po trzecie pozostała praca zadania, które już trwa, zaczyna się w samym dniu statusu. Aplikacja traktuje datę statusu jako początek tego dnia. Jeśli robisz podsumowanie w piątek po godzinach, ustaw datę statusu na poniedziałek. Ustawiona na piątek data statusu oznacza, że aplikacja nadal planuje pozostałą pracę na ten piątek.
 
@@ -34,7 +34,7 @@ Jeśli nie masz jeszcze daty statusu, a wpisujesz postęp, aplikacja ustawia dat
 
 Pola zależą od siebie. Wypełnisz jedno, a aplikacja uzupełni pozostałe.
 
-- Procent powyżej 0 oznacza, że zadanie się zaczęło. Nie podasz rzeczywistego rozpoczęcia? Wtedy aplikacja przyjmuje planowany start. Jeśli zadanie jest zaplanowane na start po dacie statusu, aplikacja najpierw pyta, kiedy naprawdę się zaczęło.
+- Procent powyżej 0 oznacza, że zadanie się zaczęło. Nie podasz rzeczywistego rozpoczęcia? Wtedy aplikacja przyjmuje planowany start. Jeśli zadanie jest planowane na start po dacie statusu, aplikacja najpierw pyta, kiedy naprawdę się zaczęło.
 - Procent 100 oznacza ukończone. Nie podasz rzeczywistego zakończenia? Wtedy zakończenie to data statusu, nawet jeśli praca była skończona wcześniej.
 - Rzeczywiste zakończenie daje zadaniu 100%. Zmienisz ukończone zadanie na mniej niż 100%? Wtedy rzeczywiste zakończenie znika. Wyczyścisz rzeczywiste zakończenie? Wtedy procent wraca do 0, a zadanie zostaje *W toku*, aż wyczyścisz też rzeczywiste rozpoczęcie.
 - **Pozostały czas trwania** to czas trwania razy część, która jeszcze zostaje, zaokrąglony do pełnych dni roboczych. Zadanie na 2 dni robocze: przy 0% i przy 25% pozostają 2 dni robocze pozostałej pracy, a przy 50% i 75% po 1. Przy 90% aplikacja zaokrągla do 0: pozostała praca jest wtedy wykonana w dniu statusu. Zadanie w godzinach liczy się w pełnych minutach: zadanie 5 godzin przy 40% ma 3 godziny pozostałej pracy.
@@ -66,13 +66,13 @@ Przy zapisie aplikacja zapisuje dla każdego zadania bez podzadań najwcześniej
 
 **Odchylenie** to różnica w dniach roboczych między planem bazowym a bieżącym harmonogramem. Plus oznacza później, minus wcześniej. Aplikacja liczy w kalendarzu projektu. Raport variance pokazuje odchylenie startu i zakończenia dla każdego zadania. Status wynika tylko z zakończenia: *Później* przy plusie, *Wcześniej* przy minusie, w innym razie *Zgodnie z planem*. Zadanie dodane po planie bazowym nazywa się *Nowe*. Zadanie, które już nie istnieje, to *Usunięte*.
 
-Dwie uwagi. Odchylenie czasu trwania znajduje się w tabeli zadań (kolumna *Odchylenie czasu trwania*), nie w raporcie variance. Porównuje ono bieżący planowany czas trwania zadania z tym w planie bazowym. Postęp nie zmienia tego planowanego czasu trwania: zadanie zaplanowane na dwa dni, które trwało trzy dni, ma więc odchylenie zakończenia +1, ale odchylenie czasu trwania 0. Jeśli zapiszesz plan bazowy po wpisaniu postępu, zapisuje on stan z tymi rzeczywistymi datami. Odchylenie wynosi wtedy zero.
+Dwie uwagi. Odchylenie czasu trwania znajduje się w tabeli zadań (kolumna *Odchylenie czasu trwania*), nie w raporcie variance. Porównuje ono bieżący planowany czas trwania zadania z tym w planie bazowym. Postęp nie zmienia tego planowanego czasu trwania: zadanie planowane na dwa dni, które trwało trzy dni, ma więc odchylenie zakończenia +1, ale odchylenie czasu trwania 0. Jeśli zapiszesz plan bazowy po wpisaniu postępu, zapisuje on stan z tymi rzeczywistymi datami. Odchylenie wynosi wtedy zero.
 
 *Raport postępu* zestawia postęp planowany z postępem rzeczywistym. Obie wartości są ważone dniami roboczymi. *Planowane* to część każdego zadania, która według planu bazowego miała być ukończona w dniu statusu. *Rzeczywiste* to wpisany procent.
 
 ### Gdzie to widzisz
 
-W widoku Gantt przerywana linia oznacza datę statusu, a data pojawia się w nagłówku. Przy każdym zadaniu w toku linia wybrzusza się do punktu na pasku, który wskazuje procent. To jest **linia postępu**. Wyłączysz *Linia postępu*, a *Linia daty statusu* pozostanie włączona? Zostaje prosta linia. Wyłączysz obie? Znika linia i etykieta. Przyciski *Nakładka planu bazowego*, *Linia postępu* i *Linia daty statusu* znajdziesz w *Widok › Plan bazowy i postęp*. Nie zmieniają obliczeń. Plan bazowy pojawia się jako cienki pasek pod każdym paskiem zadania. Tabela zadań ma kolumny dla postępu i, dla każdego planu bazowego, dla odchylenia. Na karcie *Raport* znajdziesz typy raportów *Variance* i *Raport postępu*.
+W widoku Gantt przerywana linia oznacza datę statusu, a data pojawia się w nagłówku. Przy każdym zadaniu w toku linia wybrzusza się do punktu na pasku, który wskazuje procent. To jest **linia postępu**. Jeśli wyłączysz *Linia postępu*, a *Linia daty statusu* pozostanie włączona, zostaje prosta linia. Wyłączysz obie? Znika linia i etykieta. Przyciski *Nakładka planu bazowego*, *Linia postępu* i *Linia daty statusu* znajdziesz w *Widok › Plan bazowy i postęp*. Nie zmieniają obliczeń. Plan bazowy pojawia się jako cienki pasek pod każdym paskiem zadania. Tabela zadań ma kolumny dla postępu i, dla każdego planu bazowego, dla odchylenia. Na karcie *Raport* znajdziesz typy raportów *Variance* i *Raport postępu*.
 
 ## Przykład: rozbudowa po trzech tygodniach
 
@@ -128,7 +128,7 @@ Teraz przykład dla trybu postępu. Ten sam przykład, inny stan: jest środa 21
 
 Bez postępu tynkowanie było planowane od wtorku 20 do piątku 23 lipca, a malowanie od poniedziałku 26 do środy 28 lipca. Pasek stanu pokazuje teraz *Relacje poza kolejnością: 1*: malowanie się rozpoczęło, a tynkowanie nie jest zakończone. W panelu *Ostrzeżenia* jest napisane: *Poza kolejnością: postęp następnika przeczy relacji*.
 
-Tynkowanie ma 4 × (1 − 0,25) = 3 dni robocze pozostałej pracy: 21, 22 i 23 lipca. Malowanie ma 3 × (1 − 0,33) = 2 dni robocze pozostałej pracy.
+*Plastering* ma 4 × (1 − 0,25) = 3 dni robocze pozostałej pracy: 21, 22 i 23 lipca. Malowanie ma 3 × (1 − 0,33) = 2 dni robocze pozostałej pracy.
 
 - Przy **Retained Logic** pozostała praca może się zacząć dopiero, gdy tynkowanie jest zakończone. To jest piątek 23 lipca, więc malowanie zaczyna się w poniedziałek 26 lipca i kończy we wtorek 27 lipca. Pasek biegnie od rzeczywistego rozpoczęcia 21 lipca do 27 lipca. Zapas całkowity wynosi 7 dni roboczych.
 - Przy **Progress Override** pozostała praca zaczyna się w dacie statusu. Malowanie kończy się w czwartek 22 lipca, przed zakończeniem tynkowania. Zapas całkowity wynosi 10 dni roboczych.
@@ -137,13 +137,13 @@ Przekazanie zostaje w piątek 6 sierpnia w obu przypadkach: malowanie i tak mia�
 
 ### Inne profile obliczeń
 
-W profilach Primavera P6 i Microsoft Project malowanie w tym przykładzie kończy się w tych samych datach (27 i 22 lipca). Różnią się w poniższych punktach. To konwencje profilu; znajdziesz je w *Ustawienia › Projekt › Info o projekcie*, w bloku *Profil obliczeń i opcje*.
+W profilach Primavera P6 i Microsoft Project malowanie w tym przykładzie kończy się w tych samych datach (27 i 22 lipca). Różnią się w poniższych punktach. To konwencje profilu; znajdziesz je w *Ustawienia › Projekt › Ustawienia projektu*, w bloku *Profil obliczeń i opcje*.
 
 - W profilu Microsoft Project praca, która się jeszcze nie rozpoczęła, nie przesuwa się do daty statusu (konwencja *Nie przesuwaj nierozpoczętych zadań do daty stanu*). Jeśli w przykładzie powyżej ustawisz tylko datę statusu i nic nie wpiszesz, przekazanie w tym profilu zostaje w piątek 6 sierpnia.
 - W profilu Microsoft Project pozostała praca też nie zaczyna się wcześniej niż rzeczywiste rozpoczęcie plus czas, który upłynął (konwencja *Pozostała praca wznawia się po upływie czasu*). To jest dodatkowa dolna granica obok daty statusu: liczy się późniejsza z obu. Weź *Build inner cavity leaf* (5 dni roboczych), rozpoczęte we wtorek 29 czerwca i na poziomie 40% w środę 30 czerwca, czyli w dniu daty statusu (dwie ekipy murują jednocześnie, więc 40% jest już po jednym dniu). Wszystko przed nim jest zakończone zgodnie z planem. Open Planner Studio i Primavera P6 pozwalają zadaniu zakończyć się w piątek 2 lipca; Microsoft Project w poniedziałek 5 lipca, ponieważ wtorek 29 czerwca plus 2 dni robocze, które upłynęły, to czwartek 1 lipca, czyli po dacie statusu.
-- Primavera P6 pokazuje jako najwcześniejsze rozpoczęcie zadania w toku początek pozostałej pracy, nie rzeczywiste rozpoczęcie (w przykładzie z wewnętrznym murem: środa 30 czerwca).
+- Primavera P6 pokazuje jako najwcześniejsze rozpoczęcie zadania w toku początek pozostałej pracy, nie rzeczywiste rozpoczęcie (w przykładzie z wewnętrznym murem: środa 30 czerwca). Kolumna *Początek* i pasek pokazują we wszystkich profilach rzeczywiste rozpoczęcie.
 - W profilu Primavera P6 przy Progress Override relacja do następnika, który już się rozpoczął, też nie liczy się dla poprzednika: wtedy nie ogranicza już jego późnych terminów ani jego zapasu swobodnego (konwencja *Progress Override pomija rozpoczętego następnika także wstecz*). W przykładzie tynkarza i malarza tego nie widać, bo tynkowanie jest tak czy tak krytyczne przez wylewkę: jego późne terminy i zapas swobodny są takie same przy Retained Logic i przy Progress Override.
-- Gdy otworzysz .xer file, aplikacja przejmuje tryb postępu z pliku. Actual Dates, trzeci tryb P6, nie jest aplikacji znany; taki plik liczy się jako Retained Logic.
+- Gdy otworzysz plik .xer, aplikacja przejmuje tryb postępu z pliku. Actual Dates, trzeci tryb P6, nie jest aplikacji znany; taki plik liczy się jako Retained Logic.
 
 ## Konsekwencje i nieporozumienia
 
@@ -157,7 +157,7 @@ W profilach Primavera P6 i Microsoft Project malowanie w tym przykładzie kończ
 
 **„Przerwa w zadaniu w trybie podziału odpada.”** Nie. Przerwa w części, która jeszcze do zrobienia, zostaje w pozostałej pracy. Weź zadanie o 5 dniach roboczych z 1-dniową przerwą po 2 dniach pracy, rozpoczęte we wtorek 29 czerwca i, przy dacie statusu w środę 30 czerwca, na poziomie 40%. Pozostała praca wynosząca 3 dni robocze zaczyna się w dacie statusu i przechodzi przez przerwę: zakończenie to poniedziałek 5 lipca. Bez przerwy byłoby to piątek 2 lipca.
 
-**Godziny a data statusu.** W wstążce nie wpiszesz godziny: wpisujesz datę statusu jako datę. Jeśli robisz podsumowanie po godzinach pracy, ustaw datę statusu na najbliższy dzień roboczy. Zadanie w godzinach liczy pozostałą pracę od początku daty statusu. Weź *Lay hollow-core floor* w projekcie ćwiczeniowym po samouczku 4: 5 godzin, w poniedziałek 28 czerwca, dzień roboczy od 07:00. Przy dacie statusu w poniedziałek 28 czerwca i zadaniu na 40% zostają 3 godziny pozostałej pracy, od 07:00 do 10:00, nawet jeśli tego ranka już coś zrobiono. Jak aplikacja liczy godziny, wyjaśnia [Dni i godziny](docs://uitleg-dagen-en-uren).
+**Godziny a data statusu.** W wstążce nie wpiszesz godziny: wpisujesz datę statusu jako datę. Jeśli robisz podsumowanie po godzinach pracy, ustaw datę statusu na najbliższy dzień roboczy. Zadanie w godzinach liczy pozostałą pracę od początku daty statusu. Weź *Lay hollow-core floor* w projekcie ćwiczeniowym po samouczku 4, w chwili gdy wszystko przed nim jest zakończone: 5 godzin, w poniedziałek 28 czerwca, dzień roboczy od 07:00. Przy dacie statusu w poniedziałek 28 czerwca i zadaniu na 40% zostają 3 godziny pozostałej pracy, od 07:00 do 10:00, nawet jeśli tego ranka już coś zrobiono. Jak aplikacja liczy godziny, wyjaśnia [Dni i godziny](docs://uitleg-dagen-en-uren).
 
 **Aktualizacja planu bazowego.** To nie jest możliwe. Zapisujesz nowy plan bazowy i usuwasz stary. Jeśli przesuniesz projekt, rzeczywiste daty i data statusu przesuwają się razem z nim, ale plany bazowe domyślnie nie: dzięki temu przesunięcie zostaje widoczne jako odchylenie. Zobacz [Przenoszenie projektu](docs://howto-project-verplaatsen).
 

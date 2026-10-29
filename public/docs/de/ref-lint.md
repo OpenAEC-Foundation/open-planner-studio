@@ -11,9 +11,9 @@ Das Menüband oben am Bildschirm hat Registerkarten. Jede Registerkarte hat Grup
 
 ## Datei
 
-Wenn Sie *Datei* klicken, übernimmt ein eigener Bildschirm (das Backstage) den Arbeitsbereich. Er hat kein Menüband. *Zurück* schließt ihn. Haben Sie etwas unter *Projektinfo* geändert, das Sie nicht mit *Anwenden* übernommen haben, fragt die App zuerst, was damit geschehen soll.
+Wenn Sie *Datei* klicken, übernimmt ein eigener Bildschirm (das Backstage) den Arbeitsbereich. Er hat kein Menüband. *Zurück* schließt ihn. Haben Sie etwas unter *Projekteinstellungen* geändert, das Sie nicht mit *Anwenden* übernommen haben, fragt die App zuerst, was damit geschehen soll.
 
-- **Neu** — öffnet das Fenster *Neues Projekt* und schließt das Backstage. Die Felder stehen in [Neues Projekt und Projektinfo](docs://ref-projectinfo).
+- **Neu** — öffnet das Fenster *Neues Projekt* und schließt das Backstage. Die Felder stehen in [Neues Projekt und Projekteinstellungen](docs://ref-projectinfo).
 - **Öffnen** — wählt eine Datei und öffnet sie als Dokument. Schließt das Backstage.
 - **Zuletzt verwendet** — eine Liste der zuletzt geöffneten Projekte. Ein Klick öffnet eines. Nur sichtbar, wenn die Umgebung Dateien erneut öffnen kann: in der Desktop-App und in Browsern mit Dateizugriff, wie Chrome und Edge. In anderen Browsern ist die Schaltfläche da, aber die Seite bleibt leer.
 - **Beispiele** — mitgelieferte Beispiel-Terminpläne, aufgeteilt in *Vollständige Showcase-Zeitpläne* (Abzeichen *Alle Funktionen*) und *Einfache Beispiele*. Ein Klick öffnet einen Terminplan in einem neuen Tab.
@@ -22,11 +22,11 @@ Wenn Sie *Datei* klicken, übernimmt ein eigener Bildschirm (das Backstage) den 
 - **Exportieren** — Karten je Exportformat, mit einer Beschreibung. Ein Klick wandelt das Projekt um, speichert es und bringt Sie zurück zu *Start*. Hat der Terminplan einen Zyklus, erscheint der Fehler im Backstage und Sie bleiben dort. Ist das Projekt mit einer Ressourcenbibliothek verknüpft, erscheint darunter das Kontrollkästchen *Bibliotheksdatei zusätzlich speichern*. Es wirkt nur bei der Karte IFC.
 - **Importieren** — oben die Karte *Fortschritt aus einer Tabelle aktualisieren* (ohne Vorgänge deaktiviert), darunter die Importfunktionen, die Erweiterungen hinzufügen.
 - **Drucken** — die Schaltfläche *Druckvorschau öffnen* bringt Sie zur Registerkarte *Bericht*.
-- **Projektinfo** — die Metadaten und das Berechnungsprofil dieses Projekts. Änderungen wirken erst nach *Anwenden*. Siehe [Neues Projekt und Projektinfo](docs://ref-projectinfo) und [Berechnungsprofile und Konventionen](docs://uitleg-rekenprofielen).
-- **Einstellungen** — dieselben Einstellungen wie im Fenster *Einstellungen*.
+- **Projekteinstellungen** — die Metadaten und das Berechnungsprofil dieses Projekts. Änderungen wirken erst nach *Anwenden*. Siehe [Neues Projekt und Projekteinstellungen](docs://ref-projectinfo) und [Berechnungsprofile und Konventionen](docs://uitleg-rekenprofielen).
+- **App-Einstellungen** — dieselben Einstellungen wie im Fenster *App-Einstellungen*.
 - **Erweiterungen** — Verwaltung und Installation von Erweiterungen; siehe [Installieren und Verwalten einer Erweiterung](docs://howto-extensie-installeren).
 - **Bibliothek** — Verwaltung der Ressourcenbibliotheken; siehe [Ressourcenbibliotheken verwalten und teilen](docs://howto-bibliotheken-beheren).
-- **Hilfe** — die eingebaute Dokumentation, auch mit F1. Das Suchfeld durchsucht Titel, Überschriften und den Text selbst. Die Artikel stehen in vier Abschnitten: *Tutorials*, *Anleitungen*, *Erklärungen* und *Referenz*. Unter *Dokumentationssprache* wählen Sie *App-Sprache folgen*, *Nederlands* oder *English*. Hilfe gibt es nur auf Niederländisch und Englisch. Ist die App in einer anderen Sprache, lesen Sie die englische Version mit einem Hinweis. Ihre Wahl bleibt auf diesem Gerät gespeichert, getrennt von der Sprache der App. Sie erreichen die Hilfe auch aus einem Fenster oder Panel. Viele Fenster und die Panels *Eigenschaften*, *Ressourcen* und *Warnungen* haben oben rechts ein Fragezeichen (*Hilfe zu diesem Thema*). Es öffnet die Hilfe zu dem Artikel über dieses Fenster oder Panel. Haben Sie im Fenster etwas eingegeben, das noch nicht gespeichert ist, fragt die App zuerst *Speichern*, *Abbrechen* (Eingabe verwerfen) oder *Zurück* (im Fenster bleiben). Danach schließt das Fenster und die Hilfe öffnet sich. Einige Fenster, zum Beispiel *Vorgang bearbeiten* und *Kapazitätsabgleich*, fragen immer. Ohne Eingabe öffnet die Hilfe sofort.
+- **Hilfe** — die eingebaute Dokumentation, auch mit F1. Das Suchfeld durchsucht Titel, Überschriften und den Text selbst. Die Artikel stehen in vier Abschnitten: *Tutorials*, *Anleitungen*, *Erklärungen* und *Referenz*. Unter *Dokumentationssprache* wählen Sie *App-Sprache folgen* oder eine Sprache aus der Liste. Niederländisch und Englisch sind die Ausgangssprachen; die anderen Sprachen haben die Artikel, die schon übersetzt sind. Fehlt ein Artikel in Ihrer Sprache, lesen Sie die englische Version mit einem Hinweis. Ihre Wahl bleibt auf diesem Gerät gespeichert, getrennt von der Sprache der App. Sie erreichen die Hilfe auch aus einem Fenster oder Panel. Viele Fenster und die Panels *Eigenschaften*, *Ressourcen* und *Warnungen* haben oben rechts ein Fragezeichen (*Hilfe zu diesem Thema*). Es öffnet die Hilfe zu dem Artikel über dieses Fenster oder Panel. Haben Sie im Fenster etwas eingegeben, das noch nicht gespeichert ist, fragt die App zuerst *Speichern*, *Abbrechen* (Eingabe verwerfen) oder *Zurück* (im Fenster bleiben). Danach schließt das Fenster und die Hilfe öffnet sich. Einige Fenster, zum Beispiel *Vorgang bearbeiten* und *Kapazitätsabgleich*, fragen immer. Ohne Eingabe öffnet die Hilfe sofort.
 - **Tour starten** — schließt das Backstage und startet die Tour bei Schritt 1.
 - **Projekt schließen** — schließt das aktive Dokument. Hat es nicht gespeicherte Änderungen, fragt die App nach einer Bestätigung.
 
@@ -46,14 +46,14 @@ Wenn Sie *Datei* klicken, übernimmt ein eigener Bildschirm (das Backstage) den 
 
 ### Start › Vorgänge
 
-- **Vorgang** — fügt einen Vorgang mit dem Namen *Neuer Vorgang* hinzu, mit einer Dauer von 5 Arbeitstagen, der am Projektstart beginnt. (Ist *Stundenplanung aktivieren* eingeschaltet und steht die *Standardeinheit für neue Vorgänge* in *Projektinfo* auf Stunden, ist die Dauer 5 Stunden.) Ist ein Vorgang ausgewählt und ist die Ansicht die einfache Baumansicht, landet er direkt unter dem untersten ausgewählten Vorgang (Tooltip *Neuer Vorgang direkt unter der Auswahl*). Ohne Auswahl kommt er ans Ende (Tooltip *Neuer Vorgang am Ende der Liste*). Mit Auswahl, aber während Filtern, Gruppieren oder Sortieren, kommt er auch ans Ende, und eine Leiste sagt *Nicht verfügbar während des Filterns/Gruppierens/Sortierens*. Der neue Vorgang wird die einzige Auswahl. Das Gantt-Diagramm springt zu ihm, und sein Name lässt sich im Panel *Eigenschaften* direkt überschreiben.
-- **Meilenstein ▾** — Dropdown, das einen Meilenstein (Dauer 0) an dieselbe Stelle setzt wie *Vorgang*. *Anfangsmeilenstein* und *Endmeilenstein* legen die Art des Meilensteins fest. Der neue Meilenstein heißt *Neuer Meilenstein* und bekommt die Vorgangsart *Sonstiges*. *Prüfpunkt (verbindlich)* macht einen Endmeilenstein mit der Vorgangsart *Prüfung* und der Markierung *Verbindlich (vertraglich)*. Er heißt *Neuer Prüfpunkt*.
+- **Vorgang** — fügt einen Vorgang mit dem Namen *Neuer Vorgang* hinzu, mit einer Dauer von 5 Arbeitstagen, der am Projektstart beginnt. (Ist *Stundenplanung aktivieren* eingeschaltet und steht die *Standardeinheit für neue Vorgänge* in *Projekteinstellungen* auf Stunden, ist die Dauer 5 Stunden.) Ist ein Vorgang ausgewählt und ist die Ansicht die einfache Baumansicht, landet er direkt unter dem untersten ausgewählten Vorgang (Tooltip *Neuer Vorgang direkt unter der Auswahl*). Ohne Auswahl kommt er ans Ende (Tooltip *Neuer Vorgang am Ende der Liste*). Mit Auswahl, aber während des Filterns, Gruppierens oder Sortierens, kommt er auch ans Ende. Eine rote Meldung sagt dann, dass die App ihn nicht unter Ihrer Auswahl platzieren kann, mit der Schaltfläche *Leeren*. Der neue Vorgang wird die einzige Auswahl. Das Gantt-Diagramm springt zu ihm, und sein Name lässt sich im Panel *Eigenschaften* direkt überschreiben.
+- **Meilenstein ▾** — Dropdown, das einen Meilenstein (Dauer 0) an dieselbe Stelle setzt wie *Vorgang*. *Anfangsmeilenstein* und *Endmeilenstein* legen die Art des Meilensteins fest. Der neue Meilenstein heißt *Neuer Meilenstein* und bekommt die Arbeitskategorie *Sonstiges*. *Prüfpunkt (verbindlich)* macht einen Endmeilenstein mit der Arbeitskategorie *Prüfung* und der Markierung *Verbindlich (vertraglich)*. Er heißt *Neuer Prüfpunkt*.
 - **Verknüpfen ▾** — Dropdown mit vier festen Aktionen; die Hauptschaltfläche ändert ihre Bedeutung nie. Die vier Aktionen stehen unter *Planung › Beziehungen*.
 - **Vorgang teilen** — schaltet den Teilungsmodus ein oder aus. Ist er an, erklärt ein Streifen unter dem Menüband: Klicken Sie auf einen Balken, wo die Unterbrechung beginnt, und ziehen Sie nach rechts für ihre Länge. Deaktiviert, wenn das Gantt-Diagramm nicht sichtbar ist (auf den Registerkarten *Tabelle*, *IFC* und *Bericht* und unter dem vollständigen Ressourcen-Panel). Der Tooltip sagt dann *Nur verfügbar, wenn das Gantt-Diagramm sichtbar ist*. Siehe [Einen Vorgang teilen](docs://howto-taak-splitsen).
 
 ### Start › Terminplan
 
-- **Berechnen** — berechnet den Terminplan: Termine, Puffer, kritischer Pfad und Ressourcenlast. Das geschieht nie von selbst, außer Sie schalten *Automatisch berechnen* ein (*Einstellungen*, Registerkarte *Planung*, Abschnitt *Berechnung*). Solange der Terminplan veraltet ist, zeigt die Statusleiste *Veraltet — neu berechnen (F5)*.
+- **Berechnen** — berechnet den Terminplan: Termine, Puffer, kritischer Pfad und Ressourcenlast. Das geschieht nie von selbst, außer Sie schalten *Automatisch berechnen* ein (*App-Einstellungen*, Registerkarte *Planung*, Abschnitt *Berechnung*). Solange der Terminplan veraltet ist, zeigt die Statusleiste *Veraltet — neu berechnen (F5)*.
 
 ### Start › Zoom
 
@@ -94,7 +94,7 @@ Sie können beide gleichzeitig einschalten. Ein zweiter Klick auf eine Schaltfl�
 ### Planung › Struktur
 
 - **Codes & Felder** — öffnet das Fenster *Codes & Felder* für Aktivitätscodes und benutzerdefinierte Felder. Siehe [Codes und benutzerdefinierte Felder](docs://howto-codes-en-velden).
-- **PSP auto** — schaltet die automatische Nummerierung der PSP-Codes ein oder aus. Standard: aus. Ist sie an, wird der ganze Baum auf einmal neu nummeriert. Die Codes folgen danach jeder Änderung der Struktur, und das Feld *PSP-Code* im Panel und im Fenster ist deaktiviert.
+- **PSP auto** — schaltet die automatische Nummerierung der PSP-Codes ein oder aus. Standard: ein bei einem neuen Projekt. Bei einer geöffneten Datei ohne diese Einstellung: ein, wenn die Datei leer ist oder alle Codes schon zur Nummerierung des Baums passen, sonst aus. Ist sie an, wird der ganze Baum auf einmal neu nummeriert. Die Codes folgen danach jeder Änderung der Struktur, und das Feld *PSP-Code* im Panel und im Fenster ist deaktiviert.
 - **PSP neu nummerieren** — nummeriert die PSP-Codes einmal neu, nach der Position im Baum (1.2.3). Deaktiviert, solange *PSP auto* eingeschaltet ist.
 - **Vorlagen** — Dropdown mit gespeicherten PSP-Vorlagen, jede mit ihrer Anzahl Vorgänge und Beziehungen. Ein Klick fügt die Vorlage unter dem ausgewählten Vorgang ein; ohne Auswahl wird sie auf oberster Ebene eingefügt. Das Papierkorb-Symbol löscht eine Vorlage. Ohne Vorlagen steht dort, wie Sie eine speichern: Klicken Sie mit der rechten Maustaste auf einen Sammelvorgang und wählen Sie *Zweig als Vorlage speichern*. Siehe [PSP-Vorlagen speichern und einfügen](docs://howto-wbs-sjablonen).
 - **Tiefer stufen** — macht die ausgewählten Vorgänge zu Teilvorgängen des Vorgangs davor. Deaktiviert ohne Auswahl und sobald Sie filtern, gruppieren oder sortieren. Der Tooltip sagt dann *Nicht verfügbar während des Filterns/Gruppierens/Sortierens*.
@@ -103,7 +103,7 @@ Sie können beide gleichzeitig einschalten. Ein zweiter Klick auf eine Schaltfl�
 ### Planung › Baselines & Fortschritt
 
 - **Baselines verwalten…** — öffnet das Fenster für Baselines. Siehe [Eine Baseline speichern und verwalten](docs://howto-baseline-opslaan-en-beheren).
-- **Statusdatum** — das Datum, bis zu dem Sie den Fortschritt messen. Geben Sie ein Datum ein. Das Kreuz (*Statusdatum leeren*) entfernt es. Wirkung: Der Fortschritt wird bis zu diesem Datum gemessen. Die Statuslinie und die Fortschrittslinie im Gantt-Diagramm liegen auf diesem Datum. Siehe [Fortschritt, Statusdatum und Baseline](docs://uitleg-voortgang).
+- **Statusdatum** — das Datum, bis zu dem Sie den Fortschritt messen. Geben Sie ein Datum ein. Das Kreuz (*Statusdatum leeren*) entfernt es. Hat der Kalender des Projekts Arbeitszeit-Bänder, rechnet die App in Stunden, und neben dem Datum erscheint ein Zeitfeld (MS Project speichert oft 17:00). Die Uhrzeit zählt dann: 12:00 statt 17:00 ergibt eine Restarbeit, die um einen halben Tag anders ist. Ohne Arbeitszeit-Bänder rechnet die App in ganzen Tagen, und es gibt kein Zeitfeld. Wirkung: Der Fortschritt wird bis zu diesem Datum gemessen. Die Statuslinie und die Fortschrittslinie im Gantt-Diagramm liegen auf diesem Datum. Siehe [Fortschritt, Statusdatum und Baseline](docs://uitleg-voortgang).
 - **Fortschrittsmodus** — Auswahl zwischen *Retained Logic* und *Progress Override*. Standard: *Retained Logic*. Wirkung: Bei *Retained Logic* folgt die Restarbeit eines begonnenen Nachfolgers der Beziehung. Bei *Progress Override* beginnt die Restarbeit am Statusdatum, ohne auf den Vorgänger zu warten. Siehe [Den Fortschrittsmodus wählen](docs://howto-voortgangsmodus-kiezen).
 
 Im eingeklappten Menüband stehen diese drei hinter einer Flaggen-Schaltfläche mit dem Titel *Baselines & Fortschritt*.
@@ -145,14 +145,14 @@ Diese Gruppe gibt es auch auf den Registerkarten *Tabelle* und *Bericht*.
 
 ### Ansicht › Zeitskala
 
-- **Zoom +** und **Zoom -** — vergrößern oder verkleinern die Zeitachse um 10 Pixel pro Tag.
+- **Zoom +** und **Zoom -** — vergrößern oder verkleinern die Zeitskala um 10 Pixel pro Tag.
 - **Zurücksetzen** — setzt den Zoom auf den Standard von 30 Pixel pro Tag zurück.
 - **An Projekt anpassen** — zoomt und scrollt, sodass das ganze Projekt sichtbar ist.
 - **Skalenauswahl** — eine Liste mit *Jahr*, *Quartal*, *Monat*, *Woche*, *Tag* und, nur wenn *Stundenplanung aktivieren* eingeschaltet ist, *Stunde*. Eine Auswahl legt einen festen Zoom fest. Der angezeigte Wert folgt dem aktuellen Zoom. Darunter wird dieser Zoom in Pixel pro Tag angezeigt.
 
 ### Ansicht › Anzeige
 
-- **Spalten…**, **Filter…**, **Gruppieren…** und **Sortieren…** — nur sichtbar, wenn *Klassische Ansichtsschaltflächen anzeigen* eingeschaltet ist (*Einstellungen*, Registerkarte *Erweitert*, Abschnitt *Legacy-Funktionen*). Standard: aus. *Spalten…* führt Sie zu *Tabelle* und öffnet dort die Spaltenauswahl. *Filter…* öffnet sofort das Fenster *Filter*, solange kein gespeicherter Filter vorhanden ist. Mit gespeicherten Filtern öffnet sich ein Menü mit *Filter…*, *Leeren* (nur wenn ein Filter aktiv ist) und den gespeicherten Filtern. *Gruppieren…* erlaubt zwei Ebenen. *Sortieren…* erlaubt mehr Ebenen. Eine Schaltfläche leuchtet auf, wenn diese Ansichtseinstellung aktiv ist. Im aktuellen Menüband erledigen Sie das mit den Layout-Schaltflächen; siehe [Ein Layout erstellen und verwenden](docs://howto-layouts-gebruiken).
+- **Spalten…**, **Filter…**, **Gruppieren…** und **Sortieren…** — nur sichtbar, wenn *Klassische Ansichtsschaltflächen anzeigen* eingeschaltet ist (*App-Einstellungen*, Registerkarte *Erweitert*, Abschnitt *Legacy-Funktionen*). Standard: aus. *Spalten…* führt Sie zu *Tabelle* und öffnet dort die Spaltenauswahl. *Filter…* öffnet sofort das Fenster *Filter*, solange kein gespeicherter Filter vorhanden ist. Mit gespeicherten Filtern öffnet sich ein Menü mit *Filter…*, *Leeren* (nur wenn ein Filter aktiv ist) und den gespeicherten Filtern. *Gruppieren…* erlaubt zwei Ebenen. *Sortieren…* erlaubt mehr Ebenen. Eine Schaltfläche leuchtet auf, wenn diese Ansichtseinstellung aktiv ist. Im aktuellen Menüband erledigen Sie das mit den Layout-Schaltflächen; siehe [Ein Layout erstellen und verwenden](docs://howto-layouts-gebruiken).
 
 ### Ansicht › Gliederung
 
@@ -166,7 +166,7 @@ Diese Gruppe gibt es auch auf den Registerkarten *Tabelle* und *Bericht*.
 
 ### Ansicht › Präsentation
 
-- **Präsentation** — schaltet den Präsentationsmodus ein oder aus (F11 oder Esc beendet ihn). Nur das Gantt-Diagramm füllt dann den Bildschirm. Siehe [Präsentieren auf einem großen Bildschirm](docs://howto-presentatie).
+- **Präsentation** — schaltet den Präsentationsmodus ein oder aus (Esc beendet ihn; in der Desktop-App auch F11). Nur das Gantt-Diagramm füllt dann den Bildschirm. Siehe [Präsentieren auf einem großen Bildschirm](docs://howto-presentatie).
 - **Geteilte Ansicht** — teilt das Gantt-Diagramm in zwei Zeitfenster. Beide beginnen mit Ihrem aktuellen Zoom und Ihrer Position (Teilung 50 Prozent). Oder die Ansicht wird wieder ein einziges Fenster. Standard: aus. Siehe [Geteilte Ansicht und Minimap verwenden](docs://howto-split-view-en-mini-map).
 - **Minimap** — zeigt oder verbirgt die Minimap. Standard: aus. Ihre Auswahl wird gespeichert.
 
@@ -176,14 +176,22 @@ Diese Gruppe gibt es auch auf den Registerkarten *Tabelle* und *Bericht*.
 
 Die Schaltflächen *Ressourcen*, *Ressourcen-Dock* und *Histogramm* sind dieselben wie bei *Ressourcen*. *Warnungen* ist dasselbe wie bei *Planung*.
 
+**Die rechte Spalte.** Die Spalte rechts neben dem Gantt-Diagramm ist vorhanden, sobald mindestens einer der Bereiche *Eigenschaften*, *Ressourcen-Dock* oder *Warnungen* eingeschaltet ist. Ist keiner eingeschaltet, gibt es keine Spalte. Nimmt ein vollständiges Panel den Arbeitsbereich ein, zum Beispiel das vollständige Ressourcen-Panel, dann verschwindet die Spalte. Nur auf der Registerkarte *Tabelle* bleibt sie bestehen.
+
+- **Breite** — ziehen Sie den Trenner zwischen dem Arbeitsbereich und der Spalte. Eine Breite gilt für alle Bereiche in der Spalte.
+- **Teilung** — wenn zwei Bereiche eingeschaltet sind, ziehen Sie die Grenze zwischen ihnen. Ist einer eingeschaltet, füllt dieser Bereich die ganze Spalte.
+- **Einklappen** — die Schaltfläche *Seitenspalte einklappen* im Kopf blendet die Spalte aus. Ein schmaler Streifen mit der Schaltfläche *Seitenspalte ausklappen* holt sie zurück, mit denselben Bereichen wie zuvor.
+- **Schließen** — jeder Bereich hat ein Kreuz in seinem Kopf. Es ist derselbe Schalter wie die Schaltfläche im Menüband.
+- **Vollständiges Panel** — im Ressourcen-Dock öffnet die Schaltfläche *Vollständiges Panel* das vollständige Ressourcen-Panel.
+
 ### Ansicht › Baselines & Fortschritt
 
 Diese Gruppe hat denselben Namen wie die Gruppe bei *Planung*. Sie enthält aber die Zeichenoptionen des Gantt-Diagramms.
 
 - **Baseline-Überlagerung** — zeigt die aktive Baseline als dünnen Balken unter jedem Vorgangsbalken. Standard: ein. Ohne aktive Baseline ist nichts zu sehen.
 - **Fortschrittslinie** — zeichnet eine Linie auf dem Statusdatum. Sie wölbt sich pro Vorgang entsprechend seinem Fortschritt aus. Standard: ein. Ohne Statusdatum ist nichts zu sehen. Ist die Fortschrittslinie eingeschaltet, markiert diese Linie auch das Statusdatum.
-- **Statusdatum-Linie** — zeichnet eine gestrichelte Linie auf dem Statusdatum. Standard: ein. Sie sehen sie nur, wenn die Fortschrittslinie aus ist, weil diese Linie sonst ihren Platz einnimmt. Die Beschriftung mit dem Datum in der Kopfzeile bleibt, solange mindestens eine der beiden Linien eingeschaltet ist.
-- **Balkenfarben** — wählt, wie die Balken gefärbt werden: *Kritischer Pfad* (Standard), *Pro Vorgang — automatisch* oder *Nach Kategorie* mit einer Auswahl des Feldes. Ist dieses Feld in diesem Projekt nicht vorhanden, meldet das Menü, dass vorübergehend *Vorgangsart* verwendet wird. Außerhalb der Option *Kritischer Pfad* markiert ein roter Rand den kritischen Pfad. Die Auswahl gilt auch für den Bericht.
+- **Statusdatum-Linie** — zeichnet eine gestrichelte Linie auf dem Statusdatum. Standard: ein. Sie sehen sie nur, wenn die Fortschrittslinie aus ist, weil diese Linie sonst ihren Platz einnimmt. Die Beschriftung mit dem Datum in der Kopfzeile bleibt, solange mindestens eine der beiden Linien eingeschaltet ist. Die Beschriftung folgt Ihrer Datumsschreibweise, zum Beispiel 20-09-2006. Rechnet die App in Stunden, dann liegen Linie und Beschriftung auf der Tageszeit, und die Beschriftung zeigt auch die Uhrzeit, zum Beispiel 20-09-2006 17:00.
+- **Balkenfarben** — wählt, wie die Balken gefärbt werden: *Kritischer Pfad* (Standard), *Pro Vorgang — automatisch* oder *Nach Kategorie* mit einer Auswahl des Feldes. Ist dieses Feld in diesem Projekt nicht vorhanden, meldet das Menü, dass vorübergehend *Arbeitskategorie* verwendet wird. Außerhalb der Option *Kritischer Pfad* markiert ein roter Rand den kritischen Pfad. Die Auswahl gilt auch für den Bericht.
 - **Ressourcenakzent** — zeichnet einen dünnen Streifen in der Ressourcenfarbe unter jedem Balken eines Einzelvorgangs. Der Streifen wird im Verhältnis zu den Einheiten pro Tag aufgeteilt. Standard: aus.
 - **Pufferbereich** — zeichnet den grünen Bereich nach einem nicht kritischen Balken, bis zum spätesten Ende des Vorgangs. Standard: ein.
 - **Beziehungslinien** — zeigt oder verbirgt die Beziehungslinien zwischen Vorgängen. Standard: ein. Die Auswahl gehört zum Dokument und zum Layout.
@@ -192,8 +200,8 @@ Diese Gruppe hat denselben Namen wie die Gruppe bei *Planung*. Sie enthält aber
 
 ### Einstellungen › Projekt
 
-- **Projektinfo** — öffnet das Fenster *Projektinfo* mit den Metadaten des Projekts. Im Block *Berechnungsprofil und Berechnungsoptionen* sehen Sie, wie das Projekt berechnet wird. Siehe [Neues Projekt und Projektinfo](docs://ref-projectinfo).
-- **Einstellungen** — öffnet das Fenster *Einstellungen* mit den Registerkarten *Darstellung*, *Planung* und *Erweitert*. Dieselben Einstellungen finden Sie unter *Datei › Einstellungen*.
+- **Projekteinstellungen** — öffnet das Fenster *Projekteinstellungen* mit den Metadaten des Projekts. Im Block *Berechnungsprofil und Berechnungsoptionen* sehen Sie, wie das Projekt berechnet wird. Siehe [Neues Projekt und Projekteinstellungen](docs://ref-projectinfo).
+- **App-Einstellungen** — öffnet das Fenster *App-Einstellungen* mit den Registerkarten *Darstellung*, *Planung* und *Erweitert*. Dieselben Einstellungen finden Sie unter *Datei › App-Einstellungen*.
 
 ### Einstellungen › Kalender
 
@@ -213,7 +221,7 @@ Die Registerkarte *Tabelle* zeigt die Vorgänge als vollständige Tabelle statt 
 
 ## IFC
 
-Die Registerkarte zeigt den IFC-Bereich im Arbeitsbereich. Das Menüband hat hier keine Schaltflächen, nur die Textzeile *IFC 4x3 - Industry Foundation Classes*.
+Die Registerkarte zeigt den IFC-Bereich im Arbeitsbereich. Das Menüband hat hier keine Schaltflächen, nur die Textzeile *IFC - Industry Foundation Classes, im Schema des Projekts (Standard: IFC 4.3 ADD2)*.
 
 ## Bericht
 
@@ -223,7 +231,7 @@ Die Registerkarte zeigt den IFC-Bereich im Arbeitsbereich. Das Menüband hat hie
 
 ## KI
 
-Die Registerkarte *KI* gibt es nur, wenn *KI-Modus aktivieren* eingeschaltet ist (*Einstellungen*, Registerkarte *Erweitert*, Abschnitt *KI-Modus*). Standard: aus. Schalten Sie den Modus aus, dann verschwindet die Registerkarte und die Bridge wird gestoppt. Ein KI-Assistent arbeitet mit Ihrem Terminplan über eine MCP-Bridge, die Sie hier starten. Siehe [Einen KI-Assistenten (MCP) verbinden](docs://howto-ai-assistent-koppelen).
+Die Registerkarte *KI* gibt es nur, wenn *KI-Modus aktivieren* eingeschaltet ist (*App-Einstellungen*, Registerkarte *Erweitert*, Abschnitt *KI-Modus*). Standard: aus. Schalten Sie den Modus aus, dann verschwindet die Registerkarte und die Bridge wird gestoppt. Ein KI-Assistent arbeitet mit Ihrem Terminplan über eine MCP-Bridge, die Sie hier starten. Siehe [Einen KI-Assistenten (MCP) verbinden](docs://howto-ai-assistent-koppelen).
 
 ### KI › Server
 
@@ -237,7 +245,7 @@ Die Registerkarte *KI* gibt es nur, wenn *KI-Modus aktivieren* eingeschaltet ist
 
 ### KI › Sicherheit
 
-- **Pausieren** / **Fortsetzen** — lehnt alle Änderungen durch die KI vorübergehend ab. Lesen bleibt erlaubt und die Bridge bleibt aktiv. Die Schaltfläche leuchtet rot, solange die Pause aktiv ist.
+- **Pausieren** / **Fortsetzen** — lehnt alle Änderungen durch die KI vorübergehend ab. Lesen bleibt erlaubt und die Bridge bleibt aktiv. Die Schaltfläche leuchtet rot, solange die Änderungen durch die KI pausiert sind.
 - **Schreibgeschützt** — lehnt alle ändernden Werkzeuge ab, solange diese Option eingeschaltet ist.
 - **Automatische Sicherung: ein** / **Automatische Sicherung: aus** — schreibt vor der ersten KI-Änderung pro Dokument automatisch eine IFC-Sicherung. Standard: ein.
 - **Jetzt sichern** — schreibt sofort eine Sicherung und meldet den Dateinamen. Nur in der Desktop-App.

@@ -12,9 +12,9 @@ Most radi samo u desktop-aplikaciji. Ako AI način rada uključite u pregledniku
 
 ### 1. Uključite AI način rada
 
-1. Odaberite *Postavke › Projekt › Postavke*. Također možete odabrati *Datoteka › Postavke* ili zupčanik na vrhu.
+1. Odaberite *Postavke › Projekt › Postavke aplikacije*. Također možete odabrati *Datoteka › Postavke aplikacije* ili zupčanik na vrhu.
 2. Odaberite karticu *Napredno* i uključite *Omogući AI način rada*. Kartica *AI* pojavljuje se na vrpci.
-3. Ako želite da most bude aktivan čim se aplikacija pokrene, uključite i *Automatski pokreni most*. Ta se postavka uključuje samo kad je AI način rada uključen. Radi samo u desktop-aplikaciji. Zadano je isključena, jer je otvaranje porta namjerna odluka.
+3. Ako želite da most bude aktivan čim se aplikacija pokrene, uključite i *Automatski pokreni most*. Ta se postavka uključuje samo kad je AI način rada uključen. Radi samo u stolnoj aplikaciji. Zadano je isključena, jer je otvaranje porta namjerna odluka.
 
 Ako isključite AI način rada, most se zaustavi i kartica *AI* nestane.
 
@@ -36,14 +36,40 @@ Prozor nudi tri načina povezivanja:
 
 - *Fragment konfiguracije*: dio konfiguracije koji zalijepite u postavke MCP-a vašeg klijenta.
 - *Upit za povezivanje*: tekst koji zalijepite u AI pomoćnika. Nakon toga se pomoćnik sam poveže.
-- *Krajnja točka* i *Autentifikacija*: zasebni podaci. Krajnja točka je `http://localhost:3877/mcp` s transportom *streamable HTTP*. Svaki zahtjev mora imati zaglavlje `Authorization: Bearer`, nakon čega slijedi vaš token.
+- *Krajnja točka* i *Autentifikacija*: zasebni podaci. Krajnja točka je `http://localhost:3877/mcp` s transportom *streamable HTTP*. Svaki zahtjev mora imati zaglavlje `Authorization: Bearer`, nakon čega slijedi vaš token. Vaš klijent mora također podržavati MCP sesije: kad se poveže, most daje kod sesije u zaglavlju `Mcp-Session-Id` i odbija svaki sljedeći zahtjev bez tog koda. Claude Code i `mcp-remote` to rade sami.
 
-U grupi *Povezivanje* nalazi se i polje *Token*. To je dugi, nasumični kod koji aplikacija stvara za vas i sprema na ovom računalu. U prozoru piše *Ovaj token daje pristup otvorenom planu. Nemojte ga dijeliti s drugima.* Gumbom *Novi token* stvarate novi token. Aplikacija prvo pita *Stvaranjem novog tokena prekidaju se sve postojeće veze. Želite li nastaviti?* Ako most radi, ponovno se pokreće s novim tokenom. Stari token više ne radi.
+**Ponovno se povežite nakon ažuriranja aplikacije.** Ako je vaš AI klijent već bio povezan sa starijom verzijom aplikacije, još ne šalje kod sesije i most odbija svaki zahtjev. Zato se povežite ponovno nakon ažuriranja: pokrenite novu sesiju u Claude Code i potpuno zatvorite Claude Desktop, pa ga ponovno pokrenite.
+
+**Claude Code.** Fragment konfiguracije izravno odgovara alatu Claude Code. U terminalu upišite ovu naredbu, s vlastitim tokenom umjesto `<token>`:
+
+```
+claude mcp add --transport http open-planner-studio http://localhost:3877/mcp --header "Authorization: Bearer <token>"
+```
+
+Fragment možete staviti i u datoteku `.mcp.json` u mapi projekta. Tada tu datoteku nemojte staviti u git, jer token daje pristup vašem planu. Poslužitelj iz `.mcp.json` mora se prvi put odobriti u Claude Code.
+
+**Claude Desktop.** Fragment konfiguracije ne odgovara izravno aplikaciji Claude Desktop. U datoteci `claude_desktop_config.json` navodite program koji Claude Desktop sam pokreće, a ne adresu. Zato upotrijebite vanjski alat `mcp-remote` kao posrednika; potreban je Node.js. U aplikaciji Claude Desktop odaberite *Postavke › Programer › Uredi konfiguraciju*, u datoteku stavite ovo (s vlastitim tokenom) i ponovno pokrenite Claude Desktop:
+
+```
+{
+  "mcpServers": {
+    "open-planner-studio": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "http://localhost:3877/mcp", "--header", "Authorization:${AUTH_HEADER}"],
+      "env": { "AUTH_HEADER": "Bearer <token>" }
+    }
+  }
+}
+```
+
+Token je namjerno u `env`, a ne u `args`: u sustavu Windows aplikacija Claude Desktop pokvari argument koji sadrži razmak. *Prilagođeni konektor* u aplikaciji Claude (*Prilagodi › Konektori*) ne radi s mostom. Claude se tada povezuje iz oblaka Anthropic, a taj ne može doći do mosta na vašem računalu.
+
+U grupi *Povezivanje* nalazi se i polje *Token*. To je dugi, nasumični kod koji aplikacija stvara za vas i sprema na ovom računalu. U prozoru piše *Ovaj token daje pristup otvorenom planu. Nemojte ga dijeliti s drugima.* Ikonom *Novi token* stvarate novi token. Aplikacija prvo pita *Stvaranjem novog tokena prekidaju se sve postojeće veze. Želite li nastaviti?* Ako most radi, ponovno se pokreće s novim tokenom. Stari token više ne radi.
 
 ### 4. Pogledajte što AI radi
 
-1. Kliknite *Panel zadatka* pod *Dnevnik*. U bočnom stupcu otvara se panel *AI zadatak*.
-2. Svaki poziv mosta zauzima jedan redak, najnoviji je na vrhu: vrijeme, što se dogodilo, koliko je trajalo i je li uspjelo. Kliknite redak da proširite *Argumenti* i *Odgovor*.
+1. Kliknite *Panel zadatka* pod *Dnevnik*. U bočnom području otvara se panel *AI zadatak*.
+2. Svaki poziv mosta zauzima jedan redak, najnoviji je na vrhu: vrijeme, što se dogodilo, koliko je trajalo i je li uspjelo ili nije. Kliknite redak da proširite *Argumenti* i *Odgovor*.
 3. Gumbom *Obriši* ispraznite popis. Panel čuva zadnjih 500 poziva. Dok se ništa nije dogodilo, piše *Još nema AI zadatka. Pozivi mosta prikazat će se ovdje.*
 
 Kad je AI način rada uključen, u donjem desnom kutu trake stanja nalazi se točka s *AI*. Njezina boja pokazuje stanje mosta. Klik na nju vodi vas na karticu *AI*.
@@ -62,13 +88,13 @@ Sigurnosne kopije nalaze se u mapi `ai-backups` u mapi s podacima aplikacije. Ap
 
 ### 6. Neka pomoćnik dobro planira
 
-Pomoćnik koji poznaje alate ipak može izraditi raspored koji nijedan planer ne može koristiti: zadaci bez ovisnosti, fiksni datum kod svakog zadatka ili razrada koja je previše sitna. Zato pomoćnik dobiva pravila planiranja na tri načina. Za prva dva ne morate ništa raditi.
+Pomoćnik dobro planira samo ako poznaje pravila planiranja. Zašto je to važno i što ta pravila sadrže, pročitajte u [Kako radi povezivanje s AI-jem](docs://uitleg-ai-koppeling). Ovo radite sami:
 
-1. **Osnovna pravila dolaze sama od sebe.** Pri povezivanju most šalje kratki tekst s osnovnim pravilima. Mnogi klijenti taj tekst stavljaju u sistemski upit. Hoće li to vaš klijent učiniti, ovisi o njemu. Tekst, među ostalim, navodi da se počne od kontrolnih točaka, da zadaci traju od otprilike jednog dana do dva tjedna, da se raspored vodi ovisnostima umjesto fiksnih datuma i da se na kraju kaže što je pretpostavljeno.
-2. **Upit za povezivanje upućuje na cijeli vodič.** Upit za povezivanje iz prozora *Podaci za povezivanje* traži od pomoćnika da prvo pročita vodič za planiranje, alatom `planner_get_planning_guide`. Alat vraća engleski vodič za pomoćnike: ista načela kao u [Dobro planiranje](docs://gids-goed-plannen), s alatima koje pomoćnik za svako načelo koristi. Vodič možete sami pročitati na `https://open-planner-studio.open-aec.com/agent/planning-guide.md`. Ako ne koristite upit, zamolite pomoćnika sami: prije nego što išta promijeni, neka pročita vodič za planiranje alatom planner_get_planning_guide.
-3. **Neobavezno: vještine.** Vještina je mala datoteka s uputama koju pomoćnik čita u svakoj sesiji. Tako u kasnijem razgovoru također zna pravi način rada. Postoje dvije, obje na engleskom: *goed-plannen* za postavljanje ili prestrukturiranje rasporeda i *progress-update* za tjedno ažuriranje napretka. Ovo radi samo s pomoćnikom koji podržava vještine. Same vještine spominju Claude Code i slične pomoćnike. Svaka vještina je datoteka `SKILL.md` u vlastitoj mapi, nazvanoj po vještini: `.claude/skills/goed-plannen/SKILL.md` i `.claude/skills/progress-update/SKILL.md` u mapi projekta u kojoj pomoćnik radi, ili iste mape pod `~/.claude/skills/` da ih imate u svakom projektu.
+1. **Za osnovna pravila ne morate ništa raditi.** Ona dolaze pri povezivanju. Hoće li ih vaš klijent staviti u svoj sistemski upit, ovisi o klijentu.
+2. **Neka pomoćnik pročita vodič.** Upit za povezivanje iz prozora *Podaci za povezivanje* traži od pomoćnika da vodič za planiranje pročita alatom `planner_get_planning_guide`. Ako ne koristite taj upit, recite pomoćniku: *Pročitajte vodič za planiranje alatom planner_get_planning_guide prije nego što išta promijenite.* Vodič možete sami pročitati na `https://open-planner-studio.open-aec.com/agent/planning-guide.md`.
+3. **Neobavezno: instalirajte vještine.** Ovo radi samo s pomoćnikom koji podržava vještine. Stavite `SKILL.md` datoteke za *goed-plannen* i *progress-update* u mapu `.claude/skills/goed-plannen/SKILL.md` i `.claude/skills/progress-update/SKILL.md` u projektnoj mapi u kojoj pomoćnik radi, ili pod `~/.claude/skills/` za svaki projekt.
 
-Datoteke dobijete na dva načina. Zamolite pomoćnika da pozove alat `planner_get_planning_guide` s `part` postavljenim na `skill`. Odgovor sadrži oba teksta i, za svaku vještinu, mjesta gdje pripada. Ili ih preuzmite s `https://open-planner-studio.open-aec.com/skills/goed-plannen/SKILL.md` i `https://open-planner-studio.open-aec.com/skills/progress-update/SKILL.md`. Ako je *goed-plannen* još tu iz starije verzije aplikacije, zamijenite je. Taj stari tekst je na nizozemskom i upućuje na članak pomoći umjesto na vodič za pomoćnike.
+Datoteke dobijete na dva načina. Zamolite pomoćnika da pozove alat `planner_get_planning_guide` s `part` postavljenim na `skill`. Odgovor sadrži oba teksta i, za svaku vještinu, mjesta gdje pripada. Ili ih preuzmite s `https://open-planner-studio.open-aec.com/skills/goed-plannen/SKILL.md` i `https://open-planner-studio.open-aec.com/skills/progress-update/SKILL.md`. Ako je *goed-plannen* još uvijek tu iz starije verzije aplikacije, zamijenite je. Taj stari tekst je na nizozemskom i upućuje na članak pomoći umjesto na vodič za pomoćnike.
 
 Je li pomoćnik zaista pročitao vodič, vidite u *Panelu zadatka*: tamo je poziv alata `planner_get_planning_guide`. Konačni odgovor treba sadržavati popis pretpostavki: procijenjena trajanja, odabranu razradu, ovisnosti koje je sam stvorio i svako ograničenje koje je postavio. Ako taj popis nedostaje, zatražite ga. Nakon ažuriranja napretka prema *progress-update* odgovor treba navesti datum stanja, novi datum završetka i odstupanje u odnosu na temeljni plan.
 
@@ -96,6 +122,6 @@ Je li pomoćnik zaista pročitao vodič, vidite u *Panelu zadatka*: tamo je pozi
 
 - [Davanje povratnih informacija](docs://howto-feedback-geven): ako povezivanje radi drukčije nego što je ovdje opisano, prijavite to.
 - [Kako radi povezivanje s AI-jem](docs://uitleg-ai-koppeling): što je povezivanje, zašto pomoćnik radi u vašem otvorenom projektu i što smije, a što ne smije raditi.
-- [AI alati](docs://ref-ai-tools): svi alati `planner_*` po grupama, kodovi grešaka i koliko se sigurnosne kopije čuvaju.
+- [AI alati](docs://ref-ai-tools): svi alati `planner_*` po grupama, kodovi grešaka i koliko se sigurnosnih kopija čuva.
 - [Dobro planiranje](docs://gids-goed-plannen): načela planiranja. Pomoćnik ih dobiva u engleskoj verziji, s dodanim alatima.
-- [Postavke](docs://ref-instellingen): AI postavke.
+- [Postavke aplikacije](docs://ref-instellingen): AI postavke.

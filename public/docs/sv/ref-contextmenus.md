@@ -11,7 +11,7 @@ Det finns fyra menyer. Vilken du får beror på var du klickar:
 - **På en grupprubrik i uppgiftstabellen** — en liten meny för att fälla ut och fälla ihop grupper. Grupprubriker syns bara när du grupperar, till exempel med layouten *Resursdiagram*.
 - **På tomt utrymme** — i Gantt bredvid eller under balkarna, och i uppgiftstabellen under den sista uppgiften eller på den grå raden *Ny uppgift*. Menyn har *Ny uppgift*, *Lägg till milstolpe* och *Klistra in*. I Gantt finns också *Återställ zoom* och *Anpassa till projektet*. En ny uppgift eller milstolpe hamnar längst ned i listan. I Gantt börjar den på datumet där du klickade. I uppgiftstabellen öppnas namncellen direkt, så att du kan skriva.
 
-På själva grupprubrikens rad i Gantt öppnar högerknappen ingen meny. Ett högerklick i tidslinjens rubrik gör inte heller något. Kolumnrubrikerna i uppgiftstabellen har en egen meny, som beskrivs i [Anpassa tabellkolumner](docs://howto-tabelkolommen-aanpassen).
+På själva grupprubrikens rad i Gantt öppnar högerknappen menyn för tomt utrymme. Grupprubriken i sig har en meny bara i uppgiftstabellen. Ett högerklick i tidslinjens rubrik gör ingenting. Kolumnrubrikerna i uppgiftstabellen har en egen meny, som beskrivs i [Anpassa tabellkolumner](docs://howto-tabelkolommen-aanpassen).
 
 **Vilka uppgifter gäller en post?** Du klickar på en uppgift, men markeringen avgör omfånget. Om uppgiften du klickar på ingår i markeringen gäller posten hela markeringen. Om den inte ingår gäller posten bara den uppgiften. Vid ett högerklick på en balk i Gantt eller på en rad i uppgiftstabellen ersätter den uppgiften markeringen, om den inte ingick i den. Varje post som ändrar något är ett steg i *Ångra*, också för en hel markering.
 

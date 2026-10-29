@@ -31,9 +31,9 @@ Wie wählen Sie?
 
 **Er gehört zum Projekt.** Die Wahl wird mit der Projektdatei gespeichert, gilt für das ganze Projekt und lässt sich mit Strg+Z rückgängig machen. Ein neues Projekt verwendet Retained Logic.
 
-**Eine P6-Datei.** Wenn Sie eine Primavera-P6-Datei (.xer) öffnen, übernimmt die App den Modus aus der Datei. Außer Retained Logic und Progress Override kennt P6 auch Actual Dates. Die App kennt diesen dritten Modus nicht. So eine Datei wird als Retained Logic berechnet. Die Importmeldung zählt das als *1 P6-Planungseinstellung mit sicherem Rückfall*.
+**Eine P6-Datei.** Wenn Sie eine Primavera-P6-Datei (.xer) öffnen, übernimmt die App den Modus aus der Datei. Neben Retained Logic und Progress Override kennt P6 auch Actual Dates. Die App kennt diesen dritten Modus nicht. So eine Datei wird als Retained Logic berechnet. Die Importmeldung zählt das als *1 P6-Planungseinstellung mit sicherem Rückfall*.
 
-**Das Berechnungsprofil.** Im Profil Primavera P6 wirkt Progress Override auch rückwärts, in den späten Terminen und im freien Puffer des Vorgängers (Konvention *Progress Override ignoriert einen begonnenen Nachfolger auch rückwärts*). Im Profil Open Planner Studio und im Profil Microsoft Project ist das nicht so. Die Konventionen finden Sie unter *Einstellungen › Projekt › Projektinfo*, im Block *Berechnungsprofil und Berechnungsoptionen*. Im Beispiel der Erklärung ist dieser Rückwärtseffekt nicht zu sehen.
+**Das Berechnungsprofil.** Im Profil Primavera P6 wirkt Progress Override auch rückwärts, in den späten Terminen und im freien Puffer des Vorgängers (Konvention *Progress Override ignoriert einen begonnenen Nachfolger auch rückwärts*). Im Profil Open Planner Studio und im Profil Microsoft Project ist das nicht so. Die Konventionen finden Sie unter *Einstellungen › Projekt › Projekteinstellungen*, im Block *Berechnungsprofil und Berechnungsoptionen*. Im Beispiel der Erklärung ist dieser Rückwärtseffekt nicht zu sehen.
 
 ## Siehe auch
 

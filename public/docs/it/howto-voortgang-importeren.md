@@ -19,7 +19,7 @@ Scegli *Pianificazione › Avanzamento › Esporta foglio di avanzamento*. Lo st
 Il foglio ha otto colonne. I nomi restano in inglese; dopo ogni nome c'è una breve istruzione nella lingua dell'app:
 
 - `OPS Task ID`, `WBS` e `Name` servono solo a riconoscere l'attività. Non modificarle.
-- `Start` e `Finish` sono le date pianificate, solo come informazione. L'app non le scrive mai indietro.
+- `Start` e `Finish` sono le date pianificate, solo come informazione. L'app non le modifica mai.
 - `Completion (%)`, `Actual Start` e `Actual Finish` sono quelle che compili tu.
 
 Il foglio Excel è protetto, senza password: si possono modificare solo le tre colonne da compilare. Excel controlla che una percentuale sia tra 0 e 100 e che una data effettiva sia una data. Una fase (attività di riepilogo) è segnata in grigio con *— attività di riepilogo: non compilare*.
@@ -28,10 +28,10 @@ Il foglio Excel è protetto, senza password: si possono modificare solo le tre c
 
 Per ogni attività il capocantiere compila:
 
-- `Completion (%)`: da 0 a 100, estremi inclusi. Nel foglio Excel sono ammessi i decimali (per esempio 33,3); nel CSV l'istruzione chiede numeri interi.
-- `Actual Start` e `Actual Finish`: in Excel come data, con le impostazioni regionali del tuo computer; nel CSV come gg-mm-aaaa.
+- `Completion (%)`: da 0 a 100, estremi inclusi. L'app legge anche i decimali, con virgola o punto (per esempio 33,3 o 33.3). L'istruzione nel CSV chiede però numeri interi: un foglio con un'altra impostazione regionale può leggere 8,38 come 838.
+- `Actual Start` e `Actual Finish`: in Excel come data, con le impostazioni regionali del tuo computer; nel CSV come gg-mm-aaaa o come aaaa-mm-gg.
 
-Ciò che resta vuoto non cambia nulla. Quindi anche una cella vuota non cancella l'avanzamento esistente; questo si può fare solo nell'app. Un'attività non ancora iniziata resta completamente vuota.
+Ciò che resta vuoto non cambia nulla. Quindi anche una cella vuota non cancella l'avanzamento esistente; questo si può fare solo nell'app. Il capocantiere lascia completamente vuota un'attività non ancora iniziata.
 
 ### 4. Leggi il foglio
 

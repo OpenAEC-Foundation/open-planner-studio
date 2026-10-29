@@ -33,7 +33,7 @@ Nasıl seçersiniz?
 
 **Bir P6 dosyası.** Bir Primavera P6 dosyası (.xer) açarsanız uygulama modu dosyadan alır. P6’da Retained Logic ve Progress Override’ın yanında Actual Dates da vardır. Uygulama bu üçüncü modu tanımaz; böyle bir dosya Retained Logic olarak hesaplanır. İçe aktarma iletisi bunu *1 P6 planlama ayarı güvenli geri dönüş kullandı.* olarak sayar.
 
-**Hesaplama profili.** Primavera P6 profilinde Progress Override ayrıca geriye doğru çalışır: öncülün geç tarihlerinde ve serbest bolluğunda (kural *Progress Override başlamış bir ardılı geriye doğru da yok sayar*). Open Planner Studio ve Microsoft Project profillerinde durum böyle değildir. Kuralları *Ayarlar › Proje › Proje bilgisi* altında, *Hesaplama profili ve seçenekleri* bloğunda bulursunuz. Açıklamanın örneğinde bu geriye doğru etki görülmez.
+**Hesaplama profili.** Primavera P6 profilinde Progress Override ayrıca geriye doğru çalışır: öncülün geç tarihlerinde ve serbest bolluğunda (kural *Progress Override başlamış bir ardılı geriye doğru da yok sayar*). Open Planner Studio ve Microsoft Project profillerinde durum böyle değildir. Kuralları *Ayarlar › Proje › Proje ayarları* altında, *Hesaplama profili ve seçenekleri* bloğunda bulursunuz. Açıklamanın örneğinde bu geriye doğru etki görülemez.
 
 ## Ayrıca bakın
 

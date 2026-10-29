@@ -98,7 +98,7 @@ Inspringen, uitspringen en invoegen boven of onder een geselecteerde taak werken
 
 **Ctrl+1** tot en met **Ctrl+9** — *Wissel van document*: gaat naar het eerste tot en met negende geopende document. Bestaat dat document niet, dan gebeurt er niets. Niet in een dialoog en niet bij niet-toegepaste Projectinstellingen.
 
-**Ctrl+Home** — *Spring naar vandaag*: scrolt de tijdlijn zodat een datum links in beeld staat. Dat is de statusdatum als je die hebt ingesteld, anders vandaag. Het label zegt dus "vandaag", ook als de tijdlijn naar de statusdatum springt. Zoom en beginpunt van de tijdlijn blijven zoals ze waren. Heeft een cel van het taakraster de focus, dan gaat Ctrl+Home juist naar de eerste cel van het raster (zie *Tabel*).
+**Ctrl+Home** — *Spring naar statusdatum of vandaag*: scrolt de tijdlijn zodat een datum links in beeld staat. Dat is de statusdatum als je die hebt ingesteld, anders vandaag. Zoom en beginpunt van de tijdlijn blijven zoals ze waren. Heeft een cel van het taakraster de focus, dan gaat Ctrl+Home juist naar de eerste cel van het raster (zie *Tabel*).
 
 ## Tabel
 

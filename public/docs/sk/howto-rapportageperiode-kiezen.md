@@ -41,7 +41,7 @@ Pri voľbe *Vlastné* sa *Od* a *Do* zmenia na dve polia s dátumom. Začínajú
 
 ### 5. Prečítajte si obdobie v zostave
 
-Pri zostavách *Look-ahead*, *Zaťaženie zdrojov* a *Priradenia zdrojov* je obdobie pod nadpisom, napríklad *Obdobie: 20-05-2027 – 19-06-2027*. Ak vyberiete *Celý projekt*, za dátumy sa pridá *Celý projekt*. Zostava postupu zobrazí obdobie v súhrne, v riadku *Obdobie*. Diagram zdrojov nechá časovú os presne pokrývať obdobie.
+Pri zostavách *Look-ahead*, *Zaťaženie zdrojov* a *Priradenia zdrojov* je obdobie pod nadpisom, napríklad *Obdobie: 20-05-2027 – 19-06-2027*. Ak vyberiete *Celý projekt*, za dátumy sa pridá *Celý projekt*. Zostava postupu zobrazí obdobie v súhrne, v riadku *Obdobie*. Diagram zdrojov nastaví časovú os presne na obdobie.
 
 ### Čo obdobie robí v jednotlivých zostavách
 

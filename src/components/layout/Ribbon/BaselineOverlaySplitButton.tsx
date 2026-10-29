@@ -18,8 +18,8 @@ import { buildBaselineLayers, MAX_COMPARED_BASELINES } from '@/types/baseline';
  * Het lint had nog geen gesplitste knop. Dit hergebruikt het patroon van de grote knop Relatie
  * (`RelationDropdown`): een `Popover` met een grote `ribbon-btn` en "▾" achter het label. In de smalle
  * pictogramweergave (automatische inpassing, `data-ribbon-mini`) blijft het een eigen kolom: groot
- * pictogram boven, alleen ▾ eronder. De keuze is alleen
- * UI-state (`ui.comparedBaselineIds`), niet in het document en niet in de instellingen.
+ * pictogram boven, alleen ▾ eronder. De keuze is een documentveld (`comparedBaselineIds` in
+ * `documentContract.ts`): ze gaat mee met opslaan, undo en documentwissel, niet in de instellingen.
  */
 export function BaselineOverlaySplitButton() {
   const { t: tMenu } = useTranslation('menu');

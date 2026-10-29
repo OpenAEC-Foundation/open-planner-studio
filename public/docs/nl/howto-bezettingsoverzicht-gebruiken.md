@@ -53,7 +53,7 @@ Het overzicht laat het probleem zien, maar lost het niet op. Je hebt twee mogeli
 
 **Een project telt niet mee.** Het is niet geopend in deze app, het hangt aan een andere bibliotheek, of de resource daarin is een eigen resource van dat project. Onderaan het overzicht staat altijd *Dit overzicht ziet alleen de documenten die in dit programma geopend zijn.* Een kopie van een resource die inmiddels uit de bibliotheek is verwijderd, telt ook niet mee.
 
-**Een kopie of variant telt volwaardig mee.** Elk geopend project dat aan de bibliotheek hangt, telt mee, ook als het een kopie of variant van een ander geopend project is, bijvoorbeeld een variant die een AI-assistent maakte met `planner_duplicate_document`. Origineel en variant samen kunnen zo een dubbelbezetting tonen die er in werkelijkheid maar één keer is. Het overzicht filtert daar niet stil op: sluit de variant even, of lees eromheen.
+**Een kopie of variant telt volwaardig mee.** Elk geopend project dat aan de bibliotheek hangt, telt mee, ook als het een kopie of variant van een ander geopend project is, bijvoorbeeld een variant die een MCP-client maakte met `planner_duplicate_document`. Origineel en variant samen kunnen zo een dubbelbezetting tonen die er in werkelijkheid maar één keer is. Het overzicht filtert daar niet stil op: sluit de variant even, of lees eromheen.
 
 **Een project is verouderd.** Een project is verouderd als je iets aan de planning wijzigde zonder opnieuw te berekenen. Het overzicht gaat dan als volgt om met dat project:
 

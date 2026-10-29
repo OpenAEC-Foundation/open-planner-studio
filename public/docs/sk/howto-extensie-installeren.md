@@ -21,6 +21,8 @@ Pred inštaláciou rozšírenia dobre zvážte, či ho chcete nainštalovať. Ro
 
 Po inštalácii je rozšírenie hneď zapnuté. V karte *Prehľadávať* teraz pri rozšírení vidíte *Nainštalované*. Čo rozšírenie pridá, uvidíte priamo v aplikácii: nové tlačidlo v páse s nástrojmi alebo formát importu v *Súbor › Importovať*. Niektoré rozšírenia zobrazia aj hlásenie. Spoznáte ho podľa predpony *Extension* a názvu rozšírenia.
 
+**Návody.** Návody sú rozšírenie. Ak vidíte tlačidlo *Nainštalovať návody* v časti *Návody* v okne *Pomocník*, otvorí sa *Súbor › Rozšírenia* na karte *Prehľadávať*. Otázka po prvej prehliadke tiež nainštaluje toto rozšírenie. Obe cesty zobrazia rovnakú otázku na povolenie; môžete ju odmietnuť.
+
 ### Inštalácia rozšírenia zo súboru
 
 Ak ste dostali rozšírenie ako súbor, nainštalujte ho takto.
@@ -29,26 +31,18 @@ Ak ste dostali rozšírenie ako súbor, nainštalujte ho takto.
 2. Vpravo hore kliknite na *ZIP* pre súbor ZIP alebo na *JS* pre samostatný súbor JavaScript.
 3. Vyberte súbor. Otvorí sa okno *Nainštalovať rozšírenie?*, ako je uvedené vyššie.
 
-Súbor ZIP musí obsahovať `manifest.json` a hlavný súbor rozšírenia. Ak nainštalujete rozšírenie, ktoré je už nainštalované, nová verzia nahradí predchádzajúcu. Ak aplikácia súbor nedokáže nainštalovať, napríklad preto, že súbor ZIP je poškodený, nestane sa nič: aplikácia pri ZIP a JS nezobrazí žiadne chybové hlásenie a rozšírenie sa v zozname neobjaví. Dôvod však nájdete v ladiacom termináli. Zapnite ho v *Nastavenia › Projekt › Nastavenia*, na karte *Rozšírené*, cez *Zapnúť ladiaci terminál*. Otvoríte ho tlačidlom *Zobraziť ladiaci terminál* v stavovom riadku. Tam sa zobrazí napríklad text *[Extensies] ZIP-installatie mislukt: Error: Geen manifest.json gevonden in ZIP* (aplikácia tento technický text píše po holandsky).
+Súbor ZIP musí obsahovať `manifest.json` a hlavný súbor rozšírenia. Ak nainštalujete rozšírenie, ktoré je už nainštalované, nová verzia nahradí predchádzajúcu. Ak aplikácia súbor nedokáže nainštalovať, napríklad preto, že súbor ZIP je poškodený, nestane sa nič: aplikácia pri ZIP a JS nezobrazí žiadne chybové hlásenie a rozšírenie sa v zozname neobjaví. Dôvod však nájdete v ladiacom termináli. Zapnite ho v *Nastavenia › Projekt › Nastavenia aplikácie*, na karte *Rozšírené*, cez *Zapnúť ladiaci terminál*. Otvoríte ho tlačidlom *Zobraziť ladiaci terminál* v stavovom riadku. Tam sa zobrazí napríklad text *[Extensies] ZIP-installatie mislukt: Error: Geen manifest.json gevonden in ZIP* (aplikácia tento technický text píše po holandsky).
 
 ### Prečítajte si otázku na povolenie
 
 Otázka ukazuje, čo musíte rozhodnúť.
 
 - *Autor* a *Repozitár* uvádzajú, kto rozšírenie vytvoril a kde je zdrojový kód.
-- *Pôvod* uvádza, odkiaľ súbor pochádza: *Z online katalógu rozšírení*, *Zo súboru ZIP v tomto počítači* alebo *Zo súboru JavaScript v tomto počítači*. Pod ním je uvedené, či bol súbor overený. Pri katalógu sa zobrazí *Stiahnutie overené pomocou kontrolného súčtu z katalógu*. Ak katalóg kontrolný súčet neposkytuje, zobrazí sa červeným písmom *Katalóg neposkytuje kontrolný súčet. Toto stiahnutie nebolo overené*. Pri súbore, ktorý ste vybrali sami, sa zobrazí *Tento súbor ste vybrali sami. Nie je k dispozícii žiadny externý zdroj na overenie*.
-- *Na čo súhlasíte* uvádza: *Rozšírenie je programový kód, ktorý beží s rovnakými právami ako samotná aplikácia Open Planner Studio. Nič ho neobmedzuje. Inštalujte iba rozšírenia, ktorých autorovi dôverujete*. Pod ním sa uvádza, čo to znamená na vašej platforme. V desktopovej aplikácii sa zobrazí *V desktopovej aplikácii to znamená najmä: čítanie a zápis súborov v celom používateľskom priečinku a prístup k vašim projektom, nastaveniam a schránke*. V prehliadači sa zobrazí *V prehliadači to znamená: prístup k uloženým projektom a nastaveniam, k súborom, ku ktorým ste udelili prístup, a k sieti*.
-- *Čo toto rozšírenie uvádza, že používa* zobrazuje oprávnenia, ktoré autor uviedol, ako malé štítky. Ide o vyhlásenie autora, nie o obmedzenie. *Toto je vyhlásenie autora, nie obmedzenie. Kód môže aj tak robiť viac*. Ak štítok nie je, zobrazí sa *Nič nebolo uvedené*. To neznamená, že rozšírenie nemôže nič robiť. Aj bez štítkov môže rozšírenie čítať a meniť údaje vášho plánu a zobrazovať hlásenia.
+- *Pôvod* uvádza, odkiaľ súbor pochádza a či bol overený. Ak sa červeným písmom uvedie, že stiahnutie nebolo overené, nainštalujte ho iba vtedy, ak poznáte zdroj.
+- *Na čo súhlasíte* opakuje, že rozšírenie je programový kód, ktorý beží s rovnakými právami ako samotná aplikácia, a čo to znamená na vašej platforme. Inštalujte iba rozšírenia, ktorých autorovi dôverujete.
+- *Čo toto rozšírenie uvádza, že používa* zobrazuje oprávnenia, ktoré autor uviedol, ako malé štítky. Ide o vyhlásenie, nie o obmedzenie. Ak sa zobrazí *Nič nebolo uvedené.*, rozšírenie môže aj tak čítať a meniť údaje vášho plánu.
 
-Štítky znamenajú toto:
-
-- *ribbon*: rozšírenie umiestni tlačidlá do pásu s nástrojmi.
-- *events*: rozšírenie sleduje udalosti v aplikácii.
-- *backstage*: rozšírenie pridá formáty importu do *Súbor › Importovať*.
-- *pdf-fonts*: rozšírenie dodá písmo pre export do PDF.
-- *importSource*: rozšírenie môže čítať celé pôvodné bajty každého súboru, ktorý importujete, napríklad surový súbor Primavera, vrátane polí, ktoré sa nedostanú do vášho projektu. Aj samotné okno to vysvetľuje.
-- *help*: rozšírenie môže pridať články nápovedy, otvoriť priložené projekty ako nový dokument a zobraziť sprievodcu, ktorý ukazuje na časti aplikácie. Aj samotné okno to vysvetľuje.
-- *filesystem* a *network*: ide iba o naznačenie, čo autor zamýšľa. Aplikácia pre ne nemá žiadnu funkciu.
+Čo znamená každý štítok a presné znenie okna nájdete v článku [Oprávnenia rozšírení](docs://ref-extensiepermissies).
 
 ### Zakázanie, opätovné povolenie alebo odstránenie rozšírenia
 

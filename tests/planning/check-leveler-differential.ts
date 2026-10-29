@@ -92,11 +92,12 @@ function project(rep: number) {
   return { tasks, seqs, cal, resources, assignments, options, features };
 }
 
-const schedulingOptions = effectiveSchedulingOptions({});
 let withFeatures = 0;
 let local = 0;
 for (let rep = 0; rep < 300; rep++) {
   const p = project(rep);
+  const baseId = (['ops', 'msproject', 'p6'] as const)[Math.floor(rep / 3) % 3];
+  const schedulingOptions = effectiveSchedulingOptions({ schedulingProfile: { baseId, id: baseId, name: '', overrides: {} } });
   if (p.features.alap || p.features.hammock) withFeatures++; else local++;
   const calendars = [p.cal, SIX];
   const cpm = solveProject({ tasks: p.tasks, sequences: p.seqs, calendar: p.cal, calendars, schedulingOptions, projectStartDate: '2026-06-01' });

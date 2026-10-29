@@ -186,6 +186,7 @@ export function createExtensionApi(
      *  (gemapt uit de Immer-bevroren store) — muteren ervan raakt de store niet. Schrijf via
      *  addTask/updateTask/addSequence en roep daarna recalculate() aan. */
     data: {
+      getSelectedTaskIds: () => [...document.store.getState().selectedTaskIds],
       getProject: () => toExtProject(document.store.getState().project),
       getCalendar: () => toExtCalendar(document.store.getState().calendar),
       getTasks: () => {
@@ -324,6 +325,10 @@ export function createExtensionApi(
         unsubscribeExtensionEvent(event, listener);
       },
       emit(event: string, data?: unknown) {
+        // De host-naamruimte is alleen-lezen voor extensies, inclusief toekomstige host-events.
+        if (event.startsWith('host:')) {
+          throw new Error('The host: event namespace is reserved for the application.');
+        }
         emitExtensionEvent(event, data);
       },
     },

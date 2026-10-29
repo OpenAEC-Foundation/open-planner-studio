@@ -41,7 +41,7 @@ Bei *Benutzerdefiniert* werden *Von* und *Bis* zu zwei Datumsfeldern. Sie beginn
 
 ### 5. Lesen Sie den Zeitraum im Bericht
 
-Bei der *Vorschau (Look-ahead)*, der *Ressourcenauslastung* und den *Ressourcenzuweisungen* steht der Zeitraum unter dem Titel, zum Beispiel *Zeitraum: 20-05-2027 – 19-06-2027*. Wenn Sie *Gesamtes Projekt* wählen, steht *Gesamtes Projekt* hinter den Daten. Der *Fortschrittsbericht* zeigt den Zeitraum in der Zusammenfassung bei *Zeitraum*. Das *Ressourcendiagramm* lässt seine Zeitachse genau über den Zeitraum laufen.
+Bei der *Vorschau (Look-ahead)*, der *Ressourcenauslastung* und den *Ressourcenzuweisungen* steht der Zeitraum unter dem Titel, zum Beispiel *Zeitraum: 20-05-2027 – 19-06-2027*. Wenn Sie *Gesamtes Projekt* wählen, steht *Gesamtes Projekt* hinter den Daten. Der *Fortschrittsbericht* zeigt den Zeitraum in der Zusammenfassung bei *Zeitraum*. Die Zeitachse des *Ressourcendiagramms* deckt genau den Zeitraum ab.
 
 ### Was der Zeitraum pro Bericht bewirkt
 

@@ -1,6 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod commands;
+#[cfg(target_os = "linux")]
+mod desktop_integration;
 mod mcp_bridge;
 
 use tauri::Manager;
@@ -24,7 +26,31 @@ fn focus_existing_window(app: &tauri::AppHandle) {
     }
 }
 
+/// Proces-id van de app voor de webview, als initialisatiescript (issue #570).
+///
+/// De MCP-plugin leest `runtime.json` en `open-files.json` in `<appDataDir>/mcp/` en herkent een
+/// achtergebleven bestand aan een proces-id dat niet meer leeft (`docs/mcp-ontdekking.md`). Geen
+/// JS-API van Tauri of een plugin geeft dat id, en een command hiervoor zou nieuw publiek oppervlak
+/// zijn (AGENTS.md: precies drie commands). Daarom zet deze plugin zonder commands het id vóór de
+/// eerste regel app-code als alleen-lezen `window.__OPS_PROCESS__.pid`, net zoals `tauri-plugin-os`
+/// zijn platformgegevens injecteert. Alleen het hoofdframe; het id is geen geheim.
+fn process_info_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
+    tauri::plugin::Builder::new("ops-process-info")
+        .js_init_script(format!(
+            "Object.defineProperty(window, '__OPS_PROCESS__', {{ value: Object.freeze({{ pid: {} }}), writable: false, configurable: false }});",
+            std::process::id()
+        ))
+        .build()
+}
+
 fn main() {
+    // Installatietype één keer per proces bepalen, vroeg en buiten de UI-thread (zie
+    // `commands::install_kind`): later kan het programmapad al vervangen zijn door een pakketupdate.
+    std::thread::spawn(commands::warm_install_kind);
+    // AppImage: menu-item en logo voor de gebruiker neerzetten (zie `desktop_integration`).
+    #[cfg(target_os = "linux")]
+    std::thread::spawn(desktop_integration::integrate_appimage);
+
     let mut builder = tauri::Builder::default();
 
     // ── Single instance (bevinding K5) ──────────────────────────────────────────────────────
@@ -58,6 +84,7 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(process_info_plugin())
         // MCP-bridge-state (fase 1, Tauri-only): één actieve bridge of geen.
         .manage(mcp_bridge::BridgeState::default())
         // Alles wat hier staat is aanroepbaar via `window.__TAURI_INTERNALS__.invoke(...)`

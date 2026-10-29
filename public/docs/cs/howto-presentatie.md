@@ -19,9 +19,9 @@ Ve prezentačním režimu pás karet zmizí, proto zobrazení nastavte předem.
 
 ### Spuštění prezentace
 
-Zvolte *Zobrazení › Prezentace › Prezentace*, nebo stiskněte F11. Pás karet, karty, stavový řádek a pravý panel zmizí. Vidíte tabulku úkolů, Gantt a případně, pokud jste je zapnuli, histogram a minimapu. Několik sekund se dole zobrazuje text *Stisknutím Esc nebo F11 ukončíte celou obrazovku.*
+Zvolte *Zobrazení › Prezentace › Prezentace*. V desktopové aplikaci můžete také stisknout F11. V prohlížeči patří F11 prohlížeči: ten přepne okno prohlížeče na celou obrazovku a aplikace zůstane beze změny. Pás karet, karty, stavový řádek a pravý panel zmizí. Vidíte tabulku úkolů, Gantt a případně, pokud jste je zapnuli, histogram a minimapu. Několik sekund se dole zobrazuje text *Stisknutím Esc nebo F11 ukončíte celou obrazovku.*
 
-Prezentaci můžete spustit z libovolné karty, také z karty *Tabulka* nebo z karty *Sestava*. Vždy vidíte Gantt otevřeného projektu a po ukončení se vrátíte na kartu, ze které jste začali.
+V desktopové aplikaci spustíte prezentaci z libovolné karty klávesou F11, také z karty *Tabulka* nebo *Sestava*. V prohlížeči ji spustíte jen volbou *Zobrazení › Prezentace › Prezentace*. Vždy vidíte Gantt otevřeného projektu a po ukončení se vrátíte na kartu, ze které jste začali. V prohlížeči je to tedy *Zobrazení*.
 
 ### Ukončení prezentace
 
@@ -33,9 +33,9 @@ Stiskněte Esc nebo F11. Pás karet a panely se vrátí na kartu, ze které jste
 
 **Upozornění zůstávají vidět.** Zpráva z aplikace, například chyba při ukládání, se zobrazí také v prezentačním režimu. Jinak tu není pás karet ani stavový řádek, takže taková zpráva je jediným znakem, že něco není v pořádku.
 
-**Rozdělené zobrazení, minimapu a rozložení nastavte předem.** K tomu potřebujete pás karet, a ten v tomto režimu není. Přiblížení funguje kolečkem myši nebo klávesami Ctrl+= a Ctrl+-. Také + a - fungují, ale jen když je fokus v diagramu Gantt. Po F11 je fokus často v tabulce úkolů, proto nejprve klikněte do diagramu Gantt.
+**Rozdělené zobrazení, minimapu a rozložení nastavte předem.** K tomu potřebujete pás karet, a ten v tomto režimu není. Přiblížení funguje kolečkem myši nebo klávesami Ctrl+= a Ctrl+-. Také + a - fungují, ale jen když je fokus v diagramu Gantt. Po spuštění je fokus často v tabulce úkolů, proto nejprve klikněte do diagramu Gantt.
 
-**Celá obrazovka nefunguje.** Kromě skrytí pásu karet aplikace skutečně požaduje celou obrazovku. Když to prohlížeč nebo okno odmítne, zmizí jen pás karet a panely. Prezentace ale funguje dál. Když celou obrazovku ukončíte jinak než klávesou Esc nebo F11, například klávesou operačního systému, skončí také prezentační režim.
+**Celá obrazovka nefunguje.** Kromě skrytí pásu karet aplikace také skutečně požaduje celou obrazovku. Když to prohlížeč nebo okno odmítne, zmizí jen pás karet a panely. Prezentace ale funguje dál. Když celou obrazovku ukončíte jinak než klávesou Esc nebo F11, například klávesou operačního systému, skončí také prezentační režim.
 
 **Prezentační režim se nepamatuje.** Po zavření a novém otevření aplikace je vypnutý.
 

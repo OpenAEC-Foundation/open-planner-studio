@@ -1425,6 +1425,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "work-category": {
+    "term": "공종",
+    "forms": [
+      "공종"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "근무 시간",
     "forms": [

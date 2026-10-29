@@ -64,7 +64,7 @@ Um ficheiro de projeto contém as suas próprias cópias dos recursos. Se també
 
 1. Abra um projeto que esteja associado a uma biblioteca e escolha *Ficheiro › Exportar*.
 2. Marque *Guardar também o ficheiro de biblioteca*. A caixa de verificação só aparece para um projeto associado.
-3. Escolha o cartão *IFC 4x3* e guarde o ficheiro. A aplicação pede então também um segundo ficheiro. Tem o mesmo nome do projeto, seguido de `-bibliotheek`, e contém a biblioteca.
+3. Escolha o cartão *IFC* e guarde o ficheiro. A aplicação pede então também um segundo ficheiro. Tem o mesmo nome do projeto, seguido de `-bibliotheek`, e contém a biblioteca.
 
 A caixa de verificação só funciona na exportação IFC, e não nos outros formatos de exportação. O seu colega importa o segundo ficheiro, como descrito acima.
 
@@ -72,7 +72,7 @@ A caixa de verificação só funciona na exportação IFC, e não nos outros for
 
 **Dois planeadores, duas bibliotecas.** A aplicação não sincroniza bibliotecas entre computadores. A janela de importação mostra sempre um aviso sobre isto: *Nota: as bibliotecas não são sincronizadas entre computadores. Se dois planeadores trabalharem com a mesma biblioteca de recursos, as bibliotecas podem divergir. Se a sua organização partilhar equipas entre empresas operacionais, escolha deliberadamente uma biblioteca de recursos partilhada.*
 
-**Substituir escreve por cima de tudo.** Perde-se tudo o que tinha na biblioteca escolhida, e uma alteração à biblioteca fica fora de *Desfazer*. Exporte primeiro se tiver dúvidas.
+**Substituir escreve por cima de tudo.** Perde-se tudo o que tinha na biblioteca escolhida, e uma alteração à biblioteca fica fora de *Desfazer*. Exporte primeiro se tiver dúvidas. Os seus projetos mantêm as suas cópias. A aplicação atualiza as cópias que ainda existem no novo ficheiro. As cópias que já não estão nele recebem a marca *não está mais na biblioteca* e continuam a funcionar. Se uma cópia for diferente, abre-se a janela *Vincular biblioteca de recursos* (ver [Utilizar a biblioteca de recursos](docs://howto-resourcebibliotheek-gebruiken)).
 
 **Eliminar um calendário da lista é imediato.** A aplicação não pede confirmação, ao contrário do que acontece ao eliminar um recurso. Isto parece uma limitação. As alterações à biblioteca ficam fora de *Desfazer*.
 

@@ -25,15 +25,15 @@ Hvordan vælger du?
 
 ## Faldgruber, og hvad appen gør
 
-**Ingen forskel.** Fremdriftsmetoden har kun virkning på opgaver, der allerede er startet, mens deres foregående opgave endnu ikke er færdig. Uden en sådan opgave ændrer intet sig.
+**Ingen forskel.** Fremdriftstilstanden har kun virkning på opgaver, der allerede er startet, mens deres foregående opgave endnu ikke er færdig. Uden en sådan opgave ændrer intet sig.
 
-**Meddelelsen bliver.** Progress Override løser ikke meddelelsen om fremdrift uden for rækkefølge. Fremdriftsmetoden bestemmer, hvordan appen beregner. Uoverensstemmelsen mellem afhængighed og fremdrift består. Hvis afhængigheden ikke længere er rigtig, ændr den ([Tilføjelse af afhængigheder](docs://howto-relaties-leggen)).
+**Meddelelsen bliver.** Progress Override løser ikke meddelelsen om fremdrift uden for rækkefølge. Fremdriftstilstanden bestemmer, hvordan appen beregner. Uoverensstemmelsen mellem afhængighed og fremdrift består. Hvis afhængigheden ikke længere er rigtig, ændr den ([Tilføjelse af afhængigheder](docs://howto-relaties-leggen)).
 
 **Den hører til projektet.** Valget gemmes i projektfilen, gælder for hele projektet, og du kan fortryde det med Ctrl+Z. Et nyt projekt bruger Retained Logic.
 
-**En P6-fil.** Åbner du en Primavera P6-fil (.xer), tager appen fremdriftsmetoden fra filen. Ud over Retained Logic og Progress Override har P6 også Actual Dates. Appen kender ikke den tredje metode. En sådan fil beregnes som Retained Logic. Importmeddelelsen tæller det som *1 P6-planindstilling brugte en sikker reserve.*
+**En P6-fil.** Åbner du en Primavera P6-fil (.xer), tager appen fremdriftstilstanden fra filen. Ud over Retained Logic og Progress Override har P6 også Actual Dates. Appen kender ikke den tredje tilstand. En sådan fil beregnes som Retained Logic. Importmeddelelsen tæller det som *1 P6-planindstilling brugte en sikker reserve.*
 
-**Beregningsprofilen.** I Primavera P6-beregningsprofilen virker Progress Override også baglæns, i de seneste datoer og i tilladt slæk for den foregående opgave (konvention *Progress Override ignorerer også en startet efterfølgende opgave baglæns*). I beregningsprofilerne Open Planner Studio og Microsoft Project gør den det ikke. Konventionerne finder du under *Indstillinger › Projekt › Projektinfo*, i blokken *Beregningsprofil og beregningsindstillinger*. I eksemplet i forklaringen kan den baglæns virkning ikke ses.
+**Beregningsprofilen.** I Primavera P6-beregningsprofilen virker Progress Override også baglæns, i de seneste datoer og i tilladt slæk for den foregående opgave (konvention *Progress Override ignorerer også en startet efterfølgende opgave baglæns*). I beregningsprofilerne Open Planner Studio og Microsoft Project gør den det ikke. Konventionerne finder du under *Indstillinger › Projekt › Projektindstillinger*, i blokken *Beregningsprofil og beregningsindstillinger*. I eksemplet i forklaringen kan den baglæns virkning ikke ses.
 
 ## Se også
 

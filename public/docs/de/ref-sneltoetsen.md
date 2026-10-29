@@ -12,9 +12,9 @@ Alle Tastenkombinationen der App, gruppiert wie im Fenster *Tastenkombinationen*
 
 **Wenn eine Taste nicht funktioniert.** Jeder Eintrag nennt seine Einschränkungen. Drei Regeln gelten fast überall:
 
-- In einem Eingabefeld, einer Dropdown-Liste oder einem Textfeld fängt die App keine Tasten ab. Sie können also einfach tippen. Ausnahmen: F5, Ctrl+S, F11 und Esc während der Präsentation funktionieren auch in einem Feld. In der fertigen App (Desktop und die Webversion auf der Website) gilt das auch für Ctrl+Shift+S, Ctrl+O und Ctrl+N.
-- Während ein Dialog oder ein anderes Fenster offen ist, funktionieren die Tasten nicht, die unten mit *Nicht in einem Dialog* markiert sind. Das gilt auch für den Präsentationsmodus, die Tour, den Willkommensdialog und die Fragen, die auf eine Antwort warten, zum Beispiel die Zustimmung bei der Installation einer Erweiterung.
-- Dokumentwechsel (Ctrl+1 bis 9, Ctrl+N, Ctrl+O) funktionieren auch nicht, solange *Datei › Projektinfo* Änderungen enthält, die Sie noch nicht mit *Anwenden* bestätigt haben. Verwerfen Sie die Änderungen oder wenden Sie sie zuerst an.
+- In einem Eingabefeld, einer Dropdown-Liste oder einem Textfeld fängt die App keine Tasten ab. Sie können also einfach tippen. Ausnahmen: F5, Ctrl+S, F11 und Esc während der Präsentation funktionieren auch in einem Feld. Liegt der Fokus auf einer geschlossenen Dropdown-Liste, funktionieren auch die Tasten mit Ctrl, zum Beispiel Ctrl+Z nach einer Auswahl (nicht Ctrl+Delete und Ctrl+Backspace). Das gilt nicht in einer geöffneten Liste oder in einem Dialog. In der fertigen App (Desktop und die Webversion auf der Website) gilt das auch für Ctrl+Shift+S, Ctrl+O und Ctrl+N.
+- Während ein Dialog oder ein anderes Fenster offen ist, funktionieren die Tasten nicht, die unten mit *Nicht in einem Dialog* markiert sind. Das gilt auch für die Tour, den Willkommensdialog und die Fragen, die auf eine Antwort warten, etwa die Frage, ob Ihre Änderungen gespeichert werden sollen, und die Zustimmung bei der Installation einer Erweiterung. Die meisten dieser Tasten funktionieren auch im Präsentationsmodus nicht. Ausnahme: Die Bearbeitungstasten Ctrl+C, Ctrl+V, Ctrl+Z, Ctrl+Y und Delete/Backspace funktionieren während der Präsentation.
+- Dokumentwechsel (Ctrl+1 bis 9, Ctrl+N, Ctrl+O) funktionieren auch nicht, solange *Datei › Projekteinstellungen* Änderungen enthält, die Sie noch nicht mit *Anwenden* bestätigt haben. Verwerfen Sie die Änderungen oder wenden Sie sie zuerst an.
 
 ## Datei
 
@@ -24,23 +24,23 @@ Alle Tastenkombinationen der App, gruppiert wie im Fenster *Tastenkombinationen*
 
 **Ctrl+Shift+S** — *Speichern unter*: fragt, wo die Datei abgelegt werden soll. In einer Entwicklungsversion funktioniert es nicht in einem Eingabefeld.
 
-**Ctrl+O** — *Öffnen*: öffnet eine Datei, meist in einem neuen Tab. Nicht in einem Dialog und nicht bei noch nicht bestätigter Projektinfo.
+**Ctrl+O** — *Öffnen*: öffnet eine Datei, meist in einem neuen Tab. Nicht in einem Dialog und nicht bei noch nicht bestätigten Projekteinstellungen.
 
-**Ctrl+N** — *Neues Projekt*: öffnet das Fenster *Neues Projekt*. Nicht in einem Dialog und nicht bei noch nicht bestätigter Projektinfo.
+**Ctrl+N** — *Neues Projekt*: öffnet das Fenster *Neues Projekt*. Nicht in einem Dialog und nicht bei noch nicht bestätigten Projekteinstellungen.
 
 Die fertige App (Desktop und die Webversion auf der Website) blockiert außerdem einige Browser-Tasten, damit sie nicht stören: Ctrl+R und Ctrl+Shift+R (neu laden), F12, Ctrl+Shift+I und Ctrl+Shift+J (Entwicklerwerkzeuge), Ctrl+U (Quelltext anzeigen) sowie Ctrl+G, Ctrl+F und Ctrl+L (Suchen und Adressleiste). Ctrl+S, Ctrl+Shift+S, Ctrl+O, Ctrl+N und F5 gehen an die App selbst.
 
 ## Bearbeiten
 
-**Ctrl+C** — *Kopieren*: kopiert die ausgewählten Vorgänge. Nur mit einer Auswahl. In der Vorgangstabelle kopiert Ctrl+C die ausgewählten Zellen; das übernimmt die Vorgangstabelle selbst.
+**Ctrl+C** — *Kopieren*: kopiert die ausgewählten Vorgänge. Nur mit einer Auswahl. Nicht in einem Dialog. Nicht in *Datei*, nicht auf den Tabs *Bericht* und *IFC* und nicht, solange das vollständige Ressourcen-Panel geöffnet ist. In der Vorgangstabelle kopiert Ctrl+C die ausgewählten Zellen; das übernimmt die Vorgangstabelle selbst.
 
-**Ctrl+V** — *Einfügen*: fügt kopierte Vorgänge ein. In der Vorgangstabelle fügt es die Zellen ein.
+**Ctrl+V** — *Einfügen*: fügt kopierte Vorgänge ein. Nicht in einem Dialog. Nicht in *Datei*, nicht auf den Tabs *Bericht* und *IFC* und nicht, solange das vollständige Ressourcen-Panel geöffnet ist, weil die Vorgangstabelle dort nicht sichtbar ist. In der Vorgangstabelle fügt es die Zellen ein.
 
-**Ctrl+Z** — *Rückgängig*.
+**Ctrl+Z** — *Rückgängig*. Nicht in einem Dialog: Schließen Sie zuerst das Fenster.
 
-**Ctrl+Y** oder **Ctrl+Shift+Z** — *Wiederholen*: wiederholt, was Sie rückgängig gemacht haben.
+**Ctrl+Y** oder **Ctrl+Shift+Z** — *Wiederholen*: wiederholt, was Sie rückgängig gemacht haben. Nicht in einem Dialog.
 
-**Delete** oder **Backspace** — *Löschen*: löscht die ausgewählten Vorgänge. Nur mit einer Auswahl. In einer Zelle der Vorgangstabelle löschen Delete und Backspace nur den Zellinhalt (siehe *Tabelle*).
+**Delete** oder **Backspace** — *Löschen*: löscht die ausgewählten Vorgänge. Nur mit einer Auswahl. Nicht in einem Dialog. Nicht in *Datei*, nicht auf den Tabs *Bericht* und *IFC* und nicht, solange das vollständige Ressourcen-Panel geöffnet ist, weil die Vorgangstabelle dort nicht sichtbar ist. In einer Zelle der Vorgangstabelle löschen Delete und Backspace nur den Zellinhalt (siehe *Tabelle*).
 
 **F2** — *Bearbeiten...*: öffnet den Vorgangsdialog für den ersten ausgewählten Vorgang. Nur mit einer Auswahl. Nicht in einem Dialog. In einer Zelle der Vorgangstabelle startet F2 die Bearbeitung der Zelle.
 
@@ -68,7 +68,7 @@ Nur in der einfachen Baumansicht funktionieren Tiefer stufen, Ausrücken sowie d
 
 ## Ansicht
 
-**F11** — *Präsentation*: schaltet den Präsentationsmodus ein oder aus. Die App bittet außerdem den Browser oder das Fenster um Vollbild. Funktioniert auch in einem Eingabefeld.
+**F11** — *Präsentation*: schaltet den Präsentationsmodus ein oder aus. Die App bittet außerdem das Fenster um Vollbild. Funktioniert auch in einem Eingabefeld. Im Browser startet F11 die Präsentation nicht: Der Browser stellt das Fenster selbst auf Vollbild, und die App bleibt, wie sie ist. F11 beendet eine laufende Präsentation im Browser.
 
 **Esc** (während der Präsentation) — *Präsentation verlassen*. Funktioniert auch in einem Eingabefeld. Dies hat Vorrang vor *Auswahl aufheben*.
 
@@ -96,7 +96,7 @@ Nur in der einfachen Baumansicht funktionieren Tiefer stufen, Ausrücken sowie d
 
 **F1** — *Hilfe öffnen*: öffnet *Datei › Hilfe*. Nicht in einem Eingabefeld und nicht in einem Dialog. In einem Fenster verwenden Sie das Fragezeichen oben rechts: Es öffnet die Hilfe zum Artikel über dieses Fenster (siehe [Das Menüband, Tab für Tab](docs://ref-lint), unter *Hilfe*).
 
-**Ctrl+1** bis **Ctrl+9** — *Dokument wechseln*: wechselt zum ersten bis neunten geöffneten Dokument. Wenn dieses Dokument nicht existiert, passiert nichts. Nicht in einem Dialog und nicht bei noch nicht bestätigter Projektinfo.
+**Ctrl+1** bis **Ctrl+9** — *Dokument wechseln*: wechselt zum ersten bis neunten geöffneten Dokument. Wenn dieses Dokument nicht existiert, passiert nichts. Nicht in einem Dialog und nicht bei noch nicht bestätigten Projekteinstellungen.
 
 **Ctrl+Home** — *Zu heute springen*: scrollt die Zeitachse so, dass ein Datum links im Bereich steht. Das ist das Statusdatum, wenn Sie eines gesetzt haben, sonst heute. Deshalb sagt die Bezeichnung „heute“, auch wenn die Zeitachse zum Statusdatum springt. Zoom und Anfang der Zeitachse bleiben unverändert. Wenn eine Zelle der Vorgangstabelle den Fokus hat, geht Ctrl+Home stattdessen zur ersten Zelle der Vorgangstabelle (siehe *Tabelle*).
 

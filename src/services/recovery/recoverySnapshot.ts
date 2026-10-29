@@ -1,5 +1,5 @@
-import { writeIFC } from '@/services/ifc/ifcWriter';
-import { buildWriteIFCInput, type IFCSaveSource } from '@/state/ifcSaveInput';
+import type { IFCSaveSource } from '@/state/ifcSaveInput';
+import { serializeRecoverySnapshot } from './recoverySnapshotInput';
 import { saveRecovery } from './recoveryStore';
 import type { RecoveryDeltaTracker, RecoverySourceDocument } from './recoveryDelta';
 
@@ -11,9 +11,7 @@ import type { RecoveryDeltaTracker, RecoverySourceDocument } from './recoveryDel
  * schrijfactie van megabytes. Het echte opslaan (`buildWriteIFCInput` zonder deze optie) schrijft
  * het archief wél volledig; het IFC-projectbestand blijft de bron.
  */
-export function serializeRecoverySnapshot(source: IFCSaveSource): string {
-  return writeIFC({ ...buildWriteIFCInput(source), xerSourceArchiveStorage: 'recovery-reference' });
-}
+export { serializeRecoverySnapshot };
 
 /**
  * Eén crashherstel-ronde: delta bepalen, gewijzigde documenten serialiseren, opslaan en pas daarna
@@ -25,10 +23,17 @@ export async function runRecoveryTick(
   tracker: RecoveryDeltaTracker,
   activeDocumentId: string | null,
   documents: readonly RecoverySourceDocument[],
+  serialize: (source: IFCSaveSource) => Promise<string> = async source => serializeRecoverySnapshot(source),
+  enabled: () => boolean = () => true,
 ): Promise<boolean> {
-  const save = tracker.prepare(activeDocumentId, documents, serializeRecoverySnapshot);
-  if (!save) return false;
-  await saveRecovery(save);
-  tracker.commit(activeDocumentId, documents);
-  return true;
+  return tracker.runExclusive(async () => {
+    if (!enabled()) return false;
+    const save = await tracker.prepareAsync(activeDocumentId, documents, serialize);
+    // Stop/clean quit kan tijdens workerwerk plaatsvinden. Bied daarna nooit een late save aan;
+    // een al aangeboden save staat in de backendketen vóór het wissen.
+    if (!save || !enabled()) return false;
+    await saveRecovery(save);
+    tracker.commit(activeDocumentId, documents);
+    return true;
+  });
 }

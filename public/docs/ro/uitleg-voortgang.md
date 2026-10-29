@@ -16,7 +16,7 @@ O **referință** este o copie a planificării la un anumit moment, de obicei mo
 
 Exemplul de mai jos folosește profilul de calcul *Open Planner Studio*, cu care calculează un proiect nou. Mai jos puteți citi ce este diferit în profilurile Primavera P6 și Microsoft Project.
 
-Aplicația nu recalculează singură. După fiecare modificare a progresului sau a datei raportului de stare, bara de stare afișează *Învechit — recalculați (F5)*. Apăsați **Calculare** (F5), de exemplu prin *Planificare › Planificare › Calculare*. Dacă *Calculare automată* este activată (sub *Setări › Proiect › Setări*, fila *Planificare*, secțiunea *Calculare*), aplicația face asta singură.
+Aplicația nu recalculează singură. După fiecare modificare a progresului sau a datei raportului de stare, bara de stare afișează *Învechit — recalculați (F5)*. Apăsați **Calculare** (F5), de exemplu prin *Planificare › Planificare › Calculare*. Dacă *Calculare automată* este activată (sub *Setări › Proiect › Setări aplicație*, fila *Planificare*, secțiunea *Calculare*), aplicația face asta singură.
 
 ### Data raportului de stare
 
@@ -26,7 +26,7 @@ Data raportului de stare face trei lucruri.
 
 În al doilea rând, lucrul care nu a început nu poate fi în trecut. Dacă o astfel de activitate este planificată înainte de data raportului de stare, aplicația o mută în data raportului de stare. Același lucru se aplică activităților de după ea, care se mută prin dependențele lor. Efectul se vede în exemplul de mai jos. În profilul Microsoft Project, aplicația nu face asta.
 
-În al treilea rând, lucrul rămas al unei activități care rulează deja începe chiar în data raportului de stare. Aplicația tratează data raportului de stare ca începutul acelei zile. Dacă faceți bilanțul vineri, după terminarea programului, setați deci data raportului de stare pe luni. Dacă o setați pe vineri, aplicația planifică lucrul rămas tot în acea vineri.
+În al treilea rând, lucrul rămas al unei activități în curs începe chiar în data raportului de stare. Aplicația tratează data raportului de stare ca începutul acelei zile. Dacă faceți bilanțul vineri, după terminarea programului, setați deci data raportului de stare pe luni. Dacă o setați pe vineri, aplicația planifică lucrul rămas tot în acea vineri.
 
 Dacă nu aveți încă o dată a raportului de stare și introduceți progres, aplicația setează data raportului de stare pe azi și vă anunță. Setați o altă dată din *Planificare › Referințe și progres › Data raportului de stare*. Fără dată a raportului de stare, aplicația calculează o activitate în curs înainte cu durata rămasă, dar înapoi cu durata completă; marja iese atunci negativă, iar activitatea pare critică fără motiv.
 
@@ -41,7 +41,7 @@ Câmpurile depind unul de altul. Dacă completați unul, aplicația completează
 - Un jalon are doar o singură dată reală.
 - O fază (activitate rezumat) nu are progres propriu. După calcul, procentul ei urmează din activitățile de sub ea: media ponderată a procentelor lor, cu durata în zile lucrătoare ca pondere. Un jalon are pondere 0.
 
-Dacă schimbați durata unei activități care rulează deja, lucrul deja efectuat rămâne efectuat. Procentul se ajustează: o activitate de 5 zile lucrătoare la 60%, pe care o setați la 10 zile lucrătoare, ajunge la 30%. Aplicația refuză o durată mai scurtă decât lucrul deja efectuat.
+Dacă schimbați durata unei activități în curs, lucrul deja efectuat rămâne efectuat. Procentul se ajustează: o activitate de 5 zile lucrătoare la 60%, pe care o setați la 10 zile lucrătoare, ajunge la 30%. Aplicația refuză o durată mai scurtă decât lucrul deja efectuat.
 
 ### Activități finalizate și în curs
 
@@ -62,7 +62,7 @@ Două moduri de progres stabilesc cum calculează aplicația acest caz:
 
 ### Referințe și varianță
 
-Când salvați, aplicația înregistrează pentru fiecare activitate fără subactivități începutul cel mai devreme, sfârșitul cel mai devreme, durata și tipul de jalon. Fazele nu sunt incluse. Ce modificați după aceea nu atinge referința. Puteți păstra mai multe referințe; exact una este **activă**. Diagrama Gantt, raportul de varianță și raportul de progres folosesc referința activă.
+Când salvați, aplicația înregistrează pentru fiecare activitate fără subactivități începutul cel mai devreme, sfârșitul cel mai devreme, durata și tipul de jalon. Fazele nu sunt incluse. Ce modificați după aceea nu afectează referința. Puteți păstra mai multe referințe; exact una este **activă**. Diagrama Gantt, raportul de varianță și raportul de progres folosesc referința activă.
 
 **Varianța** este diferența, în zile lucrătoare, dintre referință și planificarea curentă. Un plus înseamnă mai târziu, un minus mai devreme. Aplicația numără în calendarul proiectului. Raportul de varianță dă varianța de început și de sfârșit pe activitate. Statusul rezultă doar din sfârșit: *Întârziată* pentru un plus, *Devansată* pentru un minus, altfel *Conform planificării*. O activitate adăugată după referință se numește *Nouă*; o activitate care nu mai există este *Eliminată*.
 
@@ -124,25 +124,25 @@ Dacă setați doar data raportului de stare pe luni, 28 iunie, și nu introduce�
 
 ## Exemplu lucrat: tencuitor și zugrav
 
-Acum un exemplu pentru modul de progres. Același proiect de extindere, dar o altă stare: este miercuri, 21 iulie 2027. Totul până la *Install building services*, inclusiv, este încheiat conform planului. *Plastering* (4 zile lucrătoare) a început marți 20 iulie și are 25%. *Painting* (3 zile lucrătoare) urmează tencuirii, dar zugravul a început deja azi și are 33%.
+Acum un exemplu pentru modul de progres. Același proiect de extindere, dar o altă stare: este miercuri, 21 iulie 2027. Totul până la *Install building services*, inclusiv, este încheiat conform planului. *Plastering* (4 zile lucrătoare) a început marți 20 iulie și are 25%. *Painting* (3 zile lucrătoare) urmează activității *Plastering*, dar zugravul a început deja azi și are 33%.
 
-Fără progres, tencuirea era planificată de marți 20 până vineri 23 iulie, iar zugrăvirea de luni 26 până miercuri 28 iulie. Bara de stare afișează acum *1 dependență(e) în afara secvenței*: zugrăvirea a început, deși tencuirea nu este încheiată. În panoul *Avertismente* apare: *În afara secvenței: progresul succesorului contrazice dependența*.
+Fără progres, activitatea *Plastering* era planificată de marți 20 până vineri 23 iulie, iar activitatea *Painting* de luni 26 până miercuri 28 iulie. Bara de stare afișează acum *1 dependență(e) în afara secvenței*: activitatea *Painting* a început, deși activitatea *Plastering* nu este încheiată. În panoul *Avertismente* apare: *În afara secvenței: progresul succesorului contrazice dependența*.
 
-Lucrul rămas la tencuire: 4 × (1 − 0,25) = 3 zile lucrătoare, adică 21, 22 și 23 iulie. Lucrul rămas la zugrăvire: 3 × (1 − 0,33) = 2 zile lucrătoare.
+Lucrul rămas al activității *Plastering*: 4 × (1 − 0,25) = 3 zile lucrătoare, adică 21, 22 și 23 iulie. Lucrul rămas al activității *Painting*: 3 × (1 − 0,33) = 2 zile lucrătoare.
 
-- Cu **Retained Logic**, lucrul rămas poate începe abia după ce tencuirea este încheiată. Aceasta este vineri 23 iulie, deci zugrăvirea începe luni 26 iulie și se încheie marți 27 iulie. Bara merge de la începutul efectiv, 21 iulie, până la 27 iulie. Marja totală este de 7 zile lucrătoare.
-- Cu **Progress Override**, lucrul rămas începe la data raportului de stare. Zugrăvirea se încheie joi 22 iulie, înainte ca tencuirea să fie încheiată. Marja totală este de 10 zile lucrătoare.
+- Cu **Retained Logic**, lucrul rămas poate începe abia după ce activitatea *Plastering* este încheiată. Aceasta este vineri 23 iulie, deci activitatea *Painting* începe luni 26 iulie și se încheie marți 27 iulie. Bara merge de la începutul efectiv, 21 iulie, până la 27 iulie. Marja totală este de 7 zile lucrătoare.
+- Cu **Progress Override**, lucrul rămas începe la data raportului de stare. Activitatea *Painting* se încheie joi 22 iulie, înainte ca activitatea *Plastering* să fie încheiată. Marja totală este de 10 zile lucrătoare.
 
-Predarea rămâne vineri 6 august în ambele cazuri: zugrăvirea avea oricum marjă.
+Predarea rămâne vineri 6 august în ambele cazuri: activitatea *Painting* avea oricum marjă.
 
 ### Alte profiluri de calcul
 
-În profilurile Primavera P6 și Microsoft Project, zugrăvirea din acest exemplu se încheie la aceleași date (27 și 22 iulie). Ele se deosebesc în următoarele puncte. Acestea sunt convenții de calcul ale profilului; le găsiți sub *Setări › Proiect › Informații proiect*, în blocul *Profil de calcul și opțiuni de calcul*.
+În profilurile Primavera P6 și Microsoft Project, activitatea *Painting* din acest exemplu se încheie la aceleași date (27 și 22 iulie). Ele se deosebesc în următoarele puncte. Acestea sunt convenții de calcul ale profilului; le găsiți sub *Setări › Proiect › Setări proiect*, în blocul *Profil de calcul și opțiuni de calcul*.
 
 - În profilul Microsoft Project, lucrul care nu a început nu se mută la data raportului de stare (convenția de calcul *Activități nepornite nu se mută la data raportului de stare*). Dacă în exemplul de mai sus setați doar o dată a raportului de stare și nu introduceți nimic, predarea în acest profil rămâne vineri 6 august.
-- În profilul Microsoft Project, lucrul rămas nu începe nici mai devreme decât începutul efectiv plus timpul scurs (convenția de calcul *Lucrul rămas se reia după timpul scurs*). Aceasta este o limită inferioară suplimentară, pe lângă data raportului de stare: contează cea mai târzie dintre cele două. Luați *Build inner cavity leaf* (5 zile lucrătoare), început marți 29 iunie, cu data raportului de stare miercuri 30 iunie și la 40% (două echipe zidesc în același timp, deci 40% este deja realizat după o zi). Tot ce precede activitatea este încheiat conform planului. Open Planner Studio și Primavera P6 lasă activitatea să se încheie vineri 2 iulie; Microsoft Project o lasă să se încheie luni 5 iulie, deoarece marți 29 iunie plus 2 zile lucrătoare scurse este joi 1 iulie, adică după data raportului de stare.
-- Primavera P6 afișează ca început cel mai devreme al unei activități în curs începutul lucrului rămas, nu începutul efectiv (în exemplul stratului interior, miercuri 30 iunie).
-- În profilul Primavera P6, la Progress Override, dependența față de un succesor care a început deja nu contează nici pentru predecesor: ea nu mai limitează datele târzii și marja liberă ale predecesorului (convenția de calcul *Progress Override ignoră un succesor început și în calculul înapoi*). În exemplul cu tencuitorul și zugravul nu se vede acest lucru, deoarece tencuirea este oricum critică prin șapa de egalizare: datele ei târzii și marja liberă sunt aceleași la Retained Logic și la Progress Override.
+- În profilul Microsoft Project, lucrul rămas nu începe nici mai devreme decât începutul efectiv plus timpul scurs (convenția de calcul *Lucrul rămas se reia după timpul scurs*). Aceasta este o limită inferioară suplimentară, pe lângă data raportului de stare: contează cea mai târzie dintre cele două. Luați activitatea *Build inner cavity leaf* (5 zile lucrătoare), începută marți 29 iunie, cu data raportului de stare miercuri 30 iunie și la 40% (două echipe zidesc în același timp, deci 40% este deja realizat după o zi). Tot ce precede activitatea este încheiat conform planului. Open Planner Studio și Primavera P6 lasă activitatea să se încheie vineri 2 iulie; Microsoft Project o lasă să se încheie luni 5 iulie, deoarece marți 29 iunie plus 2 zile lucrătoare scurse este joi 1 iulie, adică după data raportului de stare.
+- Primavera P6 afișează ca început cel mai devreme al unei activități în curs începutul lucrului rămas, nu începutul efectiv (în exemplul stratului interior, miercuri 30 iunie). Coloana *Început* și bara arată în fiecare profil începutul efectiv.
+- În profilul Primavera P6, la Progress Override, dependența față de un succesor care a început deja nu contează nici pentru predecesor: ea nu mai limitează datele târzii și marja liberă ale predecesorului (convenția de calcul *Progress Override ignoră un succesor început și în calculul înapoi*). În exemplul cu tencuitorul și zugravul nu se vede acest lucru, deoarece activitatea *Plastering* este oricum critică prin șapa de egalizare: datele ei târzii și marja liberă sunt aceleași la Retained Logic și la Progress Override.
 - Când deschideți un fișier .xer, aplicația preia modul de progres din fișier. Modul Datele reale, al treilea mod P6, nu este cunoscut aplicației; un astfel de fișier se calculează ca Retained Logic.
 
 ## Consecințe și neînțelegeri
@@ -157,7 +157,7 @@ Predarea rămâne vineri 6 august în ambele cazuri: zugrăvirea avea oricum mar
 
 **„Pauza dintr-o activitate scindată dispare.”** Nu: o pauză în partea care mai este de făcut rămâne în lucrul rămas. Luați o activitate de 5 zile lucrătoare, cu o pauză de 1 zi după 2 zile lucrătoare, începută marți 29 iunie și, cu data raportului de stare miercuri 30 iunie, la 40%. Lucrul rămas de 3 zile lucrătoare începe la data raportului de stare și trece peste pauză: sfârșitul este luni 5 iulie. Fără pauză, era vineri 2 iulie.
 
-**Ore și data raportului de stare.** Nu puteți introduce o oră în panglică: completați data raportului de stare ca dată. Dacă faceți bilanțul după orele de lucru, setați data raportului de stare la următoarea zi lucrătoare. O activitate în ore calculează lucrul rămas de la începutul zilei raportului de stare. Luați *Lay hollow-core floor* din proiectul de exercițiu, după tutorialul 4: 5 ore, luni 28 iunie, zi lucrătoare de la 07:00. Cu data raportului de stare luni 28 iunie și activitatea la 40%, are lucru rămas de 3 ore, care se desfășoară de la 07:00 până la 10:00, chiar dacă s-a lucrat deja în dimineața aceea. Modul în care aplicația numără orele este explicat în [Zilele și orele](docs://uitleg-dagen-en-uren).
+**Ore și data raportului de stare.** Nu puteți introduce o oră în panglică: completați data raportului de stare ca dată. Dacă faceți bilanțul după orele de lucru, setați data raportului de stare la următoarea zi lucrătoare. O activitate în ore calculează lucrul rămas de la începutul zilei raportului de stare. Luați *Lay hollow-core floor* din proiectul de exercițiu, după tutorialul 4, în momentul în care tot ce o precede este încheiat: 5 ore, luni 28 iunie, zi lucrătoare de la 07:00. Cu data raportului de stare luni 28 iunie și activitatea la 40%, are lucru rămas de 3 ore, care se desfășoară de la 07:00 până la 10:00, chiar dacă s-a lucrat deja în dimineața aceea. Modul în care aplicația numără orele este explicat în [Zilele și orele](docs://uitleg-dagen-en-uren).
 
 **Modificarea unei referințe.** Acest lucru nu este posibil. Salvați una nouă și ștergeți-o pe cea veche. Dacă mutați proiectul, datele reale și data raportului de stare se mută odată cu el, dar referințele nu se mută în mod implicit: astfel, deplasarea rămâne vizibilă ca varianță. Vedeți [Mutarea unui proiect](docs://howto-project-verplaatsen).
 

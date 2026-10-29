@@ -28,8 +28,8 @@ A folha Excel está protegida, sem palavra-passe: só se podem editar as três c
 
 Para cada tarefa, o responsável de obra preenche:
 
-- `Completion (%)`: de 0 até 100, inclusive. Na folha Excel são permitidos decimais (por exemplo 33,3). No CSV, a instrução pede números inteiros.
-- `Actual Start` e `Actual Finish`: no Excel, como data na sua configuração regional; no CSV, como dd-mm-aaaa.
+- `Completion (%)`: de 0 até 100, inclusive. A aplicação também lê decimais, com vírgula ou ponto (por exemplo 33,3 ou 33.3). A instrução no CSV continua a pedir números inteiros: uma folha de cálculo com outra configuração regional pode ler 8,38 como 838.
+- `Actual Start` e `Actual Finish`: no Excel, como data na sua configuração regional; no CSV, como dd-mm-aaaa ou como aaaa-mm-dd.
 
 Um campo que fica vazio não altera nada. Assim, uma célula vazia também não apaga o progresso existente; isso só se faz na aplicação. Para uma tarefa que ainda não começou, ele deixa os campos totalmente vazios.
 

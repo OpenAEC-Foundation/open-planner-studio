@@ -24,8 +24,8 @@ Raden blir først en ressurs når den har et navn. Med Esc, eller ved å klikke 
 
 Rediger feltene i raden. Appen lagrer navnet, *Standardsats/time* og *Enhet* når du forlater feltet. De andre feltene lagres med en gang.
 
-- *Maksimalt antall* godtas bare av appen hvis verdien er større enn 0. Med 0 eller mindre får feltet en rød kant og går tilbake til forrige verdi.
-- *Kalender* bestemmer på hvilke dager ressursen jobber. Velg *Prosjektkalender* eller en egen kalender. Med *+ Ressurskalender* oppretter du en ny kalender, og blyanten (*Rediger…*) åpner den valgte kalenderen. Hvis en aktivitet jobber en dag da ressursen er fri ifølge kalenderen, regnes den dagen som overallokering. Hvordan du oppretter en ressurskalender, står i [Sette opp en ressurskalender](docs://howto-resourcekalender-instellen).
+- *Maksimalt antall* godtas bare av appen hvis verdien er større enn 0. Med 0 eller mindre får feltet en rød kant og settes tilbake til forrige verdi.
+- *Kalender* bestemmer på hvilke dager ressursen jobber. Velg *Prosjektkalender* eller en egen kalender. Med *+ Ressurskalender* oppretter du en ny kalender, og blyanten (*Rediger…*) åpner den valgte kalenderen. Hvis en aktivitet jobber en dag da ressursen er fri ifølge kalenderen, regnes den dagen som overallokert. Hvordan du oppretter en ressurskalender, står i [Sette opp en ressurskalender](docs://howto-resourcekalender-instellen).
 - *Standardsats/time* og *Totalt*: *Totalt* er de belastede timene for den ressursen ganger standardsatsen. En pusser som er belastet i 32 timer, med en standardsats på 50 per time, gir 1 600,00. Nederst i tabellen står summen av alle ressurser.
 - *Mannskap* grupperer en ressurs under en ressurs av typen *Mannskap*. Det er bare en gruppering: appen legger ikke kapasiteten eller belastningen til medlemmene sammen i mannskapet.
 - Den fargede flisen til venstre er fargen til ressursen. Den er bare til visning og påvirker ikke tidsplanen.
@@ -41,11 +41,11 @@ Et nytt trinn starter med dagens dato og 1 tildelingsenhet. Endre begge, for ell
 1. Klikk på søppelkassen i raden.
 2. Har ressursen tilordninger, spør appen om bekreftelse, for eksempel *'Bricklayer' har 4 tilordning(er). Vil du slette?* Klikk på haken for å slette, eller på krysset for å avbryte. Uten tilordninger forsvinner ressursen med en gang.
 
-Tilordningene til ressursen slettes også. Har en aktivitet en arbeidsregel som ikke er *Fast varighet og faste tildelingsenheter*, fordeler appen arbeidet fra den fjernede ressursen mellom ressursene som er igjen. Avhengig av regelen endres deres enheter eller varigheten til aktiviteten. Hvis varigheten endres, er tidsplanen din ikke lenger oppdatert.
+Tilordningene til ressursen slettes også. Har en aktivitet en aktivitetstype som ikke er *Fast varighet og faste tildelingsenheter*, fordeler appen arbeidet fra den fjernede ressursen mellom ressursene som er igjen. Avhengig av aktivitetstypen endres deres tildelingsenheter eller varigheten til aktiviteten. Hvis varigheten endres, er tidsplanen din ikke lenger oppdatert.
 
 Du kan angre opprettelse, redigering og sletting med *Angre* (Ctrl+Z).
 
-### Den lille oversikten i sidekolonnen
+### Den lille oversikten i sidepanelet
 
 *Ressurser › Administrer › Ressursdokk* legger en kompakt oversikt i høyre side, ved siden av *Egenskaper*. Der ser du navnet og fargen til hver ressurs, og et varselsymbol (*Overallokert*) ved en ressurs med overallokering. Du kan bare endre *Maksimalt antall* der. Velger du én eller flere aktiviteter, viser oversikten bare ressursene til disse aktivitetene.
 

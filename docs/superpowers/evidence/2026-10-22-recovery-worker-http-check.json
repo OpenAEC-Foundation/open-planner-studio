@@ -1,0 +1,110 @@
+{
+  "date": "2026-10-22T15:20:59.526Z",
+  "httpCheckOnly": true,
+  "httpChecks": [
+    {
+      "path": "/",
+      "status": 200,
+      "bytes": 91
+    },
+    {
+      "path": "/index.html",
+      "status": 200,
+      "bytes": 91
+    },
+    {
+      "path": "/assets/measure-Cg8gE8tM.js",
+      "status": 200,
+      "bytes": 171420
+    },
+    {
+      "path": "/assets/recoverySnapshot.worker-D5G08zvp.js",
+      "status": 200,
+      "bytes": 65946
+    },
+    {
+      "path": "/niet-in-rollup.txt",
+      "status": 404,
+      "bytes": 9
+    },
+    {
+      "path": "/../buiten-output.txt",
+      "status": 404,
+      "bytes": 9
+    },
+    {
+      "path": "/assets/../../buiten-output.txt",
+      "status": 404,
+      "bytes": 9
+    },
+    {
+      "path": "/%2e%2e/buiten-output.txt",
+      "status": 404,
+      "bytes": 9
+    },
+    {
+      "path": "/assets/%2e%2e/%2e%2e/buiten-output.txt",
+      "status": 404,
+      "bytes": 9
+    },
+    {
+      "path": "/%2e/package.json",
+      "status": 404,
+      "bytes": 9
+    },
+    {
+      "path": "/outside-path",
+      "status": 404,
+      "bytes": 9
+    },
+    {
+      "path": "/etc/passwd",
+      "status": 404,
+      "bytes": 9
+    }
+  ],
+  "harnessSha256": "e0f58bb61f14615f3e61ace15ba102e8ecfd772c084dc2b0b0550aa521cbd40d",
+  "baselineCommit": "522589202727a4a519b25b94aed196d844dc6ab8",
+  "sourceSha256": {
+    "src/hooks/useAutoSave.ts": "e92bab69fbf2b48acf002ff6bf65e1783e045a0db2d8096169268f5d590f6500",
+    "src/services/recovery/recoveryDelta.ts": "e4eb2ee2bab03bce001d8d79155c768e63a809a53ec9caacb4c1935c5845e236",
+    "src/services/recovery/recoverySnapshot.ts": "41f3e30aa4eb048669d48f4fa11a7b858c6df75743f268e666f6ba54e5b3ada7",
+    "src/services/recovery/recoverySnapshotInput.ts": "dd14b1af5c26c0847fc8bf5eef8c2d73367f8294ee918fc110605dd154a51f8b",
+    "src/services/recovery/recoverySnapshot.worker.ts": "aa097cd56be10ce7ea323e0e55eda3e74582662280b2861b696158f712da7f6b",
+    "src/services/recovery/recoverySnapshotSerializer.ts": "e1c794ed020d913ce86092cf10eb794ed97e5ace3a05e5bcad960d8a7875735c",
+    "src/services/recovery/recoveryTickQueue.ts": "8e9a27f974c3511bf1dbaf3d522a327d2317771e63a55c0895aec7b867ea5185"
+  },
+  "dirty": "",
+  "commit": "2b2391be80186c9ca94de743350f01b70ad626af",
+  "browser": "151.0.7922.34",
+  "cpu": "AMD Ryzen 7 3700U with Radeon Vega Mobile Gfx",
+  "logicalCores": 8,
+  "ramGiB": 13.594429016113281,
+  "load": [
+    6.5,
+    7.93,
+    7.74
+  ],
+  "node": "v22.23.4",
+  "dataset": {
+    "seed": "0x5eed",
+    "tasks": 10000,
+    "sequences": 11700,
+    "assignments": 5718,
+    "resources": 8
+  },
+  "cold": {
+    "mode": "worker",
+    "totalTickMs": 745.3000000007451,
+    "synchronousWriterMs": 0,
+    "senderCloneMs": 70.69999999925494,
+    "longestMainTaskMs": 72,
+    "longTaskCount": 2,
+    "maxFrameGapMs": 66.60000000000002,
+    "heartbeats": 123,
+    "ifcChars": 9111485,
+    "normalizedSha256": "a15b316a460e670d336598712d97c4fabe6d860c7cc221cc7cf67d4b2857f880"
+  },
+  "samples": [],
+  "cloneProbe": []
+}

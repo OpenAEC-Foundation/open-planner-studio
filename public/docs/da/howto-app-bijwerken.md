@@ -22,7 +22,7 @@ Lige før opdateringen installeres, tager appen også en automatisk sikkerhedsko
 
 ### Søg selv efter en ny version
 
-1. Vælg *Indstillinger › Projekt › Indstillinger*. Du kan også vælge *Fil › Indstillinger*, eller tandhjulet øverst.
+1. Vælg *Indstillinger › Projekt › App-indstillinger*. Du kan også vælge *Fil › App-indstillinger*, eller tandhjulet øverst.
 2. Vælg fanen *Avanceret*. Under *Version* står nummeret på din aktuelle version.
 3. Klik på *Søg efter opdateringer*. Vinduet *Softwareopdatering* åbner, og der står *Søger…*. Bagefter står der enten *Du bruger den nyeste version* eller meddelelsen om, at der er en ny version, med den samme knap *Download og installer*.
 
@@ -30,14 +30,14 @@ I browseren gør denne knap ikke noget særligt: vinduet siger med det samme *Du
 
 ### Læs hvad der er nyt
 
-1. Hvis du starter desktopappen første gang i en anden version end sidst, eller efter en ny installation, åbner et vindue af sig selv. Vinduets titel er *Du er opdateret!*
-2. Øverst står overgangen fra den forrige til den nye version. Efter en ny installation vises kun den nye version.
+1. Hvis du starter desktopappen første gang i en anden version end sidst, åbner et vindue af sig selv. Vinduets titel er *Du er opdateret!* Efter en ny installation åbnes det ikke: første start er ikke en opdatering. Vil du alligevel se det, bruger du knappen *Hvad er nyt* (se nedenfor).
+2. Øverst står overgangen fra den forrige til den nye version. Med knappen *Hvad er nyt* vises kun den nye version.
 3. Har appen en indbygget opsummering for denne version, ser du ét hovedpunkt og fire mindre punkter. Hovedpunktet kan have knappen *Læs guiden*. Ellers ser du kun overgangen mellem versionerne og det, der står nedenfor.
 4. Med *Se alle udgivelsesnoter* åbner du ændringslisten på GitHub. Virker det ikke, står der *Udgivelsesnoterne kunne ikke åbnes.*
 5. Under *Denne opdatering i tal* står antallet af dage siden den forrige udgivelse, antallet af commits og antallet af tilføjede kodelinjer. Kan appen se forskellen i størrelse på installationspakken, vises den også. Hvert tal vises kun, hvis det er tilgængeligt.
 6. Klik på *Forstået* for at lukke vinduet.
 
-Vil du se dette vindue igen senere, vælg *Indstillinger › Projekt › Indstillinger*, fanen *Avanceret*, og klik under *Version* på knappen *Hvad er nyt*. Vinduet viser så din aktuelle version, uden en forrige version.
+Vil du se dette vindue igen senere, vælg *Indstillinger › Projekt › App-indstillinger*, fanen *Avanceret*, og klik under *Version* på knappen *Hvad er nyt*. Vinduet viser så din aktuelle version, uden en forrige version.
 
 ## Faldgruber, og hvad appen gør så
 

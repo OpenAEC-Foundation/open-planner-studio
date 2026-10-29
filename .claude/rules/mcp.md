@@ -42,7 +42,12 @@ koppeling met het Help-artikel; `tests/mcp/cases-agent-texts.ts` houdt elke `pla
 Veiligheid is state, geen conventie: `ui.aiMode` (de hele AI-tab en bridge verschijnen pas hierdoor),
 `ui.aiPaused`, `ui.aiReadOnly` en `ui.aiServerStatus` leven in `uiSlice`; de per-request `McpContext`
 leest ze live, plus een drift-anker (`expectedDocId`) zodat een tool nooit op het verkeerde document
-landt; het anker leeft per verbinding en een `initialize` (nieuwe MCP-sessie) wist het.
+landt. Het anker leeft per MCP-sessie (`Mcp-Session-Id`): een geslaagde `initialize` maakt een nieuwe sessie
+met een leeg anker, Rust zet de id als header en geeft hem bij latere requests door, en `createRequestHandler`
+houdt per sessie het anker bij in een tabel per app-sessie (`appMcpSessions`; een bridge-herstart behoudt
+hem, een nieuw token wist hem), met maximaal `MCP_MAX_SESSIONS`: alleen sessies zonder anker worden
+verdrongen, vol met gebonden sessies ⇒ `initialize` geweigerd; onbekende id ⇒ `404`. Elk request behalve
+`initialize` zonder header krijgt `400` en bereikt de dispatcher niet; er is geen gedeeld anker.
 `createRequestHandler` (`server.ts`) verwerkt requests strikt na elkaar en voert een request dat langer
 dan `MCP_QUEUE_DEADLINE_MS` (110 s, net onder Rusts 120 s-time-out) in de wachtrij stond niet meer uit
 (`-32001`): de client had er al een 504 voor, dus uitvoeren zou bij een retry dubbel muteren. Instellingen staan onder de bekende `ops-`-prefix (`ops-aiMode`, `ops-aiAutostart` — default
@@ -51,7 +56,42 @@ dan `MCP_QUEUE_DEADLINE_MS` (110 s, net onder Rusts 120 s-time-out) in de wachtr
 per app-sessie zodat een handmatige stop niet stil ongedaan wordt gemaakt.
 
 De kern-bouwstenen nemen hun Tauri-randen als injecteerbare functies, zodat alles headless testbaar
-is — zie `tests/mcp/`. Nieuwe tool ⇒ contract in `contracts.ts`, schema erbij, registreren in
+is — zie `tests/mcp/`. **Headless MCP-server** (`headless/mcp-server/`, #570, `docs/headless-mcp.md`): dezelfde
+tools op Node zonder app. Hij bundelt de MCP-laag zonder app-singleton; daarom staan de requestlaag
+(`requestHandler.ts`), `createMcpContext` (`context.ts`), de backupkern (`backupService.ts`), de versheid
+(`freshness.ts`) en de dialoogpoort (`src/state/blockingDialogs.ts`) in modules zonder waarde-import uit `appStore.ts`
+(`verify:store-boundaries`). Tools importeren daaruit, niet uit `server.ts`, `backup.ts` of `staleGuard.ts`. Een
+nieuwe hostfunctie in een tool krijgt een naad zoals `fileToolDeps`/`guideToolDeps`; een tool die tijdens het draaien
+een bestand uit `public/` leest, zet dat bestand in `embeddedAssets()` van `scripts/build-mcp-server.mjs`. Nieuwe tool ⇒ contract in `contracts.ts`, schema erbij, registreren in
 `toolRegistry.ts`, en een case in `tests/mcp/`; zie `docs/recepten/mcp-tool.md` voor de volledige
 route. `tests/mcp/cases-toolregistry.ts` is het mechanische vangnet dat een vergeten registratie
 (of een spookregistratie zonder broncode) mechanisch afvangt.
+
+**Externe client.** `tests/mcp/cases-externe-client.ts` toetst de bridge met de officiële SDK-client over echt HTTP.
+De HTTP-schil daar is `tests/mcp/bridgeMirror.ts`, die de HTTP-transport van de headless MCP-server gebruikt
+(`headless/mcp-server/src/http.ts`): een met de hand bijgehouden kopie van `mcp_bridge.rs`; hij
+bewijst niets over Rust zelf. Verander je de HTTP-laag in Rust (statuscodes, volgorde van de poorten, limieten,
+sessieheader), pas dan `headless/mcp-server/src/http.ts` mee aan. Dezelfde controles (`tests/mcp/externalClient.ts`) draaien in
+`.github/workflows/mcp-real-app.yml` tegen de echte Rust-bridge in een Tauri-dev-build; die job draait ook de
+Rust-unit-tests van de bridge (`cargo test … mcp_bridge`), die geen andere workflow draait. Wat geleverd is en wat
+niet: `docs/mcp-verificatie.md`.
+
+**Claude Desktop-bundel.** `integrations/claude-desktop/` is een MCP Bundle (`.mcpb`): een stdio-server die elk
+bericht doorstuurt naar de bridge van de draaiende app (`src/proxy.ts`), met token en poort uit het
+installatievenster (`src/config.ts`). `proxy.ts` blijft vrij van manifest-, transport- en clientcode: de bundel is een
+tussenstap en de module gaat op in de ene plugin uit #570. Geen planner, geen kern; `scripts/build-mcpb.mjs` faalt als `src/` in de bundel komt.
+Wijzig je het HTTP-contract van de bridge (statuscodes, sessieheader, `404` bij een onbekende sessie), loop dan ook
+`proxy.ts` na; `tests/mcp/cases-mcpb.ts` start de gebouwde server uit de ZIP tegen `bridgeMirror.ts`. Een
+wijzigende tool wordt na sessieverlies bewust niet herhaald (het drift-anker is dan weg), en daarna blijven wijzigingen
+geweigerd tot een geslaagde `planner_switch_document`, `planner_new_document` of `planner_import_schedule`
+het anker opnieuw bindt. Nieuw/import mogen als losse herstelactie door, maar worden nooit automatisch herhaald; hernoem of verander je die tool, loop dan
+`DOCUMENT_CHOICE_TOOL` in `proxy.ts` na; welke tools lezen, haalt
+de bundel uit `readOnlyHint` in `tools/list`.
+
+**Ontdekkingsbestanden voor de MCP-plugin** (issue #570). `runtime.json` (zolang de bridge draait) en
+`open-files.json` (zolang de desktop-app draait, ook met de MCP-koppeling uit) in `<appDataDir>/mcp/`. Contract
+in `discoveryContract.ts` (importeert niets; de plugin bundelt hem), schrijver in `discoveryFiles.ts` (één
+wachtrij, atomair, `0600`), meldingen via `onBridgeStarted`/`onBridgeStopped` in `createBridgeController`,
+register via `src/hooks/useMcpDiscovery.ts`, opruimen bij afsluiten in `useAppCloseGuard`. Het proces-id komt
+uit het initialisatiescript `ops-process-info` in `main.rs` (geen command). Detail: `docs/mcp-ontdekking.md`;
+test `tests/mcp/cases-discovery.ts` en de echte-app-run.

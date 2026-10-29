@@ -19,9 +19,9 @@ Zece persoane se uită la un singur ecran dintr-o baracă de șantier. Panglica,
 
 ### Pornirea prezentării
 
-Alegeți *Vizualizare › Prezentare › Prezentare*, sau apăsați F11. Panglica, filele, bara de stare și panoul din dreapta dispar. Vedeți tabelul de activități, diagrama Gantt și, dacă le-ați activat, histograma și mini-harta. Timp de câteva secunde, în partea de jos apare textul *Apăsați Esc sau F11 pentru a ieși din ecranul complet.*
+Alegeți *Vizualizare › Prezentare › Prezentare*. În aplicația de desktop puteți apăsa și F11. În browser, F11 aparține chiar browserului: pune fereastra browserului pe ecran complet și lasă aplicația așa cum este. Panglica, filele, bara de stare și panoul din dreapta dispar. Vedeți tabelul de activități, diagrama Gantt și, dacă le-ați activat, histograma și mini-hartă. Timp de câteva secunde, în partea de jos apare textul *Apăsați Esc sau F11 pentru a ieși din ecranul complet.*
 
-Puteți porni prezentarea din orice filă, și din *Tabel* sau din *Raport*. Vedeți întotdeauna diagrama Gantt a proiectului deschis, iar când opriți prezentarea reveniți la fila de unde ați pornit.
+În aplicația de desktop porniți prezentarea din orice filă cu F11, și din *Tabel* sau din *Raport*. În browser o porniți doar cu *Vizualizare › Prezentare › Prezentare*. Vedeți întotdeauna diagrama Gantt a proiectului deschis, iar când opriți prezentarea reveniți la fila de unde ați pornit. În browser, această filă este deci *Vizualizare*.
 
 ### Oprirea prezentării
 
@@ -33,7 +33,7 @@ Apăsați Esc sau F11. Panglica și panourile revin pe fila de unde ați pornit.
 
 **Notificările rămân vizibile.** Un mesaj al aplicației, de exemplu o eroare la salvare, apare și în modul prezentare. În rest nu există panglică sau bară de stare, deci un astfel de mesaj este singurul semn că ceva nu este în regulă.
 
-**Pregătiți din timp vizualizarea împărțită, mini-harta și aspectele.** Aveți nevoie de panglică pentru ele, iar în acest mod ea nu există. Zoomul funcționează, cu rotița mouse-ului sau cu Ctrl+= și Ctrl+-. Și + și - funcționează, dar numai când focalizarea se află în diagrama Gantt. După F11 focalizarea se află adesea în tabelul de activități, deci faceți mai întâi clic în diagrama Gantt.
+**Pregătiți din timp vizualizarea împărțită, mini-hartă și aspectele.** Aveți nevoie de panglică pentru ele, iar în acest mod ea nu există. Zoomul funcționează, cu rotița mouse-ului sau cu Ctrl+= și Ctrl+-. Și + și - funcționează, dar numai când focalizarea se află în diagrama Gantt. După pornire, focalizarea se află adesea în tabelul de activități, deci faceți mai întâi clic în diagrama Gantt.
 
 **Ecranul complet nu funcționează.** Pe lângă ascunderea panglicii, aplicația cere chiar ecranul complet. Dacă browserul sau fereastra refuză, dispar doar panglica și panourile. Prezentarea funcționează în continuare. Dacă ieșiți din ecranul complet altfel decât cu Esc sau F11, de exemplu cu o tastă a sistemului de operare, modul prezentare se oprește și el.
 

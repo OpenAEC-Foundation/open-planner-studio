@@ -20,7 +20,7 @@ publiceren.
   `serializeRecoverySnapshot` schrijft in de snapshot alleen een verwijzing (pset-schema 3,
   `recovery-reference-v1`: lengte + SHA-256). De ruwe bronbytes staan als content-adressed blob
   (sleutel = sha256) naast de snapshots: Tauri `<base>.xerarchive.<sha256>.bin` (temp + rename, vóór de
-  manifestcommit), web object-store `xer-archives` in `ops-recovery` v2, in dezelfde transactie als
+  manifestcommit), web object-store `xer-archives` in `ops-recovery` v3 (archiefstore sinds v2), in dezelfde transactie als
   snapshots en manifest, bestaan/opruimen via `getAllKeys` (de blob wordt per tick niet gelezen).
   De bytes worden alleen gedecodeerd als de blob ontbreekt. Twaalf documenten uit één bestand delen
   één blob. Een blob verdwijnt zodra geen manifestregel hem nog noemt. Ontbreekt de blob bij herstel,
@@ -31,8 +31,16 @@ publiceren.
   worden de volledige IFC-generaties via temp+rename gepubliceerd; daarna is de atomaire rename van
   het manifest het commitpunt; oude eigen generaties worden pas daarna opgeruimd.
 - De webbackend leest per tick geen snapshotinhoud terug: alleen `getAllKeys()` op beide stores en
-  de manifestrecords via `get` (sinds 2026-10-07; daarvoor las `getAll()` elke tick alle snapshots).
-  Een andere generatie verloopt als haar manifest ouder is dan 7 dagen of ontbreekt.
+  de manifestrecords via de niet-unieke `records.kind`-index (`getAll('manifest')`), aangevuld met
+  `get` voor canonieke manifestsleutels die niet in die indexuitkomst staan. Zo blijft de
+  bestaande 4-KiB-leesgrens van de synthetische bewerkingstick in `check-xer-archive-recovery-once.ts`
+  ongewijzigd. Vóór 2026-10-07 las `getAll()` elke tick alle snapshots.
+  Iedere `kind: 'manifest'`-record en iedere canonieke manifestsleutel is kandidaat voor dezelfde
+  controle bij lezen, schrijven, wissen, uitstellen en blobbeheer. Een afwijkende sleutel of een
+  gezonde eerste kandidaat geeft geen uitzondering. Een andere ondersteunde generatie verloopt
+  als haar manifest ouder is dan 7 dagen of ontbreekt. Onbekende kandidaten en hun sessies blijven
+  behouden; zolang er één is, worden geen vreemde records of gedeelde archiefblobs opgeruimd.
+  De eigen ondersteunde herstelset kan wel worden bijgewerkt.
 - De SHA-256 van het bronarchief wordt bij openen en bij herstel vooraf native berekend
   (`precomputeSha256`, `crypto.subtle`; pure JS alleen als terugval). Zelfde algoritme, dus dezelfde
   content-adressering. rehab-2: 610–636 ms in pure JS tegen 31–32 ms native (Node 22).
@@ -43,6 +51,12 @@ publiceren.
   `datesAsRecorded` levert `false` — het gewone #63-aanbod, nooit stilzwijgend de modus. Schema-1 en schema-2 XER-bronarchieven
   blijven eveneens leesbaar; schema 2 wordt in een koud proces via
   `readIFCWithXerReconstruction` uit uitsluitend de opgeslagen bronbytes herbouwd.
+- De leespoort ondersteunt manifestversies 1–5 en de historische versieloze webvorm met `docIds`.
+  Documentidentiteiten moeten binnen elk manifest uniek zijn, ook in `docIds`; een duplicaat kan
+  anders twee snapshots tot één geopend document reduceren. Onbekende/ongeldige manifesten blokkeren
+  lezen en latere mutaties van die herstelset, met één blijvende sessiemelding. De bestaande
+  Tauri-leesterugval bij onparseerbaar JSON leest alleen oude stabiele snapshots; een aanwezig
+  onparseerbaar manifest blijft tegen schrijven en opruimen beschermd.
 - Crashherstel zet "datums zoals opgeslagen" terug uit die metadata — niet uit een heuristiek over
   de opgeslagen datums, en voor ALLE herstelde documenten, ook de slapende. Een slapend document
   wordt bewust niet doorgerekend en krijgt daarom de modus zonder verschiltellertje (zie
@@ -77,6 +91,45 @@ archief-terugval — `check-ifc-xer-archive-container.ts` (per foutcode één ca
 `check-xer-archive-readmodel.ts`, `check-xer-archive-compact.ts` en
 `check-xer-archive-fallback.ts` (echt beschadigde fixture `fixtures/xer-archief-herschreven.ifc`
 door productie-ingang, store, melding, documentwissel, opslaan en crashherstel).
+
+## Webdatabase v3: upgrade en beperkingen
+
+`openDbStores` opent `ops-recovery` op versie 3. In de versionchange-transactie maakt hij ontbrekende
+stores en de niet-unieke index `kind` met keyPath `kind` op `records` aan. De oude primaire sleutel
+`id`, de document-/manifestrecords en de `xer-archives`-blobinhoud worden niet herschreven of gewist.
+De helper controleert bij openen ook dat de index bestaat, dezelfde keyPath heeft en niet uniek is;
+anders sluit hij de verbinding en reject hij, zonder recordwrites. De manifestversie blijft 5; dit
+is een technische indexupgrade, geen migratie van documentinhoud.
+De bestaande browserroute bewaakt v1-herstel en de upgrade van v2 met gezonde én onbekende
+manifestkandidaten en een blob, inclusief inhoudsbehoud en het opvullen van de index.
+
+Een bestaande verbinding moet de versionchange toestaan. De helper sluit zijn eigen verbinding bij
+`onversionchange`; een andere build kan die open houden. Het native `blocked`-event reject dan direct
+met de storevrije `IndexedDbUpgradeBlockedError`. De opstartread geeft die fout door (geen lege
+uitkomst), waarna de recovery-hook zijn opstartpoort afrondt en een blijvende centrale melding over
+**tijdelijk geblokkeerde opslag** toont, met handmatig-opslaan-instructie en herstelhulp. Gezonde v2-data
+krijgt geen melding over onbekende/ongeldige manifesten. De melding komt per paginastart één keer,
+ook als schrijfrondes opnieuw falen of de melding is weggeklikt. Echte AutoSave deelt de afgeronde
+opstartpoort en behoudt zijn bestaande bestands-/permissiecontract.
+
+Recovery onthoudt deze blokkade tot herladen en weigert intussen lezen, schrijven, wissen en rotatie.
+Alleen de blocker sluiten mag de nog niet aangeboden herstelset niet opeens laten overschrijven.
+Sla nieuw werk daarom zelf op, sluit andere app-tabbladen en herlaad om herstel opnieuw te proberen.
+Er is geen timeout of terugval naar een oudere DB-schrijfroute. De generieke helper zelf mag opnieuw
+openen na een fout: cache-opruiming geldt alleen voor de eigen aanvraag. Een IDB-openaanvraag kan niet
+worden geannuleerd; komt na weigering alsnog `upgradeneeded`, dan wordt die transactie afgebroken
+vóór schemawerk. Een eventueel laat `success` sluit de verbinding zonder hem uit te leveren. Fouten
+rejecten, een afwijkende index sluit de verbinding, en versionchange/onverwacht sluiten ruimt de
+verbindingscache op. De bestaande browserroute houdt een echte v2-verbinding open, controleert de
+blijvende melding en bytebehoud vóór/na ontgrendelen, en probeert na herladen gezond herstel opnieuw.
+De recoverybatterij dekt daarnaast defensieve late eventvolgordes en cache-/verbindingscleanup.
+
+Andere open-/upgradefouten houden de bestaande route: een opstartleesfout kan leeg terugvallen,
+uitstellen leest strikt en roteert niet bij een leesfout, schrijffouten rejecten. Een nieuwere
+DB-versie openen met versie 3 geeft eveneens een fout; de code verlaagt of wist die database niet.
+Dit is een broncontract met regressies, geen lokaal uitgevoerde of gemeten garantie over quota,
+browserherstel of onderbroken browserupgrades. Het pad reageert op native `blocked`/`error`, zonder
+eigen timeout voor een browser die geen van die events levert.
 
 ## Informatieve schaalmeting
 

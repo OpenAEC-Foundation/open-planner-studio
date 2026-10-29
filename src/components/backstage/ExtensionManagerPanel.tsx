@@ -9,6 +9,7 @@ import {
   installFromJsFile,
   fetchCatalog,
   installFromCatalog,
+  type InstallOutcome,
 } from '@/extensions';
 import { removeQuarantinedExtension } from '@/extensions/extensionService';
 import type {
@@ -36,6 +37,17 @@ export function ExtensionManagerPanel() {
   const { t } = useTranslation('menu');
   const [activeTab, setActiveTab] = useState<TabId>('installed');
   const [search, setSearch] = useState('');
+  const notify = useAppStore(s => s.notify);
+  const installLocal = async (install: () => Promise<InstallOutcome>) => {
+    try {
+      // Annuleren/weigeren is geen fout; alleen een mislukte installatie krijgt een melding.
+      if (await install() !== 'failed') return;
+    } catch {
+      // Ook een onverwachte afwijzing mag niet stil verdwijnen vanuit een void-clickhandler.
+    }
+    notify({ severity: 'error', messageKey: 'notifications.extensionInstallFailed', dedupeKey: 'extension-local-install-failed' });
+  };
+
   // Eenmalig verzoek van buitenaf (Help → Tutorials installeren): open op Bladeren en haal de
   // catalogus op, net als een klik op dat tabblad.
   const pendingTab = useAppStore(s => s.ui.pendingExtensionsTab);
@@ -66,10 +78,10 @@ export function ExtensionManagerPanel() {
         </div>
 
         <div className="ext-manager-actions">
-          <button className="ext-install-btn" onClick={() => void installFromFile()} title={t('extensions.installFromZip')}>
+          <button className="ext-install-btn" onClick={() => void installLocal(installFromFile)} title={t('extensions.installFromZip')}>
             <FileArchive size={14} /> ZIP
           </button>
-          <button className="ext-install-btn" onClick={() => void installFromJsFile()} title={t('extensions.installFromJs')}>
+          <button className="ext-install-btn" onClick={() => void installLocal(installFromJsFile)} title={t('extensions.installFromJs')}>
             <FileCode size={14} /> JS
           </button>
         </div>

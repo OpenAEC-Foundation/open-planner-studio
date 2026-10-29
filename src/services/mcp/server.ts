@@ -2,7 +2,8 @@
 //
 // Deze module bedient de Tauri-only bridge: token verzekeren, `mcp_bridge_start`/`mcp_bridge_stop`
 // invoken, en de twee Tauri-events koppelen aan de dispatcher + de ui-state:
-//   - `mcp://request`  {id, body}  → `handleMcpMessage(body, ctx)` → emit `mcp://response` {id, body}
+//   - `mcp://request`  {id, body, sessionId?} → `handleMcpMessage(body, ctx)` → emit `mcp://response`
+//     {id, body, sessionId?, status?} (sessie-afhandeling: zie `createRequestHandler`)
 //   - `mcp://status`   {state, port, message} → `setAiServerStatus(...)`
 //
 // HARDE REPO-REGEL: een top-niveau `import` van `@tauri-apps/*` breekt de web-build. Daarom staan
@@ -23,10 +24,14 @@ import { createMcpTransactions, type McpTransactions } from '@/state/runtime/cre
 import { loadMcpPort, loadMcpToken, saveMcpToken, saveAiMode } from '@/utils/settingsStore';
 import { isTauri } from '@/utils/platform';
 import { handleMcpMessage } from './dispatcher';
-import { record as recordActivity, capField } from './activityLog';
 import { createAppBackupService, ensureBackup, resetBackupSession, markDuplicateBorn } from './backup';
 import { registerAllTools } from './toolRegistry';
-import type { McpBackupBinding, McpContext, McpServerStatus, ActivityEntry } from './contracts';
+import { getMcpDiscoveryWriter } from './discoveryFiles';
+import { createMcpContext } from './context';
+import type { McpBackupBinding, McpContext, McpServerStatus } from './contracts';
+import {
+  createRequestHandler, createMcpSessionTable, type McpRequestEvent, type McpSessionTable,
+} from './requestHandler';
 
 // --- Runtime-init ---------------------------------------------------------------------------------
 
@@ -92,6 +97,9 @@ export function regenerateMcpToken(): string {
  */
 export async function regenerateAndApplyMcpToken(isRunning: () => boolean): Promise<string> {
   const token = regenerateMcpToken();
+  // Nieuw token = alle oude koppelingen vervallen, dus ook hun sessies en documentbindingen: wie opnieuw
+  // verbindt, begint een nieuwe sessie en bindt opnieuw. Ook als de bridge niet draait.
+  appMcpSessions.clear();
   if (isTauri() && isRunning()) {
     // Het nieuwe token staat al opgeslagen: ook als de herstart faalt (bv. `listen` of de dynamische
     // import werpt) moet het veld het tonen, anders liet de UI het oude, niet meer geldige token zien.
@@ -164,7 +172,6 @@ export function buildMcpContext(
   transactions?: McpTransactions,
   backupOverride?: McpBackupBinding,
 ): McpContext {
-  const ui = app.store.getState().ui;
   const contextBackupService = app === appStoreContext ? null : createAppBackupService(app);
   const backup: McpBackupBinding = backupOverride ?? (
     app === appStoreContext
@@ -176,227 +183,27 @@ export function buildMcpContext(
           markDuplicateBorn: contextBackupService!.markDuplicateBorn,
         }
   );
-  return {
+  return createMcpContext(
     app,
-    transactions: transactions ?? (app === appStoreContext ? mcpTransactions : createMcpTransactions(app)),
-    expectedDocId: null,
-    tempIdMap: new Map<string, string>(),
-    paused: ui.aiPaused,
-    readOnly: ui.aiReadOnly,
-    ensureBackup: backup.ensureBackup,
-    markDuplicateBorn: backup.markDuplicateBorn,
-  };
+    transactions ?? (app === appStoreContext ? mcpTransactions : createMcpTransactions(app)),
+    backup,
+  );
 }
 
-// --- Request-handler (injecteerbaar → headless testbaar) -----------------------------------------
+// --- Request-handler (verplaatst naar `requestHandler.ts`; hier opnieuw geëxporteerd) ------------
 
-export interface RequestHandlerDeps {
-  /** Emit-functie (echt: Tauri `emit`); ontvangt het event + payload. */
-  emit: (event: string, payload: unknown) => void | Promise<void>;
-  /** Bouwt de per-request ctx (echt: `buildMcpContext`). */
-  buildContext: () => McpContext;
-  /** Verwerkt de rauwe JSON-RPC-body (echt: `handleMcpMessage`). */
-  handleMessage: (body: string, ctx: McpContext) => Promise<string>;
-  /** Klok in ms (test-injectie; echt: `Date.now`). */
-  now?: () => number;
-}
+export {
+  createRequestHandler, createMcpSessionTable, MCP_MAX_SESSIONS, MCP_QUEUE_DEADLINE_MS,
+  type RequestHandlerDeps, type McpRequestEvent, type McpResponseEvent, type McpSessionTable,
+} from './requestHandler';
 
 /**
- * Hoe lang een request in de wachtrij mag staan voordat het NIET meer wordt uitgevoerd. Rust geeft
- * na `RESPONSE_TIMEOUT` (120 s, `mcp_bridge.rs`) de client al een 504; een daarna alsnog uitgevoerde
- * mutatie zou de client als mislukt zien en bij een retry dubbel landen. De marge (10 s) dekt de
- * tijd tussen Rusts klok-start en de aankomst van het event hier: liever een request te veel
- * weigeren (niet uitgevoerd + fout = consistent) dan er een te veel uitvoeren.
+ * De sessietabel van deze app-sessie (de webview). Leeft langer dan één bridge-start: stop/start en een
+ * poortwissel behouden sessies en ankers, zodat een client na een herstart met zijn oude sessie-id gewoon
+ * `DOC_DRIFT` blijft krijgen. Alleen een nieuw token wist hem (`regenerateAndApplyMcpToken`). Een herstart
+ * van de hele app begint leeg; dat is een nieuwe start.
  */
-export const MCP_QUEUE_DEADLINE_MS = 110_000;
-
-// --- Activiteits-samenvatting --------------------------------------------------------------------
-
-/**
- * Vat de args van een `tools/call` compact samen voor het activiteitenpaneel: het eerste array-veld
- * wordt "N <veld>" (bijv. "42 tasks"); ontbreekt dat, dan de veldnamen; lege args → "". Bewust géén
- * i18n (de samenvatting is opgeslagen data, geen UI-string) en bewust generiek (geen per-tool-kennis
- * — dit blijft correct als er nieuwe tools bijkomen).
- */
-function summarizeArgs(args: unknown): string {
-  if (!args || typeof args !== 'object') return '';
-  const obj = args as Record<string, unknown>;
-  for (const [k, v] of Object.entries(obj)) {
-    if (Array.isArray(v)) return `${v.length} ${k}`;
-  }
-  const keys = Object.keys(obj);
-  return keys.length ? keys.join(', ') : '';
-}
-
-/** Best-effort foutmelding uit een MCP-tool-fout-respons (result.isError) — content-tekst of niets. */
-function extractToolError(result: unknown): string | undefined {
-  if (!result || typeof result !== 'object') return undefined;
-  const r = result as Record<string, unknown>;
-  const content = r.content;
-  if (Array.isArray(content)) {
-    for (const c of content) {
-      if (c && typeof c === 'object' && typeof (c as any).text === 'string') return (c as any).text;
-    }
-  }
-  return undefined;
-}
-
-/**
- * Parse request- + respons-body licht (try/catch) en `record` één `ActivityEntry`: tijdstip, tool/
- * methode, compacte samenvatting, duur, ok/fout (+ evt. foutcode), en de volledige args/result-JSON
- * (afgekapt op 20 kB per veld). Notificaties (lege respons-body) worden NIET gelogd — het paneel toont
- * request/respons-paren, geen fire-and-forget-notificaties. Nooit gooien: het log mag de bridge niet
- * kunnen breken.
- */
-function recordRequestActivity(reqBody: string, respBody: string, durationMs: number): void {
-  // Notificatie ⇒ geen respons-body ⇒ niet loggen.
-  if (!respBody) return;
-  try {
-    let method = '?';
-    let tool = '?';
-    let argsJson = '';
-    let summary = '';
-    try {
-      const req = JSON.parse(reqBody) as { method?: unknown; params?: any };
-      method = typeof req.method === 'string' ? req.method : '?';
-      if (method === 'tools/call' && req.params && typeof req.params === 'object') {
-        tool = typeof req.params.name === 'string' ? req.params.name : '?';
-        const args = req.params.arguments ?? {};
-        argsJson = JSON.stringify(args);
-        const argsSummary = summarizeArgs(args);
-        summary = argsSummary ? `${tool}: ${argsSummary}` : tool;
-      } else {
-        tool = method;
-        argsJson = req.params !== undefined ? JSON.stringify(req.params) : '';
-        summary = method;
-      }
-    } catch {
-      summary = 'onparseerbaar request';
-    }
-
-    let ok = true;
-    let error: string | undefined;
-    try {
-      const resp = JSON.parse(respBody) as { error?: any; result?: any };
-      if (resp.error) {
-        ok = false;
-        const code = resp.error.code;
-        const msg = typeof resp.error.message === 'string' ? resp.error.message : '';
-        error = code != null ? `${code}: ${msg}` : (msg || 'fout');
-      } else if (resp.result && resp.result.isError === true) {
-        ok = false;
-        error = extractToolError(resp.result);
-      }
-    } catch {
-      // Onparseerbaar antwoord: markeer als fout zodat het in het paneel opvalt.
-      ok = false;
-      error = 'onparseerbaar antwoord';
-    }
-
-    const entry: ActivityEntry = {
-      ts: Date.now(),
-      tool,
-      summary,
-      durationMs,
-      ok,
-      ...(error ? { error } : {}),
-      argsJson: capField(argsJson),
-      resultJson: capField(respBody),
-    };
-    recordActivity(entry);
-  } catch {
-    /* het activiteitenlog mag de request-flow nooit kunnen breken */
-  }
-}
-
-/**
- * Maak de `mcp://request`-handler. Elk request draait door de dispatcher; het antwoord gaat 1-op-1
- * terug als `mcp://response` met HETZELFDE Rust-correlatie-id. Óók een notificatie (lege respons-
- * body) wordt geëmit — de Rust-loop correleert op id en wacht altijd op een antwoord, dus een
- * uitgebleven emit zou daar in een timeout lopen.
- */
-export function createRequestHandler(
-  deps: RequestHandlerDeps,
-): (payload: { id: number; body: string }) => Promise<void> {
-  // Het drift-anker leeft per VERBINDING (= per handler, dus per bridge-start), niet per request:
-  // `buildContext` levert elk request een verse ctx met `expectedDocId: null`. Zonder deze overdracht
-  // bond elke eerste mutatie van ieder request opnieuw aan het dán actieve document, zodat een
-  // user-tabwissel tussen twee AI-calls nooit `DOC_DRIFT` gaf en de mutatie stil op het andere
-  // tabblad landde; ook het verzetten door `switch_document`/`new_document`/`duplicate_document`/
-  // `import_schedule` ging met de weggegooide ctx verloren. `tempIdMap` blijft bewust per request
-  // (batch-only, de batch-executor bezit hem).
-  let expectedDocId: string | null = null;
-  // Requests strikt NA elkaar (audit 2026-09-26). Rust houdt één request tegelijk in de lucht, maar
-  // geeft dat slot na zijn time-out (120 s) vrij terwijl de webview nog aan het oude request werkt;
-  // zonder deze keten liep het volgende request (vaak een retry van dezelfde import) bij elke await
-  // door het oude heen. De keten voorkomt dat verweven; een request dat al door Rust is opgegeven
-  // slaat hij over (`MCP_QUEUE_DEADLINE_MS`). Een retry die pas NA die grens binnenkomt is voor ons
-  // een nieuw request: een import opent dan wel een tweede tabblad (geen ontdubbeling op pad).
-  let tail: Promise<void> = Promise.resolve();
-  const now = deps.now ?? Date.now;
-  const handleOne = async (payload: { id: number; body: string }, arrivedAt: number): Promise<void> => {
-    // Een nieuwe MCP-sessie (`initialize`) begint zonder anker: anders erfde een herstarte client
-    // de documentbinding van de vorige en kreeg hij DOC_DRIFT op een tabblad dat hij nooit zag.
-    if (requestMethod(payload.body) === 'initialize') expectedDocId = null;
-    const ctx = deps.buildContext();
-    if (ctx.expectedDocId === null) ctx.expectedDocId = expectedDocId;
-    const start = performance.now();
-    let body: string;
-    try {
-      body = now() - arrivedAt >= MCP_QUEUE_DEADLINE_MS
-        ? queueTimeoutResponse(payload.body)
-        : await deps.handleMessage(payload.body, ctx);
-    } catch (error) {
-      // Vangnet buiten de dispatcher-crashbarrière (bv. een niet-serialiseerbaar resultaat): altijd
-      // een JSON-RPC-fout terugsturen, anders wacht de client tot de Rust-time-out.
-      body = internalErrorResponse(payload.body, error);
-    } finally {
-      expectedDocId = ctx.expectedDocId;
-    }
-    // Leg de aanroep vast in het activiteitenlog (notificaties = lege body worden overgeslagen).
-    recordRequestActivity(payload.body, body, performance.now() - start);
-    await deps.emit('mcp://response', { id: payload.id, body });
-  };
-  return (payload) => {
-    const arrivedAt = now();
-    const run = tail.then(() => handleOne(payload, arrivedAt));
-    tail = run.catch((error) => { console.error('MCP: antwoord versturen mislukt:', error); });
-    return run;
-  };
-}
-
-/** De `method` van een enkel JSON-RPC-request, of null (batch-array, onparseerbaar). */
-function requestMethod(rawBody: string): string | null {
-  try {
-    const parsed = JSON.parse(rawBody) as { method?: unknown };
-    return parsed && typeof parsed === 'object' && typeof parsed.method === 'string' ? parsed.method : null;
-  } catch { return null; }
-}
-
-/** Antwoord voor een request dat te lang in de wachtrij stond en daarom niet is uitgevoerd: dezelfde
- *  `-32001 timeout` als Rust geeft. Een notificatie krijgt een lege body. */
-function queueTimeoutResponse(rawBody: string): string {
-  let id: unknown = null;
-  try {
-    const parsed = JSON.parse(rawBody) as { id?: unknown };
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && !('id' in parsed)) return '';
-    id = (parsed as { id?: unknown })?.id ?? null;
-  } catch { /* onparseerbaar ⇒ id null */ }
-  return JSON.stringify({ jsonrpc: '2.0', id, error: { code: -32001, message: 'timeout: not executed, waited too long in the queue' } });
-}
-
-/** JSON-RPC `-32603 Internal error` voor een request waarvan de verwerking zelf wierp. Een
- *  notificatie (geen `id`) krijgt, zoals altijd, een lege body. */
-function internalErrorResponse(rawBody: string, error: unknown): string {
-  let id: unknown = null;
-  try {
-    const parsed = JSON.parse(rawBody) as { id?: unknown };
-    if (parsed && typeof parsed === 'object' && !('id' in parsed)) return '';
-    id = parsed?.id ?? null;
-  } catch { /* onparseerbaar ⇒ id null */ }
-  const message = error instanceof Error ? error.message : String(error);
-  return JSON.stringify({ jsonrpc: '2.0', id, error: { code: -32603, message: `Internal error: ${message}` } });
-}
+export const appMcpSessions: McpSessionTable = createMcpSessionTable();
 
 // --- Status-handler (injecteerbaar) --------------------------------------------------------------
 
@@ -475,12 +282,21 @@ export interface BridgeDeps {
   handleMessage: (body: string, ctx: McpContext) => Promise<string>;
   getPort: () => number;
   getToken: () => string;
+  /** Sessietabel die alle starts van deze controller delen (echt: `appMcpSessions`). Ontbreekt hij, dan
+   *  maakt de controller er één voor zijn hele levensduur. */
+  sessions?: McpSessionTable;
+  /** De bridge draait nu op `port` met `token` (echt: `runtime.json` schrijven, zie `discoveryFiles.ts`).
+   *  Een fout hier stopt de bridge niet. */
+  onBridgeStarted?: (port: number, token: string) => void | Promise<void>;
+  /** Er draait geen bridge meer: na een stop of een mislukte start (echt: `runtime.json` verwijderen). */
+  onBridgeStopped?: () => void | Promise<void>;
 }
 
 export interface BridgeController {
   start: () => Promise<void>;
   stop: () => Promise<void>;
-  /** Stop + start: pikt een gewijzigd token (of poort) op zonder dat de gebruiker het doet. */
+  /** Stop + start: pikt een gewijzigd token (of poort) op zonder dat de gebruiker het doet. Sessies en
+   *  ankers blijven (zie `appMcpSessions`). */
   restart: () => Promise<void>;
   /** Aantal op dit moment gekoppelde listeners (test-inspectie). */
   activeListenerCount: () => number;
@@ -496,8 +312,17 @@ export interface BridgeController {
  *     returnen (geen spuriëuze `port-busy` terwijl de bridge gewoon opstart).
  */
 export function createBridgeController(deps: BridgeDeps): BridgeController {
+  // Eén tabel voor alle starts: een herstart (nieuw token, poortwissel, handmatig stop/start) mag een
+  // client zijn documentbinding niet laten verliezen (review 3 PR #439).
+  const sessions = deps.sessions ?? createMcpSessionTable();
   let unlisteners: Array<() => void> = [];
   let starting = false;
+
+  /** Meld een start of stop aan de ontdekkingsbestanden; een fout daar raakt de bridge niet. */
+  async function notify(hook: (() => void | Promise<void>) | undefined): Promise<void> {
+    if (!hook) return;
+    try { await hook(); } catch (error) { console.warn('MCP: ontdekkingsbestand bijwerken mislukt:', error); }
+  }
 
   function cleanup(): void {
     for (const un of unlisteners) {
@@ -522,10 +347,11 @@ export function createBridgeController(deps: BridgeDeps): BridgeController {
         emit: deps.emit,
         buildContext: deps.buildContext,
         handleMessage: deps.handleMessage,
+        sessions,
       });
       const onStatus = createStatusHandler({ setStatus: deps.setStatus });
 
-      const unReq = await deps.listen<{ id: number; body: string }>('mcp://request', (p) => { void onRequest(p); });
+      const unReq = await deps.listen<McpRequestEvent>('mcp://request', (p) => { void onRequest(p); });
       const unStatus = await deps.listen<{ state: string; port: number; message?: string }>('mcp://status', (p) => { onStatus(p); });
       unlisteners = [unReq, unStatus];
 
@@ -548,6 +374,9 @@ export function createBridgeController(deps: BridgeDeps): BridgeController {
         // (dat `mcp_bridge_start` vóór zijn Err emit) als nieuwe taak kan binnenkomen: dat event zou
         // anders via `mapRustState` de status naar 'error' zetten en onze 'port-busy' overschrijven.
         cleanup();
+        await notify(deps.onBridgeStopped);
+      } else {
+        await notify(deps.onBridgeStarted ? () => deps.onBridgeStarted!(port, token) : undefined);
       }
     } finally {
       starting = false;
@@ -560,6 +389,7 @@ export function createBridgeController(deps: BridgeDeps): BridgeController {
     cleanup();
     try { await deps.invoke('mcp_bridge_stop', {}); } catch { /* al gestopt / geen bridge — niet fataal */ }
     deps.setStatus({ state: 'off', port: deps.getPort() });
+    await notify(deps.onBridgeStopped);
   }
 
   async function restart(): Promise<void> {
@@ -589,6 +419,10 @@ async function buildLiveController(): Promise<BridgeController> {
     handleMessage: handleMcpMessage,
     getPort: loadMcpPort,
     getToken: ensureMcpToken,
+    sessions: appMcpSessions,
+    // `runtime.json` voor de MCP-plugin (issue #570); de writer is alleen in de desktop-app actief.
+    onBridgeStarted: (port, token) => getMcpDiscoveryWriter()?.bridgeStarted(port, token),
+    onBridgeStopped: () => getMcpDiscoveryWriter()?.bridgeStopped(),
   });
 }
 

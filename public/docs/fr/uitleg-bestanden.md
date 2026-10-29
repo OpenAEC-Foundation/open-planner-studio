@@ -4,7 +4,7 @@ Qu'est-ce qui se trouve réellement dans le fichier que vous enregistrez ? Et qu
 
 ## Le concept
 
-Open Planner Studio a un seul format de fichier qui lui est propre : **IFC**, un format d'échange ouvert pour les informations de construction de buildingSMART. L'application écrit en IFC 4.3 ; dans la liste d'export, il s'appelle *IFC 4x3*. Il n'existe pas de deuxième fichier de projet propriétaire. *Enregistrer* écrit tout votre projet dans un fichier IFC (`.ifc`), et *Ouvrir* relit ce type de fichier. Vous voulez voir ce qui entre dans le fichier ? L'onglet *IFC* affiche le texte IFC de votre projet ; *Générer IFC* actualise ce texte.
+Open Planner Studio a un seul format de fichier qui lui est propre : **IFC**, un format d'échange ouvert pour les informations de construction de buildingSMART. L'application écrit le schéma IFC du projet, par défaut IFC 4.3 ADD2 (voir [Choisir le schéma IFC](docs://howto-ifc-schema-kiezen)) ; dans la liste d'export, il s'appelle *IFC*. Il n'existe pas de second fichier de projet propriétaire. *Enregistrer* écrit tout votre projet dans un fichier IFC (`.ifc`), et *Ouvrir* relit ce type de fichier. Vous voulez voir ce qui entre dans le fichier ? L'onglet *IFC* est un éditeur qui affiche le texte IFC de votre projet ; *Générer IFC* actualise ce texte, et *Copier* le place dans le presse-papiers. Si vous modifiez le texte, *Appliquer* le charge comme votre projet. Cela remplace complètement le projet dans cet onglet.
 
 Tous les autres formats sont des **adaptateurs** : des traducteurs entre le modèle d'un autre programme et celui de l'application. L'application lit CSV, MS Project XML, Primavera P6 XML, les fichiers MS Project (`.mpp`) et les fichiers Primavera (`.xer`). Elle écrit CSV, MS Project XML, Primavera P6 XML et deux fiches d'avancement. Vous ne pouvez pas exporter vers `.mpp` ou `.xer`.
 
@@ -20,7 +20,7 @@ Chaque fichier s'ouvre dans son propre onglet. Exception : un onglet encore vide
 
 Après l'ouverture, l'application recalcule toujours. Si le fichier vient d'un autre logiciel, les dates peuvent différer de ce que disait le fichier. Cela est décrit dans [Dates telles qu'enregistrées](docs://uitleg-datums-zoals-opgeslagen).
 
-Seul un fichier IFC devient la **cible d'enregistrement** : le fichier dans lequel *Enregistrer* écrit. Un fichier CSV, XML, `.mpp` ou `.xer` ne le devient pas. Un tel projet n'a pas de fichier après l'ouverture ; *Enregistrer* demande alors où doit aller le nouveau fichier IFC. Ainsi, appuyer sur Ctrl+S n'écrase jamais votre fichier d'origine avec du texte IFC.
+Seul un fichier IFC devient la **cible d'enregistrement** : le fichier dans lequel *Enregistrer* écrit. Un fichier CSV, XML, `.mpp` ou `.xer` ne le devient pas. Un tel projet n'a pas de fichier après l'ouverture ; *Enregistrer* demande alors où doit aller le nouveau fichier IFC. Ainsi, Ctrl+S n'écrase jamais votre fichier d'origine avec du texte IFC.
 
 ### Ce qu'écrit l'enregistrement
 
@@ -34,9 +34,9 @@ Seul un fichier IFC devient la **cible d'enregistrement** : le fichier dans lequ
 - les paramètres du projet, comme la date d'état, le profil de calcul et les options de calcul ;
 - la liaison avec une bibliothèque de ressources.
 
-Ce que vous réglez à l'écran n'appartient pas au projet et n'est pas enregistré avec lui : le zoom, la position de défilement, la tâche sélectionnée et les phases repliées. Les paramètres de l'application, comme la langue et le thème, ne sont pas non plus dans le fichier. L'application les conserve elle-même, dans l'application ou dans votre navigateur.
+Ce que vous réglez à l'écran n'appartient pas au projet et n'est pas enregistré avec lui : le zoom, la position de défilement, la tâche sélectionnée et les phases repliées. Les paramètres de l'application, comme la langue et le thème, ne figurent pas non plus dans le fichier. L'application les conserve elle-même, dans l'application ou dans votre navigateur.
 
-Un export vers un autre format ne modifie pas votre projet. Après un export, le projet garde la même cible d'enregistrement. Il porte toujours la mention *Non enregistré* si c'était le cas avant.
+Un export vers un autre format ne modifie pas votre projet. Après un export, le projet garde la même cible d'enregistrement, et il porte toujours la mention *Non enregistré* s'il la portait avant.
 
 ### Ce qu'un export perd
 
@@ -46,25 +46,25 @@ Chaque adaptateur transporte ce que son format connaît.
 
 **Primavera P6 XML** transporte les tâches, les relations, les calendriers, les ressources, les affectations, les contraintes et la date d'état. Les références et les échéances ne sont pas transmises, pas plus que les codes d'activité, les champs personnalisés, les notes et les relations externes. Un hamac devient ici aussi une tâche ordinaire. P6 ne connaît pas de décalage en pourcentage : l'application convertit ce décalage en un nombre fixe de jours. Un décalage en jours calendaires devient un décalage en jours ouvrés.
 
-**CSV** est une liste de tâches. Le fichier a ces colonnes pour chaque tâche : task id, WBS, level, name, duration, start, finish, predecessors, type, l'identifiant d'un type de tâche personnalisé (`OPS Custom Task Type ID`), status, completion, actual start and finish, critical, total float and description. Les ressources, les affectations, les calendriers, les contraintes, les échéances, les références et la date d'état n'y figurent pas. Les en-têtes de colonnes restent toujours en anglais.
+**CSV** est une liste de tâches. Le fichier a ces colonnes pour chaque tâche : task id, WBS, level, name, duration, start, finish, predecessors, work category, l'identifiant d'une catégorie de travaux personnalisée (`OPS Custom Task Type ID`), status, completion, actual start and finish, critical, total float et description. Les ressources, les affectations, les calendriers, les contraintes, les échéances, les références et la date d'état n'y figurent pas. Les en-têtes de colonnes restent toujours en anglais.
 
-**Seul IFC transporte le profil de calcul et les options de calcul.** Si vous exportez vers CSV, MS Project XML ou Primavera P6 XML, le profil ne figure pas dans le fichier ; parmi les options de calcul, MS Project XML écrit au plus le seuil critique. Un tel fichier se rouvre comme *Open Planner Studio*. Si votre projet a été calculé avec *Primavera P6* ou *Microsoft Project*, par exemple parce qu'il vient d'un `.xer` ou d'un `.mpp`, les dates peuvent se décaler pour cette raison. Ce qu'est un profil de calcul est expliqué dans [Profils de calcul et conventions](docs://uitleg-rekenprofielen).
+**Seul IFC transporte le profil de calcul et les options de calcul.** Si vous exportez vers CSV, MS Project XML ou Primavera P6 XML, le profil ne figure pas dans le fichier. Parmi les options de calcul, MS Project XML écrit au plus le seuil critique. Un tel fichier se rouvre comme *Open Planner Studio*. Si votre projet a été calculé avec *Primavera P6* ou *Microsoft Project*, par exemple parce qu'il vient d'un `.xer` ou d'un `.mpp`, les dates peuvent se décaler pour cette raison. Ce qu'est un profil de calcul est expliqué dans [Profils de calcul et conventions](docs://uitleg-rekenprofielen).
 
 Si votre projet vient d'un fichier Primavera (`.xer`), même si vous l'avez entre-temps enregistré en IFC, l'application affiche après un export vers CSV, MS Project XML ou P6 XML : *L’export vers CSV entraîne la perte d’informations source XER.* Pour MS Project XML, le message dit *MSPDI* au lieu de *CSV* ; pour P6 XML, il dit *P6*. Vous ne recevez pas ce message pour IFC : le fichier IFC transporte aussi le fichier source de Primavera. Voir [Ouvrir un fichier Primavera P6 (.xer)](docs://howto-xer-openen).
 
-Deux autres points concernent l'export. Si le planning n'est plus à jour, l'application le recalcule d'abord, puis exporte. Et elle n'exporte pas un planning avec une dépendance circulaire : vous recevez un message qui contient la boucle, par exemple *Dépendance circulaire entre les tâches : Set up site → Demolish existing extension → Set up site*.
+Deux autres points concernent l'export. Si le planning n'est plus à jour, l'application le recalcule d'abord, puis exporte. Elle n'exporte pas non plus un planning contenant une dépendance circulaire : vous recevez un message qui contient la boucle, par exemple *Dépendance circulaire entre les tâches : Set up site → Demolish existing extension → Set up site*.
 
-### Enregistrer, enregistrement automatique et récupération
+### Enregistrer, enregistrement automatique et récupération après un plantage
 
 Ce sont trois choses différentes. Elles se ressemblent, mais elles écrivent à un autre endroit.
 
-**Enregistrer** est une action que vous faites. L'application écrit votre projet dans votre fichier et retire la mention *Non enregistré*.
+**Enregistrer** est une action que vous effectuez. L'application écrit votre projet dans votre fichier et retire la mention *Non enregistré*.
 
 **L'enregistrement automatique** est désactivé par défaut, et vous l'activez vous-même pour chaque projet. L'application écrit alors, sans fenêtre, dans le même fichier dès qu'il y a des modifications, au plus une fois toutes les dix secondes. Cela ne fonctionne que si le projet a déjà un fichier. Voir [Activer l'enregistrement automatique](docs://howto-automatisch-opslaan).
 
 **La récupération après un plantage** est toujours active. Dès qu'une modification a lieu quelque part, l'application conserve aussi, au plus une fois toutes les dix secondes, une copie de récupération de tous les projets ouverts, y compris ceux que vous n'avez pas modifiés vous-même. Cette copie ne se trouve pas dans votre fichier de projet : dans l'application de bureau, elle est dans le dossier de données de l'application ; dans le navigateur, elle est dans le stockage du navigateur. Au prochain démarrage, l'application vous propose cette copie. Vous en lirez davantage dans [Récupérer après un plantage](docs://howto-herstellen-na-een-crash). La récupération après un plantage n'écrit jamais dans votre fichier de projet.
 
-Comme une copie n'est conservée qu'au plus une fois toutes les dix secondes, vous pouvez perdre les dernières secondes de saisie lors d'un plantage.
+Comme une copie n'est conservée qu'au plus une fois toutes les dix secondes, vous pouvez perdre les dernières secondes de travail lors d'un plantage.
 
 ### Bureau et navigateur
 

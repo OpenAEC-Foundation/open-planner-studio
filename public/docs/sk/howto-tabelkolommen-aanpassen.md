@@ -9,7 +9,7 @@ Na porade chcete vidieť *Termín* a celkovú časovú rezervu pri každej úloh
 Existujú dve tabuľky úloh, každá s vlastnými stĺpcami:
 
 - **Tabuľka úloh vedľa diagramu Gantt** je naľavo od časovej osi na kartách, medzi inými *Domov*, *Plán* a *Zobrazenie*. Predvolene obsahuje *WBS*, *Názov úlohy* a *Trvanie*, aby zostalo miesto pre časovú os.
-- **tabuľka na karte Tabuľka** zaberá celý pracovný priestor. Predvolene obsahuje *WBS*, *Názov úlohy*, *Trvanie*, *Začiatok*, *Dokončenie*, *Typ úlohy*, *Kritická*, *Celková časová rezerva* a *Postup*. Pridá sa k tomu stĺpec pre každý kód aktivity a každé vlastné pole projektu.
+- **Tabuľka na karte Tabuľka** zaberá celý pracovný priestor. Predvolene obsahuje *WBS*, *Názov úlohy*, *Trvanie*, *Začiatok*, *Dokončenie*, *Druh prác*, *Kritická*, *Celková časová rezerva* a *Postup*. Pridá sa k tomu stĺpec pre každý kód aktivity a každé vlastné pole projektu.
 
 Zmena jednej tabuľky nemení druhú.
 

@@ -16,7 +16,7 @@ Plán je predpoveď. Keď práca prebieha, chcete vedieť, čo je hotové, čo e
 
 Príklad nižšie používa profil výpočtu *Open Planner Studio*, s ktorým počíta nový projekt. Ďalej si môžete prečítať, čo sa líši v profiloch Primavera P6 a Microsoft Project.
 
-Aplikácia sa sama neprepočítava. Po každej zmene postupu alebo dátumu kontroly stavu stavový riadok zobrazí *Zastaralé — prepočítajte (F5)*. Stlačte **Prepočítať** (F5), napríklad cez *Plán › Plán › Prepočítať*. Ak je *Automatický prepočet* zapnutý (v *Nastavenia › Projekt › Nastavenia*, karta *Plán*, oddiel *Prepočítanie*), aplikácia to urobí sama.
+Aplikácia sa sama neprepočítava. Po každej zmene postupu alebo dátumu kontroly stavu stavový riadok zobrazí *Zastaralé — prepočítajte (F5)*. Stlačte **Prepočítať** (F5), napríklad cez *Plán › Plán › Prepočítať*. Ak je *Automatický prepočet* zapnutý (v *Nastavenia › Projekt › Nastavenia aplikácie*, karta *Plán*, oddiel *Prepočítanie*), aplikácia to urobí sama.
 
 ### Dátum kontroly stavu
 
@@ -137,11 +137,11 @@ Predanie zostáva v oboch prípadoch v piatok 6. augusta: maľovanie malo aj tak
 
 ### Ďalšie profily výpočtu
 
-V profiloch Primavera P6 a Microsoft Project sa maľovanie v tomto príklade skončí v rovnakých dátumoch (27. a 22. júla). Líšia sa v týchto bodoch. Sú to pravidlá výpočtu daného profilu. Nájdete ich pod *Nastavenia › Projekt › Info o projekte*, v bloku *Profil výpočtu a možnosti výpočtu*.
+V profiloch Primavera P6 a Microsoft Project sa maľovanie v tomto príklade skončí v rovnakých dátumoch (27. a 22. júla). Líšia sa v týchto bodoch. Sú to pravidlá výpočtu daného profilu. Nájdete ich pod *Nastavenia › Projekt › Nastavenia projektu*, v bloku *Profil výpočtu a možnosti výpočtu*.
 
 - V profile Microsoft Project sa úloha, ktorá ešte nezačala, nepresúva na dátum kontroly stavu (pravidlo výpočtu *Nepresúvať nezačaté úlohy na dátum kontroly stavu*). Ak v uvedenom príklade nastavíte len dátum kontroly stavu a nezadáte nič, predanie v tomto profile zostane v piatok 6. augusta.
 - V profile Microsoft Project zostávajúca práca tiež nezačne skôr ako skutočný začiatok plus trvanie, ktoré už uplynulo (pravidlo výpočtu *Zostávajúca práca pokračuje po uplynulom trvaní*). Je to ďalšia spodná hranica popri dátume kontroly stavu: počíta sa neskorší z oboch. Vezmite si úlohu *Build inner cavity leaf* (5 pracovných dní), začatú v utorok 29. júna a na 40% v stredu 30. júna, teda na dátume kontroly stavu (dve partie murujú súčasne, takže práca je už po jednom dni hotová na 40%). Všetko pred ňou je podľa plánu hotové. Open Planner Studio a Primavera P6 nechajú úlohu dokončiť v piatok 2. júla; Microsoft Project v pondelok 5. júla, lebo utorok 29. júna plus 2 uplynulé pracovné dni je štvrtok 1. júla, čo je po dátume kontroly stavu.
-- Primavera P6 ako skorý začiatok bežiacej úlohy zobrazuje začiatok zostávajúcej práce, nie skutočný začiatok (v príklade vnútorného muriva je to streda 30. júna).
+- Primavera P6 ako skorý začiatok bežiacej úlohy zobrazuje začiatok zostávajúcej práce, nie skutočný začiatok (v príklade vnútorného muriva je to streda 30. júna). Stĺpec *Začiatok* a pruh zobrazujú skutočný začiatok v každom profile.
 - V profile Primavera P6 sa pri Progress Override závislosť na nasledujúcej úlohe, ktorá už začala, pre predchádzajúcu úlohu tiež nepočíta: už neobmedzuje jej neskoré dátumy ani jej voľnú časovú rezervu (pravidlo výpočtu *Progress Override ignoruje začatú nasledujúcu úlohu aj pri spätnom výpočte*). V príklade omietkára a maliara to nevidno, lebo omietanie je aj tak kritické cez poter podlahy: jeho neskoré dátumy a voľná časová rezerva sú rovnaké pri Retained Logic aj pri Progress Override.
 - Keď otvoríte súbor .xer, aplikácia prevezme režim postupu zo súboru. Režim Actual Dates, tretí režim P6, aplikácia nepozná; takýto súbor počíta v režime Retained Logic.
 
@@ -157,7 +157,7 @@ V profiloch Primavera P6 a Microsoft Project sa maľovanie v tomto príklade sko
 
 **„Prestávka v rozdelenej úlohe vypadne.“** Nie: prestávka v časti, ktorá ešte zostáva urobiť, zostane v zostávajúcej práci. Uvažujte o úlohe s trvaním 5 pracovných dní s 1-dňovou prestávkou po 2 pracovných dňoch práce, začatej v utorok 29. júna a pri dátume kontroly stavu v stredu 30. júna na 40%. Zostávajúca práca 3 pracovné dni začína na dátume kontroly stavu a beží aj cez prestávku: dokončenie je v pondelok 5. júla. Bez prestávky bolo dokončenie v piatok 2. júla.
 
-**Hodiny a dátum kontroly stavu.** Na páse s nástrojmi nemôžete zadať čas: dátum kontroly stavu vyplníte ako dátum. Ak kontrolu stavu robíte mimo pracovnej doby, nastavte dátum kontroly stavu na najbližší pracovný deň. Úloha v hodinách počíta zostávajúcu prácu od začiatku dňa dátumu kontroly stavu. Uvažujte o *Lay hollow-core floor* v cvičnom projekte po návode 4: 5 hodín, v pondelok 28. júna, pracovný deň od 07:00. Ak je dátum kontroly stavu v pondelok 28. júna a úloha je na 40%, zostáva jej 3 hodiny práce, ktoré bežia od 07:00 do 10:00, aj keď sa toho rána práca už urobila. Ako aplikácia počíta hodiny, je vysvetlené v článku [Dni a hodiny](docs://uitleg-dagen-en-uren).
+**Hodiny a dátum kontroly stavu.** Na páse s nástrojmi nemôžete zadať čas: dátum kontroly stavu vyplníte ako dátum. Ak kontrolu stavu robíte mimo pracovnej doby, nastavte dátum kontroly stavu na najbližší pracovný deň. Úloha v hodinách počíta zostávajúcu prácu od začiatku dňa dátumu kontroly stavu. Uvažujte o *Lay hollow-core floor* v cvičnom projekte po návode 4, v čase, keď je všetko pred ňou hotové: 5 hodín, v pondelok 28. júna, pracovný deň od 07:00. Ak je dátum kontroly stavu v pondelok 28. júna a úloha je na 40%, zostáva jej 3 hodiny práce, ktoré bežia od 07:00 do 10:00, aj keď sa toho rána práca už urobila. Ako aplikácia počíta hodiny, je vysvetlené v článku [Dni a hodiny](docs://uitleg-dagen-en-uren).
 
 **Aktualizácia pôvodného plánu.** To nie je možné. Uložíte nový a starý odstránite. Ak presuniete projekt, skutočné dátumy a dátum kontroly stavu sa posunú spolu s ním, ale pôvodné plány sa predvolene neposunú: tak posun zostane viditeľný ako odchýlka. Pozrite si [Presun projektu](docs://howto-project-verplaatsen).
 

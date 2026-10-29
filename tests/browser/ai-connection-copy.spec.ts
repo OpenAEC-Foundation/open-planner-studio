@@ -88,4 +88,28 @@ test('AI-verbindingsgegevens maskeren de UI maar kopiëren elke bruikbare echte 
   expect(copied![4]).toContain(`Authorization: Bearer ${SYNTHETIC_TOKEN}`);
   expect(copied![4]).toContain(ENDPOINT);
   expect(copied![4]).not.toContain(MASK);
+
+  await dialog.getByRole('button', { name: /^(Close|Sluiten)$/ }).last().click();
+  // knownbugs #26: een mislukte start bindt geen poort. Na fouten kan de gebruiker herstellen,
+  // in zowel het volle lint als de compacte popover, zonder een echte bridge te starten.
+  for (const compact of [false, true]) {
+    await page.evaluate(compact => window.__OPS__!.store.getState().setUI({ ribbonCompact: compact }), compact);
+    if (compact) await page.getByRole('button', { name: /^(Connect|Verbinden)$/ }).click();
+    const port = page.getByRole('spinbutton', { name: /^(Port|Poort)$/ });
+    for (const serverState of ['port-busy', 'error'] as const) {
+      await page.evaluate(state => window.__OPS__!.store.getState().setAiServerStatus({ state, port: 4319 }), serverState);
+      await expect(port).toBeEnabled();
+      const chosen = String((compact ? 4322 : 4320) + (serverState === 'error' ? 1 : 0));
+      await port.fill(chosen);
+      await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.aiServerStatus))
+        .toEqual({ state: 'off', port: Number(chosen) });
+      expect(await page.evaluate(() => JSON.parse(localStorage.getItem('ops-mcpPort')!))).toBe(Number(chosen));
+    }
+    await page.evaluate(() => window.__OPS__!.store.getState().setAiServerStatus({ state: 'live', port: 4321 }));
+    await expect(port).toBeDisabled();
+    await page.evaluate(() => window.__OPS__!.store.getState().setAiServerStatus({ state: 'off', port: 4321 }));
+    await expect(port).toBeEnabled();
+    if (compact) await page.keyboard.press('Escape');
+  }
+
 });

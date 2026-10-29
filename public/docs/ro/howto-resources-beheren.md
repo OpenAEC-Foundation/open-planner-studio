@@ -26,7 +26,7 @@ Editați câmpurile din rând. Aplicația salvează numele, tariful și unitatea
 
 - *Capacitate maximă* este acceptată de aplicație numai dacă valoarea este mai mare decât 0. Cu 0 sau mai puțin, câmpul primește o margine roșie și revine la valoarea anterioară.
 - *Calendar* stabilește în ce zile lucrează resursa. Alegeți *Calendar de proiect* sau un calendar propriu. Cu *+ Calendar de resursă* creați unul nou, iar creionul (*Editare…*) deschide calendarul ales. Dacă o activitate lucrează într-o zi în care resursa este liberă conform calendarului său, ziua respectivă se consideră supraalocată. Cum se creează un calendar de resursă este descris în [Configurarea unui calendar de resursă](docs://howto-resourcekalender-instellen).
-- *Tarif standard/oră* și *Total*: *Total* este numărul de ore încărcate ale acelei resurse înmulțit cu tariful. Un gletar încărcat cu 32 de ore, cu un tarif de 50 pe oră, ajunge la 1,600.00. În partea de jos a tabelului este suma tuturor resurselor.
+- *Tarif standard/oră* și *Total*: *Total* este numărul de ore încărcate ale acelei resurse înmulțit cu tariful. Un gletar încărcat cu 32 de ore, cu un tarif de 50 pe oră, ajunge la 1.600,00. În partea de jos a tabelului este suma tuturor resurselor.
 - *Echipă* grupează o resursă sub o resursă de tipul *Echipă*. Este doar o grupare: aplicația nu adună capacitatea sau încărcarea membrilor în echipă.
 - Pătrățelul colorat din stânga este culoarea resursei. Este doar pentru afișare și nu are niciun efect asupra planificării.
 
@@ -41,7 +41,7 @@ Un pas nou începe cu data de azi și cu valoarea 1 pentru *Capacitate maximă*.
 1. Faceți clic pe coșul de gunoi din rând.
 2. Dacă resursa are atribuiri, aplicația cere confirmare, de exemplu *„Bricklayer” are 4 atribuire(i) — ștergeți?* Faceți clic pe bifă pentru a șterge sau pe cruce pentru a anula. Fără atribuiri, resursa dispare imediat.
 
-Atribuirile resursei dispar odată cu ea. Dacă o activitate are o regulă de lucru, altă decât *Durată fixă și unități fixe*, aplicația împarte lucrul resursei șterse între resursele rămase. În funcție de regulă, se modifică unitățile de atribuire ale acestora sau durata activității. Dacă se modifică durata, planificarea dumneavoastră nu mai este actualizată.
+Atribuirile resursei dispar odată cu ea. Dacă o activitate are alt tip de activitate decât *Durată fixă și unități fixe*, aplicația împarte lucrul resursei șterse între resursele rămase. În funcție de tipul de activitate, se modifică unitățile de atribuire ale acestora sau durata activității. Dacă se modifică durata, planificarea dumneavoastră nu mai este actualizată.
 
 Puteți anula crearea, editarea și ștergerea cu *Anulare* (Ctrl+Z).
 

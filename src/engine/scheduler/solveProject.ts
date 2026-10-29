@@ -103,9 +103,9 @@ export function solveProject(input: SolveProjectInput): CPMResult {
 /**
  * Kloon een takenlijst zodat `solveProject` erop kan rekenen zónder het origineel te raken.
  *
- * Ondiep per taak, met een verse `time`: alles wat solver en `applyCpmResult` schrijven zit in
- * `task.time.*` (de berekende datums/speling, en in de hammock-tak `durationMinutes`/
- * `scheduleDuration`). De overige velden worden alleen gelezen; hun arrays (`childIds`,
+ * Ondiep per taak, met een verse `time`: de solver en `applyCpmResult` schrijven in `task.time.*`
+ * (de berekende datums/speling, en in de hammock-tak `durationMinutes`/`scheduleDuration`) en de
+ * afgeleide `task.status` van verzameltaken. De overige velden worden alleen gelezen; hun arrays (`childIds`,
  * `resourceIds`, `constraints`, …) blijven dus bewust gedeelde referenties — kopiëren zou geen
  * enkele mutatie voorkomen en wél per doorrekening geheugen kosten.
  */

@@ -11,11 +11,14 @@
   },
   "notifications": {
     "dismiss": "Lukk melding",
-    "taskEditRevertBlocked": "En endring fra KI-assistenten eller en utvidelse kom imellom. Aktivitetsendringene fra før er ikke tilbakeført og står som vanlige steg under Angre.",
+    "taskEditRevertBlocked": "En endring fra MCP-klienten eller en utvidelse kom imellom. Aktivitetsendringene fra før er ikke tilbakeført og står som vanlige steg under «Angre».",
     "openFailed": "Kunne ikke åpne fil",
+    "csvInvalidDate": "CSV ikke åpnet: ugjenkjennelig dato «{{value}}» på CSV-rad {{row}}, kolonne «{{column}}». Bruk åååå-mm-dd, dd-mm-åååå eller dd/mm/åååå.",
     "extGuideCallbackFailed": "Et steg fra utvidelsen {{name}} gav en feil. Veiledningen fortsetter.",
     "extHelpProjectOpenFailed": "Prosjektfilen {{file}} fra utvidelsen {{name}} kunne ikke åpnes.",
+    "extImportFailed": "Import med {{name}} mislyktes.",
     "extensionMessage": "Utvidelse {{name}}: {{message}}",
+    "extensionInstallFailed": "Utvidelsen kunne ikke installeres. Kontroller filen og prøv igjen.",
     "xerInvalidInput": "XER-import krever de opprinnelige filbytene.",
     "xerInvalidFile": "Dette er ikke en gyldig eller støttet XER-fil.",
     "xerInvalidEncoding": "Tegnkodingen i denne XER-filen er ugyldig eller avkortet.",
@@ -55,6 +58,8 @@
     "xerImportNumberIssues_other": "{{count}} tallformatproblemer.",
     "xerImportEnumFallbacks_one": "{{count}} enum-reserve.",
     "xerImportEnumFallbacks_other": "{{count}} enum-reserver.",
+    "xerImportMissingPlannedStarts_one": "{{count}} aktivitet hadde ingen planlagt start og starter nå på statusdatoen eller prosjektstarten fra filen.",
+    "xerImportMissingPlannedStarts_other": "{{count}} aktiviteter hadde ingen planlagt start og starter nå på statusdatoen eller prosjektstarten fra filen.",
     "xerImportUnsupportedSemantics_one": "{{count}} P6-planleggingsinnstilling brukte en trygg reserveløsning.",
     "xerImportUnsupportedSemantics_other": "{{count}} P6-planleggingsinnstillinger brukte trygge reserveløsninger.",
     "xerImportDatesAsRecorded_one": "{{count}} aktivitet viser datoene slik Primavera lagret dem (ikke omberegnet).",
@@ -65,12 +70,15 @@
     "mppLegacy": "Denne .mpp-filen bruker et eldre format (Project 2007 eller eldre). Eksporter den fra MS Project som XML (Fil → Lagre som → XML), og åpne den filen.",
     "mppEncrypted": "Denne .mpp-filen er beskyttet med et passord. Eksporter den fra MS Project som XML (Fil → Lagre som → XML), og åpne den filen.",
     "saveFailed": "Kunne ikke lagre",
+    "ambiguousThousands": "\"{{text}}\" er tvetydig: mener du et desimaltall eller tusentall? Skriv desimaler med \"{{separator}}\" (1{{separator}}5) og tusentall uten skilletegn (1500). Verdien er ikke endret.",
     "siteSaveConflict": "Ikke lagret: '{{name}}' er i mellomtiden endret av noen andre på siten. Endringene dine står fortsatt i appen. Velg «Lagre som» for å lagre dem som en ny fil.",
     "siteFileGone": "'{{name}}' finnes ikke lenger på siten. Filen er fjernet fra Nylige.",
     "savedViaDownload": "Lagret som nedlasting: '{{name}}' ligger nå i nedlastingsmappen din. Dette miljøet tillater ikke at appen skriver direkte til stedet du valgte.",
     "browserCannotOverwrite": "Denne nettleseren lar ikke appen skrive tilbake til '{{name}}'. Derfor spør appen hver gang du lagrer hvor filen skal lagres. Dette skjer ikke i Chrome, Edge eller skrivebordsappen.",
     "browserSavesAsDownload": "Lagret som nedlasting: '{{name}}' ligger i nedlastingsmappen din. Denne nettleseren lar ikke appen skrive til et eget sted, så hver lagring lager en ny nedlasting. I Chrome, Edge eller skrivebordsappen oppdaterer Lagre bare samme fil.",
     "autoSaveFailed": "Automatisk lagring mislyktes",
+    "recoveryManifestBlocked": "Gjenopprettingsdataene har en ukjent versjon eller et ugyldig format. Denne appen lar dem være urørt og kan ikke lese eller oppdatere dette gjenopprettingssettet. Prøv appversjonen som laget kopiene, eller en nyere versjon. Lagre nytt innhold selv.",
+    "recoveryStorageBlocked": "Gjenopprettingslagringen er midlertidig blokkert av en annen åpen forbindelse. Eksisterende kopier blir stående; denne siden lager ikke nye gjenopprettingskopier. Lagre innholdet ditt selv, lukk andre faner med denne appen og last siden på nytt for å prøve gjenoppretting igjen.",
     "recoveryReadFailed": "Den gjenopprettede filen kunne ikke leses",
     "recoveryRestoreFailed": "Gjenoppretting mislyktes",
     "recoveryDocumentsSkipped_one": "{{count}} gjenopprettingsfil kunne ikke lastes og er hoppet over.",
@@ -92,16 +100,18 @@
     "mppSourceScheduleNotes_other": "Denne MS Project-filen inneholder {{count}} aktiviteter med en delt, utjevnet eller ressursdrevet tidsplan. De leses inn og vises slik.",
     "exportSplitsLost_one": "{{count}} aktivitet med avbrudd er eksportert uten avbrudd: MS Project og P6 kjenner bare avbrudd som en arbeidsfordeling.",
     "exportSplitsLost_other": "{{count}} aktiviteter med avbrudd er eksportert uten avbrudd: MS Project og P6 kjenner bare avbrudd som en arbeidsfordeling.",
+    "exportP6Truncated_one": "{{count}} navn eller kode er forkortet til lengden P6 tillater.",
+    "exportP6Truncated_other": "{{count}} navn eller koder er forkortet til lengden P6 tillater.",
     "projectStartAnchorsClamped_one": "{{count}} aktivitet ble flyttet med prosjektstarten.",
     "projectStartAnchorsClamped_other": "{{count}} aktiviteter ble flyttet med prosjektstarten.",
     "mppTimephasedSteeringLost_one": "Datovinduet fra MS Project styrer ikke lenger {{count}} aktivitet etter denne redigeringen; timefordelingen gjelder fortsatt og er bevart i filen.",
     "mppTimephasedSteeringLost_other": "Datovinduet fra MS Project styrer ikke lenger {{count}} aktiviteter etter denne redigeringen; timefordelingen gjelder fortsatt og er bevart i filen.",
     "readMore": "Les mer",
-    "taskTypesUnlocked": "Denne filen inneholder lagret arbeid eller egne arbeidsregler; arbeidsregelen og gjenstående arbeid vises for dette prosjektet.",
-    "taskTypesUnlockedDetail": "Denne filen inneholder lagret arbeid eller egne arbeidsregler; arbeidsregelen og gjenstående arbeid vises for dette prosjektet.",
-    "workRulesReadMore": "Arbeidsregler forklart",
-    "workRuleDurationsChanged_one": "Etter kalenderendringen har arbeidsregelen justert varigheten til {{count}} aktivitet (arbeidet består, timer per dag er endret).",
-    "workRuleDurationsChanged_other": "Etter kalenderendringen har arbeidsregelen justert varigheten til {{count}} aktiviteter (arbeidet består, timer per dag er endret).",
+    "taskTypesUnlocked": "Denne filen inneholder lagret arbeid eller aktivitetstyper; aktivitetstypen og gjenstående arbeid vises for dette prosjektet.",
+    "taskTypesUnlockedDetail": "Denne filen inneholder lagret arbeid eller aktivitetstyper; aktivitetstypen og gjenstående arbeid vises for dette prosjektet.",
+    "workRulesReadMore": "Aktivitetstyper forklart",
+    "workRuleDurationsChanged_one": "Etter kalenderendringen har aktivitetstypen justert varigheten til {{count}} aktivitet (arbeidet består, timer per dag er endret).",
+    "workRuleDurationsChanged_other": "Etter kalenderendringen har aktivitetstypen justert varigheten til {{count}} aktiviteter (arbeidet består, timer per dag er endret).",
     "pasteSkippedReadOnly_one": "{{count}} celle hoppet over: den er skrivebeskyttet (f.eks. en automatisk nummerert WBS-kode eller en beregnet kolonne).",
     "pasteSkippedReadOnly_other": "{{count}} celler hoppet over: de er skrivebeskyttede (f.eks. automatisk nummererte WBS-koder eller beregnede kolonner).",
     "librarySaveFailed": "Biblioteket kunne ikke lagres",
@@ -115,21 +125,31 @@
     "startBlockedByConstraintNoDate": "Den nye starten for '{{name}}' ble ikke tatt i bruk: aktiviteten har en forgjenger og begrensningen $t(task:constraintType.{{type}}), og de bestemmer starten. Endre den begrensningen for å flytte starten.",
     "startBlockedByConstraintMany_one": "Den nye starten for {{count}} aktivitet er ikke brukt: aktiviteten har en forgjenger og en annen begrensning enn Start ikke tidligere enn (SNET). Endre den begrensningen for å flytte starten.",
     "startBlockedByConstraintMany_other": "De nye startene for {{count}} aktiviteter er ikke brukt: de har en forgjenger og en annen begrensning enn Start ikke tidligere enn (SNET). Endre begrensningene for å flytte startene.",
-    "referencesClearedOnPaste_one": "{{count}} referanse fantes ikke i dette dokumentet og er tømt (en aktivitetskalender, egen aktivitetstype, aktivitetskode eller egendefinert felt fra kildedokumentet).",
-    "referencesClearedOnPaste_other": "{{count}} referanser fantes ikke i dette dokumentet og er tømt (aktivitetskalendere, egne aktivitetstyper, aktivitetskoder eller egendefinerte felt fra kildedokumentet).",
-    "milestoneRefusedAssignments_one": "'{{task}}' har ressurstilordninger og kan ikke bli en milepæl. Fjern tilordningene først.",
-    "milestoneRefusedAssignments_other": "{{count}} aktiviteter har ressurstilordninger og kan ikke bli milepæler. Fjern tilordningene først.",
-    "milestoneRefusedSummary_one": "'{{task}}' er en hovedaktivitet med delaktiviteter og kan ikke bli en milepæl.",
-    "milestoneRefusedSummary_other": "{{count}} aktiviteter er hovedaktiviteter med delaktiviteter og kan ikke bli milepæler.",
+    "dragStartIsActual": "«{{name}}» er startet: starten er den faktiske starten og flytter ikke. Endre den via fremdriften.",
+    "dragDatesAreActual": "«{{name}}» er ferdig: start og slutt er de faktiske datoene og flytter ikke. Endre dem via fremdriften.",
+    "referencesClearedOnPaste_one": "{{count}} referanse fantes ikke i dette dokumentet og er tømt (en aktivitetskalender, en egen arbeidskategori, en aktivitetskode eller et egendefinert felt fra kildedokumentet).",
+    "referencesClearedOnPaste_other": "{{count}} referanser fantes ikke i dette dokumentet og er tømt (aktivitetskalendere, egne arbeidskategorier, aktivitetskoder eller egendefinerte felt fra kildedokumentet).",
+    "milestoneRefusedAssignments": "'{{task}}' har ressurstilordninger og kan ikke bli en milepæl. Fjern tilordningene først.",
+    "milestoneRefusedAssignmentsMany_one": "{{count}} aktivitet har ressurstilordninger og kan ikke bli en milepæl. Fjern tilordningene først.",
+    "milestoneRefusedAssignmentsMany_other": "{{count}} aktiviteter har ressurstilordninger og kan ikke bli milepæler. Fjern tilordningene først.",
+    "milestoneRefusedSummary": "'{{task}}' er en hovedaktivitet med delaktiviteter og kan ikke bli en milepæl.",
+    "milestoneRefusedSummaryMany_one": "{{count}} aktivitet er en hovedaktivitet med delaktiviteter og kan ikke bli en milepæl.",
+    "milestoneRefusedSummaryMany_other": "{{count}} aktiviteter er hovedaktiviteter med delaktiviteter og kan ikke bli milepæler.",
     "assignmentsMovedToSubtask_one": "Tilordningen er flyttet til delaktiviteten '{{child}}'.",
     "assignmentsMovedToSubtask_other": "{{count}} tilordninger er flyttet til delaktiviteten '{{child}}'.",
     "assignmentsMovedToSubtasks_one": "Tilordningene for {{count}} aktivitet er flyttet til en delaktivitet.",
     "assignmentsMovedToSubtasks_other": "Tilordningene for {{count}} aktiviteter er flyttet til delaktiviteter.",
-    "milestoneClearedOnPhase_one": "'{{phase}}' er ikke lenger en milepæl.",
-    "milestoneClearedOnPhase_other": "{{count}} aktiviteter er ikke lenger milepæler.",
+    "milestoneClearedOnPhase": "'{{phase}}' er ikke lenger en milepæl.",
+    "milestoneClearedOnPhaseMany_one": "{{count}} aktivitet er ikke lenger en milepæl.",
+    "milestoneClearedOnPhaseMany_other": "{{count}} aktiviteter er ikke lenger milepæler.",
     "phaseRefusedNoAssignableChild": "'{{phase}}' kan ikke bli en hovedaktivitet: tilordningene kan ikke flyttes noe sted, fordi ingen av de nye delaktivitetene kan ha tilordninger (en milepæl eller hovedaktivitet). Ingenting er endret.",
     "phaseRefusedDuplicateResource": "'{{phase}}' kan ikke bli en hovedaktivitet: tilordningen av {{resource}} kan ikke flyttes til den nye delaktiviteten '{{child}}', fordi den allerede har {{resource}}. Ingenting er endret.",
-    "schedulingProfileApplied": "Dette prosjektet beregner som {{profile}}. Endre det via Fil → Prosjektinfo → Beregningsprofil og beregningsalternativer.",
+    "phaseQuestionOutdated": "Aktivitetene eller tilordningene er endret mens spørsmålet var åpent. Ingenting er endret. Prøv igjen.",
+    "schedulingProfileApplied": "Dette prosjektet beregner som {{profile}}. Endre det via Fil → «Prosjektinfo» → «Beregningsprofil og beregningsalternativer».",
+    "schedulingTemplateSaved": "Mal «{{name}}» lagret.",
+    "schedulingTemplateLimit": "Mal ikke lagret: det finnes allerede {{max}} maler. Slett først en mal.",
+    "schedulingTemplateStorageFailed": "Mal ikke lagret: lagringsplassen til appen er full eller ikke tilgjengelig.",
+    "schedulingTemplateDeleteFailed": "Mal ikke slettet: lagringsplassen til appen er full eller ikke tilgjengelig.",
     "schedulingProfileShifted_one": "Etter bruk er {{count}} aktivitet forskjøvet.",
     "schedulingProfileShifted_other": "Etter bruk er {{count}} aktiviteter forskjøvet.",
     "actions": {
@@ -138,7 +158,7 @@
     },
     "xerArchiveUnusable": "XER-kildearkivet i denne filen er ubrukelig og er utelatt; prosjektet selv er åpnet fullt ut.",
     "xerArchiveUnusableLine": "XER-kildearkivet i denne filen var ubrukelig og er utelatt.",
-    "xerArchiveUnusableConsequence": "Tidsplanen, beregningsprofilen og alle prosjektdata fra IFC er komplette. Det som mangler: datoene slik Primavera lagret dem, og kildeopprinnelsen for KI og utvidelser. Lagring skriver filen uten arkivet; importer den originale .xer på nytt for å få arkivet tilbake.",
+    "xerArchiveUnusableConsequence": "Tidsplanen, beregningsprofilen og alle prosjektdata fra IFC er komplette. Det som mangler: datoene slik Primavera lagret dem, og kildeopprinnelsen for MCP-klienter og utvidelser. Lagring skriver filen uten arkivet. Importer den originale XER-filen på nytt for å få arkivet tilbake.",
     "xerArchiveReasonSchemaVersion": "Årsak: arkivet har en ukjent skjemaversjon eller oppsett (en nyere eller annen skriver).",
     "xerArchiveReasonHashMismatch": "Årsak: kontrollsummen passer ikke til kildebytene — arkivet er skadet.",
     "xerArchiveReasonTruncated": "Årsak: arkivet er avkortet — en del av kildebytene mangler.",
@@ -147,8 +167,64 @@
     "xerArchiveReasonStructure": "Årsak: oppbyggingen av arkivet i IFC stemmer ikke (dobbelt, omordnet eller feil koblet).",
     "statusDateSetToday": "Statusdato satt til i dag ({{date}}).",
     "durationBelowDoneWork": "'{{name}}' er allerede {{percent}} % ferdig: en varighet kortere enn arbeidet som er utført, er ikke mulig. Varigheten er ikke endret.",
+    "refusedTaskNames": "Ikke endret: {{names}}.",
+    "refusedTaskNamesMore_one": "Ikke endret: {{names}} og {{count}} aktivitet til.",
+    "refusedTaskNamesMore_other": "Ikke endret: {{names}} og {{count}} aktiviteter til.",
+    "notAppliedTaskNames": "Ikke brukt på: {{names}}.",
+    "notAppliedTaskNamesMore_one": "Ikke brukt på: {{names}} og {{count}} aktivitet til.",
+    "notAppliedTaskNamesMore_other": "Ikke brukt på: {{names}} og {{count}} aktiviteter til.",
+    "refusedRelationNames": "Ikke opprettet: {{names}}.",
+    "refusedRelationNamesMore_one": "Ikke opprettet: {{names}} og {{count}} avhengighet til.",
+    "refusedRelationNamesMore_other": "Ikke opprettet: {{names}} og {{count}} avhengigheter til.",
+    "remainingWorkRecomputed": "Gjenstående arbeid for «{{name}}» er beregnet på nytt: {{before}}t → {{after}}t (verdien kom fra filen). Ctrl+Z angrer det.",
+    "remainingWorkRecomputedMany_one": "Gjenstående arbeid for {{count}} aktivitet er beregnet på nytt (verdien kom fra filen). Ctrl+Z angrer det.",
+    "remainingWorkRecomputedMany_other": "Gjenstående arbeid for {{count}} aktiviteter er beregnet på nytt (verdiene kom fra filen). Ctrl+Z angrer dem.",
     "tutorialOfferLater": "Du finner alltid opplæringene under Hjelp › Opplæring.",
-    "tutorialOfferUnavailable": "Opplæringene kunne ikke installeres eller startes akkurat nå. Du kan prøve igjen senere under Hjelp › Opplæring."
+    "tutorialOfferUnavailable": "Opplæringene kunne ikke installeres eller startes akkurat nå. Du kan prøve igjen senere under Hjelp › Opplæring.",
+    "taskAddedAtEnd": "Den nye aktiviteten står bakerst. Mens du filtrerer, grupperer eller sorterer, kan appen ikke plassere den under utvalget ditt.",
+    "p6xmlImportEmpty": "Denne filen inneholder ingen aktiviteter som appen kan lese.",
+    "p6xmlImportEmptyNoObjectIds": "Aktivitetene har ingen ObjectId. Derfor kan appen ikke koble dem. Dette er ikke vanlig Primavera P6 XML.",
+    "p6xmlImportEmptyXerColumns": "Filen bruker XER-kolonnenavn (for eksempel task_code) i stedet for P6 XML-felt. Åpne .xer-filen selv.",
+    "p6xmlImportOpened_one": "P6 XML-fil åpnet: {{count}} prosjektdokument.",
+    "p6xmlImportOpened_other": "P6 XML-fil åpnet: {{count}} prosjektdokumenter.",
+    "p6xmlImportCrossProjectRelations_one": "{{count}} avhengighet mellom prosjekter er ikke overtatt som avhengighet.",
+    "p6xmlImportCrossProjectRelations_other": "{{count}} avhengigheter mellom prosjekter er ikke overtatt som avhengigheter.",
+    "p6xmlImportUnassignedActivities_one": "{{count}} aktivitet uten prosjekt er ikke lest inn.",
+    "p6xmlImportUnassignedActivities_other": "{{count}} aktiviteter uten prosjekt er ikke lest inn.",
+    "msProjectImportLoss": "Ikke alt fra denne MS Project-filen er overtatt.",
+    "msProjectLostSubprojects_one": "{{count}} innsatt prosjekt er lest inn som en vanlig aktivitet, uten koblingen til den andre filen.",
+    "msProjectLostSubprojects_other": "{{count}} innsatte prosjekter er lest inn som vanlige aktiviteter, uten koblingen til den andre filen.",
+    "msProjectLostExternalTasks_one": "{{count}} ekstern aktivitet fra et annet prosjekt er lest inn som en vanlig aktivitet.",
+    "msProjectLostExternalTasks_other": "{{count}} eksterne aktiviteter fra et annet prosjekt er lest inn som vanlige aktiviteter.",
+    "msProjectLostInactiveTasks_one": "{{count}} inaktiv aktivitet er lest inn som aktiv aktivitet og telles med i beregningen.",
+    "msProjectLostInactiveTasks_other": "{{count}} inaktive aktiviteter er lest inn som aktive aktiviteter og telles med i beregningen.",
+    "msProjectLostManualTasks_one": "{{count}} manuelt planlagt aktivitet er lest inn som automatisk planlagt aktivitet.",
+    "msProjectLostManualTasks_other": "{{count}} manuelt planlagte aktiviteter er lest inn som automatisk planlagte aktiviteter.",
+    "msProjectLostLevelingDelays_one": "Utjevningsforsinkelsen for {{count}} aktivitet er ikke overtatt.",
+    "msProjectLostLevelingDelays_other": "Utjevningsforsinkelser for {{count}} aktiviteter er ikke overtatt.",
+    "msProjectLostCriticalSlack_one": "Terskelverdien for kritisk fra filen (slakk opptil {{count}} arbeidsdag) er ikke overtatt. Appen regner med terskelverdi 0.",
+    "msProjectLostCriticalSlack_other": "Terskelverdien for kritisk fra filen (slakk opptil {{count}} arbeidsdager) er ikke overtatt. Appen regner med terskelverdi 0.",
+    "msProjectLostBaselines_one": "{{count}} grunnlinje er ikke overtatt.",
+    "msProjectLostBaselines_other": "{{count}} grunnlinjer er ikke overtatt.",
+    "msProjectLostExtraBaselines_one": "{{count}} grunnlinje (Baseline 1–10) er ikke overtatt.",
+    "msProjectLostExtraBaselines_other": "{{count}} grunnlinjer (Baseline 1–10) er ikke overtatt.",
+    "msProjectLostBaselineWorkCost_one": "For {{count}} aktivitet, ressurs eller tilordning er arbeid eller kostnad fra Baseline 0 ikke overtatt.",
+    "msProjectLostBaselineWorkCost_other": "For {{count}} aktiviteter, ressurser eller tilordninger er arbeid eller kostnad fra Baseline 0 ikke overtatt.",
+    "msProjectLostAssignmentBaselineDates_one": "For {{count}} tilordning avviker grunnlinjen fra aktiviteten. Det avviket er ikke overtatt.",
+    "msProjectLostAssignmentBaselineDates_other": "For {{count}} tilordninger avviker grunnlinjen fra aktiviteten. Det avviket er ikke overtatt.",
+    "msProjectLostCustomFields_one": "{{count}} egendefinert felt med verdier (egendefinert felt eller oversiktskode) er ikke overtatt.",
+    "msProjectLostCustomFields_other": "{{count}} egendefinerte felt med verdier (egendefinerte felt og oversiktskoder) er ikke overtatt.",
+    "msProjectLostNotes_one": "{{count}} merknad er ikke overtatt.",
+    "msProjectLostNotes_other": "{{count}} merknader er ikke overtatt.",
+    "msProjectLostHyperlinks_one": "{{count}} hyperkobling er ikke overtatt.",
+    "msProjectLostHyperlinks_other": "{{count}} hyperkoblinger er ikke overtatt.",
+    "msProjectLostFixedCosts_one": "Den faste kostnaden for {{count}} aktivitet er ikke overtatt.",
+    "msProjectLostFixedCosts_other": "De faste kostnadene for {{count}} aktiviteter er ikke overtatt.",
+    "msProjectLostResourceRates_one": "Standardsatsene for {{count}} ressurs er ikke overtatt.",
+    "msProjectLostResourceRates_other": "Standardsatsene for {{count}} ressurser er ikke overtatt.",
+    "minuteModelConverted_one": "{{document}}: {{count}} aktivitet har en annen start eller slutt etter konverteringen; den største forskyvningen er {{days}} arbeidsdager. Ctrl+Z setter de lagrede datoene tilbake.",
+    "minuteModelConverted_other": "{{document}}: {{count}} aktiviteter har en annen start eller slutt etter konverteringen; den største forskyvningen er {{days}} arbeidsdager. Ctrl+Z setter de lagrede datoene tilbake.",
+    "minuteModelCalendarRepaired": "Kalenderen «{{calendar}}» er reparert: slutten eller pausen passet ikke til den lagrede arbeidstiden."
   },
   "scheduleErrors": {
     "cycle": "Sirkulær avhengighet mellom aktiviteter: {{path}}",
@@ -162,6 +238,8 @@
   "no": "Nei",
   "days": "d",
   "daysLong": "dager",
+  "dayUnitLong_one": "dag",
+  "dayUnitLong_other": "dager",
   "ok": "OK",
   "apply": "Bruk",
   "create": "Opprett",
@@ -213,7 +291,7 @@
     "collapseAll": "Slå sammen alle"
   },
   "settings": {
-    "title": "Innstillinger",
+    "title": "Appinnstillinger",
     "appearanceTab": "Utseende",
     "planningTab": "Tidsplan",
     "advancedTab": "Avansert",
@@ -247,6 +325,11 @@
     "languageHint": "Visningsspråket i appen, tatt i bruk med en gang.",
     "version": "Versjon",
     "versionHint": "Gjeldende versjonsnummer for appen.",
+    "experimentalSection": "Eksperimentelt",
+    "experimentalEmpty": "Det finnes for øyeblikket ingen eksperimentelle funksjoner.",
+    "experimentalHide": "Skjul",
+    "demoTopbarAnimation": "Demo: animasjon i topplinjen",
+    "demoTopbarAnimationHint": "En rolig oransje glansbølge over topplinjen. Viser hvordan en eksperimentell bryter fungerer.",
     "tourHint": "Ta appens introduksjonsomvisning på nytt.",
     "theme": "Tema",
     "themeHint": "Fargeskjemaet for grensesnittet.",
@@ -255,21 +338,22 @@
     "themeHighContrast": "Høy kontrast",
     "themeFollowSystem": "Følg systemtema",
     "themeSystemHint": "Følger fargeskjemaet til systemet ditt (nå: {{theme}}).",
-    "hourPlanningSection": "Timeplanlegging",
-    "enableHourPlanning": "Slå på timeplanlegging",
-    "enableHourPlanningHint": "Slår på planlegging i timer og minutter: en timeskala, skift med arbeidstidsbånd og timepresise aktivitetslinjer. Av ⇒ appen er helt dagbasert, som før.",
-    "showTaskTypes": "Vis arbeidsregler og arbeid",
-    "showTaskTypesHint": "Filer fra MS Project eller Primavera P6 viser dette alltid. Av: varighet og tildelingsenheter forblir som de er, og arbeidet følger med.",
+    "showTaskTypes": "Bruk aktivitetstyper",
+    "showTaskTypesHint": "Velg per aktivitet hva som endrer seg når varighet, tildelingsenheter eller arbeid endres, som Task Type i MS Project og Duration Type i P6. Av: varighet og tildelingsenheter forblir uendret. En fil med aktivitetstyper eller lagret arbeid viser dem også når dette er av.",
     "allowMixedDayHour": "Tillat blandet dag/timeplanlegging",
     "defaultTaskDurationUnit": "Standardenhet for nye aktiviteter",
-    "defaultTaskDurationUnitHint": "Bestemmer om nye aktiviteter standard starter i arbeidsdager eller arbeidstimer. Eksisterende aktiviteter endres ikke.",
+    "defaultTaskDurationUnitHint": "Dagsenhet: en varighet telles i arbeidsdager i kalenderen. Timeenhet: en varighet telles i arbeidstimer. Eksisterende aktiviteter endres ikke. En aktivitet med fast arbeid bruker alltid timeenheten.",
+    "defaultTaskDurationUnitDays": "Dagsenhet",
+    "defaultTaskDurationUnitHours": "Timeenhet",
+    "defaultTaskDurationUnitLocked": "Profilen {{profile}} regner varighet i timer. Nye aktiviteter får derfor timeenheten.",
     "durationDisplay": "Varighetsvisning",
     "durationDisplayHint": "Bestemmer hvordan varigheten av en aktivitet vises, uavhengig av enheten aktiviteten er registrert i.",
+    "durationDisplayOpsHint": "I OPS-profilen viser hver aktivitet sin egen enhet.",
     "durationDisplayAuto": "Automatisk (egen enhet per aktivitet)",
     "durationDisplayDays": "Alltid dager",
     "durationDisplayHours": "Alltid timer",
     "barSplitMode": "Aktivitetslinjer ved avbrudd",
-    "barSplitModeHint": "Om en aktivitetslinje visuelt deles rundt ikke-arbeidsdager.",
+    "barSplitModeHint": "Bare for timebaserte aktiviteter: del stolpene rundt pauser og ikke-arbeidstid. Faktiske avbrudd i aktiviteter forblir alltid synlige.",
     "barSplitNever": "Aldri dele",
     "barSplitSelection": "Del ved valg",
     "barSplitAlways": "Del alltid",
@@ -320,6 +404,10 @@
     "dateNotationDmy": "dd-mm-åååå",
     "dateNotationMdy": "mm-dd-åååå",
     "dateNotationYmd": "åååå-mm-dd",
+    "timeNotation": "Tidsformat",
+    "timeNotationHint": "Bestemmer hvordan klokkeslett vises og skrives inn: i kalendervinduet, for aktiviteter i timer i tabellen, på timeskalaen i Gantt og i meldinger. Filer og beregninger endres ikke (24 timer).",
+    "timeNotation24h": "24 timer (13:00)",
+    "timeNotation12h": "12 timer (1:00 PM)",
     "fontFamilyLabel": "Skrifttype",
     "fontScaleLabel": "Tekststørrelse",
     "fontScaleHint": "Skalerer grensesnittteksten og oppsettet.",
@@ -328,11 +416,11 @@
     "fontFamilySerif": "Med serif",
     "fontFamilyMono": "Monospace",
     "fontHint": "Webapper følger ikke automatisk innstillingen for systemskrift. Velg skrifttype og størrelse for hele grensesnittet her.",
-    "aiModeSection": "KI-modus",
-    "aiMode": "Slå på KI-modus",
-    "aiModeHint": "Viser KI-fanen med MCP-broen, slik at KI-assistenter kan arbeide med tidsplanen din via Model Context Protocol. Slår du den av, stopper broen.",
+    "aiModeSection": "MCP-tilkobling",
+    "aiMode": "Tillat MCP-tilkobling",
+    "aiModeHint": "Viser fanen «MCP». Der starter du MCP-broen, slik at en MCP-klient kan arbeide med tidsplanen din via Model Context Protocol. Slår du den av, stopper broen.",
     "aiAutostart": "Start broen automatisk",
-    "aiAutostartHint": "Gjør MCP-broen aktiv så snart appen starter, slik at en KI-klient kan koble til uten at du først åpner KI-fanen. Gjelder bare skrivebordsappen.",
+    "aiAutostartHint": "Starter MCP-broen med en gang appen starter, slik at en MCP-klient kan koble til uten at du først åpner fanen «MCP». Gjelder bare skrivebordsappen.",
     "legacySection": "Eldre funksjoner",
     "classicViewControls": "Vis klassiske visningsknapper",
     "classicViewControlsHint": "Viser de separate knappene Kolonner, Filter, Gruppér og Sortér igjen på fanen Visning. Kolonner velger du nå med plusstegnet i tabelloverskriften eller via Tabell → Kolonner…; filtrering, gruppering og sortering finner du i oppsettknappene og oppsettdialogen."
@@ -364,9 +452,9 @@
     "configSnippetHint": "Lim dette inn i MCP-konfigurasjonen til klienten din.",
     "tokenWarning": "Dette tokenet gir tilgang til den åpne tidsplanen. Ikke del det med andre.",
     "connectPrompt": "Koblingsprompt",
-    "connectPromptHint": "Lim dette inn i KI-agenten din. Den kobler seg selv til.",
+    "connectPromptHint": "Lim dette inn i MCP-klienten din – den kobler seg selv til.",
     "connectPromptText": "Koble til en MCP-server som kjører på datamaskinen min: navn {{name}}, transport streamable HTTP, URL {{url}}, med headeren Authorization: Bearer {{token}}. Legg den til i MCP-konfigurasjonen din (for eksempel som en mcpServers-blokk) og koble til. Hent deretter verktøylisten som kontroll: du skal se omtrent {{count}} verktøy med prefikset {{prefix}}. Oppsummer kort hva du kan gjøre med denne serveren. Les guiden for tidsplaner via verktøyet planner_get_planning_guide før du endrer noe.",
-    "statusDot": "KI-bro: {{status}}"
+    "statusDot": "MCP-bro: {{status}}"
   },
   "aiSafety": {
     "pause": "Avbrudd",
@@ -376,7 +464,7 @@
     "readOnlyHint": "Alle verktøy som endrer data, avvises så lenge dette er på.",
     "autoBackupOn": "Auto-backup: på",
     "autoBackupOff": "Auto-backup: av",
-    "autoBackupHint": "Lager automatisk en IFC-backup før den første KI-endringen i hvert dokument.",
+    "autoBackupHint": "Lager automatisk en IFC-backup før den første MCP-endringen per dokument.",
     "backupNow": "Ta backup nå",
     "openFolder": "Åpne backup-mappen",
     "backupOk": "Backup laget: {{name}}",
@@ -384,10 +472,10 @@
     "openErr": "Kunne ikke åpne mappen: {{error}}"
   },
   "aiActivity": {
-    "title": "KI-aktivitet",
+    "title": "MCP-aktivitet",
     "panelButton": "Aktivitetspanel",
     "clear": "Tøm",
-    "empty": "Ingen KI-aktivitet ennå. Kall til broen vises her.",
+    "empty": "Ingen MCP-aktivitet ennå. Kall til broen vises her.",
     "args": "Argumenter",
     "result": "Svar"
   },
@@ -403,7 +491,10 @@
     "taskCount_one": "{{count}} aktivitet",
     "taskCount_other": "{{count}} aktiviteter",
     "restore": "Gjenopprett",
-    "dontRestore": "Ikke gjenopprett"
+    "dontRestore": "Ikke gjenopprett",
+    "unreadableOnlyExplanation": "Ingen av gjenopprettingskopiene kan leses. Behold dem for et senere forsøk på gjenoppretting, eller slett dem bare hvis du ikke trenger dem lenger. Sletting kan ikke angres.",
+    "keepCopies": "Behold kopiene",
+    "deleteCopies": "Slett kopiene"
   },
   "window": {
     "minimize": "Minimer",
@@ -422,7 +513,8 @@
   "project": {
     "untitled": "Ny tidsplan",
     "imported": "Importert prosjekt",
-    "unassignedResource": "Ikke tildelt"
+    "unassignedResource": "Ikke tildelt",
+    "ifcBuildingModelUnsupported": "Denne IFC-filen inneholder objekter fra bygningsmodellen. Åpning er blokkert, fordi lagring ville slette disse objektene. Rediger den separate tidsplanfilen og slå den sammen med bygningsmodellen etterpå."
   },
   "documents": {
     "overviewTitle": "Prosjekter som er åpne",
@@ -433,6 +525,8 @@
     "newProject": "Opprett nytt prosjekt",
     "openExistingProject": "Åpne eksisterende prosjekt",
     "allProjects": "Alle prosjekter",
+    "scrollTabsStart": "Rull faner mot starten",
+    "scrollTabsEnd": "Rull faner mot slutten",
     "active": "Aktiv",
     "tasksWord": "aktiviteter",
     "criticalWord": "kritisk",
@@ -444,19 +538,45 @@
   "feedback": {
     "buttonTooltip": "Gi tilbakemelding",
     "title": "Gi tilbakemelding",
-    "typeBug": "Feil",
-    "typeFeature": "Funksjonsønske",
+    "typeBug": "Noe fungerer ikke",
+    "typeFeature": "Idé",
+    "typeGeneral": "Spørsmål eller kommentar",
     "fieldTitle": "Tittel",
+    "titlePlaceholder": "F.eks. Kritisk linje hopper etter lagring",
     "fieldDescription": "Beskrivelse",
+    "descriptionPlaceholder": "Hva gjorde du, hva forventet du, og hva skjedde?",
     "attachScreenshot": "Legg ved skjermbilde",
+    "screenshotPreview": "Forhåndsvisning",
+    "retake": "Ta på nytt",
+    "removeScreenshot": "Fjern",
     "capturing": "Lager skjermbilde…",
     "captureFailed": "Kunne ikke lage skjermbilde. Du kan fortsatt sende tilbakemeldingen uten skjermbilde.",
-    "submit": "Send til GitHub",
+    "submit": "Send",
+    "sending": "Sender…",
+    "fieldEmail": "E-postadresse (valgfritt, for et svar)",
+    "emailInvalid": "Denne e-postadressen er ikke gyldig. Rett den eller la feltet stå tomt.",
+    "titleRequired": "Skriv inn en tittel.",
+    "tooShort": "Skriv minst 10 tegn i tittel og beskrivelse til sammen.",
+    "privacy": "Meldingen og skjermbildet ditt sendes til Open Feedback Studio fra OpenAEC og kan havne som et offentlig issue på GitHub. Ta ikke med noe du ikke vil dele.",
+    "sentWith": "Sendt med: v{{version}} · {{os}} · {{language}}",
+    "sentTitle": "Takk, meldingen din er sendt.",
+    "alreadyIn": "Denne meldingen er allerede hos oss. Vil du legge til noe? Endre da teksten og send den på nytt.",
+    "sentScreenshotDropped": "Skjermbildet var for stort og ble ikke sendt med.",
+    "viewOnGithub": "Se på GitHub",
+    "errorValidation": "Meldingen er ikke godtatt. Kontroller teksten (ikke bare lenker) og e-postadressen, og prøv igjen.",
+    "errorRateLimited": "Du har sendt mange meldinger på kort tid. Prøv igjen om en time.",
+    "errorFailed": "Sending mislyktes. Kontroller internettforbindelsen og prøv igjen, eller åpne meldingen på GitHub.",
+    "errorUncertain": "Vi er ikke sikre på om meldingen din er kommet frem. Vent et minutt og send den på nytt. Hvis den allerede er der, ser vi det av seg selv.",
+    "fallbackGithub": "Åpne på GitHub",
     "cancel": "Avbryt",
+    "clearDraft": "Tøm",
+    "clearDraftTitle": "Tøm alle felt og skjermbildet",
     "close": "Lukk",
+    "saveAndClose": "Lagre og lukk",
     "tools": {
       "arrow": "Pil",
       "rectangle": "Rektangel",
+      "mask": "Dekk til",
       "pen": "Penn",
       "text": "Tekst",
       "color": "Farge",
@@ -473,6 +593,7 @@
     "openGithub": "OK, gå til GitHub",
     "annotate": "Kommenter",
     "editorDone": "Ferdig",
+    "annotationSaveFailed": "Endringene kunne ikke lagres. Prøv igjen. Skjermbildet ditt er ikke endret og blir ikke sendt fra denne editoren.",
     "rotateFeedback": "Gi tilbakemelding",
     "rotateBug": "Meld en feil",
     "rotateFeature": "Legg til en ny funksjon"
@@ -488,12 +609,14 @@
     "releaseNotes": "Hva er nytt",
     "downloadInstall": "Last ned og installer",
     "downloading": "Laster ned…",
+    "preparingInstall": "Forbereder installasjon…",
     "installing": "Installerer…",
     "restarting": "Starter på nytt…",
     "retry": "Prøv igjen",
     "error": "Noe gikk galt under oppdateringen",
     "checking": "Sjekker…",
     "snapNotice": "Denne versjonen oppdateres automatisk via Snap Store — du trenger ikke å gjøre noe.",
+    "packageManagerNotice": "Oppdater via pakkebehandleren din (for eksempel yay -Syu).",
     "debExplanation": "Oppdater manuelt ved å kjøre denne kommandoen i en terminal, eller last ned den nyeste pakken.",
     "debCommandLabel": "Installasjonskommando",
     "copyCommand": "Kopier kommando",
@@ -590,6 +713,7 @@
     "companies": "Ressursbibliotekene",
     "addCompany": "Legg til ressursbibliotek",
     "newCompany": "Nytt ressursbibliotek",
+    "defaultCompany": "Mitt ressursbibliotek",
     "companyName": "Bibliotekets navn",
     "removeCompany": "Slett ressursbibliotek",
     "cannotRemoveLast": "Det siste ressursbiblioteket kan ikke slettes.",
@@ -603,7 +727,7 @@
     "calendars": "Kalendere",
     "noCalendars": "Ingen kalendere i biblioteket ennå.",
     "noResources": "Ingen ressurser i biblioteket ennå.",
-    "promoteHint": "Legg en prosjektkalender eller -ressurs til biblioteket med knappen “+ Fra prosjekt” over.",
+    "promoteHint": "Legg en prosjektkalender til biblioteket med knappen «+ Fra prosjekt» ovenfor.",
     "promoteFromProject": "Fra prosjekt",
     "alreadyLinked": "allerede koblet",
     "editItem": "Rediger",
@@ -738,7 +862,7 @@
       "projectEndUnchanged": "Prosjektets sluttdato: uendret ({{date}})",
       "projectEndChanged": "Prosjektets sluttdato: {{before}} → {{after}}",
       "remainingConflicts": "Gjenstående konflikter",
-      "remainingConflictsHint": "Disse aktivitetene passer ikke innenfor slakken. Ofte fordi en ressurs ikke arbeider disse dagene, eller har for liten kapasitet.",
+      "remainingConflictsHint": "Det finnes fortsatt ressurskonflikter for disse aktivitetene. Se forklaringen nedenfor.",
       "intrinsicOverrun": "{{resource}} krever {{peak}} tildelingsenheter/dag på toppen, kapasiteten er {{capacity}} — kan ikke løses ved å flytte.",
       "noChanges": "Ingen aktiviteter må flyttes — tidsplanen er allerede konfliktfri.",
       "notCalculated": "Klikk på Beregn for å lage et utjevningsforslag.",
@@ -819,7 +943,7 @@
       "cancel": "Avbryt"
     },
     "regen": {
-      "hint": "Helligdagene dekker {{from}}–{{to}}; prosjektet går til {{year}}. Vil du generere på nytt?",
+      "hint": "Helligdagene dekker {{from}}–{{to}}; vil du generere på nytt til og med {{year}}?",
       "button": "Generer på nytt"
     },
     "countryName": {
@@ -854,7 +978,7 @@
       "decreaseBreakDuration": "Reduser pausevarigheten med 15 minutter",
       "start": "Pausen starter",
       "duration": "Pausevarighet (minutter)",
-      "hint": "Angi når pausen starter og hvor lang varigheten er. Netto timer og arbeidstidsbånd beregnes automatisk. Sett varigheten til 0 for en sammenhengende arbeidsdag.",
+      "hint": "Angi et pausestart og en varighet; standard arbeidsdag og tidsbånd beregnes automatisk. Sett varigheten til 0 for en sammenhengende arbeidsdag.",
       "errors": {
         "invalidDuration": "Pausevarigheten må være et helt antall minutter, 0 eller mer.",
         "outsideWorkingDay": "Pausen må ligge helt innenfor den innstilte arbeidsdagen.",
@@ -878,9 +1002,13 @@
       "copyToAll": "Kopier til alle arbeidsdager",
       "noBands": "Ikke-arbeidsdag",
       "nextDay": "neste dag",
+      "bandStart": "Start for tidsbåndet",
+      "bandEnd": "Slutt for tidsbåndet",
       "shiftPreset": "Skift",
       "breakHint": "Et mellomrom mellom to bånd er en pause. Juster tidene etter behov."
-    }
+    },
+    "defaultConstructionName": "Byggekalender NL",
+    "defaultStandardName": "Standardkalender"
   },
   "view": {
     "structureLockedHint": "Ikke tilgjengelig under filtrering/gruppering/sortering",
@@ -992,10 +1120,6 @@
     "month": "måned",
     "year": "år"
   },
-  "hourData": {
-    "notice": "Denne filen inneholder timeplanlegging.",
-    "enable": "Slå på timeplanlegging"
-  },
   "recordedDates": {
     "activeCount_one": "Du ser tidsplanen slik Primavera lagret den. Ved omberegning avviker {{count}} aktivitet.",
     "activeCount_other": "Du ser tidsplanen slik Primavera lagret den. Ved omberegning avviker {{count}} aktiviteter.",
@@ -1040,7 +1164,7 @@
     "nav": {
       "reportTab": "Gå til rapportfanen",
       "switchDocument": "Bytt dokument",
-      "scrollToToday": "Gå til i dag",
+      "scrollToToday": "Hopp til statusdato eller i dag",
       "help": "Åpne hjelp"
     },
     "grid": {
@@ -1119,7 +1243,7 @@
     "warnPast": "Den nye startdatoen ligger i fortiden.",
     "noTasks": "Dette prosjektet har ennå ingen aktiviteter; bare prosjektdatoene forskyves.",
     "invalidDate": "Velg en gyldig dato.",
-    "invalidCurrentStart": "Prosjektet har ingen gyldig startdato; angi den først under Prosjektinfo.",
+    "invalidCurrentStart": "Prosjektet har ingen gyldig startdato; angi den først under «Prosjektinfo».",
     "apply": "Flytt",
     "calcError": "Tidsplanen kunne ikke beregnes: {{error}}"
   },
@@ -1195,7 +1319,7 @@
   "progressImport": {
     "title": "Oppdater fremdrift fra et regneark",
     "chooseFile": "Velg fil…",
-    "intro": "Velg et tilbakesendt CSV-ark. Appen leser bare fullføringsgrad, faktisk start og faktisk slutt. Resten av tidsplanen forblir uendret.",
+    "intro": "Velg et tilbakesendt CSV- eller XLSX-ark. Appen leser bare fullføringsgrad, faktisk start og faktisk slutt — resten av tidsplanen din forblir uendret.",
     "summaryApplied": "Brukt: {{applied}}",
     "summaryNoop": "Uendret: {{noop}}",
     "summaryNeedsLink": "Venter på kobling: {{needsLink}}",
@@ -1212,6 +1336,7 @@
     "overrideDropped": "Koblingen for rad {{row}} peker på en aktivitet som ikke finnes lenger, og er ignorert.",
     "moreRows": "…og {{more}} til",
     "sheetRowHint": "rad {{row}} i arket",
+    "sheetTaskId": "OPS aktivitets-ID: {{id}}",
     "dateOrderTitle": "Dag eller måned først?",
     "dateOrderQuestion": "“{{sample}}” — hvilken dato er det?",
     "dateOrderOptionA": "{{date}}",
@@ -1253,7 +1378,7 @@
   "conventions": {
     "preserveActualDatesInBackwardPass": {
       "label": "Behold faktiske datoer i bakoverberegningen",
-      "help": "En startet eller fullført aktivitet beholder de registrerte datoene også på den seneste siden. En fullført etterfølger trekker ikke en åpen forgjenger tilbake i fortiden."
+      "help": "Med en statusdato beholder en fullført aktivitet sine faktiske datoer på den seneste siden, og en fullført etterfølger trekker ikke en åpen forgjenger tilbake i fortiden. En pågående aktivitet beholder sin faktiske start som seneste start, med mindre «Pågående aktivitet: tidligste start = start på gjenstående arbeid» er på. En fullført aktivitet på et statusdatopunkt eller -vindu kan likevel sende trykk videre via avhengigheter."
     },
     "clampNegativeFreeFloat": {
       "label": "Fri slakk aldri negativ",
@@ -1261,103 +1386,111 @@
     },
     "p6ZeroDurationUsesPlannedBoundary": {
       "label": "Milepæl følger den planlagte kalendergrensen",
-      "help": "En milepæl uten varighet blir på kalendergrensen filen planla. En dagstart forblir en startmilepæl. Slutten av et arbeidsbånd kan havne på forgjengerens slutt."
+      "help": "Bare ved timeplanlegging. En milepæl uten varighet følger den planlagte kalendergrensen: en dagsstart forblir en startmilepæl, og slutten av et tidsbånd kan havne på forgjengerens slutt. Også en vanlig aktivitet med varighet 0 kan få et grensepar, men bare med XER-kildeopprinnelse som Task Dependent eller Resource Dependent, og med planlagt slutt før planlagt start."
     },
     "p6UseTaskPlannedStartFloor": {
       "label": "Planlagt start som ekstra nedre grense",
-      "help": "Den planlagte starten fra filen gjelder som nedre grense så snart både start og slutt ligger mer enn én kalenderdag senere enn nettverket tillater."
+      "help": "Den planlagte starten gjelder som nedre grense så snart både start og slutt ligger mer enn én kalenderdag senere enn nettverket tillater. For en milepæl som er slutt, med planlagt slutt før planlagt start, er en senere planlagt start nok. Gjelder ikke for en pågående aktivitet når «Planlagt start er ikke en nedre grense for en pågående aktivitet» er på, eller for en ikke-startet ALAP-aktivitet som plasseres ut fra etterfølgerne. Krever ikke XER-kildeopprinnelse."
     },
     "p6FinishMilestoneBoundaryWindow": {
       "label": "Sluttmilepæl som grensevindu",
-      "help": "En sluttmilepæl kan stå på to tilstøtende kalendergrenser: tidligste start ved begynnelsen av et bånd, tidligste slutt ved slutten av forrige bånd."
+      "help": "En milepæl som er slutt, uten varighet, får bare et grensevindu hvis planlagt slutt ligger før planlagt start, og beregnet start fortsatt er lik denne planlagte starten. En sluttmilepæl med forgjengere og uten etterfølger får også sine tidligste datoer som seneste datoer, med mindre «Beregne slakk til prosjektslutt» er på. Sett bare i P3-utdata; er av i alle innebygde profiler."
     },
     "p6PreserveActualInstants": {
       "label": "Behold faktiske datoer nøyaktig",
-      "help": "Registrerte datoer for faktisk start og faktisk slutt flyttes ikke til et arbeidstidsbånd."
+      "help": "Bare for aktiviteter med lagret kildeopprinnelse fra en XER-fil. Registrerte faktiske start- og sluttdatoer flyttes ikke til kanten av et tidsbånd."
     },
     "p6UseRemainingStartForProgress": {
       "label": "Pågående aktivitet: tidligste start = start på gjenstående arbeid",
-      "help": "Tidligste og seneste start for en pågående aktivitet beskriver der gjenstående arbeid begynner, ikke den faktiske starten, som ligger i fortiden. Ved bakoverberegning over en start-til-start-avhengighet teller bare gjenstående varighet."
+      "help": "Tidligste og seneste start for en pågående aktivitet beskriver der det gjenstående arbeidet begynner. Bakover over en start-til-start-avhengighet teller bare gjenstående varighet, men bare ved timeplanlegging, med faktisk start og fremdrift mellom 0 og 100 %, en kjent gjenstående varighet som er kortere enn den planlagte varigheten, og uten forløpt tid eller avbrudd i tidsplanen. Denne ekstra regelen for gjenstående varighet gjelder ikke for start-til-slutt-avhengigheter."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Nøyaktig begrensningstidspunkt på milepæl",
-      "help": "En dato-og-klokkeslett-begrensning på en milepæl uten varighet er et nøyaktig punkt, også ved starten av et arbeidsbånd."
+      "help": "Bare ved timeplanlegging, på den seneste siden, for en begrensning med dato og klokkeslett av typen SNLT, MSO, FNLT eller MFO på en milepæl uten varighet. Tidspunktet for begrensningen forblir nøyaktig, også ved starten av et tidsbånd. Fremover er et slikt tidspunkt allerede nøyaktig i alle beregningsprofiler."
     },
     "resumeFromActualElapsed": {
       "label": "Gjenstående arbeid fortsetter etter forløpt tid",
-      "help": "En pågående aktivitet fortsetter gjenstående arbeid på faktisk start pluss forløpt tid, ikke på statusdatoen."
+      "help": "En pågående aktivitet fortsetter det gjenstående arbeidet tidligst ved faktisk start pluss forløpt tid. Også statusdato og forgjengergrensen er nedre grenser; den seneste av de tre gjelder. Gjelder ikke ved «Progress Override», uten gjenstående arbeid, eller når appen bruker en gyldig gjenopptakelsesdato fra filen (med høyst én tilordning)."
     },
     "unstartedIgnoresStatusDate": {
       "label": "Ikke-startede aktiviteter flyttes ikke til statusdatoen",
-      "help": "En aktivitet som ikke er startet, blir ikke automatisk flyttet til statusdatoen eller etter den."
+      "help": "Bare med en statusdato, for en aktivitet uten fremdrift. Den aktiviteten flyttes ikke automatisk til på eller etter statusdatoen."
     },
     "p6RelationFinishBoundary": {
       "label": "Etterfølger starter på sluttgrensen",
-      "help": "Ved en slutt-til-start-avhengighet uten forsinkelse på en delt båndgrense starter etterfølgeren ved forgjengerens slutt. Dette gjelder bare avhengigheter filen markerer slik. Ved bakoverberegning viser etterfølgeren sin seneste start bare som begynnelsen av et arbeidsbånd."
+      "help": "Bare ved timeplanlegging, på forgjengerens kalender, og for en avhengighet som appen gjenkjenner når den åpner en XER-fil. Ved en slutt-til-start-avhengighet uten forsinkelse der etterfølgeren i filen starter nøyaktig på slutten av forgjengerens tidsbånd, starter etterfølgeren på denne slutten. En avhengighet du legger inn selv, omfattes ikke. Ved bakoverberegning forblir etterfølgerens seneste start en start av et tidsbånd."
     },
     "p6BackwardLagFinishBoundary": {
-      "label": "Forsinkelse bakover fra en sluttgrense",
-      "help": "Trekker bakoverberegningen en arbeidstidsforsinkelse fra en sluttgrense og havner nøyaktig på en båndstart, da havner den på forrige sluttgrense. Også ved en slutt-til-slutt-avhengighet uten forsinkelse blir en seneste slutt på en båndslutt stående på den sluttgrensen."
+      "label": "Forsinkelse ved bakoverberegning fra en sluttgrense",
+      "help": "Bare ved timeplanlegging, på kalenderen forsinkelsen regnes i. Trekker bakoverberegningen en positiv forsinkelse i arbeidstid fra en nøyaktig sluttgrense og havner på den første starten av et tidsbånd på en dag, havner den på forrige sluttgrense. Også ved en slutt-til-slutt-avhengighet uten forsinkelse blir en seneste slutt på slutten av et tidsbånd stående på den grensen. Gjelder ikke for forsinkelse i forløpt tid."
     },
     "p6CompletedDataDateWindow": {
       "label": "Fullført aktivitet i statusdatovinduet",
-      "help": "En fullført aktivitet får tidlige datoer i vinduet for statusdatoen, og slutten teller med i prosjektslutten (bare aktiviteter med P6-opprinnelse)."
+      "help": "Bare med en statusdato, for fullførte aktiviteter uten delaktiviteter fra en XER-fil, med lagret målvindu, fremdriftstype varighet og P6-type Task Dependent eller Resource Dependent med Fixed Duration & Units; ikke milepæler med varighet 0. Krever «Pågående aktivitet: tidligste start = start på gjenstående arbeid». Avbrudd/gjenopptakelse tillates bare for Task Dependent med et gyldig par, faktisk slutt mellom planlagt slutt og statusdato, gjenopptakelse senest ved faktisk slutt, og når «Behold faktiske datoer i bakoverberegningen» er på. Aktiviteten får tidligste datoer i statusdatovinduet; slutten teller med for prosjektslutten."
     },
     "p6CompletedLoeActualFinish": {
       "label": "Fullført LOE via faktisk slutt",
-      "help": "En fullført level-of-effort-aktivitet med bare en start-til-start-inngang følger ruten via den faktiske slutten (bare aktiviteter med P6-opprinnelse)."
+      "help": "Bare med en statusdato, for en fullført LOE fra en XER-fil med positiv varighet, fremdriftstype varighet og P6-type Fixed Duration & Units/Time, et komplett målvindu og faktisk slutt mellom planlagt slutt og statusdato. Bare start-til-start-innganger, minst én, ingen etterfølger og ingen avbrudd/gjenopptakelse. Krever «Pågående aktivitet: tidligste start = start på gjenstående arbeid», «Behold faktiske datoer i bakoverberegningen» og «Behold faktiske datoer nøyaktig». LOE-en følger sin faktiske slutt i stedet for hengekøyeruten."
     },
     "p6OpenLoeTargetSpan": {
       "label": "Ikke-startet LOE bruker målvinduet",
-      "help": "En level-of-effort-aktivitet som ikke er startet, bruker målvinduet sitt som løpetid (bare aktiviteter med P6-opprinnelse)."
+      "help": "Bare ved timeplanlegging, for en LOE/hengekøye som ikke er startet, fra en XER-fil med 0 % fremdrift, positiv varighet, fremdriftstype varighet og P6-type Fixed Duration & Units; uten faktiske datoer eller avbrudd/gjenopptakelse. Krever et komplett positivt målvindu der starten er lik avhengighetsgrensen, og arbeidstiden avviker høyst én arbeidsdag fra varigheten, minst én start-til-start-inngang og én slutt-til-slutt-utgang, bare disse avhengighetstypene og uten forsinkelse. LOE-en bruker da målvinduet som løpetid. Svakt bevis: én fil."
     },
     "p6CompletedPredecessorAtDataDate": {
       "label": "Fullført forgjenger holder ikke etter statusdatoen",
-      "help": "Hvis en fullført forgjengers faktiske slutt ligger etter statusdatoen, kan etterfølgerne likevel starte på statusdatoen."
+      "help": "Bare ved timeplanlegging og med en statusdato, for en fullført forgjenger med faktisk slutt. Slutt-til-start- og slutt-til-slutt-avhengigheter regner høyst fra arbeidsgrensen rett før statusdatoen; en senere faktisk slutt holder ikke etterfølgeren tilbake. Start-til-start- og start-til-slutt-avhengigheter blir på faktisk start. En fullført aktivitet med et eget statusdatopunkt eller forskjøvet statusdatovindu følger den egne grensen."
     },
     "p6FreeFloatOnOwnCalendar": {
       "label": "Fri slakk i aktivitetens egen kalender",
-      "help": "Fri slakk for en ikke-startet aktivitet teller per avhengighet i aktivitetens egen kalender, ikke i etterfølgerens: ved slutt-til-start, start-til-start og slutt-til-slutt, også med forsinkelse i arbeidstid på forgjengerens kalender. En startet aktivitet bare ved slutt-til-start uten forsinkelse."
+      "help": "Bare ved timeplanlegging, for ikke-fullførte aktiviteter og avhengigheter med beregnet fri slakk. For en aktivitet som ikke er startet, teller fri slakk i sin egen kalender ved slutt-til-start, start-til-start og slutt-til-slutt, uten prosentforsinkelse eller forsinkelse i forløpt tid. En forsinkelse som ikke er 0 krever forsinkelseskalenderen «Forgjenger». For en startet aktivitet gjelder bare slutt-til-start uten forsinkelse. Den frie slakken og markeringen for styrende avhengighet på selve avhengigheten endres ikke."
     },
     "p6CompletedRemainingLag": {
       "label": "Brukt forsinkelse fra en fullført forgjenger teller ikke",
-      "help": "På den seneste siden teller bare den delen av forsinkelsen etter en fullført forgjenger som ennå ikke er brukt ved statusdatoen."
+      "help": "Bare ved timeplanlegging på forsinkelseskalenderen og med en statusdato, for fullførte forgjengere fra en .xer-fil med faktisk slutt før statusdatoen og et statusdatopunkt eller -vindu. Av en positiv forsinkelse i arbeidstid teller bare den delen som ennå ikke er gått. Gjelder på den seneste siden og forover fra et statusdatopunkt eller et forskjøvet nullrestvindu. En aktivitet på sine vanlige faktiske datoer beholder hele forsinkelsen. Gjelder ikke forsinkelse i klokketimer."
     },
     "p6CompletedOutOfSequenceWindow": {
       "label": "Fullført aktivitet utenfor rekkefølge venter på forgjengerne",
-      "help": "En fullført aktivitet der en forgjenger ennå ikke er ferdig, får sitt nullvindu etter den forgjengeren i stedet for på statusdatoen (P6: Retained Logic)."
+      "help": "Bare ved timeplanlegging og med en statusdato, på XER-ruten for «Fullført aktivitet i statusdatovinduet». Den beregningsregelen og «Pågående aktivitet: tidligste start = start på gjenstående arbeid» må være på. Gjelder ikke Progress Override. Via inndata for slutt-til-start eller start-til-start får aktiviteten den senere av statusdatogrensen og grensen fra en forgjenger som ikke er ferdig, eller fra en forgjenger med et forskjøvet statusdatovindu. Vanlige fullførte forgjengere teller ikke."
     },
     "p6CompletedPhysicalAtDataDate": {
       "label": "Fullført aktivitet med fysisk fremdrift står på statusdatoen",
-      "help": "En fullført aktivitet med fysisk prosent fullført vises som ett punkt på statusdatoen, eller senere hvis en forgjenger krever det, i stedet for på de faktiske datoene. Bare målt for fysisk prosent fullført. For andre typer prosent fullført (P6-standard: varighet) er denne oppførselen ikke målt, og den er slått av."
+      "help": "Bare ved timeplanlegging og med en statusdato, for fullførte aktiviteter uten delaktiviteter og milepæler med null varighet fra en .xer-fil av P6-typen Task Dependent, Start Milestone eller Finish Milestone. Krever et bevart måltidsvindu, fysisk prosent fullført, faktisk slutt senest på statusdatoen og uten avbrudd eller gjenopptak. Krever «Pågående aktivitet: tidligste start = start på gjenstående arbeid». Aktiviteten står som ett punkt på statusdatoen, eller senere hvis en forgjenger krever det. For andre typer prosent fullført, også varighet, er dette ikke målt, og det forblir av."
     },
     "p6InProgressStartLagElapsed": {
       "label": "Brukt SS-forsinkelse fra en pågående forgjenger teller ikke",
-      "help": "For en start-til-start-avhengighet fra en aktivitet som allerede er startet, teller bare den delen av forsinkelsen som ikke er brukt siden faktisk start ved statusdatoen."
+      "help": "Bare ved timeplanlegging på forsinkelseskalenderen og med en statusdato, for en start-til-start-avhengighet med positiv forsinkelse i arbeidstid fra en forgjenger som ikke er ferdig, med faktisk start før statusdatoen. Krever «Pågående aktivitet: tidligste start = start på gjenstående arbeid». Bare den delen av forsinkelsen som ennå ikke er gått, teller. Valget «SS-forsinkelse fra en pågående forgjenger beregnes fra» velger startpunktet. Gjelder ikke forsinkelse i klokketimer."
     },
     "p6FinishFinishStartMilestoneLateFinish": {
       "label": "Slutt-til-slutt-avhengighet til startmilepæl binder til milepælen selv",
-      "help": "En slutt-til-slutt-avhengighet til en startmilepæl teller til selve milepælen, ikke til starten av milepældagen. Forgjengerens seneste slutt kan gå til milepælens seneste slutt."
+      "help": "Bare ved timeplanlegging på begge sider av en slutt-til-slutt-avhengighet til en startmilepæl uten varighet. Avhengigheten binder til selve milepælen: den seneste slutten til forgjengeren kan gå til milepælens seneste slutt. Fri slakk kan også endre seg; milepælens tidligste start blir stående. Gjelder ikke sluttmilepæler eller den bakoverrettede nullrestvarighetsruten."
     },
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "Planlagt start er ikke en nedre grense for en pågående aktivitet",
-      "help": "Gjenstående arbeid i en startet aktivitet begynner på statusdatoen og rett etter forgjengerne, selv om planlagt start ligger senere."
+      "help": "Bare for en aktivitet med faktisk start og mindre enn 100 % fullført, når «Planlagt start som ekstra nedre grense» er på. Den planlagte starten gir ingen ekstra nedre grense for gjenstående arbeid. Statusdatoen og forgjengerne avgjør fortsatt."
     },
     "p6LateFinishOnOwnCalendar": {
       "label": "Seneste slutt i aktivitetens egen kalender",
-      "help": "Hvis den seneste sluttiden en etterfølger legger på, ligger utenfor aktivitetens arbeidstid, blir den slutten av forrige arbeidsperiode i aktivitetens egen kalender."
+      "help": "Bare ved timeplanlegging, når en etterfølgergrense bestemmer seneste slutt, og ingen strengere begrensning eller tidsfrist erstatter den grensen. Faller grensen utenfor aktivitetens egen arbeidstid, blir seneste slutt slutten av den forrige arbeidsperioden på aktivitetens egen kalender. Gjelder ikke seneste slutt som bestemmes av prosjektslutten."
     },
     "p6ProgressOverrideIgnoresStartedSuccessor": {
       "label": "Progress Override ignorerer en startet etterfølger også bakover",
-      "help": "Under Progress Override teller ikke avhengigheten til en etterfølger som allerede er startet, med i seneste datoer og fri slakk for en forgjenger som ikke er ferdig."
+      "help": "Bare ved Progress Override, for en forgjenger som ikke er ferdig og en etterfølger som er startet, men ikke ferdig (faktisk start eller fremdrift). Avhengigheten deres teller ikke med i forgjengerens seneste datoer og fri slakk."
     },
     "p6FinishNotBeforeFinishFinishBound": {
       "label": "Tidligste slutt ikke før en slutt-til-slutt-grense",
-      "help": "Ved en slutt-til-slutt-avhengighet ligger etterfølgerens tidligste slutt aldri før grensen forgjengeren setter, målt i klokketid. Ligger grensen i etterfølgerens fritid, blir sluttiden starten av neste arbeidsperiode."
+      "help": "Datokorreksjon: ved en slutt-til-slutt-avhengighet med forsinkelse i arbeidstid, uten hengekøyer og med timeplanlegging på etterfølgerens kalender (for gjenstående arbeid: fremdriftskalenderen) og på forsinkelseskalenderen. Ligger grensen for avhengigheten senere enn tidligste slutt, uten arbeidstid mellom dem, da flyttes bare slutten til den første arbeidsgrensen på eller etter grensen. Gjelder for automatisk planlagte etterfølgere som ikke er startet, og for etterfølgere som er i gang. For etterfølgere som ikke er startet, går en hard sluttfiksering foran. Fri slakk: egen regel. En forgjenger som ikke er ferdig, teller ved slutt-til-slutt uten forsinkelse og uten prosentvis forsinkelse, med eksisterende fri slakk for avhengigheten og en beregnet tidligste slutt for etterfølgeren, på sin egen timekalender fra sin tidligste slutt til etterfølgerens tidligste slutt. Dette gjelder også ved null forløpt forsinkelse i klokketimer, uten ekstra timevilkår på etterfølger- eller forsinkelseskalenderen. Hengekøyer og manuelt planlagte aktiviteter får til slutt fri slakk 0."
     },
     "p6AlapPositionedFromSuccessors": {
       "label": "ALAP-aktiviteter så seint som etterfølgerne tillater",
-      "help": "En ikke-startet aktivitet med begrensningen 'så sent som mulig' slutter i minuttet etterfølgerne trenger den, etterfølgere først, slik at kjeden henger sammen. Den egne planlagte starten teller ikke. En aktivitet uten forgjenger starter da ikke tidligere enn statusdatoen. Gjelder bare på en timekalender."
+      "help": "Bare ved timeplanlegging, for en aktivitet som ikke er startet og ikke er manuelt planlagt, med begrensningen «Så sent som mulig» (ALAP). Etterfølgernes tidligste datoer bestemmer plasseringen til minuttet; etterfølgerne går først. Dens egen planlagte start teller ikke. Forgjengere, statusdato og en annen begrensning gjelder fortsatt. Uten etterfølger bruker den sin seneste slutt. Det vanlige ALAP-trinnet er fortsatt tilgjengelig i alle profiler."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Frittstående milepæler ved arbeidsdagens slutt",
+      "help": "En frittstående milepæl eller en sluttmilepæl uten forgjenger plasseres ved slutten av arbeidsdagen."
+    },
+    "workdayDurationMeasure": {
+      "label": "Varighet i arbeidsdager",
+      "help": "En varighet, forsinkelse eller gjenstående varighet i dager regnes i arbeidsdager: hver arbeidsdag regnes som 1, uansett hvor lang den dagen er. Av: en dag regnes som antall arbeidstimer per dag i kalenderen. En forsinkelse i prosent følger enheten til forgjengeren. Forløpt tid regnes aldri i arbeidsdager."
     }
   },
   "profiles": {
@@ -1372,13 +1505,22 @@
   "schedulingProfile": {
     "title": "Beregningsprofil og beregningsalternativer",
     "profile": "Beregningsprofil",
+    "newProfile": "Ny profil",
+    "newProfileTitle": "Ny beregningsprofil",
+    "newProfileIntro": "Den nye profilen får alle beregningsregler fra «{{name}}», også avvikene. Deretter kan du selv slå av eller på hver beregningsregel. Prosjektet bruker den nye profilen først etter at du velger Bruk.",
+    "newProfileName": "Navn på den nye profilen",
+    "newProfileCreate": "Opprett",
+    "bareBaseHint": "«{{name}}» er den rene basisen, uten avvikene i dette prosjektet. Vil du beholde dem, velg «{{modified}}».",
     "conventionsTitle": "Beregningsregler i denne profilen",
+    "builtInReadOnly": "{{name}} er en innebygd profil. Beregningsreglene vises her til orientering og kan ikke endres. Vil du ha andre beregningsregler, velg {{button}}.",
+    "builtInDeviations": "Dette prosjektet kommer fra en eldre fil. De oransje beregningsreglene avviker fra grunnlaget til {{name}} og brukes slik de vises. Vil du endre dem, velg {{button}}.",
     "optionsTitle": "Beregningsalternativer for dette prosjektet",
     "customName": "Navn på denne egendefinerte profilen",
     "saveAsTemplate": "Lagre som mal",
     "updateTemplate": "Oppdater mal fra dette prosjektet",
     "applyTemplate": "Oppdater fra mal",
     "deleteTemplate": "Slett mal",
+    "deleteTemplateConfirm": "Vil du slette malen «{{name}}»? Prosjekter med denne profilen beholder sin egen kopi.",
     "templateDeviates": "Denne profilen avviker fra malen “{{name}}”.",
     "themes": {
       "completedWork": "Fremdrift og fullført arbeid",
@@ -1387,22 +1529,41 @@
       "float": "Slakk og seneste datoer",
       "instants": "Datoer og tidspunkter fra filen",
       "msproject": "Fremdrift slik som i Microsoft Project",
+      "durations": "Varighet og enhet",
       "ownProfilesOnly": "Bare for egne profiler"
     },
-    "ownProfilesOnlyNote": "Disse beregningsreglene er av i alle innebygde profiler, også under Primavera P6. Slår du en på, blir det en egen profil.",
+    "ownProfilesOnlyNote": "Disse beregningsreglene er av i alle innebygde profiler, også under «Primavera P6». Bare en egen profil kan slå dem på: velg «Ny profil» for det.",
     "deviatingCount": "avvikende: {{n}}",
     "baseValue": "grunnlag: {{value}}",
     "on": "på",
     "off": "av",
     "resetToBase": "Tilbakestill til grunnlag",
+    "storeChangedUnderDraft": "Beregningsprofilen for prosjektet er i mellomtiden endret, for eksempel med Angre. Nedenfor står fortsatt ditt eget valg. Med {{apply}} legger du valget tilbake i prosjektet.",
     "showHelp": "Forklaring av “{{name}}”",
     "sourceOptions": {
       "title": "Innstillinger fra kildefilen",
-      "intro": "Disse beregningsvalgene kommer fra en Primavera P6-fil (.xer). De brukes i beregningen, men kan ikke endres her.",
+      "intro": "Dette er skrivebeskyttede beregningsvalg i dette prosjektet. Ved import fra en Primavera P6-fil (.xer) tar appen dem fra kildefilen. De virker bare når de tilhørende vilkårene er oppfylt.",
       "useExpectedFinishDates": "Bruk forventede sluttdatoer (P6: Use Expected Finish Dates)",
       "useProjectEndDateForFloat": "Beregne slakk til prosjektslutt",
       "p6CompletedLateFromRemainingWindow": "Fullført aktivitet: seneste datoer fra statusdatoen",
       "needsConvention": "Fungerer bare sammen med beregningsregelen “{{convention}}”, som nå er av."
+    },
+    "requires": {
+      "xerOrigin": "bare .xer-aktiviteter",
+      "hourPlanning": "bare ved timeplanlegging",
+      "hourPlanningTitle": "Virker bare ved timeplanlegging på kalenderen regelen bruker: en kalender med tidsbånd, eller en aktivitet med varighet i timer. For forsinkelse kan også 24-timers forsinkelseskalenderen gjelde."
+    },
+    "optionsDeviate": {
+      "line": "{{field}}: {{current}} (standard: {{standard}})",
+      "intro": "Disse beregningsvalgene avviker fra standarden til {{name}}. Det er ofte med vilje, for eksempel fordi de kommer fra den åpnede filen.",
+      "introNeutral": "Disse beregningsvalgene avviker fra standarden til {{name}}. Det kan være et bevisst valg.",
+      "useDefaults": "Bruk standardinnstillingene til {{name}}",
+      "totalFloatAtMost": "totalslakk ≤ {{amount}}",
+      "hours_one": "{{count}} time",
+      "hours_other": "{{count}} timer",
+      "days_one": "{{count}} arbeidsdag",
+      "days_other": "{{count}} arbeidsdager",
+      "tfAuto": "Automatisk"
     }
   },
   "dialogHelp": {
@@ -1460,5 +1621,71 @@
     "saveHint": "Prosjektet lagres på siten som en ny IFC-fil. Deretter lagres en ny versjon der med Lagre (Ctrl+S).",
     "saveToSite": "Lagre på siten",
     "toThisPc": "Til denne PC-en…"
+  },
+  "formatNotice": {
+    "title": "{{format}} åpnet",
+    "readMore": "Les mer",
+    "dontShowAgain": "Ikke vis igjen for {{format}}",
+    "close": "Forstått",
+    "settingsSection": "Vis forklaring etter å ha åpnet",
+    "formats": {
+      "xer": {
+        "name": "Primavera-fil (.xer)",
+        "kept": "Appen tok over WBS og aktivitetene, med avhengigheter, kalendere, ressurser, fremdrift, aktivitetskoder og egendefinerte felt. Et grunnlinjeprosjekt blir grunnlinjen til prosjektet som viser til det.",
+        "limited": "En avhengighet mellom to prosjekter blir ikke en avhengighet i tidsplanen din. Hvis beregningen avviker, ser du først datoene slik Primavera lagret dem.",
+        "save": "Lagre skriver en ny IFC-fil med den opprinnelige .xer-filen inni. Tilbakeskriving til .xer er ikke mulig: .xer-filen din endres aldri."
+      },
+      "mpp": {
+        "name": "MS Project-fil (.mpp)",
+        "kept": "Appen tok over aktiviteter med struktur, varighet og begrensninger, samt avhengigheter, kalendere, ressurser, tilordninger og fremdrift.",
+        "limited": "Grunnlinjer, kostnader og standardsatser, notater og MS Projects egendefinerte felt følger ikke med. Hvis beregningen avviker, ser du først datoene slik MS Project lagret dem.",
+        "save": "Lagre skriver en ny IFC-fil: .mpp-filen din endres aldri. Tilbakeskriving til .mpp er ikke mulig. Du kan eksportere til MS Project XML."
+      },
+      "mspdi": {
+        "name": "MS Project XML",
+        "kept": "Appen tok over aktiviteter med struktur, samt avhengigheter, begrensninger, kalendere, ressurser, tilordninger, fremdrift, statusdato og grunnlinje 0.",
+        "limited": "Notater, aktivitetskoder og egendefinerte felt følger ikke med. Prosjektet regner med profilen Open Planner Studio, ikke som Microsoft Project.",
+        "save": "Lagre skriver en ny IFC-fil: XML-filen din endres aldri. Du kan skrive tilbake med Eksporter › MS Project XML."
+      },
+      "p6xml": {
+        "name": "Primavera P6 XML",
+        "kept": "Appen tok over WBS og aktivitetene, med avhengigheter, begrensninger, kalendere, ressurser, tilordninger, fremdrift og statusdato. Et grunnlinjeprosjekt blir en grunnlinje for prosjektet det tilhører.",
+        "limited": "Tidsfrister, aktivitetskoder, egendefinerte felt og notater følger ikke med. Prosjektet regner med profilen Open Planner Studio, ikke som Primavera P6.",
+        "save": "Lagre skriver en ny IFC-fil: XML-filen din endres aldri. Du kan skrive tilbake med Eksporter › Primavera P6 XML."
+      },
+      "csv": {
+        "name": "CSV-fil",
+        "kept": "Appen leste én aktivitet per rad: navn, WBS-kode, varighet, datoer, forgjengere og fremdrift.",
+        "limited": "En CSV-fil inneholder ingen ressurser, kalendere, begrensninger, tidsfrister eller grunnlinjer. Prosjektet heter CSV Import.",
+        "save": "Lagre skriver en ny IFC-fil: CSV-filen din endres aldri. Du kan skrive tilbake med Eksporter › CSV (semikolonseparert)."
+      }
+    }
+  },
+  "ifcSchemaQuestion": {
+    "title": "Hvilket IFC-skjema vil du lagre i?",
+    "body": "Denne filen ble lagret som {{schema}}. Appen lagrer som standard i IFC 4.3 ADD2, skjemaet til IfcOpenShell og Bonsai. Vil du beholde denne filen som {{schema}}? Du kan endre dette senere i Prosjektinformasjon.",
+    "bodyUnwritable": "Denne filen ble lagret som {{schema}}. Appen kan ikke skrive det skjemaet. Velg skjemaet appen lagrer i. Du kan endre dette senere i Prosjektinformasjon.",
+    "keep": "Behold {{schema}}",
+    "toDefault": "Lagre som IFC 4.3 ADD2"
+  },
+  "phaseAssignmentQuestion": {
+    "title": "Aktivitet blir en hovedaktivitet",
+    "intro_one": "'{{phase}}' får delaktiviteten '{{child}}' og blir en hovedaktivitet.",
+    "intro_other": "'{{phase}}' får {{count}} delaktiviteter og blir en hovedaktivitet.",
+    "introMany_one": "Denne handlingen gjør {{count}} aktivitet til hovedaktivitet.",
+    "introMany_other": "Denne handlingen gjør {{count}} aktiviteter til hovedaktiviteter.",
+    "noOwnAssignments": "En hovedaktivitet har ingen egne tilordninger.",
+    "question_one": "Hva vil du gjøre med tilordningen av {{resources}}?",
+    "question_other": "Hva vil du gjøre med tilordningene av {{resources}}?",
+    "questionMany": "Hva vil du gjøre med tilordningene deres?",
+    "row": "'{{phase}}': {{resources}}",
+    "remove_one": "Fjern tilordning",
+    "remove_other": "Fjern tilordninger",
+    "moveTo": "Flytt til '{{child}}'",
+    "moveToSubtasks": "Flytt til delaktivitetene",
+    "blockedDuplicate": "Flytting er ikke mulig: '{{child}}' har allerede {{resources}}.",
+    "blockedNoChild": "Flytting er ikke mulig: '{{phase}}' får ingen delaktivitet som kan ha en tilordning, bare milepæler eller hovedaktiviteter.",
+    "actualWorkLost_one": "Tilordningen av {{resource}} har allerede {{hours}} time med faktisk arbeid. Fjerning kaster det arbeidet bort.",
+    "actualWorkLost_other": "Tilordningen av {{resource}} har allerede {{hours}} timer med faktisk arbeid. Fjerning kaster det arbeidet bort."
   }
 }

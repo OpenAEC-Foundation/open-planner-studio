@@ -27,13 +27,13 @@ Hvordan velger du?
 
 **Ingen forskjell.** Fremdriftsmodusen har bare effekt på aktiviteter som allerede er startet, mens forgjengeren ennå ikke er ferdig. Uten en slik aktivitet endres ingenting.
 
-**Meldingen blir stående.** Progress Override løser ikke meldingen om utenfor rekkefølge. Fremdriftsmodusen bestemmer hvordan appen beregner. Motsigelsen mellom avhengighet og fremdrift blir stående. Hvis avhengigheten ikke lenger er riktig, endre den ([Legge til avhengigheter](docs://howto-relaties-leggen)).
+**Meldingen blir stående.** Progress Override løser ikke meldingen om fremdrift utenfor rekkefølge. Fremdriftsmodusen bestemmer hvordan appen beregner. Motsigelsen mellom avhengighet og fremdrift blir stående. Hvis avhengigheten ikke lenger er riktig, endre den ([Legge til avhengigheter](docs://howto-relaties-leggen)).
 
 **Den hører til prosjektet.** Valget lagres i prosjektfilen, gjelder for hele prosjektet og kan angres med Ctrl+Z. Et nytt prosjekt bruker Retained Logic.
 
 **En P6-fil.** Hvis du åpner en Primavera P6-fil (.xer), henter appen fremdriftsmodusen fra filen. I tillegg til Retained Logic og Progress Override har P6 også Actual Dates. Appen kjenner ikke den tredje modusen. En slik fil beregnes derfor som Retained Logic. Importmeldingen teller dette som *1 P6-planleggingsinnstilling brukte en trygg reserveløsning.*
 
-**Beregningsprofilen.** I profilen Primavera P6 virker Progress Override også bakover, i de seneste datoene og i den frie slakken til forgjengeren (beregningsregel *Progress Override ignorerer en startet etterfølger også bakover*). I profilene Open Planner Studio og Microsoft Project gjelder dette ikke. Du finner beregningsreglene under *Innstillinger › Prosjekt › Prosjektinfo*, i delen *Beregningsprofil og beregningsalternativer*. I eksempelet i forklaringen ser du ikke denne effekten bakover.
+**Beregningsprofilen.** I profilen Primavera P6 virker Progress Override også bakover, i de seneste datoene og i den frie slakken til forgjengeren (beregningsregel *Progress Override ignorerer en startet etterfølger også bakover*). I profilene Open Planner Studio og Microsoft Project gjelder dette ikke. Du finner beregningsreglene under *Innstillinger › Prosjekt › Prosjektinnstillinger*, i delen *Beregningsprofil og beregningsalternativer*. I eksempelet i forklaringen ser du ikke denne effekten bakover.
 
 ## Se også
 

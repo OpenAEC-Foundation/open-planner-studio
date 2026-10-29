@@ -7,7 +7,7 @@ You put one plasterer on the plastering and the task takes four days. If you add
 Three quantities are tied together:
 
 - **Duration**: how long the task runs, in work days or in hours.
-- **Units**: how much of a resource works on the task per work day. In the app this is called *Units/day*. Units of 1 is one plasterer for the whole day, 2 is two of them and 0.5 is half a day.
+- **Units**: how much of a resource works on the task per work day. In the *Properties* panel this is called *Units*, in other windows *Units/day*. Units of 1 is one plasterer for the whole day, 2 is two of them and 0.5 is half a day.
 - **Work**: the total number of hours the resource spends on the task.
 
 The sum is: work = duration × units × hours per work day. The hours per work day come from the task's calendar. Plastering of four work days with one plasterer is, with an 8-hour work day, 4 × 1 × 8 = 32 hours of work.
@@ -39,7 +39,7 @@ The worked examples below show what each task type does.
 
 ### Rounding
 
-The duration that follows from the sum is rounded up by the app. For a task in days that is to whole work days, for a task in hours to whole minutes. Work and units stay what you entered or what the app took from the sum. As a result the sum sometimes no longer holds exactly. The example below shows what happens then.
+The app does not round the duration that follows from the sum, not even to whole work days. A task may take part of a work day, for example 1.33 work days. As a result work, units and duration agree: the work is the units × the duration. Only a file from P6 or MS Project can hold work that does not agree with them. The example below shows both.
 
 ### Several resources
 
@@ -49,7 +49,7 @@ An example: two resources each have 32 hours of work and units of 1, 4 work days
 
 ### Progress
 
-If the task already has progress, the task type works on the remaining part: the remaining duration and the remaining work. In the app that work is called *Work (rem.)*. What has been done stays.
+If the task already has progress, the task type works on the remaining part: the remaining duration and the remaining work. In the *Properties* panel that work is in the column *Work (h)*. What has been done stays.
 
 ### Tasks in hours
 
@@ -65,51 +65,53 @@ The plastering takes 4 work days. One plasterer is assigned to it, with units of
 
 - You make the duration 6 work days: the work grows to 48 hours, the units stay 1.
 - You set the units to 2: the duration stays 4 work days, the work becomes 64 hours.
-- You type 48 hours in *Work (rem.)*: the duration stays 4 work days, the units become 1.5.
+- You type 48 hours in *Work (h)*: the duration stays 4 work days, the units become 1.5.
 - You assign a second resource, for example *Plasterer 2*, with units of 1: the duration stays 4 work days and that second one brings 32 hours of work, 64 hours together.
 
 ### Fixed duration and work
 
 - You make the duration 6 work days: the work stays 32 hours, the units drop to 0.67.
 - You set the units to 2: the duration stays 4 work days. Because the duration is fixed, the work grows along to 64 hours.
-- You type 16 hours in *Work (rem.)*: the duration stays 4 work days, the units become 0.5.
+- You type 16 hours in *Work (h)*: the duration stays 4 work days, the units become 0.5.
 - You assign a second resource, for example *Plasterer 2*, with units of 1: the 32 hours are divided, 16 hours each, and the units become 0.5 for both. The duration stays 4 work days.
 
 ### Fixed work
 
+Fixed work is always a task in hours. If you choose Fixed work, the column *Duration* of the plastering shows 32h: 4 work days of 8 hours. The examples below give the duration in work days.
+
 - You make the duration 6 work days: the work stays 32 hours, the units drop to 0.67.
 - You set the units to 2: the work stays 32 hours and the duration becomes 2 work days. This is the step you take in tutorial 5.
-- You type 48 hours in *Work (rem.)*: the units stay 1 and the duration becomes 6 work days.
+- You type 48 hours in *Work (h)*: the units stay 1 and the duration becomes 6 work days.
 - You assign a second resource, for example *Plasterer 2*, with units of 1: the 32 hours are divided, 16 hours each, and the duration becomes 2 work days. Remove that second resource again and the duration is 4 work days again.
 
 ### Fixed units
 
 - You make the duration 6 work days: the units stay 1, the work grows to 48 hours.
 - You set the units to 2: the work stays 32 hours and the duration becomes 2 work days.
-- You type 48 hours in *Work (rem.)*: the units stay 1 and the duration becomes 6 work days.
+- You type 48 hours in *Work (h)*: the units stay 1 and the duration becomes 6 work days.
 - You assign a second resource, for example *Plasterer 2*, with units of 1: the 32 hours are divided, 16 hours each, and the duration becomes 2 work days.
 
-### When the sum does not come out
+### A duration with part of a work day
 
-Under Fixed work you set the units to 3. The work is 32 hours, so the duration becomes 32 ÷ (3 × 8) = 1.33 work days. The app rounds that up to 2 work days. Work (32 hours) and units (3) stay, but 2 × 3 × 8 is 48 hours. The histogram therefore spreads the 32 hours over the 2 work days: 2 units per day, not 3. Next to *Work (rem.)* a warning sign appears, *Differs from units × duration*, to show this.
+Under Fixed work you set the units to 3. The work is 32 hours, so the duration becomes 32 ÷ 3 = 10 hours and 40 minutes, that is 1.33 work days. Work (32 hours), units (3) and duration agree, so there is no warning sign. The plastering starts on Friday 23 July at 07:00 and finishes on Monday 26 July at 09:40. The histogram shows 3 on Friday and 1 on Monday: on Monday the task works 2 hours and 40 minutes, a third of the 8-hour work day.
 
-With two resources with different units it works the same way. If, under Fixed work, you add a second resource, for example *Plasterer 2*, with units of 2 to the plasterer with units of 1, the app divides the 32 hours in the ratio 1 : 2, so 10.7 and 21.3 hours. Both then need 1.33 work days. The duration becomes 2 work days.
+With two resources with different units it works the same way. If, under Fixed work, you add a second resource, for example *Plasterer 2*, with units of 2 to the plasterer with units of 1, the app divides the 32 hours in the ratio 1 : 2, so 10.7 and 21.3 hours. Both then need 10 hours and 40 minutes, 1.33 work days. That is also the duration.
 
 A file from P6 or MS Project can also hold a *Work (rem.)* that is not equal to units × remaining duration. The same warning sign then appears. The app does not change this work by itself. If you change the duration of such a task, the app follows the task type, also when the remaining work came from the file. Under *Fixed duration and units* and *Fixed units* the remaining work becomes units × new remaining duration. Under *Fixed duration and work* and *Fixed work* the work stays and the units adjust. If a remaining work from the file disappears this way, you get a notification with the old and the new number of hours. Ctrl+Z restores the old value. The explanation at the warning sign tells you per task which of the two happens.
 
 ### A different calendar
 
-Under Fixed work the calendar's work day goes from 8 to 6 hours. The work stays 32 hours, so the duration becomes 32 ÷ 6 = 5.33, rounded up to 6 work days. How the app counts work days and work hours is explained in [Calendars and working days](docs://uitleg-kalenders). The app reports: *After the calendar change the task type adjusted the duration of 1 task (work stays, hours per day changed).*
+Under Fixed work the calendar's work day goes from 8 to 6 hours. The plastering is a task in hours, so the duration stays 32 hours. On work days of 6 hours that is 32 ÷ 6 = 5.33 work days: the finish moves from Wednesday 28 July to Friday 30 July at 09:00. Under *Fixed units* the plastering is a task in days. Then the work stays 32 hours and the duration becomes 5.33 work days, with the same finish. The app then reports: *After the calendar change the task type adjusted the duration of 1 task (work stays, hours per day changed).* How the app counts work days and work hours is explained in [Calendars and working days](docs://uitleg-kalenders).
 
 ### A task with progress
 
-The inner cavity leaf takes 5 work days and is 40% done: 2 work days are done and 3 work days (24 hours) remain. Under Fixed work you set the units from 1 to 2. The remaining work stays 24 hours and the remaining duration becomes 1.5, rounded up to 2 work days. The task now takes 2 + 2 = 4 work days and the progress is 50%. The percentage moves along, because the part that is done stays the same and the remainder gets shorter.
+The inner cavity leaf takes 5 work days and is 40% done: 2 work days (16 hours) are done and 3 work days (24 hours) remain. If you choose Fixed work, it becomes a task in hours of 40 hours. If you set the units from 1 to 2, the remaining work stays 24 hours and the remaining duration becomes 12 hours, 1.5 work days. The task now takes 16 + 12 = 28 hours, 3.5 work days, and the progress is 57%. The percentage moves along, because the part that is done stays the same and the remainder gets shorter.
 
 ## Consequences and misconceptions
 
 **"Fixed work means the duration is fixed."** No, quite the opposite. With *Fixed duration and units* and *Fixed duration and work* the duration is fixed. With *Fixed work* and *Fixed units* the duration follows from the other two.
 
-**"If I choose a task type, my schedule changes."** No. Choosing changes no number. Only at your next change does the task type decide what moves along. Under a task type that protects work, the app fixes the work at the moment you choose, so there is a number to protect. Such a task then has a stored *Work (rem.)*.
+**"If I choose a task type, my schedule changes."** No. Choosing changes no number. Only at your next change does the task type decide what moves along. Under a task type that protects work, the app fixes the work at the moment you choose, so there is a number to protect. Such a task then has a stored *Work (h)*.
 
 **"The duration changed without me touching it."** That can happen after a change to the units, the work, the number of resources or the hours per day, under Fixed work or Fixed units. The status bar then says the schedule is out of date. Press **Calculate** (F5) to see the new dates.
 

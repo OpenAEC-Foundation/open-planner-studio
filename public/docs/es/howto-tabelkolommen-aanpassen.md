@@ -9,7 +9,7 @@ En la reunión quiere ver la fecha límite y la holgura total junto a cada tarea
 Hay dos tablas de tareas, cada una con sus propias columnas:
 
 - La **tabla de tareas junto al Gantt** está a la izquierda de la línea de tiempo en, entre otras, las pestañas *Inicio*, *Planificación* y *Vista*. De forma predeterminada tiene *WBS*, *Nombre de tarea* y *Duración*, para que quede espacio para la línea de tiempo.
-- La **tabla de la pestaña Tabla** ocupa toda el área de trabajo. De forma predeterminada tiene *WBS*, *Nombre de tarea*, *Duración*, *Comienzo*, *Fin*, *Tipo de tarea*, *Crítica*, *Holgura total* y *Avance*, más una columna por cada código de actividad y campo personalizado del proyecto.
+- La **tabla de la pestaña Tabla** ocupa toda el área de trabajo. De forma predeterminada tiene *WBS*, *Nombre de tarea*, *Duración*, *Comienzo*, *Fin*, *Categoría de trabajo*, *Crítica*, *Holgura total* y *Avance*, más una columna por cada código de actividad y campo personalizado del proyecto.
 
 Un cambio en una tabla no cambia la otra.
 

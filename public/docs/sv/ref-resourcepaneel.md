@@ -83,4 +83,4 @@ Var du ser det:
 - **Histogram** — de röda delarna av staplarna och den röda pricken i väljaren.
 - **Docken** — triangeln *Överbeläggning*.
 
-Med utjämning kan du lösa överbeläggning genom att flytta uppgifter inom deras slack. Utjämning löser inte överbeläggning för en resurs som måste arbeta på en ledig dag. Se [Utjämning](docs://uitleg-nivelleren).
+Med utjämning kan du lösa överbeläggning genom att låta uppgifter börja senare. Som standard kan projektslutet flyttas. Med *utjämning* ligger projektslutet kvar inom slacket. Utjämning löser inte överbeläggning för en resurs som måste arbeta på en ledig dag. Se [Utjämning](docs://uitleg-nivelleren).

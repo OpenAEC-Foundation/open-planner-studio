@@ -28,10 +28,10 @@ List Excel je chráněn bez hesla. Upravit lze jen tři sloupce pro vyplnění. 
 
 U každého úkolu stavbyvedoucí vyplní:
 
-- `Completion (%)`: 0 až včetně 100. V listu Excel jsou povolena desetinná čísla (například 33,3). Pokyn u CSV žádá celá čísla.
-- `Actual Start` a `Actual Finish`: v Excelu jako datum podle vlastního regionálního nastavení; v CSV ve formátu dd-mm-rrrr.
+- `Completion (%)`: 0 až včetně 100. Aplikace načte také desetinná čísla, s čárkou nebo tečkou (například 33,3 nebo 33.3). Pokyn u CSV však stále žádá celá čísla. Tabulka s jiným regionálním nastavením může číslo 8,38 přečíst jako 838.
+- `Actual Start` a `Actual Finish`: v Excelu jako datum podle vlastního regionálního nastavení; v CSV ve formátu dd-mm-rrrr nebo rrrr-mm-dd.
 
-Co zůstane prázdné, se nezmění. Prázdná buňka tedy neodstraní ani stávající průběh. To lze udělat jen v aplikaci. Úkol, který nezačal, nechá zcela prázdný.
+Co zůstane prázdné, se nezmění. Prázdná buňka tedy neodstraní ani stávající průběh. To lze udělat jen v aplikaci. U úkolu, který nezačal, nechá všechna pole zcela prázdná.
 
 ### 4. Načtěte list
 

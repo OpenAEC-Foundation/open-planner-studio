@@ -34,9 +34,9 @@ A *Jelentés típusa* listában tizenegy jelentés van. Válassza ki azt, amelyi
 
 ### 3. Ellenőrizze, hogy az ütemezés naprakész
 
-Az alkalmazás nem számol magától. Ha az utolsó számítás óta módosította a tevékenységeket, a kapcsolatokat vagy a naptárakat, nyomja meg az **ütemezés-számítás** (F5) parancsot. A táblázatos jelentések maguk figyelmeztetnek a jelentés tetején: *Az ütemezés az utolsó számítás óta módosult. Nyomja meg a Számítás (F5) gombot az aktuális értékekhez*. Vagy, ha még soha nem számították ki: *Még nincs kiszámítva. Nyomja meg a Számítás (F5) gombot a dátumokhoz és a tartalékidőhöz*.
+Az alkalmazás nem számol magától. Ha az utolsó számítás óta módosította a tevékenységeket, a kapcsolatokat vagy a naptárakat, nyomja meg a **Számítás** (F5) gombot. A táblázatos jelentések maguk figyelmeztetnek a jelentés tetején: *Az ütemezés az utolsó számítás óta módosult. Nyomja meg a Számítás (F5) gombot az aktuális értékekhez*. Vagy, ha még soha nem számították ki: *Még nincs kiszámítva. Nyomja meg a Számítás (F5) gombot a dátumokhoz és a tartalékidőhöz*.
 
-A Jelentés lap menüszalagján nincs ütemezés-számítás gomb, de az F5 billentyű itt is működik. A *PDF exportálás* is előbb magától kiszámítja az eredményeket, ha az ütemezés nincs naprakész, így a PDF sosem marad le az ütemezéshez képest.
+A Jelentés lap menüszalagján nincs Számítás gomb, de az F5 billentyű itt is működik. A *PDF exportálás* is előbb magától kiszámítja az eredményeket, ha az ütemezés nincs naprakész, így a PDF sosem marad le az ütemezéshez képest.
 
 ### 4. Állítsa be a jelentést
 
@@ -68,9 +68,9 @@ Nyissa meg a PDF-et a PDF-olvasóban, és nyomtassa ki ott. Ha A3-as PDF-et nyom
 
 ## Buktatók és az alkalmazás működése
 
-**A Nyomtatás gomb és a Ctrl+P nem nyomtat.** A *Nyomtatás* gomb a *Jelentés* csoportban van, magán a Jelentés lapon, és nem csinál semmi többet. A Ctrl+P erre a lapra visz. Az alkalmazásban nincs külön nyomtatási parancs: papírra a PDF-en keresztül lehet eljutni. Ha a Ctrl+P nem működik (nézze meg az 1. lépést), a böngésző nyomtatási párbeszédpanele nyílik meg, és az a képernyőt nyomtatja ki, nem a jelentést.
+**A Nyomtatás gomb és a Ctrl+P nem nyomtat.** A *Nyomtatás* gomb a *Jelentés* csoportban van, magán a Jelentés lapon, és nem csinál semmi többet. A Ctrl+P erre a lapra visz. Az alkalmazásban nincs külön nyomtatási parancs: a nyomtatáshoz a PDF-et kell használni. Ha a Ctrl+P nem működik (nézze meg az 1. lépést), a böngésző nyomtatási párbeszédpanele nyílik meg, és az a képernyőt nyomtatja ki, nem a jelentést.
 
-**A Cég: a felülírt érték nem marad meg.** A *Cég:* mező a Gantt-nyomtatványon a projektinformációban megadott cégnévvel indul. Amit felülír, az nem marad meg. A *Szerző:* mezőbe itt nem írhat. Mindkettőt a *Beállítások › Projekt › Projektinfó* útvonalon módosíthatja, a *Megrendelő/szervezet* és a *Szerző* mezőben, majd az *Alkalmazás* gombbal erősítse meg.
+**A Cég: a felülírt érték nem marad meg.** A *Cég:* mező a Gantt-nyomtatványon a projektbeállításokban megadott cégnévvel indul. Amit felülír, az nem marad meg. A *Szerző:* mezőbe itt nem írhat. Mindkettőt a *Beállítások › Projekt › Projektbeállítások* útvonalon módosíthatja, a *Megrendelő/szervezet* és a *Szerző* mezőben, majd az *Alkalmazás* gombbal erősítse meg.
 
 **Sávszínek: a képernyőn is érvényes.** A jelentésben a *Sávszínek:* beállítás ugyanaz, mint a *Sávszínek* beállítás a Nézet lapon. Ha itt módosítja, a képernyőn lévő Gantt-diagram is megváltozik.
 
@@ -82,7 +82,7 @@ Nyissa meg a PDF-et a PDF-olvasóban, és nyomtassa ki ott. Ha A3-as PDF-et nyom
 
 **A papírbeállítás jelenleg minden jelentésre vonatkozik.** Egy közös *Papír:* és *Tájolás:* beállítás van, amely minden jelentésre érvényes. A Mérföldkő-áttekintésnek és az Eltérésnek nincs saját papírbeállítása: egy másik jelentésben megadott értéket használják, alapértelmezés szerint A3-as fekvő. Ezért válassza ki először a papírt egy olyan jelentésnél, amely ezt kínálja, például a Gantt-nyomtatványnál, és utána térjen vissza.
 
-**A beállítások minden projektre vonatkoznak.** Az alkalmazás ezen az eszközön megjegyzi a papírt, a betűméretet, az időszakot és a többi beállítást, az összes projektjére. Ezek nem a projektfájl részei.
+**A beállítások minden projektre vonatkoznak.** Az alkalmazás ezen az eszközön megjegyzi a papírt, a betűméretet, az időszakot és a többi beállítást minden projekthez. Ezek nem a projektfájl részei.
 
 ## Lásd még
 

@@ -1910,6 +1910,18 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "work-category": {
+    "term": "iş kategorisi",
+    "forms": [
+      "iş kategorisi",
+      "iş kategorileri",
+      "iş kategorisini",
+      "iş kategorisinin",
+      "iş kategorisine"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "çalışma saatleri",
     "forms": [

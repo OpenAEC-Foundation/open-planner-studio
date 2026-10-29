@@ -337,8 +337,13 @@ export function phaseTransitionNotices(
   if (cleared.length > 0) {
     notices.push({
       severity: 'info',
-      messageKey: 'notifications.milestoneClearedOnPhase',
-      params: { count: cleared.length, phase: shortName(taskName(s, cleared[0].phaseId)) },
+      // Naam versus verzameling is een betekenisverschil, geen CLDR-meervoudsvorm.
+      messageKey: cleared.length === 1
+        ? 'notifications.milestoneClearedOnPhase'
+        : 'notifications.milestoneClearedOnPhaseMany',
+      params: cleared.length === 1
+        ? { phase: shortName(taskName(s, cleared[0].phaseId)) }
+        : { count: cleared.length },
       helpArticleId: STRUCTURE_HELP_ARTICLE_ID,
     });
   }
@@ -383,10 +388,10 @@ export function milestoneRefusalNotices(
     const group = refused.filter(r => r.refusal === reason);
     if (group.length === 0) continue;
     notices.push(refusalNotice({
-      messageKey: reason === 'assignments'
-        ? 'notifications.milestoneRefusedAssignments'
-        : 'notifications.milestoneRefusedSummary',
-      params: { count: group.length, task: shortName(group[0].name) },
+      messageKey: group.length === 1
+        ? (reason === 'assignments' ? 'notifications.milestoneRefusedAssignments' : 'notifications.milestoneRefusedSummary')
+        : (reason === 'assignments' ? 'notifications.milestoneRefusedAssignmentsMany' : 'notifications.milestoneRefusedSummaryMany'),
+      params: group.length === 1 ? { task: shortName(group[0].name) } : { count: group.length },
       // Meer taken (contextmenu op een tak): noem welke geen mijlpaal werden.
       // Een omzetting naar mijlpaal raakt verder niets aan die taak, dus "Niet aangepast" klopt.
       ...(group.length > 1 ? { detailLines: refusedNamesLine(group.map(r => shortName(r.name)), 'untouched') } : {}),

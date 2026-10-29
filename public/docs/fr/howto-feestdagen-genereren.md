@@ -22,13 +22,13 @@ Le **congé du bâtiment** (*bouwvak*) est le congé collectif du secteur néerl
 
 Pour les Pays-Bas, l'application ajoute chaque année à la liste le Nouvel An, le Vendredi saint, Pâques (deux jours), le Jour du Roi, l'Ascension, la Pentecôte (deux jours) et Noël (25 et 26 décembre). Si le Jour du Roi tombe un dimanche, il a lieu le 26 avril. Le Jour de la Libération n'est dans la liste que les années multiples de cinq, comme 2025 et 2030.
 
-Les années suivent les dates du projet : de l'année précédant la date de début à l'année suivant la date de fin. Si le projet n'a pas de date de fin, jusqu'à trois ans après l'année de début. Vous adaptez le début et la fin sous *Paramètres › Projet › Info projet*.
+Les années suivent les dates du projet : de l'année précédant la date de début à l'année suivant la date de fin. Si le projet n'a pas de date de fin, jusqu'à trois ans après l'année de début. Vous adaptez le début et la fin sous *Paramètres › Projet › Paramètres du projet*.
 
 ### Régénérer après un changement des dates du projet
 
-Si votre projet se décale, ou reçoit une date de fin plus tardive, les jours fériés ne couvrent plus les nouvelles années. L'application l'indique dans la fenêtre *Calendriers*, par exemple *Les jours fériés couvrent 2025–2028 ; le projet va jusqu'à 2030. Régénérer ?* Cliquez ensuite sur *Régénérer*. L'application reprend les mêmes choix que la fois précédente (pays, région, congés du bâtiment) pour les années du projet. Cliquez ensuite sur *Appliquer*. Vous ne voyez ce message que pour un calendrier dont les jours fériés ont été générés auparavant.
+Si votre projet se décale, ou reçoit une date de fin plus tardive, les jours fériés ne couvrent plus les nouvelles années. L'application l'indique dans la fenêtre *Calendriers*, par exemple *Les jours fériés couvrent 2025–2028 ; régénérer jusqu'à 2030 inclus ?* Cliquez ensuite sur *Régénérer*. L'application reprend les mêmes choix que la fois précédente (pays, région, congés du bâtiment) pour les années du projet. Cliquez ensuite sur *Appliquer*. Vous ne voyez ce message que pour un calendrier dont les jours fériés ont été générés auparavant.
 
-### Ajouter un jour ou une durée de congé
+### Ajouter votre propre jour ou durée de congé
 
 1. Dans la fenêtre *Calendriers*, cliquez sur *Ajouter un jour férié*. En bas de la liste apparaît une nouvelle ligne, avec la date du jour sous *À partir de*.
 2. Remplissez le champ *Description*, par exemple *Sortie d'entreprise*.
@@ -58,5 +58,5 @@ Choisissez *Aucun jour férié* sous *Pays*, puis cliquez sur *Générer*. La li
 - [Calendriers et jours ouvrés](docs://uitleg-kalenders) : comment l'application tient compte des jours fériés et du congé du bâtiment lors du calcul des jours ouvrés.
 - [Créer et attribuer un calendrier](docs://howto-kalender-maken-en-toewijzen) : créer votre propre calendrier pour y ajouter des jours fériés.
 - [Fenêtres des calendriers](docs://ref-kalenders) : tous les champs des fenêtres de calendrier.
-- [Nouveau projet et Info projet](docs://ref-projectinfo) : le jeu de jours fériés pour un nouveau projet.
+- [Nouveau projet et Paramètres du projet](docs://ref-projectinfo) : le jeu de jours fériés pour un nouveau projet.
 - [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc) : à côté des jours fériés, le calendrier du projet comporte une durée de congé *Frost delay, foundations*.

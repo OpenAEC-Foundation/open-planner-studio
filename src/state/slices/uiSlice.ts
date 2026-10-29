@@ -77,7 +77,9 @@ export function createDefaultUI(): UIState {
     showSplitMode: false,
     showProjectSettings: false,
     showProjectInfoDialog: false,
-    leftPanelWidth: 350,
+    // Standaardkolommen 60 + 240 + 60, plus 32px kolomkiezer en 8px marge (knownbug 60).
+    // Bewaarde gebruikersbreedten worden zoals altijd afzonderlijk geladen.
+    leftPanelWidth: 400,
     rightPanelWidth: 280,
     rightPanelVisible: true,
     rightPanelCollapsed: false,
@@ -109,6 +111,8 @@ export function createDefaultUI(): UIState {
     positionDivision: 'left-right',
     modifierMap: { plain: 'vertical', ctrl: 'zoom', shift: 'horizontal' },
     debugTerminalEnabled: false,
+    experimentalSettingsVisible: false,
+    featureFlags: {},
     debugTerminalOpen: false,
     documentChromeStyle: 'tabs',
     ribbonCompact: false,
@@ -155,15 +159,14 @@ export function createDefaultUI(): UIState {
     constructionMode: true,
     dateNotation: 'dmy',
     timeNotation: '24h',
-    // Urenplanning-defaults — hoofdschakelaar uit, gemengd toegestaan,
+    // Duurinstellingen — gemengd toegestaan,
     // duurweergave automatisch, balk-opsplitsing bij selectie.
-    enableHourPlanning: false,
     allowMixedDayHour: true,
     durationDisplay: 'auto',
     barSplitMode: 'selection',
     // «Alleen werkbare dagen tonen»: default UIT.
     compressNonWorkdays: false,
-    hourDataNotice: null,
+
     showTaskTypes: false,
     structureLockedNotice: 0,
     structureLockedClearedAt: 0,
@@ -319,8 +322,14 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
           (updates as Partial<UIState>).showPropertiesPanel = true;
         }
       }
+      const helpWasOpen = s.ui.activeRibbonTab === 'file' && s.ui.backstageSection === 'help';
       Object.assign(s.ui, updates);
-      const max = maxGanttZoom(s.ui.enableQuarterHourZoom, s.ui.enableHourPlanning);
+      // Wegnavigeren annuleert het sectieverzoek, ook als Help nog lazy laadt. Een verzoek dat
+      // juist naar Help opent blijft staan tot de viewer het kan afhandelen.
+      if (helpWasOpen && (s.ui.activeRibbonTab !== 'file' || s.ui.backstageSection !== 'help')) {
+        s.ui.pendingHelpSection = null;
+      }
+      const max = maxGanttZoom(s.ui.enableQuarterHourZoom);
       if (s.view.zoom > max) s.view.zoom = max;
     }),
 
@@ -413,6 +422,8 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
       s.ui.activeRibbonTab = 'file';
       s.ui.backstageSection = 'help';
       s.ui.pendingHelpArticleId = articleId;
+      // Een expliciet artikel vervangt de eerdere intentie om een inhoudssectie te tonen.
+      s.ui.pendingHelpSection = null;
     }),
 
   toggleCollapse: (taskId) => {

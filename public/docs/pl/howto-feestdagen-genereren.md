@@ -13,20 +13,20 @@ Bez świąt aplikacja po prostu planuje pracę w Boże Narodzenie albo w Dzień 
 ### Generowanie świąt
 
 1. Wybierz *Planowanie › Kalendarz › Kalendarz* i po lewej stronie wybierz kalendarz, do którego mają trafić święta.
-2. Kliknij *Generuj święta…*. Pod przyciskiem otworzy się blok z wyborami.
+2. Kliknij *Generuj święta…*. Pod przyciskiem otwiera się blok z wyborami.
 3. Wybierz *Kraj*: Holandia, Niemcy, Belgia, Francja, Wielka Brytania, Austria, Szwajcaria albo *Bez świąt*. Dla części krajów pojawia się też lista *Region*, na przykład kraj związkowy w Niemczech. *Krajowe* zostawia tylko święta, które obowiązują wszędzie.
-4. Dla Holandii wybierz *Urlop budowlany*: *Brak* (domyślnie), *Północ*, *Środek* albo *Południe*. Urlop budowlany pojawia się na liście jako jeden okres, na przykład *Bouwvak (Noord)*, trzy tygodnie od poniedziałku do piątku. Ten wybór widzisz tylko, gdy *Tryb budowlany* jest włączony.
+4. Dla Holandii wybierz *Urlop budowlany*: *Brak* (domyślnie), *Północ*, *Środek* albo *Południe*. Urlop budowlany pojawia się na liście jako jeden okres, na przykład *Bouwvak (Noord)*, trzy tygodnie od poniedziałku do piątku. Ten wybór widzisz tylko wtedy, gdy *Tryb budowlany* jest włączony.
 5. Pod wyborami znajduje się podsumowanie, na przykład *21 świąt, 2026–2028*. Kliknij je, aby zobaczyć daty.
 6. Kliknij *Generuj*. Lista *Dni wolne* jest teraz wypełniona.
 7. Kliknij *Zastosuj*. Aplikacja od razu przelicza harmonogram.
 
-W Holandii aplikacja co roku umieszcza na liście Nieuwjaar, Goede Vrijdag, Pasen (dwa dni), Koningsdag, Hemelvaart, Pinksteren (dwa dni) i Kerst (25 i 26 grudnia) (Nowy Rok, Wielki Piątek, Wielkanoc, Dzień Króla, Wniebowstąpienie, Zielone Świątki i Boże Narodzenie). Jeśli Koningsdag wypada w niedzielę, przypada 26 kwietnia. Bevrijdingsdag (Dzień Wyzwolenia) znajduje się na liście tylko w latach podzielnych przez pięć, na przykład w 2025 i 2030.
+Dla Holandii aplikacja co roku umieszcza na liście Nieuwjaar, Goede Vrijdag, Pasen (dwa dni), Koningsdag, Hemelvaart, Pinksteren (dwa dni) i Kerst (25 i 26 grudnia) (Nowy Rok, Wielki Piątek, Wielkanoc, Dzień Króla, Wniebowstąpienie, Zielone Świątki i Boże Narodzenie). Jeśli Koningsdag wypada w niedzielę, przypada 26 kwietnia. Bevrijdingsdag (Dzień Wyzwolenia) znajduje się na liście tylko w latach podzielnych przez pięć, na przykład w 2025 i 2030.
 
-Lata zależą od okresu projektu: od roku przed datą początkową do roku po dacie końcowej. Jeśli projekt nie ma daty końcowej, sięgają do trzech lat po roku daty początkowej. Zmieniasz początek i koniec w *Ustawienia › Projekt › Info o projekcie*.
+Lata zależą od okresu projektu: od roku przed datą początkową do roku po dacie końcowej. Jeśli projekt nie ma daty końcowej, sięgają do trzech lat po roku daty początkowej. Zmieniasz początek i koniec w *Ustawienia › Projekt › Ustawienia projektu*.
 
-### Ponowne generowanie po zmianie okresu projektu
+### Ponowne generowanie po nowym okresie projektu
 
-Jeśli projekt się przesunie albo dostanie późniejszą datę końcową, święta nie obejmują już nowych lat. Aplikacja pokazuje to w oknie *Kalendarze*, na przykład *Święta obejmują 2025–2028; projekt trwa do 2030. Wygenerować ponownie?* Następnie kliknij *Generuj ponownie*. Aplikacja używa tych samych wyborów co ostatnio (kraj, region, urlop budowlany) dla lat projektu. Potem kliknij *Zastosuj*. Ten komunikat widzisz tylko przy kalendarzu, którego święta zostały wygenerowane wcześniej.
+Jeśli projekt się przesunie albo dostanie późniejszą datę końcową, święta nie obejmują już nowych lat. Aplikacja pokazuje to w oknie *Kalendarze*, na przykład *Święta obejmują 2025–2028. Wygenerować ponownie do 2030 włącznie?* Następnie kliknij *Generuj ponownie*. Aplikacja używa tych samych wyborów co ostatnio (kraj, region, urlop budowlany) dla lat projektu. Potem kliknij *Zastosuj*. Ten komunikat widzisz tylko przy kalendarzu, którego święta zostały wygenerowane wcześniej.
 
 ### Dodawanie własnego dnia lub okresu wolnego
 
@@ -58,5 +58,5 @@ Wybierz *Bez świąt* w polu *Kraj* i kliknij *Generuj*. Lista jest wtedy pusta.
 - [Kalendarze i dni robocze](docs://uitleg-kalenders): jak aplikacja uwzględnia święta i urlop budowlany przy liczeniu dni roboczych.
 - [Tworzenie i przypisywanie kalendarza](docs://howto-kalender-maken-en-toewijzen): tworzenie własnego kalendarza, w którym umieścisz święta.
 - [Okna kalendarzy](docs://ref-kalenders): wszystkie pola okien kalendarzy.
-- [Nowy projekt i Info o projekcie](docs://ref-projectinfo): zestaw świąt dla nowego projektu.
+- [Nowy projekt i Ustawienia projektu](docs://ref-projectinfo): zestaw świąt dla nowego projektu.
 - [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): obok świąt kalendarz projektu ma okres wolny *Frost delay, foundations*.

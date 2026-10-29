@@ -19,7 +19,9 @@ Réfléchissez bien avant d'en installer une. Une extension est du code de progr
 5. La fenêtre *Installer l'extension ?* s'ouvre. Lisez-la, puis passez à l'étape suivante.
 6. Cliquez sur *Installer* pour continuer. Avec *Ne pas installer*, rien ne se passe. Échap ou un clic à côté de la fenêtre compte aussi comme un refus, et l'application n'affiche alors aucun message d'erreur.
 
-Après l'installation, l'extension est activée tout de suite. Sur la carte dans *Parcourir*, elle affiche maintenant *Installée*. Ce que l'extension ajoute, vous le voyez dans l'application même : un nouveau bouton dans le ruban, ou un format d'importation dans *Fichier › Importer*. Certaines extensions affichent aussi un message. Vous le reconnaissez au préfixe *Extension*, suivi du nom de l'extension.
+Après l'installation, l'extension est activée tout de suite. Sur la carte dans l'onglet *Parcourir*, elle affiche maintenant *Installée*. Ce que l'extension ajoute, vous le voyez dans l'application même : un nouveau bouton dans le ruban, ou un format d'importation dans *Fichier › Importer*. Certaines extensions affichent aussi un message. Vous le reconnaissez au préfixe *Extension*, suivi du nom de l'extension.
+
+**Tutoriels.** Les tutoriels sont une extension. Si vous voyez le bouton *Installer les tutoriels* sous *Tutoriels* dans *Aide*, il ouvre *Fichier › Extensions* sur l'onglet *Parcourir*. La question après la première visite guidée installe aussi cette extension. Les deux voies affichent la même question d'autorisation ; vous pouvez la refuser.
 
 ### Installer une extension depuis un fichier
 
@@ -29,32 +31,24 @@ Si vous avez reçu une extension sous forme de fichier, installez-la comme ceci.
 2. En haut à droite, cliquez sur *ZIP* pour un fichier ZIP, ou sur *JS* pour un fichier JavaScript séparé.
 3. Choisissez le fichier. La fenêtre *Installer l'extension ?* s'ouvre, comme ci-dessus.
 
-Un fichier ZIP doit contenir un `manifest.json` et le fichier principal de l'extension. Si vous installez une extension déjà installée, la nouvelle version remplace l'ancienne. Si l'application ne peut pas installer le fichier, par exemple parce qu'un fichier ZIP est endommagé, rien ne se passe : l'application n'affiche aucun message d'erreur pour ZIP et JS, et l'extension n'apparaît pas dans la liste. La raison se trouve pourtant dans le terminal de débogage. Activez-le avec *Paramètres › Projet › Paramètres*, onglet *Avancé*, *Activer le terminal de débogage*, et ouvrez-le avec le bouton *Afficher le terminal de débogage* dans la barre d'état. Il y affiche par exemple *[Extensies] ZIP-installatie mislukt: Error: Geen manifest.json gevonden in ZIP* (l'application rédige ce texte technique en néerlandais).
+Un fichier ZIP doit contenir un `manifest.json` et le fichier principal de l'extension. Si vous installez une extension déjà installée, la nouvelle version remplace l'ancienne. Si l'application ne peut pas installer le fichier, par exemple parce qu'un fichier ZIP est endommagé, rien ne se passe : l'application n'affiche aucun message d'erreur pour ZIP et JS, et l'extension n'apparaît pas dans la liste. La raison se trouve pourtant dans le terminal de débogage. Activez-le avec *Paramètres › Projet › Paramètres de l'app*, onglet *Avancé*, *Activer le terminal de débogage*, et ouvrez-le avec le bouton *Afficher le terminal de débogage* dans la barre d'état. Il y affiche par exemple *[Extensies] ZIP-installatie mislukt: Error: Geen manifest.json gevonden in ZIP* (l'application rédige ce texte technique en néerlandais).
 
 ### Lire la question d'autorisation
 
 La question montre ce que vous devez décider.
 
 - *Auteur* et *Dépôt* indiquent qui a créé l'extension et où se trouve le code source.
-- *Origine* indique d'où vient le fichier : *Depuis le catalogue d'extensions en ligne*, *Depuis un fichier ZIP sur cet ordinateur* ou *Depuis un fichier JavaScript sur cet ordinateur*. En dessous, il indique si le fichier a été vérifié. Pour le catalogue, il affiche *Téléchargement vérifié avec la somme de contrôle du catalogue.* Si le catalogue n'a pas de somme de contrôle, il affiche en rouge *Le catalogue ne fournit aucune somme de contrôle — ce téléchargement n'a pas été vérifié.* Pour un fichier que vous avez choisi vous-même, il affiche *Vous avez choisi ce fichier vous-même ; il n'existe aucune source externe pour le vérifier.*
-- *Ce que vous acceptez* indique : *Une extension est du code qui s'exécute avec les mêmes droits qu'Open Planner Studio lui-même. Rien ne le limite. N'installez que des extensions dont vous faites confiance à l'auteur.* En dessous, il indique ce que cela signifie sur votre plateforme. Dans l'application de bureau, il indique : *Dans l'application de bureau, cela comprend : lire et écrire des fichiers partout dans votre dossier utilisateur, ainsi que l'accès à vos projets, réglages et presse-papiers.* Dans le navigateur, il indique : *Dans le navigateur, cela signifie : l'accès à vos projets et réglages enregistrés, aux fichiers auxquels vous avez donné accès, et au réseau.*
-- *Ce que cette extension déclare utiliser* affiche les autorisations que l'auteur a déclarées, sous forme de petites étiquettes. C'est une déclaration de l'auteur et non une restriction : *C'est la déclaration de l'auteur, pas une restriction — le code peut faire davantage.* S'il n'y a pas d'étiquette, il affiche *Rien de déclaré.* Cela ne veut pas dire que l'extension ne peut rien faire : même sans étiquettes, une extension peut lire et modifier les données de votre planning et afficher des messages.
+- *Origine* indique d'où vient le fichier et s'il a été vérifié. Si l'application indique en rouge que le téléchargement n'a pas été vérifié, n'installez que si vous connaissez la source.
+- *Ce que vous acceptez* rappelle qu'une extension est du code qui s'exécute avec les mêmes droits que l'application elle-même, et ce que cela signifie sur votre plateforme. N'installez que des extensions dont vous faites confiance à l'auteur.
+- *Ce que cette extension déclare utiliser* affiche les autorisations que l'auteur a déclarées, sous forme de petites étiquettes. C'est une déclaration et non une restriction. S'il indique *Rien de déclaré.*, l'extension peut quand même lire et modifier les données de votre planning.
 
-Les étiquettes signifient ceci :
-
-- *ruban* : l'extension place des boutons dans le ruban.
-- *événements* : l'extension écoute certains événements de l'application.
-- *backstage* : l'extension ajoute des formats d'importation dans *Fichier › Importer*.
-- *polices PDF* : l'extension fournit une police pour l'export PDF.
-- *importSource* : l'extension peut lire tous les octets originaux de chaque fichier que vous importez, par exemple un fichier Primavera brut, y compris les champs qui n'arrivent pas dans votre projet. La fenêtre l'explique aussi elle-même.
-- *aide* : l'extension peut ajouter des articles d'aide, ouvrir des projets fournis comme nouveau document et afficher un guide qui pointe vers des parties de l'application. La fenêtre l'explique aussi elle-même.
-- *système de fichiers* et *réseau* : ce sont seulement des indications de ce que l'auteur prévoit. L'application n'a aucune fonction pour cela.
+La signification de chaque étiquette et les textes exacts de la fenêtre se trouvent dans [Autorisations des extensions](docs://ref-extensiepermissies).
 
 ### Désactiver, réactiver ou supprimer une extension
 
 1. Choisissez *Fichier › Extensions*, puis l'onglet *Installées*. Chaque extension a une carte avec le nom, la version, la catégorie, la description et l'auteur.
 2. Avec l'interrupteur sur la carte, vous désactivez l'extension (*Désactiver*) ou vous la réactivez (*Activer*). Lorsqu'elle est désactivée, les boutons et formats d'importation que l'extension a ajoutés disparaissent, mais l'extension reste installée. Elle reste aussi désactivée après un redémarrage de l'application. Une extension activée démarre seule au lancement de l'application.
-3. Cliquez sur *Supprimer*. Le bouton devient *Confirmer*, avec l'explication *Cliquez à nouveau pour supprimer définitivement*. Cliquez encore une fois pour supprimer l'extension. L'application nettoie aussi les réglages que l'extension a enregistrés.
+3. Cliquez sur *Retirer*. Le bouton devient *Confirmer*, avec l'explication *Cliquez à nouveau pour supprimer définitivement*. Cliquez encore une fois pour supprimer l'extension. L'application nettoie aussi les réglages que l'extension a enregistrés.
 
 ## Pièges et ce que fait alors l'application
 

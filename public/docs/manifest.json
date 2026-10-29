@@ -170,10 +170,10 @@
       "kind": "howto"
     },
     {
-      "id": "howto-urenplanning-aanzetten",
+      "id": "howto-taak-in-uren-plannen",
       "title": {
-        "nl": "Urenplanning aanzetten",
-        "en": "Turning on hour planning"
+        "nl": "Een taak in uren plannen",
+        "en": "Plan a task in hours"
       },
       "kind": "howto"
     },
@@ -453,8 +453,8 @@
     {
       "id": "uitleg-ai-koppeling",
       "title": {
-        "nl": "Hoe de AI-koppeling werkt",
-        "en": "How the AI link works"
+        "nl": "Hoe de MCP-koppeling werkt",
+        "en": "How the MCP link works"
       },
       "kind": "uitleg"
     },
@@ -493,8 +493,8 @@
     {
       "id": "howto-ai-assistent-koppelen",
       "title": {
-        "nl": "Een AI-assistent koppelen (MCP)",
-        "en": "Connecting an AI assistant (MCP)"
+        "nl": "Een MCP-client koppelen",
+        "en": "Connecting an MCP client"
       },
       "kind": "howto"
     },
@@ -565,8 +565,8 @@
     {
       "id": "ref-ai-tools",
       "title": {
-        "nl": "AI-tools (planner_*)",
-        "en": "AI tools (planner_*)"
+        "nl": "MCP-tools (planner_*)",
+        "en": "MCP tools (planner_*)"
       },
       "kind": "referentie"
     },
@@ -672,6 +672,7 @@
     "gids-taaktypen": "ref-taak-eigenschappen",
     "ref-waarschuwingen": "ref-meldingen",
     "ref-sneltoetsen-lijst": "ref-sneltoetsen",
-    "ref-instellingen-lijst": "ref-instellingen"
+    "ref-instellingen-lijst": "ref-instellingen",
+    "howto-urenplanning-aanzetten": "howto-taak-in-uren-plannen"
   }
 }

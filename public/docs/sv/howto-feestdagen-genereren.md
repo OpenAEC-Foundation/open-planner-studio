@@ -20,15 +20,15 @@ Utan helgdagar planerar appen arbete på juldagen eller Kungens dag. Ett nytt pr
 6. Klicka på *Generera*. Listan *Helgdagar* är nu fylld.
 7. Klicka på *Tillämpa*. Appen beräknar om tidsplanen direkt.
 
-För Nederländerna lägger appen varje år in följande i listan: Nyårsdagen, Långfredagen, Påsk (två dagar), Kungens dag, Kristi himmelsfärd, Pingst (två dagar) och juldagen och annandag jul (25 och 26 december). Om Kungens dag infaller på en söndag ligger den 26 april. Befrielsedagen finns bara med i listan vart femte år, till exempel 2025 och 2030.
+För Nederländerna lägger appen varje år in följande i listan: Nieuwjaar, Goede Vrijdag, Pasen (två dagar), Koningsdag, Hemelvaart, Pinksteren (två dagar) och Kerst (25 och 26 december) (Nyårsdagen, Långfredagen, Påsk, Kungens dag, Kristi himmelsfärd, Pingst och juldagen och annandag jul). Om Kungens dag infaller på en söndag ligger den 26 april. Bevrijdingsdag (befrielsedagen) finns bara med i listan vart femte år, till exempel 2025 och 2030.
 
-Åren följer projektperioden: från året före startdatumet till året efter slutdatumet. Saknar projektet ett slutdatum gäller i stället upp till tre år efter startåret. Du ändrar start och slut under *Inställningar › Projekt › Projektinfo*.
+Åren följer projektperioden: från året före startdatumet till året efter slutdatumet. Saknar projektet ett slutdatum gäller i stället upp till tre år efter startåret. Du ändrar start och slut under *Inställningar › Projekt › Projektinställningar*.
 
 ### Generera om efter en ny projektperiod
 
-Om ditt projekt flyttas, eller får ett senare slutdatum, täcker helgdagarna inte längre de nya åren. Appen säger det i fönstret *Kalendrar*, till exempel *Helgdagar täcker 2025–2028; projektet löper till 2030. Generera om?* Klicka sedan på *Generera om*. Appen använder samma val som sist (land, region och byggsemester) för projektets år. Klicka sedan på *Tillämpa*. Du ser bara det här meddelandet för en kalender vars helgdagar genererades tidigare.
+Om ditt projekt flyttas, eller får ett senare slutdatum, täcker helgdagarna inte längre de nya åren. Appen säger det i fönstret *Kalendrar*, till exempel *Helgdagar täcker 2025–2028. Generera om till och med 2030?* Klicka sedan på *Generera om*. Appen använder samma val som sist (land, region och byggsemester) för projektets år. Klicka sedan på *Tillämpa*. Du ser bara det här meddelandet för en kalender vars helgdagar genererades tidigare.
 
-### Lägg till en egen ledig dag eller period
+### Lägg till en egen ledig dag eller längre ledighet
 
 1. Klicka på *Lägg till helgdag* i fönstret *Kalendrar*. Längst ner i listan visas en ny rad, med dagens datum under *Från*.
 2. Fyll i *Beskrivning*, till exempel *Företagsutflykt*.
@@ -58,5 +58,5 @@ Välj *Inga helgdagar* under *Land* och klicka på *Generera*. Listan är då to
 - [Kalendrar och arbetsdagar](docs://uitleg-kalenders): hur appen tar helgdagar och byggsemestern med i räkningen av arbetsdagar.
 - [Skapa och tilldela en kalender](docs://howto-kalender-maken-en-toewijzen): skapa en egen kalender att lägga helgdagarna i.
 - [Kalenderfönstren](docs://ref-kalenders): alla fält i kalenderfönstren.
-- [Nytt projekt och Projektinfo](docs://ref-projectinfo): helgdagsuppsättningen för ett nytt projekt.
-- [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): förutom helgdagarna har projektkalendern en ledig period, *Frost delay, foundations*.
+- [Nytt projekt och Projektinställningar](docs://ref-projectinfo): helgdagsuppsättningen för ett nytt projekt.
+- [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): förutom helgdagarna har projektkalendern en ledighet, *Frost delay, foundations*.

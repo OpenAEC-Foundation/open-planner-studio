@@ -31,10 +31,10 @@ Ett dra er ett trinn i *Angre*, uansett hvor lenge du drar. På en stolpe for en
 
 ### Forskyve tidslinjen
 
-Hva et dra på tom bakgrunn gjør, avhenger av rullemodusen din. Du velger den i *Innstillinger*, fanen *Utseende*, under *Gantt › Rulling og zoom* ved *Modus*:
+Hva et dra på tom bakgrunn gjør, avhenger av rullemodusen din. Du velger den i *Appinnstillinger*, fanen *Utseende*, under *Gantt › Rulling og zoom* ved *Modus*:
 
 - **Zoom + dra** (standard): Drar du på tom bakgrunn med venstre museknapp, beveger tidslinjen seg med musen, som på et kart. Pekeren er en hånd. På en stolpe starter et dra bare en handling på stolpen.
-- **Posisjon** og **Taster**: Samme dra lager en markeringsboks. Du forskyver tidslinjen med rullehjulet (se [Innstillinger](docs://ref-instellingen)) eller med midtknappen.
+- **Posisjon** og **Taster**: Samme dra lager en markeringsboks. Du forskyver tidslinjen med rullehjulet (se [Appinnstillinger](docs://ref-instellingen)) eller med midtknappen.
 
 **Midtknappen** (hjulet trykt ned) forskyver tidslinjen i alle moduser, også om du starter på en stolpe. Den virker ikke mens en annen handling pågår, for eksempel når du drar en stolpe.
 
@@ -50,13 +50,17 @@ Mer om å velge er i [Velge, slette og angre aktiviteter](docs://howto-taken-sel
 
 ### Zoome inn og ut
 
-1. Bruk *Zoom +* og *Zoom -* (*Start › Zoom*), eller tastene + og -. Også rullehjulet zoomer; når det gjør det, avhenger av rullemodusen din (se [Innstillinger](docs://ref-instellingen)).
+1. Bruk *Zoom +* og *Zoom -* (*Start › Zoom*), eller tastene + og -. Også rullehjulet zoomer; når det gjør det, avhenger av rullemodusen din (se [Appinnstillinger](docs://ref-instellingen)).
 2. Vil du se hele prosjektet, velg *Visning › Tidsskala › Tilpass til prosjekt* eller trykk Ctrl+0. *Tilbakestill* (på fanen *Visning*) eller 0-tasten setter zoomen tilbake til standardzoomen.
 3. Nederst til høyre i statuslinjen står zoomen i piksler per dag, for eksempel *Zoom: 15px/dag*.
 
 Jo lenger du zoomer ut, jo færre rutelinjer er det. Ved 8 piksler per dag eller mer er det en linje for hver dag, med en tykkere linje ved skillet mellom ukene. Mellom 2 og 8 piksler per dag står bare skillet mellom ukene igjen. Under 2 piksler per dag, på årsnivå, er bare skillene mellom månedene igjen. Ellers ville lerretet bli et jevnt stripemønster der stolpene forsvinner. De grå helgene og fridagene, og ukebåndene som er farget annenhver gang, vises på alle nivåer; de viser ukestrukturen når linjene forsvinner. I tidslinjehodet vises ukenumrene og dagnumrene bare når det er plass til dem, og fra 40 piksler per dag vises også ukedagen før dagnummeret.
 
 Aktivitetsnavnet vises i stolpen hvis det får plass helt. Får det ikke plass, for eksempel når du zoomer ut, vises hele navnet til høyre for stolpen.
+
+### Se detaljene for en aktivitet
+
+Hold musepekeren stille over en stolpe. Et lite kort vises med navnet på aktiviteten, *WBS*, *Varighet*, *Start*, *Slutt*, *Status*, *Kritisk* og *Totalslakk*. Under et dra, forskyving av tidslinjen, en markeringsboks eller en høyreklikkmeny er kortet borte.
 
 ## Fallgruver og hva appen gjør da
 
@@ -72,5 +76,5 @@ Aktivitetsnavnet vises i stolpen hvis det får plass helt. Får det ikke plass, 
 
 - [Høyreklikkmenyer](docs://ref-contextmenus): menyene på en stolpe, en rad og en gruppeoverskrift.
 - [Hurtigtaster](docs://ref-sneltoetsen): tastene for zoom og for å avbryte en handling.
-- [Innstillinger](docs://ref-instellingen): rullemodusen og tidsaksen.
+- [Appinnstillinger](docs://ref-instellingen): rullemodusen og tidsaksen.
 - [Begrensninger og tidsfrister](docs://uitleg-constraints): hvorfor en flyttet start blir en begrensning.

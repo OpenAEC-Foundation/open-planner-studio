@@ -16,11 +16,11 @@ Du bruger timer til opgaver, der ikke passer i hele dage: en kran, du lejer i to
 
 ## Sådan beregner appen
 
-### Arbejdstid og nettotimer
+### Arbejdstid og standard arbejdsdag
 
 Hver kalender har **tidsbånd** for hver arbejdsdag (i appen kaldet *tidsbånd*). Standardkalenderen har kl. 07:00 til 12:00 og kl. 13:00 til 16:00. Mellemrummet er pausen. Appen udleder tidsbåndene af kalenderens *Start (time)*, *Slut (time)* og pause; du behøver ikke at indstille noget til det. Hvis du selv angiver tidsbånd pr. ugedag, har de forrang.
 
-**Nettotimerne pr. dag** er summen af tidsbåndene på en arbejdsdag. Hvis arbejdsdagene har forskellig længde, gælder den hyppigst forekommende daglige total. Ved lige mange gælder den højeste. Med fire dage på 8 timer og en fredag på 5 timer er nettotimerne pr. dag dermed 8.
+**Standard arbejdsdag** er den arbejdsdag, der forekommer oftest. Dens længde er summen af dens tidsbånd. Det er altså ikke et gennemsnit: med mandag på 16 timer og tirsdag til fredag på 10 timer er standard arbejdsdagen 10 timer. Hvis arbejdsdagene har forskellig længde, gælder den hyppigst forekommende daglige total. Ved lige mange gælder den højeste. Med fire dage på 8 timer og en fredag på 5 timer er standard arbejdsdagen dermed 8 timer. En kalender med egne timer pr. dag (for eksempel fra Primavera P6) regner også med denne daglige total, og kalendervinduet viser den. Den egne værdi bevares ved eksporten. Hvis den afviger, viser kalendervinduet en orange blok under *Standard arbejdsdag*. En opgave på 1870 timer med arbejdsdage på 10 timer varer derfor 187 dage, også hvis kalenderens egen værdi er 8 timer pr. dag.
 
 ### En opgave i timer
 
@@ -32,11 +32,11 @@ Appen tæller hele arbejdsdage. Timerne pr. dag spiller ingen rolle. En opgave p
 
 ### Omregning mellem dage og timer
 
-En dag er nettotimerne pr. dag i opgavens kalender. Appen bruger det de tre steder:
+En dag er standard arbejdsdagen i opgavens kalender. Appen bruger det de tre steder:
 
-- Til *Varighedsvisning*. Under *Indstillinger › Projekt › Indstillinger*, fanen *Udseende*, vælger du *Automatisk (egen enhed pr. opgave)*, *Altid dage* eller *Altid timer*. En opgave på 18 timer vises under *Altid dage* som `2.25d(18h)`: den egne enhed står i parentes.
+- Til *Varighedsvisning*. Under *Indstillinger › Projekt › App-indstillinger*, fanen *Udseende*, vælger du *Automatisk (egen enhed pr. opgave)*, *Altid dage* eller *Altid timer*. En opgave på 18 timer vises under *Altid dage* som `2.25d(18t)`: den egne enhed står i parentes.
 - Til en forsinkelse i timer efter en dagopgave (se *Afrunding*).
-- Når du skifter enheden for en opgave. Appen tæller så dagene fra opgavens start, hver dag med sine egne timer, og omregner varigheden med det samme, hvis resultatet er præcist. To dage bliver `16h`. På en kalender, hvor fredag har 5 timer, bliver 5 dage fra mandag `37h`. Tolv timer kan ikke omregnes til hele dage på en kalender med dage på 8 timer: appen lader enheden stå.
+- Når du skifter enheden for en opgave. Appen tæller så dagene fra opgavens start, hver dag med sine egne timer, og omregner varigheden med det samme, hvis resultatet er præcist. To dage bliver `16t`. På en kalender, hvor fredag har 5 timer, bliver 5 dage fra mandag `37t`. Tolv timer kan ikke omregnes til hele dage på en kalender med dage på 8 timer: appen lader enheden stå.
 
 ### Dagopgaver og timeopgaver sammen
 
@@ -51,13 +51,13 @@ Reglerne nedenfor gælder for en afhængighed af typen slut til start på en kal
 Appen runder af eller afviser på fire steder:
 
 - **En dagopgave efter en timeopgave** begynder på den næste arbejdsdag. Timeopgaven rundes så at sige op til hele dage.
-- **En forsinkelse i timer** tæller i forsinkelseskalenderen, som standard den foregående opgaves kalender. Hvis den foregående opgave er en dagopgave på en kalender uden egne tidsbånd, for eksempel standardkalenderen, omregner appen forsinkelsen til hele arbejdsdage: forsinkelsen divideret med nettotimerne pr. dag, afrundet til et helt tal; en halv dag rundes op. Ved 8 timer pr. dag tæller 1 time som 0 dage, 4 timer som 1 dag og 12 timer som 2 dage. Det gælder også, hvis den efterfølgende opgave er en timeopgave. Hvis den foregående opgave er en timeopgave, eller dens kalender har egne tidsbånd, tæller forsinkelsen præcist i arbejdstimer, og pausen tæller ikke med.
+- **En forsinkelse i timer** tæller i forsinkelseskalenderen, som standard den foregående opgaves kalender. Hvis den foregående opgave er en dagopgave på en kalender uden egne tidsbånd, for eksempel standardkalenderen, omregner appen forsinkelsen til hele arbejdsdage: forsinkelsen divideret med timerne i standard arbejdsdagen, afrundet til et helt tal; en halv dag rundes op. Ved 8 timer pr. dag tæller 1 time som 0 dage, 4 timer som 1 dag og 12 timer som 2 dage. Det gælder også, hvis den efterfølgende opgave er en timeopgave. Hvis den foregående opgave er en timeopgave, eller dens kalender har egne tidsbånd, tæller forsinkelsen præcist i arbejdstimer, og pausen tæller ikke med.
 - **En varighed i dage** er altid et helt tal. Hvis du skriver `1.5d`, viser appen *Indtast et helt antal dage eller timer, for eksempel 2d eller 12t.* En varighed i timer kan være `1.5h` eller `1h 30m`.
 - **Skift af enhed** sker kun, hvis resultatet er præcist (se ovenfor).
 
 ## Gennemregnet eksempel: kranen
 
-Kalenderen er mandag til fredag fra kl. 07:00 til 12:00 og fra kl. 13:00 til 16:00: 8 nettotimer pr. dag. Projektstartdatoen er mandag den 7. juni 2027.
+Kalenderen er mandag til fredag fra kl. 07:00 til 12:00 og fra kl. 13:00 til 16:00: en standard arbejdsdag på 8 timer. Projektstartdatoen er mandag den 7. juni 2027.
 
 ### Time, time og dag
 
@@ -81,7 +81,7 @@ Efter en dagopgave virker en forsinkelse anderledes. *Pour foundation* slutter t
 
 ### En fri fredag eftermiddag
 
-Nu har fredag kun ét tidsbånd, fra kl. 07:00 til 12:00: 5 timer. De andre dage bliver ved 8 timer. Nettotimerne pr. dag bliver 8, fordi det er den hyppigst forekommende daglige total. En uge har nu 37 arbejdstimer.
+Nu har fredag kun ét tidsbånd, fra kl. 07:00 til 12:00: 5 timer. De andre dage bliver ved 8 timer. Standard arbejdsdagen bliver 8 timer, fordi det er den hyppigst forekommende daglige total. En uge har nu 37 arbejdstimer.
 
 En opgave på 40 timer fra mandag den 7. juni kl. 07:00 bruger mandag til torsdag (32 timer) og fredag (5 timer). De sidste 3 timer falder på den følgende mandag, fra kl. 07:00 til 10:00. Slutdatoen er **mandag den 14. juni kl. 10:00**. En opgave på 5 dage ville optage 37 timer fra mandag, og det er det, appen foreslår, hvis du skifter enheden for 5 dage til timer.
 
@@ -91,7 +91,7 @@ I selvstudium 4 om timeplanlægning planlægger du selv kranopgaven i timer.
 
 **"8 timer er 1 dag."** Kun hvis kalenderen har dage på 8 timer. På kalenderen med den frie fredag eftermiddag er 5 dage 37 timer, ikke 40.
 
-**"Hvis jeg sætter flere timer pr. dag, slutter min dagopgave tidligere."** Nej. En dagopgave tæller hele arbejdsdage. Timerne pr. dag ændrer kun, hvad en dag er værd i timer, for eksempel i visningen og for en forsinkelse i timer. Kun for en opgave med ressourcer og arbejdsreglen *Fast arbejde* eller *Faste enheder* ændres varigheden med det, fordi arbejdet er det samme: 40 timers arbejde er 5 dage på 8 timer pr. dag og 7 dage på 6 timer pr. dag.
+**"Hvis jeg sætter flere timer pr. dag, slutter min dagopgave tidligere."** Nej. En dagopgave tæller hele arbejdsdage. Timerne pr. dag ændrer kun, hvad en dag er værd i timer, for eksempel i visningen og for en forsinkelse i timer. Kun for en opgave med ressourcer og opgavetypen *Fast arbejde* eller *Faste enheder* ændres varigheden med det, fordi arbejdet er det samme: 40 timers arbejde er 5 dage på 8 timer pr. dag og 7 dage på 6 timer pr. dag.
 
 **"En opgave på 8 timer varer én dag."** Kun hvis den starter ved dagens begyndelse. Hvis den starter senere, som *Adjust elements* tirsdag kl. 11:00, fortsætter den til næste dag.
 

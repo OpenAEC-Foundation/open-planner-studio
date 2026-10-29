@@ -1,0 +1,166 @@
+name: Headless API
+
+# De headless API (headless/server/) en zijn AWS-definitie (deploy/aws/). Zie docs/headless-api.md.
+# Draait op elke push naar main, en op een PR alleen als een pad hieronder wijzigt.
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'scripts/build-core.mjs'
+      - 'scripts/lib/headless-bundle.mjs'
+      - 'scripts/lib/third-party-notices.mjs'
+      - 'headless/**'
+      - 'deploy/aws/**'
+      - 'examples/01-grachtenpand-amsterdam.ifc'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.dockerignore'
+      - '.github/workflows/headless-api.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: headless-api-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  local:
+    name: server lokaal + smoke-test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies (npm ci)
+        run: npm ci
+      - name: Kern bouwen (npm run build:core)
+        run: npm run build:core
+      - name: Gebouwd pakket installeren voor de server
+        working-directory: headless/server
+        run: npm install --no-audit --no-fund --ignore-scripts
+      - name: Testtoken maken
+        run: |
+          token="$(openssl rand -hex 24)"
+          echo "::add-mask::$token"
+          echo "OPS_API_TOKEN=$token" >> "$GITHUB_ENV"
+      - name: Server weigert te starten zonder token
+        run: |
+          set +e
+          env -u OPS_API_TOKEN node headless/server/server.mjs
+          code=$?
+          set -e
+          echo "exit $code"
+          test "$code" -eq 78
+      - name: Server starten
+        run: |
+          PORT=8080 HOST=127.0.0.1 OPS_API_MAX_BODY_BYTES=5242880 nohup node headless/server/server.mjs > server.log 2>&1 &
+          for _ in $(seq 1 60); do
+            curl -sf http://127.0.0.1:8080/healthz && exit 0
+            sleep 1
+          done
+          cat server.log
+          exit 1
+      - name: Smoke-test
+        run: node headless/server/smoke.mjs http://127.0.0.1:8080 "$OPS_API_TOKEN"
+      - name: Servertest (randgevallen; start een eigen server)
+        run: node headless/server/server-test.mjs
+      - name: Logs bevatten geen token en geen IFC-inhoud
+        if: always()
+        run: |
+          cat server.log
+          if grep -qF "$OPS_API_TOKEN" server.log; then echo "token staat in de log"; exit 1; fi
+          if grep -q 'ISO-10303-21' server.log; then echo "IFC-inhoud staat in de log"; exit 1; fi
+      - name: OpenAPI-contract linten
+        run: npx --yes @redocly/cli@1.34.21 lint headless/server/openapi.yaml
+
+  container:
+    name: container + smoke-test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Image bouwen
+        run: docker build -f headless/server/Dockerfile -t open-planner-api:ci .
+      - name: Image draait niet als root
+        run: |
+          uid="$(docker run --rm --entrypoint id open-planner-api:ci -u)"
+          echo "uid $uid"
+          test "$uid" != "0"
+      - name: Testtoken maken
+        run: |
+          token="$(openssl rand -hex 24)"
+          echo "::add-mask::$token"
+          echo "OPS_API_TOKEN=$token" >> "$GITHUB_ENV"
+      - name: Container weigert te starten zonder token
+        run: |
+          set +e
+          docker run --rm open-planner-api:ci
+          code=$?
+          set -e
+          echo "exit $code"
+          test "$code" -eq 78
+      - name: Container starten (alleen-lezen, zonder capabilities)
+        run: |
+          docker run -d --name api -p 127.0.0.1:8080:8080 -e OPS_API_TOKEN \
+            --read-only --cap-drop ALL --security-opt no-new-privileges --memory 1g \
+            open-planner-api:ci
+          for i in $(seq 1 90); do
+            status="$(docker inspect -f '{{.State.Health.Status}}' api)"
+            if [ "$status" = "healthy" ]; then echo "healthy na ${i}s"; exit 0; fi
+            sleep 1
+          done
+          docker logs api
+          exit 1
+      - name: Smoke-test
+        run: node headless/server/smoke.mjs http://127.0.0.1:8080 "$OPS_API_TOKEN"
+      - name: Logs bevatten geen token en geen IFC-inhoud
+        if: always()
+        run: |
+          # Een eerdere build/start-fout laat soms helemaal geen container of testtoken achter.
+          # Docker zelf moet bereikbaar zijn; een fout daarop is geen bewijs dat api ontbreekt.
+          containers="$(docker ps --all --format '{{.Names}}')"
+          if ! grep -Fxq api <<< "$containers"; then
+            echo "Geen api-container: logcontrole niet uitgevoerd. Zie de eerdere build/start-stappen."
+            exit 0
+          fi
+          if [ -z "${OPS_API_TOKEN:-}" ]; then
+            echo "Testtoken ontbreekt: tokencontrole niet uitvoerbaar."
+            exit 1
+          fi
+          if ! docker logs api > container.log 2>&1; then
+            echo "Containerlog kon niet worden gelezen."
+            exit 1
+          fi
+          if grep -qF "$OPS_API_TOKEN" container.log; then echo "token staat in de log"; exit 1; fi
+          if grep -q 'ISO-10303-21' container.log; then echo "IFC-inhoud staat in de log"; exit 1; fi
+          cat container.log
+      - name: Stopt netjes op SIGTERM
+        run: |
+          docker stop -t 30 api
+          docker logs api > stop.log 2>&1
+          grep -q '"msg":"shutdown"' stop.log
+          test "$(docker inspect -f '{{.State.ExitCode}}' api)" = "0"
+
+  cfn-lint:
+    name: cfn-lint (deploy/aws)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: cfn-lint installeren
+        run: pip install cfn-lint==1.58.0
+      - name: CloudFormation-template controleren
+        run: cfn-lint deploy/aws/ecs-fargate.yaml

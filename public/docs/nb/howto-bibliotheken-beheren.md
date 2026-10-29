@@ -64,7 +64,7 @@ En prosjektfil inneholder sine egne kopier av ressursene. Vil du også gi hele b
 
 1. Åpne et prosjekt som er koblet til et bibliotek, og velg *Fil › Eksporter*.
 2. Kryss av for *Lagre bibliotekfilen ved siden av*. Avkrysningsboksen finnes bare for et koblet prosjekt.
-3. Velg kortet *IFC 4x3* og lagre filen. Appen ber deretter også om en annen fil. Den får samme navn som prosjektet, med `-bibliotheek` etter, og den inneholder biblioteket.
+3. Velg kortet *IFC* og lagre filen. Appen ber deretter også om en annen fil. Den får samme navn som prosjektet, med `-bibliotheek` etter, og den inneholder biblioteket.
 
 Avkrysningsboksen virker bare for IFC-eksporten, ikke for de andre eksportformatene. Kollegaen din importerer den andre filen slik som beskrevet ovenfor.
 
@@ -72,9 +72,9 @@ Avkrysningsboksen virker bare for IFC-eksporten, ikke for de andre eksportformat
 
 **To planleggere, to bibliotek.** Appen synkroniserer ikke bibliotek mellom datamaskiner. Importvinduet viser alltid en advarsel om det: *Merk: bibliotek synkroniseres ikke mellom maskiner. Hvis to planleggere jobber med samme ressursbibliotek, kan bibliotekene bli ulike. Hvis organisasjonen din deler mannskaper mellom driftsselskaper, velg da bevisst ett felles bibliotek.*
 
-**Erstatting overskriver alt.** Alt du hadde i det valgte biblioteket, er borte, og en endring i biblioteket faller utenfor *Angre*. Eksporter først hvis du er usikker.
+**Erstatting overskriver alt.** Alt du hadde i det valgte biblioteket, er borte, og en endring i biblioteket er ikke med i *Angre*. Eksporter først hvis du er usikker. Prosjektene dine beholder sine kopier. Appen oppdaterer kopiene som fortsatt finnes i den nye filen. Kopier som ikke lenger finnes i den, får merket *ikke lenger i biblioteket* og fortsetter å virke. Hvis en kopi er ulik, åpnes vinduet *Koble til ressursbiblioteket* (se [Bruke ressursbiblioteket](docs://howto-resourcebibliotheek-gebruiken)).
 
-**Sletting av en kalender i listen skjer med en gang.** Appen spør ikke om bekreftelse, mens sletting av en ressurs gjør det. Det ser ut som en mangel. Endringer i biblioteket faller utenfor *Angre*.
+**Sletting av en kalender i listen skjer med en gang.** Appen spør ikke om bekreftelse, mens sletting av en ressurs gjør det. Det ser ut som en mangel. Endringer i biblioteket er ikke med i *Angre*.
 
 ## Se også
 

@@ -28,11 +28,15 @@ Per bestandsformaat: of je het kunt openen, opslaan en exporteren, wat er wel en
 
 **Wat meegaat** — alles wat bij het project hoort: taken met structuur, duur, datums en voortgang; relaties met lag; constraints en deadlines; kalenders; resources en toewijzingen, ook de urenverdeling; baselines; activiteitcodes en eigen velden; aantekeningen; externe koppelingen naar andere projecten; onderbrekingen; taaktypes en eigen werksoorten; de projectinstellingen zoals de statusdatum, de voortgangsmodus, het rekenprofiel en de reken-opties; de koppeling met een resourcebibliotheek. Bij een project uit een `.xer` gaat ook het oorspronkelijke bronbestand mee. Een eigen werksoort staat erin als het IFC-type `USERDEFINED` met de naam in het veld ObjectType, zodat andere IFC-programma's de taak gewoon lezen; daarnaast bewaart de app het vaste id van de werksoort, zodat hernoemen de koppeling niet breekt. Opent iemand het bestand op een andere computer, dan staat de werksoort daar onder *Uit dit project*, niet in diens eigen *Mijn werksoorten*.
 
-**Wat niet meegaat** — hoe je het scherm hebt ingesteld (zoom, scrollpositie, geselecteerde taak, ingeklapte fasen, gekozen filter en groepering) en de app-instellingen ([App-instellingen](docs://ref-instellingen)). Het tabblad *IFC* is een editor met de IFC-tekst van je project. *Genereer IFC* ververst haar, *Kopieer* zet haar op het klembord en *Toepassen* laadt de tekst als je project, ter vervanging van het project in dat tabblad.
+**Planomvang in andere IFC-programma’s.** Het werkplan en werkschema bevatten de vroegste getoonde taakstart en het laatste getoonde taakeinde, ook van fasen. Een gestarte taak telt vanaf haar werkelijke start; een voltooide taak tot haar werkelijke einde. Anders gelden de berekende datums, of vóór berekenen de invoerdatums. In *Datums zoals opgeslagen* geldt de planning die je op dat moment ziet. Opslaan rekent niet opnieuw. De start- en einddatum die je zelf in *Projectinstellingen* hebt ingevuld, blijven apart bewaard, ook als ze leeg zijn.
+
+**Wat niet meegaat** — hoe je het scherm hebt ingesteld (zoom, scrollpositie, geselecteerde taak, ingeklapte fasen, gekozen filter en groepering) en de app-instellingen ([App-instellingen](docs://ref-instellingen)). Het tabblad *IFC* is een editor met de IFC-tekst van je project. *Genereer IFC* ververst haar en *Kopieer* zet haar op het klembord. *Toepassen* vervangt de inhoud van het huidige project als één stap voor *Ongedaan maken*. De bibliotheekkoppeling en het bestand waarnaar je opslaat blijven behouden. De bewerking staat op *Niet opgeslagen* totdat je opslaat.
 
 ## MS Project XML (MSPDI)
 
-**Openen** — ja. De app herkent een `.xml`-bestand als MS Project XML aan het hoofdelement `Project` in de namespace van MS Project (of zonder namespace). Rekenprofiel: *Open Planner Studio*.
+**Openen** — ja. De app herkent een `.xml`-bestand als MS Project XML aan het hoofdelement `Project` in de namespace van MS Project (of zonder namespace). Rekenprofiel: *Open Planner Studio*. Na het openen zegt de app in één melding wat ze niet heeft overgenomen; zie [Een MS Project-bestand (.mpp) openen](docs://howto-mpp-openen).
+
+**Onleesbare taakdatums.** Een waarde zoals `NA` geldt als een ontbrekende datum. De rest van het bestand opent gewoon. Een ontbrekende geplande start gebruikt de projectstart, of anders de vroegste leesbare taakstart. Voor een ontbrekend einde gelden dezelfde regels als bij een leeg datumveld. Een onleesbare werkelijke datum, constraintdatum, deadline of datum in de opgeslagen rekenuitvoer wordt niet als datum overgenomen.
 
 **Opslaan** — nee. Zo'n project krijgt geen opslagdoel.
 
@@ -44,11 +48,11 @@ Per bestandsformaat: of je het kunt openen, opslaan en exporteren, wat er wel en
 
 **Feestdagen bij openen.** Een afgeleide kalender erft de uitzonderingen van zijn basiskalender. Een kalender met een eigen werkweek en zonder uitzonderingen krijgt geen feestdagen. Alleen een kale kalender, zonder basiskalender, werkweek of uitzonderingen, houdt de Nederlandse standaardfeestdagen. Ontbreken er feestdagen, dan kan je einddatum afwijken: zie [Feestdagen en bouwvak genereren](docs://howto-feestdagen-genereren).
 
-**Wat verandert onderweg** — een constraint *Moet starten op (MSO)* of *Moet eindigen op (MFO)* zonder de keuze *Verplicht (pin logica)* wordt *Start niet eerder dan (SNET)* of *Eindig niet eerder dan (FNET)*. Een hammock wordt een gewone taak met berekende datums. MS Project XML kent de uren per dag alleen voor de projectkalender. Een andere kalender met eigen uren per dag krijgt bij openen de werktijd als uren per dag: 8 uur per dag bij werktijden van 10 uur wordt 10. Een taak in dagen op zo'n kalender wordt dan korter, bijvoorbeeld 4 dagen in plaats van 5.
+**Wat verandert onderweg** — een constraint *Moet starten op (MSO)* of *Moet eindigen op (MFO)* zonder de keuze *Verplicht (pin logica)* wordt *Start niet eerder dan (SNET)* of *Eindig niet eerder dan (FNET)*. Een hammock wordt een gewone taak met berekende datums. MS Project XML kent de uren per dag alleen voor de projectkalender. Een andere kalender met eigen uren per dag krijgt bij openen de werktijd als uren per dag: 8 uur per dag bij werktijden van 10 uur wordt 10. Een taak in dagen uit MS Project of uit een oudere versie van de app wordt op zo'n kalender dan korter, bijvoorbeeld 4 dagen in plaats van 5. Een bestand van deze versie van de app houdt de dagen: een taak van 5 dagen blijft 5 dagen. Ook een rest en een lag in dagen komen dan precies terug: 2,5 dagen met 1,5 dag rest blijft 2,5 dagen met 1,5 dag rest.
 
 ## MS Project-bestand (`.mpp`)
 
-**Openen** — ja, van MS Project 2010 tot en met 2021. Rekenprofiel: *Microsoft Project*. De app leest het bestand alleen: ze verandert je `.mpp` nooit. Een bestand van MS Project 2007 of ouder, en een bestand met wachtwoord, weigert ze met een melding die verwijst naar de XML-export van MS Project.
+**Openen** — ja, van MS Project 2010 tot en met 2021. Rekenprofiel: *Microsoft Project*. De app leest het bestand alleen: ze verandert je `.mpp` nooit. Een bestand van MS Project 2007 of ouder, en een bestand met wachtwoord, weigert ze met een melding die verwijst naar de XML-export van MS Project. Na het openen zegt de app in één melding wat ze niet heeft overgenomen.
 
 **Opslaan** — nee, en er is geen opslagdoel: *Opslaan* schrijft een nieuw IFC-bestand.
 
@@ -56,13 +60,15 @@ Per bestandsformaat: of je het kunt openen, opslaan en exporteren, wat er wel en
 
 **Wat meegaat** — taken met structuur, duur en constraints; relaties met lag; kalenders; resources en toewijzingen; voortgang; een WBS-code die je in MS Project zelf invulde. De datums en speling die MS Project zelf uitrekende, leest de app ook, voor de weergave *Datums zoals opgeslagen*.
 
-**Wat niet meegaat** — baselines, kosten en tarieven, aantekeningen en de eigen velden van MS Project. Zie [Een MS Project-bestand (.mpp) openen](docs://howto-mpp-openen).
+**Wat niet meegaat** — baselines, kosten en tarieven, aantekeningen, hyperlinks, de eigen velden van MS Project, de koppeling van subprojecten en externe taken, en de drempel voor kritiek. Zie [Een MS Project-bestand (.mpp) openen](docs://howto-mpp-openen).
 
 **Herkomst en licentie** — de `.mpp`-lezer is geschreven voor Open Planner Studio en afgeleid van de broncode en structuurkennis van MPXJ (`github.com/joniles/mpxj`, Jon Iles e.a.), een Java-bibliotheek onder LGPL-2.1. Structuur en veldconstanten zijn naar TypeScript overgezet. Open Planner Studio zelf is open source onder LGPL-3.0. De `.xer`-lezer is geen overname: daarvoor is MPXJ alleen als bron van begrip geraadpleegd.
 
 ## Primavera P6 XML
 
 **Openen** — ja. De app herkent een `.xml`-bestand als P6 XML aan het hoofdelement `APIBusinessObjects`. Rekenprofiel: *Open Planner Studio*.
+
+**Onleesbare taakdatums.** Hiervoor gelden dezelfde regels als bij MS Project XML: een onleesbare datum geldt als ontbrekend en breekt het openen niet af.
 
 **Meerdere projecten in één bestand.** Elk project met activiteiten opent in een eigen tabblad, met de naam *Projectnaam (Project-ID)*. Een project zonder activiteiten slaat de app over. Het actieve tabblad is het project met de meeste activiteiten. Een relatie naar een ander project neemt de app niet mee, en ook geen activiteit die bij geen project hoort. Na het openen meldt de app hoeveel projecten ze opende.
 
@@ -82,7 +88,7 @@ Per bestandsformaat: of je het kunt openen, opslaan en exporteren, wat er wel en
 
 **Wat meegaat** — WBS-structuur en taken met duur, datums en voortgang; relaties met lag; constraints (ook een tweede, als zachte constraint); kalenders; resources en toewijzingen; de statusdatum (als `DataDate`); een eigen werksoort, in een eigen veld `OPS Custom Task Type` dat de app terugleest en dat P6 mag negeren.
 
-**Wat niet meegaat** — baselines en deadlines; activiteitcodes, eigen velden, aantekeningen en externe koppelingen; de reken-opties; de namen van feestdagen. P6 kent per vrije dag geen naam: na heropenen heet een feestdag *Holiday* en een werkende uitzondering *Working exception*. Aansluitende vrije dagen komen terug als één reeks. Een naam of code die langer is dan P6 toestaat, kort de app in: een activiteitnaam tot 120 tekens, een activiteit-ID of WBS-code tot 40, een WBS- of projectnaam tot 100. Ze meldt hoeveel namen en codes ze inkortte. P6 kent geen lag in procenten: de app rekent die om naar een vast aantal dagen. Een lag in kalenderdagen wordt een lag in werktijd: 3 kalenderdagen worden 3 werkdagen. Een hammock wordt een gewone taak, een handmatig geplande taak een gewone taak met berekende datums en een nivelleervertraging van minder dan een dag valt weg.
+**Wat niet meegaat** — baselines en deadlines; activiteitcodes, eigen velden, aantekeningen en externe koppelingen; de reken-opties; de namen van feestdagen. P6 kent per vrije dag geen naam: na heropenen heet een feestdag *Holiday* en een werkende uitzondering *Working exception*. Aansluitende vrije dagen komen terug als één reeks. Een naam of code die langer is dan P6 toestaat, kort de app in: een activiteitnaam tot 120 tekens, een activiteit-ID of WBS-code tot 40, een WBS- of projectnaam tot 100. Ze meldt hoeveel namen en codes ze inkortte. P6 kent geen lag in procenten: de app rekent die om naar een vaste lag in werktijd, uit de duur van de voorganger. 50 % van een voorganger van 24 uur wordt een lag van 12 uur. Een lag in kalenderdagen wordt in P6 een lag in werktijd: 3 kalenderdagen worden 3 werkdagen. Open je het bestand weer in de app, dan krijg je de 3 kalenderdagen terug. Ook een duur, rest en lag in dagen komen dan precies terug. Een hammock wordt een gewone taak, een handmatig geplande taak een gewone taak met berekende datums en een nivelleervertraging van minder dan een dag valt weg.
 
 ## Primavera-bestand (`.xer`)
 
@@ -109,6 +115,8 @@ Per bestandsformaat: of je het kunt openen, opslaan en exporteren, wat er wel en
 ## CSV
 
 **Openen** — ja. De app leest `;` en `,` als scheidingsteken. Kolomkoppen herkent ze in het Engels en het Nederlands (bijvoorbeeld `Name` of `Naam`, `Duration` of `Duur`, `Predecessors` of `Voorgangers`). Datums mogen als *jjjj-mm-dd*, *dd-mm-jjjj* of *dd/mm/jjjj*. Een voorganger schrijf je als WBS-code, relatietype en lag, bijvoorbeeld `1.2FS+2d`. Rekenprofiel: *Open Planner Studio*. Het project heet *CSV Import*. De kolom `Task Type` bevat de werksoort, niet het taaktype; de koppen `Werksoort` en `Work category` leest de app ook. Een `Task Type` dat geen van de vaste codes is (zoals `CONSTRUCTION` of `INSTALLATION`, die de app zelf schrijft), wordt een eigen werksoort onder *Uit dit project*, niet in *Mijn werksoorten*; met `OPS Custom Task Type ID` blijft het id van een eigen werksoort behouden.
+
+Een gevulde datumcel in een onherkende vorm stopt het openen van de hele CSV. De foutmelding noemt de CSV-rij, kolomkop en celwaarde; pas die cel aan naar een van de drie vormen en open het bestand opnieuw. De rijtelling telt de kop mee, slaat lege records over en telt een cel met regeleinden als één record. Dit geldt voor Start, Einde, Werkelijke start en Werkelijk einde. Een ontbrekende of lege datum blijft toegestaan: de geplande start valt terug op de vroegste aanwezige taakstart (zonder enige start op vandaag), en het geplande einde wordt waar mogelijk uit start en duur afgeleid. Lege werkelijke datums volgen de gewone voortgangsregels.
 
 **Opslaan** — nee.
 

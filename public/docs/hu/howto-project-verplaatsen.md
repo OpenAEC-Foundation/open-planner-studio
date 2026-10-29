@@ -52,10 +52,10 @@ Ez nem tolódik el:
 
 **A dátum a múltban van.** Ez megengedett, de az előnézet megemlíti: *Az új kezdődátum a múltban van.*
 
-**A projektkezdés módosítása a Projektinfóban más dolog.** Ha módosítja a kezdődátumot a *Beállítások › Projekt › Projektinfó* menüpontban, és az *Alkalmazás* gombot választja, az ütemezés nem tolódik el. Csak azok a tevékenységek tolódnak az új dátumra, amelyeknek nincs előde, vagy nincs olyan korlátozásuk, amely miatt az új kezdés elé kerülnének. Az alkalmazás megmondja, hány ilyen tevékenység van. Ha mindent el szeretne tolni, használja a *Projekt áthelyezése…* parancsot.
+**A projektkezdés módosítása a Projektbeállításokban más dolog.** Ha módosítja a kezdődátumot a *Beállítások › Projekt › Projektbeállítások* menüpontban, és az *Alkalmazás* gombot választja, az ütemezés nem tolódik el. Csak azok a tevékenységek tolódnak az új dátumra, amelyeknek nincs előde, vagy nincs olyan korlátozásuk, amely miatt az új kezdés elé kerülnének. Az alkalmazás megmondja, hány ilyen tevékenység van. Ha mindent el szeretne tolni, használja a *Projekt áthelyezése…* parancsot.
 
 ## Lásd még
 
 - [Kritikus út és tartalékidő](docs://uitleg-kritiek-pad): hogyan számítja ki az ütemezés, és miért tolódik el a befejezés.
 - [Kapcsolatok létrehozása](docs://howto-relaties-leggen): áthelyezéskor a kapcsolatok egyszerűen a helyükön maradnak.
-- [Új projekt és Projektinfó](docs://ref-projectinfo): mit csinál a kezdődátum a Projektinfóban.
+- [Új projekt és Projektinfó](docs://ref-projectinfo): mit csinál a kezdődátum a Projektbeállításokban.

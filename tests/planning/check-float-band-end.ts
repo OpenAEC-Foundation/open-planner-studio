@@ -1,3 +1,4 @@
+// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 // De spelingsband eindigt op "Laatste einde" — op het scherm, in de afdruk en in het datumbereik
 // van de afdruk (audit weergaven, bevinding 4).
 //
@@ -9,8 +10,8 @@
 // afdrukbereik de band-rand af uit één helper (`floatBandEnd`, `src/utils/taskDates.ts`).
 //
 // Deze batterij draait de ECHTE `GanttRenderer` (opnemende 2D-context) en de ECHTE `renderReport`
-// (opnemende Draw2D) en meet de band tegen de x van het einde van de "Laatste einde"-dag (dagtaak)
-// of het instant (urentaak).
+// (opnemende Draw2D) en meet de band tegen de x van het moment van "Laatste einde" (sinds F2 heeft ook
+// een dagtaak momenten; alleen een datum zonder tijd loopt tot het einde van die dag).
 //
 // Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
@@ -21,7 +22,7 @@ import { PRINT_PALETTE } from '@/engine/renderer/themePalette';
 import type { Draw2D } from '@/services/pdf/draw2d';
 import type { WorkCalendar } from '@/types/calendar';
 import type { TaskTime } from '@/types/task';
-import { parseDate, parseInstant, MS_PER_DAY } from '@/utils/dateUtils';
+import { parseInstant } from '@/utils/dateUtils';
 
 const S = () => useAppStore.getState();
 
@@ -40,7 +41,6 @@ function eq(label: string, actual: unknown, expected: unknown): void {
   }
 }
 
-const dayAfter = (iso: string) => new Date(parseDate(iso).getTime() + MS_PER_DAY);
 
 // ── Opnemende 2D-context voor de scherm-renderer ─────────────────────────────
 interface Rect { x: number; w: number; fill: string }
@@ -111,6 +111,11 @@ function renderPrint(options: Partial<PrintOptions> = {}) {
   return { rr, band, result };
 }
 
+/** Kalenderdagen (met een breuk) tussen twee momenten. */
+function daysBetween(from: string, to: string): number {
+  return (parseInstant(to).getTime() - parseInstant(from).getTime()) / 86_400_000;
+}
+
 // ── Scenario 1: dagtaken, speling over twee weekenden ────────────────────────
 // A (2d) en B (12d) parallel, C na beide. A: ES ma 01-06, EF di 02-06, LF di 16-06, TF 10 wd.
 function dayScenario(holidays: WorkCalendar['holidays'] = []): string {
@@ -129,32 +134,34 @@ function dayScenario(holidays: WorkCalendar['holidays'] = []): string {
 {
   const A = dayScenario();
   const a = S().tasks.find(t => t.id === A)!;
-  eq('1 opzet: A heeft 10 wd speling en LF 16-06', [a.time.totalFloat, a.time.lateFinish, a.time.isCritical], [10, '2026-06-16', false]);
+  eq('1 opzet: A heeft 10 wd speling en LF 16-06', [a.time.totalFloat, a.time.lateFinish, a.time.isCritical], [10, "2026-06-16T16:00", false]);
 
   // Scherm, kalender-as.
   const { renderer, bands } = renderScreen('2026-05-25', 30);
   eq('1a scherm: precies één spelingsband', bands.length, 1);
-  near('1b scherm: band begint op de balkrand (einde van EF-dag 02-06)', bands[0]?.x, renderer.dateToX(dayAfter('2026-06-02')));
-  near('1c scherm: band eindigt op het einde van de "Laatste einde"-dag (16-06)', bands[0] && bands[0].x + bands[0].w, renderer.dateToX(dayAfter(a.time.lateFinish)));
+  near('1b scherm: band begint op de balkrand (einde van EF-dag 02-06)', bands[0]?.x, renderer.dateToX(parseInstant('2026-06-02T16:00')));
+  near('1c scherm: band eindigt op het einde van de "Laatste einde"-dag (16-06)', bands[0] && bands[0].x + bands[0].w, renderer.dateToX(parseInstant(a.time.lateFinish)));
 
   // Scherm, gecomprimeerde werkdagen-as: daar klopte de oude breedte toevallig (10 wd = 10 kolommen);
   // dat moet zo blijven.
   const comp = renderScreen('2026-05-25', 30, { compressNonWorkdays: true });
   eq('1d scherm (werkdagen-as): precies één spelingsband', comp.bands.length, 1);
   near('1e scherm (werkdagen-as): band eindigt op het einde van de "Laatste einde"-dag',
-    comp.bands[0] && comp.bands[0].x + comp.bands[0].w, comp.renderer.dateToX(dayAfter(a.time.lateFinish)));
+    comp.bands[0] && comp.bands[0].x + comp.bands[0].w, comp.renderer.dateToX(parseInstant(a.time.lateFinish)));
 
-  // Afdruk: de balk van A (2 kalenderdagen) is de meetlat.
+  // Afdruk: de balk van A is de meetlat. Sinds de afdruk de balkregel van het scherm volgt (`taskBarSpan`,
+  // aanval na #600) loopt hij van ma 07:00 tot di 16:00 = 33 uur, en eindigt de band net als op het scherm
+  // (1c) op het moment van "Laatste einde".
   const p = renderPrint();
   const bar = p.rr.find(r => r !== p.band && p.band && Math.abs(r.y - p.band.y) < 12);
   checks++;
   if (!p.band || !bar) {
     diffs.push(`1f afdruk: band of balk van A niet gevonden (${p.rr.map(r => r.color).join(',')})`);
   } else {
-    const pxPerDay = bar.w / 2;
+    const pxPerDay = bar.w / daysBetween(a.time.earlyStart!, a.time.earlyFinish!);
     near('1f afdruk: band begint op de balkrand', p.band.x, bar.x + bar.w);
-    // ES 01-06 → einde van LF-dag 16-06 = begin van 17-06 = 16 kalenderdagen.
-    near('1g afdruk: band eindigt op het einde van de "Laatste einde"-dag', p.band.x + p.band.w, bar.x + 16 * pxPerDay);
+    // ES 01-06 07:00 → LF 16-06 16:00 = 15 dagen en 9 uur.
+    near('1g afdruk: band eindigt op het moment van "Laatste einde"', p.band.x + p.band.w, bar.x + daysBetween(a.time.earlyStart!, a.time.lateFinish) * pxPerDay);
   }
 }
 
@@ -165,7 +172,7 @@ function dayScenario(holidays: WorkCalendar['holidays'] = []): string {
 {
   const A = dayScenario([{ name: 'Bouwvak', startDate: '2026-06-08', endDate: '2026-06-26' }]);
   const a = S().tasks.find(t => t.id === A)!;
-  eq('2 opzet: A heeft 10 wd speling en LF 07-07', [a.time.totalFloat, a.time.lateFinish], [10, '2026-07-07']);
+  eq('2 opzet: A heeft 10 wd speling en LF 07-07', [a.time.totalFloat, a.time.lateFinish], [10, "2026-07-07T16:00"]);
   const onlyA = S().viewRows.filter(r => r.kind === 'task' && r.task.id === A);
   const p = renderPrint({ rows: onlyA });
   const bar = p.rr.find(r => r !== p.band && p.band && Math.abs(r.y - p.band.y) < 12);
@@ -173,9 +180,9 @@ function dayScenario(holidays: WorkCalendar['holidays'] = []): string {
   if (!p.band || !bar) {
     diffs.push('2a afdruk: band of balk van A niet gevonden');
   } else {
-    const pxPerDay = bar.w / 2;
-    // ES 01-06 → begin van 08-07 = 37 kalenderdagen.
-    near('2a afdruk (bouwvak): band eindigt op het einde van de "Laatste einde"-dag', p.band.x + p.band.w, bar.x + 37 * pxPerDay);
+    const pxPerDay = bar.w / daysBetween(a.time.earlyStart!, a.time.earlyFinish!);
+    // ES 01-06 07:00 → LF 07-07 16:00 = 36 dagen en 9 uur.
+    near('2a afdruk (bouwvak): band eindigt op het moment van "Laatste einde"', p.band.x + p.band.w, bar.x + daysBetween(a.time.earlyStart!, a.time.lateFinish) * pxPerDay);
     checks++;
     if (p.band.x + p.band.w > p.result.width + 0.01) {
       diffs.push(`2b afdruk (bouwvak): datumbereik draagt de band niet — band eindigt op ${(p.band.x + p.band.w).toFixed(1)}, canvas is ${p.result.width.toFixed(1)} breed`);
@@ -187,7 +194,6 @@ function dayScenario(holidays: WorkCalendar['holidays'] = []): string {
 // 9-uurskalender, A 5h naast B 9h, C na beide: A EF 13:00, LF 17:00 (4 werkuren speling).
 {
   S().newProject();
-  S().setUI({ enableHourPlanning: true });
   const band9 = [{ start: 8 * 60, end: 17 * 60 }];
   S().setCalendar({
     ...S().calendar, workDays: [1, 2, 3, 4, 5], holidays: [], hoursPerDay: 9, workStartHour: 8, workEndHour: 17,
@@ -202,7 +208,7 @@ function dayScenario(holidays: WorkCalendar['holidays'] = []): string {
   S().runCPM();
   const ha = S().tasks.find(t => t.id === HA)!;
   eq('3 opzet: A EF 13:00, LF 17:00', [ha.time.earlyFinish, ha.time.lateFinish], ['2026-06-01T13:00', '2026-06-01T17:00']);
-  const { renderer, bands } = renderScreen('2026-05-31', 240, { enableHourPlanning: true });
+  const { renderer, bands } = renderScreen('2026-05-31', 240, { });
   eq('3a scherm (uren): precies één spelingsband', bands.length, 1);
   near('3b scherm (uren): band begint op het EF-instant', bands[0]?.x, renderer.dateToX(parseInstant(ha.time.earlyFinish)));
   near('3c scherm (uren): band eindigt op het LF-instant, niet in de nacht', bands[0] && bands[0].x + bands[0].w, renderer.dateToX(parseInstant(ha.time.lateFinish)));

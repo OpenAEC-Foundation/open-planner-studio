@@ -10,7 +10,7 @@ Akkor rögzít alaptervet, amikor az ütemezést jóváhagyták, de a munka még
 
 ### Alapterv mentése
 
-1. Nyomja meg a **Számítás** gombot (F5), például az *Ütemezés › Ütemezés › Számítás* menüponton keresztül. Az alapterv a számítás pillanatában kiszámított dátumokat rögzíti.
+1. Nyomja meg az **ütemezés-számítás** gombot (F5), például az *Ütemezés › Ütemezés › Számítás* menüponton keresztül. Az alapterv a számítás pillanatában kiszámított dátumokat rögzíti.
 2. Válassza az *Ütemezés › Alaptervek és előrehaladás › Alapterv kezelése…* lehetőséget. Megnyílik az *Alaptervek* ablak.
 3. Az *Új alapterv mentése* alatt egy javasolt név látható, például *Alapterv 1 — (mai dátum)*. Írjon be saját nevet, amelyet később is felismer, például *Alapterv*.
 4. Kattintson a *Mentés* gombra. Az alapterv most már a listában van, és azonnal ez lesz az aktív alapterv.
@@ -28,19 +28,21 @@ Módosítsa a nevet a listában. A változás azonnal érvényes. Nem kell a *Me
 
 ### Alapterv törlése
 
-Kattintson a listában az alapterv melletti kis kukára. Ha az aktív alaptervet törli, az alkalmazás megkérdezi: *Törli az aktív alaptervet?* Ezután a megmaradt legújabb alapterv lesz az aktív. Ha nincs másik, nincs aktív alapterv, és az átfedés eltűnik. A Ctrl+Z billentyűkombinációval visszahozhatja a törölt alaptervet.
+Kattintson a listában az alapterv melletti kis kukára. Ha az aktív alaptervet törli, az alkalmazás megkérdezi: *Törli az aktív alaptervet?* Ezután a megmaradt legújabb alapterv lesz az aktív. Ha nincs másik, nincs aktív alapterv, és az átfedés eltűnik. A törölt alaptervet a Ctrl+Z billentyűkombinációval hozhatja vissza. Zárja be előbb az ablakot; a Ctrl+Z nem működik egy ablakon belül.
 
 ### Eltérések a tevékenységtáblázatban
 
-Minden alapterv hat oszlopot kap a tevékenységtáblázatban. Kattintson a tevékenységtáblázat fejléce jobb oldalán lévő **+** gombra (*Oszlop hozzáadása*), és nyissa meg az *Alapterv* kategóriát. Alaptervenként ezek az oszlopok találhatók: *Tervezett kezdés*, *Tervezett befejezés*, *Időtartam*, *Kezdési eltérés*, *Befejezési eltérés* és *Időtartam-eltérés*. Az oszlopok elején az alapterv neve áll, például *Alapterv — Befejezési eltérés*. Az eltérések munkanapokban értendők: a plusz későbbit, a mínusz korábbit jelent. Ha egy tevékenység nincs benne az alaptervben, ezekben az oszlopokban kötőjel (—) jelenik meg.
+Minden alapterv hat oszlopot kap a tevékenységtáblázatban. Kattintson a tevékenységtáblázat fejléce jobb oldalán lévő **+** gombra (*Oszlop hozzáadása*), és nyissa meg az *Alapterv* kategóriát. Alaptervenként ezek az oszlopok találhatók: *Tervezett kezdés*, *Tervezett befejezés*, *Időtartam*, *Kezdési eltérés*, *Befejezési eltérés* és *Időtartam-eltérés*. Az oszlopok elején az alapterv neve áll, például *Alapterv — Befejezési eltérés*. Az eltéréseket munkanapokban mutatja az alkalmazás: a plusz későbbit, a mínusz korábbit jelent. Ha egy tevékenység nincs benne az alaptervben, ezekben az oszlopokban kötőjel (—) jelenik meg.
 
 ## Buktatók és az alkalmazás viselkedése
 
-**Elavult ütemezés.** Ha az ütemezés elavult, az ablak ezt írja: *Az ütemezés elavult — végezzen előbb újraszámítást (F5)*. Ez figyelmeztetés; a mentés ettől még lehetséges. Ilyenkor viszont a régi dátumokat menti el. Zárja be az ablakot, nyomja meg a **Számítás** gombot, és csak utána mentsen.
+**Elavult ütemezés.** Ha az ütemezés elavult, az ablak ezt írja: *Az ütemezés elavult — végezzen előbb újraszámítást (F5)*. Ez figyelmeztetés; a mentés ettől még lehetséges. Ilyenkor viszont a régi dátumokat menti el. Zárja be az ablakot, nyomja meg az **ütemezés-számítás** gombot, és csak utána mentsen.
 
 **Alapterv előrehaladással.** Ha az előrehaladás megadása után menti az alaptervet, az a tényleges dátumokkal rögzíti az állapotot. Az eltérés ekkor nulla, és már nem mond semmit a végrehajtásról. Rögzítse az alaptervet, mielőtt a munka megkezdődik.
 
 **Az alapterv nem frissíthető.** Ha módosítani szeretné a megállapodást, mentsen egy új alaptervet, és szükség esetén törölje a régit.
+
+**Egy ⚠ jel az Időtartam vagy az Időtartam-eltérés mellett.** Órákban megadott tevékenységnél egy nap a naptárának munkaideje. Ha a naptárnak saját napi óraszáma van (például 8, 10 órás idősávokkal, a Primavera P6-ból), az alkalmazás régebbi verziója másképp számolta a napokat. Az ilyen verzióval mentett alapterv a régi számot tartja meg: egy 1870 órás tevékenység az alaptervben 233,75 nap, most 187 nap. Az alkalmazás nem alakítja át az ilyen alaptervet. Az alapterv *Időtartam* és *Időtartam-eltérés* oszlopai ilyenkor ⚠ jelet mutatnak; vigye rá az egeret a magyarázathoz. Az alapterv dátumai helyesek. Mentsen egy új alaptervet, és szükség esetén törölje a régit.
 
 **Csak altevékenység nélküli tevékenységek.** Egy fázis nincs benne az alaptervben: nincs alapterv-sávja és nincs eltérése sem. A fázis az alatta lévő tevékenységekből adódik.
 

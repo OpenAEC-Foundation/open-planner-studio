@@ -2048,6 +2048,18 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "work-category": {
+    "term": "rodzaj robót",
+    "forms": [
+      "rodzaj robót",
+      "rodzaju robót",
+      "rodzaje robót",
+      "rodzajów robót",
+      "rodzajem robót"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "godziny pracy",
     "forms": [

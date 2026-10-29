@@ -15,7 +15,7 @@ Budujesz harmonogram, dochodzi nowa praca albo chcesz zapisać moment, na przyk�
 1. Wybierz *Start › Zadania › Zadanie*. Ten sam przycisk jest na karcie *Tabela*.
 2. Otwiera się panel *Właściwości* i pole *Nazwa* jest zaznaczone. Wpisz nazwę i naciśnij Enter.
 
-Nowe zadanie ma najpierw nazwę *Nowe zadanie*. Zaczyna się pierwszego dnia projektu.
+Nowe zadanie ma najpierw nazwę *Nowe zadanie*. Zaczyna się na początku projektu.
 
 Jeśli zaznaczysz zadanie, nowe zadanie trafi bezpośrednio pod nie, na tym samym poziomie. Jeśli zaznaczone zadanie jest zadaniem sumarycznym, nowe zadanie trafi pod całą fazę, czyli po jego podzadaniach. Jeśli nic nie jest zaznaczone, trafi na koniec listy. Podpowiedź przycisku mówi, co się stanie: *Nowe zadanie bezpośrednio pod zaznaczeniem* albo *Nowe zadanie na końcu listy*. Jeśli zaznaczysz kilka zadań, powstaje jedno nowe zadanie, pod najniżej położonym z zaznaczonych, tak jak widzisz je na ekranie.
 
@@ -51,7 +51,7 @@ Kliknij zadanie prawym przyciskiem myszy i wybierz *Dodaj podzadanie*. Nowe zada
 Te trzy rodzaje różnią się tak:
 
 - *Kamień milowy początkowy* leży na początku dnia, *Kamień milowy końcowy* na końcu dnia. W Gantt romb staje odpowiednio po lewej albo po prawej stronie kolumny dnia. Ma to znaczenie też dla następnika. Załóżmy, że kamień milowy jest we wtorek 29 września 2026, a po nim następuje zadanie z relacją zakończenie-rozpoczęcie: po początkowym kamieniu milowym to zadanie zaczyna się tego samego wtorku, po końcowym kamieniu milowym w środę 30 września.
-- *Punkt inspekcji (obowiązkowy)* to końcowy kamień milowy z typem zadania *Inspekcja* i z zaznaczonym polem *Obowiązkowy (umowny)*.
+- *Punkt inspekcji (obowiązkowy)* to końcowy kamień milowy z rodzajem robót *Inspekcja* i z zaznaczonym polem *Obowiązkowy (umowny)*.
 
 ### Zmiana istniejącego zadania w kamień milowy
 
@@ -62,6 +62,7 @@ Jeśli wyłączysz to ponownie, zadanie zostaje zwykłym zadaniem z czasem trwan
 ### Inne sposoby
 
 - Ctrl+M (⌘+M na Macu) dodaje nowy kamień milowy na koniec listy, nawet gdy zaznaczone jest zadanie. Panel *Właściwości* się nie otwiera.
+- Kamień milowy utworzony przez Ctrl+M albo z menu prawego przycisku myszy dostaje rodzaj robót *Inspekcja*. *Kamień milowy początkowy* albo *Kamień milowy końcowy* z menu *Kamień milowy ▾* dostaje *Inne*. Zmień rodzaj robót w panelu *Właściwości*, jeśli potrzebujesz.
 - *Dodaj kamień milowy* w menu zadania, po kliknięciu prawym przyciskiem myszy, tworzy kamień milowy jako podzadanie tego zadania, nie jako zadanie na tym samym poziomie.
 
 ### Kopiowanie zadania albo całej gałęzi
@@ -72,7 +73,7 @@ Jeśli wyłączysz to ponownie, zadanie zostaje zwykłym zadaniem z czasem trwan
 
 Kopia ma tę samą nazwę, te same daty i ten sam postęp. Trafia jako zadanie na tym samym poziomie co zaznaczone zadanie (przy kilku: to, które kliknąłeś jako pierwsze), na koniec wśród tych zadań na tym poziomie. Jeśli nic nie jest zaznaczone, trafia na koniec listy. Skopiowane zadania zostają potem zaznaczone, kody WBS (numer każdego zadania w drzewie, na przykład 1.2; zob. [Zmiana struktury](docs://howto-structuur-aanpassen)) są ustalane na nowo, a harmonogram jest nieaktualny.
 
-Schowek jest wspólny dla całej aplikacji, więc możesz wkleić też do innego dokumentu. Wszystko, czego tam nie ma, na przykład kalendarz zadania, niestandardowy typ zadania, kod czynności albo pole niestandardowe, aplikacja usuwa i informuje cię o tym.
+Schowek jest wspólny dla całej aplikacji, więc możesz wkleić też do innego dokumentu. Wszystko, czego tam nie ma, na przykład kalendarz zadania, niestandardowy rodzaj robót, kod czynności albo pole niestandardowe, aplikacja usuwa i informuje cię o tym.
 
 ### Co dalej
 
@@ -82,7 +83,7 @@ Nowe zadanie nie zmienia jeszcze innych dat. Pasek stanu pokazuje *Nieaktualne �
 
 **Każde nowe zadanie zaczyna się na początku projektu.** Bez relacji zadanie na nic nie czeka. Dodaj relacje, zob. [Dodawanie relacji](docs://howto-relaties-leggen).
 
-**Filtrowanie, grupowanie lub sortowanie jest włączone.** Kolejność, którą widzisz, nie jest wtedy kolejnością harmonogramu. Gdy jest zaznaczone zadanie, *Zadanie* i *Kamień milowy ▾* dodają nowe zadanie na koniec, a pojawia się komunikat *Niedostępne podczas filtrowania/grupowania/sortowania*. *Wstaw powyżej* i *Wstaw poniżej* są odrzucane, z tym samym komunikatem. Przycisk *Wyczyść* w tym komunikacie usuwa filtr, grupowanie i sortowanie za jednym razem. To nie jest część *Cofnij*: Ctrl+Z ich nie przywraca.
+**Filtrowanie, grupowanie lub sortowanie jest włączone.** Kolejność, którą widzisz, nie jest wtedy kolejnością harmonogramu. Gdy jest zaznaczone zadanie, *Zadanie* i *Kamień milowy ▾* dodają nowe zadanie na koniec. Pojawia się czerwone powiadomienie: *Nowe zadanie zostało dodane na końcu. Podczas filtrowania, grupowania lub sortowania aplikacja nie może umieścić go pod zaznaczeniem*. *Wstaw powyżej* i *Wstaw poniżej* są odrzucane, z paskiem *Niedostępne podczas filtrowania/grupowania/sortowania*. Przycisk *Wyczyść* w powiadomieniu albo na pasku usuwa filtr, grupowanie i sortowanie za jednym razem. To nie jest część *Cofnij*: Ctrl+Z ich nie przywraca.
 
 **Podzadanie pod zadaniem z przydziałami zasobów.** Zadanie staje się zadaniem sumarycznym, a zadanie sumaryczne samo nie ma przydziałów. Aplikacja przenosi przydziały do nowego podzadania i informuje cię o tym. Jeśli to nie jest możliwe, na przykład dlatego że wybrano *Dodaj kamień milowy*, a kamień milowy nie może mieć przydziałów, aplikacja niczego nie dodaje i mówi dlaczego.
 

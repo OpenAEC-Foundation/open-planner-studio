@@ -23,7 +23,7 @@ Aplikace zobrazí hlášení *Větev uložena jako šablona „Foundation“*. A
 
 Když je vybraný úkol, šablona se vloží jako poslední dílčí úkol pod tento úkol. Tento úkol se tím stane souhrnným úkolem. Když je vybráno více úkolů, rozhodne ten, na který jste klikli jako první. Když nic nevyberete, větev se vloží na konec seznamu, na nejvyšší úroveň. Vložená větev se potom vybere.
 
-Všechny vložené úkoly začínají datem zahájení projektu a plán už není aktuální. Stiskněte **Přepočítat** (F5), například na kartě *Domů › Plán › Přepočítat*, a data se nastaví podle závislostí. Vložení se dá vrátit jedním krokem příkazem *Vrátit zpět*. Uložení nebo odstranění šablony do tohoto kroku nepatří.
+Všechny vložené úkoly začínají v den zahájení projektu a plán už není aktuální. Stiskněte **Přepočítat** (F5), například na kartě *Domů › Plán › Přepočítat*, a data se nastaví podle závislostí. Vložení se dá vrátit jedním krokem příkazem *Vrátit zpět*. Uložení nebo odstranění šablony do tohoto kroku nepatří.
 
 ### Odstranění šablony
 
@@ -31,9 +31,9 @@ Otevřete na kartě *Plán › Struktura › Šablony* a klikněte na malý koš
 
 ### Co šablona obsahuje
 
-Pro každý úkol šablona uchovává název, popis, typ úkolu, to, zda je milníkem, a dobu trvání ve dnech. Ze závislostí zachovává jen ty mezi dvěma úkoly uvnitř větve, včetně typu a prodlevy.
+Pro každý úkol šablona uchovává název, popis, druh práce, to, zda je milníkem, a dobu trvání ve dnech. Ze závislostí zachovává jen ty mezi dvěma úkoly uvnitř větve, včetně typu a prodlevy. Prodleva v pracovních dnech, kalendářních dnech nebo procentech se zachová. Prodleva v hodinách (`4h`) se neuloží a změní se na 0.
 
-Ostatní se neuloží: data, průběh a skutečná data, přiřazení zdrojů, kódy a vlastní pole (viz [Kódy a vlastní pole](docs://howto-codes-en-velden)), kalendář, omezení a konečné termíny, prioritu, vlastní typ úkolu, u milníku druh a zaškrtávací políčko *Povinný (smluvní)*, a závislosti s úkoly mimo větev. Po vložení je doplníte znovu: přiřazení, kódy, kalendář a omezení jsou prázdné a všechny úkoly začínají datem zahájení projektu.
+Ostatní se neuloží: data, průběh a skutečná data, přiřazení zdrojů, kódy a vlastní pole (viz [Kódy a vlastní pole](docs://howto-codes-en-velden)), kalendář, omezení a konečné termíny, prioritu, vlastní druh práce, u milníku druh a zaškrtávací políčko *Povinný (smluvní)*, a závislosti s úkoly mimo větev. Po vložení je doplníte znovu: přiřazení, kódy, kalendář a omezení jsou prázdné a všechny úkoly začínají v den zahájení projektu.
 
 Úkol v hodinách se vrátí jako úkol ve dnech a jeho doba trvání se převede na zlomek pracovního dne. Úkol s dobou trvání 5 hodin se při pracovním dni 8 hodin změní na 0,625 dne.
 

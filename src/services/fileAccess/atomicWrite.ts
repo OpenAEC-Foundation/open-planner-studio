@@ -15,6 +15,8 @@
  * dekt het wel volledig.
  */
 
+import { generateId } from '@/utils/id';
+
 /** De drie bestandsoperaties die de schrijf-en-vervang nodig heeft — injecteerbaar voor tests. */
 export interface AtomicWriteFs {
   writeTextFile(path: string, text: string): Promise<void>;
@@ -72,11 +74,11 @@ export async function writeBytesFileAtomic(dir: string, name: string, bytes: Uin
 //  - links: een rename zet een gewoon bestand op de plek van een symlink (het doel van de link
 //    blijft dan oud), en bij een harde link houdt de andere naam de oude inhoud. Een gelinkt bestand
 //    wordt daarom direct beschreven.
-//  - rechten: het halffabricaat krijgt de permissiebits van het bestaande bestand (Unix), zodat een
-//    0600-project na het vervangen niet ineens voor iedereen leesbaar is. Eigenaar en ACL's gaan
-//    bij een rename wel verloren; dat kan plugin-fs niet overzetten.
+//  - rechten: de permissiebits van het bestaande bestand worden als aanmaakmode meegegeven (Unix).
+//    De proces-umask kan die verder beperken; dit garandeert geen exact modebehoud. Eigenaar en
+//    ACL's gaan bij een rename wel verloren; dat kan plugin-fs niet overzetten.
 // Mislukt het vervangen zelf (bijv. Windows: het doel is geopend zonder deel-toegang), dan valt de
-// route terug op direct schrijven — wat vóór deze route altijd gebeurde, dus nooit slechter.
+// route terug op direct schrijven. Deze terugvallen hebben niet de foutveiligheid van vervangen.
 
 /** Achtervoegsel van het halffabricaat naast een gebruikersbestand. */
 export const USER_FILE_TMP_SUFFIX = '.ops-save.tmp';
@@ -84,6 +86,12 @@ export const USER_FILE_TMP_SUFFIX = '.ops-save.tmp';
 /** De bestandsoperaties die `replaceUserFile` nodig heeft — injecteerbaar voor tests. */
 export interface UserFileFs<D> {
   lstat(path: string): Promise<{ isSymlink: boolean; nlink: number | null; mode: number | null }>;
+  /** Exclusief aanmaken: weigert ieder bestaand bestand, directory of link, ook een dode symlink.
+   *  Alleen een geslaagde aanmaak geeft de aanroeper eigendom voor schrijven en opruimen. */
+  createNew(path: string, mode?: number): Promise<{
+    write(data: D): Promise<void>;
+    close(): Promise<void>;
+  }>;
   write(path: string, data: D, mode?: number): Promise<void>;
   rename(from: string, to: string): Promise<void>;
   remove(path: string): Promise<void>;
@@ -94,8 +102,9 @@ export function isForbiddenPathError(err: unknown): boolean {
   return String(err instanceof Error ? err.message : err).includes('forbidden path');
 }
 
-/** Vervang `path` door `data` zonder dat een mislukte schrijfactie het oude bestand kan afkappen. Een
- *  volle schijf of I/O-fout tijdens het schrijven komt als fout terug met het doel onaangeroerd. */
+/** Schrijf eerst via een exclusief aangemaakt, eigen halffabricaat; schrijf- en sluitfouten laten
+ *  het doel dan onaangeroerd. Scope, gelinkte doelen en rename-fouten houden de directe terugval.
+ *  Dit vergrendelt geen paden tegen latere link-/directorywissels of concurrerende doelwijzigingen. */
 export async function replaceUserFile<D>(fs: UserFileFs<D>, path: string, data: D): Promise<void> {
   let info: Awaited<ReturnType<UserFileFs<D>['lstat']>> | null = null;
   try {
@@ -107,22 +116,46 @@ export async function replaceUserFile<D>(fs: UserFileFs<D>, path: string, data: 
     await fs.write(path, data);
     return;
   }
-  const tmp = `${path}${USER_FILE_TMP_SUFFIX}`;
+  // Het oude vaste pad blijft geheel met rust, ook als daar een link of een andere save staat.
+  // Een verse naam voorkomt normale botsingen; createNew beslist, niet de willekeur of een lstat.
+  // Een zelfstandige, korte basename laat ook lange doelnamen toe. Behoud de map letterlijk;
+  // in een absoluut POSIX-pad is een backslash een geldig onderdeel van de bestandsnaam.
+  const windowsPath = /^[a-z]:[\\/]|^\\\\/i.test(path);
+  const lastSeparator = windowsPath ? Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')) : path.lastIndexOf('/');
+  const tmp = `${path.slice(0, lastSeparator + 1)}${generateId('save')}${USER_FILE_TMP_SUFFIX}`;
   const mode = info?.mode != null ? info.mode & 0o777 : undefined;
+  let file: Awaited<ReturnType<UserFileFs<D>['createNew']>>;
   try {
-    await fs.write(tmp, data, mode);
+    file = await fs.createNew(tmp, mode);
   } catch (err) {
-    try { await fs.remove(tmp); } catch { /* nooit aangemaakt */ }
+    // Geen eigendom bij een mislukte aanmaak: niets verwijderen. Ook EEXIST is géén reden om
+    // direct te schrijven (of het bestaande halffabricaat te hergebruiken).
     if (isForbiddenPathError(err)) {
       await fs.write(path, data);
       return;
     }
     throw err;
   }
+  const removeOwnTemp = async () => {
+    try { await fs.remove(tmp); } catch { /* eigen halffabricaat blijft mogelijk achter */ }
+  };
+  try {
+    await file.write(data);
+  } catch (err) {
+    try { await file.close(); } catch { /* behoud de schrijffout */ }
+    await removeOwnTemp();
+    throw err;
+  }
+  try {
+    await file.close(); // Windows: sluit de handle vóór rename/remove.
+  } catch (err) {
+    await removeOwnTemp();
+    throw err;
+  }
   try {
     await fs.rename(tmp, path);
   } catch {
-    try { await fs.remove(tmp); } catch { /* al weg */ }
+    await removeOwnTemp();
     await fs.write(path, data);
   }
 }
@@ -131,9 +164,28 @@ type TauriFs = typeof import('@tauri-apps/plugin-fs');
 
 function tauriUserFileFs<D>(
   fs: TauriFs, write: (path: string, data: D, options?: { mode: number }) => Promise<void>,
+  encode: (data: D) => Uint8Array,
 ): UserFileFs<D> {
   return {
     lstat: p => fs.lstat(p),
+    createNew: async (p, mode) => {
+      const file = await fs.open(p, { read: false, write: true, createNew: true, ...(mode === undefined ? {} : { mode }) });
+      return {
+        write: async data => {
+          const bytes = encode(data);
+          let offset = 0;
+          // De vastgelegde Rust-plugin gebruikt File::write, niet write_all: korte writes afmaken.
+          while (offset < bytes.length) {
+            const written = await file.write(bytes.subarray(offset));
+            if (!Number.isInteger(written) || written <= 0 || written > bytes.length - offset) {
+              throw new Error('Incomplete temporary file write');
+            }
+            offset += written;
+          }
+        },
+        close: () => file.close(),
+      };
+    },
     write: (p, data, mode) => write(p, data, mode === undefined ? undefined : { mode }),
     rename: (a, b) => fs.rename(a, b),
     remove: p => fs.remove(p),
@@ -143,11 +195,11 @@ function tauriUserFileFs<D>(
 /** Tauri: een tekstbestand van de gebruiker veilig vervangen (zie `replaceUserFile`). */
 export async function writeUserTextFileTauri(path: string, text: string): Promise<void> {
   const fs = await import('@tauri-apps/plugin-fs');
-  await replaceUserFile(tauriUserFileFs<string>(fs, (p, t, o) => fs.writeTextFile(p, t, o)), path, text);
+  await replaceUserFile(tauriUserFileFs<string>(fs, (p, t, o) => fs.writeTextFile(p, t, o), t => new TextEncoder().encode(t)), path, text);
 }
 
 /** Tauri: een binair bestand van de gebruiker (PDF-export) veilig vervangen. */
 export async function writeUserBytesTauri(path: string, bytes: Uint8Array): Promise<void> {
   const fs = await import('@tauri-apps/plugin-fs');
-  await replaceUserFile(tauriUserFileFs<Uint8Array>(fs, (p, b, o) => fs.writeFile(p, b, o)), path, bytes);
+  await replaceUserFile(tauriUserFileFs<Uint8Array>(fs, (p, b, o) => fs.writeFile(p, b, o), b => b), path, bytes);
 }

@@ -1,3 +1,4 @@
+// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 // Ouderwijziging via de extensie-API — `api.data.updateTask(id, { parentId })` en `addTask`.
 //
 // AANLEIDING. `fromExtTaskUpdates` mapte `parentId` rauw op de taak en de store-`updateTask` deed er
@@ -95,7 +96,7 @@ function thrown(fn: () => void): string | null {
   eq('1f zelfde ouderdatums als de store-route moveTaskTo',
     [o.earlyStart, o.earlyFinish],
     [taskOf(ref.ctx, r.ouder).time.earlyStart, taskOf(ref.ctx, r.ouder).time.earlyFinish]);
-  eq('1g kind heeft zijn eigen startdatum gehouden', k.earlyStart, '2026-06-15');
+  eq('1g kind heeft zijn eigen startdatum gehouden', k.earlyStart, "2026-06-15T07:00");
   eq('1h zelfde zichtbare rijen (naam, diepte) als de store-route',
     taskRows(ctx), taskRows(ref.ctx));
 

@@ -9,7 +9,7 @@ Laptop przestał działać, aplikacja się zawiesiła albo karta przeglądarki u
 ## Kroki
 
 1. Uruchom aplikację ponownie. W przeglądarce odśwież tę samą kartę: kopia odzyskiwania należy właśnie do tej jednej karty.
-2. Jeśli aplikacja znajdzie kopie, pojawi się okno *Przywróć niezapisaną pracę*: *Open Planner Studio nie zostało zamknięte poprawnie. Poniższe dokumenty miały niezapisane zmiany, które można przywrócić*: dla każdego projektu okno pokazuje nazwę, ścieżkę do pliku, jeśli projekt ma plik (w przeglądarce tylko nazwę pliku), liczbę zadań i czas kopii, na przykład *21 zadań* i *Zapisano: Sep 29, 2026, 9:41 AM*. Okno może też pokazywać projekty, których nie zmieniałeś.
+2. Jeśli aplikacja znajdzie kopie, pojawi się okno *Przywróć niezapisaną pracę*: *Open Planner Studio nie zostało zamknięte poprawnie. Poniższe dokumenty miały niezapisane zmiany, które można przywrócić:* dla każdego projektu okno pokazuje nazwę, ścieżkę do pliku, jeśli projekt ma plik (w przeglądarce tylko nazwę pliku), liczbę zadań i czas kopii, na przykład *21 zadań* i *Zapisano: Sep 29, 2026 9:41 AM*. Czas zależy od ustawienia *Format godziny*. Okno może też pokazywać projekty, których nie zmieniałeś.
 3. Wybierz *Przywróć*. Aplikacja otwiera wszystkie projekty z listy, każdy w osobnej karcie, ze stanem ostatniej kopii. Klawisz Enter robi to samo.
 4. Sprawdź swoje projekty i od razu zapisz je klawiszami Ctrl+S.
 

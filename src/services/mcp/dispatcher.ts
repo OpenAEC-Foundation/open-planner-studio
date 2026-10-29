@@ -17,7 +17,7 @@ export const MCP_SERVER_NAME = 'open-planner-studio';
  * `serverInfo.version` in de initialize-respons: de APP-CalVer uit package.json, via de
  * `__APP_VERSION__`-define uit vite.config.ts — dezelfde bron als de titelbalk, de updater en de
  * extensie-SDK. Eén versie voor het hele product dus: een AI-client die logt met welke bridge hij
- * praat, noemt daarmee de echte app-versie (Cargo blijft bewust 0.1.0 en telt hier niet mee).
+ * praat, noemt daarmee de echte app-versie.
  *
  * De `typeof`-terugval is het codebase-patroon uit `extensionLoader.ts`: in de headless testrunners
  * draait esbuild zónder die define, en een kale verwijzing zou daar een ReferenceError geven.

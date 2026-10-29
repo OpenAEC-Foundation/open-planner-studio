@@ -17,7 +17,16 @@
 //!   4. Body → webview via event `mcp://request` `{id, body}`; antwoord terug via
 //!      `mcp://response` `{id, body}` (id-correlatie op een mpsc-kanaal).
 //!   5. Timeout 120 s ⇒ `504` met een JSON-RPC-foutobject.
-//!   6. Antwoord-body 1-op-1 terug als `200 application/json`.
+//!   6. Niet-lege antwoord-body 1-op-1 terug als `200 application/json`; een lege
+//!      antwoord-body wordt `202 Accepted` zonder Content-Type (notificatie).
+//!      Elk antwoord draagt `Connection: close` (zie `raw_response`).
+//!   7. Sessies (MCP streamable HTTP): een aanwezige `Mcp-Session-Id`-header gaat
+//!      als `sessionId` mee in het request-event. Geeft de webview een `sessionId`
+//!      terug (alleen na een geslaagde `initialize`), dan zet de bridge die als
+//!      `Mcp-Session-Id`-header op het antwoord. Geeft de webview `status: 400`
+//!      (sessie-header ontbreekt), dan antwoordt de bridge `400` met de body als
+//!      JSON; bij `status: 404` (onbekende sessie) `404` zonder body. De
+//!      sessietabel zelf leeft in TS (`createRequestHandler`); Rust kent geen MCP.
 //!
 //! Status (`mcp://status` `{state, port, message}`) wordt geëmit bij
 //! start/stop/fout zodat de frontend-store hem kan tonen.
@@ -46,6 +55,11 @@ const INTERNAL_BODY: &str =
 /// geheugen ingelezen maar met `413` geweigerd — beschermt tegen een lokaal
 /// proces dat de bridge probeert plat te leggen met een enorme upload.
 const MAX_BODY_BYTES: u64 = 50 * 1024 * 1024;
+
+/// De sessie-header van MCP streamable HTTP.
+const SESSION_HEADER: &str = "Mcp-Session-Id";
+/// Bovengrens voor een sessie-id die de webview teruggeeft (TS maakt er 32 hex-tekens van).
+const MAX_SESSION_ID_LEN: usize = 128;
 
 // ---------------------------------------------------------------------------
 // Pure, headless-testbare bouwstenen (geen webview, geen sockets).
@@ -96,11 +110,55 @@ fn origin_present(origin_header: Option<&str>) -> bool {
     matches!(origin_header, Some(v) if !v.is_empty())
 }
 
+/// Mag deze waarde als `Mcp-Session-Id` op een antwoord? De spec staat alleen
+/// zichtbare ASCII toe (0x21–0x7E); leeg of te lang weigeren we ook.
+fn valid_session_id(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= MAX_SESSION_ID_LEN
+        && value.bytes().all(|b| (0x21..=0x7e).contains(&b))
+}
+
+/// De `Mcp-Session-Id` van een binnenkomend request, ongewijzigd doorgegeven
+/// (TS zoekt hem op; een onbekende waarde krijgt daar `404`). Leeg telt als afwezig.
+fn incoming_session_id(header: Option<&str>) -> Option<String> {
+    header.filter(|v| !v.is_empty()).map(str::to_string)
+}
+
+/// De HTTP-status van een antwoord uit de webview. Alleen `400` (sessie-header
+/// ontbreekt) en `404` (onbekende sessie) mag de webview kiezen; al het andere
+/// wordt `200`.
+fn reply_status(status: Option<u16>) -> u16 {
+    match status {
+        Some(400) => 400,
+        Some(404) => 404,
+        _ => 200,
+    }
+}
+
+/// Wat de webview op één request teruggeeft.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Reply {
+    body: String,
+    session_id: Option<String>,
+    status: Option<u16>,
+}
+
+impl Reply {
+    #[cfg(test)]
+    fn body(body: &str) -> Self {
+        Self {
+            body: body.to_string(),
+            session_id: None,
+            status: None,
+        }
+    }
+}
+
 /// Correleert forwarded requests met hun antwoord uit de webview. Elke request
 /// krijgt een monotoon id + een eenmalig mpsc-kanaal; het `mcp://response`-event
 /// resolvet dat id, de HTTP-loop wacht met timeout op zijn kanaal.
 struct Pending {
-    map: Mutex<HashMap<u64, Sender<String>>>,
+    map: Mutex<HashMap<u64, Sender<Reply>>>,
     next_id: AtomicU64,
 }
 
@@ -113,7 +171,7 @@ impl Pending {
     }
 
     /// Registreer een nieuwe in-flight request. Geeft het id + de ontvangkant.
-    fn register(&self) -> (u64, Receiver<String>) {
+    fn register(&self) -> (u64, Receiver<Reply>) {
         let id = self.next_id.fetch_add(1, Ordering::SeqCst);
         let (tx, rx) = channel();
         self.map.lock().unwrap_or_else(|e| e.into_inner()).insert(id, tx);
@@ -122,9 +180,9 @@ impl Pending {
 
     /// Lever het antwoord af bij het wachtende kanaal. `false` = onbekend id
     /// (al getimeout/opgeruimd of nooit bestaan) — het antwoord wordt genegeerd.
-    fn resolve(&self, id: u64, body: String) -> bool {
+    fn resolve(&self, id: u64, reply: Reply) -> bool {
         match self.map.lock().unwrap().remove(&id) {
-            Some(tx) => tx.send(body).is_ok(),
+            Some(tx) => tx.send(reply).is_ok(),
             None => false,
         }
     }
@@ -141,10 +199,10 @@ impl Pending {
     fn wait(
         &self,
         id: u64,
-        rx: &Receiver<String>,
+        rx: &Receiver<Reply>,
         timeout: Duration,
         shutdown: &AtomicBool,
-    ) -> Option<String> {
+    ) -> Option<Reply> {
         let deadline = Instant::now() + timeout;
         loop {
             if shutdown.load(Ordering::SeqCst) {
@@ -178,12 +236,31 @@ impl Pending {
 struct McpRequestPayload {
     id: u64,
     body: String,
+    #[serde(rename = "sessionId", skip_serializing_if = "Option::is_none")]
+    session_id: Option<String>,
 }
 
 #[derive(serde::Deserialize)]
 struct McpResponsePayload {
     id: u64,
     body: String,
+    #[serde(default, rename = "sessionId")]
+    session_id: Option<String>,
+    #[serde(default)]
+    status: Option<u16>,
+}
+
+impl McpResponsePayload {
+    fn into_reply(self) -> (u64, Reply) {
+        (
+            self.id,
+            Reply {
+                body: self.body,
+                session_id: self.session_id,
+                status: self.status,
+            },
+        )
+    }
 }
 
 #[derive(Clone, serde::Serialize)]
@@ -235,25 +312,86 @@ fn find_header<'a>(request: &'a tiny_http::Request, name: &str) -> Option<&'a st
         .map(|h| h.value.as_str())
 }
 
+/// Redenzin bij de statuscodes die de bridge gebruikt.
+fn reason_phrase(status: u16) -> &'static str {
+    match status {
+        200 => "OK",
+        202 => "Accepted",
+        400 => "Bad Request",
+        401 => "Unauthorized",
+        403 => "Forbidden",
+        404 => "Not Found",
+        405 => "Method Not Allowed",
+        413 => "Payload Too Large",
+        500 => "Internal Server Error",
+        504 => "Gateway Timeout",
+        _ => "Unknown",
+    }
+}
+
+/// Bouwt een volledig HTTP/1.1-antwoord, ALTIJD met `Connection: close`.
+///
+/// Waarom zelf schrijven: tiny_http sluit bij het stoppen van de server (drop)
+/// de bestaande keep-alive-verbindingen niet. Een client die vlak na een
+/// bridge-herstart een request over zo'n oude verbinding stuurt, belandt in de
+/// wachtrij van de gestopte server en krijgt nooit antwoord (gemeten met
+/// tiny_http 0.12.0 en Node fetch: hangt tot de client-time-out; review 3 PR
+/// #439). tiny_http laat geen eigen `Connection`-header toe op een `Response`,
+/// dus schrijven we het antwoord via `into_writer`. Met `Connection: close`
+/// sluit de client de verbinding na elk antwoord; op loopback kost dat niets.
+fn raw_response(status: u16, headers: &[(&str, &str)], body: &[u8]) -> Vec<u8> {
+    let mut out = format!("HTTP/1.1 {status} {}\r\n", reason_phrase(status));
+    for (name, value) in headers {
+        out.push_str(&format!("{name}: {value}\r\n"));
+    }
+    out.push_str(&format!("Content-Length: {}\r\nConnection: close\r\n\r\n", body.len()));
+    let mut bytes = out.into_bytes();
+    bytes.extend_from_slice(body);
+    bytes
+}
+
+fn respond_raw(request: tiny_http::Request, status: u16, headers: &[(&str, &str)], body: &str) {
+    use std::io::Write;
+    let bytes = raw_response(status, headers, body.as_bytes());
+    let mut writer = request.into_writer();
+    let _ = writer.write_all(&bytes);
+    let _ = writer.flush();
+}
+
 fn respond_json(request: tiny_http::Request, status: u16, body: &str) {
-    let header =
-        tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap();
-    let response = tiny_http::Response::from_string(body)
-        .with_status_code(status)
-        .with_header(header);
-    let _ = request.respond(response);
+    respond_raw(request, status, &[("Content-Type", "application/json")], body);
+}
+
+/// Antwoord uit de webview terug naar de client: `404` zonder body bij een
+/// onbekende sessie, `400 application/json` als de sessie-header ontbrak, anders
+/// `202` zonder body of Content-Type bij een lege antwoord-body (notificatie).
+/// Een niet-lege body gaat 1-op-1 terug als `200 application/json`, plus de
+/// `Mcp-Session-Id`-header als de webview een (geldige) sessie-id meegaf.
+fn respond_reply(request: tiny_http::Request, reply: Reply) {
+    match reply_status(reply.status) {
+        404 => respond_empty(request, 404),
+        400 => respond_json(request, 400, &reply.body),
+        _ if reply.body.is_empty() => respond_empty(request, 202),
+        _ => match reply.session_id.filter(|s| valid_session_id(s)) {
+            Some(sid) => respond_raw(
+                request,
+                200,
+                &[("Content-Type", "application/json"), (SESSION_HEADER, &sid)],
+                &reply.body,
+            ),
+            None => respond_json(request, 200, &reply.body),
+        },
+    }
 }
 
 fn respond_empty(request: tiny_http::Request, status: u16) {
-    let _ = request.respond(tiny_http::Response::empty(status));
+    respond_raw(request, status, &[], "");
 }
 
 /// `405 Method Not Allowed` met een `Allow: POST`-header (HTTP-conform: een 405
 /// hóórt te vermelden welke methodes wél mogen).
 fn respond_method_not_allowed(request: tiny_http::Request) {
-    let allow = tiny_http::Header::from_bytes(&b"Allow"[..], &b"POST"[..]).unwrap();
-    let response = tiny_http::Response::empty(405).with_header(allow);
-    let _ = request.respond(response);
+    respond_raw(request, 405, &[("Allow", "POST")], "");
 }
 
 /// Verwerkt precies één request. Volgorde van de poorten:
@@ -288,12 +426,14 @@ fn handle_request(
         respond_empty(request, 401);
         return;
     }
-    forward_to_webview(request, pending, inflight, app, shutdown);
+    let session_id = incoming_session_id(find_header(&request, SESSION_HEADER));
+    forward_to_webview(request, session_id, pending, inflight, app, shutdown);
 }
 
 /// (3)+(4)+(5)+(6): serieel forwarden en op het antwoord wachten.
 fn forward_to_webview(
     mut request: tiny_http::Request,
+    session_id: Option<String>,
     pending: &Pending,
     inflight: &Mutex<()>,
     app: &tauri::AppHandle,
@@ -320,7 +460,12 @@ fn forward_to_webview(
     let _slot = inflight.lock().unwrap_or_else(|e| e.into_inner());
 
     let (id, rx) = pending.register();
-    if app.emit("mcp://request", McpRequestPayload { id, body }).is_err() {
+    let payload = McpRequestPayload {
+        id,
+        body,
+        session_id,
+    };
+    if app.emit("mcp://request", payload).is_err() {
         pending.cancel(id);
         respond_json(request, 500, INTERNAL_BODY);
         return;
@@ -328,7 +473,7 @@ fn forward_to_webview(
 
     // (5)/(6): wacht met timeout; body 1-op-1 terug, of 504.
     match pending.wait(id, &rx, RESPONSE_TIMEOUT, shutdown) {
-        Some(resp_body) => respond_json(request, 200, &resp_body),
+        Some(reply) => respond_reply(request, reply),
         None => respond_json(request, 504, TIMEOUT_BODY),
     }
 }
@@ -362,6 +507,26 @@ fn run_loop(
 // Tauri-commands.
 // ---------------------------------------------------------------------------
 
+/// Bindt de server; na een stop/start op dezelfde poort kan de accept-thread
+/// van de vorige tiny_http-server de poort nog heel even vasthouden ("Address
+/// already in use", gemeten in een repro). Daarom tot ~1 s opnieuw proberen;
+/// een echt bezette poort meldt dus pas na die seconde "poort bezet".
+fn bind_with_retry(
+    port: u16,
+) -> Result<tiny_http::Server, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let mut attempt = 0;
+    loop {
+        match tiny_http::Server::http(bind_addr(port)) {
+            Ok(server) => return Ok(server),
+            Err(_) if attempt < 20 => {
+                attempt += 1;
+                std::thread::sleep(Duration::from_millis(50));
+            }
+            Err(e) => return Err(e),
+        }
+    }
+}
+
 /// Start de bridge op `127.0.0.1:<port>`. Een bezette poort (of andere bind-fout)
 /// ⇒ `Err(melding)` zodat de frontend "poort bezet" kan tonen.
 #[tauri::command]
@@ -376,7 +541,7 @@ pub fn mcp_bridge_start(
         return Err("mcp-bridge draait al".to_string());
     }
 
-    let server = match tiny_http::Server::http(bind_addr(port)) {
+    let server = match bind_with_retry(port) {
         Ok(s) => Arc::new(s),
         Err(e) => {
             let msg = format!("kon niet binden op 127.0.0.1:{port}: {e}");
@@ -392,7 +557,8 @@ pub fn mcp_bridge_start(
     let pending_for_listener = pending.clone();
     let listener = app.listen("mcp://response", move |event| {
         if let Ok(resp) = serde_json::from_str::<McpResponsePayload>(event.payload()) {
-            pending_for_listener.resolve(resp.id, resp.body);
+            let (id, reply) = resp.into_reply();
+            pending_for_listener.resolve(id, reply);
         }
     });
 
@@ -529,9 +695,9 @@ mod tests {
         let p = Pending::new();
         let sd = AtomicBool::new(false);
         let (id, rx) = p.register();
-        assert!(p.resolve(id, "hallo".to_string()));
+        assert!(p.resolve(id, Reply::body("hallo")));
         let got = p.wait(id, &rx, Duration::from_secs(1), &sd);
-        assert_eq!(got, Some("hallo".to_string()));
+        assert_eq!(got, Some(Reply::body("hallo")));
     }
 
     #[test]
@@ -542,11 +708,11 @@ mod tests {
         let p2 = p.clone();
         let joiner = std::thread::spawn(move || {
             std::thread::sleep(Duration::from_millis(50));
-            assert!(p2.resolve(id, "wereld".to_string()));
+            assert!(p2.resolve(id, Reply::body("wereld")));
         });
         let got = p.wait(id, &rx, Duration::from_secs(2), &sd);
         joiner.join().unwrap();
-        assert_eq!(got, Some("wereld".to_string()));
+        assert_eq!(got, Some(Reply::body("wereld")));
     }
 
     #[test]
@@ -566,7 +732,7 @@ mod tests {
         let got = p.wait(id, &rx, Duration::from_millis(120), &sd);
         assert_eq!(got, None);
         // Slot is opgeruimd: een laat antwoord vindt geen ontvanger meer.
-        assert!(!p.resolve(id, "te-laat".to_string()));
+        assert!(!p.resolve(id, Reply::body("te-laat")));
     }
 
     #[test]
@@ -581,7 +747,7 @@ mod tests {
     #[test]
     fn pending_resolve_unknown_id_is_false() {
         let p = Pending::new();
-        assert!(!p.resolve(9999, "spook".to_string()));
+        assert!(!p.resolve(9999, Reply::body("spook")));
     }
 
     #[test]
@@ -598,5 +764,92 @@ mod tests {
         let v: serde_json::Value = serde_json::from_str(INTERNAL_BODY).unwrap();
         assert_eq!(v["jsonrpc"], "2.0");
         assert_eq!(v["error"]["code"], -32603);
+    }
+
+    #[test]
+    fn session_id_validation_follows_the_spec() {
+        assert!(valid_session_id("0123456789abcdef0123456789abcdef"));
+        assert!(valid_session_id("!~"));
+        assert!(!valid_session_id(""));
+        assert!(!valid_session_id("met spatie"));
+        assert!(!valid_session_id("regel\neinde"));
+        assert!(!valid_session_id("é"));
+        assert!(!valid_session_id(&"a".repeat(MAX_SESSION_ID_LEN + 1)));
+        assert!(valid_session_id(&"a".repeat(MAX_SESSION_ID_LEN)));
+    }
+
+    #[test]
+    fn incoming_session_id_passes_through_and_ignores_empty() {
+        assert_eq!(incoming_session_id(Some("abc")), Some("abc".to_string()));
+        assert_eq!(incoming_session_id(Some("")), None);
+        assert_eq!(incoming_session_id(None), None);
+    }
+
+    #[test]
+    fn webview_may_only_choose_400_or_404() {
+        assert_eq!(reply_status(None), 200);
+        assert_eq!(reply_status(Some(400)), 400);
+        assert_eq!(reply_status(Some(404)), 404);
+        assert_eq!(reply_status(Some(401)), 200);
+        assert_eq!(reply_status(Some(200)), 200);
+        assert_eq!(reply_status(Some(500)), 200);
+        assert_eq!(reply_status(Some(302)), 200);
+    }
+
+    #[test]
+    fn request_payload_carries_session_id_only_when_present() {
+        let with = serde_json::to_value(McpRequestPayload {
+            id: 7,
+            body: "{}".to_string(),
+            session_id: Some("s1".to_string()),
+        })
+        .unwrap();
+        assert_eq!(with["sessionId"], "s1");
+        let without = serde_json::to_value(McpRequestPayload {
+            id: 8,
+            body: "{}".to_string(),
+            session_id: None,
+        })
+        .unwrap();
+        assert!(without.get("sessionId").is_none());
+    }
+
+    #[test]
+    fn response_payload_reads_optional_session_and_status() {
+        let plain: McpResponsePayload = serde_json::from_str(r#"{"id":1,"body":"x"}"#).unwrap();
+        assert_eq!(plain.into_reply(), (1, Reply::body("x")));
+        let full: McpResponsePayload =
+            serde_json::from_str(r#"{"id":2,"body":"","sessionId":"s9","status":404}"#).unwrap();
+        assert_eq!(
+            full.into_reply(),
+            (
+                2,
+                Reply {
+                    body: String::new(),
+                    session_id: Some("s9".to_string()),
+                    status: Some(404),
+                }
+            )
+        );
+    }
+
+    #[test]
+    fn every_response_closes_the_connection() {
+        let bytes = raw_response(
+            200,
+            &[("Content-Type", "application/json"), ("Mcp-Session-Id", "abc")],
+            b"{}",
+        );
+        let text = String::from_utf8(bytes).unwrap();
+        assert!(text.starts_with("HTTP/1.1 200 OK\r\n"));
+        assert!(text.contains("\r\nContent-Type: application/json\r\n"));
+        assert!(text.contains("\r\nMcp-Session-Id: abc\r\n"));
+        assert!(text.contains("\r\nContent-Length: 2\r\n"));
+        assert!(text.contains("\r\nConnection: close\r\n"));
+        assert!(text.ends_with("\r\n\r\n{}"));
+        let empty = String::from_utf8(raw_response(405, &[("Allow", "POST")], b"")).unwrap();
+        assert!(empty.starts_with("HTTP/1.1 405 Method Not Allowed\r\n"));
+        assert!(empty.contains("\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"));
+        assert!(empty.ends_with("\r\n\r\n"));
     }
 }

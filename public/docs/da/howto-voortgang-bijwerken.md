@@ -14,9 +14,10 @@ Statusdatoen er den dag, hvor du gør status op. Angiv den, før du angiver frem
 
 1. Gå til *Tidsplan › Oprindelige planer & fremdrift › Statusdato*.
 2. Skriv datoen i de tre felter for dag, måned og år (i den rækkefølge, du bruger til datoer), for eksempel 28, 06 og 2027, og tryk på Enter. Appen springer selv til næste felt.
-3. Med det lille kryds ved feltet tømmer du statusdatoen igen.
+3. Har projektets kalender tidsbånd (blokken *Arbejdstimer* i vinduet *Kalendere*)? Så regner appen i timer, og et tidsfelt vises til højre, for eksempel 17:00. Skriv et andet klokkeslæt, for eksempel 12:00, og tryk på Enter. Tømmer du tidsfeltet, forbliver kun datoen. Ændrer du kun datoen, forbliver klokkeslættet det samme. Klokkeslættet følger din tidsnotation (24 eller 12 timer). Uden tidsbånd regner appen i hele dage. Så er der intet tidsfelt, og linjen for statusdatoen står ved dagens begyndelse.
+4. Med det lille kryds ved feltet tømmer du statusdatoen igen.
 
-Gør du status op fredag efter arbejdstid, så sæt statusdatoen til næste arbejdsdag, mandag. Appen lægger det resterende arbejde ind i tidsplanen fra starten af statusdatoen.
+Gør du status op fredag efter arbejdstid, så sæt statusdatoen til næste arbejdsdag, mandag. Appen planlægger det resterende arbejde fra starten af statusdatoen.
 
 Angiver du fremdrift, mens der endnu ikke er en statusdato, sætter appen den til i dag og viser en meddelelse: *Statusdato sat til i dag (…).* Gør det derfor hellere selv først.
 
@@ -43,7 +44,7 @@ En milepæl har ét felt, *Faktisk dato*.
 2. Dobbeltklik på en celle, skriv værdien, og tryk på Enter. Du skriver en procentdel som `50` eller `50%`, en dato som `25-06-2027` og en resterende varighed som `1`.
 3. For *Fremdrift* tryk på Enter efter et dobbeltklik, og vælg *Ikke startet*, *I gang* eller *Fuldført*.
 
-Skriver du en resterende varighed, regner appen procentdelen tilbage: for en opgave på 2 arbejdsdage giver en rest på 1 en procentdel på 50. En rest på 0 gør opgaven fuldført. Vælger du *Ikke startet* ved *Fremdrift*, går procentdelen til 0, og de faktiske datoer forsvinder.
+Skriver du en resterende varighed, regner appen procentdelen tilbage: for en opgave på 2 arbejdsdage giver en rest på 1 en procentdel på 50. En rest på 0 gør opgaven fuldført. Kolonnen *Faktisk varighed* (også i kategorien *Fremdrift*) virker den anden vej: skriv, hvor meget arbejde der allerede er udført, og appen beregner procentdelen. For en opgave på 4 arbejdsdage giver en faktisk varighed på 1 en procentdel på 25. Vælger du *Ikke startet* ved *Fremdrift*, går procentdelen til 0, og de faktiske datoer forsvinder.
 
 **Alt for én opgave i vinduet Redigér opgave.** Højreklik på opgaven, og vælg *Redigér...*. Felterne for fremdrift findes der også. De gælder først, når du klikker på *Gem*.
 
@@ -51,7 +52,7 @@ Skriver du en resterende varighed, regner appen procentdelen tilbage: for en opg
 
 ### 3. Genberegn tidsplanen
 
-Elke ændring af fremdrift eller statusdatoen gør tidsplanen forældet: statuslinjen viser *Forældet — genberegn (F5)*. Tryk på **Beregn** (F5), for eksempel via *Tidsplan › Tidsplan › Beregn*. Er *Beregn automatisk* slået til (under *Indstillinger › Projekt › Indstillinger*, fanen *Tidsplan*), gør appen det selv.
+Hver ændring af fremdrift eller statusdatoen gør tidsplanen forældet: statuslinjen viser *Forældet — genberegn (F5)*. Tryk på **Beregn** (F5), for eksempel via *Tidsplan › Tidsplan › Beregn*. Er *Beregn automatisk* slået til (under *Indstillinger › Projekt › App-indstillinger*, fanen *Tidsplan*), gør appen det selv.
 
 ## Kontrol af resultatet
 
@@ -65,7 +66,7 @@ Elke ændring af fremdrift eller statusdatoen gør tidsplanen forældet: statusl
 
 **En dato efter statusdatoen.** Appen afviser en faktisk startdato eller faktisk slutdato efter statusdatoen. I egenskabspanelet står der under felterne *Faktiske datoer kan ikke ligge efter statusdatoen*. I opgavetabellen viser cellen *Den faktiske dato ligger efter statusdatoen.* Flyt først statusdatoen senere, eller ret datoen.
 
-**En opgave, der først starter efter statusdatoen.** Angiver du fremdrift for en opgave, som ifølge tidsplanen endnu ikke var startet, åbner vinduet *Angiv faktisk startdato*. Det spørger, hvornår opgaven faktisk startede; forslaget er statusdatoen. Med *Anvend fremdrift* gemmer du det, med *Annuller* ændres der ikke noget.
+**En opgave, der først starter efter statusdatoen.** Angiver du fremdrift for en opgave, som ifølge tidsplanen endnu ikke ville være startet, åbner vinduet *Angiv faktisk startdato*. Det spørger, hvornår opgaven faktisk startede; forslaget er statusdatoen. Med *Anvend fremdrift* gemmer du det, med *Annuller* ændres der ikke noget.
 
 **100% uden datoer.** Sætter du en opgave til 100% uden en faktisk slutdato, bliver den faktiske slutdato statusdatoen, også selv om opgaven blev færdig tidligere. Udfyld så selv den faktiske slutdato.
 

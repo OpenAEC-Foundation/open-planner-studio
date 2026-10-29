@@ -42,20 +42,20 @@ Ce qui ne se décale pas :
 
 **La fin se décale d’un nombre de jours différent.** Si l’aperçu constate que la fin se décale de plus ou de moins de jours calendaires que le début, ou que la durée du projet en jours ouvrés change, il affiche un avertissement rouge avec les chiffres. Vous pouvez alors toujours annuler.
 
-**Les références restent en place.** Une référence sert à mesurer les écarts. Si vous déplacez le projet sans cocher la case, vous voyez le décalage comme écart par rapport à la référence. Si vous cochez la case, les références se décalent avec le planning. Seules leurs dates se décalent ; la date à laquelle la référence a été enregistrée ne se décale pas.
+**Les références ne bougent pas.** Une référence sert à mesurer les écarts. Si vous déplacez le projet sans cocher la case, vous voyez le changement de date comme écart par rapport à la référence. Si vous cochez la case, les références se décalent avec le planning. Seules leurs dates se décalent ; la date à laquelle la référence a été enregistrée ne se décale pas.
 
 **Un projet en cours.** Les dates réelles se décalent aussi. Dans un projet où vous avez déjà saisi un avancement, ce n’est pas toujours ce que vous voulez. L’application vous avertit : *Vérifiez si c’est correct pour un projet en cours.*
 
-**Relations externes.** L’ancrage dans votre propre projet se décale, le projet source non. Actualisez les relations après le déplacement avec *Accueil › Tâches › Lier ▾ › Actualiser toutes les relations externes*. Voir [Relations externes vers un autre projet](docs://howto-externe-relaties).
+**Relations externes.** L’ancrage dans votre propre projet se décale, mais le projet source, lui, ne se décale pas. Actualisez les relations après le déplacement avec *Accueil › Tâches › Lier ▾ › Actualiser toutes les relations externes*. Voir [Relations externes vers un autre projet](docs://howto-externe-relaties).
 
 **Des jours fériés qui ne couvrent pas assez loin.** Un calendrier avec des jours fériés générés couvre un certain nombre d’années. Si le planning déplacé dépasse cette période, l’application calcule cette année-là sans jours fériés. L’aperçu vous en avertit, par exemple : *Les jours fériés générés du calendrier « Bouwkalender NL » couvrent 2025–2029 ; le planning décalé va jusqu’à 2030. Régénérez les jours fériés.* Déplacez d’abord le projet. Ouvrez ensuite *Planification › Calendrier › Calendrier* : à côté des jours fériés, il affiche maintenant *Régénérer*. Confirmez avec *Appliquer* et l’application recalcule. La période des nouveaux jours fériés suit les dates du projet, donc régénérer avant le déplacement n’aide pas.
 
 **La date est dans le passé.** C’est autorisé, mais l’aperçu le signale : *La nouvelle date de début est dans le passé.*
 
-**Modifier le début du projet dans Info projet est autre chose.** Si vous modifiez la date de début dans *Paramètres › Projet › Info projet* et choisissez *Appliquer*, le planning ne se déplace pas. Seules les tâches sans prédécesseur ni contrainte qui tomberaient alors avant le nouveau début se décalent jusqu’à cette date, et l’application vous indique combien. Si vous voulez tout décaler, utilisez *Déplacer le projet…*.
+**Modifier le début du projet dans Paramètres du projet est autre chose.** Si vous modifiez la date de début dans *Paramètres › Projet › Paramètres du projet* et choisissez *Appliquer*, le planning ne se déplace pas. Seules les tâches sans prédécesseur ni contrainte qui tomberaient alors avant le nouveau début sont déplacées jusqu’à cette date, et l’application vous indique combien. Si vous voulez tout décaler, utilisez *Déplacer le projet…*.
 
 ## Voir aussi
 
 - [Chemin critique et marge](docs://uitleg-kritiek-pad) : comment le planning calcule et pourquoi la fin se décale.
-- [Ajouter des relations](docs://howto-relaties-leggen) : les relations restent simplement en place quand vous déplacez le projet.
-- [Nouveau projet et Info projet](docs://ref-projectinfo) : ce que fait la date de début dans *Info projet*.
+- [Ajouter des relations](docs://howto-relaties-leggen) : les relations restent telles quelles quand vous déplacez le projet.
+- [Nouveau projet et Paramètres du projet](docs://ref-projectinfo) : ce que fait la date de début dans *Paramètres du projet*.

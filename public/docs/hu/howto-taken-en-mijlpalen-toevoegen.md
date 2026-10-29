@@ -51,7 +51,7 @@ Kattintson a tevékenységre a jobb egérgombbal, és válassza az *Altevékenys
 A három fajta a következőképpen különbözik:
 
 - A *Kezdő mérföldkő* a nap elején van, a *Befejező mérföldkő* a nap végén. A Gantt-ban a rombusz rendre a naposzlop bal, illetve jobb szélén áll. Ez az utódnál is számít. Ha egy mérföldkő 2026. szeptember 29., kedd, és egy tevékenység ezt követi befejezés-kezdés kapcsolattal, akkor kezdő mérföldkő után az a tevékenység ugyanazon a keddi napon kezdődik, befejező mérföldkő után pedig szeptember 30-án, szerdán.
-- Az *Ellenőrzési pont (kötelező)* egy befejező mérföldkő, amelynek tevékenységtípusa *Ellenőrzés*, és be van jelölve a *Kötelező (szerződéses)* jelölőnégyzet.
+- Az *Ellenőrzési pont (kötelező)* egy befejező mérföldkő, amelynek munkaneme *Ellenőrzés*, és be van jelölve a *Kötelező (szerződéses)* jelölőnégyzet.
 
 ### Meglévő tevékenység mérföldkővé alakítása
 
@@ -62,6 +62,7 @@ Ha újra kikapcsolja, a tevékenység szokásos tevékenység marad, 0 időtarta
 ### Egyéb módok
 
 - A Ctrl+M (Mac-en ⌘+M) új mérföldkövet helyez a lista aljára akkor is, ha van kijelölt tevékenység. A *Tulajdonságok* panel nem nyílik meg.
+- A Ctrl+M-mel vagy a jobb egérgombos menüből létrehozott mérföldkő munkaneme *Ellenőrzés* lesz. A *Mérföldkő ▾* menüből választott *Kezdő mérföldkő* vagy *Befejező mérföldkő* munkaneme *Egyéb* lesz. Ha szükséges, módosítsa a munkanemet a *Tulajdonságok* panelen.
 - A *Mérföldkő hozzáadása* a tevékenység jobb egérgombos menüjében a mérföldkövet az adott tevékenység altevékenységévé teszi, nem azonos szintű elemmé.
 
 ### Tevékenység vagy egy teljes ág másolása
@@ -70,9 +71,9 @@ Ha újra kikapcsolja, a tevékenység szokásos tevékenység marad, 0 időtarta
 2. Nyomja meg a Ctrl+C (Mac-en ⌘+C) billentyűkombinációt. Az alkalmazás lemásolja a tevékenységet az összes altevékenységével, a másolt tevékenységek közötti kapcsolatokkal és az erőforrás-hozzárendeléseikkel együtt.
 3. Ha úgy szeretné, kattintson arra a tevékenységsávra, amely mellé a másolat kerüljön, és nyomja meg a Ctrl+V (Mac-en ⌘+V) billentyűkombinációt.
 
-A másolat neve, dátumai és előrehaladása ugyanaz marad. Azonos szintű elemként kerül be a kijelölt tevékenység mellé (több kijelölésnél az, amelyre először kattintott), az azonos szintű elemek legalulára. Ha nincs kijelölés, a lista aljára kerül. A másolt tevékenységek utólag lesznek kijelölve, a WBS-kódok (minden tevékenység száma a fában, például 1.2; lásd [A szerkezet módosítása](docs://howto-structuur-aanpassen)) újra meghatározódnak, és az ütemezés elavult lesz.
+A másolat neve, dátumai és előrehaladása ugyanaz marad. Azonos szintű elemként kerül be a kijelölt tevékenység mellé (több kijelölésnél az, amelyre először kattintott), az azonos szintű elemek legalulára. Ha nincs kijelölés, a lista aljára kerül. Az alkalmazás utólag kijelöli a másolt tevékenységeket, újra meghatározza a WBS-kódokat (minden tevékenység száma a fában, például 1.2; lásd [A szerkezet módosítása](docs://howto-structuur-aanpassen)), és az ütemezés elavul.
 
-A vágólap az egész alkalmazásban közös, így másik dokumentumba is be lehet illeszteni. Ami ott nem létezik, például a tevékenység naptára, egyéni tevékenységtípus, tevékenységkód vagy egyéni mező, azt az alkalmazás törli, és szól róla.
+A vágólap az egész alkalmazásban közös, így másik dokumentumba is be lehet illeszteni. Ami ott nem létezik, például a tevékenység naptára, egyéni munkanem, tevékenységkód vagy egyéni mező, azt az alkalmazás törli, és szól róla.
 
 ### Utána
 
@@ -82,7 +83,7 @@ Egy új tevékenység még nem módosítja a többi dátumot. Az állapotsorban 
 
 **Minden új tevékenység a projektkezdés napján indul.** Kapcsolatok nélkül egy tevékenység semmire sem vár. Adjon kapcsolatokat, lásd: [Kapcsolatok hozzáadása](docs://howto-relaties-leggen).
 
-**Szűrés, csoportosítás vagy rendezés van bekapcsolva.** A látott sorrend ilyenkor nem egyezik meg az ütemezés sorrendjével. Ha van kijelölt tevékenység, a *Tevékenység* és a *Mérföldkő ▾* az új tevékenységet a lista aljára teszi, és megjelenik a *Szűrés/csoportosítás/rendezés közben nem érhető el* üzenetsáv. A *Beszúrás fölé* és a *Beszúrás alá* parancsot az alkalmazás nem hajtja végre, ugyanezzel az üzenetsávval. Az üzenetsávban lévő *Törlés* gomb egyszerre távolítja el a szűrőt, a csoportosítást és a rendezést. Ez nem tartozik a *Visszavonás* hatókörébe: a Ctrl+Z nem állítja vissza őket.
+**Szűrés, csoportosítás vagy rendezés van bekapcsolva.** A látott sorrend ilyenkor nem egyezik meg az ütemezés sorrendjével. Ha van kijelölt tevékenység, a *Tevékenység* és a *Mérföldkő ▾* az új tevékenységet a lista aljára teszi. Ilyenkor piros értesítés jelenik meg: *Az új tevékenység a lista végére került. Szűrés, csoportosítás vagy rendezés közben az alkalmazás nem tudja a kijelölés alá helyezni.* A *Beszúrás fölé* és a *Beszúrás alá* parancsot az alkalmazás nem hajtja végre, ugyanezzel az üzenetsávval: *Szűrés/csoportosítás/rendezés közben nem érhető el*. Az értesítésben vagy az üzenetsávban lévő *Törlés* gomb egyszerre távolítja el a szűrőt, a csoportosítást és a rendezést. Ez nem tartozik a *Visszavonás* hatókörébe: a Ctrl+Z nem állítja vissza őket.
 
 **Altevékenység olyan tevékenység alatt, amelynek erőforrás-hozzárendelései vannak.** A tevékenység összefoglaló tevékenységgé válik, és egy összefoglaló tevékenységhez nem lehet közvetlenül hozzárendelést adni. Az alkalmazás áthelyezi a hozzárendeléseket az új altevékenységre, és szól erről. Ha ez nem lehetséges, például mert a *Mérföldkő hozzáadása* lehetőséget választotta, és egy mérföldkőhöz nem lehet hozzárendelés, az alkalmazás nem ad hozzá semmit, és megmondja az okát.
 
@@ -94,7 +95,7 @@ Egy új tevékenység még nem módosítja a többi dátumot. Az állapotsorban 
 
 ## Lásd még
 
-- [A szerkezet módosítása](docs://howto-structuur-aanpassen): tevékenységek egy szinttel lejjebb helyezése és áthelyezése, és a WBS-számok naprakészen tartása.
+- [A szerkezet módosítása](docs://howto-structuur-aanpassen): tevékenységeket behúzni és áthelyezni, és a WBS-számokat naprakészen tartani.
 - [Kapcsolatok hozzáadása](docs://howto-relaties-leggen): tevékenységek összekapcsolása.
 - [Tevékenységek kijelölése, törlése és visszavonása](docs://howto-taken-selecteren-verwijderen): tevékenység eltávolítása.
 - [Kritikus út és tartalékidő](docs://uitleg-kritiek-pad): amit az alkalmazás kiszámít, ha vannak kapcsolatok.

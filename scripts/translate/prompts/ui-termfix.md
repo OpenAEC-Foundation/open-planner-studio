@@ -17,6 +17,7 @@ has its current translation `previous` and, in `avoidHits`, the words in it that
   `nl` requires, and nothing more.
 - An item without `avoidHits`: change only what the new `nl` requires.
 - `labels` on an item: keep one of each label's `targets` letter for letter.
+- An item with `fixedText` must use that complete text byte for byte, including spacing and placeholder.
 - `{{placeholders}}`, `$t(...)` and `tokens`: keep byte for byte. Plural: keep exactly the categories
   of `previous`.
 

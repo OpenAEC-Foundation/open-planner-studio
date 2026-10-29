@@ -12,7 +12,7 @@ Które dni są dniami roboczymi, zapisuje się w **kalendarzu**. Kalendarz okre�
 - **Godziny pracy**: początek, koniec i przerwa. Dają **godziny netto na dzień**. Domyślnie jest to od 07:00 do 16:00 z godzinną przerwą, czyli 8 godzin.
 - **Święta**: pojedyncze dni lub całe okresy, w których nie odbywa się praca, na przykład Dzień Króla, Boże Narodzenie lub urlop budowlany.
 
-Projekt ma jeden zestaw kalendarzy. Jeden z nich to **kalendarz projektu**. Dotyczy on każdego zadania, które nie ma własnego kalendarza. Pojedynczemu zadaniu nadajesz inny kalendarz, na przykład sześciodniowy tydzień roboczy dla podwykonawcy, który pracuje też w soboty. Zasób może mieć też własny kalendarz, ale działa on inaczej (zob. niżej).
+Projekt ma jedną bibliotekę kalendarzy. Jeden z nich to **kalendarz projektu**. Dotyczy on każdego zadania, które nie ma własnego kalendarza. Pojedynczemu zadaniu nadajesz inny kalendarz, na przykład sześciodniowy tydzień roboczy dla podwykonawcy, który pracuje też w soboty. Zasób może mieć też własny kalendarz, ale działa on inaczej (zob. niżej).
 
 ## Jak aplikacja oblicza
 
@@ -40,14 +40,14 @@ Kalendarz **zasobu** nie wpływa na daty. W harmonogramie, który sam budujesz w
 Gdy połączysz dwa zadania z różnymi kalendarzami, obowiązuje następujące:
 
 - Przy relacji zakończenie-rozpoczęcie **następnik** zaczyna się w pierwszym dniu roboczym po zakończeniu **poprzednika**, liczonym w kalendarzu **następnika**. Jeśli zadanie kończy się w piątek, następnik z sześciodniowym tygodniem roboczym zaczyna się w sobotę.
-- **Opóźnienie** liczy się domyślnie w kalendarzu **poprzednika**. Możesz to zmienić w *Ustawienia › Projekt › Info o projekcie*, w bloku *Profil obliczeń i opcje*, w części *Opcje obliczeń tego projektu*, przy opcji *Kalendarz zwłoki*: *Poprzednik* (domyślnie), *Następnik*, *24-godzinny* lub *Kalendarz projektu*.
+- **Opóźnienie** liczy się domyślnie w kalendarzu **poprzednika**. Możesz to zmienić w *Ustawienia › Projekt › Ustawienia projektu*, w bloku *Profil obliczeń i opcje*, w części *Opcje obliczeń tego projektu*, przy opcji *Kalendarz zwłoki*: *Poprzednik* (domyślnie), *Następnik*, *24-godzinny* lub *Kalendarz projektu*.
 - **Zapas całkowity** liczy się w dniach roboczych kalendarza samego zadania. W tym profilu **zapas swobodny** liczy się w kalendarzu następnika.
 
 Dokładnie czym jest opóźnienie, opisano w [Dodawanie relacji](docs://howto-relaties-leggen). Czym jest zapas, opisano w [Ścieżka krytyczna i zapas](docs://uitleg-kritiek-pad).
 
 ### Na wykresie Gantt
 
-Szare tło na wykresie Gantt pokazuje zawsze dni wolne od pracy **kalendarza projektu**. Zadanie z własnym kalendarzem może zatem przechodzić przez szary dzień, na przykład zadanie sześciodniowe przez sobotę. Blok świąt o szerokości trzech dni lub więcej dostaje swoją nazwę, na przykład *Bouwvak (Noord)*. Tak się nie dzieje, gdy włączone jest *Pokazuj tylko dni robocze*. Jeśli nie chcesz w ogóle widzieć szarych dni, włącz *Pokazuj tylko dni robocze* w *Ustawienia › Projekt › Ustawienia*, karta *Wygląd*, nagłówek *Oś czasu*.
+Szare tło na wykresie Gantt pokazuje zawsze dni wolne od pracy **kalendarza projektu**. Zadanie z własnym kalendarzem może zatem przechodzić przez szary dzień, na przykład zadanie sześciodniowe przez sobotę. Blok świąt o szerokości trzech dni lub więcej wyświetla swoją nazwę, na przykład *Bouwvak (Noord)*. Tak się nie dzieje, gdy włączone jest *Pokazuj tylko dni robocze*. Jeśli nie chcesz w ogóle widzieć szarych dni, włącz *Pokazuj tylko dni robocze* w *Ustawienia › Projekt › Ustawienia aplikacji*, karta *Wygląd*, nagłówek *Oś czasu*.
 
 ## Przykład krok po kroku: harmonogram budowy
 
@@ -92,9 +92,9 @@ Daty *Brickwork* się nie zmieniają. Ale piątek 4 czerwca jest w histogramie z
 
 **„Jeśli zmienię kalendarz projektu, wszystko się przesunie.”** Przesuwają się tylko zadania bez własnego kalendarza. Zadanie, któremu sam nadałeś kalendarz z listy, zachowuje go, nawet jeśli to przypadkiem stary kalendarz projektu. Jeśli usuniesz kalendarz, zadania i zasoby, które go używały, wracają do kalendarza projektu.
 
-**„Święta są w nim, prawda?”** Święta istnieją tylko dla lat, dla których je utworzono. Dzień poza tymi latami jest po prostu dniem roboczym. W oknie dialogowym kalendarza aplikacja mówi to komunikatem *Święta obejmują 2025–2028; projekt trwa do 2030. Wygenerować ponownie?*
+**„Święta są w nim, prawda?”** Święta istnieją tylko dla lat, dla których je utworzono. Dzień poza tymi latami jest po prostu dniem roboczym. W oknie dialogowym kalendarza aplikacja mówi to komunikatem *Święta obejmują 2025–2028. Wygenerować ponownie do 2030 włącznie?*
 
-**„Więcej godzin dziennie skraca moje zadanie.”** Nie dla zadania w dniach: liczy ono pełne dni robocze, bez względu na to, czy dzień ma 6, czy 8 godzin. Czas trwania zmienia się wraz z liczbą godzin tylko dla zadania z zasobami i regułą pracy *Stała praca* lub *Stałe jednostki*.
+**„Więcej godzin dziennie skraca moje zadanie.”** Nie dla zadania w dniach: liczy ono pełne dni robocze, bez względu na to, czy dzień ma 6, czy 8 godzin. Czas trwania zmienia się wraz z liczbą godzin tylko dla zadania z zasobami i typem zadania *Stała praca* lub *Stałe jednostki*.
 
 **Kalendarz bez dni roboczych** nie może zostać obliczony przez aplikację. Obliczenie zgłasza *W kalendarzu nie ustawiono dni roboczych*.
 

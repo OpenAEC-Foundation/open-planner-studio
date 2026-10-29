@@ -1786,6 +1786,17 @@
     "source": "model",
     "status": "model"
   },
+  "work-category": {
+    "term": "arbeidskategori",
+    "forms": [
+      "arbeidskategori",
+      "arbeidskategorien",
+      "arbeidskategorier",
+      "arbeidskategoriene"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "arbeidstimer",
     "forms": [

@@ -14,12 +14,14 @@ Piense bien antes de instalar una. Una extensión es código de programa que se 
 
 1. Elija *Archivo › Extensiones*.
 2. Elija la pestaña *Explorar*. La aplicación obtiene el catálogo mientras muestra *Cargando catálogo*... Lo que hay en el catálogo lo decide la OpenAEC Foundation, que lo mantiene, y puede cambiar.
-3. Busque una extensión con el campo *Buscar extensiones*... Busca por nombre, descripción, autor y palabras clave.
+3. Busque una extensión con el campo *Buscar extensiones*... La búsqueda usa el nombre, la descripción, el autor y las etiquetas.
 4. Cada tarjeta muestra nombre, versión, categoría, descripción y autor. Pulse *Instalar*.
-5. Se abre la ventana *¿Instalar la extensión?* Léala; consulte el siguiente paso.
+5. Se abre la ventana *¿Instalar la extensión?* Léala; vea el paso siguiente.
 6. Pulse *Instalar* para continuar. Con *No instalar* no pasa nada. Esc o pulsar fuera de la ventana también cuentan como rechazo, y la aplicación no muestra ningún mensaje de error.
 
 Tras la instalación, la extensión se activa de inmediato. En la tarjeta de la pestaña *Explorar* aparece ahora *Instalada*. Lo que añade la extensión lo ve en la propia aplicación: un botón nuevo en la cinta o un formato de importación en *Archivo › Importar*. Algunas extensiones también muestran un mensaje. Lo reconoce por el prefijo *Extensión* seguido del nombre de la extensión.
+
+**Tutoriales.** Los tutoriales son una extensión. Si ve el botón *Instalar tutoriales* bajo *Tutoriales* en *Ayuda*, se abre *Archivo › Extensiones* en *Explorar*. La pregunta tras el primer recorrido también instala esta extensión. Las dos vías muestran la misma pregunta de permisos; puede rechazarla.
 
 ### Instalar una extensión desde un archivo
 
@@ -29,31 +31,23 @@ Si recibió una extensión como archivo, instálela así.
 2. Arriba a la derecha, pulse *ZIP* para un archivo ZIP, o *JS* para un archivo JavaScript aparte.
 3. Elija el archivo. Se abre la ventana *¿Instalar la extensión?*, como antes.
 
-Un archivo ZIP debe contener un `manifest.json` y el archivo principal de la extensión. Si instala una extensión que ya está instalada, la versión nueva sustituye a la anterior. Si la aplicación no puede instalar el archivo, por ejemplo porque un archivo ZIP está dañado, no pasa nada: la aplicación no muestra ningún mensaje de error para ZIP ni para JS, y la extensión no aparece en la lista. El motivo sí aparece en la terminal de depuración. Actívela con *Configuración › Proyecto › Configuración*, pestaña *Avanzado*, *Activar terminal de depuración*, y ábrala con el botón *Mostrar terminal de depuración* de la barra de estado. Allí aparece, por ejemplo, *[Extensies] ZIP-installatie mislukt: Error: Geen manifest.json gevonden in ZIP* (la aplicación muestra este texto técnico en neerlandés).
+Un archivo ZIP debe contener un `manifest.json` y el archivo principal de la extensión. Si instala una extensión que ya está instalada, la versión nueva sustituye a la anterior. Si la aplicación no puede instalar el archivo, por ejemplo porque un archivo ZIP está dañado, no pasa nada: la aplicación no muestra ningún mensaje de error para ZIP ni para JS, y la extensión no aparece en la lista. El motivo sí aparece en la terminal de depuración. Actívela con *Configuración › Proyecto › Ajustes de la app*, pestaña *Avanzado*, *Activar terminal de depuración*, y ábrala con el botón *Mostrar terminal de depuración* de la barra de estado. Allí aparece, por ejemplo, *[Extensies] ZIP-installatie mislukt: Error: Geen manifest.json gevonden in ZIP* (la aplicación muestra este texto técnico en neerlandés).
 
 ### Leer la pregunta de permisos
 
 La pregunta muestra lo que debe decidir.
 
 - *Autor* y *Repositorio* indican quién hizo la extensión y dónde está el código fuente.
-- *Origen* indica de dónde procede el archivo: *Del catálogo de extensiones en línea*, *De un archivo ZIP en este equipo* o *De un archivo JavaScript en este equipo*. Debajo indica si se ha comprobado el archivo. En el caso del catálogo muestra *Descarga verificada con la suma de comprobación del catálogo*. Si el catálogo no tiene suma de comprobación, muestra en rojo *El catálogo no proporciona suma de comprobación: esta descarga no se ha verificado*. Para un archivo propio muestra *Elegiste este archivo tú mismo; no hay una fuente externa con la que verificarlo*.
-- *A qué estás diciendo que sí* indica: *Una extensión es código que se ejecuta con los mismos permisos que Open Planner Studio. Nada lo limita. Instala solo extensiones cuyo autor te merezca confianza*. Debajo indica qué significa eso en su plataforma. En la aplicación de escritorio muestra *En la aplicación de escritorio eso incluye: leer y escribir archivos en toda tu carpeta de usuario, además de acceso a tus proyectos, ajustes y portapapeles*. En el navegador muestra *En el navegador significa: acceso a tus proyectos y ajustes guardados, a los archivos a los que diste acceso y a la red*.
-- *Lo que esta extensión declara usar* muestra los permisos que declaró el autor, como etiquetas pequeñas. Es una declaración del autor y no una restricción: *Es la declaración del autor, no una restricción: el código puede hacer más de todos modos*. Si no hay ninguna etiqueta, muestra *No declara nada*. Eso no significa que la extensión no pueda hacer nada: incluso sin etiquetas, una extensión puede leer y cambiar los datos de su planificación y mostrar mensajes.
+- *Origen* indica de dónde procede el archivo y si se ha comprobado. Si aparece en rojo que la descarga no se ha verificado, instálela solo si conoce el origen.
+- *A qué estás diciendo que sí* repite que una extensión es código de programa que se ejecuta con los mismos derechos que la propia aplicación, y qué significa eso en su plataforma. Instale solo extensiones cuyo autor le merezca confianza.
+- *Lo que esta extensión declara usar* muestra los permisos que declaró el autor, como etiquetas pequeñas. Es una declaración y no una restricción. Si dice *No declara nada*, la extensión puede leer y cambiar igualmente los datos de su planificación.
 
-Las etiquetas significan esto:
-
-- *ribbon*: la extensión pone botones en la cinta.
-- *events*: la extensión escucha los eventos de la aplicación.
-- *backstage*: la extensión añade formatos de importación a *Archivo › Importar*.
-- *pdf-fonts*: la extensión aporta una fuente para la exportación a PDF.
-- *importSource*: la extensión puede leer los bytes originales completos de cada archivo que importe, por ejemplo un archivo Primavera sin procesar, incluidos los campos que no acaban en su proyecto. La propia ventana también lo explica.
-- *help*: la extensión puede añadir artículos de Ayuda, abrir proyectos incluidos como documento nuevo y mostrar una guía que señala partes de la aplicación. La propia ventana también lo explica.
-- *filesystem* y *network*: solo son indicaciones de lo que pretende el autor. La aplicación no tiene ninguna función para ellos.
+Lo que significa cada etiqueta y los textos exactos de la ventana están en [Permisos de las extensiones](docs://ref-extensiepermissies).
 
 ### Desactivar, reactivar o quitar una extensión
 
 1. Elija *Archivo › Extensiones* y la pestaña *Instaladas*. Cada extensión tiene una tarjeta con nombre, versión, categoría, descripción y autor.
-2. Con el interruptor de la tarjeta puede desactivar la extensión (*Desactivar*) o volver a activarla (*Activar*). Cuando está desactivada, desaparecen los botones y los formatos de importación que añadió la extensión, pero la extensión sigue instalada. También sigue desactivada tras reiniciar la aplicación. Una extensión activada se inicia sola al arrancar la aplicación.
+2. Con el interruptor de la tarjeta puede desactivar la extensión (*Desactivar*) o volver a activarla (*Activar*). Al desactivarla, desaparecen los botones y los formatos de importación que añadió la extensión, pero la extensión sigue instalada. También sigue desactivada tras reiniciar la aplicación. Una extensión activada se inicia sola al arrancar la aplicación.
 3. Pulse *Quitar*. El botón cambia a *Confirmar*, con la explicación *Haz clic de nuevo para eliminar definitivamente*. Pulse una vez más para quitar la extensión. La aplicación también borra los ajustes que la extensión guardó.
 
 ## Problemas frecuentes y qué hace la aplicación entonces

@@ -1431,6 +1431,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "work-category": {
+    "term": "ໝວດວຽກ",
+    "forms": [
+      "ໝວດວຽກ"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "ຊົ່ວໂມງເຮັດວຽກ",
     "forms": [

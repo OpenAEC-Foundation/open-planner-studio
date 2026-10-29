@@ -22,16 +22,16 @@ Arket har otte kolonner. Kolonnenavnene står på engelsk, med en kort instrukti
 - `Start` og `Finish` er de planlagte datoer, til orientering. Appen skriver dem aldrig tilbage.
 - `Completion (%)`, `Actual Start` og `Actual Finish` er dem, du udfylder.
 
-Excel-arket er beskyttet uden adgangskode: kun de tre udfyldningskolonner kan redigeres. Excel kontrollerer, at en procentdel er mellem 0 og 100, og at en faktisk dato er en dato. En fase (hovedopgave) er markeret med grå farve og har teksten *— hovedopgave: udfyld ikke*.
+Excel-arket er beskyttet uden adgangskode: kun de tre udfyldningskolonner kan redigeres. Excel kontrollerer, at en procentdel er mellem 0 og 100, og at en faktisk dato er en dato. En hovedopgave er markeret med grå farve og har teksten *— hovedopgave: udfyld ikke*.
 
 ### 3. Lad arket blive udfyldt
 
 For hver opgave udfylder byggelederen:
 
-- `Completion (%)`: 0 til og med 100. I Excel-arket må der bruges decimaler (for eksempel 33,3); i CSV-filen beder instruktionen om hele tal.
-- `Actual Start` og `Actual Finish`: i Excel som en dato i din egen regionale indstilling; i CSV som dd-mm-åååå.
+- `Completion (%)`: 0 til og med 100. Appen læser også decimaltal, med komma eller punktum (for eksempel 33,3 eller 33.3). Instruktionen i CSV-filen beder stadig om hele tal: et regneark med en anden regional indstilling kan læse 8,38 som 838.
+- `Actual Start` og `Actual Finish`: i Excel som en dato i din egen regionale indstilling; i CSV som dd-mm-åååå eller som åååå-mm-dd.
 
-Det, der står tomt, ændrer ikke noget. En tom celle fjerner altså heller ikke eksisterende fremdrift; det kan kun gøres i appen. Han lader en opgave, der ikke er startet, være helt tom.
+Det, der står tomt, ændrer ikke noget. En tom celle fjerner altså heller ikke eksisterende fremdrift; det kan kun gøres i appen. Byggelederen lader en opgave, der ikke er startet, være helt tom.
 
 ### 4. Læs arket ind
 

@@ -19,7 +19,7 @@ import {
 // `run-ts.mjs` bundelt naar /tmp maar draait met de repo-root als cwd (net als verify-docs.ts).
 const OUTPUT = join(process.cwd(), 'public', 'release-highlights.json');
 
-/** CalVer `YYYY.M.patch`: numeriek segment-voor-segment, nieuwste eerst. */
+/** `JJJJ.W.N` en historische maandversies: numeriek segment-voor-segment, nieuwste eerst. */
 function compareVersionsDescending(a: string, b: string): number {
   const pa = a.split('.').map(Number);
   const pb = b.split('.').map(Number);
@@ -46,6 +46,7 @@ function buildDocument(generated: string): unknown {
       const highlights: Record<string, { primary: JsonHighlight; secondary: JsonHighlight[] }> = {};
       for (const locale of RELEASE_HIGHLIGHT_LOCALES as readonly ReleaseHighlightLocale[]) {
         const copy = block.copy[locale];
+        if (!copy) continue; // oudere versieblokken kennen alleen de veertien oorspronkelijke talen
         const [primaryCopy, ...secondaryCopy] = copy;
         const primary: JsonHighlight = {
           category: primaryCopy.category,

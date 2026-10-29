@@ -60,8 +60,9 @@ punt 2). De rolverdeling van de eerste twee:
   bibliotheekkalenders), inclusief nieuwe poolitems aanmaken en poolitems verwijderen. Wijzigingen
   gelden **meteen voor alle projecten** die uit deze bibliotheek putten, en vallen buiten ongedaan
   maken (Ctrl+Z) — pools zijn app-globaal, geen projectdata. Vanuit hier gebeurt ook **"Toewijzen aan
-  project"** (zie hieronder). Default-weergave zodra de pool inhoud heeft; een lege pool of een los
-  (ongekoppeld) project toont in plaats daarvan de Projectweergave.
+  project"** (zie hieronder). Het paneel opent in de Projectweergave, ook als de pool inhoud heeft.
+  Bij een andere bibliotheekkoppeling keert het terug naar Project. Een handmatig gekozen weergave
+  blijft bij gewone hertekeningen staan; een los (ongekoppeld) project heeft alleen Project.
 - **Projectweergave** — wat dit project gebruikt, over de gewone projecttabel. Hier bestaan drie
   soorten rijen:
 

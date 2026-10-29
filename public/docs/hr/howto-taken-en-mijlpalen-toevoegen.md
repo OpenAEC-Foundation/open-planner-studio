@@ -51,7 +51,7 @@ Desnom tipkom miša kliknite zadatak i odaberite *Dodaj podzadatak*. Novi zadata
 Tri vrste razlikuju se ovako:
 
 - *Početna kontrolna točka* pripada na početak dana, *Završna kontrolna točka* na završetak dana. U Gantt-dijagramu romb je na lijevom rubu dana za početnu kontrolnu točku, a na desnom za završnu. To je važno i za nasljednika. Pretpostavimo da je kontrolna točka u utorak 29. rujna 2026. i da zadatak slijedi nakon nje s ovisnošću završetak-početak: nakon početne kontrolne točke taj zadatak počinje istog utorka, nakon završne kontrolne točke u srijedu 30. rujna.
-- *Inspekcijska točka (obvezna)* je završna kontrolna točka s vrstom zadatka *Inspekcija* i kvačicom pri *Obvezno (ugovorno)*.
+- *Inspekcijska točka (obvezna)* je završna kontrolna točka s kategorijom radova *Inspekcija* i kvačicom pri *Obvezno (ugovorno)*.
 
 ### Postojeći zadatak pretvoriti u kontrolnu točku
 
@@ -62,6 +62,7 @@ Ako je ponovno isključite, ostaje obični zadatak s trajanjem 0: trajanje unesi
 ### Ostali načini
 
 - Ctrl+M (⌘+M na Macu) stavlja novu kontrolnu točku na dno popisa, čak i ako je odabran zadatak. Okno *Svojstva* se ne otvara.
+- Kontrolna točka koju napravite s Ctrl+M ili kroz izbornik desnog klika dobiva kategoriju radova *Inspekcija*. *Početna kontrolna točka* ili *Završna kontrolna točka* iz *Kontrolna točka ▾* dobiva *Ostalo*. Promijenite kategoriju radova u oknu *Svojstva* ako je potrebno.
 - *Dodaj kontrolnu točku* u izborniku zadatka (desni klik) čini kontrolnu točku podzadatkom tog zadatka, a ne na istoj razini.
 
 ### Kopiranje zadatka ili cijele grane
@@ -72,7 +73,7 @@ Ako je ponovno isključite, ostaje obični zadatak s trajanjem 0: trajanje unesi
 
 Kopija ima isti naziv, iste datume i isti napredak. Ide kao zadatak na istoj razini kao odabrani zadatak (kod više: onaj koji ste prvi kliknuli), na dno među tim zadacima na istoj razini. Ako nije odabrano ništa, ide na dno popisa. Kopirani zadaci se naknadno odabiru, WBS-kodovi (broj svakog zadatka u stablu, na primjer 1.2; vidi [Prilagodba strukture](docs://howto-structuur-aanpassen)) ponovno se određuju i raspored više nije ažuran.
 
-Međuspremnik je zajednički za cijelu aplikaciju, pa možete zalijepiti i u drugi dokument. Ono što tamo ne postoji, na primjer kalendar zadatka, prilagođena vrsta zadatka, šifra zadatka ili prilagođeno polje, aplikacija briše i obavještava vas.
+Međuspremnik je zajednički za cijelu aplikaciju, pa možete zalijepiti i u drugi dokument. Ono što tamo ne postoji, na primjer kalendar zadatka, prilagođena kategorija radova, šifra zadatka ili prilagođeno polje, aplikacija briše i obavještava vas.
 
 ### Nakon toga
 
@@ -82,7 +83,7 @@ Novi zadatak još ne mijenja ostale datume. U traci stanja piše *Zastarjelo —
 
 **Svaki novi zadatak počinje na datumu početka projekta.** Bez ovisnosti zadatak ne čeka ni na što. Dodajte ovisnosti, vidi [Dodavanje ovisnosti](docs://howto-relaties-leggen).
 
-**Filtriranje, grupiranje ili sortiranje je uključeno.** Redoslijed koji vidite tada nije redoslijed rasporeda. Kad je zadatak odabran, *Zadatak* i *Kontrolna točka ▾* dodaju novi zadatak na dno, i pojavljuje se traka *Nije dostupno tijekom filtriranja, grupiranja ili sortiranja*. *Umetni iznad* i *Umetni ispod* se odbijaju, s istom trakom. Gumb *Obriši* u toj traci uklanja filtar, grupiranje i sortiranje odjednom. To nije dio *Poništi*: Ctrl+Z ih ne vraća.
+**Filtriranje, grupiranje ili sortiranje je uključeno.** Redoslijed koji vidite tada nije redoslijed rasporeda. Kad je zadatak odabran, *Zadatak* i *Kontrolna točka ▾* dodaju novi zadatak na dno. Tada se pojavi crvena obavijest: *Novi zadatak dodan je na kraj. Dok je filtriranje, grupiranje ili sortiranje uključeno, aplikacija ga ne može staviti ispod vašeg odabira.* *Umetni iznad* i *Umetni ispod* se odbijaju, s trakom *Nije dostupno tijekom filtriranja, grupiranja ili sortiranja*. Gumb *Obriši* u obavijesti ili u traci uklanja filtar, grupiranje i sortiranje odjednom. To nije dio *Poništi*: Ctrl+Z ih ne vraća.
 
 **Podzadatak pod zadatkom s dodjelama resursa.** Zadatak postaje zadatak sažetka, a zadatak sažetka sam nema dodjele. Aplikacija premješta dodjele na novi podzadatak i javlja vam to. Ako to nije moguće, na primjer jer ste odabrali *Dodaj kontrolnu točku*, a kontrolna točka ne može imati dodjele, aplikacija ništa ne dodaje i kaže zašto.
 

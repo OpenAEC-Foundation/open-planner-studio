@@ -28,11 +28,15 @@ Per file format: whether you can open, save and export it, what does and does no
 
 **What goes along** — everything that belongs to the project: tasks with structure, duration, dates and progress; relations with lag; constraints and deadlines; calendars; resources and assignments, including the hour distribution; baselines; activity codes and custom fields; notes; external links to other projects; interruptions; task types and custom work categories; the project settings such as the status date, the progress mode, the calculation profile and the calculation options; the link with a resource library. For a project from a `.xer`, the original source file goes along too. A custom work category is stored as the IFC type `USERDEFINED` with its name in the ObjectType field, so other IFC programs read the task normally; the app also keeps the fixed id of the work category, so renaming does not break the link. If someone opens the file on another computer, the work category appears there under *From this project*, not in their own *My work categories*.
 
-**What does not go along** — how you have set up the screen (zoom, scroll position, selected task, collapsed phases, chosen filter and grouping) and the app settings ([App settings](docs://ref-instellingen)). The *IFC* tab is an editor with the IFC text of your project. *Generate IFC* refreshes it, *Copy* puts it on the clipboard and *Apply* loads the text as your project, replacing the project in that tab.
+**Schedule span in other IFC programs.** The work plan and work schedule contain the earliest shown task start and latest shown task finish, including phases. A started task counts from its actual start; a completed task up to its actual finish. Otherwise the calculated dates apply, or the input dates before calculation. In *Dates as recorded*, the schedule currently shown applies. Saving does not recalculate. The start and finish dates you entered in *Project settings* are kept separately, even when empty.
+
+**What does not go along** — how you have set up the screen (zoom, scroll position, selected task, collapsed phases, chosen filter and grouping) and the app settings ([App settings](docs://ref-instellingen)). The *IFC* tab is an editor with the IFC text of your project. *Generate IFC* refreshes it and *Copy* puts it on the clipboard. *Apply* replaces the contents of the current project as a single *Undo* step. The resource library link and the file you save to are preserved. The edit remains *Unsaved* until you save.
 
 ## MS Project XML (MSPDI)
 
-**Open** — yes. The app recognises an `.xml` file as MS Project XML by the root element `Project` in the MS Project namespace (or without a namespace). Calculation profile: *Open Planner Studio*.
+**Open** — yes. The app recognises an `.xml` file as MS Project XML by the root element `Project` in the MS Project namespace (or without a namespace). Calculation profile: *Open Planner Studio*. After opening, the app tells you in one message what it did not take over; see [Opening an MS Project file (.mpp)](docs://howto-mpp-openen).
+
+**Unreadable task dates.** A value such as `NA` counts as a missing date. The rest of the file still opens. A missing planned start uses the project start, or otherwise the earliest readable task start. A missing finish follows the same rules as an empty date field. An unreadable actual date, constraint date, deadline or date in the recorded calculation output is not imported as a date.
 
 **Save** — no. Such a project gets no save target.
 
@@ -44,11 +48,11 @@ Per file format: whether you can open, save and export it, what does and does no
 
 **Holidays when opening.** A derived calendar inherits the exceptions of its base calendar. A calendar with its own work week and no exceptions gets no holidays. Only a bare calendar, without a base calendar, work week or exceptions, keeps the standard Dutch holidays. If holidays are missing, your finish date can differ: see [Generating holidays and the construction holiday](docs://howto-feestdagen-genereren).
 
-**What changes on the way** — a constraint *Must start on (MSO)* or *Must finish on (MFO)* without the choice *Mandatory (pin logic)* becomes *Start no earlier than (SNET)* or *Finish no earlier than (FNET)*. A hammock becomes an ordinary task with calculated dates. MS Project XML stores the hours per day only for the project calendar. Another calendar with its own hours per day gets its working time as hours per day when you open the file: 8 hours per day with working times of 10 hours becomes 10. A task in days on such a calendar then gets shorter, for example 4 days instead of 5.
+**What changes on the way** — a constraint *Must start on (MSO)* or *Must finish on (MFO)* without the choice *Mandatory (pin logic)* becomes *Start no earlier than (SNET)* or *Finish no earlier than (FNET)*. A hammock becomes an ordinary task with calculated dates. MS Project XML stores the hours per day only for the project calendar. Another calendar with its own hours per day gets its working time as hours per day when you open the file: 8 hours per day with working times of 10 hours becomes 10. A task in days from MS Project or from an older version of the app then gets shorter on such a calendar, for example 4 days instead of 5. A file from this version of the app keeps the days: a task of 5 days stays 5 days. A remaining duration and a lag in days also come back exactly: 2.5 days with 1.5 days remaining stays 2.5 days with 1.5 days remaining.
 
 ## MS Project file (`.mpp`)
 
-**Open** — yes, from MS Project 2010 through 2021. Calculation profile: *Microsoft Project*. The app only reads the file: it never changes your `.mpp`. A file from MS Project 2007 or older, and a password-protected file, it refuses with a message that points to the XML export of MS Project.
+**Open** — yes, from MS Project 2010 through 2021. Calculation profile: *Microsoft Project*. The app only reads the file: it never changes your `.mpp`. A file from MS Project 2007 or older, and a password-protected file, it refuses with a message that points to the XML export of MS Project. After opening, the app tells you in one message what it did not take over.
 
 **Save** — no, and there is no save target: *Save* writes a new IFC file.
 
@@ -56,13 +60,15 @@ Per file format: whether you can open, save and export it, what does and does no
 
 **What goes along** — tasks with structure, duration and constraints; relations with lag; calendars; resources and assignments; progress; a WBS code that you filled in yourself in MS Project. The dates and float that MS Project calculated itself are read too, for the view *Dates as recorded*.
 
-**What does not go along** — baselines, costs and rates, notes and the custom fields of MS Project. See [Opening an MS Project file (.mpp)](docs://howto-mpp-openen).
+**What does not go along** — baselines, costs and rates, notes, hyperlinks, the custom fields of MS Project, the link of subprojects and external tasks, and the critical threshold. See [Opening an MS Project file (.mpp)](docs://howto-mpp-openen).
 
 **Origin and license** — the `.mpp` reader was written for Open Planner Studio and is derived from the source code and structural knowledge of MPXJ (`github.com/joniles/mpxj`, Jon Iles et al.), a Java library under LGPL-2.1. Structure and field constants were ported to TypeScript. Open Planner Studio itself is open source under LGPL-3.0. The `.xer` reader is not a derivative: MPXJ was only consulted there as a source of understanding.
 
 ## Primavera P6 XML
 
 **Open** — yes. The app recognises an `.xml` file as P6 XML by the root element `APIBusinessObjects`. Calculation profile: *Open Planner Studio*.
+
+**Unreadable task dates.** The same rules apply as for MS Project XML: an unreadable date counts as missing and does not prevent the file from opening.
 
 **Several projects in one file.** Each project with activities opens in its own tab, named *Project name (Project ID)*. The app skips a project without activities. The active tab is the project with the most activities. The app does not carry over a relation to another project, nor an activity that belongs to no project. After opening, the app reports how many projects it opened.
 
@@ -82,7 +88,7 @@ Per file format: whether you can open, save and export it, what does and does no
 
 **What goes along** — WBS structure and tasks with duration, dates and progress; relations with lag; constraints (also a second one, as a soft constraint); calendars; resources and assignments; the status date (as `DataDate`); a custom work category, in a field of its own, `OPS Custom Task Type`, that the app reads back and that P6 may ignore.
 
-**What does not go along** — baselines and deadlines; activity codes, custom fields, notes and external links; the calculation options; the names of holidays. P6 has no name per day off: after reopening, a holiday is called *Holiday* and a working exception *Working exception*. Consecutive days off come back as one range. The app shortens a name or code that is longer than P6 allows: an activity name to 120 characters, an activity ID or WBS code to 40, a WBS or project name to 100. It reports how many names and codes it shortened. P6 has no lag in percentages: the app converts it to a fixed number of days. A lag in calendar days becomes a lag in working time: 3 calendar days become 3 work days. A hammock becomes an ordinary task, a manually scheduled task an ordinary task with calculated dates, and a leveling delay of less than a day is dropped.
+**What does not go along** — baselines and deadlines; activity codes, custom fields, notes and external links; the calculation options; the names of holidays. P6 has no name per day off: after reopening, a holiday is called *Holiday* and a working exception *Working exception*. Consecutive days off come back as one range. The app shortens a name or code that is longer than P6 allows: an activity name to 120 characters, an activity ID or WBS code to 40, a WBS or project name to 100. It reports how many names and codes it shortened. P6 has no lag in percentages: the app converts it to a fixed lag in working time, from the duration of the predecessor. 50% of a predecessor of 24 hours becomes a lag of 12 hours. A lag in calendar days becomes a lag in working time in P6: 3 calendar days become 3 work days. When you open the file in the app again, you get the 3 calendar days back. A duration, remaining duration and lag in days also come back exactly. A hammock becomes an ordinary task, a manually scheduled task an ordinary task with calculated dates, and a leveling delay of less than a day is dropped.
 
 ## Primavera file (`.xer`)
 
@@ -109,6 +115,8 @@ Per file format: whether you can open, save and export it, what does and does no
 ## CSV
 
 **Open** — yes. The app reads `;` and `,` as separator. It recognises column headers in English and Dutch (for example `Name` or `Naam`, `Duration` or `Duur`, `Predecessors` or `Voorgangers`). Dates may be *yyyy-mm-dd*, *dd-mm-yyyy* or *dd/mm/yyyy*. You write a predecessor as WBS code, relation type and lag, for example `1.2FS+2d`. Calculation profile: *Open Planner Studio*. The project is called *CSV Import*. The `Task Type` column holds the work category, not the task type; the app also reads the headers `Werksoort` and `Work category`. A `Task Type` that is none of the fixed codes (such as `CONSTRUCTION` or `INSTALLATION`, which the app writes itself) becomes a custom work category under *From this project*, not in *My work categories*; with `OPS Custom Task Type ID` the id of a custom work category is kept.
+
+A filled date cell in an unrecognised format stops the entire CSV from opening. The error identifies the CSV row, column header and cell value; change that cell to one of the three formats and open the file again. Row counting includes the header, skips empty records and counts a cell containing line breaks as one record. This applies to Start, Finish, Actual Start and Actual Finish. Missing or empty dates remain allowed: the planned start falls back to the earliest supplied task start (to today when no start is supplied), and the planned finish is derived from start and duration where possible. Empty actual dates follow the usual progress rules.
 
 **Save** — no.
 

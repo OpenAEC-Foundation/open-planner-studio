@@ -50,7 +50,7 @@ Med afkrydsningen sat må en opgave ikke starte senere end sin seneste startdato
 
 ## Arbejdseksempel: murer på to vægge
 
-Eksemplet er selvstudiernes øvelsesprojekt *House extension*, sådan som det ser ud lige før udjævningen i selvstudium 5. I selvstudium 5 gør du det selv og kontrollerer tallene. I dette eksempel står pudsningen på *Fast arbejde*, og pudseren arbejder med tildelingsenheder på 2, som i [Arbejdsregler: varighed, enheder og arbejde](docs://uitleg-werkregels).
+Eksemplet er selvstudiernes øvelsesprojekt *House extension*, sådan som det ser ud lige før udjævningen i selvstudium 5. I selvstudium 5 gør du det selv og kontrollerer tallene. I dette eksempel står pudsningen på *Fast arbejde*, og pudseren arbejder med tildelingsenheder på 2, som i [Opgavetyper: varighed, enheder og arbejde](docs://uitleg-werkregels).
 
 Efter hulkassedækket, færdigt mandag den 28. juni, starter den indvendige hulmur (5 arbejdsdage) og den udvendige hulmur (6 arbejdsdage) begge tirsdag den 29. juni. Begge hører til den samme murer, med tildelingsenheder på 1 og *Maksimalt antal enheder* på 1. Efter den indvendige hulmur kommer tagelementerne (et kranjob på 6 timer) og tagdækningen (2 arbejdsdage). Vinduesrammerne venter på tagdækningen og på den udvendige hulmur. Overdragelsen er mandag den 30. august.
 
@@ -66,18 +66,18 @@ Begge opgaver har prioriteten 500. Vinduesrammerne leveres først 14. juli (i se
 
 Den udvendige hulmur kan ikke starte 29. juni. Den første dag, han er ledig igen, er tirsdag den 6. juli. Det er 5 arbejdsdage senere end den tidligste startdato, så udjævningsforskydningen er 5. Den udvendige hulmur løber nu fra 6. juli til og med 13. juli. Rammerne starter alligevel først 14. juli, så overdragelsen bliver mandag den 30. august. Vinduet viser *Projektets slutdato: uændret (30-08-2027)* og én linje: *Build outer cavity leaf*, gammel start 29-06-2027, ny start 06-07-2027, *5 d*.
 
-De 5 arbejdsdage forskydning er præcis slækken på den udvendige hulmur. Derfor giver udjævning inden for slæk her samme resultat. Den udvendige hulmur har nu ingen slæk tilbage og er kritisk.
+De 5 arbejdsdages forskydning er præcis slækken på den udvendige hulmur. Derfor giver *udjævning* her samme resultat. Den udvendige hulmur har nu ingen slæk tilbage og er kritisk.
 
 ### Hvad hvis rammerne ikke kommer 14. juli
 
 Uden den begrænsning kan rammerne starte fredag den 9. juli, og overdragelsen er onsdag den 25. august. Den udvendige hulmur har så kun 2 arbejdsdage slæk.
 
-- Uden afkrydsningen flytter den udvendige hulmur stadig 5 arbejdsdage. Nu må rammerne vente: de starter 14. juli, 3 arbejdsdage senere. Alt efter dem flytter med, og overdragelsen går fra 25. august til 30. august, også 3 arbejdsdage senere.
-- Med afkrydsningen flytter intet. Den udvendige hulmur passer ikke inden for sine 2 arbejdsdage slæk. Vinduet viser konflikten *Build outer cavity leaf*, 5 day(s), med årsagen *For lidt ledig kapacitet inden for slækken til at løse denne konflikt.*
+- Uden *udjævning* flytter den udvendige hulmur stadig 5 arbejdsdage. Nu må rammerne vente: de starter 14. juli, 3 arbejdsdage senere. Alt, der kommer efter dem, flytter med, og overdragelsen går fra 25. august til 30. august, også 3 arbejdsdage senere.
+- Med *udjævning* flytter intet. Den udvendige hulmur passer ikke inden for sine 2 arbejdsdage slæk. Vinduet viser konflikten *Build outer cavity leaf*, 5 dag(e), med årsagen *For lidt ledig kapacitet inden for slækken til at løse denne konflikt.*
 
 ### Hvad hvis den udvendige hulmur får prioritet
 
-Giver du den udvendige hulmur prioriteten *Høj* (900), kommer den først. Den bliver stående 29. juni, og nu må den indvendige hulmur vige: 6 arbejdsdage senere, fra 7. juli til og med 13. juli. Den indvendige hulmur har kun 3 arbejdsdage slæk, så at rykke 6 arbejdsdage er 3 for meget. Tagelementerne, rammerne og alt efter dem flytter med. Overdragelsen går fra mandag den 30. august til torsdag den 2. september. Den samme overallokering giver altså en anden slutdato, afhængigt af hvilken opgave der bliver stående.
+Giver du den udvendige hulmur prioriteten *Høj* (900), kommer den først. Den bliver stående 29. juni, og nu må den indvendige hulmur vige: 6 arbejdsdage senere, fra 7. juli til og med 13. juli. Den indvendige hulmur har kun 3 arbejdsdage slæk, så at rykke 6 arbejdsdage er 3 for meget. Tagelementerne, rammerne og alt, der kommer efter dem, flytter med. Overdragelsen går fra mandag den 30. august til torsdag den 2. september. Den samme overallokering giver altså en anden slutdato, afhængigt af hvilken opgave der bliver stående.
 
 ### Hvad hvis der kommer en murer mere
 
@@ -101,5 +101,5 @@ Sætter du murerens *Maksimalt antal enheder* til 2, er der ikke længere overal
 
 - [Løs overallokering](docs://howto-overbezetting-oplossen): trinene til at finde overallokering og udjævne den.
 - [Kritisk vej og slæk](docs://uitleg-kritiek-pad): hvad slæk er, og hvorfor en opgave bliver kritisk.
-- [Arbejdsregler: varighed, enheder og arbejde](docs://uitleg-werkregels): hvordan varigheden af en opgave følger med tildelingsenhederne.
+- [Opgavetyper: varighed, enheder og arbejde](docs://uitleg-werkregels): hvordan varigheden af en opgave følger med tildelingsenhederne.
 - [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): tre tårne, der har brug for de samme hold og tårnkranen, og hvad udjævning gør ved dem.

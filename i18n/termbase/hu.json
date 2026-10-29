@@ -1958,6 +1958,18 @@
     "source": "model",
     "status": "model"
   },
+  "work-category": {
+    "term": "munkanem",
+    "forms": [
+      "munkanem",
+      "munkanemek",
+      "munkanemet",
+      "munkaneme",
+      "munkanemeket"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "munkaórák",
     "forms": [

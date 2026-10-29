@@ -4,6 +4,7 @@
     "applyShape": "Apply shape:",
     "hoursPerDay": "{{hours}} hours per working day",
     "stripHint": "Drag a boundary to lengthen or shorten a phase, drag the top edge to set the effort, double-click a day to split a phase.",
+    "partialDayHint": "If the task starts or ends partway through a working day, that day counts pro rata: the hours are the effort × the part of the day. The histogram counts the same way.",
     "from": "From",
     "to": "To",
     "days": "Days",
@@ -181,8 +182,8 @@
       "calendar": "Choose a calendar from the list.",
       "calendarNotFound": "The chosen calendar does not exist.",
       "calendarHours": "The calendar of this task has no working hours per day.",
-      "hourPlanningDisabled": "Hour planning is switched off in the App settings.",
-      "durationConversionNotExact": "This duration cannot be converted to the other unit exactly.",
+      "durationConversionNotExact": "This duration cannot be converted to the other unit on this calendar.",
+      "fixedWorkIsHours": "A task with fixed work always uses the hour measure.",
       "milestoneRequired": "This field only applies to milestones.",
       "milestoneUnavailable": "A summary task with subtasks cannot become a milestone.",
       "actualAfterStatusDate": "The actual date lies after the status date.",
@@ -328,11 +329,8 @@
     "unit": "Duration unit",
     "days": "Days",
     "hours": "Hours",
-    "invalid": "Enter a whole number of days or hours, for example 2d or 12h.",
-    "enableHourPlanningFirst": "Enable hour planning to edit this hour task.",
-    "enableHourPlanning": "Enable hour planning",
-    "requiresWorkBlocks": "This calendar has no valid working times. Check its working days and times.",
-    "conversionNotExact": "{{value}} does not fit into whole days on this calendar. The unit has not changed.",
+    "invalid": "Enter a number of days or hours, for example 2.5d or 12h.",
+    "conversionNotExact": "{{value}} cannot be converted to the other unit on this calendar. The unit has not changed.",
     "unitInfo": "The selected unit belongs to this task. Days count working days; hours count working hours within the calendar. A different calendar does not change the unit or entered duration, but it may change the finish date."
   },
   "dialog": {
@@ -375,7 +373,6 @@
       "resourceAddsWork": "An extra resource adds work.",
       "resourceSharesWork": "An extra resource takes over part of the work; the units per resource go down.",
       "resourceShorter": "An extra resource makes the task shorter.",
-      "resourceShorterWholeDays": "An extra resource makes the task shorter, rounded to whole days.",
       "resourceAddsWorkSameDuration": "An extra resource adds work; the duration stays the same."
     },
     "info": "Explanation of the task type"
@@ -459,13 +456,16 @@
     "jumpToTask": "Go to task {{wbs}}",
     "relationPopoverTitle": "Relation type",
     "driving": "Driving relationship",
+    "drivingUnknown": "Driving relationships unknown without a calculation.",
     "lag": "Lag (e.g. 2d, 3ed, 2h, 50%, -25e%)",
     "recalculate": "Calculate",
     "assignments": {
       "title": "Assignments",
+      "resource": "Resource",
       "add": "Assign resource",
       "remove": "Remove",
       "unitsPerDay": "Units/day",
+      "units": "Units",
       "curve": "Curve",
       "empty": "No assignments yet.",
       "noResources": "Create resources first (Resources tab).",
@@ -478,6 +478,8 @@
       "contouredHint": "This assignment has its own hour distribution; edit or release it via the Hour distribution button.",
       "importedCurve": "Imported curve",
       "work": "Work (rem.)",
+      "workHours": "Work (h)",
+      "detailsHint": "Show curve, hour distribution and move",
       "workHint": "Remaining work in hours; the task type decides whether duration or units move.",
       "workDeviates": "Differs from units × duration",
       "workDeviatesHint": "Stored work {{stored}}h differs from units × remaining duration ({{derived}}h). The histogram follows the stored work across the whole task duration. {{durationEffect}}",
@@ -519,6 +521,8 @@
     "type": "Type",
     "lag": "Lag",
     "driving": "Driving",
+    "drivingUnknown": "Unknown",
+    "notDriving": "Not driving",
     "freeFloat": "Free float",
     "warnings": "Warnings",
     "warnTruncatedLead": "Lead truncated at the project start — the overlap is not fully used",
@@ -645,5 +649,11 @@
     "pieceHours_one": "Piece: {{count}} hour",
     "pieceHours_other": "Piece: {{count}} hours",
     "merged": "Merge"
+  },
+  "dateTimeInput": {
+    "time": "Time of {{field}}",
+    "timeHint": "Empty: the start or end of the workday. With a time: exactly that moment.",
+    "later": "A quarter of an hour later",
+    "earlier": "A quarter of an hour earlier"
   }
 }

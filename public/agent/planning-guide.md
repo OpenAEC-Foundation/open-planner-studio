@@ -4,6 +4,8 @@ This guide is for an AI agent that builds or maintains a schedule in Open Planne
 
 Where this guide and a tool description disagree, the tool description wins: read it in `tools/list`, it comes straight from the code. Never guess a tool name or a parameter. The copy of this guide that `planner_get_planning_guide` returns belongs to the app version you are connected to; if it differs from the public URL, the copy from the tool wins.
 
+When exporting with `planner_export_ifc`, an unsupported source schema such as IFC2X3 must never be silently replaced in the opened file, including through a case alias or link. A different path spelling is not proof of a different file. If file identity cannot be established (including missing file IDs on Windows), the tool refuses an existing target. Choose a new file name, or ask the user to save in the app and choose the schema. Export does not change the document's save target or resolve its open schema question.
+
 Two skills go with this guide. `planner_get_planning_guide` returns this guide and both skills, with the paths where a skill belongs:
 
 - `goed-plannen`: building or restructuring a schedule (https://open-planner-studio.open-aec.com/skills/goed-plannen/SKILL.md)
@@ -53,7 +55,7 @@ First put down the moments that are fixed: start on site, permit final, weathert
 - Create milestones with `planner_add_tasks`, item `isMilestone: true`. A milestone has duration 0; a `duration` above 0 on it is an error. `milestoneKind` (`START`, `FINISH`, `null` = automatic) sets its anchor.
 - A handover that is fixed by contract gets `mandatory: true`. That is a marker for the Gantt and reports; it guards no date.
 - To watch the handover date without steering the calculation, give the handover milestone a `deadline`. Nothing moves, but the chain before it gets negative total float as soon as the date no longer fits.
-- `planner_update_project` `endDate` is metadata. It enforces nothing in the schedule, so it does not watch the handover. It does steer the span of generated holidays (`planner_update_calendar` `generate`).
+- `planner_update_project` `endDate` is metadata. It enforces nothing in the schedule, so it does not watch the handover. When regenerating holidays on an existing calendar (`planner_update_calendar` `generate`), it extends the span if it is later than the calculated project end.
 - Set `planner_update_project` `startDate` before you create tasks: it is the anchor for new tasks and does not shift the existing schedule (only a later start date pulls root tasks without predecessor or constraint forward to it, reported as `anchorsClamped`). To shift a whole existing schedule, use `planner_move_project`.
 
 ### The breakdown: phases, work packages, tasks
@@ -61,7 +63,7 @@ First put down the moments that are fixed: start on site, permit final, weathert
 Below the milestones comes the structure: phases, work packages, tasks. A task lasts between roughly one day and two weeks. Shorter means planning the shop floor instead of the project, and nobody maintains that for months. Longer means a task you cannot estimate and cannot track: "finishing ground floor, 40 days, 45% complete" tells nobody whether things are going well. Schedule reviews count the tasks longer than about two months; above a few percent that counts as a lack of detail. Too fine is just as damaging: a schedule nobody updates is fiction within three weeks. Two deliberate exceptions: a lead time (a ten-week window frame delivery is one block of waiting) and continuous supervision.
 
 - Build the tree in one `planner_add_tasks` call. Every item has a `tempId` that starts with `tmp-` or `tmp_`; `parentId` may be an existing task id or a `tempId` from the same call.
-- A task with subtasks is a summary task: the app derives its dates and duration from the tasks below it. Do not send a `duration` for a summary task; it has no effect, the derived duration wins.
+- A task with subtasks is a summary task: the app derives its dates and duration from the tasks below it. Do not send a `duration` for a summary task: `planner_update_tasks` refuses that fields block. In `planner_add_tasks`, omit duration on a new parent that has children in the same call; an explicit parent duration makes the whole call fail validation.
 - Restructure with `planner_move_task` (`newParentId`, `position`). `planner_delete_tasks` deletes the whole subtree: check `cascadedTaskIds` in the answer.
 - Work that stops and resumes later stays one task with interruptions (`planner_set_task_splits`), not a series of tasks.
 - A hammock for continuous supervision cannot be set through the tools. If one is needed, ask the user to make it in the app.
@@ -71,8 +73,8 @@ Below the milestones comes the structure: phases, work packages, tasks. A task l
 
 A duration is an estimate of how long the work takes, not of how fast it could go: a normal day with the crew you will actually get. Optimism compounds along the chain. Do not hide risk inside individual durations; adding a day everywhere buries the margin where nobody can see or steer it. Make reserve visible instead, as a buffer task before handover or a separate weather allowance. Watch for double counting: the roughly 180 workable days a year that Dutch construction reckons with already deduct public holidays, the industry shutdown and lost days, so with holidays and shutdown in the calendar only weather delay remains.
 
-- Always pass `duration`. A task created without one gets the default of 5 working days.
-- `duration` counts in `durationUnit`: `days` (the default) or `hours`; give both together. Choose days for work that sets the pace on site (bricklaying, plastering), hours when the hours themselves are the unit (a three-hour inspection, shift work). A day duration may be a fraction (2.5), but a working-time day task still occupies whole working days in its dates (2.5 becomes 3). Hours need a calendar with concrete work blocks (`workTime` in `planner_update_calendar`).
+- Always pass `duration`. A task created without one gets the project's default measure for new tasks, normally 5 working days in the day measure.
+- `duration` counts in the measure `durationUnit`: `days` (day measure, the default) or `hours` (hour measure); give both together. Choose days for work that sets the pace on site (bricklaying, plastering), hours when the hours themselves are the unit (a three-hour inspection, shift work). A day duration may be a fraction (2.5); the bridge stores it exactly. A task with the work rule `FIXED_WORK` always has the hour measure: days are converted at the working time per day (3 days = 24 hours at 8 hours a day). Hours need a calendar with working time.
 - `durationType: "ELAPSEDTIME"` counts calendar days around the clock, for example concrete curing; the default `WORKTIME` counts working days of the calendar.
 - Reserve: a separate buffer task before the handover milestone, linked like every other task. Expected weather loss: a separate task, or the days in the calendar (see Calendars). Never spread over the durations.
 - Every duration you estimated yourself is an assumption you report.
@@ -83,11 +85,11 @@ The app calculates the dates along the relationships: a task only starts when it
 
 Finish-to-start is the default; in a healthy construction schedule about nine out of ten relationships are finish-to-start. Start-to-start with a lag is for work that genuinely runs alongside, such as an installer three days behind the bricklaying; pair it with a finish-to-finish so the successor cannot finish first. Start-to-finish is almost never right in construction. Draw a start-to-start between tasks, not phases: with a phase as predecessor of a start-to-start or start-to-finish, the successor waits for the task in that phase that starts last. Be sparing with lags: a lag is waiting time without a visible reason. A negative lag (a lead) should not be there at all; split the predecessor or use a start-to-start.
 
-- Add relationships with `planner_add_dependencies`: `predecessorId`, `successorId`, `type` (`FS`, `SS`, `FF`, `SF` or the long form) and optionally `lag`. `lag` counts in working days (`2`, `"+2d"`, fractions allowed) or as a percentage of the predecessor duration (`"+50%"`).
+- Add relationships with `planner_add_dependencies`: `predecessorId`, `successorId`, `type` (`FS`, `SS`, `FF`, `SF` or the long form) and optionally `lag`. `lag` counts in days of the day measure (`2`, `"+2d"`, fractions allowed) or as a percentage of the predecessor duration (`"+50%"`).
 - A lag in calendar days cannot be set through the tools. For concrete curing, add a visible curing task with `durationType: "ELAPSEDTIME"` instead of a lag.
 - Change a relationship with `planner_update_dependencies` and its `seqId` (in `planner_get_project_overview`, after the `#` in `rels`), not by removing and adding it again.
 - A summary task as predecessor or successor is allowed; the relationship applies to its leaf tasks. A circular dependency is a hard error (`CYCLE`) that rolls back the whole call.
-- Find tasks without any relationship with `planner_list_tasks` `zonder_relaties: true` (leaf tasks only). That filter only counts relationships on the task itself: a leaf task whose summary task carries the relationship is listed too, although it is tied into the network. Check such a row against the `rels` of its parent in `planner_get_project_overview` before you add anything. A task that has a predecessor but no successor does not show there: in `planner_get_project_overview` every row lists its outgoing relationships under `rels`, so a leaf task without `rels` (other than the final milestone, and unless its summary task carries the relationship) is missing a successor.
+- Find tasks without any relationship with `planner_list_tasks` `zonder_relaties: true` (leaf tasks only). The filter counts relationships on the task itself and on all its ancestor summary tasks, so leaves tied into the network through a phase are not listed. A task that has a predecessor but no successor does not show there: in `planner_get_project_overview` every row lists its outgoing relationships under `rels`, so a leaf task without `rels` (other than the final milestone, and unless its summary task carries the relationship) is missing a successor.
 
 ### Constraints and fixed dates: as few as possible
 
@@ -107,7 +109,7 @@ All durations count in working days or working hours of a calendar, so set up th
 - Generate holidays with `planner_update_calendar` `generate` (`country`, optional `region`, and for NL `bouwvak`: `geen`, `noord`, `midden` or `zuid`). The generator fills the days over the project span and replaces the existing holiday list.
 - `rawHolidays` adds literal days (frost period, company shutdown) to the existing ones. It turns the calendar literal: it can no longer be regenerated (`becameLiteral: true`). `holidaysMode: "replace"` makes the list exactly what you send.
 - Give a resource its own calendar only if it really differs, such as a facade builder who comes four days a week (`planner_manage_resources` `calendarId`). A resource calendar moves no task date; it only shows as overallocation in the histogram on a task working day the resource does not work.
-- Generated holidays cover a fixed span of years (`generation.generatedFromYear` to `generatedToYear` in `planner_get_calendars`). Generated before there are tasks, that span runs from the year before the project start to three years after it. If the project end lies beyond `generatedToYear` once the tasks are in, run the same `generate` again: it then covers the span up to `project.endDate` if that is set, otherwise up to the calculated project end. If `endDate` is earlier than the calculated end, the years after it get no holidays: clear `endDate` first (`endDate: ""`).
+- Generated holidays cover a fixed span of years (`generation.generatedFromYear` to `generatedToYear` in `planner_get_calendars`). Creating a calendar with `generate` always covers the year before the project start through three years after it. Updating an existing calendar covers the year before the start through the year after the later of `project.endDate` and the calculated project end; if only one end is known, it uses that one. With neither end known, it covers through three years after the start year. If the calculated project end later goes beyond `generatedToYear`, run the same `generate` again on that calendar. An earlier `endDate` does not limit this regeneration.
 
 ### Resources: who does it, and is that possible
 
@@ -124,7 +126,7 @@ A schedule without resources answers only half the question. Once crews and equi
 The critical path is the chain without float: every day lost there is a day later handover. Total float says how far a task may run late without affecting the project end; free float, how far without moving its successor. Three signals matter. A task with a few days of float is near-critical, not safe. A task with an extreme amount of float (in schedule reviews more than 44 working days, about two months) is almost always missing a successor. And negative float is the schedule saying a deadline or fixed date does not fit.
 
 - You never need to trigger a calculation (see "How calculation works through the tools"); just read after your last change.
-- `planner_get_critical_path` returns the critical tasks with their `totalFloat` and the driving relationships between them.
+- `planner_get_critical_path` returns the critical tasks with their `totalFloat` and the driving relationships between them. `drivingRelations` is `null` when driving information is unavailable, including in **Dates as recorded**; it does not mean no relationships are driving. A valid calculation with no driving relationships between critical tasks returns `[]`. Read tools preserve recorded dates; only recalculate explicitly if the user wants to replace them.
 - `planner_get_task` returns `schedule.totalFloat` and `schedule.freeFloat` (working days) and the early and late dates of one task. With negative total float the late dates lie before the early ones; that is the size of the overrun.
 - `planner_list_tasks` with `kritiek: true` (critical) lists the critical tasks; summary tasks with a rolled-up flag come along, marked `summary: true`.
 - There is no near-critical flag and no warnings list through the tools: compare `totalFloat` yourself, and check deadlines and constraints through negative `totalFloat`.
@@ -151,7 +153,7 @@ A small network from Monday 7 June 2027 on the default construction calendar (Mo
 
 Check, with the tools, the mistakes that make a schedule lie quietly:
 
-- No task without relationships: every row that `planner_list_tasks` with `zonder_relaties: true` returns is either fixed or tied in through a relationship on its summary task, and every leaf task except the final milestone has a successor, on itself or on its summary task (`rels` in `planner_get_project_overview`).
+- No task without relationships: every row that `planner_list_tasks` with `zonder_relaties: true` returns needs a relationship, and every leaf task except the final milestone has a successor, on itself or on its summary task (`rels` in `planner_get_project_overview`).
 - No constraint without an external date the user gave you, and no hard pin the user did not ask for.
 - Task lengths between roughly a day and two weeks, with any exception named.
 - No negative lags, and no unnamed lags where a visible task belongs.

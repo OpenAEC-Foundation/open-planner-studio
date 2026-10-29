@@ -18,6 +18,7 @@ import './domStub';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { isOnboardingActive, tourFinishPatch } from '@/state/onboarding';
+import { openUpdateDialogWhenIdle } from '@/hooks/useUpdateCheck';
 import { createAppStoreContext, useAppStore } from '@/state/appStore';
 import { SETTINGS, loadAllSettings } from '@/utils/settingsRegistry';
 import { saveTutorialOfferAnswered } from '@/utils/settingsStore';
@@ -292,7 +293,56 @@ function mock(o: MockOpts) {
   eq('E1 een event tijdens onLoad bereikt niemand (daarom wacht de host)', earlyEvents, [null]);
   eq('E2 na de installatie: gestart', outcome, { kind: 'started' });
   eq('E3 de begeleiding van de extensie loopt', [getGuideView()?.extensionId, getGuideView()?.guideId], ['tutorials', 'tut-1-eerste-planning']);
+  const ui = () => useAppStore.getState().ui;
+  const setUI = useAppStore.getState().setUI;
+  setUI({ welcomePending: false, showWelcomeDialog: false, showTourOverlay: false,
+    showTutorialOffer: false, showUpdateDialog: false });
+  openUpdateDialogWhenIdle();
+  eq('E4 automatische update wacht op actieve begeleiding', ui().showUpdateDialog, false);
+  // Dezelfde extensie vervangt haar gids: de tijdelijke stop/start mag geen update ertussen openen.
+  emitExtensionEvent(HOST_EVENTS.tutorialRequested, { extensionId: id, tutorialId: 'tut-1-eerste-planning' });
+  await Promise.resolve();
+  eq('E5 gids vervangen blijft geblokkeerd', ui().showUpdateDialog, false);
   stopGuideSession();
+  await Promise.resolve();
+  eq('E6 gids sluiten opent de wachtende update', ui().showUpdateDialog, true);
+  setUI({ showUpdateDialog: false });
+
+  // Beide blokkades moeten weg zijn; hun volgorde maakt niet uit.
+  emitExtensionEvent(HOST_EVENTS.tutorialRequested, { extensionId: id, tutorialId: 'tut-1-eerste-planning' });
+  setUI({ showWelcomeDialog: true });
+  openUpdateDialogWhenIdle();
+  stopGuideSession();
+  await Promise.resolve();
+  eq('E7 na gids blijft welkomst blokkeren', ui().showUpdateDialog, false);
+  setUI({ showWelcomeDialog: false });
+  await Promise.resolve();
+  eq('E8 beide klaar opent update', ui().showUpdateDialog, true);
+  setUI({ showUpdateDialog: false, showWelcomeDialog: true });
+  emitExtensionEvent(HOST_EVENTS.tutorialRequested, { extensionId: id, tutorialId: 'tut-1-eerste-planning' });
+  openUpdateDialogWhenIdle();
+  setUI({ showWelcomeDialog: false });
+  await Promise.resolve();
+  eq('E8b na welkomst blijft gids blokkeren', ui().showUpdateDialog, false);
+  stopGuideSession();
+  await Promise.resolve();
+  eq('E8c omgekeerde volgorde opent ook pas na beide', ui().showUpdateDialog, true);
+  setUI({ showUpdateDialog: false });
+  emitExtensionEvent(HOST_EVENTS.tutorialRequested, { extensionId: id, tutorialId: 'tut-1-eerste-planning' });
+  stopGuideSession();
+  await Promise.resolve();
+  eq('E9 oude abonnementen openen niet opnieuw', ui().showUpdateDialog, false);
+  openUpdateDialogWhenIdle();
+  eq('E10 zonder blokkade direct openen', ui().showUpdateDialog, true);
+  setUI({ showUpdateDialog: false });
+  emitExtensionEvent(HOST_EVENTS.tutorialRequested, { extensionId: id, tutorialId: 'tut-1-eerste-planning' });
+  openUpdateDialogWhenIdle();
+  setUI({ showUpdateDialog: true }); // dezelfde state-overgang als de handmatige updateknop
+  await Promise.resolve();
+  setUI({ showUpdateDialog: false });
+  stopGuideSession();
+  await Promise.resolve();
+  eq('E11 handmatig bekeken update opent na de gids niet opnieuw', ui().showUpdateDialog, false);
 }
 
 // ── F. Netwerk met tijdslimiet: de Ja-route kan niet eeuwig "bezig" blijven ─────────────────────

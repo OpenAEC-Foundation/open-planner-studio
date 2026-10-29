@@ -12,7 +12,7 @@ Le pont ne fonctionne que dans l'application de bureau. Si vous activez le mode 
 
 ### 1. Activer le mode IA
 
-1. Choisissez *Paramètres › Projet › Paramètres*. Vous pouvez aussi choisir *Fichier › Paramètres*, ou l'engrenage en haut.
+1. Choisissez *Paramètres › Projet › Paramètres de l'application*. Vous pouvez aussi choisir *Fichier › Paramètres de l'application*, ou l'engrenage en haut.
 2. Choisissez l'onglet *Avancé* et activez *Activer le mode IA*. L'onglet *IA* apparaît dans le ruban.
 3. Si vous voulez que le pont soit actif dès le démarrage de l'application, activez aussi *Démarrer la passerelle automatiquement*. Cela n'agit que si le mode IA est activé, et ne fonctionne que dans l'application de bureau. Cette option est désactivée par défaut, car ouvrir un port est un choix délibéré.
 
@@ -36,14 +36,40 @@ La fenêtre propose trois façons de se connecter :
 
 - *Extrait de configuration* : un bloc de configuration que vous collez dans les paramètres MCP de votre client.
 - *Invite de connexion* : un texte que vous collez dans votre assistant IA, qui se connecte alors lui-même.
-- *Point de terminaison* et *Authentification* : les détails séparés. Le point de terminaison est `http://localhost:3877/mcp` avec le transport *streamable HTTP*. Chaque requête a besoin d'un en-tête `Authorization: Bearer` suivi de votre jeton.
+- *Point de terminaison* et *Authentification* : les détails séparés. Le point de terminaison est `http://localhost:3877/mcp` avec le transport *streamable HTTP*. Chaque requête a besoin d'un en-tête `Authorization: Bearer` suivi de votre jeton. Votre client doit aussi prendre en charge les sessions MCP : lors de la connexion, le pont donne un code de session dans l'en-tête `Mcp-Session-Id`, et il refuse chaque requête suivante sans ce code. Claude Code et `mcp-remote` font cela tout seuls.
+
+**Reconnectez-vous après une mise à jour de l'application.** Si votre client IA était déjà connecté à une version plus ancienne de l'application, il n'envoie pas encore de code de session, et le pont refuse toutes les requêtes. Reconnectez-vous donc après la mise à jour : démarrez une nouvelle session dans Claude Code, et quittez complètement Claude Desktop, puis relancez-le.
+
+**Claude Code.** L'extrait de configuration convient directement à Claude Code. Donnez cette commande dans un terminal, avec votre propre jeton à la place de `<token>` :
+
+```
+claude mcp add --transport http open-planner-studio http://localhost:3877/mcp --header "Authorization: Bearer <token>"
+```
+
+Vous pouvez aussi mettre l'extrait dans le fichier `.mcp.json` du dossier de votre projet. Ne mettez alors pas ce fichier dans git, car le jeton donne accès à votre planning. Un serveur venant de `.mcp.json` doit être approuvé une première fois dans Claude Code.
+
+**Claude Desktop.** L'extrait de configuration ne convient pas directement à Claude Desktop. Dans le fichier `claude_desktop_config.json`, vous indiquez un programme que Claude Desktop lance lui-même, et non une adresse. Utilisez donc l'outil externe `mcp-remote` entre les deux ; il a besoin de Node.js. Dans Claude Desktop, choisissez *Paramètres › Développeur › Modifier la configuration*, placez ceci dans le fichier (avec votre propre jeton), puis relancez Claude Desktop :
+
+```
+{
+  "mcpServers": {
+    "open-planner-studio": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "http://localhost:3877/mcp", "--header", "Authorization:${AUTH_HEADER}"],
+      "env": { "AUTH_HEADER": "Bearer <token>" }
+    }
+  }
+}
+```
+
+Le jeton est placé dans `env` et non dans `args`, à dessein : sous Windows, Claude Desktop casse un argument qui contient un espace. Un *connecteur personnalisé* dans Claude (*Personnaliser › Connecteurs*) ne fonctionne pas avec le pont. Claude se connecte alors depuis le cloud d'Anthropic, et celui-ci ne peut pas atteindre le pont sur votre propre ordinateur.
 
 Dans le groupe *Connexion*, il y a aussi le champ *Jeton*. C'est un long code aléatoire que l'application crée pour vous et qu'elle enregistre sur cet ordinateur. Dans la fenêtre, on lit *Ce jeton donne accès au planning ouvert. Ne le partagez pas*. Avec l'icône *Nouveau jeton*, vous créez un nouveau jeton. L'application demande d'abord *Générer un nouveau jeton rompt toutes les connexions existantes. Continuer ?* Si le pont est actif, il redémarre avec le nouveau jeton, et l'ancien ne fonctionne plus.
 
 ### 4. Voir ce que fait l'IA
 
-1. Cliquez sur *Panneau d'activité* sous *Activité*. Dans la colonne latérale, le panneau *Activité IA* s'ouvre.
-2. Chaque appel du pont figure sur une ligne, la plus récente en haut : l'heure, ce qui s'est passé, la durée, et si l'appel a réussi ou non. Cliquez sur une ligne pour développer *Arguments* et *Réponse*.
+1. Cliquez sur *Panneau d'activité* sous *Activité*. Dans le volet latéral, le panneau *Activité IA* s'ouvre.
+2. Chaque appel du pont figure sur une ligne, le plus récent en haut : l'heure, ce qui s'est passé, la durée, et si l'appel a réussi ou non. Cliquez sur une ligne pour développer *Arguments* et *Réponse*.
 3. Avec *Effacer*, vous videz la liste. Le panneau garde les 500 derniers appels. Tant que rien ne s'est passé, il affiche *Aucune activité IA pour l'instant. Les appels du pont apparaîtront ici*.
 
 Quand le mode IA est activé, un point avec *IA* apparaît en bas à droite de la barre d'état. Sa couleur indique l'état du pont, et un clic dessus vous mène à l'onglet *IA*.
@@ -54,23 +80,23 @@ Sous *Sécurité*, vous trouvez les boutons qui limitent l'IA :
 
 - *Mettre en pause* : l'IA ne peut temporairement rien modifier, mais la lecture reste permise. Le pont reste actif. Le bouton devient *Reprendre*.
 - *Lecture seule* : tous les outils qui modifient quelque chose sont refusés tant que cette option est activée.
-- *Sauvegarde automatique : activée* : avant la première modification de l'IA dans un document, l'application écrit une sauvegarde IFC. Cette option est activée par défaut. Avec le bouton, vous la désactivez ; le texte affiche alors *Sauvegarde automatique : désactivée*. Cela se fait une fois par document, à chaque démarrage du pont.
+- *Sauvegarde automatique : activée* : avant la première modification de l'IA dans un document, l'application écrit une sauvegarde IFC. Cette option est activée par défaut. Avec le bouton, vous la désactivez ; le texte affiche alors *Sauvegarde automatique : désactivée*. Cela se produit une fois par document, à chaque démarrage du pont.
 - *Sauvegarder maintenant* : crée tout de suite une sauvegarde du document actif. Ensuite, le texte affiche *Sauvegarde créée :* suivi du nom du fichier.
 - *Ouvrir le dossier de sauvegarde* : ouvre le dossier contenant les sauvegardes.
 
-Les sauvegardes se trouvent dans le dossier `ai-backups`, dans le dossier de données de l'application. L'application garde les sauvegardes récentes et supprime peu à peu les plus anciennes ; le détail se trouve dans [Outils IA](docs://ref-ai-tools).
+Les sauvegardes se trouvent dans le dossier `ai-backups`, dans le dossier de données de l'application. L'application garde les sauvegardes récentes et supprime peu à peu les plus anciennes ; le détail exact se trouve dans [Outils IA](docs://ref-ai-tools).
 
 ### 6. Faire en sorte que l'assistant planifie bien
 
-Un assistant IA qui connaît les outils peut tout de même construire un planning dont aucun planificateur ne tirerait profit : des tâches sans relations, une date fixe sur chaque tâche, ou une décomposition beaucoup trop fine. C'est pourquoi l'assistant reçoit les règles de planification de trois façons. Pour les deux premières, vous n'avez rien à faire.
+Un assistant ne planifie bien que s'il connaît les règles de planning. Pourquoi c'est important et ce qu'elles contiennent, vous le lisez dans [Comment fonctionne la liaison IA](docs://uitleg-ai-koppeling). Voici ce que vous faites vous-même :
 
-1. **Les règles de base arrivent d'elles-mêmes.** À la connexion, le pont envoie un court texte avec les règles de base. Beaucoup de clients placent ce texte dans leur invite système ; cela dépend du client utilisé. Il dit, entre autres : commencez par les jalons, créez des tâches d'environ un jour à deux semaines, pilotez le planning avec des relations plutôt que des dates fixes, et indiquez à la fin les hypothèses retenues.
-2. **L'invite de connexion renvoie vers le guide complet.** L'invite de connexion de la fenêtre *Détails de connexion* demande à l'assistant IA de lire d'abord le guide de planification, avec l'outil `planner_get_planning_guide`. Cela donne un guide en anglais destiné aux assistants : les mêmes principes que [Bien planifier](docs://gids-goed-plannen), avec pour chaque principe les outils que l'assistant utilise. Vous pouvez le lire vous-même à l'adresse `https://open-planner-studio.open-aec.com/agent/planning-guide.md`. Si vous n'utilisez pas l'invite, demandez-le vous-même à l'assistant : *Lisez d'abord le guide de planification avec planner_get_planning_guide, avant de modifier quoi que ce soit.*
-3. **Facultatif : les skills.** Un skill est un petit fichier d'instructions qu'un assistant IA lit à chaque session, afin qu'il connaisse aussi la bonne façon de travailler lors d'une conversation ultérieure. Il y en a deux, tous deux en anglais : *goed-plannen* pour créer ou restructurer un planning, et *progress-update* pour la mise à jour hebdomadaire de l'avancement. Cela ne fonctionne qu'avec un assistant IA qui prend en charge les skills ; les skills mentionnent eux-mêmes Claude Code et des assistants apparentés. Chaque skill est un fichier `SKILL.md` dans son propre dossier, portant le nom du skill : `.claude/skills/goed-plannen/SKILL.md` et `.claude/skills/progress-update/SKILL.md` dans le dossier du projet sur lequel l'assistant travaille, ou les mêmes dossiers sous `~/.claude/skills/` pour les avoir dans chaque projet.
+1. **Vous n'avez rien à faire pour les règles de base.** Elles arrivent à la connexion. Que votre client les place dans son invite système dépend de ce client.
+2. **Faites lire le guide.** L'invite de connexion de la fenêtre *Détails de connexion* demande à l'assistant de lire le guide avec l'outil `planner_get_planning_guide`. Si vous n'utilisez pas l'invite, demandez-le vous-même à l'assistant : *Lisez d'abord le guide de planning avec planner_get_planning_guide, avant de modifier quoi que ce soit.* Vous pouvez lire le guide vous-même à l'adresse `https://open-planner-studio.open-aec.com/agent/planning-guide.md`.
+3. **Facultatif : installez les skills.** Cela ne fonctionne qu'avec un assistant IA qui prend en charge les skills. Placez le `SKILL.md` de *goed-plannen* et de *progress-update* dans `.claude/skills/goed-plannen/SKILL.md` et `.claude/skills/progress-update/SKILL.md` dans le dossier du projet sur lequel travaille l'assistant, ou sous `~/.claude/skills/` pour chaque projet.
 
 Vous obtenez les fichiers de deux façons. Demandez à l'assistant d'appeler l'outil `planner_get_planning_guide` avec `part` défini sur `skill` : la réponse contient les deux textes et, pour chaque skill, les endroits où il doit être placé. Ou téléchargez-les depuis `https://open-planner-studio.open-aec.com/skills/goed-plannen/SKILL.md` et `https://open-planner-studio.open-aec.com/skills/progress-update/SKILL.md`. Si *goed-plannen* est encore présent d'une version plus ancienne de l'application, remplacez-le : cet ancien texte est en néerlandais et renvoie à l'article d'aide au lieu du guide destiné aux assistants.
 
-Vous voyez si l'assistant a vraiment lu le guide dans le *Panneau d'activité* : il y a alors un appel de `planner_get_planning_guide`. La réponse finale doit contenir une liste d'hypothèses : durées estimées, décomposition choisie, relations qu'il a créées lui-même et chaque contrainte qu'il a définie. Si cette liste manque, demandez-la. Après une mise à jour de l'avancement suivant *progress-update*, la réponse doit mentionner la date d'état, la nouvelle date de fin et l'écart par rapport à la référence.
+Vous voyez dans le *Panneau d'activité* si l'assistant a vraiment lu le guide : il y a alors un appel de `planner_get_planning_guide`. La réponse finale doit contenir une liste d'hypothèses : durées estimées, décomposition choisie, relations qu'il a créées lui-même et chaque contrainte qu'il a définie. Si cette liste manque, demandez-la. Après une mise à jour de l'avancement suivant *progress-update*, la réponse doit mentionner la date d'état, la nouvelle date de fin et l'écart par rapport à la référence.
 
 ## Pièges et réaction de l'application
 

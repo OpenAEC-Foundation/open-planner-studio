@@ -20,7 +20,7 @@ Drar du mest uppåt eller nedåt i stället för åt sidan, flyttar du uppgiften
 ### Justera varaktigheten
 
 1. Flytta musen till balkens högra kant. Markören blir en pil som pekar åt vänster och höger.
-2. Dra i kanten. Medan du drar visar en liten etikett i temats accentfärg (som standard orange) den varaktighet uppgiften får nu, till exempel *4d*. Etiketten följer med direkt, så du ser den nya varaktigheten innan du släpper musknappen. Vid den högra kanten ligger etiketten inne i balken. Vid den vänstra kanten ligger den precis till vänster om balken. Etiketten visar varaktigheten på samma sätt som varaktighetskolumnen.
+2. Dra i kanten. Medan du drar visar en liten etikett i temats accentfärg (som standard orange) den varaktighet uppgiften skulle få nu, till exempel *4d*. Etiketten följer med direkt, så du ser den nya varaktigheten innan du släpper musknappen. Vid den högra kanten ligger etiketten inne i balken. Vid den vänstra kanten ligger den precis till vänster om balken. Etiketten visar varaktigheten på samma sätt som kolumnen *Varaktighet*.
 3. Släpp musknappen. Varaktigheten är den som etiketten visade.
 
 Den vänstra kanten flyttar starten och lämnar slutet kvar. Uppgiften blir därmed kortare eller längre i början. Samma SNET-regel gäller som när du flyttar. Drar du i mitten av balken syns etiketten inte. Varaktigheten ändras inte.
@@ -31,10 +31,10 @@ Ett drag är ett enda steg i *Ångra*, hur länge du än drar. På en delad balk
 
 ### Förskjuta tidslinjen
 
-Vad ett drag på den tomma bakgrunden gör beror på ditt scrolläge. Du väljer det i *Inställningar*, fliken *Utseende*, under *Gantt › Scrolla & zooma* vid *Läge*:
+Vad ett drag på den tomma bakgrunden gör beror på ditt scrolläge. Du väljer det i *Appinställningar*, fliken *Utseende*, under *Gantt › Scrolla & zooma* vid *Läge*:
 
 - **Zooma + dra** (standard): om du drar på den tomma bakgrunden med vänster musknapp, rör sig tidslinjen med musen, som på en karta. Markören är en hand. På en balk startar ett drag bara en balkgest.
-- **Position** och **Tangenter**: samma drag gör en markeringsruta. Du förskjuter tidslinjen med hjulet (se [Inställningar](docs://ref-instellingen)) eller med mellersta musknappen.
+- **Position** och **Tangenter**: samma drag gör en markeringsruta. Du förskjuter tidslinjen med hjulet (se [Appinställningar](docs://ref-instellingen)) eller med mellersta musknappen.
 
 **Mellersta musknappen** (när du trycker på hjulet) förskjuter tidslinjen i alla lägen, även om du startar på en balk. Den fungerar inte medan en annan gest pågår, till exempel när du drar en balk.
 
@@ -50,13 +50,17 @@ Mer om markering finns i [Markera, ta bort och ångra uppgifter](docs://howto-ta
 
 ### Zooma in och ut
 
-1. Använd *Zooma +* och *Zooma -* (*Start › Zooma*), eller tangenterna + och -. Hjulet zoomar också. När det gör det beror på ditt scrolläge (se [Inställningar](docs://ref-instellingen)).
+1. Använd *Zooma +* och *Zooma -* (*Start › Zooma*), eller tangenterna + och -. Hjulet zoomar också. När det gör det beror på ditt scrolläge (se [Appinställningar](docs://ref-instellingen)).
 2. Vill du se hela projektet, välj *Visa › Tidsskala › Anpassa till projekt* eller tryck på Ctrl+0. *Återställ* (på fliken *Visa*) eller tangenten 0 ställer zoomen tillbaka till standardnivån.
 3. Längst ned till höger i statusfältet står zoomen i pixlar per dag, till exempel *Zoom: 15 px/dag*.
 
 Ju längre du zoomar ut, desto färre rutnätslinjer finns det. Vid 8 pixlar per dag eller mer finns det en linje för varje dag, med en tjockare linje vid veckogränsen. Mellan 2 och 8 pixlar per dag finns bara veckogränsen kvar. Under 2 pixlar per dag, på årsnivå, finns bara månadsgränserna kvar. Annars skulle ritytan bli ett jämnt randmönster där balkarna försvinner. De grå helgerna och lediga dagarna, och veckobanden som är färgade växelvis, finns kvar på varje nivå. De bär veckostrukturen när linjerna försvinner. I tidslinjens rubrik visas veckonummer och dagnummer bara när det finns plats för dem. Från 40 pixlar per dag visas också veckodagen före dagnumret.
 
 Uppgiftens namn visas i balken om det får plats helt. Om det inte får plats, till exempel när du zoomar ut, visas hela namnet till höger om balken.
+
+### Visa detaljerna för en uppgift
+
+Håll musen stilla på en balk. Ett litet kort visas med namnet på uppgiften, *WBS*, *Varaktighet*, *Start*, *Slut*, *Status*, *Kritisk* och *Totalt slack*. Under dragning, förskjutning av tidslinjen, en markeringsruta eller en högerklicksmeny försvinner kortet.
 
 ## Fallgropar och vad appen gör då
 
@@ -72,5 +76,5 @@ Uppgiftens namn visas i balken om det får plats helt. Om det inte får plats, t
 
 - [Högerklicksmenyer](docs://ref-contextmenus): menyerna på en balk, en rad och en grupprubrik.
 - [Snabbtangenter](docs://ref-sneltoetsen): tangenterna för att zooma och för att avbryta en gest.
-- [Inställningar](docs://ref-instellingen): scrolläget och tidsaxeln.
+- [Appinställningar](docs://ref-instellingen): scrolläget och tidsaxeln.
 - [Restriktioner och måldatum](docs://uitleg-constraints): varför en flyttad start blir en restriktion.

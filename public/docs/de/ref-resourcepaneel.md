@@ -81,6 +81,6 @@ Wo Sie es sehen:
 - **Statusleiste** — *N Ressource(n) überlastet*. Ein Klick öffnet das Panel *Warnungen*.
 - **Warnungen** — eine Zeile pro Ressource: *Überlastet an N Tag(en) (erster – letzter)*. Ist jeder dieser Tage ein freier Tag, kommt der Hinweis *die Ressource arbeitet an diesen Tagen laut ihrem Kalender nicht* hinzu. Bei einer Mischung kommt der Hinweis *davon N Tag(e), an denen die Ressource laut ihrem Kalender nicht arbeitet* hinzu. Siehe [Hinweise und Warnungen](docs://ref-meldingen).
 - **Histogramm** — die roten Teile der Balken und der rote Punkt in der Auswahl.
-- **Ressourcen-Dock** — das Dreieck *Überlastet*.
+- **Dock** — das Dreieck *Überlastet*.
 
-Der Kapazitätsabgleich kann Überlastung lösen, indem er Vorgänge innerhalb ihres Puffers verschiebt. Er löst keine Ressource, die an einem freien Tag arbeiten müsste. Siehe [Kapazitätsabgleich](docs://uitleg-nivelleren).
+Der Kapazitätsabgleich kann Überlastung lösen, indem er Vorgänge später beginnen lässt. Standardmäßig darf sich das Projektende verschieben; mit *Glättung* bleibt es innerhalb des Puffers. Er löst keine Ressource, die an einem freien Tag arbeiten müsste. Siehe [Kapazitätsabgleich](docs://uitleg-nivelleren).

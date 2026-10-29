@@ -72,6 +72,11 @@ const brokenRoot = fixture({
     'export const leakedState = appStoreContext.store.getState();',
   ].join('\n'),
   'src/state/mcpTransaction.ts': "export { createMcpTransactions } from './runtime/createMcpTransactions';\n",
+  // De headless kern mag zelfs de fabriek niet uit `appStore` halen: die import laadt de singleton.
+  'src/core/leak.ts': [
+    "import { createAppStoreContext } from '@/state/appStore';",
+    'export const ctx = createAppStoreContext();',
+  ].join('\n'),
 });
 try {
   const broken = run(brokenRoot);
@@ -79,6 +84,8 @@ try {
   ok('3 verboden singletonimport geeft exit ongelijk aan nul', broken.status !== 0, output.trim());
   ok('3a rapport noemt het lekkende toolbestand', output.includes('src/services/mcp/tools/leak.ts'), output.trim());
   ok('3b rapport noemt de verboden singletonbinding', output.includes('appStoreContext'), output.trim());
+  ok('3d een appStore-waarde-import in de headless kern wordt gemeld',
+    output.includes('src/core/leak.ts') && output.includes('createAppStoreContext'), output.trim());
   ok('3c adapterlogica wordt afzonderlijk gemeld',
     output.includes('src/state/batchTransaction.ts') && output.includes('.getState('), output.trim());
 } finally {

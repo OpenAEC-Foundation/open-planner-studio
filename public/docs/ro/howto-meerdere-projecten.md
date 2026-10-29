@@ -24,6 +24,8 @@ Proiectul apare în propria filă și este activ imediat. *Nou* și *Deschidere*
 
 Fiecare filă are un punct colorat care aparține proiectului. O filă cu un punct mic lângă ea are modificări nesalvate.
 
+Dacă nu toate filele încap pe lățime, între file și semnul plus apar două săgeți (*Derulare file spre început* și *Derulare file spre sfârșit*). Fiecare clic deplasează filele cu două poziții. O săgeată este gri când ați ajuns deja la început sau la sfârșit. Puteți derula și cu rotița mouse-ului peste file. Fila pe care o alegeți se derulează întotdeauna automat până în zona vizibilă.
+
 ### Închiderea unui proiect
 
 Faceți clic pe crucea de lângă numele din filă (*Închidere*) sau pe crucea de pe un card din prezentarea generală. Un proiect fără modificări se închide imediat. Dacă are modificări nesalvate, aplicația afișează *Modificări nesalvate* cu trei opțiuni:
@@ -38,7 +40,7 @@ Dacă închideți ultimul proiect, rămâne o planificare goală, numită *Plani
 
 ### Alegerea stilului de comutare
 
-Filele sunt o alegere. Deschideți fereastra de setări cu roata dințată din bara de titlu, accesați fila *Afișare* și, la *Stil de comutare a documentelor*, alegeți:
+Filele sunt o alegere. Deschideți fereastra *Setări aplicație* cu roata dințată din bara de titlu, accesați fila *Afișare* și, la *Stil de comutare a documentelor*, alegeți:
 
 - *File orizontale*: valoarea implicită. Un rând de file sub panglică.
 - *File verticale*: o bară îngustă în stânga, cu un buton pentru fiecare proiect (primele litere ale numelui) și un semn plus. Dacă treceți cu mouse-ul peste un buton, vedeți numele, numele fișierului, numărul de activități, numărul de activități critice și data de final. Butonul de sus deschide prezentarea generală.
@@ -50,7 +52,7 @@ Toate cele trei stiluri deschid aceeași prezentare generală, iar Ctrl+1 până
 
 **Ce aparține proiectului și ce este comun.** Fiecare proiect are propria vizualizare: zoom și poziție, un aspect activ cu filtru, grupare sau sortare, vizualizare împărțită, liniile de dependență și fazele restrânse. Dacă treceți la alt proiect, vedeți acolo propria vizualizare. Comune tuturor proiectelor sunt fila selectată din panglică, mini-harta, suprapunerile (suprapunerea de referință, linia de progres și restul), alegerea dumneavoastră de coloane, aspectele dumneavoastră și alegerile pentru rapoarte.
 
-**Nu puteți comuta cu o casetă de dialog deschisă.** Atâta timp cât o casetă de dialog este deschisă, de exemplu fereastra de setări sau fereastra unei activități, Ctrl+1 până la Ctrl+9 nu fac nimic în aplicație. În browser, ele comută atunci filele browserului. Închideți mai întâi caseta de dialog. O modificare neaplicată în *Informații proiect* din Backstage blochează, de asemenea, comutarea.
+**Nu puteți comuta cu o casetă de dialog deschisă.** Atâta timp cât o casetă de dialog este deschisă, de exemplu fereastra *Setări aplicație* sau fereastra unei activități, Ctrl+1 până la Ctrl+9 nu fac nimic în aplicație. În browser, ele comută atunci filele browserului. Închideți mai întâi caseta de dialog. O modificare neaplicată în *Setări proiect* din Backstage blochează, de asemenea, comutarea.
 
 **Ctrl+1 până la Ctrl+9 numără după ordine.** Comanda rapidă merge la proiectul de pe poziția respectivă din rând. Dacă închideți un proiect, celelalte poziții se mută în sus. Dacă aveți mai mult de nouă proiecte deschise, ajungeți la restul numai prin file sau prin prezentarea generală.
 

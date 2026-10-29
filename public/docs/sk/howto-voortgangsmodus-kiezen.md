@@ -33,7 +33,7 @@ Ako vyberiete?
 
 **Súbor P6.** Ak otvoríte súbor Primavera P6 (.xer), aplikácia prevezme režim zo súboru. Okrem Retained Logic a Progress Override má P6 ešte Actual Dates. Aplikácia tretí režim nepozná; takýto súbor sa počíta ako Retained Logic. Hlásenie pri importe to eviduje ako *1 nastavenie plánu P6 s bezpečnou záložnou hodnotou.*
 
-**Profil výpočtu.** V profile Primavera P6 Progress Override pôsobí aj spätne, na neskoré dátumy a voľnú časovú rezervu predchádzajúcej úlohy (pravidlo výpočtu *Progress Override ignoruje začatú nasledujúcu úlohu aj pri spätnom výpočte*). V profiloch Open Planner Studio a Microsoft Project to neplatí. Pravidlá výpočtu nájdete v *Nastavenia › Projekt › Info o projekte*, v bloku *Profil výpočtu a možnosti výpočtu*. V príklade z vysvetlenia sa tento spätný účinok nedá vidieť.
+**Profil výpočtu.** V profile Primavera P6 Progress Override pôsobí aj spätne, na neskoré dátumy a voľnú časovú rezervu predchádzajúcej úlohy (pravidlo výpočtu *Progress Override ignoruje začatú nasledujúcu úlohu aj pri spätnom výpočte*). V profiloch Open Planner Studio a Microsoft Project to neplatí. Pravidlá výpočtu nájdete v *Nastavenia › Projekt › Nastavenia projektu*, v časti *Profil výpočtu a možnosti výpočtu*. V príklade z vysvetlenia sa tento spätný účinok nedá vidieť.
 
 ## Pozri tiež
 

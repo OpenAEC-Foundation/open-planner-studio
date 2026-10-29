@@ -3,7 +3,11 @@
 // herstelsnapshots op. Headless: alle randen (store, recovery, venster) zijn fakes.
 //
 // Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
+import './domStub';
 import { createAppQuitController, type AppQuitDocument } from '@/services/appQuit/appQuitController';
+import { appQuitDependencies } from '@/services/appQuit/appQuitDependencies';
+import { appStoreContext, createAppStoreContext } from '@/state/appStore';
+import { createPendingTextEdits, mountedPendingTextEdits } from '@/state/pendingTextEdits';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -19,8 +23,10 @@ function harness(initial: AppQuitDocument[]) {
     pending: null as string | null,
     quitPending: false,
     recoveryOn: true,
+    inputFinished: 0,
   };
   const controller = createAppQuitController({
+    finishPendingInput: () => { world.inputFinished++; },
     listDocuments: () => world.docs.map((d) => ({ ...d })),
     getPendingCloseDocId: () => world.pending,
     setPendingCloseDocId: (id) => { world.pending = id; log.push(`vraag:${id}`); },
@@ -91,6 +97,50 @@ function harness(initial: AppQuitDocument[]) {
   h.controller.step();
   h.controller.step();
   eq('5 geen dubbele vraag', h.log, ['vraag:a']);
+}
+
+// 6. Review #401: open veldinvoer zonder blur (inzet 1 → 3 getypt, focus nog in het veld). Echte
+//    store en de echte randen van `appQuitDependencies`; alleen het Tauri-venster is nagebootst.
+//    Afsluiten rondt de invoer eerst af: de inzet staat in de store, het document is gewijzigd, en
+//    de controller vraagt om bevestiging in plaats van herstel te wissen en het venster te sluiten.
+{
+  const reg = createPendingTextEdits();
+  const ctx = createAppStoreContext({ pendingTextEdits: reg });
+  const s = () => ctx.store.getState();
+  s().newProject();
+  const taskId = s().addTask({ name: 'Metselwerk' });
+  const resourceId = s().addResource({ name: 'Metselaar', type: 'LABOR', description: '', maxUnits: 4 });
+  s().assignResource(taskId, resourceId, 1);
+  const asg = s().assignments[0]!.id;
+  ctx.store.setState((st) => { st.isDirty = false; });
+  // Zoals `UnitsInput` (commit van de draft) en `useTextEntryAutoCalcHold` (eigen blokkade) zich aanmelden.
+  let released = 0;
+  reg.register({ commit: () => s().updateAssignment(asg, { unitsPerDay: 3 }) });
+  reg.register({ release: () => { released++; } });
+  const log: string[] = [];
+  const controller = createAppQuitController(appQuitDependencies(ctx, {
+    stopRecovery: () => { log.push('herstel-uit'); },
+    clearRecovery: async () => { log.push('herstel-gewist'); },
+    destroyWindow: async () => { log.push('venster-dicht'); },
+  }));
+  controller.requestQuit();
+  await new Promise((r) => setTimeout(r, 0));
+  eq('6 geen exit zonder vraag', log, []);
+  eq('6 sluitvraag voor het actieve document', s().ui.pendingCloseDocId, s().activeDocumentId);
+  eq('6 de getypte inzet staat in de store', s().assignments[0]!.unitsPerDay, 3);
+  eq('6 eigen rekenblokkade vrijgegeven', released, 1);
+}
+
+// 7. Review #401 (vervolg 3): het register hoort bij één storecontext. Een documentactie in een
+//    andere context rondt de invoer van de zichtbare app niet af; in de gemounte context wel.
+{
+  let commits = 0;
+  const off = mountedPendingTextEdits.register({ commit: () => { commits++; } });
+  createAppStoreContext().store.getState().newDocument();
+  eq('7 andere context raakt de zichtbare invoer niet', commits, 0);
+  appStoreContext.store.getState().newDocument();
+  eq('7 de gemounte context rondt hem af', commits, 1);
+  off();
 }
 
 if (diffs.length === 0) {

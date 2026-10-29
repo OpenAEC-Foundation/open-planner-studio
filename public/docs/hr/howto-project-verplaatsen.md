@@ -46,16 +46,16 @@ Ne pomiče se:
 
 **Projekt u tijeku.** Stvarni datumi se pomiču zajedno. U projektu u kojem ste već unijeli napredak to nije uvijek ono što želite. Aplikacija upozorava: *Provjerite je li to ispravno za projekt u tijeku.*
 
-**Međuzavisnosti projekata.** Sidro u vašem projektu pomiče se zajedno s rasporedom, izvorni projekt ne. Nakon premještanja osvježite međuzavisnosti s *Početna › Zadaci › Poveži ▾ › Osvježi sve međuzavisnosti projekata*. Vidi [Međuzavisnosti s drugim projektom](docs://howto-externe-relaties).
+**Međuzavisnosti projekata.** Sidro u vašem projektu pomiče se zajedno s rasporedom, izvorni projekt ne. Nakon premještanja osvježite međuzavisnosti pomoću naredbe *Početna › Zadaci › Poveži ▾ › Osvježi sve međuzavisnosti projekata*. Vidi [Međuzavisnosti s drugim projektom](docs://howto-externe-relaties).
 
 **Praznici ne sežu dovoljno daleko.** Kalendar s generiranim praznicima pokriva određeni broj godina. Ako premješteni raspored traje dulje, aplikacija tu godinu računa bez praznika. Pregled na to upozorava, na primjer: *Generirani praznici kalendara „Bouwkalender NL” obuhvaćaju 2025–2029; premješteni raspored traje do 2030. Ponovno generirajte praznike.* Prvo premjestite projekt. Zatim otvorite *Raspored › Kalendar › Kalendar*: pored praznika sada piše *Ponovno generiraj*. Potvrdite gumbom *Primijeni* i aplikacija ponovno izračunava. Raspon novih praznika slijedi datume projekta, pa ponovno generiranje prije premještanja ne pomaže.
 
 **Datum je u prošlosti.** To je dopušteno, ali pregled to spominje: *Novi datum početka je u prošlosti.*
 
-**Promjena početka u podacima o projektu je nešto drugo.** Ako promijenite datum početka projekta u *Postavke › Projekt › Podaci o projektu* i odaberete *Primijeni*, raspored se ne pomiče. Samo zadaci bez prethodnika ili ograničenja, koji bi inače bili prije novog početka, pomiču se na taj datum, a aplikacija kaže koliko ih je. Ako želite pomaknuti sve, upotrijebite *Premjesti projekt…*.
+**Promjena početka u postavkama projekta je nešto drugo.** Ako promijenite datum početka projekta u izborniku *Postavke › Projekt › Postavke projekta* i odaberete *Primijeni*, raspored se ne pomiče. Samo zadaci bez prethodnika ili ograničenja, koji bi inače bili prije novog početka, pomiču se na taj datum, a aplikacija kaže koliko ih je. Ako želite pomaknuti sve, upotrijebite *Premjesti projekt…*.
 
 ## Vidi također
 
 - [Kritični put i vremenska rezerva](docs://uitleg-kritiek-pad): kako raspored računa i zašto se završetak pomiče.
 - [Dodavanje ovisnosti](docs://howto-relaties-leggen): ovisnosti se pri premještanju projekta jednostavno ne mijenjaju.
-- [Novi projekt i podaci o projektu](docs://ref-projectinfo): što radi datum početka u podacima o projektu.
+- [Novi projekt i podaci o projektu](docs://ref-projectinfo): što radi datum početka u postavkama projekta.

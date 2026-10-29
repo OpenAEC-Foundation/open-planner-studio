@@ -13,8 +13,8 @@ Aliurakoitsija työskentelee myös lauantaisin. Työryhmä työskentelee vain ma
 1. Valitse *Aikataulu › Kalenteri › Kalenteri*. Sama painike on kohdassa *Asetukset › Kalenteri › Kalenteri*. Ikkuna *Kalenterit* avautuu. Vasemmalla ovat projektin kalenterit. Projektikalenterissa on tähti.
 2. Napsauta luettelon alla plusmerkillä merkittyä painiketta (*Uusi kalenteri*). Uusi kalenteri on kopio vakiosta: maanantaista perjantaihin kello 07:00–16:00, tunnin tauolla. Jos *Rakennustila* on päällä, mukana ovat myös Alankomaiden viralliset vapaapäivät. Jos lähtökohdaksi halutaan olemassa oleva kalenteri, valitse se luettelosta ja napsauta luettelon alla kahden arkin kuvalla merkittyä painiketta (*Monista*).
 3. Anna kalenterille nimi kohtaan *Nimi*. Nimi kertoo, kuka kalenteria käyttää, esimerkiksi *Six-day week*.
-4. Napsauta kohdan *Työpäivät* alla viikonpäiviä käyttöön tai pois käytöstä. *Ma–pe* palauttaa vakioviikon kello 07:00–16:00. *Jatkuva (24/7)* ottaa käyttöön kaikki seitsemän päivää kello 00:00–24:00.
-5. Muuta tarvittaessa työaikoja: *Alku (tunti)*, *Loppu (tunti)*, *Tauko alkaa* ja *Tauon kesto (minuuttia)*. Kellonajat kirjoitetaan muodossa HH:MM. Nuolilla niitä nostetaan tai lasketaan neljännestunnilla. Jos tauon kestoksi asetetaan 0, kalenteri toimii ilman taukoa. *Nettotunteja päivässä* sovellus laskee itse. Jos tuntisuunnittelu on päällä ja kalenterissa on lohkot viikonpäivittäin, näitä kenttiä ei näy. Katso [Työaikojen asettaminen](docs://howto-werktijden-instellen).
+4. Napsauta kohdan *Työpäivät* alla viikonpäiviä käyttöön tai pois käytöstä. *Ma–pe* palauttaa vakioviikon kello 07:00–16:00. Jos kalenterissa on työaikalohkoja, *Ma–pe* ottaa käyttöön vain maanantaista perjantaihin, ja jokainen päivä säilyttää lohkonsa. *Jatkuva (24/7)* ottaa käyttöön kaikki seitsemän päivää kello 00:00–24:00.
+5. Muuta tarvittaessa työaikoja: *Alku (tunti)*, *Loppu (tunti)*, *Tauko alkaa* ja *Tauon kesto (minuuttia)*. Kellonajat kirjoitetaan muodossa HH:MM. Nuolilla niitä nostetaan tai lasketaan neljännestunnilla. Jos tauon kestoksi asetetaan 0, kalenteri toimii ilman taukoa. *Vakiotyöpäivä* lasketaan sovelluksessa itse. Jos kalenterissa on viikonpäivittäin työaikalohkoja (esimerkiksi MS Project -ohjelmasta), näitä kenttiä ei näy. Sen sijaan näkyy lohko *Työajat*, myös kun tuntisuunnittelu on pois päältä. Katso [Työaikojen asettaminen](docs://howto-werktijden-instellen).
 6. Muuta tarvittaessa vapaapäiviä. Niiden toiminta on kuvattu kohdassa [Vapaapäivien luominen ja rakennusalan kesäloma](docs://howto-feestdagen-genereren).
 7. Napsauta *Käytä*. Sovellus laskee aikataulun uudelleen heti ja sulkee ikkunan. Painikkeella *Peruuta* muutokset hylätään. Kun arvo vahvistetaan syötekentässä, tallennus tehdään välissä ja aikataulu lasketaan myös uudelleen, mutta ikkuna ei sulkeudu. Tällöin *Peruuta* kumoaa vain sen, mitä on muutettu sen jälkeen.
 
@@ -59,11 +59,11 @@ Vain tehtävät, joilla ei ole omaa kalenteria, siirtyvät mukana.
 
 **Sama kalenteri, kaksi valintaa.** Luettelossa projektikalenteri näkyy kahdesti: kerran nimellä *Projektikalenteri: nimi* ja kerran tavallisena kalenterina tällä nimellä. Jos valitaan jälkimmäinen, se on oma valinta kyseiselle tehtävälle. Tehtävä ei siirry mukana, kun myöhemmin valitaan toinen projektikalenteri.
 
-**Eri tuntimäärä päivässä.** Jos työaikoja tai taukoa muutetaan niin, että kalenterin *Nettotunteja päivässä* muuttuu, tehtävä päivinä mitattuna saa yhä saman määrän päiviä. Tehtävälle, jolla on resursseja ja työsääntö *Kiinteä työmäärä* tai *Kiinteä yksikkömäärä*, kesto muuttuu mukana, koska työ pysyy samana. Neljäkymmentä tuntia työtä on 5 päivää, kun päivässä on 8 tuntia, ja 7 päivää, kun päivässä on 6 tuntia. Sovellus näyttää, montako tehtävää sai eri keston.
+**Eri tuntimäärä päivässä.** Jos työaikoja tai taukoa muutetaan niin, että kalenterin *Vakiotyöpäivä* muuttuu, tehtävä päivinä mitattuna saa yhä saman määrän päiviä. Tehtävälle, jolla on resursseja ja tehtävätyyppi *Kiinteä työmäärä* tai *Kiinteä yksikkömäärä*, kesto muuttuu mukana, koska työ pysyy samana. Neljäkymmentä tuntia työtä on 5 päivää, kun päivässä on 8 tuntia, ja 7 päivää, kun päivässä on 6 tuntia. Sovellus näyttää, montako tehtävää sai eri keston.
 
 ## Katso myös
 
 - [Kalenterit ja työpäivät](docs://uitleg-kalenders): miten sovellus laskee työpäivät ja mikä kalenteri ratkaisee.
-- [Päivät ja tunnit](docs://uitleg-dagen-en-uren): mitä päivän nettotunnit tekevät.
+- [Päivät ja tunnit](docs://uitleg-dagen-en-uren): mitä vakiotyöpäivä tekee.
 - [Resurssikalenterin asettaminen](docs://howto-resourcekalender-instellen): kalenteri resurssille tehtävän sijaan.
 - [Kalenteri-ikkunat](docs://ref-kalenders): kaikki kalenteri-ikkunien kentät.

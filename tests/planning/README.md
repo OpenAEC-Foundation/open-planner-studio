@@ -42,6 +42,56 @@ Vertrouw pas op een gerichte run voor snel itereren; draai vóór een commit/PR 
 argumenten. Een onbekende bestandsnaam (geen bestaand `cases-*.json`/`check-*.ts` in deze map) geeft
 een `XX`-foutregel en exitcode ≠ 0, zonder de rest van de gevraagde bestanden te blokkeren.
 
+### Optionele MPP-corpora: brede root en rooktestset
+
+De scopes hebben verschillende, ongewijzigde meetlatten. `mppCorpus.ts` kiest de paden zonder
+bestanden te lezen, mapnamen te raden of een ontbrekende scope door een andere te vervangen.
+
+| Optie | Scope | Checks |
+|---|---|---|
+| `OPS_MPP_CORPUS` | Bedrijfscorpus, los van de crawl | Bestaande corpuschecks; samen met de brede crawl de F4-pin van 216 bestanden / 3413 taken |
+| `OPS_MPP_CRAWL` | Brede `testdata-crawl`-root, met onder meer `mpxj/junit/data` en `crawl-mpp` | Import H4/F4/Z2/Z3/Z4; F4 telt recursief samen met het bedrijfscorpus |
+| `OPS_MPP_CRAWL_SMOKE` | Exacte map voor de rooktestset; standaard `<OPS_MPP_CRAWL>/crawl-mpp` | T9-import (49 bestanden / 788 taken), T7-relaties en T6-kalenders |
+
+Zonder opties blijven de historische standaardpaden gelijk: de brede root is
+`/home/nozzit/open-aec/voor claude/testdata-crawl`, de rooktestset de submap `crawl-mpp`.
+`OPS_MPP_CRAWL_SMOKE` kan ook zonder `OPS_MPP_CRAWL` worden gezet; de brede root houdt dan zijn
+standaard. `OPS_MPP_DURATION_FIXTURE` blijft een afzonderlijke override voor de T10-fixture.
+Ontbrekende mappen blijven optioneel en geven de bestaande skipmelding; een aanwezige map kiest
+geen andere baseline en schakelt geen inhoudelijke guard uit.
+
+Bestaande configuraties bewust migreren:
+
+- `OPS_MPP_CRAWL=/data/testdata-crawl` blijft de brede root. T6/T7/T9 gebruiken voortaan de submap
+  `crawl-mpp`, precies zoals bij de configuratie zonder override.
+- `OPS_MPP_CRAWL=/data/testdata-crawl/crawl-mpp` koos vroeger alleen voor T6/T7/T9 de juiste scope
+  en gaf F4 de verkeerde meetlat. Zet voortaan `OPS_MPP_CRAWL=/data/testdata-crawl`. Staat de
+  rooktestset elders, stel daarnaast `OPS_MPP_CRAWL_SMOKE=/andere/rooktestset` in. Een kale map
+  met alleen rooktestbestanden is geen vervanging voor de brede root.
+- Om beide crawls bewust over te slaan, moet de brede root ontbreken en mag er geen bestaande
+  rooktestoverride zijn. `OPS_MPP_CRAWL=/niet-aanwezig` kiest standaard ook een ontbrekende
+  `/niet-aanwezig/crawl-mpp`; het bedrijfscorpus blijft apart via `OPS_MPP_CORPUS` instelbaar.
+
+T6 krijgt uitsluitend dezelfde padselectie: zijn kalenderverwachtingen blijven gelijk. De overige
+optionele corpuschecks (onder meer fidelity en recorded-times) houden hun bestaande brede
+`OPS_MPP_CRAWL`-scope en vallen buiten deze wijziging.
+
+T7 en F4 onderscheiden ondersteund MPP14 van bewust geweigerd MPP8/9/12. De container moet
+onafhankelijk de oude variant herkennen én de echte lezer moet `MppUnsupportedError` met
+`MPP_LEGACY` gooien. Die bestanden tellen apart, niet als gelezen bestanden of leesfouten.
+Alle andere fouten blijven rood: gewone lees-/containerfouten, onbekende formaten, versleuteling,
+een legacyfout op MPP14 en een lezer die een oude variant ineens accepteert. F4 meldt onverwachte
+fouten alleen met hash (indien leesbaar) en fouttype om bedrijfsnamen buiten de uitvoer te houden.
+De 216/3413-pins, TYPE/EFFORT_DRIVEN-pins en T7-domeinbaselines blijven staan, ook als alle
+gevonden bestanden geweigerd of onleesbaar zijn. T9 blijft een strikte rooktest van 49 bestanden
+met 788 taken; daar worden geen versieafwijzingen vrijgesteld.
+
+`check-mpp-corpus-contract.ts` draait automatisch in de gewone suite, ook zonder extern corpus.
+Hij controleert standaardpaden, verplaatste roots, beide onafhankelijke overrides en migratie,
+en gebruikt synthetische CFB/MPP-bytes met de echte reader plus geïnjecteerde foutpaden voor de
+versieclassificatie. Dit bewijst niet dat de optionele echte corpora hun historische totalen of
+fidelity behouden: zonder die data slaat CI die corpuslagen over.
+
 ## Hoe het werkt (en waarom zo)
 
 Een testgeval is **data**: een netwerkje van taken + relaties + de verwachte uitkomst. `harness.ts`
@@ -74,6 +124,7 @@ die lijst, en vul deze tabel aan.
 | `cases-edge.json` | cyclus, leeg, lange keten, WBS-/fase-oprol |
 | `cases-float.json` | totale vs. vrije speling, kritiek pad, diamanten/ladders |
 | `cases-hours.json` | uur-modus met de referentiekalenders: binnen-dag-FS, float in minuten, lunchpauze, nachtploeg over middernacht, 24/7, WORKTIME vs. ELAPSED (fase 2.8b) |
+| `cases-hours-blokgrenzen.json` | urenpad op een blokgrens (F1, knownbugs 138–142, 145 en 147): deadline zonder/met tijd, zachte MSO/SNLT op een blokbegin, nivelleervertraging die op een blokeinde landt, externe FS/FF-opvolger op een blokbegin, FF tussen dagtaken op een kalender met werkblokken, ook met een vrije dag op de opvolgerkalender en na een ELAPSEDTIME-voorganger; SNLT van een ELAPSEDTIME-taak en van een urenmijlpaal buiten werktijd; landing in de pauze en op een feestdag; eindmijlpalen na FF/FS met lag, FNET/FNLT/MFO zonder tijd, FF met splits en externe voorganger, en N2 met dagen- én minutenwaarde |
 | `cases-hours-relations.json` | SS/FF/SF met lag > 0, = 0 en < 0 in uur-modus, vooruit én terug, plus pauze-, nacht-, weekend-, elapsed-, kruiskalender- en mijlpaalvarianten (vangnet voor de relatiewiskunde, P15) |
 | `cases-kalenders.json` | taakkalenders: lag in de voorgangerkalender, merges en SS/FF/SF over verschillende kalenders, geen-taakkalender-no-op, leveler, werkende uitzonderingen, undo |
 | `cases-lag-advanced.json` | lag-eenheid (werkdagen vs. kalenderdagen/elapsed) + procent-lag (fase 2.1) |
@@ -108,6 +159,61 @@ Fixtures die door MEER DAN ÉÉN suite gebruikt worden staan in `tests/fixtures/
 Eén bron, zodat de batterijen niet uit elkaar lopen over wat het geval precies ís. Fixtures die
 maar één batterij dient horen gewoon in die batterij thuis.
 
+## Minutenmodel: twee extra runs en de voorbeeldensnapshot
+
+Fase F0 van "alleen uren" (spec `docs/superpowers/specs/2026-10-20-alleen-uren-design.md` §6.1 en §6.3).
+De volledige `run.sh` draait de harness daarna nog twee keer, niet in de tijdzone-matrix:
+
+- `OPS_MINUTE_MODEL_RUN=1`: run 1, de dagenmaat. Taken, lags en nivelleervertraging blijven in dagen.
+- `OPS_MINUTE_MODEL_RUN=2`: run 2, de urenmaat. Dezelfde invoer, met alleen de conventie dagenmaat
+  (`workdayDurationMeasure`) uit, als afwijking op het profiel van de case (spec §6.1, vanaf F3). Een duur
+  of lag in dagen telt dan als dagen × werktijd per dag × 60 minuten. Vóór F3 zette run 2 de duur en de
+  lag bij de invoer om naar minuten.
+
+Beide runs zetten elke dagcase om naar de tijdas in minuten, met de productiefunctie
+`migrateToMinuteModel` (`src/state/migrations/minuteModel.ts`), en vergelijken op dagniveau met de
+werkdag van een moment (`src/engine/calendar/workdayRules.ts`). Een urencase telt niet mee. Per batterij
+staat een regel `MM …` in de uitvoer, en per case die niet gelijk is een regel `MMCASE`.
+
+**Redencodes.** Een case die bewust anders uitkomt, krijgt een sleutel `minuteModel` met een code uit
+§6.1 (`CONV-SF`, `PCT-LAG-EXACT`, `REST-EXACT`, `KALENDERTIJD-EINDE`, `PROFIEL-URENMAAT`), een `note` en
+een `expect` met het doel. Alleen de velden die de code verandert, staan in die `expect`. Een datum
+zonder tijd leest de vergelijker met de regel van het veld; een datum met tijd vergelijkt hij exact.
+Een fout krijgt nooit een code. Verander de gewone `expect` van een case hiervoor niet.
+
+**Het vangnet `minute-model-runs.json`.** Per run en per batterij staan daar de dagcases die na de
+redencodes niet gelijk zijn. De run is rood als er een case bijkomt of afgaat. Heb je een fout in het
+urenpad opgelost, haal de case dan uit de lijst. Bijwerken na een bewuste wijziging:
+
+```bash
+bash tests/planning/run.sh   # eerst: zie welke cases erbij komen of afgaan (regels "XX  minutenmodel")
+# daarna de lijst opnieuw laten schrijven, met de harness-bundel die run.sh achterlaat
+# (zonder cases-p6-verified.json, zoals run.sh):
+CASES=$(ls tests/planning/cases-*.json | grep -v cases-p6-verified.json)
+OPS_MINUTE_MODEL_UPDATE=1 OPS_MINUTE_MODEL_RUN=1 node tests/planning/.harness.mjs $CASES
+OPS_MINUTE_MODEL_UPDATE=1 OPS_MINUTE_MODEL_RUN=2 node tests/planning/.harness.mjs $CASES
+```
+
+Analyseren:
+`OPS_MINUTE_MODEL_VERBOSE=1` toont de verschillen per case, `OPS_MINUTE_MODEL_DEBUG=1` daarbij de
+datums van alle taken uit de motor.
+
+**De voorbeeldensnapshot.** `check-minute-model-examples.ts` laadt elk IFC-voorbeeld uit `examples/`,
+rekent het en vergelijkt per taak (WBS-code plus naam) vroege en late start, vroeg en laat einde en de
+speling met `fixtures/minute-model-examples.json`, op dagniveau. F2 en F3 moeten die snapshot halen.
+Bijwerken alleen na een bewuste wijziging, met de reden in de commit:
+
+```bash
+OPS_MINUTE_MODEL_EXAMPLES_UPDATE=1 bash tests/planning/run.sh check-minute-model-examples.ts
+```
+
+`check-minute-model.ts` toetst de dagregels (werkdag van een moment, D1–D7) en de migratiefunctie los.
+De werkdagfunctie staat bij de gedeelde kalenderregels in `src/engine/calendar/workdayRules.ts`.
+Een nachtblok di 22:00–wo 06:00 hoort bij dinsdag, ook voor een moment wo 02:00 en het einde wo 06:00.
+Buiten een echt werkblok geldt de klokdatum; de functie verzint geen blok op een vrije dag.
+Een eindmoment om 24:00 (00:00 van de volgende dag) hoort bij de vorige dag. De check bewaakt ook
+vrije dagen, een feestdag en kalendertijd. Sinds F2 zijn deze regels aangesloten op de laadgrens en op de store-invoer.
+
 ## Een geval toevoegen
 
 Voeg een object toe aan de `cases`-array van het passende bestand (schema in `BRIEF.md`). Geef alléén de
@@ -118,3 +224,46 @@ solver — en draai `run.sh`.
 
 De aanleiding en de oorspronkelijke bevindingen staan in
 [`docs/planning-test-bevindingen.md`](../../docs/planning-test-bevindingen.md).
+
+### F1: urenfouten en de statusregel
+
+De blokgrensbatterij bevat 48 cases (30 uit PR #402, 18 uit F1b).
+check-hours-f1-status.ts controleert de echte dialoogopslag, paneelsetters, raster, plakken en
+MCP-validatie: D6 op de statusdag, datumloze invoer bij een expliciet statusmoment, weigeren van
+een latere letterlijke tijd, nachtdiensten, afgeleide voltooiing en de deadline in opgeslagen datums.
+De browserroute in task-dialog-save.spec.ts typt het werkelijke einde in de dialoog.
+
+De minutenmodelmeting bewaart de statusdatum zoals ingevoerd; de solver leest een datum zonder
+tijd zelf als begin van de statuswerkdag. In run 2 telt een kalendertijdvertraging 24 uur per dag.
+Na de F1-fixes zijn alleen verdwenen afwijkingen uit minute-model-runs.json verwijderd:
+run 1 van 57 naar 12, run 2 van 30 naar 11. Die oude lijsten waren al achterhaald door PR #402.
+De echte nulmeting op 12abaabf2 gaf 34 en 21 afwijkende cases; F1b geeft er 12 en 11.
+Er zijn geen nieuwe afwijkingen toegestaan.
+De lege sleutel hours-blokgrenzen ontbrak nog na PR #402 en staat nu in beide runs.
+
+### F2: omzetting en bestandscompatibiliteit
+
+`check-minute-model-transition.ts` controleert de echte laadroute, undo/redo, opslaan en heropenen,
+slapend herstel en het echte MCP-oppervlak (naam, batch met leesstap, werkregel en de aansluitvoorwaarde).
+`check-minute-model-ifc.ts` toetst W0/W1/W2, de keuze per kalender, D7 en het baseline-einde.
+`check-minute-model-routes.ts` telt de rekenaanroepen uit de TypeScript-bron en bewaakt de gekozen route.
+
+De optionele lezervergelijking `check-minute-model-compat.ts` krijgt via `OPS_MINUTE_MODEL_OLD_READER`
+een uit tag v2026.9.0 gebundelde lezer en via `OPS_MINUTE_MODEL_COMPAT_OUT` de W0/W1/W2-bestanden die
+`check-minute-model-ifc.ts` in die map kan schrijven. Hij schrijft alle voorbeelden met de nieuwe schrijver
+in het geheugen en vergelijkt de geschreven datums en hoeveelheden met die oude lezer. Unieke WBS-codes
+koppelen de taken; de al bestaande tekstdecodering en kalenderverliezen van die versie vallen erbuiten.
+Zonder deze twee opties wordt de lezervergelijking niet uitgevoerd. Staan in die map ook D0 en D1, dan
+vergelijkt hij die mee: de dagenmaat met breuken, de lagmaat en de speling. `check-ifc-dagenmaat.ts` schrijft
+ze met dezelfde optie `OPS_MINUTE_MODEL_COMPAT_OUT`.
+
+### F3c: dagenmaat, lagmaat en speling in IFC
+
+`check-ifc-dagenmaat.ts` toetst de vormen uit `docs/ifc-round-trip.md` ("Dagenmaat met een breuk, lagmaat en
+speling") heen en terug: duur, rest en werkelijke duur met een breuk, de zes lagvormen per lagkalender, de
+speling in hele dagen met het `ExactFloat`-record, de leesregel bij een gewijzigd standaardveld, en de
+voorbeeldweek met drie relaties. Met `OPS_MINUTE_MODEL_OLD_READER` leest hij dezelfde bestanden ook met de
+lezer van v2026.9.0: geen dag kwijt, geen dag te veel, alle datums gelijk.
+
+`check-minute-model-scale.ts` meet vijf berekeningen van rehab-2 als `OPS_XER_CORPUS` beschikbaar is.
+Hij meldt de losse tijden en de mediaan; dit is een meting, geen vervanging van de profielpoort.

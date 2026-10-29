@@ -1680,6 +1680,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "work-category": {
+    "term": "catégorie de travaux",
+    "forms": [
+      "catégorie de travaux",
+      "catégories de travaux"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "horaires de travail",
     "forms": [

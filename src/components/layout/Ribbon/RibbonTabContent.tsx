@@ -58,7 +58,7 @@ function RibbonButtonView({ spec, anchor }: { spec: RibbonButtonSpec; anchor: st
     return (
       <RibbonSmallButton
         icon={icon} label={label} itemId={spec.id} anchor={anchor}
-        onClick={b.onClick} active={b.active} disabled={b.disabled} danger={spec.danger} title={b.title}
+        onClick={b.onClick} active={b.active} disabled={b.disabled} danger={spec.danger} title={b.title} form={spec.form}
       />
     );
   }
@@ -66,7 +66,7 @@ function RibbonButtonView({ spec, anchor }: { spec: RibbonButtonSpec; anchor: st
     <RibbonButton
       icon={icon} label={label} itemId={spec.id} anchor={anchor}
       onClick={b.onClick} active={b.active} disabled={b.disabled} primary={spec.primary} danger={spec.danger}
-      title={b.title}
+      title={b.title} form={spec.form}
     />
   );
 }

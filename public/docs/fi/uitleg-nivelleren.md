@@ -50,13 +50,13 @@ Kun *pelivaran sisällä tasaaminen* on käytössä, tehtävä ei saa alkaa myö
 
 ## Esimerkki: muurari kahdella seinällä
 
-Esimerkki on opetusohjelmien harjoitusprojekti *House extension*, sellaisena kuin se on juuri ennen tasaamista opetusohjelmassa 5. Opetusohjelmassa 5 tehdään tämä itse ja tarkistetaan luvut. Tässä esimerkissä rappaus on *Kiinteä työmäärä* -tehtävä ja rappaaja työskentelee kuormitusasteella 2, kuten artikkelissa [Työsäännöt: kesto, kuormitusaste ja työ](docs://uitleg-werkregels).
+Esimerkki on opetusohjelmien harjoitusprojekti *House extension*, sellaisena kuin se on juuri ennen tasaamista opetusohjelmassa 5. Opetusohjelmassa 5 tehdään tämä itse ja tarkistetaan luvut. Tässä esimerkissä rappaus on *Kiinteä työmäärä* -tehtävä ja rappaaja työskentelee kuormitusasteella 2, kuten artikkelissa [Tehtävätyypit: kesto, kuormitusaste ja työ](docs://uitleg-werkregels).
 
 Heti ontelolattian jälkeen, joka päättyi maanantaina 28. kesäkuuta, alkavat sisempi kuorimuuri (5 työpäivää) ja ulompi kuorimuuri (6 työpäivää) molemmat tiistaina 29. kesäkuuta. Molemmat ovat rakennusmuurarin vastuulla, kuormitusasteella 1 ja *Enimmäismäärä* 1. Sisemmän kuorimuurin jälkeen tulevat kattoelementit (6 tunnin nosturityö) ja kattotyöt (2 työpäivää). Ikkunakehykset odottavat kattotöitä ja ulompaa kuorimuuria. Luovutus on maanantaina 30. elokuuta.
 
 ### Ylikuormitus
 
-Sisempi kuorimuuri kulkee 29. kesäkuuta – 5. heinäkuuta mukaan lukien, ulompi 29. kesäkuuta – 6. heinäkuuta mukaan lukien. Päivinä 29. kesäkuuta – 5. heinäkuuta mukaan lukien, eli 5 työpäivänä, aikataulu vaatii rakennusmuurarilta 2 kuormitusastetta, kun kapasiteetti on 1. Muurarilla on noina 5 päivänä ylikuormitusta.
+Sisempi kuorimuuri kulkee 29. kesäkuuta – 5. heinäkuuta mukaan lukien, ulompi 29. kesäkuuta – 6. heinäkuuta mukaan lukien. Päivinä 29. kesäkuuta – 5. heinäkuuta mukaan lukien, eli 5 työpäivänä, aikataulu vaatii rakennusmuurarilta 2 kuormitusastetta, kun kapasiteetti on 1. Rakennusmuurarilla on noina 5 päivänä ylikuormitusta.
 
 ### Järjestys
 
@@ -77,7 +77,7 @@ Ilman tuota rajoitetta ikkunakehykset voivat alkaa perjantaina 9. heinäkuuta, j
 
 ### Entä jos ulompi kuorimuuri saa prioriteetin
 
-Jos annat ulommalle kuorimuurille prioriteetin *Korkea* (900), se tulee ensin. Se pysyy 29. kesäkuuta, ja sisempi kuorimuuri väistyy nyt: se siirtyy 6 työpäivää myöhemmin, 7. heinäkuuta – 13. heinäkuuta mukaan lukien. Sisemmällä kuorimuurilla on vain 3 työpäivän pelivara, joten 6 työpäivän siirtymä on 3 liikaa. Kattoelementit, ikkunakehykset ja kaikki niiden jälkeen tulevat siirtyvät mukana. Luovutus siirtyy maanantaista 30. elokuuta torstaihin 2. syyskuuta. Sama ylikuormitus antaa siis eri projektin päättymispäivän sen mukaan, mikä tehtävä pysyy paikallaan.
+Jos ulommalle kuorimuurille annetaan prioriteetti *Korkea* (900), se tulee ensin. Se pysyy 29. kesäkuuta, ja sisempi kuorimuuri väistyy nyt: se siirtyy 6 työpäivää myöhemmin, 7. heinäkuuta – 13. heinäkuuta mukaan lukien. Sisemmällä kuorimuurilla on vain 3 työpäivän pelivara, joten 6 työpäivän siirtymä on 3 liikaa. Kattoelementit, ikkunakehykset ja kaikki niiden jälkeen tulevat siirtyvät mukana. Luovutus siirtyy maanantaista 30. elokuuta torstaihin 2. syyskuuta. Sama ylikuormitus antaa siis eri projektin päättymispäivän sen mukaan, mikä tehtävä pysyy paikallaan.
 
 ### Entä jos toinen muurari tulee mukaan
 
@@ -101,5 +101,5 @@ Jos rakennusmuurarin *Enimmäismäärä* asetetaan arvoon 2, ylikuormitusta ei e
 
 - [Ylikuormituksen ratkaiseminen](docs://howto-overbezetting-oplossen): vaiheet ylikuormituksen löytämiseen ja tasaamiseen.
 - [Kriittinen polku ja pelivara](docs://uitleg-kritiek-pad): mitä pelivara on ja miksi tehtävä tulee kriittiseksi.
-- [Työsäännöt: kesto, kuormitusaste ja työ](docs://uitleg-werkregels): miten tehtävän kesto muuttuu kuormitusasteiden mukana.
+- [Tehtävätyypit: kesto, kuormitusaste ja työ](docs://uitleg-werkregels): miten tehtävän kesto muuttuu kuormitusasteiden mukana.
 - [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): kolme tornia, jotka tarvitsevat samat työryhmät ja torninosturin, ja mitä tasaaminen niillä tekee.

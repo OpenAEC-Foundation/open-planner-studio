@@ -8,6 +8,22 @@ imports it (`@AGENTS.md`) so Claude Code loads it automatically — never put co
 depth lives in `.claude/rules/` (see *Where the depth lives*); Claude Code loads those per path, other agents
 should read the matching rule file before touching that area.
 
+**Server load on aia09-mp50, for all agents including subagents:** light Node work may run on this
+server: a dev server, `lint`/`lint:fast`, a `typecheck`, or a targeted test of a few files or one browser
+spec, one at a time (`flock /tmp/ops-zwaar.lock <command>`). Heavy work runs in GitHub CI and you inspect
+the result with `gh`: the full `npm test` or `npm run verify`, `measure:profiles` and corpus scans,
+Playwright runs over many specs, production, Rust or Tauri builds, and several dev servers at once.
+If heavy local work is truly needed, ask the owner first. Owner decision 2026-10-24; it replaces the
+stricter rule of 2026-10-22.
+
+Exception: the scheduled weekly release job on aia09-mp50 may run only the listed light Node
+steps in its own release worktree, including package checks by its Haiku translation stations
+(website generators in a temporary copy there); see
+[`.claude/skills/release/SKILL.md`](.claude/skills/release/SKILL.md) and its exact list in `referentie.md`.
+Owner decision 9, clarified by the orchestrator on 2026-10-23. This does not cover agents outside
+that job or maintenance of the skill. Within that job, tests, app builds, the full `npm run verify` and
+dev servers stay CI-only.
+
 ## Commands
 
 ```bash
@@ -15,13 +31,17 @@ npm run dev          # browser dev; fixed port per worktree (3007–3106), refus
 npm run tauri:dev    # desktop app, same port assignment
 npm run build        # tsc && vite build → dist/
 npm run build:platform -- --base /pad/   # platform build for the OpenAEC app on Frappe → dist-platform/
+npm run build:core   # headless core package @openaec/open-planner-core → dist-core/ (not published)
+npm run build:mcp-server   # headless MCP server (planner_* tools without the app) → dist-mcp-server/server.mjs (not published)
+npm run build:mcpb   # Claude Desktop extension (MCP Bundle) → dist-mcpb/open-planner-studio-<version>.mcpb
 npm run verify       # THE gate — the same steps as CI (split in parallel), release and deploy gate
 npm run typecheck    # tsc over src/ AND scripts/+tests/ — use this, not just build (incremental)
 npm run lint         # deliberately minimal ESLint (promises, control-regex, React hooks)
 npm run lint:fast    # same lint with a cache, for iterating; `lint` stays the gate
 npm test             # all five suites
 npm run tauri:build  # installers
-npm run bump X.Y.Z   # CalVer version sync (Cargo.toml deliberately stays 0.1.0)
+npm run bump         # JJJJ.W.N: ISO week-year/week + next sequence from current version and live origin tags; sync all package versions
+# Optional explicit version: npm run bump 2026.44.1 (never lower than the current version)
 ```
 
 Single suites: `npm run test:planning`, `npm run test:library`, `npm run test:mcp`, `npm run test:dev-server`,
@@ -39,7 +59,7 @@ runs no verify of its own: it starts after a green ci.yml run on `main` (`workfl
 tested (a serial verify there took 31–45 min and hit the 45-minute job limit on 2026-10-13). The
 steps, in order: `typecheck` → `lint` → `test` (all five suites) → `verify:examples` → `verify:docs` →
 `verify:i18n` → `verify:release-highlights-json` → `verify:store-boundaries` → `verify:conventions` →
-`verify:gantt-boundaries` → `verify:cycles` → `verify:text-roles`.
+`verify:gantt-boundaries` → `verify:cycles` → `verify:text-roles` → `verify:core-package`.
 
 Separate gates (most are in `verify`): `npm run verify:examples` (examples load/compute),
 `npm run verify:docs` (in-app guides + the mechanical claims in this file), `npm run verify:i18n` (keys + CLDR
@@ -47,13 +67,19 @@ plural forms + no cast on a key + fixed formatting), `npm run verify:store-bound
 `npm run verify:gantt-boundaries` (AST gates: store, renderer, viewport, pointer and table boundaries),
 `npm run verify:conventions` (AST gate: `src/engine/` reads no source format, options keys only from the
 convention registry, provenance data gates pinned), `npm run verify:cycles` (circular imports after type erasure),
+`npm run verify:core-package` (builds the headless core package, `npm pack`, installs it in a temporary copy of
+`headless/consumer-example/`, runs and type-checks that consumer),
 `npm run verify:text-roles` (only the six text roles), `npm run verify:release-highlights-json` (in the chain)
 and `npm run verify:release-highlights` (separate: local update highlights and stats before a tagged release).
 `npm run verify:translations` (release gate, deliberately NOT in `verify`: every UI key in every locale translated
-and current per `i18n/ui-sources/`; `release.yml` and the release skill run it). `npm run verify:audit` is
+and current per `i18n/ui-sources/`, plus a complete valid termbase for every target locale except nl/en
+and the key/language-specific fixed UI text contracts in `scripts/translate/ui.ts`;
+`release.yml` and the release skill run it). `npm run verify:audit` is
 deliberately NOT in `verify` (Dependabot is the notification channel; an advisory gets
 its own commit). `npm run measure:profiles` (separate) measures the cell baseline per scheduling profile (rule A:
-no exact cell may become inexact); the P6 part needs `OPS_XER_CORPUS`.
+no exact cell may become inexact); the P6 part needs `OPS_XER_CORPUS`. `npm run measure:large-plans` (separate, not in CI)
+measures open, F5, levelling, save, auto-save/recovery and Gantt scroll/zoom at 1k/5k/10k tasks in a production
+build in headless Chromium and writes a JSON result; the baseline is in `docs/superpowers/evidence/`.
 
 Translations: `npm run i18n:add` puts one string in `nl` + `en` (required) and any other locale you give
 (recipe `docs/recepten/i18n-sleutel.md`); missing locales fall back to `en` until the pipeline fills them,
@@ -66,13 +92,19 @@ overview `scripts/README.md`). `i18n:add` also updates the source hashes in `i18
 for locales it did not write, so `prepare ui <locale> --missing`/`--stale` picks them up).
 
 Generators/helpers: `npm run gen:examples` (regenerates `public/examples`), `npm run gen:tutorial-project`
-(tutorial project nl/en to `build/tutorial-project/`, see `scripts/README.md`), `npm run gen:docs-screenshots -- --out <dir>`
+(tutorial project nl/en to `build/tutorial-project/`, see `scripts/README.md`), `npm run gen:readme-screenshots` (README images and demo to `docs/images/readme/`, `-- --demo` adds `demo.gif`/`demo.mp4`; `-- --url URL` uses an existing Vite service; otherwise starts Vite itself; light theme, 1600x900), `npm run gen:docs-screenshots -- --out <dir>`
 (tutorial screenshots as WebP from the step scripts in `tests/browser/tutorials/`, which `test:browser` runs without
 capturing), `npm run gen:release-highlights-json`,
 `npm run publish:wiki` (dry run; `-- --push` publishes), `npm run stats:downloads` (downloads per OS from the
 GitHub Releases API; the workflow publishes the JSON weekly to the `stats` data branch).
 
 Node 22 (see CI). Rust stable only for the `tauri:*` commands.
+
+Workflows outside `verify` (depth: `ci-release` and `mcp` rules): `headless-api.yml` (HTTP API, container, `cfn-lint`),
+`release-verify.yml` (checks a published release on clean runners: updater `.sig`s, digests, install, signatures),
+`mcpb.yml` (builds the Claude Desktop bundle and checks its manifest with the pinned official `mcpb validate`),
+`windows-sign-check.yml` / `macos-sign-check.yml` (prove signing on a PR, without a tag), `mcp-real-app.yml` (MCP
+bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`, `docs/mcp-verificatie.md`.
 
 ## Testing pitfalls
 
@@ -111,9 +143,11 @@ Node 22 (see CI). Rust stable only for the `tauri:*` commands.
 | one CPM/calendar case battery | `bash tests/planning/run.sh cases-<x>.json` — skips all `check-*.ts` batteries and the matrix |
 | one targeted check | `bash tests/planning/run.sh check-<x>.ts` — skips all `cases-*.json` batteries and the matrix |
 | document field / IFC round-trip | `npm run typecheck` + `check-document-contract.ts` / `check-ifc-roundtrip.ts`; full planning suite before the PR |
+| headless core (`src/core/`, `scripts/build-core.mjs`) | `bash tests/planning/run.sh check-headless-core.ts` + `npm run verify:core-package` |
 | i18n key | `npm run verify:i18n` |
 | UI change | `node scripts/run-browser-tests.mjs tests/browser/smoke.spec.ts` (or a targeted spec), plus `window.__OPS__` |
 | MCP tool | `bash tests/mcp/run.sh cases-<x>.ts` |
+| Claude Desktop bundle (`integrations/claude-desktop/`) | `bash tests/mcp/run.sh cases-mcpb.ts` (builds the bundle, runs it over stdio against `bridgeMirror`) |
 | library code | `bash tests/library/run.sh [check-<x>.ts]` |
 | in-app docs/guides | `npm run verify:docs` |
 | before push | the targeted checks above; the full `npm run verify` runs in CI on the PR |
@@ -128,15 +162,28 @@ Node 22 (see CI). Rust stable only for the `tauri:*` commands.
   none of the platform switches. Differences go only through the constants in `src/utils/buildFlags.ts` (extensions, demo start and
   AI mode are off there) — never read `VITE_OPS_PLATFORM` directly. Own assets always via `import.meta.env.BASE_URL`.
   Detail: `docs/platformbouw.md`.
+- **Claude Desktop bundle = a plug, not a planner.** `integrations/claude-desktop/` (`manifest.json` +
+  `src/proxy.ts`) is an MCP Bundle (`.mcpb`) whose stdio server forwards every message to the bridge of the
+  running desktop app (`127.0.0.1:<port>/mcp`, token and port from the install dialog). It must never contain
+  app code; `build:mcpb` fails if `src/` ends up in the bundle. Keep `proxy.ts` free of manifest, transport and
+  client code (that lives in `main.ts`/`config.ts`): it is an interim step and moves into the single plugin of #570. Its manifest version is in the bump register;
+  `release.yml` (job `build-mcpb`) attaches it to every release. Detail: `docs/mcp-verificatie.md`.
 - **Rust is thin.** Exactly three commands (`install_kind`, `mcp_bridge_start`, `mcp_bridge_stop`); every new
-  command is public surface. File I/O: extend `src/services/fileAccess/`, not a Rust command.
+  command is public surface. File I/O: extend `src/services/fileAccess/`, not a Rust command. One command-less
+  plugin, `ops-process-info`, injects the process id for the MCP discovery files (`docs/mcp-ontdekking.md`). Started from an AppImage, `src-tauri/src/desktop_integration.rs` writes a menu entry and the logo to the user's data folder at startup (no command; opt out with `OPS_NO_DESKTOP_INTEGRATION`).
 - **Storage via the site.** `FileRef` has three kinds: `path` (Tauri), `handle` (Chromium web) and `site`. When the
   page that hosts the tool sets `window.openaecHost` (contract in `src/services/fileAccess/siteHost.ts`), Open, Save,
   Save As, Recent and crash recovery also work against the site (AutoSave deliberately not: every round would be a
   new site version); without a host nothing changes, and the
   desktop app never has one. A document carries `siteFileId` and `siteFileVersion` (the base for conflict detection) next to
   `filePath`/`fileHandle`; derive the save
-  target only via `saveTargetRef`. Dev: `?fakeSite=1` installs a fake site. Detail: `docs/platformbouw.md`.
+  target only via `saveTargetRef`. With any host (or in the platform build) the tool runs embedded: no welcome dialog,
+  so no language question or tour, and the language comes from the host (`taal`). Dev: `?fakeSite=1` installs a fake
+  site. Detail: `docs/platformbouw.md`.
+- **IFC building-model guard.** Opening files with `IfcProduct`/`IfcTypeProduct` objects is temporarily
+  blocked before import (knownbug 110): the planning writer does not preserve them. The checked-in
+  type inventory comes from official IFC2X3 TC1, IFC4 ADD2 TC1 and IFC4X3 ADD2 schemas; regenerate
+  with `scripts/ifc-product-types.py`. Edit the separate planning file, then merge externally.
 - **IFC 4.3 is the native format**; there is no JSON project format. New domain data must round-trip through
   `ifcWriter`/`ifcReader`, or it is gone after saving. CSV/MSPDI/P6/`.mpp`/`.xer` are adapters. The file schema is
   per project (`Project.ifcSchema`, default `IFC4X3_ADD2`); never write silently in another one. Route:
@@ -144,15 +191,43 @@ Node 22 (see CI). Rust stable only for the `tauri:*` commands.
 - **Document contract.** New project data belongs in `DOCUMENT_FIELDS` (`src/state/documentContract.ts`),
   otherwise it does not survive a document switch, undo, crash recovery or save. A `DocumentPayload` field
   missing from that list is a compile error.
-- **One Zustand+Immer store built from slices** (`src/state/appStore.ts`); slices are typed against the full
+- **One Zustand+Immer store built from slices** (`src/state/appStore.ts`; the factory `createAppStoreContext`
+  lives in `src/state/appStoreFactory.ts`, `appStore.ts` adds the one mounted singleton); slices are typed against the full
   `AppState`. Core runtime factories and store-bound MCP tools never import `useAppStore`/`appStoreContext`.
   UI/dialog flags: type in `UIState` (`slices/types.ts`), action in `uiSlice.ts`; persistent settings in
   `src/utils/settingsRegistry.ts`. Undo/redo is snapshot-based (`beginUndoable` → mutation → `finishUndoable`).
+- **Headless core.** `src/core/` (`index.ts` + `api.ts`) is the public API of the package
+  `@openaec/open-planner-core` (`npm run build:core`, not published): open IFC text, `schedule()` like F5,
+  JSON summary, `toIfc()`, one error type with a fixed `code`. It builds its own context per document from
+  `appStoreFactory.ts` and imports no value from `appStore.ts` (`verify:store-boundaries`); the build fails if
+  React, Tauri, the singleton or the i18n UI config end up in the bundle. `api.ts` imports nothing and is the
+  contract: a change there is a contract change (`docs/headless-kern.md`). Guards: `check-headless-core.ts`
+  (core = app for every example) and `verify:core-package`.
+  The HTTP API on top of it (`headless/server/`, contract `openapi.yaml`, container `Dockerfile`, AWS ECS
+  Fargate template `deploy/aws/ecs-fargate.yaml`) is tested by `.github/workflows/headless-api.yml`
+  (local server + container + smoke test, `cfn-lint`), not by `verify`. Detail: `docs/headless-api.md`.
+- **Headless MCP server.** `headless/mcp-server/` runs the same `planner_*` tools as the app bridge on Node
+  (stdio default, streamable HTTP on loopback with the bridge's HTTP contract), on its own store context, with file
+  tools confined to `--root` (lexical + exact `realpath` check, operations run synchronously relative to the checked folder
+  object via `chdir` + native `realpath('.')`, `O_NOFOLLOW`;
+  atomic save with no direct-write fallback), its own XML parser as `DOMParser` (`xmlDom.ts`, for MSPDI/P6 XML) and
+  MCP backups in its own data folder. It reuses the
+  dispatcher, registry, `runtime.ts`, the tools and `requestHandler.ts` unchanged; host functions go through seams
+  (`fileToolDeps`, `McpFileFs.confine`, `guideToolDeps`, `createAppBackupService` overrides). Code it bundles imports
+  no value from `appStore.ts` (`verify:store-boundaries`); `npm run build:mcp-server` fails on React, Tauri, the
+  singleton, `src/components/`, `src/hooks/` or the i18n UI config in the bundle. `tests/mcp/bridgeMirror.ts` uses its
+  `http.ts`, so a change to `mcp_bridge.rs`'s HTTP layer means changing `headless/mcp-server/src/http.ts`.
+  Detail: `docs/headless-mcp.md`.
 - **Scheduling is manual, not reactive.** `runCPM` → `solveProject()`; call it after mutating tasks,
   relations or the calendar (store actions do not do it themselves; only the opt-in setting Automatisch berekenen,
   `ui.autoCalcCPM`, runs it via `useAutoCalcCPM`). Always set `scheduleStale` via `markScheduleStale`
   (`state/transaction.ts`), never directly. `CPMSolver.ts` (~4k lines): grep the method, do not read it whole.
   Write-back: `applyCpmResult.ts`; relations/lag: `relationMath.ts`.
+- **Minute model.** Scheduling engines use effective work blocks for scalar and explicit calendars.
+  Task dates normalize to instants at load and input; project dates keep their entered form (D1/D5/D2
+  at calculation). `minuteModelPending` carries the undoable conversion of old documents; persistent
+  calculations inside an editing event call `runCPM({ withinEvent: true })`. IFC writes `TimeModel`
+  after conversion and chooses anchor dates or `LiteralTimes` per calendar and per document.
 - **Scheduling profiles, not a format flag.** P6/MSP/OPS behaviour runs through named conventions in
   `src/engine/scheduler/conventions/registry.ts`; the solver only gets `EffectiveSchedulingOptions` via
   `solveOptionsFor`/`solveInputFor`. Never an `if` on the source format in the engine (`verify:conventions`);
@@ -165,6 +240,14 @@ Node 22 (see CI). Rust stable only for the `tauri:*` commands.
   `workdayAxis.ts`); interaction in `src/components/canvas/hooks/`. Change visual Gantt behaviour in the
   renderer, not in components.
 - **Notifications go through one channel** from the store — no `alert()` or ad-hoc toasts.
+- **Pending modal questions.** While the actual-start or phase-assignment question waits,
+  `isGlobalShortcutFrozen` blocks global app shortcuts and the surrounding shell controls are inert,
+  including during the actual-start question's Help pause. Help navigation and the question's own controls stay active.
+- **Tailwind sources.** `src/styles/globals.css` disables automatic detection with `source(none)` and
+  registers only `src/` and `index.html` via `@source` (paths relative to that stylesheet). This includes
+  extension UI and HTML strings in `src/`; imported component CSS and fonts still build normally.
+  Add an explicit source there if runtime utility classes move outside these paths; scripts, tests and
+  docs must not generate app utilities. The legacy `tailwind.config.js` is not loaded by the v4 build.
 - **Text:** always via `t(...)`, never hard-coded; a PR needs `nl` + `en`, a release all 28 locales
   (translation pipeline, `verify:translations`). Text sizes only via the six roles
   (`text-caption`…`text-title`); `text-xs`/`text-sm` no longer exist and silently do nothing.
@@ -172,8 +255,18 @@ Node 22 (see CI). Rust stable only for the `tauri:*` commands.
   is gone; the Rust side still registers `tauri-plugin-store`, unused), declared in `settingsRegistry.ts`.
   A setting in `SettingsPanelContent` automatically appears in all three places (⚙, Settings tab, Backstage);
   a remembered view choice via a ribbon button or dragging does not belong there.
-- **Auto-save** (crash recovery) is throttled to 10 s — deliberately a throttle, not a debounce. Runs in both
-  Tauri (`appDataDir`) and browser (IndexedDB), keyed by worktree instance slug.
+- **Auto-save** (crash recovery) is throttled to 10 s — deliberately a throttle, not a debounce. Changed IFC snapshots
+  serialize on one reusable Web Worker (same writer fallback without Worker); only writer input and XER archive
+  references cross that boundary, never file handles or archive bytes. Stop is checked again before committing. Runs in both
+  Tauri (`appDataDir`) and browser (IndexedDB), keyed by worktree instance slug. Recovery reads versions
+  1–5 plus the historical unversioned web `docIds` form. Unknown/invalid manifests also block later writes,
+  clearing and session rotation for that recovery set; unknown foreign web generations and shared archive blobs
+  are preserved during cleanup. A manifest has unique document IDs (also historical web `docIds`). Web recovery DB v3
+  adds a non-unique `records.kind` index without rewriting record/blob content: every `kind: manifest` record
+  plus every canonical manifest key is a candidate, regardless of key or candidate order. See `recoveryManifest.ts`
+  and `recoveryStore.ts`; upgrade/blocking/error limits are in `docs/xer-recovery-guardrails.md`.
+  A blocked web upgrade completes startup with a persistent storage warning; recovery refuses further DB
+  access until reload, even after unblocking. There is no fallback to writing an older DB version.
 - **`immer` is pinned exactly to `11.1.4` (no `^`) — do not put the caret back.** Immer sits directly under
   undo/redo, snapshot sharing and auto-freeze; from 11.1.8 the build breaks too (typing of `current`/`original`,
   see `src/state/immerDraft.ts`). Bumping is a deliberate, separately reviewed change.
@@ -198,11 +291,24 @@ Node 22 (see CI). Rust stable only for the `tauri:*` commands.
   worktree and commit containing that change; otherwise state the exact localhost URL.
 - `.mcp.json` wires up a Playwright MCP server (headless Chromium) to drive the browser dev build.
   `window.__OPS__` (`src/utils/devBridge.ts`) exposes store, log bus, `extensions.*` and observer-only geometry;
-  prefer asserting on store state over canvas pixels. The app's own MCP bridge (`planner_*`) is the AI-assistant
+  prefer asserting on store state over canvas pixels.
+- For a manual check, hand the owner a dev-server link that opens a file: `?open=examples/03-kantoorgebouw-zuidas.ifc&theme=dark`
+  opens that repo file through the normal open route (browser dev server only, never in a build). Detail: `docs/dev-link.md`. The app's own MCP bridge (`planner_*`) is the AI-assistant
   surface, not a test hook. Detail: `docs/self-test-harness.md`.
 
 ## Conventions
 
+- **`main` is always releasable.** The weekly release job ships whatever is on `main` (owner decision 1,
+  conversation 2026-10-22). There is no next, nightly or dev branch and no update channel. Land big work in
+  small PRs to `main`; keep unfinished user-visible work behind a feature flag until it is complete.
+- **Feature flags:** add a temporary entry to `src/utils/featureFlags.ts` with an id, typed i18n
+  name/description keys and `writesNewIfcData`; read it through `isFeatureEnabled(ui.featureFlags, id)`.
+  Flags default to off. Keep `writesNewIfcData: true` (no checkbox, always off) until the IFC
+  save/load round-trip is complete; only then mark the data as supported (`false`). The hidden
+  Experimental block in Settings → Advanced is unlocked by activating its version number for
+  5 seconds with at most 0.5 s between activations (clicks or held Enter). Visibility and choices
+  persist per device; hiding keeps the choices. The PR that enables a feature by default also
+  removes its flag and the corresponding checks.
 - **Working language is Dutch**: code comments, commit messages and the canonical source translations.
   This file is English on purpose; the `.claude/rules/` files are Dutch.
 - **Side findings go to [`knownbugs.md`](knownbugs.md).** Anything you run into that is not part of your own
@@ -218,7 +324,18 @@ Node 22 (see CI). Rust stable only for the `tauri:*` commands.
   Those guides use a limited Markdown subset (no tables/blockquotes/h4/HTML). The GitHub wiki is generated,
   never edited by hand (`wiki` skill).
 - **Releases**: only via the `release` skill; a `v*` tag is irreversible and rolls out to all users
-  (updater + Snap Store). Release text in `docs/release-notes/v<version>.md`; `docs/CHANGELOG.md` only at release.
+  (updater + Snap Store). The weekly Saturday job on aia09-mp50 runs that skill automatically,
+  without human approval before the tag (owner, conversation 2026-10-22). Green main CI and the
+  release gates are mandatory. Resume unfinished work for the latest tag before checking for new
+  commits or bumping. Outstanding website work does not block the next app release; retry it the next
+  Saturday alongside that release. Also resume open release PRs and untagged versions on main without another bump,
+  only when their candidate version is numerically newer than the previous release; otherwise stop.
+  Record workflow IDs, wiki commit and website PR in the release PR. Every release includes the UI
+  translations for all locales, wiki publication and the two website blocks (the highlights in
+  `#whats-new` and the new entry under `#releases`); guide translations beyond nl/en run only on the
+  owner's separate request. The job repairs a red CI itself (owner decision 8; route in the `ci-release` rule).
+  The schedule and literal job prompt live in `.claude/skills/release/scheduled-job.md`.
+  Release text in `docs/release-notes/v<version>.md`; `docs/CHANGELOG.md` only at release.
 - The user term is "resourcebibliotheek"; code/IFC still say `companyId`/`companyName`.
 - Screen evidence in a PR: `artifacts/<topic>/`, PNG ≤ ~150 KB, a handful; local QA screenshots in `qa/`.
 - Changing the architecture, a command or a fact above? Update this file in the same PR.
@@ -284,7 +401,11 @@ Design docs: start at `docs/superpowers/README.md` — read them as *why*, not a
 
 | Concern | Location |
 |---|---|
-| Store composition root | `src/state/appStore.ts` |
+| Store composition root | `src/state/appStore.ts` (factory: `src/state/appStoreFactory.ts`) |
+| Headless core (package API) | `src/core/`, build `scripts/build-core.mjs`, consumer `headless/consumer-example/` |
+| Headless MCP server | `headless/mcp-server/src/`, build `scripts/build-mcp-server.mjs`, test `tests/mcp/cases-headless-server.ts` |
+| Headless HTTP API, container, AWS | `headless/server/`, `deploy/aws/ecs-fargate.yaml`, `.github/workflows/headless-api.yml` |
+| Claude Desktop bundle (`.mcpb`) | `integrations/claude-desktop/`, build `scripts/build-mcpb.mjs`, test `tests/mcp/cases-mcpb.ts`, `.github/workflows/mcpb.yml` |
 | Slices | `src/state/slices/` |
 | CPM solver / calendar engine | `src/engine/scheduler/`, `src/engine/calendar/` |
 | Canvas renderer | `src/engine/renderer/` |

@@ -2011,6 +2011,18 @@
     "source": "model",
     "status": "model"
   },
+  "work-category": {
+    "term": "врста радова",
+    "forms": [
+      "врста радова",
+      "врсте радова",
+      "врсту радова",
+      "врстом радова",
+      "врстама радова"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "радни сати",
     "forms": [

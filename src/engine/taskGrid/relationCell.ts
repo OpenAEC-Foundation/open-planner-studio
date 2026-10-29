@@ -121,7 +121,8 @@ export interface RelationCellItem {
   clipboardText: string;
   otherTaskId: string;
   otherTask?: Task;
-  driving: boolean;
+  /** undefined = onbekend voor een interne relatie; extern wordt niet geclassificeerd. */
+  driving: boolean | undefined;
   freeFloat?: number;
   stale: boolean;
   warnings: readonly string[];
@@ -175,7 +176,7 @@ export function buildRelationCellItems(input: {
       clipboardText: label,
       otherTaskId: entry.otherTaskId,
       otherTask,
-      driving: analysis?.driving ?? false,
+      driving: analysis?.driving,
       ...(analysis?.freeFloat !== undefined ? { freeFloat: analysis.freeFloat } : {}),
       stale: input.context.scheduleStale,
       warnings: analysis?.warnings ?? [],
@@ -229,9 +230,12 @@ export const RELATION_WARNING_KEYS: Readonly<Record<string, string>> = {
 
 export function relationDrivingText(
   items: readonly RelationCellItem[],
-  textDirection: 'ltr' | 'rtl' = 'ltr',
+  context: Pick<TaskColumnContext, 'relationIndex' | 'textDirection' | 'labelForText'>,
 ): string {
-  const values = items.filter(item => item.driving).map(item => analysisPrefix(item, textDirection));
+  if (!context.relationIndex.drivingKnown) {
+    return context.labelForText?.('relations.drivingUnknown') ?? 'relations.drivingUnknown';
+  }
+  const values = items.filter(item => item.driving).map(item => analysisPrefix(item, context.textDirection));
   return values.length > 0 ? values.join('; ') : '—';
 }
 

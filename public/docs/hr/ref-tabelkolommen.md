@@ -6,42 +6,42 @@ Tablica zadataka ima 86 fiksnih stupaca. Uz to ima jedan stupac za svaku šifru 
 
 Tablica zadataka pored Gantt dijagrama i tablica na kartici *Tablica* imaju svaka svoj izbor stupaca. Gumb s plusom na desnoj strani zaglavlja otvara prozor za odabir stupaca (naslov prozora *Odaberi stupac*). Također možete upotrijebiti *Tablica › Stupci › Stupci…*. Prozor prikazuje stupce po kategorijama: *Zadatak*, *Raspored*, *Ograničenja*, *Ovisnosti*, *Resursi*, *Napredak*, *Izračunato*, *Temeljni plan*, *Prilagođeno* i *Tehnički*. Pretražujete po nazivu, a *Nedavno korišteno* je na vrhu. *Vrati na zadano* vraća zadane stupce.
 
-Prema zadanim postavkama tablica pored Gantt dijagrama prikazuje *WBS*, *Naziv zadatka* i *Trajanje*. Tablica na kartici *Tablica* prikazuje *WBS*, *Naziv zadatka*, *Trajanje*, *Početak*, *Završetak*, *Vrsta zadatka*, *Kritičan*, *Ukupan slobodni hod* i *Napredak*, uz to po jedan stupac za svaku šifru zadatka i prilagođeno polje projekta.
+Prema zadanim postavkama tablica pored Gantt dijagrama prikazuje *WBS*, *Naziv zadatka* i *Trajanje*. Tablica na kartici *Tablica* prikazuje *WBS*, *Naziv zadatka*, *Trajanje*, *Početak*, *Završetak*, *Kategorija radova*, *Kritičan*, *Ukupan slobodni hod* i *Napredak*, uz to po jedan stupac za svaku šifru zadatka i prilagođeno polje projekta.
 
 ## Kako se vrijednosti čitaju i uređuju
 
 - **Izračunati stupci** — stupci u kategoriji *Izračunato* i nekoliko drugih stupaca samo su za čitanje: vrijednosti dolaze iz izračuna. Ako pokušate urediti ćeliju koja je samo za čitanje, aplikacija kaže *Ovaj izračunati stupac ne može se uređivati.* Ta poruka je opća za svaku ćeliju koja je samo za čitanje, čak i kad stupac nije izračunat. Ako su vrijednosti zastarjele jer ste nešto promijenili, pored njih se pojavljuje *zastarjelo* dok ne pritisnete *Izračunaj*.
-- **Datumi** — prikazuju se u zapisu koji ste odabrali u dijalogu *Postavke*, na kartici *Prikaz*, pod odjeljkom *Format datuma*.
-- **Trajanja i vremenske rezerve** — trajanje se prikazuje u jedinici zadatka (`5d`, `12h`) ili prema *Prikaz trajanja* na istoj kartici (*Automatski (vlastita jedinica po zadatku)*, *Uvijek dani* ili *Uvijek sati*). Vremenska rezerva se prikazuje u radnim danima, s dvije decimale i decimalnim znakom vašeg jezika.
+- **Datumi** — prikazuju se u zapisu koji ste odabrali pod *Postavke aplikacije*, na kartici *Prikaz*, u odjeljku *Format datuma*.
+- **Trajanja i vremenska rezerva** — trajanje se prikazuje u jedinici zadatka (`5d`, `12h`) ili prema *Prikaz trajanja* na istoj kartici (*Automatski (vlastita jedinica po zadatku)*, *Uvijek dani* ili *Uvijek sati*). Vremenska rezerva se prikazuje u radnim danima, s dvije decimale i decimalnim znakom vašeg jezika.
 - **Da/Ne** — vrijednost da ili ne prikazuje se kao *Da* ili *Ne*; prazna vrijednost kao crtica (—).
 - **Uređivanje** — upisujete ili birate vrijednost. Neispravnu vrijednost aplikacija odbija i razlog prikazuje ispod ćelije, na primjer *Unesite ispravno trajanje, na primjer 5d ili 8h.* ili *Unesite postotak između 0 i 100.* Lijepljenje bloka ćelija radi ćeliju po ćeliju. Ćelije koje su samo za čitanje preskaču se, a aplikacija javlja koliko ih je bilo.
 
 ## Zadatak
 
-- **Naziv zadatka** — naziv zadatka. Može se uređivati, obavezan je. Zadatak sažetka prikazuje se podebljano, sa svijetlom pozadinom u ćeliji naziva. Kontrolna točka prikazuje se podebljano u boji kontrolne točke (ista skupina boja kao kontrolna točka u Gantt dijagramu). Običan zadatak ostaje kakav je. To je samo oblikovanje: odabir, povlačenje i uređivanje rade isto.
+- **Naziv zadatka** — naziv zadatka. Može se uređivati; obavezan je. Zadatak sažetka prikazuje se podebljano, sa svijetlom pozadinom u ćeliji naziva. Kontrolna točka prikazuje se podebljano u boji kontrolne točke (ista skupina boja kao kontrolna točka u Gantt dijagramu). Običan zadatak ostaje kakav je. To je samo oblikovanje: odabir, povlačenje i uređivanje rade isto.
 - **Opis** — opis. Može se uređivati; slobodan tekst.
 - **WBS** — WBS šifra. Može se uređivati i obavezna je, ali samo za čitanje dok je uključen *WBS auto*.
-- **Vrsta zadatka** — vrsta zadatka (*Gradnja*, *Instalacija*, *Rušenje*, *Logistika*, *Inspekcija*, *Premještanje*, *Obnova*, *Održavanje* ili *Ostalo*). Može se uređivati s popisom.
-- **Prilagođena vrsta zadatka** — prilagođena vrsta zadatka iz projekta ili crtica. Može se uređivati s popisom prilagođenih vrsta projekta.
+- **Kategorija radova** — kategorija radova (*Gradnja*, *Instalacija*, *Rušenje*, *Logistika*, *Inspekcija*, *Premještanje*, *Obnova*, *Održavanje* ili *Ostalo*). Može se uređivati s popisom.
+- **Prilagođena kategorija radova** — prilagođena kategorija radova iz projekta, ili crtica. Može se uređivati s popisom prilagođenih kategorija radova projekta.
 - **Boja** — spremljena boja zadatka, kao šifra boje, na primjer `#1a73e8`. Može se uređivati s odabirnikom boja. Sprema se u IFC datoteku, ali nijedna traka ni izvješće je ne upotrebljava. Boje traka postavljate u *Prikaz › Temeljni planovi i napredak › Boje traka*.
 - **Bilješke** — bilješke, kao `✓ tekst; ○ tekst`. Može se uređivati dok postoji najviše jedna bilješka; tada uređujete njezin tekst. S više bilješki samo su za čitanje.
 
 ## Raspored
 
 - **Kontrolna točka** — je li zadatak kontrolna točka. Može se uređivati. Uključivanjem se trajanje postavlja na 0. Aplikacija to odbija za zadatak sažetka i za zadatak s dodjelama.
-- **Vrsta kontrolne točke** — *Početna kontrolna točka* ili *Završna kontrolna točka*, ili crtica za automatski. Može se uređivati samo na kontrolnoj točki.
+- **Vrsta kontrolne točke** — *Početna kontrolna točka* ili *Završna kontrolna točka*, ili crtica za automatski izbor. Može se uređivati samo na kontrolnoj točki.
 - **Obvezna kontrolna točka** — oznaka *Obvezno (ugovorno)*. Može se uređivati samo na kontrolnoj točki.
 - **Prioritet uravnoteživanja** — cijeli broj od 0 do 1000, zadano 500. Može se uređivati. Vrijednost 1000 fiksira zadatak za uravnoteživanje.
 - **Razmaci podjele** — broj prekida, kao `Razmaci podjele: 2`, ili crtica. Samo za čitanje; uređujete ih u panelu *Svojstva*.
-- **Pravilo rada** — pravilo rada za zadatak; prazno znači zadano za projekt. Može se uređivati s popisom. Prazno je i samo za čitanje na kontrolnoj točki, zadatku sažetka ili hamaku. U prozoru za odabir vidljivo je samo kad su pravila rada prikazana (*Prikaži pravila rada i rad*, ili datoteka sadrži pravila rada).
+- **Vrsta zadatka** — vrsta zadatka za taj zadatak; prazno znači zadano za projekt. Može se uređivati s popisom, ali prazno je i samo za čitanje na kontrolnoj točki, zadatku sažetka ili hamaku. U prozoru za odabir vidljivo je samo kad su vrste zadataka prikazane (*Koristi vrste zadataka*, ili datoteka sadrži vrste zadataka).
 - **Hamak (izvedeno trajanje)** — je li zadatak hamak. Može se uređivati, osim na kontrolnoj točki ili zadatku sažetka.
 - **Kalendar** — identifikator vlastitog kalendara zadatka; prazno (—) znači kalendar projekta. Upisujete ili birate identifikator iz prijedloga; nepoznat identifikator se odbija. Napomena: ćelija trenutno prikazuje interni identifikator umjesto naziva. Bolje je odabrati kalendar u panelu *Svojstva*.
-- **Vrsta trajanja** — *Radno vrijeme* (trajanje se broji u radnim danima ili radnim satima kalendara) ili *Proteklo vrijeme* (trajanje se broji u neprekinutom vremenu na satu, bez kalendara). Može se uređivati.
+- **Vrsta trajanja** — *Radno vrijeme* (trajanje se broji u radnim danima ili radnim satima kalendara) ili *Proteklo vrijeme* (trajanje se broji u neprekinutom vremenu, bez kalendara). Može se uređivati.
 - **Jedinica trajanja** — *Dani* ili *Sati*. Može se uređivati, osim na zadatku sažetka, hamaku ili kontrolnoj točki. Prebacivanje radi samo ako je pretvorba točna i ako je uključena opcija *Uključi planiranje u satima*.
 - **Trajanje** — trajanje zadatka, u jedinici zadatka ili prema *Prikaz trajanja*. Može se uređivati: upisujete `5d`, `12h` ili `1h 30m`, ili broj u jedinici zadatka. Samo za čitanje na zadatku sažetka, hamaku i kontrolnoj točki s trajanjem 0.
-- **Početak** — prikazani početak, isti datum kao traka u Gantt dijagramu. Može se uređivati. Zadatak s prethodnikom, kojem dodijelite novi početak, dobiva ograničenje *Ne početi prije (SNET)* na taj datum. Samo za čitanje na zadatku sažetka ili hamaku, osim ako je ručno planiran.
-- **Završetak** — prikazani završetak. Može se uređivati: novi završetak postaje novo trajanje. Aplikacija to odbija za dovršen zadatak, kontrolnu točku, zadatak u proteklom vremenu i zadatak s prekidima, te za završetak prije početka (*Završetak je prije početka.*). Samo za čitanje na zadatku sažetka ili hamaku, osim ako je ručno planiran.
-- **Planirani početak** — sidro za planiranje, od kojeg izračun kreće (ne mora biti prikazani početak). Može se uređivati; učinak je isti kao da upišete u polje *Početak*.
+- **Početak** — prikazani početak, isti datum kao traka u Gantt dijagramu. Za zadatak koji je započeo to je stvarni početak. Može se uređivati. Zadatak s prethodnikom, kojem dodijelite novi početak, dobiva ograničenje *Ne početi prije (SNET)* na taj datum. Samo za čitanje na zadatku sažetka ili hamaku, osim ako je ručno planiran, i na zadatku koji je započeo (*Ovaj zadatak je započeo; njegov početak je stvarni početak. Promijenite ga putem napretka.*).
+- **Završetak** — prikazani završetak. Za dovršen zadatak to je stvarni završetak. Može se uređivati: novi završetak postaje novo trajanje. Aplikacija to odbija za kontrolnu točku, zadatak u proteklom vremenu i zadatak s prekidima, te za završetak prije početka (*Završetak je prije početka.*). Samo za čitanje na zadatku sažetka ili hamaku, osim ako je ručno planiran, i na dovršenom zadatku (*Ovaj zadatak je dovršen; završetak je stvarni završetak. Promijenite ga preko napretka.*).
+- **Planirani početak** — sidro za planiranje, od kojeg izračun kreće (ne mora biti prikazani početak). Može se uređivati; učinak je isti kao kad upišete u polje *Početak*.
 - **Planirani završetak** — uneseni završetak. Može se uređivati samo na ručno planiranom zadatku. Inače aplikacija kaže *Planirani završetak vrijedi samo za ručno planiran zadatak. Završetak promijenite u stupcu Završetak ili preko trajanja.*
 
 ## Ograničenja
@@ -64,11 +64,12 @@ Prema zadanim postavkama tablica pored Gantt dijagrama prikazuje *WBS*, *Naziv z
 ## Resursi
 
 - **Dodijeljeni resursi** — nazivi dodijeljenih resursa, odvojeni zarezima. Može se uređivati: dodavanjem naziva dodjeljuje se resurs s 1 jedinicom dodjele po danu, a uklanjanjem naziva uklanja se dodjela. Samo za čitanje na kontrolnoj točki ili zadatku sažetka.
-- **Jedinice dodjele po danu** — jedinice po resursu, kao `Naziv: 1; Naziv: 0.5`. Može se uređivati na zadatku s dodjelama.
+- **Jedinice dodjele po danu** — jedinice po resursu, kao `Naziv: 1; Naziv: 0.5`, s najviše dvije decimale. Spremljena vrijednost ostaje točna. Može se uređivati na zadatku s dodjelama.
+- **Planirane jedinice po danu** — planirana stopa po resursu, kao `Name: 1.11`, s najviše dvije decimale, kao *Jedinice dodjele po danu*. Samo za dodjelu iz Primavera P6 s drugačijom preostalom stopom; *Jedinice dodjele po danu* tada prikazuje preostalu stopu. Samo za čitanje.
 - **Krivulja dodjele** — krivulja po resursu, kao `Naziv: Uniform`. Može se uređivati na zadatku s dodjelama.
 - **Početak radnog prozora** i **Završetak radnog prozora** — radni prozor po resursu, iz uvezene datoteke, kao `Naziv: datum`. Samo za čitanje.
-- **Planirani rad (sati)** i **Stvarni rad (sati)** — planirani i stvarni rad po resursu u satima, kao `Naziv: 12`, iz uvezene datoteke. Samo za čitanje.
-- **Preostali posao (sati)** — preostali posao po resursu u satima, kao `Naziv: 6`: spremljeni rad, a inače preostalo trajanje × jedinice dodjele. Može se uređivati na zadatku s dodjelama na koje se primjenjuje pravilo rada. Vidljivo je u prozoru za odabir samo kad su pravila rada prikazana.
+- **Planirani rad (sati)** i **Stvarni rad (sati)** — planirani i stvarni rad po resursu u satima, kao `Naziv: 617.14`, s najviše dvije decimale, iz uvezene datoteke. Samo za čitanje.
+- **Preostali posao (sati)** — preostali posao po resursu u satima, kao `Naziv: 6` ili `Naziv: 26.67`: spremljeni rad, a inače preostalo trajanje × jedinice dodjele. Može se uređivati na zadatku s dodjelama na koje se primjenjuje vrsta zadatka, s zarezom ili točkom kao decimalnim znakom. Vidljivo je u prozoru za odabir samo kad su vrste zadataka prikazane. Žuti ⚠ u ćeliji znači da se spremljeni rad razlikuje od jedinica dodjele × preostalo trajanje, kao ⚠ uz *Rad (preostalo)* u panelu zadatka.
 
 ## Napredak
 
@@ -87,15 +88,15 @@ Stupci napretka slijede pravila napretka aplikacije: aplikacija odbija stvarni d
 Svi stupci u ovoj kategoriji su samo za čitanje.
 
 - **Kašnjenje zbog uravnoteživanja** — koliko je radnih dana uravnoteživanje odgodilo zadatak; crtica ako uravnoteživanje nije primijenjeno.
-- **Najraniji početak** i **Najraniji završetak** — najraniji datumi iz izračuna.
-- **Kasni početak** i **Kasni završetak** — najkasniji datumi na kojima zadatak još smije početi ili završiti bez kašnjenja datuma završetka projekta.
+- **Najraniji početak** i **Najraniji završetak** — najraniji datumi iz izračuna. Za zadatak koji je započeo mogu se razlikovati od *Početak* i *Završetak*: profil izračuna *Primavera P6* postavlja najraniji početak zadatka koji je u tijeku ili dovršen na datum stanja.
+- **Kasni početak** i **Kasni završetak** — najkasniji datumi na kojima zadatak još smije početi ili završiti bez kašnjenja završetka projekta.
 - **Slobodni hod** — radni dani za koje zadatak smije kasniti bez kašnjenja nasljednika.
 - **Ukupan slobodni hod** — radni dani za koje zadatak smije kasniti bez kašnjenja datuma završetka projekta. Negativan je ako se ograničenje ili rok za dovršetak ne mogu ispuniti.
 - **Kritičan** — *Da* ako je zadatak na kritičnom putu.
 - **Ometajuća vremenska rezerva** — ukupan slobodni hod minus slobodni hod.
-- **Gotovo kritičan** — *Da* za gotovo kritičan zadatak. Popunjava se samo ako je uključena opcija *Označi gotovo kritične* (*Podaci o projektu*, blok *Profil izračuna i opcije izračuna*); inače crtica.
+- **Gotovo kritičan** — *Da* za gotovo kritičan zadatak. Popunjava se samo ako je uključena opcija *Označi gotovo kritične* (*Postavke projekta*, blok *Profil izračuna i opcije izračuna*); inače crtica.
 - **Put vremenske rezerve** — redni broj puta vremenske rezerve, 1 za najkritičniji. Popunjava se samo ako je uključena opcija *Više putova vremenske rezerve*; inače crtica.
-- **Izvor zabilježenih datuma** — za datoteku sa zabilježenim datumima: *Odstupa* ili *Djelomično nije zabilježeno*. Vidljivo je u prozoru za odabir samo za takvu datoteku. Ako datumi nisu zabilježeni, *Nije zabilježeno* pojavljuje se u stupcima kasnih datuma i vremenske rezerve.
+- **Izvor zabilježenih datuma** — dok aplikacija prikazuje datume iz datoteke: *Djelomično nije zabilježeno* na zadatku za koji datoteka ne sadrži sve. Vidljivo je u prozoru za odabir samo u tom prikazu. Na osi bez zabilježenih datuma pojavljuje se *Nije zabilježeno* u stupcima kasnih datuma i vremenske rezerve.
 
 Pogledajte [Kritični put i vremenska rezerva](docs://uitleg-kritiek-pad).
 

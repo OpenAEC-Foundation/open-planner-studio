@@ -178,10 +178,15 @@ export type NotificationSeverity = 'error' | 'info';
  * een unie over twee namespaces typecheckt niet, zelf nagemeten). Daarom staat de
  * tak-als-sjabloon-melding hier als `notifications.templateSaved` en niet als
  * `task:structure.templateSaved` — dezelfde vertaalde tekst, in de namespace die het kanaal kan
- * typeren. Een nieuwe melding zet zijn sleutel hier én in alle veertien `common.json`-bestanden.
+ * typeren. Een nieuwe melding zet zijn sleutel in deze unie én in de `common.json`-bronnen voor `nl` en `en`.
+ * `i18n:add` beheert de bronhashes in `i18n/ui-sources/`; de vertaalstraat vult de overige talen aan.
+ * Een release vereist volledige, actuele UI-vertalingen in alle 28 talen (`verify:translations`).
  */
 export type NotificationMessageKey =
+  | 'notifications.minuteModelConverted'
+  | 'notifications.minuteModelCalendarRepaired'
   | 'notifications.openFailed'
+  | 'notifications.csvInvalidDate'
   | 'notifications.extGuideCallbackFailed'
   | 'notifications.extHelpProjectOpenFailed'
   // Een extensie-importer (Backstage → Importeren) gooide een fout. Parameter `name` (de naam van de
@@ -190,7 +195,12 @@ export type NotificationMessageKey =
   // `api.ui.showNotification` van een extensie — zie `src/extensions/extensionNotifications.ts`.
   // Parameters `name` (extensienaam) en `message` (onvertaalde extensietekst, als platte tekst).
   | 'notifications.extensionMessage'
+  | 'notifications.extensionInstallFailed'
   | 'notifications.saveFailed'
+  // Inzet/werk (blok Toewijzingen): "1,500" in en of "1.500" in nl is dubbelzinnig (1500 of 1,5)
+  // en wordt geweigerd. Parameters `text` (de getypte invoer) en `separator` (decimaalteken van de
+  // taal; de vertaling toont het voorbeeld als 1{{separator}}5).
+  | 'notifications.ambiguousThousands'
   // Opslag via de site (issue #309): de site weigerde omdat het bestand intussen verder is
   // (`code === 'conflict'`). Parameter `name`. Het document blijft gewijzigd.
   | 'notifications.siteSaveConflict'
@@ -201,6 +211,9 @@ export type NotificationMessageKey =
   | 'notifications.browserCannotOverwrite'
   | 'notifications.browserSavesAsDownload'
   | 'notifications.autoSaveFailed'
+  | 'notifications.autoSaveNotWritable'
+  | 'notifications.recoveryManifestBlocked'
+  | 'notifications.recoveryStorageBlocked'
   | 'notifications.recoveryReadFailed'
   | 'notifications.recoveryRestoreFailed'
   // Recovery-robuustheid (corrupt herstelbestand): `restoreDocuments` slaat een
@@ -231,14 +244,19 @@ export type NotificationMessageKey =
   // wordt mijlpaal ⇒ weigeren; wordt fase ⇒ toewijzingen naar de eerste nieuwe subtaak, of weigeren
   // als dat niet schoon kan; een mijlpaal die kinderen krijgt verliest zijn mijlpaalvlag.
   | 'notifications.milestoneRefusedAssignments'
+  | 'notifications.milestoneRefusedAssignmentsMany'
   | 'notifications.milestoneRefusedSummary'
+  | 'notifications.milestoneRefusedSummaryMany'
   | 'notifications.assignmentsMovedToSubtask'
   | 'notifications.assignmentsMovedToSubtasks'
   | 'notifications.milestoneClearedOnPhase'
+  | 'notifications.milestoneClearedOnPhaseMany'
   | 'notifications.phaseRefusedNoAssignableChild'
   | 'notifications.phaseRefusedDuplicateResource'
   | 'notifications.phaseQuestionOutdated'
   | 'notifications.mppLegacy'
+  | 'notifications.xmlUnknownSchedule'
+  | 'notifications.mppInvalidContainer'
   | 'notifications.mppEncrypted'
   | 'notifications.xerInvalidInput'
   | 'notifications.xerInvalidFile'
@@ -281,6 +299,23 @@ export type NotificationMessageKey =
   | 'notifications.p6xmlImportOpened'
   | 'notifications.p6xmlImportCrossProjectRelations'
   | 'notifications.p6xmlImportUnassignedActivities'
+  // MS Project (MSPDI `.xml` en `.mpp`): wat de lezer niet overnam (`msProjectImportNotice`, issue #391).
+  | 'notifications.msProjectImportLoss'
+  | 'notifications.msProjectLostBaselines'
+  | 'notifications.msProjectLostExtraBaselines'
+  | 'notifications.msProjectLostBaselineWorkCost'
+  | 'notifications.msProjectLostAssignmentBaselineDates'
+  | 'notifications.msProjectLostCustomFields'
+  | 'notifications.msProjectLostNotes'
+  | 'notifications.msProjectLostHyperlinks'
+  | 'notifications.msProjectLostFixedCosts'
+  | 'notifications.msProjectLostResourceRates'
+  | 'notifications.msProjectLostSubprojects'
+  | 'notifications.msProjectLostExternalTasks'
+  | 'notifications.msProjectLostManualTasks'
+  | 'notifications.msProjectLostLevelingDelays'
+  | 'notifications.msProjectLostInactiveTasks'
+  | 'notifications.msProjectLostCriticalSlack'
   // Dezelfde regel, formaatneutraal,
   // voor P6 XML/MSPDI/.mpp/CSV/IFC — één melding per geopend bestand (`applyOpenedImport`).
   | 'notifications.importDatesAsRecorded'
@@ -550,6 +585,8 @@ export interface UIState {
   positionDivision: PositionDivision; // persisted — split used in position mode
   modifierMap: ModifierMap;           // persisted — wheel→function map for modifier mode
   debugTerminalEnabled: boolean;  // persisted
+  experimentalSettingsVisible: boolean; // persisted; verbergen laat de flagkeuzes staan
+  featureFlags: Record<string, boolean>; // persisted; ontbrekend = uit
   debugTerminalOpen: boolean;     // session
   documentChromeStyle: DocumentChromeStyle; // persisted — multi-document wisselstijl
   ribbonCompact: boolean; // persisted — compacte ribbon voor kleine schermen
@@ -636,8 +673,7 @@ export interface UIState {
 
   dateNotation: DateNotation;                // persisted — weergavenotatie voor datums; opslag blijft ISO
   timeNotation: TimeNotation;                // persisted — weergave/invoer van kloktijden (24 of 12 uur); opslag blijft ISO
-  // --- Urenplanning-instellingen; ontbrekende sleutel ⇒ default (geen reset) ---
-  enableHourPlanning: boolean;               // persisted — hoofdschakelaar Urenplanning (default UIT)
+  // --- Duurinstellingen; ontbrekende sleutel ⇒ default (geen reset) ---
   /** persisted (`ops-showTaskTypes`) — toon de werkregel (taaktype) en het
    *  resterende werk per toewijzing in paneel, dialoog en raster. Default UIT; een document dat al
    *  taaktypedata draagt ontsluit de weergave voor zichzelf (`taskTypesVisible`, DOCUMENT_FIELDS). */
@@ -648,12 +684,7 @@ export interface UIState {
   // «Alleen werkbare dagen tonen» — comprimeert de Gantt/Histogram-tijd-as (weekenden+feestdagen
   // weggelaten). Globaal (geen ViewState).
   compressNonWorkdays: boolean;               // persisted — default UIT
-  /** session — id van het document waarvan het geladen bestand uur-data bevat terwijl Urenplanning
-   *  uit staat; `null` = geen melding. Een id en geen vlag: de strook hoort bij DAT document. Een
-   *  nieuw of ander document toont hem niet, terug naar dat document wel. Grens: opent u twee
-   *  bestanden met uur-data, dan houdt alleen het laatst geopende de strook. Geen enkel wisselpad
-   *  hoeft hem dus te wissen. */
-  hourDataNotice: string | null;
+
   /** session — teller voor de "structuur vergrendeld"-melding: elke geweigerde
    *  structuurpoging hoogt hem op, zodat de melding ook opnieuw verschijnt als hij al zichtbaar
    *  was. 0 = niets te tonen. */
@@ -739,8 +770,9 @@ export interface UIState {
   pendingNewResource: boolean;
   // --- First-startup (welkomstdialoog + rondleiding) ---
   /** session — welkomstdialoog (2 stappen: voorkeuren + rondleiding-aanbod) open. Ephemeral:
-   *  het bootstrap-effect in App.tsx zet 'm op true bij een verse `!loadWelcomeSeen()`, of de
-   *  herstart-ingangen (ribbon/backstage) zetten 'm handmatig, ongeacht welcomeSeen. */
+   *  `useSettingsBootstrap` opent hem na de herstelafhandeling als `loadWelcomeSeen()` false geeft
+   *  en de host hem niet overslaat. De handmatige ingangen starten alleen de rondleiding,
+   *  niet dit welkomstvenster. */
   showWelcomeDialog: boolean;
   /** session — rondleiding-overlay (TourOverlay) open. */
   showTourOverlay: boolean;
@@ -800,8 +832,9 @@ export interface UIState {
    *  `pendingHelpArticleId`. */
   pendingExtensionsTab: 'browse' | null;
   /** session — eenmalig verzoek om in Backstage → Help een sectie van de inhoudsopgave in beeld te
-   *  brengen (de tutorialvraag valt terug op Help › Tutorials). Geconsumeerd (en direct weer op
-   *  `null` gezet) door `HelpPanel` — zelfde eenmalig-verzoek-patroon als `pendingHelpArticleId`. */
+   *  brengen (de tutorialvraag valt terug op Help › Tutorials). Blijft staan tijdens laden;
+   *  `HelpPanel` consumeert na de eerste artikellayout (ook bij een laadfout). Een andere
+   *  artikelkeuze of wegnavigeren uit Help annuleert het verzoek. */
   pendingHelpSection: 'tutorials' | null;
 }
 

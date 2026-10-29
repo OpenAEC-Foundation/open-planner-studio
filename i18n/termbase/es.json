@@ -1691,6 +1691,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "work-category": {
+    "term": "categoría de trabajo",
+    "forms": [
+      "categoría de trabajo",
+      "categorías de trabajo"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "horarios de trabajo",
     "forms": [

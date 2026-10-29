@@ -41,7 +41,7 @@ Nový krok začne dnešným dátumom a 1 jednotkou. Zmeňte oboje, inak platí k
 1. Kliknite na kôš v riadku.
 2. Ak zdroj má priradenia, aplikácia požiada o potvrdenie, napríklad *„Bricklayer“ má počet priradení: 4 — odstrániť?* Kliknutím na značku zdroj odstránite, kliknutím na krížik akciu zrušíte. Bez priradení zdroj zmizne hneď.
 
-Priradenia zdroja sa odstránia spolu s ním. Ak úloha má pravidlo práce iné ako *Pevné trvanie a jednotky priradenia*, aplikácia rozdelí prácu odstráneného zdroja medzi zostávajúce zdroje. Podľa pravidla sa tým zmenia ich jednotky alebo trvanie úlohy. Ak sa zmení trvanie, plán už nie je aktuálny.
+Priradenia zdroja sa odstránia spolu s ním. Ak úloha má typ úlohy iný ako *Pevné trvanie a jednotky priradenia*, aplikácia rozdelí prácu odstráneného zdroja medzi zostávajúce zdroje. Podľa typu úlohy sa tým zmenia ich jednotky alebo trvanie úlohy. Ak sa zmení trvanie, plán už nie je aktuálny.
 
 Vytváranie, úpravy a odstránenie zdroja môžete vrátiť pomocou *Vrátiť späť* (Ctrl+Z).
 

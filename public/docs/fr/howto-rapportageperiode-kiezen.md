@@ -34,7 +34,7 @@ Les deux jours extrêmes sont inclus. Si la date d'état est le jeudi 20 mai, *S
 
 ### 4. Ou choisir Personnalisé
 
-Avec *Personnalisé*, *À partir de* et *Au* deviennent deux champs de date. Ils commencent avec les dates du choix que vous veniez de faire. Remplissez les deux, par exemple le 1 et le 14 juin. Si la saisie n'est pas correcte, le rapport reste sur la dernière période valide et affiche en rouge :
+Avec *Personnalisé*, *À partir de* et *Au* deviennent deux champs de date. Ils commencent avec les dates du choix que vous veniez de faire. Remplissez les deux, par exemple le 1er et le 14 juin. Si la saisie n'est pas correcte, le rapport reste sur la dernière période valide et affiche en rouge :
 
 - *La date de fin est antérieure à la date de début.* si *Au* est antérieur à *À partir de*.
 - *Renseignez les deux dates.* si l'une des deux est vide.

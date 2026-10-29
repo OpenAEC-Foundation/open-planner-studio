@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useProfileCountsWorkdays } from '@/hooks/useDurationMeasure';
 import { useAppStore } from '@/state/appStore';
 import { useResolvedUITheme } from '@/hooks/useResolvedUITheme';
 import { ResolvedUITheme, UI_THEMES, DocumentChromeStyle, DateNotation, TimeNotation, DurationDisplay, BarSplitMode, UIFontFamily, UI_FONT_FAMILIES, UI_FONT_SCALES, type UIState } from '@/state/slices/types';
-import { saveZoomSettings, saveDebugTerminalEnabled, saveDocumentChromeStyle, saveShowClassicViewControls, saveConstructionMode, saveDateNotation, saveTimeNotation, saveEnableHourPlanning, saveShowTaskTypes, saveAllowMixedDayHour, saveDurationDisplay, saveBarSplitMode, saveCompressNonWorkdays, saveUIFontFamily, saveUIFontScale, saveAiAutostart, saveFormatNoticeHidden } from '@/utils/settingsStore';
+import { saveZoomSettings, saveDebugTerminalEnabled, saveDocumentChromeStyle, saveShowClassicViewControls, saveConstructionMode, saveDateNotation, saveTimeNotation, saveShowTaskTypes, saveAllowMixedDayHour, saveDurationDisplay, saveBarSplitMode, saveCompressNonWorkdays, saveUIFontFamily, saveUIFontScale, saveAiAutostart, saveFormatNoticeHidden } from '@/utils/settingsStore';
 import { FORMAT_NOTICE_KINDS, withFormatNoticeShown } from '@/services/formatNoticeKinds';
 import { applyAiModeLive } from '@/services/mcp/server';
 import { isTauri } from '@/utils/platform';
@@ -15,6 +16,8 @@ import './SettingsPanelContent.css';
 import { applyAutoCalcCPM, applySetting, applyTheme } from './applySetting';
 import { LanguageSelect, SettingToggle, THEME_LABEL_KEYS } from './settingControls';
 import { AI_MODE_AVAILABLE } from '@/utils/buildFlags';
+import { FEATURE_FLAGS, isFeatureEnabled } from '@/utils/featureFlags';
+import { saveExperimentalSettingsVisible, saveFeatureFlags } from '@/utils/settingsStore';
 
 // Drie tabs — Weergave (uiterlijk + Gantt-weergave), Planning (project-brede
 // planningsopties) en Geavanceerd (AI, debug, benchmark, rondleiding, versie);
@@ -64,7 +67,9 @@ export function SettingsPanelContent() {
   const constructionMode = useAppStore(s => s.ui.constructionMode);
   const dateNotation = useAppStore(s => s.ui.dateNotation);
   const timeNotation = useAppStore(s => s.ui.timeNotation);
-  const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
+  // B9: Duurweergave staat grijs zolang het profiel de dagenmaat telt (het OPS-profiel); dezelfde regel
+  // als de schermen (`useEffectiveDurationDisplay`) en de invoer (B8).
+  const opsProfile = useProfileCountsWorkdays();
   const showTaskTypes = useAppStore(s => s.ui.showTaskTypes);
   const formatNoticeHidden = useAppStore(s => s.ui.formatNoticeHidden);
   const allowMixedDayHour = useAppStore(s => s.ui.allowMixedDayHour);
@@ -73,8 +78,29 @@ export function SettingsPanelContent() {
   const aiMode = useAppStore(s => s.ui.aiMode);
   const aiAutostart = useAppStore(s => s.ui.aiAutostart);
   const compressNonWorkdays = useAppStore(s => s.ui.compressNonWorkdays);
+  const experimentalSettingsVisible = useAppStore(s => s.ui.experimentalSettingsVisible);
+  const featureFlags = useAppStore(s => s.ui.featureFlags);
+  const availableFlags = FEATURE_FLAGS.filter(flag => !flag.writesNewIfcData);
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
+  const versionRef = useRef<HTMLButtonElement>(null);
+  const unlockSequence = useRef<{ start: number; last: number } | null>(null);
+
+  // Geen timer: alleen een nieuwe activering kan ontgrendelen. Een pauze van > 0,5 s
+  // begint opnieuw. De native knop levert ook clicks bij Enter-toetsherhaling.
+  const activateVersion = () => {
+    if (experimentalSettingsVisible) return;
+    const now = performance.now();
+    const sequence = unlockSequence.current;
+    if (!sequence || now - sequence.last > 500) {
+      unlockSequence.current = { start: now, last: now };
+    } else if (now - sequence.start >= 5_000) {
+      unlockSequence.current = null;
+      applySetting('experimentalSettingsVisible', true, saveExperimentalSettingsVisible);
+    } else {
+      sequence.last = now;
+    }
+  };
 
   // "Wat is er nieuw" handmatig openen: toon JustUpdatedDialog voor de HUIDIGE versie (dus zonder
   // "van"-versie). KRITIEK: `@tauri-apps/*` alleen dynamisch achter `isTauri()` — in de web-build
@@ -237,6 +263,7 @@ export function SettingsPanelContent() {
               <Select
                 aria-label={t('settings.durationDisplay')}
                 value={durationDisplay}
+                disabled={opsProfile}
                 onChange={v => applySetting('durationDisplay', v as DurationDisplay, saveDurationDisplay)}
                 options={[
                   { value: 'auto', label: t('settings.durationDisplayAuto') },
@@ -244,7 +271,12 @@ export function SettingsPanelContent() {
                   { value: 'hours', label: t('settings.durationDisplayHours') },
                 ]}
               />
-              <p className="scrollzoom-hint">{t('settings.durationDisplayHint')}</p>
+              <p className="scrollzoom-hint">{t(opsProfile ? 'settings.durationDisplayOpsHint' : 'settings.durationDisplayHint')}</p>
+              <SettingToggle
+                label={t('settings.allowMixedDayHour')}
+                checked={allowMixedDayHour}
+                onChange={checked => applySetting('allowMixedDayHour', checked, saveAllowMixedDayHour)}
+              />
             </div>
 
             <div className="settings-section">
@@ -325,26 +357,6 @@ export function SettingsPanelContent() {
               />
             </div>
 
-            {/* Urenplanning — hoofdschakelaar + 3 sub-instellingen. Alle vier
-                verschijnen op de drie ingangen tegelijk (gedeelde component). De sub-instelling
-                "Gemengd toestaan" is alleen actief als de hoofdschakelaar aan staat. */}
-            <div className="settings-section">
-              <h3>{t('settings.hourPlanningSection')}</h3>
-              <SettingToggle
-                label={t('settings.enableHourPlanning')}
-                hint={t('settings.enableHourPlanningHint')}
-                checked={enableHourPlanning}
-                onChange={checked => applySetting('enableHourPlanning', checked, saveEnableHourPlanning)}
-              />
-              {enableHourPlanning && (
-                <SettingToggle
-                  label={t('settings.allowMixedDayHour')}
-                  checked={allowMixedDayHour}
-                  onChange={checked => applySetting('allowMixedDayHour', checked, saveAllowMixedDayHour)}
-                  style={{ marginTop: 8 }}
-                />
-              )}
-            </div>
 
             <div className="settings-section">
               <h3>{t('settings.weekStartDay')}</h3>
@@ -487,7 +499,16 @@ export function SettingsPanelContent() {
               <h3>{t('settings.version')}</h3>
               <p className="scrollzoom-hint">{t('settings.versionHint')}</p>
               <div className="settings-row">
-                <span>{__APP_VERSION__}</span>
+                <button
+                  ref={versionRef}
+                  type="button"
+                  className="settings-version"
+                  data-ops-settings-version
+                  onClick={activateVersion}
+                  onBlur={() => { unlockSequence.current = null; }}
+                >
+                  {__APP_VERSION__}
+                </button>
               </div>
               <button
                 className="settings-link"
@@ -505,6 +526,39 @@ export function SettingsPanelContent() {
                 {t('updates.justUpdated.whatsNewButton')}
               </button>
             </div>
+            {experimentalSettingsVisible && (
+              <div className="settings-section" data-ops-experimental-settings>
+                <h3>{t('settings.experimentalSection')}</h3>
+                {availableFlags.length === 0 && (
+                  <p className="scrollzoom-hint">{t('settings.experimentalEmpty')}</p>
+                )}
+                {availableFlags.map(flag => (
+                  <SettingToggle
+                    key={flag.id}
+                    label={t(flag.nameKey)}
+                    hint={flag.descriptionKey ? t(flag.descriptionKey) : undefined}
+                    checked={isFeatureEnabled(featureFlags, flag.id)}
+                    onChange={checked => applySetting(
+                      'featureFlags',
+                      { ...useAppStore.getState().ui.featureFlags, [flag.id]: checked },
+                      saveFeatureFlags,
+                    )}
+                    inputProps={{ 'data-ops-feature-flag': flag.id }}
+                  />
+                ))}
+                <button
+                  type="button"
+                  className="settings-link"
+                  onClick={() => {
+                    applySetting('experimentalSettingsVisible', false, saveExperimentalSettingsVisible);
+                    unlockSequence.current = null;
+                    versionRef.current?.focus();
+                  }}
+                >
+                  {t('settings.experimentalHide')}
+                </button>
+              </div>
+            )}
             {/* Legacy-functies: vervangen functies, duidelijk als zodanig gemarkeerd. */}
             <div className="settings-section" data-ops-legacy-settings="true">
               <h3>{t('settings.legacySection')}</h3>

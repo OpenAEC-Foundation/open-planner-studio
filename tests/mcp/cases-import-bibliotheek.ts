@@ -33,6 +33,7 @@ const files = new Map<string, string>();
 const fs: McpFileFs = {
   homeDir: async () => HOME,
   exists: async (p) => files.has(p),
+  stat: async () => { throw new Error('Import vraagt geen bestandsidentiteit op'); },
   writeTextFile: async (p, c) => { files.set(p, c); },
   readTextFile: async (p) => {
     const v = files.get(p);

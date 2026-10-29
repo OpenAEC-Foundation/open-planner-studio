@@ -14,8 +14,16 @@ import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 import { SEQUENCE_TYPE_OPTIONS } from '@/types/sequence';
 import { localizeLagHourSuffix } from '@/utils/lagFormat';
 import { parseableHourSuffix } from '@/utils/durationFormat';
+import { useEffectiveDurationDisplay } from '@/hooks/useDurationMeasure';
 import {
-  type ReportContext, type LookAheadRow, type CriticalRow, type ProgressRow, type HealthCheck, type HealthItem,
+  durationSuffixesFrom, formatMeasuredDurationText, formatWorkDaysText, type MeasuredDuration,
+} from '@/utils/taskDuration';
+import type { InstantSide } from '@/engine/calendar/workdayRules';
+import type { TaskDateLabelOptions } from '@/utils/taskDateLabel';
+import { constraintDateField, taskDateFieldSide } from '@/state/migrations/minuteModel';
+import {
+  makeTaskDateLabeler,
+  type ReportContext, type SolvedReportContext, type LookAheadRow, type CriticalRow, type ProgressRow, type HealthCheck, type HealthItem,
   type DcmaMetric, DCMA_DAYS, type ResourceLoadingRow, type ResourceAssignmentRow, type WbsSummaryRow,
   computeLookAhead, computeCriticalReport, computeProgressReport, computeScheduleHealth,
   computeResourceLoading, computeResourceAssignments, computeWbsSummary,
@@ -32,7 +40,20 @@ import { REPORT_COLORS, section, type ReportColumn, type ReportSummaryItem, type
  */
 type T = TFunction<'report'>;
 /** Datum- én getalnotatie van het rapport, gebonden aan de app-instellingen en -taal. */
-type DD = ReturnType<typeof useDisplayDate> & { num: (n: number) => string; signed: (n: number) => string; lagText: (lag: string) => string };
+type DD = ReturnType<typeof useDisplayDate> & {
+  num: (n: number) => string;
+  signed: (n: number) => string;
+  lagText: (lag: string) => string;
+  /** Een datum van een taak volgens B4 (`makeTaskDateLabeler`), in de notatie van de app. */
+  taskDate: (taskId: string, value: string | undefined, side: InstantSide, opts?: TaskDateLabelOptions) => string;
+  /** Een duur in de maat van de taak (B8): "2,5d" bij de dagenmaat, "40u" bij de urenmaat; onder P6 en
+   *  MSP volgens Duurweergave, zoals de kolom Duur van de tabel. */
+  duration: (duration: MeasuredDuration, hoursPerDay: number) => string;
+  /** Een restduur in de maat van de taak, zoals de kolom Resterende duur van de tabel (altijd de eigen maat). */
+  remaining: (duration: MeasuredDuration) => string;
+  /** Een aantal werkdagen met de dag-afkorting ("3d"). */
+  workDays: (days: number) => string;
+};
 
 /** Zelfde sleutelmap als `ResourcePanel.tsx` — `t()` is strikt getypeerd, dus geen template-sleutel. */
 const RESOURCE_TYPE_KEY = {
@@ -46,7 +67,7 @@ const RESOURCE_TYPE_KEY = {
 const pct = (c: number) => `${Math.round(c * 100)}%`;
 const floatColor = (tf: number) => (tf < 0 ? REPORT_COLORS.error : tf === 0 ? REPORT_COLORS.warn : undefined);
 
-function useReportContext(): { ctx: ReportContext; stale: boolean } {
+function useReportContext(): { ctx: SolvedReportContext; stale: boolean } {
   const tasks = useAppStore(s => s.tasks);
   const sequences = useAppStore(s => s.sequences);
   const resources = useAppStore(s => s.resources);
@@ -68,7 +89,7 @@ function useReportContext(): { ctx: ReportContext; stale: boolean } {
   const datesAsRecorded = useAppStore(s => s.datesAsRecorded);
   // "Vandaag" één keer per dag stabiel: een nieuwe dag geeft een nieuwe waarde, binnen de dag niet.
   const today = localTodayIso();
-  const ctx = useMemo<ReportContext>(() => ({
+  const ctx = useMemo<SolvedReportContext>(() => ({
     tasks, sequences, resources, assignments, calendar, calendars, cpmResult,
     baseline: activeBaselineId ? baselines.find(b => b.id === activeBaselineId) ?? null : null,
     statusDate, today, datesAsRecorded,
@@ -88,8 +109,14 @@ function nameCol<R extends { name: string }>(t: T, width = 220): ReportColumn<R>
 function dateCol<R>(key: string, header: string, get: (r: R) => string | undefined, dd: DD, width = 95): ReportColumn<R> {
   return { key, header, width, align: 'left', text: r => dd.date(get(r)) || '—' };
 }
-function remainingCol<R extends { remainingDays: number }>(t: T, dd: DD): ReportColumn<R> {
-  return { key: 'remaining', header: t('tableReports.common.remaining'), width: 70, align: 'right', text: r => dd.num(r.remainingDays) };
+/** Een datumkolom van een taak: B4, een tijd alleen als het moment midden op de werkdag valt. */
+function taskDateCol<R extends { taskId: string }>(
+  key: string, header: string, get: (r: R) => string | undefined, side: InstantSide, dd: DD, width = 95,
+): ReportColumn<R> {
+  return { key, header, width, align: 'left', text: r => dd.taskDate(r.taskId, get(r), side) || '—' };
+}
+function remainingCol<R extends { remaining: MeasuredDuration }>(t: T, dd: DD): ReportColumn<R> {
+  return { key: 'remaining', header: t('tableReports.common.remaining'), width: 70, align: 'right', text: r => dd.remaining(r.remaining) };
 }
 function completionCol<R extends { completion: number }>(t: T): ReportColumn<R> {
   return { key: 'completion', header: t('tableReports.common.completion'), width: 60, align: 'right', text: r => pct(r.completion) };
@@ -152,8 +179,8 @@ function buildLookAhead(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD,
   const p = 'tableReports.lookAhead';
   const columns: ReportColumn<LookAheadRow>[] = [
     wbsCol(t), nameCol(t),
-    dateCol('start', t('tableReports.common.start'), r => r.start, dd),
-    dateCol('finish', t('tableReports.common.finish'), r => r.finish, dd),
+    taskDateCol('start', t('tableReports.common.start'), r => r.start, 'start', dd),
+    taskDateCol('finish', t('tableReports.common.finish'), r => r.finish, 'end', dd),
     remainingCol(t, dd), completionCol(t), tfCol(t, dd), criticalCol(t),
     { key: 'resources', header: t('tableReports.common.resources'), width: 150, align: 'left', text: r => resourcesText(r.resources) },
     statusCol(t, r => t(`tableReports.lookAhead.status_${r.status}`), r => LOOK_AHEAD_COLOR[r.status], 120),
@@ -172,7 +199,7 @@ function buildLookAhead(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD,
       { label: t('tableReports.common.nearCritical'), value: String(r.counts.nearCritical), color: r.counts.nearCritical ? REPORT_COLORS.warn : undefined },
     ],
     sections: [section<LookAheadRow>({ key: 'rows', columns, rows: r.rows, emptyText: t(`${p}.empty`) })],
-    fileSuffix: 'look-ahead',
+    fileSuffix: t('fileSuffix.lookAhead'),
   };
 }
 
@@ -181,8 +208,8 @@ function buildCritical(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD, 
   const p = 'tableReports.critical';
   const columns: ReportColumn<CriticalRow>[] = [
     wbsCol(t), nameCol(t, 260),
-    dateCol('start', t('tableReports.common.start'), r => r.start, dd),
-    dateCol('finish', t('tableReports.common.finish'), r => r.finish, dd),
+    taskDateCol('start', t('tableReports.common.start'), r => r.start, 'start', dd),
+    taskDateCol('finish', t('tableReports.common.finish'), r => r.finish, 'end', dd),
     remainingCol(t, dd), tfCol(t, dd),
     { key: 'ff', header: t('tableReports.common.freeFloat'), width: 70, align: 'right', text: r => dd.num(r.freeFloat) },
     { key: 'path', header: t(`${p}.floatPath`), width: 60, align: 'right', text: r => (r.floatPath === undefined ? '—' : String(r.floatPath)) },
@@ -199,7 +226,7 @@ function buildCritical(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD, 
       { label: t('tableReports.health.leaves'), value: String(r.counts.leaves) },
     ],
     sections: [section<CriticalRow>({ key: 'rows', columns, rows: r.rows, emptyText: t(`${p}.empty`) })],
-    fileSuffix: 'kritiek',
+    fileSuffix: t('fileSuffix.critical'),
   };
 }
 
@@ -209,8 +236,8 @@ function buildProgress(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD, 
   const s = r.summary;
   const columns: ReportColumn<ProgressRow>[] = [
     wbsCol(t), nameCol(t),
-    dateCol('baselineFinish', t(`${p}.baselineFinish`), r => r.baselineFinish, dd),
-    dateCol('finish', t(`${p}.forecastFinish`), r => r.finish, dd),
+    taskDateCol('baselineFinish', t(`${p}.baselineFinish`), r => r.baselineFinish, 'end', dd),
+    taskDateCol('finish', t(`${p}.forecastFinish`), r => r.finish, 'end', dd),
     completionCol(t), remainingCol(t, dd), tfCol(t, dd), criticalCol(t),
     statusCol(t, r => t(`tableReports.progress.status_${r.status}`), r => PROGRESS_COLOR[r.status], 130),
   ];
@@ -245,14 +272,23 @@ function buildProgress(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD, 
       sec('overdue', r.overdue),
       sec('critical', r.critical),
     ],
-    fileSuffix: 'voortgang',
+    fileSuffix: t('fileSuffix.progress'),
   };
 }
 
 interface HealthSummaryRow { id: HealthCheck['id']; severity: HealthCheck['severity']; count: number }
 interface HealthDetailRow { id: HealthCheck['id']; severity: HealthCheck['severity']; item: HealthItem }
 
-function healthDetailText(t: T, dd: DD, item: HealthItem): string {
+/** B4 voor de datum in een gezondheidsregel: een beperking volgt haar kant, een deadline en een gemist
+ *  baseline-einde zijn eindachtig. Alleen het baseline-einde is een eigen veld van de taak (mijlpaalregel). */
+function healthDateText(dd: DD, id: HealthCheck['id'], item: HealthItem, date: string): string {
+  if (!item.taskId) return dd.date(date);
+  const field = item.detail.constraintType ? constraintDateField(item.detail.constraintType) : null;
+  const side: InstantSide = field ? taskDateFieldSide(field) : 'end';
+  return dd.taskDate(item.taskId, date, side, { milestoneOwn: id === 'missedTask' });
+}
+
+function healthDetailText(t: T, dd: DD, id: HealthCheck['id'], item: HealthItem): string {
   const d = item.detail;
   const parts: string[] = [];
   if (d.reason) parts.push(t(`tableReports.health.reason_${d.reason}`));
@@ -263,7 +299,7 @@ function healthDetailText(t: T, dd: DD, item: HealthItem): string {
   if (d.lag) parts.push(t('tableReports.health.detail_lag', { value: dd.lagText(d.lag) }));
   else if (d.days !== undefined) parts.push(t('tableReports.health.detail_days', { value: dd.num(d.days) }));
   if (d.float !== undefined) parts.push(t('tableReports.health.detail_float', { value: dd.num(d.float) }));
-  if (d.date) parts.push(dd.date(d.date));
+  if (d.date) parts.push(healthDateText(dd, id, item, d.date));
   return parts.join(' · ');
 }
 
@@ -332,7 +368,7 @@ function buildHealth(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD, st
     { key: 'check', header: t(`${p}.check`), width: 220, align: 'left', text: r => t(`${p}.check_${r.id}`), color: r => SEVERITY_COLOR[r.severity], bold: () => true },
     { key: 'wbs', header: t('tableReports.common.wbs'), width: 110, align: 'left', text: r => r.item.wbs },
     { key: 'name', header: t(`${p}.item`), width: 300, align: 'left', text: r => r.item.name },
-    { key: 'detail', header: t(`${p}.detail`), width: 260, align: 'left', text: r => healthDetailText(t, dd, r.item) },
+    { key: 'detail', header: t(`${p}.detail`), width: 260, align: 'left', text: r => healthDetailText(t, dd, r.id, r.item) },
   ];
   return {
     title: t(`${p}.title`),
@@ -351,7 +387,7 @@ function buildHealth(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD, st
       section<HealthSummaryRow>({ key: 'summary', heading: t(`${p}.sectionSummary`), columns: summaryColumns, rows: summaryRows }),
       section<HealthDetailRow>({ key: 'details', heading: t(`${p}.sectionDetails`), columns: detailColumns, rows: detailRows, emptyText: t(`${p}.empty`) }),
     ],
-    fileSuffix: 'gezondheid',
+    fileSuffix: t('fileSuffix.health'),
   };
 }
 
@@ -372,7 +408,7 @@ function firstOfResourceGroup<R extends { resourceId: string }>(rows: R[], keyOf
 }
 
 
-function buildResourceLoading(ctx: ReportContext, o: TableReportOptions, t: T, tCommon: TFunction<'common'>, dd: DD, stale: boolean, locale: string): TableReportSpec {
+function buildResourceLoading(ctx: SolvedReportContext, o: TableReportOptions, t: T, tCommon: TFunction<'common'>, dd: DD, stale: boolean, locale: string): TableReportSpec {
   const r = computeResourceLoading(ctx, { period: o.resourceLoadPeriod, bucket: o.resourceLoadBucket, onlyOverloaded: o.resourceLoadOnlyOverloaded });
   const p = 'tableReports.resourceLoading';
   const monthly = o.resourceLoadBucket === 'month';
@@ -409,7 +445,7 @@ function buildResourceLoading(ctx: ReportContext, o: TableReportOptions, t: T, t
       { label: t(`${p}.overloadedResources`), value: String(r.counts.overloadedResources), color: r.counts.overloadedResources ? REPORT_COLORS.error : undefined },
     ],
     sections: [section<ResourceLoadingRow>({ key: 'rows', columns, rows: r.rows, emptyText: t(`${p}.empty`) })],
-    fileSuffix: 'resourcebelasting',
+    fileSuffix: t('fileSuffix.resourceLoading'),
   };
 }
 
@@ -423,8 +459,8 @@ function buildResourceAssignments(ctx: ReportContext, o: TableReportOptions, t: 
     { key: 'resource', header: t(`${p}.resource`), width: 170, align: 'left', text: row => (firstOfGroup.has(row.assignmentId) ? row.resourceName : ''), bold: () => true },
     { key: 'type', header: t('tableReports.resourceLoading.type'), width: 95, align: 'left', text: row => (firstOfGroup.has(row.assignmentId) ? tCommon(RESOURCE_TYPE_KEY[row.resourceType]) : '') },
     wbsCol(t), nameCol(t, 200),
-    dateCol('start', t('tableReports.common.start'), r => r.start, dd),
-    dateCol('finish', t('tableReports.common.finish'), r => r.finish, dd),
+    taskDateCol('start', t('tableReports.common.start'), r => r.start, 'start', dd),
+    taskDateCol('finish', t('tableReports.common.finish'), r => r.finish, 'end', dd),
     remainingCol(t, dd),
     { key: 'units', header: t(`${p}.units`), width: 75, align: 'right', text: r => dd.num(r.unitsPerDay) },
     completionCol(t),
@@ -441,7 +477,7 @@ function buildResourceAssignments(ctx: ReportContext, o: TableReportOptions, t: 
       { label: t(`${p}.unassigned`), value: String(r.counts.unassignedTasks), color: r.counts.unassignedTasks ? REPORT_COLORS.warn : undefined },
     ],
     sections: [section<ResourceAssignmentRow>({ key: 'rows', columns, rows: r.rows, emptyText: t(`${p}.empty`) })],
-    fileSuffix: 'toewijzingen',
+    fileSuffix: t('fileSuffix.resourceAssignments'),
   };
 }
 
@@ -451,11 +487,11 @@ function buildWbsSummary(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD
   const columns: ReportColumn<WbsSummaryRow>[] = [
     { key: 'wbs', header: t('tableReports.common.wbs'), width: 80, align: 'left', text: r => r.wbs, bold: r => r.isSummary },
     { key: 'name', header: t('tableReports.common.name'), width: 240, align: 'left', text: r => r.name, bold: r => r.isSummary, indent: r => Math.max(0, r.level - 1) * 14 },
-    dateCol('start', t('tableReports.common.start'), r => r.start, dd),
-    dateCol('finish', t('tableReports.common.finish'), r => r.finish, dd),
-    dateCol('baselineStart', t(`${p}.baselineStart`), r => r.baselineStart, dd),
-    dateCol('baselineFinish', t(`${p}.baselineFinish`), r => r.baselineFinish, dd),
-    { key: 'duration', header: t(`${p}.duration`), width: 70, align: 'right', text: r => dd.num(r.durationDays) },
+    taskDateCol('start', t('tableReports.common.start'), r => r.start, 'start', dd),
+    taskDateCol('finish', t('tableReports.common.finish'), r => r.finish, 'end', dd),
+    taskDateCol('baselineStart', t(`${p}.baselineStart`), r => r.baselineStart, 'start', dd),
+    taskDateCol('baselineFinish', t(`${p}.baselineFinish`), r => r.baselineFinish, 'end', dd),
+    { key: 'duration', header: t(`${p}.duration`), width: 70, align: 'right', text: r => (r.duration ? dd.duration(r.duration, r.hoursPerDay) : dd.workDays(r.durationDays)) },
     { key: 'completion', header: t('tableReports.common.completion'), width: 60, align: 'right', text: r => pct(r.completion) },
     { key: 'variance', header: t(`${p}.finishVariance`), width: 80, align: 'right', text: r => (r.finishVarianceDays === undefined ? '—' : dd.signed(r.finishVarianceDays)), color: r => (r.finishVarianceDays !== undefined && r.finishVarianceDays > 0 ? REPORT_COLORS.error : undefined), bold: r => r.finishVarianceDays !== undefined && r.finishVarianceDays > 0 },
     { key: 'minFloat', header: t(`${p}.minFloat`), width: 70, align: 'right', text: r => dd.num(r.minTotalFloat), color: r => floatColor(r.minTotalFloat), bold: r => r.minTotalFloat < 0 },
@@ -473,7 +509,7 @@ function buildWbsSummary(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD
       { label: t(`${p}.activitiesLabel`), value: String(r.counts.activities) },
     ],
     sections: [section<WbsSummaryRow>({ key: 'rows', columns, rows: r.rows, emptyText: t(`${p}.empty`) })],
-    fileSuffix: 'wbs',
+    fileSuffix: t('fileSuffix.wbsSummary'),
   };
 }
 
@@ -485,14 +521,23 @@ export function useTableReportSpec(reportType: ReportType, options: TableReportO
   const { ctx, stale } = useReportContext();
   const locale = i18n.language;
   const hourSuffix = parseableHourSuffix(tCommon('duration.suffixHour'));
+  const durationDisplay = useEffectiveDurationDisplay();
   // Getallen in de app-taal (komma in nl/de/fr): dezelfde notatie als de toewijzingskolommen van het
   // resourcediagram (`formatReportNumber`), zodat de rapporten in één paneel niet uiteenlopen.
-  const dd = useMemo<DD>(() => ({
-    ...dates,
-    num: n => formatReportNumber(n, locale),
-    signed: n => formatSignedReportNumber(n, locale),
-    lagText: lag => localizeDecimalPoint(localizeLagHourSuffix(lag, hourSuffix), locale),
-  }), [dates, locale, hourSuffix]);
+  const dd = useMemo<DD>(() => {
+    const label = makeTaskDateLabeler(ctx);
+    const suffixes = durationSuffixesFrom(tCommon);
+    return {
+      ...dates,
+      num: n => formatReportNumber(n, locale),
+      signed: n => formatSignedReportNumber(n, locale),
+      lagText: lag => localizeDecimalPoint(localizeLagHourSuffix(lag, hourSuffix), locale),
+      taskDate: (taskId, value, side, opts) => dates.dateTime(label(taskId, value, side, opts)),
+      duration: (duration, hoursPerDay) => formatMeasuredDurationText(duration, hoursPerDay, { display: durationDisplay, suffixes, locale }),
+      remaining: duration => formatMeasuredDurationText(duration, 1, { display: 'auto', suffixes, locale }),
+      workDays: days => formatWorkDaysText(days, { suffixes, locale }),
+    };
+  }, [dates, locale, hourSuffix, ctx, tCommon, durationDisplay]);
   // "Datums zoals opgeslagen": in de modus lezen de
   // rapporten `task.time` zoals de tabel, maar zónder de "niet vastgelegd"-poort van de kolommen —
   // een as die het bestand niet vastlegde staat er dan als leeg/0. Eén melding bovenaan elk rapport

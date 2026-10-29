@@ -45,7 +45,7 @@ En överlapp kan inte flytta en uppgift före projektstarten. Skulle det ske, h�
 
 ### I vilken kalender fördröjningen räknas
 
-Varje uppgift kan ha en egen kalender. Vid en fördröjning i arbetsdagar spelar det roll vilken kalender som räknar arbetsdagarna. Inställningen *Fördröjningskalender* avgör det, med fyra val: *Föregående*, *Efterföljande*, *24-timmars* och *Projektkalender*. Som standard räknas fördröjningen i kalendern för den **föregående** uppgiften. Du hittar inställningen under *Inställningar › Projekt › Projektinfo*, i avsnittet *Beräkningsprofil och beräkningsalternativ*, vid *Beräkningsalternativ för det här projektet*. Valet hör till projektfilen och gäller först när du väljer *Tillämpa*. Tidsplanen beräknas då om.
+Varje uppgift kan ha en egen kalender. Vid en fördröjning i arbetsdagar spelar det roll vilken kalender som räknar arbetsdagarna. Inställningen *Fördröjningskalender* avgör det, med fyra val: *Föregående*, *Efterföljande*, *24-timmars* och *Projektkalender*. Som standard räknas fördröjningen i kalendern för den **föregående** uppgiften. Du hittar inställningen under *Inställningar › Projekt › Projektinställningar*, i avsnittet *Beräkningsprofil och beräkningsalternativ*, vid *Beräkningsalternativ för det här projektet*. Valet hör till projektfilen och gäller först när du väljer *Tillämpa*. Tidsplanen beräknas då om.
 
 En fördröjning i kalenderdagar (`3ed`) räknar alltid alla dagar, oavsett vilken *Fördröjningskalender* du väljer.
 

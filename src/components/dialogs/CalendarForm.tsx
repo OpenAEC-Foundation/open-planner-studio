@@ -72,7 +72,7 @@ export function CalendarForm({
   const { t: tMenu, i18n } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
   const netHoursId = useId();
-  const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
+
   const weekStartDay = useAppStore(s => s.ui.weekStartDay);
   const timeNotation = useAppStore(s => s.ui.timeNotation);
 
@@ -101,7 +101,6 @@ export function CalendarForm({
   // een eenvoudige kalender werkblokken kan KRIJGEN (presets, "Per weekdag instellen…").
   // Besluit eigenaar 2026-10-13 (optie 2), vervangt de alleen-lezen-stand uit #334.
   const hourMode = isHourModeCalendar(draft);
-  const showWorkTimeSection = enableHourPlanning || hourMode;
   const scalarBreakError = calendarScalarBreakIssue(draft);
   // Oude scalar-kalenders hebben nog geen velden, maar hun zichtbare waarden moeten het bestaande
   // gedrag verklaren: 07:00–16:00 / 8 uur toont daarom de afgeleide 12:00 / 60 min, terwijl
@@ -692,75 +691,73 @@ export function CalendarForm({
         </>
       )}
 
-      {/* Werktijden / ploegen — met Urenplanning aan, én altijd bij een kalender met werkblokken. */}
-      {showWorkTimeSection && (
-        <div className="flex flex-col gap-2" data-ops-worktime-section>
-          <label className="text-text-secondary font-medium">{tCommon('calendar.worktime.section')}</label>
+      {/* Werktijden en ploegen zijn bij elke kalender beschikbaar. */}
+      <div className="flex flex-col gap-2" data-ops-worktime-section>
+        <label className="text-text-secondary font-medium">{tCommon('calendar.worktime.section')}</label>
 
-          {/* Preset-rij: ingebouwde presets + eigen presets (met verwijder-kruisje). */}
-          <div className="flex flex-wrap gap-1.5">
-            {CALENDAR_PRESETS.map(key => (
-              <button key={key} type="button" onClick={() => applyBuiltinPreset(key)}
-                className="btn btn--sm btn--secondary" data-ops-preset={key}>
-                {tCommon(SHIFT_PRESET_LABEL[key])}
+        {/* Preset-rij: ingebouwde presets + eigen presets (met verwijder-kruisje). */}
+        <div className="flex flex-wrap gap-1.5">
+          {CALENDAR_PRESETS.map(key => (
+            <button key={key} type="button" onClick={() => applyBuiltinPreset(key)}
+              className="btn btn--sm btn--secondary" data-ops-preset={key}>
+              {tCommon(SHIFT_PRESET_LABEL[key])}
+            </button>
+          ))}
+          {ownPresets.map(p => (
+            <span key={p.id} className="inline-flex items-center rounded-[8px] border-[1.5px] border-[var(--theme-control-border)] overflow-hidden"
+              data-ops-own-preset={p.id}>
+              <button type="button" onClick={() => applyPreset(patchFromPreset(p))}
+                className="px-2.5 py-1.5 text-text-secondary hover:bg-surface-hover">
+                {p.name}
               </button>
-            ))}
-            {ownPresets.map(p => (
-              <span key={p.id} className="inline-flex items-center rounded-[8px] border-[1.5px] border-[var(--theme-control-border)] overflow-hidden"
-                data-ops-own-preset={p.id}>
-                <button type="button" onClick={() => applyPreset(patchFromPreset(p))}
-                  className="px-2.5 py-1.5 text-text-secondary hover:bg-surface-hover">
-                  {p.name}
-                </button>
-                <button type="button" onClick={() => deleteOwnPreset(p.id)}
-                  className="px-1.5 py-1.5 text-text-secondary hover:bg-surface-hover hover:text-red-500"
-                  title={tCommon('delete')} data-ops-own-preset-del={p.id}>
-                  <X size={11} />
-                </button>
-              </span>
-            ))}
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => setSavingPreset(v => !v)} className="btn btn--sm btn--secondary"
-              title={tCommon('calendar.worktime.saveAsPresetHint')} data-ops-preset-saveas>
-              {tCommon('calendar.worktime.saveAsPreset')}
-            </button>
-            {/* Uur-kalender ⇒ de editor staat standaard open; deze knop klapt hem in/uit. Dag-kalender ⇒
-                de knop seedt de banden uit de scalar en toont de editor ("Per weekdag instellen…"). */}
-            <button type="button" onClick={toggleBandEditor}
-              className="btn btn--sm btn--secondary" data-ops-band-editor-toggle>
-              {!draft.workTime
-                ? tCommon('calendar.worktime.perWeekday')
-                : bandsCollapsed
-                  ? tCommon('calendar.worktime.showBands')
-                  : tCommon('calendar.worktime.hideBands')}
-            </button>
-          </div>
-
-          {savingPreset && (
-            <div className="flex flex-col gap-1">
-              <span className="!text-small text-text-secondary italic" data-ops-preset-saveas-hint>
-                {tCommon('calendar.worktime.saveAsPresetHint')}
-              </span>
-              <div className="flex items-center gap-2">
-                <input value={presetName} onChange={e => setPresetName(e.target.value)} autoFocus
-                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); confirmSavePreset(); } }}
-                  placeholder={tCommon('calendar.worktime.presetNamePlaceholder')} className={inputCls + ' flex-1'} />
-                <button type="button" onClick={confirmSavePreset} disabled={!presetName.trim()}
-                  className="btn btn--sm btn--primary disabled:opacity-40" data-ops-preset-save>{tCommon('save')}</button>
-                <button type="button" onClick={() => { setSavingPreset(false); setPresetName(''); }}
-                  className="btn btn--sm btn--secondary">{tCommon('cancel')}</button>
-              </div>
-            </div>
-          )}
-
-          {/* Banden-editor: zichtbaar zodra de kalender in uur-modus is (elke uur-preset), tenzij ingeklapt. */}
-          {draft.workTime && !bandsCollapsed && (
-            <WorkTimeEditor bands={draft.workTime} onChange={applyBands} weekStartDay={weekStartDay} />
-          )}
+              <button type="button" onClick={() => deleteOwnPreset(p.id)}
+                className="px-1.5 py-1.5 text-text-secondary hover:bg-surface-hover hover:text-red-500"
+                title={tCommon('delete')} data-ops-own-preset-del={p.id}>
+                <X size={11} />
+              </button>
+            </span>
+          ))}
         </div>
-      )}
+
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => setSavingPreset(v => !v)} className="btn btn--sm btn--secondary"
+            title={tCommon('calendar.worktime.saveAsPresetHint')} data-ops-preset-saveas>
+            {tCommon('calendar.worktime.saveAsPreset')}
+          </button>
+          {/* Uur-kalender ⇒ de editor staat standaard open; deze knop klapt hem in/uit. Dag-kalender ⇒
+              de knop seedt de banden uit de scalar en toont de editor ("Per weekdag instellen…"). */}
+          <button type="button" onClick={toggleBandEditor}
+            className="btn btn--sm btn--secondary" data-ops-band-editor-toggle>
+            {!draft.workTime
+              ? tCommon('calendar.worktime.perWeekday')
+              : bandsCollapsed
+                ? tCommon('calendar.worktime.showBands')
+                : tCommon('calendar.worktime.hideBands')}
+          </button>
+        </div>
+
+        {savingPreset && (
+          <div className="flex flex-col gap-1">
+            <span className="!text-small text-text-secondary italic" data-ops-preset-saveas-hint>
+              {tCommon('calendar.worktime.saveAsPresetHint')}
+            </span>
+            <div className="flex items-center gap-2">
+              <input value={presetName} onChange={e => setPresetName(e.target.value)} autoFocus
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); confirmSavePreset(); } }}
+                placeholder={tCommon('calendar.worktime.presetNamePlaceholder')} className={inputCls + ' flex-1'} />
+              <button type="button" onClick={confirmSavePreset} disabled={!presetName.trim()}
+                className="btn btn--sm btn--primary disabled:opacity-40" data-ops-preset-save>{tCommon('save')}</button>
+              <button type="button" onClick={() => { setSavingPreset(false); setPresetName(''); }}
+                className="btn btn--sm btn--secondary">{tCommon('cancel')}</button>
+            </div>
+          </div>
+        )}
+
+        {/* Banden-editor: zichtbaar zodra de kalender in uur-modus is (elke uur-preset), tenzij ingeklapt. */}
+        {draft.workTime && !bandsCollapsed && (
+          <WorkTimeEditor bands={draft.workTime} onChange={applyBands} weekStartDay={weekStartDay} />
+        )}
+      </div>
 
       {/* Feestdagen genereren — regelgebaseerd, óók voor bestaande kalenders. */}
       <div className="flex flex-col gap-2">

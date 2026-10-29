@@ -4,9 +4,9 @@ Mitä tiedostoon oikeasti tallentuu? Ja mitä aikataululle tapahtuu, kun se vied
 
 ## Käsite
 
-Sovelluksella Open Planner Studio on yksi oma tiedostomuoto: **IFC**, avoin vaihtomuoto rakennustiedolle buildingSMART-järjestöltä. Sovellus kirjoittaa IFC 4.3:n; vientiluettelossa sitä kutsutaan nimellä *IFC 4x3*. Erillistä, omaa projektitiedostoa ei ole. *Tallenna* kirjoittaa koko projektin IFC-tiedostoon (`.ifc`), ja *Avaa* lukee tällaisen tiedoston takaisin. Tiedoston sisältöä voi tarkastella: *IFC*-välilehti näyttää projektin IFC-tekstin, ja *Luo IFC* päivittää sen.
+Sovelluksella Open Planner Studio on yksi oma tiedostomuoto: **IFC**, avoin vaihtomuoto rakennustiedolle buildingSMART-järjestöltä. Sovellus kirjoittaa projektin IFC-skeeman, oletuksena IFC 4.3 ADD2 (katso [IFC-skeeman valitseminen](docs://howto-ifc-schema-kiezen)). Vientiluettelossa sen nimi on *IFC*. Erillistä, omaa projektitiedostoa ei ole. *Tallenna* kirjoittaa koko projektin IFC-tiedostoon (`.ifc`), ja *Avaa* lukee tällaisen tiedoston takaisin. Tiedoston sisältöä voi tarkastella. *IFC*-välilehti on editori, joka näyttää projektin IFC-tekstin. *Luo IFC* päivittää tekstin ja *Kopioi* vie sen leikepöydälle. Jos tekstiä muutetaan, *Käytä* lataa sen projektiksi. Tämä korvaa projektin kokonaan kyseisessä välilehdessä.
 
-Kaikki muut muodot ovat **adaptereita**: kääntäjiä sovelluksen ja toisen ohjelman mallin välillä. Sovellus lukee CSV:tä, MS Project XML:ää, Primavera P6 XML:ää, MS Project -tiedostoja (`.mpp`) ja Primavera-tiedostoja (`.xer`). Se kirjoittaa CSV:tä, MS Project XML:ää, Primavera P6 XML:ää ja kaksi edistymislomaketta. Vientiä muotoon `.mpp` tai `.xer` ei ole.
+Kaikki muut muodot ovat **adaptereita**: kääntäjiä sovelluksen ja toisen ohjelman mallin välillä. Sovellus lukee CSV:tä, MS Project XML -muotoa, Primavera P6 XML -muotoa, MS Project -tiedostoja (`.mpp`) ja Primavera-tiedostoja (`.xer`). Se kirjoittaa CSV:tä, MS Project XML -muotoa, Primavera P6 XML -muotoa ja kaksi edistymislomaketta. Vientiä muotoon `.mpp` tai `.xer` ei ole.
 
 Miksi tällä erolla on merkitystä? Kääntäjä voi siirtää vain sen, minkä molemmat osapuolet tuntevat. IFC-tiedosto säilyttää kaiken, mikä kuuluu projektiin. Jokainen muu muoto tuntee vain osan siitä, ja loput jää pois.
 
@@ -14,11 +14,11 @@ Miksi tällä erolla on merkitystä? Kääntäjä voi siirtää vain sen, minkä
 
 ### Mitä avaaminen tekee
 
-Sovellus valitsee lukijan tiedostopäätteen mukaan: `.ifc`, `.csv`, `.xml`, `.mpp` tai `.xer`. `.xml`-tiedoston sisällä se katsoo, onko kyse MS Project XML:stä vai Primavera P6 XML:stä. Tuntematon pääte käsitellään IFC:nä. Jos tiedosto ei ole IFC, sovellus näyttää virheen *Avaaminen epäonnistui* ja kertoo syyn.
+Sovellus valitsee lukijan tiedostopäätteen mukaan: `.ifc`, `.csv`, `.xml`, `.mpp` tai `.xer`. `.xml`-tiedoston sisällä se katsoo, onko kyse MS Project XML -muodosta vai Primavera P6 XML -muodosta. Tuntematon pääte käsitellään IFC:nä. Jos tiedosto ei ole IFC, sovellus näyttää virheen *Avaaminen epäonnistui* ja kertoo syyn.
 
 Jokainen tiedosto avautuu omassa välilehdessään. Poikkeus on tyhjä ja muuttamaton välilehti: se ottaa tiedoston käyttöönsä. Yksi Primavera-tiedosto voi tuottaa useita välilehtiä, yhden jokaiselle projektille, jolla on tehtäviä.
 
-Avaamisen jälkeen aikataulu lasketaan aina uudelleen. Jos tiedosto tulee toisesta ohjelmasta, päivämäärät voivat erota siitä, mitä tiedostossa luki. Siitä kerrotaan kohdassa [Päivämäärät tallennetussa muodossa](docs://uitleg-datums-zoals-opgeslagen).
+Avaamisen jälkeen aikataulu lasketaan uudelleen aina. Jos tiedosto tulee toisesta ohjelmasta, päivämäärät voivat erota siitä, mitä tiedostossa luki. Siitä kerrotaan kohdassa [Päivämäärät tallennetussa muodossa](docs://uitleg-datums-zoals-opgeslagen).
 
 Vain IFC-tiedosto tulee **tallennuskohteeksi**: tiedostoksi, johon *Tallenna* kirjoittaa takaisin. CSV-, XML-, `.mpp`- tai `.xer`-tiedosto ei tule tallennuskohteeksi. Tällaisella projektilla ei avaamisen jälkeen ole tiedostoa; *Tallenna* kysyy silloin, minne uusi IFC-tiedosto tallennetaan. Näin Ctrl+S ei koskaan korvaa lähdetiedostoa IFC-tekstillä.
 
@@ -46,13 +46,13 @@ Jokainen adapteri kantaa mukanaan sen, minkä kyseinen muoto tuntee.
 
 **Primavera P6 XML** kantaa mukanaan tehtävät, riippuvuudet, kalenterit, resurssit, resurssikohdistukset, rajoitteet ja raportointipäivän. Perustasot ja tavoitepäivät eivät mene mukaan, eivätkä tehtäväkoodit, mukautetut kentät, muistiinpanot ja ulkoiset riippuvuudet. Myös tässä riippumatto muuttuu tavalliseksi tehtäväksi. P6:ssa ei ole viivettä prosentteina: sovellus muuttaa sellaisen viiveen kiinteäksi määräksi päiviä. Viive kalenteripäivinä muuttuu viiveeksi työpäivinä.
 
-**CSV** on taulukko tehtävistä. Jokaiselle tehtävälle tiedostossa on nämä sarakkeet: tehtävän tunniste, WBS, taso, nimi, kesto, alku, loppu, edeltäjät, tyyppi, mukautetun tehtävätyypin tunniste (`OPS Custom Task Type ID`), tila, valmiusaste, toteutunut alkamispäivä ja todellinen loppu, kriittinen, kokonaispelivara ja kuvaus. Resursseja, resurssikohdistuksia, kalentereita, rajoitteita, tavoitepäiviä, perustasoja ja raportointipäivää ei ole siinä. Sarakkeiden otsikot ovat aina englanniksi.
+**CSV** on taulukko tehtävistä. Jokaiselle tehtävälle tiedostossa on nämä sarakkeet: tehtävän tunniste, WBS, taso, nimi, kesto, alku, loppu, edeltäjät, työlaji, mukautetun työlajin tunniste (`OPS Custom Task Type ID`), tila, valmiusaste, toteutunut alkamispäivä ja toteutunut loppu, kriittinen, kokonaispelivara ja kuvaus. Resursseja, resurssikohdistuksia, kalentereita, rajoitteita, tavoitepäiviä, perustasoja ja raportointipäivää ei ole siinä. Sarakkeiden otsikot ovat aina englanniksi.
 
-**Vain IFC kantaa mukanaan laskentaprofiilin ja laskentavaihtoehdot.** Viennissä CSV-, MS Project XML- tai Primavera P6 XML -muotoon profiili ei ole tiedostossa. Laskentavaihtoehdoista MS Project XML kirjoittaa enintään kriittisen kynnysarvon. Tällainen tiedosto avautuu uudelleen nimellä *Open Planner Studio*. Jos projekti laskettiin profiililla *Primavera P6* tai *Microsoft Project*, esimerkiksi koska se tuli `.xer`- tai `.mpp`-tiedostosta, päivämäärät voivat siksi siirtyä. Mitä laskentaprofiili on, kerrotaan kohdassa [Laskentaprofiilit ja laskentasäännöt](docs://uitleg-rekenprofielen).
+**Vain IFC kantaa mukanaan laskentaprofiilin ja laskentavaihtoehdot.** Viennissä CSV-muotoon, MS Project XML -muotoon tai Primavera P6 XML -muotoon profiili ei ole tiedostossa. Laskentavaihtoehdoista MS Project XML kirjoittaa enintään kriittisen kynnysarvon. Tällainen tiedosto avautuu uudelleen nimellä *Open Planner Studio*. Jos projekti laskettiin profiililla *Primavera P6* tai *Microsoft Project*, esimerkiksi koska se tuli `.xer`- tai `.mpp`-tiedostosta, päivämäärät voivat siksi siirtyä. Mitä laskentaprofiili on, kerrotaan kohdassa [Laskentaprofiilit ja laskentasäännöt](docs://uitleg-rekenprofielen).
 
-Jos projekti tulee Primavera-tiedostosta (`.xer`), myös silloin kun se olisi tallennettu välissä IFC-muodossa, sovellus näyttää viennin jälkeen CSV-, MS Project XML- tai P6 XML -muotoon: *Vienti muotoon CSV menettää XER-lähdetiedot*. MS Project XML:n kohdalla viestissä lukee *MSPDI* sanan *CSV* sijasta, ja P6 XML:n kohdalla *P6*. IFC:n kohdalla viestiä ei tule, koska IFC-tiedosto kantaa Primaveran lähdetiedoston mukanaan. Aiheesta kerrotaan kohdassa [Primavera P6 -tiedoston (.xer) avaaminen](docs://howto-xer-openen).
+Jos projekti tulee Primavera-tiedostosta (`.xer`), myös silloin kun se olisi tallennettu välissä IFC-muodossa, sovellus näyttää viennin jälkeen CSV-muotoon, MS Project XML -muotoon tai P6 XML -muotoon: *Vienti muotoon CSV menettää XER-lähdetiedot*. MS Project XML -muodon kohdalla viestissä lukee *MSPDI* sanan *CSV* sijasta, ja P6 XML -muodon kohdalla *P6*. IFC:n kohdalla viestiä ei tule, koska IFC-tiedosto kantaa Primaveran lähdetiedoston mukanaan. Aiheesta kerrotaan kohdassa [Primavera P6 -tiedoston (.xer) avaaminen](docs://howto-xer-openen).
 
-Sovellus tekee viennin yhteydessä vielä kaksi asiaa. Jos aikataulu on vanhentunut, se lasketaan ensin uudelleen ja viedään vasta sen jälkeen. Aikataulua, jossa on kehäriippuvuus, ei viedä. Sen sijaan näkyy ilmoitus, jossa on silmukka, esimerkiksi *Kehäriippuvuus tehtävien välillä: Set up site → Demolish existing extension → Set up site*.
+Sovellus tekee viennin yhteydessä vielä kaksi asiaa. Jos aikataulu on vanhentunut, se lasketaan uudelleen ensin ja viedään vasta sen jälkeen. Aikataulua, jossa on kehäriippuvuus, ei viedä. Sen sijaan näkyy ilmoitus, jossa on silmukka, esimerkiksi *Kehäriippuvuus tehtävien välillä: Set up site → Demolish existing extension → Set up site*.
 
 ### Tallennus, automaattinen tallennus ja kaatumisen palautus
 

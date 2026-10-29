@@ -135,8 +135,14 @@ export function FeedbackDialog() {
   // Eén plek: elke wijziging in het formulier (soort, tekst, e-mail, screenshot aan/uit, opnieuw
   // maken, annotaties) verlaat "al binnen". Dan is het een nieuwe, nog niet verstuurde aanvulling:
   // de melding verdwijnt, de knoppen zijn weer *Annuleren* + *Versturen*, en sluiten bewaart het concept.
+  // Alleen zetten als "al binnen" aan staat. Een onvoorwaardelijke `setAlreadyIn(false)` plant na
+  // elke toets een extra render: React slaat een gelijke waarde vlak na een update niet meteen over.
+  // Typt iemand snel, dan valt die render samen met de volgende toets, en telt React elke toets als
+  // geneste update. Na 50 toetsen volgt "Maximum update depth exceeded" en valt een teken weg.
+  const alreadyInRef = useRef(alreadyIn);
+  alreadyInRef.current = alreadyIn;
   useEffect(() => {
-    setAlreadyIn(false);
+    if (alreadyInRef.current) setAlreadyIn(false);
   }, [feedbackType, title, description, email, attachScreenshot, screenshotDataUrl, annotatedDataUrl, shapes]);
 
   /** *Sluiten* vanuit "al binnen": de melding is binnen, dus het concept gaat weg. */

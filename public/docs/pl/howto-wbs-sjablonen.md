@@ -13,7 +13,7 @@ Ciągle planujesz ten sam rodzaj prac: każdy dom ma fundament z robotami ziemny
 1. Zbuduj gałąź tak, jak chcesz ją ponownie użyć: zadanie sumaryczne z podzadaniami i relacjami między nimi.
 2. Kliknij prawym przyciskiem myszy to zadanie sumaryczne i wybierz *Zapisz gałąź jako szablon*. Ta pozycja menu pojawia się tylko przy zadaniach z podzadaniami.
 
-Aplikacja pokazuje komunikat *Gałąź zapisana jako szablon „Foundation”*. Aplikacja nie pyta o nazwę: szablon dostaje nazwę od najwyższego zadania gałęzi.
+Aplikacja pokazuje komunikat *Gałąź zapisana jako szablon 'Foundation'*. Aplikacja nie pyta o nazwę: szablon dostaje nazwę od najwyższego zadania gałęzi.
 
 ### Wstawianie szablonu
 
@@ -21,9 +21,9 @@ Aplikacja pokazuje komunikat *Gałąź zapisana jako szablon „Foundation”*. 
 2. Wybierz *Planowanie › Struktura › Szablony*. Lista pokazuje nazwę każdego szablonu oraz, na przykład, *Zadania: 4, relacje: 2*.
 3. Kliknij szablon.
 
-Jeśli zadanie jest zaznaczone, szablon trafia jako ostatnie podzadanie pod tym zadaniem. Przez to zadanie staje się zadaniem sumarycznym. Jeśli zaznaczonych jest kilka zadań, liczy się to zadanie, które kliknąłeś jako pierwsze. Jeśli nic nie jest zaznaczone, gałąź trafia na dół listy, na najwyższy poziom. Wstawiona gałąź jest potem zaznaczona.
+Jeśli zadanie jest zaznaczone, szablon trafia jako ostatnie podzadanie pod tym zadaniem. Przez to zadanie staje się zadaniem sumarycznym. Jeśli zaznaczonych jest kilka zadań, liczy się to zadanie, które kliknąłeś jako pierwsze. Jeśli nic nie jest zaznaczone, gałąź trafia na dół listy, na najwyższy poziom. Wstawiona gałąź zostaje potem zaznaczona.
 
-Wszystkie wstawione zadania zaczynają się na początku projektu, a harmonogram jest nieaktualny. Naciśnij **Oblicz** (F5), na przykład przez *Start › Harmonogram › Oblicz*, a daty wynikną z relacji. Jedno *Cofnij* cofa całe wstawienie. Zapisanie lub usunięcie szablonu nie wchodzi w jego skład.
+Wszystkie wstawione zadania zaczynają się na początku projektu, a harmonogram jest nieaktualny. Naciśnij **Oblicz** (F5), na przykład przez *Start › Harmonogram › Oblicz*, a daty wynikają z relacji. Jedno *Cofnij* cofa całe wstawienie. Zapisanie lub usunięcie szablonu nie wchodzi w jego skład.
 
 ### Usuwanie szablonu
 
@@ -31,11 +31,11 @@ Otwórz *Planowanie › Struktura › Szablony* i kliknij mały kosz po prawej s
 
 ### Co zawiera szablon
 
-Dla każdego zadania szablon zachowuje nazwę, opis, typ zadania, informację, czy zadanie jest kamieniem milowym, oraz czas trwania w dniach. Z relacji zachowuje te, które łączą dwa zadania w gałęzi, wraz z ich typem i opóźnieniem.
+Dla każdego zadania szablon zachowuje nazwę, opis, rodzaj robót, informację, czy zadanie jest kamieniem milowym, oraz czas trwania w dniach. Z relacji zachowuje te, które łączą dwa zadania w gałęzi, wraz z ich typem i opóźnieniem. Opóźnienie w godzinach (`4h`) nie zostaje zachowane i staje się 0. Opóźnienie w dniach roboczych, dniach kalendarzowych lub procentach zostaje zachowane.
 
-Wszystko inne nie trafia do szablonu: daty, postęp i rzeczywiste daty, przydziały zasobów, kody i pola niestandardowe (zob. [Kody i pola niestandardowe](docs://howto-codes-en-velden)), kalendarz, ograniczenia i terminy ostateczne, priorytet, niestandardowy typ zadania, dla kamienia milowego jego rodzaj i pole wyboru *Obowiązkowy (umowny)*, oraz relacje z zadaniami spoza gałęzi. Po wstawieniu musisz je uzupełnić ponownie: przydziały, kody, kalendarz i ograniczenia są puste, a wszystkie zadania zaczynają się na początku projektu.
+Wszystko inne zostaje poza szablonem: daty, postęp i rzeczywiste daty, przydziały zasobów, kody i pola niestandardowe (zob. [Kody i pola niestandardowe](docs://howto-codes-en-velden)), kalendarz, ograniczenia i terminy ostateczne, priorytet, niestandardowy rodzaj robót, dla kamienia milowego jego rodzaj i pole wyboru *Obowiązkowy (umowny)*, oraz relacje z zadaniami spoza gałęzi. Po wstawieniu musisz je uzupełnić ponownie: przydziały, kody, kalendarz i ograniczenia są puste, a wszystkie zadania zaczynają się na początku projektu.
 
-Zadanie w godzinach wraca jako zadanie w dniach, a jego czas trwania zostaje przeliczony na ułamek dnia roboczego. Zadanie trwające 5 godzin, przy dniu roboczym 8 godzin, ma po przeniesieniu czas trwania 0,625 dnia.
+Zadanie w godzinach wraca jako zadanie w dniach, a jego czas trwania zostaje przeliczony na ułamek dnia roboczego. Zadanie trwające 5 godzin, przy dniu roboczym 8 godzin, ma po wstawieniu czas trwania 0,625 dnia.
 
 ## Pułapki i co robi aplikacja
 

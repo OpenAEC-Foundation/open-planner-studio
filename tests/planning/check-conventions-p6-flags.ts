@@ -1206,8 +1206,11 @@ groupC.push({
 // C14 (plan XER §9 "C10"; brok 5 "C9"): band 08:00–17:00 ma–vr, statusdatum ma 5 jan 08:00. C (31 u)
 // loopt ma 5 jan 08:00 – do 8 jan 12:00 —FS0→ B (9 u), dus B begint do 8 jan 12:00. A is een ALAP-wortel
 // (9 u, CS_ALAP) —FS0→ B. P6 (HarbourPointe, B12, EC1420 → EC1430 → EC1810 → EC2090): A eindigt precies
-// waar B begint — EF do 8 jan 12:00, ES wo 7 jan 12:00 (9 werkuren terug). Zonder C14 schuift de oude
-// ALAP-stap A in hele werkdagen op haar vrije speling: ES wo 7 jan 08:00, EF wo 7 jan 17:00.
+// waar B begint — EF do 8 jan 12:00, ES wo 7 jan 12:00 (9 werkuren terug). Zonder C14 komt de gewone
+// ALAP-stap sinds de aanval na #600 op hetzelfde venster (hij schuift een niet-gestarte taak met haar duur
+// tot de grens van haar opvolgers; vroeger in hele werkdagen: wo 7 jan 08:00–17:00). Het verschil zit
+// in het eigen anker: met een gepland venster ná B (ma 12 jan) houdt de gewone stap A daar en duwt hij B,
+// C14 niet. De groep-C-fixture gebruikt daarom dat venster (randgeval (a) hieronder).
 // `withPred`: A krijgt een voorganger Q (3 u, ma 5 jan 08:00–11:00) —FS0→ A, zodat A niet meer de
 // wortel-tak maar de voorganger-tak (met de A16-vloer) doorloopt.
 function c14Fixture(alapTargetStart: string, alapTargetEnd: string, withPred = false): ImportResult {
@@ -1236,11 +1239,11 @@ function c14Fixture(alapTargetStart: string, alapTargetEnd: string, withPred = f
 groupC.push({
   flag: 'p6AlapPositionedFromSuccessors',
   label: 'C14 ALAP zo laat als de opvolgers toestaan, in werktijd',
-  input: c14Fixture('2026-01-05 08:00', '2026-01-05 17:00'),
+  input: c14Fixture('2026-01-12 08:00', '2026-01-12 17:00'),
   taskId: 'A',
   pick: axes => ({ es: axes.es, ef: axes.ef }),
   on: { es: '2026-01-07T12:00', ef: '2026-01-08T12:00' },
-  off: { es: '2026-01-07T08:00', ef: '2026-01-07T17:00' },
+  off: { es: '2026-01-12T08:00', ef: '2026-01-12T17:00' },
 });
 
 // C14, randgevallen (docblok). Mutanten die hier rood worden (brok 5, opnieuw gedraaid in brok 10):
@@ -1260,6 +1263,12 @@ groupC.push({
     { es: '2026-01-12T08:00', ef: '2026-01-12T17:00' });
   eq('C14 opvolger blijft op de grens van C', solveAxes(later, 'B').es, '2026-01-08T12:00');
   eq('C14 uit ⇒ opvolger achter het geplande venster van A', solveAxes(off(later), 'B').es, '2026-01-13T08:00');
+  // (a2) Met het geplande venster op de statusdatum (ma 5 jan) komt de gewone ALAP-stap zonder C14 op
+  // hetzelfde venster als C14: A eindigt waar B begint, met haar 9 werkuren (aanval na #600; vroeger
+  // in hele werkdagen wo 7 jan 08:00–17:00).
+  eq('C14 uit ⇒ gewone ALAP-stap sluit met haar duur aan op B',
+    pickEsEf(solveAxes(off(c14Fixture('2026-01-05 08:00', '2026-01-05 17:00')), 'A')),
+    { es: '2026-01-07T12:00', ef: '2026-01-08T12:00' });
   // (b) Dezelfde vorm met een voorganger Q (voorganger-tak): de A16-vloer (eigen gepland venster ma 12
   // jan) geldt niet voor een niet-gestarte ALAP-taak, dus B blijft op de grens van C en A sluit erop aan.
   // Zonder C14 zet A16 A op haar venster en schuift B mee. Mutant "A16-vloeruitzondering weg" ⇒ rood.
@@ -1956,7 +1965,11 @@ const lateOf = (input: ImportResult, id: string) => {
 //   - origineel                    : zoals de XER-lezer hem opent (uurkalender, uurtaken, P6-herkomst);
 //   - dag                          : geen enkele uurplanning meer — kalenders zonder werkblokken, taken in
 //                                    dagen, geen 24-uurs lag-kalender, en zonder de B1-relatievlag (die zet
-//                                    de lezer alleen bij een urenkalender van de voorganger, hieronder gepind);
+//                                    de lezer alleen bij een urenkalender van de voorganger, hieronder gepind).
+//                                    Sinds F3c telt een taak in dagen onder een profiel zonder dagenmaat
+//                                    (P6, MSP) als urenmaat (§3.2); daarom staat de dagenmaat in deze variant
+//                                    aan, ook onder de P6-basis (behalve als de dagenmaat zelf de getoggelde
+//                                    conventie is);
 //   - zonder herkomst              : het origineel zonder elk `p6…`/`xer…`-veld op taken en relaties.
 // Eisen per conventie:
 //   - gelabeld `hourPlanning`  ⇒ op GEEN dag-variant verschil, en op minstens één origineel wel;
@@ -1986,6 +1999,11 @@ const lateOf = (input: ImportResult, id: string) => {
   pool.push([...header, pre, '%R\tT3\tP1\tC1\tT3\tLang\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t45\t45\t2026-01-05 08:00\t2026-01-09 17:00\t\t',
     '%R\tM1\tP1\tC1\tM1\tUiterlijk\tTT_FinMile\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t0\t0\t2026-01-05 17:00\t2026-01-05 17:00\tCS_MEOB\t2026-01-07 08:00',
     ...relations('%R\tR1\tM1\tT1\tP1\tP1\tPR_FS\t0')]);
+
+  // B6: ook zonder herkomst en zonder expliciete blokken verschuift een losse mijlpaal.
+  pool.push([...header,
+    '%R\tM1\tP1\tC1\tM1\tLosse mijlpaal\tTT_Mile\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t0\t0\t2026-01-05 08:00\t2026-01-05 08:00\t\t',
+    ...relations()]);
 
   const readPlain = (lines: string[]): ImportResult => {
     const opened = readXER(new TextEncoder().encode(lines.join('\n')));
@@ -2019,14 +2037,15 @@ const lateOf = (input: ImportResult, id: string) => {
     try { return JSON.stringify(solveAllAxes(input)); } catch (error) { return `fout: ${(error as Error).message}`; }
   };
   /** Verandert aan/uit van `key` iets? P6-basis (met B3/B4 aan) en OPS-basis, met de voortgangsmodus van
-   *  het bestand en met Progress Override. */
-  const toggles = (input: ImportResult, key: ConventionKey): boolean => {
+   *  het bestand en met Progress Override. `workdays`: de dagenmaat staat aan (de dag-variant). */
+  const toggles = (input: ImportResult, key: ConventionKey, workdays = false): boolean => {
     for (const progressMode of [input.project.progressMode, 'PROGRESS_OVERRIDE' as const]) {
       const moded = structuredClone(input);
       moded.project.progressMode = progressMode;
       for (const baseId of ['p6', 'ops'] as const) {
         const values = resolveConventions({ baseId, id: baseId, name: '', overrides: {} });
         if (baseId === 'p6') for (const k of P6_OFF_GROUP_B) values[k] = true;
+        if (workdays) values.workdayDurationMeasure = true;
         if (fingerprint(withConventions(moded, baseId, { ...values, [key]: true }))
           !== fingerprint(withConventions(moded, baseId, { ...values, [key]: false }))) return true;
       }
@@ -2040,12 +2059,16 @@ const lateOf = (input: ImportResult, id: string) => {
   /** Niet gelabelde conventies zonder trigger in een variant: met reden, en een vermelding die niet meer
    *  nodig is, is rood (opruimen). */
   const NO_DAY_TRIGGER: Partial<Record<ConventionKey, string>> = {};
-  const NO_PLAIN_TRIGGER: Partial<Record<ConventionKey, string>> = {};
-  const count = (key: ConventionKey, pick: (v: typeof variants[number]) => ImportResult) =>
-    variants.filter(v => toggles(pick(v), key)).length;
+  const NO_PLAIN_TRIGGER: Partial<Record<ConventionKey, string>> = {
+    // De pool komt uit XER: alleen taken in uren en lags in minuten. Zonder herkomst blijft dat zo, dus de
+    // dagenmaat heeft daar niets om te tellen. De dag-variant toont zijn effect wel (day > 0 hierboven).
+    workdayDurationMeasure: 'de XER-pool heeft geen taak of lag in dagen; de dag-variant toont het effect',
+  };
+  const count = (key: ConventionKey, pick: (v: typeof variants[number]) => ImportResult, workdays = false) =>
+    variants.filter(v => toggles(pick(v), key, workdays)).length;
   for (const d of CONVENTIONS) {
     const orig = count(d.id, v => v.orig);
-    const day = count(d.id, v => v.day);
+    const day = count(d.id, v => v.day, true);
     const plain = count(d.id, v => v.plain);
     if (process.env.OPS_REQUIRES_MATRIX) console.log(d.id.padEnd(45), 'orig', orig, 'dag', day, 'zonderHerkomst', plain, JSON.stringify(d.requires ?? {}));
     if (d.requires?.hourPlanning) {

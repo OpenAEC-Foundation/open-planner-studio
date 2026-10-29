@@ -11,7 +11,7 @@ Dört menü vardır. Hangisinin açılacağı tıkladığınız yere bağlıdır
 - **Görev tablosunda bir grup başlığında** — grupları genişletmek ve daraltmak için küçük bir menü. Grup başlıkları yalnızca gruplama yaptığınızda görünür, örneğin *Kaynak diyagramı* düzeninde.
 - **Boş alanda** — Gantt’ta çubukların yanında veya altında, ve görev tablosunda son görevin altında ya da gri *Yeni görev* satırında. Menüde *Yeni görev*, *Kilometre taşı ekle* ve *Yapıştır* bulunur; Gantt’ta ayrıca *Yakınlaştırmayı sıfırla* ve *Projeye sığdır* bulunur. Yeni bir görev veya kilometre taşı listenin en altına eklenir. Gantt’ta görev, tıkladığınız tarihte başlar. Görev tablosunda ad hücresi hemen açılır, böylece yazabilirsiniz.
 
-Gantt’ta bir grup başlığının bandında sağ fare düğmesi hiçbir menü açmaz. Zaman çizelgesi başlığına sağ tıklamak da bir işe yaramaz. Görev tablosunun sütun başlıklarının kendi menüsü vardır; bu menü [Tablo sütunlarını ayarlama](docs://howto-tabelkolommen-aanpassen) konusunda açıklanır.
+Gantt’ta bir grup başlığının bandında sağ fare düğmesi boş alanın menüsünü açar. Grup başlığının kendi menüsü yalnızca görev tablosunda vardır. Zaman çizelgesi başlığına sağ tıklamak bir işe yaramaz. Görev tablosunun sütun başlıklarının kendi menüsü vardır; bu menü [Tablo sütunlarını ayarlama](docs://howto-tabelkolommen-aanpassen) konusunda açıklanır.
 
 **Hangi görevlere bir öğe uygulanır?** Bir göreve tıklarsınız, ama seçim kapsamı belirler. Tıkladığınız görev seçimin bir parçaysa, öğe tüm seçime uygulanır. Değilse, öğe yalnızca o göreve uygulanır. Gantt’ta bir çubukta veya görev tablosunda bir satırda sağ tıklarsanız ve o görev seçimin bir parçası değilse, o görev seçimin yerini alır. Bir şeyi değiştiren her öğe, tüm seçim için bile, *Geri al* ile tek bir adımdır.
 

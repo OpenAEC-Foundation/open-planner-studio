@@ -37,7 +37,7 @@ Bir gecikme dört şekilde yazılabilir:
 - **İş günü** cinsinden (`3` veya `3d`): uygulama tatil günlerini ve hafta sonlarını atlar. Bu varsayılan seçenektir.
 - **Takvim günü** cinsinden (`3ed`, e harfi *geçen* süreyi gösterir): her gün sayılır, cumartesi ve pazar dahil. Bu birim, iş yapılmadan süren işler içindir, örneğin kürlenme.
 - Öncülün **süresinin yüzdesi** olarak (`40%`): uygulama bunu her hesaplamada yeniden bulur ve tam güne yuvarlar (2,5 gün 3 gün olur).
-- **Çalışma saatleri** cinsinden (`4h`): uygulama gecikmeyi gecikme takvimine göre sayar. Varsayılan olarak bu, öncülün takvimidir. Öncül bir gün görevi ise ve takvimin kendi çalışma bantları yoksa (örneğin standart takvim), uygulama saatleri tam iş gününe çevirir ve en yakın tam güne yuvarlar. Yarım gün yukarı gider. İş günü 8 saat olduğunda `2h` ve `3h` bu nedenle 0 gün eder. `4h`'den `11h`'ye kadar (bu dahil) 1 gün eder ve `12h` 2 gün eder. Takvimin kendi çalışma bantları varsa veya öncül bir saat görevi ise, gecikme tam olarak çalışma saatleri olarak sayılır.
+- **Çalışma saatleri** cinsinden (`4h`): uygulama gecikmeyi gecikme takvimine göre sayar. Varsayılan olarak bu, öncülün takvimidir. Öncül bir gün görevi ise ve takvimin kendi çalışma bantları yoksa (örneğin standart takvim), uygulama saatleri tam iş gününe çevirir ve en yakın tam güne yuvarlar. Yarım gün yukarı yuvarlanır. İş günü 8 saat olduğunda `2h` ve `3h` bu nedenle 0 gün eder. `4h`'den `11h`'ye kadar (bu dahil) 1 gün eder ve `12h` 2 gün eder. Takvimin kendi çalışma bantları varsa veya öncül bir saat görevi ise, gecikme tam olarak çalışma saatleri olarak sayılır.
 
 FS ile N iş günlük bir gecikme için kural şöyledir: öncülün bitişinden sonraki N iş günü bekleme süresidir. Ardıl, bundan sonraki iş gününde başlar. SS ve FF ile gecikme sırasıyla öncülün başlangıcına ve bitişine eklenir. Negatif gecikme geriye doğru sayar. FS ile 1 iş günlük bir öne alma, ardılın öncülün bittiği günde başlamasına izin verir.
 
@@ -45,7 +45,7 @@ FS ile N iş günlük bir gecikme için kural şöyledir: öncülün bitişinden
 
 ### Gecikmenin hangi takvimde sayıldığı
 
-Her görevin kendi takvimi olabilir. İş günü cinsinden bir gecikmede, hangi takvimin iş günlerini sayacağı önemlidir. Bunu *Gecikme takvimi* ayarı belirler. Dört seçenek vardır: *Öncül*, *Ardıl*, *24 saat* ve *Proje takvimi*. Standart olarak gecikme, **öncülün** takvimine göre sayılır. Bu ayarı *Ayarlar › Proje › Proje bilgisi* altında bulursunuz. Ayar, *Hesaplama profili ve seçenekleri* bloğunda, *Bu projenin hesaplama seçenekleri* bölümündedir. Seçim proje dosyasına aittir. Yalnızca *Uygula* düğmesine tıkladıktan sonra geçerli olur. Planlama bunun ardından yeniden hesaplanır.
+Her görevin kendi takvimi olabilir. İş günü cinsinden bir gecikmede, hangi takvimin iş günlerini sayacağı önemlidir. Bunu *Gecikme takvimi* ayarı belirler. Dört seçenek vardır: *Öncül*, *Ardıl*, *24 saat* ve *Proje takvimi*. Standart olarak gecikme, **öncülün** takvimine göre sayılır. Bu ayarı *Ayarlar › Proje › Proje ayarları* altında bulursunuz. Ayar, *Hesaplama profili ve seçenekleri* bloğunda, *Bu projenin hesaplama seçenekleri* bölümündedir. Seçim proje dosyasına aittir. Yalnızca *Uygula* düğmesine tıkladıktan sonra geçerli olur. Planlama bunun ardından yeniden hesaplanır.
 
 *Gecikme takvimi* için hangi seçeneği seçerseniz seçin, takvim günü cinsinden bir gecikme (`3ed`) her zaman tüm günleri sayar.
 
@@ -55,7 +55,7 @@ Bir ilişkiyi, içindeki bir görev yerine bir faza (bir özet göreve) koyabili
 
 - Öncül olarak **faz**, FS veya FF ile: ardıl, fazdaki bitişi en geç olan görev bitene kadar bekler.
 - Ardıl olarak **faz**, FS veya SS ile: fazdaki her görev öncülü bekler. Bu, fazdaki diğer görevlerden bağımsızdır.
-- Öncül olarak **faz**, SS veya SF ile: ardıl, fazdaki en **son** başlayan görevin başlangıcını bekler. Fazın kendi başlangıcını beklemez. Bu, beklediğinizden daha temkinlidir: ardıl hiçbir zaman çok erken başlamaz, ama belki istediğinizden daha geç başlar. Ardılın fazın başlangıcını izlemesini istiyorsanız, ilişkiyi fazdaki ilk göreve koyun.
+- Öncül olarak **faz**, SS veya SF ile: ardıl, fazdaki en **son** başlayan görevin başlangıcını bekler. Fazın kendi başlangıcını beklemez. Bu, beklediğinizden daha temkinlidir: ardıl hiçbir zaman çok erken başlamaz, ama belki istediğinizden daha geç başlar. Ardılın fazın başlangıcına bağlı olmasını istiyorsanız, ilişkiyi fazdaki ilk göreve koyun.
 - Ardıl olarak **faz**, FF veya SF ile: fazdaki her görev bitiş koşulunu kendisi karşılamalıdır. FF ile bitiş, öncülün bitişinde veya sonrasında olmalıdır. SF ile başlangıç, öncülün başlangıcında veya sonrasında olmalıdır. Bu, çok daha önce yapılabilecek bir görev için bile geçerlidir. Böyle bir ilişkiyi bunun yerine fazdaki son göreve koyun.
 
 Bir görev ile içinde bulunduğu faz arasında bir ilişkiye izin verilmez.

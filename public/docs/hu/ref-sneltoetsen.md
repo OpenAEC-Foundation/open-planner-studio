@@ -12,9 +12,9 @@ Az alkalmazás összes billentyűkombinációja, csoportosítva ugyanúgy, mint 
 
 **Ha egy billentyű nem működik.** Minden bejegyzés megnevezi a korlátozásait. Három szabály szinte mindenhol érvényes:
 
-- Beviteli mezőben, legördülő listában vagy szövegmezőben az alkalmazás nem fogja fel a billentyűket. Ezért egyszerűen gépelhet. Kivételek: az F5, a Ctrl+S, az F11 és a bemutató alatti Esc is működik mezőben. A kiadott alkalmazásban (az asztali program és a webes változat a weboldalon) ez a Ctrl+Shift+S, a Ctrl+O és a Ctrl+N esetén is igaz.
-- Amíg párbeszédablak vagy más ablak van megnyitva, a lent *Nem párbeszédablakban* jelölt billentyűk nem működnek. Ez vonatkozik a bemutató módra, a körbevezetésre, az üdvözlő párbeszédablakra és a válaszra váró kérdésekre is, például a bővítmény telepítésekor kért hozzájárulásra.
-- Dokumentumváltás (Ctrl+1 és Ctrl+9 között, Ctrl+N, Ctrl+O) sem működik, amíg a *Fájl › Projektinfó* olyan módosításokat tartalmaz, amelyeket még nem erősített meg az *Alkalmazás* gombbal. Ezeket előbb vesse el, vagy alkalmazza őket.
+- Beviteli mezőben, legördülő listában vagy szövegmezőben az alkalmazás nem fogja fel a billentyűket. Ezért egyszerűen gépelhet. Kivételek: az F5, a Ctrl+S, az F11 és a bemutató alatti Esc is működik mezőben. Ha a fókusz egy zárt legördülő listán van, a Ctrl-os billentyűk is működnek, például a Ctrl+Z egy választás után (nem a Ctrl+Delete és a Ctrl+Backspace). Nyitott listában vagy párbeszédablakban ez nem érvényes. A kiadott alkalmazásban (az asztali program és a webes változat a weboldalon) ez a Ctrl+Shift+S, a Ctrl+O és a Ctrl+N esetén is igaz.
+- Amíg párbeszédablak vagy más ablak van megnyitva, a lent *Nem párbeszédablakban* jelölt billentyűk nem működnek. Ez vonatkozik a bemutató módra, a körbevezetésre, az üdvözlő párbeszédablakra és a válaszra váró kérdésekre is, például a módosítások mentéséről szóló kérdésre és a bővítmény telepítésekor kért hozzájárulásra. A legtöbb ilyen billentyű a bemutató módban sem működik. Kivétel: a szerkesztőbillentyűk, a Ctrl+C, a Ctrl+V, a Ctrl+Z, a Ctrl+Y és a Delete/Backspace a bemutató alatt is működnek.
+- Dokumentumváltás (Ctrl+1 és Ctrl+9 között, Ctrl+N, Ctrl+O) sem működik, amíg a *Fájl › Projektbeállítások* olyan módosításokat tartalmaz, amelyeket még nem erősített meg az *Alkalmazás* gombbal. Ezeket előbb vesse el, vagy alkalmazza őket.
 
 ## Fájl
 
@@ -24,23 +24,23 @@ Az alkalmazás összes billentyűkombinációja, csoportosítva ugyanúgy, mint 
 
 **Ctrl+Shift+S** — *Mentés másként*: megkérdezi, hova kell menteni a fájlt. Fejlesztői verzióban beviteli mezőben nem működik.
 
-**Ctrl+O** — *Megnyitás*: megnyit egy fájlt, általában új lapon. Nem működik párbeszédablakban, és nem működik alkalmazatlan projektinfó mellett.
+**Ctrl+O** — *Megnyitás*: megnyit egy fájlt, általában új lapon. Nem működik párbeszédablakban, és nem működik alkalmazatlan projektbeállítások mellett.
 
-**Ctrl+N** — *Új projekt*: megnyitja az *Új projekt* ablakot. Nem működik párbeszédablakban, és nem működik alkalmazatlan projektinfó mellett.
+**Ctrl+N** — *Új projekt*: megnyitja az *Új projekt* ablakot. Nem működik párbeszédablakban, és nem működik alkalmazatlan projektbeállítások mellett.
 
 A kiadott alkalmazás (az asztali program és a webes változat a weboldalon) több böngészőbillentyűt is letilt, hogy ne zavarják a munkát: Ctrl+R és Ctrl+Shift+R (újratöltés), F12, Ctrl+Shift+I és Ctrl+Shift+J (fejlesztői eszközök), Ctrl+U (forrás megtekintése), valamint Ctrl+G, Ctrl+F és Ctrl+L (keresés és címsor). A Ctrl+S, a Ctrl+Shift+S, a Ctrl+O, a Ctrl+N és az F5 az alkalmazáshoz tartozik.
 
 ## Szerkesztés
 
-**Ctrl+C** — *Másolás*: másolja a kijelölt tevékenységeket. Csak kijelöléssel működik. A tevékenységtáblázatban a Ctrl+C a kijelölt cellákat másolja; ezt a táblázat maga kezeli.
+**Ctrl+C** — *Másolás*: másolja a kijelölt tevékenységeket. Csak kijelöléssel működik. Nem párbeszédablakban. Nem a *Fájl* lapon, nem a *Jelentés* és *IFC* lapokon, és nem akkor, ha a teljes erőforráspanel nyitva van. A tevékenységtáblázatban a Ctrl+C a kijelölt cellákat másolja; ezt a táblázat maga kezeli.
 
-**Ctrl+V** — *Beillesztés*: beilleszti a másolt tevékenységeket. A tevékenységtáblázatban a cellákat illeszti be.
+**Ctrl+V** — *Beillesztés*: beilleszti a másolt tevékenységeket. Nem párbeszédablakban. Nem a *Fájl* lapon, nem a *Jelentés* és *IFC* lapokon, és nem akkor, ha a teljes erőforráspanel nyitva van, mert ilyenkor a tevékenységtáblázat nem látszik. A tevékenységtáblázatban a cellákat illeszti be.
 
-**Ctrl+Z** — *Visszavonás*.
+**Ctrl+Z** — *Visszavonás*. Nem párbeszédablakban: zárja be előbb az ablakot.
 
-**Ctrl+Y** vagy **Ctrl+Shift+Z** — *Megismétlés*: megismétli azt, amit visszavont.
+**Ctrl+Y** vagy **Ctrl+Shift+Z** — *Megismétlés*: megismétli azt, amit visszavont. Nem párbeszédablakban.
 
-**Delete** vagy **Backspace** — *Törlés*: törli a kijelölt tevékenységeket. Csak kijelöléssel működik. A tevékenységtáblázat egy cellájában a Delete és a Backspace csak a cella tartalmát törli (lásd *Táblázat*).
+**Delete** vagy **Backspace** — *Törlés*: törli a kijelölt tevékenységeket. Csak kijelöléssel működik. Nem párbeszédablakban. Nem a *Fájl* lapon, nem a *Jelentés* és *IFC* lapokon, és nem akkor, ha a teljes erőforráspanel nyitva van, mert ilyenkor a tevékenységtáblázat nem látszik. A tevékenységtáblázat egy cellájában a Delete és a Backspace csak a cella tartalmát törli (lásd *Táblázat*).
 
 **F2** — *Szerkesztés…*: megnyitja a tevékenység párbeszédablakát a kijelölt első tevékenységhez. Csak kijelöléssel működik. Nem párbeszédablakban. A tevékenységtáblázat egy cellájában az F2 elindítja a cella szerkesztését.
 
@@ -68,7 +68,7 @@ A *Behúz* és a *Kihúzás* művelet, valamint a *Beszúrás fölé* és a *Bes
 
 ## Nézet
 
-**F11** — *Bemutató*: be- vagy kikapcsolja a bemutató módot. Az alkalmazás a böngészőtől vagy az ablaktól teljes képernyőt is kér. Beviteli mezőben is működik.
+**F11** — *Bemutató*: be- vagy kikapcsolja a bemutató módot. Az alkalmazás a böngészőtől vagy az ablaktól teljes képernyőt is kér. Beviteli mezőben is működik. A böngészőben az F11 nem indítja el a bemutatót: a böngésző maga teszi teljes képernyőre az ablakot, az alkalmazás pedig változatlan marad. A böngészőben az F11 viszont leállítja a futó bemutatót.
 
 **Esc** (a bemutató alatt) — *Kilépés a bemutatóból*. Beviteli mezőben is működik. Ez elsőbbséget élvez a *Kijelölés törlése* parancs felett.
 
@@ -96,9 +96,9 @@ A *Behúz* és a *Kihúzás* művelet, valamint a *Beszúrás fölé* és a *Bes
 
 **F1** — *Súgó megnyitása*: megnyitja a *Fájl › Súgó* menüt. Nem beviteli mezőben és nem párbeszédablakban. Ablakban a jobb felső sarokban lévő kérdőjelet használja: ez a súgót nyitja meg az adott ablakról szóló cikkhez (lásd [A menüszalag, lapról lapra](docs://ref-lint), a *Súgó* alatt).
 
-**Ctrl+1** és **Ctrl+9** között — *Átkapcsolás dokumentumra*: az első–kilencedik megnyitott dokumentumra vált. Ha az a dokumentum nem létezik, nem történik semmi. Nem párbeszédablakban, és nem alkalmazatlan projektinfó mellett.
+**Ctrl+1** és **Ctrl+9** között — *Átkapcsolás dokumentumra*: az első–kilencedik megnyitott dokumentumra vált. Ha az a dokumentum nem létezik, nem történik semmi. Nem párbeszédablakban, és nem alkalmazatlan projektbeállítások mellett.
 
-**Ctrl+Home** — *Ugrás a mai napra*: úgy görgeti az idővonalat, hogy egy dátum a nézet bal szélén legyen. Ez az állapotdátum, ha egyet megadott, egyébként a mai nap. Ezért a felirat akkor is „ma” marad, ha az idővonal az állapotdátumra ugrik. A nagyítás és az idővonal kezdete változatlan marad. Ha a tevékenységtáblázat egyik cellája fókuszban van, a Ctrl+Home helyette a táblázat első cellájára visz (lásd *Táblázat*).
+**Ctrl+Home** — *Ugrás a mai napra*: úgy görgeti az idővonalat, hogy egy dátum a nézet bal szélén legyen. Ez az állapotdátum, ha egyet megadott, egyébként a mai nap. Ezért a felirat („mai nap”) akkor is igaz marad, ha az idővonal az állapotdátumra ugrik. A nagyítás és az idővonal kezdete változatlan marad. Ha a tevékenységtáblázat egyik cellája fókuszban van, a Ctrl+Home helyette a táblázat első cellájára visz (lásd *Táblázat*).
 
 ## Táblázat
 

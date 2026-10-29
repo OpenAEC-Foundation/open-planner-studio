@@ -67,9 +67,40 @@ jobs:
 
       - name: Install dependencies (Ubuntu only)
         if: matrix.platform == 'ubuntu-22.04'
+        timeout-minutes: 10
+        shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          # Bugs 184/191: ook bij een geslaagde update kunnen Azure-pakketdownloads te traag blijven.
+          # Kies vóór update én installatie rechtstreeks het officiële HTTPS-archief.
+          # De Jammy-runner gebruikt /etc/apt/sources.list met mirror+file: (Azure eerst).
+          # Vervang alleen de bron-URI; behoud suites, componenten, sleutelopties en externe bronnen.
+          # https://github.com/actions/runner-images/blob/ubuntu22/20261012.322/images/ubuntu/scripts/build/configure-apt-sources.sh
+          # https://manpages.ubuntu.com/manpages/jammy/man5/sources.list.5.html
+          if ! grep -Fq 'mirror+file:/etc/apt/apt-mirrors.txt' /etc/apt/sources.list; then
+            echo "::error::Onverwachte APT-bronnen: de Jammy-mirrorlijst ontbreekt; geen veilige automatische bronwissel."
+            exit 1
+          fi
+          sudo sed -i 's|mirror+file:/etc/apt/apt-mirrors\.txt|https://archive.ubuntu.com/ubuntu/|g' /etc/apt/sources.list
+
+          # apt.conf(5): één retry per bestand, 15 s verbindings-/datatime-out voor beide transports.
+          # https://manpages.ubuntu.com/manpages/jammy/man5/apt.conf.5.html
+          apt_options=(-o Acquire::Retries=1 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15)
+
+          # --error-on=any weigert ook gedeeltelijk mislukte updates met oude indexen.
+          # timeout draait als root voor de hele procesgroep (TERM, na 10 s KILL; geen --foreground).
+          # APT-budget: 2 + 5 min + tweemaal 10 s afsluitruimte = 7 min 20 s; staplimiet 10 min.
+          # https://manpages.ubuntu.com/manpages/jammy/man8/apt-get.8.html
+          # https://www.gnu.org/software/coreutils/manual/html_node/timeout-invocation.html
+          if ! sudo timeout --verbose --kill-after=10s 2m apt-get "${apt_options[@]}" --error-on=any update; then
+            echo "::error::APT-update via het officiële Ubuntu-archief mislukt of overschrijdt 2 min."
+            exit 1
+          fi
+
+          # Eén installatiepoging: een timeout kan dpkg onderbreken; stop dan de job zonder herstel/retry.
+          if ! sudo timeout --verbose --kill-after=10s 5m apt-get "${apt_options[@]}" install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf; then
+            echo "::error::APT-installatie mislukt of overschrijdt 5 min; frontendinstallatie en build worden niet gestart."
+            exit 1
+          fi
 
       # Bevinding O2: `npm install` mag de lockfile bijwerken, dus CI valideerde
       # hem nooit — een out-of-sync lock glipte groen door en klapte pas op de

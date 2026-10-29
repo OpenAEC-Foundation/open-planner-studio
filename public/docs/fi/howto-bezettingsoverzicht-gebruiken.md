@@ -53,7 +53,7 @@ Näkymä näyttää ongelman, mutta ei ratkaise sitä. Vaihtoehtoja on kaksi:
 
 **Projekti ei lasketa mukaan.** Se ei ole auki tässä sovelluksessa, se on liitetty toiseen kirjastoon tai siinä oleva resurssi on kyseisen projektin oma resurssi. Näkymän alareunassa lukee aina *Tämä näkymä näkee vain tässä sovelluksessa avatut dokumentit.* Myöskään kopio resurssista, joka on sittemmin poistettu kirjastosta, ei lasketa mukaan.
 
-**Kopio tai muunnelma lasketaan kokonaan mukaan.** Jokainen avoin projekti, joka on liitetty kirjastoon, lasketaan mukaan, myös silloin kun se on toisen avoimen projektin kopio tai muunnelma, esimerkiksi tekoälyavustajan tekemä muunnelma komennolla `planner_duplicate_document`. Alkuperäinen ja muunnelma yhdessä voivat silloin näyttää ylikuormituksen, jota todellisuudessa on vain kerran. Näkymä ei suodata tätä hiljaa pois: sulje muunnelma hetkeksi tai ota se huomioon lukiessasi.
+**Kopio tai muunnelma lasketaan kokonaan mukaan.** Jokainen avoin projekti, joka on liitetty kirjastoon, lasketaan mukaan, myös silloin kun se on toisen avoimen projektin kopio tai muunnelma, esimerkiksi tekoälyavustajan tekemä muunnelma komennolla `planner_duplicate_document`. Alkuperäinen ja muunnelma yhdessä voivat silloin näyttää ylikuormituksen, jota todellisuudessa on vain kerran. Näkymä ei suodata tätä hiljaa pois: sulje muunnelma hetkeksi tai jätä se huomiotta, kun luet näkymää.
 
 **Projekti on vanhentunut.** Projekti on vanhentunut, jos aikataulua on muutettu laskematta sitä uudelleen. Näkymä käsittelee silloin projektia seuraavasti:
 

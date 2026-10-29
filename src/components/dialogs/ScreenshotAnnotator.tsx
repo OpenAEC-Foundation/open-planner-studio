@@ -126,14 +126,21 @@ function flattenToPng(screenshotDataUrl: string, annotationCanvas: HTMLCanvasEle
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
-      const out = document.createElement('canvas');
-      out.width = annotationCanvas.width;
-      out.height = annotationCanvas.height;
-      const ctx = out.getContext('2d');
-      if (!ctx) { reject(new Error('No 2D context')); return; }
-      ctx.drawImage(img, 0, 0, out.width, out.height);
-      ctx.drawImage(annotationCanvas, 0, 0);
-      resolve(out.toDataURL('image/png'));
+      // Fouten in deze asynchrone callback moeten de Promise afwijzen, niet laten hangen.
+      try {
+        const out = document.createElement('canvas');
+        out.width = annotationCanvas.width;
+        out.height = annotationCanvas.height;
+        const ctx = out.getContext('2d');
+        if (!ctx) throw new Error('No 2D context');
+        ctx.drawImage(img, 0, 0, out.width, out.height);
+        ctx.drawImage(annotationCanvas, 0, 0);
+        const png = out.toDataURL('image/png');
+        if (!png.startsWith('data:image/png;')) throw new Error('Invalid PNG');
+        resolve(png);
+      } catch (error) {
+        reject(error);
+      }
     };
     img.onerror = reject;
     img.src = screenshotDataUrl;
@@ -219,6 +226,9 @@ export function ScreenshotAnnotator({
   const { t } = useTranslation('common');
 
   const [editorOpen, setEditorOpen] = useState(false);
+  const [saveError, setSaveError] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   // Werkkopie tijdens een bewerkronde; bij openen gevuld uit `committedShapes`.
   const [shapes, setShapes] = useState<Shape[]>(() => [...committedShapes]);
   const [activeTool, setActiveTool] = useState<AnnotationTool>('arrow');
@@ -271,29 +281,37 @@ export function ScreenshotAnnotator({
   const openEditor = () => {
     // Elke bewerkronde begint bij de vastgelegde vormen; *Annuleren* keert daarheen terug.
     setShapes([...committedShapes]);
+    setSaveError(false);
     setEditorOpen(true);
   };
 
   /** *Klaar*: flatten en de nieuwe vormen aan de ouder geven. */
   const closeEditor = useCallback(async () => {
-    const canvas = canvasRef.current;
-    const nextShapes = shapesRef.current;
-    let flat = screenshotDataUrl;
-    if (canvas) {
-      try {
-        flat = await flattenToPng(screenshotDataUrl, canvas);
-      } catch {
-        flat = screenshotDataUrl;
-      }
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setSaving(true);
+    setSaveError(false);
+    try {
+      const canvas = canvasRef.current;
+      if (!canvas) throw new Error('No annotation canvas');
+      const flat = await flattenToPng(screenshotDataUrl, canvas);
+      onChange(flat, shapesRef.current);
+      setEditorOpen(false);
+      setTextInput(null);
+      setTextValue('');
+    } catch {
+      // Fail closed: nooit het origineel vastleggen als afdekken niet gelukt is.
+      // De editor blijft open, dus de ouder blijft inert en Versturen geblokkeerd.
+      setSaveError(true);
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
     }
-    setEditorOpen(false);
-    setTextInput(null);
-    setTextValue('');
-    onChange(flat, nextShapes);
   }, [screenshotDataUrl, onChange]);
 
   /** *Annuleren* (en Esc): de wijzigingen van deze bewerkronde weggooien. */
   const cancelEditor = useCallback(() => {
+    if (savingRef.current) return;
     drawing.current = false;
     currentShape.current = null;
     setShapes([...committedShapes]);
@@ -459,7 +477,7 @@ export function ScreenshotAnnotator({
         >
           <EditorPanel label={t('feedback.annotate')}>
             {/* Toolbar */}
-            <div className="annotator-editor-toolbar">
+            <div className="annotator-editor-toolbar" inert={saving}>
               <button
                 className={`feedback-ann-btn${activeTool === 'arrow' ? ' active' : ''}`}
                 title={t('feedback.tools.arrow')}
@@ -546,8 +564,14 @@ export function ScreenshotAnnotator({
               </button>
             </div>
 
+            {saveError && (
+              <p role="alert" className="text-body" style={{ padding: '0.5rem 1rem' }}>
+                {t('feedback.annotationSaveFailed')}
+              </p>
+            )}
+
             {/* Canvas-ruimte */}
-            <div className="annotator-canvas-area">
+            <div className="annotator-canvas-area" inert={saving}>
               {/*
                 annotator-canvas-inner heeft position:relative zodat:
                   1. De img zijn eigen aspect-ratio bepaalt (width 100%, height auto)

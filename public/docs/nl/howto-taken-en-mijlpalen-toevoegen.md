@@ -6,7 +6,7 @@ Doel: een nieuwe taak of mijlpaal in je planning zetten, op de plek waar hij hoo
 
 Je bouwt een planning op, er komt werk bij, of je wilt een moment vastleggen, zoals de oplevering of een keuring.
 
-Een **taak** is werk dat tijd kost. Een nieuwe taak duurt standaard 5 werkdagen (bij urenplanning kan de projectstandaard uren zijn). Een **mijlpaal** is een moment zonder duur: 0 dagen. Een taak met subtaken heet een **samenvattingstaak**, in de bouw vaak een fase. Haar duur en datums volgen uit haar subtaken, zodra je **Bereken** (F5) gebruikt.
+Een **taak** is werk dat tijd kost. Een nieuwe taak duurt standaard 5 werkdagen (de projectstandaard kan ook uren zijn). Een **mijlpaal** is een moment zonder duur: 0 dagen. Een taak met subtaken heet een **samenvattingstaak**, in de bouw vaak een fase. Haar duur en datums volgen uit haar subtaken, zodra je **Bereken** (F5) gebruikt.
 
 ## Stappen
 
@@ -61,8 +61,8 @@ Zet je het weer uit, dan blijft het een gewone taak met duur 0: vul zelf een duu
 
 ### Andere manieren
 
-- Ctrl+M (op een Mac ⌘+M) zet een nieuwe mijlpaal onderaan de lijst, ook als er een taak geselecteerd is. Het paneel *Eigenschappen* gaat daarbij niet open.
-- Een mijlpaal die je met Ctrl+M of via het rechtermuismenu maakt, krijgt de werksoort *Keuring/Inspectie*. Een *Start-* of *Eindmijlpaal* uit *Mijlpaal ▾* krijgt *Overig*. Pas de werksoort zo nodig aan in *Eigenschappen*.
+- Ctrl+M (op een Mac ⌘+M) maakt een gewone eindmijlpaal via dezelfde invoegroute als het lint: onder de selectie in de boomweergave, anders onderaan. De nieuwe mijlpaal wordt geselecteerd en het paneel *Eigenschappen* opent met de naam klaar om te typen.
+- Gewone mijlpalen uit het lint, Ctrl+M of het rechtermuismenu krijgen de werksoort *Overig*. Ctrl+M en het rechtermuismenu maken een eindmijlpaal. Alleen de expliciete keuze voor een inspectiemoment maakt een verplichte mijlpaal met werksoort *Keuring/Inspectie*.
 - *Mijlpaal toevoegen* in het rechtermuismenu van een taak maakt de mijlpaal een subtaak van die taak, niet een zustertaak.
 
 ### Een taak of hele tak kopiëren

@@ -39,7 +39,7 @@ Os operadores que obtém dependem do tipo de campo:
 - Texto (*Nome da tarefa*, *WBS*): *é igual a*, *é diferente de*, *contém*, *começa por* e *está vazio*.
 - Número e data (*Folga total*, *Início*, *Progresso*): *é igual a*, *é diferente de*, *menor que*, *menor ou igual a*, *maior que*, *maior ou igual a*, *entre* e *está vazio*. Com *entre* há dois campos: para um número, *De* e *Até* como sugestão; para uma data, sem sugestão (a primeira data é o início, a segunda o fim).
 - Sim/não (*Crítica*, *Marco*, *Quase crítica*): *é igual a* e *é diferente de*, com o valor *Sim* ou *Não*.
-- Seleção (*Tipo*, um código de atividade): *é igual a*, *é diferente de*, *é um de* (com valores de caixa de verificação) e *está vazio*.
+- Seleção (*Categoria de trabalho*, um código de atividade): *é igual a*, *é diferente de*, *é um de* (com valores de caixa de verificação) e *está vazio*.
 - *Recursos*: *é um de* e *está vazio*.
 - *Em andamento*: só *entre*, com duas datas (de e até).
 
@@ -81,7 +81,7 @@ Layouts que não guardam as mesmas partes podem estar ligados ao mesmo tempo. Se
 
 **Os layouts ficam no seu dispositivo, não no projeto.** A aplicação guarda os seus layouts e as colunas para todos os seus projetos neste dispositivo. As sobreposições de um layout (linha de base, linha de progresso e as restantes) aplicam-se a todos os seus projetos. O filtro, o agrupamento e a ordenação que estão ativos neste momento pertencem ao projeto aberto, mas não entram no ficheiro do projeto: depois de guardar e reabrir, a vista fica outra vez limpa. Também não deixam o projeto como «modificado».
 
-**Os botões separados estão ocultos.** *Colunas…*, *Filtro…*, *Agrupar…* e *Ordenar…* como botões separados no separador *Visualização* são uma vista antiga. Pode voltar a mostrá-los com *Mostrar os botões de vista clássicos* em *Funcionalidades legadas* no separador *Avançado* da janela de definições (⚙ na barra de título). Prefira os layouts.
+**Os botões separados estão ocultos.** *Colunas…*, *Filtro…*, *Agrupar…* e *Ordenar…* como botões separados no separador *Visualização* são uma vista antiga. Pode voltar a mostrá-los com *Mostrar os botões de vista clássicos* em *Funcionalidades legadas* no separador *Avançado* da janela *Definições da app* (⚙ na barra de título). Prefira os layouts.
 
 ## Veja também
 

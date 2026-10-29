@@ -24,6 +24,8 @@ Il progetto appare nella sua scheda ed è subito attivo. *Nuovo* e *Apri* nella 
 
 Ogni scheda ha un puntino colorato che appartiene al progetto. Una scheda con un piccolo puntino dietro ha modifiche non salvate.
 
+Se le schede non ci stanno tutte nella larghezza, compaiono due frecce tra le schede e il + (*Scorri le schede verso l'inizio* e *Scorri le schede verso la fine*). Ogni clic sposta le schede di due posizioni. Una freccia è grigia quando sei già all'inizio o alla fine. Puoi anche scorrere con la rotella del mouse sulle schede. La scheda che scegli si sposta sempre da sola in vista.
+
 ### Chiudere un progetto
 
 Clicca sulla croce accanto al nome nella scheda (*Chiudi*), oppure sulla croce di un riquadro nella panoramica. Un progetto senza modifiche si chiude subito. Se ha modifiche non salvate, l'app mostra *Modifiche non salvate* con tre scelte:
@@ -38,7 +40,7 @@ Se chiudi l'ultimo progetto, resta una pianificazione vuota chiamata *Nuova pian
 
 ### Scegliere lo stile di cambio documento
 
-Le schede sono una scelta che puoi cambiare. Apri la finestra delle impostazioni con l'ingranaggio nella barra del titolo, vai alla scheda *Aspetto* e scegli in *Stile di cambio documento*:
+Le schede sono una scelta che puoi cambiare. Apri la finestra *Impostazioni app* con l'ingranaggio nella barra del titolo, vai alla scheda *Aspetto* e scegli in *Stile di cambio documento*:
 
 - *Schede orizzontali*: il valore predefinito. Una riga di schede sotto la barra multifunzione.
 - *Schede verticali*: una barra stretta a sinistra con un pulsante per progetto (le prime lettere del nome) e un segno +. Se passi con il mouse su un pulsante, vedi nome, nome del file, numero di attività, numero di attività critiche e data di fine. Il pulsante in alto apre la panoramica.
@@ -48,13 +50,13 @@ Tutti e tre gli stili aprono la stessa panoramica, e Ctrl+1 fino a Ctrl+9 funzio
 
 ## Attenzione e comportamento dell'app
 
-**Cosa appartiene al progetto e cosa è condiviso.** Ogni progetto ha la propria vista: zoom e posizione, un layout attivo con filtro, raggruppamento o ordinamento, vista divisa, le linee di relazione e le fasi compresse. Se passi a un altro progetto, vedi lì la sua vista. Sono condivisi da tutti i progetti la scheda selezionata nella barra multifunzione, la minimappa, le sovrapposizioni (sovrapposizione baseline, linea di avanzamento e le altre), la tua scelta di colonne, i tuoi layout e le scelte per i report.
+**Cosa appartiene al progetto e cosa è condiviso.** Ogni progetto ha la propria vista: zoom e posizione, un layout attivo con filtro, raggruppamento o ordinamento, vista divisa, le linee delle relazioni e le fasi compresse. Se passi a un altro progetto, vedi lì la sua vista. Condivisi da tutti i progetti sono la scheda selezionata nella barra multifunzione, la minimappa, le sovrapposizioni (sovrapposizione baseline, linea di avanzamento e le altre), la tua scelta di colonne, i tuoi layout e le scelte per i report.
 
-**Non puoi passare con una finestra di dialogo aperta.** Finché una finestra di dialogo è aperta, per esempio la finestra delle impostazioni o la finestra di un'attività, Ctrl+1 fino a Ctrl+9 non fanno nulla nell'app. Nel browser cambiano invece le schede del browser. Chiudi prima la finestra. Anche una modifica non applicata in *Info progetto* nel Backstage blocca il passaggio.
+**Non puoi passare con una finestra di dialogo aperta.** Finché una finestra di dialogo è aperta, per esempio la finestra *Impostazioni app* o la finestra di un'attività, Ctrl+1 fino a Ctrl+9 non fanno nulla nell'app. Nel browser cambiano invece le schede del browser. Chiudi prima la finestra. Anche una modifica non applicata in *Impostazioni progetto* nel Backstage blocca il passaggio.
 
 **Ctrl+1 fino a Ctrl+9 contano per ordine.** La scorciatoia va al progetto in quella posizione della riga. Se chiudi un progetto, gli altri salgono di un posto. Se hai aperti più di nove progetti, raggiungi gli altri solo tramite le schede o la panoramica.
 
-**Calcola e report lavorano sul progetto attivo.** Calcola (F5), *Esporta PDF* e i report riguardano il progetto attivo in quel momento.
+**Calcola e i report lavorano sul progetto attivo.** Calcola (F5), *Esporta PDF* e i report riguardano il progetto attivo in quel momento.
 
 ## Vedi anche
 

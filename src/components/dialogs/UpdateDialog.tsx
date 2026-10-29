@@ -44,8 +44,8 @@ export function UpdateDialog() {
   const [currentVersion, setCurrentVersion] = useState<string>(__APP_VERSION__);
   const [status, setStatus] = useState<UpdateStatus | null>(null);
   const [busy, setBusy] = useState(false);
-  // Install-type bepaalt of/hoe we de update installeren (snap/deb/appimage/native).
-  const [installKind, setInstallKind] = useState<InstallKind>('native');
+  // Tot de detectie klaar is mag geen installatieknop verschijnen (ook AUR/Snap zijn mogelijk).
+  const [installKind, setInstallKind] = useState<InstallKind | null>(null);
   const { copiedKey, copy } = useCopyFeedback(2000);
   const copied = copiedKey !== null;
 
@@ -73,6 +73,7 @@ export function UpdateDialog() {
   useEffect(() => {
     if (!showUpdateDialog) return;
     let cancelled = false;
+    setInstallKind(null);
     void getInstallKind().then(kind => { if (!cancelled) setInstallKind(kind); });
     return () => { cancelled = true; };
   }, [showUpdateDialog]);
@@ -126,24 +127,28 @@ export function UpdateDialog() {
   const progress = isDownloading ? status.progress : 0;
   const indeterminate = isDownloading && status.indeterminate;
   const isReadyToInstall = status?.kind === 'readyToInstall';
-  // Snap is het enige install-type zonder in-app installatie (snapd werkt zelf
-  // bij). .deb installeert de updater-plugin gewoon in-place (pkexec + dpkg -i),
+  const isInstalling = status?.kind === 'installing';
+  const isRestarting = status?.kind === 'restarting';
+  const isUpdating = isDownloading || isReadyToInstall || isInstalling || isRestarting;
+  // Snap en AUR hebben geen in-app installatie: de pakketbeheerder werkt bij.
+  // .deb installeert de updater-plugin gewoon in-place (pkexec + dpkg -i),
   // dus deb krijgt de normale installeerknop; het handmatige commando is enkel
   // nog een fallback als die installatie faalt.
   const isSnap = installKind === 'snap';
+  const isAur = installKind === 'aur';
   const isDeb = installKind === 'deb';
-  const canAutoInstall = !isSnap;
+  const canAutoInstall = installKind !== null && !isSnap && !isAur;
 
   return (
-    // Esc en backdrop-klik sluiten de dialoog, maar NIET tijdens een actieve download
+    // Esc en backdrop-klik sluiten de dialoog, maar NIET zolang het bijwerken loopt
     // (dan zijn beide handlers `undefined` en doet `Dialog` niets).
     <Dialog
-      onBackdropClick={isDownloading ? undefined : close}
-      onCancel={isDownloading ? undefined : close}
+      onBackdropClick={isUpdating ? undefined : close}
+      onCancel={isUpdating ? undefined : close}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[520px] max-h-[90vh] flex flex-col overflow-hidden"
     >
         {/* Header */}
-        <DialogHeader title={t('updates.dialogTitle')} onClose={close} closeDisabled={isDownloading} help={{ articleId: UPDATE_HELP_ARTICLE_ID }} />
+        <DialogHeader title={t('updates.dialogTitle')} onClose={close} closeDisabled={isUpdating} help={{ articleId: UPDATE_HELP_ARTICLE_ID }} />
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-small leading-4">
@@ -162,7 +167,7 @@ export function UpdateDialog() {
           </div>
 
           {/* Status-melding */}
-          {busy && !isDownloading && (
+          {busy && status?.kind === 'upToDate' && (
             <div className="flex items-center gap-2 text-text-secondary">
               <RefreshCw size={14} className="animate-spin" />
               <span>{t('updates.checking')}</span>
@@ -199,16 +204,31 @@ export function UpdateDialog() {
                 </div>
               )}
 
+              {/* AUR: pacman beheert het pakket — bijwerken via yay/paru, geen in-app installatie. */}
+              {isAur && (
+                <div className="flex items-start gap-2 text-text-secondary bg-surface-hover border border-border rounded-[8px] p-3" data-ops-update-package-manager-notice>
+                  <PackageOpen size={14} className="text-accent mt-0.5 shrink-0" />
+                  <span>{t('updates.packageManagerNotice')}</span>
+                </div>
+              )}
+
             </>
           )}
 
           {isDownloading && (
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between text-text-secondary">
-                <span>{isReadyToInstall ? t('updates.installing') : t('updates.downloading')}</span>
+                <span>{t('updates.downloading')}</span>
                 {!indeterminate && <span className="tabular-nums">{progress}%</span>}
               </div>
-              <div className="h-2 rounded-full bg-surface-hover overflow-hidden border border-border">
+              <div
+                role="progressbar"
+                aria-label={t('updates.downloading')}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={indeterminate ? undefined : progress}
+                className="h-2 rounded-full bg-surface-hover overflow-hidden border border-border"
+              >
                 {indeterminate ? (
                   // Onbepaalde voortgang: geen totale grootte bekend → lopende balk.
                   <div className="h-full w-1/3 bg-accent rounded-full ops-indeterminate-bar" />
@@ -222,10 +242,10 @@ export function UpdateDialog() {
             </div>
           )}
 
-          {status?.kind === 'readyToInstall' && (
-            <div className="flex items-center gap-2 text-text-secondary">
+          {(isReadyToInstall || isInstalling || isRestarting) && (
+            <div role="status" className="flex items-center gap-2 text-text-secondary">
               <RefreshCw size={14} className="animate-spin" />
-              <span>{t('updates.restarting')}</span>
+              <span>{isReadyToInstall ? t('updates.preparingInstall') : isInstalling ? t('updates.installing') : t('updates.restarting')}</span>
             </div>
           )}
 
@@ -268,7 +288,7 @@ export function UpdateDialog() {
         <div className="flex justify-end gap-3 px-4 py-3 border-t border-border">
           <button
             onClick={close}
-            disabled={isDownloading}
+            disabled={isUpdating}
             className="btn btn--sm btn--secondary disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {t('close')}

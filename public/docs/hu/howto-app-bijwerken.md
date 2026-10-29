@@ -30,8 +30,8 @@ A böngészőverzióban ennek a gombnak nincs különleges hatása: az ablak azo
 
 ### Az újdonságok elolvasása
 
-1. Ha az asztali alkalmazást először indítja el olyan verzióval, amely eltér az előzőtől, vagy friss telepítés után, az ablak magától megnyílik. Angolul ez a cím: „You're up to date!”. A magyar felirat: *Naprakész!*
-2. A tetején látható, hogy melyik előző verzióról melyik új verzióra lépett. Friss telepítés után csak az új verzió látszik.
+1. Ha az asztali alkalmazást az előzőtől eltérő verzióval indítja el először, az ablak magától megnyílik. Friss telepítés után nem nyílik meg: az első indítás nem frissítés. Ha mégis látni szeretné, használja az *Újdonságok* gombot (lásd lent). Angolul ez a cím: „You've been updated!”. A magyar felirat: *Naprakész!*
+2. A tetején látható, hogy melyik előző verzióról melyik új verzióra lépett. Az *Újdonságok* gombbal csak az új verzió látszik.
 3. Ha az alkalmazásban van beépített összefoglaló ehhez a verzióhoz, egy fő pontot és négy kisebb pontot lát. A fő ponthoz tartozhat egy *Útmutató megnyitása* gomb. Ellenkező esetben csak a verzióváltást és az alatta lévő részt látja.
 4. A *Kiadási jegyzetek megtekintése* gombbal megnyitja a változásnaplót a GitHub-on. Ha ez nem működik, ezt írja: *A kiadási jegyzeteket nem lehetett megnyitni.*
 5. Az *Ez a frissítés számokban* részben látható az előző kiadás óta eltelt napok száma, a commitok száma és a hozzáadott kódsorok száma. Ha az alkalmazás le tudja kérdezni a telepítőcsomag méretének változását, az is megjelenik. Minden szám csak akkor látszik, ha elérhető.

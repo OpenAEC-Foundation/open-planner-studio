@@ -1440,6 +1440,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "work-category": {
+    "term": "作業区分",
+    "forms": [
+      "作業区分"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "稼働時間",
     "forms": [

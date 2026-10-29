@@ -47,6 +47,38 @@ ok('trace uit geeft geen rol of gridklasse',
   classifyTraceTask(buildTrace('off', ['b'], sequences, cpm), 'a') === null
     && taskGridTraceClass(null) === null);
 
+// Knownbug 105: dezelfde trace blijft bestaan; alleen het onderscheid in nadruk ontbreekt.
+const unknownResults: Array<[string, CPMResult | null | undefined]> = [
+  ['opgeslagen datums', { ...cpm, drivingUnknown: true, drivingSequenceIds: [] }],
+  ['opgeslagen datums met oude ids', { ...cpm, drivingUnknown: true }],
+  ['nog niet berekend', null],
+  ['ontbrekend resultaat', undefined],
+  ['mislukte berekening', { ...cpm, error: 'kring' }],
+];
+for (const [label, result] of unknownResults) {
+  const unknownTrace = buildTrace('both', ['b', 'x'], sequences, result);
+  ok(`${label}: eerste selectie blijft focus, tweede selectie vervaagt`,
+    classifyTraceTask(unknownTrace, 'b') === 'focus' && classifyTraceTask(unknownTrace, 'x') === 'dimmed');
+  ok(`${label}: alle voorgangers en opvolgers krijgen even sterke nadruk`,
+    classifyTraceTask(unknownTrace, 'a') === 'predecessor-driving'
+      && classifyTraceTask(unknownTrace, 'c') === 'successor-driving'
+      && classifyTraceTask(unknownTrace, 'd') === 'successor-driving');
+  ok(`${label}: tracevervaging houdt dezelfde betrokken relaties`,
+    !isRelationOutsideTrace(unknownTrace, 'b', 'd') && isRelationOutsideTrace(unknownTrace, 'b', 'x'));
+  ok(`${label}: richting voorgangers verbergt opvolgers`,
+    classifyTraceTask(buildTrace('predecessors', ['b'], sequences, result), 'c') === 'dimmed');
+  ok(`${label}: richting opvolgers verbergt voorgangers`,
+    classifyTraceTask(buildTrace('successors', ['b'], sequences, result), 'a') === 'dimmed');
+  ok(`${label}: uit of geen selectie blijft zonder trace`,
+    buildTrace('off', ['b'], sequences, result) === undefined
+      && buildTrace('both', [], sequences, result) === undefined);
+}
+const calculatedEmpty = buildTrace('both', ['b'], sequences, { ...cpm, drivingSequenceIds: [] });
+ok('berekend zonder driving: gewone rollen, geen terugval naar sterke nadruk',
+  classifyTraceTask(calculatedEmpty, 'a') === 'predecessor'
+    && classifyTraceTask(calculatedEmpty, 'c') === 'successor'
+    && classifyTraceTask(calculatedEmpty, 'd') === 'successor');
+
 ok('zonder selectie zijn koppelen en extern toevoegen concreet niet beschikbaar', (() => {
   const availability = relationActionAvailability(0, 0);
   return !availability.linkSelected && !availability.addExternal && !availability.refreshExternal;

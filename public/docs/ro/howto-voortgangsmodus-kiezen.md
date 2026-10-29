@@ -33,7 +33,7 @@ Cum alegeți?
 
 **Un fișier P6.** Dacă deschideți un fișier Primavera P6 (.xer), aplicația preia modul din fișier. În afară de Retained Logic și Progress Override, P6 mai are și Actual Dates. Aplicația nu cunoaște acest al treilea mod; un asemenea fișier se calculează ca Retained Logic. Mesajul de import numără asta ca *1 setare de planificare P6 a folosit o revenire sigură.*
 
-**Profilul de calcul.** În profilul Primavera P6, Progress Override funcționează și invers, în datele târzii și în marja liberă a predecesorului (convenția de calcul *Progress Override ignoră un succesor început și în calculul înapoi*). În profilurile Open Planner Studio și Microsoft Project nu este așa. Convențiile le găsiți la *Setări › Proiect › Informații proiect*, în blocul *Profil de calcul și opțiuni de calcul*. În exemplul din explicație, acest efect invers nu se vede.
+**Profilul de calcul.** În profilul Primavera P6, Progress Override funcționează și invers, în datele târzii și în marja liberă a predecesorului (convenția de calcul *Progress Override ignoră un succesor început și în calculul înapoi*). În profilurile Open Planner Studio și Microsoft Project nu este așa. Convențiile le găsiți la *Setări › Proiect › Setări proiect*, în blocul *Profil de calcul și opțiuni de calcul*. În exemplul din explicație, acest efect invers nu se vede.
 
 ## Vezi și
 

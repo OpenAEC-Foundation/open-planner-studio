@@ -4,11 +4,11 @@ Vad finns egentligen i filen du sparar? Och vad händer med din tidsplan när du
 
 ## Konceptet
 
-Open Planner Studio har ett eget filformat: **IFC**, ett öppet utbytesformat för byggnadsinformation från buildingSMART. Appen skriver IFC 4.3. I exportlistan heter det *IFC 4x3*. Det finns inget annat, proprietärt projektformat. *Spara* skriver hela ditt projekt som en IFC-fil (`.ifc`). *Öppna* läser en sådan fil tillbaka. Vill du se vad filen innehåller? Fliken *IFC* visar IFC-texten för ditt projekt. *Generera IFC* uppdaterar den texten.
+Open Planner Studio har ett eget filformat: **IFC**, ett öppet utbytesformat för byggnadsinformation från buildingSMART. Appen skriver IFC-schemat för projektet, som standard IFC 4.3 ADD2 (se [Att välja IFC-schema](docs://howto-ifc-schema-kiezen)). I exportlistan heter det *IFC*. Det finns ingen annan, proprietär projektfil. *Spara* skriver hela ditt projekt som en IFC-fil (`.ifc`). *Öppna* läser en sådan fil tillbaka. Vill du se vad som ingår i filen? Fliken *IFC* är en redigerare som visar IFC-texten för ditt projekt. *Generera IFC* uppdaterar den texten och *Kopiera* lägger den på urklipp. Ändrar du texten laddar *Tillämpa* in den som ditt projekt. Det ersätter projektet i den fliken helt.
 
-Alla andra format är **adaptrar**: översättare mellan modellen i ett annat program och modellen i appen. Appen läser CSV, MS Project XML, Primavera P6 XML, MS Project-filer (`.mpp`) och Primavera-filer (`.xer`). Den skriver CSV, MS Project XML, Primavera P6 XML och två framdriftsblad. Du kan inte exportera till `.mpp` eller `.xer`.
+Alla andra format är **adaptrar**: översättare mellan modellen i ett annat program och appens modell. Appen läser CSV, MS Project XML, Primavera P6 XML, MS Project-filer (`.mpp`) och Primavera-filer (`.xer`). Den skriver CSV, MS Project XML, Primavera P6 XML och två framdriftsblad. Du kan inte exportera till `.mpp` eller `.xer`.
 
-Varför är den skillnaden viktig? En översättare kan bara ta med det som båda sidor känner till. IFC-filen i appen behåller allt som hör till ditt projekt. Alla andra format saknar en del av det. Den delen blir kvar.
+Varför är den skillnaden viktig? En översättare kan bara ta med det som båda sidor känner till. Appens IFC-fil behåller allt som hör till ditt projekt. Alla andra format saknar en del av det. Den delen blir kvar.
 
 ## Så hanterar appen filer
 
@@ -34,7 +34,7 @@ Bara en IFC-fil blir **målfil för sparning**: filen som *Spara* skriver tillba
 - projektinställningarna, till exempel rapportdatumet, beräkningsprofilen och beräkningsalternativen;
 - länken till ett bibliotek.
 
-Det du ställer in på skärmen hör inte till projektet och följer inte med: zoom, scrollposition, den valda uppgiften och hopfällda faser. Dina appinställningar, till exempel språk och tema, står inte heller i filen. Appen sparar dem själv, i appen eller i din webbläsare.
+Det du ställer in på skärmen hör inte till projektet och följer inte med: zoom, scrollposition, den valda uppgiften och hopfällda faser. Dina appinställningar, till exempel språk och tema, finns inte heller i filen. Appen sparar dem själv, i appen eller i din webbläsare.
 
 En export till ett annat format rör inte ditt projekt. Efter en export har projektet kvar samma målfil. Det är fortfarande *Ej sparad* om det var det innan.
 
@@ -44,15 +44,15 @@ Varje adapter tar med det som dess format känner till.
 
 **MS Project XML** tar med uppgifter, samband, kalendrar, resurser, tilldelningar, restriktioner, måldatum och rapportdatum. Av dina baslinjer följer bara den aktiva med. Uppgiftskoder, egna fält, anteckningar och externa samband följer inte med. En andra restriktion på en uppgift följer inte med. En restriktion *Måste starta på (MSO)* eller *Måste slutföras på (MFO)* utan valet *Obligatorisk (pinlogik)* kommer tillbaka som *Starta tidigast (SNET)* eller *Avsluta tidigast (FNET)*. *Manuellt schemalagd* och *Förskjutning pga utjämning* för en uppgift kommer inte tillbaka. En hängmatta blir en vanlig uppgift med beräknade datum.
 
-**Primavera P6 XML** tar med uppgifter, samband, kalendrar, resurser, tilldelningar, restriktioner och rapportdatum. Baslinjer och måldatum följer inte med, inte heller uppgiftskoder, egna fält, anteckningar och externa samband. Även här blir en hängmatta en vanlig uppgift. P6 har ingen fördröjning i procent: appen omvandlar en sådan fördröjning till ett fast antal dagar. En fördröjning i kalenderdagar blir en fördröjning i arbetsdagar.
+**Primavera P6 XML** tar med uppgifter, samband, kalendrar, resurser, tilldelningar, restriktioner och rapportdatum. Baslinjer och måldatum följer inte med, inte heller uppgiftskoder, egna fält, anteckningar och externa samband. En hängmatta blir här också en vanlig uppgift. P6 har ingen fördröjning i procent: appen omvandlar en sådan fördröjning till ett fast antal dagar. En fördröjning i kalenderdagar blir en fördröjning i arbetsdagar.
 
-**CSV** är en uppgiftslista. Filen har dessa kolumner för varje uppgift: uppgifts-id, WBS, nivå, namn, varaktighet, start, slut, föregående, typ, id för en egen uppgiftstyp (`OPS Custom Task Type ID`), status, slutförandegrad, verklig start och slut, kritisk, totalt slack och beskrivning. Resurser, tilldelningar, kalendrar, restriktioner, måldatum, baslinjer och rapportdatum finns inte i den. Kolumnrubrikerna är alltid på engelska.
+**CSV** är en uppgiftslista. Filen har dessa kolumner för varje uppgift: uppgifts-id, WBS, nivå, namn, varaktighet, start, slut, föregående, arbetskategori, id för en egen arbetskategori (`OPS Custom Task Type ID`), status, slutförandegrad, verklig start och slut, kritisk, totalt slack och beskrivning. Resurser, tilldelningar, kalendrar, restriktioner, måldatum, baslinjer och rapportdatum finns inte i den. Kolumnrubrikerna är alltid på engelska.
 
-**Bara IFC tar med beräkningsprofilen och beräkningsalternativen.** Exporterar du till CSV, MS Project XML eller Primavera P6 XML finns profilen inte i filen. Av beräkningsalternativen skriver MS Project XML högst det kritiska tröskelvärdet. En sådan fil öppnas igen som *Open Planner Studio*. Har ditt projekt beräknats med *Primavera P6* eller *Microsoft Project*, till exempel för att det kom från en `.xer` eller `.mpp`, kan datumen förskjutas av det. Vad en beräkningsprofil är, förklaras i [Beräkningsprofiler och beräkningsregler](docs://uitleg-rekenprofielen).
+**Bara IFC tar med beräkningsprofilen och beräkningsalternativen.** Om du exporterar till CSV, MS Project XML eller Primavera P6 XML finns inte profilen i filen. Av beräkningsalternativen skriver MS Project XML högst det kritiska tröskelvärdet. En sådan fil öppnas igen som *Open Planner Studio*. Har ditt projekt beräknats med *Primavera P6* eller *Microsoft Project*, till exempel för att det kom från en `.xer` eller `.mpp`, kan datumen förskjutas av det. Vad en beräkningsprofil är, förklaras i [Beräkningsprofiler och beräkningsregler](docs://uitleg-rekenprofielen).
 
-Kommer ditt projekt från en Primavera-fil (`.xer`), även om du sparade det som IFC emellan, då visar appen efter en export till CSV, MS Project XML eller P6 XML: *Export till CSV gör att XER-källinformation går förlorad.* För MS Project XML står det *Export till MSPDI* i stället för *Export till CSV*, för P6 XML står det *Export till P6*. För IFC visas inte det meddelandet: IFC-filen tar med Primaveras källfil. Se [Öppna en Primavera P6-fil (.xer)](docs://howto-xer-openen).
+Kommer ditt projekt från en Primavera-fil (`.xer`), även om du sparade det som IFC emellan, visar appen efter en export till CSV, MS Project XML eller P6 XML: *Export till CSV gör att XER-källinformation går förlorad.* För MS Project XML står det *Export till MSPDI* i stället för *Export till CSV*, för P6 XML står det *Export till P6*. För IFC visas inte det meddelandet: IFC-filen tar med Primaveras källfil. Se [Öppna en Primavera P6-fil (.xer)](docs://howto-xer-openen).
 
-Appen gör två saker till vid en export. Är tidsplanen föråldrad, beräknar den först om och exporterar sedan. Och appen exporterar inte en tidsplan med ett cirkulärt samband: du får ett meddelande med slingan, till exempel *Cirkulärt samband mellan uppgifter: Set up site → Demolish existing extension → Set up site*.
+Appen gör två saker till vid en export. Är tidsplanen föråldrad beräknar den först om och exporterar sedan. Och appen exporterar inte en tidsplan med ett cirkulärt samband: du får ett meddelande med slingan, till exempel *Cirkulärt samband mellan uppgifter: Set up site → Demolish existing extension → Set up site*.
 
 ### Spara, automatisk sparning och kraschskydd
 
@@ -60,9 +60,9 @@ Det här är tre olika saker. De liknar varandra, men de skriver till olika plat
 
 **Spara** gör du själv. Appen skriver projektet till din fil och tar bort markeringen *Ej sparad*.
 
-**Automatisk sparning** är av som standard. Du slår på den själv för varje projekt. Appen skriver då till samma fil när det finns ändringar, utan att något fönster visas, högst en gång per tio sekunder. Det fungerar bara om projektet redan har en fil. Se [Att slå på automatisk sparning](docs://howto-automatisch-opslaan).
+**Automatisk sparning** är av som standard, och du slår på den själv för varje projekt. Appen skriver då till samma fil när det finns ändringar, utan att något fönster visas, högst en gång per tio sekunder. Det fungerar bara om projektet redan har en fil. Se [Att slå på automatisk sparning](docs://howto-automatisch-opslaan).
 
-**Kraschskydd** är alltid på. Så snart något ändras någonstans sparar appen, högst en gång per tio sekunder, en återställningskopia av alla öppna projekt. Det gäller även projekt som du inte ändrade själv. Kopian finns inte i din projektfil: i skrivbordsappen ligger den i appens datamapp, i webbläsaren i webbläsarens lagring. Vid nästa start erbjuder appen den kopian. Du läser om det i [Återställa efter en krasch](docs://howto-herstellen-na-een-crash). Kraschskyddet skriver aldrig till din projektfil.
+**Kraschskydd** är alltid på. Så snart något ändras någonstans sparar appen, också högst en gång per tio sekunder, en återställningskopia av alla öppna projekt, även projekt som du inte ändrade själv. Kopian finns inte i din projektfil: i skrivbordsappen ligger den i appens datamapp, i webbläsaren i webbläsarens lagring. Vid nästa start erbjuder appen den kopian. Du läser om det i [Återställa efter en krasch](docs://howto-herstellen-na-een-crash). Kraschskyddet skriver aldrig till din projektfil.
 
 Eftersom en kopia sparas högst en gång per tio sekunder kan du förlora de sista sekunderna av arbete vid en krasch.
 
@@ -70,9 +70,9 @@ Eftersom en kopia sparas högst en gång per tio sekunder kan du förlora de sis
 
 Skrivbordsappen och webbversionen gör likadant med ditt projekt, men de skriver filer på olika sätt.
 
-På skrivbordet arbetar appen med riktiga sökvägar. *Spara* skriver direkt till din fil. Vanligtvis skriver appen först till en tillfällig fil bredvid den (`.ops-save.tmp`) och ersätter sedan din fil. Så kan en krasch mitt i skrivningen inte förstöra din gamla fil. Stänger du appen med ändringar, frågar den för varje projekt om du vill spara. Vid en normal avslutning rensar appen sina återställningskopior.
+På skrivbordet arbetar appen med riktiga sökvägar. *Spara* skriver direkt till din fil. Vanligtvis skriver appen först till en tillfällig fil bredvid den (`.ops-save.tmp`) och ersätter sedan din fil. Så kan en krasch mitt i skrivningen inte förstöra din gamla fil. Stänger du appen med ändringar frågar den för varje projekt om du vill spara. Vid en normal avslutning rensar appen sina återställningskopior.
 
-I en webbläsare som kan spara filer var som helst (till exempel Chrome och Edge) får du ett vanligt öppna- och sparafönster. Därefter skriver *Spara* direkt till filen. För en fil du öppnat frågar webbläsaren en gång om tillstånd. Listan *Senaste* fungerar, men visar bara filnamnen.
+I en webbläsare som kan spara filer var du vill (till exempel Chrome och Edge) får du ett vanligt öppna- och sparafönster. Därefter skriver *Spara* direkt till filen. För en fil du öppnat frågar webbläsaren en gång om tillstånd. Listan *Senaste* fungerar, men visar bara filnamnen.
 
 I en webbläsare utan den förmågan (till exempel Firefox) öppnar appen en fil via filväljaren och sparar via en nedladdning. Med *Spara* förklarar meddelandet *Sparad som nedladdning: 'name.ifc' finns i din nedladdningsmapp. …* detta en gång per session. Med *Spara som* och exporter ser du *Sparad som nedladdning: 'name.ifc' finns nu i din nedladdningsmapp. Den här miljön tillåter inte att appen skriver direkt till platsen du valde.* Kan webbläsaren visa ett sparafönster men inte skriva tillbaka till projektets fil, frågar *Spara* varje gång efter en plats igen. Ett meddelande förklarar det också en gång per session. *Fil › Senaste* finns, men öppnar en tom sida, och automatisk sparning finns inte. Du får samma meddelande i alla miljöer som inte tillåter att appen skriver till platsen du valde.
 

@@ -15,6 +15,9 @@
 //
 // Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
+import i18next from 'i18next';
+import nlMenu from '@/i18n/locales/nl/menu.json';
+import enMenu from '@/i18n/locales/en/menu.json';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { resolveObjectURL } from 'node:buffer';
@@ -92,7 +95,7 @@ const step = (id: string, extra: Partial<ExtGuide['steps'][number]> = {}): ExtGu
 const guide = (steps: ExtGuide['steps']): ExtGuide => ({ id: 'tut-1', title: { nl: 'Eerste planning', en: 'First schedule' }, steps });
 
 // ── 1. Contract en permissie ────────────────────────────────────────────────────
-eq('1 contractversie 1.4.1 (1.4.0 help + 1.4.1 loadProject-fix)', EXTENSION_API_VERSION, '1.4.1');
+eq('1 contractversie 1.5.0 (1.4.0 help + 1.4.1 loadProject-fix)', EXTENSION_API_VERSION, '1.5.0');
 eq('2 help is een bekende permissie', KNOWN_PERMISSIONS.includes('help'), true);
 eq('3 sanitize laat help staan', sanitizeManifestPermissions(['help', 'onzin'], 'x'), ['help']);
 {
@@ -110,11 +113,22 @@ for (const method of HELP_METHODS) {
   resetRegisteredHelpArticles();
   const { ctx, api } = setup('zonder-help', ['ribbon', 'events']);
   const docsBefore = ctx.store.getState().documents.length;
-  throwsWith('6a registerArticles zonder help gooit', () => api.help.registerArticles([article('tut-a', 1)]), /mist permissie: help/);
-  throwsWith('6b unregisterArticles zonder help gooit', () => api.help.unregisterArticles(), /mist permissie: help/);
-  throwsWith('6c openBundledProject zonder help gooit (synchroon)', () => api.help.openBundledProject('start.ifc'), /mist permissie: help/);
-  throwsWith('6d startGuide zonder help gooit', () => api.help.startGuide(guide([step('a')])), /mist permissie: help/);
-  throwsWith('6e stopGuide zonder help gooit', () => api.help.stopGuide(), /mist permissie: help/);
+  await i18next.init({
+    lng: 'en', fallbackLng: 'en', ns: ['menu'],
+    resources: { nl: { menu: nlMenu }, en: { menu: enMenu } },
+    interpolation: { escapeValue: false },
+  });
+  for (const { lng, pattern } of [
+    { lng: 'nl', pattern: /^Extensie "zonder-help" mist permissie: help$/ },
+    { lng: 'en', pattern: /^Extension "zonder-help" is missing permission: help$/ },
+  ]) {
+    await i18next.changeLanguage(lng);
+    throwsWith(`6a ${lng} registerArticles zonder help gooit`, () => api.help.registerArticles([article('tut-a', 1)]), pattern);
+    throwsWith(`6b ${lng} unregisterArticles zonder help gooit`, () => api.help.unregisterArticles(), pattern);
+    throwsWith(`6c ${lng} openBundledProject zonder help gooit (synchroon)`, () => api.help.openBundledProject('start.ifc'), pattern);
+    throwsWith(`6d ${lng} startGuide zonder help gooit`, () => api.help.startGuide(guide([step('a')])), pattern);
+    throwsWith(`6e ${lng} stopGuide zonder help gooit`, () => api.help.stopGuide(), pattern);
+  }
   eq('6f niets geregistreerd', getRegisteredHelpArticles().length, 0);
   eq('6g geen begeleiding gestart', getGuideView(), null);
   eq('6h geen document geopend', ctx.store.getState().documents.length, docsBefore);

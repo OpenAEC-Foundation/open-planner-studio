@@ -9,7 +9,7 @@ A laptop leállt, az alkalmazás lefagyott, vagy a böngészőlap összeomlott, 
 ## Lépések
 
 1. Indítsa újra az alkalmazást. A böngészőben töltse újra ugyanazt a lapot: a visszaállítási másolat ahhoz a laphoz tartozik.
-2. Ha az alkalmazás másolatot talált, megjelenik a *Nem mentett munka visszaállítása* ablak: *Az Open Planner Studio nem zárult le rendesen. Az alábbi dokumentumokban nem mentett módosítások voltak, amelyek visszaállíthatók*: Minden projektnél látszik a neve, a fájl elérési útja, ha a projekthez tartozik fájl (böngészőben csak a fájlnév), a tevékenységek száma és a másolat ideje, például *21 tevékenység* és *Mentve: Sep 29, 2026, 9:41 AM*. Az ablak olyan projekteket is mutathat, amelyeket nem módosított.
+2. Ha az alkalmazás másolatot talált, megjelenik a *Nem mentett munka visszaállítása* ablak: *Az Open Planner Studio nem zárult le rendesen. Az alábbi dokumentumokban nem mentett módosítások voltak, amelyek visszaállíthatók*: Minden projektnél látszik a neve, a fájl elérési útja, ha a projekthez tartozik fájl (böngészőben csak a fájlnév), a tevékenységek száma és a másolat ideje, például *21 tevékenység* és *Mentve: Sep 29, 2026 9:41 AM*. Az idő az *Időformátum* beállításától függ. Az ablak olyan projekteket is mutathat, amelyeket nem módosított.
 3. Válassza a *Visszaállítás* lehetőséget. Az alkalmazás megnyitja a listában szereplő összes projektet, mindegyiket egy lapon, az utolsó másolat állapotával. Az Enter billentyű ugyanezt teszi.
 4. Ellenőrizze a projekteket, és azonnal mentse őket a Ctrl+S billentyűkombinációval.
 

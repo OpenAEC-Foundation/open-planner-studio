@@ -52,10 +52,10 @@ Non si sposta:
 
 **La data è nel passato.** Questo è consentito, ma l'anteprima lo segnala: *La nuova data di inizio è nel passato.*
 
-**Cambiare l'inizio del progetto in Info progetto è un'altra cosa.** Se cambi la data di inizio in *Impostazioni › Progetto › Info progetto* e scegli *Applica*, la pianificazione non si sposta. Si spostano alla nuova data solo le attività senza predecessore o vincolo che si troverebbero prima del nuovo inizio, e l'app ti dice quante sono. Se vuoi spostare tutto, usa *Sposta progetto…*.
+**Cambiare l'inizio del progetto in Impostazioni progetto è un'altra cosa.** Se cambi la data di inizio in *Impostazioni › Progetto › Impostazioni progetto* e scegli *Applica*, la pianificazione non si sposta. Si spostano alla nuova data solo le attività senza predecessore o vincolo che si troverebbero prima del nuovo inizio, e l'app ti dice quante sono. Se vuoi spostare tutto, usa *Sposta progetto…*.
 
 ## Vedi anche
 
 - [Percorso critico e margine](docs://uitleg-kritiek-pad): come la pianificazione calcola e perché la fine si sposta.
 - [Aggiungere relazioni](docs://howto-relaties-leggen): le relazioni restano semplicemente dove sono quando sposti il progetto.
-- [Nuovo progetto e Info progetto](docs://ref-projectinfo): che cosa fa la data di inizio in Info progetto.
+- [Nuovo progetto e Impostazioni progetto](docs://ref-projectinfo): che cosa fa la data di inizio in Impostazioni progetto.

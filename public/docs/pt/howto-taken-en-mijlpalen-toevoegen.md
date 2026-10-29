@@ -51,7 +51,7 @@ Clique com o botão direito na tarefa e escolha *Adicionar subtarefa*. A nova ta
 Os três tipos diferem assim:
 
 - Um *Marco de início* fica no início do dia, um *Marco de fim* no fim do dia. No Gantt, o losango fica à esquerda ou à direita da faixa do dia, respetivamente. Isto também importa para a sucessora. Suponha que um marco está na terça-feira, 29 de setembro de 2026, e que uma tarefa o segue com uma relação fim-início: depois de um marco de início, essa tarefa começa nessa mesma terça-feira; depois de um marco de fim, começa na quarta-feira, 30 de setembro.
-- Um *Ponto de inspeção (obrigatório)* é um marco de fim com o tipo de tarefa *Inspecção* e a marca *Obrigatório (contratual)*.
+- Um *Ponto de inspeção (obrigatório)* é um marco de fim com a categoria de trabalho *Inspecção* e a marca *Obrigatório (contratual)*.
 
 ### Transformar uma tarefa existente num marco
 
@@ -62,6 +62,7 @@ Se o desligar outra vez, continua a ser uma tarefa normal com duração 0: intro
 ### Outras formas
 
 - Ctrl+M (⌘+M num Mac) põe um novo marco no fim da lista, mesmo que haja uma tarefa selecionada. O painel *Propriedades* não se abre.
+- Um marco que criar com Ctrl+M ou pelo menu do botão direito recebe a categoria de trabalho *Inspecção*. Um *Marco de início* ou *Marco de fim* a partir de *Marco ▾* recebe *Outro*. Se precisar, altere a categoria de trabalho no painel *Propriedades*.
 - *Adicionar marco* no menu do botão direito de uma tarefa cria o marco como subtarefa dessa tarefa, e não ao mesmo nível.
 
 ### Copiar uma tarefa ou um ramo inteiro
@@ -72,7 +73,7 @@ Se o desligar outra vez, continua a ser uma tarefa normal com duração 0: intro
 
 A cópia tem o mesmo nome, as mesmas datas e o mesmo progresso. Fica ao mesmo nível da tarefa selecionada (com várias: a que clicou primeiro), no fim das tarefas desse mesmo nível. Se nada estiver selecionado, fica no fim da lista. Depois, as tarefas copiadas ficam selecionadas, os códigos WBS (o número de cada tarefa na árvore, como 1.2; ver [Ajustar a estrutura](docs://howto-structuur-aanpassen)) são determinados de novo e o planeamento fica desatualizado.
 
-A área de transferência é partilhada por toda a aplicação, por isso também pode colar noutro documento. O que lá não existir, como um calendário de tarefa, um tipo de tarefa personalizado, um código de atividade ou um campo personalizado, a aplicação remove e avisa-o.
+A área de transferência é partilhada por toda a aplicação, por isso também pode colar noutro documento. O que lá não existir, como um calendário de tarefa, uma categoria de trabalho personalizada, um código de atividade ou um campo personalizado, a aplicação remove e avisa-o.
 
 ### Depois
 
@@ -82,11 +83,11 @@ Uma nova tarefa ainda não altera as outras datas. A barra de estado indica *Des
 
 **Cada nova tarefa começa no início do projeto.** Sem relações, uma tarefa não espera por nada. Adicione relações, veja [Adicionar relações](docs://howto-relaties-leggen).
 
-**A filtragem, o agrupamento ou a ordenação estão ativados.** A ordem que vê então não é a ordem do planeamento. Com uma tarefa selecionada, *Tarefa* e *Marco ▾* adicionam a nova tarefa no fim, e aparece a faixa *Não disponível durante a filtragem/agrupamento/ordenação*. *Inserir acima* e *Inserir abaixo* são recusados, com a mesma faixa. O botão *Limpar* na faixa remove de uma só vez o filtro, o agrupamento e a ordenação. Isto não faz parte de *Desfazer*: Ctrl+Z não os repõe.
+**A filtragem, o agrupamento ou a ordenação estão ativados.** A ordem que vê então não é a ordem do planeamento. Com uma tarefa selecionada, *Tarefa* e *Marco ▾* adicionam a nova tarefa no fim, e aparece uma notificação vermelha: *A nova tarefa foi adicionada no fim. Durante a filtragem, o agrupamento ou a ordenação, a aplicação não a pode colocar abaixo da sua seleção.* *Inserir acima* e *Inserir abaixo* são recusados, com a faixa *Não disponível durante a filtragem/agrupamento/ordenação*. O botão *Limpar* na notificação ou na faixa remove de uma só vez o filtro, o agrupamento e a ordenação. Isto não faz parte de *Desfazer*: Ctrl+Z não os repõe.
 
-**Uma subtarefa sob uma tarefa com atribuições de recursos.** A tarefa passa a tarefa de resumo, e uma tarefa de resumo não tem atribuições próprias. A aplicação move as atribuições para a nova subtarefa e avisa-o. Se isso não for possível, por exemplo porque escolheu *Adicionar marco* e um marco não pode ter atribuições, a aplicação não adiciona nada e explica porquê.
+**Uma subtarefa sob uma tarefa com atribuições de recursos.** A tarefa passa a ser uma tarefa de resumo, e uma tarefa de resumo não tem atribuições próprias. A aplicação move as atribuições para a nova subtarefa e avisa-o. Se isso não for possível, por exemplo porque escolheu *Adicionar marco* e um marco não pode ter atribuições, a aplicação não adiciona nada e explica porquê.
 
-**Uma subtarefa sob um marco.** O marco passa a tarefa de resumo e a aplicação remove a marca de marco, com uma mensagem.
+**Uma subtarefa sob um marco.** O marco passa a ser uma tarefa de resumo e a aplicação remove a marca de marco, com uma mensagem.
 
 **Marco ativado para uma tarefa de resumo ou para uma tarefa com atribuições.** A aplicação recusa e explica porquê. Com atribuições: remova-as primeiro.
 

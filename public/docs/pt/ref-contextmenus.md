@@ -6,14 +6,14 @@ Que menus abre o botão direito do rato no Gantt e na tabela de tarefas, o que f
 
 Há quatro menus. Qual deles aparece depende de onde clica:
 
-- **Numa barra de tarefa no Gantt** — o menu da tarefa, com ***Iniciar relação a partir daqui*** no topo.
+- **Numa barra de tarefa no Gantt** — o menu da tarefa, com *Iniciar relação a partir daqui* no topo.
 - **Numa tarefa na tabela de tarefas** — o mesmo menu da tarefa, sem esse item no topo. Isto vale para a tabela de tarefas à esquerda do Gantt e para o separador *Tabela*.
 - **Num cabeçalho de grupo na tabela de tarefas** — um pequeno menu para expandir e recolher grupos. Os cabeçalhos de grupo só aparecem quando agrupa, por exemplo com o layout *Diagrama de recursos*.
-- **Num espaço vazio** — no Gantt, ao lado ou abaixo das barras, e na tabela de tarefas abaixo da última tarefa ou na linha cinzenta ***Nova tarefa***. O menu tem ***Nova tarefa***, ***Adicionar marco*** e ***Colar***; no Gantt também ***Repor zoom*** e ***Ajustar ao projeto***. Uma nova tarefa ou um novo marco vai para o fim da lista. No Gantt começa na data onde clicou; na tabela de tarefas a célula do nome abre logo, para poder escrever.
+- **Num espaço vazio** — no Gantt, ao lado ou abaixo das barras, e na tabela de tarefas abaixo da última tarefa ou na linha cinzenta *Nova tarefa*. O menu tem *Nova tarefa*, *Adicionar marco* e *Colar*; no Gantt também *Repor zoom* e *Ajustar ao projeto*. Uma nova tarefa ou um novo marco vai para o fim da lista. No Gantt começa na data em que clicou; na tabela de tarefas a célula do nome abre logo, para poder escrever.
 
-Na linha de um cabeçalho de grupo no Gantt, o botão direito do rato não abre menu. Um clique com o botão direito no cabeçalho da escala de tempo também não faz nada. Os cabeçalhos das colunas da tabela de tarefas têm um menu próprio, descrito em [Ajustar colunas da tabela](docs://howto-tabelkolommen-aanpassen).
+Na linha de um cabeçalho de grupo no Gantt, o botão direito do rato abre o menu de espaço vazio; o próprio cabeçalho de grupo tem um menu só na tabela de tarefas. Um clique com o botão direito no cabeçalho da escala de tempo não faz nada. Os cabeçalhos das colunas da tabela de tarefas têm um menu próprio, descrito em [Ajustar colunas da tabela](docs://howto-tabelkolommen-aanpassen).
 
-**A que tarefas se aplica um item?** Clica numa tarefa, mas a seleção define o âmbito. Se a tarefa em que clica faz parte da seleção, o item aplica-se à seleção inteira. Se não fizer parte, aplica-se só a essa tarefa. Com um clique com o botão direito numa barra no Gantt ou numa linha da tabela de tarefas, essa tarefa substitui a seleção se não fazia parte dela. Cada item que altera algo é um passo em ***Desfazer***, também para uma seleção inteira.
+**A que tarefas se aplica um item?** Clica numa tarefa, mas a seleção define o âmbito. Se a tarefa em que clica faz parte da seleção, o item aplica-se à seleção inteira. Se não fizer parte, aplica-se só a essa tarefa. Com um clique com o botão direito numa barra no Gantt ou numa linha da tabela de tarefas, essa tarefa substitui a seleção se não fazia parte dela. Cada item que altera algo é um passo em *Desfazer*, também para uma seleção inteira.
 
 ## O menu da tarefa
 

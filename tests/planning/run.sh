@@ -70,7 +70,7 @@ if [ "$HARNESS_OK" -eq 1 ]; then unset 'BUNDLES[-1]'; fi
 # lijst stil achter en bewaakt hij niets meer). Nieuwe batterij ⇒ naam hieronder bijzetten.
 EXPECTED_BATTERIES=(
   advanced-cpm baselines boundary calendar calibration constraints driving edge float
-  hours hours-relations kalenders lag-advanced milestone-kinds milestones move-project
+  hours hours-blokgrenzen hours-relations kalenders lag-advanced milestone-kinds milestones move-project
   msp-pariteit probes progress relations resource-leveling resource-load view
 )
 
@@ -1901,6 +1901,14 @@ if [ "$HARNESS_OK" -eq 1 ]; then
   # toch aanroepen zou alleen een verwarrende "TOTAAL: 0/0" opleveren.
   if [ "${#FILES[@]}" -gt 0 ]; then
     node "$OUT" "${FILES[@]}" || STATUS=1
+  fi
+  # Minutenmodel (spec docs/superpowers/specs/2026-10-20-alleen-uren-design.md §6.1, fase F0): elke
+  # dagcase nog twee keer op de tijdas in minuten, vergeleken op dagniveau. Run 1 met de dagenmaat,
+  # run 2 met de urenmaat. Alleen in de volledige run, niet in de tijdzone-matrix. Het oordeel is het
+  # vangnet `minute-model-runs.json`: een case die erbij komt of eraf gaat, is rood (zie README.md).
+  if [ "$RUN_HOLIDAYS" -eq 1 ]; then
+    OPS_MINUTE_MODEL_RUN=1 node "$OUT" "${FILES[@]}" || STATUS=1
+    OPS_MINUTE_MODEL_RUN=2 node "$OUT" "${FILES[@]}" || STATUS=1
   fi
 else
   echo "XX  cases overgeslagen: de harness kon niet gebundeld worden (zie de fout hierboven)"

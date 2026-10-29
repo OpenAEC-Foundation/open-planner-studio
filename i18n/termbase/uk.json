@@ -2023,6 +2023,18 @@
     "source": "model",
     "status": "model"
   },
+  "work-category": {
+    "term": "вид робіт",
+    "forms": [
+      "вид робіт",
+      "види робіт",
+      "виду робіт",
+      "видів робіт",
+      "видом робіт"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "робочі години",
     "forms": [

@@ -400,7 +400,12 @@ export function buildGrootSpec(ext: GrootExternalAnchor): ProjectSpec {
   tasks.push(
     { key: 'P7', name: '7. Car park & site works', taskType: 'LOGISTIC', codes: { Tower: 'GEN', Discipline: 'CIV' } },
     // Garage-afbouw: een aaneengesloten ambachtsketen onder het (al gestorte) parkeerdek.
-    { key: 'gar_wanden', name: 'Internal walls, storage units & stair cores, car park', parent: 'P7', dur: 30, taskType: 'CONSTRUCTION', codes: { Tower: 'GEN', Discipline: 'CIV' } },
+    // 29 werkdagen (was 30) sinds het minutenmodel (2026-10-26): de statusdatum is nu het moment
+    // waarop `kraan_op` klaar is (einde van de werkdag), dus de garage- en de torenketen beginnen op
+    // hetzelfde moment. In het dagmodel was de statusdatum het begin van de kraandag en begon de
+    // garage één werkdag eerder dan de torens. Met 30 dagen eindigde de garage dan één dag ná de
+    // torens; de torens kregen 1 dag speling en het ontwerp (torens én garage kritiek) viel weg.
+    { key: 'gar_wanden', name: 'Internal walls, storage units & stair cores, car park', parent: 'P7', dur: 29, taskType: 'CONSTRUCTION', codes: { Tower: 'GEN', Discipline: 'CIV' } },
     { key: 'gar_leiding', name: 'Pipework & cable trays, car park', parent: 'P7', dur: 24, taskType: 'INSTALLATION', codes: { Tower: 'GEN', Discipline: 'MEP' } },
     { key: 'gar_vent', name: 'Ventilation & smoke extraction system, car park', parent: 'P7', dur: 22, taskType: 'INSTALLATION', codes: { Tower: 'GEN', Discipline: 'MEP' } },
     { key: 'gar_sprink', name: 'Sprinkler & dry riser, car park', parent: 'P7', dur: 16, taskType: 'INSTALLATION', codes: { Tower: 'GEN', Discipline: 'MEP' } },

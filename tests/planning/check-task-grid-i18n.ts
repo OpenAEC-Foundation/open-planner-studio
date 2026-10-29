@@ -181,6 +181,13 @@ const variables = (text: string): string[] => [...text.matchAll(/{{\s*([A-Za-z0-
 const optional = (locale: string): boolean => !(REQUIRED_LOCALES as readonly string[]).includes(locale);
 const taskByLocale = new Map(LOCALES.map(locale => [locale, readJson(locale, 'task')] as const));
 const dutch = taskByLocale.get('nl')!;
+// knownbugs #63: één Nederlands label voor werkelijk einde in raster, paneel en voortgangsimport.
+const actualFinishLabel = at(readJson('nl', 'common'), 'progressImport.field.actualFinish');
+for (const key of ['taskGrid.columns.actualFinish', 'properties.progress.actualFinish']) {
+  ok(`nl.${key} gebruikt hetzelfde label voor werkelijk einde als de voortgangsimport`,
+    at(dutch, key) === actualFinishLabel);
+}
+
 for (const key of REQUIRED_KEYS) {
   const dutchValue = at(dutch, key);
   ok(`${key}: Nederlandse brontekst bestaat`, typeof dutchValue === 'string' && dutchValue.trim().length > 0);

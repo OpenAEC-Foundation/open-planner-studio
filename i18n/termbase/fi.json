@@ -2178,6 +2178,19 @@
     "source": "model",
     "status": "model"
   },
+  "work-category": {
+    "term": "työlaji",
+    "forms": [
+      "työlaji",
+      "työlajin",
+      "työlajia",
+      "työlajit",
+      "työlajien",
+      "työlajeja"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "työtunnit",
     "forms": [

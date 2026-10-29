@@ -29,18 +29,19 @@ export function IFCPanel() {
   // de niet-vastgelegde assen — ook hier, anders toont/kopieert dit paneel de terugvallen als waarden.
   const recordedDates = useAppStore(s => s.recordedDates);
   const datesAsRecorded = useAppStore(s => s.datesAsRecorded);
+  const minuteModelPending = useAppStore(s => s.minuteModelPending);
   // Bewaarde GlobalIds uit het ingelezen bestand; zonder deze kreeg Toepassen overal hash-GlobalIds.
   const ifcGlobalIds = useAppStore(s => s.ifcGlobalIds);
-  const loadState = useAppStore(s => s.loadState);
+  const applyProjectEdit = useAppStore(s => s.applyProjectEdit);
   const notify = useAppStore(s => s.notify);  // het ene meldingenkanaal, geen alert()
 
   const generated = useMemo(() => {
     return writeIFC(buildWriteIFCInput({
       project, calendar, tasks, sequences, resources, assignments,
       activityCodeTypes, customFieldDefs, customTaskTypes, calendars: resourceCalendars, baselines, activeBaselineId, comparedBaselineIds,
-      recordedDates, datesAsRecorded, ifcGlobalIds,
+      recordedDates, datesAsRecorded, minuteModelPending, ifcGlobalIds,
     }));
-  }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, customTaskTypes, resourceCalendars, baselines, activeBaselineId, comparedBaselineIds, recordedDates, datesAsRecorded, ifcGlobalIds]);
+  }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, customTaskTypes, resourceCalendars, baselines, activeBaselineId, comparedBaselineIds, recordedDates, datesAsRecorded, minuteModelPending, ifcGlobalIds]);
 
   const [content, setContent] = useState(generated);
   const [dirty, setDirty] = useState(false);
@@ -49,18 +50,18 @@ export function IFCPanel() {
     const ifc = writeIFC(buildWriteIFCInput({
       project, calendar, tasks, sequences, resources, assignments,
       activityCodeTypes, customFieldDefs, customTaskTypes, calendars: resourceCalendars, baselines, activeBaselineId, comparedBaselineIds,
-      recordedDates, datesAsRecorded, ifcGlobalIds,
+      recordedDates, datesAsRecorded, minuteModelPending, ifcGlobalIds,
     }));
     setContent(ifc);
     setDirty(false);
-  }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, customTaskTypes, resourceCalendars, baselines, activeBaselineId, comparedBaselineIds, recordedDates, datesAsRecorded, ifcGlobalIds]);
+  }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, customTaskTypes, resourceCalendars, baselines, activeBaselineId, comparedBaselineIds, recordedDates, datesAsRecorded, minuteModelPending, ifcGlobalIds]);
 
   const handleApply = useCallback(() => {
     void (async () => {
       try {
         const data = await readIFCWithXerReconstruction(content, buildImportLabels(tCommon));
-        // `loadState` rekent zelf door en publiceert de viewstart in dezelfde ene publicatie.
-        loadState(data, { viewStartDate: data.project.startDate });
+        // Eén documentbewerking: doorrekenen, undo en viewstart in dezelfde publicatie.
+        applyProjectEdit(data, { viewStartDate: data.project.startDate });
         setDirty(false);
         // Een onbruikbaar XER-bronarchief is weggelaten — nooit stil.
         const archiveNotice = withXerArchiveIssueNotice(undefined, [data.xerArchiveIssue]);
@@ -74,7 +75,7 @@ export function IFCPanel() {
         });
       }
     })();
-  }, [content, loadState, notify, tCommon]);
+  }, [content, applyProjectEdit, notify, tCommon]);
 
   const handleCopy = useCallback(() => {
     void navigator.clipboard.writeText(content);

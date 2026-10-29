@@ -35,17 +35,17 @@ Diese Werte sind untere Grenzen. Ein Nachfolger beginnt später, wenn eine ander
 Ein Zeitabstand lässt sich auf vier Arten angeben:
 
 - In **Arbeitstagen** (`3` oder `3d`): Die App überspringt freie Tage und Wochenenden. Das ist der Standard.
-- In **Kalendertagen** (`3ed`, das e steht für *elapsed*, also verstrichene Zeit): Jeder Tag zählt, auch Samstag und Sonntag. Diese Einheit nehmen Sie für etwas, das weiterläuft, auch wenn niemand daran arbeitet, etwa das Aushärten.
+- In **Kalendertagen** (`3ed`, das e steht für verstrichene Zeit): Jeder Tag zählt, auch Samstag und Sonntag. Diese Einheit nehmen Sie für etwas, das weiterläuft, auch wenn niemand daran arbeitet, etwa das Aushärten.
 - Als **Prozentsatz** der Dauer des Vorgängers (`40%`): Die App rechnet das bei jeder Berechnung neu aus und rundet auf ganze Tage (2,5 Tage wird 3).
 - In **Arbeitszeiten** (`4h`): Die App zählt den Zeitabstand im Abstandskalender, standardmäßig dem des Vorgängers. Ist der Vorgänger ein Tagesvorgang in einem Kalender ohne eigene Bänder, wie dem Standardkalender, dann rechnet die App die Stunden in ganze Arbeitstage um. Die App rundet auf den nächsten ganzen Tag. Ein halber Tag wird nach oben gerundet. Bei einem Arbeitstag von 8 Stunden ergeben `2h` und `3h` daher 0 Tage, `4h` bis einschließlich `11h` 1 Tag und `12h` 2 Tage. Hat dieser Kalender eigene Bänder oder ist der Vorgänger ein Stundenvorgang, zählt der Zeitabstand genau in Arbeitszeiten.
 
 Die Regel für einen Zeitabstand von N Arbeitstagen bei FS: Die N Arbeitstage nach dem Ende des Vorgängers sind Wartezeit. Der Nachfolger beginnt am Arbeitstag danach. Bei SS und FF wird der Zeitabstand zum Anfang bzw. zum Ende des Vorgängers addiert. Ein negativer Zeitabstand rechnet rückwärts: Ein Vorlauf von 1 Arbeitstag bei FS lässt den Nachfolger an dem Tag beginnen, an dem der Vorgänger endet.
 
-Ein Vorlauf darf einen Vorgang nicht vor den Projektstart legen. Würde das passieren, hält die App den Nachfolger am Projektstart. Sie meldet das im Bereich *Warnungen*: *Vorlauf durch den Projektstart gekappt — die Beziehung wird nicht vollständig eingehalten*.
+Ein Vorlauf kann einen Vorgang nicht vor den Projektstart legen. Würde das passieren, hält die App den Nachfolger am Projektstart. Sie meldet das im Bereich *Warnungen*: *Vorlauf durch den Projektstart gekappt — die Beziehung wird nicht vollständig eingehalten*.
 
 ### In welchem Kalender der Zeitabstand zählt
 
-Jeder Vorgang kann seinen eigenen Kalender haben. Bei einem Zeitabstand in Arbeitstagen ist wichtig, welcher Kalender die Arbeitstage zählt. Die Einstellung *Abstandskalender* legt das fest, mit vier Auswahlmöglichkeiten: *Vorgänger*, *Nachfolger*, *24-Stunden* und *Projektkalender*. Der Standard ist, dass der Zeitabstand im Kalender des **Vorgängers** zählt. Sie finden die Einstellung unter *Einstellungen › Projekt › Projektinfo*, im Block *Berechnungsprofil und Berechnungsoptionen*, bei *Berechnungsoptionen dieses Projekts*. Die Auswahl gehört zur Projektdatei. Sie gilt erst, wenn Sie auf *Anwenden* klicken. Danach wird der Terminplan neu berechnet.
+Jeder Vorgang kann seinen eigenen Kalender haben. Bei einem Zeitabstand in Arbeitstagen ist wichtig, welcher Kalender die Arbeitstage zählt. Die Einstellung *Abstandskalender* legt das fest, mit vier Auswahlmöglichkeiten: *Vorgänger*, *Nachfolger*, *24-Stunden* und *Projektkalender*. Der Standard ist, dass der Zeitabstand im Kalender des **Vorgängers** zählt. Sie finden die Einstellung unter *Einstellungen › Projekt › Projekteinstellungen*, im Block *Berechnungsprofil und Berechnungsoptionen*, bei *Berechnungsoptionen dieses Projekts*. Die Auswahl gehört zur Projektdatei. Sie gilt erst, wenn Sie auf *Anwenden* klicken. Danach wird der Terminplan neu berechnet.
 
 Ein Zeitabstand in Kalendertagen (`3ed`) zählt immer alle Tage, egal welchen *Abstandskalender* Sie wählen.
 

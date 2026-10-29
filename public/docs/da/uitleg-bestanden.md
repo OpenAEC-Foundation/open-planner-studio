@@ -4,13 +4,13 @@ Hvad er der egentlig i den fil, du gemmer? Og hvad sker der med din tidsplan, n�
 
 ## Begrebet
 
-Open Planner Studio har ét eget filformat: **IFC**, et åbent udvekslingsformat for byggeinformation fra buildingSMART. Appen skriver IFC 4.3; i eksportlisten hedder det *IFC 4x3*. Der er ikke et andet, proprietært projektformat. *Gem* skriver dit hele projekt som en IFC-fil (`.ifc`), og *Åbn* læser en sådan fil tilbage. Vil du se, hvad der står i filen? Fanen *IFC* viser IFC-teksten for dit projekt; *Generér IFC* opdaterer teksten.
+Open Planner Studio har ét eget filformat: **IFC**, et åbent udvekslingsformat for byggeinformation fra buildingSMART. Appen skriver IFC-schemaet for projektet, som standard IFC 4.3 ADD2 (se [Valg af IFC-schema](docs://howto-ifc-schema-kiezen)); i eksportlisten hedder det *IFC*. Der er ikke et andet, proprietært projektformat. *Gem* skriver dit hele projekt som en IFC-fil (`.ifc`), og *Åbn* læser en sådan fil tilbage. Vil du se, hvad der står i filen? Fanen *IFC* er en editor, der viser IFC-teksten for dit projekt. *Generér IFC* opdaterer teksten, og *Kopiér* lægger den på udklipsholderen. Ændrer du teksten, indlæser *Anvend* den som dit projekt. Det erstatter helt projektet i den fane.
 
 Alle andre formater er **adaptere**: oversættere mellem modellen i et andet program og modellen i appen. Appen læser CSV, MS Project XML, Primavera P6 XML, MS Project-filer (`.mpp`) og Primavera-filer (`.xer`). Den skriver CSV, MS Project XML, Primavera P6 XML og to fremdriftsark. Du kan ikke eksportere til `.mpp` eller `.xer`.
 
 Hvorfor er den forskel vigtig? En oversætter kan kun overføre det, begge sider kender. IFC-filen i appen gemmer alt, der hører til dit projekt. Alle andre formater mangler en del af det, og den del bliver tilbage.
 
-## Hvordan appen håndterer filer
+## Sådan håndterer appen filer
 
 ### Hvad åbning gør
 
@@ -20,7 +20,7 @@ Hver fil åbner i sin egen fane. Undtagelsen er en fane, der stadig er tom og u�
 
 Efter åbning genberegner appen altid. Kommer filen fra et andet program, kan datoerne afvige fra det, filen angav. Det beskrives i [Datoer som gemt](docs://uitleg-datums-zoals-opgeslagen).
 
-Kun en IFC-fil bliver **gemmemålet**: den fil, *Gem* skriver tilbage til. En CSV-, XML-, `.mpp`- eller `.xer`-fil bliver ikke gemmemål. Et sådant projekt har efter åbning ingen fil; *Gem* spørger så, hvor den nye IFC-fil skal komme. På den måde overskriver Ctrl+S aldrig din oprindelige fil med IFC-tekst.
+Kun en IFC-fil bliver **gemmemålet**: den fil, *Gem* skriver tilbage til. En CSV-, XML-, `.mpp`- eller `.xer`-fil bliver ikke gemmemål. Et sådant projekt har efter åbning ingen fil. *Gem* spørger så, hvor den nye IFC-fil skal gemmes. På den måde overskriver Ctrl+S aldrig din oprindelige fil med IFC-tekst.
 
 ### Hvad gemning skriver
 
@@ -31,10 +31,10 @@ Kun en IFC-fil bliver **gemmemålet**: den fil, *Gem* skriver tilbage til. En CS
 - kalendere, ressourcer og tildelinger, inklusive kurverne;
 - oprindelige planer, opgavekoder, brugerdefinerede felter og noter;
 - eksterne afhængigheder til andre projekter;
-- projektindstillingerne, såsom statusdato, beregningsprofil og beregningsindstillinger;
-- linket til et bibliotek.
+- projektindstillingerne, såsom statusdatoen, beregningsprofilen og beregningsindstillingerne;
+- linket til et bibliotek for ressourcer.
 
-Det du indstiller på skærmen, hører ikke til projektet og er ikke med: zoom, rulleposition, den valgte opgave og de sammenfoldede faser. Dine appindstillinger, såsom sprog og tema, står heller ikke i filen. Appen gemmer dem selv, i appen eller i din browser.
+Det, du indstiller på skærmen, hører ikke til projektet og er ikke med: zoom, rulleposition, den valgte opgave og de sammenfoldede faser. Dine appindstillinger, såsom sprog og tema, står heller ikke i filen. Appen gemmer dem selv, i appen eller i din browser.
 
 En eksport til et andet format ændrer ikke dit projekt. Efter en eksport har projektet stadig samme gemmemål, og det er stadig markeret som *Ikke gemt*, hvis det var det før.
 
@@ -44,9 +44,9 @@ Hver adapter overfører det, som dens format kender.
 
 **MS Project XML** overfører opgaver, afhængigheder, kalendere, ressourcer, tildelinger, begrænsninger, deadlines og statusdatoen. Af dine oprindelige planer følger kun den aktive med. Opgavekoder, brugerdefinerede felter, noter og eksterne afhængigheder følger ikke med. En anden begrænsning på en opgave følger ikke med. En begrænsning *Skal starte den (MSO)* eller *Skal slutte den (MFO)* uden valget *Obligatorisk (pin-logik)* kommer tilbage som *Start ikke tidligere end (SNET)* eller *Afslut ikke tidligere end (FNET)*. *Manuelt planlagt* og *Udjævningsforskydning* for en opgave kommer ikke tilbage. En hængekøje bliver en almindelig opgave med beregnede datoer.
 
-**Primavera P6 XML** overfører opgaver, afhængigheder, kalendere, ressourcer, tildelinger, begrænsninger og statusdatoen. Oprindelige planer og deadlines følger ikke med, og det gør opgavekoder, brugerdefinerede felter, noter og eksterne afhængigheder heller ikke. Også her bliver en hængekøje en almindelig opgave. P6 kender ikke forsinkelse i procent: appen omregner en sådan forsinkelse til et fast antal dage. En forsinkelse i kalenderdage bliver en forsinkelse i arbejdsdage.
+**Primavera P6 XML** overfører opgaver, afhængigheder, kalendere, ressourcer, tildelinger, begrænsninger og statusdatoen. Oprindelige planer og deadlines følger ikke med, og opgavekoder, brugerdefinerede felter, noter og eksterne afhængigheder følger heller ikke med. Også her bliver en hængekøje en almindelig opgave. P6 kender ikke forsinkelse i procent: appen omregner en sådan forsinkelse til et fast antal dage. En forsinkelse i kalenderdage bliver en forsinkelse i arbejdsdage.
 
-**CSV** er en opgaveliste. Filen har disse kolonner for hver opgave: task id, WBS, level, name, duration, start, finish, predecessors, type, id for en brugerdefineret opgavetype (`OPS Custom Task Type ID`), status, completion, actual start and finish, critical, total float og description. Ressourcer, tildelinger, kalendere, begrænsninger, deadlines, oprindelige planer og statusdatoen står ikke i den. Kolonneoverskrifterne er altid på engelsk.
+**CSV** er en opgaveliste. Filen har disse kolonner for hver opgave: task id, WBS, level, name, duration, start, finish, predecessors, work category, id'et for en brugerdefineret arbejdskategori (`OPS Custom Task Type ID`), status, completion, actual start and finish, critical, total float og description. Ressourcer, tildelinger, kalendere, begrænsninger, deadlines, oprindelige planer og statusdatoen står ikke i den. Kolonneoverskrifterne er altid på engelsk.
 
 **Kun IFC bevarer beregningsprofilen og beregningsindstillingerne.** Hvis du eksporterer til CSV, MS Project XML eller Primavera P6 XML, står profilen ikke i filen. Af beregningsindstillingerne skriver MS Project XML højst den kritiske grænseværdi. En sådan fil åbnes igen som *Open Planner Studio*. Blev dit projekt beregnet med *Primavera P6* eller *Microsoft Project*, for eksempel fordi det kom fra en `.xer`- eller `.mpp`-fil, kan datoerne derfor ændre sig. Hvad en beregningsprofil er, forklares i [Beregningsprofiler og konventioner](docs://uitleg-rekenprofielen).
 
@@ -72,9 +72,9 @@ Desktopappen og browserversionen gør det samme med dit projekt, men de skriver 
 
 På desktop arbejder appen med rigtige stier. *Gem* skriver direkte til din fil. Normalt skriver appen først til en midlertidig fil ved siden af (`.ops-save.tmp`) og erstatter først dernæst din fil, så et nedbrud midt i skrivningen ikke ødelægger din gamle fil. Lukker du appen med ændringer, spørger den for hvert projekt, om du vil gemme. Ved en ren afslutning rydder den sine genoprettelseskopier.
 
-I en browser, som kan gemme filer hvor som helst (for eksempel Chrome og Edge), får du et almindeligt vindue til åbning og gemning. Derefter skriver *Gem* direkte til filen; for en fil du har åbnet, spørger browseren én gang om tilladelse. Listen *Seneste* virker, men kun med filnavne.
+I en browser, som kan gemme filer hvor som helst (for eksempel Chrome og Edge), får du et almindeligt vindue til åbning og gemning. Derefter skriver *Gem* direkte til filen. For en fil du har åbnet, spørger browseren én gang om tilladelse. Listen *Seneste* virker, men kun med filnavne.
 
-I en browser uden den mulighed (for eksempel Firefox) åbner appen en fil via filvælgeren og gemmer via en download. Med *Gem* forklarer meddelelsen *Gemt som download: 'name.ifc' ligger i din downloadmappe. …* det één gang per sessie. Med *Gem som* og eksporter ser du *Gemt som download: 'name.ifc' ligger nu i din downloadmappe. Dette miljø tillader ikke, at appen skriver direkte til den valgte placering.* Kan browseren vise et gemvindue, men ikke skrive tilbage til projektets fil, spørger *Gem* hver gang efter et sted. En besked forklarer også det én gang per sessie. *Fil › Seneste* findes, men åbner en tom side, og AutoSave er ikke tilgængelig. Du får den samme besked i ethvert miljø, der ikke lader appen skrive til det sted, du valgte.
+I en browser uden den mulighed (for eksempel Firefox) åbner appen en fil via filvælgeren og gemmer via en download. Med *Gem* forklarer meddelelsen *Gemt som download: 'name.ifc' ligger i din downloadmappe. …* det én gang per sessie. Med *Gem som* og ved eksport ser du *Gemt som download: 'name.ifc' ligger nu i din downloadmappe. Dette miljø tillader ikke, at appen skriver direkte til den valgte placering.* Kan browseren vise et gemvindue, men ikke skrive tilbage til projektets fil, spørger *Gem* hver gang efter et sted. En besked forklarer også det én gang per sessie. *Fil › Seneste* findes, men åbner en tom side, og AutoSave er ikke tilgængelig. Du får den samme besked i ethvert miljø, der ikke lader appen skrive til det sted, du valgte.
 
 ## Eksempel: eksport af eksempelprojektet
 

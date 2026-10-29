@@ -27,7 +27,7 @@ Je hebt drie manieren.
 
 - **Met het toetsenbord.** Alt+↑ en Alt+↓ wisselen de taak met haar buur op hetzelfde niveau. Een samenvattingstaak neemt haar subtaken mee. Bovenaan of onderaan het niveau gebeurt er niets. Bij een meervoudige selectie verplaatst alleen de eerst aangeklikte taak.
 - **Slepen in de takenlijst.** Druk op een rij en sleep verticaal. Het bovenste kwart van een rij betekent *ervoor*, het onderste kwart *erachter*. Het midden van een samenvattingstaak hangt de taak als laatste subtaak eronder. Het midden van een gewone taak telt als de dichtstbijzijnde rand. Sleep je een rij die bij een meervoudige selectie hoort, dan verhuist de hele selectie.
-- **Slepen in de Gantt.** Sleep de balk verticaal naar een andere rij. Dat werkt hetzelfde als slepen in de lijst en verandert geen datums. Sleep je horizontaal, dan verschuif je juist de datums.
+- **Slepen in de Gantt.** Sleep de balk verticaal naar een andere rij. De plekken voor vóór, na of onder een taak werken hetzelfde als in de lijst, maar de balk verplaatst alleen de gesleepte taak, ook bij een meervoudige selectie. De datums veranderen niet. Sleep je horizontaal, dan verschuif je juist de datums.
 
 Elke verplaatsing is één stap voor *Ongedaan* (Ctrl+Z).
 
@@ -48,7 +48,7 @@ Alt+↑ en Alt+↓ werken in zo'n weergave wél, zonder melding. Bij alleen een 
 
 **WBS auto staat uit.** Dat gebeurt bij een bestand met eigen codes, of bij een bestand dat de instelling *uit* bewaart. Een nieuwe taak krijgt de code die bij zijn plek in de boom past, ook als een andere taak die code al heeft. Zo kunnen er dubbele nummers ontstaan. Ook na inspringen kloppen de codes niet meer met de boom. *Hernummer WBS* lost beide op.
 
-**Een mijlpaal krijgt subtaken.** Een mijlpaal is een moment en heeft geen subtaken. De app haalt de mijlpaalmarkering eraf en meldt dat.
+**Een mijlpaal krijgt subtaken.** Een mijlpaal is een moment en heeft geen subtaken. De app haalt de mijlpaalmarkering eraf en meldt dat. Bij één taak noemt de melding de naam; bij meer taken toont ze hoeveel taken hun mijlpaalmarkering verliezen.
 
 **Een taak met resource-toewijzingen krijgt subtaken.** Een samenvattingstaak draagt zelf geen toewijzingen. Daarom vraagt de app eerst wat ermee moet, in het venster *Taak wordt een samenvattingstaak*. Dat gebeurt bij inspringen, *Subtaak toevoegen*, *Mijlpaal toevoegen* op een taak, een sjabloon invoegen, en in *Taak bewerken* bij een nieuwe *Bovenliggende taak*: voor een bestaande taak en voor een nieuwe taak. In *Taak bewerken* komt de vraag vóór het opslaan. Kies je daar *Annuleren*, dan blijft *Taak bewerken* open met je wijzigingen. Je kiest:
 

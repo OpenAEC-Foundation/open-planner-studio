@@ -9,7 +9,7 @@ Consultantul lucrează în MS Project, clientul în Primavera, subantreprenorul 
 ## Pași
 
 1. Alegeți *Acasă › Fișier › Exportare* și selectați un format din listă, sau alegeți *Fișier › Exportare*. Acolo fiecare format este un card cu o scurtă descriere.
-2. În fereastră alegeți un nume și un loc. Aplicația propune numele proiectului, cu extensia formatului. Foile de progres se numesc *projectname-voortgang* și se deschid în folderul de descărcări, dacă este posibil.
+2. În fereastră alegeți un nume și un loc. Aplicația propune numele proiectului, cu terminația formatului. Foile de progres se numesc *projectname-voortgang* și se deschid în folderul de descărcări, dacă este posibil.
 3. Confirmați. Nu apare niciun mesaj dacă exportul reușește, în afară de mesajele de mai jos. Din *Fișier › Exportare* reveniți după aceea la fila *Acasă*, chiar dacă anulați fereastra. Dacă anulați fereastra pentru un export din lista de pe fila *Acasă*, nu se întâmplă nimic.
 
 Dacă browserul dumneavoastră salvează doar printr-o descărcare (de exemplu Firefox), fișierul se află în folderul de descărcări imediat după pasul 1. Vedeți mesajul *Salvat ca descărcare: „name.xml” se află acum în folderul de descărcări. Acest mediu nu permite aplicației să scrie direct în locația aleasă.*
@@ -22,11 +22,11 @@ Lista de pe fila *Acasă* și cardurile din *Fișier › Exportare* oferă acele
 - *CSV (;)*, pe cardul *CSV (separat prin punct și virgulă)*: un tabel de activități pe care îl deschideți într-o foaie de calcul.
 - *MS Project XML*: se poate deschide în Microsoft Project.
 - *Primavera P6 XML*: pentru Oracle Primavera P6.
-- *IFC 4x3*: formatul propriu al aplicației, cu tot ce conține.
+- *IFC*: formatul propriu al aplicației, cu tot ce conține, în schema IFC a proiectului (implicit IFC 4.3 ADD2).
 
 ### Un export IFC cu un fișier de bibliotecă
 
-Dacă proiectul dumneavoastră este legat de o bibliotecă de resurse, caseta *Salvare fișier bibliotecă alături* se află sub cardurile din *Fișier › Exportare*. Dacă o bifați și alegeți *IFC 4x3*, aplicația cere un loc de două ori: întâi pentru proiect, apoi pentru *projectname-bibliotheek.ifc*. Această casetă este doar în *Fișier › Exportare*, nu în lista de pe fila *Acasă*.
+Dacă proiectul dumneavoastră este legat de o bibliotecă de resurse, caseta *Salvare fișier bibliotecă alături* se află sub cardurile din *Fișier › Exportare*. Dacă o bifați și alegeți *IFC*, aplicația cere un loc de două ori: întâi pentru proiect, apoi pentru *projectname-bibliotheek.ifc*. Această casetă este doar în *Fișier › Exportare*, nu în lista de pe fila *Acasă*.
 
 ### Reîncărcarea unei foi de progres
 

@@ -6,12 +6,12 @@ A tevékenységtáblázatban 86 rögzített oszlop van. Ezenkívül a projekt mi
 
 A Gantt mellett lévő tevékenységtáblázatnak és a *Táblázat* lapon lévő táblázatnak külön oszlopválasztása van. A fejléc jobb oldalán lévő plusz jel megnyitja az oszlopválasztót (ablakcím: *Oszlop kiválasztása*). A *Táblázat* lapon a *Táblázat › Oszlopok › Oszlopok kiválasztása…* menüpont is használható. A választó kategóriánként sorolja fel az oszlopokat: *Tevékenység*, *Ütemezés*, *Korlátozások*, *Kapcsolatok*, *Erőforrások*, *Előrehaladás*, *Számított*, *Alapterv*, *Egyéni* és *Technikai*. Név szerint kereshet. A *Nemrég használt* a lista tetején áll. Az *Alapértelmezés visszaállítása* visszaállítja az alapértelmezett oszlopokat.
 
-Alapértelmezés szerint a Gantt melletti táblázat a *WBS*, a *Tevékenység neve* és az *Időtartam* oszlopot mutatja. A *Táblázat* lapon lévő táblázat a *WBS*, a *Tevékenység neve*, az *Időtartam*, a *Kezdés*, a *Befejezés*, a *Tevékenységtípus*, a *Kritikus*, a *Teljes tartalékidő* és az *Előrehaladás* oszlopot mutatja, valamint a projekt minden tevékenységkódjához és egyéni mezőjéhez egy-egy oszlopot.
+Alapértelmezés szerint a Gantt melletti táblázat a *WBS*, a *Tevékenység neve* és az *Időtartam* oszlopot mutatja. A *Táblázat* lapon lévő táblázat a *WBS*, a *Tevékenység neve*, az *Időtartam*, a *Kezdés*, a *Befejezés*, a *Munkanem*, a *Kritikus*, a *Teljes tartalékidő* és az *Előrehaladás* oszlopot mutatja, valamint a projekt minden tevékenységkódjához és egyéni mezőjéhez egy-egy oszlopot.
 
 ## Hogyan olvashatók és szerkeszthetők az értékek
 
-- **Számított oszlopok** — a *Számított* kategória oszlopai és néhány más oszlop csak olvasható: a számításból származnak. Ha csak olvasható cellát próbál szerkeszteni, az alkalmazás ezt írja: *Ez a számított oszlop nem szerkeszthető.* Ez a szöveg minden csak olvasható cella általános üzenete, akkor is, ha az oszlop nem számított. Ha valamit módosít, és emiatt ezek elavulttá válnak, a mellettük lévő *elavult* jelzés addig látszik, amíg meg nem nyomja a *Számítás* gombot.
-- **Dátumok** — a dátumok abban a formában jelennek meg, amelyet a *Beállítások* alatt, a *Nézet* lapon, a *Dátumformátum* részben választott.
+- **Számított oszlopok** — a *Számított* kategória oszlopai és néhány más oszlop csak olvasható: a számításból származnak. Ha csak olvasható cellát próbál szerkeszteni, az alkalmazás ezt írja: *Ez a számított oszlop nem szerkeszthető.* Ez a szöveg minden csak olvasható cella általános üzenete, akkor is, ha az oszlop nem számított. Ha módosít valamit, és emiatt ezek elavulttá válnak, a mellettük lévő *elavult* jelzés addig látszik, amíg meg nem nyomja a *Számítás* gombot.
+- **Dátumok** — a dátumok abban a formában jelennek meg, amelyet a *Beállítások* alatt, a *Megjelenés* lapon, a *Dátumformátum* részben választott.
 - **Időtartamok és tartalékidő** — az időtartam a tevékenység egységében jelenik meg (`5d`, `12h`), vagy az *Időtartam megjelenítése* beállítás szerint (*Automatikus (tevékenységenként saját egység)*, *Mindig napok* vagy *Mindig órák*). A tartalékidő munkanapokban jelenik meg, két tizedesjeggyel, a nyelvének megfelelő tizedesjelet használva.
 - **Igen/Nem** — az igen/nem érték *Igen* vagy *Nem* alakban jelenik meg; az üres érték gondolatjelként (—).
 - **Szerkesztés** — írjon be vagy válasszon ki egy értéket. Az érvénytelen értéket az alkalmazás elutasítja, és a cella alatt megadja az okot, például *Adjon meg egy érvényes időtartamot, például 5d vagy 8h.* vagy *Adjon meg egy százalékot 0 és 100 között.* Egy cellablokk beillesztésekor az alkalmazás cellánként dolgozza fel az adatokat. A csak olvasható cellákat kihagyja, és jelzi, hogy hányat.
@@ -21,8 +21,8 @@ Alapértelmezés szerint a Gantt melletti táblázat a *WBS*, a *Tevékenység n
 - **Tevékenység neve** — a tevékenység neve. Szerkeszthető; kötelező. Az összefoglaló tevékenység félkövéren jelenik meg, a névcella háttere enyhén színezett. A mérföldkő félkövéren jelenik meg, a mérföldkő színében (ugyanabban a színcsaládban, mint a mérföldkő a Gantt-diagramon). Egy egyszerű tevékenység nem változik. Ez csak formázás: a kijelölés, a húzás és a szerkesztés ugyanúgy működik.
 - **Leírás** — a leírás. Szerkeszthető; szabad szöveg.
 - **WBS** — a WBS-kód. Szerkeszthető és kötelező, de csak olvasható, amíg a *WBS automatikus* be van kapcsolva.
-- **Tevékenységtípus** — a tevékenység típusa (*Építés*, *Szerelés*, *Bontás*, *Logisztika*, *Ellenőrzés*, *Áthelyezés*, *Felújítás*, *Karbantartás* vagy *Egyéb*). Lista segítségével szerkeszthető.
-- **Egyéni tevékenységtípus** — a projekt egyéni tevékenységtípusa, vagy gondolatjel. Szerkeszthető a projekt egyéni típusainak listájából.
+- **Munkanem** — a munka neme (*Építés*, *Szerelés*, *Bontás*, *Logisztika*, *Ellenőrzés*, *Áthelyezés*, *Felújítás*, *Karbantartás* vagy *Egyéb*). Lista segítségével szerkeszthető.
+- **Egyéni munkanem** — a projekt egyéni munkaneme, vagy gondolatjel. Szerkeszthető a projekt egyéni munkanemeinek listájából.
 - **Szín** — a tevékenység mentett színe, színkódként, például `#1a73e8`. Színválasztóval szerkeszthető. Az IFC-fájlban tárolódik, de egyetlen sáv vagy jelentés sem használja; a sávszíneket a *Nézet › Alaptervek és előrehaladás › Sávszínek* menüpontban állítja be.
 - **Megjegyzések** — a megjegyzések a `✓ text; ○ text` formában. Szerkeszthető, ha legfeljebb egy megjegyzés van (ekkor a szövegét szerkesztheti). Több megjegyzésnél csak olvasható.
 
@@ -33,14 +33,14 @@ Alapértelmezés szerint a Gantt melletti táblázat a *WBS*, a *Tevékenység n
 - **Kötelező mérföldkő** — a *Kötelező (szerződéses)* jelölő. Csak mérföldkövön szerkeszthető.
 - **Kiegyenlítési prioritás** — egész szám 0 és 1000 között, alapértelmezett érték: 500. Szerkeszthető. Az 1000 rögzíti a tevékenységet a kiegyenlítéshez.
 - **Megszakítások** — a megszakítások száma, például `Split gaps: 2`, vagy gondolatjel. Csak olvasható; a *Tulajdonságok* panelen szerkesztheti őket.
-- **Munkaszabály** — a tevékenység munkaszabálya. Üres érték esetén a projekt alapértelmezett szabálya érvényes. Listából szerkeszthető, de mérföldkőnél, összefoglaló tevékenységnél és hangmatnál üres és csak olvasható. Csak akkor látható a választóban, ha a munkaszabályok láthatók (*Munkaszabályok és munka megjelenítése*, vagy ha a fájl munkaszabályokat tartalmaz).
+- **Tevékenységtípus** — a tevékenység típusa. Üres érték esetén a projekt alapértelmezett típusa érvényes. Listából szerkeszthető, de mérföldkőnél, összefoglaló tevékenységnél és hangmatnál üres és csak olvasható. Csak akkor látható a választóban, ha a tevékenységtípusok láthatók (*Tevékenységtípusok használata*, vagy ha a fájl tartalmaz tevékenységtípusokat).
 - **Hangmat (származtatott időtartam)** — az, hogy a tevékenység hangmat-e. Szerkeszthető, kivéve mérföldkőnél vagy összefoglaló tevékenységnél.
 - **Naptár** — a tevékenység saját naptárának azonosítója. Üres (—) érték a projekt naptárát jelenti. Azonosítót írhat be, vagy kiválaszthatja a javaslatok közül; az ismeretlen azonosítót az alkalmazás elutasítja. Megjegyzés: a cella jelenleg a név helyett a belső azonosítót mutatja. Jobb, ha a *Tulajdonságok* panelen választ naptárat.
 - **Időtartam típusa** — *Munkaidő* (az időtartam a naptár munkanapjaiban vagy munkaóráiban számít) vagy *Eltelt időtartam* (az időtartam folyamatos óraidőben számít, naptár nélkül). Szerkeszthető.
 - **Időtartam egysége** — *Napok* vagy *Órák*. Szerkeszthető, kivéve összefoglaló tevékenységnél, hangmatnál vagy mérföldkőnél. A váltás csak akkor sikerül, ha az átváltás pontos, és az *Óraalapú tervezés bekapcsolása* be van kapcsolva.
 - **Időtartam** — a tevékenység időtartama a tevékenység egységében, vagy az *Időtartam megjelenítése* beállítás szerint. Szerkeszthető: írja be `5d`, `12h` vagy `1h 30m` alakban. A tevékenység egységében megadott szám is elfogadott. Csak olvasható összefoglaló tevékenységnél, hangmatnál és 0 időtartamú mérföldkőnél.
-- **Kezdés** — a megjelenített kezdés, ugyanaz a dátum, mint a Gantt-sáv kezdete. Szerkeszthető. Ha előddel rendelkező tevékenységnek új kezdést ad, a tevékenység erre a dátumra a *Nem korábban kezdődő (SNET)* korlátozást kapja. Összefoglaló tevékenységnél vagy hangmatnál csak olvasható, kivéve, ha kézzel ütemezett.
-- **Befejezés** — a megjelenített befejezés. Szerkeszthető: az új befejezésből új időtartam lesz. Az alkalmazás elutasítja befejezett tevékenységnél, mérföldkőnél, eltelt időtartamú tevékenységnél és szünetekkel rendelkező tevékenységnél. Elutasítja a kezdésnél korábbi befejezést is (*A befejezés a kezdés előtt van.*). Összefoglaló tevékenységnél vagy hangmatnál csak olvasható, kivéve, ha kézzel ütemezett.
+- **Kezdés** — a megjelenített kezdés, ugyanaz a dátum, mint a Gantt-sáv kezdete. Elindult tevékenységnél ez a tényleges kezdés. Szerkeszthető. Ha előddel rendelkező tevékenységnek új kezdést ad, a tevékenység erre a dátumra a *Nem korábban kezdődő (SNET)* korlátozást kapja. Csak olvasható összefoglaló tevékenységnél vagy hangmatnál, kivéve, ha kézzel ütemezett, és olyan tevékenységnél, amely már elindult (*Ez a tevékenység már elindult; a kezdés a tényleges kezdés. Ezt az előrehaladáson keresztül módosítsa.*).
+- **Befejezés** — a megjelenített befejezés. Befejezett tevékenységnél ez a tényleges befejezés. Szerkeszthető: az új befejezésből új időtartam lesz. Az alkalmazás elutasítja mérföldkőnél, eltelt időtartamú tevékenységnél és szünetekkel rendelkező tevékenységnél, valamint a kezdésnél korábbi befejezést (*A befejezés a kezdés előtt van.*). Csak olvasható összefoglaló tevékenységnél vagy hangmatnál, kivéve, ha kézzel ütemezett, és befejezett tevékenységnél (*Ez a tevékenység kész; a befejezés a tényleges befejezés. Módosítsa ezt az előrehaladáson keresztül.*).
 - **Ütemezett kezdés** — az a kiindulópont, ahonnan a számítás indul. Nem feltétlenül a megjelenített kezdés. Szerkeszthető; ugyanaz a hatása, mint a *Kezdés* mező kitöltésének.
 - **Ütemezett befejezés** — a megadott befejezés. Csak kézzel ütemezett tevékenységnél szerkeszthető. Egyébként az alkalmazás ezt írja: *A tervezett befejezés csak kézzel ütemezett tevékenységnél érvényes. Módosítsa a befejezést a Befejezés oszlopban, vagy az időtartamon keresztül.*
 
@@ -64,11 +64,12 @@ Alapértelmezés szerint a Gantt melletti táblázat a *WBS*, a *Tevékenység n
 ## Erőforrások
 
 - **Hozzárendelt erőforrások** — a hozzárendelt erőforrások nevei, vesszővel elválasztva. Szerkeszthető: név hozzáadásakor az alkalmazás napi 1 mennyiséggel hozzárendeli az erőforrást, név törlésekor a hozzárendelés megszűnik. Csak olvasható mérföldkőnél vagy összefoglaló tevékenységnél.
-- **Napi hozzárendelt mennyiség** — az erőforrásonkénti mennyiség, `Name: 1; Name: 0.5` alakban. Szerkeszthető, ha a tevékenységhez hozzárendelés tartozik.
+- **Napi hozzárendelt mennyiség** — az erőforrásonkénti mennyiség, `Name: 1; Name: 0.5` alakban, legfeljebb két tizedesjeggyel; a tárolt érték pontos marad. Szerkeszthető, ha a tevékenységhez hozzárendelés tartozik.
+- **Tervezett napi mennyiség** — az erőforrásonkénti tervezett mennyiség, `Name: 1.11` alakban, legfeljebb két tizedesjeggyel, a *Napi hozzárendelt mennyiség* mezőhöz hasonlóan. Csak a Primavera P6-ból származó hozzárendelésnél látható, ha a hátralévő mennyiség eltér; ekkor a *Napi hozzárendelt mennyiség* a hátralévő mennyiséget mutatja. Csak olvasható.
 - **Eloszlási görbe** — az erőforrásonkénti görbe, `Name: Uniform` alakban. Szerkeszthető, ha a tevékenységhez hozzárendelés tartozik.
 - **Munkaablak kezdete** és **Munkaablak befejezése** — az erőforrásonkénti munkaablak egy importált fájlból, `Name: date` alakban. Csak olvasható.
-- **Tervezett munka (órában)** és **Tényleges munka (órában)** — az erőforrásonkénti tervezett és tényleges munka órában, `Name: 12` alakban, importált fájlból. Csak olvasható.
-- **Hátralévő munka (órában)** — az erőforrásonkénti hátralévő munka órában, `Name: 6` alakban. Ha van tárolt munka, az jelenik meg, egyébként a hátralévő időtartam × mennyiség. Szerkeszthető olyan, hozzárendeléssel rendelkező tevékenységnél, amelyre munkaszabály vonatkozik. Csak akkor látható a választóban, ha a munkaszabályok láthatók.
+- **Tervezett munka (órában)** és **Tényleges munka (órában)** — az erőforrásonkénti tervezett és tényleges munka órában, `Name: 617.14` alakban, legfeljebb két tizedesjeggyel, importált fájlból. Csak olvasható.
+- **Hátralévő munka (órában)** — az erőforrásonkénti hátralévő munka órában, `Name: 6` vagy `Name: 26.67` alakban: a tárolt munka, egyébként a hátralévő időtartam × mennyiség. Szerkeszthető olyan, hozzárendeléssel rendelkező tevékenységnél, amelyre tevékenységtípus vonatkozik, vesszőt vagy pontot tizedesjelként használva. Csak akkor látható a választóban, ha a tevékenységtípusok láthatók. Egy sárga ⚠ jel a cellában azt jelenti, hogy a tárolt munka eltér a mennyiség × hátralévő időtartam értékétől, ahogy a *Munka (hátr.)* melletti ⚠ is a tevékenységpanelen.
 
 ## Előrehaladás
 
@@ -87,15 +88,15 @@ Az előrehaladási oszlopok az előrehaladásra vonatkozó szabályokat követik
 Ebben a kategóriában minden oszlop csak olvasható.
 
 - **Kiegyenlítési késleltetés** — hány munkanappal késleltette a kiegyenlítés a tevékenységet. Gondolatjel, ha nem alkalmaztak kiegyenlítést.
-- **Korai kezdés** és **Korai befejezés** — a számítás legkorábbi dátumai.
+- **Korai kezdés** és **Korai befejezés** — a számítás legkorábbi dátumai. Ha a tevékenység már elindult, eltérhetnek a *Kezdés* és a *Befejezés* mezőtől: a *Primavera P6* számítási profil a folyamatban lévő vagy kész tevékenység korai kezdését az állapotdátumra teszi.
 - **Legkésőbbi kezdés** és **Legkésőbbi befejezés** — azok a legkésőbbi dátumok, amelyeken a tevékenység még elkezdődhet vagy befejeződhet a projekt késedelme nélkül.
 - **Szabad tartalékidő** — azok a munkanapok, amennyivel a tevékenység csúszhat anélkül, hogy egy utódot késleltetne.
 - **Teljes tartalékidő** — azok a munkanapok, amennyivel a tevékenység csúszhat anélkül, hogy a projektbefejezést késleltetné. Negatív, ha a korlátozást vagy a határidőt nem lehet betartani.
 - **Kritikus** — *Igen*, ha a tevékenység a kritikus úton van.
 - **Zavaró tartalékidő** — a teljes tartalékidő mínusz a szabad tartalékidő.
-- **Közel kritikus** — *Igen* egy közel kritikus tevékenységnél. Csak akkor van kitöltve, ha a *Közel kritikus jelölése* be van kapcsolva (*Projektinfó*, blokk *Számítási profil és beállítások*). Egyébként gondolatjel.
+- **Közel kritikus** — *Igen* egy közel kritikus tevékenységnél. Csak akkor van kitöltve, ha a *Közel kritikus jelölése* be van kapcsolva (*Projektbeállítások*, blokk *Számítási profil és beállítások*). Egyébként gondolatjel.
 - **Tartalékidő-útvonal** — a tartalékidő-útvonal sorszáma; az 1 a legkritikusabb. Csak akkor van kitöltve, ha a *Több tartalékidő-útvonal* be van kapcsolva. Egyébként gondolatjel.
-- **Rögzített dátumok forrása** — rögzített dátumokat tartalmazó fájlnál: *Eltér* vagy *Részben nincs rögzítve*. Csak ilyen fájlnál látható a választóban. Ha nincsenek rögzített dátumok, a *Nincs rögzítve* jelenik meg a legkésőbbi dátum és a tartalékidő oszlopokban.
+- **Rögzített dátumok forrása** — amíg az alkalmazás a fájl dátumait mutatja: *Részben nincs rögzítve* olyan tevékenységnél, amelyhez a fájl nem tartalmaz mindent. Csak ebben a nézetben látható a választóban. Ha a tengely dátumai nincsenek rögzítve, a legkésőbbi dátum- és tartalékidő-oszlopokban a *Nincs rögzítve* jelenik meg.
 
 Lásd: [Kritikus út és tartalékidő](docs://uitleg-kritiek-pad).
 

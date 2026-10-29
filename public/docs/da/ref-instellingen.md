@@ -1,10 +1,10 @@
-# Indstillinger
+# App-indstillinger
 
 Alle indstillinger i appen: hvad de gør, hvad startværdien er, hvad de ændrer, og hvor du finder dem. For beregningsindstillingerne i et projekt (beregningsprofil, den kritiske definition) se [Beregningsindstillinger og konventioner](docs://ref-rekenopties-en-conventies): de hører til projektfilen, ikke til appen.
 
 ## Hvor du finder dem, og hvordan de virker
 
-Indstillingspanelet findes på tre steder, og overalt er det det samme panel: tandhjulet øverst i vinduet, *Indstillinger › Projekt › Indstillinger* og *Fil › Indstillinger*. Panelet har tre faner: *Udseende*, *Tidsplan* og *Avanceret*. Hver indstilling nedenfor nævner kun fanen.
+Indstillingspanelet findes på tre steder, og overalt er det det samme panel: tandhjulet øverst i vinduet, *Indstillinger › Projekt › App-indstillinger* og *Fil › App-indstillinger*. Panelet har tre faner: *Udseende*, *Tidsplan* og *Avanceret*. Hver indstilling nedenfor nævner kun fanen.
 
 En ændring træder straks i kraft. Der er ingen knap *Anvend* og ingen *Annuller*.
 
@@ -14,15 +14,17 @@ En ændring træder straks i kraft. Der er ingen knap *Anvend* og ingen *Annulle
 
 **Tema** — farveskemaet i brugerfladen. Vælg mellem *Mørk*, *Lys* og *Høj kontrast*. Standard: *Mørk*. Effekt: farverne i hele brugerfladen, inklusive Gantt-diagrammet og histogrammet. Hvor: *Udseende*.
 
-**Følg systemtema** — lader farveskemaet i dit operativsystem bestemme. Standard: fra. Effekt: appen er *Lys* eller *Mørk*, afhængig af dit system; de tre temakort er så slået fra. *Høj kontrast* følger ikke dit system: du vælger den selv. Slår du den fra, forbliver det tema, der var på skærmen på det tidspunkt. Hvor: *Udseende*, under *Tema*.
+**Følg systemtema** — lader farveskemaet i dit operativsystem bestemme. Standard: fra. Effekt: appen er *Lys* eller *Mørk*, afhængig af dit system; de tre temakort er så slået fra. *Høj kontrast* følger ikke dit system: du vælger den selv. Slår du funktionen fra, forbliver det tema, der var på skærmen på det tidspunkt. Hvor: *Udseende*, under *Tema*.
 
-**Sprog** — sproget i brugerfladen. Standard: sproget i din browser eller dit system, hvis appen kender det; ellers engelsk. Effekt: alle tekster i appen; de fjorten sprog sorteres efter deres korte kode. Arabisk og persisk spejler brugerfladen fra højre mod venstre. Du stiller sproget for hjælpeartiklerne separat under *Dokumentationssprog* i *Fil › Hjælp*. Hvor: *Udseende*.
+**Sprog** — sproget i brugerfladen. Standard: sproget i din browser eller dit system, hvis appen kender det; ellers engelsk. Effekt: alle tekster i appen; sprogene sorteres efter deres korte kode. Arabisk og persisk spejler brugerfladen fra højre mod venstre. Du stiller sproget for hjælpeartiklerne separat under *Dokumentationssprog* i *Fil › Hjælp*. Hvor: *Udseende*.
 
 **Skrifttype** — skrifttypen i hele brugerfladen. Vælg mellem *Standard*, *System*, *Med serifer* og *Monospace*. Standard: *Standard*. Effekt: overskrifter og tekst i vinduet, og teksten i Gantt-diagrammet og histogrammet. En webapp følger ikke selv din systemskrifttype; derfor vælger du den her. Hvor: *Udseende*.
 
-**Tekststørrelse** — skala for brugerfladen. Vælg mellem 90%, 100%, 110% og 125%. Standard: 100%. Effekt: tekst og opbygning af båndet, panelerne og dialogerne bliver større eller mindre, og rækkehøjden i tabellen og i Gantt-diagrammet følger med. Der er intet valg over 125%, fordi knapteksterne i båndet da brydes over flere linjer. Hvor: *Udseende*.
+**Tekststørrelse** — skala for brugerfladen. Vælg mellem 90%, 100%, 110% og 125%. Standard: 100%. Effekt: tekst og layout af båndet, panelerne og dialogerne bliver større eller mindre, og rækkehøjden i tabellen og i Gantt-diagrammet følger med. Der er intet valg over 125%, fordi knapteksterne i båndet da brydes over flere linjer. Hvor: *Udseende*.
 
 **Datoformat** — hvordan datoer vises i appen. Vælg mellem *dd-mm-åååå*, *mm-dd-åååå* og *åååå-mm-dd*. Standard: *dd-mm-åååå*. Effekt: datoer i tabellen, dialogerne, rapporterne og udskriften. Filer og beregninger ændrer sig ikke; kun visningen. Hvor: *Udseende*.
+
+**Tidsformat** — hvordan klokkeslæt vises i appen. Vælg mellem *24 timer (13:00)* og *12 timer (1:00 PM)*. Standard: *24 timer (13:00)*. Effekt: klokkeslættene i vinduet *Kalendere*, datoen og klokkeslættet for opgaver i timer (tabel, opdelinger, meddelelser) og tidsskalaen *Time* i Gantt-diagrammet. I et tidsfelt må du skrive begge former: *13:00*, *1300*, *13*, *1:00 PM* eller *1 pm*. Midnat som dagens slutning er *24:00* eller *12:00 AM*. Filer og beregninger ændrer sig ikke: de bliver ved 24 timer. Hvor: *Udseende*.
 
 **Visning af varighed** — i hvilken enhed varigheden af en opgave vises. Vælg mellem *Automatisk (egen enhed pr. opgave)*, *Altid dage* og *Altid timer*. Standard: *Automatisk (egen enhed pr. opgave)*. Effekt: i opgavetabellen, på etiketterne på bjælkerne i Gantt-diagrammet, i værktøjstippet, i udskriften og i rapporterne. Med *Automatisk* viser en dagopgave dage, og en timeopgave viser timer. Med *Altid dage* eller *Altid timer* omregner appen med timerne pr. dag i opgavens kalender. Har opgaven en anden enhed, sætter appen sin egen enhed i parentes efter, for eksempel `2.25d(18h)`. Kun visningen ændrer sig; opgaven beholder sin egen enhed. Hvor: *Udseende*.
 
@@ -38,15 +40,15 @@ En ændring træder straks i kraft. Der er ingen knap *Anvend* og ingen *Annulle
 
 **Scroll og zoom › Tilstand** — hvad scrollhjulet gør over Gantt-diagrammet. Vælg mellem *Position*, *Taster* og *Zoom + træk*. Standard: *Zoom + træk*. Effekt: med *Zoom + træk* zoomer hjulet om markøren, Shift+hjul scroller gennem rækkerne, du panorerer tidsaksen ved at trække i baggrunden, og Ctrl + træk (Cmd på en Mac) tegner en markeringsboks. Med *Position* afhænger hjulets funktion af, hvor markøren er; Ctrl + hjul zoomer altid, og Shift + hjul scroller altid vandret. Med *Taster* vælger du selv, hvilken tast der gør hvad. Valget gælder også for den anden tidslinje i den opdelte visning. Hvor: *Udseende*, under *Gantt › Scroll og zoom*.
 
-**Scroll og zoom › Skærmopdeling** — hvor markøren skal være for hvilken funktion. Kun synlig i tilstanden *Position*. Vælg mellem *Venstre/højre*, *Øverst/nederst* og *Øverste højre hjørne*. Standard: *Venstre/højre*. Effekt: med *Venstre/højre* scroller hjulet lodret over venstre halvdel og vandret over højre halvdel. Med *Øverst/nederst* scroller hjulet vandret over de øverste 30% (ved tidsskalaen) og lodret under dem. Med *Øverste højre hjørne* scroller hjulet vandret i det øverste højre kvadrant og lodret i resten. Hvor: *Udseende*, under *Gantt › Scroll og zoom*.
+**Scroll og zoom › Skærmopdeling** — hvor markøren skal være for hvilken funktion. Kun synlig i tilstanden *Position*. Vælg mellem *Venstre/højre*, *Øverst/nederst* og *Øverste højre hjørne*. Standard: *Venstre/højre*. Effekt: med *Venstre/højre* scroller hjulet lodret over venstre halvdel og vandret over højre halvdel. Med *Øverst/nederst* scroller hjulet vandret over de øverste 30% (ved tidsskalaen) og lodret under dem. Med *Øverste højre hjørne* scroller hjulet vandret i den øverste højre kvadrant og lodret i resten. Hvor: *Udseende*, under *Gantt › Scroll og zoom*.
 
 **Scroll og zoom › Lodret, Vandret, Zoom** — hvilken tast hører til hvilken hjulfunktion. Kun synlig i tilstanden *Taster*. For hver funktion vælger du mellem *Scroll*, *Ctrl + scroll* og *Shift + scroll*. Standard: *Lodret* er *Scroll*, *Zoom* er *Ctrl + scroll*, og *Vandret* er *Shift + scroll*. Effekt: vælger du en tast, der allerede er i brug, bytter den plads med den funktion, der havde den. Hvor: *Udseende*, under *Gantt › Scroll og zoom*.
 
 ## Fanen Tidsplan
 
-**Slå byggetilstand til** — startværdier for nye projekter, som passer til byggeri. Standard: til. Effekt: til giver et nyt projekt kalenderen *Bouwkalender NL* med de nederlandske helligdage, lader dig vælge en byggehelligdag, når du genererer helligdage, tilbyder faseskabelonerne *Boligbyggeri* og *Erhvervsbyggeri / renovering* og giver nye opgaver opgavetypen *Byggeri*. Fra giver kalenderen *Standaardkalender* uden helligdage, kun skabelonen *Tom* og opgavetypen *Andet*. En ny opgave under en overordnet opgave, der har en opgavetype, overtager først den opgavetype; *Byggeri* eller *Andet* gælder først dernæst. Eksisterende opgaver og kalendere ændres ikke. Hvor: *Tidsplan*.
+**Slå byggetilstand til** — startværdier for nye projekter, som passer til byggeri. Standard: til. Effekt: til giver et nyt projekt kalenderen *Bouwkalender NL* med de nederlandske helligdage, lader dig vælge en byggehelligdag, når du genererer helligdage, tilbyder faseskabelonerne *Boligbyggeri* og *Erhvervsbyggeri / renovering* og giver nye opgaver arbejdskategorien *Byggeri*. Fra giver kalenderen *Standaardkalender* uden helligdage, kun skabelonen *Tom* og arbejdskategorien *Andet*. En ny opgave under en overordnet opgave, der har en arbejdskategori, overtager først den arbejdskategori; *Byggeri* eller *Andet* gælder først dernæst. Eksisterende opgaver og kalendere ændres ikke. Hvor: *Tidsplan*.
 
-**Slå timeplanlægning til** — planlægning i arbejdstimer ved siden af arbejdsdage. Standard: fra. Effekt: tidsskalaen *Time* vises under *Visning › Tidsskala*, vinduet *Kalendere* får blokken *Arbejdstimer*, og vinduet *Nyt projekt* får valgene *Arbejdsskift* og *Standardenhed for nye opgaver*. *Projektinfo* får også valget *Standardenhed for nye opgaver*. Fra arbejder appen kun med dage. Timeopgaver, der allerede findes, bliver, og de indgår i beregningen; du kan først redigere deres varighed, når du slår timeplanlægning til. Hvor: *Tidsplan*, under *Timeplanlægning*. Se [Sådan slår du timeplanlægning til](docs://howto-urenplanning-aanzetten).
+**Slå timeplanlægning til** — planlægning i arbejdstimer ved siden af arbejdsdage. Standard: fra. Effekt: tidsskalaen *Time* vises under *Visning › Tidsskala*. I vinduet *Kalendere* kan en almindelig kalender få tidsbånd (blokken *Arbejdstimer*; en kalender, der allerede har tidsbånd, viser den altid). Vinduet *Nyt projekt* får valgene *Arbejdsskift* og *Standardenhed for nye opgaver*. *Projektindstillinger* får også valget *Standardenhed for nye opgaver*. Fra arbejder appen kun med dage. Timeopgaver, der allerede findes, bliver, og de indgår i beregningen; du kan først redigere deres varighed, når du slår timeplanlægning til. Hvor: *Tidsplan*, under *Timeplanlægning*. Se [Sådan slår du timeplanlægning til](docs://howto-urenplanning-aanzetten).
 
 **Tillad blandet dag/time-planlægning** — om du vælger enheden pr. opgave. Kun synlig når *Slå timeplanlægning til* er slået til. Standard: til. Effekt: til viser rullelisten *Varighedsenhed* ved siden af varigheden for hver opgave. Fra skjuler rullelisten. Hvor: *Tidsplan*, under *Timeplanlægning*. Se [Dage og timer](docs://uitleg-dagen-en-uren).
 
@@ -54,9 +56,11 @@ En ændring træder straks i kraft. Der er ingen knap *Anvend* og ingen *Annulle
 
 **Beregn automatisk** — genberegner tidsplanen, så snart den er forældet. Standard: fra. Effekt: fra betyder, at du selv trykker på *Beregn* (F5). Til gør, at appen genberegner tidsplanen inden for en brøkdel af et sekund efter en ændring af opgaver, afhængigheder eller kalender. Under et træk eller mens du skriver i et felt, venter appen og beregner én gang, når du er færdig. Efter en mislykket beregning beregner appen først igen, når du har ændret noget. Hvor: *Tidsplan*, under *Beregning*.
 
-**Vis arbejdsregler og arbejde** — felterne for arbejdsregel og arbejde i appen. Standard: fra. Effekt: til viser feltet *Arbejdsregel* på en opgave og arbejdskolonnen for tildelingerne, og gør kolonnen *Arbejdsregel* tilgængelig i tabellen. Fra skjuler dem; varighed og tildelingsenheder bliver, og arbejdet følger med. Et projekt, der allerede indeholder data om arbejdsregel eller arbejde, for eksempel fra en `.mpp`- eller `.xer`-fil, viser dem altid, også selv om indstillingen er fra. Hvor: *Tidsplan*, under *Beregning*. Se [Arbejdsregler: varighed, tildelingsenheder og arbejde](docs://uitleg-werkregels).
+**Brug opgavetyper** — felterne for opgavetype og arbejde i appen. Standard: fra. Effekt: til viser feltet *Opgavetype* på en opgave og arbejdskolonnen for tildelingerne, og gør kolonnen *Opgavetype* tilgængelig i tabellen. Fra skjuler dem; varighed og tildelingsenheder bliver, og arbejdet følger med. Et projekt, der allerede indeholder data om opgavetype eller arbejde, for eksempel fra en `.mpp`- eller `.xer`-fil, viser dem altid, også selv om indstillingen er fra. Hvor: *Tidsplan*, under *Beregning*. Se [Opgavetyper: varighed, tildelingsenheder og arbejde](docs://uitleg-werkregels).
 
 ## Fanen Avanceret
+
+**Vis en forklaring efter åbning af** — ét afkrydsningsfelt pr. format: *Primavera-fil (.xer)*, *MS Project-fil (.mpp)*, *MS Project XML*, *Primavera P6 XML* og *CSV-fil*. Standard: alle til. Effekt: til viser et vindue med en kort forklaring af formatet, efter du har åbnet en sådan fil: hvad appen har overtaget, hvad den ikke har, og hvordan gemning og tilbageskrivning virker. *Vis ikke igen for …* i det vindue fjerner afkrydsningen her; her slår du den igen til. En IFC-fil, et eksempel og et projekt, som en AI-assistent eller en udvidelse åbner, får aldrig denne forklaring. Hvor: *Avanceret*, under *Vis en forklaring efter åbning af*. Se [Åbn og gem en fil](docs://howto-bestand-openen-en-opslaan).
 
 **Aktiver AI-tilstand** — lader en AI-assistent arbejde med din tidsplan. Standard: fra. Effekt: til viser fanen *AI* med MCP-broen, så en AI-assistent kan arbejde med din tidsplan via Model Context Protocol. Fra skjuler fanen og stopper broen. Hvor: *Avanceret*, under *AI-tilstand*. Se [Forbind en AI-assistent (MCP)](docs://howto-ai-assistent-koppelen).
 
@@ -72,7 +76,7 @@ En ændring træder straks i kraft. Der er ingen knap *Anvend* og ingen *Annulle
 - *Pr. udgivelse* — de samme downloads pr. version, med datoen; først de seks nyeste, med *Vis alle … udgivelser* for resten.
 - *Kilde* — datoen for tallene (GitHub Releases, opdateret ugentligt) og *Opdater nu*. Appen gemmer hentede tal i en halv time. Hvis hentningen mislykkes, siger vinduet det. Installationer via Snap Store går ikke via GitHub og mangler.
 
-**Start rundvisning** — introrundvisningen igen. Effekt: lukker indstillingsvinduet og starter rundvisningen fra det første trin. Hvor: *Avanceret*, under *Rundvisning*.
+**Start rundvisning** — introrundvisningen igen. Effekt: lukker vinduet *App-indstillinger* og starter rundvisningen fra det første trin. Hvor: *Avanceret*, under *Start rundvisning*.
 
 **Version** — versionsnummeret af appen, med to knapper. *Søg efter opdateringer* åbner opdateringsvinduet. *Hvad er nyt* viser nyhederne i den aktuelle version. Hvor: *Avanceret*, under *Version*.
 
@@ -113,5 +117,5 @@ Appen gemmer også disse valg på denne enhed. Men du angiver dem ved selve elem
 - [Beregningsindstillinger og konventioner](docs://ref-rekenopties-en-conventies): de indstillinger, der hører til et projekt.
 - [Timeplanlægning slås til](docs://howto-urenplanning-aanzetten): de trin for kontakten *Slå timeplanlægning til*.
 - [Dage og timer](docs://uitleg-dagen-en-uren): hvordan appen tæller dage og timer.
-- [Arbejdsregler: varighed, tildelingsenheder og arbejde](docs://uitleg-werkregels): hvad *Vis arbejdsregler og arbejde* gør synligt.
+- [Opgavetyper: varighed, tildelingsenheder og arbejde](docs://uitleg-werkregels): hvad *Brug opgavetyper* gør synligt.
 - [Tastaturgenveje](docs://ref-sneltoetsen): alle taster i appen, inklusive dem til zoom og rulning.

@@ -30,7 +30,7 @@ export function formatLagShort(seq: LagFields, hourSuffix: 'u' | 'h' = 'u'): str
     return `${hours >= 0 ? '+' : ''}${trimNumber(hours, 2)}${e}${hourSuffix}`;
   }
   if (!seq.lagDays) return '';
-  return `${seq.lagDays > 0 ? '+' : ''}${seq.lagDays}${e}d`;
+  return `${seq.lagDays > 0 ? '+' : ''}${trimNumber(seq.lagDays, 6)}${e}d`;
 }
 
 /**
@@ -57,7 +57,10 @@ const LAG_INPUT = new RegExp(`^([+-]?\\d+(?:[.,]\\d+)?)(${LAG_UNIT_SUFFIXES})?$`
  * (`u` in nl, `h` in en, zie `formatLagShort`); de invoer blijft taalonafhankelijk d/u/h/m, symmetrisch
  * met `parseDuration` in `durationFormat.ts`.
  *
- * Kale getallen = werkdagen. Geeft null terug bij onparseerbare invoer; lege invoer = lag 0
+ * Kale getallen = werkdagen. Een breuk blijft staan, met punt of komma: "1,5d" is anderhalve werkdag
+ * en "0,5" een halve (spec "alleen uren" §3.3, I12; tot zes decimalen, zoals de opslag in IFC). In het
+ * OPS-profiel telt zo'n lag in de dagenmaat, onder P6/MSP als uren (de motor, `lagCountsInWorkdays`).
+ * Geeft null terug bij onparseerbare invoer; lege invoer = lag 0
  * (werkdagen). Elke branche zet de NIET-gebruikte lag-velden expliciet op `undefined`/0 —
  * anders overleeft een eerder gezette `lagMinutes` een omzetting naar dagen/procent stilletjes
  * (dezelfde valkuil als de MCP-bridge in `sequenceFields.ts` documenteert: de solver leest
@@ -83,5 +86,7 @@ export function parseLagInput(input: string): LagFields | null {
     // kennen.
     return { lagDays: 0, lagUnit, lagPercent: undefined, lagMinutes: Math.round(num * 60) };
   }
-  return { lagDays: Math.round(num), lagUnit, lagPercent: undefined, lagMinutes: undefined };
+  // Geen afronding meer op hele dagen (I12): de lag houdt de getypte breuk.
+  const days = Number(num.toFixed(6));
+  return { lagDays: days || 0, lagUnit, lagPercent: undefined, lagMinutes: undefined };
 }

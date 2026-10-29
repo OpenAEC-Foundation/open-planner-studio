@@ -14,7 +14,7 @@ Az állapotdátumot a következő leírás szerint állítsa be: [Az előrehalad
 
 ### 2. Táblázat készítése
 
-Válassza az *Ütemezés › Előrehaladás › Előrehaladási táblázat exportálása* lehetőséget. Ugyanez a gomb a *Táblázat* és a *Jelentés* lapon is megtalálható. Az alkalmazás Excel-fájlt készít, és a *(projektnév)-előrehaladás.xlsx* nevet javasolja. Böngészőben a fájl a letöltési mappába kerül. Inkább CSV-t szeretne? Válassza a *Fájl › Exportálás › Előrehaladási lap (CSV)* lehetőséget. Az Excel-táblázat is megtalálható, *Előrehaladási lap (Excel)* néven.
+Válassza az *Ütemezés › Előrehaladás › Előrehaladási táblázat exportálása* lehetőséget. Ugyanez a gomb a *Táblázat* és a *Jelentés* lapon is megtalálható. Az alkalmazás Excel-fájlt készít, és a *(projektnév)-voortgang.xlsx* nevet javasolja. Böngészőben a fájl a letöltési mappába kerül. Inkább CSV-t szeretne? Válassza a *Fájl › Exportálás › Előrehaladási lap (CSV)* lehetőséget. Az Excel-táblázat is megtalálható, *Előrehaladási lap (Excel)* néven.
 
 A táblázatnak nyolc oszlopa van. Az oszlopnevek angolul maradnak, utánuk az alkalmazás nyelvén írt rövid utasítás áll:
 
@@ -28,8 +28,8 @@ Az Excel-táblázat védett, jelszó nélkül: csak a három kitöltendő oszlop
 
 A helyszíni vezető minden tevékenységnél a következőket tölti ki:
 
-- `Completion (%)`: 0-tól 100-ig, mindkét határt beleértve. Az Excel-táblázatban tizedes értékek is megengedettek (például 33,3). A CSV-ben az utasítás egész számokat kér.
-- `Actual Start` és `Actual Finish`: Excelben dátumként, az Ön területi beállításának megfelelően; a CSV-ben nn-hh-éééé formában.
+- `Completion (%)`: 0-tól 100-ig, mindkét határt beleértve. Az alkalmazás tizedes értékeket is olvas, vesszővel vagy ponttal (például 33,3 vagy 33.3). A CSV-ben az utasítás továbbra is egész számokat kér: egy másik területi beállítással rendelkező táblázatkezelő a 8,38-at 838-ként olvashatja.
+- `Actual Start` és `Actual Finish`: Excelben dátumként, az Ön területi beállításának megfelelően; a CSV-ben nn-hh-éééé vagy éééé-hh-nn formában.
 
 Ami üres marad, azon nem változtat az alkalmazás. Egy üres cella tehát a meglévő előrehaladást sem törli. Ezt csak az alkalmazásban lehet megtenni. Egy még nem kezdett tevékenységnél a cellákat teljesen üresen kell hagyni.
 

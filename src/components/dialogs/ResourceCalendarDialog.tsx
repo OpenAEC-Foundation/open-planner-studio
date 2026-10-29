@@ -54,7 +54,8 @@ export function ResourceCalendarDialog({
   const addPoolCalendar = useAppStore(s => s.addPoolCalendar);
   const updatePoolCalendar = useAppStore(s => s.updatePoolCalendar);
   const project = useAppStore(s => s.project);
-  const projectYearSpan = computeGenerateSpan(project.startDate, project.endDate || undefined);
+  const calculatedEnd = useAppStore(s => s.cpmResult?.projectEnd);
+  const projectYearSpan = computeGenerateSpan(project.startDate, project.endDate || undefined, calculatedEnd);
 
   const sourceCalendars = poolCompanyId ? (pools[poolCompanyId]?.calendars ?? []) : resourceCalendars;
   const existing = calendarId ? sourceCalendars.find(c => c.id === calendarId) : undefined;

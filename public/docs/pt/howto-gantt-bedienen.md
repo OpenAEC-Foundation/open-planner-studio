@@ -15,7 +15,7 @@ No Gantt vê que a alvenaria tem de começar dois dias mais tarde, ou que a beto
 
 Se a tarefa tiver uma predecessora, a aplicação regista o novo início como a restrição *Não começar antes de (SNET)* e indica-o depois de soltar. O motivo disso, e o que acontece com outra restrição, estão em [Restrições e prazos](docs://uitleg-constraints). Se arrastar de volta para o início original, a restrição original também volta.
 
-Se arrastar sobretudo para cima ou para baixo, em vez de na horizontal, move a tarefa para outra linha e as datas mantêm-se. A direção que escolhe nos primeiros pixels aplica-se a toda a operação de arrastar; por isso, um só gesto nunca altera as datas e a estrutura ao mesmo tempo. Veja [Ajustar a estrutura](docs://howto-structuur-aanpassen).
+Se arrastar sobretudo para cima ou para baixo, em vez de na horizontal, move a tarefa para outra linha e as datas mantêm-se. A direção que escolhe nos primeiros poucos pixels aplica-se a toda a operação de arrastar; por isso, um só gesto nunca altera as datas e a estrutura ao mesmo tempo. Veja [Ajustar a estrutura](docs://howto-structuur-aanpassen).
 
 ### Ajustar a duração
 
@@ -31,10 +31,10 @@ Uma operação de arrastar é um passo em *Desfazer*, por mais tempo que arraste
 
 ### Deslocar a linha temporal
 
-O que faz arrastar no fundo vazio depende do seu modo de deslocação. Escolhe-o em *Definições*, separador *Aparência*, em *Gantt › Deslocação e zoom*, no campo *Modo*:
+O que faz arrastar no fundo vazio depende do seu modo de deslocação. Escolha-o em *Definições da app*, separador *Aparência*, em *Gantt › Deslocação e zoom*, no campo *Modo*:
 
 - **Zoom + arrastar** (padrão): se arrastar no fundo vazio com o botão esquerdo do rato, a linha temporal move-se com o rato, como num mapa. O cursor é uma mão. Numa barra, arrastar inicia simplesmente um gesto de barra.
-- **Posição** e **Teclas**: o mesmo arrasto cria uma caixa de seleção. Desloca a linha temporal com a roda (veja [Definições](docs://ref-instellingen)) ou com o botão central do rato.
+- **Posição** e **Teclas**: o mesmo arrasto cria uma caixa de seleção. Desloca a linha temporal com a roda (veja [Definições da app](docs://ref-instellingen)) ou com o botão central do rato.
 
 **O botão central do rato** (a roda premida) desloca a linha temporal em todos os modos, também se começar numa barra. Não funciona enquanto outro gesto estiver em curso, como arrastar uma barra.
 
@@ -50,13 +50,17 @@ Mais sobre seleção está em [Selecionar, eliminar e desfazer tarefas](docs://h
 
 ### Ampliar e reduzir
 
-1. Utilize *Zoom +* e *Zoom -* (*Início › Zoom*), ou as teclas + e -. A roda também faz zoom. Quando o faz depende do seu modo de deslocação (veja [Definições](docs://ref-instellingen)).
+1. Utilize *Zoom +* e *Zoom -* (*Início › Zoom*), ou as teclas + e -. A roda também faz zoom. Quando isso acontece depende do seu modo de deslocação (veja [Definições da app](docs://ref-instellingen)).
 2. Se quiser ver o projeto inteiro, escolha *Visualização › Escala temporal › Ajustar ao projeto* ou prima Ctrl+0. *Repor* (no separador *Visualização*) ou a tecla 0 repõe o zoom para o padrão.
 3. No canto inferior direito da barra de estado está o zoom em pixels por dia, por exemplo *Zoom: 15px/dia*.
 
 Quanto mais reduz o zoom, menos linhas da grelha há. A partir de 8 pixels por dia há uma linha por cada dia, com uma linha mais grossa na fronteira da semana. Entre 2 e 8 pixels por dia, só permanece a fronteira da semana. Abaixo de 2 pixels por dia, ao nível do ano, só ficam as fronteiras dos meses. Caso contrário, a área de desenho passaria a ser um padrão uniforme de riscas, em que as barras desapareciam. Os fins de semana e dias de folga a cinzento, e as bandas semanais com tom alternado, mantêm-se em todos os níveis; continuam a mostrar a estrutura semanal quando as linhas desaparecem. No cabeçalho da linha temporal, os números das semanas e dos dias só aparecem quando há espaço para eles. A partir de 40 pixels por dia, o dia da semana também aparece antes do número do dia.
 
 O nome da tarefa aparece na barra se couber completamente. Se não couber, por exemplo ao reduzir o zoom, o nome completo aparece à direita da barra.
+
+### Ver os detalhes de uma tarefa
+
+Mantenha o rato parado sobre uma barra. Aparece um pequeno cartão com o nome da tarefa, *WBS*, *Duração*, *Início*, *Fim*, *Estado*, *Crítica* e *Folga total*. Durante um arrasto, uma deslocação da linha temporal, uma caixa de seleção ou um menu do botão direito, o cartão desaparece.
 
 ## Problemas comuns e o que a aplicação faz nesse caso
 
@@ -72,5 +76,5 @@ O nome da tarefa aparece na barra se couber completamente. Se não couber, por e
 
 - [Menus de clique com o botão direito](docs://ref-contextmenus): os menus de uma barra, de uma linha e de um cabeçalho de grupo.
 - [Atalhos de teclado](docs://ref-sneltoetsen): as teclas para fazer zoom e para cancelar um gesto.
-- [Definições](docs://ref-instellingen): o modo de deslocação e a escala temporal.
+- [Definições da app](docs://ref-instellingen): o modo de deslocação e a escala temporal.
 - [Restrições e prazos](docs://uitleg-constraints): porque é que um início movido passa a ser uma restrição.

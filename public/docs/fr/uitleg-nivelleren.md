@@ -50,7 +50,7 @@ Avec *lissage*, une tâche ne peut pas commencer plus tard que son début au plu
 
 ## Exemple détaillé : le maçon sur deux murs
 
-L'exemple est le projet d'exercice des tutoriels, *House extension*, tel qu'il est juste avant le nivellement du tutoriel 5. Dans le tutoriel 5, vous faites cela vous-même et vérifiez les chiffres. Dans cet exemple, le plâtrage a le type de tâche *Travail fixe* et le plâtrier travaille avec 2 unités, comme dans [Règles de travail : durée, unités et travail](docs://uitleg-werkregels).
+L'exemple est le projet d'exercice des tutoriels, *House extension*, tel qu'il est juste avant le nivellement du tutoriel 5. Dans le tutoriel 5, vous faites cela vous-même et vérifiez les chiffres. Dans cet exemple, le plâtrage a le type de tâche *Travail fixe* et le plâtrier travaille avec 2 unités, comme dans [Types de tâche : durée, unités et travail](docs://uitleg-werkregels).
 
 Après la dalle alvéolaire, terminée le lundi 28 juin, la paroi intérieure de la cavité (5 jours ouvrés) et la paroi extérieure de la cavité (6 jours ouvrés) commencent toutes deux le mardi 29 juin. Toutes deux sont affectées au maçon, avec 1 unité et une valeur *Unités max* de 1. Après la paroi intérieure viennent les éléments de toiture (un travail à la grue de 6 heures) et la couverture (2 jours ouvrés). Les châssis attendent la couverture et la paroi extérieure. La livraison a lieu le lundi 30 août.
 
@@ -62,18 +62,18 @@ La paroi intérieure court du 29 juin au 5 juillet inclus, la paroi extérieure 
 
 Les deux tâches ont la priorité 500. Les châssis de fenêtres ne sont livrés que le 14 juillet (dans le tutoriel 3, vous avez défini une contrainte *Début au plus tôt le (SNET)* pour cela). Par conséquent, la paroi intérieure a 3 jours ouvrés de marge et la paroi extérieure 5. La paroi intérieure a la marge la plus faible et passe donc en premier. Elle reste du 29 juin au 5 juillet inclus.
 
-### Le décalage
+### Le déplacement
 
 La paroi extérieure ne peut pas commencer le 29 juin. Le premier jour où le maçon est de nouveau libre est le mardi 6 juillet. C'est 5 jours ouvrés après le début au plus tôt, donc le retard de nivellement est de 5. La paroi extérieure court maintenant du 6 juillet au 13 juillet inclus. Les châssis ne commencent de toute façon que le 14 juillet, donc la livraison reste le lundi 30 août. La fenêtre signale *Date de fin de projet : inchangée (30-08-2027)* et affiche une ligne : *Build outer cavity leaf*, ancien début 29-06-2027, nouveau début 06-07-2027, *5 d*.
 
-Les 5 jours ouvrés de décalage correspondent exactement à la marge de la paroi extérieure. C'est pourquoi *lissage* donne ici le même résultat. La paroi extérieure n'a plus de marge et est maintenant critique.
+Les 5 jours ouvrés de déplacement correspondent exactement à la marge de la paroi extérieure. C'est pourquoi *nivellement* donne ici le même résultat. La paroi extérieure n'a plus de marge et est maintenant critique.
 
 ### Et si les châssis n'arrivent pas le 14 juillet
 
 Sans cette contrainte, les châssis peuvent commencer le vendredi 9 juillet et la livraison a lieu le mercredi 25 août. La paroi extérieure n'a alors plus que 2 jours ouvrés de marge.
 
-- Sans *lissage*, la paroi extérieure se décale quand même de 5 jours ouvrés. Maintenant, les châssis doivent attendre : ils commencent le 14 juillet, 3 jours ouvrés plus tard. Tout ce qui suit se décale avec eux, et la livraison passe du 25 août au 30 août, également 3 jours ouvrés plus tard.
-- Avec *lissage*, rien ne se décale. La paroi extérieure ne tient pas dans ses 2 jours ouvrés de marge. La fenêtre affiche le conflit *Build outer cavity leaf*, 5 jour(s), avec la raison *Capacité libre insuffisante dans la marge pour résoudre ce conflit.*
+- Sans *nivellement*, la paroi extérieure se décale quand même de 5 jours ouvrés. Maintenant, les châssis doivent attendre : ils commencent le 14 juillet, 3 jours ouvrés plus tard. Tout ce qui suit se décale avec eux, et la livraison passe du 25 août au 30 août, également 3 jours ouvrés plus tard.
+- Avec *nivellement*, rien ne se décale. La paroi extérieure ne tient pas dans ses 2 jours ouvrés de marge. La fenêtre affiche le conflit *Build outer cavity leaf*, 5 jour(s), avec la raison *Capacité libre insuffisante dans la marge pour résoudre ce conflit.*
 
 ### Et si la paroi extérieure reçoit la priorité
 
@@ -101,5 +101,5 @@ Si vous réglez *Unités max* du maçon sur 2, il n'y a plus de surallocation. *
 
 - [Résoudre la surallocation](docs://howto-overbezetting-oplossen) : les étapes pour trouver une surallocation et la niveler.
 - [Chemin critique et marge](docs://uitleg-kritiek-pad) : ce qu'est la marge et pourquoi une tâche devient critique.
-- [Règles de travail : durée, unités et travail](docs://uitleg-werkregels) : comment la durée d'une tâche évolue avec les unités.
+- [Types de tâche : durée, unités et travail](docs://uitleg-werkregels) : comment la durée d'une tâche évolue avec les unités.
 - [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc) : trois tours qui ont besoin des mêmes équipes de chantier et de la grue à tour, et ce que le nivellement fait de cela.

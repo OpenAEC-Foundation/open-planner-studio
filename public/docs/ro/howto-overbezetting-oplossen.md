@@ -15,7 +15,7 @@ Mai întâi căutați supraalocarea. Apoi alegeți o soluție. **Redistribuirea*
 1. Uitați-vă în panglică la *Resurse › Supraalocare*. Acolo scrie *Niciuna* sau, cu roșu, numărul de resurse supraalocate, de exemplu *1 resursă*. După un calcul, bara de stare afișează și *⚠ 1 resursă(e) supraalocată(e)*.
 2. Faceți clic pe acest mesaj din bara de stare. Se deschide panoul *Avertismente* din dreapta, cu o linie pentru fiecare resursă, de exemplu *Bricklayer* cu *Supraalocare în 5 zi(le) (29-06-2027 – 05-07-2027)*.
 3. Faceți clic pe acea linie. Aplicația activează histograma, alege resursa și selectează toate activitățile la care lucrează resursa.
-4. Uitați-vă la histograma de sub diagrama Gantt. Barele roșii sunt zilele supraalocate. Dacă treceți cu mouse-ul peste o zi, vedeți ce activități contribuie, de exemplu *2 activități contribuie la 2027-06-30*, cu numele lor dedesubt.
+4. Uitați-vă la histograma de sub diagrama Gantt. Zilele supraalocate sunt marcate cu roșu. Dacă treceți cu mouse-ul peste o zi, vedeți ce activități contribuie, de exemplu *2 activități contribuie la 2027-06-30*, cu numele lor dedesubt.
 
 Puteți activa și dumneavoastră histograma cu *Resurse › Histogramă › Histogramă*. Alegeți o resursă din lista din stânga sau parcurgeți resursele cu *Anterior* și *Următorul*. Un punct roșu din listă înseamnă că resursa este supraalocată. Rândul *Toate resursele* adună resursele, fără materiale.
 
@@ -24,7 +24,7 @@ Dacă este selectată o activitate, histograma arată doar încărcarea dată de
 ### 2. Alegeți o soluție
 
 - **Mai multă capacitate.** Dacă vine cu adevărat un al doilea zidar, setați *Capacitate maximă* la 2 (consultați [Gestionarea resurselor](docs://howto-resources-beheren)). Atunci supraalocarea nu mai există.
-- **Mai puține unități de atribuire pe zi.** Micșorați *Unit./zi* sau alegeți o altă curbă pentru atribuire (consultați [Atribuirea resurselor cu o curbă](docs://howto-resource-toewijzen)).
+- **Mai puține unități de atribuire pe zi.** Micșorați *Unități de atribuire* sau alegeți o altă curbă pentru atribuire (consultați [Atribuirea resurselor cu o curbă](docs://howto-resource-toewijzen)).
 - **Puneți activitățile una după alta.** Adăugați o dependență între cele două activități, astfel încât a doua să înceapă doar după ce prima activitate s-a încheiat (consultați [Adăugarea dependențelor](docs://howto-relaties-leggen)).
 - **Redistribuire.** Aplicația face ca o activitate să înceapă mai târziu.
 
@@ -43,14 +43,14 @@ Dacă modificați o opțiune din fereastră după ce ați apăsat pe *Calculare*
 
 ### Decideți ce activitate rămâne pe loc
 
-Aplicația plasează activitățile una câte una. Activitățile care vin primele rămân unde sunt. Activitățile cu cea mai mare prioritate sunt plasate primele. La prioritate egală, prima este plasată activitatea cu cea mai mică marjă.
+Aplicația plasează activitățile una câte una. Activitățile care vin primele rămân unde sunt. Activitățile cu cea mai mare prioritate sunt plasate primele. La prioritate egală, prima plasată este activitatea cu cea mai mică marjă.
 
 Dacă vreți să decideți singur ce activitate rămâne pe loc, dați-i o prioritate mai mare. Faceți clic dreapta pe bara activității în diagrama Gantt și alegeți *Prioritate*, apoi *Scăzută* (100), *Normală* (500) sau *Ridicată* (900). *Normală* este valoarea implicită. Puteți scrie și dumneavoastră un număr de la 0 la 1000 în coloana *Prioritate de redistribuire*: faceți clic pe **+** din dreapta antetului tabelului de activități (*Adăugare coloană*) și alegeți acea coloană sub *Planificare*. Un număr mai mare înseamnă că activitatea are mai multe șanse să rămână pe loc. Aplicația nu acceptă un număr peste 1000. O activitate cu prioritatea 1000 nu se mută niciodată din cauza capacității.
 
 ### Anulare și refacere
 
 - *Anulare* (Ctrl+Z) inversează *Aplicare* dintr-un pas.
-- *Resurse › Redistribuire › Ștergere redistribuire* elimină toată redistribuirea din activități. Butonul este gri atât timp cât nu există nicio redistribuire. Supraalocarea reapare astfel.
+- *Resurse › Redistribuire › Ștergere redistribuire* elimină toată redistribuirea din activități. Butonul este gri atât timp cât nu există nicio redistribuire. Astfel, supraalocarea reapare pur și simplu.
 - Dacă ați modificat între timp planificarea, alegeți pur și simplu din nou *Nivel…*. Aplicația pornește atunci de la zero: întârzierile vechi nu contează.
 
 ## Capcane și ce face aplicația atunci

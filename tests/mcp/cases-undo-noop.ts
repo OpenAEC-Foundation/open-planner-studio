@@ -29,10 +29,10 @@ S().addTask({ name: 'warmup' });
 S().undo();
 
 /** Roep een tool aan via de ECHTE JSON-RPC-weg en geef het tool-resultaat (structuredContent). */
-async function rpc(name: string, args: unknown): Promise<any> {
+async function rpc(name: string, args: unknown, guards: { paused?: boolean; readOnly?: boolean } = {}): Promise<any> {
   const raw = await handleMcpMessage(
     JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }),
-    makeMcpContext(appStoreContext, { expectedDocId: S().activeDocumentId }),
+    makeMcpContext(appStoreContext, { expectedDocId: S().activeDocumentId, ...guards }),
   );
   const msg = JSON.parse(raw);
   assert(msg.result, `verwachtte een JSON-RPC-result, kreeg: ${raw.slice(0, 200)}`);
@@ -213,6 +213,58 @@ test('planner_batch: no-op-stap gevolgd door een leesstap op een verouderde plan
   assertEq(res.data.steps[1].data.schedule.earlyStart, task(b).time.earlyStart,
     'de leesstap gaf de verse start terug, niet de verouderde');
   assertEq(res.envelope.scheduleStale, false, 'de envelop meldt een verse planning');
+});
+
+for (const dryRun of [false, true]) {
+  for (const precedingNoop of [false, true]) {
+    test(`planner_batch: nivelleren zonder resources, dryRun=${dryRun}, voorafgaande no-op=${precedingNoop} ⇒ geen lege undo-stap`, async () => {
+      const { a, b } = savedProject();
+      const staleStartB = makeStale(a, b);
+      const before = snap();
+      const steps: { tool: string; args: unknown }[] = [];
+      if (precedingNoop) steps.push({
+        tool: 'planner_update_tasks', args: { updates: [{ id: a, fields: { name: 'Grondwerk' } }] },
+      });
+      steps.push({ tool: 'planner_level_resources', args: { dryRun } });
+      const res = ok(await rpc('planner_batch', { steps }));
+      assertEq(res.data.steps.at(-1).data.delays, {}, 'geen inzet betekent geen nivelleervertraging');
+      assertEq(applied(), before.applied, 'herberekening is geen undo-stap');
+      assertEq(undone(), before.undone, 'redo blijft ongewijzigd');
+      assertEq(S().isDirty, before.dirty, 'herberekening maakt document niet vuil');
+      assertEq(S().scheduleStale, false, 'nivelleren krijgt een verse planning');
+      assert(task(b).time.earlyStart !== staleStartB, 'datums zijn werkelijk ververst');
+      assertEq(res.envelope.scheduleRecalculated, true, 'envelop meldt voorafgaande herberekening');
+    });
+  }
+}
+
+test('planner_batch: geweigerde nivellering ververst niet vóór de guards', async () => {
+  for (const guards of [{ paused: true }, { readOnly: true }]) {
+    const { a, b } = savedProject();
+    makeStale(a, b);
+    const before = snap();
+    const res = await rpc('planner_batch', {
+      steps: [{ tool: 'planner_level_resources', args: {} }],
+    }, guards);
+    assertEq(res.ok, false, 'batch wordt geweigerd');
+    expectNothingHappened('geweigerde nivellering', before);
+  }
+});
+
+test('planner_batch: echte wijziging vóór lege nivellering blijft één undo-stap', async () => {
+  const { a, b } = savedProject();
+  makeStale(a, b);
+  const before = applied();
+  ok(await rpc('planner_batch', {
+    steps: [
+      { tool: 'planner_update_tasks', args: { updates: [{ id: b, fields: { name: 'Gewijzigde fundering' } }] } },
+      { tool: 'planner_level_resources', args: {} },
+    ],
+  }));
+  assertEq(applied(), before + 1, 'één undo-stap voor de echte wijziging');
+  assertEq(S().isDirty, true, 'echte wijziging maakt document vuil');
+  S().undo();
+  assertEq(task(b).name, 'Fundering', 'undo herstelt de echte wijziging');
 });
 
 test('controle: planner_batch met een echte wijziging blijft één undo-stap', async () => {

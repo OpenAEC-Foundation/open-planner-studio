@@ -6,7 +6,7 @@ Objectif : affecter une ressource à une tâche, avec des unités par jour et un
 
 Dès que vous voulez voir qui travaille où et quand : le maçon sur le parement extérieur de la lame d'air, la grue sur les dalles alvéolées. Sans affectation, il n'y a pas de charge, donc pas d'histogramme ni de surallocation.
 
-Deux termes. Les **unités** (dans l'application *Unités/j*) indiquent la part de la ressource qui travaille sur la tâche par jour ouvré : 1 correspond à un maçon, 2 à deux maçons, 0,5 à une demi-journée. La **courbe** décide de la façon dont le total, unités fois durée, est réparti sur les jours ouvrés de la tâche. Le travail est rarement réparti également : sur un mur, le début est calme, le milieu chargé et la fin à nouveau calme.
+Deux termes. Les **unités** (dans le panneau, la colonne *Unités*, dans la fenêtre *Affecter*, le champ *Unités/j*) indiquent la part de la ressource qui travaille sur la tâche par jour ouvré : 1 correspond à un maçon, 2 à deux maçons, 0,5 à une demi-journée. La **courbe** décide de la façon dont le total, unités fois durée, est réparti sur les jours ouvrés de la tâche. Le travail est rarement réparti également : sur un mur, le début est calme, le milieu chargé et la fin à nouveau calme.
 
 Le parement extérieur de la lame d'air prend 6 jours ouvrés. Avec un maçon et la courbe *Uniforme*, cela fait 1 unité sur chacun des 6 jours, soit 6 au total. Avec la courbe *En cloche*, il reste 6 unités au total, mais la répartition devient 0, 1, 2, 2, 1 et 0.
 
@@ -27,9 +27,9 @@ Pour une deuxième ressource, ouvrez de nouveau la fenêtre. Les ressources déj
 
 1. Sélectionnez la tâche. Le panneau *Propriétés* se trouve à droite ; si vous ne le voyez pas, activez-le avec *Affichage › Panneaux › Propriétés*.
 2. Dans le bloc *Affectations*, tout en bas, choisissez la ressource sous *Affecter une ressource*. L'affectation démarre avec 1 unité et la courbe *Uniforme*.
-3. Pour chaque affectation, modifiez *Unités/j* et choisissez une autre *Courbe*.
+3. Pour chaque affectation, modifiez *Unités*. Cliquez sur le nom de la ressource pour afficher *Courbe*, puis choisissez une autre courbe.
 
-C'est aussi ainsi que vous modifiez une affectation existante. Avec la corbeille (*Supprimer*) à côté du nom, vous retirez l'affectation de la tâche. La ressource elle-même reste. Avec *Déplacer vers…*, vous déplacez l'affectation vers une autre tâche.
+C'est aussi ainsi que vous modifiez une affectation existante. Avec la corbeille (*Supprimer*) au bout de la ligne, vous retirez l'affectation de la tâche. La ressource elle-même reste. Avec *Déplacer vers…* (affiché après un clic sur le nom), vous déplacez l'affectation vers une autre tâche.
 
 ### Les courbes
 
@@ -56,7 +56,7 @@ La courbe modifie seulement la répartition. La durée, les dates et le total re
 
 **Matériel.** Pour une ressource matérielle, les unités sont la quantité par jour, dans l'unité de la ressource, par exemple m³. Le matériel ne compte pas dans la durée de la tâche.
 
-**Une règle de travail peut ajuster la durée.** Si la tâche est de type *Travail fixe* ou *Unités fixes*, une deuxième ressource modifie la durée de la tâche. Le planning n'est alors plus à jour ; appuyez sur **Calculer** (F5). Voir [Règles de travail : durée, unités et travail](docs://uitleg-werkregels).
+**Un type de tâche peut ajuster la durée.** Si la tâche est de type *Travail fixe* ou *Unités fixes*, une deuxième ressource modifie la durée de la tâche. Le planning n'est alors plus à jour ; appuyez sur **Calculer** (F5). Voir [Types de tâche : durée, unités et travail](docs://uitleg-werkregels).
 
 **Une répartition qui lui est propre.** Si l'affectation a déjà sa propre répartition des heures, la courbe est désactivée et affiche *Contour*. Libérez d'abord cette répartition via *Répartition des heures…*.
 
@@ -66,6 +66,6 @@ La courbe modifie seulement la répartition. La durée, les dates et le total re
 
 - [Adapter la répartition des heures](docs://howto-urenverdeling-aanpassen) : régler vous-même les heures par jour.
 - [Résoudre la surallocation](docs://howto-overbezetting-oplossen) : quoi faire quand une ressource a trop de travail un même jour.
-- [Règles de travail : durée, unités et travail](docs://uitleg-werkregels) : ce qui se passe pour la durée quand vous modifiez les unités.
+- [Types de tâche : durée, unités et travail](docs://uitleg-werkregels) : ce qui se passe pour la durée quand vous modifiez les unités.
 - [Panneau des ressources](docs://ref-resourcepaneel) : tous les champs et boutons du panneau des ressources.
-- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc) : les cinq types de ressources, les six courbes et une grue à tour avec un palier de capacité à partir du 30 août 2027.
+- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc) : les cinq types de ressources, six des huit courbes et une grue à tour avec un palier de capacité à partir du 30 août 2027.

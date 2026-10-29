@@ -108,8 +108,8 @@ for (const locale of LOCALE_CASES) {
     expect(Math.abs(picker.left - list.left)).toBeLessThanOrEqual(1);
     expect(Math.abs(picker.right - list.right)).toBeLessThanOrEqual(1);
 
-    // 2. De dagas: elke staaf staat onder zijn taakbalk in de tijdlijn. Per taak: de eerste staaf
-    //    begint waar de balk begint (op de 1 px inzet na) en de laatste eindigt waar de balk eindigt.
+    // 2. D1/D2: de staaf vult de kalenderdag; de balk begint om 07:00 en eindigt om 16:00.
+    //    De klokafstand tot de daggrens moet exact met de zoom meeschalen.
     const zoom = (await state(page)).view.zoom;
     for (const taskId of [seeded.groundworkId, seeded.masonryId]) {
       const barLeft = (await barPoint(page, taskId, 'left')).x;
@@ -121,8 +121,8 @@ for (const locale of LOCALE_CASES) {
       const dayBefore = runAround(row, barLeft - zoom / 2);
       expect(row.colors[Math.floor(barLeft + zoom / 2 - row.left)])
         .not.toBe(row.colors[Math.floor(barLeft - zoom / 2 - row.left)]);
-      expect(Math.abs(firstDay.left - barLeft)).toBeLessThanOrEqual(2);
-      expect(Math.abs(lastDay.right - barRight)).toBeLessThanOrEqual(2);
+      expect(Math.abs(firstDay.left - (barLeft - 7 / 24 * zoom))).toBeLessThanOrEqual(2);
+      expect(Math.abs(lastDay.right - (barRight + 8 / 24 * zoom))).toBeLessThanOrEqual(2);
       expect(dayBefore.right).toBeLessThanOrEqual(firstDay.left);
     }
 

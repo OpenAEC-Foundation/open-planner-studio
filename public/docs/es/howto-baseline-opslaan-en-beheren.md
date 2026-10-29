@@ -28,19 +28,21 @@ Cambie el nombre en la lista. El cambio se aplica de inmediato; no tiene que pul
 
 ### Eliminar una línea base
 
-Haga clic en la pequeña papelera junto a la línea base en la lista. Si elimina la línea base activa, la aplicación pregunta *¿Eliminar la línea base activa?*. Después, la línea base más nueva que quede pasa a ser la activa. Si no queda ninguna otra, ya no hay línea base activa y la superposición desaparece. Con Ctrl+Z recupera una línea base eliminada.
+Haga clic en la pequeña papelera junto a la línea base en la lista. Si elimina la línea base activa, la aplicación pregunta *¿Eliminar la línea base activa?*. Después, la línea base más nueva que quede pasa a ser la activa. Si no queda ninguna otra, ya no hay línea base activa y la superposición desaparece. Con Ctrl+Z recupera una línea base eliminada. Cierre primero la ventana; Ctrl+Z no funciona dentro de una ventana.
 
 ### Variaciones en la tabla de tareas
 
-Cada línea base tiene seis columnas en la tabla de tareas. Haga clic en el **+** a la derecha del encabezado de la tabla de tareas (*Añadir columna*) y abra la categoría *Línea base*. Por cada línea base hay *Inicio programado*, *Fin programado*, *Duración*, *Variación de inicio*, *Variación de finalización* y *Variación de duración*, con el nombre de la línea base delante, por ejemplo *Línea base — Variación de finalización*. Las variaciones están en días laborables. Un signo más significa después; un signo menos, antes. Una tarea que no está en la línea base muestra un guion (—) en esas columnas.
+Cada línea base tiene seis columnas en la tabla de tareas. Haga clic en el **+** a la derecha del encabezado de la tabla de tareas (*Añadir columna*) y abra la categoría *Línea base*. Por cada línea base hay *Inicio programado*, *Fin programado*, *Duración*, *Variación de inicio*, *Variación de finalización* y *Variación de duración*, con el nombre de la línea base delante, por ejemplo *Línea base — Variación de finalización*. Las variaciones están en días laborables. Un signo más indica una fecha posterior; un signo menos, una fecha anterior. Una tarea que no está en la línea base muestra un guion (—) en esas columnas.
 
 ## Errores frecuentes y qué hace la aplicación
 
 **Una planificación desactualizada.** Si la planificación está desactualizada, la ventana muestra *La planificación está desactualizada — recalcula primero (F5)*. Es una advertencia; guardar sigue siendo posible. Pero así usted guardaría las fechas antiguas. Cierre la ventana, pulse **Calcular** y solo después guarde.
 
-**Una línea base con avance.** Si guarda una línea base después de introducir avance, registra el estado con esas fechas reales. La variación es entonces cero y ya no dice nada sobre la ejecución. Guarde la línea base antes de que empiece el trabajo.
+**Una línea base con avance.** Si guarda una línea base después de introducir avance, registra el estado con esas fechas reales. La variación es entonces cero y ya no dice nada sobre la ejecución. Guarde la línea base antes de que empiece la obra.
 
 **Una línea base no se puede actualizar.** Si quiere revisar el acuerdo, guarde una línea base nueva y elimine la antigua si hace falta.
+
+**Un ⚠ en Duración o Variación de duración.** En una tarea en horas, un día equivale al horario laboral de su calendario. Si el calendario tiene sus propias horas por día (por ejemplo 8, con bandas de 10 horas, de Primavera P6), una versión anterior de la aplicación contaba los días de otra forma. Una línea base de esa versión conserva el número antiguo: una tarea de 1870 horas equivale a 233,75 días en la línea base y a 187 días ahora. La aplicación no convierte esa línea base. Las columnas *Duración* y *Variación de duración* de esa línea base muestran entonces un ⚠; sitúe el puntero sobre él para ver la explicación. Las fechas de la línea base son correctas. Guarde una línea base nueva y elimine la antigua si hace falta.
 
 **Solo tareas sin subtareas.** Una fase no está en la línea base: no tiene barra de línea base ni variación. La fase se deriva de las tareas que tiene debajo.
 

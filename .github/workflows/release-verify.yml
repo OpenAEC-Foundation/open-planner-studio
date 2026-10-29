@@ -1,0 +1,372 @@
+name: Verify Release
+
+# Controleert de assets van een gepubliceerde release op schone GitHub-runners
+# (issue #429): updater-handtekeningen, digests, installeren, starten en de
+# platformhandtekeningen (Authenticode, Developer ID/notarisatie).
+# Uitleg en uitkomsten: docs/release-verificatie.md.
+#
+# Triggers:
+# - release: published — alleen als iemand een release met de hand publiceert.
+#   release.yml publiceert met GITHUB_TOKEN, en zo'n event start geen nieuwe
+#   workflow. Daarom ook:
+# - workflow_run op "Build and Release" — de automatische route na elke tag.
+#   Werkt alleen als dit bestand op de default branch staat.
+# - workflow_dispatch — een willekeurige tag (leeg = laatste release).
+# - pull_request — alleen bij een wijziging aan deze workflow of de scripts;
+#   draait tegen de laatste release in RAPPORTMODUS: een FOUT in een controle
+#   maakt de job niet rood, een crash of ontbrekende tool wel.
+on:
+  release:
+    types: [published]
+  workflow_run:
+    workflows: ["Build and Release"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release-tag (leeg = laatste release)'
+        required: false
+        default: ''
+  pull_request:
+    paths:
+      - '.github/workflows/release-verify.yml'
+      - 'scripts/verify-release.mjs'
+      - 'scripts/release-check.sh'
+      - 'scripts/release-check.ps1'
+      - 'scripts/macos-verify-dmg.sh'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-verify-${{ github.event_name }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  # 1 = streng (release, workflow_run, dispatch), 0 = rapportmodus (PR).
+  RELEASE_VERIFY_STRICT: ${{ github.event_name == 'pull_request' && '0' || '1' }}
+  GH_TOKEN: ${{ github.token }}
+  REPO: ${{ github.repository }}
+
+jobs:
+  resolve:
+    # workflow_run vuurt ook als release.yml faalde; dan valt er niets te controleren.
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Bepaal de tag
+        id: tag
+        env:
+          # Niet-vertrouwde invoer via env, nooit rechtstreeks in de shell.
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          DISPATCH_TAG: ${{ github.event.inputs.tag }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          set -euo pipefail
+          TAG=""
+          case "$EVENT_NAME" in
+            release) TAG="$RELEASE_TAG" ;;
+            workflow_dispatch) TAG="$DISPATCH_TAG" ;;
+            workflow_run) if printf '%s' "$HEAD_BRANCH" | grep -qE '^v[0-9]'; then TAG="$HEAD_BRANCH"; fi ;;
+          esac
+          if [ -z "$TAG" ]; then
+            TAG="$(gh release view --repo "$REPO" --json tagName --jq .tagName)"
+          fi
+          # De HELE waarde valideren (ook regeleinden): grep keek per regel, waardoor een
+          # tweede regel `tag=…$(…)` een extra output schreef (review #438, bevinding 1).
+          if ! bash scripts/release-check.sh valid-tag "$TAG"; then
+            echo "::error::ongeldige tag"; exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Te controleren release: **$TAG** (event $EVENT_NAME, streng=$RELEASE_VERIFY_STRICT)" >> "$GITHUB_STEP_SUMMARY"
+
+  linux:
+    needs: resolve
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    env:
+      TAG: ${{ needs.resolve.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Tools voor de controles
+        run: |
+          set -euo pipefail
+          sudo apt-get update -q
+          sudo apt-get install -y -q xvfb
+          command -v xvfb-run
+
+      - name: Updater-handtekeningen, latest.json en digests (verify-release.mjs)
+        run: |
+          # Bewust zonder -e: elke controle moet draaien, ook na een FOUT.
+          set +e -uo pipefail
+          # Een exit ≠ 0 van de helper is een kapotte controle (tool weg, syntaxfout): hard stoppen.
+          chk() { bash scripts/release-check.sh "$@" || exit $?; }
+          node scripts/verify-release.mjs "$TAG" --repo "$REPO" --dir "$RUNNER_TEMP/assets" --out "$RUNNER_TEMP/verify-release.md" > /dev/null
+          rc=$?
+          cat "$RUNNER_TEMP/verify-release.md" >> "$GITHUB_STEP_SUMMARY" || true
+          case "$rc" in
+            0) chk record OK "verify-release.mjs" "alle .sig-, latest.json- en digestcontroles OK" ;;
+            1) chk record FOUT "verify-release.mjs" "minstens één controle FOUT, zie het rapport hierboven" ;;
+            *) echo "::error::verify-release.mjs crashte (exit $rc)"; exit "$rc" ;;
+          esac
+
+      - name: .deb installeren en starten
+        run: |
+          # Bewust zonder -e: elke controle moet draaien, ook na een FOUT.
+          set +e -uo pipefail
+          # Een exit ≠ 0 van de helper is een kapotte controle (tool weg, syntaxfout): hard stoppen.
+          chk() { bash scripts/release-check.sh "$@" || exit $?; }
+          DEB="$(find "$RUNNER_TEMP/assets" -name '*.deb' -print -quit)"
+          test -n "$DEB" || { echo "::error::geen .deb in de release"; exit 1; }
+          PKG="$(dpkg-deb -f "$DEB" Package)"
+          # Een .deb kan een GPG-handtekening als _gpg*-member dragen (dpkg-sig/debsigs).
+          if ar t "$DEB" | grep -q '^_gpg'; then
+            chk record INFO "deb: pakkethandtekening" "aanwezig ($(ar t "$DEB" | grep '^_gpg' | tr '\n' ' '))"
+          else
+            chk record INFO "deb: pakkethandtekening" "geen (_gpg-member ontbreekt); alleen de updater-.sig"
+          fi
+          chk run "deb: installeren (apt-get install ./…deb)" sudo apt-get install -y "$DEB"
+          BIN="$(dpkg -L "$PKG" 2>/dev/null | grep -E '^/usr/bin/' | head -n 1)"
+          if [ -n "$BIN" ] && [ -x "$BIN" ]; then
+            chk record OK "deb: programma geïnstalleerd" "$BIN (pakket $PKG $(dpkg-query -W -f '${Version}' "$PKG"))"
+            chk alive "deb: start onder xvfb-run en leeft na 20 s" 20 xvfb-run -a "$BIN"
+            pkill -f "$BIN" || true
+          else
+            chk record FOUT "deb: programma geïnstalleerd" "geen uitvoerbaar bestand in /usr/bin voor pakket $PKG"
+          fi
+          chk run "deb: verwijderen" sudo apt-get remove -y "$PKG"
+
+      - name: AppImage starten
+        run: |
+          # Bewust zonder -e: elke controle moet draaien, ook na een FOUT.
+          set +e -uo pipefail
+          # Een exit ≠ 0 van de helper is een kapotte controle (tool weg, syntaxfout): hard stoppen.
+          chk() { bash scripts/release-check.sh "$@" || exit $?; }
+          APPIMAGE="$(find "$RUNNER_TEMP/assets" -name '*.AppImage' -print -quit)"
+          test -n "$APPIMAGE" || { echo "::error::geen AppImage in de release"; exit 1; }
+          chmod +x "$APPIMAGE"
+          # --appimage-extract-and-run: geen FUSE nodig (libfuse2 staat niet op elke schone machine).
+          chk alive "AppImage: start onder xvfb-run en leeft na 20 s" 20 \
+            xvfb-run -a "$APPIMAGE" --appimage-extract-and-run
+
+      - name: Eindoordeel
+        if: always()
+        env:
+          MATRIX_OS: ${{ matrix.os }}
+        run: bash scripts/release-check.sh finish "Linux $MATRIX_OS — $TAG"
+
+  linux-rpm:
+    needs: resolve
+    runs-on: ubuntu-latest
+    container: fedora:latest
+    timeout-minutes: 20
+    env:
+      TAG: ${{ needs.resolve.outputs.tag }}
+    steps:
+      - name: Tools voor de controles
+        run: |
+          set -euo pipefail
+          dnf install -y -q git xorg-x11-server-Xvfb procps-ng findutils
+          command -v xvfb-run
+      - uses: actions/checkout@v5
+
+      - name: .rpm downloaden
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/assets"
+          API="https://api.github.com/repos/$REPO/releases/tags/$TAG"
+          RPM="$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" "$API" | grep -oE '"name": *"[^"]+\.rpm"' | head -n 1 | sed -E 's/.*"([^"]+)"$/\1/')"
+          test -n "$RPM" || { echo "::error::geen .rpm in release $TAG"; exit 1; }
+          curl -fsSL -o "$RUNNER_TEMP/assets/$RPM" "https://github.com/$REPO/releases/download/$TAG/$RPM"
+          ls -l "$RUNNER_TEMP/assets"
+
+      - name: .rpm installeren en starten
+        run: |
+          # Bewust zonder -e: elke controle moet draaien, ook na een FOUT.
+          set +e -uo pipefail
+          # Een exit ≠ 0 van de helper is een kapotte controle (tool weg, syntaxfout): hard stoppen.
+          chk() { bash scripts/release-check.sh "$@" || exit $?; }
+          RPM="$(find "$RUNNER_TEMP/assets" -name '*.rpm' -print -quit)"
+          SIG="$(rpm -qp --qf '%{RSAHEADER:pgpsig}' "$RPM" 2>/dev/null)"
+          chk record INFO "rpm: pakkethandtekening" "${SIG:-onbekend}"
+          chk run "rpm: digests in het pakket (rpm -K --nosignature)" rpm -K --nosignature "$RPM"
+          chk run "rpm: installeren (dnf install ./…rpm)" dnf install -y "$RPM"
+          PKG="$(rpm -qp --qf '%{NAME}' "$RPM")"
+          chk run "rpm: rpm -qi $PKG" rpm -qi "$PKG"
+          BIN="$(rpm -ql "$PKG" | grep -E '^/usr/bin/' | head -n 1)"
+          if [ -n "$BIN" ] && [ -x "$BIN" ]; then
+            chk alive "rpm: start onder xvfb-run en leeft na 20 s" 20 xvfb-run -a "$BIN"
+            pkill -f "$BIN" || true
+          else
+            chk record FOUT "rpm: programma geïnstalleerd" "geen uitvoerbaar bestand in /usr/bin voor $PKG"
+          fi
+
+      - name: Eindoordeel
+        if: always()
+        run: bash scripts/release-check.sh finish "Linux Fedora (rpm) — $TAG"
+
+  windows:
+    needs: resolve
+    runs-on: windows-latest
+    timeout-minutes: 25
+    env:
+      TAG: ${{ needs.resolve.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup.exe downloaden en signtool zoeken
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dir = Join-Path $env:RUNNER_TEMP 'assets'
+          gh release download $env:TAG --repo $env:REPO --pattern '*-setup.exe' --dir $dir
+          if ($LASTEXITCODE -ne 0) { throw "gh release download faalde" }
+          $exe = Get-ChildItem "$dir/*-setup.exe" | Select-Object -First 1
+          if ($null -eq $exe) { throw "geen *-setup.exe in release $env:TAG" }
+          $signtool = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe' |
+            Sort-Object FullName -Descending | Select-Object -First 1
+          if ($null -eq $signtool) { throw "signtool.exe niet gevonden" }
+          "SETUP_EXE=$($exe.FullName)" >> $env:GITHUB_ENV
+          "SIGNTOOL=$($signtool.FullName)" >> $env:GITHUB_ENV
+
+      - name: Authenticode, installeren, starten en verwijderen
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          # Record en Test-Alive (een mislukte start is FOUT, nooit OK).
+          . scripts/release-check.ps1
+          function Check-Authenticode($label, $path) {
+            $sig = Get-AuthenticodeSignature -FilePath $path
+            $signer = if ($sig.SignerCertificate) { $sig.SignerCertificate.Subject } else { 'geen' }
+            Record ($(if ($sig.Status -eq 'Valid') { 'OK' } else { 'FOUT' })) "$label`: Authenticode-status" "$($sig.Status): $($sig.StatusMessage)"
+            Record ($(if ($sig.SignerCertificate) { 'OK' } else { 'FOUT' })) "$label`: ondertekenaar" "$signer; uitgever $($sig.SignerCertificate.Issuer)"
+            $ts = $sig.TimeStamperCertificate
+            Record ($(if ($ts) { 'OK' } else { 'FOUT' })) "$label`: tijdstempel" $(if ($ts) { "$($ts.Subject)" } else { 'geen TimeStamperCertificate' })
+          }
+
+          # 1. De installer zelf.
+          Check-Authenticode 'setup.exe' $env:SETUP_EXE
+          $out = & $env:SIGNTOOL verify /pa /v $env:SETUP_EXE 2>&1 | Out-String
+          Write-Host $out
+          Record ($(if ($LASTEXITCODE -eq 0) { 'OK' } else { 'FOUT' })) 'setup.exe: signtool verify /pa /v' "exit $LASTEXITCODE"
+
+          # 2. Stil installeren (NSIS /S).
+          try {
+            $p = Start-Process -FilePath $env:SETUP_EXE -ArgumentList '/S' -Wait -PassThru -ErrorAction Stop
+            Record ($(if ($null -ne $p -and $p.ExitCode -eq 0) { 'OK' } else { 'FOUT' })) 'installeren (/S)' "exit $($p.ExitCode)"
+          } catch {
+            Record 'FOUT' 'installeren (/S)' "start mislukt: $($_.Exception.Message)"
+          }
+          $uninstallKeys = @(
+            'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
+            'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
+            'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*')
+          $entry = Get-ItemProperty $uninstallKeys -ErrorAction SilentlyContinue |
+            Where-Object { $_.DisplayName -like 'Open Planner Studio*' } | Select-Object -First 1
+          if ($null -eq $entry) {
+            Record 'FOUT' 'installatie in het register' 'geen Uninstall-sleutel "Open Planner Studio*"'
+          } else {
+            $installDir = if ($entry.InstallLocation) { $entry.InstallLocation.Trim('"') } else { Split-Path ($entry.UninstallString.Trim('"')) }
+            Record 'OK' 'installatie in het register' "$($entry.DisplayName) $($entry.DisplayVersion) in $installDir"
+            $app = Get-ChildItem -Path $installDir -Filter '*.exe' |
+              Where-Object { $_.Name -notmatch 'uninstall' } | Select-Object -First 1
+            if ($null -eq $app) {
+              Record 'FOUT' 'geïnstalleerd programma' "geen app-exe in $installDir"
+            } else {
+              # 3. Het geïnstalleerde programma.
+              Check-Authenticode $app.Name $app.FullName
+              Test-Alive "$($app.Name): start en leeft na 20 s" $app.FullName 20
+              Start-Sleep -Seconds 3
+              Get-Process -Name $app.BaseName -ErrorAction SilentlyContinue | Stop-Process -Force
+            }
+            # 4. Stil verwijderen. De NSIS-uninstaller start een kopie van zichzelf
+            # en keert direct terug; wacht dus tot de registersleutel weg is.
+            $uninst = $entry.UninstallString.Trim('"')
+            try {
+              Start-Process -FilePath $uninst -ArgumentList '/S' -Wait -ErrorAction Stop
+            } catch {
+              Record 'FOUT' 'verwijderen (/S)' "start mislukt: $($_.Exception.Message)"
+            }
+            $gone = $false
+            for ($i = 0; $i -lt 60 -and -not $gone; $i++) {
+              Start-Sleep -Seconds 1
+              $gone = $null -eq (Get-ItemProperty $uninstallKeys -ErrorAction SilentlyContinue |
+                Where-Object { $_.DisplayName -like 'Open Planner Studio*' })
+            }
+            Record ($(if ($gone) { 'OK' } else { 'FOUT' })) 'verwijderen (/S)' $(if ($gone) { 'Uninstall-sleutel verdwenen' } else { 'Uninstall-sleutel staat er na 60 s nog' })
+          }
+          exit 0
+
+      - name: Eindoordeel
+        if: always()
+        shell: bash
+        run: |
+          # Git Bash: zet het Windows-pad van RUNNER_TEMP om naar een POSIX-pad.
+          RELEASE_CHECKS="$(cygpath -u "$RUNNER_TEMP")/release-checks.tsv"
+          export RELEASE_CHECKS
+          bash scripts/release-check.sh finish "Windows — $TAG"
+
+  macos:
+    needs: resolve
+    runs-on: macos-latest
+    timeout-minutes: 25
+    env:
+      TAG: ${{ needs.resolve.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Dmg downloaden en app eruit kopiëren
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/assets" "$RUNNER_TEMP/app"
+          gh release download "$TAG" --repo "$REPO" --pattern '*.dmg' --dir "$RUNNER_TEMP/assets"
+          DMG="$(find "$RUNNER_TEMP/assets" -name '*.dmg' -print -quit)"
+          test -n "$DMG"
+          MNT="$(mktemp -d)"
+          hdiutil attach -nobrowse -readonly -mountpoint "$MNT" "$DMG"
+          SRC="$(find "$MNT" -maxdepth 1 -name '*.app' -print -quit)"
+          test -n "$SRC" || { hdiutil detach "$MNT"; echo "::error::geen .app in de dmg"; exit 1; }
+          cp -R "$SRC" "$RUNNER_TEMP/app/"
+          hdiutil detach "$MNT"
+          APP="$RUNNER_TEMP/app/$(basename "$SRC")"
+          {
+            echo "DMG=$DMG"
+            echo "APP=$APP"
+            echo "APP_BIN=$APP/Contents/MacOS/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Contents/Info.plist")"
+          } >> "$GITHUB_ENV"
+
+      - name: Developer ID, Gatekeeper, notarisatie en starten
+        run: |
+          # Bewust zonder -e: elke controle moet draaien, ook na een FOUT.
+          set +e -uo pipefail
+          # Een exit ≠ 0 van de helper is een kapotte controle (tool weg, syntaxfout): hard stoppen.
+          chk() { bash scripts/release-check.sh "$@" || exit $?; }
+                    AUTH="$(codesign -dv --verbose=2 "$APP" 2>&1 | grep -E '^(Authority|TeamIdentifier|Signature)=' | tr '\n' ';')"
+          chk record INFO "app: handtekeninginfo (codesign -dv)" "${AUTH:-geen handtekening}"
+          chk run "app: codesign --verify --deep --strict" codesign --verify --deep --strict --verbose=2 "$APP"
+          chk run "app: Gatekeeper (spctl -a -t exec -vv)" spctl -a -t exec -vv "$APP"
+          chk run "dmg: Gatekeeper (spctl -a -t open --context context:primary-signature -v)" \
+            spctl -a -t open --context context:primary-signature -v "$DMG"
+          chk run "dmg: notarisatieticket (xcrun stapler validate)" xcrun stapler validate "$DMG"
+          chk run "app: notarisatieticket (xcrun stapler validate)" xcrun stapler validate "$APP"
+          # Dezelfde poort die release.yml vóór publicatie draait (PR #390), als één controle.
+          chk run "release-poort: scripts/macos-verify-dmg.sh" bash scripts/macos-verify-dmg.sh "$(dirname "$DMG")"
+          chk alive "app: start en leeft na 20 s" 20 "$APP_BIN"
+          pkill -f "$APP_BIN" || true
+
+      - name: Eindoordeel
+        if: always()
+        run: bash scripts/release-check.sh finish "macOS — $TAG"

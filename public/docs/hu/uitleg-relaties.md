@@ -45,13 +45,13 @@ Egy átfedés nem helyezhet tevékenységet a projektkezdés elé. Ha ez törté
 
 ### Melyik naptárban számít a késleltetés
 
-Minden tevékenységnek lehet saját naptára. Munkanapban megadott késleltetésnél az számít, melyik naptár számolja a munkanapokat. A *Késleltetési naptár* beállítás dönti ezt el, négy lehetőséggel: *Előd*, *Utód*, *24 órás* és *Projektnaptár*. Alapértelmezés szerint a késleltetés az **előd** naptárában számít. A beállítást a *Beállítások › Projekt › Projektinfó* útvonalon találja, a *Számítási profil és beállítások* blokkban, az *Ennek a projektnek a számítási beállításai* résznél. A választás a projektfájlhoz tartozik, és csak akkor érvényesül, miután rákattintott az *Alkalmazás* gombra. Ekkor az alkalmazás újraszámítja az ütemezést.
+Minden tevékenységnek lehet saját naptára. Munkanapban megadott késleltetésnél az számít, melyik naptár számolja a munkanapokat. A *Késleltetési naptár* beállítás dönti ezt el, négy lehetőséggel: *Előd*, *Utód*, *24 órás* és *Projektnaptár*. Alapértelmezés szerint a késleltetés az **előd** naptárában számít. A beállítást a *Beállítások › Projekt › Projektbeállítások* útvonalon találja, a *Számítási profil és beállítások* blokkban, az *Ennek a projektnek a számítási beállításai* résznél. A választás a projektfájlhoz tartozik, és csak akkor érvényesül, miután rákattintott az *Alkalmazás* gombra. Ekkor az alkalmazás újraszámítja az ütemezést.
 
 A naptári napban megadott késleltetés (`3ed`) mindig minden napot számol, bármelyik *Késleltetési naptár* beállítást választja is.
 
 ### Kapcsolatok összefoglaló tevékenységeken
 
-Kapcsolatot egy összefoglaló tevékenységre is tehet, az azon belüli tevékenység helyett. Az alkalmazás belül ezt a kapcsolatot az összefoglaló tevékenység minden tevékenységére ráteszi:
+Kapcsolatot egy összefoglaló tevékenységre tehet, az azon belüli tevékenység helyett. Az alkalmazás belül ezt a kapcsolatot az összefoglaló tevékenység minden tevékenységére ráteszi:
 
 - Ha az összefoglaló tevékenység az **előd** FS vagy FF típusnál, az utód addig vár, amíg az összefoglaló tevékenységen belül utoljára befejező tevékenység el nem készül.
 - Ha az összefoglaló tevékenység az **utód** FS vagy SS típusnál, minden tevékenység az összefoglaló tevékenységen belül az elődre vár, a többi tevékenységtől függetlenül.
@@ -62,7 +62,7 @@ Egy tevékenység és a saját összefoglaló tevékenysége közötti kapcsolat
 
 ### Meghatározó kapcsolatok
 
-Ha egy utódnak több előde van, általában egy kapcsolat határozza meg a kezdő dátumát: az a kapcsolat, amely miatt az utód nem kezdődhet egy nappal korábban, mint most. Egy ilyen kapcsolat a **meghatározó**. Egyenlőség esetén több meghatározó kapcsolat is lehet. A meghatározó kapcsolatot felismeri a villámjelről az *Elődök* és az *Utódok* oszlopban, a *Meghatározó kapcsolat* oszlopról (a táblázat fejlécének jobb szélén lévő **+** jel alatt, a *Kapcsolatok* résznél), és az erősebb színezésről, amikor útvonalat követ. Az útvonal megnyitásának módját a [Útvonal követése](docs://howto-pad-traceren) cikk írja le.
+Ha egy utódnak több előde van, általában egy kapcsolat határozza meg a kezdő dátumát: az a kapcsolat, amely miatt az utód nem kezdődhet egy nappal korábban, mint most. Az ilyen kapcsolatot **meghatározó kapcsolatnak** nevezik. Egyenlőség esetén több meghatározó kapcsolat is lehet. A meghatározó kapcsolatot felismeri az *Elődök* és az *Utódok* oszlopban látható villámjel alapján, a *Meghatározó kapcsolat* oszlopról (a táblázat fejlécének jobb szélén lévő **+** jel alatt, a *Kapcsolatok* résznél), és az erősebb színezésről, amikor útvonalat követ. Az útvonal megnyitásának módját a [Útvonal követése](docs://howto-pad-traceren) cikk írja le.
 
 A meghatározó szerep a dátumokra vonatkozik, nem az időtartamra. Egy rövid előd is lehet meghatározó, például egy hosszú késleltetés miatt. Ezt az alábbi példában láthatja.
 

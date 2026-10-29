@@ -1420,6 +1420,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "work-category": {
+    "term": "工作类别",
+    "forms": [
+      "工作类别"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "工作时间",
     "forms": [

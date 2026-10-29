@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useAppStore } from '@/state/appStore';
+import { isAutoCalcHeld } from '@/state/editHold';
 import { isTauri } from '@/utils/platform';
 import { SHORTCUTS, isDocumentLeaveBlocked, isGlobalShortcutFrozen, matchesCombo } from './shortcutRegistry';
 import { isTypingTarget } from './isTypingTarget';
@@ -57,6 +58,36 @@ export function shouldYieldClipboardShortcutToTaskGrid(event: {
   return !!(event.target as ClosestTarget | null)?.closest?.('.task-grid-core');
 }
 
+/**
+ * Forceer een hangende onBlur-commit (inzet, werk, duur, …) vóór een sneltoets die opslaat of
+ * herberekent. Alleen tekstvelden hebben zo'n commit; een keuzelijst-trigger houdt de focus.
+ * Eén mechanisme voor het sneltoets-register én de productie-voorpoort hieronder.
+ *
+ * De blur commit synchroon (React-onBlur ⇒ store), dus de store is bijgewerkt vóór de actie draait.
+ * De bewerking is daarmee af: staat Automatisch berekenen aan, dan rekent de planning hier meteen
+ * door (wat de auto-calc anders 100 ms later deed), zodat Ctrl+S het doorgerekende schema opslaat.
+ * Niet bij F5 (`recalculate: false`): die sneltoets rekent zelf, één keer.
+ *
+ * Daarna gaat de focus terug naar het veld als het nog in de pagina staat: anders ligt hij op
+ * `body` en verwijdert een volgende Backspace de geselecteerde taak. Het veld heeft dan geen draft
+ * meer, dus het terugzetten commit niet opnieuw. `data-ops-refocus` zegt tegen
+ * `useTextEntryAutoCalcHold` dat deze focus geen nieuwe invoer is: zonder die markering nam het
+ * terugzetten meteen weer een rekenblokkade en bleef de planning verouderd (review #401, punt 3).
+ * Typt de gebruiker daarna verder, dan houdt `onInput` de berekening weer vast.
+ */
+function commitPendingTextEdit(target: EventTarget | null, opts: { recalculate: boolean }): void {
+  const el = target as HTMLElement | null;
+  if (!el || !(el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+  el.blur();
+  // Alleen vóór opslaan; F5 rekent zelf al (anders twee solves en bij een kring een melding ×2).
+  const s = useAppStore.getState();
+  if (opts.recalculate && s.ui.autoCalcCPM && s.scheduleStale && !isAutoCalcHeld()) s.runCPM({ withinEvent: true });
+  if (el.isConnected) {
+    el.dataset.opsRefocus = 'true';
+    try { el.focus({ preventScroll: true }); } finally { delete el.dataset.opsRefocus; }
+  }
+}
+
 export function useKeyboardShortcuts() {
   // Alleen nog nodig voor de losstaande productie-only browser-sneltoets-voorpoort hieronder
   // (bewust ongemoeid gelaten, zie shortcutRegistry.ts). Alle overige sneltoetsen lopen via
@@ -70,7 +101,7 @@ export function useKeyboardShortcuts() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (!shouldHandleGlobalShortcutEvent(e)) return;
-      // Een open vraag "Taak wordt een samenvattingstaak": geen enkele globale sneltoets voert iets
+      // Een wachtende start- of samenvattingsvraag: geen enkele globale sneltoets voert iets
       // uit (ook F5/Ctrl+S van de voorpoort hieronder niet). Browsertoetsen (F5 = herladen, Ctrl+S =
       // pagina opslaan) blijven geblokkeerd, ook in dev: anders herlaadt F5 de pagina en is de vraag
       // met de wachtende handeling weg.
@@ -82,6 +113,11 @@ export function useKeyboardShortcuts() {
       if (isProduction && isBrowserShortcut(e)) {
         e.preventDefault();
         const ctrlB = e.ctrlKey || e.metaKey;
+        // Herberekenen en opslaan lezen de store: commit eerst een getypte waarde in het actieve
+        // veld (zelfde blur als het register hieronder), anders slaat Ctrl+S de oude waarde op.
+        if (e.key === 'F5' || (ctrlB && e.key.toLowerCase() === 's')) {
+          commitPendingTextEdit(e.target, { recalculate: e.key !== 'F5' });
+        }
         if (e.key === 'F5') runCPM();
         else if (ctrlB && e.shiftKey && e.key.toLowerCase() === 's') void saveFileAs();
         else if (ctrlB && e.key.toLowerCase() === 's') void saveFile();
@@ -115,12 +151,8 @@ export function useKeyboardShortcuts() {
         if (typing && !entry.allowInInput) continue;
         if (entry.when && !entry.when()) continue;
 
-        if (entry.allowInInput && typing
-          && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
-          // Forceer een eventuele hangende onBlur-commit vóórdat we herberekenen/opslaan/etc. Alleen
-          // tekstvelden hebben zo'n commit; een keuzelijst-trigger houdt de focus (zoals op main).
-          target.blur();
-        }
+        // Forceer een eventuele hangende onBlur-commit vóórdat we herberekenen/opslaan/etc.
+        if (entry.allowInInput && typing) commitPendingTextEdit(target, { recalculate: entry.id !== 'file.recalculate' });
         if (!entry.skipPreventDefault) e.preventDefault();
         entry.run(useAppStore.getState());
         return;

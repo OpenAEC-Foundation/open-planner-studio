@@ -12,7 +12,7 @@ Otvorite karticu *Izvješće* (ili pritisnite Ctrl+P). Lijevo je stupac *Izvješ
 
 **Zapamćeno.** Aplikacija čuva sve opcije izvješća na ovom uređaju, za sve vaše projekte. Ne pripadaju datoteci projekta. Samo se polje *Tvrtka:* u Gantt ispisu ne čuva.
 
-**Trenutačni raspored.** Izvješća koriste posljednje izračunavanje. Ako se raspored od tada promijenio, tablična izvješća na vrhu prikazuju *Raspored je promijenjen od posljednjeg izračuna — pritisnite Izračunaj (F5) za aktualne vrijednosti*. Ako još ništa nije izračunato, piše *Još nije izračunato — pritisnite Izračunaj (F5) za datume i vremensku rezervu*. Ako je projekt u prikazu *Datumi kako su zabilježeni*, izvješća prikazuju datume iz izvorne datoteke, a traka s napomenom to kaže.
+**Trenutačni raspored.** Izvješća koriste posljednje izračunavanje. Ako se raspored od tada promijenio, tablična izvješća na vrhu prikazuju *Raspored je promijenjen od posljednjeg izračuna — pritisnite Izračunaj (F5) za aktualne vrijednosti*. Ako još ništa nije izračunato, piše *Još nije izračunato — pritisnite Izračunaj (F5) za datume i vremensku rezervu*. Ako je projekt u prikazu *Datumi kako su zabilježeni*, izvješća prikazuju datume iz izvorne datoteke, a napomena to kaže.
 
 **Kratice.** *rd* znači radni dani. *TF* znači ukupan slobodni hod, *FF* slobodni hod.
 
@@ -26,13 +26,13 @@ Otvorite karticu *Izvješće* (ili pritisnite Ctrl+P). Lijevo je stupac *Izvješ
 
 Raspored prikazan kao trakasti dijagram, s tablicom lijevo i vremenskom osi desno, po potrebi na više stranica. Pregled prikazuje papir sa zaglavljem stranice, tablicom, vremenskom osi i legendom. Blok *Sažetak* broji *Zadaci:*, *Listni zadaci:*, *Kritični:* i *Ovisnosti:*. Sve opcije su u kartici *Postavke*.
 
-**Tvrtka:** — tvrtka u zaglavlju stranice. Zadano: tvrtka iz podataka o projektu. Učinak: samo zaglavlje izvješća; ono što ovdje upišete, ne čuva se. Tvrtku promijenite u *Postavke › Projekt › Podaci o projektu*, u polju *Naručitelj/organizacija*, i potvrdite gumbom *Primijeni*.
+**Tvrtka:** — tvrtka u zaglavlju stranice. Zadano: tvrtka iz postavki projekta. Učinak: samo zaglavlje izvješća; ono što ovdje upišete, ne čuva se. Tvrtku promijenite u *Postavke › Projekt › Postavke projekta*, u polju *Naručitelj/organizacija*, i potvrdite gumbom *Primijeni*.
 
-**Autor:** — autor u zaglavlju stranice. Samo za čitanje: aplikacija ga preuzima iz podataka o projektu.
+**Autor:** — autor u zaglavlju stranice. Samo za čitanje: aplikacija ga preuzima iz postavki projekta.
 
 **Veličina fonta:** — veličina teksta i tablice u izvješću. Odaberite između 90%, 100%, 110% i 125%. Zadano: 100%. Učinak: s većim fontom rastu tekst, redci i tablica, a vremenska os gubi širinu. Neovisno o opciji *Veličina teksta* u postavkama.
 
-**Boje traka:** — o čemu ovisi boja trake. Odaberite između *Kritični put*, *Po zadatku — automatski* i *Po kategoriji*, s padajućim izbornikom *Polje kategorije* za *Po kategoriji*. Zadano: *Kritični put*. Učinak: to je isti izbor kao *Boje traka* na kartici *Prikaz*. Ako ga promijenite ovdje, mijenja se i Gantt na ekranu. Ako odabrano polje ne postoji u ovom projektu, piše *Ovo polje ne postoji u ovom projektu. Privremeno se koristi vrsta zadatka*.
+**Boje traka:** — o čemu ovisi boja trake. Odaberite između *Kritični put*, *Po zadatku — automatski* i *Po kategoriji*, s padajućim izbornikom *Polje kategorije* za *Po kategoriji*. Zadano: *Kritični put*. Učinak: to je isti izbor kao *Boje traka* na kartici *Prikaz*. Ako ga promijenite ovdje, mijenja se i Gantt na ekranu. Ako odabrano polje ne postoji u ovom projektu, piše *Ovo polje ne postoji u ovom projektu. Privremeno se koristi kategorija radova*.
 
 **Linija stanja:** — linija na datumu stanja. Odaberite između *Nema*, *Linija datuma stanja* i *Linija napretka*. Zadano: *Nema*. Učinak: *Linija datuma stanja* crta liniju na datumu stanja; *Linija napretka* crta cik-cak liniju koja se izbočuje prema napretku svakog zadatka. Ako projekt nema datum stanja, piše *Najprije postavite datum stanja* i izvješće ne crta ništa.
 
@@ -46,7 +46,7 @@ Raspored prikazan kao trakasti dijagram, s tablicom lijevo i vremenskom osi desn
 
 **Ponovi zaglavlje na svakoj stranici** — Zadano: uključeno. Učinak: uključeno stavlja zaglavlje stranice na svaku stranicu; isključeno samo na prvoj.
 
-**Ponovi podnožje na svakoj stranici** — Zadano: uključeno. Učinak: uključeno stavlja podnožje (naziv projekta, datum ispisa i legendu) na svaku stranicu; isključeno samo na zadnjoj. Papirni materijal bez legende nije čitljiv, zato je uključeno.
+**Ponovi podnožje na svakoj stranici** — Zadano: uključeno. Učinak: uključeno stavlja podnožje (naziv projekta, datum ispisa i legendu) na svaku stranicu; isključeno samo na zadnjoj. Materijal za podjelu bez legende nije čitljiv, zato je uključeno.
 
 **Nazivi zadataka na trakama** — Zadano: uključeno. Učinak: naziv zadatka na traci, tamo gdje ima mjesta.
 
@@ -84,7 +84,7 @@ Iste trake kao u Gantt ispisu, grupirane po resursu: tko što radi i kada. Blok 
 
 **Prikaži jedinice/dan i krivulju** — Zadano: uključeno. Učinak: dva stupca iza naziva zadatka s jedinicama dodjele po danu i krivuljom raspodjele resursa tog pojasa. Ako je za vremensku os premalo mjesta, izvješće izostavlja stupce i piše *Stupci Jedinice/d i Krivulja izostavljeni su: …*; više mjesta daje veći format papira ili vodoravna orijentacija, manja veličina fonta ili uža tablica.
 
-**Razdoblje izvješća:** — samo zadaci koji dodiruju razdoblje. Zadano: *Trajanje projekta*. Učinak: vremenska os ide točno preko razdoblja. Ako u razdoblju nema ničega, piše *Nema zadataka u razdoblju izvješća — odaberite drugo razdoblje ili Cijeli projekt.* Pogledajte *Razdoblje izvješća* u nastavku.
+**Razdoblje izvješća:** — samo zadaci koji dodiruju razdoblje. Zadano: *Trajanje projekta*. Učinak: vremenska os ide točno preko razdoblja. Ako u razdoblju nema ničega, piše *Nema zadataka u razdoblju izvješća — odaberite drugo razdoblje ili Cijeli projekt*. Pogledajte *Razdoblje izvješća* u nastavku.
 
 ## Pregled kontrolnih točaka
 
@@ -116,11 +116,11 @@ Izvješće sadrži nedovršene zadatke koji su kritični (prema rješavaču i kr
 
 Gdje projekt stoji na datumu stanja. Opcije su u bloku *Opcije izvješća*.
 
-**Razdoblje izvješća:** — Zadano: *Prošli mjesec*. Učinak: *Dovršeno u prethodnom razdoblju* broji se unutar razdoblja. *Počinje u sljedećem razdoblju* gleda unaprijed od datuma stanja, do *Pregled unaprijed do*. Uz razdoblje *Prošli* gleda unaprijed onoliko koliko razdoblje gleda unatrag.
+**Razdoblje izvješća:** — Zadano: *Prošli mjesec*. Učinak: *Dovršeno u prethodnom razdoblju* broji se unutar razdoblja. *Počinje u sljedećem razdoblju* gleda unaprijed od datuma stanja, do *Pregled unaprijed do*. Uz razdoblje *Prošli mjesec* gleda unaprijed onoliko koliko razdoblje gleda unatrag.
 
 **Gotovo kritičan ≤ (rd):** — Zadano: 5. Kao kod pregleda unaprijed.
 
-Blok *Sažetak* prikazuje *Datum stanja*, *Razdoblje*, *Pregled unaprijed do*, *Završ. temeljnog plana*, *Prognozirani završetak*, *Δ završetak (rd)*, *Planirano* (uz *(temeljni plan)* ili *(trenutni raspored)*), *Stvarno* te brojeve *Dovršeno*, *U tijeku*, *Nije započeto*, *Kasni* i *Kritičan*. Planirano i stvarno računaju se ponderirano trajanjem zadataka. Planirano se mjeri prema temeljnom planu ako postoji aktivni temeljni plan, inače prema trenutnom rasporedu. Odjeljci su *Dovršeno u prethodnom razdoblju*, *U tijeku*, *Počinje u sljedećem razdoblju*, *Kasni* i *Otvoreni kritični zadaci*; zadatak može biti u više odjeljaka.
+Blok *Sažetak* prikazuje *Datum stanja*, *Razdoblje*, *Pregled unaprijed do*, *Završ. temeljnog plana*, *Prognozirani završetak*, *Δ završetak (rd)*, *Planirano* (uz *(temeljni plan)* ili *(trenutni raspored)*), *Stvarno* te brojeve *Dovršeno*, *U tijeku*, *Nije započeto*, *Kasni* i *Kritičan*. Planirano i stvarno računaju se ponderirano trajanjem zadataka. Planirano se mjeri prema temeljnom planu ako postoji aktivni temeljni plan, inače prema trenutnom rasporedu. Odjeljci su *Dovršeno u prethodnom razdoblju*, *U tijeku*, *Počinje u sljedećem razdoblju*, *Kasni* i *Otvoreni kritični zadaci*; zadatak može biti u više odjeljaka. Svaki odjeljak ima iste stupce: *WBS*, *Naziv*, *Završ. temeljnog plana*, *Prognozirani završetak*, *Dovr*, *Preostalo (rd)*, *TF (r.d.)*, *Kritičan* i *Status*. Status po retku je *Dovršeno*, *U tijeku*, *Nije započeto*, *Trebao je početi* ili *Trebao je završiti*.
 
 ## Zdravlje rasporeda
 
@@ -149,7 +149,7 @@ Broje se nedovršeni listni zadaci, bez kontrolnih točaka i hamaka, i ovisnosti
 - *Neispravni datumi*: stvarni početak ili stvarni završetak nakon datuma stanja, ili prognozirani početak ili prognozirani završetak prije datuma stanja. Prag: nema. Potreban je datum stanja.
 - *Resursi*: zadaci bez resursa. Prag: nema. Samo ako projekt koristi resurse; inače n.p.
 - *Propušteni zadaci*: od zadataka za koje temeljni plan kaže da moraju biti završeni na datum stanja ili prije njega, udio onih koji završavaju kasnije ili su prognozirani kasnije. Prag: najviše 5%. Potrebni su datum stanja i aktivni temeljni plan.
-- *Test kritičnog puta*: aplikacija produljuje kritični zadatak za 100 radnih dana i na kopiji ponovno izračunava raspored, bez promjene projekta. Test prolazi ako posljednji zadatak projekta tada ne završava prije tog zadatka. Testira se kritični, nedovršeni zadatak s najranijim početkom. Pojedinosti navode naziv zadatka i za koliko se radnih dana završetak pomaknuo.
+- *Test kritičnog puta*: aplikacija produljuje kritični zadatak za 100 radnih dana i na kopiji ponovno izračunava raspored, bez promjene projekta. Test prolazi ako posljednji zadatak projekta tada ne završava prije tog zadatka. Testira se kritični, nedovršeni zadatak s najranijim početkom. Pojedinosti navode naziv zadatka i za koliko se radnih dana završetak pomaknuo. U prikazu *Datumi kako su zabilježeni* test je n.p. (*nije izračunato*): test računa, a izvješće tada prikazuje datume iz izvorne datoteke. Pritisnite Izračunaj (F5) i test se ponovno pokreće.
 - *CPLI*: (duljina kritičnog puta + vremenska rezerva) / duljina kritičnog puta. Duljina se broji u radnim danima od datuma stanja do završetka posljednjeg zadatka. Vremenska rezerva je razlika s završetkom tog zadatka u temeljnom planu, ili izračunata vremenska rezerva ako zadatak nije u temeljnom planu. Prag: najmanje 0,95. Potreban je datum stanja.
 - *BEI* (indeks izvršenja temeljnog plana): broj zadataka završenih na datum stanja, podijeljen zbrojem broja koji temeljni plan kaže da je tada trebao biti završen i broja zadataka bez temeljnog plana. Prag: najmanje 0,95. Potrebni su datum stanja i aktivni temeljni plan.
 
@@ -167,7 +167,7 @@ Za svaki resurs po tjednu ili mjesecu: što je potrebno naspram onoga što je ra
 
 **Samo preopterećena razdoblja** — Zadano: isključeno. Učinak: uključeno prikazuje samo tjedne ili mjesece s najmanje jednim preopterećenim danom.
 
-Stupci su *Resurs*, *Vrsta*, *Tjedan od* ili *Mjesec*, *Potrebno*, *Raspoloživo*, *Odstupanja* (raspoloživo minus potrebno; negativno znači manjak), *Vrh/dan* i *Preopterećeno*. *Potrebno* je zbroj jedinica-dana. U njemu su samo tjedni ili mjeseci s potražnjom. Blok *Sažetak* broji *Resursi*, *Tjedni* ili *Mjeseci*, *Preopterećeni tjedni* ili *Preopterećeni mjeseci* i *Preopterećeni resursi*.
+Stupci su *Resurs*, *Vrsta*, *Tjedan od* ili *Mjesec*, *Potrebno*, *Raspoloživo*, *Odstupanja* (raspoloživo minus potrebno; negativno znači manjak), *Vrh/dan* i *Preopterećeno*. *Potrebno* je zbroj jedinica dodjele pomnoženih s danima. U njemu su samo tjedni ili mjeseci s potražnjom. Blok *Sažetak* broji *Resursi*, *Tjedni* ili *Mjeseci*, *Preopterećeni tjedni* ili *Preopterećeni mjeseci* i *Preopterećeni resursi*.
 
 ## Dodjele resursa
 
@@ -177,7 +177,7 @@ Za svaki resurs zadaci kojima je dodijeljen: što ta ekipa ili dizalica radi? Op
 
 **Uključi dovršene zadatke** — Zadano: isključeno. Učinak: uključeno uključuje i dodjele dovršenih zadataka.
 
-Retci su po resursu, a unutar resursa po početku. Blok *Sažetak* broji *Resursi*, *Dodjele* i *Zadaci bez resursa*. Stupci uključuju resurs, zadatak, početak i završetak, *Preostalo (rd)*, *Jed./dan*, *Dovr*, *Kritičan* i *Status*.
+Retci su po resursu, a unutar resursa po početku. Blok *Sažetak* broji *Resursi*, *Dodjele* i *Zadaci bez resursa*. Stupci su *Resurs*, *Vrsta*, *WBS*, *Naziv*, *Početak*, *Završetak*, *Preostalo (rd)*, *Jed./dan*, *Dovr*, *Kritičan* i *Status*. *Resurs* i *Vrsta* prikazuju se samo u prvom retku resursa. Status po retku isti je kao u izvješću o napretku: *Dovršeno*, *U tijeku*, *Nije započeto*, *Trebao je početi* ili *Trebao je završiti*.
 
 ## Sažetak WBS-a
 

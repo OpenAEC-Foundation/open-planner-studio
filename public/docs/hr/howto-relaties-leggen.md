@@ -60,7 +60,7 @@ Korisno kad brzo radite tipkovnicom i znate WBS brojeve.
 3. Upišite WBS broj prethodnika, razmak i vrstu, na primjer `2.6 FS`. Odmah iza toga upišite vrijeme odgode: `2.6 FS+1d`. Više prethodnika odvojite točka-zarezom ili zarezom: `3.1 FS; 3.2 SS+2d`.
 4. Pritisnite Enter.
 
-Ono što upišete zamijeni cijelu ćeliju. Ako u njoj već ima prethodnika, upišite i njih (vidi zamke). Ako umjesto upisivanja pritisnete Enter ili F2 u ćeliji, otvara se polje koje zadržava postojeće ovisnosti: zadatak tražite po WBS broju ili nazivu, a za svaku ovisnost birate vrstu i vrijeme odgode.
+Ono što upišete zamjenjuje cijelu ćeliju. Ako u njoj već ima prethodnika, upišite i njih (vidi zamke). Ako umjesto upisivanja pritisnete Enter ili F2 u ćeliji, otvara se polje koje zadržava postojeće ovisnosti: zadatak tražite po WBS broju ili nazivu, a za svaku ovisnost birate vrstu i vrijeme odgode.
 
 ### Postavljanje ili promjena vremena odgode
 
@@ -69,14 +69,14 @@ Vrijeme odgode upisujete u polje pored vrste, na bilo koji od gore navedenih na�
 - `3` ili `3d`: 3 radna dana. Vikend se ne računa. Aplikacija prikazuje `+3d`.
 - `3ed`: 3 kalendarska dana. Vikend se računa, kao kod betona koji otvrdnjava i u subotu i u nedjelju.
 - `-1`: negativno vrijeme odgode, odnosno vrijeme preklapanja. Nasljednik može početi dan ranije, pa se zadaci preklapaju.
-- `4h`: 4 radna sata; aplikacija to prikazuje kao `+4u`. Ako je prethodnik zadatak u danima u kalendaru bez vlastitih blokova radnog vremena, na primjer standardni kalendar, aplikacija to pretvara u cijele radne dane, zaokruženo na najbliži cijeli dan: `4h` tada djeluje kao 1 dan, a `2h` kao 0. U kalendaru s vlastitim blokovima radnog vremena, ili nakon zadatka u satima, odgoda se računa točno u satima.
+- `4h`: 4 radna sata; aplikacija to prikazuje kao `+4h`. Ako je prethodnik zadatak u danima u kalendaru bez vlastitih blokova radnog vremena, na primjer standardni kalendar, aplikacija to pretvara u cijele radne dane, zaokruženo na najbliži cijeli dan: `4h` tada djeluje kao 1 dan, a `2h` kao 0. U kalendaru s vlastitim blokovima radnog vremena, ili nakon zadatka u satima, vrijeme odgode se računa točno u satima.
 - `50%`: polovina trajanja prethodnika.
 
 Primjer: beton temelja mora otvrdnuti prije nego zidar može raditi na njemu, pa *Pour foundation → Foundation brickwork* dobiva FS ovisnost s vremenom odgode `3`. Ako je ulijevanje u petak, 18. lipnja 2027., zidanje počinje nakon **Izračunaj** u četvrtak, 24. lipnja: od ponedjeljka do srijede je vrijeme čekanja. Uz `3ed` vikend se računa i zidanje počinje u utorak, 22. lipnja.
 
 ### Na kraju: ponovno izračunavanje
 
-Nova ovisnost još ne pomiče nijednu traku. Traka stanja prikazuje *Zastarjelo — ponovno izračunajte (F5)*. Pritisnite **Izračunaj** (F5), na primjer kroz *Početna › Raspored › Izračunaj*. Tek tada nasljednici dobivaju nove datume. Želite li da to aplikacija radi sama, uključite *Automatsko izračunavanje* pod *Postavke › Projekt › Postavke*, na kartici *Raspored*.
+Nova ovisnost još ne pomiče nijednu traku. Traka stanja prikazuje *Zastarjelo — ponovno izračunajte (F5)*. Pritisnite **Izračunaj** (F5), na primjer kroz *Početna › Raspored › Izračunaj*. Tek tada nasljednici dobivaju nove datume. Želite li da to aplikacija radi sama, uključite *Automatsko izračunavanje* pod *Postavke › Projekt › Postavke aplikacije*, na kartici *Raspored*.
 
 ## Zamke i što aplikacija radi
 

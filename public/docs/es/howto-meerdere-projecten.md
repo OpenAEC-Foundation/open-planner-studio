@@ -24,6 +24,8 @@ El proyecto aparece en su propia pestaña y queda activo de inmediato. *Nuevo* y
 
 Cada pestaña tiene un punto de color que pertenece al proyecto. Una pestaña con un punto pequeño detrás tiene cambios sin guardar.
 
+Si las pestañas no caben todas en el ancho, aparecen dos flechas entre las pestañas y el signo más (*Desplazar las pestañas hacia el inicio* y *Desplazar las pestañas hacia el final*). Cada clic desplaza las pestañas dos posiciones. Una flecha se ve gris cuando ya está al inicio o al final. También puede desplazarse con la rueda del ratón sobre las pestañas. La pestaña que elija siempre se desplaza sola a la vista.
+
 ### Cerrar un proyecto
 
 Haga clic en la cruz junto al nombre de la pestaña (*Cerrar*), o en la cruz de una tarjeta de la vista general. Un proyecto sin cambios se cierra de inmediato. Si tiene cambios sin guardar, la aplicación muestra la ventana *Cambios sin guardar* con tres opciones:
@@ -38,7 +40,7 @@ Si cierra el último proyecto, queda una planificación vacía llamada *Nueva pl
 
 ### Elegir el estilo de cambio
 
-Usted puede elegir cómo se muestran los proyectos. Abra la ventana de ajustes con el engranaje de la barra de título, vaya a la pestaña *Apariencia* y elija en *Estilo de cambio de documento*:
+Usted puede elegir cómo se muestran los proyectos. Abra la ventana *Configuración* con el engranaje de la barra de título, vaya a la pestaña *Apariencia* y elija en *Estilo de cambio de documento*:
 
 - *Pestañas horizontales*: la opción predeterminada. Una fila de pestañas debajo de la cinta.
 - *Pestañas verticales*: una franja estrecha a la izquierda, con un botón por proyecto (las primeras letras del nombre) y un signo más. Si pasa el puntero sobre un botón, ve el nombre, el nombre del archivo, el número de tareas, el número de tareas críticas y la fecha de fin. El botón de arriba abre la vista general.
@@ -48,9 +50,9 @@ Los tres estilos abren la misma vista general, y Ctrl+1 a Ctrl+9 funciona en tod
 
 ## Puntos de atención y lo que hace la aplicación
 
-**Qué pertenece al proyecto y qué es compartido.** Cada proyecto tiene su propia vista: zoom y posición, un diseño activo con filtro, agrupación u ordenación, vista dividida, las líneas de relación y las fases contraídas. Si cambia a otro proyecto, ve allí su propia vista. Todos los proyectos comparten: la pestaña seleccionada en la cinta, el minimapa, las superposiciones (superposición de la línea base, línea de progreso y lo demás), su elección de columnas, sus diseños y las opciones de informe.
+**Qué pertenece al proyecto y qué es compartido.** Cada proyecto tiene su propia vista: ampliación y posición, un diseño activo con filtro, agrupación u ordenación, vista dividida, las líneas de relación y las fases contraídas. Si cambia a otro proyecto, ve allí su propia vista. Son compartidos por todos los proyectos: la pestaña seleccionada en la cinta, el minimapa, las superposiciones (superposición de la línea base, línea de progreso y lo demás), su elección de columnas, sus diseños y las opciones de informe.
 
-**No puede cambiar con una ventana abierta.** Mientras haya una ventana abierta, por ejemplo la ventana de ajustes o la ventana de una tarea, Ctrl+1 a Ctrl+9 no hacen nada en la aplicación. En el navegador, en cambio, cambian las pestañas del navegador. Cierre primero la ventana. Un cambio sin aplicar en *Info del proyecto* en Backstage también bloquea el cambio de proyecto.
+**No puede cambiar con una ventana abierta.** Mientras haya una ventana abierta, por ejemplo la ventana *Configuración* o la ventana de una tarea, Ctrl+1 a Ctrl+9 no hacen nada en la aplicación. En el navegador, en cambio, cambian las pestañas del navegador. Cierre primero la ventana. Un cambio sin aplicar en *Ajustes del proyecto* en Backstage también bloquea el cambio de proyecto.
 
 **Ctrl+1 a Ctrl+9 se cuentan por orden.** El atajo va al proyecto en ese lugar de la fila. Si cierra un proyecto, los demás lugares suben. Si tiene más de nueve proyectos abiertos, llega a los demás solo por las pestañas o la vista general.
 

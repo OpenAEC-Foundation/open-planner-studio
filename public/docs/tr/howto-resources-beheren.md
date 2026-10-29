@@ -22,11 +22,11 @@ Satır ancak bir adı olduğunda kaynak olur. Esc ile veya adsız satırın dı�
 
 ### Kaynağı düzenleme
 
-Satırdaki alanları düzenleyin. Uygulama adı, ücreti ve birimi alanı terk ettiğinizde kaydeder. Diğer alanları hemen kaydeder.
+Satırdaki alanları düzenleyin. Uygulama adı, ücreti ve birimi, ilgili alandan çıktığınızda kaydeder. Diğer alanları hemen kaydeder.
 
 - *Maks. birim* yalnızca değer 0'dan büyükse kabul edilir. 0 veya daha az olursa alan kırmızı bir kenarlık alır ve önceki değere geri döner.
-- *Takvim*, kaynağın hangi günlerde çalışacağını belirler. *Proje takvimi* veya kendi takvimini seçin. *+ Kaynak takvimi* ile yeni bir takvim oluşturursunuz. Kalem simgesi (*Düzenle…*) seçilen takvimi açar. Bir görev, takvimine göre kapalı olan bir günde çalışıyorsa, o gün aşırı atanmış sayılır. Kaynak takvimi nasıl oluşturulur, [Kaynak takvimi ayarlama](docs://howto-resourcekalender-instellen) bölümünde açıklanır.
-- *Ücret/saat* ve *Toplam*: *Toplam*, bu kaynağın yüklü saatlerinin ücret ile çarpımıdır. Saatlik ücreti 50 olan ve 32 saat yüklü bir sıvacının toplamı 1,600.00 tutar. Tablonun altında tüm kaynakların toplamı bulunur.
+- *Takvim* kaynağın hangi günlerde çalışacağını belirler. *Proje takvimi* veya kendi takvimini seçin. *+ Kaynak takvimi* ile yeni bir takvim oluşturursunuz. Kalem simgesi (*Düzenle…*) seçilen takvimi açar. Bir görev, kaynağın takvimine göre kapalı olan bir günde çalışıyorsa, o gün aşırı atanmış sayılır. Kaynak takvimi nasıl oluşturulur, [Kaynak takvimi ayarlama](docs://howto-resourcekalender-instellen) bölümünde açıklanır.
+- *Ücret/saat* ve *Toplam*: *Toplam*, bu kaynağın yüklü saatlerinin ücret ile çarpımıdır. Saatlik ücreti 50 olan ve 32 saat yüklü bir sıvacının toplamı 1.600,00 tutar. Tablonun altında tüm kaynakların toplamı bulunur.
 - *Ekip*, bir kaynağı *Ekip* türündeki bir kaynağın altında gruplar. Bu yalnızca bir gruplamadır: uygulama üyelerin kapasitesini veya yükünü ekibe toplamaz.
 - Soldaki renkli kare kaynağın rengidir. Bu yalnızca gösterim içindir ve planlamaya hiçbir etkisi yoktur.
 
@@ -34,20 +34,20 @@ Satırdaki alanları düzenleyin. Uygulama adı, ücreti ve birimi alanı terk e
 
 İkinci bricklayer'ınız yalnızca 19 Temmuz'da mı geliyor? *Maks. birim* yanındaki oka tıklayın. *Zamana bağlı kapasite* altında *Adım ekle* öğesini seçin. Her adımın bir tarihi (*Başlangıç*) ve bir sayısı (*Maks. birim*) vardır. O tarihten itibaren bu sayı geçerlidir. Adım yoksa sabit değer her zaman geçerlidir.
 
-Yeni bir adım bugünün tarihi ve 1 birim ile başlar. İkisini de değiştirin. Aksi halde bugünden itibaren kapasite 1 olur.
+Yeni bir adım bugünün tarihi ve 1 birimle başlar. İkisini de değiştirin. Aksi halde bugünden itibaren kapasite 1 olur.
 
 ### Kaynağı silme
 
 1. Satırdaki çöp kutusuna tıklayın.
 2. Kaynağın atamaları varsa, uygulama onay ister. Örneğin: *'Bricklayer' için 4 atama var — silinsin mi?* Silmek için onay işaretine, iptal etmek için çarpıya tıklayın. Atama yoksa kaynak hemen kaybolur.
 
-Kaynağın atamaları da onunla birlikte silinir. Bir görevin *Sabit süre ve birimler* dışında bir iş kuralı varsa, uygulama silinen kaynağın işini kalan kaynaklar arasında böler. Kurala bağlı olarak bu, kalan kaynakların birimlerini veya görevin süresini değiştirir. Süre değişirse planlamanız artık güncel olmaz.
+Kaynağın atamaları da onunla birlikte silinir. Bir görevin görev türü *Sabit süre ve birimler* dışındaysa, uygulama silinen kaynağın işini kalan kaynaklar arasında böler. Görev türüne bağlı olarak bu, kalan kaynakların birimlerini veya görevin süresini değiştirir. Süre değişirse planlamanız artık güncel olmaz.
 
 Oluşturmayı, düzenlemeyi ve silmeyi *Geri al* (Ctrl+Z) ile geri alabilirsiniz.
 
 ### Yan kolondaki kısa genel bakış
 
-*Kaynaklar › Yönet › Kaynak doku* seçeneği, sağ yan kolonda *Özellikler* yanında kompakt bir genel bakış gösterir. Orada her kaynağın adını ve rengini görürsünüz. Aşırı atanmış bir kaynağın yanında bir uyarı işareti (*Aşırı yüklü*) görünür. Orada yalnızca *Maks. birim* değerini değiştirebilirsiniz. Bir veya daha fazla görev seçerseniz, genel bakış yalnızca o görevlerin kaynaklarını gösterir.
+*Kaynaklar › Yönet › Kaynak doku* öğesi, sağ yan kolonda *Özellikler* yanında kompakt bir genel bakış gösterir. Orada her kaynağın adını ve rengini görürsünüz. Aşırı atanmış bir kaynağın yanında bir uyarı işareti (*Aşırı yüklü*) görünür. Orada yalnızca *Maks. birim* değerini değiştirebilirsiniz. Bir veya daha fazla görev seçerseniz, genel bakış yalnızca o görevlerin kaynaklarını gösterir.
 
 ## Sorunlar ve uygulamanın o durumda yaptıkları
 

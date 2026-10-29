@@ -22,12 +22,14 @@ export interface UpdateInfo {
  * Hoe de app op deze machine geïnstalleerd is — bepaalt óf en hoe de updater werkt.
  * - `appimage` / `native` (Windows/macOS): normale auto-install-flow.
  * - `snap`: read-only, snapd updatet zelf → in-app updater overslaan.
+ * - `aur`: pacman beheert het programma (Arch, AUR-pakket `open-planner-studio-bin`).
+ *   De app installeert niets; de gebruiker werkt bij via zijn pakketbeheer.
  * - `deb`: normale auto-install-flow — de updater-plugin (≥2.6) matcht de
  *   `linux-x86_64-deb`-entry in latest.json (via de bundle-type-stempel in het
  *   binary) en installeert in-place via pkexec/sudo + `dpkg -i`. Alleen als dát
  *   faalt toont de dialog nog handmatige instructies als fallback.
  */
-export type InstallKind = 'appimage' | 'snap' | 'deb' | 'native';
+export type InstallKind = 'appimage' | 'snap' | 'aur' | 'deb' | 'native';
 
 /** GitHub-release-pagina (laatste release) voor handmatige .deb-installatie. */
 export const RELEASES_PAGE_URL = `https://github.com/${GITHUB_REPO}/releases/latest`;
@@ -44,7 +46,7 @@ export async function getInstallKind(): Promise<InstallKind> {
   try {
     const { invoke } = await import('@tauri-apps/api/core');
     const kind = await invoke<string>('install_kind');
-    if (kind === 'appimage' || kind === 'snap' || kind === 'deb' || kind === 'native') {
+    if (kind === 'appimage' || kind === 'snap' || kind === 'aur' || kind === 'deb' || kind === 'native') {
       return kind;
     }
     return 'native';
@@ -59,7 +61,10 @@ export type UpdateStatus =
   // `indeterminate`: de totale download-grootte is onbekend (geen contentLength) —
   // toon dan een onbepaalde voortgangsbalk i.p.v. een vastgepinde 0%.
   | { kind: 'downloading'; progress: number; indeterminate: boolean }
+  // Download afgerond; de plugin controleert nog de handtekening, daarna volgt de herstelsnapshot.
   | { kind: 'readyToInstall' }
+  | { kind: 'installing' }
+  | { kind: 'restarting' }
   | { kind: 'error'; message: string };
 
 /**
@@ -107,7 +112,7 @@ export async function checkForUpdates(
 
 /**
  * Download en installeer een beschikbare update, herstart daarna de app.
- * @param onStatus Callback om de download-voortgang te volgen.
+ * @param onStatus Callback om de download-voortgang en installatie te volgen.
  */
 export async function downloadAndInstall(
   onStatus?: (status: UpdateStatus) => void,
@@ -118,6 +123,14 @@ export async function downloadAndInstall(
   }
 
   try {
+    // Ook buiten de dialoog om nooit een pakketbeheerinstallatie overschrijven.
+    // Wacht op de echte detectie; het onbekende type is geen toestemming om te downloaden.
+    const installKind = await getInstallKind();
+    if (installKind === 'aur' || installKind === 'snap') {
+      onStatus?.({ kind: 'upToDate' });
+      return;
+    }
+
     const { check } = await import('@tauri-apps/plugin-updater');
     const { relaunch } = await import('@tauri-apps/plugin-process');
 
@@ -157,12 +170,13 @@ export async function downloadAndInstall(
     // Geen normale afsluiting (geen sluitvraag): leg vóór de installatie nog één herstelsnapshot
     // vast, zodat bewerkingen van de laatste seconden na de update via het herstel-venster
     // terugkomen.
-    try {
-      await flushRecoveryNow();
-    } catch (flushErr) {
-      console.error('Herstelsnapshot vóór de update-herstart mislukt:', flushErr);
-    }
+    // Een afgewezen flush blokkeert de installatie: die kan de app al afsluiten.
+    // De bestaande buitenste catch toont de fout en laat opnieuw proberen toe.
+    await flushRecoveryNow();
+    // Pas na de geslaagde download (inclusief handtekeningcontrole) en het herstelwerk installeren.
+    onStatus?.({ kind: 'installing' });
     await update.install();
+    onStatus?.({ kind: 'restarting' });
     await relaunch();
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

@@ -52,10 +52,10 @@ Ei siirry:
 
 **Päivämäärä on menneisyydessä.** Se on sallittu, mutta esikatselu mainitsee sen: *Uusi aloituspäivä on menneisyydessä.*
 
-**Projektin aloituspäivän muuttaminen projektitiedoissa on jotain muuta.** Jos aloituspäivä muutetaan kohdassa *Asetukset › Projekti › Projektitiedot* ja valitaan *Käytä*, aikataulu ei siirry. Vain tehtävät ilman edeltäjää tai rajoitetta, jotka sijoittuisivat uuden alun eteen, siirtyvät sille päivälle, ja sovellus kertoo niiden määrän. Jos kaikki halutaan siirtää, käytetään *Siirrä projekti…* -toimintoa.
+**Projektin aloituspäivän muuttaminen projektin asetuksissa on jotain muuta.** Jos aloituspäivä muutetaan kohdassa *Asetukset › Projekti › Projektin asetukset* ja valitaan *Käytä*, aikataulu ei siirry. Vain tehtävät ilman edeltäjää tai rajoitetta, jotka sijoittuisivat uuden alun eteen, siirtyvät sille päivälle, ja sovellus kertoo niiden määrän. Jos kaikki halutaan siirtää, käytetään *Siirrä projekti…* -toimintoa.
 
 ## Katso myös
 
 - [Kriittinen polku ja pelivara](docs://uitleg-kritiek-pad): miten aikataulu lasketaan ja miksi loppu siirtyy.
 - [Riippuvuuksien lisääminen](docs://howto-relaties-leggen): riippuvuudet jäävät yksinkertaisesti paikoilleen siirron yhteydessä.
-- [Uusi projekti ja projektitiedot](docs://ref-projectinfo): mitä aloituspäivä projektitiedoissa tekee.
+- [Uusi projekti ja projektin asetukset](docs://ref-projectinfo): mitä aloituspäivä projektin asetuksissa tekee.

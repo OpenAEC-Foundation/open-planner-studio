@@ -16,7 +16,7 @@ Jeśli pracujesz z wyborem względnym, na przykład *Następne 4 tygodnie* albo 
 
 ### 2. Wybór raportu z okresem
 
-Otwórz zakładkę *Raport* i wybierz jeden z pięciu raportów przy *Typ raportu*. Lista *Okres raportu:* jest pod *Opcje raportu*. Przy diagramie zasobów jest ona pod *Ustawienia*, pod czterema polami wyboru tego raportu.
+Otwórz zakładkę *Raport* i wybierz jeden z pięciu raportów w polu *Typ raportu*. Lista *Okres raportu:* jest pod *Opcje raportu*. Przy diagramie zasobów jest ona pod *Ustawienia*, pod czterema polami wyboru tego raportu.
 
 Każdy raport pamięta swój własny okres. To są wartości początkowe:
 
@@ -34,7 +34,7 @@ Oba dni się wliczają. Jeśli data statusu to czwartek 20 maja, *Następny tydz
 
 ### 4. Lub wybór opcji Niestandardowe
 
-Przy *Niestandardowe* pola *Od* i *Do* stają się dwoma polami dat. Na początku pokazują daty opcji, którą wybrałeś przed chwilą. Wpisz obie, na przykład 1 i 14 czerwca. Jeśli wpis jest błędny, raport zostaje przy ostatnim poprawnym okresie i wyświetla czerwony komunikat:
+Przy opcji *Niestandardowe* pola *Od* i *Do* stają się dwoma polami dat. Na początku pokazują daty opcji, którą wybrałeś przed chwilą. Wpisz obie, na przykład 1 i 14 czerwca. Jeśli wpis jest błędny, raport zostaje przy ostatnim poprawnym okresie i wyświetla czerwony komunikat:
 
 - *Data końcowa jest wcześniejsza niż data początkowa.* gdy *Do* jest wcześniej niż *Od*.
 - *Wpisz obie daty.* gdy jedna z dwóch jest pusta.
@@ -48,9 +48,9 @@ W raportach *Prognoza (look-ahead)*, *Obciążenie zasobów* i *Przydziały zaso
 Okres nie działa w każdym raporcie tak samo.
 
 - **Prognoza (look-ahead)** uwzględnia niezakończone zadania, które choć częściowo przypadają na okres, także gdy obejmują cały okres. Zaległe zadania sprzed dnia referencyjnego są również wliczane, o ile koniec okresu nie wypada przed dniem referencyjnym. Okres niestandardowy całkowicie w przeszłości jest spojrzeniem wstecz: pokazuje tylko to, co wtedy trwało i jeszcze się nie zakończyło, bez dzisiejszych zaległości.
-- **Raport postępu** używa okresu dla *Ukończone w minionym okresie*. Sekcja *Rozpoczynające się w następnym okresie* patrzy w przyszłość od daty statusu, do daty w polu *Wybiegając do* w podsumowaniu. Jeśli wybierzesz okres typu *Ostatnie* lub *Ostatni*, raport patrzy w przyszłość tak samo daleko, jak wstecz: przy *Ostatnie 2 tygodnie* i dacie statusu 20 maja pokazuje *Wybiegając do* 3 czerwca. Okres niestandardowy albo *Cały projekt*, który leży w całości w przeszłości, nie jest odzwierciedlany.
+- **Raport postępu** używa okresu dla *Ukończone w minionym okresie*. Sekcja *Rozpoczynające się w następnym okresie* patrzy w przyszłość od daty statusu, do daty w polu *Wybiegając do* w podsumowaniu. Jeśli wybierzesz okres typu *Ostatnie* lub *Ostatni*, raport patrzy w przyszłość tak samo daleko, jak wstecz: przy opcji *Ostatnie 2 tygodnie* i dacie statusu 20 maja pokazuje *Wybiegając do* 3 czerwca. Okres niestandardowy albo *Cały projekt*, który leży w całości w przeszłości, nie jest odzwierciedlany.
 - **Obciążenie zasobów** pokazuje w całości każdy tydzień lub miesiąc, który choć częściowo przypada na okres. Jeśli okres biegnie od środy do środy, widzisz więc całe tygodnie, dlatego wiersz zawsze pokazuje tę samą liczbę co histogram.
-- **Przydziały zasobów** pokazują przydziały zadań, które choć częściowo przypadają na okres. Przy *Cały projekt* nie ma filtrowania po dacie.
+- **Przydziały zasobów** pokazują przydziały zadań, które choć częściowo przypadają na okres. Przy opcji *Cały projekt* nie ma filtrowania po dacie.
 - **Diagram zasobów** pokazuje tylko zadania, które choć częściowo przypadają na okres. W podsumowaniu pole *Poza okresem:* liczy, ile zadań zostało pominiętych.
 
 ## Pułapki i co robi aplikacja

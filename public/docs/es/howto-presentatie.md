@@ -19,9 +19,9 @@ En el modo de presentación la cinta no aparece, así que prepare antes lo que q
 
 ### Iniciar la presentación
 
-Elija *Vista › Presentación › Presentación*, o pulse F11. Desaparecen la cinta, las fichas, la barra de estado y el panel de la derecha. Ve la tabla de tareas, el Gantt y, si los activó, el histograma y el minimapa. Durante unos segundos, en la parte inferior aparece el texto *Pulse Esc o F11 para salir de pantalla completa.*
+Elija *Vista › Presentación › Presentación*. En la aplicación de escritorio también puede pulsar F11. En el navegador, F11 lo usa el propio navegador: pone la ventana del navegador en pantalla completa y deja la aplicación como está. Desaparecen la cinta, las fichas, la barra de estado y el panel de la derecha. Ve la tabla de tareas, el Gantt y, si los activó, el histograma y el minimapa. Durante unos segundos, en la parte inferior aparece el texto *Pulse Esc o F11 para salir de pantalla completa.*
 
-Puede iniciar la presentación desde cualquier ficha, también desde *Tabla* o *Informe*. Siempre ve el Gantt del proyecto abierto, y al detenerla vuelve a la ficha desde la que empezó.
+En la aplicación de escritorio puede iniciar la presentación desde cualquier ficha con F11, también desde *Tabla* o *Informe*. En el navegador solo la inicia con *Vista › Presentación › Presentación*. Siempre ve el Gantt del proyecto abierto, y al detenerla vuelve a la ficha desde la que empezó. En el navegador, por tanto, esa ficha es *Vista*.
 
 ### Detener la presentación
 
@@ -33,7 +33,7 @@ Pulse Esc o F11. Vuelven a aparecer la cinta y los paneles en la ficha desde la 
 
 **Las notificaciones siguen visibles.** Un mensaje de la aplicación, por ejemplo un error al guardar, también aparece en el modo de presentación. En ese modo no hay cinta ni barra de estado, así que ese mensaje es la única señal de que algo va mal.
 
-**Configure antes la vista dividida, el minimapa y los diseños.** Para ello necesita la cinta, y en este modo no aparece. El zoom sí funciona, con la rueda del ratón o con Ctrl+= y Ctrl+-. + y - también funcionan, pero solo cuando el foco está en el Gantt. Después de F11 el foco suele estar en la tabla de tareas, así que primero haga clic en el Gantt.
+**Configure antes la vista dividida, el minimapa y los diseños.** Para ello necesita la cinta, y en este modo no aparece. El zoom sí funciona, con la rueda del ratón o con Ctrl+= y Ctrl+-. + y - también funcionan, pero solo cuando el foco está en el Gantt. Después de iniciarla, el foco suele estar en la tabla de tareas, así que primero haga clic en el Gantt.
 
 **La pantalla completa no funciona.** Además de ocultar la cinta, la aplicación también pide de verdad la pantalla completa. Si su navegador o ventana lo rechaza, solo desaparecen la cinta y los paneles. La presentación sigue funcionando. Si sale de la pantalla completa de otra forma que con Esc o F11, por ejemplo con una tecla de su sistema operativo, el modo de presentación también se detiene.
 

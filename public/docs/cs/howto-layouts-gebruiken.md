@@ -39,7 +39,7 @@ Jaké operátory dostanete, závisí na druhu pole:
 - Text (*Název úkolu*, *WBS*): *je rovno*, *není rovno*, *obsahuje*, *začíná na* a *je prázdné*.
 - Číslo a datum (*Celková časová rezerva*, *Zahájení*, *Průběh*): *je rovno*, *není rovno*, *menší než*, *menší nebo rovno*, *větší než*, *větší nebo rovno*, *mezi* a *je prázdné*. U *mezi* jsou dvě pole: u čísla s nápovědou *Od* a *Do*, u data bez nápovědy (první datum je zahájení, druhé dokončení).
 - Ano/ne (*Kritický*, *Milník*, *Téměř kritický*): *je rovno* a *není rovno*, s hodnotou *Ano* nebo *Ne*.
-- Výběr (*Typ*, kód aktivity): *je rovno*, *není rovno*, *je jedno z* (s hodnotami se zaškrtávacími políčky) a *je prázdné*.
+- Výběr (*Druh práce*, kód aktivity): *je rovno*, *není rovno*, *je jedno z* (s hodnotami se zaškrtávacími políčky) a *je prázdné*.
 - *Zdroje*: *je jedno z* a *je prázdné*.
 - *Probíhá*: jen *mezi*, se dvěma daty (od a do).
 
@@ -81,7 +81,7 @@ Rozložení, která neukládají stejné části, mohou být zapnutá současně
 
 **Rozložení jsou ve vašem zařízení, ne v projektu.** Aplikace uchovává vaše rozložení a sloupce pro všechny vaše projekty na tomto zařízení. Překryvy z rozložení (směrný plán, čára průběhu a další) platí pro všechny vaše projekty. Filtr, seskupení a řazení, která jsou právě zapnutá, patří k otevřenému projektu, ale nejdou do souboru projektu. Po uložení a novém otevření projektu je zobrazení opět čisté. Také neoznačí projekt jako „změněný“.
 
-**Samostatná tlačítka jsou skrytá.** *Sloupce…*, *Filtr…*, *Seskupit…* a *Řadit…* jako samostatná tlačítka na kartě *Zobrazení* jsou starý způsob zobrazení. Vrátíte je volbou *Zobrazit klasická tlačítka zobrazení* v části *Starší funkce* na kartě *Pokročilé* v okně nastavení (⚙ v záhlaví okna). Dávejte přednost rozložením.
+**Samostatná tlačítka jsou skrytá.** *Sloupce…*, *Filtr…*, *Seskupit…* a *Řadit…* jako samostatná tlačítka na kartě *Zobrazení* jsou starý způsob zobrazení. Vrátíte je volbou *Zobrazit klasická tlačítka zobrazení* v části *Starší funkce* na kartě *Pokročilé* v okně *Nastavení aplikace* (⚙ v záhlaví okna). Dávejte přednost rozložením.
 
 ## Viz také
 

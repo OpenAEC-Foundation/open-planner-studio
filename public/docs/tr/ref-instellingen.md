@@ -1,10 +1,10 @@
-# Ayarlar
+# Uygulama ayarları
 
 Uygulamanın her ayarı: ne yaptığı, başlangıç değeri, neyin değiştiği ve onu nerede bulacağınız. Projenin hesaplama seçenekleri (hesaplama profili, kritik tanım) için bkz. [Hesaplama seçenekleri ve kurallar](docs://ref-rekenopties-en-conventies). Bunlar uygulamaya değil, proje dosyasına aittir.
 
 ## Nerede bulunurlar ve nasıl çalışırlar
 
-Ayarlar paneli üç yerde bulunur ve her yerde aynı paneldir: pencerenin üstündeki dişli simge, *Ayarlar › Proje › Ayarlar* ve *Dosya › Ayarlar*. Panelde üç sekme vardır: *Görünüm*, *Planlama* ve *Gelişmiş*. Aşağıdaki her ayar yalnızca sekmesini adlandırır.
+Ayarlar paneli üç yerde bulunur ve her yerde aynı paneldir: pencerenin üstündeki dişli simge, *Ayarlar › Proje › Uygulama ayarları* ve *Dosya › Uygulama ayarları*. Panelde üç sekme vardır: *Görünüm*, *Planlama* ve *Gelişmiş*. Aşağıdaki her ayar yalnızca sekmesini adlandırır.
 
 Bir değişiklik hemen geçerli olur. *Uygula* düğmesi yoktur ve *İptal* düğmesi yoktur.
 
@@ -16,13 +16,15 @@ Bir değişiklik hemen geçerli olur. *Uygula* düğmesi yoktur ve *İptal* dü�
 
 **Sistem temasını izle** — işletim sisteminizin renk şemasının karar vermesine izin verir. Varsayılan: kapalı. Etki: uygulama sisteminize göre *Açık* veya *Koyu* olur; bu durumda üç tema kartı devre dışıdır. *Yüksek Kontrast* sistemi izlemez: bunu kendiniz seçersiniz. Bu ayarı kapatırsanız, o an ekranda olan tema kalır. Yer: *Görünüm*, altında *Tema*.
 
-**Dil** — arayüzün dili. Varsayılan: tarayıcınızın veya sisteminizin dili, uygulama bu dili destekliyorsa; desteklemiyorsa İngilizce. Etki: uygulamadaki tüm metinler; on dört dil kısa kodlarına göre sıralanır. Arapça ve Farsça arayüzü sağdan sola yansıtır. Yardım makalelerinin dilini ayrıca ayarlarsınız: *Dosya › Yardım* içinde, *Belge dili* altında. Yer: *Görünüm*.
+**Dil** — arayüzün dili. Varsayılan: tarayıcınızın veya sisteminizin dili, uygulama bu dili destekliyorsa; desteklemiyorsa İngilizce. Etki: uygulamadaki tüm metinler; diller kısa kodlarına göre sıralanır. Arapça ve Farsça arayüzü sağdan sola yansıtır. Yardım makalelerinin dilini ayrıca ayarlarsınız: *Dosya › Yardım* içinde, *Belge dili* altında. Yer: *Görünüm*.
 
 **Yazı tipi** — arayüzün tüm yazı tipi. *Varsayılan*, *Sistem*, *Serif* ve *Monospace* arasından seçin. Varsayılan: *Varsayılan*. Etki: pencerenin başlıkları ve metinleri, ayrıca Gantt ve histogramdaki metin. Bir web uygulaması sistem yazı tipini kendiliğinden izlemez; bu yüzden burada seçersiniz. Yer: *Görünüm*.
 
 **Metin boyutu** — arayüzün ölçeği. %90, %100, %110 ve %125 arasından seçin. Varsayılan: %100. Etki: şeridin, panellerin ve iletişim kutularının metni ve düzeni büyür veya küçülür; tablonun ve Gantt'ın satır yüksekliği de birlikte ölçeklenir. %125'in üzerinde seçenek yoktur, çünkü o zaman şeridin düğme etiketleri birkaç satıra bölünür. Yer: *Görünüm*.
 
 **Tarih biçimi** — tarihlerin uygulamada nasıl görüneceği. *gg-aa-yyyy*, *aa-gg-yyyy* ve *yyyy-aa-gg* arasından seçin. Varsayılan: *gg-aa-yyyy*. Etki: tablodaki, iletişim kutularındaki, raporlardaki ve yazdırmadaki tarihler. Dosyalar ve hesaplamalar değişmez; yalnızca görüntü değişir. Yer: *Görünüm*.
+
+**Saat biçimi** — saatlerin uygulamada nasıl görüneceği. *24 saat (13:00)* ve *12 saat (1:00 PM)* arasından seçin. Varsayılan: *24 saat (13:00)*. Etki: takvim penceresindeki saatler, saat cinsinden görevlerin tarih ve saati (tablo, bölmeler, mesajlar) ve Gantt'taki *Saat* zaman ölçeği. Bir saat alanına iki biçimin herhangi birinde yazabilirsiniz: *13:00*, *1300*, *13*, *1:00 PM* veya *1 pm*. Günün sonu olarak gece yarısı *24:00* veya *12:00 AM* olur. Dosyalar ve hesaplamalar değişmez: 24 saat biçiminde kalırlar. Yer: *Görünüm*.
 
 **Süre gösterimi** — bir görevin süresinin hangi birimde gösterileceği. *Otomatik (göreve özgü birim)*, *Her zaman gün* ve *Her zaman saat* arasından seçin. Varsayılan: *Otomatik (göreve özgü birim)*. Etki: görev tablosunda, Gantt çubuklarının etiketlerinde, ipucunda, yazdırmada ve raporlarda. *Otomatik* seçiliyken gün görevi günleri, saat görevi saatleri gösterir. *Her zaman gün* veya *Her zaman saat* seçiliyken uygulama, görevin takviminin günlük saat sayısını kullanarak dönüştürür. Görevin birimi farklıysa, uygulama kendi birimini parantez içinde ekler, örneğin `2.25d(18h)`. Yalnızca gösterim değişir; görev kendi birimini korur. Yer: *Görünüm*.
 
@@ -44,9 +46,9 @@ Bir değişiklik hemen geçerli olur. *Uygula* düğmesi yoktur ve *İptal* dü�
 
 ## Planlama sekmesi
 
-**İnşaat modunu etkinleştir** — yeni projeler için inşaata yönelik başlangıç değerleri. Varsayılan: açık. Etki: açıkken yeni proje *Bouwkalender NL* takvimini alır; bu takvimde Hollanda resmi tatilleri vardır ve tatilleri oluştururken bir inşaat tatili seçebilirsiniz. Şablonlar *Konut inşaatı* ve *Ticari yapı / yenileme* sunulur ve yeni görevler *İnşaat* görev türünü alır. Kapalıyken takvim *Standaardkalender* olur (tatil yok), yalnızca *Boş* şablonu ve *Diğer* görev türü kullanılır. Görev türüne sahip bir üst görevin altındaki yeni görev, önce o görev türünü alır; *İnşaat* veya *Diğer* bundan sonra uygulanır. Mevcut görevler ve takvimler değişmez. Yer: *Planlama*.
+**İnşaat modunu etkinleştir** — yeni projeler için inşaata yönelik başlangıç değerleri. Varsayılan: açık. Etki: açıkken yeni proje *Bouwkalender NL* takvimini alır; bu takvimde Hollanda resmi tatilleri vardır ve tatilleri oluştururken bir inşaat tatili seçebilirsiniz. Şablonlar *Konut inşaatı* ve *Ticari yapı / yenileme* sunulur ve yeni görevler *İnşaat* iş kategorisini alır. Kapalıyken takvim *Standaardkalender* olur (tatil yok), yalnızca *Boş* şablonu ve *Diğer* iş kategorisi kullanılır. İş kategorisine sahip bir üst görevin altındaki yeni görev, önce o iş kategorisini alır; *İnşaat* veya *Diğer* bundan sonra uygulanır. Mevcut görevler ve takvimler değişmez. Yer: *Planlama*.
 
-**Saat planlamasını etkinleştir** — iş günlerinin yanında saat cinsinden planlama. Varsayılan: kapalı. Etki: *Görünüm › Zaman ölçeği* altında *Saat* zaman ölçeği görünür; *Takvimler* penceresine *Çalışma saatleri* bloğu eklenir; *Yeni proje* penceresinde *Vardiya* ve *Yeni görevler için varsayılan birim* seçenekleri çıkar. *Proje bilgisi* de *Yeni görevler için varsayılan birim* seçeneğini alır. Kapalıyken uygulama gün bazında çalışır. Zaten saat cinsinden olan görevler yerinde kalır ve hesaplamaya dahil edilir; süresini yalnızca saat planlamasını açtıktan sonra düzenleyebilirsiniz. Yer: *Planlama*, altında *Saat planlaması*. Bkz. [Saat planlamasını açma](docs://howto-urenplanning-aanzetten).
+**Saat planlamasını etkinleştir** — iş günlerinin yanında saat cinsinden planlama. Varsayılan: kapalı. Etki: *Görünüm › Zaman ölçeği* altında *Saat* zaman ölçeği görünür; *Takvimler* penceresinde sıradan bir takvim çalışma saati bantları alabilir (*Çalışma saatleri* bölümü; zaten bant içeren bir takvim bu bölümü her zaman gösterir); *Yeni proje* penceresinde *Vardiya* ve *Yeni görevler için varsayılan birim* seçenekleri çıkar. *Proje ayarları* de *Yeni görevler için varsayılan birim* seçeneğini alır. Kapalıyken uygulama gün bazında çalışır. Zaten saat cinsinden olan görevler yerinde kalır ve hesaplamaya dahil edilir; süresini yalnızca saat planlamasını açtıktan sonra düzenleyebilirsiniz. Yer: *Planlama*, altında *Saat planlaması*. Bkz. [Saat planlamasını açma](docs://howto-urenplanning-aanzetten).
 
 **Gün ve saat karışık planlamasına izin ver** — görev başına birimi seçip seçmeyeceğiniz. Yalnızca *Saat planlamasını etkinleştir* açıkken görünür. Varsayılan: açık. Etki: açıkken her görevin süresinin yanında *Süre birimi* açılır listesi görünür. Kapalıyken bu liste gizlenir. Yer: *Planlama*, altında *Saat planlaması*. Bkz. [Günler ve saatler](docs://uitleg-dagen-en-uren).
 
@@ -54,9 +56,11 @@ Bir değişiklik hemen geçerli olur. *Uygula* düğmesi yoktur ve *İptal* dü�
 
 **Otomatik hesapla** — planlama güncel olmadığı anda yeniden hesaplanır. Varsayılan: kapalı. Etki: kapalıyken *Hesapla* (F5) tuşuna kendiniz basarsınız. Açıkken, görevlerde, ilişkilerde veya takvimde bir değişiklikten sonra planlama saniyenin bir kesri içinde yeniden hesaplanır. Bir sürükleme hareketi sırasında veya bir alana yazarken uygulama bekler ve siz bittiğinizde bir kez hesaplar. Başarısız bir hesaplamadan sonra uygulama, yalnızca siz bir şey değiştirdiğinizde tekrar hesaplar. Yer: *Planlama*, altında *Hesaplama*.
 
-**İş kurallarını ve işi göster** — iş kuralı ve iş alanlarını gösterir. Varsayılan: kapalı. Etki: açıkken bir görevde *İş kuralı* alanı ve atamalar için iş sütunu görünür; ayrıca *İş kuralı* tablo sütunu olarak kullanılabilir olur. Kapalıyken bunları gizler; süre ve birimler kalır ve iş bunları izler. İş kuralı veya iş verisi zaten içeren bir proje, örneğin `.mpp` veya `.xer` dosyasından, ayar kapalı olsa bile bunları her zaman gösterir. Yer: *Planlama*, altında *Hesaplama*. Bkz. [İş kuralları: süre, birimler ve iş](docs://uitleg-werkregels).
+**Görev türlerini kullanın** — görev türü ve iş alanları uygulamada. Varsayılan: kapalı. Etki: açıkken bir görevde *Görev türü* alanı ve atamalar için iş sütunu görünür; ayrıca *Görev türü* tablo sütunu olarak kullanılabilir olur. Kapalıyken bunları gizler; süre ve birimler kalır ve iş bunları izler. Görev türü veya iş verisi zaten içeren bir proje, örneğin `.mpp` veya `.xer` dosyasından, ayar kapalı olsa bile bunları her zaman gösterir. Yer: *Planlama*, altında *Hesaplama*. Bkz. [Görev türleri: süre, birimler ve iş](docs://uitleg-werkregels).
 
 ## Gelişmiş sekmesi
+
+**Şunu açtıktan sonra açıklama göster** — her biçim için bir onay kutusu: *Primavera dosyası (.xer)*, *MS Project dosyası (.mpp)*, *MS Project XML*, *Primavera P6 XML* ve *CSV dosyası*. Varsayılan: hepsi açık. Etki: açıkken böyle bir dosyayı açtıktan sonra biçim hakkında kısa bir açıklama içeren bir pencere gösterilir: uygulamanın neyi aldığı, neyi almadığı ve kaydetmenin ve geri yazmanın nasıl çalıştığı. Bu pencerede *Bunu bir daha gösterme …* seçeneği buradaki onay kutusunu temizler; burada onu yeniden açarsınız. Bir IFC dosyası, bir örnek ve bir yapay zeka asistanının veya bir uzantının açtığı bir proje bu açıklamayı hiç almaz. Yer: *Gelişmiş*, altında *Şunu açtıktan sonra açıklama göster*. Bkz. [Dosya açma ve kaydetme](docs://howto-bestand-openen-en-opslaan).
 
 **Yapay zeka modunu etkinleştir** — bir yapay zeka asistanı planlamanızla çalışabilir. Varsayılan: kapalı. Etki: açıkken MCP-köprüsünü içeren *Yapay Zeka* sekmesi görünür; böylece bir yapay zeka asistanı Model Context Protocol üzerinden planlamanızla çalışabilir. Kapalıyken sekme gizlenir ve köprü durur. Yer: *Gelişmiş*, altında *Yapay zeka modu*. Bkz. [Yapay zeka asistanını bağlama (MCP)](docs://howto-ai-assistent-koppelen).
 
@@ -72,7 +76,7 @@ Bir değişiklik hemen geçerli olur. *Uygula* düğmesi yoktur ve *İptal* dü�
 - *Sürüme göre* — aynı indirmeler sürüm başına, tarihiyle birlikte; önce en yeni altı sürüm, kalanı için *… sürümün tümünü göster*.
 - *Kaynak* — rakamların tarihi (GitHub Releases, haftalık güncellenir) ve *Şimdi yenile*. Uygulama alınan rakamları yarım saat saklar. Alma başarısız olursa pencere bunu bildirir. Snap Store üzerinden yapılan yüklemeler GitHub'dan geçmez ve eksiktir.
 
-**Turu başlat** — tanıtım turunu yeniden başlatır. Etki: ayarlar penceresini kapatır ve turu ilk adımdan başlatır. Yer: *Gelişmiş*, altında *Tur*.
+**Turu başlat** — tanıtım turunu yeniden başlatır. Etki: *Uygulama ayarları* penceresini kapatır ve turu ilk adımdan başlatır. Yer: *Gelişmiş*, altında *Tur*.
 
 **Sürüm** — uygulamanın sürüm numarası, iki düğmeyle. *Güncellemeleri denetle* güncelleme penceresini açar. *Yenilikler* geçerli sürümün haberlerini gösterir. Yer: *Gelişmiş*, altında *Sürüm*.
 
@@ -112,6 +116,6 @@ Uygulama bu seçimleri ayrıca bu cihazda saklar, ancak bunları ayarlar panelin
 
 - [Hesaplama seçenekleri ve kurallar](docs://ref-rekenopties-en-conventies): projeye ait seçenekler.
 - [Saat planlamasını açma](docs://howto-urenplanning-aanzetten): *Saat planlamasını etkinleştir* anahtarının adımları.
-- [Gün ve saat](docs://uitleg-dagen-en-uren): uygulamanın gün ve saatleri nasıl saydığı.
-- [İş kuralları: süre, birim ve iş](docs://uitleg-werkregels): *İş kurallarını ve işi göster* ile neyin görünür olduğu.
+- [Günler ve saatler](docs://uitleg-dagen-en-uren): uygulamanın gün ve saatleri nasıl saydığı.
+- [Görev türleri: süre, birimler ve iş](docs://uitleg-werkregels): *Görev türlerini kullanın* ile neyin görünür olduğu.
 - [Klavye kısayolları](docs://ref-sneltoetsen): uygulamanın tüm tuşları, yakınlaştırma ve kaydırma tuşları dahil.

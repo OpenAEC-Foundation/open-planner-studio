@@ -8,10 +8,11 @@ import { Select } from '@/components/common/Select';
 import { SequenceLagInput } from '@/components/common/SequenceLagInput';
 import { HoverTooltip } from '@/components/canvas/HoverTooltip';
 import { TaskTooltipContent } from '@/components/canvas/TaskTooltipContent';
+import { knownDrivingSequenceIds } from '@/engine/scheduler/drivingInfo';
 import { GANTT_TRACE_COLORS } from '@/engine/renderer/themePalette';
 import { relationTaskOptions } from '@/engine/taskGrid/relationCell';
 import { createRelationDraftWithFeedback } from '@/state/relationActions';
-import { Check, Plus, Trash2, X, Zap } from 'lucide-react';
+import { Check, CircleHelp, Plus, Trash2, X, Zap } from 'lucide-react';
 
 interface HoverState { x: number; y: number; task: Task; }
 
@@ -97,6 +98,7 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
     [draft, taskId, tasks],
   );
 
+  const drivingIds = knownDrivingSequenceIds(cpmResult);
   const taskSequences = sequences.filter(
     s => s.predecessorId === taskId || s.successorId === taskId
   );
@@ -143,8 +145,7 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
           ? tasks.find(t => t.id === seq.successorId)
           : tasks.find(t => t.id === seq.predecessorId);
         const role = seq.predecessorId === taskId ? 'successor' : 'predecessor';
-        const isDriving = !!cpmResult && !cpmResult.error
-          && cpmResult.drivingSequenceIds.includes(seq.id);
+        const isDriving = drivingIds?.includes(seq.id);
         return (
           <div
             key={seq.id}
@@ -181,7 +182,16 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
               <span className="dependency-wbs-cell min-w-0 truncate">?</span>
             )}
             <span className="dependency-driving-slot">
-              {isDriving && (
+              {drivingIds === undefined ? (
+                <span
+                  role="img"
+                  aria-label={t('properties.drivingUnknown')}
+                  title={t('properties.drivingUnknown')}
+                  style={{ color: 'var(--theme-text-muted)' }}
+                >
+                  <CircleHelp size={10} aria-hidden />
+                </span>
+              ) : isDriving && (
                 <span title={t('properties.driving')} style={{ color: 'var(--theme-accent)' }}>
                   <Zap size={10} />
                 </span>

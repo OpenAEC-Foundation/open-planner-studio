@@ -98,7 +98,8 @@ export function styleErrors(s: unknown, where: string): string[] {
 export function termEntryErrors(t: unknown, at: string): string[] {
   if (!isRecord(t)) return [`${at}: geen object`];
   const e: string[] = [];
-  if (!isStr(t.term)) e.push(`${at}: term ontbreekt`);
+  // Een term met alleen witruimte, stuurtekens of onzichtbare opmaak is inhoudelijk leeg. Opmaak ín een woord mag wel.
+  if (!isStr(t.term) || t.term.replace(/[\p{Default_Ignorable_Code_Point}\p{Cc}]/gu, '').trim() === '') e.push(`${at}: term ontbreekt`);
   if (!isStrList(t.forms) || t.forms.length === 0) e.push(`${at}: forms moet een niet-lege lijst zijn`);
   else if (isStr(t.term)) {
     for (const f of t.forms) if (!sharesStem(t.term, f)) e.push(`${at}: vorm "${f}" deelt geen stam met "${t.term}"`);
@@ -112,12 +113,13 @@ export function termEntryErrors(t: unknown, at: string): string[] {
 export interface TermbaseReport { errors: string[]; missing: string[] }
 
 /**
- * Controleer één taalbestand tegen de concepten. `errors` = schemafouten (rood); `missing` =
- * term-concepten zonder regel (een rapport: de termbase groeit per taal).
+ * Controleer één taalbestand tegen de concepten. Elk term-concept vereist een geldige regel;
+ * tokens en keep-concepten niet. `missing` geeft de ontbrekende id's ook apart voor de telling.
  */
 export function validateLangTermbase(lang: string, tb: unknown, concepts: Concept[]): TermbaseReport {
-  if (!isRecord(tb)) return { errors: [`${lang}: geen object`], missing: [] };
-  const errors: string[] = [];
+  const missing = concepts.filter(c => c.kind === 'term' && (!isRecord(tb) || !Object.prototype.hasOwnProperty.call(tb, c.id))).map(c => c.id);
+  const errors = missing.map(id => `${lang}.${id}: term ontbreekt`);
+  if (!isRecord(tb)) return { errors: [`${lang}: ${tb === undefined ? 'taalbestand ontbreekt' : 'geen object'}`, ...errors], missing };
   const byId = new Map(concepts.map(c => [c.id, c]));
   if (tb._style !== undefined) errors.push(...styleErrors(tb._style, lang));
   else errors.push(`${lang}: _style ontbreekt`);
@@ -145,7 +147,6 @@ export function validateLangTermbase(lang: string, tb: unknown, concepts: Concep
       if (other.length) errors.push(`${lang}.${id}: avoid "${a}" is een term van ${[...new Set(other)].join(', ')}`);
     }
   }
-  const missing = concepts.filter(c => c.kind === 'term' && !(c.id in tb)).map(c => c.id);
   return { errors, missing };
 }
 

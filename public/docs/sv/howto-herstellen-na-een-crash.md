@@ -9,11 +9,11 @@ Den bärbara datorn kraschade, appen frös eller webbläsarfliken kraschade, och
 ## Steg
 
 1. Starta appen igen. I webbläsaren laddar du om samma flik: återställningskopian hör till just den fliken.
-2. Om appen hittade kopior visas fönstret *Återställ osparat arbete*: *Open Planner Studio stängdes inte av på rätt sätt. Följande dokument hade osparade ändringar som kan återställas*: För varje projekt visar fönstret namnet, sökvägen till filen om projektet har en fil (i webbläsaren bara filnamnet), antalet uppgifter och tidpunkten för kopian. Till exempel *21 uppgifter* och *Sparad: sep 29, 2026, 9:41 AM*. Fönstret kan också visa projekt som du inte har ändrat.
+2. Om appen hittade kopior visas fönstret *Återställ osparat arbete*: *Open Planner Studio stängdes inte av på rätt sätt. Följande dokument hade osparade ändringar som kan återställas:* För varje projekt visar fönstret namnet, sökvägen till filen om projektet har en fil (i webbläsaren bara filnamnet), antalet uppgifter och tidpunkten för kopian. Till exempel *21 uppgifter* och *Sparad: 29 sep 2026 9:41 AM*. Tidpunkten följer inställningen *Tidsformat*. Fönstret kan också visa projekt som du inte har ändrat.
 3. Välj *Återställ*. Appen öppnar alla projekt i listan, var och ett i en flik, med tillståndet från den senaste kopian. Enter gör samma sak.
 4. Kontrollera dina projekt och spara dem direkt med Ctrl+S.
 
-Vill du inte återställa har du två val. *Återställ inte* tar bort kopiorna, och det kan du inte ångra. Stänger du fönstret med Esc, med krysset eller genom att klicka bredvid det, finns kopiorna kvar. Appen frågar igen vid nästa start.
+Om du inte vill återställa har du två val. *Återställ inte* tar bort kopiorna, och det kan du inte ångra. Stänger du fönstret med Esc, med krysset eller genom att klicka bredvid det, finns kopiorna kvar. Appen frågar igen vid nästa start.
 
 Frågetecknet uppe till höger i fönstret öppnar den här artikeln utan att du gör något val. Medan du läser i Hjälp väntar fönstret. När du går tillbaka finns det där igen, och du kan fortfarande återställa.
 

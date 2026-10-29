@@ -1,0 +1,60 @@
+name: Meet histogramhover (opt-in)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - '.github/workflows/measure-gantt-hover.yml'
+      - 'tests/performance/gantt-hover/**'
+      - 'tests/browser/gantt-histogram.spec.ts'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: meet-gantt-hover-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compare:
+    # Expliciete keuze in de PR-tekst. Deze smalle nulmeting is geen poort voor productwijzigingen.
+    if: contains(github.event.pull_request.body, '<!-- meet-gantt-hover -->')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    env:
+      PERF_BASE_REVISION: ${{ github.event.pull_request.base.sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Afhankelijkheden installeren
+        run: npm ci
+      - name: Controleer de vertalingsmerge
+        run: |
+          npm run i18n:resolve
+          git diff --exit-code HEAD -- src/i18n i18n
+      - name: Chromium installeren
+        run: npx playwright install --with-deps --only-shell chromium
+      - name: Typen en lint controleren
+        run: |
+          npm run typecheck
+          npm run lint
+      - name: Bestaande histogramroutes controleren
+        run: node scripts/run-browser-tests.mjs tests/browser/gantt-histogram.spec.ts
+      - name: Echte browserhover voor en na meten op dezelfde runner
+        run: python3 tests/performance/gantt-hover/run.py
+      - name: Meetbewijs en eventuele browserfouten bewaren
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gantt-hover-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            output/gantt-hover-comparison/
+            test-results/
+            playwright-report/
+          retention-days: 14

@@ -36,7 +36,7 @@ Palkkien väriä varten valitse *Näkymä › Perustasot ja edistyminen › Palk
 
 ## Sudenkuopat ja sovelluksen toiminta
 
-**Poistaminen poistaa arvot tehtäviltä.** Jos koodityyppi, arvo tai kenttä poistetaan roskakorin painikkeella, sovellus ei pyydä vahvistusta. Kaikilta tehtäviltä katoavat niiden arvot sen mukana. Ryhmittely tai lajittelu, joka perustui kyseiseen koodityyppiin tai kenttään, raukeaa myös. *Kumoa* (Ctrl+Z) palauttaa koodityypin, arvon tai kentän ja täytetyt arvot, mutta ei ryhmittelyä eikä lajittelua: ne asetetaan uudelleen.
+**Poistaminen poistaa arvot tehtäviltä.** Jos koodityyppi, arvo tai kenttä poistetaan roskakorin painikkeella, sovellus ei pyydä vahvistusta. Kaikilta tehtäviltä katoavat niiden arvot sen mukana. Ryhmittely tai lajittelu, joka perustui kyseiseen koodityyppiin tai kenttään, raukeaa myös. *Kumoa* (Ctrl+Z, sulje ensin ikkuna) palauttaa koodityypin, arvon tai kentän ja täytetyt arvot, mutta ei ryhmittelyä eikä lajittelua: ne asetetaan uudelleen.
 
 **Kaksi arvoa samalla koodilla.** *Lisää arvo* jatkaa numerointia olemassa olevien arvojen määrästä. Jos yksi arvo poistetaan ja toinen lisätään, sama koodi voi siis esiintyä kahdesti. Jos tämä koodi kirjoitetaan sarakesolussa, sovellus hylkää sen ja ilmoittaa: *Tämä tehtäväkoodin arvo esiintyy useammin kuin kerran. Valitse se listasta.* Anna jokaiselle arvolle oma koodi.
 

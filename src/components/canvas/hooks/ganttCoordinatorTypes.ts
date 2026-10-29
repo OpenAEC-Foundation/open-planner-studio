@@ -88,7 +88,6 @@ export interface GanttViewportCoordinatorInput {
   showMiniMap: boolean;
   compressNonWorkdays: boolean;
   enableQuarterHourZoom: boolean;
-  enableHourPlanning: boolean;
   scrollMode: ScrollMode;
   positionDivision: PositionDivision;
   modifierMap: ModifierMap;
@@ -212,7 +211,9 @@ export interface GanttPointerCoordinatorInput {
   splitMode: boolean;
   scrollMode: ScrollMode;
   enableQuarterHourZoom: boolean;
-  enableHourPlanning: boolean;
+  /** Telt het rekenprofiel een dagenmaat in werkdagen (conventie `workdayDurationMeasure`)? Kiest hoe een
+   *  dagtaak sleept en splitst (dagenmaat of uren), zoals de Gantt-stukken. */
+  workdayDurationMeasure: boolean;
   compressNonWorkdays: boolean;
   selectTask: (id: string, additive?: boolean, range?: boolean) => void;
   selectTasks: (ids: string[], additive: boolean) => void;

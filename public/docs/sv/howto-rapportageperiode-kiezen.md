@@ -12,7 +12,7 @@ Perioden är inte kopplad till en kalendermånad, utan till en **referensdag**: 
 
 ### 1. Ange rapportdatumet
 
-Arbetar du med ett relativt val, till exempel *Nästa 4 veckor* eller *Förra månaden*, ange rapportdatumet först. Välj *Tidsplan › Baslinjer & framdrift* och fyll i fältet *Rapportdatum*. Med krysset bredvid tar du bort datumet igen (*Töm rapportdatum*). Arbetar du med en fast period (steg 4) behöver du inte detta.
+Om du arbetar med ett relativt val, till exempel *Nästa 4 veckor* eller *Förra månaden*, ange rapportdatumet först. Välj *Tidsplan › Baslinjer & framdrift* och fyll i fältet *Rapportdatum*. Med krysset bredvid tar du bort datumet igen (*Töm rapportdatum*). Om du arbetar med en fast period (steg 4), behöver du inte detta.
 
 ### 2. Välj en rapport med en period
 

@@ -37,9 +37,9 @@ A *Szűrés* alatt szabályokat állít össze. Kattintson a *+ szabály* gombra
 Hogy mely operátorok érhetők el, az a mező típusától függ:
 
 - Szöveg (*Tevékenység neve*, *WBS*): *egyenlő*, *nem egyenlő*, *tartalmazza*, *ezzel kezdődik* és *üres*.
-- Szám és dátum (*Teljes tartalékidő*, *Kezdés*, *Előrehaladás*): *egyenlő*, *nem egyenlő*, *kisebb, mint*, *kisebb vagy egyenlő*, *nagyobb, mint*, *nagyobb vagy egyenlő*, *között* és *üres*. A *között* operátornál két mező van: számnál a *Tól* és az *Eddig* jelenik meg tippként, dátumnál nincs tipp (az első dátum a kezdet, a második a vég).
+- Szám és dátum (*Teljes tartalékidő*, *Kezdés*, *Előrehaladás*): *egyenlő*, *nem egyenlő*, *kisebb, mint*, *kisebb vagy egyenlő*, *nagyobb, mint*, *nagyobb vagy egyenlő*, *között* és *üres*. A *között* operátornál két mező van: számnál a *Tól* és az *Eddig* jelennek meg tippként, dátumnál nincs tipp (az első dátum a kezdet, a második a vég).
 - Igen/nem (*Kritikus*, *Mérföldkő*, *Közel kritikus*): *egyenlő* és *nem egyenlő*, az érték *Igen* vagy *Nem*.
-- Választás (*Típus*, egy tevékenységkód): *egyenlő*, *nem egyenlő*, *az alábbiak egyike* (jelölőnégyzetes értékekkel) és *üres*.
+- Választás (*Munkanem*, egy tevékenységkód): *egyenlő*, *nem egyenlő*, *az alábbiak egyike* (jelölőnégyzetes értékekkel) és *üres*.
 - *Erőforrások*: *az alábbiak egyike* és *üres*.
 - *Folyamatban*: csak *között*, két dátummal (kezdettől végéig).
 
@@ -79,9 +79,9 @@ Elrendezések, amelyek nem ugyanazokat a részeket tárolják, egyszerre is be l
 
 **Az állapotsor nem követi a nézetet.** A *Tevékenységek:* az állapotsorban az egész projekt tevékenységeinek számát mutatja, akkor is, ha a szűrés csak egy részüket jeleníti meg.
 
-**Az elrendezések az eszközén vannak, nem a projektben.** Az alkalmazás az elrendezéseit és az oszlopait minden projektjéhez ezen az eszközön tárolja. Egy elrendezés rátétei (alapterv, előrehaladási vonal és a többi) minden projektjére érvényesek. A szűrés, a csoportosítás és a rendezés, amely éppen be van kapcsolva, a megnyitott projekthez tartozik, de nem mentődnek el a projektfájlban: mentés és újranyitás után a nézet ismét tiszta. Ezek a beállítások a projektet sem jelölik „módosítottnak”.
+**Az elrendezések az eszközén vannak, nem a projektben.** Az alkalmazás az elrendezéseit és az oszlopait minden projektjéhez ezen az eszközön tárolja. Egy elrendezés rátétei (alapterv, előrehaladási vonal és a többi) minden projektjére érvényesek. A szűrés, a csoportosítás és a rendezés, amelyek éppen be vannak kapcsolva, a megnyitott projekthez tartoznak, de nem mentődnek el a projektfájlban: mentés és újranyitás után a nézet ismét tiszta. Ezek a beállítások a projektet sem jelölik „módosítottnak”.
 
-**A külön gombok el vannak rejtve.** A *Nézet* lapon lévő külön gombok, *Oszlopok…*, *Szűrés…*, *Csoportosítás…* és *Rendezés…*, a régi nézethez tartoznak. Ezeket a beállítási ablak (⚙ a címsorban) *Speciális* lapján, a *Régi funkciók* alatt, a *Klasszikus nézetgombok megjelenítése* beállítással hozhatja vissza. Használja inkább az elrendezéseket.
+**A külön gombok el vannak rejtve.** A *Nézet* lapon lévő külön gombok, *Oszlopok…*, *Szűrés…*, *Csoportosítás…* és *Rendezés…*, a régi nézethez tartoznak. Ezeket az *Alkalmazásbeállítások* ablak (⚙ a címsorban) *Speciális* lapján, a *Régi funkciók* alatt, a *Klasszikus nézetgombok megjelenítése* beállítással hozhatja vissza. Használja inkább az elrendezéseket.
 
 ## Lásd még
 

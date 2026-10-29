@@ -32,6 +32,7 @@ import {
   parseTaskFields,
   PROGRESS_FIELD_NAMES,
   TASK_FIELDS_DOC,
+  SUMMARY_DURATION_READ_ONLY,
   TASK_FIELD_NAMES,
   TASK_FIELD_SCHEMA_PROPERTIES,
   type ProgressPatch,
@@ -176,6 +177,14 @@ function parseAddTasks(args: unknown, state: AppState): ParsedAddItem[] | string
       patch: res.patch,
     });
   }
+  // Een ouder kan vóór of na zijn kinderen staan. Pas na vormvalidatie is de hele
+  // nieuwe boom bekend; weiger een expliciete ouderduur vóór de transactie.
+  const parentIds = new Set(parsed.map(item => item.parentId));
+  for (const item of parsed) {
+    if (parentIds.has(item.tempId) && item.patch.time?.scheduleDuration !== undefined) {
+      return `task '${item.tempId}': ${SUMMARY_DURATION_READ_ONLY}`;
+    }
+  }
   return parsed;
 }
 
@@ -237,7 +246,9 @@ const addTasks: BatchStepTool = {
     '`planner_batch` steps recognize their references; the schema now enforces that form everywhere, so the ' +
     'same call works inside and outside a batch. `position` is the insertion index within the parent and is ' +
     'silently clamped to [0, number of siblings]. Give the DURATION directly with `duration` and optionally ' +
-    '`durationUnit` (`days`/`hours`; without a duration a task gets the default of 5 working days). A ' +
+    '`durationUnit` (`days` = day measure, `hours` = hour measure). Without a duration a task gets the ' +
+    "project's default measure for new tasks: 5 working days in the day measure, 5 hours if the project " +
+    'chose the hour measure, and 5 working days in the hour measure in the P6 and MS Project profiles. A ' +
     'milestone (`isMilestone`) has duration 0 by definition — `duration` > 0 is an error there. ' +
     `${TASK_FIELDS_DOC} For add_tasks an unknown key is a HARD error (the whole call fails), not a per-item ` +
     `refusal. ${PHASE_TRANSITION_DOC} Returns the complete tempId→realId map, the recalculated ` +

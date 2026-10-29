@@ -6,12 +6,12 @@ Tabela zadań ma 86 stałych kolumn, plus jedną kolumnę na każdy kod czynnoś
 
 Tabela zadań obok wykresu Gantt oraz tabela na karcie *Tabela* mają każda swój własny wybór kolumn. Znak plus z prawej strony nagłówka otwiera wybór kolumn (tytuł okna *Wybierz kolumnę*). Na karcie *Tabela* możesz też użyć *Tabela › Kolumny › Kolumny…*. Wybór kolumn pokazuje kolumny według kategorii: *Zadanie*, *Planowanie*, *Ograniczenia*, *Relacje*, *Zasoby*, *Postęp*, *Obliczone*, *Plan bazowy*, *Niestandardowe* i *Techniczne*. Szukasz po nazwie, a na górze jest *Ostatnio używane*. *Przywróć domyślne* przywraca domyślne kolumny.
 
-Domyślnie tabela obok wykresu Gantt pokazuje *WBS*, *Nazwa zadania* i *Czas trwania*. Tabela na karcie *Tabela* pokazuje *WBS*, *Nazwa zadania*, *Czas trwania*, *Początek*, *Koniec*, *Typ zadania*, *Krytyczne* i *Zapas całkowity* oraz *Postęp*, plus jedną kolumnę na każdy kod czynności i pole niestandardowe projektu.
+Domyślnie tabela obok wykresu Gantt pokazuje *WBS*, *Nazwa zadania* i *Czas trwania*. Tabela na karcie *Tabela* pokazuje *WBS*, *Nazwa zadania*, *Czas trwania*, *Początek*, *Koniec*, *Rodzaj robót*, *Krytyczne* i *Zapas całkowity* oraz *Postęp*, plus jedną kolumnę na każdy kod czynności i pole niestandardowe projektu.
 
 ## Jak odczytywać i edytować wartości
 
 - **Kolumny obliczone** — kolumny w kategorii *Obliczone* oraz kilka innych są tylko do odczytu: pochodzą z obliczeń. Jeśli spróbujesz edytować komórkę tylko do odczytu, aplikacja pokaże *Tej kolumny obliczeniowej nie można edytować.* To ogólny komunikat dla każdej komórki tylko do odczytu, także wtedy, gdy kolumna nie jest obliczana. Jeśli są nieaktualne, bo coś zmieniłeś, obok nich pojawia się *nieaktualne*, dopóki nie naciśniesz *Oblicz*.
-- **Daty** — wyświetlane są w zapisie, który wybrano w oknie *Ustawienia*, na karcie *Widok*, w sekcji *Format daty*.
+- **Daty** — wyświetlane są w zapisie, który wybrano w oknie *Ustawienia aplikacji*, na karcie *Wygląd*, w sekcji *Format daty*.
 - **Czas trwania i zapas** — czas trwania pojawia się w jednostce zadania (`5d`, `12h`) albo zgodnie z ustawieniem *Wyświetlanie czasu trwania* na tej samej karcie (*Automatycznie (własna jednostka dla zadania)*, *Zawsze w dniach* lub *Zawsze w godzinach*). Zapas pojawia się w dniach roboczych, z dwoma miejscami po przecinku i separatorem dziesiętnym Twojego języka.
 - **Tak/Nie** — wartość tak/nie pojawia się jako *Tak* lub *Nie*; pusta wartość jako myślnik (—).
 - **Edycja** — wpisz lub wybierz wartość. Nieprawidłowa wartość zostaje odrzucona z powodem pod komórką, na przykład *Wprowadź prawidłowy czas trwania, np. 5d lub 8h.* albo *Wprowadź procent od 0 do 100.* Wklejanie bloku komórek działa komórka po komórce; komórki tylko do odczytu są pomijane, a aplikacja podaje, ile ich było.
@@ -21,8 +21,8 @@ Domyślnie tabela obok wykresu Gantt pokazuje *WBS*, *Nazwa zadania* i *Czas trw
 - **Nazwa zadania** — nazwa zadania. Można edytować; pole jest wymagane. Zadanie sumaryczne wyświetla się pogrubione, z lekko jaśniejszym tłem w komórce nazwy. Kamień milowy wyświetla się pogrubiony w kolorze kamienia milowego (ta sama rodzina kolorów co kamień milowy na wykresie Gantt). Zwykłe zadanie wygląda tak samo. To tylko formatowanie: zaznaczanie, przeciąganie i edycja działają tak samo.
 - **Opis** — opis. Można edytować; dowolny tekst.
 - **WBS** — kod WBS. Można edytować, pole jest wymagane, ale tylko do odczytu, gdy włączone jest *WBS auto*.
-- **Typ zadania** — typ zadania (*Budowa*, *Instalacja*, *Rozbiórka*, *Logistyka*, *Inspekcja*, *Przeniesienie*, *Renowacja*, *Konserwacja* lub *Inne*). Można edytować z listy.
-- **Niestandardowy typ zadania** — niestandardowy typ zadania z projektu albo myślnik. Można edytować z listy niestandardowych typów projektu.
+- **Rodzaj robót** — rodzaj robót zadania (*Budowa*, *Instalacja*, *Rozbiórka*, *Logistyka*, *Inspekcja*, *Przeniesienie*, *Renowacja*, *Konserwacja* lub *Inne*). Można edytować z listy.
+- **Niestandardowy rodzaj robót** — niestandardowy rodzaj robót z projektu albo myślnik. Można edytować z listy niestandardowych rodzajów robót projektu.
 - **Kolor** — zapisany kolor zadania, jako kod koloru, na przykład `#1a73e8`. Można edytować w selektorze kolorów. Kolor jest zapisany w pliku IFC, ale żaden pasek ani raport go nie używa. Kolory pasków ustawiasz w *Widok › Plan bazowy i postęp › Kolory słupków*.
 - **Notatki** — notatki w postaci `✓ text; ○ text`. Można edytować, dopóki jest co najwyżej jedna notatka (edytujesz wtedy jej tekst). Przy większej liczbie notatek są tylko do odczytu.
 
@@ -33,14 +33,14 @@ Domyślnie tabela obok wykresu Gantt pokazuje *WBS*, *Nazwa zadania* i *Czas trw
 - **Obowiązkowy kamień milowy** — flaga *Obowiązkowy (umowny)*. Można edytować tylko dla kamienia milowego.
 - **Priorytet bilansowania** — liczba całkowita od 0 do 1000, domyślnie 500. Można edytować. Wartość 1000 przypina zadanie do bilansowania.
 - **Luki podziału** — liczba przerw, w postaci `Split gaps: 2`, albo myślnik. Tylko do odczytu; edytujesz je w panelu *Właściwości*.
-- **Reguła pracy** — reguła pracy zadania; pusta wartość oznacza domyślną wartość projektu. Można edytować z listy, ale dla kamienia milowego, zadania sumarycznego lub hamaka pole jest puste i tylko do odczytu. Widoczne w oknie wyboru tylko wtedy, gdy widoczne są reguły pracy (*Pokaż reguły pracy i pracę* albo plik zawiera reguły pracy).
+- **Typ zadania** — typ zadania; pusta wartość oznacza domyślną wartość projektu. Można edytować z listy, ale dla kamienia milowego, zadania sumarycznego lub hamaka pole jest puste i tylko do odczytu. Widoczne w oknie wyboru tylko wtedy, gdy widoczne są typy zadań (*Używaj typów zadań*, albo plik zawiera typy zadań).
 - **Hamak (wyliczony czas trwania)** — czy zadanie jest hamakiem. Można edytować, z wyjątkiem kamienia milowego i zadania sumarycznego.
 - **Kalendarz** — identyfikator własnego kalendarza zadania; pusta wartość (—) oznacza kalendarz projektu. Wpisujesz identyfikator albo wybierasz go z podpowiedzi; nieznany identyfikator zostaje odrzucony. Uwaga: komórka pokazuje obecnie wewnętrzny identyfikator zamiast nazwy. Lepiej wybierz kalendarz w panelu *Właściwości*.
 - **Typ czasu trwania** — *Czas pracy* (czas trwania liczy się w dniach roboczych lub godzinach pracy z kalendarza) albo *Czas, który upłynął* (czas trwania liczy się w ciągłym czasie zegarowym, bez kalendarza). Można edytować.
 - **Jednostka czasu trwania** — *Dni* lub *Godziny*. Można edytować, z wyjątkiem zadania sumarycznego, hamaka i kamienia milowego. Przełączenie działa tylko wtedy, gdy przeliczenie jest dokładne i włączono *Włącz planowanie godzinowe*.
 - **Czas trwania** — czas trwania zadania, w jednostce zadania albo zgodnie z ustawieniem *Wyświetlanie czasu trwania*. Można edytować: wpisz `5d`, `12h` lub `1h 30m`; możesz też wpisać liczbę w jednostce zadania. Tylko do odczytu dla zadania sumarycznego, hamaka oraz kamienia milowego z czasem trwania 0.
-- **Początek** — wyświetlany początek, ta sama data co pasek na wykresie Gantt. Można edytować. Zadanie z poprzednikiem, któremu nadasz nowy początek, dostaje ograniczenie *Rozpocznij nie wcześniej niż (SNET)* na tę datę. Tylko do odczytu dla zadania sumarycznego lub hamaka, chyba że jest planowane ręcznie.
-- **Koniec** — wyświetlane zakończenie. Można edytować: nowe zakończenie staje się nowym czasem trwania. Aplikacja odrzuca zmianę dla ukończonego zadania, kamienia milowego, zadania z czasem, który upłynął, oraz zadania z przerwami, a także dla zakończenia przed początkiem (*Koniec przypada przed początkiem.*). Tylko do odczytu dla zadania sumarycznego lub hamaka, chyba że jest planowane ręcznie.
+- **Początek** — wyświetlany początek, ta sama data co pasek na wykresie Gantt. Dla zadania, które się rozpoczęło, to rzeczywiste rozpoczęcie. Można edytować. Zadanie z poprzednikiem, któremu nadasz nowy początek, dostaje ograniczenie *Rozpocznij nie wcześniej niż (SNET)* na tę datę. Tylko do odczytu dla zadania sumarycznego lub hamaka, chyba że jest planowane ręcznie, oraz dla zadania, które się rozpoczęło (*To zadanie zostało rozpoczęte; jego początek to rzeczywiste rozpoczęcie. Zmień je przez postęp.*).
+- **Koniec** — wyświetlane zakończenie. Dla ukończonego zadania to rzeczywiste zakończenie. Można edytować: nowe zakończenie wyznacza nowy czas trwania. Aplikacja odrzuca tę zmianę dla kamienia milowego, zadania z czasem, który upłynął, zadania z przerwami oraz zakończenia przed początkiem (*Koniec przypada przed początkiem.*). Tylko do odczytu dla zadania sumarycznego lub hamaka, chyba że jest planowane ręcznie, oraz dla ukończonego zadania (*To zadanie jest ukończone; jego koniec to rzeczywiste zakończenie. Zmień je przez postęp.*).
 - **Planowany początek** — punkt kotwiczenia, od którego zaczyna się obliczenie (niekoniecznie wyświetlany początek). Można edytować; działa tak samo jak wpisanie wartości w kolumnie *Początek*.
 - **Planowane zakończenie** — wpisane zakończenie. Można je edytować tylko przy zadaniu planowanym ręcznie. W innym przypadku aplikacja pokazuje *Planowane zakończenie dotyczy tylko zadania planowanego ręcznie. Zmień koniec w kolumnie Koniec lub przez czas trwania.*
 
@@ -64,11 +64,12 @@ Domyślnie tabela obok wykresu Gantt pokazuje *WBS*, *Nazwa zadania* i *Czas trw
 ## Zasoby
 
 - **Przydzielone zasoby** — nazwy przydzielonych zasobów, oddzielone przecinkami. Można edytować: dodanie nazwy przydziela zasób z 1 jednostką dziennie, a usunięcie nazwy usuwa przydział. Tylko do odczytu dla kamienia milowego lub zadania sumarycznego.
-- **Jednostki przydziału dziennie** — jednostki na zasób, w postaci `Name: 1; Name: 0.5`. Można edytować przy zadaniu z przydziałami.
+- **Jednostki przydziału dziennie** — jednostki na zasób, w postaci `Name: 1; Name: 0.5`, z maksymalnie dwoma miejscami po przecinku. Zapisana wartość pozostaje dokładna. Można edytować przy zadaniu z przydziałami.
+- **Planowane jednostki dziennie** — planowane jednostki na zasób, w postaci `Name: 1.11`, z maksymalnie dwoma miejscami po przecinku, jak przy *Jednostki przydziału dziennie*. Dotyczy tylko przydziału z Primavera P6 z inną pozostałą liczbą jednostek; *Jednostki przydziału dziennie* pokazują wtedy pozostałą liczbę jednostek. Tylko do odczytu.
 - **Krzywa przydziału** — krzywa na zasób, w postaci `Name: Uniform`. Można edytować przy zadaniu z przydziałami.
 - **Początek okna pracy** i **Zakończenie okna pracy** — okno pracy na zasób z zaimportowanego pliku, w postaci `Name: date`. Tylko do odczytu.
-- **Praca planowana (godziny)** i **Praca rzeczywista (godziny)** — planowana i rzeczywista praca na zasób w godzinach, w postaci `Name: 12`, z zaimportowanego pliku. Tylko do odczytu.
-- **Pozostała praca (godziny)** — pozostała praca na zasób w godzinach, w postaci `Name: 6`: zapisana praca, a jeśli jej brak, pozostały czas trwania × jednostki. Można edytować przy zadaniu z przydziałami, do którego stosuje się regułę pracy. Widoczne w oknie wyboru tylko wtedy, gdy widoczne są reguły pracy.
+- **Praca planowana (godziny)** i **Praca rzeczywista (godziny)** — planowana i rzeczywista praca na zasób w godzinach, w postaci `Name: 617.14`, z maksymalnie dwoma miejscami po przecinku. Wartości pochodzą z zaimportowanego pliku. Tylko do odczytu.
+- **Pozostała praca (godziny)** — pozostała praca na zasób w godzinach, w postaci `Name: 6` lub `Name: 26.67`: zapisana praca, a jeśli jej brak, pozostały czas trwania × jednostki. Można edytować przy zadaniu z przydziałami, do którego stosuje się typ zadania, z przecinkiem lub kropką jako separatorem dziesiętnym. Widoczne w oknie wyboru tylko wtedy, gdy widoczne są typy zadań. Żółte ⚠ w komórce oznacza, że zapisana praca różni się od jednostek × pozostałego czasu trwania, jak ⚠ przy *Praca (pozost.)* w panelu zadania.
 
 ## Postęp
 
@@ -87,15 +88,15 @@ Kolumny postępu stosują reguły postępu aplikacji: rzeczywista data później
 Wszystkie kolumny w tej kategorii są tylko do odczytu.
 
 - **Opóźnienie bilansowania** — o ile dni roboczych bilansowanie opóźniło zadanie; myślnik, jeśli nie zastosowano bilansowania.
-- **Najwcześniejsze rozpoczęcie** i **Najwcześniejsze zakończenie** — najwcześniejsze daty z obliczeń.
+- **Najwcześniejsze rozpoczęcie** i **Najwcześniejsze zakończenie** — najwcześniejsze daty z obliczeń. Dla zadania, które się rozpoczęło, mogą się one różnić od *Początek* i *Koniec*: profil obliczeń *Primavera P6* ustawia najwcześniejsze rozpoczęcie zadania w toku lub ukończonego na dacie statusu.
 - **Najpóźniejsze rozpoczęcie** i **Najpóźniejsze zakończenie** — najpóźniejsze daty, w których zadanie może jeszcze się rozpocząć lub zakończyć, bez przesunięcia końca projektu.
 - **Zapas swobodny** — o ile dni roboczych zadanie może się przesunąć, nie przesuwając następnika.
 - **Zapas całkowity** — o ile dni roboczych zadanie może się przesunąć, nie przesuwając końca projektu. Ujemny, jeśli ograniczenia lub termin ostateczny nie mogą zostać spełnione.
 - **Krytyczne** — *Tak*, jeśli zadanie leży na ścieżce krytycznej.
 - **Kolidujący zapas** — zapas całkowity minus zapas swobodny.
-- **Prawie krytyczne** — *Tak* dla zadania prawie krytycznego. Wypełnione tylko wtedy, gdy włączono *Oznaczaj jako prawie krytyczne* (*Info o projekcie*, blok *Profil obliczeń i opcje*); w przeciwnym razie myślnik.
+- **Prawie krytyczne** — *Tak* dla zadania prawie krytycznego. Wypełnione tylko wtedy, gdy włączono *Oznaczaj jako prawie krytyczne* (*Ustawienia projektu*, blok *Profil obliczeń i opcje*); w przeciwnym razie myślnik.
 - **Ścieżka zapasu** — numer ścieżki zapasu, 1 dla najbardziej krytycznej. Wypełnione tylko wtedy, gdy włączono *Wiele ścieżek zapasu*; w przeciwnym razie myślnik.
-- **Źródło zarejestrowanych dat** — dla pliku z zarejestrowanymi datami: *Odbiega* lub *Częściowo niezapisane*. Widoczne w oknie wyboru kolumn tylko dla takiego pliku. Na osi bez zapisanych dat *Niezapisane* pojawia się w kolumnach późnych terminów i zapasu.
+- **Źródło zarejestrowanych dat** — dopóki aplikacja pokazuje daty z pliku: *Częściowo niezapisane* przy zadaniu, dla którego plik nie zawiera wszystkiego. Widoczne w oknie wyboru kolumn tylko w tym widoku. Na osi bez zapisanych dat pojawia się *Niezapisane* w kolumnach późnych terminów i zapasu.
 
 Zobacz [Ścieżka krytyczna i zapas](docs://uitleg-kritiek-pad).
 

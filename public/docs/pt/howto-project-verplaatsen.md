@@ -52,10 +52,10 @@ Não se desloca:
 
 **A data está no passado.** Isso é permitido, mas a pré-visualização menciona-o: *A nova data de início está no passado.*
 
-**Alterar o início do projeto em Info do projeto é outra coisa.** Se alterar a data de início em *Definições › Projeto › Info do projeto* e escolher *Aplicar*, o planeamento não se desloca. Só se deslocam as tarefas sem predecessora ou restrição que, depois disso, ficariam antes do novo início. Essas tarefas passam para essa data, e a aplicação diz quantas são. Se quiser deslocar tudo, use *Mover projeto…*.
+**Alterar o início do projeto em Definições do projeto é outra coisa.** Se alterar a data de início em *Definições › Projeto › Definições do projeto* e escolher *Aplicar*, o planeamento não se desloca. Só se deslocam as tarefas sem predecessora ou restrição que, depois disso, ficariam antes do novo início. Essas tarefas passam para essa data, e a aplicação diz quantas são. Se quiser deslocar tudo, use *Mover projeto…*.
 
 ## Ver também
 
 - [Caminho crítico e folga](docs://uitleg-kritiek-pad): como o planeamento calcula e porque o fim se desloca.
 - [Adicionar relações](docs://howto-relaties-leggen): as relações mantêm-se simplesmente definidas quando move.
-- [Novo projeto e Info do projeto](docs://ref-projectinfo): o que faz a data de início em *Info do projeto*.
+- [Novo projeto e Definições do projeto](docs://ref-projectinfo): o que faz a data de início em *Definições do projeto*.

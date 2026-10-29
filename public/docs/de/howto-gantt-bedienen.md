@@ -31,7 +31,7 @@ Ein Ziehen ist ein Schritt in *Rückgängig*, egal wie lang Sie ziehen. Bei eine
 
 ### Die Zeitleiste verschieben
 
-Was ein Ziehen auf dem leeren Hintergrund bewirkt, hängt von Ihrem Scrollmodus ab. Sie wählen ihn unter *Einstellungen*, auf dem Tab *Darstellung*, unter *Gantt › Scrollen & Zoomen* bei *Modus*:
+Was ein Ziehen auf dem leeren Hintergrund bewirkt, hängt von Ihrem Scrollmodus ab. Sie wählen ihn unter *App-Einstellungen*, auf dem Tab *Darstellung*, unter *Gantt › Scrollen & Zoomen* bei *Modus*:
 
 - **Zoom + Ziehen** (Standard): Ziehen Sie mit der linken Maustaste auf den leeren Hintergrund. Dann verschiebt sich die Zeitleiste mit der Maus, wie eine Karte. Der Mauszeiger wird zu einer Hand. Auf einem Balken startet ein Ziehen einfach eine Geste am Balken.
 - **Position** und **Tasten**: Dieselbe Ziehbewegung macht einen Auswahlrahmen. Sie verschieben die Zeitleiste mit dem Mausrad (siehe [Einstellungen](docs://ref-instellingen)) oder mit der mittleren Maustaste.
@@ -57,6 +57,10 @@ Mehr über Auswählen steht unter [Vorgänge auswählen, löschen und rückgäng
 Je weiter Sie herauszoomen, desto weniger Rasterlinien gibt es. Ab 8 Pixeln pro Tag gibt es für jeden Tag eine Linie, mit einer dickeren Linie an der Wochengrenze. Zwischen 2 und 8 Pixeln pro Tag bleibt nur die Wochengrenze. Unter 2 Pixeln pro Tag, auf Jahresebene, bleiben nur die Monatsgrenzen übrig. Sonst würde die Zeichenfläche zu einem gleichmäßigen Streifenmuster, in dem die Balken verschwinden. Die grauen Wochenenden und arbeitsfreien Tage sowie die abwechselnd getönten Wochenbänder bleiben auf jeder Stufe sichtbar. Sie tragen die Wochenstruktur, wenn die Linien wegfallen. In der Kopfzeile der Zeitskala erscheinen die Wochennummern und Tageszahlen nur, wenn dafür Platz ist. Ab 40 Pixeln pro Tag wird außerdem der Wochentag vor der Tageszahl angezeigt.
 
 Der Vorgangsname steht im Balken, wenn er ganz hineinpasst. Passt er nicht, etwa beim Herauszoomen, steht der vollständige Name rechts neben dem Balken.
+
+### Die Details eines Vorgangs ansehen
+
+Halten Sie die Maus ruhig auf einem Balken. Es erscheint eine kleine Karte mit dem Namen des Vorgangs, *PSP*, *Dauer*, *Anfang*, *Ende*, *Status*, *Kritisch* und *Gesamtpuffer*. Während des Ziehens, beim Verschieben der Zeitleiste, bei einem Auswahlrahmen oder bei einem Rechtsklickmenü verschwindet die Karte.
 
 ## Probleme und was die App dann tut
 

@@ -12,9 +12,9 @@ Všetky klávesové kombinácie aplikácie, zoskupené tak, ako v okne *Kláveso
 
 **Keď klávesa nefunguje.** Každá položka uvádza svoje obmedzenia. Tri pravidlá platia takmer všade:
 
-- Vo vstupnom poli, rozbaľovacom zozname alebo textovom poli aplikácia klávesy nezachytáva, takže môžete jednoducho písať. Výnimky: F5, Ctrl+S, F11 a Esc počas prezentácie fungujú aj v poli. V hotovej aplikácii (na počítači a vo webovej verzii na stránke) to platí aj pre Ctrl+Shift+S, Ctrl+O a Ctrl+N.
-- Kým je otvorený dialóg alebo iné okno, klávesy označené *Nie v dialógovom okne* v tomto článku nefungujú. To platí aj pre režim prezentácie, sprievodcu, uvítací dialóg a otázky, ktoré čakajú na odpoveď, napríklad súhlas pri inštalácii rozšírenia.
-- Prepínanie dokumentov (Ctrl+1 až 9, Ctrl+N, Ctrl+O) tiež nefunguje, kým má *Súbor › Info o projekte* zmeny, ktoré ste ešte nepotvrdili tlačidlom *Použiť*. Najprv ich zahoďte alebo použite.
+- Vo vstupnom poli, rozbaľovacom zozname alebo textovom poli aplikácia klávesy nezachytáva, takže môžete jednoducho písať. Výnimky: F5, Ctrl+S, F11 a Esc počas prezentácie fungujú aj v poli. Ak má fokus zatvorený rozbaľovací zoznam, fungujú aj klávesy s Ctrl, napríklad Ctrl+Z po výbere (nie Ctrl+Delete a Ctrl+Backspace). Neplatí to v otvorenom zozname ani v dialógu. V hotovej aplikácii (na počítači a vo webovej verzii na stránke) to platí aj pre Ctrl+Shift+S, Ctrl+O a Ctrl+N.
+- Kým je otvorený dialóg alebo iné okno, klávesy označené *Nie v dialógovom okne* v tomto článku nefungujú. To platí aj pre sprievodcu, uvítací dialóg a otázky, ktoré čakajú na odpoveď, napríklad na otázku, či uložiť zmeny, a na súhlas pri inštalácii rozšírenia. Väčšina týchto klávesov nefunguje ani v režime prezentácie. Výnimka: klávesy na úpravy Ctrl+C, Ctrl+V, Ctrl+Z, Ctrl+Y a Delete/Backspace fungujú počas prezentácie.
+- Prepínanie dokumentov (Ctrl+1 až 9, Ctrl+N, Ctrl+O) tiež nefunguje, kým má *Súbor › Nastavenia projektu* zmeny, ktoré ste ešte nepotvrdili tlačidlom *Použiť*. Najprv ich zahoďte alebo použite.
 
 ## Súbor
 
@@ -24,23 +24,23 @@ Všetky klávesové kombinácie aplikácie, zoskupené tak, ako v okne *Kláveso
 
 **Ctrl+Shift+S** — *Uložiť ako*: pýta sa, kam sa má súbor uložiť. Vo vývojovej verzii nefunguje vo vstupnom poli.
 
-**Ctrl+O** — *Otvoriť*: otvorí súbor, zvyčajne na novej karte. Nie v dialógovom okne a nie, kým *Info o projekte* obsahuje nepotvrdené zmeny.
+**Ctrl+O** — *Otvoriť*: otvorí súbor, zvyčajne na novej karte. Nie v dialógovom okne a nie, kým *Nastavenia projektu* obsahuje nepotvrdené zmeny.
 
-**Ctrl+N** — *Nový projekt*: otvorí okno *Nový projekt*. Nie v dialógovom okne a nie, kým *Info o projekte* obsahuje nepotvrdené zmeny.
+**Ctrl+N** — *Nový projekt*: otvorí okno *Nový projekt*. Nie v dialógovom okne a nie, kým *Nastavenia projektu* obsahuje nepotvrdené zmeny.
 
 Hotová aplikácia (na počítači a vo webovej verzii na stránke) tiež blokuje niekoľko klávesov prehliadača, aby nepredstavovali prekážku: Ctrl+R a Ctrl+Shift+R (obnoviť stránku), F12, Ctrl+Shift+I a Ctrl+Shift+J (nástroje pre vývojárov), Ctrl+U (zobraziť zdrojový kód) a Ctrl+G, Ctrl+F a Ctrl+L (hľadať a adresný riadok). Ctrl+S, Ctrl+Shift+S, Ctrl+O, Ctrl+N a F5 patria aplikácii.
 
 ## Úpravy
 
-**Ctrl+C** — *Kopírovať*: skopíruje vybrané úlohy. Iba pri výbere. V tabuľke úloh Ctrl+C kopíruje vybrané bunky; tabuľka to rieši sama.
+**Ctrl+C** — *Kopírovať*: skopíruje vybrané úlohy. Iba pri výbere. Nie v dialógovom okne. Nie na karte *Súbor*, nie na kartách *Zostava* a *IFC* a nie, keď je otvorený celý panel zdrojov. V tabuľke úloh Ctrl+C kopíruje vybrané bunky; tabuľka to rieši sama.
 
-**Ctrl+V** — *Vložiť*: vloží skopírované úlohy. V tabuľke úloh vloží bunky.
+**Ctrl+V** — *Vložiť*: vloží skopírované úlohy. Nie v dialógovom okne. Nie na karte *Súbor*, nie na kartách *Zostava* a *IFC* a nie, keď je otvorený celý panel zdrojov, lebo tabuľka úloh tam nie je vidieť. V tabuľke úloh vloží bunky.
 
-**Ctrl+Z** — *Vrátiť späť*.
+**Ctrl+Z** — *Vrátiť späť*. Nie v dialógovom okne: najprv zatvorte okno.
 
-**Ctrl+Y** alebo **Ctrl+Shift+Z** — *Vykonať znova*: zopakuje to, čo ste vrátili späť.
+**Ctrl+Y** alebo **Ctrl+Shift+Z** — *Vykonať znova*: zopakuje to, čo ste vrátili späť. Nie v dialógovom okne.
 
-**Delete** alebo **Backspace** — *Odstrániť*: odstráni vybrané úlohy. Iba pri výbere. V bunke tabuľky úloh Delete a Backspace iba vymažú obsah bunky (pozri *Tabuľka*).
+**Delete** alebo **Backspace** — *Odstrániť*: odstráni vybrané úlohy. Iba pri výbere. Nie v dialógovom okne. Nie na karte *Súbor*, nie na kartách *Zostava* a *IFC* a nie, keď je otvorený celý panel zdrojov, lebo tabuľka úloh tam nie je vidieť. V bunke tabuľky úloh Delete a Backspace iba vymažú obsah bunky (pozri *Tabuľka*).
 
 **F2** — *Upraviť...*: otvorí dialógové okno úlohy pre prvú vybranú úlohu. Iba pri výbere. Nie v dialógovom okne. V bunke tabuľky úloh F2 spustí úpravu bunky.
 
@@ -68,7 +68,7 @@ Znížiť úroveň, zvýšiť úroveň a vkladanie nad alebo pod vybranú úlohu
 
 ## Zobrazenie
 
-**F11** — *Prezentácia*: zapne alebo vypne režim prezentácie. Aplikácia tiež požiada prehliadač alebo okno o celú obrazovku. Funguje aj vo vstupnom poli.
+**F11** — *Prezentácia*: zapne alebo vypne režim prezentácie. Aplikácia tiež požiada prehliadač alebo okno o celú obrazovku. Funguje aj vo vstupnom poli. V prehliadači F11 prezentáciu nespustí: prehliadač zapne celú obrazovku sám a aplikácia zostane taká, aká je. F11 však zastaví bežiacu prezentáciu v prehliadači.
 
 **Esc** (počas prezentácie) — *Ukončiť prezentáciu*. Funguje aj vo vstupnom poli. Má prednosť pred *Zrušiť výber*.
 
@@ -96,7 +96,7 @@ Znížiť úroveň, zvýšiť úroveň a vkladanie nad alebo pod vybranú úlohu
 
 **F1** — *Otvoriť pomoc*: otvorí *Súbor › Pomocník*. Nie vo vstupnom poli a nie v dialógovom okne. V okne použite otáznik vpravo hore: otvorí pomoc k článku o tomto okne (pozri [Pás s nástrojmi, karta po karte](docs://ref-lint), v časti *Pomocník*).
 
-**Ctrl+1** až **Ctrl+9** — *Prepnúť dokument*: prepne na prvý až deviaty otvorený dokument. Ak takýto dokument neexistuje, nič sa nestane. Nie v dialógovom okne a nie, kým *Info o projekte* obsahuje nepotvrdené zmeny.
+**Ctrl+1** až **Ctrl+9** — *Prepnúť dokument*: prepne na prvý až deviaty otvorený dokument. Ak takýto dokument neexistuje, nič sa nestane. Nie v dialógovom okne a nie, kým *Nastavenia projektu* obsahuje nepotvrdené zmeny.
 
 **Ctrl+Home** — *Prejsť na dnešný deň*: posunie časovú os tak, aby bol dátum vľavo vo výreze. Je to dátum kontroly stavu, ak ste ho nastavili, inak dnešný deň. Názov preto hovorí „dnes“, aj keď časová os skočí na dátum kontroly stavu. Zoom a začiatok časovej osi zostanú nezmenené. Ak má fokus bunka tabuľky úloh, Ctrl+Home namiesto toho prejde na prvú bunku tabuľky (pozri *Tabuľka*).
 

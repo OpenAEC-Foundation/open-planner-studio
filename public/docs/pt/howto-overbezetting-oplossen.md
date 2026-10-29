@@ -10,7 +10,7 @@ Procure primeiro os recursos sobrealocados. Depois, escolha uma solução. **Niv
 
 ## Passos
 
-### 1. Encontre os recursos sobrealocados
+### 1. Encontre a sobrealocação
 
 1. Procure no friso em *Recursos › Superalocação*. Aparece *Nenhuma* ou, a vermelho, o número de recursos sobrealocados, por exemplo *1 recurso*. Depois de um cálculo, a barra de estado também mostra *⚠ 1 recurso(s) sobrealocado(s)*.
 2. Clique nessa mensagem na barra de estado. Abre-se à direita o painel *Avisos*, com uma linha por recurso, por exemplo *Bricklayer* com *Sobrealocado durante 5 dia(s) (29-06-2027 – 05-07-2027)*.
@@ -24,7 +24,7 @@ Se uma tarefa estiver selecionada, o histograma mostra só a carga dessa tarefa 
 ### 2. Escolha uma solução
 
 - **Mais capacidade.** Se realmente vier um segundo pedreiro, defina *Unidades máx* como 2 (veja [Gerir recursos](docs://howto-resources-beheren)). O recurso deixa então de estar sobrealocado.
-- **Menos unidades por dia.** Reduza o *Unid./dia* ou escolha outra curva para a atribuição (veja [Atribuir recursos com uma curva](docs://howto-resource-toewijzen)).
+- **Menos unidades por dia.** Reduza o valor de *Unidades* ou escolha outra curva para a atribuição (veja [Atribuir recursos com uma curva](docs://howto-resource-toewijzen)).
 - **Ponha as tarefas uma a seguir à outra.** Adicione uma relação entre as duas tarefas, de modo que a segunda só comece quando a primeira estiver concluída (veja [Adicionar relações](docs://howto-relaties-leggen)).
 - **Nivelamento.** A aplicação faz uma tarefa começar mais tarde.
 

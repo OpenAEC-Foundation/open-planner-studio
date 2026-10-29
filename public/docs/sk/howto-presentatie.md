@@ -10,7 +10,7 @@ Desať ľudí sleduje jednu obrazovku v stavebnej búdke. Pás s nástrojmi, sta
 
 ### Pripravte zobrazenie
 
-V prezentačnom režime pás s nástrojmi zmizne, preto si vopred nastavte, čo chcete ukázať.
+V prezentačnom režime pás s nástrojmi zmizne, preto si vopred nastavte, čo chcete zobraziť.
 
 1. Stlačte **Prepočítať** (F5), aby boli zobrazené dátumy správne.
 2. Nastavte zobrazenie, ktoré chcete ukázať, napríklad rozloženie, ktoré zobrazuje len kritické úlohy (pozrite [Vytváranie a používanie rozloženia](docs://howto-layouts-gebruiken)).
@@ -19,9 +19,9 @@ V prezentačnom režime pás s nástrojmi zmizne, preto si vopred nastavte, čo 
 
 ### Spustite prezentáciu
 
-Vyberte *Zobrazenie › Prezentácia › Prezentácia*, alebo stlačte F11. Pás s nástrojmi, karty, stavový riadok a pravý panel zmiznú. Uvidíte tabuľku úloh, diagram Gantt a, ak ste ich zapli, histogram a mini-mapu. Niekoľko sekúnd dole zobrazuje text *Stlačte Esc alebo F11 na ukončenie celej obrazovky.*
+Vyberte *Zobrazenie › Prezentácia › Prezentácia*. V desktopovej aplikácii môžete stlačiť aj F11. V prehliadači patrí F11 samotnému prehliadaču: okno prehliadača prejde na celú obrazovku a aplikácia zostane bez zmeny. Pás s nástrojmi, karty, stavový riadok a pravý panel zmiznú. Uvidíte tabuľku úloh, diagram Gantt a, ak ste ich zapli, histogram a mini-mapu. Niekoľko sekúnd dole zobrazuje text *Stlačte Esc alebo F11 na ukončenie celej obrazovky.*
 
-Prezentáciu môžete spustiť z ľubovoľnej karty, aj z karty *Tabuľka* alebo *Zostava*. Vždy vidíte diagram Gantt otvoreného projektu a keď ju ukončíte, vrátite sa na kartu, z ktorej ste začali.
+V desktopovej aplikácii spustíte prezentáciu z ľubovoľnej karty klávesom F11, aj z karty *Tabuľka* alebo *Zostava*. V prehliadači ju spustíte len pomocou *Zobrazenie › Prezentácia › Prezentácia*. Vždy vidíte diagram Gantt otvoreného projektu a keď ju ukončíte, vrátite sa na kartu, z ktorej ste začali. V prehliadači je to teda *Zobrazenie*.
 
 ### Ukončite prezentáciu
 
@@ -33,7 +33,7 @@ Stlačte Esc alebo F11. Pás s nástrojmi a panely sa vrátia na kartu, z ktorej
 
 **Oznámenia zostávajú viditeľné.** Oznámenie z aplikácie, napríklad chyba pri ukladaní, sa zobrazí aj v prezentačnom režime. Inak tu nie je ani pás s nástrojmi, ani stavový riadok, takže takéto oznámenie je jediný signál, že niečo nie je v poriadku.
 
-**Nastavte rozdelené zobrazenie, mini-mapu a rozloženia vopred.** Na ne potrebujete pás s nástrojmi, a ten v tomto režime zmizne. Priblíženie funguje, myšou aj klávesami Ctrl+= a Ctrl+-. Aj + a - fungujú, ale len vtedy, keď je zameranie v diagrame Gantt. Po F11 je zameranie často v tabuľke úloh, preto najprv kliknite na diagram Gantt.
+**Nastavte rozdelené zobrazenie, mini-mapu a rozloženia vopred.** Na ne potrebujete pás s nástrojmi, a ten v tomto režime zmizne. Priblíženie funguje, myšou aj klávesami Ctrl+= a Ctrl+-. Aj + a - fungujú, ale len vtedy, keď je zameranie v diagrame Gantt. Po spustení prezentácie je zameranie často v tabuľke úloh, preto najprv kliknite na diagram Gantt.
 
 **Celá obrazovka nefunguje.** Aplikácia okrem skrytia pásu s nástrojmi naozaj požiada o celú obrazovku. Ak to váš prehliadač alebo okno odmietne, zmizne len pás s nástrojmi a panely. Prezentácia aj tak funguje. Ak ukončíte celú obrazovku iným spôsobom ako klávesom Esc alebo F11, napríklad klávesom vášho operačného systému, ukončí sa aj prezentačný režim.
 

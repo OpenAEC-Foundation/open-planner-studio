@@ -27,13 +27,13 @@ Jak zvolíte?
 
 **Žádný rozdíl.** Režim působí jen na úkoly, které už začaly, zatímco jejich předchůdce ještě není dokončen. Bez takového úkolu se nic nezmění.
 
-**Hlášení zůstane.** Progress Override hlášení mimo posloupnost nevyřeší. Režim určuje, jak aplikace vypočítává. Rozpor mezi závislostí a průběhem zůstává. Pokud závislost už neplatí, změňte ji ([Přidání závislostí](docs://howto-relaties-leggen)).
+**Hlášení zůstane.** Progress Override hlášení o průběhu mimo posloupnost nevyřeší. Režim určuje, jak aplikace vypočítává. Rozpor mezi závislostí a průběhem zůstává. Pokud závislost už neplatí, změňte ji ([Přidání závislostí](docs://howto-relaties-leggen)).
 
 **Patří k projektu.** Volba se uloží do souboru projektu, platí pro celý projekt a dá se vrátit zpět pomocí Ctrl+Z. Nový projekt je nastaven na Retained Logic.
 
 **Soubor P6.** Když otevřete soubor Primavera P6 (.xer), aplikace převezme režim ze souboru. Kromě Retained Logic a Progress Override má P6 ještě Actual Dates. Aplikace tento třetí režim nezná. Takový soubor se proto vypočítává jako Retained Logic. Hlášení při importu to uvede jako *1 nastavení plánování P6 používá bezpečnou záložní hodnotu.*
 
-**Profil výpočtu.** V profilu výpočtu Primavera P6 funguje Progress Override také zpětně, v pozdních termínech a volné časové rezervě předchůdce (konvence *Progress Override ignoruje zahájeného následníka i při výpočtu zpět*). V profilech výpočtu Open Planner Studio a Microsoft Project tomu tak není. Konvence najdete na kartě *Nastavení › Projekt › Info o projektu*, v bloku *Profil výpočtu a možnosti výpočtu*. V příkladu z vysvětlení se tento zpětný účinek neukáže.
+**Profil výpočtu.** V profilu výpočtu Primavera P6 funguje Progress Override také zpětně, v pozdních termínech a volné časové rezervě předchůdce (konvence *Progress Override ignoruje zahájeného následníka i při výpočtu zpět*). V profilech výpočtu Open Planner Studio a Microsoft Project tomu tak není. Konvence najdete na kartě *Nastavení › Projekt › Nastavení projektu*, v bloku *Profil výpočtu a možnosti výpočtu*. V příkladu z vysvětlení se tento zpětný účinek neukáže.
 
 ## Viz také
 

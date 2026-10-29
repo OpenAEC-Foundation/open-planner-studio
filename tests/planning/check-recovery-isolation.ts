@@ -224,6 +224,9 @@ const rondeDaarna = plan({
   names: PROD,
 });
 eqSet('4i overgenomen snapshot blijft beschermd', rondeDaarna.remove, []);
+// … en zijn manifestregel gaat ook deze ronde mee: zonder regel blijven alleen weesbytes over.
+eq('4i2 overgenomen regel blijft in ons manifest',
+  rondeDaarna.carryOver.map((d) => d.ifc), ['recovery.doc-5.ifc']);
 
 // Een vreemd manifest waarvan de snapshot niet meer bestaat, dragen we niet mee (dode regel).
 const vreemdWeg = plan({
@@ -506,6 +509,36 @@ eq('9h een ongeldige sha is geen blob', PROD.archiveSha('recovery.xerarchive.xyz
     self: SELF, ownWritten: [], adopted: [], names: PROD, ownWrittenArchives: [SHA_A],
   });
   eqSet('9q afsluiten: een vreemd manifest dat de blob noemt, houdt hem', exitForeign.remove, []);
+
+  // Geslaagd herstel heft bescherming uitsluitend voor de exact vervangen snapshot op.
+  // Archieven blijven zolang de nieuwe generatie of een mislukte buur ernaar verwijst.
+  {
+    const old = 'recovery.snapshot.doc-1.oud.ifc';
+    const fresh = 'recovery.snapshot.doc-1.nieuw.ifc';
+    const broken = 'recovery.snapshot.doc-2.stuk.ifc';
+    const blob = PROD.archiveName(SHA_A);
+    const previous = withArchive(OTHER, [
+      { id: 'doc-1', ifc: old, xerArchive: SHA_A },
+      { id: 'doc-2', ifc: broken, xerArchive: SHA_A },
+    ]);
+    const shared = plan({
+      listing: [old, fresh, broken, blob], prev: previous, keep: [fresh],
+      adopted: [old, broken], replaced: [old],
+    });
+    eqSet('vervangen: alleen de gezonde oude snapshot weg', shared.remove, [old]);
+    eq('vervangen: onleesbare buur met gedeeld archief blijft aangeboden',
+      shared.carryOver.map(d => d.ifc), [broken]);
+    const noOtherReference = withArchive(OTHER, [{ id: 'doc-1', ifc: old, xerArchive: SHA_A }]);
+    eqSet('vervangen: ongebruikt oud archief mag mee weg', plan({
+      listing: [old, fresh, blob], prev: noOtherReference, keep: [fresh],
+      adopted: [old], replaced: [old],
+    }).remove, [old, blob]);
+    eqSet('vervangen: archief van de nieuwe generatie blijft', plan({
+      listing: [old, fresh, blob], prev: noOtherReference, keep: [fresh], keepArchives: [SHA_A],
+      adopted: [old], replaced: [old],
+    }).remove, [old]);
+  }
+
 }
 // v5: de verwijzing reist mee in het Tauri-plan, ook voor ongewijzigde documenten.
 {
@@ -523,6 +556,7 @@ eq('9h een ongeldige sha is geen blob', PROD.archiveSha('recovery.xerarchive.xyz
   );
   eq('9r v5-plan: beide regels dragen de verwijzing', v5Plan.documents.map((d) => d.xerArchive), [SHA_A, SHA_A]);
 }
+
 
 if (diffs.length === 0) {
   console.log(`OK  recovery-isolation-check: alle checks groen (${checks})`);

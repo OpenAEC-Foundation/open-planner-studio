@@ -8,13 +8,13 @@ Her finner du alle tastekombinasjonene i appen, gruppert som i vinduet *Hurtigta
 
 **Nøyaktig kombinasjon.** Appen sammenligner Ctrl, Shift og Alt nøyaktig. Ctrl+Alt+S gjør derfor ingenting. Tastene må stemme helt med listen.
 
-**Åpne vinduet.** Trykk Ctrl+/ eller velg *Innstillinger › Hurtigtaster › Hurtigtaster*. Ctrl+/ lukker også vinduet igjen. Du kan ikke endre noe i vinduet. Det viser ikke alle tastene i denne listen. Av tabelltastene viser det bare de seks første, og ikke dialogtastene nederst i artikkelen.
+**Åpne vinduet.** Trykk Ctrl+/ eller velg *Innstillinger › Hurtigtaster › Hurtigtaster*. Ctrl+/ lukker også vinduet igjen. Vinduet er skrivebeskyttet. Det viser ikke alle tastene i denne listen. Av tabelltastene viser det bare de seks første, og ikke dialogtastene nederst i artikkelen.
 
 **Når en tast ikke virker.** Hver oppføring sier hvilke begrensninger den har. Tre regler gjelder nesten overalt:
 
-- I et inntastingsfelt, en rullegardinliste eller en tekstboks griper appen ikke inn på tastene. Du kan derfor bare skrive. Unntak: F5, Ctrl+S, F11 og Esc under presentasjonen virker også i et felt. I den ferdige appen (på skrivebordet og i nettversjonen på nettstedet) gjelder det også for Ctrl+Shift+S, Ctrl+O og Ctrl+N.
-- Når en dialog eller et annet vindu er åpent, virker ikke tastene som er merket *Ikke i en dialog* nedenfor. Det gjelder også presentasjonsmodus, omvisningen, velkomstdialogen og spørsmål som venter på svar, for eksempel samtykket når du installerer en utvidelse.
-- Bytte av dokument (Ctrl+1 til 9, Ctrl+N, Ctrl+O) virker heller ikke så lenge *Fil › Prosjektinfo* har endringer som du ikke har bekreftet med *Bruk*. Forkast eller bruk dem først.
+- I et inntastingsfelt, en rullegardinliste eller en tekstboks griper appen ikke inn på tastene, så du kan bare skrive. Unntak: F5, Ctrl+S, F11 og Esc under presentasjonen virker også i et felt. Har fokus en lukket rullegardinliste, virker også tastene med Ctrl, for eksempel Ctrl+Z etter et valg (ikke Ctrl+Delete og Ctrl+Backspace). Det gjelder ikke i en åpen liste eller i en dialog. I den ferdige appen (på skrivebordet og i nettversjonen på nettstedet) gjelder det også for Ctrl+Shift+S, Ctrl+O og Ctrl+N.
+- Når en dialog eller et annet vindu er åpent, virker ikke tastene som er merket *Ikke i en dialog* nedenfor. Det gjelder også omvisningen, velkomstdialogen og spørsmål som venter på svar, for eksempel spørsmålet om du vil lagre endringene, og samtykket når du installerer en utvidelse. De fleste av disse tastene virker heller ikke i presentasjonsmodus. Unntak: redigeringstastene Ctrl+C, Ctrl+V, Ctrl+Z, Ctrl+Y og Delete/Backspace virker under presentasjonen.
+- Bytte av dokument (Ctrl+1 til 9, Ctrl+N, Ctrl+O) virker heller ikke så lenge *Fil › Prosjektinnstillinger* har endringer som du ikke har bekreftet med *Bruk*. Forkast eller bruk dem først.
 
 ## Fil
 
@@ -24,23 +24,23 @@ Her finner du alle tastekombinasjonene i appen, gruppert som i vinduet *Hurtigta
 
 **Ctrl+Shift+S** — *Lagre som*: spør hvor filen skal lagres. I en utviklingsversjon virker den ikke i et inntastingsfelt.
 
-**Ctrl+O** — *Åpne*: åpner en fil, vanligvis i en ny fane. Ikke i en dialog og ikke med prosjektinfo som ikke er brukt.
+**Ctrl+O** — *Åpne*: åpner en fil, vanligvis i en ny fane. Ikke i en dialog og ikke med prosjektinnstillinger som ikke er brukt.
 
-**Ctrl+N** — *Nytt prosjekt*: åpner vinduet *Nytt prosjekt*. Ikke i en dialog og ikke med prosjektinfo som ikke er brukt.
+**Ctrl+N** — *Nytt prosjekt*: åpner vinduet *Nytt prosjekt*. Ikke i en dialog og ikke med prosjektinnstillinger som ikke er brukt.
 
 Den ferdige appen (på skrivebordet og i nettversjonen på nettstedet) blokkerer også en del nettleserstaster, så de ikke står i veien: Ctrl+R og Ctrl+Shift+R (last inn på nytt), F12, Ctrl+Shift+I og Ctrl+Shift+J (utviklerverktøy), Ctrl+U (vis kilde) og Ctrl+G, Ctrl+F og Ctrl+L (søk og adressefelt). Ctrl+S, Ctrl+Shift+S, Ctrl+O, Ctrl+N og F5 går til selve appen.
 
 ## Rediger
 
-**Ctrl+C** — *Kopier*: kopierer de markerte aktivitetene. Bare når du har markert aktiviteter. I aktivitetstabellen kopierer Ctrl+C de markerte cellene. Aktivitetstabellen håndterer det selv.
+**Ctrl+C** — *Kopier*: kopierer de markerte aktivitetene. Bare når du har markert aktiviteter. Ikke i en dialog. Ikke i *Fil*, ikke på fanene *Rapport* og *IFC* og ikke når det fulle ressurspanelet er åpent. I aktivitetstabellen kopierer Ctrl+C de markerte cellene. Aktivitetstabellen håndterer det selv.
 
-**Ctrl+V** — *Lim inn*: limer inn kopierte aktiviteter. I aktivitetstabellen limes cellene inn.
+**Ctrl+V** — *Lim inn*: limer inn kopierte aktiviteter. Ikke i en dialog. Ikke i *Fil*, ikke på fanene *Rapport* og *IFC* og ikke når det fulle ressurspanelet er åpent, fordi aktivitetstabellen ikke er synlig der. I aktivitetstabellen limes cellene inn.
 
-**Ctrl+Z** — *Angre*.
+**Ctrl+Z** — *Angre*. Ikke i en dialog: lukk vinduet først.
 
-**Ctrl+Y** eller **Ctrl+Shift+Z** — *Gjør om*: gjentar det du angret.
+**Ctrl+Y** eller **Ctrl+Shift+Z** — *Gjør om*: gjentar det du angret. Ikke i en dialog.
 
-**Delete** eller **Backspace** — *Slett*: sletter de markerte aktivitetene. Bare når du har markert aktiviteter. I en celle i aktivitetstabellen tømmer Delete og Backspace bare innholdet i cellen (se *Tabell*).
+**Delete** eller **Backspace** — *Slett*: sletter de markerte aktivitetene. Bare når du har markert aktiviteter. Ikke i en dialog. Ikke i *Fil*, ikke på fanene *Rapport* og *IFC* og ikke når det fulle ressurspanelet er åpent, fordi aktivitetstabellen ikke er synlig der. I en celle i aktivitetstabellen tømmer Delete og Backspace bare innholdet i cellen (se *Tabell*).
 
 **F2** — *Rediger...*: åpner aktivitetsdialogen for den første markerte aktiviteten. Bare når du har markert aktiviteter. Ikke i en dialog. I en celle i aktivitetstabellen starter F2 redigering av cellen.
 
@@ -68,7 +68,7 @@ Rykk inn og reduser innrykk, og innsetting over eller under en markert aktivitet
 
 ## Visning
 
-**F11** — *Presentasjon*: slår presentasjonsmodus av eller på. Appen ber også nettleseren eller vinduet om fullskjerm. Virker også i et inntastingsfelt.
+**F11** — *Presentasjon*: slår presentasjonsmodus av eller på. Appen ber også vinduet om fullskjerm. Virker også i et inntastingsfelt. I nettleseren starter ikke F11 presentasjonen: nettleseren setter vinduet i fullskjerm selv, og appen forblir som den er. F11 stopper likevel en pågående presentasjon i nettleseren.
 
 **Esc** (under presentasjonen) — *Avslutt presentasjon*. Virker også i et inntastingsfelt. Dette går foran *Fjern markering*.
 
@@ -96,7 +96,7 @@ Rykk inn og reduser innrykk, og innsetting over eller under en markert aktivitet
 
 **F1** — *Åpne hjelp*: åpner *Fil › Hjelp*. Ikke i et inntastingsfelt og ikke i en dialog. I et vindu bruker du spørsmålstegnet øverst til høyre: det åpner hjelpen om artikkelen om det vinduet (se [Båndet, fane for fane](docs://ref-lint), under *Hjelp*).
 
-**Ctrl+1** til **Ctrl+9** — *Bytt dokument*: går til det første til det niende åpne dokumentet. Finnes ikke det dokumentet, skjer ingenting. Ikke i en dialog og ikke med prosjektinfo som ikke er brukt.
+**Ctrl+1** til **Ctrl+9** — *Bytt dokument*: går til det første til det niende åpne dokumentet. Finnes ikke dokumentet, skjer ingenting. Ikke i en dialog og ikke med prosjektinnstillinger som ikke er brukt.
 
 **Ctrl+Home** — *Gå til i dag*: ruller tidslinjen slik at en dato står helt til venstre i visningen. Det er statusdatoen hvis du har satt en, ellers i dag. Derfor sier etiketten «i dag», også når tidslinjen hopper til statusdatoen. Zoomen og starten av tidslinjen blir som de var. Har en celle i aktivitetstabellen fokus, går Ctrl+Home i stedet til den første cellen i tabellen (se *Tabell*).
 

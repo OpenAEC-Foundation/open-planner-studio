@@ -16,7 +16,7 @@ En **baslinje** är en ögonblicksbild av tidsplanen vid ett bestämt ögonblick
 
 Exemplet nedan använder beräkningsprofilen *Open Planner Studio*, som ett nytt projekt beräknas med. Längre fram kan du läsa vad som skiljer sig åt i beräkningsprofilerna för Primavera P6 och Microsoft Project.
 
-Appen beräknar inte om av sig själv. Efter varje ändring i framdrift eller rapportdatum visar statusfältet *Inaktuell — beräkna om (F5)*. Tryck på **Beräkna** (F5), till exempel via *Tidsplan › Tidsplan › Beräkna*. Är *Beräkna automatiskt* på (under *Inställningar › Projekt › Inställningar*, fliken *Tidsplan*, rubriken *Beräkning*) gör appen detta själv.
+Appen beräknar inte om av sig själv. Efter varje ändring i framdrift eller rapportdatum visar statusfältet *Inaktuell — beräkna om (F5)*. Tryck på **Beräkna** (F5), till exempel via *Tidsplan › Tidsplan › Beräkna*. Är *Beräkna automatiskt* på (under *Inställningar › Projekt › Appinställningar*, fliken *Tidsplan*, rubriken *Beräkning*) gör appen detta själv.
 
 ### Rapportdatumet
 
@@ -128,7 +128,7 @@ Nu ett exempel för framdriftsläget. Samma tillbyggnad, ett annat läge: det ä
 
 Utan framdrift var putsningen planerad från tisdag 20 till fredag 23 juli, och målningen från måndag 26 till onsdag 28 juli. Statusfältet visar nu *1 samband med framdrift i fel ordning*: målningen har startat, men putsningen är inte klar. I panelen *Varningar* står det: *Framdrift i fel ordning: framdriften för den efterföljande uppgiften strider mot sambandet*.
 
-Putsningen har 4 × (1 − 0,25) = 3 arbetsdagar återstående arbete: 21, 22 och 23 juli. Målningen har 3 × (1 − 0,33) = 2 arbetsdagar återstående arbete.
+Putsningen har 4 × (1 − 0.25) = 3 arbetsdagar återstående arbete: 21, 22 och 23 juli. Målningen har 3 × (1 − 0.33) = 2 arbetsdagar återstående arbete.
 
 - Med **Retained Logic** kan det återstående arbetet bara börja när putsningen är klar. Det är fredag 23 juli, så målningen börjar måndag 26 juli och slutar tisdag 27 juli. Balken går från den verkliga starten 21 juli till 27 juli. Det totala slacket är 7 arbetsdagar.
 - Med **Progress Override** börjar det återstående arbetet på rapportdatumet. Målningen slutar torsdag 22 juli, före putsningen är klar. Det totala slacket är 10 arbetsdagar.
@@ -137,11 +137,11 @@ Putsningen har 4 × (1 − 0,25) = 3 arbetsdagar återstående arbete: 21, 22 oc
 
 ### Andra beräkningsprofiler
 
-I profilerna Primavera P6 och Microsoft Project slutar målningen i det här exemplet på samma datum (27 och 22 juli). De skiljer sig på följande punkter. De är beräkningsregler i profilen. Du hittar dem under *Inställningar › Projekt › Projektinfo*, i blocket *Beräkningsprofil och beräkningsalternativ*.
+I profilerna Primavera P6 och Microsoft Project slutar målningen i det här exemplet på samma datum (27 och 22 juli). De skiljer sig på följande punkter. De är beräkningsregler i profilen. Du hittar dem under *Inställningar › Projekt › Projektinställningar*, i blocket *Beräkningsprofil och beräkningsalternativ*.
 
 - I profilen Microsoft Project flyttas arbete som inte har startat inte till rapportdatumet (beräkningsregel *Ej påbörjade uppgifter flyttas inte till rapportdatumet*). Om du i exemplet ovan bara sätter ett rapportdatum och inte matar in något, stannar överlämningen i den profilen kvar på fredag 6 augusti.
 - I profilen Microsoft Project startar det återstående arbetet också inte tidigare än verklig start plus den förflutna tiden (beräkningsregel *Återstående arbete återupptas efter den förflutna tiden*). Det är en extra nedre gräns bredvid rapportdatumet: den senare av de två gäller. Ta *Build inner cavity leaf* (5 arbetsdagar), startad tisdag 29 juni. Den är 40 % klar onsdag 30 juni, som är rapportdatumet. Två team murar samtidigt, så 40 % är redan klart efter en dag. Allt före det är slutfört enligt plan. Open Planner Studio och Primavera P6 låter uppgiften slutföras fredag 2 juli. Microsoft Project gör det måndag 5 juli, eftersom tisdag 29 juni plus 2 förflutna arbetsdagar är torsdag 1 juli, efter rapportdatumet.
-- Primavera P6 visar som tidigaste start för en pågående uppgift starten av det återstående arbetet, inte den verkliga starten (i innerskiktsexemplet onsdag 30 juni).
+- Primavera P6 visar som tidigaste start för en pågående uppgift starten av det återstående arbetet, inte den verkliga starten (i innerskiktsexemplet onsdag 30 juni). Kolumnen *Start* och balken visar däremot den verkliga starten i varje profil.
 - I profilen Primavera P6 räknas under Progress Override inte heller samband till en efterföljande uppgift som redan har startat för den föregående uppgiften. Det begränsar inte längre dess senaste datum och dess fritt slack (beräkningsregel *Progress Override negeras även för en påbörjad efterföljande uppgift bakåt*). I exemplet med putsare och målare syns det inte, eftersom putsningen ändå är kritisk via golvavjämningen: dess senaste datum och fritt slack är lika under Retained Logic och Progress Override.
 - När du öppnar en xer-fil tar appen framdriftsläget från filen. Actual Dates, det tredje P6-läget, känner appen inte till. En sådan fil beräknas med Retained Logic.
 
@@ -157,7 +157,7 @@ I profilerna Primavera P6 och Microsoft Project slutar målningen i det här exe
 
 **”Avbrottet i en delad uppgift försvinner.”** Nej: ett avbrott i den del som återstår finns kvar i det återstående arbetet. Ta en uppgift på 5 arbetsdagar med ett avbrott på 1 dag efter 2 arbetsdagar, startad tisdag 29 juni. Med rapportdatumet onsdag 30 juni och uppgiften på 40 % är det återstående arbetet 3 arbetsdagar. Det startar på rapportdatumet och går över avbrottet: slutet är måndag 5 juli. Utan avbrottet hade det varit fredag 2 juli.
 
-**Timmar och rapportdatumet.** Du kan inte ange en tid i menyfliksområdet: du fyller i rapportdatumet som ett datum. Om du gör en avstämning efter arbetstid, sätt rapportdatumet på nästa arbetsdag. En uppgift i timmar beräknar det återstående arbetet från starten av rapportdatumet. Ta *Lay hollow-core floor* i övningsprojektet efter självstudie 4: 5 timmar, måndag 28 juni, arbetsdag från 07:00. Med rapportdatumet måndag 28 juni och uppgiften på 40 % har den 3 timmar återstående arbete, från 07:00 till 10:00, även om arbete redan utförts den morgonen. Hur appen räknar timmar förklaras i [Dagar och timmar](docs://uitleg-dagen-en-uren).
+**Timmar och rapportdatumet.** Du kan inte ange en tid i menyfliksområdet: du fyller i rapportdatumet som ett datum. Om du gör en avstämning efter arbetstid, sätt rapportdatumet på nästa arbetsdag. En uppgift i timmar beräknar det återstående arbetet från starten av rapportdatumet. Ta *Lay hollow-core floor* i övningsprojektet efter självstudie 4, när allt före den är klart: 5 timmar, måndag 28 juni, arbetsdag från 07:00. Med rapportdatumet måndag 28 juni och uppgiften på 40 % har den 3 timmar återstående arbete, från 07:00 till 10:00, även om arbete redan utförts den morgonen. Hur appen räknar timmar förklaras i [Dagar och timmar](docs://uitleg-dagen-en-uren).
 
 **Uppdatera en baslinje.** Det är inte möjligt. Du sparar en ny och tar bort den gamla. Om du flyttar projektet följer de verkliga datumen och rapportdatumet med, men baslinjerna gör det som standard inte: så syns förskjutningen kvar som avvikelse. Se [Flytta ett projekt](docs://howto-project-verplaatsen).
 

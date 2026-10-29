@@ -6,7 +6,7 @@ Your bricklaying crew does not work for one project only. Today it is on the hou
 
 There are two layers.
 
-The **resource library** is the list of resources and calendars that belong to your organization: a bricklayer, a crane, a plasterer, with their type, rate and how many of them you have. The list itself, which the app also calls the **pool**, is not in your project files but in the app: in the desktop app in a file on this computer, in the browser in that browser's storage. If you clear the site data in the browser, the library is gone; so export it as a backup. There is always at least one library. The first one is called *Mijn resourcebibliotheek* (a Dutch name) and you can rename it.
+The **resource library** is the list of resources and calendars that belong to your organization: a bricklayer, a crane, a plasterer, with their type, rate and how many of them you have. The list itself, which the app also calls the **pool**, is not in your project files but in the app: in the desktop app in a file on this computer, in the browser in that browser's storage. If you clear the site data in the browser, the library is gone; so export it as a backup. There is always at least one library. The first one gets a name in the current interface language when it is created, for example *My resource library* in English. You can rename it; changing the interface language leaves existing names unchanged.
 
 The **project** decides how much of a resource it uses and when. A project is linked to one library or stands alone. A standalone project works fine, just without a shared list.
 

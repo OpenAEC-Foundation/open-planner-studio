@@ -29,19 +29,21 @@ This is a setting of the app, not of the project file. If a file already contain
 
 *Project default* is the first choice and is what a task has by default. The task type between the brackets is the one the project currently has as its default. The app has no button to change that project default: it comes from an import (for example from MS Project or Primavera P6) or from the MCP connection. If you want another task type for one task, choose it here.
 
+If the MCP connection sets the project default to *Fixed work*, every task that follows the default becomes a task in hours, because fixed work is always a task in hours. A task of 5 work days then becomes 40 hours. The dates stay the same.
+
 You can also choose the task type in the table. Click the **+** on the right of the task list header (*Add column*) and, under *Planning*, choose the *Task type* column.
 
 A task without an assignment has nothing to tie together, so the task type does nothing there. Assign a resource first (see [Assigning resources with a curve](docs://howto-resource-toewijzen)).
 
 ### Seeing and changing the work
 
-For a task with assignments, a *Work (rem.)* column appears in the *Assignments* block of the *Properties* panel, next to *Units/day*. That is the remaining work of that resource in hours. A small padlock above a column shows what the task type holds: *Units/day* with *Fixed duration and units* and with *Fixed units*, *Work (rem.)* with *Fixed duration and work* and with *Fixed work*.
+For a task with assignments, a *Work (h)* column appears in the *Assignments* block of the *Properties* panel, next to *Units*. That is the remaining work of that resource in hours. A small padlock above a column shows what the task type holds: *Units* with *Fixed duration and units* and with *Fixed units*, *Work (h)* with *Fixed duration and work* and with *Fixed work*.
 
 If you want to change the work yourself, type the hours in the field and press Enter. The app does not accept a value of 0 or less: the field jumps back to the previous value.
 
 ### Seeing what happens
 
-If you choose a task type, no number changes yet. Under a task type that protects work, the app only fixes the current work, so *Work (rem.)* has a stored value. Only at the next change does the task type decide what moves along. Change the *Units/day*, for example, and see what happens to the duration and the work.
+If you choose a task type, no number changes yet. Under a task type that protects work, the app only fixes the current work, so *Work (h)* has a stored value. Only at the next change does the task type decide what moves along. Change the *Units*, for example, and see what happens to the duration and the work.
 
 If that changes the task's duration, the status bar says *Out of date — recalculate (F5)*. Press **Calculate** (F5), for example via *Home › Schedule › Calculate*, to see the new dates. If *Calculate automatically* is on (same *Planning* tab, heading *Calculation*), the app does this itself.
 
@@ -56,13 +58,13 @@ If that changes the task's duration, the status bar says *Out of date — recalc
 
 **The *Task type* field is missing.** Then the setting *Use task types* is off and the file has no task types yet, or you have selected a milestone, a phase, a hammock or a task with the duration type *Elapsed time*. There is no task type there. Select an ordinary task.
 
-**The duration changes without me changing it.** Under *Fixed work* and *Fixed units* the duration follows from units and work. If you change one of those or the number of resources, the app adjusts the duration, rounded up to whole work days. For a task in hours the app rounds up to whole minutes.
+**The duration changes without me changing it.** Under *Fixed work* and *Fixed units* the duration follows from units and work. If you change one of those or the number of resources, the app adjusts the duration. The app does not round the duration: at units of 3 on 32 hours of work the duration becomes 10 hours and 40 minutes.
 
-**The work does not exactly match units × duration.** Rounding can cause that. Next to *Work (rem.)* a warning sign then appears, *Differs from units × duration*. The histogram follows the stored work.
+**The work does not exactly match units × duration.** That can happen for a task from P6 or MS Project, if the file holds a different remaining work. In the *Work (h)* field a warning sign then appears, *Differs from units × duration*. The histogram follows the stored work. A change you make yourself gives no difference, because the app does not round.
 
-**Material does not count.** For a material resource *Work (rem.)* shows a dash. Material never drives the duration.
+**Material does not count.** For a material resource *Work (h)* shows a dash. Material never drives the duration.
 
-**A task with progress.** The task type works on the remaining part. So *Work (rem.)* shows only what still has to happen.
+**A task with progress.** The task type works on the remaining part. So *Work (h)* shows only what still has to happen.
 
 **Undoing.** Choosing a task type, and every change that the task type calculates, is one step for *Undo* (Ctrl+Z). The chosen task type is then gone again, but the *Task type* field stays in view.
 

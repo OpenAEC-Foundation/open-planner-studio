@@ -22,11 +22,11 @@ La lista de la pestaña *Inicio* y las tarjetas de *Archivo › Exportar* ofrece
 - *CSV (;)*, en la tarjeta *CSV (separado por punto y coma)*: una tabla de tareas que se abre en una hoja de cálculo.
 - *MS Project XML*: se puede abrir en Microsoft Project.
 - *Primavera P6 XML*: para Oracle Primavera P6.
-- *IFC 4x3*: el formato propio de la aplicación, con todo lo que contiene.
+- *IFC*: el formato propio de la aplicación, con todo lo que contiene, en el esquema IFC del proyecto (predeterminado: IFC 4.3 ADD2).
 
 ### Una exportación IFC con un archivo de biblioteca
 
-Si su proyecto está vinculado a una biblioteca de recursos, la casilla *Guardar también el archivo de biblioteca* está debajo de las tarjetas de *Archivo › Exportar*. Si activa la casilla y elige *IFC 4x3*, la aplicación pide una ubicación dos veces: primero para el proyecto y después para *nombre-del-proyecto-biblioteca.ifc*. Esta casilla solo está en *Archivo › Exportar*, no en la lista de la pestaña *Inicio*.
+Si su proyecto está vinculado a una biblioteca de recursos, la casilla *Guardar también el archivo de biblioteca* está debajo de las tarjetas de *Archivo › Exportar*. Si activa la casilla y elige *IFC*, la aplicación pide una ubicación dos veces: primero para el proyecto y después para *nombre-del-proyecto-biblioteca.ifc*. Esta casilla solo está en *Archivo › Exportar*, no en la lista de la pestaña *Inicio*.
 
 ### Restaurar una hoja de avance
 

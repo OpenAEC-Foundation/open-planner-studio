@@ -39,7 +39,7 @@ Ktoré operátory dostanete, závisí od druhu poľa:
 - Text (*Názov úlohy*, *WBS*): *je rovné*, *nie je rovné*, *obsahuje*, *začína na* a *je prázdne*.
 - Číslo a dátum (*Celková časová rezerva*, *Začiatok*, *Postup*): *je rovné*, *nie je rovné*, *menšie ako*, *menšie alebo rovné*, *väčšie ako*, *väčšie alebo rovné*, *medzi* a *je prázdne*. Pri *medzi* sú dve polia: pri čísle s nápovedou *Od* a *Do*, pri dátume bez nápovedy (prvý dátum je začiatok, druhý dátum je dátum dokončenia).
 - Áno/nie (*Kritická*, *Medzník*, *Takmer kritická*): *je rovné* a *nie je rovné*, s hodnotou *Áno* alebo *Nie*.
-- Výber (*Typ*, kód aktivity): *je rovné*, *nie je rovné*, *je jedno z* (s hodnotami na zaškrtnutie) a *je prázdne*.
+- Výber (*Druh prác*, kód aktivity): *je rovné*, *nie je rovné*, *je jedno z* (s hodnotami na zaškrtnutie) a *je prázdne*.
 - *Zdroje*: *je jedno z* a *je prázdne*.
 - *Prebieha*: iba *medzi*, s dvoma dátumami (od a do).
 
@@ -81,7 +81,7 @@ Rozloženia, ktoré neukladajú tie isté časti, môžu byť zapnuté naraz. Ak
 
 **Rozloženia sú uložené v zariadení, nie v projekte.** Aplikácia uchováva vaše rozloženia a stĺpce pre všetky vaše projekty na tomto zariadení. Prekrytia z rozloženia (pôvodný plán, čiara postupu a ostatné) platia pre všetky vaše projekty. Filter, zoskupenie a triedenie, ktoré sú práve zapnuté, patria k otvorenému projektu, ale nezapisujú sa do súboru projektu: po uložení a opätovnom otvorení je zobrazenie čisté. Ani neoznačujú projekt ako „zmenený“.
 
-**Oddelené tlačidlá sú skryté.** Samostatné tlačidlá *Stĺpce…*, *Filtrovať…*, *Zoskupiť…* a *Triediť…* na karte *Zobrazenie* sú starý spôsob zobrazenia. Vrátite ich tlačidlom *Zobraziť klasické tlačidlá zobrazenia* v časti *Staré funkcie* na karte *Rozšírené* v okne nastavení (⚙ v záhlaví okna). Používajte radšej rozloženia.
+**Oddelené tlačidlá sú skryté.** Samostatné tlačidlá *Stĺpce…*, *Filtrovať…*, *Zoskupiť…* a *Triediť…* na karte *Zobrazenie* sú starý spôsob zobrazenia. Vrátite ich tlačidlom *Zobraziť klasické tlačidlá zobrazenia* v časti *Staré funkcie* na karte *Rozšírené* v okne *Nastavenia aplikácie* (⚙ v záhlaví okna). Používajte radšej rozloženia.
 
 ## Pozri aj
 

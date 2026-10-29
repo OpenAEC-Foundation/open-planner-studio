@@ -6,7 +6,7 @@ Goal: put a resource on a task, with units per day and a curve that decides how 
 
 As soon as you want to see who works where and when: the bricklayer on the outer cavity leaf, the crane on the hollow-core floor slabs. Without an assignment there is no load and so no histogram or overallocation.
 
-Two terms. The **units** (in the app *Units/day*) are how much of the resource works on the task per work day: 1 is one bricklayer, 2 is two of them, 0.5 is half a day. The **curve** decides how the total, units times duration, is spread over the task's work days. Work is rarely even: on a wall the start is quiet, the middle busy and the end quiet again.
+Two terms. The **units** (in the panel the column *Units*, in the *Assign* window the field *Units/day*) are how much of the resource works on the task per work day: 1 is one bricklayer, 2 is two of them, 0.5 is half a day. The **curve** decides how the total, units times duration, is spread over the task's work days. Work is rarely even: on a wall the start is quiet, the middle busy and the end quiet again.
 
 The outer cavity leaf takes 6 work days. With one bricklayer and the curve *Uniform* that is 1 unit on each of the 6 days, 6 together. With the curve *Bell shaped* it is still 6 units together, but the distribution becomes 0, 1, 2, 2, 1 and 0.
 
@@ -27,9 +27,9 @@ For a second resource you open the window again. Resources that are already on t
 
 1. Select the task. The *Properties* panel is on the right; if you do not see it, turn it on with *View › Panels › Properties*.
 2. In the *Assignments* block, right at the bottom, choose the resource at *Assign resource*. The assignment starts with units of 1 and the curve *Uniform*.
-3. For each assignment, change the *Units/day* and choose another *Curve*.
+3. For each assignment, change the *Units*. Click the name of the resource to show *Curve*, and choose another curve there.
 
-That is also how you change an existing assignment. With the bin (*Remove*) next to the name you take the assignment off the task. The resource itself stays. With *Move to…* you move the assignment to another task.
+That is also how you change an existing assignment. With the bin (*Remove*) at the end of the line you take the assignment off the task. The resource itself stays. With *Move to…* (shown after a click on the name) you move the assignment to another task.
 
 ### The curves
 

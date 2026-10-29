@@ -31,10 +31,10 @@ Tek bir sürükleme, ne kadar uzun sürerse sürsün, *Geri al* içinde tek bir 
 
 ### Zaman çizelgesini kaydırmak
 
-Boş arka plandaki bir sürüklemenin ne yaptığı, kaydırma modunuza bağlıdır. Bunu *Ayarlar* içinde, *Görünüm* sekmesinde seçersiniz. *Gantt › Kaydırma ve yakınlaştırma* altındaki *Mod* ayarında:
+Boş arka plandaki bir sürüklemenin ne yaptığı, kaydırma modunuza bağlıdır. Bunu *Uygulama ayarları* içinde, *Görünüm* sekmesinde seçersiniz. *Gantt › Kaydırma ve yakınlaştırma* altındaki *Mod* ayarında:
 
 - **Yakınlaştır + sürükle** (varsayılan): Sol fare tuşuyla boş arka planda sürüklerseniz, zaman çizelgesi fareyle birlikte hareket eder, bir harita gibi. İmleç bir el olur. Bir çubuğun üzerinde sürükleme yalnızca bir çubuk hareketi başlatır.
-- **Konum** ve **Tuşlar**: Aynı sürükleme bir seçim kutusu yapar. Zaman çizelgesini tekerlekle (bkz. [Ayarlar](docs://ref-instellingen)) veya orta fare tuşuyla kaydırırsınız.
+- **Konum** ve **Tuşlar**: Aynı sürükleme bir seçim kutusu yapar. Zaman çizelgesini tekerlekle (bkz. [Uygulama ayarları](docs://ref-instellingen)) veya orta fare tuşuyla kaydırırsınız.
 
 **Orta fare tuşu** (tekerleğe basılı) zaman çizelgesini her modda kaydırır. Bir çubuğun üzerinden başlasanız bile çalışır. Başka bir hareket sürerken çalışmaz, örneğin bir çubuğu sürüklerken.
 
@@ -50,13 +50,17 @@ Seçme hakkında daha fazlası [Görevleri seçmek, silmek ve geri almak](docs:/
 
 ### Yakınlaştırma ve uzaklaştırma
 
-1. *Yakınlaştır +* ve *Uzaklaştır -* öğelerini kullanın (*Başlangıç › Yakınlaştırma*). Ya da + ve - tuşlarına basın. Tekerlek de yakınlaştırır. Bunun ne zaman geçerli olduğu kaydırma modunuza bağlıdır (bkz. [Ayarlar](docs://ref-instellingen)).
+1. *Yakınlaştır +* ve *Uzaklaştır -* öğelerini kullanın (*Başlangıç › Yakınlaştırma*). Ya da + ve - tuşlarına basın. Tekerlek de yakınlaştırır. Bunun ne zaman geçerli olduğu kaydırma modunuza bağlıdır (bkz. [Uygulama ayarları](docs://ref-instellingen)).
 2. Tüm projeyi görmek istiyorsanız *Görünüm › Zaman ölçeği › Projeye sığdır* seçin veya Ctrl+0 tuşuna basın. *Sıfırla* (*Görünüm* sekmesinde) ya da 0 tuşu, yakınlaştırmayı varsayılan değere geri ayarlar.
 3. Durum çubuğunun sağ altında, gün başına piksel cinsinden yakınlaştırma yer alır. Örneğin *Yakınlaştırma: 15px/gün*.
 
-Ne kadar uzaklaştırırsanız, o kadar az ızgara çizgisi olur. Gün başına 8 piksel veya daha fazlasında her gün için bir çizgi vardır; hafta sınırında ise daha kalın bir çizgi. Gün başına 2 ile 8 piksel arasında yalnızca hafta sınırı kalır. Gün başına 2 pikselin altında, yıl düzeyinde yalnızca ay sınırları kalır. Aksi halde tuval, çubukların kaybolduğu düz bir çizgi desenine dönüşür. Gri hafta sonları ve tatil günleri ile dönüşümlü renklendirilmiş hafta şeritleri her düzeyde kalır. Çizgiler kaybolduğunda hafta yapısını onlar taşır. Zaman çizelgesi başlığında hafta numaraları ve gün numaraları yalnızca yer olduğunda görünür. Gün başına 40 pikselden itibaren ise haftanın günü, gün numarasından önce de gösterilir.
+Ne kadar uzaklaştırırsanız, o kadar az ızgara çizgisi olur. Gün başına 8 piksel veya daha fazlasında her gün için bir çizgi vardır; hafta sınırında ise daha kalın bir çizgi. Gün başına 2 ile 8 piksel arasında yalnızca hafta sınırı kalır. Gün başına 2 pikselin altında, yıl düzeyinde yalnızca ay sınırları kalır. Aksi halde tuval, çubukların kaybolduğu düzenli bir çizgi desenine dönüşür. Gri hafta sonları ve tatil günleri ile dönüşümlü renklendirilmiş hafta şeritleri her düzeyde kalır. Çizgiler kaybolduğunda hafta yapısını onlar taşır. Zaman çizelgesi başlığında hafta numaraları ve gün numaraları yalnızca yer olduğunda görünür. Gün başına 40 pikselden itibaren ise haftanın günü, gün numarasından önce de gösterilir.
 
 Görevin adı çubuğun içine tam sığarsa orada gösterilir. Sığmazsa, örneğin uzaklaştırdığınızda, tam ad çubuğun sağında gösterilir.
+
+### Bir görevin ayrıntılarına bakmak
+
+Farenizi bir çubuğun üzerinde hareketsiz tutun. Küçük bir kart görünür. Kartta görevin adı, *WBS*, *Süre*, *Başlangıç*, *Bitiş*, *Durum*, *Kritik* ve *Toplam bolluk* yer alır. Sürükleme, kaydırma, bir seçim kutusu veya sağ tık menüsü sırasında kart kaybolur.
 
 ## Sorunlar ve uygulamanın o durumda yaptıkları
 
@@ -72,5 +76,5 @@ Görevin adı çubuğun içine tam sığarsa orada gösterilir. Sığmazsa, örn
 
 - [Sağ tık menüleri](docs://ref-contextmenus): çubuk, satır ve grup başlığındaki menüler.
 - [Klavye kısayolları](docs://ref-sneltoetsen): yakınlaştırma ve bir hareketi iptal etme tuşları.
-- [Ayarlar](docs://ref-instellingen): kaydırma modu ve zaman ekseni.
+- [Uygulama ayarları](docs://ref-instellingen): kaydırma modu ve zaman ekseni.
 - [Kısıtlamalar ve son tarihler](docs://uitleg-constraints): neden taşınan bir başlangıç bir kısıtlama olur.

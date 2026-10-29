@@ -1,8 +1,8 @@
+// De dagenmaat (§3.14): einde di 31 aug 12:00, zoals de urenreferentie (minute-model-tutorial-f3.json).
 // Tutorial 6 — Voortgang en afwijking (`tut-6-uitvoering`): baseline, statusdatum, voortgang in de tabel,
 // rekenen en de afwijking lezen.
 import { l, same, type Action, type Check, type L, type Snap, type TutorialScript } from './dsl';
 import { PHASES, T, taskIs } from './project';
-import { enableHourPlanningFromNotice } from './tut-5';
 
 const statusBar = { anchor: 'status-bar' } as const;
 const dialog = { dialog: true } as const;
@@ -11,7 +11,7 @@ const notStale: Check = { state: (s: Snap) => (s.stale ? ['planning nog verouder
 const status = (nl: string, en: string): Check => ({ see: statusBar, text: l(nl, en) });
 
 const ACTUAL_START = l('Werkelijke start', 'Actual start');
-const ACTUAL_FINISH = l('Werkelijke einde', 'Actual finish');
+const ACTUAL_FINISH = l('Werkelijk einde', 'Actual finish');
 const PROGRESS = l('Voortgang', 'Progress');
 
 /** Een kolom toevoegen via Tabel › Kolommen › Kolommen…: categorie openklappen en de kolom kiezen. */
@@ -46,8 +46,8 @@ export const TUTORIAL_6: TutorialScript = {
   steps: [
     {
       id: 'startpunt',
-      do: [enableHourPlanningFromNotice],
-      expect: [notStale, status('Einde: 30-08-2027', 'End: 30-08-2027'), status('Kritiek pad: 17 taken, 46 werkdagen', 'Critical path: 17 tasks, 46 work days')],
+      do: [],
+      expect: [notStale, status('Einde: 30-08-2027', 'End: 30-08-2027'), status('Kritiek pad: 8 taken, 46 werkdagen', 'Critical path: 8 tasks, 46 work days')],
     },
     {
       id: 'baseline',
@@ -131,9 +131,9 @@ export const TUTORIAL_6: TutorialScript = {
       expect: [
         notStale,
         status('Einde: 31-08-2027', 'End: 31-08-2027'),
-        status('Kritiek pad: 10 taken, 47 werkdagen', 'Critical path: 10 tasks, 47 work days'),
+        status('Kritiek pad: 11 taken, 47 werkdagen', 'Critical path: 11 tasks, 47 work days'),
         { state: (s, lang) => [
-          ...taskIs(s, lang, T.handover, { earlyFinish: '2027-08-31' }),
+          ...taskIs(s, lang, T.handover, { earlyFinish: '2027-08-31T12:00' }),
           ...taskIs(s, lang, PHASES.prep, { completion: 1 }),
           ...taskIs(s, lang, T.excavate, { critical: false }),
         ] },

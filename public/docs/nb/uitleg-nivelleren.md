@@ -50,9 +50,9 @@ Med avmerkingsboksen *Kun utjevning innen slakk (smoothing) — prosjektets slut
 
 ## Eksempel: murer på to vegger
 
-Eksemplet er øvingsprosjektet *House extension* i opplæringen, slik det er like før utjevningen i opplæring 5. I opplæring 5 gjør du dette selv og kontrollerer tallene. I dette eksemplet har pussarbeidet arbeidstypen *Fast arbeid*, og pusseren arbeider med tildelingsenheter på 2, som i [Arbeidsregler: varighet, enheter og arbeid](docs://uitleg-werkregels).
+Eksemplet er øvingsprosjektet *House extension* i opplæringen, slik det er like før utjevningen i opplæring 5. I opplæring 5 gjør du dette selv og kontrollerer tallene. I dette eksemplet har pussarbeidet aktivitetstypen *Fast arbeid*, og pusseren arbeider med tildelingsenheter på 2, som i [Aktivitetstyper: varighet, enheter og arbeid](docs://uitleg-werkregels).
 
-Etter hulldekket, som er ferdig mandag 28. juni, starter både det innvendige murbladet (5 arbeidsdager) og det utvendige murbladet (6 arbeidsdager) tirsdag 29. juni. Begge er tilordnet murer, med tildelingsenheter på 1 og *Maksimalt antall* på 1. Etter det innvendige murbladet kommer takelementene (en kranjobb på 6 timer) og takleggingen (2 arbeidsdager). Vindusrammene venter på takleggingen og på det utvendige murbladet. Overleveringen er mandag 30. august.
+Etter hulldekket, som er ferdig mandag 28. juni, starter både det innvendige murbladet (5 arbeidsdager) og det utvendige murbladet (6 arbeidsdager) tirsdag 29. juni. Begge er tildelt murer, med tildelingsenheter på 1 og *Maksimalt antall* på 1. Etter det innvendige murbladet kommer takelementene (en kranjobb på 6 timer) og takleggingen (2 arbeidsdager). Vindusrammene venter på takleggingen og på det utvendige murbladet. Overleveringen er mandag 30. august.
 
 ### Overallokeringen
 
@@ -66,14 +66,14 @@ Begge aktivitetene har prioritet 500. Vindusrammene leveres først 14. juli (i o
 
 Det utvendige murbladet kan ikke starte 29. juni. Den første dagen da mureren er ledig igjen, er tirsdag 6. juli. Det er 5 arbeidsdager etter tidligste start, så utjevningsforsinkelsen er 5. Det utvendige murbladet går nå fra 6. juli til og med 13. juli. Vindusrammene starter uansett først 14. juli, så overleveringen er fortsatt mandag 30. august. Vinduet viser *Prosjektets sluttdato: uendret (30-08-2027)* og én linje: *Build outer cavity leaf*, gammel start 29-06-2027, ny start 06-07-2027, *5 d*.
 
-De 5 arbeidsdagene som aktiviteten flytter, er nøyaktig slakken til det utvendige murbladet. Derfor gir avmerkingsboksen *Kun utjevning innen slakk (smoothing) — prosjektets sluttdato forblir fast* samme resultat her. Det utvendige murbladet har nå ingen slakk igjen og er kritisk.
+De 5 arbeidsdagene som aktiviteten flytter, er nøyaktig slakken til det utvendige murbladet. Derfor gir *utjevning* samme resultat her. Det utvendige murbladet har nå ingen slakk igjen og er kritisk.
 
 ### Hva om vindusrammene ikke kommer 14. juli
 
 Uten den begrensningen kan vindusrammene starte fredag 9. juli, og overleveringen er onsdag 25. august. Det utvendige murbladet har da bare 2 arbeidsdager slakk.
 
-- Uten avmerkingsboksen *Kun utjevning innen slakk (smoothing) — prosjektets sluttdato forblir fast* flytter det utvendige murbladet fortsatt 5 arbeidsdager. Nå må vindusrammene vente: de starter 14. juli, 3 arbeidsdager senere. Alt etter dem flytter seg med, og overleveringen går fra 25. august til 30. august, også 3 arbeidsdager senere.
-- Med avmerkingsboksen *Kun utjevning innen slakk (smoothing) — prosjektets sluttdato forblir fast* flytter ingenting seg. Det utvendige murbladet passer ikke innenfor de 2 arbeidsdagene med slakk. Vinduet viser konflikten *Build outer cavity leaf*, 5 dag(er), med årsaken *For lite ledig kapasitet innen slakken til å løse denne konflikten*.
+- Uten *utjevning* flytter det utvendige murbladet fortsatt 5 arbeidsdager. Nå må vindusrammene vente: de starter 14. juli, 3 arbeidsdager senere. Alt etter dem flytter seg med, og overleveringen går fra 25. august til 30. august, også 3 arbeidsdager senere.
+- Med *utjevning* flytter ingenting seg. Det utvendige murbladet passer ikke innenfor de 2 arbeidsdagene med slakk. Vinduet viser konflikten *Build outer cavity leaf*, 5 dag(er), med årsaken *For lite ledig kapasitet innen slakken til å løse denne konflikten.*
 
 ### Hva om det utvendige murbladet får prioritet
 
@@ -81,7 +81,7 @@ Hvis du gir det utvendige murbladet prioriteten *Høy* (900), kommer det først.
 
 ### Hva om en andre murer kommer til
 
-Setter du *Maksimalt antall* for mureren til 2, er det ingen overallokering lenger. *Beregn* melder *Ingen aktiviteter må flyttes — tidsplanen er allerede konfliktfri*.
+Setter du *Maksimalt antall* for mureren til 2, er det ingen overallokering lenger. *Beregn* melder *Ingen aktiviteter må flyttes — tidsplanen er allerede konfliktfri.*
 
 ## Konsekvenser og misforståelser
 
@@ -101,5 +101,5 @@ Setter du *Maksimalt antall* for mureren til 2, er det ingen overallokering leng
 
 - [Løse overallokering](docs://howto-overbezetting-oplossen): stegene for å finne overallokering og utjevne den.
 - [Kritisk linje og slakk](docs://uitleg-kritiek-pad): hva slakk er, og hvorfor en aktivitet blir kritisk.
-- [Arbeidsregler: varighet, enheter og arbeid](docs://uitleg-werkregels): hvordan varigheten til en aktivitet beveger seg med tildelingsenhetene.
+- [Aktivitetstyper: varighet, enheter og arbeid](docs://uitleg-werkregels): hvordan varigheten til en aktivitet beveger seg med tildelingsenhetene.
 - [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): tre tårn som trenger de samme mannskapene og tårnkranen, og hva utjevning gjør med det.

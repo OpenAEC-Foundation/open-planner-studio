@@ -6,7 +6,7 @@ Doel: een resource op een taak zetten, met een inzet per dag en een curve die be
 
 Zodra je wilt zien wie wanneer waar werkt: de metselaar op het buitenspouwblad, de kraan op de kanaalplaten. Zonder toewijzing is er geen belasting en dus ook geen histogram of overbezetting.
 
-Twee vaktermen. De **inzet** (in de app *Eenh./dag*) is hoeveel van de resource er per werkdag aan de taak werkt: 1 is één metselaar, 2 zijn er twee, 0,5 is een halve dag. De **curve** bepaalt hoe het totaal, inzet maal duur, over de werkdagen van de taak wordt verdeeld. Werk is zelden gelijkmatig: bij een muur is het begin rustig, het midden druk en het einde weer rustig.
+Twee vaktermen. De **inzet** (in het paneel de kolom *Inzet*, in het venster *Toewijzen* het veld *Eenh./dag*) is hoeveel van de resource er per werkdag aan de taak werkt: 1 is één metselaar, 2 zijn er twee, 0,5 is een halve dag. De **curve** bepaalt hoe het totaal, inzet maal duur, over de werkdagen van de taak wordt verdeeld. Werk is zelden gelijkmatig: bij een muur is het begin rustig, het midden druk en het einde weer rustig.
 
 Het buitenspouwblad duurt 6 werkdagen. Met één metselaar en de curve *Uniform* is dat 1 eenheid op elk van de 6 dagen, samen 6. Met de curve *Klokvorm* blijven het samen 6 eenheden, maar de verdeling wordt 0, 1, 2, 2, 1 en 0.
 
@@ -27,9 +27,9 @@ Voor een tweede resource open je het venster opnieuw. Resources die al op de taa
 
 1. Selecteer de taak. Het paneel *Eigenschappen* staat rechts; zie je het niet, zet het dan aan met *Beeld › Panelen › Eigensch.*
 2. Kies in het blok *Toewijzingen*, helemaal onderaan, bij *Resource toewijzen* de resource. De toewijzing begint met een inzet van 1 en de curve *Uniform*.
-3. Pas per toewijzing de *Eenh./dag* aan en kies bij *Curve* een andere curve.
+3. Pas per toewijzing de *Inzet* aan. Klik op de naam van de resource om *Curve* te tonen, en kies daar een andere curve.
 
-Zo wijzig je ook een bestaande toewijzing. Met de prullenbak (*Verwijderen*) naast de naam haal je de toewijzing van de taak. De resource zelf blijft bestaan. Met *Verplaats naar…* zet je de toewijzing over op een andere taak.
+Zo wijzig je ook een bestaande toewijzing. Met de prullenbak (*Verwijderen*) aan het eind van de regel haal je de toewijzing van de taak. De resource zelf blijft bestaan. Met *Verplaats naar…* (zichtbaar na een klik op de naam) zet je de toewijzing over op een andere taak.
 
 ### De curves
 

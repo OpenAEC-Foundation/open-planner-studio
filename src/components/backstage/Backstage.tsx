@@ -36,6 +36,8 @@ export function Backstage() {
   const { t: tCommon } = useTranslation('common');
   const setUI = useAppStore(s => s.setUI);
   const section = useAppStore(s => s.ui.backstageSection);
+  // Help mag de wachtende voortgangsvraag pauzeren, geen andere handeling of document openen.
+  const startQuestionOpen = useAppStore(s => s.ui.pendingActualStartQuestion !== null);
 
   // "Sluit project" loopt via exact dezelfde route als de
   // document-chrome (tabstrip/projectbalk/overzicht): `closeWithGuard` → dirty toont de 3-weg
@@ -112,13 +114,13 @@ export function Backstage() {
         </button>
 
         {/* Actie-items: triggeren actie en sluiten backstage */}
-        <ActionItem icon={<FileText size={14} />} label={tMenu('ribbon.new')} onClick={() => leave(() => { handleNewProject(); closeBackstage(); })} />
-        <ActionItem icon={<FolderOpen size={14} />} label={tMenu('ribbon.open')} onClick={() => leave(() => { handleOpen(buildImportLabels(tCommon)); closeBackstage(); })} />
+        <ActionItem disabled={startQuestionOpen} icon={<FileText size={14} />} label={tMenu('ribbon.new')} onClick={() => leave(() => { handleNewProject(); closeBackstage(); })} />
+        <ActionItem disabled={startQuestionOpen} icon={<FolderOpen size={14} />} label={tMenu('ribbon.open')} onClick={() => leave(() => { handleOpen(buildImportLabels(tCommon)); closeBackstage(); })} />
         <NavItem icon={<Clock size={14} />} label={tMenu('backstage.recent')} active={section === 'recent'} onClick={() => goTo('recent')} />
         {/* data-tour-anchor (tourstap 6): voorbeelden-navitem. */}
         <NavItem icon={<BookOpen size={14} />} label={tMenu('backstage.examples')} active={section === 'examples'} onClick={() => goTo('examples')} tourAnchor="backstage-examples" />
-        <ActionItem icon={<Save size={14} />} label={tMenu('ribbon.save')} onClick={() => leave(() => { handleSave(); closeBackstage(); })} />
-        <ActionItem icon={<SaveAll size={14} />} label={tMenu('backstage.saveAs')} onClick={() => leave(() => { handleSaveAs(); closeBackstage(); })} />
+        <ActionItem disabled={startQuestionOpen} icon={<Save size={14} />} label={tMenu('ribbon.save')} onClick={() => leave(() => { handleSave(); closeBackstage(); })} />
+        <ActionItem disabled={startQuestionOpen} icon={<SaveAll size={14} />} label={tMenu('backstage.saveAs')} onClick={() => leave(() => { handleSaveAs(); closeBackstage(); })} />
 
         <div className="backstage-nav-divider" />
 
@@ -147,6 +149,7 @@ export function Backstage() {
         {/* [Rondleiding] — herstart-ingang (naast die in het lint). Actie-item (geen `section`): sluit Backstage en
             start de TourOverlay direct, zonder de WelcomeDialog ertussen. */}
         <ActionItem
+          disabled={startQuestionOpen}
           icon={<Compass size={14} />}
           label={tCommon('tour.backstageRestart')}
           onClick={() => leave(() => { closeBackstage(); setUI({ showTourOverlay: true, tourStepIndex: 0 }); })}
@@ -154,7 +157,7 @@ export function Backstage() {
 
         <div className="backstage-nav-divider" />
 
-        <ActionItem icon={<X size={14} />} label={tMenu('backstage.closeProject')} onClick={() => leave(handleCloseProject)} />
+        <ActionItem disabled={startQuestionOpen} icon={<X size={14} />} label={tMenu('backstage.closeProject')} onClick={() => leave(handleCloseProject)} />
       </aside>
 
       <main className="backstage-main">
@@ -162,7 +165,9 @@ export function Backstage() {
         {section === 'examples' && <ExamplesSection />}
         {section === 'export' && <ExportSection />}
         {section === 'import' && <ImportSection />}
-        {section === 'print' && <PrintSection onClose={closeBackstage} />}
+        {section === 'print' && (
+          <PrintSection onOpenPreview={() => leave(() => setUI({ activeRibbonTab: 'report' }))} />
+        )}
         {section === 'project-info' && (
           <ProjectInfoSection
             panelRef={projectInfoRef}
@@ -213,11 +218,11 @@ function NavItem({ icon, label, active, onClick, tourAnchor }: {
   );
 }
 
-function ActionItem({ icon, label, onClick }: {
-  icon: React.ReactNode; label: string; onClick: () => void;
+function ActionItem({ icon, label, onClick, disabled }: {
+  icon: React.ReactNode; label: string; onClick: () => void; disabled?: boolean;
 }) {
   return (
-    <button className="backstage-nav-item" onClick={onClick}>
+    <button className="backstage-nav-item disabled:opacity-40 disabled:cursor-not-allowed" onClick={onClick} disabled={disabled}>
       <span className="backstage-nav-icon">{icon}</span>
       {label}
     </button>
@@ -257,8 +262,9 @@ function RecentSection() {
   const openRecentFile = useAppStore(s => s.openRecentFile);
   const setUI = useAppStore(s => s.setUI);
 
-  // Fallback-web zonder site: geen herbruikbare refs → recents verbergen. Met site-opslag wél tonen.
-  if (!supportsRecentFiles()) return null;
+  // Fallback-web zonder site heeft geen herbruikbare refs, maar de navigatie blijft bereikbaar.
+  // Toon daarom uitleg in plaats van een leeg paneel (knownbug 38).
+  const supported = supportsRecentFiles();
   // Een site-bestand is alleen te openen zolang de site er is; anders tonen we het niet.
   const site = siteStorageAvailable();
   const recentFiles = site ? allRecentFiles : allRecentFiles.filter(e => e.ref.kind !== 'site');
@@ -266,8 +272,10 @@ function RecentSection() {
   return (
     <>
       <h2 className="backstage-title">{tMenu('backstage.recentTitle')}</h2>
-      <p className="backstage-subtitle">{tMenu('backstage.recentSubtitle')}</p>
-      {recentFiles.length === 0 ? (
+      {supported && <p className="backstage-subtitle">{tMenu('backstage.recentSubtitle')}</p>}
+      {!supported ? (
+        <div className="backstage-empty" data-ops-recent-unavailable>{tMenu('backstage.recentUnavailable')}</div>
+      ) : recentFiles.length === 0 ? (
         <div className="backstage-empty">{tMenu('backstage.recentEmpty')}</div>
       ) : (
         <div className="backstage-recent-list">
@@ -459,6 +467,7 @@ function ExportSection() {
       return;
     }
     setExportError(null);
+    if (result.cancelled) return;
     setUI({ activeRibbonTab: 'start' });
   };
 
@@ -494,9 +503,8 @@ function ExportSection() {
 // Print section — opent Report-tab
 // ---------------------------------------------------------------------------
 
-function PrintSection({ onClose }: { onClose: () => void }) {
+function PrintSection({ onOpenPreview }: { onOpenPreview: () => void }) {
   const { t: tMenu } = useTranslation('menu');
-  const setUI = useAppStore(s => s.setUI);
 
   return (
     <>
@@ -504,10 +512,7 @@ function PrintSection({ onClose }: { onClose: () => void }) {
       <p className="backstage-subtitle">{tMenu('backstage.printSubtitle')}</p>
       <button
         className="btn btn--primary"
-        onClick={() => {
-          setUI({ activeRibbonTab: 'report' });
-          onClose();
-        }}
+        onClick={onOpenPreview}
       >
         {tMenu('backstage.openPrintPreview')}
       </button>

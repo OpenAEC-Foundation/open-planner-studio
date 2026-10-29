@@ -28,7 +28,7 @@ Listede adı değiştirin. Değişiklik hemen uygulanır; *Kaydet* düğmesini t
 
 ### Temel planı silmek
 
-Listede temel planın yanındaki küçük çöp kutusuna tıklayın. Etkin temel planı silerseniz uygulama *Etkin temel plan silinsin mi?* diye sorar. Ardından kalan en yeni temel plan etkin olur. Başka temel plan yoksa artık etkin temel plan kalmaz ve bindirme kaybolur. *Ctrl+Z* ile silinen temel planı geri getirirsiniz.
+Listede temel planın yanındaki küçük çöp kutusuna tıklayın. Etkin temel planı silerseniz uygulama *Etkin temel plan silinsin mi?* diye sorar. Ardından kalan en yeni temel plan etkin olur. Başka temel plan yoksa artık etkin temel plan kalmaz ve bindirme kaybolur. Silinen temel planı Ctrl+Z ile geri getirirsiniz. Önce pencereyi kapatın; Ctrl+Z pencerenin içinde çalışmaz.
 
 ### Görev tablosundaki sapmalar
 
@@ -41,6 +41,8 @@ Her temel planın görev tablosunda altı sütunu vardır. Görev tablosu başl�
 **İlerleme içeren bir temel plan.** İlerlemeyi girdikten sonra temel planı kaydederseniz, temel plan o gerçek tarihlerle birlikte durumu kaydeder. Sapma o zaman sıfır olur ve artık gerçekleşme hakkında bir şey söylemez. Temel planı işe başlamadan önce kaydedin.
 
 **Bir temel plan güncellenemez.** Anlaşmayı gözden geçirmek istiyorsanız yeni bir temel plan kaydedin. Gerekirse eski temel planı silin.
+
+**Süre veya Süre sapması sütunundaki ⚠.** Saat cinsindeki bir görevde bir gün, takvimin çalışma saatleridir. Takvimin kendi günlük saatleri varsa (Primavera P6 kaynaklı, örneğin 10 saatlik bantlarla 8 gibi), uygulamanın eski bir sürümü günleri farklı sayıyordu. O sürümden bir temel plan eski sayıyı tutar: 1870 saatlik bir görev temel planda 233,75 gündür, şimdi ise 187 gündür. Uygulama böyle bir temel planı dönüştürmez. Bu temel planın *Süre* ve *Süre sapması* sütunları ⚠ gösterir; açıklama için bu işaretin üzerine gelin. Temel planın tarihleri doğrudur. Yeni bir temel plan kaydedin; gerekirse eski temel planı silin.
 
 **Yalnızca alt görevi olmayan görevler.** Bir faz temel planda yer almaz: temel plan çubuğu ve sapması yoktur. Faz, altındaki görevlerden belirlenir.
 

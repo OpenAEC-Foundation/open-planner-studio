@@ -47,11 +47,12 @@ exactly its steps, split over parallel jobs by `scripts/verify-parts.mjs`, and t
 | `npm run verify:docs` | the in-app documentation (nl + en required, other locales checked when present) and the mechanical claims in AGENTS.md |
 | `npm run verify:i18n` | `en` complete, plural forms per CLDR category, key typing, fixed locale-file format |
 | `npm run verify:release-highlights-json` | `public/release-highlights.json` matches the release-highlight catalog |
-| `npm run verify:store-boundaries` | core runtime factories and store-bound MCP tools never import `useAppStore`/`appStoreContext` |
+| `npm run verify:store-boundaries` | core runtime factories and store-bound MCP tools never import `useAppStore`/`appStoreContext`; the headless core (`src/core/`) imports no value from `appStore` at all |
 | `npm run verify:conventions` | AST gate: the scheduling engine (`src/engine/`) never reads the source format (`p6Source`, reader imports, XER source signals); provenance data-gate reads are pinned and may only go down |
 | `npm run verify:gantt-boundaries` | AST gate on the renderer/viewport/pointer/table boundaries |
 | `npm run verify:cycles` | circular imports within `src/` |
 | `npm run verify:text-roles` | interface text sizes only via the six text roles (`text-caption` … `text-title`, `var(--text-…)`) — no bare px/rem, `text-[Npx]` or Tailwind default sizes |
+| `npm run verify:core-package` | builds the headless core package `@openaec/open-planner-core`, packs it with `npm pack`, installs it in a temporary copy of `headless/consumer-example/` and runs and type-checks that consumer (see `docs/headless-kern.md`) |
 
 `npm run verify:audit` (`npm audit --audit-level=high`) exists as a separate command but is
 deliberately **not** part of `verify`: a newly published advisory would otherwise turn every push

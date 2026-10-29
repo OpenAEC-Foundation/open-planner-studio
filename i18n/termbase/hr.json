@@ -1963,6 +1963,18 @@
     "source": "model",
     "status": "model"
   },
+  "work-category": {
+    "term": "kategorija radova",
+    "forms": [
+      "kategorija radova",
+      "kategorije radova",
+      "kategoriju radova",
+      "kategorijom radova",
+      "kategorijama radova"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "radni sati",
     "forms": [

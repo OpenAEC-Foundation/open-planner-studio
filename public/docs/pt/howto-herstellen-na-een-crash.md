@@ -9,7 +9,7 @@ O portátil avariou, a aplicação deixou de responder ou o separador do navegad
 ## Passos
 
 1. Inicie a aplicação de novo. No navegador, recarregue o mesmo separador: a cópia de recuperação pertence apenas a esse separador.
-2. Se a aplicação encontrar cópias, aparece a janela *Restaurar trabalho não guardado*. *O Open Planner Studio não foi fechado normalmente. Os seguintes documentos tinham alterações não guardadas que podem ser restauradas:* Para cada projeto, a janela mostra o nome, o caminho do ficheiro, se o projeto tiver um ficheiro (no navegador, só o nome do ficheiro), o número de tarefas e a hora da cópia, por exemplo *21 tarefas* e *Guardado: Sep 29, 2026, 9:41 AM*. A janela também pode mostrar projetos que não alterou.
+2. Se a aplicação encontrar cópias, aparece a janela *Restaurar trabalho não guardado*. *O Open Planner Studio não foi fechado normalmente. Os seguintes documentos tinham alterações não guardadas que podem ser restauradas:* Para cada projeto, a janela mostra o nome, o caminho do ficheiro, se o projeto tiver um ficheiro (no navegador, só o nome do ficheiro), o número de tarefas e a hora da cópia, por exemplo *21 tarefas* e *Guardado: Sep 29, 2026, 9:41 AM*. A hora segue a sua definição *Formato de hora*. A janela também pode mostrar projetos que não alterou.
 3. Escolha *Restaurar*. A aplicação abre todos os projetos da lista, cada um num separador, com o estado da última cópia. A tecla Enter faz o mesmo.
 4. Verifique os seus projetos e guarde-os logo com Ctrl+S.
 

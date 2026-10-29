@@ -107,6 +107,8 @@ interface RibbonButtonProps {
   disabled?: boolean;
   primary?: boolean;
   danger?: boolean;
+  /** Dient een bestaand formulier buiten het lint in (rapportexport). */
+  form?: string;
   /** Tooltip — ook op de grote knop, waar de Relatie-knop afhankelijk van de selectie iets anders
    *  doet. Puur een `title`-attribuut:
    *  geen enkel effect op de vormgeving van het lint. */
@@ -123,7 +125,7 @@ interface RibbonButtonProps {
 /** Grote en kleine lintknop delen alles behalve de `small`-klasse (en `primary` bestaat alleen groot). */
 function ribbonButton(
   small: boolean,
-  { icon, label, onClick, active, disabled, primary, danger, title, itemId, anchor }: RibbonButtonProps,
+  { icon, label, onClick, active, disabled, primary, danger, form, title, itemId, anchor }: RibbonButtonProps,
 ) {
   const cls = small ? ['ribbon-btn', 'small'] : ['ribbon-btn'];
   if (active) cls.push('active');
@@ -139,6 +141,8 @@ function ribbonButton(
   return (
     <button
       className={cls.join(' ')}
+      form={form}
+      type={form ? (disabled ? 'button' : 'submit') : undefined}
       onClick={disabled ? undefined : onClick}
       title={tip}
       aria-label={tip}

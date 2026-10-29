@@ -64,6 +64,7 @@ const context: TaskColumnContext = {
   relationIndex,
   assignmentsByTaskId: new Map(), resourcesById: new Map(), baselinesById: new Map(),
   scheduleStale: true,
+  labelForText: key => key === 'relations.drivingUnknown' ? 'Onbekend' : key,
 };
 
 const items = buildRelationCellItems({
@@ -101,13 +102,13 @@ const warningLabel = (key: string): string => ({
   'relations.warnOutOfSequence': 'buiten volgorde',
   'relations.warnSourceMissing': 'bron ontbreekt',
 }[key] ?? key);
-eq('drivingkolom toont richting en WBS', relationDrivingText(analysisItems), '← 1.2');
+eq('drivingkolom toont richting en WBS', relationDrivingText(analysisItems, context), '← 1.2');
 eq('relationele vrije-spelingkolom toont alle berekende waarden',
   relationFreeFloatText(analysisItems), '← 1.2: 0d; ← 1.4: 4d');
 eq('waarschuwingenkolom labelt elke betrokken relatie', relationWarningsText(analysisItems, warningLabel),
   '← 1.4: niet meegerekend, lead afgekapt; ← 1.5: lead groter dan voorgangerduur, buiten volgorde; ← Fundering, fase 1: bron ontbreekt');
 eq('RTL keert alleen de betekenisdragende relatiepijlen om', [
-  relationDrivingText(analysisItems, 'rtl'),
+  relationDrivingText(analysisItems, { ...context, textDirection: 'rtl' }),
   relationFreeFloatText(analysisItems, 'rtl'),
   relationWarningsText(analysisItems, warningLabel, 'rtl'),
 ], [
@@ -119,6 +120,55 @@ eq('interactief opgebouwde interne tokens behouden relatie- en taakidentiteit', 
   kind: 'internal', wbsCode: '1.2', taskId: 'B', relType: 'FS', lagText: '+2d', relationId: 'seq-fs',
   source: { index: 0, start: 0, end: 9, text: '1.2 FS+2d' },
 });
+
+// Dezelfde bestaande relaties blijven leesbaar, navigeerbaar en verliesloos kopieerbaar als
+// driving onbekend is. Oude ids mogen dan geen bliksem of bepalende WBS suggereren.
+for (const [label, analysis, known, expectedDriving, expectedText] of [
+  ['nog niet berekend', null, false, undefined, 'Onbekend'],
+  ['opgeslagen datums met oude ids', {
+    drivingUnknown: true, drivingSequenceIds: ['seq-fs'],
+    sequenceFreeFloat: {}, truncatedLeadSequenceIds: [], outOfSequenceSequenceIds: [],
+  }, false, undefined, 'Onbekend'],
+  ['mislukte berekening met oude ids', {
+    error: 'kring', drivingSequenceIds: ['seq-fs'],
+    sequenceFreeFloat: {}, truncatedLeadSequenceIds: [], outOfSequenceSequenceIds: [],
+  }, false, undefined, 'Onbekend'],
+  ['berekend zonder bepalende relaties', {
+    drivingSequenceIds: [], sequenceFreeFloat: {}, truncatedLeadSequenceIds: [], outOfSequenceSequenceIds: [],
+  }, true, false, '—'],
+] as const) {
+  const index = buildTaskRelationIndex(tasks, sequences, analysis);
+  const ctx = { ...context, relationIndex: index };
+  const projected = buildTaskRelationAnalysisItems(D, ctx);
+  eq(`${label}: analysekolom onderscheidt onbekend van berekend leeg`, relationDrivingText(projected, ctx), expectedText);
+  eq(`${label}: ook een taak zonder relaties houdt de analysestatus`,
+    relationDrivingText([], ctx), known ? '—' : 'Onbekend');
+  ok(`${label}: interne chips onderscheiden onbekend van niet bepalend`,
+    projected.filter(item => item.kind === 'internal').every(item => item.driving === expectedDriving));
+  eq(`${label}: externe chip krijgt geen interne drivingclassificatie`, projected[3]?.driving, false);
+  eq(`${label}: labels, ids en parsed tokens veranderen niet`, projected.map(item => [
+    item.label, item.relationId, item.otherTaskId, item.parsedToken,
+  ]), items.map(item => [item.label, item.relationId, item.otherTaskId, item.parsedToken]));
+  eq(`${label}: interne en externe klembordinhoud blijft gelijk`,
+    relationCellClipboardText(projected), relationCellClipboardText(items));
+  const parsed = parseRelationCellText({
+    text: relationCellClipboardText(projected), ownerTaskId: D.id, direction: 'predecessor',
+  });
+  ok(`${label}: gekopieerde relaties blijven als volledige set te plakken`, parsed.ok && parsed.value.length === 4);
+  if (parsed.ok) {
+    const plan = planRelationSet({
+      tasks, sequences, ownerTaskId: D.id, direction: 'predecessor', tokens: parsed.value,
+    });
+    ok(`${label}: plakken van dezelfde set wordt als geldige relatiebewerking gepland`, plan.ok);
+    if (plan.ok) {
+      eq(`${label}: plakken bewaart alle bestaande interne en externe relatie-identiteiten`, [
+        plan.value.sequenceAdditions, plan.value.sequenceRemovals,
+        plan.value.externalAdditions, plan.value.externalRemovals,
+      ], [[], [], [], []]);
+    }
+  }
+  eq(`${label}: waarschuwing externe bron blijft zichtbaar`, projected[3]?.warnings, ['source-missing']);
+}
 
 const parsedCombined = parseRelationCellText({
   text: relationCellClipboardText(items), ownerTaskId: D.id, direction: 'predecessor',

@@ -21,6 +21,7 @@ import {
 import { setConsentAsker, resetConsentAsker, type ConsentAsker } from '@/extensions';
 import { copyScreenshotToClipboard } from '@/services/feedback/feedbackService';
 import { isTauri } from '@/utils/platform';
+import { loadMcpPort, loadMcpToken } from '@/utils/settingsStore';
 import { registerHelpArticles, resetRegisteredHelpArticles } from '@/utils/helpArticleRegistry';
 import { dateX, lastSize, paintCount, taskBarPoint, taskSegmentCount } from '@/utils/ganttTestDriver';
 
@@ -38,8 +39,11 @@ import { dateX, lastSize, paintCount, taskBarPoint, taskSegmentCount } from '@/u
  * en elke store-actie aanroepen — zonder WebDriver, zonder sudo. De native bestand-picker
  * wordt omzeild door een expliciet pad mee te geven (standaard testpraktijk).
  *
- * STRIKT dev-only: aangeroepen achter `import.meta.env.DEV` (main.tsx) via dynamische import,
- * dus dit verdwijnt volledig uit productie-builds. De poller start alleen in de Tauri-runtime.
+ * Laden: alleen achter `import.meta.env.DEV` óf de benchmarkvlag `VITE_OPS_BENCH_BRIDGE=1` (main.tsx),
+ * via dynamische import; een gewone productiebuild bevat dit bestand niet. De benchmarkbuild
+ * (`scripts/measure-large-plans.mjs`) gebruikt alleen `window.__OPS__` in de browser. De Tier-2-poller
+ * (en daarmee `mcpConnection`, die het MCP-token teruggeeft) start daarom ALLEEN in een dev-build in de
+ * Tauri-runtime (`import.meta.env.DEV && isTauri()`), ook als de benchmarkvlag aan staat (review PR #439).
  */
 
 type AppState = ReturnType<typeof useAppStore.getState>;
@@ -101,7 +105,7 @@ export async function openFromPathWithIO(path: string, io: FormatIO) {
     siteFileId: target.siteFileId,
     recompute: true,
     fit: true,
-    hourDataNotice: true,
+
     linkedOpen: true,
   });
   return { path, ...opened, ...counts(useAppStore.getState()) };
@@ -155,7 +159,7 @@ async function scanStoredExtensions(): Promise<Array<{
 
 export interface OpsCommand {
   id?: string;
-  op: 'ping' | 'getState' | 'roundTrip' | 'save' | 'open' | 'dispatch' | 'feedbackTest';
+  op: 'ping' | 'getState' | 'roundTrip' | 'save' | 'open' | 'dispatch' | 'feedbackTest' | 'mcpConnection' | 'mcpRestart' | 'mcpStop';
   args?: Record<string, unknown>;
 }
 
@@ -188,6 +192,35 @@ async function runOp(cmd: OpsCommand): Promise<Record<string, unknown>> {
       if (typeof fn !== 'function') return { ok: false, error: `no such action: ${action}` };
       const ret = await (fn as (...a: unknown[]) => unknown)(...actionArgs);
       return { ok: true, result: { ret, state: stateSnapshot(useAppStore.getState()) } };
+    }
+    case 'mcpConnection': {
+      // Tweede slot naast de poller-poort: buiten een dev-build geeft dit nooit het token terug.
+      if (!import.meta.env.DEV) return { ok: false, error: 'mcpConnection is dev-only' };
+      // Poort, token en status van de app-eigen MCP-bridge, zodat een geautomatiseerde externe client
+      // (`.github/workflows/mcp-real-app.yml`) kan verbinden zoals een gebruiker via "Verbinden" doet.
+      // Het token staat al leesbaar in localStorage en in die dialoog; dit kanaal is dev-only.
+      const ui = useAppStore.getState().ui;
+      return {
+        ok: true,
+        result: { port: loadMcpPort(), token: loadMcpToken(), status: ui.aiServerStatus, aiMode: ui.aiMode },
+      };
+    }
+    case 'mcpRestart': {
+      // Bridge stoppen en starten zoals Stop/Start op het AI-tabblad; voor de externe-clienttest dat een
+      // herstart sessies en documentbindingen behoudt. Dev-only, zoals `mcpConnection`.
+      if (!import.meta.env.DEV) return { ok: false, error: 'mcpRestart is dev-only' };
+      const { stopMcpServer, startMcpServer } = await import('@/services/mcp/server');
+      await stopMcpServer();
+      await startMcpServer();
+      return { ok: true, result: { status: useAppStore.getState().ui.aiServerStatus } };
+    }
+    case 'mcpStop': {
+      // Bridge stoppen zoals Stop op het AI-tabblad; voor de controle dat `runtime.json` dan verdwijnt
+      // (`tests/mcp/realApp/run-real-app.ts`). Dev-only, zoals `mcpRestart`.
+      if (!import.meta.env.DEV) return { ok: false, error: 'mcpStop is dev-only' };
+      const { stopMcpServer } = await import('@/services/mcp/server');
+      await stopMcpServer();
+      return { ok: true, result: { status: useAppStore.getState().ui.aiServerStatus } };
     }
     case 'feedbackTest': {
       // Dev-only desktop-verificatie van de feedback-feature: toetst (1) of
@@ -371,5 +404,6 @@ export function installDevBridge(): void {
     },
   };
   appLog.emit('event', 'devBridge', 'window.__OPS__ klaar (dev-only self-test haak)');
-  if (isTauri()) void startOpsTestPoller();
+  // Alleen dev: ook een benchmarkbuild (VITE_OPS_BENCH_BRIDGE=1) krijgt geen bestandskanaal.
+  if (import.meta.env.DEV && isTauri()) void startOpsTestPoller();
 }

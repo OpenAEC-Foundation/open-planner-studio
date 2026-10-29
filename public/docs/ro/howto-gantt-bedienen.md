@@ -31,10 +31,10 @@ O tragere este un singur pas în *Anulare*, indiferent cât trageți. La o bară
 
 ### Deplasarea liniei de timp
 
-Ce face o tragere pe fundalul gol depinde de modul de derulare. Îl alegeți în *Setări*, fila *Afișare*, sub *Gantt › Derulare și zoom*, la *Mod*:
+Ce face o tragere pe fundalul gol depinde de modul de derulare. Îl alegeți în *Setări aplicație*, fila *Afișare*, sub *Gantt › Derulare și zoom*, la *Mod*:
 
 - **Zoom + tragere** (implicit): dacă trageți pe fundalul gol cu butonul stâng al mouse-ului, linia de timp se mișcă împreună cu mouse-ul, ca pe o hartă. Cursorul este o mână. Pe o bară, tragerea pornește un gest pe bară.
-- **Poziție** și **Taste**: aceeași tragere face un cadru de selecție. Deplasați linia de timp cu rotița (consultați [Setări](docs://ref-instellingen)) sau cu butonul din mijloc al mouse-ului.
+- **Poziție** și **Taste**: aceeași tragere face un cadru de selecție. Deplasați linia de timp cu rotița (consultați [Setări aplicație](docs://ref-instellingen)) sau cu butonul din mijloc al mouse-ului.
 
 **Butonul din mijloc al mouse-ului** (rotița apăsată) deplasează linia de timp în fiecare mod, și dacă începeți pe o bară. Nu funcționează cât timp este în desfășurare alt gest, de exemplu tragerea unei bare.
 
@@ -50,13 +50,17 @@ Mai multe despre selectare: [Selectarea, ștergerea și anularea activităților
 
 ### Mărirea și micșorarea
 
-1. Folosiți *Zoom +* și *Zoom -* (*Început › Zoom*) sau tastele + și -. Rotița face zoom și ea. În ce condiții, depinde de modul de derulare (consultați [Setări](docs://ref-instellingen)).
+1. Folosiți *Zoom +* și *Zoom -* (*Început › Zoom*) sau tastele + și -. Rotița face zoom și ea. În ce condiții, depinde de modul de derulare (consultați [Setări aplicație](docs://ref-instellingen)).
 2. Dacă vreți să vedeți tot proiectul, alegeți *Vizualizare › Scară de timp › Potrivire la proiect* sau apăsați Ctrl+0. *Resetare* (pe fila *Vizualizare*) sau tasta 0 readuce zoom-ul la valoarea implicită.
 3. În colțul din dreapta jos, în bara de stare, vedeți zoom-ul în pixeli pe zi, de exemplu *Zoom: 15 px/zi*.
 
 Cu cât micșorați mai mult, cu atât sunt mai puține linii de grilă. La 8 pixeli pe zi sau mai mult există o linie pentru fiecare zi, cu o linie mai groasă la limita săptămânii. Între 2 și 8 pixeli pe zi rămâne doar limita săptămânii. Sub 2 pixeli pe zi, la nivel de an, rămân doar limitele lunilor. În caz contrar, suprafața de desen ar deveni un model uniform de dungi, în care barele dispar. Weekendurile gri și zilele libere, precum și benzile de săptămână colorate alternativ, rămân la orice nivel. Ele păstrează structura săptămânilor când liniile dispar. În antetul liniei de timp, numerele săptămânilor și ale zilelor apar doar când este loc pentru ele. De la 40 de pixeli pe zi, ziua din săptămână se afișează și înaintea numărului zilei.
 
 Numele activității este afișat în bară dacă încape complet. Dacă nu încape, de exemplu când micșorați, numele complet este afișat în dreapta barei.
+
+### Vizualizarea detaliilor unei activități
+
+Țineți mouse-ul nemișcat pe o bară. Apare o casetă mică cu numele activității, *WBS*, *Durată*, *Început*, *Sfârșit*, *Stare*, *Critic* și *Marjă totală*. În timpul tragerii, al deplasării liniei de timp, al unui cadru de selecție sau al unui meniu cu clic dreapta, caseta dispare.
 
 ## Capcane și ce face aplicația atunci
 
@@ -72,5 +76,5 @@ Numele activității este afișat în bară dacă încape complet. Dacă nu înc
 
 - [Meniurile cu clic dreapta](docs://ref-contextmenus): meniurile de pe o bară, de pe un rând și de pe antetul unui grup.
 - [Scurtăturile de la tastatură](docs://ref-sneltoetsen): tastele pentru zoom și pentru anularea unui gest.
-- [Setări](docs://ref-instellingen): modul de derulare și axa timpului.
+- [Setări aplicație](docs://ref-instellingen): modul de derulare și axa timpului.
 - [Restricții și termene limită](docs://uitleg-constraints): de ce un început mutat devine o restricție.

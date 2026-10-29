@@ -22,11 +22,11 @@ Pro nový projekt:
 
 Pro existující projekt:
 
-1. Zvolte *Soubor › Info o projektu*.
+1. Zvolte *Soubor › Nastavení projektu*.
 2. V poli *Knihovna zdrojů* zvolte knihovnu.
 3. Klikněte na *Použít*. Do té doby je dole vidět *Změny nebyly použity — klikněte na Použít, aby se uchovaly.*
 
-Pokud projekt už má zdroje se stejným názvem jako položka knihovny, otevře se okno *Propojit knihovnu zdrojů* se sekcí *Rozpoznáno*. U každého zdroje, který se shoduje, je *Návrh: Bricklayer*. Klikněte na *Propojit*, chcete-li propojit tento zdroj, nebo na *Propojit všechny návrhy*, pokud je návrhů více. Aplikace porovnává názvy bez ohledu na velká písmena a dvojité mezery. Při propojení zdroj převezme název, typ, sazbu, jednotku a popis z položky knihovny. *Maximální počet jednotek* zůstane takový, jaký jste měli v projektu. Okno také ukazuje kalendáře projektu, které mají stejný název jako kalendář v knihovně. Tlačítkem *Rozhodnout později* okno zavřete bez propojení.
+Pokud projekt už má zdroje se stejným názvem jako položka knihovny, otevře se okno *Propojit knihovnu zdrojů* se sekcí *Rozpoznáno*. U každého zdroje, který se shoduje, je *Návrh: Bricklayer*. Klikněte na *Propojit*, chcete-li propojit tento zdroj, nebo na *Propojit všechny návrhy*, pokud je návrhů více. Aplikace porovnává názvy bez ohledu na velká písmena a dvojité mezery. Při propojení zdroj převezme název, typ, standardní sazbu, jednotku a popis z položky knihovny. *Maximální počet jednotek* zůstane takový, jaký jste měli v projektu. Okno také ukazuje kalendáře projektu, které mají stejný název jako kalendář v knihovně. Tlačítkem *Rozhodnout později* okno zavřete bez propojení.
 
 ### 2. Dejte zdroj do knihovny
 
@@ -34,14 +34,14 @@ Pokud projekt už má zdroje se stejným názvem jako položka knihovny, otevře
 2. V pravém horním rohu zvolte zobrazení *Knihovna*. Nad tabulkou je text *Tím se upravuje knihovna a platí to pro všechny projekty — nelze to vrátit zpět.*
 3. Klikněte na *Nový zdroj v knihovně*. Dole v tabulce se objeví prázdný řádek.
 4. Napište název, například *Bricklayer*, a stiskněte Enter. Zdroj je nyní v knihovně a hned se otevře prázdný řádek pro další. Až skončíte, stiskněte Esc. Bez názvu aplikace nic nevytvoří.
-5. Vyplňte zbytek řádku. *Typ* je ve výchozím nastavení *Práce*. V poli *Maximální počet jednotek* zadejte, kolik je celkem tohoto zdroje, například 3 pro tři zedníky. Přehled obsazenosti použije toto číslo jako kapacitu. *Standardní sazba/hod* je nepovinná. Pole *Jednotka* můžete vyplnit jen u typu *Materiál*. V poli *Kalendář* zvolte kalendář z knihovny, nebo *+ Kalendář zdroje* a vytvořte nový. Viz [Nastavení kalendáře zdroje](docs://howto-resourcekalender-instellen). Aplikace uloží název, sazbu a jednotku, až opustíte pole, a ostatní pole hned.
+5. Vyplňte zbytek řádku. *Typ* je ve výchozím nastavení *Práce*. V poli *Maximální počet jednotek* zadejte, kolik je celkem tohoto zdroje, například 3 pro tři zedníky. Přehled obsazenosti použije toto číslo jako kapacitu. *Standardní sazba/hod* je nepovinná. Pole *Jednotka* můžete vyplnit jen u typu *Materiál*. V poli *Kalendář* zvolte kalendář z knihovny, nebo *+ Kalendář zdroje* a vytvořte nový. Viz [Nastavení kalendáře zdroje](docs://howto-resourcekalender-instellen). Aplikace uloží název, standardní sazbu a jednotku, až opustíte pole, a ostatní pole hned.
 
 Každá změna v knihovně se okamžitě projeví v nezměněných kopiích ve vašich otevřených projektech.
 
 ### 3. Přiřaďte zdroj k projektu
 
 1. V zobrazení *Knihovna* zvolte u zdroje *Přiřadit k projektu*. Nad tabulkou je *Přidáno.* Když kliknete znovu, zobrazí se *Už je v projektu.* a žádná druhá kopie se nevytvoří.
-2. Zvolte *Projekt*. Kopie je v tabulce s malou ikonou knihovny u názvu, s označením *Z knihovny*. Název, typ, sazba a jednotka jsou obyčejný text. Když podržíte myš nad nimi, uvidíte *Hodnota z knihovny — upravte ji v zobrazení Knihovna, nebo tento zdroj od knihovny odpojte.*
+2. Zvolte *Projekt*. Kopie je v tabulce s malou ikonou knihovny u názvu, s označením *Z knihovny*. Název, typ, standardní sazba a jednotka jsou obyčejný text. Když podržíte myš nad nimi, uvidíte *Hodnota z knihovny — upravte ji v zobrazení Knihovna, nebo tento zdroj od knihovny odpojte.*
 3. Nastavte *Maximální počet jednotek* pro tento projekt. Pole začíná s hodnotou z knihovny a v projektu ji lze dál měnit.
 4. Zdroj nyní přiřaďte k úkolům stejně jako jiné zdroje, viz [Přiřazování zdrojů s křivkou](docs://howto-resource-toewijzen). *Zdroje › Přiřazení › Přiřadit* ukáže jen zdroje, které jsou už v projektu. Proto nejdřív přiřaďte zdroj z knihovny k projektu tímto způsobem.
 
@@ -62,7 +62,7 @@ Zpráva může říkat tyto tři věci:
 
 ### 5. Odpojte kopii
 
-Chcete-li se v jednom projektu od knihovny odchýlit, například s jinou sazbou, kopii odpojte.
+Chcete-li se v jednom projektu od knihovny odchýlit, například s jinou standardní sazbou, kopii odpojte.
 
 1. V zobrazení *Projekt* klikněte na ikonu *Odpojit od knihovny* na konci řádku.
 2. Zdroj je nyní běžný zdroj projektu. Všechna pole lze upravovat a už nesleduje knihovnu. Kalendář, který přišel spolu se zdrojem, se také odpojí, ledaže ho v tomto projektu ještě sleduje jiný zdroj.

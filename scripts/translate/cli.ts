@@ -1,6 +1,6 @@
 // `npm run translate -- <commando>` — de vertaalstraat (ontwerp: docs/superpowers/specs/2026-10-09-vertaalstraat-design.md).
 //
-//   validate-termbase                  schema van i18n/termbase/*.json; ontbrekende termen = rapport
+//   validate-termbase                  schema + alle term-concepten in elke doeltaal (behalve nl/en)
 //   concepts-candidates [--size 300]   kandidaat-termen → build/translate/concepts/candidates-NN.json
 //   concepts-merge                     candidates-NN.out.json → i18n/termbase/concepts.json
 //   terms-lookup <taal> [--size 40] [--concepts <pad>]
@@ -28,7 +28,7 @@
 //   docs-literal                       voorbeeldnamen (soort c) opnieuw uit scripts/tutorial-project.ts en
 //                                      public/examples/*.ifc → i18n/docs-literal.json (sources)
 //   status [taal] [--strict]           per taal en namespace (en docs): ontbreekt / verouderd / actueel;
-//                                      --strict = releasepoort `npm run verify:translations` (exit 1 bij elk UI-gat;
+//                                      --strict = releasepoort `npm run verify:translations` (exit 1 bij elk UI-gat of termbasefout;
 //                                      docsgaten alleen gemeld)
 //
 // Alle I/O staat hier; de logica zit in de pure modules ernaast (getoetst in tests/planning/check-translate-*.ts).
@@ -36,7 +36,7 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { NAMESPACES, type JsonObject } from '../i18n-tools';
+import { LOCALES, NAMESPACES, type JsonObject } from '../i18n-tools';
 import { EXISTING_TARGETS, TBX_FILES, escapeRe, toJson, type Concept, type LangTermbase } from './common';
 import { chunk, collectCandidates } from './candidates';
 import { applyUiBatch, packageMismatch } from './apply';
@@ -169,14 +169,15 @@ function validateTermbase(): void {
   const concepts = loadConcepts();
   let errors = 0;
   const files = existsSync(TERMBASE_DIR) ? readdirSync(TERMBASE_DIR).filter(f => f.endsWith('.json') && f !== 'concepts.json') : [];
-  for (const f of files.sort()) {
-    const lang = f.replace(/\.json$/, '');
-    const r = validateLangTermbase(lang, readJson<unknown>(join(TERMBASE_DIR, f)), concepts);
+  // De talenlijst is leidend: ook een volledig ontbrekend bestand moet rood worden.
+  const langs = [...new Set([...LOCALES.filter(l => l !== 'nl' && l !== 'en'), ...files.map(f => f.replace(/\.json$/, ''))])].sort();
+  for (const lang of langs) {
+    const r = validateLangTermbase(lang, loadTermbase(lang), concepts);
     for (const e of r.errors) console.log(`XX  ${e}`);
     errors += r.errors.length;
     const terms = concepts.filter(c => c.kind === 'term').length;
     console.log(`${r.errors.length ? 'XX' : 'OK'}  ${lang}: ${terms - r.missing.length}/${terms} termen`
-      + (r.missing.length ? ` — ontbreekt (rapport): ${r.missing.slice(0, 10).join(', ')}${r.missing.length > 10 ? ', …' : ''}` : ''));
+      + (r.missing.length ? ` — ontbreekt: ${r.missing.slice(0, 10).join(', ')}${r.missing.length > 10 ? ', …' : ''}` : ''));
   }
   console.log(`${errors ? 'XX' : 'OK'}  validate-termbase: ${concepts.length} concepten, ${files.length} taalbestand(en), ${errors} fout(en)`);
   if (errors) process.exit(1);
@@ -246,6 +247,7 @@ function termsLookup(args: string[]): void {
   archive(dir, 'terms-');
   mkdirSync(dir, { recursive: true });
   for (const p of packs) writeFileSync(join(dir, `${p.id}.json`), packageText(p));
+  seal(lang, packs.map(p => `${p.id}.json`));
   bundleCheck();
   const withCand = packs.flatMap(p => p.concepts).filter(c => c.candidates.length > 0).length;
   const total = packs.flatMap(p => p.concepts).length;
@@ -256,30 +258,42 @@ function applyTermsCmd(args: string[]): void {
   const lang = checkLang(positional(args)[0]);
   const dir = join(WORK, lang);
   const concepts = loadConcepts();
+  const checkOut = join(dir, 'terms-check-01.out.json');
+  const mapFile = join(dir, 'terms-check-01.map.json');
+  // Eerst vertrouwen vaststellen, vóór de termbase of een rapport wordt overschreven.
+  if (existsSync(checkOut)) {
+    const checkSources = ['terms-check-01.json', 'terms-check-01.map.json'];
+    if (checkSources.some(f => !existsSync(join(dir, f)))) fail('bronpakket of koppeltabel van de blinde controle ontbreekt');
+    const tampered = sealErrors(lang, checkSources);
+    if (tampered.length) fail(tampered.join('\n'));
+  }
   const outs: TermsOut[] = [];
+  let refused = 0;
   const files = existsSync(dir) ? readdirSync(dir).filter(f => /^terms-\d+\.json$/.test(f)).sort() : [];
   for (const f of files) {
     const outFile = join(dir, f.replace('.json', '.out.json'));
     if (!existsSync(outFile)) { console.log(`..  ${f}: nog geen uitvoer`); continue; }
+    const tampered = sealErrors(lang, [f]);
+    if (tampered.length) { console.log(`XX  ${f}: ${tampered.join('; ')}, overgeslagen`); refused++; continue; }
     const pkg = readJson<TermsPackage>(join(dir, f));
     const out = readJson<unknown>(outFile);
     const r = checkPackage(pkg, out);
-    if (r.errors.length) { console.log(`XX  ${f}: rood (${r.errors.length} fout(en)), overgeslagen`); continue; }
+    if (r.errors.length) { console.log(`XX  ${f}: rood (${r.errors.length} fout(en)), overgeslagen`); refused++; continue; }
     outs.push(out as TermsOut);
   }
   if (outs.length === 0) fail(`geen groene terms-NN.out.json in build/translate/${lang}/`);
+  // Groene pakketten en rapporten blijven bruikbaar; ook de vroege rapport-return moet rood eindigen.
+  if (refused) process.exitCode = 1;
   const tb = applyTerms(loadTermbase(lang) ?? {}, outs, concepts);
   writeJson(termbasePath(lang), tb);
   const n = outs.reduce((s, o) => s + Object.keys(o).filter(k => k !== '_style').length, 0);
-  console.log(`OK  apply-terms ${lang}: ${n} termregel(s) in i18n/termbase/${lang}.json`);
+  console.log(`${refused ? 'XX' : 'OK'}  apply-terms ${lang}: ${n} termregel(s) in i18n/termbase/${lang}.json, ${refused} rood overgeslagen`);
   if ((EXISTING_TARGETS as readonly string[]).includes(lang)) {
     writeFileSync(join(dir, 'inconsistencies.md'), inconsistencyReport(lang, outs, concepts));
     console.log(`OK  rapport: build/translate/${lang}/inconsistencies.md`);
   }
   // Termen zonder bron (`model`) en zelf gekozen TBX-termen (`tbx-chosen`) krijgen een blinde controle:
   // alleen de doelterm, ondoorzichtige id's. Bestaat de uitkomst al, dan wordt het rapport gemaakt.
-  const checkOut = join(dir, 'terms-check-01.out.json');
-  const mapFile = join(dir, 'terms-check-01.map.json');
   if (existsSync(checkOut) && existsSync(mapFile)) {
     const res = readJson<Record<string, { backTranslation: string; standard: boolean; suggestion?: string }>>(checkOut);
     const map = readJson<Record<string, string>>(mapFile);
@@ -306,6 +320,7 @@ function applyTermsCmd(args: string[]): void {
     };
     writeJson(join(dir, 'terms-check-01.json'), pkg);
     writeJson(join(dir, 'terms-check-01.map.json'), map);
+    seal(lang, ['terms-check-01.json', 'terms-check-01.map.json']);
     console.log(`OK  blinde controle nodig voor ${unchecked.length} term(en): build/translate/${lang}/terms-check-01.json`);
   }
 }
@@ -852,19 +867,21 @@ function docsBudget(args: string[]): void {
 
 /**
  * De releasepoort (besluit B5, 2026-10-10; verfijnd 2026-10-12): elke UI-sleutel in elke taal vertaald
- * en actueel (ontbreekt / verouderd / zonder hash). De docs blokkeren de release niet: alleen nl en en
- * moeten bij zijn (dat zijn de bronnen), de andere talen mogen achterlopen. De poort meldt de docsgaten
- * wel, zodat je kunt kiezen of je `update-docs-lang` eerst draait.
+ * en actueel (ontbreekt / verouderd / zonder hash), met de vaste doeltekst waar afgesproken, plus
+ * een complete geldige termbase. De docs blokkeren de release niet: alleen nl en en moeten bij zijn
+ * (dat zijn de bronnen), de andere talen mogen achterlopen. De poort meldt de docsgaten wel, zodat
+ * je kunt kiezen of je `update-docs-lang` eerst draait.
  */
 const uiGaps = (lang: string): ReleaseGap[] => uiReleaseGaps(lang, nsInputs(lang), readJsonOr<UiSources>(sourcesPath(lang), {}));
 /** De docsgaten per taal: alleen een melding (`where` = `docs:<id>` of `docs:<id>#<sectie>`). */
 const docsGaps = (lang: string): ReleaseGap[] =>
   (lang !== 'en' && docsLangs().includes(lang) ? docsReleaseGaps(lang, docsStates(lang)) : []);
 
-const GAP_LABEL: Record<ReleaseGap['state'], string> = { missing: 'ontbreekt', stale: 'verouderd', unhashed: 'zonder hash' };
+const GAP_LABEL: Record<ReleaseGap['state'], string> = { missing: 'ontbreekt', stale: 'verouderd', unhashed: 'zonder hash', 'fixed-text': 'vaste tekst wijkt af' };
 
-/** `status --strict` = `npm run verify:translations`: exit 1 bij elk UI-gat in elke taal; docsgaten alleen gemeld. */
+/** `status --strict` = `npm run verify:translations`: geldige complete termbase en geen UI-gaten; docs alleen gemeld. */
 function strictStatus(langs: string[]): void {
+  validateTermbase();
   let total = 0;
   const red: string[] = [];
   for (const lang of langs) {
@@ -873,8 +890,8 @@ function strictStatus(langs: string[]): void {
     total += gaps.length;
     red.push(lang);
     const count = (state: ReleaseGap['state']) => gaps.filter(g => g.state === state).length;
-    console.log(`XX  ${lang}: ${count('missing')} ontbreekt, ${count('stale')} verouderd, ${count('unhashed')} zonder hash`);
-    for (const g of gaps.slice(0, 10)) console.log(`      ${g.where} (${GAP_LABEL[g.state]})`);
+    console.log(`XX  ${lang}: ${count('missing')} ontbreekt, ${count('stale')} verouderd, ${count('unhashed')} zonder hash, ${count('fixed-text')} vaste tekst wijkt af`);
+    for (const g of gaps.slice(0, 10)) console.log(`      ${g.where} (${GAP_LABEL[g.state]})${g.detail ? `: ${g.detail}` : ''}`);
     if (gaps.length > 10) console.log(`      … en ${gaps.length - 10} meer (\`npm run translate -- status ${lang}\`)`);
   }
   const docsBehind = langs.map(lang => ({ lang, n: new Set(docsGaps(lang).map(g => g.where.split('#')[0])).size }))
@@ -893,8 +910,8 @@ function strictStatus(langs: string[]): void {
 
 function status(args: string[]): void {
   const asked = positional(args)[0];
-  const langs = asked ? [checkLang(asked)]
-    : readdirSync(LOCALES_DIR).filter(d => d !== 'nl' && statSync(join(LOCALES_DIR, d)).isDirectory()).sort();
+  // De appregistratie bepaalt de vereiste talen, niet de nog aanwezige mappen (knownbug 200).
+  const langs = asked ? [checkLang(asked)] : LOCALES.filter(lang => lang !== 'nl').sort();
   if (flag(args, '--strict')) { strictStatus(langs); return; }
   console.log('taal  namespace  ontbreekt  verouderd  actueel  (zonder hash)');
   let todo = 0;

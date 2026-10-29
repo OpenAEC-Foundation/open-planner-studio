@@ -13,7 +13,7 @@ Registri una baseline quando la pianificazione è stata approvata e il lavoro de
 1. Premi **Calcola** (F5), per esempio tramite *Pianificazione › Pianificazione › Calcola*. La baseline registra le date calcolate in quel momento.
 2. Scegli *Pianificazione › Baseline e progresso › Gestisci baseline…*. Si apre la finestra *Baseline*.
 3. Sotto *Salva nuova baseline* c'è un nome suggerito, per esempio *Baseline 1 — (data di oggi)*. Scrivi un nome tuo che riconoscerai più tardi, per esempio *Baseline*.
-4. Fai clic su *Salva*. La baseline è ora nell'elenco e diventa subito la baseline attiva.
+4. Clicca su *Salva*. La baseline è ora nell'elenco e diventa subito la baseline attiva.
 5. Clicca su *Chiudi*.
 
 Sotto ogni barra attività nel Gantt c'è ora una barra sottile con le date della baseline; un cardine riceve un piccolo rombo. Attivi o disattivi quella sovrapposizione con *Vista › Baseline e progresso › Sovrapposizione della baseline*.
@@ -28,7 +28,7 @@ Cambia il nome nell'elenco. La modifica è subito effettiva; non devi cliccare s
 
 ### Eliminare una baseline
 
-Clicca sul piccolo cestino accanto alla baseline nell'elenco. Se elimini la baseline attiva, l'app chiede *Eliminare la baseline attiva?*. Poi la baseline rimasta più recente diventa quella attiva. Se non ce n'è un'altra, non c'è più una baseline attiva e la sovrapposizione scompare. Con Ctrl+Z riporti una baseline eliminata.
+Clicca sul piccolo cestino accanto alla baseline nell'elenco. Se elimini la baseline attiva, l'app chiede *Eliminare la baseline attiva?*. Poi la baseline rimasta più recente diventa quella attiva. Se non ce n'è un'altra, non c'è più una baseline attiva e la sovrapposizione scompare. Con Ctrl+Z riporti una baseline eliminata. Chiudi prima la finestra: Ctrl+Z non funziona dentro una finestra.
 
 ### Scostamenti nella tabella attività
 
@@ -41,6 +41,8 @@ Ogni baseline ha sei colonne nella tabella attività. Clicca sul **+** a destra 
 **Una baseline con avanzamento.** Se salvi una baseline dopo aver inserito l'avanzamento, registra lo stato con quelle date effettive. Lo scostamento è allora zero e non dice più nulla sull'esecuzione. Registra la baseline prima che il lavoro inizi.
 
 **Una baseline non si può aggiornare.** Se vuoi rivedere l'accordo, salva una nuova baseline ed elimina quella vecchia, se serve.
+
+**Un ⚠ in Durata o Scostamento durata.** Per un'attività in ore, un giorno corrisponde agli orari di lavoro del suo calendario. Se il calendario ha un proprio numero di ore al giorno (per esempio 8 con fasce da 10 ore, da Primavera P6), una versione precedente dell'app contava i giorni in modo diverso. Una baseline di quella versione conserva il vecchio numero: un'attività di 1870 ore è 233,75 giorni nella baseline e 187 giorni ora. L'app non converte una baseline così. Le colonne *Durata* e *Scostamento durata* di quella baseline mostrano allora un ⚠; passaci sopra con il puntatore per la spiegazione. Le date della baseline sono corrette. Salva una nuova baseline ed elimina quella vecchia, se serve.
 
 **Solo attività senza sottoattività.** Una fase non è nella baseline: non ha una barra baseline né uno scostamento. La fase deriva dalle attività che contiene.
 

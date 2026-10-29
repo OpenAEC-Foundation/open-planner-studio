@@ -21,7 +21,7 @@ De drie keuzes:
 
 ## Valkuilen en wat de app dan doet
 
-**Voeg samen als laatste stap.** Open het samengevoegde 4D-bestand (bouwmodel plus planning) niet in de app om het weer op te slaan. De app bewaart alleen de planning: de muren en de andere onderdelen van het bouwmodel gaan dan verloren, ook als je het schema houdt. Pas de planning aan in je eigen bestand en voeg daarna opnieuw samen.
+**Voeg samen als laatste stap.** De app weigert voorlopig IFC-bestanden met bouwmodelobjecten te openen: de planningsschrijver kan die objecten niet bewaren. Dat geldt ook als het bestand taken bevat en als je het IFC-schema houdt. Bewerk het losse planningsbestand en voeg het daarna opnieuw samen met het bouwmodel. Een geweigerd bestand wordt niet gewijzigd.
 
 **De app vraagt eerst als een geopend bestand een ander schema heeft.** Open je bijvoorbeeld een IFC4-bestand, of een IFC 4.3-bestand van een oudere versie van de app, dan verandert de app het bestandstype niet zomaar. Bij de eerste keer *Opslaan* of *Opslaan als* vraagt ze eerst of je het schema van het bestand houdt of naar IFC 4.3 ADD2 gaat. *IFC4 houden* (of *IFC 4.3 houden*) is de knop die Enter kiest. Sluit je de vraag met Esc of het kruisje, dan slaat de app niets op.
 

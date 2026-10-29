@@ -36,7 +36,7 @@ Pro barvy pruhů zvolte *Zobrazení › Směrné plány a průběh › Barvy pru
 
 ## Úskalí a co aplikace dělá
 
-**Mazání odstraní hodnoty u úkolů.** Když smažete typ kódu, hodnotu nebo pole pomocí koše, aplikace se nezeptá na potvrzení. Hodnoty na všech úkolech zmizí. Seskupení nebo řazení podle tohoto typu kódu nebo pole také přestane platit. *Vrátit zpět* (Ctrl+Z) obnoví typ kódu, hodnotu nebo pole i vyplněné hodnoty, ale ne seskupení ani řazení. Seskupení a řazení musíte nastavit znovu.
+**Mazání odstraní hodnoty u úkolů.** Když smažete typ kódu, hodnotu nebo pole pomocí koše, aplikace se nezeptá na potvrzení. Hodnoty na všech úkolech zmizí. Seskupení nebo řazení podle tohoto typu kódu nebo pole také přestane platit. *Vrátit zpět* (Ctrl+Z, nejdřív zavřete okno) obnoví typ kódu, hodnotu nebo pole i vyplněné hodnoty, ale ne seskupení ani řazení. Seskupení a řazení musíte nastavit znovu.
 
 **Dvě hodnoty se stejným kódem.** *Přidat hodnotu* pokračuje v číslování od počtu hodnot, které existují. Když jednu smažete a jednu přidáte, může se stejný kód objevit dvakrát. Když takový kód zadáte do buňky sloupce, aplikace to odmítne hlášením *Tato hodnota kódu aktivity se vyskytuje víckrát. Vyberte ji ze seznamu.* Dejte každé hodnotě vlastní kód.
 

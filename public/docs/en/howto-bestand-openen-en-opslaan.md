@@ -36,7 +36,7 @@ Choose *Home › File › Save* or *File › Save*, or press Ctrl+S. What happen
 1. If the project already has a file, because you opened an IFC file or saved it before, the app writes to that file. No window appears, except at the first save of a file with an IFC schema other than IFC 4.3 ADD2. Then the app first asks *Which IFC schema to save in?* See [Choosing the IFC schema](docs://howto-ifc-schema-kiezen).
 2. If the project has no file yet, the app asks where it should go. It suggests the project name with `.ifc`. After that, that file is the project's file.
 3. If your browser only saves through a download (such as Firefox), the file lands in your downloads folder, and every save creates a new download. The first time in a session you see the message *Saved as a download: 'name.ifc' is in your downloads folder. This browser does not let the app write to a place of its own, so every save creates a new download. In Chrome, Edge or the desktop app, Save simply updates the same file.*
-4. If your browser cannot write back to the project's file, the app asks again where to put the file every time you save. That looks like *Save As*, but it is a limit of the browser. The first time in a session the message *This browser does not let the app write back to 'name.ifc'.* explains this, with a link to [Files](docs://uitleg-bestanden).
+4. If limited file access prevents your browser from writing back to the project's file, the app asks again where to put the file every time you save. That looks like *Save As*, but it is a limit of the browser. The first time in a session the message *This browser does not let the app write back to 'name.ifc'.* explains this, with a link to [Files](docs://uitleg-bestanden).
 
 After saving, the *Unsaved* marker disappears: the dot on the tab, the asterisk before the project name at the top and the text *Unsaved* at the bottom right of the status bar.
 
@@ -60,7 +60,7 @@ Click the cross on the tab, or choose *File › Close project*. If the project h
 
 **A message about duplicate ids or relations that do not count.** After opening, a message can stay on screen. If it says *Objects with a duplicate id in this file*, each duplicate object got its own id and references point to the first occurrence. Check relations and assignments then. If it says *relation(s) could not be included in the calculation*, the relation sat on a summary task and has no effect, for example a task linked to its own summary. The file itself stays unchanged. See [Relations](docs://uitleg-relaties) for what a relation on a summary task does.
 
-**Saving can fail.** If the saving itself gives an error, the app reports *Failed to save*, with the reason. Your project stays open and is still marked *Unsaved*.
+**Saving can fail.** If saving gives an error, the app reports *Failed to save*, with the reason. In Chrome and Edge this error notification appears before the window in which you can choose another file. If you cancel that window, your project stays open and marked *Unsaved*. If saving to the other file succeeds, that marker disappears and your project uses that file from then on. Changes you made while saving remain marked *Unsaved*. The error notification about the earlier attempt stays until you close it. If the second attempt also fails, the same notification shows the latest reason.
 
 ## See also
 

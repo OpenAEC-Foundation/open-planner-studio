@@ -12,9 +12,9 @@ Toate combinațiile de taste ale aplicației, grupate ca în fereastra *Comenzi 
 
 **Când o tastă nu funcționează.** Fiecare intrare își precizează restricțiile. Trei reguli se aplică aproape peste tot:
 
-- Într-un câmp de introducere, într-o listă derulantă sau într-o casetă de text, aplicația nu interceptează tastele, așa că puteți scrie pur și simplu. Excepții: F5, Ctrl+S, F11 și Esc în timpul prezentării funcționează și într-un câmp. În versiunea compilată a aplicației (aplicația desktop și versiunea web de pe site) este valabil și pentru Ctrl+Shift+S, Ctrl+O și Ctrl+N.
-- Cât timp este deschisă o fereastră de dialog sau o altă fereastră, tastele marcate mai jos cu *Nu într-o fereastră de dialog* nu funcționează. Același lucru este valabil pentru modul de prezentare, turul, fereastra de bun venit și întrebările care așteaptă un răspuns, de exemplu acordul la instalarea unei extensii.
-- Schimbarea documentului (Ctrl+1 până la 9, Ctrl+N, Ctrl+O) nu funcționează nici cât timp *Fișier › Informații proiect* conține modificări pe care nu le-ați confirmat cu *Aplicare*. Renunțați mai întâi la ele sau aplicați-le.
+- Într-un câmp de introducere, într-o listă derulantă sau într-o casetă de text, aplicația nu interceptează tastele, așa că puteți scrie pur și simplu. Excepții: F5, Ctrl+S, F11 și Esc în timpul prezentării funcționează și într-un câmp. Dacă focalizarea este pe o listă derulantă închisă, funcționează și tastele cu Ctrl, de exemplu Ctrl+Z după o alegere (nu Ctrl+Delete și Ctrl+Backspace). Asta nu este valabil într-o listă deschisă sau într-o fereastră de dialog. În versiunea compilată a aplicației (aplicația desktop și versiunea web de pe site) este valabil și pentru Ctrl+Shift+S, Ctrl+O și Ctrl+N.
+- Cât timp este deschisă o fereastră de dialog sau altă fereastră, tastele marcate mai jos cu *Nu într-o fereastră de dialog* nu funcționează. Același lucru este valabil pentru turul, fereastra de bun venit și întrebările care așteaptă un răspuns, de exemplu întrebarea dacă să salvați modificările și acordul la instalarea unei extensii. Majoritatea acestor taste nu funcționează nici în modul de prezentare. Excepție: tastele de editare Ctrl+C, Ctrl+V, Ctrl+Z, Ctrl+Y și Delete/Backspace funcționează în timpul prezentării.
+- Schimbarea documentului (Ctrl+1 până la 9, Ctrl+N, Ctrl+O) nu funcționează nici cât timp *Fișier › Setări proiect* conține modificări pe care nu le-ați confirmat cu *Aplicare*. Renunțați mai întâi la ele sau aplicați-le.
 
 ## Fișier
 
@@ -24,29 +24,29 @@ Toate combinațiile de taste ale aplicației, grupate ca în fereastra *Comenzi 
 
 **Ctrl+Shift+S** — *Salvare ca*: întreabă unde trebuie salvat fișierul. Într-o versiune de dezvoltare nu funcționează într-un câmp de introducere.
 
-**Ctrl+O** — *Deschidere*: deschide un fișier, de obicei într-o filă nouă. Nu într-o fereastră de dialog și nu când informațiile proiectului au modificări neaplicate.
+**Ctrl+O** — *Deschidere*: deschide un fișier, de obicei într-o filă nouă. Nu într-o fereastră de dialog și nu când *Setări proiect* conține modificări neaplicate.
 
-**Ctrl+N** — *Creare proiect*: deschide fereastra *Proiect nou*. Nu într-o fereastră de dialog și nu când informațiile proiectului au modificări neaplicate.
+**Ctrl+N** — *Creare proiect*: deschide fereastra *Proiect nou*. Nu într-o fereastră de dialog și nu când *Setări proiect* conține modificări neaplicate.
 
 Versiunea compilată a aplicației (aplicația desktop și versiunea web de pe site) blochează și mai multe taste ale browserului, ca să nu deranjeze: Ctrl+R și Ctrl+Shift+R (reîncărcare), F12, Ctrl+Shift+I și Ctrl+Shift+J (instrumente pentru dezvoltatori), Ctrl+U (vizualizarea sursei) și Ctrl+G, Ctrl+F și Ctrl+L (căutare și bara de adrese). Ctrl+S, Ctrl+Shift+S, Ctrl+O, Ctrl+N și F5 merg direct la aplicație.
 
 ## Editare
 
-**Ctrl+C** — *Copiere*: copiază activitățile selectate. Doar când există o selecție. În tabelul de activități, Ctrl+C copiază celulele selectate; tabelul gestionează singur acest lucru.
+**Ctrl+C** — *Copiere*: copiază activitățile selectate. Doar când există o selecție. Nu într-o fereastră de dialog. Nu în *Fișier*, nu pe filele *Raport* și *IFC* și nu cât timp panoul de resurse complet este deschis. În tabelul de activități, Ctrl+C copiază celulele selectate; tabelul se ocupă singur de asta.
 
-**Ctrl+V** — *Lipire*: lipește activitățile copiate. În tabelul de activități lipește celulele.
+**Ctrl+V** — *Lipire*: lipește activitățile copiate. Nu într-o fereastră de dialog. Nu în *Fișier*, nu pe filele *Raport* și *IFC* și nu cât timp panoul de resurse complet este deschis, pentru că tabelul de activități nu este vizibil acolo. În tabelul de activități lipește celulele.
 
-**Ctrl+Z** — *Anulare*.
+**Ctrl+Z** — *Anulare*. Nu într-o fereastră de dialog: închideți mai întâi fereastra.
 
-**Ctrl+Y** sau **Ctrl+Shift+Z** — *Refacere*: repetă ce ați anulat.
+**Ctrl+Y** sau **Ctrl+Shift+Z** — *Refacere*: repetă ce ați anulat. Nu într-o fereastră de dialog.
 
-**Delete** sau **Backspace** — *Ștergere*: șterge activitățile selectate. Doar când există o selecție. Într-o celulă din tabelul de activități, Delete și Backspace șterg doar conținutul celulei (vezi *Tabel*).
+**Delete** sau **Backspace** — *Ștergere*: șterge activitățile selectate. Doar când există o selecție. Nu într-o fereastră de dialog. Nu în *Fișier*, nu pe filele *Raport* și *IFC* și nu cât timp panoul de resurse complet este deschis, pentru că tabelul de activități nu este vizibil acolo. Într-o celulă a tabelului de activități, Delete și Backspace șterg doar conținutul celulei (vezi *Tabel*).
 
-**F2** — *Editare...*: deschide fereastra de dialog a activității pentru prima activitate selectată. Doar când există o selecție. Nu într-o fereastră de dialog. Într-o celulă din tabelul de activități, F2 pornește editarea celulei.
+**F2** — *Editare...*: deschide fereastra de dialog a activității pentru prima activitate selectată. Doar când există o selecție. Nu într-o fereastră de dialog. Într-o celulă a tabelului de activități, F2 pornește editarea celulei.
 
 **Ctrl+A** — *Selectare tot*: selectează toate activitățile. Nu într-o fereastră de dialog.
 
-**Esc** — *Anulare selecție*: anulează selecția și, în același timp, oprește modul de dependențe, modul de scindare și urmărirea traseului. Închide și fereastra de dialog a activității și privirea de ansamblu asupra proiectului. În timpul prezentării, Esc închide doar prezentarea (vezi *Vizualizare*). Într-un câmp de introducere, Esc nu face niciuna dintre acestea.
+**Esc** — *Anulare selecție*: anulează selecția și, în același timp, oprește modul de dependențe, modul de scindare și urmărirea traseului. Închide și fereastra de dialog a activității și privirea de ansamblu asupra proiectului. În timpul prezentării, Esc închide doar prezentarea (vezi *Vizualizare*). Într-un câmp de introducere, Esc nu face niciunul dintre acestea.
 
 ## Structură
 
@@ -68,7 +68,7 @@ Indenta, indenta negativ și inserarea deasupra sau dedesubt funcționează doar
 
 ## Vizualizare
 
-**F11** — *Prezentare*: pornește sau oprește modul de prezentare. Aplicația cere și browserului sau ferestrei ecranul complet. Funcționează și într-un câmp de introducere.
+**F11** — *Prezentare*: pornește sau oprește modul de prezentare. Aplicația cere și ferestrei ecranul complet. Funcționează și într-un câmp de introducere. În browser, F11 nu pornește prezentarea: browserul pune singur fereastra pe ecran complet, iar aplicația rămâne așa cum este. În browser, F11 oprește totuși o prezentare în curs.
 
 **Esc** (în timpul prezentării) — *Ieșire din prezentare*. Funcționează și într-un câmp de introducere. Aceasta are prioritate față de *Anulare selecție*.
 
@@ -76,7 +76,7 @@ Indenta, indenta negativ și inserarea deasupra sau dedesubt funcționează doar
 
 **Ctrl+-** — *Micșorare*: micșorează cu un pas fix.
 
-**+** sau **=** — *Mărire*: mărește cu 10% în jurul mijlocului zonei Gantt. Nu într-un câmp de introducere, și doar când zona Gantt este vizibilă (deci nu pe filele *Tabel*, *IFC* și *Raport*).
+**+** sau **=** — *Mărire*: mărește cu 10% în jurul mijlocului zonei Gantt. Nu într-un câmp de introducere, și doar când cronologia Gantt este vizibilă (deci nu pe filele *Tabel*, *IFC* și *Raport*).
 
 **-** — *Micșorare*: micșorează cu 10%. Aceleași restricții.
 
@@ -96,9 +96,9 @@ Indenta, indenta negativ și inserarea deasupra sau dedesubt funcționează doar
 
 **F1** — *Deschidere ajutor*: deschide *Fișier › Ajutor*. Nu într-un câmp de introducere și nu într-o fereastră de dialog. Într-o fereastră, folosiți semnul întrebării din dreapta sus: se deschide ajutorul despre articolul acelei ferestre (vezi [Panglica, filă cu filă](docs://ref-lint), la *Ajutor*).
 
-**Ctrl+1** până la **Ctrl+9** — *Comutare document*: trece la primul până la al nouălea document deschis. Dacă documentul nu există, nu se întâmplă nimic. Nu într-o fereastră de dialog și nu când informațiile proiectului au modificări neaplicate.
+**Ctrl+1** până la **Ctrl+9** — *Comutare document*: trece la primul până la al nouălea document deschis. Dacă documentul nu există, nu se întâmplă nimic. Nu într-o fereastră de dialog și nu cât timp *Setări proiect* conține modificări neaplicate.
 
-**Ctrl+Home** — *Derulare la azi*: derulează cronologia astfel încât o dată să fie în stânga vizualizării. Aceasta este data raportului de stare, dacă ați stabilit una, altfel ziua de azi. Așadar, eticheta spune „azi”, chiar dacă cronologia sare la data raportului de stare. Zoomul și începutul cronologiei rămân cum erau. Dacă o celulă din tabelul de activități are focusul, Ctrl+Home trece în schimb la prima celulă a tabelului (vezi *Tabel*).
+**Ctrl+Home** — *Derulare la azi*: derulează cronologia astfel încât o dată să fie în stânga vizualizării. Aceasta este data raportului de stare, dacă ați stabilit una, altfel ziua de azi. Așadar, eticheta spune „azi”, chiar dacă cronologia sare la data raportului de stare. Zoomul și începutul cronologiei rămân cum erau. Dacă o celulă a tabelului de activități are focalizarea, Ctrl+Home duce, dimpotrivă, la prima celulă a tabelului (vezi *Tabel*).
 
 ## Tabel
 

@@ -6,7 +6,7 @@ Cél: erőforrás hozzárendelése egy tevékenységhez, napi hozzárendelt menn
 
 Amint látni szeretné, ki hol és mikor dolgozik: a kőműves a külső falrétegnél, a daru az üreges födémelemeknél. Hozzárendelés nélkül nincs terhelés, így nincs hisztogram és nincs túlterhelés.
 
-Két fogalom. A **hozzárendelt mennyiség** (az alkalmazásban *Hozzárendelt mennyiség/nap*) az, hogy az erőforrásból mennyi dolgozik a tevékenységen munkanaponként: az 1 egy kőműves, a 2 kettő, a 0,5 fél nap. A **görbe** határozza meg, hogyan oszlik el az összeg, vagyis a hozzárendelt mennyiség szorozva az időtartammal, a tevékenység munkanapjain. A munka ritkán egyenletes: egy falnál az elején csendes a munka, a közepén zsúfolt, a végén ismét csendes.
+Két fogalom. A **hozzárendelt mennyiség** (a panelen a *Hozzárendelt mennyiség* oszlop, a *Hozzárendelés* ablakban a *Hozzárendelt mennyiség/nap* mező) az, hogy az erőforrásból mennyi dolgozik a tevékenységen munkanaponként: az 1 egy kőműves, a 2 kettő, a 0,5 fél nap. A **görbe** határozza meg, hogyan oszlik el az összeg, vagyis a hozzárendelt mennyiség szorozva az időtartammal, a tevékenység munkanapjain. A munka ritkán egyenletes: egy falnál az elején csendes a munka, a közepén zsúfolt, a végén ismét csendes.
 
 A külső falréteg 6 munkanapot vesz igénybe. Egy kőművessel és az *Egyenletes* görbével ez napi 1 hozzárendelt mennyiség a 6 napon, összesen 6. A *Harang alakú* görbével továbbra is összesen 6 hozzárendelt mennyiség lesz, de az eloszlás 0, 1, 2, 2, 1 és 0 lesz.
 
@@ -27,16 +27,16 @@ Egy második erőforrás hozzárendeléséhez újra megnyitja az ablakot. Azok a
 
 1. Válassza ki a tevékenységet. A *Tulajdonságok* panel a jobb oldalon található. Ha nem látja, kapcsolja be a *Nézet › Panelek › Tulajdonságok* lehetőséggel.
 2. A *Hozzárendelések* blokk legalján válassza ki az erőforrást az *Erőforrás hozzárendelése* mezőnél. A hozzárendelés 1-es hozzárendelt mennyiséggel és az *Egyenletes* görbével indul.
-3. Minden hozzárendelésnél módosítsa a *Hozzárendelt mennyiség/nap* értékét, és válasszon másik *Görbe* értéket.
+3. Minden hozzárendelésnél módosítsa a *Hozzárendelt mennyiség* értékét. Kattintson az erőforrás nevére, hogy megjelenjen a *Görbe*, és ott válasszon másik görbét.
 
-Így módosíthat egy meglévő hozzárendelést is. A névnél található kuka ikonnal (*Eltávolítás*) veszi le a hozzárendelést a tevékenységről. Maga az erőforrás megmarad. Az *Áthelyezés ide…* lehetőséggel a hozzárendelést egy másik tevékenységhez helyezi át.
+Így módosíthat egy meglévő hozzárendelést is. A sor végén található kuka ikonnal (*Eltávolítás*) veszi le a hozzárendelést a tevékenységről. Maga az erőforrás megmarad. Az *Áthelyezés ide…* lehetőség (a névre kattintás után jelenik meg) a hozzárendelést egy másik tevékenységhez helyezi át.
 
 ### A görbék
 
 - *Egyenletes*: minden nap ugyanannyi. Ez az alapértelmezés, és olyan munkához illik, amely minden nap egyformán nehéz.
 - *Elöl terhelt*: az eleje nehezebb, mint a vége. Olyan munkához illik, amely nagy erőfeszítéssel indul, például kitűzéssel.
 - *Hátul terhelt*: a vége nehezebb, mint az eleje. Olyan munkához illik, amely a befejezés felé egyre sűrűbb.
-- *Harang alakú*: csúcs a közepén, csendes elejével és végével. Olyan falhoz illik, amely csendesen indul, a közepén teljes erővel dolgozik, majd elhalkul.
+- *Harang alakú*: csúcs a közepen, csendes elejével és végével. Olyan falhoz illik, amely csendesen indul, a közepén teljes erővel dolgozik, majd elhalkul.
 - *Korai csúcs*: csúcs a közepe előtt. Olyan munkához illik, amely gyorsan felpörög.
 - *Késői csúcs*: csúcs a közepe után. Olyan munkához illik, amelynek a zsúfolt szakasza csak későn jön.
 - *Kettős csúcs*: két csúcs. Olyan munkához illik, amelynek két intenzív szakasza van.
@@ -56,7 +56,7 @@ A görbe csak az eloszlást változtatja meg. Az időtartam, a dátumok és az �
 
 **Anyag.** Anyag típusú erőforrásnál a hozzárendelt mennyiség a napi mennyiség, az erőforrás mértékegységében, például m³. Az anyag nem számít bele a tevékenység időtartamába.
 
-**Egy munkaszabály módosíthatja az időtartamot.** Ha a tevékenység *Rögzített munka* vagy *Rögzített egységek* típusú, egy második erőforrás megváltoztatja a tevékenység időtartamát. Ekkor az ütemezés már nem naprakész. Nyomja meg az **Ütemezés-számítás** parancsot (F5). Lásd: [Munkaszabályok: időtartam, hozzárendelt mennyiség és munka](docs://uitleg-werkregels).
+**Egy tevékenységtípus módosíthatja az időtartamot.** Ha a tevékenység *Rögzített munka* vagy *Rögzített egységek* típusú, egy második erőforrás megváltoztatja a tevékenység időtartamát. Ekkor az ütemezés már nem naprakész. Nyomja meg az **Ütemezés-számítás** parancsot (F5). Lásd: [Tevékenységtípusok: időtartam, hozzárendelt mennyiség és munka](docs://uitleg-werkregels).
 
 **Saját eloszlás.** Ha a hozzárendelésnek már van saját órás eloszlása, a görbe le van tiltva, és az *Eloszlás* jelenik meg. Előbb oldja fel ezt az eloszlást az *Órás eloszlás beállítása…* lehetőséggel.
 
@@ -66,6 +66,6 @@ A görbe csak az eloszlást változtatja meg. Az időtartam, a dátumok és az �
 
 - [Az órás eloszlás beállítása](docs://howto-urenverdeling-aanpassen): a napi órák saját kezű beállítása.
 - [A túlterhelés megoldása](docs://howto-overbezetting-oplossen): teendők, ha egy erőforrásnak egy napon túl sok a munkája.
-- [Munkaszabályok: időtartam, hozzárendelt mennyiség és munka](docs://uitleg-werkregels): mi történik az időtartammal, ha módosítja a hozzárendelt mennyiséget.
+- [Tevékenységtípusok: időtartam, hozzárendelt mennyiség és munka](docs://uitleg-werkregels): mi történik az időtartammal, ha módosítja a hozzárendelt mennyiséget.
 - [Erőforráspanel](docs://ref-resourcepaneel): az erőforráspanel összes mezője és gombja.
-- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): mind az öt erőforrástípus, mind a hat görbe, és egy toronydaru, amelynek kapacitás-lépcsője 2027. augusztus 30-tól van.
+- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): mind az öt erőforrástípus, a nyolc görbéből hat, és egy toronydaru, amelynek kapacitás-lépcsője 2027. augusztus 30-tól van.

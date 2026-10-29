@@ -16,7 +16,7 @@ Eine **Baseline** ist eine Momentaufnahme des Terminplans zu einem bestimmten Ze
 
 Das folgende Beispiel verwendet das Berechnungsprofil *Open Planner Studio*. Ein neues Projekt rechnet damit. Weiter unten lesen Sie, was sich in den Profilen Primavera P6 und Microsoft Project unterscheidet.
 
-Die App berechnet nicht von selbst neu. Nach jeder Änderung am Fortschritt oder am Statusdatum zeigt die Statusleiste *Veraltet — neu berechnen (F5)*. Drücken Sie **Berechnen** (F5), zum Beispiel über *Planung › Terminplanung › Berechnen*. Wenn *Automatisch berechnen* eingeschaltet ist (unter *Einstellungen › Projekt › Einstellungen*, Reiter *Planung*, Überschrift *Berechnung*), macht die App dies selbst.
+Die App berechnet nicht von selbst neu. Nach jeder Änderung am Fortschritt oder am Statusdatum zeigt die Statusleiste *Veraltet — neu berechnen (F5)*. Drücken Sie **Berechnen** (F5), zum Beispiel über *Planung › Terminplanung › Berechnen*. Wenn *Automatisch berechnen* eingeschaltet ist (unter *Einstellungen › Projekt › App-Einstellungen*, Reiter *Planung*, Überschrift *Berechnung*), macht die App dies selbst.
 
 ### Das Statusdatum
 
@@ -26,7 +26,7 @@ Erstens lehnt die App einen Ist-Wert nach dem Statusdatum ab. Ein Datum am Statu
 
 Zweitens kann Arbeit, die noch nicht begonnen hat, nicht in der Vergangenheit liegen. Ist ein solcher Vorgang vor dem Statusdatum geplant, verschiebt die App ihn auf das Statusdatum. Dasselbe gilt für die Nachfolger, die über ihre Beziehungen mitwandern. Den Effekt sehen Sie im Beispiel unten. Im Profil Microsoft Project tut die App das nicht.
 
-Drittens beginnt die Restarbeit eines Vorgangs, der schon läuft, am Statusdatum selbst. Die App behandelt das Statusdatum als Beginn dieses Tages. Wenn Sie am Freitag nach Arbeitsschluss den Stand aufnehmen, stellen Sie das Statusdatum deshalb auf Montag. Stellen Sie es auf Freitag, dann plant die App die Restarbeit trotzdem an diesem Freitag.
+Drittens beginnt die Restarbeit eines Vorgangs, der schon läuft, am Statusdatum selbst. Die App behandelt das Statusdatum als Beginn dieses Tages. Wenn Sie am Freitag außerhalb der Arbeitszeiten den Stand aufnehmen, stellen Sie das Statusdatum deshalb auf Montag. Stellen Sie es auf Freitag, dann plant die App die Restarbeit trotzdem an diesem Freitag.
 
 Wenn Sie noch kein Statusdatum haben und Fortschritt erfassen, setzt die App das Statusdatum auf heute und meldet dies. Ein anderes Datum legen Sie unter *Planung › Baselines & Fortschritt › Statusdatum* fest. Ohne Statusdatum rechnet die App einen laufenden Vorgang vorwärts mit seiner Restdauer, aber rückwärts mit seiner vollen Dauer. Der Puffer wird dann negativ, und der Vorgang wirkt ohne Grund kritisch.
 
@@ -51,7 +51,7 @@ Ein laufender Vorgang behält seinen Ist-Anfang. Nur die Restarbeit verschiebt s
 
 ### Retained Logic und Progress Override
 
-Was tut die App, wenn ein Vorgang schon begonnen hat, während sein Vorgänger noch läuft? Eine solche Beziehung heißt **außerhalb der Reihenfolge**: Der Fortschritt widerspricht der Reihenfolge. Denken Sie an den Maler, der schon einen Raum streicht, der verputzt wurde, während der Putzer noch anderswo arbeitet.
+Was tut die App, wenn ein Vorgang schon begonnen hat, während sein Vorgänger noch läuft? Eine solche Beziehung heißt **Fortschritt außer Reihenfolge**: Der Fortschritt widerspricht der Reihenfolge. Denken Sie an den Maler, der schon einen Raum streicht, der verputzt wurde, während der Putzer noch anderswo arbeitet.
 
 Zwei Fortschrittsmodi bestimmen, wie die App das berechnet:
 
@@ -124,25 +124,25 @@ Wenn Sie nur das Statusdatum auf Montag, 28. Juni setzen und nichts erfassen, is
 
 ## Rechenbeispiel: Verputzer und Maler
 
-Jetzt ein Beispiel für den Fortschrittsmodus. Derselbe Anbau, ein anderer Stand: Es ist Mittwoch, 21. Juli 2027. Alles bis einschließlich *Install building services* ist laut Plan abgeschlossen. *Plastering* (4 Arbeitstage) hat am Dienstag, 20. Juli begonnen und ist zu 25 % fertig. *Painting* (3 Arbeitstage) folgt auf das plastering, aber der Maler hat heute schon begonnen und ist zu 33 % fertig.
+Jetzt ein Beispiel für den Fortschrittsmodus. Derselbe Anbau, ein anderer Stand: Es ist Mittwoch, 21. Juli 2027. Alles bis einschließlich *Install building services* ist laut Plan abgeschlossen. *Plastering* (4 Arbeitstage) hat am Dienstag, 20. Juli begonnen und ist zu 25 % fertig. *Painting* (3 Arbeitstage) folgt auf *Plastering*, aber der Maler hat heute schon begonnen und ist zu 33 % fertig.
 
-Ohne Fortschritt war das plastering für Dienstag, 20. bis Freitag, 23. Juli geplant, das painting für Montag, 26. bis Mittwoch, 28. Juli. Die *Statusleiste* zeigt jetzt *1 Beziehung(en) außerhalb der Reihenfolge*: Das painting hat begonnen, während das plastering noch nicht abgeschlossen ist. Im Bereich *Warnungen* steht: *Fortschritt außer Reihenfolge: der Fortschritt des Nachfolgers widerspricht der Beziehung*.
+Ohne Fortschritt war der Vorgang *Plastering* für Dienstag, 20. bis Freitag, 23. Juli geplant, der Vorgang *Painting* für Montag, 26. bis Mittwoch, 28. Juli. Die Statusleiste zeigt jetzt *1 Beziehung(en) außerhalb der Reihenfolge*: *Painting* hat begonnen, während *Plastering* noch nicht abgeschlossen ist. Im Bereich *Warnungen* steht: *Fortschritt außer Reihenfolge: der Fortschritt des Nachfolgers widerspricht der Beziehung*.
 
-Das plastering hat 4 × (1 − 0,25) = 3 Arbeitstage Restarbeit: am 21., 22. und 23. Juli. Das painting hat 3 × (1 − 0,33) = 2 Arbeitstage Restarbeit.
+Der Vorgang *Plastering* hat 4 × (1 − 0,25) = 3 Arbeitstage Restarbeit: am 21., 22. und 23. Juli. Der Vorgang *Painting* hat 3 × (1 − 0,33) = 2 Arbeitstage Restarbeit.
 
-- Mit **Retained Logic** kann diese Restarbeit erst beginnen, wenn das plastering abgeschlossen ist. Das ist Freitag, 23. Juli. Das painting beginnt deshalb Montag, 26. Juli und endet Dienstag, 27. Juli. Der Balken läuft vom Ist-Anfang am 21. Juli bis zum 27. Juli. Der Gesamtpuffer beträgt 7 Arbeitstage.
-- Mit **Progress Override** beginnt die Restarbeit am Statusdatum. Das painting endet Donnerstag, 22. Juli, vor dem Abschluss des plastering. Der Gesamtpuffer beträgt 10 Arbeitstage.
+- Mit **Retained Logic** kann diese Restarbeit erst beginnen, wenn *Plastering* abgeschlossen ist. Das ist Freitag, 23. Juli. *Painting* beginnt deshalb Montag, 26. Juli und endet Dienstag, 27. Juli. Der Balken läuft vom Ist-Anfang am 21. Juli bis zum 27. Juli. Der Gesamtpuffer beträgt 7 Arbeitstage.
+- Mit **Progress Override** beginnt die Restarbeit am Statusdatum. *Painting* endet Donnerstag, 22. Juli, vor dem Abschluss von *Plastering*. Der Gesamtpuffer beträgt 10 Arbeitstage.
 
-Die Übergabe bleibt in beiden Fällen Freitag, 6. August: Das painting hatte ohnehin Puffer.
+Die Übergabe bleibt in beiden Fällen Freitag, 6. August: *Painting* hatte ohnehin Puffer.
 
 ### Andere Berechnungsprofile
 
-In den Profilen Primavera P6 und Microsoft Project endet das painting in diesem Beispiel an denselben Daten (27. und 22. Juli). Sie unterscheiden sich in den folgenden Punkten. Das sind Konventionen des Profils. Sie finden sie unter *Einstellungen › Projekt › Projektinfo*, im Block *Berechnungsprofil und Berechnungsoptionen*.
+In den Profilen Primavera P6 und Microsoft Project endet *Painting* in diesem Beispiel an denselben Daten (27. und 22. Juli). Sie unterscheiden sich in den folgenden Punkten. Das sind Konventionen des Profils. Sie finden sie unter *Einstellungen › Projekt › Projekteinstellungen*, im Block *Berechnungsprofil und Berechnungsoptionen*.
 
 - Im Profil Microsoft Project verschiebt sich ein Vorgang, der noch nicht begonnen hat, nicht zum Statusdatum (Konvention *Nicht begonnene Vorgänge nicht zum Statusdatum verschieben*). Wenn Sie im obigen Beispiel nur ein Statusdatum setzen und nichts erfassen, bleibt die Übergabe in diesem Profil Freitag, 6. August.
 - Im Profil Microsoft Project beginnt die Restarbeit außerdem nicht früher als der Ist-Anfang plus die bereits verstrichene Zeit (Konvention *Restarbeit wird nach der verstrichenen Dauer fortgesetzt*). Das ist eine zusätzliche untere Grenze neben dem Statusdatum: Es gilt das spätere der beiden Daten. Nehmen Sie *Build inner cavity leaf* (5 Arbeitstage). Der Vorgang ist am Dienstag, 29. Juni gestartet und steht am Statusdatum Mittwoch, 30. Juni bei 40 %. Zwei Kolonnen mauern gleichzeitig, deshalb ist nach einem Tag schon 40 % erledigt. Alles davor ist laut Plan abgeschlossen. Open Planner Studio und Primavera P6 lassen den Vorgang am Freitag, 2. Juli enden. Microsoft Project lässt ihn am Montag, 5. Juli enden, weil Dienstag, 29. Juni plus 2 bereits verstrichene Arbeitstage Donnerstag, 1. Juli ergibt, und das liegt nach dem Statusdatum.
-- In Primavera P6 zeigt der früheste Anfang eines laufenden Vorgangs den Beginn der Restarbeit, nicht den Ist-Anfang (im Beispiel Build inner cavity leaf: Mittwoch, 30. Juni).
-- Im Profil Primavera P6 zählt bei Progress Override auch die Beziehung zu einem bereits begonnenen Nachfolger nicht für den Vorgänger: Sie begrenzt dessen späte Termine und seinen freien Puffer nicht mehr (Konvention *Progress Override ignoriert einen begonnenen Nachfolger auch rückwärts*). Im Rechenbeispiel Verputzer und Maler sehen Sie das nicht. Das plastering ist ohnehin über den Estrich kritisch. Seine späten Termine und sein freier Puffer sind bei Retained Logic und bei Progress Override gleich.
+- In Primavera P6 zeigt der früheste Anfang eines laufenden Vorgangs den Beginn der Restarbeit, nicht den Ist-Anfang (im Beispiel *Build inner cavity leaf*: Mittwoch, 30. Juni). Die Spalte *Anfang* und der Balken zeigen in jedem Profil den Ist-Anfang.
+- Im Profil Primavera P6 zählt bei Progress Override auch die Beziehung zu einem bereits begonnenen Nachfolger nicht für den Vorgänger: Sie begrenzt dessen späte Termine und seinen freien Puffer nicht mehr (Konvention *Progress Override ignoriert einen begonnenen Nachfolger auch rückwärts*). Im Rechenbeispiel Verputzer und Maler sehen Sie das nicht. *Plastering* ist ohnehin über den Estrich kritisch. Seine späten Termine und sein freier Puffer sind bei Retained Logic und bei Progress Override gleich.
 - Wenn Sie eine .xer-Datei öffnen, übernimmt die App den Fortschrittsmodus aus der Datei. Actual Dates, der dritte P6-Modus, ist der App nicht bekannt. Eine solche Datei wird als Retained Logic berechnet.
 
 ## Folgen und Missverständnisse
@@ -155,11 +155,11 @@ In den Profilen Primavera P6 und Microsoft Project endet das painting in diesem 
 
 **„Progress Override löst die Warnung.“** Die Meldung zu Fortschritt außer Reihenfolge bleibt bestehen. Der Modus bestimmt nur, wie die App rechnet. Ist die Beziehung nicht mehr richtig, ändern Sie die Beziehung.
 
-**„Die Pause in einem Vorgang, den Sie teilen, fällt weg.“** Nein. Eine Pause im Teil, der noch zu tun ist, bleibt in der Restarbeit. Nehmen Sie einen Vorgang von 5 Arbeitstagen mit einer Pause von 1 Tag nach 2 Arbeitstagen Arbeit. Er ist am Dienstag, 29. Juni gestartet und steht am Statusdatum Mittwoch, 30. Juni bei 40 %. Die Restarbeit von 3 Arbeitstagen beginnt am Statusdatum und läuft über die Pause. Das Ende ist Montag, 5. Juli. Ohne Pause wäre es Freitag, 2. Juli gewesen.
+**„Die Pause in einem geteilten Vorgang fällt weg.“** Nein. Eine Pause im Teil, der noch zu tun ist, bleibt in der Restarbeit. Nehmen Sie einen Vorgang von 5 Arbeitstagen mit einer Pause von 1 Tag nach 2 Arbeitstagen Arbeit. Er ist am Dienstag, 29. Juni gestartet und steht am Statusdatum Mittwoch, 30. Juni bei 40 %. Die Restarbeit von 3 Arbeitstagen beginnt am Statusdatum und läuft über die Pause. Das Ende ist Montag, 5. Juli. Ohne Pause wäre es Freitag, 2. Juli gewesen.
 
-**Stunden und das Statusdatum.** Im Menüband können Sie keine Uhrzeit eingeben. Sie tragen das Statusdatum als Datum ein. Wenn Sie außerhalb der Arbeitszeiten den Stand erfassen, setzen Sie das Statusdatum auf den nächsten Arbeitstag. Ein Vorgang in Stunden berechnet die Restarbeit ab Beginn des Statusdatums. Nehmen Sie *Lay hollow-core floor* im Übungsprojekt nach Tutorial 4: 5 Stunden, am Montag, 28. Juni, Arbeitstag ab 07:00. Mit dem Statusdatum Montag, 28. Juni und dem Vorgang bei 40 % hat er 3 Stunden Restarbeit, von 07:00 bis 10:00, auch wenn an diesem Morgen schon gearbeitet wurde. Wie die App Stunden zählt, steht unter [Tage und Stunden](docs://uitleg-dagen-en-uren).
+**Stunden und das Statusdatum.** Im Menüband können Sie keine Uhrzeit eingeben. Sie tragen das Statusdatum als Datum ein. Wenn Sie außerhalb der Arbeitszeiten den Stand erfassen, setzen Sie das Statusdatum auf den nächsten Arbeitstag. Ein Vorgang in Stunden berechnet die Restarbeit ab Beginn des Statusdatums. Nehmen Sie *Lay hollow-core floor* im Übungsprojekt nach Tutorial 4, zu dem Zeitpunkt, an dem alles davor abgeschlossen ist: 5 Stunden, am Montag, 28. Juni, Arbeitstag ab 07:00. Mit dem Statusdatum Montag, 28. Juni und dem Vorgang bei 40 % hat er 3 Stunden Restarbeit, von 07:00 bis 10:00, auch wenn an diesem Morgen schon gearbeitet wurde. Wie die App Stunden zählt, steht unter [Tage und Stunden](docs://uitleg-dagen-en-uren).
 
-**Baseline aktualisieren.** Das ist nicht möglich. Sie speichern eine neue Baseline und löschen die alte. Wenn Sie ein Projekt verschieben, wandern die Ist-Werte und das Statusdatum mit. Die Baselines wandern standardmäßig nicht mit. So bleibt die Verschiebung als Abweichung sichtbar. Siehe [Projekt verschieben](docs://howto-project-verplaatsen).
+**Baseline aktualisieren.** Das ist nicht möglich. Sie speichern eine neue Baseline und löschen die alte. Wenn Sie ein Projekt verschieben, wandern die Ist-Werte und das Statusdatum mit, die Baselines standardmäßig nicht. So bleibt die Verschiebung als Abweichung sichtbar. Siehe [Projekt verschieben](docs://howto-project-verplaatsen).
 
 ## Siehe auch
 

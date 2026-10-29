@@ -19,7 +19,7 @@ A tarefa passa a ser a última subtarefa da tarefa anterior ao mesmo nível. Ess
 
 Escolha *Planeamento › Estrutura › Recuar*, prima Alt+← (ou Alt+Shift+←) ou escolha *Diminuir indentação* no menu de contexto.
 
-A tarefa passa a ser irmã imediatamente a seguir à fase em que estava. As subtarefas dela seguem com ela. As tarefas que vinham depois dela nessa fase continuam nela. Uma tarefa ao nível mais alto não pode diminuir mais a indentação.
+A tarefa passa a estar no mesmo nível, imediatamente a seguir à fase em que estava. As subtarefas dela seguem com ela. As tarefas que vinham depois dela nessa fase continuam nela. Uma tarefa ao nível mais alto não pode diminuir mais a indentação.
 
 ### Mover uma tarefa
 
@@ -35,22 +35,32 @@ Cada movimento conta como um só passo de *Desfazer* (Ctrl+Z).
 
 Veja o botão *WBS auto* em *Planeamento › Estrutura*.
 
-- **Ligado (o padrão num projeto novo).** A aplicação renumera a árvore inteira a cada adição, remoção e movimento. O código WBS fica então só de leitura: não o pode escrever na tabela de tarefas nem no painel *Propriedades*. *Renumerar WBS* fica desativado.
-- **Desligado.** Os códigos ficam como estão, também depois de mover e de avançar. Escreva-os manualmente, na coluna *WBS* ou no campo *Código WBS* em *Propriedades*, ou renumere-os uma vez com *Renumerar WBS*. Isto também substitui os códigos que escreveu.
+- **Ligado (o padrão num projeto novo).** Também fica ligado depois de abrir um ficheiro sem esta definição, se todos os códigos WBS já corresponderem à numeração da árvore (1, 1.1, 1.2 …). Os códigos não mudam. Um ficheiro vazio sem esta definição também fica com o valor *sim*, tal como um projeto novo. A aplicação renumera a árvore inteira a cada adição, remoção e movimento. O código WBS fica então só de leitura: não o pode escrever na tabela de tarefas nem no painel *Propriedades*. *Renumerar WBS* fica desativado.
+- **Desligado.** É o padrão num ficheiro com códigos próprios, como *A1000*, ou com um código que difere da árvore. Os códigos ficam como estão, também depois de mover e de avançar. Escreva-os manualmente, na coluna *WBS* ou no campo *Código WBS* em *Propriedades*, ou renumere-os uma vez com *Renumerar WBS*. Isto também substitui os códigos que escreveu.
 
 Se ligar *WBS auto*, a aplicação numera logo a árvore. Pode anular, com *Desfazer*, tanto *WBS auto* como *Renumerar WBS*.
 
 ## Armadilhas e o que a aplicação faz
 
-**Filtragem, agrupamento ou ordenação estão ativos.** A ordem que vê não é então a ordem do planeamento, por isso a aplicação bloqueia a estrutura. *Indentar* e *Diminuir indentação* ficam desativados, com a dica *Não disponível durante a filtragem/agrupamento/ordenação*. Alt+→ e arrastar mostram o mesmo texto numa linha de aviso, com o botão *Limpar*. Isto remove de uma vez o filtro, o agrupamento e a ordenação, e Ctrl+Z não os repõe. Nesse caso, *Indentar* e *Diminuir indentação* não aparecem no menu de contexto.
+**Filtragem, agrupamento ou ordenação estão ativos.** A ordem que vê não é então a ordem do planeamento, por isso a aplicação bloqueia a estrutura. *Indentar* e *Diminuir indentação* ficam desativados, com a dica *Não disponível durante a filtragem/agrupamento/ordenação*. Alt+→ e arrastar mostram o mesmo texto numa linha de aviso vermelha, com o botão *Limpar*. Isto remove de uma vez o filtro, o agrupamento e a ordenação, e Ctrl+Z não os repõe. A linha de aviso fica até clicar na cruz, usar Ctrl+Z ou Ctrl+Y, ou mudar para outro documento. Nesse caso, *Indentar* e *Diminuir indentação* não aparecem no menu de contexto.
 
 Alt+↑ e Alt+↓ funcionam nessa vista, sem mensagem. Só com um filtro vê a nova ordem de imediato. Com uma ordenação, a ordem no planeamento muda, mas só a vê depois de *Limpar*.
 
-**WBS auto está desligado.** Uma tarefa nova recebe o código que corresponde ao seu lugar na árvore, mesmo que outra tarefa já tenha esse código. Assim podem aparecer números duplicados. Também depois de avançar, os códigos deixam de corresponder à árvore. *Renumerar WBS* corrige as duas situações.
+**WBS auto está desligado.** Isto acontece com um ficheiro que tem códigos próprios, ou com um ficheiro que guarda a definição com o valor *não*. Uma tarefa nova recebe o código que corresponde ao seu lugar na árvore, mesmo que outra tarefa já tenha esse código. Assim podem aparecer números duplicados. Também depois de avançar, os códigos deixam de corresponder à árvore. *Renumerar WBS* corrige as duas situações.
 
 **Um marco recebe subtarefas.** Um marco é um momento e não tem subtarefas. A aplicação remove a marcação de marco e mostra uma mensagem.
 
-**Uma tarefa com atribuições de recursos recebe subtarefas.** Uma tarefa de resumo não tem atribuições próprias. A aplicação move-as para a primeira subtarefa nova que as pode ter e mostra uma mensagem. Se não existir essa subtarefa, ou se ela já tiver o mesmo recurso, não acontece nada e a mensagem diz porquê.
+**Uma tarefa com atribuições de recursos recebe subtarefas.** Uma tarefa de resumo não tem atribuições próprias. Por isso, a aplicação pergunta primeiro o que fazer com elas, na janela *A tarefa torna-se uma tarefa de resumo*. Isto acontece ao avançar, ao usar *Adicionar subtarefa* ou *Adicionar marco* numa tarefa, ao inserir um modelo, e em *Editar tarefa* quando escolhe uma nova *Tarefa pai*: para uma tarefa existente e para uma tarefa nova. Em *Editar tarefa* a pergunta surge antes de guardar. Se escolher *Cancelar* aí, *Editar tarefa* continua aberta com as suas alterações. Escolhe:
+
+- *Cancelar*: nada muda, a estrutura também fica como estava.
+- *Remova a atribuição*: a tarefa recebe as subtarefas e as atribuições são removidas. O trabalho real dessas atribuições também é removido.
+- *Mover para '…'*: as atribuições passam para a primeira subtarefa nova que as pode ter, com o trabalho real. Um marco ou uma tarefa de resumo não tem atribuições.
+
+Se essa subtarefa já tiver o mesmo recurso, ou se não existir nenhuma subtarefa adequada, *Mover* fica desativado. Um bloco laranja na janela diz porquê.
+
+Se uma atribuição já tiver trabalho real, o bloco laranja indica quantas horas por recurso, por exemplo *A atribuição de Metselaar já tem 8 horas de trabalho real. Removê-la elimina esse trabalho.* *Cancelar* é então o botão predefinido: Enter não muda nada. Se ainda quiser remover a atribuição, clique em *Remova a atribuição* por si mesmo.
+
+Enquanto a janela estiver aberta, nenhum atalho fora dela funciona, incluindo *Desfazer*, *Colar*, Delete, F5 e Ctrl+S. Se uma ação criar mais tarefas de resumo de uma vez, a janela mostra os recursos por tarefa, e a sua escolha aplica-se a todas. Um *Desfazer* (Ctrl+Z) anula a ação inteira.
 
 **Uma relação criaria um ciclo.** As relações de uma tarefa de resumo aplicam-se também às suas subtarefas. Se um movimento criar, por isso, um ciclo, a aplicação recusa-o e mostra a mensagem *Este movimento criaria um ciclo no planeamento (…)*. Nada muda.
 

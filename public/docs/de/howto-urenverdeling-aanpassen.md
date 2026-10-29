@@ -13,7 +13,7 @@ Sie arbeiten mit **Phasen**: aufeinanderfolgende Arbeitstage, an denen die Resso
 Das Beispiel ist die äußere Schale des Hohlmauerwerks: 6 Arbeitstage, ein Maurer, 48 Stunden.
 
 1. Wählen Sie den Vorgang. Der Bereich *Eigenschaften* liegt rechts. Sehen Sie ihn nicht, dann schalten Sie ihn ein mit *Ansicht › Bereiche › Eigenschaften*.
-2. Klicken Sie im Block *Zuweisungen* auf das Balkendiagramm-Symbol *Stundenverteilung…* neben dem Maurer. Das Fenster *Stundenverteilung in Phasen* öffnet sich. Sie beginnen mit dem, was die App jetzt bucht: für diese äußere Schale ist das eine Phase mit 6 Tagen und 1 Einheit.
+2. Klicken Sie im Block *Zuweisungen* auf den Namen des Maurers. Darunter erscheinen *Kurve* und die Schaltfläche *Stundenverteilung…*. Klicken Sie auf *Stundenverteilung…*. Das Fenster *Stundenverteilung in Phasen* öffnet sich. Sie beginnen mit dem, was die App jetzt bucht: für diese äußere Schale ist das eine Phase mit 6 Tagen und 1 Einheit.
 3. Wählen Sie bei Bedarf bei *Form anwenden:* einen Ausgangspunkt. Mit *Glockenform* erstellt die App fünf Phasen: 0,18 Einheiten am ersten und am letzten Tag, 0,84 am zweiten und am fünften Tag und 1,98 an den zwei mittleren Tagen. Die Summe bleibt 48 Stunden.
 
 ### Phasen anpassen
@@ -31,21 +31,21 @@ Wählen Sie *Anwenden*. Mit *Abbrechen* schließt sich das Fenster ohne Änderun
 
 Ein Beispiel. Sie wählen *Teilen*, setzen die *Tage* der ersten Phase auf 2 und den Einsatz dieser Phase auf 0,5. Die zweite Phase läuft dann 4 Tage mit Einsatz 1. Die Summe ist 2 × 0,5 × 8 + 4 × 1 × 8 = 40 Stunden.
 
-Nach *Anwenden* wird die Kurve der Zuweisung auf *Kontur* gesetzt und deaktiviert. *Einh./Tag* bleibt unverändert. Das Histogramm und die Überlastung folgen der neuen Verteilung sofort. Neu berechnen ist nicht nötig, weil sich kein Datum verschiebt.
+Nach *Anwenden* wird die Kurve der Zuweisung auf *Kontur* gesetzt und deaktiviert. Die *Einheiten* bleiben unverändert. Neben dem Namen erscheint danach ein Balkendiagramm-Symbol, auch wenn die Zuweisung eingeklappt ist. Das Histogramm und die Überlastung folgen der neuen Verteilung sofort. Neu berechnen ist nicht nötig, weil sich kein Datum verschiebt.
 
 ### Die Verteilung aufheben
 
-Hat die Zuweisung eine eigene Verteilung, hat das Fenster außerdem *Verteilung aufheben*. Damit entfernen Sie Ihre eigene Verteilung. Die App kehrt dann zu *Einh./Tag* und zur Kurve zurück. Wählen Sie diese Option auch, wenn Sie die Kurve ändern wollen. Die Liste *Kurve* ist deaktiviert, solange eine eigene Verteilung besteht.
+Hat die Zuweisung eine eigene Verteilung, hat das Fenster außerdem *Verteilung aufheben*. Damit entfernen Sie Ihre eigene Verteilung. Die App kehrt dann zu den *Einheiten* und zur Kurve zurück. Wählen Sie diese Option auch, wenn Sie die Kurve ändern wollen. Die Liste *Kurve* ist deaktiviert, solange eine eigene Verteilung besteht.
 
 ## Fallstricke und was die App dann tut
 
 **Die Summe ändert sich dadurch.** Sie teilen die Stunden nicht zu, Sie legen sie fest. Setzen Sie eine Phase auf 0,5 statt 0,18, wird die Summe größer. Die Summe in Stunden steht unten im Fenster. Prüfen Sie sie deshalb, bevor Sie auf *Anwenden* klicken.
 
-**Was die Einheiten danach bewirken, hängt von der Arbeitsregel ab.** Bei *Feste Dauer und Einheiten* ändern andere *Einh./Tag* nichts an der Verteilung. Bei *Feste Dauer und Arbeit* skaliert die App die Stunden pro Tag mit den neuen Einheiten: Bei Einheiten von 2 statt 1 verdoppelt sich jeder Tag und damit auch die Summe (von 32 auf 64 Stunden). Die Dauer bleibt gleich. Bei *Feste Arbeit* ändern die Einheiten die Dauer des Vorgangs: Die Verteilung wird dann auf die neue Dauer gestaucht oder gestreckt, mit derselben Summe. Bei *Feste Einheiten* ändern die Einheiten auch die Dauer. Prüfen Sie danach die Summe unten im Fenster.
+**Was die Einheiten danach bewirken, hängt von der Vorgangsart ab.** Bei *Feste Dauer und Einheiten* ändern andere *Einheiten* nichts an der Verteilung. Bei *Feste Dauer und Arbeit* skaliert die App die Stunden pro Tag mit den neuen Einheiten: Bei Einheiten von 2 statt 1 verdoppelt sich jeder Tag und damit auch die Summe (von 32 auf 64 Stunden). Die Dauer bleibt gleich. Bei *Feste Arbeit* ändern die Einheiten die Dauer des Vorgangs: Die Verteilung wird dann auf die neue Dauer gestaucht oder gestreckt, mit derselben Summe. Bei *Feste Einheiten* ändern die Einheiten auch die Dauer. Prüfen Sie danach die Summe unten im Fenster.
 
 **Ändern Sie die Dauer des Vorgangs, dehnt sich die Verteilung mit.** Die Form bleibt gleich. Bei *Feste Dauer und Einheiten* und bei *Feste Einheiten* wächst die Summe im Verhältnis zur Dauer. Verdoppelt sich die Dauer eines Vorgangs mit eigener Verteilung von 4 auf 8 Arbeitstage, verdoppelt sich auch die Summe, von 32 auf 64 Stunden. Bei *Feste Dauer und Arbeit* und bei *Feste Arbeit* bleibt die Summe gleich (32 Stunden bleiben 32 Stunden), und die Einheiten sinken.
 
-**Die Arbeit folgt der Verteilung.** *Arbeit (Rest)* wird zur Summe Ihrer Phasen, auch bei *Feste Arbeit*. Die Dauer des Vorgangs ändert sich dadurch nicht.
+**Die Arbeit folgt der Verteilung.** *Arbeit (h)* wird zur Summe Ihrer Phasen, auch bei *Feste Arbeit*. Die Dauer des Vorgangs ändert sich dadurch nicht.
 
 **Ungültiger Einsatz.** Ein leerer oder negativer Einsatz bekommt einen roten Rand, und *Anwenden* ist dann deaktiviert. Eine Phase mit Einsatz 0 ist erlaubt. Eine solche Phase bleibt innerhalb der Dauer des Vorgangs.
 

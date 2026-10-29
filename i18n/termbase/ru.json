@@ -2492,6 +2492,19 @@
     "source": "model",
     "status": "model"
   },
+  "work-category": {
+    "term": "вид работ",
+    "forms": [
+      "вид работ",
+      "виды работ",
+      "вида работ",
+      "видов работ",
+      "виду работ",
+      "видам работ"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "рабочие часы",
     "forms": [

@@ -51,7 +51,7 @@ Napsauta tehtävää hiiren oikealla painikkeella ja valitse *Lisää alitehtäv
 Nämä kolme lajia eroavat näin:
 
 - *Aloitusvälitavoite* kuuluu päivän alkuun ja *Loppuvälitavoite* päivän loppuun. Gantt-kaaviossa timantti on vastaavasti päivän sarakkeen vasemmalla tai oikealla puolella. Tämä vaikuttaa myös seuraajaan. Oletetaan, että välitavoite on tiistaina 29. syyskuuta 2026 ja tehtävä seuraa sitä lopusta alkuun -riippuvuudella. Aloitusvälitavoitteen jälkeen tehtävä alkaa samana tiistaina. Loppuvälitavoitteen jälkeen se alkaa keskiviikkona 30. syyskuuta.
-- *Tarkastushetki (pakollinen)* on loppuvälitavoite, jonka tehtävätyyppi on *Tarkastus* ja jossa on valintaruutu *Pakollinen (sopimuksellinen)* rastitettuna.
+- *Tarkastushetki (pakollinen)* on loppuvälitavoite, jonka työlaji on *Tarkastus* ja jossa on valintaruutu *Pakollinen (sopimuksellinen)* rastitettuna.
 
 ### Olemassa olevan tehtävän muuttaminen välitavoitteeksi
 
@@ -62,6 +62,7 @@ Jos se kytketään taas pois, siitä tulee tavallinen tehtävä, jonka kesto on 
 ### Muut tavat
 
 - Ctrl+M (⌘+M Macilla) lisää uuden välitavoitteen luettelon loppuun, vaikka tehtävä on valittuna. Paneeli *Ominaisuudet* ei avaudu.
+- Välitavoite, jonka luot Ctrl+M:llä tai hiiren oikean painikkeen valikosta, saa työlajin *Tarkastus*. *Aloitusvälitavoite* tai *Loppuvälitavoite* valikosta *Välitavoite ▾* saa työlajin *Muu*. Työlajia voidaan tarvittaessa muuttaa paneelissa *Ominaisuudet*.
 - *Lisää välitavoite* tehtävän hiiren oikean painikkeen valikossa tekee välitavoitteesta sen tehtävän alitehtävän, ei sisarta.
 
 ### Tehtävän tai koko haaran kopioiminen
@@ -72,7 +73,7 @@ Jos se kytketään taas pois, siitä tulee tavallinen tehtävä, jonka kesto on 
 
 Kopio saa saman nimen, samat päivämäärät ja saman edistymisen. Se tulee valitun tehtävän sisarukseksi. Kun useita tehtäviä on valittuna, kopio tulee ensin napsauttamasi tehtävän sisarukseksi. Se tulee sisarusten loppuun. Jos mitään ei ole valittuna, kopio tulee luettelon loppuun. Kopioidut tehtävät jäävät valituiksi. WBS-koodit (kunkin tehtävän numero puussa, esimerkiksi 1.2; katso [Rakenteen muokkaaminen](docs://howto-structuur-aanpassen)) määritetään uudelleen, ja aikataulu on vanhentunut.
 
-Leikepöytä on koko sovelluksen yhteinen, joten kopion voi liittää myös toiseen asiakirjaan. Se, mitä siellä ei ole, kuten tehtäväkalenteri, mukautettu tehtävätyyppi, tehtäväkoodi tai mukautettu kenttä, sovellus tyhjentää ja kertoo siitä.
+Leikepöytä on koko sovelluksen yhteinen, joten kopion voi liittää myös toiseen asiakirjaan. Se, mitä siellä ei ole, kuten tehtäväkalenteri, mukautettu työlaji, tehtäväkoodi tai mukautettu kenttä, sovellus tyhjentää ja kertoo siitä.
 
 ### Jälkeenpäin
 
@@ -82,7 +83,7 @@ Uusi tehtävä ei vielä muuta muita päivämääriä. Tilarivillä lukee *Vanhe
 
 **Jokainen uusi tehtävä alkaa projektin aloituspäivänä.** Ilman riippuvuuksia tehtävä ei odota mitään. Lisää riippuvuuksia, katso [Riippuvuuksien lisääminen](docs://howto-relaties-leggen).
 
-**Suodatus, ryhmittely tai lajittelu on päällä.** Silloin näkemäsi järjestys ei ole aikataulun järjestys. Kun tehtävä on valittuna, *Tehtävä* ja *Välitavoite ▾* lisäävät uuden tehtävän luettelon loppuun. Näkyviin tulee ilmoitusrivi *Ei käytettävissä suodatuksen, ryhmittelyn tai lajittelun aikana*. *Lisää yläpuolelle* ja *Lisää alapuolelle* eivät toimi, ja sama ilmoitusrivi kertoo syyn. Painike *Tyhjennä* ilmoitusrivissä poistaa suodatuksen, ryhmittelyn ja lajittelun kerralla. Tämä ei kuulu *Kumoa*-toimintoon: Ctrl+Z ei palauta niitä.
+**Suodatus, ryhmittely tai lajittelu on päällä.** Silloin näkemäsi järjestys ei ole aikataulun järjestys. Kun tehtävä on valittuna, *Tehtävä* ja *Välitavoite ▾* lisäävät uuden tehtävän luettelon loppuun. Punainen ilmoitus kertoo: *Uusi tehtävä lisättiin loppuun. Suodatuksen, ryhmittelyn tai lajittelun aikana sovellus ei voi sijoittaa sitä valinnan alle.* *Lisää yläpuolelle* ja *Lisää alapuolelle* eivät toimi, ja niiden kohdalla näkyy ilmoitusrivi *Ei käytettävissä suodatuksen, ryhmittelyn tai lajittelun aikana*. Ilmoituksen tai ilmoitusrivin painike *Tyhjennä* poistaa suodatuksen, ryhmittelyn ja lajittelun kerralla. Tämä ei kuulu *Kumoa*-toimintoon: Ctrl+Z ei palauta niitä.
 
 **Alitehtävä tehtävälle, jolla on resurssikohdistuksia.** Tehtävästä tulee yhteenvetotehtävä, ja yhteenvetotehtävällä ei ole itsessään resurssikohdistuksia. Sovellus siirtää resurssikohdistukset uudelle alitehtävälle ja kertoo siitä. Jos se ei onnistu, esimerkiksi koska valittiin *Lisää välitavoite* eikä välitavoitteella voi olla resurssikohdistuksia, sovellus ei lisää mitään ja kertoo syyn.
 

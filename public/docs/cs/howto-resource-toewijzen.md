@@ -6,7 +6,7 @@ Cíl: přiřaďte zdroj k úkolu, s jednotkami přiřazení za den a průběhovo
 
 Jakmile chcete vidět, kdo pracuje kde a kdy: zedník na outer cavity leaf, jeřáb na hollow-core floor slabs. Bez přiřazení zdroj nic nedělá, a tedy se nezobrazí ani histogram, ani přetížení.
 
-Dva pojmy. **Jednotky přiřazení** (v aplikaci *Jedn./den*) říkají, kolik ze zdroje pracuje na úkolu za pracovní den: 1 je jeden zedník, 2 jsou dva z nich, 0,5 je půl dne. **Průběhová křivka** určuje, jak se celková práce (jednotky přiřazení krát doba trvání) rozloží na pracovní dny úkolu. Práce bývá jen zřídka rovnoměrná: u zdi je na začátku klid, uprostřed plno a na konci zase klid.
+Dva pojmy. **Jednotky přiřazení** (v panelu ve sloupci *Jednotky přiřazení*, v okně *Přiřadit* v poli *Jedn./den*) říkají, kolik ze zdroje pracuje na úkolu za pracovní den: 1 je jeden zedník, 2 jsou dva z nich, 0,5 je půl dne. **Průběhová křivka** určuje, jak se celková práce (jednotky přiřazení krát doba trvání) rozloží na pracovní dny úkolu. Práce bývá jen zřídka rovnoměrná: u zdi je na začátku klid, uprostřed plno a na konci zase klid.
 
 Práce na outer cavity leaf trvá 6 pracovních dnů. S jedním zedníkem a průběhovou křivkou *Rovnoměrné* je to 1 jednotka přiřazení na každý ze 6 dnů, dohromady 6. S průběhovou křivkou *Zvonovitý tvar* je to pořád 6 jednotek přiřazení dohromady, ale rozložení práce bude 0, 1, 2, 2, 1 a 0.
 
@@ -27,9 +27,9 @@ Pro druhý zdroj otevřete okno znovu. Zdroje, které už u úkolu jsou, v sezna
 
 1. Vyberte úkol. Panel *Vlastnosti* je vpravo. Když ho nevidíte, zapněte ho na kartě *Zobrazení › Panely › Vlastnosti*.
 2. V sekci *Přiřazení* úplně dole zvolte zdroj u položky *Přiřadit zdroj*. Přiřazení začne s jednotkami přiřazení 1 a s průběhovou křivkou *Rovnoměrné*.
-3. U každého přiřazení změňte *Jedn./den* a v poli *Křivka* zvolte jinou křivku.
+3. U každého přiřazení změňte *Jednotky přiřazení*. Kliknutím na název zdroje zobrazte pole *Křivka* a tam zvolte jinou křivku.
 
-Tak změníte i stávající přiřazení. Ikonou koše vedle názvu (*Odstranit*) odeberete přiřazení z úkolu. Samotný zdroj zůstane. Tlačítkem *Přesunout na…* přesunete přiřazení na jiný úkol.
+Tak změníte i stávající přiřazení. Ikonou koše na konci řádku (*Odstranit*) odeberete přiřazení z úkolu. Samotný zdroj zůstane. Tlačítkem *Přesunout na…* (zobrazí se po kliknutí na název) přesunete přiřazení na jiný úkol.
 
 ### Průběhové křivky
 
@@ -56,9 +56,9 @@ Průběhová křivka mění jen rozložení práce. Doba trvání, termíny i ce
 
 **Materiál.** U materiálového zdroje jsou jednotky přiřazení množství za den v jednotce zdroje, například m³. Materiál se do doby trvání úkolu nepočítá.
 
-**Pravidlo pevné veličiny může upravit dobu trvání.** Pokud má úkol pravidlo *Pevná práce* nebo *Pevné jednotky*, druhý zdroj změní dobu trvání úkolu. Plán pak není aktuální. Stiskněte **Přepočítat** (F5). Viz [Pravidla pevné veličiny: doba trvání, jednotky a práce](docs://uitleg-werkregels).
+**Typ úkolu může upravit dobu trvání.** Pokud má úkol typ *Pevná práce* nebo *Pevné jednotky*, druhý zdroj změní dobu trvání úkolu. Plán pak není aktuální. Stiskněte **Přepočítat** (F5). Viz [Typy úkolů: doba trvání, jednotky a práce](docs://uitleg-werkregels).
 
-**Vlastní rozložení práce.** Pokud má přiřazení už vlastní rozložení práce v čase, je průběhová křivka vypnutá a zobrazuje *Průběhová křivka*. Nejprve toto rozložení uvolněte přes *Rozložení práce v čase…*.
+**Vlastní rozložení práce.** Pokud má přiřazení už vlastní rozložení práce v čase, je průběhová křivka vypnutá a zobrazuje pole *Průběhová křivka*. Nejprve toto rozložení uvolněte přes *Rozložení práce v čase…*.
 
 **Vrácení změn.** Vytvoření, změnu i odstranění přiřazení můžete vrátit tlačítkem *Vrátit zpět* (Ctrl+Z).
 
@@ -66,6 +66,6 @@ Průběhová křivka mění jen rozložení práce. Doba trvání, termíny i ce
 
 - [Úprava rozložení práce v čase](docs://howto-urenverdeling-aanpassen): nastavení hodin za den ručně.
 - [Řešení přetížení](docs://howto-overbezetting-oplossen): co dělat, když má zdroj v jeden den příliš mnoho práce.
-- [Pravidla pevné veličiny: doba trvání, jednotky a práce](docs://uitleg-werkregels): co se stane s dobou trvání, když změníte jednotky přiřazení.
+- [Typy úkolů: doba trvání, jednotky a práce](docs://uitleg-werkregels): co se stane s dobou trvání, když změníte jednotky přiřazení.
 - [Panel zdrojů](docs://ref-resourcepaneel): všechna pole a tlačítka panelu zdrojů.
-- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): všech pět typů zdrojů, všech šest průběhových křivek a věžový jeřáb s krokem kapacity od 30. srpna 2027.
+- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): všech pět typů zdrojů, šest z osmi průběhových křivek a věžový jeřáb s krokem kapacity od 30. srpna 2027.

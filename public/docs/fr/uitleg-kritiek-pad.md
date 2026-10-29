@@ -16,7 +16,7 @@ La méthode de calcul s'appelle **CPM** (méthode du chemin critique). C'est pou
 
 ## Comment l'application calcule
 
-L'application ne recalcule pas le planning d'elle-même. Le calcul commence avec **Calculer** (F5), par exemple par *Accueil › Planification › Calculer*. Si quelque chose a changé depuis le dernier calcul, la barre d'état affiche *Obsolète — recalculer (F5)*. Si *Calculer automatiquement* est activé (sous *Paramètres › Projet › Paramètres*, onglet *Planification*, titre *Calcul*), l'application le fait elle-même.
+L'application ne recalcule pas le planning d'elle-même. Le calcul commence avec **Calculer** (F5), par exemple par *Accueil › Planification › Calculer*. Si quelque chose a changé depuis le dernier calcul, la barre d'état affiche *Obsolète — recalculer (F5)*. Si *Calculer automatiquement* est activé (sous *Paramètres › Projet › Paramètres de l'app*, onglet *Planification*, titre *Calcul*), l'application le fait elle-même.
 
 Un calcul fait deux passages dans le réseau.
 
@@ -26,7 +26,7 @@ L'application part du début du projet et suit les relations du prédécesseur v
 
 ### Passe arrière
 
-Ensuite, l'application remonte de cette fin jusqu'au début. Pour chaque tâche, elle trouve le dernier jour où la tâche doit être terminée sans décaler la fin du projet. Si une tâche a plusieurs successeurs, c'est celui qui doit commencer en premier qui compte. Cela donne le **début au plus tard** et la **fin au plus tard**.
+Ensuite, l'application remonte de cette date jusqu'au début du projet. Pour chaque tâche, elle trouve le dernier jour où la tâche doit être terminée sans décaler la fin du projet. Si une tâche a plusieurs successeurs, c'est celui qui doit commencer en premier qui compte. Cela donne le **début au plus tard** et la **fin au plus tard**.
 
 ### Marge totale et marge libre
 
@@ -42,12 +42,13 @@ La marge peut aussi devenir négative. Cela arrive quand une tâche a une éché
 
 ### Quand une tâche est-elle critique ?
 
-Par défaut, une tâche est critique quand sa marge totale est de 0 ou moins. Vous pouvez modifier cela sous *Paramètres › Projet › Info projet*, dans le bloc *Profil de calcul et options*, à *Options de calcul de ce projet*. Quand vous cliquez sur *Appliquer*, l'application recalcule le planning immédiatement. Les options appartiennent au fichier du projet, pas à l'application.
+Par défaut, une tâche est critique quand sa marge totale est de 0 ou moins. Vous pouvez modifier cela sous *Paramètres › Projet › Paramètres du projet*, dans le bloc *Profil de calcul et options*, à *Options de calcul de ce projet*. Quand vous cliquez sur *Appliquer*, l'application recalcule le planning tout de suite. Les options font partie du fichier du projet, pas de l'application.
 
-- **Définition de critique** avec *Marge totale ≤ seuil* et le champ *Seuil (jours ouvrés)*. Le seuil vaut 0 par défaut. Pour garder une réserve, réglez-le sur 2, par exemple : chaque tâche dont la marge est de 2 jours ouvrés ou moins compte alors comme critique et passe au rouge.
+- **Définition de critique** avec *Marge totale ≤ seuil* et le champ *Seuil (jours ouvrés)*. Le seuil vaut 0 par défaut. Pour garder une réserve, réglez-le sur 2, par exemple : chaque tâche dont la marge est de 2 jours ouvrés ou moins compte alors comme critique et passe au rouge. Si vous choisissez *Chemin le plus long*, une tâche est critique quand elle se trouve sur le chemin le plus long jusqu'à la fin la plus tardive. Sa marge n'a alors pas d'importance.
+- **Plusieurs chemins de marge** numérote les chaînes selon leur marge, dans la colonne *Chemin de marge*. Le chemin 1 est le chemin critique. Voir [Options de calcul et conventions](docs://ref-rekenopties-en-conventies).
 - **Marquer quasi critique** avec son propre *Seuil*, 2 jours ouvrés par défaut. Une tâche dont la marge est supérieure à 0 mais au plus égale à cette valeur reçoit une barre orange. Cela montre quelles tâches n'ont presque plus de marge, sans les qualifier de critiques.
 - **Tâches à extrémité ouverte critiques** : une tâche sans successeur, pas encore terminée, compte comme critique. Utile comme filet de sécurité contre les relations oubliées (voir les idées reçues ci-dessous).
-- **Calcul de la marge** détermine si la marge totale se mesure au début de la tâche, à sa fin, ou comme la plus petite des deux. Les nouveaux projets sont réglés sur *Automatique (par défaut)*. Si vous suivez la méthode de calcul de Primavera P6, *Appliquer les options par défaut de ce profil* règle ce choix sur *Marge de fin*. Pour MS Project, le même bouton le remet sur *Automatique (par défaut)* : avec une date d'état, MS Project calcule lui-même de cette façon.
+- **Calcul de la marge** détermine si la marge totale se mesure au début de la tâche, à sa fin, ou comme la plus petite des deux. Les nouveaux projets sont réglés sur *Automatique (par défaut)*. Si le projet utilise le profil Primavera P6 et que ce choix n'est pas *Marge de fin*, un bloc orange dans les paramètres du projet le signale ; son bouton règle ce choix sur *Marge de fin*. Pour MS Project, le même bouton le remet sur *Automatique (par défaut)* : avec une date d'état, MS Project calcule lui-même de cette façon.
 
 ### Où le voir
 

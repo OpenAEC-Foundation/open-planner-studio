@@ -9,7 +9,7 @@ Notebook sa vypol, aplikácia zamrzla alebo karta prehliadača spadla a vy ste e
 ## Kroky
 
 1. Spustite aplikáciu znova. V prehliadači znovu načítajte tú istú kartu: záložná kópia patrí len k tejto jednej karte.
-2. Ak aplikácia našla kópie, objaví sa okno *Obnoviť neuloženú prácu*: *Open Planner Studio sa neukončil správne. Nasledujúce dokumenty mali neuložené zmeny, ktoré je možné obnoviť:* Pri každom projekte zobrazí názov, cestu k súboru, ak má projekt súbor (v prehliadači len názov súboru), počet úloh a čas kópie, napríklad *21 úloh* a *Uložené: 29. sep 2026, 9:41 dopoludnia*. Okno môže zobrazovať aj projekty, ktoré ste nezmenili.
+2. Ak aplikácia našla kópie, objaví sa okno *Obnoviť neuloženú prácu*: *Open Planner Studio sa neukončil správne. Nasledujúce dokumenty mali neuložené zmeny, ktoré je možné obnoviť:* Pri každom projekte zobrazí názov, cestu k súboru, ak má projekt súbor (v prehliadači len názov súboru), počet úloh a čas kópie, napríklad *21 úloh* a *Uložené: 29. sep 2026, 9:41 dopoludnia*. Čas zodpovedá vášmu nastaveniu *Zápis času*. Okno môže zobrazovať aj projekty, ktoré ste nezmenili.
 3. Vyberte *Obnoviť*. Aplikácia otvorí všetky projekty v zozname, každý na karte, so stavom poslednej kópie. Enter urobí to isté.
 4. Skontrolujte svoje projekty a hneď ich uložte pomocou Ctrl+S.
 

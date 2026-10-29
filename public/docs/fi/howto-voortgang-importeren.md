@@ -28,8 +28,8 @@ Excel-taulukko on suojattu ilman salasanaa. Vain kolme täytettävää saraketta
 
 Työmaan vastaava täyttää jokaiselle tehtävälle:
 
-- `Completion (%)`: 0–100, molemmat rajat mukaan lukien. Excel-taulukossa desimaalit ovat sallittuja (esimerkiksi 33,3). CSV-tiedoston ohjeessa pyydetään kokonaisia lukuja.
-- `Actual Start` ja `Actual Finish`: Excelissä päivämääränä omien alueasetusten mukaan. CSV-tiedostossa muodossa dd-mm-yyyy.
+- `Completion (%)`: 0–100, molemmat rajat mukaan lukien. Sovellus lukee myös desimaaliluvut, joissa on pilkku tai piste (esimerkiksi 33,3 tai 33.3). CSV-tiedoston ohjeessa pyydetään silti kokonaisia lukuja. Taulukkolaskenta, jonka alueasetus on toinen, voi lukea arvon 8,38 muodossa 838.
+- `Actual Start` ja `Actual Finish`: Excelissä päivämääränä omien alueasetusten mukaan. CSV-tiedostossa muodossa dd-mm-yyyy tai muodossa yyyy-mm-dd.
 
 Tyhjäksi jäävä kenttä ei muuta mitään. Tyhjä solu ei siis myöskään poista olemassa olevaa edistymistä. Sen voi tehdä vain sovelluksessa. Tehtävää, jota ei ole aloitettu, jätetään kokonaan tyhjäksi.
 

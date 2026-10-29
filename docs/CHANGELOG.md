@@ -6,6 +6,667 @@ version has its own section (no gaps); the newest is at the top. It is deliberat
 running archive of every individual commit: within a version there is a curated description,
 grouped by whichever category applies (`Added`, `Changed`, `Fixed`, `Documentation`).
 
+## v2026.43.0 — 2026-10-24
+
+This release makes MCP clients easier to connect, improves large-schedule performance, and
+hardens file handling, recovery and progress entry. Versions now use the ISO week-year, week
+and sequence (`YYYY.W.N`); the jump from 2026.10.0 reflects that numbering change.
+
+### Added
+- **Claude Desktop extension.** A `.mcpb` asset connects Claude Desktop to the MCP bridge of the
+  running desktop app. It forwards calls and contains no planner; the user supplies the token and
+  port shown in the app.
+- **Headless MCP server.** The same 41 `planner_*` tools can run on Node without the desktop app,
+  over stdio or authenticated loopback HTTP, in an isolated store context. File tools stay within
+  a configured working folder, reject symlink escapes and save atomically without a direct-write
+  fallback. The source build embeds the guides and examples it needs.
+- **Desktop discovery files.** The app writes bridge connection information and an inventory of
+  open files for future MCP integrations. Documentation describes the identity and file-permission
+  limits explicitly; the shipped Claude Desktop bundle still uses manual connection settings.
+- **Arch Linux packaging.** AUR packaging and its build/publication workflow accompany the existing
+  desktop installers. Snap and AUR installations leave updating to their package managers.
+- **AppImage desktop integration.** Launching the AppImage writes a menu entry and icon in the
+  user's data folder, respects existing entries it does not own and supports an opt-out.
+
+### Changed
+- **Large schedules.** IFC reading indexes property relations, F5 computes outside the Immer
+  producer, resource leveling reuses a forward pass when its prerequisites hold, and large leveling
+  proposals render only visible rows. The full calculation fallback remains available.
+- **Recovery serialization.** Changed IFC snapshots are serialized by one reusable worker, with
+  the existing writer as a fallback. Snapshot ordering, stopping and XER archive references remain
+  guarded; file handles and archive bytes do not cross the worker boundary.
+- **MCP naming.** Ribbon controls, status, connection dialogs, settings and guides now call the
+  external connection MCP. Tutorials use a movable guide panel without the former marking overlay.
+- **Release automation.** Weekly releases use explicit recovery, translation and CI gates, a
+  deadline, reviewed fix PRs and successor versions when a failed tag needs changed source code.
+- **Build inputs.** Tailwind scans only application sources; Vite receives security updates.
+
+### Fixed
+- **Translation labels.** Outdated or unhashed label translations no longer force an old UI name
+  into a newly translated message. Once the label is current, exact label matching remains required.
+- **Recovery and saving.** Unreadable, invalid, duplicate or newer recovery manifests cannot
+  trigger writes or cleanup of the refused recovery set. A blocked browser database upgrade
+  completes startup with a persistent warning and requires reload before recovery accesses it
+  again. Real web-save errors are reported, temporary export files are created exclusively, and
+  MCP exports respect the document's file identity.
+- **Scheduling and progress.** External minute lags also apply to day tasks. Hour-task block
+  boundaries, finish constraints, elapsed-time limits and deadline calendars receive targeted
+  corrections. Reversed actual dates are refused; completed tasks without an actual finish retain
+  the full scheduling path. Unknown driving status stays distinct from a known non-driving link.
+- **IFC and imports.** IFC phase progress and actual dates survive round trips, applying IFC editor
+  content preserves document state and identities, and deep WBS structures avoid recursive open
+  traversal. Building-model IFC files are refused before a lossy import. MSPDI escapes project
+  date fields correctly; MPP import-loss reporting handles resource records, rates, notes, RTF and
+  empty baseline dates more accurately.
+- **Progress sheets.** Invalid populated CSV dates are refused with row and field context;
+  unmatched preview rows state their reason and source identifier.
+- **Reports and editing.** Report Print invokes PDF export, Backstage print preview opens the
+  correct workspace, and PDF filenames follow the report language. Task calendars show names and
+  offer a chooser; milestone creation and assignment feedback are consistent.
+- **Help and updates.** Pending actual-start questions survive Help navigation and freeze
+  surrounding controls. Update preparation, installation and restart have separate phases, and
+  automatic update dialogs wait until guided tutorials finish.
+
+### Documentation
+- Updated Dutch and English guides for MCP, reports, recovery, calendar generation, conventions,
+  imports, extensions and editing; refreshed README examples and tutorial references.
+- Updated the interface translations in all 28 languages through the translation pipeline.
+  Guide translations beyond Dutch and English were not refreshed. Missing articles use the existing
+  English fallback; older translations remain visible.
+- Refreshed wiki feature and installation pages, including the building-model guard and package
+  manager update behavior.
+
+## v2026.10.0 — 2026-10-21
+
+A large release: 2,165 commits (228 merged pull requests) since v2026.9.0. It opens Primavera P6
+(.xer) files natively and makes the difference between P6, MS Project and Open Planner Studio
+calculation explicit through scheduling profiles; adds task types (fixed duration, units or work), task splitting, saved layouts,
+a progress sheet that round-trips through a spreadsheet, a resource diagram and seven new table
+reports (with a DCMA 14-point assessment); writes schema-valid IFC 4.3 ADD2 by default; ships the
+interface and the Help in 28 languages; replaces the Help with a Diátaxis-structured set of
+78 articles; and prepares the product for the OpenAEC ecosystem with a headless core package, a
+headless HTTP API with a container and AWS definition, a release verification workflow and signed
+Windows programs. The features are backed by planning, library, MCP and browser regression coverage,
+including a fidelity measurement against P6's own calculated output and the 216-file .mpp corpus.
+
+### Added
+- **Open Planner Studio can now open Primavera P6 (.xer) files directly.** A new, self-contained
+  XER format layer reads the WBS, activities with duration, dates, constraints and progress,
+  relations with lag, calendars, resources and assignments, activity codes, user-defined fields,
+  notes and P6's scheduling settings (`SCHEDOPTIONS`). A Level-of-Effort activity becomes a
+  hammock. A file with several projects opens one tab per project (the largest first); a project
+  that P6 designates as another project's baseline becomes that project's baseline instead of a
+  tab; cross-project links are preserved as source data. Documents are named "Project name
+  (Project ID)". XER is read-only: the app never writes `.xer` and never changes the file.
+- **Saving a document opened from XER keeps the original file inside the IFC.** The complete `.xer`
+  travels as a compact, verified source archive, so reopening the IFC still knows P6's own dates
+  and settings. An unusable archive (damaged, or rewritten by another IFC program) no longer blocks
+  opening: the project opens in full without the archive and a notice explains what is missing.
+  Exports to CSV, MS Project XML and P6 XML state per format what XER source data they lose.
+- **A new "Dates as recorded" view shows the dates the other package stored in the file.** It
+  applies to XER, P6 XML, MSPDI and .mpp (with the provenance carried through IFC, including the
+  XER source archive): a strip under the ribbon says that you are viewing the schedule as recorded
+  and how many tasks a recalculation would move, the Gantt keeps drawing relations, and the table
+  marks values the file did not record instead of inventing them. Started and completed tasks always
+  stay on their actual dates, as in P6. The view is offered only for formats that carry real
+  calculated output, never for CSV or for an Open Planner Studio IFC without recorded provenance,
+  and an IFC that you saved while in this mode opens in it again (a file saved after a
+  recalculation opens with the calculation).
+- **Scheduling profiles replace the old "if the source is P6" switch.** One solver now runs three
+  named profiles — Primavera P6, Microsoft Project and Open Planner Studio — each a set of
+  conventions (27 in total, such as how P6 treats out-of-sequence completion, elapsed SS lags or the
+  physical-completion point). Opening an .xer selects P6, an .mpp selects MS Project and everything
+  else starts as Open Planner Studio; the engine itself no longer knows any file format. The
+  profile and its project options survive IFC, crash recovery, MCP and the extension API
+  (extension API 1.2.0).
+- **Project settings has a Calculation profile block.** Conventions are grouped by theme with the
+  profile's base value shown per rule and a "back to base" action; built-in profiles are read-only,
+  *New profile* saves your own app-wide template (each project keeps its own copy), and a block of
+  deviating calculation options replaces the old *Standard options* button. Applying the block is one
+  undo step and is guarded against unapplied changes.
+- **Primavera-faithful calculation was measured against P6's own output.** The first measurement
+  showed 15,056 six-axis date deviations against the P6-calculated files; the conventions above,
+  together with an agreed oracle population (only files P6 itself calculated), reduce this to 76,
+  guarded by a ratchet that can only go down, and a `measure:profiles` gate that no exact cell may
+  become inexact when engine behaviour changes.
+- **Task types link duration, units and work per task.** The task types are Fixed duration and units,
+  Fixed duration and work, Fixed work and Fixed units, as in MS Project's Task Type and P6's Duration
+  Type; the app shows task type and work once the setting *Use task types* is switched on. Changing a duration, units, the work, the
+  resource or the calendar goes through one bridge that keeps the stored work coherent, including
+  contours, started tasks and the calendar-switch case. The task type has its own drop-down with an
+  explanatory info icon per option, the task grid shows a *Task type* column, and stored work that
+  deviates from units × duration is marked.
+- **P6 and XML files keep P6's remaining work rate.** For work still to be done the app now uses
+  and shows the remaining rate (`remain_qty_per_hr`, `RemainingUnitsPerTime`) and keeps the planned
+  rate separately (*Planned units per day*), so a Foreman assignment shows 34 instead of 1.11 next to
+  306 h of remaining work, and a duration change gives the same work as in P6.
+- **Tasks can now be split by the user.** A split mode in the ribbon cuts a bar at a date in the
+  Gantt; pieces and piece edges can be dragged, interruptions can be removed from the context menu,
+  and the properties panel has an *Interruptions* section. The leveler never cuts a task that has
+  its own interruptions, completed work is protected, and exporting to MSPDI or P6 reports that
+  interruptions are lost. The MCP tool `planner_set_task_splits` offers the same.
+- **Layouts: every saved view is a ribbon button.** A layout stores only what it contains —
+  filter, grouping, sorting, task-table columns, time scale and the overlay group (relation lines,
+  baseline, progress line, status date line, resource accent, float band, bar colours). Clicking a
+  button toggles it on and off with a restore point, each click is one undo step, a *New layout*
+  dialog with checkboxes and info tooltips defines parts, and the built-in layouts *Gantt (WBS)* and
+  *Resource diagram* ship with the app. Saved filters now live inside layouts.
+- **A warnings panel lists schedule rule failures and navigates to the task, relation or resource
+  concerned** (issue #53).
+- **The progress sheet round-trips through a spreadsheet.** *Export progress sheet* writes a
+  slim sheet — as CSV or as a real .xlsx with column widths, frozen headers, input validation and
+  instructions in the column headings — and *Import progress* reads it back from three entry points:
+  a preview plan matches rows by override, ID or WBS, shows exactly what would change, and applies
+  it atomically. Phases mark themselves in the sheet, ambiguous dates and percentages get specific
+  reasons, and the sheet never appears in the recent-files list. The .xlsx reader and writer, with
+  their own ZIP and XML handling, have no external dependency (issue #27).
+- **Progress entry follows consistent rules everywhere.** Entering progress without a status date
+  sets the status date to today (local day) with a notice; progress on a task that, per plan, starts
+  after the status date asks for the actual start; lowering the duration of a running task below the
+  work already done is refused, otherwise the done work stays and remaining duration and percentage
+  follow. The same rules apply in the panel, the context menus, the grid, *Edit task*, the progress
+  import and the AI assistant. Phase progress and actual dates are derived from their leaf tasks and
+  read-only.
+- **A resource diagram report prints the Gantt per resource, one sheet per person.** It groups by
+  resource and resource type in two layers, shows units per day and the contour/curve per row,
+  supports a reporting period and weekly or monthly grouped load, repeats a legend footer on every
+  page, drops the assignment columns when they would leave too little timeline, and can be exported
+  as PDF.
+- **Seven table reports arrived with discussion #31**: look-ahead, critical and near-critical,
+  progress, schedule health, resource loading, resource assignments and WBS summary, plus a shared
+  reporting period. Schedule health now starts with the **DCMA 14-point assessment** according to
+  EVMS Program Analysis Pamphlet DCMA-EA PAM 200.1 (count, total, value, threshold, result and
+  detail per point; a flag is a reason to look further, not a failure).
+- **Work distribution per day is now data, and can be edited.** Contours are native in MSPDI and
+  P6, the properties panel edits the hours distribution per assignment with a draggable phase strip
+  and phase table instead of day rows, and *Double peak* and *Turtle* are full curves.
+- **Resource overallocation now explains itself.** A day on which a resource is overbooked shows
+  the reason (for example a day off in the resource calendar) in the histogram and in the warnings;
+  the histogram resource picker scrolls with a pinned total row, and short hour tasks now carry
+  their load into the histogram, overallocation and leveling.
+- **The leveling dialog calculates in the background and can be stopped.** Long leveling runs no
+  longer freeze the interface.
+- **IFC files declare and keep their schema.** New projects are written as IFC 4.3 ADD2 (the
+  schema of IfcOpenShell and Bonsai); Project settings offers IFC 4.3 or IFC4 for saving, and a
+  file with another schema asks once at the first save whether to keep it. Undo, extensions, export
+  and `planner_export_ifc` never change the schema silently. This makes IfcOpenShell `MergeProjects`
+  work with IFC4 and IFC 4.3 models (issue #292). A newly written file loses calendar data when it
+  is opened in an older app version (see Changed).
+- **Time notation setting.** Clock times show in 24-hour or 12-hour notation (default 24-hour) in
+  the calendar dialog, date-time cells, split labels, the Gantt hour scale, notices and dialogs;
+  storage, files and MCP stay ISO 24-hour. Midnight is `24:00` / `12:00 AM`, a night block such as
+  22:00–06:00 is written as "next day", and the input accepts `13`, `1300` and `1 pm`.
+- **The status date now has a time, and you can see and change it.** In a project whose calendar
+  works in hours, the ribbon (Planning, Baselines & progress) shows a time field next to the status
+  date, the status date line in the Gantt and in print stands at that moment, its label reads
+  `20-09-2006 17:00` in your date and time notation instead of raw ISO, and the progress line compares
+  "done" and "not started" at that moment instead of per day. Two files with status dates 12:00 and
+  17:00 no longer look the same while the remaining work differs by half a day. A day-based calendar
+  shows no time field and behaves as before, because the solver ignores the time there
+  (`isHourModeCalendar`, one test shared by ribbon, renderer, print and solver).
+- **The feedback button now sends your feedback directly to Open Feedback Studio, an external
+  service run by OpenAEC, and no longer needs a GitHub account.** What you type (title, description,
+  the kind of feedback) goes over the internet to `open-feedback-studio.pages.dev`, together with an
+  optional e-mail address, an optional screenshot and the app version, operating system and language;
+  the dialog states this in a privacy line, and the e-mail address is remembered only on your own
+  device (#395, #397). There are three kinds: *Something's not working*, *Idea* and *Question or comment*. The
+  screenshot editor gained *Cover* (a solid black block that is drawn into the sent image, so the
+  pixels underneath are not sent) and *Retake*; an unsent draft survives closing the dialog during
+  the session; and the dialog says when the same report has already arrived or when it is uncertain
+  whether it arrived. Only when sending certainly failed does it offer the old route, *Open on
+  GitHub*, which prepares the issue as before. If the annotated screenshot cannot be prepared, nothing
+  is sent: the editor stays open with an error instead of falling back to the uncovered original
+  (#408). Until the studio is linked to this repository, reports
+  arrive in the studio's dashboard, not as GitHub issues.
+- **Platform build for the OpenAEC app on Frappe.** `npm run build:platform -- --base /path/`
+  produces a bundle for a sub-path with a manifest; extensions, AI mode and the demo start are off
+  there. Open, Save, Save As, Recent files and crash recovery also work against the hosting site
+  through a third file-reference kind (`window.openaecHost`, versions and conflict detection;
+  AutoSave deliberately excluded), and `?fakeSite=1` installs a fake site for development.
+- **A headless core without the desktop interface: the Node package `@openaec/open-planner-core`
+  (#440).** `src/core/` offers three calls: `openIfc(text)` opens IFC text like *File → Open*,
+  `doc.schedule()` calculates like F5 (the project's task types and calculation profile) and returns
+  a JSON summary (project, start and finish, counts, tasks with dates, late dates, total float and
+  critical flag, the critical path and warnings), and `doc.toIfc()` writes the IFC back. Every failure
+  is a `PlannerCoreError` with a fixed code (`INVALID_INPUT`, `IFC_READ_FAILED`, `NO_TASKS`,
+  `SCHEDULE_FAILED`, `IFC_WRITE_FAILED`). `npm run build:core` builds one ESM bundle for Node 22 with
+  type declarations, a generated `package.json` (version = app version, LGPL-3.0-or-later) and the
+  licence texts of the bundled dependencies, and fails if React, Tauri or the app singleton end up in
+  it; the store itself now comes from a factory (`appStoreFactory.ts`) without that singleton. A test
+  proves that the core returns the same dates, float, critical flag, finish and critical path as the
+  app for all 32 example files, and `npm run verify:core-package` (new step in `npm run verify`)
+  builds the package, installs the tarball in an empty folder and runs the example in
+  `headless/consumer-example/`. **The package is not published to npm**: a consumer installs the
+  tarball from `npm pack` (`docs/headless-kern.md`).
+- **A headless HTTP API, a container and an AWS definition (#442).** `headless/server/` is a small
+  server on the headless core: `GET /healthz` (no authentication) and `POST /v1/schedule?output=summary|ifc`,
+  which takes IFC text and returns the JSON summary or the recalculated IFC. It needs a Bearer token
+  (`OPS_API_TOKEN` or `OPS_API_TOKEN_FILE`; without one the server refuses to start), limits the
+  body (20 MiB by default), the calculation time (60 s by default) and the number of calculations at
+  once, always answers errors as `{ "error": { "code", "message" } }`, and logs one JSON line per
+  request without IFC content or token. The contract is `headless/server/openapi.yaml` (OpenAPI 3.1)
+  and a 21-check smoke test runs against it. A multi-stage `Dockerfile` builds a container that runs
+  as a non-root user with a health check, and `deploy/aws/ecs-fargate.yaml` defines ECS Fargate
+  behind a load balancer with HTTPS, the token from AWS Secrets Manager and a minimal execution role.
+  CI (`headless-api.yml`) runs the server, builds the container, runs the smoke test against both
+  and lints the template with `cfn-lint`. **Nothing is deployed or published:** there is no AWS
+  account yet, so the template is only linted and no image is hosted (`docs/headless-api.md`).
+- **The interface and the in-app Help are available in 28 languages.** Thirteen languages are new
+  (Russian, Ukrainian, Czech, Slovak, Serbian in Cyrillic, Croatian, Bulgarian, Hungarian,
+  Romanian, Swedish, Norwegian Bokmål, Danish, Finnish), Lao joined from a community contribution,
+  and the existing twelve were made consistent. A translation pipeline with a per-language
+  termbase, source hashes and a release gate (`verify:translations`) keeps them current. A Help
+  article read in a language other than Dutch or English shows a notice with buttons to read the
+  English or Dutch source.
+- **The Help was rewritten around the four Diátaxis kinds and grew from 31 to 78 articles**:
+  49 how-to articles, 15 references, 13 explanations and a planning guide, with `?` buttons in
+  dialogs and panels that open the matching article, anchors, aliases and draft support. New
+  explanations cover calculation profiles, task types, dates as recorded, days and hours, leveling,
+  calendars, constraints and the critical path.
+- **Tutorials: seven step-scripted tutorials with generated screenshots** (`gen:docs-screenshots`),
+  a generated tutorial project ("Aanbouw woning", nl/en) with intermediate states per tutorial, and a
+  first-start question that offers the tutorial after the guided tour (no "Just updated" dialog on
+  the first start).
+- **AI agents get a built-in planning guide.** MCP agents get the planning
+  rules in `initialize` instructions, a read tool `planner_get_planning_guide`, and two downloadable
+  skills (*goed-plannen*, *progress-update*), all in English.
+- **Extension API 1.4.0 adds a `help` permission and `api.help.*` with a guidance panel**, so an
+  extension can ship its own Help. Extensions can also read the XER source archive through a
+  separate read-only `importSource` permission.
+- **Settings show download statistics per operating system and per release**, behind a button on the
+  Application tab, fed by a weekly job on the `stats` data branch. The web build also ships
+  `release-highlights.json` as the source for the release timeline on open-aec.com.
+- **The live browser build opens with an example plan** (demo start), the title bar no longer
+  repeats New/Open/Save, and a browser-specific explanation appears when saving.
+- **Task grid additions:** summary tasks and milestones are recognisable in the name column
+  (discussion #97), right-clicking empty space or typing in a ghost row under the table adds tasks,
+  a *Reset to default* button sits in the column chooser, a relation can be added from the
+  *Dependencies* section of the panel, and the relation-type drop-down explains the choice with
+  the real task names.
+- **Gantt additions:** the float band can be switched off (issue #130), a task name moves to the
+  right of the bar when it does not fit, and progress is drawn on phase bars.
+
+- **Opening an MS Project file now reports what was not imported.** An MSPDI (.xml) or .mpp file
+  gets, like .xer and P6 XML, one notice that stays until you close it, with a line per category the
+  reader did not take over: baselines (also Baseline 1–10 and the work or cost in Baseline 0), custom
+  fields and outline codes, notes, hyperlinks, fixed costs, rates, inserted projects and external
+  tasks, and for MSPDI also manually scheduled and inactive tasks and leveling delays, for .mpp the
+  critical threshold. A file that lost nothing, or that the app wrote itself, gives no notice, and the
+  .mpp notice keeps the calculation-profile line first. The counting lives in `mspdiImportLoss.ts` and
+  `mppImportLoss.ts`; the readers themselves did not change for it (part of issue #391).
+### Changed
+- **The *Task type* field is now called *Work category*, so that *Task type* can mean what it means
+  in MS Project and P6.** The field from v2026.9.0 that holds a category such as *Construction*,
+  *Installation* or *Other* is now **Work category**, with *Custom work category* for your own entries
+  (Dutch: *Werksoort*). **Task type** is now the new choice per task between Fixed duration and units,
+  Fixed duration and work, Fixed work and Fixed units, like Task Type in MS Project and Duration Type in
+  P6 (Dutch: *Taaktype*); it was called *Work rule* during development. The setting is *Use task
+  types*: a file that carries task types or stored work shows them even when the setting is off. The
+  panel field, the task-grid column, dialogs, notices, the Help, the agent texts and the MCP tool
+  descriptions follow; the MCP descriptions name both terms, so an agent recognises either. Only the
+  visible words changed: no data, IFC property, MCP parameter (`taskType`, `workRule`) or file format
+  name (the CSV column `Task Type` still holds the work category).
+- **Hours are written the same everywhere: `10h` in English and `10u` in Dutch, without a space (#400).**
+  This covers the *Duration* column, the Gantt bar labels, tooltips, the properties panel, print and
+  reports, the remaining-work notice (`320u → 88u`), the work deviation on assignments, and lags in
+  the grid, the lag field, warnings and the health report. Input is unchanged: `80u`, `80h`, `2u`
+  and `2h` work in every language. Spelled-out words ("800 hours of work"), days (`5d`) and minutes
+  (`30m`) stay as they were. A lag in the CSV export follows the app language (`3FS+2u` in Dutch,
+  `3FS+2h` in English); a language without a readable abbreviation, such as Russian, gets `u`, and
+  the CSV reader accepts `u`, `h`, `eu` and `eh`.
+- **A duration change now also moves the remaining duration and remaining work of a task that has
+  not started.** A task with an explicit remaining duration (typical after a P6 import) used to keep
+  the old one: E-1010 went from 80 to 88 h and *Remaining* stayed 80 h. The remaining duration now
+  follows, and the task type decides the rest: with Fixed duration and units or Fixed units the
+  remaining work becomes units × remaining duration; with Fixed duration and work or Fixed work the
+  work stays and the units adjust. Only when stored, deviating remaining work disappears does a
+  notice say so (`320u → 88u`; one notice per action, with a count for several tasks, and one
+  updating notice while dragging in the Gantt). *Ctrl+Z* restores duration, remaining duration and
+  work in one step, and the warning mark returns. MCP agents get no question; the response carries
+  `remainingWorkRecomputed`. This also fixed three follow-on faults with the same cause: a start on
+  0 % raised the remaining work, the histogram showed a phantom "done" part and, under Fixed work, the
+  units did not adjust. Root cause and rule: `settleDurationEdit` in `src/engine/work/workRuleApply.ts`.
+- **A task that becomes a summary task always asks what happens with its assignments.** Giving a
+  task with assignments its first subtask no longer moves the assignments silently. The dialog *Task
+  becomes a summary task* offers *Cancel*, *Remove assignment* and *Move to '<subtask>'*. When moving
+  is impossible (the subtask already has the resource, or only a milestone was added) it says why and
+  *Remove assignment* becomes the main action; when the assignment already carries actual work, the
+  dialog names the hours and focus stays on *Cancel*, so Enter never discards work. One action that
+  creates several summary tasks gives one dialog. The choice and the structure change are one undo
+  step, and while the question is open all global shortcuts are frozen (Delete, F5, Ctrl+S, Ctrl+Z,
+  …). MCP and extensions keep their earlier behaviour.
+- **Every refusal is now a red notice that stays until you close it.** A refusal says that your action
+  was not carried out: a duration shorter than the work done, a duplicate or cyclic relation, a start
+  blocked by a constraint, a dragged actual date, a milestone with assignments, a paste into read-only
+  cells, relations skipped on insert, and the locked structure strip during filtering. Many of these
+  were blue notices that vanished after 5 s, so they were easily missed. If part of an action
+  succeeded, the notice says which tasks or relations were not changed (at most five names, then "and
+  N more"). A refused duration entry now shows the real duration again. Consequences of a successful
+  action, opening notices at import and real failures stay as they were.
+- **The calendar dialog explains a file's own working day.** When the hours per day that a file
+  stored (XER `day_hr_cnt`, P6 XML `HoursPerDay`, MSPDI `MinutesPerDay`) differ from the *Standard
+  workday* the app calculates, an orange block under that field names both numbers and says that the
+  file's value is kept on export. The block follows edits live and disappears when the blocks match
+  the file again. Nothing is calculated or exported differently; one comparison (`hoursPerDayDiffers`)
+  now serves the dialog and the IFC writer.
+- **Floating scrollbars in the task list, also in the desktop app.** The task list gets 8 px overlay
+  bars like the Gantt: they take no room, there is no corner square, and the vertical bar sits on the
+  side of the Gantt (also in right-to-left languages). The wheel, dragging the thumb and clicking in
+  the track behave as before. A related fault is fixed: at the very bottom the list and the Gantt had
+  different scroll heights (the ghost row counted on one side only), so the list jumped up when
+  scrolling sideways and the rows no longer lined up; both now share one scroll extent
+  (`src/engine/taskGrid/scrollExtent.ts`). Checked in Chromium and in WebKitGTK, the engine of the
+  Linux desktop app (#362).
+- **"Dates as recorded" says per task what a recalculation would do.** The badge in capitals that ran
+  outside the panel is gone. *Properties* shows an information block above *Start*, with the line
+  "Recalculating changes this task" or "stays the same" and, when the file did not record everything,
+  which fields are missing (Late start, Late finish, Total float, Free float). Outside the mode the
+  app forgets the recorded dates, so the "x tasks deviate" strip and the red marking are gone;
+  changing a work category or task type does not leave the mode.
+- **Gantt readability was redesigned (discussion #175).** Rows are taller (32 px) with larger
+  bars, labels use the table text size, completed work turns grey from left to right (also on phase
+  bars and in print, with one drawing routine for screen and print), the float band is lighter with
+  a cross-hatch, the grid density follows the zoom, and the light theme is now a neutral grey scale.
+  Saturated brand colours are back on the bars, with their own tints for High Contrast.
+- **The day count of an hour task is now working minutes ÷ the net working time per day of its
+  calendar** (owner decision 2026-10-15). The calendar dialog's *Standard workday* field (first
+  named *Net hours per day*) shows the working time the app actually calculates with — the daily
+  total that occurs most often, so Monday 16 h with Tuesday–Friday 10 h shows 10.00 h; the stored
+  P6 factor (`day_hr_cnt`) is kept and exported unchanged. A baseline saved with the old day count
+  gets a warning marker.
+- **Calendar work blocks are always editable in the calendar dialog**, also with hour planning off;
+  the *Mon–Fri* and *Continuous* buttons adjust the blocks, and the *Standard workday* field has an
+  info icon that explains it.
+- **Project info is now "Project settings" and the ribbon button Settings is "App settings".**
+  The app settings are reorganised into three tabs (Display, Planning, Advanced) with an explanation
+  per section.
+- **Warning blocks are red with a triangle icon; info blocks stay orange and follow the theme**,
+  and all other warnings use one shared warning colour, so the two kinds are distinguishable in
+  the light theme.
+- **MCP changed for agents.** Everything an agent reads is English, `planner_run_cpm` is gone
+  because the read tools recalculate a stale schedule themselves (and respect the edit and
+  calculation-error brakes), `planner_update_calendar` accepts breaks and working exceptions from a
+  read-out, and AI backups of a saved file are kept in one fixed folder and thinned instead of a
+  fixed ten.
+- **MCP calls now belong to a session, and an official MCP client is part of the tests (#439).** A
+  successful `initialize` returns an `Mcp-Session-Id`; every later request must carry it (without it
+  the request gets `400`, an unknown id `404`), and the check that the document did not change
+  under the agent is kept per session, so a second client no longer shares the first one's
+  anchor. Sessions survive a bridge restart or port change and are cleared by a new token. The
+  bridge also closes each connection after its answer, which fixed a first request hanging after
+  a restart. The official MCP SDK now tests the server in `npm test` and, in a separate workflow
+  (`mcp-real-app.yml`), against the real desktop bridge. After updating, an AI client must connect
+  again (restart Claude Desktop).
+- **Notifications are shorter and closable.** Toasts are short, "Relation created" is gone, a
+  notice closes with its cross and a click does nothing, an opening notice stays when the app changed
+  the data, and a file opened in a format other than IFC explains what the app took over and how
+  saving works.
+- **P6 XML now follows the XER model.** A file opens as one document per project with its baselines
+  linked, the writer produces P6-conform output, the P6 Project-ID is kept apart from the project
+  name, and a notice stays visible when relations or activities were left out. Extensions loading a project through `loadProject` keep baselines, calendars, codes,
+  fields, GlobalIds, the calculation profile and the document's link to its saved file.
+- **A summary task's duration now rolls up from its children** (issue #145).
+- **Exports and calendars are more faithful.** MSPDI/CSV export builds the WBS from the real tree,
+  never writes a summary as a milestone and writes day durations in task-calendar hours; IFC
+  calendars keep work times and day identity; and MSPDI and .mpp calendars take the end of the
+  day from the last work block.
+- **UI scaling and fonts follow the platform.** The interface font scale now covers the ribbon tab
+  strip and auto-fit, and Linux resolves the system font correctly in the web and desktop builds
+  (community contributions).
+- **Document tabs use arrow buttons instead of a scrollbar**, are semantic, focus-safe and
+  race-free, and the close cross and tab name are placed correctly in right-to-left languages.
+- **The *Assignments* block in the task panel has one row per resource.** A header names *Resource*,
+  *Units* and *Work (h)*; each resource is one line with a colour square, the name, the two fields and
+  a bin. Click the name to show *Curve*, *Hour distribution…* and *Move to…* below it (a bar icon
+  next to the name shows a curve other than *Uniform* or an own distribution, also when collapsed).
+  *Units* shows at most two decimals (the exact value is in the tooltip) and accepts a comma or a
+  point; a value that could be a decimal or thousands, such as `1,500` in English or `1.500` in Dutch,
+  is refused with a red notice and the value stays. The number fields grow with the shown value, so
+  `306,5` or `1234,5` is not cut off at 200 or 280 px, and the warning triangle sits inside the work
+  field. Curve, move and assign use the app's own drop-down lists instead of the browser's.
+  *Ctrl+S* and *F5* save the field you are typing in (the field is committed, automatic calculation
+  runs, then the file is saved), and afterwards *Ctrl+Z*, *Ctrl+Y* and *Esc* belong to the app again.
+  An unfinished entry is committed before the document is switched, duplicated, closed, reloaded or
+  the desktop app closes, so it never lands in the wrong document or is lost. This brings together
+  the work of #369 and #389 (`TaskAssignmentsSection.tsx`, `UnitsInput.tsx`, `pendingTextEdits.ts`).
+- **Work and units in the task table use the number format of the language (#378).** The columns
+  *Units per day*, *Planned units*, *Planned work*, *Actual work* and *Remaining work* showed raw
+  values such as `617.14` and `1.71428571428571` next to a duration of `146,9d`. They now follow the
+  *Duration* column: at most two decimals, the decimal sign of the language and no needless zeros.
+  Typed or pasted text accepts a comma or a point, and the `name: hours; name: hours` separator stays
+  `;`. Opening a cell and confirming with Enter without a change writes nothing, and putting back the
+  text as shown keeps the exact stored value, so no history step and no stale schedule appear. In the
+  cell editor the units field is now a text field in the language (it was a number field that took
+  only a point) and *Remaining work* has an input field for the first time. Copying gives readable
+  text in the language with the tokens kept exact, and pasting inside the app is exact. The contour
+  window and the axis of the histogram use the decimal sign of the language too, and the
+  *Table columns* guide is updated (Dutch and English). The task panel *Assignments* block stays as
+  described above (#369).
+- **The macOS installers are signed and notarized.** The release workflow signs the app and the dmg
+  with a Developer ID certificate, has Apple notarize both and staples the ticket, and then
+  checks the dmg with `codesign`, Gatekeeper (`spctl`: *Notarized Developer ID*) and
+  `stapler validate`. A failing check keeps the release as a draft, so Windows and publishing wait;
+  pull requests that touch signing run the same checks in `macos-sign-check.yml`
+  (`scripts/macos-notarize-dmg.sh`, `scripts/macos-verify-dmg.sh`, `release.yml`).
+- **On Windows the installed program and the uninstaller are now signed too, not only the installer
+  (#444).** In v2026.9.0 `open-planner-studio.exe` was `NotSigned` after installation. The release
+  build now has Tauri sign the program, the uninstaller and the setup during bundling
+  (`scripts/windows-sign.ps1`, Microsoft's signing client with a checked hash, RFC 3161 timestamp),
+  and a gate keeps the release a draft unless the setup and the program carry a valid, timestamped
+  signature. CI builds, `tauri:dev` and local builds stay unsigned. A release-like build without a
+  tag (`windows-sign-check.yml`) showed valid signatures on all three files; only a real release will
+  show that the signed setup, its `.exe.sig` and `latest.json` agree.
+- **Every release is now verified on clean runners (#438).** `scripts/verify-release.mjs <tag>`
+  checks the minisign updater signatures, `latest.json` and the sha256 of each asset against GitHub's
+  digest, and `release-verify.yml` installs, starts and removes the packages on fresh runners (Ubuntu
+  22.04 and 24.04, Fedora, Windows, macOS) and checks the platform signatures, automatically after
+  each release build. Run against v2026.9.0 it found three faults: the `.exe.sig` did not fit the
+  signed setup (the release workflow now signs and uploads it again after Authenticode), the macOS
+  app lacked notarization (the signed and notarized installers above) and the installed Windows
+  program was unsigned (the item above). Linux packages carry no GPG signature; that is still an
+  open decision (`docs/release-verificatie.md`).
+- **Reliability evidence for saving, recovery, progress import and large plans (issue #405).** New
+  tests prove that a failed save leaves the document marked as changed and the target file intact
+  (desktop, web and site; read-only and full-disk targets), that a crash-recovery copy restores every
+  document field and the calculated dates (#434), and that applying a progress sheet changes only
+  progress fields, that cancelling changes nothing and that applying the same sheet twice does
+  nothing the second time (#407). A first measurement of large plans (`npm run measure:large-plans`,
+  one machine, headless Chromium, no targets set) gives for 1,000, 5,000 and 10,000 tasks:
+  opening 0.5, 2.0 and 3.7 s, F5 0.2, 0.8 and 1.5 s, one leveling calculation 0.6, 8.4 and 37.6 s,
+  and an auto-save tick 0.09, 0.28 and 0.55 s; scrolling and zooming stay near 45 ms per wheel
+  step (#437).
+- **Engineering and release process.** `AGENTS.md` is the single instruction source, the CI runs
+  the full verify in parallel parts (deploy now waits for a green CI run), a translation release
+  gate and a documentation audit skill were added, code comments were trimmed across the codebase,
+  and the full verify no longer runs locally before every push. The browser tests are now spread over
+  the CI shards by measured duration (a test guards that every spec runs in exactly one shard), a new
+  browser test first extends an existing scenario, a flaky document-switch test was made reliable, and
+  an update loop in the feedback dialog that lost the 52nd typed character was removed. The TypeScript
+  runner for tests now removes its temporary bundle folder after each run, also after a failure
+  (#427), and the IFC round-trip date check no longer fails on days when the creation date equals a
+  contract date (#428).
+- **A performance and robustness audit touched the hot paths.** Cycle detection and topological
+  sorting are iterative and linear, bulk edits and bulk deletes are linear, path calculations and
+  the histogram no longer sort or trace per task, relation arrows are clipped before drawing, the
+  mini-map caches its day layout, report rasters are exported one page canvas at a time, the
+  occupancy overview no longer recalculates the active document, long drop-down lists are
+  virtualized, and crash recovery is incremental and atomic with the XER source archive stored once.
+- **Undo history has a memory ceiling**, and a document switch keeps the source of the document
+  intact; the session history counts baselines in its size estimate.
+
+### Fixed
+- **IFC round-trips lost or distorted data.** Fixed: per-weekday work blocks and hours per day of a
+  block calendar, project start/end and status date times, a running task at 100%, fractional day
+  durations (2.5 d became 5 d), mixed durations such as `P1.5DT2H`, an empty calendar description,
+  line breaks and non-ASCII text inside strings (now ISO 10303-21 encoded), conforming GlobalIds
+  that tasks, the project, resources, calendars and relations keep, constraint dates written as
+  dates, phases with an invalid task status, and `24:00` end-of-day times.
+- **The IFC writer and reader were corrected against the schema.** `IfcWorkCalendar`, work plans,
+  work schedules and resources are written with the right number of arguments, REAL values with a
+  decimal point, schema-correct enumeration literals per schema and negative durations in ISO
+  form, and older files, including those merged by IfcOpenShell, are still read. The example
+  projects were regenerated.
+- **Hours per day, calendars and breaks survive MSPDI, P6 XML and .mpp reopen.** The hour
+  promotion no longer resets the stored hours per day, the project calendar is resolved through
+  `<CalendarUID>` with the work week inherited from the base calendar, MSPDI work with half-hour
+  durations survives export and import, a full MS Project calendar no longer receives Dutch
+  holidays, and the task-duration unit is stored in the real `Text30` field (the old `Flag9` ID is
+  still read).
+- **MSPDI calendars keep their working time to the minute, and a day calendar keeps its break.** A
+  calendar whose weekdays have different blocks (for example 08:00–16:00 on weekdays and 00:08–00:16
+  at the weekend in `0402ScheduleMSP.xml`) was read as a 24-hour day calendar; it now becomes an hour
+  calendar with its blocks per day. The writer writes a day calendar with its real blocks, so
+  07:00–16:00 with a 60-minute break survives export and reopening: a 20-day task stays 20 days and its
+  successor stays in place instead of shifting by a day. An invalid `7.5:00:00` clock time is no longer
+  written (an old export with it is still read as 7.5).
+- **The XER reader handles real files more faithfully.** A missing `status_code` is derived from
+  progress, Arabic, Cyrillic and Greek files are no longer silently read as Windows-1252, a raw line
+  break in a cell no longer truncates the row, a missing planned start no longer becomes 1970,
+  the WBS tree has a real root and numeric sibling order, and a project end without an end date no
+  longer anchors the late side on the project start.
+- **P6 XML now reads real P6 files**: objects inside `<Project>`, progress according to
+  `PercentCompleteType`, `Not Started` ignoring actual dates, 24-hour working exceptions staying
+  workdays, holidays returned as a series, and a notice when a file has no readable activities.
+- **Scheduling engine fixes.** Fixed: an ALAP chain now moves as a whole to the late side, a P6
+  crash on FF day-to-hour relations, a day-to-hour relation with a long lag losing the lag backward,
+  summary-relation pruning above the expansion budget, a stack overflow in `Math.min/max` over large
+  arrays, and the solver no longer writes `scheduleFinish` back.
+- **Progress and actual dates stay coherent.** A task read at 100% never gets a start after its
+  finish, a completed task without actuals gets its planned start, an automatically filled actual
+  start is never after the actual finish, a pure no-op (same value) no longer creates an undo step or
+  marks the document changed, and clearing *Actual finish* in a row paste reopens the task.
+- **Task dialog and grid editing.** *Edit task* applies the progress rules on Save as a single undo
+  step, Cancel now reverts task type, work and assignments, Enter commits both the date field and the
+  dialog, Escape cancels cell editing again, keys no longer leak from an open drop-down to
+  shortcuts, and an open list is never narrower than its options.
+- **Undo behaves.** Colour pickers, resource renames and rate typing are one undo step, a bulk
+  action is no longer coalesced across history events, an open edit session is outside the undo
+  memory ceiling, and a transaction without a data change no longer creates a step.
+- **Gantt interaction and rendering fixes.** Vertical dragging of a bar was restored, scrolling
+  reaches the end of a scaled timeline, hour bars longer than a year are no longer clipped,
+  relation arrows on hour tasks anchor on the bar edges, zoom and *Ctrl+0* clamp at the new zoom's
+  limit, a milestone with only a start can be dragged as a relation source, and a new project (also
+  from a template with phases) opens on the project start and shows its tasks instead of an empty
+  grid.
+- **Crash recovery and saving.** A corrupt recovery file no longer blocks startup, *Later* in the web
+  recovery window really keeps the snapshots, a clean exit clears only its own snapshots, closing
+  the desktop app asks to save and flushes the last snapshot, the updater stores a snapshot before
+  installing, AutoSave no longer reports a false "not writable", saving never truncates the project
+  file after a failed write, and blocked or full browser storage no longer breaks loading.
+- **MCP reliability.** The document-drift anchor now survives the request boundary, a new token
+  really revokes the old one, pause/read-only/dialog guards are checked after every `await`, expired
+  queued requests are not executed, `move_project` validates dates strictly, self-relations are
+  refused per item, a parent cycle no longer hangs `planner_move_task`, and `clear_leveling` sees
+  the same output as the store.
+- **Library and calendars.** Renaming a library updates linked open documents, the resource library
+  follows breaks and working exceptions of a calendar, and a library calendar refresh follows the
+  task type like the calendar dialog; holidays that end before they begin are flagged and refused,
+  and *Apply* or Enter without a change is a no-op.
+- **Interface fixes.** The resize cursor works again on Linux (Tauri 2.12), F11 in a browser no
+  longer starts presentation mode, the white square in the task-list scrollbar corner is gone, the
+  centred title no longer overlaps the feedback button, dialogs with input no longer close on a
+  click beside the panel, right-to-left splitters and table headers follow the real boundary, and
+  "Today" is the local calendar day instead of the UTC day.
+- **Adapters and import correctness.** CSV handles multi-line cells, a space before a quote and the
+  decimal comma; datetimes with a time-zone designator are read as wall clock; duplicate IDs are made
+  unique and reported; MSPDI/P6/.mpp XML detection works on the root element, elapsed-hour lags and
+  P6 date precision; and an extension importer now opens as a new document like built-in formats.
+- **Security and dependencies.** Vulnerable dependencies were updated (`rustls`, `source-map-js`,
+  `brace-expansion`, `browserslist`), and two CodeQL findings were fixed: a pasted percentage such as
+  `5%0` or `50%%` is now refused instead of read silently as 50%.
+- **Report fixes.** Pagination now breaks on row boundaries, the near-critical count and threshold
+  are correct, the status date appears once, export happens after recalculation, a failed PDF export
+  reports itself, data columns scale with their content, and the Volume column and `#` column can be
+  hidden or removed (issue #93).
+- **Extension reliability.** A removed extension no longer revives while its `onLoad` still runs, a
+  hanging `onLoad` times out after 15 s, `api.ui.showNotification` is visible to the user, a failed
+  extension importer reports an error, and the ZIP download has an idle limit.
+- **Entering and calculating values.** Clicking into *Duration*, *Max. units* or the units of an
+  assignment now selects the shown value, so typing `1` and then `2` no longer gives `21` (#416).
+  A lag of −1.5 days typed in days became −1 while the same lag in minutes rounds to −2; days now
+  round half away from zero in both directions, for internal and external relations (#411). Saving a
+  branch as a WBS template dropped the minutes of an hour lag (a 4-hour lag came back as nothing); the
+  template keeps them now, but templates saved earlier cannot get them back and must be saved again
+  (#410).
+- **Texts that said the wrong thing.** The Dutch column and property label is *Werkelijk einde*, as in
+  the progress import (#409). One day of float reads *1 day* instead of *1 days* in the three float
+  fields of *CPM result* (#430). The hint for regenerating holidays no longer calls the generator's
+  target year (end year + 1) the project end (#413). The English new-project wizard names its
+  calendar *Construction calendar NL* instead of *Bouwkalender NL* (#417). The header under
+  *Remaining conflicts* in leveling no longer blames every conflict on too little float, also not
+  when smoothing is off (#418). The progress import and the import card name CSV and XLSX, not CSV
+  only (#435).
+- **Files, recovery and extensions.** After a partial recovery, *Restore* deleted the one unreadable
+  copy together with the restored ones; unreadable copies are now kept (#424). In a browser without
+  `crypto.randomUUID` the first web recovery session fell back to one shared key, so a busy tab or
+  *Later* could crash; all three web paths now make their own id (#423). Cancelling an export in
+  Backstage jumped to *Start* as if it had succeeded; it now stays on *Export* (#425). *Save failed*
+  on the desktop showed no reason because Tauri plugins reject with a string, not an `Error` (#434).
+  A failing local ZIP or JS extension install showed nothing; it now gives a notice, while cancelling
+  stays silent (#415). After *Port busy* or *Error* the AI port field stayed locked although the
+  bridge was not running; only *live* locks it now (#412). `api.events.emit` in the extension API now
+  refuses the reserved `host:` namespace, so an extension cannot forge host events; this guards the
+  API contract, not a sandbox (#431).
+- **MCP texts and tools told agents the wrong thing.** `planner_get_project_overview` and
+  `planner_get_task` described the read-only `wbs` as writable `wbsCode` (#420); the
+  `planner_update_calendar` description still said an unused calendar does not survive save and
+  reload, though IFC keeps it (#421); `planner_update_tasks` reported an explicit duration on a phase
+  as updated although the duration is derived from the subtasks, and `planner_add_tasks` accepted a
+  duration on an item that got children in the same call; both are now refused (#422);
+  `planner_list_tasks` with `zonder_relaties` reported leaf tasks as orphans that are linked through
+  their phase, and now counts relations on all parent phases (#426); and a batch with
+  `planner_level_resources` on a stale schedule added an empty undo step (#432).
+
+- **The coloured marker before the WBS number in *Dependencies* no longer looks odd.** It was a pill or
+  rectangle of 6 × 10 px with a ring in the text colour (white on dark). It is now 1em, the size of the
+  colour square at *Assignments*: a circle for a predecessor and a square with 3 px rounding for a
+  successor, so the role is still in the shape and not only in the colour (issue #65). The ring is
+  gone. On the light theme the gold and purple have too little contrast against the panel (2.1:1 and
+  2.6:1), so only there the shape gets an edge in a 30% darker tint of its own colour
+  (`src/styles/globals.css`, `check-dependency-presentation.ts`).
+- **MSPDI import read the baseline of an hour task as a date only.** The reader took the time of the
+  task dates, but not of *Baseline 0* Start and Finish, so the baseline of a task from 09:00 to 12:00
+  lost its times and no longer matched a baseline set in the app. *Baseline 0* now uses the same mode
+  as the task dates: an hour task keeps the time, a day task keeps the date, as before
+  (`importDateTime` in `mspdiReader.ts`, `check-mspdi-hour-baseline.ts`). A *Baseline 0* whose start
+  or finish is empty or unreadable (for example `NA`) counts as missing: the task gets no baseline
+  instead of aborting the import or receiving a made-up date (the text `NA` or today's date) that
+  would show a false variance (#406).
+### Documentation
+- Rewrote the user documentation according to Diátaxis (how-to, reference, explanation): the 31
+  articles of v2026.9.0 became 78 in Dutch and English, translated into all other languages, with
+  new references for shortcuts, settings, calculation options, formats, report types, permissions,
+  calendars, columns, notices and the Project settings, and new explanations for calculation
+  profiles and conventions, task types, dates as recorded, days and hours, and leveling.
+- Documentation audit of 2026-10-19: all findings of high and medium severity were repaired. 64
+  Help articles (nl and en) had facts corrected (for example "veertien talen", "86 kolommen", a
+  quoted message that does not exist, leveling "within float", presentation "from any tab") and now
+  describe functions added since v2026.9.0 (the *Actual duration* column, the IFC schema question on
+  Save, the IFC tab as an editor, the right-hand column, the Gantt tooltip, tutorials as an
+  extension, the strips under the ribbon, P6 XML notices); the agent texts and MCP descriptions name
+  the real tools (`planner_get_calendars`); `AGENTS.md` and the path-bound rules cover six
+  architecture changes since v2026.9.0, with a new `import-export` rule.
+- Added how-to articles for opening an .xer file, choosing a task type, choosing or building a
+  calculation profile, splitting a task, using layouts, importing progress, choosing the IFC schema, editing the hours distribution, picking a
+  reporting period and opening/saving through the site; the "Good planning" guide and the AI
+  assistant guide were extended.
+- Ecosystem readiness (issue #429): `docs/ecosysteem-gereedheid.md` gives a capability matrix (installers,
+  updater, browser and platform build, headless core, HTTP API, AWS, MCP, Claude Code and Desktop) and
+  the status per requirement, linking to the detail documents added with it: `docs/headless-kern.md`,
+  `docs/headless-api.md`, `docs/release-verificatie.md` (outcome of the v2026.9.0 check) and
+  `docs/mcp-verificatie.md` (what was tested with the official MCP client and what is not delivered:
+  no `.mcpb` bundle, no Claude connector, no stdio server). Still open: a real AWS deployment, GPG
+  for Linux packages, publishing to npm, and testing Claude Desktop itself (#453).
+- The in-app guide *Connecting an AI assistant* explains how to connect Claude Code
+  (`claude mcp add --transport http …`) and Claude Desktop (through `mcp-remote`) (#439). The
+  progress-import guide now says that the CSV also accepts decimals with a comma or point and ISO
+  dates, not only whole numbers and dd-mm-yyyy (#407).
+- Repository documentation: `AGENTS.md` became the single agent instruction source (with
+  path-bound rules in `.claude/rules/` and recipes in `docs/recepten/`), `knownbugs.md` collects
+  side findings, `docs/platformbouw.md` describes the platform build and site storage, and design
+  documents cover scheduling profiles, task types, task splitting and the translation pipeline.
+
+
 ## v2026.9.0 — 2026-09-01
 
 This is a substantial planning-workflow release: 287 commits since v2026.8.1 concentrate on a

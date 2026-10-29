@@ -12,7 +12,7 @@ Die Bridge funktioniert nur in der Desktop-App. Wenn Sie den KI-Modus im Browser
 
 ### 1. KI-Modus einschalten
 
-1. Wählen Sie *Einstellungen › Projekt › Einstellungen*. Sie können auch *Datei › Einstellungen* wählen oder das Zahnrad oben.
+1. Wählen Sie *Einstellungen › Projekt › App-Einstellungen*. Sie können auch *Datei › App-Einstellungen* wählen oder das Zahnrad oben.
 2. Wählen Sie die Registerkarte *Erweitert* und schalten Sie *KI-Modus aktivieren* ein. Die Registerkarte *KI* erscheint im Menüband.
 3. Wenn die Bridge sofort nach dem Start der App aktiv sein soll, schalten Sie außerdem *Bridge automatisch starten* ein. Die Option wirkt nur, wenn der KI-Modus an ist, und nur in der Desktop-App. Standardmäßig ist sie aus, weil das Öffnen eines Ports eine bewusste Entscheidung ist.
 
@@ -36,13 +36,39 @@ Das Fenster bietet drei Wege zur Verbindung:
 
 - *Konfigurationsausschnitt*: ein Stück Konfiguration, das Sie in die MCP-Einstellungen Ihres Clients einfügen.
 - *Verbindungs-Prompt*: ein Text, den Sie in Ihren KI-Assistenten einfügen. Danach verbindet sich der Assistent selbst.
-- *Endpunkt* und *Authentifizierung*: die einzelnen Angaben. Der Endpunkt ist `http://localhost:3877/mcp` mit dem Transport *streamable HTTP*. Jede Anfrage braucht einen Header `Authorization: Bearer`, gefolgt von Ihrem Token.
+- *Endpunkt* und *Authentifizierung*: die einzelnen Angaben. Der Endpunkt ist `http://localhost:3877/mcp` mit dem Transport *streamable HTTP*. Jede Anfrage braucht einen Header `Authorization: Bearer`, gefolgt von Ihrem Token. Ihr Client muss außerdem MCP-Sitzungen unterstützen: Beim Verbinden gibt die Bridge einen Sitzungscode im Header `Mcp-Session-Id` aus, und sie lehnt jede spätere Anfrage ohne diesen Code ab. Claude Code und `mcp-remote` erledigen das selbst.
+
+**Verbinden Sie sich nach einem Update der App erneut.** Wenn Ihr KI-Client schon mit einer älteren Version der App verbunden war, sendet er noch keinen Sitzungscode, und die Bridge lehnt jede Anfrage ab. Verbinden Sie sich deshalb nach dem Update erneut: Starten Sie eine neue Sitzung in Claude Code, und beenden Sie Claude Desktop vollständig und starten Sie es neu.
+
+**Claude Code.** Der Konfigurationsausschnitt passt direkt zu Claude Code. Geben Sie diesen Befehl in einem Terminal ein, mit Ihrem eigenen Token statt `<token>`:
+
+```
+claude mcp add --transport http open-planner-studio http://localhost:3877/mcp --header "Authorization: Bearer <token>"
+```
+
+Sie können den Ausschnitt auch in die Datei `.mcp.json` in Ihrem Projektordner legen. Legen Sie diese Datei dann nicht in Git ab, denn das Token gewährt Zugriff auf Ihren Plan. Ein Server aus `.mcp.json` muss in Claude Code beim ersten Mal bestätigt werden.
+
+**Claude Desktop.** Der Konfigurationsausschnitt passt nicht direkt zu Claude Desktop. In der Datei `claude_desktop_config.json` nennen Sie ein Programm, das Claude Desktop selbst startet, keine Adresse. Verwenden Sie deshalb das externe Werkzeug `mcp-remote` dazwischen; es braucht Node.js. Wählen Sie in Claude Desktop *Einstellungen › Entwickler › Konfiguration bearbeiten*, fügen Sie dies in die Datei ein (mit Ihrem eigenen Token) und starten Sie Claude Desktop erneut:
+
+```
+{
+  "mcpServers": {
+    "open-planner-studio": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "http://localhost:3877/mcp", "--header", "Authorization:${AUTH_HEADER}"],
+      "env": { "AUTH_HEADER": "Bearer <token>" }
+    }
+  }
+}
+```
+
+Das Token steht absichtlich in `env` und nicht in `args`: Unter Windows zerbricht Claude Desktop ein Argument, das ein Leerzeichen enthält. Ein *benutzerdefinierter Connector* in Claude (*Anpassen › Connectors*) funktioniert nicht mit der Bridge. Claude verbindet sich dann aus der Anthropic-Cloud, und die kann die Bridge auf Ihrem eigenen Computer nicht erreichen.
 
 In der Gruppe *Verbindung* steht außerdem das Feld *Token*. Das ist ein langer, zufälliger Code, den die App für Sie erzeugt und auf diesem Computer speichert. Im Fenster steht *Dieses Token gewährt Zugriff auf den geöffneten Plan. Geben Sie es nicht weiter.* Mit dem Symbol *Neuer Token* erstellen Sie ein neues Token. Die App fragt zuerst *Ein neuer Token trennt alle bestehenden Verbindungen. Fortfahren?* Wenn die Bridge läuft, startet sie mit dem neuen Token neu, und das alte Token funktioniert nicht mehr.
 
-### 4. Sehen Sie, was die KI tut
+### 4. Die Aktivität der KI einsehen
 
-1. Klicken Sie unter *Aktivität* auf *Aktivitätsbereich*. In der seitlichen Spalte öffnet sich der Bereich *KI-Aktivität*.
+1. Klicken Sie unter *Aktivität* auf *Aktivitätsbereich*. In der Seitenleiste öffnet sich der Bereich *KI-Aktivität*.
 2. Jeder Aufruf der Bridge steht in einer Zeile, die neueste oben: Zeit, was passiert ist, wie lange es gedauert hat und ob es gelungen ist oder nicht. Klicken Sie auf eine Zeile, um *Argumente* und *Antwort* aufzuklappen.
 3. Mit *Leeren* entfernen Sie alle Einträge aus der Liste. Der Bereich behält die letzten 500 Aufrufe. Solange noch nichts passiert ist, steht dort *Noch keine KI-Aktivität. Aufrufe der Bridge erscheinen hier.*
 
@@ -62,11 +88,11 @@ Die Backups liegen im Ordner `ai-backups` im Datenordner der App. Die App behäl
 
 ### 6. Den KI-Assistenten gut planen lassen
 
-Ein KI-Assistent, der die Werkzeuge kennt, kann trotzdem einen Terminplan bauen, den kein Planer brauchen kann: Vorgänge ohne Beziehungen, ein festes Datum bei jedem Vorgang oder eine Gliederung, die viel zu fein ist. Deshalb erhält der Assistent die Planungsregeln auf drei Wegen. Bei den ersten beiden müssen Sie nichts tun.
+Ein Assistent plant nur gut, wenn er die Planungsregeln kennt. Warum das wichtig ist und was darin steht, lesen Sie in [Wie die KI-Verbindung funktioniert](docs://uitleg-ai-koppeling). Das machen Sie selbst:
 
-1. **Die Kernregeln kommen von selbst mit.** Beim Verbinden sendet die Bridge einen kurzen Text mit den Kernregeln. Viele Clients legen diesen Text in ihren System-Prompt; ob Ihrer das tut, hängt vom Client ab. Dort steht unter anderem: Beginnen Sie bei den Meilensteinen, bilden Sie Vorgänge von etwa einem Tag bis zu zwei Wochen, steuern Sie den Terminplan über Beziehungen statt mit festen Datumsangaben, und nennen Sie am Ende, was Sie angenommen haben.
-2. **Der Verbindungs-Prompt verweist auf den vollständigen Leitfaden.** Der Verbindungs-Prompt im Fenster *Verbindungsdaten* bittet den Assistenten, zuerst den Planungsleitfaden zu lesen, mit dem Werkzeug `planner_get_planning_guide`. Das liefert einen englischen Leitfaden für Assistenten: dieselben Grundsätze wie in [Gut planen](docs://gids-goed-plannen), mit den Werkzeugen, die der Assistent für jeden Grundsatz nutzt. Sie können ihn selbst lesen unter `https://open-planner-studio.open-aec.com/agent/planning-guide.md`. Wenn Sie den Prompt nicht verwenden, bitten Sie den Assistenten selbst: *Lesen Sie zuerst den Planungsleitfaden mit planner_get_planning_guide, bevor Sie etwas ändern.*
-3. **Optional: die Skills.** Ein Skill ist eine kleine Datei mit Anweisungen, die ein Assistent in jeder Sitzung mitliest, damit er in einem späteren Gespräch auch die richtige Arbeitsweise kennt. Es gibt zwei, beide auf Englisch: *goed-plannen* zum Aufbauen oder Umbauen eines Terminplans und *progress-update* für die wöchentliche Fortschrittsaktualisierung. Das funktioniert nur mit einem Assistenten, der Skills unterstützt; die Skills selbst nennen Claude Code und verwandte Assistenten. Jeder Skill ist eine Datei `SKILL.md` in einem eigenen Ordner, der nach dem Skill benannt ist: `.claude/skills/goed-plannen/SKILL.md` und `.claude/skills/progress-update/SKILL.md` im Projektordner, in dem der Assistent arbeitet, oder dieselben Ordner unter `~/.claude/skills/`, damit sie in jedem Projekt gelten.
+1. **Für die Kernregeln müssen Sie nichts tun.** Die Kernregeln werden beim Verbinden automatisch mitgesendet. Ob Ihr Client sie in seinen System-Prompt aufnimmt, hängt vom Client ab.
+2. **Lassen Sie den Leitfaden lesen.** Der Verbindungs-Prompt im Fenster *Verbindungsdaten* bittet den Assistenten, zuerst den Planungsleitfaden zu lesen, mit dem Werkzeug `planner_get_planning_guide`. Wenn Sie den Prompt nicht verwenden, bitten Sie den Assistenten selbst: *Lesen Sie zuerst den Planungsleitfaden mit planner_get_planning_guide, bevor Sie etwas ändern.* Sie können den Leitfaden selbst lesen unter `https://open-planner-studio.open-aec.com/agent/planning-guide.md`.
+3. **Optional: die Skills installieren.** Das funktioniert nur mit einem Assistenten, der Skills unterstützt. Legen Sie die `SKILL.md` von *goed-plannen* und *progress-update* ab, und zwar als `.claude/skills/goed-plannen/SKILL.md` und `.claude/skills/progress-update/SKILL.md` im Projektordner, in dem der Assistent arbeitet. Oder legen Sie sie unter `~/.claude/skills/` ab, dann gelten sie für jedes Projekt.
 
 Sie erhalten die Dateien auf zwei Wegen. Bitten Sie den Assistenten, das Werkzeug `planner_get_planning_guide` aufzurufen, mit `part` auf `skill` gesetzt: Die Antwort enthält beide Texte und, für jeden Skill, die Orte, an die er gehört. Oder laden Sie sie herunter von `https://open-planner-studio.open-aec.com/skills/goed-plannen/SKILL.md` und `https://open-planner-studio.open-aec.com/skills/progress-update/SKILL.md`. Wenn *goed-plannen* aus einer älteren Version der App noch da ist, ersetzen Sie es: Dieser alte Text ist auf Niederländisch und verweist auf den Hilfeartikel statt auf den Leitfaden für Assistenten.
 

@@ -69,14 +69,14 @@ Prodlevu napíšete do pole vedle typu, u každého z výše uvedených způsob�
 - `3` nebo `3d`: 3 pracovní dny. Víkend se nepočítá. Aplikace zobrazí `+3d`.
 - `3ed`: 3 kalendářní dny. Víkend se počítá, jako u betonu, který vytvrzuje i v sobotu a v neděli.
 - `-1`: záporná prodleva (předstih). Následník může začít o den dříve, takže se úkoly překryjí.
-- `4h`: 4 pracovní hodiny; aplikace to zobrazí jako `+4u`. Je-li předchůdce úkol ve dnech v kalendáři bez vlastních bloků pracovní doby, například ve standardním kalendáři, aplikace převede tuto hodnotu na celé pracovní dny, zaokrouhlené na nejbližší celý den: `4h` pak působí jako 1 den, `2h` jako 0. V kalendáři s vlastními bloky pracovní doby nebo po hodinovém úkolu se prodleva počítá přesně v hodinách.
+- `4h`: 4 pracovní hodiny; aplikace to zobrazí jako `+4h`. Je-li předchůdce úkol ve dnech v kalendáři bez vlastních bloků pracovní doby, například ve standardním kalendáři, aplikace převede tuto hodnotu na celé pracovní dny, zaokrouhlené na nejbližší celý den: `4h` pak působí jako 1 den, `2h` jako 0. V kalendáři s vlastními bloky pracovní doby nebo po hodinovém úkolu se prodleva počítá přesně v hodinách.
 - `50%`: polovina doby trvání předchůdce.
 
-Příklad: beton základů musí vytvrdnout, než na něm může zedník pracovat. Proto dostane *Pour foundation → Foundation brickwork* závislost FS s prodlevou `3`. Pokud se betonáž koná v pátek 18. června 2027, začne zdivo až po příkazu **Přepočítat** ve čtvrtek 24. června. Pondělí až středa je čekací doba. S `3ed` se počítá i víkend a zdivo začne v úterý 22. června.
+Příklad: beton základů musí vytvrdnout, než na něm může zedník pracovat. Proto dostane *Pour foundation → Foundation brickwork* závislost FS s prodlevou `3`. Pokud se Pour foundation koná v pátek 18. června 2027, začne Foundation brickwork až po příkazu **Přepočítat** ve čtvrtek 24. června. Pondělí až středa je čekací doba. S `3ed` se počítá i víkend a Foundation brickwork začne v úterý 22. června.
 
 ### Na závěr: přepočítat
 
-Nová závislost zatím žádný pruh nepřesune. Ve stavovém řádku se zobrazí *Zastaralé — přepočítejte (F5)*. Stiskněte **Přepočítat** (F5), například přes *Domů › Plán › Přepočítat*. Teprve potom dostanou následníci nová data. Chcete-li, aby to aplikace dělala za vás, na kartě *Nastavení* otevřete *Projekt › Nastavení* a na kartě *Plán* zapněte volbu *Automaticky přepočítat*.
+Nová závislost zatím žádný pruh nepřesune. Ve stavovém řádku se zobrazí *Zastaralé — přepočítejte (F5)*. Stiskněte **Přepočítat** (F5), například přes *Domů › Plán › Přepočítat*. Teprve potom dostanou následníci nová data. Chcete-li, aby to aplikace dělala za vás, otevřete na kartě *Nastavení* položku *Projekt › Nastavení aplikace* a na kartě *Plán* zapněte volbu *Automaticky přepočítat*.
 
 ## Úskalí a co aplikace dělá
 

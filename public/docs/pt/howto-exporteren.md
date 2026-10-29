@@ -10,27 +10,27 @@ O consultor trabalha no MS Project, o cliente no Primavera, o subempreiteiro que
 
 1. Escolha *Início › Ficheiro › Exportar* e escolha um formato na lista, ou escolha *Ficheiro › Exportar*. Aí, cada formato é um cartão com uma breve descrição.
 2. Na janela, escolha um nome e um local. A aplicação sugere o nome do projeto, com a extensão do formato. As folhas de progresso chamam-se *projectname-voortgang* e abrem na sua pasta de transferências, sempre que possível.
-3. Confirme. Não aparece nenhuma mensagem se a exportação for bem-sucedida, exceto as mensagens abaixo. Depois, a partir de *Ficheiro › Exportar*, volta ao separador *Início*, mesmo se cancelar a janela. Se cancelar a janela de uma exportação da lista no separador *Início*, não acontece nada.
+3. Confirme. Não aparece nenhuma mensagem se a exportação for bem-sucedida, exceto as mensagens abaixo. Depois de exportar a partir de *Ficheiro › Exportar*, volta ao separador *Início*, mesmo se cancelar a janela. Se cancelar a janela de uma exportação da lista no separador *Início*, não acontece nada.
 
-Se o seu navegador só guardar por meio de uma transferência (como o Firefox), o ficheiro fica na pasta de transferências logo após o passo 1. Vê a mensagem *Guardado como transferência: 'name.xml' está agora na sua pasta de transferências. Este ambiente não permite que a aplicação escreva diretamente no local escolhido.*
+Se o seu navegador só guardar através de uma transferência (como o Firefox), o ficheiro fica na sua pasta de transferências logo após o passo 1. Vê a mensagem *Guardado como transferência: 'name.xml' está agora na sua pasta de transferências. Este ambiente não permite que a aplicação escreva diretamente no local escolhido.*
 
 ### Qual formato escolhe?
 
 A lista do separador *Início* e os cartões em *Ficheiro › Exportar* oferecem os mesmos formatos:
 
 - *Progresso (Excel)* e *Progresso (CSV)*, nos cartões *Folha de progresso (Excel)* e *Folha de progresso (CSV)*: uma folha simples com id, WBS, nome, datas e conclusão, para enviar a quem preenche o progresso.
-- *CSV (;)*, no cartão *CSV (separado por ponto e vírgula)*: uma lista de tarefas que abre numa folha de cálculo.
+- *CSV (;)*, no cartão *CSV (separado por ponto e vírgula)*: uma tabela de tarefas que se abre numa folha de cálculo.
 - *MS Project XML*: pode ser aberto no Microsoft Project.
 - *Primavera P6 XML*: para o Oracle Primavera P6.
-- *IFC 4x3*: o formato próprio da aplicação, com tudo o que contém.
+- *IFC*: o formato próprio da aplicação, com tudo o que contém, no esquema IFC do projeto (por padrão, IFC 4.3 ADD2).
 
 ### Uma exportação IFC com um ficheiro de biblioteca
 
-Se o seu projeto estiver ligado a uma biblioteca de recursos, a caixa de verificação *Guardar também o ficheiro de biblioteca* está abaixo dos cartões em *Ficheiro › Exportar*. Se a marcar e escolher *IFC 4x3*, a aplicação pede um local duas vezes: primeiro para o projeto, depois para *projectname-bibliotheek.ifc*. Esta caixa de verificação só está em *Ficheiro › Exportar*, não na lista do separador *Início*.
+Se o seu projeto estiver ligado a uma biblioteca de recursos, a caixa de verificação *Guardar também o ficheiro de biblioteca* está abaixo dos cartões em *Ficheiro › Exportar*. Se a marcar e escolher *IFC*, a aplicação pede um local duas vezes: primeiro para o projeto, depois para *projectname-bibliotheek.ifc*. Esta caixa de verificação só está em *Ficheiro › Exportar*, não na lista do separador *Início*.
 
 ### Ler de volta uma folha de progresso
 
-Lê uma folha de progresso preenchida de volta através de *Ficheiro › Importar*. Veja [Importar progresso a partir de uma folha de cálculo](docs://howto-voortgang-importeren).
+Lê de volta uma folha de progresso preenchida através de *Ficheiro › Importar*. Veja [Importar progresso a partir de uma folha de cálculo](docs://howto-voortgang-importeren).
 
 ## Armadilhas e o que a aplicação faz então
 

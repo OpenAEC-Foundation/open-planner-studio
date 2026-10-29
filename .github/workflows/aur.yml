@@ -1,0 +1,246 @@
+name: AUR package
+
+# AUR-pakket `open-planner-studio-bin`: herverpakt de .deb van de stabiele
+# GitHub-release. Na een geslaagde "Build and Release" (zelfde patroon als snap.yml): versie en
+# checksum invullen (scripts/aur/render-pkgbuild.mjs), makepkg + namcap + installatietest in een
+# archlinux-container (scripts/aur/build-in-container.sh), dan pushen naar
+# ssh://aur@aur.archlinux.org/open-planner-studio-bin.git — alleen als het secret
+# AUR_SSH_PRIVATE_KEY bestaat (docs/release-secrets.md); anders overslaan met een melding.
+#
+# workflow_run werkt alleen als dit bestand op de standaardbranch staat (zie snap.yml).
+
+on:
+  workflow_run:
+    workflows: ["Build and Release"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Bestaande stabiele release-tag (bijv. v2026.9.0)'
+        required: true
+      publish:
+        description: 'Ook naar de AUR pushen (alleen met het secret AUR_SSH_PRIVATE_KEY)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# Eén push tegelijk naar de AUR-git; nooit halverwege annuleren.
+concurrency:
+  group: aur
+  cancel-in-progress: false
+
+jobs:
+  aur:
+    # Vóór checkout: alleen een geslaagde release uit deze repo; nooit PR-code, ook niet
+    # wanneer een PR de workflownaam kopieert. Push-runs moeten van een v*-release komen.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_repository.full_name == github.repository &&
+        (
+          github.event.workflow_run.event == 'workflow_dispatch' ||
+          (
+            github.event.workflow_run.event == 'push' &&
+            startsWith(github.event.workflow_run.head_branch, 'v')
+          )
+        )
+      )
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      # Alleen of het secret bestaat; de sleutel zelf komt alleen in de push-stap.
+      AUR_KEY_SET: ${{ secrets.AUR_SSH_PRIVATE_KEY != '' }}
+
+    steps:
+      # Het PKGBUILD-sjabloon en de scripts van de gebouwde commit (bij een tag-release de tag);
+      # bij een handmatige start van de branch waarop gestart werd.
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Get version
+        id: get-version
+        env:
+          # Niet-vertrouwde invoer via env (zelfde whitelist als release.yml en snap.yml).
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_VERSION: ${{ github.event.inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = workflow_dispatch ]; then
+            VERSION="$DISPATCH_VERSION"
+          else
+            # De uitgecheckte head_sha hoort bij de gebouwde release. release.yml bewaakt
+            # dat de tag gelijk is aan deze pakketversie; een nieuwere release is hier irrelevant.
+            VERSION="v$(node -p 'require("./package.json").version')"
+          fi
+          case "$VERSION" in
+            *[!v0-9.]*|'')
+              echo "::error::Versie bevat tekens buiten 'v', cijfers en punten (of is leeg)." >&2
+              exit 1
+              ;;
+          esac
+          if ! printf '%s' "$VERSION" | grep -qxE 'v[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "::error::Versie '$VERSION' heeft niet de vorm vX.Y.Z." >&2
+            exit 1
+          fi
+          # Alleen een gepubliceerde, stabiele release (geen draft, geen prerelease).
+          gh api "repos/$REPO/releases/tags/$VERSION" > release.json
+          jq -e '.draft == false and .prerelease == false' release.json > /dev/null \
+            || { echo "::error::$VERSION is geen gepubliceerde stabiele release." >&2; exit 1; }
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "version_number=${VERSION#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Download release deb
+        id: deb
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          VERSION: ${{ steps.get-version.outputs.version }}
+          VERSION_NUMBER: ${{ steps.get-version.outputs.version_number }}
+        run: |
+          set -euo pipefail
+          # Het PKGBUILD bouwt de URL op uit pkgver; de asset moet dus precies zo heten.
+          EXPECTED="Open.Planner.Studio_${VERSION_NUMBER}_amd64.deb"
+          mkdir -p deb
+          gh release download "$VERSION" --repo "$REPO" --pattern "$EXPECTED" --dir deb
+          test -f "deb/$EXPECTED" || { echo "::error::asset $EXPECTED ontbreekt op $VERSION" >&2; exit 1; }
+          SHA256="$(sha256sum "deb/$EXPECTED" | cut -d' ' -f1)"
+          echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
+          echo "$EXPECTED: $SHA256"
+
+      - name: Render PKGBUILD
+        env:
+          VERSION_NUMBER: ${{ steps.get-version.outputs.version_number }}
+          SHA256: ${{ steps.deb.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          mkdir -p aur-src
+          node scripts/aur/render-pkgbuild.mjs --template packaging/aur/PKGBUILD \
+            --version "$VERSION_NUMBER" --sha256 "$SHA256" --out aur-src/PKGBUILD
+          diff -u packaging/aur/PKGBUILD aur-src/PKGBUILD || true
+
+      # makepkg haalt de .deb zelf op via de URL in het PKGBUILD en controleert de checksum: zo is ook
+      # getest wat een AUR-gebruiker straks downloadt.
+      - name: Build and check in archlinux container
+        run: |
+          set -euo pipefail
+          mkdir -p aur-out
+          docker run --rm \
+            -v "$PWD/aur-src:/src:ro" \
+            -v "$PWD/aur-out:/out" \
+            -v "$PWD/scripts/aur/build-in-container.sh:/build.sh:ro" \
+            archlinux:base-devel bash /build.sh /src /out
+          ls -la aur-out
+          cat aur-out/.SRCINFO
+
+      - name: Upload package for inspection
+        uses: actions/upload-artifact@v4
+        with:
+          name: aur-package
+          path: |
+            aur-out/PKGBUILD
+            aur-out/.SRCINFO
+            aur-out/namcap.txt
+            aur-out/*.pkg.tar.zst
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Decide on publishing
+        id: decide
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PUBLISH_INPUT: ${{ github.event.inputs.publish }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = workflow_dispatch ] && [ "$PUBLISH_INPUT" != true ]; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "AUR: niet gepusht (handmatige test zonder 'publish')." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$AUR_KEY_SET" != true ]; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::AUR-push overgeslagen: secret AUR_SSH_PRIVATE_KEY ontbreekt."
+            echo "AUR: **overgeslagen**: secret \`AUR_SSH_PRIVATE_KEY\` ontbreekt (zie docs/release-secrets.md). Het pakket is wel gebouwd en getest; zie het artefact \`aur-package\`." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Push to AUR
+        if: steps.decide.outputs.publish == 'true'
+        env:
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$AUR_SSH_PRIVATE_KEY" > "$HOME/.ssh/aur"
+          chmod 600 "$HOME/.ssh/aur"
+          # Vastgepinde hostsleutels van aur.archlinux.org (vingerafdrukken op de AUR-homepage:
+          # Ed25519 SHA256:RFzBCUItH9LZS0cKB5UE6ceAYhBD5C8GeOBip8Z11+4, ECDSA
+          # SHA256:uTa/0PndEgPZTf76e1DFqXKJEXKsn7m9ivhLQtzGOCI, RSA
+          # SHA256:5s5cIyReIfNNVGRFdDbe3hdYiI5OelHGpw2rOUud3Q8; gecontroleerd 2026-10-20).
+          cat > "$HOME/.ssh/aur_known_hosts" <<'EOF'
+          aur.archlinux.org ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEuBKrPzbawxA/k2g6NcyV5jmqwJ2s+zpgZGZ7tpLIcN
+          aur.archlinux.org ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBLMiLrP8pVi5BFX2i3vepSUnpedeiewE5XptnUnau+ZoeUOPkpoCgZZuYfpaIQfhhJJI5qgnjJmr4hyJbe/zxow=
+          aur.archlinux.org ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDKF9vAFWdgm9Bi8uc+tYRBmXASBb5cB5iZsB7LOWWFeBrLp3r14w0/9S2vozjgqY5sJLDPONWoTTaVTbhe3vwO8CBKZTEt1AcWxuXNlRnk9FliR1/eNB9uz/7y1R0+c1Md+P98AJJSJWKN12nqIDIhjl2S1vOUvm7FNY43fU2knIhEbHybhwWeg+0wxpKwcAd/JeL5i92Uv03MYftOToUijd1pqyVFdJvQFhqD4v3M157jxS5FTOBrccAEjT+zYmFyD8WvKUa9vUclRddNllmBJdy4NyLB8SvVZULUPrP3QOlmzemeKracTlVOUG1wsDbxknF1BwSCU7CmU6UFP90kpWIyz66bP0bl67QAvlIc52Yix7pKJPbw85+zykvnfl2mdROsaT8p8R9nwCdFsBc9IiD0NhPEHcyHRwB8fokXTajk2QnGhL+zP5KnkmXnyQYOCUYo3EKMXIlVOVbPDgRYYT/XqvBuzq5S9rrU70KoI/S5lDnFfx/+lPLdtcnnEPk=
+          EOF
+          export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/aur -o IdentitiesOnly=yes -o UserKnownHostsFile=$HOME/.ssh/aur_known_hosts -o StrictHostKeyChecking=yes"
+
+          # Een nog niet bestaand pakket geeft een lege repo; de eerste push maakt het aan.
+          git clone ssh://aur@aur.archlinux.org/open-planner-studio-bin.git aur-repo
+          if [ -f aur-repo/.SRCINFO ]; then
+            # Met de SSH-sleutel in deze stap voeren we geen uitgecheckte scripts uit.
+            # Beide versies bestaan uitsluitend uit drie getallen en een positieve pkgrel.
+            CURRENT="$(sed -n 's/^\tpkgver = //p' aur-repo/.SRCINFO)-$(sed -n 's/^\tpkgrel = //p' aur-repo/.SRCINFO)"
+            NEXT="$(sed -n 's/^\tpkgver = //p' aur-out/.SRCINFO)-$(sed -n 's/^\tpkgrel = //p' aur-out/.SRCINFO)"
+            for PACKAGE_VERSION in "$CURRENT" "$NEXT"; do
+              if ! printf '%s' "$PACKAGE_VERSION" | grep -qxE '(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-[1-9][0-9]*'; then
+                echo "::error::Ongeldige pkgver/pkgrel in .SRCINFO; niets gepusht." >&2
+                exit 1
+              fi
+            done
+            ORDER=push
+            if [ "$CURRENT" = "$NEXT" ]; then
+              ORDER=same
+            elif [ "$(printf '%s\n' "$CURRENT" "$NEXT" | LC_ALL=C sort -V | head -n 1)" != "$CURRENT" ]; then
+              ORDER=older
+            fi
+            case "$ORDER" in
+              older)
+                echo "::error::De AUR heeft al een hogere pkgver/pkgrel dan deze run; niets gepusht." >&2
+                exit 1
+                ;;
+              same)
+                if cmp -s aur-repo/PKGBUILD aur-out/PKGBUILD && cmp -s aur-repo/.SRCINFO aur-out/.SRCINFO; then
+                  echo "AUR: al actueel, niets te doen." >> "$GITHUB_STEP_SUMMARY"
+                  exit 0
+                fi
+                echo "::error::Zelfde pkgver-pkgrel als in de AUR, maar een ander PKGBUILD. Zet pkgver in packaging/aur/PKGBUILD eerst op de releaseversie en verhoog daarna pkgrel (anders zet de renderer pkgrel terug op 1)." >&2
+                exit 1
+                ;;
+              push) ;;
+              *) echo "::error::onverwachte vergelijking: $ORDER" >&2; exit 1 ;;
+            esac
+          fi
+
+          cp aur-out/PKGBUILD aur-out/.SRCINFO aur-repo/
+          cd aur-repo
+          git add PKGBUILD .SRCINFO
+          PKGVER="$(sed -n 's/^\tpkgver = //p' .SRCINFO)"
+          PKGREL="$(sed -n 's/^\tpkgrel = //p' .SRCINFO)"
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit -m "Update to $PKGVER-$PKGREL"
+          git push origin HEAD:master
+          echo "AUR: gepusht $PKGVER-$PKGREL naar open-planner-studio-bin." >> "$GITHUB_STEP_SUMMARY"

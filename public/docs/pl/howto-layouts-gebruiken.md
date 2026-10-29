@@ -39,7 +39,7 @@ Dostępne operatory zależą od rodzaju pola:
 - Tekst (*Nazwa zadania*, *WBS*): *równa się*, *różne od*, *zawiera*, *zaczyna się od* i *jest puste*.
 - Liczba i data (*Zapas całkowity*, *Początek*, *Postęp*): *równa się*, *różne od*, *mniejsze niż*, *mniejsze lub równe*, *większe niż*, *większe lub równe*, *pomiędzy* i *jest puste*. Przy *pomiędzy* są dwa pola: dla liczby z podpowiedziami *Od* i *Do*, dla daty bez podpowiedzi (pierwsza data to początek, druga to koniec).
 - Tak/nie (*Krytyczne*, *Kamień milowy*, *Prawie krytyczne*): *równa się* i *różne od*, z wartością *Tak* lub *Nie*.
-- Wybór (*Typ*, kod czynności): *równa się*, *różne od*, *jest jednym z* (z wartościami z polami wyboru) i *jest puste*.
+- Wybór (*Rodzaj robót*, kod czynności): *równa się*, *różne od*, *jest jednym z* (z wartościami z polami wyboru) i *jest puste*.
 - *Zasoby*: *jest jednym z* i *jest puste*.
 - *W toku*: tylko *pomiędzy*, z dwiema datami (od i do).
 
@@ -81,7 +81,7 @@ Układy, które nie zapisują tych samych części, mogą być włączone razem.
 
 **Układy są zapisane na Twoim urządzeniu, nie w projekcie.** Aplikacja trzyma Twoje układy i kolumny dla wszystkich projektów na tym urządzeniu. Nakładki z układu (plan bazowy, linia postępu i reszta) działają we wszystkich Twoich projektach. Filtr, grupowanie i sortowanie, które są właśnie włączone, należą do otwartego projektu, ale nie trafiają do pliku projektu: po zapisaniu i ponownym otwarciu widok jest znów czysty. Nie sprawiają też, że projekt wygląda na zmieniony.
 
-**Osobne przyciski są ukryte.** *Kolumny…*, *Filtr…*, *Grupuj…* i *Sortuj…* jako osobne przyciski na zakładce *Widok* to starszy widok. Przywrócisz je opcją *Pokaż klasyczne przyciski widoku* w sekcji *Funkcje starszego typu* na zakładce *Zaawansowane* w oknie ustawień (⚙ na pasku tytułu). Lepiej używaj układów.
+**Osobne przyciski są ukryte.** *Kolumny…*, *Filtr…*, *Grupuj…* i *Sortuj…* jako osobne przyciski na zakładce *Widok* to starszy widok. Przywrócisz je opcją *Pokaż klasyczne przyciski widoku* w sekcji *Funkcje starszego typu* na zakładce *Zaawansowane* w oknie *Ustawienia aplikacji* (⚙ na pasku tytułu). Lepiej używaj układów.
 
 ## Zobacz także
 

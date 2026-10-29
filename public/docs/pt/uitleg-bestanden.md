@@ -4,7 +4,7 @@ O que está, na verdade, no ficheiro que guarda? E o que acontece ao seu planeam
 
 ## O conceito
 
-Open Planner Studio tem um formato de ficheiro próprio: **IFC**, um formato aberto de troca de informação de construção da buildingSMART. A aplicação escreve IFC 4.3; na lista de exportação chama-se *IFC 4x3*. Não existe um segundo ficheiro de projeto proprietário. *Guardar* escreve o projeto inteiro como ficheiro IFC (`.ifc`), e *Abrir* lê de volta esse tipo de ficheiro. Quer ver o que entra no ficheiro? O separador *IFC* mostra o texto IFC do seu projeto; *Gerar IFC* atualiza esse texto.
+Open Planner Studio tem um formato de ficheiro próprio: **IFC**, um formato aberto de troca de informação de construção da buildingSMART. A aplicação escreve o esquema IFC do projeto, por padrão IFC 4.3 ADD2 (veja [Escolher o esquema IFC](docs://howto-ifc-schema-kiezen)); na lista de exportação chama-se *IFC*. Não existe um segundo ficheiro de projeto proprietário. *Guardar* escreve o projeto inteiro como ficheiro IFC (`.ifc`), e *Abrir* lê de volta esse tipo de ficheiro. Quer ver o que entra no ficheiro? O separador *IFC* é um editor que mostra o texto IFC do seu projeto; *Gerar IFC* atualiza esse texto e *Copiar* coloca-o na área de transferência. Se alterar o texto, *Aplicar* carrega-o como o seu projeto. Isso substitui completamente o projeto nesse separador.
 
 Todos os outros formatos são **adaptadores**: tradutores entre o modelo de outro programa e o modelo da aplicação. A aplicação lê CSV, MS Project XML, Primavera P6 XML, ficheiros MS Project (`.mpp`) e ficheiros Primavera (`.xer`). Escreve CSV, MS Project XML, Primavera P6 XML e duas folhas de progresso. Não é possível exportar para `.mpp` ou `.xer`.
 
@@ -46,11 +46,11 @@ Cada adaptador transporta o que o respetivo formato conhece.
 
 **Primavera P6 XML** transporta tarefas, relações, calendários, recursos, atribuições, restrições e a data de estado. Linhas de base e prazos não são transportados, nem códigos de atividade, campos personalizados, notas e relações externas. Também aqui, um hammock torna-se uma tarefa normal. O P6 não tem desfasamento em percentagem: a aplicação converte esse desfasamento num número fixo de dias. Um desfasamento em dias de calendário torna-se um desfasamento em dias úteis.
 
-**CSV** é uma tabela de tarefas. O ficheiro tem estas colunas para cada tarefa: id da tarefa, WBS, nível, nome, duração, início, fim, predecessoras, tipo, o id de um tipo de tarefa personalizado (`OPS Custom Task Type ID`), estado, conclusão, início real e fim real, crítica, folga total e descrição. Recursos, atribuições, calendários, restrições, prazos, linhas de base e a data de estado não fazem parte do ficheiro. Os cabeçalhos das colunas estão sempre em inglês.
+**CSV** é uma tabela de tarefas. O ficheiro tem estas colunas para cada tarefa: task id, WBS, level, name, duration, start, finish, predecessors, work category, o id de uma categoria de trabalho personalizada (`OPS Custom Task Type ID`), status, completion, actual start e finish, critical, total float e description. Recursos, atribuições, calendários, restrições, prazos, linhas de base e a data de estado não fazem parte do ficheiro. Os cabeçalhos das colunas estão sempre em inglês.
 
 **Só o IFC transporta o perfil de cálculo e as opções de cálculo.** Se exportar para CSV, MS Project XML ou Primavera P6 XML, o perfil não está no ficheiro. Das opções de cálculo, o MS Project XML escreve, no máximo, o limiar crítico. Um ficheiro assim abre de novo como *Open Planner Studio*. Se o seu projeto calculou com *Primavera P6* ou *Microsoft Project*, por exemplo porque veio de um `.xer` ou `.mpp`, as datas podem mudar por esse motivo. O que é um perfil de cálculo é explicado em [Perfis de cálculo e convenções](docs://uitleg-rekenprofielen).
 
-Se o seu projeto veio de um ficheiro Primavera (`.xer`), mesmo que o tenha guardado como IFC pelo meio, a aplicação indica, depois de uma exportação para CSV, MS Project XML ou P6 XML: *A exportação para CSV perde informações de origem XER.* Para MS Project XML indica *MSPDI* em vez de *CSV*; para P6 XML indica *P6*. Com IFC, essa mensagem não aparece: o ficheiro IFC transporta também o ficheiro de origem da Primavera. Veja [Abrir um ficheiro Primavera P6 (.xer)](docs://howto-xer-openen).
+Se o seu projeto vier de um ficheiro Primavera (`.xer`), mesmo que o tenha guardado como IFC pelo meio, a aplicação indica, depois de uma exportação para CSV, MS Project XML ou P6 XML: *A exportação para CSV perde informações de origem XER.* Para MS Project XML indica *MSPDI* em vez de *CSV*; para P6 XML indica *P6*. Com IFC, essa mensagem não aparece: o ficheiro IFC transporta também o ficheiro de origem da Primavera. Veja [Abrir um ficheiro Primavera P6 (.xer)](docs://howto-xer-openen).
 
 A aplicação faz ainda mais duas coisas com uma exportação. Se o planeamento estiver desatualizado, recalcula primeiro e só depois exporta. E não exporta um planeamento com uma relação circular: aparece uma mensagem com o ciclo, por exemplo *Dependência circular entre tarefas: Set up site → Demolish existing extension → Set up site*.
 
@@ -68,7 +68,7 @@ Como uma cópia é guardada no máximo uma vez a cada dez segundos, pode perder 
 
 ### Desktop e navegador
 
-A aplicação desktop e a versão para navegador fazem o mesmo com o seu projeto, mas escrevem ficheiros de forma diferente.
+A aplicação de ambiente de trabalho e a versão para navegador fazem o mesmo com o seu projeto, mas escrevem ficheiros de forma diferente.
 
 No desktop, a aplicação trabalha com caminhos reais. *Guardar* escreve diretamente no seu ficheiro. Normalmente, a aplicação escreve primeiro num ficheiro temporário ao lado (`.ops-save.tmp`) e só depois substitui o seu ficheiro. Assim, uma falha a meio da escrita não estraga o ficheiro antigo. Se fechar a aplicação com alterações, a aplicação pergunta, para cada projeto, se quer guardar. Numa saída normal, a aplicação apaga as suas cópias de recuperação.
 

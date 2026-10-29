@@ -93,24 +93,31 @@ export function useDocumentActions() {
   const switchDocument = useAppStore((s) => s.switchDocument);
   const closeDocument = useAppStore((s) => s.closeDocument);
   const setUI = useAppStore((s) => s.setUI);
+  // De titelbalk-wisselaar blijft ook in Help bereikbaar; de startvraag hoort bij het huidige document.
+  const startQuestionOpen = useAppStore(s => s.ui.pendingActualStartQuestion !== null);
 
-  const switchTo = useCallback((id: string) => switchDocument(id), [switchDocument]);
+  const switchTo = useCallback((id: string) => {
+    if (!startQuestionOpen) switchDocument(id);
+  }, [startQuestionOpen, switchDocument]);
 
   // Dirty document → open de sluit-bevestiging (Opslaan/Niet opslaan/Annuleren);
   // schoon document sluit meteen.
   const closeWithGuard = useCallback(
     (doc: { id: string; isDirty: boolean }) => {
+      if (startQuestionOpen) return;
       if (doc.isDirty) { setUI({ pendingCloseDocId: doc.id }); return; }
       closeDocument(doc.id);
     },
-    [closeDocument, setUI],
+    [closeDocument, setUI, startQuestionOpen],
   );
 
-  const openOverview = useCallback(() => setUI({ showProjectOverview: true }), [setUI]);
+  const openOverview = useCallback(() => {
+    if (!startQuestionOpen) setUI({ showProjectOverview: true });
+  }, [setUI, startQuestionOpen]);
   const closeOverview = useCallback(() => setUI({ showProjectOverview: false }), [setUI]);
   const chooseNewOrOpenProject = useCallback(
-    () => setUI({ showNewOrOpenProjectDialog: true }),
-    [setUI],
+    () => { if (!startQuestionOpen) setUI({ showNewOrOpenProjectDialog: true }); },
+    [setUI, startQuestionOpen],
   );
 
   return { switchTo, closeWithGuard, openOverview, closeOverview, chooseNewOrOpenProject };

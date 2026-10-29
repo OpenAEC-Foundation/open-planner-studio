@@ -51,7 +51,7 @@ Faceți clic dreapta pe activitate și alegeți *Adăugare subactivitate*. Activ
 Cele trei tipuri diferă astfel:
 
 - Un *Jalon de început* se află la începutul zilei, un *Jalon de sfârșit* la sfârșitul zilei. În Gantt, romboul se află în stânga, respectiv în dreapta zilei. Acest lucru contează și pentru succesor. Să presupunem că un jalon este marți, 29 septembrie 2026, iar o activitate îl urmează cu o dependență sfârșit-început: după un jalon de început, activitatea începe în aceeași zi, marți; după un jalon de sfârșit, începe miercuri, 30 septembrie.
-- Un *Moment de inspecție (obligatoriu)* este un jalon de sfârșit cu tipul de activitate *Inspecție* și bifa *Obligatoriu (prin contract)*.
+- Un *Moment de inspecție (obligatoriu)* este un jalon de sfârșit cu categoria de lucrări *Inspecție* și bifa *Obligatoriu (prin contract)*.
 
 ### Transformarea unei activități existente într-un jalon
 
@@ -62,6 +62,7 @@ Dacă îl dezactivați din nou, rămâne o activitate obișnuită cu durata 0: i
 ### Alte modalități
 
 - Ctrl+M (⌘+M pe Mac) pune un jalon nou la sfârșitul listei, chiar dacă este selectată o activitate. Panoul *Proprietăți* nu se deschide.
+- Un jalon creat cu Ctrl+M sau din meniul cu clic dreapta primește categoria de lucrări *Inspecție*. Un *Jalon de început* sau un *Jalon de sfârșit* din *Jalon ▾* primește *Altele*. Modificați categoria de lucrări în *Proprietăți*, dacă este nevoie.
 - *Adăugare jalon* din meniul cu clic dreapta al unei activități face din jalon o subactivitate a acelei activități, nu o activitate de același nivel.
 
 ### Copierea unei activități sau a unei ramuri întregi
@@ -70,9 +71,9 @@ Dacă îl dezactivați din nou, rămâne o activitate obișnuită cu durata 0: i
 2. Apăsați Ctrl+C (⌘+C pe Mac). Aplicația copiază activitatea cu toate subactivitățile ei, dependențele dintre activitățile copiate și atribuiri de resurse ale acestora.
 3. Dacă doriți, faceți clic pe bara activității lângă care trebuie să fie copia și apăsați Ctrl+V (⌘+V).
 
-Copia are același nume, aceleași date și același progres. Ea se adaugă ca activitate de același nivel cu activitatea selectată (la mai multe: cu cea pe care ați făcut clic primul), la sfârșitul celor de același nivel. Dacă nimic nu este selectat, se adaugă la sfârșitul listei. Activitățile copiate sunt selectate după aceea, WBS-urile (numărul fiecărei activități din arbore, de exemplu 1.2; vezi [Ajustarea structurii](docs://howto-structuur-aanpassen)) se stabilesc din nou, iar planificarea este învechită.
+Copia are același nume, aceleași date și același progres. Ea se adaugă ca activitate de același nivel cu activitatea selectată (la mai multe: cu cea pe care ați făcut clic primul), la sfârșitul celor de același nivel. Dacă nimic nu este selectat, se adaugă la sfârșitul listei. Activitățile copiate sunt selectate după aceea, WBS-urile (numărul fiecărei activități din arbore, de exemplu 1.2; vedeți [Ajustarea structurii](docs://howto-structuur-aanpassen)) se stabilesc din nou, iar planificarea este învechită.
 
-Clipboardul este comun pentru toată aplicația, deci puteți lipi și într-un alt document. Ce nu există acolo, de exemplu un calendar al activității, un tip de activitate particularizat, un cod de activitate sau un câmp particularizat, aplicația șterge și vă anunță.
+Clipboardul este comun pentru toată aplicația, deci puteți lipi și într-un alt document. Ce nu există acolo, de exemplu un calendar al activității, o categorie de lucrări particularizată, un cod de activitate sau un câmp particularizat, aplicația șterge și vă anunță.
 
 ### După aceea
 
@@ -80,9 +81,9 @@ O activitate nouă nu schimbă încă celelalte date. Bara de stare arată *Înv
 
 ## Capcane și ce face aplicația
 
-**Fiecare activitate nouă începe la începutul proiectului.** Fără dependențe, o activitate nu așteaptă nimic. Adăugați dependențe, vezi [Adăugarea dependențelor](docs://howto-relaties-leggen).
+**Fiecare activitate nouă începe la începutul proiectului.** Fără dependențe, o activitate nu așteaptă nimic. Adăugați dependențe, vedeți [Adăugarea dependențelor](docs://howto-relaties-leggen).
 
-**Filtrarea, gruparea sau sortarea este activată.** Ordinea pe care o vedeți atunci nu este ordinea planificării. Dacă o activitate este selectată, *Activitate* și *Jalon ▾* adaugă activitatea nouă la sfârșitul listei, iar banda *Indisponibil la filtrare, grupare sau sortare* apare. *Inserare deasupra* și *Inserare dedesubt* sunt refuzate, cu aceeași bandă. Butonul *Ștergere* din bandă elimină dintr-o dată filtrul, gruparea și sortarea. Aceasta nu face parte din *Anulare*: Ctrl+Z nu le readuce.
+**Filtrarea, gruparea sau sortarea este activată.** Ordinea pe care o vedeți atunci nu este ordinea planificării. Dacă o activitate este selectată, *Activitate* și *Jalon ▾* adaugă activitatea nouă la sfârșitul listei, iar banda *Indisponibil la filtrare, grupare sau sortare* apare. Apare apoi o notificare roșie, care spune: *Noua activitate se află la sfârșit. În timpul filtrării, grupării sau sortării, aplicația nu o poate plasa sub selecția dumneavoastră.* *Inserare deasupra* și *Inserare dedesubt* sunt refuzate, cu aceeași bandă. Butonul *Ștergere* din notificare sau din bandă elimină dintr-o dată filtrul, gruparea și sortarea. Aceasta nu face parte din *Anulare*: Ctrl+Z nu le readuce.
 
 **O subactivitate sub o activitate cu atribuiri de resurse.** Activitatea devine o activitate rezumat, iar o activitate rezumat nu poartă ea însăși atribuiri. Aplicația mută atribuirile la noua subactivitate și vă anunță. Dacă acest lucru nu este posibil, de exemplu pentru că ați ales *Adăugare jalon* și un jalon nu poate avea atribuiri, aplicația nu adaugă nimic și spune de ce.
 

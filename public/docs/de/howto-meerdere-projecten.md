@@ -12,7 +12,7 @@ Sie arbeiten am Wohnungsbau im Quartier. Aber die Baustellenbesprechung betrifft
 
 1. Klicken Sie auf das Pluszeichen rechts neben den Registerkarten (*Projekt starten*). Das Fenster *Projekt starten* öffnet sich.
 2. Wählen Sie *Neues Projekt* für einen leeren Terminplan oder *Bestehendes Projekt öffnen*, um eine Datei auszuwählen. *Abbrechen* schließt das Fenster.
-3. Wenn Sie *Neues Projekt* wählen, füllen Sie das Fenster *Neues Projekt* aus und klicken Sie auf *Erstellen*.
+3. Mit *Neues Projekt* füllen Sie das Fenster *Neues Projekt* aus und klicken auf *Erstellen*.
 
 Das Projekt erscheint in einer eigenen Registerkarte und ist sofort aktiv. *Neu* und *Öffnen* im Menüband, Strg+O und die Beispiele unter *Datei › Beispiele* öffnen ein Projekt ebenfalls in einer neuen Registerkarte. Nur ein neuer, leerer Terminplan, den Sie noch nicht bearbeitet haben, wird wiederverwendet, statt eine Registerkarte hinzuzufügen.
 
@@ -23,6 +23,8 @@ Das Projekt erscheint in einer eigenen Registerkarte und ist sofort aktiv. *Neu*
 - Klicken Sie auf das Menüsymbol links neben den Registerkarten (*Alle Projekte*). Die Übersicht *Offene Projekte* zeigt pro Projekt eine Karte mit dem Namen, dem Dateinamen (wenn das Projekt eine Datei hat), einer Miniaturansicht des Terminplans, der Anzahl der Vorgänge, der Anzahl der kritischen Vorgänge und dem Enddatum. Klicken Sie auf eine Karte, um dorthin zu wechseln. Esc schließt die Übersicht.
 
 Jede Registerkarte hat einen farbigen Punkt, der zu dem Projekt gehört. Eine Registerkarte mit einem kleinen Punkt dahinter hat nicht gespeicherte Änderungen.
+
+Passen die Registerkarten nicht alle in die Breite, erscheinen zwischen den Registerkarten und dem Pluszeichen zwei Pfeile (*Registerkarten zum Anfang schieben* und *Registerkarten zum Ende schieben*). Jeder Klick verschiebt die Registerkarten um zwei. Ein Pfeil ist grau, wenn Sie schon am Anfang oder am Ende sind. Sie können auch mit dem Mausrad über den Registerkarten blättern. Die Registerkarte, die Sie wählen, rückt immer von selbst in die Sicht.
 
 ### Ein Projekt schließen
 
@@ -38,7 +40,7 @@ Wenn Sie das letzte Projekt schließen, bleibt ein leerer Terminplan mit dem Nam
 
 ### Den Wechselstil wählen
 
-Sie können die Art der Registerkarten selbst wählen. Öffnen Sie das Einstellungsfenster über das Zahnrad in der Titelleiste, wechseln Sie zur Registerkarte *Darstellung* und wählen Sie bei der Einstellung *Dokumentwechsel-Stil*:
+Sie können die Art der Registerkarten selbst wählen. Öffnen Sie das Fenster *App-Einstellungen* über das Zahnrad in der Titelleiste, wechseln Sie zur Registerkarte *Darstellung* und wählen Sie bei der Einstellung *Dokumentwechsel-Stil*:
 
 - *Horizontale Registerkarten*: der Standard. Eine Reihe von Registerkarten unter dem Menüband.
 - *Vertikale Registerkarten*: eine schmale Leiste links mit einer Schaltfläche pro Projekt (die ersten Buchstaben des Namens) und einem Pluszeichen. Wenn Sie mit der Maus über eine Schaltfläche fahren, sehen Sie Name, Dateiname, Anzahl der Vorgänge, Anzahl der kritischen Vorgänge und Enddatum. Die Schaltfläche oben öffnet die Übersicht.
@@ -50,7 +52,7 @@ Alle drei Stile öffnen dieselbe Übersicht, und Strg+1 bis Strg+9 funktioniert 
 
 **Was zum Projekt gehört und was gemeinsam ist.** Jedes Projekt hat seine eigene Ansicht: Zoom und Position, ein aktives Layout mit Filter, Gruppierung oder Sortierung, geteilte Ansicht, die Beziehungslinien und die eingeklappten Phasen. Wenn Sie zu einem anderen Projekt wechseln, sehen Sie dort dessen eigene Ansicht. Allen Projekten gemeinsam sind die gewählte Registerkarte im Menüband, die Minimap, die Overlays (Baseline-Overlay, Fortschrittslinie und die übrigen), Ihre Spaltenauswahl, Ihre Layouts und Ihre Auswahl für Berichte.
 
-**Sie können nicht mit einem offenen Dialog wechseln.** Solange ein Dialog offen ist, zum Beispiel das Einstellungsfenster oder ein Vorgangsfenster, tun Strg+1 bis Strg+9 in der App nichts. Im Browser wechseln die Tasten dann die Browser-Registerkarten. Schließen Sie zuerst den Dialog. Eine nicht übernommene Änderung in *Projektinfo* im Backstage blockiert das Wechseln ebenfalls.
+**Sie können nicht mit einem offenen Dialog wechseln.** Solange ein Dialog offen ist, zum Beispiel das Fenster *App-Einstellungen* oder ein Vorgangsfenster, tun Strg+1 bis Strg+9 in der App nichts. Im Browser wechseln die Tasten dann die Browser-Registerkarten. Schließen Sie zuerst den Dialog. Eine nicht übernommene Änderung in *Projekteinstellungen* im Backstage blockiert das Wechseln ebenfalls.
 
 **Strg+1 bis Strg+9 zählen nach Reihenfolge.** Die Tastenkombination führt zu dem Projekt an dieser Stelle in der Reihe. Wenn Sie ein Projekt schließen, rücken die anderen Plätze auf. Wenn mehr als neun Projekte offen sind, erreichen Sie die übrigen nur über die Registerkarten oder die Übersicht.
 

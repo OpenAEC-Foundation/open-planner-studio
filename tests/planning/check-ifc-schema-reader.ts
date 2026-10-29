@@ -173,10 +173,26 @@ function firstDiff(a: unknown, b: unknown, path = ''): string | undefined {
   // Zonder de OPS_ProjectSettings-datums (zoals een bestand van vóór die pset, of een ander tool):
   // dan komen projectstart en -einde uit IfcWorkPlan.StartTime/FinishTime, in beide indelingen.
   const strip = (ifc: string) => ifc.replace("'ProjectStartDate'", "'OnbekendVeld1'").replace("'ProjectEndDate'", "'OnbekendVeld2'");
-  const plainModern = readIFC(strip(modern));
-  const plainLegacy = readIFC(strip(legacy));
-  const planStart = rich.tasks.map(t => t.time.scheduleStart).filter(Boolean).sort()[0].slice(0, 10);
-  const planEnd = rich.tasks.map(t => t.time.scheduleFinish).filter(Boolean).sort().at(-1)!.slice(0, 10);
+  // Expliciete lezerankers, onafhankelijk van de omvang die writeIFC uit getoonde taken afleidt.
+  // De start ligt vóór alle taak-invoer, zodat de projectstart-vloer hem niet vervangt. Het einde
+  // verschilt van invoer én berekende taken; verkeerde slotposities kunnen zo niet toevallig slagen.
+  const planStart = '2026-02-03';
+  const planEnd = '2030-08-17';
+  ok('A2 fixture: werkplanstart ligt vóór de ingelezen taakstarts',
+    input.tasks.every(t => !t.time.scheduleStart || planStart < t.time.scheduleStart.slice(0, 10)));
+  const anchoredModern = mapEntities(modern, (type, args) => type === 'IFCWORKPLAN'
+    ? [...args.slice(0, 11), "'2026-02-03T07:00:00'", "'2030-08-17T07:00:00'", ...args.slice(13)]
+    : undefined);
+  const anchoredLegacy = toLegacyOpsLayout(anchoredModern);
+  eq('A2 fixture: werkplan houdt de schema-ariteit', argCounts(anchoredModern, 'IFCWORKPLAN'), [14]);
+  eq('A3 fixture: oud werkplan houdt de oude ariteit', argCounts(anchoredLegacy, 'IFCWORKPLAN'), [15]);
+  for (const [label, text] of [['norm', anchoredModern], ['oud', anchoredLegacy]] as const) {
+    const p = readIFC(text).project;
+    eq(`A1 ${label}: contractuele projectinvoer wint van andere werkplanankers`,
+      [p.startDate, p.endDate], [input.project.startDate, input.project.endDate]);
+  }
+  const plainModern = readIFC(strip(anchoredModern));
+  const plainLegacy = readIFC(strip(anchoredLegacy));
   eq('A2 norm zonder pset: projectstart uit IfcWorkPlan.StartTime (index 11)', plainModern.project.startDate, planStart);
   eq('A2 norm zonder pset: projecteinde uit IfcWorkPlan.FinishTime (index 12)', plainModern.project.endDate, planEnd);
   eq('A3 oude indeling zonder pset: projectstart uit index 12', plainLegacy.project.startDate, planStart);

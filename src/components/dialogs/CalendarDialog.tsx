@@ -35,6 +35,7 @@ export function CalendarDialog() {
   const { t: tMenu } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
   const project = useAppStore(s => s.project);
+  const calculatedEnd = useAppStore(s => s.cpmResult?.projectEnd);
   const commitCalendarLibrary = useAppStore(s => s.commitCalendarLibrary);
   const ensureProjectCalendarInLibrary = useAppStore(s => s.ensureProjectCalendarInLibrary);
   const runCPM = useAppStore(s => s.runCPM);
@@ -74,7 +75,7 @@ export function CalendarDialog() {
   // Ongeldige invoer in ÉÉN van de bufferkalenders blokkeert Toepassen én Enter: de commit schrijft
   // altijd de hele bibliotheek. De lijst links markeert welke kalender het is.
   const invalid = scalarTimeTextInvalid || localCalendars.some(calendarInvalid);
-  const projectYearSpan = computeGenerateSpan(project.startDate, project.endDate || undefined);
+  const projectYearSpan = computeGenerateSpan(project.startDate, project.endDate || undefined, calculatedEnd);
 
   // Annuleren = sluiten zonder te committen (buffer wordt weggegooid ⇒ alle wijzigingen terug).
   const cancel = () => setUI({ showCalendarDialog: false });
@@ -85,7 +86,7 @@ export function CalendarDialog() {
   // ongewijzigd) en slaan we ook de herberekening over — anders zou "even kijken en Toepassen" een
   // document in de modus "datums zoals opgeslagen" alsnog herberekenen.
   const commit = useCallback(() => {
-    if (commitCalendarLibrary(localCalendars.map(withCanonicalHolidayEnds), localProjectId)) runCPM();
+    if (commitCalendarLibrary(localCalendars.map(withCanonicalHolidayEnds), localProjectId)) runCPM({ withinEvent: true });
     setCommittedSnapshot(JSON.stringify([localCalendars, localProjectId]));
   }, [commitCalendarLibrary, localCalendars, localProjectId, runCPM]);
   const dirty = ready && JSON.stringify([localCalendars, localProjectId]) !== committedSnapshot;

@@ -28,7 +28,7 @@ Zmień nazwę na liście. Zmiana działa od razu. Nie musisz klikać *Zapisz*.
 
 ### Usuwanie planu bazowego
 
-Kliknij mały kosz obok planu bazowego na liście. Jeśli usuniesz aktywny plan bazowy, aplikacja zapyta *Usunąć aktywny plan bazowy?*. Potem najnowszy pozostały plan bazowy staje się aktywnym. Jeśli nie ma innego, nie ma już aktywnego planu bazowego i nakładka znika. Naciśnij Ctrl+Z, aby przywrócić usunięty plan bazowy.
+Kliknij mały kosz obok planu bazowego na liście. Jeśli usuniesz aktywny plan bazowy, aplikacja zapyta *Usunąć aktywny plan bazowy?*. Potem najnowszy pozostały plan bazowy staje się aktywnym. Jeśli nie ma innego, nie ma już aktywnego planu bazowego i nakładka znika. Naciśnij Ctrl+Z, aby przywrócić usunięty plan bazowy. Najpierw zamknij okno; Ctrl+Z nie działa w oknie.
 
 ### Odchylenia w tabeli zadań
 
@@ -42,11 +42,13 @@ Każdy plan bazowy ma sześć kolumn w tabeli zadań. Kliknij **+** z prawej str
 
 **Plan bazowy nie może zostać zaktualizowany.** Jeśli chcesz zrewidować ustalenia, zapisz nowy plan bazowy i w razie potrzeby usuń stary.
 
+**⚠ przy *Czas trwania* lub *Odchylenie czasu trwania*.** Dla zadania w godzinach jeden dzień to godziny pracy jego kalendarza. Jeśli kalendarz ma własną liczbę godzin na dzień (na przykład 8 przy pasmach po 10 godzin, z Primavera P6), starsza wersja aplikacji liczyła dni inaczej. Plan bazowy z tej wersji zachowuje stary wynik: zadanie 1870 godzin to 233,75 dnia w planie bazowym, a teraz 187 dni. Aplikacja nie zmienia takiego planu bazowego. Kolumny *Czas trwania* i *Odchylenie czasu trwania* tego planu bazowego pokazują wtedy ⚠; wskaż go, aby zobaczyć wyjaśnienie. Daty planu bazowego są poprawne. Zapisz nowy plan bazowy i w razie potrzeby usuń stary.
+
 **Tylko zadania bez podzadań.** Faza nie jest w planie bazowym: nie ma paska planu bazowego ani odchylenia. Faza wynika z zadań poniżej niej.
 
 **Nowe i usunięte zadania.** Zadanie dodane po zapisaniu nie ma paska planu bazowego. W raporcie *Variance* pojawia się jako *Nowe*. Zadanie, które usuniesz, pojawia się jako *Usunięte*.
 
-**Przesuń projekt.** W oknie *Przesuń projekt…*, gdy są plany bazowe, jest pole wyboru *Przesuń także plany bazowe*. Domyślnie jest ono wyłączone: plany bazowe zostają na miejscu, więc przesunięcie widać jako odchylenie. Zobacz [Przesuwanie projektu](docs://howto-project-verplaatsen).
+**Przesuń projekt.** W oknie *Przesuń projekt…*, gdy są plany bazowe, jest pole wyboru *Przesuń także plany bazowe*. Domyślnie jest ono wyłączone: plany bazowe nie są przesuwane, więc przesunięcie widać jako odchylenie. Zobacz [Przesuwanie projektu](docs://howto-project-verplaatsen).
 
 **Zapisane w pliku projektu.** Plany bazowe i wybór aktywnego planu zapisują się razem z projektem i wracają po otwarciu pliku.
 

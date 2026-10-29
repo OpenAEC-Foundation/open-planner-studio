@@ -28,7 +28,7 @@ Promijenite naziv na popisu. Promjena se odmah primjenjuje. Ne morate kliknuti *
 
 ### Brisanje temeljnog plana
 
-Kliknite malu kantu za smeće pored temeljnog plana na popisu. Ako izbrišete aktivni temeljni plan, aplikacija pita *Izbrisati aktivni temeljni plan?*. Zatim najnoviji preostali temeljni plan postaje aktivni. Ako nema drugog, više nema aktivnog temeljnog plana i prikaz nestaje. Pomoću Ctrl+Z vraćate izbrisani temeljni plan.
+Kliknite malu kantu za smeće pored temeljnog plana na popisu. Ako izbrišete aktivni temeljni plan, aplikacija pita *Izbrisati aktivni temeljni plan?*. Zatim najnoviji preostali temeljni plan postaje aktivni. Ako nema drugog, više nema aktivnog temeljnog plana i prikaz nestaje. Izbrisani temeljni plan vraćate pomoću Ctrl+Z. Prvo zatvorite prozor; Ctrl+Z ne radi unutar prozora.
 
 ### Odstupanja u tablici zadataka
 
@@ -38,13 +38,15 @@ Svaki temeljni plan ima šest stupaca u tablici zadataka. Kliknite **+** s desne
 
 **Zastarjeli raspored.** Ako je raspored zastario, prozor prikazuje *Raspored je zastario. Prvo ponovno izračunajte (F5)*. To je upozorenje. Spremanje ostaje moguće. Ali tada spremate stare datume. Zatvorite prozor, pritisnite **Izračunaj** i tek tada spremite.
 
-**Temeljni plan s unesenim napretkom.** Ako spremite temeljni plan nakon što ste unijeli napredak, bilježi stanje sa stvarnim datumima. Odstupanje je tada nula i više ništa ne govori o izvršenju. Temeljni plan spremite prije nego što rad počne.
+**Temeljni plan s unesenim napretkom.** Ako spremite temeljni plan nakon što ste unijeli napredak, bilježi stanje sa stvarnim datumima. Odstupanje je tada nula i više ništa ne govori o izvršenju. Temeljni plan spremite prije nego što počne posao.
 
 **Temeljni plan se ne može ažurirati.** Ako želite revidirati dogovor, spremite novi temeljni plan i po potrebi izbrišite stari.
 
 **Samo zadaci bez podzadataka.** Faza nije u temeljnom planu: nema traku temeljnog plana i nema odstupanja. Faza proizlazi iz zadataka ispod nje.
 
 **Novi i izbrisani zadaci.** Zadatak koji dodate nakon spremanja nema traku temeljnog plana. U izvješću o odstupanjima prikazuje se kao *Novo*. Zadatak koji izbrišete prikazuje se kao *Uklonjeno*.
+
+**Znak ⚠ kod trajanja ili odstupanja trajanja.** Za zadatak u satima vrijedi: jedan dan je radno vrijeme u njegovom kalendaru. Ako kalendar ima vlastite sate po danu (na primjer 8 s blokovima od 10 sati, iz Primavera P6), starija verzija aplikacije drugačije je brojala dane. Temeljni plan iz te verzije zadržava stari broj: zadatak od 1870 sati iznosi 233,75 dana u temeljnom planu, a sada 187 dana. Aplikacija takav temeljni plan ne pretvara. Stupci *Trajanje* i *Odstupanje trajanja* tog temeljnog plana tada prikazuju ⚠; zadržite pokazivač na njemu za objašnjenje. Datumi temeljnog plana su točni. Spremite novi temeljni plan i po potrebi izbrišite stari.
 
 **Premjesti projekt.** U prozoru *Premjesti projekt…*, čim postoje temeljni planovi, prikazuje se potvrdni okvir *Pomakni i temeljne planove*. Zadano je isključen: temeljni planovi ostaju na mjestu, pa se pomak vidi kao odstupanje. Pogledajte [Premještanje projekta](docs://howto-project-verplaatsen).
 

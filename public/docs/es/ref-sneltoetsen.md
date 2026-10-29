@@ -12,9 +12,9 @@ Todas las combinaciones de teclas de la aplicación, agrupadas como en la ventan
 
 **Cuando una tecla no funciona.** Cada entrada indica sus restricciones. Tres reglas se aplican casi siempre:
 
-- En un campo de entrada, una lista desplegable o un cuadro de texto la aplicación no intercepta las teclas, así que puede escribir sin más. Excepciones: F5, Ctrl+S, F11 y Esc durante la presentación también funcionan en un campo. En la versión compilada (escritorio y la versión web del sitio) eso vale también para Ctrl+Shift+S, Ctrl+O y Ctrl+N.
-- Mientras hay abierto un diálogo u otra ventana, no funcionan las teclas marcadas abajo con *No en un diálogo*. Eso vale también para el modo de presentación, el recorrido guiado, el diálogo de bienvenida y las preguntas que esperan respuesta, como el consentimiento al instalar una extensión.
-- Los cambios de documento (Ctrl+1 a 9, Ctrl+N, Ctrl+O) tampoco funcionan mientras *Archivo › Info del proyecto* tenga cambios que aún no ha confirmado con *Aplicar*. Descártelos o aplíquelos primero.
+- En un campo de entrada, una lista desplegable o un cuadro de texto la aplicación no intercepta las teclas, así que puede escribir sin más. Excepciones: F5, Ctrl+S, F11 y Esc durante la presentación también funcionan en un campo. Si el foco está en una lista desplegable cerrada, también funcionan las teclas con Ctrl, por ejemplo Ctrl+Z después de una elección (no Ctrl+Delete ni Ctrl+Backspace). Eso no vale en una lista abierta ni en un diálogo. En la versión compilada (escritorio y la versión web del sitio) eso vale también para Ctrl+Shift+S, Ctrl+O y Ctrl+N.
+- Mientras hay abierto un diálogo u otra ventana, no funcionan las teclas marcadas abajo con *No en un diálogo*. Eso vale también para el recorrido guiado, el diálogo de bienvenida y las preguntas que esperan respuesta, como la pregunta de si desea guardar los cambios y el consentimiento al instalar una extensión. La mayoría de estas teclas tampoco funciona en el modo de presentación. Excepción: las teclas de edición Ctrl+C, Ctrl+V, Ctrl+Z, Ctrl+Y y Delete/Backspace sí funcionan durante la presentación.
+- Los cambios de documento (Ctrl+1 a 9, Ctrl+N, Ctrl+O) tampoco funcionan mientras *Archivo › Ajustes del proyecto* tenga cambios que aún no ha confirmado con *Aplicar*. Descártelos o aplíquelos primero.
 
 ## Archivo
 
@@ -24,23 +24,23 @@ Todas las combinaciones de teclas de la aplicación, agrupadas como en la ventan
 
 **Ctrl+Shift+S** — *Guardar como*: pregunta dónde debe guardarse el archivo. En una versión de desarrollo no funciona en un campo de entrada.
 
-**Ctrl+O** — *Abrir*: abre un archivo, normalmente en una pestaña nueva. No en un diálogo y no mientras haya cambios sin aplicar en Info del proyecto.
+**Ctrl+O** — *Abrir*: abre un archivo, normalmente en una pestaña nueva. No en un diálogo y no mientras haya cambios sin aplicar en Ajustes del proyecto.
 
-**Ctrl+N** — *Nuevo proyecto*: abre la ventana *Nuevo proyecto*. No en un diálogo y no mientras haya cambios sin aplicar en Info del proyecto.
+**Ctrl+N** — *Nuevo proyecto*: abre la ventana *Nuevo proyecto*. No en un diálogo y no mientras haya cambios sin aplicar en Ajustes del proyecto.
 
 La versión compilada (escritorio y la versión web del sitio) también bloquea varias teclas del navegador para que no estorben: Ctrl+R y Ctrl+Shift+R (recargar), F12, Ctrl+Shift+I y Ctrl+Shift+J (herramientas para desarrolladores), Ctrl+U (ver el código fuente) y Ctrl+G, Ctrl+F y Ctrl+L (buscar y barra de direcciones). Ctrl+S, Ctrl+Shift+S, Ctrl+O, Ctrl+N y F5 se envían a la propia aplicación.
 
 ## Editar
 
-**Ctrl+C** — *Copiar*: copia las tareas seleccionadas. Solo con una selección. En la tabla de tareas, Ctrl+C copia las celdas seleccionadas; la tabla se encarga de eso por sí misma.
+**Ctrl+C** — *Copiar*: copia las tareas seleccionadas. Solo con una selección. No en un diálogo. No en *Archivo*, no en las pestañas *Informe* e *IFC* y no mientras el panel de recursos completo esté abierto. En la tabla de tareas, Ctrl+C copia las celdas seleccionadas; la tabla se encarga de eso por sí misma.
 
-**Ctrl+V** — *Pegar*: pega las tareas copiadas. En la tabla de tareas pega las celdas.
+**Ctrl+V** — *Pegar*: pega las tareas copiadas. No en un diálogo. No en *Archivo*, no en las pestañas *Informe* e *IFC* y no mientras el panel de recursos completo esté abierto, porque allí no se ve la tabla de tareas. En la tabla de tareas pega las celdas.
 
-**Ctrl+Z** — *Deshacer*.
+**Ctrl+Z** — *Deshacer*. No en un diálogo: cierre antes la ventana.
 
-**Ctrl+Y** o **Ctrl+Shift+Z** — *Rehacer*: repite lo que deshizo.
+**Ctrl+Y** o **Ctrl+Shift+Z** — *Rehacer*: repite lo que deshizo. No en un diálogo.
 
-**Delete** o **Backspace** — *Eliminar*: elimina las tareas seleccionadas. Solo con una selección. En una celda de la tabla de tareas, Delete y Backspace solo borran el contenido de la celda (consulte *Tabla*).
+**Delete** o **Backspace** — *Eliminar*: elimina las tareas seleccionadas. Solo con una selección. No en un diálogo. No en *Archivo*, no en las pestañas *Informe* e *IFC* y no mientras el panel de recursos completo esté abierto, porque allí no se ve la tabla de tareas. En una celda de la tabla de tareas, Delete y Backspace solo borran el contenido de la celda (consulte *Tabla*).
 
 **F2** — *Editar...*: abre el diálogo de la tarea para la primera tarea seleccionada. Solo con una selección. No en un diálogo. En una celda de la tabla de tareas, F2 empieza a editar la celda.
 
@@ -68,7 +68,7 @@ Aplicar sangría, anular sangría e insertar arriba o debajo de una tarea selecc
 
 ## Vista
 
-**F11** — *Presentación*: activa o desactiva el modo de presentación. La aplicación también pide al navegador o a la ventana la pantalla completa. También funciona en un campo de entrada.
+**F11** — *Presentación*: activa o desactiva el modo de presentación. La aplicación también pide al navegador o a la ventana la pantalla completa. También funciona en un campo de entrada. En el navegador, F11 no inicia la presentación: el navegador pone la ventana en pantalla completa por sí mismo y la aplicación no cambia. F11 sí detiene una presentación en curso en el navegador.
 
 **Esc** (durante la presentación) — *Salir de presentación*. También funciona en un campo de entrada. Esta tecla tiene prioridad sobre *Deseleccionar*.
 
@@ -96,7 +96,7 @@ Aplicar sangría, anular sangría e insertar arriba o debajo de una tarea selecc
 
 **F1** — *Abrir ayuda*: abre *Archivo › Ayuda*. No en un campo de entrada y no en un diálogo. En una ventana, use el signo de interrogación arriba a la derecha: abre la ayuda del artículo sobre esa ventana (consulte [La cinta, pestaña por pestaña](docs://ref-lint), en *Ayuda*).
 
-**Ctrl+1** a **Ctrl+9** — *Cambiar de documento*: va al primer documento abierto, hasta el noveno. Si ese documento no existe, no pasa nada. No en un diálogo y no mientras haya cambios sin aplicar en Info del proyecto.
+**Ctrl+1** a **Ctrl+9** — *Cambiar de documento*: va al primer documento abierto, hasta el noveno. Si ese documento no existe, no pasa nada. No en un diálogo y no mientras haya cambios sin aplicar en Ajustes del proyecto.
 
 **Ctrl+Home** — *Ir a hoy*: desplaza la línea de tiempo para que una fecha quede a la izquierda de la vista. Es la fecha de estado si ha definido una; si no, es hoy. Por eso la etiqueta dice «hoy», aunque la línea de tiempo salte a la fecha de estado. El zoom y el inicio de la línea de tiempo no cambian. Si una celda de la tabla de tareas tiene el foco, Ctrl+Home va en cambio a la primera celda de la tabla (consulte *Tabla*).
 

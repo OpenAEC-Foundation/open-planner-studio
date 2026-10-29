@@ -24,6 +24,8 @@ Projektet visas i en egen flik och är aktivt direkt. *Nytt* och *Öppna* i meny
 
 Varje flik har en färgad prick som hör till projektet. En flik med en liten prick efter namnet har osparade ändringar.
 
+Om alla flikar inte får plats i bredden visas två pilar mellan flikarna och plustecknet (*Rulla flikarna mot början* och *Rulla flikarna mot slutet*). Varje klick flyttar flikarna två steg. En pil är grå när du redan står vid början eller slutet. Du kan också rulla med musens hjul över flikarna. Fliken du väljer flyttas alltid automatiskt in i bild.
+
 ### Stänga ett projekt
 
 Klicka på krysset bredvid namnet på fliken (*Stäng*) eller på krysset på ett kort i översikten. Ett projekt utan ändringar stängs direkt. Har det osparade ändringar visar appen dialogrutan *Osparade ändringar* med tre val:
@@ -38,7 +40,7 @@ Stänger du det sista projektet finns en tom tidsplan kvar, med namnet *Ny tidsp
 
 ### Välja stil för dokumentbyte
 
-Flikarna är ett val. Öppna inställningsfönstret med kugghjulet i namnlisten, gå till fliken *Utseende* och välj i inställningen *Stil för dokumentbyte*:
+Flikarna är ett val. Öppna fönstret *Appinställningar* med kugghjulet i namnlisten, gå till fliken *Utseende* och välj i inställningen *Stil för dokumentbyte*:
 
 - *Horisontella flikar*: standard. En rad med flikar under menyfliksområdet.
 - *Vertikala flikar*: en smal remsa till vänster med en knapp per projekt (de första bokstäverna i namnet) och ett plustecken. Om du för muspekaren över en knapp ser du namn, filnamn, antal uppgifter, antal kritiska uppgifter och slutdatum. Knappen överst öppnar översikten.
@@ -50,7 +52,7 @@ Alla tre stilarna öppnar samma översikt, och Ctrl+1 till Ctrl+9 fungerar i var
 
 **Vad som hör till projektet och vad som delas.** Varje projekt har en egen vy: zoom och position, en aktiv layout med filter, gruppering eller sortering, delad vy, sambandslinjerna och de ihopfällda faserna. Byter du till ett annat projekt ser du dess egen vy där. Delat mellan alla projekt är den valda fliken i menyfliksområdet, minikartan, överlagringarna (baslinjeöverlagring, framdriftslinje och resten), ditt val av kolumner, dina layouter och dina rapportval.
 
-**Du kan inte byta när en dialogruta är öppen.** Så länge en dialogruta är öppen, till exempel inställningsfönstret eller ett uppgiftsfönster, gör Ctrl+1 till Ctrl+9 ingenting i appen. I webbläsaren byter de i stället webbläsarflikar. Stäng dialogrutan först. En ännu inte tillämpad ändring i *Projektinfo* i Backstage blockerar också byte.
+**Du kan inte byta när en dialogruta är öppen.** Så länge en dialogruta är öppen, till exempel fönstret *Appinställningar* eller ett uppgiftsfönster, gör Ctrl+1 till Ctrl+9 ingenting i appen. I webbläsaren byter de i stället webbläsarflikar. Stäng dialogrutan först. En ännu inte tillämpad ändring i *Projektinställningar* i Backstage blockerar också byte.
 
 **Ctrl+1 till Ctrl+9 räknar i ordning.** Genvägen går till projektet på den platsen i raden. Stänger du ett projekt flyttas de andra platserna upp. Har du fler än nio projekt öppna når du de övriga bara via flikarna eller översikten.
 

@@ -24,17 +24,17 @@ Om en uppgift är markerad visar histogrammet bara belastningen för den uppgift
 ### 2. Välj en lösning
 
 - **Mer kapacitet.** Om en andra murare verkligen kommer, ställ in *Max enheter* på 2 (se [Hantera resurser](docs://howto-resources-beheren)). Då är överbeläggningen borta.
-- **Färre tilldelningsenheter per dag.** Sänk *Enh./dag* eller välj en annan kurva för tilldelningen (se [Tilldela resurser med en kurva](docs://howto-resource-toewijzen)).
+- **Färre tilldelningsenheter per dag.** Sänk *Tilldelningsenhet* eller välj en annan kurva för tilldelningen (se [Tilldela resurser med en kurva](docs://howto-resource-toewijzen)).
 - **Lägg uppgifterna efter varandra.** Lägg till ett samband mellan de två uppgifterna, så att den andra uppgiften bara startar när den första är klar (se [Lägga till samband](docs://howto-relaties-leggen)).
 - **Utjämning.** Appen låter en uppgift starta senare.
 
 ### 3. Utjämna
 
-1. Kontrollera att tidsplanen har beräknats med *Beräkna* (F5), till exempel via *Start › Tidsplan › Beräkna*.
+1. Kontrollera att tidsplanen har beräknats med **Beräkna** (F5), till exempel via *Start › Tidsplan › Beräkna*.
 2. Välj *Resurser › Utjämning › Utjämna…*. Fönstret *Utjämna resurser* öppnas.
 3. Bestäm om projektets slutdatum får flyttas. Lämnar du rutan *Jämna ut endast inom slack (utjämning) — projektets slutdatum ligger fast* av, då kan slutdatumet flyttas. Slår du på rutan, flyttar appen bara uppgifter inom deras slack.
 4. Under *Resurser* står de resurser som utjämnas. Som standard är alla resurser ikryssade, utom material. Ta bort krysset för en resurs som du vill lämna orörd.
-5. Klicka på *Beräkna*. Medan den beräknar står det *Beräknar* och du kan stoppa med *Stoppa*. Tidsplanen ändras ännu inte: det är ett förslag.
+5. Klicka på *Beräkna*. Medan den beräknar står det *Beräknar…* och du kan stoppa med *Stoppa*. Tidsplanen ändras ännu inte: det är ett förslag.
 6. Läs förslaget. Överst står slutdatumet, till exempel *Projektslutdatum: oförändrat (30-08-2027)* eller *Projektslutdatum: 25-08-2027 → 30-08-2027*. Under det står en tabell. Där ser du per uppgift kolumnerna *Gammal start*, *Ny start* och *Dagar förskjutna*, till exempel *Build outer cavity leaf*, 29-06-2027, 06-07-2027 och *5 d*.
 7. Välj *Tillämpa*. Appen skriver förskjutningarna till uppgifterna och beräknar om tidsplanen direkt. Du behöver inte trycka på F5. *Avbryt* stänger fönstret utan ändring.
 8. Kontrollera *Resurser › Överbeläggning*. Där står nu *Ingen*.

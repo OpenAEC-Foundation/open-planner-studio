@@ -1,0 +1,82 @@
+name: MCP echte app
+
+# Externe-clienttest tegen de ECHTE desktop-app: een Tauri-dev-build onder xvfb, de echte Rust-bridge
+# (`src-tauri/src/mcp_bridge.rs`) en de officiële MCP-client (`@modelcontextprotocol/sdk`). Zelfde
+# controles als `tests/mcp/cases-externe-client.ts` (dat in `npm test` tegen een Node-spiegel van de
+# bridge draait) en de Rust-unit-tests van de bridge (die draait geen andere workflow). Bewust NIET in de verplichte CI-keten: hij bouwt de Rust-app (~10-15 min) en hangt
+# af van WebKitGTK onder xvfb. Hij draait alleen als de MCP-route verandert, of met de hand.
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src-tauri/src/mcp_bridge.rs'
+      - 'src-tauri/src/main.rs'
+      - 'src-tauri/src/desktop_integration.rs'
+      - 'src-tauri/Cargo.toml'
+      - 'src-tauri/Cargo.lock'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'src/services/mcp/**'
+      - 'src/hooks/useAiAutostart.ts'
+      - 'src/utils/devBridge.ts'
+      - 'tests/mcp/externalClient.ts'
+      - 'tests/mcp/realApp/**'
+      - '.github/workflows/mcp-real-app.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mcp-real-app-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  real-app:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build (src-tauri)
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          workspaces: 'src-tauri -> target'
+
+      - name: Install Tauri-afhankelijkheden en xvfb
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xvfb
+
+      - name: Install frontend dependencies (npm ci)
+        run: npm ci
+
+      # De Rust-unit-tests van mcp_bridge.rs draait verder geen enkele workflow. `dist/` hoeft alleen te
+      # bestaan: de standaardfeature `custom-protocol` sluit de frontend in bij het compileren.
+      - name: Rust-unit-tests van de bridge en de AppImage-integratie
+        run: |
+          mkdir -p dist
+          cargo test --manifest-path src-tauri/Cargo.toml mcp_bridge
+          cargo test --manifest-path src-tauri/Cargo.toml desktop_integration
+
+      - name: Externe client tegen de echte app
+        run: bash tests/mcp/realApp/run.sh
+
+      - name: App-log bewaren
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcp-real-app-log
+          path: test-results/mcp-real-app/
+          retention-days: 7
+          if-no-files-found: ignore

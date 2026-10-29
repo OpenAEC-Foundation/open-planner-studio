@@ -16,7 +16,7 @@ Una **baseline** è un'istantanea della pianificazione in un certo momento, di s
 
 L'esempio qui sotto usa il profilo di calcolo *Open Planner Studio*, con cui l'app calcola un nuovo progetto. Più avanti puoi leggere che cosa cambia nei profili Primavera P6 e Microsoft Project.
 
-L'app non ricalcola da sola. Dopo ogni modifica di avanzamento o della data di stato, la barra di stato mostra *Non aggiornato — ricalcola (F5)*. Premi **Calcola** (F5), per esempio tramite *Pianificazione › Pianificazione › Calcola*. Se *Calcola automaticamente* è attivo (sotto *Impostazioni › Progetto › Impostazioni*, scheda *Pianificazione*, intestazione *Calcolo*), l'app lo fa da sola.
+L'app non ricalcola da sola. Dopo ogni modifica di avanzamento o della data di stato, la barra di stato mostra *Non aggiornato — ricalcola (F5)*. Premi **Calcola** (F5), per esempio tramite *Pianificazione › Pianificazione › Calcola*. Se *Calcola automaticamente* è attivo (sotto *Impostazioni › Progetto › Impostazioni app*, scheda *Pianificazione*, intestazione *Calcolo*), l'app lo fa da sola.
 
 ### La data di stato
 
@@ -66,7 +66,7 @@ Quando salvi, l'app registra per ogni attività senza sottoattività l'inizio an
 
 Lo **scostamento** è la differenza in giorni lavorativi tra la baseline e la pianificazione attuale. Un segno più vuol dire più tardi, un segno meno più presto. L'app conta nel calendario di progetto. Il rapporto variance dà lo scostamento di inizio e di fine per attività. Lo stato dipende solo dalla fine: *Più tardi* per un più, *Più presto* per un meno, altrimenti *Nei tempi*. Un'attività aggiunta dopo la baseline si chiama *Nuova*; un'attività che non esiste più è *Eliminata*.
 
-Due osservazioni. Lo scostamento di durata si trova nella tabella attività (colonna *Scostamento durata*), non nel rapporto variance. Confronta la durata pianificata dell'attività ora con quella nella baseline. L'avanzamento non cambia quella durata pianificata: un'attività pianificata a due giorni che ne ha richiesti tre ha quindi uno scostamento di fine di +1, ma uno scostamento di durata di 0. E se salvi una baseline dopo aver inserito avanzamento, registra lo stato con quelle date effettive; lo scostamento è allora zero.
+Due osservazioni. Lo scostamento di durata si trova nella tabella attività (colonna *Scostamento durata*), non nel rapporto variance. Confronta la durata pianificata dell'attività ora con quella nella baseline. L'avanzamento non cambia quella durata pianificata: un'attività pianificata a due giorni che ne ha richiesti tre ha quindi uno scostamento fine di +1, ma uno scostamento di durata di 0. E se salvi una baseline dopo aver inserito avanzamento, registra lo stato con quelle date effettive; lo scostamento è allora zero.
 
 Il rapporto di avanzamento mette l'avanzamento pianificato accanto a quello effettivo. Entrambi sono ponderati per giorni lavorativi. Pianificato è la parte di ogni attività che secondo la baseline avrebbe dovuto essere finita alla data di stato; effettivo è la percentuale che è stata inserita.
 
@@ -137,27 +137,27 @@ La consegna resta venerdì 6 agosto in entrambi i casi: l'attività Painting ave
 
 ### Altri profili di calcolo
 
-Nei profili Primavera P6 e Microsoft Project l'attività Painting in questo esempio termina nelle stesse date (27 e 22 luglio). Differiscono sui punti seguenti. Si tratta di convenzioni del profilo; le trovi sotto *Impostazioni › Progetto › Info progetto*, nel blocco *Profilo di calcolo e opzioni*.
+Nei profili Primavera P6 e Microsoft Project l'attività Painting in questo esempio termina nelle stesse date (27 e 22 luglio). Differiscono sui punti seguenti. Si tratta di convenzioni del profilo; le trovi sotto *Impostazioni › Progetto › Impostazioni progetto*, nel blocco *Profilo di calcolo e opzioni*.
 
-- Nel profilo Microsoft Project il lavoro che non è ancora iniziato non si sposta alla data di stato (convenzione *Non spostare le attività non iniziate alla data di stato*). Se nell'esempio sopra imposti solo una data di stato e non inserisci nulla, la consegna in quel profilo resta venerdì 6 agosto.
+- Nel profilo Microsoft Project un'attività non ancora iniziata non si sposta alla data di stato (convenzione *Non spostare le attività non iniziate alla data di stato*). Se nell'esempio sopra imposti solo una data di stato e non inserisci nulla, la consegna in quel profilo resta venerdì 6 agosto.
 - Nel profilo Microsoft Project anche il lavoro rimanente non inizia prima dell'inizio effettivo più la durata già trascorsa (convenzione *Il lavoro rimanente riprende dopo la durata trascorsa*). Questo è un limite inferiore in più, oltre alla data di stato: vale la più tarda delle due. Prendi *Build inner cavity leaf* (5 giorni lavorativi), iniziata martedì 29 giugno e al 40% mercoledì 30 giugno, data di stato (due squadre fanno la muratura nello stesso momento, quindi il 40% è già fatto dopo un giorno). Tutto ciò che precede è terminato secondo il piano. Open Planner Studio e Primavera P6 fanno terminare l'attività venerdì 2 luglio; Microsoft Project lunedì 5 luglio, perché martedì 29 giugno più 2 giorni lavorativi trascorsi è giovedì 1 luglio, dopo la data di stato.
-- Primavera P6 mostra come inizio anticipato di un'attività in corso l'inizio del lavoro rimanente, non l'inizio effettivo (nell'esempio dell'inner-leaf mercoledì 30 giugno).
+- Primavera P6 mostra come inizio anticipato di un'attività in corso l'inizio del lavoro rimanente, non l'inizio effettivo (nell'esempio dell'inner-leaf mercoledì 30 giugno). La colonna *Inizio* e la barra mostrano l'inizio effettivo in ogni profilo.
 - Nel profilo Primavera P6, con Progress Override, anche la relazione con un successore già iniziato non conta per il predecessore: non limita più le sue date più tarde e il suo margine libero (convenzione *Progress Override ignora anche all'indietro un successore iniziato*). Nell'esempio dell'intonacatore e del pittore non lo vedi, perché l'attività Plastering è comunque critica tramite il massetto: le sue date più tarde e il suo margine libero sono uguali con Retained Logic e con Progress Override.
-- Quando apri un .xer file, l'app prende la modalità di progresso dal file. Actual Dates, la terza modalità di P6, non è nota all'app; un file del genere viene calcolato come Retained Logic.
+- Quando apri un file .xer, l'app prende la modalità di progresso dal file. Actual Dates, la terza modalità di P6, non è nota all'app; un file del genere viene calcolato come Retained Logic.
 
 ## Conseguenze e malintesi
 
-**«Sposto semplicemente la data di stato in avanti.»** Se la sposti, il lavoro rimanente delle attività in corso inizia alla nuova data, e il lavoro non ancora iniziato non può mai trovarsi prima di quella data. Sposta quindi la data di stato solo insieme a un aggiornamento dell'avanzamento.
+**«Sposto semplicemente la data di stato in avanti.»** Se la sposti, il lavoro rimanente delle attività in corso inizia alla nuova data, e un'attività non ancora iniziata non può mai trovarsi prima di quella data. Sposta quindi la data di stato solo insieme a un aggiornamento dell'avanzamento.
 
 **«Inserire il 100% registra la fine effettiva.»** Solo se inserisci anche la fine effettiva. Se imposti un'attività al 100% senza fine effettiva, la sua fine diventa la data di stato. Se in realtà è terminata prima, inserisci la fine effettiva.
 
 **«0% vuol dire non iniziata.»** Se un'attività ha un inizio effettivo, conta come iniziata, anche allo 0%. Il lavoro rimanente è allora l'intera durata e inizia alla data di stato. Cancella l'inizio effettivo, così conta di nuovo come non iniziata.
 
-**«Progress Override risolve l'avviso.»** Il messaggio fuori sequenza resta. La modalità decide solo come calcola l'app. Se la relazione non è più corretta, cambia la relazione.
+**«Progress Override risolve l'avviso.»** L'avviso sull'avanzamento fuori sequenza resta. La modalità decide solo come calcola l'app. Se la relazione non è più corretta, cambia la relazione.
 
 **«La pausa in un'attività in modalità divisione scompare.»** No: una pausa nella parte ancora da fare resta nel lavoro rimanente. Prendi un'attività di 5 giorni lavorativi con una pausa di 1 giorno dopo 2 giorni di lavoro, iniziata martedì 29 giugno e, con data di stato mercoledì 30 giugno, al 40%. Il lavoro rimanente di 3 giorni lavorativi inizia alla data di stato e attraversa la pausa: la fine è lunedì 5 luglio. Senza la pausa la fine era venerdì 2 luglio.
 
-**Ore e data di stato.** Non puoi inserire un orario nella barra multifunzione: inserisci la data di stato come data. Se fai il punto dopo gli orari di lavoro, imposta la data di stato sul giorno lavorativo successivo. Un'attività in ore calcola il lavoro rimanente dall'inizio della data di stato. Prendi *Lay hollow-core floor* nel progetto di prova dopo il tutorial 4: 5 ore, lunedì 28 giugno, giorno lavorativo dalle 07:00. Con la data di stato lunedì 28 giugno e l'attività al 40%, ha 3 ore di lavoro rimanente, dalle 07:00 alle 10:00, anche se quella mattina è già stato fatto del lavoro. Come l'app conta le ore è spiegato in [Giorni e ore](docs://uitleg-dagen-en-uren).
+**Ore e data di stato.** Non puoi inserire un orario nella barra multifunzione: inserisci la data di stato come data. Se fai il bilancio dopo l'orario di lavoro, imposta la data di stato sul giorno lavorativo successivo. Un'attività in ore calcola il lavoro rimanente dall'inizio della data di stato. Prendi *Lay hollow-core floor* nel progetto di prova dopo il tutorial 4, nel momento in cui tutto ciò che la precede è terminato: 5 ore, lunedì 28 giugno, giorno lavorativo dalle 07:00. Con la data di stato lunedì 28 giugno e l'attività al 40%, ha 3 ore di lavoro rimanente, dalle 07:00 alle 10:00, anche se quella mattina è già stato fatto del lavoro. Come l'app conta le ore è spiegato in [Giorni e ore](docs://uitleg-dagen-en-uren).
 
 **Aggiornare una baseline.** Non è possibile. Salvi una nuova baseline ed elimini quella vecchia. Se sposti il progetto, le date effettive e la data di stato vengono spostate insieme, ma le baseline per impostazione predefinita non vengono spostate: così lo spostamento resta visibile come scostamento. Vedi [Spostare un progetto](docs://howto-project-verplaatsen).
 

@@ -201,6 +201,7 @@ test('fileTools exporteert de IFC-state uit B en laat A exact gelijk', async () 
   const fakeFs: McpFileFs = {
     homeDir: async () => '/home/test',
     exists: async () => false,
+    stat: async () => { throw new Error('Deze export zonder schemavraag vraagt geen identiteit op'); },
     writeTextFile: async (_path, content) => { written = content; },
     readTextFile: async () => '',
     readFile: async () => new Uint8Array(),

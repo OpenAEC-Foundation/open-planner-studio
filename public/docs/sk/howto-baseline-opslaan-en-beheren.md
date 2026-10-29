@@ -10,10 +10,10 @@ Pôvodný plán zaznamenávate vtedy, keď je plán schválený a realizácia sa
 
 ### Uloženie pôvodného plánu
 
-1. Stlačte **Prepočítať** (F5), napríklad cez *Plán › Plán › Prepočítať*. Pôvodný plán zaznamená dátumy, ktoré sa v tom okamihu vypočítajú.
+1. Stlačte **Prepočítať** (F5), napríklad cez *Plán › Plán › Prepočítať*. Pôvodný plán zaznamená dátumy, ktoré aplikácia v tom okamihu počíta.
 2. Vyberte *Plán › Smerné plány a postup › Spravovať pôvodné plány…*. Otvorí sa okno *Pôvodné plány*.
 3. V časti *Uložiť nový pôvodný plán* je navrhnutý názov, napríklad *Pôvodný plán 1 — (dnešný dátum)*. Zadajte vlastný názov, podľa ktorého ho neskôr spoznáte, napríklad *Pôvodný plán*.
-4. Kliknite na *Uložiť*. Pôvodný plán je teraz v zozname a hneď je aktívny pôvodný plán.
+4. Kliknite na *Uložiť*. Pôvodný plán je teraz v zozname a hneď je aktívnym pôvodným plánom.
 5. Kliknite na *Zavrieť*.
 
 Pod každým pruhom úlohy v diagrame Gantt je teraz tenký pruh s dátumami pôvodného plánu. Medzník dostane malý kosoštvorec. Prekrytie zapnete alebo vypnete cez *Zobrazenie › Smerné plány a postup › Prekrytie smerného plánu*.
@@ -28,7 +28,7 @@ Zmeňte názov v zozname. Zmena sa uplatní hneď; kliknúť na *Uložiť* nemus
 
 ### Odstránenie pôvodného plánu
 
-Kliknite na malý kôš na odpadky vedľa pôvodného plánu v zozname. Ak odstránite aktívny pôvodný plán, aplikácia sa spýta *Odstrániť aktívny pôvodný plán?*. Potom sa aktívnym stane najnovší zvyšný pôvodný plán. Ak iný neexistuje, aktívny pôvodný plán už nie je a prekrytie zmizne. Stlačením Ctrl+Z obnovíte odstránený pôvodný plán.
+Kliknite na malý kôš na odpadky vedľa pôvodného plánu v zozname. Ak odstránite aktívny pôvodný plán, aplikácia sa spýta *Odstrániť aktívny pôvodný plán?*. Potom sa aktívnym stane najnovší zvyšný pôvodný plán. Ak iný neexistuje, aktívny pôvodný plán už nie je a prekrytie zmizne. Odstránený pôvodný plán obnovíte stlačením Ctrl+Z. Najprv zavrite okno; Ctrl+Z vo vnútri okna nefunguje.
 
 ### Odchýlky v tabuľke úloh
 
@@ -42,11 +42,13 @@ Každý pôvodný plán má šesť stĺpcov v tabuľke úloh. Kliknite na **+** 
 
 **Pôvodný plán sa nedá aktualizovať.** Ak chcete dohodu upraviť, uložte nový pôvodný plán a podľa potreby odstráňte starý.
 
+**⚠ pri stĺpcoch Trvanie alebo Odchýlka v trvaní.** Pri úlohe v hodinách je jeden deň pracovným časom jej kalendára. Ak má kalendár vlastný počet hodín za deň (napríklad 8 pri blokoch po 10 hodinách, z Primavera P6), staršia verzia aplikácie počítala dni inak. Pôvodný plán z tej verzie si zachová starý počet: úloha s 1870 hodinami má v pôvodnom pláne 233,75 dňa a teraz 187 dní. Aplikácia takýto pôvodný plán neprevádza. Stĺpce *Trvanie* a *Odchýlka v trvaní* tohto pôvodného plánu potom zobrazia ⚠. Vysvetlenie zobrazíte tak, že na ⚠ ukážete myšou. Dátumy pôvodného plánu sú správne. Uložte nový pôvodný plán a podľa potreby odstráňte starý.
+
 **Len úlohy bez čiastkových úloh.** Fáza nie je v pôvodnom pláne: nemá pruh pôvodného plánu ani odchýlku. Fáza sa odvodzuje od úloh pod ňou.
 
 **Nové a odstránené úlohy.** Úloha, ktorú pridáte po uložení, nemá pruh pôvodného plánu. V zostave odchýlok sa zobrazí ako *Nová*. Úloha, ktorú odstránite, sa zobrazí ako *Vypustená*.
 
-**Presunúť projekt.** V okne *Presunúť projekt…* je, len čo existujú pôvodné plány, začiarkavacie políčko *Posunúť aj pôvodné plány*. Predvolená hodnota je vypnutá: pôvodné plány zostanú na mieste, takže posun sa zobrazí ako odchýlka. Pozri [Presun projektu](docs://howto-project-verplaatsen).
+**Presunúť projekt.** V okne *Presunúť projekt…* je, len čo existujú pôvodné plány, začiarkavacie políčko *Posunúť aj pôvodné plány*. Predvolená hodnota je vypnutá: pôvodné plány sa nepresunú, takže posun sa zobrazí ako odchýlka. Pozrite si [Presun projektu](docs://howto-project-verplaatsen).
 
 **Uložené v súbore projektu.** Pôvodné plány a výber aktívneho pôvodného plánu sa uložia spolu s projektom. Pri otvorení súboru sa vrátia.
 

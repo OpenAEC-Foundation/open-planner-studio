@@ -20,7 +20,7 @@ Trækker du mest op eller ned i stedet for til siden, rykker du opgaven til en a
 ### Justere varigheden
 
 1. Ryk musen til højre kant af bjælken. Markøren bliver til en pil, der peger til venstre og til højre.
-2. Træk i kanten. Mens du trækker, viser en lille pille i temaets accentfarve (som standard orange) den varighed, opgaven får nu, fx *4d*. Pillen følger med, så du ser den nye varighed, før du slipper. Ved højre kant står pillen inde i bjælken, ved venstre kant lige til venstre for den. Pillen viser varigheden, sådan som varighedskolonnen viser den.
+2. Træk i kanten. Mens du trækker, viser en lille pille i temaets accentfarve (som standard orange) den varighed, opgaven ville få nu, fx *4d*. Pillen følger med, så du ser den nye varighed, før du slipper. Ved højre kant står pillen inde i bjælken, ved venstre kant lige til venstre for den. Pillen viser varigheden, sådan som varighedskolonnen viser den.
 3. Slip museknappen. Varigheden er den, pillen viste.
 
 Venstre kant rykker starten og lader slutdatoen være, så opgaven bliver kortere eller længere foran. Den samme SNET-regel gælder som ved rykning. Trækker du i midten af bjælken, vises pillen ikke: varigheden ændrer sig ikke.
@@ -31,10 +31,10 @@ Varigheden tæller arbejdsdage i opgavens kalender. Weekender og fridage tæller
 
 ### Forskyde tidslinjen
 
-Hvad et træk på den tomme baggrund gør, afhænger af din scrolltilstand. Du vælger den i *Indstillinger*, på fanen *Udseende*, under *Gantt › Scroll og zoom* ved *Tilstand*:
+Hvad et træk på den tomme baggrund gør, afhænger af din scrolltilstand. Du vælger den i *App-indstillinger*, på fanen *Udseende*, under *Gantt › Scroll og zoom* ved *Tilstand*:
 
 - *Zoom + træk* (standard): hvis du trækker på den tomme baggrund med venstre museknap, bevæger tidslinjen sig med musen, som på et kort. Markøren er en hånd. På en bjælke starter et træk blot en bjælkebevægelse.
-- *Position* og *Taster*: det samme træk laver en markeringsboks. Du forskyder tidslinjen med hjulet (se [Indstillinger](docs://ref-instellingen)) eller med midterknappen.
+- *Position* og *Taster*: det samme træk laver en markeringsboks. Du forskyder tidslinjen med hjulet (se [App-indstillinger](docs://ref-instellingen)) eller med midterknappen.
 
 **Midterknappen** (hjulet trykket ned) forskyder tidslinjen i alle tilstande, også hvis du starter på en bjælke. Den virker ikke, mens en anden bevægelse er i gang, fx når du trækker en bjælke.
 
@@ -50,13 +50,17 @@ Mere om markering findes i [Markere, slette og fortryde opgaver](docs://howto-ta
 
 ### Zoome ind og ud
 
-1. Brug *Zoom +* og *Zoom -* (*Start › Zoom*), eller tasterne + og -. Hjulet zoomer også; hvornår det sker, afhænger af din scrolltilstand (se [Indstillinger](docs://ref-instellingen)).
+1. Brug *Zoom +* og *Zoom -* (*Start › Zoom*), eller tasterne + og -. Hjulet zoomer også; hvornår det sker, afhænger af din scrolltilstand (se [App-indstillinger](docs://ref-instellingen)).
 2. Vil du have hele projektet i billedet, vælg *Visning › Tidsskala › Tilpas til projekt*, eller tryk på Ctrl+0. *Nulstil* (på fanen *Visning*) eller tasten 0 sætter zoomen tilbage til standard.
 3. Nederst til højre i statuslinjen står zoomen i pixels pr. dag, fx *Zoom: 15px/dag*.
 
 Jo længere du zoomer ud, jo færre gitterlinjer er der. Ved 8 pixels pr. dag eller mere er der en linje for hver dag, med en tykkere linje ved skellet mellem ugerne. Mellem 2 og 8 pixels pr. dag er kun ugeskellet tilbage. Under 2 pixels pr. dag, på årsniveau, er kun månedsskellene tilbage. Ellers ville tegnefladen blive et jævnt stribemønster, hvor bjælkerne forsvinder. De grå weekender og fridage og de ugebånd, der skiftevis har en farvetone, bliver på alle niveauer; de bærer ugestrukturen, når linjerne forsvinder. I tidslinjens hoved vises ugenumre og dagnumre kun, når der er plads til dem, og fra 40 pixels pr. dag vises ugedagen også før dagnummeret.
 
 Opgavens navn vises i bjælken, hvis det passer helt. Passer det ikke, fx når du zoomer ud, vises det fulde navn til højre for bjælken.
+
+### Se detaljerne for en opgave
+
+Hold musen stille over en bjælke. Et lille kort vises med opgavens navn, *WBS*, *Varighed*, *Start*, *Slutdato*, *Fremdrift*, *Kritisk* og *Samlet slæk*. Under træk, forskydning, en markeringsboks eller et højreklikmenu forsvinder kortet.
 
 ## Faldgruber og hvad appen gør da
 
@@ -72,5 +76,5 @@ Opgavens navn vises i bjælken, hvis det passer helt. Passer det ikke, fx når d
 
 - [Højreklikmenuer](docs://ref-contextmenus): menuerne på en bjælke, en række og en gruppeoverskrift.
 - [Tastaturgenveje](docs://ref-sneltoetsen): tasterne til zoom og til at annullere en bevægelse.
-- [Indstillinger](docs://ref-instellingen): scrolltilstanden og tidsaksen.
+- [App-indstillinger](docs://ref-instellingen): scrolltilstanden og tidsaksen.
 - [Begrænsninger og deadlines](docs://uitleg-constraints): hvorfor en rykket start bliver til en begrænsning.

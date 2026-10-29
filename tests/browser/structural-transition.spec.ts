@@ -9,6 +9,7 @@
 //   rechtsklik › Subtaak toevoegen, en "Taak bewerken" › Bovenliggende taak.
 // `__OPS__` zet alleen de fixture (taken, resource, toewijzing, selectie) en leest state.
 import type { Locator, Page } from '@playwright/test';
+import zhCommon from '@/i18n/locales/zh/common.json' with { type: 'json' };
 import { barPoint, expect, state, test, waitForOps, waitForWelcomeDialog } from './fixtures/ops';
 
 async function seedAssignedLeaf(page: Page): Promise<{ L: string; N: string; R: string }> {
@@ -28,6 +29,8 @@ async function seedAssignedLeaf(page: Page): Promise<{ L: string; N: string; R: 
 }
 
 const assignmentTaskIds = (page: Page) => page.evaluate(() => window.__OPS__!.store.getState().assignments.map(a => a.taskId));
+/** Complete waardesnapshot: ook resource, inzet en eventuele overige toewijzingsvelden moeten gelijk blijven. */
+const assignmentSnapshot = (page: Page) => page.evaluate(() => window.__OPS__!.store.getState().assignments);
 
 test('mijlpaalvinkje op een taak met toewijzing wordt geweigerd met melding', async ({ page, ops: _ops }) => {
   const { L } = await seedAssignedLeaf(page);
@@ -35,13 +38,63 @@ test('mijlpaalvinkje op een taak met toewijzing wordt geweigerd met melding', as
 
   const checkbox = page.locator('label', { hasText: /^Milestone$/ }).first().locator('input[type=checkbox]');
   await expect(checkbox).not.toBeChecked();
+  const beforeSingle = await assignmentSnapshot(page);
+  expect(beforeSingle).toHaveLength(1);
   await checkbox.click();
 
   await expect(page.locator('.ops-toast', { hasText: /'Metselen' has resource assignments and cannot become a milestone/ }))
     .toBeVisible();
   await expect(checkbox).not.toBeChecked();
   expect(await page.evaluate((id) => window.__OPS__!.store.getState().tasks.find(t => t.id === id)!.isMilestone, L)).toBe(false);
-  expect(await assignmentTaskIds(page)).toEqual([L]);
+  expect(await assignmentSnapshot(page)).toEqual(beforeSingle);
+
+  // Dezelfde route in een taal zonder CLDR-one: een echte taalkeuze, daarna opnieuw klikken.
+  await page.locator('.ops-toast [data-ops-toast-close]').click();
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: true }));
+  await page.getByRole('button', { name: 'Language', exact: true }).click();
+  await page.getByRole('option', { name: /中文/ }).click();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'zh');
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  const zhCheckbox = page.locator('[data-ops-rail] label', { hasText: /^里程碑$/ }).first().locator('input[type=checkbox]');
+  await zhCheckbox.click();
+  const named = page.locator('.ops-toast.toast-error');
+  await expect(named).toContainText('Metselen');
+  await expect(named).not.toContainText('{{');
+  await expect(named).toHaveAttribute('role', 'alert');
+  await expect(zhCheckbox).not.toBeChecked();
+  expect(await assignmentSnapshot(page)).toEqual(beforeSingle);
+  await named.locator('[data-ops-toast-close]').click();
+
+  // Bulk via het echte contextmenu: twee toegewezen taken blijven gewoon taken, beide namen
+  // staan onder het getal. De brug zet alleen de aanvullende fixture.
+  const N = await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    const n = s.tasks.find(t => t.name === 'Voegen')!.id;
+    const resource = s.addResource({ name: 'Voeger', type: 'LABOR', description: '', maxUnits: 1 });
+    window.__OPS__!.store.getState().assignResource(n, resource, 0.375);
+    return n;
+  });
+  await selectRow(page, L);
+  await nameCell(page, N).click({ modifiers: ['Control'] });
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().selectedTaskIds.length)).toBe(2);
+  const beforeBulk = await assignmentSnapshot(page);
+  expect(beforeBulk).toHaveLength(2);
+  expect(new Set(beforeBulk.map(a => a.resourceId)).size).toBe(2);
+  expect(beforeBulk.map(a => a.unitsPerDay)).toEqual([1, 0.375]);
+  await nameCell(page, L).click({ button: 'right' });
+  await page.getByText('切换里程碑', { exact: true }).click();
+  const bulk = page.locator('.ops-toast.toast-error');
+  await expect(bulk).toHaveCount(1);
+  // Exact op de hoofdtekst: een deeltekst "2" zou ook 12 of 22 laten slagen (knownbug 223).
+  // De browser kiest zelf taal, CLDR-other en getal; taaknamen horen in de aparte detailregel.
+  await expect(bulk.locator('.ops-toast-message')).toHaveText(
+    zhCommon.notifications.milestoneRefusedAssignmentsMany_other.replace('{{count}}', '2'));
+  await expect(bulk.locator('.ops-toast-detail')).toHaveText(
+    zhCommon.notifications.refusedTaskNames.replace('{{names}}', 'Metselen, Voegen'));
+  await expect(bulk).toHaveAttribute('role', 'alert');
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().tasks.map(t => t.isMilestone))).toEqual([false, false]);
+  expect(await assignmentSnapshot(page)).toEqual(beforeBulk);
 });
 
 const dialog = (page: Page) => page.locator('[data-ops-phase-dialog]');
@@ -59,12 +112,12 @@ function nameCell(page: Page, taskId: string): Locator {
 }
 const parentOf = (page: Page, id: string) =>
   page.evaluate(taskId => window.__OPS__!.store.getState().tasks.find(t => t.id === taskId)!.parentId, id);
-/** Structuur, toewijzingen en undo-diepte: wat Annuleren ongemoeid moet laten. */
+/** Structuur en volledige toewijzingswaarden: ook inzet, resource en werk moeten gelijk blijven. */
 const fingerprint = (page: Page) => page.evaluate(() => {
   const s = window.__OPS__!.store.getState();
   return JSON.stringify({
     tasks: s.tasks.map(t => [t.id, t.parentId, t.childIds]),
-    assignments: s.assignments.map(a => [a.id, a.taskId]),
+    assignments: s.assignments,
   });
 });
 
@@ -683,8 +736,11 @@ test('lange subtaaknaam in het Arabisch (RTL): alle knoppen binnen het venster (
   await page.keyboard.press('Alt+Shift+ArrowRight');
   await expect(dialog(page)).toBeVisible();
   await expect(moveButton(page)).toBeFocused();
-  // Engelse terugvaltekst: het label loopt links-naar-rechts, de ellips staat aan het einde (rechts).
-  expect(await moveButton(page).locator('[data-ops-phase-move-label]').evaluate(el => getComputedStyle(el).direction)).toBe('ltr');
+  // Sinds de vertaalronde van v2026.10.0 is het label Arabisch: `dir="auto"` maakt het rechts-naar-links,
+  // de ellips staat dan aan het einde (links). Daarvoor was het de Engelse terugvaltekst (ltr).
+  const label = moveButton(page).locator('[data-ops-phase-move-label]');
+  await expect(label).toHaveText(/[\u0600-\u06FF]/);
+  expect(await label.evaluate(el => getComputedStyle(el).direction)).toBe('rtl');
 
   await checkAllSizesAndThemes(page, 'ar', 'ar-lang');
   await cancelButton(page).click();

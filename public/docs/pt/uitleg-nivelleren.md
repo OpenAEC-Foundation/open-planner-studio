@@ -50,7 +50,7 @@ Com *suavização*, uma tarefa não pode começar mais tarde do que o seu iníci
 
 ## Exemplo trabalhado: o pedreiro em duas paredes
 
-O exemplo é o projeto de prática dos tutoriais *House extension*, tal como está imediatamente antes do nivelamento no tutorial 5. No tutorial 5, faz isto sozinho e verifica os números. Neste exemplo, o reboco está em *Trabalho fixo* e o estucador trabalha com unidades de 2, tal como em [Regras de trabalho: duração, unidades e trabalho](docs://uitleg-werkregels).
+O exemplo é o projeto de prática dos tutoriais *House extension*, tal como está imediatamente antes do nivelamento no tutorial 5. No tutorial 5, faz isto sozinho e verifica os números. Neste exemplo, o reboco está em *Trabalho fixo* e o estucador trabalha com unidades de 2, tal como em [Tipos de tarefa: duração, unidades e trabalho](docs://uitleg-werkregels).
 
 Depois da laje alveolar, concluída na segunda-feira, 28 de junho, o pano interior da parede de caixa de ar (5 dias úteis) e o pano exterior (6 dias úteis) começam ambos na terça-feira, 29 de junho. Ambos estão atribuídos ao pedreiro, com unidades de 1 e *Unidades máx* de 1. Depois do pano interior vêm os elementos da cobertura (um trabalho de grua de 6 horas) e a cobertura (2 dias úteis). Os caixilhos esperam pela cobertura e pelo pano exterior. A entrega é na segunda-feira, 30 de agosto.
 
@@ -64,16 +64,16 @@ As duas tarefas têm prioridade 500. Os caixilhos só são entregues a 14 de jul
 
 ### O deslocamento
 
-O pano exterior não pode começar a 29 de junho. O primeiro dia em que o pedreiro fica livre é a terça-feira, 6 de julho. São mais 5 dias úteis do que o início antecipado, por isso o atraso de nivelamento é 5. O pano exterior decorre agora de 6 de julho a 13 de julho, inclusive. Os caixilhos só começam a 14 de julho de qualquer forma, por isso a entrega mantém-se na segunda-feira, 30 de agosto. A janela indica *Data de fim do projeto: inalterada (30-08-2027)* e mostra uma linha: *Build outer cavity leaf*, início anterior 29-06-2027, novo início 06-07-2027, *5 d*.
+O pano exterior não pode começar a 29 de junho. O primeiro dia em que o pedreiro volta a ficar livre é a terça-feira, 6 de julho. São mais 5 dias úteis do que o início antecipado, por isso o atraso de nivelamento é 5. O pano exterior decorre agora de 6 de julho a 13 de julho, inclusive. Os caixilhos só começam a 14 de julho de qualquer forma, por isso a entrega mantém-se na segunda-feira, 30 de agosto. A janela indica *Data de fim do projeto: inalterada (30-08-2027)* e mostra uma linha: *Build outer cavity leaf*, início anterior 29-06-2027, novo início 06-07-2027, *5 d*.
 
-Os 5 dias úteis de deslocamento são exatamente a folga do pano exterior. Por isso, a *suavização* dá aqui o mesmo resultado. O pano exterior já não tem folga e é crítico.
+Os 5 dias úteis de deslocamento são exatamente a folga do pano exterior. Por isso, o *nivelamento* dá aqui o mesmo resultado. O pano exterior já não tem folga e é crítico.
 
 ### E se os caixilhos não chegarem a 14 de julho
 
 Sem essa restrição, os caixilhos podem começar na sexta-feira, 9 de julho, e a entrega é na quarta-feira, 25 de agosto. O pano exterior tem então apenas 2 dias úteis de folga.
 
-- Sem *suavização*, o pano exterior continua a deslocar-se 5 dias úteis. Agora os caixilhos têm de esperar: começam a 14 de julho, 3 dias úteis mais tarde. Tudo o que vem depois deles se desloca também, e a entrega passa de 25 de agosto para 30 de agosto, também 3 dias úteis mais tarde.
-- Com *suavização*, nada se desloca. O pano exterior não cabe nos seus 2 dias úteis de folga. A janela mostra o conflito *Build outer cavity leaf*, 5 day(s), com a razão *Não há capacidade livre suficiente dentro da folga para resolver este conflito.*
+- Sem *nivelamento*, o pano exterior continua a deslocar-se 5 dias úteis. Agora os caixilhos têm de esperar: começam a 14 de julho, 3 dias úteis mais tarde. Tudo o que vem depois deles se desloca também, e a entrega passa de 25 de agosto para 30 de agosto, também 3 dias úteis mais tarde.
+- Com *nivelamento*, nada se desloca. O pano exterior não cabe nos seus 2 dias úteis de folga. A janela mostra o conflito *Build outer cavity leaf*, 5 day(s), com a razão *Não há capacidade livre suficiente dentro da folga para resolver este conflito.*
 
 ### E se o pano exterior tiver prioridade
 
@@ -101,5 +101,5 @@ Se definir *Unidades máx* do pedreiro como 2, já não há sobrealocação. *Ca
 
 - [Resolver a sobrealocação](docs://howto-overbezetting-oplossen): os passos para encontrar a sobrealocação e nivelá-la.
 - [Caminho crítico e folga](docs://uitleg-kritiek-pad): o que é a folga e porque uma tarefa se torna crítica.
-- [Regras de trabalho: duração, unidades e trabalho](docs://uitleg-werkregels): como a duração de uma tarefa acompanha as unidades.
+- [Tipos de tarefa: duração, unidades e trabalho](docs://uitleg-werkregels): como a duração de uma tarefa acompanha as unidades.
 - [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): três torres que precisam das mesmas equipas e da grua-torre, e o que o nivelamento faz com isso.

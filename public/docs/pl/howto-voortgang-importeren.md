@@ -28,8 +28,8 @@ Arkusz Excel jest chroniony, bez hasła: można edytować tylko trzy kolumny do 
 
 Dla każdego zadania kierownik budowy wpisuje:
 
-- `Completion (%)`: od 0 do 100 włącznie. W arkuszu Excel dozwolone są ułamki (na przykład 33,3). W CSV instrukcja prosi o liczby całkowite.
-- `Actual Start` i `Actual Finish`: w Excelu jako datę w Twoich ustawieniach regionalnych; w CSV jako dd-mm-rrrr.
+- `Completion (%)`: od 0 do 100 włącznie. Aplikacja odczytuje też liczby dziesiętne, z przecinkiem lub kropką (na przykład 33,3 lub 33.3). Instrukcja w CSV nadal prosi o liczby całkowite: arkusz z innymi ustawieniami regionalnymi może odczytać 8,38 jako 838.
+- `Actual Start` i `Actual Finish`: w Excelu jako datę w Twoich ustawieniach regionalnych; w CSV jako dd-mm-rrrr lub rrrr-mm-dd.
 
 Pusta komórka niczego nie zmienia. Pusta komórka więc też nie usuwa istniejącego postępu; to można zrobić tylko w aplikacji. Zadanie, które się jeszcze nie rozpoczęło, kierownik budowy zostawia całkowicie puste.
 

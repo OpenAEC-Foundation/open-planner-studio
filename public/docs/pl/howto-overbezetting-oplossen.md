@@ -13,7 +13,7 @@ Najpierw sprawdzasz przeciążenie. Potem wybierasz rozwiązanie. **Bilansowanie
 ### 1. Znajdź przeciążenie
 
 1. Spójrz na wstążkę, na kartę *Zasoby › Nadmierne przydzielenie*. Pokazuje *Brak* albo, czerwonym kolorem, liczbę przeciążonych zasobów, na przykład *1 zasób*. Po obliczeniu pasek stanu pokazuje też *⚠ Przeciążone zasoby: 1*.
-2. Kliknij ten komunikat na pasku stanu. Panel *Ostrzeżenia* otwiera się po prawej, z wierszem dla każdego zasobu, na przykład *Bricklayer* z *Przeciążenie przez 5 dni (29-06-2027 – 05-07-2027)*.
+2. Kliknij ten komunikat na pasku stanu. Panel *Ostrzeżenia* otwiera się po prawej, z wierszem dla każdego zasobu, na przykład *Bricklayer* z komunikatem *Przeciążenie przez 5 dni (29-06-2027 – 05-07-2027)*.
 3. Kliknij ten wiersz. Aplikacja włącza histogram, wybiera zasób i zaznacza wszystkie zadania, na których zasób pracuje.
 4. Spójrz na histogram pod wykresem Gantt. Czerwone słupki to dni z przeciążeniem. Jeśli najedziesz myszą na dzień, zobaczysz, które zadania mają w nim udział, na przykład *2 zadania mają udział w dniu 2027-06-30* z nazwami pod spodem.
 
@@ -24,7 +24,7 @@ Jeśli zadanie jest zaznaczone, histogram pokazuje tylko obciążenie tego zadan
 ### 2. Wybierz rozwiązanie
 
 - **Większa zdolność.** Jeśli naprawdę przyjdzie drugi murarz, ustaw *Maks. jednostki* na 2 (zobacz [Zarządzanie zasobami](docs://howto-resources-beheren)). Przeciążenie wtedy znika.
-- **Mniej jednostek dziennie.** Obniż *Jedn./dzień* albo wybierz inną krzywą dla przydziału (zobacz [Przydzielanie zasobów z krzywą](docs://howto-resource-toewijzen)).
+- **Mniej jednostek dziennie.** Obniż *Jednostki* albo wybierz inną krzywą dla przydziału (zobacz [Przydzielanie zasobów z krzywą](docs://howto-resource-toewijzen)).
 - **Ustaw zadania jedno po drugim.** Dodaj relację między dwoma zadaniami, tak aby drugie zaczynało się dopiero po zakończeniu pierwszego (zobacz [Dodawanie relacji](docs://howto-relaties-leggen)).
 - **Bilansowanie.** Aplikacja sprawia, że zadanie zaczyna się później.
 
@@ -33,7 +33,7 @@ Jeśli zadanie jest zaznaczone, histogram pokazuje tylko obciążenie tego zadan
 1. Upewnij się, że harmonogram jest obliczony przyciskiem **Oblicz** (F5), na przykład przez *Start › Harmonogram › Oblicz*.
 2. Wybierz *Zasoby › Bilansowanie › Bilansuj…*. Otwiera się okno *Bilansuj zasoby*.
 3. Zdecyduj, czy data zakończenia projektu może się zmienić. Jeśli pozostawisz pole wyboru *Bilansuj tylko w ramach zapasu (wygładzanie) — data zakończenia projektu pozostaje bez zmian* wyłączone, data zakończenia może się przesunąć. Jeśli je włączysz, aplikacja przesuwa zadania tylko w ramach ich zapasu.
-4. Pod *Zasoby* znajdują się zasoby, które zostaną zbilansowane. Domyślnie zaznaczone są wszystkie zasoby, oprócz materiałów. Odznacz zasób, który chcesz zostawić bez zmian.
+4. Pod nagłówkiem *Zasoby* znajdują się zasoby, które zostaną zbilansowane. Domyślnie zaznaczone są wszystkie zasoby, oprócz materiałów. Odznacz zasób, który chcesz zostawić bez zmian.
 5. Kliknij *Oblicz*. Podczas obliczania okno pokazuje *Trwa obliczanie…* i możesz zatrzymać je przyciskiem *Zatrzymaj*. Harmonogram jeszcze się nie zmienia: to jest propozycja.
 6. Przeczytaj propozycję. Na górze jest data zakończenia, na przykład *Data zakończenia projektu: bez zmian (30-08-2027)* albo *Data zakończenia projektu: 25-08-2027 → 30-08-2027*. Pod nią jest tabela. Dla każdego zadania pokazuje *Poprzedni start*, *Nowy start* i *Dni przesunięcia*, na przykład *Build outer cavity leaf*, 29-06-2027, 06-07-2027 i *5 d*.
 7. Wybierz *Zastosuj*. Aplikacja zapisuje przesunięcia w zadaniach i od razu przelicza harmonogram. Naciskanie F5 nie jest potrzebne. *Anuluj* zamyka okno bez zmian.
@@ -45,7 +45,7 @@ Jeśli zmienisz opcję w oknie po kliknięciu *Oblicz*, propozycja znika. Klikni
 
 Aplikacja układa zadania jedno po drugim, a zadania, które są wcześniej, zostają tam, gdzie są. Zadania z najwyższym priorytetem idą pierwsze. Przy równym priorytecie pierwsze idzie zadanie z najmniejszym zapasem.
 
-Jeśli chcesz sam zdecydować, które zadanie zostaje, nadaj mu wyższy priorytet. Kliknij prawym przyciskiem myszy pasek zadania w wykresie Gantt i wybierz *Priorytet*, potem *Niski* (100), *Normalny* (500) albo *Wysoki* (900). *Normalny* jest domyślny. Możesz też samodzielnie wpisać liczbę od 0 do 1000 w kolumnie *Priorytet bilansowania*: kliknij **+** z prawej strony nagłówka tabeli zadań (*Dodaj kolumnę*) i wybierz tę kolumnę pod *Planowanie*. Wyższa liczba oznacza, że zadanie chętniej zostaje na miejscu. Aplikacja nie przyjmuje liczby powyżej 1000. Zadanie z priorytetem 1000 nigdy nie przesuwa się ze względu na zdolność zasobu.
+Jeśli chcesz sam zdecydować, które zadanie zostaje, nadaj mu wyższy priorytet. Kliknij prawym przyciskiem myszy pasek zadania w wykresie Gantt i wybierz *Priorytet*, potem *Niski* (100), *Normalny* (500) albo *Wysoki* (900). *Normalny* jest domyślny. Możesz też samodzielnie wpisać liczbę od 0 do 1000 w kolumnie *Priorytet bilansowania*: kliknij **+** z prawej strony nagłówka tabeli zadań (*Dodaj kolumnę*) i wybierz tę kolumnę w grupie *Planowanie*. Wyższa liczba oznacza, że zadanie chętniej zostaje na miejscu. Aplikacja nie przyjmuje liczby powyżej 1000. Zadanie z priorytetem 1000 nigdy nie przesuwa się ze względu na zdolność zasobu.
 
 ### Cofanie i ponawianie
 

@@ -19,9 +19,9 @@ I presentationsläget finns inte menyfliksområdet, så förbered i förväg det
 
 ### Starta presentationen
 
-Välj *Visa › Presentation › Presentation*, eller tryck på F11. Menyfliksområdet, flikarna, statusfältet och den högra panelen försvinner. Du ser uppgiftstabellen, Gantt-vyn och, om du har slagit på dem, histogrammet och minikartan. Under några sekunder visas texten *Tryck på Esc eller F11 för att lämna helskärm.* längst ned.
+Välj *Visa › Presentation › Presentation*. I skrivbordsappen kan du också trycka på F11. I webbläsaren tillhör F11 webbläsaren själv: den gör webbläsarfönstret helskärm och lämnar appen som den är. Menyfliksområdet, flikarna, statusfältet och den högra panelen försvinner. Du ser uppgiftstabellen, Gantt-vyn och, om du har slagit på dem, histogrammet och minikartan. Under några sekunder visas texten *Tryck på Esc eller F11 för att lämna helskärm.* längst ned.
 
-Du kan starta presentationen från vilken flik som helst, också från *Tabell* eller *Rapport*. Du ser alltid Gantt-vyn för det öppna projektet. När du avslutar är du tillbaka på fliken där du började.
+I skrivbordsappen startar du presentationen från vilken flik som helst med F11, också från *Tabell* eller *Rapport*. I webbläsaren startar du den bara med *Visa › Presentation › Presentation*. Du ser alltid Gantt-vyn för det öppna projektet, och när du avslutar är du tillbaka på fliken där du började. I webbläsaren är det alltså *Visa*.
 
 ### Avsluta presentationen
 
@@ -33,7 +33,7 @@ Tryck på Esc eller F11. Menyfliksområdet och panelerna visas igen på fliken d
 
 **Meddelanden syns kvar.** Ett meddelande från appen, till exempel ett sparfel, visas också i presentationsläget. Där finns annars varken menyfliksområde eller statusfält. Ett sådant meddelande är därför det enda tecknet på att något är fel.
 
-**Ställ in delad vy, minikarta och layouter i förväg.** Du behöver menyfliksområdet för dem, och det är borta i det här läget. Zoomen fungerar med musens scrollhjul eller med Ctrl+= och Ctrl+-. + och - fungerar också, men bara när fokus är i Gantt-vyn. Efter F11 ligger fokus ofta i uppgiftstabellen, så klicka först i Gantt-vyn.
+**Ställ in delad vy, minikarta och layouter i förväg.** Du behöver menyfliksområdet för dem, och det är borta i det här läget. Zoomen fungerar med musens scrollhjul eller med Ctrl+= och Ctrl+-. + och - fungerar också, men bara när fokus är i Gantt-vyn. Efter start ligger fokus ofta i uppgiftstabellen, så klicka först i Gantt-vyn.
 
 **Helskärm kan misslyckas.** Förutom att menyfliksområdet döljs begär appen också riktig helskärm. Om din webbläsare eller ditt fönster inte tillåter det, försvinner bara menyfliksområdet och panelerna. Presentationen fungerar ändå. Om du lämnar helskärmen på något annat sätt än med Esc eller F11, till exempel med en tangent i ditt operativsystem, stoppar också presentationsläget.
 

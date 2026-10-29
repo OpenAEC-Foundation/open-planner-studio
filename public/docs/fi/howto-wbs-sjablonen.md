@@ -31,9 +31,9 @@ Avaa *Aikataulu › Rakenne › Mallit* ja napsauta mallin oikealla puolella ole
 
 ### Mallin sisältö
 
-Malli säilyttää jokaisesta tehtävästä nimen, kuvauksen, tehtävätyypin, tiedon siitä, onko kyseessä välitavoite, ja keston päivinä. Riippuvuuksista malli säilyttää ne, jotka kulkevat haaran kahden tehtävän välillä, sekä niiden tyypin ja viiveen.
+Malli säilyttää jokaisesta tehtävästä nimen, kuvauksen, työlajin, tiedon siitä, onko kyseessä välitavoite, ja keston päivinä. Riippuvuuksista malli säilyttää ne, jotka kulkevat haaran kahden tehtävän välillä, sekä niiden tyypin ja viiveen. Viive tunteina (`4h`) ei säily, ja siitä tulee 0. Viive työpäivinä, kalenteripäivinä tai prosentteina säilyy.
 
-Kaikki muu jää mallin ulkopuolelle: päivämäärät, edistyminen ja todelliset päivämäärät, resurssikohdistukset, koodit ja mukautetut kentät (katso [Koodit ja mukautetut kentät](docs://howto-codes-en-velden)), kalenteri, rajoitteet ja tavoitepäivät, prioriteetti, mukautettu tehtävätyyppi, välitavoitteen laji ja valintaruutu *Pakollinen (sopimuksellinen)*, sekä riippuvuudet haaran ulkopuolisiin tehtäviin. Lisäämisen jälkeen nämä tiedot on täytettävä uudelleen. Resurssikohdistukset, koodit, kalenteri ja rajoitteet ovat tyhjiä, ja kaikki tehtävät alkavat projektin aloituspäivästä.
+Kaikki muu jää mallin ulkopuolelle: päivämäärät, edistyminen ja todelliset päivämäärät, resurssikohdistukset, koodit ja mukautetut kentät (katso [Koodit ja mukautetut kentät](docs://howto-codes-en-velden)), kalenteri, rajoitteet ja tavoitepäivät, prioriteetti, mukautettu työlaji, välitavoitteen laji ja valintaruutu *Pakollinen (sopimuksellinen)*, sekä riippuvuudet haaran ulkopuolisiin tehtäviin. Lisäämisen jälkeen nämä tiedot on täytettävä uudelleen. Resurssikohdistukset, koodit, kalenteri ja rajoitteet ovat tyhjiä, ja kaikki tehtävät alkavat projektin aloituspäivänä.
 
 Tehtävä, joka oli tuntiperusteinen, tulee takaisin päivätehtävänä, ja sen kesto muunnetaan murto-osaksi työpäivää. Tehtävä, jonka kesto on 5 tuntia ja työpäivä 8 tuntia, muuttuu 0,625 päiväksi.
 

@@ -35,9 +35,9 @@ By default the table next to the Gantt shows *WBS*, *Task name* and *Duration*. 
 - **Split gaps** — the number of breaks, as `Split gaps: 2`, or a dash. Read-only; you edit them in the *Properties* panel.
 - **Task type** — the task type of the task; empty is the project default. Editable with a list, but empty and read-only on a milestone, summary task or hammock. Only visible in the picker when the task types are visible (*Use task types*, or the file carries task types).
 - **Hammock (derived duration)** — whether the task is a hammock. Editable, except on a milestone or summary task.
-- **Calendar** — the id of the task's own calendar; empty (—) is the project calendar. You type or pick an id from the suggestions; an unknown id is refused. Note: the cell currently shows the internal id instead of the name; better pick a calendar in the *Properties* panel.
+- **Calendar** — the name of the task's calendar. Without its own calendar, the cell shows *Project calendar* followed by the name. Open the cell and choose a calendar by name; choose *Project calendar* to follow the project's calendar again. The stored value and copy/paste still use the calendar id, so identical names are not confused. An unknown id remains visible as a fallback and can be replaced by a valid choice.
 - **Duration type** — *Work time* (the duration counts in working days or working hours of the calendar) or *Elapsed time* (the duration counts in continuous clock time, without a calendar). Editable.
-- **Duration unit** — *Days* or *Hours*. Editable except on a summary task, hammock or milestone; switching only works if the conversion is exact and *Enable hour planning* is on.
+- **Duration unit** — *Days* or *Hours*. Editable except on a summary task, hammock or milestone; switching only works if the conversion is exact.
 - **Duration** — the duration of the task, in the unit of the task or according to *Duration display*. Editable: type `5d`, `12h` or `1h 30m`; also a number in the unit of the task. Read-only on a summary task, a hammock and a milestone with duration 0.
 - **Start** — the displayed start, the same date as the Gantt bar. For a task that has started, that is the actual start. Editable. A task with a predecessor that you give a new start gets the constraint *Start no earlier than (SNET)* on that date. Read-only on a summary task or hammock, unless manually scheduled, and on a task that has started (*This task has started; its start is the actual start. Change it through the progress.*).
 - **Finish** — the displayed finish. For a completed task, that is the actual finish. Editable: a new finish becomes a new duration. The app refuses it for a milestone, a task in elapsed time and a task with breaks, and for a finish before the start (*The finish lies before the start.*). Read-only on a summary task or hammock, unless manually scheduled, and on a completed task (*This task is complete; its finish is the actual finish. Change it through the progress.*).
@@ -57,19 +57,19 @@ By default the table next to the Gantt shows *WBS*, *Task name* and *Duration*. 
 
 - **Predecessors** — the predecessors, as `WBS type±lag`, separated by `; `, for example `1.2 FS+2d`. Editable by typing the same form. You do not add an external relation here but with *Planning › Relations › Link › Add external relation…*.
 - **Successors** — the successors, in the same form. Editable.
-- **Driving** — the relations that determine the date of this task, as `← 1.2` (predecessor) or `→ 1.4` (successor). Read-only; outdated until *Calculate*.
+- **Driving** — the relations that determine the date of this task, as `← 1.2` (predecessor) or `→ 1.4` (successor). *Unknown* means no calculation is available, including in *Dates as recorded*. After a successful calculation, `—` means none of this task's relationships are driving. In *Predecessors* and *Successors*, a question mark shows the unknown status and a lightning bolt shows a driving relationship; without an icon, the internal relationship has been calculated and is not driving. Point at the task reference for an explanation. Read-only; after a change, previous results remain, outdated until *Calculate*.
 - **Free float** (in the category *Relations*) — the free float per relation, as `← 1.2: 3d`. Not the same column as *Free float* under *Calculated*, which shows the float of the task itself. Read-only.
 - **Warnings** — warnings per relation, for example *Out of sequence* or *Not included in the calculation*. Read-only. See [Notifications and warnings](docs://ref-meldingen).
 
 ## Resources
 
 - **Assigned resources** — the names of the assigned resources, separated by commas. Editable: adding a name assigns the resource with 1 unit per day, removing a name removes the assignment. Read-only on a milestone or summary task.
-- **Assignment units per day** — the units per resource, as `Name: 1; Name: 0.5`. Editable on a task with assignments.
-- **Planned units per day** — the planned rate per resource, as `Name: 1.11111111111111`, without rounding, like *Assignment units per day*. Only for an assignment from Primavera P6 with a different remaining rate; *Assignment units per day* then shows the remaining rate. Read-only.
+- **Assignment units per day** — the units per resource, as `Name: 1; Name: 0.5`, with at most two decimals. The stored value stays exact. Editable on a task with assignments.
+- **Planned units per day** — the planned rate per resource, as `Name: 1.11`, with at most two decimals, like *Assignment units per day*. Only for an assignment from Primavera P6 with a different remaining rate; *Assignment units per day* then shows the remaining rate. Read-only.
 - **Assignment curve** — the curve per resource, as `Name: Uniform`. Editable on a task with assignments.
 - **Work window start** and **Work window finish** — the work window per resource, from an imported file, as `Name: date`. Read-only.
-- **Planned work (hours)** and **Actual work (hours)** — the planned and actual work per resource in hours, as `Name: 12`, from an imported file. Read-only.
-- **Remaining work (hours)** — the remaining work per resource in hours, as `Name: 6`: the stored work, otherwise remaining duration × units. Editable on a task with assignments on which a task type applies. Only visible in the picker when the task types are visible. A yellow ⚠ in the cell means that the stored work differs from units × remaining duration, like the ⚠ at *Work (rem.)* in the task panel.
+- **Planned work (hours)** and **Actual work (hours)** — the planned and actual work per resource in hours, as `Name: 617.14`, with at most two decimals, from an imported file. Read-only.
+- **Remaining work (hours)** — the remaining work per resource in hours, as `Name: 6` or `Name: 26.67`: the stored work, otherwise remaining duration × units. Editable on a task with assignments on which a task type applies, with a comma or a point as decimal separator. Only visible in the picker when the task types are visible. A yellow ⚠ in the cell means that the stored work differs from units × remaining duration, like the ⚠ at *Work (rem.)* in the task panel.
 
 ## Progress
 

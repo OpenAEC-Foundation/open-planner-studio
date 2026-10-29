@@ -70,7 +70,7 @@ Abra o PDF no seu leitor de PDF e imprima-o aí. Se imprimir um PDF A3 numa impr
 
 **O botão Imprimir e Ctrl+P não imprimem.** O botão *Imprimir* do grupo *Relatório* está no próprio separador Relatório e não faz mais nada. Ctrl+P leva-o a este separador. Não existe um comando de impressão separado na aplicação: o caminho para o papel passa pelo PDF. Se Ctrl+P não funcionar (veja o passo 1), abre-se no navegador a janela de impressão do navegador, e essa imprime o ecrã, não o relatório.
 
-**Empresa: escrever por cima não se mantém.** O campo *Empresa:* do gráfico de Gantt começa com a empresa das informações do projeto. O que escreve por cima dele não se mantém. Aqui não pode escrever em *Autor:*. Altere ambos em *Definições › Projeto › Info do projeto*, nos campos *Cliente/organização* e *Autor*, e confirme com *Aplicar*.
+**Empresa: escrever por cima não se mantém.** O campo *Empresa:* do gráfico de Gantt começa com a empresa das definições do projeto. O que escreve por cima dele não se mantém. Aqui não pode escrever em *Autor:*. Altere ambos em *Definições › Projeto › Definições do projeto*, nos campos *Cliente/organização* e *Autor*, e confirme com *Aplicar*.
 
 **Cores das barras: aplica-se também ao seu ecrã.** A escolha *Cores das barras:* no relatório é a mesma escolha de *Cores das barras* no separador Vista. Se a alterar no relatório, o seu gráfico de Gantt no ecrã muda também.
 

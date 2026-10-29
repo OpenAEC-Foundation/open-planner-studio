@@ -71,6 +71,16 @@ export function formatSignedReportNumber(n: number, locale?: string): string {
 
 const decimalSeparators = new Map<string, string>();
 
+/** Het decimaalteken van `locale` in de getalnotatie van de app (Latijnse cijfers); onbekend ⇒ ".". */
+export function decimalSeparatorOf(locale: string): string {
+  let sep = decimalSeparators.get(locale);
+  if (sep === undefined) {
+    sep = intlFormatter(locale, false)?.formatToParts(1.1).find(p => p.type === 'decimal')?.value ?? '.';
+    decimalSeparators.set(locale, sep);
+  }
+  return sep;
+}
+
 /**
  * Zet in een door de engine geleverde, taalneutrale tekst met ASCII-decimaalpunten (zoals de
  * lag-notatie "+1.5d" van `formatLagShort`) de punt om naar het decimaalteken van `locale`. Alleen
@@ -79,10 +89,6 @@ const decimalSeparators = new Map<string, string>();
  */
 export function localizeDecimalPoint(text: string, locale?: string): string {
   if (!locale) return text;
-  let sep = decimalSeparators.get(locale);
-  if (sep === undefined) {
-    sep = intlFormatter(locale, false)?.formatToParts(1.1).find(p => p.type === 'decimal')?.value ?? '.';
-    decimalSeparators.set(locale, sep);
-  }
+  const sep = decimalSeparatorOf(locale);
   return sep === '.' ? text : text.replace(/(\d)\.(\d)/g, `$1${sep}$2`);
 }

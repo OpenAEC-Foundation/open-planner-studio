@@ -10,9 +10,10 @@ Obiectiv: deschideți un proiect dintr-un fișier și păstrați modificările.
 
 ### Deschiderea unui fișier
 
-1. Alegeți *Acasă › Fișier › Deschidere*, sau *Fișier › Deschidere*, ori apăsați Ctrl+O (⌘+O pe Mac). *Deschidere* se află și în bara din partea de sus. Grupul *Fișier* se află și pe fila *Tabel*.
+1. Alegeți *Acasă › Fișier › Deschidere*, sau *Fișier › Deschidere*, ori apăsați Ctrl+O (⌘+O pe Mac). Grupul *Fișier* se află și pe fila *Tabel*.
 2. Alegeți fișierul. Deschideți câte un fișier o dată. Pe desktop și în browsere cu acces la fișiere, cum sunt Chrome și Edge, fereastra afișează o listă de tipuri de fișiere: *Toate formatele acceptate*, *Fișiere IFC*, *Fișiere CSV*, *Fișiere XML*, *Fișiere MS Project* și *Fișiere Primavera XER*.
 3. Proiectul se deschide într-o filă nouă. Dacă fila curentă era încă goală și nemodificată, proiectul se deschide în ea.
+4. Dacă fișierul nu este IFC, apare o fereastră cu o scurtă explicație a acelui format. Un bloc verde arată ce a preluat aplicația, un bloc chihlimbariu ce nu a fost inclus sau doar parțial, iar un bloc albastru cum funcționează salvarea și scrierea înapoi. *Citiți mai multe* deschide ghidul pentru acel format. Faceți clic pe *Înțeles* pentru a închide fereastra. Bifați mai întâi *Nu mai afișați pentru …* dacă nu mai doriți să vedeți această explicație pentru acel format. Îl reactivați în [Setările aplicației](docs://ref-instellingen), pe fila *Avansat*.
 
 Un fișier IFC transmite numele fișierului către filă. Un proiect din alt format primește numele proiectului său.
 
@@ -20,7 +21,7 @@ Aplicația deschide `.ifc`, `.csv`, `.xml` (MS Project XML sau Primavera P6 XML)
 
 ### Deschiderea unui proiect recent
 
-Alegeți *Acasă › Fișier › Recente* și faceți clic pe un fișier din listă, sau alegeți *Fișier › Recente*. Lista păstrează ultimele zece fișiere pe care le-ați deschis, salvat sau exportat. Aplicația de desktop afișează calea pentru fiecare fișier, un browser afișează doar numele.
+Alegeți *Acasă › Fișier › Recente* și faceți clic pe un fișier din listă, sau alegeți *Fișier › Recente*. Lista păstrează ultimele zece fișiere pe care le-ați deschis, salvat sau exportat. Și aici, pentru un fișier care nu este IFC, apare explicația formatului său. Aplicația de desktop afișează calea pentru fiecare fișier, iar un browser afișează doar numele.
 
 Dacă aplicația nu mai poate citi un fișier din listă, de exemplu pentru că l-ați mutat, acesta dispare din listă fără mesaj. În browserele fără acces la fișiere, cum este Firefox, *Recente* rămâne goală.
 
@@ -32,7 +33,7 @@ Alegeți *Fișier › Exemple* și faceți clic pe un proiect exemplu. Acesta se
 
 Alegeți *Acasă › Fișier › Salvare* sau *Fișier › Salvare*, ori apăsați Ctrl+S. Ce se întâmplă atunci depinde de proiectul dumneavoastră:
 
-1. Dacă proiectul are deja un fișier, pentru că ați deschis un fișier IFC sau l-ați salvat înainte, aplicația scrie în acel fișier. Nu apare nicio fereastră.
+1. Dacă proiectul are deja un fișier, pentru că ați deschis un fișier IFC sau l-ați salvat înainte, aplicația scrie în acel fișier. Nu apare nicio fereastră, cu excepția primei salvări a unui fișier cu o schemă IFC diferită de IFC 4.3 ADD2. Atunci aplicația întreabă mai întâi *Ce schemă IFC la salvare?* Consultați [Alegerea schemei IFC](docs://howto-ifc-schema-kiezen).
 2. Dacă proiectul nu are încă un fișier, aplicația întreabă unde trebuie să fie salvat. Propune numele proiectului cu `.ifc`. După aceea, acel fișier devine fișierul proiectului.
 3. Dacă browserul dumneavoastră salvează doar prin descărcare (ca Firefox), fișierul ajunge în folderul Descărcări, iar fiecare salvare creează o descărcare nouă. Prima dată într-o sesiune vedeți mesajul *Salvat ca descărcare: „name.ifc” se află în folderul Descărcări. Acest browser nu permite aplicației să scrie într-un loc propriu, astfel că fiecare salvare creează o descărcare nouă. În Chrome, Edge sau aplicația de desktop, salvarea actualizează pur și simplu același fișier.*
 4. Dacă browserul dumneavoastră nu poate scrie înapoi în fișierul proiectului, aplicația întreabă din nou unde să pună fișierul la fiecare salvare. Arată ca *Salvare ca*, dar este o limită a browserului. Prima dată într-o sesiune, mesajul *Acest browser nu permite aplicației să scrie înapoi în „name.ifc”.* explică acest lucru, cu o legătură către [Fișiere](docs://uitleg-bestanden).
@@ -57,12 +58,15 @@ Faceți clic pe crucea de pe filă sau alegeți *Fișier › Închidere proiect*
 
 **Chrome și Edge cer permisiune.** La prima *Salvare* a unui fișier deschis, browserul întreabă dacă aplicația are voie să scrie în el. Dacă refuzați, aplicația deschide o fereastră în care alegeți un fișier nou. În Chrome și Edge primiți și această fereastră dacă scrierea în fișierul existent eșuează, de exemplu pentru că fișierul a dispărut sau este blocat.
 
+**Un mesaj despre id-uri dublate sau dependențe care nu se iau în calcul.** După deschidere, un mesaj poate rămâne pe ecran. Dacă apare *Obiecte cu un id dublat în acest fișier*, fiecare obiect dublat a primit propriul id, iar referințele indică prima apariție. Verificați atunci dependențele și atribuirile. Dacă apare *dependență(e) nu au putut fi incluse în calcul*, dependența era pe o activitate rezumat și nu are niciun efect, de exemplu o activitate legată de propria activitate rezumat. Fișierul în sine rămâne neschimbat. Consultați [Dependențe](docs://uitleg-relaties) pentru ce face o dependență pe o activitate rezumat.
+
 **Salvarea poate eșua.** Dacă apare o eroare la salvarea în sine, aplicația afișează *Salvarea a eșuat*, cu motivul. Proiectul rămâne deschis și este marcat în continuare ca *Nesalvat*.
 
 ## Vezi și
 
 - [Fișiere și formate](docs://uitleg-bestanden): ce conține un fișier IFC și cum tratează aplicația formatele.
 - [Activarea salvării automate](docs://howto-automatisch-opslaan): lăsarea aplicației să își actualizeze singură fișierul.
+- [Alegerea schemei IFC](docs://howto-ifc-schema-kiezen): ce înseamnă întrebarea *Ce schemă IFC la salvare?*
 - [Exportul](docs://howto-exporteren): crearea unei copii într-un alt format.
 - [Recuperarea după o prăbușire](docs://howto-herstellen-na-een-crash): ce faceți dacă aplicația nu s-a închis corect.
 - [Formate de import și export](docs://ref-import-exportformaten): pentru fiecare format, ce se transferă și ce nu.

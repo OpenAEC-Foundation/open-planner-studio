@@ -52,10 +52,10 @@ Dette flytter seg ikke:
 
 **Datoen er i fortiden.** Det er tillatt, men forhåndsvisningen nevner det: *Den nye startdatoen ligger i fortiden.*
 
-**Å endre prosjektstarten i Prosjektinfo er noe annet.** Endrer du startdatoen i *Innstillinger › Prosjekt › Prosjektinfo* og velger *Bruk*, flytter ikke tidsplanen seg. Bare aktiviteter uten forgjenger eller begrensning som da ville ligge før den nye starten, flytter seg til den datoen, og appen sier hvor mange det er. Vil du flytte alt, bruk *Flytt prosjekt…*.
+**Å endre prosjektstarten i Prosjektinnstillinger er noe annet.** Endrer du startdatoen i *Innstillinger › Prosjekt › Prosjektinnstillinger* og velger *Bruk*, flytter ikke tidsplanen seg. Bare aktiviteter uten forgjenger eller begrensning som da ville ligge før den nye starten, flytter seg til den datoen, og appen sier hvor mange det er. Vil du flytte alt, bruk *Flytt prosjekt…*.
 
 ## Se også
 
 - [Kritisk linje og slakk](docs://uitleg-kritiek-pad): hvordan tidsplanen beregnes, og hvorfor slutten flytter seg.
 - [Legge til avhengigheter](docs://howto-relaties-leggen): avhengigheter blir bare stående når du flytter.
-- [Nytt prosjekt og Prosjektinfo](docs://ref-projectinfo): hva startdatoen i Prosjektinfo gjør.
+- [Nytt prosjekt og Prosjektinnstillinger](docs://ref-projectinfo): hva startdatoen i Prosjektinnstillinger gjør.

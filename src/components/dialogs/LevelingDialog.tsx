@@ -3,22 +3,12 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
-import { distributeUnits } from '@/engine/scheduler/ResourceLoad';
-import { exceedsCapacity } from '@/engine/scheduler/capacityTolerance';
-import { parseDate } from '@/utils/dateUtils';
+import { useDisplayDate, useTaskIdDateText } from '@/hooks/displayDate';
+import { calendarClock, momentLabel } from '@/utils/taskDateLabel';
 import { LEVELING_REASON_KEY } from '@/utils/levelingReasonKey';
 import { levelInBackground, LevelingCancelledError, type BackgroundLeveling } from '@/services/leveling/backgroundLeveling';
 import { LEVELING_HELP_ARTICLE_ID } from '@/state/helpArticles';
-
-function fmt(iso: string): string {
-  if (!iso) return '—';
-  try {
-    const d = parseDate(iso);
-    return `${String(d.getUTCDate()).padStart(2, '0')}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${d.getUTCFullYear()}`;
-  } catch {
-    return iso;
-  }
-}
+import { LevelingPreviewTable } from './LevelingPreviewTable';
 
 /**
  * Nivelleer-dialoog. Opties → Berekenen (roept `levelResources` aan, GEEN
@@ -28,8 +18,14 @@ function fmt(iso: string): string {
 export function LevelingDialog() {
   const { t, i18n } = useTranslation('common');
   const resources = useAppStore(s => s.resources);
-  const assignments = useAppStore(s => s.assignments);
   const tasks = useAppStore(s => s.tasks);
+  // Datums in de notatie van de app en volgens B4: een start of einde met tijd alleen midden op de
+  // werkdag, zoals in de tabel en de statusbalk.
+  const dd = useDisplayDate();
+  const taskDate = useTaskIdDateText();
+  const projectCalendar = useAppStore(s => s.calendar);
+  const fmtEnd = (iso: string) => (iso ? dd.dateTime(momentLabel(calendarClock(projectCalendar), iso, 'end')) : '—');
+  const fmtStart = (taskId: string, iso: string) => (iso ? taskDate(taskId, iso, 'start') : '—');
   const cpmResult = useAppStore(s => s.cpmResult);
   const levelingInput = useAppStore(s => s.levelingInput);
   const applyLeveling = useAppStore(s => s.applyLeveling);
@@ -121,8 +117,9 @@ export function LevelingDialog() {
   // FS-opvolgers die alleen via de forward pass meeschuiven (die zaten niet in `delays`).
   const rows = useMemo(() => {
     if (!result) return [];
+    const tasksById = new Map(tasks.map(task => [task.id, task]));
     return Object.entries(result.shifts).map(([taskId, shift]) => {
-      const task = tasks.find(t => t.id === taskId);
+      const task = tasksById.get(taskId);
       return { taskId, name: task?.name || taskId, oldStart: shift.oldStart, newStart: shift.newStart, delay: shift.delta };
     }).sort((a, b) => a.oldStart.localeCompare(b.oldStart));
   }, [result, tasks]);
@@ -134,34 +131,6 @@ export function LevelingDialog() {
     () => new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 2 }),
     [i18n.language],
   );
-
-  // Intrinsieke overvraag: een taak waarvan één toewijzing op zijn curve-piek méér
-  // eenheden/dag vraagt dan de resource-capaciteit kan nooit door schuiven opgelost worden — de
-  // dag zelf is al overbelast. Detecteer per onopgeloste taak de zwaarst overvragende toewijzing.
-  const intrinsicByTask = useMemo(() => {
-    const map: Record<string, { resource: string; peak: number; capacity: number } | null> = {};
-    if (!result) return map;
-    for (const taskId of Object.keys(result.unresolved)) {
-      const task = tasks.find(t => t.id === taskId);
-      let worst: { resource: string; peak: number; capacity: number } | null = null;
-      if (task) {
-        for (const a of assignments.filter(x => x.taskId === taskId)) {
-          const res = resources.find(r => r.id === a.resourceId);
-          if (!res) continue;
-          const days = distributeUnits(a.unitsPerDay, task.time.scheduleDuration, a.curve ?? 'UNIFORM');
-          const peak = days.length > 0 ? Math.max(...days) : 0;
-          if (exceedsCapacity(peak, res.maxUnits)) {
-            const gap = peak - res.maxUnits;
-            if (!worst || gap > worst.peak - worst.capacity) {
-              worst = { resource: res.name || res.id, peak, capacity: res.maxUnits };
-            }
-          }
-        }
-      }
-      map[taskId] = worst;
-    }
-    return map;
-  }, [result, tasks, assignments, resources]);
 
   return (
     <Dialog
@@ -245,34 +214,14 @@ export function LevelingDialog() {
             <div className="flex flex-col gap-3 border-t border-border pt-3">
               <div className="!text-body" style={{ color: endChanged ? 'var(--error)' : 'var(--theme-text-dim)' }}>
                 {endChanged
-                  ? t('resource.leveling.projectEndChanged', { before: fmt(result.projectEndBefore), after: fmt(result.projectEndAfter) })
-                  : t('resource.leveling.projectEndUnchanged', { date: fmt(result.projectEndAfter) })}
+                  ? t('resource.leveling.projectEndChanged', { before: fmtEnd(result.projectEndBefore), after: fmtEnd(result.projectEndAfter) })
+                  : t('resource.leveling.projectEndUnchanged', { date: fmtEnd(result.projectEndAfter) })}
               </div>
 
-              {rows.length === 0 ? (
+              {rows.length === 0 && conflicts.length === 0 && (
                 <div className="text-text-secondary">{t('resource.leveling.noChanges')}</div>
-              ) : (
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr style={{ color: 'var(--theme-text-dim)' }}>
-                      <th className="text-left px-2 py-1 font-semibold border-b border-border">{t('resource.leveling.colTask')}</th>
-                      <th className="text-left px-2 py-1 font-semibold border-b border-border">{t('resource.leveling.colOldStart')}</th>
-                      <th className="text-left px-2 py-1 font-semibold border-b border-border">{t('resource.leveling.colNewStart')}</th>
-                      <th className="text-right px-2 py-1 font-semibold border-b border-border">{t('resource.leveling.colShift')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map(row => (
-                      <tr key={row.taskId} className="border-b border-border-light">
-                        <td className="px-2 py-1 truncate" style={{ maxWidth: 260 }} title={row.name}>{row.name}</td>
-                        <td className="px-2 py-1">{fmt(row.oldStart)}</td>
-                        <td className="px-2 py-1">{fmt(row.newStart)}</td>
-                        <td className="px-2 py-1 text-right">{t('resource.leveling.shiftDays', { count: row.delay })}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
               )}
+              {rows.length > 0 && <LevelingPreviewTable rows={rows} formatStart={fmtStart} />}
 
               {conflicts.length > 0 && (
                 <div className="flex flex-col gap-1">
@@ -283,29 +232,23 @@ export function LevelingDialog() {
                   {conflicts.map(([taskId, days]) => {
                     const task = tasks.find(t => t.id === taskId);
                     const reason = result?.unresolvedReasons[taskId];
-                    const intrinsic = intrinsicByTask[taskId];
+                    const intrinsic = result?.intrinsicOverruns?.[taskId];
                     // Reden-specifieke uitleg, gededupliceerd met
                     // de leveler-classificatie via `LEVELING_REASON_KEY`: de leveler kiest de reden,
-                    // de dialoog vult alleen de weergavedetails in. `INTRINSIC_OVERRUN` draagt
+                    // de motor levert ook de dagvraag en capaciteit voor de weergave. `INTRINSIC_OVERRUN` draagt
                     // interpolatie (resource/peak/capacity) en krijgt daarom zijn eigen tak; de
                     // overige zes lopen via de gedeelde mapping.
                     let explain: string | null = null;
                     if (reason === 'INTRINSIC_OVERRUN' && intrinsic) {
                       explain = t(LEVELING_REASON_KEY.INTRINSIC_OVERRUN, {
-                        resource: intrinsic.resource,
+                        resource: resources.find(r => r.id === intrinsic.resourceId)?.name || intrinsic.resourceId,
                         peak: numberFmt.format(intrinsic.peak),
                         capacity: numberFmt.format(intrinsic.capacity),
                       });
-                    } else if (reason) {
+                    } else if (reason && reason !== 'INTRINSIC_OVERRUN') {
                       explain = t(LEVELING_REASON_KEY[reason]);
-                    } else if (intrinsic) {
-                      // Vangnet (geen reden meegegeven, maar intrinsiek gedetecteerd).
-                      explain = t(LEVELING_REASON_KEY.INTRINSIC_OVERRUN, {
-                        resource: intrinsic.resource,
-                        peak: numberFmt.format(intrinsic.peak),
-                        capacity: numberFmt.format(intrinsic.capacity),
-                      });
                     }
+
                     return (
                       <div key={taskId} className="flex flex-col gap-0.5">
                         <div className="flex items-center justify-between !text-body">

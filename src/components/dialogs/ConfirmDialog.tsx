@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Dialog } from '@/components/common/Dialog';
 
@@ -17,8 +17,9 @@ export interface ConfirmDialogProps {
 
 /**
  * Generieke in-app bevestigingsdialoog ter vervanging van `window.confirm()`.
- * Puur presentationeel (geen store-koppeling) — chrome/keyboard-gedrag exact naar `RecoveryDialog`
- * (Escape=annuleren, Enter=bevestigen). Bedoeld om BOVEN een reeds openstaande dialoog te stapelen
+ * Puur presentationeel (geen store-koppeling). Toetsen: Escape = annuleren; Enter op een gefocuste
+ * knop van deze dialoog activeert díé knop (Enter op Annuleren = annuleren, zoals
+ * `focusedButtonOwnsEnter` in `useDialogKeys`); Enter zonder knopfocus = bevestigen. Bedoeld om BOVEN een reeds openstaande dialoog te stapelen
  * (LayoutsDialog/BaselineDialog/AiConnectionGroup zijn zelf al `fixed inset-0`-overlays met `z-50`),
  * dus deze laag gebruikt `z-[60]`, boven de aanroepende dialoog. `LibrarySection.tsx`
  * (Backstage → Bibliotheek, bedrijf verwijderen) stapelt ANDERS: Backstage is zelf geen `fixed inset-0`-dialoog, dus
@@ -27,11 +28,24 @@ export interface ConfirmDialogProps {
  */
 export function ConfirmDialog({ message, onConfirm, onCancel, confirmLabel, cancelLabel, danger }: ConfirmDialogProps) {
   const { t } = useTranslation('common');
+  const buttonsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onCancel(); }
-      else if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); onConfirm(); }
+      else if (e.key === 'Enter') {
+        e.stopPropagation();
+        // IME-Enter bevestigt alleen de tekstcompositie, nooit deze (mogelijk destructieve) vraag.
+        // Ook de standaard knopactivatie blokkeren, ongeacht waar de focus staat.
+        if (e.isComposing) { e.preventDefault(); return; }
+        // Focus op een knop van déze dialoog (na openen staat die op Annuleren): geen
+        // preventDefault, zodat de browser die knop zelf activeert. Anders verwijderde Enter op
+        // Annuleren toch (knownbug 33-review).
+        const el = document.activeElement;
+        if (el instanceof HTMLButtonElement && buttonsRef.current?.contains(el)) return;
+        e.preventDefault();
+        onConfirm();
+      }
     };
     // Capture-fase: deze dialoog stapelt boven een al openstaande dialoog die zelf ook een
     // Escape/Enter-listener heeft (bv. LayoutsDialog/BaselineDialog sluiten op Escape) — zonder
@@ -57,7 +71,7 @@ export function ConfirmDialog({ message, onConfirm, onCancel, confirmLabel, canc
           {message}
         </div>
 
-        <div className="flex justify-end gap-3 px-4 py-3 border-t border-border">
+        <div ref={buttonsRef} className="flex justify-end gap-3 px-4 py-3 border-t border-border">
           <button onClick={onCancel} className="btn btn--sm btn--secondary">
             {cancelLabel ?? t('cancel')}
           </button>

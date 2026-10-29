@@ -29,20 +29,20 @@ Du har tre måter.
 - **Dra i aktivitetstabellen.** Trykk på en rad og dra loddrett. Den øverste fjerdedelen av en rad betyr *før*, den nederste fjerdedelen *etter*. Midten av en hovedaktivitet legger aktiviteten under den som siste delaktivitet. Midten av en vanlig aktivitet teller som nærmeste kant. Drar du en rad som er en del av flere valgte rader, flyttes hele utvalget.
 - **Dra i Gantt-diagrammet.** Dra stolpen loddrett til en annen rad. Det virker på samme måte som å dra i aktivitetstabellen, og ingen datoer endres. Drar du vannrett, flytter du datoene i stedet.
 
-Hver flytting er ett steg for *Angre* (Ctrl+Z).
+Hver flytting kan angres i ett steg med *Angre* (Ctrl+Z).
 
 ### Holde WBS-nummerene oppdatert
 
 Se på knappen *WBS auto* i *Tidsplan › Struktur*.
 
-- **På (standard i et nytt prosjekt).** Appen nummererer hele treet på nytt ved hver tillegging, sletting og flytting. WBS-koden er da skrivebeskyttet: du kan ikke skrive den i aktivitetstabellen eller i panelet *Egenskaper*. *Nummerer WBS på nytt* er deaktivert.
-- **Av.** Kodene blir som de er, også etter flytting og innrykk. Du skriver dem selv, i kolonnen *WBS* eller i feltet *WBS-kode* i panelet *Egenskaper*. Eller du får dem nummerert én gang med *Nummerer WBS på nytt*. Det overskriver også koder du har skrevet selv.
+- **På (standard i et nytt prosjekt).** Den er også på etter at du åpner en fil uten denne innstillingen, hvis alle WBS-koder allerede stemmer med nummereringen i treet (1, 1.1, 1.2 …). Kodene endres ikke. En tom fil uten denne innstillingen får også *på*, akkurat som et nytt prosjekt. Appen nummererer hele treet på nytt ved hver tillegging, sletting og flytting. WBS-koden er da skrivebeskyttet: du kan ikke skrive den i aktivitetstabellen eller i panelet *Egenskaper*. *Nummerer WBS på nytt* er deaktivert.
+- **Av.** Standard i en fil med egne koder, for eksempel *A1000*, eller med én kode som avviker fra treet. Kodene blir som de er, også etter flytting og innrykk. Du skriver dem selv, i kolonnen *WBS* eller i feltet *WBS-kode* i panelet *Egenskaper*. Eller du får dem nummerert én gang med *Nummerer WBS på nytt*. Det overskriver også koder du har skrevet selv.
 
 Slår du på *WBS auto*, nummererer appen treet med en gang. Du kan angre både *WBS auto* og *Nummerer WBS på nytt* med *Angre*.
 
 ## Fallgruver og hva appen gjør
 
-**Filtrering, gruppering eller sortering er på.** Rekkefølgen du ser, er da ikke rekkefølgen i tidsplanen, så appen låser strukturen. *Rykk inn* og *Reduser innrykk* er deaktivert, med verktøytipset *Ikke tilgjengelig under filtrering/gruppering/sortering*. Alt+→ og å dra viser samme tekst i en stripe, med knappen *Tøm*. Den fjerner filter, gruppering og sortering på en gang, og Ctrl+Z henter dem ikke tilbake. *Rykk inn* og *Reduser innrykk* mangler da i hurtigmenyen.
+**Filtrering, gruppering eller sortering er på.** Rekkefølgen du ser, er da ikke rekkefølgen i tidsplanen, så appen låser strukturen. *Rykk inn* og *Reduser innrykk* er deaktivert, med verktøytipset *Ikke tilgjengelig under filtrering/gruppering/sortering*. Alt+→ og å dra viser samme tekst i en rød stripe, med knappen *Tøm*. Den fjerner filter, gruppering og sortering på en gang, og Ctrl+Z henter dem ikke tilbake. Stripen blir værende til du klikker på krysset, bruker Ctrl+Z eller Ctrl+Y, eller går til et annet dokument. *Rykk inn* og *Reduser innrykk* mangler da i hurtigmenyen.
 
 Alt+↑ og Alt+↓ virker i en slik visning, uten melding. Med bare et filter ser du den nye rekkefølgen med en gang. Med sortering endres rekkefølgen i tidsplanen, men du ser det først etter *Tøm*.
 
@@ -50,7 +50,17 @@ Alt+↑ og Alt+↓ virker i en slik visning, uten melding. Med bare et filter se
 
 **En milepæl får delaktiviteter.** En milepæl er et tidspunkt og har ingen delaktiviteter. Appen fjerner markeringen for milepæl og gir deg beskjed.
 
-**En aktivitet med tilordninger av ressurser får delaktiviteter.** En hovedaktivitet har ingen tilordninger selv. Appen flytter dem til den første nye delaktiviteten som kan ta imot dem, og gir deg beskjed. Finnes ingen slik delaktivitet, eller har den allerede samme ressurs, skjer ingenting, og meldingen sier hvorfor.
+**En aktivitet med tilordninger av ressurser får delaktiviteter.** En hovedaktivitet har ingen tilordninger selv. Appen spør derfor først hva som skal skje med dem, i vinduet *Aktivitet blir en hovedaktivitet*. Det skjer når du rykker inn en aktivitet, bruker *Legg til delaktivitet* eller *Legg til milepæl* på en aktivitet, setter inn en mal, og i *Rediger aktivitet* når du velger en ny *Overordnet aktivitet*: for en eksisterende aktivitet og for en ny aktivitet. I *Rediger aktivitet* kommer spørsmålet før lagring. Velger du *Avbryt* der, blir *Rediger aktivitet* åpen med endringene dine. Du velger:
+
+- *Avbryt*: ingenting endres, og også strukturen blir som den var.
+- *Fjern tilordning*: aktiviteten får delaktiviteter, og tilordningene fjernes. Det faktiske arbeidet for disse tilordningene fjernes også.
+- *Flytt til '…'*: tilordningene går til den første nye delaktiviteten som kan ta dem imot, med det faktiske arbeidet. En milepæl eller en hovedaktivitet tar ikke imot tilordninger.
+
+Har den delaktiviteten allerede samme ressurs, eller finnes det ingen passende delaktivitet, er *Flytt* deaktivert. Et oransje felt i vinduet forteller deg hvorfor.
+
+Har en tilordning allerede faktisk arbeid, forteller det oransje feltet hvor mange timer per ressurs, for eksempel *Tilordningen av Metselaar har allerede 8 timer med faktisk arbeid. Fjerning kaster det arbeidet bort.* *Avbryt* er da standardknappen: Enter endrer ingenting. Vil du likevel fjerne tilordningen, klikk på *Fjern tilordning* selv.
+
+Mens vinduet er åpent, virker ingen snarvei utenfor vinduet, inkludert *Angre*, *Lim inn*, Delete, F5 og Ctrl+S. Skaper én handling flere hovedaktiviteter samtidig, viser vinduet ressursene per aktivitet, og valget ditt gjelder for alle. Én *Angre* (Ctrl+Z) herstiller hele handlingen.
 
 **En avhengighet ville skape en syklus.** Avhengighetene til en hovedaktivitet gjelder også for delaktivitetene. Hvis en flytting på grunn av det ville skape en syklus, avviser appen den med meldingen *Denne flyttingen ville skape en syklus i tidsplanen (…)*. Ingenting endres.
 

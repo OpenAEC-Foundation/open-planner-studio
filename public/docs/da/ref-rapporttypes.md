@@ -26,13 +26,13 @@ Hver rapport på fanen *Rapport*, med de indstillinger der hører til den: hvad 
 
 Tidsplanen vist som bjælkediagram, med en tabel til venstre og en tidslinje til højre, over flere sider hvis nødvendigt. Forhåndsvisningen viser papiret med sidehoved, tabel, tidslinje og forklaring. Blokken *Sammendrag* tæller *Opgaver:*, *Bladopgaver:*, *Kritisk:* og *Afhængigheder:*. Alle indstillinger står under *Indstillinger*.
 
-**Virksomhed:** — virksomheden i sidehovedet. Standard: virksomheden fra projektinfo. Effekt: kun sidehovedet i rapporten; det du skriver her, gemmes ikke. Ændr virksomheden i *Indstillinger › Projekt › Projektinfo*, i feltet *Opdragsgiver/organisation*, og bekræft med *Anvend*.
+**Virksomhed:** — virksomheden i sidehovedet. Standard: virksomheden fra projektindstillingerne. Effekt: kun sidehovedet i rapporten; det du skriver her, gemmes ikke. Ændr virksomheden i *Indstillinger › Projekt › Projektindstillinger*, i feltet *Opdragsgiver/organisation*, og bekræft med *Anvend*.
 
-**Forfatter:** — forfatteren i sidehovedet. Skrivebeskyttet: appen henter den fra projektinfo.
+**Forfatter:** — forfatteren i sidehovedet. Skrivebeskyttet: appen henter den fra projektindstillingerne.
 
 **Skriftstørrelse:** — størrelsen på tekst og tabel i rapporten. Vælg mellem 90%, 100%, 110% og 125%. Standard: 100%. Effekt: ved en større skrift bliver tekst, rækker og tabel større, og tidslinjen bliver smallere. Uafhængig af *Tekststørrelse* i indstillingerne.
 
-**Bjælkefarver:** — hvad farven på en bjælke afhænger af. Vælg mellem *Kritisk vej*, *Pr. opgave — automatisk* og *Efter kategori*, med rullelisten *Kategorifelt* for *Efter kategori*. Standard: *Kritisk vej*. Effekt: det er samme valg som *Bjælkefarver* på fanen *Visning*: ændrer du det her, ændrer Gantt-diagrammet på skærmen sig også. Findes det valgte felt ikke i dette projekt, står der *Dette felt findes ikke i dette projekt. Opgavetype bruges midlertidigt.*
+**Bjælkefarver:** — hvad farven på en bjælke afhænger af. Vælg mellem *Kritisk vej*, *Pr. opgave — automatisk* og *Efter kategori*, med rullelisten *Kategorifelt* for *Efter kategori*. Standard: *Kritisk vej*. Effekt: det er samme valg som *Bjælkefarver* på fanen *Visning*: ændrer du det her, ændrer Gantt-diagrammet på skærmen sig også. Findes det valgte felt ikke i dette projekt, står der *Dette felt findes ikke i dette projekt. Arbejdskategori bruges midlertidigt.*
 
 **Statuslinje:** — en linje ved statusdatoen. Vælg mellem *Ingen*, *Statusdatolinje* og *Fremdriftslinje*. Standard: *Ingen*. Effekt: *Statusdatolinje* tegner en linje ved statusdatoen; *Fremdriftslinje* tegner den zigzagende linje, der buler ud til fremdriften for hver opgave. Har projektet ingen statusdato, står der *Angiv først en statusdato*, og rapporten tegner ingenting.
 
@@ -82,7 +82,7 @@ De samme bjælker som i Gantt-udskriften, grupperet pr. ressource: hvem der gør
 
 **Gruppér efter ressourcetype** — Standard: fra. Effekt: et lag ovenpå: først et bånd pr. ressourcetype (arbejdskraft, hold, underleverandør, udstyr, materiale), og inden i det pr. ressource.
 
-**Vis tildelingsenheder pr. dag og kurve** — Standard: til. Effekt: to kolonner efter opgavenavnet med enhederne pr. dag og fordelingskurven for ressourcen i det bånd. Er der for lidt plads til tidslinjen, lader rapporten kolonnerne ud og siger *Kolonnerne Enh./d og Kurve blev udeladt: …*; mere plads får du med et større papirformat eller liggende retning, en mindre skriftstørrelse eller en smallere tabel.
+**Vis tildelingsenheder pr. dag og kurve** — Standard: til. Effekt: to kolonner efter opgavenavnet med tildelingsenhederne pr. dag og fordelingskurven for ressourcen i det bånd. Er der for lidt plads til tidslinjen, udelader rapporten kolonnerne og siger *Kolonnerne Enh./d og Kurve blev udeladt: …*; mere plads får du med et større papirformat eller liggende retning, en mindre skriftstørrelse eller en smallere tabel.
 
 **Rapportperiode:** — kun de opgaver der rører perioden. Standard: *Projektets varighed*. Effekt: tidsaksen løber præcis over perioden. Er der intet i perioden, står der *Ingen opgaver i rapporteringsperioden — vælg en anden periode eller Hele projektet.* Se *Rapportperiode* nedenfor.
 
@@ -118,9 +118,9 @@ Hvor projektet står på statusdatoen. Indstillinger står under *Rapportindstil
 
 **Rapportperiode:** — Standard: *Forrige måned*. Effekt: *Fuldført i den forrige periode* tæller inden for perioden. *Starter i den kommende periode* kigger frem fra statusdatoen, op til *Look-ahead til*; ved en *Forrige* periode så langt frem, som perioden kigger tilbage.
 
-**Næsten kritisk ≤ (arb.d.):** — Standard: 5. Som ved Forudblik.
+**Næsten kritisk ≤ (arb.d.):** — Standard: 5. Som ved Look-ahead.
 
-Blokken *Sammendrag* viser *Statusdato*, *Periode*, *Look-ahead til*, *Oprindelig slutdato*, *Forventet slutdato*, *Δ slutdato (arb.d.)*, *Planlagt* (med *(oprindelig plan)* eller *(nuværende tidsplan)*), *Faktisk* og tællingerne *Fuldført*, *I gang*, *Ikke startet*, *Forsinket* og *Kritisk*. Planlagt og faktisk vægtes efter varigheden af opgaverne. Planlagt måler mod den oprindelige plan, hvis der er en aktiv oprindelig plan, ellers mod den nuværende tidsplan. Afsnittene er *Fuldført i den forrige periode*, *I gang*, *Starter i den kommende periode*, *Forsinket* og *Åbne kritiske opgaver*; en opgave kan stå i mere end ét afsnit.
+Blokken *Sammendrag* viser *Statusdato*, *Periode*, *Look-ahead til*, *Oprindelig slutdato*, *Forventet slutdato*, *Δ slutdato (arb.d.)*, *Planlagt* (med *(oprindelig plan)* eller *(nuværende tidsplan)*), *Faktisk* og tællingerne *Fuldført*, *I gang*, *Ikke startet*, *Forsinket* og *Kritisk*. Planlagt og faktisk vægtes efter varigheden af opgaverne. Planlagt måler mod den oprindelige plan, hvis der er en aktiv oprindelig plan, ellers mod den nuværende tidsplan. Afsnittene er *Fuldført i den forrige periode*, *I gang*, *Starter i den kommende periode*, *Forsinket* og *Åbne kritiske opgaver*; en opgave kan stå i mere end ét afsnit. Alle afsnit har de samme kolonner: *WBS*, *Navn*, *Oprindelig slutdato*, *Forventet slutdato*, *Færd*, *Rest (arb.d.)*, *TF (wd)*, *Kritisk* og *Fremdrift*. Fremdriften pr. række er *Fuldført*, *I gang*, *Ikke startet*, *Skulle være startet* eller *Skulle være færdig*.
 
 ## Tidsplanens tilstand
 
@@ -136,7 +136,7 @@ En kontrol af selve tidsplanen for fejl og usædvanlige værdier, med DCMA 14-pu
 
 Afsnittet *DCMA 14-punktsvurdering* står først. Det følger de fjorten kontroller fra det amerikanske Defense Contract Management Agency, med formlerne og grænseværdierne fra deres *EVMS Program Analysis Pamphlet* (DCMA-EA PAM 200.1, oktober 2012). Pr. punkt ser du *Antal*, *Af* (det samlede antal, der blev talt ud fra), *Værdi*, *Grænseværdi*, *Resultat* og *Detaljer*. Resultatet er *Opfylder*, *Markering* eller *n.a*; ved n.a står årsagen i detaljerne. En markering er ikke en fejl: pjecen ser den som en grund til at undersøge nærmere. Grænseværdierne under *Rapportindstillinger* gælder ikke for dette afsnit; det bruger altid grænseværdierne fra pjecen.
 
-Den tæller ufærdige bladopgaver, uden milepæle og hængekøjer, og afhængighederne til sådanne opgaver. Noten over rapporten viser begge tal. De fjorten punkter:
+Det tæller ufærdige bladopgaver, uden milepæle og hængekøjer, og afhængighederne til sådanne opgaver. Noten over rapporten viser begge tal. De fjorten punkter:
 
 - *Logik*: opgaver uden foregående eller efterfølgende opgave. Grænseværdi: højst 5%.
 - *Forskud*: afhængigheder, hvor forsinkelsen er under nul. Grænseværdi: ingen.
@@ -149,7 +149,7 @@ Den tæller ufærdige bladopgaver, uden milepæle og hængekøjer, og afhængigh
 - *Ugyldige datoer*: en faktisk startdato eller faktisk slutdato efter statusdatoen, eller en forventet startdato eller forventet slutdato før statusdatoen. Grænseværdi: ingen. Kræver en statusdato.
 - *Ressourcer*: opgaver uden ressource. Grænseværdi: ingen. Kun hvis projektet bruger ressourcer; ellers n.a.
 - *Forsinkede opgaver*: af de opgaver, den oprindelige plan siger skal være færdige på eller før statusdatoen, andelen der slutter senere eller forventes at slutte senere. Grænseværdi: højst 5%. Kræver en statusdato og en aktiv oprindelig plan.
-- *Test af kritisk vej*: appen forlænger en kritisk opgave med 100 arbejdsdage og genberegner på en kopi, uden at ændre projektet. Testen opfylder kravet, hvis projektets sidste opgave så ikke slutter før den opgave. Den tester den kritiske, ufærdige opgave med den tidligste startdato; detaljerne nævner opgaven og hvor mange arbejdsdage slutdatoen flyttede.
+- *Test af kritisk vej*: appen forlænger en kritisk opgave med 100 arbejdsdage og genberegner på en kopi, uden at ændre projektet. Testen opfylder kravet, hvis projektets sidste opgave så ikke slutter før den opgave. Den tester den kritiske, ufærdige opgave med den tidligste startdato; detaljerne nævner opgaven og hvor mange arbejdsdage slutdatoen flyttede. I visningen *Datoer som registreret* er testen *n.a* (*Ikke beregnet*): testen beregner, og rapporten viser så datoerne fra kildefilen. Tryk på *Beregn* (F5), og testen kører igen.
 - *CPLI*: (længde af kritisk vej + slæk) / længde af kritisk vej. Længden tæller arbejdsdagene fra statusdatoen til slutdatoen for den sidste opgave; slæk er forskellen med den oprindelige slutdato for den opgave, eller den beregnede slæk, hvis opgaven ikke står i den oprindelige plan. Grænseværdi: mindst 0,95. Kræver en statusdato.
 - *BEI*: antallet af opgaver færdige på statusdatoen, divideret med antallet den oprindelige plan siger skal være færdige på det tidspunkt, plus opgaverne uden oprindelig plan. Grænseværdi: mindst 0,95. Kræver en statusdato og en aktiv oprindelig plan.
 
@@ -177,7 +177,7 @@ Pr. ressource de opgaver, den er tilknyttet: hvad laver dette hold eller denne k
 
 **Medtag færdige opgaver** — Standard: fra. Virkning: til medtager også tildelingerne af færdige opgaver.
 
-Rækkerne er pr. ressource, og inden for en ressource efter start. Blokken *Sammendrag* tæller *Ressourcer*, *Tildelinger* og *Opgaver uden ressource*. Kolonnerne omfatter ressourcen, opgaven, start og slutdato, *Rest (arb.d.)*, *Enh./dag*, *Færd*, *Kritisk* og *Fremdrift*.
+Rækkerne er pr. ressource, og inden for en ressource efter start. Blokken *Sammendrag* tæller *Ressourcer*, *Tildelinger* og *Opgaver uden ressource*. Kolonnerne er *Ressource*, *Type*, *WBS*, *Navn*, *Start*, *Slutdato*, *Rest (arb.d.)*, *Enh./dag*, *Færd*, *Kritisk* og *Fremdrift*. *Ressource* og *Type* vises kun på den første række for en ressource. Statussen pr. række er den samme som i fremdriftsrapporten: *Fuldført*, *I gang*, *Ikke startet*, *Skulle være startet* eller *Skulle være færdig*.
 
 ## WBS-sammendrag
 

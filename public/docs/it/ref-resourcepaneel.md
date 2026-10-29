@@ -83,4 +83,4 @@ Dove lo vedi:
 - **Istogramma** — le parti rosse delle barre e il punto rosso nel selettore.
 - **Dock** — il triangolo *Sovrassegnato*.
 
-Il livellamento può risolvere la sovrassegnazione spostando le attività entro il loro margine. Non risolve una risorsa che deve lavorare in un giorno libero. Vedi [Livellamento](docs://uitleg-nivelleren).
+Il livellamento può risolvere la sovrassegnazione facendo iniziare le attività più tardi. Per impostazione predefinita la data di fine del progetto può spostarsi; con *livellamento* resta entro il margine. Il livellamento non risolve una risorsa che deve lavorare in un giorno libero. Vedi [Livellamento](docs://uitleg-nivelleren).

@@ -8,7 +8,7 @@ Du jobber med boligutbyggingen i nabolaget, men byggemøtet handler også om ren
 
 ## Steg
 
-### Åpne et andre prosjekt
+### Åpne et annet prosjekt
 
 1. Klikk på plusstegnet til høyre for fanene (*Start et prosjekt*). Vinduet *Start et prosjekt* åpnes.
 2. Velg *Nytt prosjekt* for en tom tidsplan, eller *Åpne eksisterende prosjekt* for å velge en fil. *Avbryt* lukker vinduet.
@@ -24,6 +24,8 @@ Prosjektet vises i sin egen fane og er aktivt med en gang. *Ny* og *Åpne* i bå
 
 Hver fane har en farget prikk som hører til prosjektet. En fane med en liten prikk etter navnet har ulagrede endringer.
 
+Hvis ikke alle fanene får plass i bredden, vises to piler mellom fanene og plusstegnet (*Rull faner mot starten* og *Rull faner mot slutten*). Hvert klikk flytter fanene to plasser. En pil er grå når du allerede er ved starten eller slutten. Du kan også rulle med musehjulet over fanene. Fanen du velger, blir alltid automatisk synlig.
+
 ### Lukke et prosjekt
 
 Klikk på krysset ved navnet på fanen (*Lukk*), eller på krysset på et kort i oversikten. Et prosjekt uten endringer lukkes med en gang. Hvis det har ulagrede endringer, spør appen *Ulagrede endringer* med tre valg:
@@ -38,7 +40,7 @@ Hvis du lukker det siste prosjektet, blir det en tom tidsplan som heter *Ny tids
 
 ### Velge stil for bytte
 
-Du velger selv hvordan prosjektene vises. Åpne innstillingsvinduet med tannhjulet i tittellinjen, gå til fanen *Utseende* og velg under *Stil for dokumentbytte*:
+Du velger selv hvordan prosjektene vises. Åpne vinduet *Appinnstillinger* med tannhjulet i tittellinjen, gå til fanen *Utseende* og velg under *Stil for dokumentbytte*:
 
 - *Vannrette faner*: standard. En rad med faner under båndet.
 - *Loddrette faner*: en smal linje til venstre med en knapp per prosjekt (de første bokstavene i navnet) og et plusstegn. Hvis du holder musepekeren over en knapp, ser du navnet, filnavnet, antall aktiviteter, antall kritiske aktiviteter og sluttdatoen. Knappen øverst åpner oversikten.
@@ -50,7 +52,7 @@ Alle tre stilene åpner samme oversikt, og Ctrl+1 til Ctrl+9 virker i alle stile
 
 **Hva hører til prosjektet, og hva er delt.** Hvert prosjekt har sin egen visning: zoom og posisjon, et aktivt oppsett med filter, gruppering eller sortering, delt visning, avhengighetslinjene og de sammenfoldede fasene. Bytter du til et annet prosjekt, ser du der den visningen. Delt av alle prosjekter er den valgte fanen i båndet, minikartet, overleggene (grunnlinjeoverlegg, fremdriftslinje og resten), kolonnevalget ditt, oppsettene dine og rapportvalgene.
 
-**Du kan ikke bytte med en dialogboks åpen.** Så lenge en dialogboks er åpen, for eksempel innstillingsvinduet eller aktivitetsvinduet, gjør Ctrl+1 til Ctrl+9 ingenting i appen. I nettleseren bytter de i stedet faner i nettleseren. Lukk dialogboksen først. En endring i *Prosjektinfo* i Backstage som ikke er tatt i bruk, hindrer også bytte.
+**Du kan ikke bytte med en dialogboks åpen.** Så lenge en dialogboks er åpen, for eksempel vinduet *Appinnstillinger* eller aktivitetsvinduet, gjør Ctrl+1 til Ctrl+9 ingenting i appen. I nettleseren bytter de i stedet faner i nettleseren. Lukk dialogboksen først. En endring i *Prosjektinnstillinger* i Backstage som ikke er tatt i bruk, hindrer også bytte.
 
 **Ctrl+1 til Ctrl+9 telles etter rekkefølge.** Snarveien går til prosjektet på den plassen i raden. Lukker du et prosjekt, rykker de andre plassene opp. Har du mer enn ni prosjekter åpne, da når du resten bare via fanene eller oversikten.
 

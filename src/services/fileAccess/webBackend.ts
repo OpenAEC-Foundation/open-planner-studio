@@ -115,8 +115,9 @@ export function resetWebReadRefusalForTests(): void {
 
 // ---- Fallback (Firefox/Safari): <input type=file> + blob-download ----
 
-/** Een gekozen bestand als tekst, of als bytes voor een binair formaat (`opts.binaryExtensions`). */
-async function openedFromFile(file: File, ref: FileRef | null, opts?: OpenDialogOpts): Promise<OpenedFile> {
+/** Een gekozen bestand als tekst, of als bytes voor een binair formaat (`opts.binaryExtensions`).
+ *  Geëxporteerd voor de dev-link `?open=` (`src/utils/devOpenLink.ts`). */
+export async function openedFromFile(file: File, ref: FileRef | null, opts?: OpenDialogOpts): Promise<OpenedFile> {
   if ((opts?.binaryExtensions ?? []).includes(extensionOf(file.name))) {
     return { name: file.name, content: '', bytes: new Uint8Array(await file.arrayBuffer()), ref };
   }
@@ -253,9 +254,10 @@ export async function saveToRefWeb(ref: FileRef, content: string): Promise<boole
     // bestandskiezer, om vervolgens alsnog in de download-terugval te landen. `SecurityError` (geen
     // gebruikersactivatie op dít moment) latcht bewust NIET — de eerstvolgende handmatige Ctrl+S
     // heeft weer een vers gebaar en verdient een eigen, verse in-place poging in plaats van meteen
-    // gedegradeerd te worden. Andere fouten blijven `false` geven — de aanroeper valt dan terug
-    // op "opslaan als", wat bij een verdwenen of vergrendeld bestand precies de
-    // juiste uitweg is.
+    // gedegradeerd te worden. Annuleren en een omgevingsweigering blijven `false`; een echte
+    // schrijffout gaat naar de aanroeper, zodat die de reden meldt VÓÓR een eventuele opslaan-als-
+    // terugval. Anders lijkt een vergrendeld bestand op een gewone browserbeperking (knownbug163).
+    if (!isAbort(err) && !isPlatformRefusal(err)) throw err;
     if (isNotAllowedRefusal(err)) platformRefusesWrites = true;
     return false;
   }

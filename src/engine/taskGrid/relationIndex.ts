@@ -1,6 +1,7 @@
 import type { Sequence } from '@/types/sequence';
 import type { ExternalLink, Task } from '@/types/task';
 import { resolveEffectiveLagDays } from '@/engine/scheduler/CPMSolver';
+import { knownDrivingSequenceIds } from '@/engine/scheduler/drivingInfo';
 
 export interface InternalTaskRelationEntry {
   kind: 'internal';
@@ -28,7 +29,8 @@ export type InternalRelationWarning =
 export type ExternalRelationWarning = 'source-missing';
 
 export interface InternalRelationAnalysis {
-  driving: boolean;
+  /** undefined = onbekend; false = berekend en niet bepalend. */
+  driving: boolean | undefined;
   freeFloat?: number;
   warnings: readonly InternalRelationWarning[];
 }
@@ -36,12 +38,14 @@ export interface InternalRelationAnalysis {
 export interface RelationTraceEdge {
   otherTaskId: string;
   sequenceId: string;
-  driving: boolean;
+  driving: boolean | undefined;
 }
 
 /** Alleen de relationele CPM-afgeleiden die dit readmodel nodig heeft; een volledig CPMResult past. */
 export interface RelationIndexAnalysisInput {
   drivingSequenceIds: readonly string[];
+  drivingUnknown?: true;
+  error?: string;
   sequenceFreeFloat: Readonly<Record<string, number>>;
   truncatedLeadSequenceIds: readonly string[];
   outOfSequenceSequenceIds: readonly string[];
@@ -49,6 +53,8 @@ export interface RelationIndexAnalysisInput {
 }
 
 export interface TaskRelationIndex {
+  /** Ook zonder relaties moet de analysekolom onbekend van berekend leeg onderscheiden. */
+  drivingKnown: boolean;
   predecessorsByTaskId: ReadonlyMap<string, readonly TaskRelationEntry[]>;
   successorsByTaskId: ReadonlyMap<string, readonly TaskRelationEntry[]>;
   internalByTaskId: ReadonlyMap<string, readonly InternalTaskRelationEntry[]>;
@@ -80,14 +86,15 @@ export function buildTaskRelationIndex(
   const warningsByExternalLinkId = new Map<string, readonly ExternalRelationWarning[]>();
   const tracePredecessors = new Map<string, RelationTraceEdge[]>();
   const traceSuccessors = new Map<string, RelationTraceEdge[]>();
-  const drivingIds = new Set(analysis?.drivingSequenceIds ?? []);
+  const knownDrivingIds = knownDrivingSequenceIds(analysis);
+  const drivingIds = knownDrivingIds === undefined ? undefined : new Set(knownDrivingIds);
   const droppedIds = new Set(analysis?.droppedSequenceIds ?? []);
   const truncatedLeadIds = new Set(analysis?.truncatedLeadSequenceIds ?? []);
   const outOfSequenceIds = new Set(analysis?.outOfSequenceSequenceIds ?? []);
   const tasksById = new Map(tasks.map(task => [task.id, task] as const));
 
   for (const sequence of sequences) {
-    const driving = drivingIds.has(sequence.id);
+    const driving = drivingIds?.has(sequence.id);
     const warnings: InternalRelationWarning[] = [];
     if (droppedIds.has(sequence.id)) warnings.push('dropped');
     if (truncatedLeadIds.has(sequence.id)) warnings.push('truncated-lead');
@@ -150,6 +157,7 @@ export function buildTaskRelationIndex(
   }
 
   return {
+    drivingKnown: drivingIds !== undefined,
     predecessorsByTaskId: predecessors,
     successorsByTaskId: successors,
     internalByTaskId: internal,

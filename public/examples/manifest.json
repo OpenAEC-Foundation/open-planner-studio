@@ -4,7 +4,7 @@
     {
       "file": "showcase-verbouwing-eengezinswoning.ifc",
       "name": "Refurbishment & Extension of a Family Home",
-      "description": "Entry-level showcase: an extension to a family home with WBS phasing, a finish-start chain with one start-start overlap (walls/roof) and one finish-finish link (painting just after tiling), an SNET permit constraint, a start milestone and a mandatory handover milestone, a comfortable deadline (no conflict) and one baseline taken right after set-up. A small crew set from the shared demo resource library, without any overallocation of its own — the masonry crew is booked in the same week as the terraced houses showcase, so the occupancy overview shows a cross-project conflict that \"Distribute\" can resolve.",
+      "description": "Entry-level showcase: an extension to a family home with WBS phasing, a finish-start chain with one start-start overlap (walls/roof) and one finish-finish link (painting just after tiling), an SNET permit constraint, a start milestone and a mandatory handover milestone, a comfortable deadline (no conflict) and one baseline taken right after set-up. A small crew set from the shared demo resource library, without any overallocation of its own — the masonry crew is booked in the same week as the terraced houses showcase, so the occupancy overview shows a cross-project conflict.",
       "category": "showcase",
       "tags": [
         "residential",

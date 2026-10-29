@@ -27,13 +27,13 @@ Como escolhe?
 
 **Sem diferença.** O modo só tem efeito em tarefas que já começaram enquanto a predecessora ainda não está concluída. Sem uma tarefa destas, nada muda.
 
-**A mensagem mantém-se.** Progress Override não resolve a mensagem de fora de sequência. O modo decide como a aplicação calcula; a contradição entre relação e progresso mantém-se. Se a relação já não estiver certa, altere-a ([Adicionar relações](docs://howto-relaties-leggen)).
+**A mensagem mantém-se.** Progress Override não resolve a mensagem de progresso fora de sequência. O modo decide como a aplicação calcula; a contradição entre relação e progresso mantém-se. Se a relação já não estiver certa, altere-a ([Adicionar relações](docs://howto-relaties-leggen)).
 
 **Pertence ao projeto.** A escolha fica guardada no ficheiro do projeto, aplica-se a todo o projeto e pode ser anulada com Ctrl+Z. Um projeto novo usa Retained Logic.
 
 **Um ficheiro P6.** Se abrir um ficheiro do Primavera P6 (.xer), a aplicação toma o modo do ficheiro. Além de Retained Logic e Progress Override, o P6 também tem Actual Dates. A aplicação não conhece esse terceiro modo; um ficheiro destes calcula com Retained Logic. A mensagem de importação regista isso como *1 definição de planeamento P6 usou uma alternativa segura.*
 
-**O perfil de cálculo.** No perfil Primavera P6, Progress Override também atua para trás, nas datas mais tardias e na folga livre da predecessora (convenção *Progress Override ignora também para trás um sucessor iniciado*). Nos perfis Open Planner Studio e Microsoft Project não é assim. Encontra as convenções em *Definições › Projeto › Info do projeto*, no bloco *Perfil de cálculo e opções*. No exemplo da explicação, esse efeito para trás não se vê.
+**O perfil de cálculo.** No perfil Primavera P6, Progress Override também atua para trás, nas datas mais tardias e na folga livre da predecessora (convenção *Progress Override ignora também para trás um sucessor iniciado*). Nos perfis Open Planner Studio e Microsoft Project não é assim. Encontra as convenções em *Definições › Projeto › Definições do projeto*, no bloco *Perfil de cálculo e opções*. No exemplo da explicação, esse efeito para trás não se vê.
 
 ## Ver também
 

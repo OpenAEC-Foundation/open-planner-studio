@@ -45,7 +45,7 @@ Predstih nemôže posunúť úlohu pred začiatok projektu. Ak by k tomu malo d�
 
 ### V ktorom kalendári sa oneskorenie počíta
 
-Každá úloha môže mať svoj vlastný kalendár. Pri oneskorení v pracovných dňoch záleží na tom, ktorý kalendár počíta pracovné dni. Nastavenie *Kalendár oneskorenia* o tom rozhoduje a ponúka štyri možnosti: *Predchádzajúca úloha*, *Nasledujúca úloha*, *24-hodinový* a *Projektový kalendár*. Predvolene sa oneskorenie počíta v kalendári **predchádzajúcej úlohy**. Nastavenie nájdete v *Nastavenia › Projekt › Info o projekte*, v bloku *Profil výpočtu a možnosti výpočtu*, v riadku *Možnosti výpočtu tohto projektu*. Voľba patrí do súboru projektu a platí až potom, ako kliknete na tlačidlo *Použiť*; plán sa potom prepočíta.
+Každá úloha môže mať svoj vlastný kalendár. Pri oneskorení v pracovných dňoch záleží na tom, ktorý kalendár počíta pracovné dni. Nastavenie *Kalendár oneskorenia* o tom rozhoduje a ponúka štyri možnosti: *Predchádzajúca úloha*, *Nasledujúca úloha*, *24-hodinový* a *Projektový kalendár*. Predvolene sa oneskorenie počíta v kalendári **predchádzajúcej úlohy**. Nastavenie nájdete v *Nastavenia › Projekt › Nastavenia projektu*, v bloku *Profil výpočtu a možnosti výpočtu*, v riadku *Možnosti výpočtu tohto projektu*. Voľba patrí do súboru projektu a platí až potom, ako kliknete na tlačidlo *Použiť*; plán sa potom prepočíta.
 
 Oneskorenie v kalendárnych dňoch (`3ed`) sa vždy počíta vo všetkých dňoch, bez ohľadu na to, ktorý *Kalendár oneskorenia* zvolíte.
 
@@ -62,7 +62,7 @@ Závislosť medzi úlohou a fázou, v ktorej sa nachádza, nie je povolená.
 
 ### Určujúce závislosti
 
-Ak má nasledujúca úloha viac predchádzajúcich úloh, zvyčajne jedna závislosť určuje jej dátum začiatku: závislosť, ktorá nedovolí, aby nasledujúca úloha začala o jeden deň skôr, než začína teraz. Taká závislosť sa nazýva **určujúca závislosť**. Pri zhode je určujúcich závislostí viac. Určujúcu závislosť spoznáte podľa symbolu blesku v stĺpci *Predchádzajúce úlohy* a v stĺpci *Nasledujúce úlohy* tabuľky, podľa stĺpca *Určujúca závislosť* (znamienko **+** vpravo v hlavičke tabuľky, pod *Závislosti*) a podľa silnejšieho odtieňa, keď sledujete cestu. Ako cestu otvoriť, je v článku [Sledovanie cesty](docs://howto-pad-traceren).
+Ak má nasledujúca úloha viac predchádzajúcich úloh, zvyčajne jedna závislosť určuje jej dátum začiatku: závislosť, ktorá nedovolí, aby nasledujúca úloha začala o jeden deň skôr, než začína teraz. Taká závislosť sa nazýva **určujúca závislosť**. Pri zhode je určujúcich závislostí viac. Určujúcu závislosť spoznáte podľa symbolu blesku v stĺpci *Predchádzajúce úlohy* a v stĺpci *Nasledujúce úlohy* tabuľky, podľa stĺpca *Určujúca závislosť* (znamienko **+** vpravo v hlavičke tabuľky, pod nadpisom *Závislosti*) a podľa silnejšieho odtieňa, keď sledujete cestu. Ako cestu otvoriť, je v článku [Sledovanie cesty](docs://howto-pad-traceren).
 
 Určujúca závislosť hovorí o dátumoch, nie o trvaní. Krátka predchádzajúca úloha môže byť určujúca tiež, napríklad kvôli dlhému oneskoreniu; uvidíte to v príklade nižšie.
 

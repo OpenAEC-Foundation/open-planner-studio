@@ -33,7 +33,7 @@ Hur väljer du?
 
 **En P6-fil.** Om du öppnar en Primavera P6-fil (.xer) tar appen läget från filen. Förutom Retained Logic och Progress Override har P6 även Actual Dates. Appen känner inte till det tredje läget; en sådan fil beräknas som Retained Logic. Importmeddelandet räknar det som *1 P6-tidsplaninställning med säker reservlösning.*
 
-**Beräkningsprofilen.** I profilen Primavera P6 fungerar Progress Override även bakåt, i de senaste datumen och det fria slacket för den föregående uppgiften (beräkningsregel *Progress Override negeras även för en påbörjad efterföljande uppgift bakåt*). I profilerna Open Planner Studio och Microsoft Project är det inte så. Du hittar beräkningsreglerna under *Inställningar › Projekt › Projektinfo*, i blocket *Beräkningsprofil och beräkningsalternativ*. I exemplet i förklaringen syns inte effekten bakåt.
+**Beräkningsprofilen.** I profilen Primavera P6 fungerar Progress Override även bakåt, i de senaste datumen och det fria slacket för den föregående uppgiften (beräkningsregel *Progress Override negeras även för en påbörjad efterföljande uppgift bakåt*). I profilerna Open Planner Studio och Microsoft Project är det inte så. Du hittar beräkningsreglerna under *Inställningar › Projekt › Projektinställningar*, i blocket *Beräkningsprofil och beräkningsalternativ*. I exemplet i förklaringen syns inte effekten bakåt.
 
 ## Se även
 

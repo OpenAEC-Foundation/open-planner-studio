@@ -39,7 +39,7 @@ Ce operatori aveți la dispoziție depinde de tipul câmpului:
 - Text (*Nume activitate*, *WBS*): *este egal cu*, *este diferit de*, *conține*, *începe cu* și *este gol*.
 - Număr și dată (*Marjă totală*, *Început*, *Progres*): *este egal cu*, *este diferit de*, *mai mic decât*, *mai mic sau egal cu*, *mai mare decât*, *mai mare sau egal cu*, *între* și *este gol*. Cu *între* există două câmpuri: pentru un număr, cu indicațiile *De la* și *Până la*; pentru o dată, fără indicație (prima dată este începutul, a doua sfârșitul).
 - Da/nu (*Critic*, *Jalon*, *Aproape critic*): *este egal cu* și *este diferit de*, cu valoarea *Da* sau *Nu*.
-- Alegere (*Tip*, un cod de activitate): *este egal cu*, *este diferit de*, *este unul dintre* (cu valori bifabile) și *este gol*.
+- Alegere (*Categorie de lucrări*, un cod de activitate): *este egal cu*, *este diferit de*, *este unul dintre* (cu valori bifabile) și *este gol*.
 - *Resurse*: *este unul dintre* și *este gol*.
 - *În curs*: doar *între*, cu două date (de la și până la).
 
@@ -47,7 +47,7 @@ Cu câmpul *În curs*, operatorul *între* și două date obțineți toate activ
 
 Combinați mai multe reguli cu lista de sus: *Toate de mai jos (AND)* afișează activitățile care respectă toate regulile, *Oricare de mai jos (OR)* activitățile care respectă cel puțin o regulă. Cu *+ grupare* adăugați un subgrup cu propriile reguli.
 
-Filtrul se uită la activitățile în sine. Activitățile rezumat (fazele) din care face parte o activitate rămân vizibile în gri, astfel că vedeți unde se încadrează activitatea. Dacă activați și gruparea, fazele gri dispar.
+Filtrul verifică activitățile în sine. Activitățile rezumat (fazele) din care face parte o activitate rămân vizibile în gri, astfel că vedeți unde se încadrează activitatea. Dacă activați și gruparea, fazele gri dispar.
 
 ### Gruparea și sortarea
 
@@ -81,7 +81,7 @@ Aspectele care nu stochează aceleași părți pot fi active împreună. Dacă a
 
 **Aspectele se află pe dispozitivul dumneavoastră, nu în proiect.** Aplicația păstrează aspectele și coloanele dumneavoastră pentru toate proiectele de pe acest dispozitiv. Suprapunerile unui aspect (referința, linia de progres și restul) se aplică tuturor proiectelor dumneavoastră. Filtrul, gruparea și sortarea activate chiar acum aparțin proiectului deschis, dar nu intră în fișierul proiectului: după salvare și redeschidere, vizualizarea este din nou curată. Nici nu fac proiectul „modificat”.
 
-**Butoanele separate sunt ascunse.** *Coloane…*, *Filtrare…*, *Grupare…* și *Sortare…* ca butoane separate din fila *Vizualizare* sunt o variantă veche. Le readuceți cu *Afișare butoane clasice de vizualizare* sub *Funcții vechi*, în fila *Avansat* a ferestrei de setări (⚙ din bara de titlu). Preferați aspectele.
+**Butoanele separate sunt ascunse.** *Coloane…*, *Filtrare…*, *Grupare…* și *Sortare…* ca butoane separate din fila *Vizualizare* sunt o variantă veche. Le readuceți cu *Afișare butoane clasice de vizualizare* sub *Funcții vechi*, în fila *Avansat* a ferestrei *Setări aplicație* (⚙ din bara de titlu). Preferați aspectele.
 
 ## Vezi și
 

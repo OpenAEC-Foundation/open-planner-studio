@@ -46,7 +46,7 @@ Below the buttons it says *Exporting is also your backup: keep the file somewher
 
 You have two choices:
 
-- *Add as new resource library*: the file becomes a separate library next to your existing ones. Below it says under which name, for example *Will be added as “Mijn resourcebibliotheek (2)”.* Nothing is lost and your active project stays linked to its own library.
+- *Add as new resource library*: the file becomes a separate library next to your existing ones. Below it says under which name, for example *Will be added as “My resource library (2)”.* Nothing is lost and your active project stays linked to its own library.
 - *Replace an existing resource library*: the entire content of the chosen library is replaced by the one from the file. It also says so: *Importing replaces the ENTIRE pool of the selected resource library.* If you have two or more libraries, you choose which one under *Import into resource library*. If your library is newer than the file, the app warns: *Your local library is newer — importing may overwrite your changes.*
 
 The app proposes a choice itself. For a file that contained the default library, *Add as new resource library* is preselected. If the library from the file already exists on your computer and is not the default library, *Replace an existing resource library* is preselected, with exactly that library chosen. If in doubt, choose add: that overwrites nothing.

@@ -13,8 +13,8 @@ Un sous-traitant travaille aussi le samedi. Une équipe ne travaille que du lund
 1. Choisissez *Planification › Calendrier › Calendrier*. Le même bouton se trouve dans *Paramètres › Calendrier › Calendrier*. La fenêtre *Calendriers* s'ouvre. À gauche se trouvent les calendriers du projet ; le calendrier du projet porte une étoile.
 2. Sous la liste, cliquez sur le bouton avec le signe plus (*Nouveau calendrier*). Le nouveau calendrier est une copie du calendrier standard : du lundi au vendredi, de 07:00 à 16:00 avec une pause d'une heure et, si *Mode construction* est activé, les jours fériés néerlandais. Si vous voulez prendre un calendrier existant comme base, sélectionnez-le dans la liste et cliquez sur le bouton avec les deux feuilles sous la liste (*Dupliquer*).
 3. Donnez un nom au calendrier sous *Nom*, qui indique qui l'utilise, par exemple *Six-day week*.
-4. Sous *Jours ouvrés*, cliquez sur les jours de la semaine pour les activer ou les désactiver. *Lun–ven* rétablit la semaine standard, de 07:00 à 16:00. *Continu (24/7)* active les sept jours, de 00:00 à 24:00.
-5. Ajustez les horaires de travail si nécessaire : *Début (heure)*, *Fin (heure)*, *Début de la pause* et *Durée de la pause (minutes)*. Vous saisissez les heures au format HH:MM ; avec les flèches, vous les augmentez ou diminuez d'un quart d'heure. Si vous réglez la durée de la pause sur 0, le calendrier fonctionne sans pause. *Heures nettes par jour* est déterminé automatiquement par l'application. Si la planification horaire est activée et que le calendrier a des plages horaires par jour de la semaine, vous ne voyez pas ces champs ; voir [Définir les horaires de travail](docs://howto-werktijden-instellen).
+4. Sous *Jours ouvrés*, cliquez sur les jours de la semaine pour les activer ou les désactiver. *Lun–ven* rétablit la semaine standard, de 07:00 à 16:00. Si le calendrier a des plages, *Lun–ven* active seulement du lundi au vendredi et chaque jour conserve ses plages. *Continu (24/7)* active les sept jours, de 00:00 à 24:00.
+5. Ajustez les horaires de travail si nécessaire : *Début (heure)*, *Fin (heure)*, *Début de la pause* et *Durée de la pause (minutes)*. Vous saisissez les heures au format HH:MM ; avec les flèches, vous les augmentez ou diminuez d'un quart d'heure. Si vous réglez la durée de la pause sur 0, le calendrier fonctionne sans pause. *Jour ouvré standard* est déterminé automatiquement par l'application. Si le calendrier a des plages par jour de la semaine (par exemple venant de MS Project), vous ne voyez pas ces champs mais le bloc *Horaires de travail*, aussi lorsque la planification horaire est désactivée ; voir [Définir les horaires de travail](docs://howto-werktijden-instellen).
 6. Ajustez les jours fériés si nécessaire. Le fonctionnement est expliqué dans [Générer les jours fériés et les congés du bâtiment](docs://howto-feestdagen-genereren).
 7. Cliquez sur *Appliquer*. L'application recalcule le planning immédiatement et ferme la fenêtre. Avec *Annuler*, vous abandonnez les modifications. Appuyer sur Entrée dans un champ de saisie enregistre entre-temps et recalcule aussi, sans fermer la fenêtre ; *Annuler* n'annule alors que ce que vous avez modifié après cela.
 
@@ -33,7 +33,7 @@ Un nouveau calendrier ne produit d'effet que lorsqu'une tâche l'utilise. Il exi
 2. Choisissez *Attribuer un calendrier*, puis le calendrier, ou *Calendrier du projet* pour retirer à nouveau le calendrier propre. Le calendrier qui s'applique a une coche.
 3. Si vous voulez attribuer un calendrier à plusieurs tâches à la fois, sélectionnez-les d'abord avec Ctrl (⌘ sur Mac) et faites un clic droit sur l'une des tâches sélectionnées. Le choix s'applique à toutes les tâches sélectionnées. Si vous faites un clic droit sur une tâche non sélectionnée, le choix ne s'applique qu'à cette tâche.
 
-Un nouveau choix de calendrier ne rend pas encore le planning à jour : la barre d'état indique *Obsolète — recalculer (F5)*. Appuyez sur **Calculer** (F5), par exemple via *Accueil › Planification › Calculer*. Si *Calculer automatiquement* est activé (*Paramètres › Projet › Paramètres*, onglet *Planification*, rubrique *Calcul*), l'application le fait elle-même.
+Un nouveau choix de calendrier ne rend pas encore le planning à jour : la barre d'état indique *Obsolète — recalculer (F5)*. Appuyez sur **Calculer** (F5), par exemple via *Accueil › Planification › Calculer*. Si *Calculer automatiquement* est activé (*Paramètres › Projet › Paramètres de l'application*, onglet *Planification*, rubrique *Calcul*), l'application le fait elle-même.
 
 ### Changer le calendrier du projet
 
@@ -59,11 +59,11 @@ Seules les tâches sans calendrier propre suivent le changement.
 
 **Le même calendrier, deux choix.** Dans la liste, le calendrier du projet apparaît deux fois : sous la forme *Calendrier du projet : nom* et comme calendrier ordinaire portant ce nom. Si vous choisissez le second, c'est un choix distinct pour cette tâche. La tâche ne suit alors pas le changement lorsque vous choisissez plus tard un autre calendrier du projet.
 
-**Heures différentes par jour.** Si vous modifiez les horaires de travail ou la pause de sorte que les *Heures nettes par jour* d'un calendrier changent, une tâche dont la durée est exprimée en jours compte toujours le même nombre de jours. Pour une tâche avec des ressources et la règle de travail *Travail fixe* ou *Unités fixes*, la durée change avec elle, car le travail reste le même. Quarante heures de travail font 5 jours à 8 heures par jour et 7 jours à 6 heures par jour. L'application indique combien de tâches ont obtenu une durée différente.
+**Heures différentes par jour.** Si vous modifiez les horaires de travail ou la pause de sorte que le *Jour ouvré standard* d'un calendrier change, une tâche dont la durée est exprimée en jours compte toujours le même nombre de jours. Pour une tâche avec des ressources et le type de tâche *Travail fixe* ou *Unités fixes*, la durée change avec elle, car le travail reste le même. Quarante heures de travail font 5 jours à 8 heures par jour et 7 jours à 6 heures par jour. L'application indique combien de tâches ont obtenu une durée différente.
 
 ## Voir aussi
 
 - [Calendriers et jours ouvrés](docs://uitleg-kalenders) : comment l'application compte les jours ouvrés et quel calendrier prévaut.
-- [Jours et heures](docs://uitleg-dagen-en-uren) : ce qu'impliquent les heures nettes par jour.
+- [Jours et heures](docs://uitleg-dagen-en-uren) : ce que fait le jour ouvré standard.
 - [Configurer un calendrier de ressource](docs://howto-resourcekalender-instellen) : un calendrier pour une ressource au lieu d'une tâche.
 - [Fenêtres de calendrier](docs://ref-kalenders) : tous les champs des fenêtres de calendrier.

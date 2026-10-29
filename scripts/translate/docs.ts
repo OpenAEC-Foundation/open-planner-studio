@@ -238,7 +238,12 @@ export const hasStem = (text: string, phrase: string): boolean => phrase.trim() 
 
 /** Normaliseer een labeltekst: zonder ▾ en zonder afsluitend …, ..., : of punt. */
 export function normLabel(s: string): string {
-  return s.replace(/\s*▾\s*/g, ' ').trim().replace(/(?:\s*(?:…|\.\.\.|:|\.))+$/u, '').trim();
+  // Losse stukken houden het werk lineair, ook bij veel witruimte zonder ▾.
+  const label = s.split('▾').map(part => part.trim()).join(' ').trim();
+  let end = label.length;
+  // Achteruit scannen voorkomt ambigu backtracken op lange reeksen punten.
+  while (end > 0 && /[\s….:]/u.test(label[end - 1])) end--;
+  return label.slice(0, end);
 }
 
 interface LabelHit { key: string; target?: string }

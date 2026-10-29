@@ -17,6 +17,8 @@ You get: `{{PACKAGES}}` (package JSON files, `"kind": "ui"`) and next to each it
   unchanged, in the nominative. Report inflected or paraphrased label names as `term`.
 - An item with `labels`: the translation must contain one of each label's `targets` letter for letter
   (the check makes this an `XX` error). Do not propose a text that changes or inflects it.
+- An item with `fixedText` must match that complete text byte for byte, including spacing.
+  Do not propose another unit or change its placeholder.
 - If `style.quotes` exists, every quotation mark must be one of those marks. Report other marks as
   `style`.
 - Write only `{{REVIEW_FILE}}`: a JSON array, one object per problem:

@@ -69,14 +69,14 @@ Scrivi un ritardo nel campo accanto al tipo, con ciascuno dei modi sopra. Modifi
 - `3` oppure `3d`: 3 giorni lavorativi. Il fine settimana non conta. L'app mostra `+3d`.
 - `3ed`: 3 giorni di calendario. Il fine settimana conta, come per il calcestruzzo che matura anche il sabato e la domenica.
 - `-1`: un ritardo negativo (anticipo). Il successore può iniziare un giorno prima, quindi le attività si sovrappongono.
-- `4h`: 4 ore lavorative; l'app lo mostra come `+4u`. Se il predecessore è un'attività in giorni su un calendario senza fasce orarie proprie, come il calendario standard, l'app converte questo valore in giorni lavorativi interi, arrotondato al giorno intero più vicino: `4h` vale allora 1 giorno, `2h` vale 0. Su un calendario con fasce orarie proprie, o dopo un'attività in ore, il ritardo conta esattamente in ore.
+- `4h`: 4 ore lavorative; l'app lo mostra come `+4h`. Se il predecessore è un'attività in giorni su un calendario senza fasce orarie proprie, come il calendario standard, l'app converte questo valore in giorni lavorativi interi, arrotondato al giorno intero più vicino: `4h` vale allora 1 giorno, `2h` vale 0. Su un calendario con fasce orarie proprie, o dopo un'attività in ore, il ritardo conta esattamente in ore.
 - `50%`: la metà della durata del predecessore.
 
 Esempio: il calcestruzzo della fondazione deve maturare prima che il muratore possa lavorarci, quindi *Pour foundation → Foundation brickwork* riceve una relazione FS con ritardo `3`. Se il getto è venerdì 18 giugno 2027, la muratura inizia dopo il comando **Calcola**, giovedì 24 giugno: da lunedì a mercoledì è tempo di attesa. Con `3ed` il fine settimana conta e la muratura inizia martedì 22 giugno.
 
 ### Infine: ricalcola
 
-Una nuova relazione non sposta ancora nessuna barra; la barra di stato indica *Non aggiornato — ricalcola (F5)*. Premi **Calcola** (F5), ad esempio tramite *Home › Pianificazione › Calcola*. Solo allora i successori ricevono le nuove date. Se vuoi che l'app lo faccia per te, attiva *Calcola automaticamente* in *Impostazioni › Progetto › Impostazioni*, scheda *Pianificazione*.
+Una nuova relazione non sposta ancora nessuna barra; la barra di stato indica *Non aggiornato — ricalcola (F5)*. Premi **Calcola** (F5), ad esempio tramite *Home › Pianificazione › Calcola*. Solo allora i successori ricevono le nuove date. Se vuoi che l'app lo faccia per te, attiva *Calcola automaticamente* in *Impostazioni › Progetto › Impostazioni app*, scheda *Pianificazione*.
 
 ## Insidie e comportamento dell'app
 

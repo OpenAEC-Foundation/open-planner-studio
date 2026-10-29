@@ -6,20 +6,35 @@ import { loadLastVersion, saveLastVersion, welcomeSeenAtStartup } from '@/utils/
 import { detectJustUpdated } from '@/services/updater/releaseInfo';
 import { appLog } from '@/services/debug/appLog';
 import { isOnboardingActive } from '@/state/onboarding';
+import { getGuideView, subscribeGuideView } from '@/extensions/guideRuntime';
 
 /**
- * Open "Update beschikbaar" pas als de eerste-startervaring (welkomst, rondleiding, tutorialvraag)
- * voorbij is — eigenaarsbesluit 2026-09-28: niets over elkaar heen. Loopt ze nog, dan één
- * store-abonnement dat zichzelf opzegt zodra ze klaar is.
+ * Stel de automatische updatedialoog uit tot welkomst/rondleiding/tutorialvraag én begeleiding
+ * klaar zijn. Handmatig openen blijft mogelijk. Store en gids hebben ieder hun eigen abonnement.
  */
-function openUpdateDialogWhenIdle(): void {
-  const open = () => useAppStore.getState().setUI({ showUpdateDialog: true });
-  if (!isOnboardingActive(useAppStore.getState().ui)) { open(); return; }
-  const unsubscribe = useAppStore.subscribe(state => {
-    if (isOnboardingActive(state.ui)) return;
-    unsubscribe();
-    open();
-  });
+export function openUpdateDialogWhenIdle(): void {
+  let opened = false;
+  let scheduled = false;
+  const tryOpen = () => {
+    scheduled = false;
+    if (opened) return;
+    const ui = useAppStore.getState().ui;
+    // Een handmatig geopende dialoog heeft het verzoek al afgehandeld: later niet nóg eens tonen.
+    if (!ui.showUpdateDialog && (isOnboardingActive(ui) || getGuideView() !== null)) return;
+    opened = true;
+    unsubscribeStore();
+    unsubscribeGuide();
+    if (!ui.showUpdateDialog) useAppStore.getState().setUI({ showUpdateDialog: true });
+  };
+  const schedule = () => {
+    if (opened || scheduled) return;
+    scheduled = true;
+    // Een gids vervangen is synchroon stop → start. Beoordeel de eindstand, niet dat korte gat.
+    queueMicrotask(tryOpen);
+  };
+  const unsubscribeStore = useAppStore.subscribe(schedule);
+  const unsubscribeGuide = subscribeGuideView(schedule);
+  tryOpen();
 }
 
 // Stille opstart-update-check (Tauri-only) — spiegelt het auto-save-patroon:
@@ -32,11 +47,11 @@ export function useUpdateCheck(): void {
     if (updateChecked.current) return;
     updateChecked.current = true;
     if (!isTauri()) return;
-    // Snap-builds worden door de Snap Store/snapd zelf bijgewerkt — de in-app
+    // Snap- en AUR-builds werkt de pakketbeheerder zelf bij (snapd, pacman) — de in-app
     // auto-check overslaan zodat we de gebruiker niet lastigvallen.
     getInstallKind()
       .then(kind => {
-        if (kind === 'snap') return;
+        if (kind === 'snap' || kind === 'aur') return;
         return checkForUpdates(true).then(info => {
           if (info) openUpdateDialogWhenIdle();
         });

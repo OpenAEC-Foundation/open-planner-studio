@@ -17,16 +17,16 @@ Du arbetar bara med biblioteket om projektet är länkat till det. Utan länk vi
 För ett nytt projekt:
 
 1. Välj *Fil › Ny*. Fönstret *Nytt projekt* öppnas.
-2. Titta på *Resursbibliotek*. Fältet är inställt på standardbiblioteket. Du kan välja ett annat, *inget bibliotek (fristående projekt)* eller *+ Nytt resursbibliotek*…
+2. Titta på *Resursbibliotek*. Fältet är inställt på standardbiblioteket. Du kan välja ett annat, *inget bibliotek (fristående projekt)* eller *+ Nytt resursbibliotek…*.
 3. Klicka på *Skapa*.
 
 För ett befintligt projekt:
 
-1. Välj *Fil › Projektinfo*.
+1. Välj *Fil › Projektinställningar*.
 2. Välj biblioteket under *Resursbibliotek*.
 3. Klicka på *Tillämpa*. Tills dess står det längst ner *Ändringarna är inte tillämpade — klicka på Tillämpa för att spara dem*.
 
-Om projektet redan har resurser med samma namn som ett biblioteksobjekt, öppnas fönstret *Länka resursbibliotek* med avsnittet *Igenkända*. Varje resurs med en träff säger *Förslag: Bricklayer*. Klicka på *Länka* om du vill länka den. Klicka på *Länka alla förslag* om det finns mer än ett förslag. Appen jämför namn utan hänsyn till versaler eller dubbla mellanslag. Vid länkning tar resursen över namn, typ, standardkostnad, enhet och beskrivning från biblioteksobjektet. *Max enheter* behåller värdet som du hade i projektet. Fönstret visar också projektets kalendrar som har samma namn som en bibliotekskalender. Med *Bestämma senare* stänger du fönstret utan att länka.
+Om projektet redan har resurser med samma namn som ett biblioteksobjekt öppnas fönstret *Länka resursbibliotek* med avsnittet *Igenkända*. Varje resurs med en träff visar *Förslag: Bricklayer*. Klicka på *Länka* för att länka den. Klicka på *Länka alla förslag* om det finns mer än ett förslag. Appen jämför namn utan hänsyn till versaler eller dubbla mellanslag. Vid länkning tar resursen över namn, typ, standardkostnad, enhet och beskrivning från biblioteksobjektet. *Max enheter* behåller värdet som du hade i projektet. Fönstret visar också projektets kalendrar som har samma namn som en bibliotekskalender. Med *Bestämma senare* stänger du fönstret utan att länka.
 
 ### 2. Lägg en resurs i biblioteket
 

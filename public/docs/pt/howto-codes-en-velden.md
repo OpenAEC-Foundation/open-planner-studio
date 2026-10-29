@@ -36,7 +36,7 @@ Para a cor das barras, escolha *Visualização › Linhas de base e progresso �
 
 ## Armadilhas e o que a aplicação faz
 
-**Apagar remove os valores das tarefas.** Se apagar um tipo de código, um valor ou um campo com o ícone do caixote do lixo, a aplicação não pede confirmação, e os valores atribuídos em todas as tarefas desaparecem com ele. Um agrupamento ou uma ordenação por esse tipo de código ou campo também deixa de estar aplicado. *Desfazer* (Ctrl+Z) repõe o tipo de código, o valor ou o campo e os valores preenchidos, mas não o agrupamento nem a ordenação: volte a configurá-los.
+**Apagar remove os valores das tarefas.** Se apagar um tipo de código, um valor ou um campo com o ícone do caixote do lixo, a aplicação não pede confirmação, e os valores atribuídos em todas as tarefas desaparecem com ele. Um agrupamento ou uma ordenação por esse tipo de código ou campo também deixa de estar aplicado. *Desfazer* (Ctrl+Z, feche primeiro a janela) repõe o tipo de código, o valor ou o campo e os valores preenchidos, mas não o agrupamento nem a ordenação: volte a configurá-los.
 
 **Dois valores com o mesmo código.** *Adicionar valor* continua a numeração a partir do número de valores que existem. Se apagar um e adicionar outro, um código pode, por isso, aparecer duas vezes. Se escrever esse código numa célula de coluna, a aplicação recusa com a mensagem *Este valor do código de atividade ocorre mais do que uma vez. Escolha-o na lista*. Dê a cada valor o seu próprio código.
 

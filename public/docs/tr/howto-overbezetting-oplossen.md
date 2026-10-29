@@ -24,7 +24,7 @@ Bir görev seçiliyse, histogram yalnızca o görevin yükünü ve yalnızca o g
 ### 2. Bir çözüm seçin
 
 - **Daha fazla kapasite.** Gerçekten ikinci bir duvarcı geliyorsa, *Maks. birim* değerini 2 yapın (bkz. [Kaynakları yönetme](docs://howto-resources-beheren)). Bu durumda aşırı atanmışlık ortadan kalkar.
-- **Günde daha az birim.** *Birim/gün* değerini düşürün veya atama için başka bir eğri seçin (bkz. [Kaynakları bir eğriyle atama](docs://howto-resource-toewijzen)).
+- **Günde daha az birim.** *Birim* değerini düşürün veya atama için başka bir eğri seçin (bkz. [Kaynakları bir eğriyle atama](docs://howto-resource-toewijzen)).
 - **Görevleri art arda koyun.** İki görev arasına bir ilişki ekleyin, böylece ikinci görev ancak birinci bittikten sonra başlar (bkz. [İlişki ekleme](docs://howto-relaties-leggen)).
 - **Dengeleme.** Uygulama bir görevin daha geç başlamasını sağlar.
 
@@ -36,7 +36,7 @@ Bir görev seçiliyse, histogram yalnızca o görevin yükünü ve yalnızca o g
 4. *Kaynaklar* altında, dengelenecek kaynaklar bulunur. Varsayılan olarak tüm kaynaklar işaretlidir, malzeme hariç. Dokunulmasını istemediğiniz kaynağın işaretini kaldırın.
 5. *Hesapla* düğmesine tıklayın. Hesaplarken *Hesaplanıyor…* yazar ve *Durdur* ile durdurabilirsiniz. Planlama henüz değişmez: bu bir öneridir.
 6. Öneriyi okuyun. En üstte bitiş tarihi yer alır, örneğin *Proje bitiş tarihi: değişmedi (30-08-2027)* veya *Proje bitiş tarihi: 25-08-2027 → 30-08-2027*. Bunun altında, her görev için *Eski başlangıç*, *Yeni başlangıç* ve *Kaydırılan gün* değerlerini gösteren bir tablo bulunur, örneğin *Build outer cavity leaf*, 29-06-2027, 06-07-2027 ve *5 g*.
-7. *Uygula* öğesini seçin. Uygulama dengeleme gecikmelerini görevlere yazar ve planlama hemen yeniden hesaplanır. F5 tuşuna basmanız gerekmez. *İptal* pencereyi değişiklik yapmadan kapatır.
+7. *Uygula* öğesini seçin. Uygulama bu kaydırmaları görevlere yazar ve planlama hemen yeniden hesaplanır. F5 tuşuna basmanız gerekmez. *İptal* pencereyi değişiklik yapmadan kapatır.
 8. *Kaynaklar › Aşırı atama* öğesini kontrol edin. Artık *Yok* yazar.
 
 Pencerede *Hesapla* düğmesine tıkladıktan sonra bir seçeneği değiştirirseniz, öneri kaybolur. Bu durumda yeniden *Hesapla* düğmesine tıklayın. Uygulama hesaplarken plan değişirse, *Hesaplama sırasında plan değişti. Hesapla'ya yeniden tıklayın.* yazar.
@@ -51,7 +51,7 @@ Hangi görevin yerinde kalacağına kendiniz karar vermek istiyorsanız, o göre
 
 - *Geri al* (Ctrl+Z) bir *Uygula* işlemini tek adımda geri alır.
 - *Kaynaklar › Kaynak Dengeleme › Dengelemeyi temizle* tüm dengelemeyi görevlerden kaldırır. Dengeleme yoksa düğme gri görünür. Bu yolla geri gelen aşırı atanmışlık yeniden ortaya çıkar.
-- Dengelemeden sonra planlamayı değiştirdiyseniz, yalnızca *Dengele…* öğesini yeniden seçin. Uygulama o zaman sıfırdan başlar: eski ertelemeler sayılmaz.
+- Dengelemeden sonra planlamayı değiştirdiyseniz, yalnızca *Dengele…* öğesini yeniden seçin. Uygulama o zaman sıfırdan başlar: eski kaydırmalar sayılmaz.
 
 ## Dikkat noktaları ve uygulamanın o durumda yaptıkları
 

@@ -9,7 +9,7 @@ Notebook přestal fungovat, aplikace zamrzla nebo karta prohlížeče spadla a v
 ## Postup
 
 1. Spusťte aplikaci znovu. V prohlížeči znovu načtěte stejnou kartu: obnovovací kopie patří právě k této kartě.
-2. Pokud aplikace našla kopie, zobrazí se okno *Obnovit neuloženou práci*: *Open Planner Studio se neukončil běžným způsobem. Následující dokumenty měly neuložené změny, které lze obnovit:* Pro každý projekt okno ukáže název, cestu k souboru, pokud má projekt soubor (v prohlížeči jen název souboru), počet úkolů a čas kopie, například *21 úkolů* a *Uloženo: 29. září 2026 9:41*. Okno může ukázat i projekty, které jste nezměnili.
+2. Pokud aplikace našla kopie, zobrazí se okno *Obnovit neuloženou práci*: *Open Planner Studio se neukončil běžným způsobem. Následující dokumenty měly neuložené změny, které lze obnovit:* Pro každý projekt okno ukáže název, cestu k souboru, pokud má projekt soubor (v prohlížeči jen název souboru), počet úkolů a čas kopie, například *21 úkolů* a *Uloženo: 29. září 2026 9:41*. Čas se řídí vaším nastavením *Formát času*. Okno může ukázat i projekty, které jste nezměnili.
 3. Zvolte *Obnovit*. Aplikace otevře všechny projekty v seznamu, každý na vlastní kartě, se stavem poslední kopie. Klávesa Enter udělá totéž.
 4. Projekty zkontrolujte a hned je uložte pomocí Ctrl+S.
 

@@ -31,9 +31,9 @@ Eklenen tüm görevler proje başlangıcında başlar ve planlamanız güncel de
 
 ### Bir şablonda neler bulunur
 
-Her görev için şablon; adı, açıklamayı, görev türünü, bunun bir kilometre taşı olup olmadığını ve süreyi gün cinsinden saklar. İlişkilerden yalnızca dal içindeki iki görev arasındakiler kalır, tür ve gecikmeyle birlikte.
+Her görev için şablon; adı, açıklamayı, iş kategorisini, bunun bir kilometre taşı olup olmadığını ve süreyi gün cinsinden saklar. İlişkilerden yalnızca dal içindeki iki görev arasındakiler kalır, tür ve gecikmeyle birlikte. Saat cinsinden bir gecikme (`4h`) korunmaz ve 0 olur. İş günü, takvim günü veya yüzde cinsinden bir gecikme korunur.
 
-Diğer her şey şablonun dışında kalır: tarihler, ilerleme ve gerçek tarihler, kaynak atamaları, kodlar ve özel alanlar (bkz. [Kodlar ve özel alanlar](docs://howto-codes-en-velden)), takvim, kısıtlamalar ve son tarihler, öncelik, özel bir görev türü, bir kilometre taşı için tür ve *Zorunlu (sözleşmesel)* onay kutusu, ayrıca dal dışındaki görevlerle olan ilişkiler. Ekledikten sonra bunları yeniden doldurursunuz: atamalar, kodlar, takvim ve kısıtlamalar boştur ve tüm görevler proje başlangıcında başlar.
+Diğer her şey şablonun dışında kalır: tarihler, ilerleme ve gerçek tarihler, kaynak atamaları, kodlar ve özel alanlar (bkz. [Kodlar ve özel alanlar](docs://howto-codes-en-velden)), takvim, kısıtlamalar ve son tarihler, öncelik, özel bir iş kategorisi, bir kilometre taşı için tür ve *Zorunlu (sözleşmesel)* onay kutusu, ayrıca dal dışındaki görevlerle olan ilişkiler. Ekledikten sonra bunları yeniden doldurursunuz: atamalar, kodlar, takvim ve kısıtlamalar boştur ve tüm görevler proje başlangıcında başlar.
 
 Saat cinsinden olan bir görev, gün görevi olarak geri gelir; süresi bir iş gününün kesrine çevrilir. İş günü 8 saat olduğunda 5 saatlik bir görev 0,625 güne dönüşür.
 

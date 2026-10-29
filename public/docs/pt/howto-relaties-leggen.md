@@ -24,7 +24,7 @@ Há quatro formas de adicionar uma relação. Todas criam a mesma relação; esc
 2. Mantenha Ctrl (⌘ num Mac) premido e clique na tarefa seguinte: a sucessora.
 3. Escolha *Início › Tarefas › Ligação ▾ › Ligar tarefas selecionadas*. O mesmo botão está também em *Planeamento › Relações*.
 
-A aplicação cria uma relação Fim-Início sem desfasamento. Vê-a como uma seta no Gantt e na coluna *Predecessoras*; só aparece uma notificação se a aplicação recusar a relação. O botão só funciona com exatamente duas tarefas selecionadas.
+A aplicação cria uma relação fim-início sem desfasamento. Vê-a como uma seta no Gantt e na coluna *Predecessoras*; só aparece uma notificação se a aplicação recusar a relação. O botão só funciona com exatamente duas tarefas selecionadas.
 
 ### Desenhar uma relação no Gantt
 
@@ -76,7 +76,7 @@ Exemplo: o betão da fundação tem de curar antes de o pedreiro poder trabalhar
 
 ### Por fim: recalcular
 
-Uma relação nova ainda não move nenhuma barra; a barra de estado mostra *Desatualizado — recalcule (F5)*. Prima **Calcular** (F5), por exemplo em *Início › Agendamento › Calcular*. Só então as sucessoras recebem as novas datas. Se quiser que a aplicação faça isto por si, ative *Calcular automaticamente* em *Definições › Projeto › Definições*, separador *Planeamento*.
+Uma relação nova ainda não move nenhuma barra; a barra de estado mostra *Desatualizado — recalcule (F5)*. Prima **Calcular** (F5), por exemplo em *Início › Agendamento › Calcular*. Só então as sucessoras recebem as novas datas. Se quiser que a aplicação faça isto por si, ative *Calcular automaticamente* em *Definições › Projeto › Definições da aplicação*, separador *Planeamento*.
 
 ## Armadilhas e o que a aplicação faz
 

@@ -9,7 +9,7 @@ Na reunião, quer ver o prazo e a folga total ao lado de cada tarefa. O respons�
 Há duas tabelas de tarefas, cada uma com as suas próprias colunas:
 
 - A **tabela de tarefas ao lado do Gantt** fica à esquerda da linha de tempo nos separadores, entre outros, *Início*, *Planeamento* e *Visualização*. Por padrão, tem *WBS*, *Nome da tarefa* e *Duração*, para que sobre espaço para a linha de tempo.
-- A **tabela no separador Tabela** ocupa toda a área de trabalho. Por padrão, tem *WBS*, *Nome da tarefa*, *Duração*, *Início*, *Fim*, *Tipo de tarefa*, *Crítica*, *Folga total* e *Progresso*, mais uma coluna por cada código de atividade e campo personalizado do projeto.
+- A **tabela no separador Tabela** ocupa toda a área de trabalho. Por padrão, tem *WBS*, *Nome da tarefa*, *Duração*, *Início*, *Fim*, *Categoria de trabalho*, *Crítica*, *Folga total* e *Progresso*, mais uma coluna por cada código de atividade e campo personalizado do projeto.
 
 Uma alteração a uma tabela não altera a outra.
 

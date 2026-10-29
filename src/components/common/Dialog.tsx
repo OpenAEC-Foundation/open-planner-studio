@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import { useDialogKeys } from '@/hooks/useDialogKeys';
@@ -28,6 +28,10 @@ import { HelpButton } from '@/components/common/HelpButton';
 export interface DialogProps {
   /** Paneel-klassen per dialoog (incl. breedte/max-hoogte). */
   panelClassName: string;
+  /** Tijdelijk verborgen en zonder toetsen/focus-trap; inhoud en lokale invoerstaat blijven gemount. */
+  suspended?: boolean;
+  /** Stabiele finder voor de beginfocus, ook bij hervatten; standaard het eerste focusbare element. */
+  initialFocus?: () => HTMLElement | null;
   /**
    * Backdrop-klik sluit de dialoog; weglaten = backdrop-klik doet niets. Alleen zetten op een
    * dialoog zonder bewerkbare invoer (zie de regel hierboven).
@@ -54,14 +58,12 @@ export interface DialogProps {
 }
 
 export function Dialog({
-  panelClassName, onBackdropClick, onCancel, onConfirm, focusedButtonOwnsEnter,
+  panelClassName, suspended = false, initialFocus, onBackdropClick, onCancel, onConfirm, focusedButtonOwnsEnter,
   overlayClassName = 'bg-black/60 z-50', stopBackdropPropagation = false,
   overlayProps, panelProps, children,
 }: DialogProps) {
-  useDialogKeys({ onConfirm, onCancel, focusedButtonOwnsEnter });
   // Focus-trap (a11y): Tab/Shift+Tab blijven binnen dit paneel; role/aria-modal maken het modaal.
   const panelRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(panelRef);
 
   // Alleen een klik-handler op de overlay zetten als er iets te doen valt — WelcomeDialog heeft
   // bewust géén backdrop-close en had ook geen onClick.
@@ -77,7 +79,17 @@ export function Dialog({
       className={`fixed inset-0 flex items-center justify-center ${overlayClassName}`}
       onClick={handleBackdrop}
       {...overlayProps}
+      {...(suspended ? { style: { display: 'none' as const }, inert: true, 'aria-hidden': true } : {})}
     >
+      {!suspended && (
+        <DialogBehavior
+          panelRef={panelRef}
+          initialFocus={initialFocus}
+          onConfirm={onConfirm}
+          onCancel={onCancel}
+          focusedButtonOwnsEnter={focusedButtonOwnsEnter}
+        />
+      )}
       {/* stopPropagation: klikken ín het paneel mogen de backdrop-close niet triggeren. */}
       <div
         ref={panelRef}
@@ -91,6 +103,15 @@ export function Dialog({
       </div>
     </div>
   );
+}
+
+/** Alleen het gedrag unmount bij een Help-pauze; de invoervelden zelf blijven bestaan. */
+function DialogBehavior({ panelRef, initialFocus, ...keys }: {
+  panelRef: RefObject<HTMLDivElement | null>;
+} & Pick<DialogProps, 'initialFocus' | 'onConfirm' | 'onCancel' | 'focusedButtonOwnsEnter'>) {
+  useDialogKeys(keys);
+  useFocusTrap(panelRef, initialFocus);
+  return null;
 }
 
 /**

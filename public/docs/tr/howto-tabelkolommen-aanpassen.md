@@ -9,7 +9,7 @@ Toplantıda her görevin yanında son tarihi ve toplam bolluğu görmek istersin
 İki görev tablosu vardır. Her birinin kendi sütunları vardır:
 
 - **Gantt’ın yanındaki görev tablosu** zaman çizelgesinin solundadır. Bu tablo diğerlerinin yanında *Ana sayfa*, *Planlama* ve *Görünüm* sekmelerinde görünür. Varsayılan olarak *WBS*, *Görev adı* ve *Süre* sütunları vardır; böylece zaman çizelgesi için yer kalır.
-- **Tablo sekmesindeki tablo** çalışma alanının tamamını kaplar. Varsayılan olarak *WBS*, *Görev adı*, *Süre*, *Başlangıç*, *Bitiş*, *Görev türü*, *Kritik*, *Toplam bolluk* ve *İlerleme* sütunları vardır. Buna ek olarak projenin her etkinlik kodu ve özel alanı için bir sütun eklenir.
+- **Tablo sekmesindeki tablo** çalışma alanının tamamını kaplar. Varsayılan olarak *WBS*, *Görev adı*, *Süre*, *Başlangıç*, *Bitiş*, *İş kategorisi*, *Kritik*, *Toplam bolluk* ve *İlerleme* sütunları vardır. Buna ek olarak projenin her etkinlik kodu ve özel alan için bir sütun eklenir.
 
 Bir tablodaki değişiklik diğer tabloyu değiştirmez.
 

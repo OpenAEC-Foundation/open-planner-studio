@@ -1,0 +1,16 @@
+{
+  "name": "open-planner-headless-api",
+  "private": true,
+  "version": "2026.43.0",
+  "description": "Headless HTTP API of Open Planner Studio on node:http, using the built @openaec/open-planner-core package.",
+  "type": "module",
+  "license": "LGPL-3.0-or-later",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node server.mjs",
+    "smoke": "node smoke.mjs"
+  },
+  "dependencies": {
+    "@openaec/open-planner-core": "file:../../dist-core"
+  }
+}

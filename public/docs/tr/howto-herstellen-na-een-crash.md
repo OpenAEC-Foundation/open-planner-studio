@@ -9,7 +9,7 @@ Dizüstü bilgisayarınız kapandı, uygulama dondu veya tarayıcı sekmesi çö
 ## Adımlar
 
 1. Uygulamayı yeniden başlatın. Tarayıcıda aynı sekmeyi yenilersiniz. Kurtarma kopyası o tek sekmeye aittir.
-2. Uygulama kopya bulursa *Kaydedilmemiş çalışmayı geri yükle* penceresi açılır: *Open Planner Studio normal şekilde kapanmadı. Aşağıdaki belgelerde geri yüklenebilecek kaydedilmemiş değişiklikler vardı:* Her proje için ad gösterilir. Projenin bir dosyası varsa dosyanın yolu da gösterilir. Tarayıcıda yalnızca dosya adı gösterilir. Ayrıca görev sayısı ve kopyanın zamanı gösterilir, örneğin *21 görev* ve *Kaydedildi: Sep 29, 2026, 9:41 AM*. Pencerede ayrıca değiştirmediğiniz projeler de görünebilir.
+2. Uygulama kopya bulursa *Kaydedilmemiş çalışmayı geri yükle* penceresi açılır: *Open Planner Studio normal şekilde kapanmadı. Aşağıdaki belgelerde geri yüklenebilecek kaydedilmemiş değişiklikler vardı:* Her proje için ad gösterilir. Projenin bir dosyası varsa dosyanın yolu da gösterilir. Tarayıcıda yalnızca dosya adı gösterilir. Görev sayısı ve kopyanın zamanı gösterilir, örneğin *21 görev* ve *Kaydedildi: Sep 29, 2026 9:41 AM*. Saat, *Saat biçimi* ayarınıza göre gösterilir. Pencerede ayrıca değiştirmediğiniz projeler de görünebilir.
 3. *Geri yükle* öğesini seçin. Uygulama listedeki tüm projeleri, her biri ayrı bir sekmede, son kopyanın durumuyla açar. Enter tuşu aynısını yapar.
 4. Projelerinizi kontrol edin ve hemen Ctrl+S ile kaydedin.
 

@@ -11,9 +11,9 @@ Valintanauhassa yläreunassa on välilehdet. Jokaisella välilehdellä on painik
 
 ## Tiedosto
 
-Kun *Tiedosto* valitaan, oma näkymä (Backstage) ottaa työtilan haltuunsa. Sillä ei ole valintanauhaa. *Takaisin* sulkee sen. Jos kohdassa *Projektitiedot* muutetaan jotakin eikä muutosta oteta käyttöön, sovellus kysyy ensin, mitä muutokselle tehdään.
+Kun *Tiedosto* valitaan, oma näkymä (Backstage) ottaa työtilan haltuunsa. Sillä ei ole valintanauhaa. *Takaisin* sulkee sen. Jos kohdassa *Projektin asetukset* muutetaan jotakin eikä muutosta oteta käyttöön, sovellus kysyy ensin, mitä muutokselle tehdään.
 
-- **Uusi** — avaa ikkunan *Luo uusi projekti* ja sulkee Backstage-näkymän. Kentät kuvataan kohdassa [Uusi projekti ja Projektitiedot](docs://ref-projectinfo).
+- **Uusi** — avaa ikkunan *Luo uusi projekti* ja sulkee Backstage-näkymän. Kentät kuvataan kohdassa [Uusi projekti ja projektin asetukset](docs://ref-projectinfo).
 - **Avaa** — valitsee tiedoston ja avaa sen asiakirjana. Sulkee Backstage-näkymän.
 - **Viimeisimmät** — luettelo äsken avatuista projekteista. Yksi napsautus avaa projektin. Näkyy vain, kun ympäristö voi avata tiedostoja uudelleen: työpöytäsovelluksessa ja selaimissa, jotka tarjoavat tiedostopääsyn, kuten Chrome ja Edge. Muissa selaimissa painike on näkyvissä, mutta sivu jää tyhjäksi.
 - **Esimerkit** — mukana toimitetut esimerkkiaikataulut. Ne on jaettu osioihin *Täydet esittelyaikataulut* (merkki *Kaikki toiminnot*) ja *Yksinkertaiset esimerkit*. Yksi napsautus avaa esimerkin uudessa välilehdessä.
@@ -22,11 +22,11 @@ Kun *Tiedosto* valitaan, oma näkymä (Backstage) ottaa työtilan haltuunsa. Sil
 - **Vienti** — kortit kullekin vientimuodolle, kuvauksineen. Yksi napsautus muuntaa projektin ja tallentaa sen. Sen jälkeen palataan välilehdelle *Aloitus*. Jos aikataulussa on kehä, virhe näkyy Backstage-näkymässä ja näkymä jää auki. Jos projekti on linkitetty kirjastoon, alle ilmestyy valintaruutu *Tallenna kirjastotiedosto rinnalle*. Se toimii vain IFC-kortilla.
 - **Tuonti** — ylhäällä kortti *Tuo edistyminen taulukosta*, joka ei ole käytössä ilman tehtäviä. Sen alla ovat tuojat, jotka laajennukset lisäävät.
 - **Tulostus** — painike *Avaa tulostuksen esikatselu* vie välilehdelle *Raportti*.
-- **Projektitiedot** — projektin metatiedot ja laskentaprofiili. Muutokset tulevat voimaan vasta, kun *Käytä*-painiketta painetaan. Katso [Uusi projekti ja Projektitiedot](docs://ref-projectinfo) ja [Laskentaprofiilit ja laskentasäännöt](docs://uitleg-rekenprofielen).
+- **Projektin asetukset** — projektin metatiedot ja laskentaprofiili. Muutokset tulevat voimaan vasta, kun *Käytä*-painiketta painetaan. Katso [Uusi projekti ja projektin asetukset](docs://ref-projectinfo) ja [Laskentaprofiilit ja laskentasäännöt](docs://uitleg-rekenprofielen).
 - **Asetukset** — samat asetukset kuin ikkunassa *Asetukset*.
 - **Laajennukset** — laajennusten hallinta ja asennus. Katso [Laajennuksen asentaminen ja hallinta](docs://howto-extensie-installeren).
 - **Kirjasto** — resurssikirjastojen hallinta. Katso [Resurssikirjastojen hallinta ja jakaminen](docs://howto-bibliotheken-beheren).
-- **Ohje** — sisäänrakennettu dokumentaatio, myös näppäimellä F1. Hakukenttä etsii otsikoista, väliotsikoista ja itse tekstistä. Artikkelit ovat neljässä osiossa: *Opetusohjelmat*, *Käyttöohjeet*, *Selitys* ja *Viiteaineisto*. Kohdassa *Dokumentaation kieli* valitaan *Seuraa sovelluksen kieltä*, *Nederlands* tai *English*. Ohje on saatavilla vain hollanniksi ja englanniksi. Jos sovellus on muulla kielellä, luetaan englanninkielinen versio ja siitä näytetään ilmoitus. Valinta säilyy tällä laitteella erillään sovelluksen kielestä. Ohjeen voi avata myös ikkunasta tai paneelista. Monissa ikkunoissa ja paneeleissa *Ominaisuudet*, *Resurssit* ja *Varoitukset* on oikeassa yläkulmassa kysymysmerkki (*Ohje tähän aiheeseen*). Se avaa ohjeen kyseisen ikkunan tai paneelin artikkelista. Jos ikkunaan on kirjoitettu jotakin, mitä ei ole vielä tallennettu, sovellus kysyy ensin *Tallenna*, *Peruuta* (hylkää kirjoitettu) tai *Takaisin* (pysy ikkunassa). Sen jälkeen ikkuna sulkeutuu ja ohje aukeaa. Muutamat ikkunat, kuten *Muokkaa tehtävää* ja *Tasaa resurssit*, kysyvät aina. Ilman syötettyä tietoa ohje aukeaa heti.
+- **Ohje** — sisäänrakennettu dokumentaatio, myös näppäimellä F1. Hakukenttä etsii otsikoista, väliotsikoista ja itse tekstistä. Artikkelit ovat neljässä osiossa: *Opetusohjelmat*, *Käyttöohjeet*, *Selitys* ja *Viiteaineisto*. Kohdassa *Dokumentaation kieli* valitaan *Seuraa sovelluksen kieltä* tai jokin listan kielistä. Hollanti ja englanti ovat lähdekielet. Muilla kielillä on jo käännetyt artikkelit. Jos artikkeli puuttuu omalla kielellä, luetaan englanninkielinen versio ja siitä näytetään ilmoitus. Valinta säilyy tällä laitteella erillään sovelluksen kielestä. Ohjeen voi avata myös ikkunasta tai paneelista. Monissa ikkunoissa ja paneeleissa *Ominaisuudet*, *Resurssit* ja *Varoitukset* on oikeassa yläkulmassa kysymysmerkki (*Ohje tähän aiheeseen*). Se avaa ohjeen kyseisen ikkunan tai paneelin artikkelista. Jos ikkunaan on kirjoitettu jotakin, mitä ei ole vielä tallennettu, sovellus kysyy ensin *Tallenna*, *Peruuta* (hylkää kirjoitettu) tai *Takaisin* (pysy ikkunassa). Sen jälkeen ikkuna sulkeutuu ja ohje aukeaa. Muutamat ikkunat, kuten *Muokkaa tehtävää* ja *Tasaa resurssit*, kysyvät aina. Ilman syötettyä tietoa ohje aukeaa heti.
 - **Aloita kierros** — sulkee Backstage-näkymän ja aloittaa kierroksen vaiheesta 1.
 - **Sulje projekti** — sulkee aktiivisen asiakirjan. Jos siinä on tallentamattomia muutoksia, sovellus pyytää vahvistuksen.
 
@@ -46,8 +46,8 @@ Kun *Tiedosto* valitaan, oma näkymä (Backstage) ottaa työtilan haltuunsa. Sil
 
 ### Aloitus › Tehtävät
 
-- **Tehtävä** — lisää tehtävän nimeltä *Uusi tehtävä*. Sen kesto on 5 työpäivää ja se alkaa projektin aloituspäivänä. Jos *Ota tuntisuunnittelu käyttöön* on päällä ja *Oletusmitta uusille tehtäville* kohdassa *Projektitiedot* on tunnit, kesto on 5 tuntia. Jos tehtävä on valittuna ja näkymä on tavallinen puu, uusi tehtävä tulee heti alimman valitun tehtävän alle (työkaluvihje *Uusi tehtävä heti valinnan alle*). Ilman valintaa se tulee listan alaosaan (työkaluvihje *Uusi tehtävä listan alaosaan*). Kun jotakin on valittuna mutta tehtäviä suodatetaan, ryhmitellään tai lajitellaan, se tulee myös alaosaan. Valintanauhan alla oleva rivi sanoo silloin *Ei käytettävissä suodatuksen, ryhmittelyn tai lajittelun aikana*. Uusi tehtävä on ainoa valinta. Gantt siirtyy siihen, ja nimen voi kirjoittaa heti paneelissa *Ominaisuudet*.
-- **Välitavoite ▾** — pudotusvalikko, joka lisää välitavoitteen (kesto 0) samaan paikkaan kuin *Tehtävä*. *Aloitusvälitavoite* ja *Loppuvälitavoite* asettavat välitavoitteen tyypin. Uusi välitavoite saa nimen *Uusi välitavoite* ja tehtävätyypin *Muu*. *Tarkastushetki (pakollinen)* luo loppuvälitavoitteen, jonka tehtävätyyppi on *Tarkastus* ja lippu *Pakollinen (sopimuksellinen)*. Sen nimi on *Uusi tarkastuspiste*.
+- **Tehtävä** — lisää tehtävän nimeltä *Uusi tehtävä*. Sen kesto on 5 työpäivää ja se alkaa projektin aloituspäivänä. Jos *Ota tuntisuunnittelu käyttöön* on päällä ja *Oletusmitta uusille tehtäville* kohdassa *Projektin asetukset* on tunnit, kesto on 5 tuntia. Jos tehtävä on valittuna ja näkymä on tavallinen puu, uusi tehtävä tulee heti alimman valitun tehtävän alle (työkaluvihje *Uusi tehtävä heti valinnan alle*). Ilman valintaa se tulee listan alaosaan (työkaluvihje *Uusi tehtävä listan alaosaan*). Jos jotakin on valittuna mutta tehtäviä suodatetaan, ryhmitellään tai lajitellaan, se tulee myös alaosaan. Sovellus näyttää silloin punaisen ilmoituksen: se ei voi sijoittaa tehtävää valintasi alle. Ilmoituksessa on painike *Tyhjennä*. Uusi tehtävä on ainoa valinta. Gantt siirtyy siihen, ja nimen voi kirjoittaa heti paneelissa *Ominaisuudet*.
+- **Välitavoite ▾** — pudotusvalikko, joka lisää välitavoitteen (kesto 0) samaan paikkaan kuin *Tehtävä*. *Aloitusvälitavoite* ja *Loppuvälitavoite* asettavat välitavoitteen tyypin. Uusi välitavoite saa nimen *Uusi välitavoite* ja työlajiksi *Muu*. *Tarkastushetki (pakollinen)* luo loppuvälitavoitteen, jonka työlaji on *Tarkastus* ja lippu *Pakollinen (sopimuksellinen)*. Sen nimi on *Uusi tarkastuspiste*.
 - **Linkitä ▾** — pudotusvalikko neljällä kiinteällä toiminnolla. Pääpainikkeen merkitys ei muutu koskaan. Katso neljä toimintoa kohdasta *Aikataulu › Riippuvuudet*.
 - **Jaa tehtävä** — kytkee jaetun tehtävän tilan päälle tai pois. Päällä: valintanauhan alla oleva rivi kertoo, että palkkia napsautetaan siitä kohdasta, johon aukko alkaa, ja vedetään oikealle aukon pituuden verran. Ei käytössä, kun Gantt ei ole näkyvissä. Tämä koskee välilehtiä *Taulukko*, *IFC* ja *Raportti* sekä täyden resurssipaneelin alla olevaa aluetta. Työkaluvihje sanoo silloin *Käytettävissä vain, kun Gantt-kaavio on näkyvissä*. Katso [Tehtävän jakaminen](docs://howto-taak-splitsen).
 
@@ -94,7 +94,7 @@ Molemmat voivat olla päällä yhtä aikaa. Toinen napsautus painikkeeseen kytke
 ### Aikataulu › Rakenne
 
 - **Koodit ja kentät** — avaa ikkunan *Koodit ja kentät* tehtäväkoodeille ja mukautetuille kentille. Katso [Koodit ja mukautetut kentät](docs://howto-codes-en-velden).
-- **WBS auto** — kytkee WBS-koodien automaattisen numeroinnin päälle tai pois. Oletus: pois. Päällä: koko puu numeroidaan kerralla, koodit seuraavat sitten jokaista rakennemuutosta, ja kenttä *WBS-koodi* paneelissa ja ikkunassa ei ole käytössä.
+- **WBS auto** — kytkee WBS-koodien automaattisen numeroinnin päälle tai pois. Oletus: päällä uudessa projektissa. Avatussa tiedostossa, jossa ei ole tätä asetusta: päällä, jos tiedosto on tyhjä tai kaikki koodit vastaavat jo puun numerointia, muuten pois. Päällä: koko puu numeroidaan kerralla, koodit seuraavat sitten jokaista rakennemuutosta, ja kenttä *WBS-koodi* paneelissa ja ikkunassa ei ole käytössä.
 - **Numeroi WBS uudelleen** — numeroi WBS-koodit kerran uudelleen puun sijainnin mukaan (1.2.3). Ei käytössä, kun *WBS auto* on päällä.
 - **Mallipohjat** — pudotusvalikko tallennetuilla WBS-mallipohjilla. Kukin näyttää tehtävien ja riippuvuuksien määrän. Yksi napsautus lisää mallipohjan valitun tehtävän alle. Jos mitään ei ole valittu, se lisätään ylimmälle tasolle. Roskakorikuvake poistaa mallipohjan. Ilman mallipohjia valikko kertoo, miten mallipohja tallennetaan: napsauta yhteenvetotehtävää hiiren kakkospainikkeella ja valitse *Tallenna haara mallipohjana*. Katso [Mallipohjien tallentaminen ja lisääminen](docs://howto-wbs-sjablonen).
 - **Sisennä** — tekee valituista tehtävistä edeltävän tehtävän alitehtäviä. Ei käytössä ilman valintaa, eikä kun tehtäviä suodatetaan, ryhmitellään tai lajitellaan. Työkaluvihje sanoo silloin *Ei käytettävissä suodatuksen, ryhmittelyn tai lajittelun aikana*.
@@ -103,7 +103,7 @@ Molemmat voivat olla päällä yhtä aikaa. Toinen napsautus painikkeeseen kytke
 ### Aikataulu › Perustasot ja edistyminen
 
 - **Hallitse perustasoja…** — avaa perustasoikkunan. Katso [Perustason tallentaminen ja hallinta](docs://howto-baseline-opslaan-en-beheren).
-- **Raportointipäivä** — päivä, johon asti edistymistä mitataan. Kirjoita päivämäärä. Rasti (*Tyhjennä raportointipäivä*) poistaa sen. Vaikutus: edistymistä mitataan siihen päivään asti. Raportointipäivän viiva ja edistymisviiva Gantt-kaaviossa ovat sillä kohdalla. Katso [Edistyminen, raportointipäivä ja perustaso](docs://uitleg-voortgang).
+- **Raportointipäivä** — päivä, johon asti edistymistä mitataan. Kirjoita päivämäärä. Rasti (*Tyhjennä raportointipäivä*) poistaa sen. Jos projektin kalenterissa on työaikalohkoja, sovellus laskee tunneissa ja päivämäärän viereen tulee aikakenttä (MS Project tallentaa usein kellonajan 17:00). Aika lasketaan silloin mukaan: 12:00 17:00:n sijaan antaa puolen päivän erilaisen jäljellä olevan työn. Ilman työaikalohkoja sovellus laskee kokonaisina päivinä, eikä aikakenttää ole. Vaikutus: edistymistä mitataan siihen päivään asti. Raportointipäivän viiva ja edistymisviiva Gantt-kaaviossa ovat sillä kohdalla. Katso [Edistyminen, raportointipäivä ja perustaso](docs://uitleg-voortgang).
 - **Edistymistapa** — valinta: *Retained Logic* tai *Progress Override*. Oletus: *Retained Logic*. Vaikutus: *Retained Logic* -tilassa aloitetun seuraajan jäljellä oleva työ seuraa riippuvuutta. *Progress Override* -tilassa jäljellä oleva työ alkaa raportointipäivänä, ilman odotusta edeltäjää. Katso [Edistymistavan valitseminen](docs://howto-voortgangsmodus-kiezen).
 
 Tiivistetyssä valintanauhassa nämä kolme ovat yhden lippupainikkeen takana, jonka nimi on *Perustasot ja edistyminen*.
@@ -145,7 +145,7 @@ Tämä ryhmä on myös välilehdillä *Taulukko* ja *Raportti*.
 
 ### Näkymä › Aikaskaala
 
-- **Lähennä +** ja **Loitonna -** — lähentää tai loitontaa aika-akselia 10 pikselillä päivää kohti.
+- **Lähennä +** ja **Loitonna -** — lähentää tai loitontaa aika-akselia 10 pikseliä päivää kohti.
 - **Palauta** — palauttaa zoomauksen oletusarvoon, 30 pikseliin päivää kohti.
 - **Sovita projektiin** — zoomaa ja vierittää niin, että koko projekti näkyy.
 - **Aikaskaalan valinta** — luettelo, jossa ovat *Vuosi*, *Neljännes*, *Kuukausi*, *Viikko*, *Päivä* ja, vain kun *Ota tuntisuunnittelu käyttöön* on päällä, *Tunti*. Valinta asettaa kiinteän zoomin. Näytetty arvo seuraa nykyistä zoomia. Sen alapuolella näytetään tämä zoom pikseleinä päivää kohti.
@@ -166,15 +166,23 @@ Tämä ryhmä on myös välilehdillä *Taulukko* ja *Raportti*.
 
 ### Näkymä › Esitys
 
-- **Esitys** — kytkee esitystilan päälle tai pois (lopetus: F11 tai Esc). Vain Gantt täyttää näytön. Katso [Esittäminen suurella näytöllä](docs://howto-presentatie).
+- **Esitys** — kytkee esitystilan päälle tai pois (lopetus: Esc, työpöytäsovelluksessa myös F11). Vain Gantt täyttää näytön. Katso [Esittäminen suurella näytöllä](docs://howto-presentatie).
 - **Jaettu näkymä** — jakaa Ganttin kahteen aikaikkunaan, jotka alkavat molemmat nykyisellä zoomauksella ja sijainnilla (jako 50 prosenttia), tai yhdistää ne taas yhdeksi. Oletus: pois. Katso [Jaetun näkymän ja pienoiskartan käyttäminen](docs://howto-split-view-en-mini-map).
 - **Pienoiskartta** — näyttää tai piilottaa pienoiskartan. Oletus: pois. Valinta muistetaan.
 
 ### Näkymä › Paneelit
 
-- **Ominaisuudet** — näyttää tai piilottaa paneelin *Ominaisuudet* oikeassa reunassa. Oletus: päällä. Katso [Tehtäväikkuna ja ominaisuuspaneeli](docs://ref-taak-eigenschappen).
+- **Ominaisuudet** — näyttää tai piilottaa paneelin *Ominaisuudet* oikeanpuoleisessa sivupalkissa. Oletus: päällä. Katso [Tehtäväikkuna ja ominaisuuspaneeli](docs://ref-taak-eigenschappen).
 
 Painikkeet *Resurssit*, *Resurssitelakka* ja *Histogrammi* ovat samat kuin ryhmässä *Resurssit*, ja *Varoitukset* on sama kuin ryhmässä *Aikataulu*.
+
+**Oikeanpuoleinen sivupalkki.** Sivupalkki Ganttin oikealla puolella on näkyvissä heti, kun ainakin yksi paneeleista *Ominaisuudet*, *Resurssitelakka* tai *Varoitukset* on päällä. Jos mikään ei ole päällä, sivupalkkia ei ole. Jos koko paneeli vie työtilan, esimerkiksi koko resurssipaneeli, sivupalkki katoaa. Vain välilehdellä *Taulukko* se jää näkyviin.
+
+- **Leveys** — vedä jakajaa työtilan ja sivupalkin välissä. Yksi leveys koskee kaikkia sivupalkin paneeleja.
+- **Jako** — jos kaksi paneelia on päällä, vedä niiden välistä rajaa. Jos yksi on päällä, se paneeli täyttää koko sivupalkin.
+- **Tiivistä** — painike *Tiivistä sivupalkki* otsikkorivillä piilottaa sivupalkin. Kapea reunus, jossa on painike *Laajenna sivupalkki*, tuo sen takaisin samoilla paneeleilla kuin ennen.
+- **Sulje** — jokaisessa paneelissa on rasti otsikkorivillä. Se on sama kytkin kuin valintanauhan painike.
+- **Koko paneeli** — resurssitelakassa painike *Koko paneeli* avaa koko resurssipaneelin.
 
 ### Näkymä › Perustasot ja edistyminen
 
@@ -182,17 +190,17 @@ Tällä ryhmällä on sama nimi kuin ryhmällä *Aikataulu*, mutta se sisältä�
 
 - **Perustason peitto** — näyttää aktiivisen perustason ohuena palkkina kunkin tehtäväpalkin alla. Oletus: päällä. Ilman aktiivista perustasoa ei ole mitään nähtävää.
 - **Edistymisviiva** — piirtää viivan raportointipäivän kohdalle. Viiva pullistuu kunkin tehtävän kohdalla sen edistymisen mukaan. Oletus: päällä. Ilman raportointipäivää ei ole mitään nähtävää. Kun edistymisviiva on päällä, tämä viiva on myös raportointipäivän merkki.
-- **Raportointipäivän viiva** — piirtää katkoviivan raportointipäivän kohdalle. Oletus: päällä. Viiva näkyy vain, kun edistymisviiva on pois päältä, koska muuten edistymisviiva ottaa sen paikan. Otsikon päivämääräteksti jää näkyviin, niin kauan kuin ainakin toinen näistä kahdesta on päällä.
-- **Palkkien värit** — valitsee, miten palkit värjätään: *Kriittinen polku* (oletus), *Tehtäväkohtainen — automaattinen* tai *Luokittain* ja kentän valinta. Jos kenttää ei ole tässä projektissa, valikko kertoo, että *Tehtävätyyppi* käytetään väliaikaisesti. Kun *Kriittinen polku* ei ole valittu, punainen reunus merkitsee kriittisen polun. Valinta koskee myös raporttia.
+- **Raportointipäivän viiva** — piirtää katkoviivan raportointipäivän kohdalle. Oletus: päällä. Viiva näkyy vain, kun edistymisviiva on pois päältä, koska muuten edistymisviiva ottaa sen paikan. Otsikon päivämääräteksti jää näkyviin, niin kauan kuin ainakin toinen näistä kahdesta on päällä. Teksti noudattaa päivämääräesitystä, esimerkiksi 20-09-2006. Jos sovellus laskee tunneissa, viiva ja teksti ovat kellonajan kohdalla, ja teksti näyttää myös kellonajan, esimerkiksi 20-09-2006 17:00.
+- **Palkkien värit** — valitsee, miten palkit värjätään: *Kriittinen polku* (oletus), *Tehtäväkohtainen — automaattinen* tai *Luokittain* sekä kentän valinta. Jos kenttää ei ole tässä projektissa, valikko kertoo, että *Työlaji* käytetään väliaikaisesti. Kun *Kriittinen polku* ei ole valittu, punainen reunus merkitsee kriittisen polun. Valinta koskee myös raporttia.
 - **Resurssikorostus** — piirtää ohuen nauhan resurssin värillä kunkin lehtipalkin alle. Nauha jakautuu suhteessa kuormitusasteeseen päivää kohti. Oletus: pois.
-- **Pelivarakaista** — piirtää vihreän kaistan ei-kriittisen palkin jälkeen, tehtävän myöhäisimmän valmistumispäivän asti. Oletus: päällä.
+- **Pelivarakaista** — piirtää vihreän kaistan ei-kriittisen palkin jälkeen, tehtävän myöhäisimpään valmistumispäivään asti. Oletus: päällä.
 - **Riippuvuusviivat** — näyttää tai piilottaa tehtävien väliset riippuvuusviivat. Oletus: päällä. Valinta kuuluu asiakirjaan ja asetteluun.
 
 ## Asetukset
 
 ### Asetukset › Projekti
 
-- **Projektitiedot** — avaa ikkunan *Projektitiedot*: projektin metatiedot ja osiossa *Laskentaprofiili ja laskentavaihtoehdot* miten projekti lasketaan. Katso [Uusi projekti ja Projektitiedot](docs://ref-projectinfo).
+- **Projektin asetukset** — avaa ikkunan *Projektin asetukset*: projektin metatiedot ja osiossa *Laskentaprofiili ja laskentavaihtoehdot* se, miten projekti lasketaan. Katso [Uusi projekti ja Projektin asetukset](docs://ref-projectinfo).
 - **Asetukset** — avaa ikkunan *Asetukset* välilehdillä *Ulkonäkö*, *Aikataulu* ja *Lisäasetukset*. Samat asetukset ovat kohdassa *Tiedosto › Asetukset*.
 
 ### Asetukset › Kalenteri
@@ -213,7 +221,7 @@ Välilehti *Taulukko* näyttää tehtävät täydellisenä taulukkona Ganttin si
 
 ## IFC
 
-Välilehti näyttää IFC-paneelin työtilassa. Valintanauhassa ei ole tässä painikkeita, vain tekstirivi *IFC 4x3 - Industry Foundation Classes*.
+Välilehti näyttää IFC-paneelin työtilassa. Valintanauhassa ei ole tässä painikkeita, vain tekstirivi *IFC - Industry Foundation Classes, projektin skeemassa (oletuksena IFC 4.3 ADD2)*.
 
 ## Raportti
 
@@ -227,11 +235,11 @@ Välilehti *AI* näkyy vain, kun *Ota AI-tila käyttöön* on päällä (*Asetuk
 
 ### AI › Palvelin
 
-- **Käynnistä silta** ja **Pysäytä silta** — käynnistää tai pysäyttää MCP-sillan. Sen vieressä on tila: *Pois*, *Käynnissä portissa …*, *Portti … on varattu* (syy näkyy) tai *Virhe*. Verkkoversiossa painikkeet ovat pois käytöstä, ja ohjeteksti sanoo *Silta toimii vain työpöytäsovelluksessa*. Sama tila näkyy pisteenä, jonka vieressä on *AI*, tilarivillä.
+- **Käynnistä silta** ja **Pysäytä silta** — käynnistää tai pysäyttää MCP-sillan. Sen vieressä on tila: *Pois*, *Käynnissä portissa …*, *Portti … on varattu* (syy näkyy) tai *Virhe*. Verkkoversiossa painikkeet ovat pois käytöstä, ja ohjeteksti sanoo *Silta toimii vain työpöytäsovelluksessa.* Sama tila näkyy pisteenä, jonka vieressä on *AI*, tilarivillä.
 
 ### AI › Yhteys
 
-- **Portti** — sillan portti. Oletus: 3877. Voi muuttaa vain, kun tila on *Pois* (ohjeteksti *Voi muuttaa vain, kun palvelin on pysäytetty*).
+- **Portti** — sillan portti. Oletus: 3877. Voi muuttaa vain, kun tila on *Pois* (ohjeteksti *Voi muuttaa vain, kun palvelin on pysäytetty.*).
 - **Token** — sillan salasana, joka on oletuksena piilotettu. Pienet painikkeet *Näytä token*/*Piilota token*, *Kopioi* ja *Luo uusi token*. *Luo uusi token* kysyy ensin vahvistuksen, koska uusi token katkaisee kaikki nykyiset yhteydet. Jos silta on käynnissä, se käynnistyy uudelleen uudella tokenilla.
 - **Yhdistä** — näyttää yhteystiedot: päätepisteen, tokenin, asetusotteen ja yhteyskehotteen, joka liitetään tekoälyagenttiin.
 

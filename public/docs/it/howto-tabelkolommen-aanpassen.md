@@ -9,7 +9,7 @@ Nella riunione vuoi vedere la scadenza e il margine totale accanto a ogni attivi
 Ci sono due tabelle attività, ciascuna con le proprie colonne:
 
 - La **tabella attività accanto al Gantt** si trova a sinistra della linea temporale, nelle schede, tra le altre, *Home*, *Pianificazione* e *Vista*. Per impostazione predefinita ha *WBS*, *Nome attività* e *Durata*, così resta spazio per la linea temporale.
-- La **tabella nella scheda Tabella** occupa tutto lo spazio di lavoro. Per impostazione predefinita ha *WBS*, *Nome attività*, *Durata*, *Inizio*, *Fine*, *Tipo attività*, *Critica*, *Margine totale* e *Avanzamento*, più una colonna per ogni codice attività e campo personalizzato del progetto.
+- La **tabella nella scheda Tabella** occupa tutto lo spazio di lavoro. Per impostazione predefinita ha *WBS*, *Nome attività*, *Durata*, *Inizio*, *Fine*, *Categoria di lavoro*, *Critica*, *Margine totale* e *Avanzamento*, più una colonna per ogni codice attività e campo personalizzato del progetto.
 
 Una modifica a una tabella non cambia l'altra.
 

@@ -1871,6 +1871,18 @@
     "source": "model",
     "status": "model"
   },
+  "work-category": {
+    "term": "arbetskategori",
+    "forms": [
+      "arbetskategori",
+      "arbetskategorin",
+      "arbetskategorier",
+      "arbetskategorierna",
+      "arbetskategorins"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "arbetstider",
     "forms": [

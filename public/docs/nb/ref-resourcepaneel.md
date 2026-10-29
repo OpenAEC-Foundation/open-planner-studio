@@ -18,13 +18,13 @@ Ressurspanelet er der du administrerer ressurser: hvem og hva som er tilgjengeli
 
 Tabellen over det prosjektet bruker. Hver rad er en ressurs. Endringer i tekst og standardsats gjelder så snart du forlater feltet. Hver endring telles som ett trinn under *Angre*.
 
-- **Farge** — en fargevelger. Standard: den første ledige fargen fra paletten. Effekt: fargen på ressursmarkeringen under Gantt-stolpene (*Visning › Grunnlinjer og fremdrift › Ressursmarkering*) og på fargeflekken i dokken.
-- **Navn** — navnet på ressursen. Et tomt navn lagres ikke. Feltet går tilbake til det gamle navnet.
+- **Farge** — en fargevelger. Standard: den første ledige fargen fra paletten. Effekt: fargen på ressursmarkeringen under Gantt-stolpene (*Visning › Grunnlinjer og fremdrift › Ressursmarkering*) og på fargeflekken i ressursdokken.
+- **Navn** — navnet på ressursen. Et tomt navn lagres ikke. Feltet settes til det gamle navnet.
 - **Type** — *Arbeid*, *Utstyr*, *Materiale*, *Underentreprenør* eller *Mannskap*. Standard for en ny ressurs: *Arbeid*. Effekt: *Materiale* har en *Enhet* og teller ikke med i summen *Alle ressurser* i histogrammet. Utjevning hopper over materiale. Du kan velge en ressurs av typen *Mannskap* som mannskap for andre ressurser. De andre typene beregnes likt.
 - **Maksimalt antall** — hvor mye av ressursen som er tilgjengelig per dag, et tall over 0 (brøktall er tillatt). Standard: 1. Effekt: kapasiteten per dag. Er belastningen høyere, er ressursen overallokert. Pilen ved siden av åpner *Tidsfasert kapasitet*. Tallet ved pilen er antall trinn.
 - **Tidsfasert kapasitet** — trinn med *Fra* (en dato) og *Maksimalt antall*. Klikker du på *Legg til trinn*, legges det til et trinn med i dag og 1. Uten trinn står det *Ingen trinn — fast maksimalt antall gjelder alltid*. Effekt: fra datoen i et trinn gjelder dets *Maksimalt antall* i stedet for den faste verdien. Det siste trinnet med en dato på eller før en dag, vinner.
 - **Kalender** — en liste med *Prosjektkalender* (standard), kalenderne i prosjektet og *+ Ressurskalender* for en ny. Blyanten (*Rediger*) åpner den valgte kalenderen. Den er ikke aktiv for *Prosjektkalender*. Effekt: dagene ressursen arbeider. På en fridag er kapasiteten 0. Er det planlagt arbeid da, er ressursen overallokert, med årsaken *Arbeider ikke denne dagen i følge kalenderen “…”*. Ressurskalenderen endrer ikke datoene for en aktivitet. Se [Kalendervinduer](docs://ref-kalenders).
-- **Standardsats/time** — kostnaden per time. Tomt felt betyr ingen sats. Et ugyldig tall gir tilbake den forrige verdien. Effekt: ingen påvirkning på tidsplanen eller belastningen. Satsen bestemmer kolonnen *Totalt*, lagres i IFC-filen og skrives med ved eksport til MS Project (standardsats) og Primavera P6 XML (pris per enhet).
+- **Standardsats/time** — kostnaden per time. Tomt felt betyr ingen sats. Et ugyldig tall settes til den forrige verdien. Effekt: ingen påvirkning på tidsplanen eller belastningen. Satsen bestemmer kolonnen *Totalt*, lagres i IFC-filen og skrives med ved eksport til MS Project (standardsats) og Primavera P6 XML (pris per enhet).
 - **Totalt** — skrivebeskyttet: de belastede timene × satsen, med to desimaler. Uten sats eller belastning står *—*. Nederst legger en linje *Totalt* sammen alle ressursene. Timene kommer fra den siste beregningen. De telles som tildelingsenheter × timer per dag i kalenderen for aktiviteten. Er tallene utdatert? Velg *Beregn*.
 - **Enhet** — måleenheten for materialet, for eksempel `m³`. Du kan bare fylle den inn for typen *Materiale* (verktøytips: *Gjelder bare for ressurser av typen Materiale*). Effekt: en etikett. Den regner ikke.
 - **Mannskap** — mannskapet ressursen tilhører, valgt blant ressursene av typen *Mannskap*. Standard: *Ingen*. Effekt: bare gruppering. Kapasiteten og belastningen til et mannskap er ikke summen av medlemmene.
@@ -83,4 +83,4 @@ Her ser du det:
 - **Histogram** — de røde delene av stolpene og den røde prikken i velgeren.
 - **Ressursdokken** — trekanten *Overallokert*.
 
-Utjevning kan løse overallokering ved å flytte aktiviteter innenfor slakken. Den kan ikke løse en ressurs som må arbeide på en fridag. Se [Utjevning](docs://uitleg-nivelleren).
+Utjevning kan løse overallokering ved å la aktiviteter starte senere. Som standard kan prosjektslutten flytte seg. Med *utjevning* holder den seg innenfor slakken. Utjevning kan ikke løse en ressurs som må arbeide på en fridag. Se [Utjevning](docs://uitleg-nivelleren).

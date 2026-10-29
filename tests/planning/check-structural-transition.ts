@@ -18,6 +18,10 @@
 //
 // Draait via run.sh. Exit 0 = alles groen.
 import './domShim';
+import i18next from 'i18next';
+import { readFileSync } from 'node:fs';
+import { LOCALES } from '@/i18n/locales';
+import type { NotifyInput } from '@/state/slices/types';
 import { useAppStore } from '@/state/appStore';
 import { contextMenuBulk } from '@/components/canvas/contextMenuScope';
 import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
@@ -68,6 +72,10 @@ function leafWithAssignment() {
   return { L, R, N, assignmentId };
 }
 
+const namedNotices: NotifyInput[] = [];
+const collectionNotices: NotifyInput[] = [];
+const largerCollectionNotices: NotifyInput[] = [];
+
 // ── A. Wordt mijlpaal ───────────────────────────────────────────────────────────────────────────
 {
   const { L } = leafWithAssignment();
@@ -82,12 +90,14 @@ function leafWithAssignment() {
   eq('A1 updateTask: taak met toewijzing wordt GEEN mijlpaal', task(L).isMilestone, false);
   eq('A1 updateTask: duur blijft staan (geen halve patch)', task(L).time.scheduleDuration, 5);
   eq('A1 updateTask: geen undo-stap', undoDepth(), before);
-  eq('A1 updateTask: melding', noticesSince(mark), [['notifications.milestoneRefusedAssignments', { count: 1, task: 'Metselen' }]]);
+  namedNotices.push(S().ui.notifications.at(-1)!);
+  eq('A1 updateTask: melding', noticesSince(mark), [['notifications.milestoneRefusedAssignments', { task: 'Metselen' }]]);
 
   before = undoDepth(); mark = noticeMark();
   S().updateTask(P, taskMilestoneTransition(task(P), true));
   eq('A2 updateTask: fase wordt GEEN mijlpaal (geen ruit)', task(P).isMilestone, false);
-  eq('A2 updateTask: melding', noticesSince(mark), [['notifications.milestoneRefusedSummary', { count: 1, task: 'Fase' }]]);
+  namedNotices.push(S().ui.notifications.at(-1)!);
+  eq('A2 updateTask: melding', noticesSince(mark), [['notifications.milestoneRefusedSummary', { task: 'Fase' }]]);
   eq('A2 updateTask: geen undo-stap', undoDepth(), before);
 
   // Contextmenu over een selectie: de toegestane taak wisselt, de rest blijft, één undo-stap.
@@ -101,8 +111,8 @@ function leafWithAssignment() {
   eq('A3 contextmenu: fase niet', task(P).isMilestone, false);
   eq('A3 contextmenu: één undo-stap', undoDepth(), before + 1);
   eq('A3 contextmenu: één melding per reden', noticesSince(mark), [
-    ['notifications.milestoneRefusedAssignments', { count: 1, task: 'Metselen' }],
-    ['notifications.milestoneRefusedSummary', { count: 1, task: 'Fase' }],
+    ['notifications.milestoneRefusedAssignments', { task: 'Metselen' }],
+    ['notifications.milestoneRefusedSummary', { task: 'Fase' }],
   ]);
 
   // Raster: fase ⇒ mijlpaal weigert nu ook (toewijzingen weigerde het al).
@@ -116,6 +126,55 @@ function leafWithAssignment() {
   const Y = S().addTask({ name: 'Oplevering' });
   S().updateTask(Y, taskMilestoneTransition(task(Y), true));
   eq('A5 gewone taak wordt wél mijlpaal', [task(Y).isMilestone, task(Y).time.scheduleDuration], [true, 0]);
+}
+
+// Een gemengde bulkactie: twee weigeringen per reden, naast één toegestane taak. Aantallen
+// slaan op de groep met dezelfde reden; namen, toewijzingen en één undo-stap blijven behouden.
+{
+  fresh();
+  const R = resource('Ploeg');
+  const leaves = ['Metselen', 'Voegen'].map(name => {
+    const id = S().addTask({ name });
+    S().assignResource(id, R, 1);
+    return id;
+  });
+  const summaries = ['Ruwbouw', 'Afbouw'].map(name => {
+    const id = S().addTask({ name });
+    S().addTask({ name: `${name} kind`, parentId: id });
+    return id;
+  });
+  const allowed = S().addTask({ name: 'Keuring' });
+  S().selectTasks([...leaves, ...summaries, allowed], false, allowed);
+  const depth = undoDepth();
+  contextMenuBulk.toggleMilestone(task(allowed));
+  collectionNotices.push(...S().ui.notifications);
+  eq('A6 bulk: alleen toegestane taak wordt mijlpaal',
+    [...leaves, ...summaries, allowed].map(id => task(id).isMilestone), [false, false, false, false, true]);
+  eq('A6 bulk: toewijzingen op hun oorspronkelijke taken', S().assignments.map(a => a.taskId), leaves);
+  eq('A6 bulk: per reden precies de geweigerde namen', collectionNotices.map(n => n.detailLines), [
+    [{ messageKey: 'notifications.refusedTaskNames', params: { names: 'Metselen, Voegen' } }],
+    [{ messageKey: 'notifications.refusedTaskNames', params: { names: 'Ruwbouw, Afbouw' } }],
+  ]);
+  eq('A6 bulk: beide weigeringen rood en blijvend', collectionNotices.map(n => [n.severity, n.refusal]),
+    [['error', true], ['error', true]]);
+  eq('A6 bulk: één undo-stap', undoDepth(), depth + 1);
+  S().undo();
+  eq('A6 bulk: undo zet de geslaagde omzetting terug', task(allowed).isMilestone, false);
+
+  // CLDR-one is bij Russisch óók 21: zelfs dan is een verzameling een telling, geen taaknaam.
+  for (let i = 0; i < 19; i++) {
+    const id = S().addTask({ name: `Extra ${i}` });
+    S().assignResource(id, R, 1);
+    leaves.push(id);
+  }
+  useAppStore.setState((s) => { s.ui.notifications = []; });
+  S().selectTasks(leaves, false, leaves[0]);
+  const beforeRefusal = undoDepth();
+  contextMenuBulk.toggleMilestone(task(leaves[0]));
+  largerCollectionNotices.push(...S().ui.notifications);
+  eq('A7 volledig geweigerde bulk: geen undo-stap', undoDepth(), beforeRefusal);
+  eq('A7 volledig geweigerde bulk: 21 taken en toewijzingen ongemoeid',
+    [leaves.every(id => !task(id).isMilestone), S().assignments.length], [true, 21]);
 }
 
 // ── B. Wordt fase: de toewijzing verhuist naar de eerste nieuwe subtaak ──────────────────────────
@@ -255,7 +314,79 @@ for (const route of routes) {
   S().indentTasks([N]);
   eq('D mijlpaal wordt fase: vlag, soort en verplicht eraf',
     [task(M).isMilestone, task(M).milestoneKind, task(M).mandatory], [false, undefined, undefined]);
-  eq('D melding', noticesSince(mark), [['notifications.milestoneClearedOnPhase', { count: 1, phase: 'Oplevering' }]]);
+  namedNotices.push(S().ui.notifications.at(-1)!);
+  eq('D melding', noticesSince(mark), [['notifications.milestoneClearedOnPhase', { phase: 'Oplevering' }]]);
+}
+
+// Twee mijlpalen krijgen in één actie kinderen; een gewone nieuwe fase telt niet mee.
+{
+  fresh();
+  const milestones: string[] = [];
+  const children: string[] = [];
+  for (const name of ['Oplevering', 'Keuring', 'Werkpakket']) {
+    const parent = S().addTask({ name, isMilestone: name !== 'Werkpakket' });
+    if (name !== 'Werkpakket') milestones.push(parent);
+    children.push(S().addTask({ name: `${name} kind` }));
+  }
+  const depth = undoDepth();
+  S().indentTasks(children);
+  collectionNotices.push(...S().ui.notifications);
+  eq('D2 alleen de twee voormalige mijlpalen tellen mee', S().ui.notifications.map(n => n.params), [{ count: 2 }]);
+  eq('D2 vlag en mijlpaalvelden weg', milestones.map(id => [task(id).isMilestone, task(id).milestoneKind, task(id).mandatory]),
+    [[false, undefined, undefined], [false, undefined, undefined]]);
+  eq('D2 één undo-stap', undoDepth(), depth + 1);
+  S().undo();
+  eq('D2 undo herstelt beide mijlpalen', milestones.map(id => task(id).isMilestone), [true, true]);
+}
+
+// Regressie 171: toets de werkelijk gemaakte meldingen door i18next, inclusief Engelse terugval.
+// In zh/ja/ko/lo kan CLDR geen naamvorm kiezen; de semantische sleutel moet de naam behouden.
+{
+  const readCommon = (lang: string) => JSON.parse(readFileSync(new URL(`../../src/i18n/locales/${lang}/common.json`, import.meta.url), 'utf8')) as Record<string, unknown>;
+  const en = readCommon('en');
+  for (const lang of LOCALES) {
+    const locale = readCommon(lang);
+    const inst = i18next.createInstance();
+    await inst.init({ lng: lang, fallbackLng: 'en', ns: ['common'], defaultNS: 'common',
+      resources: { en: { common: en }, [lang]: { common: locale } }, interpolation: { escapeValue: false } });
+    const render = (n: NotifyInput) => inst.t(n.messageKey, n.params ?? {});
+    const named = namedNotices.map(render);
+    const counts = collectionNotices.map(render);
+    eq(`${lang}: één taak houdt haar naam, zonder open invulplekken`,
+      named.map((text, i) => text.includes(['Metselen', 'Fase', 'Oplevering'][i]) && !text.includes('{{')), [true, true, true]);
+    eq(`${lang}: bulk toont aantal per reden, zonder naam uit de eerste taak`,
+      counts.map((text, i) => text !== collectionNotices[i].messageKey && !text.includes('{{') && !/Metselen|Ruwbouw|Oplevering/.test(text)), [true, true, true]);
+    eq(`${lang}: 21 blijft een telling, ook als CLDR one selecteert`,
+      largerCollectionNotices.map(render).map((text, i) => text !== largerCollectionNotices[i].messageKey && !/Metselen|Extra|\{\{/.test(text)), [true]);
+    if (['nl', 'en', 'zh', 'ja', 'ko', 'lo'].includes(lang)) {
+      // In een enkele other-vorm kan het getal niet door een vaste uitgeschreven één/twee verdwijnen.
+      eq(`${lang}: de tellingen zelf blijven zichtbaar`,
+        [counts.every(text => text.includes('2')), largerCollectionNotices.map(render).every(text => text.includes('21'))], [true, true]);
+    }
+    const fallbackNames = [
+      "'Metselen' has resource assignments and cannot become a milestone. Remove the assignments first.",
+      "'Fase' is a summary task with subtasks and cannot become a milestone.",
+      "'Oplevering' is no longer a milestone.",
+    ];
+    namedNotices.forEach((notice, i) => {
+      const local = locale.notifications as Record<string, string>;
+      if (local[notice.messageKey.slice('notifications.'.length)] === undefined) {
+        eq(`${lang}: ontbrekende naamtekst krijgt volledige Engelse terugval`, named[i], fallbackNames[i]);
+      }
+    });
+    if (lang === 'en') {
+      eq(`${lang}: volledige naamcontext, desnoods via Engelse terugval`, named, [
+        "'Metselen' has resource assignments and cannot become a milestone. Remove the assignments first.",
+        "'Fase' is a summary task with subtasks and cannot become a milestone.",
+        "'Oplevering' is no longer a milestone.",
+      ]);
+      eq(`${lang}: verzameling is een eigen boodschap`, counts, [
+        '2 tasks have resource assignments and cannot become milestones. Remove the assignments first.',
+        '2 tasks are summary tasks with subtasks and cannot become milestones.',
+        '2 tasks are no longer milestones.',
+      ]);
+    }
+  }
 }
 
 // ── E. Samen met de relatiemelding van #207 (verhangen maakt een relatie tot voorouder-relatie) ───

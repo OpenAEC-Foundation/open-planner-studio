@@ -14,7 +14,8 @@ Data raportului de stare este ziua în care faceți inventarul. Setați-o înain
 
 1. Mergeți la *Planificare › Referințe și progres › Data raportului de stare*.
 2. Introduceți data în cele trei câmpuri pentru zi, lună și an (în ordinea notației dumneavoastră de dată), de exemplu 28, 06 și 2027, și apăsați Enter. Aplicația trece singură la următorul câmp.
-3. Cu crucea mică de lângă câmp goliți din nou data raportului de stare.
+3. Calendarul proiectului are intervale de lucru (secțiunea *Ore de lucru* din fereastra *Calendare*)? Atunci aplicația calculează în ore, iar în dreapta apare un câmp pentru oră, de exemplu 17:00. Introduceți o altă oră, de exemplu 12:00, și apăsați Enter. Dacă goliți câmpul pentru oră, rămâne doar data. Dacă modificați doar data, ora rămâne. Ora respectă formatul dumneavoastră pentru oră (24 de ore sau 12 ore). Fără intervale de lucru, aplicația calculează în zile întregi: atunci nu există câmp pentru oră, iar linia datei raportului de stare se află la începutul zilei.
+4. Cu crucea mică de lângă câmp goliți din nou data raportului de stare.
 
 Dacă faceți inventarul vineri, după orele de lucru, setați data raportului de stare la următoarea zi lucrătoare, luni. Aplicația planifică lucrul rămas de la începutul datei raportului de stare.
 
@@ -39,19 +40,19 @@ Un jalon are un singur câmp, *Dată reală*.
 
 **Mai multe activități în tabelul de activități.** Util când actualizați o listă întreagă.
 
-1. Faceți clic pe **+** din dreapta antetului tabelului de activități (*Adăugare coloană*) și deschideți categoria *Progres*. Adăugați coloanele *Început efectiv*, *Sfârșit efectiv*, *Rămas* și *Stare*. Coloana *Progres* există deja pe fila *Tabel*.
+1. Faceți clic pe **+** din dreapta antetului tabelului de activități (*Adăugare coloană*) și deschideți categoria *Progres*. Adăugați coloanele *Început efectiv*, *Sfârșit efectiv*, *Durată rămasă* și *Stare*. Coloana *Progres* există deja pe fila *Tabel*.
 2. Faceți dublu clic pe o celulă, introduceți valoarea și apăsați Enter. Introduceți un procent ca `50` sau `50%`, o dată ca `25-06-2027`, o durată rămasă ca `1`.
 3. Pentru *Stare*, după dublu clic apăsați Enter și alegeți *Nepornită*, *În curs* sau *Finalizată*.
 
-Dacă introduceți o durată rămasă, aplicația calculează înapoi procentul: pentru o activitate de 2 zile lucrătoare, un rest de 1 dă un procent de 50. Un rest de 0 finalizează activitatea. Dacă alegeți *Nepornită* la *Stare*, procentul devine 0, iar datele reale dispar.
+Dacă introduceți o durată rămasă, aplicația calculează înapoi procentul: pentru o activitate de 2 zile lucrătoare, un rest de 1 dă un procent de 50. Un rest de 0 finalizează activitatea. Coloana *Durată reală* (tot din categoria *Progres*) funcționează invers: introduceți cât lucru este deja realizat, iar aplicația calculează procentul. Pentru o activitate de 4 zile lucrătoare, o durată reală de 1 dă 25%. Dacă alegeți *Nepornită* la *Stare*, procentul devine 0, iar datele reale dispar.
 
 **Toate datele unei activități în fereastra de editare.** Faceți clic dreapta pe activitate și alegeți *Editare...*. Câmpurile de progres se află și ele acolo. Ele se aplică abia după ce faceți clic pe *Salvare*.
 
-**Mai multe activități deodată dintr-o foaie de calcul.** Vezi [Importul progresului dintr-o foaie de calcul](docs://howto-voortgang-importeren).
+**Mai multe activități deodată dintr-o foaie de calcul.** Consultați [Importul progresului dintr-o foaie de calcul](docs://howto-voortgang-importeren).
 
 ### 3. Recalculați planificarea
 
-Fiecare modificare a progresului sau a datei raportului de stare face planificarea învechită: bara de stare afișează *Învechit — recalculați (F5)*. Apăsați **Calculare** (F5), de exemplu prin *Planificare › Planificare › Calculare*. Dacă *Calculare automată* este activată (sub *Setări › Proiect › Setări*, fila *Planificare*), aplicația face acest lucru singură.
+Fiecare modificare a progresului sau a datei raportului de stare face planificarea învechită: bara de stare afișează *Învechit — recalculați (F5)*. Apăsați **Calculare** (F5), de exemplu prin *Planificare › Planificare › Calculare*. Dacă *Calculare automată* este activată (sub *Setări › Proiect › Setări aplicație*, fila *Planificare*), aplicația face acest lucru singură.
 
 ## Verificarea rezultatului
 

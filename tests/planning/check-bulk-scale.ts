@@ -8,8 +8,11 @@
 //  B. `removeTaskSubtrees` met index is gelijk aan de oude per-wortelroute op willekeurige bossen
 //     (geneste wortels, onbekende ids, een corrupte kring in `childIds`);
 //  C. de schaal (ruime grenzen, zodat een trage CI-runner niet flappert).
+//  D. inspringen blijft gelijk aan de oude zoeklus en bewaart WBS/selectie/undo/documentwissels
+//     bij 5.000 en 10.000 taken; de aparte CI-meting vergelijkt beide revisies byte voor byte.
 //
 // Draait via run.sh. Exit 0 = alles groen.
+import './domStub';
 import { useAppStore, appStoreContext } from '@/state/appStore';
 import { generateBenchmarkProject } from '@/services/benchmark/generateProject';
 import { createTaskBulkActions } from '@/state/taskBulkActions';
@@ -17,6 +20,8 @@ import { removeTaskSubtrees } from '@/state/taskTree';
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { ResourceAssignment } from '@/types/resource';
+import { applyWbsNumbering } from '@/utils/wbs';
+import { indentFixture, legacyIndent } from './indentFixture';
 
 const S = () => useAppStore.getState();
 const bulk = createTaskBulkActions(appStoreContext);
@@ -159,6 +164,84 @@ ok('C prioriteit op 2000 taken < 15 s', msPrio < 15000, `${msPrio.toFixed(0)} ms
 ok('C kalender op 2000 taken < 15 s', msCal < 15000, `${msCal.toFixed(0)} ms`);
 ok('C voortgang op 2000 taken < 15 s', msProg < 15000, `${msProg.toFixed(0)} ms`);
 ok('C alles verwijderen < 5 s', msDel < 5000, `${msDel.toFixed(0)} ms`);
+
+// ── D. inspringen: oude zoeklus, boomvolgorde, ontbrekende ids, undo/redo ────────────────────────
+const outline = (tasks: readonly Task[]) => JSON.stringify(tasks.map(task => ({
+  id: task.id, parentId: task.parentId, childIds: task.childIds, wbsCode: task.wbsCode,
+})));
+for (let seed = 1; seed <= 160; seed++) {
+  const rnd = mulberry32(seed);
+  const fixture = indentFixture(2 + Math.floor(rnd() * 50));
+  fixture.project.wbsAutoNumber = seed % 2 === 0;
+  // Ouders staan vóór hun kinderen bij het opbouwen, maar de rauwe array en childIds krijgen
+  // daarna verschillende volgordes. De bestaande inspringroute volgt bewust flattenOrder.
+  for (let i = 1; i < fixture.tasks.length; i++) {
+    if (rnd() < 0.7) {
+      const parent = fixture.tasks[Math.floor(rnd() * i)];
+      fixture.tasks[i].parentId = parent.id;
+      parent.childIds.unshift(fixture.tasks[i].id);
+    } else if (seed % 5 === 0) fixture.tasks[i].parentId = 'verdwenen-ouder';
+  }
+  for (let i = fixture.tasks.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    [fixture.tasks[i], fixture.tasks[j]] = [fixture.tasks[j], fixture.tasks[i]];
+  }
+  S().applyLoadedProject(fixture, { filePath: null, recompute: false });
+  const ids = S().tasks.filter(() => rnd() < 0.6).map(task => task.id).reverse();
+  ids.push('onbekende-taak', ...(ids.length > 0 ? [ids[0]] : []));
+  useAppStore.setState(state => {
+    state.selectedTaskIds = [...ids];
+    state.activeTaskId = ids[0];
+  });
+  const expected = structuredClone(S().tasks);
+  const changed = legacyIndent(expected, ids);
+  if (changed && S().project.wbsAutoNumber) applyWbsNumbering(expected);
+  const before = view();
+  const depth = S().historyEvents.length;
+  S().indentTasks(ids);
+  const after = view();
+  ok(`D seed ${seed}: boom, WBS en arrayvolgorde gelijk aan oude zoeklus`, outline(S().tasks) === outline(expected));
+  ok(`D seed ${seed}: selectie en actieve taak blijven behouden`,
+    JSON.stringify(S().selectedTaskIds) === JSON.stringify(ids) && S().activeTaskId === ids[0]);
+  ok(`D seed ${seed}: precies één undo-stap bij wijziging`, S().historyEvents.length === depth + Number(changed));
+  if (changed) {
+    S().undo();
+    ok(`D seed ${seed}: undo herstelt volledige taken en rijen`, view() === before);
+    S().redo();
+    ok(`D seed ${seed}: redo herstelt volledige taken en rijen`, view() === after);
+  }
+}
+
+// De gewone gebruikershandeling: het laatste vijfde van een lange takenlijst selecteren en
+// onder de voorgaande taak inspringen. De schaalgrens is ruim; de CI-vergelijker meet de winst.
+for (const size of [5000, 10000]) {
+  S().applyLoadedProject(indentFixture(size), { filePath: null, recompute: false });
+  const start = size - size / 5;
+  const ids = S().tasks.slice(start).map(task => task.id);
+  const parentId = S().tasks[start - 1].id;
+  useAppStore.setState(state => { state.selectedTaskIds = ids; state.activeTaskId = ids[0]; });
+  const before = view();
+  const ms = time(() => S().indentTasks([...ids, 'onbekend', ids[0]]));
+  const byId = new Map(S().tasks.map(task => [task.id, task]));
+  ok(`D ${size}: alle geselecteerde taken onder dezelfde voorganger, met juiste WBS`, ids.every((id, index) => {
+    const task = byId.get(id)!;
+    return task.parentId === parentId && task.wbsCode === `${start}.${index + 1}`;
+  }));
+  ok(`D ${size}: kindvolgorde gelijk aan selectievolgorde`, JSON.stringify(byId.get(parentId)!.childIds) === JSON.stringify(ids));
+  ok(`D ${size}: inspringen < 15 s`, ms < 15000, `${ms.toFixed(0)} ms`);
+  const after = view();
+  S().undo();
+  ok(`D ${size}: undo herstelt alle taken en rijen`, view() === before);
+  S().redo();
+  ok(`D ${size}: redo herstelt alle taken en rijen`, view() === after);
+  const documentId = S().activeDocumentId;
+  S().newDocument();
+  ok(`D ${size}: ander document krijgt geen taken van de selectie`, S().tasks.length === 0);
+  S().switchDocument(documentId);
+  ok(`D ${size}: documentwissel bewaart alle taken, WBS en rijen`, view() === after);
+  ok(`D ${size}: documentwissel bewaart selectie`, JSON.stringify(S().selectedTaskIds) === JSON.stringify(ids));
+  console.log(`   ${size} taken: ${ids.length} taken inspringen ${ms.toFixed(0)} ms`);
+}
 
 if (fails.length) {
   for (const f of fails) console.log(`XX ${f}`);

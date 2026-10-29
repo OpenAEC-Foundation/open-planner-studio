@@ -33,11 +33,10 @@
 //
 // ⚠️ BEWUSTE MPXJ-DIVERGENTIE (T7-spec-review, B3) — resource-uniqueID 0: MPXJ's eigen
 // `createResourceMap` (MPP14Reader.java) slaat het TE KORTE plaatshouderrecord voor uniqueID 0 over
-// (`data.length < fieldMap.getMaxFixedDataSize(0)`-guard — NIET geport, zie de taakvariant se
-// toelichting bij `collectValidTaskIndices` in mppReader.ts), dus MPXJ's eigen resourcetelling voor
+// (`data.length < fieldMap.getMaxFixedDataSize(0)`-guard), dus MPXJ's eigen resourcetelling voor
 // dit corpus zou 8/6/4 zijn. MS Project schrijft dat record echter WÉL naar zijn eigen MSPDI-export
 // (als "Niet toegekend", type Work, maxUnits 1) — deze lezer kiest bewust voor COUNT-PARITEIT MET
-// readMSPDI (9/7/5) i.p.v. MPXJ-pariteit (8/6/4): zie `mppReader.ts`'s `readResourcesUnsafe` voor de
+// readMSPDI (9/7/5) i.p.v. MPXJ-pariteit (8/6/4): zie `mppEntities.ts`'s `readResourcesUnsafe` voor de
 // vaste vorm (naam uit `ImportLabels.unassignedResource`, default `'Unassigned'`; type LABOR;
 // maxUnits 1) die deze lezer aan dat record geeft i.p.v. de rauwe (onbetrouwbare) veldwaarden.
 //
@@ -62,10 +61,11 @@ import { CfbFile } from '@/services/mpp/cfb';
 import { readMPP } from '@/services/mpp/mppReader';
 import { readRelations, readResources, readAssignments, type ReadResourcesResult } from '@/services/mpp/mppEntities';
 import type { CalendarReadResult } from '@/services/mpp/mppCalendars';
-import { DEFAULT_RESOURCE_FIELDS, DEFAULT_ASSIGNMENT_FIELDS, type FieldMapTable } from '@/services/mpp/fieldMap14';
+import { DEFAULT_RESOURCE_FIELDS, DEFAULT_ASSIGNMENT_FIELDS, ResourceFieldId, type FieldMapTable } from '@/services/mpp/fieldMap14';
 import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { installDOMParser } from './xmldom-shim';
+import { readMppCorpusEntry, resolveMppCrawlScopes } from './mppCorpus';
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment } from '@/types/resource';
@@ -183,15 +183,18 @@ function buildConsFixedDataRecord(opts: {
   return out;
 }
 
-// ── TBkndRsc-fixturebouwers (resources) — FixedMeta itemSize=37 (typebit @9/0x02, want
-// applicationVersion===null in deze fixtures ⇒ de ≤2010-layout, `resourceTypeBitFlag`). FixedData
+// ── TBkndRsc-fixturebouwers (resources) — FixedMeta itemSize=37. Standaard de ≤2010-layout
+// (typebit @9/0x02); applicationVersion >14 kiest @12/0x10. FixedData
 // via `FixedData.fromMeta` (offset+auto-grootte uit de meta, net als de echte lezer). ─────────────
 const RSC_RECORD_SIZE = 60; // ruim boven maxUnitsOffset(44)+8=52
-function buildRscFixedMetaRecord(opts: { offsetIntoFixedData: number; isWork: boolean }): Uint8Array {
+function buildRscFixedMetaRecord(opts: { offsetIntoFixedData: number; isWork: boolean; applicationVersion?: number | null }): Uint8Array {
   const out = new Uint8Array(37);
   const view = new DataView(out.buffer);
   view.setInt32(4, opts.offsetIntoFixedData, true);
-  if (opts.isWork) out[9] = 0x02; // PROJECT2010_RESOURCE_META_DATA_BIT_FLAGS: offset 9, mask 0x02
+  if (opts.isWork) {
+    if ((opts.applicationVersion ?? 0) > 14) out[12] = 0x10; // PROJECT2013_RESOURCE_META_DATA_BIT_FLAGS
+    else out[9] = 0x02; // PROJECT2010_RESOURCE_META_DATA_BIT_FLAGS
+  }
   return out;
 }
 function buildRscFixedMetaBlob(records: Uint8Array[], magic = FIXED_META_MAGIC): Uint8Array {
@@ -417,7 +420,9 @@ const emptyCalResult: CalendarReadResult = {
       truthy('I4/T7 end-to-end readMPP: relatie B→C gevonden', !!seqBC);
       if (seqAB) {
         truthy('I4/T7 end-to-end readMPP: A→B type === FINISH_START', seqAB.type === 'FINISH_START');
-        truthy('I4/T7 end-to-end readMPP: A→B lagDays === 2 (WORKTIME, 9600 tienden-van-minuut @8u/dag)', seqAB.lagDays === 2);
+        // Alleen uren §3.10 (T15, F5b): een WORKTIME-lag is de urenmaat, in minuten zonder afronding.
+        truthy('I4/T7 end-to-end readMPP: A→B lagMinutes === 960 (WORKTIME, 9600 tienden-van-minuut)', seqAB.lagMinutes === 960);
+        truthy('I4/T7 end-to-end readMPP: A→B lagDays === 0 (urenmaat, geen dagen)', seqAB.lagDays === 0);
         truthy('I4/T7 end-to-end readMPP: A→B lagUnit is WORKTIME (undefined = default)', seqAB.lagUnit === undefined);
       }
       if (seqBC) {
@@ -475,7 +480,7 @@ const emptyCalResult: CalendarReadResult = {
   const cfb = new CfbFile(buildNestedCfb({
     '   114': { children: { TBkndCons: { children: { FixedMeta: { data: fixedMeta }, FixedData: { data: fixedData } } } } },
   }));
-  const sequences = readRelations(cfb, null, 8, taskIdByUniqueId);
+  const sequences = readRelations(cfb, null, taskIdByUniqueId);
   truthy(
     'T7-hostile relatie naar onbestaande/circulaire/projectsamenvattingstaak: alle drie overgeslagen (0 relaties)',
     sequences.length === 0,
@@ -504,7 +509,7 @@ const emptyCalResult: CalendarReadResult = {
   let sequences: Sequence[] = [];
   let threw: string | null = null;
   try {
-    sequences = readRelations(cfb, null, 8, taskIdByUniqueId);
+    sequences = readRelations(cfb, null, taskIdByUniqueId);
   } catch (err) {
     threw = err instanceof Error ? err.message : String(err);
   }
@@ -523,6 +528,97 @@ const emptyCalResult: CalendarReadResult = {
 // `Props`-fixture hoeven te bouwen.
 const RESOURCE_DEFAULT_FIELD_MAP: FieldMapTable = new Map(Object.entries(DEFAULT_RESOURCE_FIELDS).map(([k, v]) => [Number(k), v]));
 const ASSIGNMENT_DEFAULT_FIELD_MAP: FieldMapTable = new Map(Object.entries(DEFAULT_ASSIGNMENT_FIELDS).map(([k, v]) => [Number(k), v]));
+
+// ── Knownbug 119: een 16-byte plaatshouder vóór het echte record met dezelfde UID mag niet
+// het type of maxUnits bepalen. MPP14 is het ondersteunde bestandsformaat voor Project 2010–2021;
+// toets beide versietabellen én data-gedreven offsets. De recordlengtes zijn onafhankelijk gepind:
+// de default-layout heeft MAX_UNITS @44 (52 bytes nodig), de verschoven layout @48 (56 bytes),
+// en een andere geldige fieldmap @72 (80 bytes). Een vast 16/52/60/188-byte-filter voldoet niet.
+// Deze checks draaien zonder corpus; de bestaande corpusbudgetten worden niet aangepast.
+for (const layout of [
+  { applicationVersion: null, uniqueIdOffset: 0, maxUnitsOffset: 44, minRecordSize: 52 },
+  { applicationVersion: 14, uniqueIdOffset: 0, maxUnitsOffset: 44, minRecordSize: 52 },
+  { applicationVersion: 15, uniqueIdOffset: 4, maxUnitsOffset: 48, minRecordSize: 56 },
+  { applicationVersion: 16, uniqueIdOffset: 4, maxUnitsOffset: 48, minRecordSize: 56 },
+  { applicationVersion: 16, uniqueIdOffset: 0, maxUnitsOffset: 72, minRecordSize: 80 },
+]) {
+  const { applicationVersion, uniqueIdOffset, maxUnitsOffset, minRecordSize } = layout;
+  const label = `T7 knownbug119 versie=${applicationVersion ?? 'onbekend'} uid@${uniqueIdOffset} units@${maxUnitsOffset}`;
+  const fieldMap = new Map(RESOURCE_DEFAULT_FIELD_MAP);
+  fieldMap.set(ResourceFieldId.UniqueId, { location: 'fixed', fixedOffset: uniqueIdOffset });
+  fieldMap.set(ResourceFieldId.MaxUnits, { location: 'fixed', fixedOffset: maxUnitsOffset });
+  const records = [
+    { uid: 0, size: 16, isWork: false, isCost: false, units: 0 }, // de bestaande sentinel blijft
+    { uid: 7, size: 16, isWork: false, isCost: false, units: 0 }, // de foutieve eerste match
+    { uid: 7, size: minRecordSize, isWork: true, isCost: false, units: 2500 },
+    { uid: 7, size: minRecordSize, isWork: false, isCost: true, units: 9000 }, // eerste geldige wint
+    { uid: 8, size: 16, isWork: false, isCost: false, units: 0 }, // geen volledig record: overslaan
+    { uid: 9, size: minRecordSize - 1, isWork: true, isCost: false, units: 0 }, // één byte te kort
+    { uid: 10, size: minRecordSize, isWork: false, isCost: false, units: 12500 }, // echt materiaal
+    { uid: 11, size: minRecordSize, isWork: false, isCost: true, units: 0 }, // kosten, nul is geldig
+  ];
+  let offset = 0;
+  const metaRecords = records.map(record => {
+    const meta = buildRscFixedMetaRecord({ offsetIntoFixedData: offset, isWork: record.isWork, applicationVersion });
+    offset += record.size;
+    return meta;
+  });
+  const dataRecords = records.map(record => {
+    const data = new Uint8Array(record.size);
+    const view = new DataView(data.buffer);
+    view.setInt32(uniqueIdOffset, record.uid, true);
+    if (record.size >= maxUnitsOffset + 8) view.setFloat64(maxUnitsOffset, record.units, true);
+    return data;
+  });
+  const cfb = new CfbFile(buildNestedCfb({
+    '   114': { children: { TBkndRsc: { children: {
+      FixedMeta: { data: buildRscFixedMetaBlob(metaRecords) },
+      FixedData: { data: concatBytes(...dataRecords) },
+      Fixed2Meta: { data: buildRsc2MetaBlob(records.map(record => buildRsc2MetaRecord({ isCost: record.isCost }))) },
+      VarMeta: { data: buildVarMetaBytes([0, 7, 8, 9, 10, 11].map(uniqueId => ({ uniqueId, type: 99, offset: 0 }))) },
+    } } } },
+  }));
+  const calendar = createDefaultCalendar();
+  const calResult: CalendarReadResult = {
+    ...emptyCalResult,
+    calendarByUniqueId: new Map([[42, calendar]]),
+    resourceCalendarUniqueIdByResourceUniqueId: new Map([[0, 42], [7, 42]]),
+  };
+  const result = readResources(cfb, fieldMap, applicationVersion, calResult);
+  const byUid = (uid: number) => result.resources.find(resource => resource.id === result.resourceIdByUniqueId.get(uid));
+  truthy(`${label}: precies vier resources en UID-koppelingen`, result.resources.length === 4 && result.resourceIdByUniqueId.size === 4);
+  truthy(`${label}: volledig werkrecord levert LABOR`, byUid(7)?.type === 'LABOR');
+  truthy(`${label}: eerste volledige record levert maxUnits 0.25`, byUid(7)?.maxUnits === 0.25);
+  truthy(`${label}: kalenderkoppeling van de echte resource blijft`, byUid(7)?.calendarId === calendar.id);
+  truthy(`${label}: losse 16-byte plaatshouder valt weg`, !result.resourceIdByUniqueId.has(8));
+  truthy(`${label}: record één byte onder de minimumlengte valt weg`, !result.resourceIdByUniqueId.has(9));
+  truthy(`${label}: echt materiaal op de lengtegrens blijft`, byUid(10)?.type === 'MATERIAL' && byUid(10)?.maxUnits === 1.25);
+  truthy(`${label}: kostenresource gebruikt Fixed2Meta van de juiste index`, byUid(11)?.type === 'LABOR' && byUid(11)?.maxUnits === 0);
+  truthy(`${label}: korte UID-0-sentinel behoudt naam, type en inzet`, byUid(0)?.name === 'Unassigned' && byUid(0)?.type === 'LABOR' && byUid(0)?.maxUnits === 1);
+  truthy(`${label}: korte UID-0-sentinel behoudt kalenderkoppeling`, byUid(0)?.calendarId === calendar.id);
+}
+
+// MAX_UNITS mag legitiem ontbreken in de fieldmap (alles-of-niets, geen default-offset bijmengen).
+// Dan volstaat het bereik van de SHORT-join: ook een minimaal record op een verplaatste UID-offset
+// blijft geldig, met de bestaande maxUnits-terugval 1.
+for (const [uniqueIdOffset, size] of [[0, 2], [18, 20]]) {
+  const fieldMap = new Map(RESOURCE_DEFAULT_FIELD_MAP);
+  fieldMap.set(ResourceFieldId.UniqueId, { location: 'fixed', fixedOffset: uniqueIdOffset });
+  fieldMap.delete(ResourceFieldId.MaxUnits);
+  const data = new Uint8Array(size);
+  new DataView(data.buffer).setUint16(uniqueIdOffset, 12, true);
+  const cfb = new CfbFile(buildNestedCfb({
+    '   114': { children: { TBkndRsc: { children: {
+      FixedMeta: { data: buildRscFixedMetaBlob([buildRscFixedMetaRecord({ offsetIntoFixedData: 0, isWork: true })]) },
+      FixedData: { data },
+      VarMeta: { data: buildVarMetaBytes([{ uniqueId: 12, type: 99, offset: 0 }]) },
+    } } } },
+  }));
+  const result = readResources(cfb, fieldMap, null, emptyCalResult);
+  truthy(`T7 knownbug119 zonder MAX_UNITS uid@${uniqueIdOffset}: minimaal record blijft geldig`,
+    result.resources.length === 1 && result.resources[0]?.type === 'LABOR' && result.resources[0]?.maxUnits === 1
+    && result.resourceIdByUniqueId.get(12) === result.resources[0]?.id);
+}
 
 // ── (c) Ontbrekende Var2Data op TBkndRsc — legitiem afwezig (mppPrimitives.ts se Var2Data-
 // moduleheader), moet niet gooien: de resource wordt nog steeds gematerialiseerd, met de generieke
@@ -637,7 +733,7 @@ const ASSIGNMENT_DEFAULT_FIELD_MAP: FieldMapTable = new Map(Object.entries(DEFAU
   const cfb = new CfbFile(buildNestedCfb({
     '   114': { children: { TBkndCons: { children: { FixedMeta: { data: fixedMeta }, FixedData: { data: fixedData } } } } },
   }));
-  const sequences = readRelations(cfb, null, 8, taskIdByUniqueId);
+  const sequences = readRelations(cfb, null, taskIdByUniqueId);
   truthy('T7-spec-review-B2 percent-lag: 2 relaties gelezen', sequences.length === 2);
   const percentSeq = sequences.find((s) => s.predecessorId === 'task-A');
   const elapsedPercentSeq = sequences.find((s) => s.predecessorId === 'task-B');
@@ -663,8 +759,8 @@ const ASSIGNMENT_DEFAULT_FIELD_MAP: FieldMapTable = new Map(Object.entries(DEFAU
   const cfb = new CfbFile(buildNestedCfb({
     '   114': { children: { TBkndCons: { children: { FixedMeta: { data: fixedMeta }, FixedData: { data: fixedData } } } } },
   }));
-  const hourSucc = new Map<string, boolean>([['task-B', true], ['task-C', true], ['task-D', true]]);
-  for (const [label, sequences] of [['dag-opvolger', readRelations(cfb, null, 8, taskIdByUniqueId)], ['uur-opvolger', readRelations(cfb, null, 8, taskIdByUniqueId, hourSucc)]] as const) {
+  // Sinds F5b hangt de lag niet meer af van de opvolger (alleen uren §3.10, T15): één lezing.
+  for (const [label, sequences] of [['elke opvolger', readRelations(cfb, null, taskIdByUniqueId)]] as const) {
     const bySucc = (id: string) => sequences.find((s) => s.successorId === id);
     const ehr = bySucc('task-B');
     const emin = bySucc('task-C');
@@ -681,11 +777,43 @@ const ASSIGNMENT_DEFAULT_FIELD_MAP: FieldMapTable = new Map(Object.entries(DEFAU
   }
 }
 
+// ── (e3) Knownbug 351 (opgelost door F5b): geen afronding op hele dagen ──────────────────────────
+// Vóór F5b rekende de lezer een werk-lag naar een dagopvolger om met `tenthsOfMinutesToDays` (Math.round):
+// +1800 tienden (3 u) en −1800 werden `lagDays: 0`, de lead verdween. Een lag in verstreken dagen van 21600
+// tienden (36 u) werd 2 kalenderdagen. Sinds F5b is een werk-lag altijd `lagMinutes` (T15), ongeacht de
+// eenheid of de opvolger, en een lag in verstreken dagen exact (`rawLag / 14400`). De getallen komen uit de
+// ingang (aanval na #600, GPT-6.1-Sol).
+{
+  const taskIdByUniqueId = new Map<number, string>([[10, 'task-A'], [11, 'task-B'], [12, 'task-C'], [13, 'task-D']]);
+  const fixedMeta = buildConsFixedMetaBlob([0, 20, 40]);
+  const fixedData = concatBytes(
+    buildConsFixedDataRecord({ uniqueId: 1, predecessorTaskUid: 10, successorTaskUid: 11, relationType: 1, durationUnits: 7, duration: 1800 }),
+    buildConsFixedDataRecord({ uniqueId: 2, predecessorTaskUid: 11, successorTaskUid: 12, relationType: 1, durationUnits: 5, duration: -1800 }),
+    buildConsFixedDataRecord({ uniqueId: 3, predecessorTaskUid: 12, successorTaskUid: 13, relationType: 1, durationUnits: 8, duration: 21600 }),
+  );
+  const cfb = new CfbFile(buildNestedCfb({
+    '   114': { children: { TBkndCons: { children: { FixedMeta: { data: fixedMeta }, FixedData: { data: fixedData } } } } },
+  }));
+  const sequences = readRelations(cfb, null, taskIdByUniqueId);
+  const bySucc = (id: string) => sequences.find((s) => s.successorId === id);
+  const lag = (s: Sequence | undefined) => s && [s.lagDays, s.lagMinutes ?? null, s.lagUnit ?? null];
+  truthy('351: 3 relaties gelezen', sequences.length === 3);
+  const plus = lag(bySucc('task-B'));
+  truthy(`351 werk-lag +1800 tienden (eenheid dagen): lagMinutes 180, geen dagen (kreeg ${JSON.stringify(plus)})`,
+    JSON.stringify(plus) === JSON.stringify([0, 180, null]));
+  const lead = lag(bySucc('task-C'));
+  truthy(`351 werk-lead −1800 tienden (eenheid uren): lagMinutes −180, de lead blijft (kreeg ${JSON.stringify(lead)})`,
+    JSON.stringify(lead) === JSON.stringify([0, -180, null]));
+  const elapsed = lag(bySucc('task-D'));
+  truthy(`351 lag 21600 tienden in verstreken dagen: 1,5 kalenderdag, niet 2 (kreeg ${JSON.stringify(elapsed)})`,
+    JSON.stringify(elapsed) === JSON.stringify([1.5, null, 'ELAPSEDTIME']));
+}
+
 // ── readAssignments/readResources: lege/ontbrekende storage ⇒ lege array, gooit niet (spiegelt
 // readRelations se lege-stream-terugval hierboven). ──────────────────────────────────────────────
 {
   const cfb = new CfbFile(buildNestedCfb({ '   114': { children: {} } }));
-  truthy('T7 readRelations op ontbrekende TBkndCons: lege array', readRelations(cfb, null, 8, new Map()).length === 0);
+  truthy('T7 readRelations op ontbrekende TBkndCons: lege array', readRelations(cfb, null, new Map()).length === 0);
   truthy('T7 readResources op ontbrekende TBkndRsc: lege array', readResources(cfb, new Map(), null, emptyCalResult).resources.length === 0);
   truthy('T7 readAssignments op ontbrekende TBkndAssn: lege array', readAssignments(cfb, new Map(), new Map(), new Map()).length === 0);
 
@@ -718,7 +846,7 @@ const BAD_MAGIC = 0xdeadbeef;
   let sequences: Sequence[] = [];
   let threw: string | null = null;
   try {
-    sequences = readRelations(cfb, null, 8, new Map([[10, 'a'], [11, 'b']]));
+    sequences = readRelations(cfb, null, new Map([[10, 'a'], [11, 'b']]));
   } catch (err) {
     threw = err instanceof Error ? err.message : String(err);
   }
@@ -1043,9 +1171,9 @@ if (!corpusPresent) {
 // T7-crawl — breed corpus (49 `.mpp`): geen-crash/plausibiliteitspoort + gemeten totaalbasislijnen
 // ═══════════════════════════════════════════════════════════════════════════════════════════
 {
-  const CRAWL = process.env.OPS_MPP_CRAWL ?? '/home/nozzit/open-aec/voor claude/testdata-crawl/crawl-mpp';
+  const CRAWL = resolveMppCrawlScopes(process.env).smoke;
   if (!existsSync(CRAWL)) {
-    console.log('OK  mpp-relations: T7-crawl niet aanwezig (OPS_MPP_CRAWL) — crawlsectie overgeslagen');
+    console.log('OK  mpp-relations: T7-crawl niet aanwezig (OPS_MPP_CRAWL_SMOKE of OPS_MPP_CRAWL/crawl-mpp) — crawlsectie overgeslagen');
   } else {
     function listMppFilesRecursive(dir: string): string[] {
       const out: string[] = [];
@@ -1077,9 +1205,17 @@ if (!corpusPresent) {
       const CRAWL_MATERIAL_BASELINE = 18;
 
       let totalRelations = 0, totalResources = 0, totalAssignments = 0, totalLabor = 0, totalMaterial = 0, readFailures = 0;
+      let supportedFiles = 0;
+      const legacyRejected = { MPP8: 0, MPP9: 0, MPP12: 0 };
       for (const file of crawlFiles) {
         try {
-          const r = readMPP(new Uint8Array(readFileSync(file)));
+          const entry = readMppCorpusEntry(new Uint8Array(readFileSync(file)), readMPP);
+          if (entry.kind === 'legacy') {
+            legacyRejected[entry.variant]++;
+            continue;
+          }
+          const r = entry.value;
+          supportedFiles++;
           totalRelations += r.sequences.length;
           totalResources += r.resources.length;
           totalAssignments += r.assignments.length;
@@ -1093,7 +1229,11 @@ if (!corpusPresent) {
           diffs.push(`[T7-crawl] readMPP gooide onverwacht op ${file}: ${err instanceof Error ? err.message : String(err)}`);
         }
       }
-      truthy(`[T7-crawl] geen leesfouten over ${crawlFiles.length} bestanden`, readFailures === 0);
+      const legacyFiles = legacyRejected.MPP8 + legacyRejected.MPP9 + legacyRejected.MPP12;
+      truthy(`[T7-crawl] alle bestanden verantwoord (${supportedFiles} ondersteund / ${legacyFiles} bewust geweigerd / ${readFailures} leesfouten)`,
+        supportedFiles + legacyFiles + readFailures === crawlFiles.length);
+      truthy(`[T7-crawl] minstens één ondersteund bestand (${supportedFiles})`, supportedFiles > 0);
+      truthy(`[T7-crawl] geen onverwachte leesfouten over ${crawlFiles.length} bestanden`, readFailures === 0);
       truthy(`[T7-crawl] totaal relaties > 0 (${totalRelations})`, totalRelations > 0);
       truthy(`[T7-crawl] totaal resources > 0 (${totalResources})`, totalResources > 0);
       truthy(`[T7-crawl] totaal assignments > 0 (${totalAssignments})`, totalAssignments > 0);
@@ -1103,7 +1243,9 @@ if (!corpusPresent) {
       truthy(`[T7-crawl] resourcetype LABOR op/boven de gemeten basislijn (${totalLabor}/${CRAWL_LABOR_BASELINE})`, totalLabor >= CRAWL_LABOR_BASELINE);
       truthy(`[T7-crawl] resourcetype MATERIAL op/boven de gemeten basislijn (${totalMaterial}/${CRAWL_MATERIAL_BASELINE})`, totalMaterial >= CRAWL_MATERIAL_BASELINE);
       console.log(
-        `   . [T7-crawl] ${crawlFiles.length} bestanden: relaties=${totalRelations} (basislijn ${CRAWL_RELATIONS_BASELINE}), `
+        `   . [T7-crawl] ${crawlFiles.length} bestanden: ${supportedFiles} ondersteund, `
+        + `bewust geweigerd MPP8=${legacyRejected.MPP8}/MPP9=${legacyRejected.MPP9}/MPP12=${legacyRejected.MPP12}, `
+        + `${readFailures} onverwachte leesfouten; relaties=${totalRelations} (basislijn ${CRAWL_RELATIONS_BASELINE}), `
         + `resources=${totalResources} (basislijn ${CRAWL_RESOURCES_BASELINE}, LABOR=${totalLabor}/${CRAWL_LABOR_BASELINE} MATERIAL=${totalMaterial}/${CRAWL_MATERIAL_BASELINE}), `
         + `assignments=${totalAssignments} (basislijn ${CRAWL_ASSIGNMENTS_BASELINE})`,
       );

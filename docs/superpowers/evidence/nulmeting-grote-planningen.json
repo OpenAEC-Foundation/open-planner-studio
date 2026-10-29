@@ -1,0 +1,2818 @@
+{
+  "kind": "ops-measure-large-plans",
+  "schema": 1,
+  "conditions": {
+    "commit": "d36833ddf0597f9f97221923b4b9157cc8039363",
+    "commitShort": "d36833ddf",
+    "commitSubject": "meting: measure:large-plans als npm-script; inhoudshash zonder schrijftijd; README en AGENTS",
+    "branch": "claude/nulmeting-grote-planningen",
+    "mainBase": "012da29005a648d85bf233a92ae5ab4e0f28fbb1",
+    "productCodeChangedSinceMain": [
+      "package.json"
+    ],
+    "worktreeDirty": [],
+    "appVersion": "2026.9.0",
+    "date": "2026-10-21T06:42:00.210Z",
+    "cpuModel": "AMD Ryzen 7 3700U with Radeon Vega Mobile Gfx",
+    "logicalCores": 8,
+    "physicalCores": 4,
+    "cpuGovernor": "schedutil",
+    "ramGiB": 13.6,
+    "os": "Linux Mint 22.3",
+    "kernel": "6.14.0-37-generic",
+    "node": "v24.22.0",
+    "loadAvgAtStart": [
+      3.48,
+      7.63,
+      5.89
+    ],
+    "chromium": "151.0.7922.34",
+    "headless": true,
+    "viewport": "1600x1000",
+    "deviceScaleFactor": 1,
+    "locale": "nl-NL",
+    "build": "vite build (productie, React productiemodus) + VITE_OPS_BENCH_BRIDGE=1",
+    "repeats": 3
+  },
+  "seed": 24301,
+  "results": [
+    {
+      "size": 1000,
+      "dataset": {
+        "size": 1000,
+        "file": "plan-1000.ifc",
+        "ifcBytes": 887583,
+        "contentSha256": "0fb28665a2c2dbb33b40659f818ef490011f38d4638675fecff6dc7831857525",
+        "generator": {
+          "function": "generateBenchmarkProject",
+          "seed": "0x5eed",
+          "resourceCount": 8
+        },
+        "tasks": 1000,
+        "leafWorkTasks": 840,
+        "milestones": 60,
+        "summaryTasks": 100,
+        "summaryLevels": 2,
+        "wbsDepth": 3,
+        "relations": 1170,
+        "relationsByType": {
+          "FINISH_START": 820,
+          "FINISH_FINISH": 145,
+          "START_START": 205
+        },
+        "relationsWithLag": 156,
+        "resources": 8,
+        "resourcesByType": {
+          "LABOR": 2,
+          "CREW": 2,
+          "EQUIPMENT": 2,
+          "SUBCONTRACTOR": 2
+        },
+        "assignments": 554,
+        "tasksWithAssignment": 488,
+        "calendars": [
+          {
+            "name": "Benchmark-kalender",
+            "workDays": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "hours": "07:00-16:00",
+            "hoursPerDay": 8,
+            "holidayPeriods": 15
+          }
+        ],
+        "projectStart": "2026-01-05",
+        "computedFinish": "2029-03-22",
+        "criticalTasks": 95,
+        "node": {
+          "repeats": 3,
+          "cpmMs": {
+            "median": 30.2,
+            "min": 27.3,
+            "max": 51.2,
+            "samples": [
+              51.2,
+              30.2,
+              27.3
+            ]
+          },
+          "ifcWriteMs": {
+            "median": 59.4,
+            "min": 46.5,
+            "max": 63.9,
+            "samples": [
+              63.9,
+              59.4,
+              46.5
+            ]
+          },
+          "ifcReadMs": {
+            "median": 144.2,
+            "min": 115.7,
+            "max": 156,
+            "samples": [
+              156,
+              144.2,
+              115.7
+            ]
+          }
+        }
+      },
+      "summary": {
+        "open": {
+          "ms": {
+            "n": 3,
+            "median": 543.5,
+            "min": 516.8,
+            "max": 570.4,
+            "samples": [
+              570.4,
+              543.5,
+              516.8
+            ]
+          },
+          "storeMs": {
+            "n": 3,
+            "median": 480.9,
+            "min": 450.4,
+            "max": 501.4,
+            "samples": [
+              501.4,
+              480.9,
+              450.4
+            ]
+          },
+          "paintMs": {
+            "n": 3,
+            "median": 5.3,
+            "min": 5.2,
+            "max": 5.4,
+            "samples": [
+              5.3,
+              5.4,
+              5.2
+            ]
+          },
+          "longestTaskMs": {
+            "n": 3,
+            "median": 277,
+            "min": 275,
+            "max": 309,
+            "samples": [
+              309,
+              277,
+              275
+            ]
+          },
+          "documents": {
+            "n": 3,
+            "median": 2,
+            "min": 2,
+            "max": 2,
+            "samples": [
+              2,
+              2,
+              2
+            ]
+          },
+          "okRuns": 3
+        },
+        "scroll": {
+          "steps": {
+            "n": 3,
+            "median": 30,
+            "min": 30,
+            "max": 30,
+            "samples": [
+              30,
+              30,
+              30
+            ]
+          },
+          "noPaint": {
+            "n": 3,
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "samples": [
+              0,
+              0,
+              0
+            ]
+          },
+          "frameMedianMs": {
+            "n": 3,
+            "median": 40.5,
+            "min": 35.3,
+            "max": 41.2,
+            "samples": [
+              35.3,
+              41.2,
+              40.5
+            ]
+          },
+          "frameP95Ms": {
+            "n": 3,
+            "median": 49.5,
+            "min": 48.7,
+            "max": 53.1,
+            "samples": [
+              53.1,
+              49.5,
+              48.7
+            ]
+          },
+          "frameMaxMs": {
+            "n": 3,
+            "median": 52.9,
+            "min": 50,
+            "max": 57,
+            "samples": [
+              57,
+              50,
+              52.9
+            ]
+          },
+          "renderMedianMs": {
+            "n": 3,
+            "median": 3,
+            "min": 2.8,
+            "max": 3.1,
+            "samples": [
+              3,
+              2.8,
+              3.1
+            ]
+          },
+          "renderMaxMs": {
+            "n": 3,
+            "median": 6.6,
+            "min": 5.7,
+            "max": 7.3,
+            "samples": [
+              7.3,
+              5.7,
+              6.6
+            ]
+          },
+          "scrollYAfter": {
+            "n": 3,
+            "median": 9000,
+            "min": 9000,
+            "max": 9000,
+            "samples": [
+              9000,
+              9000,
+              9000
+            ]
+          },
+          "longestTaskMs": {
+            "n": 3,
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "samples": [
+              0,
+              0,
+              0
+            ]
+          },
+          "okRuns": 3
+        },
+        "zoom": {
+          "steps": {
+            "n": 3,
+            "median": 16,
+            "min": 16,
+            "max": 16,
+            "samples": [
+              16,
+              16,
+              16
+            ]
+          },
+          "noPaint": {
+            "n": 3,
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "samples": [
+              0,
+              0,
+              0
+            ]
+          },
+          "frameMedianMs": {
+            "n": 3,
+            "median": 39,
+            "min": 37.7,
+            "max": 42.4,
+            "samples": [
+              42.4,
+              39,
+              37.7
+            ]
+          },
+          "frameP95Ms": {
+            "n": 3,
+            "median": 50.4,
+            "min": 49.6,
+            "max": 50.8,
+            "samples": [
+              50.4,
+              50.8,
+              49.6
+            ]
+          },
+          "frameMaxMs": {
+            "n": 3,
+            "median": 50.4,
+            "min": 49.6,
+            "max": 50.8,
+            "samples": [
+              50.4,
+              50.8,
+              49.6
+            ]
+          },
+          "renderMedianMs": {
+            "n": 3,
+            "median": 2.7,
+            "min": 2.6,
+            "max": 3,
+            "samples": [
+              2.7,
+              2.6,
+              3
+            ]
+          },
+          "renderMaxMs": {
+            "n": 3,
+            "median": 4.9,
+            "min": 4.1,
+            "max": 5.9,
+            "samples": [
+              5.9,
+              4.1,
+              4.9
+            ]
+          },
+          "longestTaskMs": {
+            "n": 3,
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "samples": [
+              0,
+              0,
+              0
+            ]
+          },
+          "okRuns": 3
+        },
+        "f5": {
+          "ms": {
+            "n": 3,
+            "median": 207,
+            "min": 199.7,
+            "max": 246.6,
+            "samples": [
+              246.6,
+              207,
+              199.7
+            ]
+          },
+          "storeMs": {
+            "n": 3,
+            "median": 186.5,
+            "min": 179.9,
+            "max": 218.3,
+            "samples": [
+              218.3,
+              186.5,
+              179.9
+            ]
+          },
+          "paintMs": {
+            "n": 3,
+            "median": 3,
+            "min": 2.9,
+            "max": 3.2,
+            "samples": [
+              3,
+              3.2,
+              2.9
+            ]
+          },
+          "longestTaskMs": {
+            "n": 3,
+            "median": 202,
+            "min": 195,
+            "max": 242,
+            "samples": [
+              242,
+              202,
+              195
+            ]
+          },
+          "okRuns": 3
+        },
+        "levelCalculate": {
+          "ms": {
+            "n": 3,
+            "median": 557.5,
+            "min": 552.6,
+            "max": 588.5,
+            "samples": [
+              588.5,
+              552.6,
+              557.5
+            ]
+          },
+          "longestTaskMs": {
+            "n": 3,
+            "median": 61,
+            "min": 60,
+            "max": 63,
+            "samples": [
+              63,
+              61,
+              60
+            ]
+          },
+          "rows": {
+            "n": 3,
+            "median": 756,
+            "min": 756,
+            "max": 756,
+            "samples": [
+              756,
+              756,
+              756
+            ]
+          },
+          "okRuns": 3
+        },
+        "levelApply": {
+          "ms": {
+            "n": 3,
+            "median": 344.3,
+            "min": 342.8,
+            "max": 364.2,
+            "samples": [
+              364.2,
+              344.3,
+              342.8
+            ]
+          },
+          "storeMs": {
+            "n": 3,
+            "median": 45,
+            "min": 44,
+            "max": 50,
+            "samples": [
+              50,
+              45,
+              44
+            ]
+          },
+          "longestTaskMs": {
+            "n": 3,
+            "median": 337,
+            "min": 335,
+            "max": 356,
+            "samples": [
+              356,
+              337,
+              335
+            ]
+          },
+          "okRuns": 3
+        },
+        "autosave": {
+          "ms": {
+            "n": 3,
+            "median": 90.5,
+            "min": 82,
+            "max": 97,
+            "samples": [
+              82,
+              90.5,
+              97
+            ]
+          },
+          "serializeTaskMs": {
+            "n": 3,
+            "median": 78,
+            "min": 75,
+            "max": 84,
+            "samples": [
+              75,
+              78,
+              84
+            ]
+          },
+          "idbTransactionMs": {
+            "n": 3,
+            "median": 12.2,
+            "min": 7,
+            "max": 12.5,
+            "samples": [
+              7,
+              12.2,
+              12.5
+            ]
+          },
+          "ifcChars": {
+            "n": 3,
+            "median": 934958,
+            "min": 934958,
+            "max": 934958,
+            "samples": [
+              934958,
+              934958,
+              934958
+            ]
+          },
+          "okRuns": 3
+        },
+        "recoveryOffer": {
+          "ms": {
+            "n": 3,
+            "median": 483.7,
+            "min": 479.9,
+            "max": 499.1,
+            "samples": [
+              499.1,
+              483.7,
+              479.9
+            ]
+          },
+          "okRuns": 3
+        },
+        "recoveryRestore": {
+          "ms": {
+            "n": 3,
+            "median": 149.7,
+            "min": 139.6,
+            "max": 160.3,
+            "samples": [
+              160.3,
+              139.6,
+              149.7
+            ]
+          },
+          "storeMs": {
+            "n": 3,
+            "median": 98.3,
+            "min": 88.8,
+            "max": 107.3,
+            "samples": [
+              107.3,
+              88.8,
+              98.3
+            ]
+          },
+          "longestTaskMs": {
+            "n": 3,
+            "median": 143,
+            "min": 134,
+            "max": 153,
+            "samples": [
+              153,
+              134,
+              143
+            ]
+          },
+          "okRuns": 3
+        },
+        "save": {
+          "ms": {
+            "n": 3,
+            "median": 67.3,
+            "min": 63.9,
+            "max": 73,
+            "samples": [
+              63.9,
+              67.3,
+              73
+            ]
+          },
+          "cleanMs": {
+            "n": 3,
+            "median": 68.2,
+            "min": 64.7,
+            "max": 74.3,
+            "samples": [
+              64.7,
+              68.2,
+              74.3
+            ]
+          },
+          "longestTaskMs": {
+            "n": 3,
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "samples": [
+              0,
+              0,
+              0
+            ]
+          },
+          "bytes": {
+            "n": 3,
+            "median": 907500,
+            "min": 907500,
+            "max": 907500,
+            "samples": [
+              907500,
+              907500,
+              907500
+            ]
+          },
+          "okRuns": 3
+        }
+      },
+      "runs": [
+        {
+          "rep": 1,
+          "phases": {
+            "open": {
+              "ok": true,
+              "ms": 570.4,
+              "storeMs": 501.4,
+              "paintMs": 5.3,
+              "longestTaskMs": 309,
+              "scheduleStale": false,
+              "datesAsRecorded": false,
+              "hasCpm": true,
+              "isDirty": false,
+              "documents": 2
+            },
+            "scroll": {
+              "ok": true,
+              "steps": 30,
+              "noPaint": 0,
+              "frameMedianMs": 35.3,
+              "frameP95Ms": 53.1,
+              "frameMaxMs": 57,
+              "renderMedianMs": 3,
+              "renderMaxMs": 7.3,
+              "scrollYAfter": 9000,
+              "longestTaskMs": 0
+            },
+            "zoom": {
+              "ok": true,
+              "steps": 16,
+              "noPaint": 0,
+              "frameMedianMs": 42.4,
+              "frameP95Ms": 50.4,
+              "frameMaxMs": 50.4,
+              "renderMedianMs": 2.7,
+              "renderMaxMs": 5.9,
+              "longestTaskMs": 0
+            },
+            "f5": {
+              "ok": true,
+              "ms": 246.6,
+              "storeMs": 218.3,
+              "paintMs": 3,
+              "longestTaskMs": 242,
+              "autosaveInWindow": false,
+              "isDirtyAfter": false
+            },
+            "levelCalculate": {
+              "ok": true,
+              "ms": 588.5,
+              "longestTaskMs": 63,
+              "rows": 756,
+              "problem": null
+            },
+            "levelApply": {
+              "ok": true,
+              "ms": 364.2,
+              "storeMs": 50,
+              "longestTaskMs": 356,
+              "isDirtyAfter": true
+            },
+            "autosave": {
+              "ok": true,
+              "ms": 82,
+              "serializeTaskMs": 75,
+              "idbTransactionMs": 7,
+              "ifcChars": 934958,
+              "serializeDetected": true
+            },
+            "recoveryOffer": {
+              "ok": true,
+              "ms": 499.1,
+              "note": "navigatiestart → herstelvraag zichtbaar (app-start + snapshot lezen en parsen)"
+            },
+            "recoveryRestore": {
+              "ok": true,
+              "ms": 160.3,
+              "storeMs": 107.3,
+              "longestTaskMs": 153,
+              "isDirtyAfter": true
+            },
+            "save": {
+              "ok": true,
+              "ms": 63.9,
+              "cleanMs": 64.7,
+              "longestTaskMs": 0,
+              "route": "download",
+              "bytes": 907500,
+              "wasDirty": true
+            }
+          },
+          "notes": [],
+          "errors": [],
+          "bootToWelcomeMs": 856,
+          "viewAfterInteraction": {
+            "zoom": 0.7945439045183295,
+            "scrollY": 9000
+          },
+          "allTicks": [
+            {
+              "start": 20575,
+              "ms": 7,
+              "bytes": 934958
+            }
+          ],
+          "heapMB": 57
+        },
+        {
+          "rep": 2,
+          "phases": {
+            "open": {
+              "ok": true,
+              "ms": 543.5,
+              "storeMs": 480.9,
+              "paintMs": 5.4,
+              "longestTaskMs": 277,
+              "scheduleStale": false,
+              "datesAsRecorded": false,
+              "hasCpm": true,
+              "isDirty": false,
+              "documents": 2
+            },
+            "scroll": {
+              "ok": true,
+              "steps": 30,
+              "noPaint": 0,
+              "frameMedianMs": 41.2,
+              "frameP95Ms": 49.5,
+              "frameMaxMs": 50,
+              "renderMedianMs": 2.8,
+              "renderMaxMs": 5.7,
+              "scrollYAfter": 9000,
+              "longestTaskMs": 0
+            },
+            "zoom": {
+              "ok": true,
+              "steps": 16,
+              "noPaint": 0,
+              "frameMedianMs": 39,
+              "frameP95Ms": 50.8,
+              "frameMaxMs": 50.8,
+              "renderMedianMs": 2.6,
+              "renderMaxMs": 4.1,
+              "longestTaskMs": 0
+            },
+            "f5": {
+              "ok": true,
+              "ms": 207,
+              "storeMs": 186.5,
+              "paintMs": 3.2,
+              "longestTaskMs": 202,
+              "autosaveInWindow": false,
+              "isDirtyAfter": false
+            },
+            "levelCalculate": {
+              "ok": true,
+              "ms": 552.6,
+              "longestTaskMs": 61,
+              "rows": 756,
+              "problem": null
+            },
+            "levelApply": {
+              "ok": true,
+              "ms": 344.3,
+              "storeMs": 45,
+              "longestTaskMs": 337,
+              "isDirtyAfter": true
+            },
+            "autosave": {
+              "ok": true,
+              "ms": 90.5,
+              "serializeTaskMs": 78,
+              "idbTransactionMs": 12.2,
+              "ifcChars": 934958,
+              "serializeDetected": true
+            },
+            "recoveryOffer": {
+              "ok": true,
+              "ms": 483.7,
+              "note": "navigatiestart → herstelvraag zichtbaar (app-start + snapshot lezen en parsen)"
+            },
+            "recoveryRestore": {
+              "ok": true,
+              "ms": 139.6,
+              "storeMs": 88.8,
+              "longestTaskMs": 134,
+              "isDirtyAfter": true
+            },
+            "save": {
+              "ok": true,
+              "ms": 67.3,
+              "cleanMs": 68.2,
+              "longestTaskMs": 0,
+              "route": "download",
+              "bytes": 907500,
+              "wasDirty": true
+            }
+          },
+          "notes": [],
+          "errors": [],
+          "bootToWelcomeMs": 881,
+          "viewAfterInteraction": {
+            "zoom": 0.7945439045183295,
+            "scrollY": 9000
+          },
+          "allTicks": [
+            {
+              "start": 20611,
+              "ms": 12,
+              "bytes": 934958
+            }
+          ],
+          "heapMB": 57
+        },
+        {
+          "rep": 3,
+          "phases": {
+            "open": {
+              "ok": true,
+              "ms": 516.8,
+              "storeMs": 450.4,
+              "paintMs": 5.2,
+              "longestTaskMs": 275,
+              "scheduleStale": false,
+              "datesAsRecorded": false,
+              "hasCpm": true,
+              "isDirty": false,
+              "documents": 2
+            },
+            "scroll": {
+              "ok": true,
+              "steps": 30,
+              "noPaint": 0,
+              "frameMedianMs": 40.5,
+              "frameP95Ms": 48.7,
+              "frameMaxMs": 52.9,
+              "renderMedianMs": 3.1,
+              "renderMaxMs": 6.6,
+              "scrollYAfter": 9000,
+              "longestTaskMs": 0
+            },
+            "zoom": {
+              "ok": true,
+              "steps": 16,
+              "noPaint": 0,
+              "frameMedianMs": 37.7,
+              "frameP95Ms": 49.6,
+              "frameMaxMs": 49.6,
+              "renderMedianMs": 3,
+              "renderMaxMs": 4.9,
+              "longestTaskMs": 0
+            },
+            "f5": {
+              "ok": true,
+              "ms": 199.7,
+              "storeMs": 179.9,
+              "paintMs": 2.9,
+              "longestTaskMs": 195,
+              "autosaveInWindow": false,
+              "isDirtyAfter": false
+            },
+            "levelCalculate": {
+              "ok": true,
+              "ms": 557.5,
+              "longestTaskMs": 60,
+              "rows": 756,
+              "problem": null
+            },
+            "levelApply": {
+              "ok": true,
+              "ms": 342.8,
+              "storeMs": 44,
+              "longestTaskMs": 335,
+              "isDirtyAfter": true
+            },
+            "autosave": {
+              "ok": true,
+              "ms": 97,
+              "serializeTaskMs": 84,
+              "idbTransactionMs": 12.5,
+              "ifcChars": 934958,
+              "serializeDetected": true
+            },
+            "recoveryOffer": {
+              "ok": true,
+              "ms": 479.9,
+              "note": "navigatiestart → herstelvraag zichtbaar (app-start + snapshot lezen en parsen)"
+            },
+            "recoveryRestore": {
+              "ok": true,
+              "ms": 149.7,
+              "storeMs": 98.3,
+              "longestTaskMs": 143,
+              "isDirtyAfter": true
+            },
+            "save": {
+              "ok": true,
+              "ms": 73,
+              "cleanMs": 74.3,
+              "longestTaskMs": 0,
+              "route": "download",
+              "bytes": 907500,
+              "wasDirty": true
+            }
+          },
+          "notes": [],
+          "errors": [],
+          "bootToWelcomeMs": 815.2,
+          "viewAfterInteraction": {
+            "zoom": 0.7945439045183295,
+            "scrollY": 9000
+          },
+          "allTicks": [
+            {
+              "start": 20547,
+              "ms": 13,
+              "bytes": 934958
+            }
+          ],
+          "heapMB": 57
+        }
+      ]
+    },
+    {
+      "size": 5000,
+      "dataset": {
+        "size": 5000,
+        "file": "plan-5000.ifc",
+        "ifcBytes": 4521565,
+        "contentSha256": "f06cbb734aad19a28d424dd32d0de2a2cad4d6583e9411768aa0b9585dd55ab8",
+        "generator": {
+          "function": "generateBenchmarkProject",
+          "seed": "0x5eed",
+          "resourceCount": 8
+        },
+        "tasks": 5000,
+        "leafWorkTasks": 4200,
+        "milestones": 300,
+        "summaryTasks": 500,
+        "summaryLevels": 2,
+        "wbsDepth": 3,
+        "relations": 5850,
+        "relationsByType": {
+          "FINISH_START": 4145,
+          "FINISH_FINISH": 694,
+          "START_START": 1011
+        },
+        "relationsWithLag": 651,
+        "resources": 8,
+        "resourcesByType": {
+          "LABOR": 2,
+          "CREW": 2,
+          "EQUIPMENT": 2,
+          "SUBCONTRACTOR": 2
+        },
+        "assignments": 2859,
+        "tasksWithAssignment": 2527,
+        "calendars": [
+          {
+            "name": "Benchmark-kalender",
+            "workDays": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "hours": "07:00-16:00",
+            "hoursPerDay": 8,
+            "holidayPeriods": 15
+          }
+        ],
+        "projectStart": "2026-01-05",
+        "computedFinish": "2040-02-13",
+        "criticalTasks": 431,
+        "node": {
+          "repeats": 3,
+          "cpmMs": {
+            "median": 112.9,
+            "min": 80.3,
+            "max": 167.5,
+            "samples": [
+              167.5,
+              112.9,
+              80.3
+            ]
+          },
+          "ifcWriteMs": {
+            "median": 223.4,
+            "min": 206.3,
+            "max": 245.8,
+            "samples": [
+              223.4,
+              245.8,
+              206.3
+            ]
+          },
+          "ifcReadMs": {
+            "median": 408.4,
+            "min": 366.3,
+            "max": 473.9,
+            "samples": [
+              473.9,
+              408.4,
+              366.3
+            ]
+          }
+        }
+      },
+      "summary": {
+        "open": {
+          "ms": {
+            "n": 3,
+            "median": 2007.8,
+            "min": 1945.9,
+            "max": 2191.7,
+            "samples": [
+              2007.8,
+              2191.7,
+              1945.9
+            ]
+          },
+          "storeMs": {
+            "n": 3,
+            "median": 1898.1,
+            "min": 1835.6,
+            "max": 2065,
+            "samples": [
+              1898.1,
+              2065,
+              1835.6
+            ]
+          },
+          "paintMs": {
+            "n": 3,
+            "median": 7.7,
+            "min": 7.6,
+            "max": 8.2,
+            "samples": [
+              7.6,
+              7.7,
+              8.2
+            ]
+          },
+          "longestTaskMs": {
+            "n": 3,
+            "median": 1017,
+            "min": 975,
+            "max": 1173,
+            "samples": [
+              1017,
+              1173,
+              975
+            ]
+          },
+          "documents": {
+            "n": 3,
+            "median": 2,
+            "min": 2,
+            "max": 2,
+            "samples": [
+              2,
+              2,
+              2
+            ]
+          },
+          "okRuns": 3
+        },
+        "scroll": {
+          "steps": {
+            "n": 3,
+            "median": 30,
+            "min": 30,
+            "max": 30,
+            "samples": [
+              30,
+              30,
+              30
+            ]
+          },
+          "noPaint": {
+            "n": 3,
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "samples": [
+              0,
+              0,
+              0
+            ]
+          },
+          "frameMedianMs": {
+            "n": 3,
+            "median": 43.6,
+            "min": 42.8,
+            "max": 43.6,
+            "samples": [
+              42.8,
+              43.6,
+              43.6
+            ]
+          },
+          "frameP95Ms": {
+            "n": 3,
+            "median": 52.5,
+            "min": 51.2,
+            "max": 53,
+            "samples": [
+              51.2,
+              53,
+              52.5
+            ]
+          },
+          "frameMaxMs": {
+            "n": 3,
+            "median": 54.5,
+            "min": 54.5,
+            "max": 55.5,
+            "samples": [
+              54.5,
+              55.5,
+              54.5
+            ]
+          },
+          "renderMedianMs": {
+            "n": 3,
+            "median": 3.5,
+            "min": 3.3,
+            "max": 3.5,
+            "samples": [
+              3.3,
+              3.5,
+              3.5
+            ]
+          },
+          "renderMaxMs": {
+            "n": 3,
+            "median": 7.4,
+            "min": 7.2,
+            "max": 7.7,
+            "samples": [
+              7.4,
+              7.2,
+              7.7
+            ]
+          },
+          "scrollYAfter": {
+            "n": 3,
+            "median": 9000,
+            "min": 9000,
+            "max": 9000,
+            "samples": [
+              9000,
+              9000,
+              9000
+            ]
+          },
+          "longestTaskMs": {
+            "n": 3,
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "samples": [
+              0,
+              0,
+              0
+            ]
+          },
+          "okRuns": 3
+        },
+        "zoom": {
+          "steps": {
+            "n": 3,
+            "median": 16,
+            "min": 16,
+            "max": 16,
+            "samples": [
+              16,
+              16,
+              16
+            ]
+          },
+          "noPaint": {
+            "n": 3,
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "samples": [
+              0,
+              0,
+              0
+            ]
+          },
+          "frameMedianMs": {
+            "n": 3,
+            "median": 45.2,
+            "min": 43.4,
+            "max": 47.8,
+            "samples": [
+              43.4,
+              47.8,
+              45.2
+            ]
+          },
+          "frameP95Ms": {
+            "n": 3,
+            "median": 54.3,
+            "min": 53.3,
+            "max": 59,
+            "samples": [
+              54.3,
+              59,
+              53.3
+            ]
+          },
+          "frameMaxMs": {
+            "n": 3,
+            "median": 54.3,
+            "min": 53.3,
+            "max": 59,
+            "samples": [
+              54.3,
+              59,
+              53.3
+            ]
+          },
+          "renderMedianMs": {
+            "n": 3,
+            "median": 4,
+            "min": 3.3,
+            "max": 4.2,
+            "samples": [
+              3.3,
+              4.2,
+              4
+            ]
+          },
+          "renderMaxMs": {
+            "n": 3,
+            "median": 9.1,
+            "min": 8.6,
+            "max": 11.1,
+            "samples": [
+              11.1,
+              8.6,
+              9.1
+            ]
+          },
+          "longestTaskMs": {
+            "n": 3,
+            "median": 0,
+            "min": 0,
+            "max": 51,
+            "samples": [
+              51,
+              0,
+              0
+            ]
+          },
+          "okRuns": 3
+        },
+        "f5": {
+          "ms": {
+            "n": 3,
+            "median": 759.7,
+            "min": 746,
+            "max": 774.9,
+            "samples": [
+              759.7,
+              746,
+              774.9
+            ]
+          },
+          "storeMs": {
+            "n": 3,
+            "median": 697.4,
+            "min": 682.2,
+            "max": 702.8,
+            "samples": [
+              697.4,
+              682.2,
+              702.8
+            ]
+          },
+          "paintMs": {
+            "n": 3,
+            "median": 5.1,
+            "min": 4,
+            "max": 5.6,
+            "samples": [
+              4,
+              5.6,
+              5.1
+            ]
+          },
+          "longestTaskMs": {
+            "n": 3,
+            "median": 753,
+            "min": 737,
+            "max": 767,
+            "samples": [
+              753,
+              737,
+              767
+            ]
+          },
+          "okRuns": 3
+        },
+        "levelCalculate": {
+          "ms": {
+            "n": 3,
+            "median": 8444.8,
+            "min": 8231.6,
+            "max": 8480.5,
+            "samples": [
+              8444.8,
+              8231.6,
+              8480.5
+            ]
+          },
+          "longestTaskMs": {
+            "n": 3,
+            "median": 801,
+            "min": 741,
+            "max": 802,
+            "samples": [
+              802,
+              741,
+              801
+            ]
+          },
+          "rows": {
+            "n": 3,
+            "median": 4311,
+            "min": 4311,
+            "max": 4311,
+            "samples": [
+              4311,
+              4311,
+              4311
+            ]
+          },
+          "okRuns": 3
+        },
+        "levelApply": {
+          "ms": {
+            "n": 3,
+            "median": 1441.8,
+            "min": 1440.5,
+            "max": 1468.3,
+            "samples": [
+              1440.5,
+              1441.8,
+              1468.3
+            ]
+          },
+          "storeMs": {
+            "n": 3,
+            "median": 175.1,
+            "min": 166.8,
+            "max": 177.3,
+            "samples": [
+              166.8,
+              177.3,
+              175.1
+            ]
+          },
+          "longestTaskMs": {
+            "n": 3,
+            "median": 1430,
+            "min": 1427,
+            "max": 1457,
+            "samples": [
+              1427,
+              1430,
+              1457
+            ]
+          },
+          "okRuns": 3
+        },
+        "autosave": {
+          "ms": {
+            "n": 3,
+            "median": 276.5,
+            "min": 268.2,
+            "max": 315.6,
+            "samples": [
+              276.5,
+              268.2,
+              315.6
+            ]
+          },
+          "serializeTaskMs": {
+            "n": 3,
+            "median": 239,
+            "min": 232,
+            "max": 271,
+            "samples": [
+              239,
+              232,
+              271
+            ]
+          },
+          "idbTransactionMs": {
+            "n": 3,
+            "median": 37,
+            "min": 36.3,
+            "max": 43.9,
+            "samples": [
+              37,
+              36.3,
+              43.9
+            ]
+          },
+          "ifcChars": {
+            "n": 3,
+            "median": 4670502,
+            "min": 4670502,
+            "max": 4670502,
+            "samples": [
+              4670502,
+              4670502,
+              4670502
+            ]
+          },
+          "okRuns": 3
+        },
+        "recoveryOffer": {
+          "ms": {
+            "n": 3,
+            "median": 956,
+            "min": 951.4,
+            "max": 1123.1,
+            "samples": [
+              956,
+              951.4,
+              1123.1
+            ]
+          },
+          "okRuns": 3
+        },
+        "recoveryRestore": {
+          "ms": {
+            "n": 3,
+            "median": 466.1,
+            "min": 437.7,
+            "max": 516.8,
+            "samples": [
+              466.1,
+              437.7,
+              516.8
+            ]
+          },
+          "storeMs": {
+            "n": 3,
+            "median": 356.8,
+            "min": 333.9,
+            "max": 414.1,
+            "samples": [
+              356.8,
+              333.9,
+              414.1
+            ]
+          },
+          "longestTaskMs": {
+            "n": 3,
+            "median": 455,
+            "min": 426,
+            "max": 505,
+            "samples": [
+              455,
+              426,
+              505
+            ]
+          },
+          "okRuns": 3
+        },
+        "save": {
+          "ms": {
+            "n": 3,
+            "median": 237.5,
+            "min": 229.2,
+            "max": 241.3,
+            "samples": [
+              237.5,
+              229.2,
+              241.3
+            ]
+          },
+          "cleanMs": {
+            "n": 3,
+            "median": 238.6,
+            "min": 230.6,
+            "max": 242.5,
+            "samples": [
+              238.6,
+              230.6,
+              242.5
+            ]
+          },
+          "longestTaskMs": {
+            "n": 3,
+            "median": 265,
+            "min": 0,
+            "max": 270,
+            "samples": [
+              270,
+              265,
+              0
+            ]
+          },
+          "bytes": {
+            "n": 3,
+            "median": 4643044,
+            "min": 4643044,
+            "max": 4643044,
+            "samples": [
+              4643044,
+              4643044,
+              4643044
+            ]
+          },
+          "okRuns": 3
+        }
+      },
+      "runs": [
+        {
+          "rep": 1,
+          "phases": {
+            "open": {
+              "ok": true,
+              "ms": 2007.8,
+              "storeMs": 1898.1,
+              "paintMs": 7.6,
+              "longestTaskMs": 1017,
+              "scheduleStale": false,
+              "datesAsRecorded": false,
+              "hasCpm": true,
+              "isDirty": false,
+              "documents": 2
+            },
+            "scroll": {
+              "ok": true,
+              "steps": 30,
+              "noPaint": 0,
+              "frameMedianMs": 42.8,
+              "frameP95Ms": 51.2,
+              "frameMaxMs": 54.5,
+              "renderMedianMs": 3.3,
+              "renderMaxMs": 7.4,
+              "scrollYAfter": 9000,
+              "longestTaskMs": 0
+            },
+            "zoom": {
+              "ok": true,
+              "steps": 16,
+              "noPaint": 0,
+              "frameMedianMs": 43.4,
+              "frameP95Ms": 54.3,
+              "frameMaxMs": 54.3,
+              "renderMedianMs": 3.3,
+              "renderMaxMs": 11.1,
+              "longestTaskMs": 51
+            },
+            "f5": {
+              "ok": true,
+              "ms": 759.7,
+              "storeMs": 697.4,
+              "paintMs": 4,
+              "longestTaskMs": 753,
+              "autosaveInWindow": false,
+              "isDirtyAfter": false
+            },
+            "levelCalculate": {
+              "ok": true,
+              "ms": 8444.8,
+              "longestTaskMs": 802,
+              "rows": 4311,
+              "problem": null
+            },
+            "levelApply": {
+              "ok": true,
+              "ms": 1440.5,
+              "storeMs": 166.8,
+              "longestTaskMs": 1427,
+              "isDirtyAfter": true
+            },
+            "autosave": {
+              "ok": true,
+              "ms": 276.5,
+              "serializeTaskMs": 239,
+              "idbTransactionMs": 37,
+              "ifcChars": 4670502,
+              "serializeDetected": true
+            },
+            "recoveryOffer": {
+              "ok": true,
+              "ms": 956,
+              "note": "navigatiestart → herstelvraag zichtbaar (app-start + snapshot lezen en parsen)"
+            },
+            "recoveryRestore": {
+              "ok": true,
+              "ms": 466.1,
+              "storeMs": 356.8,
+              "longestTaskMs": 455,
+              "isDirtyAfter": true
+            },
+            "save": {
+              "ok": true,
+              "ms": 237.5,
+              "cleanMs": 238.6,
+              "longestTaskMs": 270,
+              "route": "download",
+              "bytes": 4643044,
+              "wasDirty": true
+            }
+          },
+          "notes": [],
+          "errors": [],
+          "bootToWelcomeMs": 825,
+          "viewAfterInteraction": {
+            "zoom": 0.5000000000000002,
+            "scrollY": 9000
+          },
+          "allTicks": [
+            {
+              "start": 30747,
+              "ms": 37,
+              "bytes": 4670502
+            }
+          ],
+          "heapMB": 116
+        },
+        {
+          "rep": 2,
+          "phases": {
+            "open": {
+              "ok": true,
+              "ms": 2191.7,
+              "storeMs": 2065,
+              "paintMs": 7.7,
+              "longestTaskMs": 1173,
+              "scheduleStale": false,
+              "datesAsRecorded": false,
+              "hasCpm": true,
+              "isDirty": false,
+              "documents": 2
+            },
+            "scroll": {
+              "ok": true,
+              "steps": 30,
+              "noPaint": 0,
+              "frameMedianMs": 43.6,
+              "frameP95Ms": 53,
+              "frameMaxMs": 55.5,
+              "renderMedianMs": 3.5,
+              "renderMaxMs": 7.2,
+              "scrollYAfter": 9000,
+              "longestTaskMs": 0
+            },
+            "zoom": {
+              "ok": true,
+              "steps": 16,
+              "noPaint": 0,
+              "frameMedianMs": 47.8,
+              "frameP95Ms": 59,
+              "frameMaxMs": 59,
+              "renderMedianMs": 4.2,
+              "renderMaxMs": 8.6,
+              "longestTaskMs": 0
+            },
+            "f5": {
+              "ok": true,
+              "ms": 746,
+              "storeMs": 682.2,
+              "paintMs": 5.6,
+              "longestTaskMs": 737,
+              "autosaveInWindow": false,
+              "isDirtyAfter": false
+            },
+            "levelCalculate": {
+              "ok": true,
+              "ms": 8231.6,
+              "longestTaskMs": 741,
+              "rows": 4311,
+              "problem": null
+            },
+            "levelApply": {
+              "ok": true,
+              "ms": 1441.8,
+              "storeMs": 177.3,
+              "longestTaskMs": 1430,
+              "isDirtyAfter": true
+            },
+            "autosave": {
+              "ok": true,
+              "ms": 268.2,
+              "serializeTaskMs": 232,
+              "idbTransactionMs": 36.3,
+              "ifcChars": 4670502,
+              "serializeDetected": true
+            },
+            "recoveryOffer": {
+              "ok": true,
+              "ms": 951.4,
+              "note": "navigatiestart → herstelvraag zichtbaar (app-start + snapshot lezen en parsen)"
+            },
+            "recoveryRestore": {
+              "ok": true,
+              "ms": 437.7,
+              "storeMs": 333.9,
+              "longestTaskMs": 426,
+              "isDirtyAfter": true
+            },
+            "save": {
+              "ok": true,
+              "ms": 229.2,
+              "cleanMs": 230.6,
+              "longestTaskMs": 265,
+              "route": "download",
+              "bytes": 4643044,
+              "wasDirty": true
+            }
+          },
+          "notes": [],
+          "errors": [],
+          "bootToWelcomeMs": 760,
+          "viewAfterInteraction": {
+            "zoom": 0.5000000000000002,
+            "scrollY": 9000
+          },
+          "allTicks": [
+            {
+              "start": 30677,
+              "ms": 36,
+              "bytes": 4670502
+            }
+          ],
+          "heapMB": 116
+        },
+        {
+          "rep": 3,
+          "phases": {
+            "open": {
+              "ok": true,
+              "ms": 1945.9,
+              "storeMs": 1835.6,
+              "paintMs": 8.2,
+              "longestTaskMs": 975,
+              "scheduleStale": false,
+              "datesAsRecorded": false,
+              "hasCpm": true,
+              "isDirty": false,
+              "documents": 2
+            },
+            "scroll": {
+              "ok": true,
+              "steps": 30,
+              "noPaint": 0,
+              "frameMedianMs": 43.6,
+              "frameP95Ms": 52.5,
+              "frameMaxMs": 54.5,
+              "renderMedianMs": 3.5,
+              "renderMaxMs": 7.7,
+              "scrollYAfter": 9000,
+              "longestTaskMs": 0
+            },
+            "zoom": {
+              "ok": true,
+              "steps": 16,
+              "noPaint": 0,
+              "frameMedianMs": 45.2,
+              "frameP95Ms": 53.3,
+              "frameMaxMs": 53.3,
+              "renderMedianMs": 4,
+              "renderMaxMs": 9.1,
+              "longestTaskMs": 0
+            },
+            "f5": {
+              "ok": true,
+              "ms": 774.9,
+              "storeMs": 702.8,
+              "paintMs": 5.1,
+              "longestTaskMs": 767,
+              "autosaveInWindow": false,
+              "isDirtyAfter": false
+            },
+            "levelCalculate": {
+              "ok": true,
+              "ms": 8480.5,
+              "longestTaskMs": 801,
+              "rows": 4311,
+              "problem": null
+            },
+            "levelApply": {
+              "ok": true,
+              "ms": 1468.3,
+              "storeMs": 175.1,
+              "longestTaskMs": 1457,
+              "isDirtyAfter": true
+            },
+            "autosave": {
+              "ok": true,
+              "ms": 315.6,
+              "serializeTaskMs": 271,
+              "idbTransactionMs": 43.9,
+              "ifcChars": 4670502,
+              "serializeDetected": true
+            },
+            "recoveryOffer": {
+              "ok": true,
+              "ms": 1123.1,
+              "note": "navigatiestart → herstelvraag zichtbaar (app-start + snapshot lezen en parsen)"
+            },
+            "recoveryRestore": {
+              "ok": true,
+              "ms": 516.8,
+              "storeMs": 414.1,
+              "longestTaskMs": 505,
+              "isDirtyAfter": true
+            },
+            "save": {
+              "ok": true,
+              "ms": 241.3,
+              "cleanMs": 242.5,
+              "longestTaskMs": 0,
+              "route": "download",
+              "bytes": 4643044,
+              "wasDirty": true
+            }
+          },
+          "notes": [],
+          "errors": [],
+          "bootToWelcomeMs": 791.5,
+          "viewAfterInteraction": {
+            "zoom": 0.5000000000000002,
+            "scrollY": 9000
+          },
+          "allTicks": [
+            {
+              "start": 30726,
+              "ms": 44,
+              "bytes": 4670502
+            }
+          ],
+          "heapMB": 116
+        }
+      ]
+    },
+    {
+      "size": 10000,
+      "dataset": {
+        "size": 10000,
+        "file": "plan-10000.ifc",
+        "ifcBytes": 9111485,
+        "contentSha256": "a15b316a460e670d336598712d97c4fabe6d860c7cc221cc7cf67d4b2857f880",
+        "generator": {
+          "function": "generateBenchmarkProject",
+          "seed": "0x5eed",
+          "resourceCount": 8
+        },
+        "tasks": 10000,
+        "leafWorkTasks": 8400,
+        "milestones": 600,
+        "summaryTasks": 1000,
+        "summaryLevels": 2,
+        "wbsDepth": 3,
+        "relations": 11700,
+        "relationsByType": {
+          "FINISH_START": 8237,
+          "FINISH_FINISH": 1390,
+          "START_START": 2073
+        },
+        "relationsWithLag": 1421,
+        "resources": 8,
+        "resourcesByType": {
+          "LABOR": 2,
+          "CREW": 2,
+          "EQUIPMENT": 2,
+          "SUBCONTRACTOR": 2
+        },
+        "assignments": 5718,
+        "tasksWithAssignment": 5078,
+        "calendars": [
+          {
+            "name": "Benchmark-kalender",
+            "workDays": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "hours": "07:00-16:00",
+            "hoursPerDay": 8,
+            "holidayPeriods": 15
+          }
+        ],
+        "projectStart": "2026-01-05",
+        "computedFinish": "2053-05-07",
+        "criticalTasks": 849,
+        "node": {
+          "repeats": 3,
+          "cpmMs": {
+            "median": 178.1,
+            "min": 162.4,
+            "max": 180.2,
+            "samples": [
+              178.1,
+              162.4,
+              180.2
+            ]
+          },
+          "ifcWriteMs": {
+            "median": 430.5,
+            "min": 427.9,
+            "max": 527.4,
+            "samples": [
+              527.4,
+              430.5,
+              427.9
+            ]
+          },
+          "ifcReadMs": {
+            "median": 825.5,
+            "min": 776.5,
+            "max": 852.1,
+            "samples": [
+              852.1,
+              776.5,
+              825.5
+            ]
+          }
+        }
+      },
+      "summary": {
+        "open": {
+          "ms": {
+            "n": 3,
+            "median": 3740.8,
+            "min": 3720.9,
+            "max": 3853.2,
+            "samples": [
+              3853.2,
+              3740.8,
+              3720.9
+            ]
+          },
+          "storeMs": {
+            "n": 3,
+            "median": 3563.7,
+            "min": 3540.8,
+            "max": 3645.9,
+            "samples": [
+              3645.9,
+              3563.7,
+              3540.8
+            ]
+          },
+          "paintMs": {
+            "n": 3,
+            "median": 11.3,
+            "min": 10.8,
+            "max": 12.8,
+            "samples": [
+              12.8,
+              10.8,
+              11.3
+            ]
+          },
+          "longestTaskMs": {
+            "n": 3,
+            "median": 1901,
+            "min": 1863,
+            "max": 2056,
+            "samples": [
+              2056,
+              1901,
+              1863
+            ]
+          },
+          "documents": {
+            "n": 3,
+            "median": 2,
+            "min": 2,
+            "max": 2,
+            "samples": [
+              2,
+              2,
+              2
+            ]
+          },
+          "okRuns": 3
+        },
+        "scroll": {
+          "steps": {
+            "n": 3,
+            "median": 30,
+            "min": 30,
+            "max": 30,
+            "samples": [
+              30,
+              30,
+              30
+            ]
+          },
+          "noPaint": {
+            "n": 3,
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "samples": [
+              0,
+              0,
+              0
+            ]
+          },
+          "frameMedianMs": {
+            "n": 3,
+            "median": 43.6,
+            "min": 43.5,
+            "max": 44.4,
+            "samples": [
+              43.5,
+              43.6,
+              44.4
+            ]
+          },
+          "frameP95Ms": {
+            "n": 3,
+            "median": 52.8,
+            "min": 51.7,
+            "max": 54,
+            "samples": [
+              51.7,
+              52.8,
+              54
+            ]
+          },
+          "frameMaxMs": {
+            "n": 3,
+            "median": 54,
+            "min": 51.8,
+            "max": 56.8,
+            "samples": [
+              51.8,
+              54,
+              56.8
+            ]
+          },
+          "renderMedianMs": {
+            "n": 3,
+            "median": 3.7,
+            "min": 3.6,
+            "max": 3.9,
+            "samples": [
+              3.6,
+              3.9,
+              3.7
+            ]
+          },
+          "renderMaxMs": {
+            "n": 3,
+            "median": 7.2,
+            "min": 6.6,
+            "max": 8.6,
+            "samples": [
+              6.6,
+              8.6,
+              7.2
+            ]
+          },
+          "scrollYAfter": {
+            "n": 3,
+            "median": 9000,
+            "min": 9000,
+            "max": 9000,
+            "samples": [
+              9000,
+              9000,
+              9000
+            ]
+          },
+          "longestTaskMs": {
+            "n": 3,
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "samples": [
+              0,
+              0,
+              0
+            ]
+          },
+          "okRuns": 3
+        },
+        "zoom": {
+          "steps": {
+            "n": 3,
+            "median": 16,
+            "min": 16,
+            "max": 16,
+            "samples": [
+              16,
+              16,
+              16
+            ]
+          },
+          "noPaint": {
+            "n": 3,
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "samples": [
+              0,
+              0,
+              0
+            ]
+          },
+          "frameMedianMs": {
+            "n": 3,
+            "median": 48.5,
+            "min": 47,
+            "max": 49.4,
+            "samples": [
+              47,
+              49.4,
+              48.5
+            ]
+          },
+          "frameP95Ms": {
+            "n": 3,
+            "median": 56.9,
+            "min": 55.9,
+            "max": 69.4,
+            "samples": [
+              56.9,
+              69.4,
+              55.9
+            ]
+          },
+          "frameMaxMs": {
+            "n": 3,
+            "median": 56.9,
+            "min": 55.9,
+            "max": 69.4,
+            "samples": [
+              56.9,
+              69.4,
+              55.9
+            ]
+          },
+          "renderMedianMs": {
+            "n": 3,
+            "median": 4.3,
+            "min": 4.3,
+            "max": 4.7,
+            "samples": [
+              4.3,
+              4.7,
+              4.3
+            ]
+          },
+          "renderMaxMs": {
+            "n": 3,
+            "median": 12.1,
+            "min": 10.9,
+            "max": 12.3,
+            "samples": [
+              10.9,
+              12.1,
+              12.3
+            ]
+          },
+          "longestTaskMs": {
+            "n": 3,
+            "median": 55,
+            "min": 54,
+            "max": 59,
+            "samples": [
+              54,
+              59,
+              55
+            ]
+          },
+          "okRuns": 3
+        },
+        "f5": {
+          "ms": {
+            "n": 3,
+            "median": 1489.1,
+            "min": 1473.8,
+            "max": 1739.6,
+            "samples": [
+              1489.1,
+              1473.8,
+              1739.6
+            ]
+          },
+          "storeMs": {
+            "n": 3,
+            "median": 1363.6,
+            "min": 1350.3,
+            "max": 1552.4,
+            "samples": [
+              1363.6,
+              1350.3,
+              1552.4
+            ]
+          },
+          "paintMs": {
+            "n": 3,
+            "median": 6.4,
+            "min": 5.3,
+            "max": 6.8,
+            "samples": [
+              5.3,
+              6.4,
+              6.8
+            ]
+          },
+          "longestTaskMs": {
+            "n": 3,
+            "median": 1480,
+            "min": 1461,
+            "max": 1728,
+            "samples": [
+              1480,
+              1461,
+              1728
+            ]
+          },
+          "okRuns": 3
+        },
+        "levelCalculate": {
+          "ms": {
+            "n": 3,
+            "median": 37582.8,
+            "min": 37009.9,
+            "max": 37980.2,
+            "samples": [
+              37582.8,
+              37980.2,
+              37009.9
+            ]
+          },
+          "longestTaskMs": {
+            "n": 3,
+            "median": 3076,
+            "min": 2825,
+            "max": 4115,
+            "samples": [
+              4115,
+              3076,
+              2825
+            ]
+          },
+          "rows": {
+            "n": 3,
+            "median": 8920,
+            "min": 8920,
+            "max": 8920,
+            "samples": [
+              8920,
+              8920,
+              8920
+            ]
+          },
+          "okRuns": 3
+        },
+        "levelApply": {
+          "ms": {
+            "n": 3,
+            "median": 3003.6,
+            "min": 2765.5,
+            "max": 3132.6,
+            "samples": [
+              3003.6,
+              3132.6,
+              2765.5
+            ]
+          },
+          "storeMs": {
+            "n": 3,
+            "median": 405.8,
+            "min": 333.2,
+            "max": 435.4,
+            "samples": [
+              435.4,
+              405.8,
+              333.2
+            ]
+          },
+          "longestTaskMs": {
+            "n": 3,
+            "median": 2988,
+            "min": 2749,
+            "max": 3080,
+            "samples": [
+              2988,
+              3080,
+              2749
+            ]
+          },
+          "okRuns": 3
+        },
+        "autosave": {
+          "ms": {
+            "n": 3,
+            "median": 544.7,
+            "min": 491.5,
+            "max": 557.2,
+            "samples": [
+              557.2,
+              491.5,
+              544.7
+            ]
+          },
+          "serializeTaskMs": {
+            "n": 3,
+            "median": 461,
+            "min": 415,
+            "max": 476,
+            "samples": [
+              476,
+              415,
+              461
+            ]
+          },
+          "idbTransactionMs": {
+            "n": 3,
+            "median": 81.1,
+            "min": 76.6,
+            "max": 83.1,
+            "samples": [
+              81.1,
+              76.6,
+              83.1
+            ]
+          },
+          "ifcChars": {
+            "n": 3,
+            "median": 9373057,
+            "min": 9373057,
+            "max": 9373057,
+            "samples": [
+              9373057,
+              9373057,
+              9373057
+            ]
+          },
+          "okRuns": 3
+        },
+        "recoveryOffer": {
+          "ms": {
+            "n": 3,
+            "median": 1631.1,
+            "min": 1551.1,
+            "max": 1658.1,
+            "samples": [
+              1631.1,
+              1658.1,
+              1551.1
+            ]
+          },
+          "okRuns": 3
+        },
+        "recoveryRestore": {
+          "ms": {
+            "n": 3,
+            "median": 811.6,
+            "min": 792.7,
+            "max": 814.3,
+            "samples": [
+              814.3,
+              811.6,
+              792.7
+            ]
+          },
+          "storeMs": {
+            "n": 3,
+            "median": 654.6,
+            "min": 640.2,
+            "max": 658.3,
+            "samples": [
+              654.6,
+              658.3,
+              640.2
+            ]
+          },
+          "longestTaskMs": {
+            "n": 3,
+            "median": 797,
+            "min": 779,
+            "max": 800,
+            "samples": [
+              797,
+              800,
+              779
+            ]
+          },
+          "okRuns": 3
+        },
+        "save": {
+          "ms": {
+            "n": 3,
+            "median": 821.4,
+            "min": 494.7,
+            "max": 923.6,
+            "samples": [
+              923.6,
+              494.7,
+              821.4
+            ]
+          },
+          "cleanMs": {
+            "n": 3,
+            "median": 823.1,
+            "min": 496.2,
+            "max": 925.1,
+            "samples": [
+              925.1,
+              496.2,
+              823.1
+            ]
+          },
+          "longestTaskMs": {
+            "n": 3,
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "samples": [
+              0,
+              0,
+              0
+            ]
+          },
+          "bytes": {
+            "n": 3,
+            "median": 9345599,
+            "min": 9345599,
+            "max": 9345599,
+            "samples": [
+              9345599,
+              9345599,
+              9345599
+            ]
+          },
+          "okRuns": 3
+        }
+      },
+      "runs": [
+        {
+          "rep": 1,
+          "phases": {
+            "open": {
+              "ok": true,
+              "ms": 3853.2,
+              "storeMs": 3645.9,
+              "paintMs": 12.8,
+              "longestTaskMs": 2056,
+              "scheduleStale": false,
+              "datesAsRecorded": false,
+              "hasCpm": true,
+              "isDirty": false,
+              "documents": 2
+            },
+            "scroll": {
+              "ok": true,
+              "steps": 30,
+              "noPaint": 0,
+              "frameMedianMs": 43.5,
+              "frameP95Ms": 51.7,
+              "frameMaxMs": 51.8,
+              "renderMedianMs": 3.6,
+              "renderMaxMs": 6.6,
+              "scrollYAfter": 9000,
+              "longestTaskMs": 0
+            },
+            "zoom": {
+              "ok": true,
+              "steps": 16,
+              "noPaint": 0,
+              "frameMedianMs": 47,
+              "frameP95Ms": 56.9,
+              "frameMaxMs": 56.9,
+              "renderMedianMs": 4.3,
+              "renderMaxMs": 10.9,
+              "longestTaskMs": 54
+            },
+            "f5": {
+              "ok": true,
+              "ms": 1489.1,
+              "storeMs": 1363.6,
+              "paintMs": 5.3,
+              "longestTaskMs": 1480,
+              "autosaveInWindow": false,
+              "isDirtyAfter": false
+            },
+            "levelCalculate": {
+              "ok": true,
+              "ms": 37582.8,
+              "longestTaskMs": 4115,
+              "rows": 8920,
+              "problem": null
+            },
+            "levelApply": {
+              "ok": true,
+              "ms": 3003.6,
+              "storeMs": 435.4,
+              "longestTaskMs": 2988,
+              "isDirtyAfter": true
+            },
+            "autosave": {
+              "ok": true,
+              "ms": 557.2,
+              "serializeTaskMs": 476,
+              "idbTransactionMs": 81.1,
+              "ifcChars": 9373057,
+              "serializeDetected": true
+            },
+            "recoveryOffer": {
+              "ok": true,
+              "ms": 1631.1,
+              "note": "navigatiestart → herstelvraag zichtbaar (app-start + snapshot lezen en parsen)"
+            },
+            "recoveryRestore": {
+              "ok": true,
+              "ms": 814.3,
+              "storeMs": 654.6,
+              "longestTaskMs": 797,
+              "isDirtyAfter": true
+            },
+            "save": {
+              "ok": true,
+              "ms": 923.6,
+              "cleanMs": 925.1,
+              "longestTaskMs": 0,
+              "route": "download",
+              "bytes": 9345599,
+              "wasDirty": true
+            }
+          },
+          "notes": [],
+          "errors": [],
+          "bootToWelcomeMs": 868.2,
+          "viewAfterInteraction": {
+            "zoom": 0.5000000000000002,
+            "scrollY": 9000
+          },
+          "allTicks": [
+            {
+              "start": 58838,
+              "ms": 81,
+              "bytes": 9373057
+            }
+          ],
+          "heapMB": 286
+        },
+        {
+          "rep": 2,
+          "phases": {
+            "open": {
+              "ok": true,
+              "ms": 3740.8,
+              "storeMs": 3563.7,
+              "paintMs": 10.8,
+              "longestTaskMs": 1901,
+              "scheduleStale": false,
+              "datesAsRecorded": false,
+              "hasCpm": true,
+              "isDirty": false,
+              "documents": 2
+            },
+            "scroll": {
+              "ok": true,
+              "steps": 30,
+              "noPaint": 0,
+              "frameMedianMs": 43.6,
+              "frameP95Ms": 52.8,
+              "frameMaxMs": 54,
+              "renderMedianMs": 3.9,
+              "renderMaxMs": 8.6,
+              "scrollYAfter": 9000,
+              "longestTaskMs": 0
+            },
+            "zoom": {
+              "ok": true,
+              "steps": 16,
+              "noPaint": 0,
+              "frameMedianMs": 49.4,
+              "frameP95Ms": 69.4,
+              "frameMaxMs": 69.4,
+              "renderMedianMs": 4.7,
+              "renderMaxMs": 12.1,
+              "longestTaskMs": 59
+            },
+            "f5": {
+              "ok": true,
+              "ms": 1473.8,
+              "storeMs": 1350.3,
+              "paintMs": 6.4,
+              "longestTaskMs": 1461,
+              "autosaveInWindow": false,
+              "isDirtyAfter": false
+            },
+            "levelCalculate": {
+              "ok": true,
+              "ms": 37980.2,
+              "longestTaskMs": 3076,
+              "rows": 8920,
+              "problem": null
+            },
+            "levelApply": {
+              "ok": true,
+              "ms": 3132.6,
+              "storeMs": 405.8,
+              "longestTaskMs": 3080,
+              "isDirtyAfter": true
+            },
+            "autosave": {
+              "ok": true,
+              "ms": 491.5,
+              "serializeTaskMs": 415,
+              "idbTransactionMs": 76.6,
+              "ifcChars": 9373057,
+              "serializeDetected": true
+            },
+            "recoveryOffer": {
+              "ok": true,
+              "ms": 1658.1,
+              "note": "navigatiestart → herstelvraag zichtbaar (app-start + snapshot lezen en parsen)"
+            },
+            "recoveryRestore": {
+              "ok": true,
+              "ms": 811.6,
+              "storeMs": 658.3,
+              "longestTaskMs": 800,
+              "isDirtyAfter": true
+            },
+            "save": {
+              "ok": true,
+              "ms": 494.7,
+              "cleanMs": 496.2,
+              "longestTaskMs": 0,
+              "route": "download",
+              "bytes": 9345599,
+              "wasDirty": true
+            }
+          },
+          "notes": [],
+          "errors": [],
+          "bootToWelcomeMs": 813.6,
+          "viewAfterInteraction": {
+            "zoom": 0.5000000000000002,
+            "scrollY": 9000
+          },
+          "allTicks": [
+            {
+              "start": 59380,
+              "ms": 77,
+              "bytes": 9373057
+            }
+          ],
+          "heapMB": 239
+        },
+        {
+          "rep": 3,
+          "phases": {
+            "open": {
+              "ok": true,
+              "ms": 3720.9,
+              "storeMs": 3540.8,
+              "paintMs": 11.3,
+              "longestTaskMs": 1863,
+              "scheduleStale": false,
+              "datesAsRecorded": false,
+              "hasCpm": true,
+              "isDirty": false,
+              "documents": 2
+            },
+            "scroll": {
+              "ok": true,
+              "steps": 30,
+              "noPaint": 0,
+              "frameMedianMs": 44.4,
+              "frameP95Ms": 54,
+              "frameMaxMs": 56.8,
+              "renderMedianMs": 3.7,
+              "renderMaxMs": 7.2,
+              "scrollYAfter": 9000,
+              "longestTaskMs": 0
+            },
+            "zoom": {
+              "ok": true,
+              "steps": 16,
+              "noPaint": 0,
+              "frameMedianMs": 48.5,
+              "frameP95Ms": 55.9,
+              "frameMaxMs": 55.9,
+              "renderMedianMs": 4.3,
+              "renderMaxMs": 12.3,
+              "longestTaskMs": 55
+            },
+            "f5": {
+              "ok": true,
+              "ms": 1739.6,
+              "storeMs": 1552.4,
+              "paintMs": 6.8,
+              "longestTaskMs": 1728,
+              "autosaveInWindow": false,
+              "isDirtyAfter": false
+            },
+            "levelCalculate": {
+              "ok": true,
+              "ms": 37009.9,
+              "longestTaskMs": 2825,
+              "rows": 8920,
+              "problem": null
+            },
+            "levelApply": {
+              "ok": true,
+              "ms": 2765.5,
+              "storeMs": 333.2,
+              "longestTaskMs": 2749,
+              "isDirtyAfter": true
+            },
+            "autosave": {
+              "ok": true,
+              "ms": 544.7,
+              "serializeTaskMs": 461,
+              "idbTransactionMs": 83.1,
+              "ifcChars": 9373057,
+              "serializeDetected": true
+            },
+            "recoveryOffer": {
+              "ok": true,
+              "ms": 1551.1,
+              "note": "navigatiestart → herstelvraag zichtbaar (app-start + snapshot lezen en parsen)"
+            },
+            "recoveryRestore": {
+              "ok": true,
+              "ms": 792.7,
+              "storeMs": 640.2,
+              "longestTaskMs": 779,
+              "isDirtyAfter": true
+            },
+            "save": {
+              "ok": true,
+              "ms": 821.4,
+              "cleanMs": 823.1,
+              "longestTaskMs": 0,
+              "route": "download",
+              "bytes": 9345599,
+              "wasDirty": true
+            }
+          },
+          "notes": [],
+          "errors": [],
+          "bootToWelcomeMs": 822.2,
+          "viewAfterInteraction": {
+            "zoom": 0.5000000000000002,
+            "scrollY": 9000
+          },
+          "allTicks": [
+            {
+              "start": 58197,
+              "ms": 83,
+              "bytes": 9373057
+            }
+          ],
+          "heapMB": 286
+        }
+      ]
+    }
+  ]
+}

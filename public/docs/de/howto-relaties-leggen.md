@@ -34,7 +34,7 @@ Nützlich, wenn Sie viele Beziehungen nacheinander hinzufügen.
 2. Drücken Sie die Maustaste auf dem Balken des Vorgängers und ziehen Sie zum Balken des Nachfolgers. Eine gestrichelte Linie mit Pfeil folgt dem Mauszeiger.
 3. Lassen Sie los. Ein kleines Fenster *Beziehungstyp* erscheint. Es zeigt den Typ (standardmäßig FS) und ein Feld für den Zeitabstand.
 4. Ändern Sie bei Bedarf den Typ oder den Zeitabstand und drücken Sie Enter oder klicken Sie außerhalb des Fensters. Die Beziehung wird erstellt.
-5. Fügen Sie die nächste Beziehung sofort hinzu, der Modus bleibt aktiv. Sie beenden ihn mit Esc, mit der Schaltfläche *Beenden* im Hinweis oder indem Sie erneut *Beziehung zeichnen* wählen.
+5. Fügen Sie sofort die nächste Beziehung hinzu: Der Modus bleibt aktiv. Sie beenden ihn mit Esc, mit der Schaltfläche *Beenden* im Hinweis oder indem Sie erneut *Beziehung zeichnen* wählen.
 
 Wenn Sie im Fenster *Beziehungstyp* Esc drücken, wird nichts gespeichert. Für eine einzelne Beziehung müssen Sie den Modus nicht einschalten: Halten Sie beim Ziehen von Balken zu Balken die Umschalttaste gedrückt. *Beziehung von hier aus starten* im Rechtsklick-Menü eines Balkens schaltet den Verknüpfungsmodus ein. Das Ziehen machen Sie dann selbst. Auf dem Tab *Tabelle* ohne Gantt ist *Beziehung zeichnen* deaktiviert.
 
@@ -69,14 +69,14 @@ Sie geben einen Zeitabstand in das Feld neben dem Typ ein, bei jedem der oben ge
 - `3` oder `3d`: 3 Arbeitstage. Ein Wochenende zählt nicht mit. Die App zeigt `+3d`.
 - `3ed`: 3 Kalendertage. Das Wochenende zählt mit, wie bei Beton, der auch am Samstag und Sonntag aushärtet.
 - `-1`: ein negativer Zeitabstand (Vorlauf). Der Nachfolger darf einen Tag früher beginnen, sodass sich die Vorgänge überlappen.
-- `4h`: 4 Arbeitsstunden. Die App zeigt es als `+4u`. Ist der Vorgänger ein Tagesvorgang in einem Kalender ohne eigene Bänder für die Arbeitszeit, wie dem Standardkalender, dann rechnet die App dies in ganze Arbeitstage um, auf den nächsten ganzen Tag gerundet: `4h` wirkt dann als 1 Tag, `2h` als 0. In einem Kalender mit eigenen Bändern oder nach einem Stundenvorgang zählt der Zeitabstand genau in Stunden.
+- `4h`: 4 Arbeitsstunden. Die App zeigt es als `+4h`. Ist der Vorgänger ein Tagesvorgang in einem Kalender ohne eigene Bänder für die Arbeitszeit, wie dem Standardkalender, dann rechnet die App dies in ganze Arbeitstage um, auf den nächsten ganzen Tag gerundet: `4h` wirkt dann als 1 Tag, `2h` als 0. In einem Kalender mit eigenen Bändern oder nach einem Stundenvorgang zählt der Zeitabstand genau in Stunden.
 - `50%`: die Hälfte der Dauer des Vorgängers.
 
 Beispiel: Der Fundamentbeton muss aushärten, bevor der Maurer darauf arbeiten kann. Darum erhält *Pour foundation → Foundation brickwork* eine FS-Beziehung mit Zeitabstand `3`. Wenn das Gießen am Freitag, 18. Juni 2027, stattfindet, beginnt das Mauerwerk nach **Berechnen** am Donnerstag, 24. Juni. Montag bis Mittwoch ist Wartezeit. Mit `3ed` zählt das Wochenende mit, und das Mauerwerk beginnt am Dienstag, 22. Juni.
 
 ### Zum Schluss: neu berechnen
 
-Eine neue Beziehung verschiebt noch keine Balken. In der Statusleiste steht *Veraltet — neu berechnen (F5)*. Drücken Sie **Berechnen** (F5), zum Beispiel über *Start › Terminplanung › Berechnen*. Erst dann erhalten die Nachfolger ihre neuen Datumswerte. Wenn die App das für Sie tun soll, schalten Sie *Automatisch berechnen* ein. Das finden Sie unter *Einstellungen › Projekt › Einstellungen*, Tab *Planung*.
+Eine neue Beziehung verschiebt noch keine Balken. In der Statusleiste steht *Veraltet — neu berechnen (F5)*. Drücken Sie **Berechnen** (F5), zum Beispiel über *Start › Terminplanung › Berechnen*. Erst dann erhalten die Nachfolger ihre neuen Datumswerte. Wenn die App das für Sie tun soll, schalten Sie *Automatisch berechnen* ein. Das finden Sie unter *Einstellungen › Projekt › App-Einstellungen*, Tab *Planung*.
 
 ## Fallstricke und was die App tut
 

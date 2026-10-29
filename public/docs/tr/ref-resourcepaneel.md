@@ -18,7 +18,7 @@ Kaynak paneli, kaynakları yönettiğiniz yerdir: hangi kişinin ve neyin kullan
 
 Bu projenin kullandıklarını gösteren tablo. Her satır bir kaynaktır. Metin ve ücret değişiklikleri alandan çıktığınızda geçerli olur ve *Geri al* altında tek bir adım sayılır.
 
-- **Renk** — bir renk seçici. Varsayılan: paletteki ilk boş renk. Etkisi: Gantt çubuklarının altındaki kaynak vurgusunun rengi (*Görünüm › Temel plan ve ilerleme › Kaynak vurgusu*) ve kaynak dokusundaki renk örneği.
+- **Renk** — bir renk seçici. Varsayılan: paletteki ilk boş renk. Etkisi: Gantt çubuklarının altındaki kaynak vurgusunun rengi (*Görünüm › Temel plan ve ilerleme › Kaynak vurgusu*) ve kaynak panelindeki renk örneği.
 - **Ad** — kaynağın adı. Boş bir ad kaydedilmez; alan eski adına döner.
 - **Tür** — *İşçilik*, *Ekipman*, *Malzeme*, *Taşeron* veya *Ekip*. Yeni bir kaynağın varsayılanı: *İşçilik*. Etkisi: *Malzeme* türündeki kaynağın bir *Birim* alanı vardır. Bu tür, histogramdaki *Tüm kaynaklar* toplamına girmez. Dengeleme malzemeyi atlar. *Ekip* türündeki bir kaynak, diğer kaynakların *Ekip* alanında seçilebilir. Diğer türler aynı şekilde hesaplanır.
 - **Maks. birim** — kaynağın günde ne kadar kullanılabilir olduğu, 0'dan büyük bir sayı (kesirler mümkündür). Varsayılan: 1. Etkisi: günlük kapasite. Yük daha yüksekse kaynak aşırı atanmış olur. Yanındaki ok *Zamana bağlı kapasite* bölümünü açar; okun yanındaki sayı adım sayısıdır.
@@ -79,8 +79,8 @@ Nerede görürsünüz:
 
 - **Kaynaklar › Aşırı atanmışlık** — aşırı atanmış kaynakların sayısı veya *Yok*.
 - **Durum çubuğu** — *N kaynak aşırı atanmış*; tıklayınca *Uyarılar* paneli açılır.
-- **Uyarılar** — her kaynak için bir satır: *N gün aşırı atanmış (first – last)*. Tüm günler çalışılmayan günse *kaynak bu günlerde takvimine göre çalışmaz* eklenir; karışık ise *bunların N günü kaynağın takvimine göre çalışmadığı günler* ifadesi kullanılır. Bkz. [Bildirimler ve uyarılar](docs://ref-meldingen).
+- **Uyarılar** — her kaynak için bir satır: *N gün aşırı atanmış (ilk – son)*. Tüm günler çalışılmayan günse *kaynak bu günlerde takvimine göre çalışmaz* eklenir; karışık ise *bunların N günü kaynağın takvimine göre çalışmadığı günler* ifadesi kullanılır. Bkz. [Bildirimler ve uyarılar](docs://ref-meldingen).
 - **Histogram** — çubukların kırmızı kısımları ve seçicideki kırmızı nokta.
-- **Kaynak doku** — *Aşırı yüklü* üçgeni.
+- **Kaynak paneli** — *Aşırı yüklü* üçgeni.
 
-Dengeleme, görevleri kendi bolluğu içinde kaydırarak aşırı atanmışlığı çözebilir. Çalışılmayan bir günde çalışması gereken bir kaynağı ise çözmez. Bkz. [Dengeleme](docs://uitleg-nivelleren).
+Dengeleme, görevleri daha geç başlatarak aşırı atanmışlığı çözebilir. Varsayılan olarak proje bitişi değişebilir; *yumuşatma* seçildiğinde bu tarih bolluk içinde kalır. Çalışılmayan bir günde çalışması gereken bir kaynağı ise dengeleme çözmez. Bkz. [Dengeleme](docs://uitleg-nivelleren).

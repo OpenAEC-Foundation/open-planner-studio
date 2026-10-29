@@ -39,7 +39,7 @@ Les opérateurs proposés dépendent du type de champ :
 - Texte (*Nom de la tâche*, *WBS*) : *égal à*, *différent de*, *contient*, *commence par* et *est vide*.
 - Nombre et date (*Marge totale*, *Début*, *Avancement*) : *égal à*, *différent de*, *inférieur à*, *inférieur ou égal à*, *supérieur à*, *supérieur ou égal à*, *entre* et *est vide*. Avec *entre*, il y a deux champs : pour un nombre, avec *À partir de* et *À* comme indication ; pour une date, sans indication (la première date est le début, la seconde la fin).
 - Oui/non (*Critique*, *Jalon*, *Quasi critique*) : *égal à* et *différent de*, avec la valeur *Oui* ou *Non*.
-- Choix (*Type*, un code d'activité) : *égal à*, *différent de*, *est l'un des* (avec des valeurs à cocher) et *est vide*.
+- Choix (*Catégorie de travaux*, un code d'activité) : *égal à*, *différent de*, *est l'un des* (avec des valeurs à cocher) et *est vide*.
 - *Ressources* : *est l'un des* et *est vide*.
 - *En cours* : seulement *entre*, avec deux dates (début et fin).
 
@@ -59,7 +59,7 @@ Dans la fenêtre, cliquez sur *Appliquer sans enregistrer*. Les parties cochées
 
 ### Modifier, copier ou supprimer une disposition
 
-Faites un clic droit sur le bouton de la disposition. Vous choisissez *Modifier…*, *Dupliquer* ou *Supprimer*. *Supprimer* demande d'abord une confirmation. Une copie s'appelle *nom (copie)*. Une disposition intégrée, comme le diagramme des ressources, ne peut pas être modifiée ni supprimée ; vous la dupliquez pour créer votre propre version.
+Faites un clic droit sur le bouton de la disposition. Vous choisissez *Modifier…*, *Dupliquer* ou *Supprimer*. *Supprimer* demande d'abord une confirmation. Une copie s'appelle *nom (copie)*. Une disposition intégrée, comme *Diagramme des ressources*, ne peut pas être modifiée ni supprimée ; vous la dupliquez pour créer votre propre version.
 
 ### Plusieurs dispositions à la fois
 
@@ -71,7 +71,7 @@ Des dispositions qui ne mémorisent pas les mêmes parties peuvent être actives
 
 **Une règle incomplète n'affiche rien.** Si vous ne choisissez aucune valeur pour un champ oui/non (il affiche encore *—*) ou si vous laissez vides les dates de *En cours*, aucune tâche ne correspond et la liste reste vide. Complétez la règle.
 
-**Une modification manuelle désactive la disposition.** Si vous modifiez vous-même une partie que la disposition mémorise, par exemple *Lignes de liaison* pendant que *Diagramme des ressources* est actif, cette disposition se désactive et les autres parties reviennent à la vue d'avant la disposition. Un zoom désactive une disposition qui mémorise l'échelle de temps, et élargir une colonne désactive une disposition qui mémorise les colonnes. Le reste de la vue reste alors tel quel. Le diagramme des ressources ne mémorise pas l'échelle de temps ; le zoom ne l'affecte donc pas.
+**Une modification manuelle désactive la disposition.** Si vous modifiez vous-même une partie que la disposition mémorise, par exemple *Lignes de liaison* pendant que *Diagramme des ressources* est actif, cette disposition se désactive et les autres parties reviennent à la vue d'avant la disposition. Un zoom désactive une disposition qui mémorise l'échelle de temps, et élargir une colonne désactive une disposition qui mémorise les colonnes. Le reste de la vue reste alors tel quel. Le *Diagramme des ressources* ne mémorise pas l'échelle de temps ; le zoom ne l'affecte donc pas.
 
 **Les colonnes s'appliquent au tableau des tâches à côté du Gantt.** La partie *Colonnes* mémorise les colonnes du tableau à gauche de la ligne de temps. Le tableau de l'onglet *Tableau* garde ses propres colonnes. Comment choisir les colonnes est expliqué dans [Adapter les colonnes du tableau](docs://howto-tabelkolommen-aanpassen).
 
@@ -81,7 +81,7 @@ Des dispositions qui ne mémorisent pas les mêmes parties peuvent être actives
 
 **Les dispositions se trouvent sur votre appareil, pas dans le projet.** L'application garde vos dispositions et les colonnes de tous vos projets sur cet appareil. Les superpositions d'une disposition (référence, ligne d'avancement et le reste) s'appliquent à tous vos projets. Le filtre, le groupement et le tri actifs appartiennent au projet ouvert, mais ne sont pas enregistrés dans le fichier du projet : après l'enregistrement et la réouverture, la vue est de nouveau propre. Ils ne rendent pas non plus le projet « modifié ».
 
-**Les boutons séparés sont masqués.** *Colonnes…*, *Filtre…*, *Grouper…* et *Trier…* en tant que boutons séparés de l'onglet *Affichage* correspondent à l'ancienne méthode. Vous les réaffichez avec *Afficher les boutons d’affichage classiques* sous *Fonctions héritées*, dans l'onglet *Avancé* de la fenêtre des paramètres (⚙ dans la barre de titre). Préférez les dispositions.
+**Les boutons séparés sont masqués.** *Colonnes…*, *Filtre…*, *Grouper…* et *Trier…* en tant que boutons séparés de l'onglet *Affichage* correspondent à l'ancienne méthode. Vous les réaffichez avec *Afficher les boutons d’affichage classiques* sous *Fonctions héritées*, dans l'onglet *Avancé* de la fenêtre *Paramètres de l'application* (⚙ dans la barre de titre). Préférez les dispositions.
 
 ## Voir aussi
 

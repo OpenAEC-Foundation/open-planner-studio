@@ -4,7 +4,7 @@ Hva er egentlig i filen du lagrer? Og hva skjer med tidsplanen din når du ekspo
 
 ## Begrepet
 
-Open Planner Studio har ett eget filformat: **IFC**, et åpent utvekslingsformat for byggeinformasjon fra buildingSMART. Appen skriver IFC 4.3; i eksportlisten heter det *IFC 4x3*. Det finnes ikke et annet, proprietært prosjektformat. *Lagre* skriver hele prosjektet ditt som en IFC-fil (`.ifc`), og *Åpne* leser en slik fil tilbake. Vil du se hva som går inn i filen? Fanen *IFC* viser IFC-teksten for prosjektet ditt; *Generer IFC* oppdaterer den teksten.
+Open Planner Studio har et eget filformat: **IFC**, et åpent utvekslingsformat for byggeinformasjon fra buildingSMART. Appen skriver IFC-skjemaet for prosjektet, som standard IFC 4.3 ADD2 (se [Velge IFC-skjema](docs://howto-ifc-schema-kiezen)); i eksportlisten heter det *IFC*. Det finnes ikke et annet, proprietært prosjektformat. *Lagre* skriver hele prosjektet ditt som en IFC-fil (`.ifc`), og *Åpne* leser en slik fil tilbake. Vil du se hva som går inn i filen? Fanen *IFC* er en redigeringsvisning som viser IFC-teksten for prosjektet ditt. *Generer IFC* oppdaterer teksten, og *Kopier* legger den på utklippstavlen. Endrer du teksten, laster *Bruk* den inn som prosjektet ditt. Det erstatter hele prosjektet i den fanen.
 
 Alle andre formater er **adaptere**: oversettere mellom modellen i et annet program og modellen i appen. Appen leser CSV, MS Project XML, Primavera P6 XML, MS Project-filer (`.mpp`) og Primavera-filer (`.xer`). Den skriver CSV, MS Project XML, Primavera P6 XML og to fremdriftsark. Du kan ikke eksportere til `.mpp` eller `.xer`.
 
@@ -30,7 +30,7 @@ Bare en IFC-fil blir **lagringsmålet**: filen *Lagre* skriver tilbake til. En C
 - avhengigheter med forsinkelse, begrensninger og tidsfrister;
 - kalendere, ressurser og tilordninger, inkludert kurvene;
 - grunnlinjer, aktivitetskoder, egendefinerte felt og notater;
-- koblinger til andre prosjekter;
+- koblinger mellom prosjekter;
 - prosjektinnstillingene, for eksempel statusdatoen, beregningsprofilen og beregningsvalgene;
 - koblingen til et bibliotek med ressurser.
 
@@ -42,11 +42,11 @@ En eksport til et annet format endrer ikke prosjektet ditt. Etter en eksport har
 
 Hver adapter tar med det formatet kjenner til.
 
-**MS Project XML** tar med aktiviteter, avhengigheter, kalendere, ressurser, tilordninger, begrensninger, tidsfrister og statusdatoen. Av grunnlinjene dine tas bare den aktive med. Aktivitetskoder, egendefinerte felt, notater og koblinger mellom prosjekter tas ikke med. En andre begrensning på en aktivitet tas ikke med. En begrensning *Må starte på (MSO)* eller *Må slutte på (MFO)* uten valget *Obligatorisk (fastlåsing)* kommer tilbake som *Start ikke tidligere enn (SNET)* eller *Slutt ikke tidligere enn (FNET)*. *Manuelt planlagt* og *Utjevningsforsinkelse* for en aktivitet kommer ikke tilbake. En hengekøye blir en vanlig aktivitet med beregnede datoer.
+**MS Project XML** tar med aktiviteter, avhengigheter, kalendere, ressurser, tilordninger, begrensninger, tidsfrister og statusdatoen. Av grunnlinjene dine tas bare den aktive med. Aktivitetskoder, egendefinerte felt, notater og koblinger mellom prosjekter tas ikke med. En annen begrensning på en aktivitet tas ikke med. En begrensning *Må starte på (MSO)* eller *Må slutte på (MFO)* uten valget *Obligatorisk (fastlåsing)* kommer tilbake som *Start ikke tidligere enn (SNET)* eller *Slutt ikke tidligere enn (FNET)*. *Manuelt planlagt* og *Utjevningsforsinkelse* for en aktivitet kommer ikke tilbake. En hengekøye blir en vanlig aktivitet med beregnede datoer.
 
 **Primavera P6 XML** tar med aktiviteter, avhengigheter, kalendere, ressurser, tilordninger, begrensninger og statusdatoen. Grunnlinjer og tidsfrister tas ikke med, og heller ikke aktivitetskoder, egendefinerte felt, notater og koblinger mellom prosjekter. En hengekøye blir også her en vanlig aktivitet. P6 har ingen forsinkelse i prosent: appen gjør en slik forsinkelse om til et fast antall dager. En forsinkelse i kalenderdager blir en forsinkelse i arbeidsdager.
 
-**CSV** er en aktivitetsliste. Filen har disse kolonnene for hver aktivitet: task id, WBS, level, name, duration, start, finish, predecessors, type, ID-en til en egendefinert aktivitetstype (`OPS Custom Task Type ID`), status, completion, actual start and finish, critical, total float og description. Ressurser, tilordninger, kalendere, begrensninger, tidsfrister, grunnlinjer og statusdatoen er ikke med. Kolonneoverskriftene er alltid på engelsk.
+**CSV** er en aktivitetsliste. Filen har disse kolonnene for hver aktivitet: task id, WBS, level, name, duration, start, finish, predecessors, work category, ID-en til en egendefinert arbeidskategori (`OPS Custom Task Type ID`), status, completion, actual start and finish, critical, total float og description. Ressurser, tilordninger, kalendere, begrensninger, tidsfrister, grunnlinjer og statusdatoen er ikke med. Kolonneoverskriftene er alltid på engelsk.
 
 **Bare IFC tar med beregningsprofilen og beregningsvalgene.** Hvis du eksporterer til CSV, MS Project XML eller Primavera P6 XML, er profilen ikke med i filen. Av beregningsvalgene skriver MS Project XML høyst den kritiske terskelverdien. En slik fil åpnes igjen som *Open Planner Studio*. Hvis prosjektet ditt ble beregnet med *Primavera P6* eller *Microsoft Project*, for eksempel fordi det kommer fra en `.xer`- eller `.mpp`-fil, kan datoene forskyves på grunn av det. Hva en beregningsprofil er, forklares i [Beregningsprofiler og beregningsregler](docs://uitleg-rekenprofielen).
 
@@ -72,7 +72,7 @@ Skrivebordsappen og nettleserversjonen gjør det samme med prosjektet ditt, men 
 
 På skrivebordet arbeider appen med virkelige stier. *Lagre* skriver rett til filen din. Vanligvis skriver appen først til en midlertidig fil ved siden av (`.ops-save.tmp`), og erstatter filen din først da. Slik ødelegger et brudd midt i skrivingen ikke den gamle filen din. Hvis du lukker appen med ulagrede endringer, spør den for hvert prosjekt om du vil lagre. Ved en ren avslutning tømmer den gjenopprettingskopiene sine.
 
-I en nettleser som kan lagre filer hvor som helst (for eksempel Chrome og Edge), får du et vanlig vindu for åpne og lagre. Deretter skriver *Lagre* rett til filen. For en fil du har åpnet, spør nettleseren én gang om tillatelse. Listen *Nylig* fungerer, med bare filnavn.
+I en nettleser som kan lagre filer hvor som helst (for eksempel Chrome og Edge), får du et vanlig vindu for å åpne og lagre. Deretter skriver *Lagre* rett til filen. For en fil du har åpnet, spør nettleseren én gang om tillatelse. Listen *Nylig* fungerer, med bare filnavn.
 
 I en nettleser uten denne mulighet (for eksempel Firefox) åpner appen en fil via filvelgeren og lagrer via en nedlasting. Med *Lagre* forklarer meldingen *Lagret som nedlasting: 'name.ifc' ligger i nedlastingsmappen din. …* dette én gang per økt. Med *Lagre som* og eksporter ser du *Lagret som nedlasting: 'name.ifc' ligger nå i nedlastingsmappen din. Dette miljøet tillater ikke at appen skriver direkte til stedet du valgte.* Hvis nettleseren kan vise et lagringsvindu, men ikke skrive tilbake til prosjektets fil, spør *Lagre* hver gang etter et sted på nytt. En melding forklarer også dette én gang per økt. *Fil › Nylig* finnes, men åpner en tom side, og automatisk lagring er ikke tilgjengelig. Du får samme melding i alle omgivelser som ikke lar appen skrive til stedet du valgte.
 

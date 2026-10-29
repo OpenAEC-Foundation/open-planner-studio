@@ -58,13 +58,28 @@ export function materializeHolidays(
 /**
  * Standaard generatie-spanne: bij aanmaak (geen bekend projecteinde)
  * `startjaar−1 t/m startjaar+3`; bij een bekend projecteinde `projectstart−1 t/m projecteinde+1`.
+ * Met een beschikbaar rekenresultaat telt het latere van het ingevoerde en het berekende einde.
+ * Een aanroeper die de aanmaakspanne wil, laat beide einddatums weg.
  */
-export function computeGenerateSpan(startDate: string, endDate: string | undefined): { from: number; to: number } {
-  // Projectdatums zijn UTC-dagen (`parseDate`); met lokale getters werd 1 januari in Amerika het
-  // vorige jaar. "Nu" blijft het lokale kalenderjaar van de gebruiker.
-  const startYear = startDate ? parseDate(startDate).getUTCFullYear() : new Date().getFullYear();
-  if (endDate) {
-    const endYear = parseDate(endDate).getUTCFullYear();
+export function computeGenerateSpan(
+  startDate: string,
+  endDate: string | undefined,
+  calculatedEnd?: string,
+): { from: number; to: number } {
+  // Valideer elke kandidaat vóór het kiezen: onleesbare tekst kan lexicografisch groter
+  // zijn dan een geldig berekend einde en zou dat anders verdringen (knownbug 198).
+  const yearOf = (iso: string | undefined): number | undefined => {
+    if (!iso) return undefined;
+    const year = parseDate(iso).getUTCFullYear();
+    return Number.isFinite(year) ? year : undefined;
+  };
+  // Projectdatums blijven UTC-dagen; alleen de bestaande "geen start"-terugval gebruikt
+  // het lokale kalenderjaar. Ook een onleesbare start mag geen NaN-spanne veroorzaken.
+  const startYear = yearOf(startDate) ?? new Date().getFullYear();
+  const endYears = [yearOf(endDate), yearOf(calculatedEnd)]
+    .filter((year): year is number => year !== undefined);
+  if (endYears.length > 0) {
+    const endYear = Math.max(...endYears);
     return { from: startYear - 1, to: Math.max(endYear + 1, startYear - 1) };
   }
   return { from: startYear - 1, to: startYear + 3 };

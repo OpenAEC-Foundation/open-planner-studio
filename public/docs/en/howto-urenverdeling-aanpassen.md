@@ -13,7 +13,7 @@ You work with **phases**: consecutive work days on which the resource works with
 The example is the outer cavity leaf: 6 work days, one bricklayer, 48 hours.
 
 1. Select the task. The *Properties* panel is on the right; if you do not see it, turn it on with *View › Panels › Properties*.
-2. In the *Assignments* block, click the bar-chart icon *Hour distribution…* next to the bricklayer. The window *Hour distribution in phases* opens. You start from what the app currently books: for this outer cavity leaf, one phase of 6 days with units of 1.
+2. In the *Assignments* block, click the name of the bricklayer. *Curve* and the button *Hour distribution…* appear below it. Click *Hour distribution…*. The window *Hour distribution in phases* opens. You start from what the app currently books: for this outer cavity leaf, one phase of 6 days with units of 1.
 3. If needed, pick a starting point at *Apply shape:*. With *Bell shaped* the app makes five phases: 0.18 units on the first and the last day, 0.84 on the second and the fifth day and 1.98 on the two middle days. The total stays 48 hours.
 
 ### Adjusting the phases
@@ -31,25 +31,27 @@ Choose *Apply*. With *Cancel* the window closes without a change.
 
 An example. You choose *Split*, set the *Days* of the first phase to 2 and the effort of that phase to 0.5. The second phase then runs 4 days with effort 1. The total is 2 × 0.5 × 8 + 4 × 1 × 8 = 40 hours.
 
-After *Apply* the assignment's curve is set to *Contour*, disabled. *Units/day* stays as it was. The histogram and the overallocation follow the new distribution at once. Recalculating is not needed, because no date moves.
+After *Apply* the assignment's curve is set to *Contour*, disabled. The *Units* stay as they were. A bar icon now shows next to the name, also when the assignment is collapsed. The histogram and the overallocation follow the new distribution at once. Recalculating is not needed, because no date moves.
 
 ### Releasing the distribution
 
-If the assignment has a distribution of its own, the window also has *Release distribution*. That removes your own distribution and the app goes back to *Units/day* and the curve. Also choose this if you want to change the curve, because the *Curve* drop-down is disabled as long as there is a distribution of its own.
+If the assignment has a distribution of its own, the window also has *Release distribution*. That removes your own distribution and the app goes back to the *Units* and the curve. Also choose this if you want to change the curve, because the *Curve* drop-down is disabled as long as there is a distribution of its own.
 
 ## Pitfalls and what the app does then
 
 **The total changes with it.** You do not divide the hours, you decide them. If you set a phase to 0.5 instead of 0.18, the total gets bigger. The total in hours is at the bottom of the window, so check it before you click *Apply*.
 
-**What the units do afterwards depends on the task type.** With *Fixed duration and units*, other *Units/day* change nothing about the distribution. With *Fixed duration and work* the app scales the hours per day along with the new units: at units of 2 instead of 1 every day doubles and so does the total (from 32 to 64 hours), and the duration stays the same. With *Fixed work* the units change the task's duration: the distribution is then squeezed or stretched over the new duration, with the same total. With *Fixed units* the units change the duration as well; check the total at the bottom of the window afterwards.
+**What the units do afterwards depends on the task type.** With *Fixed duration and units*, other *Units* change nothing about the distribution. With *Fixed duration and work* the app scales the hours per day along with the new units: at units of 2 instead of 1 every day doubles and so does the total (from 32 to 64 hours), and the duration stays the same. With *Fixed work* the units change the task's duration: the distribution is then squeezed or stretched over the new duration, with the same total. With *Fixed units* the units change the duration as well; check the total at the bottom of the window afterwards.
 
 **If you change the task's duration, the distribution stretches with it.** The shape stays the same. With *Fixed duration and units* and with *Fixed units* the total grows in proportion to the duration: if the duration of a task with a distribution of its own doubles from 4 to 8 work days, the total doubles as well, from 32 to 64 hours. With *Fixed duration and work* and with *Fixed work* the total stays the same (32 hours stays 32 hours) and the units drop.
 
-**The work follows the distribution.** *Work (rem.)* becomes the sum of your phases, also under *Fixed work*. The task's duration does not change because of it.
+**The work follows the distribution.** *Work (h)* becomes the sum of your phases, also under *Fixed work*. The task's duration does not change because of it.
 
 **Invalid units.** An empty or negative effort gets a red border and *Apply* is then disabled. A phase with effort 0 is allowed. Such a phase stays within the task's duration.
 
 **Everything applies to this one assignment.** The app says so itself: *The distribution only changes the hours per day of this assignment; task dates and splits stay as they are.* Other resources on the same task keep their own distribution.
+
+**Part of a working day counts pro rata.** If the task starts partway through a working day, for example Wed at 11:00 on a working day from 07:00 to 16:00 with a one-hour break, it works 4 of the 8 hours that day. That day counts for half: at effort 1 the app books 4 hours, like the histogram. A phase keeps its effort; the column *Hours* counts the part of the day. A short explanation then appears below the strip.
 
 **Leveling follows the distribution.** The leveler counts the same hours per day as the histogram.
 

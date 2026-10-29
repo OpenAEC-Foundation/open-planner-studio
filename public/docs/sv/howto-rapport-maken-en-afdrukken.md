@@ -70,7 +70,7 @@ Klicka längst ner i den vänstra kolumnen på *Exportera PDF*. Det föreslagna 
 
 **Knappen *Utskrift* och Ctrl+P skriver inte ut.** Knappen *Utskrift* i gruppen *Rapport* finns på själva fliken Rapport och gör inget extra. Ctrl+P tar dig till den här fliken. Appen har inget separat utskriftskommando. Vägen till papper går via PDF:en. Fungerar Ctrl+P inte (se steg 1) öppnas webbläsarens utskriftsdialog. Den skriver ut skärmen, inte rapporten.
 
-**Företag: överskriven text sparas inte.** Fältet *Företag:* i *Gantt-utskrift* börjar med företaget från *Projektinfo*. Det du skriver över sparas inte. Du kan inte skriva i *Författare:* här. Du ändrar båda med *Inställningar › Projekt › Projektinfo*, i fälten *Beställare/organisation* och *Författare*, och bekräftar med *Tillämpa*.
+**Företag: överskriven text sparas inte.** Fältet *Företag:* i *Gantt-utskrift* börjar med företaget från projektinställningarna. Det du skriver över sparas inte. Du kan inte skriva i *Författare:* här. Du ändrar båda med *Inställningar › Projekt › Projektinställningar*, i fälten *Beställare/organisation* och *Författare*, och bekräftar med *Tillämpa*.
 
 **Stapelfärger: gäller också din skärm.** Valet *Stapelfärger:* i rapporten är samma val som *Stapelfärger* på fliken Visa. Ändrar du det i rapporten, ändras ditt Gantt-diagram på skärmen också.
 

@@ -1,3 +1,6 @@
+import { minuteModelWriteView } from './minuteModelWrite';
+import { MINUTE_MODEL_TIME_MODEL } from '@/state/migrations/minuteModel';
+import { calendarExceptionKey } from './calendarExceptionKey';
 import { Task } from '@/types/task';
 import { Sequence } from '@/types/sequence';
 import { Resource } from '@/types/resource';
@@ -22,6 +25,7 @@ import {
 import { PSET, PER_TASK_PSETS, OPS_APP_VERSION, ifcStr, ifcJson, asciiJson, ifcTypedReal, stepReal, ifcDateValue } from './ifcPsets';
 import { ifcSchemaQuestionFor } from './ifcSchemaQuestion';
 import { isSummaryTask } from '@/utils/taskHierarchy';
+import { shownFinish, shownStart } from '@/utils/taskDates';
 import { projectFileBase } from '@/utils/documents';
 import {
   XER_SOURCE_ARCHIVE_CHUNK_BYTES, XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT,
@@ -33,6 +37,14 @@ import {
 } from './ifcTaskSlots';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
 import { groupBy } from '@/utils/collections';
+import { effHoursPerDay } from '@/utils/taskDuration';
+import {
+  DAY_MEASURE_LAGS_PROP, ELAPSED_MINUTES_PER_DAY, EXACT_MINUTE_LAGS_PROP, dayMeasureRecord, dayTaskWritesMinutes, exactFloatRecord,
+  exactMinutesRecord, isWholeDays, taskMinutesPerDay,
+  type DayMeasureDurationKey, type DayMeasureRecord, type ExactFloatKey, type ExactFloatRecord,
+  type ExactMinutesKey, type ExactMinutesRecord,
+} from './dayMeasureIo';
+import type { PerTaskWriteOptions } from './ifcPsets';
 
 /** De OUDE GlobalId-afleiding: een 32-bits hash, geen conforme IFC-GUID. De writer gebruikt hem niet
  *  meer (zie `ifcGuid128`); de lezer herberekent hem nog voor bestanden van vóór audit 2026-09-26,
@@ -118,6 +130,12 @@ function ifcDateTimeHour(iso: string): string {
   return `'${iso}'`;
 }
 
+/** Eén formatterkeuze voor de taakslots én hun getoonde planomvang: een kale datum is bij
+ *  een urentaak middernacht, bij een dagtaak het bestaande IFC-daganker. */
+function taskDateTimeFormatter(task: Task): (iso: string) => string {
+  return taskDurationUnit(task) === 'hours' ? ifcDateTimeHour : ifcDateTime;
+}
+
 /**
  * Het getal in een ISO-8601-dagduur (`P…D`). Hele dagen (en niet-eindige waarden) blijven exact
  * `${days}`. Een fractionele dag (CSV-import, Tabel
@@ -159,7 +177,9 @@ function ifcDurationHour(minutes: number): string {
  */
 function workControlArgs(a: {
   guid: string; ownerHistId: number; name: string; description: string;
-  creationDate: string; startTime: string; finishTime: string; predefinedType: 'PLANNED' | 'BASELINE';
+  creationDate: string; predefinedType: 'PLANNED' | 'BASELINE';
+  // Al geformatteerde STEP-waarden: de taakgebonden dag-/uursemantiek moet behouden blijven.
+  startTimeArg: string; finishTimeArg: string;
 }): string {
   return [
     ifcStr(a.guid), `#${a.ownerHistId}`, ifcStr(a.name), ifcStr(a.description),
@@ -170,8 +190,8 @@ function workControlArgs(a: {
     '$', // Purpose
     '$', // Duration
     '$', // TotalFloat
-    ifcDateTime(a.startTime),
-    ifcDateTime(a.finishTime),
+    a.startTimeArg,
+    a.finishTimeArg,
     `.${a.predefinedType}.`,
   ].join(',');
 }
@@ -184,6 +204,8 @@ function baselineStart(b: Baseline): string {
 }
 
 export interface WriteContext {
+  literalCalendarIds?: ReadonlySet<string>;
+  milestonesAtDayEnd?: ReadonlySet<string>;
   lines: string[];
   nextId: number;
   idMap: Map<string, number>; // our ID -> STEP #id
@@ -274,6 +296,7 @@ function addLine(ctx: WriteContext, key: string, line: string): number {
  * bestaande defaults (`[]` / `null`).
  */
 export type WriteIFCInput = ImportResult & {
+  minuteModelPending?: boolean;
   /**
    * "Datums zoals opgeslagen": per taak-id de rekenslots die de
    * writer als `$` moet schrijven, omdat `task.time` daar in de modus een weergave-terugval draagt
@@ -293,12 +316,12 @@ export type WriteIFCInput = ImportResult & {
 
 export function writeIFC(input: WriteIFCInput): string {
   const {
-    project, calendar, tasks, sequences, resources, assignments,
+    project, calendar, tasks: sourceTasks, sequences, resources, assignments,
     activityCodeTypes = [],
     customFieldDefs = [],
     customTaskTypes = [],
     resourceCalendars = [],
-    baselines = [],
+    baselines: sourceBaselines = [],
     activeBaselineId = null,
     comparedBaselineIds = undefined,
     libraryPool = undefined,
@@ -311,8 +334,11 @@ export function writeIFC(input: WriteIFCInput): string {
     ifcGlobalIds = undefined,
     xerSourceArchiveStorage = 'embedded',
   } = input;
+  const writeView = minuteModelWriteView({ tasks: sourceTasks, calendar, resourceCalendars, baselines: sourceBaselines });
+  const { tasks, baselines } = writeView;
   const preservedGuids = new Map(Object.entries(ifcGlobalIds ?? {}));
   const ctx: WriteContext = {
+    literalCalendarIds: writeView.literalCalendarIds, milestonesAtDayEnd: writeView.atDayEnd,
     lines: [], nextId: 1, idMap: new Map(), guids: new Map(), usedGuids: new Set(),
     preservedGuids, reservedGuids: new Set(preservedGuids.values()), auxSalt: project.id,
   };
@@ -382,37 +408,55 @@ export function writeIFC(input: WriteIFCInput): string {
   // (geen verzonnen naam), omdat `IfcProject.HasName` (WHERE-regel) een Name eist. De lezer leest `''`
   // en `$` allebei als leeg.
   addLine(ctx, '_project', `IFCPROJECT(${ifcStr(objectGuid(ctx, 'proj', project.id))},#${ownerHistId},${ifcRequiredStr(project.name)},${ifcStr(project.description)},$,$,$,(#${ctxId}),#${unitAssId})`);
+  if (!input.minuteModelPending) {
+    const prop = addLine(ctx, '_time_model', `IFCPROPERTYSINGLEVALUE('TimeModel',$,IFCLABEL(${ifcStr(MINUTE_MODEL_TIME_MODEL)}),$)`);
+    const pset = addLine(ctx, '_time_model_pset', `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'time_model'))},#${ownerHistId},'OPS_Project',$,(#${prop}))`);
+    addLine(ctx, '_time_model_rel', `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'time_model_rel'))},#${ownerHistId},$,$,(${ref(ctx, '_project')}),#${pset})`);
+  }
   writeXerSourceArchive(ctx, ownerHistId, xerSourceArchive, xer?.sourceProjectId ?? xerSourceProjectId, xerSourceArchiveStorage);
 
   // Calendar (projectkalender — altijd de EERSTE IFCWORKCALENDAR in het bestand; vaste conventie
   // die de reader aanhoudt om 'm van de bibliotheek-kalenders hieronder te onderscheiden).
   const effCalByTask = effectiveCalendarByTask(tasks, calendar, resourceCalendars);
-  const hourTaskCalendarIds = new Set(tasks.flatMap((task) => {
-    const calendarId = taskDurationUnit(task) === 'hours' ? effCalByTask.get(task.id)?.id : undefined;
-    return calendarId ? [calendarId] : [];
-  }));
+  const hourTaskCalendarIds = writeView.literalCalendarIds;
   const projectCalWritten = writeCalendar(ctx, calendar, ownerHistId, '_calendar', hourTaskCalendarIds.has(calendar.id));
   writeCalendarGenerationMeta(ctx, calendar, ownerHistId, projectCalWritten);
 
-  // Work plan & schedule
-  const startDates = tasks.map(t => t.time.scheduleStart).filter(Boolean).sort();
-  const endDates = tasks.map(t => t.time.scheduleFinish).filter(Boolean).sort();
-  const planStart = startDates[0] || project.startDate;
-  const planEnd = endDates[endDates.length - 1] || project.endDate;
+  // Planomvang van de GETOONDE taken, zoals de Gantt en de basislijn: werkelijke datums waar
+  // die vaststaan, anders early, anders invoer (`taskDates`). Ook samenvattingen tellen mee.
+  // Invoerankers en contractuele projectdatums blijven apart bewaard; opslaan rekent niet.
+  // Normaliseer vóór de GETOONDE datumkeuze én min/max met de IfcTaskTime-formatter: een kale
+  // uurdatum is 00:00, een kale dagdatum 07:00. Ook de vergelijking actual/computed in een fase
+  // moet die tijden zien. Alleen een tijdelijke kopie; de invoer en taakslots blijven onaangeroerd.
+  const taskSpans = tasks.map(task => {
+    const dt = taskDateTimeFormatter(task);
+    // Hergebruik de echte writersemantiek en haal alleen de STEP-aanhalingstekens weg, zodat
+    // shownStart/shownFinish ISO-datums vergelijken. Leeg blijft leeg; `$` is geen taakdatum.
+    const iso = (value: string | undefined): string => value ? dt(value).slice(1, -1) : '';
+    const normalized: Task = { ...task, time: { ...task.time,
+      scheduleStart: iso(task.time.scheduleStart), scheduleFinish: iso(task.time.scheduleFinish),
+      earlyStart: iso(task.time.earlyStart), earlyFinish: iso(task.time.earlyFinish),
+      actualStart: iso(task.time.actualStart), actualFinish: iso(task.time.actualFinish),
+    } };
+    return { start: dt(shownStart(normalized)), finish: dt(shownFinish(normalized)) };
+  });
+  const startArgs = taskSpans.map(span => span.start).filter(arg => arg !== '$').sort();
+  const endArgs = taskSpans.map(span => span.finish).filter(arg => arg !== '$').sort();
 
   // IfcWorkPlan en IfcWorkSchedule: de 14 argumenten van het schema (`workControlArgs`). StartTime is
   // VERPLICHT. Een project zonder taken en zonder startdatum heeft geen planstart; dan het
   // schrijfmoment, zodat StartTime nooit `$` is. De OPS-lezer gebruikt dit slot dan niet:
   // OPS_ProjectSettings draagt `ProjectStartDate` altijd (ook leeg) en wint.
-  const workControlStart = planStart || now;
+  const workControlStartArg = startArgs[0] || ifcDateTime(project.startDate || now);
+  const workControlFinishArg = endArgs[endArgs.length - 1] || ifcDateTime(project.endDate);
   const workPlanId = addLine(ctx, '_workplan', `IFCWORKPLAN(${workControlArgs({
     guid: objectGuid(ctx, 'wp', project.id), ownerHistId, name: project.name, description: project.description,
-    creationDate: now, startTime: workControlStart, finishTime: planEnd, predefinedType: 'PLANNED',
+    creationDate: now, startTimeArg: workControlStartArg, finishTimeArg: workControlFinishArg, predefinedType: 'PLANNED',
   })})`);
 
   const workSchedId = addLine(ctx, '_worksched', `IFCWORKSCHEDULE(${workControlArgs({
     guid: objectGuid(ctx, 'ws', project.id), ownerHistId, name: 'Construction schedule v1.0', description: '',
-    creationDate: now, startTime: workControlStart, finishTime: planEnd, predefinedType: 'PLANNED',
+    creationDate: now, startTimeArg: workControlStartArg, finishTimeArg: workControlFinishArg, predefinedType: 'PLANNED',
   })})`);
 
   // Baselines — per baseline één `.BASELINE.`-IfcWorkSchedule-header (Name +
@@ -424,9 +468,11 @@ export function writeIFC(input: WriteIFCInput): string {
   // De OPS-lezer leest deze slots niet (de datums staan in het JSON); ze zijn er voor andere pakketten.
   const baselineSchedRefs: string[] = [];
   for (const b of baselines) {
+    const start = baselineStart(b);
     const bId = addLine(ctx, `_baseline_ws_${b.id}`, `IFCWORKSCHEDULE(${workControlArgs({
       guid: guidOf(ctx, 'baseline_ws_' + b.id), ownerHistId, name: b.name, description: '',
-      creationDate: b.createdAt || now, startTime: baselineStart(b) || workControlStart, finishTime: b.projectEnd,
+      creationDate: b.createdAt || now, startTimeArg: start ? ifcDateTime(start) : workControlStartArg,
+      finishTimeArg: ifcDateTime(b.projectEnd),
       predefinedType: 'BASELINE',
     })})`);
     baselineSchedRefs.push(`#${bId}`);
@@ -436,16 +482,17 @@ export function writeIFC(input: WriteIFCInput): string {
   addLine(ctx, '_agg_plan_sched',
     `IFCRELAGGREGATES(${ifcStr(guidOf(ctx, 'agg_ps'))},#${ownerHistId},$,$,#${workPlanId},(${schedRefs}))`);
 
-  // Tasks. Per taak bepaalt de effectieve kalender uur- vs dag-modus
-  // (uur ⇒ echte tijden + minuut-duren; dag ⇒ `T07:00:00` + `P0Y0M{days}D`).
+  // Tasks. De taakeenheid bepaalt de duurvorm (urenmaat ⇒ `PT…`; dagenmaat ⇒ `P{n}D`, met een breuk
+  // `PT…` plus record); de effectieve kalender levert de werktijd per dag voor die minuten (T21).
+  // `taskRecords` gaat daarna naar de per-taak-psets (`OPS_WorkRule`, `OPS_Analysis`).
+  const taskRecords = new Map<string, PerTaskWriteOptions>();
   for (const task of tasks) {
-    const effCal = effCalByTask.get(task.id);
-    writeTask(
-      ctx, task, ownerHistId, project.statusDate, taskDurationUnit(task) === 'hours',
-      effCal?.hoursPerDay ?? calendar.hoursPerDay,
+    const effCal = effCalByTask.get(task.id) ?? calendar;
+    taskRecords.set(task.id, writeTask(
+      ctx, task, ownerHistId, project.statusDate, effHoursPerDay(effCal),
       customTaskTypes.find(type => type.id === task.customTaskTypeId)?.name,
       withheldTaskTimeFields?.[task.id],
-    );
+    ));
   }
 
   // WBS nesting
@@ -459,11 +506,18 @@ export function writeIFC(input: WriteIFCInput): string {
       `IFCRELNESTS(${ifcStr(guidOf(ctx, 'nest_root'))},#${ownerHistId},'WBS Hoofd',$,#${workSchedId},(${rootRefs}))`);
   }
 
-  // Sequences
+  // Sequences. Een lag in dagen met een breuk gaat als `PT…` met een record in `OPS_Sequences` (T21);
+  // de minuten tellen in de werktijd per dag van de lagkalender, zoals de motor en de MSPDI-writer. Een
+  // minutenlag met een breuk krijgt daar ook een record (`ExactMinuteLags`).
+  const dayMeasureLags: [string, DayMeasureRecord][] = [];
+  const exactMinuteLags: [string, ExactMinutesRecord][] = [];
   for (const seq of sequences) {
-    writeSequence(ctx, seq, ownerHistId);
+    const { record, exactMinutes } = writeSequence(ctx, seq, ownerHistId,
+      lagMinutesPerDay(seq, project.schedulingOptions?.lagCalendar, calendar, effCalByTask));
+    if (record) dayMeasureLags.push([objectGuid(ctx, 'seq', seq.id), record]);
+    if (exactMinutes) exactMinuteLags.push([objectGuid(ctx, 'seq', seq.id), exactMinutes]);
   }
-  writeSequenceMeta(ctx, workSchedId, sequences, ownerHistId);
+  writeSequenceMeta(ctx, workSchedId, sequences, dayMeasureLags, exactMinuteLags, ownerHistId);
 
   // Resources
   for (const res of resources) {
@@ -505,9 +559,9 @@ export function writeIFC(input: WriteIFCInput): string {
   writeLibraryPool(ctx, ownerHistId, libraryPool);
 
   // De per-taak-psets via de gedeelde registry (ifcPsets.PER_TASK_PSETS), in registervolgorde.
-  // Reader-kant zit in dezelfde descriptors (apply), gedispatcht in extractStructure. OPS_Analysis
-  // wordt bewust NIET geschreven (afgeleide runCPM-uitvoer) — zie WRITTEN_PER_TASK_PSETS hieronder.
-  emitPerTaskPsets(ctx, tasks, ownerHistId);
+  // Reader-kant zit in dezelfde descriptors (apply), gedispatcht in extractStructure. Van OPS_Analysis
+  // gaat alleen de exacte speling mee (T5); de analysevelden niet — zie emitPerTaskPsets hieronder.
+  emitPerTaskPsets(ctx, tasks, ownerHistId, taskRecords);
   // Baselines: OPS_Baselines-pset (JSON autoritair) op de IfcWorkSchedule
   writeBaselineMeta(ctx, workSchedId, baselines, activeBaselineId, comparedBaselineIds, ownerHistId);
   // Scheduling-options: OPS_SchedulingOptions-pset (JSON autoritair) op de IfcWorkSchedule
@@ -831,28 +885,28 @@ function writeLibraryPool(
 }
 
 /**
- * `OPS_Analysis` (interferingFloat / isNearCritical / floatPath) wordt BEWUST NIET MEER GESCHREVEN.
- * Die drie velden zijn pure uitvoer van `runCPM` (scheduleAnalysis) — geen gebruikersinvoer — en
- * worden bit-exact gereproduceerd door elk laadpad (alle laadpaden gaan via `applyLoadedProject`
- * met `recompute: true` ⇒ `runCPM()`; recovery-herstel rekent zelf door). Ze zouden een flink deel
- * van elke auto-save-schrijfactie kosten (~10 s-throttle per document).
- * De LEESkant blijft intact: bestaande bestanden mét `OPS_Analysis` laden gewoon (de descriptor
- * staat nog in `PER_TASK_PSET_BY_NAME`, waar ifcReader op dispatcht) — `runCPM` overschrijft de
- * gelezen waarden daarna toch.
- */
-const WRITTEN_PER_TASK_PSETS = PER_TASK_PSETS.filter(d => d.name !== PSET.Analysis);
-
-/**
- * Schrijf de per-taak-psets via de gedeelde registry (ifcPsets.PER_TASK_PSETS), minus de afgeleide
- * `OPS_Analysis` (zie hierboven). Elk descriptor levert de property-lijst (`write`); een
- * lege/`null`-lijst = golden rule ⇒ niets geschreven. Buitenlus over de registry-VOLGORDE,
- * binnenlus over `tasks`, zodat de STEP-uitvoer stabiel blijft. De read-kant leeft in
+ * Schrijf de per-taak-psets via de gedeelde registry (ifcPsets.PER_TASK_PSETS). Elk descriptor levert de
+ * property-lijst (`write`); een lege/`null`-lijst = golden rule ⇒ niets geschreven. Buitenlus over de
+ * registry-VOLGORDE, binnenlus over `tasks`, zodat de STEP-uitvoer stabiel blijft. De read-kant leeft in
  * dezelfde descriptors (`apply`), gedispatcht in ifcReader.extractStructure.
+ *
+ * `OPS_Analysis`: interferingFloat / isNearCritical / floatPath worden BEWUST NIET MEER GESCHREVEN. Die
+ * drie velden zijn pure uitvoer van `runCPM` (scheduleAnalysis) — geen gebruikersinvoer — en worden
+ * bit-exact gereproduceerd door elk laadpad (alle laadpaden gaan via `applyLoadedProject` met
+ * `recompute: true` ⇒ `runCPM()`; recovery-herstel rekent zelf door). Ze zouden een flink deel van elke
+ * auto-save-schrijfactie kosten (~10 s-throttle per document). De descriptor schrijft alleen nog de
+ * exacte speling (`ExactFloat`, alleen uren §3.4, T5), en alleen als de taak speling in minuten of een
+ * gebroken speling draagt. De LEESkant blijft intact: oudere bestanden mét de drie velden laden gewoon.
  */
-function emitPerTaskPsets(ctx: WriteContext, tasks: Task[], ownerHistId: number): void {
-  for (const desc of WRITTEN_PER_TASK_PSETS) {
+function emitPerTaskPsets(
+  ctx: WriteContext, tasks: Task[], ownerHistId: number, taskRecords: ReadonlyMap<string, PerTaskWriteOptions>,
+): void {
+  for (const desc of PER_TASK_PSETS) {
     for (const task of tasks) {
-      const specs = desc.write(task);
+      const specs = desc.write(task, {
+        atDayEnd: ctx.milestonesAtDayEnd?.has(task.id) === true,
+        ...taskRecords.get(task.id),
+      });
       if (!specs || specs.length === 0) continue;
       const propRefs = specs.map((s, i) =>
         `#${addLine(ctx, `_prop_${desc.name}_${task.id}_${i}`,
@@ -944,7 +998,7 @@ function writeSchedulingOptionsMeta(
 
 /**
  * Rekenprofielen — het profiel als één `OPS_SchedulingProfile`-pset op de `IfcWorkSchedule`
- * (exact het `writeSchedulingOptionsMeta`-patroon). De JSON draagt alle zevenentwintig conventies
+ * (exact het `writeSchedulingOptionsMeta`-patroon). De JSON draagt alle negenentwintig conventies
  * OPGELOST (`schedulingProfileToJson`), plus de afwijkingen letterlijk. Golden rule: afwezig profiel
  * of het standaardprofiel (`ops` zonder enige afwijking, `carriesProfile`) ⇒ geen pset.
  */
@@ -1183,8 +1237,8 @@ function writeCalendar(
   // reserveert die niet voor werkende uitzonderingen, en een spec-conforme externe tool kan een
   // RECURRENTE FEESTDAG ("elke 25 december") met exact zo'n gevulde ref schrijven. Het echte
   // onderscheid is de OPS-pset-markering hieronder (`writeCalendarGenerationMeta`,
-  // `WorkingExceptionIds`) — de STEP-ids van deze IFCWORKTIME's worden daar expliciet
-  // weggeschreven, en de reader behandelt alléén een gemarkeerd id als werkende uitzondering
+  // `WorkingExceptionKeysV1`, met legacy `WorkingExceptionIds`) — inhoudssleutels overleven
+  // vernummering; alleen een expliciet gemarkeerde uitzondering wordt als werkend gelezen
   // (conservatief: ongemarkeerd + gevulde ref ⇒ feestdag). Golden rule: `cal.workingExceptions`
   // afwezig/leeg ⇒ deze lus doet niets (geen nieuwe entiteiten, geen gewijzigde ExceptionTimes,
   // geen nieuwe pset-property).
@@ -1282,6 +1336,7 @@ function writeCalendarGenerationMeta(
     readerHourCalendarHoursPerDay, scalarPeriodReadsAsHour,
   } = written;
   const markScalar = materializedScalarBands || scalarPeriodReadsAsHour;
+  const literalTimes = ctx.literalCalendarIds?.has(cal.id) === true;
   const gen = cal.generation;
   // De uren per dag die de lezer zonder deze eigenschap zou afleiden: bij een dagkalender
   // einde − begin, bij een uurkalender de modale dagsom van de geschreven blokken.
@@ -1305,8 +1360,9 @@ function writeCalendarGenerationMeta(
     && (perDayWeek || readerScalarHours?.end !== cal.workEndHour);
   if (!gen && !cal.libraryOrigin && !needsHoursPerDayOverride && !hasWorkingExceptions
     && !hasSimpleBreak && !isHourCalendar && !markScalar && !needsWorkStartHour && !needsWorkEndHour
-    && !hasP6Source && !hasRejectedPenaltyDiagnostic) return;
+    && !hasP6Source && !hasRejectedPenaltyDiagnostic && !literalTimes) return;
   const props: number[] = [];
+  if (literalTimes) props.push(addLine(ctx, `_opscal_literal_${cal.id}`, "IFCPROPERTYSINGLEVALUE('LiteralTimes',$,IFCBOOLEAN(.T.),$)"));
   if (gen) {
     props.push(addLine(ctx, `_opscal_ruleset_${cal.id}`,
       `IFCPROPERTYSINGLEVALUE('RuleSetId',$,IFCLABEL(${ifcStr(gen.ruleSetId)}),$)`));
@@ -1359,6 +1415,10 @@ function writeCalendarGenerationMeta(
       `IFCPROPERTYSINGLEVALUE('IsHourCalendar',$,IFCBOOLEAN(.F.),$)`));
   }
   if (hasWorkingExceptions) {
+    // Nieuwe lezers gebruiken inhoud, niet STEP-nummers die MergeProjects opnieuw uitgeeft.
+    // De oude property blijft voor eerdere OPS-versies; V1 heeft bij nieuwe lezers voorrang.
+    props.push(addLine(ctx, `_opscal_wexckeys_${cal.id}`,
+      `IFCPROPERTYSINGLEVALUE('WorkingExceptionKeysV1',$,IFCTEXT(${ifcJson((cal.workingExceptions ?? []).map(calendarExceptionKey))}),$)`));
     const idJson = JSON.stringify(workingExceptionStepIds.map(String));
     props.push(addLine(ctx, `_opscal_wexc_${cal.id}`,
       `IFCPROPERTYSINGLEVALUE('WorkingExceptionIds',$,IFCTEXT(${ifcStr(asciiJson(idJson))}),$)`));
@@ -1400,13 +1460,17 @@ function writeCalendarLibrary(
   ownerHistId: number,
   hourTaskCalendarIds: Set<string>,
 ): void {
+  if (calendars.length === 0) return;
+  // Eén index per schrijfronde voorkomt dat elke kalender alle taken/resources opnieuw scant.
+  // groupBy houdt de invoervolgorde vast, dus ook STEP-volgorde en verwijzingen blijven gelijk.
+  const resourcesByCalendar = groupBy(resources, r => r.calendarId);
+  const tasksByCalendar = groupBy(tasks, t => t.calendarId);
   for (const cal of calendars) {
     const written = writeCalendar(ctx, cal, ownerHistId, `calendar_${cal.id}`, hourTaskCalendarIds.has(cal.id));
     const { calStepId } = written;
     writeCalendarGenerationMeta(ctx, cal, ownerHistId, written);
 
-    const resRefs = resources
-      .filter(r => r.calendarId === cal.id)
+    const resRefs = (resourcesByCalendar.get(cal.id) ?? [])
       .map(r => ref(ctx, `res_${r.id}`))
       .filter(r => r !== '#0');
     if (resRefs.length > 0) {
@@ -1414,8 +1478,7 @@ function writeCalendarLibrary(
         `IFCRELASSIGNSTOCONTROL(${ifcStr(guidOf(ctx, 'resctrl_' + cal.id))},#${ownerHistId},$,$,(${resRefs.join(',')}),$,#${calStepId})`);
     }
 
-    const taskRefs = tasks
-      .filter(t => t.calendarId === cal.id)
+    const taskRefs = (tasksByCalendar.get(cal.id) ?? [])
       .map(t => ref(ctx, `task_${t.id}`))
       .filter(r => r !== '#0');
     if (taskRefs.length > 0) {
@@ -1427,33 +1490,74 @@ function writeCalendarLibrary(
 
 function writeTask(
   ctx: WriteContext, task: Task, ownerHistId: number, statusDate: string | undefined,
-  isHour: boolean, effHoursPerDay: number, customTaskTypeLabel?: string,
+  workHoursPerDay: number, customTaskTypeLabel?: string,
   withheld?: readonly WithheldTaskTimeField[],
-): void {
+): PerTaskWriteOptions {
   const t = task.time;
+  const isHour = taskDurationUnit(task) === 'hours';
   // In UUR-modus dragen de datetimes de echte tijd-van-de-dag en is de duur minuut-precies
   // (`durationMinutes`, bron van waarheid; anders afgeleid uit de dag-duur). In DAG-modus valt alles
   // terug op het `T07:00:00`/`P0Y0M{days}D`-pad.
-  const dt = isHour ? ifcDateTimeHour : ifcDateTime;
+  const dt = taskDateTimeFormatter(task);
+  // Dagen ⇒ minuten voor een veld dat als `PT…` gaat: werktijd per dag van de taakkalender, of 1440
+  // bij kalendertijd (alleen uren §3.10, T21). Elk zo geschreven veld krijgt een record
+  // `[dagen, geschreven minuten]` in `OPS_WorkRule.DayMeasureDurations`.
+  const minutesPerDay = taskMinutesPerDay(task, workHoursPerDay);
+  const dayMeasureDurations: { [K in DayMeasureDurationKey]?: DayMeasureRecord } = {};
+  const daysAsMinutes = (key: DayMeasureDurationKey, days: number): string => {
+    const record = dayMeasureRecord(days, minutesPerDay);
+    dayMeasureDurations[key] = record;
+    return ifcDurationHour(record[1]);
+  };
+  // Nooit een gebroken `P…D` (v2026.9.0 leest `P0.5D` als 5): hele dagen `P{n}D`, een breuk `PT…`.
+  const daysField = (key: DayMeasureDurationKey, days: number): string =>
+    isWholeDays(days) ? ifcDuration(days) : daysAsMinutes(key, days);
+  // De urenmaat zonder afronding (T14): het `PT…`-slot draagt hele minuten, een breuk in minuten gaat
+  // als record `[exacte minuten, geschreven minuten]` naar `OPS_WorkRule.ExactMinutes`, zodat de bron
+  // verliesvrij terugkomt (zelfde leesregel als T21).
+  const exactMinutes: { [K in ExactMinutesKey]?: ExactMinutesRecord } = {};
+  const hourMinutes = (key: ExactMinutesKey, minutes: number): string => {
+    const record = exactMinutesRecord(minutes);
+    if (record) exactMinutes[key] = record;
+    return ifcDurationHour(minutes);
+  };
   // De ISO-vorm bewaart de TAAK-eenheid: P…D = werkdagen, PT…H…M = werkuren. De kalender bepaalt
   // alleen de datetime-precisie en plaatsing; een uurkalender maakt van een dagtaak geen urentaak.
-  const schedDurArg = taskDurationUnit(task) === 'hours'
-    ? ifcDurationHour(taskMinutesForWrite(task, effHoursPerDay))
-    : ifcDuration(t.scheduleDuration);
+  // Een dagenmaat-taak met een breuk in duur of rest schrijft duur én rest als `PT…` met records
+  // (`dayTaskWritesMinutes`): een oudere OPS leest dan een urentaak met dezelfde lengte, de nieuwe
+  // lezer herstelt de dagen uit de records.
+  const dayAsMinutes = !isHour && dayTaskWritesMinutes(task);
+  const schedDurArg = isHour
+    ? hourMinutes('ScheduleDuration', taskMinutesForWrite(task, workHoursPerDay))
+    : dayAsMinutes ? daysAsMinutes('ScheduleDuration', t.scheduleDuration) : ifcDuration(t.scheduleDuration);
   // Voortgang — spec-conforme IfcTaskTime-slots (0-based arg-index in de lijst
   // hieronder): 14 StatusTime, 15 ActualDuration, 16 ActualStart, 17 ActualFinish, 18 RemainingTime,
   // 19 Completion. Golden rule: een taak zonder actuals houdt 14-18 op `$`. StatusTime = de
   // projectbrede statusdatum (peildatum), alleen op taken die daadwerkelijk actuals dragen.
   const hasActuals = !!(t.actualStart || t.actualFinish);
   const statusTimeArg = hasActuals && statusDate ? dt(statusDate) : '$';
-  const actualDurationArg = t.actualDuration != null ? ifcDuration(t.actualDuration) : '$';
+  const actualDurationArg = t.actualDuration != null ? daysField('ActualDuration', t.actualDuration) : '$';
   const actualStartArg = t.actualStart ? dt(t.actualStart) : '$';
   const actualFinishArg = t.actualFinish ? dt(t.actualFinish) : '$';
   // RemainingTime: uur-modus schrijft de resterende MINUTEN (`remainingMinutes`); anders de
-  // dag-duur `remainingTime`.
+  // dag-duur `remainingTime` (een breuk als `PT…` met record).
   const remainingArg = isHour && t.remainingMinutes != null
-    ? ifcDurationHour(t.remainingMinutes)
-    : t.remainingTime != null ? ifcDuration(t.remainingTime) : '$';
+    ? hourMinutes('RemainingTime', t.remainingMinutes)
+    : t.remainingTime == null ? '$'
+    : dayAsMinutes ? daysAsMinutes('RemainingTime', t.remainingTime) : daysField('RemainingTime', t.remainingTime);
+  // Speling (T5): IfcTaskTime draagt hele dagen (`ifcTaskSlots.ts`); de exacte dagen en de minuten gaan
+  // naar `OPS_Analysis.ExactFloat`. Een achtergehouden slot ("datums zoals opgeslagen") krijgt ook geen
+  // record: het bestand legt die speling dan niet vast.
+  const exactFloat: { [K in ExactFloatKey]?: ExactFloatRecord } = {};
+  const withheldSet = new Set(withheld ?? []);
+  if (!withheldSet.has('totalFloat')) {
+    const record = exactFloatRecord(t.totalFloat, t.totalFloatMinutes);
+    if (record) exactFloat.TotalFloat = record;
+  }
+  if (!withheldSet.has('freeFloat')) {
+    const record = exactFloatRecord(t.freeFloat, t.freeFloatMinutes);
+    if (record) exactFloat.FreeFloat = record;
+  }
 
   // IFCTASKTIME + IFCTASK worden via de gedeelde slot-registry (./ifcTaskSlots) geëmitteerd: de writer
   // ITEREERT de geordende descriptor-lijst en `.join(',')`t de per-slot geformatteerde waarden. De
@@ -1473,6 +1577,11 @@ function writeTask(
   };
   addLine(ctx, `task_${task.id}`,
     `IFCTASK(${IFC_TASK_SLOTS.map(s => s.write(taskCtx)).join(',')})`);
+  return {
+    ...(Object.keys(dayMeasureDurations).length > 0 ? { dayMeasureDurations } : {}),
+    ...(Object.keys(exactFloat).length > 0 ? { exactFloat } : {}),
+    ...(Object.keys(exactMinutes).length > 0 ? { exactMinutes } : {}),
+  };
 }
 
 function writeWBSNesting(ctx: WriteContext, tasks: Task[], ownerHistId: number): void {
@@ -1493,23 +1602,56 @@ function writeWBSNesting(ctx: WriteContext, tasks: Task[], ownerHistId: number):
 // IFCRATIOMEASURE voor procent-lag (IFC 4.3 zelf: ratio 0.5 = "start wanneer de voorganger 50%
 // gereed is"). Een lead (negatieve lag) krijgt het ISO-8601-voorloopteken ('-P2D') — dat is de
 // standaardnotatie; niet elke externe tool leest het teken, maar onze round-trip behoudt het.
-function ifcLagValue(seq: Sequence): string {
+function ifcLagValue(seq: Sequence, minutesPerDay: number): { value: string; record?: DayMeasureRecord; exactMinutes?: ExactMinutesRecord } {
   if (typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent)) {
     // REAL met decimale punt (`stepReal`): 100 % ⇒ `IFCRATIOMEASURE(1.)`, niet `(1)`. De guard
     // hierboven maakt het getal eindig, dus `stepReal` geeft altijd een waarde.
-    return `IFCRATIOMEASURE(${stepReal(seq.lagPercent / 100)!})`;
+    return { value: `IFCRATIOMEASURE(${stepReal(seq.lagPercent / 100)!})` };
   }
   // Uur-lag (`lagMinutes`, bron van waarheid) als minuut-precieze IFCDURATION met
-  // tijdcomponent; de reader herkent de `T`-component en zet `lagMinutes` terug.
+  // tijdcomponent; de reader herkent de `T`-component en zet `lagMinutes` terug. Het slot draagt hele
+  // minuten; een breuk (een `.mpp`-lag in tienden: 150,5 min) krijgt het record `[exacte minuten, geschreven
+  // minuten]`, zoals de duur van een urentaak (`ExactMinutes`, T14; review #591 r2).
   if (typeof seq.lagMinutes === 'number' && Number.isFinite(seq.lagMinutes)) {
-    return `IFCDURATION('${minutesToIsoDuration(seq.lagMinutes)}')`;
+    const exactMinutes = exactMinutesRecord(seq.lagMinutes);
+    return { value: `IFCDURATION('${minutesToIsoDuration(seq.lagMinutes)}')`, ...(exactMinutes ? { exactMinutes } : {}) };
   }
   const d = Number.isFinite(seq.lagDays) ? seq.lagDays : 0;
-  return d < 0 ? `IFCDURATION('-P${ifcDayNumber(-d)}D')` : `IFCDURATION('P${ifcDayNumber(d)}D')`;
+  // Een lag in dagen met een breuk (dagenmaat 0,5 d, kalendertijd 1,5 ed) gaat als `PT…` met de lengte
+  // in minuten, plus een record (T21, alleen uren §3.3). v2026.9.0 leest `PT4H0M0S` als 240 min en
+  // `PT36H0M0S` met ELAPSEDTIME als 2160 kalenderminuten; `P0.5D` las hij als 5 dagen.
+  if (!isWholeDays(d)) {
+    const record = dayMeasureRecord(d, minutesPerDay);
+    return { value: `IFCDURATION('${minutesToIsoDuration(record[1])}')`, record };
+  }
+  return { value: d < 0 ? `IFCDURATION('-P${ifcDayNumber(-d)}D')` : `IFCDURATION('P${ifcDayNumber(d)}D')` };
 }
 
-function writeSequence(ctx: WriteContext, seq: Sequence, ownerHistId: number): void {
+/**
+ * Minuten per lagdag voor de `PT…`-vorm van een lag in dagen met een breuk: kalendertijd 1440; anders de
+ * werktijd per dag van de lagkalender (`schedulingOptions.lagCalendar`: standaard de voorganger, of de
+ * opvolger, de projectkalender of 24 uur), zoals de motor (`relDeps.lagEngine`) en de MSPDI-writer.
+ */
+function lagMinutesPerDay(
+  seq: Sequence,
+  lagCalendar: NonNullable<Project['schedulingOptions']>['lagCalendar'],
+  projectCalendar: WorkCalendar,
+  effCalByTask: ReadonlyMap<string, WorkCalendar>,
+): number {
+  if (seq.lagUnit === 'ELAPSEDTIME' || lagCalendar === '24hour') return ELAPSED_MINUTES_PER_DAY;
+  const cal = lagCalendar === 'projectDefault' ? projectCalendar
+    : lagCalendar === 'successor' ? effCalByTask.get(seq.successorId) ?? projectCalendar
+    : effCalByTask.get(seq.predecessorId) ?? projectCalendar;
+  return effHoursPerDay(cal) * 60;
+}
+
+/** Schrijft de relatie; geeft het record van de lag terug als het slot niet alles zegt: de dagenmaat met een
+ *  breuk (`record`), of een minutenlag met een breuk (`exactMinutes`). */
+function writeSequence(ctx: WriteContext, seq: Sequence, ownerHistId: number, minutesPerDay: number):
+  { record?: DayMeasureRecord; exactMinutes?: ExactMinutesRecord } {
   let lagRef = '$';
+  let record: DayMeasureRecord | undefined;
+  let exactMinutes: ExactMinutesRecord | undefined;
   const hasPercent = typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent);
   const hasMinutes = typeof seq.lagMinutes === 'number' && Number.isFinite(seq.lagMinutes) && seq.lagMinutes !== 0;
   if (seq.lagDays !== 0 || hasPercent || hasMinutes) {
@@ -1517,35 +1659,58 @@ function writeSequence(ctx: WriteContext, seq: Sequence, ownerHistId: number): v
     // — LagValue als getypte select in arg 4, DurationType (.WORKTIME./.ELAPSEDTIME.) in arg 5.
     // (Oudere app-versies hadden die twee omgewisseld; de reader kent beide lay-outs.)
     const durationType = seq.lagUnit === 'ELAPSEDTIME' ? 'ELAPSEDTIME' : 'WORKTIME';
+    const lag = ifcLagValue(seq, minutesPerDay);
+    record = lag.record;
+    exactMinutes = lag.exactMinutes;
     const lagId = addLine(ctx, `lag_${seq.id}`,
-      `IFCLAGTIME('Lag',.PREDICTED.,$,${ifcLagValue(seq)},.${durationType}.)`);
+      `IFCLAGTIME('Lag',.PREDICTED.,$,${lag.value},.${durationType}.)`);
     lagRef = `#${lagId}`;
   }
 
   addLine(ctx, `seq_${seq.id}`,
     `IFCRELSEQUENCE(${ifcStr(objectGuid(ctx, 'seq', seq.id))},#${ownerHistId},$,$,${ref(ctx, `task_${seq.predecessorId}`)},${ref(ctx, `task_${seq.successorId}`)},${lagRef},.${seq.type}.,$)`);
+  return { ...(record ? { record } : {}), ...(exactMinutes ? { exactMinutes } : {}) };
 }
 
 /**
- * Relatie-eigen P6/XER-ankerdata. IFC 4.3 staat geen `IfcPropertySet` rechtstreeks op een
+ * Relatie-eigen data. IFC 4.3 staat geen `IfcPropertySet` rechtstreeks op een
  * `IfcRelSequence` toe (die is geen IfcObjectDefinition). Daarom is dit een geldige pset op de
- * IfcWorkSchedule, met de werkelijk geschreven IFC-GlobalId van iedere gemarkeerde relatie als
- * sleutel. Dat bewaart de semantiek relationeel én blijft interoperabel STEP.
+ * IfcWorkSchedule, met de werkelijk geschreven IFC-GlobalId van iedere relatie als
+ * sleutel. Dat bewaart de semantiek relationeel én blijft interoperabel STEP. Twee eigenschappen, elk
+ * alleen als er iets in staat:
+ *  - `P6StartAtPredecessorFinishBoundarySequenceGuids`: de P6/XER-ankerrelaties;
+ *  - `DayMeasureLags`: per relatie met een lag in dagen met een breuk het record
+ *    `[dagen, geschreven minuten]` (T21, alleen uren §3.3), bijvoorbeeld `{"<guid>": [0.5, 240]}`;
+ *  - `ExactMinuteLags`: per relatie met een minutenlag met een breuk het record
+ *    `[exacte minuten, geschreven minuten]` (zoals `ExactMinutes`, T14), bijvoorbeeld `{"<guid>": [150.5, 151]}`.
  */
 function writeSequenceMeta(
   ctx: WriteContext,
   workSchedId: number,
   sequences: readonly Sequence[],
+  dayMeasureLags: readonly (readonly [string, DayMeasureRecord])[],
+  exactMinuteLags: readonly (readonly [string, ExactMinutesRecord])[],
   ownerHistId: number,
 ): void {
   const boundarySequenceGuids = sequences
     .filter(sequence => sequence.p6StartAtPredecessorFinishBoundary === true)
     .map(sequence => objectGuid(ctx, 'seq', sequence.id));
-  if (boundarySequenceGuids.length === 0) return;
-  const propId = addLine(ctx, '_ps_seq_boundary',
-    `IFCPROPERTYSINGLEVALUE('P6StartAtPredecessorFinishBoundarySequenceGuids',$,IFCTEXT(${ifcJson(boundarySequenceGuids)}),$)`);
+  const propIds: number[] = [];
+  if (boundarySequenceGuids.length > 0) {
+    propIds.push(addLine(ctx, '_ps_seq_boundary',
+      `IFCPROPERTYSINGLEVALUE('P6StartAtPredecessorFinishBoundarySequenceGuids',$,IFCTEXT(${ifcJson(boundarySequenceGuids)}),$)`));
+  }
+  if (dayMeasureLags.length > 0) {
+    propIds.push(addLine(ctx, '_ps_seq_daymeasure',
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(DAY_MEASURE_LAGS_PROP)},$,IFCTEXT(${ifcJson(Object.fromEntries(dayMeasureLags))}),$)`));
+  }
+  if (exactMinuteLags.length > 0) {
+    propIds.push(addLine(ctx, '_ps_seq_exactminutes',
+      `IFCPROPERTYSINGLEVALUE(${ifcStr(EXACT_MINUTE_LAGS_PROP)},$,IFCTEXT(${ifcJson(Object.fromEntries(exactMinuteLags))}),$)`));
+  }
+  if (propIds.length === 0) return;
   const setId = addLine(ctx, '_pset_sequences',
-    `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_sequences'))},#${ownerHistId},${ifcStr(PSET.Sequences)},$,(#${propId}))`);
+    `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_sequences'))},#${ownerHistId},${ifcStr(PSET.Sequences)},$,(${propIds.map(id => `#${id}`).join(',')}))`);
   addLine(ctx, '_rel_sequences',
     `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'rel_sequences'))},#${ownerHistId},$,$,(#${workSchedId}),#${setId})`);
 }
@@ -1631,9 +1796,13 @@ function writeResourceMeta(ctx: WriteContext, resources: Resource[], ownerHistId
  */
 function writeCrewNesting(ctx: WriteContext, resources: Resource[], ownerHistId: number): void {
   const crews = resources.filter(r => r.type === 'CREW');
+  if (crews.length === 0) return;
+  // Eén index per schrijfronde; groupBy bewaart ledenvolgorde en dubbele voorkomens.
+  const resourcesByParent = groupBy(resources, r => r.parentId);
   for (const crew of crews) {
-    const memberRefs = resources
-      .filter(r => r.parentId === crew.id)
+    // Ook bij beschadigde invoer blijft NaN, anders dan bij Map.get, ongelijk aan zichzelf.
+    if (Number.isNaN(crew.id)) continue;
+    const memberRefs = (resourcesByParent.get(crew.id) ?? [])
       .map(r => ref(ctx, `res_${r.id}`))
       .filter(r => r !== '#0');
     if (memberRefs.length === 0) continue;

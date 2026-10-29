@@ -11,12 +11,14 @@
   },
   "notifications": {
     "dismiss": "Melding sluiten",
-    "taskEditRevertBlocked": "Een wijziging van de AI-assistent of een extensie kwam tussendoor. De taakwijzigingen van daarvóór zijn niet teruggedraaid en staan als gewone stappen onder Ongedaan maken.",
+    "taskEditRevertBlocked": "Een wijziging van de MCP-client of een extensie kwam tussendoor. De taakwijzigingen van daarvóór zijn niet teruggedraaid en staan als gewone stappen onder Ongedaan maken.",
     "openFailed": "Bestand openen mislukt",
+    "csvInvalidDate": "CSV niet geopend: onleesbare datum \"{{value}}\" op CSV-rij {{row}}, kolom \"{{column}}\". Gebruik jjjj-mm-dd, dd-mm-jjjj of dd/mm/jjjj.",
     "extGuideCallbackFailed": "Een stap van de extensie {{name}} gaf een fout. De begeleiding gaat door.",
     "extHelpProjectOpenFailed": "Het projectbestand {{file}} van de extensie {{name}} kon niet worden geopend.",
     "extImportFailed": "Importeren met {{name}} is mislukt.",
     "extensionMessage": "Extensie {{name}}: {{message}}",
+    "extensionInstallFailed": "De extensie kon niet worden geïnstalleerd. Controleer het bestand en probeer opnieuw.",
     "xerInvalidInput": "XER-import vereist de oorspronkelijke bestandsbytes.",
     "xerInvalidFile": "Dit bestand is geen geldig of ondersteund XER-bestand.",
     "xerInvalidEncoding": "De tekencodering van dit XER-bestand is ongeldig of afgekapt.",
@@ -66,14 +68,20 @@
     "importDatesAsRecorded_other": "{{count}} taken tonen de datums zoals ze in het bestand staan (niet herberekend).",
     "xerExportLoss": "Bij export naar {{format}} gaat XER-broninformatie verloren.",
     "mppLegacy": "Dit .mpp-bestand gebruikt een oud formaat (Project 2007 of ouder). Exporteer het in MS Project als XML (Bestand → Opslaan als → XML) en open dat bestand.",
+    "mppInvalidContainer": "Dit MPP-bestand heeft een ongeldige bestandsstructuur en kan niet worden geopend.",
+    "xmlUnknownSchedule": "Onbekend XML-planningsformaat. Open een MS Project-XML (Project) of Primavera P6-XML (APIBusinessObjects).",
     "mppEncrypted": "Dit .mpp-bestand is met een wachtwoord beveiligd. Exporteer het in MS Project als XML (Bestand → Opslaan als → XML) en open dat bestand.",
     "saveFailed": "Opslaan mislukt",
+    "ambiguousThousands": "\"{{text}}\" is dubbelzinnig: bedoel je een decimaal getal of duizendtallen? Typ decimalen met \"{{separator}}\" (1{{separator}}5) en duizendtallen zonder scheidingsteken (1500). De waarde is niet gewijzigd.",
     "siteSaveConflict": "Niet opgeslagen: '{{name}}' is op de site intussen door iemand anders gewijzigd. Je wijzigingen staan nog in de app. Kies Opslaan als om ze als nieuw bestand te bewaren.",
     "siteFileGone": "'{{name}}' staat niet meer op de site. Het bestand is uit Recent gehaald.",
     "savedViaDownload": "Opgeslagen als download: '{{name}}' staat nu in je downloadmap. Deze omgeving staat de app niet toe rechtstreeks naar de gekozen locatie te schrijven.",
     "browserCannotOverwrite": "Deze browser laat de app niet terugschrijven naar '{{name}}'. Daarom vraagt de app bij elke keer opslaan opnieuw waar het bestand moet komen. In Chrome, Edge of de desktop-app gebeurt dit niet.",
     "browserSavesAsDownload": "Opgeslagen als download: '{{name}}' staat in je downloadmap. Deze browser laat de app niet naar een eigen plek schrijven, dus elke keer opslaan maakt een nieuwe download. In Chrome, Edge of de desktop-app werkt Opslaan hetzelfde bestand gewoon bij.",
     "autoSaveFailed": "Automatisch opslaan mislukt",
+    "autoSaveNotWritable": "Automatisch opslaan mislukt: het bestaande projectbestand is niet schrijfbaar.",
+    "recoveryManifestBlocked": "De herstelgegevens hebben een onbekende versie of een ongeldige indeling. Deze app laat ze ongemoeid en kan deze herstelset niet lezen of bijwerken. Probeer de appversie die de kopieën maakte of een nieuwere versie. Sla nieuw werk zelf op.",
+    "recoveryStorageBlocked": "De herstelopslag is tijdelijk geblokkeerd door een andere open verbinding. Bestaande kopieën blijven staan; deze pagina maakt geen nieuwe herstelkopieën. Sla je werk zelf op, sluit andere tabbladen met deze app en laad deze pagina opnieuw om herstel opnieuw te proberen.",
     "recoveryReadFailed": "Hersteld bestand kon niet worden gelezen",
     "recoveryRestoreFailed": "Herstellen mislukt",
     "recoveryDocumentsSkipped_one": "{{count}} herstelbestand kon niet worden geladen en is overgeslagen.",
@@ -124,16 +132,19 @@
     "dragDatesAreActual": "'{{name}}' is gereed: begin en einde zijn de werkelijke datums en verschuiven niet. Wijzig die via de voortgang.",
     "referencesClearedOnPaste_one": "{{count}} verwijzing bestond niet in dit document en is leeggemaakt (een taakkalender, eigen werksoort, activity code of gebruikersveld uit het brondocument).",
     "referencesClearedOnPaste_other": "{{count}} verwijzingen bestonden niet in dit document en zijn leeggemaakt (taakkalenders, eigen werksoorten, activity codes of gebruikersvelden uit het brondocument).",
-    "milestoneRefusedAssignments_one": "'{{task}}' heeft resource-toewijzingen en kan geen mijlpaal worden. Verwijder eerst de toewijzingen.",
-    "milestoneRefusedAssignments_other": "{{count}} taken hebben resource-toewijzingen en kunnen geen mijlpaal worden. Verwijder eerst de toewijzingen.",
-    "milestoneRefusedSummary_one": "'{{task}}' is een samenvattingstaak met subtaken en kan geen mijlpaal worden.",
-    "milestoneRefusedSummary_other": "{{count}} taken zijn samenvattingstaken met subtaken en kunnen geen mijlpaal worden.",
+    "milestoneRefusedAssignments": "'{{task}}' heeft resource-toewijzingen en kan geen mijlpaal worden. Verwijder eerst de toewijzingen.",
+    "milestoneRefusedAssignmentsMany_one": "{{count}} taak heeft resource-toewijzingen en kan geen mijlpaal worden. Verwijder eerst de toewijzingen.",
+    "milestoneRefusedAssignmentsMany_other": "{{count}} taken hebben resource-toewijzingen en kunnen geen mijlpaal worden. Verwijder eerst de toewijzingen.",
+    "milestoneRefusedSummary": "'{{task}}' is een samenvattingstaak met subtaken en kan geen mijlpaal worden.",
+    "milestoneRefusedSummaryMany_one": "{{count}} taak is een samenvattingstaak met subtaken en kan geen mijlpaal worden.",
+    "milestoneRefusedSummaryMany_other": "{{count}} taken zijn samenvattingstaken met subtaken en kunnen geen mijlpaal worden.",
     "assignmentsMovedToSubtask_one": "Toewijzing verplaatst naar subtaak '{{child}}'.",
     "assignmentsMovedToSubtask_other": "{{count}} toewijzingen verplaatst naar subtaak '{{child}}'.",
     "assignmentsMovedToSubtasks_one": "Toewijzingen van {{count}} taak verplaatst naar een subtaak.",
     "assignmentsMovedToSubtasks_other": "Toewijzingen van {{count}} taken verplaatst naar subtaken.",
-    "milestoneClearedOnPhase_one": "'{{phase}}' is geen mijlpaal meer.",
-    "milestoneClearedOnPhase_other": "{{count}} taken zijn geen mijlpaal meer.",
+    "milestoneClearedOnPhase": "'{{phase}}' is geen mijlpaal meer.",
+    "milestoneClearedOnPhaseMany_one": "{{count}} taak is geen mijlpaal meer.",
+    "milestoneClearedOnPhaseMany_other": "{{count}} taken zijn geen mijlpaal meer.",
     "phaseRefusedNoAssignableChild": "'{{phase}}' kan geen samenvattingstaak worden: de toewijzingen ervan kunnen nergens heen, want geen van de nieuwe subtaken mag toewijzingen dragen (een mijlpaal of samenvattingstaak). Er is niets gewijzigd.",
     "phaseRefusedDuplicateResource": "'{{phase}}' kan geen samenvattingstaak worden: de toewijzing van {{resource}} kan niet naar de nieuwe subtaak '{{child}}', want die heeft {{resource}} al. Er is niets gewijzigd.",
     "phaseQuestionOutdated": "De taken of toewijzingen zijn veranderd terwijl de vraag openstond. Er is niets gewijzigd; probeer het opnieuw.",
@@ -150,7 +161,7 @@
     },
     "xerArchiveUnusable": "Het XER-bronarchief in dit bestand is onbruikbaar en weggelaten; het project zelf is volledig geopend.",
     "xerArchiveUnusableLine": "Het XER-bronarchief in dit bestand was onbruikbaar en is weggelaten.",
-    "xerArchiveUnusableConsequence": "De planning, het rekenprofiel en alle projectdata uit het IFC zijn compleet. Wat ontbreekt: de datums zoals Primavera ze opsloeg en de bronherkomst voor AI en extensies. Opslaan schrijft het bestand zonder archief; importeer de originele .xer opnieuw om het archief terug te krijgen.",
+    "xerArchiveUnusableConsequence": "De planning, het rekenprofiel en alle projectdata uit het IFC zijn compleet. Wat ontbreekt: de datums zoals Primavera ze opsloeg en de bronherkomst voor MCP-clients en extensies. Opslaan schrijft het bestand zonder archief; importeer de originele .xer opnieuw om het archief terug te krijgen.",
     "xerArchiveReasonSchemaVersion": "Reden: het archief heeft een onbekende schemaversie of indeling (nieuwere of andere schrijver).",
     "xerArchiveReasonHashMismatch": "Reden: de controlesom past niet bij de bronbytes — het archief is beschadigd.",
     "xerArchiveReasonTruncated": "Reden: het archief is afgeknot — een deel van de bronbytes ontbreekt.",
@@ -182,7 +193,41 @@
     "p6xmlImportCrossProjectRelations_one": "{{count}} relatie tussen projecten is niet als relatie overgenomen.",
     "p6xmlImportCrossProjectRelations_other": "{{count}} relaties tussen projecten zijn niet als relatie overgenomen.",
     "p6xmlImportUnassignedActivities_one": "{{count}} activiteit zonder project is niet ingelezen.",
-    "p6xmlImportUnassignedActivities_other": "{{count}} activiteiten zonder project zijn niet ingelezen."
+    "p6xmlImportUnassignedActivities_other": "{{count}} activiteiten zonder project zijn niet ingelezen.",
+    "msProjectImportLoss": "Niet alles uit dit MS Project-bestand is overgenomen.",
+    "msProjectLostSubprojects_one": "{{count}} ingevoegd project is als gewone taak ingelezen, zonder de koppeling naar het andere bestand.",
+    "msProjectLostSubprojects_other": "{{count}} ingevoegde projecten zijn als gewone taak ingelezen, zonder de koppeling naar het andere bestand.",
+    "msProjectLostExternalTasks_one": "{{count}} externe taak uit een ander project is als gewone taak ingelezen.",
+    "msProjectLostExternalTasks_other": "{{count}} externe taken uit een ander project zijn als gewone taak ingelezen.",
+    "msProjectLostInactiveTasks_one": "{{count}} inactieve taak is als actieve taak ingelezen en telt mee in de berekening.",
+    "msProjectLostInactiveTasks_other": "{{count}} inactieve taken zijn als actieve taak ingelezen en tellen mee in de berekening.",
+    "msProjectLostManualTasks_one": "{{count}} handmatig geplande taak is als automatisch geplande taak ingelezen.",
+    "msProjectLostManualTasks_other": "{{count}} handmatig geplande taken zijn als automatisch geplande taak ingelezen.",
+    "msProjectLostLevelingDelays_one": "De nivelleringsvertraging van {{count}} taak is niet overgenomen.",
+    "msProjectLostLevelingDelays_other": "De nivelleringsvertraging van {{count}} taken is niet overgenomen.",
+    "msProjectLostCriticalSlack_one": "De drempel voor kritiek uit het bestand (speling tot {{count}} werkdag) is niet overgenomen. De app rekent met drempel 0.",
+    "msProjectLostCriticalSlack_other": "De drempel voor kritiek uit het bestand (speling tot {{count}} werkdagen) is niet overgenomen. De app rekent met drempel 0.",
+    "msProjectLostBaselines_one": "{{count}} baseline is niet overgenomen.",
+    "msProjectLostBaselines_other": "{{count}} baselines zijn niet overgenomen.",
+    "msProjectLostExtraBaselines_one": "{{count}} baseline (Baseline 1–10) is niet overgenomen.",
+    "msProjectLostExtraBaselines_other": "{{count}} baselines (Baseline 1–10) zijn niet overgenomen.",
+    "msProjectLostBaselineWorkCost_one": "Bij {{count}} taak, resource of toewijzing zijn werk of kosten uit Baseline 0 niet overgenomen.",
+    "msProjectLostBaselineWorkCost_other": "Bij {{count}} taken, resources of toewijzingen zijn werk of kosten uit Baseline 0 niet overgenomen.",
+    "msProjectLostAssignmentBaselineDates_one": "Bij {{count}} toewijzing wijkt de baseline af van de taak; die afwijking is niet overgenomen.",
+    "msProjectLostAssignmentBaselineDates_other": "Bij {{count}} toewijzingen wijkt de baseline af van de taak; die afwijking is niet overgenomen.",
+    "msProjectLostCustomFields_one": "{{count}} eigen veld met waarden (aangepast veld of overzichtscode) is niet overgenomen.",
+    "msProjectLostCustomFields_other": "{{count}} eigen velden met waarden (aangepaste velden en overzichtscodes) zijn niet overgenomen.",
+    "msProjectLostNotes_one": "{{count}} aantekening is niet overgenomen.",
+    "msProjectLostNotes_other": "{{count}} aantekeningen zijn niet overgenomen.",
+    "msProjectLostHyperlinks_one": "{{count}} hyperlink is niet overgenomen.",
+    "msProjectLostHyperlinks_other": "{{count}} hyperlinks zijn niet overgenomen.",
+    "msProjectLostFixedCosts_one": "De vaste kosten van {{count}} taak zijn niet overgenomen.",
+    "msProjectLostFixedCosts_other": "De vaste kosten van {{count}} taken zijn niet overgenomen.",
+    "msProjectLostResourceRates_one": "De tarieven van {{count}} resource zijn niet overgenomen.",
+    "msProjectLostResourceRates_other": "De tarieven van {{count}} resources zijn niet overgenomen.",
+    "minuteModelConverted_one": "{{document}}: {{count}} taak heeft na de omzetting een ander begin of einde; de grootste verschuiving is {{days}} werkdagen. Ctrl+Z zet de opgeslagen datums terug.",
+    "minuteModelConverted_other": "{{document}}: {{count}} taken hebben na de omzetting een ander begin of einde; de grootste verschuiving is {{days}} werkdagen. Ctrl+Z zet de opgeslagen datums terug.",
+    "minuteModelCalendarRepaired": "Kalender '{{calendar}}' is hersteld: het einde of de pauze paste niet bij de opgeslagen werktijd."
   },
   "scheduleErrors": {
     "cycle": "Kringverwijzing tussen taken: {{path}}",
@@ -196,6 +241,8 @@
   "no": "Nee",
   "days": "d",
   "daysLong": "dagen",
+  "dayUnitLong_one": "dag",
+  "dayUnitLong_other": "dagen",
   "ok": "OK",
   "apply": "Toepassen",
   "create": "Aanmaken",
@@ -281,6 +328,11 @@
     "languageHint": "De weergavetaal van de app, direct toegepast.",
     "version": "Versie",
     "versionHint": "Het huidige versienummer van de app.",
+    "experimentalSection": "Experimenteel",
+    "experimentalEmpty": "Er zijn nu geen experimentele functies.",
+    "experimentalHide": "Verbergen",
+    "demoTopbarAnimation": "Demo: animatie in de bovenbalk",
+    "demoTopbarAnimationHint": "Een rustige oranje glansgolf in de bovenbalk. Laat zien hoe een experimentele schakelaar werkt.",
     "tourHint": "Loop de introductie-rondleiding van de app nog eens door.",
     "theme": "Thema",
     "themeHint": "Het kleurenschema van de interface.",
@@ -289,21 +341,22 @@
     "themeHighContrast": "Hoog contrast",
     "themeFollowSystem": "Volg systeemthema",
     "themeSystemHint": "Volgt het kleurschema van je systeem (nu: {{theme}}).",
-    "hourPlanningSection": "Urenplanning",
-    "enableHourPlanning": "Urenplanning inschakelen",
-    "enableHourPlanningHint": "Zet uren-/minuten-scheduling aan: een uur-tijdschaal, ploegen met werktijd-banden en uur-precieze taakbalken. Uit ⇒ de app werkt volledig dag-granulair zoals voorheen.",
     "showTaskTypes": "Taaktypes gebruiken",
     "showTaskTypesHint": "Kies per taak wat meebeweegt als duur, inzet of werk verandert, zoals Task Type in MS Project en Duration Type in P6. Uit: duur en inzet blijven staan. Een bestand met taaktypes of opgeslagen werk toont ze ook als dit uit staat.",
     "allowMixedDayHour": "Gemengde dag/uur-planning toestaan",
-    "defaultTaskDurationUnit": "Standaardeenheid voor nieuwe taken",
-    "defaultTaskDurationUnitHint": "Bepaalt of nieuwe taken standaard in werkdagen of werkuren beginnen. Bestaande taken veranderen niet.",
+    "defaultTaskDurationUnit": "Standaardmaat voor nieuwe taken",
+    "defaultTaskDurationUnitHint": "Dagenmaat: een duur telt in werkdagen van de kalender. Urenmaat: een duur telt in werkuren. Bestaande taken veranderen niet. Een taak met vast werk heeft altijd de urenmaat.",
+    "defaultTaskDurationUnitDays": "Dagenmaat",
+    "defaultTaskDurationUnitHours": "Urenmaat",
+    "defaultTaskDurationUnitLocked": "Het profiel {{profile}} rekent een duur in uren. Nieuwe taken krijgen daarom de urenmaat.",
     "durationDisplay": "Duurweergave",
     "durationDisplayHint": "Bepaalt hoe taakduur wordt getoond, los van de eenheid waarin een taak zelf is vastgelegd.",
+    "durationDisplayOpsHint": "In het OPS-profiel toont elke taak zijn eigen maat.",
     "durationDisplayAuto": "Automatisch (eigen eenheid per taak)",
     "durationDisplayDays": "Altijd dagen",
     "durationDisplayHours": "Altijd uren",
     "barSplitMode": "Taakbalken bij onderbrekingen",
-    "barSplitModeHint": "Of een taakbalk visueel splitst rond niet-werkdagen.",
+    "barSplitModeHint": "Alleen voor urentaken: balken opsplitsen rond pauzes en niet-werktijd. Echte taakonderbrekingen blijven altijd zichtbaar.",
     "barSplitNever": "Nooit opsplitsen",
     "barSplitSelection": "Opsplitsen bij selectie",
     "barSplitAlways": "Altijd opsplitsen",
@@ -366,11 +419,11 @@
     "fontFamilySerif": "Met schreef",
     "fontFamilyMono": "Monospace",
     "fontHint": "Web-apps volgen niet automatisch de systeemlettertype-instelling. Kies hier het lettertype en de grootte voor de hele interface.",
-    "aiModeSection": "AI-modus",
-    "aiMode": "AI-modus inschakelen",
-    "aiModeHint": "Toont het AI-tabblad met de MCP-bridge, zodat AI-assistenten via het Model Context Protocol met je planning kunnen werken. Uitzetten stopt de bridge.",
+    "aiModeSection": "MCP-koppeling",
+    "aiMode": "MCP-koppeling toestaan",
+    "aiModeHint": "Toont het tabblad MCP. Daar start je de MCP-bridge, zodat een MCP-client via het Model Context Protocol met je planning kan werken. Uitzetten stopt de bridge.",
     "aiAutostart": "Bridge automatisch starten",
-    "aiAutostartHint": "Zet de MCP-bridge meteen live bij het opstarten van de app, zodat een AI-client kan koppelen zonder dat je eerst het AI-tabblad opent. Alleen in de desktop-app.",
+    "aiAutostartHint": "Zet de MCP-bridge meteen live bij het opstarten van de app, zodat een MCP-client kan koppelen zonder dat je eerst het MCP-tabblad opent. Alleen in de desktop-app.",
     "legacySection": "Legacy-functies",
     "classicViewControls": "Klassieke weergaveknoppen tonen",
     "classicViewControlsHint": "Zet de losse knoppen Kolommen, Filter, Groeperen en Sorteren terug op het tabblad Beeld. Kolommen kies je nu met het plusje in de tabelkop of via Tabel → Kolommen…; filteren, groeperen en sorteren zitten in de layoutknoppen en de layoutdialoog."
@@ -402,9 +455,9 @@
     "configSnippetHint": "Plak dit in de MCP-configuratie van je client.",
     "tokenWarning": "Dit token geeft toegang tot het geopende plan. Deel het niet met anderen.",
     "connectPrompt": "Koppelprompt",
-    "connectPromptHint": "Plak dit in je AI-agent — die koppelt zichzelf.",
+    "connectPromptHint": "Plak dit in je MCP-client — die koppelt zichzelf.",
     "connectPromptText": "Verbind met een MCP-server die op mijn computer draait: naam {{name}}, transport streamable HTTP, URL {{url}}, met de header Authorization: Bearer {{token}}. Voeg hem toe aan je MCP-configuratie (bijvoorbeeld als mcpServers-blok) en maak verbinding. Vraag daarna de toollijst op ter controle: je zou ongeveer {{count}} tools moeten zien met het voorvoegsel {{prefix}}. Vat kort samen wat je met deze server kunt doen. Lees vóór je iets wijzigt eerst de planningsgids via de tool planner_get_planning_guide.",
-    "statusDot": "AI-bridge: {{status}}"
+    "statusDot": "MCP-bridge: {{status}}"
   },
   "aiSafety": {
     "pause": "Pauzeren",
@@ -414,7 +467,7 @@
     "readOnlyHint": "Alle muterende tools worden geweigerd zolang dit aanstaat.",
     "autoBackupOn": "Auto-backup: aan",
     "autoBackupOff": "Auto-backup: uit",
-    "autoBackupHint": "Maakt vóór de eerste AI-wijziging per document automatisch een IFC-backup.",
+    "autoBackupHint": "Maakt vóór de eerste MCP-wijziging per document automatisch een IFC-backup.",
     "backupNow": "Nu backup maken",
     "openFolder": "Backup-map openen",
     "backupOk": "Backup gemaakt: {{name}}",
@@ -422,10 +475,14 @@
     "openErr": "Map openen mislukt: {{error}}"
   },
   "aiActivity": {
-    "title": "AI-activiteit",
+    "unparseableRequest": "Onparseerbaar verzoek",
+    "unparseableResponse": "Onparseerbaar antwoord",
+    "error": "Fout",
+    "truncated": "… afgekapt",
+    "title": "MCP-activiteit",
     "panelButton": "Activiteitenpaneel",
     "clear": "Wissen",
-    "empty": "Nog geen AI-activiteit. Aanroepen van de bridge verschijnen hier.",
+    "empty": "Nog geen MCP-activiteit. Aanroepen van de bridge verschijnen hier.",
     "args": "Argumenten",
     "result": "Antwoord"
   },
@@ -441,7 +498,10 @@
     "taskCount_one": "{{count}} taak",
     "taskCount_other": "{{count}} taken",
     "restore": "Herstellen",
-    "dontRestore": "Niet herstellen"
+    "dontRestore": "Niet herstellen",
+    "unreadableOnlyExplanation": "Geen van de herstelkopieën kan worden gelezen. Bewaar ze voor een latere herstelpoging of verwijder ze alleen als je ze niet meer nodig hebt. Verwijderen kan niet ongedaan worden gemaakt.",
+    "keepCopies": "Kopieën bewaren",
+    "deleteCopies": "Kopieën verwijderen"
   },
   "window": {
     "minimize": "Minimaliseren",
@@ -460,7 +520,8 @@
   "project": {
     "untitled": "Nieuwe planning",
     "imported": "Geïmporteerd project",
-    "unassignedResource": "Niet toegekend"
+    "unassignedResource": "Niet toegekend",
+    "ifcBuildingModelUnsupported": "Dit IFC-bestand bevat bouwmodelobjecten. Openen is geblokkeerd omdat opslaan die objecten zou verwijderen. Bewerk het losse planningsbestand en voeg het daarna opnieuw samen met het bouwmodel."
   },
   "documents": {
     "overviewTitle": "Open projecten",
@@ -539,6 +600,7 @@
     "openGithub": "OK, ga naar GitHub",
     "annotate": "Annoteren",
     "editorDone": "Klaar",
+    "annotationSaveFailed": "De bewerkingen konden niet worden opgeslagen. Probeer opnieuw. Je screenshot is niet gewijzigd en wordt vanuit deze editor niet verstuurd.",
     "rotateFeedback": "Feedback geven",
     "rotateBug": "Meld een bug",
     "rotateFeature": "Voeg een nieuwe feature toe"
@@ -554,12 +616,14 @@
     "releaseNotes": "Wat is er nieuw",
     "downloadInstall": "Downloaden & installeren",
     "downloading": "Bezig met downloaden…",
+    "preparingInstall": "Installatie voorbereiden…",
     "installing": "Bezig met installeren…",
     "restarting": "Herstarten…",
     "retry": "Opnieuw proberen",
     "error": "Er ging iets mis bij het bijwerken",
     "checking": "Bezig met controleren…",
     "snapNotice": "Deze versie wordt automatisch via de Snap Store bijgewerkt — je hoeft niets te doen.",
+    "packageManagerNotice": "Werk bij via je pakketbeheer (bijv. yay -Syu).",
     "debExplanation": "Werk handmatig bij door dit commando in een terminal uit te voeren, of download het nieuwste pakket.",
     "debCommandLabel": "Installatiecommando",
     "copyCommand": "Commando kopiëren",
@@ -656,6 +720,7 @@
     "companies": "Resourcebibliotheken",
     "addCompany": "Resourcebibliotheek toevoegen",
     "newCompany": "Nieuwe resourcebibliotheek",
+    "defaultCompany": "Mijn resourcebibliotheek",
     "companyName": "Bibliotheeknaam",
     "removeCompany": "Resourcebibliotheek verwijderen",
     "cannotRemoveLast": "De laatste resourcebibliotheek kan niet worden verwijderd.",
@@ -667,9 +732,10 @@
     "import": "Importeren",
     "backupHint": "Exporteren is tevens je back-up: bewaar het bestand op een veilige plek.",
     "calendars": "Kalenders",
+    "removeCalendarConfirm": "Kalender “{{name}}” uit de resourcebibliotheek verwijderen? Dit kan niet ongedaan worden gemaakt. Bestaande projectkopieën blijven behouden.",
     "noCalendars": "Nog geen kalenders in de pool.",
     "noResources": "Nog geen resources in de pool.",
-    "promoteHint": "Promoveer een projectkalender of -resource naar de bibliotheek met de knop “+ Uit project” hierboven.",
+    "promoteHint": "Promoveer een projectkalender naar de bibliotheek met de knop “+ Uit project” hierboven.",
     "promoteFromProject": "Uit project",
     "alreadyLinked": "al gekoppeld",
     "editItem": "Bewerken",
@@ -701,6 +767,9 @@
     "deviationsIntro": "Deze onderdelen wijken af van de resourcebibliotheek. Kies per onderdeel wat de waarheid is.",
     "suggestedMatch": "Voorstel: {{name}}",
     "noMatch": "Geen voorstel — kies handmatig",
+    "chooseAndLink": "Kiezen en koppelen…",
+    "noLinkItems": "Geen bibliotheekitems beschikbaar",
+    "chooseLinkFor": "Kies een bibliotheekitem voor {{name}}",
     "linkThis": "Koppelen",
     "linkAll": "Alle voorstellen koppelen",
     "useCompanyValues": "Bibliotheekwaarden gebruiken",
@@ -804,7 +873,7 @@
       "projectEndUnchanged": "Projecteinddatum: ongewijzigd ({{date}})",
       "projectEndChanged": "Projecteinddatum: {{before}} → {{after}}",
       "remainingConflicts": "Resterende conflicten",
-      "remainingConflictsHint": "Deze taken passen niet binnen hun speling — vaak omdat een resource op die dagen niet werkt of onvoldoende capaciteit heeft.",
+      "remainingConflictsHint": "Voor deze taken blijven resourceconflicten bestaan. Bekijk de toelichting hieronder.",
       "intrinsicOverrun": "{{resource}} vraagt op de piek {{peak}} eenh./dag, capaciteit is {{capacity}} — niet oplosbaar door schuiven.",
       "noChanges": "Geen taken hoeven te verschuiven — de planning is al conflictvrij.",
       "notCalculated": "Klik op Berekenen om een nivelleervoorstel te maken.",
@@ -885,7 +954,7 @@
       "cancel": "Annuleren"
     },
     "regen": {
-      "hint": "Feestdagen dekken {{from}}–{{to}}; project loopt tot {{year}}. Opnieuw genereren?",
+      "hint": "Feestdagen dekken {{from}}–{{to}}; opnieuw genereren tot en met {{year}}?",
       "button": "Opnieuw genereren"
     },
     "countryName": {
@@ -948,7 +1017,9 @@
       "bandEnd": "Einde van het blok",
       "shiftPreset": "Ploeg",
       "breakHint": "Een gat tussen twee banden is een pauze — pas de tijden naar wens aan."
-    }
+    },
+    "defaultConstructionName": "Bouwkalender NL",
+    "defaultStandardName": "Standaardkalender"
   },
   "view": {
     "structureLockedHint": "Niet beschikbaar tijdens filteren/groeperen/sorteren",
@@ -1060,10 +1131,6 @@
     "month": "maand",
     "year": "jaar"
   },
-  "hourData": {
-    "notice": "Dit bestand bevat urenplanning.",
-    "enable": "Urenplanning aanzetten"
-  },
   "recordedDates": {
     "activeCount_one": "Je ziet de planning zoals Primavera hem opsloeg; bij herberekenen wijkt {{count}} taak af.",
     "activeCount_other": "Je ziet de planning zoals Primavera hem opsloeg; bij herberekenen wijken {{count}} taken af.",
@@ -1108,7 +1175,7 @@
     "nav": {
       "reportTab": "Naar rapport-tabblad",
       "switchDocument": "Wissel van document",
-      "scrollToToday": "Spring naar vandaag",
+      "scrollToToday": "Spring naar statusdatum of vandaag",
       "help": "Help openen"
     },
     "grid": {
@@ -1263,7 +1330,7 @@
   "progressImport": {
     "title": "Voortgang bijwerken uit een blad",
     "chooseFile": "Bestand kiezen…",
-    "intro": "Kies een teruggestuurd CSV-blad. De app leest alleen voltooiing, werkelijke start en werkelijk einde — de rest van je planning blijft ongewijzigd.",
+    "intro": "Kies een teruggestuurd CSV- of XLSX-blad. De app leest alleen voltooiing, werkelijke start en werkelijk einde — de rest van je planning blijft ongewijzigd.",
     "summaryApplied": "Toegepast: {{applied}}",
     "summaryNoop": "Ongewijzigd: {{noop}}",
     "summaryNeedsLink": "Wacht op koppeling: {{needsLink}}",
@@ -1280,6 +1347,7 @@
     "overrideDropped": "De koppeling voor rij {{row}} wijst naar een taak die niet meer bestaat en is genegeerd.",
     "moreRows": "…en {{more}} meer",
     "sheetRowHint": "rij {{row}} in het blad",
+    "sheetTaskId": "OPS Task ID: {{id}}",
     "dateOrderTitle": "Dag of maand eerst?",
     "dateOrderQuestion": "“{{sample}}” — welke datum is dat?",
     "dateOrderOptionA": "{{date}}",
@@ -1321,7 +1389,7 @@
   "conventions": {
     "preserveActualDatesInBackwardPass": {
       "label": "Werkelijke datums behouden in de terugwaartse berekening",
-      "help": "Een gestarte of voltooide taak houdt haar geregistreerde datums ook aan de late kant; een voltooide opvolger trekt een open voorganger niet terug in het verleden."
+      "help": "Met een statusdatum houdt een voltooide taak haar werkelijke datums aan de late kant en trekt een voltooide opvolger een open voorganger niet terug in het verleden. Een lopende taak houdt haar werkelijke start als late start, behalve als ‘Lopende taak: vroege start = begin van het restwerk’ aan staat. Een voltooide taak op een statusdatumpunt of -venster kan wel relatiedruk doorgeven."
     },
     "clampNegativeFreeFloat": {
       "label": "Vrije speling nooit negatief",
@@ -1329,103 +1397,111 @@
     },
     "p6ZeroDurationUsesPlannedBoundary": {
       "label": "Mijlpaal volgt de geplande kalendergrens",
-      "help": "Een mijlpaal zonder duur blijft op de kalendergrens die het bestand plande: een dagstart blijft een startmijlpaal, een blokeinde mag op het einde van de voorganger landen."
+      "help": "Alleen bij uurplanning. Een mijlpaal zonder duur volgt de geplande kalendergrens: een dagstart blijft een startmijlpaal, een blokeinde mag op het einde van de voorganger landen. Ook een gewone taak met duur 0 kan een grenspaar krijgen, maar alleen met XER-herkomst als Task Dependent of Resource Dependent en een gepland einde vóór de geplande start."
     },
     "p6UseTaskPlannedStartFloor": {
       "label": "Geplande start als extra ondergrens",
-      "help": "De geplande start uit het bestand telt als ondergrens zodra start én einde meer dan een kalenderdag later liggen dan het netwerk toelaat."
+      "help": "De geplande start telt als ondergrens zodra start én einde meer dan een kalenderdag later liggen dan het netwerk toelaat. Bij een eindmijlpaal met gepland einde vóór geplande start volstaat een latere geplande start. Niet voor een lopende taak als ‘Geplande start is geen vloer voor een lopende taak’ aan staat, of voor een niet-gestarte ALAP-taak die vanuit haar opvolgers wordt geplaatst. Vereist geen XER-herkomst."
     },
     "p6FinishMilestoneBoundaryWindow": {
       "label": "Eindmijlpaal als grensvenster",
-      "help": "Een eindmijlpaal mag op twee aangrenzende kalendergrenzen staan: vroege start aan het begin van een werkblok, vroeg einde aan het einde van het vorige werkblok."
+      "help": "Een eindmijlpaal zonder duur krijgt alleen een grensvenster als haar geplande einde vóór haar geplande start ligt en de berekende start nog op die geplande start staat. Een eindmijlpaal met voorgangers en zonder opvolger krijgt haar vroege datums ook als late datums, tenzij ‘Speling rekenen tot de einddatum van het project’ aan staat. Alleen gezien in P3-uitvoer; staat in elk ingebouwd profiel uit."
     },
     "p6PreserveActualInstants": {
       "label": "Werkelijke datums exact overnemen",
-      "help": "Vastgelegde werkelijke start- en einddatums worden niet naar de rand van een werkblok verschoven."
+      "help": "Alleen voor taken met bewaarde herkomst uit een .xer-bestand. Vastgelegde werkelijke start- en einddatums worden niet naar de rand van een werkblok verschoven."
     },
     "p6UseRemainingStartForProgress": {
       "label": "Lopende taak: vroege start = begin van het restwerk",
-      "help": "De vroege en late start van een lopende taak beschrijven waar het resterende werk begint, niet de historische werkelijke start. Terugrekenend over een start-start-relatie telt alleen de restduur."
+      "help": "De vroege en late start van een lopende taak beschrijven waar het resterende werk begint. Achterwaarts over een start-startrelatie telt alleen de restduur, maar uitsluitend bij uurplanning, met werkelijke start en voortgang tussen 0 en 100%, een bekende restduur kleiner dan de geplande duur, zonder klokduur of onderbrekingen in de planning. Die extra restduurregel geldt niet voor start-eindrelaties."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Constraintmoment op een mijlpaal exact",
-      "help": "Een datum-en-tijdconstraint op een mijlpaal zonder duur is een exact punt, ook aan het begin van een werkblok."
+      "help": "Alleen bij uurplanning, aan de late kant, voor een constraint met datum én tijd van het type SNLT, MSO, FNLT of MFO op een mijlpaal zonder duur. Het constraintmoment blijft exact, ook aan het begin van een werkblok. Voorwaarts is zo’n moment in elk profiel al exact."
     },
     "resumeFromActualElapsed": {
       "label": "Restwerk hervat na de al verstreken duur",
-      "help": "Een lopende taak hervat haar restwerk op de werkelijke start plus de al verstreken duur, niet op de statusdatum."
+      "help": "Een lopende taak hervat haar restwerk niet eerder dan de werkelijke start plus de al verstreken duur. Ook de statusdatum en de voorgangergrens blijven ondergrenzen; de laatste van de drie geldt. Niet bij Progress Override, zonder restwerk of als de app een geldige hervattingsdatum uit het bestand gebruikt (bij hoogstens één toewijzing)."
     },
     "unstartedIgnoresStatusDate": {
       "label": "Niet-gestarte taken niet naar de statusdatum",
-      "help": "Een taak die nog niet begonnen is, schuift niet vanzelf naar op of na de statusdatum."
+      "help": "Alleen met een statusdatum, voor een taak zonder voortgang. Die taak schuift niet vanzelf naar op of na de statusdatum."
     },
     "p6RelationFinishBoundary": {
       "label": "Opvolger start op de eindgrens",
-      "help": "Bij een eind-start-relatie zonder lag waarvan de opvolger in het bestand precies op het einde van de voorganger begint, aan het eind van een werkblok, begint de opvolger op dat einde en niet aan het begin van het volgende werkblok. Het bestand markeert dat niet: de app herkent zo'n relatie zelf bij het openen van een .xer-bestand. Een relatie die je zelf legt, valt er niet onder. Terugrekenend toont de opvolger haar late start gewoon als begin van een werkblok."
+      "help": "Alleen bij uurplanning op de kalender van de voorganger en voor een relatie die de app bij het openen van een .xer-bestand herkent. Bij een eind-startrelatie zonder lag waarvan de opvolger in het bestand precies op het blokeinde van de voorganger begint, begint de opvolger op dat einde. Een relatie die je zelf legt, valt er niet onder. Terugrekenend blijft de late start van de opvolger een blokstart."
     },
     "p6BackwardLagFinishBoundary": {
       "label": "Lag terugrekenen vanaf een eindgrens",
-      "help": "Trekt de terugwaartse berekening een lag in werktijd af vanaf een eindgrens en komt ze precies op de start van een werkblok uit, dan landt ze op de vorige eindgrens. Ook bij een eind-eind-relatie zonder lag blijft een laat einde op een blokeinde op die eindgrens."
+      "help": "Alleen bij uurplanning op de kalender waarin de lag rekent. Trekt de terugwaartse berekening een positieve lag in werktijd af vanaf een exacte eindgrens en komt ze op de eerste blokstart van een dag uit, dan landt ze op de vorige eindgrens. Ook bij een eind-eindrelatie zonder lag blijft een laat einde op een blokeinde op die grens. Niet voor lag in klokuren."
     },
     "p6CompletedDataDateWindow": {
       "label": "Voltooide taak in het statusdatumvenster",
-      "help": "Een voltooide taak krijgt vroege datums in het venster van de statusdatum, en haar einde telt mee voor het projecteinde."
+      "help": "Alleen met een statusdatum, voor voltooide taken zonder deeltaken uit een .xer-bestand, met bewaard doelvenster, voortgangstype duur en P6-type Task Dependent of Resource Dependent met Fixed Duration & Units; geen nulduurmijlpalen. Vereist ‘Lopende taak: vroege start = begin van het restwerk’. Onderbreking/hervatting wordt alleen toegelaten bij Task Dependent met een geldig paar, werkelijk einde tussen gepland einde en statusdatum, hervatting uiterlijk op het werkelijke einde en ‘Werkelijke datums behouden in de terugwaartse berekening’ aan. De taak krijgt vroege datums in het statusdatumvenster; haar einde telt mee voor het projecteinde."
     },
     "p6CompletedLoeActualFinish": {
       "label": "Voltooide LOE via het werkelijke einde",
-      "help": "Een voltooide level-of-effort-activiteit met alleen een start-start-ingang volgt de route via haar werkelijke einde."
+      "help": "Alleen met een statusdatum, voor een voltooide LOE uit een .xer-bestand met positieve duur, voortgangstype duur en P6-type Fixed Duration & Units/Time, een volledig doelvenster en werkelijk einde tussen het geplande einde en de statusdatum. Alleen start-startingangen, minstens één, zonder opvolger en zonder onderbreking/hervatting. Vereist ‘Lopende taak: vroege start = begin van het restwerk’, ‘Werkelijke datums behouden in de terugwaartse berekening’ en ‘Werkelijke datums exact overnemen’. De LOE volgt haar werkelijke einde in plaats van de hammockroute."
     },
     "p6OpenLoeTargetSpan": {
       "label": "Niet-gestarte LOE neemt het doelvenster",
-      "help": "Een level-of-effort-activiteit die nog niet begonnen is, neemt haar doelvenster als looptijd."
+      "help": "Alleen bij uurplanning, voor een niet-gestarte LOE/hammock uit een .xer-bestand met 0% voortgang, positieve duur, voortgangstype duur en P6-type Fixed Duration & Units; zonder werkelijke datums of onderbreking/hervatting. Vereist een volledig positief doelvenster waarvan de start gelijk is aan de relatiegrens en de werktijd hoogstens één werkdag afwijkt van de duur, minstens één start-startingang en één eind-einduitgang, uitsluitend die relatietypen en zonder lag. De LOE neemt dan het doelvenster als looptijd. Zwak bewijs: één bestand."
     },
     "p6CompletedPredecessorAtDataDate": {
       "label": "Voltooide voorganger houdt niet vast na de statusdatum",
-      "help": "Eindigt een voltooide voorganger volgens zijn werkelijke datum ná de statusdatum, dan mogen zijn opvolgers toch al op de statusdatum beginnen."
+      "help": "Alleen bij uurplanning en met een statusdatum, voor een voltooide voorganger met werkelijk einde. Eind-start- en eind-eindrelaties rekenen hoogstens vanaf de werkgrens vlak vóór de statusdatum; een later werkelijk einde houdt de opvolger niet vast. Start-start- en start-eindrelaties blijven op de werkelijke start. Een voltooide taak met een eigen statusdatumpunt of verschoven statusdatumvenster volgt die eigen grens."
     },
     "p6FreeFloatOnOwnCalendar": {
       "label": "Vrije speling in de eigen kalender",
-      "help": "De vrije speling van een niet-gestarte taak telt per relatie in de kalender van de taak zelf, niet in die van de opvolger: bij eind-start, start-start en eind-eind, ook met een lag in werktijd op de kalender van de voorganger. Een gestarte taak alleen bij eind-start zonder lag."
+      "help": "Alleen bij uurplanning, voor niet-voltooide taken en relaties met berekende vrije speling. Voor een niet-gestarte taak telt vrije speling in haar eigen kalender bij eind-start, start-start en eind-eind, zonder klokuren- of procentlag. Een lag anders dan 0 vereist de lag-kalender Voorganger. Voor een gestarte taak geldt alleen eind-start zonder lag. De vrije speling en bepalend-markering van de relatie zelf veranderen niet."
     },
     "p6CompletedRemainingLag": {
       "label": "Verstreken lag van een voltooide voorganger telt niet",
-      "help": "Aan de late kant telt van de lag na een voltooide voorganger alleen het deel dat op de statusdatum nog niet verstreken is."
+      "help": "Alleen bij uurplanning op de lag-kalender en met een statusdatum, voor voltooide voorgangers uit een .xer-bestand met werkelijk einde vóór de statusdatum en een statusdatumpunt of -venster. Van een positieve lag in werktijd telt alleen het nog niet verstreken deel. Werkt aan de late kant en voorwaarts vanuit een statusdatumpunt of verschoven nul-restvenster. Een taak op haar gewone werkelijke datums houdt de volle lag; niet voor lag in klokuren."
     },
     "p6CompletedOutOfSequenceWindow": {
       "label": "Voltooide taak buiten volgorde wacht op haar voorgangers",
-      "help": "Een voltooide taak waarvan een voorganger nog niet klaar is, krijgt haar nulvenster ná die voorganger in plaats van op de statusdatum (P6: Retained Logic). Werkt alleen als ook ‘Voltooide taak in het statusdatumvenster’ en ‘Lopende taak: vroege start = begin van het restwerk’ aanstaan."
+      "help": "Alleen bij uurplanning en met een statusdatum, op de XER-route van ‘Voltooide taak in het statusdatumvenster’; die conventie en ‘Lopende taak: vroege start = begin van het restwerk’ moeten aanstaan. Niet bij Progress Override. Via eind-start- of start-startingangen krijgt de taak het latere van de statusdatumgrens en de grens van een nog open voorganger of een voorganger met een verschoven statusdatumvenster. Gewone voltooide voorgangers tellen niet."
     },
     "p6CompletedPhysicalAtDataDate": {
       "label": "Voltooide fysieke-voortgangstaak staat op de statusdatum",
-      "help": "Een voltooide taak met fysiek voortgangspercentage staat als één punt op de statusdatum, of later als een voorganger dat eist, in plaats van op haar werkelijke datums. Alleen gemeten voor fysieke voortgang; voor andere voortgangstypen (P6-standaard: duur) is dit gedrag niet gemeten en blijft het uit."
+      "help": "Alleen bij uurplanning en met een statusdatum, voor voltooide taken zonder deeltaken en nulduurmijlpalen uit een .xer-bestand van P6-type Task Dependent, Start Milestone of Finish Milestone, met bewaard doelvenster, voortgangstype fysiek, werkelijk einde uiterlijk op de statusdatum en zonder onderbreking/hervatting. Vereist ‘Lopende taak: vroege start = begin van het restwerk’. De taak staat als één punt op de statusdatum, of later als een voorganger dat eist. Voor andere voortgangstypen, ook duur, is dit niet gemeten en blijft het uit."
     },
     "p6InProgressStartLagElapsed": {
       "label": "Verstreken SS-lag uit een lopende voorganger telt niet",
-      "help": "Bij een start-start-relatie uit een al gestarte taak telt van de lag alleen het deel dat sinds haar werkelijke start op de statusdatum nog niet verstreken is."
+      "help": "Alleen bij uurplanning op de lag-kalender en met een statusdatum, voor een start-startrelatie met positieve lag in werktijd uit een niet-voltooide voorganger met werkelijke start vóór de statusdatum. Vereist ‘Lopende taak: vroege start = begin van het restwerk’. Alleen het nog niet verstreken deel van de lag telt. De optie ‘SS-lag van een lopende voorganger rekenen vanaf’ kiest het beginpunt. Niet voor lag in klokuren."
     },
     "p6FinishFinishStartMilestoneLateFinish": {
       "label": "Eind-eind-relatie naar een startmijlpaal bindt aan de mijlpaal zelf",
-      "help": "Een eind-eind-relatie naar een startmijlpaal telt tot de mijlpaal zelf, niet tot het begin van de mijlpaaldag: het late einde van de voorganger mag tot het late einde van de mijlpaal lopen."
+      "help": "Alleen bij uurplanning aan beide kanten van een eind-eindrelatie naar een startmijlpaal zonder duur. De relatie bindt aan de mijlpaal zelf: het late einde van de voorganger mag tot het late einde van de mijlpaal lopen. Ook de vrije speling kan veranderen; de vroege start van de mijlpaal blijft staan. Niet voor eindmijlpalen of de terugwaartse nul-restduurroute."
     },
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "Geplande start is geen vloer voor een lopende taak",
-      "help": "Het resterende werk van een gestarte taak begint op de statusdatum en direct na haar voorgangers, ook als haar geplande start later ligt."
+      "help": "Alleen voor een taak met werkelijke start en minder dan 100% voortgang, als ‘Geplande start als extra ondergrens’ aan staat. Haar geplande start is geen extra vloer voor het restwerk; de statusdatum en haar voorgangers blijven bepalend."
     },
     "p6LateFinishOnOwnCalendar": {
       "label": "Laat einde op de eigen kalender",
-      "help": "Valt het late einde dat een opvolger oplegt buiten de werktijd van de taak, dan wordt het het einde van de vorige werkperiode op de eigen kalender."
+      "help": "Alleen bij uurplanning, als een opvolgergrens het late einde bepaalt en geen strakkere constraint of deadline die grens vervangt. Valt die grens buiten de eigen werktijd, dan wordt het late einde het einde van de vorige werkperiode op de eigen kalender. Niet voor een laat einde dat door het projecteinde wordt bepaald."
     },
     "p6ProgressOverrideIgnoresStartedSuccessor": {
       "label": "Progress Override negeert een gestarte opvolger ook achterwaarts",
-      "help": "Onder Progress Override telt de relatie naar een opvolger die al gestart is niet mee in de late datums en de vrije speling van een voorganger die nog niet klaar is."
+      "help": "Alleen bij Progress Override, voor een niet-voltooide voorganger en een gestarte maar niet-voltooide opvolger (werkelijke start of voortgang). Hun relatie telt niet mee in de late datums en vrije speling van de voorganger."
     },
     "p6FinishNotBeforeFinishFinishBound": {
       "label": "Vroeg einde niet vóór een eind-eind-grens",
-      "help": "Bij een eind-eind-relatie ligt het vroege einde van de opvolger in kloktijd nooit vóór de grens die de voorganger stelt. Valt die grens in vrije tijd van de opvolger, dan wordt het einde het begin van de volgende werkperiode."
+      "help": "Datumcorrectie: bij een eind-eindrelatie met lag in werktijd, zonder hammocks en met uurplanning op de kalender van de opvolger (bij restwerk: de voortgangskalender) én de lag-kalender. Ligt de relatiegrens later dan het vroege einde zonder werktijd ertussen, dan schuift alleen het einde naar de eerste werkgrens op of na die grens. Geldt voor automatisch geplande, niet-gestarte en lopende opvolgers; bij niet-gestarte taken gaat een harde eindpin voor. Vrije speling: afzonderlijk telt een niet-voltooide voorganger bij eind-eind zonder lag en zonder procentlag, met bestaande relatievrije speling en een berekend vroeg einde van de opvolger, in haar eigen uurkalender van haar vroege einde tot het vroege einde van de opvolger. Dit geldt ook bij nul-lag in klokuren, zonder extra uurvoorwaarde op de opvolger- of lag-kalender. Hammocks en handmatig geplande taken houden uiteindelijk vrije speling 0."
     },
     "p6AlapPositionedFromSuccessors": {
       "label": "ALAP-taken zo laat als de opvolgers toestaan",
-      "help": "Een niet-gestarte taak met de beperking 'zo laat mogelijk' eindigt op de minuut waarop haar opvolgers haar nodig hebben, opvolgers eerst, zodat een keten aaneensluit. Haar eigen geplande start telt niet; een taak zonder voorganger begint dan niet vóór de statusdatum."
+      "help": "Alleen bij uurplanning, voor een niet-gestarte, niet handmatig geplande taak met de constraint ‘Zo laat mogelijk’ (ALAP). De vroege datums van haar opvolgers bepalen haar plaatsing tot op de minuut; opvolgers gaan eerst. Haar eigen geplande start telt niet; voorgangers, statusdatum en een tweede constraint blijven gelden. Zonder opvolger gebruikt ze haar late einde. De gewone ALAP-stap blijft in elk profiel beschikbaar."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Losse mijlpalen aan het werkeinde",
+      "help": "Een losse mijlpaal of een eindmijlpaal zonder voorganger staat aan het einde van haar werkdag."
+    },
+    "workdayDurationMeasure": {
+      "label": "Duur in werkdagen",
+      "help": "Een duur, lag of restduur in dagen telt in werkdagen: elke werkdag telt als 1, hoe lang die dag ook is. Uit: een dag telt als het aantal werkuren per dag van de kalender. Een lag in procenten volgt de maat van de voorganger. Kalendertijd telt nooit in werkdagen."
     }
   },
   "profiles": {
@@ -1464,6 +1540,7 @@
       "float": "Speling en late datums",
       "instants": "Datums en tijdstippen uit het bestand",
       "msproject": "Voortgang zoals Microsoft Project",
+      "durations": "Duur en maat",
       "ownProfilesOnly": "Alleen voor eigen profielen"
     },
     "ownProfilesOnlyNote": "Deze conventies staan in elk ingebouwd profiel uit, ook onder Primavera P6. Alleen een eigen profiel kan ze aanzetten: kies daarvoor Nieuw profiel.",
@@ -1476,7 +1553,7 @@
     "showHelp": "Uitleg over „{{name}}”",
     "sourceOptions": {
       "title": "Instellingen uit het bronbestand",
-      "intro": "Deze reken-opties komen uit een Primavera P6-bestand (.xer). Ze rekenen mee, maar zijn hier niet te wijzigen.",
+      "intro": "Dit zijn alleen-lezen reken-opties van dit project. Bij import uit een Primavera P6-bestand (.xer) neemt de app ze uit het bronbestand over. Ze werken alleen als de bijbehorende voorwaarden zijn vervuld.",
       "useExpectedFinishDates": "Verwachte einddatums gebruiken (P6: Use Expected Finish Dates)",
       "useProjectEndDateForFloat": "Speling rekenen tot de einddatum van het project",
       "p6CompletedLateFromRemainingWindow": "Voltooide taak: late datums vanaf de statusdatum",
@@ -1485,7 +1562,7 @@
     "requires": {
       "xerOrigin": "alleen taken uit .xer",
       "hourPlanning": "alleen bij uurplanning",
-      "hourPlanningTitle": "Werkt alleen bij uurplanning: een kalender met werkblokken, een taak in uren, of de lag-kalender op 24-uurs."
+      "hourPlanningTitle": "Werkt alleen bij uurplanning op de kalender waarop de regel rekent: een kalender met werkblokken of een taakduur in uren. Voor lag kan ook de 24-uurs lag-kalender gelden."
     },
     "optionsDeviate": {
       "line": "{{field}}: {{current}} (standaard: {{standard}})",

@@ -1,16 +1,19 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { formatReportNumber } from '@/utils/reportNumber';
 import { X } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { Dialog, DialogHelpButton } from '@/components/common/Dialog';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
-import { assignmentDayUnits, taskWorkDayIsos } from '@/engine/scheduler/ResourceLoad';
-import { contourIndexForAssignment, type ContourShape } from '@/engine/contour/contourEngine';
+import { contourLookup } from '@/engine/scheduler/ResourceLoad';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
+import type { ContourShape } from '@/engine/contour/contourEngine';
+import { EDITABLE_CONTOUR_SHAPES, shapeSlotWork } from '@/engine/contour/contourEdit';
 import {
-  EDITABLE_CONTOUR_SHAPES, buildEditedContourPeriods, contourDaySlots, shapeSlotWork,
-} from '@/engine/contour/contourEdit';
+  contourDayModel, contourPeriodsFromRates, ratesFromShapeWork, remainingMinutesOfRates,
+} from '@/engine/contour/contourDays';
 import {
   type ContourPhase, fitPhasesToDays, mergePhaseWithNext, phaseStartDay, phasesFromSlots,
   phasesTotalDays, setPhaseDays, setPhaseUnits, slotsFromPhases, splitPhase,
@@ -39,8 +42,6 @@ const SHAPE_KEY = {
 } as const satisfies Record<ContourShape, string>;
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
-const fmtNum = (n: number) => String(round2(n));
-const fmtHours = (minutes: number) => fmtNum(minutes / 60);
 
 /**
  * Fasen-editor — het venster waarmee de gebruiker de urenverdeling van ÉÉN toewijzing
@@ -50,13 +51,15 @@ const fmtHours = (minutes: number) => fmtNum(minutes / 60);
  * Gestapeld bóven het eigenschappenpaneel óf de taakdialoog (`z-[60]` + `stopBackdropPropagation`,
  * hetzelfde patroon als `ConfirmDialog`), want de Toewijzingen-sectie leeft op beide plekken.
  *
- * Model: de werkdagen van de taak zijn dezelfde dagenlijst als het histogram (`taskWorkDayIsos`);
- * het VERRICHTE werk (actual-periodes) staat alleen-lezen onder de blokken, het RESTERENDE werk is
- * wat de fasen beschrijven. Zonder opgeslagen contour is het vertrekpunt precies wat de lastlezers
- * boeken (`assignmentDayUnits`: de curve-formule of de exacte P6-/MSPDI-curve), zodat
- * "Toepassen" zonder wijziging de huidige verdeling als data vastlegt en niets anders. Opslaan blijft
- * één periode per werkdag (`slotsFromPhases` → `buildEditedContourPeriods`): de fasen zijn een
- * weergavelaag, de opslagvorm en alle round-trips blijven ongewijzigd. Toepassen ⇒
+ * Model (spec "alleen uren" §3.11): de werkdagen en het deel van elke dag komen uit dezelfde plaatsing
+ * als het histogram en de nivelleerder (`contourDayModel` → `taskLoadPlacement`,
+ * `assignmentLoadOnPlacement`). Een fase is een INZET per werkdag; het werk van een dag is inzet × deel
+ * van de dag × werktijd per dag, dus een taak die wo 11:00 begint, telt wo half mee. Het VERRICHTE werk
+ * (actual-periodes) staat alleen-lezen onder de blokken, het RESTERENDE werk is wat de fasen beschrijven.
+ * Zonder opgeslagen contour is het vertrekpunt precies wat het histogram boekt (curve, exacte P6-/MSPDI-
+ * curve of opgeslagen werk), zodat "Toepassen" zonder wijziging de huidige verdeling als data vastlegt en
+ * niets anders. Opslaan schrijft één periode per stuk van de plaatsing (`contourPeriodsFromRates`), op de
+ * split-as in de maat van de taak; de fasen zijn een weergavelaag. Toepassen ⇒
  * `setAssignmentContour(periodes)`; Loslaten ⇒ `null`. Geen enkele knop raakt een taakdatum of
  * een onderbreking (zie `contourEdit.ts`).
  *
@@ -69,12 +72,18 @@ const fmtHours = (minutes: number) => fmtNum(minutes / 60);
  */
 export function ContourDialog({ assignmentId, onClose }: { assignmentId: string; onClose: () => void }) {
   const { t, i18n } = useTranslation('task');
+  // Inzet en uren in de getalnotatie van de taal (zelfde als de duurkolom: nl "1,71"); de
+  // invoervelden lezen komma én punt terug.
+  const fmtNum = (n: number) => formatReportNumber(n, i18n.language);
+  const fmtHours = (minutes: number) => fmtNum(minutes / 60);
   const { t: tCommon } = useTranslation('common');
   const tasks = useAppStore(s => s.tasks);
   const resources = useAppStore(s => s.resources);
   const assignments = useAppStore(s => s.assignments);
   const calendar = useAppStore(s => s.calendar);
   const calendars = useAppStore(s => s.calendars);
+  const schedulingProfile = useAppStore(s => s.project.schedulingProfile);
+  const schedulingOptions = useAppStore(s => s.project.schedulingOptions);
   const setAssignmentContour = useAppStore(s => s.setAssignmentContour);
 
   const assignment = assignments.find(a => a.id === assignmentId);
@@ -86,26 +95,23 @@ export function ContourDialog({ assignmentId, onClose }: { assignmentId: string;
   const [model] = useState(() => {
     if (!assignment || !task) return null;
     const engine = new CalendarEngine(calendarForEngine(resolveCalendar(task.calendarId, calendars, calendar)));
-    const mpd = engine.hoursPerDay * 60;
-    const siblings = assignments.filter(a => a.taskId === task.id);
-    const idx = contourIndexForAssignment(task.timephasedContours, siblings, assignment.id);
-    const contour = idx >= 0 ? task.timephasedContours![idx] : null;
-    const durationDays = Math.max(0, Math.ceil(task.time.scheduleDuration));
-    let actual: number[];
-    let remaining: number[];
-    if (contour) {
-      const slots = contourDaySlots(contour.periods, task.splitGaps, mpd, durationDays);
-      actual = slots.actual;
-      remaining = slots.remaining;
-    } else {
-      remaining = assignmentDayUnits(task, assignment, mpd, null).map(u => u * mpd);
-      while (remaining.length < durationDays) remaining.push(0);
-      actual = remaining.map(() => 0);
-    }
-    const n = Math.max(durationDays, remaining.length);
-    const isos = taskWorkDayIsos(task, engine, n);
-    const phases = fitPhasesToDays(phasesFromSlots(remaining, mpd), n, assignment.unitsPerDay);
-    return { engine, mpd, contour, actual, isos, n, phases, hasActual: actual.some(m => m > 0) };
+    // Dezelfde contour als het histogram: gekoppeld over alle toewijzingen van de taak (knownbugs 233).
+    const contour = contourLookup(assignments.filter(a => a.taskId === task.id))(task, assignment);
+    const days = contourDayModel(task, assignment, contour, engine, effectiveSchedulingOptions({ schedulingProfile, schedulingOptions }));
+    const mpd = days.mpd;
+    const n = days.days.length;
+    const phases = fitPhasesToDays(phasesFromSlots(days.remainingRates.map(r => r * mpd), mpd), n, assignment.unitsPerDay);
+    return {
+      engine, mpd, contour, n, phases,
+      placement: days.days,
+      isos: days.isos,
+      shares: days.shares,
+      actual: days.actualMinutes,
+      // De strook tekent inzet: het verrichte werk van een deeldag als inzet over de hele dag.
+      actualRate: days.actualMinutes.map((m, i) => (days.shares[i] > 0 ? m / days.shares[i] : 0)),
+      hasActual: days.actualMinutes.some(m => m > 0),
+      hasPartialDay: days.shares.some(sh => Math.abs(sh - 1) > 1e-6),
+    };
   });
 
   const [phases, setPhasesState] = useState<ContourPhase[]>(() => model?.phases ?? []);
@@ -139,10 +145,12 @@ export function ContourDialog({ assignmentId, onClose }: { assignmentId: string;
   });
   const anyInvalid = invalidRows.some(Boolean);
   const totalDays = phasesTotalDays(phases);
-  const remainingMinutes = slotsFromPhases(phases, model.mpd).reduce((a, b) => a + b, 0);
+  // Inzet per werkdag (`slotsFromPhases` met 1 minuut per slot = de inzet zelf).
+  const rates = slotsFromPhases(phases, 1);
+  const remainingMinutes = remainingMinutesOfRates(rates, model.shares, model.mpd);
   const actualMinutes = model.actual.reduce((a, b) => a + b, 0);
   const maxUnits = phases.reduce((m, p) => Math.max(m, p.unitsPerDay), 0);
-  const actualMaxUnits = model.actual.reduce((m, v) => Math.max(m, v / model.mpd), 0);
+  const actualMaxUnits = model.actualRate.reduce((m, v) => Math.max(m, v / model.mpd), 0);
   const scaleMax = Math.max(1, resource?.maxUnits ?? 0, maxUnits, actualMaxUnits) * 1.15;
 
   const dateFmt = new Intl.DateTimeFormat(i18n.language, { day: 'numeric', month: 'short', timeZone: 'UTC' });
@@ -156,10 +164,17 @@ export function ContourDialog({ assignmentId, onClose }: { assignmentId: string;
     for (let d = start; d < start + phases[index].days; d++) sum += model.actual[d] ?? 0;
     return sum;
   };
+  /** Het resterende werk van fase `index` in werkminuten: inzet × deel van elke dag × werktijd per dag. */
+  const remainingMinutesOfPhase = (index: number) => {
+    const start = phaseStartDay(phases, index);
+    const days = phases[index].days;
+    return remainingMinutesOfRates(rates.slice(start, start + days), model.shares.slice(start, start + days), model.mpd);
+  };
 
   const applyShape = (shape: ContourShape) => {
-    const total = remainingMinutes > 0 ? remainingMinutes : assignment.unitsPerDay * model.n * model.mpd;
-    setPhases(fitPhasesToDays(phasesFromSlots(shapeSlotWork(shape, total, model.n), model.mpd), model.n, assignment.unitsPerDay));
+    const total = remainingMinutes > 0 ? remainingMinutes : remainingMinutesOfRates(model.shares.map(() => assignment.unitsPerDay), model.shares, model.mpd);
+    const shaped = ratesFromShapeWork(shapeSlotWork(shape, total, model.n), model.shares, total, model.mpd);
+    setPhases(fitPhasesToDays(phasesFromSlots(shaped.map(r => r * model.mpd), model.mpd), model.n, assignment.unitsPerDay));
     setSelected(null);
   };
   const commitUnitsText = (index: number, text: string) => {
@@ -179,7 +194,7 @@ export function ContourDialog({ assignmentId, onClose }: { assignmentId: string;
   /** Toepassen; `false` = niets toegepast (ongeldige invoer), de dialoog blijft open. */
   const apply = (): boolean => {
     if (anyInvalid || totalDays === 0) return false;
-    const periods = buildEditedContourPeriods(model.contour?.periods, slotsFromPhases(phases, model.mpd), task.splitGaps, model.mpd);
+    const periods = contourPeriodsFromRates(model.contour?.periods, rates, model.placement, model.mpd);
     setAssignmentContour(assignment.id, periods);
     onClose();
     return true;
@@ -249,7 +264,7 @@ export function ContourDialog({ assignmentId, onClose }: { assignmentId: string;
         <div className="px-4 pt-3 pb-1">
           <ContourPhaseStrip
             phases={phases}
-            actualSlots={model.actual}
+            actualSlots={model.actualRate}
             slotMinutes={model.mpd}
             isos={model.isos}
             scaleMax={scaleMax}
@@ -261,6 +276,9 @@ export function ContourDialog({ assignmentId, onClose }: { assignmentId: string;
             fmtUnits={fmtNum}
           />
           <div className="!text-small text-text-secondary mt-1">{t('contourDialog.stripHint')}</div>
+          {model.hasPartialDay && (
+            <div className="!text-small text-text-secondary mt-1" data-ops-contour-partial-hint>{t('contourDialog.partialDayHint')}</div>
+          )}
         </div>
       )}
 
@@ -323,7 +341,7 @@ export function ContourDialog({ assignmentId, onClose }: { assignmentId: string;
                   </td>
                   <td className={`${cellCls} text-right text-text-secondary`}>{fmtNum(p.unitsPerDay * hoursPerDay)}</td>
                   {model.hasActual && <td className={`${cellCls} text-right text-text-secondary`}>{fmtHours(actualMinutesOfPhase(i))}</td>}
-                  <td className={`${cellCls} text-right`}>{fmtNum(p.days * p.unitsPerDay * hoursPerDay)}</td>
+                  <td className={`${cellCls} text-right`} data-ops-contour-phase-hours={i}>{fmtHours(remainingMinutesOfPhase(i))}</td>
                   <td className={`${cellCls} whitespace-nowrap`}>
                     <button
                       type="button"

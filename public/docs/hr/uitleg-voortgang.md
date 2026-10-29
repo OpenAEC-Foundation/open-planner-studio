@@ -16,7 +16,7 @@ Raspored je prognoza. Kad je posao u tijeku, želite znati što je završeno, š
 
 Primjer ispod koristi profil izračuna *Open Planner Studio*, s kojim novi projekt računa. Dalje možete pročitati što se razlikuje u profilima Primavera P6 i Microsoft Project.
 
-Aplikacija sama ne pokreće ponovno izračunavanje. Nakon svake promjene napretka ili datuma stanja traka stanja prikazuje *Zastarjelo — ponovno izračunajte (F5)*. Pritisnite *Izračunaj* (F5), na primjer putem *Raspored › Raspored › Izračunaj*. Ako je *Automatsko izračunavanje* uključeno (pod *Postavke › Projekt › Postavke*, kartica *Raspored*, pod naslovom *Izračunavanje*), aplikacija to radi sama.
+Aplikacija sama ne pokreće ponovno izračunavanje. Nakon svake promjene napretka ili datuma stanja traka stanja prikazuje *Zastarjelo — ponovno izračunajte (F5)*. Pritisnite *Izračunaj* (F5), na primjer putem *Raspored › Raspored › Izračunaj*. Ako je *Automatsko izračunavanje* uključeno (pod *Postavke › Projekt › Postavke aplikacije*, kartica *Raspored*, pod naslovom *Izračunavanje*), aplikacija to radi sama.
 
 ### Datum stanja
 
@@ -126,9 +126,9 @@ Ako samo postavite datum stanja na ponedjeljak 28. lipnja i ništa ne unesete, p
 
 Sada primjer za način praćenja napretka. Isti primjer dogradnje, drugo stanje: danas je srijeda, 21. srpnja 2027. Sve do i uključujući *Install building services* završeno je prema planu. Zadatak *Plastering* (4 radna dana) počeo je u utorak 20. srpnja i napredak mu je 25%. *Painting* (3 radna dana) slijedi nakon zadatka *Plastering*, ali soboslikar je danas već počeo i napredak mu je 33%.
 
-Bez napretka je zadatak *Plastering* bio planiran od utorka 20. do petka 23. srpnja, a zadatak *Painting* od ponedjeljka 26. do srijede 28. srpnja. Traka stanja sada prikazuje *Ovisnosti izvan redoslijeda: 1*: zadatak *Painting* je počeo dok *Plastering* nije završen. U oknu *Upozorenja* piše: *Izvan redoslijeda: napredak nasljednika proturječi ovisnosti*.
+Bez napretka je zadatak *Plastering* bio planiran od utorka 20. do petka 23. srpnja, a zadatak *Painting* od ponedjeljka 26. do srijede 28. srpnja. Traka stanja sada prikazuje *Ovisnosti izvan redoslijeda: 1*: zadatak *Painting* je počeo dok *Plastering* nije završen. U panelu *Upozorenja* piše: *Izvan redoslijeda: napredak nasljednika proturječi ovisnosti*.
 
-Zadatak *Plastering* ima 4 × (1 − 0.25) = 3 radna dana preostalog posla: 21., 22. i 23. srpnja. Zadatak *Painting* ima 3 × (1 − 0.33) = 2 radna dana preostalog posla.
+Zadatak *Plastering* ima 4 × (1 − 0,25) = 3 radna dana preostalog posla: 21., 22. i 23. srpnja. Zadatak *Painting* ima 3 × (1 − 0,33) = 2 radna dana preostalog posla.
 
 - Uz **Retained Logic** preostali posao može početi tek kad je zadatak *Plastering* završen. To je petak 23. srpnja, pa *Painting* počinje u ponedjeljak 26. srpnja i završava u utorak 27. srpnja. Traka se proteže od stvarnog početka 21. srpnja do 27. srpnja. Ukupan slobodni hod je 7 radnih dana.
 - Uz **Progress Override** preostali posao počinje na datumu stanja. Zadatak *Painting* završava u četvrtak 22. srpnja, prije nego što je *Plastering* završen. Ukupan slobodni hod je 10 radnih dana.
@@ -137,12 +137,12 @@ Predaja ostaje u petak 6. kolovoza u oba slučaja: zadatak *Painting* je ionako 
 
 ### Ostali profili izračuna
 
-U profilima izračuna Primavera P6 i Microsoft Project zadatak *Painting* u ovom primjeru završava na istim datumima (27. i 22. srpnja). Razlikuju se u sljedećim točkama. To su pravila izračuna profila. Nalazite ih pod *Postavke › Projekt › Podaci o projektu*, u odjeljku *Profil izračuna i opcije izračuna*.
+U profilima izračuna Primavera P6 i Microsoft Project zadatak *Painting* u ovom primjeru završava na istim datumima (27. i 22. srpnja). Razlikuju se u sljedećim točkama. To su pravila izračuna profila. Nalazite ih pod *Postavke › Projekt › Postavke projekta*, u odjeljku *Profil izračuna i opcije izračuna*.
 
 - U profilu Microsoft Project zadatak koji nije započeo ne pomiče se na datum stanja (pravilo izračuna *Nezapočeti zadaci se ne pomiču na datum stanja*). Ako u gornjem primjeru samo postavite datum stanja i ništa ne unesete, predaja u tom profilu ostaje u petak 6. kolovoza.
-- U profilu Microsoft Project preostali posao također ne počinje ranije od stvarnog početka plus već proteklo vrijeme (pravilo izračuna *Preostali posao nastavlja se nakon proteklog vremena*). To je dodatna donja granica uz datum stanja: vrijedi kasniji od ta dva. Uzmite zadatak *Build inner cavity leaf* (5 radnih dana). Počeo je u utorak 29. lipnja. Na srijedu 30. lipnja, datum stanja, zadatak je gotov 40% (dvije ekipe zidaju istodobno, pa je 40% već gotovo nakon jednog dana). Sve prije njega završeno je prema planu. Open Planner Studio i Primavera P6 dopuštaju da zadatak završi u petak 2. srpnja. Microsoft Project ga završava u ponedjeljak 5. srpnja, jer utorak 29. lipnja plus 2 radna dana proteklog vremena je četvrtak 1. srpnja, a to je nakon datuma stanja.
-- Primavera P6 kao najraniji početak zadatka u tijeku prikazuje početak preostalog posla, a ne stvarni početak (u primjeru unutarnjeg zida srijeda 30. lipnja).
-- U profilu Primavera P6 vrijedi pod Progress Override da se ovisnost prema nasljedniku koji je već započeo ne računa ni za prethodnika: više ne ograničava njegove kasne datume ni njegov slobodni hod (pravilo izračuna *Progress Override ignorira započetog nasljednika i unatrag*). U primjeru žbukara i soboslikara to ne vidite, jer je zadatak *Plastering* ionako kritičan preko estriha: njegovi kasni datumi i slobodni hod isti su pod Retained Logic i pod Progress Override.
+- U profilu Microsoft Project preostali posao također ne počinje ranije od stvarnog početka plus već proteklog vremena (pravilo izračuna *Preostali posao nastavlja se nakon proteklog vremena*). To je dodatna donja granica uz datum stanja: vrijedi kasniji od ta dva. Uzmite zadatak *Build inner cavity leaf* (5 radnih dana). Počeo je u utorak 29. lipnja, a u srijedu 30. lipnja, datum stanja, napredak mu je 40% (dvije ekipe zidaju istodobno, pa je 40% već obavljeno nakon jednog dana). Sve prije njega završeno je prema planu. Open Planner Studio i Primavera P6 dopuštaju da zadatak završi u petak 2. srpnja. Microsoft Project ga završava u ponedjeljak 5. srpnja, jer utorak 29. lipnja plus 2 radna dana proteklog vremena je četvrtak 1. srpnja, a to je nakon datuma stanja.
+- Primavera P6 kao najraniji početak zadatka u tijeku prikazuje početak preostalog posla, a ne stvarni početak (u primjeru unutarnjeg zida srijeda 30. lipnja). Stupac *Početak* i traka u svakom profilu prikazuju stvarni početak.
+- U profilu Primavera P6 se kod načina Progress Override ovisnost prema nasljedniku koji je već započeo ne računa ni za prethodnika: više ne ograničava njegove kasne datume ni njegov slobodni hod (pravilo izračuna *Progress Override ignorira započetog nasljednika i unatrag*). U primjeru žbukara i soboslikara to ne vidite, jer je zadatak *Plastering* ionako kritičan preko estriha: njegovi kasni datumi i slobodni hod isti su pod Retained Logic i pod Progress Override.
 - Kad otvorite datoteku .xer, aplikacija preuzima način praćenja napretka iz datoteke. Actual Dates, treći način P6, aplikaciji nije poznat. Takva se datoteka izračunava kao Retained Logic.
 
 ## Posljedice i nesporazumi
@@ -153,11 +153,11 @@ U profilima izračuna Primavera P6 i Microsoft Project zadatak *Painting* u ovom
 
 **„0% znači da nije započeo.“** Ako zadatak ima stvarni početak, računa se kao započet, čak i pri 0%. Preostali posao je tada cijelo trajanje i počinje na datumu stanja. Obrišite stvarni početak da se zadatak ponovno računa kao nezapočet.
 
-**„Progress Override rješava upozorenje.“** Poruka o napretku izvan redoslijeda ostaje. Način praćenja napretka samo određuje kako aplikacija izračunava. Ako ovisnost više nije ispravna, promijenite ovisnost.
+**„Progress Override rješava upozorenje.“** Poruka o napretku izvan redoslijeda ostaje. Način praćenja napretka samo određuje kako aplikacija računa. Ako ovisnost više nije ispravna, promijenite ovisnost.
 
-**„Stanka u podijeljenom zadatku otpada.“** Ne: stanka u dijelu koji tek treba obaviti ostaje u preostalom poslu. Uzmite zadatak od 5 radnih dana s 1-dnevnom stankom nakon 2 dana rada, započet u utorak 29. lipnja. S datumom stanja u srijedu 30. lipnja zadatak je 40% gotov. Preostali posao od 3 radna dana počinje na datumu stanja i prolazi kroz stanku: završetak je ponedjeljak 5. srpnja. Bez stanke bi to bio petak 2. srpnja.
+**„Stanka u podijeljenom zadatku otpada.“** Ne: stanka u dijelu koji tek treba obaviti ostaje u preostalom poslu. Uzmite zadatak od 5 radnih dana s 1-dnevnom stankom nakon 2 dana rada, započet u utorak 29. lipnja. S datumom stanja u srijedu 30. lipnja i zadatkom na 40% preostali posao od 3 radna dana počinje na datumu stanja i prolazi kroz stanku: završetak je ponedjeljak 5. srpnja. Bez stanke bi to bio petak 2. srpnja.
 
-**Sati i datum stanja.** U vrpci ne možete unijeti vrijeme: datum stanja unosite kao datum. Ako stanje pregledate nakon radnog vremena, postavite datum stanja na sljedeći radni dan. Zadatak u satima računa preostali posao od početka datuma stanja. Uzmite *Lay hollow-core floor* u vježbenom projektu nakon lekcije 4: 5 sati, u ponedjeljak 28. lipnja, radni dan od 07:00. S datumom stanja u ponedjeljak 28. lipnja i zadatkom na 40% ima 3 sata preostalog posla, koji teče od 07:00 do 10:00, čak i ako je tog jutra već nešto odrađeno. Kako aplikacija računa sate, objašnjeno je u [Dani i sati](docs://uitleg-dagen-en-uren).
+**Sati i datum stanja.** U vrpci ne možete unijeti vrijeme: datum stanja unosite kao datum. Ako stanje pregledate nakon radnog vremena, postavite datum stanja na sljedeći radni dan. Zadatak u satima računa preostali posao od početka datuma stanja. Uzmite *Lay hollow-core floor* u vježbenom projektu nakon lekcije 4, u trenutku kad je sve prije njega završeno: 5 sati, u ponedjeljak 28. lipnja, radni dan od 07:00. S datumom stanja u ponedjeljak 28. lipnja i zadatkom na 40% ima 3 sata preostalog posla, koji teče od 07:00 do 10:00, čak i ako je tog jutra već nešto odrađeno. Kako aplikacija računa sate, objašnjeno je u [Dani i sati](docs://uitleg-dagen-en-uren).
 
 **Ažuriranje temeljnog plana.** To nije moguće. Spremite novi temeljni plan i izbrišite stari. Ako premjestite projekt, stvarni datumi i datum stanja pomiču se zajedno, ali temeljni planovi po zadanim postavkama ostaju na mjestu: tako pomak ostaje vidljiv kao odstupanje. Pogledajte [Premještanje projekta](docs://howto-project-verplaatsen).
 

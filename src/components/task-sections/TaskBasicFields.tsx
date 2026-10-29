@@ -9,7 +9,7 @@ import { Field, Input } from './shared';
 /**
  * Naam / WBS-code / omschrijving / type / kalender (sectie van
  * `TaskPropertiesPanel`). `CalendarForm`-patroon: puur `{ task, onChange }`, geen store-schrijf
- * hier. `wbsAutoNumber` wordt — net als `CalendarForm` z'n `enableHourPlanning` — rechtstreeks
+ * hier. `wbsAutoNumber` wordt rechtstreeks
  * uit de store gelezen (read-only contextvlag, geen mutatie).
  *
  * Kalender is een LICHTE UITZONDERING: in het paneel gaat een kalenderwissel via de dedicated

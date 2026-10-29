@@ -4,16 +4,16 @@ Les menus que le bouton droit de la souris ouvre dans le Gantt et dans le tablea
 
 ## Quel menu où
 
-Il existe quatre menus. Celui qui s'affiche dépend de l'endroit où vous cliquez :
+Il existe quatre menus. Lequel s'affiche dépend de l'endroit où vous cliquez :
 
 - **Sur une barre dans le Gantt** — le menu de tâche, avec *Démarrer une relation à partir d'ici* en haut.
 - **Sur une tâche dans le tableau des tâches** — le même menu de tâche, sans cet élément en haut. Cela vaut pour le tableau des tâches à gauche du Gantt et pour l'onglet *Tableau*.
 - **Sur un en-tête de groupe dans le tableau des tâches** — un petit menu pour développer et réduire les groupes. Les en-têtes de groupe n'apparaissent que si vous groupez, par exemple avec la disposition *Diagramme des ressources*.
 - **Sur un espace vide** — dans le Gantt, à côté ou sous les barres, et dans le tableau des tâches sous la dernière tâche ou sur la ligne grise *Nouvelle tâche*. Le menu contient *Nouvelle tâche*, *Ajouter un jalon* et *Coller* ; dans le Gantt, il contient aussi *Réinitialiser le zoom* et *Ajuster au projet*. Une nouvelle tâche ou un nouveau jalon est ajouté en bas de la liste. Dans le Gantt, il commence à la date où vous avez cliqué ; dans le tableau des tâches, la cellule du nom s'ouvre tout de suite pour que vous puissiez écrire.
 
-Sur la bande d'un en-tête de groupe dans le Gantt, le bouton droit de la souris n'ouvre aucun menu. Un clic droit sur l'en-tête de la frise chronologique ne fait rien non plus. Les en-têtes de colonnes du tableau des tâches ont leur propre menu, décrit dans [Adapter les colonnes du tableau](docs://howto-tabelkolommen-aanpassen).
+Sur la bande d'un en-tête de groupe dans le Gantt, le bouton droit de la souris ouvre le menu de l'espace vide ; l'en-tête de groupe lui-même n'a un menu que dans le tableau des tâches. Un clic droit sur l'en-tête de la frise chronologique ne fait rien. Les en-têtes de colonnes du tableau des tâches ont leur propre menu, décrit dans [Adapter les colonnes du tableau](docs://howto-tabelkolommen-aanpassen).
 
-**À quelles tâches un élément s'applique-t-il ?** Vous cliquez sur une tâche, mais la sélection définit le périmètre. Si la tâche sur laquelle vous cliquez fait partie de la sélection, l'élément s'applique à toute la sélection. Si ce n'est pas le cas, il s'applique à cette seule tâche. Avec un clic droit sur une barre dans le Gantt ou sur une ligne dans le tableau des tâches, cette tâche remplace la sélection si elle n'en faisait pas partie. Chaque élément qui modifie quelque chose correspond à une seule étape de la commande *Annuler*, y compris pour une sélection entière.
+**À quelles tâches un élément s'applique-t-il ?** Vous cliquez sur une tâche, mais la sélection détermine le périmètre. Si la tâche sur laquelle vous cliquez fait partie de la sélection, l'élément s'applique à toute la sélection. Sinon, il s'applique à cette seule tâche. Avec un clic droit sur une barre dans le Gantt ou sur une ligne dans le tableau des tâches, cette tâche remplace la sélection si elle n'en faisait pas partie. Chaque élément qui modifie quelque chose correspond à une seule étape de la commande *Annuler*, y compris pour une sélection entière.
 
 ## Le menu de tâche
 

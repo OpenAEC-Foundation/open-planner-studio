@@ -24,7 +24,7 @@ Si une tâche est sélectionnée, l'histogramme montre seulement la charge de ce
 ### 2. Choisir une solution
 
 - **Plus de capacité.** Si un deuxième maçon arrive vraiment, réglez *Unités max* sur 2 (voir [Gérer les ressources](docs://howto-resources-beheren)). La surallocation disparaît alors.
-- **Moins d'unités par jour.** Baissez les *Unités/j* ou choisissez une autre courbe pour l'affectation (voir [Affecter des ressources avec une courbe](docs://howto-resource-toewijzen)).
+- **Moins d'unités par jour.** Baissez les *Unités* ou choisissez une autre courbe pour l'affectation (voir [Affecter des ressources avec une courbe](docs://howto-resource-toewijzen)).
 - **Mettez les tâches l'une après l'autre.** Ajoutez une relation entre les deux tâches, pour que la seconde ne commence qu'une fois la première terminée (voir [Ajouter des relations](docs://howto-relaties-leggen)).
 - **Nivellement.** L'application fait commencer une tâche plus tard.
 
@@ -50,7 +50,7 @@ Si vous voulez décider vous-même quelle tâche reste en place, donnez-lui une 
 ### Annuler et rétablir
 
 - *Annuler* (Ctrl+Z) annule *Appliquer* en une seule étape.
-- *Ressources › Nivellement › Effacer le nivellement* supprime tout le nivellement des tâches. Le bouton est gris tant qu'il n'y a pas de nivellement. La surallocation qui réapparaît ainsi est normale : elle était simplement masquée par le nivellement.
+- *Ressources › Nivellement › Effacer le nivellement* supprime tout le nivellement des tâches. Le bouton est grisé tant qu'il n'y a pas de nivellement. La surallocation qui revient ainsi est simplement de nouveau là.
 - Si vous avez modifié le planning depuis, choisissez simplement *Niveler…* à nouveau. L'application repart alors de zéro : les anciens retards ne comptent pas.
 
 ## Pièges et ce que fait l'application alors

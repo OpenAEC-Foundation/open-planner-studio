@@ -12,9 +12,9 @@ Wszystkie kombinacje klawiszy aplikacji, pogrupowane tak jak w oknie *Skróty kl
 
 **Gdy klawisz nie działa.** Każdy wpis podaje swoje ograniczenia. Te trzy reguły obowiązują prawie wszędzie:
 
-- W polu wpisywania, na liście rozwijanej lub w polu tekstowym aplikacja nie przechwytuje klawiszy, więc wystarczy pisać. Wyjątki: F5, Ctrl+S, F11 i Esc podczas prezentacji działają też w polu. W gotowej aplikacji (aplikacja desktopowa i wersja internetowa na stronie) dotyczy to również Ctrl+Shift+S, Ctrl+O i Ctrl+N.
-- Gdy otwarte jest okno dialogowe lub inne okno, klawisze oznaczone poniżej jako *Nie w dialogu* nie działają. Dotyczy to również trybu prezentacji, przewodnika po aplikacji, okna powitalnego oraz pytań, które czekają na odpowiedź, na przykład zgody przy instalowaniu rozszerzenia.
-- Przełączanie dokumentów (Ctrl+1 do 9, Ctrl+N, Ctrl+O) również nie działa, dopóki *Plik › Info o projekcie* zawiera zmiany, których nie potwierdziłeś przyciskiem *Zastosuj*. Najpierw je odrzuć albo zastosuj.
+- W polu wpisywania, na liście rozwijanej lub w polu tekstowym aplikacja nie przechwytuje klawiszy, więc wystarczy pisać. Wyjątki: F5, Ctrl+S, F11 i Esc podczas prezentacji działają też w polu. Jeśli fokus jest na zamkniętej liście rozwijanej, działają też klawisze z Ctrl, na przykład Ctrl+Z po wyborze (nie Ctrl+Delete i Ctrl+Backspace). Nie dotyczy to otwartej listy ani okna dialogowego. W gotowej aplikacji (aplikacja desktopowa i wersja internetowa na stronie) dotyczy to również Ctrl+Shift+S, Ctrl+O i Ctrl+N.
+- Gdy otwarte jest okno dialogowe lub inne okno, klawisze oznaczone poniżej jako *Nie w dialogu* nie działają. Dotyczy to również przewodnika po aplikacji, okna powitalnego oraz pytań, które czekają na odpowiedź, na przykład pytania, czy zapisać zmiany, i zgody przy instalowaniu rozszerzenia. Większość tych klawiszy nie działa też w trybie prezentacji. Wyjątek: klawisze edycji Ctrl+C, Ctrl+V, Ctrl+Z, Ctrl+Y oraz Delete/Backspace działają podczas prezentacji.
+- Przełączanie dokumentów (Ctrl+1 do 9, Ctrl+N, Ctrl+O) również nie działa, dopóki *Plik › Ustawienia projektu* zawiera zmiany, których nie potwierdziłeś przyciskiem *Zastosuj*. Najpierw je odrzuć albo zastosuj.
 
 ## Plik
 
@@ -24,23 +24,23 @@ Wszystkie kombinacje klawiszy aplikacji, pogrupowane tak jak w oknie *Skróty kl
 
 **Ctrl+Shift+S** — *Zapisz jako*: pyta, gdzie ma zostać zapisany plik. W wersji deweloperskiej nie działa w polu wpisywania.
 
-**Ctrl+O** — *Otwórz*: otwiera plik, zwykle w nowej karcie. Nie w dialogu i nie przy niezastosowanych zmianach w info o projekcie.
+**Ctrl+O** — *Otwórz*: otwiera plik, zwykle w nowej karcie. Nie w dialogu i nie przy niezastosowanych zmianach w ustawieniach projektu.
 
-**Ctrl+N** — *Nowy projekt*: otwiera okno *Nowy projekt*. Nie w dialogu i nie przy niezastosowanych zmianach w info o projekcie.
+**Ctrl+N** — *Nowy projekt*: otwiera okno *Nowy projekt*. Nie w dialogu i nie przy niezastosowanych zmianach w ustawieniach projektu.
 
 W gotowej aplikacji (aplikacja desktopowa i wersja internetowa na stronie) blokuje się również kilka klawiszy przeglądarki, żeby nie przeszkadzały: Ctrl+R i Ctrl+Shift+R (ponowne wczytanie), F12, Ctrl+Shift+I i Ctrl+Shift+J (narzędzia deweloperskie), Ctrl+U (podgląd kodu źródłowego) oraz Ctrl+G, Ctrl+F i Ctrl+L (wyszukiwanie i pasek adresu). Ctrl+S, Ctrl+Shift+S, Ctrl+O, Ctrl+N i F5 trafiają do samej aplikacji.
 
 ## Edycja
 
-**Ctrl+C** — *Kopiuj*: kopiuje zaznaczone zadania. Tylko przy zaznaczeniu. W tabeli zadań Ctrl+C kopiuje zaznaczone komórki; tabela obsługuje to sama.
+**Ctrl+C** — *Kopiuj*: kopiuje zaznaczone zadania. Tylko przy zaznaczeniu. Nie w dialogu. Nie na karcie *Plik*, nie na kartach *Raport* i *IFC* oraz nie przy otwartym pełnym panelu zasobów. W tabeli zadań Ctrl+C kopiuje zaznaczone komórki; tabela obsługuje to sama.
 
-**Ctrl+V** — *Wklej*: wkleja skopiowane zadania. W tabeli zadań wkleja komórki.
+**Ctrl+V** — *Wklej*: wkleja skopiowane zadania. Nie w dialogu. Nie na karcie *Plik*, nie na kartach *Raport* i *IFC* oraz nie przy otwartym pełnym panelu zasobów, bo tabela zadań nie jest tam widoczna. W tabeli zadań wkleja komórki.
 
-**Ctrl+Z** — *Cofnij*.
+**Ctrl+Z** — *Cofnij*. Nie w dialogu: najpierw zamknij okno.
 
-**Ctrl+Y** lub **Ctrl+Shift+Z** — *Ponów*: powtarza to, co cofnąłeś.
+**Ctrl+Y** lub **Ctrl+Shift+Z** — *Ponów*: powtarza to, co cofnąłeś. Nie w dialogu.
 
-**Delete** lub **Backspace** — *Usuń*: usuwa zaznaczone zadania. Tylko przy zaznaczeniu. W komórce tabeli zadań Delete i Backspace tylko czyszczą zawartość komórki (zobacz sekcję *Tabela*).
+**Delete** lub **Backspace** — *Usuń*: usuwa zaznaczone zadania. Tylko przy zaznaczeniu. Nie w dialogu. Nie na karcie *Plik*, nie na kartach *Raport* i *IFC* oraz nie przy otwartym pełnym panelu zasobów, bo tabela zadań nie jest tam widoczna. W komórce tabeli zadań Delete i Backspace tylko czyszczą zawartość komórki (zobacz sekcję *Tabela*).
 
 **F2** — *Edytuj...*: otwiera okno zadania dla pierwszego zaznaczonego zadania. Tylko przy zaznaczeniu. Nie w dialogu. W komórce tabeli zadań F2 rozpoczyna edycję komórki.
 
@@ -68,7 +68,7 @@ Wcięcie, zmniejszenie wcięcia i wstawianie nad lub pod zaznaczonym zadaniem dz
 
 ## Widok
 
-**F11** — *Prezentacja*: włącza lub wyłącza tryb prezentacji. Aplikacja prosi też przeglądarkę lub okno o pełny ekran. Działa też w polu wpisywania.
+**F11** — *Prezentacja*: włącza lub wyłącza tryb prezentacji. Aplikacja prosi też przeglądarkę lub okno o pełny ekran. Działa też w polu wpisywania. W przeglądarce F11 nie uruchamia prezentacji: przeglądarka sama ustawia okno na pełny ekran, a aplikacja zostaje taka sama. F11 zatrzymuje działającą prezentację w przeglądarce.
 
 **Esc** (podczas prezentacji) — *Zamknij prezentację*. Działa też w polu wpisywania. Ma pierwszeństwo przed *Usuń zaznaczenie*.
 
@@ -96,7 +96,7 @@ Wcięcie, zmniejszenie wcięcia i wstawianie nad lub pod zaznaczonym zadaniem dz
 
 **F1** — *Otwórz pomoc*: otwiera *Plik › Pomoc*. Nie w polu wpisywania i nie w dialogu. W oknie użyj znaku zapytania w prawym górnym rogu: otwiera on pomoc o artykule dotyczącym tego okna (zobacz [Wstążka, karta po karcie](docs://ref-lint), w sekcji *Pomoc*).
 
-**Ctrl+1** do **Ctrl+9** — *Przełącz dokument*: przechodzi do pierwszego do dziewiątego otwartego dokumentu. Jeśli dany dokument nie istnieje, nic się nie dzieje. Nie w dialogu i nie przy niezastosowanych zmianach w info o projekcie.
+**Ctrl+1** do **Ctrl+9** — *Przełącz dokument*: przechodzi do pierwszego do dziewiątego otwartego dokumentu. Jeśli dany dokument nie istnieje, nic się nie dzieje. Nie w dialogu i nie przy niezastosowanych zmianach w ustawieniach projektu.
 
 **Ctrl+Home** — *Przejdź do dziś*: przewija oś czasu tak, aby data była po lewej stronie widoku. To data statusu, jeśli ją ustawiłeś, a w przeciwnym razie dzisiaj. Etykieta mówi więc „dziś”, nawet gdy oś czasu przeskoczy do daty statusu. Powiększenie i początek osi czasu zostają bez zmian. Gdy komórka tabeli zadań ma fokus, Ctrl+Home przechodzi zamiast tego do pierwszej komórki tabeli (zobacz sekcję *Tabela*).
 

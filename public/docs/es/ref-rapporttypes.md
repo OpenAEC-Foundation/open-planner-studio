@@ -10,11 +10,11 @@ Abra la pestaña *Informe* (o pulse Ctrl+P). A la izquierda está la columna *In
 
 **Exportar PDF** — crea el PDF. Efecto: el resultado es solo un PDF; la aplicación no envía nada a una impresora. Si la planificación no está actualizada, la aplicación calcula primero. Si el cálculo da un error, por ejemplo por un bucle en las relaciones, el botón no crea ningún archivo y muestra el error. Dónde: *Informe*, en la parte inferior de la columna *Informe*.
 
-**Recordado.** La aplicación guarda todas las opciones de informe en este dispositivo, para todos sus proyectos. No forman parte del archivo del proyecto. Solo el campo *Empresa*: del diagrama de Gantt no se guarda.
+**Recordado.** La aplicación guarda todas las opciones de informe en este dispositivo, para todos sus proyectos. No forman parte del archivo del proyecto. Solo el campo *Empresa:* del diagrama de Gantt no se guarda.
 
-**Planificación actual.** Los informes usan el último cálculo. Si la planificación cambió desde entonces, los informes de tabla muestran arriba *El cronograma cambió desde el último cálculo — pulse Calcular (F5) para valores actuales*. Si nunca se ha calculado, dice *Aún no calculado — pulse Calcular (F5) para fechas y holguras*. Si el proyecto está en la vista *Fechas tal como se registraron*, los informes muestran las fechas del archivo de origen, y una franja lo indica.
+**Cronograma actual.** Los informes usan el último cálculo. Si la planificación cambió desde entonces, los informes de tabla muestran arriba *El cronograma cambió desde el último cálculo — pulse Calcular (F5) para valores actuales*. Si nunca se ha calculado, dice *Aún no calculado — pulse Calcular (F5) para fechas y holguras*. Si el proyecto está en la vista *Fechas tal como se registraron*, los informes muestran las fechas del archivo de origen, y una franja lo indica.
 
-**Abreviaturas.** *dl* son días laborables. *TF* es holgura total, *FF* holgura libre.
+**Abreviaturas.** *dl* son días laborables. *TF* es holgura total, *FF* es holgura libre.
 
 ## Papel y orientación
 
@@ -24,21 +24,21 @@ Abra la pestaña *Informe* (o pulse Ctrl+P). A la izquierda está la columna *In
 
 ## Diagrama de Gantt
 
-La planificación como gráfico de barras, con una tabla a la izquierda y una escala de tiempo a la derecha, en varias páginas si hace falta. La vista previa muestra el papel con encabezado de página, tabla, escala de tiempo y leyenda. El bloque *Resumen* cuenta *Tareas:*, *Tareas hoja:*, *Críticas:* y *Relaciones:*. Todas las opciones están en *Configuración*.
+La planificación como gráfico de barras, con una tabla a la izquierda y una escala de tiempo a la derecha, en varias páginas si hace falta. La vista previa muestra el papel con encabezado de página, tabla, escala de tiempo y leyenda. El bloque *Resumen* cuenta *Tareas:*, *Tareas hoja:*, *Crítica:* y *Relaciones:*. Todas las opciones están en *Configuración*.
 
-**Empresa:** — la empresa en el encabezado de página. Predeterminado: la empresa de la información del proyecto. Efecto: solo el encabezado del informe; lo que escribe aquí no se guarda. Cambie la empresa en *Configuración › Proyecto › Info del proyecto*, en el campo *Cliente/organización*, y confirme con *Aplicar*.
+**Empresa:** — la empresa en el encabezado de página. Predeterminado: la empresa de los ajustes del proyecto. Efecto: solo el encabezado del informe; lo que escribe aquí no se guarda. Cambie la empresa en *Configuración › Proyecto › Ajustes del proyecto*, en el campo *Cliente/organización*, y confirme con *Aplicar*.
 
-**Autor:** — el autor en el encabezado de página. Solo lectura: la aplicación lo toma de la información del proyecto.
+**Autor:** — el autor en el encabezado de página. Solo lectura: la aplicación lo toma de los ajustes del proyecto.
 
 **Tamaño de fuente:** — tamaño del texto y de la tabla en el informe. Elija entre 90%, 100%, 110% y 125%. Predeterminado: 100%. Efecto: con una fuente más grande, el texto, las filas y la tabla crecen y la escala de tiempo pierde ancho. Es independiente de *Tamaño de texto* en la configuración.
 
-**Colores de barras:** — de qué depende el color de una barra. Elija entre *Ruta crítica*, *Por tarea — automático* y *Por categoría*, con una lista desplegable *Campo de categoría* para *Por categoría*. Predeterminado: *Ruta crítica*. Efecto: es la misma elección que *Colores de barras* en la pestaña *Vista*: si la cambia aquí, el diagrama de Gantt en pantalla cambia también. Si el campo elegido no existe en este proyecto, dice *Este campo no existe en este proyecto. Se usa temporalmente el tipo de tarea*.
+**Colores de barras:** — de qué depende el color de una barra. Elija entre *Ruta crítica*, *Por tarea — automático* y *Por categoría*, con una lista desplegable *Campo de categoría* para *Por categoría*. Predeterminado: *Ruta crítica*. Efecto: es la misma elección que *Colores de barras* en la pestaña *Vista*: si la cambia aquí, el diagrama de Gantt en pantalla cambia también. Si el campo elegido no existe en este proyecto, dice *Este campo no existe en este proyecto. Se usa temporalmente la categoría de trabajo*.
 
 **Línea de estado:** — una línea en la fecha de estado. Elija entre *Ninguna*, *Línea de fecha de estado* y *Línea de progreso*. Predeterminado: *Ninguna*. Efecto: *Línea de fecha de estado* dibuja una línea en la fecha de estado; *Línea de progreso* dibuja la línea en zigzag que se curva hacia el avance de cada tarea. Si el proyecto no tiene fecha de estado, dice *Establezca primero una fecha de estado* y el informe no dibuja nada.
 
 **Seguir la vista (filtro, agrupación, orden)** — solo para el diagrama de Gantt. Predeterminado: desactivado. Efecto: desactivado pone en el papel toda la estructura de tareas. Activado dibuja exactamente las filas de la pantalla: con su filtro, agrupación, orden y fases contraídas.
 
-**Ajuste automático al papel** — ajusta la escala de tiempo al ancho de la página. Predeterminado: activado. Efecto: activado ajusta la escala de tiempo al ancho de la página; el número de páginas depende de la altura. Desactivado usa una escala fija (*Zoom*:) y también reparte las páginas a lo ancho, lo que rápidamente da muchas páginas.
+**Ajuste automático al papel** — ajusta la escala de tiempo al ancho de la página. Predeterminado: activado. Efecto: activado ajusta la escala de tiempo al ancho de la página; el número de páginas depende de la altura. Desactivado usa una escala fija (*Zoom:*) y también reparte las páginas a lo ancho, lo que rápidamente da muchas páginas.
 
 **Zoom:** — el valor fijo de la escala. Solo visible si *Ajuste automático al papel* está desactivado. Control deslizante de 1 a 40. Predeterminado: 22. Efecto: un valor mayor hace la escala de tiempo más ancha, así que caben más páginas a lo ancho.
 
@@ -52,21 +52,21 @@ La planificación como gráfico de barras, con una tabla a la izquierda y una es
 
 **Mostrar finalización** — Predeterminado: activado. Efecto: la parte completada de la barra se vuelve gris, como en el diagrama de Gantt, y aparece la columna *Av* en la tabla. Una tarea completada no tiene banda de holgura.
 
-**Truncar nombres de tarea** — Predeterminado: activado. Efecto: activado corta los nombres en la tabla al ancho de *Columna de nombre*. Desactivado deja crecer la columna con el nombre más largo; entonces dice *La columna de nombre se adapta al nombre de tarea más largo*.
+**Truncar nombres de tarea** — Predeterminado: activado. Efecto: activado corta los nombres en la tabla al ancho de *Columna de nombre:*. Desactivado deja crecer la columna con el nombre más largo; entonces dice *La columna de nombre se adapta al nombre de tarea más largo*.
 
 **Columna de nombre:** — el ancho de la columna de nombre. Solo visible si *Truncar nombres de tarea* está activado. Control deslizante de 60 a 400. Predeterminado: 130.
 
 **Mostrar superposición de línea base** — la línea base activa junto a las barras. Predeterminado: desactivado. Efecto: una barra fina en el color de la línea base, debajo de la barra de la tarea, solo para las tareas que están en la línea base.
 
-**Ruta crítica** — Predeterminado: activado. Efecto: solo controla las líneas rojas de relación entre dos tareas críticas y la línea de la leyenda. Las barras mismas siguen a *Colores de barras*, sin importar esta casilla.
+**Ruta crítica** — Predeterminado: activado. Efecto: solo controla las líneas rojas de relación entre dos tareas críticas y la línea de la leyenda. Las barras mismas siguen a *Colores de barras:*, sin importar esta casilla.
 
-**Mostrar holgura** — Predeterminado: activado. Efecto: la holgura como una franja detrás de las barras no críticas.
+**Mostrar holgura** — Predeterminado: activado. Efecto: la holgura como una banda detrás de las barras no críticas.
 
 **Relaciones** — las líneas de relación. Predeterminado: activado. Efecto: dibuja flechas entre las barras.
 
-**Mostrar solo días laborables** — comprime la escala de tiempo de este informe. Predeterminado: desactivado. Efecto: se omiten fines de semana y festivos, y las franjas de semana sustituyen el sombreado de fin de semana. Es independiente de la misma opción del diagrama de Gantt en pantalla.
+**Mostrar solo días laborables** — comprime el eje de la escala de tiempo en este informe. Predeterminado: desactivado. Efecto: se omiten fines de semana y festivos, y las bandas de semana sustituyen el sombreado de fin de semana. Es independiente de la misma opción del diagrama de Gantt en pantalla.
 
-**Fines de semana** — Predeterminado: activado. Efecto: sombrea los fines de semana y los festivos en la escala de tiempo, siempre que la escala permita distinguir los días. En la escala comprimida (*Mostrar solo días laborables*) esta casilla no tiene efecto.
+**Fines de semana** — Predeterminado: activado. Efecto: sombrea los fines de semana y los festivos en la escala de tiempo, siempre que la escala permita distinguir los días. En el eje comprimido (*Mostrar solo días laborables*) esta casilla no tiene efecto.
 
 **Leyenda** — Predeterminado: activado. Efecto: la leyenda en el pie.
 
@@ -74,7 +74,7 @@ La planificación como gráfico de barras, con una tabla a la izquierda y una es
 
 ## Diagrama de recursos
 
-Las mismas barras que el diagrama de Gantt, agrupadas por recurso: quién hace qué y cuándo. El bloque *Resumen* cuenta *Recursos*, *Asignaciones* y *Sin recurso* (con un período también *Fuera del período*). El diagrama comparte todas las opciones del diagrama de Gantt, salvo *Seguir la vista (filtro, agrupación, orden)*, *Ruta crítica* y *Relaciones*: las filas no vienen de la pantalla, una tarea puede aparecer bajo varios recursos, y las relaciones no se dibujan allí. La casilla *Ruta crítica* está oculta y activada. Estas opciones vienen con las del diagrama de Gantt en *Configuración*, con estas cuatro casillas y el período:
+Las mismas barras que el diagrama de Gantt, agrupadas por recurso: quién hace qué y cuándo. El bloque *Resumen* cuenta *Recursos:*, *Asignaciones:* y *Sin recurso:* (con un período también *Fuera del período:*). El diagrama comparte todas las opciones del diagrama de Gantt, salvo *Seguir la vista (filtro, agrupación, orden)*, *Ruta crítica* y *Relaciones*: las filas no vienen de la pantalla, una tarea puede aparecer bajo varios recursos, y las relaciones no se dibujan allí. La casilla *Ruta crítica* está oculta y activada. Estas opciones vienen con las del diagrama de Gantt en *Configuración*, con estas cuatro casillas y el período:
 
 **Cada recurso en una página nueva** — Predeterminado: desactivado. Efecto: cada recurso empieza en una página nueva, así puede entregar una hoja por cuadrilla o empleado. Desactivado da un solo documento continuo.
 
@@ -84,7 +84,7 @@ Las mismas barras que el diagrama de Gantt, agrupadas por recurso: quién hace q
 
 **Mostrar unidades/día y curva** — Predeterminado: activado. Efecto: dos columnas después del nombre de la tarea, con las unidades por día y la curva de distribución del recurso de esa banda. Si hay poco espacio para la escala de tiempo, el informe deja las columnas fuera y dice *Se omitieron las columnas Unidades/d y Curva: …*; más espacio se consigue con un papel más grande o en horizontal, un tamaño de fuente menor o una tabla más estrecha.
 
-**Periodo del informe:** — solo las tareas que tocan el período. Predeterminado: *Todo el proyecto*. Efecto: el eje de tiempo abarca exactamente el período. Si no hay nada en el período, dice *No hay tareas en el período del informe — elija otro período o Proyecto completo*. Véase *Periodo del informe* más abajo.
+**Periodo del informe:** — solo las tareas que tocan el período. Predeterminado: *Todo el proyecto*. Efecto: el eje de tiempo abarca exactamente el período. Si no hay nada en el período, dice *No hay tareas en el período del informe — elija otro período o Proyecto completo*. Véase *Período del informe* más abajo.
 
 ## Vista general de hitos
 
@@ -114,13 +114,13 @@ El informe contiene las tareas no completadas que son críticas (según el motor
 
 ## Informe de avance
 
-Dónde se encuentra el proyecto en la fecha de estado. Opciones en *Opciones del informe*.
+Cómo va el proyecto en la fecha de estado. Opciones en *Opciones del informe*.
 
-**Periodo del informe:** — Predeterminado: *Último mes*. Efecto: *Completadas en el periodo anterior* cuenta dentro del período. *Empiezan en el próximo periodo* mira hacia delante desde la fecha de estado, hasta *Previsión hasta*; con un período *Último*, llega tan lejos hacia delante como el período mira hacia atrás.
+**Período del informe:** — Predeterminado: *Último mes*. Efecto: *Completadas en el periodo anterior* cuenta dentro del período. *Empiezan en el próximo periodo* mira hacia delante desde la fecha de estado, hasta *Previsión hasta*; con un período *Último*, llega tan lejos hacia delante como el período mira hacia atrás.
 
-**Casi crítico ≤ (dl):** — Predeterminado: 5. Como en la previsión.
+**Casi crítica ≤ (dl):** — Predeterminado: 5. Igual que en la previsión.
 
-El bloque *Resumen* muestra *Fecha de estado*, *Período*, *Previsión hasta*, *Fin de la línea base*, *Fin previsto*, *Δ fin (dl)*, *Planificado* (con *(línea base)* o *(cronograma actual)*), *Real* y los recuentos *Completada*, *En curso*, *No iniciada*, *Atrasadas* y *Crítica*. Planificado y real se ponderan según la duración de las tareas. Planificado se mide contra la línea base si hay una línea base activa; si no, contra la planificación actual. Las secciones son *Completadas en el periodo anterior*, *En curso*, *Empiezan en el próximo periodo*, *Atrasadas* y *Actividades críticas abiertas*; una tarea puede estar en más de una sección.
+El bloque *Resumen* muestra *Fecha de estado*, *Período*, *Previsión hasta*, *Fin de la línea base*, *Fin previsto*, *Δ fin (dl)*, *Planificado* (con *(línea base)* o *(cronograma actual)*), *Real* y los recuentos *Completada*, *En curso*, *No iniciada*, *Atrasadas* y *Crítica*. Planificado y real se ponderan según la duración de las tareas. Planificado se mide contra la línea base si hay una línea base activa; si no, contra el cronograma actual. Las secciones son *Completadas en el periodo anterior*, *En curso*, *Empiezan en el próximo periodo*, *Atrasadas* y *Actividades críticas abiertas*; una tarea puede estar en más de una sección. Todas las secciones tienen las mismas columnas: *WBS*, *Nombre*, *Fin de la línea base*, *Fin previsto*, *Av*, *Rest. (dl)*, *HT (dl)* (TF), *Crítica* y *Estado*. El estado de cada fila es *Completada*, *En curso*, *No iniciada*, *Debió empezar* o *Debió terminar*.
 
 ## Salud de la planificación
 
@@ -149,7 +149,7 @@ Cuenta las tareas hoja no completadas, sin hitos ni hamacas, y las relaciones qu
 - *Fechas no válidas*: un inicio real o un fin real posterior a la fecha de estado, o un inicio previsto o un fin previsto anterior a la fecha de estado. Umbral: ninguno. Requiere una fecha de estado.
 - *Recursos*: tareas sin recurso. Umbral: ninguno. Solo si el proyecto usa recursos. Si no, n/a.
 - *Tareas incumplidas*: de las tareas que la línea base indica que deben terminar en la fecha de estado o antes, la proporción que termina más tarde o que tiene un fin previsto más tardío. Umbral: como máximo 5%. Requiere una fecha de estado y una línea base activa.
-- *Prueba de la ruta crítica*: la aplicación alarga una tarea crítica en 100 días laborables y recalcula, en una copia, sin cambiar el proyecto. La prueba se cumple si la última tarea del proyecto no termina antes que esa tarea. Se prueba la tarea crítica no completada con el inicio temprano. El detalle indica el nombre de la tarea y cuántos días laborables se desplazó el fin.
+- *Prueba de la ruta crítica*: la aplicación alarga una tarea crítica en 100 días laborables y recalcula, en una copia, sin cambiar el proyecto. La prueba se cumple si la última tarea del proyecto no termina antes que esa tarea. Se prueba la tarea crítica no completada con el inicio temprano. El detalle indica el nombre de la tarea y cuántos días laborables se desplazó el fin. En la vista *Fechas tal como se registraron* esta prueba es n/a (*no calculado*): la prueba necesita un cálculo, y el informe muestra entonces las fechas del archivo de origen. Pulse Calcular (F5) y la prueba se vuelve a ejecutar.
 - *CPLI*: (longitud de la ruta crítica + holgura) / longitud de la ruta crítica. La longitud cuenta los días laborables desde la fecha de estado hasta el fin de la última tarea. La holgura es la diferencia con el fin de la línea base de esa tarea. Si la tarea no está en la línea base, es la holgura calculada. Umbral: como mínimo 0,95. Requiere una fecha de estado.
 - *BEI* (índice de ejecución de la línea base): el número de tareas completadas en la fecha de estado, dividido entre la suma de las tareas que la línea base indica que debían estar completadas para entonces y las tareas sin línea base. Umbral: como mínimo 0,95. Requiere una fecha de estado y una línea base activa.
 
@@ -161,7 +161,7 @@ Las comprobaciones siguen este orden, con su gravedad. Error: *Holgura negativa*
 
 Por recurso, por semana o por mes: lo que se requiere frente a lo disponible. Las opciones están en *Opciones del informe*.
 
-**Periodo del informe:** — Predeterminado: *Todo el proyecto*. Efecto: cada semana o mes que toca el período se incluye por completo. Así, una fila muestra el mismo número que el histograma.
+**Período del informe:** — Predeterminado: *Todo el proyecto*. Efecto: cada semana o mes que toca el período se incluye por completo. Así, una fila muestra el mismo número que el histograma.
 
 **Agregación:** — Elija entre *Semanal* y *Mensual*. Predeterminado: *Semanal*. Efecto: una fila por semana natural (columna *Semana del*, con el lunes) o por mes natural (columna *Mes*).
 
@@ -173,11 +173,11 @@ Las columnas son *Recurso*, *Tipo*, *Semana del* o *Mes*, *Requerido*, *Disponib
 
 Por recurso, las tareas a las que está asignado: ¿qué hace esta cuadrilla o esta grúa? Las opciones están en *Opciones del informe*.
 
-**Periodo del informe:** — Predeterminado: *Todo el proyecto*. Efecto: con un período, solo se incluyen las asignaciones de tareas que tocan el período, más el trabajo atrasado de antes del día de referencia. *Todo el proyecto* no filtra por fecha.
+**Período del informe:** — Predeterminado: *Todo el proyecto*. Efecto: con un período, solo se incluyen las asignaciones de tareas que tocan el período, más el trabajo atrasado de antes del día de referencia. *Todo el proyecto* no filtra por fecha.
 
 **Incluir tareas completadas** — Predeterminado: desactivado. Efecto: con la opción activada, también se incluyen las asignaciones de tareas completadas.
 
-Las filas se agrupan por recurso y, dentro de cada recurso, se ordenan por inicio. El bloque *Resumen* cuenta *Recursos*, *Asignaciones* y *Tareas sin recurso*. Las columnas incluyen el recurso, la tarea, el inicio y el fin, *Rest. (dl)*, *Uds./día*, *Av*, *Crítica* y *Estado*.
+Las filas se agrupan por recurso y, dentro de cada recurso, se ordenan por inicio. El bloque *Resumen* cuenta *Recursos*, *Asignaciones* y *Tareas sin recurso*. Las columnas son *Recurso*, *Tipo*, *WBS*, *Nombre*, *Inicio*, *Fin*, *Rest. (dl)*, *Uds./día*, *Av*, *Crítica* y *Estado*. *Recurso* y *Tipo* aparecen solo en la primera fila de un recurso. El estado de cada fila es el mismo que en el informe de avance: *Completada*, *En curso*, *No iniciada*, *Debió empezar* o *Debió terminar*.
 
 ## Resumen de WBS
 

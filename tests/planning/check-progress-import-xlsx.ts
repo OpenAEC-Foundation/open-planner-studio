@@ -706,6 +706,37 @@ function planFor(sheet: ProgressSheet, tasks: readonly Task[]) {
 }
 
 {
+  // #405 deel 5 — Nederlandse notatie in een `.xlsx`. Excel met NL-instellingen bewaart een getypte
+  // datum als serieel getal (de round-trip hierboven), maar een cel die als TEKST is ingevoerd of
+  // geplakt blijft tekst: "17-02-2026", "2026-02-24" en "33,3". Die moeten dezelfde weg gaan als in de
+  // CSV (`sheetValues.ts`). Ook een gewoon getal 33.3 zonder percentage-opmaak is 33,3 %.
+  const textRow = (r: number, id: string, completion: string, start: string, finish: string): string =>
+    `<row r="${r}">${inlineCell(`A${r}`, id)}${inlineCell(`F${r}`, completion)}`
+    + `${start ? inlineCell(`G${r}`, start) : ''}${finish ? inlineCell(`H${r}`, finish) : ''}</row>`;
+  const header = `<row r="1">${SHEET_HEADERS.map((h, i) => inlineCell(`${COLUMN_LETTERS[i]}1`, h)).join('')}</row>`;
+  const bytes = await makeWorkbook({
+    rows: header
+      + textRow(2, 'task-nl-a', '33,3', '17-02-2026', '')
+      + textRow(3, 'task-nl-b', '', '2026-02-18', '2026-02-24')
+      + `<row r="4">${inlineCell('A4', 'task-nl-c')}<c r="F4"><v>33.3</v></c>${inlineCell('G4', '9-2-2026')}</row>`,
+  });
+  const sheet = await parseProgressXlsx(bytes);
+  eq('NL-tekstcellen: geen bestandsprobleem', sheet.fileIssue, undefined);
+  const detection = detectDateOrder(sheet.detectionCells, []);
+  eq('NL-tekstcellen: "17-02-2026" beslist dag-eerst', detection.order, 'dmy');
+  const rows = finalizeProgressRows(sheet, 'dmy');
+  const near = (got: unknown, want: number) => typeof got === 'number' && Math.abs(got - want) < 1e-9;
+  ok('NL-tekstcel "33,3" (komma) ⇒ 0,333',
+    rows[0]?.completion?.kind === 'value' && near(rows[0].completion.value, 0.333));
+  eq('NL-tekstcel "17-02-2026" ⇒ ISO', rows[0]?.actualStart, { kind: 'value', iso: '2026-02-17' });
+  eq('ISO-tekstcel naast dd-mm-jjjj', [rows[1]?.actualStart, rows[1]?.actualFinish],
+    [{ kind: 'value', iso: '2026-02-18' }, { kind: 'value', iso: '2026-02-24' }]);
+  ok('gewoon getal 33.3 zonder percentage-opmaak ⇒ 0,333',
+    rows[2]?.completion?.kind === 'value' && near(rows[2].completion.value, 0.333));
+  eq('"9-2-2026" zonder voorloopnullen ⇒ 2026-02-09', rows[2]?.actualStart, { kind: 'value', iso: '2026-02-09' });
+}
+
+{
   // Grenzen op de rijwaarden: te lang, en met een stuurteken. Beide tellen als AFWEZIG, nooit
   // afgekapt — een afgekapt id kan een andere taak matchen dan de invuller bedoelde.
   const longId = 'x'.repeat(PROGRESS_IMPORT_LIMITS.maxIdChars + 1);

@@ -9,7 +9,7 @@ Le consultant travaille dans MS Project, le client dans Primavera, le sous-trait
 ## Étapes
 
 1. Choisissez *Accueil › Fichier › Exporter* et sélectionnez un format dans la liste, ou choisissez *Fichier › Exporter*. Là, chaque format est une carte avec une courte description.
-2. Dans la fenêtre, choisissez un nom et un emplacement. L'application propose le nom du projet, avec l'extension du format. Les feuilles d'avancement s'appellent *nomduprojet-avancement* et sont enregistrées dans votre dossier de téléchargements si c'est possible.
+2. Dans la fenêtre, choisissez un nom et un emplacement. L'application propose le nom du projet, avec l'extension du format. Les feuilles d'avancement s'appellent *nomduprojet-voortgang* et sont enregistrées dans votre dossier de téléchargements si c'est possible.
 3. Confirmez. Aucun message n'apparaît si l'export réussit, sauf les messages ci-dessous. Depuis *Fichier › Exporter*, vous revenez ensuite à l'onglet *Accueil*, même si vous annulez la fenêtre. Si vous annulez la fenêtre pour un export depuis la liste de l'onglet *Accueil*, il ne se passe rien.
 
 Si votre navigateur n'enregistre que par un téléchargement (comme Firefox), le fichier se trouve dans votre dossier de téléchargements juste après l'étape 1. Vous voyez le message *Enregistré sous forme de téléchargement : 'name.xml' se trouve maintenant dans votre dossier de téléchargements. Cet environnement ne permet pas à l'application d'écrire directement à l'emplacement choisi.*
@@ -22,11 +22,11 @@ La liste de l'onglet *Accueil* et les cartes de *Fichier › Exporter* proposent
 - *CSV (;)*, sur la carte *CSV (séparé par des points-virgules)* : une liste de tâches que vous ouvrez dans un tableur.
 - *MS Project XML* : peut s'ouvrir dans Microsoft Project.
 - *Primavera P6 XML* : pour Oracle Primavera P6.
-- *IFC 4x3* : le format propre à l'application, qui contient tout.
+- *IFC* : le format propre à l'application, qui contient tout, dans le schéma IFC du projet (par défaut IFC 4.3 ADD2).
 
 ### Un export IFC avec un fichier de bibliothèque
 
-Si votre projet est lié à une bibliothèque de ressources, la case *Enregistrer aussi le fichier de bibliothèque* se trouve sous les cartes de *Fichier › Exporter*. Si vous la cochez et choisissez *IFC 4x3*, l'application demande un emplacement deux fois : d'abord pour le projet, puis pour *nomduprojet-bibliotheque.ifc*. Cette case n'est que dans *Fichier › Exporter*, pas dans la liste de l'onglet *Accueil*.
+Si votre projet est lié à une bibliothèque de ressources, la case *Enregistrer aussi le fichier de bibliothèque* se trouve sous les cartes de *Fichier › Exporter*. Si vous la cochez et choisissez *IFC*, l'application demande un emplacement deux fois : d'abord pour le projet, puis pour *nomduprojet-bibliotheek.ifc*. Cette case n'est que dans *Fichier › Exporter*, pas dans la liste de l'onglet *Accueil*.
 
 ### Relire une feuille d'avancement
 

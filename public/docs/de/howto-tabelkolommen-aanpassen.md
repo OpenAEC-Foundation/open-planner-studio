@@ -4,12 +4,12 @@ Ziel: Wählen Sie, welche Spalten Sie in der Vorgangstabelle sehen, in welcher R
 
 ## Wann Sie das brauchen
 
-In der Besprechung möchten Sie den Stichtag und den Gesamtpuffer neben jedem Vorgang sehen. Der Bauleiter will nur den Anfang und das Ende neben dem Namen. Oder eine Spalte ist so schmal, dass ihre Kopfzeile abgeschnitten wird. Die Vorgangstabelle besteht aus Spalten, die Sie selbst wählen: Es gibt Dutzende, von *Vorgangsname* und *Dauer* bis *Stichtag*, *Freier Puffer* und *Zugewiesene Ressourcen*.
+In der Besprechung möchten Sie neben jedem Vorgang den Stichtag und den Gesamtpuffer sehen. Der Bauleiter will nur den Anfang und das Ende neben dem Namen. Oder eine Spalte ist so schmal, dass ihre Kopfzeile abgeschnitten wird. Die Vorgangstabelle besteht aus Spalten, die Sie selbst wählen: Es gibt Dutzende, von *Vorgangsname* und *Dauer* bis *Stichtag*, *Freier Puffer* und *Zugewiesene Ressourcen*.
 
 Es gibt zwei Vorgangstabellen, jede mit eigenen Spalten:
 
 - Die **Vorgangstabelle neben dem Gantt** steht links von der Zeitleiste, unter anderem auf den Registerkarten *Start*, *Planung* und *Ansicht*. Standardmäßig hat sie *PSP*, *Vorgangsname* und *Dauer*, damit für die Zeitleiste Platz bleibt.
-- Die **Tabelle auf der Registerkarte** *Tabelle* nimmt den ganzen Arbeitsbereich ein. Standardmäßig hat sie *PSP*, *Vorgangsname*, *Dauer*, *Anfang*, *Ende*, *Vorgangsart*, *Kritisch*, *Gesamtpuffer* und *Fortschritt*, dazu eine Spalte je Aktivitätscode und benutzerdefiniertem Feld des Projekts.
+- Die **Tabelle auf der Registerkarte** *Tabelle* nimmt den ganzen Arbeitsbereich ein. Standardmäßig hat sie *PSP*, *Vorgangsname*, *Dauer*, *Anfang*, *Ende*, *Arbeitskategorie*, *Kritisch*, *Gesamtpuffer* und *Fortschritt*, dazu eine Spalte je Aktivitätscode und benutzerdefiniertes Feld des Projekts.
 
 Eine Änderung an der einen Tabelle ändert die andere nicht.
 

@@ -41,7 +41,7 @@ Una nuova fase inizia con la data di oggi e 1 unità. Cambia entrambi, altriment
 1. Clicca il cestino nella riga.
 2. Se la risorsa ha assegnazioni, l'app chiede una conferma, per esempio *'Bricklayer' ha 4 assegnazione/i — eliminare?* Clicca la spunta per eliminare o la croce per annullare. Senza assegnazioni la risorsa scompare subito.
 
-Le assegnazioni della risorsa vengono eliminate con essa. Se un'attività ha una regola di lavoro diversa da *Durata e unità fisse*, l'app divide il lavoro della risorsa eliminata tra le risorse rimaste. A seconda della regola, cambiano le unità delle risorse o la durata dell'attività. Se cambia la durata, la pianificazione non è più aggiornata.
+Le assegnazioni della risorsa vengono eliminate con essa. Se un'attività ha un tipo di attività diverso da *Durata e unità fisse*, l'app divide il lavoro della risorsa eliminata tra le risorse rimaste. A seconda del tipo di attività, cambiano le unità delle risorse o la durata dell'attività. Se cambia la durata, la pianificazione non è più aggiornata.
 
 Puoi annullare la creazione, la modifica e l'eliminazione con *Annulla* (Ctrl+Z).
 

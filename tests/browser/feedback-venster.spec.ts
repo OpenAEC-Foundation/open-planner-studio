@@ -10,6 +10,12 @@ const ENDPOINT = 'https://open-feedback-studio.pages.dev/api/feedback';
 const TITLE = 'Balk springt terug';
 const DESCRIPTION = 'Na slepen van de balk staat hij weer op de oude plek.';
 
+declare global {
+  interface Window {
+    __annotationSaveGate?: { started: number; waiting: number; released: number; release: () => void };
+  }
+}
+
 interface Captured {
   contentType: string;
   json: Record<string, unknown> | null;
@@ -178,8 +184,96 @@ test('afdekken: het gebied is egaal in de verstuurde afbeelding', async ({ page,
   await page.locator('.annotator-editor').getByRole('button', { name: 'Cover' }).click();
   // Een vlak over het midden-links van de app (raster en kop: daar staat tekst).
   await dragOnCanvas(page, 0.02, 0.05, 0.45, 0.6);
-  await page.locator('.annotator-editor').getByRole('button', { name: 'Done' }).click();
-  await expect(page.locator('.annotator-editor')).toHaveCount(0);
+  const editor = page.locator('.annotator-editor');
+  // Alleen het losse uitvoercanvas faalt; het tekenvlak en de rest van de app blijven werken.
+  // Elke fout wordt één keer geïnjecteerd, zodat dezelfde bewerking daarna opnieuw kan slagen.
+  for (const failure of ['context', 'image', 'export', 'empty'] as const) {
+    await page.evaluate((failure) => {
+      const proto = HTMLCanvasElement.prototype;
+      if (failure === 'context') {
+        const original = proto.getContext;
+        proto.getContext = function (this: HTMLCanvasElement, ...args: Parameters<typeof original>) {
+          if (!this.isConnected) {
+            proto.getContext = original;
+            return null;
+          }
+          return original.apply(this, args);
+        } as typeof original;
+      } else if (failure === 'image') {
+        const descriptor = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src')!;
+        Object.defineProperty(HTMLImageElement.prototype, 'src', {
+          ...descriptor,
+          set() {
+            Object.defineProperty(HTMLImageElement.prototype, 'src', descriptor);
+            descriptor.set!.call(this, 'data:image/png;base64,broken');
+          },
+        });
+      } else {
+        const original = proto.toDataURL;
+        proto.toDataURL = function () {
+          proto.toDataURL = original;
+          if (failure === 'export') throw new DOMException('Test export failure', 'SecurityError');
+          return 'data:,';
+        };
+      }
+    }, failure);
+    await editor.getByRole('button', { name: 'Done' }).click();
+    await expect(editor.getByRole('alert')).toContainText('Your edits could not be saved.');
+    await expect(editor).toBeVisible();
+    await expect(thumb).toHaveAttribute('src', rawSrc);
+    await expect(dialog.getByRole('button', { name: 'Send', exact: true })).toBeDisabled();
+    expect(seen).toHaveLength(0);
+    await expect(editor.getByTitle('Undo')).toBeEnabled();
+  }
+  // Houd de echte afbeeldingscallback vast: dubbel Klaar, Annuleren en Esc mogen tijdens
+  // het verwerken geen tweede save starten of de editor voortijdig sluiten.
+  await page.evaluate((rawSrc) => {
+    const descriptor = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src')!;
+    const pending: (() => void)[] = [];
+    const gate = {
+      started: 0, waiting: 0, released: 0,
+      release: () => {
+        Object.defineProperty(HTMLImageElement.prototype, 'src', descriptor);
+        for (const callback of pending.splice(0)) { gate.released++; callback(); }
+      },
+    };
+    window.__annotationSaveGate = gate;
+    Object.defineProperty(HTMLImageElement.prototype, 'src', {
+      ...descriptor,
+      set(value: string) {
+        if (value === rawSrc && !this.isConnected) {
+          gate.started++;
+          const onload = this.onload;
+          this.onload = (event: Event) => {
+            gate.waiting++;
+            pending.push(() => onload?.call(this, event));
+          };
+        }
+        descriptor.set!.call(this, value);
+      },
+    });
+  }, rawSrc);
+  const doneBox = await editor.getByRole('button', { name: 'Done' }).boundingBox();
+  const cancelBox = await editor.getByRole('button', { name: 'Cancel' }).boundingBox();
+  if (!doneBox || !cancelBox) throw new Error('Editor-knoppen ontbreken');
+  await page.mouse.dblclick(doneBox.x + doneBox.width / 2, doneBox.y + doneBox.height / 2);
+  await expect.poll(() => page.evaluate(() => ({
+    started: window.__annotationSaveGate?.started, waiting: window.__annotationSaveGate?.waiting,
+  }))).toEqual({ started: 1, waiting: 1 });
+  // Echte muisklik op de inmiddels inert gemaakte Annuleren-knop, zonder Playwright-wacht op enabled.
+  await page.mouse.click(cancelBox.x + cancelBox.width / 2, cancelBox.y + cancelBox.height / 2);
+  await expect(editor).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(editor).toBeVisible();
+  await expect(thumb).toHaveAttribute('src', rawSrc);
+  await expect(dialog.getByRole('button', { name: 'Send', exact: true })).toBeDisabled();
+  expect(seen).toHaveLength(0);
+  // Pas nu mag flatten voltooien. De pixelcontrole hieronder bewijst dat de afdekking is behouden.
+  await page.evaluate(() => window.__annotationSaveGate!.release());
+  await expect(editor).toHaveCount(0);
+  expect(await page.evaluate(() => ({
+    started: window.__annotationSaveGate?.started, released: window.__annotationSaveGate?.released,
+  }))).toEqual({ started: 1, released: 1 });
 
   await dialog.getByRole('button', { name: 'Send', exact: true }).click();
   await expect(dialog.getByText('Thank you, your report has been sent.')).toBeVisible({ timeout: 20_000 });
@@ -483,4 +577,29 @@ test('sluitknop: een soort kiezen is geen inhoud', async ({ page, ops }) => {
     await expect(footer.getByRole('button', { name: 'Save and close' }), `${kind}: met titel`).toBeVisible();
     await expect(header.getByRole('button', { name: 'Save and close' }), `${kind}: met titel (kruisje)`).toBeVisible();
   }
+});
+
+// Echte toetsaanslagen (CDP `Input.dispatchKeyEvent`, wat ook `page.keyboard` gebruikt), maar elke
+// toets direct na de vorige, zonder op de pagina te wachten. Zo typt een snelle typist, en zo liep
+// de CI vast: een extra render per toets bleef open tot de volgende toets. React telde elke toets
+// dan als geneste update en gooide na 50 toetsen "Maximum update depth exceeded"; een teken viel weg.
+async function typeFast(page: Page, text: string) {
+  const cdp = await page.context().newCDPSession(page);
+  const sent: Array<Promise<unknown>> = [];
+  for (const key of text) {
+    sent.push(cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key, text: key, unmodifiedText: key }));
+    sent.push(cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key }));
+  }
+  await Promise.all(sent);
+  await cdp.detach();
+}
+
+test('snel typen: geen teken valt weg en React blijft onder de grens voor geneste updates', async ({ page, ops }) => {
+  void ops;
+  const dialog = await openDialog(page);
+  // Ruim boven de grens van 50: twee keer de omschrijving, 107 tekens.
+  const LONG = `${DESCRIPTION} ${DESCRIPTION}`;
+  await dialog.getByLabel('Description').click();
+  await typeFast(page, LONG);
+  await expect(dialog.getByLabel('Description')).toHaveValue(LONG);
 });

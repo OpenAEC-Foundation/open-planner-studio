@@ -19,9 +19,9 @@ In modalità presentazione la barra multifunzione non c'è più, quindi prepara 
 
 ### Avvia la presentazione
 
-Scegli *Vista › Presentazione › Presentazione*, oppure premi F11. La barra multifunzione, le schede, la barra di stato e il pannello a destra scompaiono. Vedi la tabella attività, il Gantt e, se li hai attivati, l'istogramma e la minimappa. Per alcuni secondi, in basso, compare il testo *Premi Esc o F11 per uscire dalla modalità a schermo intero.*
+Scegli *Vista › Presentazione › Presentazione*. Nell'app desktop puoi anche premere F11. Nel browser F11 è riservato al browser stesso. Il browser passa a schermo intero e l'app resta com'è. La barra multifunzione, le schede, la barra di stato e il pannello a destra scompaiono. Vedi la tabella attività, il Gantt e, se li hai attivati, l'istogramma e la minimappa. Per alcuni secondi, in basso, compare il testo *Premi Esc o F11 per uscire dalla modalità a schermo intero.*
 
-Puoi avviare la presentazione da ogni scheda, anche da *Tabella* o *Rapporto*. Vedi sempre il Gantt del progetto aperto, e quando esci torni alla scheda da cui hai cominciato.
+Nell'app desktop avvii la presentazione da ogni scheda con F11, anche da *Tabella* o *Rapporto*. Nel browser la avvii solo con *Vista › Presentazione › Presentazione*. Vedi sempre il Gantt del progetto aperto. Quando esci torni alla scheda da cui hai cominciato. Nel browser è quindi la scheda *Vista*.
 
 ### Termina la presentazione
 
@@ -33,7 +33,7 @@ Premi Esc o F11. La barra multifunzione e i pannelli tornano sulla scheda da cui
 
 **Le notifiche restano visibili.** Un messaggio dell'app, per esempio un errore di salvataggio, compare anche in modalità presentazione. Altrimenti non c'è né barra multifunzione né barra di stato, quindi un messaggio così è l'unico segnale che qualcosa non va.
 
-**Prepara prima la vista divisa, la minimappa e i layout.** Per questi ti serve la barra multifunzione, che in questa modalità non c'è. Lo zoom funziona, con la rotellina del mouse o con Ctrl+= e Ctrl+-. Anche + e - funzionano, ma solo quando il focus è nel Gantt. Dopo F11 il focus spesso è nella tabella attività, quindi clicca prima nel Gantt.
+**Prepara prima la vista divisa, la minimappa e i layout.** Per questi ti serve la barra multifunzione, che in questa modalità non c'è. Lo zoom funziona, con la rotellina del mouse o con Ctrl+= e Ctrl+-. Anche + e - funzionano, ma solo quando il focus è nel Gantt. Dopo l'avvio il focus spesso è nella tabella attività, quindi clicca prima nel Gantt.
 
 **Lo schermo intero non funziona.** Oltre a nascondere la barra multifunzione, l'app chiede davvero lo schermo intero. Se il browser o la finestra lo rifiuta, scompaiono solo la barra multifunzione e i pannelli. La presentazione funziona comunque. Se esci dallo schermo intero in un altro modo che con Esc o F11, per esempio con un tasto del sistema operativo, anche la modalità presentazione si interrompe.
 

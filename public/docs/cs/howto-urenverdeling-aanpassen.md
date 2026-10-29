@@ -13,7 +13,7 @@ Pracujete s **fázemi**: po sobě jdoucí pracovní dny, ve kterých zdroj pracu
 Příklad je vnější vrstva dutinové zdi: 6 pracovních dnů, jeden zedník, 48 hodin.
 
 1. Vyberte úkol. Panel *Vlastnosti* je vpravo. Pokud ho nevidíte, zapněte ho na kartě *Zobrazení › Panely › Vlastnosti*.
-2. V části *Přiřazení* klikněte na ikonu grafu *Rozložení práce v čase…* vedle zedníka. Otevře se okno *Rozložení hodin do fází*. Začínáte od toho, co aplikace právě eviduje: u této vnější vrstvy dutinové zdi je to jedna fáze o 6 dnech s jednotkami přiřazení 1.
+2. V části *Přiřazení* klikněte na název zedníka. Pod ním se zobrazí *Křivka* a tlačítko *Rozložení práce v čase…*. Klikněte na *Rozložení práce v čase…*. Otevře se okno *Rozložení hodin do fází*. Začínáte od toho, co aplikace právě eviduje: u vnější vrstvy dutinové zdi je to jedna fáze o 6 dnech s jednotkami přiřazení 1.
 3. Pokud je to potřeba, zvolte výchozí bod v poli *Použít tvar:*. Při volbě *Zvonovitý tvar* aplikace vytvoří pět fází: 0,18 jednotky přiřazení v prvním a posledním dni, 0,84 v druhém a pátém dni a 1,98 ve dvou prostředních dnech. Celkem zůstává 48 hodin.
 
 ### Úprava fází
@@ -31,21 +31,21 @@ Zvolte *Použít*. Tlačítko *Zrušit* zavře okno bez změny.
 
 Příklad. Zvolíte *Rozdělit*, nastavíte *Dny* první fáze na 2 a jednotky přiřazení této fáze na 0,5. Druhá fáze pak trvá 4 dny s jednotkami přiřazení 1. Celkem je to 2 × 0,5 × 8 + 4 × 1 × 8 = 40 hodin.
 
-Po kliknutí na *Použít* se průběhová křivka přiřazení nastaví na *Průběhová křivka*, která je neaktivní. *Jedn./den* zůstane beze změny. Histogram a přetížení se hned řídí novým rozložením práce. Přepočítání není potřeba, protože se žádné datum nepohne.
+Po kliknutí na *Použít* se průběhová křivka přiřazení nastaví na volbu *Průběhová křivka*, která je neaktivní. *Jednotky přiřazení* zůstanou beze změny. Vedle názvu se nyní zobrazí ikona sloupcového grafu, a to i tehdy, když je přiřazení sbalené. Histogram a přetížení se hned řídí novým rozložením práce. Přepočítání není potřeba, protože se žádné datum nepohne.
 
 ### Uvolnění rozložení
 
-Pokud má přiřazení vlastní rozložení práce, okno má navíc tlačítko *Uvolnit rozložení*. To odstraní vaše vlastní rozložení práce a aplikace se vrátí k *Jedn./den* a ke křivce. Zvolte to také tehdy, když chcete změnit křivku, protože rozbalovací seznam *Křivka* je neaktivní, dokud existuje vlastní rozložení práce.
+Pokud má přiřazení vlastní rozložení práce, okno má navíc tlačítko *Uvolnit rozložení*. To odstraní vaše vlastní rozložení práce a aplikace se vrátí k poli *Jednotky přiřazení* a ke křivce. Zvolte to také tehdy, když chcete změnit křivku, protože rozbalovací seznam *Křivka* je neaktivní, dokud existuje vlastní rozložení práce.
 
 ## Úskalí a co aplikace udělá
 
 **Celkový součet se mění spolu s tím.** Hodiny nerozdělujete, sami je určujete. Když nastavíte fázi na 0,5 místo 0,18, celkový součet vzroste. Celkový součet v hodinách je ve spodní části okna. Než kliknete na *Použít*, zkontrolujte jej.
 
-**Co udělají jednotky přiřazení potom, to řídí pravidlo pevné veličiny.** Při pravidle *Pevné trvání a jednotky* jiná *Jedn./den* nic nezmění na rozložení práce. Při pravidle *Pevné trvání a práce* aplikace přepočítá hodiny za den spolu s novými jednotkami přiřazení. Při jednotkách přiřazení 2 místo 1 se každý den zdvojnásobí a zdvojnásobí se i celkový součet (z 32 na 64 hodin). Doba trvání zůstane stejná. Při pravidle *Pevná práce* jednotky mění dobu trvání úkolu. Rozložení práce se pak stlačí nebo protáhne na novou dobu trvání, se stejným celkovým součtem. Při pravidle *Pevné jednotky* jednotky mění i dobu trvání. Celkový součet ve spodní části okna pak zkontrolujte.
+**Co udělají jednotky přiřazení potom, to řídí typ úkolu.** Při typu úkolu *Pevné trvání a jednotky* nezmění jiné *Jednotky přiřazení* nic na rozložení práce. Při typu úkolu *Pevné trvání a práce* aplikace upraví hodiny za den spolu s novými jednotkami přiřazení. Při jednotkách přiřazení 2 místo 1 se každý den zdvojnásobí a zdvojnásobí se i celkový součet (z 32 na 64 hodin). Doba trvání zůstane stejná. Při typu úkolu *Pevná práce* jednotky mění dobu trvání úkolu. Rozložení práce se pak stlačí nebo protáhne na novou dobu trvání, se stejným celkovým součtem. Při typu úkolu *Pevné jednotky* jednotky mění i dobu trvání. Celkový součet ve spodní části okna pak zkontrolujte.
 
-**Když změníte dobu trvání úkolu, rozložení práce se s ní protáhne.** Tvar zůstane stejný. Při pravidle *Pevné trvání a jednotky* a při pravidle *Pevné jednotky* celkový součet roste úměrně době trvání. Když se doba trvání úkolu s vlastním rozložením práce zdvojnásobí ze 4 na 8 pracovních dnů, zdvojnásobí se i celkový součet, z 32 na 64 hodin. Při pravidle *Pevné trvání a práce* a při pravidle *Pevná práce* celkový součet zůstane stejný (32 hodin zůstane 32 hodin) a jednotky přiřazení klesnou.
+**Když změníte dobu trvání úkolu, rozložení práce se s ní protáhne.** Tvar zůstane stejný. Při typu úkolu *Pevné trvání a jednotky* a při typu úkolu *Pevné jednotky* celkový součet roste úměrně době trvání. Když se doba trvání úkolu s vlastním rozložením práce zdvojnásobí ze 4 na 8 pracovních dnů, zdvojnásobí se i celkový součet, z 32 na 64 hodin. Při typu úkolu *Pevné trvání a práce* a při typu úkolu *Pevná práce* celkový součet zůstane stejný (32 hodin zůstane 32 hodin) a jednotky přiřazení klesnou.
 
-**Práce se řídí rozložením práce.** *Práce (zbývá)* se stane součtem vašich fází, a to i při pravidle *Pevná práce*. Doba trvání úkolu se kvůli tomu nemění.
+**Práce se řídí rozložením práce.** *Práce (h)* se stane součtem vašich fází, a to i při typu úkolu *Pevná práce*. Doba trvání úkolu se kvůli tomu nemění.
 
 **Neplatné jednotky.** Prázdné nebo záporné jednotky přiřazení dostanou červený rámeček a *Použít* je pak neaktivní. Fáze s jednotkami přiřazení 0 je povolená. Taková fáze zůstane v rámci doby trvání úkolu.
 

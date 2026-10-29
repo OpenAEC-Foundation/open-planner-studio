@@ -2055,6 +2055,18 @@
     "source": "model",
     "status": "model"
   },
+  "work-category": {
+    "term": "categorie de lucrări",
+    "forms": [
+      "categorie de lucrări",
+      "categorii de lucrări",
+      "categoriei de lucrări",
+      "categoriile de lucrări",
+      "categoria de lucrări"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "ore de lucru",
     "forms": [

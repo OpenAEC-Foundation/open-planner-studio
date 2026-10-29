@@ -39,8 +39,8 @@ const EXTENSION_CATEGORIES: readonly ExtensionCategory[] = [
 
 // GEEN eigen permissielijst hier: `permissions.ts` is de ene bron van waarheid. Een tweede,
 // handgekopieerde lijst raakt uit de pas, en elk installatiepad parseert met mode 'fresh', waarin
-// `parsePermissions` een niet-erkende permissie weigert. `permissions.ts` importeert alleen `./types`
-// en `appLog`, dus dit vormt geen cyclus.
+// `parsePermissions` een niet-erkende permissie weigert. `permissions.ts` laadt geen loader of
+// UI-config (alleen types, appLog en de kale i18next-instantie), dus dit vormt geen cyclus.
 const EXTENSION_PERMISSIONS: readonly ExtensionPermission[] = KNOWN_PERMISSIONS;
 
 const VERSION_PATTERN = /^[0-9]+(?:\.[0-9]+){0,3}$/;

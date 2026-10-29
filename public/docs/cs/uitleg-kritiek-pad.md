@@ -16,7 +16,7 @@ Výpočetní metoda se nazývá **CPM** (Critical Path Method). Proto se oddíl 
 
 ## Jak aplikace počítá
 
-Aplikace sama plán nepřepočítává. Výpočet začíná příkazem **Přepočítat** (F5), například na kartě *Domů › Plán › Přepočítat*. Pokud se od posledního výpočtu něco změnilo, stavový řádek zobrazí hlášku *Zastaralé — přepočítejte (F5)*. Je-li zapnuto *Automaticky přepočítat* (na kartě *Nastavení › Projekt › Nastavení*, na kartě *Plán*, v nadpisu *Přepočítání*), aplikace to udělá sama.
+Aplikace sama plán nepřepočítává. Výpočet začíná příkazem **Přepočítat** (F5), například na kartě *Domů › Plán › Přepočítat*. Pokud se od posledního výpočtu něco změnilo, stavový řádek zobrazí hlášku *Zastaralé — přepočítejte (F5)*. Je-li zapnuto *Automaticky přepočítat* (na kartě *Nastavení › Projekt › Nastavení aplikace*, na kartě *Plán*, v nadpisu *Přepočítání*), aplikace to udělá sama.
 
 Výpočet projde síť dvakrát.
 
@@ -30,30 +30,31 @@ Aplikace pak postupuje zpět, od dokončení projektu k zahájení projektu. U k
 
 ### Celková a volná časová rezerva
 
-Rozdíl mezi pozdními termíny a nejdřívějšími termíny úkolu je jeho **celková časová rezerva**: počet pracovních dnů, o který se může úkol zpozdit nebo později začít, aniž se posune dokončení projektu. Aplikace počítá v pracovních dnech kalendáře úkolu. Víkend ani svátek se nepočítá.
+Rozdíl mezi pozdními a nejdřívějšími termíny úkolu je jeho **celková časová rezerva**: počet pracovních dnů, o který se může úkol zpozdit nebo později začít, aniž se posune dokončení projektu. Aplikace počítá v pracovních dnech kalendáře úkolu. Víkend ani veřejný svátek se nepočítá.
 
-**Volná časová rezerva** je přísnější. Je to rezerva, kterou má úkol, než musí některý z jeho následníků začít později. Tuto rezervu můžete využít, aniž si toho všimne jiný úkol.
+**Volná časová rezerva** je přísnější. Je to časová rezerva, kterou má úkol, dříve než musí některý z jeho následníků začít později. Tuto časovou rezervu můžete využít, aniž si toho všimne jiný úkol.
 
-Celkovou časovou rezervu lze sdílet. Pokud na sebe navazují dva nekritické úkoly, sdílejí stejnou rezervu. Využije-li ji první úkol celou, druhý už žádnou nemá. První úkol pak má celkovou časovou rezervu, ale žádnou volnou. Část celkové časové rezervy, která není volná, se nazývá **rušivá časová rezerva**: když ji využijete, posunou se i úkoly, které za ním následují. Příklad níže to ukazuje na číslech.
+Celkovou časovou rezervu lze sdílet. Pokud na sebe navazují dva nekritické úkoly, sdílejí stejnou časovou rezervu. Využije-li ji první úkol celou, druhý už žádnou nemá. První úkol pak má celkovou časovou rezervu, ale volnou časovou rezervu nemá. Část celkové časové rezervy, která není volná, se nazývá **rušivá časová rezerva**: když ji využijete, posunou se i úkoly, které za ním následují. Příklad níže to ukazuje na číslech.
 
 ### Záporná časová rezerva
 
-Časová rezerva může být také záporná. Stane se to, když má úkol konečný termín nebo omezení, které ukládá nejpozdější datum, a to dříve, než je datum, které aplikace pro úkol určí. Na papíře je úkol už zpožděný a úkol i řetězec před ním se stanou kritickými.
+Časová rezerva může být také záporná. Stane se to, když má úkol konečný termín nebo omezení, které ukládá nejpozdější datum, a to dříve, než je datum, které aplikace pro úkol určí. Na papíře má úkol už zpoždění a úkol i řetězec před ním se stanou kritickými.
 
 ### Kdy je úkol kritický?
 
-Ve výchozím nastavení je úkol kritický, když je jeho celková časová rezerva 0 nebo méně. Změnit to lze na kartě *Nastavení › Projekt › Info o projektu*, v oddílu *Profil výpočtu a možnosti výpočtu*, v poli *Možnosti výpočtu tohoto projektu*. Když kliknete na *Použít*, aplikace plán ihned přepočítá. Tato nastavení patří k souboru projektu, ne k aplikaci.
+Ve výchozím nastavení je úkol kritický, když je jeho celková časová rezerva 0 nebo menší. Změnit to lze na kartě *Nastavení › Projekt › Nastavení projektu*, v oddílu *Profil výpočtu a možnosti výpočtu*, v poli *Možnosti výpočtu tohoto projektu*. Když kliknete na *Použít*, aplikace plán ihned přepočítá. Tato nastavení patří k souboru projektu, ne k aplikaci.
 
-- **Definice kritického úkolu** pomocí *Celková časová rezerva ≤ prahová hodnota* a pole *Prahová hodnota (pracovní dny)*. Prahová hodnota je ve výchozím nastavení 0. Chcete-li si pohlídat rezervu, nastavte například 2: každý úkol s 2 pracovními dny časové rezervy nebo méně se pak počítá jako kritický a zobrazí se červeně.
-- **Označit téměř kritické** s vlastní položkou *Prahová hodnota*, ve výchozím nastavení 2 pracovní dny. Úkol s rezervou větší než 0, ale nejvýše tak velkou, dostane oranžový pruh. Tak je vidět, které úkoly mají téměř žádnou rezervu, aniž by se označovaly jako kritické.
+- **Definice kritického úkolu** pomocí možnosti *Celková časová rezerva ≤ prahová hodnota* a pole *Prahová hodnota (pracovní dny)*. Prahová hodnota je ve výchozím nastavení 0. Chcete-li si pohlídat časovou rezervu, nastavte například 2: každý úkol s 2 pracovními dny časové rezervy nebo méně se pak počítá jako kritický a zobrazí se červeně. Pokud zvolíte možnost *Nejdelší cesta*, je úkol kritický, když leží na nejdelším řetězci k poslednímu dokončení. Jeho časová rezerva pak nehraje roli.
+- **Více cest časové rezervy** očísluje řetězce podle jejich časové rezervy ve sloupci *Cesta časové rezervy*. Cesta 1 je kritická cesta. Viz [Možnosti výpočtu a konvence](docs://ref-rekenopties-en-conventies).
+- **Označit téměř kritické** pomocí vlastní položky *Prahová hodnota*, ve výchozím nastavení 2 pracovní dny. Úkol s časovou rezervou větší než 0, ale nejvýše tak velkou, dostane oranžový pruh. Tak je vidět, které úkoly nemají téměř žádnou časovou rezervu, aniž by se označovaly jako kritické.
 - **Úkoly s otevřeným dokončením jsou kritické**: úkol bez následníka, který ještě není dokončen, se počítá jako kritický. Hodí se jako pojistka proti zapomenutým závislostem (viz níže v části o nesprávných představách).
-- **Výpočet časové rezervy** určuje, zda se celková časová rezerva měří od zahájení úkolu, od jeho dokončení, nebo jako menší z těchto dvou hodnot. Nové projekty mají nastaveno *Automaticky (výchozí)*. Pokud chcete počítat jako Primavera P6, nastaví tlačítko *Použít výchozí možnosti tohoto profilu* tuto volbu na *Časová rezerva dokončení*. U MS Project nastaví stejné tlačítko zpět *Automaticky (výchozí)*: s datem stavu totiž MS Project počítá sám tak.
+- **Výpočet časové rezervy** určuje, zda se celková časová rezerva měří od zahájení úkolu, od jeho dokončení, nebo jako menší z těchto dvou hodnot. Nové projekty mají nastavenou možnost *Automaticky (výchozí)*. Používá-li projekt profil výpočtu Primavera P6 a volba není nastavena na *Časová rezerva dokončení*, zobrazí se v okně *Nastavení projektu* oranžový oddíl; jeho tlačítko nastaví možnost *Časová rezerva dokončení*. U MS Project nastaví stejné tlačítko volbu zpět na možnost *Automaticky (výchozí)*: s datem stavu totiž MS Project počítá sám tak.
 
 ### Kde to uvidíte
 
 Kritické úkoly mají v Gantt diagramu červený pruh. Za nekritickým pruhem je zelený pás až k pozdnímu dokončení úkolu: to je časová rezerva. Pás zapnete nebo vypnete na kartě *Zobrazení › Směrné plány a průběh › Pás časové rezervy*.
 
-U vybraného úkolu uvádí panel *Vlastnosti* všechno v sekci *Výsledek CPM*: nejdřívější a pozdní zahájení a dokončení, celkovou, volnou a rušivou časovou rezervu a to, zda je úkol na kritické cestě. Rezervy všech úkolů vedle sebe jsou ve sloupcích pod nadpisem *Vypočítané* (**+** vpravo v záhlaví tabulky), například *Celková časová rezerva*, *Volná časová rezerva*, *Kritický* a *Téměř kritický*.
+U vybraného úkolu uvádí panel *Vlastnosti* všechno v sekci *Výsledek CPM*: nejdřívější a pozdní zahájení a dokončení, celkovou, volnou a rušivou časovou rezervu a to, zda je úkol na kritické cestě. Časové rezervy všech úkolů vedle sebe jsou ve sloupcích pod nadpisem *Vypočítané* (**+** vpravo v záhlaví tabulky), například *Celková časová rezerva*, *Volná časová rezerva*, *Kritický* a *Téměř kritický*.
 
 Stavový řádek dole počítá kritické úkoly, například *Kritická cesta: 21 úkolů, 45 pracovních dnů*.
 

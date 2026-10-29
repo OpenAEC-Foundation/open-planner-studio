@@ -13,7 +13,7 @@ Continui a pianificare lo stesso tipo di lavorazione: ogni casa ha una fondazion
 1. Costruisci il ramo nel modo in cui vuoi riusarlo: un'attività di riepilogo con sottoattività e le relazioni tra di esse.
 2. Fai clic con il tasto destro su quell'attività di riepilogo e scegli *Salva ramo come modello*. Questa voce di menu compare solo sulle attività con sottoattività.
 
-L'app segnala *Ramo salvato come modello 'Foundation'*. L'app non chiede un nome: il modello prende il nome dell'attività in cima al ramo.
+L'app segnala *Ramo salvato come modello «Foundation»*. L'app non chiede un nome: il modello prende il nome dell'attività in cima al ramo.
 
 ### Inserire un modello
 
@@ -31,9 +31,9 @@ Apri *Pianificazione › Struttura › Modelli* e fai clic sul piccolo cestino a
 
 ### Che cosa contiene un modello
 
-Per ogni attività, un modello conserva il nome, la descrizione, il tipo di attività, se è un cardine e la durata in giorni. Tra le relazioni conserva quelle tra due attività all'interno del ramo, con tipo e ritardo.
+Per ogni attività, un modello conserva il nome, la descrizione, la categoria di lavoro, se è un cardine e la durata in giorni. Tra le relazioni conserva quelle tra due attività all'interno del ramo, con tipo e ritardo. Un ritardo in ore (`4h`) non viene conservato e diventa 0. Un ritardo in giorni lavorativi, giorni di calendario o percentuale viene conservato.
 
-Tutto il resto non viene conservato: date, avanzamento e date effettive, assegnazioni di risorse, codici e campi personalizzati (vedi [Codici e campi personalizzati](docs://howto-codes-en-velden)), il calendario, vincoli e scadenze, la priorità, un tipo di attività personalizzato, per un cardine il suo tipo e la casella *Obbligatoria (contrattuale)*, e le relazioni con attività esterne al ramo. Dopo l'inserimento devi compilare di nuovo questi dati: assegnazioni, codici, calendario e vincoli sono vuoti, e tutte le attività partono dall'inizio del progetto.
+Tutto il resto non viene conservato: date, avanzamento e date effettive, assegnazioni di risorse, codici e campi personalizzati (vedi [Codici e campi personalizzati](docs://howto-codes-en-velden)), il calendario, vincoli e scadenze, la priorità, una categoria di lavoro personalizzata, per un cardine il suo tipo e la casella *Obbligatoria (contrattuale)*, e le relazioni con attività esterne al ramo. Dopo l'inserimento devi compilare di nuovo questi dati: assegnazioni, codici, calendario e vincoli sono vuoti, e tutte le attività partono dall'inizio del progetto.
 
 Un'attività espressa in ore torna come attività in giorni, con la durata convertita in una frazione di giorno lavorativo. Un'attività di 5 ore con un giorno lavorativo di 8 ore diventa 0,625 giorni.
 

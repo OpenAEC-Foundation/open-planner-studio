@@ -12,7 +12,7 @@ Mitä kirjasto on ja mitä projekti siitä ottaa, kerrotaan kohdassa [Resurssiki
 
 ### 1. Liitä projekti kirjastoon
 
-Kirjastoa käytetään vain, jos projekti on liitetty siihen. Ilman liitosta *Resurssit*-paneeli ei näytä vaihtokytkintä *Kirjasto*, *Projekti* ja *Käyttöaste*.
+Kirjastoa käytetään vain, jos projekti on liitetty siihen. Ilman liitosta resurssipaneeli ei näytä vaihtokytkintä *Kirjasto*, *Projekti* ja *Käyttöaste*.
 
 Uudelle projektille:
 
@@ -22,7 +22,7 @@ Uudelle projektille:
 
 Olemassa olevalle projektille:
 
-1. Valitse *Tiedosto › Projektitiedot*.
+1. Valitse *Tiedosto › Projektin asetukset*.
 2. Valitse kohdassa *Kirjasto* haluamasi kirjasto.
 3. Napsauta *Käytä*. Siihen asti alareunassa lukee *Muutoksia ei ole sovellettu. Säilytä ne napsauttamalla Käytä.*
 
@@ -34,7 +34,7 @@ Jos projektissa on jo resursseja, joiden nimi on sama kuin kirjastokohteen, avau
 2. Valitse oikeasta yläkulmasta *Kirjasto*. Taulukon yläpuolella lukee *Tämä muokkaa kirjastoa ja koskee kaikkia projekteja. Tätä ei voi kumota.*
 3. Napsauta *Uusi resurssi kirjastoon*. Taulukon alareunaan tulee tyhjä rivi.
 4. Kirjoita nimi, esimerkiksi *Bricklayer*, ja paina Enter. Resurssi on nyt kirjastossa, ja heti aukeaa tyhjä rivi seuraavaa varten. Kun kirjoittaminen on valmis, paina Esc. Ilman nimeä sovellus ei luo mitään.
-5. Täytä rivin muut kentät. *Tyyppi* on oletuksena *Työvoima*. Kohdassa *Enimmäismäärä* ilmoitetaan, kuinka monta tätä resurssia on yhteensä, esimerkiksi 3 kolmelle muurarille. Käyttöasteen yleiskuva käyttää tätä lukua kapasiteettina. *Normaalihinta/h* on valinnainen. Kenttään *Mitta* voi kirjoittaa vain, kun tyyppi on *Materiaali*. Kohdassa *Kalenteri* valitaan kalenteri kirjastosta tai *+ Resurssikalenteri*, jolla luodaan uusi, katso [Resurssikalenterin asettaminen](docs://howto-resourcekalender-instellen). Sovellus tallentaa nimen, normaalihinnan ja mitan, kun kenttä jätetään, ja muut kentät heti.
+5. Täytä rivin muut kentät. *Tyyppi* on oletuksena *Työvoima*. Kohdassa *Enimmäismäärä* ilmoitetaan, kuinka monta tätä resurssia on yhteensä, esimerkiksi 3, kun muurareita on kolme. Käyttöasteen yleiskuva käyttää tätä lukua kapasiteettina. *Normaalihinta/h* on valinnainen. Kenttään *Mitta* voi kirjoittaa vain, kun tyyppi on *Materiaali*. Kohdassa *Kalenteri* valitaan kalenteri kirjastosta tai *+ Resurssikalenteri*, jolla luodaan uusi, katso [Resurssikalenterin asettaminen](docs://howto-resourcekalender-instellen). Sovellus tallentaa nimen, normaalihinnan ja mitan, kun kenttä jätetään, ja muut kentät heti.
 
 Jokainen muutos kirjastossa siirtyy heti muokkaamattomiin kopioihin avoimissa projekteissa.
 

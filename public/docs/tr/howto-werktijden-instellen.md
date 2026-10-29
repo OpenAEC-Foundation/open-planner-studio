@@ -6,7 +6,7 @@ Amaç: bir takvimin hangi saatlerde çalıştığını haftanın günü bazında
 
 Cuma öğleden sonra çalışılmaz. Ekip 06:00 ile 22:00 arasında iki vardiyada çalışır. Bir gece ekibi vardır. Mola bir saatten kısadır. Yalnızca günlerle planlıyorsanız *Başlangıç (saat)*, *Bitiş (saat)* ve mola yeterlidir ([Takvim oluşturma ve atama](docs://howto-kalender-maken-en-toewijzen)). Saatlerle görev planlıyorsanız uygulama, takvimin **bantları** içinde çalışma dakikalarını sayar. Uygulamada bu bantlara *bant* denir: bant, bir hafta gününde kesintisiz bir çalışma süresidir; iki bant arasındaki boşluk bir moladır. Bunun planlamanız için ne anlama geldiği, [Günler ve saatler](docs://uitleg-dagen-en-uren) bölümünde açıklanır.
 
-Bunun için *Saat planlamasını etkinleştir* seçeneği gerekir ([Saat planlamasını açma](docs://howto-urenplanning-aanzetten)). Saat planlaması olmadan *Çalışma saatleri* bölümünü görmezsiniz.
+Sıradan bir takvime çalışma saati bantları vermek için *Saat planlamasını etkinleştir* seçeneği gerekir ([Saat planlamasını açma](docs://howto-urenplanning-aanzetten)). Takvimde zaten bantlar varsa, örneğin bir MS Project dosyasından geldiyse, *Çalışma saatleri* bölümü her zaman görünür ve bantları saat planlaması kapalıyken de değiştirirsiniz.
 
 ## Adımlar
 
@@ -27,14 +27,14 @@ Her ön ayar şunu yapar:
 ### Haftanın gününe göre çalışma saatlerini ayarlamak
 
 1. *Çalışma saatleri* bölümünde *Haftanın gününe göre ayarla…* öğesine tıklayın. Düğmelerin altında her hafta günü için bir satır belirir. Bu satırda o günün çalışma saatleri yer alır. Takvimde artık haftanın günü başına bantlar vardır. Takvimde bu bantlar zaten varsa bu genel bakış hemen açılır. Düğme o zaman *Çalışma saatlerini gizle* adını taşır ve genel bakışı kapatır.
-2. İki saat alanında her bandın başlangıç ve bitiş saatini ayarlayın.
+2. Her bandın başlangıç ve bitiş saatini iki saat alanında ayarlayın. Saati yazın ve Enter tuşuna basın veya okları kullanın (adım başına 15 dakika). Alanlar ayarlardaki *Saat biçimi* öğesini izler; *13:00* ve *1:00 PM* ikisi de çalışır.
 3. Bir mola eklemek istiyorsanız o gün için **+** (*Bant ekle*) öğesine tıklayın. Bantların saatlerini ayarlayın, böylece aralarında boşluk olsun. Yeni bant 08:00’de başlar ve 16:00’da biter.
 4. Gece yarısını geçen bir bant için *sonraki gün* kutusunu işaretleyin. Bant, başladığı günde sayılır.
 5. Bir bantın arkasındaki çöp kutusuna tıklayarak bandı silin. Bandı olmayan bir gün *Çalışılmayan* olarak görünür.
 6. Pazartesi ile Cuma arasındaki bir gün için kopyalama simgesine (*Tüm iş günlerine kopyala*) tıklayın. Böylece o günün bantları Pazartesi’den Cumaya uygulanır.
-7. Altta *Türetilmiş saat/gün:* bulunur. Bu, uygulamanın buna göre türettiği günlük net saatleri gösterir. *Uygula* öğesine tıklayın.
+7. *Çalışma saatleri* bölümünün üstünde *Standart iş günü* yer alır. Bu, uygulamanın bantlardan türettiği ve hesapta kullandığı gün başına çalışma saatidir. Bantları değiştirdiğinizde sayı hemen güncellenir. Takvimin kendi gün başına saatleri varsa (örneğin Primavera P6’dan), bu özel değer korunur ve dışa aktarımla birlikte gider; bir ön ayar onu değiştirene kadar. Bu özel değer *Standart iş günü* ile farklıysa, sayının hemen altında turuncu bir kutu belirir, örneğin: *Dosyada iş günü 8 sa olarak ayarlı. Bu, MS Project ve P6'ya dışa aktarımda korunur. Orada bir gün 8 sa, burada 10 sa sayılır.* Kutu, bantlar aynı günlük toplamı verdiği anda veya bir ön ayar özel değeri değiştirdiğinde kaybolur. Kutu hesaplamayı değiştirmez. *Uygula* öğesine tıklayın.
 
-**Örnek: Cuma öğleden sonrası boş.** *Haftanın gününe göre ayarla…* öğesine tıklayın. *Cum* için ikinci bandı (13:00 ile 16:00 arası) silin. Cuma artık 5 saat, diğer günler 8 saat var. Türetilmiş saat/gün 8 olarak kalır.
+**Örnek: Cuma öğleden sonrası boş.** *Haftanın gününe göre ayarla…* öğesine tıklayın. *Cum* için ikinci bandı (13:00 ile 16:00 arası) silin. Cuma artık 5 saat, diğer günler 8 saat var. *Standart iş günü* 8 saat olarak kalır.
 
 ### Kendi ön ayarınızı kaydetmek
 
@@ -47,15 +47,15 @@ Kendi ön ayarınız bu cihazda saklanır, proje dosyasında değil.
 
 **Ön ayar her şeyin yerini alır.** Bir ön ayar seçerseniz daha önce ayarladığınız iş günleri ve çalışma saatleri kaybolur. Tatiller kalır.
 
-**Gün düğmeleri ile bantlar iki ayrı şeydir.** *Çalışma günleri* altındaki düğmeler bantları değiştirmez. Bir gün, o gün için *Bant ekle* öğesine tıklanarak çalışma saatleri alır. Bir günü yalnızca düğmeyle açarsanız, o gün görevler için gün olarak sayılır ama saat cinsinden görevler için sayılmaz. Çalışma saatleri olan bir takvimde haftanın günü başına satırları kullanın.
+**Gün düğmeleri bantları değiştirir.** *Çalışma günleri* altında bir günü kapatırsanız, o günün bantları kaybolur. Onu yeniden açarsanız, pencereyi açtığınızdaki bantlarını geri alır (ya da son ön ayardan sonraki bantlarını). Aksi halde ilk iş gününün bantlarını alır. *Pzt–Cum* bunu Pazartesi’den Cumaya yapar ve Cumartesi ile Pazar’ın bantlarını siler. *Sürekli (24/7)* tüm bantların yerini alır: her gün 00:00 ile 24:00 arası.
 
-**Saat planlaması kapalıyken çalışma saatlerini ayarlamak.** Saat planlamasını yeniden kapatırsanız *Başlangıç (saat)*, *Bitiş (saat)* alanları ve mola geri gelir. Bant içeren bir takvimde bu alanlar bantları değiştirmez. Bu yüzden çalışma saatlerini her zaman saat planlaması açıkken ayarlayın.
+**Saat planlaması kapalıyken çalışma saatlerini ayarlamak.** Bant içeren bir takvim, saat planlaması kapalı olsa bile *Çalışma saatleri* bölümünü tutar. Bantları orada basitçe değiştirirsiniz. *Gündüz vardiyası* seçerseniz takvim yeniden sıradan bir takvim olur, *Başlangıç (saat)*, *Bitiş (saat)* alanları ve mola ile birlikte. Bantları geri koymak o zaman yalnızca saat planlaması açıkken mümkündür.
 
 **Kullanılabilir çalışma saati yok.** Bandı veya iş günü olmayan bir takvim, saatlerle ifade edilen bir görevi taşıyamaz. Uygulama o zaman şunu bildirir: *Bu takvimde geçerli çalışma saatleri yok. Çalışma günlerini ve saatlerini kontrol edin.*
 
 ## Ayrıca bakınız
 
-- [Günler ve saatler](docs://uitleg-dagen-en-uren): uygulamanın çalışma saatlerini nasıl saydığı ve günlük net saatleri nasıl türettiği.
+- [Günler ve saatler](docs://uitleg-dagen-en-uren): uygulamanın çalışma saatlerini nasıl saydığı ve standart iş gününü nasıl türettiği.
 - [Saat planlamasını açma](docs://howto-urenplanning-aanzetten): bir görevi saat cinsinden planlamak.
 - [Takvimler ve iş günleri](docs://uitleg-kalenders): hangi takvimin hangi göreve uygulandığı.
 - [Takvim pencereleri](docs://ref-kalenders): takvim pencerelerinin tüm alanları.

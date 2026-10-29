@@ -95,13 +95,13 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
   const tasks = useAppStore((s) => s.tasks);
   const calendar = useAppStore((s) => s.calendar);
   const calendars = useAppStore((s) => s.calendars);
-  const enableHourPlanning = useAppStore((s) => s.ui.enableHourPlanning);
+
   const parseExternalSource = useAppStore((s) => s.parseExternalSource);
   const addExternalLink = useAppStore((s) => s.addExternalLink);
   const updateExternalLink = useAppStore((s) => s.updateExternalLink);
   const existing = tasks.find(task => task.id === taskId)?.externalLinks?.find(link => link.id === linkId);
   const ownerTask = tasks.find(task => task.id === taskId);
-  const ownerHourMode = enableHourPlanning && !!ownerTask
+  const ownerHourMode = !!ownerTask
     && isHourModeCalendar(effectiveCalendarOf(ownerTask, calendar, calendars));
 
   // Alleen pad-refs zijn read-only te parsen (parseExternalSource is Tauri-only).

@@ -1,0 +1,193 @@
+{
+  "date": "2026-10-22T15:14:22.314Z",
+  "baselineCommit": "522589202727a4a519b25b94aed196d844dc6ab8",
+  "sourceSha256": {
+    "src/hooks/useAutoSave.ts": "e92bab69fbf2b48acf002ff6bf65e1783e045a0db2d8096169268f5d590f6500",
+    "src/services/recovery/recoveryDelta.ts": "e4eb2ee2bab03bce001d8d79155c768e63a809a53ec9caacb4c1935c5845e236",
+    "src/services/recovery/recoverySnapshot.ts": "41f3e30aa4eb048669d48f4fa11a7b858c6df75743f268e666f6ba54e5b3ada7",
+    "src/services/recovery/recoverySnapshotInput.ts": "dd14b1af5c26c0847fc8bf5eef8c2d73367f8294ee918fc110605dd154a51f8b",
+    "src/services/recovery/recoverySnapshot.worker.ts": "aa097cd56be10ce7ea323e0e55eda3e74582662280b2861b696158f712da7f6b",
+    "src/services/recovery/recoverySnapshotSerializer.ts": "e1c794ed020d913ce86092cf10eb794ed97e5ace3a05e5bcad960d8a7875735c",
+    "src/services/recovery/recoveryTickQueue.ts": "8e9a27f974c3511bf1dbaf3d522a327d2317771e63a55c0895aec7b867ea5185"
+  },
+  "dirty": "",
+  "commit": "0b071433061c86c50470888b51a8eed9488d0c0e",
+  "browser": "151.0.7922.34",
+  "cpu": "AMD Ryzen 7 3700U with Radeon Vega Mobile Gfx",
+  "logicalCores": 8,
+  "ramGiB": 13.594429016113281,
+  "load": [
+    8.89,
+    5.96,
+    7.12
+  ],
+  "node": "v22.23.4",
+  "dataset": {
+    "seed": "0x5eed",
+    "tasks": 10000,
+    "sequences": 11700,
+    "assignments": 5718,
+    "resources": 8
+  },
+  "cold": {
+    "mode": "worker",
+    "totalTickMs": 1375.8999999985099,
+    "synchronousWriterMs": 0,
+    "senderCloneMs": 87.60000000149012,
+    "longestMainTaskMs": 92,
+    "longTaskCount": 2,
+    "maxFrameGapMs": 66.59999999999991,
+    "heartbeats": 243,
+    "ifcChars": 9111485,
+    "normalizedSha256": "a15b316a460e670d336598712d97c4fabe6d860c7cc221cc7cf67d4b2857f880"
+  },
+  "samples": [
+    {
+      "mode": "sync",
+      "totalTickMs": 956.5999999977648,
+      "synchronousWriterMs": 864.8999999985099,
+      "senderCloneMs": 0,
+      "longestMainTaskMs": 865,
+      "longTaskCount": 2,
+      "maxFrameGapMs": 849.9000000000001,
+      "heartbeats": 2,
+      "ifcChars": 9111485,
+      "normalizedSha256": "a15b316a460e670d336598712d97c4fabe6d860c7cc221cc7cf67d4b2857f880"
+    },
+    {
+      "mode": "worker",
+      "totalTickMs": 1088.199999999255,
+      "synchronousWriterMs": 0,
+      "senderCloneMs": 80.30000000074506,
+      "longestMainTaskMs": 80,
+      "longTaskCount": 2,
+      "maxFrameGapMs": 66.69999999999982,
+      "heartbeats": 184,
+      "ifcChars": 9111485,
+      "normalizedSha256": "a15b316a460e670d336598712d97c4fabe6d860c7cc221cc7cf67d4b2857f880"
+    },
+    {
+      "mode": "worker",
+      "totalTickMs": 1129.8999999985099,
+      "synchronousWriterMs": 0,
+      "senderCloneMs": 100.59999999776483,
+      "longestMainTaskMs": 100,
+      "longTaskCount": 2,
+      "maxFrameGapMs": 83.39999999999964,
+      "heartbeats": 185,
+      "ifcChars": 9111485,
+      "normalizedSha256": "a15b316a460e670d336598712d97c4fabe6d860c7cc221cc7cf67d4b2857f880"
+    },
+    {
+      "mode": "sync",
+      "totalTickMs": 838.4000000022352,
+      "synchronousWriterMs": 725.1000000014901,
+      "senderCloneMs": 0,
+      "longestMainTaskMs": 725,
+      "longTaskCount": 2,
+      "maxFrameGapMs": 716.6999999999998,
+      "heartbeats": 5,
+      "ifcChars": 9111485,
+      "normalizedSha256": "a15b316a460e670d336598712d97c4fabe6d860c7cc221cc7cf67d4b2857f880"
+    },
+    {
+      "mode": "sync",
+      "totalTickMs": 916.3000000007451,
+      "synchronousWriterMs": 825.4000000022352,
+      "senderCloneMs": 0,
+      "longestMainTaskMs": 826,
+      "longTaskCount": 2,
+      "maxFrameGapMs": 816.6999999999989,
+      "heartbeats": 3,
+      "ifcChars": 9111485,
+      "normalizedSha256": "a15b316a460e670d336598712d97c4fabe6d860c7cc221cc7cf67d4b2857f880"
+    },
+    {
+      "mode": "worker",
+      "totalTickMs": 1136.3999999985099,
+      "synchronousWriterMs": 0,
+      "senderCloneMs": 106.5,
+      "longestMainTaskMs": 107,
+      "longTaskCount": 2,
+      "maxFrameGapMs": 99.89999999999964,
+      "heartbeats": 189,
+      "ifcChars": 9111485,
+      "normalizedSha256": "a15b316a460e670d336598712d97c4fabe6d860c7cc221cc7cf67d4b2857f880"
+    },
+    {
+      "mode": "worker",
+      "totalTickMs": 1038.9000000022352,
+      "synchronousWriterMs": 0,
+      "senderCloneMs": 102.89999999850988,
+      "longestMainTaskMs": 103,
+      "longTaskCount": 2,
+      "maxFrameGapMs": 100,
+      "heartbeats": 167,
+      "ifcChars": 9111485,
+      "normalizedSha256": "a15b316a460e670d336598712d97c4fabe6d860c7cc221cc7cf67d4b2857f880"
+    },
+    {
+      "mode": "sync",
+      "totalTickMs": 993.1999999992549,
+      "synchronousWriterMs": 904.6000000014901,
+      "senderCloneMs": 0,
+      "longestMainTaskMs": 905,
+      "longTaskCount": 2,
+      "maxFrameGapMs": 899.8999999999996,
+      "heartbeats": 3,
+      "ifcChars": 9111485,
+      "normalizedSha256": "a15b316a460e670d336598712d97c4fabe6d860c7cc221cc7cf67d4b2857f880"
+    },
+    {
+      "mode": "sync",
+      "totalTickMs": 819.2999999970198,
+      "synchronousWriterMs": 734.0999999977648,
+      "senderCloneMs": 0,
+      "longestMainTaskMs": 735,
+      "longTaskCount": 2,
+      "maxFrameGapMs": 716.6000000000004,
+      "heartbeats": 3,
+      "ifcChars": 9111485,
+      "normalizedSha256": "a15b316a460e670d336598712d97c4fabe6d860c7cc221cc7cf67d4b2857f880"
+    },
+    {
+      "mode": "worker",
+      "totalTickMs": 1479,
+      "synchronousWriterMs": 0,
+      "senderCloneMs": 130,
+      "longestMainTaskMs": 130,
+      "longTaskCount": 2,
+      "maxFrameGapMs": 116.5,
+      "heartbeats": 252,
+      "ifcChars": 9111485,
+      "normalizedSha256": "a15b316a460e670d336598712d97c4fabe6d860c7cc221cc7cf67d4b2857f880"
+    }
+  ],
+  "cloneProbe": [
+    {
+      "prepareMs": 0.10000000149011612,
+      "structuredCloneMs": 198.89999999850988,
+      "tasks": 10000
+    },
+    {
+      "prepareMs": 0,
+      "structuredCloneMs": 181.80000000074506,
+      "tasks": 10000
+    },
+    {
+      "prepareMs": 0.09999999776482582,
+      "structuredCloneMs": 195.69999999925494,
+      "tasks": 10000
+    },
+    {
+      "prepareMs": 0,
+      "structuredCloneMs": 187.79999999701977,
+      "tasks": 10000
+    },
+    {
+      "prepareMs": 0.09999999776482582,
+      "structuredCloneMs": 238.20000000298023,
+      "tasks": 10000
+    }
+  ]
+}

@@ -50,7 +50,7 @@ Con *attenuazione* un'attività non può iniziare più tardi del suo inizio post
 
 ## Esempio svolto: il muratore su due muri
 
-L'esempio è il progetto di esercitazione dei tutorial *House extension*, così com'è subito prima del livellamento nel tutorial 5. Nel tutorial 5 lo fai tu stesso e controlli i numeri. In questo esempio l'intonacatura usa il tipo *Lavoro fisso* e l'intonacatore lavora con unità di 2, come in [Regole di lavoro: durata, unità e lavoro](docs://uitleg-werkregels).
+L'esempio è il progetto di esercitazione dei tutorial *House extension*, così com'è subito prima del livellamento nel tutorial 5. Nel tutorial 5 lo fai tu stesso e controlli i numeri. In questo esempio l'intonacatura usa il tipo *Lavoro fisso* e l'intonacatore lavora con unità di 2, come in [Tipi di attività: durata, unità e lavoro](docs://uitleg-werkregels).
 
 Dopo il solaio alveolare, finito lunedì 28 giugno, il paramento interno (5 giorni lavorativi) e il paramento esterno (6 giorni lavorativi) iniziano entrambi martedì 29 giugno. Entrambi sono assegnati al muratore, con unità di 1 e *Unità max* di 1. Dopo il paramento interno vengono gli elementi del tetto (un'attività con gru di 6 ore) e la copertura (2 giorni lavorativi). I telai aspettano la copertura e il paramento esterno. La consegna è lunedì 30 agosto.
 
@@ -66,14 +66,14 @@ Entrambe le attività hanno priorità 500. I telai delle finestre sono consegnat
 
 Il paramento esterno non può iniziare il 29 giugno. Il primo giorno in cui il muratore è di nuovo libero è martedì 6 luglio. Sono 5 giorni lavorativi dopo l'inizio anticipato, quindi il ritardo di livellamento è 5. Il paramento esterno va ora dal 6 luglio al 13 luglio compreso. I telai iniziano comunque solo il 14 luglio, quindi la consegna resta lunedì 30 agosto. La finestra segnala *Data di fine progetto: invariata (30-08-2027)* e mostra una riga: *Build outer cavity leaf*, inizio vecchio 29-06-2027, inizio nuovo 06-07-2027, *5 g*.
 
-I 5 giorni lavorativi di spostamento sono esattamente il margine del paramento esterno. Per questo *attenuazione* dà qui lo stesso risultato. Il paramento esterno non ha più margine e ora è critico.
+I 5 giorni lavorativi di spostamento sono esattamente il margine del paramento esterno. Per questo *livellamento* dà qui lo stesso risultato. Il paramento esterno non ha più margine e ora è critico.
 
 ### Se i telai non arrivano il 14 luglio
 
 Senza quel vincolo i telai possono iniziare venerdì 9 luglio, e la consegna è mercoledì 25 agosto. Il paramento esterno ha allora solo 2 giorni lavorativi di margine.
 
-- Senza *attenuazione* il paramento esterno si sposta comunque di 5 giorni lavorativi. Ora i telai devono aspettare: iniziano il 14 luglio, 3 giorni lavorativi dopo. Tutto ciò che viene dopo di loro si sposta, e la consegna passa dal 25 agosto al 30 agosto, anch'essa di 3 giorni lavorativi.
-- Con *attenuazione* non si sposta niente. Il paramento esterno non entra nei suoi 2 giorni lavorativi di margine. La finestra mostra il conflitto *Build outer cavity leaf*, 5 giorni, con il motivo *Capacità libera insufficiente entro il margine per risolvere questo conflitto*.
+- Senza *livellamento* il paramento esterno si sposta comunque di 5 giorni lavorativi. Ora i telai devono aspettare: iniziano il 14 luglio, 3 giorni lavorativi dopo. Tutto ciò che viene dopo di loro si sposta, e la consegna passa dal 25 agosto al 30 agosto, anch'essa di 3 giorni lavorativi.
+- Con *livellamento* non si sposta niente. Il paramento esterno non entra nei suoi 2 giorni lavorativi di margine. La finestra mostra il conflitto *Build outer cavity leaf*, 5 giorni, con il motivo *Capacità libera insufficiente entro il margine per risolvere questo conflitto*.
 
 ### E se il paramento esterno ha la priorità
 
@@ -101,5 +101,5 @@ Se imposti *Unità max* del muratore a 2, il muratore non è più sovrassegnato.
 
 - [Risolvere una risorsa sovrassegnata](docs://howto-overbezetting-oplossen): i passi per trovare una risorsa sovrassegnata e livellarla.
 - [Percorso critico e margine](docs://uitleg-kritiek-pad): che cos'è il margine e perché un'attività diventa critica.
-- [Regole di lavoro: durata, unità e lavoro](docs://uitleg-werkregels): come la durata di un'attività si muove insieme alle unità.
+- [Tipi di attività: durata, unità e lavoro](docs://uitleg-werkregels): come la durata di un'attività si muove insieme alle unità.
 - [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): tre torri che hanno bisogno delle stesse squadre e della gru a torre, e che cosa fa il livellamento in quel caso.

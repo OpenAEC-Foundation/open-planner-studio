@@ -22,7 +22,7 @@ Užitočné, keď pracujete v tabuľke úloh.
 
 1. V tabuľke úloh kliknite na úlohu, ktorá ide prvá, teda na predchádzajúcu úlohu.
 2. Podržte Ctrl (⌘ na Macu) a kliknite na úlohu, ktorá ide ďalšia, teda na nasledujúcu úlohu.
-3. Vyberte *Domov › Úlohy › Prepojiť ▾ › Prepojiť vybrané úlohy*. Rovnaké tlačidlo je aj na *Plán › Závislosti*.
+3. Vyberte *Domov › Úlohy › Prepojiť ▾ › Prepojiť vybrané úlohy*. Rovnaké tlačidlo je aj na karte *Plán*, v časti *Závislosti*.
 
 Aplikácia vytvorí závislosť dokončenie-začiatok bez oneskorenia. Uvidíte ju ako šípku v diagrame Gantt a v stĺpci *Predchádzajúce úlohy*. Oznámenie sa zobrazí, len ak aplikácia závislosť odmietne. Tlačidlo funguje len vtedy, keď sú vybrané presne dve úlohy.
 
@@ -42,9 +42,9 @@ Ak stlačíte Esc v okne *Typ závislosti*, nič sa nezaznamená. Pre jednu záv
 
 Užitočné, keď sa pozeráte na jednu úlohu a chcete pridať jej predchádzajúce alebo nasledujúce úlohy.
 
-1. Vyberte úlohu. Panel *Vlastnosti* je na pravej strane. Ak ho nevidíte, zapnite ho cez *Zobrazenie › Panely › Vlastnosti*.
+1. Vyberte úlohu. Panel *Vlastnosti* je na pravej strane. Ak ho nevidíte, zapnite ho v menu *Zobrazenie › Panely › Vlastnosti*.
 2. V bloku *Závislosti* kliknite na *Pridať závislosť*.
-3. Ak druhá úloha ide prvá, ponechajte smer na *Predchádzajúca úloha*, alebo vyberte *Nasledujúca úloha*.
+3. Ak druhá úloha ide prvá, ponechajte smer *Predchádzajúca úloha*, alebo vyberte *Nasledujúca úloha*.
 4. Napíšte časť názvu druhej úlohy. Správnu vyberte šípkami a klávesom Enter, alebo na ňu kliknite.
 5. Vyberte typ (predvolene FS) a podľa potreby vyplňte oneskorenie.
 6. Stlačte Enter, alebo kliknite na značku (*Vytvoriť závislosť*).
@@ -69,14 +69,14 @@ Oneskorenie napíšete do poľa vedľa typu, pri každom spôsobe uvedenom vyš�
 - `3` alebo `3d`: 3 pracovné dni. Víkend sa nepočíta. Aplikácia zobrazí `+3d`.
 - `3ed`: 3 kalendárne dni. Víkend sa počíta, podobne ako pri betóne, ktorý vytvrdne aj v sobotu a v nedeľu.
 - `-1`: predstih. Nasledujúca úloha môže začať o deň skôr, takže úlohy sa prekrývajú.
-- `4h`: 4 hodiny pracovného času; aplikácia to zobrazí ako `+4u`. Ak je predchádzajúca úloha úloha v dňoch v kalendári bez vlastných blokov pracovného času, napríklad v štandardnom kalendári, aplikácia to prevedie na celé pracovné dni, zaokrúhlené na najbližší celý deň: `4h` potom pôsobí ako 1 deň, `2h` ako 0. V kalendári, ktorý má vlastné bloky pracovného času, alebo ak je predchádzajúca úloha hodinová úloha, sa oneskorenie počíta presne v hodinách.
+- `4h`: 4 hodiny pracovného času; aplikácia to zobrazí ako `+4h`. Ak je predchádzajúca úloha úloha v dňoch v kalendári bez vlastných blokov pracovného času, napríklad v štandardnom kalendári, aplikácia to prevedie na celé pracovné dni, zaokrúhlené na najbližší celý deň: `4h` potom pôsobí ako 1 deň, `2h` ako 0. V kalendári, ktorý má vlastné bloky pracovného času, alebo ak je predchádzajúca úloha hodinová úloha, sa oneskorenie počíta presne v hodinách.
 - `50%`: polovica trvania predchádzajúcej úlohy.
 
 Príklad: betón základu musí vytvrdnúť, kým na ňom môže murár pracovať, takže *Pour foundation → Foundation brickwork* dostane závislosť FS s oneskorením `3`. Ak sa zaliatie uskutoční v piatok 18. júna 2027, murivo začne po spustení príkazu **Prepočítať** vo štvrtok 24. júna: pondelok až streda je čakací čas. S `3ed` sa víkend počíta a murivo začne v utorok 22. júna.
 
 ### Nakoniec: prepočítajte
 
-Nová závislosť zatiaľ nepresúva žiadne pruhy. Stavový riadok zobrazí *Zastaralé — prepočítajte (F5)*. Stlačte **Prepočítať** (F5), napríklad cez *Domov › Plán › Prepočítať*. Až potom dostanú nasledujúce úlohy nové dátumy. Ak chcete, aby to aplikácia robila za vás, zapnite *Automatický prepočet* v menu *Nastavenia › Projekt › Nastavenia*, na karte *Plán*.
+Nová závislosť zatiaľ nepresúva žiadne pruhy. Stavový riadok zobrazí *Zastaralé — prepočítajte (F5)*. Stlačte **Prepočítať** (F5), napríklad v menu *Domov › Plán › Prepočítať*. Až potom dostanú nasledujúce úlohy nové dátumy. Ak chcete, aby to aplikácia robila za vás, zapnite *Automatický prepočet* v menu *Nastavenia › Projekt › Nastavenia aplikácie*, na karte *Plán*.
 
 ## Časté chyby a čo aplikácia robí
 

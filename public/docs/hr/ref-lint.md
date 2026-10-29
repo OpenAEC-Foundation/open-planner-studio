@@ -11,22 +11,22 @@ Vrpca na vrhu zaslona ima kartice, a svaka kartica ima grupe gumba. Ovaj članak
 
 ## Datoteka
 
-Klikom na *Datoteka* otvara se vlastiti zaslon (Backstage) koji preuzima radni prostor. Taj zaslon nema vrpcu. *Natrag* ga zatvara. Ako ste nešto promijenili u odjeljku *Podaci o projektu* i to niste primijenili, aplikacija vas prvo pita što s time učiniti.
+Klikom na *Datoteka* otvara se vlastiti zaslon (Backstage) koji preuzima radni prostor. Taj zaslon nema vrpcu. *Natrag* ga zatvara. Ako ste nešto promijenili u odjeljku *Postavke projekta* i to niste primijenili, aplikacija vas prvo pita što s time učiniti.
 
-- **Novo** — otvara prozor *Novi projekt* i zatvara Backstage. Polja su opisana u [Novi projekt i Podaci o projektu](docs://ref-projectinfo).
+- **Novo** — otvara prozor *Novi projekt* i zatvara Backstage. Polja su opisana u [Novi projekt i Postavke projekta](docs://ref-projectinfo).
 - **Otvori** — odabire datoteku i otvara je kao dokument. Zatvara Backstage.
 - **Nedavno** — popis nedavno otvorenih projekata; klik na stavku otvara projekt. Vidljivo samo kada okruženje može ponovno otvoriti datoteke: u aplikaciji za računalo i u preglednicima koji nude pristup datotekama, kao što su Chrome i Edge. U drugim preglednicima gumb postoji, ali stranica ostaje prazna.
 - **Primjeri** — ugrađeni primjeri rasporeda, podijeljeni na *Potpuni prikazni rasporedi* (oznaka *Sve funkcije*) i *Jednostavni primjeri*. Klik otvara jedan u novoj kartici.
 - **Spremi** — zapisuje projekt u datoteku ovog dokumenta. Ako dokument još nema datoteku, prvo odaberete naziv i mjesto. Datoteku koju ste otvorili u drugom formatu osim IFC-a nikad se ne prepisuje; tada *Spremi* traži naziv i mjesto za IFC datoteku.
 - **Spremi kao** — odabire novi naziv ili mjesto i sprema ondje kao IFC.
 - **Izvoz** — kartice po formatu izvoza, s opisom. Klik pretvara projekt i sprema ga te vas vraća na *Početna*. Ako raspored ima ciklus, greška se prikazuje u Backstageu i ostajete tu. Ako je projekt povezan s bibliotekom resursa, ispod se pojavljuje potvrdni okvir *Spremi i datoteku biblioteke*; radi samo za karticu IFC.
-- **Uvoz** — na vrhu kartica *Ažuriraj napredak iz tablice* (onemogućeno bez zadataka), ispod nje uvoznici koje dodaju proširenja.
+- **Uvoz** — na vrhu je kartica *Ažuriraj napredak iz tablice* (onemogućeno bez zadataka), ispod nje su uvoznici koje dodaju proširenja.
 - **Ispis** — gumb *Otvori pregled ispisa* vodi vas na karticu *Izvješće*.
-- **Podaci o projektu** — metapodaci i profil izračuna ovog projekta. Promjene stupaju na snagu tek nakon *Primijeni*. Pogledajte [Novi projekt i Podaci o projektu](docs://ref-projectinfo) i [Profili izračuna i pravila izračuna](docs://uitleg-rekenprofielen).
-- **Postavke** — iste postavke kao u prozoru *Postavke*.
+- **Postavke projekta** — metapodaci i profil izračuna ovog projekta. Promjene stupaju na snagu tek nakon *Primijeni*. Pogledajte [Novi projekt i Postavke projekta](docs://ref-projectinfo) i [Profili izračuna i pravila izračuna](docs://uitleg-rekenprofielen).
+- **Postavke aplikacije** — iste postavke kao u prozoru *Postavke aplikacije*.
 - **Proširenja** — upravljanje i instalacija proširenja; pogledajte [Instaliranje i upravljanje proširenjem](docs://howto-extensie-installeren).
 - **Biblioteka** — upravljanje bibliotekama resursa; pogledajte [Upravljanje bibliotekama resursa i njihovo dijeljenje](docs://howto-bibliotheken-beheren).
-- **Pomoć** — ugrađena dokumentacija, također s tipkom F1. Polje za pretraživanje traži naslove, podnaslove i sam tekst. Članci su u četiri odjeljka: *Lekcije*, *Upute*, *Objašnjenje* i *Referenca*. U odjeljku *Jezik dokumentacije* birate *Prati jezik aplikacije*, *Nederlands* ili *English*. Pomoć postoji samo na nizozemskom i engleskom: ako je aplikacija na nekom drugom jeziku, čitate englesku verziju, uz napomenu. Izbor se pamti na ovom uređaju, odvojeno od jezika aplikacije. Pomoć možete otvoriti i iz prozora ili okna: mnogi prozori i okna *Svojstva*, *Resursi* i *Upozorenja* imaju upitnik gore desno (*Otvori pomoć za ovaj dio*), koji otvara Pomoć o članku za taj prozor ili okno. Ako ste u prozoru unijeli nešto što još nije spremljeno, aplikacija prvo pita: *Spremi*, *Odustani* (odbacuje unos) ili *Natrag* (ostajete u prozoru). Zatim se prozor zatvara i otvara se Pomoć. Nekoliko prozora, kao *Uredi zadatak* i *Uravnoteživanje resursa*, uvijek pita. Bez unosa se Pomoć odmah otvara.
+- **Pomoć** — ugrađena dokumentacija, također s tipkom F1. Polje za pretraživanje traži naslove, podnaslove i sam tekst. Članci su u četiri odjeljka: *Lekcije*, *Upute*, *Objašnjenje* i *Referenca*. U odjeljku *Jezik dokumentacije* birate *Prati jezik aplikacije* ili jezik s popisa. Nizozemski i engleski su izvorni jezici; ostali jezici imaju samo članke koji su već prevedeni. Ako članak nedostaje na vašem jeziku, čitate englesku verziju, uz napomenu. Izbor se pamti na ovom uređaju, odvojeno od jezika aplikacije. Pomoć možete otvoriti i iz prozora ili okna: mnogi prozori i okna *Svojstva*, *Resursi* i *Upozorenja* imaju upitnik gore desno (*Otvori pomoć za ovaj dio*), koji otvara Pomoć o članku za taj prozor ili okno. Ako ste u prozoru unijeli nešto što još nije spremljeno, aplikacija prvo pita: *Spremi*, *Odustani* (odbacuje unos) ili *Natrag* (ostajete u prozoru). Zatim se prozor zatvara i otvara se Pomoć. Nekoliko prozora, kao *Uredi zadatak* i *Uravnoteživanje resursa*, uvijek pita. Bez unosa se Pomoć odmah otvara.
 - **Pokreni obilazak** — zatvara Backstage i pokreće obilazak od koraka 1.
 - **Zatvori projekt** — zatvara aktivni dokument. Ima li nespremljene promjene, aplikacija traži potvrdu.
 
@@ -46,14 +46,14 @@ Klikom na *Datoteka* otvara se vlastiti zaslon (Backstage) koji preuzima radni p
 
 ### Početna › Zadaci
 
-- **Zadatak** — dodaje zadatak pod nazivom *Novi zadatak*, s trajanjem od 5 radnih dana, s početkom na datumu početka projekta. (Ako je *Uključi planiranje u satima* uključeno i *Zadana jedinica za nove zadatke* u odjeljku *Podaci o projektu* je sati, trajanje je 5 sati.) Ako je zadatak odabran i prikaz je obični prikaz stabla, novi zadatak dolazi odmah ispod najnižeg odabranog zadatka (opis: *Novi zadatak odmah ispod odabira*). Bez odabira dolazi na dno (opis: *Novi zadatak na dnu popisa*). S odabirom, ali dok filtrirate, grupirate ili sortirate, također dolazi na dno, a traka ispod vrpce prikazuje *Nije dostupno tijekom filtriranja, grupiranja ili sortiranja*. Novi zadatak postaje jedini odabir, Gantt se pomakne do njega, a naziv možete odmah prepisati u oknu *Svojstva*.
-- **Kontrolna točka ▾** — padajući izbornik koji stavlja kontrolnu točku (trajanje 0) na isto mjesto kao *Zadatak*. *Početna kontrolna točka* i *Završna kontrolna točka* određuju vrstu kontrolne točke; nova kontrolna točka dobiva naziv *Nova kontrolna točka* i vrstu zadatka *Ostalo*. *Inspekcijska točka (obvezna)* stvara završnu kontrolnu točku s vrstom zadatka *Inspekcija* i oznakom *Obvezno (ugovorno)*, s nazivom *Nova inspekcijska točka*.
+- **Zadatak** — dodaje zadatak pod nazivom *Novi zadatak*, s trajanjem od 5 radnih dana, s početkom na datumu početka projekta. (Ako je *Uključi planiranje u satima* uključeno i *Zadana jedinica za nove zadatke* u odjeljku *Postavke projekta* je sati, trajanje je 5 sati.) Ako je zadatak odabran i prikaz je obični prikaz stabla, novi zadatak dolazi odmah ispod najnižeg odabranog zadatka (opis: *Novi zadatak odmah ispod odabira*). Bez odabira dolazi na dno (opis: *Novi zadatak na dnu popisa*). S odabirom, ali dok filtrirate, grupirate ili sortirate, također dolazi na dno. Tada se pojavljuje crvena obavijest da aplikacija ne može staviti zadatak ispod vašeg odabira, s gumbom *Očisti*. Novi zadatak postaje jedini odabir, Gantt se pomakne do njega, a naziv možete odmah prepisati u oknu *Svojstva*.
+- **Kontrolna točka ▾** — padajući izbornik koji stavlja kontrolnu točku (trajanje 0) na isto mjesto kao *Zadatak*. *Početna kontrolna točka* i *Završna kontrolna točka* određuju vrstu kontrolne točke; nova kontrolna točka dobiva naziv *Nova kontrolna točka* i kategoriju radova *Ostalo*. *Inspekcijska točka (obvezna)* stvara završnu kontrolnu točku s kategorijom radova *Inspekcija* i oznakom *Obvezno (ugovorno)*, s nazivom *Nova inspekcijska točka*.
 - **Poveži ▾** — padajući izbornik s četiri fiksne radnje; glavni gumb nikad ne mijenja značenje. Pogledajte *Raspored › Ovisnosti* za te četiri radnje.
-- **Podijeli zadatak** — uključuje ili isključuje način podjele. Uključeno: traka ispod vrpce objašnjava da kliknete na traku na mjestu gdje počinje prekid i da povučete udesno, za njegovu duljinu. Onemogućeno kada Gantt nije vidljiv (na karticama *Tablica*, *IFC* i *Izvješće* te pod punim oknom resursa); opis tada kaže *Dostupno samo kada je Gantt prikaz vidljiv*. Pogledajte [Podjela zadatka](docs://howto-taak-splitsen).
+- **Podijeli zadatak** — uključuje ili isključuje podijeljeni zadatak. Uključeno: traka ispod vrpce objašnjava da kliknete na traku na mjestu gdje počinje prekid i da povučete udesno, za njegovu duljinu. Onemogućeno kada Gantt nije vidljiv (na karticama *Tablica*, *IFC* i *Izvješće* te pod punim oknom resursa); opis tada kaže *Dostupno samo kada je Gantt prikaz vidljiv*. Pogledajte [Podjela zadatka](docs://howto-taak-splitsen).
 
 ### Početna › Izračun
 
-- **Izračunaj** — izračunava raspored: datume, vremensku rezervu, kritični put i opterećenje resursa. To se nikad ne događa samo od sebe, osim ako uključite *Automatsko izračunavanje* (*Postavke*, kartica *Raspored*, naslov *Izračunavanje*). Dok raspored nije ažuran, traka stanja prikazuje *Zastarjelo — ponovno izračunajte (F5)*.
+- **Izračunaj** — izračunava raspored: datume, vremensku rezervu, kritični put i opterećenje resursa. To se nikad ne događa samo od sebe, osim ako uključite *Automatsko izračunavanje* (*Postavke aplikacije*, kartica *Raspored*, naslov *Izračunavanje*). Dok raspored nije ažuran, traka stanja prikazuje *Zastarjelo — ponovno izračunajte (F5)*.
 
 ### Početna › Zumiranje
 
@@ -94,7 +94,7 @@ Možete uključiti oba istodobno; ponovni klik na gumb isključuje tu stranu. Od
 ### Raspored › Struktura
 
 - **Šifre i polja** — otvara prozor *Šifre i polja* za šifre zadatka i prilagođena polja. Pogledajte [Šifre i prilagođena polja](docs://howto-codes-en-velden).
-- **WBS auto** — uključuje ili isključuje automatsko numeriranje WBS šifri. Zadano: isključeno. Uključeno: cijelo stablo se odjednom ponovno numerira, šifre zatim prate svaku promjenu strukture, a polje *WBS šifra* u oknu i u dijaloškom okviru je onemogućeno.
+- **WBS auto** — uključuje ili isključuje automatsko numeriranje WBS šifara. Zadano: uključeno u novom projektu. U otvorenoj datoteci bez ove postavke: uključeno ako je datoteka prazna ili ako se sve šifre već podudaraju s numeriranjem stabla, inače isključeno. Uključeno: cijelo stablo se odjednom ponovno numerira, šifre zatim prate svaku promjenu strukture, a polje *WBS šifra* u oknu i u dijaloškom okviru je onemogućeno.
 - **Ponovno numeriraj WBS** — jednom ponovno numerira WBS šifre prema položaju u stablu (1.2.3). Onemogućeno dok je *WBS auto* uključen.
 - **Predlošci** — padajući izbornik sa spremljenim WBS predlošcima, svaki s brojem zadataka i ovisnosti. Klik umeće predložak ispod odabranog zadatka ili na najvišu razinu bez odabira. Ikona kante briše predložak. Bez predložaka piše kako spremiti jedan (desnom tipkom na zadatak sažetka, *Spremi granu kao predložak*). Pogledajte [Spremanje i umetanje WBS predložaka](docs://howto-wbs-sjablonen).
 - **Uvući** — pretvara odabrane zadatke u podzadatke zadatka ispred njih. Onemogućeno bez odabira i čim filtrirate, grupirate ili sortirate; opis tada kaže *Nije dostupno tijekom filtriranja, grupiranja ili sortiranja*.
@@ -103,7 +103,7 @@ Možete uključiti oba istodobno; ponovni klik na gumb isključuje tu stranu. Od
 ### Raspored › Temeljni planovi i napredak
 
 - **Upravljaj temeljnim planovima…** — otvara prozor za temeljne planove. Pogledajte [Spremanje i upravljanje temeljnim planom](docs://howto-baseline-opslaan-en-beheren).
-- **Datum stanja** — datum do kojeg mjerite napredak. Upišite datum; križić (*Ukloni datum stanja*) ga uklanja. Učinak: napredak se mjeri do tog datuma, a crta datuma stanja i linija napretka u Ganttu nalaze se na tom datumu. Pogledajte [Napredak, datum stanja i temeljni plan](docs://uitleg-voortgang).
+- **Datum stanja** — datum do kojeg mjerite napredak. Upišite datum; križić (*Ukloni datum stanja*) ga uklanja. Ako kalendar projekta ima blokove radnog vremena, aplikacija računa u satima, a pored datuma se pojavljuje polje za vrijeme (MS Project često sprema 17:00). Tada vrijeme ima značenje: 12:00 umjesto 17:00 daje pola dana drugačijeg preostalog posla. Bez blokova radnog vremena aplikacija računa u cijelim danima i nema polja za vrijeme. Učinak: napredak se mjeri do tog datuma, a crta datuma stanja i linija napretka u Ganttu nalaze se na tom datumu. Pogledajte [Napredak, datum stanja i temeljni plan](docs://uitleg-voortgang).
 - **Način praćenja napretka** — izbor između *Retained Logic* i *Progress Override*. Zadano: *Retained Logic*. Učinak: uz *Retained Logic* preostali posao započetog nasljednika slijedi ovisnost; uz *Progress Override* preostali posao počinje na datumu stanja, bez čekanja na prethodnika. Pogledajte [Odabir načina praćenja napretka](docs://howto-voortgangsmodus-kiezen).
 
 U sažetoj vrpci ova tri nalaze se iza jednog gumba sa zastavicom pod nazivom *Temeljni planovi i napredak*.
@@ -152,7 +152,7 @@ Ova grupa je i na karticama *Tablica* i *Izvješće*.
 
 ### Prikaz › Prikazivanje
 
-- **Stupci…**, **Filtar…**, **Grupiranje…** i **Sortiranje…** — vidljivo samo kad je uključeno *Prikaži klasične gumbe prikaza* (*Postavke*, kartica *Napredno*, naslov *Zastarjele funkcije*). Zadano: isključeno. *Stupci…* vodi na karticu *Tablica* i ondje otvara izbornik stupaca. *Filtar…* odmah otvara prozor filtra, sve dok nema spremljenog filtra. Sa spremljenim filtrima otvara izbornik s *Filtar…*, *Obriši* (samo kad je filtar aktivan) i spremljenim filtrima. *Grupiranje…* dopušta dvije razine. *Sortiranje…* dopušta više razina. Gumb svijetli kad je ta postavka prikaza aktivna. U trenutačnoj vrpci to radite gumbima izgleda; pogledajte [Stvaranje i korištenje izgleda](docs://howto-layouts-gebruiken).
+- **Stupci…**, **Filtar…**, **Grupiranje…** i **Sortiranje…** — vidljivo samo kad je uključeno *Prikaži klasične gumbe prikaza* (*Postavke aplikacije*, kartica *Napredno*, naslov *Zastarjele funkcije*). Zadano: isključeno. *Stupci…* vodi na karticu *Tablica* i ondje otvara izbornik stupaca. *Filtar…* odmah otvara prozor filtra, sve dok nema spremljenog filtra. Sa spremljenim filtrima otvara izbornik s *Filtar…*, *Obriši* (samo kad je filtar aktivan) i spremljenim filtrima. *Grupiranje…* dopušta dvije razine. *Sortiranje…* dopušta više razina. Gumb svijetli kad je ta postavka prikaza aktivna. U trenutačnoj vrpci to radite gumbima izgleda; pogledajte [Stvaranje i korištenje izgleda](docs://howto-layouts-gebruiken).
 
 ### Prikaz › Struktura
 
@@ -166,8 +166,8 @@ Ova grupa je i na karticama *Tablica* i *Izvješće*.
 
 ### Prikaz › Prezentacija
 
-- **Prezentacija** — uključuje ili isključuje način prezentacije (za zaustavljanje pritisnite F11 ili Esc): samo Gantt ispunjava zaslon. Pogledajte [Prezentiranje na velikom zaslonu](docs://howto-presentatie).
-- **Podijeljeni prikaz** — dijeli Gantt na dva dijela koji oba počinju s vašim trenutačnim zumiranjem i položajem (podjela 50 posto), ili ga ponovno spaja u jedan. Zadano: isključeno. Pogledajte [Korištenje podijeljenog prikaza i mini-karte](docs://howto-split-view-en-mini-map).
+- **Prezentacija** — uključuje ili isključuje način prezentacije (za zaustavljanje pritisnite Esc; u desktop-aplikaciji i F11): samo Gantt ispunjava zaslon. Pogledajte [Prezentiranje na velikom zaslonu](docs://howto-presentatie).
+- **Podijeljeni prikaz** — dijeli Gantt na dva vremenska prozora koji oba počinju s vašim trenutačnim zumiranjem i položajem (podjela 50 posto), ili ga ponovno spaja u jedan. Zadano: isključeno. Pogledajte [Korištenje podijeljenog prikaza i mini-karte](docs://howto-split-view-en-mini-map).
 - **Mini-karta** — prikazuje ili skriva mini-kartu. Zadano: isključeno. Vaš izbor se pamti.
 
 ### Prikaz › Okna
@@ -176,14 +176,22 @@ Ova grupa je i na karticama *Tablica* i *Izvješće*.
 
 Gumbi *Resursi*, *Usidrenje resursa* i *Histogram* isti su kao na kartici *Resursi*, a *Upozorenja* isto je kao na kartici *Raspored*.
 
+**Desni stupac.** Stupac desno od Gantt prikaza postoji čim je uključeno barem jedno od okana *Svojstva*, *Usidrenje resursa* ili *Upozorenja*. Ako nijedno nije uključeno, stupca nema. Ako cijelo okno preuzme radni prostor, na primjer cijelo okno resursa, stupac nestaje. Jedino dok je aktivna *Tablica* ostaje stupac.
+
+- **Širina** — povucite razdjelnik između radnog prostora i stupca. Jedna širina vrijedi za sva okna u stupcu.
+- **Podjela** — ako su uključena dva okna, povucite granicu između njih. Ako je uključeno jedno, to okno ispunjava cijeli stupac.
+- **Sažmi** — gumb *Sažmi bočnu traku* u zaglavlju sakriva stupac. Uska traka s gumbom *Proširi bočnu traku* vraća ga, s istim oknima kao prije.
+- **Zatvori** — svako okno ima križić u zaglavlju. To je isti prekidač kao gumb na vrpci.
+- **Cijeli panel** — u usidrenju resursa gumb *Cijeli panel* otvara cijelo okno resursa.
+
 ### Prikaz › Temeljni planovi i napredak
 
-Ova grupa ima isti naziv kao grupa na kartici *Raspored*, ali sadrži mogućnosti crtanja Gantt-a.
+Ova grupa ima isti naziv kao grupa na kartici *Raspored*, ali sadrži mogućnosti crtanja Gantt prikaza.
 
 - **Prikaz temeljnog plana** — prikazuje aktivni temeljni plan kao tanku traku ispod svake trake zadatka. Zadano: uključeno. Bez aktivnog temeljnog plana ništa nije vidljivo.
 - **Linija napretka** — crta liniju na datumu stanja koja se za svaki zadatak ispupči do njegovog napretka. Zadano: uključeno. Bez datuma stanja ništa nije vidljivo. Kad je linija napretka uključena, ta linija je ujedno oznaka datuma stanja.
-- **Linija datuma stanja** — crta isprekidanu liniju na datumu stanja. Zadano: uključeno. Vidite je samo kad je linija napretka isključena, jer tada ona zauzima njezino mjesto. Oznaka s datumom u zaglavlju ostaje dok je barem jedna od dviju linija uključena.
-- **Boje traka** — određuje kako se trake boje: *Kritični put* (zadano), *Po zadatku — automatski* ili *Po kategoriji* uz izbor polja. Ako to polje nije u ovom projektu, izbornik kaže da se privremeno koristi *Vrsta zadatka*. Kad nije odabrano *Kritični put*, crveni obrub označava kritični put. Izbor vrijedi i za izvješće.
+- **Linija datuma stanja** — crta isprekidanu liniju na datumu stanja. Zadano: uključeno. Vidite je samo kad je linija napretka isključena, jer tada ona zauzima njezino mjesto. Oznaka s datumom u zaglavlju ostaje dok je barem jedna od dviju linija uključena. Oznaka prati vaš zapis datuma, na primjer 20-09-2006. Ako aplikacija računa u satima, linija i oznaka nalaze se na vremenu dana, a oznaka prikazuje i vrijeme, na primjer 20-09-2006 17:00.
+- **Boje traka** — određuje kako se trake boje: *Kritični put* (zadano), *Po zadatku — automatski* ili *Po kategoriji* uz izbor polja. Ako to polje nije u ovom projektu, izbornik kaže da se privremeno koristi *Kategorija radova*. Ako nije odabrano *Kritični put*, crveni obrub označava kritični put. Izbor vrijedi i za izvješće.
 - **Naglasak resursa** — crta tanku traku u boji resursa ispod svake trake krajnjeg zadatka, podijeljenu razmjerno jedinicama dodjele po danu. Zadano: isključeno.
 - **Pojas vremenske rezerve** — crta zeleni pojas iza nekritične trake, do kasnog završetka zadatka. Zadano: uključeno.
 - **Linije ovisnosti** — prikazuje ili skriva linije ovisnosti među zadacima. Zadano: uključeno. Izbor pripada dokumentu i izgledu.
@@ -192,8 +200,8 @@ Ova grupa ima isti naziv kao grupa na kartici *Raspored*, ali sadrži mogućnost
 
 ### Postavke › Projekt
 
-- **Podaci o projektu** — otvara prozor *Podaci o projektu*: metapodatke projekta i, u odjeljku *Profil izračuna i opcije izračuna*, kako projekt izračunava raspored. Pogledajte [Novi projekt i podaci o projektu](docs://ref-projectinfo).
-- **Postavke** — otvara prozor *Postavke* s karticama *Prikaz*, *Raspored* i *Napredno*. Iste postavke nalaze se pod *Datoteka › Postavke*.
+- **Postavke projekta** — otvara prozor *Postavke projekta*: metapodatke projekta i, u odjeljku *Profil izračuna i opcije izračuna*, kako projekt izračunava raspored. Pogledajte [Novi projekt i postavke projekta](docs://ref-projectinfo).
+- **Postavke aplikacije** — otvara prozor *Postavke aplikacije* s karticama *Prikaz*, *Raspored* i *Napredno*. Iste postavke nalaze se pod *Datoteka › Postavke aplikacije*.
 
 ### Postavke › Kalendar
 
@@ -213,7 +221,7 @@ Kartica *Tablica* prikazuje zadatke kao punu tablicu umjesto Gantt-a. Grupe *Dat
 
 ## IFC
 
-Kartica prikazuje IFC okno u radnom prostoru. Vrpca ovdje nema gumbe, samo redak teksta *IFC 4x3 - Industry Foundation Classes*.
+Kartica prikazuje IFC okno u radnom prostoru. Vrpca ovdje nema gumbe, samo redak teksta *IFC - Industry Foundation Classes, u shemi projekta (zadano IFC 4.3 ADD2)*.
 
 ## Izvješće
 
@@ -223,7 +231,7 @@ Kartica prikazuje IFC okno u radnom prostoru. Vrpca ovdje nema gumbe, samo redak
 
 ## AI
 
-Kartica *AI* postoji samo kad je *Omogući AI način rada* uključeno (*Postavke*, kartica *Napredno*, naslov *AI način rada*). Zadano: isključeno. Isključivanjem se kartica uklanja i most se zaustavlja. AI pomoćnik radi s vašim rasporedom preko MCP mosta koji ovdje pokrenete. Pogledajte [Povezivanje AI pomoćnika (MCP)](docs://howto-ai-assistent-koppelen).
+Kartica *AI* postoji samo kad je *Omogući AI način rada* uključeno (*Postavke aplikacije*, kartica *Napredno*, naslov *AI način rada*). Zadano: isključeno. Isključivanjem se kartica uklanja i most se zaustavlja. AI pomoćnik radi s vašim rasporedom preko MCP mosta koji ovdje pokrenete. Pogledajte [Povezivanje AI pomoćnika (MCP)](docs://howto-ai-assistent-koppelen).
 
 ### AI › Poslužitelj
 
@@ -231,7 +239,7 @@ Kartica *AI* postoji samo kad je *Omogući AI način rada* uključeno (*Postavke
 
 ### AI › Spajanje
 
-- **Port** — port mosta. Zadano: 3877. Može se mijenjati samo kad je status *Isključeno* (opis alata *Moguće je mijenjati samo dok je server zaustavljen*.)
+- **Port** — port mosta. Zadano: 3877. Može se mijenjati samo kad je status *Isključeno* (opis alata *Moguće je mijenjati samo dok je server zaustavljen.*)
 - **Token** — lozinka mosta, skrivena. Mali gumbi *Prikaži token*/*Sakrij token*, *Kopiraj* i *Novi token*. *Novi token* prvo traži potvrdu, jer novi token prekida sve postojeće spojeve. Ako je most pokrenut, ponovno se pokreće s novim tokenom.
 - **Poveži** — prikazuje podatke o spajanju: krajnju točku, token, isječak konfiguracije i upit za spajanje koji zalijepite u svog AI agenta.
 

@@ -9,7 +9,7 @@ El portátil se apagó, la aplicación se bloqueó o la pestaña del navegador f
 ## Pasos
 
 1. Vuelva a iniciar la aplicación. En el navegador, recargue la misma pestaña: la copia de recuperación pertenece a esa pestaña.
-2. Si la aplicación encuentra copias, aparece la ventana *Restaurar trabajo no guardado*: *Open Planner Studio no se cerró correctamente. Los siguientes documentos tenían cambios sin guardar que se pueden restaurar:* Para cada proyecto muestra el nombre, la ruta del archivo si el proyecto tiene uno (en el navegador, solo el nombre del archivo), el número de tareas y la hora de la copia. Por ejemplo, *21 tareas* y *Guardado: Sep 29, 2026, 9:41 AM*. La ventana también puede mostrar proyectos que usted no había modificado.
+2. Si la aplicación encuentra copias, aparece la ventana *Restaurar trabajo no guardado*: *Open Planner Studio no se cerró correctamente. Los siguientes documentos tenían cambios sin guardar que se pueden restaurar:* Para cada proyecto muestra el nombre, la ruta del archivo si el proyecto tiene uno (en el navegador, solo el nombre del archivo), el número de tareas y la hora de la copia. Por ejemplo, *21 tareas* y *Guardado: Sep 29, 2026, 9:41 AM*. La hora sigue su ajuste *Formato de hora*. La ventana también puede mostrar proyectos que usted no había modificado.
 3. Elija *Restaurar*. La aplicación abre todos los proyectos de la lista, cada uno en una pestaña, con el estado de la última copia. La tecla Intro hace lo mismo.
 4. Compruebe sus proyectos y guárdelos de inmediato con Ctrl+S.
 

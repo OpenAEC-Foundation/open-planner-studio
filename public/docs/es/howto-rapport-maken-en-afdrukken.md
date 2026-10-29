@@ -34,7 +34,7 @@ La lista *Tipo de informe* tiene once informes. Elija el que se ajuste a su preg
 
 ### 3. Compruebe que la planificación esté actualizada
 
-La aplicación no calcula por sí sola. Si cambió tareas, relaciones o calendarios desde el último cálculo, pulse **Calcular** (F5). Los informes en forma de tabla le avisan por sí mismos, en la parte superior del informe: *El cronograma cambió desde el último cálculo — pulse Calcular (F5) para valores actuales.* O, si nunca se ha calculado: *Aún no calculado — pulse Calcular (F5) para fechas y holguras.*
+La aplicación no calcula por sí sola. Si cambió tareas, relaciones o calendarios desde el último cálculo, pulse **Calcular** (F5). Los informes en forma de tabla le avisan por sí mismos, en la parte superior del informe: *El cronograma cambió desde el último cálculo — pulse Calcular (F5) para valores actuales*. O, si nunca se ha calculado: *Aún no calculado — pulse Calcular (F5) para fechas y holguras*.
 
 La cinta de la pestaña Informe no tiene botón Calcular, pero F5 funciona aquí sin problema. *Exportar PDF* también calcula primero por sí mismo si la planificación está desactualizada, así que el PDF nunca va por detrás de su planificación.
 
@@ -70,11 +70,11 @@ Abra el PDF en su lector de PDF e imprímalo allí. Si imprime un PDF A3 en una 
 
 **El botón Imprimir y Ctrl+P no imprimen.** El botón *Imprimir* del grupo *Informe* está en la propia pestaña Informe y no hace nada más. Ctrl+P le lleva a esta pestaña. La aplicación no tiene un comando de impresión aparte: para obtener el informe en papel hay que pasar por el PDF. Si Ctrl+P no funciona (vea el paso 1), en el navegador se abre el diálogo de impresión del navegador, y eso imprime la pantalla, no el informe.
 
-**Empresa: lo que escribe encima no se conserva.** El campo *Empresa:* del Diagrama de Gantt empieza con la empresa de la info del proyecto. Lo que escribe encima no se conserva. Aquí no puede escribir en *Autor:*. Cambie ambos con *Configuración › Proyecto › Info del proyecto*, en los campos *Cliente/organización* y *Autor*, y confirme con *Aplicar*.
+**Empresa: lo que escribe encima no se conserva.** El campo *Empresa:* del Diagrama de Gantt empieza con la empresa indicada en los ajustes del proyecto. Lo que escribe encima no se conserva. Aquí no puede escribir en *Autor:*. Cambie ambos con *Configuración › Proyecto › Ajustes del proyecto*, en los campos *Cliente/organización* y *Autor*, y confirme con *Aplicar*.
 
 **Colores de barras: también afecta a su pantalla.** La opción *Colores de barras:* del informe es la misma opción que *Colores de barras* en la pestaña Vista. Si la cambia en el informe, su Diagrama de Gantt en pantalla cambia con ella.
 
-**La Variance sin línea base.** Una línea base es una copia guardada de su planificación con la que se compara más adelante; cómo guardarla está en [Guardar y gestionar una línea base](docs://howto-baseline-opslaan-en-beheren). Si no tiene ninguna línea base activa, en lugar de una comparación aparece *No hay ninguna línea base activa — guarda una línea base o marca una como activa.*
+**La Variance sin línea base.** Una línea base es una copia guardada de su planificación con la que se compara más adelante; cómo guardarla está en [Guardar y gestionar una línea base](docs://howto-baseline-opslaan-en-beheren). Si no tiene ninguna línea base activa, en lugar de una comparación aparece *No hay ninguna línea base activa — guarda una línea base o marca una como activa*.
 
 **Línea de estado sin fecha de estado.** Si elige una *Línea de estado:* mientras el proyecto no tiene fecha de estado, el informe avisa con *Establezca primero una fecha de estado* y no dibuja nada. Usted establece la fecha de estado en *Planificación › Líneas base y progreso › Fecha de estado*.
 

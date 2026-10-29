@@ -28,24 +28,24 @@ Excel-bladet är skyddat utan lösenord: bara de tre kolumner som ska fyllas i k
 
 För varje uppgift fyller arbetsledaren i:
 
-- `Completion (%)`: 0 till och med 100. I Excel-bladet får decimaler användas, till exempel 33,3. I CSV-filen ber instruktionen om hela tal.
-- `Actual Start` och `Actual Finish`: i Excel som ett datum i din egen regionala inställning; i CSV-filen som dd-mm-yyyy.
+- `Completion (%)`: 0 till och med 100. Appen läser även decimaltal med komma eller punkt, till exempel 33,3 eller 33.3. Instruktionen i CSV-filen ber fortfarande om hela tal: ett kalkylblad med en annan regional inställning kan läsa 8,38 som 838.
+- `Actual Start` och `Actual Finish`: i Excel som ett datum i din egen regionala inställning; i CSV-filen som dd-mm-yyyy eller som yyyy-mm-dd.
 
-Allt som lämnas tomt ändras inte. En tom cell tar alltså inte bort befintlig framdrift heller. Det kan bara göras i appen. En uppgift som inte har startat lämnar han helt tom.
+Allt som lämnas tomt ändras inte. En tom cell tar alltså inte bort befintlig framdrift heller. Det kan bara göras i appen. Har en uppgift inte startat, lämnar arbetsledaren den helt tom.
 
 ### 4. Läs in bladet
 
 1. Välj *Tidsplan › Framdrift › Uppdatera framdrift från ett kalkylblad* (även på flikarna *Tabell* och *Rapport*), eller *Fil › Importera › Uppdatera framdrift från ett kalkylblad*. Fönstret *Uppdatera framdrift från ett kalkylblad* öppnas.
 2. Klicka på *Välj fil…* och välj den ifyllda filen `.xlsx` eller `.csv`.
-3. Om datumen i en CSV-fil är tvetydiga frågar appen *Dag eller månad först?*. Appen visar datumet från din fil på två sätt. Klicka på det datum som är rätt.
+3. Om datumen i en CSV-fil är tvetydiga frågar appen *Dag eller månad först?* och visar datumet från din fil på två sätt. Klicka på det datum som är rätt.
 4. Du ser nu en förhandsgranskning. Överst finns fyra räknare: *Tillämpade*, *Oförändrade*, *Väntar på länk* och *Avvisade*. Under det ser du per uppgift vad som ändras, till exempel *Slutförandegrad: 0% → 100%*.
-5. Kontrollera förhandsgranskningen och klicka på *Tillämpa*. Fönstret visar *Resultat*, med räknarna och de rader som avvisades och varför. Avsluta med *Stäng*.
+5. Kontrollera förhandsgranskningen och klicka på *Tillämpa*. Fönstret visar *Resultat*, med räknarna och raderna som avvisades och varför. Avsluta med *Stäng*.
 
 Du kan inte hoppa över förhandsgranskningen. Knappen *Tillämpa* är inaktiv så länge det inte finns något att tillämpa.
 
 ### 5. Beräkna tidsplanen om
 
-Att läsa in bladet beräknar inte om tidsplanen av sig själv. Tryck på **Beräkna** (F5), till exempel via *Tidsplan › Tidsplan › Beräkna*, om inte *Beräkna automatiskt* är på.
+Att läsa in bladet gör inte att tidsplanen beräknas om av sig själv. Tryck på **Beräkna** (F5), till exempel via *Tidsplan › Tidsplan › Beräkna*, om inte *Beräkna automatiskt* är på.
 
 ## Rader som inte bara passar
 

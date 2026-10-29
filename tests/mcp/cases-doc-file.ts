@@ -2,13 +2,14 @@
 // §Bestands-tools 107-111, §Sessie-semantiek/drift-anker 116).
 //
 // Draait headless tegen de ECHTE Zustand-store. De fs/Tauri-rand is GEFAKED via de geëxporteerde
-// dependency-naad `fileToolDeps.getFs` (in-memory bestandsmap) — er wordt in deze suite dus nooit
-// een echt bestand geschreven en `isTauri()` (die `window` leest) wordt nooit aangeraakt.
+// dependency-naad `fileToolDeps.getFs` (in-memory bestandsmap). De 188-regressie in de bestaande
+// IFC2X3-kopieroute gebruikt ook echte Node-fs via de plugin-JS-client (geen Rust/Tauri-runtime).
 // De T16-hook `markDuplicateBorn` loopt via de requestcontext en wordt hier bespioneerd.
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { getTool } from '@/services/mcp/toolRegistry';
+import { handleMcpMessage } from '@/services/mcp/dispatcher';
 import type { McpContext, McpToolResult, McpToolOk, McpToolErr } from '@/services/mcp/contracts';
-import { fileToolDeps, type McpFileFs } from '@/services/mcp/tools/fileTools';
+import { fileToolDeps, normalizeAbsolutePath, checkScope, type McpFileFs } from '@/services/mcp/tools/fileTools';
 import { generateBenchmarkProject } from '@/services/benchmark/generateProject';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { writeCSV } from '@/services/csv/csvWriter';
@@ -17,6 +18,11 @@ import { writeP6XML } from '@/services/p6/p6xmlWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { installDOMParser } from '../planning/xmldom-shim';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
+import { mkdtempSync, writeFileSync, readFileSync, symlinkSync, readlinkSync, existsSync, readdirSync, rmSync } from 'node:fs';
+import { join, sep } from 'node:path';
+import { tmpdir } from 'node:os';
+import { installNodeFileIpc } from '../planning/nodeFileIpc';
+import { writeUserTextFileTauri, USER_FILE_TMP_SUFFIX } from '@/services/fileAccess/atomicWrite';
 // T8-spec-review (B1): CFB-/Props-boilerplate NIET opnieuw uitschrijven — hergebruik de gedeelde
 // builders uit tests/planning/mppFixtures.ts (M6-fixturebouwers, ook door check-mpp-import.ts's
 // I4-fixture gebruikt). Sinds T11 (fixture-consolidatie) ook `buildVarMetaBytes` cross-suite van
@@ -54,6 +60,17 @@ async function callErr(name: string, args: unknown = {}, ctx: McpContext = makeC
   return res as McpToolErr;
 }
 
+/** De identiteitsregressies doorlopen ook de echte tools/call-schemapoort. */
+async function exportRpc(path: string, overwrite = true, ctx = makeCtx()): Promise<McpToolResult> {
+  const raw = await handleMcpMessage(JSON.stringify({
+    jsonrpc: '2.0', id: 113, method: 'tools/call',
+    params: { name: 'planner_export_ifc', arguments: { path, overwrite } },
+  }), ctx);
+  const response = JSON.parse(raw);
+  assert(response.result !== undefined, `JSON-RPC-fout in plaats van toolresultaat: ${raw}`);
+  return response.result.structuredContent as McpToolResult;
+}
+
 // --- Fake fs (in-memory) -------------------------------------------------------------------------
 
 const HOME = '/home/tester';
@@ -63,6 +80,8 @@ let files = new Map<string, string>();
 // UTF-8-tekst zijn. Een echte CFB/MPP-container is willekeurige binaire data (sectorkoppen e.d.),
 // dus dat pad zou 'm stilzwijgend corrumperen. `binFiles` draagt de bytes ONGEWIJZIGD.
 let binFiles = new Map<string, Uint8Array>();
+// Expliciete OS-aliasfixtures: casevariant, link of maplink. De fake doet zelf geen lowercasing.
+let aliases = new Map<string, string>();
 
 /** Zet een binair testbestand klaar (bv. een synthetische .mpp) — de bytes komen ongewijzigd
  *  terug uit `readFile`, in tegenstelling tot `files` (tekst, via `readTextFile`). */
@@ -76,14 +95,21 @@ function setBinaryFile(path: string, bytes: Uint8Array): void {
  *  binair formaat (.mpp) echt via het bytes-pad (`readFile`) loopt. */
 export const readFileCalls: string[] = [];
 
-function installFakeFs(): void {
+function installFakeFs(): McpFileFs {
   files = new Map<string, string>();
   binFiles = new Map<string, Uint8Array>();
+  aliases = new Map<string, string>();
   readFileCalls.length = 0;
   const fs: McpFileFs = {
     homeDir: async () => HOME,
-    exists: async (p) => files.has(p) || binFiles.has(p),
-    writeTextFile: async (p, c) => { files.set(p, c); },
+    exists: async (p) => files.has(aliases.get(p) ?? p) || binFiles.has(aliases.get(p) ?? p),
+    stat: async (p) => {
+      const paths = [...files.keys(), ...binFiles.keys()];
+      const index = paths.indexOf(aliases.get(p) ?? p);
+      if (index < 0) throw `failed to get metadata of path: ${p} with error: No such file or directory (os error 2)`;
+      return { isFile: true, dev: 1, ino: index + 1 };
+    },
+    writeTextFile: async (p, c) => { files.set(aliases.get(p) ?? p, c); },
     readTextFile: async (p) => {
       const v = files.get(p);
       if (v === undefined) throw new Error(`ENOENT: ${p}`);
@@ -99,6 +125,7 @@ function installFakeFs(): void {
     },
   };
   fileToolDeps.getFs = async () => fs;
+  return fs;
 }
 
 // --- Minimale synthetische MPP14-fixture (T8-spec-review B1) -------------------------------------
@@ -534,6 +561,63 @@ test('export_ifc: pad buiten de $HOME-fs-scope ⇒ code SCOPE (ook via ..-traver
   assertEq(relative.code, 'SCOPE', 'een relatief pad is niet te scopen ⇒ geweigerd');
 });
 
+test('bestandstools weigeren UNC/devicepaden vóór bestandstoegang (knownbug 213)', async () => {
+  resetToSingleEmptyDocument();
+  loadSmallProject('UNC-weigering');
+  const unsupported = [
+    String.raw`\\server\share\plan.ifc`, '//server/share/plan.ifc',
+    String.raw`\\?\UNC\server\share\plan.ifc`, String.raw`\\?\C:\plan.ifc`,
+    String.raw`\\.\C:\plan.ifc`, '///server/share/plan.ifc',
+  ];
+  for (const path of unsupported) {
+    assertEq(normalizeAbsolutePath(path), null, `geen lokale interpretatie van ${path}`);
+    const scope = checkScope(HOME, path);
+    assert(!scope.ok && scope.reason.includes('not supported'), 'duidelijke niet-ondersteundmelding');
+  }
+  assertEq(normalizeAbsolutePath('/home/tester//sub/../plan.ifc'), '/home/tester/plan.ifc', 'lokaal POSIX blijft werken');
+  assertEq(normalizeAbsolutePath(String.raw`C:\Users\tester\sub\..\plan.ifc`), 'C:/Users/tester/plan.ifc', 'driveletter blijft werken');
+  assert(checkScope('C:/Users/tester', 'c:/users/TESTER/plan.ifc').ok, 'lokale Windows-scope blijft hoofdletterongevoelig');
+  // 331: een lokale wortelmap mag bij tilde-expansie geen kunstmatig UNC-pad worden.
+  for (const [home, expected] of [['/', '/plan.ifc'], ['/home/tester/', '/home/tester/plan.ifc'],
+    ['C:/', 'C:/plan.ifc'], ['C:\\', 'C:/plan.ifc']]) {
+    for (const input of ['~/plan.ifc', String.raw`~\plan.ifc`]) {
+      const scope = checkScope(home, input);
+      assert(scope.ok, `lokale tilde-expansie toegestaan: ${home} + ${input}`);
+      if (scope.ok) assertEq(scope.path, expected, 'precies één scheidingsteken aan de wortel');
+    }
+  }
+  assert(!checkScope('/', '~/../plan.ifc').ok, 'boven de lokale wortel blijft geweigerd');
+  const rootFs = installFakeFs();
+  rootFs.homeDir = async () => '/';
+  const rootExport = await exportRpc('~/plan.ifc');
+  assert(rootExport.ok, 'echte dispatcher expandeert tilde onder de lokale wortel');
+  assert(files.has('/plan.ifc') && !files.has('//plan.ifc'), 'export schrijft alleen het lokale pad via de fake fs');
+
+  for (const [home, path] of [
+    ...unsupported.map(path => [HOME, path]),
+    [String.raw`\\server\share`, '~/plan.ifc'],
+    ['//server/share', '/server/share/plan.ifc'],
+    ['//', '~/plan.ifc'],
+    ['//server/share/', '~/plan.ifc'],
+  ]) {
+    const fs = installFakeFs();
+    fs.homeDir = async () => home;
+    let access = 0;
+    const unexpected = async (): Promise<never> => { access++; throw new Error('bestandstoegang vóór scopeweigering'); };
+    fs.exists = unexpected;
+    fs.readFile = unexpected;
+    fs.readTextFile = unexpected;
+    fs.writeTextFile = unexpected;
+    fs.confine = unexpected;
+    for (const tool of ['planner_export_ifc', 'planner_import_schedule']) {
+      const result = await callErr(tool, { path });
+      assertEq(result.code, 'SCOPE', `${tool}: geen verkeerde lokale padinterpretatie`);
+      assert(result.error.includes('not supported'), `${tool}: duidelijke UNC-melding`);
+    }
+    assertEq(access, 0, 'geen fysieke controle, lees- of schrijfactie');
+  }
+});
+
 test('export_ifc: SIBLING-PREFIX-ontsnapping ⇒ SCOPE (de scope-grens loopt op mapniveau)', async () => {
   installFakeFs();
   resetToSingleEmptyDocument();
@@ -615,6 +699,214 @@ test('export_ifc: IFC2X3-document naar een ander pad ⇒ ok, het antwoord meldt 
   assert(written.includes("FILE_SCHEMA(('IFC4X3_ADD2'));"), 'de kop is IFC4X3_ADD2');
   assert(!written.includes("'IfcSchemaUnconfirmed'"), 'geen markering IFC2X3 die niet bij de kop past');
   assertEq(S().project.ifcSchemaUnconfirmed, 'IFC2X3', 'het document houdt zijn vraag');
+
+  // Review #519, sidefinding 188: de gekozen kopienaam is nieuw, het oude tijdelijke pad kan
+  // toch al naar de bron wijzen. Doorloop de echte tool + schrijfadapter op het CI-filesysteem.
+  const root = mkdtempSync(join(tmpdir(), 'ops-mcp-export-'));
+  const ipc = installNodeFileIpc();
+  const previousGetFs = fileToolDeps.getFs;
+  const source = join(root, 'bron.ifc');
+  const target = join(root, 'kopie.ifc');
+  const legacy = target + USER_FILE_TMP_SUFFIX;
+  try {
+    const { stat } = await import('@tauri-apps/plugin-fs');
+    // Afgeleid objecttype: standalone past dit op McpFileFs, en ook na #519 met verplichte stat.
+    // De echte plugin-JS-client houdt daarbij dezelfde foutvorm als de toekomstige schemaguard.
+    const fs = {
+      homeDir: async () => root,
+      exists: async (p: string) => existsSync(p),
+      stat,
+      writeTextFile: writeUserTextFileTauri,
+      readTextFile: async (p: string) => readFileSync(p, 'utf8'),
+      readFile: async (p: string) => readFileSync(p),
+    };
+    fileToolDeps.getFs = async () => fs;
+    for (const preplaced of (sep === '\\' ? ['file', 'missing'] : ['symlink', 'file', 'missing'])) {
+      rmSync(target, { force: true });
+      rmSync(legacy, { force: true });
+      writeFileSync(source, 'ORIGINEEL IFC2X3');
+      if (preplaced === 'symlink') symlinkSync(source, legacy);
+      if (preplaced === 'file') writeFileSync(legacy, 'ANDERMANS TMP');
+      const missing = await fs.stat(target).then(() => null, (error: unknown) => error);
+      assertEq(missing, `failed to get metadata of path: ${target} with error: No such file or directory (os error 2)`, 'nieuw doel gebruikt plugin-ENOENT/2, geen rauwe Node-fout');
+      if (preplaced === 'symlink') {
+        const linkInfo = await fs.stat(legacy);
+        const sourceInfo = await fs.stat(source);
+        assertEq([linkInfo.isFile, linkInfo.dev, linkInfo.ino], [true, sourceInfo.dev, sourceInfo.ino], 'stat volgt de tijdelijke bronlink');
+      }
+      zetSchemaVraag(source, undefined, 'IFC2X3');
+      const result = await callOk('planner_export_ifc', { path: target });
+      assertEq(result.ifcSchema, 'IFC4X3_ADD2', `${preplaced}: schema van kopie gemeld`);
+      assert(readFileSync(target, 'utf8').includes("FILE_SCHEMA(('IFC4X3_ADD2'));"), `${preplaced}: volledige IFC-kopie`);
+      assertEq(readFileSync(source, 'utf8'), 'ORIGINEEL IFC2X3', `${preplaced}: bron intact`);
+      assertEq(S().project.ifcSchemaUnconfirmed, 'IFC2X3', `${preplaced}: schemavraag niet beantwoord door export`);
+      if (preplaced === 'symlink') assertEq(readlinkSync(legacy), source, 'oude tijdelijke link behouden');
+      if (preplaced === 'file') assertEq(readFileSync(legacy, 'utf8'), 'ANDERMANS TMP', 'oud tijdelijk bestand behouden');
+      assertEq(readdirSync(root).length, preplaced === 'missing' ? 2 : 3, 'geen eigen tijdelijke resten');
+    }
+
+    // Schrijven van de kopie mislukt halverwege: geen succesantwoord, bron én oude kopie intact.
+    ipc.faults.writeErrorAfter = 5;
+    const before = readFileSync(target, 'utf8');
+    const failure = await callErr('planner_export_ifc', { path: target, overwrite: true });
+    assertEq(failure.code, 'INTERNAL', 'schrijffout bereikt de MCP-client');
+    assert(failure.error.includes('No space left'), 'MCP-fout behoudt de echte schrijfreden');
+    assertEq([readFileSync(source, 'utf8'), readFileSync(target, 'utf8')], ['ORIGINEEL IFC2X3', before], 'bron en bestaande kopie niet afgekapt');
+    assertEq(readdirSync(root).sort(), ['bron.ifc', 'kopie.ifc'], 'alleen eigen halffabricaat opgeruimd');
+    assertEq(ipc.openHandles(), 0, 'geen gelekte handles na fout');
+  } finally {
+    fileToolDeps.getFs = previousGetFs;
+    ipc.dispose();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('export_ifc: case-alias en links beschermen dezelfde IFC2X3-inhoud via tools/call', async () => {
+  installFakeFs();
+  resetToSingleEmptyDocument();
+  loadSmallProject('Identiteit');
+  const own = `${HOME}/modellen/Model.ifc`;
+  files.set(own, 'ORIGINEEL IFC2X3');
+  zetSchemaVraag(own, undefined, 'IFC2X3');
+  const before = { path: S().filePath, dirty: S().isDirty, question: S().project.ifcSchemaUnconfirmed };
+  for (const target of [
+    `${HOME}/modellen/model.ifc`, // case-insensitive volume: hetzelfde OS-object
+    `${HOME}/symlink.ifc`,
+    `${HOME}/hardlink.ifc`,
+    `${HOME}/maplink/Model.ifc`,
+  ]) {
+    aliases.set(target, own);
+    const result = await exportRpc(target);
+    assert(!result.ok && result.code === 'VALIDATION' && result.error.includes('IFC2X3'),
+      `${target}: dezelfde bestandsidentiteit weigert de stille schemawijziging`);
+    assertEq(files.get(own), 'ORIGINEEL IFC2X3', 'geen alias mag de originele inhoud vervangen');
+  }
+  assertEq(files.size, 1, 'er is ook geen kopie of halffabricaat gemaakt');
+  assertEq({ path: S().filePath, dirty: S().isDirty, question: S().project.ifcSchemaUnconfirmed }, before,
+    'de geweigerde export verandert opslagdoel, dirty-status en schemavraag niet');
+
+  // Ook als het geopende pad de link is, moet de echte doelnaam beschermd blijven.
+  zetSchemaVraag(`${HOME}/symlink.ifc`, undefined, 'IFC2X3');
+  const reverse = await exportRpc(own);
+  assert(!reverse.ok && reverse.code === 'VALIDATION', 'bronlink en echt exportpad zijn hetzelfde bestand');
+  assertEq(files.get(own), 'ORIGINEEL IFC2X3', 'de omgekeerde alias blijft eveneens onaangeroerd');
+});
+
+test('export_ifc: case-sensitive volume houdt twee bestaande namen uit elkaar, met overwrite-toestemming', async () => {
+  installFakeFs();
+  resetToSingleEmptyDocument();
+  loadSmallProject('Verschillende bestanden');
+  const own = `${HOME}/Model.ifc`;
+  const other = `${HOME}/model.ifc`;
+  // Zelfs gelijke inhoud bewijst geen identiteit; de twee bestanden hebben verschillende inodes.
+  files.set(own, 'ORIGINEEL IFC2X3');
+  files.set(other, 'ORIGINEEL IFC2X3');
+  zetSchemaVraag(own, undefined, 'IFC2X3');
+  const denied = await exportRpc(other, false);
+  assert(!denied.ok && denied.code === 'VALIDATION' && denied.error.includes('overwrite'),
+    'een ander bestaand bestand vereist nog steeds expliciete overschrijftoestemming');
+  assertEq(files.get(other), 'ORIGINEEL IFC2X3', 'zonder toestemming blijft ook de kopie ongemoeid');
+  const result = await exportRpc(other);
+  assert(result.ok, 'een bewezen ander bestand mag met toestemming worden vervangen');
+  assert(files.get(other)!.includes("FILE_SCHEMA(('IFC4X3_ADD2'));"), 'de andere naam krijgt de export');
+  assertEq(files.get(own), 'ORIGINEEL IFC2X3', 'het geopende bestand houdt zijn oorspronkelijke schema');
+  assertEq(S().filePath, own, 'een export verzet het opslagdoel niet');
+  assertEq(S().project.ifcSchemaUnconfirmed, 'IFC2X3', 'de open vraag blijft bij het document');
+});
+
+test('export_ifc: onbekende identiteit en metadatarechten falen veilig; een nieuw doel blijft mogelijk', async () => {
+  const fs = installFakeFs();
+  resetToSingleEmptyDocument();
+  loadSmallProject('Metadata');
+  const own = `${HOME}/Model.ifc`;
+  const target = `${HOME}/ander.ifc`;
+  files.set(own, 'ORIGINEEL IFC2X3');
+  files.set(target, 'BESTAAND');
+  zetSchemaVraag(own, undefined, 'IFC2X3');
+  const originalStat = fs.stat;
+  fs.stat = async () => ({ isFile: true, dev: null, ino: null }); // plugin-fs op Windows
+  const unknown = await exportRpc(target);
+  assert(!unknown.ok && unknown.code === 'VALIDATION' && unknown.error.includes('identity'),
+    'ontbrekende IDs worden niet door een padgok vervangen');
+  fs.stat = async () => { throw 'forbidden path: metadata'; };
+  fs.exists = async () => false; // Path::exists maskeert ook sommige metadatafouten
+  const forbidden = await exportRpc(target);
+  assert(!forbidden.ok && forbidden.code === 'VALIDATION', 'exists:false maakt een metadatafout niet tot een vrij doel');
+  assertEq([...files.values()], ['ORIGINEEL IFC2X3', 'BESTAAND'], 'geen bestaand bestand aangeraakt');
+
+  fs.stat = async p => p === own ? { isFile: true, dev: null, ino: null } : originalStat(p);
+  const fresh = await exportRpc(`${HOME}/nieuw/model.ifc`, false);
+  assert(fresh.ok, 'een aantoonbaar nieuw doel mag ook zonder bruikbare bron-ID en in een nog niet bestaande map');
+  assertEq(files.get(own), 'ORIGINEEL IFC2X3', 'de nieuwe export raakt de bron niet');
+});
+
+test('export_ifc: een bron buiten de lexicale home-scope kan via een toegestane alias hetzelfde bestand zijn', async () => {
+  installFakeFs();
+  resetToSingleEmptyDocument();
+  loadSmallProject('Bron buiten home');
+  const own = '/mnt/model.ifc'; // eerder door de bestandskiezer vrijgegeven
+  const target = `${HOME}/link.ifc`;
+  files.set(own, 'ORIGINEEL IFC2X3');
+  aliases.set(target, own);
+  zetSchemaVraag(own, undefined, 'IFC2X3');
+  const result = await exportRpc(target);
+  assert(!result.ok && result.code === 'VALIDATION', 'de bron wordt niet vanwege zijn pad buiten de identiteitscontrole gelaten');
+  assertEq(files.get(own), 'ORIGINEEL IFC2X3', 'ook dit bronbestand blijft beschermd');
+});
+
+test('export_ifc: site- en browserhandle-doelen worden nooit als lokaal pad vergeleken', async () => {
+  for (const kind of ['site', 'handle'] as const) {
+    const fs = installFakeFs();
+    resetToSingleEmptyDocument();
+    loadSmallProject('Geen lokaal opslagdoel');
+    const target = `${HOME}/weergavenaam.ifc`;
+    zetSchemaVraag(target, undefined, 'IFC2X3');
+    useAppStore.setState(s => {
+      if (kind === 'site') s.siteFileId = 'site-bestand';
+      else s.fileHandle = { kind: 'file', name: 'weergavenaam.ifc' } as FileSystemFileHandle;
+    });
+    fs.stat = async () => { throw new Error('Een site-id of handle is geen lokaal pad'); };
+    const result = await exportRpc(target, false);
+    assert(result.ok, `${kind}: filePath is een weergavenaam, niet het lokale opslagdoel`);
+  }
+});
+
+test('export_ifc: pauze, alleen-lezen, dialoog, documentdrift en doel-/schemawijziging tijdens stat blokkeren schrijven', async () => {
+  const cases: Array<{ code: string; change(): void }> = [
+    { code: 'PAUSED', change: () => S().setAiPaused(true) },
+    { code: 'READ_ONLY', change: () => S().setAiReadOnly(true) },
+    { code: 'DIALOG_OPEN', change: () => S().setUI({ showTaskDialog: true }) },
+    { code: 'DOC_DRIFT', change: () => { S().newDocument(); } },
+    { code: 'VALIDATION', change: () => { useAppStore.setState(s => { s.filePath = `${HOME}/kopie.ifc`; }); } },
+    { code: 'VALIDATION', change: () => { useAppStore.setState(s => { s.project.ifcSchema = 'IFC4'; }); } },
+    { code: 'VALIDATION', change: () => { useAppStore.setState(s => { delete s.project.ifcSchemaUnconfirmed; }); } },
+  ];
+  for (const scenario of cases) {
+    const fs = installFakeFs();
+    resetToSingleEmptyDocument();
+    loadSmallProject('Late guard');
+    const own = `${HOME}/bron.ifc`;
+    const target = `${HOME}/kopie.ifc`;
+    files.set(own, 'ORIGINEEL IFC2X3');
+    files.set(target, 'BESTAAND');
+    zetSchemaVraag(own, undefined, 'IFC2X3');
+    const originalStat = fs.stat;
+    let changed = false;
+    fs.stat = async p => {
+      const info = await originalStat(p);
+      if (!changed) { changed = true; scenario.change(); }
+      return info;
+    };
+    try {
+      const result = await exportRpc(target);
+      assert(!result.ok && result.code === scenario.code, `wijziging tijdens stat ⇒ ${scenario.code}`);
+      assertEq([...files.values()], ['ORIGINEEL IFC2X3', 'BESTAAND'], 'na een late guard is niets geschreven');
+    } finally {
+      S().setAiPaused(false);
+      S().setAiReadOnly(false);
+      S().setUI({ showTaskDialog: false });
+    }
+  }
 });
 
 test('export_ifc: meldt het schema; een IFC4-document mag over zijn eigen pad (het type blijft IFC4)', async () => {
@@ -688,6 +980,35 @@ test('import_schedule: IFC neemt het bronpad over als opslagdoel, CSV NIET (Ctrl
   files.set(csvPath, writeCSV(s.project, s.calendar, s.tasks, s.sequences, s.resources, s.assignments));
   const ifcPath = `${HOME}/onderaannemer.ifc`;
   files.set(ifcPath, writeIFC(buildWriteIFCInput(s)));
+
+  // Knownbug 128: ook via MCP een gevulde onherkende datum weigeren vóór openAsDocument.
+  const badPath = `${HOME}/onleesbaar.csv`;
+  const ctx = makeCtx({ expectedDocId: s.activeDocumentId });
+  const headers = ['Name', 'Duration', 'Start', 'Finish', 'Actual Start', 'Actual Finish'];
+  for (const index of [2, 3, 4, 5]) {
+    const row = ['Onleesbaar', '1', '2015-01-06', '2015-01-06', '', ''];
+    row[index] = '2 maart 2026';
+    const content = [headers.join(';'), 'Geldig;1;2015-01-05;2015-01-05;;', row.join(';')].join('\n');
+    files.set(badPath, content);
+    const before = S();
+    const documentsBefore = JSON.stringify(before.getOpenDocumentPayloads());
+    const error = await callErr('planner_import_schedule', { path: badPath }, ctx);
+    assertEq(error.code, 'VALIDATION', 'onherkende CSV-datum ⇒ validatiefout');
+    assert(error.error.includes('CSV record 3') && error.error.includes(headers[index])
+      && error.error.includes('2 maart 2026') && error.error.includes('DD/MM/YYYY'),
+    'de Engelse fout noemt rij, oorspronkelijke kolom, celwaarde en ondersteunde vormen');
+    assertEq(S().activeDocumentId, before.activeDocumentId, 'geen documentwissel bij weigering');
+    assert(S().documents === before.documents && S().tasks === before.tasks && S().project === before.project,
+      'geen nieuw of gedeeltelijk geladen document, ook niet van de geldige eerste rij');
+    assertEq(JSON.stringify(S().getOpenDocumentPayloads()), documentsBefore, 'alle documentvelden blijven gelijk');
+    assert(S().historyEvents === before.historyEvents, 'geen undo-mutatie');
+    assertEq(S().nextHistorySequence, before.nextHistorySequence, 'geen verbruikte undo-volgorde');
+    assert(S().ui.notifications === before.ui.notifications, 'MCP gebruikt het bestaande foutantwoord zonder extra toast');
+    assertEq(S().filePath, before.filePath, 'het opslagdoel blijft staan');
+    assertEq(S().isDirty, before.isDirty, 'de dirty-status blijft staan');
+    assertEq(ctx.expectedDocId, s.activeDocumentId, 'het drift-anker blijft staan');
+    assertEq(files.get(badPath), content, 'de CSV-bron blijft intact');
+  }
 
   const csv = await callOk('planner_import_schedule', { path: csvPath });
   assertEq(csv.format, 'CSV', 'de extensie bepaalt het formaat');
@@ -800,6 +1121,16 @@ test('import_schedule: MS Project-XML met "Primavera" in de naam blijft MSPDI; e
   files.set(mspPath, writeMSPDI(s.project, s.calendar, s.tasks, s.sequences, s.resources, s.assignments, s.calendars));
   const p6Path = `${HOME}/residencial-p6.xml`;
   files.set(p6Path, writeP6XML(s.project, s.calendar, s.tasks, s.sequences, s.resources, s.assignments, s.calendars));
+
+  const invalidPath = `${HOME}/lijst.xml`;
+  files.set(invalidPath, '<Lijst><Naam>Primavera</Naam></Lijst>');
+  const beforeInvalid = JSON.stringify(S().getOpenDocumentPayloads());
+  const raw = await handleMcpMessage(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call',
+    params: { name: 'planner_import_schedule', arguments: { path: invalidPath } } }), makeCtx());
+  const invalid = JSON.parse(raw).result.structuredContent;
+  assertEq(invalid.code, 'VALIDATION', 'onbekende XML is een validatiefout via de dispatcher');
+  assertEq(invalid.error, `'${invalidPath}' could not be read as a schedule: Unknown XML format: the root element is not an MS Project (Project) or Primavera P6 (APIBusinessObjects) schedule`, 'volledig Engelse MCP-fout');
+  assertEq(JSON.stringify(S().getOpenDocumentPayloads()), beforeInvalid, 'afgewezen XML verandert geen document');
 
   const msp = await callOk('planner_import_schedule', { path: mspPath });
   assertEq(msp.format, 'MSPDI-XML', 'de MS Project-XML wordt als MSPDI-XML gelabeld, ondanks "Primavera" in de naam');

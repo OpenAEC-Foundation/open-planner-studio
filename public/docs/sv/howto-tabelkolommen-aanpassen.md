@@ -9,7 +9,7 @@ På mötet vill du se måldatumet och totalt slack bredvid varje uppgift. Platsc
 Det finns två uppgiftstabeller, var och en med sina egna kolumner:
 
 - **Uppgiftstabellen bredvid Gantt-schemat** finns till vänster om tidslinjen på bland andra flikarna *Start*, *Tidsplan* och *Visa*. Som standard har den *WBS*, *Uppgiftsnamn* och *Varaktighet*, så att det finns plats kvar för tidslinjen.
-- **Tabellen på fliken Tabell** använder hela arbetsytan. Som standard har den *WBS*, *Uppgiftsnamn*, *Varaktighet*, *Start*, *Slut*, *Uppgiftstyp*, *Kritisk*, *Totalt slack* och *Framdrift*, plus en kolumn per uppgiftskod och eget fält i projektet.
+- **Tabellen på fliken Tabell** använder hela arbetsytan. Som standard har den *WBS*, *Uppgiftsnamn*, *Varaktighet*, *Start*, *Slut*, *Arbetskategori*, *Kritisk*, *Totalt slack* och *Framdrift*, plus en kolumn per uppgiftskod och eget fält i projektet.
 
 En ändring i den ena tabellen ändrar inte den andra.
 

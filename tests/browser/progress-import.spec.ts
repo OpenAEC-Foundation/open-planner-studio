@@ -1,3 +1,4 @@
+// F2: taakdatums worden op D1/D2/D7-momenten vergeleken (§4.2); de echte handeling blijft gelijk.
 // Issue #27 etappe 2, T10: de voortgangsimportdialoog als echte gebruikershandeling — kiezen,
 // (indien nodig) de datumvolgorde-vraag (E5), de verplichte preview met handmatige koppelkiezer
 // (T7/E3), bevestigen + undo, de drie instappunten (T8/E2) en de documentwissel-blokkade (T6/E4).
@@ -64,8 +65,10 @@ async function openViaBackstage(page: Page): Promise<void> {
   await page.evaluate(() => {
     window.__OPS__!.store.getState().setUI({ activeRibbonTab: 'file', backstageSection: 'import' });
   });
+  await expect(page.locator('[data-ops-progress-import-card]')).toContainText(/CSV.*XLSX/);
   await page.locator('[data-ops-progress-import-card]').click();
   await expect(dialog(page)).toBeVisible();
+  await expect(dialog(page)).toContainText(/CSV.*XLSX/);
 }
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -189,32 +192,79 @@ test('bevestigen past het blad toe en één Ctrl+Z draait het hele blad terug', 
 });
 
 test('een losse rij handmatig koppelen laat hem meedraaien', async ({ page, ops: _ops }) => {
-  const [idA] = await seedProject(page, [
+  const [idA, idB, idC] = await seedProject(page, [
     { name: 'Koppel-taak', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
+    { name: 'WBS-keuze A', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
+    { name: 'WBS-keuze B', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
   ]);
+  // Fixture: twee taken met dezelfde WBS. Uploaden en koppelen blijven echte browserhandelingen.
+  await page.evaluate(({ idB, idC }) => {
+    window.__OPS__!.store.setState(s => {
+      for (const task of s.tasks) if (task.id === idB || task.id === idC) task.wbsCode = 'DUBBEL';
+    });
+  }, { idB, idC });
   const info = await taskInfo(page, idA);
+  const infoB = await taskInfo(page, idB);
 
   await openViaBackstage(page);
   await chooseCsv(page, [
-    'OPS Task ID;Completion (%)',
-    'onbekend-id;55',
+    'OPS Task ID;WBS;Name;Completion (%)',
+    'onbekend-id;;;55',
+    'ander-project-id;DUBBEL;Bladtaak;65',
+    `${idC};;;`, // Geen voortgang ingevuld: ongewijzigd, maar claimt wel deze taak.
+    `${idC};;;80`, // Dubbele rij: blijft apart geweigerd, zonder koppelkiezer.
     '',
   ].join('\r\n'));
 
-  await expect(page.getByText(NEEDS_LINK_HEADING)).toBeVisible();
+  const needsLinkSection = dialog(page).getByText(NEEDS_LINK_HEADING).locator('..');
+  const unknownRow = rowByNumber(page, 2);
+  const ambiguousRow = rowByNumber(page, 3);
+  const duplicateRow = rowByNumber(page, 5);
+  const unmatchedReason = /^(No task found for this row\.|Geen taak gevonden voor deze rij\.)$/;
+  const ambiguousReason = /^(This WBS code occurs on multiple tasks — link the row by hand\.|Deze WBS-code komt bij meerdere taken voor — koppel de rij met de hand\.)$/;
+
+  // Knownbug 161: reden en bron-ID staan al in de preview, ook zonder WBS/naam.
+  await expect(needsLinkSection).toBeVisible();
+  await expect(needsLinkSection.locator('[data-ops-progress-row]')).toHaveCount(2);
+  await expect(unknownRow.locator('.font-medium')).toHaveText('OPS Task ID: onbekend-id');
+  await expect(unknownRow.getByText(unmatchedReason)).toBeVisible();
+  await expect(unknownRow.getByText(/^(row 2 in the sheet|rij 2 in het blad)$/)).toBeVisible();
+  await expect(ambiguousRow.locator('.font-medium')).toHaveText('DUBBEL Bladtaak');
+  await expect(ambiguousRow.getByText('OPS Task ID: ander-project-id', { exact: true })).toBeVisible();
+  await expect(ambiguousRow.getByText(ambiguousReason)).toBeVisible();
+  await expect(ambiguousRow.getByText(/^(row 3 in the sheet|rij 3 in het blad)$/)).toBeVisible();
+  await expect(duplicateRow).toContainText(/Another row already claimed this task\.|Een andere rij claimde deze taak al\./);
+  await expect(duplicateRow.getByRole('button', { name: PICKER_PLACEHOLDER })).toHaveCount(0);
   await expect(dialog(page).getByRole('button', { name: APPLY })).toBeDisabled();
 
-  await rowByNumber(page, 2).getByRole('button', { name: PICKER_PLACEHOLDER }).click();
+  await unknownRow.getByRole('button', { name: PICKER_PLACEHOLDER }).click();
   await page.getByRole('option', { name: new RegExp(info.name) }).click();
+  await expect(unknownRow.getByText(unmatchedReason)).toHaveCount(0);
 
-  // De handmatig gekoppelde rij draait nu gewoon mee: de bevestigknop komt vrij en de wijziging
-  // wordt daadwerkelijk toegepast op de gekozen taak.
+  // Wissen herstelt de oorspronkelijke uitleg en het ID; daarna kunnen beide rijen gekoppeld worden.
+  await unknownRow.getByRole('button', { name: CLEAR_LINK }).click();
+  await expect(unknownRow.locator('.font-medium')).toHaveText('OPS Task ID: onbekend-id');
+  await expect(unknownRow.getByText(unmatchedReason)).toBeVisible();
+  await expect(dialog(page).getByRole('button', { name: APPLY })).toBeDisabled();
+  await unknownRow.getByRole('button', { name: PICKER_PLACEHOLDER }).click();
+  await page.getByRole('option', { name: new RegExp(info.name) }).click();
+  await ambiguousRow.getByRole('button', { name: PICKER_PLACEHOLDER }).click();
+  await page.getByRole('option', { name: new RegExp(infoB.name) }).click();
+  await expect(ambiguousRow).toContainText(infoB.name);
+  await expect(ambiguousRow.getByText(ambiguousReason)).toHaveCount(0);
+  await expect(dialog(page).getByText(NEEDS_LINK_HEADING)).toHaveCount(0);
+  expect((await taskTime(page, idA)).completion).toBe(0);
+  expect((await taskTime(page, idB)).completion).toBe(0);
+
+  // Pas Toepassen schrijft de handmatige koppelingen; de dubbele rij blijft geweigerd.
   await expect(dialog(page).getByRole('button', { name: APPLY })).toBeEnabled();
   await dialog(page).getByRole('button', { name: APPLY }).click();
   await expect(footerCloseButton(page)).toBeVisible();
 
-  const after = await taskTime(page, idA);
-  expect(after.completion).toBe(0.55);
+  expect((await taskTime(page, idA)).completion).toBe(0.55);
+  expect((await taskTime(page, idB)).completion).toBe(0.65);
+  expect((await taskTime(page, idC)).completion).toBe(0);
+  await expect(duplicateRow).toContainText(/Another row already claimed this task\.|Een andere rij claimde deze taak al\./);
 });
 
 test('koppelkiezer met plaatshouder: bij openen geen actieve optie, Enter en Spatie kiezen niets', async ({ page, ops: _ops }) => {
@@ -321,7 +371,7 @@ test('de keuze werkt door in de preview', async ({ page, ops: _ops }) => {
   await expect(footerCloseButton(page)).toBeVisible();
 
   const after = await taskTime(page, idA);
-  expect(after.actualStart).toBe('2026-03-04');
+  expect(after.actualStart).toBe("2026-03-04T07:00");
 });
 
 test('de Tabel-tabknop opent dezelfde dialoog', async ({ page, ops: _ops }) => {
@@ -433,7 +483,7 @@ test('voortgangsblad-export: knop op Planning levert een leesbaar .xlsx in de do
 
   const { name, bytes } = await exportProgressSheet(page);
 
-  expect(name).toMatch(/-voortgang\.xlsx$/);
+  expect(name).toBe('Voortgangsblad-export-progress.xlsx');
   // `PK\x03\x04` — een ZIP, dus geen CSV en geen half bestand.
   expect([...bytes.subarray(0, 4)]).toEqual([0x50, 0x4b, 0x03, 0x04]);
 
@@ -449,7 +499,7 @@ test('voortgangsblad-export: knop op Planning levert een leesbaar .xlsx in de do
   expect(row.wbsCode).toBeTruthy();
   expect(row.name).toBe('Fundering');
   expect(row.rawCompletion).toBeTruthy();
-  expect(row.rawActualStart).toBe('2026-09-07');
+  expect(row.rawActualStart).toBe("2026-09-07T07:00");
   expect(row.rawActualFinish === undefined || row.rawActualFinish === '').toBe(true);
   // …en de twee detectie-only kolommen (Start/Finish) in `detectionCells`.
   const detected = new Set(sheet.detectionCells.map(cell => cell.field));
@@ -506,7 +556,7 @@ test('exporteren en meteen terugimporteren geeft nul wijzigingen', async ({ page
   // En het document is ook echt onaangeraakt gebleven.
   const after = await taskTime(page, idA);
   expect(after.completion).toBeCloseTo(1 / 3, 4);
-  expect(after.actualStart).toBe('2026-09-07');
+  expect(after.actualStart).toBe("2026-09-07T07:00");
 });
 
 test('een gewijzigd .xlsx-blad komt zonder datumvraag terug het document in', async ({ page, ops: _ops }) => {

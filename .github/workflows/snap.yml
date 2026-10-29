@@ -34,14 +34,27 @@ jobs:
     # bevat een poll-lus (max ~2,5 min) plus een snapcraft-build in een VM.
     timeout-minutes: 75
     runs-on: ubuntu-22.04
-    # `types: [completed]` vuurt OOK als release.yml faalde of werd geannuleerd;
-    # zonder deze gate zou een mislukte release alsnog een snap bouwen.
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    # `types: [completed]` vuurt ook voor mislukte runs en PR-runs met dezelfde
+    # workflownaam. Alleen geslaagde releases uit deze repo mogen code aanleveren.
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || (
+        github.event_name == 'workflow_run'
+        && github.event.workflow_run.conclusion == 'success'
+        && github.event.workflow_run.head_repository.full_name == github.repository
+        && (
+          github.event.workflow_run.event == 'workflow_dispatch'
+          || (
+            github.event.workflow_run.event == 'push'
+            && startsWith(github.event.workflow_run.head_branch, 'v')
+          )
+        )
+      )
     permissions:
       contents: write
     env:
-      # Job-level zodat de gated publish-stap er in `if:` naar kan verwijzen.
-      SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+      # Alleen de aanwezigheid is nodig voor de gate; de credential zelf pas bij publiceren.
+      HAS_SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS != '' }}
 
     steps:
       - uses: actions/checkout@v5
@@ -71,7 +84,7 @@ jobs:
             if printf '%s' "$HEAD_BRANCH" | grep -qE '^v[0-9]'; then
               VERSION="$HEAD_BRANCH"
             else
-              VERSION="$(gh release list --exclude-drafts --limit 1 --json tagName --jq '.[0].tagName // empty')"
+              VERSION="$(gh release list --exclude-drafts --exclude-pre-releases --limit 1 --json tagName --jq '.[0].tagName // empty')"
             fi
           else
             VERSION=""
@@ -176,8 +189,10 @@ jobs:
       # Live publiceren naar de Snap Store: alleen op een echte release én pas
       # zodra het store-credentials-secret bestaat (eigenaar-stap).
       - name: Publish to Snap Store
-        if: github.event_name == 'workflow_run' && env.SNAPCRAFT_STORE_CREDENTIALS != ''
+        if: github.event_name == 'workflow_run' && env.HAS_SNAPCRAFT_STORE_CREDENTIALS == 'true'
         uses: snapcore/action-publish@v1
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
         with:
           snap: ${{ steps.snapcraft.outputs.snap }}
           release: stable

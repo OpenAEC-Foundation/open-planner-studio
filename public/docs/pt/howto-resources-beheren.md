@@ -26,7 +26,7 @@ Edite os campos na linha. A aplicação guarda o nome, a tarifa e a unidade quan
 
 - *Unidades máx* só é aceite pela aplicação se o valor for superior a 0. Com 0 ou menos, o campo fica com uma moldura vermelha e volta ao valor anterior.
 - *Calendário* decide em que dias o recurso trabalha. Escolha *Calendário do projeto* ou um calendário próprio. Com *+ Calendário de recurso* cria um novo; o lápis (*Editar…*) abre o calendário escolhido. Se uma tarefa trabalhar num dia em que o recurso não trabalha segundo o seu calendário, esse dia conta como sobrealocado. Como criar um calendário de recurso está descrito em [Configurar um calendário de recurso](docs://howto-resourcekalender-instellen).
-- *Tarifa/hora* e *Total*: *Total* são as horas carregadas desse recurso vezes a tarifa. Um estucador com 32 horas de carga e uma tarifa de 50 por hora dá 1 600,00. Na parte inferior da tabela está a soma de todos os recursos.
+- *Tarifa/hora* e *Total*: *Total* é o número de horas carregadas desse recurso vezes a tarifa. Um estucador com 32 horas de carga e uma tarifa de 50 por hora dá 1 600,00. Na parte inferior da tabela está a soma de todos os recursos.
 - *Equipa* agrupa um recurso debaixo de um recurso do tipo *Equipa*. É só um agrupamento: a aplicação não soma a capacidade nem a carga dos membros à equipa.
 - O quadrado colorido à esquerda é a cor do recurso. Serve só para visualizar e não tem efeito no planeamento.
 
@@ -41,7 +41,7 @@ Uma nova etapa começa com a data de hoje e 1 unidade. Altere as duas coisas, po
 1. Clique no caixote do lixo da linha.
 2. Se o recurso tiver atribuições, a aplicação pede confirmação, por exemplo *'Bricklayer' tem 4 atribuição(ões) — eliminar?* Clique no visto para eliminar ou na cruz para cancelar. Sem atribuições, o recurso desaparece logo.
 
-As atribuições do recurso são eliminadas com ele. Se uma tarefa tiver uma regra de trabalho diferente de *Duração e unidades fixas*, a aplicação divide o trabalho do recurso removido pelos recursos que restam. Conforme a regra, isso altera as unidades deles ou a duração da tarefa. Se a duração mudar, o planeamento deixa de estar atualizado.
+As atribuições do recurso são eliminadas com ele. Se uma tarefa tiver um tipo de tarefa diferente de *Duração e unidades fixas*, a aplicação divide o trabalho do recurso removido pelos recursos que restam. Conforme o tipo de tarefa, isso altera as unidades deles ou a duração da tarefa. Se a duração mudar, o planeamento deixa de estar atualizado.
 
 Pode anular a criação, a edição e a eliminação com *Desfazer* (Ctrl+Z).
 

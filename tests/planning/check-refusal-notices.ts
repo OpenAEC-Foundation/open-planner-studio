@@ -93,7 +93,7 @@ eq('1n geen overgeslagen relaties ⇒ geen melding', none.length, 0);
 eq('2a Many noemt de taken (niet toegepast bij)', many[0]?.detailLines,
   [{ messageKey: 'notifications.notAppliedTaskNames', params: { names: 'B, C' } }]);
 const msMany = milestoneRefusalNotices([{ id: 'a', name: 'A', refusal: 'assignments' }, { id: 'b', name: 'B', refusal: 'assignments' }]);
-eq('2b mijlpaal _other noemt de taken (niet aangepast)', msMany[0]?.detailLines,
+eq('2b mijlpaalverzameling noemt de taken (niet aangepast)', msMany[0]?.detailLines,
   [{ messageKey: 'notifications.refusedTaskNames', params: { names: 'A, B' } }]);
 const seven = Array.from({ length: REFUSED_NAMES_SHOWN + 2 }, (_, i) => blocked(`T${i}`));
 eq('2c meer dan vijf namen ⇒ "en nog N"', startEditNotifications(seven, 'dmy', '24h')[0]?.detailLines,
@@ -164,10 +164,13 @@ const REFUSAL_KEYS = [
   'durationBelowDoneWork', 'relationDuplicate', 'relationAncestorEndpoint', 'relationCycle', 'hierarchyCycle',
   'startBlockedByConstraint', 'startBlockedByConstraintNoDate', 'startBlockedByConstraintMany',
   'dragStartIsActual', 'dragDatesAreActual', 'milestoneRefusedAssignments', 'milestoneRefusedSummary',
+  'milestoneRefusedAssignmentsMany', 'milestoneRefusedSummaryMany',
   'phaseRefusedNoAssignableChild', 'phaseRefusedDuplicateResource', 'taskEditRevertBlocked', 'pasteSkippedReadOnly',
-  'relationsSkippedOnInsert', 'schedulingTemplateLimit', 'phaseQuestionOutdated',
+  'relationsSkippedOnInsert', 'schedulingTemplateLimit', 'phaseQuestionOutdated', 'ambiguousThousands',
 ];
 const NOT_A_REFUSAL: Record<string, string> = {
+  mppInvalidContainer: 'echte importfout (ongeldige bestandsstructuur), geen documentgebonden bewerkingsweigering',
+  extensionInstallFailed: 'app-globale installatiefout (bijv. ongeldig bestand of opslag); geen documentgebonden weigering',
   extHelpProjectOpenFailed: 'storing (bestand niet te openen), echte fout',
   siteSaveConflict: 'opslaan geweigerd door de site: data staat op het spel, blijft een echte fout die nooit weggeduwd wordt',
   recoveryReadFailed: 'storing bij herstel', recoveryDocumentsSkipped: 'storing bij herstel',
@@ -177,6 +180,10 @@ const NOT_A_REFUSAL: Record<string, string> = {
   xerImportEmptyProjectsSkipped: 'openingsmelding bij import (eigenaarsbesluit: niet rood)',
   summaryRelationsDropped: 'openingsmelding bij import (eigenaarsbesluit: niet rood)',
   p6xmlImportUnassignedActivities: 'openingsmelding bij import (eigenaarsbesluit: niet rood)',
+  // Importverslag MS Project (#391): detailregels onder een openingsmelding, zoals P6 XML.
+  ...Object.fromEntries(['Baselines', 'ExtraBaselines', 'BaselineWorkCost', 'AssignmentBaselineDates', 'CustomFields', 'Notes', 'Hyperlinks', 'FixedCosts', 'ResourceRates',
+    'Subprojects', 'ExternalTasks', 'ManualTasks', 'LevelingDelays', 'InactiveTasks', 'CriticalSlack']
+    .map(c => [`msProjectLost${c}`, 'openingsmelding bij import (eigenaarsbesluit: niet rood)'])),
   notAppliedTaskNames: 'detailregel onder een weigering', notAppliedTaskNamesMore: 'detailregel onder een weigering',
   refusedRelationNames: 'detailregel onder een weigering', refusedRelationNamesMore: 'detailregel onder een weigering',
   refusedTaskNames: 'detailregel onder een weigering', refusedTaskNamesMore: 'detailregel onder een weigering',

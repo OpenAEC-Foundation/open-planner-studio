@@ -9,22 +9,31 @@ En beställare eller huvudentreprenör arbetar i Primavera och levererar sin tid
 ## Steg
 
 1. Välj *Start › Fil › Öppna* eller tryck på Ctrl+O. Välj filen `.xer`.
-2. Appen öppnar en flik för varje projekt som har uppgifter. Projektet med flest uppgifter är den aktiva fliken. En flik heter *Projektnamn (Projekt-ID)* om P6-projekt-ID:t skiljer sig från namnet.
+2. Appen öppnar en flik för varje projekt som har uppgifter. Projektet med flest uppgifter är den aktiva fliken. En flik heter *Projektnamn (Projekt-ID)* om P6-projekt-ID:t skiljer sig från namnet. *Projektinställningar* visar bara namnet. Om du byter namn på projektet finns projekt-ID:t kvar efter namnet. Sedan visas kort ett fönster som förklarar vad appen tog över från filen och hur sparandet fungerar. Se [Öppna och spara en fil](docs://howto-bestand-openen-en-opslaan).
 3. Läs meddelandet längst ner. För en fil med tre projekt kan det se ut så här: *XER-fil öppnad: 3 projektdokument.* Under det finns rader som förklarar vad appen gjorde. Se rubriken nedan.
-4. Kontrollera om det finns ett meddelandefält under menyfliksområdet: *Du ser tidsplanen så som Primavera sparade den; när du beräknar om skulle 1 uppgift flyttas.* Primavera sparar egna beräknade datum i filen. Om appens beräkning skiljer sig från dem visar appen Primaveras datum så länge du inte ändrar något. Vad det betyder och hur du byter till appens egna beräkning står i [Datum så som de sparades](docs://uitleg-datums-zoals-opgeslagen). Meddelandet *Den här filen innehåller timplanering.* kan också visas, med knappen *Aktivera timplanering*. Se [Så aktiverar du timplanering](docs://howto-urenplanning-aanzetten).
+4. Kontrollera om det finns ett meddelandefält under menyfliksområdet: *Du ser tidsplanen så som Primavera sparade den; när du beräknar om skulle 1 uppgift flyttas.* Primavera sparar egna beräknade datum i filen. Om appens beräkning skiljer sig från dem visar appen Primaveras datum så länge du inte ändrar något. En uppgift som har startat eller är klar ligger alltid på sina verkliga datum, precis som i Primavera. Vad det betyder och hur du byter till appens egna beräkning står i [Datum så som de sparades](docs://uitleg-datums-zoals-opgeslagen). Meddelandet *Den här filen innehåller timplanering.* kan också visas, med knappen *Aktivera timplanering*. Se [Så aktiverar du timplanering](docs://howto-urenplanning-aanzetten).
 5. Spara projektet med Ctrl+S. Eftersom en `.xer`-fil aldrig skrivs över frågar appen var den nya IFC-filen ska sparas. Den föreslår *Projektnamn (Projekt-ID)* som filnamn.
 
 ### Raderna under meddelandet
 
 Den första raden i meddelandet anger hur många flikar som öppnades. Under den visas bara de rader som gäller. Dessa kräver din uppmärksamhet:
 
-- *Det här projektet beräknas enligt Primavera P6. Ändra det via Arkiv → Projektinfo → Beräkningsprofil och beräkningsalternativ.* Appen beräknar det här projektet med Primaveras beräkningsregler. Med *Öppna beräkningsprofil* går du till inställningen.
+- *Det här projektet beräknas enligt Primavera P6. Ändra det via ”Arkiv” → ”Projektinfo” → ”Beräkningsprofil och beräkningsalternativ”.* Appen beräknar det här projektet med Primaveras beräkningsregler. Med *Öppna beräkningsprofil* går du till inställningen.
 - *1 baslinjeprojekt exkluderat.* och *1 baslinje materialiserad.* Om ett projekt i P6 anger ett annat projekt som sin baslinje öppnas inte det andra projektet som en egen flik. Det blir i stället den aktiva baslinjen för projektet som hänvisar till det.
 - *En skyddande baslinje-reserv användes.* Om utpekandet av baslinjer skulle innebära att inget projekt öppnas alls, om ett projekt hänvisar till sig självt eller om projekt hänvisar till varandra i en cirkel, öppnar appen helt enkelt alla projekt och skapar inga baslinjer.
 - *1 externt samband bevarat.* Ett samband mellan två projekt. Appen behåller det som källdata, men gör det inte till ett samband i din tidsplan.
-- *1 uppgift visar datumen så som Primavera sparade dem (inte beräknas om).* Det är antalet uppgifter du ser i vyn *Datum så som de sparades*.
+- *12 uppgifter visar datumen så som Primavera sparade dem (inte beräknas om).* Antalet uppgifter för vilka vyn *Datum så som de sparades* visar Primaveras datum: alla uppgifter för vilka filen sparade datum, inte bara de som skiljer sig.
 
-De andra raderna är diagnostik av själva läsningen: antalet projekt som hittades, ett överhoppat tomt projekt, en ignorerad hängande baslinjereferens, en teckenkodning som inte är vanlig UTF-8 och räknare för fynd i tabellerna, kalendrarna och talen, för okända fältvärden och för P6:s beräkningsinställningar som appen ersatte med ett säkert val. De kräver inget av dig. *Läs mer* öppnar hjälpen om att öppna Primavera-filer.
+De andra raderna är diagnostik av själva läsningen. De kräver inget av dig:
+
+- antalet projekt som hittades;
+- ett överhoppat tomt projekt;
+- en ignorerad hängande baslinjereferens;
+- en teckenkodning som inte är vanlig UTF-8 (meddelandet anger vilken: för arabisk, kyrillisk eller grekisk text väljer appen motsvarande Windows-kodsida, annars Windows-1252);
+- uppgifter utan planerad start (de får sin start från rapportdatumet eller från projektstarten i filen);
+- räknare för fynd i tabellerna, kalendrarna och talen, för okända fältvärden och för P6-tidsplaninställningar som appen ersatte med ett säkert val.
+
+*Läs mer* öppnar hjälpen om att öppna Primavera-filer.
 
 ## Fallgropar och vad appen gör då
 
@@ -32,13 +41,24 @@ De andra raderna är diagnostik av själva läsningen: antalet projekt som hitta
 
 **Varje flik är ett eget projekt.** Om du sparar en flik behåller IFC-filen hela den ursprungliga `.xer`-filen. Om du öppnar IFC-filen senare känner appen fortfarande till Primaveras datum. Om källarkivet är skadat, eller om ett annat IFC-program skrev om filen, rapporterar appen: *XER-källarkivet i den här filen är oanvändbart och har utelämnats. Projektet självt öppnades helt.* Tidsplanen, beräkningsprofilen och alla projektdata är kompletta. Det som saknas är datumen så som Primavera lagrade dem och källinformationen för AI och tillägg. Öppna den ursprungliga `.xer`-filen igen för att få tillbaka arkivet.
 
+**IFC-filen blir större.** Eftersom IFC-filen bär hela den ursprungliga `.xer`-filen är den större än en IFC-fil utan arkiv. Med en stor `.xer`-fil märker du det i filstorleken och i hur lång tid sparandet tar. Om en `.xer`-fil öppnar flera projekt bär varje flik du sparar hela `.xer`-filen, inte bara det egna projektet.
+
 **En export till CSV, MS Project XML eller P6 XML förlorar data.** Appen varnar: *Export till CSV gör att XER-källinformation går förlorad.* IFC förlorar ingenting.
+
+**En ledig lördag eller söndag som inte finns i filen.** Appen kan själv göra en sådan weekenddag ledig. Dagen heter då *Kalenderundantag (rekonstruktion av helg)* i kalendern. Mönstret finns i [Import- och exportformat](docs://ref-import-exportformaten).
+
+**Slack upp till projektslut, utan slutdatum.** Om filen saknar slutdatum stänger appen av alternativet *Beräkna slack till projektslut*. Det räknas i raden *N P6-tidsplaninställningar med säker reservlösning.* Detaljerna finns i [Import- och exportformat](docs://ref-import-exportformaten).
+
+**Avslutade uppgifter på rapportdatumet.** En avslutad uppgift kan visas som en smal balk på rapportdatumet i vyn *Datum så som de sparades*. Det är inget fel i din fil. Förklaringen och den tillhörande beräkningsregeln finns i [Import- och exportformat](docs://ref-import-exportformaten).
+
+**Tal med komma som decimalavskiljare.** Om appen inte kan fastställa decimalavskiljaren på ett tillförlitligt sätt öppnar den inte filen. Så öppnas aldrig en tidsplan med felaktigt lästa tal. Be avsändaren om en ny export.
 
 **En fil som appen inte kan läsa.** Du får ett felmeddelande med orsaken. Några exempel:
 
 - *Den här filen är ingen giltig eller stödd XER-fil.*
 - *En XER-tabell saknar obligatoriska kolumner.*
 - *P6-projektet i den här XER-filen innehåller inga uppgifter.*
+- *Decimalnotationen i den här XER-filen kan inte fastställas på ett tillförlitligt sätt.*
 
 Då öppnas ingenting. Kontrollera filen i P6 eller be avsändaren om en ny export.
 

@@ -11,22 +11,22 @@ Menyfliksområdet överst på skärmen har flikar, och varje flik har grupper me
 
 ## Fil
 
-När du klickar på *Fil* tar en egen skärm (Backstage) över arbetsytan. Den har inget menyfliksområde. *Tillbaka* stänger den. Om du har ändrat något under *Projektinfo* och inte tillämpat det frågar appen först vad du vill göra med ändringen.
+När du klickar på *Fil* tar en egen skärm (Backstage) över arbetsytan. Den har inget menyfliksområde. *Tillbaka* stänger den. Om du har ändrat något under *Projektinställningar* och inte tillämpat det frågar appen först vad du vill göra med ändringen.
 
-- **Nytt** — öppnar fönstret *Nytt projekt* och stänger Backstage. Fälten finns under [Nytt projekt och Projektinfo](docs://ref-projectinfo).
+- **Nytt** — öppnar fönstret *Nytt projekt* och stänger Backstage. Fälten finns under [Nytt projekt och Projektinställningar](docs://ref-projectinfo).
 - **Öppna** — väljer en fil och öppnar den som ett dokument. Stänger Backstage.
 - **Senaste** — en lista med nyss öppnade projekt; ett klick öppnar ett av dem. Syns bara när miljön kan öppna filer igen: i skrivbordsappen och i webbläsare som erbjuder filåtkomst, som Chrome och Edge. I andra webbläsare finns knappen, men sidan förblir tom.
 - **Exempel** — medföljande exempeltidsplaner, uppdelade i *Kompletta showcase-tidsplaner* (märke *Alla funktioner*) och *Enkla exempel*. Ett klick öppnar ett exempel i en ny flik.
 - **Spara** — skriver projektet till filen för det här dokumentet. Har dokumentet ännu ingen fil väljer du först ett namn och en plats. En fil som du öppnade i ett annat format än IFC skrivs aldrig över; då frågar *Spara* efter ett namn och en plats för en IFC-fil.
 - **Spara som** — väljer ett nytt namn eller en ny plats och sparar där som IFC.
 - **Exportera** — ett kort per exportformat, med en beskrivning. Ett klick konverterar projektet och sparar det, och tar dig tillbaka till *Start*. Har tidsplanen ett cirkelberoende visas felet i Backstage, och du stannar där. Är projektet kopplat till ett bibliotek visas kryssrutan *Spara biblioteksfilen bredvid* nedanför. Den fungerar bara för IFC-kortet.
-- **Importera** — överst kortet *Uppdatera framdrift från ett kalkylblad* (inaktivt utan uppgifter), under det importerna som tillägg lägger till.
+- **Importera** — överst kortet *Uppdatera framdrift från ett kalkylblad* (inaktivt utan uppgifter), under kortet visas importerna som tillägg lägger till.
 - **Skriv ut** — knappen *Öppna förhandsgranskning* tar dig till fliken *Rapport*.
-- **Projektinfo** — metadata och beräkningsprofil för det här projektet. Ändringar gäller först efter *Tillämpa*. Se [Nytt projekt och Projektinfo](docs://ref-projectinfo) och [Beräkningsprofiler och beräkningsregler](docs://uitleg-rekenprofielen).
-- **Inställningar** — samma inställningar som i fönstret *Inställningar*.
+- **Projektinställningar** — metadata och beräkningsprofil för det här projektet. Ändringar gäller först efter *Tillämpa*. Se [Nytt projekt och Projektinställningar](docs://ref-projectinfo) och [Beräkningsprofiler och beräkningsregler](docs://uitleg-rekenprofielen).
+- **Appinställningar** — samma inställningar som i fönstret *Appinställningar*.
 - **Tillägg** — hantering och installation av tillägg; se [Installera och hantera ett tillägg](docs://howto-extensie-installeren).
 - **Bibliotek** — hantering av bibliotek för resurser; se [Hantera och dela bibliotek för resurser](docs://howto-bibliotheken-beheren).
-- **Hjälp** — den inbyggda dokumentationen, även med F1. Sökfältet söker i titlar, rubriker och själva texten. Artiklarna finns i fyra avsnitt: *Självstudier*, *Praktiska guider*, *Förklaring* och *Referens*. Under *Dokumentationsspråk* väljer du *Följ appens språk*, *Nederlands* eller *English*. Hjälp finns bara på nederländska och engelska. Är appen på ett annat språk läser du den engelska versionen, med en notis. Valet sparas på den här enheten, separat från appens språk. Du kan också öppna Hjälp från ett fönster eller en panel. Många fönster och panelerna *Egenskaper*, *Resurser* och *Varningar* har ett frågetecken uppe till höger (*Hjälp om det här avsnittet*). Det öppnar Hjälp på artikeln om fönstret eller panelen. Har du skrivit något i fönstret som ännu inte är sparat, frågar appen först: *Spara*, *Avbryt* (kasta bort det du skrev) eller *Tillbaka* (stanna i fönstret). Sedan stängs fönstret och Hjälp öppnas. Några fönster, som *Redigera uppgift* och *Utjämna resurser*, frågar alltid. Utan inmatning öppnas Hjälp direkt.
+- **Hjälp** — den inbyggda dokumentationen, även med F1. Sökfältet söker i titlar, rubriker och själva texten. Artiklarna finns i fyra avsnitt: *Självstudier*, *Praktiska guider*, *Förklaring* och *Referens*. Under *Dokumentationsspråk* väljer du *Följ appens språk* eller ett språk i listan. Nederländska och engelska är källspråken. De andra språken har de artiklar som redan är översatta. Saknas en artikel på ditt språk läser du den engelska versionen, med en notis. Valet sparas på den här enheten, separat från appens språk. Du kan också öppna Hjälp från ett fönster eller en panel. Många fönster och panelerna *Egenskaper*, *Resurser* och *Varningar* har ett frågetecken uppe till höger (*Hjälp om det här avsnittet*). Det öppnar Hjälp på artikeln om fönstret eller panelen. Har du skrivit något i fönstret som ännu inte är sparat, frågar appen först: *Spara*, *Avbryt* (kasta bort det du skrev) eller *Tillbaka* (stanna i fönstret). Sedan stängs fönstret och Hjälp öppnas. Några fönster, som *Redigera uppgift* och *Utjämna resurser*, frågar alltid. Utan inmatning öppnas Hjälp direkt.
 - **Starta rundtur** — stänger Backstage och startar rundturen vid steg 1.
 - **Stäng projekt** — stänger det aktiva dokumentet. Har det osparade ändringar frågar appen om bekräftelse.
 
@@ -46,14 +46,14 @@ När du klickar på *Fil* tar en egen skärm (Backstage) över arbetsytan. Den h
 
 ### Start › Uppgifter
 
-- **Uppgift** — lägger till en uppgift som heter *Ny uppgift*, med en varaktighet på 5 arbetsdagar och start på projektstarten. Om *Aktivera timplanering* är på och *Standardenhet för nya uppgifter* i *Projektinfo* är timmar, är varaktigheten 5 timmar. Är en uppgift markerad och vyn är det enkla trädet, hamnar den nya uppgiften direkt under den understa markerade uppgiften (verktygstips *Ny uppgift direkt under markeringen*). Utan markering hamnar den längst ned (verktygstips *Ny uppgift längst ned i listan*). Med en markering men när du filtrerar, grupperar eller sorterar, hamnar den också längst ned, och en remsa säger *Inte tillgänglig vid filtrering/gruppering/sortering*. Den nya uppgiften blir den enda markeringen. Gantt-diagrammet hoppar till den, och du kan skriva över namnet i panelen *Egenskaper*.
-- **Milstolpe ▾** — rullgardinsmeny som lägger en milstolpe (varaktighet 0) på samma plats som *Uppgift*. *Startmilstolpe* och *Slutmilstolpe* väljer vilken sorts milstolpe det är. Den nya milstolpen heter *Ny milstolpe* och får uppgiftstyp *Övrigt*. *Inspektionspunkt (obligatorisk)* gör en slutmilstolpe med uppgiftstyp *Besiktning* och flaggan *Obligatorisk (avtalsenlig)*, och den heter *Ny inspektion*.
+- **Uppgift** — lägger till en uppgift som heter *Ny uppgift*, med en varaktighet på 5 arbetsdagar och med start vid projektstarten. Om *Aktivera timplanering* är på och *Standardenhet för nya uppgifter* i *Projektinställningar* är timmar, är varaktigheten 5 timmar. Är en uppgift markerad och vyn är det enkla trädet, hamnar den nya uppgiften direkt under den understa markerade uppgiften (verktygstips *Ny uppgift direkt under markeringen*). Utan markering hamnar den längst ned (verktygstips *Ny uppgift längst ned i listan*). Med en markering men när du filtrerar, grupperar eller sorterar, hamnar den också längst ned. En röd avisering säger då att appen inte kan placera den under din markering, med knappen *Rensa*. Den nya uppgiften blir den enda markeringen. Gantt-diagrammet hoppar till den, och du kan skriva över namnet i panelen *Egenskaper*.
+- **Milstolpe ▾** — rullgardinsmeny som lägger en milstolpe (varaktighet 0) på samma plats som *Uppgift*. *Startmilstolpe* och *Slutmilstolpe* väljer vilken sorts milstolpe det är. Den nya milstolpen heter *Ny milstolpe* och får arbetskategori *Övrigt*. *Inspektionspunkt (obligatorisk)* gör en slutmilstolpe med arbetskategori *Besiktning* och flaggan *Obligatorisk (avtalsenlig)*, och den heter *Ny inspektion*.
 - **Länka ▾** — rullgardinsmeny med fyra fasta åtgärder. Huvudknappen ändrar aldrig betydelse. Se *Tidsplan › Samband* för de fyra åtgärderna.
 - **Dela uppgift** — slår läget för delade uppgifter på eller av. På: en remsa under menyfliksområdet förklarar att du klickar på en balk där avbrottet börjar och drar åt höger för dess längd. Inaktiv när Gantt-diagrammet inte visas, på flikarna *Tabell*, *IFC* och *Rapport* och under den fullständiga resurspanelen. Verktygstipset säger då *Endast tillgänglig när Gantt-diagrammet visas*. Se [Dela en uppgift](docs://howto-taak-splitsen).
 
 ### Start › Beräkning
 
-- **Beräkna** — beräknar tidsplanen: datum, slack, kritisk linje och resursbelastning. Det sker aldrig av sig självt, om du inte slår på *Beräkna automatiskt* (*Inställningar*, flik *Tidsplan*, rubrik *Beräkning*). Medan tidsplanen är inaktuell visar statusfältet *Inaktuell — beräkna om (F5)*.
+- **Beräkna** — beräknar tidsplanen: datum, slack, kritisk linje och resursbelastning. Det sker aldrig av sig självt, om du inte slår på *Beräkna automatiskt* (*Appinställningar*, flik *Tidsplan*, rubrik *Beräkning*). Medan tidsplanen är inaktuell visar statusfältet *Inaktuell — beräkna om (F5)*.
 
 ### Start › Zoom
 
@@ -94,7 +94,7 @@ Du kan ha båda på samtidigt. Ett andra klick på en knapp stänger av den sida
 ### Tidsplan › Struktur
 
 - **Koder & fält** — öppnar fönstret *Koder & fält* för uppgiftskoder och egna fält. Se [Koder och egna fält](docs://howto-codes-en-velden).
-- **WBS auto** — slår på eller av automatisk numrering av WBS-koderna. Standard: av. På: hela trädet numreras om på en gång. Därefter följer koderna varje strukturändring, och fältet *WBS-kod* i panelen och dialogrutan är inaktiverat.
+- **WBS auto** — slår på eller av automatisk numrering av WBS-koderna. Standard: på i ett nytt projekt. I en öppnad fil utan den här inställningen: på om filen är tom eller om alla koder redan stämmer med numreringen i trädet, annars av. På: hela trädet numreras om på en gång. Därefter följer koderna varje strukturändring, och fältet *WBS-kod* i panelen och dialogrutan är inaktiverat.
 - **Numrera om WBS** — numrerar om WBS-koderna en gång, enligt positionen i trädet (1.2.3). Inaktiv medan *WBS auto* är på.
 - **Mallar** — rullgardinsmeny med sparade WBS-mallar, var och en med antalet uppgifter och samband. Ett klick infogar mallen under den markerade uppgiften, eller på översta nivån när ingen uppgift är markerad. Papperskorgsikonen tar bort en mall. Utan mallar står det hur du sparar en (högerklicka på en sammanfattningsuppgift, *Spara gren som mall*). Se [Spara och infoga WBS-mallar](docs://howto-wbs-sjablonen).
 - **Indrag** — gör de markerade uppgifterna till underuppgifter till uppgiften före dem. Inaktiv utan markering och så snart du filtrerar, grupperar eller sorterar. Verktygstipset säger då *Inte tillgänglig vid filtrering/gruppering/sortering*.
@@ -103,7 +103,7 @@ Du kan ha båda på samtidigt. Ett andra klick på en knapp stänger av den sida
 ### Tidsplan › Baslinjer & framdrift
 
 - **Hantera baslinjer…** — öppnar fönstret för baslinjer. Se [Spara och hantera en baslinje](docs://howto-baseline-opslaan-en-beheren).
-- **Rapportdatum** — datumet t.o.m. vilket du mäter framdriften. Skriv ett datum. Krysset (*Töm rapportdatum*) tar bort det. Effekt: framdriften mäts t.o.m. det datumet, och rapportdatumlinjen och framdriftslinjen i Gantt-diagrammet ligger på det datumet. Se [Framdrift, rapportdatum och baslinje](docs://uitleg-voortgang).
+- **Rapportdatum** — datumet t.o.m. vilket du mäter framdriften. Skriv ett datum. Krysset (*Töm rapportdatum*) tar bort det. Om projektkalendern har band för arbetstid räknar appen i timmar och ett tidsfält visas bredvid datumet (MS Project sparar ofta 17:00). Tiden räknar då: 12:00 i stället för 17:00 ger en halv dags skillnad i återstående arbete. Utan band för arbetstid räknar appen i hela dagar och det finns inget tidsfält. Effekt: framdriften mäts t.o.m. det datumet, och rapportdatumlinjen och framdriftslinjen i Gantt-diagrammet ligger på det datumet. Se [Framdrift, rapportdatum och baslinje](docs://uitleg-voortgang).
 - **Framdriftsläge** — ett val mellan *Retained Logic* och *Progress Override*. Standard: *Retained Logic*. Effekt: med *Retained Logic* följer det återstående arbetet för en påbörjad efterföljande uppgift sambandet. Med *Progress Override* börjar det återstående arbetet på rapportdatumet, utan att vänta på den föregående uppgiften. Se [Välja framdriftsläge](docs://howto-voortgangsmodus-kiezen).
 
 I det ihopfällda menyfliksområdet ligger dessa tre bakom en flaggknapp med namnet *Baslinjer & framdrift*.
@@ -152,7 +152,7 @@ Den här gruppen finns också på *Tabell* och *Rapport*.
 
 ### Vy › Visning
 
-- **Kolumner…**, **Filtrera…**, **Gruppera…** och **Sortera…** — syns bara när *Visa klassiska vyknappar* är på (*Inställningar*, fliken *Avancerat*, rubriken *Äldre funktioner*). Standard: av. *Kolumner…* tar dig till *Tabell* och öppnar kolumnväljaren där. *Filtrera…* öppnar filterfönstret direkt, så länge det inte finns något sparat filter. Med sparade filter öppnas en meny med *Filtrera…*, *Rensa* (bara när ett filter är aktivt) och de sparade filtren. *Gruppera…* tillåter två nivåer. *Sortera…* tillåter fler nivåer. En knapp lyser när den vyinställningen är aktiv. I det aktuella menyfliksområdet gör du det med layoutknappar; se [Skapa och använda en layout](docs://howto-layouts-gebruiken).
+- **Kolumner…**, **Filtrera…**, **Gruppera…** och **Sortera…** — syns bara när *Visa klassiska vyknappar* är på (*Appinställningar*, fliken *Avancerat*, rubriken *Äldre funktioner*). Standard: av. *Kolumner…* tar dig till *Tabell* och öppnar kolumnväljaren där. *Filtrera…* öppnar filterfönstret direkt, så länge det inte finns något sparat filter. Med sparade filter öppnas en meny med *Filtrera…*, *Rensa* (bara när ett filter är aktivt) och de sparade filtren. *Gruppera…* tillåter två nivåer. *Sortera…* tillåter fler nivåer. En knapp lyser när den vyinställningen är aktiv. I det aktuella menyfliksområdet gör du det med layoutknappar; se [Skapa och använda en layout](docs://howto-layouts-gebruiken).
 
 ### Vy › Disposition
 
@@ -166,7 +166,7 @@ Den här gruppen finns också på *Tabell* och *Rapport*.
 
 ### Vy › Presentation
 
-- **Presentation** — slår presentationsläget på eller av (F11 eller Esc för att stoppa). Bara Gantt fyller skärmen. Se [Presentera på en stor skärm](docs://howto-presentatie).
+- **Presentation** — slår presentationsläget på eller av (Esc för att stoppa, i desktopappen även F11). Bara Gantt fyller skärmen. Se [Presentera på en stor skärm](docs://howto-presentatie).
 - **Delad vy** — delar Gantt i två tidsfönster som båda börjar med din aktuella zoom och position (delning 50 procent), eller gör den till ett fönster igen. Standard: av. Se [Använda delad vy och minikartan](docs://howto-split-view-en-mini-map).
 - **Minikarta** — visar eller döljer minikartan. Standard: av. Ditt val sparas.
 
@@ -176,14 +176,22 @@ Den här gruppen finns också på *Tabell* och *Rapport*.
 
 Knapparna *Resurser*, *Resursdocka* och *Histogram* är samma som på *Resurser*, och *Varningar* är samma som på *Tidsplan*.
 
+**Den högra kolumnen.** Kolumnen till höger om Gantt finns så snart minst en av panelerna *Egenskaper*, *Resursdocka* eller *Varningar* är på. Är ingen på finns ingen kolumn. Tar en helskärmspanel över arbetsytan, till exempel hela resurspanelen, försvinner kolumnen. Bara på fliken *Tabell* stannar den kvar.
+
+- **Bredd** — dra i skiljelinjen mellan arbetsytan och kolumnen. En bredd gäller för alla paneler i kolumnen.
+- **Delning** — är två paneler på, dra i gränsen mellan dem. Är en på, fyller den panelen hela kolumnen.
+- **Ihopfällning** — knappen *Fäll ihop sidokolumnen* i rubriken döljer kolumnen. En smal remsa med knappen *Fäll ut sidokolumnen* visar den igen, med samma paneler som förut.
+- **Stäng** — varje panel har ett kryss i sin rubrik. Det är samma växel som knappen i menyfliksområdet.
+- **Hela panelen** — i resursdockan öppnar knappen *Hela panelen* den hela resurspanelen.
+
 ### Vy › Baslinjer och framdrift
 
 Den här gruppen har samma namn som gruppen på *Tidsplan*, men innehåller ritalternativen för Gantt.
 
 - **Baslinjeöverlägg** — visar den aktiva baslinjen som en tunn balk under varje uppgiftsbalk. Standard: på. Utan aktiv baslinje finns inget att se.
 - **Framdriftslinje** — ritar en linje på rapportdatumet som buktar ut per uppgift i proportion till dess framdrift. Standard: på. Utan rapportdatum finns inget att se. När framdriftslinjen är på är den också markeringen för rapportdatumet.
-- **Rapportdatumlinje** — ritar en streckad linje på rapportdatumet. Standard: på. Du ser den bara när framdriftslinjen är av, för annars ersätter framdriftslinjen den. Etiketten med datumet i rubriken finns kvar så länge minst en av de två är på.
-- **Balkfärger** — väljer hur balkarna färgas: *Kritisk linje* (standard), *Per uppgift — automatiskt* eller *Efter kategori* med ett val av fält. Om det fältet inte finns i det här projektet står det i menyn att *Uppgiftstyp* används tillfälligt. Utanför *Kritisk linje* markerar en röd kontur den kritiska linjen. Valet gäller även rapporten.
+- **Rapportdatumlinje** — ritar en streckad linje på rapportdatumet. Standard: på. Du ser den bara när framdriftslinjen är av, för annars ersätter framdriftslinjen den. Etiketten med datumet i rubriken finns kvar så länge minst en av de två är på. Etiketten följer din datumnotation, till exempel 20-09-2006. Om appen beräknar i timmar hamnar linjen och etiketten på tidpunkten på dagen, och etiketten visar också tiden, till exempel 20-09-2006 17:00.
+- **Balkfärger** — väljer hur balkarna färgas: *Kritisk linje* (standard), *Per uppgift — automatiskt* eller *Efter kategori* med ett val av fält. Om det fältet inte finns i det här projektet står det i menyn att *Arbetskategori* används tillfälligt. Utanför *Kritisk linje* markerar en röd kontur den kritiska linjen. Valet gäller även rapporten.
 - **Resursmarkering** — ritar en tunn remsa i resursens färg under varje balk för en uppgift utan underuppgifter, uppdelad i proportion till tilldelningsenheter per dag. Standard: av.
 - **Slackband** — ritar det gröna området efter en icke-kritisk balk, upp till uppgiftens senaste slut. Standard: på.
 - **Sambandslinjer** — visar eller döljer sambandslinjerna mellan uppgifter. Standard: på. Valet hör till dokumentet och till layouten.
@@ -192,8 +200,8 @@ Den här gruppen har samma namn som gruppen på *Tidsplan*, men innehåller rita
 
 ### Inställningar › Projekt
 
-- **Projektinfo** — öppnar fönstret *Projektinfo*: projektets metadata och, i blocket *Beräkningsprofil och beräkningsalternativ*, hur projektet räknar ut. Se [Nytt projekt och projektinfo](docs://ref-projectinfo).
-- **Inställningar** — öppnar fönstret *Inställningar* med flikarna *Utseende*, *Tidsplan* och *Avancerat*. Samma inställningar finns under *Fil › Inställningar*.
+- **Projektinställningar** — öppnar fönstret *Projektinställningar* med projektets metadata och, i blocket *Beräkningsprofil och beräkningsalternativ*, hur projektet beräknar. Se [Nytt projekt och projektinställningar](docs://ref-projectinfo).
+- **Appinställningar** — öppnar fönstret *Appinställningar* med flikarna *Utseende*, *Tidsplan* och *Avancerat*. Samma inställningar finns under *Fil › Appinställningar*.
 
 ### Inställningar › Kalender
 
@@ -213,7 +221,7 @@ Fliken *Tabell* visar uppgifterna som en fullständig tabell i stället för Gan
 
 ## IFC
 
-Fliken visar IFC-panelen i arbetsytan. Menyfliksområdet har inga knappar här, bara textraden *IFC 4x3 - Industry Foundation Classes*.
+Fliken visar IFC-panelen i arbetsytan. Menyfliksområdet har inga knappar här, bara textraden *IFC - Industry Foundation Classes, i projektets schema (standard IFC 4.3 ADD2)*.
 
 ## Rapport
 
@@ -223,7 +231,7 @@ Fliken visar IFC-panelen i arbetsytan. Menyfliksområdet har inga knappar här, 
 
 ## AI
 
-Fliken *AI* finns bara när *Aktivera AI-läge* är på (*Inställningar*, fliken *Avancerat*, rubriken *AI-läge*). Standard: av. Om du stänger av det tas fliken bort och bryggan stoppas. En AI-assistent arbetar med din tidsplan via en MCP-brygga som du startar här. Se [Koppla en AI-assistent (MCP)](docs://howto-ai-assistent-koppelen).
+Fliken *AI* finns bara när *Aktivera AI-läge* är på (*Appinställningar*, fliken *Avancerat*, rubriken *AI-läge*). Standard: av. Om du stänger av det tas fliken bort och bryggan stoppas. En AI-assistent arbetar med din tidsplan via en MCP-brygga som du startar här. Se [Koppla en AI-assistent (MCP)](docs://howto-ai-assistent-koppelen).
 
 ### AI › Server
 
@@ -232,12 +240,12 @@ Fliken *AI* finns bara när *Aktivera AI-läge* är på (*Inställningar*, flike
 ### AI › Anslutning
 
 - **Port** — bryggans port. Standard: 3877. Du kan bara ändra den när statusen är *Av* (tooltipen *Kan bara ändras när servern är stoppad.*).
-- **Token** — lösenordet för bryggan, visas dolt. Små knappar *Visa token*/*Dölj token*, *Kopiera* och *Ny token*. *Ny token* frågar först om bekräftelse, eftersom en ny token bryter alla befintliga anslutningar. Om bryggan är igång startar den om med den nya token.
+- **Token** — bryggans lösenord, visas dolt. Små knappar *Visa token*/*Dölj token*, *Kopiera* och *Ny token*. *Ny token* frågar först om bekräftelse, eftersom en ny token bryter alla befintliga anslutningar. Om bryggan är igång startar den om med den nya token.
 - **Anslut** — visar anslutningsuppgifterna: slutpunkt, token, ett konfigurationsutdrag och en anslutningsprompt som du klistrar in i din AI-agent.
 
 ### AI › Säkerhet
 
-- **Pausa** / **Återuppta** — tillfälligt avvisar alla ändringar från AI:n. Läsning blir kvar tillåten och bryggan är kvar igång. Knappen lyser rött så länge den är pausad.
+- **Pausa** / **Återuppta** — tillfälligt avvisas alla ändringar från AI:n. Läsning är kvar tillåten och bryggan är kvar igång. Knappen lyser rött så länge den är pausad.
 - **Skrivskyddad** — avvisar alla verktyg som ändrar något så länge den är på.
 - **Automatisk säkerhetskopia: på** / **Automatisk säkerhetskopia: av** — skriver automatiskt en IFC-säkerhetskopia före den första AI-ändringen per dokument. Standard: på.
 - **Säkerhetskopiera nu** — skriver direkt en säkerhetskopia och visar filnamnet. Bara i desktopappen.

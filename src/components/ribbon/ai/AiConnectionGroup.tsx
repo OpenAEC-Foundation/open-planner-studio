@@ -70,7 +70,7 @@ export function AiConnectionGroup() {
   const [popoverOpen, setPopoverOpen] = useState(false);
 
   // Poort mag alleen wijzigen zolang de bridge niet draait (de draaiende server bindt de poort).
-  const portLocked = serverState !== 'off';
+  const portLocked = serverState === 'live';
 
   const onPortChange = (raw: string) => {
     const n = parseInt(raw, 10);

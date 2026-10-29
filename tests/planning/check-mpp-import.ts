@@ -74,7 +74,6 @@ import {
 } from '@/services/mpp/mppReader';
 import { readCalendars, type CalendarReadResult } from '@/services/mpp/mppCalendars';
 import { MAX_VAR_TEXT_BYTES, MAX_MANUAL_DURATION_TENTHS } from '@/services/mpp/limits';
-import { tenthsOfMinutesToDays } from '@/services/importDurations';
 import { formatInstant } from '@/utils/dateUtils';
 import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { writeMSPDI } from '@/services/msproject/mspdiWriter';
@@ -102,6 +101,9 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { opsSolveInput } from './legacySolveOptions';
 import { builtInProfile } from '@/engine/scheduler/conventions/registry';
+import { readMppCorpusEntry, resolveMppCrawlScopes } from './mppCorpus';
+
+const crawlScopes = resolveMppCrawlScopes(process.env);
 
 const diffs: string[] = [];
 let checks = 0;
@@ -129,17 +131,6 @@ let softChecksTotal = 0;
   }
   truthy('00 niet-CFB-bytes: constructor gooit', threw);
   truthy('00b niet-CFB-bytes: nette CFB-foutmelding', message.startsWith('CFB:'));
-}
-
-// ── T7-restpunt (N1/N2): tenthsOfMinutesToDays met een NIET-dyadische hoursPerDay (7,6667u/dag =
-// 460 minuten/dag) — het geval waar de afrondingsvolgorde daadwerkelijk uitmaakt (zie de
-// toelichting in importDurations.ts). 16100 tienden-van-minuut = 1610 minuten; 1610/460 = 3,5
-// dagen, en JS' Math.round rondt .5 naar boven ⇒ 4. ─────────────────────────────────────────────
-{
-  truthy(
-    '00c tenthsOfMinutesToDays(16100, 460/60) === 4 (niet-dyadische hoursPerDay, halve-dag-grens)',
-    tenthsOfMinutesToDays(16100, 460 / 60) === 4,
-  );
 }
 
 // ── Z8-herwerkronde (2026-08-18) — INSTRUMENTFIX: `canonicalizeBands`/`promoteHourCalendar`
@@ -884,6 +875,7 @@ const PROPSKEY_ASSIGNMENT_FIELD_MAP = 131095;
     'I4/I3 fieldMap: veld niet in de aanwezige field-map-bytes ⇒ GEEN terugval op defaults (alles-of-niets)',
     fixedOffsetOf(table, TaskFieldId.OutlineLevel) === null,
   );
+  truthy('I4/I3 veldkaart aanwezig: geen terugval voor vaste kosten', fixedOffsetOf(table, TaskFieldId.FixedCost) === null);
 }
 {
   const resFieldMapBytes = buildFieldMapEntryBytes([
@@ -894,6 +886,9 @@ const PROPSKEY_ASSIGNMENT_FIELD_MAP = 131095;
   const resTable = createResourceFieldMap(resProps);
   truthy('I4 createResourceFieldMap: FIXED_DATA-entry correct', fixedOffsetOf(resTable, ResourceFieldId.UniqueId) === 5);
   truthy('I4 createResourceFieldMap: VAR_DATA-entry correct', varDataKeyOf(resTable, ResourceFieldId.Name) === ResourceFieldId.Name);
+  for (const field of [ResourceFieldId.StandardRate, ResourceFieldId.OvertimeRate, ResourceFieldId.CostPerUse]) {
+    truthy(`I4/I3 veldkaart aanwezig: geen terugval voor tariefveld ${field}`, fixedOffsetOf(resTable, field) === null);
+  }
 }
 {
   const asgFieldMapBytes = buildFieldMapEntryBytes([
@@ -919,6 +914,12 @@ const PROPSKEY_ASSIGNMENT_FIELD_MAP = 131095;
   // enige plek die een verkeerde DEFAULT-offset (bv. 94→96) kan betrappen is DEZE directe
   // eenheidstoets tegen de defaulttabel zelf, spiegelt de assertie hierboven voor OutlineLevel/Name.
   truthy('I4/I3 fieldMap: ontbrekende sleutel ⇒ defaulttabel (Type@94)', fixedOffsetOf(table, TaskFieldId.Type) === 94);
+  // #155: het importverslag gebruikt dezelfde kaart, ook als beide Props-sleutels ontbreken.
+  truthy('I4/I3 ontbrekende taakveldkaart: FixedCost@158', fixedOffsetOf(table, TaskFieldId.FixedCost) === 158);
+  const resourceTable = createResourceFieldMap(props);
+  truthy('I4/I3 ontbrekende resourceveldkaart: StandardRate@28', fixedOffsetOf(resourceTable, ResourceFieldId.StandardRate) === 28);
+  truthy('I4/I3 ontbrekende resourceveldkaart: OvertimeRate@36', fixedOffsetOf(resourceTable, ResourceFieldId.OvertimeRate) === 36);
+  truthy('I4/I3 ontbrekende resourceveldkaart: CostPerUse@84', fixedOffsetOf(resourceTable, ResourceFieldId.CostPerUse) === 84);
 }
 
 // ── C1: clampOutlineLevel — triviale aritmetiek, los van het stack-algoritme hieronder. ─────────
@@ -1170,9 +1171,9 @@ const PROPSKEY_ASSIGNMENT_FIELD_MAP = 131095;
   if (result) {
     truthy('I4 end-to-end readMPP: project.name uit Props/TITLE', result.project.name === 'Fixture Project');
     // Rekenprofielen C3/C4: de twee MPP-eigen conventies staan in het MS Project-profiel; de lezer zet
-    // geen projectopties meer.
-    truthy('I4 end-to-end readMPP: zonder XER-floatbron geen projectopties, MS Project-profiel',
-      result.project.schedulingOptions === undefined
+    // geen conventie-overrides meer; de bronkritiekgrens is wel een projectinstelling.
+    truthy('I4 end-to-end readMPP: alleen bronkritiekgrens als projectoptie, MS Project-profiel',
+      JSON.stringify(result.project.schedulingOptions) === JSON.stringify({ criticalDefinition: { mode: 'totalFloat', threshold: 0 } })
         && JSON.stringify(result.project.schedulingProfile) === JSON.stringify(builtInProfile('msproject')));
     truthy('I4 end-to-end readMPP: project en kalender krijgen nooit XER-provenance',
       result.project.schedulingProfile?.id === 'msproject' && result.calendar.p6Source === undefined);
@@ -1447,8 +1448,10 @@ const PROPSKEY_ASSIGNMENT_FIELD_MAP = 131095;
       truthy('uurmodus-fixture (dag-contrast): 1 taak', result.tasks.length === 1);
       const task = result.tasks[0];
       truthy('uurmodus-fixture (dag-contrast): projectkalender.workTime NIET gezet (geen lek)', !result.calendar.workTime);
-      truthy('uurmodus-fixture (dag-contrast): expliciete taakeenheid is days', task?.time.durationUnit === 'days');
-      truthy('uurmodus-fixture (dag-contrast): durationMinutes NIET gezet (geen lek)', task?.time.durationMinutes === undefined);
+      // Sinds F5b altijd de urenmaat (alleen uren §3.10, T15; I4): de kalender blijft scalair (geen lek),
+      // maar de duur is de minuten uit het bestand.
+      truthy('uurmodus-fixture (dag-contrast): taakmaat is de urenmaat (T15)', task?.time.durationUnit === 'hours');
+      truthy('uurmodus-fixture (dag-contrast): durationMinutes === 480 (de minuten uit het bestand)', task?.time.durationMinutes === 480);
       truthy('uurmodus-fixture (dag-contrast): scheduleDuration === 1 dag', task?.time.scheduleDuration === 1);
       truthy('uurmodus-fixture (dag-contrast): scheduleStart is dag-alleen (geen "T")', !task?.time.scheduleStart.includes('T'));
       truthy('uurmodus-fixture (dag-contrast): scheduleFinish is dag-alleen (geen "T")', !task?.time.scheduleFinish.includes('T'));
@@ -1500,7 +1503,8 @@ const PROPSKEY_ASSIGNMENT_FIELD_MAP = 131095;
         `uurmodus-fixture (scalar-vs-promoted): projectkalender.workTime NIET gezet (scalar hpd=4, 240%240===0) — hoursPerDay=${result.calendar.hoursPerDay}`,
         !result.calendar.workTime,
       );
-      truthy('uurmodus-fixture (scalar-vs-promoted): durationMinutes NIET gezet', task?.time.durationMinutes === undefined);
+      // De kalender beslist (workTime hierboven); de duur is sinds F5b altijd de urenmaat (T15).
+      truthy('uurmodus-fixture (scalar-vs-promoted): durationMinutes === 240 (urenmaat, T15)', task?.time.durationMinutes === 240);
     }
   }
 
@@ -1547,7 +1551,8 @@ const PROPSKEY_ASSIGNMENT_FIELD_MAP = 131095;
         'uurmodus-fixture (ankerdivergentie, mpp-kant): projectkalender.workTime NIET gezet (kalender-eigen anker 09:00 == taaktijden)',
         !result.calendar.workTime,
       );
-      truthy('uurmodus-fixture (ankerdivergentie, mpp-kant): durationMinutes NIET gezet (dagmodus)', result.tasks[0]?.time.durationMinutes === undefined);
+      // De kalender blijft in dagmodus (workTime hierboven); de duur is sinds F5b altijd de urenmaat (T15).
+      truthy('uurmodus-fixture (ankerdivergentie, mpp-kant): durationMinutes === 480 (urenmaat, T15)', result.tasks[0]?.time.durationMinutes === 480);
     }
 
     // Dezelfde taak/kalender als minimale MSPDI-XML — bewijst de ANDERE kant van de divergentie.
@@ -1619,12 +1624,11 @@ const PROPSKEY_ASSIGNMENT_FIELD_MAP = 131095;
       truthy('uurmodus-fixture (T10 dag-modus elapsed): 1 taak', result.tasks.length === 1);
       const task = result.tasks[0];
       truthy('uurmodus-fixture (T10 dag-modus elapsed): projectkalender.workTime NIET gezet (dagmodus, geen lek)', !result.calendar.workTime);
-      truthy('uurmodus-fixture (T10 dag-modus elapsed): durationMinutes NIET gezet (dagmodus)', task?.time.durationMinutes === undefined);
+      // Sinds F5b de urenmaat (T15): de duur is de KLOK-minuten uit het bestand (2 × 1440), zonder
+      // omrekening via een uren-per-dag. Het dagengetal is afgeleid zoals bij elke urentaak.
+      truthy(`uurmodus-fixture (T10 dag-modus elapsed): durationMinutes === 2880 klokminuten (kreeg ${task?.time.durationMinutes})`, task?.time.durationMinutes === 2880);
       truthy('uurmodus-fixture (T10 dag-modus elapsed): durationType === ELAPSEDTIME', task?.time.durationType === 'ELAPSEDTIME');
-      truthy(
-        `uurmodus-fixture (T10 dag-modus elapsed): scheduleDuration === 2 (klok-dagen, GEEN dubbele hoursPerDay-deling — kreeg ${task?.time.scheduleDuration})`,
-        task?.time.scheduleDuration === 2,
-      );
+      truthy('uurmodus-fixture (T10 dag-modus elapsed): taakmaat is de urenmaat (T15)', task?.time.durationUnit === 'hours');
     }
   }
 
@@ -1657,8 +1661,9 @@ const PROPSKEY_ASSIGNMENT_FIELD_MAP = 131095;
 // eindtijd). Besluit eigenaar: tijd overnemen (17:00 = einde van die dag). De MSPDI-lezer doet dat
 // sinds `statusDateFromXml`; voor hetzelfde project moet `.mpp` exact hetzelfde opleveren. MS
 // Project schrijft de waarde in MSPDI als `<StatusDate>` in xsd:dateTime-vorm (wandklok, zonder
-// zone) — die string is hier de referentie. Het dag-anker 08:00 betekent in MSPDI "geen tijd"; voor
-// pariteit geldt dat ook hier (een statusdatum op 08:00 komt exact als `YYYY-MM-DD` terug).
+// zone) — die string is hier de referentie. Het dag-anker 08:00 betekent alleen in een MSPDI van OPS zelf
+// "geen tijd"; sinds F5b (I8) is 08:00 in een vreemd bestand een echte tijd. Een `.mpp` komt van MS
+// Project, dus ook hier: een statusdatum op 08:00 komt als `YYYY-MM-DDT08:00` terug, net als in MSPDI.
 // ═══════════════════════════════════════════════════════════════════════════════════════════
 {
   installDOMParser();
@@ -1680,7 +1685,7 @@ const PROPSKEY_ASSIGNMENT_FIELD_MAP = 131095;
     ['12:30', 7500, '2026-07-06T12:30:00', '2026-07-06T12:30'],
     ['23:59 (de datum schuift niet)', 14390, '2026-07-06T23:59:00', '2026-07-06T23:59'],
     ['00:00', 0, '2026-07-06T00:00:00', '2026-07-06T00:00'],
-    ['08:00 (dag-anker: geen tijd, exact de datum)', 4800, '2026-07-06T08:00:00', '2026-07-06'],
+    ['08:00 (een echte tijd in een vreemd bestand, F5b I8)', 4800, '2026-07-06T08:00:00', '2026-07-06T08:00'],
   ];
   for (const [label, time, xsd, want] of cases) {
     const got = fromMpp(time, DAYS_2026_07_06);
@@ -1697,7 +1702,7 @@ const PROPSKEY_ASSIGNMENT_FIELD_MAP = 131095;
 
   // Corpus (optioneel, publiek MPXJ-materiaal onder OPS_MPP_CRAWL — zelfde padconventie als Z4):
   // de enige twee van de 164 MPXJ-.mpp-bestanden met een statusdatum.
-  const DATA = `${process.env.OPS_MPP_CRAWL ?? '/home/nozzit/open-aec/voor claude/testdata-crawl'}/mpxj/junit/data`;
+  const DATA = `${crawlScopes.root}/mpxj/junit/data`;
   for (const [file, want] of [['calendar-exception-precedence.mpp', '2023-05-01T17:00'], ['mpp14header.mpp', '2006-08-01T17:35']]) {
     const path = `${DATA}/${file}`;
     if (!existsSync(path)) {
@@ -2425,6 +2430,7 @@ if (corpusPresent) {
   function buildMsTaskFixedDataRecord(opts: {
     uniqueId: number; id: number; durationRaw: number;
     startTime: number; startDays: number; finishTime: number; finishDays: number;
+    actualFinishTime?: number; actualFinishDays?: number;
   }): Uint8Array {
     const out = new Uint8Array(130);
     const view = new DataView(out.buffer);
@@ -2437,6 +2443,11 @@ if (corpusPresent) {
     view.setUint16(66, opts.startDays, true);
     view.setUint16(68, opts.finishTime, true);
     view.setUint16(70, opts.finishDays, true);
+    // Werkelijk einde (`fieldMap14`: ActualFinish op offset 76); zonder dag blijft het leeg (null).
+    if (opts.actualFinishDays !== undefined) {
+      view.setUint16(76, opts.actualFinishTime ?? 0, true);
+      view.setUint16(78, opts.actualFinishDays, true);
+    }
     view.setInt32(118, -1, true); // geen taak-kalender-override — gebruik de projectkalender
     return out;
   }
@@ -2477,6 +2488,7 @@ if (corpusPresent) {
   interface MsTaskSpec {
     name: string; uniqueId: number; id: number; milestone: boolean; durationRaw: number;
     startTime: number; startDays: number; finishTime: number; finishDays: number;
+    actualFinishTime?: number; actualFinishDays?: number;
   }
 
   /** Bouwt één compleet CFB-bestand met N taken op ÉÉN gedeelde kalender — spiegelt de UURMODUS-
@@ -2635,6 +2647,31 @@ if (corpusPresent) {
       const task = result.tasks[0];
       truthy('[T11 dagmodus] taak is mijlpaal', task?.isMilestone === true);
       truthy('[T11 dagmodus] GEEN milestoneKind (afleiding geldt alleen in uur-modus)', task?.milestoneKind === undefined);
+    }
+  }
+
+  // ── Fixture E2 (review ronde 3 van PR #559, deel B): dezelfde mijlpaal op het anker, nu voltooid met
+  // een werkelijk einde om 11:00 of om 00:00. Die tijd is een feit uit de bron en telt mee in de
+  // uur-modus-beslissing; anders kapte `formatField` hem af tot de datum en werd het na het laden het
+  // blokeinde 16:00. Mutatiebewijs: zonder de werkelijke datums in `dateSignal` blijft de kalender
+  // scalair en is het werkelijke einde `2025-01-24`. ───────────────────────────────────────────────
+  for (const [clock, time] of [['11:00', 6600], ['00:00', 0]] as const) {
+    const bytes = buildMilestoneKindFixture([
+      { name: 'ActualMilestone', uniqueId: 10, id: 1, milestone: true, durationRaw: 0, startTime: 4800, startDays: 15000,
+        finishTime: 4800, finishDays: 15000, actualFinishTime: time, actualFinishDays: 15000 },
+    ]);
+    let result: ReturnType<typeof readMPP> | null = null;
+    let threw: string | null = null;
+    try {
+      result = readMPP(bytes);
+    } catch (err) {
+      threw = err instanceof Error ? err.message : String(err);
+    }
+    truthy(`[werkelijk ${clock}] readMPP gooit niet (${threw ?? ''})`, threw === null);
+    if (result) {
+      truthy(`[werkelijk ${clock}] de werkelijke tijd maakt de kalender een urenkalender`, !!result.calendar.workTime);
+      const actual = result.tasks[0]?.time.actualFinish;
+      truthy(`[werkelijk ${clock}] werkelijk einde houdt zijn tijd (${actual})`, actual === `2025-01-24T${clock}`);
     }
   }
 
@@ -4021,7 +4058,7 @@ if (corpusPresent) {
   // namen in de uitvoer, alleen tellingen. ─────────────────────────────────────────────────────────
   {
     const F4_CORPUS = process.env.OPS_MPP_CORPUS ?? '/home/nozzit/open-aec/voor claude/test bestanden voor file implementation';
-    const F4_CRAWL = process.env.OPS_MPP_CRAWL ?? '/home/nozzit/open-aec/voor claude/testdata-crawl';
+    const F4_CRAWL = crawlScopes.root;
 
     function listMppFilesRecursiveF4(dir: string): string[] {
       const out: string[] = [];
@@ -4034,8 +4071,10 @@ if (corpusPresent) {
       return out;
     }
 
+    let filesFound = 0;
     let filesScanned = 0;
     let filesFailed = 0;
+    let legacyRejected = 0;
     let tasksScanned = 0;
     let typeFieldPresent = 0; // mspTaskTypeRaw !== null (het veld staat in dit bestand se field map)
     let fixedUnits = 0, fixedDuration = 0, fixedWork = 0; // gedecodeerd via mspTaskTypeFromRaw
@@ -4043,8 +4082,17 @@ if (corpusPresent) {
     for (const root of [F4_CORPUS, F4_CRAWL]) {
       if (!existsSync(root)) continue;
       for (const file of listMppFilesRecursiveF4(root)) {
+        filesFound++;
+        let tag = 'ongelezen bestand';
         try {
-          const result = scanZ2(new Uint8Array(readFileSync(file)));
+          const bytes = new Uint8Array(readFileSync(file));
+          tag = hashOf(bytes);
+          const entry = readMppCorpusEntry(bytes, scanZ2);
+          if (entry.kind === 'legacy') {
+            legacyRejected++;
+            continue;
+          }
+          const result = entry.value;
           filesScanned++;
           for (const raw of result.rawScans) {
             tasksScanned++;
@@ -4057,12 +4105,16 @@ if (corpusPresent) {
             }
             if (raw.effortDrivenRaw) effortDrivenCount++;
           }
-        } catch {
-          filesFailed++; // niet-.mpp14-bestanden of andere onleesbare varianten in de crawl-boom
+        } catch (err) {
+          filesFailed++;
+          checks++;
+          // F4 omvat bedrijfsdata: geen bestandsnamen of mogelijk padbevattende fouttekst.
+          diffs.push(`[F4 corpustelling ${tag}] onverwachte leesfout (${err instanceof Error ? err.name : typeof err})`);
         }
       }
     }
-    if (filesScanned === 0) {
+    truthy(`[F4 corpustelling] geen onverwachte leesfouten (${filesFailed})`, filesFailed === 0);
+    if (filesFound === 0) {
       console.log(`OK  mpp-import: F4 corpusbrede task-type/effort-driven-telling (${F4_CORPUS} / ${F4_CRAWL}) niet aanwezig — overgeslagen`);
     } else {
       truthy(`[F4 corpustelling] minstens 1 bestand gescand (kreeg ${filesScanned})`, filesScanned > 0);
@@ -4079,7 +4131,7 @@ if (corpusPresent) {
       truthy(`[F4 corpustelling] EFFORT_DRIVEN === 216 (kreeg ${effortDrivenCount})`, effortDrivenCount === 216);
       console.log(
         `OK  mpp-import: F4 corpusbrede task-type/effort-driven-telling — ${filesScanned} bestand(en) gescand ` +
-        `(${filesFailed} onleesbaar/overgeslagen), ${tasksScanned} taken totaal, ${typeFieldPresent} met TYPE-veld ` +
+        `(${legacyRejected} bewust geweigerd legacy / ${filesFailed} onverwachte leesfouten), ${tasksScanned} taken totaal, ${typeFieldPresent} met TYPE-veld ` +
         `(${fixedUnits} FIXED_UNITS / ${fixedDuration} FIXED_DURATION / ${fixedWork} FIXED_WORK), ${effortDrivenCount} EFFORT_DRIVEN`,
       );
     }
@@ -4175,7 +4227,7 @@ if (corpusPresent) {
   // nette-skip-conventie als de andere corpus-/crawl-secties in dit bestand. ─────────────────────
   {
     const Z2_CORPUS = process.env.OPS_MPP_CORPUS ?? '/home/nozzit/open-aec/voor claude/test bestanden voor file implementation';
-    const Z2_CRAWL = process.env.OPS_MPP_CRAWL ?? '/home/nozzit/open-aec/voor claude/testdata-crawl';
+    const Z2_CRAWL = crawlScopes.root;
 
     function listMppFilesRecursiveZ2(dir: string): string[] {
       const out: string[] = [];
@@ -4673,7 +4725,7 @@ if (corpusPresent) {
   // decoder of met de aanname, en moet dat gerapporteerd worden vóórdat verder gebouwd wordt. ────
   {
     const Z3_CORPUS = process.env.OPS_MPP_CORPUS ?? '/home/nozzit/open-aec/voor claude/test bestanden voor file implementation';
-    const Z3_CRAWL = process.env.OPS_MPP_CRAWL ?? '/home/nozzit/open-aec/voor claude/testdata-crawl';
+    const Z3_CRAWL = crawlScopes.root;
 
     function listMppFilesRecursiveZ3(dir: string): string[] {
       const out: string[] = [];
@@ -5629,8 +5681,8 @@ function z4MakeTask(id: string, scheduleStart: Date, childIds: string[] = []): T
     }
     truthy(`[Z4-her-check A] dag-modus gooit niet (${threw ?? ''})`, threw === null);
     truthy(
-      '[Z4-her-check A] dag-modus: taak-B krijgt shift 0 (ONgeschoven gat op 240, niet 720 zoals in de uur-modus-variant)',
-      z4GapsEqual(dayModeResult?.get('task-B') ?? [], [{ afterMinutes: 240, gapMinutes: 240 }]),
+      '[Z4-her-check A] F2: effectieve werkblokken geven dezelfde verschuiving als de expliciete blokken (T11)',
+      z4GapsEqual(dayModeResult?.get('task-B') ?? [], [{ afterMinutes: 720, gapMinutes: 240 }]),
     );
   }
 }
@@ -5641,7 +5693,7 @@ function z4MakeTask(id: string, scheduleStart: Date, childIds: string[] = []): T
 // `taskIdByUniqueId`, geen index-toeval). Cijfers: zie de VERPLICHTE meetstap in mppTimephased
 // .ts's moduleheader — hier alleen gepind, niet opnieuw hergeleid. ─────────────────────────────
 {
-  const SPLITTASK_PATH = (process.env.OPS_MPP_CRAWL ?? '/home/nozzit/open-aec/voor claude/testdata-crawl')
+  const SPLITTASK_PATH = crawlScopes.root
     + '/mpxj/junit/data/mpp14splittask.mpp';
   if (!existsSync(SPLITTASK_PATH)) {
     console.log(`OK  mpp-import: Z4 mpp14splittask.mpp niet aanwezig (${SPLITTASK_PATH}) — overgeslagen`);
@@ -5918,7 +5970,7 @@ function z4MakeTask(id: string, scheduleStart: Date, childIds: string[] = []): T
 // resources/assignments) bewijzen hun eigen domein al breed; deze sectie is de taken-tegenhanger
 // ÉN — omdat ze `readMPP()` zonder enige sub-scope aanroept, het complete `ImportResult` in één
 // keer — de enige plek die de VOLLEDIGE lezer (alle domeinen samen, exact het echte open-pad) over
-// alle 49 crawl-bestanden haalt. Netjes overgeslagen zonder de map (OPS_MPP_CRAWL), zelfde
+// alle 49 crawl-bestanden haalt. Scope: OPS_MPP_CRAWL_SMOKE of OPS_MPP_CRAWL/crawl-mpp; zelfde
 // skip-OK-conventie als de rest van dit bestand.
 //
 // BEVINDING (T9, gemeten op dit corpus): 4 van de 49 bestanden (`OzBuild Workshop 02.mpp` en
@@ -5965,9 +6017,9 @@ function z4MakeTask(id: string, scheduleStart: Date, childIds: string[] = []): T
 // Bestanden zonder taken (zie de bevinding hierboven) worden hier overgeslagen (0/0 zegt niets
 // over plausibiliteit).
 {
-  const CRAWL = process.env.OPS_MPP_CRAWL ?? '/home/nozzit/open-aec/voor claude/testdata-crawl/crawl-mpp';
+  const CRAWL = crawlScopes.smoke;
   if (!existsSync(CRAWL)) {
-    console.log('OK  mpp-import: T9-crawl niet aanwezig (OPS_MPP_CRAWL) — crawlsectie overgeslagen');
+    console.log('OK  mpp-import: T9-crawl niet aanwezig (OPS_MPP_CRAWL_SMOKE of OPS_MPP_CRAWL/crawl-mpp) — crawlsectie overgeslagen');
   } else {
     function listMppFilesRecursive(dir: string): string[] {
       const out: string[] = [];
@@ -6055,6 +6107,7 @@ function z4MakeTask(id: string, scheduleStart: Date, childIds: string[] = []): T
           ratio <= SUSPECT_RATIO_BUDGET,
         );
       }
+      truthy(`[T9-crawl] aantal bestanden exact op de gemeten basislijn (${crawlFiles.length}/49)`, crawlFiles.length === 49);
       truthy(`[T9-crawl] geen leesfouten over ${crawlFiles.length} bestanden`, readFailures === 0);
       truthy(
         `[T9-crawl] taakloze bestanden exact op de gemeten basislijn (${filesWithZeroTasks}/${CRAWL_ZERO_TASK_FILES_BASELINE}, zie de bevinding hierboven)`,

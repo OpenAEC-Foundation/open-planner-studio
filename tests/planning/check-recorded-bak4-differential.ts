@@ -46,11 +46,11 @@ if (!ROOT) {
 /** De UIT-mutaties: [bestand (relatief aan src/), zoektekst, vervanging]. Elk moet exact 1× raken. */
 const OFF_MUTATIONS: Array<[string, string, string]> = [
   ['services/msproject/mspdiReader.ts',
-    '    {\n      const recordedDate = (raw: string): string | undefined =>\n        raw ? importDateTime(raw, isHour)',
-    '    if (false) {\n      const recordedDate = (raw: string): string | undefined =>\n        raw ? importDateTime(raw, isHour)'],
+    '    {\n      const slackDays = (raw: string): number | undefined => {',
+    '    if (false) {\n      const slackDays = (raw: string): number | undefined => {'],
   ['services/p6/p6xmlReader.ts',
-    '    {\n      const recordedDate = (raw: string): string | undefined =>\n        raw ? importDateTime(raw, isHour)',
-    '    if (false) {\n      const recordedDate = (raw: string): string | undefined =>\n        raw ? importDateTime(raw, isHour)'],
+    '    {\n      const recordedDate = (raw: string): string | undefined => xmlTaskDate(raw, timeRule, hourDates);',
+    '    if (false) {\n      const recordedDate = (raw: string): string | undefined => xmlTaskDate(raw, timeRule, hourDates);'],
   ['services/mpp/mppReader.ts',
     '    {\n      const slackDays = (tenths: number | null): number | undefined => {',
     '    if (false) {\n      const slackDays = (tenths: number | null): number | undefined => {'],
@@ -60,6 +60,7 @@ const OFF_MUTATIONS: Array<[string, string, string]> = [
 ];
 
 type Readers = {
+  CsvDateImportError: typeof import('@/services/csv/csvReader').CsvDateImportError;
   readCSV: (s: string) => Record<string, unknown>;
   readMSPDI: (s: string) => Record<string, unknown>;
   readP6XML: (s: string) => Record<string, unknown>;
@@ -81,7 +82,7 @@ async function bundle(variant: 'on' | 'off'): Promise<Readers> {
   await esbuild.build({
     stdin: {
       contents: [
-        "export { readCSV } from '@/services/csv/csvReader';",
+        "export { readCSV, CsvDateImportError } from '@/services/csv/csvReader';",
         "export { readMSPDI } from '@/services/msproject/mspdiReader';",
         "export { readP6XML } from '@/services/p6/p6xmlReader';",
         "export { readMPP } from '@/services/mpp/mppReader';",
@@ -154,17 +155,39 @@ function runBoth(read: (r: Readers) => Record<string, unknown>): { on: Outcome; 
 const fixtures: Array<[string, (r: Readers) => Record<string, unknown>]> = [
   ['P6 XML-fixture', (r) => r.readP6XML(P6XML_FIXTURE)],
   ['MSPDI-fixture', (r) => r.readMSPDI(MSPDI_FIXTURE)],
+  ['P6 XML-fixture (onleesbare datums)', (r) => r.readP6XML(P6XML_FIXTURE.replace(/<Activity>[\s\S]*?<\/Activity>/g,
+    block => block.replace(/<LateStartDate>[^<]*<\/LateStartDate>/g, '<LateStartDate>NA</LateStartDate>')))],
+  ['MSPDI-fixture (onleesbare datums)', (r) => r.readMSPDI(MSPDI_FIXTURE.replace(/<Task>[\s\S]*?<\/Task>/g,
+    block => block.replace(/<(EarlyStart|LateStart)>[^<]*<\/\1>/g, '<$1>NA</$1>')))],
   ['CSV-fixture', (r) => r.readCSV(CSV_FIXTURE)],
   ['CSV-fixture (alleen datums)', (r) => r.readCSV(CSV_FIXTURE_DATES_ONLY)],
-  ['CSV-fixture (onleesbare datums)', (r) => r.readCSV(CSV_FIXTURE_UNREADABLE_DATES)],
 ];
 for (const [label, read] of fixtures) {
   const { on: a, off: b } = runBoth(read);
   truthy(`1 ${label}: beide varianten lezen`, a.ok && b.ok);
   if (a.ok && b.ok) {
     eq(`1 ${label}: importresultaat AAN = UIT (zonder het vastleggingskanaal)`, a.text === b.text, true);
-    if (label !== 'CSV-fixture (onleesbare datums)') truthy(`1 ${label}: AAN legt echt iets vast (anders test dit niets)`, a.recorded > 0);
+    truthy(`1 ${label}: AAN legt echt iets vast (anders test dit niets)`, a.recorded > 0);
     eq(`1 ${label}: UIT legt niets vast`, b.recorded, 0);
+  }
+}
+
+// Knownbug 128: onherkende gevulde CSV-datums zijn een BEWUSTE weigering, geen positieve fixture.
+// Beide bundels moeten hun eigen datumfout met exact dezelfde verwachte context geven: twee
+// willekeurige fouten (bijvoorbeeld een kapotte bundel of import) mogen deze check niet laten slagen.
+for (const [variant, readers] of [['AAN', on], ['UIT', off]] as const) {
+  let error: unknown;
+  try { readers.readCSV(CSV_FIXTURE_UNREADABLE_DATES); } catch (e) { error = e; }
+  truthy(`1 CSV-fixture (onleesbare datums) ${variant}: specifieke datumvalidatiefout`,
+    error instanceof readers.CsvDateImportError);
+  if (error instanceof readers.CsvDateImportError) {
+    eq(`1 CSV-fixture (onleesbare datums) ${variant}: bedoelde fout met record/kolom/celwaarde`, {
+      name: error.name, message: error.message, row: error.row, column: error.column, value: error.value,
+    }, {
+      name: 'CsvDateImportError',
+      message: 'CSV record 2, column "Start": unrecognised date "Mon 3/2/26". Use YYYY-MM-DD, DD-MM-YYYY or DD/MM/YYYY.',
+      row: 2, column: 'Start', value: 'Mon 3/2/26',
+    });
   }
 }
 

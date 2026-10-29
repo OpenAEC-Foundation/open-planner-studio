@@ -6,12 +6,12 @@ Görev tablosunda 86 sabit sütun vardır. Buna ek olarak projenin her etkinlik 
 
 Gantt'ın yanındaki görev tablosunun ve *Tablo* sekmesindeki tablonun her birinin kendi sütun seçimi vardır. Başlığın sağındaki artı işareti sütun seçiciyi açar (pencere başlığı *Sütun seç*). *Tablo* sekmesinde *Tablo › Sütunlar › Sütunlar…* öğesini de kullanabilirsiniz. Seçici sütunları kategoriye göre listeler: *Görev*, *Planlama*, *Kısıtlamalar*, *İlişkiler*, *Kaynaklar*, *İlerleme*, *Hesaplanan*, *Temel plan*, *Özel* ve *Teknik*. Adına göre arama yapabilirsiniz; *Son kullanılanlar* en üstte yer alır. *Varsayılana sıfırla* varsayılan sütunları geri yükler.
 
-Varsayılan olarak Gantt'ın yanındaki tablo *WBS*, *Görev adı* ve *Süre* gösterir. *Tablo* sekmesindeki tablo ise *WBS*, *Görev adı*, *Süre*, *Başlangıç*, *Bitiş*, *Görev türü*, *Kritik*, *Toplam bolluk* ve *İlerleme* gösterir; ayrıca projenin her etkinlik kodu ve özel alanı için bir sütun gelir.
+Varsayılan olarak Gantt'ın yanındaki tablo *WBS*, *Görev adı* ve *Süre* gösterir. *Tablo* sekmesindeki tablo ise *WBS*, *Görev adı*, *Süre*, *Başlangıç*, *Bitiş*, *İş kategorisi*, *Kritik*, *Toplam bolluk* ve *İlerleme* gösterir; ayrıca projenin her etkinlik kodu ve özel alanı için bir sütun gelir.
 
 ## Değerler nasıl okunur ve düzenlenir
 
 - **Hesaplanan sütunlar** — *Hesaplanan* kategorisindeki sütunlar ve diğer bazı sütunlar salt okunurdur: değerleri hesaplamadan gelir. Salt okunur bir hücreyi düzenlemeye çalışırsanız uygulama *Bu hesaplanan sütun düzenlenemez.* der. Bu metin, hesaplanmamış bir sütun olsa bile her salt okunur hücre için genel iletidir. Bir şeyi değiştirdiğiniz için bunlar eskiyse, *Hesapla* düğmesine basılana kadar yanlarında *eski* görünür.
-- **Tarihler** — tarihler, *Ayarlar* bölümünde, *Görünüm* sekmesinde ve *Tarih biçimi* başlığı altında seçtiğiniz biçimde görünür.
+- **Tarihler** — tarihler, *Uygulama ayarları* bölümünde, *Görünüm* sekmesinde ve *Tarih biçimi* başlığı altında seçtiğiniz biçimde görünür.
 - **Süreler ve bolluk** — bir süre, görevin biriminde (`5d`, `12h`) veya aynı sekmedeki *Süre gösterimi* ayarına göre görünür (*Otomatik (göreve özgü birim)*, *Her zaman gün* veya *Her zaman saat*). Bolluk iş günü cinsinden, iki ondalık basamakla ve dilinizin ondalık ayracıyla görünür.
 - **Evet/Hayır** — bir evet/hayır değeri *Evet* veya *Hayır* olarak görünür; boş bir değer ise tire (—) olarak görünür.
 - **Düzenleme** — bir değer yazın veya seçin. Geçersiz bir değer, hücrenin altında bir nedenle birlikte reddedilir, örneğin *5d veya 8h gibi geçerli bir süre girin.* veya *0 ile 100 arasında bir yüzde girin.* Bir hücre bloğunu yapıştırmak hücre hücre çalışır; salt okunur hücreler atlanır ve uygulama kaç hücreyi atladığını bildirir.
@@ -21,8 +21,8 @@ Varsayılan olarak Gantt'ın yanındaki tablo *WBS*, *Görev adı* ve *Süre* g�
 - **Görev adı** — görevin adı. Düzenlenebilir; zorunludur. Bir özet görev, ad hücresinde hafif bir arka plan tonuyla ve kalın yazıyla gösterilir. Bir kilometre taşı kalın yazıyla ve kilometre taşı renginde gösterilir (Gantt'taki kilometre taşıyla aynı renk ailesi). Normal bir görev olduğu gibi kalır. Bu yalnızca biçimlendirmedir: seçme, sürükleme ve düzenleme aynı şekilde çalışır.
 - **Açıklama** — görevin açıklaması. Düzenlenebilir; serbest metindir.
 - **WBS** — WBS kodu. Düzenlenebilir ve zorunludur, ama *WBS auto* açıkken salt okunurdur.
-- **Görev türü** — görev türü (*İnşaat*, *Kurulum*, *Yıkım*, *Lojistik*, *Denetim*, *Taşıma*, *Yenileme*, *Bakım* veya *Diğer*). Bir listeyle düzenlenebilir.
-- **Özel görev türü** — projedeki özel görev türü veya bir tire (—). Projenin özel görev türlerinin listesiyle düzenlenebilir.
+- **İş kategorisi** — iş kategorisi (*İnşaat*, *Kurulum*, *Yıkım*, *Lojistik*, *Denetim*, *Taşıma*, *Yenileme*, *Bakım* veya *Diğer*). Bir listeyle düzenlenebilir.
+- **Özel iş kategorisi** — projedeki özel iş kategorisi veya bir tire (—). Projenin özel iş kategorilerinin listesiyle düzenlenebilir.
 - **Renk** — görevin kayıtlı rengi, `#1a73e8` gibi bir renk kodu olarak. Bir renk seçiciyle düzenlenebilir. Renk IFC dosyasında saklanır, ama hiçbir çubuk veya rapor onu kullanmaz; çubuk renklerini *Görünüm › Temel plan ve ilerleme › Çubuk renkleri* altında ayarlarsınız.
 - **Notlar** — notlar `✓ text; ○ text` biçiminde. En fazla bir not olduğu sürece düzenlenebilir; o zaman notun metnini düzenlersiniz. Daha fazla not varsa salt okunurdur.
 
@@ -33,14 +33,14 @@ Varsayılan olarak Gantt'ın yanındaki tablo *WBS*, *Görev adı* ve *Süre* g�
 - **Zorunlu kilometre taşı** — *Zorunlu (sözleşmesel)* işareti. Yalnızca bir kilometre taşında düzenlenebilir.
 - **Dengeleme önceliği** — 0 ile 1000 arasında bir tam sayı, varsayılan 500. Düzenlenebilir. 1000 değeri görevi dengeleme için sabitler.
 - **Bölme boşlukları** — kesinti sayısı, `Split gaps: 2` biçiminde, ya da bir tire (—). Salt okunur; bunları *Özellikler* panelinde düzenlersiniz.
-- **İş kuralı** — görevin iş kuralı; boşsa projenin varsayılanı geçerlidir. Bir listeyle düzenlenebilir, ama bir kilometre taşında, özet görevde veya hamakta boştur ve salt okunurdur. Yalnızca iş kuralları görünür olduğunda seçicide görünür (*İş kurallarını ve işi göster*, ya da dosya iş kuralları içeriyorsa).
+- **Görev türü** — görevin görev türü; boşsa projenin varsayılanı geçerlidir. Bir listeyle düzenlenebilir, ama bir kilometre taşında, özet görevde veya hamakta boştur ve salt okunurdur. Yalnızca görev türleri görünür olduğunda seçicide görünür (*Görev türlerini kullanın*, ya da dosya görev türleri içeriyorsa).
 - **Hamak (türetilmiş süre)** — görevin bir hamak olup olmadığı. Düzenlenebilir; bir kilometre taşı veya özet görev hariç.
 - **Takvim** — görevin kendi takviminin kimliği; boşsa (—) projenin takvimi geçerlidir. Kimliği önerilerden yazarak veya seçerek girersiniz; bilinmeyen bir kimlik reddedilir. Not: Hücre şu anda adın yerine iç kimliği gösterir; takvimi bunun yerine *Özellikler* panelinden seçmeniz daha iyidir.
 - **Süre türü** — *Çalışma süresi* (süre, takvimin iş günleri veya çalışma saatleri olarak sayılır) veya *Geçen süre* (süre, takvim olmadan, kesintisiz saat zamanı olarak sayılır). Düzenlenebilir.
 - **Süre birimi** — *Gün* veya *Saat*. Bir özet görev, hamak veya kilometre taşı hariç düzenlenebilir; birimi değiştirmek yalnızca dönüşüm tam ise ve *Saat planlamasını etkinleştir* açıksa çalışır.
 - **Süre** — görevin süresi, görevin biriminde veya *Süre gösterimi* ayarına göre. Düzenlenebilir: `5d`, `12h` veya `1h 30m` yazın; görevin biriminde bir sayı da girebilirsiniz. Özet görevde, hamakta ve süresi 0 olan bir kilometre taşında salt okunurdur.
-- **Başlangıç** — gösterilen başlangıç; Gantt çubuğundaki tarihle aynı tarihtir. Düzenlenebilir. Öncülü olan bir göreve yeni bir başlangıç verirseniz, görev o tarihte *Şu tarihten önce başlamaz (SNET)* kısıtlamasını alır. Özet görevde veya hamakta, elle planlanmadıkça salt okunurdur.
-- **Bitiş** — gösterilen bitiş. Düzenlenebilir: yeni bir bitiş yeni bir süre olur. Uygulama bunu tamamlanmış bir görev, bir kilometre taşı, geçen süreli bir görev ve kesintisi olan bir görev için reddeder; ayrıca başlangıçtan önceki bir bitişi de reddeder (*Bitiş, başlangıçtan önce.*). Özet görevde veya hamakta, elle planlanmadıkça salt okunurdur.
+- **Başlangıç** — gösterilen başlangıç; Gantt çubuğundaki tarihle aynı tarihtir. Başlamış bir görevde bu gerçek başlangıçtır. Düzenlenebilir. Öncülü olan bir göreve yeni bir başlangıç verirseniz, görev o tarihte *Şu tarihten önce başlamaz (SNET)* kısıtlamasını alır. Özet görevde veya hamakta, elle planlanmadıkça ve başlamış bir görevde salt okunurdur (*Bu görev başladı; başlangıcı gerçek başlangıçtır. Bunu ilerleme üzerinden değiştirin.*).
+- **Bitiş** — gösterilen bitiş. Tamamlanmış bir görevde bu gerçek bitiştir. Düzenlenebilir: yeni bir bitiş yeni bir süre olur. Uygulama bunu bir kilometre taşı, geçen süreli bir görev ve kesintisi olan bir görev için reddeder; ayrıca başlangıçtan önceki bir bitişi de reddeder (*Bitiş, başlangıçtan önce.*). Özet görevde veya hamakta, elle planlanmadıkça ve tamamlanmış bir görevde salt okunurdur (*Bu görev tamamlandı; bitişi gerçek bitiştir. Bunu ilerleme üzerinden değiştirin.*).
 - **Planlanan başlangıç** — hesaplamanın başladığı planlama çıpası (gösterilen başlangıçla mutlaka aynı olmak zorunda değildir). Düzenlenebilir; *Başlangıç* alanına yazmakla aynı etkiye sahiptir.
 - **Planlanan bitiş** — girilen bitiş. Yalnızca elle planlanan bir görevde düzenlenebilir; aksi halde uygulama *Planlanan bitiş yalnızca elle planlanan bir görev için geçerlidir. Bitişi Bitiş sütunundan veya süreden değiştirin.* der.
 
@@ -64,11 +64,12 @@ Varsayılan olarak Gantt'ın yanındaki tablo *WBS*, *Görev adı* ve *Süre* g�
 ## Kaynaklar
 
 - **Atanan kaynaklar** — atanan kaynakların adları, virgülle ayrılmış. Düzenlenebilir: bir ad eklemek kaynağı günde 1 birimle atar; bir adı kaldırmak atamayı siler. Bir kilometre taşında veya özet görevde salt okunurdur.
-- **Günlük atama birimleri** — kaynak başına birimler, `Name: 1; Name: 0.5` biçiminde. Atamaları olan bir görevde düzenlenebilir.
+- **Günlük atama birimleri** — kaynak başına birimler, `Name: 1; Name: 0.5` biçiminde, en fazla iki ondalık basamakla. Kayıtlı değer tam olarak kalır. Atamaları olan bir görevde düzenlenebilir.
+- **Planlanan günlük birimler** — kaynak başına planlanan oran, `Name: 1.11` biçiminde, en fazla iki ondalık basamakla, *Günlük atama birimleri* gibi. Yalnızca farklı bir kalan oranı olan bir Primavera P6 atamasında; *Günlük atama birimleri* o zaman kalan oranı gösterir. Salt okunur.
 - **Atama eğrisi** — kaynak başına eğri, `Name: Uniform` biçiminde. Atamaları olan bir görevde düzenlenebilir.
 - **İş penceresi başlangıcı** ve **İş penceresi bitişi** — içe aktarılmış bir dosyadan gelen, kaynak başına iş penceresi, `Name: date` biçiminde. Salt okunur.
-- **Planlanan iş (saat)** ve **Gerçek iş (saat)** — içe aktarılmış bir dosyadan gelen, kaynak başına saat cinsinden planlanan ve gerçek iş, `Name: 12` biçiminde. Salt okunur.
-- **Kalan iş (saat)** — kaynak başına saat cinsinden kalan iş, `Name: 6` biçiminde: kayıtlı iş; yoksa kalan süre × birim. Üzerinde bir iş kuralı geçerli olan, atamaları olan bir görevde düzenlenebilir. Yalnızca iş kuralları görünür olduğunda seçicide görünür.
+- **Planlanan iş (saat)** ve **Gerçek iş (saat)** — içe aktarılmış bir dosyadan gelen, kaynak başına saat cinsinden planlanan ve gerçek iş, `Name: 617.14` biçiminde, en fazla iki ondalık basamakla. Salt okunur.
+- **Kalan iş (saat)** — kaynak başına saat cinsinden kalan iş, `Name: 6` veya `Name: 26.67` biçiminde: kayıtlı iş; yoksa kalan süre × birim. Üzerinde bir görev türünün geçerli olduğu, atamaları olan bir görevde düzenlenebilir; ondalık ayırıcı olarak virgül veya nokta kullanılabilir. Yalnızca görev türleri görünür olduğunda seçicide görünür. Hücredeki sarı ⚠ işareti, kayıtlı işin birim × kalan süreden farklı olduğu anlamına gelir; bu, görev panelindeki *İş (kalan)* yanındaki ⚠ ile aynıdır.
 
 ## İlerleme
 
@@ -87,15 +88,15 @@ Varsayılan olarak Gantt'ın yanındaki tablo *WBS*, *Görev adı* ve *Süre* g�
 Bu kategorideki tüm sütunlar salt okunurdur.
 
 - **Dengeleme gecikmesi** — dengelemenin görevi kaç iş günü geciktirdiği; dengeleme uygulanmadıysa tire (—).
-- **Erken başlangıç** ve **Erken bitiş** — hesaplamadan gelen en erken tarihler.
+- **Erken başlangıç** ve **Erken bitiş** — hesaplamadan gelen en erken tarihler. Başlamış bir görevde bunlar *Başlangıç* ve *Bitiş* değerlerinden farklı olabilir: hesaplama profili *Primavera P6*, devam eden veya tamamlanmış bir görevin erken başlangıcını durum tarihine koyar.
 - **Geç başlangıç** ve **Geç bitiş** — görevin projeyi geciktirmeden hâlâ başlayabileceği veya bitebileceği en geç tarihler.
 - **Serbest bolluk** — bir ardılı geciktirmeden görevin kayabileceği iş günleri.
 - **Toplam bolluk** — projenin bitişini geciktirmeden görevin kayabileceği iş günleri. Bir kısıtlama veya son tarih karşılanamıyorsa negatiftir.
 - **Kritik** — *Evet*, görev kritik yoldaysa.
 - **Müdahale bolluğu** — toplam bolluk eksi serbest bolluk.
-- **Kritiğe yakın** — kritiğe yakın bir görev için *Evet*. Yalnızca *Kritiğe yakın olarak işaretle* açıksa (*Proje bilgisi*, blok *Hesaplama profili ve seçenekleri*) doldurulur; aksi halde tire (—).
+- **Kritiğe yakın** — kritiğe yakın bir görev için *Evet*. Yalnızca *Kritiğe yakın olarak işaretle* açıksa (*Proje ayarları*, blok *Hesaplama profili ve seçenekleri*) doldurulur; aksi halde tire (—).
 - **Bolluk yolu** — bolluk yolunun numarası; en kritik olan için 1. Yalnızca *Birden çok bolluk yolu* açıksa doldurulur; aksi halde tire (—).
-- **Kayıtlı tarihlerin kaynağı** — kayıtlı tarihleri olan bir dosya için: *Farklılaşıyor* veya *Kısmen kaydedilmedi*. Yalnızca böyle bir dosya için seçicide görünür. Kayıtsız bir eksende *Kaydedilmedi*, geç tarih ve bolluk sütunlarında görünür.
+- **Kayıtlı tarihlerin kaynağı** — uygulama tarihleri dosyadan gösterdiği sürece, dosyanın her şeyi içermediği bir görevde *Kısmen kaydedilmedi* görünür. Yalnızca bu görünümde seçicide görünür. Kayıtsız bir eksende *Kaydedilmedi*, geç tarih ve bolluk sütunlarında görünür.
 
 Bkz. [Kritik yol ve bolluk](docs://uitleg-kritiek-pad).
 

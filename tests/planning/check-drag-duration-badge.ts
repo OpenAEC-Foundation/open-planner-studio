@@ -28,6 +28,7 @@ g.getComputedStyle = () => ({
 import { useAppStore } from '@/state/appStore';
 import { GanttRenderer, type GanttRenderOptions } from '@/engine/renderer/GanttRenderer';
 import type { ViewRow } from '@/engine/view/visibleRows';
+import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 
 const S = () => useAppStore.getState();
@@ -163,6 +164,7 @@ setDates(narrow.id, '2026-08-03', '2026-08-03', 1);
 const rowsOf = (...ids: string[]): ViewRow[] =>
   ids.map((id) => ({ kind: 'task', rowKey: id, task: S().tasks.find((t) => t.id === id)!, depth: 0, dimmed: false }) as ViewRow);
 
+// D1/D2: balkranden liggen op 07:00 en 16:00, niet op de middernachtgrens.
 // Kalender-as (geen compressie): x = TABLE_W + dagen-sinds-2026-08-01 × zoom − scrollX.
 const MS = 86400000;
 const dayX = (iso: string, zoom: number, scrollX: number) =>
@@ -177,7 +179,7 @@ const wOf = (label: string) => label.length * CHAR_W + PAD_X * 2;
 {
   const zoom = 30;
   const opts = baseOpts(rowsOf(wide.id), zoom, 0);
-  const x2 = dayX('2026-08-14', zoom, 0) + zoom;
+  const x2 = dayX('2026-08-14', zoom, 0) + 16 / 24 * zoom;
   const b = badge(opts, { taskId: wide.id, edge: 'right' }, 'breed/rechts');
   eq('breed/rechts: label', b.text.text, '10d');
   near('breed/rechts: rechterrand pil', b.rect.x + b.rect.w, x2 - GAP);
@@ -191,7 +193,7 @@ const wOf = (label: string) => label.length * CHAR_W + PAD_X * 2;
 {
   const zoom = 8; // 1 dag = 8px, het pilletje is breder dan de balk
   const opts = baseOpts(rowsOf(narrow.id), zoom, 0);
-  const x2 = dayX('2026-08-03', zoom, 0) + zoom;
+  const x2 = dayX('2026-08-03', zoom, 0) + 16 / 24 * zoom;
   const b = badge(opts, { taskId: narrow.id, edge: 'right' }, 'smal/rechts');
   eq('smal/rechts: label', b.text.text, '1d');
   near('smal/rechts: linkerrand pil', b.rect.x, x2 + GAP);
@@ -201,7 +203,7 @@ const wOf = (label: string) => label.length * CHAR_W + PAD_X * 2;
 {
   const zoom = 30;
   const opts = baseOpts(rowsOf(wide.id), zoom, 0);
-  const x1 = dayX('2026-08-03', zoom, 0);
+  const x1 = dayX('2026-08-03', zoom, 0) + 7 / 24 * zoom;
   const b = badge(opts, { taskId: wide.id, edge: 'left' }, 'breed/links');
   near('breed/links: rechterrand pil', b.rect.x + b.rect.w, x1 - GAP);
 }
@@ -220,7 +222,7 @@ const wOf = (label: string) => label.length * CHAR_W + PAD_X * 2;
 {
   const zoom = 30;
   // Schuif zo dat de rechterrand van de balk 10px BUITEN het canvas valt.
-  const scrollX = dayX('2026-08-14', zoom, 0) + zoom - (CANVAS_W + 10);
+  const scrollX = dayX('2026-08-14', zoom, 0) + 16 / 24 * zoom - (CANVAS_W + 10);
   const opts = baseOpts(rowsOf(wide.id), zoom, scrollX);
   const b = badge(opts, { taskId: wide.id, edge: 'right' }, 'rechterrand');
   checks++;
@@ -270,10 +272,80 @@ const wOf = (label: string) => label.length * CHAR_W + PAD_X * 2;
   });
   const effectiveCalById = new Map<string, WorkCalendar>([[hourTask.id, hourCal]]);
 
-  for (const enableHourPlanning of [false, true]) {
-    const opts = baseOpts(rowsOf(hourTask.id), 300, 0, { effectiveCalById, enableHourPlanning });
-    const b = badge(opts, { taskId: hourTask.id, edge: 'right' }, `uurtaak(hp=${enableHourPlanning})`);
-    eq(`uurtaak(hp=${enableHourPlanning}): label in uren`, b.text.text, '5h');
+  for (const zoom of [100, 1000]) {
+    const opts = baseOpts(rowsOf(hourTask.id), zoom, 0, { effectiveCalById });
+    const b = badge(opts, { taskId: hourTask.id, edge: 'right' }, `uurtaak(zoom=${zoom})`);
+    eq(`uurtaak(zoom=${zoom}): label in uren`, b.text.text, '5h');
+  }
+}
+
+// 288: een kalendertijddag telt 24 uur, ook naast een werkdag van 4/8/10 uur.
+// De echte renderer tekent de tekst; dit is geen kopie van de formatter.
+for (const hoursPerDay of [4, 8, 10]) {
+  const cal: WorkCalendar = { ...S().calendar, hoursPerDay, workStartHour: 8,
+    workEndHour: 8 + hoursPerDay, workTime: undefined };
+  for (const durationType of ['ELAPSEDTIME', 'WORKTIME'] as const) {
+    const dayHours = durationType === 'ELAPSEDTIME' ? 24 : hoursPerDay;
+    for (const durationUnit of ['days', 'hours'] as const) {
+      const probe: Task = { ...wide, time: { ...wide.time, durationType, durationUnit,
+        scheduleDuration: 2, durationMinutes: durationUnit === 'hours' ? 2 * dayHours * 60 : undefined,
+        scheduleStart: '2026-08-03T08:00', earlyStart: '2026-08-03T08:00',
+        scheduleFinish: '2026-08-05T08:00', earlyFinish: '2026-08-05T08:00' } };
+      const row: ViewRow = { kind: 'task', rowKey: probe.id, task: probe, depth: 0, dimmed: false };
+      for (const effective of [false, true]) {
+        for (const display of ['hours', 'days', 'auto'] as const) {
+          const opts = baseOpts([row], 100, 0, { calendar: effective ? S().calendar : cal,
+            effectiveCalById: effective ? new Map([[probe.id, cal]]) : undefined,
+            durationDisplay: display, durationSuffixes: { day: 'd', hour: 'u', minute: 'm' } });
+          const label = `288 ${durationType}/${durationUnit}/${hoursPerDay}/${effective}/${display}`;
+          const b = badge(opts, { taskId: probe.id, edge: 'right' }, label);
+          eq(`${label}: tekst`, b.text.text, display === 'hours' ? `${2 * dayHours}u` : '2d');
+        }
+      }
+    }
+  }
+}
+
+// Review #699: een uursleep slaat dagen op zes decimalen op (useBarDrag), dus 47 u kalendertijd
+// = 1.958333 d en 10 u werktijd bij 9 u per dag = 1.111111 d. Het label toont hele minuten.
+for (const [durationType, hoursPerDay, hours] of [['ELAPSEDTIME', 8, 47], ['WORKTIME', 9, 10]] as const) {
+  const cal: WorkCalendar = { ...S().calendar, hoursPerDay, workStartHour: 8,
+    workEndHour: 8 + hoursPerDay, workTime: undefined };
+  const dayHours = durationType === 'ELAPSEDTIME' ? 24 : hoursPerDay;
+  const probe: Task = { ...wide, time: { ...wide.time, durationType, durationUnit: 'days',
+    scheduleDuration: Math.round((hours / dayHours) * 1e6) / 1e6, durationMinutes: undefined,
+    scheduleStart: '2026-08-03T08:00', earlyStart: '2026-08-03T08:00',
+    scheduleFinish: '2026-08-05T07:00', earlyFinish: '2026-08-05T07:00' } };
+  const row: ViewRow = { kind: 'task', rowKey: probe.id, task: probe, depth: 0, dimmed: false };
+  for (const display of ['hours', 'auto'] as const) {
+    const opts = baseOpts([row], 100, 0, { calendar: cal, durationDisplay: display,
+      durationSuffixes: { day: 'd', hour: 'u', minute: 'm' } });
+    const label = `review #699 ${durationType}/${hours}u/${display}`;
+    const b = badge(opts, { taskId: probe.id, edge: 'right' }, label);
+    eq(`${label}: tekst`, b.text.text, `${hours}u`);
+  }
+}
+
+// 411: werkdag 08:00–16:20, geen zwevende-komma-ruis in de hele-dagherkenning.
+for (const days of [1, 2]) {
+  const cal: WorkCalendar = { ...S().calendar, hoursPerDay: 25 / 3, workStartHour: 8,
+    workEndHour: 16 + 1 / 3, workTime: undefined };
+  for (const durationUnit of ['days', 'hours'] as const) {
+    const probe: Task = { ...wide, time: { ...wide.time, durationType: 'WORKTIME', durationUnit,
+      scheduleDuration: days, durationMinutes: durationUnit === 'hours' ? days * 500 : undefined,
+      scheduleStart: '2026-08-03T08:00', earlyStart: '2026-08-03T08:00',
+      scheduleFinish: '2026-08-04T16:20', earlyFinish: '2026-08-04T16:20' } };
+    const row: ViewRow = { kind: 'task', rowKey: probe.id, task: probe, depth: 0, dimmed: false };
+    for (const effective of [false, true]) {
+      for (const display of ['hours', 'days', 'auto'] as const) {
+        const opts = baseOpts([row], 100, 0, { calendar: effective ? S().calendar : cal,
+          effectiveCalById: effective ? new Map([[probe.id, cal]]) : undefined,
+          durationDisplay: display, durationSuffixes: { day: 'd', hour: 'u', minute: 'm' } });
+        const label = `411 ${days}d/${durationUnit}/${effective}/${display}`;
+        const b = badge(opts, { taskId: probe.id, edge: 'right' }, label);
+        eq(`${label}: tekst`, b.text.text, display === 'hours' ? (days === 1 ? '8u 20m' : '16u 40m') : `${days}d`);
+      }
+    }
   }
 }
 

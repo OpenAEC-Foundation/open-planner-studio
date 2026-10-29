@@ -21,7 +21,7 @@ Solda *Rapor* bölümü bulunur. Bu bölümde *Rapor türü* listesi, bir özet 
 *Rapor türü* listesinde on bir rapor vardır. Sorunuza uyan raporu seçin.
 
 - *Gantt şeması*: planlama çubuk grafik olarak, olağan dağıtım planı için.
-- *Kaynak diyagramı*: aynı çubuklar, ama her kaynak için bir bant ile. “X ekibi ne yapıyor?” sorusu için, isterseniz ekip başına bir sayfa ile.
+- *Kaynak diyagramı*: aynı çubuklar, ama her kaynak için ayrı bir satırda. “X ekibi ne yapıyor?” sorusu için, isterseniz ekip başına bir sayfa ile.
 - *Kilometre taşı özeti*: tüm kilometre taşları, tarih ve durumla birlikte.
 - *Variance*: güncel planlamayı, etkin temel plan ile yan yana gösterir. “Ne kadar geriledik?” sorusu için.
 - *İleriye bakış (look-ahead)*: önümüzdeki dönemde çalışan veya başlayan görevler. Haftalık toplantı için liste.
@@ -47,7 +47,7 @@ Uygulama kendiliğinden hesaplamaz. Son hesaplamadan sonra görevleri, ilişkile
 - *Yazı boyutu:* (%90 ile %125 arası) metni ve tabloyu daha büyük veya daha küçük yapar. Daha büyük yazı, zaman çizelgesi için daha az yer bırakır.
 - *Görünüme uy (filtre, gruplama, sıralama)* yalnızca Gantt şeması için görünür. Varsayılan olarak tüm görev ağacı kağıda çıkar. Bu onay kutusuyla rapor, ekranda gördüğünüz satırları tam olarak çizer, daraltılmış aşamalar dahil. Örneğin bir düzen yalnızca kritik görevleri gösteriyorsa, rapor yalnızca bunları çizer. Böyle bir görünümün nasıl yapılacağı [Düzen oluşturma ve kullanma](docs://howto-layouts-gebruiken) bölümünde yer alır.
 - *Temel çizgi katmanını göster* etkin temel planı güncel çubukların yanında gösterir. *Durum çizgisi:* seçeneğinde *Durum tarihi çizgisi* veya *İlerleme çizgisi* seçersiniz.
-- *Kağıda otomatik sığdır* varsayılan olarak açıktır: zaman çizelgesi sayfa genişliğine ölçeklenir ve sayfa sayısı yüksekliğe göre belirlenir. Bunu kapatırsanız rapor sabit bir yakınlaştırma kullanır ve sayfaları genişlik boyunca yan yana dizer. Bu hızla çok sayfa üretir. *Zaman çizelgesi:* ile otomatik sığdırma açıkken zaman çizelgesini genişlikte 2 ile 8 sayfaya yayarsınız. Bunu, okunabilir boyutta yazdırmak istediğiniz uzun bir planlama için kullanın.
+- *Kağıda otomatik sığdır* varsayılan olarak açıktır: zaman çizelgesi sayfa genişliğine ölçeklenir ve sayfa sayısı yüksekliğe göre belirlenir. Bunu kapatırsanız rapor sabit bir yakınlaştırma kullanır ve ayrıca sayfaları genişlik boyunca yan yana dizer. Bu hızla çok sayfa üretir. *Zaman çizelgesi:* ile otomatik sığdırma açıkken zaman çizelgesini genişlikte 2 ile 8 sayfaya yayarsınız. Bunu, okunabilir boyutta yazdırmak istediğiniz uzun bir planlama için kullanın.
 
 ### 5. Önizlemeyi kontrol edin
 
@@ -70,7 +70,7 @@ PDF'i PDF okuyucunuzda açın ve orada yazdırın. A3 PDF'i A4 yazıcıda yazdı
 
 **Yazdır düğmesi ve Ctrl+P yazdırmaz.** *Rapor* grubundaki *Yazdır* düğmesi Rapor sekmesinin kendisinde bulunur ve ek bir işlem yapmaz. Ctrl+P sizi bu sekmeye götürür. Uygulamada ayrı bir yazdırma komutu yoktur; kağıda giden yol PDF üzerinden geçer. Ctrl+P çalışmazsa (bkz. 1. adım), tarayıcının yazdırma iletişim kutusu açılır ve bu, raporu değil ekranı yazdırır.
 
-**Şirket: üzerine yazma saklanmaz.** Gantt şemasının *Şirket:* alanı, proje bilgisindeki şirketle başlar. Üzerine yazdığınız değer saklanmaz. Burada *Yazar:* alanına yazamazsınız. İkisini de *Ayarlar › Proje › Proje bilgisi* yolundan değiştirirsiniz: *Müşteri/kurum* ve *Yazar* alanlarında, sonra *Uygula* ile onaylayın.
+**Şirket: üzerine yazma saklanmaz.** Gantt şemasının *Şirket:* alanı, proje ayarlarındaki şirketle başlar. Üzerine yazdığınız değer saklanmaz. Burada *Yazar:* alanına yazamazsınız. İkisini de *Ayarlar › Proje › Proje ayarları* yolundan değiştirirsiniz: *Müşteri/kurum* ve *Yazar* alanlarında, sonra *Uygula* ile onaylayın.
 
 **Çubuk renkleri: ekranınızda da geçerli.** Raporda *Çubuk renkleri:* seçimi, Görünüm sekmesindeki *Çubuk renkleri* ile aynı seçimdir. Raporda değiştirirseniz, ekrandaki Gantt şeması da onunla birlikte değişir.
 
@@ -82,7 +82,7 @@ PDF'i PDF okuyucunuzda açın ve orada yazdırın. A3 PDF'i A4 yazıcıda yazdı
 
 **Kağıt şu anda tüm raporlar için geçerlidir.** *Kağıt:* ve *Yön:* için tek bir seçim vardır; tüm raporlar bunu paylaşır. Kilometre taşı özeti ve Variance kendi kağıt seçimine sahip değildir. Onlar başka bir raporda ayarladığınız değeri kullanır: varsayılan olarak A3 yatay. Bu yüzden kağıdı önce, bunu sunan bir raporda seçin, örneğin Gantt şemasında, ve sonra geri dönün.
 
-**Seçenekler tüm projeler için geçerlidir.** Kağıt, yazı boyutu, dönem ve diğer seçenekler bu cihazda uygulama tarafından tüm projeleriniz için hatırlanır. Bunlar proje dosyasına ait değildir.
+**Seçenekler tüm projeler için geçerlidir.** Uygulama bu cihazda kağıdı, yazı boyutunu, dönemi ve diğer seçenekleri tüm projeleriniz için hatırlar. Bunlar proje dosyasına ait değildir.
 
 ## Ayrıca bakın
 

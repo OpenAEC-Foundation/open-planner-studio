@@ -51,7 +51,7 @@ Högerklicka på uppgiften och välj *Ny underuppgift*. Den nya uppgiften hamnar
 De tre typerna skiljer sig åt så här:
 
 - En *Startmilstolpe* hör till dagens början, en *Slutmilstolpe* till dagens slut. I Gantt-diagrammet sitter romben till vänster respektive höger om dagkolumnen. Det spelar också roll för den efterföljande uppgiften. Säg att en milstolpe ligger på tisdag 29 september 2026 och att en uppgift följer på den med ett slut-till-start-samband: efter en startmilstolpe börjar uppgiften samma tisdag, efter en slutmilstolpe på onsdag 30 september.
-- En *Inspektionspunkt (obligatorisk)* är en slutmilstolpe med uppgiftstypen *Besiktning* och kryssrutan *Obligatorisk (avtalsenlig)*.
+- En *Inspektionspunkt (obligatorisk)* är en slutmilstolpe med arbetskategorin *Besiktning* och kryssrutan *Obligatorisk (avtalsenlig)*.
 
 ### Göra en befintlig uppgift till milstolpe
 
@@ -62,6 +62,7 @@ Om du stänger av det igen, förblir det en vanlig uppgift med varaktighet 0: an
 ### Andra sätt
 
 - Ctrl+M (⌘+M på en Mac) lägger en ny milstolpe längst ned i listan, även om en uppgift är markerad. Panelen *Egenskaper* öppnas inte.
+- En milstolpe som du skapar med Ctrl+M eller via högerklicksmenyn får arbetskategorin *Besiktning*. En *Startmilstolpe* eller *Slutmilstolpe* från *Milstolpe ▾* får *Övrigt*. Ändra arbetskategorin i *Egenskaper* om du behöver det.
 - *Lägg till milstolpe* i högerklicksmenyn för en uppgift gör milstolpen till en underuppgift till den uppgiften, inte till en syskonuppgift.
 
 ### Kopiera en uppgift eller en hel gren
@@ -72,7 +73,7 @@ Om du stänger av det igen, förblir det en vanlig uppgift med varaktighet 0: an
 
 Kopian har samma namn, samma datum och samma framdrift. Den läggs in som syskon till den markerade uppgiften (vid flera: den du klickade på först), längst ned bland syskonen. Om inget är markerat, hamnar den längst ned i listan. De kopierade uppgifterna markeras efteråt, WBS-koderna (varje uppgifts nummer i trädet, till exempel 1.2; se [Ändra strukturen](docs://howto-structuur-aanpassen)) fastställs på nytt och tidsplanen är inaktuell.
 
-Urklippet delas av hela appen, så du kan också klistra in i ett annat dokument. Det som inte finns där, till exempel en kalender för uppgiften, en egen uppgiftstyp, en uppgiftskod eller ett eget fält, rensar appen och meddelar dig om det.
+Urklippet delas av hela appen, så du kan också klistra in i ett annat dokument. Det som inte finns där, till exempel en kalender för uppgiften, en egen arbetskategori, en uppgiftskod eller ett eget fält, rensar appen och meddelar dig om det.
 
 ### Efteråt
 
@@ -82,7 +83,7 @@ En ny uppgift ändrar ännu inte de andra datumen. Statusfältet visar *Inaktuel
 
 **Varje ny uppgift börjar vid projektstarten.** Utan samband väntar en uppgift på ingenting. Lägg till samband, se [Lägga till samband](docs://howto-relaties-leggen).
 
-**Filtrering, gruppering eller sortering är på.** Ordningen du ser är då inte tidsplanens ordning. När en uppgift är markerad lägger *Uppgift* och *Milstolpe ▾* till den nya uppgiften längst ned, och remsan *Inte tillgänglig vid filtrering/gruppering/sortering* visas. *Infoga ovanför* och *Infoga under* nekas, med samma remsa. Knappen *Rensa* i remsan tar bort filter, gruppering och sortering på en gång. Det ingår inte i *Ångra*: Ctrl+Z återställer dem inte.
+**Filtrering, gruppering eller sortering är på.** Ordningen du ser är då inte tidsplanens ordning. När en uppgift är markerad lägger *Uppgift* och *Milstolpe ▾* till den nya uppgiften längst ned. Då visas ett rött meddelande: *Den nya uppgiften lades till sist. Under filtrering, gruppering eller sortering kan appen inte placera den under din markering*. *Infoga ovanför* och *Infoga under* nekas, med remsan *Inte tillgänglig vid filtrering/gruppering/sortering*. Knappen *Rensa* i meddelandet eller i remsan tar bort filter, gruppering och sortering på en gång. Det ingår inte i *Ångra*: Ctrl+Z återställer dem inte.
 
 **En underuppgift under en uppgift med resurstilldelningar.** Uppgiften blir en sammanfattningsuppgift, och en sammanfattningsuppgift har inga tilldelningar själv. Appen flyttar tilldelningarna till den nya underuppgiften och meddelar dig det. Om det inte går, till exempel för att du valde *Lägg till milstolpe* och en milstolpe inte kan ha tilldelningar, lägger appen inte till något och säger varför.
 

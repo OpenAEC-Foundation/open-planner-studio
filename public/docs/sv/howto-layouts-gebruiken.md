@@ -39,7 +39,7 @@ Vilka operatorer du får beror på typen av fält:
 - Text (*Uppgiftsnamn*, *WBS*): *är lika med*, *är inte lika med*, *innehåller*, *börjar med* och *är tom*.
 - Tal och datum (*Totalt slack*, *Start*, *Framdrift*): *är lika med*, *är inte lika med*, *mindre än*, *mindre än eller lika med*, *större än*, *större än eller lika med*, *mellan* och *är tom*. Vid *mellan* finns två fält: för ett tal med *Från* och *Till* som vägledning, för ett datum utan vägledning (det första datumet är början, det andra slutet).
 - Ja/nej (*Kritisk*, *Milstolpe*, *Nära kritisk*): *är lika med* och *är inte lika med*, med värdet *Ja* eller *Nej*.
-- Val (*Typ*, en uppgiftskod): *är lika med*, *är inte lika med*, *är en av* (med värden som kryssrutor) och *är tom*.
+- Val (*Arbetskategori*, en uppgiftskod): *är lika med*, *är inte lika med*, *är en av* (med värden som kryssrutor) och *är tom*.
 - *Resurser*: *är en av* och *är tom*.
 - *Pågår*: bara *mellan*, med två datum (från och till).
 
@@ -47,7 +47,7 @@ Med fältet *Pågår*, operatorn *mellan* och två datum får du alla uppgifter 
 
 Du kombinerar flera regler med listan överst: *Alla nedan (AND)* visar uppgifter som uppfyller alla regler, *Något nedan (OR)* uppgifter som uppfyller minst en regel. Med *+ grupp* lägger du till en undergrupp med egna regler.
 
-Filtret tittar bara på uppgifterna själva. Sammanfattningsuppgifterna (faserna) som uppgiften hör till förblir synliga i grått, så att du ser var uppgiften hör hemma. Om du också grupperar försvinner de grå faserna.
+Filtret tittar på uppgifterna själva. Sammanfattningsuppgifterna (faserna) som uppgiften hör till förblir synliga i grått, så att du ser var uppgiften hör hemma. Om du också grupperar försvinner de grå faserna.
 
 ### Gruppera och sortera
 
@@ -59,7 +59,7 @@ Klicka i fönstret på *Tillämpa utan att spara*. De ibockade delarna tillämpa
 
 ### Ändra, kopiera eller ta bort en layout
 
-Högerklicka på layoutknappen. Du kan välja *Redigera…*, *Duplicera* eller *Ta bort*. *Ta bort* frågar först om bekräftelse. En kopia heter *namn (kopia)*. En inbyggd layout, till exempel *Resursdiagram*, kan du inte redigera eller ta bort. Du duplicerar den för att få en egen version.
+Högerklicka på layoutknappen. Du väljer *Redigera…*, *Duplicera* eller *Ta bort*. *Ta bort* frågar först om bekräftelse. En kopia heter *namn (kopia)*. En inbyggd layout, till exempel *Resursdiagram*, kan du inte redigera eller ta bort. Du duplicerar den för att få en egen version.
 
 ### Mer än en layout samtidigt
 
@@ -75,13 +75,13 @@ Layouter som inte sparar samma delar kan vara påslagna samtidigt. Har du en lay
 
 **Kolumner gäller uppgiftstabellen bredvid Gantt-diagrammet.** Delen *Kolumner* sparar kolumnerna i uppgiftstabellen till vänster om tidslinjen. Tabellen på fliken *Tabell* behåller sina egna kolumner. Hur du väljer kolumner beskrivs i [Justera tabellkolumner](docs://howto-tabelkolommen-aanpassen).
 
-**Indrag och dra ut är inaktiverade.** Så länge ett filter, en gruppering eller en sortering är påslaget, stämmer den visade ordningen inte med tidsplanens ordning. *Indrag* och *Dra ut* är då inaktiverade, med infotexten *Inte tillgänglig vid filtrering/gruppering/sortering*. Stäng av layouten om du vill ändra strukturen igen, så som beskrivs i [Justera strukturen](docs://howto-structuur-aanpassen).
+**Indrag och dra ut är inaktiverade.** Så länge ett filter, en gruppering eller en sortering är påslagna, stämmer den visade ordningen inte med tidsplanens ordning. *Indrag* och *Dra ut* är då inaktiverade, med infotexten *Inte tillgänglig vid filtrering/gruppering/sortering*. Stäng av layouten om du vill ändra strukturen igen, så som beskrivs i [Justera strukturen](docs://howto-structuur-aanpassen).
 
 **Statusfältet följer inte med.** *Uppgifter:* i statusfältet visar antalet uppgifter i hela projektet, även om ett filter bara visar en del av dem.
 
 **Layouter finns på din enhet, inte i projektet.** Appen sparar dina layouter och kolumnerna för alla dina projekt på den här enheten. Överlagringarna från en layout (baslinje, framdriftslinje och resten) gäller för alla dina projekt. Filtret, grupperingen och sorteringen som är påslagna just nu hör till det öppna projektet, men de ingår inte i projektfilen. Efter att du sparat och öppnat igen är vyn ren igen. De gör inte heller projektet ”ändrat”.
 
-**De separata knapparna är dolda.** *Kolumner…*, *Filtrera…*, *Gruppera…* och *Sortera…* som egna knappar på fliken *Visa* hör till en äldre vy. Du hämtar tillbaka dem med *Visa klassiska vyknappar* under *Äldre funktioner* på fliken *Avancerat* i inställningsfönstret (⚙ i namnlisten). Använd helst layouter.
+**De separata knapparna är dolda.** *Kolumner…*, *Filtrera…*, *Gruppera…* och *Sortera…* som egna knappar på fliken *Visa* hör till en äldre vy. Du hämtar tillbaka dem med *Visa klassiska vyknappar* under *Äldre funktioner* på fliken *Avancerat* i fönstret *Appinställningar* (⚙ i namnlisten). Använd helst layouter.
 
 ## Se även
 

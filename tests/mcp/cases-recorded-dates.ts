@@ -45,11 +45,56 @@ function enterMode(tag: string): { aId: string; bId: string } {
   };
 }
 
+// Knownbug 105: onbekende driving is null; lezen houdt modus, datums en historie intact.
+test('get_critical_path: opgeslagen datums geven onbekende driving, F5 herstelt de berekende keten', () => {
+  S().newProject();
+  const source = readIFC(externIfc('mcp-driving-unknown'));
+  // Het bestand kent wel kritieke taken, maar heeft geen driving-berekening opgeslagen.
+  source.recordedFields ??= {};
+  for (const task of source.tasks) {
+    task.time.totalFloat = 0;
+    task.time.isCritical = true;
+    source.recordedFields[task.id] = [...(source.recordedFields[task.id] ?? []), 'totalFloat', 'isCritical'];
+  }
+  S().applyLoadedProject(source, { filePath: null, recompute: true });
+  const before = S();
+  const aId = before.tasks.find(t => t.wbsCode === '1.1')!.id;
+  const bId = before.tasks.find(t => t.wbsCode === '1.2')!.id;
+  assertEq(before.datesAsRecorded, true, 'opzet: opgeslagen datums actief');
+  assertEq(before.cpmResult?.drivingUnknown, true, 'opzet: reconstructie kent driving niet');
+  const result = getTool('planner_get_critical_path')!.handler({}, makeMcpContext(appStoreContext)) as McpToolResult;
+  assert(result.ok, 'lezen hoort te slagen');
+  const okResult = result as McpToolOk;
+  const data = okResult.data as Record<string, unknown>;
+  assertEq(before.cpmResult!.criticalPath.length, 2, 'opzet: beide taken zijn vastgelegd als kritiek');
+  assertEq(data.hasResult, true, 'de opgeslagen planningsuitkomst blijft beschikbaar');
+  assertEq(data.drivingRelations, null, 'geen driving-informatie is null, geen lege lijst');
+  assert(typeof data.note === 'string' && /unknown/.test(data.note), 'respons legt onbekende driving uit');
+  assertEq(data.projectEnd, before.cpmResult!.projectEnd, 'projecteinde uit het bestand blijft beschikbaar');
+  assertEq((data.criticalTasks as Array<{ id: string }>).map(t => t.id), before.cpmResult!.criticalPath,
+    'opgeslagen kritieke taken blijven beschikbaar');
+  assertEq(okResult.envelope.datesAsRecorded, true, 'envelop meldt de modus');
+  assertEq(okResult.envelope.scheduleRecalculated, undefined, 'lezen rekent niet stil door');
+  assert(S().cpmResult === before.cpmResult, 'resultaat niet vervangen door lezen');
+  assert(S().tasks === before.tasks, 'taken en opgeslagen datums niet vervangen door lezen');
+  assert(S().recordedDates === before.recordedDates, 'vastlegging niet vervangen door lezen');
+  assert(S().historyEvents === before.historyEvents, 'historie niet vervangen door lezen');
+  assertEq([S().datesAsRecorded, S().scheduleStale, S().isDirty], [true, false, before.isDirty],
+    'modus, versheid en dirty blijven gelijk');
+
+  S().runCPM(); // Expliciet F5, geen stille berekening door de leestool.
+  const calculated = callOk('planner_get_critical_path');
+  assertEq(S().datesAsRecorded, false, 'F5 verlaat de modus');
+  assertEq(calculated.drivingRelations.map((rel: { predId: string; succId: string }) => [rel.predId, rel.succId]),
+    [[aId, bId]], 'bestaande berekende driving-keten blijft intact');
+  assertEq(calculated.note, undefined, 'geen onbekend-melding bij bekende driving');
+});
+
 // --- 1) K1: een geslaagde transactie in de modus blijft ÉÉN undo-stap ------------------------------
 test('MCP-transactie in de modus: één undo-stap, niet twee (K1)', () => {
   const { bId } = enterMode('m1');
   assertEq(S().datesAsRecorded, true, 'voorwaarde: de modus hoort aan te staan');
-  assertEq(S().tasks.find((t) => t.id === bId)!.time.earlyStart, '2026-03-16',
+  assertEq(S().tasks.find((t) => t.id === bId)!.time.earlyStart, '2026-03-16T07:00',
     'voorwaarde: b hoort de OPGESLAGEN datum te tonen');
   const before = S().historyEvents.filter(event => event.state === 'applied').length;
 
@@ -59,7 +104,7 @@ test('MCP-transactie in de modus: één undo-stap, niet twee (K1)', () => {
   assertEq(S().historyEvents.filter(event => event.state === 'applied').length, before + 1, 'één transactie-snapshot (bulk = één undo-stap), óók in de modus');
   assertEq(S().datesAsRecorded, false, 'de eindherberekening hoort de modus te verlaten');
   assertEq(S().recordedDates, null, 'de vastlegging hoort gewist te zijn');
-  assertEq(S().tasks.find((t) => t.id === bId)!.time.earlyStart, '2026-03-09',
+  assertEq(S().tasks.find((t) => t.id === bId)!.time.earlyStart, '2026-03-09T07:00',
     'b hoort op zijn herberekende datum te staan');
 });
 
@@ -77,7 +122,7 @@ test('MCP-transactie in de modus: één undo herstelt modus, datums én de nieuw
   assertEq(S().historyEvents.filter(event => event.state === 'applied').length, before, 'de undo-stack hoort terug op zijn oude diepte te staan');
   assertEq(S().datesAsRecorded, true, 'undo hoort de modus te herstellen');
   assert(S().recordedDates !== null, 'undo hoort de vastlegging te herstellen');
-  assertEq(S().tasks.find((t) => t.id === bId)!.time.earlyStart, '2026-03-16',
+  assertEq(S().tasks.find((t) => t.id === bId)!.time.earlyStart, '2026-03-16T07:00',
     'undo hoort de opgeslagen datum te herstellen');
   assert(!S().tasks.some((t) => t.name === 'via AI 2'),
     'diezelfde ene undo hoort de AI-taak te verwijderen — geen half-uitgevoerde transactie');
@@ -132,7 +177,7 @@ test('contextfactory B verlaat recorded-dates met één B-undo en laat A buiten 
   assertEq(historyDepthsForActiveScope(B.store.getState()).undoDepth, bUndoVoor + 1,
     'modus verlaten plus B-mutatie hoort samen precies één B-undo te zijn');
   assertEq(B.store.getState().datesAsRecorded, false, 'alleen B hoort zijn recorded-dates-modus te verlaten');
-  assertEq(B.store.getState().tasks.find((task) => task.id === bId)!.time.earlyStart, '2026-03-09',
+  assertEq(B.store.getState().tasks.find((task) => task.id === bId)!.time.earlyStart, '2026-03-09T07:00',
     'B hoort op zijn herberekende datum te staan');
   assertEq(A.store.getState().tasks.length, aTakenVoor, 'A-taken horen onaangeroerd te blijven');
   assertEq(historyDepthsForActiveScope(A.store.getState()).undoDepth, aUndoVoor,
@@ -153,7 +198,7 @@ test('leestools in de modus: niet-vastgelegde assen komen als null naar buiten (
   // optionele assen (late start/finish, totale/vrije speling) én isCritical ontbreken.
   const detail = callOk('planner_get_task', { taskId: bId });
   const schedule = detail.schedule as Record<string, unknown>;
-  assertEq(schedule.earlyStart, '2026-03-16', 'de VASTGELEGDE vroege start hoort er gewoon te staan');
+  assertEq(schedule.earlyStart, '2026-03-16T07:00', 'de VASTGELEGDE vroege start hoort er gewoon te staan');
   assertEq(schedule.lateStart, null, 'niet-vastgelegde late start hoort null te zijn, geen rec.start-terugval');
   assertEq(schedule.lateFinish, null, 'niet-vastgelegde late finish hoort null te zijn');
   assertEq(schedule.totalFloat, null, 'niet-vastgelegde totale speling hoort null te zijn, geen verzonnen 0');

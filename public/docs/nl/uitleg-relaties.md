@@ -36,8 +36,10 @@ Een lag kan op vier manieren worden uitgedrukt:
 
 - In **werkdagen** (`3` of `3d`): de app slaat vrije dagen en weekenden over. Dit is de standaard.
 - In **kalenderdagen** (`3ed`, de e staat voor *elapsed*, verstreken tijd): elke dag telt mee, ook zaterdag en zondag. Dit is de eenheid voor iets dat doorloopt zonder dat er gewerkt wordt, zoals uitharden.
-- Als **percentage** van de duur van de voorganger (`40%`): de app rekent dit bij elke berekening opnieuw uit en rondt af op hele dagen (2,5 dagen wordt 3).
-- In **werkuren** (`4u`): de app telt de lag in de lag-kalender, standaard die van de voorganger. Is de voorganger een dagtaak op een kalender zonder eigen werktijdblokken, zoals de standaardkalender, dan rekent de app de uren om naar hele werkdagen, afgerond op de dichtstbijzijnde hele dag (een halve dag gaat naar boven). Bij een werkdag van 8 uur geven `2u` en `3u` dus 0 dagen, `4u` tot en met `11u` 1 dag en `12u` 2 dagen. Heeft die kalender eigen werktijdblokken, of is de voorganger een urentaak, dan telt de lag exact in werkuren.
+- Als **percentage** van de duur van de voorganger (`40%`): de app rekent dit bij elke berekening opnieuw uit, exact op de minuut. 2,5 dagen blijft 2,5 dagen.
+- In **werkuren** (`4u`): de app telt de lag exact in werkuren van de lag-kalender, standaard die van de voorganger. Dat geldt ook na een dagtaak. Pauzes, avonden en weekenden tellen niet mee.
+
+Een lag in werkdagen mag een breuk zijn: `1,5` is anderhalve werkdag.
 
 De regel voor een lag van N werkdagen bij FS: de N werkdagen na het einde van de voorganger zijn wachttijd, en de opvolger begint op de werkdag daarna. Bij SS en FF wordt de lag bij de start respectievelijk het einde van de voorganger opgeteld. Een negatieve lag telt terug: een lead van 1 werkdag bij FS laat de opvolger beginnen op de dag waarop de voorganger klaar is.
 
@@ -63,6 +65,8 @@ Een relatie tussen een taak en de fase waar hij zelf onder valt, is niet toegest
 ### Bepalende relaties
 
 Heeft een opvolger meer voorgangers, dan bepaalt meestal één relatie zijn startdatum: de relatie waar de opvolger geen dag eerder kan beginnen dan hij nu doet. Zo'n relatie heet **bepalend**. Bij een gelijkspel zijn er meer bepalende relaties. Een bepalende relatie herken je aan het bliksemsymbool in de kolommen *Voorgangers* en *Opvolgers* van de tabel, aan de kolom *Bepalend* (de **+** rechts in de tabelkop, onder *Relaties*) en aan de sterkere tint bij het traceren van een pad. Hoe je dat pad opent, staat in [Een pad traceren](docs://howto-pad-traceren).
+
+Zonder beschikbare berekening, ook bij **Datums zoals opgeslagen**, is onbekend welke relaties bepalend zijn. De tabelkolom *Bepalend* toont dan *Onbekend* en de interne relaties in *Voorgangers* en *Opvolgers* krijgen een vraagteken met uitleg, net als in het taakpaneel. Na een geslaagde berekening betekent `—` in *Bepalend* dat er geen bepalende relaties bij die taak zijn; een relatie zonder bliksem is dan niet bepalend. Externe relaties krijgen geen bepalend-markering. **Bereken** (F5) bepaalt dit opnieuw en verlaat *Datums zoals opgeslagen*; de datums kunnen daardoor veranderen.
 
 Bepalend zegt iets over datums, niet over duur. Ook een korte voorganger kan bepalend zijn, bijvoorbeeld door een lange lag; je ziet dat in het voorbeeld hieronder.
 
@@ -90,7 +94,8 @@ Alleen *Dakelementen plaatsen* ligt op het kritieke pad; het project is klaar op
 - Met lag `3ed` (drie kalenderdagen) tellen zaterdag, zondag en maandag mee; het metselwerk begint dinsdag 22 juni.
 - Met lag `-1` (lead van één werkdag) begint het metselwerk vrijdag 18 juni, op de dag dat het storten klaar is.
 - Met lag `40%` is de lag 40% van 5 werkdagen, dus 2 werkdagen; het metselwerk begint woensdag 23 juni.
-- Met lag `50%` is de lag 2,5 werkdag, afgerond 3 werkdagen; het metselwerk begint donderdag 24 juni.
+- Met lag `50%` is de lag 2,5 werkdag; het metselwerk begint woensdag 23 juni om 11:00, halverwege de werkdag.
+- Met lag `4u` begint het metselwerk maandag 21 juni om 11:00. Met lag `12u` (anderhalve werkdag van 8 uur) begint het dinsdag 22 juni om 11:00.
 
 ### Welke kalender telt de lag
 

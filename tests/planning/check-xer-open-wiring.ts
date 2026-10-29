@@ -75,7 +75,7 @@ store.applyOpenedImport(multi, {
   fileHandle: null,
   recompute: true,
   fit: true,
-  hourDataNotice: true,
+
   linkedOpen: true,
 });
 
@@ -456,7 +456,7 @@ if (corpusRoot && existsSync(corpusRoot)) {
     fileHandle: null,
     recompute: true,
     fit: true,
-    hourDataNotice: true,
+
     linkedOpen: true,
   });
   const ozbElapsedMs = performance.now() - ozbStarted;

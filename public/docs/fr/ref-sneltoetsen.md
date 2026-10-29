@@ -12,9 +12,9 @@ Toutes les combinaisons de touches de l'application, groupées comme dans la fen
 
 **Quand une touche ne fonctionne pas.** Chaque entrée indique ses restrictions. Trois règles s'appliquent presque partout :
 
-- Dans un champ de saisie, une liste déroulante ou une zone de texte, l'application n'intercepte pas les touches. Vous pouvez donc simplement taper. Exceptions : F5, Ctrl+S, F11 et Esc pendant la présentation fonctionnent aussi dans un champ. Dans la version compilée de l'application (bureau et version web du site), c'est aussi vrai pour Ctrl+Shift+S, Ctrl+O et Ctrl+N.
-- Tant qu'une boîte de dialogue ou une autre fenêtre est ouverte, les touches marquées *Pas dans une boîte de dialogue* ci-dessous ne fonctionnent pas. Cela vaut aussi pour le mode présentation, la visite guidée, la boîte de bienvenue et les questions qui attendent une réponse, comme l'accord pour installer une extension.
-- Le changement de document (Ctrl+1 à 9, Ctrl+N, Ctrl+O) ne fonctionne pas non plus tant que *Fichier › Info projet* contient des modifications que vous n'avez pas encore confirmées avec *Appliquer*. Annulez-les ou appliquez-les d'abord.
+- Dans un champ de saisie, une liste déroulante ou une zone de texte, l'application n'intercepte pas les touches. Vous pouvez donc simplement taper. Exceptions : F5, Ctrl+S, F11 et Esc pendant la présentation fonctionnent aussi dans un champ. Si le focus est sur une liste déroulante fermée, les touches avec Ctrl fonctionnent aussi, par exemple Ctrl+Z après un choix (pas Ctrl+Delete ni Ctrl+Backspace). Ce n'est plus vrai dans une liste ouverte ni dans une boîte de dialogue. Dans la version compilée de l'application (bureau et version web du site), c'est aussi vrai pour Ctrl+Shift+S, Ctrl+O et Ctrl+N.
+- Tant qu'une boîte de dialogue ou une autre fenêtre est ouverte, les touches marquées *Pas dans une boîte de dialogue* ci-dessous ne fonctionnent pas. Cela vaut aussi pour la visite guidée, la boîte de bienvenue et les questions qui attendent une réponse, comme la question de savoir s'il faut enregistrer vos modifications, et l'accord pour installer une extension. La plupart de ces touches ne fonctionnent pas non plus en mode présentation. Exception : les touches d'édition Ctrl+C, Ctrl+V, Ctrl+Z, Ctrl+Y et Delete/Backspace fonctionnent pendant la présentation.
+- Le changement de document (Ctrl+1 à 9, Ctrl+N, Ctrl+O) ne fonctionne pas non plus tant que *Fichier › Paramètres du projet* contient des modifications que vous n'avez pas encore confirmées avec *Appliquer*. Annulez-les ou appliquez-les d'abord.
 
 ## Fichier
 
@@ -24,23 +24,23 @@ Toutes les combinaisons de touches de l'application, groupées comme dans la fen
 
 **Ctrl+Shift+S** — *Enregistrer sous* : demande où le fichier doit être enregistré. Dans une version de développement, cette touche ne fonctionne pas dans un champ de saisie.
 
-**Ctrl+O** — *Ouvrir* : ouvre un fichier, en général dans un nouvel onglet. Pas dans une boîte de dialogue et pas avec des modifications non appliquées dans *Info projet*.
+**Ctrl+O** — *Ouvrir* : ouvre un fichier, en général dans un nouvel onglet. Pas dans une boîte de dialogue et pas avec des *Paramètres du projet* non appliqués.
 
-**Ctrl+N** — *Nouveau projet* : ouvre la fenêtre *Nouveau projet*. Pas dans une boîte de dialogue et pas avec des modifications non appliquées dans *Info projet*.
+**Ctrl+N** — *Nouveau projet* : ouvre la fenêtre *Nouveau projet*. Pas dans une boîte de dialogue et pas avec des *Paramètres du projet* non appliqués.
 
 La version compilée de l'application (bureau et version web du site) bloque aussi plusieurs touches du navigateur, pour qu'elles ne gênent pas : Ctrl+R et Ctrl+Shift+R (actualiser), F12, Ctrl+Shift+I et Ctrl+Shift+J (outils de développement), Ctrl+U (afficher la source) et Ctrl+G, Ctrl+F et Ctrl+L (rechercher et barre d'adresse). Ctrl+S, Ctrl+Shift+S, Ctrl+O, Ctrl+N et F5 vont à l'application elle-même.
 
 ## Édition
 
-**Ctrl+C** — *Copier* : copie les tâches sélectionnées. Seulement avec une sélection. Dans le tableau des tâches, Ctrl+C copie les cellules sélectionnées ; le tableau gère cela lui-même.
+**Ctrl+C** — *Copier* : copie les tâches sélectionnées. Seulement avec une sélection. Pas dans une boîte de dialogue. Pas dans *Fichier*, pas sur les onglets *Rapport* et *IFC* et pas quand le panneau des ressources complet est ouvert. Dans le tableau des tâches, Ctrl+C copie les cellules sélectionnées ; le tableau gère cela lui-même.
 
-**Ctrl+V** — *Coller* : colle les tâches copiées. Dans le tableau des tâches, Ctrl+V colle les cellules.
+**Ctrl+V** — *Coller* : colle les tâches copiées. Pas dans une boîte de dialogue. Pas dans *Fichier*, pas sur les onglets *Rapport* et *IFC* et pas quand le panneau des ressources complet est ouvert, car le tableau des tâches n'y est pas visible. Dans le tableau des tâches, il colle les cellules.
 
-**Ctrl+Z** — *Annuler*.
+**Ctrl+Z** — *Annuler*. Pas dans une boîte de dialogue : fermez d'abord la fenêtre.
 
-**Ctrl+Y** ou **Ctrl+Shift+Z** — *Rétablir* : répète ce que vous avez annulé.
+**Ctrl+Y** ou **Ctrl+Shift+Z** — *Rétablir* : répète ce que vous avez annulé. Pas dans une boîte de dialogue.
 
-**Delete** ou **Backspace** — *Supprimer* : supprime les tâches sélectionnées. Seulement avec une sélection. Dans une cellule du tableau des tâches, Delete et Backspace effacent seulement le contenu de la cellule (voir *Tableau*).
+**Delete** ou **Backspace** — *Supprimer* : supprime les tâches sélectionnées. Seulement avec une sélection. Pas dans une boîte de dialogue. Pas dans *Fichier*, pas sur les onglets *Rapport* et *IFC* et pas quand le panneau des ressources complet est ouvert, car le tableau des tâches n'y est pas visible. Dans une cellule du tableau des tâches, Delete et Backspace effacent seulement le contenu de la cellule (voir *Tableau*).
 
 **F2** — *Modifier...* : ouvre la boîte de dialogue de la première tâche sélectionnée. Seulement avec une sélection. Pas dans une boîte de dialogue. Dans une cellule du tableau des tâches, F2 commence la modification de la cellule.
 
@@ -68,9 +68,9 @@ Mettre en retrait, réduire le retrait et insérer au-dessus ou en dessous d'une
 
 ## Affichage
 
-**F11** — *Présentation* : active ou désactive le mode présentation. L'application demande aussi au navigateur ou à la fenêtre le plein écran. Fonctionne aussi dans un champ de saisie.
+**F11** — *Présentation* : active ou désactive le mode présentation. L'application demande aussi à la fenêtre le plein écran. Fonctionne aussi dans un champ de saisie. Dans le navigateur, F11 ne lance pas la présentation : le navigateur met la fenêtre en plein écran lui-même et l'application reste telle quelle. Dans le navigateur, F11 arrête en revanche une présentation en cours.
 
-**Esc** (pendant la présentation) — *Quitter la présentation*. Fonctionne aussi dans un champ de saisie. Cette touche a priorité sur *Désélectionner*.
+**Esc** (pendant la présentation) — *Quitter la présentation*. Fonctionne aussi dans un champ de saisie. Cette touche a la priorité sur *Désélectionner*.
 
 **Ctrl+=** — *Zoom avant* : zoome la chronologie d'un pas fixe. Pas dans un champ de saisie.
 
@@ -80,7 +80,7 @@ Mettre en retrait, réduire le retrait et insérer au-dessus ou en dessous d'une
 
 **-** — *Zoom arrière* : dézoome de 10%. Mêmes restrictions.
 
-**0** — *Réinitialiser le zoom* : remet le zoom à la valeur par défaut et revient au début. Mêmes restrictions.
+**0** — *Réinitialiser le zoom* : remet le zoom à la valeur par défaut et fait défiler jusqu'au début. Mêmes restrictions.
 
 **Ctrl+0** — *Ajuster au projet* : zoome pour que tout le projet tienne dans la vue. Mêmes restrictions.
 
@@ -96,9 +96,9 @@ Mettre en retrait, réduire le retrait et insérer au-dessus ou en dessous d'une
 
 **F1** — *Ouvrir l'aide* : ouvre *Fichier › Aide*. Pas dans un champ de saisie et pas dans une boîte de dialogue. Dans une fenêtre, utilisez le point d'interrogation en haut à droite : il ouvre l'aide sur l'article de cette fenêtre (voir [Le ruban, onglet par onglet](docs://ref-lint), sous *Aide*).
 
-**Ctrl+1** à **Ctrl+9** — *Changer de document* : passe au premier document ouvert, jusqu'au neuvième. Si ce document n'existe pas, rien ne se passe. Pas dans une boîte de dialogue et pas avec des modifications non appliquées dans *Info projet*.
+**Ctrl+1** à **Ctrl+9** — *Changer de document* : passe au premier document ouvert, jusqu'au neuvième. Si ce document n'existe pas, il ne se passe rien. Pas dans une boîte de dialogue et pas avec des *Paramètres du projet* non appliqués.
 
-**Ctrl+Home** — *Aller à aujourd'hui* : fait défiler la chronologie pour qu'une date soit à gauche de la vue. C'est la date d'état si vous en avez défini une, sinon aujourd'hui. Donc le libellé dit « aujourd'hui », même quand la chronologie passe à la date d'état. Le zoom et le début de la chronologie ne changent pas. Si une cellule du tableau des tâches a le focus, Ctrl+Home va à la première cellule du tableau (voir *Tableau*).
+**Ctrl+Home** — *Aller à aujourd'hui* : fait défiler la chronologie pour qu'une date soit à gauche de la vue. C'est la date d'état si vous en avez défini une, sinon aujourd'hui. Le libellé dit donc « aujourd'hui », même quand la chronologie passe à la date d'état. Le zoom et le début de la chronologie ne changent pas. Si une cellule du tableau des tâches a le focus, Ctrl+Home va à la place à la première cellule du tableau (voir *Tableau*).
 
 ## Tableau
 

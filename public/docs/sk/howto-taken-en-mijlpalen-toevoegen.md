@@ -15,7 +15,7 @@ Zostavujete plán, pridáva sa ďalšia práca, alebo chcete zaznamenať okamih,
 1. Vyberte *Domov › Úlohy › Úloha*. Rovnaké tlačidlo je na karte *Tabuľka*.
 2. Otvorí sa panel *Vlastnosti* a označí sa pole *Názov*. Napíšte názov a stlačte Enter.
 
-Nová úloha sa najprv volá *Nová úloha* a začína v deň začiatku projektu.
+Nová úloha sa najprv volá *Nová úloha* a začína na dátume začiatku projektu.
 
 Ak je vybraná úloha, nová úloha sa vloží priamo pod ňu, na rovnakú úroveň. Ak je vybraná súhrnná úloha, nová úloha sa vloží pod celú fázu, teda za jej čiastkové úlohy. Ak nie je nič vybraté, pridá sa dole v zozname. Popis tlačidla, ktorý sa zobrazí pri ukázaní myšou, hovorí, ktorá z dvoch možností nastane: *Nová úloha priamo pod výberom* alebo *Nová úloha na konci zoznamu*. Ak vyberiete viac úloh, vytvorí sa jedna nová úloha pod najnižšou úlohou výberu, tak ako ju vidíte na obrazovke.
 
@@ -51,7 +51,7 @@ Pravým tlačidlom kliknite na úlohu a vyberte *Pridať čiastkovú úlohu*. No
 Tri druhy medzníkov sa líšia takto:
 
 - *Medzník začiatku* patrí na začiatok dňa, *Medzník dokončenia* na záver dňa. V diagrame Gantt je kosoštvorec na ľavej, respektíve pravej strane stĺpca dňa. Záleží na tom aj pre nasledujúcu úlohu. Predstavte si, že medzník je v utorok 29. septembra 2026 a za ním nasleduje úloha so závislosťou dokončenie-začiatok. Pri medzníku začiatku sa tá úloha začne v ten istý utorok. Pri medzníku dokončenia sa začne v stredu 30. septembra.
-- *Kontrolný bod (povinný)* je medzník dokončenia s typom úlohy *Kontrola/inšpekcia* a zaškrtnutím *Povinný (zmluvný)*.
+- *Kontrolný bod (povinný)* je medzník dokončenia s druhom prác *Kontrola/inšpekcia* a zaškrtnutím *Povinný (zmluvný)*.
 
 ### Premena existujúcej úlohy na medzník
 
@@ -62,6 +62,7 @@ Ak ho znova vypnete, zostane z neho bežná úloha s trvaním 0: trvanie zadajte
 ### Ďalšie spôsoby
 
 - Ctrl+M (⌘+M na Macu) pridá nový medzník dole v zozname, aj keď je vybraná úloha. Panel *Vlastnosti* sa neotvorí.
+- Medzník, ktorý vytvoríte pomocou Ctrl+M alebo cez kontextovú ponuku, dostane druh prác *Kontrola/inšpekcia*. *Medzník začiatku* alebo *Medzník dokončenia* z *Medzník ▾* dostane *Iné*. Ak potrebujete, zmeňte druh prác v paneli *Vlastnosti*.
 - Položka *Pridať medzník* v kontextovej ponuke úlohy urobí z medzníka čiastkovú úlohu tej úlohy, nie úlohu na rovnakej úrovni.
 
 ### Kopírovanie úlohy alebo celej vetvy
@@ -72,7 +73,7 @@ Ak ho znova vypnete, zostane z neho bežná úloha s trvaním 0: trvanie zadajte
 
 Kópia má rovnaký názov, rovnaké dátumy a rovnaký postup. Vloží sa na rovnakú úroveň ako vybraná úloha. Pri viacerých vybraných úlohách sa kópia vloží na rovnakú úroveň ako úloha, na ktorú ste klikli ako prvú. Vloží sa dole medzi úlohy na tejto úrovni. Ak nie je nič vybraté, pridá sa dole v zozname. Skopírované úlohy sa potom vyberú, kódy WBS (číslo každej úlohy v strome, napríklad 1.2; pozrite [Úprava štruktúry](docs://howto-structuur-aanpassen)) sa určia znova a plán je zastaralý.
 
-Schránka je spoločná pre celú aplikáciu, takže môžete vložiť aj do iného dokumentu. Čo tam neexistuje, napríklad kalendár úlohy, vlastný typ úlohy, kód aktivity alebo vlastné pole, aplikácia vymaže a upozorní vás na to.
+Schránka je spoločná pre celú aplikáciu, takže môžete vložiť aj do iného dokumentu. Čo tam neexistuje, napríklad kalendár úlohy, vlastný druh prác, kód aktivity alebo vlastné pole, aplikácia vymaže a upozorní vás na to.
 
 ### Potom
 
@@ -80,9 +81,9 @@ Nová úloha ešte nemení ostatné dátumy. Stavový riadok hovorí *Zastaralé
 
 ## Úskalia a čo aplikácia robí
 
-**Každá nová úloha začína v deň začiatku projektu.** Bez závislostí úloha na nič nečaká. Pridajte závislosti, pozrite [Pridávanie závislostí](docs://howto-relaties-leggen).
+**Každá nová úloha začína na dátume začiatku projektu.** Bez závislostí úloha na nič nečaká. Pridajte závislosti, pozrite [Pridávanie závislostí](docs://howto-relaties-leggen).
 
-**Filtrovanie, zoskupovanie alebo triedenie je zapnuté.** Poradie, ktoré vidíte, potom nezodpovedá poradiu plánu. Ak je vybraná úloha, *Úloha* a *Medzník ▾* pridajú novú úlohu dole a objaví sa lišta *Nedostupné počas filtrovania, zoskupovania a triedenia*. *Vložiť nad* a *Vložiť pod* sa odmietnu s rovnakou lištou. Tlačidlo *Vymazať* na lište odstráni naraz filter, zoskupovanie a triedenie. Toto nie je súčasťou *Vrátiť späť*: Ctrl+Z ich nevráti.
+**Filtrovanie, zoskupovanie alebo triedenie je zapnuté.** Poradie, ktoré vidíte, potom nezodpovedá poradiu plánu. Ak je vybraná úloha, *Úloha* a *Medzník ▾* pridajú novú úlohu dole. Potom sa zobrazí červené hlásenie *Nová úloha je na konci. Počas filtrovania, zoskupovania alebo triedenia ju aplikácia nemôže vložiť pod váš výber.* *Vložiť nad* a *Vložiť pod* sa odmietnu s lištou *Nedostupné počas filtrovania, zoskupovania a triedenia*. Tlačidlo *Vymazať* v hlásení alebo na lište odstráni naraz filter, zoskupovanie a triedenie. Toto nie je súčasťou *Vrátiť späť*: Ctrl+Z ich nevráti.
 
 **Čiastková úloha pod úlohou s priradeniami zdrojov.** Úloha sa stane súhrnnou úlohou a súhrnná úloha nemá vlastné priradenia. Aplikácia presunie priradenia na novú čiastkovú úlohu a upozorní vás na to. Ak to nejde, napríklad preto, že ste vybrali *Pridať medzník* a medzník nemôže mať priradenia, aplikácia nič nepridá a povie, prečo.
 

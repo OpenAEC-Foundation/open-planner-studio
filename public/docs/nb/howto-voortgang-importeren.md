@@ -28,10 +28,10 @@ Excel-arket er beskyttet, uten passord: bare de tre kolonnene du fyller inn kan 
 
 For hver aktivitet fyller byggelederen inn:
 
-- `Completion (%)`: 0 til og med 100. I Excel-arket er desimaltall tillatt (for eksempel 33,3); i CSV-filen ber instruksjonen om hele tall.
-- `Actual Start` og `Actual Finish`: i Excel som dato med det regionale oppsettet ditt; i CSV-filen som dd-mm-åååå.
+- `Completion (%)`: 0 til og med 100. Appen leser også desimaltall, med komma eller punktum (for eksempel 33,3 eller 33.3). Instruksjonen i CSV-filen ber fortsatt om hele tall: et regneark med en annen regional innstilling kan lese 8,38 som 838.
+- `Actual Start` og `Actual Finish`: i Excel som dato med det regionale oppsettet ditt; i CSV-filen som dd-mm-åååå eller som åååå-mm-dd.
 
-Det som blir tomt, endrer ingenting. En tom celle sletter altså heller ikke eksisterende fremdrift; det kan bare gjøres i appen. En aktivitet som ikke har startet, lar cellene stå helt tomme.
+Det som står tomt, endrer ingenting. En tom celle sletter altså heller ikke eksisterende fremdrift; det kan bare gjøres i appen. For en aktivitet som ikke har startet, lar byggelederen cellene stå helt tomme.
 
 ### 4. Les inn arket
 

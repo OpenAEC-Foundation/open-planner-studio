@@ -31,9 +31,9 @@ Deschideți *Planificare › Structură › Șabloane* și faceți clic pe picto
 
 ### Ce conține un șablon
 
-Pentru fiecare activitate, șablonul păstrează numele, descrierea, tipul de activitate, dacă este jalon și durata în zile. Dintre dependențe păstrează doar pe cele dintre două activități din ramură, cu tipul și decalajul lor.
+Pentru fiecare activitate, șablonul păstrează numele, descrierea, categoria de lucrări, dacă este jalon și durata în zile. Dintre dependențe păstrează doar pe cele dintre două activități din ramură, cu tipul și decalajul lor. Un decalaj în ore (`4h`) nu se păstrează și devine 0. Un decalaj în zile lucrătoare, zile calendaristice sau procente se păstrează.
 
-Restul nu se păstrează: datele, progresul și datele reale, atribuirile de resurse, codurile și câmpurile particularizate (vezi [Coduri și câmpuri particularizate](docs://howto-codes-en-velden)), calendarul, restricțiile și termenele limită, prioritatea, un tip de activitate particularizat, pentru un jalon tipul și bifa *Obligatoriu (prin contract)*, și dependențele cu activități din afara ramurii. După inserare, completați din nou aceste date: atribuirile, codurile, calendarul și restricțiile sunt goale, iar toate activitățile încep la începutul proiectului.
+Restul nu se păstrează: datele, progresul și datele reale, atribuirile de resurse, codurile și câmpurile particularizate (vezi [Coduri și câmpuri particularizate](docs://howto-codes-en-velden)), calendarul, restricțiile și termenele limită, prioritatea, o categorie de lucrări particularizată, pentru un jalon tipul și bifa *Obligatoriu (prin contract)*, și dependențele cu activități din afara ramurii. După inserare, completați din nou aceste date: atribuirile, codurile, calendarul și restricțiile sunt goale, iar toate activitățile încep la data de început a proiectului.
 
 O activitate care era în ore devine o activitate pe zile, cu durata convertită într-o fracție dintr-o zi lucrătoare. O activitate de 5 ore, cu o zi lucrătoare de 8 ore, devine 0,625 zile.
 

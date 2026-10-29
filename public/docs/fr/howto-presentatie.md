@@ -19,9 +19,9 @@ En mode présentation, le ruban n'est plus affiché. Préparez donc à l'avance 
 
 ### Démarrer la présentation
 
-Choisissez *Affichage › Présentation › Présentation*, ou appuyez sur F11. Le ruban, les onglets, la barre d'état et le panneau de droite disparaissent. Vous voyez le tableau des tâches, le Gantt et, si vous les avez activés, l'histogramme et la mini-carte. Pendant quelques secondes, un message en bas indique *Appuyez sur Échap ou F11 pour quitter le plein écran.*
+Choisissez *Affichage › Présentation › Présentation*. Dans l'application de bureau, vous pouvez aussi appuyer sur F11. Dans le navigateur, F11 appartient au navigateur lui-même : il met la fenêtre du navigateur en plein écran et laisse l'application telle quelle. Le ruban, les onglets, la barre d'état et le panneau de droite disparaissent. Vous voyez le tableau des tâches, le Gantt et, si vous les avez activés, l'histogramme et la mini-carte. Pendant quelques secondes, un message en bas indique *Appuyez sur Échap ou F11 pour quitter le plein écran.*
 
-Vous pouvez démarrer la présentation depuis n'importe quel onglet, aussi depuis *Tableau* ou *Rapport*. Vous voyez toujours le Gantt du projet ouvert. Quand vous arrêtez, vous revenez à l'onglet où vous étiez au départ.
+Dans l'application de bureau, vous démarrez la présentation depuis n'importe quel onglet avec F11, aussi depuis *Tableau* ou *Rapport*. Dans le navigateur, vous la démarrez uniquement avec *Affichage › Présentation › Présentation*. Vous voyez toujours le Gantt du projet ouvert, et quand vous arrêtez, vous revenez à l'onglet où vous étiez au départ. Dans le navigateur, c'est donc *Affichage*.
 
 ### Arrêter la présentation
 
@@ -29,11 +29,11 @@ Appuyez sur Échap ou F11. Le ruban et les panneaux reviennent sur l'onglet où 
 
 ## Pièges et ce que fait l'application
 
-**Vous pouvez encore modifier en mode présentation.** Cliquer, glisser, modifier des cellules et Suppr fonctionnent toujours. Si vous faites glisser une barre par erreur, elle se déplace et le planning n'est plus à jour. Une tâche supprimée par erreur se rétablit avec Ctrl+Z, également en mode présentation. Cliquez donc avec précaution quand vous travaillez avec un groupe.
+**Vous pouvez encore modifier en mode présentation.** Cliquer, glisser, modifier des cellules et Suppr fonctionnent toujours. Si vous faites glisser une barre par erreur, elle se déplace et le planning n'est plus à jour. Une tâche supprimée par erreur se récupère avec Ctrl+Z, également en mode présentation. Cliquez donc avec précaution quand vous travaillez avec un groupe.
 
 **Les notifications restent visibles.** Un message de l'application, par exemple une erreur de sauvegarde, apparaît aussi en mode présentation. Sans ruban ni barre d'état, ce message est le seul signe qu'un problème existe.
 
-**Préparez la vue partagée, la mini-carte et les dispositions à l'avance.** Vous avez besoin du ruban pour cela, et il n'est plus affiché dans ce mode. Le zoom fonctionne, avec la molette de la souris ou avec Ctrl+= et Ctrl+-. + et - fonctionnent aussi, mais seulement quand le focus est dans le Gantt. Après F11, le focus se trouve souvent dans le tableau des tâches. Cliquez donc d'abord dans le Gantt.
+**Préparez la vue partagée, la mini-carte et les dispositions à l'avance.** Vous avez besoin du ruban pour cela, et il n'est plus affiché dans ce mode. Le zoom fonctionne, avec la molette de la souris ou avec Ctrl+= et Ctrl+-. + et - fonctionnent aussi, mais seulement quand le Gantt est actif. Après le démarrage, c'est souvent le tableau des tâches qui est actif. Cliquez donc d'abord dans le Gantt.
 
 **Le plein écran ne fonctionne pas.** En plus de masquer le ruban, l'application demande aussi réellement le plein écran. Si votre navigateur ou votre fenêtre refuse cela, seuls le ruban et les panneaux disparaissent. La présentation fonctionne quand même. Si vous quittez le plein écran autrement qu'avec Échap ou F11, par exemple avec une touche de votre système d'exploitation, le mode présentation s'arrête aussi.
 

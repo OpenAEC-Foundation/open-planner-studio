@@ -28,6 +28,7 @@ export type IFCSaveSource = Pick<
   // Verplicht (review 2026-09-28): als optioneel veld liet een aanroeper met een eigen veldlijst
   // (het IFC-paneel) het stil weg, en verloren alle bewaarde GlobalIds bij Toepassen.
   | 'ifcGlobalIds'
+  | 'minuteModelPending'
 >
   & Partial<Pick<DocumentPayload,
     | 'xerImportMetadata' | 'xerSourceArchive' | 'xerSourceProjectId' | 'importPristine'
@@ -72,6 +73,7 @@ export function buildWriteIFCInput(src: IFCSaveSource): WriteIFCInput {
   const withheld = withheldFieldsFor(src);
   return {
     project: src.project,
+    minuteModelPending: src.minuteModelPending,
     calendar: src.calendar,
     tasks: src.tasks,
     sequences: src.sequences,
@@ -115,7 +117,7 @@ const IFC_SAVE_KEYS = [
   'project', 'calendar', 'tasks', 'sequences', 'resources', 'assignments',
   'activityCodeTypes', 'customFieldDefs', 'customTaskTypes', 'calendars', 'baselines', 'activeBaselineId', 'comparedBaselineIds',
   'xerImportMetadata', 'xerSourceArchive', 'xerSourceProjectId', 'importPristine',
-  'recordedDates', 'datesAsRecorded', 'ifcGlobalIds',
+  'recordedDates', 'datesAsRecorded', 'minuteModelPending', 'ifcGlobalIds',
 ] as const;
 
 type MissingSaveKey = Exclude<keyof IFCSaveSource, typeof IFC_SAVE_KEYS[number]>;

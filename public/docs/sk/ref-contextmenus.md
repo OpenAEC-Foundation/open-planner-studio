@@ -11,9 +11,9 @@ Existujú štyri ponuky. Ktorú dostanete, závisí od miesta kliknutia:
 - **Na hlavičke skupiny v tabuľke úloh** — malá ponuka na rozbalenie a zbalenie skupín. Hlavičky skupín sa zobrazia len vtedy, keď zoskupujete, napríklad pri rozložení *Diagram zdrojov*.
 - **Na prázdnom mieste** — v diagrame Gantt vedľa pruhov alebo pod nimi a v tabuľke úloh pod poslednou úlohou alebo na sivom riadku *Nová úloha*. Ponuka obsahuje *Vytvoriť úlohu*, *Pridať medzník* a *Vložiť*; v diagrame Gantt aj *Obnoviť zoom* a *Prispôsobiť projektu*. Nová úloha alebo medzník sa pridá na koniec zoznamu. V diagrame Gantt začína na dátume, kde ste klikli; v tabuľke úloh sa hneď otvorí bunka názvu, aby ste mohli písať.
 
-Na pruhu hlavičky skupiny v diagrame Gantt pravé tlačidlo myši neotvorí žiadnu ponuku. Kliknutie pravým tlačidlom v hlavičke časovej osi tiež nič nerobí. Hlavičky stĺpcov tabuľky úloh majú vlastnú ponuku, popísanú v [Úprava stĺpcov tabuľky](docs://howto-tabelkolommen-aanpassen).
+Na pruhu hlavičky skupiny v diagrame Gantt otvorí pravé tlačidlo myši ponuku pre prázdne miesto. Samotná hlavička skupiny má ponuku len v tabuľke úloh. Kliknutie pravým tlačidlom v hlavičke časovej osi nerobí nič. Hlavičky stĺpcov tabuľky úloh majú vlastnú ponuku, popísanú v [Úprava stĺpcov tabuľky](docs://howto-tabelkolommen-aanpassen).
 
-**Na ktoré úlohy sa položka vzťahuje?** Kliknete na jednu úlohu, ale výber určuje rozsah. Ak je úloha, na ktorú kliknete, súčasťou výberu, položka sa vzťahuje na celý výber. Ak nie, vzťahuje sa len na túto jednu úlohu. Ak kliknete pravým tlačidlom na pruh v diagrame Gantt alebo na riadok v tabuľke úloh, táto úloha nahradí výber, ak v ňom nebola. Každá položka, ktorá niečo mení, sa dá vrátiť jedným krokom *Vrátiť späť*, aj pre celý výber.
+**Na ktoré úlohy sa položka vzťahuje?** Kliknete na jednu úlohu, ale výber určuje rozsah. Ak je úloha, na ktorú kliknete, súčasťou výberu, položka sa vzťahuje na celý výber. Ak nie, vzťahuje sa len na túto jednu úlohu. Ak kliknete pravým tlačidlom na pruh v diagrame Gantt alebo na riadok v tabuľke úloh, táto úloha nahradí výber, ak v ňom nebola. Každú položku, ktorá niečo mení, môžete vrátiť jedným krokom *Vrátiť späť*, aj pre celý výber.
 
 ## Ponuka úlohy
 

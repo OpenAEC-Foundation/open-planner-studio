@@ -16,7 +16,7 @@ Beräkningsmetoden heter **CPM** (Critical Path Method). Därför kallas blocket
 
 ## Så räknar appen
 
-Appen beräknar inte tidsplanen av sig själv. Beräkningen startar med **Beräkna** (F5), till exempel via *Start › Tidsplan › Beräkna*. Om något har ändrats sedan den senaste beräkningen visar statusfältet *Inaktuell — beräkna om (F5)*. Om *Beräkna automatiskt* är på (under *Inställningar › Projekt › Inställningar*, fliken *Tidsplan*, rubriken *Beräkning*) gör appen det själv.
+Appen beräknar inte om tidsplanen av sig själv. Beräkningen startar med **Beräkna** (F5), till exempel via *Start › Tidsplan › Beräkna*. Om något har ändrats sedan den senaste beräkningen visar statusfältet *Inaktuell — beräkna om (F5)*. Om *Beräkna automatiskt* är på (under *Inställningar › Projekt › Appinställningar*, fliken *Tidsplan*, rubriken *Beräkning*) gör appen det själv.
 
 En beräkning gör två genomgångar av nätet.
 
@@ -26,7 +26,7 @@ Appen börjar vid projektstarten och följer sambanden från **föregående** ti
 
 ### Bakåtpass
 
-Sedan går appen bakåt, från projektslutet tillbaka till starten. Nu hittar appen för varje uppgift den sista dag uppgiften måste vara klar utan att projektslutet flyttas. Om en uppgift har flera efterföljande uppgifter räknas den som måste starta först. Det ger **senaste start** och **senaste slut**.
+Sedan går appen bakåt, från projektslutet tillbaka till starten. Nu hittar appen för varje uppgift den sista dag uppgiften måste vara klar utan att projektslutet flyttas. Om en uppgift har flera efterföljande uppgifter räknas den efterföljande uppgiften som måste starta först. Det ger **senaste start** och **senaste slut**.
 
 ### Totalt och fritt slack
 
@@ -42,16 +42,17 @@ Slack kan också bli negativt. Det händer när en uppgift har ett måldatum, el
 
 ### När är en uppgift kritisk?
 
-Som standard är en uppgift kritisk när dess totala slack är 0 eller mindre. Det kan du ändra under *Inställningar › Projekt › Projektinfo*, i blocket *Beräkningsprofil och beräkningsalternativ*, vid *Beräkningsalternativ för det här projektet*. När du klickar på *Tillämpa* beräknar appen tidsplanen direkt om. Alternativen hör till projektfilen, inte till appen.
+Som standard är en uppgift kritisk när dess totala slack är 0 eller mindre. Det kan du ändra under *Inställningar › Projekt › Projektinställningar*, i blocket *Beräkningsprofil och beräkningsalternativ*, vid *Beräkningsalternativ för det här projektet*. När du klickar på *Tillämpa* beräknar appen tidsplanen direkt om. Alternativen hör till projektfilen, inte till appen.
 
-- **Kritisk definition** med *Totalt slack ≤ tröskelvärde* och fältet *Tröskelvärde (arbetsdagar)*. Tröskelvärdet är 0 som standard. Om du vill skydda en buffert sätter du det till 2, till exempel. Då räknas varje uppgift med 2 arbetsdagar slack eller mindre som kritisk, och den blir röd.
+- **Kritisk definition** med *Totalt slack ≤ tröskelvärde* och fältet *Tröskelvärde (arbetsdagar)*. Tröskelvärdet är 0 som standard. Om du vill skydda en buffert sätter du det till 2, till exempel. Då räknas varje uppgift med 2 arbetsdagar slack eller mindre som kritisk, och den blir röd. Om du väljer *Längsta väg* är en uppgift kritisk när den ligger på den längsta kedjan till det sista slutet. Dess slack spelar då ingen roll.
+- **Flera slackvägar** numrerar kedjorna efter deras slack i kolumnen *Slackväg*. Väg 1 är den kritiska linjen. Se [Beräkningsalternativ och beräkningsregler](docs://ref-rekenopties-en-conventies).
 - **Markera nära kritisk** med ett eget *Tröskelvärde*, 2 arbetsdagar som standard. En uppgift med mer än 0 men högst så mycket slack får en gul balk. Så ser du vilka uppgifter som nästan inte har någon marginal kvar, utan att kalla dem kritiska.
 - **Uppgifter med öppet slut är kritiska**: en uppgift utan efterföljande uppgift som ännu inte är klar räknas som kritisk. Användbart som skyddsnät mot glömda samband (se missförstånden nedan).
-- **Slackberäkning** avgör om totalt slack mäts vid start av uppgiften, vid dess slut, eller som det minsta av de två. Nya projekt står på *Automatiskt (standard)*. Om du följer Primavera P6:s sätt att räkna sätter *Använd standardalternativen för den här profilen* detta val till *Slutslack*. För MS Project ställer samma knapp tillbaka det till *Automatiskt (standard)*: med ett rapportdatum räknar MS Project själv på det sättet.
+- **Slackberäkning** avgör om totalt slack mäts vid start av uppgiften, vid dess slut, eller som det minsta av de två. Nya projekt står på *Automatiskt (standard)*. Om projektet använder profilen Primavera P6 och det här valet inte är *Slutslack* visar ett orange block i *Projektinställningar* det. Blockets knapp sätter valet till *Slutslack*. För MS Project ställer samma knapp tillbaka det till *Automatiskt (standard)*: med ett rapportdatum räknar MS Project själv på det sättet.
 
 ### Så ser du det
 
-Kritiska uppgifter har en röd balk i Gantt. Bakom en icke-kritisk balk finns ett grönt band fram till uppgiftens senaste slut: det är slacket. Bandet slås på eller av under *Visa › Baslinjer & framdrift › Slackband*.
+Kritiska uppgifter har en röd balk i Gantt. Bakom en icke-kritisk balk finns ett grönt band fram till uppgiftens senaste slut: det är slacket. Bandet slås på eller av med *Visa › Baslinjer & framdrift › Slackband*.
 
 För en vald uppgift visar panelen *Egenskaper* allt under *CPM-resultat*: tidigaste och senaste start och slut, totalt, fritt och störande slack, och om uppgiften ligger på den kritiska linjen. Slacket för alla uppgifter bredvid varandra finns i kolumnerna under *Beräknat* (**+**-knappen till höger i tabellhuvudet), till exempel *Totalt slack*, *Fritt slack*, *Kritisk* och *Nära kritisk*.
 

@@ -127,6 +127,17 @@ een letterlijke sleutelvergelijking:
   taal, dan meldt het één regel per taal met aantallen en eindigt het op exit 0; `--verbose` noemt de
   sleutels. `--json` blijft rapportagemodus (exit 0) met `errors` en `absent` apart.
 
+## Een naam is geen meervoudsvorm
+
+Kies de boodschap vóór pluralisatie. Eén concrete taak met `{{task}}` of `{{phase}}` krijgt een gewone
+sleutel; een verzameling met `{{count}}` een afzonderlijke meervoudsfamilie, zoals
+`notifications.milestoneRefusedAssignments` en `notifications.milestoneRefusedAssignmentsMany`.
+`one` betekent niet in elke taal precies één taak; zh/ja/ko/lo hebben alleen `other`.
+De Help-labelkaart koppelt de geciteerde Engelse zin aan dezelfde semantische sleutel. Een
+naamcitaat mag daarom geen teltekst als vertaaldoel krijgen. Migreer alleen aantoonbaar gelijke
+teksten letterlijk en geef ze zonder vertaalbevestiging geen nieuwe bronhash. Een ontbrekende
+sleutel volgt de Engelse terugval (B5); een behouden tekst zonder hash gaat mee in `--stale`.
+
 ## Een samengestelde sleutel: geen `as`
 
 De typecheck controleert elke sleutel die je aan `t(...)` geeft tegen de nl-bronbestanden
@@ -167,7 +178,7 @@ geen generieke poort die elke `t(key, { count })`-aanroep in de hele codebase vi
 | onderwerp | bestand |
 |---|---|
 | brontaal-sleutels (vier namespaces) | `src/i18n/locales/nl/{common,task,report,menu}.json` |
-| overige 13 locales, zelfde structuur | `src/i18n/locales/<taal>/{common,task,report,menu}.json` |
+| overige 27 locales: `en` (verplicht bij een PR) en 26 andere (via de vertaalstraat), zelfde structuur | `src/i18n/locales/<taal>/{common,task,report,menu}.json` |
 | i18next-init, eager (en) vs. lazy (overige) | `src/i18n/config.ts` |
 | lazy-loader per taal | `src/i18n/` (`loadLocale()`) |
 | de poort: CLDR-pluralcategorieën per locale | `scripts/i18n-diff.mjs` (`npm run verify:i18n`) |

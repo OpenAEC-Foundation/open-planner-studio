@@ -1,3 +1,4 @@
+// F2: taakdatums worden op D1/D2/D7-momenten vergeleken (§4.2); de echte handeling blijft gelijk.
 // Checkstap 14 (2026-10-15): na Home › Nieuw › Maken toonde de tijdlijn de vroegste feestdag van
 // de kalender in plaats van de projectstart. Hetzelfde gold voor de app-start, een nieuw document en
 // het sluiten van het laatste tabblad. De test leest de positie bij de renderer zelf
@@ -5,7 +6,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Page } from '@playwright/test';
-import { expect, state, test } from './fixtures/ops';
+import { expect, state, test, waitForOps, waitForWelcomeDialog } from './fixtures/ops';
 import { ORIGIN_PADDING_DAYS } from '@/utils/ganttViewport';
 
 const EXAMPLE = join(process.cwd(), 'public/examples/03-kantoorgebouw-zuidas.ifc');
@@ -83,8 +84,30 @@ test('nieuw project na een geopend bestand, met eigen startdatum: tijdlijn op de
 });
 
 test('nieuw project zonder ander document: tijdlijn op de projectstart', async ({ page, ops: _ops }) => {
-  await createEmptyProject(page, '01-03-2027');
-  await expectProjectStartAtOrigin(page);
+  // De wizard neemt de app-taal en bouwmodus over, zonder de kalenderregels te veranderen.
+  for (const locale of ['en', 'nl']) {
+    for (const construction of [true, false]) {
+      await page.evaluate(({ locale, construction }) => {
+        localStorage.setItem('ops-locale', locale);
+        localStorage.setItem('ops-constructionMode', JSON.stringify(construction));
+      }, { locale, construction });
+      await page.reload();
+      await waitForOps(page);
+      await waitForWelcomeDialog(page);
+      await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showWelcomeDialog: false, showTourOverlay: false }));
+      await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe(locale);
+      await createEmptyProject(page, '01-03-2027');
+      await expectProjectStartAtOrigin(page);
+      const calendar = await page.evaluate(() => window.__OPS__!.store.getState().calendar);
+      expect(calendar.name).toBe(locale === 'nl'
+        ? (construction ? 'Bouwkalender NL' : 'Standaardkalender')
+        : (construction ? 'Construction calendar NL' : 'Standard calendar'));
+      expect(calendar.workDays).toEqual([1, 2, 3, 4, 5]);
+      expect(calendar.hoursPerDay).toBe(8);
+      if (construction) expect(calendar.holidays.length).toBeGreaterThan(0);
+      else expect(calendar.holidays).toEqual([]);
+    }
+  }
 });
 
 test('laatste tabblad sluiten en newDocument: het verse document begint bij de projectstart', async ({ page, ops: _ops }) => {
@@ -113,6 +136,14 @@ test('lege tijdlijn: Ctrl+0, kale 0 en Ctrl+Home brengen de projectstart terug i
   await canvas(page).click({ position: { x: 200, y: 200 } });
   await page.keyboard.press('0');
   await expectProjectStartAtOrigin(page);
+
+  // Het sneltoetsenoverzicht benoemt de statusdatumvoorrang, niet uitsluitend vandaag (19).
+  await page.keyboard.press('Control+/');
+  const shortcuts = page.locator('[data-ops-shortcuts-dialog]');
+  await expect(shortcuts).toBeVisible();
+  await expect(shortcuts.getByText(/^(Spring naar statusdatum of vandaag|Jump to status date or today)$/)).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(shortcuts).toBeHidden();
 
   // Ctrl+Home springt naar de statusdatum (anders vandaag) met drie dagen marge, in dezelfde
   // oorsprong als de renderer.

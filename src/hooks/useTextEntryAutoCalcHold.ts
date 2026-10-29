@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, type FocusEvent, type FormEvent, type KeyboardEvent } from 'react';
 import { holdAutoCalc } from '@/state/editHold';
+import { mountedPendingTextEdits } from '@/state/pendingTextEdits';
 
 const NON_TEXT_INPUTS = new Set(['checkbox', 'radio', 'range', 'button', 'submit', 'reset', 'color', 'file']);
 
@@ -17,13 +18,21 @@ function isTextEntry(target: EventTarget | null): boolean {
  */
 export function useTextEntryAutoCalcHold() {
   const release = useRef<(() => void) | null>(null);
-  const hold = useCallback((event: FocusEvent | FormEvent) => {
-    if (!release.current && isTextEntry(event.target)) release.current = holdAutoCalc();
-  }, []);
   const done = useCallback(() => {
     release.current?.();
     release.current = null;
   }, []);
+  const hold = useCallback((event: FocusEvent | FormEvent) => {
+    // Een focus die Ctrl+S/F5 na het committen terugzet (`data-ops-refocus`, useKeyboardShortcuts)
+    // is geen nieuwe invoer: de bewerking is af. Pas verder typen (`onInput`) houdt weer vast.
+    if ((event.target as HTMLElement | null)?.dataset?.opsRefocus === 'true') return;
+    if (release.current || !isTextEntry(event.target)) return;
+    // Een route zonder blur (MCP-documentwissel, afsluiten) rondt de bewerking af via het register:
+    // eerst commit het veld, dan geeft deze bewerking haar EIGEN blokkade vrij (review #401).
+    const unhold = holdAutoCalc();
+    const unregister = mountedPendingTextEdits.register({ release: done });
+    release.current = () => { unregister(); unhold(); };
+  }, [done]);
   const onKeyDown = useCallback((event: KeyboardEvent) => {
     if (event.key === 'Enter' && isTextEntry(event.target)) done();
   }, [done]);

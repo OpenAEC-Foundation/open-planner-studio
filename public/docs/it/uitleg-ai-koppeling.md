@@ -39,13 +39,13 @@ Quattro cose le imposti tu stesso, nella scheda *IA*:
 - Il *Backup automatico* scrive una copia IFC prima della prima modifica per documento. Se quel backup non riesce, l'app non esegue la modifica.
 - Il *Pannello attività* mostra ogni chiamata, con argomenti e risposta.
 
-Oltre a questo c'è il tuo normale *Annulla* (Ctrl+Z). L'assistente condivide quella cronologia con te e ha da sé `planner_undo` e `planner_redo`.
+Oltre a questo c'è il tuo normale *Annulla* (Ctrl+Z). L'assistente condivide quella cronologia con te e dispone inoltre di `planner_undo` e `planner_redo`.
 
 ### Che cosa l'assistente non può fare
 
 Il bridge è volutamente più limitato dell'app. Ciò che l'assistente non può fare ha di solito una di tre ragioni.
 
-**Va oltre il progetto.** Un assistente non può modificare la libreria di risorse. Una libreria è condivisa da tutti i tuoi progetti e sta al di fuori della cronologia di annullamento; una sola modifica di tariffa avrebbe effetto su progetti che non sono nemmeno aperti. Per una risorsa da una libreria, nome, tipo, descrizione, tariffa oraria e unità sono fissi, come nel pannello risorse. Ciò che decide il progetto resta all'assistente: unità max., disponibilità nel tempo, calendario e squadra. Non può nemmeno scegliere quale calendario è il calendario di progetto. Può leggere il profilo di calcolo e le opzioni di calcolo, ma non modificarli; può solo impostare la modalità di progresso e il valore predefinito di progetto per la regola di lavoro. Non ci sono strumenti per impostazioni, tema, lingua, estensioni o aggiornamenti.
+**Va oltre il progetto.** Un assistente non può modificare la libreria di risorse. Una libreria è condivisa da tutti i tuoi progetti e sta al di fuori della cronologia di annullamento; una sola modifica di tariffa avrebbe effetto su progetti che non sono nemmeno aperti. Per una risorsa da una libreria, nome, tipo, descrizione, tariffa oraria e unità sono fissi, come nel pannello risorse. Ciò che decide il progetto resta all'assistente: unità max., disponibilità nel tempo, calendario e squadra. Non può nemmeno scegliere quale calendario è il calendario di progetto. Può leggere il profilo di calcolo e le opzioni di calcolo, ma non modificarli; può solo impostare la modalità di progresso e il valore predefinito di progetto per il tipo di attività. Non ci sono strumenti per impostazioni, tema, lingua, estensioni o aggiornamenti.
 
 **Non si presta a una validazione affidabile.** Un assistente non può impostare un hammock, pianificare un'attività a mano, impostare un secondo vincolo, compilare note, colori, codici attività, campi personalizzati o relazioni esterne, e non può impostare a mano un ritardo di livellamento. Non sceglie nemmeno un codice WBS; quello lo deriva l'app da sola.
 

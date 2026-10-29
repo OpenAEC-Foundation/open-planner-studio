@@ -14,7 +14,8 @@ Datum stanja je dan na koji procjenjujete stanje. Postavite ga prije nego što u
 
 1. Idite na *Raspored › Temeljni planovi i napredak › Datum stanja*.
 2. Upišite datum u tri polja za dan, mjesec i godinu (redoslijedom koji koristite za datume), na primjer 28, 06 i 2027, i pritisnite Enter. Aplikacija sama prelazi na sljedeće polje.
-3. Malim križićem uz polje ponovno ispraznite datum stanja.
+3. Ima li projektni kalendar blokove radnog vremena (blok *Radno vrijeme* u prozoru *Kalendari*)? Tada aplikacija računa u satima i desno se prikazuje polje za vrijeme, na primjer 17:00. Upišite drugo vrijeme, na primjer 12:00, i pritisnite Enter. Ako ispraznite polje za vrijeme, ostaje samo datum. Ako promijenite samo datum, vrijeme ostaje. Vrijeme slijedi vaš zapis vremena (24 ili 12 sati). Bez blokova radnog vremena aplikacija računa u cijelim danima: tada nema polja za vrijeme, a linija datuma stanja nalazi se na početku dana.
+4. Malim križićem uz polje ponovno ispraznite datum stanja.
 
 Ako procjenjujete stanje u petak nakon radnog vremena, postavite datum stanja na sljedeći radni dan, ponedjeljak. Aplikacija planira preostali posao od početka datuma stanja.
 
@@ -43,7 +44,7 @@ Kontrolna točka ima jedno polje, *Stvarni datum*.
 2. Dvaput kliknite ćeliju, upišite vrijednost i pritisnite Enter. Postotak upisujete kao `50` ili `50%`, datum kao `25-06-2027`, a preostalo trajanje kao `1`.
 3. Za *Status* dvaput kliknite, pritisnite Enter i odaberite *Nije započeto*, *U tijeku* ili *Dovršeno*.
 
-Ako upišete preostalo trajanje, aplikacija računa natrag do postotka: za zadatak od 2 radna dana, ostatak od 1 daje postotak 50. Ostatak 0 zadatak dovršava. Ako u stupcu *Status* odaberete *Nije započeto*, postotak prelazi na 0, a stvarni datumi nestanu.
+Ako upišete preostalo trajanje, aplikacija računa natrag do postotka: za zadatak od 2 radna dana, ostatak od 1 daje postotak 50. Ostatak 0 zadatak dovršava. Stupac *Stvarno trajanje* (također u kategoriji *Napredak*) radi obrnuto: upišete koliko je rada već obavljeno, a aplikacija izračunava postotak. Za zadatak od 4 radna dana stvarno trajanje 1 daje 25%. Ako u stupcu *Status* odaberete *Nije započeto*, postotak se postavlja na 0, a stvarni datumi nestanu.
 
 **Sve za jedan zadatak u prozoru za uređivanje zadatka.** Desnom tipkom miša kliknite zadatak i odaberite *Uredi...*. Polja za napredak tu su također. Primjenjuju se tek kad kliknete *Spremi*.
 
@@ -51,7 +52,7 @@ Ako upišete preostalo trajanje, aplikacija računa natrag do postotka: za zadat
 
 ### 3. Ponovno izračunajte raspored
 
-Svaka promjena napretka ili datuma stanja čini raspored zastarjelim. Traka stanja prikazuje *Zastarjelo — ponovno izračunajte (F5)*. Pritisnite **Izračunaj** (F5), na primjer preko *Raspored › Raspored › Izračunaj*. Ako je *Automatsko izračunavanje* uključeno (u *Postavke › Projekt › Postavke*, kartica *Raspored*), aplikacija to radi sama.
+Svaka promjena napretka ili datuma stanja čini raspored zastarjelim. Traka stanja prikazuje *Zastarjelo — ponovno izračunajte (F5)*. Pritisnite **Izračunaj** (F5), na primjer preko *Raspored › Raspored › Izračunaj*. Ako je *Automatsko izračunavanje* uključeno (u *Postavke › Projekt › Postavke aplikacije*, kartica *Raspored*), aplikacija to radi sama.
 
 ## Provjera rezultata
 

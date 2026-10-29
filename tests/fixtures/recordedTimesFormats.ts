@@ -222,8 +222,9 @@ export const CSV_FIXTURE_DATES_ONLY = [
 ].join('\n');
 
 /** CSV met GEVULDE maar onleesbare datumcellen (Amerikaanse weekdagnotatie met 2-cijferig jaar en een
- *  uitgeschreven Nederlandse datum). B hangt aan A, zodat een verzonnen vastlegging "beide op
- *  vandaag" na de solve een verschuiving zou opleveren (en dus de modus). */
+ *  uitgeschreven Nederlandse datum). Knownbug 128: de hele import weigert op record 2, Start.
+ *  B hangt aan A zoals in de oorspronkelijke regressie: een verzonnen vastlegging "beide op vandaag"
+ *  kon na de solve de datummodus aanzetten. Er mag nu geen activeerbaar importresultaat ontstaan. */
 export const CSV_FIXTURE_UNREADABLE_DATES = [
   'WBS,Name,Duration,Start,Finish,Predecessors',
   '1.1,A,5,Mon 3/2/26,Fri 3/6/26,',

@@ -21,6 +21,8 @@ Gondolja át alaposan, mielőtt telepít egyet. Egy bővítmény programkód, am
 
 A telepítés után a bővítmény azonnal engedélyezett lesz. A *Böngészés* lapon, a kártyán ez áll most: *Telepítve*. Amit a bővítmény hozzáad, azt magában az alkalmazásban látja: új gombot a menüszalagon, vagy importformátumot a *Fájl › Importálás* menüben. Egyes bővítmények üzenetet is mutatnak. Ezt a *Bővítmény* előtag és a bővítmény neve jelzi.
 
+**Oktatóanyagok.** Az oktatóanyagok egy bővítmény. Ha a *Súgó* alatti *Oktatóanyagok* részben látja az *Oktatóanyagok telepítése* gombot, az a *Fájl › Bővítmények* menüpontot nyitja meg a *Böngészés* lapon. Az első bemutató után megjelenő kérdés is telepíti ezt a bővítményt. Mindkét út ugyanazt a jogosultsági kérdést mutatja, és ezt elutasíthatja.
+
 ### Bővítmény telepítése fájlból
 
 Ha bővítményt fájlként kapott, így telepítse.
@@ -29,31 +31,23 @@ Ha bővítményt fájlként kapott, így telepítse.
 2. A jobb felső sarokban kattintson a *ZIP* gombra egy ZIP-fájl esetén, vagy a *JS* gombra egy külön JavaScript-fájl esetén.
 3. Válassza ki a fájlt. Megnyílik a *Bővítmény telepítése?* ablak, ahogy fent.
 
-Egy ZIP-fájlnak tartalmaznia kell egy `manifest.json` fájlt és a bővítmény fő fájlját. Ha olyan bővítményt telepít, amely már telepítve van, az új verzió felülírja a régit. Ha az alkalmazás nem tudja telepíteni a fájlt, például mert a ZIP-fájl sérült, semmi sem történik. Az alkalmazás ZIP- és JS-fájl esetén nem mutat hibaüzenetet, és a bővítmény nem jelenik meg a listában. Az okot viszont a hibakereső terminálban találja. Kapcsolja be a *Beállítások › Projekt › Beállítások* menüben, a *Speciális* lapon, a *Hibakereső terminál bekapcsolása* beállítással. Nyissa meg a *Hibakereső terminál megjelenítése* gombbal az állapotsorban. Ott látszik például ez: *[Extensies] ZIP-installatie mislukt: Error: Geen manifest.json gevonden in ZIP* (az alkalmazás ezt a műszaki szöveget hollandul írja).
+Egy ZIP-fájlnak tartalmaznia kell egy `manifest.json` fájlt és a bővítmény fő fájlját. Ha olyan bővítményt telepít, amely már telepítve van, az új verzió felülírja a régit. Ha az alkalmazás nem tudja telepíteni a fájlt, például mert a ZIP-fájl sérült, semmi sem történik: az alkalmazás ZIP- és JS-fájl esetén nem mutat hibaüzenetet, és a bővítmény nem jelenik meg a listában. Az okot viszont a hibakereső terminálban találja. Kapcsolja be a *Beállítások › Projekt › Beállítások* menüben, a *Speciális* lapon, a *Hibakereső terminál bekapcsolása* beállítással, és nyissa meg a *Hibakereső terminál megjelenítése* gombbal az állapotsorban. Ott látszik például ez: *[Extensies] ZIP-installatie mislukt: Error: Geen manifest.json gevonden in ZIP* (az alkalmazás ezt a műszaki szöveget hollandul írja).
 
 ### A jogosultsági kérdés elolvasása
 
 A kérdésből kiderül, mit kell eldöntenie.
 
 - A *Szerző* és a *Tároló* azt mutatja, ki készítette a bővítményt, és hol van a forráskódja.
-- Az *Eredet* megmutatja, honnan származik a fájl: *Az online bővítménykatalógusból*, *Ezen a számítógépen lévő ZIP-fájlból* vagy *Ezen a számítógépen lévő JavaScript-fájlból*. Alatta látszik, hogy a fájl ellenőrzött-e. Katalógusnál ez áll: *A letöltés ellenőrizve a katalógus ellenőrzőösszegével*. Ha a katalógus nem ad ellenőrzőösszeget, pirosan ez áll: *A katalógus nem ad ellenőrzőösszeget — ez a letöltés nincs ellenőrizve*. Saját fájlnál ez áll: *Ön maga választotta ezt a fájlt; nincs külső forrás, amellyel ellenőrizni lehetne*.
-- Az *Amibe beleegyezik* alatt ez áll: *A bővítmény olyan programkód, amely ugyanazokkal a jogokkal fut, mint maga az Open Planner Studio. Semmi sem korlátozza. Csak olyan bővítményt telepítsen, amelynek szerzőjében megbízik*. Alatta az áll, mit jelent ez az Ön platformján. Az asztali alkalmazásban ez áll: *Az asztali alkalmazásban ez többek között azt jelenti: fájlok olvasása és írása a teljes felhasználói mappában, valamint hozzáférés a projektekhez, beállításokhoz és a vágólaphoz*. A böngészőben ez áll: *A böngészőben ez azt jelenti: hozzáférés a mentett projektekhez és beállításokhoz, a fájlokhoz, amelyekhez hozzáférést adott, és a hálózathoz*.
-- Az *Amit ez a bővítmény állít, hogy használ* mutatja a szerző által megadott jogosultságokat, kis címkék formájában. Ez a szerző nyilatkozata, nem korlátozás: *Ez a szerző nyilatkozata, nem korlátozás — a kód mindenesetre többre is képes*. Ha nincs címke, ez áll: *Nincs megadva semmi*. Ez nem jelenti azt, hogy a bővítmény nem tehet semmit. Címkék nélkül is olvashatja és módosíthatja az ütemezésének adatait, és üzeneteket mutathat.
+- Az *Eredet* megmutatja, honnan származik a fájl, és azt, hogy ellenőrizték-e. Ha piros színnel az áll, hogy a letöltés nincs ellenőrizve, csak akkor telepítse, ha ismeri a forrást.
+- Az *Amibe beleegyezik* ismétli, hogy a bővítmény olyan programkód, amely ugyanazokkal a jogokkal fut, mint maga az alkalmazás, és azt, hogy ez az Ön platformján mit jelent. Csak olyan bővítményt telepítsen, amelynek szerzőjében megbízik.
+- Az *Amit ez a bővítmény állít, hogy használ* mutatja a szerző által megadott jogosultságokat, kis címkék formájában. Ez a szerző nyilatkozata, nem korlátozás. Ha ott az áll: *Nincs megadva semmi*, a bővítmény attól még olvashatja és módosíthatja az ütemezése adatait.
 
-A címkék jelentése a következő:
-
-- *ribbon*: a bővítmény gombokat tesz a menüszalagra.
-- *events*: a bővítmény figyeli az alkalmazás eseményeit.
-- *backstage*: a bővítmény importformátumokat ad hozzá a *Fájl › Importálás* menüponthoz.
-- *pdf-fonts*: a bővítmény betűtípust ad a PDF-exporthoz.
-- *importSource*: a bővítmény olvashatja az Ön által importált fájlok teljes eredeti bájtjait, például egy nyers Primavera-fájl bájtjait, a projektbe nem kerülő mezőkkel együtt. Az ablak ezt maga is elmagyarázza.
-- *help*: a bővítmény súgócikkeket adhat hozzá, csomagolt projekteket nyithat meg új dokumentumként, és az alkalmazás egyes részeire mutató útmutatót jeleníthet meg. Az ablak ezt maga is elmagyarázza.
-- *filesystem* és *network*: ezek csak a szerző szándékára utalnak. Az alkalmazásnak nincs hozzájuk funkciója.
+Az egyes címkék jelentése és az ablak pontos szövegei a [Bővítmény jogosultságai](docs://ref-extensiepermissies) cikkben olvashatók.
 
 ### Bővítmény letiltása, újra engedélyezése vagy eltávolítása
 
 1. Válassza a *Fájl › Bővítmények* menüpontot, majd a *Telepített* lapot. Minden bővítménynek van egy kártyája a névvel, a verzióval, a kategóriával, a leírással és a szerzővel.
-2. A kártya kapcsolójával letiltja a bővítményt (*Letiltás*), vagy újra engedélyezi (*Engedélyezés*). Letiltott állapotban eltűnnek a gombok és az importformátumok, amelyeket a bővítmény hozzáadott, de a bővítmény telepítve marad. Újraindítás után is kikapcsolva marad. Egy engedélyezett bővítmény magától elindul, amikor az alkalmazás elindul.
+2. A kártya kapcsolójával letiltja a bővítményt (*Letiltás*), vagy újra engedélyezi (*Engedélyezés*). Letiltott állapotban eltűnnek a gombok és az importformátumok, amelyeket a bővítmény hozzáadott, de a bővítmény telepítve marad. Az alkalmazás újraindítása után is kikapcsolva marad. Egy engedélyezett bővítmény magától elindul, amikor az alkalmazás elindul.
 3. Kattintson az *Eltávolítás* gombra. A gomb *Megerősítés* lesz, és ez a magyarázat jelenik meg: *Végleges eltávolításhoz kattintson újra*. Kattintson még egyszer a bővítmény eltávolításához. Az alkalmazás a bővítmény által tárolt beállításokat is megtisztítja.
 
 ## Hibák és hogyan reagál erre az alkalmazás

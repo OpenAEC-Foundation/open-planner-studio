@@ -52,10 +52,10 @@ Diese Teile verschieben sich nicht:
 
 **Das Datum liegt in der Vergangenheit.** Das ist erlaubt. Die Vorschau erwähnt es aber: *Das neue Startdatum liegt in der Vergangenheit.*
 
-**Den Projektstart in der Projektinfo zu ändern ist etwas anderes.** Wenn Sie das Startdatum in *Einstellungen › Projekt › Projektinfo* ändern und *Anwenden* wählen, verschiebt sich der Terminplan nicht. Nur Vorgänge ohne Vorgänger oder Einschränkung, die dann vor dem neuen Start lägen, verschieben sich auf dieses Datum. Die App teilt Ihnen mit, wie viele es sind. Wenn Sie alles verschieben wollen, verwenden Sie *Projekt verschieben…*.
+**Den Projektstart in den Projekteinstellungen zu ändern ist etwas anderes.** Wenn Sie das Startdatum in *Einstellungen › Projekt › Projekteinstellungen* ändern und *Anwenden* wählen, verschiebt sich der Terminplan nicht. Nur Vorgänge ohne Vorgänger oder Einschränkung, die dann vor dem neuen Start lägen, verschieben sich auf dieses Datum. Die App teilt Ihnen mit, wie viele es sind. Wenn Sie alles verschieben wollen, verwenden Sie *Projekt verschieben…*.
 
 ## Siehe auch
 
 - [Kritischer Pfad und Puffer](docs://uitleg-kritiek-pad): wie der Terminplan berechnet wird und warum sich das Ende verschiebt.
 - [Beziehungen hinzufügen](docs://howto-relaties-leggen): Beziehungen bleiben beim Verschieben einfach bestehen.
-- [Neues Projekt und Projektinfo](docs://ref-projectinfo): was das Startdatum in der Projektinfo bewirkt.
+- [Neues Projekt und Projekteinstellungen](docs://ref-projectinfo): was das Startdatum in den Projekteinstellungen bewirkt.

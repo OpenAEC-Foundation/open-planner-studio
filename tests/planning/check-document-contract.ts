@@ -17,6 +17,8 @@
 //
 // Draait via run.sh. Exit 0 = alles groen.
 import { useAppStore } from '@/state/appStore';
+import { createAppStoreContext } from '@/state/appStoreFactory';
+import { saveTargetRef } from '@/services/fileAccess';
 import {
   DOCUMENT_FIELDS,
   capturePayload,
@@ -168,6 +170,7 @@ const valuesA: Record<string, unknown> = {
   activityCodeTypes: [],
   customFieldDefs: [{ id: 'cfa', name: 'CFA', type: 'text', values: {} }],
   customTaskTypes: [{ id: 'tta', name: 'Engineering' }],
+  ifcGlobalIds: null,
   cpmResult: { marker: 'A' },
   resourceLoadResult: null,
   scheduleStale: false,
@@ -176,6 +179,7 @@ const valuesA: Record<string, unknown> = {
   comparedBaselineIds: [null, null],
   recordedDates: { times: { a: { start: '2026-01-01', finish: '2026-01-05' } }, shifted: 1, total: 1 },
   datesAsRecorded: true,
+  minuteModelPending: true,
 };
 const valuesB: Record<string, unknown> = {
   project: projB,
@@ -188,6 +192,7 @@ const valuesB: Record<string, unknown> = {
   activityCodeTypes: [{ id: 'acb', name: 'ACB', values: [] }],
   customFieldDefs: [],
   customTaskTypes: [{ id: 'ttb', name: 'Werkvoorbereiding' }],
+  ifcGlobalIds: { 'task:ta': '1BBBBBBBBBBBBBBBBBBBBB' },
   cpmResult: { marker: 'B' },
   resourceLoadResult: { marker: 'B' },
   scheduleStale: true,
@@ -196,6 +201,7 @@ const valuesB: Record<string, unknown> = {
   comparedBaselineIds: ['blc', null],
   recordedDates: null,
   datesAsRecorded: false,
+  minuteModelPending: false,
 };
 const setSnapshotFields = (vals: Record<string, unknown>) => {
   useAppStore.setState((s) => {
@@ -414,8 +420,8 @@ eq('d K3 keten: splitGaps overleeft', kT1After?.splitGaps, [{ afterMinutes: 60, 
 eq('d K3 keten: manuallyScheduled overleeft', kT1After?.manuallyScheduled, true);
 eq('d K3 keten: levelingDelayMinutes overleeft', kT1After?.levelingDelayMinutes, 15);
 eq('d K3 keten: levelingDelayElapsed overleeft', kT1After?.levelingDelayElapsed, true);
-eq('d K3 keten: time.stop overleeft', kT1After?.time.stop, '2031-03-05');
-eq('d K3 keten: time.resume overleeft', kT1After?.time.resume, '2031-03-06');
+eq('d K3 keten: time.stop overleeft', kT1After?.time.stop, '2031-03-05T16:00');
+eq('d K3 keten: time.resume overleeft', kT1After?.time.resume, '2031-03-06T07:00');
 // Z14b — de drie NIEUWE velden overleven dezelfde keten (bewijst de "tasks"-clone-snapshot-rol
 // écht draagt wat er verder in de plan-toelichting over beweerd wordt, geen aanname).
 eq('d K3 keten: mspTaskType overleeft', kT1After?.mspTaskType, 'FIXED_DURATION');
@@ -504,7 +510,7 @@ S().setFilePath('/tmp/behouden.ifc');
 S().loadState({
   project: { id: 'proj-load', name: 'Ingeladen', description: '', startDate: '2032-01-01', endDate: '', calendarId: 'cal-default', createdAt: '', modifiedAt: '', author: '', company: '', wbsAutoNumber: true },
   calendar: createDefaultCalendar(),
-  tasks: [{ id: 'task-load', name: 'Ingeladen taak', parentId: null, childIds: [] } as unknown as Task],
+  tasks: [{ id: 'task-load', name: 'Ingeladen taak', parentId: null, childIds: [], time: createDefaultTaskTime('2026-06-01T07:00', 0) } as unknown as Task],
   sequences: [],
   resources: [],
   assignments: [],
@@ -517,6 +523,108 @@ eq('e loadState: view (zoom) BEHOUDEN', S().view.zoom, 77);
 eq('e loadState: filePath ONGEMOEID', S().filePath, '/tmp/behouden.ifc');
 eq('e loadState: undo-stack vers leeg', S().historyEvents.filter(event => event.state === 'applied').length, 0);
 truthy('e loadState: isDirty false na in-place load', S().isDirty === false);
+
+// Knownbug 127: IFC-editorinhoud is een documentbewerking, geen vervangende load. De UI-route
+// (echte klik op Toepassen) staat in document-switch.spec.ts; hier de opslag-/undocontracten.
+for (const target of ['path', 'handle', 'site', 'untitled'] as const) {
+  for (const wasDirty of [false, true]) {
+    const { store } = createAppStoreContext({ emitHostEvents: false });
+    const editor = () => store.getState();
+    const label = `e IFC-editor ${target}, vooraf ${wasDirty ? 'gewijzigd' : 'opgeslagen'}`;
+    editor().setProject({ name: 'Editorproject', startDate: '2030-06-03',
+      ifcSchema: 'IFC4X3_ADD2', companyId: 'editor-library', companyName: 'Editorbibliotheek' });
+    const editorTask = editor().addTask({ name: 'Voor IFC-bewerking' });
+    const editorResource = editor().addResource({ name: 'Ploeg', type: 'LABOR', description: '', maxUnits: 1 });
+    const origin = { companyId: 'editor-library', libraryItemId: 'pool-item', poolVersion: 3 };
+    const handle = { kind: 'file', name: 'editor.ifc' } as FileSystemFileHandle;
+    store.setState(s => {
+      s.resources.find(resource => resource.id === editorResource)!.libraryOrigin = origin;
+      s.calendar = { ...s.calendar, libraryOrigin: origin };
+      s.calendars = [s.calendar];
+      s.filePath = target === 'untitled' ? null : 'editor.ifc';
+      s.fileHandle = target === 'handle' ? handle : null;
+      s.siteFileId = target === 'site' ? 'site-editor' : null;
+      s.siteFileVersion = target === 'site' ? 'version-17' : null;
+      s.autoSaveToFile = target !== 'untitled';
+      s.isDirty = wasDirty;
+      s.importPristine = true;
+    });
+    editor().setZoom(77);
+    editor().runCPM();
+    if (target === 'site' && !wasDirty) {
+      // Een bewerking verlaat "datums zoals opgeslagen"; undo moet die modus mee terugzetten.
+      const time = editor().tasks[0].time;
+      store.setState(s => {
+        s.recordedDates = { times: { [editorTask]: { start: time.scheduleStart, finish: time.scheduleFinish } },
+          total: 1, origin: 'mpp', sourceFormat: 'mpp' };
+        s.datesAsRecorded = true;
+      });
+    }
+    const docId = editor().activeDocumentId;
+    const documentCount = editor().documents.length;
+    const targetBefore = saveTargetRef(editor(), true);
+    const beforeEdit = createSnapshot(editor());
+    const historyBefore = historyDepthsForActiveScope(editor()).undoDepth;
+    // Echte writer → reader, met behoud van libraryOrigin op resource én projectkalender.
+    const sourceText = writeIFC(buildWriteIFCInput(editor()));
+    const editedText = sourceText
+      .replace(/(=IFCTASK\('[^']*',#\d+,)'Voor IFC-bewerking'/, "$1'Na IFC-bewerking'")
+      // Ook geplakte tekst van een ander project mag de identiteit/binding van deze sessie niet overnemen.
+      .replace(`IFCPROPERTYSINGLEVALUE('InternalProjectId',$,IFCTEXT('${editor().project.id}')`,
+        "IFCPROPERTYSINGLEVALUE('InternalProjectId',$,IFCTEXT('ander-project')")
+      .replace("IFCPROPERTYSINGLEVALUE('CompanyId',$,IFCTEXT('editor-library')",
+        "IFCPROPERTYSINGLEVALUE('CompanyId',$,IFCTEXT('andere-bibliotheek')")
+      .replace("IFCPROPERTYSINGLEVALUE('CompanyName',$,IFCTEXT('Editorbibliotheek')",
+        "IFCPROPERTYSINGLEVALUE('CompanyName',$,IFCTEXT('Anders')");
+    eq(`${label}: IFCTASK.Name gewijzigd in de tekst`,
+      /=IFCTASK\('[^']*',#\d+,'([^']*)'/.exec(editedText)?.[1], 'Na IFC-bewerking');
+    eq(`${label}: IFCTASKTIME-naam ongemoeid`,
+      /=IFCTASKTIME\('([^']*)'/.exec(editedText)?.[1], 'Voor IFC-bewerking Time');
+    const parsedEdit = readIFC(editedText);
+    eq(`${label}: gewijzigd project-id werkelijk geparsed`, parsedEdit.project.id, 'ander-project');
+    eq(`${label}: gewijzigde bibliotheek werkelijk geparsed`,
+      [parsedEdit.project.companyId, parsedEdit.project.companyName], ['andere-bibliotheek', 'Anders']);
+    let editPublications = 0;
+    const stopObserving = store.subscribe(() => { editPublications++; });
+    editor().applyProjectEdit(parsedEdit, { viewStartDate: '2030-06-03' });
+    stopObserving();
+    eq(`${label}: één atomaire publicatie`, editPublications, 1);
+    eq(`${label}: taaktekst toegepast`, editor().tasks.find(t => t.id === editorTask)?.name, 'Na IFC-bewerking');
+    eq(`${label}: actief document behouden`, editor().activeDocumentId, docId);
+    eq(`${label}: aantal documenten behouden`, editor().documents.length, documentCount);
+    eq(`${label}: projectidentiteit behouden`, editor().project.id, beforeEdit.project.id);
+    eq(`${label}: bibliotheek behouden`, [editor().project.companyId, editor().project.companyName], ['editor-library', 'Editorbibliotheek']);
+    eq(`${label}: resourceherkomst behouden`, editor().resources[0].libraryOrigin, origin);
+    eq(`${label}: kalenderherkomst behouden`, editor().calendar.libraryOrigin, origin);
+    eq(`${label}: gewijzigd, niet importpristine`, [editor().isDirty, editor().importPristine], [true, false]);
+    eq(`${label}: nieuwe berekening, geen opgeslagen-datummodus`, [editor().datesAsRecorded, editor().recordedDates], [false, null]);
+    eq(`${label}: opslagdoel behouden`, saveTargetRef(editor(), true), targetBefore);
+    truthy(`${label}: handle-identiteit behouden`, editor().fileHandle === (target === 'handle' ? handle : null));
+    eq(`${label}: siteversie behouden`, editor().siteFileVersion, target === 'site' ? 'version-17' : null);
+    eq(`${label}: AutoSave-keuze behouden`, editor().autoSaveToFile, target !== 'untitled');
+    eq(`${label}: zoom behouden`, editor().view.zoom, 77);
+    eq(`${label}: viewstart tegelijk toegepast`, editor().view.viewStartDate, '2030-06-03');
+    eq(`${label}: één undo-stap toegevoegd`, historyDepthsForActiveScope(editor()).undoDepth, historyBefore + 1);
+    const afterEdit = createSnapshot(editor());
+    editor().undo();
+    for (const field of DOCUMENT_FIELDS) {
+      if (field.snapshot === 'none') continue;
+      eq(`${label}: undo ${field.key}`, flat(capturePayload(editor()))[field.key],
+        (beforeEdit as unknown as Record<string, unknown>)[field.key]);
+    }
+    eq(`${label}: undo behoudt opslagdoel`, saveTargetRef(editor(), true), targetBefore);
+    eq(`${label}: undo blijft onopgeslagen`, editor().isDirty, true);
+    editor().redo();
+    for (const field of DOCUMENT_FIELDS) {
+      if (field.snapshot === 'none') continue;
+      eq(`${label}: redo ${field.key}`, flat(capturePayload(editor()))[field.key],
+        (afterEdit as unknown as Record<string, unknown>)[field.key]);
+    }
+    editor().undo();
+    editor().undo();
+    eq(`${label}: eerdere bewerking blijft bereikbaar`, editor().resources.length, 0);
+  }
+}
 
 // ══ (f) FROZEN-ARRAY-REGRESSIE (switchDocument na recovery, 2026-07-16) ══════════════════════════
 // Een IFC-round-trip stript de projectkalender uit resourceCalendars, dus een via recovery

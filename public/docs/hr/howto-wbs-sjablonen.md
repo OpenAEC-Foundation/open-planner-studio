@@ -31,9 +31,9 @@ Otvorite *Raspored › Struktura › Predlošci* i kliknite na mali koš desno o
 
 ### Što je u predlošku
 
-Predložak za svaki zadatak čuva ime, opis, vrstu zadatka, je li kontrolna točka i trajanje u danima. Od ovisnosti čuva samo one između dvaju zadataka unutar grane, zajedno s vrstom i vremenom odgode.
+Predložak za svaki zadatak čuva ime, opis, kategoriju radova, je li kontrolna točka i trajanje u danima. Od ovisnosti čuva samo one između dvaju zadataka unutar grane, zajedno s vrstom i vremenom odgode. Vrijeme odgode u satima (`4h`) se ne čuva i postaje 0. Vrijeme odgode u radnim danima, kalendarskim danima ili postotcima se čuva.
 
-Sve ostalo ostaje iza: datumi, napredak i stvarni datumi, dodjele resursa, šifre i prilagođena polja (vidi [Šifre i prilagođena polja](docs://howto-codes-en-velden)), kalendar, ograničenja i rokovi za dovršetak, prioritet, prilagođena vrsta zadatka, za kontrolnu točku njezina vrsta i oznaka *Obvezno (ugovorno)*, te ovisnosti sa zadacima izvan grane. Nakon umetanja ponovno ih unesite: dodjele, šifre, kalendar i ograničenja su prazni, a svi zadaci počinju na datumu početka projekta.
+Sve ostalo ostaje iza: datumi, napredak i stvarni datumi, dodjele resursa, šifre i prilagođena polja (vidi [Šifre i prilagođena polja](docs://howto-codes-en-velden)), kalendar, ograničenja i rokovi za dovršetak, prioritet, prilagođena kategorija radova, za kontrolnu točku njezina vrsta i oznaka *Obvezno (ugovorno)*, te ovisnosti sa zadacima izvan grane. Nakon umetanja ponovno ih unesite: dodjele, šifre, kalendar i ograničenja su prazni, a svi zadaci počinju na datumu početka projekta.
 
 Zadatak koji je bio u satima vraća se kao zadatak u danima, a njegovo se trajanje pretvara u dio radnog dana. Zadatak od 5 sati uz radni dan od 8 sati postaje 0,625 dana.
 

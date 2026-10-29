@@ -9,8 +9,8 @@ A tanácsadó MS Projectben dolgozik, az ügyfél Primaverában, az alvállalkoz
 ## Lépések
 
 1. Válassza a *Kezdőlap › Fájl › Exportálás* lehetőséget, és válasszon egy formátumot a listából, vagy válassza a *Fájl › Exportálás* lehetőséget. Ott minden formátum egy kártya, rövid leírással.
-2. Az ablakban válasszon nevet és helyet. Az alkalmazás a projektnevet javasolja, az adott formátum kiterjesztésével. Az előrehaladási lapok neve *projektnév-előrehaladás* lesz, és ahol lehetséges, a letöltési mappába kerülnek.
-3. Erősítse meg. Ha az export sikerül, nem jelenik meg üzenet, az alábbi üzeneteken kívül. A *Fájl › Exportálás* lapról az export után visszatér a *Kezdőlap* lapra, akkor is, ha megszakítja az ablakot. Ha a *Kezdőlap* lapon, a listából indított exportot szakítja meg, nem történik semmi.
+2. Az ablakban válasszon nevet és helyet. Az alkalmazás a projektnevet javasolja, az adott formátum fájlkiterjesztésével. Az előrehaladási lapok neve *projektnév-voortgang* lesz, és ahol lehetséges, a letöltési mappába kerülnek.
+3. Erősítse meg. Ha az export sikerül, nem jelenik meg üzenet, az alábbi üzeneteken kívül. A *Fájl › Exportálás* lapról az export után visszatér a *Kezdőlap* lapra, akkor is, ha megszakítja az ablakot. Ha a *Kezdőlap* lapon lévő listából indított exportot szakítja meg, nem történik semmi.
 
 Ha a böngészője csak letöltésként ment (például a Firefox), a fájl közvetlenül az 1. lépés után a letöltési mappában van. Ekkor ez az üzenet jelenik meg: *Letöltésként mentve: a(z) „name.xml” most a letöltési mappában van. Ebben a környezetben az alkalmazás nem írhat közvetlenül a kiválasztott helyre.*
 
@@ -19,14 +19,14 @@ Ha a böngészője csak letöltésként ment (például a Firefox), a fájl köz
 A *Kezdőlap* lapon lévő lista és a *Fájl › Exportálás* kártyái ugyanazokat a formátumokat kínálják:
 
 - *Előrehaladás (Excel)* és *Előrehaladás (CSV)*, a kártyákon *Előrehaladási lap (Excel)* és *Előrehaladási lap (CSV)*: egy egyszerű lap az azonosítóval, a WBS-sel, a névvel, a dátumokkal és az elkészültséggel, amelyet azoknak küldhet el, akik az előrehaladást kitöltik.
-- *CSV (;)*, a *CSV (pontosvesszővel tagolt)* kártyán: tevékenységlista, amelyet táblázatkezelőben nyit meg.
+- *CSV (;)*, a *CSV (pontosvesszővel tagolt)* kártyán: tevékenységtáblázat, amelyet táblázatkezelőben nyit meg.
 - *MS Project XML*: a Microsoft Project programban nyitható meg.
 - *Primavera P6 XML*: az Oracle Primavera P6-hoz.
-- *IFC 4x3*: az alkalmazás saját formátuma, minden adattal.
+- *IFC*: az alkalmazás saját formátuma, minden adattal, a projekt IFC-sémájában (alapértelmezett: IFC 4.3 ADD2).
 
 ### IFC-export erőforrástár-fájllal
 
-Ha a projekt erőforrástárhoz kapcsolódik, a(z) *Erőforrástár-fájl mentése mellé* jelölőnégyzet a *Fájl › Exportálás* kártyái alatt található. Ha bejelöli, és az *IFC 4x3* lehetőséget választja, az alkalmazás kétszer kér helyet: először a projektnek, majd a *projektnév-erőforrástár.ifc* fájlnak. Ez a jelölőnégyzet csak a *Fájl › Exportálás* lapon látható, a *Kezdőlap* lapon lévő listában nem.
+Ha a projekt erőforrástárhoz kapcsolódik, a(z) *Erőforrástár-fájl mentése mellé* jelölőnégyzet a *Fájl › Exportálás* kártyái alatt található. Ha bejelöli, és az *IFC* lehetőséget választja, az alkalmazás kétszer kér helyet: először a projektnek, majd a *projektnév-bibliotheek.ifc* fájlnak. Ez a jelölőnégyzet csak a *Fájl › Exportálás* lapon látható, a *Kezdőlap* lapon lévő listában nem.
 
 ### Előrehaladási lap visszaolvasása
 

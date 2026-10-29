@@ -9,7 +9,7 @@ Una planificación cuenta en **días laborables**, no en días naturales. «Cinc
 Qué días son días laborables se registra en un **calendario**. Un calendario fija tres cosas:
 
 - La **semana laboral**: los días de la semana en los que se trabaja. De forma predeterminada es de lunes a viernes.
-- Los **horarios laborales**: inicio, fin y pausa. Dan las **horas netas por día**. De forma predeterminada son de 07:00 a 16:00 con una hora de pausa, así que 8 horas.
+- Los **horarios laborales**: inicio, fin y pausa. Dan la **jornada laboral estándar**. De forma predeterminada son de 07:00 a 16:00 con una hora de pausa, así que 8 horas.
 - Los **festivos**: días sueltos o varios días seguidos en los que no se trabaja, como el Día del Rey, Navidad o las vacaciones de construcción.
 
 Un proyecto tiene un conjunto de calendarios. Uno de ellos es el **calendario del proyecto**. Se aplica a cada tarea que no tiene calendario propio. Usted asigna otro calendario a una tarea concreta, por ejemplo una semana laboral de seis días para un subcontratista que también trabaja los sábados. Un recurso también puede tener su propio calendario, pero eso funciona de otra manera (véase más abajo).
@@ -22,7 +22,7 @@ Este artículo describe el cálculo estándar: el perfil de cálculo *Open Plann
 
 El primer día laborable de una tarea cuenta como día 1. Una tarea de 5 días, por tanto, termina el quinto día laborable. Si el comienzo cae en un día no laborable, la tarea empieza el siguiente día laborable. Un festivo o unas vacaciones de construcción en mitad de una tarea no cuentan: la tarea simplemente continúa a través de ellos y dura más días naturales.
 
-Las horas por día no influyen en las fechas de una tarea en días. Solo cuentan la semana laboral y los festivos. Los horarios laborales solo entran en juego en una tarea horaria; eso se explica en [Días y horas](docs://uitleg-dagen-en-uren).
+Las horas por día no influyen en las fechas de una tarea en días. Solo cuentan la semana laboral y los festivos. Los horarios laborales solo entran en juego en una tarea en horas; eso se explica en [Días y horas](docs://uitleg-dagen-en-uren).
 
 ### Qué calendario prevalece
 
@@ -40,7 +40,7 @@ El calendario de un **recurso** no influye en las fechas. En una planificación 
 Cuando se vinculan dos tareas con calendarios distintos, se aplica lo siguiente:
 
 - Con una relación fin-comienzo, el sucesor empieza el primer día laborable después del fin del predecesor, contado en el calendario del **sucesor**. Si una tarea termina un viernes, un sucesor con una semana laboral de seis días empieza el sábado.
-- De forma predeterminada, un **desfase** cuenta en el calendario del **predecesor**. Puede cambiarlo en *Configuración › Proyecto › Info del proyecto*, en el bloque *Perfil de cálculo y opciones*, bajo *Opciones de cálculo de este proyecto*, con la opción *Calendario de retraso*: *Predecesora* (predeterminado), *Sucesora*, *24 horas* o *Calendario del proyecto*.
+- De forma predeterminada, un **desfase** cuenta en el calendario del **predecesor**. Puede cambiarlo en *Configuración › Proyecto › Ajustes del proyecto*, en el bloque *Perfil de cálculo y opciones*, bajo *Opciones de cálculo de este proyecto*, con la opción *Calendario de retraso*: *Predecesora* (predeterminado), *Sucesora*, *24 horas* o *Calendario del proyecto*.
 - La **holgura total** se cuenta en días laborables del calendario de la propia tarea. En este perfil, la **holgura libre** se cuenta en el calendario del sucesor.
 
 Qué es exactamente un desfase se explica en [Añadir relaciones](docs://howto-relaties-leggen); qué es la holgura, en [Ruta crítica y holgura](docs://uitleg-kritiek-pad).
@@ -92,9 +92,9 @@ Las fechas de *Brickwork* no cambian. Pero el viernes 4 de junio aparece en rojo
 
 **«Si cambio el calendario del proyecto, todo se desplaza».** Solo se desplazan las tareas sin calendario propio. Una tarea a la que usted mismo asignó un calendario de la lista lo conserva, aunque resulte ser el antiguo calendario del proyecto. Si borra un calendario, las tareas y los recursos que lo usaban recurren al calendario del proyecto.
 
-**«¿Los festivos ya están incluidos, verdad?»** Los festivos solo existen para los años para los que se crearon. Un día fuera de esos años es, sencillamente, un día laborable. En el cuadro de diálogo del calendario, la aplicación lo indica con *Los festivos cubren 2025–2028; el proyecto llega hasta 2030. ¿Regenerar?*
+**«¿Los festivos ya están incluidos, verdad?»** Los festivos solo existen para los años para los que se crearon. Un día fuera de esos años es, sencillamente, un día laborable. En el cuadro de diálogo del calendario, la aplicación lo indica con *Los festivos cubren 2025–2028. ¿Desea volver a generar hasta 2030 inclusive?*
 
-**«Más horas por día hacen mi tarea más corta».** No en una tarea en días: cuenta días laborables completos, tenga 6 u 8 horas. Solo en una tarea con recursos y con la regla de trabajo *Trabajo fijo* o *Unidades fijas* cambia la duración con ello.
+**«Más horas por día hacen mi tarea más corta».** No en una tarea en días: cuenta días laborables completos, tenga 6 u 8 horas. Solo en una tarea con recursos y con el tipo de tarea *Trabajo fijo* o *Unidades fijas* cambia la duración con ello.
 
 **Un calendario sin días laborables** no puede calcularlo la aplicación. El cálculo indica *El calendario no tiene días laborables configurados*.
 

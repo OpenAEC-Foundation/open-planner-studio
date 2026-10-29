@@ -9,7 +9,7 @@ En tidsplan teller i **arbeidsdager**, ikke i kalenderdager. «Fem dager murarbe
 Hvilke dager som er arbeidsdager, står i en **kalender**. En kalender bestemmer tre ting:
 
 - Den **arbeidsuken**: ukedagene der det utføres arbeid. Som standard er det mandag til fredag.
-- De **arbeidstidene**: start, slutt og pause. De gir de **netto timene per dag**. Som standard er det 07:00 til 16:00 med én times pause, altså 8 timer.
+- De **arbeidstidene**: start, slutt og pause. De gir den **standardarbeidsdagen**. Som standard er det 07:00 til 16:00 med én times pause, altså 8 timer.
 - De **helligdagene**: enkeltdager eller hele perioder der det ikke utføres arbeid, for eksempel Koningsdag, jul eller byggferien.
 
 Et prosjekt har ett bibliotek med kalendere. Én av dem er **prosjektkalenderen**. Den gjelder for alle aktiviteter som ikke har en egen kalender. Du kan gi en enkelt aktivitet en annen kalender, for eksempel en arbeidsuke på seks dager for en underentreprenør som også jobber på lørdager. En ressurs kan også ha sin egen kalender, men den gjør noe annet (se nedenfor).
@@ -20,9 +20,9 @@ Denne artikkelen beskriver standardberegningen: beregningsprofilen *Open Planner
 
 ### Slik telles arbeidsdager
 
-Den første arbeidsdagen i en aktivitet telles som dag 1. En aktivitet på 5 dager slutter derfor på den femte arbeidsdagen. Starter den på en ikke-arbeidsdag, begynner aktiviteten på neste arbeidsdag. En helligdag og byggferie midt i en aktivitet telles ikke: aktiviteten går bare over den og blir lengre i dagboken.
+Den første arbeidsdagen i en aktivitet telles som dag 1. En aktivitet på 5 dager slutter derfor på den femte arbeidsdagen. Starter den på en ikke-arbeidsdag, begynner aktiviteten på neste arbeidsdag. En helligdag eller byggferie midt i en aktivitet telles ikke: aktiviteten går bare over den og blir lengre i dagboken.
 
-Timene per dag spiller ingen rolle for datoene til en aktivitet i dager. Bare arbeidsuken og helligdagene teller. Arbeidstidene kommer først i spill for en aktivitet i timer; det beskrives i [Dager og timer](docs://uitleg-dagen-en-uren).
+Timene per dag spiller ingen rolle for datoene til en aktivitet i dager. Bare arbeidsuken og helligdagene teller. Arbeidstidene kommer bare i spill for en aktivitet i timer; det beskrives i [Dager og timer](docs://uitleg-dagen-en-uren).
 
 ### Hvilken kalender som gjelder
 
@@ -40,14 +40,14 @@ Kalenderen til en **ressurs** spiller ingen rolle for datoene. I en tidsplan du 
 Når to aktiviteter med ulike kalendere kobles, gjelder dette:
 
 - Med en slutt-til-start-avhengighet begynner etterfølgeren på den første arbeidsdagen etter slutten av forgjengeren, telt i kalenderen til **etterfølgeren**. Slutter en aktivitet på en fredag, starter en etterfølger med en arbeidsuke på seks dager på lørdag.
-- En **forsinkelse** telles som standard i kalenderen til **forgjengeren**. Du kan endre det under *Innstillinger › Prosjekt › Prosjektinfo*, i blokken *Beregningsprofil og beregningsalternativer*, under *Beregningsalternativer for dette prosjektet*, med valget *Forsinkelseskalender*: *Forgjenger* (standard), *Etterfølger*, *24-timers* eller *Prosjektkalender*.
+- En **forsinkelse** telles som standard i kalenderen til **forgjengeren**. Du kan endre det under *Innstillinger › Prosjekt › Prosjektinnstillinger*, i blokken *Beregningsprofil og beregningsalternativer*, under *Beregningsalternativer for dette prosjektet*, med valget *Forsinkelseskalender*: *Forgjenger* (standard), *Etterfølger*, *24-timers* eller *Prosjektkalender*.
 - Den **totalslakken** telles i arbeidsdager i kalenderen til aktiviteten selv. I denne profilen telles **fri slakk** i kalenderen til etterfølgeren.
 
 Hva en forsinkelse presis er, beskrives i [Legge til avhengigheter](docs://howto-relaties-leggen). Hva slakk er, beskrives i [Kritisk linje og slakk](docs://uitleg-kritiek-pad).
 
 ### I Gantt
 
-Den grå bakgrunnen i Gantt viser alltid ikke-arbeidsdagene i **prosjektkalenderen**. En aktivitet på en egen kalender kan derfor gå over en grå dag, for eksempel en aktivitet på seks dager over lørdagen. En blokk med helligdager på tre dager eller mer får navnet vist, for eksempel *Bouwvak (Noord)*. Dette skjer ikke når *Vis bare arbeidsdager* er på. Vil du ikke se de grå dagene i det hele, slå på *Vis bare arbeidsdager* under *Innstillinger › Prosjekt › Innstillinger*, fanen *Utseende*, overskriften *Tidsakse*.
+Den grå bakgrunnen i Gantt viser alltid ikke-arbeidsdagene i **prosjektkalenderen**. En aktivitet på en egen kalender kan derfor gå over en grå dag, for eksempel en aktivitet på seks dager over lørdagen. En blokk med helligdager på tre dager eller mer får navnet vist, for eksempel *Bouwvak (Noord)*. Dette skjer ikke når *Vis bare arbeidsdager* er på. Vil du ikke se de grå dagene i det hele, slå på *Vis bare arbeidsdager* under *Innstillinger › Prosjekt › Appinnstillinger*, fanen *Utseende*, overskriften *Tidsakse*.
 
 ## Eksempel: tidsplanen for bygget
 
@@ -90,11 +90,11 @@ Datoene til *Brickwork* endrer seg ikke. Men fredag 4. juni er rød i histogramm
 
 **«Kalenderen til ressursen flytter aktivitetene mine.»** Nei. En ressurskalender endrer ingen dato i det hele tatt. Den gjør bare overallokering synlig. Vil du at aktiviteten selv skal gå på andre dager, gi aktiviteten en egen kalender.
 
-**«Hvis jeg bytter prosjektkalender, flytter alt seg.»** Bare aktiviteter uten egen kalender flytter seg. En aktivitet du selv har gitt en kalender fra listen, beholder den, også om det tilfeldigvis er den gamle prosjektkalenderen. Sletter du en kalender, bruker aktivitetene og ressursene som brukte den prosjektkalenderen i stedet.
+**«Hvis jeg bytter prosjektkalender, flytter alt seg.»** Bare aktiviteter uten egen kalender flytter seg. En aktivitet du selv har gitt en kalender fra listen, beholder den, også om det tilfeldigvis er den gamle prosjektkalenderen. Sletter du en kalender, går aktivitetene og ressursene som brukte den over til prosjektkalenderen.
 
-**«Helligdagene er med, ikke sant?»** Helligdager finnes bare for de årene de ble laget for. En dag utenfor disse årene er bare en arbeidsdag. I kalenderdialogen sier appen det med *Helligdagene dekker 2025–2028; prosjektet går til 2030. Vil du generere på nytt?*
+**«Helligdagene er med, ikke sant?»** Helligdager finnes bare for de årene de ble laget for. En dag utenfor disse årene er bare en arbeidsdag. I kalenderdialogen sier appen det med *Helligdagene dekker 2025–2028; vil du generere på nytt til og med 2030?*
 
-**«Flere timer per dag gjør aktiviteten min kortere.»** Ikke for en aktivitet i dager: den teller hele arbeidsdager, enten dagen har 6 eller 8 timer. Bare for en aktivitet med ressurser og arbeidsregelen *Fast arbeid* eller *Faste enheter* endrer varigheten seg med timene.
+**«Flere timer per dag gjør aktiviteten min kortere.»** Ikke for en aktivitet i dager: den teller hele arbeidsdager, enten dagen har 6 eller 8 timer. Bare for en aktivitet med ressurser og aktivitetstypen *Fast arbeid* eller *Faste enheter* endrer varigheten seg med timene.
 
 **En kalender uten arbeidsdager** kan ikke beregnes av appen. Beregningen melder *Kalenderen har ingen arbeidsdager angitt*.
 

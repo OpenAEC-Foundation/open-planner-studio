@@ -16,7 +16,7 @@ Il metodo di calcolo si chiama **CPM** (Critical Path Method). Per questo il blo
 
 ## Come l'app calcola
 
-L'app non ricalcola la pianificazione da sola. Il calcolo inizia con **Calcola** (F5), per esempio tramite *Home › Pianificazione › Calcola*. Se qualcosa è cambiato dall'ultimo calcolo, la barra di stato mostra *Non aggiornato — ricalcola (F5)*. Se *Calcola automaticamente* è attivo (in *Impostazioni › Progetto › Impostazioni*, scheda *Pianificazione*, intestazione *Calcolo*), l'app lo fa da sola.
+L'app non ricalcola la pianificazione da sola. Il calcolo inizia con **Calcola** (F5), per esempio tramite *Home › Pianificazione › Calcola*. Se qualcosa è cambiato dall'ultimo calcolo, la barra di stato mostra *Non aggiornato — ricalcola (F5)*. Se *Calcola automaticamente* è attivo (in *Impostazioni › Progetto › Impostazioni app*, scheda *Pianificazione*, intestazione *Calcolo*), l'app lo fa da sola.
 
 Un calcolo fa due passaggi attraverso la rete.
 
@@ -42,12 +42,13 @@ Il margine può diventare anche negativo. Succede quando un'attività ha una sca
 
 ### Quando un'attività è critica?
 
-Per impostazione predefinita un'attività è critica quando il suo margine totale è 0 o meno. Puoi cambiarlo in *Impostazioni › Progetto › Info progetto*, nel blocco *Profilo di calcolo e opzioni*, alla voce *Opzioni di calcolo di questo progetto*. Quando clicchi su *Applica*, l'app ricalcola subito la pianificazione. Le opzioni appartengono al file di progetto, non all'app.
+Per impostazione predefinita un'attività è critica quando il suo margine totale è 0 o meno. Puoi cambiarlo in *Impostazioni › Progetto › Impostazioni progetto*, nel blocco *Profilo di calcolo e opzioni*, alla voce *Opzioni di calcolo di questo progetto*. Quando clicchi su *Applica*, l'app ricalcola subito la pianificazione. Le opzioni appartengono al file di progetto, non all'app.
 
-- **Definizione di critica** con *Margine totale ≤ soglia* e il campo *Soglia (giorni lavorativi)*. La soglia è 0 per impostazione predefinita. Per conservare una riserva, impostala a 2, per esempio: ogni attività con 2 giorni lavorativi di margine o meno conta come critica e diventa rossa.
+- **Definizione di critica** con *Margine totale ≤ soglia* e il campo *Soglia (giorni lavorativi)*. La soglia è 0 per impostazione predefinita. Per tenere una riserva, impostala a 2, per esempio: ogni attività con 2 giorni lavorativi di margine o meno conta come critica e diventa rossa. Se scegli *Percorso più lungo*, un'attività è critica quando si trova sulla catena più lunga fino all'ultima fine. Il suo margine allora non conta.
+- **Percorsi di margine multipli** numerano le catene in base al loro margine nella colonna *Percorso margine*. Il percorso 1 è il percorso critico. Vedi [Opzioni di calcolo e convenzioni](docs://ref-rekenopties-en-conventies).
 - **Contrassegna quasi critico** con la sua *Soglia*, 2 giorni lavorativi per impostazione predefinita. Un'attività con più di 0 ma al massimo quel margine riceve una barra arancione. Così si vede quali attività hanno quasi nessun margine rimasto, senza chiamarle critiche.
 - **Attività a estremità aperta critiche**: un'attività senza successore che non è ancora finita conta come critica. Utile come rete di sicurezza contro relazioni dimenticate (vedi più sotto i malintesi).
-- **Calcolo del margine** decide se il margine totale si misura all'inizio dell'attività, alla sua fine, o come il più piccolo dei due. I nuovi progetti sono impostati su *Automatico (predefinito)*. Se segui il modo di calcolo di Primavera P6, *Applica le opzioni predefinite di questo profilo* imposta questa scelta su *Margine di fine*. Per MS Project lo stesso pulsante la rimette su *Automatico (predefinito)*: con una data di stato, MS Project stesso calcola in quel modo.
+- **Calcolo del margine** decide se il margine totale si misura all'inizio dell'attività, alla sua fine, o come il più piccolo dei due. I nuovi progetti sono impostati su *Automatico (predefinito)*. Se il progetto usa il profilo Primavera P6 e questa scelta non è *Margine di fine*, un blocco arancione nelle Impostazioni progetto lo segnala; il suo pulsante imposta la scelta su *Margine di fine*. Per MS Project lo stesso pulsante la rimette su *Automatico (predefinito)*: con una data di stato, MS Project stesso calcola in quel modo.
 
 ### Dove lo vedi
 

@@ -27,6 +27,7 @@ export interface WbsTemplateSequence {
   successorId: string;
   type: Sequence['type'];
   lagDays: number;
+  lagMinutes?: Sequence['lagMinutes'];
   lagUnit?: Sequence['lagUnit'];
   lagPercent?: number;
 }
@@ -100,6 +101,7 @@ export function saveBranchAsWbsTemplate(
       successorId: localId.get(q.successorId)!,
       type: q.type,
       lagDays: q.lagDays,
+      ...(q.lagMinutes !== undefined ? { lagMinutes: q.lagMinutes } : {}),
       ...(q.lagUnit !== undefined ? { lagUnit: q.lagUnit } : {}),
       ...(q.lagPercent !== undefined ? { lagPercent: q.lagPercent } : {}),
     }));

@@ -25,15 +25,15 @@ Hogyan válasszon?
 
 ## Buktatók és az alkalmazás működése
 
-**Nincs különbség.** A mód csak olyan tevékenységekre hat, amelyek már elkezdődtek, miközben az előderük még nincs befejezve. Ilyen tevékenység nélkül semmi sem változik.
+**Nincs különbség.** A mód csak olyan tevékenységekre hat, amelyek már elkezdődtek, miközben az elődjük még nincs befejezve. Ilyen tevékenység nélkül semmi sem változik.
 
-**Az üzenet megmarad.** A Progress Override nem oldja meg a sorrenden kívüli üzenetet. A mód azt dönti el, hogyan végzi az alkalmazás az ütemezés-számítást; az ellentmondás a kapcsolat és az előrehaladás között megmarad. Ha a kapcsolat már nem helyes, módosítsa ([Kapcsolatok hozzáadása](docs://howto-relaties-leggen)).
+**Az üzenet megmarad.** A Progress Override nem oldja meg a sorrenden kívüli előrehaladás üzenetét. A mód azt dönti el, hogyan számol az alkalmazás; az ellentmondás a kapcsolat és az előrehaladás között megmarad. Ha a kapcsolat már nem helyes, módosítsa ([Kapcsolatok hozzáadása](docs://howto-relaties-leggen)).
 
 **A projekthez tartozik.** A választás a projektfájllal együtt mentődik, a teljes projektre vonatkozik, és a Ctrl+Z billentyűkombinációval visszavonható. Egy új projekt Retained Logic módon indul.
 
-**Egy P6-fájl.** Ha egy Primavera P6 fájlt (.xer) nyit meg, az alkalmazás a módot a fájlból veszi át. A Retained Logic és a Progress Override mellett a P6 ismeri az Actual Dates módot is. Az alkalmazás ezt a harmadik módot nem ismeri; az ilyen fájl ütemezés-számítása Retained Logic szerint történik. Az importüzenet ezt így jelzi: *1 P6-ütemezési beállítás biztonságos tartalékot használt.*
+**Egy P6-fájl.** Ha egy Primavera P6 fájlt (.xer) nyit meg, az alkalmazás a módot a fájlból veszi át. A Retained Logic és a Progress Override mellett a P6 ismeri az Actual Dates módot is. Az alkalmazás ezt a harmadik módot nem ismeri; az ilyen fájlt Retained Logic szerint számolja. Az importüzenet ezt így jelzi: *1 P6-ütemezési beállítás biztonságos tartalékot használt.*
 
-**A számítási profil.** A Primavera P6 profilban a Progress Override visszafelé is működik, a legkésőbbi dátumokban és az előde szabad tartalékidejében (ütemezési szabály: *A Progress Override a már elkezdett utódot visszafelé is figyelmen kívül hagyja*). Az Open Planner Studio és a Microsoft Project profilban ez nem így van. Az ütemezési szabályokat a *Beállítások › Projekt › Projektinfó* útvonalon találja, a *Számítási profil és beállítások* blokkban. A magyarázat példájában ez a visszafelé hatás nem látszik.
+**A számítási profil.** A Primavera P6 profilban a Progress Override visszafelé is működik, a legkésőbbi dátumokban és az előde szabad tartalékidejében (ütemezési szabály: *A Progress Override a már elkezdett utódot visszafelé is figyelmen kívül hagyja*). Az Open Planner Studio és a Microsoft Project profilban ez nem így van. Az ütemezési szabályokat a *Beállítások › Projekt › Projektbeállítások* útvonalon találja, a *Számítási profil és beállítások* blokkban. A magyarázat példájában ez a visszafelé hatás nem látszik.
 
 ## Lásd még
 

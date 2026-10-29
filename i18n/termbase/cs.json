@@ -2074,6 +2074,18 @@
     "source": "model",
     "status": "model"
   },
+  "work-category": {
+    "term": "druh práce",
+    "forms": [
+      "druh práce",
+      "druhu práce",
+      "druhy práce",
+      "druhů práce",
+      "druhem práce"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "pracovní hodiny",
     "forms": [

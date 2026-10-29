@@ -24,12 +24,12 @@ La hoja tiene ocho columnas. Los nombres de las columnas quedan en inglés, con 
 
 La hoja de Excel está protegida, sin contraseña: solo se pueden editar las tres columnas que se rellenan. Excel comprueba que un porcentaje esté entre 0 y 100 y que una fecha real sea una fecha. Una fase (tarea de resumen) aparece en gris con *— tarea resumen: no rellenar*.
 
-### 3. Que el jefe de obra la rellene
+### 3. Haga que el jefe de obra la rellene
 
 Para cada tarea, el jefe de obra rellena:
 
-- `Completion (%)`: de 0 a 100, incluido. En la hoja de Excel se admiten decimales (por ejemplo 33,3); en el CSV, las instrucciones piden números enteros.
-- `Actual Start` y `Actual Finish`: en Excel, como fecha con la configuración regional de su equipo; en el CSV, como dd-mm-yyyy.
+- `Completion (%)`: de 0 a 100, incluido. La aplicación también lee decimales, con coma o con punto (por ejemplo 33,3 o 33.3). La instrucción del CSV sigue pidiendo números enteros: una hoja de cálculo con otra configuración regional puede leer 8,38 como 838.
+- `Actual Start` y `Actual Finish`: en Excel, como fecha con la configuración regional de su equipo; en el CSV, como dd-mm-yyyy o como yyyy-mm-dd.
 
 Lo que queda vacío no cambia nada. Así, una celda vacía tampoco borra el avance que ya existe; eso solo se puede hacer en la aplicación. Una tarea que no ha empezado se deja completamente vacía.
 

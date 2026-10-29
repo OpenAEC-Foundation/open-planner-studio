@@ -11,7 +11,7 @@ Der er fire menuer. Hvilken du får, afhænger af, hvor du klikker:
 - **På en gruppeoverskrift i opgavetabellen** — en lille menu til at folde grupper ud og sammen. Gruppeoverskrifter vises kun, når du grupperer, for eksempel med layoutet *Ressourcediagram*.
 - **På tom plads** — i Gantt ved siden af eller under bjælkerne, og i opgavetabellen under den sidste opgave eller på den grå række *Ny opgave*. Menuen har *Opret opgave*, *Tilføj milepæl* og *Indsæt*; i Gantt også *Nulstil zoom* og *Tilpas til projekt*. En ny opgave eller milepæl kommer nederst på listen. I Gantt starter den på den dato, hvor du klikkede; i opgavetabellen åbnes navnecellen med det samme, så du kan skrive.
 
-På gruppeoverskriftens række i Gantt åbner den højre museknap ingen menu. Et højreklik i tidslinjens overskrift gør heller ikke noget. Kolonneoverskrifterne i opgavetabellen har en egen menu, som beskrives i [Tilpasning af tabelkolonner](docs://howto-tabelkolommen-aanpassen).
+På gruppeoverskriftens række i Gantt åbner den højre museknap menuen for tom plads. Selve gruppeoverskriften har kun en menu i opgavetabellen. Et højreklik i tidslinjens overskrift gør ikke noget. Kolonneoverskrifterne i opgavetabellen har en egen menu, som beskrives i [Tilpasning af tabelkolonner](docs://howto-tabelkolommen-aanpassen).
 
 **Hvilke opgaver gælder et punkt for?** Du klikker på én opgave, men markeringen bestemmer omfanget. Hvis opgaven, du klikker på, er en del af markeringen, gælder punktet for hele markeringen. Hvis ikke, gælder det kun for den ene opgave. Med et højreklik på en bjælke i Gantt eller på en række i opgavetabellen erstatter den markeringen, hvis opgaven ikke var en del af den. Hvert punkt, der ændrer noget, er ét trin i *Fortryd*, også for hele markeringen.
 

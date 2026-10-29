@@ -28,7 +28,7 @@ Under varje uppgiftsbalk i Gantt-diagrammet finns nu en tunn balk med baslinjens
 
 ### Ta bort en baslinje
 
-Klicka på den lilla papperskorgen bredvid baslinjen i listan. Om du tar bort den aktiva baslinjen frågar appen *Ta bort den aktiva baslinjen?*. Därefter blir den senaste kvarvarande baslinjen den aktiva. Om det inte finns någon annan baslinje finns ingen aktiv baslinje längre och överlägget försvinner. Med Ctrl+Z återställer du en borttagen baslinje.
+Klicka på den lilla papperskorgen bredvid baslinjen i listan. Om du tar bort den aktiva baslinjen frågar appen *Ta bort den aktiva baslinjen?*. Därefter blir den senaste kvarvarande baslinjen den aktiva. Om det inte finns någon annan baslinje finns ingen aktiv baslinje längre och överlägget försvinner. Med Ctrl+Z återställer du en borttagen baslinje. Stäng fönstret först. Ctrl+Z fungerar inte i ett fönster.
 
 ### Avvikelser i uppgiftstabellen
 
@@ -38,9 +38,11 @@ Varje baslinje har sex kolumner i uppgiftstabellen. Klicka på **+** till höger
 
 **En föråldrad tidsplan.** Om tidsplanen är föråldrad visar fönstret *Tidsplanen är föråldrad. Beräkna om först (F5)*. Det är en varning, men du kan fortfarande spara. Då sparar du dock de gamla datumen. Stäng fönstret, tryck på **Beräkna** och spara först därefter.
 
-**En baslinje med framdrift.** Sparar du en baslinje efter att du har fört in framdrift, sparas läget med de verkliga datumen. Avvikelsen blir då noll och säger inget om utförandet längre. Spara baslinjen innan arbetet börjar.
+**En baslinje med framdrift.** Sparar du en baslinje efter att du har fört in framdrift, sparas läget med de verkliga datumen. Avvikelsen blir då noll och säger inget om utförandet längre. Spara baslinjen innan utförandet börjar.
 
 **En baslinje kan inte uppdateras.** Vill du revidera överenskommelsen sparar du en ny baslinje. Ta bort den gamla om det behövs.
+
+**Ett ⚠ vid *Varaktighet* eller *Varaktighetsavvikelse*.** För en uppgift i timmar är en dag den arbetstid som kalendern ger. Har kalendern egna timmar per dag (till exempel 8, med band på 10 timmar, från Primavera P6) räknade en äldre version av appen dagarna på ett annat sätt. En baslinje från den versionen behåller det gamla talet: en uppgift på 1870 timmar är 233,75 dagar i baslinjen och 187 dagar nu. Appen räknar inte om en sådan baslinje. Kolumnerna *Varaktighet* och *Varaktighetsavvikelse* för den baslinjen visar då ett ⚠. Peka på det för förklaringen. Baslinjens datum är rätt. Spara en ny baslinje och ta bort den gamla om det behövs.
 
 **Bara uppgifter utan underuppgifter.** En fas finns inte i baslinjen: den har ingen baslinjebalk och ingen avvikelse. Fasen följer av uppgifterna under den.
 

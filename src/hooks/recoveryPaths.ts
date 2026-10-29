@@ -151,8 +151,8 @@ export interface RecoveryManifest {
    * een v4- en in een v5-manifest staan.
    * Een v1/v2-manifest MOET leesbaar blijven: het staat op de schijf van iedereen die een oudere
    * versie draaide, en dat weigeren betekent dataverlies bij de eerste start na de update.
-   * Beide eigenaarschapsvelden zijn daarom optioneel getypeerd en het versienummer wordt nergens
-   * als leespoort gebruikt — alleen als informatie.
+   * Beide eigenaarschapsvelden zijn daarom optioneel getypeerd. De leespoort ondersteunt v1–v5;
+   * onbekende/ongeldige versies blokkeren ook schrijven en opruimen van die herstelset.
    */
   version: number;
   activeDocumentId: string | null;

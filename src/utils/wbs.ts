@@ -63,21 +63,25 @@ export function flattenOrder(tasks: readonly Task[]): readonly Task[] {
       else childrenByParent.set(t.parentId, [t]);
     }
   }
-  const addRecursive = (task: Task) => {
-    if (seen.has(task.id)) return; // corrupte cyclus — niet vastlopen
-    seen.add(task.id);
-    out.push(task);
-    const kids = childrenByParent.get(task.id);
-    if (kids) {
-      for (const child of kids) addRecursive(child);
+  // Expliciete stack: een diepe WBS mag niet van de JavaScript-aanroepstack afhangen.
+  const addBranch = (root: Task) => {
+    const stack = [root];
+    while (stack.length > 0) {
+      const task = stack.pop()!;
+      if (seen.has(task.id)) continue; // corrupte cyclus — niet vastlopen
+      seen.add(task.id);
+      out.push(task);
+      const kids = childrenByParent.get(task.id);
+      // Omgekeerd stapelen behoudt de diepte-eerst-volgorde van de rauwe array.
+      if (kids) for (let i = kids.length - 1; i >= 0; i--) stack.push(kids[i]);
     }
   };
   for (const root of tasks) {
-    if (!root.parentId) addRecursive(root);
+    if (!root.parentId) addBranch(root);
   }
   // Wezen: ouder-id wijst naar een niet-bestaande taak.
   for (const task of tasks) {
-    if (!seen.has(task.id)) addRecursive(task);
+    if (!seen.has(task.id)) addBranch(task);
   }
   return out;
 }

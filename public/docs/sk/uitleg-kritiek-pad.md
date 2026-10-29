@@ -16,17 +16,17 @@ Metóda výpočtu sa volá **CPM** (Critical Path Method). Preto sa časť s vý
 
 ## Ako aplikácia počíta
 
-Aplikácia neprepočítava plán sama. Výpočet začína príkazom **Prepočítať** (F5), napríklad cez *Domov › Plán › Prepočítať*. Ak sa niečo zmenilo od posledného výpočtu, stavový riadok zobrazí *Zastaralé — prepočítajte (F5)*. Ak je zapnutý *Automatický prepočet* (v *Nastavenia › Projekt › Nastavenia*, na karte *Plán*, v nadpise *Prepočítanie*), aplikácia to urobí sama.
+Aplikácia plán sama neprepočíta. Výpočet začína príkazom **Prepočítať** (F5), napríklad cez *Domov › Plán › Prepočítať*. Ak sa niečo zmenilo od posledného výpočtu, stavový riadok zobrazí *Zastaralé — prepočítajte (F5)*. Ak je zapnutý *Automatický prepočet* (v *Nastavenia › Projekt › Nastavenia aplikácie*, na karte *Plán*, v nadpise *Prepočítanie*), aplikácia to urobí sama.
 
-Výpočet prejde sieťou 2 razy.
+Výpočet prejde sieťou dvakrát.
 
 ### Dopredný prechod
 
-Aplikácia začne na začiatku projektu a ide po závislostiach: od predchádzajúcej úlohy na nasledujúcu úlohu. Pre každú úlohu aplikácia nájde najskorší deň, kedy sa môže úloha začať. Ak má úloha viacero predchádzajúcich úloh, čaká, kým sa dokončí posledná z nich. Tak každá úloha dostane svoj **skorý začiatok** a **skoré dokončenie**. Najneskoršie skoré dokončenie zo všetkých úloh je dokončenie projektu.
+Aplikácia začne na začiatku projektu a ide po závislostiach od predchádzajúcej úlohy na nasledujúcu úlohu. Pre každú úlohu aplikácia nájde najskorší deň, kedy sa môže úloha začať. Ak má úloha viacero predchádzajúcich úloh, čaká, kým sa dokončí posledná z nich. Tak každá úloha dostane svoj **skorý začiatok** a **skoré dokončenie**. Najneskoršie skoré dokončenie zo všetkých úloh je dokončenie projektu.
 
 ### Spätný prechod
 
-Potom aplikácia ide späť od dokončenia projektu k jeho začiatku. Pre každú úlohu zistí posledný deň, kedy musí byť úloha dokončená bez posunu dokončenia projektu. Ak má úloha viacero nasledujúcich úloh, rozhodujúca je tá, ktorá musí začať ako prvá. Tak vznikne **neskorý začiatok** a **neskoré dokončenie**.
+Potom aplikácia ide späť od dokončenia projektu k jeho začiatku. Pre každú úlohu zistí posledný deň, kedy musí byť úloha dokončená bez posunutia dokončenia projektu. Ak má úloha viacero nasledujúcich úloh, rozhodujúca je tá, ktorá musí začať ako prvá. Tak vzniknú **neskorý začiatok** a **neskoré dokončenie**.
 
 ### Celková a voľná časová rezerva
 
@@ -34,7 +34,7 @@ Rozdiel medzi neskorými a skorými dátumami úlohy je jej **celková časová 
 
 **Voľná časová rezerva** je prísnejšia. Je to čas navyše, ktorý úloha má, kým by sa niektorá z jej nasledujúcich úloh musela začať neskôr. Tento čas môžete využiť bez toho, aby si to iná úloha všimla.
 
-Celková časová rezerva sa môže zdieľať. Ak za sebou nasledujú 2 nekritické úlohy, zdieľajú tú istú časovú rezervu. Ak prvá úloha ju použije celú, druhá už nemá nič. Prvá úloha potom má celkovú časovú rezervu, ale žiadnu voľnú časovú rezervu. Časť celkovej časovej rezervy, ktorá nie je voľná, sa volá **zasahujúca časová rezerva**: ak ju použijete, posunú sa aj úlohy za ňou. Príklad nižšie to ukáže na číslach.
+Celková časová rezerva sa môže zdieľať. Ak za sebou nasledujú dve nekritické úlohy, zdieľajú tú istú časovú rezervu. Ak prvá úloha ju použije celú, druhá už nemá nič. Prvá úloha potom má celkovú časovú rezervu, ale žiadnu voľnú časovú rezervu. Časť celkovej časovej rezervy, ktorá nie je voľná, sa volá **zasahujúca časová rezerva**: ak ju použijete, posunú sa aj úlohy za ňou. Príklad nižšie to ukáže na číslach.
 
 ### Záporná časová rezerva
 
@@ -42,12 +42,13 @@ Celková časová rezerva sa môže zdieľať. Ak za sebou nasledujú 2 nekritic
 
 ### Kedy je úloha kritická?
 
-Ak nie je nastavené inak, úloha je kritická, ak je jej celková časová rezerva 0 alebo menej. Toto sa dá zmeniť v *Nastavenia › Projekt › Info o projekte*, v časti *Profil výpočtu a možnosti výpočtu*, pri položke *Možnosti výpočtu tohto projektu*. Keď kliknete na *Použiť*, aplikácia plán hneď prepočíta. Možnosti patria do súboru projektu, nie do aplikácie.
+Ak nie je nastavené inak, úloha je kritická, ak je jej celková časová rezerva 0 alebo menej. Toto sa dá zmeniť v *Nastavenia › Projekt › Nastavenia projektu*, v časti *Profil výpočtu a možnosti výpočtu*, pri položke *Možnosti výpočtu tohto projektu*. Keď kliknete na *Použiť*, aplikácia plán hneď prepočíta. Možnosti patria do súboru projektu, nie do aplikácie.
 
-- **Definícia kritickej úlohy** pomocou voľby *Celková časová rezerva ≤ prahová hodnota* a poľa *Prahová hodnota (pracovné dni)*. Predvolená prahová hodnota je 0. Ak chcete chrániť časovú rezervu, nastavte prahovú hodnotu napríklad na 2: každá úloha s 2 pracovnými dňami časovej rezervy alebo menej sa potom počíta ako kritická a dostane červený pruh.
-- **Označiť takmer kritické** s vlastnou hodnotou v poli *Prahová hodnota*. Predvolená hodnota je 2 pracovné dni. Úloha s časovou rezervou väčšou ako 0, ale najviac touto hodnotou, dostane oranžový pruh. Tak je vidieť, ktoré úlohy majú už takmer žiadnu rezervu, bez toho, aby sa nazývali kritické.
-- **Úlohy s otvoreným koncom sú kritické**: úloha bez nasledujúcej úlohy, ktorá ešte nie je dokončená, sa počíta ako kritická. Je to užitočná poistka proti zabudnutým závislostiam (pozri nižšie časť o mylných predstavách).
-- **Výpočet časovej rezervy** určuje, či sa celková časová rezerva meria na začiatku úlohy, na jej dokončení, alebo ako menšia z oboch hodnôt. Nové projekty sa nastavia na *Automaticky (predvolené)*. Ak chcete postupovať podľa spôsobu výpočtu programu Primavera P6, *Použiť predvolené možnosti tohto profilu* nastaví túto voľbu na hodnotu *Časová rezerva dokončenia*. Pri programe MS Project nastaví to isté tlačidlo voľbu späť na *Automaticky (predvolené)*: ak je nastavený dátum kontroly stavu, MS Project sám takto počíta.
+- **Definícia kritickej úlohy** pomocou voľby *Celková časová rezerva ≤ prahová hodnota* a poľa *Prahová hodnota (pracovné dni)*. Predvolená prahová hodnota je 0. Ak chcete chrániť časovú rezervu, nastavte prahovú hodnotu napríklad na 2: každá úloha s 2 pracovnými dňami časovej rezervy alebo menej sa potom počíta ako kritická a dostane červený pruh. Ak zvolíte *Najdlhšia cesta*, úloha je kritická, keď leží na najdlhšej ceste k poslednému dokončeniu. Jej časová rezerva potom nehrá rolu.
+- **Viac ciest časovej rezervy** očísluje reťazce podľa ich časovej rezervy v stĺpci *Cesta časovej rezervy*. Cesta 1 je kritická cesta. Pozrite si [Možnosti výpočtu a pravidlá výpočtu](docs://ref-rekenopties-en-conventies).
+- **Označiť takmer kritické** s vlastnou hodnotou v poli *Prahová hodnota*. Predvolená hodnota je 2 pracovné dni. Úloha s časovou rezervou väčšou ako 0, ale najviac touto hodnotou, dostane oranžový pruh. Tak je vidieť, ktoré úlohy už nemajú takmer žiadnu rezervu, bez toho, aby sa nazývali kritickými.
+- **Úlohy s otvoreným koncom sú kritické**: úloha, ktorá nemá nasledujúcu úlohu a ešte nie je dokončená, sa počíta ako kritická. Je to užitočná poistka proti zabudnutým závislostiam (pozrite si nižšie časť o mylných predstavách).
+- **Výpočet časovej rezervy** určuje, či sa celková časová rezerva meria na začiatku úlohy, na jej dokončení, alebo ako menšia z oboch hodnôt. Nové projekty sa nastavia na *Automaticky (predvolené)*. Ak projekt používa profil Primavera P6 a táto voľba nie je *Časová rezerva dokončenia*, oranžový blok v okne *Nastavenia projektu* to oznámi; jeho tlačidlo nastaví voľbu na *Časová rezerva dokončenia*. Pri programe MS Project nastaví to isté tlačidlo voľbu späť na *Automaticky (predvolené)*: ak je nastavený dátum kontroly stavu, MS Project sám takto počíta.
 
 ### Kde to vidíte
 

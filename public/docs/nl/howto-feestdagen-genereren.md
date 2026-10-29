@@ -22,11 +22,11 @@ De **bouwvak** is de collectieve vakantie in de bouw, drie weken in de zomer. In
 
 Bij Nederland zet de app per jaar Nieuwjaar, Goede Vrijdag, Pasen (twee dagen), Koningsdag, Hemelvaart, Pinksteren (twee dagen) en Kerst (25 en 26 december) in de lijst. Valt Koningsdag op een zondag, dan staat hij op 26 april. Bevrijdingsdag staat er alleen in lustrumjaren, zoals 2025 en 2030.
 
-De jaren volgen de projectperiode: van het jaar vóór de startdatum tot het jaar na de einddatum. Heeft het project geen einddatum, dan tot drie jaar na het jaar van de start. Start en einde pas je aan onder *Instellingen › Project › Projectinstellingen*.
+De jaren volgen de projectperiode: van het jaar vóór de startdatum tot en met het jaar na het latere van de ingevulde einddatum en het laatst berekende projecteinde. Ontbreken beide, dan tot drie jaar na het jaar van de start. Dit geldt ook voor *Feestdagen genereren…* en *Opnieuw genereren* in het venster *Resourcekalender*. Heb je taken gewijzigd, druk dan eerst op **Bereken** (F5) om hun nieuwe einde te gebruiken. Start en de ingevulde einddatum pas je aan onder *Instellingen › Project › Projectinstellingen*.
 
 ### Opnieuw genereren na een nieuwe projectperiode
 
-Verschuift je project, of krijgt het een latere einddatum, dan dekken de feestdagen de nieuwe jaren niet meer. De app meldt dat in het venster *Kalenders*, bijvoorbeeld *Feestdagen dekken 2025–2028; project loopt tot 2030. Opnieuw genereren?* Klik dan op *Opnieuw genereren*. De app gebruikt dezelfde keuzes als de vorige keer (land, regio, bouwvak) voor de jaren van het project. Klik daarna op *Toepassen*. Deze melding zie je alleen bij een kalender waarvan de feestdagen eerder zijn gegenereerd.
+Verschuift je project, of krijgt het een latere einddatum, dan dekken de feestdagen de nieuwe jaren niet meer. De app meldt dat in het venster *Kalenders*, bijvoorbeeld *Feestdagen dekken 2025–2028; opnieuw genereren tot en met 2030?* Klik dan op *Opnieuw genereren*. De app gebruikt dezelfde keuzes als de vorige keer (land, regio, bouwvak) voor de jaren van het project. Klik daarna op *Toepassen*. Deze melding zie je alleen bij een kalender waarvan de feestdagen eerder zijn gegenereerd.
 
 ### Een eigen vrije dag of periode toevoegen
 

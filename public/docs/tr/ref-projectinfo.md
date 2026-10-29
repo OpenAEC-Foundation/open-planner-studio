@@ -1,63 +1,68 @@
-# Yeni proje ve Proje bilgisi
+# Yeni proje ve Proje ayarları
 
-*Yeni proje* penceresinin ve *Proje bilgisi* penceresinin alanları: her alanın ne yaptığı, varsayılan değerinin ne olduğu ve nerede etkili olduğu. Bunlar aynı formun iki yüzüdür. *Yeni proje* yeni bir proje oluşturur ve birkaç ek alanı vardır. *Proje bilgisi* açık olan projeyi değiştirir.
+*Yeni proje* penceresinin ve *Proje ayarları* penceresinin alanları: her alanın ne yaptığı, varsayılan değerinin ne olduğu ve nerede etkili olduğu. Bunlar aynı formun iki yüzüdür. *Yeni proje* yeni bir proje oluşturur ve birkaç ek alanı vardır. *Proje ayarları* açık olan projeyi değiştirir.
 
-## Açma
+## Açılış
 
-**Yeni proje** — *Dosya › Yeni*, Ctrl+N, veya belge sekmelerinin sağındaki artı işareti (*Proje başlat*, sonra *Yeni proje*). Pencere, imleç *Proje adı* alanındayken açılır.
+**Yeni proje** — *Dosya › Yeni*, Ctrl+N veya belge sekmelerinin sağındaki artı işareti (önce *Proje başlat*, sonra *Yeni proje*). Pencere açılır ve imleç *Proje adı* alanında durur.
 
-**Proje bilgisi** — *Ayarlar › Proje › Proje bilgisi* formu, *Proje Bilgileri* başlıklı bir pencere olarak açar. *Dosya › Proje bilgisi* aynı formu *Dosya* ekranında gösterir. *Hesaplama profili ve seçenekleri* bloğu iki yerde de en altta yer alır; bu blokta ne olduğu [Hesaplama seçenekleri ve kurallar](docs://ref-rekenopties-en-conventies) sayfasında açıklanır.
+**Proje ayarları** — *Ayarlar › Proje › Proje ayarları* formu, başlığı *Proje ayarları* olan bir pencere olarak açılır. *Dosya › Proje ayarları* aynı formu *Dosya* ekranında gösterir. Blok *Hesaplama profili ve seçenekleri* iki yerde de en altta yer alır; içeriği için bkz. [Hesaplama seçenekleri ve kurallar](docs://ref-rekenopties-en-conventies).
 
-## Oluştur, Uygula ve iptal
+## Oluşturma, uygulama ve iptal etme
 
-**Oluştur** (*Yeni proje* penceresinde) projeyi oluşturur ve kendi sekmesinde açar. **Uygula** (*Proje bilgisi* penceresinde) yaptığınız değişiklikleri projeye yazar.
+**Oluştur** (*Yeni proje* penceresinde) projeyi oluşturur. Geçerli sekmeniz boş ve değişmemişse uygulama bu sekmeyi kullanır; aksi halde proje yeni bir sekmede açılır. **Uygula** (*Proje ayarları* penceresinde) değişikliklerinizi projeye yazar.
 
-- **Yalnızca Uygula ile.** Taslağa yazarsınız. Proje yalnızca *Uygula* tıkladığınızda değişir. *Uygula* yalnızca gerçekten değiştirdiğiniz şeyi yazar, tek bir adımda, *Geri al* ile geri alınabilir. Hiçbir şey değiştirmeden *Uygula* tıklarsanız hiçbir şey olmaz ve adım eklenmez.
-- **İptal, çarpı ve Esc** pencereyi hiçbir şey kaydetmeden kapatır. Pencerenin yanına tıklamak onu kapatmaz: yazdığınız metin kalır.
-- **Enter**, *Oluştur* veya *Uygula* ile aynı işi yapar. Ancak *Açıklama* alanında ve açık bir açılır listede yapmaz.
-- **Dosya ekranında** *Proje bilgisi* altta *Değişiklikler uygulanmadı — korumak için Uygula'ya tıklayın.* mesajını gösterir; taslağınız farklı olduğu sürece. Ekrandan çıkarsanız uygulama, uygulamak, vazgeçmek veya iptal etmek isteyip istemediğinizi sorar. Bkz. [Şerit, sekme sekme](docs://ref-lint).
-- **Adsız bir özel hesaplama profili** *Uygula* ve *Oluştur* işlemini engeller. Ona bir ad verin veya değişikliği atın.
+- **Yalnızca Uygula'da.** Taslağa yazarsınız. Proje ancak *Uygula* düğmesine tıklarsanız değişir. *Uygula* yalnızca gerçekten değiştirdiğiniz şeyleri yazar ve bunu tek bir *Geri al* adımında yapar. Hiçbir şeyi değiştirmeden *Uygula* düğmesine tıklarsanız bir şey olmaz ve hiçbir adım eklenmez.
+- **İptal, çarpı ve Esc** pencereyi hiçbir şeyi kaydetmeden kapatır. Pencerenin yanına tıklamak onu kapatmaz: yazdıklarınız kalır.
+- **Enter** tuşu *Oluştur* veya *Uygula* ile aynı işi yapar. Bu, *Açıklama* alanında ve açık bir açılır listede geçerli değildir.
+- **Dosya ekranında** *Proje ayarları* alt kısımda, taslağınız farklı olduğu sürece şunu gösterir: *Değişiklikler uygulanmadı — korumak için Uygula'ya tıklayın.* Ekrandan çıkarsanız uygulama, değişiklikleri uygulamak, atmak veya iptal etmek isteyip istemediğinizi sorar. Bkz. [Şerit, sekme sekme](docs://ref-lint).
+- **Adı olmayan özel bir hesaplama profili** *Uygula* ve *Oluştur* düğmelerini engeller. Ona bir ad verin veya değişikliği atın.
 
 ## Her iki penceredeki alanlar
 
-**Proje adı** — projenin adı başlık çubuğunda, sekmede ve kaydettiğinizde dosya adında görünür. Varsayılan: boş. Boş alan kabul edilir: proje o zaman *Yeni planlama* olarak adlandırılır ve alanda gri metin olarak gösterilir. Nerede: tüm ekran.
+**Proje adı** — projenin adı başlık çubuğunda, sekmede ve kaydederken dosya adında görünür. Varsayılan: boş. Boş bırakmak mümkündür: proje *Yeni planlama* adını alır ve alanda gri yazıyla gösterilir. Nerede: tüm ekran.
 
-**Açıklama** — serbest metin. Varsayılan: boş. Etki: projeyle birlikte saklanır, IFC dosyasında ve Primavera P6 XML dışa aktarımında yer alır; planlamayı hiç etkilemez.
+**Açıklama** — serbest metin. Varsayılan: boş. Etki: proje ile birlikte saklanır, IFC dosyasında ve Primavera P6 XML dışa aktarımında da yer alır. Planlamayı etkilemez.
 
-**Yazar** — serbest metin. Varsayılan: boş. Etki: IFC dosyasına gider ve bir raporun üstbilgisinde *Yazar:* olarak görünür; orada bunu değiştiremezsiniz.
+**Yazar** — serbest metin. Varsayılan: boş. Etki: IFC dosyasına gider ve bir raporun başlığında *Yazar:* olarak görünür. Orada yeniden yazamazsınız.
 
-**Kaynak kitaplığı** — projenin bağlı olduğu kaynak kitaplığı. Seçin: *yok (bağımsız proje)*, mevcut kitaplıklarınız veya *+ Yeni kaynak kitaplığı…*. Varsayılan: *Yeni proje* penceresinde varsayılan kitaplık, *Proje bilgisi* penceresinde geçerli bağlantı. Etki: bkz. [Kaynak kitaplığını kullanma](docs://howto-resourcebibliotheek-gebruiken). *+ Yeni kaynak kitaplığı…* seçtiğinizde aşağıdaki bir alana ad yazarsınız; kitaplık yalnızca *Oluştur* veya *Uygula* ile oluşturulur. Bu yüzden iptal ederseniz geriye hiçbir şey kalmaz. *Proje bilgisi* içindeki bağlantı yalnızca bu alana kendiniz dokunursanız değişir.
+**Kaynak kitaplığı** — projenin bağlı olduğu kaynak kitaplığı. Seçin: *yok (bağımsız proje)*, mevcut kitaplıklarınız veya *+ Yeni kaynak kitaplığı…*. Varsayılan: *Yeni proje* penceresinde varsayılan kitaplık, *Proje ayarları* penceresinde mevcut bağlantı. Etki: bkz. [Kaynak kitaplığını kullanma](docs://howto-resourcebibliotheek-gebruiken). *+ Yeni kaynak kitaplığı…* seçerseniz aşağıdaki alana bir ad yazarsınız. Kitaplık yalnızca *Oluştur* veya *Uygula* ile oluşturulur; iptal ederseniz geride bir şey kalmaz. *Proje ayarları* penceresindeki bağlantı yalnızca bu alana kendiniz dokunursanız değişir.
 
-**Müşteri/kuruluş** — serbest metin. Varsayılan: boş. Etki: IFC dosyasına gider ve bir raporun üstbilgisinde *Şirket:* olarak görünür.
+**Müşteri/kuruluş** — serbest metin. Varsayılan: boş. Etki: IFC dosyasına gider ve bir raporun başlığında *Şirket:* olarak görünür.
 
-**Başlangıç tarihi** — projenin başlangıcı. Varsayılan: *Yeni proje* penceresinde bugün. Alanın ne yaptığı aşağıdaki *Başlangıç tarihinin etkisi* bölümünde açıklanır.
+**Başlangıç tarihi** — projenin başlangıcı. Varsayılan: *Yeni proje* penceresinde bugün. Bu alanın ne yaptığı aşağıda, *Başlangıç tarihinin etkisi* altında yazar.
 
-**Bitiş tarihi** — projenin planlanmış bitişi. Varsayılan: boş. Etki: bir bilgi, bir zorunluluk değil: uygulama bu tarihe göre planlama yapmaz. Bir raporun üstbilgisinde ve dışa aktarımlarda görünür; tatillerin hangi yıla kadar üretileceğini belirler. Yalnızca *Bolluğu proje bitiş tarihine kadar hesapla* ayarı açık olan bir Primavera dosyasında bolluk hesabı bu tarihe kadar çalışır (bkz. [Hesaplama seçenekleri ve kurallar](docs://ref-rekenopties-en-conventies)).
+**Bitiş tarihi** — projenin planlanan bitişi. Varsayılan: boş. Etki: bu bir bilgidir, bir gereklilik değil: uygulama bu tarihe göre planlama yapmaz. Rapor başlığında ve dışa aktarımlarda görünür ve tatillerin hangi yıla kadar üretileceğini belirler. Yalnızca *Bolluğu proje bitiş tarihine kadar hesapla* ayarı açık olan bir Primavera dosyasında bolluk hesabı bu tarihe kadar çalışır (bkz. [Hesaplama seçenekleri ve kurallar](docs://ref-rekenopties-en-conventies)).
 
-**Yeni görevler için varsayılan birim** — yalnızca *Saat planlamasını etkinleştir* açıkken görünür. Seçin: *Gün* ve *Saat*. Varsayılan: *Gün*. Etki ve koşullar: bkz. [Saat planlamasını açma](docs://howto-urenplanning-aanzetten).
+**Yeni görevler için varsayılan birim** — yalnızca *Saat planlamasını etkinleştir* açıkken görünür. Seçin: *Gün* veya *Saat*. Varsayılan: *Gün*. Etki ve koşullar: bkz. [Saat planlamasını açma](docs://howto-urenplanning-aanzetten).
 
-**Hesaplama profili ve seçenekleri** — *Proje bilgisi* penceresinde tüm blok; *Yeni proje* penceresinde yalnızca *Hesaplama profili* açılır listesi, seçenekleri *Primavera P6*, *Microsoft Project* ve *Open Planner Studio*. Varsayılan: *Open Planner Studio*. Bir profil seçmek, o profilin varsayılan seçeneklerini de ayarlar. Bkz. [Hesaplama seçenekleri ve kurallar](docs://ref-rekenopties-en-conventies).
+**Hesaplama profili ve seçenekleri** — *Proje ayarları* penceresinde tüm blok; *Yeni proje* penceresinde yalnızca açılır liste *Hesaplama profili*, seçenekleri *Primavera P6*, *Microsoft Project* ve *Open Planner Studio*. Varsayılan: *Open Planner Studio*. Bir profil seçmek, o profilin varsayılan seçeneklerini de ayarlar. Bkz. [Hesaplama seçenekleri ve kurallar](docs://ref-rekenopties-en-conventies).
+
+## Yalnızca Proje ayarları penceresinde
+
+**IFC şeması kaydederken** — kaydedilen dosyanın başlığında hangi IFC şemasının yer alacağı. Seçenekler: *IFC 4.3 ADD2 (varsayılan)*, *IFC 4.3* ve *IFC4*. Varsayılan: *IFC 4.3 ADD2 (varsayılan)*; açılmış bir IFC dosyasında o dosyanın şeması. Etki: yalnızca dosyanın başlığı değişir, içeriği değil. Planlamayı aynı şemadaki bir yapı modeliyle birleştirmek için kullanın. Açılan dosyanın şeması varsayılandan farklıysa, uygulama ilk kayıtta bu şemayı koruyup korumak istemediğinizi sorar; buradaki bir seçim cevap sayılır. Buradaki başka bir seçim *Geri al* içinde bir adım değildir: şema dosyaya aittir. Bkz. [IFC-şemasını seçme](docs://howto-ifc-schema-kiezen).
 
 ## Yalnızca Yeni proje penceresinde
 
-**Faz şablonu** — projenin hangi fazlarla başlayacağı. Seçin: *Boş*, *Konut inşaatı* ve *Ticari yapı / yenileme*. Varsayılan: *Boş*. Etki: *Boş* görevsiz bir proje verir. Diğer ikisi, her birinde proje varsayılan biriminde süre 5 olan sekiz faz görevini hazır koyar (5 iş günü, ya da *Yeni görevler için varsayılan birim* altında *Saat* seçerseniz 5 saat) ve ilişkisiz; bunları kendiniz yeniden adlandırır, taşır ve uzatırsınız. *Konut inşaatı* için bunlar şunlardır: Bouwplaats & grondwerk, Fundering, Ruwbouw / casco, Dak, Gevel & afbouw, Installaties (W/E), Afwerking ve Oplevering. *Ticari yapı / yenileme* için: Sloop & strip-out, Grondwerk & fundering, Hoofddraagconstructie, Gevel & dak, Installaties (W/E), Afbouw, Inregelen & testen ve Oplevering. Bu adlar projenizin verisidir ve başka bir arayüz dilinde bile Hollandaca kalır. *İnşaat modunu etkinleştir* kapalıysa yalnızca *Boş* vardır. Bkz. [Ayarlar](docs://ref-instellingen).
+**Aşama şablonu** — projenin hangi aşamalarla başlayacağı. Seçin: *Boş*, *Konut inşaatı* veya *Ticari yapı / yenileme*. Varsayılan: *Boş*. Etki: *Boş* görevsiz bir proje verir. Diğer ikisi sekiz aşama görevini hazır koyar. Her görevin süresi, projenin varsayılan biriminde 5'tir (5 iş günü, veya *Yeni görevler için varsayılan birim* altında *Saat* seçtiyseniz 5 saat). Bu görevlerin ilişkisi yoktur. Adlarını, taşımayı ve uzatmayı kendiniz yaparsınız. *Konut inşaatı* için bu adlar şunlardır: Bouwplaats & grondwerk, Fundering, Ruwbouw / casco, Dak, Gevel & afbouw, Installaties (W/E), Afwerking ve Oplevering. *Ticari yapı / yenileme* için: Sloop & strip-out, Grondwerk & fundering, Hoofddraagconstructie, Gevel & dak, Installaties (W/E), Afbouw, Inregelen & testen ve Oplevering. Bu adlar projenizin verisidir ve arayüz dili başka olsa da Hollandaca kalır. *İnşaat modunu etkinleştir* kapalıysa yalnızca *Boş* vardır. Bkz. [Uygulama ayarları](docs://ref-instellingen).
 
-**Vardiya** — yalnızca *Saat planlamasını etkinleştir* açıkken görünür. Seçin: *Gündüz vardiyası*, *2 vardiya*, *3 vardiya* ve *24/7*. Varsayılan: *Gündüz vardiyası*. Etki: *Gündüz vardiyası* standart takvimi olduğu gibi bırakır; pazartesiden cumaya kadar sıradan bir gün takvimidir. Diğer üçü, proje takvimine, *Takvimler* penceresindeki aynı adlı düğmeler gibi çalışma bantları koyar. Hangi saatler olduğu [Çalışma saatlerini ayarlama](docs://howto-werktijden-instellen) sayfasında açıklanır. *Gündüz vardiyası* seçiliyken *Yeni görevler için varsayılan birim* altında *Saat* seçilemez, çünkü bir gün takvimi bant içermez.
+**Vardiya** — yalnızca *Saat planlamasını etkinleştir* açıkken görünür. Seçin: *Gündüz vardiyası*, *2 vardiya*, *3 vardiya* veya *24/7*. Varsayılan: *Gündüz vardiyası*. Etki: *Gündüz vardiyası* standart takvimi olduğu gibi bırakır; yani pazartesiden cumaya sıradan bir gün takvimi. Diğer üçü, *Takvimler* penceresindeki aynı adlı düğmeler gibi, projenin takvimine çalışma saati bantları koyar. Hangi saatler olduğu için bkz. [Çalışma saatlerini ayarlama](docs://howto-werktijden-instellen). *Gündüz vardiyası* ile *Yeni görevler için varsayılan birim* altında *Saat* seçilemez, çünkü bir gün takvimi çalışma saati bantlarına sahip değildir.
 
-**Tatil seti** — proje takvimi hangi tatil günlerini alır. *Ülke* alanında *Hollanda* (varsayılan), *Almanya*, *Belçika*, *Fransa*, *Birleşik Krallık*, *Avusturya*, *İsviçre*, *Tatil yok* veya *Özel…* seçersiniz. Ülkenin bölgeleri varsa, açılır bir *Bölge* listesi eklenir. Hollanda için, *İnşaat modunu etkinleştir* açıksa, ayrıca *İnşaat tatili* seçersiniz: *Yok* (varsayılan), *Kuzey*, *Orta* veya *Güney*. Bunun altında *36 tatil, 2025–2029* gibi bir satır vardır; listesini görmek için bu satırı açarsınız. Yıllar, başlangıç tarihinin bir yıl öncesinden bitiş tarihinin bir yıl sonrasına kadar uzanır; bitiş tarihi yoksa başlangıç yılının üç yıl sonrasına kadar. *Özel…* tatilsiz bir takvim verir ve oluşturmanın hemen ardından *Takvimler* penceresini açar; böylece tatilleri kendiniz doldurursunuz. Proje takvimi *Bouwkalender NL* adını taşır, ya da *İnşaat modunu etkinleştir* kapalıysa *Standaardkalender*; seçenek o zaman ayrıca *Tatil yok* olur. Tatillerin nasıl üretildiği için bkz. [Tatilleri ve inşaat tatilini üretme](docs://howto-feestdagen-genereren).
+**Tatil seti** — projenin takvimi hangi tatil günlerini alacak. Bir *Ülke* için seçin: *Hollanda* (varsayılan), *Almanya*, *Belçika*, *Fransa*, *Birleşik Krallık*, *Avusturya*, *İsviçre*, *Tatil yok* veya *Özel…*. Ülkenin bölgeleri varsa, bir *Bölge* açılır listesi eklenir. Hollanda için ve *İnşaat modunu etkinleştir* açıksa, *İnşaat tatili* de seçersiniz: *Yok* (varsayılan), *Kuzey*, *Orta* veya *Güney*. Bunun altında *36 tatil, 2025–2029* gibi bir satır vardır; listesini görmek için açarsınız. Yıllar, başlangıç tarihinden önceki yıldan bitiş tarihinden sonraki yıla kadar gider. Bitiş tarihi yoksa başlangıç yılından üç yıl sonrasına kadar gider. *Özel…* tatil içermeyen bir takvim verir ve oluşturduktan hemen sonra *Takvimler* penceresini açar; böylece onları kendiniz doldurursunuz. Projenin takvimi *Bouwkalender NL* adını alır; *İnşaat modunu etkinleştir* kapalıysa *Standaardkalender* olur ve seçenek olarak *Tatil yok* da bulunur. Üretecin nasıl çalıştığı için bkz. [Tatilleri ve inşaat tatilini üretme](docs://howto-feestdagen-genereren).
 
 ## Başlangıç tarihinin etkisi
 
-Başlangıç tarihi projenin dayanak noktasıdır. Üç kural vardır:
+Başlangıç tarihi projenin çıpasıdır. Üç kural geçerlidir:
 
-- **Yeni görevler başlangıç tarihinde başlar.** Eklediğiniz bir görev, proje başlangıcını planlanmış başlangıç olarak alır.
-- **Öncülü olan bir görev hiçbir zaman başlangıç tarihinden önce başlamaz.** Öncülün bitişi daha erken ise görev başlangıç tarihine kadar bekler. *Öncülü olmayan* bir görev, başlangıç tarihinden önce olsa bile kendi tarihini korur. Bu gereklidir; MS Project veya Primavera'dan gelen bir planlamayı, kaynak programın gösterdiği biçimde göstermek için. *Şu tarihte başlamalı (MSO)* veya *Şu tarihte bitmeli (MFO)* kısıtlaması iki kuralı da bozar: böyle bir görev kendi tarihinde durur, başlangıç tarihinden önce düşse bile.
-- **Daha sonraki bir başlangıç tarihi serbest görevleri kaydırır.** *Proje bilgisi* penceresinde başlangıç tarihini daha sonraya ayarlar ve *Uygula* tıklarsanız, öncülü olmayan ve alt sınır koyan bir kısıtlaması olmayan (*Şu tarihten önce başlamaz (SNET)*, *Şu tarihte başlamalı*, *Şu tarihten önce bitmez* veya *Şu tarihte bitmeli*) ve yeni tarihten önce kalacak görevler o tarihe kayar. Bu, aynı adımda olur ve *Geri al* ile geri alınabilir. Uygulama kaç görevin kaydığını söyler. Bu yalnızca başlangıç tarihini kendiniz değiştirdiğinizde olur, bir dosya açtığınızda hiçbir zaman olmaz. Başlangıç tarihini daha sonraya ayarlamak planlamanın geri kalanını taşımaz: bunu *Projeyi taşı* yapar, bkz. [Projeyi taşıma](docs://howto-project-verplaatsen).
+- **Yeni görevler başlangıç tarihinde başlar.** Eklediğiniz bir görev, planlanmış başlangıç olarak proje başlangıcını alır.
+- **Öncülü olan bir görev asla başlangıç tarihinden önce başlamaz.** Öncülün bitişi daha erkense görev başlangıç tarihine kadar bekler. *Öncülü olmayan* bir görev kendi tarihini korur, bu tarih başlangıç tarihinden önce olsa bile. Bu gereklidir; bir MS Project veya Primavera planlamasını, kaynak programın gösterdiği gibi göstermek için. Bir *Şu tarihte başlamalı (MSO)* veya *Şu tarihte bitmeli (MFO)* kısıtlaması iki kuralı da bozar: böyle bir görev, tarihi başlangıç tarihinden önce bile olsa o tarihte durur.
+- **Daha sonraki bir başlangıç tarihi serbest görevleri birlikte kaydırır.** Başlangıç tarihini *Proje ayarları* penceresinde daha sonraya alıp *Uygula* düğmesine tıklarsanız, öncülü olmayan ve alt sınır koyan bir kısıtlaması olmayan görevler yeni tarihten önce kalıyorsa o tarihe kayar. Alt sınır koyan kısıtlamalar şunlardır: *şu tarihten önce başlamaz (SNET)*, *şu tarihte başlamalı*, *şu tarihten önce bitmez* ve *şu tarihte bitmeli*. Bu kayma, aynı tek adımda *Geri al* içinde yer alır. Uygulama kaç görevin kaydığını söyler. Bu yalnızca başlangıç tarihini kendiniz değiştirdiğinizde olur; bir dosya açtığınızda hiçbir zaman olmaz. Başlangıç tarihini daha sonraya almak planlamanın geri kalanını taşımaz. Bunu *Projeyi taşı* yapar; bkz. [Proje taşıma](docs://howto-project-verplaatsen).
 
-## Ayrıca bakınız
+## Ayrıca bakın
 
 - [Hesaplama seçenekleri ve kurallar](docs://ref-rekenopties-en-conventies): *Hesaplama profili ve seçenekleri* bloğu.
 - [Hesaplama profilleri ve kurallar](docs://uitleg-rekenprofielen): neden bir profilin sonucu değiştirdiği.
-- [Projeyi taşıma](docs://howto-project-verplaatsen): tüm planlamayı başka bir başlangıca taşır.
-- [Görevler ve kilometre taşları ekleme](docs://howto-taken-en-mijlpalen-toevoegen): ilk görevlerle başlamak.
+- [Proje taşıma](docs://howto-project-verplaatsen): tüm planlamayı başka bir başlangıca taşıma.
+- [Görev ve kilometre taşı ekleme](docs://howto-taken-en-mijlpalen-toevoegen): ilk görevlerle başlama.
 - [Tatilleri ve inşaat tatilini üretme](docs://howto-feestdagen-genereren): tatil setini ayrıntılı olarak.
+- [IFC-şemasını seçme](docs://howto-ifc-schema-kiezen): bir yapı modeli için IFC4 ile kaydetme.

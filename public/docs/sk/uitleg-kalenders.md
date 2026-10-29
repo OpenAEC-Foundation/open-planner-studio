@@ -9,7 +9,7 @@ Plán počíta v **pracovných dňoch**, nie v kalendárnych dňoch. „Päť dn
 V **kalendári** sa zapisuje, ktoré dni sú pracovné. Kalendár určuje tri veci:
 
 - **Pracovný týždeň**: dni v týždni, v ktoré sa pracuje. Predvolená hodnota je pondelok až piatok.
-- **Pracovné časy**: začiatok, koniec a prestávka. Dávajú **čisté hodiny za deň**. Predvolená hodnota je 07:00 až 16:00 s hodinovou prestávkou, teda 8 hodín.
+- **Pracovné časy**: začiatok, koniec a prestávka. Tvoria **štandardný pracovný deň**. Predvolená hodnota je 07:00 až 16:00 s hodinovou prestávkou, teda 8 hodín.
 - **Sviatky**: jednotlivé dni alebo celé úseky dní, v ktorých sa nepracuje, napríklad Deň kráľa, Vianoce alebo **stavebná dovolenka**.
 
 Projekt má jednu **knižnicu kalendárov**. Jeden z nich je **kalendár projektu**. Platí pre každú úlohu, ktorá nemá vlastný kalendár. Jednotlivej úlohe môžete dať iný kalendár, napríklad šesťdňový pracovný týždeň pre subdodávateľa, ktorý pracuje aj v sobotu. Aj **zdroj** môže mať vlastný kalendár, ale ten robí niečo iné (pozri nižšie).
@@ -40,14 +40,14 @@ Kalendár **zdroja** nemá vplyv na dátumy. V plánu, ktorý zostavujete v apli
 Keď sa prepoja dve úlohy s rôznymi kalendármi, platí toto:
 
 - Pri závislosti dokončenie-začiatok sa nasledujúca úloha začína prvým pracovným dňom po dokončení predchádzajúcej úlohy. Počíta sa v kalendári **nasledujúcej úlohy**. Ak úloha končí v piatok, nasledujúca úloha so šesťdňovým pracovným týždňom začne v sobotu.
-- Predvolená hodnota je, že **oneskorenie** sa počíta v kalendári **predchádzajúcej úlohy**. Môžete to zmeniť na karte *Nastavenia › Projekt › Info o projekte*, v bloku *Profil výpočtu a možnosti výpočtu*, v časti *Možnosti výpočtu tohto projektu*, voľbou *Kalendár oneskorenia*: *Predchádzajúca úloha* (predvolené), *Nasledujúca úloha*, *24-hodinový* alebo *Projektový kalendár*.
+- Predvolená hodnota je, že **oneskorenie** sa počíta v kalendári **predchádzajúcej úlohy**. Môžete to zmeniť na karte *Nastavenia › Projekt › Nastavenia projektu*, v bloku *Profil výpočtu a možnosti výpočtu*, v časti *Možnosti výpočtu tohto projektu*, voľbou *Kalendár oneskorenia*: *Predchádzajúca úloha* (predvolené), *Nasledujúca úloha*, *24-hodinový* alebo *Projektový kalendár*.
 - **Celková časová rezerva** sa počíta v **pracovných dňoch** kalendára samotnej úlohy. V tomto profile sa **voľná časová rezerva** počíta v kalendári nasledujúcej úlohy.
 
 Čo presne je oneskorenie, opisuje [Pridávanie závislostí](docs://howto-relaties-leggen); čo je časová rezerva, opisuje [Kritická cesta a časová rezerva](docs://uitleg-kritiek-pad).
 
 ### V Gantt
 
-Sivé pozadie v Gantt vždy ukazuje nepracovné dni **kalendára projektu**. Úloha s vlastným kalendárom preto môže prebehnúť cez sivý deň, napríklad šesťdňová úloha cez sobotu. Súvislý rad sviatkov, široký tri dni alebo viac, dostane zobrazený názov, napríklad *Bouwvak (Noord)*. To sa nestane, keď je zapnuté *Zobraziť len pracovné dni*. Ak nechcete vidieť sivé dni vôbec, zapnite *Zobraziť len pracovné dni* na karte *Nastavenia › Projekt › Nastavenia*, na karte *Vzhľad*, v nadpise *Časová os*.
+Sivé pozadie v Gantt vždy ukazuje nepracovné dni **kalendára projektu**. Úloha s vlastným kalendárom preto môže prebehnúť cez sivý deň, napríklad šesťdňová úloha cez sobotu. Súvislý rad sviatkov, široký tri dni alebo viac, dostane zobrazený názov, napríklad *Bouwvak (Noord)*. To sa nestane, keď je zapnuté *Zobraziť len pracovné dni*. Ak nechcete vidieť sivé dni vôbec, zapnite *Zobraziť len pracovné dni* na karte *Nastavenia › Projekt › Nastavenia aplikácie*, na karte *Vzhľad*, v nadpise *Časová os*.
 
 ## Príklad: plán stavby
 
@@ -92,9 +92,9 @@ Dátumy *Brickwork* sa nemenia. Piatok 4. júna je v histograme červený so spr
 
 **„Ak prepnem kalendár projektu, všetko sa posunie.“** Posunú sa len úlohy bez vlastného kalendára. Úloha, ktorej ste sami dali kalendár zo zoznamu, si ho ponechá, aj keď je to náhodou starý kalendár projektu. Ak kalendár vymažete, úlohy a zdroje, ktoré ho používali, sa vrátia na kalendár projektu.
 
-**„Sviatky tam predsa sú, nie?“** Sviatky existujú len pre roky, pre ktoré boli vytvorené. Deň mimo týchto rokov je jednoducho pracovný deň. V dialógu kalendára to aplikácia hovorí takto: *Sviatky pokrývajú 2025–2028; projekt beží do 2030. Chcete ich vygenerovať znova?*
+**„Sviatky tam predsa sú, nie?“** Sviatky existujú len pre roky, pre ktoré boli vytvorené. Deň mimo týchto rokov je jednoducho pracovný deň. V dialógu kalendára to aplikácia hovorí takto: *Sviatky pokrývajú 2025–2028; vygenerovať znova až do roku 2030?*
 
-**„Viac hodín za deň mi skráti úlohu.“** Nie. Pri úlohe v dňoch nie: počíta sa celý počet pracovných dní, či má deň 6 alebo 8 hodín. Len pri úlohe so zdrojmi a pravidlom práce *Pevná práca* alebo *Pevné jednotky priradenia* sa trvanie mení s hodinami.
+**„Viac hodín za deň mi skráti úlohu.“** Nie. Pri úlohe v dňoch nie: počíta sa celý počet pracovných dní, či má deň 6 alebo 8 hodín. Len pri úlohe so zdrojmi a typom úlohy *Pevná práca* alebo *Pevné jednotky priradenia* sa trvanie mení s hodinami.
 
 **Kalendár bez pracovných dní** aplikácia nedokáže vypočítať. Výpočet hlási *Kalendár nemá nastavené žiadne pracovné dni*.
 

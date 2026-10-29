@@ -30,9 +30,9 @@ Odabirom *Instaliraj* pristajete. *Ne instaliraj*, tipka Esc i klik izvan prozor
 
 ## Dozvole
 
-**ribbon** — postavlja gumb u vrpcu. Učinak: proširenje smije dodati gumb u grupu na kartici vrpce. Proširenje bez ove dozvole dobiva pogrešku kad to pokuša. Gumbi se pojavljuju na kraju odabrane kartice, pod oznakom grupe proširenja, i nestaju kad isključite ili uklonite proširenje. Zadano: nije dodijeljeno; samo ono što je u manifestu. Provedba: strogo. Gdje: na kartici koju je proširenje odabralo.
+**ribbon** — postavlja gumb u vrpcu. Učinak: proširenje smije dodati gumb u grupu na kartici vrpce. Proširenje bez ove dozvole dobiva pogrešku kad to pokuša. Gumbi se pojavljuju na kraju odabrane kartice, pod oznakom grupe proširenja, i nestaju kad isključite proširenje ili ga uklonite. Zadano: nije dodijeljeno; samo ono što je u manifestu. Provedba: strogo. Gdje: na kartici koju je proširenje odabralo.
 
-**events** — prati događaje aplikacije i sam šalje događaje. Učinak: proširenje se smije pretplatiti na događaje i odjaviti se od njih te sam slati događaje. Aplikacija sama šalje tri: učitan je projekt (nakon uvoza, otvaranja ili učitavanja od strane proširenja), stvoren je prazan projekt i raspored je izračunat (ili ponovno izračunat). Zadano: nije dodijeljeno; samo ono što je u manifestu. Provedba: strogo. Gdje: nigdje; proširenje reagira na događaj.
+**events** — prati događaje aplikacije i sam šalje događaje. Učinak: proširenje se smije pretplatiti na događaje i odjaviti se od njih te sam slati događaje. Aplikacija sama šalje četiri: učitan je projekt (nakon uvoza, otvaranja ili učitavanja od strane proširenja), stvoren je prazan projekt, raspored je izračunat (ili ponovno izračunat) i korisnik je zatražio lekciju. Posljednji događaj ide samo proširenju za lekcije. Zadano: nije dodijeljeno; samo ono što je u manifestu. Provedba: strogo. Gdje: nigdje; proširenje reagira na događaj.
 
 **backstage** — nudi format uvoza. Učinak: proširenje smije registrirati uvoznik; pojavljuje se u *Datoteka › Uvezi*, gdje kliknete format i odaberete datoteku. Ugrađeni formati su odvojeni od toga (vidi [Formati uvoza i izvoza](docs://ref-import-exportformaten)). Zadano: nije dodijeljeno; samo ono što je u manifestu. Provedba: upozorenje. Ako dozvola nedostaje, registracija i dalje radi, uz upozorenje u dnevniku. To je privremeno rješenje, jer postojeća proširenja ne navode uvijek dozvolu. Gdje: *Datoteka › Uvezi*.
 
@@ -42,7 +42,7 @@ Odabirom *Instaliraj* pristajete. *Ne instaliraj*, tipka Esc i klik izvan prozor
 
 **help** — dodaje članke pomoći i smjernice. Učinak: proširenje smije registrirati i povući članke pomoći (lekcije), otvoriti priloženu `.ifc` datoteku kao novi dokument te pokrenuti i zaustaviti vodič koji ukazuje na dijelove aplikacije. Priloženi projekt nikad ne prepisuje dokument u kojem radite: otvara se kao novi dokument ili samo preuzima praznu, nepromijenjenu karticu. Od verzije ugovora 1.4.0. Zadano: nije dodijeljeno; samo ono što je u manifestu. Provedba: strogo. Gdje: u prozoru *Pomoć* (članci), kao nova kartica (projekt) i kao vodič koji ukazuje na gumbe. U prozoru za instalaciju uz nju ide objašnjenje: *help — smije dodavati članke pomoći, otvarati priložene projekte kao novi dokument i prikazivati vodič koji ukazuje na dijelove aplikacije.*
 
-**filesystem** — proširenje navodi da koristi datoteke. Učinak: nema. Nijedan dio sučelja nije povezan s time, a aplikacija to ne može provesti. Zadano: nije dodijeljeno; samo ono što je u manifestu. Provedba: samo informativno. Gdje: kao oznaka u prozoru za instalaciju.
+**filesystem** — proširenje navodi da koristi datoteke. Učinak: nema; nijedan dio sučelja nije s time povezan, a aplikacija to ne može provesti. Zadano: nije dodijeljeno; samo ono što je u manifestu. Provedba: samo informativno. Gdje: kao oznaka u prozoru za instalaciju.
 
 **network** — proširenje navodi da koristi mrežu. Učinak: nema; kao *filesystem*. Zadano: nije dodijeljeno; samo ono što je u manifestu. Provedba: samo informativno. Gdje: kao oznaka u prozoru za instalaciju.
 

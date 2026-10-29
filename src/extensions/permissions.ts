@@ -7,6 +7,8 @@
  */
 import type { ExtensionPermission } from './types';
 import { appLog } from '@/services/debug/appLog';
+// Zelfde kale instantie als de loader: UI-tekst zonder de DOM-afhankelijke i18n/config te laden.
+import i18next from 'i18next';
 
 /**
  * Afdwing-modus per guard:
@@ -69,6 +71,7 @@ export const API_PERMISSIONS: Record<string, PermissionCheck | null> = {
   'data.getProject': null,
   'data.getCalendar': null,
   'data.getTasks': null,
+  'data.getSelectedTaskIds': null,
   'data.getSequences': null,
   'data.getResources': null,
   'data.getAssignments': null,
@@ -110,10 +113,11 @@ export const KNOWN_PERMISSIONS: readonly ExtensionPermission[] = [
 ];
 
 /**
- * Filter een (mogelijk uit een nieuwere extensie afkomstige) permissie-lijst tot wat deze
- * app-versie kent. Onbekende strings worden weggelaten met een appLog-warn — forward-compat:
- * een extensie voor een latere versie installeert/activeert nog steeds, ze verliest alleen de
- * onbekende permissie(s). Legt géén dubbele waarden of niet-string-invoer door.
+ * Defensieve normalisatie voor de API-opbouw: behoud bekende permissies zonder duplicaten
+ * en laat niet-string-invoer weg. Onbekende strings geven een appLog-warn en worden weggelaten.
+ * Dit is géén installatiebeleid: parseExtensionManifest weigert onbekende permissies bij verse
+ * JS-/ZIP-/catalogusinvoer. Alleen de parser voor al opgeslagen legacyrecords filtert ze met
+ * een waarschuwing; bij normale activatie is die parse al afgerond vóór deze extra grens.
  */
 export function sanitizeManifestPermissions(
   raw: unknown,
@@ -146,7 +150,9 @@ function enforce(
 ): void {
   if (permissions.includes(check.perm)) return;
   if (check.mode === 'throw') {
-    throw new Error(`Extensie "${extensionId}" mist permissie: ${check.perm}`);
+    throw new Error(i18next.t('extensions.missingPermission', {
+      ns: 'menu', extensionId, permission: check.perm,
+    }));
   }
   // warn-modus: doorlaten, maar loggen (deprecatiepad).
   appLog.emit(
