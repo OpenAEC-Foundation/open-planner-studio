@@ -1,5 +1,6 @@
 // knownbugs #1: minutenlag op externe links mag in dagmodus niet verdwijnen.
-// Vergelijk alle relatiezijden met dezelfde afgeronde daglag; de uurmodus blijft ongemoeid.
+// §3.3/I11: de minutenlag blijft exact. Een scalaire kalender geeft dezelfde uitkomst
+// als dezelfde expliciete werkblokken; afronden naar hele daglag is sinds F2 verdwenen.
 import { CPMSolver } from '@/engine/scheduler/CPMSolver';
 import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
@@ -23,7 +24,7 @@ for (const base of ['ops', 'p6', 'msproject'] as const) {
     for (const direction of ['predecessor', 'successor'] as const) {
       for (const relType of ['FS', 'SS', 'FF', 'SF'] as const) {
         for (const sourceMissing of [false, true]) {
-          const solve = (lag: Pick<ExternalLink, 'lagDays' | 'lagMinutes'>) => {
+          const solve = (lag: Pick<ExternalLink, 'lagDays' | 'lagMinutes'>, explicit = false) => {
             const task: Task = {
               id: 'L', name: 'L', description: '', wbsCode: '', taskType: 'CONSTRUCTION',
               status: 'NOT_STARTED', isMilestone: false, priority: 500, parentId: null,
@@ -34,14 +35,14 @@ for (const base of ['ops', 'p6', 'msproject'] as const) {
                 sourceRef: { projectId: 'external-project', taskId: 'external-task' },
               }],
             };
-            const result = new CPMSolver([task], [], calendar, [], { schedulingOptions }).solve();
+            const result = new CPMSolver([task], [], explicit ? { ...calendar, workTime: { byWeekday: { 1: [{ start: 480, end: (8 + hoursPerDay) * 60 }], 2: [{ start: 480, end: (8 + hoursPerDay) * 60 }], 3: [{ start: 480, end: (8 + hoursPerDay) * 60 }], 4: [{ start: 480, end: (8 + hoursPerDay) * 60 }], 5: [{ start: 480, end: (8 + hoursPerDay) * 60 }], 6: [], 7: [] } } } : calendar, [], { schedulingOptions }).solve();
             if (result.error) throw new Error(result.error);
             return result.tasks.get('L');
           };
           for (const fraction of [-1.5, -0.5, 0, 0.5, 1.5]) {
-            const days = Math.sign(fraction) * Math.round(Math.abs(fraction));
+            const minutes = fraction * hoursPerDay * 60;
             eq(`${base}/${hoursPerDay}/${direction}/${relType}/${sourceMissing}/${fraction}`,
-              solve({ lagMinutes: fraction * hoursPerDay * 60 }), solve({ lagDays: days }));
+              solve({ lagMinutes: minutes }), solve({ lagMinutes: minutes }, true));
           }
           // Een expliciete nul in minuten blijft de bron, ook bij een oud conflicterend dagveld.
           eq(`${base}/${hoursPerDay}/${direction}/${relType}/${sourceMissing}/nul overschrijft dagveld`,

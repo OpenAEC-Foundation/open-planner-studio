@@ -97,7 +97,7 @@ async function scalarScenario(label: string, patch: Partial<WorkCalendar>): Prom
   // De echte openroute (parseOpenedFile → applyOpenedImport, met herberekening).
   const opened = createAppStoreContext().store;
   opened.getState().applyOpenedImport(await parseOpenedFile({ name: 'h7.ifc', text: ifc }), {
-    filePath: null, recompute: true, linkedOpen: true, hourDataNotice: true,
+    filePath: null, recompute: true, linkedOpen: true,
   });
   same(`${label}: na openen is de projectkalender ongewijzigd`, calendarShape(opened.getState().calendar), before);
   same(`${label}: na openen plant de urentaak identiek`,
@@ -247,7 +247,7 @@ same('§9 fixture: oude writer schreef geen H7-markering', ['WorkStartHour', 'Wo
 {
   const opened = createAppStoreContext().store;
   opened.getState().applyOpenedImport(await parseOpenedFile({ name: 'oud.ifc', text: legacyIfc }), {
-    filePath: null, recompute: true, linkedOpen: true, hourDataNotice: true,
+    filePath: null, recompute: true, linkedOpen: true,
   });
   same('§9c oud bestand geopend: projectkalender 07-16/8 scalair', calendarShape(opened.getState().calendar), legacy.projectCalendar);
   same('§9c oud bestand geopend: urentaak plant zoals vóór opslaan',

@@ -1,3 +1,4 @@
+// F2: taakdatums worden op D1/D2/D7-momenten vergeleken (§4.2); de echte handeling blijft gelijk.
 import { barPoint, expect, test } from './fixtures/ops';
 
 // Audit weergaven, bevinding 4: de groene spelingsband moet eindigen op "Laatste einde".
@@ -34,13 +35,13 @@ test('de spelingsband eindigt op "Laatste einde", ook over een weekend', async (
     const s = window.__OPS__!.store.getState();
     const a = s.tasks.find(t => t.id === id)!;
     return { stale: s.scheduleStale, lf: a.time.lateFinish, tf: a.time.totalFloat, critical: a.time.isCritical };
-  }, ids.A)).toEqual({ stale: false, lf: '2026-06-16', tf: 10, critical: false });
+  }, ids.A)).toEqual({ stale: false, lf: "2026-06-16T16:00", tf: 10, critical: false });
 
   const aRight = await barPoint(page, ids.A, 'right');
   const cLeft = await barPoint(page, ids.C, 'left');
-  // C begint op de dag ná "Laatste einde" van A (FS zonder lag), dus zijn linkerrand is precies
-  // het einde van die dag. Ter controle: dat ligt 14 kalenderdagen (12 px) rechts van de balk.
-  expect(cLeft.x - aRight.x).toBeCloseTo(14 * 12, 0);
+  // D1/D2: C begint woensdag 07:00; het late einde ligt dinsdag 16:00, vijftien klokuren ervoor.
+  expect(cLeft.x - aRight.x).toBeCloseTo((14 + 15 / 24) * 12, 0);
+  const lateFinishX = cLeft.x - 15 / 24 * 12;
 
   // Lees de canvasrij van A en zoek waar het band-groen ophoudt. Begin 30 px vóór "Laatste einde",
   // niet bij de balkrand: de naam "A kort" past niet in de smalle balk en staat rechts erachter,
@@ -72,11 +73,11 @@ test('de spelingsband eindigt op "Laatste einde", ook over een weekend', async (
       end += k;
     }
     return end / sx + r.left;
-  }, { x0: cLeft.x - 30, y: aRight.y });
+  }, { x0: lateFinishX - 30, y: aRight.y });
 
   await expect.poll(scanBandEnd, { message: 'geen spelingsband achter de balk van A geschilderd' }).not.toBeNull();
   const bandEnd = (await scanBandEnd())!;
   // Binnen twee pixels van de rand van "Laatste einde" (anti-aliasing op de rand).
-  expect(Math.abs(bandEnd - cLeft.x), `band eindigt op x=${bandEnd.toFixed(1)}, "Laatste einde" op x=${cLeft.x.toFixed(1)}`)
+  expect(Math.abs(bandEnd - lateFinishX), `band eindigt op x=${bandEnd.toFixed(1)}, "Laatste einde" op x=${lateFinishX.toFixed(1)}`)
     .toBeLessThanOrEqual(2);
 });

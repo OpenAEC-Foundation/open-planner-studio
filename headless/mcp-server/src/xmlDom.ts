@@ -98,23 +98,88 @@ export class XmlDocument {
 
 class XmlSyntaxError extends Error {}
 
-const PREDEFINED: Record<string, string> = { lt: '<', gt: '>', amp: '&', quot: '"', apos: "'" };
+// Namespaces in XML 1.0 §3–6: declaraties gelden voor de hele starttag, ongeacht attribuutvolgorde.
+// https://www.w3.org/TR/xml-names/
+const XML_NAMESPACE = 'http://www.w3.org/XML/1998/namespace';
+const XMLNS_NAMESPACE = 'http://www.w3.org/2000/xmlns/';
+const NC_NAME = /^[A-Z_a-z\u00c0-\u00d6\u00d8-\u00f6\u00f8-\u02ff\u0370-\u037d\u037f-\u1fff\u200c-\u200d\u2070-\u218f\u2c00-\u2fef\u3001-\ud7ff\uf900-\ufdcf\ufdf0-\ufffd\u{10000}-\u{effff}][A-Z_a-z0-9.\-\u00b7\u0300-\u036f\u203f-\u2040\u00c0-\u00d6\u00d8-\u00f6\u00f8-\u02ff\u0370-\u037d\u037f-\u1fff\u200c-\u200d\u2070-\u218f\u2c00-\u2fef\u3001-\ud7ff\uf900-\ufdcf\ufdf0-\ufffd\u{10000}-\u{effff}]*$/u;
+
+type NamespaceScope = { parent: NamespaceScope | null; bindings: Map<string, string> };
+
+function qualifiedName(name: string): [string, string] {
+  const parts = name.split(':');
+  if (parts.length > 2 || parts.some((part) => !NC_NAME.test(part))) {
+    throw new XmlSyntaxError(`invalid qualified name ${name}`);
+  }
+  return parts.length === 2 ? [parts[0], parts[1]] : ['', parts[0]];
+}
+
+function namespaceFor(prefix: string, scope: NamespaceScope): string {
+  if (prefix === 'xml') return XML_NAMESPACE;
+  // Geen kopie van alle geërfde bindingen per element en geen recursie bij diepe invoer.
+  for (let current: NamespaceScope | null = scope; current; current = current.parent) {
+    const value = current.bindings.get(prefix);
+    if (value !== undefined) return value;
+  }
+  if (prefix === '') return '';
+  throw new XmlSyntaxError(`unbound namespace prefix ${prefix}`);
+}
+
+function validateNamespaces(name: string, attrs: Map<string, string>, parent: NamespaceScope | null): NamespaceScope {
+  const scope: NamespaceScope = { parent, bindings: new Map() };
+  for (const [attr, uri] of attrs) {
+    const [prefix, local] = qualifiedName(attr);
+    if (attr !== 'xmlns' && prefix !== 'xmlns') continue;
+    const declared = attr === 'xmlns' ? '' : local;
+    if (declared === 'xmlns' || uri === XMLNS_NAMESPACE
+      || (declared === 'xml' ? uri !== XML_NAMESPACE : uri === XML_NAMESPACE)
+      || (declared !== '' && uri === '')) {
+      throw new XmlSyntaxError(`invalid namespace declaration ${attr}`);
+    }
+    scope.bindings.set(declared, uri);
+  }
+  const [prefix] = qualifiedName(name);
+  if (prefix === 'xmlns') throw new XmlSyntaxError('xmlns cannot be an element prefix');
+  // Alleen een expliciete prefix moet gebonden zijn; de default namespace wordt hier niet gebruikt.
+  if (prefix) namespaceFor(prefix, scope);
+  const expanded = new Set<string>();
+  for (const attr of attrs.keys()) {
+    const [attrPrefix, local] = qualifiedName(attr);
+    if (attr === 'xmlns' || attrPrefix === 'xmlns') continue;
+    // De default namespace geldt nooit voor ongeprefixte attributen.
+    const uri = attrPrefix ? namespaceFor(attrPrefix, scope) : '';
+    const key = JSON.stringify([uri, local]);
+    if (expanded.has(key)) throw new XmlSyntaxError(`duplicate expanded attribute ${attr}`);
+    expanded.add(key);
+  }
+  return scope;
+}
+
+const PREDEFINED = new Map([['lt', '<'], ['gt', '>'], ['amp', '&'], ['quot', '"'], ['apos', "'"]]);
+
+// XML 1.0 §2.2: dezelfde grens geldt letterlijk en in numerieke tekenverwijzingen.
+// https://www.w3.org/TR/xml/#charsets
+function validXmlChar(code: number): boolean {
+  return code === 0x9 || code === 0xa || code === 0xd
+    || (code >= 0x20 && code <= 0xd7ff) || (code >= 0xe000 && code <= 0xfffd)
+    || (code >= 0x10000 && code <= 0x10ffff);
+}
 
 function decodeEntities(raw: string, at: number): string {
   if (!raw.includes('&')) return raw;
   return raw.replace(/&([^;&\s]*);?/g, (match, ref: string) => {
     if (!match.endsWith(';')) throw new XmlSyntaxError(`unterminated entity reference near offset ${at}`);
-    if (ref.startsWith('#x') || ref.startsWith('#X')) {
+    if (ref.startsWith('#x')) {
       const code = Number.parseInt(ref.slice(2), 16);
-      if (!/^[0-9a-fA-F]+$/.test(ref.slice(2)) || code > 0x10ffff) throw new XmlSyntaxError(`invalid character reference &${ref};`);
+      if (!/^[0-9a-fA-F]+$/.test(ref.slice(2)) || !validXmlChar(code)) throw new XmlSyntaxError(`invalid character reference &${ref};`);
       return String.fromCodePoint(code);
     }
     if (ref.startsWith('#')) {
       const code = Number.parseInt(ref.slice(1), 10);
-      if (!/^\d+$/.test(ref.slice(1)) || code > 0x10ffff) throw new XmlSyntaxError(`invalid character reference &${ref};`);
+      if (!/^\d+$/.test(ref.slice(1)) || !validXmlChar(code)) throw new XmlSyntaxError(`invalid character reference &${ref};`);
       return String.fromCodePoint(code);
     }
-    const value = PREDEFINED[ref];
+    const value = PREDEFINED.get(ref);
     if (value === undefined) throw new XmlSyntaxError(`undefined entity &${ref};`);
     return value;
   });
@@ -123,11 +188,16 @@ function decodeEntities(raw: string, at: number): string {
 /** Parse XML-tekst. Gooit `XmlSyntaxError` bij een fout; `DOMParser` hieronder maakt daar een
  *  `parsererror`-document van. */
 export function parseXml(input: string): XmlDocument {
-  const src = input.charCodeAt(0) === 0xfeff ? input.slice(1) : input;
+  // XML 1.0 §2.11: normaliseer fysieke regeleinden vóór het decoderen van entiteiten.
+  const src = (input.charCodeAt(0) === 0xfeff ? input.slice(1) : input).replace(/\r\n?/g, '\n');
+  for (const char of src) {
+    if (!validXmlChar(char.codePointAt(0)!)) throw new XmlSyntaxError('invalid XML character');
+  }
   const n = src.length;
   let i = 0;
   let root: XmlElement | null = null;
   const stack: XmlElement[] = [];
+  const scopes = new WeakMap<XmlElement, NamespaceScope>();
 
   const expectEnd = (marker: string, what: string): number => {
     const end = src.indexOf(marker, i);
@@ -148,6 +218,7 @@ export function parseXml(input: string): XmlDocument {
       const end = src.indexOf('<', i);
       const stop = end < 0 ? n : end;
       const raw = src.slice(i, stop);
+      if (raw.includes(']]>')) throw new XmlSyntaxError(`CDATA terminator outside CDATA at offset ${i}`);
       if (stack.length === 0) {
         if (raw.trim() !== '') throw new XmlSyntaxError(`text outside the root element at offset ${i}`);
       } else {
@@ -197,6 +268,7 @@ export function parseXml(input: string): XmlDocument {
     // Starttag. Het element hangt meteen aan zijn ouder (de bovenste open tag) of wordt de wortel.
     i++;
     const el = new XmlElement(readName());
+    const attrs = new Map<string, string>();
     const parent = stack.length > 0 ? stack[stack.length - 1] : null;
     if (parent) {
       parent.append(el);
@@ -222,9 +294,12 @@ export function parseXml(input: string): XmlDocument {
       const raw = src.slice(i + 1, end);
       if (raw.includes('<')) throw new XmlSyntaxError(`'<' in attribute value at offset ${i}`);
       if (el.hasAttribute(attr)) throw new XmlSyntaxError(`duplicate attribute ${attr}`);
-      el.setAttribute(attr, decodeEntities(raw, i));
+      const value = decodeEntities(raw.replace(/[\t\n]/g, ' '), i);
+      el.setAttribute(attr, value);
+      attrs.set(attr, value);
       i = end + 1;
     }
+    scopes.set(el, validateNamespaces(el.tagName, attrs, parent ? scopes.get(parent)! : null));
   }
   if (stack.length > 0) throw new XmlSyntaxError(`element <${stack[stack.length - 1].tagName}> is not closed`);
   if (!root) throw new XmlSyntaxError('no root element');

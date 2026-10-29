@@ -221,7 +221,10 @@
     "msProjectLostFixedCosts_one": "Kiinteitä kustannuksia ei tuotu {{count}} tehtävältä.",
     "msProjectLostFixedCosts_other": "Kiinteitä kustannuksia ei tuotu {{count}} tehtävältä.",
     "msProjectLostResourceRates_one": "Normaalihintoja ei tuotu {{count}} resurssilta.",
-    "msProjectLostResourceRates_other": "Normaalihintoja ei tuotu {{count}} resurssilta."
+    "msProjectLostResourceRates_other": "Normaalihintoja ei tuotu {{count}} resurssilta.",
+    "minuteModelConverted_one": "{{document}}: {{count}} tehtävällä on muunnoksen jälkeen eri alku tai loppu. Suurin siirtymä on {{days}} työpäivää. Ctrl+Z palauttaa tallennetut päivämäärät.",
+    "minuteModelConverted_other": "{{document}}: {{count}} tehtävällä on muunnoksen jälkeen eri alku tai loppu. Suurin siirtymä on {{days}} työpäivää. Ctrl+Z palauttaa tallennetut päivämäärät.",
+    "minuteModelCalendarRepaired": "Kalenteri ”{{calendar}}” on korjattu: sen loppu tai tauko ei vastannut tallennettua työaikaa."
   },
   "scheduleErrors": {
     "cycle": "Kehäriippuvuus tehtävien välillä: {{path}}",
@@ -335,16 +338,17 @@
     "themeHighContrast": "Suuri kontrasti",
     "themeFollowSystem": "Seuraa järjestelmän teemaa",
     "themeSystemHint": "Seuraa järjestelmän värimaailmaa (nyt: {{theme}}).",
-    "hourPlanningSection": "Tuntisuunnittelu",
-    "enableHourPlanning": "Ota tuntisuunnittelu käyttöön",
-    "enableHourPlanningHint": "Ottaa käyttöön tunti- ja minuuttiaikataulutuksen: tuntiasteikon, työvuorot työaikakaistoineen ja tarkat tehtäväpalkit. Pois ⇒ sovellus toimii kokonaan päiväkohtaisesti kuten ennen.",
     "showTaskTypes": "Tehtävätyypit käyttöön",
     "showTaskTypesHint": "Valitse tehtävän kohdalla, mikä muuttuu, kun kesto, kuormitusaste tai työ muuttuu, kuten Task Type MS Projectissa ja Duration Type P6:ssa. Pois: kesto ja kuormitusaste pysyvät ennallaan. Tiedosto, joka sisältää tehtävätyyppien asetuksia tai tallennettua työtä, näyttää ne myös silloin, kun tämä on pois päältä.",
     "allowMixedDayHour": "Salli sekoitettu päivä/tuntisuunnittelu",
     "defaultTaskDurationUnit": "Oletusmitta uusille tehtäville",
-    "defaultTaskDurationUnitHint": "Määrittää, alkavatko uudet tehtävät työpäivinä vai työtunteina. Olemassa olevat tehtävät eivät muutu.",
+    "defaultTaskDurationUnitHint": "Päivämitta: kesto lasketaan kalenterin työpäivien mukaan. Tuntimitta: kesto lasketaan työtunteina. Olemassa olevat tehtävät eivät muutu. Tehtävässä, jolla on kiinteä työmäärä, käytetään aina tuntimittaa.",
+    "defaultTaskDurationUnitDays": "Päiväyksikkö",
+    "defaultTaskDurationUnitHours": "Tuntiyksikkö",
+    "defaultTaskDurationUnitLocked": "Profiili {{profile}} laskee keston tunteina. Uudet tehtävät saavat siksi tuntiyksikön.",
     "durationDisplay": "Keston näyttö",
     "durationDisplayHint": "Määrittää, miten tehtävän kesto näytetään, riippumatta yksiköstä, jossa tehtävä on itse tallennettu.",
+    "durationDisplayOpsHint": "OPS-profiilissa jokainen tehtävä näyttää oman yksikkönsä.",
     "durationDisplayAuto": "Automaattinen (oma mitta kullekin tehtävälle)",
     "durationDisplayDays": "Aina päivinä",
     "durationDisplayHours": "Aina tunteina",
@@ -1116,10 +1120,6 @@
     "month": "kuukausi",
     "year": "vuosi"
   },
-  "hourData": {
-    "notice": "Tämä tiedosto sisältää tuntisuunnittelua.",
-    "enable": "Ota tuntisuunnittelu käyttöön"
-  },
   "recordedDates": {
     "activeCount_one": "Aikataulu näytetään sellaisena kuin Primavera sen tallensi. Kun lasketaan uudelleen, {{count}} tehtävä siirtyisi.",
     "activeCount_other": "Aikataulu näytetään sellaisena kuin Primavera sen tallensi. Kun lasketaan uudelleen, {{count}} tehtävää siirtyisi.",
@@ -1483,6 +1483,14 @@
     "p6AlapPositionedFromSuccessors": {
       "label": "ALAP-tehtävät mahdollisimman myöhään seuraajien sallimana",
       "help": "Vain tuntisuunnittelussa, aloittamattomalle ja ei manuaalisesti ajoitetulle tehtävälle, jolla on rajoite ”mahdollisimman myöhään” (ALAP). Seuraajien varhaiset päivämäärät määräävät sen sijainnin minuuttitarkasti; seuraajat lasketaan ensin. Oma suunniteltu alkamispäivä ei vaikuta. Edeltäjät, raportointipäivä ja toinen rajoite pätevät edelleen. Ilman seuraajaa se käyttää omaa myöhäisintä valmistumispäiväänsä. Tavallinen ALAP-vaihe pysyy käytettävissä jokaisessa profiilissa."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Erilliset välitavoitteet työpäivän lopussa",
+      "help": "Erillinen välitavoite tai loppuvälitavoite ilman edeltäjää sijoittuu työpäivänsä loppuun."
+    },
+    "workdayDurationMeasure": {
+      "label": "Kesto työpäivinä",
+      "help": "Kesto, viive tai jäljellä oleva kesto päivinä lasketaan työpäivinä: jokainen työpäivä lasketaan yhdeksi, riippumatta siitä, kuinka pitkä päivä on. Pois käytöstä: päivä lasketaan kalenterin päivittäisten työtuntien määräksi. Prosentteina ilmaistu viive noudattaa edeltäjän yksikköä. Kulunutta aikaa ei lasketa koskaan työpäivinä."
     }
   },
   "profiles": {
@@ -1521,6 +1529,7 @@
       "float": "Pelivara ja myöhäiset päivämäärät",
       "instants": "Päivämäärät ja ajankohdat tiedostosta",
       "msproject": "Edistyminen Microsoft Project -tavalla",
+      "durations": "Kesto ja yksikkö",
       "ownProfilesOnly": "Vain omat profiilit"
     },
     "ownProfilesOnlyNote": "Nämä laskentasäännöt ovat pois päältä jokaisessa sisäänrakennetussa laskentaprofiilissa, myös Primavera P6 -profiilissa. Vain oma laskentaprofiili voi ottaa ne käyttöön: valitse siihen Uusi profiili.",

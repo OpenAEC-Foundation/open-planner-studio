@@ -218,9 +218,14 @@ middelTasks.push({ key: 'P3', name: '3. Structural works per house', taskType: '
 // blijft gelijk, dus de onderlinge volgorde/afstand — incl. de doorschuivende metselploeg tussen
 // woningen — blijft exact intact).
 const RUWBOUW_PROGRESS: Record<number, { mg?: [number, number]; vl?: [number, number] | number; mv?: [number, number]; kap?: [number, number] }> = {
+  // F3c (spec §3.11, §4.2 D1/D2): de belasting van een voltooide taak volgt haar actualspanne op
+  // minuten; een einddatum zonder tijd is het einde van die werkdag, een startdatum het begin. Een
+  // ploeg die op de einddag van woning i aan woning i+1 begint, staat die dag dus twee keer geboekt,
+  // op VOLTOOID werk (voor de nivelleerder onoplosbaar), net als hieronder bij woning 4. Daarom start
+  // het metselwerk van woning 2 en 3 één dag later; de einddagen en de rest van de keten blijven gelijk.
   1: { mg: [27, 33], vl: [33, 37], mv: [37, 43], kap: [43, 48] },
-  2: { mg: [33, 39], vl: [39, 43], mv: [43, 49], kap: [49, 54] },
-  3: { mg: [39, 45], vl: [45, 49], mv: [49, 55], kap: [55, 58] },
+  2: { mg: [34, 39], vl: [39, 43], mv: [43, 49], kap: [49, 54] },
+  3: { mg: [40, 45], vl: [45, 49], mv: [49, 55], kap: [55, 58] },
   // B1c: mg van woning 4 start op dag 46 i.p.v. 45. De dag-offsets in deze tabel worden met
   // `addBusinessDays` (alleen weekenden) naar datums vertaald, terwijl de resourcebelasting op de
   // PROJECTkalender (weekenden + feestdagen) valt. Het metselwerk van woning 3 loopt over

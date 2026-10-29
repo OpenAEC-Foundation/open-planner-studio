@@ -1,3 +1,4 @@
+import { normalizeTaskDates } from '@/state/migrations/minuteModel';
 // Tutorialproject *Aanbouw woning* / *House extension* — de kern van de generator (zonder
 // side-effects). Bouwt het doorlopende project van de zeven tutorials (ontwerp
 // `docs/superpowers/specs/2026-09-28-gebruikersdocumentatie-diataxis-design.md`, §3.1 en §5) stap
@@ -10,7 +11,7 @@
 //   na-tut-2       + relaties (FS, twee met lag), berekend
 //   tussen-tut-3-bouwvak  na-tut-2 + bouwvak in de projectkalender, berekend
 //   na-tut-3       + bouwvak in de projectkalender, één constraint (SNET), één deadline
-//   na-tut-4       + urenplanning aan; stort, kanaalplaatvloer en dakelementen in uren
+//   na-tut-4       + stort, kanaalplaatvloer en dakelementen in uren
 //   tussen-tut-5-resources   na-tut-4 + de vijf resources (nog niets toegewezen)
 //   tussen-tut-5-toegewezen  + alle toewijzingen, berekend
 //   tussen-tut-5-werkregel   + werkregel "Vast werk" op het stucwerk met 2 stukadoors, berekend
@@ -57,32 +58,35 @@
 //                nu bij de constraint: Kozijnen → Achtergevel doorbreken → Installaties → Stucwerk →
 //                Dekvloer → Tegelwerk → Opleverpunten → Oplevering; alles daarvoor 3 wd speling.
 //                Deadline vr 10 sep op de oplevering: gehaald, 7 wd marge; verschuift geen balk.
-//   na-tut-4     einde blijft wo 1 sep. Fundering storten vr 18 jun 07:00–14:00 (6 u, pauze 12–13),
-//                Kanaalplaatvloer ma 28 jun 07:00–12:00 (5 u), Dakelementen di 6 jul 07:00–14:00
-//                (6 u). Speling van stort/dakelementen 3,25 wd en vloer 3,375 wd: de werkdag loopt
-//                tot 16:00, de dagtaak-opvolger begint pas de volgende ochtend.
+//   na-tut-4     einde blijft wo 1 sep (48 wd). Fundering storten vr 18 jun 07:00–14:00 (6 u, pauze
+//                12–13). In de dagenmaat begint een dagtaak direct na een urentaak, niet de volgende
+//                ochtend: Funderingsmetselwerk wo 23 jun 14:00 – vr 25 jun 14:00 (lag 3 wd na de stort),
+//                Kanaalplaatvloer vr 25 jun 14:00 – ma 28 jun 10:00 (5 u), binnen- en buitenspouwblad
+//                vanaf ma 28 jun 10:00, Dakelementen ma 5 jul 10:00 – di 6 jul 08:00 (6 u). Speling van
+//                alles vóór de kozijnen 3,875 wd, Buitenspouwblad 5,625 wd.
 //   tussen-tut-5-resources   planning = na-tut-4 (wo 1 sep, 48 wd); vijf resources, geen toewijzingen.
-//   tussen-tut-5-toegewezen  planning nog steeds wo 1 sep (48 wd, 8 kritieke taken); Metselaar al
-//                5 wd overbezet (29 jun – 5 jul); Stucwerk 4 wd (23–28 jul), 1 stukadoor.
-//   tussen-tut-5-werkregel   Stucwerk "Vast werk", 2 stukadoors: 2 wd (vr 23 – ma 26 jul);
-//                oplevering ma 30 aug, 46 wd, 8 kritieke taken; Metselaar nog 5 wd overbezet.
-//   na-tut-5    na toewijzen + werkregel (Stucwerk "Vast werk", stukadoor 1 → 2: 4 → 2 wd):
-//                oplevering ma 30 aug, Metselaar 5 wd overbezet (binnen- en buitenspouwblad tegelijk,
-//                29 jun – 5 jul). Nivelleren (dialoogstandaard) schuift Buitenspouwblad 5 wd op
-//                (di 6 – di 13 jul); geen overbezetting meer; oplevering blijft ma 30 aug (de
-//                kozijnen wachten toch tot 14 jul). Kritiek: Start bouw … Inspectie wapening →
-//                Funderingsmetselwerk → Buitenspouwblad → Kozijnen … Oplevering. Stort (0,25 wd) en
-//                Kanaalplaatvloer (0,375 wd) houden hun uurspeling en zijn dus niet kritiek.
-//   tussen-tut-6-*  in het bestand nog de planning van na-tut-5 (einde ma 30 aug, 46 wd, 17 kritieke
+//   tussen-tut-5-toegewezen  planning nog steeds wo 1 sep (48 wd, 8 kritieke taken); Metselaar 6 wd
+//                overbezet, ma 28 jun – ma 5 jul (belasting 1,25 / 2 / 2 / 2 / 2 / 1,375); Stucwerk 4 wd
+//                (23–28 jul), 1 stukadoor.
+//   tussen-tut-5-werkregel   Stucwerk "Vast werk" (een taak in uren), 2 stukadoors: 16 u (vr 23 – ma 26
+//                jul); oplevering ma 30 aug, 46 wd, 8 kritieke taken; Metselaar nog 6 wd overbezet.
+//   na-tut-5    na toewijzen + werkregel (Stucwerk "Vast werk", stukadoor 1 → 2: 32 → 16 u):
+//                oplevering ma 30 aug, Metselaar 6 wd overbezet. Nivelleren (dialoogstandaard) schuift
+//                Buitenspouwblad 5 wd op (ma 5 jul 10:00 – di 13 jul 10:00, houdt 0,625 wd speling);
+//                geen overbezetting meer; oplevering blijft ma 30 aug (de kozijnen wachten toch tot
+//                14 jul). Kritiek: Kozijnen … Oplevering (8 taken); alles vóór het binnenspouwblad
+//                houdt 0,625 wd speling, het binnenspouwblad zelf 3,875 wd.
+//   tussen-tut-6-*  in het bestand nog de planning van na-tut-5 (einde ma 30 aug, 46 wd, 8 kritieke
 //                taken): de lezer rekent pas in stap 8. De app rekent bij het OPENEN van een .ifc wel:
-//                geopend geeft statusdatum ma 20 sep (alles niet-begonnen op 28 jun, 23 kritieke taken,
-//                deadline overschreden), voorbereiding di 14 sep (deadline overschreden), ontgraven vr
-//                10 sep, fundering wo 1 sep, metselwerk = na-tut-6 (di 31 aug).
+//                geopend geeft statusdatum ma 20 sep 10:00 (alles niet-begonnen op 28 jun, 22 kritieke
+//                taken, deadline overschreden), voorbereiding di 14 sep 10:00 (deadline overschreden),
+//                ontgraven vr 10 sep 10:00, fundering wo 1 sep 12:00, metselwerk = na-tut-6.
 //   na-tut-6     basisplanning "Basisplanning" (oplevering ma 30 aug), statusdatum ma 28 jun.
 //                Werkelijk: Start bouw 7 jun, Bouwplaats 7–8 jun, Tuin 9 jun, Uitzetten 10 jun,
 //                Funderingssleuf ontgraven vr 11 – di 15 jun (3 i.p.v. 2 wd), Wapening 16–18 jun,
 //                Inspectie 18 jun, Fundering storten ma 21 jun 07:00–14:00; Funderingsmetselwerk
-//                gestart vr 25 jun, 50 %. Oplevering di 31 aug: 1 wd later dan de basisplanning.
+//                gestart vr 25 jun, 50 %. Oplevering di 31 aug 12:00 (47 wd, 11 kritieke taken); het
+//                Variance-rapport telt op dagniveau en meldt +1 werkdag ten opzichte van de basisplanning.
 //   na-tut-7     = na-tut-6.
 import { useAppStore } from '@/state/appStore';
 import { writeIFC } from '@/services/ifc/ifcWriter';
@@ -435,7 +439,7 @@ export function buildTutorialProject(lang: TutorialLang): TutorialBuild {
   // Schone lei: `newProject` zet de store terug, zodat `createNewProject` het (lege) tabblad
   // hergebruikt, net als bij de eerste start van de app.
   S().newProject();
-  S().setUI({ enableHourPlanning: false });
+  S().setUI({ });
   const span = computeGenerateSpan(PROJECT_START, undefined);
   // Wizardstandaard: land Nederland, geen bouwvak, generatiespanne startjaar−1 … startjaar+3.
   const wizardCalendar: WorkCalendar = buildGeneratedCalendar(
@@ -536,8 +540,8 @@ export function buildTutorialProject(lang: TutorialLang): TutorialBuild {
   if ((S().cpmResult?.missedDeadlineTaskIds ?? []).length !== 0) fail(lang, 'tut-3: motor meldt gemiste deadline');
   stages.push(b.snapshot('na-tut-3'));
 
-  // ── Tutorial 4: Instellingen › Urenplanning inschakelen; duur in uren (Duur-veld "6h") ──
-  S().setUI({ enableHourPlanning: true, allowMixedDayHour: true });
+  // ── Tutorial 4: Duur in uren (Duur-veld "6h") ──
+  S().setUI({ allowMixedDayHour: true });
   const calForHours = S().calendar;
   for (const h of HOUR_TASKS) {
     const t = b.task(h.task);
@@ -621,8 +625,10 @@ export function buildTutorialProject(lang: TutorialLang): TutorialBuild {
         fail(lang, `tut-6: werkelijke start ${row.task} geweigerd (${row.start})`);
       }
       if (!S().setActualFinish(b.id(row.task), row.finish)) fail(lang, `tut-6: werkelijk einde ${row.task} geweigerd (${row.finish})`);
-      const t = b.task(row.task).time;
-      if (t.completion !== 1 || t.actualStart !== row.start || t.actualFinish !== row.finish) {
+      const source = b.task(row.task);
+      const expected = normalizeTaskDates({ ...source, time: { ...source.time, actualStart: row.start, actualFinish: row.finish } }, S()).time;
+      const t = source.time;
+      if (t.completion !== 1 || t.actualStart !== expected.actualStart || t.actualFinish !== expected.actualFinish) {
         fail(lang, `tut-6: voortgang ${row.task} is ${t.actualStart} – ${t.actualFinish} ${t.completion}`);
       }
     }
@@ -634,7 +640,9 @@ export function buildTutorialProject(lang: TutorialLang): TutorialBuild {
   checkProgressAgainstBaseline(b);
   b.calculate('tut-6');
   const f6 = b.facts();
-  if (f6.finish <= f5.finish) fail(lang, 'tut-6: de uitloop van het ontgraven verschuift de einddatum niet');
+  // Alleen uren §3.14: de dagenmaat telt het deel van een dag, dus de uitloop van een halve dag bij het
+  // ontgraven geeft een einde op di 31 augustus 12:00 (F2 hield hier nog hele dagen: ma 30 aug 16:00).
+  if (f6.finish !== '2027-08-31T12:00') fail(lang, `tut-6: onverwacht einde ${f6.finish}`);
   if (f6.counts.baselines !== 1) fail(lang, 'tut-6: geen basisplanning');
   const s6 = b.snapshot('na-tut-6');
   stages.push(s6);
@@ -676,13 +684,20 @@ function checkProgressAgainstBaseline(b: Builder): void {
     const bt = planned(row.task);
     const extra = row.task === LATE_TASK.task ? LATE_TASK.extraWorkdays : 0;
     const want = { start: shift(bt.start, late), finish: shift(bt.finish, late + extra) };
-    if (row.start !== want.start || row.finish !== want.finish) {
+    const source = b.task(row.task);
+    const entered = normalizeTaskDates({ ...source, time: { ...source.time, actualStart: row.start, actualFinish: row.finish } }, st).time;
+    if (entered.actualStart !== want.start || entered.actualFinish !== want.finish) {
       fail(b.lang, `tut-6: ${row.task} ${row.start} – ${row.finish} wijkt af van baseline + uitloop (${want.start} – ${want.finish})`);
     }
     late += extra;
   }
-  const want = shift(planned(IN_PROGRESS.task).start, late);
-  if (IN_PROGRESS.start !== want) fail(b.lang, `tut-6: start ${IN_PROGRESS.task} ${IN_PROGRESS.start} ≠ baseline + uitloop (${want})`);
+  // T16: de exacte lag vanaf de urenstort geeft nu woensdag 14:00 als baselinestart.
+  // De geregistreerde start op vrijdag blijft een letterlijk feit (N0), ook na F3.
+  const baselineStart = planned(IN_PROGRESS.task).start;
+  const actualStart = normalizeTaskDates({ ...b.task(IN_PROGRESS.task), time: { ...b.task(IN_PROGRESS.task).time, actualStart: IN_PROGRESS.start } }, st).time.actualStart;
+  if (baselineStart !== '2027-06-23T14:00' || actualStart !== '2027-06-25T07:00') {
+    fail(b.lang, `tut-6: onverwachte baseline/werkelijke start ${baselineStart} / ${actualStart}`);
+  }
 }
 
 /** De datum `count` werkdagen ná `iso` op de projectkalender (werkdagen + feestdagen). */

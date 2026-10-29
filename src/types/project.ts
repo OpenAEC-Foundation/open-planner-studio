@@ -55,6 +55,8 @@ export interface LevelingSettings {
  * `rehab-2.xer` is P3-uitvoer en telt niet als P6-bewijs.
  */
 export interface SchedulingOptions {
+  /** B6: losse mijlpalen en FINISH zonder voorganger op het einde van de werkdag. */
+  milestoneWithoutPredecessorAtDayEnd?: boolean;
   /** Kalender waarin een relatie-lag telt (P6 4-way). Default 'predecessor'. Geldt voor elk formaat
    *  (`relDeps.lagEngine`, `CPMSolver.ts`). */
   lagCalendar?: 'predecessor' | 'successor' | '24hour' | 'projectDefault';
@@ -66,7 +68,9 @@ export interface SchedulingOptions {
     threshold?: number;
     thresholdHours?: number;
   };
-  /** TF-berekeningswijze: 'start' = LS−ES, 'finish' = LF−EF, 'smallest' = min(beide) (P6-modus).
+  /** TF-berekeningswijze: 'start' = LS−ES, 'finish' = LF−EF, 'smallest' = min(beide) (P6-keuze
+   *  `FT_MIN`). Het P6-profiel en de XER-lezer zetten standaard 'finish' (`p6OptionDefaults`; een
+   *  lege of onbekende `sched_float_type` valt ook op 'finish').
    *  Afwezig = *Automatisch*: finish-float bij statusdatum én gestarte taak, anders het minimum
    *  (`scheduleAnalysis.ts`). Met een statusdatum is dat de regel van MS Project; zonder statusdatum
    *  telt voortgang niet mee (MSP neemt dan voor een gestarte taak nog steeds de finish slack). Ook de
@@ -410,25 +414,38 @@ export interface SchedulingOptions {
    *  `positionAlapFromSuccessors`). Een `constraint2` blijft gelden: SNLT/FNLT begrenzen de vroege finish
    *  van boven, SNET/FNET de start van onder (`backwardBoundOf`/`forwardBoundOf`); bij een botsing wint
    *  de ondergrens (eigen keuze, niet tegen P6 geijkt).
-   *  Bewuste beperkingen (geen P6-bron, geijkt op het corpus): alleen een UURkalender — een ALAP-taak op
-   *  een dagkalender houdt de gewone OPS-stap in hele werkdagen (ongemeten; niet veranderen zonder meting); en
-   *  alleen niet-gestarte taken (een voltooide ALAP-taak kwam anders verder van P6 te staan).
+   *  Bewuste beperkingen (geen P6-bron, geijkt op het corpus): alleen een kalender met eigen werkblokken —
+   *  een ALAP-taak op een andere kalender volgt de gewone stap (hieronder; sinds de aanval na #600 voor een
+   *  niet-gestarte taak met haar duur tot de grens van de opvolgers, niet meer in hele werkdagen; de
+   *  corpusmeting daarvan staat open); en alleen niet-gestarte taken (een voltooide ALAP-taak kwam anders
+   *  verder van P6 te staan).
    *
    *  - P6: aan. Oracle P6 Help, constraint "As Late As Possible": zo laat als kan zonder de opvolgers te
    *    vertragen, dus binnen de vrije speling. Empirisch (HarbourPointe, ALAP-keten).
    *  - MS Project: uit. Plant ALAP vanaf de late datums van de taak (ongemeten).
-   *  - OPS: uit (de gewone stap: de vroege datums schuiven in hele werkdagen op met de vrije speling, in
-   *    topologische volgorde, ook bij een gestarte taak). */
+   *  - OPS: uit (de gewone stap, `CPMSolver.applyAlap`, opvolgers eerst: een niet-gestarte taak eindigt op
+   *    de laatste grens die haar opvolgers met hun vroege datums toestaan, niet voorbij haar late finish
+   *    (deadline, constraints), met haar duur in de maat van het profiel, en schuift alleen later; een gestarte taak en een hammock schuiven in hele werkdagen op met
+   *    de vrije speling). */
   p6AlapPositionedFromSuccessors?: boolean;
+  /** Dagenmaat (spec alleen-uren §3.14): telt een taak, lag of rest in de dagenmaat (`durationUnit: 'days'`,
+   *  `lagDays` zonder `lagMinutes`) als werkdagen op de kalender, en niet als uren?
+   *  - Primavera P6: uit. Een dagenmaat telt als uren: dagen × werktijd per dag × 60 minuten.
+   *  - MS Project: uit, idem.
+   *  - OPS: aan. Elke werkdag telt als 1, hoe lang ook.
+   *  Kalendertijd (`ELAPSEDTIME`) en een procentlag tellen nooit in de dagenmaat. De vraag "telt dit in de
+   *  dagenmaat?" stel je via `conventions/durationMeasure.ts`. Nog niet gelezen door de solver (F3c). */
+  workdayDurationMeasure?: boolean;
 }
 
 /**
- * Rekenprofielen (tweelagenmodel): de zevenentwintig PAKKETCONVENTIES — regels die per planningspakket
+ * Rekenprofielen (tweelagenmodel): de negenentwintig PAKKETCONVENTIES — regels die per planningspakket
  * verschillen en niet per bestand. Ze leven in het profiel (`Project.schedulingProfile`), niet in
  * `Project.schedulingOptions`; die draagt de per-bestand projectinstellingen. De twee
  * sleutelverzamelingen zijn disjunct (compile-time bewaakt in `conventions/registry.ts`).
  */
 export type ConventionKey =
+  | 'milestoneWithoutPredecessorAtDayEnd'
   | 'preserveActualDatesInBackwardPass'
   | 'clampNegativeFreeFloat'
   | 'p6ZeroDurationUsesPlannedBoundary'
@@ -455,7 +472,8 @@ export type ConventionKey =
   | 'p6LateFinishOnOwnCalendar'
   | 'p6ProgressOverrideIgnoresStartedSuccessor'
   | 'p6FinishNotBeforeFinishFinishBound'
-  | 'p6AlapPositionedFromSuccessors';
+  | 'p6AlapPositionedFromSuccessors'
+  | 'workdayDurationMeasure';
 
 /** De elf per-bestand projectinstellingen: alles in `SchedulingOptions` behalve de conventies. */
 export type ProjectOptionKey = Exclude<keyof SchedulingOptions, ConventionKey>;
@@ -528,8 +546,11 @@ export interface Project {
   modifiedAt: string;
   author: string;
   company: string;
-  /** Projectstandaard voor handmatig aangemaakte taken. De urenplanning-hoofdschakelaar blijft de
-   *  capabilitypoort: staat die uit, dan maakt de UI ondanks deze bewaarde voorkeur dagtaken. */
+  /** "Standaardmaat voor nieuwe taken" (spec "alleen uren" §3.2, besluit B1a): dagenmaat of urenmaat.
+   *  Afwezig ⇒ de standaard van het profiel: dagenmaat in het OPS-profiel. Telt het profiel geen dagenmaat
+   *  (conventie `workdayDurationMeasure` uit: P6, MS Project), dan staat de standaardmaat vast op urenmaat;
+   *  dit veld blijft dan bewaard voor een wissel terug. Een taak met vast werk is altijd urenmaat. De
+   *  regel staat in `state/newTaskMeasure.ts`. */
   defaultTaskDurationUnit?: import('@/types/task').TaskDurationUnit;
   /** Projectstandaard-werkregel voor elke taak zonder eigen `workRule`. Afwezig ⇒ FIXED_DURATION_RATE.
    *  Round-tript via `OPS_ProjectSettings` (`DefaultWorkRule`). */

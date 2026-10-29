@@ -11,6 +11,7 @@ import { computeReliableResourceLoad } from '@/engine/scheduler/ResourceLoad';
 import { builtInProfile } from '@/engine/scheduler/conventions/registry';
 import { isLeafTask } from '@/utils/taskHierarchy';
 import { markScheduleStale } from '@/state/transaction';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 
 for (const profile of ['ops', 'p6', 'msproject'] as const) {
   for (const hours of [false, true]) {
@@ -47,6 +48,7 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
       s.cpmResult = solveProject(solveInputFor(s.project, s.tasks, s.sequences, s.calendar, s.calendars));
       s.resourceLoadResult = computeReliableResourceLoad(
         s.cpmResult, s.resources, s.assignments, s.tasks, s.calendar, s.calendars,
+        effectiveSchedulingOptions(s.project),
       );
     });
     strictEqual(expected.cpmResult?.error, undefined);

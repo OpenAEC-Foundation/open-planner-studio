@@ -72,7 +72,7 @@ interface Fixture { store: Store; S: () => ReturnType<Store['getState']>; cid: s
 function fixture(): Fixture {
   const store = createAppStore();
   const S = () => store.getState();
-  S().applyOpenedImport(parsedXer(), { filePath: '/tmp/v1.xer', recompute: true, fit: false, hourDataNotice: false, linkedOpen: true });
+  S().applyOpenedImport(parsedXer(), { filePath: '/tmp/v1.xer', recompute: true, fit: false, linkedOpen: true });
   const cid = S().addCompany('Kalenderbibliotheek BV');
   S().bindProjectToCompany(cid);
   const poolId = S().promoteCalendarToPool(cid, S().calendars.find((c) => c.id === S().project.calendarId)!)!;
@@ -158,7 +158,7 @@ console.log('-- (d) heropenen: eigen IFC, bibliotheek intussen gewijzigd --');
   const ifc = writeIFC(buildWriteIFCInput(f.S()));
   f.S().newProject();
   fridayOff(f);
-  f.S().applyOpenedImport(readXerArchiveIFC(ifc), { filePath: '/tmp/v1.ifc', recompute: true, fit: false, hourDataNotice: false, linkedOpen: true });
+  f.S().applyOpenedImport(readXerArchiveIFC(ifc), { filePath: '/tmp/v1.ifc', recompute: true, fit: false, linkedOpen: true });
   eq('d0 voorwaarde: de open-grens ververste de kalender', f.S().calendar.workDays, [1, 2, 3, 4]);
   // Het bestand is sinds de import bewerkt (koppeling aan de bibliotheek), maar IN de modus
   // opgeslagen: het opent weer in de modus, "zoals je het achterliet" (eigenaar, 2026-10-17). De
@@ -168,7 +168,7 @@ console.log('-- (d) heropenen: eigen IFC, bibliotheek intussen gewijzigd --');
   // Hetzelfde bestand als ONBEWERKT (vlag aan) opent wél in de modus; de strook telt dan NA de
   // verversing.
   f.S().newProject();
-  f.S().applyOpenedImport({ ...readXerArchiveIFC(ifc), importPristine: true }, { filePath: '/tmp/v1.ifc', recompute: true, fit: false, hourDataNotice: false, linkedOpen: true });
+  f.S().applyOpenedImport({ ...readXerArchiveIFC(ifc), importPristine: true }, { filePath: '/tmp/v1.ifc', recompute: true, fit: false, linkedOpen: true });
   eq('d2 onbewerkt: modus aan, strook telt NA de verversing: 3', [f.S().datesAsRecorded, f.S().scheduleStale, strip(f)], [true, false, 3]);
   eq('d2b de lijst per taak hoort bij hetzelfde getal', f.S().recordedDates?.shiftedTaskIds?.length, 3);
   eq('d3 strookgetal = wat F5 echt verschuift', strip(f), realF5Shift(f));

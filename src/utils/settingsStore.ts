@@ -20,6 +20,7 @@ import type { LayoutOverlays } from '@/types/view';
 import type { FeatureFlagValues } from '@/utils/featureFlags';
 import { migrateSavedFilters } from '@/engine/view/layoutPresets';
 import { AI_MODE_AVAILABLE } from '@/utils/buildFlags';
+import { isTauri } from '@/utils/platform';
 import {
   legacyLayoutColumnsToTaskGridPreferences,
   normalizePersistedTaskGridPreferences,
@@ -33,6 +34,19 @@ import {
  * vielen dan terug op de standaard — of werd een opslagactie een onafgehandelde rejection. Lezen
  * geeft dan `null` (= "niet ingesteld"), schrijven waarschuwt één keer en gaat door.
  */
+/**
+ * Is er een `localStorage`? Al het LEZEN van de global kan gooien: in een sandbox-iframe zonder
+ * `allow-same-origin` (opaque origin, #583) geeft de getter een `SecurityError`, en `typeof` vangt
+ * een gooiende getter niet. Headless (Node) ontbreekt de global; beide gelden als "geen opslag".
+ */
+export function localStorageAvailable(): boolean {
+  try {
+    return typeof localStorage !== 'undefined';
+  } catch {
+    return false;
+  }
+}
+
 export function readLocal(key: string): string | null {
   try {
     return localStorage.getItem(key);
@@ -105,7 +119,19 @@ export const THEME_MIGRATION: Record<string, UITheme> = {
   'system': 'system',
 };
 
+/** Dev-link `?theme=light|dark` (alleen de browser op de dev-server, docs/dev-link.md): het thema
+ *  voor deze sessie. `initTheme`/`peekTheme` geven het terug zonder `ops-theme` te schrijven, dus de
+ *  bewaarde voorkeur blijft staan. Niet in Tauri-dev; in een productiebouw is `import.meta.env.DEV`
+ *  false en valt dit weg. */
+function devSessionTheme(): UITheme | null {
+  if (!import.meta.env.DEV || typeof window === 'undefined' || isTauri()) return null;
+  const theme = new URLSearchParams(window.location.search).get('theme');
+  return theme === 'light' || theme === 'dark' ? theme : null;
+}
+
 export async function initTheme(): Promise<UITheme> {
+  const session = devSessionTheme();
+  if (session) return session;
   const saved = readLocal('ops-theme');
   if (!saved) return 'dark';
 
@@ -124,6 +150,8 @@ export async function initTheme(): Promise<UITheme> {
  *  geen localStorage) valt dit terug op 'dark'; `initTheme` blijft de persisterende bron. */
 export function peekTheme(): UITheme {
   try {
+    const session = devSessionTheme();
+    if (session) return session;
     const saved = readLocal('ops-theme');
     if (!saved) return 'dark';
     return THEME_MIGRATION[saved] ?? 'dark';
@@ -477,17 +505,17 @@ export async function saveAutoCalcCPM(value: boolean): Promise<void> {
 // sjabloon, neutraal taaktype). Default AAN.
 // AFWIJKING van de meeste load*-helpers: dit paar is SYNCHROON (geen Promise) omdat de synchrone
 // default-kalenderfabriek (`createDefaultCalendar`/`buildGeneratedCalendar`) de vlag direct moet
-// kunnen uitlezen. De `typeof localStorage`-guard houdt de headless test-/Node-omgeving (geen
-// localStorage) op de default (bouwmodus aan), waar de CPM-suite op rekent.
+// kunnen uitlezen. De `localStorageAvailable`-guard houdt de headless test-/Node-omgeving (geen
+// localStorage) én een afgeschermde opslag op de default (bouwmodus aan), waar de CPM-suite op rekent.
 export function loadConstructionMode(): boolean {
-  if (typeof localStorage === 'undefined') return true;
+  if (!localStorageAvailable()) return true;
   const raw = readLocal('ops-constructionMode');
   if (raw === null) return true;
   try { return JSON.parse(raw) !== false; } catch { return true; }
 }
 
 export function saveConstructionMode(value: boolean): void {
-  if (typeof localStorage === 'undefined') return;
+  if (!localStorageAvailable()) return;
   writeLocal('ops-constructionMode', JSON.stringify(value));
 }
 
@@ -515,13 +543,10 @@ export async function saveUIFontScale(value: number): Promise<void> {
   await setSetting('uiFontScale', value);
 }
 
-// --- Urenplanning-instellingen. App-instellingen, dus onder de 3-plekken-regel
+// --- Duurinstellingen. App-instellingen, dus onder de 3-plekken-regel
 //     (tandwiel/ribbontab/backstage delen SettingsPanelContent). Ontbrekende/corrupte sleutel ⇒
-//     undefined → de store houdt zijn default (hoofdschakelaar uit, gemengd aan, duurweergave
+//     undefined → de store houdt zijn default (gemengd aan, duurweergave
 //     automatisch, balk-opsplitsing bij selectie), zonder reset van andere voorkeuren.
-export async function saveEnableHourPlanning(value: boolean): Promise<void> {
-  await setSetting('enableHourPlanning', value);
-}
 
 /** "Toon taaktypes" — werkregel en resterend werk zichtbaar in de UI. */
 export async function saveShowTaskTypes(value: boolean): Promise<void> {
@@ -644,7 +669,7 @@ export async function saveLastVersion(value: string): Promise<void> {
 // `aiAutoBackup` zijn app-instellingen (async, patroon van saveAutoCalcCPM). `mcpPort` en `mcpToken`
 // zijn SYNCHROON (zelfde afwijking als loadConstructionMode): de bridge-levenscyclus (`server.ts`)
 // moet ze direct kunnen uitlezen bij het starten, en de headless test draait zonder async-bootstrap.
-// De `typeof localStorage`-guard houdt de Node-test-/headless-omgeving op de default zonder crash.
+// De `localStorageAvailable`-guard houdt de Node-test-/headless-omgeving op de default zonder crash.
 
 /**
  * AI-modus persisteren. Default UIT. Het LADEN loopt via de settingsRegistry
@@ -677,7 +702,7 @@ export async function saveAiAutoBackup(value: boolean): Promise<void> {
 export const MCP_DEFAULT_PORT = 3877;
 
 export function loadMcpPort(): number {
-  if (typeof localStorage === 'undefined') return MCP_DEFAULT_PORT;
+  if (!localStorageAvailable()) return MCP_DEFAULT_PORT;
   const raw = readLocal('ops-mcpPort');
   if (raw === null) return MCP_DEFAULT_PORT;
   let n: number;
@@ -686,20 +711,20 @@ export function loadMcpPort(): number {
 }
 
 export function saveMcpPort(value: number): void {
-  if (typeof localStorage === 'undefined') return;
+  if (!localStorageAvailable()) return;
   writeLocal('ops-mcpPort', JSON.stringify(Math.round(value)));
 }
 
 /** Bridge-Bearer-token. Default null (nog niet gegenereerd); `server.ensureMcpToken` vult 'm bij eerste start. */
 export function loadMcpToken(): string | null {
   // Platformbouw (#307): geen token in de gedeelde browseropslag, ook niet een oud token lezen.
-  if (!AI_MODE_AVAILABLE || typeof localStorage === 'undefined') return null;
+  if (!AI_MODE_AVAILABLE || !localStorageAvailable()) return null;
   const raw = readLocal('ops-mcpToken');
   return typeof raw === 'string' && raw ? raw : null;
 }
 
 export function saveMcpToken(value: string): void {
-  if (!AI_MODE_AVAILABLE || typeof localStorage === 'undefined') return;
+  if (!AI_MODE_AVAILABLE || !localStorageAvailable()) return;
   writeLocal('ops-mcpToken', value);
 }
 

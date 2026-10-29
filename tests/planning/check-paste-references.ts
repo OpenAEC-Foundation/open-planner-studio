@@ -1,3 +1,4 @@
+// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 // Plakken in een ANDER document (audit taakmutaties §8): het klembord is app-globaal, dus een tak uit
 // document A kan verwijzingen meebrengen naar definities die alleen in A bestaan — een taakkalender,
 // een eigen taaktype, activity codes en gebruikersvelden. Voorheen landden die id's ongezien in B:
@@ -9,6 +10,11 @@
 import './domStub';
 import { useAppStore } from '@/state/appStore';
 import type { CellEditIntent } from '@/types/taskGrid';
+import { produce } from 'immer';
+import type { Task } from '@/types/task';
+import { normalizeInsertedBranch, assignInsertedWbsCodes, insertRemappedRelations } from '@/state/insertedBranch';
+import { applyWbsNumbering, deriveWbsCodes } from '@/utils/wbs';
+import { createDefaultTaskTime } from '@/utils/taskDefaults';
 
 const S = () => useAppStore.getState();
 const diffs: string[] = [];
@@ -38,7 +44,7 @@ S().setTaskActivityCode(T, codeType, codeValue);
 S().setTaskCustomField(T, field, 42);
 S().runCPM();
 const inA = S().tasks.find(t => t.id === T)!;
-eq('A: einde op de 7/7-kalender', inA.time.earlyFinish, '2026-03-08');
+eq('A: einde op de 7/7-kalender', inA.time.earlyFinish, "2026-03-08T16:00");
 S().copyTasks([T]);
 
 // ── Binnen hetzelfde document plakken: alle verwijzingen bestaan, niets wordt gewist ──
@@ -89,6 +95,98 @@ eq('B: plakken blijft één undo-stap', S().historyEvents.filter(e => e.state ==
   const t2 = S().tasks.find(t => t.id === p2)!;
   eq('deels: bestaande activity code blijft', t2.activityCodes, { [codeType]: codeValue });
   eq('deels: onbekend gebruikersveld gaat weg', t2.customFields, undefined);
+}
+
+// De lookup moet dezelfde EERSTE taak vinden als Array.find, ook bij corrupte invoer.
+// De ids komen uit een iterator: een volgende taak kan intussen in dezelfde producer veranderen.
+for (const auto of [false, true]) {
+  // Deze lookup-proef varieert alleen kalenderverwijzingen; neem geen activiteitscodes uit
+  // een eerdere storetest mee. De echte plakroutes hierboven toetsen alle verwijzingssoorten.
+  const seed: Task = {
+    id: 'seed', name: 'Basis', description: '', wbsCode: '', taskType: 'CONSTRUCTION',
+    status: 'NOT_STARTED', isMilestone: false, priority: 500, parentId: null, childIds: [],
+    resourceIds: [], time: createDefaultTaskTime('2026-03-02', 2, 'days'),
+  };
+  const base = {
+    tasks: [
+      { ...seed, id: 'eerste', name: 'Eerste', parentId: null, childIds: [], calendarId: 'wees', wbsCode: 'eigen' },
+      { ...seed, id: 'tweede', name: 'Tweede', parentId: null, childIds: [], calendarId: 'geldig' },
+      { ...seed, id: 'eerste', name: 'Dubbel', parentId: null, childIds: [], calendarId: 'wees', wbsCode: 'dubbel' },
+      { ...seed, id: '', name: 'Lege id', parentId: null, childIds: [], calendarId: 'wees' },
+    ] as Task[],
+    calendar: { id: 'geldig' }, calendars: [], customTaskTypes: [], activityCodeTypes: [], customFieldDefs: [],
+    project: { wbsAutoNumber: auto },
+  };
+  const run = (legacy: boolean) => {
+    let cleared = 0;
+    const state = produce(base, s => {
+      // De index moet ook deze net toegevoegde taak zien.
+      s.tasks.push({ ...seed, id: 'nieuw', name: 'Nieuw', parentId: null, childIds: [], calendarId: 'wees' });
+      function* ids() {
+        yield 'eerste';
+        s.tasks[1].calendarId = 'wees';
+        yield 'tweede';
+        yield 'ontbreekt';
+        yield 'eerste';
+        yield '';
+        yield 'nieuw';
+      }
+      if (legacy) {
+        for (const id of ids()) {
+          const task = s.tasks.find(t => t.id === id);
+          if (task?.calendarId !== undefined && task.calendarId !== 'geldig') {
+            delete task.calendarId;
+            cleared++;
+          }
+        }
+        if (auto) applyWbsNumbering(s.tasks);
+        else {
+          const codes = deriveWbsCodes(s.tasks);
+          for (const id of ['eerste', 'tweede', 'ontbreekt', 'eerste', '', 'nieuw']) {
+            const task = s.tasks.find(t => t.id === id);
+            const code = codes.get(id);
+            if (task && code !== undefined) task.wbsCode = code;
+          }
+        }
+      } else {
+        cleared = normalizeInsertedBranch(s, ids());
+        assignInsertedWbsCodes(s, ['eerste', 'tweede', 'ontbreekt', 'eerste', '', 'nieuw']);
+      }
+    });
+    return { state, cleared };
+  };
+  eq(`lookup: uitvoerpariteit met find, auto-WBS=${auto}`, run(false), run(true));
+  eq(`lookup: vier levende verwijzingen gewist, auto-WBS=${auto}`, run(false).cleared, 4);
+  eq(`lookup: tweede dubbele id blijft ongemoeid, auto-WBS=${auto}`,
+    run(false).state.tasks[2].calendarId, 'wees');
+}
+
+// Een telbaar leesbudget, zonder wandklok: de selectie staat achteraan in een groter document.
+// Dit faalt met de oude find-lussen, onafhankelijk van CPU, JIT of runnerdrukte.
+for (const size of [1000, 2000]) {
+  let reads = 0;
+  const tasks: Task[] = Array.from({ length: size }, (_, i) => ({
+    ...S().tasks[0], parentId: null, childIds: [],
+    get id() { reads++; return `taak-${i}`; },
+  }));
+  const ids = Array.from({ length: 100 }, (_, i) => `taak-${size - 100 + i}`);
+  normalizeInsertedBranch({ tasks, calendar: { id: 'geldig' }, calendars: [], customTaskTypes: [],
+    activityCodeTypes: [], customFieldDefs: [] }, ids);
+  eq(`${size}/100 normaliseren: hooguit één id-lezing per documenttaak`, reads <= size, true);
+  reads = 0;
+  const relations = ids.slice(1).map((id, i) => ({
+    predecessorId: ids[i], successorId: id, type: 'FINISH_START' as const, lagDays: 0,
+  }));
+  const skipped = insertRemappedRelations({ tasks, sequences: [] }, relations, new Map(ids.map(id => [id, id])));
+  eq(`${size}/100 relaties: geen weigeringen`, skipped, []);
+  eq(`${size}/100 relaties: hooguit één id-lezing per documenttaak`, reads <= size, true);
+  reads = 0;
+  deriveWbsCodes(tasks);
+  const derivationReads = reads;
+  reads = 0;
+  assignInsertedWbsCodes({ tasks, project: { wbsAutoNumber: false } }, ids);
+  eq(`${size}/100 handmatige WBS: afleiding plus één id-lezing per documenttaak`,
+    reads <= derivationReads + size, true);
 }
 
 if (diffs.length === 0) {

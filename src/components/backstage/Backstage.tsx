@@ -262,8 +262,9 @@ function RecentSection() {
   const openRecentFile = useAppStore(s => s.openRecentFile);
   const setUI = useAppStore(s => s.setUI);
 
-  // Fallback-web zonder site: geen herbruikbare refs → recents verbergen. Met site-opslag wél tonen.
-  if (!supportsRecentFiles()) return null;
+  // Fallback-web zonder site heeft geen herbruikbare refs, maar de navigatie blijft bereikbaar.
+  // Toon daarom uitleg in plaats van een leeg paneel (knownbug 38).
+  const supported = supportsRecentFiles();
   // Een site-bestand is alleen te openen zolang de site er is; anders tonen we het niet.
   const site = siteStorageAvailable();
   const recentFiles = site ? allRecentFiles : allRecentFiles.filter(e => e.ref.kind !== 'site');
@@ -271,8 +272,10 @@ function RecentSection() {
   return (
     <>
       <h2 className="backstage-title">{tMenu('backstage.recentTitle')}</h2>
-      <p className="backstage-subtitle">{tMenu('backstage.recentSubtitle')}</p>
-      {recentFiles.length === 0 ? (
+      {supported && <p className="backstage-subtitle">{tMenu('backstage.recentSubtitle')}</p>}
+      {!supported ? (
+        <div className="backstage-empty" data-ops-recent-unavailable>{tMenu('backstage.recentUnavailable')}</div>
+      ) : recentFiles.length === 0 ? (
         <div className="backstage-empty">{tMenu('backstage.recentEmpty')}</div>
       ) : (
         <div className="backstage-recent-list">

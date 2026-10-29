@@ -12,9 +12,9 @@
  * RELATIES, niet datumconstraints), resources uit `TBkndRsc` en assignments uit `TBkndAssn`
  * (`mppEntities.ts`).
  *
- * Veldsemantiek is gespiegeld aan `readMSPDI` (mspdiReader.ts) — zelfde afronding voor duur,
- * dezelfde constrainttype-codes (`mspCodeToConstraint`), dezelfde progress-normalisatie
- * (`normalizeImportedProgress`).
+ * Veldsemantiek is gespiegeld aan `readMSPDI` (mspdiReader.ts) — dezelfde maat voor duur, rest en lag
+ * (altijd de urenmaat, in minuten zonder afronding: alleen uren §3.10, T15), dezelfde constrainttype-codes
+ * (`mspCodeToConstraint`), dezelfde progress-normalisatie (`normalizeImportedProgress`).
  *
  * UURMODUS: dezelfde (c)-discriminator-orkestratie als `mspdiReader.ts` (zie `@/services/subdayIo`).
  * Een kalender promoveert naar uur-modus zodra ze zelf afwijkt ((a)/(b): meerdere banden per
@@ -22,24 +22,23 @@
  * (sub-dag-duur `isSubDayMinutes`, of een Start/Finish die van het kalender-eigen anker afwijkt,
  * `hasNonAnchorTime`/`mppAnchorClock`). Promotie (`promoteCalendarsForHourMode`) kan pas ná een
  * volledige taak-scan, dus `readTasks` doet drie passes: (A) ruwe scan zonder `Task`-object,
- * (B) signaalverzameling + promotie, (C) de `Task`-objecten met de dag/uur-beslissing per taak. In
- * uur-modus komt `durationMinutes` uit de rauwe tienden-van-minuten-duur, behouden datums hun
- * tijdcomponent (`formatInstant(..., 'hour')`) en krijgt `TBkndCons`-lag naar een uur-opvolger
- * `lagMinutes` (`mppLagToSequenceFields`). Dag-modus-bestanden doorlopen dezelfde code met
- * `isHour=false`.
+ * (B) signaalverzameling + promotie, (C) de `Task`-objecten met de dag/uur-beslissing per kalender. De
+ * uur-modus van de kalender bepaalt alleen nog de datums: in uur-modus behouden ze hun tijdcomponent
+ * (`formatInstant(..., 'hour')`), anders alleen de datum. Duur, rest (`durationMinutes`,
+ * `remainingMinutes` uit de rauwe tienden van minuten) en `TBkndCons`-lag (`lagMinutes`,
+ * `mppLagToSequenceFields`) zijn in elke modus de urenmaat.
  *
  * PARITEIT MET MSPDI geldt alleen bij `workStartHour === 8`: MSPDI's anker is een vaste 08:00, deze
  * lezer gebruikt het kalender-eigen startuur (zie `mppAnchorClock`). Bij een ander startuur
  * divergeren de lezers op een taak die precies op dat startuur landt (gepind in
  * `check-mpp-import.ts`, "ankerdivergentie").
  *
- * TWEE ASYMMETRISCHE REKENPADEN (bewust):
- *  - `scheduleDuration`: het UUR-pad rekent op de werktijd per dag van de effectieve taakkalender
- *    (`hourTaskScheduleDuration`, ná promotie); het DAG-pad op de projectbrede `hoursPerDay` (Props/MINUTES_PER_DAY,
- *    of 8u), ook als de taak een kalender-override met een ander `hoursPerDay` draagt.
- *  - `Sequence.lagMinutes`: een relatie naar een uur-opvolger krijgt altijd `lagMinutes`, ook `0`
- *    (spiegelt mspdiReader's `taskHourById`-tak). Dat verandert de serialisatievorm t.o.v. een
- *    relatie zonder het veld; geaccepteerd.
+ * DE MAAT (F5b, I4):
+ *  - `scheduleDuration` rekent op de werktijd per dag van de effectieve taakkalender
+ *    (`hourTaskScheduleDuration`, ná promotie). Het vroegere DAG-pad (hele werkdagen op de projectbrede
+ *    `hoursPerDay`) is weg.
+ *  - `Sequence.lagMinutes`: een WORKTIME-relatie krijgt altijd `lagMinutes`, ook `0`, zoals de
+ *    MSPDI-lezer.
  *
  * HIËRARCHIE: MPXJ vult `PARENT_TASK_UNIQUE_ID` wel, maar `ProjectFile.updateStructure()` bouwt de
  * boom uit de taken gesorteerd op ID, met het outline-level als enige dieptesignaal. Deze lezer
@@ -62,17 +61,17 @@ import type {
 } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import { effHoursPerDay, hourTaskScheduleDuration } from '@/utils/taskDuration';
-import type { Resource, ResourceType } from '@/types/resource';
+import type { Resource } from '@/types/resource';
 import { hasMsProjectImportLoss, type ImportLabels, type ImportResult } from '@/services/importTypes';
 import { generateId } from '@/utils/id';
 import { formatDate, formatInstant, parseInstant, localTodayIso } from '@/utils/dateUtils';
 import { normalizeImportedProgress, deriveImportedWorkRules, reconstructResourceIds } from '@/services/importNormalize';
 import { emptyMissingScheduleDates, resolveMissingScheduleDates } from '@/services/importDates';
-import { tenthsOfMinutesToDays } from '@/services/importDurations';
 import { mspCodeToConstraint } from '@/services/msproject/mspdiReader';
 import { statusDateFromXml, toXmlDateTime } from '@/services/xmlInterchange';
 import { hasNonAnchorTime, isSubDayMinutes, milestoneKindAt } from '@/services/subdayIo';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { assignmentRemainingMinutes } from '@/engine/work/workTriangle';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { CfbFile } from './cfb';
 import { assertReadable, detectApplicationVersion, Props } from './mppContainer';
@@ -87,7 +86,7 @@ import {
 } from './fieldMap14';
 import { readCalendars, promoteCalendarsForHourMode, type CalendarReadResult } from './mppCalendars';
 import { MAX_VAR_TEXT_BYTES, clampRemainingDurationTenths, clampManualDurationTenths, clampLevelingDelayTenths } from './limits';
-import { readRelations, readResources, readAssignments, readAssignmentTimephasedRaw } from './mppEntities';
+import { readRelations, readResources, readAssignments, readAssignmentTimephasedRaw, decodeAssignmentUnits } from './mppEntities';
 import { scanMppImportLoss } from './mppImportLoss';
 import { collectValidTaskIndices } from './mppRecords';
 import { builtInProfile } from '@/engine/scheduler/conventions/registry';
@@ -368,13 +367,10 @@ export interface ReadTasksContext {
 }
 
 /** - `taskIdByUniqueId`: TBkndCons-relaties en TBkndAssn-assignments verwijzen naar taken via hun
- *    MPP-uniqueID; dit is de vertaling naar `Task.id` (spiegelt mspdiReader's `uidToId`).
- *  - `taskHourById`: per taak of ze in uur-modus is — `readRelations` kiest daarmee de lag-eenheid
- *    (spiegelt mspdiReader's `taskHourById`). */
+ *    MPP-uniqueID; dit is de vertaling naar `Task.id` (spiegelt mspdiReader's `uidToId`). */
 export interface ReadTasksResult {
   tasks: Task[];
   taskIdByUniqueId: Map<number, string>;
-  taskHourById: Map<string, boolean>;
   /** TEST-/METINGSVELD: de rauwe Fase-A-scan van elke geldige taak. `readMPP` geeft dit niet door
    *  aan `ImportResult`; alleen voor `check-mpp-import.ts`. */
   rawScans: readonly RawTaskScan[];
@@ -407,7 +403,7 @@ export interface RawTaskScan {
   /** Rauwe REMAINING_DURATION (tienden van een minuut, zelfde eenheid + eenhedenbron als
    *  `durationRaw`). `null` als het veld ontbreekt of het record te kort is — Fase C laat
    *  `remainingMinutes`/`remainingTime` dan ongezet; `normalizeImportedProgress` leidt ze bij een
-   *  taak met voortgang af uit `completion`. */
+   *  taak met voortgang af uit `completion`. Aanwezig ⇒ die bronrest blijft staan. */
   remainingDurationRaw: number | null;
   /** Rauwe LEVELING_DELAY (tienden van een minuut), geklemd (`clampLevelingDelayTenths`, limits.ts)
    *  omdat Fase C hem als duur decodeert (`Task.levelingDelayMinutes`). `0` als het veld ontbreekt. */
@@ -689,53 +685,52 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
     const durMinutes = raw.durationRaw / 10;
     const durSignal = isSubDayMinutes(durMinutes, cal.hoursPerDay);
     const anchor = mppAnchorClock(cal);
-    const dateSignal =
-      (raw.startTs != null && hasNonAnchorTime(formatInstant(raw.startTs, 'hour'), anchor)) ||
-      (raw.finishTs != null && hasNonAnchorTime(formatInstant(raw.finishTs, 'hour'), anchor));
+    // Ook een werkelijke datum met een eigen tijd telt: een feit uit de bron. Anders blijft de kalender
+    // scalair, kapt `formatField` "11:00" af tot de datum, en maakt de laadnormalisatie er het blokeinde
+    // van (review ronde 3 van PR #559, deel B; zelfde regel als mspdiReader).
+    const dateSignal = [raw.startTs, raw.finishTs, raw.actualStartTs, raw.actualFinishTs]
+      .some(ts => ts != null && hasNonAnchorTime(formatInstant(ts, 'hour'), anchor));
     if (durSignal || dateSignal) cSignalCals.add(cal);
   }
   const hourModeCals = promoteCalendarsForHourMode(calResult.calendarByUniqueId, cSignalCals, calResult.fileHoursPerDay);
 
   // ── Fase C: de `Task`-objecten, met de nu bekende dag/uur-beslissing per taak. ─────────────────
   const taskIdByUniqueId = new Map<number, string>();
-  const taskHourById = new Map<string, boolean>();
   const records: RawTaskRecord[] = [];
   /** "Datums zoals opgeslagen" — per taak-id MSP's eigen rekenuitvoer (zie `TaskFieldId.EarlyStart`). */
   const recordedTimes: Record<string, RecordedTime> = {};
+  // Taken die nog lopen: geen werkelijk einde en een rest groter dan 0. MS Project zet een werkelijk einde
+  // zodra een taak klaar is; op 100 % is het hele percentage dan afgerond. Zie `runningAtFullIds` in
+  // `normalizeImportedProgress`: alleen op 100 % zonder werkelijk einde telt de set (zoals MSPDI).
+  const runningAtFullIds = new Set<string>();
   for (const raw of raws) {
     const cal = raw.effCal;
     const isHour = hourModeCals.has(cal);
 
-    // Duur: uur ⇒ minuten (bron van waarheid, geen dag-afronding); dag ⇒ werkdagen op de
-    // PROJECT-brede `hoursPerDay` (niet die van de taakkalender, zie de moduleheader). `durationMinutes` is
-    // klok-neutraal (een minuut is een minuut); de solver past ELAPSEDTIME 24/7 toe (`duration.ts`).
-    // Beperkingen daar: MSO/MFO-snaps op een ELAPSEDTIME-taak (`CPMSolver.hardPinStart`) en de
-    // vrije-speling-eenheid bij een elapsed voorganger (`scheduleAnalysis.ts`).
-    const durationMinutes = isHour ? Math.round(raw.durationRaw / 10) : undefined;
-    // Valkuil: een ELAPSED-duur ligt in MPP al vast in KLOK-minuten (MPPUtility.getAdjustedDuration's
-    // ELAPSED-takken: vaste 24-uursdag, geen minutes-per-day-factor). `tenthsOfMinutesToDays` deelt
-    // door `hoursPerDay × 60` (werktijd) en zou dus onterecht een tweede keer door `hoursPerDay`
-    // delen; dag-modus + elapsed rekent daarom met de vaste klokdag (24 × 60 × 10 tienden).
-    // Urentaak: dagengetal via `hourTaskScheduleDuration`, niet ÷ de opgeslagen `hoursPerDay`.
-    const duration = isHour
-      ? hourTaskScheduleDuration(durationMinutes!, cal)
-      : raw.isElapsedDuration
-        ? raw.durationRaw / (24 * 60 * 10)
-        : tenthsOfMinutesToDays(raw.durationRaw, hoursPerDay);
+    // Duur: altijd de urenmaat (alleen uren §3.10, T15; I4, F5b). MS Project telt alleen werkminuten, en
+    // een `.mpp` draagt nooit de OPS-markering voor de dagenmaat (OPS schrijft geen `.mpp`; ook geen van
+    // de 661 `.mpp`'s in het corpus draagt een `OPS_`-veld, en deze lezer leest geen eigen tekstvelden).
+    // De minuten zijn de bron van waarheid, zonder afronding op hele dagen. Vroeger kreeg een taak op een
+    // kalender zonder tijdsignaal hele werkdagen op de projectbrede `hoursPerDay`. `durationMinutes` is
+    // klok-neutraal (een minuut is een minuut): een ELAPSED-duur ligt in MPP al vast in KLOK-minuten
+    // (MPPUtility.getAdjustedDuration's ELAPSED-takken: vaste 24-uursdag), en de solver past ELAPSEDTIME
+    // 24/7 toe (`duration.ts`). Beperkingen daar: MSO/MFO-snaps op een ELAPSEDTIME-taak
+    // (`CPMSolver.hardPinStart`) en de vrije-speling-eenheid bij een elapsed voorganger
+    // (`scheduleAnalysis.ts`). Het dagengetal via `hourTaskScheduleDuration`, niet ÷ de opgeslagen
+    // `hoursPerDay`. MPP telt in tienden van een minuut; die blijven staan (§3.10 "in minuten zonder
+    // afronding"; review #591 r1, punt 3). Een breuk gaat als `ExactMinutes`-record mee naar IFC en XML (T14).
+    const durationMinutes = raw.durationRaw / 10;
+    const duration = hourTaskScheduleDuration(durationMinutes, cal);
 
-    // REMAINING_DURATION rechtstreeks meenemen, met dezelfde eenheden-/elapsed-conversie als
-    // `duration`. `null` ⇒ beide ongezet en de solver leidt de rest af uit `completion`. Waarom:
-    // MSP's eigen restduur is exact (4 werkdagen = 1920 min), terwijl `completion` afgerond is
-    // opgeslagen (33% i.p.v. 33,33…%) — de afleiding zou op een klokstand landen die MSP nooit toont.
-    // In DAG-modus overschrijft `normalizeImportedProgress` `remainingTime` alsnog met de afgeleide
-    // waarde; `remainingMinutes` (UUR-modus) laat hij staan.
-    const remainingMinutes = isHour && raw.remainingDurationRaw !== null
-      ? Math.round(raw.remainingDurationRaw / 10)
-      : undefined;
-    const remainingTime = !isHour && raw.remainingDurationRaw !== null
-      ? (raw.isElapsedDuration
-        ? raw.remainingDurationRaw / (24 * 60 * 10)
-        : tenthsOfMinutesToDays(raw.remainingDurationRaw, hoursPerDay))
+    // REMAINING_DURATION rechtstreeks meenemen, in minuten zoals de duur, zonder afronding (ook een rest
+    // van 1,5 d of 2,5 d is zo exact: 720 of 1200 min op 8 u per dag). `null` ⇒ ongezet en de solver
+    // leidt de rest af uit `completion`. Waarom: MSP's eigen restduur is exact (4 werkdagen = 1920 min),
+    // terwijl `completion` afgerond is opgeslagen (33% i.p.v. 33,33…%) — de afleiding zou op een
+    // klokstand landen die MSP nooit toont. `normalizeImportedProgress` laat `remainingMinutes` van een
+    // lopende taak staan (4 d bij 33 % van 6 d blijft 1920 min, niet 1930 min), ook op 100 % zonder
+    // werkelijk einde (`runningAtFullIds` hieronder).
+    const remainingMinutes = raw.remainingDurationRaw !== null
+      ? raw.remainingDurationRaw / 10
       : undefined;
 
     const formatField = (ts: Date | null): string | undefined =>
@@ -808,11 +803,10 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
       time: {
         durationType: raw.isElapsedDuration ? 'ELAPSEDTIME' : 'WORKTIME',
         // MPP bewaart geplande duur in werkminuten; DurationUnits is uitsluitend het
-        // invoer-/weergaveformaat. De precisiediscriminator hierboven bepaalt daarom de
-        // betekenisvolle blijvende OPS-eenheid, net als vóór het expliciete taakmodel.
-        durationUnit: isHour ? 'hours' : 'days',
+        // invoer-/weergaveformaat. De blijvende OPS-maat is daarom de urenmaat (T15).
+        durationUnit: 'hours',
         scheduleDuration: duration,
-        ...(durationMinutes != null ? { durationMinutes } : {}),
+        durationMinutes,
         scheduleStart: start,
         scheduleFinish: finish,
         earlyStart: start,
@@ -826,7 +820,6 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
         actualFinish,
         ...(resume != null ? { resume } : {}),
         ...(stop != null ? { stop } : {}),
-        ...(remainingTime != null ? { remainingTime } : {}),
         ...(remainingMinutes != null ? { remainingMinutes } : {}),
         completion: raw.percentComplete / 100,
       },
@@ -845,8 +838,8 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
     if (!resolvedStartTs) missingDates.start.add(task.id);
     if (!resolvedFinishTs) missingDates.finish.add(task.id);
     records.push({ uniqueId: raw.uniqueId, id: raw.id, outlineLevel: raw.outlineLevel, storedWbs: raw.storedWbs, task });
+    if (raw.actualFinishTs === null && (raw.remainingDurationRaw ?? 0) > 0) runningAtFullIds.add(task.id);
     taskIdByUniqueId.set(raw.uniqueId, task.id);
-    taskHourById.set(task.id, isHour);
 
     // "Datums zoals opgeslagen": MSP's eigen uitvoer als apart kanaal. Start/einde:
     // EARLY_START/EARLY_FINISH, terugval het opgeslagen (manual-bewuste) paar van `task.time`. Slack:
@@ -891,10 +884,10 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
   // taakstart), finish ⇒ start + duur op de eigen kalender van de taak waar eenduidig.
   const startAnchor = resolveMissingScheduleDates(tasks, missingDates, ctx.projectStart ?? '',
     (task) => taskCalendar(task, calResult));
-  normalizeImportedProgress(tasks, statusDate);
+  normalizeImportedProgress(tasks, statusDate, runningAtFullIds);
   deriveImportedWorkRules(tasks); // werkregel uit mspTaskType/effortDriven
   return {
-    tasks, taskIdByUniqueId, taskHourById, startAnchor, recordedTimes,
+    tasks, taskIdByUniqueId, startAnchor, recordedTimes,
     rawScans: raws, // alleen voor tests; readMPP geeft dit niet door
   };
 }
@@ -938,15 +931,18 @@ export function parseProjectProperties(
     // `src/types/project.ts`). Out-of-sequence-hervatting is veldgedreven: `task.time.resume`
     // (MPP-veld-id 99) is het signaal, er is geen projectvlag.
     schedulingProfile: builtInProfile('msproject'),
+    // Dezelfde grens als bij de opgeslagen speling, ook na F5 en IFC-opslag behouden.
+    schedulingOptions: { criticalDefinition: { mode: 'totalFloat', threshold: criticalSlackLimitDaysOf(props) } },
   };
 
   // Statusdatum mét tijd: MS Project bewaart hem op de standaard eindtijd (17:00 = einde van die
   // dag) en schrijft dezelfde waarde in MSPDI als `<StatusDate>…T17:00:00`. Daarom in precies die vorm
-  // gelezen met de regel van de MSPDI-lezer (`statusDateFromXml`): een tijd blijft, het dag-anker
-  // (08:00) geeft exact de datum — zo levert `.mpp` voor hetzelfde project hetzelfde op als MSPDI.
+  // gelezen met de regel van de MSPDI-lezer voor een vreemd bestand (`statusDateFromXml`, `foreign`): elke
+  // tijd blijft, ook 08:00 (I8; het anker 08:00 is een afspraak van OPS, en OPS schrijft geen `.mpp`) — zo
+  // levert `.mpp` voor hetzelfde project hetzelfde op als MSPDI.
   const statusBytes = props.getByteArray(PROPS_KEY_STATUS_DATE);
   const statusDate = statusBytes && statusBytes.length >= 4 ? getTimestamp(statusBytes, 0, 'Props statusDate') : null;
-  if (statusDate) project.statusDate = statusDateFromXml(toXmlDateTime(formatInstant(statusDate, 'hour')));
+  if (statusDate) project.statusDate = statusDateFromXml(toXmlDateTime(formatInstant(statusDate, 'hour')), 'foreign');
 
   return {
     project, hoursPerDay, calendarHoursPerDayOverride: minutesPerDayValid ? hoursPerDay : null,
@@ -1021,6 +1017,10 @@ interface AssignmentUidLink {
    *  toewijzing draagt. `null` bij een ontbrekend veld; MPXJ's `ASSIGNMENT_NULL_RESOURCE_ID` (-65535)
    *  komt gewoon door als een niet-vindbare resource-id. */
   resourceUid: number | null;
+  /** `AssignmentField.ASSIGNMENT_UNITS` (id 7) als fractie (1 = 100%), dezelfde decodering als
+   *  `ResourceAssignment.unitsPerDay` (`decodeAssignmentUnits`, `mppEntities.ts`). `null` bij een
+   *  ontbrekend veld; `deriveTimephasedWindowsForTasks` laat de taak dan op laag 5 vallen. */
+  units: number | null;
 }
 
 /** Geëxporteerd zodat `check-mpp-import.ts` hem met een kleine synthetische `TBkndAssn`-fixture kan
@@ -1061,6 +1061,7 @@ function buildAssignmentUidLinksUnsafe(
   // ResourceUniqueId staat in de praktijk altijd in de veldmap, maar hetzelfde terugvalcontract kost
   // niets.
   const resourceUidOffset = fixedOffsetOf(assignmentFieldMap, AssignmentFieldId.ResourceUniqueId);
+  const unitsOffset = fixedOffsetOf(assignmentFieldMap, AssignmentFieldId.Units);
 
   const result = new Map<number, AssignmentUidLink>();
   // Geklemd via FixedMeta.getItemCount(), net als readAssignmentsUnsafe.
@@ -1093,7 +1094,8 @@ function buildAssignmentUidLinksUnsafe(
     const resourceUid = resourceUidOffset !== null && resourceUidOffset >= 0 && data.length >= resourceUidOffset + 4
       ? getInt(data, resourceUidOffset, `${label}/FixedData resourceUid`)
       : null;
-    result.set(uid, { taskId, assignmentStart, assignmentResume, assignmentFinish, resourceUid });
+    const units = unitsOffset !== null && unitsOffset >= 0 ? decodeAssignmentUnits(data, unitsOffset) : null;
+    result.set(uid, { taskId, assignmentStart, assignmentResume, assignmentFinish, resourceUid, units });
   }
   return result;
 }
@@ -1291,13 +1293,17 @@ export function deriveTimephasedContoursForTasks(
 //      taakkalender (banden of gematerialiseerde uitzonderingen, `calendarDiffersIncludingExceptions`)
 //      ⇒ `timephasedDurationWalks`: een VERSE herberekening. Bij precies 1 toewijzing wandelt
 //      `CPMSolver.ts` `task.time.durationMinutes` (edit-live) door de resourcekalender. Bij >1
-//      toewijzing wandelt elke toewijzing alleen haar eigen gedecodeerde werk-aandeel
-//      (`decodeAssignmentWorkMinutes`; de volle duur per toewijzing gaf op "Task A" ~2× te laat).
-//      Beide nemen het MAXIMUM ("langste toewijzing bepaalt de finish"). Let op: de >1-tak wandelt
-//      BEVROREN `workMinutes` uit de import; daarom wissen `updateTask`/`updateTaskFields`/
-//      `patchTaskFields` (`taskDefaults.ts`) de lijst bij een bewerking
-//      (`clearTimephasedDurationWalks`, gepoort op `timephasedDurationWalksHaveFrozenWork`) en valt de
-//      taak terug op punt 5 tot een volgende import.
+//      toewijzing wandelt elke toewijzing die de duur STUURT haar eigen werktijd: haar werk ÷ haar
+//      inzet, de term van regel 2 van de werkdriehoek (`assignmentRemainingMinutes`,
+//      `workTriangle.ts`; MS Project: "Duration = Work / Units"). Materiaal- en kostenresources sturen
+//      de duur niet en wandelen niet mee (knownbug 187). De volle taakduur per toewijzing gaf op
+//      "Task A" ~2× te laat. Beide nemen het MAXIMUM ("langste toewijzing bepaalt de finish"). Let op:
+//      de >1-tak wandelt een BEVROREN werktijd uit de import (`workMinutes`); daarom wissen
+//      `updateTask`/`updateTaskFields`/`patchTaskFields` (`taskDefaults.ts`) en elke duurwijziging uit
+//      de werkregelbrug (`settleDurationAftermath`) de lijst (`clearTimephasedDurationWalks`, gepoort
+//      op `timephasedDurationWalksHaveFrozenWork`) en valt de taak terug op punt 5 tot een volgende
+//      import. Zo volgt de walk het taaktype: verandert de regel de duur, dan vervalt hij; houdt de
+//      regel de duur vast (vaste duur), dan blijft de werktijd van de toewijzing ook juist.
 //   5. Anders ⇒ geen van beide velden, de gewone duurberekening.
 // Lagen 3 en 4 zijn MUTUEEL EXCLUSIEF per taak; lagen 1/2 zetten geen laag-3-veld, dus de
 // VOLTOOID-/IN-PROGRESS-takken van `CPMSolver.ts` hoeven dat niet te raadplegen.
@@ -1314,8 +1320,9 @@ export interface TimephasedWindowResult {
   finishFloor: Date | null;                 // laag 3
   startAnchor: Date | null;                 // lagen 3+4 (vroegste anker)
   /** laag 4. `workMinutes` ONTBREEKT bij precies 1 toewijzing (de wandeling gebruikt dan de volle
-   *  `task.time.durationMinutes`) en is GEZET bij >1 toewijzing (eigen werk-aandeel, zie
-   *  `decodeAssignmentWorkMinutes`). */
+   *  `task.time.durationMinutes`) en is GEZET bij >1 toewijzing: de werktijd van die toewijzing in
+   *  werkminuten, haar gedecodeerde werk ÷ haar inzet (`decodeAssignmentWorkMinutes`,
+   *  `assignmentRemainingMinutes`). Bij inzet 1 is dat haar werk. */
   durationWalks: { anchor: Date; resourceCalendarId: string; workMinutes?: number }[];
 }
 
@@ -1354,18 +1361,32 @@ function calendarDiffersIncludingExceptions(a: WorkCalendar, b: WorkCalendar): b
 
 /** Het TOTALE per toewijzing gedecodeerde werk in minuten: som van `actualRegularWork` +
  *  `remainingRegularWork` via dezelfde decoders als de laag-3-detectie. Bij >1 gelijktijdige
- *  toewijzing wandelt elke toewijzing haar EIGEN werk-aandeel en bepaalt de langste de finish
- *  (corpus: "Task A", `mpp14resource.mpp`: 3 × 1440 werkminuten bij taakduur 2880 — geen partitie,
- *  elke toewijzing draagt een eigen opgeslagen hoeveelheid).
+ *  toewijzing wandelt elke toewijzing die de duur stuurt haar EIGEN werktijd en bepaalt de langste
+ *  de finish (corpus: "Task A", `mpp14resource.mpp`: 3 × 1440 werkminuten bij taakduur 2880 — geen
+ *  partitie, elke toewijzing draagt een eigen opgeslagen hoeveelheid).
  *
- *  Beperking: wandelt WERKMINUTEN zonder `ResourceAssignment.unitsPerDay` (een 25%-toewijzing zou in
- *  MSP langer duren). Ongetoetst: geen corpusgeval in deze populatie heeft niet-100%-units.
+ *  Dit is WERK, geen werktijd: de wandeling deelt het door de inzet van de toewijzing
+ *  (`deriveTimephasedWindowsForTasks`, via `assignmentRemainingMinutes` uit `workTriangle.ts`).
+ *  Corpus (knownbug 187): `timephased-cost-rollup.mpp` "Task 8", twee werkresources op 12,5% met
+ *  elk 300 min werk, eindigt in MSP na 2400 werkminuten (300 ÷ 0,125). In alle 661 gemeten bestanden
+ *  geldt bij een werkresource: werk ÷ inzet = de werktijd tussen START en FINISH van de toewijzing.
+ *  Een kostenresource (OzBuild Workshop 17/18, "Specialist Consultant": inzet 0,0006, werk 30 min)
+ *  stuurt de duur niet en telt daarom niet mee.
  *
  *  `assignmentFinish` is alleen voor de `blockCount===0`-tak van `decodePlannedRegularTimephasedWork`
  *  een verplicht niet-`null` ankerpunt; de werkwaarde zelf hangt er niet van af (gemeten op "Task A"),
  *  dus dit is geen cirkelmeting. Ontbreekt hij, dan de terugval `taskStart + 1 min` (getest in
  *  `check-mpp-import.ts`, waarvoor deze functie geëxporteerd is). Geen gedecodeerd werk ⇒ `null`: de
  *  aanroeper laat de taak dan op laag 5 vallen. */
+/** MS Project bewaart een duur in tienden van een minuut (`RawTaskScan.durationRaw`). Werk en inzet
+ *  staan met een kleine drijvendekommafout in het bestand (corpus, `timephased-cost-rollup.mpp`:
+ *  inzet 1249,9998779296875 voor 12,5%, werk 299999,96875 voor 300 min), dus werk ÷ inzet geeft
+ *  2399,99998 in plaats van 2400 en de toewijzing zou een minuut te vroeg eindigen (16:59 in plaats
+ *  van MSP's 17:00). De werktijd per toewijzing wordt daarom op die resolutie afgerond. */
+function roundToMspDurationResolution(minutes: number): number {
+  return Math.round(minutes * 10) / 10;
+}
+
 export function decodeAssignmentWorkMinutes(
   raw: AssignmentTimephasedRaw, taskStart: Date, assignmentFinish: Date | null,
 ): number | null {
@@ -1387,6 +1408,9 @@ export function deriveTimephasedWindowsForTasks(
   calResult: CalendarReadResult,
   resourceIdByUniqueId: ReadonlyMap<number, string>,
   resources: readonly Resource[],
+  /** MS Project-kostenresources (`ReadResourcesResult.costResourceIds`): ze staan als LABOR in
+   *  `resources`, maar sturen de duur niet. Weggelaten ⇒ geen kostenresources. */
+  costResourceIds: ReadonlySet<string> = new Set(),
 ): Map<string, TimephasedWindowResult> {
   const rawByUid = readAssignmentTimephasedRaw(cfb, assignmentFieldMap); // zelf al try/catch-veilig
   if (rawByUid.size === 0) return new Map();
@@ -1398,10 +1422,13 @@ export function deriveTimephasedWindowsForTasks(
   const resourceById = new Map(resources.map((r) => [r.id, r] as const));
   const finishesByTask = new Map<string, Date[]>();
   const startsByTask = new Map<string, Date[]>();
-  // `resourceType` is alleen een lokale filtersleutel voor de finalisatielus (komt niet in
-  // `TimephasedWindowResult`). `null` = resource niet gevonden; telt net als `'MATERIAL'` als "niet
-  // meewandelen" — conservatief bij twijfel.
-  const durationWalksByTask = new Map<string, { anchor: Date; resourceCalendarId: string; workMinutes: number | null; resourceType: ResourceType | null }[]>();
+  // `drivesDuration` is alleen een lokale filtersleutel voor de finalisatielus (komt niet in
+  // `TimephasedWindowResult`): dezelfde betekenis als `TriangleAssignment.drivesDuration`
+  // (`workTriangle.ts`). Materiaal, een kostenresource en een onvindbare resource sturen de duur
+  // niet — conservatief bij twijfel. `units` is de inzet (`AssignmentField.ASSIGNMENT_UNITS`).
+  const durationWalksByTask = new Map<string, {
+    anchor: Date; resourceCalendarId: string; workMinutes: number | null; units: number | null; drivesDuration: boolean;
+  }[]>();
   // Laag 4 is een taakbrede activering (≥1 toewijzing met een afwijkende resourcekalender) die
   // vervolgens ALLE vlakke toewijzingen van die taak meeneemt in de MAX-wandeling ("Task A": twee van
   // de drie dragen een taakgelijke kalender, de derde geeft de doorslag).
@@ -1463,9 +1490,8 @@ export function deriveTimephasedWindowsForTasks(
     // Werk-hoeveelheid voor de >1-toewijzing-tak; bij precies 1 toewijzing genegeerd.
     const workMinutes = decodeAssignmentWorkMinutes(raw, parseInstant(task.time.scheduleStart), link.assignmentFinish);
     walkList.push({
-      anchor: link.assignmentStart, resourceCalendarId: resCal.id, workMinutes,
-      // `null` bij een onvindbare resource: wordt hieronder net als MATERIAL uitgesloten.
-      resourceType: resource?.type ?? null,
+      anchor: link.assignmentStart, resourceCalendarId: resCal.id, workMinutes, units: link.units,
+      drivesDuration: !!resource && resource.type !== 'MATERIAL' && !costResourceIds.has(resource.id),
     });
     durationWalksByTask.set(link.taskId, walkList);
   }
@@ -1480,42 +1506,59 @@ export function deriveTimephasedWindowsForTasks(
   // Laag 4 (`durationWalksByTask`) is hier de enige bron. Twee takken:
   //  - PRECIES 1 toewijzing met afwijkende kalender (`layer4ActivatedTasks`): de wandeling gebruikt
   //    de volle `task.time.durationMinutes` (`workMinutes` wordt niet doorgegeven).
-  //  - >1 toewijzing: werkverdeling. Is voor elke meewandelende toewijzing `workMinutes` gedecodeerd
-  //    (`null` ⇒ de hele taak blijft op laag 5, geen gedeeltelijke gok), dan wandelt `CPMSolver.ts`
-  //    per toewijzing haar eigen aandeel en neemt het MAXIMUM. Hier is GEEN kalenderverschil nodig:
+  //  - >1 toewijzing: werkverdeling. Zijn voor elke meewandelende toewijzing werk en inzet bekend
+  //    (anders blijft de hele taak op laag 5, geen gedeeltelijke gok), dan wandelt `CPMSolver.ts`
+  //    per toewijzing haar eigen werktijd (werk ÷ inzet) en neemt het MAXIMUM. Hier is GEEN kalenderverschil nodig:
   //    `walks.length > 1` betekent al "≥2 toewijzingen met een echt timephased-blok" (elke push staat
   //    achter `hasAnyTimephasedData`). Corpus: twee toewijzingen met gestaggerde eigen
   //    START/FINISH-vensters op een taakgelijke resourcekalender (a69fec157074d056).
   for (const [taskId, walks] of durationWalksByTask) {
     if (result.has(taskId)) continue; // laag 3 heeft deze taak al (mutueel exclusief per taak)
     if (walks.length === 1 && layer4ActivatedTasks.has(taskId)) {
-      // Precies 1 toewijzing: geen MATERIAL-filter (er valt niets te kiezen) en de volle taakduur
-      // is het wandelgetal, ongeacht het toewijzingstype.
+      // Precies 1 toewijzing: geen filter (er valt niets te kiezen) en de volle taakduur is het
+      // wandelgetal, ongeacht het toewijzingstype. Voor een werkresource is dat dezelfde regel als
+      // hieronder: bij één toewijzing is werk ÷ inzet de taakduur (MSP "Duration = Work / Units").
       const startAnchor = new Date(minOf(walks.map((w) => w.anchor.getTime())));
       result.set(taskId, {
         finishFloor: null, startAnchor,
         durationWalks: walks.map((w) => ({ anchor: w.anchor, resourceCalendarId: w.resourceCalendarId })),
       });
     } else if (walks.length > 1) {
-      // Werkverdeling. MATERIAL-toewijzingen wandelen NIET mee: hun "werk" is een budgethoeveelheid,
-      // geen kalenderwerk (`timephased-cost-rollup.mpp`, "Task 8": ~4 werkdagen te vroeg). Dit
-      // filtert alleen WELKE toewijzingen meewandelen: blijft er na filtering één over ("Task A":
-      // alleen de LABOR-toewijzing), dan wandelt die nog steeds haar eigen aandeel (1440 min, niet de
-      // volle 2880) — vandaar `>= 1`. Alleen MATERIAL en een onvindbare resource (`null`) vallen af;
-      // EQUIPMENT/SUBCONTRACTOR/CREW zijn ongetoetst maar typisch kalenderbindend.
-      const laborWalks = walks.filter((w) => w.resourceType !== 'MATERIAL' && w.resourceType !== null);
-      if (laborWalks.length >= 1 && laborWalks.every((w) => w.workMinutes !== null)) {
-        // `startAnchor` gaat over ALLE toewijzingen, ook MATERIAL: het is het vroegste ankerpunt voor
-        // een taak zonder voorganger, geen wandelinvoer. In "Task A" dragen juist de MATERIAL-
-        // toewijzingen het vroegste anker (08:00); zonder hen landt de start op 23:00.
+      // Werkverdeling, volgens de werkdriehoek (`workTriangle.ts`, regel 2): alleen toewijzingen die
+      // de duur STUREN wandelen mee, elk haar eigen werktijd werk ÷ inzet
+      // (`assignmentRemainingMinutes`); de langste bepaalt de finish. MS Project: "Duration = Work /
+      // Units" en "assigning material resources or cost resources to a task doesn't affect task
+      // scheduling" (support.microsoft.com, "How Project schedules tasks: Behind the scenes").
+      //  - Materiaal: het "werk" is een hoeveelheid, geen tijd (corpus: OzBuild "Finalize and Submit
+      //    Bid Document", "Report Binding": inzet 3, werk 180).
+      //  - Kostenresource (`costResourceIds`; in OPS LABOR): corpus OzBuild Workshop 17/18 "Create
+      //    Technical Specification", "Specialist Consultant": inzet 0,0006 en werk 30 min, maar MSP
+      //    houdt de taak op 2400 min. Werk ÷ inzet zou 50 000 min geven (knownbug 187).
+      //  - Werkresource met inzet onder 1: `timephased-cost-rollup.mpp` "Task 8", twee toewijzingen op
+      //    12,5% met elk 300 min werk ⇒ 2400 werkminuten, zoals MSP (vóór deze regel ~4 werkdagen te
+      //    vroeg: de wandeling liep het werk zonder de inzet).
+      // Blijft er na het filter één toewijzing over, dan wandelt die nog steeds haar eigen werktijd,
+      // niet de volle taakduur — vandaar `>= 1`. EQUIPMENT/SUBCONTRACTOR/CREW komen uit `.mpp` niet
+      // voor (de lezer kent alleen LABOR en MATERIAL).
+      const driving = walks.filter((w) => w.drivesDuration);
+      // `remainingWorkMinutes` is altijd gezet, dus de restduur-terugval van `remainingWorkOf` speelt
+      // niet (vandaar 0).
+      const ownMinutes = driving.map((w) => (w.workMinutes === null || w.units === null ? null
+        : assignmentRemainingMinutes({ id: '', unitsPerDay: w.units, remainingWorkMinutes: w.workMinutes, drivesDuration: true }, 0)));
+      if (driving.length >= 1 && ownMinutes.every((m) => m !== null)) {
+        // `startAnchor` gaat over ALLE toewijzingen, ook die de duur niet sturen: het is het vroegste
+        // ankerpunt voor een taak zonder voorganger, geen wandelinvoer (ongewijzigd gedrag).
         const startAnchor = new Date(minOf(walks.map((w) => w.anchor.getTime())));
         result.set(taskId, {
           finishFloor: null, startAnchor,
-          durationWalks: laborWalks.map((w) => ({ anchor: w.anchor, resourceCalendarId: w.resourceCalendarId, workMinutes: w.workMinutes! })),
+          durationWalks: driving.map((w, i) => ({
+            anchor: w.anchor, resourceCalendarId: w.resourceCalendarId,
+            workMinutes: roundToMspDurationResolution(ownMinutes[i]!),
+          })),
         });
       }
-      // Anders: laag 5 (na filtering geen enkele niet-MATERIAL toewijzing over, of onvolledig
-      // gedecodeerd werk — geen gedeeltelijke gok).
+      // Anders: laag 5 (na het filter geen toewijzing over die de duur stuurt, of onvolledig
+      // gedecodeerd werk, of geen bruikbare inzet — geen gedeeltelijke gok).
     }
     // Anders: laag 5, niets gezet (0 toewijzingen actief).
   }
@@ -1539,8 +1582,8 @@ export function readMPP(bytes: Uint8Array, labels?: ImportLabels): ImportResult 
   const calendar = calResult.projectCalendar;
   project.calendarId = calendar.id;
 
-  // `readTasks` zet `Task.calendarId` zelf; `taskHourById` bepaalt de lag-eenheid in `readRelations`.
-  const { tasks, taskIdByUniqueId, taskHourById, startAnchor, recordedTimes } = readTasks({
+  // `readTasks` zet `Task.calendarId` zelf.
+  const { tasks, taskIdByUniqueId, startAnchor, recordedTimes } = readTasks({
     cfb, taskFieldMap, hoursPerDay, statusDate: project.statusDate, applicationVersion, calResult,
     projectStart: projectStartFromFile ? project.startDate : '',
     criticalSlackLimitDays: criticalSlackLimitDaysOf(projectProps),
@@ -1548,10 +1591,10 @@ export function readMPP(bytes: Uint8Array, labels?: ImportLabels): ImportResult 
   // Geen projectstart in de Props ⇒ het anker (vroegste aanwezige taakstart) i.p.v. vandaag.
   if (!projectStartFromFile) project.startDate = startAnchor;
 
-  const sequences = readRelations(cfb, applicationVersion, hoursPerDay, taskIdByUniqueId, taskHourById);
+  const sequences = readRelations(cfb, applicationVersion, taskIdByUniqueId);
 
   const resourceFieldMap = createResourceFieldMap(projectProps);
-  const { resources, resourceIdByUniqueId } = readResources(cfb, resourceFieldMap, applicationVersion, calResult, labels);
+  const { resources, resourceIdByUniqueId, costResourceIds } = readResources(cfb, resourceFieldMap, applicationVersion, calResult, labels);
 
   const assignmentFieldMap = createAssignmentFieldMap(projectProps);
   const assignments = readAssignments(cfb, assignmentFieldMap, taskIdByUniqueId, resourceIdByUniqueId);
@@ -1579,7 +1622,7 @@ export function readMPP(bytes: Uint8Array, labels?: ImportLabels): ImportResult 
   // `timephasedDurationWalks` (herberekening); mutueel exclusief. `startAnchor` is bij laag 4 alleen
   // wandel-oorsprong (zie `Task.timephasedStartAnchor`).
   const timephasedWindowByTaskId = deriveTimephasedWindowsForTasks(
-    cfb, assignmentFieldMap, taskIdByUniqueId, tasks, calResult, resourceIdByUniqueId, resources,
+    cfb, assignmentFieldMap, taskIdByUniqueId, tasks, calResult, resourceIdByUniqueId, resources, costResourceIds,
   );
   for (const task of tasks) {
     const window = timephasedWindowByTaskId.get(task.id);
@@ -1587,9 +1630,11 @@ export function readMPP(bytes: Uint8Array, labels?: ImportLabels): ImportResult 
     if (window.finishFloor) task.timephasedFinishFloor = formatInstant(window.finishFloor, 'hour');
     if (window.startAnchor) task.timephasedStartAnchor = formatInstant(window.startAnchor, 'hour');
     if (window.durationWalks.length > 0) {
-      // `workMinutes` alleen als het item uit de >1-toewijzing-tak komt, conditioneel gespreid (geen
-      // `workMinutes: undefined`). Valkuil: na de MATERIAL-filter kan de uiteindelijke lijst toch
-      // lengte 1 hebben mét `workMinutes` ("Task A") — de garantie zit op de tak, niet op de lengte.
+      // `workMinutes` (de werktijd van de toewijzing) alleen als het item uit de >1-toewijzing-tak
+      // komt, conditioneel gespreid (geen `workMinutes: undefined`). Valkuil: na het filter op
+      // toewijzingen die de duur sturen kan de uiteindelijke lijst toch lengte 1 hebben mét
+      // `workMinutes` (corpus: `timephased-end-cost-resource.mpp`) — de garantie zit op de tak, niet
+      // op de lengte.
       task.timephasedDurationWalks = window.durationWalks.map((w) => ({
         anchor: formatInstant(w.anchor, 'hour'), resourceCalendarId: w.resourceCalendarId,
         ...(w.workMinutes !== undefined ? { workMinutes: w.workMinutes } : {}),
@@ -1616,7 +1661,6 @@ export function readMPP(bytes: Uint8Array, labels?: ImportLabels): ImportResult 
     cfb, taskFieldMap, resourceFieldMap, assignmentFieldMap,
     taskUniqueIds: new Set(taskIdByUniqueId.keys()),
     resourceUniqueIds: new Set(resourceIdByUniqueId.keys()),
-    criticalSlackLimitDays: criticalSlackLimitDaysOf(projectProps),
   });
 
   return {

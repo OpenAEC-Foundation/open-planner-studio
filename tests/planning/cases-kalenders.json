@@ -148,10 +148,27 @@
         { "name": "S", "dur": 2, "calendar": "Cal-MF" }
       ],
       "links": [{ "pred": "P", "succ": "S", "type": "START_FINISH", "lag": 2 }],
+      "minuteModel": {
+        "reason": "CONV-SF",
+        "note": "T8: S eindigt op het startmoment van P plus 2 dagen in de kalender van P (di 16:00).",
+        "expect": {
+          "tasks": {
+            "S": {
+              "es": "2026-07-06",
+              "ef": "2026-07-07"
+            }
+          }
+        }
+      },
       "expect": {
         "tasks": {
-          "P": { "es": "2026-07-06" },
-          "S": { "es": "2026-07-07", "ef": "2026-07-08" }
+          "P": {
+            "es": "2026-07-06"
+          },
+          "S": {
+            "es": "2026-07-06",
+            "ef": "2026-07-07"
+          }
         },
         "error": false
       }

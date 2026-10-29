@@ -178,6 +178,7 @@ const valuesA: Record<string, unknown> = {
   activeBaselineId: null,
   recordedDates: { times: { a: { start: '2026-01-01', finish: '2026-01-05' } }, shifted: 1, total: 1 },
   datesAsRecorded: true,
+  minuteModelPending: true,
 };
 const valuesB: Record<string, unknown> = {
   project: projB,
@@ -198,6 +199,7 @@ const valuesB: Record<string, unknown> = {
   activeBaselineId: 'blb',
   recordedDates: null,
   datesAsRecorded: false,
+  minuteModelPending: false,
 };
 const setSnapshotFields = (vals: Record<string, unknown>) => {
   useAppStore.setState((s) => {
@@ -416,8 +418,8 @@ eq('d K3 keten: splitGaps overleeft', kT1After?.splitGaps, [{ afterMinutes: 60, 
 eq('d K3 keten: manuallyScheduled overleeft', kT1After?.manuallyScheduled, true);
 eq('d K3 keten: levelingDelayMinutes overleeft', kT1After?.levelingDelayMinutes, 15);
 eq('d K3 keten: levelingDelayElapsed overleeft', kT1After?.levelingDelayElapsed, true);
-eq('d K3 keten: time.stop overleeft', kT1After?.time.stop, '2031-03-05');
-eq('d K3 keten: time.resume overleeft', kT1After?.time.resume, '2031-03-06');
+eq('d K3 keten: time.stop overleeft', kT1After?.time.stop, '2031-03-05T16:00');
+eq('d K3 keten: time.resume overleeft', kT1After?.time.resume, '2031-03-06T07:00');
 // Z14b — de drie NIEUWE velden overleven dezelfde keten (bewijst de "tasks"-clone-snapshot-rol
 // écht draagt wat er verder in de plan-toelichting over beweerd wordt, geen aanname).
 eq('d K3 keten: mspTaskType overleeft', kT1After?.mspTaskType, 'FIXED_DURATION');
@@ -506,7 +508,7 @@ S().setFilePath('/tmp/behouden.ifc');
 S().loadState({
   project: { id: 'proj-load', name: 'Ingeladen', description: '', startDate: '2032-01-01', endDate: '', calendarId: 'cal-default', createdAt: '', modifiedAt: '', author: '', company: '', wbsAutoNumber: true },
   calendar: createDefaultCalendar(),
-  tasks: [{ id: 'task-load', name: 'Ingeladen taak', parentId: null, childIds: [] } as unknown as Task],
+  tasks: [{ id: 'task-load', name: 'Ingeladen taak', parentId: null, childIds: [], time: createDefaultTaskTime('2026-06-01T07:00', 0) } as unknown as Task],
   sequences: [],
   resources: [],
   assignments: [],

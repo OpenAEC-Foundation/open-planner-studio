@@ -90,7 +90,6 @@ function renderHeaderOps(
   zoom: number,
   scrollX: number,
   compress: boolean,
-  enableHourPlanning = false,
   enableQuarterHourZoom = false,
 ): TextOp[] {
   const { ctx, ops } = makeCtx();
@@ -107,7 +106,6 @@ function renderHeaderOps(
     headerHeight: HEADER_H,
     compressNonWorkdays: compress,
     weekStartDay: 'monday',
-    enableHourPlanning,
     enableQuarterHourZoom,
   }).render();
   return ops.filter((o) => o.y < HEADER_H);
@@ -117,7 +115,7 @@ function renderHeaderOps(
 // `false` hardcoded door aan `pickTiers`. Daardoor kon geen enkel zoomniveau ooit tijdlabels
 // onder een dag tonen. Op de fijnste kwartierstand moeten de beide concrete labels zichtbaar zijn.
 {
-  const ops = renderHeaderOps(4000, 0, false, true, true);
+  const ops = renderHeaderOps(4000, 0, false, true);
   const labels = new Set(ops.map(op => op.text));
   checks++;
   if (!labels.has('00:00')) diffs.push('uurheader ontbreekt: 00:00 is niet zichtbaar op de uur-/kwartierstand');

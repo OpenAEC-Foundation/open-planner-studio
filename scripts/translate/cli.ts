@@ -247,6 +247,7 @@ function termsLookup(args: string[]): void {
   archive(dir, 'terms-');
   mkdirSync(dir, { recursive: true });
   for (const p of packs) writeFileSync(join(dir, `${p.id}.json`), packageText(p));
+  seal(lang, packs.map(p => `${p.id}.json`));
   bundleCheck();
   const withCand = packs.flatMap(p => p.concepts).filter(c => c.candidates.length > 0).length;
   const total = packs.flatMap(p => p.concepts).length;
@@ -257,30 +258,42 @@ function applyTermsCmd(args: string[]): void {
   const lang = checkLang(positional(args)[0]);
   const dir = join(WORK, lang);
   const concepts = loadConcepts();
+  const checkOut = join(dir, 'terms-check-01.out.json');
+  const mapFile = join(dir, 'terms-check-01.map.json');
+  // Eerst vertrouwen vaststellen, vóór de termbase of een rapport wordt overschreven.
+  if (existsSync(checkOut)) {
+    const checkSources = ['terms-check-01.json', 'terms-check-01.map.json'];
+    if (checkSources.some(f => !existsSync(join(dir, f)))) fail('bronpakket of koppeltabel van de blinde controle ontbreekt');
+    const tampered = sealErrors(lang, checkSources);
+    if (tampered.length) fail(tampered.join('\n'));
+  }
   const outs: TermsOut[] = [];
+  let refused = 0;
   const files = existsSync(dir) ? readdirSync(dir).filter(f => /^terms-\d+\.json$/.test(f)).sort() : [];
   for (const f of files) {
     const outFile = join(dir, f.replace('.json', '.out.json'));
     if (!existsSync(outFile)) { console.log(`..  ${f}: nog geen uitvoer`); continue; }
+    const tampered = sealErrors(lang, [f]);
+    if (tampered.length) { console.log(`XX  ${f}: ${tampered.join('; ')}, overgeslagen`); refused++; continue; }
     const pkg = readJson<TermsPackage>(join(dir, f));
     const out = readJson<unknown>(outFile);
     const r = checkPackage(pkg, out);
-    if (r.errors.length) { console.log(`XX  ${f}: rood (${r.errors.length} fout(en)), overgeslagen`); continue; }
+    if (r.errors.length) { console.log(`XX  ${f}: rood (${r.errors.length} fout(en)), overgeslagen`); refused++; continue; }
     outs.push(out as TermsOut);
   }
   if (outs.length === 0) fail(`geen groene terms-NN.out.json in build/translate/${lang}/`);
+  // Groene pakketten en rapporten blijven bruikbaar; ook de vroege rapport-return moet rood eindigen.
+  if (refused) process.exitCode = 1;
   const tb = applyTerms(loadTermbase(lang) ?? {}, outs, concepts);
   writeJson(termbasePath(lang), tb);
   const n = outs.reduce((s, o) => s + Object.keys(o).filter(k => k !== '_style').length, 0);
-  console.log(`OK  apply-terms ${lang}: ${n} termregel(s) in i18n/termbase/${lang}.json`);
+  console.log(`${refused ? 'XX' : 'OK'}  apply-terms ${lang}: ${n} termregel(s) in i18n/termbase/${lang}.json, ${refused} rood overgeslagen`);
   if ((EXISTING_TARGETS as readonly string[]).includes(lang)) {
     writeFileSync(join(dir, 'inconsistencies.md'), inconsistencyReport(lang, outs, concepts));
     console.log(`OK  rapport: build/translate/${lang}/inconsistencies.md`);
   }
   // Termen zonder bron (`model`) en zelf gekozen TBX-termen (`tbx-chosen`) krijgen een blinde controle:
   // alleen de doelterm, ondoorzichtige id's. Bestaat de uitkomst al, dan wordt het rapport gemaakt.
-  const checkOut = join(dir, 'terms-check-01.out.json');
-  const mapFile = join(dir, 'terms-check-01.map.json');
   if (existsSync(checkOut) && existsSync(mapFile)) {
     const res = readJson<Record<string, { backTranslation: string; standard: boolean; suggestion?: string }>>(checkOut);
     const map = readJson<Record<string, string>>(mapFile);
@@ -307,6 +320,7 @@ function applyTermsCmd(args: string[]): void {
     };
     writeJson(join(dir, 'terms-check-01.json'), pkg);
     writeJson(join(dir, 'terms-check-01.map.json'), map);
+    seal(lang, ['terms-check-01.json', 'terms-check-01.map.json']);
     console.log(`OK  blinde controle nodig voor ${unchecked.length} term(en): build/translate/${lang}/terms-check-01.json`);
   }
 }
@@ -896,8 +910,8 @@ function strictStatus(langs: string[]): void {
 
 function status(args: string[]): void {
   const asked = positional(args)[0];
-  const langs = asked ? [checkLang(asked)]
-    : readdirSync(LOCALES_DIR).filter(d => d !== 'nl' && statSync(join(LOCALES_DIR, d)).isDirectory()).sort();
+  // De appregistratie bepaalt de vereiste talen, niet de nog aanwezige mappen (knownbug 200).
+  const langs = asked ? [checkLang(asked)] : LOCALES.filter(lang => lang !== 'nl').sort();
   if (flag(args, '--strict')) { strictStatus(langs); return; }
   console.log('taal  namespace  ontbreekt  verouderd  actueel  (zonder hash)');
   let todo = 0;

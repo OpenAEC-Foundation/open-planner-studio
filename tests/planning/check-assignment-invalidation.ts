@@ -1,3 +1,4 @@
+// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 // Toewijzingswijziging — ÉÉN set gevolgregels over alle routes (headless tegen de ECHTE store en de
 // ECHTE gridtransactie).
 //
@@ -159,8 +160,8 @@ for (const op of ['add', 'remove'] as const) {
 // taakraster op 06-09 staan).
 {
   const viaGrid = runSingle('grid', 'remove', false);
-  eq('A meting: vóór de bewerking EF 2026-06-09 (importsplit + nivelleerpauze tellen mee)', viaGrid.efBefore, '2026-06-09');
-  eq('A meting: na verwijderen via het taakraster EF 2026-06-08 (alleen de importsplit telt nog)', viaGrid.efAfter, '2026-06-08');
+  eq('A meting: vóór de bewerking EF 2026-06-09 (importsplit + nivelleerpauze tellen mee)', viaGrid.efBefore, "2026-06-09T16:00");
+  eq('A meting: na verwijderen via het taakraster EF 2026-06-08 (alleen de importsplit telt nog)', viaGrid.efAfter, "2026-06-08T16:00");
 }
 
 // ── B. removeResource: elke taak die de resource droeg krijgt de toewijzingen-trigger ─────────────────

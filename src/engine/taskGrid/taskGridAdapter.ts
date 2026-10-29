@@ -125,6 +125,7 @@ export interface CreateTaskGridAdapterDomainInput {
   labelForText?: (key: string, values?: Readonly<Record<string, string | number>>) => string;
   textDirection?: 'ltr' | 'rtl';
   effectiveHoursPerDay?: (task: Task) => number;
+  effectiveCalendar?: TaskColumnContext['effectiveCalendar'];
   signedWorkDaysBetween?: (fromIso: string, toIso: string) => number;
   /** Zie `TaskColumnContext.baselineOldDay`. */
   baselineOldDay?: TaskColumnContext['baselineOldDay'];
@@ -136,6 +137,8 @@ export interface CreateTaskGridAdapterDomainInput {
   calendarOptions?: readonly { value: string; label: string }[];
   /** Instelling Duurweergave (weergavetekst van de Duur-kolom); ontbreekt ⇒ `'auto'`. */
   durationDisplay?: DurationDisplay;
+  /** Zie `TaskColumnContext.workdayDurationMeasure`. */
+  workdayDurationMeasure?: boolean;
   /** App-taal voor het decimaalteken van duren en speling; ontbreekt ⇒ punt. */
   numberLocale?: string;
   /** Zie `TaskColumnContext.taskTypesUnlocked`. */
@@ -252,9 +255,11 @@ export function createTaskGridAdapterDomain(
     textDirection: input.textDirection,
     wbsAutoNumber: input.wbsAutoNumber,
     effectiveHoursPerDay: input.effectiveHoursPerDay,
+    effectiveCalendar: input.effectiveCalendar,
     signedWorkDaysBetween: input.signedWorkDaysBetween,
     baselineOldDay: input.baselineOldDay,
     durationDisplay: input.durationDisplay,
+    workdayDurationMeasure: input.workdayDurationMeasure,
     numberLocale: input.numberLocale,
     recordedMark: input.recordedMark,
     recordedUnrecordedAxes: input.recordedUnrecordedAxes,

@@ -1,6 +1,6 @@
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { formatInstant } from '@/utils/dateUtils';
-import { resolveHourBarDrag } from '@/engine/renderer/hourBarDragMath';
+import { ELAPSED_DRAG_CLOCK, resolveHourBarDrag } from '@/engine/renderer/hourBarDragMath';
 import type { WorkCalendar } from '@/types/calendar';
 
 const failures: string[] = [];
@@ -105,6 +105,48 @@ function drag(
   );
   eq('kwartiersleep bewaart een bestaande kwartierduur', shortQuarter.durationMinutes, 15);
   eq('kwartiersleep verplaatst die duur zonder stil naar een uur te groeien', formatInstant(shortQuarter.finish, 'hour'), '2026-09-07T07:30');
+}
+
+// Kalendertijd (ELAPSEDTIME, aanval na #600 fout 2): de sleep rekent op de klok, met 1440 minuten per dag en
+// zonder snap naar een werkmoment. 2 d van ma 00:00 tot wo 00:00, bij Dag één dag naar rechts: di 00:00 –
+// do 00:00 (48 klokuren). Met de werkkalender werd dat di 07:00 – wo 16:00.
+{
+  const elapsed = (edge: 'body' | 'left' | 'right', to: string) => resolveHourBarDrag({
+    calendar: ELAPSED_DRAG_CLOCK, edge,
+    originalStart: new Date('2026-06-01T00:00:00Z'), originalFinish: new Date('2026-06-03T00:00:00Z'),
+    originalDurationMinutes: 2880,
+    pointerStart: new Date('2026-06-01T12:00:00Z'), pointerCurrent: new Date(to), snapMinutes: 1440,
+  });
+  const body = elapsed('body', '2026-06-02T12:00:00Z');
+  eq('kalendertijd: body +1 dag begint di 00:00', formatInstant(body.start, 'hour'), '2026-06-02T00:00');
+  eq('kalendertijd: body +1 dag eindigt do 00:00', formatInstant(body.finish, 'hour'), '2026-06-04T00:00');
+  eq('kalendertijd: body houdt 48 klokuren', body.durationMinutes, 2880);
+  const right = elapsed('right', '2026-06-02T12:00:00Z');
+  eq('kalendertijd: rechterrand +1 dag eindigt do 00:00', formatInstant(right.finish, 'hour'), '2026-06-04T00:00');
+  eq('kalendertijd: rechterrand +1 dag telt 72 klokuren', right.durationMinutes, 4320);
+  const weekend = elapsed('body', '2026-06-06T12:00:00Z');
+  eq('kalendertijd: een start op zaterdag blijft zaterdag 00:00', formatInstant(weekend.start, 'hour'), '2026-06-06T00:00');
+}
+
+// Een gesplitste urentaak (aanval na #600 fout 3): de balk spant werk plus pauzes (de splitsom van de motor), en
+// een rand verandert alleen het laatste werkstuk. 1920 min met een pauze van 480 min na 480 min, in een week
+// zonder de vrije dinsdag van deze kalender (14–18 september): ma werk, di pauze, wo–vr werk.
+{
+  const gaps = [{ afterMinutes: 480, gapMinutes: 480, source: 'user' as const }];
+  const split = (edge: 'body' | 'left', to: string) => resolveHourBarDrag({
+    calendar: engine, edge, splitGaps: gaps,
+    originalStart: new Date('2026-09-14T07:00:00Z'), originalFinish: new Date('2026-09-18T16:00:00Z'),
+    originalDurationMinutes: 1920,
+    pointerStart: new Date('2026-09-14T12:00:00Z'), pointerCurrent: new Date(to), snapMinutes: 1440,
+  });
+  const left = split('left', '2026-09-15T12:00:00Z');
+  eq('splits: linkerrand +1 dag begint di', formatInstant(left.start, 'hour'), '2026-09-15T07:00');
+  eq('splits: linkerrand +1 dag houdt het einde', formatInstant(left.finish, 'hour'), '2026-09-18T16:00');
+  eq('splits: linkerrand +1 dag maakt het werk een dag korter', left.durationMinutes, 1440);
+  const far = split('left', '2026-09-18T12:00:00Z');
+  eq('splits: de linkerrand houdt het laatste werkstuk ten minste een uur', far.durationMinutes, 480 + 60);
+  const body = split('body', '2026-09-15T12:00:00Z');
+  eq('splits: body +1 dag houdt de pauze in het einde', formatInstant(body.finish, 'hour'), '2026-09-21T16:00');
 }
 
 if (failures.length > 0) {

@@ -1,0 +1,52 @@
+BRONNEN EN ONTWERPVERANTWOORDING — geraadpleegd 23 oktober 2026
+
+https://github.com/OpenAEC-Foundation/open-planner-studio
+Actuele README: bouwplanning, Critical Path Method, MS Project en Primavera,
+IFC 4.3 als eigen bestandsformaat. Deze functie motiveert een Gantt-beeldmerk
+met echte taakafhankelijkheden en een mijlpaal.
+
+https://github.com/OpenAEC-Foundation/open-planner-studio/blob/main/scripts/generate-icon.mjs
+Bestaand app-icoon: Gantt-balken, afhankelijkheden en mijlpaal op donkerblauw,
+met meerdere accentkleuren. Het nieuwe voorstel behoudt de planningstaal,
+maar kiest bewust de amberkleurige OpenAEC-familie uit de opdracht.
+
+https://open-aec.com/
+https://open-aec.com/open-planner-studio/
+https://open-aec.com/open-energy-studio/
+https://open-aec.com/open-pdf-studio/
+https://open-aec.com/open-calc-studio/
+De productpagina's delen de OpenAEC-stijllaag en het stichtingbeeldmerk.
+Functies en positionering van de bestaande app-familie zijn vergeleken.
+
+https://open-aec.com/shared/style.css?v=20261015
+Actuele huisstijltokens: amber #D97706, warm-gold #F59E0B,
+night-build #2A2A32. Headings: Space Grotesk 500/700; lopende tekst: Inter.
+De woordmerkkeuze Space Grotesk sluit hier direct op aan.
+
+https://open-aec.com/shared/assets/logo/openaec-symbol-v2-transparent.svg
+Het stichtingsbeeldmerk gebruikt ruimtelijke vlakken en amberkleurige
+contouren. Het nieuwe app-beeldmerk sluit daarop aan met echte geometrie.
+
+Aangeleverde lokale stijlreferentie:
+open-energy-studio-logopakket.zip
+open-energy-studio-logo-met-tekst.png
+open-energy-studio-3d.blend
+build_logo_3d.py en add_wordmark_3d.py
+Dezelfde vlakke materiaaltechniek, orthografische projectie, typografische
+hiërarchie en aanvullende zijvlakkleuren zijn toegepast op een nieuw model.
+
+https://github.com/google/fonts/tree/main/ofl/spacegrotesk
+Lettertypelicentie: SIL Open Font License 1.1. De twee TTF-bestanden zijn
+kopieën van de aangeleverde referentiefonts; de licentie is meegeleverd.
+
+Versie 2: op gebruikersverzoek vervangen door een echte kubus. De planning
+loopt door over de twee zichtbare zijvlakken, inclusief een gesloten
+L-vormige taakbalk met gedeelde hoekgeometrie. Camera (-12,-12,12).
+
+Versie 3: negen taakblokken op vier rijen, twee doorlopende hoekbalken.
+Beide verticale planningsvlakken zijn echt open/transparant; alleen het
+bovenvlak houdt zijn kleurvulling. Geen achterliggende kubuswanden.
+
+Versie 4: een rustiger midden tussen de eerdere drie en negen taken: zes
+blokken op drie rijen, met een duidelijke reeks van drie verbonden taken
+om de hoek en drie parallelle taken. Transparante zijvlakken behouden.

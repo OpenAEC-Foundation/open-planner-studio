@@ -32,7 +32,7 @@ interface PlanningInput {
   endDate: SolveProjectFields['endDate'];
 }
 
-const planningInputOf = (s: GateState): PlanningInput => ({
+export const planningInputOf = (s: GateState): PlanningInput => ({
   tasks: s.tasks,
   sequences: s.sequences,
   calendar: s.calendar,
