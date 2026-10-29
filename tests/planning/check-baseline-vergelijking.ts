@@ -31,6 +31,7 @@ import { renderReport, type PrintOptions } from '@/services/print/printPreview';
 import type { Draw2D, TextAlign, TextBaseline } from '@/services/pdf/draw2d';
 import { shownBaselineReach, type Baseline, type BaselineOverlay } from '@/types/baseline';
 import type { Task } from '@/types/task';
+import type { ViewRow } from '@/engine/view/visibleRows';
 
 // Node-shim (zelfde als check-resource-accent): readGanttPalette leest CSS-variabelen.
 const g = globalThis as unknown as Record<string, unknown>;
@@ -304,7 +305,7 @@ function piecesPerRow(fills: Fill[]): Piece[][] {
 
 type Comparisons = { slot: 1 | 2; overlay: BaselineOverlay }[];
 /** Scherm: de echte GanttRenderer met een opnemende context. */
-function renderScreen(tasks: Task[], ov0: BaselineOverlay, comps: Comparisons, over: { zoom?: number; compress?: boolean; keep?: { r?: GanttRenderer }; viewStart?: string } = {}): Fill[] {
+function renderScreen(tasks: Task[], ov0: BaselineOverlay, comps: Comparisons, over: { zoom?: number; compress?: boolean; keep?: { r?: GanttRenderer }; viewStart?: string; rows?: ViewRow[] } = {}): Fill[] {
   const fills: Fill[] = [];
   let path: [number, number][] = [];
   const st = { fillStyle: '', strokeStyle: '' };
@@ -325,7 +326,7 @@ function renderScreen(tasks: Task[], ov0: BaselineOverlay, comps: Comparisons, o
   };
   const st0 = S();
   const renderer = new GanttRenderer(ctx as unknown as CanvasRenderingContext2D, {
-    rows: tasks.map(t => ({ kind: 'task' as const, rowKey: t.id, task: t, depth: 0, dimmed: false })),
+    rows: over.rows ?? tasks.map(t => ({ kind: 'task' as const, rowKey: t.id, task: t, depth: 0, dimmed: false })),
     sequences: [], calendar: st0.calendar,
     view: { ...st0.view, scrollX: 0, scrollY: 0, zoom: over.zoom ?? 30, ...(over.viewStart ? { viewStartDate: over.viewStart } : {}) },
     compressNonWorkdays: over.compress,
@@ -729,6 +730,41 @@ eq(Math.round(barLayout(32, { resourceAccent: true, baselines: true }).barHeight
     eq(keep.r?.getBaselineAt(cc.x + half * 0.5, cc.y)?.slots, [1], 'I hover op de cyane ruit geeft cyaan [1]');
     // Marge pas als geen vorm geraakt is: net boven de punt van de grijze ruit (binnen 2 px).
     eq(keep.r?.getBaselineAt(cg.x - 0.6, grey.y1 - 1)?.slots, [0], 'I hover net naast de grijze ruit (marge) geeft grijs');
+  }
+}
+
+// ══ J. Dezelfde taak op meer rijen: de hover werkt op elke rij (review ronde 5) ════════════════════
+// Groeperen op resource of resourcetype zet een taak met twee resources in twee groepen, dus op twee
+// rijen. De hovergegevens horen bij de rij, niet bij de taak; anders overschrijft de laatste rij de
+// eerdere en geeft de hover op de eerste rij niets.
+{
+  const both = (): BaselineOverlay => new Map([[bar.id, { start: s0, finish: addDays(s0, 2), isMilestone: false }]]);
+  const msBoth = (): BaselineOverlay => new Map([[ms.id, { start: m0, finish: m0, isMilestone: true }]]);
+  const group = (key: string, levelIndex = 0): ViewRow => ({
+    kind: 'group', rowKey: `g:${key}`, key, label: key, count: 1, depth: levelIndex, levelIndex, collapsed: false,
+  });
+  const taskRow = (t: Task, key: string, depth = 1): ViewRow => ({ kind: 'task', rowKey: `${key}:${t.id}`, task: t, depth, dimmed: false });
+  const layouts: { label: string; rows: (t: Task) => ViewRow[] }[] = [
+    { label: 'twee resourcegroepen', rows: t => [group('Ploeg A'), taskRow(t, 'A'), group('Kraan B'), taskRow(t, 'B')] },
+    { label: 'twee typegroepen', rows: t => [group('Arbeid'), taskRow(t, 'arbeid'), group('Materieel'), taskRow(t, 'materieel')] },
+    { label: 'twee niveaus', rows: t => [group('Arbeid'), group('Ploeg A', 1), taskRow(t, 'A', 2), group('Materieel'), group('Kraan B', 1), taskRow(t, 'B', 2)] },
+  ];
+  for (const lay of layouts) {
+    for (const [what, t, ov0, ov1] of [['balk', bar, both(), both()], ['mijlpaal', ms, msBoth(), msBoth()]] as const) {
+      const keep: { r?: GanttRenderer } = {};
+      const scr = renderScreen([t], ov0, [{ slot: 1, overlay: ov1 }], { zoom: 30, keep, rows: lay.rows(t) });
+      // Per rij de eerste vulling: dat is het stuk of de ruit zelf; de strepen liggen erbinnen.
+      const bands: ReturnType<typeof bbox>[] = [];
+      for (const f of scr.filter(f => BASE_COLORS.has(f.color) && f.pts.length >= 3)) {
+        const b = bbox(f.pts);
+        if (!bands.some(o => Math.abs((o.y1 + o.y2) / 2 - (b.y1 + b.y2) / 2) < 4)) bands.push(b);
+      }
+      eq(bands.length, 2, `J ${lay.label}, ${what}: de strook staat op beide rijen`);
+      bands.forEach((b, i) => {
+        eq(keep.r?.getBaselineAt((b.x1 + b.x2) / 2, (b.y1 + b.y2) / 2)?.slots, [0, 1],
+          `J ${lay.label}, ${what}: hover op rij ${i + 1} noemt beide baselines`);
+      });
+    }
   }
 }
 

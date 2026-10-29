@@ -548,6 +548,12 @@ en noem het in je rapport of PR-tekst.
     bereik, voor de losse overlay (`baselineOverlay`) en in de lagen (`buildBaselineLayers`). Geen
     gedragsfout, alleen opruimwerk. Vervolgpunt uit review ronde 2 van PR #403 (GPT-6.1-Sol). Voorstel: één
     opbouw, de rest afleiden uit de lagen. — B
+458. **De onderste punt van een baselineruit reageert niet op de hover.** Bij rijhoogte 32 en kophoogte 60 ligt
+    het ruitmidden op y=89,1 met halve diagonaal 4; de ruit loopt tot y=93,1, maar de rij eindigt op y=92.
+    Op (11,25; 92,7) ligt de muis in de getekende ruit, maar `getBaselineAt` (`GanttRenderer.ts`) zoekt
+    via de rij-index al in de volgende rij en geeft `null`. Vervolgpunt uit review ronde 5 van PR #403
+    (GPT-6.1-Sol). Voorstel: vormen die uit de aangrenzende rij steken ook als hitkandidaat nemen, zonder
+    de balkgeometrie te veranderen. — B
 
 ## Kalenders
 

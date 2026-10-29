@@ -331,8 +331,9 @@ export class GanttRenderer {
   private ctx: CanvasRenderingContext2D;
   private opts: GanttRenderOptions;
   private colors: GanttPalette;
-  /** Getekende stukken van de baselinestrook per taak uit de laatste ronde, voor hover. */
-  private baselineHits = new Map<string, { task: Task; rects: BaselineHitRect[] }>();
+  /** Getekende stukken van de baselinestrook per RIJ-index uit de laatste ronde, voor hover. Per rij,
+   *  niet per taak: bij groeperen op resource staat dezelfde taak op meer rijen. */
+  private baselineHits = new Map<number, { task: Task; rects: BaselineHitRect[] }>();
 
   // Computed
   private viewStart: Date;
@@ -986,7 +987,7 @@ export class GanttRenderer {
    * Baselinestrook onder de hoofdbalk: de actieve baseline plus tot twee vergelijkingsbaselines in
    * ÉÉN strook. Opdeling en tekenen komen uit `baselineStrip.ts`, dezelfde regel als de afdruk.
    */
-  private drawBaselineOverlay(task: Task, y: number, height: number, resourceAccentHeight = 0): void {
+  private drawBaselineOverlay(task: Task, rowIndex: number, y: number, height: number, resourceAccentHeight = 0): void {
     if (this.opts.showBaselineOverlay === false) return;
     const layers: { slot: BaselineSlot; overlay: BaselineOverlay }[] = [];
     if (this.opts.baselineOverlay) layers.push({ slot: 0, overlay: this.opts.baselineOverlay });
@@ -1021,7 +1022,7 @@ export class GanttRenderer {
       visibleX: [0, this.opts.canvasWidth],
     });
     const cy = top + h / 2;
-    this.baselineHits.set(task.id, {
+    this.baselineHits.set(rowIndex, {
       task,
       rects: [
         ...pieces.map(p => ({ slots: p.slots, x1: p.x1, x2: p.x2, y1: top, y2: top + h })),
@@ -1036,9 +1037,7 @@ export class GanttRenderer {
   /** Welke baselines liggen onder de muis? Leest de stukken die de laatste teken-ronde vastlegde
    *  (zelfde geometrie als getekend), met een marge van 2 px boven en onder. */
   getBaselineAt(canvasX: number, canvasY: number): { task: Task; slots: BaselineSlot[] } | null {
-    const task = this.getTaskAtY(canvasY);
-    if (!task) return null;
-    const hit = this.baselineHits.get(task.id);
+    const hit = this.baselineHits.get(this.getRowIndex(canvasY));
     if (!hit) return null;
     const PAD = 2;
     // Afstand van de muis tot de echte vorm (0 = erin): een ruit is |dx| + |dy| <= s, een stuk
@@ -1344,7 +1343,7 @@ export class GanttRenderer {
       if (dimmed || row.dimmed) this.ctx.globalAlpha = 1;
       this.drawExternalGhosts(task, y, barHeight);
       // Baseline-onderbalk: op volle dekking, ná het eventuele dim-herstel.
-      this.drawBaselineOverlay(task, y, barHeight, resourceAccentHeight);
+      this.drawBaselineOverlay(task, i, y, barHeight, resourceAccentHeight);
     }
   }
 
