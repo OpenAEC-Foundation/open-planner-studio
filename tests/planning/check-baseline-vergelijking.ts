@@ -450,8 +450,8 @@ eq(screen[1]?.map(p => [p.base, p.stripes]), [
   eq(computeScrollToDate('2026-07-01', state), (14 - 3) * zoom, 'E Ctrl+Home-rekenregel: 1 juli ligt op de nieuwe oorsprong');
   eq(computeScrollToDate('2026-10-20', { ...state, baselines: undefined }), (14 - 3) * zoom, 'E Ctrl+Home zonder baselines: ongewijzigd');
 
-  const fit = computeFitToProject([t], 600, false, false, undefined, reach.earliest);
-  const fitPlain = computeFitToProject([t], 600, false, false);
+  const fit = computeFitToProject([t], 600, false, undefined, reach.earliest);
+  const fitPlain = computeFitToProject([t], 600, false);
   ok(!!fit && !!fitPlain && fit.zoom === fitPlain.zoom && fit.viewStartDate === fitPlain.viewStartDate,
     'E Inpassen: zoom en eerste dag blijven de taken');
   eq(fit && Math.round(fit.scrollX / fit.zoom), 14 + 111, 'E Inpassen: scroll vanaf de nieuwe oorsprong (17 juni) naar 20 okt');
