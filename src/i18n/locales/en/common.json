@@ -230,7 +230,7 @@
     "minuteModelConverted_other": "{{document}}: {{count}} tasks have a different start or finish after conversion; the largest shift is {{days}} workdays. Undo restores the recorded dates.",
     "minuteModelCalendarRepaired": "Calendar '{{calendar}}' was repaired: its finish or break did not match the stored working time.",
     "exportXerLossItem": {
-      "schedulingRules": "Scheduling rules: P6 uses its own rules, so dates and float can differ.",
+      "schedulingRules": "Scheduling rules: P6 uses its own rules, so dates and float can differ. Choose the Primavera P6 scheduling profile before exporting to see what P6 will calculate.",
       "calendarKinds_one": "{{count}} calendar without its own working-time bands gets working-time bands when reopened (hour planning): dates and float can then differ",
       "calendarKinds_other": "{{count}} calendars without their own working-time bands get working-time bands when reopened (hour planning): dates and float can then differ",
       "baselines_one": "{{count}} baseline (XER stores a baseline as a separate project)",

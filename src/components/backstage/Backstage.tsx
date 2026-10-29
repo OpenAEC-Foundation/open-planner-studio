@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useAppStore, ExportFormat } from '@/state/appStore';
 import { EXPORT_FORMATS } from '@/services/formatRegistry';
+import { XerProfileHint } from '@/components/common/XerProfileHint';
 import { BackstageSection } from '@/state/slices/types';
 import { SettingsPanelContent } from '@/components/settings/SettingsPanelContent';
 import { ProjectInfoPanelContent, type ProjectInfoPanelContentHandle } from '@/components/settings/ProjectInfoPanelContent';
@@ -488,6 +489,7 @@ function ExportSection() {
                 {f.experimental && <span className="ops-experimental-badge" data-ops-experimental-badge>{tMenu('export.experimentalBadge')}</span>}
               </h4>
               <p>{f.desc}</p>
+              {f.format === 'xer' && <XerProfileHint />}
             </span>
           </button>
         ))}

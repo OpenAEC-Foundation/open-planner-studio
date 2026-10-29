@@ -17,6 +17,7 @@ import {
 import { applySetting } from '@/components/settings/applySetting';
 import { ExportFormat } from '@/state/appStore';
 import { EXPORT_FORMATS } from '@/services/formatRegistry';
+import { XerProfileHint } from '@/components/common/XerProfileHint';
 import { addTaskNearSelection } from '@/state/taskInsertActions';
 import { supportsRecentFiles } from '@/services/fileAccess';
 import { siteStorageAvailable } from '@/services/fileAccess/siteHost';
@@ -585,6 +586,7 @@ export function ExportDropdown() {
         >
           {f.label}
           {f.experimental && <span className="ops-experimental-badge" data-ops-experimental-badge>{tMenu('export.experimentalBadge')}</span>}
+          {f.format === 'xer' && <XerProfileHint />}
         </RibbonMenuItem>
       ))}
     </Popover>

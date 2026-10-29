@@ -2409,6 +2409,17 @@ body {
   vertical-align: middle;
   white-space: nowrap;
 }
+/* Hint onder de XER-keuze als het project niet met Primavera P6 rekent (`XerProfileHint`):
+   een eigen regel in de kleur van de beschrijvingstekst, iets kleiner. */
+.ops-export-profile-hint {
+  display: block;
+  margin-top: var(--sp-1);
+  max-width: 34em;
+  color: var(--theme-text-dim);
+  font-size: var(--text-caption);
+  line-height: 1.4;
+  white-space: normal;
+}
 
 .input {
   font-family: var(--font-body);
