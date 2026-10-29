@@ -1,7 +1,11 @@
 import type { CSSProperties, SVGAttributes } from 'react';
-import { B2_ICONS, type IconId, type IconMaster } from './b2/icons.generated';
+import { B2_ICONS, type IconDef, type IconId as B2IconId, type IconMaster } from './b2/icons.generated';
+import { OPS_ICONS, type OpsIconId } from './ops/opsIcons';
 
-export type { IconId } from './b2/icons.generated';
+/** Een B2-icoon uit de Blueprint, of tijdelijk een eigen OPS-icoon (`ops.*`, zie `ops/opsIcons.ts`). */
+export type IconId = B2IconId | OpsIconId;
+
+const ICONS: Readonly<Record<IconId, IconDef & { readonly box?: number }>> = { ...B2_ICONS, ...OPS_ICONS };
 
 /**
  * Eén B2-icoon uit de OpenAEC Style Repo (huisstijl 0.4). Vervangt de lucide-iconen: één betekenis per
@@ -24,14 +28,14 @@ export interface IconProps extends Omit<SVGAttributes<SVGSVGElement>, 'children'
 }
 
 function masterFor(id: IconId, size: number): IconMaster {
-  const def = B2_ICONS[id];
+  const def = ICONS[id];
   return size <= 18 ? def.s16 : def.s24;
 }
 
 export function Icon({ id, size = 16, mono = false, className, style, title, ...rest }: IconProps) {
-  const def = B2_ICONS[id];
+  const def = ICONS[id];
   const master = masterFor(id, size);
-  const box = size <= 18 ? 16 : 24;
+  const box = def.box ?? (size <= 18 ? 16 : 24);
   const decorative = !title && !rest['aria-label'] && !rest['aria-labelledby'];
   const classes = ['oa-icon', mono ? 'oa-icon--mono' : '', def.semantic ? `oa-icon--${def.semantic}` : '', className ?? '']
     .filter(Boolean).join(' ');
@@ -64,7 +68,7 @@ export function Icon({ id, size = 16, mono = false, className, style, title, ...
 
 /** Typeguard voor ids uit opgeslagen data (layouts, extensies): onbekend ⇒ `undefined`. */
 export function toIconId(value: unknown): IconId | undefined {
-  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(B2_ICONS, value) ? value as IconId : undefined;
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(ICONS, value) ? value as IconId : undefined;
 }
 
-export const ICON_IDS = Object.keys(B2_ICONS) as IconId[];
+export const ICON_IDS = Object.keys(ICONS) as IconId[];

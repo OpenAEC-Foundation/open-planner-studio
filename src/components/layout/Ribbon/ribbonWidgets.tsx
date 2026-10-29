@@ -978,7 +978,7 @@ export function LayoutGroupContent() {
         );
       })}
       <RibbonButton
-        icon={<Icon id="layout.manage" size={24} />}
+        icon={<Icon id="ops.add" size={24} />}
         label={tMenu('ribbon.addLayout')}
         onClick={() => setUI({ showLayoutsDialog: true, layoutDialogTargetId: null })}
       />
@@ -1056,8 +1056,8 @@ export function TimeScaleGroupContent() {
 
   const zoomInOutButtons = (
     <>
-      <RibbonSmallButton icon={<Icon id="view.zoom-in" size={16} />} label={tMenu('ribbon.zoomIn')} title={tMenu('ribbon.zoomInTitle')} onClick={() => setZoom(zoom + ZOOM_STEP)} />
-      <RibbonSmallButton icon={<Icon id="view.zoom-out" size={16} />} label={tMenu('ribbon.zoomOut')} title={tMenu('ribbon.zoomOutTitle')} onClick={() => setZoom(zoom - ZOOM_STEP)} />
+      <RibbonSmallButton icon={<Icon id="ops.zoom-in" size={16} />} label={tMenu('ribbon.zoomIn')} title={tMenu('ribbon.zoomInTitle')} onClick={() => setZoom(zoom + ZOOM_STEP)} />
+      <RibbonSmallButton icon={<Icon id="ops.zoom-out" size={16} />} label={tMenu('ribbon.zoomOut')} title={tMenu('ribbon.zoomOutTitle')} onClick={() => setZoom(zoom - ZOOM_STEP)} />
     </>
   );
   const resetFitButtons = (

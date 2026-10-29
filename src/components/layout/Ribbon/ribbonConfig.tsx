@@ -107,7 +107,7 @@ function uiAction(patch: Partial<UIState>): () => RibbonButtonBinding {
 
 /** Bereken/CPM-knop (start/planning/relations/table). */
 const calcButton: RibbonButtonSpec = {
-  kind: 'button', id: 'calc', icon: <Icon id="planning.calculate" size={24} />, labelKey: 'menu:ribbon.calculate', primary: true,
+  kind: 'button', id: 'calc', icon: <Icon id="ops.calculate" size={24} />, labelKey: 'menu:ribbon.calculate', primary: true,
   use: () => {
     const runCPM = useAppStore(s => s.runCPM);
     return { onClick: () => runCPM() };
@@ -319,11 +319,11 @@ const startTab: RibbonTabConfig = [
       {
         kind: 'stack', id: 'zoomStack', items: [
           {
-            kind: 'small', id: 'zoomIn', icon: <Icon id="view.zoom-in" size={16} />, labelKey: 'menu:ribbon.zoomIn',
+            kind: 'small', id: 'zoomIn', icon: <Icon id="ops.zoom-in" size={16} />, labelKey: 'menu:ribbon.zoomIn',
             use: () => useCommandBinding(COMMANDS.zoomIn),
           },
           {
-            kind: 'small', id: 'zoomOut', icon: <Icon id="view.zoom-out" size={16} />, labelKey: 'menu:ribbon.zoomOut',
+            kind: 'small', id: 'zoomOut', icon: <Icon id="ops.zoom-out" size={16} />, labelKey: 'menu:ribbon.zoomOut',
             use: () => useCommandBinding(COMMANDS.zoomOut),
           },
         ],
@@ -336,7 +336,7 @@ const startTab: RibbonTabConfig = [
  *  Bereken; geen structuur-, kalender- of baseline-actie. Uitgeschakeld zonder projectstartdatum
  *  (die is het referentiepunt van de verschuiving). */
 const moveProjectButton: RibbonButtonSpec = {
-  kind: 'button', id: 'moveProject', icon: <Icon id="planning.move-date" size={24} />, labelKey: 'menu:ribbon.moveProject',
+  kind: 'button', id: 'moveProject', icon: <Icon id="ops.move-date" size={24} />, labelKey: 'menu:ribbon.moveProject',
   use: () => {
     const setUI = useAppStore(s => s.setUI);
     const hasStart = useAppStore(s => !!s.project.startDate);
@@ -416,7 +416,7 @@ const planningTab: RibbonTabConfig = [
     id: 'structure', labelKey: 'menu:ribbon.structure',
     items: [
       {
-        kind: 'button', id: 'codesFields', icon: <Icon id="planning.structure" size={24} />, labelKey: 'menu:ribbon.codesFields',
+        kind: 'button', id: 'codesFields', icon: <Icon id="ops.codes-fields" size={24} />, labelKey: 'menu:ribbon.codesFields',
         use: uiAction({ showStructureDialog: true }),
       },
       {

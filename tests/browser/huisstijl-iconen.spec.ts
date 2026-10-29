@@ -44,25 +44,32 @@ test('lint: elke tab tekent alleen B2-iconen, met accent waar dat hoort', async 
   await expect(page.locator('[data-ops-ribbon-item="shortcuts"]')).not.toHaveClass(/\bsmall\b/);
   await expect(page.locator('[data-ops-ribbon-item="shortcuts"] svg[data-icon]')).toHaveAttribute('width', '24');
 
-  // Smal venster: de weergaveschakelaars op Beeld lijken als B2-icoon op elkaar (Blueprint #48) en houden
-  // daarom hun label; het lint krimpt eerst andere groepen tot iconen.
-  await page.setViewportSize({ width: 1280, height: 800 });
+  // De weergaveschakelaars op Beeld lijken als B2-icoon op elkaar (Blueprint #48). Ze krimpen met hetzelfde
+  // mechanisme als de rest, maar één groep later (Panelen links ervan eerst) en in één keer helemaal.
   await page.locator('.ribbon-tab[data-ops-ribbon-tab="beeld"]').click();
   const overlays = page.locator('[data-tour-anchor="ribbon-group:beeld:overlays"] .ribbon-btn');
-  await expect.poll(() => page.locator('.ribbon-container [data-ribbon-mini]').count(), 'het lint krimpt op 1280 px').toBeGreaterThan(0);
-  await expect(overlays.first()).toBeVisible();
-  for (const button of await overlays.all()) {
-    await expect(button).not.toHaveAttribute('data-ribbon-mini', /.*/);
-    await expect(button.locator('.ribbon-btn-label')).toBeVisible();
-  }
+  const panels = page.locator('[data-tour-anchor="ribbon-group:beeld:panels"] .ribbon-btn');
+  const miniCount = (buttons: typeof overlays) => buttons.evaluateAll(list => list.filter(b => b.hasAttribute('data-ribbon-mini')).length);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect.poll(() => miniCount(panels), 'op 1440 px krimpt Panelen al').toBeGreaterThan(0);
+  expect(await miniCount(overlays), 'op 1440 px houden de schakelaars hun label').toBe(0);
+  await expect(overlays.first().locator('.ribbon-btn-label')).toBeVisible();
+  // Gelijke breedte per kolom: de drie knoppen van de eerste kolom zijn even breed.
+  const widths = await page.locator('[data-tour-anchor="ribbon-group:beeld:overlays"] .ribbon-btn-stack').first()
+    .locator('.ribbon-btn').evaluateAll(list => list.map(b => Math.round(b.getBoundingClientRect().width)));
+  expect(new Set(widths).size, `breedtes ${widths.join(',')}`).toBe(1);
+  await page.setViewportSize({ width: 1100, height: 900 });
+  const total = await overlays.count();
+  await expect.poll(() => miniCount(overlays), 'op 1100 px krimpen de schakelaars, allemaal tegelijk').toBe(total);
   await page.setViewportSize({ width: 1600, height: 900 });
+  await expect.poll(() => miniCount(overlays), 'breder: de labels komen terug').toBe(0);
 
   // Koppeling uit #566 op vaste plekken: grote knop 24 px (24-master), kleine knop 16 px.
   await page.locator('.ribbon-tab[data-ops-ribbon-tab="start"]').click();
   const calc = page.locator('[data-ops-ribbon-item="calc"] svg[data-icon]');
   const addTask = page.locator('[data-ops-ribbon-item="addTask"] svg[data-icon]');
   const save = page.locator('[data-ops-ribbon-item="save"] svg[data-icon]');
-  await expect(calc).toHaveAttribute('data-icon', 'planning.calculate');
+  await expect(calc).toHaveAttribute('data-icon', 'ops.calculate');
   await expect(addTask).toHaveAttribute('data-icon', 'task.add');
   await expect(save).toHaveAttribute('data-icon', 'file.save');
   await expect(addTask).toHaveAttribute('viewBox', '0 0 24 24');

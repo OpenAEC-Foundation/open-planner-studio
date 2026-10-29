@@ -47,3 +47,29 @@
   width: 16px;
   height: 16px;
 }
+
+/* Lint: groepen waarvan de B2-iconen zonder label lastig uit elkaar te houden zijn (zie
+   LABEL_LATE_GROUP_SELECTOR in Ribbon.tsx). Ze houden hun label lang; dan moeten ze rustig ogen:
+   - per kolom even brede knoppen;
+   - een actieve schakelaar met een lichte accenttint in plaats van een vol accentvlak, zodat een rij
+     aan-schakelaars geen blok oranje vormt. Het icoon houdt zijn accent.
+   Ingeklapt (data-ribbon-mini) gelden de gewone lintregels. */
+:is([data-tour-anchor='ribbon-group:beeld:overlays'], [data-tour-anchor$=':trace']) .ribbon-btn-stack {
+  align-items: stretch;
+}
+:is([data-tour-anchor='ribbon-group:beeld:overlays'], [data-tour-anchor$=':trace']) .ribbon-btn.small:not([data-ribbon-mini]) {
+  width: 100%;
+}
+[data-tour-anchor='ribbon-group:beeld:overlays'] .ribbon-btn.small.active:not([data-ribbon-mini]) {
+  background: color-mix(in srgb, var(--theme-accent) 10%, transparent);
+  border-color: color-mix(in srgb, var(--theme-accent) 60%, transparent);
+}
+[data-tour-anchor='ribbon-group:beeld:overlays'] .ribbon-btn.small.active:not([data-ribbon-mini]) .ribbon-btn-label {
+  color: var(--theme-text);
+}
+[data-tour-anchor='ribbon-group:beeld:overlays'] .ribbon-btn.small.active:not([data-ribbon-mini]) .ribbon-btn-icon {
+  color: var(--theme-text);
+}
+[data-tour-anchor='ribbon-group:beeld:overlays'] .ribbon-btn.small.active:not([data-ribbon-mini]) .oa-icon {
+  --icon-accent: var(--theme-accent);
+}

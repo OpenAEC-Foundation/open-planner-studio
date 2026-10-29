@@ -41,14 +41,17 @@ import { applySetting } from '@/components/settings/applySetting';
 
 const MINI_ATTR = 'data-ribbon-mini';
 /**
- * Groepen die nooit tot iconen krimpen, omdat hun B2-iconen zonder label niet uit elkaar te houden
- * zijn. Het lint krimpt dan eerst groepen met een eigen icoon per knop.
+ * Groepen waarvan de B2-iconen zonder label lastig uit elkaar te houden zijn. Zelfde mechanisme als de
+ * rest (`data-ribbon-mini`), met twee verschillen:
+ *  1. ze krimpen één groep later dan hun plek: het lint krimpt van rechts naar links, maar de groep
+ *     direct links ervan (op Beeld: Panelen, met een eigen icoon per knop) krimpt eerst;
+ *  2. ze krimpen in één keer helemaal: half met label en half icoon oogt onrustig.
  * - De weergaveschakelaars op Beeld (baseline, voortgangslijn, statusdatumlijn, balkkleuren,
  *   resource-accent, spelingsband, relatielijnen): dezelfde balkvorm met een klein accent.
  *   https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint/issues/48
  * - Pad traceren (Voorgangers, Opvolgers): twee blokjes met een pijl, alleen de pijlrichting verschilt.
  */
-const KEEP_LABEL_GROUP_SELECTOR = [
+const LABEL_LATE_GROUP_SELECTOR = [
   '[data-tour-anchor="ribbon-group:beeld:overlays"]',
   '[data-tour-anchor$=":trace"]',
 ].join(', ');
@@ -67,13 +70,28 @@ const fitsWidth = (scroll: HTMLElement) => scroll.scrollWidth <= scroll.clientWi
  * dus per definitie niet in deze subboom.
  */
 function collectRibbonButtons(scroll: HTMLElement): HTMLElement[] {
-  return Array.from(scroll.querySelectorAll<HTMLElement>('.ribbon-btn')).filter(btn => {
-    if (btn.closest(KEEP_LABEL_GROUP_SELECTOR)) return false;
+  const buttons = Array.from(scroll.querySelectorAll<HTMLElement>('.ribbon-btn')).filter(btn => {
     const icon = btn.querySelector('.ribbon-btn-icon');
     if (!icon || icon.childElementCount === 0) return false;
     const label = btn.querySelector('.ribbon-btn-label');
     return !!label && (label.textContent ?? '').trim().length > 0;
   });
+  // `applyMiniPlan` krimpt de LAATSTE k knoppen. Een late groep wisselt in deze lijst van plek met de
+  // groep links ervan, zodat die eerder krimpt; groepen rechts ervan krimpen nog steeds eerst.
+  const groups: HTMLElement[][] = [];
+  for (const btn of buttons) {
+    const group = btn.closest('.ribbon-group');
+    const last = groups[groups.length - 1];
+    if (last && last[0].closest('.ribbon-group') === group) last.push(btn);
+    else groups.push([btn]);
+  }
+  for (let i = 1; i < groups.length; i++) {
+    if (groups[i][0].closest(LABEL_LATE_GROUP_SELECTOR) && !groups[i - 1][0].closest(LABEL_LATE_GROUP_SELECTOR)) {
+      [groups[i - 1], groups[i]] = [groups[i], groups[i - 1]];
+      i++;
+    }
+  }
+  return groups.flat();
 }
 
 /**
@@ -104,7 +122,10 @@ function syncFullyMiniGroups(scroll: HTMLElement): void {
 
 /** Zet de laatste `k` knoppen (rechts → links) op mini en synchroniseert de grid-markeringen. */
 function applyMiniPlan(scroll: HTMLElement, buttons: HTMLElement[], k: number): void {
-  const firstMini = buttons.length - k;
+  let firstMini = buttons.length - k;
+  // Een late groep krimpt helemaal of niet: valt de grens erin, dan schuift hij naar het begin ervan.
+  const boundary = buttons[firstMini]?.closest(LABEL_LATE_GROUP_SELECTOR);
+  if (boundary) while (firstMini > 0 && buttons[firstMini - 1].closest(LABEL_LATE_GROUP_SELECTOR) === boundary) firstMini--;
   const grids = new Set<Element>();
   const items = new Set<Element>();
 
