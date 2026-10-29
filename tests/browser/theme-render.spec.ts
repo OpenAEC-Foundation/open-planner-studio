@@ -47,6 +47,23 @@ async function themeAttributes(page: Page): Promise<[string | null, string | nul
   ]);
 }
 
+/** De achtergrond van titelbalk, linttabs, documentbalk en werkruimte. Bevinding Ethan 2026-10-29:
+ *  elk van de vier houdt zijn eigen tint (de titelbalk liep in donker op in het lint). */
+async function shellTints(page: Page): Promise<Record<string, string>> {
+  return page.evaluate(() => {
+    const bg = (selector: string) => {
+      const el = document.querySelector(selector);
+      return el ? getComputedStyle(el).backgroundColor : 'ontbreekt';
+    };
+    return {
+      titlebar: bg('.title-bar'),
+      ribbonTabs: bg('.ribbon-tabs'),
+      docbar: bg('.ops-tabstrip'),
+      workspace: bg('#ops-document-tabpanel'),
+    };
+  });
+}
+
 async function addLibraryBooking(page: Page, taskId: string, label: string): Promise<{
   companyId: string;
   poolResourceId: string;
@@ -105,13 +122,17 @@ test('theme switch tekent Gantt en minimap opnieuw en wordt daarna stil', async 
   // Standaard donker: beide attributen, en de Gantt-kaart is --oa-panel uit de tokens (#33333C).
   expect(await themeAttributes(page)).toEqual(['dark', 'dark']);
   expect(await ganttBackground(page)).toBe('#33333C');
+  // Titelbalk en documentbalk `frame`, linttabs `panel`, werkruimte `workspace` (Blueprint-schermen).
+  expect(await shellTints(page)).toEqual({
+    titlebar: 'rgb(42, 42, 50)', ribbonTabs: 'rgb(51, 51, 60)', docbar: 'rgb(42, 42, 50)', workspace: 'rgb(38, 38, 45)',
+  });
 
   // Het openen mag fixturematig; de geteste gebruikershandeling is de echte klik op de themakaart.
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: true }));
   const settings = page.getByRole('dialog');
   await expect(settings).toBeVisible();
 
-  // Licht: de brug leidt de kaart af uit --oa-panel (#FFFFFF), de rand uit --oa-frame.
+  // Licht: de brug leidt de kaart af uit --oa-panel (#FFFFFF), de werkruimte uit --oa-pressed.
   await settings.locator('[data-ops-theme-card="light"]').click();
   await expect.poll(() => themeAttributes(page)).toEqual(['light', 'light']);
   await expect.poll(() => ganttBackground(page)).toBe('#FFFFFF');
@@ -119,7 +140,15 @@ test('theme switch tekent Gantt en minimap opnieuw en wordt daarna stil', async 
     const cs = getComputedStyle(document.documentElement);
     return ['--theme-surface', '--theme-bg', '--theme-text', '--theme-accent']
       .map(name => cs.getPropertyValue(name).trim());
-  })).toEqual(['#FFFFFF', '#F1EEEA', '#2A2A32', '#D97706']);
+  })).toEqual(['#FFFFFF', '#E5E5E6', '#2A2A32', '#D97706']);
+  // Licht: titelbalk en documentbalk warm `frame`, linttabs wit, werkruimte het neutrale `pressed`.
+  expect(await shellTints(page)).toEqual({
+    titlebar: 'rgb(241, 238, 234)', ribbonTabs: 'rgb(255, 255, 255)', docbar: 'rgb(241, 238, 234)', workspace: 'rgb(229, 229, 230)',
+  });
+  // Bevinding Ethan 2026-10-29: de randen tussen de vlakken moeten zichtbaar zijn. De kaartrand
+  // is daarom niet --oa-border (#EAEAEA, 1,04:1 op `frame`), maar #D6D2CC (Blueprint-issue #44).
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--theme-border').trim()))
+    .toBe('#D6D2CC');
   const lightGantt = await canvasDataUrl(page, '[data-testid="gantt-primary-canvas"]');
   await waitForFontsAndTwoQuietWindows(page, 'primary');
   before.paint = await paintCount(page, 'primary');

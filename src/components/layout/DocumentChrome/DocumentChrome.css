@@ -19,7 +19,8 @@
 /* ---------- A: Tabstrip ---------- */
 .ops-tabstrip {
   flex: none; display: flex; align-items: stretch; height: 36px;
-  background: var(--theme-ribbon-tab-bg); border-bottom: 1px solid var(--theme-border);
+  /* De documentbalk heeft een eigen tint (Blueprint: `docbar`), los van de linttabs. */
+  background: var(--theme-docbar-bg); border-bottom: 1px solid var(--theme-border);
   padding: 0 6px; gap: 3px;
 }
 /* flex: none: de menuknop mag niet meekrimpen, anders klopt de meting van de vrije ruimte niet. */

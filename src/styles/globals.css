@@ -1413,13 +1413,16 @@ button.task-grid-relation-reference {
    hexwaarden over alles heen (stap 2 brengt de twee nieuwe hoogcontrastthema's). */
 :root,
 [data-oa-theme="dark"] {
-  --theme-bg: var(--oa-frame);
+  /* De ruimte achter de zwevende kaarten is de werkruimte van de Blueprint (besluit 11: donker
+     #26262D); zo houden kaarten, titelbalk en werkruimte elk een eigen tint. */
+  --theme-bg: var(--oa-workspace);
   --theme-surface: var(--oa-panel);
   --theme-surface-alt: var(--oa-frame);
   --theme-surface-elevated: var(--oa-raised);
   --theme-border: var(--oa-border);
   /* Rasterlijn en zachte scheiding: geen token. Het midden tussen --oa-border (#474750) en
-     --oa-panel (#33333C), zodat het Gantt-raster niet zo zwaar wordt als een kaartrand. */
+     --oa-panel (#33333C), zodat het Gantt-raster niet zo zwaar wordt als een kaartrand.
+     https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint/issues/41 */
   --theme-border-light: #3D3D46;
   --theme-control-border: var(--oa-border-strong);
   --theme-accent: var(--oa-accent);
@@ -1428,20 +1431,25 @@ button.task-grid-relation-reference {
   --theme-accent-on: var(--oa-text-on-accent);
   --theme-text: var(--oa-text);
   --theme-text-dim: var(--oa-text-secondary);
-  /* Geen eigen trap in de tokens; --oa-text-disabled haalt geen AA en is voor uitgeschakeld. */
+  /* Geen eigen trap in de tokens; --oa-text-disabled haalt geen AA en is voor uitgeschakeld.
+     https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint/issues/42 */
   --theme-text-muted: var(--oa-text-secondary);
   --theme-hover: var(--oa-hover);
   --theme-active: var(--oa-accent);
   --theme-active-border: var(--oa-accent);
   --theme-warning-text: var(--oa-warning);
   --theme-critical-text: var(--oa-error);
+  /* Geen token voor velden: https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint/issues/43 */
   --theme-input-bg: var(--oa-raised);
   --theme-dropdown-bg: var(--oa-raised);
   --theme-scrollbar-track: var(--oa-frame);
   --theme-scrollbar-thumb: var(--oa-border);
   --theme-ribbon-bg: var(--oa-panel);
-  --theme-ribbon-tab-bg: var(--oa-frame);
+  /* Zoals de Blueprint-schermen: titelbalk en documentbalk in `frame`, linttabs en lint in
+     `panel`. Zo heeft de titelbalk een eigen tint naast het lint. */
+  --theme-ribbon-tab-bg: var(--oa-panel);
   --theme-ribbon-content-bg: var(--oa-panel);
+  --theme-docbar-bg: var(--oa-docbar);
   --theme-file-tab-bg: var(--oa-accent);
   --theme-file-tab-hover: var(--oa-accent-hover);
   --theme-titlebar-bg: var(--oa-frame);
@@ -1471,13 +1479,23 @@ button.task-grid-relation-reference {
 }
 
 [data-oa-theme="light"] {
-  --theme-bg: var(--oa-frame);
+  /* OPS tekent zwevende kaarten op een verzonken werkruimte; de Blueprint-schermen kennen die laag
+     niet (vlakke panelen). `frame` is daarvoor te warm en te licht (wit op `frame` = 1,16:1), dus
+     de werkruimte is het neutrale `pressed` (#E5E5E6, gelijk aan de oude #E5E5E8) en koppen en
+     verzonken vlakken het neutrale `hover` (#F2F2F3, oud #F1F1F3). Titelbalk en documentbalk
+     houden het warme `frame`. */
+  --theme-bg: var(--oa-pressed);
   --theme-surface: var(--oa-panel);
-  --theme-surface-alt: var(--oa-frame);
+  --theme-surface-alt: var(--oa-hover);
   --theme-surface-elevated: var(--oa-raised);
-  --theme-border: var(--oa-border);
-  /* Het midden tussen --oa-border (#EAEAEA) en --oa-panel (#FFFFFF). */
-  --theme-border-light: #F4F4F4;
+  /* Tijdelijk een eigen rand: --oa-border (#EAEAEA) haalt 1,20:1 op wit en 1,04:1 op `frame`,
+     dus de randen tussen de vlakken vallen weg. #D6D2CC is een warm grijs uit de familie van
+     `frame`: 1,51:1 op wit, 1,30:1 op `frame` (eerder #D4D4D8: 1,42 op de kaart).
+     https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint/issues/44 */
+  --theme-border: #D6D2CC;
+  /* De rasterlijn is de rand van de tokens: 1,20:1 op wit, gelijk aan de oude 1,22:1.
+     Zie ook https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint/issues/41 */
+  --theme-border-light: var(--oa-border);
   --theme-control-border: var(--oa-border-strong);
   --theme-accent: var(--oa-accent);
   --theme-accent-hover: var(--oa-accent-hover);
@@ -1485,19 +1503,23 @@ button.task-grid-relation-reference {
   --theme-text: var(--oa-text);
   --theme-text-dim: var(--oa-text-secondary);
   --theme-text-muted: var(--oa-text-secondary);
-  --theme-hover: var(--oa-hover);
+  /* Hover als alpha van --oa-text: een dichte --oa-hover zou op de koppen (zelf --oa-hover)
+     onzichtbaar zijn. Op wit geeft dit #EEEEEF. */
+  --theme-hover: rgba(42, 42, 50, 0.07);
   --theme-active: var(--oa-accent);
   --theme-active-border: var(--oa-accent-pressed);
   --theme-warning-text: var(--oa-warning);
   --theme-critical-text: var(--oa-error);
+  /* Geen token voor velden: https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint/issues/43 */
   --theme-input-bg: var(--oa-raised);
   --theme-dropdown-bg: var(--oa-raised);
-  --theme-scrollbar-track: var(--oa-frame);
+  --theme-scrollbar-track: var(--oa-pressed);
   /* --oa-border is op de rand (#F1EEEA) bijna onzichtbaar; de uitgeschakelde tekstkleur wel. */
   --theme-scrollbar-thumb: var(--oa-text-disabled);
   --theme-ribbon-bg: var(--oa-panel);
-  --theme-ribbon-tab-bg: var(--oa-frame);
+  --theme-ribbon-tab-bg: var(--oa-panel);
   --theme-ribbon-content-bg: var(--oa-panel);
+  --theme-docbar-bg: var(--oa-docbar);
   --theme-file-tab-bg: var(--oa-accent);
   --theme-file-tab-hover: var(--oa-accent-hover);
   --theme-titlebar-bg: var(--oa-frame);
@@ -1596,6 +1618,8 @@ button.task-grid-relation-reference {
   --theme-ribbon-bg: linear-gradient(to bottom, #141414 0%, #0a0a0a 100%);
   --theme-ribbon-tab-bg: linear-gradient(to bottom, #141414 0%, #0d0d0d 100%);
   --theme-ribbon-content-bg: #0a0a0a;
+  /* De documentbalk hield hier de tint van de linttabs. */
+  --theme-docbar-bg: linear-gradient(to bottom, #141414 0%, #0d0d0d 100%);
   --theme-file-tab-bg: #ffff00;
   --theme-file-tab-hover: #ffcc00;
   --theme-titlebar-bg: linear-gradient(to bottom, #141414 0%, #0a0a0a 100%);
