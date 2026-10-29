@@ -188,8 +188,10 @@ export const progress = {
     if ('actualFinish' in update) time.actualFinish = update.actualFinish || undefined;
 
     const calendar = resolveCalendar(task.calendarId, draftState.calendars, draftState.calendar);
+    // Tegen de taak van vóór deze update: een mijlpaal houdt de klokketijd uit de planning (besluit
+    // 2026-10-29), en de scratch draagt de rauwe opgegeven datums al. Verder is de scratch gelijk.
     for (const field of ['actualStart', 'actualFinish'] as const) {
-      if (field in update) time[field] = normalizeActualDate(scratch, field, time[field], statusDate, calendar);
+      if (field in update) time[field] = normalizeActualDate(task, field, time[field], statusDate, calendar);
     }
     // Toets de opgegeven feiten, ook als completion het einde hieronder weer wist.
     const suppliedActualStart = time.actualStart;
