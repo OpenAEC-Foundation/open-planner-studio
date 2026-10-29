@@ -167,8 +167,8 @@ export function serializeDiscoveryFile(file: McpRuntimeFile | McpOpenFilesFile):
 // tekst: `realpath` van beide kanten en dan `stat` (dev + ino; op Windows het bestandsindex-nummer via
 // `fs.stat(…, { bigint: true })`). Zo vallen ook symlinks, harde links en andere schrijfwijzen samen.
 // Een tekstvergelijking is nooit een terugval (twee harde links hebben elk een eigen realpath). Mislukt
-// `realpath` of `stat` om een andere reden dan "bestaat aantoonbaar niet" (ENOENT op het pad zelf, met een
-// bestaande oudermap), dan weigert de lezer het schrijven. Zie `docs/mcp-ontdekking.md`.
+// `realpath` of `stat` om een andere reden dan "bestaat aantoonbaar niet" (ENOENT, met `realpath` van de
+// diepste bestaande bovenmap), dan weigert de lezer het schrijven. Zie `docs/mcp-ontdekking.md`.
 
 /** Ontdubbel en sorteer (vaste volgorde ⇒ geen onnodige schrijfactie); paden blijven letterlijk. */
 export function openFileList(paths: readonly string[]): string[] {

@@ -110,10 +110,14 @@ een terugval: twee harde links naar hetzelfde bestand hebben elk een eigen `real
 
 **Onzekere identiteit ⇒ weigeren.** Mislukt `realpath` of `stat` (voor het doel of voor een pad uit `files`) om
 een andere reden dan "bestaat aantoonbaar niet", dan weigert de plugin de schrijvende aanvraag. Alleen een pad dat
-aantoonbaar niet bestaat (`ENOENT` op dat pad zelf, terwijl de oudermap wel bestaat en `realpath` van die map
-lukt) mag apart behandeld worden: zo'n pad is geen bestaand bestand, dus het deelt met geen ander bestand een
-identiteit. Bestaan het doel en een pad uit `files` allebei aantoonbaar niet (een open document waarvan het bestand
-weg is), dan weigert de plugin als `realpath` van de oudermap plus de naam bij beide gelijk is.
+aantoonbaar niet bestaat (`ENOENT`, en `realpath` van de diepste bovenmap die wel bestaat lukt) mag apart behandeld
+worden: zo'n pad is geen bestaand bestand, dus het deelt met geen ander bestand een identiteit. Bestaan het doel en
+een pad uit `files` allebei aantoonbaar niet (een open document waarvan het bestand weg is), dan weigert de plugin
+als `realpath` van die diepste bestaande bovenmap plus de rest van het pad bij beide gelijk is. De diepste bovenmap,
+niet alleen de oudermap: de headless server maakt bij opslaan ontbrekende mappen aan, en met alleen de oudermap zou
+elk opslaan in een nieuwe submap geweigerd worden zolang de app draait (#730). Een relatief pad in `files` is
+onzeker en geeft dus een weigering; op macOS en Windows vergelijkt de headless server zo'n sleutel zonder onderscheid
+in hoofdletters.
 
 ## Invariant voor elke toekomstige `formatVersion`
 
