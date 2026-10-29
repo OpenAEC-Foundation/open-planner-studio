@@ -157,6 +157,30 @@ const isoHours = (minutes: number) => `PT${Math.floor(minutes / 60)}H${minutes %
     ]), { maxUnits: 1.5, availabilitySteps: [
       { from: '2026-11-07', maxUnits: 0 }, { from: '2026-11-16', maxUnits: 2 }, { from: '2026-11-21', maxUnits: 0 },
     ] });
+  // Vóór de eerste periode is de resource niet beschikbaar (MPXJ `mspdiavailability.xml`, Resource Two): een
+  // stap naar 0 op NA, want `maxUnits` blijft groter dan 0.
+  const late = availabilityFromPeriods(1, [{ from: '2009-06-01', to: '2049-12-31', units: 1 }]);
+  same('§2 lezer: eerste periode na NA', late, { maxUnits: 1, availabilitySteps: [
+    { from: '1984-01-01', maxUnits: 0 }, { from: '2009-06-01', maxUnits: 1 },
+  ] });
+  same('§2 lezer: eerste periode na NA, capaciteit 29 mei en 1 juni',
+    [maxUnitsOn(late as Resource, '2009-05-29'), maxUnitsOn(late as Resource, '2009-06-01')], [0, 1]);
+  same('§2 lezer: nulperiode vanaf NA blijft 0',
+    availabilityFromPeriods(1, [{ from: '1984-01-01', to: '2026-11-01', units: 0 }, { from: '2026-11-02', to: '2049-12-31', units: 1 }]),
+    { maxUnits: 1, availabilitySteps: [{ from: '1984-01-01', maxUnits: 0 }, { from: '2026-11-02', maxUnits: 1 }] });
+  // Ontbrekende grenzen zijn het open begin of einde (beide elementen zijn optioneel in het schema).
+  const openXml = write(project(), cal, [task('T', {})], [res('O', {})]).replace('<MaxUnits>1</MaxUnits>',
+    '<MaxUnits>1</MaxUnits><AvailabilityPeriods>'
+    + '<AvailabilityPeriod><AvailableTo>2026-11-01T23:59:00</AvailableTo><AvailableUnits>0.5</AvailableUnits></AvailabilityPeriod>'
+    + '<AvailabilityPeriod><AvailableFrom>2026-11-02T00:00:00</AvailableFrom><AvailableUnits>2</AvailableUnits></AvailabilityPeriod>'
+    + '</AvailabilityPeriods>');
+  const open = quiet(() => readMSPDI(openXml)).resources.find(r => r.name === 'O');
+  same('§2 lezer: ontbrekende grenzen = NA', open && { maxUnits: open.maxUnits, availabilitySteps: open.availabilitySteps },
+    { maxUnits: 0.5, availabilitySteps: [{ from: '2026-11-02', maxUnits: 2 }] });
+  // Heen en terug blijft een stap naar 0 op NA staan, zonder extra periode ervoor.
+  const zeroFirst = write(project(), cal, [task('T', {})], [res('Z', { availabilitySteps: late.availabilitySteps })]);
+  same('§2 Z: stap op NA geeft geen periode ervoor', flat(zeroFirst).match(/<AvailableFrom>[^<]*/g)?.map(m => m.slice(15, 25)), ['1984-01-01', '2009-06-01']);
+  same('§2 Z: terug ingelezen', quiet(() => readMSPDI(zeroFirst)).resources.find(r => r.name === 'Z')?.availabilitySteps, late.availabilitySteps);
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -169,6 +193,9 @@ const isoHours = (minutes: number) => `PT${Math.floor(minutes / 60)}H${minutes %
   same('§3 alleen hele dagdrempel: CriticalSlackLimit blijft', slack({ mode: 'totalFloat', threshold: 2 }), '2');
   same('§3 dagdrempel én thresholdHours: geen CriticalSlackLimit', slack({ mode: 'totalFloat', threshold: 1, thresholdHours: 4 }), undefined);
   same('§3 alleen thresholdHours: geen CriticalSlackLimit', slack({ mode: 'totalFloat', thresholdHours: 16 }), undefined);
+  // 0 uur is op elke kalender precies 0 dagen (de P6-standaard), ook met een andere dagdrempel ernaast.
+  same('§3 thresholdHours 0: CriticalSlackLimit 0', slack({ mode: 'totalFloat', threshold: 2, thresholdHours: 0 }), '0');
+  same('§3 longestPath: geen CriticalSlackLimit', slack({ mode: 'longestPath', threshold: 0 }), undefined);
   // Writer en verliesdetector zijn het eens: wat de writer niet schrijft, meldt de detector als verlies.
   const lossFor = (cd: NonNullable<NonNullable<Project['schedulingOptions']>['criticalDefinition']>) =>
     detectXerExportLoss('mspdi', {
@@ -183,6 +210,7 @@ const isoHours = (minutes: number) => `PT${Math.floor(minutes / 60)}H${minutes %
     })[0]?.categories.includes('schedule-options-and-provenance') ?? false;
   same('§3 detector: hele dagdrempel is geen verlies', lossFor({ mode: 'totalFloat', threshold: 2 }), false);
   same('§3 detector: thresholdHours is verlies', lossFor({ mode: 'totalFloat', threshold: 1, thresholdHours: 4 }), true);
+  same('§3 detector: thresholdHours 0 is geen verlies', lossFor({ mode: 'totalFloat', thresholdHours: 0 }), false);
 }
 
 console.log(`check-mspdi-export-klok-capaciteit-drempel: ${checks} controles, ${failures.length} fout`);

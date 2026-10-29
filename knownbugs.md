@@ -1030,6 +1030,19 @@ en noem het in je rapport of PR-tekst.
      apart behandelen, bijvoorbeeld zichtbaar weigeren of melden. Gevonden in review r2 van #659
      (GPT-6.1-Sol). — B
 
+468. **De MSPDI-export zet `MaterialLabel` en `StandardRate` op de verkeerde plek in `<Resource>`.**
+     `src/services/msproject/mspdiWriter.ts` (resourcelus): het schema van Microsoft wil `MaterialLabel` vóór
+     `MaxUnits` en `StandardRate` vóór `CalendarUID`; de writer schrijft ze erna. Stond al zo op main. Een
+     strenge XML-lezer kan het bestand weigeren. Voorstel: de twee schrijfregels verplaatsen. Gevonden in review
+     r1 van #728 (GPT-6.1-Sol), tegen de schemavolgorde vergeleken. — B
+
+469. **Een urentaak in kalendertijd met alleen een rest in dagen exporteert een andere rest dan de motor
+     rekent.** `src/services/msproject/mspdiWriter.ts` (`writtenRemaining`): zonder `remainingMinutes` telt de
+     writer `remainingTime` in de werktijd per dag van de taakkalender. De motor (`CPMSolver.progressWork`,
+     tak `elapsed`) negeert `remainingTime` bij een urentaak en rekent de rest uit de voortgang. Een urentaak
+     draagt normaal `remainingMinutes`, dus dit raakt alleen data van buiten de app. Gezien bij #555 in de code;
+     niet nagespeeld. — S
+
 ## Rondleiding, Help en extensie-gidsen
 
 68. **Een gidsstap die eenmaal "gedaan" is, blijft gedaan**, ook na wisselen naar een leeg project. Gezien bij
