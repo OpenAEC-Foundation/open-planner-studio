@@ -120,8 +120,21 @@ function deepFreeze<T>(value: T, seen = new Set<object>()): T {
   return value;
 }
 
-/** Bouw één bestandsbrede, immutable broncatalogus. TASKRSRC-rijen worden niet hier geprojecteerd. */
-export function buildXerResourceCatalog(tables: XerTables, availableCalendarIds: ReadonlySet<string>): XerResourceCatalog {
+/**
+ * Bouw één bestandsbrede, immutable broncatalogus. TASKRSRC-rijen worden niet hier geprojecteerd.
+ *
+ * `flatCapacityByResource`: de OPS-UDF `OPS_FlatCapacity` van een eigen export (`xerOpsMarkers.ts`). Een
+ * resource met vaste capaciteit schrijft de app als één RSRCRATE-rij (P6 wil daar de capaciteit zien,
+ * review PR #393 punt 4). Zonder deze regel werd die rij na heropenen een stap, en volgde de capaciteit
+ * daarna een nieuwe *Max. eenheden* niet meer (ronde 2, punt D). Met de UDF blijft de capaciteit vlak, maar
+ * alleen als de resource nog precies die ene rij heeft met de geschreven `max_qty_per_hr`; anders (in P6
+ * gewijzigd) leest hij zoals elk ander bestand. Een bestand zonder de UDF verandert hier niet.
+ */
+export function buildXerResourceCatalog(
+  tables: XerTables,
+  availableCalendarIds: ReadonlySet<string>,
+  flatCapacityByResource: ReadonlyMap<string, number> = new Map(),
+): XerResourceCatalog {
   const resourceRows = tables.tables.get('RSRC')?.rows ?? [];
   const roleRows = tables.tables.get('ROLES')?.rows ?? [];
   assertUniqueSourceIds(resourceRows, 'RSRC', 'rsrc_id');
@@ -149,7 +162,10 @@ export function buildXerResourceCatalog(tables: XerTables, availableCalendarIds:
     const relatedRates = ratesByResource.get(sourceId) ?? [];
     const flatRate = relatedRates.find(rate => rate.costs[0] !== null);
     const sourceMaxUnits = numberOf(tables, row, 'RSRC', 'def_qty_per_hr');
-    const availabilitySteps = relatedRates.flatMap(rate => rate.effectiveDate && rate.maxUnitsPerTime !== null && rate.maxUnitsPerTime >= 0 ? [{ from: rate.effectiveDate, maxUnits: rate.maxUnitsPerTime }] : []);
+    const flatCapacity = flatCapacityByResource.get(sourceId);
+    const keptFlat = flatCapacity !== undefined && relatedRates.length === 1
+      && relatedRates[0].maxUnitsPerTime !== null && Math.abs(relatedRates[0].maxUnitsPerTime - flatCapacity) <= 1e-9;
+    const availabilitySteps = keptFlat ? [] : relatedRates.flatMap(rate => rate.effectiveDate && rate.maxUnitsPerTime !== null && rate.maxUnitsPerTime >= 0 ? [{ from: rate.effectiveDate, maxUnits: rate.maxUnitsPerTime }] : []);
     const unitSourceId = row.cells.unit_id?.trim() || undefined;
     const unitOfMeasure = unitSourceId ? unitById.get(unitSourceId) : undefined;
     resources.push({ id: internalId, name: row.cells.rsrc_name?.trim() || row.cells.rsrc_short_name?.trim() || sourceId,

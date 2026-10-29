@@ -28,8 +28,7 @@ import type { ResourceAssignment } from '@/types/resource';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { effectiveSchedulingOptions, resolveConventions, builtInConventions, CONVENTION_KEYS } from '@/engine/scheduler/conventions/registry';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
-import { resolveEffectiveLagDays } from '@/engine/scheduler/CPMSolver';
-import { taskDurationUnit } from '@/engine/scheduler/duration';
+import { isElapsedTask, taskDurationUnit } from '@/engine/scheduler/duration';
 import { CONTOUR_SHAPE_VALUES, CURVE_TO_SHAPE, isFlatCurveValues } from '@/engine/contour/contourEngine';
 import { XER_DURATION_TYPE_TOKEN } from '@/engine/work/workRuleMapping';
 import { effectiveWorkRule, remainingMinutesOf } from '@/engine/work/workRuleApply';
@@ -37,17 +36,23 @@ import { DEFAULT_WORK_RULE } from '@/types/workRule';
 import { exportCalendarLayout, taskMinutesForWrite } from '@/services/subdayIo';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
 import { calendarForEngine, effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
+import { effHoursPerDay } from '@/utils/taskDuration';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import { flattenOrder } from '@/utils/wbs';
 import { computedFinish, computedStart } from '@/utils/taskDates';
 import { isoDayOfWeek, parseDate } from '@/utils/dateUtils';
+import { blocksClock, dayEndInstant, dayStartInstant, type DayClock } from '@/engine/calendar/workdayRules';
 import { p6ConstraintToken } from '@/services/p6/p6ConstraintTypes';
 import {
-  P6_CURVE_TO_NAME, p6ProjectIdentity, resourceTypeToP6, splitWholeDay, taskStatusToP6,
+  P6_CURVE_TO_NAME, p6ProjectIdentity, p6RelationshipLag, resourceTypeToP6, splitWholeDay, taskStatusToP6,
 } from '@/services/p6/p6xmlWriter';
 import { P6_MAX_LENGTH } from '@/services/p6/p6xmlSchemaOrder';
+import {
+  LagRecordCollector, fieldRecordsJson, lagRecordKey, lagWorkMinutesPerDay, withElapsedUnit, writeDays, writeMinutes,
+  dayMeasureMinutesPerDay, type WrittenAmount,
+} from '@/services/xmlDayMeasure';
 import { XER_RECORDED_OUTPUT_COLUMNS } from './xerRecordedTimes';
-import { OPS_XER_DURATION_UNIT_LABEL, OPS_XER_EXPORT_INFO_LABEL, opsXerExportInfoValue } from './xerOpsMarkers';
+import { OPS_XER_UDFS, XER_DURATION_FIELDS, type XerOpsField } from './xerOpsMarkers';
 import { LOSS_ORDER, type XerWriteInput, type XerWriteLossCode, type XerWriteResult } from '@/services/xerWriteTypes';
 
 // ── Contract ─────────────────────────────────────────────────────────────────────────────────────
@@ -91,6 +96,12 @@ const LAG_CALENDAR_TOKEN = {
   predecessor: 'rcal_Predecessor', successor: 'rcal_Successor', '24hour': 'rcal_24Hour', projectDefault: 'rcal_ProjDefault',
 } as const;
 const FLOAT_TYPE_TOKEN = { start: 'FT_SS', finish: 'FT_FF', smallest: 'FT_Min' } as const;
+
+/** `udf_type_id` per OPS-veld. Dezelfde nummers als de P6 XML-export waar het veld daar ook bestaat. */
+const OPS_XER_UDF_TYPE_ID: Record<XerOpsField, number> = {
+  unit: 900000001, dayRecords: 900000003, exactRecords: 900000004, lagRecords: 900000005,
+  defaultWorkRule: 900000008, flatCapacity: 900000009,
+};
 
 const XER_VERSION = '20.12';
 const CURRENCY = 'EUR';
@@ -215,21 +226,23 @@ function dateWithMinutes(date: string, minutes: number): string {
 }
 
 /**
- * Een OPS-instant als XER-datum `yyyy-MM-dd HH:mm`. Een uurinstant gaat letterlijk. Een dagdatum
- * (dagmodus) krijgt een tijd uit de kalender van de taak: `start` ⇒ begin van de eerste werkband die
- * dag, `finish` ⇒ einde van de laatste; `midnight` ⇒ 00:00 (de statusdatum: hetzelfde instant als
- * de dagdatum zelf). Zo leest `readXER` (die altijd in uurmodus leest) hetzelfde moment terug.
+ * Een OPS-datum als XER-datum `yyyy-MM-dd HH:mm`. Een moment gaat letterlijk. Een datum zonder tijd krijgt
+ * het moment dat de motor er zelf van maakt, op de kalender van de taak (de dagregels, `workdayRules.ts`):
+ * `start` ⇒ D1, het begin van het eerste werkblok; `finish` ⇒ D2, het einde van het laatste (zonder
+ * werkblok die dag: de typische werkdag, D4). Zo leest `readXER` hetzelfde moment terug, ook de statusdatum
+ * (startachtig, zoals de solver hem leest). `midnight` ⇒ 00:00: alleen voor een ingangsdatum, waarvan de
+ * lezer alleen de datum gebruikt.
  */
 class InstantWriter {
-  private readonly engines = new Map<string, CalendarEngine>();
+  private readonly clocks = new Map<string, DayClock>();
 
-  private engine(cal: WorkCalendar): CalendarEngine {
-    let engine = this.engines.get(cal.id);
-    if (!engine) {
-      engine = new CalendarEngine(calendarForEngine(cal));
-      this.engines.set(cal.id, engine);
+  private clock(cal: WorkCalendar): DayClock {
+    let clock = this.clocks.get(cal.id);
+    if (!clock) {
+      clock = blocksClock(cal);
+      this.clocks.set(cal.id, clock);
     }
-    return engine;
+    return clock;
   }
 
   write(iso: string | undefined, side: 'start' | 'finish' | 'midnight', cal: WorkCalendar): string {
@@ -238,9 +251,9 @@ class InstantWriter {
     const date = iso.slice(0, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return '';
     if (side === 'midnight') return `${date} 00:00`;
-    const bands = this.engine(cal).effectiveBandsOn(parseDate(date));
-    if (side === 'start') return dateWithMinutes(date, bands[0]?.start ?? Math.round(cal.workStartHour * 60));
-    return dateWithMinutes(date, bands[bands.length - 1]?.end ?? Math.round(cal.workEndHour * 60));
+    const instant = side === 'start' ? dayStartInstant(this.clock(cal), date) : dayEndInstant(this.clock(cal), date);
+    if (instant) return `${instant.slice(0, 10)} ${instant.slice(11, 16)}`;
+    return dateWithMinutes(date, Math.round((side === 'start' ? cal.workStartHour : cal.workEndHour) * 60));
   }
 }
 
@@ -473,6 +486,45 @@ function schedulingRulesDiffer(project: Project, options: EffectiveSchedulingOpt
   return false;
 }
 
+// ── Maat (alleen uren §3.3, §3.10; T13, T14, T21; `xmlDayMeasure.ts`) ───────────────────────────
+
+/** De werktijd per dag van een kalender in minuten (T13): daarin telt de dagenmaat, net als in de P6
+ *  XML-export en in de lezer (`readXER`). Een kalender zonder werktijd telt 8 u, net als de lezer. */
+function workMinutesPerDayOf(cal: WorkCalendar): number {
+  const minutes = dayMeasureMinutesPerDay(cal, false);
+  return minutes > 0 ? minutes : 480;
+}
+
+/**
+ * Duur en rest van een activiteit in de vorm die de XER draagt, met het record, zoals de P6 XML-export:
+ *  - urenmaat: de minuten, op de hele minuut; een breuk gaat als `OPS_ExactMinutes`-record mee (T14);
+ *  - dagenmaat: werkdagen × de werktijd per dag van de taakkalender (T13, niet de opgeslagen `hoursPerDay`);
+ *    een breuk in dagen gaat als `OPS_DayMeasureDurations`-record mee (T21);
+ *  - kalendertijd kent P6 niet per activiteit: de lengte telt als werktijd, en het record draagt de eenheid
+ *    (`ed`/`eu`), ook bij hele dagen, zodat OPS de kalendertijd terugleest (review #585 r1, punt 3).
+ * De rest volgt de solver en de werkregelbrug (`remainingMinutesOf`): de vastgelegde rest, anders duur ×
+ * (1 − voortgang), in de maat van de taak. Een voltooide taak en een mijlpaal: 0.
+ */
+function writtenDurations(task: Task, cal: WorkCalendar, complete: boolean): { duration: WrittenAmount; remaining: WrittenAmount } {
+  if (task.isMilestone) return { duration: { minutes: 0 }, remaining: { minutes: 0 } };
+  const minutesPerDay = workMinutesPerDayOf(cal);
+  const isHour = taskDurationUnit(task) === 'hours';
+  const elapsed = isElapsedTask(task);
+  const tag = (written: WrittenAmount, value: number): WrittenAmount =>
+    (elapsed ? withElapsedUnit(written, value, isHour ? 'eu' : 'ed') : written);
+  if (isHour) {
+    const minutes = taskMinutesForWrite(task, minutesPerDay / 60);
+    const rest = remainingMinutesOf(task, { hoursPerDay: minutesPerDay / 60 });
+    return { duration: tag(writeMinutes(minutes), minutes), remaining: complete ? { minutes: 0 } : tag(writeMinutes(rest), rest) };
+  }
+  const days = task.time.scheduleDuration;
+  const restDays = Math.max(0, task.time.remainingTime ?? days * (1 - (task.time.completion ?? 0)));
+  return {
+    duration: tag(writeDays(days, minutesPerDay), days),
+    remaining: complete ? { minutes: 0 } : tag(writeDays(restDays, minutesPerDay), restDays),
+  };
+}
+
 // ── Schrijver ───────────────────────────────────────────────────────────────────────────────────
 
 export function writeXER(input: XerWriteInput): XerWriteResult {
@@ -540,7 +592,7 @@ export function writeXER(input: XerWriteInput): XerWriteResult {
     proj_short_name: text(projectCode),
     clndr_id: calIds.get(calendar.id)!, task_code_base: '1000', task_code_step: '10', priority_num: '10',
     wbs_max_sum_level: '0', strgy_priority_num: '100',
-    last_recalc_date: instants.write(project.statusDate, 'midnight', calendar),
+    last_recalc_date: instants.write(project.statusDate, 'start', calendar),
     // De effectieve projectstandaard, ook zonder eigen keuze (`DEFAULT_WORK_RULE`, review ronde 2 E1).
     def_duration_type: XER_DURATION_TYPE_TOKEN[project.defaultWorkRule ?? DEFAULT_WORK_RULE], def_qty_type: 'QT_Hour', add_by_name: 'admin', def_rate_type: 'COST_PER_QTY',
     act_this_per_link_flag: 'Y', def_task_type: 'TT_Task', act_pct_link_flag: 'N',
@@ -554,6 +606,10 @@ export function writeXER(input: XerWriteInput): XerWriteResult {
     num(critHours),
   ];
   if (project.description?.trim() || project.author?.trim() || project.company?.trim()) lose('projectDetails', 1);
+  // De eigen keuze van het project (review PR #393 ronde 2, punt E2). `def_duration_type` staat er altijd,
+  // ook zonder keuze; de UDF zegt `readXER` dat het project deze standaard zelf koos.
+  const opsValues: { field: XerOpsField; fkId: string; text: string }[] = [];
+  if (project.defaultWorkRule) opsValues.push({ field: 'defaultWorkRule', fkId: projId, text: project.defaultWorkRule });
 
   // ── CALENDAR ─────────────────────────────────────────────────────────────────────────────────
   const taskCalendarIds = new Set(tasks.map(t => t.calendarId).filter((id): id is string => !!id));
@@ -626,14 +682,13 @@ export function writeXER(input: XerWriteInput): XerWriteResult {
   // ── TASK ─────────────────────────────────────────────────────────────────────────────────────
   const usedCodes = new Set<string>();
   const taskRows: string[][] = [];
+  /** Per taak de geschreven duur en rest in minuten: de toewijzingen hieronder rekenen ermee. */
+  const writtenByTask = new Map<string, { duration: number; remaining: number }>();
   for (const task of leafTasks) {
     const cal = effCal(task);
-    const hpd = cal.hoursPerDay > 0 ? cal.hoursPerDay : 8;
-    const durationHours = task.isMilestone ? 0 : taskMinutesForWrite(task, hpd) / 60;
     const status = XER_STATUS_TOKEN[taskStatusToP6(task)];
-    // Restduur: dezelfde afleiding als de solver en de werkregelbrug (`remainingMinutesOf`).
-    const remainingHours = task.isMilestone || status === 'TK_Complete' ? 0
-      : remainingMinutesOf(task, { hoursPerDay: hpd }) / 60;
+    const { duration, remaining } = writtenDurations(task, cal, status === 'TK_Complete');
+    writtenByTask.set(task.id, { duration: duration.minutes, remaining: remaining.minutes });
     // Activiteit-ID: uniek, niet leeg en hooguit 40 tekens, ná normalisatie (P6 eist dat).
     const code = uniqueCode(task.wbsCode, P6_MAX_LENGTH.Activity.Id, usedCodes, () => `A${(order.get(task.id) ?? 1) * 10}`, counter, codeChanges);
     const milestoneSide = task.milestoneKind === 'FINISH' ? 'finish' : 'start';
@@ -661,7 +716,7 @@ export function writeXER(input: XerWriteInput): XerWriteResult {
       lock_plan_flag: 'N', auto_compute_act_flag: 'N', complete_pct_type: task.p6CompletePctType ?? 'CP_Phys',
       task_type: taskType, duration_type: durationType, status_code: status,
       task_code: text(code), task_name: text(clip(task.name, P6_MAX_LENGTH.Activity.Name, counter)),
-      remain_drtn_hr_cnt: num(remainingHours), target_drtn_hr_cnt: num(durationHours),
+      remain_drtn_hr_cnt: num(remaining.minutes / 60), target_drtn_hr_cnt: num(duration.minutes / 60),
       act_start_date: instants.write(task.time.actualStart, 'start', cal),
       act_end_date: instants.write(task.time.actualFinish, 'finish', cal),
       expect_end_date: instants.write(task.p6ExpectedFinish, 'finish', cal),
@@ -688,15 +743,22 @@ export function writeXER(input: XerWriteInput): XerWriteResult {
     if (!XER_PRIORITY.some(([value]) => value === task.priority)) lose('priorities', 1);
     // Rekenuitvoer (bak 4) achter de gewone kolommen: P6 toont ze tot de eerste herberekening, en de
     // lezer leest ze als "Datums zoals opgeslagen", nooit als invoer.
+    // Speling in uren: de berekende minuten, anders dagen × de werktijd per dag (T13).
+    const workHpd = workMinutesPerDayOf(cal) / 60;
     const recorded = [
       instants.write(computedStart(task), startSide, cal),
       instants.write(computedFinish(task), finishSide, cal),
       instants.write(task.time.lateStart, startSide, cal),
       instants.write(task.time.lateFinish, finishSide, cal),
-      num(task.time.totalFloat * hpd),
-      num(task.time.freeFloat * hpd),
+      num(task.time.totalFloatMinutes !== undefined ? task.time.totalFloatMinutes / 60 : task.time.totalFloat * workHpd),
+      num(task.time.freeFloatMinutes !== undefined ? task.time.freeFloatMinutes / 60 : task.time.freeFloat * workHpd),
     ];
     taskRows.push([...TASK_COLUMNS.map(field => row[field] ?? ''), ...recorded]);
+    // De eenheid van de taak en, bij een breuk, het record (T15, T21): zo leest `readXER` de maat terug.
+    const taskId = taskIds.get(task.id)!;
+    opsValues.push({ field: 'unit', fkId: taskId, text: taskDurationUnit(task) });
+    const records = fieldRecordsJson({ [XER_DURATION_FIELDS.duration]: duration.record, [XER_DURATION_FIELDS.remaining]: remaining.record });
+    if (records !== undefined) opsValues.push({ field: taskDurationUnit(task) === 'hours' ? 'exactRecords' : 'dayRecords', fkId: taskId, text: records });
   }
 
   // Verlies op taakniveau.
@@ -720,12 +782,11 @@ export function writeXER(input: XerWriteInput): XerWriteResult {
   const touchesSummary = (s: Sequence) => isSummaryTask(taskById.get(s.predecessorId)) || isSummaryTask(taskById.get(s.successorId));
   lose('summaryRelations', input.sequences.filter(touchesSummary).length);
   const expanded = expandSummaryRelations(tasks, [...input.sequences]).sequences;
-  const lagEngines = new Map<string, CalendarEngine>();
-  const lagEngine = (cal: WorkCalendar): CalendarEngine => {
-    let engine = lagEngines.get(cal.id);
-    if (!engine) { engine = new CalendarEngine(cal); lagEngines.set(cal.id, engine); }
-    return engine;
-  };
+  // De lag in uren en, voor de dagenmaat en kalendertijd, het lagrecord: dezelfde regel als de P6 XML-export
+  // (`p6RelationshipLag`; T21, I7). Een lag in dagen telt in de werktijd per dag van de lagkalender, die de
+  // SCHEDOPTIONS-rij hierboven ook noemt. De records gaan als één UDF op de opvolger, met de voorganger
+  // en het relatietype als sleutel.
+  const lagRecords = new LagRecordCollector();
   const predRows: Cells[] = [];
   let predId = 1;
   for (const seq of expanded) {
@@ -734,37 +795,19 @@ export function writeXER(input: XerWriteInput): XerWriteResult {
     const predTaskId = taskIds.get(seq.predecessorId);
     const succTaskId = taskIds.get(seq.successorId);
     if (!pred || !succ || !predTaskId || !succTaskId) continue;
-    // De lag in uren op de lagkalender, zoals de solver hem nu oplost (`resolveLagMinutes` in uur-
-    // modus, `resolveEffectiveLagDays` in dagmodus: hele dagen). De lezer zet hem terug als minuten.
-    const lagCal = options.lagCalendar === 'successor' ? effCal(succ)
-      : options.lagCalendar === 'projectDefault' ? calendar : effCal(pred);
-    const engine = lagEngine(lagCal);
-    const hpd = options.lagCalendar === '24hour' ? 24 : engine.hoursPerDay;
-    const percent = typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent);
-    let lagHours: number;
-    if (seq.lagUnit === 'ELAPSEDTIME') {
-      // P6 kent geen lag-eenheid per relatie: kalenderdagen worden werkdagen (zoals P6 XML).
-      const days = percent ? resolveEffectiveLagDays(seq, pred)
-        : typeof seq.lagMinutes === 'number' && Number.isFinite(seq.lagMinutes) ? seq.lagMinutes / 1440 : seq.lagDays;
-      lagHours = (Number.isFinite(days) ? days : 0) * hpd;
-      lose('elapsedLags', 1);
-    } else if (engine.isHourMode || options.lagCalendar === '24hour') {
-      if (percent) {
-        const predMinutes = pred.isMilestone ? 0 : taskMinutesForWrite(pred, effCal(pred).hoursPerDay);
-        lagHours = Math.round((predMinutes * seq.lagPercent!) / 100) / 60;
-      } else if (typeof seq.lagMinutes === 'number' && Number.isFinite(seq.lagMinutes)) {
-        lagHours = seq.lagMinutes / 60;
-      } else {
-        lagHours = (Number.isFinite(seq.lagDays) ? seq.lagDays : 0) * hpd;
-      }
-    } else {
-      lagHours = resolveEffectiveLagDays(seq, pred, hpd) * hpd;
-    }
-    if (percent) lose('percentLags', 1);
+    const { hours, record } = p6RelationshipLag(seq, taskById, effCalByTask, calendar,
+      lagWorkMinutesPerDay(seq, options.lagCalendar, calendar, effCalByTask));
+    lagRecords.add(seq.successorId, lagRecordKey(predTaskId, seq.type), record);
+    if (typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent)) lose('percentLags', 1);
+    else if (seq.lagUnit === 'ELAPSEDTIME') lose('elapsedLags', 1);
     predRows.push({
       task_pred_id: String(predId++), task_id: succTaskId, pred_task_id: predTaskId, proj_id: projId,
-      pred_proj_id: projId, pred_type: XER_LINK_TYPE[seq.type], lag_hr_cnt: num(lagHours),
+      pred_proj_id: projId, pred_type: XER_LINK_TYPE[seq.type], lag_hr_cnt: num(hours),
     });
+  }
+  for (const task of leafTasks) {
+    const json = lagRecords.json(task.id);
+    if (json !== undefined) opsValues.push({ field: 'lagRecords', fkId: taskIds.get(task.id)!, text: json });
   }
 
   // ── RSRC / RSRCRATE / UMEASURE ───────────────────────────────────────────────────────────────
@@ -806,10 +849,15 @@ export function writeXER(input: XerWriteInput): XerWriteResult {
         });
       }
     } else {
+      // Vaste capaciteit: de lezer maakt van een RSRCRATE-rij een stap. De UDF `OPS_FlatCapacity` met de
+      // geschreven waarde zegt `readXER` dat deze rij de vaste capaciteit is, zodat *Max. eenheden* na
+      // heropenen weer de capaciteit bepaalt (review PR #393 ronde 2, punt D; `buildXerResourceCatalog`).
+      const maxPerHour = num(capacity(res.maxUnits));
       rateRows.push({
-        rsrc_rate_id: String(rateId++), rsrc_id: resIds.get(res.id)!, max_qty_per_hr: num(capacity(res.maxUnits)),
+        rsrc_rate_id: String(rateId++), rsrc_id: resIds.get(res.id)!, max_qty_per_hr: maxPerHour,
         cost_per_qty: num(res.costPerHour), start_date: instants.write(project.startDate, 'midnight', calendar),
       });
+      opsValues.push({ field: 'flatCapacity', fkId: resIds.get(res.id)!, text: maxPerHour });
     }
   });
 
@@ -841,21 +889,23 @@ export function writeXER(input: XerWriteInput): XerWriteResult {
     if (!task || !res) continue;
     if (!isLeafTask(task)) { lose('summaryAssignments', 1); continue; }
     const cal = effCal(task);
-    const hpd = cal.hoursPerDay > 0 ? cal.hoursPerDay : 8;
     const isMaterial = res.type === 'MATERIAL';
-    // Materiaal: OPS rekent per dag, XER per uur (de lezer vermenigvuldigt weer met dezelfde dag).
+    // Materiaal: OPS rekent per dag, XER per uur. De lezer vermenigvuldigt weer met dezelfde dag: op een
+    // urentaak de werktijd per dag van de taakkalender, op een dagtaak de `hoursPerDay` van de
+    // resourcekalender (`unitsPerDay` in `xerResourceAssignments.ts`).
     const materialHpd = taskDurationUnit(task) === 'hours'
-      ? hpd
+      ? effHoursPerDay(cal)
       : ((res.calendarId && calendarById.get(res.calendarId)) || calendar).hoursPerDay;
     const perHour = (rate: number) => (isMaterial ? rate / (materialHpd > 0 ? materialHpd : 8) : rate);
     const planned = a.plannedUnitsPerDay ?? a.unitsPerDay;
-    const taskHours = task.isMilestone ? 0 : taskMinutesForWrite(task, hpd) / 60;
-    const targetQty = a.plannedWorkMinutes !== undefined ? a.plannedWorkMinutes / 60 : taskHours * perHour(planned);
+    // Afgeleid werk = de geschreven duur × inzet: dezelfde uren als in TASK, dus voor een dagtaak werkdagen ×
+    // de werktijd per dag (T14), zoals de werkregelbrug rekent.
+    const written = writtenByTask.get(task.id) ?? { duration: 0, remaining: 0 };
+    const targetQty = a.plannedWorkMinutes !== undefined ? a.plannedWorkMinutes / 60 : written.duration / 60 * perHour(planned);
     // Restwerk: het vastgelegde veld, anders afgeleid zoals de werkregelbrug het doet: effectieve
     // restduur × resterende inzet (`remainingWorkOf`; review PR #393, punt 5). Niet begroot − verricht:
-    // zonder vastgelegd verricht werk is dat de hele begroting.
-    const remainingTaskHours = task.isMilestone ? 0 : remainingMinutesOf(task, { hoursPerDay: hpd }) / 60;
-    const remainQty = a.remainingWorkMinutes !== undefined ? a.remainingWorkMinutes / 60 : remainingTaskHours * perHour(a.unitsPerDay);
+    // zonder vastgelegd verricht werk is dat de hele begroting. Een voltooide taak heeft geen restduur.
+    const remainQty = a.remainingWorkMinutes !== undefined ? a.remainingWorkMinutes / 60 : written.remaining / 60 * perHour(a.unitsPerDay);
     // Verricht werk: het vastgelegde veld, anders begroot − rest (het werk dat de voortgang al dekt).
     const actualQty = a.actualWorkMinutes !== undefined ? a.actualWorkMinutes / 60 : Math.max(0, targetQty - remainQty);
     assignmentRows.push({
@@ -912,17 +962,19 @@ export function writeXER(input: XerWriteInput): XerWriteResult {
   if (predRows.length > 0) tables.push(table('TASKPRED', TASKPRED_COLUMNS, predRows));
   if (curveRows.length > 0) tables.push(table('RSRCCURVDATA', RSRCCURVDATA_COLUMNS, curveRows));
   if (assignmentRows.length > 0) tables.push(table('TASKRSRC', TASKRSRC_COLUMNS, assignmentRows));
-  // OPS-markeringen (`xerOpsMarkers.ts`): de eenheid per taak en de kalenders in uurmodus, zodat
-  // `readXER` een eigen export in dezelfde modus terugleest. P6 ziet twee gewone eigen velden.
-  tables.push(table('UDFTYPE', UDFTYPE_COLUMNS, [
-    { udf_type_id: '900000001', table_name: 'TASK', udf_type_name: 'user_field_900000001', udf_type_label: OPS_XER_DURATION_UNIT_LABEL, logical_data_type: 'FT_TEXT', super_flag: 'N' },
-    { udf_type_id: '900000002', table_name: 'PROJECT', udf_type_name: 'user_field_900000002', udf_type_label: OPS_XER_EXPORT_INFO_LABEL, logical_data_type: 'FT_TEXT', super_flag: 'N' },
-  ]));
-  const hourCalendarIds = allCalendars.filter(c => c.workTime).map(c => calIds.get(c.id)!);
-  tables.push(table('UDFVALUE', UDFVALUE_COLUMNS, [
-    ...leafTasks.map(task => ({ udf_type_id: '900000001', fk_id: taskIds.get(task.id)!, proj_id: projId, udf_text: taskDurationUnit(task) })),
-    { udf_type_id: '900000002', fk_id: projId, proj_id: projId, udf_text: opsXerExportInfoValue(hourCalendarIds) },
-  ]));
+  // OPS-velden (`xerOpsMarkers.ts`), zoals de P6 XML-export: de maat per taak en haar records, de
+  // standaardwerkregel en de vaste capaciteit, zodat `readXER` een eigen export zo terugleest. P6 ziet
+  // gewone eigen velden (tekst). De vier taakvelden staan er altijd; de andere alleen met een waarde.
+  const usedFields = new Set(opsValues.map(value => value.field));
+  const udfs = OPS_XER_UDFS.filter(udf => udf.table === 'TASK' || usedFields.has(udf.field));
+  const udfTypeId = (field: XerOpsField) => String(OPS_XER_UDF_TYPE_ID[field]);
+  tables.push(table('UDFTYPE', UDFTYPE_COLUMNS, udfs.map(udf => ({
+    udf_type_id: udfTypeId(udf.field), table_name: udf.table, udf_type_name: `user_field_${udfTypeId(udf.field)}`,
+    udf_type_label: udf.label, logical_data_type: 'FT_TEXT', super_flag: 'N',
+  }))));
+  tables.push(table('UDFVALUE', UDFVALUE_COLUMNS, opsValues.map(value => ({
+    udf_type_id: udfTypeId(value.field), fk_id: value.fkId, proj_id: projId, udf_text: text(value.text),
+  }))));
   if (memoRows.length > 0) {
     tables.push(table('MEMOTYPE', MEMOTYPE_COLUMNS, [{
       memo_type_id: '1', seq_num: '1', eps_flag: 'N', proj_flag: 'N', wbs_flag: 'N', task_flag: 'Y', memo_type: 'Notes',

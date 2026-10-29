@@ -1,118 +1,142 @@
 /**
- * OPS-markeringen in een XER die de app zelf schreef (`xerWriter.ts`), gelezen door `readXER`.
+ * De OPS-velden in een XER die de app zelf schreef (`xerWriter.ts`), gelezen door `readXER`.
  *
- * P6 rekent altijd in uren; een XER-kalender draagt dus altijd kloktijden, en de lezer opent elke
- * XER-kalender daarom in uurmodus. Voor een project dat in OPS in dagen rekende, zou een rondgang
- * OPS → XER → OPS dan andere datums en speling geven (een begin-mijlpaal aan het einde van de dag,
- * een SF-relatie). Daarom schrijft de app twee eigen UDF's, net als de P6 XML-export
- * (`OPS_TaskDurationUnit`, `p6xmlWriter.ts`):
+ * P6 rekent altijd in uren; een XER-duur en -lag zijn dus altijd een aantal uren, en zonder meer leest
+ * de lezer elke activiteit in de urenmaat (alleen uren §3.10, T15). Een taak die in OPS in de dagenmaat
+ * stond, zou na OPS → XER → OPS dan geen dagtaak meer zijn. Daarom schrijft de app eigen tekst-UDF's,
+ * precies zoals de P6 XML-export (`p6xmlWriter.ts`, `xmlDayMeasure.ts`; T13, T21, I7):
  *
- *  - `OPS_TaskDurationUnit` op TASK: per activiteit `days` of `hours`;
- *  - `OPS_ExportInfo` op PROJECT: `ops-xer-1;hourCalendars=<clndr_id's>` (de kalenders die in OPS in
- *    uurmodus rekenden).
+ *  - TASK, per activiteit: `OPS_TaskDurationUnit` (`days` of `hours`), en waar nodig de maatrecords
+ *    `OPS_DayMeasureDurations` (dagenmaat met een breuk), `OPS_ExactMinutes` (urenmaat met een breuk in
+ *    minuten) en `OPS_DayMeasureLags` (de lagen naar deze activiteit; sleutel `voorganger-task_id:type`);
+ *  - PROJECT: `OPS_DefaultWorkRule`, de standaardwerkregel van het project (alleen als het project er
+ *    een koos; review PR #393 ronde 2, punt E2);
+ *  - RSRC: `OPS_FlatCapacity`, de geschreven `max_qty_per_hr` van een resource met een vaste capaciteit
+ *    (zonder stappen; review PR #393 ronde 2, punt D).
  *
- * HERKENNING IS STRENG (review PR #393, punt 1). De lezer leest een project alleen als OPS-export als
- *  1. precies één TASK-definitie `OPS_TaskDurationUnit` en precies één PROJECT-definitie
- *     `OPS_ExportInfo` bestaan, beide van het type tekst;
- *  2. dit project een geldige `OPS_ExportInfo`-waarde heeft (exact het formaat hierboven); en
- *  3. ELKE activiteit van dit project een eigen geldige eenheidswaarde heeft.
- * Ontbreekt er iets (een losse UDF-definitie, of een activiteit die iemand in P6 toevoegde), dan leest
- * het hele project volgens de gewone P6-regels, precies als zonder markeringen, en blijven de UDF's
- * zichtbaar als eigen veld. P6 zelf toont de twee velden als gewone eigen velden.
+ * HERKENNING PER TAAK (T15, zoals `p6xmlReader.ts`). Een activiteit met een eigen, geldige eenheidswaarde
+ * leest volgens `readMeasure`: de dagenmaat komt terug, met het record zolang het standaardveld nog de
+ * geschreven minuten draagt. Een activiteit zonder eenheidswaarde (bijvoorbeeld later in P6 toegevoegd)
+ * leest als urenmaat, precies als op main, en verandert de andere activiteiten niet. Een bestand zonder
+ * deze UDF's leest precies als op main: de lezer zoekt de waarden alleen als een definitie bestaat.
+ *
+ * De kalenders lezen met de gewone regels (`xerCalendarData.ts`): de banden in `clndr_data` bepalen de
+ * urenkalender. Er is geen OPS-markering voor kalenders.
+ *
+ * De OPS-UDF's zijn geen eigen velden van de gebruiker: de metadatalezer (`xerMetadata.ts`) laat elke
+ * definitie met een OPS-naam weg, net zoals de P6 XML-lezer ze niet als veld toont. P6 zelf toont ze als
+ * gewone eigen velden.
  */
 import { OPS_DURATION_UNIT_NAME, isTaskDurationUnit } from '@/services/xmlInterchange';
+import {
+  OPS_DAY_MEASURE_DURATIONS_NAME, OPS_DAY_MEASURE_LAGS_NAME, OPS_EXACT_MINUTES_NAME,
+} from '@/services/xmlDayMeasure';
+import { WORK_RULES, type WorkRule } from '@/types/workRule';
 import type { XerRow, XerTables } from './xerTables';
 
-export const OPS_XER_DURATION_UNIT_LABEL = OPS_DURATION_UNIT_NAME;
-export const OPS_XER_EXPORT_INFO_LABEL = 'OPS_ExportInfo';
-/** De waarde van `OPS_ExportInfo`: versie, dan de uurkalenders (komma-gescheiden `clndr_id`'s). */
-export function opsXerExportInfoValue(hourCalendarIds: readonly string[]): string {
-  return `ops-xer-1;hourCalendars=${hourCalendarIds.join(',')}`;
+/** De standaardwerkregel van het project (`Project.defaultWorkRule`), als PROJECT-UDF. */
+export const OPS_XER_DEFAULT_WORK_RULE_NAME = 'OPS_DefaultWorkRule';
+/** De geschreven `max_qty_per_hr` van een resource met vaste capaciteit, als RSRC-UDF. */
+export const OPS_XER_FLAT_CAPACITY_NAME = 'OPS_FlatCapacity';
+
+/** De duurvelden van een activiteit, op hun XER-naam (de sleutels in een duurrecord). */
+export const XER_DURATION_FIELDS = { duration: 'target_drtn_hr_cnt', remaining: 'remain_drtn_hr_cnt' } as const;
+
+export type XerOpsField = 'unit' | 'dayRecords' | 'exactRecords' | 'lagRecords' | 'defaultWorkRule' | 'flatCapacity';
+
+/** Elke OPS-UDF: haar naam, de tabel waar ze op staat, en wat ze draagt. Alleen tekst (`FT_TEXT`). */
+export const OPS_XER_UDFS: readonly { field: XerOpsField; label: string; table: 'TASK' | 'PROJECT' | 'RSRC' }[] = [
+  { field: 'unit', label: OPS_DURATION_UNIT_NAME, table: 'TASK' },
+  { field: 'dayRecords', label: OPS_DAY_MEASURE_DURATIONS_NAME, table: 'TASK' },
+  { field: 'exactRecords', label: OPS_EXACT_MINUTES_NAME, table: 'TASK' },
+  { field: 'lagRecords', label: OPS_DAY_MEASURE_LAGS_NAME, table: 'TASK' },
+  { field: 'defaultWorkRule', label: OPS_XER_DEFAULT_WORK_RULE_NAME, table: 'PROJECT' },
+  { field: 'flatCapacity', label: OPS_XER_FLAT_CAPACITY_NAME, table: 'RSRC' },
+];
+
+export interface XerOpsFields {
+  /** De `udf_type_id`'s van alle OPS-definities; de metadatalezer laat ze weg. */
+  typeIds: ReadonlySet<string>;
+  /** `task_id` → eenheid. Alleen een eenduidige, geldige waarde: twee verschillende waarden voor één
+   *  activiteit tellen als geen waarde (urenmaat, zoals op main). */
+  unitByTask: ReadonlyMap<string, 'days' | 'hours'>;
+  /** `task_id` → de JSON-tekst van de duurrecords (dagenmaat) of minutenrecords (urenmaat). */
+  dayRecordsByTask: ReadonlyMap<string, string>;
+  exactRecordsByTask: ReadonlyMap<string, string>;
+  /** `task_id` van de opvolger → de JSON-tekst van de lagrecords. */
+  lagRecordsByTask: ReadonlyMap<string, string>;
+  /** `proj_id` → de standaardwerkregel (een geldige `WorkRule`). */
+  defaultWorkRuleByProject: ReadonlyMap<string, WorkRule>;
+  /** `rsrc_id` → de geschreven capaciteit per uur. */
+  flatCapacityByResource: ReadonlyMap<string, number>;
 }
-const EXPORT_INFO_PATTERN = /^ops-xer-1;hourCalendars=((?:[^,;\s]+(?:,[^,;\s]+)*)?)$/;
 
-export interface XerOpsMarkers {
-  /** `task_id` → eenheid van de taak in OPS (voor ELKE activiteit van het project). */
-  taskUnits: ReadonlyMap<string, 'days' | 'hours'>;
-  /** `clndr_id`'s van de kalenders die in OPS in uurmodus rekenden. */
-  hourCalendarIds: ReadonlySet<string>;
-}
+const EMPTY: XerOpsFields = {
+  typeIds: new Set(), unitByTask: new Map(), dayRecordsByTask: new Map(), exactRecordsByTask: new Map(),
+  lagRecordsByTask: new Map(), defaultWorkRuleByProject: new Map(), flatCapacityByResource: new Map(),
+};
 
-type MarkerKind = 'unit' | 'info';
-
-function markerKind(row: XerRow): MarkerKind | undefined {
+/** De soort van een `UDFTYPE`-rij als het een OPS-definitie is: naam, tabel en type (`FT_TEXT`) kloppen.
+ *  De metadatalezer (`xerMetadata.ts`) laat zulke rijen weg uit de eigen velden. */
+export function opsUdfFieldOf(row: XerRow): XerOpsField | undefined {
+  if (!row.cells.udf_type_id?.trim() || row.cells.logical_data_type?.trim().toUpperCase() !== 'FT_TEXT') return undefined;
   const label = row.cells.udf_type_label?.trim();
   const table = row.cells.table_name?.trim().toUpperCase();
-  const type = row.cells.logical_data_type?.trim().toUpperCase();
-  if (type !== 'FT_TEXT') return undefined;
-  if (label === OPS_XER_DURATION_UNIT_LABEL && table === 'TASK') return 'unit';
-  if (label === OPS_XER_EXPORT_INFO_LABEL && table === 'PROJECT') return 'info';
-  return undefined;
+  return OPS_XER_UDFS.find(entry => entry.label === label && entry.table === table)?.field;
 }
 
-/** De twee markerdefinities, alleen als elk precies één keer bestaat. */
-function markerTypeIds(tables: XerTables): { unit: string; info: string } | undefined {
-  const rows = tables.tables.get('UDFTYPE')?.rows ?? [];
-  const unit = rows.filter(row => markerKind(row) === 'unit');
-  const info = rows.filter(row => markerKind(row) === 'info');
-  if (unit.length !== 1 || info.length !== 1) return undefined;
-  const unitId = unit[0].cells.udf_type_id?.trim();
-  const infoId = info[0].cells.udf_type_id?.trim();
-  if (!unitId || !infoId || unitId === infoId) return undefined;
-  return { unit: unitId, info: infoId };
+/** De OPS-definities in `UDFTYPE`: `udf_type_id` → soort. Leest alleen `UDFTYPE`. */
+function opsUdfFieldsByTypeId(tables: XerTables): ReadonlyMap<string, XerOpsField> {
+  const fieldByTypeId = new Map<string, XerOpsField>();
+  for (const row of tables.tables.get('UDFTYPE')?.rows ?? []) {
+    const field = opsUdfFieldOf(row);
+    if (field) fieldByTypeId.set(row.cells.udf_type_id.trim(), field);
+  }
+  return fieldByTypeId;
 }
 
 /**
- * De OPS-markeringen van project `projectId`, of `undefined` als dit project geen volledig herkende
- * OPS-export is (zie de drie regels bovenaan). `activityRows` = alle TASK-rijen van het project.
+ * De OPS-velden van een bestand, één keer per bestand. Zonder OPS-definitie in `UDFTYPE` is dit meteen
+ * leeg, zonder de waardentabel te lezen. Per sleutel telt de eerste waarde; voor de eenheid moet elke
+ * waarde gelijk zijn.
  */
-export function readXerOpsMarkers(tables: XerTables, projectId: string, activityRows: readonly XerRow[]): XerOpsMarkers | undefined {
-  const ids = markerTypeIds(tables);
-  if (!ids || activityRows.length === 0) return undefined;
-  let info: string | undefined;
-  const units = new Map<string, string>();
+export function readXerOpsFields(tables: XerTables): XerOpsFields {
+  const fieldByTypeId = opsUdfFieldsByTypeId(tables);
+  if (fieldByTypeId.size === 0) return EMPTY;
+  const units = new Map<string, 'days' | 'hours' | null>();
+  const texts: Record<'dayRecords' | 'exactRecords' | 'lagRecords', Map<string, string>> = {
+    dayRecords: new Map(), exactRecords: new Map(), lagRecords: new Map(),
+  };
+  const defaultWorkRuleByProject = new Map<string, WorkRule>();
+  const flatCapacityByResource = new Map<string, number>();
   for (const row of tables.tables.get('UDFVALUE')?.rows ?? []) {
-    const typeId = row.cells.udf_type_id?.trim();
-    const fk = (row.cells.fk_id ?? '').trim();
+    const field = fieldByTypeId.get(row.cells.udf_type_id?.trim() ?? '');
+    const key = row.cells.fk_id?.trim() ?? '';
+    if (!field || !key) continue;
     const text = (row.cells.udf_text ?? '').trim();
-    if (typeId === ids.info && fk === projectId) {
-      if (info !== undefined) return undefined; // twee waarden voor één project: niet eenduidig
-      info = text;
-    } else if (typeId === ids.unit && fk) {
-      if (units.has(fk)) return undefined;
-      units.set(fk, text);
+    if (field === 'unit') {
+      const unit = isTaskDurationUnit(text) ? text : null;
+      const seen = units.get(key);
+      units.set(key, seen === undefined || seen === unit ? unit : null);
+    } else if (field === 'defaultWorkRule') {
+      const rule = WORK_RULES.find(candidate => candidate === text);
+      if (rule && !defaultWorkRuleByProject.has(key)) defaultWorkRuleByProject.set(key, rule);
+    } else if (field === 'flatCapacity') {
+      const value = text === '' ? NaN : Number(text);
+      if (Number.isFinite(value) && value >= 0 && !flatCapacityByResource.has(key)) flatCapacityByResource.set(key, value);
+    } else if (!texts[field].has(key)) {
+      texts[field].set(key, text);
     }
   }
-  const match = info === undefined ? null : EXPORT_INFO_PATTERN.exec(info);
-  if (!match) return undefined;
-  const taskUnits = new Map<string, 'days' | 'hours'>();
-  for (const row of activityRows) {
-    const taskId = row.cells.task_id?.trim() ?? '';
-    const unit = units.get(taskId);
-    if (!taskId || unit === undefined || !isTaskDurationUnit(unit)) return undefined;
-    taskUnits.set(taskId, unit);
-  }
-  const hourCalendarIds = new Set(match[1] ? match[1].split(',') : []);
-  return { taskUnits, hourCalendarIds };
-}
-
-/**
- * De `udf_type_id`'s van de markerdefinities, alleen als ELK project met activiteiten in dit bestand
- * een herkende OPS-export is. Alleen dan laat de metadatalezer (`xerMetadata.ts`) ze weg uit de eigen
- * velden; anders blijven ze zichtbaar, zoals elke andere UDF.
- */
-export function recognizedOpsMarkerTypeIds(tables: XerTables): ReadonlySet<string> {
-  const ids = markerTypeIds(tables);
-  if (!ids) return new Set();
-  const byProject = new Map<string, XerRow[]>();
-  for (const row of tables.tables.get('TASK')?.rows ?? []) {
-    const projectId = row.cells.proj_id?.trim() ?? '';
-    const list = byProject.get(projectId);
-    if (list) list.push(row); else byProject.set(projectId, [row]);
-  }
-  if (byProject.size === 0) return new Set();
-  for (const [projectId, rows] of byProject) {
-    if (!readXerOpsMarkers(tables, projectId, rows)) return new Set();
-  }
-  return new Set([ids.unit, ids.info]);
+  const unitByTask = new Map<string, 'days' | 'hours'>();
+  for (const [key, unit] of units) if (unit) unitByTask.set(key, unit);
+  return {
+    typeIds: new Set(fieldByTypeId.keys()),
+    unitByTask,
+    dayRecordsByTask: texts.dayRecords,
+    exactRecordsByTask: texts.exactRecords,
+    lagRecordsByTask: texts.lagRecords,
+    defaultWorkRuleByProject,
+    flatCapacityByResource,
+  };
 }

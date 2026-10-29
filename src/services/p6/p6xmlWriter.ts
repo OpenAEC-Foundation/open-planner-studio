@@ -238,6 +238,7 @@ function holidayOrExceptionsNode(cal: WorkCalendar): P6Node[] {
  *  - Dagenmaat (`lagDays`): dagen × de werktijd per dag van de lagkalender (I7), op de hele minuut, met het
  *    record `[dagen, minuten]` (ook hele dagen: de relatie heeft geen eigen markering). Kalendertijd in
  *    dagen telt in P6 net zo (P6 kent geen kalendertijd per relatie), met `[dagen, minuten, "ed"]`.
+ * De meldingen in de log staan hier; de rekenregel zelf is {@link p6RelationshipLag}.
  */
 function p6Lag(
   seq: Sequence,
@@ -246,6 +247,27 @@ function p6Lag(
   calendar: WorkCalendar,
   minutesPerLagDay: number,
 ): { hours: number; record?: LagRecord } {
+  const lag = p6RelationshipLag(seq, taskById, effCalByTask, calendar, minutesPerLagDay);
+  if (typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent)) {
+    console.warn(`P6-export: procent-lag (${seq.lagPercent}%) uitgebakken naar ${lag.minutes} minuten — P6 kent geen procent-lag.`);
+  } else if (seq.lagUnit === 'ELAPSEDTIME') {
+    console.warn('P6-export: kalenderdag-lag geëxporteerd als gewone lag-uren — P6 heeft geen lag-eenheid per relatie.');
+  }
+  return { hours: lag.hours, ...(lag.record ? { record: lag.record } : {}) };
+}
+
+/**
+ * De rekenregel van {@link p6Lag}, zonder meldingen: de lag in P6-uren en het lagrecord. Gedeeld met de
+ * XER-schrijver (`xerWriter.ts`), zodat de twee P6-formaten een lag op dezelfde manier schrijven; die telt
+ * zijn verlies zelf. `minutes`: bij een procent-lag de uitgebakken minuten.
+ */
+export function p6RelationshipLag(
+  seq: Sequence,
+  taskById: ReadonlyMap<string, Task>,
+  effCalByTask: ReadonlyMap<string, WorkCalendar>,
+  calendar: WorkCalendar,
+  minutesPerLagDay: number,
+): { hours: number; minutes?: number; record?: LagRecord } {
   const elapsed = seq.lagUnit === 'ELAPSEDTIME';
   if (typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent)) {
     const pred = taskById.get(seq.predecessorId);
@@ -254,11 +276,7 @@ function p6Lag(
     const predHpd = pred?.time.durationType === 'ELAPSEDTIME' ? 24 : effHoursPerDay(predCal);
     const predMinutes = pred && !pred.isMilestone ? taskMinutesForWrite(pred, predHpd) : 0;
     const minutes = Math.round(predMinutes * seq.lagPercent / 100);
-    console.warn(`P6-export: procent-lag (${seq.lagPercent}%) uitgebakken naar ${minutes} minuten — P6 kent geen procent-lag.`);
-    return { hours: minutes / 60 };
-  }
-  if (elapsed) {
-    console.warn('P6-export: kalenderdag-lag geëxporteerd als gewone lag-uren — P6 heeft geen lag-eenheid per relatie.');
+    return { hours: minutes / 60, minutes };
   }
   if (typeof seq.lagMinutes === 'number' && Number.isFinite(seq.lagMinutes)) {
     return {
