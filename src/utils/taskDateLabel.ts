@@ -61,13 +61,13 @@ export function momentLabel(clock: DayClock, value: string, side: InstantSide, m
 }
 
 /** De kant van de soort van een mijlpaal: FINISH de eindkant, anders de startkant (D7). */
-export function milestoneSide(task: Task): InstantSide {
+export function milestoneKindSide(task: Task): InstantSide {
   return task.milestoneKind === 'FINISH' ? 'end' : 'start';
 }
 
 /** De werkdag van een moment van een nulduur-mijlpaal (`milestoneWorkdayOf`) met de klok van de taak. */
 export function milestoneDay(task: Task, value: string, calendar: WorkCalendar): string {
-  return milestoneWorkdayOf(taskDateClock(task, calendar), value, milestoneSide(task));
+  return milestoneWorkdayOf(taskDateClock(task, calendar), value, milestoneKindSide(task));
 }
 
 export interface TaskDateLabelOptions {
@@ -93,7 +93,7 @@ export function taskDateLabel(
   const clock = taskDateClock(task, calendar);
   const milestone = (opts.milestoneOwn ?? true) && isZeroDurationMilestone(task);
   if (!milestone) return momentLabel(clock, value, side);
-  return momentLabel(clock, value, side, milestoneSide(task));
+  return momentLabel(clock, value, side, milestoneKindSide(task));
 }
 
 /** Dezelfde regel met de kalender van de taak uit de bibliotheek van het document (eigen `calendarId`,
