@@ -369,6 +369,43 @@ function leaf(name: string, days: number, extra: Partial<Task> = {}): Task {
   eq('D5 capaciteit in P6 gewijzigd ⇒ een stap, zoals op main', res(read(enc(edited)), 'Ploeg').availabilitySteps?.map(s => s.maxUnits), [4]);
 }
 
+// ── Capaciteitsstappen van materiaal (fixronde #393) ─────────────────────────────────────────────
+// OPS kent de capaciteit van materiaal per DAG, XER per uur: de schrijver deelt elke stap door de uren per
+// dag (review ronde 2, punt C). Zonder meer las `readXER` de stappen per uur terug: 40 en 80 per dag
+// werden 5 en 10.
+{
+  const input = baseInput();
+  input.tasks.push(leaf('Storten', 5));
+  input.resources.push({ id: 'beton', name: 'Beton', type: 'MATERIAL', description: '', maxUnits: 80, unitOfMeasure: 'm3',
+    availabilitySteps: [{ from: '2026-06-01', maxUnits: 40 }, { from: '2026-06-08', maxUnits: 80 }] });
+  input.resources.push({ id: 'zand', name: 'Zand', type: 'MATERIAL', description: '', maxUnits: 50, unitOfMeasure: 't',
+    availabilitySteps: [{ from: '2026-06-01', maxUnits: 50 }, { from: '2026-06-15', maxUnits: 100 / 3 }] });
+  const w = writeXER(input);
+  const rates = rowsOf(w.bytes, 'RSRCRATE');
+  const betonId = rowsOf(w.bytes, 'RSRC').find(r => r.rsrc_name === 'Beton')!.rsrc_id;
+  eq('M0 P6 ziet de capaciteit per uur (40 en 80 per dag op 8 uur)', rates.filter(r => r.rsrc_id === betonId).map(r => Number(r.max_qty_per_hr)), [5, 10]);
+  const back = read(w.bytes);
+  const res = (r: ImportResult, name: string) => r.resources.find(x => x.name === name)!;
+  eq('M1 materiaalstappen komen terug per dag', res(back, 'Beton').availabilitySteps, [{ from: '2026-06-01', maxUnits: 40 }, { from: '2026-06-08', maxUnits: 80 }]);
+  eq('M2 een breuk per dag komt exact terug', res(back, 'Zand').availabilitySteps?.map(s => s.maxUnits), [50, 100 / 3]);
+  eq('M3 Max. eenheden blijft per dag', res(back, 'Beton').maxUnits, 80);
+  ok('M3b de OPS-velden zijn geen eigen veld', !(back.customFieldDefs ?? []).some(d => d.name.startsWith('OPS_')));
+  // In P6 gewijzigd: een rij draagt niet meer de geschreven capaciteit ⇒ die rij leest zoals op main (per uur,
+  // ongeschaald); de andere rij houdt haar dagwaarde.
+  let fields: string[] = [];
+  let changed = false;
+  const edited = w.text.split('\r\n').map(line => {
+    if (line.startsWith('%F\t')) fields = line.split('\t');
+    if (!line.startsWith('%R\t') || fields[1] !== 'rsrc_rate_id') return line;
+    const cells = line.split('\t');
+    if (changed || cells[fields.indexOf('rsrc_id')] !== betonId) return line;
+    changed = true;
+    return cells.map((c, i) => fields[i] === 'max_qty_per_hr' ? '6' : c).join('\t');
+  }).join('\r\n');
+  eq('M4 eerste stap in P6 gewijzigd ⇒ die stap zoals op main, de tweede blijft per dag',
+    res(read(enc(edited)), 'Beton').availabilitySteps?.map(s => s.maxUnits), [6, 80]);
+}
+
 // ── Ronde 2, punt E2: de standaardwerkregel van het project ───────────────────────────────────────
 {
   const input = baseInput();

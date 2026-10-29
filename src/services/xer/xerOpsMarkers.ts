@@ -12,7 +12,8 @@
  *  - PROJECT: `OPS_DefaultWorkRule`, de standaardwerkregel van het project (alleen als het project er
  *    een koos; review PR #393 ronde 2, punt E2);
  *  - RSRC: `OPS_FlatCapacity`, de geschreven `max_qty_per_hr` van een resource met een vaste capaciteit
- *    (zonder stappen; review PR #393 ronde 2, punt D).
+ *    (zonder stappen; review PR #393 ronde 2, punt D), en `OPS_CapacitySteps`, de capaciteitsstappen van
+ *    materiaal per dag (XER draagt ze per uur; fixronde #393).
  *
  * HERKENNING PER TAAK (T15, zoals `p6xmlReader.ts`). Een activiteit met een eigen, geldige eenheidswaarde
  * leest volgens `readMeasure`: de dagenmaat komt terug, met het record zolang het standaardveld nog de
@@ -38,11 +39,41 @@ import type { XerRow, XerTables } from './xerTables';
 export const OPS_XER_DEFAULT_WORK_RULE_NAME = 'OPS_DefaultWorkRule';
 /** De geschreven `max_qty_per_hr` van een resource met vaste capaciteit, als RSRC-UDF. */
 export const OPS_XER_FLAT_CAPACITY_NAME = 'OPS_FlatCapacity';
+/** De capaciteitsstappen van materiaal, als RSRC-UDF: per startdatum `[per dag, geschreven per uur]`. */
+export const OPS_XER_CAPACITY_STEPS_NAME = 'OPS_CapacitySteps';
+
+/** Eén capaciteitsstap van materiaal: `[maxUnits per dag in OPS, de geschreven max_qty_per_hr]`. */
+export type CapacityStepRecord = readonly [perDay: number, writtenPerHour: number];
+
+const STEP_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** De tekst van `OPS_CapacitySteps`: een JSON-object van startdatum (`YYYY-MM-DD`) naar record. */
+export function capacityStepsJson(records: ReadonlyMap<string, CapacityStepRecord>): string {
+  return JSON.stringify(Object.fromEntries([...records].sort(([a], [b]) => a.localeCompare(b))));
+}
+
+/** Tegenhanger van {@link capacityStepsJson}. Een ongeldige tekst geeft een lege map; een ongeldige
+ *  sleutel of waarde valt weg. */
+export function parseCapacitySteps(text: string): ReadonlyMap<string, CapacityStepRecord> {
+  const records = new Map<string, CapacityStepRecord>();
+  let value: unknown;
+  try { value = JSON.parse(text); } catch { return records; }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return records;
+  for (const [date, record] of Object.entries(value as Record<string, unknown>)) {
+    if (!STEP_DATE.test(date) || !Array.isArray(record) || record.length !== 2) continue;
+    const [perDay, writtenPerHour] = record as unknown[];
+    if (typeof perDay !== 'number' || typeof writtenPerHour !== 'number') continue;
+    if (!Number.isFinite(perDay) || !Number.isFinite(writtenPerHour) || perDay < 0 || writtenPerHour < 0) continue;
+    records.set(date, [perDay, writtenPerHour]);
+  }
+  return records;
+}
 
 /** De duurvelden van een activiteit, op hun XER-naam (de sleutels in een duurrecord). */
 export const XER_DURATION_FIELDS = { duration: 'target_drtn_hr_cnt', remaining: 'remain_drtn_hr_cnt' } as const;
 
-export type XerOpsField = 'unit' | 'dayRecords' | 'exactRecords' | 'lagRecords' | 'defaultWorkRule' | 'flatCapacity';
+export type XerOpsField = 'unit' | 'dayRecords' | 'exactRecords' | 'lagRecords' | 'defaultWorkRule' | 'flatCapacity'
+  | 'capacitySteps';
 
 /** Elke OPS-UDF: haar naam, de tabel waar ze op staat, en wat ze draagt. Alleen tekst (`FT_TEXT`). */
 export const OPS_XER_UDFS: readonly { field: XerOpsField; label: string; table: 'TASK' | 'PROJECT' | 'RSRC' }[] = [
@@ -52,6 +83,7 @@ export const OPS_XER_UDFS: readonly { field: XerOpsField; label: string; table: 
   { field: 'lagRecords', label: OPS_DAY_MEASURE_LAGS_NAME, table: 'TASK' },
   { field: 'defaultWorkRule', label: OPS_XER_DEFAULT_WORK_RULE_NAME, table: 'PROJECT' },
   { field: 'flatCapacity', label: OPS_XER_FLAT_CAPACITY_NAME, table: 'RSRC' },
+  { field: 'capacitySteps', label: OPS_XER_CAPACITY_STEPS_NAME, table: 'RSRC' },
 ];
 
 export interface XerOpsFields {
@@ -69,11 +101,14 @@ export interface XerOpsFields {
   defaultWorkRuleByProject: ReadonlyMap<string, WorkRule>;
   /** `rsrc_id` → de geschreven capaciteit per uur. */
   flatCapacityByResource: ReadonlyMap<string, number>;
+  /** `rsrc_id` → de capaciteitsstappen van materiaal per startdatum. */
+  capacityStepsByResource: ReadonlyMap<string, ReadonlyMap<string, CapacityStepRecord>>;
 }
 
 const EMPTY: XerOpsFields = {
   typeIds: new Set(), unitByTask: new Map(), dayRecordsByTask: new Map(), exactRecordsByTask: new Map(),
   lagRecordsByTask: new Map(), defaultWorkRuleByProject: new Map(), flatCapacityByResource: new Map(),
+  capacityStepsByResource: new Map(),
 };
 
 /** De soort van een `UDFTYPE`-rij als het een OPS-definitie is: naam, tabel en type (`FT_TEXT`) kloppen.
@@ -109,6 +144,7 @@ export function readXerOpsFields(tables: XerTables): XerOpsFields {
   };
   const defaultWorkRuleByProject = new Map<string, WorkRule>();
   const flatCapacityByResource = new Map<string, number>();
+  const capacityStepsByResource = new Map<string, ReadonlyMap<string, CapacityStepRecord>>();
   for (const row of tables.tables.get('UDFVALUE')?.rows ?? []) {
     const field = fieldByTypeId.get(row.cells.udf_type_id?.trim() ?? '');
     const key = row.cells.fk_id?.trim() ?? '';
@@ -124,6 +160,8 @@ export function readXerOpsFields(tables: XerTables): XerOpsFields {
     } else if (field === 'flatCapacity') {
       const value = text === '' ? NaN : Number(text);
       if (Number.isFinite(value) && value >= 0 && !flatCapacityByResource.has(key)) flatCapacityByResource.set(key, value);
+    } else if (field === 'capacitySteps') {
+      if (!capacityStepsByResource.has(key)) capacityStepsByResource.set(key, parseCapacitySteps(text));
     } else if (!texts[field].has(key)) {
       texts[field].set(key, text);
     }
@@ -138,5 +176,6 @@ export function readXerOpsFields(tables: XerTables): XerOpsFields {
     lagRecordsByTask: texts.lagRecords,
     defaultWorkRuleByProject,
     flatCapacityByResource,
+    capacityStepsByResource,
   };
 }

@@ -1293,7 +1293,7 @@ export function readXER(bytes: Uint8Array): XerOpenResult {
   }
   // De OPS-UDF's van een eigen export (`xerOpsMarkers.ts`); leeg, en zonder effect, in elk bestand uit P6.
   const opsFields = readXerOpsFields(tables);
-  const resourceCatalog = buildXerResourceCatalog(tables, availableCalendarIds, opsFields.flatCapacityByResource);
+  const resourceCatalog = buildXerResourceCatalog(tables, availableCalendarIds, opsFields);
   const metadataCatalog = buildXerMetadataCatalog(tables);
   const taskResourceRowsByProject = indexXerTaskResourceRows(tables);
   const projectRowsIndex = indexXerProjectRows(tables);

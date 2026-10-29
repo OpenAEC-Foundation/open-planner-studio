@@ -9,6 +9,7 @@ import type {
 import { parseXerNumber, XerImportError, type XerRow, type XerTables } from './xerTables';
 import { readXerResourceCurves } from './xerResourceCurves';
 import { readXerResourceAssignments } from './xerResourceAssignments';
+import type { CapacityStepRecord } from './xerOpsMarkers';
 
 export type {
   XerEntityIdentity, XerResourceIssue, XerResourceCurveSource, XerResourceRateSource,
@@ -128,13 +129,25 @@ function deepFreeze<T>(value: T, seen = new Set<object>()): T {
  * review PR #393 punt 4). Zonder deze regel werd die rij na heropenen een stap, en volgde de capaciteit
  * daarna een nieuwe *Max. eenheden* niet meer (ronde 2, punt D). Met de UDF blijft de capaciteit vlak, maar
  * alleen als de resource nog precies die ene rij heeft met de geschreven `max_qty_per_hr`; anders (in P6
- * gewijzigd) leest hij zoals elk ander bestand. Een bestand zonder de UDF verandert hier niet.
+ * gewijzigd) leest hij zoals elk ander bestand.
+ *
+ * `capacityStepsByResource`: de OPS-UDF `OPS_CapacitySteps`. OPS kent de capaciteit van materiaal per dag;
+ * de schrijver zet een stap per uur in `max_qty_per_hr`, zoals P6 hem leest. Zonder record leest de stap
+ * dat getal ongeschaald (zoals op main), dus 40 m³ per dag kwam terug als 5. Met het record krijgt een
+ * stap van materiaal haar dagwaarde terug, maar alleen zolang de rij nog de geschreven waarde draagt en
+ * haar startdatum één keer voorkomt; anders leest die rij zoals elk ander bestand.
+ * Een bestand zonder deze UDF's verandert hier niet.
  */
 export function buildXerResourceCatalog(
   tables: XerTables,
   availableCalendarIds: ReadonlySet<string>,
-  flatCapacityByResource: ReadonlyMap<string, number> = new Map(),
+  opsCapacity: {
+    flatCapacityByResource?: ReadonlyMap<string, number>;
+    capacityStepsByResource?: ReadonlyMap<string, ReadonlyMap<string, CapacityStepRecord>>;
+  } = {},
 ): XerResourceCatalog {
+  const flatCapacityByResource = opsCapacity.flatCapacityByResource ?? new Map<string, number>();
+  const capacityStepsByResource = opsCapacity.capacityStepsByResource ?? new Map<string, ReadonlyMap<string, CapacityStepRecord>>();
   const resourceRows = tables.tables.get('RSRC')?.rows ?? [];
   const roleRows = tables.tables.get('ROLES')?.rows ?? [];
   assertUniqueSourceIds(resourceRows, 'RSRC', 'rsrc_id');
@@ -165,11 +178,19 @@ export function buildXerResourceCatalog(
     const flatCapacity = flatCapacityByResource.get(sourceId);
     const keptFlat = flatCapacity !== undefined && relatedRates.length === 1
       && relatedRates[0].maxUnitsPerTime !== null && Math.abs(relatedRates[0].maxUnitsPerTime - flatCapacity) <= 1e-9;
-    const availabilitySteps = keptFlat ? [] : relatedRates.flatMap(rate => rate.effectiveDate && rate.maxUnitsPerTime !== null && rate.maxUnitsPerTime >= 0 ? [{ from: rate.effectiveDate, maxUnits: rate.maxUnitsPerTime }] : []);
+    const type = resourceType(row, sourceId, issues);
+    const stepRecords = type === 'MATERIAL' ? capacityStepsByResource.get(sourceId) : undefined;
+    const ratesPerDate = new Map<string, number>();
+    if (stepRecords) for (const rate of relatedRates) if (rate.effectiveDate) ratesPerDate.set(rate.effectiveDate, (ratesPerDate.get(rate.effectiveDate) ?? 0) + 1);
+    const stepMaxUnits = (date: string, maxUnitsPerTime: number): number => {
+      const record = stepRecords?.get(date);
+      return record && ratesPerDate.get(date) === 1 && Math.abs(maxUnitsPerTime - record[1]) <= 1e-9 ? record[0] : maxUnitsPerTime;
+    };
+    const availabilitySteps = keptFlat ? [] : relatedRates.flatMap(rate => rate.effectiveDate && rate.maxUnitsPerTime !== null && rate.maxUnitsPerTime >= 0 ? [{ from: rate.effectiveDate, maxUnits: stepMaxUnits(rate.effectiveDate, rate.maxUnitsPerTime) }] : []);
     const unitSourceId = row.cells.unit_id?.trim() || undefined;
     const unitOfMeasure = unitSourceId ? unitById.get(unitSourceId) : undefined;
     resources.push({ id: internalId, name: row.cells.rsrc_name?.trim() || row.cells.rsrc_short_name?.trim() || sourceId,
-      type: resourceType(row, sourceId, issues), description: row.cells.rsrc_notes ?? '', maxUnits: sourceMaxUnits !== null && sourceMaxUnits >= 0 ? sourceMaxUnits : 0,
+      type, description: row.cells.rsrc_notes ?? '', maxUnits: sourceMaxUnits !== null && sourceMaxUnits >= 0 ? sourceMaxUnits : 0,
       ...(calendarSourceId && availableCalendarIds.has(calendarSourceId) ? { calendarId: calendarSourceId } : {}), ...(unitOfMeasure ? { unitOfMeasure } : {}),
       ...(flatRate?.costs[0] !== null && flatRate?.costs[0] !== undefined ? { costPerHour: flatRate.costs[0] } : {}), ...(availabilitySteps.length ? { availabilitySteps } : {}),
       ...(parentSourceId && resourceIds.has(parentSourceId) ? { parentId: resourceInternalId(parentSourceId) } : {}) });

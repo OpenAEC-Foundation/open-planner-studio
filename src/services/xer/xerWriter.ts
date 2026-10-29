@@ -57,7 +57,7 @@ import {
   dayMeasureMinutesPerDay, type WrittenAmount,
 } from '@/services/xmlDayMeasure';
 import { XER_RECORDED_OUTPUT_COLUMNS } from './xerRecordedTimes';
-import { OPS_XER_UDFS, XER_DURATION_FIELDS, type XerOpsField } from './xerOpsMarkers';
+import { capacityStepsJson, OPS_XER_UDFS, XER_DURATION_FIELDS, type CapacityStepRecord, type XerOpsField } from './xerOpsMarkers';
 import { LOSS_ORDER, type XerWriteInput, type XerWriteLossCode, type XerWriteResult } from '@/services/xerWriteTypes';
 
 // ── Contract ─────────────────────────────────────────────────────────────────────────────────────
@@ -105,7 +105,7 @@ const FLOAT_TYPE_TOKEN = { start: 'FT_SS', finish: 'FT_FF', smallest: 'FT_Min' }
 /** `udf_type_id` per OPS-veld. Dezelfde nummers als de P6 XML-export waar het veld daar ook bestaat. */
 const OPS_XER_UDF_TYPE_ID: Record<XerOpsField, number> = {
   unit: 900000001, dayRecords: 900000003, exactRecords: 900000004, lagRecords: 900000005,
-  defaultWorkRule: 900000008, flatCapacity: 900000009,
+  defaultWorkRule: 900000008, flatCapacity: 900000009, capacitySteps: 900000010,
 };
 
 const XER_VERSION = '20.12';
@@ -847,11 +847,24 @@ export function writeXER(input: XerWriteInput): XerWriteResult {
     const capacity = (units: number) => (res.type === 'MATERIAL' ? units / capacityHpd : units);
     const steps = res.availabilitySteps ?? [];
     if (steps.length > 0) {
+      // Materiaal: de stap staat per uur in P6; `OPS_CapacitySteps` bewaart per startdatum de dagwaarde en de
+      // geschreven waarde, zodat `readXER` de stap per dag terugleest (`buildXerResourceCatalog`). Een
+      // startdatum die twee keer voorkomt, krijgt geen record (de lezer kan de rijen niet uit elkaar houden).
+      const stepRecords = new Map<string, CapacityStepRecord>();
+      const repeatedDates = new Set<string>();
       for (const step of steps) {
+        const date = step.from.slice(0, 10);
+        const written = num(capacity(step.maxUnits));
         rateRows.push({
-          rsrc_rate_id: String(rateId++), rsrc_id: resIds.get(res.id)!, max_qty_per_hr: num(capacity(step.maxUnits)),
-          cost_per_qty: num(res.costPerHour), start_date: `${step.from.slice(0, 10)} 00:00`,
+          rsrc_rate_id: String(rateId++), rsrc_id: resIds.get(res.id)!, max_qty_per_hr: written,
+          cost_per_qty: num(res.costPerHour), start_date: `${date} 00:00`,
         });
+        if (stepRecords.has(date)) repeatedDates.add(date);
+        else if (written !== '') stepRecords.set(date, [step.maxUnits, Number(written)]);
+      }
+      for (const date of repeatedDates) stepRecords.delete(date);
+      if (res.type === 'MATERIAL' && stepRecords.size > 0) {
+        opsValues.push({ field: 'capacitySteps', fkId: resIds.get(res.id)!, text: capacityStepsJson(stepRecords) });
       }
     } else {
       // Vaste capaciteit: de lezer maakt van een RSRCRATE-rij een stap. De UDF `OPS_FlatCapacity` met de
