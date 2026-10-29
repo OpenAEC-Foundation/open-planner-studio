@@ -502,12 +502,12 @@ en noem het in je rapport of PR-tekst.
 448. **Nachtploeg: alleen een werkelijk einde op de statusdag geeft een werkelijke start die DCMA "ná de
      statusdatum" noemt.** Kalender ma–vr 22:00–06:00, taak van 8 u op ma 1 jun 22:00, statusdatum wo 3 jun.
      Typ alleen bij *Werkelijk einde* "03-06-2026". Dat wordt do 4 jun 06:00 (D6, het einde van de nacht van
-     wo), en `applyProgressInvariants` (`src/engine/taskMutationRules.ts:267`) zet de ontbrekende werkelijke
+     wo), en `applyProgressInvariants` (`src/engine/taskMutationRules.ts:258`) zet de ontbrekende werkelijke
      start op hetzelfde moment. De invoer wordt geaccepteerd: het einde leest de eindkant, werkdag wo. DCMA
      punt 9 en het gezondheidsrapport (allebei `invalidDateReasons`, `src/engine/reports/dcmaAssessment.ts:387`)
      lezen de start aan de startkant, klokdag do, en melden `actualStartAfterStatusDate`. Gemeten met een probe op de basis van #724
      (`3c2c1ec12`) en op de kop; #724 verandert dit niet. Een nulduur-mijlpaal heeft het niet: daar telt de
-     dag die de tabel toont. Voorstel: een afgeleide start die gelijk is aan het einde, krijgt bij de
+     werkdag van zijn moment (`milestoneWorkdayOf`), dezelfde als in de tabel. Voorstel: een afgeleide start die gelijk is aan het einde, krijgt bij de
      statusregel de werkdag van het einde. — B
 449. **Nachtploeg: een gewone taak is op een statusdag zonder werkblok niet af te melden.** Kalender ma–vr
      22:00–06:00, taak van 16 u vanaf ma 1 jun 22:00, werkelijke start 01-06-2026, statusdatum za 6 jun. Typ
@@ -515,11 +515,31 @@ en noem het in je rapport of PR-tekst.
      nacht van za. De statusregel (`isActualPastStatusDate`, `src/engine/taskMutationRules.ts`) leest dat
      moment aan de eindkant als klokdag zo en weigert: ná de statusdatum. De tabel toont zo'n einde ook als
      "07-06-2026 06:00" in plaats van "06-06-2026". Zondag en een feestdag op een werkdag geven hetzelfde. Een
-     nulduur-mijlpaal heeft het sinds fixronde 2 van #724 niet meer: daar herkent de dagbepaling het einde
-     van een vrije dag (`freeDayEndingAt`, `src/engine/calendar/workdayRules.ts`). Gemeten met een probe op
+     nulduur-mijlpaal heeft het sinds fixronde 2 van #724 niet meer: daar leest de dagbepaling de werkspanne,
+     met D4 voor een vrije dag (`milestoneWorkdayOf`, `src/engine/calendar/workdayRules.ts`; fixronde 3 van
+     #724 verving daarmee de helper `freeDayEndingAt`). Gemeten met een probe op
      de basis van #724 (`3c2c1ec12`), op de kop vóór en na fixronde 2: overal geweigerd. Voorstel: dezelfde
      D4-herkenning in `workdayBoundaryLabel` en `workdayOfInstant` aan de eindkant, voor elke taak; dat
      verandert de weergave van gewone taken en hoort daarom in een eigen PR. — B
+450. **Afmelden van een mijlpaal: twee gevallen die het besluit niet dekt.** B10 met de aanvulling "einde
+     blijft einde" en de uitwerking van de orkestrator (spec §4.2) zeggen hier niets. #724 koos in beide gevallen
+     "de dag komt van wat je typt" (`milestoneMomentOn`, `src/engine/calendar/workdayRules.ts`). (1) De geplande
+     kloktijd valt in geen dienst, maar op een andere klokdatum dan de getypte dag. Kalender ma–do 22:00–06:00,
+     vr 22:00–02:00, weekend vrij; een mijlpaal op di 2 jun 05:00 (midden in de nacht van ma), afgemeld met
+     05-06-2026, wordt za 6 jun 02:00, het einde van vr. Letterlijk zou het za 05:00 zijn; dan toont de tabel za
+     en weigert statusdatum vr. (2) De rand van de getypte dag is ook een rand van de buurdag, en de soort leest
+     hem als die buurdag. 24 uur ma–do, vr 00:00–12:00; een START-mijlpaal op vr 5 jun 12:00 (het einde van vr),
+     afgemeld met 08-06-2026, wordt ma 8 jun 00:00, het begin. Het einde van ma is di 00:00, en dat leest START
+     als di. Getoetst in `tests/planning/check-mijlpaal-afmelden.ts` sectie 8f, in elk profiel en langs elke
+     route. Voorstel: de eigenaar laten bevestigen of een andere keuze laten maken. — B
+451. **Mijlpaal midden in een nachtdienst: na afmelden toont de tabel de klokdatum erna.** Kalender ma–do
+     22:00–06:00, vr 22:00–02:00. Een mijlpaal op di 2 jun 02:00 (midden in de nacht van ma), afgemeld met
+     03-06-2026, wordt do 4 jun 02:00: de geplande kloktijd in de nacht van wo (B10). De tabel toont
+     "04-06-2026 02:00" (B4: midden op de werkdag de klokdatum met tijd), terwijl de planner 03-06-2026 typte.
+     De statusregel klopt: statusdatum wo mag, di niet. Op de kop vóór fixronde 3 van #724 (`57b0b7bba`) werd
+     het wo 3 jun 02:00, in de nacht van di, en accepteerde statusdatum di die invoer ten onrechte. Gemeten met
+     `meet-gevallen.ts` (geval D) en `check-mijlpaal-afmelden.ts` sectie 8d. Voorstel: voorleggen of de tabel
+     een moment midden in een dienst na middernacht met de werkdag moet tonen. — B
 
 ## Kalenders
 
