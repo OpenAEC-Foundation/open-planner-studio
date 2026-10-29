@@ -81,8 +81,8 @@ test('report options: preview en export gebruiken dezelfde actuele kop en legend
     drawn?.splice(0, drawn.length);
   });
   const downloadPromise = page.waitForEvent('download');
-  // Knownbug 21: de echte lintknop start dezelfde export als Exporteer PDF, zonder remount.
-  const print = page.locator('[data-tour-anchor="ribbon:report:printPreview"]');
+  // Knownbug 21: Exporteer PDF gebruikt de actuele paneelstate, zonder remount.
+  const print = page.getByRole('button', { name: /^(Export PDF|Exporteer PDF)$/ });
   await print.click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe('Rapportopties-schedule.pdf');

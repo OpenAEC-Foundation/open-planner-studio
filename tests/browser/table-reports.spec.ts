@@ -141,7 +141,7 @@ test('table reports: rapporttype kiezen rendert tabel, optie ververst live, PDF-
   });
   await expect(report.locator('[role=note]')).toHaveCount(1);
   const downloadPromise = page.waitForEvent('download');
-  const print = page.locator('[data-tour-anchor="ribbon:report:printPreview"]');
+  const print = page.getByRole('button', { name: /^(Export PDF|Exporteer PDF)$/ });
   await print.click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe('Tabelrapporten-look-ahead.pdf');

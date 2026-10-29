@@ -1677,8 +1677,7 @@ export function ReportPanel() {
           />
         )}
 
-        {/* Alleen de exportknoppen horen bij dit formulier: Enter in rapportinvoer exporteert niet.
-            Rapport › Afdruk dient hetzelfde formulier in, met de actuele paneelstate. */}
+        {/* Alleen de exportknoppen horen bij dit formulier: Enter in rapportinvoer exporteert niet. */}
         <form
           id="report-pdf-export"
           className="flex flex-col gap-2"

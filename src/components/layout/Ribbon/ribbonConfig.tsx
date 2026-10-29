@@ -165,12 +165,6 @@ const calendarButton: RibbonButtonSpec = {
   use: uiAction({ showCalendarDialog: true }),
 };
 
-/** Afdrukvoorbeeld-knop — opent de Rapport-tab. */
-const printPreviewButton: RibbonButtonSpec = {
-  kind: 'button', id: 'printPreview', icon: <Icon id="report.workspace" size={24} />, labelKey: 'menu:ribbon.printPreview',
-  use: uiAction({ activeRibbonTab: 'report' }),
-};
-
 /**
  * Taken-groep: Taak / Mijlpaal / Relatie — gedeeld door de Start- én de Tabel-tab (de Tabel is
  * net zo goed een takenweergave). Bewust ÉÉN gedeelde groep-definitie in plaats van een tweede
@@ -483,7 +477,7 @@ const planningTab: RibbonTabConfig = [
 /**
  * Gedeelde item-specs: "Resources", "Resourcedock" en "Histogram" staan zowel op de
  * Resources-tab als onder Beeld → Panelen (bewust op beide). Eén definitie,
- * twee callsites, in lijn met `calcButton`/`relationDropdownItem`/`calendarButton`/`printPreviewButton`
+ * twee callsites, in lijn met `calcButton`/`relationDropdownItem`/`calendarButton`
  * hierboven.
  *
  * Naamgeving: de twee resourceknoppen doen ECHT iets anders — `openResourcePanel`
@@ -600,11 +594,13 @@ const resourcesTab: RibbonTabConfig = [
       {
         kind: 'stack', id: 'histogramStack', items: [
           {
-            kind: 'small', id: 'prevResource', icon: <Icon id="resource.previous" size={16} />, labelKey: 'menu:ribbon.prevResource',
+            // Tijdelijk `nav.back`/`nav.forward` i.p.v. `resource.previous`/`resource.next`: hun richting is op 16 px
+            // nauwelijks te zien. https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint/issues/46
+            kind: 'small', id: 'prevResource', icon: <Icon id="nav.back" size={16} />, labelKey: 'menu:ribbon.prevResource',
             use: histogramResourceStep(-1),
           },
           {
-            kind: 'small', id: 'nextResource', icon: <Icon id="resource.next" size={16} />, labelKey: 'menu:ribbon.nextResource',
+            kind: 'small', id: 'nextResource', icon: <Icon id="nav.forward" size={16} />, labelKey: 'menu:ribbon.nextResource',
             use: histogramResourceStep(1),
           },
         ],
@@ -840,7 +836,8 @@ const instellingenTab: RibbonTabConfig = [
   {
     id: 'shortcuts', labelKey: 'common:shortcuts.title',
     items: [{
-      kind: 'small', id: 'shortcuts', icon: <Icon id="ui.shortcuts" size={16} />, labelKey: 'common:shortcuts.title',
+      // Grote knop (besluit eigenaar, 2026-10-29): de groep heeft maar één knop.
+      kind: 'button', id: 'shortcuts', icon: <Icon id="ui.shortcuts" size={24} />, labelKey: 'common:shortcuts.title',
       use: uiAction({ showShortcutsDialog: true }),
     }],
   },
@@ -875,14 +872,9 @@ const ifcTab: RibbonTabConfig = [
   { id: 'ifc', labelKey: 'menu:ribbon.ifc', items: [{ kind: 'component', id: 'ifcInfo', Component: IfcInfo }] },
 ];
 
-const reportTab: RibbonTabConfig = [
-  // Op Rapport zelf voert Afdruk dezelfde PDF-export uit als de knop in het paneel.
-  {
-    id: 'reporting', labelKey: 'menu:ribbon.reporting',
-    items: [{ ...printPreviewButton, form: 'report-pdf-export', use: undefined }],
-  },
-  progressGroup,
-];
+// Geen eigen Afdruk-knop meer: die deed hetzelfde als Exporteer PDF in het rapportscherm
+// (besluit eigenaar, 2026-10-29).
+const reportTab: RibbonTabConfig = [progressGroup];
 
 /** AI-tab — conditioneel zichtbaar (alleen bij `ui.aiMode`; zie Ribbon.tsx). Vier
  *  groepen, alle component-escape-hatches (eigen state, inputs, popover/confirm): verbinding,

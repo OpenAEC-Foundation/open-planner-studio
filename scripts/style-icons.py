@@ -12,7 +12,8 @@ als stroke-paden, ~50× kleiner. De export is letterlijk `buffer(width/2, round,
 lijnen, dus een stroke met ronde kappen en verbindingen is er meetkundig gelijk aan. Twee gevallen kan een
 stroke niet: `clear_primary` (een halo rond het accent, uit de hoofdkleur gesneden) en de
 `rounded_joint`-iconen met een bijzondere naad; die krijgen de verliesvrije gevulde export, afgerond op
-twee decimalen.
+twee decimalen. Een compacte webexport uit de Blueprint zelf is aangevraagd:
+https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint/issues/39
 
 Gebruik (zelfde vorm als `scripts/style-tokens.py`):
   python3 scripts/style-icons.py                  # haal de vastgezette tag op en schrijf de bestanden opnieuw

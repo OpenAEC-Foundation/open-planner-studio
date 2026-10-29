@@ -102,7 +102,6 @@
     "language": "言語",
     "appearance": "外観",
     "ifcInfo": "IFC - Industry Foundation Classes、プロジェクトのスキーマ（既定は IFC 4.3 ADD2）",
-    "reporting": "レポート",
     "noRecentFiles": "最近のファイルはありません",
     "trace": "パストレース",
     "tracePredecessors": "先行タスク",

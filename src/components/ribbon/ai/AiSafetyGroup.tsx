@@ -145,7 +145,7 @@ export function AiSafetyGroup() {
             color: feedback.kind === 'ok' ? 'var(--success)' : 'var(--theme-critical-text)',
           }}
         >
-          {feedback.kind === 'ok' ? <Icon id="status.success" size={13} /> : <Icon id="status.error" size={13} />}
+          {feedback.kind === 'ok' ? <Icon id="status.success" size={16} /> : <Icon id="status.error" size={16} />}
           <span>{feedback.text}</span>
         </div>
       )}

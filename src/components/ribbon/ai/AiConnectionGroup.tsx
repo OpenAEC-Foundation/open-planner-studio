@@ -124,7 +124,9 @@ export function AiConnectionGroup() {
         aria-label={showToken ? t('ai.hideToken') : t('ai.showToken')}
         onClick={() => setShowToken(v => !v)}
       >
-        {showToken ? <Icon id="credential.hide" size={13} /> : <Icon id="credential.show" size={13} />}
+        {/* Tijdelijk `object.hide`/`object.show` (een los oog) i.p.v. `credential.hide`/`credential.show`: die zijn
+            op deze maat onherkenbaar. https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint/issues/47 */}
+        {showToken ? <Icon id="object.hide" size={16} /> : <Icon id="object.show" size={16} />}
       </button>
       <button
         type="button"
@@ -133,7 +135,7 @@ export function AiConnectionGroup() {
         aria-label={t('ai.copy')}
         onClick={() => { void copy(token, 'token'); }}
       >
-        {copied === 'token' ? <Icon id="status.success" size={13} /> : <Icon id="edit.copy" size={13} />}
+        {copied === 'token' ? <Icon id="status.success" size={16} /> : <Icon id="edit.copy" size={16} />}
       </button>
       <button
         type="button"
@@ -142,7 +144,9 @@ export function AiConnectionGroup() {
         aria-label={t('ai.regenerate')}
         onClick={() => setConfirming(true)}
       >
-        <Icon id="credential.regenerate" size={13} />
+        {/* Tijdelijk `ui.refresh` i.p.v. `credential.regenerate` (onherkenbaar op kleine maat).
+            https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint/issues/47 */}
+        <Icon id="ui.refresh" size={16} />
       </button>
     </label>
   );

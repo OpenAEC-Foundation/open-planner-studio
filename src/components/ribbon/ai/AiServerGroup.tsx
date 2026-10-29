@@ -93,7 +93,8 @@ export function AiServerGroup() {
       <span title={!tauri ? t('ai.desktopOnly') : undefined}>{toggleButton}</span>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 130 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Icon id={AI_STATUS_ICON[status.state]} size={10} mono color={AI_STATUS_COLOR[status.state]} />
+          {/* 16 px (hele mastermaat): op 10 px is het B2-teken onleesbaar. De kleur via `style`, want het accenticoon zet zelf `color`. */}
+          <Icon id={AI_STATUS_ICON[status.state]} size={16} mono style={{ color: AI_STATUS_COLOR[status.state] }} />
           <span className="ribbon-info">{statusText}</span>
         </div>
         {!tauri && (

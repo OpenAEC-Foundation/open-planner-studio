@@ -102,7 +102,6 @@
     "language": "语言",
     "appearance": "外观",
     "ifcInfo": "IFC - Industry Foundation Classes，采用项目的模式（默认为 IFC 4.3 ADD2）",
-    "reporting": "报告",
     "noRecentFiles": "没有最近文件",
     "trace": "路径追踪",
     "tracePredecessors": "前置任务",

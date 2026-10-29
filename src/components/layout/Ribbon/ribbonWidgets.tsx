@@ -107,7 +107,9 @@ export function BaselinesProgressGroupContent() {
             onClick={() => setStatusDate(undefined)}
             style={{ padding: 2 }}
           >
-            <Icon id="planning.clear-status-date" size={12} />
+            {/* Tijdelijk `ui.close` i.p.v. `planning.clear-status-date`: dat leest als kalender, niet als wissen.
+                https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint/issues/45 */}
+            <Icon id="ui.close" size={16} />
           </button>
         )}
       </div>
@@ -477,7 +479,7 @@ export function TemplatesDropdown() {
               title={tMenu('ribbon.deleteTemplate')}
               onClick={() => { deleteWbsTemplate(tpl.id); setTemplates(listWbsTemplates()); }}
             >
-              <Icon id="edit.delete" size={12} />
+              <Icon id="edit.delete" size={16} />
             </button>
           </div>
         ))
@@ -1019,7 +1021,9 @@ export function PresentationGroupContent() {
         active={presentationMode}
       />
       <RibbonSmallButton
-        icon={<Icon id="view.gantt-split" size={16} />}
+        // Tijdelijk een kwartslag gedraaid: de split view deelt het scherm verticaal, het B2-icoon
+        // tekent een horizontale deling. https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint/issues/49
+        icon={<Icon id="view.gantt-split" size={16} style={{ transform: 'rotate(90deg)' }} />}
         label={tMenu('ribbon.splitView')}
         title={tMenu('ribbon.splitView')}
         onClick={toggleSplitView}
@@ -1237,7 +1241,9 @@ export function OverallocationIndicator() {
       display: 'flex', alignItems: 'center', gap: 6, padding: '2px 8px',
       color: overallocatedCount > 0 ? 'var(--error)' : 'var(--theme-text-dim)',
     }}>
-      {overallocatedCount > 0 && <Icon id="status.resource-overallocated" size={16} />}
+      {/* `status.warning` in de foutkleur van de tekst, zoals vóór de B2-iconen: de persoon in de driehoek van
+          `status.resource-overallocated` is op 16 px niet leesbaar. https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint/issues/51 */}
+      {overallocatedCount > 0 && <Icon id="status.warning" size={16} mono style={{ color: 'inherit' }} />}
       <span>
         {overallocatedCount > 0
           ? tMenu('ribbon.overallocationCount', { count: overallocatedCount })

@@ -102,7 +102,6 @@
     "language": "Language",
     "appearance": "Appearance",
     "ifcInfo": "IFC - Industry Foundation Classes, in the schema of the project (default IFC 4.3 ADD2)",
-    "reporting": "Report",
     "noRecentFiles": "No recent files",
     "trace": "Path tracing",
     "tracePredecessors": "Predecessors",

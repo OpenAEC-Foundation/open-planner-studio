@@ -102,7 +102,6 @@
     "language": "언어",
     "appearance": "외관",
     "ifcInfo": "IFC - Industry Foundation Classes, 프로젝트의 스키마 기준 (기본값 IFC 4.3 ADD2)",
-    "reporting": "보고서",
     "noRecentFiles": "최근 파일 없음",
     "trace": "경로 추적",
     "tracePredecessors": "선행 작업",

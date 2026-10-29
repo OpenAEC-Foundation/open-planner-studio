@@ -40,6 +40,18 @@ import { applySetting } from '@/components/settings/applySetting';
  */
 
 const MINI_ATTR = 'data-ribbon-mini';
+/**
+ * Groepen die nooit tot iconen krimpen, omdat hun B2-iconen zonder label niet uit elkaar te houden
+ * zijn. Het lint krimpt dan eerst groepen met een eigen icoon per knop.
+ * - De weergaveschakelaars op Beeld (baseline, voortgangslijn, statusdatumlijn, balkkleuren,
+ *   resource-accent, spelingsband, relatielijnen): dezelfde balkvorm met een klein accent.
+ *   https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint/issues/48
+ * - Pad traceren (Voorgangers, Opvolgers): twee blokjes met een pijl, alleen de pijlrichting verschilt.
+ */
+const KEEP_LABEL_GROUP_SELECTOR = [
+  '[data-tour-anchor="ribbon-group:beeld:overlays"]',
+  '[data-tour-anchor$=":trace"]',
+].join(', ');
 const MINI_ITEM_ATTR = 'data-ribbon-mini-item';
 const GRID_ATTR = 'data-ribbon-grid';
 const AUTOTITLE_ATTR = 'data-ribbon-autotitle';
@@ -56,6 +68,7 @@ const fitsWidth = (scroll: HTMLElement) => scroll.scrollWidth <= scroll.clientWi
  */
 function collectRibbonButtons(scroll: HTMLElement): HTMLElement[] {
   return Array.from(scroll.querySelectorAll<HTMLElement>('.ribbon-btn')).filter(btn => {
+    if (btn.closest(KEEP_LABEL_GROUP_SELECTOR)) return false;
     const icon = btn.querySelector('.ribbon-btn-icon');
     if (!icon || icon.childElementCount === 0) return false;
     const label = btn.querySelector('.ribbon-btn-label');
@@ -359,6 +372,8 @@ export function Ribbon() {
             aria-label={tMenu(ribbonCompact ? 'ribbon.expandRibbon' : 'ribbon.collapseRibbon')}
             onClick={() => applySetting('ribbonCompact', !ribbonCompact, saveRibbonCompact)}
           >
+            {/* Eén vast icoon: de Blueprint heeft (nog) geen aparte iconen voor in- en uitklappen.
+                https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint/issues/40 */}
             <Icon id="workspace.ribbon-compact" size={16} />
           </button>
         </div>
