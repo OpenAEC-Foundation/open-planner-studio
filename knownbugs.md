@@ -571,8 +571,14 @@ en noem het in je rapport of PR-tekst.
      Het voorbeeld uit fixronde 3 (ma–do 22:00–06:00, vr 22:00–02:00, za 04:00–12:00; di 05:00 afgemeld op vr)
      valt sinds fixronde 5 onder de tweede aanvulling van Ethan (za 05:00 ligt na het einde van de
      vrijdagdienst). Gemeten in fixronde 5: met "altijd eerst het begin" in plaats van "de dichtste rand" blijft
-     `check-mijlpaal-afmelden.ts` groen (13.670 controles, 0 fouten). Voorstel: een vaste uitkomst met twee
-     overlappende diensten in sectie 8h, na een besluit of zo'n kalender in de app kan bestaan. — B
+     `check-mijlpaal-afmelden.ts` groen (13.670 controles, 0 fouten). Review ronde 6 van #724 (Sol) maakte het
+     ontbrekende geval: ma 22:00–di 06:00, di daarnaast 01:00–03:00, wo–vr nachtdienst; gepland do 02:30,
+     afgemeld op ma, valt eerst op di 02:30 in de dinsdagdienst. Beide randen van ma horen nog bij ma; het einde
+     di 06:00 ligt dichterbij dan ma 22:00. De kop kiest di 06:00, de mutant ma 22:00 (proef
+     `/tmp/aanval/rev-mijlpaal-r6-rand502.ts`: kop 2/0, mutant 2/2). Zo'n kalender kan via de store bestaan;
+     MCP weigert overlappende weekbanden (`calendarResourceTools.ts:273–278`), de kalendereditor niet
+     (`WorkTimeEditor.tsx:60–67`). Voorstel: dit ene geval als vaste uitkomst in sectie 8h, met de echte
+     celeditor. — B
 503. **Afmelden van een mijlpaal buiten de werkspanne van zijn werkdag: de geplande kloktijd blijft (keuze van de
      bouwer).** Een handmatig anker of een import kan een mijlpaal buiten de werktijd zetten, bijvoorbeeld ma
      18:00 bij ma–do 07:00–16:00 en vr 07:00–12:00. Afgemeld met alleen een datum houdt hij in #724 de
@@ -581,7 +587,21 @@ en noem het in je rapport of PR-tekst.
      moment midden in een dienst. Geen van beide noemt een moment buiten de werkspanne. Een eerdere versie van
      fixronde 5 zette het ook op het einde van de dienst (vr 12:00, wo 16:00); dat is teruggedraaid omdat geen
      besluit het vraagt. Getoetst in `tests/planning/check-mijlpaal-afmelden.ts` sectie 8h (gevallen `dag`, ma
-     18:00 en ma 05:00). Voorstel: aan Ethan voorleggen of afmelden ook dan "klaar in die dienst" betekent. — B
+     18:00 en ma 05:00). Review ronde 6 van #724 (Sol): dit botst niet met de woorden van het besluit; geen
+     aanvulling noemt een moment buiten de dienst, en main geeft hier D7 (START en zonder soort vr 07:00, FINISH
+     vr 12:00). Geen aangetoonde fout. Voorstel: aan Ethan voorleggen of afmelden ook dan "klaar in die dienst"
+     betekent. — B
+504. **Afmelden van een mijlpaal: "begint de dienst later, dan het begin" is een uitwerking, geen besluit van
+     Ethan.** `milestoneMomentOn` (`src/engine/calendar/workdayRules.ts`, regel 4, rond regel 270) zet een
+     mijlpaal midden in de dienst op het begin van de dienst van de getypte dag als die dienst pas na de geplande
+     kloktijd begint. Dat is een uitwerking van de orkestrator (fixronde 5 van #724). B10 zegt "daartussen geldt
+     de geplande kloktijd"; de tweede aanvulling gaat alleen over een dienst die eerder eindigt. Voorbeeld:
+     ma 04:00–08:00, di–vr 07:00–16:00; een mijlpaal op ma 06:00, afgemeld met 02-06-2026, wordt di 07:00, waar
+     de woorden van B10 di 06:00 aanwijzen. Main geeft hier D7: START en zonder soort di 07:00, FINISH di 16:00.
+     Bij di–vr 22:00–06:00 wordt het di 22:00. De gids *Voortgang bijwerken* beschrijft dit al als gedrag.
+     Gevonden in review ronde 6 van #724 (Sol, VRAAG EIGENAAR). Voorstel: Ethan laten kiezen tussen de
+     geplande kloktijd houden (dan kan de tak `else if` van regel 4 weg, en de gidszin) en het begin van de
+     dienst (dan het besluit in de spec bij B10 zetten). — B
 
 448. **Lintmenu's sluiten niet met Escape.** De gedeelde `Popover` (`src/components/common/Popover.tsx`) sluit
     alleen bij een klik buiten het menu (`useClickOutside`); Escape doet niets. Dat geldt voor elk lintmenu
