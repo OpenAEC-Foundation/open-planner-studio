@@ -1120,6 +1120,16 @@ en noem het in je rapport of PR-tekst.
      kritiek-drempel in uren erbij komen (eigen project met urendrempel, notitie, onderbreking en vervangen
      teken: de algemene verliesmelding valt weg; review r6 van #728, nagespeeld). — B
 
+509. **De externe koppeling in het voorbeeld *De Vaart Apartment Complex* wijst naar ids die het meegeleverde
+     bronbestand niet heeft.** `buildGrootWithExternalSource` in `scripts/gen-core.ts` haalt project- en taak-id
+     uit een eigen bouw van het bronvoorbeeld; `generate-examples.ts` bouwt dat bronbestand daarna opnieuw, met
+     nieuwe ids. In `showcase-appartementencomplex.ifc` staat `proj-mvtzzksw9ms23`/`task-mvtzzkug0aeb11`, in
+     `showcase-groot-terrein-onderaannemer.ifc` komen die niet voor (op main idem, met andere ids). Bijwerken
+     via de echte `refreshExternalAnchors` vindt zo 0 koppelingen; het bevroren anker en het plan kloppen wel.
+     `verify-examples.ts` mist het, omdat die op taaknaam zoekt. Voorstel: gebruik dezelfde bouw voor de
+     koppeling en het weggeschreven bronbestand, en laat `verify-examples.ts` de ids vergelijken. Gevonden in
+     review ronde 1 van #738 (GPT-6.1-Sol, met `refreshExternalAnchors` nagespeeld); de ids zelf nagekeken. — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 68. **Een gidsstap die eenmaal "gedaan" is, blijft gedaan**, ook na wisselen naar een leeg project. Gezien bij
