@@ -1341,6 +1341,17 @@ en noem het in je rapport of PR-tekst.
      `xx-YY` allebei Engels, dus het weghalen van de `supportedLocalesOf`-controle valt niet op. Voorstel: alleen
      deze batterij één keer extra draaien onder `LANG=nl_NL.UTF-8`, en vooraf controleren dat `Intl` dan echt
      Nederlands kiest. Gevonden in review van #696 (GPT-6.1-Sol), 2026-10-28. — B
+460. **Twee runs van *Download stats* tegelijk: de tweede publicatie mislukt.** `publish-stats-branch.sh`
+     haalt de top van `stats` op en pusht een opvolger zonder `--force`. Starten een geplande en een handmatige
+     run tegelijk, dan maken ze elk een opvolger van dezelfde top; de tweede push wordt geweigerd en die run
+     wordt rood. Er gaat niets verloren. Voorstel: één vaste `concurrency`-groep in
+     `.github/workflows/download-stats.yml` met `cancel-in-progress: false`. Gevonden in review van #725
+     (GPT-6.1-Sol), 2026-10-29. — B
+461. **Elke run van *Download stats* maakt een commit op `stats`, ook zonder nieuwe cijfers.** `generatedAt`
+     (`scripts/download-stats.mjs:248`) verandert elke run, en `publish-stats-branch.sh` vergelijkt de hele
+     boom. Met de cron van elke 2 uur zijn dat 12 commits per dag. Voorstel: `generatedAt` buiten de
+     vergelijking houden; let op dat de app `generatedAt` toont als bronmoment (`DownloadStatsSection.tsx:148`).
+     Gevonden in review van #725 (GPT-6.1-Sol), 2026-10-29. — B
 
 ## Wensen en open taken (geen bug)
 
