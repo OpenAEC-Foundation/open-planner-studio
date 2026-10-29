@@ -2393,9 +2393,9 @@ body {
 }
 
 /* Label "Experimenteel" achter een exportkeuze (Backstage-kaart en lintlijst): klein en rustig,
-   een omlijning in de kleur van de beschrijvingstekst, geen vlakke accentkleur (eigenaar, 2026-10-29).
-   `--theme-text-dim`: contrast 6,9 (licht) en 6,7 (donker) op de kaart; `--theme-text-muted` haalde
-   in donker maar 3,4. */
+   een dunne rand (`--theme-border`) en tekst in de kleur van de beschrijvingstekst, geen vlakke
+   accentkleur (eigenaar, 2026-10-29). Tekst `--theme-text-dim`: contrast 6,9 (licht) en 6,7 (donker)
+   op de kaart; `--theme-text-muted` haalde in donker maar 3,4. */
 .ops-experimental-badge {
   display: inline-block;
   margin-inline-start: var(--sp-2);
