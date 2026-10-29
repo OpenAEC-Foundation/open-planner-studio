@@ -21,7 +21,10 @@ export type XerExportLossCategory =
   | 'raw-curves-and-assignment-quantities'
   | 'external-links'
   | 'schedule-options-and-provenance'
-  | 'p6-relation-lag-degradation';
+  | 'p6-relation-lag-degradation'
+  | 'secondary-constraints'
+  | 'manual-scheduling'
+  | 'hammock-tasks';
 
 export interface XerExportLossWarning {
   /** `XER_ONLY_…`: het document draagt een XER-archief of XER-importmetadata. `EXPORT_…`: een document
@@ -38,7 +41,7 @@ export interface XerExportLossInput {
   readonly sourceArchive: XerSourceArchive | null;
   readonly importMetadata: XerImportMetadata | null;
   readonly project: Pick<Project, 'progressMode' | 'schedulingOptions' | 'schedulingProfile'>;
-  readonly tasks: readonly Pick<Task, 'activityCodes' | 'customFields' | 'notes' | 'externalLinks'>[];
+  readonly tasks: readonly Pick<Task, 'activityCodes' | 'customFields' | 'notes' | 'externalLinks' | 'constraint2' | 'manuallyScheduled' | 'isHammock'>[];
   readonly sequences: readonly Pick<Sequence, 'lagPercent' | 'lagUnit'>[];
   readonly assignments: readonly Pick<ResourceAssignment, 'curve' | 'unitsPerDay'>[];
   readonly activityCodeTypes: readonly ActivityCodeType[];
@@ -54,6 +57,8 @@ interface ExportCapabilities {
   readonly projectedAssignments: boolean;
   readonly percentLag: boolean;
   readonly elapsedLag: boolean;
+  /** Alleen P6 XML heeft een tweede constraint (`SecondaryConstraintType`); MSPDI kent één ConstraintType. */
+  readonly secondaryConstraints: boolean;
   readonly schedulingOptions: 'none' | 'critical-slack-limit';
   /** Met welk ingebouwd profiel dit doelformaat heropent = het `suggestedProfileId` van zijn lezer.
    *  CSV, MSPDI en P6-XML heropenen alle drie als OPS. */
@@ -77,6 +82,7 @@ const EXPORT_CAPABILITIES: Readonly<Record<Exclude<ExportFormat, 'ifc' | Progres
     projectedAssignments: false,
     percentLag: true,
     elapsedLag: true,
+    secondaryConstraints: false,
     schedulingOptions: 'none',
     reopenProfile: 'ops',
   },
@@ -85,6 +91,7 @@ const EXPORT_CAPABILITIES: Readonly<Record<Exclude<ExportFormat, 'ifc' | Progres
     projectedAssignments: true,
     percentLag: true,
     elapsedLag: true,
+    secondaryConstraints: false,
     schedulingOptions: 'critical-slack-limit',
     reopenProfile: 'ops',
   },
@@ -93,6 +100,7 @@ const EXPORT_CAPABILITIES: Readonly<Record<Exclude<ExportFormat, 'ifc' | Progres
     projectedAssignments: true,
     percentLag: false,
     elapsedLag: false,
+    secondaryConstraints: true,
     schedulingOptions: 'none',
     reopenProfile: 'ops',
   },
@@ -258,6 +266,12 @@ function categoriesFor(
     || (!capabilities.elapsedLag && input.sequences.some(sequence => sequence.lagUnit === 'ELAPSEDTIME'))) {
     categories.push('p6-relation-lag-degradation');
   }
+  if (!capabilities.secondaryConstraints && input.tasks.some(task => task.constraint2)) {
+    categories.push('secondary-constraints');
+  }
+  // Geen van de drie writers schrijft deze twee: ze gaan als gewone taak met berekende datums.
+  if (input.tasks.some(task => task.manuallyScheduled)) categories.push('manual-scheduling');
+  if (input.tasks.some(task => task.isHammock)) categories.push('hammock-tasks');
   return categories;
 }
 

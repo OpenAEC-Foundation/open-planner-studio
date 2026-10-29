@@ -180,6 +180,47 @@ resetProject('Native met notitie');
     categoriesOf(await store().exportAs('ifc')).length === 0);
 }
 
+// #554 (review ronde 1): een secundaire constraint schrijft alleen P6 XML (`SecondaryConstraintType`).
+// MSPDI kent één ConstraintType-element en CSV heeft geen kolom: daar is het verlies.
+// MUTATIEBEWIJS: haal de 'secondary-constraints'-regel uit `categoriesFor` ⇒ de mspdi- en csv-regel slaan rood.
+resetProject('Native met secundaire constraint');
+{
+  const taskId = store().addTask({ name: 'Taak met twee grenzen' });
+  store().updateTask(taskId, {
+    constraint: { type: 'SNET', date: '2034-01-02' },
+    constraint2: { type: 'FNLT', date: '2034-01-06' },
+  });
+  for (const format of ['mspdi', 'csv'] as const) {
+    const result = await store().exportAs(format);
+    expect(`${format}: secundaire constraint meldt 'secondary-constraints' (#554)`,
+      result.ok === true && result.warnings[0]?.code === 'EXPORT_DATA_NOT_EXPRESSIBLE'
+      && JSON.stringify(result.warnings[0]?.categories) === JSON.stringify(['secondary-constraints']));
+  }
+  const p6 = await store().exportAs('p6');
+  const p6Xml = captures.at(-1) ?? '';
+  expectCategories('p6: secundaire constraint is geen verlies', 'p6', p6, []);
+  expect('p6-writer schreef de secundaire constraint werkelijk', p6Xml.includes('<SecondaryConstraintType>'));
+}
+
+// #554 (review ronde 1): handmatige planning en hammock schrijft geen van de drie writers.
+// MUTATIEBEWIJS: haal de 'manual-scheduling'- of 'hammock-tasks'-regel uit `categoriesFor` ⇒ rood.
+resetProject('Native handmatig en hammock');
+{
+  const manualId = store().addTask({ name: 'Handmatig' });
+  store().updateTask(manualId, { manuallyScheduled: true });
+  const hammockId = store().addTask({ name: 'Hammock' });
+  useAppStore.setState(state => {
+    const hammock = state.tasks.find(task => task.id === hammockId);
+    if (hammock) hammock.isHammock = true;
+  });
+  for (const format of ['mspdi', 'p6', 'csv'] as const) {
+    const result = await store().exportAs(format);
+    expect(`${format}: handmatige planning en hammock staan in de envelope (#554)`,
+      result.ok === true && result.warnings[0]?.code === 'EXPORT_DATA_NOT_EXPRESSIBLE'
+      && JSON.stringify(result.warnings[0]?.categories) === JSON.stringify(['manual-scheduling', 'hammock-tasks']));
+  }
+}
+
 // Negatief 2: alleen een lege archive/importmetadata-binding is geen verliescategorie.
 resetProject('Lege XER-binding');
 const emptyXer = makeXerFixture();

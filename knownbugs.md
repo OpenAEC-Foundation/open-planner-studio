@@ -1030,6 +1030,20 @@ en noem het in je rapport of PR-tekst.
      apart behandelen, bijvoorbeeld zichtbaar weigeren of melden. Gevonden in review r2 van #659
      (GPT-6.1-Sol). — B
 
+480. **Een paar zeldzamere exportweglatingen staan nog alleen in de console, niet in de verliesenvelope.**
+     `src/services/xerExportLoss.ts` (`categoriesFor`) kent sinds #727 notities, secundaire constraints,
+     handmatige planning en hammock-taken ook voor een native project. Nog niet: een soft MSO/MFO die MSPDI als
+     SNET/FNET schrijft (`mspdiWriter.ts`, `softLossCount`), `levelingDelayMinutes` (MSPDI en P6),
+     resume/stop (MSPDI) en een ELAPSEDTIME-taakduur naar P6 (`p6xmlWriter.ts`, `elapsedTaskCount`). Gelezen in
+     de writers, niet nagespeeld. Voorstel: per geval een categorie en een capability in dezelfde matrix. — S
+
+481. **Exportverlies van een native project en vervangen XML-tekens hebben nog geen zichtbare melding.**
+     Sinds #727 draagt `exportAs` het verlies van een document zonder XER-herkomst in `warnings` (code
+     `EXPORT_DATA_NOT_EXPRESSIBLE`, #554), en `escapeXml` maakt van een verboden XML-teken U+FFFD (#588). De
+     planner ziet van beide nog niets: de meldingstekst legt de eigenaar vast. Let bij die tekst op: de categorie
+     `baselines` geldt voor elk project met een baseline bij MSPDI-export (alleen de taakwaarden van de actieve
+     baseline gaan mee). — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 68. **Een gidsstap die eenmaal "gedaan" is, blijft gedaan**, ook na wisselen naar een leeg project. Gezien bij
