@@ -13,6 +13,7 @@ import './domStub';
 // Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
 import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { readMSPDI } from '@/services/msproject/mspdiReader';
+import { availabilityFromPeriods } from '@/services/msproject/mspdiAvailability';
 import { elapsedMinutesOf } from '@/engine/scheduler/duration';
 import { maxUnitsOn } from '@/engine/scheduler/ResourceLoad';
 import { effHoursPerDay } from '@/utils/taskDuration';
@@ -81,7 +82,7 @@ const isoHours = (minutes: number) => `PT${Math.floor(minutes / 60)}H${minutes %
     const elapsedZero = task('KN', { durationType: 'ELAPSEDTIME', scheduleDuration: 0, remainingTime: 0 });
     const work = task('WD', { durationType: 'WORKTIME', scheduleDuration: 3, remainingTime: 2 });
     const xml = write(project(), cal, [elapsedDay, elapsedHour, elapsedZero, work]);
-    const oracle = elapsedMinutesOf(elapsedDay, cal);
+    const oracle = elapsedMinutesOf(elapsedDay, { isHourMode: false, hoursPerDay: cal.hoursPerDay });
     same(`§1 ${label}: orakel elapsedMinutesOf`, oracle, 4320);
     same(`§1 ${label}: dagtaak kalendertijd Duration`, taskField(xml, 'KD', 'Duration'), isoHours(oracle));
     same(`§1 ${label}: dagtaak kalendertijd RemainingDuration`, taskField(xml, 'KD', 'RemainingDuration'), isoHours(2 * 1440));
@@ -144,6 +145,18 @@ const isoHours = (minutes: number) => `PT${Math.floor(minutes / 60)}H${minutes %
       got ? days.map(d => maxUnitsOn(got, d)) : null, days.map(d => maxUnitsOn(r, d)));
   }
   same('§2 V: terug ingelezen zonder stappen', byName.get('V')?.availabilitySteps, undefined);
+
+  // Een tabel uit MS Project zelf: één standaardrij NA–NA geeft geen stappen; een gat en een einde vóór NA
+  // tellen als 0 (niet beschikbaar).
+  same('§2 lezer: standaardrij NA–NA is vlak',
+    availabilityFromPeriods(1, [{ from: '1984-01-01', to: '2049-12-31', units: 1 }]), { maxUnits: 1 });
+  same('§2 lezer: gat en einde vóór NA tellen als 0',
+    availabilityFromPeriods(1, [
+      { from: '1984-01-01', to: '2026-11-06', units: 1.5 },
+      { from: '2026-11-16', to: '2026-11-20', units: 2 },
+    ]), { maxUnits: 1.5, availabilitySteps: [
+      { from: '2026-11-07', maxUnits: 0 }, { from: '2026-11-16', maxUnits: 2 }, { from: '2026-11-21', maxUnits: 0 },
+    ] });
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
