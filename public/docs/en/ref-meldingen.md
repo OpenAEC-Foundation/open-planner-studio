@@ -27,7 +27,7 @@ The bar at the bottom shows, from left to right:
 
 ## The Warnings panel
 
-- **Opening** — *Planning › Schedule › Warnings*, *View › Panels › Warnings*, or a counter in the status bar. The panel is in the right-hand column, below *Properties* and the resource dock, and expands a collapsed column. By default it is closed and it is not remembered between sessions. You drag its height at the edge when it is under other panels, and that height is remembered. The cross at the top right closes it (*Close warnings*).
+- **Opening** — *Planning › Schedule › Warnings panel*, *View › Panels › Warnings panel*, or a counter in the status bar. The panel is in the right-hand column, below *Properties* and the resource dock, and expands a collapsed column. By default it is closed and it is not remembered between sessions. You drag its height at the edge when it is under other panels, and that height is remembered. The cross at the top right closes it (*Close warnings*).
 - **Header line** — *N error(s), N warning(s)*. If nothing has been calculated yet, it says *Not calculated yet — press Calculate (F5) to run the checks.*
 - **Calculate** — a button in the header line, visible as long as the schedule is out of date or not yet calculated. It does the same as *Calculate* in the ribbon.
 - **Warning sign in the header line** — when the schedule is out of date, with the tooltip *Schedule is stale — this list comes from the last calculation. Recalculate (F5).* The list is not hidden, only marked as out of date.
