@@ -108,13 +108,12 @@ export interface Holiday {
 }
 
 /**
- * De ENE modusregel: een kalender rekent in uur-modus zodra hij `workTime` draagt, anders in
- * dag-modus. `CalendarEngine` leidt zijn `isHourMode` hier uit af; UI, MCP en adapters gebruiken
- * deze functie, geen eigen kopie.
+ * Draagt de kalender werkblokken (`workTime`)? Op de opgeslagen kalender: een urenkalender. Op de
+ * kalender na `calendarForEngine`: geldige werktijd; `CalendarEngine.isHourMode` leidt dat hier uit
+ * af (sinds F6 is er geen dagmodus meer). UI, MCP en adapters gebruiken deze functie, geen eigen kopie.
  *
- * Statusdatum: de solver leest hem via de modus van de PROJECTkalender (`CPMSolver.parseIn`), dus
- * de tijd telt alleen mee als `isHourModeCalendar(projectkalender)`. Besluit orkestrator
- * 2026-10-19: toon wat de motor gebruikt — tijdveld in het lint, lijn op het tijdstip en de tijd in
+ * Statusdatum: de UI toont de tijd alleen als `isHourModeCalendar(projectkalender)`. Besluit
+ * orkestrator 2026-10-19: tijdveld in het lint, lijn op het tijdstip en de tijd in
  * label/print/dialoog alleen dan.
  */
 export function isHourModeCalendar(calendar: Pick<WorkCalendar, 'workTime'> | undefined): boolean {

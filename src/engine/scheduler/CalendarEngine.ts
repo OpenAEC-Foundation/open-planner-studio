@@ -110,8 +110,7 @@ export class CalendarEngine {
   private static readonly MAX_MINUTES = CalendarEngine.MAX_DAYS * 24 * 60;
   private static readonly MS_PER_MIN = 60_000;
 
-  // ── Uur-modus-state (dood in dag-modus) ─────────────────────────
-  private mode: 'day' | 'hour' = 'day';
+  // ── Werkblok-state ─────────────────────────
   private derivedHpd = 0;
   private bandCache!: BandCache;
   // De banden van een "normale werkdag" van deze
@@ -121,6 +120,13 @@ export class CalendarEngine {
 
   /** T11: conventies houden hun bereik op de oorspronkelijk opgeslagen werkblokken. */
   readonly hasOwnWorkBlocks: boolean;
+
+  /** Heeft de kalender geldige werktijd: eigen werkblokken, of geldige begin/einde/uren per dag waar
+   *  `calendarForEngine` werkblokken van maakt? Sinds F6 is er geen dagmodus meer. Onwaar betekent: de
+   *  engine ziet een week zonder werkblokken, en een berekening stopt (`taskWithoutWorkHours`,
+   *  `noWorkingHours`). Invoer- en weergavecode weigert op deze vlag. De naam blijft voor het
+   *  `DurationCalendar`-contract (`duration.ts`). */
+  readonly isHourMode: boolean;
 
   constructor(calendar: WorkCalendar) {
     this.hasOwnWorkBlocks = calendarHasOwnWorkBlocks(calendar);
@@ -155,8 +161,7 @@ export class CalendarEngine {
     this.workingExceptionOnNonWorkWeekdayIdxSorted = [...this.workingExceptionDaySet]
       .filter((idx) => !this.workDayMask[isoDayOfWeek(new Date(idx * MS_PER_DAY))])
       .sort((a, b) => a - b);
-    // ── Modus-detectie + uur-setup. Afwezige `workTime` ⇒ dag-modus.
-    this.mode = isHourModeCalendar(calendar) ? 'hour' : 'day';
+    this.isHourMode = isHourModeCalendar(calendar);
     // Alleen uren (F6): ook een kalender zonder werktijd (geen werkblokken en geen geldige
     // begin/einde/uren per dag) krijgt een bandset, een lege week. Een uurmethode vindt daar dan geen
     // werk in plaats van te crashen op een ontbrekende cache. De dagvelden blijven gelijk.
@@ -537,23 +542,17 @@ export class CalendarEngine {
     return hi;
   }
 
+  /** De werktijd van de typische werkdag in uren. Zonder werkblokken (een lege week) is dat de
+   *  opgegeven `hoursPerDay` van de kalender (`modalBandHoursPerDay`). */
   get hoursPerDay(): number {
-    if (this.mode === 'hour') return this.derivedHpd;
-    return this.calendar.hoursPerDay;
+    return this.derivedHpd;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  //  UUR-MODUS. Alles hieronder is DOOD in dag-modus: geen enkele
-  //  dag-lus hierboven roept iets van dit blok aan. De solver
-  //  dispatcht per taak via `isHourMode`. Conventies:
+  //  WERKBLOKKEN. De rekenkern op de tijdas in minuten. Conventies:
   //    band = [start, end);  nextWorkInstant(t)=t als t∈[start,end);
   //    prevWorkInstant(t)=t als t∈(start,end];  strikte varianten met "After"/"Before".
   // ═══════════════════════════════════════════════════════════════════════════
-
-  /** True ⇒ uur-kalender (`workTime` aanwezig). Vervult het `DurationCalendar`-contract (duration.ts). */
-  get isHourMode(): boolean {
-    return this.mode === 'hour';
-  }
 
   /** De EFFECTIEVE banden (minuut-van-de-dag, `[start,end)`) die op de KALENDERDAG van `d` gelden —
    *  via hetzelfde `bandsStartingOn`-pad dat de solver zelf voor elke snap/telling gebruikt, dus
@@ -562,12 +561,10 @@ export class CalendarEngine {
    *  geen dag-/uur-lus leest hierlangs. Bewust met datumcontext: de STATISCHE weekdagtabel
    *  (`workTime.byWeekday`) ziet uitzonderingen/holidays niet, zodat twee kalenders met een identiek
    *  WEEKPATROON maar een afwijkende werkende uitzondering op de landingsdag ten onrechte "identiek"
-   *  lijken (de msp-04-foutvorm). Geeft een LEGE array terug (nooit
-   *  `undefined`) in dag-modus — dag-modus draagt geen bandtijden, dat is een leeg antwoord, geen
-   *  onbekend antwoord — en op elke dag die voor deze kalender niet werkt (holiday, geen band).
-   *  Geeft altijd een VERSE kopie terug, nooit de gememoizede cache-array van `bandsStartingOn` zelf. */
+   *  lijken (de msp-04-foutvorm). Geeft een LEGE array terug (nooit `undefined`) op elke dag die voor
+   *  deze kalender niet werkt (holiday, geen band). Geeft altijd een VERSE kopie terug, nooit de
+   *  gememoizede cache-array van `bandsStartingOn` zelf. */
   effectiveBandsOn(d: Date): ReadonlyArray<Readonly<{ start: number; end: number }>> {
-    if (this.mode !== 'hour') return [];
     const dayMs = this.dayStartMsOf(d.getTime());
     return this.bandsStartingOn(dayMs).map((b) => ({
       start: (b.start - dayMs) / CalendarEngine.MS_PER_MIN,
@@ -638,11 +635,12 @@ export class CalendarEngine {
   }
 
   /** De werkblokken van de typische werkdag (de "normale werkdag" van {@link computeStandardWorkdayBands},
-   *  dezelfde dag die `hoursPerDay` bepaalt), als verse kopie in minuten van de dag. Leeg in dag-modus.
+   *  dezelfde dag die `hoursPerDay` bepaalt), als verse kopie in minuten van de dag. Leeg zonder
+   *  werkblokken.
    *  Voor regel D4 van de dagregels (`src/engine/calendar/workdayRules.ts`): een datum zonder werkblok
    *  krijgt de blokken van deze dag. Leest alleen; geen rekenpad gebruikt dit. */
   typicalWorkdayBands(): ReadonlyArray<Readonly<{ start: number; end: number }>> {
-    return this.mode === 'hour' ? this.standardWorkdayBands.map((b) => ({ start: b.start, end: b.end })) : [];
+    return this.standardWorkdayBands.map((b) => ({ start: b.start, end: b.end }));
   }
 
   // ── Band-materialisatie (venster-gebaseerd, gememoized op het kalender-object) ──
@@ -982,8 +980,8 @@ export class CalendarEngine {
   // `tests/planning/check-dagenmaat-lopers.ts` toetst die grens. Op gelijke dagen is dat 1 minuut.
   //
   // Randen: vooruit levert een EINDmoment (een blokeinde blijft staan, zoals `addWorkMinutes`),
-  // achteruit een STARTmoment (een blokbegin, zoals `subtractWorkMinutes`). Alleen in uur-modus; een
-  // kalender zonder werkblokken valt terug op de hele-dagentelling.
+  // achteruit een STARTmoment (een blokbegin, zoals `subtractWorkMinutes`). Een kalender zonder
+  // werkblokken heeft geen dagenmaat-werkdag: vooruit `capped`, achteruit `end` ongewijzigd, afstand 0.
 
   /** De dagenmaat-gegevens van kalenderdag `dayMs` (UTC-middernacht): de blokken die er beginnen, op
    *  volgorde, en hun som in werkminuten. Gecachet op het kalender-object, net als `bandsStartingOn`. */
@@ -1120,7 +1118,6 @@ export class CalendarEngine {
    *  veiligheidsgrenzen geen werkdag meer heeft; de datum is dan `start` (geen betekenisvol einde). */
   addMeasuredWorkdaysChecked(start: Date, days: number): { date: Date; capped: boolean } {
     if (!(days > 0) || !Number.isFinite(days)) return { date: new Date(start.getTime()), capped: false };
-    if (this.mode !== 'hour') return this.addWorkDaysChecked(start, Math.ceil(days - MEASURE_EPS));
     const from = this.measureFrom(start);
     if (!from) return { date: new Date(start.getTime()), capped: true };
     const firstLeft = (from.day.minutes - from.offset) / from.day.minutes;
@@ -1145,7 +1142,6 @@ export class CalendarEngine {
    *  `addMeasuredWorkdays`; `days ≤ 0` ⇒ `end` ongewijzigd. */
   subtractMeasuredWorkdays(end: Date, days: number): Date {
     if (!(days > 0) || !Number.isFinite(days)) return new Date(end.getTime());
-    if (this.mode !== 'hour') return this.subtractWorkDays(end, Math.ceil(days - MEASURE_EPS));
     const to = this.measureTo(end);
     if (!to) return new Date(end.getTime());
     const lastDone = to.offset / to.day.minutes;
@@ -1165,9 +1161,8 @@ export class CalendarEngine {
   }
 
   /** Het einde (laatste blokeinde) van de dagenmaat-werkdag waarop het startmoment `t` valt; een moment
-   *  buiten werktijd telt als het begin van de volgende werkdag. Zonder werkblokken: `t` ongewijzigd. */
+   *  buiten werktijd telt als het begin van de volgende werkdag. Zonder werkdag: `t` ongewijzigd. */
   measuredWorkdayEnd(t: Date): Date {
-    if (this.mode !== 'hour') return new Date(t.getTime());
     const from = this.measureFrom(t);
     if (!from) return new Date(t.getTime());
     return new Date(this.measureMoment(from.day, from.day.minutes, 'end'));
@@ -1182,7 +1177,6 @@ export class CalendarEngine {
     const bMs = b.getTime();
     if (aMs === bMs) return 0;
     if (bMs < aMs) return -this.measuredWorkdaysBetween(b, a);
-    if (this.mode !== 'hour') return this.signedWorkDaysBetween(a, b);
     const pa = this.measureFrom(a);
     const pb = this.measureFrom(b);
     if (!pa || !pb) return this.hoursPerDay > 0 ? this.workMinutesBetween(a, b) / (this.hoursPerDay * 60) : 0;
@@ -1194,12 +1188,10 @@ export class CalendarEngine {
    * Werk-intervallen (absolute UTC-`Date`-paren, half-open `[start,end)`) die het venster
    * `[from, to]` snijden — voor de balk-opsplitsing/bar-necking in de Gantt. Hergebruikt de
    * op het kalender-object GEMEMOIZEDE band-materialisatie (`bandsStartingOn`), dus geen extra
-   * uitrol per frame. Alleen zinvol in uur-modus; een dag-kalender geeft `[]` (dag-taken renderen
-   * altijd doorlopend). Scant vanaf de dag vóór `from` om de na-middernacht-staart van een
+   * uitrol per frame. Scant vanaf de dag vóór `from` om de na-middernacht-staart van een
    * wrap-band (nachtploeg) mee te nemen.
    */
   workIntervalsBetween(from: Date, to: Date): { start: Date; end: Date }[] {
-    if (this.mode !== 'hour') return [];
     const fromMs = from.getTime();
     const toMs = to.getTime();
     if (!(toMs > fromMs)) return [];
