@@ -1418,6 +1418,11 @@ en noem het in je rapport of PR-tekst.
      `.github/workflows/relation-search-performance.yml:105` laat de bouwmappen weg. De 48 coverage-tellers zijn
      na te rekenen, maar hun koppeling aan precies die functie alleen door opnieuw te bouwen. Voorstel: bewaar
      per revisie de ene bundel met de helper (twee bestanden). Gevonden in review van #656 (GPT-6.1-Sol), 2026-10-29. — B
+495. **Gidsvertalingen noemen de lintknop nog *Waarschuwingen* in plaats van *Waarschuwingspaneel*.** Sinds #735
+     heet de knop in alle 28 talen anders (bijv. Duits *Warnungsbereich*), maar alleen de gidsen nl/en zijn
+     bijgewerkt. Voorbeeld: `public/docs/de/ref-lint.md:70` (**Warnungen**) en `public/docs/de/ref-meldingen.md:30`
+     (*Planung › Terminplanung › Warnungen*); in 24 lintgidsvertalingen staat de oude naam. Voorstel: bij de
+     volgende `update-docs-lang`-ronde meenemen. Gevonden in review van #735 (GPT-6.1-Sol), 2026-10-29. — B
 
 ## Wensen en open taken (geen bug)
 
