@@ -1037,13 +1037,6 @@ en noem het in je rapport of PR-tekst.
      resume/stop (MSPDI) en een ELAPSEDTIME-taakduur naar P6 (`p6xmlWriter.ts`, `elapsedTaskCount`). Gelezen in
      de writers, niet nagespeeld. Voorstel: per geval een categorie en een capability in dezelfde matrix. — S
 
-481. **Exportverlies van een native project en vervangen XML-tekens hebben nog geen zichtbare melding.**
-     Sinds #727 draagt `exportAs` het verlies van een document zonder XER-herkomst in `warnings` (code
-     `EXPORT_DATA_NOT_EXPRESSIBLE`, #554), en `escapeXml` maakt van een verboden XML-teken U+FFFD (#588). De
-     planner ziet van beide nog niets: de meldingstekst legt de eigenaar vast. Let bij die tekst op: de categorie
-     `baselines` geldt voor elk project met een baseline bij MSPDI-export (alleen de taakwaarden van de actieve
-     baseline gaan mee). — B
-
 482. **De exportverliestest bewaakt een primaire constraint op een P6-verzameltaak niet apart.**
      `tests/planning/check-xer-export-loss.ts` (scenario "Native verzameltaak met constraints") geeft de
      verzameltaak een primaire én een secundaire constraint. Een fout die alleen de primaire mist (in

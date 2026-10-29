@@ -139,6 +139,11 @@ function xerLossNotifications() {
     (notification.messageKey as string) === 'notifications.xerExportLoss');
 }
 
+function dataLossNotifications() {
+  return store().ui.notifications.filter(notification =>
+    (notification.messageKey as string) === 'notifications.exportDataLoss');
+}
+
 function failNextSave(error: Error) {
   global.window.showOpenFilePicker = async () => [];
   global.window.showSaveFilePicker = async () => { throw error; };
@@ -153,10 +158,12 @@ function restoreDownloadSave() {
 resetProject('Schoon niet-XER');
 const cleanCsv = await store().exportAs('csv');
 expectCategories('een schoon niet-XER-project geeft geen XER-lossmelding', 'csv', cleanCsv, []);
+clearNotifications();
 for (const format of ['mspdi', 'p6'] as const) {
   expectCategories(`${format}: een schoon niet-XER-project geeft geen verlieswaarschuwing`,
     format, await store().exportAs(format), []);
 }
+expect('een schoon niet-XER-project krijgt geen verliesmelding', dataLossNotifications().length === 0);
 
 // #554: verlies hangt af van de gegevens, niet van de herkomst. Een native project (geen XER-archief,
 // geen XER-metadata) met een taaknotitie verliest die notitie in elke XML/CSV-export. De envelope draagt
@@ -178,7 +185,20 @@ resetProject('Native met notitie');
       && JSON.stringify(result.warnings[0]?.categories) === JSON.stringify(['notes']));
     expect(`${format}: native project krijgt niet de XER-broninformatiemelding`,
       xerLossNotifications().length === 0);
+    const dataLoss = dataLossNotifications();
+    expect(`${format}: native project krijgt één algemene verliesmelding met het formaat (#554)`,
+      dataLoss.length === 1
+      && dataLoss[0]?.params?.format === (format === 'mspdi' ? 'MSPDI' : format.toUpperCase())
+      && dataLoss[0]?.helpArticleId === 'howto-exporteren');
   }
+  // Annuleren is geen export: geen melding en geen warnings.
+  clearNotifications();
+  failNextSave(new DOMException('geannuleerd', 'AbortError'));
+  const cancelledNative = await store().exportAs('mspdi');
+  restoreDownloadSave();
+  expect('native: annuleren geeft geen verliesmelding en geen warnings',
+    cancelledNative.ok && cancelledNative.cancelled === true && cancelledNative.warnings.length === 0
+    && dataLossNotifications().length === 0);
   expect('IFC blijft voor een native project met notitie lossless',
     categoriesOf(await store().exportAs('ifc')).length === 0);
 }
@@ -622,7 +642,8 @@ const notifiedSuccess = await store().exportAs('csv');
 expect('succesvolle echte store-export geeft één centrale XER-lossmelding met Lees meer',
   notifiedSuccess.ok && !notifiedSuccess.cancelled
   && xerLossNotifications().length === 1
-  && xerLossNotifications()[0]?.helpArticleId === 'howto-xer-openen');
+  && xerLossNotifications()[0]?.helpArticleId === 'howto-xer-openen'
+  && dataLossNotifications().length === 0);
 
 clearNotifications();
 failNextSave(new DOMException('geannuleerd', 'AbortError'));

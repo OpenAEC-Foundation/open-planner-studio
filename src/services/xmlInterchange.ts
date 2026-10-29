@@ -10,19 +10,30 @@ import { hasNonAnchorTime } from '@/services/subdayIo';
 /** Elk teken buiten de `Char`-productie van XML 1.0 (https://www.w3.org/TR/xml/#charsets): C0-stuurtekens
  *  behalve tab/LF/CR, een losse UTF-16-surrogaat en U+FFFE/U+FFFF. Met de `u`-vlag is een geldig
  *  surrogaatpaar één teken boven U+FFFF en blijft het staan. */
-const XML_INVALID_CHAR = /[^\t\n\r -퟿-�\u{10000}-\u{10FFFF}]/gu;
+const XML_INVALID_CHAR = /[^\t\n\r\u{20}-\u{D7FF}\u{E000}-\u{FFFD}\u{10000}-\u{10FFFF}]/gu;
 
 /** Escapet tekst voor XML-inhoud én attributen (de vijf voorgedefinieerde entiteiten). Een teken dat XML 1.0
- *  niet toestaat, kan ook niet als entiteit; het wordt U+FFFD, zodat het bestand leesbaar blijft en de
- *  plek zichtbaar is in het doelprogramma (#588). */
+ *  niet toestaat, laat deze helper staan: dat vervangt de writer één keer in zijn hele uitvoer, met
+ *  {@link replaceInvalidXmlChars}, zodat hij het aantal kan melden. */
 export function escapeXml(s: string): string {
   return s
-    .replace(XML_INVALID_CHAR, '�')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
+}
+
+/** Vervangt elk teken dat XML 1.0 niet toestaat door U+FFFD (#588). Zo'n teken kan ook niet als entiteit;
+ *  zonder vervanging weigert een strikte parser het hele bestand. U+FFFD houdt de plek zichtbaar in het
+ *  doelprogramma. `replaced` telt de vervangen tekens voor de exportmelding. */
+export function replaceInvalidXmlChars(xml: string): { xml: string; replaced: number } {
+  let replaced = 0;
+  const out = xml.replace(XML_INVALID_CHAR, () => {
+    replaced += 1;
+    return '\u{FFFD}';
+  });
+  return { xml: out, replaced };
 }
 
 /** Synthetisch tijdstip voor een datum zonder tijd (`toXmlDateTime`). Sinds F5b schrijven de MSPDI- en
