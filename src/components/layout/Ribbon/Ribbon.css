@@ -586,3 +586,225 @@
   margin: 8px 2px;
   align-self: stretch;
 }
+
+/* Issue #391: grote gesplitste lintknop (Baseline-overlay), zoals Plakken in Word.
+   Eén kolom van 66px (de hoogte van een grote knop): boven het pictogram (aan/uit), onder het label
+   met ▾ (menu). Beide delen delen de rand en de actieve achtergrond; een dunne lijn scheidt ze. */
+.ribbon-split-large {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  height: 66px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+}
+
+.ribbon-split-large.active {
+  background: var(--theme-active);
+  border-color: var(--theme-active-border);
+}
+
+.ribbon-split-large > .ribbon-btn.ribbon-split-top {
+  height: 34px;
+  min-width: 54px;
+  padding: 3px 6px 0;
+  gap: 0;
+  justify-content: center;
+  border: none;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  background: transparent;
+}
+
+/* Het label van het bovenste deel is er alleen voor de automatische inpassing; zichtbaar staat het onder. */
+.ribbon-split-large > .ribbon-btn.ribbon-split-top .ribbon-split-top-label { display: none; }
+
+.ribbon-split-bottom {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 0;
+  padding: 0 4px 2px;
+  border: none;
+  border-top: 1px solid transparent;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  background: transparent;
+  color: var(--theme-text-dim);
+  cursor: pointer;
+}
+
+.ribbon-split-large > .ribbon-btn.ribbon-split-top:hover,
+.ribbon-split-bottom:hover,
+.ribbon-split-bottom.open {
+  background: var(--theme-hover);
+}
+
+.ribbon-split-large:hover .ribbon-split-bottom {
+  border-top-color: var(--theme-border);
+}
+
+.ribbon-split-large.active > .ribbon-btn.ribbon-split-top:hover,
+.ribbon-split-large.active .ribbon-split-bottom:hover,
+.ribbon-split-large.active .ribbon-split-bottom.open {
+  background: var(--theme-active-border);
+}
+
+.ribbon-split-large.active .ribbon-split-bottom {
+  border-top-color: color-mix(in srgb, var(--theme-accent-on) 35%, transparent);
+}
+
+.ribbon-split-bottom .ribbon-btn-label {
+  color: inherit;
+}
+
+.ribbon-split-large.active .ribbon-split-bottom,
+.ribbon-split-large.active .ribbon-split-bottom .ribbon-btn-label {
+  color: var(--theme-accent-on);
+}
+
+.ribbon-split-caret {
+  display: none;
+  flex-shrink: 0;
+  font-size: var(--text-small);
+  line-height: 1;
+}
+
+.ribbon-split-bottom:focus,
+.ribbon-split-large > .ribbon-btn.ribbon-split-top:focus {
+  outline: none;
+}
+
+.ribbon-split-bottom:focus-visible,
+.ribbon-split-large > .ribbon-btn.ribbon-split-top:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--theme-accent);
+}
+
+/* Smalle pictogramweergave (automatische inpassing zet `data-ribbon-mini` op het bovenste deel):
+   de knop blijft een eigen kolom met het pictogram boven en alleen ▾ recht eronder. Het label
+   verdwijnt, zodat de kolom smal wordt. Specifieker dan `.ribbon-btn[data-ribbon-mini]`. */
+.ribbon-split-large > .ribbon-btn.ribbon-split-top[data-ribbon-mini] {
+  flex-direction: column;
+  height: 34px;
+  width: auto;
+  min-width: 34px;
+  padding: 3px 4px 0;
+}
+
+.ribbon-split-large > .ribbon-btn.ribbon-split-top[data-ribbon-mini] .ribbon-btn-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.ribbon-split-large > .ribbon-btn.ribbon-split-top[data-ribbon-mini] .ribbon-btn-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.ribbon-split-large:has(> .ribbon-split-top[data-ribbon-mini]) .ribbon-split-bottom .ribbon-btn-label {
+  display: none;
+}
+
+.ribbon-split-large:has(> .ribbon-split-top[data-ribbon-mini]) .ribbon-split-caret,
+.ribbon-container.compact .ribbon-split-caret {
+  display: inline;
+}
+
+/* Handmatig ingeklapt lint (40px-strip, alleen pictogrammen): pictogram en ▾ naast elkaar. */
+.ribbon-container.compact .ribbon-split-large {
+  flex-direction: row;
+  height: 28px;
+  border-radius: var(--radius-sm);
+}
+
+.ribbon-container.compact .ribbon-split-large > .ribbon-btn.ribbon-split-top {
+  height: 26px;
+  min-width: 0;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+.ribbon-container.compact .ribbon-split-bottom {
+  padding: 0 4px;
+  border-top: none;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+/* Menuregel met vinkje + kleurstrookje (menu "Toon in de Gantt"). */
+.ribbon-check-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 6px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--theme-text);
+  font-size: var(--text-body);
+  text-align: start;
+  cursor: pointer;
+}
+
+.ribbon-check-item:hover {
+  background: var(--theme-hover);
+}
+
+.ribbon-check-item.is-disabled {
+  cursor: default;
+}
+
+.ribbon-check-item.is-disabled:not([aria-checked='true']) {
+  opacity: 0.45;
+}
+
+.ribbon-check-item.is-disabled:hover {
+  background: transparent;
+}
+
+.ribbon-check-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid var(--theme-control-border);
+  border-radius: 3px;
+  background: var(--theme-input-bg);
+}
+
+.ribbon-check-box.is-checked {
+  border-color: var(--theme-accent);
+  background: var(--theme-accent);
+  color: var(--theme-accent-on);
+}
+
+.ribbon-check-item.is-disabled .ribbon-check-box.is-checked {
+  opacity: 0.6;
+}
+
+.ribbon-check-strip {
+  flex-shrink: 0;
+  width: 22px;
+  height: 6px;
+  border-radius: 3px;
+}
+
+.ribbon-check-strip.is-empty {
+  border: 1px dashed var(--theme-control-border);
+}
+
+.ribbon-check-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ribbon-check-note {
+  margin-inline-start: auto;
+  padding-inline-start: 8px;
+  color: var(--theme-text-muted);
+  font-size: var(--text-small);
+}
