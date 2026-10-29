@@ -706,12 +706,13 @@ export function writeXER(input: XerWriteInput): XerWriteResult {
     const finishSide = task.isMilestone ? milestoneSide : 'finish';
     const constraintSide = (type: string | undefined): 'start' | 'finish' =>
       type === 'MFO' || type === 'FNET' || type === 'FNLT' ? 'finish' : 'start';
-    // De EFFECTIEVE werkregel: eigen regel, anders de projectstandaard (review PR #393, punt 3). Alleen
-    // een taak zonder beide houdt haar P6-duurtype uit de bron, of anders de standaardregel.
-    const ruleSource = task.workRule ?? project.defaultWorkRule;
-    const durationType = ruleSource
-      ? XER_DURATION_TYPE_TOKEN[effectiveWorkRule(task, project.defaultWorkRule)]
-      : task.p6DurationType ?? XER_DURATION_TYPE_TOKEN[effectiveWorkRule(task)];
+    // De ACTUELE effectieve werkregel: eigen regel, anders de projectstandaard, anders de standaardregel (review
+    // PR #393, punt 3; ronde 4). Niet het oude P6-duurtype uit de bron (`p6DurationType`): elk van de vier
+    // P6-duurtypen heeft precies één OPS-regel (`XER_DURATION_TYPE_TOKEN`), dus het oude veld draagt niets wat de
+    // regel niet al draagt. Wel kon het een keuze van de gebruiker terugdraaien: koos die *Projectstandaard*,
+    // dan schreef de export het oude type, en na heropenen had de taak weer een eigen regel.
+    const workRule = effectiveWorkRule(task, project.defaultWorkRule);
+    const durationType = XER_DURATION_TYPE_TOKEN[workRule];
     // Activiteittype: mijlpaal, hammock (TT_LOE), anders het P6-type uit de bron als dat een gewone
     // activiteit is (TT_Rsrc, TT_WBS: review PR #393, punt 7), anders TT_Task.
     const taskType = task.isMilestone ? (task.milestoneKind === 'FINISH' ? 'TT_FinMile' : 'TT_Mile')
@@ -771,10 +772,7 @@ export function writeXER(input: XerWriteInput): XerWriteResult {
     if (records !== undefined) opsValues.push({ field: taskDurationUnit(task) === 'hours' ? 'exactRecords' : 'dayRecords', fkId: taskId, text: records });
     // Een taak zonder eigen werkregel erft de projectstandaard. `duration_type` draagt de effectieve regel, en de
     // lezer maakt daar een eigen regel van; deze markering zegt dat ze geërfd was (review PR #393 ronde 3, punt 2).
-    const inheritedRule = effectiveWorkRule(task, project.defaultWorkRule);
-    if (task.workRule === undefined && durationType === XER_DURATION_TYPE_TOKEN[inheritedRule]) {
-      opsValues.push({ field: 'inheritedWorkRule', fkId: taskId, text: inheritedRule });
-    }
+    if (task.workRule === undefined) opsValues.push({ field: 'inheritedWorkRule', fkId: taskId, text: workRule });
   }
 
   // Verlies op taakniveau.
