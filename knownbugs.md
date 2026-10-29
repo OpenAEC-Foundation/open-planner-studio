@@ -1061,6 +1061,13 @@ en noem het in je rapport of PR-tekst.
 
 ## Rondleiding, Help en extensie-gidsen
 
+493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat
+     `**The tab *MCP* is gone.**`; de Help toont "*The tab MCP is gone.*", met de sterretjes erbij, en in de alinea
+     erboven loopt de cursief door ("…back to Off* and you can…"). De gidsen in `public/docs/en/` hebben 22 van zulke
+     regels (onder meer `howto-exporteren.md`, `howto-constraint-deadline-zetten.md`). De renderer is
+     `src/utils/miniMarkdown.tsx`. Gezien op een schermafbeelding van de dev-server bij #734; nl niet nagekeken.
+     Voorstel: de renderer laat nadruk in nadruk toe, of `verify:docs` weigert het. — B
+
 68. **Een gidsstap die eenmaal "gedaan" is, blijft gedaan**, ook na wisselen naar een leeg project. Gezien bij
     tutorial 6 stap 8; niet uitgezocht of dat bedoeld is. — S
 404. **Commentaar bij het welkomstvenster mist de ontbrekende instelling.**
