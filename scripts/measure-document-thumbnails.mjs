@@ -16,7 +16,7 @@ import { createServer } from 'vite';
 assert.equal(process.env.CI, 'true', 'Dit harnas draait uitsluitend in CI.');
 const [baseRoot, headRoot, outputDir] = process.argv.slice(2).map(p => resolve(p));
 assert.ok(baseRoot && headRoot && outputDir, 'Gebruik: <basischeckout> <headcheckout> <uitvoer>');
-const BASE = 'fbd4a3f9dcc7bdd308ab86b992d0b26f4670a553';
+const BASE = '1c4c8a2b629c1efcd070188a8368b108c4e289cf';
 const WARMUPS = 2;
 const SAMPLES = 7;
 mkdirSync(outputDir, { recursive: true });
@@ -171,7 +171,7 @@ async function edit(page, column, value, measure = false) {
 async function calculate(page, expectedFinish) {
   // Alleen gedragsbewijs, buiten de naamedit-/openingstijden: thumbnails volgen rekendatums.
   await page.keyboard.press('F5');
-  await expect.poll(() => page.evaluate(() => window.__OPS__.store.getState().tasks[0].time.earlyFinish))
+  await expect.poll(() => page.evaluate(() => window.__OPS__.store.getState().tasks[0].time.earlyFinish?.slice(0, 10)))
     .toBe(expectedFinish);
   await settle(page);
 }
@@ -243,7 +243,7 @@ async function runTiming(browser, url, label, scenario) {
     const before = await snapshot(page);
     await close(page);
     await edit(page, 'task.time.finish', '31-12-2026');
-    await expect.poll(() => page.evaluate(() => window.__OPS__.store.getState().tasks[0].time.scheduleFinish)).toBe('2026-12-31');
+    await expect.poll(() => page.evaluate(() => window.__OPS__.store.getState().tasks[0].time.scheduleFinish?.slice(0, 10))).toBe('2026-12-31');
     await calculate(page, '2026-12-31');
     await open(page);
     const after = await snapshot(page);

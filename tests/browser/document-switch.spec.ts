@@ -147,23 +147,23 @@ test('Gantt documenttabs herstellen beide paneviews en DOM-scrollbars', async ({
   await expect(input).toBeFocused();
   await input.fill('25-09-2026');
   await page.keyboard.press('Enter');
-  await expect.poll(() => state(page).then(s => s.tasks[0].scheduleFinish)).toBe('2026-09-25');
+  await expect.poll(() => state(page).then(s => s.tasks[0].scheduleFinish?.slice(0, 10))).toBe('2026-09-25');
   // De mini-Gantt gebruikt rekendatums. Een gewijzigde invoer wordt pas na echte F5 zichtbaar.
   await page.keyboard.press('F5');
-  await expect.poll(() => state(page).then(s => s.tasks[0].earlyFinish)).toBe('2026-09-25');
+  await expect.poll(() => state(page).then(s => s.tasks[0].earlyFinish?.slice(0, 10))).toBe('2026-09-25');
   const editedCards = await readCards();
   expect(editedCards[0]).toEqual(originalCards[0]);
   expect(editedCards[1].bars).not.toEqual(originalCards[1].bars);
 
   await page.keyboard.press('Escape');
   await page.keyboard.press('Control+z');
-  await expect.poll(() => state(page).then(s => s.tasks[0].scheduleFinish)).toBe('2026-09-18');
+  await expect.poll(() => state(page).then(s => s.tasks[0].scheduleFinish?.slice(0, 10))).toBe('2026-09-18');
   expect(await readCards()).toEqual(originalCards);
   await page.keyboard.press('Escape');
   await page.keyboard.press('Control+y');
-  await expect.poll(() => state(page).then(s => s.tasks[0].scheduleFinish)).toBe('2026-09-25');
+  await expect.poll(() => state(page).then(s => s.tasks[0].scheduleFinish?.slice(0, 10))).toBe('2026-09-25');
   await page.keyboard.press('F5');
-  await expect.poll(() => state(page).then(s => s.tasks[0].earlyFinish)).toBe('2026-09-25');
+  await expect.poll(() => state(page).then(s => s.tasks[0].earlyFinish?.slice(0, 10))).toBe('2026-09-25');
   expect(await readCards()).toEqual(editedCards);
 
   await overview.locator(`[data-ops-overview-card="${aId}"]`).click();

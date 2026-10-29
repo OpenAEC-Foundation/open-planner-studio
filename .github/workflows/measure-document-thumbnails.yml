@@ -35,10 +35,10 @@ jobs:
         run: |
           mkdir -p evidence
           printf '%s\n' "$EXPECTED_HEAD" > evidence/expected-head.txt
-          printf '%s\n' 'fbd4a3f9dcc7bdd308ab86b992d0b26f4670a553' > evidence/expected-base.txt
+          printf '%s\n' '1c4c8a2b629c1efcd070188a8368b108c4e289cf' > evidence/expected-base.txt
       - uses: actions/checkout@v5
         with:
-          ref: fbd4a3f9dcc7bdd308ab86b992d0b26f4670a553
+          ref: 1c4c8a2b629c1efcd070188a8368b108c4e289cf
           path: baseline
           persist-credentials: false
       - uses: actions/setup-node@v5
