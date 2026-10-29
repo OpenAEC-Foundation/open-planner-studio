@@ -32,6 +32,8 @@ Een wijziging werkt direct. Er is geen knop *Toepassen* en geen *Annuleren*.
 
 **Documentwissel-stijl** — hoe je wisselt tussen geopende projecten. Keuze uit *Horizontale tabbladen*, *Verticale tabbladen* en *Pil*. Standaard: *Horizontale tabbladen*. Effect: bij *Horizontale tabbladen* staat een tabbalk onder het lint; bij *Verticale tabbladen* een projectbalk links; bij *Pil* een kleine projectknop in de titelbalk. Waar: *Weergave*.
 
+**Van tab wisselen met het muiswiel** — of het muiswiel boven de tabbladen van het lint van tabblad wisselt. Standaard: aan. Effect: aan laat wiel omlaag naar het volgende tabblad gaan en wiel omhoog naar het vorige. Uit laat het wiel daar niets doen. Waar: *Weergave*, onder *Lint*. Zie [Lint per tabblad](docs://ref-lint).
+
 ### Onderdeel Gantt
 
 **Alleen werkbare dagen tonen** — comprimeert de tijd-as. Standaard: uit. Effect: weekenden en feestdagen uit de projectkalender worden overgeslagen, zodat een taak van 5 werkdagen precies 5 kolommen breed is. De sneltoetsen voor *Spring naar vandaag* en *Passend maken op project* tellen dan ook in werkdagen. Het rapport heeft een eigen vinkje met dezelfde naam, dat los van deze instelling staat. Waar: *Weergave*, onder *Gantt › Tijd-as*.

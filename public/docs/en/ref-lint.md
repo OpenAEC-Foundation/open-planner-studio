@@ -5,6 +5,7 @@ The ribbon at the top of the screen has tabs, and each tab has groups of buttons
 ## How the ribbon behaves
 
 - **Tabs** — *File* is on the left, then *Home*, *Planning*, *Resources*, *View*, *Settings*, *Table*, *IFC*, *Report* and, only with the MCP connection on, *MCP*.
+- **Switch with the mouse wheel** — turn the mouse wheel over the tabs. Down goes to the next tab, up to the previous one. It stops at the first and the last tab. *File* is not included. Over the buttons, the wheel does nothing. To turn it off: *App settings*, *Appearance* tab, *Ribbon* section.
 - **Narrow window** — when the ribbon does not fit, buttons shrink to an icon from right to left. The name is then the tooltip on the button. Every button without its own tooltip shows its name.
 - **Collapse the ribbon** — the small arrow at the bottom right of the ribbon turns it into a flat strip with icons only. The *Baselines & progress* group and the *Connection* group on the MCP tab then disappear behind a single button with a pop-up. Default: expanded. Your choice is remembered.
 - **Extension buttons** — an extension can add its own group at the end of a tab. Such a button does what the extension gave it.

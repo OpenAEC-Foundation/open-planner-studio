@@ -32,6 +32,8 @@ A change takes effect immediately. There is no *Apply* button and no *Cancel*.
 
 **Document switch style** — how you switch between open projects. Choose from *Horizontal tabs*, *Vertical tabs* and *Pill*. Default: *Horizontal tabs*. Effect: *Horizontal tabs* puts a tab bar under the ribbon; *Vertical tabs* a project bar on the left; *Pill* a small project button in the title bar. Where: *Appearance*.
 
+**Switch tabs with the mouse wheel** — whether the mouse wheel over the ribbon tabs switches tabs. Default: on. Effect: on makes wheel down go to the next tab and wheel up to the previous one. Off makes the wheel do nothing there. Where: *Appearance*, under *Ribbon*. See [The ribbon, tab by tab](docs://ref-lint).
+
 ### Gantt section
 
 **Show only working days** — compresses the timeline axis. Default: off. Effect: weekends and holidays from the project calendar are skipped, so a task of 5 working days is exactly 5 columns wide. The shortcuts for *Jump to today* and *Fit to project* then also count in working days. The report has its own checkbox with the same name, which is independent of this setting. Where: *Appearance*, under *Gantt › Timeline axis*.
