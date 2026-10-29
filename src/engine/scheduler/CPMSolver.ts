@@ -1191,9 +1191,9 @@ export class CPMSolver {
     return new Date(utcDayStart(d).getTime() + bands[bands.length - 1].end * MS_PER_MIN);
   }
 
-  /** De mode-bewuste primitieven die de relatie-wiskunde (`relationMath.ts`) geïnjecteerd
-   *  krijgt aangereikt. Ze blijven hier gedefinieerd (delen de dag↔uur-reductie met de rest van de
-   *  solver); `forwardConstraint`/`backwardConstraint` draaien de FS/SS/FF/SF-formules erop. */
+  /** De primitieven die de relatie-wiskunde (`relationMath.ts`) geïnjecteerd krijgt. Ze blijven hier
+   *  gedefinieerd (ze delen de snap- en duurhulpen met de rest van de solver);
+   *  `forwardConstraint`/`backwardConstraint` draaien de FS/SS/FF/SF-formules erop. */
   private readonly relDeps: RelationDeps = {
     lagEngine: (predEng, succEng) => {
       switch (this.options.schedulingOptions?.lagCalendar) {
@@ -1689,11 +1689,9 @@ export class CPMSolver {
     this.dataDate = dd && !isNaN(dd.getTime()) ? this.snapOnOrAfter(this.projectEngine, dd) : null;
     this.rawDataDate = this.dataDate === null ? null : dd;
 
-    // Projectstartdatum (RUW, ongesnapt — zie `rootFloor`/`projectStartRaw`). Date-only strings
-    // (het enige wat de wizard/`DateTextInput` produceren) parsen via `parseDate` modus-onafhankelijk
-    // identiek aan `parseInstant`, dus één simpele `parseDate` hier volstaat (geen `this.parseIn`
-    // nodig — die zou voor een instant-projectkalender de tijd-component willen behouden, die
-    // `project.startDate` nooit heeft).
+    // Projectstartdatum (RUW, ongesnapt — zie `rootFloor`/`projectStartRaw`). Een date-only string
+    // (zoals de wizard en `DateTextInput` die maken) zet `dayStartInstant` op het dagbegin van de
+    // projectklok.
     const psd = this.options.projectStartDate ? parseInstant(dayStartInstant(projectClock, this.options.projectStartDate) ?? this.options.projectStartDate) : null;
     this.projectStartRaw = psd && !isNaN(psd.getTime()) ? psd : null;
 

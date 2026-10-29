@@ -652,7 +652,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     floatPathByTask,
     // Hammocks zonder finish-driver: waarschuwing (nul-lengte-terugval).
     hammockNoFinishDriverTaskIds: [...hammockNoFinishDriverIds],
-    // Projecteinde in de projectkalendermodus: dag-project ⇒ `formatDate`.
+    // Projecteinde als moment (`YYYY-MM-DDTHH:mm`).
     // Zonder early-resultaten leeg (zie `hasSchedule` hierboven) i.p.v. de epoch.
     projectEnd: hasSchedule ? formatInstant(projectEnd, 'hour') : '',
     projectDuration,

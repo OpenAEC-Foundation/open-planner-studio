@@ -121,11 +121,12 @@ export class CalendarEngine {
   /** T11: conventies houden hun bereik op de oorspronkelijk opgeslagen werkblokken. */
   readonly hasOwnWorkBlocks: boolean;
 
-  /** Heeft de kalender geldige werktijd: eigen werkblokken, of geldige begin/einde/uren per dag waar
-   *  `calendarForEngine` werkblokken van maakt? Sinds F6 is er geen dagmodus meer. Onwaar betekent: de
-   *  engine ziet een week zonder werkblokken, en een berekening stopt (`taskWithoutWorkHours`,
-   *  `noWorkingHours`). Invoer- en weergavecode weigert op deze vlag. De naam blijft voor het
-   *  `DurationCalendar`-contract (`duration.ts`). */
+  /** Draagt de kalender werkblokken (`workTime`) na `calendarForEngine`: eigen blokken, of blokken uit
+   *  geldige begin/einde/uren per dag? Dit toetst alleen dát er blokken zijn, niet dat er werktijd in
+   *  zit: een opgeslagen lege week (`workTime` met lege weekdagen) geeft ook waar. Sinds F6 is er geen
+   *  dagmodus meer. Onwaar betekent: de engine ziet een week zonder werkblokken, en een berekening stopt
+   *  (`taskWithoutWorkHours`, `noWorkingHours`). Invoer- en weergavecode weigert op deze vlag. De naam
+   *  blijft voor het `DurationCalendar`-contract (`duration.ts`). */
   readonly isHourMode: boolean;
 
   constructor(calendar: WorkCalendar) {

@@ -179,6 +179,27 @@ S().runCPM();
 eq('3m samenvouwen houdt sleutel en parameters', [S().ui.notifications.filter((n) => n.dedupeKey === 'cpm-error').length,
   S().ui.notifications.find((n) => n.dedupeKey === 'cpm-error')?.detailKey], [1, 'scheduleErrors.invalidStartDate']);
 
+// Alleen uren (F6, review ronde 1 van #733): een kalender zonder geldige werktijd (08:00–16:00 met 24 u
+// per dag) stopt F5, ook voor een kalendertijd-taak. Op main vóór F6 rekende zo'n taak in dagen. Een
+// gewone taak op de projectkalender rekent dan ook niet: de hele berekening stopt.
+S().newProject();
+store.setState((s) => {
+  s.calendars.push({ ...createDefaultCalendar(), id: 'cal-zonder-werktijd', name: 'Zonder werktijd',
+    workTime: undefined, workStartHour: 8, workEndHour: 16, hoursPerDay: 24 });
+});
+const gewoon = S().addTask({ name: 'Bekisting' });
+const uitharden = S().addTask({ name: 'Uitharden' });
+store.setState((s) => {
+  const x = s.tasks.find((k) => k.id === uitharden)!;
+  x.calendarId = 'cal-zonder-werktijd';
+  x.time.durationType = 'ELAPSEDTIME';
+});
+S().runCPM();
+eq('3n F5 stopt met de code van de kalender zonder werktijd', S().cpmResult?.errorInfo, { code: 'taskWithoutWorkHours', taskName: 'Uitharden' });
+eq('3o de melding noemt de taak', [S().ui.notifications.find((n) => n.dedupeKey === 'cpm-error')?.detailKey,
+  S().ui.notifications.find((n) => n.dedupeKey === 'cpm-error')?.detailParams?.task], ['scheduleErrors.taskWithoutWorkHours', 'Uitharden']);
+eq('3p de gewone taak krijgt geen resultaat', S().cpmResult?.tasks.has(gewoon) ?? false, false);
+
 if (diffs.length) {
   console.log(`XX  schedule-errors: ${diffs.length} van de ${checks} checks FOUT`);
   for (const d of diffs) console.log(`    - ${d}`);
