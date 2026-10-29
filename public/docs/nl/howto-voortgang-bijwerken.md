@@ -31,7 +31,7 @@ Kies de manier die bij je situatie past. Ze maken hetzelfde resultaat.
 2. Sleep de schuif *Voortgang (%)* naar het percentage dat klaar is.
 3. Vul zo nodig *Werkelijke start* en *Werkelijk einde* in, op dezelfde manier als de statusdatum. Het veld *Resterend* rekent de app zelf uit; je kunt het hier niet wijzigen.
 
-Bij een mijlpaal staat er één veld, *Werkelijke datum*. Typ je bij een mijlpaal alleen een datum, hier of in de tabel, dan houdt hij de tijd die hij in de planning had. Voorbeeld: *Oplevering* staat gepland op maandag 16:00 en je typt woensdag; dan wordt het woensdag 16:00. Typ je zelf een tijd, dan geldt die.
+Bij een mijlpaal staat er één veld, *Werkelijke datum*. Typ je bij een mijlpaal alleen een datum, hier of in de tabel, dan houdt hij de tijd die hij in de planning had. Voorbeeld: *Oplevering* staat gepland op maandag 16:00 en je typt woensdag; dan wordt het woensdag 16:00. Stond de mijlpaal op het begin of einde van de werkdag, dan komt hij op het begin of einde van de dag die je typt. Eindigt de vrijdag om 12:00, dan wordt *Oplevering* op vrijdag 12:00. Typ je zelf een tijd, dan geldt die.
 
 **Een percentage kiezen in het menu.** Handig voor een snelle stand.
 

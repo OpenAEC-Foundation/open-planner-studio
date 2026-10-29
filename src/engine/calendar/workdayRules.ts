@@ -125,25 +125,116 @@ export function dayEndInstant(clock: DayClock, date: string): string | null {
 }
 
 /**
- * D4 aan de eindkant: de dag zonder eigen werkblok (weekend, feestdag) waarvan de typische werkdag op
- * `value` eindigt. Bij een nachtblok valt dat einde op de klokdag erna, waar {@link workdayOfInstant} geen
- * werkblok vindt. Voorbeeld: nachtploeg ma–vr 22:00–06:00; za 6 jun heeft geen blok, dus D2 van za is
- * zo 7 jun 06:00 (D4), en dat moment geeft hier za 6 jun. `null` als zo'n dag er niet is, en bij
- * kalendertijd (daar eindigt elke dag om 24:00; de 24:00-regel dekt dat al).
+ * De werkdag van het moment van een nulduur-mijlpaal (besluit B10 met de aanvulling "einde blijft einde",
+ * spec §4.2): de datum waarvan de werkspanne het moment bevat. De werkspanne van een datum loopt van het
+ * begin van zijn eerste werkblok tot het einde van zijn laatste (D1 tot D2, randen inbegrepen); een datum
+ * zonder werkblok (weekend, feestdag) heeft de spanne van de typische werkdag (D4).
+ *
+ * Bevatten meer spannes het moment, dan wint eerst de rand van `side` (de soort van de mijlpaal: FINISH de
+ * eindkant, anders de startkant), dan de andere rand, dan een moment binnen de spanne; bij een gelijke stand
+ * gaat een datum met eigen werkblokken voor D4. Zo is di 00:00 op een 24-uurskalender bij FINISH "ma" en
+ * anders "di", en za 00:00 na een 24-uursvrijdag bij START "za" (het begin van de typische werkdag, D4).
+ * Voorbeeld: ma–do 22:00–06:00, vr 22:00–02:00, weekend vrij. Za 02:00 is het einde van vr: "vr". Zo 06:00
+ * is het einde van de typische werkdag op za (D4): "za". Za 05:00 ligt in geen spanne.
+ *
+ * Buiten elke spanne, en bij kalendertijd, geldt {@link workdayOfInstant} aan de kant `side` (de klokdatum,
+ * met de 24:00-regel). Een datum zonder tijd komt ongewijzigd terug; onleesbare invoer geeft `''`.
+ *
+ * Eén regel voor de tabel (`momentLabel`), de statuscontrole (`isTaskActualPastStatusDate`) en het
+ * afmelden ({@link milestoneMomentOn}). Een gewone taak gebruikt deze regel niet.
  */
-export function freeDayEndingAt(clock: DayClock, value: string): string | null {
-  if (clock.kind !== 'blocks' || !isInstant(value)) return null;
+export function milestoneWorkdayOf(clock: DayClock, value: string, side: InstantSide): string {
+  if (isDateOnly(value)) return value;
+  if (!isInstant(value)) return '';
   const t = parseInstant(value).getTime();
-  if (Number.isNaN(t)) return null;
-  const day0 = utcDayIndex(t) * MS_PER_DAY;
-  // Een typische werkdag eindigt uiterlijk 2880 minuten na het begin van zijn dag (canonieke wrap-band).
-  for (let k = 0; k >= -2; k--) {
-    const date = formatDate(new Date(day0 + k * MS_PER_DAY));
-    if (blocksOn(clock, date).length > 0) continue;
-    const end = dayEndInstant(clock, date);
-    if (end && parseInstant(end).getTime() === t) return date;
+  if (Number.isNaN(t)) return '';
+  if (clock.kind === 'blocks') {
+    // Een werkdag eindigt uiterlijk 2880 minuten na het begin van zijn datum (canonieke wrap-band), dus de
+    // spanne die `t` bevat, hoort bij de datum van `t` of bij een van de twee datums ervoor.
+    const day0 = utcDayIndex(t) * MS_PER_DAY;
+    let best: { date: string; rank: number } | null = null;
+    for (let k = 0; k >= -2; k--) {
+      const date = formatDate(new Date(day0 + k * MS_PER_DAY));
+      const start = dayStartInstant(clock, date);
+      const end = dayEndInstant(clock, date);
+      if (!start || !end) continue;
+      const s = parseInstant(start).getTime();
+      const e = parseInstant(end).getTime();
+      if (t < s || t > e) continue;
+      const ownEdge = side === 'start' ? t === s : t === e;
+      const otherEdge = side === 'start' ? t === e : t === s;
+      const rank = (ownEdge ? 0 : otherEdge ? 2 : 4) + (blocksOn(clock, date).length > 0 ? 0 : 1);
+      if (!best || rank < best.rank) best = { date, rank };
+    }
+    if (best) return best.date;
   }
+  return workdayOfInstant(clock, value, side);
+}
+
+/** De rand van werkdag `day` (D1 of D2, met D4) waarop moment `value` valt: `'start'`, `'end'`, of `null`
+ *  als het moment op geen van beide randen valt. */
+export function workdayEdgeAt(clock: DayClock, day: string, value: string): InstantSide | null {
+  if (!isInstant(value)) return null;
+  const t = parseInstant(value).getTime();
+  const start = dayStartInstant(clock, day);
+  const end = dayEndInstant(clock, day);
+  if (end && parseInstant(end).getTime() === t) return 'end';
+  if (start && parseInstant(start).getTime() === t) return 'start';
   return null;
+}
+
+/**
+ * Het moment van een mijlpaal die met alleen een datum wordt afgemeld (besluit B10 van Ethan, 2026-10-29,
+ * met de aanvulling "einde blijft einde" van later die dag). `planned` is het moment uit de planning,
+ * `date` de getypte werkdag, `side` de kant van de soort ({@link milestoneWorkdayOf}).
+ *
+ *  1. Staat de mijlpaal op het begin of het einde van zijn werkdag, dan komt hij op hetzelfde begin of
+ *     einde van de getypte dag. Voorbeeld: ma–do 07:00–16:00, vr 07:00–12:00, "Oplevering" op ma 16:00,
+ *     afgemeld op vr ⇒ vr 12:00.
+ *  2. Daartussen geldt de geplande kloktijd: dezelfde afstand tot middernacht van zijn werkdag. Voorbeeld:
+ *     ma 10:00, afgemeld op wo ⇒ wo 10:00.
+ *  3. Uitwerking door de orkestrator (niet letterlijk in het besluit): valt die kloktijd in de dienst van
+ *     een andere werkdag, dan gaat "de dag komt van wat je typt" voor. Het moment komt dan op de rand van de
+ *     getypte werkdag die het dichtst bij ligt. Voorbeeld: ma–do 22:00–06:00, vr 22:00–02:00, za 04:00–12:00;
+ *     een mijlpaal op di 05:00 (midden in de nacht van ma), afgemeld op vr ⇒ za 05:00 valt in de dienst van
+ *     za, dus het einde van vr: za 02:00. Valt de kloktijd niet in de dienst van een andere werkdag, dan
+ *     blijft hij staan: dagkalender, ma 14:00, afgemeld op een vrijdag 07:00–12:00 ⇒ vr 14:00.
+ *
+ * Twee gevallen dekken het besluit en de uitwerking niet (gemeld in PR #724). Hier gaat ook "de dag komt
+ * van wat je typt" voor, anders toont de tabel een andere dag en weigert de statuscontrole de statusdag:
+ *  4. De kloktijd valt in geen dienst, maar op een andere klokdatum dan de getypte dag: de dichtstbijzijnde
+ *     rand. Voorbeeld: ma–do 22:00–06:00, vr 22:00–02:00, weekend vrij; di 05:00 afgemeld op vr ⇒ za 05:00
+ *     ligt na het einde van vr en hoort bij za; dus za 02:00.
+ *  5. De rand van de getypte dag is ook een rand van de buurdag, en de soort leest hem als die buurdag: de
+ *     andere rand van de getypte dag. Voorbeeld: 24 uur ma–do, vr 00:00–12:00; een START-mijlpaal op
+ *     vr 12:00 (einde vr), afgemeld op ma ⇒ het einde van ma is di 00:00, en START leest dat als "di"; dus
+ *     het begin van ma: ma 00:00.
+ *
+ * Kort: het moment uit 1 of 2 blijft staan als {@link milestoneWorkdayOf} er de getypte dag van maakt;
+ * anders de rand van de getypte dag die het dichtst bij ligt en er wel bij hoort.
+ *
+ * `null` als een van beide waarden onleesbaar is, of als de getypte dag geen rand heeft.
+ */
+export function milestoneMomentOn(clock: DayClock, planned: string, date: string, side: InstantSide): string | null {
+  if (!isInstant(planned) || !isDateOnly(date)) return null;
+  const at = parseInstant(planned).getTime();
+  const typedMs = parseDate(date).getTime();
+  const plannedDay = milestoneWorkdayOf(clock, planned, side);
+  if (Number.isNaN(at) || Number.isNaN(typedMs) || !plannedDay) return null;
+  const start = dayStartInstant(clock, date);
+  const end = dayEndInstant(clock, date);
+  const edge = workdayEdgeAt(clock, plannedDay, planned);
+  let candidates: (string | null)[];
+  if (edge) {
+    candidates = edge === 'end' ? [end, start] : [start, end];
+  } else {
+    const moment = formatInstant(new Date(typedMs + (at - parseDate(plannedDay).getTime())), 'hour');
+    const t = parseInstant(moment).getTime();
+    const distance = (edgeAt: string | null) => edgeAt ? Math.abs(parseInstant(edgeAt).getTime() - t) : Infinity;
+    candidates = [moment, ...(distance(end) < distance(start) ? [end, start] : [start, end])];
+  }
+  return candidates.find(c => c !== null && milestoneWorkdayOf(clock, c, side) === date)
+    ?? candidates.find(c => c !== null) ?? null;
 }
 
 /**

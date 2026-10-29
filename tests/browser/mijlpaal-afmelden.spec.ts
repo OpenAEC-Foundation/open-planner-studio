@@ -201,3 +201,41 @@ test('tabel: nachtploeg, afmelden op een statusdag zonder werkblok mag', async (
   });
   await expect(finish).toHaveText('06-06-2026');
 });
+
+// Einde blijft einde (aanvulling van Ethan, later op 2026-10-29, vloot-wiki, alinea "Aanvulling"): werktijd
+// ma–do 07:00–16:00 en vr 07:00–12:00, "Oplevering" gepland op maandag 16:00, afgemeld op vrijdag 5 juni ⇒
+// vrijdag 12:00, en de tabel toont alleen de datum. Het letterlijke kloktijdalternatief gaf vr 16:00.
+test('tabel: einde blijft einde, Oplevering op een korte vrijdag wordt vr 12:00', async ({ page, ops: _ops }) => {
+  const id = await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    const day = [{ start: 420, end: 720 }, { start: 780, end: 960 }];
+    s.setCalendar({
+      ...s.calendar, workDays: [1, 2, 3, 4, 5], holidays: [], workStartHour: 7, workEndHour: 16, hoursPerDay: 8,
+      workTime: { byWeekday: { 1: day, 2: day, 3: day, 4: day, 5: [{ start: 420, end: 720 }], 6: [], 7: [] } },
+    });
+    s.setProject({ name: 'Mijlpaal korte vrijdag', startDate: '2026-06-01' });
+    s.setUI({ dateNotation: 'dmy' });
+    // Een losse mijlpaal zonder soort staat in OPS op het einde van de werkdag (B6): ma 1 jun 16:00.
+    const oplevering = s.addTask({ name: 'Oplevering', isMilestone: true, time: { scheduleDuration: 0 } as never });
+    const after = window.__OPS__!.store.getState();
+    after.runCPM();
+    after.setStatusDate('2026-06-05');
+    const columns = after.taskGridSurfaces['full-task-grid'].columns;
+    after.setTaskGridColumns('full-task-grid', [
+      ...columns,
+      { id: 'task.time.actualFinish', width: 140, pinned: false } as unknown as (typeof columns)[number],
+    ]);
+    return oplevering;
+  });
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().tasks.length)).toBe(1);
+  await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
+  await expect(surface(page).locator('[role="grid"]')).toBeVisible();
+  expect((await timeOf(page, id)).planned).toBe('2026-06-01T16:00');
+
+  const finish = taskCell(page, id, 'task.time.actualFinish');
+  await typeInCell(page, finish, '05-06-2026');
+  await expect.poll(() => timeOf(page, id)).toEqual({
+    planned: '2026-06-01T16:00', actualStart: '2026-06-05T12:00', actualFinish: '2026-06-05T12:00',
+  });
+  await expect(finish).toHaveText('05-06-2026');
+});
