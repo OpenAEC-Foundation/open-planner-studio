@@ -1,26 +1,32 @@
 #!/usr/bin/env python3
-"""Genereer de B2-iconen van de OpenAEC Style Repo als compacte SVG-paden voor OPS.
+"""Genereer de B2-iconen van de OpenAEC-Blueprint als compacte SVG-paden voor OPS.
 
-Bron: `design/icon-set-b2/manifest.json` in
-https://github.com/OpenAEC-Foundation/OpenAEC-Style-Repo, gepind op één commit in
-`src/components/icons/b2/b2.lock.json`. De Style Repo exporteert de iconen als gesamplede, gevulde
-contouren (~15 KB per icoon); dit script bouwt uit de `construction`-geometrie (polylijnen met
-lijndikte, hoekafronding, cirkels en vlakken) dezelfde vorm als stroke-paden, ~50× kleiner. De export
-is letterlijk `buffer(width/2, round, round)` van diezelfde lijnen, dus een stroke met ronde kappen en
-verbindingen is er meetkundig gelijk aan. Twee gevallen kan een stroke niet: `clear_primary` (een halo
-rond het accent, uit de hoofdkleur gesneden) en de vier `rounded_joint`-iconen met een bijzondere naad;
-die krijgen de verliesvrije gevulde export, afgerond op twee decimalen.
+Bron: `design/icon-set-b2/manifest.json` in https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint
+(vroeger de Style Repo), vastgezet op één release-tag in `src/components/icons/b2/b2.lock.json`
+(`tag` + `commit` van die tag). De bestanden worden opgehaald op de commit uit het lockbestand, zodat een
+verplaatste tag de uitvoer niet stilletjes verandert.
 
-Gebruik:
-  python3 scripts/style-icons.py --repo ../OpenAEC-Style-Repo        # genereren uit een lokale checkout
-  python3 scripts/style-icons.py                                      # genereren; haalt de gepinde bestanden van GitHub
-  python3 scripts/style-icons.py --check                              # faalt als het gegenereerde bestand niet actueel is
-  python3 scripts/style-icons.py --repo ../OpenAEC-Style-Repo --pin   # pin op de HEAD van die checkout en genereer
-  python3 scripts/style-icons.py --catalog build/b2-catalog.json      # schrijft ook de catalogus (id, label, betekenis, bronvoorbeeld)
+De Blueprint exporteert de iconen als gesamplede, gevulde contouren (~15 KB per icoon); dit script bouwt
+uit de `construction`-geometrie (polylijnen met lijndikte, hoekafronding, cirkels en vlakken) dezelfde vorm
+als stroke-paden, ~50× kleiner. De export is letterlijk `buffer(width/2, round, round)` van diezelfde
+lijnen, dus een stroke met ronde kappen en verbindingen is er meetkundig gelijk aan. Twee gevallen kan een
+stroke niet: `clear_primary` (een halo rond het accent, uit de hoofdkleur gesneden) en de
+`rounded_joint`-iconen met een bijzondere naad; die krijgen de verliesvrije gevulde export, afgerond op
+twee decimalen.
+
+Gebruik (zelfde vorm als `scripts/style-tokens.py`):
+  python3 scripts/style-icons.py                  # haal de vastgezette tag op en schrijf de bestanden opnieuw
+  python3 scripts/style-icons.py --check          # genereer in het geheugen; exit 1 als de repo afwijkt
+  python3 scripts/style-icons.py --tag v2026.45.1 # zet een andere tag vast en genereer opnieuw
+  python3 scripts/style-icons.py --latest         # print de tag van de nieuwste Blueprint-release, verder niets
+  python3 scripts/style-icons.py --report r.md    # schrijf ook het rapport (ontbrekende iconen) als Markdown
 
 Welke iconen: alle B2-iconen met Planner als kandidaat-app, plus de ids in
-`src/components/icons/b2/extra-ids.json` (algemene iconen die OPS verder nodig heeft).
-Geen Node, geen afhankelijkheden buiten de standaardbibliotheek.
+`src/components/icons/b2/extra-ids.json` (algemene iconen die OPS verder nodig heeft). Staat een icoon dat
+de code gebruikt niet meer in de Blueprint, dan noemt het script dat icoon met elk bestand en elke regel
+waar het voorkomt (de typecheck faalt daarna ook, want `IconId` kent het niet meer).
+
+Alleen de standaardbibliotheek. `GITHUB_TOKEN` (als die er is) gaat mee naar de GitHub-API.
 """
 from __future__ import annotations
 
@@ -29,8 +35,8 @@ import gzip
 import hashlib
 import json
 import math
+import os
 import re
-import subprocess
 import sys
 import urllib.request
 from pathlib import Path
@@ -40,42 +46,62 @@ OUT_DIR = ROOT / "src/components/icons/b2"
 LOCK = OUT_DIR / "b2.lock.json"
 EXTRA_IDS = OUT_DIR / "extra-ids.json"
 GENERATED = OUT_DIR / "icons.generated.ts"
-REPO_URL = "https://github.com/OpenAEC-Foundation/OpenAEC-Style-Repo"
-RAW_URL = "https://raw.githubusercontent.com/OpenAEC-Foundation/OpenAEC-Style-Repo"
+SCAN_DIRS = ("src", "tests/browser")
+OWNER_REPO = "OpenAEC-Foundation/OpenAEC-Blueprint"
+REPO_URL = f"https://github.com/{OWNER_REPO}"
+RAW_URL = f"https://raw.githubusercontent.com/{OWNER_REPO}"
+API_URL = f"https://api.github.com/repos/{OWNER_REPO}"
 MANIFEST = "design/icon-set-b2/manifest.json"
 LOSSLESS = "design/icon-set-b2/library-lossless"
 APP = "Planner"
 SIZES = ("16", "24")
 TONES = {"primary": 0, "accent": 1}
 STROKE, FILL = 0, 1
+ID_LITERAL = re.compile(r"""['"`]([a-z0-9-]+\.[a-z0-9-]+)['"`]""")
 
 
 # ---------------------------------------------------------------- bron
 
-class Source:
-    """De gepinde bestanden van de Style Repo: uit een lokale checkout of van GitHub."""
+def fetch(url: str, *, api: bool = False) -> bytes:
+    headers = {"User-Agent": "open-planner-studio/style-icons"}
+    if api:
+        headers["Accept"] = "application/vnd.github+json"
+        token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+    with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=120) as response:
+        return response.read()
 
-    def __init__(self, repo: Path | None, commit: str):
-        self.repo = repo
+
+def latest_tag() -> str:
+    try:
+        return json.loads(fetch(f"{API_URL}/releases/latest", api=True))["tag_name"]
+    except Exception:  # API-limiet zonder token: de redirect van de releasepagina noemt dezelfde tag
+        request = urllib.request.Request(f"{REPO_URL}/releases/latest", method="HEAD",
+                                         headers={"User-Agent": "open-planner-studio/style-icons"})
+        with urllib.request.urlopen(request, timeout=60) as response:
+            return response.geturl().rstrip("/").rsplit("/", 1)[-1]
+
+
+def commit_of_tag(tag: str) -> str:
+    """De commit achter een tag; een geannoteerde tag wordt doorverwezen naar zijn commit."""
+    obj = json.loads(fetch(f"{API_URL}/git/ref/tags/{tag}", api=True))["object"]
+    while obj["type"] == "tag":
+        obj = json.loads(fetch(obj["url"], api=True))["object"]
+    return obj["sha"]
+
+
+class Source:
+    """De bestanden van de Blueprint op de vastgezette commit."""
+
+    def __init__(self, commit: str):
         self.commit = commit
         self._cache: dict[str, bytes] = {}
 
     def read(self, path: str) -> bytes:
-        if path in self._cache:
-            return self._cache[path]
-        if self.repo is not None:
-            data = subprocess.run(["git", "-C", str(self.repo), "show", f"{self.commit}:{path}"],
-                                  check=True, capture_output=True).stdout
-        else:
-            with urllib.request.urlopen(f"{RAW_URL}/{self.commit}/{path}", timeout=60) as response:
-                data = response.read()
-        self._cache[path] = data
-        return data
-
-
-def head_commit(repo: Path) -> str:
-    return subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD"], check=True,
-                          capture_output=True, text=True).stdout.strip()
+        if path not in self._cache:
+            self._cache[path] = fetch(f"{RAW_URL}/{self.commit}/{path}")
+        return self._cache[path]
 
 
 # ---------------------------------------------------------------- geometrie
@@ -187,15 +213,13 @@ def ts_string(value: str) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
-def build(source: Source, lock: dict, extra_ids: list[str], catalog_path: Path | None):
+def build(source: Source, lock: dict, extra_ids: list[str], catalog_wanted: bool):
     manifest_bytes = source.read(MANIFEST)
     manifest_sha = hashlib.sha256(manifest_bytes).hexdigest()
     manifest = json.loads(manifest_bytes)
     by_id = {icon["id"]: icon for icon in manifest["icons"]}
-    missing = [i for i in extra_ids if i not in by_id]
-    if missing:
-        raise SystemExit(f"extra-ids.json noemt onbekende B2-iconen: {', '.join(missing)}")
-    chosen = sorted({i["id"] for i in manifest["icons"] if APP in (i.get("candidate_apps") or [])} | set(extra_ids))
+    chosen = sorted({i["id"] for i in manifest["icons"] if APP in (i.get("candidate_apps") or [])}
+                    | {i for i in extra_ids if i in by_id})
 
     defs = []
     export_used = []
@@ -214,9 +238,9 @@ def build(source: Source, lock: dict, extra_ids: list[str], catalog_path: Path |
         defs.append((icon_id, icon, masters))
 
     lines = [
-        f"// Gegenereerd door scripts/style-icons.py uit {REPO_URL} @ {lock['styleRepoCommit'][:12]}",
+        f"// Gegenereerd door scripts/style-icons.py uit {REPO_URL} @ {lock['tag']} ({lock['commit'][:12]})",
         f"// (B2-revisie {manifest['revision']}, {len(defs)} iconen). Niet met de hand bewerken; zie de kop van dat script.",
-        "// Bron en licentie van de iconen: de Style Repo (voorlopig LGPL-3.0-only, besluit over een eigen",
+        "// Bron en licentie van de iconen: de Blueprint (voorlopig LGPL-3.0-only, besluit over een eigen",
         "// iconenlicentie open in issue #15 daar). Hoofdkleur `currentColor`, accent `var(--icon-accent)`.",
         "",
         "/** Eén tekenonderdeel: soort (0 = lijn met ronde kappen, 1 = vlak evenodd), kleur (0 = hoofd, 1 = accent), pad. */",
@@ -228,9 +252,9 @@ def build(source: Source, lock: dict, extra_ids: list[str], catalog_path: Path |
         "export interface IconDef {",
         "  readonly s16: IconMaster;",
         "  readonly s24: IconMaster;",
-        "  /** Het hele icoon in de accentkleur (Style Repo: `whole_icon_accent`). */",
+        "  /** Het hele icoon in de accentkleur (Blueprint: `whole_icon_accent`). */",
         "  readonly accent?: true;",
-        "  /** Statuskleur uit het thema (Style Repo: `semantic_color`). */",
+        "  /** Statuskleur uit het thema (Blueprint: `semantic_color`). */",
         "  readonly semantic?: 'error' | 'success' | 'warning' | 'info' | 'text-secondary';",
         "}",
         "",
@@ -255,7 +279,7 @@ def build(source: Source, lock: dict, extra_ids: list[str], catalog_path: Path |
     generated = "\n".join(lines)
 
     catalog = None
-    if catalog_path is not None:
+    if catalog_wanted:
         catalog = []
         for icon in manifest["icons"]:
             example = icon.get("source_example") or {}
@@ -265,40 +289,96 @@ def build(source: Source, lock: dict, extra_ids: list[str], catalog_path: Path |
                 "planner": APP in (icon.get("candidate_apps") or []),
                 "example": {k: example.get(k) for k in ("app", "name", "path", "line", "context")} if example else None,
             })
-    return generated, manifest_sha, manifest["revision"], export_used, catalog
+    return generated, manifest_sha, manifest["revision"], set(by_id), export_used, catalog
+
+
+# ---------------------------------------------------------------- iconen die uit de Blueprint verdwenen
+
+def known_ids() -> set[str]:
+    """De ids die OPS nu kent: de `IconId`-union van het huidige gegenereerde bestand plus extra-ids.json."""
+    ids: set[str] = set()
+    if GENERATED.exists():
+        ids |= set(re.findall(r'^  \| "([^"]+)"', GENERATED.read_text(encoding="utf-8"), re.M))
+    if EXTRA_IDS.exists():
+        ids |= set(json.loads(EXTRA_IDS.read_text(encoding="utf-8")))
+    return ids
+
+
+def usages(ids: set[str]) -> dict[str, list[str]]:
+    """Per id elke plek (`pad:regel`) in de code en de browsertests waar het als tekst voorkomt."""
+    found: dict[str, list[str]] = {i: [] for i in ids}
+    if not ids:
+        return found
+    for base in SCAN_DIRS:
+        for path in sorted((ROOT / base).rglob("*")):
+            if path.suffix not in (".ts", ".tsx") or path == GENERATED or not path.is_file():
+                continue
+            for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                for match in ID_LITERAL.finditer(line):
+                    if match.group(1) in found:
+                        found[match.group(1)].append(f"{path.relative_to(ROOT)}:{number}")
+    return found
+
+
+def removed_report(lost: set[str], tag: str) -> str:
+    if not lost:
+        return ""
+    places = usages(lost)
+    lines = [f"### Iconen die niet meer in de Blueprint staan ({tag})", "",
+             "Deze iconen gebruikt OPS nog, maar de Blueprint levert ze niet meer. Kies per plek een ander B2-icoon",
+             "(of haal het id uit `src/components/icons/b2/extra-ids.json`); tot dan faalt de typecheck.", ""]
+    for icon_id in sorted(lost):
+        where = places.get(icon_id) or []
+        lines.append(f"- `{icon_id}`" + ("" if where else " (geen plek in de code gevonden; alleen in extra-ids.json)"))
+        lines += [f"  - `{place}`" for place in where]
+    return "\n".join(lines) + "\n"
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--repo", type=Path, help="lokale checkout van de Style Repo (anders: GitHub op de gepinde commit)")
-    parser.add_argument("--pin", action="store_true", help="pin op de HEAD van --repo en schrijf b2.lock.json")
-    parser.add_argument("--check", action="store_true", help="alleen controleren; niets schrijven")
-    parser.add_argument("--catalog", type=Path, help="schrijf de volledige B2-catalogus als JSON naar dit pad")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--check", action="store_true", help="genereer in het geheugen; exit 1 als de bestanden in de repo afwijken")
+    mode.add_argument("--tag", help="zet deze Blueprint-tag vast en genereer opnieuw")
+    mode.add_argument("--latest", action="store_true", help="print de tag van de nieuwste Blueprint-release en niets anders")
+    parser.add_argument("--report", type=Path, help="schrijf het rapport (ontbrekende iconen) als Markdown naar dit pad")
+    parser.add_argument("--catalog", type=Path, help="schrijf ook de volledige B2-catalogus als JSON naar dit pad")
     args = parser.parse_args()
 
+    if args.latest:
+        print(latest_tag())
+        return 0
+
     lock = json.loads(LOCK.read_text(encoding="utf-8")) if LOCK.exists() else {}
-    if args.pin:
-        if args.repo is None:
-            parser.error("--pin vraagt --repo")
-        lock = {"styleRepo": REPO_URL, "styleRepoCommit": head_commit(args.repo)}
-    if not lock.get("styleRepoCommit"):
-        parser.error("geen gepinde commit: geef --repo met --pin, of maak src/components/icons/b2/b2.lock.json")
+    if args.tag:
+        lock = {"tag": args.tag, "commit": commit_of_tag(args.tag)}
+    if not lock.get("tag") or not lock.get("commit"):
+        parser.error(f"{LOCK.relative_to(ROOT)} mist `tag` of `commit`; zet een tag vast met --tag")
 
     extra_ids = json.loads(EXTRA_IDS.read_text(encoding="utf-8")) if EXTRA_IDS.exists() else []
-    source = Source(args.repo, lock["styleRepoCommit"])
-    generated, manifest_sha, revision, export_used, catalog = build(source, lock, extra_ids, args.catalog)
+    before = known_ids()
+    generated, manifest_sha, revision, blueprint_ids, export_used, catalog = build(
+        Source(lock["commit"]), lock, extra_ids, args.catalog is not None)
+    report = removed_report(before - blueprint_ids, lock["tag"])
+    if args.report is not None:
+        args.report.parent.mkdir(parents=True, exist_ok=True)
+        args.report.write_text(report, encoding="utf-8")
+    if report:
+        print(report, file=sys.stderr)
 
-    new_lock = {"styleRepo": REPO_URL, "styleRepoCommit": lock["styleRepoCommit"],
+    new_lock = {"blueprint": REPO_URL, "tag": lock["tag"], "commit": lock["commit"],
                 "b2Revision": revision, "manifestSha256": manifest_sha}
     if args.check:
         problems = []
-        if lock.get("manifestSha256") != manifest_sha or lock.get("b2Revision") != revision:
-            problems.append("b2.lock.json past niet bij het manifest op de gepinde commit")
+        if lock != new_lock:
+            problems.append(f"{LOCK.relative_to(ROOT)} past niet bij het manifest op {lock['tag']} ({lock['commit'][:12]})")
         if not GENERATED.exists() or GENERATED.read_text(encoding="utf-8") != generated:
-            problems.append(f"{GENERATED.relative_to(ROOT)} is niet actueel; draai scripts/style-icons.py")
+            problems.append(f"{GENERATED.relative_to(ROOT)} wijkt af van wat {lock['tag']} oplevert; "
+                            "draai `python3 scripts/style-icons.py` en commit het resultaat")
+        if report:
+            problems.append("de code gebruikt iconen die niet in de Blueprint staan (zie hierboven)")
         for problem in problems:
             print(f"style-icons: {problem}", file=sys.stderr)
-        print(f"style-icons: {'ROOD' if problems else 'GROEN'} ({len(generated.splitlines())} regels, B2-revisie {revision})")
+        print(f"style-icons: {'ROOD' if problems else 'GROEN'} ({lock['tag']}, B2-revisie {revision})")
         return 1 if problems else 0
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -307,8 +387,9 @@ def main() -> int:
     if args.catalog is not None and catalog is not None:
         args.catalog.parent.mkdir(parents=True, exist_ok=True)
         args.catalog.write_text(json.dumps(catalog, ensure_ascii=False, indent=1), encoding="utf-8")
-    print(f"style-icons: {GENERATED.relative_to(ROOT)} geschreven ({len(generated.encode('utf-8')) / 1024:.0f} KB, "
-          f"B2-revisie {revision}, {len(export_used)} masters uit de gevulde export: {', '.join(export_used)})")
+    print(f"style-icons: {GENERATED.relative_to(ROOT)} geschreven voor {lock['tag']} "
+          f"({len(generated.encode('utf-8')) / 1024:.0f} KB, B2-revisie {revision}, "
+          f"{len(export_used)} masters uit de gevulde export)")
     return 0
 
 

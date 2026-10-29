@@ -1,6 +1,7 @@
 {
-  "styleRepo": "https://github.com/OpenAEC-Foundation/OpenAEC-Style-Repo",
-  "styleRepoCommit": "edbdd39b686927f27d4a5622627c0ad39b552326",
+  "blueprint": "https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint",
+  "tag": "v2026.44.1",
+  "commit": "83916c9633e1893f332904e2337f77833f0f757a",
   "b2Revision": 106,
   "manifestSha256": "35428fb190e79924503d79d5e66f0aabd88a1393743a4f45accbcd9b1317c310"
 }
