@@ -1731,6 +1731,10 @@ export class GanttRenderer {
       ctx.lineWidth = 2;
       ctx.strokeRect(x1 - 1, barY - 1, width + 2, barH + 6);
     }
+
+    // Naam ALTIJD rechts achter de balk, ook als hij erin zou passen (issue #729): op de dunne
+    // fasebalk is een naam slecht leesbaar, en zo staat hij op dezelfde plek als op de afdruk.
+    this.drawOutsideBarName(task.name, completion >= 1 ? this.colors.textSecondary : this.colors.text, x1 + width, y + height / 2);
   }
 
   /** Schermpositie (canvas-x) van de mijlpaal-ruit voor `task`, of `null` als er niets is om op te
