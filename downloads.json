@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "source": "github-releases",
   "repo": "OpenAEC-Foundation/open-planner-studio",
-  "generatedAt": "2026-10-29T12:01:50.798Z",
-  "downloads": 3024,
+  "generatedAt": "2026-10-29T14:01:49.636Z",
+  "downloads": 3035,
   "releases": [
     {
       "tag": "v2026.43.0",
@@ -11,11 +11,11 @@
       "prerelease": false,
       "os": {
         "windows": {
-          "install": 207,
+          "install": 212,
           "update": 70,
           "both": 0,
           "byKind": {
-            "exe": 207,
+            "exe": 212,
             "nsis.zip": 70
           }
         },
@@ -29,18 +29,18 @@
           }
         },
         "linux": {
-          "install": 4,
+          "install": 5,
           "update": 0,
-          "both": 77,
+          "both": 81,
           "byKind": {
-            "snap": 4,
+            "snap": 5,
             "rpm": 8,
-            "AppImage": 45,
+            "AppImage": 49,
             "deb": 24
           }
         }
       },
-      "polls": 612
+      "polls": 620
     },
     {
       "tag": "v2026.10.0",
@@ -66,11 +66,11 @@
           }
         },
         "linux": {
-          "install": 1,
+          "install": 2,
           "update": 0,
           "both": 49,
           "byKind": {
-            "snap": 1,
+            "snap": 2,
             "rpm": 8,
             "AppImage": 21,
             "deb": 20
@@ -854,11 +854,11 @@
   ],
   "totals": {
     "windows": {
-      "install": 1821,
+      "install": 1826,
       "update": 275,
       "both": 0,
       "byKind": {
-        "exe": 1821,
+        "exe": 1826,
         "nsis.zip": 275
       }
     },
@@ -872,19 +872,25 @@
       }
     },
     "linux": {
-      "install": 82,
+      "install": 84,
       "update": 0,
-      "both": 855,
+      "both": 859,
       "byKind": {
-        "snap": 82,
+        "snap": 84,
         "rpm": 124,
-        "AppImage": 414,
+        "AppImage": 418,
         "deb": 317
       }
     }
   },
-  "polls": 5113,
+  "polls": 5121,
   "unknown": [
-    "v2026.43.0: open-planner-studio-2026.43.0.mcpb"
+    "v2026.43.0: open-planner-studio-2026.43.0.mcpb",
+    "v2026.43.0: open-planner-studio_2026.43.0_amd64.snap.asc",
+    "v2026.43.0: openaec-signing-fingerprint.txt",
+    "v2026.43.0: openaec-signing-public-key.asc",
+    "v2026.10.0: open-planner-studio_2026.10.0_amd64.snap.asc",
+    "v2026.10.0: openaec-signing-fingerprint.txt",
+    "v2026.10.0: openaec-signing-public-key.asc"
   ]
 }
