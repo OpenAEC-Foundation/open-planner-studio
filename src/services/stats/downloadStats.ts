@@ -4,7 +4,7 @@ import { GITHUB_REPO } from '@/services/githubRepo';
 /**
  * Downloadcijfers per besturingssysteem — de leeskant van de stats-pijplijn.
  *
- * De bron is één publiek JSON-bestand dat de Actions-workflow `download-stats.yml` wekelijks naar
+ * De bron is één publiek JSON-bestand dat de Actions-workflow `download-stats.yml` elke 2 uur naar
  * de `stats`-databranch schrijft (`scripts/download-stats.mjs` → `scripts/publish-stats-branch.sh`).
  * De app leest dat bestand op dezelfde manier als de extensiecatalogus (GitHub-raw, CORS-vrij) en
  * bevraagt dus NOOIT zelf de GitHub-API: die staat op 60 ongeauthenticeerde calls per uur per IP,
