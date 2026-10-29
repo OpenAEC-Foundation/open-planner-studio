@@ -119,12 +119,14 @@ test('theme switch tekent Gantt en minimap opnieuw en wordt daarna stil', async 
     minimap: await canvasDataUrl(page, '[data-testid="minimap"] canvas'),
   };
 
-  // Standaard donker: beide attributen, en de Gantt-kaart is --oa-panel uit de tokens (#33333C).
+  // Standaard donker: beide attributen, en de Gantt-kaart is --oa-frame uit de tokens (#2A2A32):
+  // donkerder dan de oude kaart, zodat geen balkcontrast zakt (check-theme-contrast.ts).
   expect(await themeAttributes(page)).toEqual(['dark', 'dark']);
-  expect(await ganttBackground(page)).toBe('#33333C');
-  // Titelbalk en documentbalk `frame`, linttabs `panel`, werkruimte `workspace` (Blueprint-schermen).
+  expect(await ganttBackground(page)).toBe('#2A2A32');
+  // Titelbalk en documentbalk `frame`, linttabs `panel` (Blueprint-schermen); de werkruimte houdt de
+  // oude OPS-waarde #1B1D22 (elk token is lichter en verlaagt het contrast).
   expect(await shellTints(page)).toEqual({
-    titlebar: 'rgb(42, 42, 50)', ribbonTabs: 'rgb(51, 51, 60)', docbar: 'rgb(42, 42, 50)', workspace: 'rgb(38, 38, 45)',
+    titlebar: 'rgb(42, 42, 50)', ribbonTabs: 'rgb(51, 51, 60)', docbar: 'rgb(42, 42, 50)', workspace: 'rgb(27, 29, 34)',
   });
 
   // Het openen mag fixturematig; de geteste gebruikershandeling is de echte klik op de themakaart.
@@ -132,7 +134,7 @@ test('theme switch tekent Gantt en minimap opnieuw en wordt daarna stil', async 
   const settings = page.getByRole('dialog');
   await expect(settings).toBeVisible();
 
-  // Licht: de brug leidt de kaart af uit --oa-panel (#FFFFFF), de werkruimte uit --oa-pressed.
+  // Licht: de kaart is --oa-panel (#FFFFFF); werkruimte en tekst houden hun oude OPS-waarde.
   await settings.locator('[data-ops-theme-card="light"]').click();
   await expect.poll(() => themeAttributes(page)).toEqual(['light', 'light']);
   await expect.poll(() => ganttBackground(page)).toBe('#FFFFFF');
@@ -140,10 +142,10 @@ test('theme switch tekent Gantt en minimap opnieuw en wordt daarna stil', async 
     const cs = getComputedStyle(document.documentElement);
     return ['--theme-surface', '--theme-bg', '--theme-text', '--theme-accent']
       .map(name => cs.getPropertyValue(name).trim());
-  })).toEqual(['#FFFFFF', '#E5E5E6', '#2A2A32', '#D97706']);
-  // Licht: titelbalk en documentbalk warm `frame`, linttabs wit, werkruimte het neutrale `pressed`.
+  })).toEqual(['#FFFFFF', '#E5E5E8', '#2A2A31', '#D97706']);
+  // Licht: titelbalk en documentbalk warm `frame`, linttabs wit, werkruimte neutraal grijs (#E5E5E8).
   expect(await shellTints(page)).toEqual({
-    titlebar: 'rgb(241, 238, 234)', ribbonTabs: 'rgb(255, 255, 255)', docbar: 'rgb(241, 238, 234)', workspace: 'rgb(229, 229, 230)',
+    titlebar: 'rgb(241, 238, 234)', ribbonTabs: 'rgb(255, 255, 255)', docbar: 'rgb(241, 238, 234)', workspace: 'rgb(229, 229, 232)',
   });
   // Bevinding Ethan 2026-10-29: de randen tussen de vlakken moeten zichtbaar zijn. De kaartrand
   // is daarom niet --oa-border (#EAEAEA, 1,04:1 op `frame`), maar #D6D2CC (Blueprint-issue #44).
@@ -169,7 +171,7 @@ test('theme switch tekent Gantt en minimap opnieuw en wordt daarna stil', async 
   // En terug naar donker: weer de tokenkleur.
   await settings.locator('[data-ops-theme-card="dark"]').click();
   await expect.poll(() => themeAttributes(page)).toEqual(['dark', 'dark']);
-  await expect.poll(() => ganttBackground(page)).toBe('#33333C');
+  await expect.poll(() => ganttBackground(page)).toBe('#2A2A32');
 });
 
 test('histogramsplitter tekent de nieuwe hoogte en veroorzaakt geen ResizeObserver-loop', async ({ page, ops: _ops }) => {

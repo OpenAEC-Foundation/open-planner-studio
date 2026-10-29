@@ -1377,7 +1377,9 @@ button.task-grid-relation-reference {
        milestone #7C3AED  5.46 / 2.26 / 3.47 / 5.70
        baseline  #6B7280  4.63 / 2.66 / 4.10 / 4.83
      Die 3:1-eis is dus opgegeven op de donkere kaart; formeel is dat non-conform met WCAG 1.4.11 —
-     bewust aanvaard voor licht en donker. De taakbalk tekent deze tinten effen; alleen het voltooide
+     bewust aanvaard voor licht en donker. Sinds de tokens 0.4 zijn de kaarten #FFFFFF en #2A2A32;
+     de actuele getallen en hun drempels staan in tests/planning/theme-contrast-thresholds.json
+     (check-theme-contrast.ts). De taakbalk tekent deze tinten effen; alleen het voltooide
      deel wordt grijs (`doneBarTones` in themePalette.ts). De speling (`--theme-bar-float`) is als enige WEL per thema
      gescheiden: die band is halfdoorzichtig en draagt geen label, dus hij moet het puur van zijn
      ondergrond winnen (donker #10B981 op #2E3239 = 5.07; licht #059669 op #FAFAFA = 3.61;
@@ -1413,23 +1415,33 @@ button.task-grid-relation-reference {
    hexwaarden over alles heen (stap 2 brengt de twee nieuwe hoogcontrastthema's). */
 :root,
 [data-oa-theme="dark"] {
-  /* De ruimte achter de zwevende kaarten is de werkruimte van de Blueprint (besluit 11: donker
-     #26262D); zo houden kaarten, titelbalk en werkruimte elk een eigen tint. */
-  --theme-bg: var(--oa-workspace);
-  --theme-surface: var(--oa-panel);
-  --theme-surface-alt: var(--oa-frame);
-  --theme-surface-elevated: var(--oa-raised);
+  /* Regel (Ethan, 2026-10-29): geen contrastpaar wordt slechter dan op main. Waar een token dat
+     niet haalt, staat hier een eigen OPS-waarde met de reden; de drempels bewaakt
+     tests/planning/check-theme-contrast.ts. De Blueprint-vlakken zijn lichter dan de oude
+     donkere vlakken, dus de kaart wordt `frame` (#2A2A32, donkerder dan de oude #2E3239: alle
+     balken, lijnen en tekst op de Gantt winnen) en de diepere lagen houden hun oude waarde. */
+  /* Werkruimte achter de kaarten: de oude OPS-waarde. Elk token is lichter en verlaagt tekst op de
+     werkruimte (15,16:1) en de stap kaart/werkruimte. */
+  --theme-bg: #1B1D22;
+  --theme-surface: var(--oa-frame);
+  /* Koppen, statusbalk, verzonken vlakken: de oude OPS-waarde. Met `workspace` (#26262D) zakt tekst
+     op een kop onder de oude 13,62:1 en accent als tekst onder 4,75:1. */
+  --theme-surface-alt: #23262D;
+  /* Zwevend vlak (dialoog, pop-up): `panel`. `raised` (#3B3B45) haalt de oude 10,13:1 voor tekst net
+     niet. */
+  --theme-surface-elevated: var(--oa-panel);
   --theme-border: var(--oa-border);
-  /* Rasterlijn en zachte scheiding: geen token. Het midden tussen --oa-border (#474750) en
-     --oa-panel (#33333C), zodat het Gantt-raster niet zo zwaar wordt als een kaartrand.
+  /* Rasterlijn en zachte scheiding: geen token. #30303A geeft op de kaart 1,09:1, net boven de oude
+     1,08:1: het Gantt-raster blijft even rustig als eerst.
      https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint/issues/41 */
-  --theme-border-light: #3D3D46;
+  --theme-border-light: #30303A;
   --theme-control-border: var(--oa-border-strong);
   --theme-accent: var(--oa-accent);
   --theme-accent-hover: var(--oa-accent-hover);
   /* Tokens 0.4: donkere tekst op amber (#1C1917), niet meer wit. */
   --theme-accent-on: var(--oa-text-on-accent);
-  --theme-text: var(--oa-text);
+  /* Tekst: de oude OPS-waarde. --oa-text (#EDEBE8) is iets donkerder en verlaagt elk tekstpaar. */
+  --theme-text: #F1F3F5;
   --theme-text-dim: var(--oa-text-secondary);
   /* Geen eigen trap in de tokens; --oa-text-disabled haalt geen AA en is voor uitgeschakeld.
      https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint/issues/42 */
@@ -1440,10 +1452,15 @@ button.task-grid-relation-reference {
   --theme-warning-text: var(--oa-warning);
   --theme-critical-text: var(--oa-error);
   /* Geen token voor velden: https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint/issues/43 */
-  --theme-input-bg: var(--oa-raised);
-  --theme-dropdown-bg: var(--oa-raised);
+  /* Veld: de oude OPS-waarde (#23262D, gelijk aan de kop). `raised` verlaagt tekst in een veld van
+     13,62 naar 9,30:1 en secundaire tekst van 7,93 naar 5,90:1. */
+  --theme-input-bg: #23262D;
+  /* Keuzelijst: de kaartkleur, zoals eerst. */
+  --theme-dropdown-bg: var(--oa-frame);
   --theme-scrollbar-track: var(--oa-frame);
-  --theme-scrollbar-thumb: var(--oa-border);
+  /* Duim: eigen waarde, 1,79:1 op het spoor (oud 1,72). --oa-border haalt 1,55, --oa-border-strong
+     is met 3,93 te fel. */
+  --theme-scrollbar-thumb: #50505A;
   --theme-ribbon-bg: var(--oa-panel);
   /* Zoals de Blueprint-schermen: titelbalk en documentbalk in `frame`, linttabs en lint in
      `panel`. Zo heeft de titelbalk een eigen tint naast het lint. */
@@ -1461,12 +1478,14 @@ button.task-grid-relation-reference {
 
   /* Eigen OPS-waarden (geen token). Weekend en weekband als alpha van wit, zodat ze op elke laag
      dezelfde lichte tint geven (issue #21 punt 2: de weekband subtieler dan het weekend). */
-  --theme-grid-weekend: rgba(255, 255, 255, 0.035);
-  --theme-grid-week-band: rgba(255, 255, 255, 0.028);
+  /* 0.036: op de donkere kaart (#2A2A32) zakte 0.035 net onder de oude 1,11:1. */
+  --theme-grid-weekend: rgba(255, 255, 255, 0.036);
+  /* 0.032: op de donkere kaart (#2A2A32) zakte 0.028 onder de oude 1,09:1. */
+  --theme-grid-week-band: rgba(255, 255, 255, 0.032);
   /* Discussion #97: tint van samenvattingsrijen en de mijlpaaltekst in het taakraster. */
   --theme-grid-summary-bg: rgba(255, 255, 255, 0.045);
   --theme-grid-milestone-text: #A78BFA;
-  /* Spelingband: 4,6:1 op de donkere kaart (#33333C). */
+  /* Spelingband: 5,4:1 op de donkere kaart (#2A2A32). */
   --theme-bar-float: #10B981;
   /* Samenvattingsbalk: slate-400; het merk-#475569 valt op donker samen met het grijs van
      voltooid werk. */
@@ -1483,8 +1502,9 @@ button.task-grid-relation-reference {
      niet (vlakke panelen). `frame` is daarvoor te warm en te licht (wit op `frame` = 1,16:1), dus
      de werkruimte is het neutrale `pressed` (#E5E5E6, gelijk aan de oude #E5E5E8) en koppen en
      verzonken vlakken het neutrale `hover` (#F2F2F3, oud #F1F1F3). Titelbalk en documentbalk
-     houden het warme `frame`. */
-  --theme-bg: var(--oa-pressed);
+     houden het warme `frame`. De werkruimte zelf is de oude OPS-waarde #E5E5E8: `pressed`
+     (#E5E5E6) zakt voor tekst net onder de oude 11,33:1. */
+  --theme-bg: #E5E5E8;
   --theme-surface: var(--oa-panel);
   --theme-surface-alt: var(--oa-hover);
   --theme-surface-elevated: var(--oa-raised);
@@ -1493,15 +1513,17 @@ button.task-grid-relation-reference {
      `frame`: 1,51:1 op wit, 1,30:1 op `frame` (eerder #D4D4D8: 1,42 op de kaart).
      https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint/issues/44 */
   --theme-border: #D6D2CC;
-  /* De rasterlijn is de rand van de tokens: 1,20:1 op wit, gelijk aan de oude 1,22:1.
+  /* Rasterlijn: de oude OPS-waarde, 1,25:1 op wit (oud 1,22 op #FAFAFA). --oa-border haalt 1,20.
      Zie ook https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint/issues/41 */
-  --theme-border-light: var(--oa-border);
+  --theme-border-light: #E4E4E7;
   --theme-control-border: var(--oa-border-strong);
   --theme-accent: var(--oa-accent);
   --theme-accent-hover: var(--oa-accent-hover);
   --theme-accent-on: var(--oa-text-on-accent);
-  --theme-text: var(--oa-text);
-  --theme-text-dim: var(--oa-text-secondary);
+  /* Tekst en secundaire tekst: de oude OPS-waarden. --oa-text (#2A2A32) verschilt één stap;
+     --oa-text-secondary (#5F5F65) verlaagt secundaire tekst op de kaart van 6,86 naar 6,34:1. */
+  --theme-text: #2A2A31;
+  --theme-text-dim: #57575F;
   --theme-text-muted: var(--oa-text-secondary);
   /* Hover als alpha van --oa-text: een dichte --oa-hover zou op de koppen (zelf --oa-hover)
      onzichtbaar zijn. Op wit geeft dit #EEEEEF. */
@@ -1513,7 +1535,7 @@ button.task-grid-relation-reference {
   /* Geen token voor velden: https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint/issues/43 */
   --theme-input-bg: var(--oa-raised);
   --theme-dropdown-bg: var(--oa-raised);
-  --theme-scrollbar-track: var(--oa-pressed);
+  --theme-scrollbar-track: #E5E5E8;
   /* --oa-border is op de rand (#F1EEEA) bijna onzichtbaar; de uitgeschakelde tekstkleur wel. */
   --theme-scrollbar-thumb: var(--oa-text-disabled);
   --theme-ribbon-bg: var(--oa-panel);

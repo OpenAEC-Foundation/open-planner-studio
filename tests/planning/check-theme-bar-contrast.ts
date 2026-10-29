@@ -112,10 +112,10 @@ for (const { selector, kaart, lat, moetZetten } of THEMAS) {
   const pal = readGanttPalette();
   for (const base of [pal.critical, pal.normal]) {
     const grey = doneBarTones(base, true).fill;
-    // De donkere kaart is --oa-panel uit de tokens 0.4.
-    const c = contrastRatio(rgbOf(grey), rgbOf('#33333C'));
+    // De donkere kaart is --oa-frame uit de tokens 0.4.
+    const c = contrastRatio(rgbOf(grey), rgbOf('#2A2A32'));
     // Het donkere grijs is bewust ingetogen: het moet van de kaart loskomen, niet ermee wedijveren.
-    ok(`[data-oa-theme="dark"] grijs voltooid deel ${grey} haalt ${c.toFixed(2)} >= 1.5 op #33333C`, c >= 1.5);
+    ok(`[data-oa-theme="dark"] grijs voltooid deel ${grey} haalt ${c.toFixed(2)} >= 1.5 op #2A2A32`, c >= 1.5);
   }
 }
 
