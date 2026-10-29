@@ -7,9 +7,18 @@ import type { CustomTaskType } from '@/types/taskType';
 import { importDateTimeOrUndefined, importStatusDate } from '@/services/importDates';
 import { hasNonAnchorTime } from '@/services/subdayIo';
 
-/** Escapet tekst voor XML-inhoud én attributen (de vijf voorgedefinieerde entiteiten). */
+/** Elk teken buiten de `Char`-productie van XML 1.0 (https://www.w3.org/TR/xml/#charsets): C0-stuurtekens
+ *  behalve tab/LF/CR, een losse UTF-16-surrogaat en U+FFFE/U+FFFF. Met de `u`-vlag is een geldig
+ *  surrogaatpaar één teken boven U+FFFF en blijft het staan. */
+// eslint-disable-next-line no-control-regex
+const XML_INVALID_CHAR = /[^\t\n\r -퟿-�\u{10000}-\u{10FFFF}]/gu;
+
+/** Escapet tekst voor XML-inhoud én attributen (de vijf voorgedefinieerde entiteiten). Een teken dat XML 1.0
+ *  niet toestaat, kan ook niet als entiteit; het wordt U+FFFD, zodat het bestand leesbaar blijft en de
+ *  plek zichtbaar is in het doelprogramma (#588). */
 export function escapeXml(s: string): string {
   return s
+    .replace(XML_INVALID_CHAR, '�')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
