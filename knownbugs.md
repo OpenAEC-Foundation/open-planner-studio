@@ -108,41 +108,6 @@ en noem het in je rapport of PR-tekst.
     met `p6CompletedDataDateWindow` en een dagkalender falen. Exacte invoer en stack nog niet
     zelfstandig bevestigd; staat los van de PF-optimalisatie en is daar niet aangepast. — S
 
-187. **Drie einddatumafwijkingen van de MPP-fidelitypin, ook met main.** Bij de integratie van
-    PR #480 op main `3a2f597f3` geeft `check-mpp-fidelity.ts` voor het publieke
-    `mpxj/junit/data/timephased-cost-rollup.mpp` `finishExact: 6` (pin 9) en `finishDiff: 3`
-    (pin 0); ook de verzameling afwijkende bestanden wijkt daardoor af. Dezelfde uitslag met
-    `CPMSolver.ts` en `ResourceLeveler.ts` uit die main-commit, zonder de PF-optimalisatie.
-    De gecombineerde `measure:profiles` eindigt op exit 1; de P6-cellen zijn ongewijzigd.
-    Een bisect over de merges van main op 2026-10-26 wijst merge #494 (`363bb638f`, korte
-    MPP-resourceplaatsaanduidingen overslaan) aan als eerste rode merge; #446 (`811999328`) is nog
-    groen.
-    Oorzaak (onderzocht op 2026-10-27): bij dezelfde bestandsbytes, dezelfde meetdekking (corpus en crawl,
-    661 bestanden op aia09-mp50) en de gewone toetsmodus is de uitkomst vast rood; klok, tijdzone, taal, pad
-    en volgorde veranderen dat niet, alleen de commit. Wordt de crawlmap niet gescand, dan meet de check dit
-    bestand niet en kan hij groen eindigen (zie 427). #494 is juist
-    (`src/services/mpp/mppEntities.ts:302`, knownbug 119): de lezer slaat nu de korte records van 16 bytes
-    over en leest Resource 8a en 8b uit de volle records. Die zijn LABOR, zoals in MPXJ; de oude lezer
-    maakte er MATERIAL van. Daardoor laat de MATERIAL-filter (`src/services/mpp/mppReader.ts:1501`, zie
-    426) beide toewijzingen van Task 8 meewandelen. De wandeling (`src/engine/scheduler/CPMSolver.ts:3040`,
-    `walk.workMinutes ?? durMin`) loopt de werkminuten zonder de inzet van 12,5 % (de beperking bij
-    `mppReader.ts:1356`). Task 8 eindigt zo op 2026-02-16 13:59 in plaats van 02-20 17:00 (MS Project);
-    Task 5 en 6 volgen met 02-17 17:00 in plaats van 02-20 17:00.
-    Werk gedeeld door inzet als vaste regel is geen oplossing: over de 661 bestanden van de meting
-    komen dan 3 taken dichter bij MS Project en 32 verder weg (OzBuild Workshop 17 en 18: een toewijzing
-    met inzet 0,0006 en 30 werkminuten wordt 50.000 min). Een pin van 6 botst met de nulpoort
-    `GOAL_ZERO_DEVIATIONS` (`tests/planning/check-mpp-fidelity.ts:770`, orkestratorbesluit O1 van
-    2026-08-17); een uitzondering daarop ligt bij de eigenaar. Pin en poort zijn niet aangepast. — B
-
-426. **De MATERIAL-filter in de `.mpp`-lezer steunt voor zijn voorbeeld op een verkeerde aanname.**
-    `src/services/mpp/mppReader.ts:1495–1501` sluit MATERIAL-toewijzingen uit van de wandeling en noemt als
-    reden `timephased-cost-rollup.mpp`, "Task 8": ~4 werkdagen te vroeg. Die resources (8a, 8b) waren alleen
-    MATERIAL door een leesfout in de oude lezer (de korte records van 16 bytes, opgelost in #494); in de bron
-    en in MPXJ zijn ze LABOR. De filter kwam dus goed uit om de verkeerde reden, en het commentaar klopt niet
-    meer. Of de filter voor echte MATERIAL-toewijzingen juist is, is niet apart getoetst. Voorstel: het
-    commentaar herschrijven en de filter toetsen met een bestand dat echt MATERIAL-toewijzingen met werk heeft.
-    Zie 187. Gevonden bij het onderzoek naar 187 op 2026-10-27. — B
-
 311. **Een urentaak na een FF-relatie met een kalendertijdlead kan vóór haar finish-ondergrens eindigen.**
     Nagespeeld in de minutenmodelmeting van F1b: kalender ma-vr 07-12 + 13-16, A 48 u eindigt ma
     8 juni 2026 16:00; FF −2 kalenderdagen naar B 32 u geeft B di 2 juni 07:00–vr 5 juni 16:00.
@@ -405,6 +370,24 @@ en noem het in je rapport of PR-tekst.
      lagere waarde. Onder alle drie profielen en beide werkregels, op main precies zo. Voorstel: bij het samenvoegen
      het totale werk bewaren (een naar dagdeel gewogen inzet), of verschillende inzetten als aparte fasen houden.
      Gevonden in review ronde 3 van #694 (GPT-6.1-Sol). — B
+
+440. **Een `.mpp`-taak met precies één toewijzing wandelt ook op de kalender van materiaal of een kostenresource.**
+     `src/services/mpp/mppReader.ts`, `deriveTimephasedWindowsForTasks`, tak "precies 1 toewijzing": heeft de enige
+     toewijzing met tijdgefaseerde gegevens een afwijkende resourcekalender, dan wandelt de taak haar volle duur op
+     díe kalender, ongeacht het resourcetype. Volgens Microsoft stuurt een materiaal- of kostenresource de planning
+     niet ("assigning material resources or cost resources to a task doesn't affect task scheduling"). In de 661
+     gemeten bestanden heeft geen enkele taak met één walk zo'n resource (alle 22 zijn werkresources), en geen taak met
+     meer walks krijgt haar startanker van een toewijzing die de duur niet stuurt. Voorstel: in beide takken alleen
+     toewijzingen die de duur sturen laten meetellen, met een corpusvrije fixture. Gevonden bij de fix van 187
+     (2026-10-29). — S
+441. **Een kostenresource uit `.mpp` of MSPDI wordt LABOR en stuurt daarna in de werkregelbrug de duur.**
+     `ResourceType` kent geen COST, dus `readResourcesUnsafe` (`src/services/mpp/mppEntities.ts`) en de MSPDI-lezer
+     maken er LABOR van. De `.mpp`-wandeling sluit ze sinds de fix van 187 uit (`ReadResourcesResult.costResourceIds`),
+     maar die lijst gaat niet het document in. `drivesDuration` in `src/engine/work/workRuleApply.ts` telt daarna elke
+     niet-MATERIAL resource als duursturend: een inzet- of werkbewerking op zo'n toewijzing (in OzBuild inzet 0,0006)
+     kan onder Vaste eenheden of Vast werk de taakduur veranderen, wat MS Project niet doet. Niet nagespeeld in de app.
+     Voorstel: een kostenresource als niet-duursturend in het document bewaren (een eigen type of vlag), na een besluit
+     over de vorm. Gevonden bij de fix van 187 (2026-10-29). — S
 
 ## Tabel, invoer en bediening
 
@@ -1313,15 +1296,6 @@ en noem het in je rapport of PR-tekst.
      (een lus overgeslagen) apart en niet als GROEN. Gevonden bij het onderzoek naar 187 en in review ronde 1
      van #712 (GPT-6.1-Sol), 2026-10-27. — B
 
-428. **`check-mpp-import.ts` toetst voor `mpp14resource.mpp` nog de oude resource-indeling.**
-     `tests/planning/check-mpp-import.ts:3255–3265` noemt Wade Golden en Jon Iles MATERIAL en eist voor "Task A"
-     precies één wandeling. Sinds #494 (zie 187 en 426) leest de lezer alle drie de toewijzingen als LABOR en
-     geeft hij drie wandelingen van 1440 werkminuten. Met het bestand aanwezig
-     (`OPS_MPP_RESOURCE_FIXTURE=…/testdata-crawl/mpxj/junit/data/mpp14resource.mpp`) is de check rood: 1 afwijking
-     van 3117, alleen deze assertie; de einddatum van "Task A" (2006-08-30 08:00, zoals MS Project) klopt nog.
-     Het standaardpad (`:3208`) is `/home/nozzit/…`; op aia09-mp50 en in de CI wordt de case daarom overgeslagen,
-     op de laptop van de eigenaar waarschijnlijk niet. Voorstel: de assertie en het commentaar aanpassen aan
-     LABOR en drie wandelingen, samen met 426. Gevonden in review ronde 1 van #712 (GPT-6.1-Sol), 2026-10-27. — B
 429. **De keuze van de eerste bekende hosttaal wordt niet bij een echte start getest.** A13 in
      `tests/planning/check-site-storage.ts:325` toetst alleen de lijst met ruwe taalbronnen van
      `embeddedLocale()` (`src/i18n/config.ts:119`). De browsertests geven alleen een bekende hosttaal mee
