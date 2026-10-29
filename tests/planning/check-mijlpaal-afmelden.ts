@@ -13,7 +13,8 @@
 // bewerken), de tabel (celbewerking, de echte celeditor met getypte tekst, en plakken), Taak bewerken
 // (concept + Opslaan), MCP (`progress.applyProgressUpdate`) en de voortgangsimport. Een gewone taak houdt
 // D1/D2, en de laadgrens houdt D7. Sectie 5 toetst de nachtploeg met een statusdatum: afmelden op de
-// statuswerkdag mag, ook als het moment op de klokdag erna valt (`isTaskActualPastStatusDate`).
+// statuswerkdag mag, ook als het moment op de klokdag erna valt (`isTaskActualPastStatusDate`), ook als de
+// statusdag geen werkblok heeft (weekend, feestdag: D4), en het gezondheidsrapport meldt dan geen fout.
 //
 // Kalender: de standaardkalender, ma–vr 07:00–16:00 (sectie 5: 24 uur en nachtploeg 22:00–06:00).
 // Projectstart ma 1 jun 2026.
@@ -36,6 +37,8 @@ import { taskColumnId } from '@/engine/taskGrid/fieldIds';
 import { commitTaskCellEditorValue } from '@/components/task-grid/TaskCellEditor';
 import { profileCountsWorkdays } from '@/utils/taskDuration';
 import { invalidDateReasons } from '@/engine/reports/dcmaAssessment';
+import { computeScheduleHealth } from '@/engine/reports/scheduleHealth';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 import type { MilestoneKind, Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import type { CellEditIntent } from '@/types/taskGrid';
@@ -310,8 +313,10 @@ const night = (c: WorkCalendar): WorkCalendar => ({
 // de tabel toont (`isTaskActualPastStatusDate`). Twee opstellingen: de losse mijlpaal in OPS (B6, berekend
 // op het einde van de werkdag) en een handmatig anker op di 06:00 in elk profiel.
 const NIGHT_STATUS = '2026-06-03';
-function nightFixture(profile: Profile) {
-  const f = fixture(profile, night);
+function nightFixture(profile: Profile, holiday?: string) {
+  const f = fixture(profile, c => ({
+    ...night(c), holidays: holiday ? [{ name: 'Vrije dag', startDate: holiday, endDate: holiday }] : c.holidays,
+  }));
   const anchors = KINDS.map(kind => {
     const id = f.milestone('Nachtanker ' + kindName(kind), kind);
     const at = '2026-06-02T06:00';
@@ -410,6 +415,105 @@ for (const profile of PROFILES) {
     enter(f, 'paneel', f.los.START, 'actualStart', '2026-06-02T00:00', '2026-06-01'), 'geweigerd');
   eq('24 uur: FINISH-mijlpaal op di 00:00 met statusdatum ma ⇒ mag',
     enter(f, 'paneel', f.los.FINISH, 'actualFinish', '2026-06-02T00:00', '2026-06-01'), '2026-06-02T00:00');
+}
+
+// 5d. Een statusdag zonder werkblok (D4): zaterdag, zondag, of een feestdag op woensdag. Afmelden op die
+// dag mag, voor elke soort, op beide velden en langs elke invoerroute. De mijlpaal op di 2 jun 06:00 (het
+// einde van de nacht van ma) houdt zijn klokketijd: za 6 jun wordt zo 7 jun 06:00, het einde van de
+// typische nacht van za (D4). De tabel toont "06-06-2026". Eerst werd zo'n afmelding geweigerd: de tabel
+// en de statuscontrole herkenden het einde van een dag zonder werkblok niet en lazen de klokdag erna
+// (review ronde 2 van #724). Een FINISH-mijlpaal had dat al op main; dezelfde dagbepaling lost het mee op.
+const FREE_DAYS = [
+  { name: 'za 6 jun', day: '2026-06-06', holiday: undefined, want: '2026-06-07T06:00', next: '2026-06-07' },
+  { name: 'zo 7 jun', day: '2026-06-07', holiday: undefined, want: '2026-06-08T06:00', next: '2026-06-08' },
+  { name: 'wo 3 jun, feestdag', day: '2026-06-03', holiday: '2026-06-03', want: '2026-06-04T06:00', next: '2026-06-04' },
+] as const;
+for (const free of FREE_DAYS) for (const profile of PROFILES) {
+  const f = nightFixture(profile, free.holiday);
+  f.S().setStatusDate(free.day);
+  const calendar = f.calendar();
+  eq(`D4 ${free.name} ${profile} voorwaarde: statusdatum zonder tijd`, f.S().project.statusDate, free.day);
+  for (const c of f.cases) {
+    eq(`D4 ${free.name} ${profile} voorwaarde: ${c.name} gepland di 2 jun 06:00`, shownStart(f.taskOf(c.id)), '2026-06-02T06:00');
+  }
+  // De dag erna blijft ná de statusdatum, ook als die dag ook geen werkblok heeft.
+  for (const c of f.cases) {
+    eq(`D4 ${free.name} ${profile} ${c.name}: de dag erna ⇒ geweigerd`,
+      enter(f, 'paneel', c.id, 'actualFinish', free.next, free.day), 'geweigerd');
+  }
+  eq(`D4 ${free.name} ${profile}: weergave van ${free.want} bij een mijlpaal`,
+    taskDateLabel(f.taskOf(f.cases[0].id), free.want, 'start', calendar), free.day);
+}
+for (const free of FREE_DAYS) for (const profile of PROFILES) for (const route of ROUTES) for (const field of FIELDS) {
+  const f = nightFixture(profile, free.holiday);
+  f.S().setStatusDate(free.day);
+  const calendar = f.calendar();
+  for (const c of f.cases) {
+    const tag = `D4 ${free.name} ${profile} ${route} ${field} ${c.name}`;
+    const got = enter(f, route, c.id, field, free.day, free.day);
+    eq(`${tag}: afmelden op de statusdag ⇒ ${free.want}`, got, free.want);
+    eq(`${tag}: de tabel toont de statusdag`, got && got !== 'geweigerd' ? taskDateLabel(f.taskOf(c.id), got, 'start', calendar) : got, free.day);
+  }
+}
+
+// 5e. Het gezondheidsrapport (`computeScheduleHealth`, de detaillijst én het foutenaantal) na een
+// afmelding die de invoer goedkeurt: geen "ná de statusdatum". Eerst gaf het rapport `invalidDateReasons`
+// geen taakkalender mee en las het de nachtdienst op de klokdag: twee fouten per mijlpaal (knownbug 316,
+// review ronde 2 van #724). Nu één definitie met de invoer en DCMA, met de kalender van de taak.
+const HEALTH_OPTS = { highFloatDays: 44, longDurationDays: 44, lagDays: 10, nearCriticalDays: 5 };
+const healthOf = (f: Fixture) => {
+  const s = f.S();
+  return computeScheduleHealth({
+    tasks: s.tasks, sequences: s.sequences, resources: s.resources, assignments: s.assignments,
+    calendar: s.calendar, calendars: s.calendars, cpmResult: s.cpmResult, baseline: null,
+    statusDate: s.project.statusDate, today: '2026-06-10', datesAsRecorded: s.datesAsRecorded,
+    solveOptions: solveOptionsFor(s.project),
+  }, HEALTH_OPTS);
+};
+const progressExceptions = (f: Fixture, ids: string[]) => healthOf(f).checks.find(c => c.id === 'progressException')!.items
+  .filter(item => ids.includes(item.taskId ?? '')).map(item => `${item.name}: ${item.detail.reason}`);
+/** De fouten (ernst `error`, ook in het foutenaantal) die het rapport bij deze taken meldt. */
+const errorsAt = (f: Fixture, ids: string[]) => healthOf(f).checks.filter(c => c.severity === 'error')
+  .flatMap(c => c.items.filter(item => ids.includes(item.taskId ?? '')).map(item => `${c.id} ${item.name}`));
+for (const status of [{ name: 'wo 3 jun', day: NIGHT_STATUS, holiday: undefined as string | undefined }, ...FREE_DAYS])
+  for (const profile of PROFILES) for (const route of ['celeditor', 'paneel'] as const) {
+    const f = nightFixture(profile, status.holiday);
+    f.S().setStatusDate(status.day);
+    const ids = f.cases.map(c => c.id);
+    for (const c of f.cases) {
+      eq(`rapport ${status.name} ${profile} ${route} ${c.name}: afmelden geaccepteerd`,
+        enter(f, route, c.id, 'actualFinish', status.day, status.day) !== 'geweigerd', true);
+    }
+    f.S().runCPM();
+    eq(`rapport ${status.name} ${profile} ${route}: geen voortgangsuitzondering bij de mijlpalen`, progressExceptions(f, ids), []);
+    eq(`rapport ${status.name} ${profile} ${route}: geen fout bij de mijlpalen`, errorsAt(f, ids), []);
+  }
+{
+  // In een project met alleen de mijlpalen is dat foutenaantal 0, zoals in de review gemeten.
+  for (const profile of PROFILES) {
+    const context = createAppStoreContext();
+    const S = () => context.store.getState();
+    S().setCalendar(night(S().calendar));
+    S().setProject({ startDate: '2026-06-01', schedulingProfile: builtInProfile(profile) });
+    const ids = KINDS.map(kind => {
+      const at = '2026-06-02T06:00';
+      const id = S().addTask({ name: 'Mijlpaal ' + kindName(kind), isMilestone: true, ...(kind ? { milestoneKind: kind } : {}),
+        time: { scheduleDuration: 0, scheduleStart: at } as Task['time'] });
+      const t = S().tasks.find(x => x.id === id)!;
+      S().updateTask(id, { manuallyScheduled: true, time: { ...t.time, scheduleStart: at, scheduleFinish: at, earlyStart: at, earlyFinish: at } });
+      return id;
+    });
+    S().runCPM();
+    S().setStatusDate(NIGHT_STATUS);
+    for (const id of ids) eq(`rapport ${profile} alleen mijlpalen: afmelden 03-06-2026`, S().setActualFinish(id, '2026-06-03'), true);
+    S().runCPM();
+    const health = computeScheduleHealth({
+      tasks: S().tasks, sequences: S().sequences, resources: S().resources, assignments: S().assignments,
+      calendar: S().calendar, calendars: S().calendars, cpmResult: S().cpmResult, baseline: null,
+      statusDate: S().project.statusDate, today: '2026-06-10',
+    }, HEALTH_OPTS);
+    eq(`rapport ${profile} alleen mijlpalen: 0 fouten`, health.totals.errors, 0);
+  }
 }
 
 // ── 6. De laadgrens houdt D7 ──────────────────────────────────────────────────────────────────────

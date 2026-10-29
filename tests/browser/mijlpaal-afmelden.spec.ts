@@ -164,3 +164,40 @@ test('tabel: nachtploeg, een mijlpaal afmelden op de statuswerkdag mag', async (
   await expect.poll(() => timeOf(page, ids.start).then(t => t.actualStart)).toBe('2026-06-04T06:00');
   await expect(startStart).toHaveText('03-06-2026');
 });
+
+// Dezelfde nachtploeg met de statusdatum op za 6 jun, een dag zonder werkblok (D4). Afmelden met
+// 06-06-2026 geeft zo 7 jun 06:00, het einde van de typische nacht van za; de cel toont "06-06-2026".
+// Eerst werd dat geweigerd (review ronde 2 van #724).
+test('tabel: nachtploeg, afmelden op een statusdag zonder werkblok mag', async ({ page, ops: _ops }) => {
+  const id = await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    const night = [{ start: 1320, end: 1800 }];
+    s.setCalendar({
+      ...s.calendar, workDays: [1, 2, 3, 4, 5], holidays: [], workStartHour: 22, workEndHour: 30, hoursPerDay: 8,
+      workTime: { byWeekday: { 1: night, 2: night, 3: night, 4: night, 5: night, 6: [], 7: [] } },
+    });
+    s.setProject({ name: 'Mijlpaal nachtploeg zaterdag', startDate: '2026-06-01' });
+    s.setUI({ dateNotation: 'dmy' });
+    const milestone = s.addTask({ name: 'Oplevering nacht', isMilestone: true, time: { scheduleDuration: 0 } as never });
+    const after = window.__OPS__!.store.getState();
+    after.runCPM();
+    after.setStatusDate('2026-06-06');
+    const columns = after.taskGridSurfaces['full-task-grid'].columns;
+    after.setTaskGridColumns('full-task-grid', [
+      ...columns,
+      { id: 'task.time.actualFinish', width: 140, pinned: false } as unknown as (typeof columns)[number],
+    ]);
+    return milestone;
+  });
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().tasks.length)).toBe(1);
+  await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
+  await expect(surface(page).locator('[role="grid"]')).toBeVisible();
+  expect((await timeOf(page, id)).planned).toBe('2026-06-02T06:00');
+
+  const finish = taskCell(page, id, 'task.time.actualFinish');
+  await typeInCell(page, finish, '06-06-2026');
+  await expect.poll(() => timeOf(page, id)).toEqual({
+    planned: '2026-06-02T06:00', actualStart: '2026-06-07T06:00', actualFinish: '2026-06-07T06:00',
+  });
+  await expect(finish).toHaveText('06-06-2026');
+});

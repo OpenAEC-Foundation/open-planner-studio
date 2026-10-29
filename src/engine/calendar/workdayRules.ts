@@ -125,6 +125,28 @@ export function dayEndInstant(clock: DayClock, date: string): string | null {
 }
 
 /**
+ * D4 aan de eindkant: de dag zonder eigen werkblok (weekend, feestdag) waarvan de typische werkdag op
+ * `value` eindigt. Bij een nachtblok valt dat einde op de klokdag erna, waar {@link workdayOfInstant} geen
+ * werkblok vindt. Voorbeeld: nachtploeg ma–vr 22:00–06:00; za 6 jun heeft geen blok, dus D2 van za is
+ * zo 7 jun 06:00 (D4), en dat moment geeft hier za 6 jun. `null` als zo'n dag er niet is, en bij
+ * kalendertijd (daar eindigt elke dag om 24:00; de 24:00-regel dekt dat al).
+ */
+export function freeDayEndingAt(clock: DayClock, value: string): string | null {
+  if (clock.kind !== 'blocks' || !isInstant(value)) return null;
+  const t = parseInstant(value).getTime();
+  if (Number.isNaN(t)) return null;
+  const day0 = utcDayIndex(t) * MS_PER_DAY;
+  // Een typische werkdag eindigt uiterlijk 2880 minuten na het begin van zijn dag (canonieke wrap-band).
+  for (let k = 0; k >= -2; k--) {
+    const date = formatDate(new Date(day0 + k * MS_PER_DAY));
+    if (blocksOn(clock, date).length > 0) continue;
+    const end = dayEndInstant(clock, date);
+    if (end && parseInstant(end).getTime() === t) return date;
+  }
+  return null;
+}
+
+/**
  * De werkdag van een moment (§0). Startkant: het werkblok `[begin, einde)` dat het moment bevat. Eindkant:
  * het werkblok `(begin, einde]`, zodat een eindmoment op een blokeinde bij dat blok hoort (nachtblok di
  * 22:00–wo 06:00, einde wo 06:00 ⇒ di). Buiten elk werkblok de klokdatum, met de 24:00-regel: een

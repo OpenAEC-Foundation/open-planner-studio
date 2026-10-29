@@ -203,19 +203,6 @@ en noem het in je rapport of PR-tekst.
      rest zelf is niet weggenomen (die fix raakt `durationEditProgress` niet; niet opnieuw gemeten). Voorstel:
      de rest als nieuwe duur − verricht rekenen. — B
 
-316. **Het gezondheidsrapport telt een nachttaak goed, maar de detaillijst meldt een fout.**
-     `src/engine/reports/scheduleHealth.ts:175` geeft geen kalender aan `invalidDateReasons`; de DCMA-telling
-     doet dat wel. Voorbeeld: nachtdienst wo 22:00–do 06:00, werkelijke start do 02:00, status wo. De telling
-     geeft DCMA 0 fouten, de detaillijst meldt `actualStartAfterStatusDate`. Op `main` staat dezelfde
-     detailregel, met daarbij een foute telling van 1; de urenomzetting verbeterde de telling. Voorstel: geef
-     op deze ene aanroep de effectieve taakkalender mee. Gevonden in review #563 r2, nagespeeld in review r1
-     van #600. Sinds #724 (B10, een afgemelde mijlpaal houdt de klokketijd uit de planning) geldt het ook
-     voor een losse mijlpaal zonder soort of met soort START die op de statusdag wordt afgemeld: OPS,
-     nachtdienst ma–vr 22:00–06:00, status wo 3 jun, "03-06-2026" wordt do 4 jun 06:00. Invoer en DCMA
-     accepteren dat; de detaillijst meldt beide actuals ná de statusdatum. Vóór #724 kregen die mijlpalen
-     wo 22:00 (D7) en meldde de lijst niets; een FINISH-mijlpaal had het al. Gemeten met een probe op kop en
-     basis van #724. — B
-
 317. **Bij een FINISH-mijlpaal vraagt de voortgangsinvoer om een werkelijke start.**
      `src/engine/progressEntry.ts:104` gebruikt een vaste `'start'`-kant. Voorbeeld: FINISH-mijlpaal do 06:00,
      het einde van de dienst wo 22:00–do 06:00, status wo, alleen 100 % invoeren: `planProgressEntry` weigert
@@ -517,11 +504,22 @@ en noem het in je rapport of PR-tekst.
      Typ alleen bij *Werkelijk einde* "03-06-2026". Dat wordt do 4 jun 06:00 (D6, het einde van de nacht van
      wo), en `applyProgressInvariants` (`src/engine/taskMutationRules.ts:267`) zet de ontbrekende werkelijke
      start op hetzelfde moment. De invoer wordt geaccepteerd: het einde leest de eindkant, werkdag wo. DCMA
-     punt 9 (`invalidDateReasons`, `src/engine/reports/dcmaAssessment.ts:387`) leest de start aan de
-     startkant, klokdag do, en meldt `actualStartAfterStatusDate`. Gemeten met een probe op de basis van #724
+     punt 9 en het gezondheidsrapport (allebei `invalidDateReasons`, `src/engine/reports/dcmaAssessment.ts:387`)
+     lezen de start aan de startkant, klokdag do, en melden `actualStartAfterStatusDate`. Gemeten met een probe op de basis van #724
      (`3c2c1ec12`) en op de kop; #724 verandert dit niet. Een nulduur-mijlpaal heeft het niet: daar telt de
      dag die de tabel toont. Voorstel: een afgeleide start die gelijk is aan het einde, krijgt bij de
      statusregel de werkdag van het einde. — B
+449. **Nachtploeg: een gewone taak is op een statusdag zonder werkblok niet af te melden.** Kalender ma–vr
+     22:00–06:00, taak van 16 u vanaf ma 1 jun 22:00, werkelijke start 01-06-2026, statusdatum za 6 jun. Typ
+     bij *Werkelijk einde* "06-06-2026". D2 met D4 maakt daar zo 7 jun 06:00 van, het einde van de typische
+     nacht van za. De statusregel (`isActualPastStatusDate`, `src/engine/taskMutationRules.ts`) leest dat
+     moment aan de eindkant als klokdag zo en weigert: ná de statusdatum. De tabel toont zo'n einde ook als
+     "07-06-2026 06:00" in plaats van "06-06-2026". Zondag en een feestdag op een werkdag geven hetzelfde. Een
+     nulduur-mijlpaal heeft het sinds fixronde 2 van #724 niet meer: daar herkent de dagbepaling het einde
+     van een vrije dag (`freeDayEndingAt`, `src/engine/calendar/workdayRules.ts`). Gemeten met een probe op
+     de basis van #724 (`3c2c1ec12`), op de kop vóór en na fixronde 2: overal geweigerd. Voorstel: dezelfde
+     D4-herkenning in `workdayBoundaryLabel` en `workdayOfInstant` aan de eindkant, voor elke taak; dat
+     verandert de weergave van gewone taken en hoort daarom in een eigen PR. — B
 
 ## Kalenders
 

@@ -882,7 +882,11 @@ Zo zette de meting het ook om.
   datum. Een werkelijk einde op zaterdag 6 jun wordt dan za 16:00, niet zo 00:00. Reden: een werkelijke datum
   is een feit en blijft op zijn datum. MSP heeft daarvoor een standaard begin- en eindtijd (niet in MSP
   getoetst). Voor geplande datums maakt het geen verschil: de motor schuift ze toch naar de volgende werktijd.
-  (De meting gebruikte hier nog middernacht; groep 11 komt daaruit voort.)
+  (De meting gebruikte hier nog middernacht; groep 11 komt daaruit voort.) Bij een nachtblok eindigt de typische
+  werkdag van een vrije dag op de klokdag erna: za 6 jun wordt bij 22:00–06:00 zo 7 jun 06:00. Bij een
+  nulduur-mijlpaal herkennen weergave en statusregel dat moment als het einde van za (`freeDayEndingAt`,
+  `src/engine/calendar/workdayRules.ts`; fixronde 2 van #724). Bij een gewone taak nog niet: die weergave en die
+  statusregel lezen zo (knownbug 449).
 - **D5 statusdatum:** de motor leest hem als startachtig (D1). De statusdatum is het moment waarop het restwerk
   begint (`src/types/project.ts:548-550`: "restwerk start niet vóór deze datum"). Gemeten: als begin van de dag
   3 rode dagcases in `cases-progress`, als einde van de dag 17. Opgeslagen blijft hij zoals ingevoerd (§3.6).
@@ -915,7 +919,9 @@ Zo zette de meting het ook om.
   - *De dag* is de dag die de tabel bij dat moment toont (B4); de tijd is de afstand tot middernacht van die
     dag. Op een gewone kalender is dat de kloktijd. Alleen bij een blokeinde na middernacht wijkt het af: een
     FINISH-mijlpaal om di 00:00 (24:00-regel) of wo 06:00 (nachtblok di 22:00–wo 06:00) toont "ma" of "di";
-    wie een andere dag typt, krijgt het blokeinde van die dag, en de tabel toont de getypte dag.
+    wie een andere dag typt, krijgt het blokeinde van die dag, en de tabel toont de getypte dag. Dat geldt ook
+    voor een getypte dag zonder werkblok (D4): bij een nachtploeg 22:00–06:00 wordt za 6 jun zo 7 jun 06:00, het
+    einde van de typische nacht van za, en de tabel toont "06-06-2026".
   - Zonder moment met tijd in de planning geldt D7. Een gewone taak houdt D1 en D2.
   - De klem op het statusmoment (statusregel 2 hieronder) en de andere controles blijven. Een datumloze invoer
     op de statuswerkdag na een statusmoment met tijd wordt dat statusmoment, ook als de planning later op de dag
@@ -926,7 +932,10 @@ Zo zette de meting het ook om.
     nachtploeg ma–vr 22:00–06:00, een losse mijlpaal zonder soort staat in OPS op di 2 jun 06:00 en toont
     "01-06-2026". Met statusdatum wo 3 jun wordt 03-06-2026 do 4 jun 06:00, het einde van de nacht van wo; de
     tabel toont "03-06-2026" en de invoer mag. Zonder deze regel weigerde de startkant (klokdag do) een mijlpaal
-    zonder soort of START op de statusdag (fixronde 1 van #724, voorheen knownbug 445).
+    zonder soort of START op de statusdag (fixronde 1 van #724, voorheen knownbug 445). Hetzelfde op een
+    statusdag zonder werkblok: statusdatum za 6 jun, 06-06-2026 wordt zo 7 jun 06:00, de tabel toont
+    "06-06-2026" en de invoer mag, ook bij een FINISH-mijlpaal (fixronde 2 van #724; FINISH werd daar op `main`
+    al geweigerd).
 
 **D3 per veld: wat de datum van een kalendertijd-taak nu betekent** (review ronde 1, punt 8). Het dagpad schrijft
 het einde als start + n kalenderdagen, maar leest de datum daarna als inclusief. Probes (BEVESTIGD, harness):
@@ -971,14 +980,16 @@ functie (`taskDialogSave.ts:77`, `taskEditPlan.ts:621,746`, `progressEntry.ts:10
 3. De functie krijgt de kalender van de taak mee, zodat "werkdag" ook bij een nachtblok klopt.
 4. **Een nulduur-mijlpaal** heeft één moment voor beide actuals. Bij een statusdatum zonder tijd is zijn werkdag
    de dag die de tabel bij dat moment toont (B4, `taskDateLabel`): op een dagrand de werkdag van die rand, eerst
-   de rand van zijn soort en dan de andere; midden op de dag de werkdag aan de kant van zijn soort (FINISH de
-   eindkant, anders de startkant, zoals D7). Wat de tabel op de statusdag toont, mag dus op de statusdag. Een
+   de rand van zijn soort en dan de andere; aan de eindkant telt ook het einde van een dag zonder werkblok (D4,
+   `freeDayEndingAt`); midden op de dag de werkdag aan de kant van zijn soort (FINISH de eindkant, anders de
+   startkant, zoals D7). Wat de tabel op de statusdag toont, mag dus op de statusdag. Een
    statusdatum met tijd blijft regel 2: een moment ná het statusmoment wordt geweigerd, ook als de tabel het op
    de statusdag toont. Een gewone taak houdt regel 1 met de kant van het veld. Sinds 2026-10-29 (fixronde 1 van
-   #724) lopen alle invoerroutes en het DCMA-rapport via `isTaskActualPastStatusDate`
-   (`src/engine/taskMutationRules.ts`), dat de kant van het veld en deze regel toepast. Reden: met B10 kan een
-   afgemelde mijlpaal op het blokeinde na middernacht staan (nachtploeg); de startkant las dat als de klokdag
-   erna en weigerde de invoer op de statusdag.
+   #724) lopen alle invoerroutes, het DCMA-rapport en (sinds fixronde 2) het gezondheidsrapport via
+   `isTaskActualPastStatusDate` (`src/engine/taskMutationRules.ts`), dat de kant van het veld en deze regel
+   toepast, steeds met de kalender van de taak. Reden: met B10 kan een afgemelde mijlpaal op het blokeinde na
+   middernacht staan (nachtploeg), ook na een vrije dag; de startkant las dat als de klokdag erna en weigerde de
+   invoer op de statusdag, en het gezondheidsrapport las het zonder taakkalender en meldde twee fouten.
 
 Regressiegevallen: status "wo 3 jun", werkelijk einde "wo 3 jun" ⇒ toegestaan, opgeslagen wo 16:00; status
 "wo 3 jun 12:00", werkelijk einde "wo 3 jun" ⇒ opgeslagen wo 12:00; status "wo 3 jun 12:00", werkelijk einde
@@ -2052,9 +2063,10 @@ krijgt de afgemelde datum ook die tijd.
 
 **Uitwerking:** §4.2 (*Afmelden van een mijlpaal*) en statusregel 4 (§4.2): de statuscontrole leest een mijlpaal
 op de dag die de tabel toont, zodat afmelden op de statuswerkdag ook bij een nachtploeg mag (fixronde 1 van #724,
-voorheen knownbug 445). De laadgrens houdt D7. Bekende randgevallen: knownbug 447 (de rauwe veldtoegang van extensies houdt D7) en 316 (het
-gezondheidsrapport leest de statusdag zonder taakkalender; sinds B10 meldt het daardoor ook een mijlpaal die bij een
-nachtploeg op de statusdag is afgemeld).
+voorheen knownbug 445), ook op een statusdag zonder werkblok (fixronde 2). Het gezondheidsrapport leest de
+statusdag met de taakkalender, zoals DCMA (fixronde 2, voorheen knownbug 316). De laadgrens houdt D7. Bekende
+randgevallen: knownbug 447 (de rauwe veldtoegang van extensies houdt D7), 448 (een afgeleide werkelijke start bij
+nachtwerk) en 449 (een gewone taak op een statusdag zonder werkblok bij nachtwerk).
 
 **Wie, wanneer, bron:** Ethan, 2026-10-29; vloot-wiki, `besluiten/2026-10-29 afgemelde mijlpaal houdt de geplande
 tijd.md`.

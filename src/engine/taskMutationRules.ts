@@ -43,14 +43,17 @@ export function actualDateSide(task: Task, field: 'actualStart' | 'actualFinish'
 /**
  * De statusregel voor een werkelijke datum van een taak: {@link isActualPastStatusDate} met de kant van
  * het veld ({@link actualDateSide}) en de klok van de taak (kalendertijd of de werkblokken van `calendar`).
- * Elke invoerroute en het DCMA-rapport toetsen hiermee.
+ * Elke invoerroute, het DCMA-rapport en het gezondheidsrapport toetsen hiermee, met de kalender van de taak.
  *
  * Een nulduur-mijlpaal heeft één moment. Valt dat op een dagrand, dan toont de tabel de werkdag van die
- * rand: eerst de rand van zijn soort, dan de andere (B4, `taskDateLabel`). Bij een statusdatum zonder tijd
+ * rand: eerst de rand van zijn soort, dan de andere (B4, `taskDateLabel`), aan de eindkant ook het einde
+ * van een dag zonder werkblok (D4). Bij een statusdatum zonder tijd
  * telt voor een mijlpaal díe werkdag. Wat de tabel op de statusdag toont, mag dus op de statusdag.
  * Voorbeeld: nachtploeg ma–vr 22:00–06:00, een mijlpaal zonder soort of START staat op di 2 jun 06:00 (de
  * tabel toont "01-06-2026"), statusdatum wo 3 jun. Afmelden met 3-6-2026 geeft do 4 jun 06:00 (B10, de
- * klokketijd uit de planning). De tabel toont "03-06-2026", dus geen weigering (was knownbug 445). De
+ * klokketijd uit de planning). De tabel toont "03-06-2026", dus geen weigering (was knownbug 445). Met
+ * statusdatum za 6 jun, een dag zonder werkblok, geeft 6-6-2026 zo 7 jun 06:00; de tabel toont
+ * "06-06-2026", dus ook geen weigering. De
  * soort blijft gelden: een moment midden op de dag leest een START-mijlpaal aan de startkant, zoals
  * eerder. Een statusdatum mét tijd blijft een tijdstipcontrole. Een gewone taak: ongewijzigd.
  */

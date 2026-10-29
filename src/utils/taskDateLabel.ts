@@ -1,5 +1,5 @@
 import {
-  blocksClock, ELAPSED_CLOCK, isDateOnly, workdayBoundaryLabel, type DayClock, type InstantSide,
+  blocksClock, ELAPSED_CLOCK, freeDayEndingAt, isDateOnly, workdayBoundaryLabel, type DayClock, type InstantSide,
 } from '@/engine/calendar/workdayRules';
 import { isElapsedTask, isZeroDurationMilestone } from '@/engine/scheduler/duration';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
@@ -12,7 +12,8 @@ import type { Task } from '@/types/task';
  *  - een startachtig veld zonder tijd op het begin van het eerste werkblok van zijn werkdag;
  *  - een eindachtig veld zonder tijd op het einde van het laatste werkblok van zijn werkdag (ook de
  *    24:00-regel en de nachtploeg, die bij de dag horen waarop hun blok begint);
- *  - een mijlpaal heeft één moment en toont geen tijd als dat moment op een van beide dagranden valt.
+ *  - een mijlpaal heeft één moment en toont geen tijd als dat moment op een van beide dagranden valt, ook
+ *    op het einde van een dag zonder werkblok (D4, zie {@link momentLabel}).
  * Elk ander moment blijft een moment met de klokdatum. De uitkomst is dus een datum (`YYYY-MM-DD`) of het
  * moment zelf; de schermen formatteren die met hun eigen notatie (`displayDateTime` laat een datum
  * zonder tijd ook zonder tijd).
@@ -43,13 +44,22 @@ export function taskDateClock(task: Task, calendar: WorkCalendar): DayClock {
 /**
  * B4 voor één moment. `milestoneSide` = het moment hoort bij een nulduur-mijlpaal: dan telt elke dagrand,
  * eerst die van de soort van de mijlpaal (een FINISH-mijlpaal op het einde van ma blijft "ma", ook als
- * hetzelfde moment het begin van di is, zoals op een 24-uurskalender).
+ * hetzelfde moment het begin van di is, zoals op een 24-uurskalender). Voor een mijlpaal telt aan de
+ * eindkant ook het einde van een dag zonder werkblok (D4, {@link freeDayEndingAt}): bij een nachtploeg
+ * 22:00–06:00 is zo 06:00 het einde van za, dus "za". Zo toont de tabel de dag die de planner bij het
+ * afmelden typte (B10), en leest de statusregel dezelfde dag (`isTaskActualPastStatusDate`). Een gewone
+ * taak krijgt die D4-regel niet; haar weergave blijft gelijk.
  */
 export function momentLabel(clock: DayClock, value: string, side: InstantSide, milestoneSide?: InstantSide): string {
   if (!milestoneSide) return workdayBoundaryLabel(clock, value, side);
-  const first = workdayBoundaryLabel(clock, value, milestoneSide);
+  const at = (edge: InstantSide): string => {
+    const label = workdayBoundaryLabel(clock, value, edge);
+    if (isDateOnly(label) || edge === 'start') return label;
+    return freeDayEndingAt(clock, value) ?? label;
+  };
+  const first = at(milestoneSide);
   if (isDateOnly(first)) return first;
-  return workdayBoundaryLabel(clock, value, milestoneSide === 'start' ? 'end' : 'start');
+  return at(milestoneSide === 'start' ? 'end' : 'start');
 }
 
 export interface TaskDateLabelOptions {
