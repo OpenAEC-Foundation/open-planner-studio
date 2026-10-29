@@ -542,9 +542,15 @@ en noem het in je rapport of PR-tekst.
      (6,6 s) bouwt per profiel, route en veld twee keer de volledige planning, sectie 8a (6,5–7,2 s) per veld,
      en sectie 8d (4,4–5,1 s) zet 27 mijlpalen in één project. De check draait in CI ook in de tijdzonematrix
      (vijf zones extra). Een poging om 8a met een tweede set mijlpalen per veld in één project te bouwen, gaf
-     geen winst (6,5 ⇒ 6,8 s); vermoedelijk groeien de kosten per invoer met het aantal taken. Voorstel: in
-     sectie 1 en 8a een slanke opstelling per veld met alleen de mijlpalen en voorgangers die de gevallen nodig
-     hebben, zoals `nightFieldsFixture`; daarna opnieuw meten. — B
+     geen winst (6,5 ⇒ 6,8 s); vermoedelijk groeien de kosten per invoer met het aantal taken. Fixronde 5 mat
+     waar de tijd zit: het opbouwen van de opstellingen, ongeveer 2 ms per toegevoegde taak (`addTask`), niet de
+     invoer. Ze maakte de opstellingen slanker (één gedeelde voorganger voor de Keuring-mijlpalen in `fixture`
+     en `ethanFixture`, en per blok alleen de mijlpalen die het gebruikt) en voegde 8k en de vaste uitkomsten
+     van de vergelijking met main toe. Gemeten op deze pc, oud (kop `8e1eca869`) en nieuw om de beurt in één
+     slot, drie rondes (belasting 2,5–4): 58,2 / 50,3 / 47,2 s ⇒ 44,7 / 44,2 / 40,9 s; 11.888 ⇒ 13.670
+     controles. Per sectie nu: sectie 1 5,9 s, 8a 5,0 s, 8d 5,4 s, 5d 4,5 s, 8h 4,3 s, 8k 3,2 s. Voorstel: in
+     sectie 1, 8a en 8d nog minder taken per opstelling (bijvoorbeeld de gewone taak en de losse mijlpalen
+     alleen waar een blok ze toetst); daarna opnieuw meten. — B
 454. **Afmelden van een mijlpaal: START op een rand die de buurdag deelt, wordt het begin (bestaat ook op
      main).** B10 met de aanvulling "einde blijft einde" zegt hier niets; #724 kiest "de dag komt van wat je
      typt" (`milestoneMomentOn`, regel 5, `src/engine/calendar/workdayRules.ts`). Kalender 24 uur ma–do, vr
@@ -557,6 +563,25 @@ en noem het in je rapport of PR-tekst.
      2026-10-29 een aanvulling van Ethan op B10 (spec §4.2 en §8 B10). Getoetst in
      `tests/planning/check-mijlpaal-afmelden.ts` sectie 8f (elk profiel, elke route) en 8h (vaste gevallen).
      Voorstel: in een eigen PR oplossen zonder een eindmoment als beginmoment te lezen. — B
+455. **Afmelden van een mijlpaal: de regel "de dichtste rand" bij overlappende diensten heeft geen vaste test.**
+     `milestoneMomentOn` (`src/engine/calendar/workdayRules.ts`) zet een gepland moment midden in de dienst op
+     dezelfde afstand in de getypte dag. Hoort dat moment bij een andere werkdag, terwijl het binnen de
+     werkspanne van de getypte dag ligt, dan kiest de code de rand van de getypte dag die het dichtst bij ligt
+     (uitwerking door de orkestrator, fixronde 3 van #724). Dat kan alleen bij diensten die elkaar overlappen.
+     Het voorbeeld uit fixronde 3 (ma–do 22:00–06:00, vr 22:00–02:00, za 04:00–12:00; di 05:00 afgemeld op vr)
+     valt sinds fixronde 5 onder de tweede aanvulling van Ethan (za 05:00 ligt na het einde van de
+     vrijdagdienst). Gemeten in fixronde 5: met "altijd eerst het begin" in plaats van "de dichtste rand" blijft
+     `check-mijlpaal-afmelden.ts` groen (13.670 controles, 0 fouten). Voorstel: een vaste uitkomst met twee
+     overlappende diensten in sectie 8h, na een besluit of zo'n kalender in de app kan bestaan. — B
+456. **Afmelden van een mijlpaal buiten de werkspanne van zijn werkdag: de geplande kloktijd blijft (keuze van de
+     bouwer).** Een handmatig anker of een import kan een mijlpaal buiten de werktijd zetten, bijvoorbeeld ma
+     18:00 bij ma–do 07:00–16:00 en vr 07:00–12:00. Afgemeld met alleen een datum houdt hij in #724 de
+     kloktijd: vr 5 jun wordt vr 18:00, wo 3 jun wordt wo 18:00. Het besluit B10 zegt "de tijd uit de
+     planning"; de aanvulling "einde blijft einde" gaat over een dagrand en de tweede aanvulling over een
+     moment midden in een dienst. Geen van beide noemt een moment buiten de werkspanne. Een eerdere versie van
+     fixronde 5 zette het ook op het einde van de dienst (vr 12:00, wo 16:00); dat is teruggedraaid omdat geen
+     besluit het vraagt. Getoetst in `tests/planning/check-mijlpaal-afmelden.ts` sectie 8h (gevallen `dag`, ma
+     18:00 en ma 05:00). Voorstel: aan Ethan voorleggen of afmelden ook dan "klaar in die dienst" betekent. — B
 
 ## Kalenders
 

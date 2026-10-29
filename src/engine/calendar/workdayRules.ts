@@ -227,6 +227,9 @@ export function workdayEdgeAt(clock: DayClock, day: string, value: string): Inst
  *     mijlpaal op ma 06:00, afgemeld op een dag met dienst 07:00–16:00 ⇒ 07:00 die dag. Valt de kloktijd in
  *     de spanne van de getypte dag maar in de dienst van een andere werkdag, dan de rand van de getypte dag
  *     die het dichtst bij ligt (uitwerking door de orkestrator, fixronde 3).
+ *  Regel 3 en 4 gelden alleen midden in de dienst: binnen de werkspanne van de werkdag van de planning. Een
+ *  gepland moment buiten die spanne (een handmatig anker om 18:00 bij 07:00–16:00) houdt de kloktijd, zoals
+ *  het besluit zelf zegt: ma 18:00, afgemeld op vr ⇒ vr 18:00.
  *
  * Eén geval dekken het besluit en de uitwerking niet (gemeld in PR #724, knownbug 454). Hier gaat ook "de dag
  * komt van wat je typt" voor, anders toont de tabel een andere dag en weigert de statuscontrole de statusdag:
@@ -236,9 +239,9 @@ export function workdayEdgeAt(clock: DayClock, day: string, value: string): Inst
  *     (einde vr), afgemeld op ma ⇒ het einde van ma is di 00:00, en START leest dat als "di"; dus het begin
  *     van ma: ma 00:00. Op main geeft dezelfde invoer ook ma 00:00 (D7, START = begin).
  *
- * Kort: het moment uit 1 of 2 komt binnen de werkspanne van de getypte dag (3 en 4) en blijft staan als
- * {@link milestoneWorkdayOf} er de getypte dag van maakt; anders de rand van de getypte dag die er wel bij
- * hoort (5).
+ * Kort: het moment uit 1 of 2 komt binnen de werkspanne van de getypte dag als het midden in de dienst lag
+ * (3 en 4), en blijft staan als {@link milestoneWorkdayOf} er de getypte dag van maakt; anders de rand van de
+ * getypte dag die er wel bij hoort (5).
  *
  * `null` als een van beide waarden onleesbaar is, of als de getypte dag geen rand heeft.
  */
@@ -258,8 +261,13 @@ export function milestoneMomentOn(clock: DayClock, planned: string, date: string
     const moment = formatInstant(new Date(typedMs + (at - parseDate(plannedDay).getTime())), 'hour');
     const t = parseInstant(moment).getTime();
     const distance = (edgeAt: string | null) => edgeAt ? Math.abs(parseInstant(edgeAt).getTime() - t) : Infinity;
-    if (end && t > parseInstant(end).getTime()) candidates = [end, start]; // 3: de dienst eindigt eerder
-    else if (start && t < parseInstant(start).getTime()) candidates = [start, end]; // 4: hij begint later
+    // Regel 3 en 4 gelden alleen midden in de dienst: binnen de werkspanne van de werkdag van de planning.
+    const plannedStart = dayStartInstant(clock, plannedDay);
+    const plannedEnd = dayEndInstant(clock, plannedDay);
+    const inside = !!plannedStart && !!plannedEnd
+      && parseInstant(plannedStart).getTime() < at && at < parseInstant(plannedEnd).getTime();
+    if (inside && end && t > parseInstant(end).getTime()) candidates = [end, start]; // 3: de dienst eindigt eerder
+    else if (inside && start && t < parseInstant(start).getTime()) candidates = [start, end]; // 4: hij begint later
     else candidates = [moment, ...(distance(end) < distance(start) ? [end, start] : [start, end])];
   }
   return candidates.find(c => c !== null && milestoneWorkdayOf(clock, c, side) === date)

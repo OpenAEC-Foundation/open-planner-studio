@@ -938,19 +938,31 @@ Zo zette de meting het ook om.
     de afgemelde tijd, ook in P6, waar C5 de vroege start van een voltooide taak op de statusdatum zet.
   - *De werkdag van een mijlpaal* is de datum waarvan de werkspanne het moment bevat. De werkspanne loopt van het
     begin van het eerste werkblok van die datum tot het einde van het laatste (D1 tot D2, randen inbegrepen); een
-    datum zonder werkblok heeft de spanne van de typische werkdag (D4). Bevatten meer spannes het moment:
-    1. Ligt het moment binnen de spanne van een datum met eigen werkblokken, dus niet op haar rand, dan telt
+    datum zonder werkblok heeft de spanne van de typische werkdag (D4). Eerst telt de datum die de rest van de
+    app leest (`workdayOfInstant`: het werkblok aan de kant van de soort, daarbuiten de klokdatum met de
+    24:00-regel aan de eindkant; zo las main ook de statuscontrole):
+    1. Heeft die datum eigen werkblokken en ligt het moment in haar spanne, randen inbegrepen, dan is het die
+       datum. Een echte werkdag houdt zo haar begin en einde tegen een verzonnen rand uit D4 op hetzelfde
+       moment (fixronde 5 van #724, na review ronde 5). Voorbeeld: ma 06:00–10:00, di–vr 22:00–06:00, weekend
+       vrij. De typische werkdag is 22:00–06:00, dus D4 laat zo eindigen op ma 06:00. Een taak begint ma 06:00
+       en een mijlpaal is haar SS-opvolger; na Berekenen staat hij ma 06:00, ook bij FINISH. Dat is het begin
+       van ma: de tabel, het rapport en de PDF tonen "01-06-2026", zoals op main, en met statusdatum zo wordt
+       `01-06-2026 06:00` geweigerd. Eerst won bij FINISH het D4-einde van zo: de tabel toonde "31-05-2026" en
+       de invoer mocht.
+
+    Anders telt de spanne die het moment bevat (de nacht na middernacht, of een vrije dag met D4):
+    2. Ligt het moment binnen de spanne van een datum met eigen werkblokken, dus niet op haar rand, dan telt
        een datum zonder werkblok niet mee. Een verzonnen rand uit D4 trekt echte werktijd niet naar de vrije
        dag (fixronde 4 van #724, na review ronde 4). Voorbeeld: ma 04:00–08:00, di–vr 22:00–06:00, weekend
        vrij. De typische werkdag is 22:00–06:00, dus D4 laat zo eindigen op ma 06:00. Een mijlpaal op ma 06:00
        ligt midden in de echte maandagdienst en is "ma": de tabel toont "01-06-2026 06:00", zoals op main, en
        met statusdatum zo wordt hij geweigerd.
-    2. Dan wint de rand van zijn soort (FINISH de eindkant, anders de startkant), dan de andere rand, dan een
+    3. Dan wint de rand van zijn soort (FINISH de eindkant, anders de startkant), dan de andere rand, dan een
        moment binnen de spanne; bij gelijke stand een datum met eigen werkblokken voor D4. De soort beslist
-       dus op een rand die twee datums delen: twee echte werkdagen (24 uur), maar ook een echte werkdag en een
-       vrije dag (D4). Zo werkte main al. Voorbeelden: op een 24-uurskalender is di 00:00 bij FINISH "ma" en
-       anders "di"; bij 24 uur ma–vr is za 00:00 bij START "za" (D4) en bij FINISH "vr"; bij ma–do 22:00–06:00
-       en vr 22:00–02:00 is za 02:00 "vr" en zo 06:00 "za" (D4).
+       dus alleen op een rand die twee datums delen waar main dat ook doet. Voorbeelden: op een
+       24-uurskalender is di 00:00 bij FINISH "ma" en anders "di" (regel 1); bij 24 uur ma–vr is za 00:00 bij
+       START "za" (D4, regel 3) en bij FINISH "vr" (regel 1); bij ma–do 22:00–06:00 en vr 22:00–02:00 is
+       za 02:00 "vr" en zo 06:00 "za" (D4).
 
     Buiten elke spanne de klokdatum, met de 24:00-regel aan de eindkant. De tabel (B4: alleen de datum op het
     begin of einde van die werkdag), het afmelden en de statusregel (regel 4 hieronder) gebruiken deze ene
@@ -964,25 +976,33 @@ Zo zette de meting het ook om.
     werkblok krijgt de rand van de typische werkdag (D4): bij 22:00–06:00 wordt za 6 jun zo 7 jun 06:00, en de
     tabel toont "06-06-2026".
   - *Daartussen de geplande kloktijd*: de afstand tot middernacht van de werkdag van de planning, op de getypte
-    dag. Ma 10:00, afgemeld op wo, wordt wo 10:00.
-  - **Uitwerking door de orkestrator** (opdracht fixronde 3 van #724, niet letterlijk in het besluit): een geplande
-    kloktijd midden in de dienst kan bij ongelijke diensten in de dienst van een **andere** werkdag vallen. Dan
-    gaat "de dag komt van wat je typt" voor: het moment blijft binnen de getypte werkdag, op de rand die het
-    dichtst bij ligt. Voorbeeld: ma–do 22:00–06:00, vr 22:00–02:00 en za 04:00–12:00; een mijlpaal op di 05:00
-    (midden in de nacht van ma), afgemeld op vr: za 05:00 valt in de dienst van za, dus za 02:00, het einde van
-    vr. Valt de kloktijd niet in de dienst van een andere werkdag, dan blijft hij letterlijk staan. Voorbeeld:
-    dagkalender, gepland ma 14:00, afgemeld op een vrijdag 07:00–12:00 ⇒ vr 14:00; de tabel toont de tijd en
-    met statusdatum vr mag de invoer.
-  - **Aanvulling van Ethan: de dienst eindigt vóór de geplande kloktijd** (Ethan, 2026-10-29, via de superagent;
-    vloot-wiki, `besluiten/2026-10-29 afgemelde mijlpaal houdt de geplande tijd.md`; eerst een keuze van de bouwer
-    in fixronde 3 van #724, knownbug 450, geval 1). Letterlijk: "Een mijlpaal midden in een dienst wordt afgemeld
-    op een dag waarvan de dienst eindigt vóór de geplande kloktijd. Die mijlpaal krijgt dan het einde van die
-    dienst." Voorbeeld: ma–do 22:00–06:00, vr 22:00–02:00, weekend vrij. Een mijlpaal op di 2 jun 05:00 (midden
-    in de nacht van ma), afgemeld met `05-06-2026`, wordt za 6 jun 02:00, het einde van de vrijdagdienst. De
-    tabel toont "05-06-2026"; met statusdatum vr mag de invoer, met statusdatum do niet. Letterlijk zou het za
-    05:00 zijn: dat ligt na de vrijdagdienst en in geen dienst, en zou "za" tonen. In de code is dit regel 4 van
-    `milestoneMomentOn`: het moment valt in geen dienst, op een latere klokdatum dan de getypte dag, dus de rand
-    van de getypte dag die het dichtst bij ligt; dat is altijd het einde van de dienst.
+    dag. Ma 10:00, afgemeld op wo, wordt wo 10:00. Eindigt de dienst van de getypte dag vóór die kloktijd, dan
+    geldt de tweede aanvulling van Ethan; begint hij erna, dan de uitwerking door de orkestrator (beide
+    hieronder).
+  - **Tweede aanvulling van Ethan: de dienst eindigt vóór de geplande kloktijd** (Ethan, 2026-10-29; de tekst staat
+    één keer letterlijk in §8 onder B10, *Tweede aanvulling*; voorheen knownbug 450). Ligt de mijlpaal midden in
+    een dienst en eindigt de dienst van de getypte dag vóór die kloktijd, dan krijgt hij het einde van die
+    dienst. Dat geldt overdag en 's nachts. Voorbeeld overdag (de opstelling van Sol in review ronde 5): ma–do
+    07:00–12:00 en 13:00–16:00, vr 07:00–12:00; een taak van 6 u met een FS-mijlpaal geeft na Berekenen ma 14:00;
+    met statusdatum vr 5 jun wordt `05-06-2026` vr 12:00, en de tabel toont "05-06-2026" (fixronde 5 van #724).
+    Voorbeeld 's nachts: ma–do 22:00–06:00, vr 22:00–02:00, weekend vrij; een mijlpaal op di 2 jun 05:00 (midden
+    in de nacht van ma), afgemeld met `05-06-2026`, wordt za 6 jun 02:00, het einde van de vrijdagdienst. De tabel
+    toont "05-06-2026"; met statusdatum vr mag de invoer, met statusdatum do niet. In de code is dit regel 3 van
+    `milestoneMomentOn`.
+  - **Uitwerking door de orkestrator** (niet letterlijk in het besluit; opdrachten fixronde 3 en 5 van #724):
+    - Begint de dienst van de getypte dag na de geplande kloktijd, dan krijgt het moment het begin van die dienst
+      (fixronde 5). Voorbeeld: ma 04:00–08:00, een mijlpaal op ma 06:00, afgemeld op een dag met dienst
+      07:00–16:00, wordt 07:00 die dag. Bij ma 04:00–08:00 en di–vr 22:00–06:00 wordt dezelfde mijlpaal, afgemeld
+      met `02-06-2026`, di 22:00; de tabel toont "02-06-2026". Regel 4 van `milestoneMomentOn`.
+    - Valt de kloktijd binnen de werkspanne van de getypte dag, maar in de dienst van een **andere** werkdag (alleen
+      bij diensten die elkaar overlappen), dan gaat "de dag komt van wat je typt" voor: het moment komt op de rand
+      van de getypte werkdag die het dichtst bij ligt (fixronde 3). Het eerdere voorbeeld (ma–do 22:00–06:00,
+      vr 22:00–02:00, za 04:00–12:00; di 05:00 afgemeld op vr ⇒ za 02:00) valt sinds fixronde 5 onder de tweede
+      aanvulling: za 05:00 ligt ook na het einde van de vrijdagdienst. De uitkomst blijft za 02:00.
+  - De tweede aanvulling en deze uitwerking gelden alleen midden in de dienst: binnen de werkspanne van de werkdag
+    van de planning. Een gepland moment buiten die spanne, zoals een handmatig anker om 18:00 bij 07:00–16:00,
+    houdt de kloktijd zoals het besluit zelf zegt: ma 18:00, afgemeld op vr, wordt vr 18:00 (keuze van de bouwer
+    in fixronde 5, gemeld in #724: geen van de aanvullingen noemt zo'n moment).
   - **Een geval dat besluit en uitwerking niet dekken** (keuze van de bouwer in fixronde 3 van #724, niet
     besloten; gemeld in de PR; knownbug 454). Ook hier gaat "de dag komt van wat je typt" voor; anders toont de
     tabel een andere dag en weigert de statusregel de statusdag. De rand van de getypte dag is ook een rand van
@@ -1052,12 +1072,15 @@ functie (`taskDialogSave.ts:77`, `taskEditPlan.ts:621,746`, `progressEntry.ts:10
    wordt D1 of D2, maar nooit later dan het statusmoment.
 3. De functie krijgt de kalender van de taak mee, zodat "werkdag" ook bij een nachtblok klopt.
 4. **Een nulduur-mijlpaal** heeft één moment voor beide actuals. Bij een statusdatum zonder tijd is zijn werkdag
-   de werkdag van een mijlpaal uit B10 hierboven (`milestoneWorkdayOf`): de datum waarvan de werkspanne het
-   moment bevat, ook op een dag zonder werkblok (D4), maar nooit een dag zonder werkblok voor een moment midden
-   in de werkspanne van een echte werkdag (fixronde 4 van #724); bij een gedeelde rand eerst de rand van zijn
-   soort; buiten elke spanne de klokdatum (24:00-regel aan de eindkant). De tabel en het afmelden gebruiken
-   dezelfde werkdag. Voorbeeld: ma 04:00–08:00, di–vr 22:00–06:00, weekend vrij; een getypt `01-06-2026 06:00`
-   is ma, dus met statusdatum zo geweigerd.
+   de werkdag van een mijlpaal uit B10 hierboven (`milestoneWorkdayOf`): eerst de datum die de rest van de app
+   leest, als die eigen werkblokken heeft en haar spanne het moment bevat (fixronde 5 van #724); anders de datum
+   waarvan de werkspanne het moment bevat, ook op een dag zonder werkblok (D4), maar nooit een dag zonder
+   werkblok voor een moment midden in de werkspanne van een echte werkdag (fixronde 4 van #724); bij een
+   gedeelde rand eerst de rand van zijn soort; buiten elke spanne de klokdatum (24:00-regel aan de eindkant). De
+   tabel en het afmelden gebruiken dezelfde werkdag. Voorbeelden: ma 04:00–08:00, di–vr 22:00–06:00, weekend
+   vrij; een getypt `01-06-2026 06:00` is ma, dus met statusdatum zo geweigerd. Ma 06:00–10:00, di–vr
+   22:00–06:00: een getypt `01-06-2026 06:00` is het begin van ma, ook bij een FINISH-mijlpaal, en wordt met
+   statusdatum zo geweigerd, zoals op main.
    Wat je op de statusdag afmeldt, mag dus op de statusdag. Een moment dat echt ná de statusdag ligt, blijft
    geweigerd: bij ma–do 22:00–06:00 en vr 22:00–02:00 mag za 02:00 met statusdatum vr, za 02:01 niet. Een
    statusdatum met tijd blijft regel 2: een moment ná het statusmoment wordt geweigerd, ook als de tabel het op
@@ -2162,20 +2185,27 @@ de tabel toonde dan een andere dag dan de planner typte en de statuscontrole wei
 van #724, de derde variant na de nachtploeg en de vrije statusdag). Het alternatief, letterlijk de kloktijd houden,
 wees Ethan af: een planner die op vrijdag "klaar" meldt, bedoelt het einde van die vrijdag.
 
-**Uitwerking door de orkestrator** (opdracht fixronde 3 van #724, niet letterlijk in het besluit): valt een
-geplande kloktijd midden in de dienst in de dienst van een andere werkdag, dan gaat "de dag komt van wat je typt"
-voor; het moment komt op de dichtstbijzijnde rand van de getypte werkdag. Valt hij niet in de dienst van een andere
-werkdag, dan blijft hij letterlijk staan (dagkalender, ma 14:00 afgemeld op een vrijdag 07:00–12:00 ⇒ vr 14:00).
+**Tweede aanvulling (Ethan, 2026-10-29, letterlijk; dezelfde vloot-wiki, alinea "Nog een aanvulling"):** "Nog
+een aanvulling (Ethan, gesprek in Yappo, knownbug 450). Ligt de mijlpaal midden in een dienst, en eindigt de dienst
+van de getypte dag vóór de geplande kloktijd, dan krijgt hij het einde van die dienst. Voorbeeld: nachtdienst
+22:00–06:00, op vrijdag 22:00–02:00. Een mijlpaal op dinsdag 05:00, afgemeld met "vrijdag", wordt zaterdag 02:00.
+Afmelden betekent meestal klaar in die dienst. Het begin van de dienst of een extra vraag om een tijd werd het
+niet."
 
-**Tweede aanvulling (Ethan, 2026-10-29, via de superagent; bevestigt de keuze van de bouwer voor knownbug 450,
-geval 1):** "Een mijlpaal midden in een dienst wordt afgemeld op een dag waarvan de dienst eindigt vóór de geplande
-kloktijd. Die mijlpaal krijgt dan het einde van die dienst. Voorbeeld: di 05:00, afgemeld met 'vrijdag', wordt za
-02:00."
+**Wat de planner ziet met de tweede aanvulling.** Ze geldt overdag en 's nachts. Overdag: ma–do 07:00–12:00 en
+13:00–16:00, vr 07:00–12:00. Een mijlpaal op ma 14:00 (FS na een taak van 6 u), afgemeld met `05-06-2026`, wordt
+vr 12:00; de tabel toont "05-06-2026" (fixronde 5 van #724, na review ronde 5). 's Nachts: ma–do
+22:00–06:00, vr 22:00–02:00, weekend vrij. Een mijlpaal op di 2 jun 05:00 (midden in de nacht van ma), afgemeld met
+`05-06-2026`, wordt za 6 jun 02:00, het einde van de vrijdagdienst. De tabel toont "05-06-2026"; met statusdatum vr
+mag het, met statusdatum do niet. Letterlijk zou het za 05:00 zijn: na de vrijdagdienst, in geen dienst, en de tabel
+zou zaterdag tonen.
 
-**Wat de planner ziet met de tweede aanvulling.** Ma–do 22:00–06:00, vr 22:00–02:00, weekend vrij. Een mijlpaal op
-di 2 jun 05:00 (midden in de nacht van ma), afgemeld met `05-06-2026`, wordt za 6 jun 02:00, het einde van de
-vrijdagdienst. De tabel toont "05-06-2026"; met statusdatum vr mag het, met statusdatum do niet. Letterlijk zou het
-za 05:00 zijn: na de vrijdagdienst, in geen dienst, en de tabel zou zaterdag tonen.
+**Uitwerking door de orkestrator** (niet letterlijk in het besluit; opdrachten fixronde 3 en 5 van #724). Begint de
+dienst van de getypte dag na de geplande kloktijd, dan krijgt het moment het begin van die dienst: ma 04:00–08:00,
+een mijlpaal op ma 06:00, afgemeld op een dag met dienst 07:00–16:00, wordt 07:00 die dag (fixronde 5). Valt de
+kloktijd binnen de werkspanne van de getypte dag maar in de dienst van een andere werkdag (overlappende diensten),
+dan gaat "de dag komt van wat je typt" voor; het moment komt op de dichtstbijzijnde rand van de getypte werkdag
+(fixronde 3).
 
 Eén geval dekken besluit, aanvullingen en uitwerking niet; de bouwer koos daar ook "de dag komt van wat je typt"
 (§4.2, niet besloten, gemeld in #724, knownbug 454). Main geeft daar dezelfde uitkomst; het is geen uitzondering die
@@ -2185,15 +2215,17 @@ Ethan besloot.
 tabel, het afmelden en de statuscontrole lezen een mijlpaal op dezelfde werkdag (`milestoneWorkdayOf`), zodat
 afmelden op de statuswerkdag mag, ook bij een nachtploeg (fixronde 1 van #724, voorheen knownbug 445), op een
 statusdag zonder werkblok (fixronde 2) en op een kortere dienst (fixronde 3). Een verzonnen rand uit D4 trekt een
-moment midden in echte werktijd niet naar een vrije dag (fixronde 4). Het gezondheidsrapport leest de
+moment midden in echte werktijd niet naar een vrije dag (fixronde 4), en wint ook niet van het echte begin of
+einde van een werkdag op hetzelfde moment (fixronde 5). Het gezondheidsrapport leest de
 statusdag met de taakkalender, zoals DCMA (fixronde 2, voorheen knownbug 316). De laadgrens houdt D7. Bekende
 randgevallen: knownbug 447 (de rauwe veldtoegang van extensies houdt D7), 448 (een afgeleide werkelijke start bij
 nachtwerk) en 449 (een gewone taak op een statusdag zonder werkblok bij nachtwerk).
 
 **Wie, wanneer, bron:** Ethan, 2026-10-29; vloot-wiki, `besluiten/2026-10-29 afgemelde mijlpaal houdt de geplande
-tijd.md` (het besluit en de alinea "Aanvulling", gesprek in Yappo; de tweede aanvulling via de superagent, in de
-opdracht voor fixronde 4 van #724). Het nachtvoorbeeld: de superagent; de uitwerking: de orkestrator; beide
-2026-10-29, in de opdracht voor fixronde 3 van #724.
+tijd.md` (het besluit en de alinea "Aanvulling", gesprek in Yappo; de alinea "Nog een aanvulling", gesprek in
+Yappo, doorgegeven in de opdrachten voor fixronde 4 en 5 van #724). Het nachtvoorbeeld: de superagent, in de
+opdracht voor fixronde 3; de uitwerking: de orkestrator, in de opdrachten voor fixronde 3 en 5 van #724; alles
+2026-10-29.
 
 ### Technische keuzes die dit ontwerp zelf neemt
 
