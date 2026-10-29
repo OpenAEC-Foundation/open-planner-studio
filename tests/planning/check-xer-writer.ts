@@ -10,12 +10,20 @@
  *     rekenprofiel Primavera P6, dus het origineel krijgt hier dat profiel en de opties zoals de
  *     lezer ze terugleest. Rekent het project zelf anders, dan meldt de schrijver `schedulingRules`
  *     (getoetst). Elke afwijking staat als eigen regel in de uitvoer.
+ *     Ook de kalendersoort telt als regel: de lezer leest kalenders met de gewone XER-regels, dus elke
+ *     kalender met banden komt terug als urenkalender (`workTime`), ook een scalaire kalender van OPS. De
+ *     engine past sommige P6-regels alleen toe op een kalender met eigen werkblokken (tot F6). Daarom
+ *     krijgt een scalaire kalender van het origineel hier de banden van haar ingelezen tweeling. Een
+ *     check toetst dat die banden gelijk zijn aan de afgeleide banden van het origineel, en een notitie
+ *     telt de afwijkingen zonder deze gelijkstelling (niet verdoezeld).
+ *     Beide kanten gaan eerst door de laadgrens van de app (`payloadFromImport`), zoals bij openen.
  * (c) Rondgang XER → OPS → XER → OPS op de fixtures in `tests/browser/fixtures/xer/`, plus een
  *     stabiliteitstoets: de tweede en de derde export zijn byte-gelijk.
  *
  * Daarnaast: de codering (Windows-1252 als alles past, anders UTF-8 met melding), escaping
  * (tab, regeleinde, aanhalingsteken) en het verliesverslag.
  */
+import './domStub';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -40,6 +48,9 @@ import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { effectiveWorkRule, remainingMinutesOf, totalMinutesOf } from '@/engine/work/workRuleApply';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { parseDate, parseInstant } from '@/utils/dateUtils';
+import { payloadFromImport } from '@/state/documentContract';
+import { seedScalarWorkTime } from '@/utils/effectiveWorkTime';
+import { blocksClock, dayStartInstant } from '@/engine/calendar/workdayRules';
 
 declare const process: { exit(code: number): never; env: Record<string, string | undefined> };
 
@@ -69,16 +80,24 @@ interface Doc {
   assignments: ResourceAssignment[];
 }
 
+/** Het document zoals de app het na openen heeft: door de laadgrens (`payloadFromImport`). */
 function docOf(result: ImportResult): Doc {
+  const payload = payloadFromImport(result, null);
   return {
-    project: result.project,
-    calendar: result.calendar,
-    calendars: result.resourceCalendars ?? [],
-    tasks: result.tasks,
-    sequences: result.sequences,
-    resources: result.resources,
-    assignments: result.assignments,
+    project: payload.project,
+    calendar: payload.calendar,
+    calendars: payload.calendars,
+    tasks: payload.tasks,
+    sequences: payload.sequences,
+    resources: payload.resources,
+    assignments: payload.assignments,
   };
+}
+
+/** Een zelfgebouwd document door dezelfde laadgrens. */
+function loaded(doc: Doc): Doc {
+  return docOf({ project: doc.project, calendar: doc.calendar, resourceCalendars: doc.calendars, tasks: doc.tasks,
+    sequences: doc.sequences, resources: doc.resources, assignments: doc.assignments });
 }
 
 function write(doc: Doc, extra: Partial<XerWriteInput> = {}): XerWriteResult {
@@ -297,12 +316,36 @@ function compareRoundTrip(label: string, original: Doc, written: XerWriteResult,
 
 const P6_PROVENANCE_FIELDS = ['p6ProjectId', 'p6TaskId', 'p6ExplicitTargetWindow', 'p6CompletePctType', 'p6DurationType', 'p6ActivityType'] as const;
 
-/** (b): reken beide door met dezelfde regels en vergelijk vroeg/laat/speling per bladtaak. */
-function compareSchedules(label: string, original: Doc, back: XerReadResult): string[] {
+/**
+ * De kalendersoort zoals de lezer haar teruggeeft: een scalaire kalender van het origineel krijgt de banden
+ * van haar ingelezen tweeling (zelfde naam). Een tweeling met andere banden dan de afgeleide banden van
+ * het origineel telt als afwijking (`calendarIssues`); dan blijft de kalender zoals hij was.
+ */
+function alignCalendarKind(original: Doc, reread: Doc, calendarIssues: string[] = []): Pick<Doc, 'calendar' | 'calendars'> {
+  const twins = [reread.calendar, ...reread.calendars];
+  const align = (cal: WorkCalendar): WorkCalendar => {
+    if (cal.workTime) return cal;
+    const twin = twins.find(c => c.name === cal.name);
+    if (!twin?.workTime) return cal;
+    const derived = seedScalarWorkTime(cal.workDays, cal.workStartHour, cal.workEndHour, cal.hoursPerDay,
+      cal.simpleBreakStartMinute, cal.simpleBreakDurationMinutes);
+    if (JSON.stringify(derived) !== JSON.stringify(twin.workTime)) {
+      calendarIssues.push(`kalender '${cal.name}': banden ${JSON.stringify(derived)} → ${JSON.stringify(twin.workTime)}`);
+      return cal;
+    }
+    return { ...cal, workTime: JSON.parse(JSON.stringify(twin.workTime)) };
+  };
+  return { calendar: align(original.calendar), calendars: original.calendars.map(align) };
+}
+
+/** (b): reken beide door met dezelfde regels en vergelijk vroeg/laat/speling per bladtaak. Met
+ *  `sameCalendarKind: false` blijft de kalendersoort van het origineel staan (voor de notitie). */
+function compareSchedules(label: string, original: Doc, back: XerReadResult, sameCalendarKind = true): string[] {
   const deviations: string[] = [];
   const reread = docOf(back);
   const aligned: Doc = {
     ...original,
+    ...(sameCalendarKind ? alignCalendarKind(original, reread) : {}),
     project: {
       ...original.project,
       schedulingProfile: back.project.schedulingProfile,
@@ -436,7 +479,7 @@ function synthetic(): Doc {
 
 // ── (a)+(b) synthetisch ──────────────────────────────────────────────────────────────────────────
 {
-  const doc = synthetic();
+  const doc = loaded(synthetic());
   // Eerst doorrekenen, zoals `exportAs` dat doet.
   eq('S0 synthetisch project rekent zonder fout', solve(doc), undefined);
   const written = write(doc, { projectCode: 'RND-01' });
@@ -456,13 +499,19 @@ function synthetic(): Doc {
   eq('S11 lezer: geen kalenderproblemen', back.xer.calendarIssues, []);
   eq('S12 lezer: geen onbekende enum-waarden', back.xer.enumFallbacks, []);
   eq('S13 projectnaam', back.project.name, 'Rondgang "XER" — één');
-  eq('S14 statusdatum', back.project.statusDate, '2026-03-11');
+  // Herschreven (oude opzet: de statusdatum kwam terug als datum zonder tijd). De engine leest een datum
+  // zonder tijd als het begin van de werkdag (D1); de schrijver schrijft dat moment, en zo komt het terug.
+  eq('S14 statusdatum (het begin van de werkdag, D1)', back.project.statusDate, dayStartInstant(blocksClock(doc.calendar), '2026-03-11'));
   eq('S15 rekenprofiel P6', back.project.schedulingProfile?.baseId, 'p6');
   eq('S16 lagkalender', back.project.schedulingOptions?.lagCalendar, 'predecessor');
   const cmp = compareRoundTrip('synthetisch', doc, written, back);
   eq('S17 (a) rondgang zonder afwijkingen', cmp.deviations, []);
+  const calendarIssues: string[] = [];
+  alignCalendarKind(doc, docOf(back), calendarIssues);
+  eq('S18a scalaire kalenders komen terug met hun eigen banden', calendarIssues, []);
   const sched = compareSchedules('synthetisch', doc, back);
   eq('S18 (b) zelfde vroege/late datums en speling', sched, []);
+  notes.push(`synthetisch: zonder gelijke kalendersoort wijken ${compareSchedules('synthetisch', doc, back, false).length} datums/spelingen af`);
   // Kalenders: banden, feestdagen, werkende uitzondering.
   const zes = back.resourceCalendars?.find(c => c.name === 'Zesdaagse week');
   eq('S19 zesdaagse kalender: werkdagen', zes?.workDays, [1, 2, 3, 4, 5, 6]);
@@ -553,8 +602,15 @@ function synthetic(): Doc {
       notes.push(`${file}: ${deadlineCount} deadline(s) vallen weg; met deadline wijken ${new Set(withDeadlines.map(d => d.split("'")[1])).size} taken af in late datums/speling`);
     }
     const withoutDeadlines: Doc = { ...original, tasks: original.tasks.map(t => { const { deadline: _d, ...rest } = t; return rest; }) };
+    const calendarIssues: string[] = [];
+    alignCalendarKind(original, docOf(back), calendarIssues);
+    eq(`E7k ${file}: scalaire kalenders komen terug met hun eigen banden`, calendarIssues, []);
     const sched = compareSchedules(file, withoutDeadlines, back);
     eq(`E7 ${file}: (b) zelfde vroege/late datums en speling`, sched, []);
+    const scalarCount = [original.calendar, ...original.calendars].filter(c => !c.workTime).length;
+    if (scalarCount > 0) {
+      notes.push(`${file}: ${scalarCount} scalaire kalender(s); zonder gelijke kalendersoort wijken ${compareSchedules(file, withoutDeadlines, back, false).length} datums/spelingen af`);
+    }
     notes.push(`${file}: ${original.tasks.length} taken, ${original.sequences.length} relaties, verlies ${JSON.stringify(written.loss)}`);
   }
 }
