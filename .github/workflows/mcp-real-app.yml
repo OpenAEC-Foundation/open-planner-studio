@@ -3,7 +3,8 @@ name: MCP echte app
 # Externe-clienttest tegen de ECHTE desktop-app: een Tauri-dev-build onder xvfb, de echte Rust-bridge
 # (`src-tauri/src/mcp_bridge.rs`) en de officiële MCP-client (`@modelcontextprotocol/sdk`). Zelfde
 # controles als `tests/mcp/cases-externe-client.ts` (dat in `npm test` tegen een Node-spiegel van de
-# bridge draait) en de Rust-unit-tests van de bridge (die draait geen andere workflow). Bewust NIET in de verplichte CI-keten: hij bouwt de Rust-app (~10-15 min) en hangt
+# bridge draait), de Claude Desktop-bundel via de bridge en na het stoppen ervan (#730), en de Rust-unit-tests
+# van de bridge (die draait geen andere workflow). Bewust NIET in de verplichte CI-keten: hij bouwt de Rust-app (~10-15 min) en hangt
 # af van WebKitGTK onder xvfb. Hij draait alleen als de MCP-route verandert, of met de hand.
 on:
   pull_request:
@@ -22,6 +23,10 @@ on:
       - 'src/utils/devBridge.ts'
       - 'tests/mcp/externalClient.ts'
       - 'tests/mcp/realApp/**'
+      - 'integrations/claude-desktop/**'
+      - 'headless/mcp-server/**'
+      - 'scripts/build-mcpb.mjs'
+      - 'scripts/build-mcp-server.mjs'
       - '.github/workflows/mcp-real-app.yml'
   workflow_dispatch:
 

@@ -28,7 +28,7 @@ import { createAppStoreContext } from '@/state/appStore';
 import { buildMcpContext, createMcpSessionTable, type McpSessionTable } from '@/services/mcp/server';
 import type { McpContext } from '@/services/mcp/contracts';
 import { handleMcpMessage, MCP_INSTRUCTIONS, MCP_SERVER_NAME } from '@/services/mcp/dispatcher';
-import { buildRuntimeFile, serializeDiscoveryFile } from '@/services/mcp/discoveryContract';
+import { buildOpenFilesFile, buildRuntimeFile, serializeDiscoveryFile } from '@/services/mcp/discoveryContract';
 import { fileToolDeps } from '@/services/mcp/tools/fileTools';
 import { getTools } from '@/services/mcp/toolRegistry';
 import { parseZipEntries } from '@/services/zip';
@@ -121,6 +121,12 @@ function writeRuntime(dir: string, port: number, opts: { token?: string; pid?: n
   writeFileSync(join(dir, 'runtime.json'), serializeDiscoveryFile(file), { mode: 0o600 });
 }
 const removeRuntime = (dir: string) => rmSync(join(dir, 'runtime.json'), { force: true });
+
+/** Schrijft `open-files.json` zoals de app dat doet: deze bestanden staan open in de app. */
+function writeOpenFiles(dir: string, paths: readonly string[]): void {
+  const file = buildOpenFilesFile({ pid: process.pid, appVersion: appPkg.version, updatedAt: new Date(), paths });
+  writeFileSync(join(dir, 'open-files.json'), serializeDiscoveryFile(file), { mode: 0o600 });
+}
 
 interface Session {
   client: Client;
@@ -403,9 +409,20 @@ test('wissel zonder app → app: niet weggeschreven werk houdt de aanvraag zonde
     assert(!more.isError && more.structured.ok === true, `tweede wijziging zonder app: ${more.text}`);
     assertEq(app.store.getState().tasks.length, before, 'niets in de app gezet');
 
-    const saved = await call(s, 'planner_export_ifc', { path: '~/plan.ifc', overwrite: true });
-    assert(!saved.isError && saved.structured.ok === true, `opslaan: ${saved.text}`);
-    const written = readFileSync(join(root, 'plan.ifc'), 'utf8');
+    // De gebruiker heeft plan.ifc in de app open: de headless planner schrijft er niet overheen (het slot),
+    // en het werk blijft dus niet weggeschreven.
+    const original = readFileSync(join(root, 'plan.ifc'), 'utf8');
+    writeOpenFiles(discovery, [join(root, 'plan.ifc')]);
+    const locked = await call(s, 'planner_export_ifc', { path: '~/plan.ifc', overwrite: true });
+    assert(locked.structured.ok === false && locked.text.includes('is open in the Open Planner Studio desktop app'),
+      `overschrijven van een bestand dat open staat in de app hoort geweigerd: ${locked.text}`);
+    assertEq(readFileSync(join(root, 'plan.ifc'), 'utf8'), original, 'plan.ifc onveranderd');
+    const stillHere = await call(s, 'planner_get_project_info');
+    assertEq(projectName(stillHere), EXAMPLE_NAME, 'na de weigering nog steeds de headless planner');
+
+    const saved = await call(s, 'planner_export_ifc', { path: '~/plan-claude.ifc' });
+    assert(!saved.isError && saved.structured.ok === true, `opslaan onder een andere naam: ${saved.text}`);
+    const written = readFileSync(join(root, 'plan-claude.ifc'), 'utf8');
     assert(written.includes("'Nog niet opgeslagen'") && written.includes("'Ook nog zonder app'"), 'beide taken staan in het bestand');
 
     const next = await call(s, 'planner_get_project_info');

@@ -106,7 +106,10 @@ legt vast wat de app als MCP-server levert, wat niet, en welke test het bewijst.
    (`src/utils/devBridge.ts`, opdrachten `dispatch` en `mcpConnection`) AI-modus en automatisch starten aan,
    en draait dezelfde SDK-controles (`tests/mcp/externalClient.ts`) tegen de echte Rust-bridge. Dezelfde job
    draait de Rust-unit-tests van `mcp_bridge.rs` (`cargo test … mcp_bridge`); die draaien in geen andere
-   workflow.
+   workflow. De laatste controle start de gebouwde Claude Desktop-bundel (#730) met de werkmap en
+   `OPS_MCP_DEV_INSTANCE` op de slug van de dev-build: `tools/list` en `planner_get_project_info` gaan via de echte
+   bridge; daarna stopt de bridge, en in dezelfde sessie komt `planner_get_project_info` uit de headless planner, met
+   de wisselmelding vooraan en de logregels van de wissel.
    Script: `tests/mcp/realApp/run.sh` (weigert zonder `CI=true` of `OPS_MCP_REAL_APP=1`, omdat het in de
    appDataDir schrijft).
 3. **Handmatig, 2026-10-21**, tegen de spiegel uit punt 1 (niet tegen de desktop-app). Een loggende proxy
@@ -141,7 +144,9 @@ legt vast wat de app als MCP-server levert, wat niet, en welke test het bewijst.
    - **wisselen zonder werk te verliezen**: de app gaat dicht ⇒ melding vooraan het volgende antwoord,
      `notifications/tools/list_changed`, een wijziging wordt geweigerd tot een bestand geopend is, en het werk
      in de app blijft onaangeroerd; de app gaat open terwijl de headless planner nog niet opgeslagen werk heeft
-     ⇒ de aanvragen blijven zonder app (met melding) tot `planner_export_ifc`, daarna wissel naar de app,
+     ⇒ de aanvragen blijven zonder app (met melding); staat het bestand open in de app (`open-files.json`),
+     dan weigert `planner_export_ifc` met `overwrite: true` het overschrijven en blijft het bestand byte-gelijk;
+     opslaan onder een andere naam lukt, daarna wissel naar de app,
      weigering tot `planner_switch_document`, en het bestand bevat beide taken; het kindproces stopt
      onverwacht ⇒ melding, en wijzigen pas na opnieuw openen;
    - **sessies met de app** (zoals vóór #730): een app-herstart op dezelfde poort (nieuwe sessietabel): de

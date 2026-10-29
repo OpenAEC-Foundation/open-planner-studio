@@ -35,6 +35,15 @@ OUT="$DIR/.run-real-app.mjs"
   --define:__OPS_DEV_INSTANCE__='"test"' \
   --outfile="$OUT" --log-level=warning
 
+# De Claude Desktop-bundel (#730): run-real-app.ts start hem tegen de echte bridge.
+MCPB_OUT="$LOG_DIR/mcpb"
+if ! node "$ROOT/scripts/build-mcpb.mjs" --out "$MCPB_OUT" >"$LOG_DIR/build-mcpb.log" 2>&1; then
+  echo "build-mcpb faalde:" >&2
+  cat "$LOG_DIR/build-mcpb.log" >&2
+  exit 1
+fi
+export OPS_MCPB_SERVER="$MCPB_OUT/bundle/server/index.mjs"
+
 # Eigen sessie, zodat de opruiming de hele procesboom (npm → tauri → vite + app) stopt.
 cd "$ROOT"
 setsid xvfb-run -a env WEBKIT_DISABLE_DMABUF_RENDERER=1 WEBKIT_DISABLE_COMPOSITING_MODE=1 \
