@@ -1,6 +1,6 @@
 import { Task, type TaskConstraint, type ExternalLink } from '@/types/task';
 import type { EffectiveSchedulingOptions } from '@/types/project';
-import { Sequence, LagUnit } from '@/types/sequence';
+import { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 import { dayEndInstant, dayStartInstant, blocksClock, workdayDateOfInstant } from '@/engine/calendar/workdayRules';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
@@ -1212,7 +1212,6 @@ export class CPMSolver {
         default: return predEng;
       }
     },
-    resolveLag: (seq, predTask, predEng) => this.resolveLag(seq, predTask, predEng),
     resolveEffectiveLagDays: (seq, predTask, predEng) =>
       resolveEffectiveLagDays(seq, predTask, predEng.hoursPerDay),
     resolveElapsedMinutes: (seq, predTask) => this.resolveElapsedMinutes(seq, predTask),
@@ -1223,7 +1222,6 @@ export class CPMSolver {
     snapOnOrBefore: (eng, d) => this.snapOnOrBefore(eng, d),
     snapStrictAfter: (eng, d) => this.snapStrictAfter(eng, d),
     snapStrictBefore: (eng, d) => this.snapStrictBefore(eng, d),
-    startOfDay: utcDayStart,
     countsInWorkdays: (task) => this.countsInWorkdays(task),
   };
 
@@ -3627,16 +3625,6 @@ export class CPMSolver {
         );
       }
     }
-  }
-
-  /** Effectieve lag van een relatie: dagen (via resolveEffectiveLagDays) + eenheid. De dag↔minuut-
-   *  factor waarmee een `lagMinutes`-only-lag in dagen wordt uitgedrukt volgt de eenheid: WORKTIME
-   *  telt in WERKuren van de VOORGANGER-kalender, ELAPSEDTIME 24/7 in klokuren — exact de
-   *  factoren die `resolveLagMinutes`/`resolveElapsedMinutes` in uur-modus gebruiken. */
-  private resolveLag(seq: Sequence, predTask: Task, predEng: CalendarEngine): { days: number; unit: LagUnit } {
-    const unit: LagUnit = seq.lagUnit === 'ELAPSEDTIME' ? 'ELAPSEDTIME' : 'WORKTIME';
-    const hpd = unit === 'ELAPSEDTIME' ? 24 : predEng.hoursPerDay;
-    return { days: resolveEffectiveLagDays(seq, predTask, hpd), unit };
   }
 
   private backwardPass(
