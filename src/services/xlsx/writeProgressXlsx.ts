@@ -44,7 +44,7 @@
 import type { Task } from '@/types/task';
 import type { ProgressSheetColumnKey } from '@/services/csv/csvWriter';
 import { escapeXmlText, escapeXmlAttr } from '@/services/xlsx/xmlText';
-import { isoToSerial } from '@/services/xlsx/serialDate';
+import { isoHasClock, isoToSerial } from '@/services/xlsx/serialDate';
 import { writeZip } from '@/services/zip/zipWriter';
 import { shownStart, shownFinish } from '@/utils/taskDates';
 
@@ -152,7 +152,7 @@ function displayText(kind: ColumnKind, raw: string): string {
   if (kind !== 'date') return raw;
   const serial = isoToSerial(raw);
   if (serial === undefined) return raw;
-  return Number.isInteger(serial) ? '0000-00-00' : '0000-00-00 00:00';
+  return isoHasClock(raw) ? '0000-00-00 00:00' : '0000-00-00';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -183,9 +183,12 @@ function dataCell(ref: string, col: ColumnSpec, raw: string, marked: boolean): s
     if (serial === undefined) {
       return inlineStringCell(ref, col.editable ? STYLE.fillText : STYLE.roText, raw);
     }
-    const dated = Number.isInteger(serial)
-      ? (col.editable ? STYLE.fillDate : STYLE.roDate)
-      : (col.editable ? STYLE.fillDateTime : STYLE.roDateTime);
+    // De opmaak volgt de BRON, niet het getal: `2026-06-02T00:00` geeft een geheel serieel getal,
+    // maar is een moment. Met een datumstijl las de lezer er een kale datum van, en de import
+    // schoof het einde een dag op (aanval a11).
+    const dated = isoHasClock(raw)
+      ? (col.editable ? STYLE.fillDateTime : STYLE.roDateTime)
+      : (col.editable ? STYLE.fillDate : STYLE.roDate);
     return numberCell(ref, dated, serialText(serial));
   }
   if (col.kind === 'percent') return numberCell(ref, STYLE.fillPercent, raw);

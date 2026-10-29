@@ -23,7 +23,7 @@
 
 import type { AppState } from '@/state/appStore';
 import { ancestorIds, flattenOrder } from '@/utils/wbs';
-import type { ReadFreshResult } from '../staleGuard';
+import type { ReadFreshResult } from '../freshness';
 import { McpStepError, runReadTool } from './runtime';
 import { lagLabel, seqAbbrev } from './sequenceFields';
 import type { McpContext, McpToolDef } from '../contracts';
@@ -51,7 +51,7 @@ import { interruptionsOf, type Interruption } from './splitFields';
 import { RESOURCE_DIFF_FIELDS, isResourceFieldLocked } from '@/services/library/libraryOps';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import { unrecordedExportGate } from '@/state/recordedDatesSelectors';
-import { resolveConventions } from '@/engine/scheduler/conventions/registry';
+import { effectiveSchedulingOptions, resolveConventions } from '@/engine/scheduler/conventions/registry';
 
 /** De leesbare onderbrekingen van één taak (zie `splitFields.ts`). Leeg object bij een
  *  taak zonder onderbrekingen, zodat de detailrespons van gewone taken ongewijzigd blijft. */
@@ -821,6 +821,7 @@ function getResourceHistogram(ctx: McpContext, args: HistogramArgs, freshen: () 
       calendars: s.calendars,
       cpmResult: s.cpmResult,
       bucket: 'dag',
+      schedulingOptions: effectiveSchedulingOptions(s.project),
     });
     const round2 = (v: number) => Math.round(v * 100) / 100;
     const resources = dayReport.resources.map((r) => {
@@ -886,6 +887,7 @@ function getResourceHistogram(ctx: McpContext, args: HistogramArgs, freshen: () 
     from,
     to,
     bucket,
+    schedulingOptions: effectiveSchedulingOptions(s.project),
   });
   const resources = report.resources.map((r) => ({
     resourceId: r.resourceId,

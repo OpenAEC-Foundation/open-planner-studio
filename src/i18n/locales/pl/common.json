@@ -11,8 +11,9 @@
   },
   "notifications": {
     "dismiss": "Zamknij powiadomienie",
-    "taskEditRevertBlocked": "W międzyczasie pojawiła się zmiana asystenta AI lub rozszerzenia. Wcześniejsze zmiany zadania nie zostały cofnięte i pozostają jako zwykłe kroki w Cofnij.",
+    "taskEditRevertBlocked": "W międzyczasie przyszła zmiana od klienta MCP lub rozszerzenia. Zmiany zadania wykonane wcześniej nie zostały cofnięte. Pozostają jako zwykłe kroki pod Cofnij.",
     "openFailed": "Nie udało się otworzyć pliku",
+    "csvInvalidDate": "Nie otwarto pliku CSV: nierozpoznana data \"{{value}}\" w wierszu CSV {{row}}, kolumna \"{{column}}\". Użyj formatu rrrr-mm-dd, dd-mm-rrrr lub dd/mm/rrrr.",
     "extGuideCallbackFailed": "Krok rozszerzenia {{name}} zakończył się błędem. Przewodnik działa dalej.",
     "extHelpProjectOpenFailed": "Nie udało się otworzyć pliku projektu {{file}} z rozszerzenia {{name}}.",
     "extImportFailed": "Importowanie za pomocą {{name}} nie powiodło się.",
@@ -106,6 +107,8 @@
     "browserCannotOverwrite": "Ta przeglądarka nie pozwala aplikacji zapisać ponownie do „{{name}}”. Dlatego przy każdym zapisie aplikacja ponownie pyta, gdzie zapisać plik. W Chrome, Edge ani w aplikacji desktopowej tak się nie dzieje.",
     "browserSavesAsDownload": "Zapisano jako pobieranie: „{{name}}” jest w folderze pobranych plików. Ta przeglądarka nie pozwala aplikacji zapisywać we własnym miejscu, więc każdy zapis tworzy nowe pobieranie. W Chrome, Edge lub aplikacji desktopowej Zapisz po prostu aktualizuje ten sam plik.",
     "autoSaveFailed": "Błąd autozapisu",
+    "recoveryManifestBlocked": "Dane odzyskiwania mają nieznaną wersję albo nieprawidłową strukturę. Ta aplikacja ich nie rusza i nie może odczytać ani zaktualizować tego zestawu odzyskiwania. Spróbuj wersji aplikacji, która utworzyła kopie, albo nowszej wersji. Zapisz nową pracę samodzielnie.",
+    "recoveryStorageBlocked": "Zapis odzyskiwania jest tymczasowo zablokowany przez inne otwarte połączenie. Istniejące kopie zostają; ta strona nie tworzy nowych kopii odzyskiwania. Zapisz swoją pracę samodzielnie, zamknij inne karty z tą aplikacją i załaduj tę stronę ponownie, aby spróbować odzyskiwania jeszcze raz.",
     "recoveryReadFailed": "Nie udało się odczytać odzyskanego pliku",
     "recoveryRestoreFailed": "Nie udało się przywrócić",
     "recoveryDocumentsSkipped_one": "{{count}} plik odzyskiwania nie mógł zostać wczytany i został pominięty.",
@@ -185,7 +188,15 @@
     "referencesClearedOnPaste_many": "{{count}} odwołań nie istniało w tym dokumencie i zostało wyczyszczone (kalendarzy zadań, własnych rodzajów robót, kodów czynności lub pól niestandardowych z dokumentu źródłowego).",
     "referencesClearedOnPaste_other": "{{count}} odwołania nie istniało w tym dokumencie i zostało wyczyszczone (kalendarz zadania, własny rodzaj robót, kod czynności lub pole niestandardowe z dokumentu źródłowego).",
     "milestoneRefusedAssignments": "„{{task}}” ma przydziały zasobów i nie może stać się kamieniem milowym. Najpierw usuń przydziały.",
+    "milestoneRefusedAssignmentsMany_one": "{{count}} zadanie ma przydziały zasobów i nie może stać się kamieniem milowym. Najpierw usuń przydziały.",
+    "milestoneRefusedAssignmentsMany_few": "{{count}} zadania mają przydziały zasobów i nie mogą stać się kamieniami milowymi. Najpierw usuń przydziały.",
+    "milestoneRefusedAssignmentsMany_many": "{{count}} zadań ma przydziały zasobów i nie mogą stać się kamieniami milowymi. Najpierw usuń przydziały.",
+    "milestoneRefusedAssignmentsMany_other": "{{count}} zadania mają przydziały zasobów i nie mogą stać się kamieniami milowymi. Najpierw usuń przydziały.",
     "milestoneRefusedSummary": "„{{task}}” jest zadaniem sumarycznym z podzadaniami i nie może stać się kamieniem milowym.",
+    "milestoneRefusedSummaryMany_one": "{{count}} zadanie jest zadaniem sumarycznym z podzadaniami i nie może stać się kamieniem milowym.",
+    "milestoneRefusedSummaryMany_few": "{{count}} zadania są zadaniami sumarycznymi z podzadaniami i nie mogą stać się kamieniami milowymi.",
+    "milestoneRefusedSummaryMany_many": "{{count}} zadań to zadania sumaryczne z podzadaniami i nie mogą stać się kamieniami milowymi.",
+    "milestoneRefusedSummaryMany_other": "{{count}} zadania są zadaniami sumarycznymi z podzadaniami i nie mogą stać się kamieniami milowymi.",
     "assignmentsMovedToSubtask_one": "Przydział przeniesiono do podzadania „{{child}}”.",
     "assignmentsMovedToSubtask_few": "{{count}} przydziały przeniesiono do podzadania „{{child}}”.",
     "assignmentsMovedToSubtask_many": "{{count}} przydziałów przeniesiono do podzadania „{{child}}”.",
@@ -195,6 +206,10 @@
     "assignmentsMovedToSubtasks_many": "Przydziały {{count}} zadań przeniesiono do podzadań.",
     "assignmentsMovedToSubtasks_other": "Przydziały {{count}} zadania przeniesiono do podzadań.",
     "milestoneClearedOnPhase": "„{{phase}}” nie jest już kamieniem milowym.",
+    "milestoneClearedOnPhaseMany_one": "{{count}} zadanie nie jest już kamieniem milowym.",
+    "milestoneClearedOnPhaseMany_few": "{{count}} zadania nie są już kamieniami milowymi.",
+    "milestoneClearedOnPhaseMany_many": "{{count}} zadań nie są już kamieniami milowymi.",
+    "milestoneClearedOnPhaseMany_other": "{{count}} zadania nie są już kamieniami milowymi.",
     "phaseRefusedNoAssignableChild": "„{{phase}}” nie może stać się zadaniem sumarycznym: jego przydziały nie mają dokąd trafić, bo żadne z nowych podzadań nie może mieć przydziałów (kamień milowy lub zadanie sumaryczne). Nic nie zmieniono.",
     "phaseRefusedDuplicateResource": "„{{phase}}” nie może stać się zadaniem sumarycznym: przydziału {{resource}} nie można przenieść do nowego podzadania „{{child}}”, bo ma ono już {{resource}}. Nic nie zmieniono.",
     "phaseQuestionOutdated": "Zadania lub przydziały zmieniły się, gdy pytanie było otwarte. Nic nie zostało zmienione. Spróbuj ponownie.",
@@ -213,7 +228,7 @@
     },
     "xerArchiveUnusable": "Archiwum źródłowe XER w tym pliku jest bezużyteczne i zostało pominięte; sam projekt otwarto w całości.",
     "xerArchiveUnusableLine": "Archiwum źródłowe XER w tym pliku było bezużyteczne i zostało pominięte.",
-    "xerArchiveUnusableConsequence": "Harmonogram, profil obliczeń i wszystkie dane projektu z IFC są kompletne. Brakuje: dat w postaci zapisanej przez Primaverę oraz pochodzenia źródła dla AI i rozszerzeń. Zapis tworzy plik bez archiwum; zaimportuj ponownie oryginalny plik .xer, aby odzyskać archiwum.",
+    "xerArchiveUnusableConsequence": "Harmonogram, profil obliczeń i wszystkie dane projektu z IFC są kompletne. Brakuje: dat zapisanych przez Primaverę oraz pochodzenia źródła dla klientów MCP i rozszerzeń. Zapisanie tworzy plik bez archiwum; zaimportuj ponownie oryginalny plik .xer, aby odzyskać archiwum.",
     "xerArchiveReasonSchemaVersion": "Powód: archiwum ma nieznaną wersję schematu lub układ (nowszy lub inny program zapisujący).",
     "xerArchiveReasonHashMismatch": "Powód: suma kontrolna nie pasuje do bajtów źródłowych — archiwum jest uszkodzone.",
     "xerArchiveReasonTruncated": "Powód: archiwum jest obcięte — brakuje części bajtów źródłowych.",
@@ -320,7 +335,12 @@
     "msProjectLostResourceRates_one": "Stawka w {{count}} zasobie nie została zaimportowana.",
     "msProjectLostResourceRates_few": "Stawki w {{count}} zasobach nie zostały zaimportowane.",
     "msProjectLostResourceRates_many": "Stawki w {{count}} zasobach nie zostały zaimportowane.",
-    "msProjectLostResourceRates_other": "Stawka w {{count}} zasobie nie została zaimportowana."
+    "msProjectLostResourceRates_other": "Stawka w {{count}} zasobie nie została zaimportowana.",
+    "minuteModelConverted_one": "{{document}}: {{count}} zadanie ma po konwersji inny początek lub zakończenie; największe przesunięcie w dniach roboczych: {{days}}. Ctrl+Z przywraca zapisane daty.",
+    "minuteModelConverted_few": "{{document}}: {{count}} zadania mają po konwersji inny początek lub zakończenie; największe przesunięcie w dniach roboczych: {{days}}. Ctrl+Z przywraca zapisane daty.",
+    "minuteModelConverted_many": "{{document}}: {{count}} zadań ma po konwersji inny początek lub zakończenie; największe przesunięcie w dniach roboczych: {{days}}. Ctrl+Z przywraca zapisane daty.",
+    "minuteModelConverted_other": "{{document}}: {{count}} zadania mają po konwersji inny początek lub zakończenie; największe przesunięcie w dniach roboczych: {{days}}. Ctrl+Z przywraca zapisane daty.",
+    "minuteModelCalendarRepaired": "Kalendarz „{{calendar}}” został naprawiony: zakończenie lub przerwa nie odpowiadała zapisanym godzinom pracy."
   },
   "scheduleErrors": {
     "cycle": "Zależność cykliczna między zadaniami: {{path}}",
@@ -423,6 +443,11 @@
     "languageHint": "Język wyświetlania aplikacji, stosowany natychmiast.",
     "version": "Wersja",
     "versionHint": "Aktualny numer wersji aplikacji.",
+    "experimentalSection": "Eksperymentalne",
+    "experimentalEmpty": "Nie ma obecnie żadnych funkcji eksperymentalnych.",
+    "experimentalHide": "Ukryj",
+    "demoTopbarAnimation": "Demo: animacja na górnym pasku",
+    "demoTopbarAnimationHint": "Spokojna pomarańczowa fala połysku na górnym pasku. Pokazuje, jak działa eksperymentalny przełącznik.",
     "tourHint": "Powtórz wprowadzającą wycieczkę po aplikacji.",
     "theme": "Motyw",
     "themeHint": "Schemat kolorów interfejsu.",
@@ -431,21 +456,22 @@
     "themeHighContrast": "Wysoki kontrast",
     "themeFollowSystem": "Zgodnie z motywem systemu",
     "themeSystemHint": "Zgodnie ze schematem kolorów systemu (teraz: {{theme}}).",
-    "hourPlanningSection": "Planowanie godzinowe",
-    "enableHourPlanning": "Włącz planowanie godzinowe",
-    "enableHourPlanningHint": "Włącza planowanie godzinowo-minutowe: skalę czasu w godzinach, zmiany z pasmami czasu pracy i paski zadań z dokładnością do godziny. Wyłączone ⇒ aplikacja pozostaje w pełni dniowa, tak jak wcześniej.",
     "showTaskTypes": "Używaj typów zadań",
     "showTaskTypesHint": "Wybierz dla każdego zadania, co się zmienia, gdy zmieni się czas trwania, jednostki lub praca, jak Task Type w MS Project i Duration Type w P6. Wyłączone: czas trwania i jednostki pozostają bez zmian. Plik z typami zadań lub zapisaną pracą pokazuje je także wtedy, gdy to jest wyłączone.",
     "allowMixedDayHour": "Zezwól na mieszane planowanie dniowo-godzinowe",
     "defaultTaskDurationUnit": "Domyślna jednostka nowych zadań",
-    "defaultTaskDurationUnitHint": "Określa, czy nowe zadania zaczynają się w dniach roboczych, czy godzinach pracy. Istniejące zadania się nie zmieniają.",
+    "defaultTaskDurationUnitHint": "Jednostka dniowa: czas trwania liczy się w dniach roboczych kalendarza. Jednostka godzinowa: czas trwania liczy się w godzinach pracy. Istniejące zadania nie zmieniają się. Zadanie ze stałą pracą zawsze używa jednostki godzinowej.",
+    "defaultTaskDurationUnitDays": "Miara w dniach",
+    "defaultTaskDurationUnitHours": "Miara w godzinach",
+    "defaultTaskDurationUnitLocked": "Profil {{profile}} liczy czas trwania w godzinach. Nowe zadania dostają dlatego miarę w godzinach.",
     "durationDisplay": "Wyświetlanie czasu trwania",
     "durationDisplayHint": "Określa sposób wyświetlania czasu trwania zadania, niezależnie od jednostki, w jakiej samo zadanie jest zapisane.",
+    "durationDisplayOpsHint": "W profilu OPS każde zadanie pokazuje własną miarę.",
     "durationDisplayAuto": "Automatycznie (własna jednostka dla zadania)",
     "durationDisplayDays": "Zawsze w dniach",
     "durationDisplayHours": "Zawsze w godzinach",
     "barSplitMode": "Paski zadań przy przerwach",
-    "barSplitModeHint": "Czy pasek zadania wizualnie dzieli się wokół dni wolnych od pracy.",
+    "barSplitModeHint": "Tylko dla zadań godzinowych: dziel paski na przerwy i czas wolny od pracy. Rzeczywiste przerwy w zadaniach są zawsze widoczne, niezależnie od tego ustawienia.",
     "barSplitNever": "Nigdy nie dziel",
     "barSplitSelection": "Dziel przy zaznaczeniu",
     "barSplitAlways": "Zawsze dziel",
@@ -508,11 +534,11 @@
     "fontFamilySerif": "Szeryfowa",
     "fontFamilyMono": "Monospace",
     "fontHint": "Aplikacje webowe nie przejmują automatycznie czcionki ustawionej w systemie. Wybierz tutaj czcionkę i rozmiar interfejsu.",
-    "aiModeSection": "Tryb AI",
-    "aiMode": "Włącz tryb AI",
-    "aiModeHint": "Pokazuje kartę AI z mostkiem MCP, dzięki czemu asystenci AI mogą pracować z Twoim harmonogramem za pomocą Model Context Protocol. Wyłączenie zatrzymuje mostek.",
+    "aiModeSection": "Połączenie MCP",
+    "aiMode": "Zezwalaj na połączenie MCP",
+    "aiModeHint": "Pokazuje kartę MCP. Tam uruchamiasz mostek MCP, dzięki czemu klient MCP może pracować z Twoim harmonogramem przez Model Context Protocol. Wyłączenie zatrzymuje mostek.",
     "aiAutostart": "Automatycznie uruchamiaj most",
-    "aiAutostartHint": "Uruchamia most MCP od razu po starcie aplikacji, dzięki czemu klient AI może się połączyć bez otwierania karty AI. Tylko w aplikacji desktopowej.",
+    "aiAutostartHint": "Uruchamia mostek MCP zaraz po starcie aplikacji, żeby klient MCP mógł się połączyć, zanim otworzysz kartę MCP. Tylko w aplikacji desktopowej.",
     "legacySection": "Funkcje starszego typu",
     "classicViewControls": "Pokaż klasyczne przyciski widoku",
     "classicViewControlsHint": "Przywraca osobne przyciski Kolumny, Filtr, Grupuj i Sortuj na karcie Widok. Kolumny wybiera się teraz plusem w nagłówku tabeli lub przez Tabela → Kolumny…; filtrowanie, grupowanie i sortowanie znajdują się w przyciskach układu i w oknie układów."
@@ -544,9 +570,9 @@
     "configSnippetHint": "Wklej to w konfiguracji MCP swojego klienta.",
     "tokenWarning": "Ten token daje dostęp do otwartego harmonogramu. Nie udostępniaj go innym.",
     "connectPrompt": "Polecenie połączenia",
-    "connectPromptHint": "Wklej to swojemu agentowi AI — połączy się sam.",
+    "connectPromptHint": "Wklej to do swojego klienta MCP — połączy się sam.",
     "connectPromptText": "Połącz się z serwerem MCP działającym na moim komputerze: nazwa {{name}}, transport strumieniowy HTTP, adres {{url}}, z nagłówkiem Authorization: Bearer {{token}}. Dodaj go do swojej konfiguracji MCP (na przykład jako blok mcpServers) i nawiąż połączenie. Następnie pobierz listę narzędzi w celu sprawdzenia: powinieneś zobaczyć około {{count}} narzędzi z przedrostkiem {{prefix}}. Krótko podsumuj, co można zrobić z tym serwerem. Zanim cokolwiek zmienisz, przeczytaj najpierw przewodnik planowania za pomocą narzędzia planner_get_planning_guide.",
-    "statusDot": "Mostek AI: {{status}}"
+    "statusDot": "Mostek MCP: {{status}}"
   },
   "aiSafety": {
     "pause": "Wstrzymaj",
@@ -556,7 +582,7 @@
     "readOnlyHint": "Wszystkie narzędzia modyfikujące są odrzucane, dopóki ta opcja jest włączona.",
     "autoBackupOn": "Automatyczna kopia zapasowa: włączona",
     "autoBackupOff": "Automatyczna kopia zapasowa: wyłączona",
-    "autoBackupHint": "Automatycznie tworzy kopię zapasową IFC przed pierwszą zmianą AI w danym dokumencie.",
+    "autoBackupHint": "Przed pierwszą zmianą MCP w każdym dokumencie automatycznie tworzy kopię zapasową IFC.",
     "backupNow": "Utwórz kopię zapasową teraz",
     "openFolder": "Otwórz folder kopii zapasowych",
     "backupOk": "Utworzono kopię zapasową: {{name}}",
@@ -564,10 +590,10 @@
     "openErr": "Nie można otworzyć folderu: {{error}}"
   },
   "aiActivity": {
-    "title": "Aktywność AI",
+    "title": "Aktywność MCP",
     "panelButton": "Panel aktywności",
     "clear": "Wyczyść",
-    "empty": "Brak aktywności AI. Wywołania mostka pojawią się tutaj.",
+    "empty": "Nie ma jeszcze aktywności MCP. Wywołania mostka pojawią się tutaj.",
     "args": "Argumenty",
     "result": "Odpowiedź"
   },
@@ -585,7 +611,10 @@
     "taskCount_many": "{{count}} zadań",
     "taskCount_other": "{{count}} zadania",
     "restore": "Przywróć",
-    "dontRestore": "Nie przywracaj"
+    "dontRestore": "Nie przywracaj",
+    "unreadableOnlyExplanation": "Żadnej z kopii odzyskiwania nie można odczytać. Zachowaj je do późniejszej próby odzyskania albo usuń tylko wtedy, gdy ich już nie potrzebujesz. Usunięcia nie można cofnąć.",
+    "keepCopies": "Zachowaj kopie",
+    "deleteCopies": "Usuń kopie"
   },
   "window": {
     "minimize": "Minimalizuj",
@@ -604,7 +633,8 @@
   "project": {
     "untitled": "Nowy harmonogram",
     "imported": "Zaimportowany projekt",
-    "unassignedResource": "Nieprzypisany"
+    "unassignedResource": "Nieprzypisany",
+    "ifcBuildingModelUnsupported": "Ten plik IFC zawiera obiekty modelu budynku. Otwieranie jest zablokowane, ponieważ zapis usunąłby te obiekty. Edytuj osobny plik harmonogramu, a potem połącz go ponownie z modelem budynku."
   },
   "documents": {
     "overviewTitle": "Otwarte projekty",
@@ -699,12 +729,14 @@
     "releaseNotes": "Co nowego",
     "downloadInstall": "Pobierz i zainstaluj",
     "downloading": "Pobieranie…",
+    "preparingInstall": "Przygotowywanie instalacji…",
     "installing": "Instalowanie…",
     "restarting": "Ponowne uruchamianie…",
     "retry": "Spróbuj ponownie",
     "error": "Coś poszło nie tak podczas aktualizacji",
     "checking": "Sprawdzanie…",
     "snapNotice": "Ta wersja jest aktualizowana automatycznie przez Snap Store — nie musisz nic robić.",
+    "packageManagerNotice": "Zaktualizuj przez menedżera pakietów (np. yay -Syu).",
     "debExplanation": "Zaktualizuj ręcznie, uruchamiając to polecenie w terminalu, lub pobierz najnowszy pakiet.",
     "debCommandLabel": "Polecenie instalacji",
     "copyCommand": "Kopiuj polecenie",
@@ -801,6 +833,7 @@
     "companies": "Biblioteki zasobów",
     "addCompany": "Dodaj bibliotekę zasobów",
     "newCompany": "Nowa biblioteka zasobów",
+    "defaultCompany": "Moja biblioteka zasobów",
     "companyName": "Nazwa biblioteki",
     "removeCompany": "Usuń bibliotekę zasobów",
     "cannotRemoveLast": "Nie można usunąć ostatniej biblioteki zasobów.",
@@ -816,7 +849,7 @@
     "calendars": "Kalendarze",
     "noCalendars": "W puli nie ma jeszcze żadnych kalendarzy.",
     "noResources": "W puli nie ma jeszcze żadnych zasobów.",
-    "promoteHint": "Awansuj kalendarz lub zasób projektu do biblioteki za pomocą przycisku „+ Z projektu” powyżej.",
+    "promoteHint": "Awansuj kalendarz projektu do biblioteki zasobów przyciskiem „+ Z projektu” powyżej.",
     "promoteFromProject": "Z projektu",
     "alreadyLinked": "już powiązane",
     "editItem": "Edytuj",
@@ -1219,10 +1252,6 @@
     "month": "miesiąc",
     "year": "rok"
   },
-  "hourData": {
-    "notice": "Ten plik zawiera planowanie godzinowe.",
-    "enable": "Włącz planowanie godzinowe"
-  },
   "recordedDates": {
     "activeCount_one": "Widzisz harmonogram tak, jak zapisał go Primavera; ponowne przeliczenie przesunęłoby {{count}} zadanie.",
     "activeCount_few": "Widzisz harmonogram tak, jak zapisał go Primavera; ponowne przeliczenie przesunęłoby {{count}} zadania.",
@@ -1271,7 +1300,7 @@
     "nav": {
       "reportTab": "Przejdź do karty Raport",
       "switchDocument": "Przełącz dokument",
-      "scrollToToday": "Przejdź do dziś",
+      "scrollToToday": "Przejdź do daty statusu lub dziś",
       "help": "Otwórz pomoc"
     },
     "grid": {
@@ -1453,6 +1482,7 @@
     "overrideDropped": "Powiązanie wiersza {{row}} wskazuje na zadanie, które już nie istnieje, i zostało zignorowane.",
     "moreRows": "…i jeszcze {{more}}",
     "sheetRowHint": "wiersz {{row}} w arkuszu",
+    "sheetTaskId": "Identyfikator zadania OPS: {{id}}",
     "dateOrderTitle": "Najpierw dzień czy najpierw miesiąc?",
     "dateOrderQuestion": "„{{sample}}” — o którą datę chodzi?",
     "dateOrderOptionA": "{{date}}",
@@ -1494,7 +1524,7 @@
   "conventions": {
     "preserveActualDatesInBackwardPass": {
       "label": "Zachowaj daty rzeczywiste w obliczeniu wstecz",
-      "help": "Rozpoczęte lub zakończone zadanie zachowuje zarejestrowane daty także po stronie późnej; zakończony następnik nie cofa otwartego poprzednika w przeszłość."
+      "help": "Przy dacie statusu ukończone zadanie zachowuje swoje rzeczywiste daty po stronie późnej, a ukończony następnik nie cofa otwartego poprzednika w przeszłość. Zadanie w toku zachowuje rzeczywiste rozpoczęcie jako najpóźniejsze rozpoczęcie, chyba że włączone jest „Zadanie w toku: najwcześniejsze rozpoczęcie = początek pozostałej pracy”. Ukończone zadanie w punkcie lub oknie daty statusu nadal może przekazywać presję relacji."
     },
     "clampNegativeFreeFloat": {
       "label": "Zapas swobodny nigdy ujemny",
@@ -1502,103 +1532,111 @@
     },
     "p6ZeroDurationUsesPlannedBoundary": {
       "label": "Kamień milowy trzyma się zaplanowanej granicy kalendarza",
-      "help": "Kamień milowy bez czasu trwania zostaje na granicy kalendarza planowanej w pliku: początek dnia zostaje kamieniem milowym startu, a koniec pasma może wypaść na zakończeniu poprzednika."
+      "help": "Tylko przy planowaniu godzinowym. Kamień milowy bez czasu trwania podąża za planowaną granicą kalendarza: początek dnia pozostaje kamieniem milowym rozpoczęcia, a koniec pasma może wypaść na zakończeniu poprzednika. Także zwykłe zadanie o czasie trwania 0 może dostać parę granic, ale tylko przy pochodzeniu z XER jako Task Dependent lub Resource Dependent i z planowanym zakończeniem przed planowanym rozpoczęciem."
     },
     "p6UseTaskPlannedStartFloor": {
       "label": "Planowany początek jako dodatkowa dolna granica",
-      "help": "Planowany początek z pliku działa jako dolna granica, gdy początek i koniec wypadają ponad jeden dzień kalendarzowy później, niż pozwala sieć."
+      "help": "Planowany początek działa jako dolna granica, gdy zarówno początek, jak i koniec wypadają ponad jeden dzień kalendarzowy później, niż pozwala sieć. Przy kamieniu milowym zakończenia z planowanym zakończeniem przed planowanym rozpoczęciem wystarczy późniejszy planowany początek. Nie dotyczy zadania w toku, gdy włączone jest „Planowany start nie jest dolną granicą dla zadania w toku”, ani niezaczętego zadania ALAP, które jest ustawiane od swoich następników. Nie wymaga pochodzenia z XER."
     },
     "p6FinishMilestoneBoundaryWindow": {
       "label": "Kamień końcowy jako okno granicy",
-      "help": "Kamień milowy zakończenia może leżeć na dwóch sąsiednich granicach kalendarza: najwcześniejsze rozpoczęcie na początku pasma, najwcześniejsze zakończenie na końcu poprzedniego pasma."
+      "help": "Kamień milowy zakończenia bez czasu trwania dostaje okno graniczne tylko wtedy, gdy jego planowane zakończenie wypada przed planowanym rozpoczęciem, a obliczony początek nadal równa się temu planowanemu rozpoczęciu. Kamień milowy zakończenia z poprzednikami i bez następnika dostaje także swoje najwcześniejsze daty jako późne terminy, chyba że włączone jest „Licz zapas do daty zakończenia projektu”. Widoczne tylko w wyniku P3; wyłączone we wszystkich wbudowanych profilach."
     },
     "p6PreserveActualInstants": {
       "label": "Przejmij daty rzeczywiste dokładnie",
-      "help": "Zarejestrowane rzeczywiste rozpoczęcie i rzeczywiste zakończenie nie są przesuwane na brzeg pasma."
+      "help": "Tylko dla zadań z zachowanym pochodzeniem z pliku .xer. Zarejestrowane rzeczywiste rozpoczęcie i rzeczywiste zakończenie nie są przesuwane na brzeg pasma."
     },
     "p6UseRemainingStartForProgress": {
       "label": "Zadanie w toku: najwcześniejsze rozpoczęcie = początek pozostałej pracy",
-      "help": "Najwcześniejsze i najpóźniejsze rozpoczęcie zadania w toku opisują, gdzie zaczyna się pozostała praca, a nie historyczny rzeczywisty początek. Przy obliczaniu wstecz przez relację rozpoczęcie-rozpoczęcie liczy się tylko pozostały czas trwania."
+      "help": "Najwcześniejsze i najpóźniejsze rozpoczęcie zadania w toku opisują, od którego miejsca zaczyna się pozostała praca. Wstecz przez relację rozpoczęcie-rozpoczęcie liczy się tylko pozostały czas trwania, ale wyłącznie przy planowaniu godzinowym, z rzeczywistym rozpoczęciem i postępem między 0 a 100%, przy znanym pozostałym czasie trwania krótszym niż planowany czas trwania, bez czasu, który upłynął, i bez podziałów w harmonogramie. Ta dodatkowa reguła pozostałego czasu trwania nie dotyczy relacji rozpoczęcie-zakończenie."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Dokładny moment ograniczenia na kamieniu milowym",
-      "help": "Ograniczenie daty i godziny na kamieniu milowym bez czasu trwania jest dokładnym punktem, także na początku pasma."
+      "help": "Tylko przy planowaniu godzinowym, po stronie późnej, dla ograniczenia z datą i godziną typu SNLT, MSO, FNLT lub MFO na kamieniu milowym bez czasu trwania. Moment ograniczenia pozostaje dokładny, także na początku pasma. W obliczeniu w przód taki moment jest już dokładny w każdym profilu."
     },
     "resumeFromActualElapsed": {
       "label": "Pozostała praca wznawia się po upływie czasu",
-      "help": "Zadanie w toku wznawia pozostałą pracę w rzeczywistym początku plus czas, który już upłynął, a nie w dacie stanu."
+      "help": "Zadanie w toku wznawia pozostałą pracę nie wcześniej niż w rzeczywistym rozpoczęciu plus czas, który już upłynął. Data statusu i granica poprzednika również pozostają dolnymi granicami; obowiązuje najpóźniejsza z trzech. Nie dotyczy Progress Override, zadania bez pozostałej pracy ani sytuacji, w której aplikacja używa poprawnej daty wznowienia z pliku (przy najwyżej jednym przydziale)."
     },
     "unstartedIgnoresStatusDate": {
       "label": "Nie przesuwaj nierozpoczętych zadań do daty stanu",
-      "help": "Zadanie, które jeszcze się nie rozpoczęło, nie jest automatycznie przesuwane na datę stanu lub później."
+      "help": "Tylko przy dacie statusu, dla zadania bez postępu. To zadanie nie jest automatycznie przesuwane na datę statusu lub później."
     },
     "p6RelationFinishBoundary": {
       "label": "Następnik zaczyna na granicy zakończenia",
-      "help": "Przy relacji zakończenie-rozpoczęcie bez opóźnienia następnik zaczyna się w pliku dokładnie na zakończeniu poprzednika, na końcu pasma. Wtedy zaczyna się na tym zakończeniu, a nie na początku kolejnego pasma. Plik tego nie oznacza: aplikacja sama rozpoznaje taką relację przy otwieraniu pliku .xer. Relacja, którą sam tworzysz, nie jest tym objęta. Przy obliczaniu wstecz następnik pokazuje swoje najpóźniejsze rozpoczęcie po prostu jako początek pasma."
+      "help": "Tylko przy planowaniu godzinowym, w kalendarzu poprzednika i dla relacji, którą aplikacja rozpoznaje przy otwieraniu pliku .xer. Przy relacji zakończenie-rozpoczęcie bez opóźnienia, której następnik w pliku zaczyna się dokładnie na końcu pasma poprzednika, następnik zaczyna się na tym zakończeniu. Relacja, którą sam tworzysz, nie jest tym objęta. W obliczeniu wstecz najpóźniejsze rozpoczęcie następnika pozostaje początkiem pasma."
     },
     "p6BackwardLagFinishBoundary": {
       "label": "Opóźnienie wstecz od granicy zakończenia",
-      "help": "Gdy obliczenie wstecz odejmuje od granicy zakończenia opóźnienie w godzinach pracy i trafia dokładnie na początek pasma, ląduje na poprzedniej granicy zakończenia. Także przy relacji zakończenie-zakończenie bez opóźnienia najpóźniejsze zakończenie na końcu pasma pozostaje na tej granicy zakończenia."
+      "help": "Tylko przy planowaniu godzinowym, w kalendarzu, w którym liczy się opóźnienie. Gdy obliczenie wstecz odejmuje dodatnie opóźnienie w godzinach pracy od dokładnej granicy zakończenia i wypada na pierwszym początku pasma w danym dniu, ląduje na poprzedniej granicy zakończenia. Także przy relacji zakończenie-zakończenie bez opóźnienia najpóźniejsze zakończenie na końcu pasma pozostaje na tej granicy. Nie dotyczy opóźnienia w czasie, który upłynął."
     },
     "p6CompletedDataDateWindow": {
       "label": "Zakończone zadanie w oknie daty stanu",
-      "help": "Zakończone zadanie dostaje wczesne daty w oknie daty statusu, a jego zakończenie liczy się do końca projektu."
+      "help": "Tylko przy dacie statusu, dla ukończonych zadań bez podzadań z pliku .xer z zachowanym oknem docelowym, z postępem według czasu trwania i typem P6 Task Dependent lub Resource Dependent z Fixed Duration & Units; bez kamieni milowych o czasie trwania 0. Wymaga „Zadanie w toku: najwcześniejsze rozpoczęcie = początek pozostałej pracy”. Przerwa/wznowienie jest dozwolona tylko przy Task Dependent z poprawną parą, rzeczywistym zakończeniem między planowanym zakończeniem a datą statusu, wznowieniem najpóźniej w rzeczywistym zakończeniu i przy włączonym „Zachowaj daty rzeczywiste w obliczeniu wstecz”. Zadanie dostaje wczesne daty w oknie daty statusu; jego zakończenie liczy się do końca projektu."
     },
     "p6CompletedLoeActualFinish": {
       "label": "Zakończone LOE przez rzeczywiste zakończenie",
-      "help": "Zakończone zadanie level-of-effort z samym wejściem rozpoczęcie-rozpoczęcie podąża trasą przez swoje rzeczywiste zakończenie."
+      "help": "Tylko przy dacie statusu, dla ukończonego LOE z pliku .xer z dodatnim czasem trwania, postępem według czasu trwania i typem P6 Fixed Duration & Units/Time, pełnym oknem docelowym i rzeczywistym zakończeniem między planowanym zakończeniem a datą statusu. Tylko z wejściami typu rozpoczęcie-rozpoczęcie, co najmniej jednym, bez następnika i bez przerwy/wznowienia. Wymaga „Zadanie w toku: najwcześniejsze rozpoczęcie = początek pozostałej pracy”, „Zachowaj daty rzeczywiste w obliczeniu wstecz” i „Przejmij daty rzeczywiste dokładnie”. LOE podąża za swoim rzeczywistym zakończeniem zamiast trasy hamaka."
     },
     "p6OpenLoeTargetSpan": {
       "label": "Nierozpoczęte LOE przyjmuje okno docelowe",
-      "help": "Zadanie level-of-effort, które jeszcze się nie rozpoczęło, przyjmuje swoje okno docelowe jako czas trwania."
+      "help": "Tylko przy planowaniu godzinowym, dla niezaczętego LOE/hamaka z pliku .xer z postępem 0%, dodatnim czasem trwania, postępem według czasu trwania i typem P6 Fixed Duration & Units; bez rzeczywistych dat i bez przerwy/wznowienia. Wymaga pełnego, dodatniego okna docelowego, którego początek równa się granicy relacji, a czas pracy różni się od czasu trwania najwyżej o jeden dzień roboczy; co najmniej jednego wejścia rozpoczęcie-rozpoczęcie i jednego wyjścia zakończenie-zakończenie, wyłącznie tych typów relacji i bez opóźnienia. LOE przyjmuje wtedy okno docelowe jako swój czas trwania. Słabe dowody: jeden plik."
     },
     "p6CompletedPredecessorAtDataDate": {
       "label": "Zakończony poprzednik nie wstrzymuje po dacie stanu",
-      "help": "Jeśli rzeczywiste zakończenie zakończonego poprzednika przypada po dacie stanu, jego następniki mogą mimo to rozpocząć się w dacie stanu."
+      "help": "Tylko przy planowaniu godzinowym i dacie statusu, dla ukończonego poprzednika z rzeczywistym zakończeniem. Relacje zakończenie-rozpoczęcie i zakończenie-zakończenie liczą się najwyżej od granicy pasma tuż przed datą statusu; późniejsze rzeczywiste zakończenie nie wstrzymuje następnika. Relacje rozpoczęcie-rozpoczęcie i rozpoczęcie-zakończenie pozostają przy rzeczywistym rozpoczęciu. Ukończone zadanie z własnym punktem daty statusu lub przesuniętym oknem daty statusu podąża za własną granicą."
     },
     "p6FreeFloatOnOwnCalendar": {
       "label": "Zapas swobodny we własnym kalendarzu",
-      "help": "Zapas swobodny nierozpoczętego zadania liczy się dla każdej relacji w kalendarzu samego zadania, a nie następnika: dla zakończenie-rozpoczęcie, rozpoczęcie-rozpoczęcie i zakończenie-zakończenie, także z opóźnieniem w czasie pracy w kalendarzu poprzednika. Rozpoczęte zadanie tylko dla zakończenie-rozpoczęcie bez opóźnienia."
+      "help": "Tylko przy planowaniu godzinowym, dla niezakończonych zadań i relacji z obliczonym zapasem swobodnym. Dla nierozpoczętego zadania zapas swobodny liczy się w jego własnym kalendarzu dla zakończenie-rozpoczęcie, rozpoczęcie-rozpoczęcie i zakończenie-zakończenie, bez opóźnienia w czasie zegarowym lub w procentach. Opóźnienie inne niż 0 wymaga kalendarza opóźnień poprzednika. Dla rozpoczętego zadania obowiązuje tylko zakończenie-rozpoczęcie bez opóźnienia. Zapas swobodny relacji i jej znacznik wiodący się nie zmieniają."
     },
     "p6CompletedRemainingLag": {
       "label": "Upłynięte opóźnienie zakończonego poprzednika nie jest liczone",
-      "help": "Po stronie terminów najpóźniejszych liczy się tylko ta część opóźnienia po zakończonym poprzedniku, która w dacie stanu jeszcze nie upłynęła."
+      "help": "Tylko przy planowaniu godzinowym, na kalendarzu opóźnień i z datą statusu, dla ukończonych poprzedników z pliku .xer, których rzeczywiste zakończenie jest przed datą statusu, oraz z punktem lub oknem daty statusu. Liczy się tylko ta część dodatniego opóźnienia w godzinach pracy, która jeszcze nie upłynęła. Działa po stronie najpóźniejszych terminów i w przód od punktu daty statusu lub przesuniętego okna zerowego pozostałego. Zadanie na zwykłych rzeczywistych datach zachowuje pełne opóźnienie. Nie dotyczy opóźnienia w czasie zegarowym."
     },
     "p6CompletedOutOfSequenceWindow": {
       "label": "Zadanie zakończone poza kolejnością czeka na poprzedników",
-      "help": "Zakończone zadanie, którego poprzednik nie jest jeszcze zakończony, dostaje swoje zerowe okno po tym poprzedniku, a nie w dacie statusu (P6: Retained Logic). Działa tylko wtedy, gdy włączone są także „Zakończone zadanie w oknie daty stanu” i „Zadanie w toku: najwcześniejsze rozpoczęcie = początek pozostałej pracy”."
+      "help": "Tylko przy planowaniu godzinowym i z datą statusu, na trasie XER konwencji „Zakończone zadanie w oknie daty stanu”. Ta konwencja oraz „Zadanie w toku: najwcześniejsze rozpoczęcie = początek pozostałej pracy” muszą być włączone. Nie dotyczy Progress Override. Przy wejściach zakończenie-rozpoczęcie lub rozpoczęcie-rozpoczęcie zadanie dostaje późniejszą z granic: granicę daty statusu albo granicę niezakończonego poprzednika lub poprzednika z przesuniętym oknem daty statusu. Zwykli zakończeni poprzednicy się nie liczą."
     },
     "p6CompletedPhysicalAtDataDate": {
       "label": "Zakończone zadanie z postępem fizycznym na dacie stanu",
-      "help": "Zakończone zadanie z fizycznym procentem ukończenia jest pokazywane jako jeden punkt na dacie stanu lub później, jeśli wymaga tego poprzednik, zamiast na swoich rzeczywistych datach. Zmierzone tylko dla postępu fizycznego; dla innych typów postępu (domyślnie w P6: czas trwania) to zachowanie nie zostało zmierzone i pozostaje wyłączone."
+      "help": "Tylko przy planowaniu godzinowym i z datą statusu, dla ukończonych zadań bez podziałów oraz kamieni milowych o zerowym czasie trwania z pliku .xer typu P6 Task Dependent, Start Milestone lub Finish Milestone. Wymaga zachowanego okna docelowego, fizycznego procentu ukończenia, rzeczywistego zakończenia nie później niż data statusu oraz braku przerwy i wznowienia. Wymaga „Zadanie w toku: najwcześniejsze rozpoczęcie = początek pozostałej pracy”. Zadanie stoi w jednym punkcie na dacie statusu albo później, jeśli tego wymaga poprzednik. Dla innych typów procentu ukończenia, także czasu trwania, to nie jest zmierzone i pozostaje wyłączone."
     },
     "p6InProgressStartLagElapsed": {
       "label": "Upłynięte opóźnienie SS od trwającego poprzednika się nie liczy",
-      "help": "Przy relacji start-start od zadania, które już się rozpoczęło, liczy się tylko ta część opóźnienia, która od jego rzeczywistego startu do daty stanu jeszcze nie upłynęła."
+      "help": "Tylko przy planowaniu godzinowym, na kalendarzu opóźnień i z datą statusu, dla relacji rozpoczęcie-rozpoczęcie z dodatnim opóźnieniem w godzinach pracy od niezakończonego poprzednika z rzeczywistym rozpoczęciem przed datą statusu. Wymaga „Zadanie w toku: najwcześniejsze rozpoczęcie = początek pozostałej pracy”. Liczy się tylko ta część opóźnienia, która jeszcze nie upłynęła. Opcja „Licz opóźnienie SS od trwającego poprzednika od” wybiera punkt początkowy. Nie dotyczy opóźnienia w czasie zegarowym."
     },
     "p6FinishFinishStartMilestoneLateFinish": {
       "label": "Relacja zakończenie-zakończenie do kamienia milowego startu wiąże się z samym kamieniem",
-      "help": "Relacja zakończenie-zakończenie do kamienia milowego startu liczy się do samego kamienia milowego, a nie do początku jego dnia: najpóźniejsze zakończenie poprzednika może sięgać najpóźniejszego zakończenia kamienia milowego."
+      "help": "Tylko przy planowaniu godzinowym po obu stronach relacji zakończenie-zakończenie do kamienia milowego startu o zerowym czasie trwania. Relacja wiąże się z samym kamieniem milowym: najpóźniejsze zakończenie poprzednika może sięgać najpóźniejszego zakończenia kamienia milowego. Zapas swobodny może się też zmienić, a najwcześniejsze rozpoczęcie kamienia milowego zostaje bez zmian. Nie dotyczy kamieni milowych zakończenia ani trasy wstecz z zerowym pozostałym czasem trwania."
     },
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "Planowany start nie jest dolną granicą dla zadania w toku",
-      "help": "Pozostała praca rozpoczętego zadania zaczyna się w dacie stanu i zaraz po jego poprzednikach, nawet jeśli planowany start jest późniejszy."
+      "help": "Tylko dla zadania z rzeczywistym rozpoczęciem i postępem poniżej 100%, gdy jest włączone „Planowany początek jako dodatkowa dolna granica”. Jego planowany początek nie tworzy dodatkowej granicy dla pozostałej pracy. Nadal obowiązują data statusu i jego poprzednicy."
     },
     "p6LateFinishOnOwnCalendar": {
       "label": "Najpóźniejsze zakończenie w kalendarzu zadania",
-      "help": "Jeśli najpóźniejsze zakończenie narzucone przez następnika wypada poza godzinami pracy zadania, staje się końcem poprzedniego pasma w kalendarzu zadania."
+      "help": "Tylko przy planowaniu godzinowym, gdy granica następnika wyznacza najpóźniejsze zakończenie i żadne ciaśniejsze ograniczenie ani termin ostateczny tej granicy nie zastępuje. Jeśli ta granica wypada poza godzinami pracy zadania, najpóźniejsze zakończenie staje się końcem poprzedniego pasma w kalendarzu zadania. Nie dotyczy najpóźniejszego zakończenia wyznaczonego przez koniec projektu."
     },
     "p6ProgressOverrideIgnoresStartedSuccessor": {
       "label": "Progress Override pomija rozpoczętego następnika także wstecz",
-      "help": "Przy Progress Override powiązanie z już rozpoczętym następnikiem nie wpływa na najpóźniejsze terminy ani zapas swobodny niezakończonego poprzednika."
+      "help": "Tylko przy Progress Override, dla niezakończonego poprzednika i rozpoczętego, ale niezakończonego następnika (rzeczywiste rozpoczęcie lub postęp). Ich relacja nie liczy się w późnych terminach ani w zapasie swobodnym poprzednika."
     },
     "p6FinishNotBeforeFinishFinishBound": {
       "label": "Najwcześniejsze zakończenie nie przed granicą zakończenie-zakończenie",
-      "help": "Przy relacji zakończenie-zakończenie najwcześniejsze zakończenie następnika nigdy nie wypada w czasie zegarowym przed granicą, którą wyznacza poprzednik. Jeśli ta granica przypada w czasie wolnym od pracy następnika, zakończeniem staje się początek następnego pasma."
+      "help": "Korekta daty: dla relacji zakończenie-zakończenie z opóźnieniem w godzinach pracy, bez hamaków i z planowaniem godzinowym w kalendarzu następnika (przy pozostałej pracy: w kalendarzu postępu) oraz w kalendarzu opóźnień. Jeśli granica relacji wypada później niż najwcześniejsze zakończenie, a między nimi nie ma godzin pracy, przesuwa się tylko zakończenie do pierwszej granicy pracy, która przypada na tę granicę lub po niej. Dotyczy automatycznie planowanych, nierozpoczętych i w toku następników. Przy nierozpoczętym zadaniu twarda przypięta data zakończenia ma pierwszeństwo. Zapas swobodny: osobno niezakończony poprzednik dla zakończenie-zakończenie bez opóźnienia i bez opóźnienia w procentach liczy się z istniejącym zapasem swobodnym relacji i obliczonym najwcześniejszym zakończeniem następnika. Liczy się to w kalendarzu godzinowym poprzednika, od jego najwcześniejszego zakończenia do najwcześniejszego zakończenia następnika. Dotyczy to też zerowego opóźnienia w czasie zegarowym, bez dodatkowego warunku planowania godzinowego w kalendarzu następnika lub opóźnień. Hamaki i zadania planowane ręcznie zostawiają ostatecznie zapas swobodny na 0."
     },
     "p6AlapPositionedFromSuccessors": {
       "label": "Zadania ALAP tak późno, jak pozwalają następniki",
-      "help": "Nierozpoczęte zadanie z ograniczeniem „jak najpóźniej” kończy się co do minuty, w której potrzebują go następniki, najpierw następniki, tak aby łańcuch się domknął. Jego własne planowane rozpoczęcie się nie liczy; zadanie bez poprzednika nie zaczyna się wtedy wcześniej niż w dacie statusu."
+      "help": "Tylko przy planowaniu godzinowym, dla nierozpoczętego zadania, które nie jest planowane ręcznie i ma ograniczenie „Jak najpóźniej” (ALAP). Najwcześniejsze daty jej następników określają jej położenie co do minuty. Najpierw idą następnicy. Jej własny planowany start się nie liczy. Poprzednicy, data statusu i drugie ograniczenie nadal obowiązują. Bez następnika używa swojego najpóźniejszego zakończenia. Zwykły krok ALAP pozostaje dostępny w każdym profilu."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Pojedyncze kamienie milowe na końcu dnia roboczego",
+      "help": "Pojedynczy kamień milowy lub kamień milowy zakończenia bez poprzednika trafia na koniec swojego dnia roboczego."
+    },
+    "workdayDurationMeasure": {
+      "label": "Czas trwania w dniach roboczych",
+      "help": "Czas trwania, opóźnienie lub pozostały czas trwania w dniach liczy się w dniach roboczych: każdy dzień roboczy liczy się jako 1, niezależnie od tego, jak długi jest ten dzień. Wyłączone: dzień liczy się jako liczba godzin pracy dziennie według kalendarza. Opóźnienie w procentach podąża za miarą poprzednika. Czas, który upłynął, nigdy nie liczy się w dniach roboczych."
     }
   },
   "profiles": {
@@ -1637,6 +1675,7 @@
       "float": "Zapas i późne terminy",
       "instants": "Daty i chwile z pliku",
       "msproject": "Postęp jak w Microsoft Project",
+      "durations": "Czas trwania i miara",
       "ownProfilesOnly": "Tylko dla własnych profili"
     },
     "ownProfilesOnlyNote": "Te konwencje są wyłączone w każdym wbudowanym profilu, także w Primavera P6. Włączyć je może tylko własny profil: wybierz do tego Nowy profil.",
@@ -1649,7 +1688,7 @@
     "showHelp": "Objaśnienie: „{{name}}”",
     "sourceOptions": {
       "title": "Ustawienia z pliku źródłowego",
-      "intro": "Te opcje obliczeń pochodzą z pliku Primavera P6 (.xer). Są uwzględniane w obliczeniach, ale nie można ich tu zmienić.",
+      "intro": "To są tylko do odczytu opcje obliczeń zapisane w tym projekcie. Przy importie pliku Primavera P6 (.xer) aplikacja przejmuje je z pliku źródłowego. Działają tylko wtedy, gdy spełnione są ich warunki.",
       "useExpectedFinishDates": "Używaj oczekiwanych dat zakończenia (P6: Use Expected Finish Dates)",
       "useProjectEndDateForFloat": "Licz zapas do daty zakończenia projektu",
       "p6CompletedLateFromRemainingWindow": "Ukończone zadanie: późne terminy od daty stanu",
@@ -1658,7 +1697,7 @@
     "requires": {
       "xerOrigin": "tylko zadania z .xer",
       "hourPlanning": "tylko planowanie godzinowe",
-      "hourPlanningTitle": "Działa tylko przy planowaniu godzinowym: kalendarz z pasmami, zadanie w godzinach albo kalendarz opóźnień ustawiony na 24 godziny."
+      "hourPlanningTitle": "Działa tylko przy planowaniu godzinowym w kalendarzu, którego używa reguła: kalendarz z pasmami pracy lub czas trwania zadania w godzinach. Przy opóźnieniu może też obowiązywać 24-godzinny kalendarz opóźnień."
     },
     "optionsDeviate": {
       "line": "{{field}}: {{current}} (domyślnie: {{standard}})",

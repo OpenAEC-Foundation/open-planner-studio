@@ -190,6 +190,40 @@ console.log('-- leveler-seam: nul-guard in de conflictverzamelaar (geval 3) --')
   eq('niet-geselecteerde resource: geen misleidende details', excluded.intrinsicOverruns, undefined);
 }
 
+// Knownbug 8: pins mogen blijven staan, maar hun overboeking mag niet uit het rapport verdwijnen.
+{
+  const a = task('pin-a', '2026-06-01', '2026-06-01', 1, { priority: 1000 });
+  const b = task('pin-b', '2026-06-01', '2026-06-01', 1, { priority: 1000 });
+  const r = res('pin-resource', 1);
+  const assignments = [assign('pa', a.id, r.id, 1), assign('pb', b.id, r.id, 1)];
+  const run = (tasks: Task[], capacity = 1) => levelResources(tasks, [], [{ ...r, maxUnits: capacity }],
+    assignments, PROJECT_CAL, [], stubCpmResult('2026-06-01'), { constrainToFloat: false }, legacyCpmOptions());
+  const inputBefore = JSON.stringify([a, b]);
+  for (const order of [[a, b], [b, a]]) {
+    const result = run(order);
+    eq('beide pins melden dezelfde conflictdag', [result.unresolved[a.id], result.unresolved[b.id]],
+      [['2026-06-01'], ['2026-06-01']]);
+    eq('pins krijgen geen eigen nivelleervertraging', result.delays, {});
+    eq('pins blijven op dezelfde start', result.shifts, {});
+    eq('geen misleidende scanreden voor pins', result.unresolvedReasons, {});
+  }
+  eq('invoer blijft ongewijzigd', JSON.stringify([a, b]), inputBefore);
+  eq('precies passende capaciteit geeft geen conflict', run([a, b], 2).unresolved, {});
+  const alone = levelResources([a], [], [r], [assign('pa', a.id, r.id, 1)], PROJECT_CAL, [],
+    stubCpmResult('2026-06-01'), { constrainToFloat: false }, legacyCpmOptions());
+  eq('eigen boeking wordt niet dubbel geteld', alone.unresolved, {});
+  const over = levelResources([a], [], [r], [assign('pa', a.id, r.id, 2)], PROJECT_CAL, [],
+    stubCpmResult('2026-06-01'), { constrainToFloat: false }, legacyCpmOptions());
+  eq('enkele pin boven capaciteit wordt gerapporteerd', over.unresolved[a.id], ['2026-06-01']);
+  const zeroStart = task('pin-zero', '2026-06-01', '2026-06-08', 6, { priority: 1000 });
+  const zero = levelResources([a, zeroStart], [], [r],
+    [assign('pa', a.id, r.id, 2), assign('pz', zeroStart.id, r.id, 1, 'BACK_LOADED')], PROJECT_CAL, [],
+    stubCpmResult('2026-06-08'), { constrainToFloat: false }, legacyCpmOptions());
+  ok('pin met nulvraag op maandag erft andermans maandagconflict niet',
+    !zero.unresolved[zeroStart.id]?.includes('2026-06-01'));
+
+}
+
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  leveler-seam: alle checks groen (${checks})`);

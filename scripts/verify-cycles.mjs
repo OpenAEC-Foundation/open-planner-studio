@@ -26,7 +26,14 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..');
 
 const result = await esbuild.build({
-  entryPoints: [join(root, 'src', 'main.tsx')],
+  // De app, de headless MCP-server (issue #570: bundelt app-code buiten `main.tsx` om) en de proxy
+  // van de Claude Desktop-bundel (#567).
+  entryPoints: [
+    join(root, 'src', 'main.tsx'),
+    join(root, 'headless', 'mcp-server', 'src', 'main.ts'),
+    join(root, 'integrations', 'claude-desktop', 'src', 'main.ts'),
+  ],
+  outdir: join(root, 'node_modules', '.cache', 'ops-verify-cycles'),
   bundle: true,
   write: false,
   metafile: true,
@@ -48,6 +55,8 @@ const result = await esbuild.build({
     setup(build) {
       // `import x from './y.ttf?url'` (Vite-specifiek) resolvet esbuild niet; markeer als extern.
       build.onResolve({ filter: /\?url$/ }, (args) => ({ path: args.path, external: true }));
+      // De virtuele module met ingebedde teksten van de MCP-serverbouw (scripts/build-mcp-server.mjs).
+      build.onResolve({ filter: /^ops:/ }, (args) => ({ path: args.path, external: true }));
     },
   }],
   define: {
@@ -60,7 +69,8 @@ const result = await esbuild.build({
 });
 
 // Graaf beperken tot onze eigen bronbestanden.
-const isOwn = (p) => p.startsWith('src/') && !p.includes('node_modules');
+const isOwn = (p) => (p.startsWith('src/') || p.startsWith('headless/mcp-server/src/') || p.startsWith('integrations/'))
+  && !p.includes('node_modules');
 const graph = new Map();
 for (const [file, info] of Object.entries(result.metafile.inputs)) {
   if (!isOwn(file)) continue;
@@ -110,7 +120,7 @@ for (const start of graph.keys()) {
 
 const moduleCount = graph.size;
 if (cycles.length === 0) {
-  console.log(`OK — geen circulaire imports in ${moduleCount} modules onder src/.`);
+  console.log(`OK — geen circulaire imports in ${moduleCount} modules onder src/ en headless/mcp-server/src/.`);
   process.exit(0);
 }
 

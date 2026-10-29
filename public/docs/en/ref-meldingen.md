@@ -22,7 +22,7 @@ The bar at the bottom shows, from left to right:
 - **Selection: N task(s)** — the number of selected tasks; only visible with a selection.
 - **Scale:** and **Zoom: Npx/day** — the time scale of the timeline and the zoom level. The scale follows from the zoom.
 - **Unsaved** — as long as the document has changes that are not in the file.
-- **AI** — a coloured dot with the word AI, only when AI mode is on. The tooltip says *AI bridge:* with *Off*, *Live on port N*, *Port N in use* or *Error*. A click opens the *AI* tab.
+- **MCP** — a coloured dot with the word MCP, only when the MCP connection is on. The tooltip says *MCP bridge:* with *Off*, *Live on port N*, *Port N in use* or *Error*. A click opens the *MCP* tab.
 - **Debug terminal** — a terminal button, only when the debug terminal is enabled; it shows or hides the terminal (*Show debug terminal* / *Hide debug terminal*).
 
 ## The Warnings panel
@@ -61,7 +61,6 @@ A strip sits directly under the ribbon, above the workspace. It has a text and o
 
 - **Link mode** — *Link mode: drag from one bar to another in the Gantt to create a relation. Press Esc to stop.* It stays as long as link mode is on. Button: *Stop*. See [Adding relations](docs://howto-relaties-leggen).
 - **Split mode** — *Click a bar on the day the break starts and drag right for its length. Press Esc to stop.* It stays as long as *Split task* is on. Button: *Stop*.
-- **Hour planning in the file** — *This file contains hour-based planning.* It appears when an opened file contains hour planning while *Enable hour planning* is off. Button: *Enable hour planning*. See [Turning on hour planning](docs://howto-urenplanning-aanzetten).
 - **Structure locked** — *Not available while filtering/grouping/sorting*. It appears when indenting or outdenting is refused because the task list is filtered, grouped or sorted. Button: *Clear*, which removes the filter, grouping and sorting.
 - **Dates as recorded** — after opening a file where recalculating moved dates: *Recalculation moved N of M tasks away from the dates in the file.* with the button *Show recorded dates*. While the view is on: *You're viewing the dates as recorded in the file …* with the button *Recalculate*. See [Dates as recorded](docs://uitleg-datums-zoals-opgeslagen).
 
@@ -90,7 +89,7 @@ The list below is a selection, grouped by topic. Where it does not say otherwise
 - **Recovery** (error) — *Recovered file could not be read*, *Restore failed* and *N recovery files could not be loaded and were skipped.* When recovering after an unexpected shutdown.
 - **Branch saved as template** (info) — *Branch saved as template '{name}'*.
 - **Message from an extension** (info, or error if the extension reports an error) — *Extension {name}: {message}*. An extension may show at most three new ones per 10 seconds, so it does not fill the stack. If a step of an extension's guide fails, it says *A step from the extension {name} failed. The guide continues.*, and if a project file of an extension cannot be opened, *The project file {file} from the extension {name} could not be opened.* Both are errors.
-- **A change came in between** (error) — *A change by the AI assistant or an extension came in between. …* When you cancel the task dialog while the AI or an extension changed something in the meantime: the task edits from before that change are not reverted and remain as ordinary steps under *Undo*.
+- **A change came in between** (error) — *A change by the MCP client or an extension came in between. …* When you cancel the task dialog while the MCP client or an extension changed something in the meantime: the task edits from before that change are not reverted and remain as ordinary steps under *Undo*.
 
 ### Calculating
 

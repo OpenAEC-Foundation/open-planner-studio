@@ -92,7 +92,7 @@ async function exportCaptured(format: 'p6' | 'ifc'): Promise<{ text: string; nam
 async function openInStore(name: string, input: { text: string } | { bytes: Uint8Array }): Promise<string[]> {
   const parsed = await parseOpenedFile({ name, ...input });
   S().newProject();
-  const outcome = S().applyOpenedImport(parsed, { filePath: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: true });
+  const outcome = S().applyOpenedImport(parsed, { filePath: null, recompute: true, fit: false, linkedOpen: true });
   return outcome.documentIds;
 }
 

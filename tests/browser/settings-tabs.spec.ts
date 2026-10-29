@@ -33,14 +33,13 @@ const SECTION_HEADINGS: RegExp[][] = [
   ],
   [
     /^(Construction mode|Bouwmodus)$/,
-    /^(Hour planning|Urenplanning)$/,
     /^(Week starts on|Week begint op)$/,
     /^(Calculation|Berekenen)$/,
   ],
   [
     // Uitleg na het openen van een ander formaat dan IFC (FormatNoticeDialog), per formaat aan/uit.
     /^(Show an explanation after opening|Uitleg tonen na het openen van)$/,
-    /^(AI mode|AI-modus)$/,
+    /^(MCP connection|MCP-koppeling)$/,
     /^(Debug terminal|Debug-terminal)$/,
     /^Benchmark$/,
     /^(Statistics|Statistieken)$/,
@@ -66,6 +65,26 @@ async function assertThreeTabsAndSections(container: Locator): Promise<void> {
     // Scopen op directe kinderen: de theme-kaartjes (Weergave → Thema) hebben zelf ook een <h4>
     // per kleurstaal, die géén sectiekop is en dus niet mag meetellen.
     if (i === 0) {
+      const duration = container.getByRole('button', { name: /^(Duration display|Duurweergave)$/, exact: true });
+      const page = container.page();
+      await page.evaluate(() => window.__OPS__!.store.getState().setProject({
+        schedulingProfile: { baseId: 'ops', id: 'ops', name: '', overrides: {} },
+      }));
+      await expect(duration).toBeDisabled();
+      if (container.locator('.modal-close-btn') && await container.locator('.modal-close-btn').count()) {
+        for (const uiTheme of ['light', 'dark'] as const) {
+          await page.evaluate(theme => window.__OPS__!.store.getState().setUI({ uiTheme: theme }), uiTheme);
+          await duration.locator('xpath=..').screenshot({ path: `artifacts/uren-f4a/duurweergave-ops-${uiTheme}.png` });
+        }
+      }
+      await expect(container.getByText(/^(In the OPS profile, each task shows its own unit\.|In het OPS-profiel toont elke taak zijn eigen maat\.)$/)).toBeVisible();
+      await page.evaluate(() => window.__OPS__!.store.getState().setProject({
+        schedulingProfile: { baseId: 'p6', id: 'p6', name: '', overrides: {} },
+      }));
+      await expect(duration).toBeEnabled();
+      await duration.click();
+      await page.getByRole('option', { name: /^(Always hours|Altijd uren)$/, exact: true }).click();
+      await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.durationDisplay)).toBe('hours');
       await expect(container.getByText(
         /^(Alleen voor urentaken: balken opsplitsen rond pauzes en niet-werktijd\. Echte taakonderbrekingen blijven altijd zichtbaar\.|For hour tasks only: split bars around breaks and non-working time\. Actual task interruptions remain visible regardless of this setting\.)$/,
       )).toBeVisible();
@@ -106,6 +125,16 @@ async function enabledDemo(page: Page): Promise<boolean> {
 async function reloadSettingsApp(page: Page): Promise<void> {
   await page.reload();
   await waitForOps(page);
+  // `assertThreeTabsAndSections` wisselt het rekenprofiel (het document is dan gewijzigd), dus na de
+  // herlaad kan eerst het herstelvenster komen; de welkomst wacht daarop. Zelfde aanpak als
+  // `settleAfterReload` in site-storage.spec.ts.
+  const recovery = page.locator('[data-ops-recovery-dialog]');
+  const welcome = page.locator('[data-ops-welcome-dialog]');
+  await expect(recovery.or(welcome).first()).toBeAttached({ timeout: 15_000 });
+  if (await recovery.count() > 0) {
+    await recovery.getByRole('button', { name: /^(Don't restore|Niet herstellen)$/ }).click();
+    await expect(recovery).toHaveCount(0);
+  }
   await waitForWelcomeDialog(page);
   await page.evaluate(() => {
     window.__OPS__!.store.getState().setUI({ showWelcomeDialog: false, showTourOverlay: false });

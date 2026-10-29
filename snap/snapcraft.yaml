@@ -1,7 +1,7 @@
 name: open-planner-studio
 base: core22
 # Versie wordt in CI overschreven met het release-versienummer (zie .github/workflows/snap.yml).
-version: '2026.10.0'
+version: '2026.43.0'
 title: Open Planner Studio
 summary: Construction scheduling with Gantt charts and Critical Path Method
 description: |

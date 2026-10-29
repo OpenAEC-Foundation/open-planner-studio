@@ -6,14 +6,15 @@
 //
 // Start de app NIET zelf; dat doet `tests/mcp/realApp/run.sh` (xvfb + `npm run tauri:dev`).
 // Geen cases-*.ts: `tests/mcp/run.sh` mag hem niet oppikken, want hij heeft een draaiende app nodig.
-import { test, run } from '../harness';
-import { readFileSync, writeFileSync, renameSync, existsSync, rmSync } from 'node:fs';
+import { test, run, assert, assertEq } from '../harness';
+import { readFileSync, writeFileSync, renameSync, existsSync, rmSync, readdirSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DEFAULT_PROTOCOL_VERSION, MCP_INSTRUCTIONS, MCP_SERVER_NAME } from '@/services/mcp/dispatcher';
 import { getTools } from '@/services/mcp/toolRegistry';
 import { externalClientChecks, type AppProbe } from '../externalClient';
+import { readOpenFilesFile, readRuntimeFile, MCP_DISCOVERY_DIR } from '@/services/mcp/discoveryContract';
 
 const OPS_DIR = process.env.OPS_TEST_DIR ?? join(homedir(), '.local/share/org.openaec.planner/ops-test');
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
@@ -100,5 +101,69 @@ const checks = externalClientChecks({
   },
 });
 for (const check of checks) test(`echte app: ${check.name}`, check.fn);
+
+// Ontdekkingsbestanden voor de MCP-plugin (issue #570, `docs/mcp-ontdekking.md`). De dev-build schrijft
+// ze met de worktree-slug in de naam (`runtime.<slug>.json`); daarom zoeken we op voorvoegsel.
+const MCP_DIR = join(dirname(OPS_DIR), MCP_DISCOVERY_DIR);
+function discoveryFile(prefix: 'runtime' | 'open-files'): string | null {
+  if (!existsSync(MCP_DIR)) return null;
+  const names = readdirSync(MCP_DIR).filter((n) => n.startsWith(`${prefix}.`) && n.endsWith('.json'));
+  if (names.length > 1) throw new Error(`meer dan één ${prefix}-bestand: ${names.join(', ')}`);
+  return names.length ? join(MCP_DIR, names[0]) : null;
+}
+function pidAlive(pid: number): boolean {
+  try { process.kill(pid, 0); return true; } catch { return false; }
+}
+/** Wacht tot `check` slaagt (de app schrijft via een wachtrij, dus heel even later). */
+async function eventually(what: string, check: () => void): Promise<void> {
+  let last: unknown = null;
+  for (let i = 0; i < 50; i++) {
+    try { check(); return; } catch (error) { last = error; }
+    await sleep(200);
+  }
+  throw new Error(`${what}: ${last instanceof Error ? last.message : String(last)}`);
+}
+
+test('echte app: runtime.json beschrijft de draaiende bridge (poort, token, pid, versie, 0600)', async () => {
+  const live = await waitLive();
+  await eventually('runtime.json', () => {
+    const path = discoveryFile('runtime');
+    assert(path, `geen runtime-bestand in ${MCP_DIR}`);
+    const read = readRuntimeFile(readFileSync(path!, 'utf8'));
+    assert(read.status === 'valid', `runtime-bestand niet geldig volgens het contract: ${JSON.stringify(read)}`);
+    const file = read.status === 'valid' ? read.file : null;
+    assertEq([file!.port, file!.token, file!.appVersion], [live.port, live.token, APP_VERSION], 'poort, token en versie');
+    assert(pidAlive(file!.pid), `pid ${file!.pid} leeft niet`);
+    assertEq(statSync(path!).mode & 0o777, 0o600, 'rechten 0600');
+  });
+});
+
+test('echte app: open-files.json bestaat met hetzelfde pid en 0600', async () => {
+  await eventually('open-files.json', () => {
+    const path = discoveryFile('open-files');
+    assert(path, `geen register in ${MCP_DIR}`);
+    const read = readOpenFilesFile(readFileSync(path!, 'utf8'));
+    assert(read.status === 'valid', `register niet geldig volgens het contract: ${JSON.stringify(read)}`);
+    const file = read.status === 'valid' ? read.file : null;
+    assert(pidAlive(file!.pid), `pid ${file!.pid} leeft niet`);
+    // Twee levende processen zijn niet noodzakelijk dezelfde app (knownbug 212).
+    const runtimePath = discoveryFile('runtime');
+    assert(runtimePath, `geen runtime-bestand in ${MCP_DIR}`);
+    const runtime = readRuntimeFile(readFileSync(runtimePath!, 'utf8'));
+    assert(runtime.status === 'valid', 'runtime-bestand niet geldig voor de pid-vergelijking');
+    const runtimeFile = runtime.status === 'valid' ? runtime.file : null;
+    assertEq(file!.pid, runtimeFile!.pid, 'open-files en runtime horen bij hetzelfde proces');
+    assertEq(file!.appVersion, APP_VERSION, 'versie');
+    assertEq(statSync(path!).mode & 0o777, 0o600, 'rechten 0600');
+  });
+});
+
+test('echte app: stoppen van de bridge verwijdert runtime.json; het register blijft', async () => {
+  await ops('mcpStop');
+  await eventually('runtime.json weg', () => {
+    assertEq(discoveryFile('runtime'), null, 'runtime-bestand na stop');
+    assert(discoveryFile('open-files'), 'register blijft staan zolang de app draait');
+  });
+});
 
 await run();

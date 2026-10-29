@@ -88,7 +88,7 @@ store().applyOpenedImport({
   project, calendar,
   tasks: [{ id: 'x9-task', name: 'X9 taak', parentId: null, childIds: [], time: createDefaultTaskTime('2032-01-05', 1) } as unknown as Task],
   sequences: [], resources: [], assignments: [], xerSourceArchive: archive, xer,
-}, { filePath: null, fileHandle: null, recompute: false, fit: false, hourDataNotice: false, linkedOpen: false });
+}, { filePath: null, fileHandle: null, recompute: false, fit: false, linkedOpen: false });
 for (let index = 0; index < 11; index += 1) store().duplicateDocument();
 const twelve = store().getOpenDocumentPayloads();
 store().duplicateDocument();

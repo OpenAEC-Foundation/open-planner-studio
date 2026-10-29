@@ -4,9 +4,9 @@ Het lint bovenin het scherm heeft tabbladen, en elk tabblad heeft groepen met kn
 
 ## Hoe het lint zich gedraagt
 
-- **Tabbladen** — links staat *Bestand*, daarna *Start*, *Planning*, *Resources*, *Beeld*, *Instellingen*, *Tabel*, *IFC*, *Rapport* en, alleen met AI-modus, *AI*.
+- **Tabbladen** — links staat *Bestand*, daarna *Start*, *Planning*, *Resources*, *Beeld*, *Instellingen*, *Tabel*, *IFC*, *Rapport* en, alleen met de MCP-koppeling aan, *MCP*.
 - **Smal venster** — past het lint niet, dan krimpen knoppen van rechts naar links tot een icoon. De naam staat dan als tooltip op de knop. Elke knop zonder eigen tooltip toont zijn naam.
-- **Lint inklappen** — het pijltje rechtsonder in het lint maakt er een platte strip van, met alleen iconen. De groep *Baselines & voortgang* en de groep *Verbinding* op het AI-tabblad verdwijnen dan achter één knop met een uitklapvenster. Standaard: uitgeklapt. De keuze blijft bewaard.
+- **Lint inklappen** — het pijltje rechtsonder in het lint maakt er een platte strip van, met alleen iconen. De groep *Baselines & voortgang* en de groep *Verbinding* op het MCP-tabblad verdwijnen dan achter één knop met een uitklapvenster. Standaard: uitgeklapt. De keuze blijft bewaard.
 - **Extensieknoppen** — een extensie kan achteraan een tabblad een eigen groep zetten. Zo'n knop doet wat de extensie hem meegeeft.
 
 ## Bestand
@@ -46,7 +46,7 @@ Klik je op *Bestand*, dan neemt een eigen scherm (de Backstage) de werkruimte ov
 
 ### Start › Taken
 
-- **Taak** — voegt een taak toe met de naam *Nieuwe taak*, met een duur van 5 werkdagen en beginnend op de projectstart. (Staat *Urenplanning inschakelen* aan en is de *Standaardeenheid voor nieuwe taken* in *Projectinstellingen* uren, dan is de duur 5 uur.) Is er een taak geselecteerd en staat de weergave in de gewone boom, dan komt hij direct onder de onderste geselecteerde taak (tooltip *Nieuwe taak direct onder de selectie*). Is er geen selectie, dan komt hij onderaan (tooltip *Nieuwe taak onderaan de lijst*). Is er wel een selectie maar wordt er gefilterd, gegroepeerd of gesorteerd, dan komt hij ook onderaan. Een rode melding zegt dan dat de app hem niet onder je selectie kan zetten, met de knop *Wissen*. De nieuwe taak wordt de enige selectie, de Gantt springt ernaartoe en de naam staat klaar om te overschrijven in het paneel *Eigenschappen*.
+- **Taak** — voegt een taak toe met de naam *Nieuwe taak*, met een duur van 5 werkdagen en beginnend op de projectstart. (Koos je bij *Standaardmaat voor nieuwe taken* in *Projectinstellingen* de *Urenmaat*, dan is de duur 5 uur. Onder het P6- en het MSP-profiel zijn het 5 werkdagen in uren.) Is er een taak geselecteerd en staat de weergave in de gewone boom, dan komt hij direct onder de onderste geselecteerde taak (tooltip *Nieuwe taak direct onder de selectie*). Is er geen selectie, dan komt hij onderaan (tooltip *Nieuwe taak onderaan de lijst*). Is er wel een selectie maar wordt er gefilterd, gegroepeerd of gesorteerd, dan komt hij ook onderaan. Een rode melding zegt dan dat de app hem niet onder je selectie kan zetten, met de knop *Wissen*. De nieuwe taak wordt de enige selectie, de Gantt springt ernaartoe en de naam staat klaar om te overschrijven in het paneel *Eigenschappen*.
 - **Mijlpaal ▾** — keuzemenu dat een mijlpaal (duur 0) op dezelfde plek zet als *Taak*. *Startmijlpaal* en *Eindmijlpaal* zetten de soort mijlpaal; de nieuwe mijlpaal heet *Nieuwe mijlpaal* en krijgt werksoort *Overig*. *Inspectiemoment (verplicht)* maakt een eindmijlpaal met werksoort *Keuring/Inspectie* en de vlag *Verplicht (contractueel)*, met de naam *Nieuw inspectiemoment*.
 - **Relatie ▾** — keuzemenu met vier vaste acties; de hoofdknop verandert nooit van betekenis. Zie *Planning › Relaties* voor de vier acties.
 - **Taak splitsen** — zet de splits-modus aan of uit. Aan: een strook onder het lint legt uit dat je op een balk klikt waar de onderbreking begint en naar rechts sleept voor de lengte. Uitgeschakeld als de Gantt niet in beeld is (op de tabbladen *Tabel*, *IFC*, *Rapport* en onder het volledige resourcepaneel); de tooltip zegt dan *Alleen beschikbaar als de Gantt in beeld is*. Zie [Een taak splitsen](docs://howto-taak-splitsen).
@@ -148,7 +148,7 @@ Deze groep staat ook op *Tabel* en *Rapport*.
 - **Zoomen +** en **Zoomen -** — zoomen de tijdas 10 pixels per dag in of uit.
 - **Herstellen** — zet de zoom terug op de standaard van 30 pixels per dag.
 - **Passend maken op project** — zoomt en scrolt zodat het hele project in beeld past.
-- **Schaalkeuze** — een keuzelijst met *Jaar*, *Kwartaal*, *Maand*, *Week*, *Dag* en, alleen met *Urenplanning inschakelen* aan, *Uur*. Een keuze zet een vaste zoom; de getoonde waarde volgt de huidige zoom, en eronder staat die zoom in pixels per dag.
+- **Schaalkeuze** — een keuzelijst met *Jaar*, *Kwartaal*, *Maand*, *Week*, *Dag* en *Uur*. Een keuze zet een vaste zoom; de getoonde waarde volgt de huidige zoom, en eronder staat die zoom in pixels per dag.
 
 ### Beeld › Weergave
 
@@ -229,28 +229,28 @@ Het tabblad toont in de werkruimte het IFC-paneel. Het lint heeft hier geen knop
 
 - **Afdruk** — staat alleen op dit tabblad en doet hier niets, omdat *Rapport* al open is; de rapportkeuzes staan in het rapportscherm.
 
-## AI
+## MCP
 
-Het tabblad *AI* bestaat alleen als *AI-modus inschakelen* aan staat (*App-instellingen*, tabblad *Geavanceerd*, kop *AI-modus*). Standaard: uit. Uitzetten haalt het tabblad weg en stopt de bridge. Een AI-assistent werkt met je planning via een MCP-bridge die je hier start. Zie [Een AI-assistent koppelen (MCP)](docs://howto-ai-assistent-koppelen).
+Het tabblad *MCP* bestaat alleen als *MCP-koppeling toestaan* aan staat (*App-instellingen*, tabblad *Geavanceerd*, kop *MCP-koppeling*). Standaard: uit. Uitzetten haalt het tabblad weg en stopt de bridge. Een MCP-client werkt met je planning via een MCP-bridge die je hier start. Zie [Een MCP-client koppelen](docs://howto-ai-assistent-koppelen).
 
-### AI › Server
+### MCP › Server
 
-- **Bridge starten** en **Bridge stoppen** — start of stopt de MCP-bridge. Ernaast staat de status: *Uit*, *Actief op poort …*, *Poort … bezet* (met de reden) of *Fout*. Uitgeschakeld in de webversie; de tooltip zegt *De bridge werkt alleen in de desktop-app.* Dezelfde status staat als bolletje met *AI* in de statusbalk.
+- **Bridge starten** en **Bridge stoppen** — start of stopt de MCP-bridge. Ernaast staat de status: *Uit*, *Actief op poort …*, *Poort … bezet* (met de reden) of *Fout*. Uitgeschakeld in de webversie; de tooltip zegt *De bridge werkt alleen in de desktop-app.* Dezelfde status staat als bolletje met *MCP* in de statusbalk.
 
-### AI › Verbinding
+### MCP › Verbinding
 
 - **Poort** — de poort van de bridge. Standaard: 3877. Alleen te wijzigen als de status *Uit* is (tooltip *Alleen wijzigbaar wanneer de server gestopt is.*).
 - **Token** — het wachtwoord van de bridge, verborgen weergegeven. Kleine knoppen *Token tonen*/*Token verbergen*, *Kopiëren* en *Nieuw token*. *Nieuw token* vraagt eerst bevestiging, want een nieuw token verbreekt alle bestaande koppelingen; draait de bridge, dan herstart hij met het nieuwe token.
-- **Verbinden** — toont de verbindingsgegevens: endpoint, token, een configuratiefragment en een koppelprompt die je in je AI-agent plakt.
+- **Verbinden** — toont de verbindingsgegevens: endpoint, token, een configuratiefragment en een koppelprompt die je in je MCP-client plakt.
 
-### AI › Veiligheid
+### MCP › Veiligheid
 
-- **Pauzeren** / **Hervatten** — weigert tijdelijk alle wijzigingen door de AI; lezen blijft toegestaan en de bridge blijft actief. De knop licht rood op zolang het gepauzeerd is.
+- **Pauzeren** / **Hervatten** — weigert tijdelijk alle wijzigingen door de MCP-client; lezen blijft toegestaan en de bridge blijft actief. De knop licht rood op zolang het gepauzeerd is.
 - **Alleen lezen** — weigert alle wijzigende tools zolang dit aan staat.
-- **Auto-backup: aan** / **Auto-backup: uit** — maakt vóór de eerste AI-wijziging per document automatisch een IFC-backup. Standaard: aan.
+- **Auto-backup: aan** / **Auto-backup: uit** — maakt vóór de eerste MCP-wijziging per document automatisch een IFC-backup. Standaard: aan.
 - **Nu backup maken** — schrijft meteen een backup en meldt de bestandsnaam. Alleen in de desktop-app.
 - **Backup-map openen** — opent de map met de backups. Alleen in de desktop-app.
 
-### AI › Activiteit
+### MCP › Activiteit
 
-- **Activiteitenpaneel** — toont of verbergt het paneel *AI-activiteit* met de aanroepen van de bridge, met hun argumenten en antwoord.
+- **Activiteitenpaneel** — toont of verbergt het paneel *MCP-activiteit* met de aanroepen van de bridge, met hun argumenten en antwoord.

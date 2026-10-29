@@ -42,6 +42,7 @@ const ifc = doc.toIfc();              // IFC-tekst met de berekende datums
 | export | wat |
 |---|---|
 | `openIfc(text): Promise<PlannerDocument>` | Opent IFC-tekst zoals Bestand → Openen in de app (`openAsDocument`), zonder opslagdoel. Dat openen rekent al door, net als in de app (zie hieronder). |
+| `PlannerDocument.openWarnings: ScheduleWarning[]` | De waarschuwingen van het openen (`XER_ARCHIVE_DROPPED`, `MINUTE_MODEL_CONVERTED`), direct na `openIfc()`, dus ook vóór `toIfc()` zonder `schedule()`. Leeg als het openen niets te melden had. |
 | `PlannerDocument.schedule(): ScheduleSummary` | Draait `runCPM` op de store van dit document: dezelfde route als F5, met de werkregels en het rekenprofiel van het project. Geeft de samenvatting. |
 | `PlannerDocument.toIfc(): string` | Schrijft het document als IFC (`writeIFC(buildWriteIFCInput(...))`), in het IFC-schema van het project. |
 | `PlannerCoreError` | Het enige fouttype. Heeft `code` en `details`. |
@@ -55,6 +56,14 @@ uit het bestand tonen ("datums zoals opgeslagen", `docs`-rule `state`). `toIfc()
 `schedule()` rekent opnieuw door zoals F5 en verlaat die stand; daarna bevat `toIfc()` de berekende
 datums.
 
+**Een oud bestand wordt bij het openen omgerekend.** Een IFC zonder de markering `TimeModel` (van een
+oudere versie van de app) is niet in minuten berekend. Het openen rekent het om, net als in de app
+(besluit B5 in `docs/superpowers/specs/2026-10-20-alleen-uren-design.md`). Krijgen taken daardoor een
+ander begin of einde, dan staat dat meteen in `openWarnings` als `MINUTE_MODEL_CONVERTED`: `ids` zijn
+die taken, `maxShiftWorkdays` is de grootste verschuiving in werkdagen (één decimaal). De app meldt
+hetzelfde met een melding. `toIfc()` schrijft de nieuwe datums, met de markering. Een nieuw bestand
+meldt niets.
+
 De samenvatting (`formatVersion: 1`) bevat:
 
 - `project`: id, naam, rekenprofiel, start, berekend einde, duur in werkdagen;
@@ -64,10 +73,12 @@ De samenvatting (`formatVersion: 1`) bevat:
 - `criticalPath`: de taak-id's van het kritieke pad;
 - `warnings`: waarschuwingen van de berekening met een vaste code en de betrokken id's
   (`CONSTRAINT_VIOLATED`, `DEADLINE_MISSED`, `OUT_OF_SEQUENCE`, `CALENDAR_CAPPED`,
-  `RELATION_IGNORED`, `HAMMOCK_WITHOUT_FINISH_DRIVER`), plus één waarschuwing van het openen:
-  `XER_ARCHIVE_DROPPED`. Die komt als het bestand een P6-bronarchief (XER) had dat niet bruikbaar is.
-  De lezer laat het archief dan weg, en `toIfc()` schrijft het niet meer mee. `detail` geeft de
-  reden (`bytes-missing`, `hash-mismatch`, …); de app meldt hetzelfde verlies bij het openen.
+  `RELATION_IGNORED`, `HAMMOCK_WITHOUT_FINISH_DRIVER`), plus de waarschuwingen van het openen (ook in
+  `openWarnings`): `XER_ARCHIVE_DROPPED` en `MINUTE_MODEL_CONVERTED`. `XER_ARCHIVE_DROPPED` komt als
+  het bestand een P6-bronarchief (XER) had dat niet bruikbaar is. De lezer laat het archief dan weg,
+  en `toIfc()` schrijft het niet meer mee. `detail` geeft de reden (`bytes-missing`,
+  `hash-mismatch`, …); de app meldt hetzelfde verlies bij het openen. `MINUTE_MODEL_CONVERTED` staat
+  hierboven.
 
 Datums zijn ISO-8601-tekst zoals de app ze bewaart: een datum (`2027-03-01`) of, bij urenplanning,
 datum en tijd.
@@ -126,7 +137,7 @@ Het voorbeeld importeert alleen `@openaec/open-planner-core`, nooit code uit `sr
 
 | test | wat hij bewijst |
 |---|---|
-| `tests/planning/check-headless-core.ts` | Voor elk voorbeeld in `examples/` en `public/examples/` geeft de kern dezelfde datums, speling, kritieke vlag, projecteinde en kritiek pad als de app-store (`loadState` → `runCPM`). Verder: `toIfc` → `openIfc` geeft dezelfde datums, twee documenten zijn los, de foutcodes kloppen (ook 6.000 geneste taken geeft een `PlannerCoreError`), een weggelaten XER-archief geeft `XER_ARCHIVE_DROPPED`, en `toIfc()` vóór `schedule()` is gelijk aan de app na openen. |
+| `tests/planning/check-headless-core.ts` | Voor elk voorbeeld in `examples/` en `public/examples/` geeft de kern dezelfde datums, speling, kritieke vlag, projecteinde en kritiek pad als de app-store (`loadState` → `runCPM`). Verder: `toIfc` → `openIfc` geeft dezelfde datums, twee documenten zijn los, de foutcodes kloppen (ook 6.000 geneste taken geeft een `PlannerCoreError`), een weggelaten XER-archief geeft `XER_ARCHIVE_DROPPED`, `toIfc()` vóór `schedule()` is gelijk aan de app na openen, en een oud bestand meldt `MINUTE_MODEL_CONVERTED` in `openWarnings` (een nieuw bestand niet). |
 | `npm run verify:core-package` | Bouwt het pakket, maakt een tarball met `npm pack`, installeert die in een kopie van het consumeervoorbeeld, controleert `THIRD-PARTY-NOTICES.md`, draait het voorbeeld (verwachte uitkomst, herberekend IFC, foutcode) en typecheckt een kleine TypeScript-consument tegen de declaraties. |
 | `tests/planning/check-store-runtime-boundaries.ts` | De grens: een waarde-import uit `appStore` in `src/core/` maakt `verify:store-boundaries` rood. |
 
@@ -134,6 +145,8 @@ Het voorbeeld importeert alleen `@openaec/open-planner-core`, nooit code uit `sr
 
 - Geen andere invoerformaten (MSPDI, XER, `.mpp`, CSV). De lezers bestaan in de app; de kern
   biedt ze nog niet aan.
-- Geen bewerkingen op de planning (taken toevoegen, nivelleren). Daarvoor is de MCP-bridge van de
-  app (`planner_*`).
+- Geen bewerkingen op de planning (taken toevoegen, nivelleren). Daarvoor zijn er de `planner_*`-tools:
+  in de app via de MCP-koppeling, of zonder app via de [headless MCP-server](headless-mcp.md)
+  (`npm run build:mcp-server`). Die server deelt de grenscontrole van de bundel met deze kern
+  (`scripts/lib/headless-bundle.mjs`).
 - Geen native DLL of `.so`. Dat is een apart punt van issue #429.

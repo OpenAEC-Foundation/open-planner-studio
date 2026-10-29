@@ -7,6 +7,7 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { useEffectiveDurationDisplay, useProfileCountsWorkdays } from '@/hooks/useDurationMeasure';
 import { useAppStore } from '@/state/appStore';
 import { useResolvedUITheme } from '@/hooks/useResolvedUITheme';
 import { useDisplayDate } from '@/hooks/displayDate';
@@ -21,6 +22,7 @@ import { saveBranchAsWbsTemplate } from '@/utils/wbsTemplates';
 import { resolveUIFontStack } from '@/utils/uiFont';
 import { scopeTaskResources } from '@/utils/taskResourceScope';
 import { computeResourceLoad } from '@/engine/scheduler/ResourceLoad';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { MiniMap } from './MiniMap';
 import { parseDate, parseInstant } from '@/utils/dateUtils';
@@ -36,7 +38,9 @@ import { ContextMenu } from './ContextMenu';
 // als ÉÉN undo-stap. DOM-vrij afgezonderd zodat de regressiebatterij dezelfde functies draait.
 import { contextMenuOutlineScope, contextMenuBulk } from './contextMenuScope';
 import { addTaskAtEnd } from '@/state/taskInsertActions';
-import { createDefaultTaskTime } from '@/utils/taskDefaults';
+import { buildNewTask, createDefaultTaskTime, deriveScheduleDurationFromMinutes, seedNewHourTaskFinish } from '@/utils/taskDefaults';
+import { newTaskTimeUnit, settleNewTaskMeasure } from '@/state/newTaskMeasure';
+import { effHoursPerDay } from '@/utils/taskDuration';
 import { RelationTypePopover } from './RelationTypePopover';
 import { createRelationDraftWithFeedback } from '@/state/relationActions';
 // Hover-tooltip die zichzelf binnen het venster houdt (nodig zodra de titel wrapt).
@@ -120,8 +124,11 @@ export function GanttCanvas({
   const barSplitMode = useAppStore(s => s.ui.barSplitMode);
   // «Alleen werkbare dagen tonen» — globale weergavevoorkeur.
   const compressNonWorkdays = useAppStore(s => s.ui.compressNonWorkdays);
-  const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
-  const durationDisplay = useAppStore(s => s.ui.durationDisplay);
+
+  // B9: in een profiel met de dagenmaat toont elke taak haar eigen maat.
+  const durationDisplay = useEffectiveDurationDisplay();
+  // De maat van de split-as (F3c, §3.14): in de dagenmaat alleen als het profiel die zo telt.
+  const workdayDurationMeasure = useProfileCountsWorkdays();
   const view = useAppStore(s => s.view);
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
   const selectTask = useAppStore(s => s.selectTask);
@@ -211,6 +218,9 @@ export function GanttCanvas({
   const scheduleStale = useAppStore(s => s.scheduleStale);
   // Voortgang & baselines
   const statusDate = useAppStore(s => s.project.statusDate);
+  // De belasting van de selectie leest dezelfde maatconventie (het profiel) als de solver.
+  const schedulingProfile = useAppStore(s => s.project.schedulingProfile);
+  const projectSchedulingOptions = useAppStore(s => s.project.schedulingOptions);
   const showBaselineOverlay = useAppStore(s => s.ui.showBaselineOverlay);
   const showProgressLine = useAppStore(s => s.ui.showProgressLine);
   // Resource-accent + de bijbehorende resources/toewijzingen (zelfde bron als de histogram/
@@ -240,8 +250,9 @@ export function GanttCanvas({
       tasks,
       calendar,
       calendars,
+      effectiveSchedulingOptions({ schedulingProfile, schedulingOptions: projectSchedulingOptions }),
     );
-  }, [resourceLoadResult, scopedTaskResources, tasks, calendar, calendars]);
+  }, [resourceLoadResult, scopedTaskResources, tasks, calendar, calendars, schedulingProfile, projectSchedulingOptions]);
 
   // Een handmatig gekozen histogramresource blijft als voorkeur bewaard. Valt hij buiten de
   // tijdelijke taakcontext, dan is de samengevoegde scoped reeks het eerlijke alternatief.
@@ -263,7 +274,7 @@ export function GanttCanvas({
     showMiniMap,
     compressNonWorkdays,
     enableQuarterHourZoom,
-    enableHourPlanning,
+
     scrollMode,
     positionDivision,
     modifierMap,
@@ -395,11 +406,24 @@ export function GanttCanvas({
   // anker van de solver, dus de taak blijft na Berekenen op die datum staan.
   const addAtClickedDate = (milestone: boolean) => {
     const date = pointer.contextMenu?.clickDate;
-    addTaskAtEnd({
+    const partial = {
       name: milestone ? defaultMilestoneName : defaultTaskName,
       ...(milestone ? { isMilestone: true, milestoneKind: 'FINISH' as const, taskType: 'USERDEFINED' as const } : {}),
-      ...(date ? { time: createDefaultTaskTime(date, milestone ? 0 : 5, 'days', calendar) } : {}),
-    });
+    };
+    if (!date) { addTaskAtEnd(partial); return; }
+    // Een mijlpaal houdt het dagenpad: start en einde normaliseren dan naar hetzelfde moment. Met de
+    // urenmaat kreeg het einde 00:00 en de start het dageinde, en raakte geen klik de ruit (review #702).
+    if (milestone) { addTaskAtEnd({ ...partial, time: createDefaultTaskTime(date, 0, 'days', calendar) }); return; }
+    // De klik kiest alleen de start, niet een expliciete dagenmaat. Gebruik dezelfde standaard-
+    // en omzettingsregels als addTask, vóór de volledige tijd aan de store wordt doorgegeven.
+    const state = useAppStore.getState();
+    const task = buildNewTask(partial, { id: '', parentId: null, parentTask: undefined, constructionMode: state.ui.constructionMode,
+      time: createDefaultTaskTime(date, milestone ? 0 : 5, newTaskTimeUnit(state.project), calendar) });
+    const hoursPerDay = effHoursPerDay(calendar);
+    deriveScheduleDurationFromMinutes(task.time, hoursPerDay);
+    settleNewTaskMeasure(task, state.project, false, hoursPerDay);
+    seedNewHourTaskFinish(task, undefined, calendar);
+    addTaskAtEnd({ ...partial, time: task.time });
   };
   const revealTaskIfOffscreen = useCallback((task: Task) => {
     const canvas = canvasRef.current;
@@ -475,7 +499,8 @@ export function GanttCanvas({
     splitMode,
     scrollMode,
     enableQuarterHourZoom,
-    enableHourPlanning,
+    workdayDurationMeasure,
+
     compressNonWorkdays,
     selectTask,
     selectTasks,
@@ -618,8 +643,9 @@ export function GanttCanvas({
     enableQuarterHourZoom,
     effectiveCalById,
     barSplitMode,
-    enableHourPlanning,
+
     durationDisplay,
+    workdayDurationMeasure,
     durationSuffixes,
     externalStaleLabel: tTask('externalLinks.stale'),
     durationDrag,
@@ -630,7 +656,7 @@ export function GanttCanvas({
     axis: sharedAxis,
     fontFamily: canvasFontFamily,
     fontScale,
-  }), [viewRows, sequences, calendar, effectiveView, selectedTaskIds, cpmResult, statusDate, showStatusDateLine, showProgressLine, showResourceAccent, showFloatBand, barColorSelection, activityCodeTypes, customFieldDefs, taskTypeLabels, resources, assignments, showBaselineOverlay, baselineOverlay, trace, rowHeight, headerHeight, localizedMonths, localizedWeekdays, weekStartDay, timeNotation, dateNotation, enableQuarterHourZoom, effectiveCalById, barSplitMode, enableHourPlanning, durationDisplay, durationSuffixes, tTask, durationDrag, uiTheme, compressNonWorkdays, sharedAxis, canvasFontFamily, fontScale]);
+  }), [viewRows, sequences, calendar, effectiveView, selectedTaskIds, cpmResult, statusDate, showStatusDateLine, showProgressLine, showResourceAccent, showFloatBand, barColorSelection, activityCodeTypes, customFieldDefs, taskTypeLabels, resources, assignments, showBaselineOverlay, baselineOverlay, trace, rowHeight, headerHeight, localizedMonths, localizedWeekdays, weekStartDay, timeNotation, dateNotation, enableQuarterHourZoom, effectiveCalById, barSplitMode, durationDisplay, workdayDurationMeasure, durationSuffixes, tTask, durationDrag, uiTheme, compressNonWorkdays, sharedAxis, canvasFontFamily, fontScale]);
 
   // Secondary houdt exact zijn eigen zoom/scrollX en deelt rows/scrollY met primary.
   const secondaryRenderInput = useMemo<GanttRenderOptionsSourceInput | undefined>(() => (
@@ -672,8 +698,9 @@ export function GanttCanvas({
       barSplitMode,
       // De taaktabel ontbreekt hier, maar de tijdas is een volledig tweede viewport en moet
       // dezelfde uren-/kwartier-tiers tonen als het primaire paneel.
-      enableHourPlanning,
+
       durationDisplay: undefined,
+      workdayDurationMeasure,
       durationSuffixes: undefined,
       externalStaleLabel: tTask('externalLinks.stale'),
       durationDrag: undefined,
@@ -686,7 +713,7 @@ export function GanttCanvas({
       fontFamily: canvasFontFamily,
       fontScale,
     } : undefined
-  ), [splitView, viewRows, sequences, calendar, effectiveView, selectedTaskIds, cpmResult, statusDate, showStatusDateLine, showProgressLine, showResourceAccent, showFloatBand, barColorSelection, activityCodeTypes, customFieldDefs, taskTypeLabels, resources, assignments, showBaselineOverlay, baselineOverlay, trace, rowHeight, headerHeight, localizedMonths, localizedWeekdays, weekStartDay, timeNotation, dateNotation, enableQuarterHourZoom, effectiveCalById, barSplitMode, enableHourPlanning, tTask, uiTheme, compressNonWorkdays, canvasFontFamily, fontScale]);
+  ), [splitView, viewRows, sequences, calendar, effectiveView, selectedTaskIds, cpmResult, statusDate, showStatusDateLine, showProgressLine, showResourceAccent, showFloatBand, barColorSelection, activityCodeTypes, customFieldDefs, taskTypeLabels, resources, assignments, showBaselineOverlay, baselineOverlay, trace, rowHeight, headerHeight, localizedMonths, localizedWeekdays, weekStartDay, timeNotation, dateNotation, enableQuarterHourZoom, effectiveCalById, barSplitMode, workdayDurationMeasure, tTask, uiTheme, compressNonWorkdays, canvasFontFamily, fontScale]);
 
   useGanttRendererHost({
     containers: {
@@ -917,7 +944,7 @@ export function GanttCanvas({
           >
             {splitOverlay.gapUnits > 0
               ? tTask(splitOverlay.hourMode ? 'split.gapHours' : 'split.gapDays', { count: splitOverlay.gapUnits })
-              : (splitOverlay.hourMode ? displayDateFormat.dateTime(splitOverlay.atIso) : displayDateFormat.date(splitOverlay.atIso))}
+              : displayDateFormat.dateTime(splitOverlay.atIso)}
           </div>
         )}
 

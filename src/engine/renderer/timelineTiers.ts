@@ -19,7 +19,7 @@ export const TIMESCALE_ZOOM: Record<TimeScale, number> = {
   hour: 1000,
 };
 
-/** Maximum zonder de expliciete kwartierinstelling: dagweergave blijft de fijnste schaal. */
+/** Grens tussen dagzoom en uurzoom. */
 export const MAX_DAY_ZOOM = 400;
 /** Uurweergave zonder kwartierlabels: één uurcel is bij 1000px/dag breed genoeg voor `08:00`. */
 export const MAX_HOUR_ZOOM = 1000;
@@ -29,25 +29,17 @@ export const MAX_HOUR_ZOOM = 1000;
  */
 export const MAX_QUARTER_HOUR_ZOOM = 4000;
 
-export function maxGanttZoom(enableQuarterHourZoom: boolean, enableHourPlanning = false): number {
-  if (enableQuarterHourZoom) return MAX_QUARTER_HOUR_ZOOM;
-  return enableHourPlanning ? MAX_HOUR_ZOOM : MAX_DAY_ZOOM;
+export function maxGanttZoom(enableQuarterHourZoom: boolean): number {
+  return enableQuarterHourZoom ? MAX_QUARTER_HOUR_ZOOM : MAX_HOUR_ZOOM;
 }
 
-/**
- * Leidt de getoonde tijdschaal af uit de zoom. Leest dezelfde banden als `pickTiers`.
- * De 'hour'-schaal verschijnt ALLEEN als `hourPlanningEnabled` (de hoofdschakelaar
- * Urenplanning) aan staat; anders blijft de reeks dag-granulair (label 'day' bij
- * ver inzoomen). De uur/kwartier-tiers zelf worden nog steeds door `pickTiers` getekend — dit raakt
- * alleen het schaal-LABEL (dropdown + statusbalk).
- */
-export function scaleFromZoom(zoom: number, hourPlanningEnabled = false): TimeScale {
+/** De schaalnaam volgt dezelfde vaste zoomgrenzen als de tijdkop. */
+export function scaleFromZoom(zoom: number): TimeScale {
   if (zoom < 4) return 'year';
   if (zoom < 10) return 'quarter';
   if (zoom < 25) return 'month';
   if (zoom < 80) return 'week';
-  if (hourPlanningEnabled && zoom >= 300) return 'hour';
-  return 'day'; // >=80: dag/uur-tiers; label 'day' tenzij urenplanning aan én ver ingezoomd
+  return zoom < MAX_DAY_ZOOM ? 'day' : 'hour';
 }
 
 export type TimelineTier =
@@ -86,12 +78,11 @@ export const TIER_CONFIG: Record<TimelineTier, TierConfig> = {
  * als enableQuarterHour aan staat.
  * In de dagweergave-band (25≤zoom<80) wordt een `mid`-tier ('week') meegegeven, zodat
  * weeknummers als extra middenrij tussen maand en dag getekend worden. De andere banden hebben
- * geen `mid`, behalve de dag-granulaire band ≥80 zonder urenplanning (zie daar).
+ * geen `mid`, behalve de dagband tot zoom 400 (zie daar).
  */
 export function pickTiers(
   zoom: number,
-  enableQuarterHour: boolean,
-  enableHourTiers = false
+  enableQuarterHour: boolean
 ): { major: TimelineTier; mid?: TimelineTier; minor: TimelineTier } {
   if (zoom < 4) return { major: 'year', minor: 'quarter' };
   // Geen year/month: het maandlabel bevat het jaartal al ('Jul 2026'), dus een jaar-rij is
@@ -102,14 +93,8 @@ export function pickTiers(
   if (zoom < 25) return { major: 'month', minor: 'week' };
   // Dagweergave — voeg de weeknummer-middenrij toe (mid:'week').
   if (zoom < 80) return { major: 'month', mid: 'week', minor: 'day' };
-  // Geen fontsprong naar de uurband zonder urenplanning: zonder de hoofdschakelaar Urenplanning
-  // blijft de band ≥80 dag-granulair: dezelfde 3-rijen-opbouw als 25–80 (month/week/day), zodat de
-  // daglabels klein onderaan blijven i.p.v. bold naar de major-rij
-  // te verspringen — én er geen lege uur-rij ontstaat (uurlabels passen fysiek niet: een uurcel is
-  // zoom/24 px, pas bij extreme zoom breed genoeg voor minLabelWidth 28). Pas met urenplanning aan
-  // geldt het uur-gedrag: day/hour, resp. hour/quarterHour bij kwartier-zoom.
-  if (!enableHourTiers) return { major: 'month', mid: 'week', minor: 'day' };
-  if (zoom < 400 || !enableQuarterHour) return { major: 'day', minor: 'hour' };
+  if (zoom < MAX_DAY_ZOOM) return { major: 'month', mid: 'week', minor: 'day' };
+  if (zoom < MAX_HOUR_ZOOM || !enableQuarterHour) return { major: 'day', minor: 'hour' };
   return { major: 'hour', minor: 'quarterHour' };
 }
 

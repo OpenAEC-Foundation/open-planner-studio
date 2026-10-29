@@ -11,8 +11,9 @@
   },
   "notifications": {
     "dismiss": "Cerrar notificación",
-    "taskEditRevertBlocked": "Un cambio del asistente de IA o de una extensión se produjo entremedias. Las modificaciones de la tarea anteriores no se revirtieron y quedan como pasos normales en Deshacer.",
+    "taskEditRevertBlocked": "Un cambio del cliente MCP o de una extensión se produjo entretanto. Las modificaciones de tarea anteriores no se revirtieron y quedan como pasos normales en «Deshacer».",
     "openFailed": "No se pudo abrir el archivo",
+    "csvInvalidDate": "CSV no abierto: fecha no reconocida «{{value}}» en la fila CSV {{row}}, columna «{{column}}». Use aaaa-mm-dd, dd-mm-aaaa o dd/mm/aaaa.",
     "extGuideCallbackFailed": "Un paso de la extensión {{name}} ha fallado. La guía continúa.",
     "extHelpProjectOpenFailed": "No se pudo abrir el archivo de proyecto {{file}} de la extensión {{name}}.",
     "extImportFailed": "La importación con {{name}} ha fallado.",
@@ -91,6 +92,8 @@
     "browserCannotOverwrite": "Este navegador no permite que la aplicación vuelva a escribir en «{{name}}». Por eso la aplicación pregunta de nuevo dónde guardar el archivo cada vez que guardas. Esto no ocurre en Chrome, Edge ni en la aplicación de escritorio.",
     "browserSavesAsDownload": "Guardado como descarga: «{{name}}» está en tu carpeta de descargas. Este navegador no permite que la aplicación escriba en una ubicación propia, así que cada guardado crea una descarga nueva. En Chrome, Edge o la aplicación de escritorio, Guardar simplemente actualiza el mismo archivo.",
     "autoSaveFailed": "Error de guardado automático",
+    "recoveryManifestBlocked": "Los datos de recuperación tienen una versión desconocida o una estructura no válida. Esta aplicación no los modifica y no puede leer ni actualizar este conjunto de recuperación. Pruebe la versión de la aplicación que creó las copias o una versión más reciente. Guarde el trabajo nuevo usted mismo.",
+    "recoveryStorageBlocked": "El almacenamiento de recuperación está bloqueado temporalmente por otra conexión abierta. Las copias existentes se conservan; esta página no crea nuevas copias de recuperación. Guarde su trabajo usted mismo, cierre otras pestañas con esta aplicación y vuelva a cargar esta página para intentar la recuperación de nuevo.",
     "recoveryReadFailed": "No se pudo leer el archivo recuperado",
     "recoveryRestoreFailed": "No se pudo restaurar",
     "recoveryDocumentsSkipped_one": "{{count}} archivo de recuperación no se pudo cargar y se omitió.",
@@ -156,7 +159,13 @@
     "referencesClearedOnPaste_many": "{{count}} de referencias no existían en este documento y se han borrado (calendarios de tarea, categorías de trabajo personalizadas, códigos de actividad o campos personalizados del documento de origen).",
     "referencesClearedOnPaste_other": "{{count}} referencias no existían en este documento y se han borrado (calendarios de tarea, categorías de trabajo personalizadas, códigos de actividad o campos personalizados del documento de origen).",
     "milestoneRefusedAssignments": "«{{task}}» tiene asignaciones de recursos y no puede convertirse en hito. Elimine primero las asignaciones.",
+    "milestoneRefusedAssignmentsMany_one": "{{count}} tarea tiene asignaciones de recursos y no puede convertirse en hito. Elimine primero las asignaciones.",
+    "milestoneRefusedAssignmentsMany_many": "{{count}} de tareas tienen asignaciones de recursos y no pueden convertirse en hitos. Elimine primero las asignaciones.",
+    "milestoneRefusedAssignmentsMany_other": "{{count}} tareas tienen asignaciones de recursos y no pueden convertirse en hitos. Elimine primero las asignaciones.",
     "milestoneRefusedSummary": "«{{task}}» es una tarea de resumen con subtareas y no puede convertirse en hito.",
+    "milestoneRefusedSummaryMany_one": "{{count}} tarea es una tarea de resumen con subtareas y no puede convertirse en hito.",
+    "milestoneRefusedSummaryMany_many": "{{count}} de tareas son tareas de resumen con subtareas y no pueden convertirse en hitos.",
+    "milestoneRefusedSummaryMany_other": "{{count}} tareas son tareas de resumen con subtareas y no pueden convertirse en hitos.",
     "assignmentsMovedToSubtask_one": "Asignación movida a la subtarea «{{child}}».",
     "assignmentsMovedToSubtask_many": "{{count}} asignaciones movidas a la subtarea «{{child}}».",
     "assignmentsMovedToSubtask_other": "{{count}} asignaciones movidas a la subtarea «{{child}}».",
@@ -164,6 +173,9 @@
     "assignmentsMovedToSubtasks_many": "Asignaciones de {{count}} tareas movidas a subtareas.",
     "assignmentsMovedToSubtasks_other": "Asignaciones de {{count}} tareas movidas a subtareas.",
     "milestoneClearedOnPhase": "«{{phase}}» ya no es un hito.",
+    "milestoneClearedOnPhaseMany_one": "{{count}} tarea ya no es un hito.",
+    "milestoneClearedOnPhaseMany_many": "{{count}} de tareas ya no son hitos.",
+    "milestoneClearedOnPhaseMany_other": "{{count}} tareas ya no son hitos.",
     "phaseRefusedNoAssignableChild": "«{{phase}}» no puede convertirse en tarea de resumen: sus asignaciones no tienen adónde ir, porque ninguna de las nuevas subtareas puede llevar asignaciones (un hito o una tarea de resumen). No se ha cambiado nada.",
     "phaseRefusedDuplicateResource": "«{{phase}}» no puede convertirse en tarea de resumen: la asignación de {{resource}} no puede pasar a la nueva subtarea «{{child}}», porque ya tiene {{resource}}. No se ha cambiado nada.",
     "phaseQuestionOutdated": "Las tareas o asignaciones han cambiado mientras la pregunta estaba abierta. No se ha modificado nada; vuelva a intentarlo.",
@@ -181,7 +193,7 @@
     },
     "xerArchiveUnusable": "El archivo de origen XER de este fichero no se puede usar y se ha omitido; el proyecto en sí se ha abierto por completo.",
     "xerArchiveUnusableLine": "El archivo de origen XER de este fichero no se podía usar y se ha omitido.",
-    "xerArchiveUnusableConsequence": "La planificación, el perfil de cálculo y todos los datos del proyecto del IFC están completos. Lo que falta: las fechas tal como las guardó Primavera y la procedencia de origen para la IA y las extensiones. Al guardar, el fichero se escribe sin el archivo; vuelva a importar el .xer original para recuperarlo.",
+    "xerArchiveUnusableConsequence": "La planificación, el perfil de cálculo y todos los datos del proyecto del IFC están completos. Falta lo siguiente: las fechas tal como las guardó Primavera y la procedencia para clientes MCP y extensiones. Al guardar se escribe el archivo sin el almacén de datos originales; vuelva a importar el .xer original para recuperarlo.",
     "xerArchiveReasonSchemaVersion": "Motivo: el archivo tiene una versión de esquema o un formato desconocidos (un escritor más reciente o distinto).",
     "xerArchiveReasonHashMismatch": "Motivo: la suma de comprobación no coincide con los bytes de origen: el archivo está dañado.",
     "xerArchiveReasonTruncated": "Motivo: el archivo está truncado: falta parte de los bytes de origen.",
@@ -266,7 +278,11 @@
     "msProjectLostFixedCosts_other": "No se han importado los costes fijos de {{count}} tareas.",
     "msProjectLostResourceRates_one": "No se han importado las tarifas de {{count}} recurso.",
     "msProjectLostResourceRates_many": "No se han importado las tarifas de {{count}} recursos.",
-    "msProjectLostResourceRates_other": "No se han importado las tarifas de {{count}} recursos."
+    "msProjectLostResourceRates_other": "No se han importado las tarifas de {{count}} recursos.",
+    "minuteModelConverted_one": "{{document}}: {{count}} tarea tiene otra fecha de inicio o de fin tras la conversión; el mayor desplazamiento es de {{days}} días laborables. Ctrl+Z restaura las fechas guardadas.",
+    "minuteModelConverted_many": "{{document}}: {{count}} de tareas tienen otra fecha de inicio o de fin tras la conversión; el mayor desplazamiento es de {{days}} días laborables. Ctrl+Z restaura las fechas guardadas.",
+    "minuteModelConverted_other": "{{document}}: {{count}} tareas tienen otra fecha de inicio o de fin tras la conversión; el mayor desplazamiento es de {{days}} días laborables. Ctrl+Z restaura las fechas guardadas.",
+    "minuteModelCalendarRepaired": "Se ha reparado el calendario «{{calendar}}»: el fin o la pausa no coincidían con el horario laboral guardado."
   },
   "scheduleErrors": {
     "cycle": "Relación circular entre tareas: {{path}}",
@@ -368,6 +384,11 @@
     "languageHint": "El idioma de visualización de la app, aplicado de inmediato.",
     "version": "Versión",
     "versionHint": "El número de versión actual de la app.",
+    "experimentalSection": "Experimental",
+    "experimentalEmpty": "Actualmente no hay funciones experimentales.",
+    "experimentalHide": "Ocultar",
+    "demoTopbarAnimation": "Demo: animación en la barra superior",
+    "demoTopbarAnimationHint": "Un brillo naranja suave que recorre la barra superior. Muestra cómo funciona un interruptor experimental.",
     "tourHint": "Vuelve a hacer el recorrido introductorio de la aplicación.",
     "theme": "Tema",
     "themeHint": "El esquema de color de la interfaz.",
@@ -376,21 +397,22 @@
     "themeHighContrast": "Alto contraste",
     "themeFollowSystem": "Seguir el tema del sistema",
     "themeSystemHint": "Sigue el esquema de color de tu sistema (ahora: {{theme}}).",
-    "hourPlanningSection": "Planificación por horas",
-    "enableHourPlanning": "Activar planificación por horas",
-    "enableHourPlanningHint": "Activa la programación por horas/minutos: una escala de tiempo horaria, turnos con bandas de horario laboral y barras de tarea con precisión de hora. Desactivado ⇒ la aplicación sigue siendo totalmente granular por días, como antes.",
     "showTaskTypes": "Usar tipos de tarea",
     "showTaskTypesHint": "Elija por tarea qué se ajusta cuando cambian la duración, las unidades o el trabajo, como Task Type en MS Project y Duration Type en P6. Desactivado: la duración y las unidades se mantienen. Un archivo con tipos de tarea o trabajo guardado los muestra aunque esto esté desactivado.",
     "allowMixedDayHour": "Permitir planificación mixta de días/horas",
     "defaultTaskDurationUnit": "Unidad predeterminada para tareas nuevas",
-    "defaultTaskDurationUnitHint": "Determina si las tareas nuevas comienzan en días laborables u horas de trabajo. Las tareas existentes no cambian.",
+    "defaultTaskDurationUnitHint": "Unidad de días: una duración cuenta en días laborables del calendario. Unidad de horas: una duración cuenta en horas laborables. Las tareas existentes no cambian. Una tarea con trabajo fijo usa siempre la unidad de horas.",
+    "defaultTaskDurationUnitDays": "Unidad en días",
+    "defaultTaskDurationUnitHours": "Unidad en horas",
+    "defaultTaskDurationUnitLocked": "El perfil {{profile}} calcula la duración en horas. Por eso, las nuevas tareas reciben la unidad en horas.",
     "durationDisplay": "Visualización de la duración",
     "durationDisplayHint": "Determina cómo se muestra la duración de la tarea, independientemente de la unidad en la que la propia tarea esté registrada.",
+    "durationDisplayOpsHint": "En el perfil OPS, cada tarea muestra su propia unidad.",
     "durationDisplayAuto": "Automática (unidad propia por tarea)",
     "durationDisplayDays": "Siempre días",
     "durationDisplayHours": "Siempre horas",
     "barSplitMode": "Barras de tarea en las interrupciones",
-    "barSplitModeHint": "Si una barra de tarea se divide visualmente alrededor de los días no laborables.",
+    "barSplitModeHint": "Solo para tareas horarias: dividir las barras alrededor de pausas y de tiempo no laborable. Las interrupciones reales de tareas siguen siempre visibles, con independencia de este ajuste.",
     "barSplitNever": "No dividir nunca",
     "barSplitSelection": "Dividir al seleccionar",
     "barSplitAlways": "Dividir siempre",
@@ -453,11 +475,11 @@
     "fontFamilySerif": "Serif",
     "fontFamilyMono": "Monoespaciada",
     "fontHint": "Las aplicaciones web no siguen automáticamente la fuente del sistema. Elige aquí la fuente y el tamaño de la interfaz.",
-    "aiModeSection": "Modo IA",
-    "aiMode": "Activar modo IA",
-    "aiModeHint": "Muestra la pestaña de IA con el puente MCP, para que los asistentes de IA puedan trabajar con tu planificación mediante el Model Context Protocol. Desactivarlo detiene el puente.",
+    "aiModeSection": "Conexión MCP",
+    "aiMode": "Permitir conexión MCP",
+    "aiModeHint": "Muestra la pestaña MCP. Allí inicia el puente MCP, para que un cliente MCP pueda trabajar con su planificación a través del Model Context Protocol. Al desactivarlo, el puente se detiene.",
     "aiAutostart": "Iniciar el puente automáticamente",
-    "aiAutostartHint": "Activa el puente MCP nada más iniciar la aplicación, para que un cliente de IA pueda conectarse sin que abras antes la pestaña IA. Solo en la aplicación de escritorio.",
+    "aiAutostartHint": "Activa el puente MCP en cuanto se inicia la aplicación, para que un cliente MCP pueda conectarse sin abrir antes la pestaña MCP. Solo en la aplicación de escritorio.",
     "legacySection": "Funciones heredadas",
     "classicViewControls": "Mostrar los botones de vista clásicos",
     "classicViewControlsHint": "Devuelve los botones separados Columnas, Filtro, Agrupar y Ordenar a la pestaña Vista. Las columnas se eligen ahora con el signo más del encabezado de la tabla o en Tabla → Columnas…; filtrar, agrupar y ordenar están en los botones de diseño y en el cuadro de diseños."
@@ -489,9 +511,9 @@
     "configSnippetHint": "Pega esto en la configuración MCP de tu cliente.",
     "tokenWarning": "Este token da acceso al plan abierto. No lo compartas con otras personas.",
     "connectPrompt": "Indicación de conexión",
-    "connectPromptHint": "Pega esto en tu agente de IA: se conecta solo.",
+    "connectPromptHint": "Pegue esto en su cliente MCP: se conecta solo.",
     "connectPromptText": "Conéctate a un servidor MCP que se ejecuta en mi ordenador: nombre {{name}}, transporte HTTP en streaming, URL {{url}}, con el encabezado Authorization: Bearer {{token}}. Añádelo a tu configuración MCP (por ejemplo como bloque mcpServers) y conéctate. Después pide la lista de herramientas para comprobarlo: deberías ver unas {{count}} herramientas con el prefijo {{prefix}}. Resume brevemente qué puedes hacer con este servidor. Antes de cambiar nada, lee primero la guía de planificación con la herramienta planner_get_planning_guide.",
-    "statusDot": "Puente de IA: {{status}}"
+    "statusDot": "Puente MCP: {{status}}"
   },
   "aiSafety": {
     "pause": "Pausar",
@@ -501,7 +523,7 @@
     "readOnlyHint": "Todas las herramientas que modifican datos se rechazan mientras esto esté activado.",
     "autoBackupOn": "Copia de seguridad automática: activada",
     "autoBackupOff": "Copia de seguridad automática: desactivada",
-    "autoBackupHint": "Crea automáticamente una copia de seguridad IFC antes del primer cambio de la IA por documento.",
+    "autoBackupHint": "Crea automáticamente una copia de seguridad IFC antes del primer cambio MCP por documento.",
     "backupNow": "Crear copia de seguridad ahora",
     "openFolder": "Abrir carpeta de copias de seguridad",
     "backupOk": "Copia de seguridad creada: {{name}}",
@@ -509,10 +531,10 @@
     "openErr": "No se pudo abrir la carpeta: {{error}}"
   },
   "aiActivity": {
-    "title": "Actividad de IA",
+    "title": "Actividad MCP",
     "panelButton": "Panel de actividad",
     "clear": "Borrar",
-    "empty": "Todavía no hay actividad de IA. Las llamadas del puente aparecerán aquí.",
+    "empty": "Todavía no hay actividad MCP. Las llamadas al puente aparecerán aquí.",
     "args": "Argumentos",
     "result": "Respuesta"
   },
@@ -529,7 +551,10 @@
     "taskCount_many": "{{count}} tareas",
     "taskCount_other": "{{count}} tareas",
     "restore": "Restaurar",
-    "dontRestore": "No restaurar"
+    "dontRestore": "No restaurar",
+    "unreadableOnlyExplanation": "No se puede leer ninguna de las copias de recuperación. Consérvelas para un intento de recuperación posterior, o elimínelas solo si ya no las necesita. La eliminación no se puede deshacer.",
+    "keepCopies": "Conservar copias",
+    "deleteCopies": "Eliminar copias"
   },
   "window": {
     "minimize": "Minimizar",
@@ -548,7 +573,8 @@
   "project": {
     "untitled": "Nueva planificación",
     "imported": "Proyecto importado",
-    "unassignedResource": "Sin asignar"
+    "unassignedResource": "Sin asignar",
+    "ifcBuildingModelUnsupported": "Este archivo IFC contiene objetos de modelo de construcción. No se puede abrir, porque al guardar se eliminarían esos objetos. Edite el archivo de planificación por separado y después vuelva a combinarlo con el modelo de construcción."
   },
   "documents": {
     "overviewTitle": "Proyectos abiertos",
@@ -643,12 +669,14 @@
     "releaseNotes": "Novedades",
     "downloadInstall": "Descargar e instalar",
     "downloading": "Descargando…",
+    "preparingInstall": "Preparando la instalación…",
     "installing": "Instalando…",
     "restarting": "Reiniciando…",
     "retry": "Reintentar",
     "error": "Algo salió mal al actualizar",
     "checking": "Comprobando…",
     "snapNotice": "Esta versión se actualiza automáticamente a través de la Snap Store — no tienes que hacer nada.",
+    "packageManagerNotice": "Actualice a través de su gestor de paquetes (por ejemplo, yay -Syu).",
     "debExplanation": "Actualiza manualmente ejecutando este comando en una terminal, o descarga el último paquete.",
     "debCommandLabel": "Comando de instalación",
     "copyCommand": "Copiar comando",
@@ -745,6 +773,7 @@
     "companies": "Bibliotecas de recursos",
     "addCompany": "Añadir biblioteca de recursos",
     "newCompany": "Nueva biblioteca de recursos",
+    "defaultCompany": "Mi biblioteca de recursos",
     "companyName": "Nombre de la biblioteca",
     "removeCompany": "Eliminar biblioteca de recursos",
     "cannotRemoveLast": "No se puede eliminar la última biblioteca de recursos.",
@@ -759,7 +788,7 @@
     "calendars": "Calendarios",
     "noCalendars": "Aún no hay calendarios en el pool.",
     "noResources": "Aún no hay recursos en el pool.",
-    "promoteHint": "Promociona un calendario o recurso del proyecto a la biblioteca con el botón “+ Desde el proyecto” de arriba.",
+    "promoteHint": "Promocione un calendario del proyecto a la biblioteca de recursos con el botón “+ Desde el proyecto” de arriba.",
     "promoteFromProject": "Desde el proyecto",
     "alreadyLinked": "ya vinculado",
     "editItem": "Editar",
@@ -1157,10 +1186,6 @@
     "month": "mes",
     "year": "año"
   },
-  "hourData": {
-    "notice": "Este archivo contiene planificación por horas.",
-    "enable": "Activar planificación por horas"
-  },
   "recordedDates": {
     "activeCount_one": "Estás viendo la planificación tal como la registró Primavera; recalcular desplazaría {{count}} tarea.",
     "activeCount_many": "Estás viendo la planificación tal como la registró Primavera; recalcular desplazaría {{count}} tareas.",
@@ -1207,7 +1232,7 @@
     "nav": {
       "reportTab": "Ir a la pestaña Informe",
       "switchDocument": "Cambiar de documento",
-      "scrollToToday": "Ir a hoy",
+      "scrollToToday": "Ir a la fecha de estado o a hoy",
       "help": "Abrir ayuda"
     },
     "grid": {
@@ -1384,6 +1409,7 @@
     "overrideDropped": "El vínculo de la fila {{row}} apunta a una tarea que ya no existe y fue ignorado.",
     "moreRows": "…y {{more}} más",
     "sheetRowHint": "fila {{row}} de la hoja",
+    "sheetTaskId": "ID de tarea de OPS: {{id}}",
     "dateOrderTitle": "¿Día primero o mes primero?",
     "dateOrderQuestion": "«{{sample}}» — ¿qué fecha es esa?",
     "dateOrderOptionA": "{{date}}",
@@ -1425,7 +1451,7 @@
   "conventions": {
     "preserveActualDatesInBackwardPass": {
       "label": "Conservar las fechas reales en el cálculo hacia atrás",
-      "help": "Una tarea iniciada o completada conserva sus fechas registradas también en el lado tardío; un sucesor completado no arrastra a un predecesor abierto al pasado."
+      "help": "Con fecha de estado, una tarea completada conserva sus fechas reales también en el lado tardío, y un sucesor completado no devuelve un predecesor abierto al pasado. Una tarea en curso conserva su inicio real como inicio tardío, salvo que esté activada la opción “Tarea en curso: inicio temprano = inicio del trabajo restante”. Una tarea completada en un punto o en una ventana de fecha de estado puede seguir transmitiendo presión de relaciones."
     },
     "clampNegativeFreeFloat": {
       "label": "Holgura libre nunca negativa",
@@ -1433,103 +1459,111 @@
     },
     "p6ZeroDurationUsesPlannedBoundary": {
       "label": "El hito sigue el límite de calendario planificado",
-      "help": "Un hito sin duración se queda en el límite de calendario planificado en el archivo: un inicio de día sigue siendo un hito de inicio, y un fin de banda puede caer en el fin del predecesor."
+      "help": "Solo con planificación por horas. Un hito sin duración sigue el límite de calendario planificado: un inicio de día sigue siendo un hito de inicio, y un fin de banda puede coincidir con el fin del predecesor. También una tarea normal de duración 0 puede recibir un par de límites, pero solo con procedencia XER como Task Dependent o Resource Dependent y con un fin planificado anterior al inicio planificado."
     },
     "p6UseTaskPlannedStartFloor": {
       "label": "Inicio planificado como límite inferior adicional",
-      "help": "El inicio planificado del archivo actúa como límite inferior cuando el inicio y el fin quedan más de un día natural más tarde de lo que permite la red."
+      "help": "El inicio planificado cuenta como límite inferior en cuanto el inicio y el fin quedan más de un día natural más tarde de lo que permite la red. En un hito de fin con fin planificado anterior al inicio planificado basta con un inicio planificado posterior. No aplica a una tarea en curso si está activada la opción “El inicio planificado no es un mínimo para una tarea en curso”, ni a una tarea ALAP no iniciada que se coloca desde sus sucesoras. No requiere procedencia XER."
     },
     "p6FinishMilestoneBoundaryWindow": {
       "label": "Hito final como ventana de límite",
-      "help": "Un hito de fin puede estar en dos límites de calendario contiguos: inicio temprano al inicio de una banda, fin temprano al final de la banda anterior."
+      "help": "Un hito de fin sin duración solo recibe una ventana de límite si su fin planificado es anterior a su inicio planificado y su inicio calculado sigue igual a ese inicio planificado. Un hito de fin con predecesores y sin sucesor recibe también sus fechas tempranas como fechas tardías, salvo que esté activada la opción “Calcular la holgura hasta la fecha de fin del proyecto”. Solo se ha visto en salida de P3; está desactivada en todos los perfiles de cálculo integrados."
     },
     "p6PreserveActualInstants": {
       "label": "Mantener exactas las fechas reales",
-      "help": "El inicio real y el fin real registrados no se desplazan al borde de una banda."
+      "help": "Solo para tareas con procedencia conservada de un archivo .xer. Las fechas reales de inicio y de fin registradas no se desplazan al borde de una banda de trabajo."
     },
     "p6UseRemainingStartForProgress": {
       "label": "Tarea en curso: inicio temprano = inicio del trabajo restante",
-      "help": "El inicio temprano y tardío de una tarea en curso describen dónde empieza el trabajo restante, no el inicio real histórico. En el cálculo hacia atrás por una relación comienzo-comienzo, solo cuenta la duración restante."
+      "help": "El inicio temprano y el inicio tardío de una tarea en curso describen dónde empieza el trabajo restante. En el cálculo hacia atrás a través de una relación comienzo-comienzo, solo cuenta la duración restante, pero únicamente con planificación por horas, con inicio real y avance entre 0 y 100%, una duración restante conocida menor que la duración planificada, y sin tiempo transcurrido ni interrupciones en la planificación. Esa regla adicional de duración restante no se aplica a las relaciones comienzo-fin."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Momento de restricción exacto en un hito",
-      "help": "Una restricción de fecha y hora en un hito sin duración es un punto exacto, también al inicio de una banda."
+      "help": "Solo con planificación por horas, en el lado tardío, para una restricción con fecha y hora de tipo SNLT, MSO, FNLT o MFO en un hito sin duración. El momento de la restricción sigue siendo exacto, también al inicio de una banda. En el cálculo hacia delante, ese momento ya es exacto en todos los perfiles."
     },
     "resumeFromActualElapsed": {
       "label": "El trabajo restante se reanuda tras la duración transcurrida",
-      "help": "Una tarea en curso reanuda su trabajo restante en el inicio real más la duración transcurrida, no en la fecha de estado."
+      "help": "Una tarea en curso reanuda su trabajo restante no antes del inicio real más el tiempo transcurrido. La fecha de estado y el límite del predecesor también siguen siendo límites inferiores; vale el último de los tres. No se aplica con Progress Override, sin trabajo restante, o cuando la aplicación usa una fecha de reanudación válida del archivo (con como máximo una asignación)."
     },
     "unstartedIgnoresStatusDate": {
       "label": "No mover las tareas no iniciadas a la fecha de estado",
-      "help": "Una tarea que aún no ha comenzado no se desplaza automáticamente a la fecha de estado o después."
+      "help": "Solo con fecha de estado, para una tarea sin avance. Esa tarea no se desplaza automáticamente a la fecha de estado o a una posterior."
     },
     "p6RelationFinishBoundary": {
       "label": "El sucesor empieza en el límite de fin",
-      "help": "Una relación fin-comienzo sin desfase cuyo sucesor, según el archivo, empieza exactamente en el fin del predecesor, al final de una banda, hace que el sucesor empiece en ese fin y no al inicio de la banda siguiente. El archivo no lo marca: la aplicación reconoce esa relación por sí misma al abrir un archivo .xer. Una relación que usted añade no está incluida. Al calcular hacia atrás, el sucesor muestra su inicio tardío simplemente como inicio de una banda."
+      "help": "Solo con planificación por horas, en el calendario del predecesor y para una relación que la aplicación reconoce al abrir un archivo .xer. En una relación fin-comienzo sin desfase cuyo sucesor empieza en el archivo justo en el fin de banda del predecesor, el sucesor empieza en ese fin. Una relación que usted añade no está incluida. En el cálculo hacia atrás, el inicio tardío del sucesor sigue siendo un inicio de banda."
     },
     "p6BackwardLagFinishBoundary": {
       "label": "Desfase hacia atrás desde un límite de fin",
-      "help": "Si el cálculo hacia atrás resta un desfase en horario laboral desde un límite de fin y cae exactamente en el inicio de una banda, se queda en el límite de fin anterior. También en una relación fin-fin sin desfase, un fin tardío al final de una banda se queda en ese límite de fin."
+      "help": "Solo con planificación por horas, en el calendario en el que se calcula el desfase. Si el cálculo hacia atrás resta un desfase positivo en horario laboral desde un límite de fin exacto y cae en el primer inicio de banda de un día, se queda en el límite de fin anterior. También en una relación fin-fin sin desfase, un fin tardío en un fin de banda se queda en ese límite. No aplica al desfase en tiempo transcurrido."
     },
     "p6CompletedDataDateWindow": {
       "label": "Tarea completada en la ventana de la fecha de estado",
-      "help": "Una tarea completada recibe fechas tempranas en la ventana de la fecha de estado, y su fin cuenta para el fin del proyecto."
+      "help": "Solo con fecha de estado, para tareas hoja completadas de un archivo .xer sin subtareas, con ventana objetivo conservada, tipo de avance duración y tipo P6 Task Dependent o Resource Dependent con Fixed Duration & Units; sin hitos de duración cero. Requiere “Tarea en curso: inicio temprano = inicio del trabajo restante”. Interrupción/reanudación solo se admite con Task Dependent y un par válido, fin real entre fin planificado y fecha de estado, reanudación como máximo en el fin real, y con “Conservar las fechas reales en el cálculo hacia atrás” activada. La tarea recibe fechas tempranas en la ventana de la fecha de estado; su fin cuenta para el fin del proyecto."
     },
     "p6CompletedLoeActualFinish": {
       "label": "LOE completada mediante su fin real",
-      "help": "Una tarea de nivel de esfuerzo completada con solo una entrada comienzo-comienzo sigue la ruta a través de su fin real."
+      "help": "Solo con fecha de estado, para una tarea de nivel de esfuerzo (LOE) completada de un archivo .xer con duración positiva, tipo de avance duración y tipo P6 Fixed Duration & Units/Time, una ventana objetivo completa y fin real entre el fin planificado y la fecha de estado. Solo relaciones entrantes comienzo-comienzo, al menos una, sin sucesor y sin interrupción/reanudación. Requiere “Tarea en curso: inicio temprano = inicio del trabajo restante”, “Conservar las fechas reales en el cálculo hacia atrás” y “Mantener exactas las fechas reales”. La LOE sigue su fin real en lugar de la ruta por la hamaca."
     },
     "p6OpenLoeTargetSpan": {
       "label": "LOE no iniciada toma la ventana objetivo",
-      "help": "Una tarea de nivel de esfuerzo que aún no ha comenzado toma su ventana objetivo como duración."
+      "help": "Solo con planificación por horas, para una LOE/hamaca no iniciada de un archivo .xer con 0% de avance, duración positiva, tipo de avance duración y tipo P6 Fixed Duration & Units; sin fechas reales ni interrupción/reanudación. Requiere una ventana objetivo completa y positiva cuyo inicio sea igual al límite de la relación, y cuyo horario laboral difiera de la duración en como máximo un día laborable; al menos una entrada comienzo-comienzo y una salida fin-fin, solo de esos tipos de relación y sin desfase. La LOE toma entonces la ventana objetivo como duración. Evidencia débil: un solo archivo."
     },
     "p6CompletedPredecessorAtDataDate": {
       "label": "Un predecesor completado no retiene más allá de la fecha de estado",
-      "help": "Si el fin real de un predecesor completado cae después de la fecha de estado, sus sucesores pueden empezar igualmente en la fecha de estado."
+      "help": "Solo con planificación por horas y con fecha de estado, para un predecesor completado con fin real. Las relaciones fin-comienzo y fin-fin cuentan como máximo desde el límite de horario laboral justo antes de la fecha de estado; un fin real posterior no retiene al sucesor. Las relaciones comienzo-comienzo y comienzo-fin siguen en el inicio real. Una tarea completada con un punto de fecha de estado propio o con una ventana de fecha de estado desplazada sigue ese límite propio."
     },
     "p6FreeFloatOnOwnCalendar": {
       "label": "Holgura libre en el calendario propio",
-      "help": "La holgura libre de una tarea no iniciada se cuenta, por relación, en el calendario de la propia tarea y no en el del sucesor: para fin-comienzo, comienzo-comienzo y fin-fin, también con un desfase en tiempo laborable en el calendario del predecesor. Una tarea iniciada solo para fin-comienzo sin desfase."
+      "help": "Solo con planificación por horas, para tareas no completadas y relaciones con holgura libre calculada. En una tarea no iniciada, la holgura libre cuenta en su propio calendario para fin-comienzo, comienzo-comienzo y fin-fin, sin desfase en horas de reloj ni en porcentaje. Un desfase distinto de 0 requiere el calendario de desfase del predecesor. En una tarea iniciada, solo aplica fin-comienzo sin desfase. La holgura libre y la marca de relación determinante de la propia relación no cambian."
     },
     "p6CompletedRemainingLag": {
       "label": "El desfase transcurrido de un predecesor completado no cuenta",
-      "help": "En el lado tardío solo cuenta la parte del desfase tras un predecesor completado que aún no ha transcurrido en la fecha de estado."
+      "help": "Solo con planificación por horas en el calendario de desfase y con una fecha de estado, para predecesores completados de un archivo .xer con fin real anterior a la fecha de estado y un punto o una ventana de fecha de estado. De un desfase positivo en horario laboral, solo cuenta la parte que aún no ha transcurrido. Aplica en el lado tardío y hacia adelante desde un punto de fecha de estado o desde una ventana de trabajo restante cero desplazada. Una tarea en sus fechas reales ordinarias conserva el desfase completo. No aplica al desfase en horas de reloj."
     },
     "p6CompletedOutOfSequenceWindow": {
       "label": "Una tarea completada fuera de secuencia espera a sus predecesoras",
-      "help": "Una tarea completada cuyo predecesor aún no ha terminado recibe su ventana nula después de ese predecesor, en lugar de en la fecha de estado (Retained Logic). Solo funciona si también están activadas «Tarea completada en la ventana de la fecha de estado» y «Tarea en curso: inicio temprano = inicio del trabajo restante»."
+      "help": "Solo con planificación por horas y con una fecha de estado, en la ruta XER de «Tarea completada en la ventana de la fecha de estado». Esa convención y «Tarea en curso: inicio temprano = inicio del trabajo restante» deben estar activadas. No aplica con Progress Override. Mediante entradas fin-comienzo o comienzo-comienzo, la tarea recibe el límite posterior entre el de la fecha de estado y el de un predecesor no terminado, o el de un predecesor con ventana de fecha de estado desplazada. Los predecesores completados habituales no cuentan."
     },
     "p6CompletedPhysicalAtDataDate": {
       "label": "Tarea completada con avance físico en la fecha de estado",
-      "help": "Una tarea completada con porcentaje de avance físico se muestra como un único punto en la fecha de estado, o más tarde si un predecesor lo exige, en lugar de en sus fechas reales. Solo medido para el avance físico; para otros tipos de avance (predeterminado en P6: duración) este comportamiento no se ha medido y permanece desactivado."
+      "help": "Solo con planificación por horas y con una fecha de estado, para tareas completadas sin subtareas e hitos de duración cero de un archivo .xer de tipo P6 Task Dependent, Start Milestone o Finish Milestone, con ventana objetivo conservada, porcentaje de avance físico, fin real a más tardar en la fecha de estado y sin interrupción ni reanudación. Requiere «Tarea en curso: inicio temprano = inicio del trabajo restante». La tarea se sitúa en un único punto en la fecha de estado, o más tarde si un predecesor lo exige. Para otros tipos de avance, incluida la duración, no está medido y permanece desactivado."
     },
     "p6InProgressStartLagElapsed": {
       "label": "El retraso SS transcurrido de un predecesor en curso no cuenta",
-      "help": "En una relación comienzo-comienzo desde una tarea ya iniciada, solo cuenta la parte del retraso que aún no ha transcurrido desde su inicio real en la fecha de estado."
+      "help": "Solo con planificación por horas en el calendario de desfase y con una fecha de estado, para una relación comienzo-comienzo con desfase positivo en horario laboral desde un predecesor no terminado con inicio real anterior a la fecha de estado. Requiere «Tarea en curso: inicio temprano = inicio del trabajo restante». Solo cuenta la parte del desfase que aún no ha transcurrido. La opción «Calcular el desfase SS de un predecesor en curso desde» elige el punto de inicio. No aplica al desfase en horas de reloj."
     },
     "p6FinishFinishStartMilestoneLateFinish": {
       "label": "Una relación fin-fin hacia un hito de inicio se vincula al propio hito",
-      "help": "Una relación fin-fin hacia un hito de inicio cuenta hasta el propio hito, no hasta el inicio del día del hito: el fin tardío del predecesor puede llegar hasta el fin tardío del hito."
+      "help": "Solo con planificación por horas, en ambos lados de una relación fin-fin hacia un hito de inicio sin duración. La relación se vincula al propio hito: el fin tardío del predecesor puede llegar hasta el fin tardío del hito. La holgura libre también puede cambiar; el inicio temprano del hito no cambia. No aplica a hitos de fin ni a la ruta hacia atrás con duración de trabajo restante cero."
     },
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "El inicio planificado no es un mínimo para una tarea en curso",
-      "help": "El trabajo restante de una tarea iniciada comienza en la fecha de estado y justo después de sus predecesoras, aunque su inicio planificado sea posterior."
+      "help": "Solo para una tarea con inicio real y menos del 100 % de avance, cuando «Inicio planificado como límite inferior adicional» está activado. Su inicio planificado no es un límite inferior adicional para el trabajo restante; la fecha de estado y sus predecesores siguen siendo determinantes."
     },
     "p6LateFinishOnOwnCalendar": {
       "label": "Fin tardío en el calendario propio",
-      "help": "Si el fin tardío que impone un sucesor cae fuera del horario laboral de la tarea, pasa a ser el fin de la banda anterior en el calendario propio."
+      "help": "Solo con planificación por horas, cuando el límite de un sucesor determina el fin tardío y no hay una restricción o una fecha límite más estricta que sustituya ese límite. Si ese límite cae fuera del horario laboral de la tarea, el fin tardío pasa a ser el fin de la banda anterior en el calendario propio. No aplica a un fin tardío determinado por el fin del proyecto."
     },
     "p6ProgressOverrideIgnoresStartedSuccessor": {
       "label": "Progress Override ignora también hacia atrás un sucesor iniciado",
-      "help": "Con Progress Override, la relación con un sucesor ya iniciado no cuenta en las fechas tardías ni en la holgura libre de un predecesor que no ha terminado."
+      "help": "Solo con Progress Override, para un predecesor no terminado y un sucesor iniciado pero no terminado (inicio real o avance). Su relación no cuenta en las fechas tardías ni en la holgura libre del predecesor."
     },
     "p6FinishNotBeforeFinishFinishBound": {
       "label": "Fin temprano nunca antes de un límite fin-fin",
-      "help": "En una relación fin-fin, el fin temprano del sucesor nunca queda, en hora de reloj, antes del límite que fija el predecesor. Si ese límite cae en tiempo no laborable del sucesor, el fin pasa a ser el inicio de la siguiente banda."
+      "help": "Corrección de fechas: para una relación fin-fin con desfase en horario laboral, sin hamacas y con planificación por horas tanto en el calendario del sucesor (para trabajo restante, su calendario de avance) como en el calendario de desfase. Si el límite de la relación es posterior al fin temprano y no hay horario laboral entre ambos, solo el fin se desplaza a la primera frontera laborable en o después de ese límite. Aplica a sucesores programados automáticamente, no iniciados e iniciados; en una tarea no iniciada, un fin fijo tiene prioridad. Holgura libre: por separado, para una relación fin-fin con desfase cero y sin desfase porcentual, un predecesor no terminado con holgura libre de relación existente y un fin temprano calculado del sucesor cuenta desde su propio fin temprano hasta el fin temprano del sucesor, en su propio calendario por horas. Esto también aplica con desfase cero en horas de reloj, sin condición adicional de planificación por horas en el calendario del sucesor o del desfase. Las hamacas y las tareas programadas manualmente mantienen finalmente una holgura libre de 0."
     },
     "p6AlapPositionedFromSuccessors": {
       "label": "Tareas ALAP tan tarde como permitan las sucesoras",
-      "help": "Una tarea no iniciada con la restricción «lo más tarde posible» termina en el minuto en que sus sucesores la necesitan, primero los sucesores, para que una cadena quede unida. Su propio inicio planificado no cuenta; una tarea sin predecesor no empieza entonces antes de la fecha de estado."
+      "help": "Solo con planificación por horas, para una tarea no iniciada y no programada manualmente, con la restricción «Lo más tarde posible» (ALAP). Las fechas tempranas de sus sucesores determinan su posición hasta el minuto; los sucesores van primero. Su propio inicio planificado no cuenta; los predecesores, la fecha de estado y una segunda restricción siguen siendo aplicables. Sin sucesor, usa su fin tardío. El paso ALAP habitual sigue disponible en todos los perfiles."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Hitos aislados al final del día laborable",
+      "help": "Un hito aislado o un hito de fin sin predecesor se coloca al final de su día laborable."
+    },
+    "workdayDurationMeasure": {
+      "label": "Duración en días laborables",
+      "help": "Una duración, un desfase o una duración restante en días cuenta en días laborables: cada día laborable cuenta como 1, sea cual sea su longitud. Desactivado: un día cuenta como el número de horas laborables por día del calendario. Un desfase en porcentaje sigue la unidad del predecesor. El tiempo transcurrido nunca se cuenta en días laborables."
     }
   },
   "profiles": {
@@ -1568,6 +1602,7 @@
       "float": "Holgura y fechas tardías",
       "instants": "Fechas e instantes del archivo",
       "msproject": "Avance como en Microsoft Project",
+      "durations": "Duración y unidad",
       "ownProfilesOnly": "Solo para perfiles propios"
     },
     "ownProfilesOnlyNote": "Estas convenciones están desactivadas en todos los perfiles integrados, también en Primavera P6. Solo un perfil propio puede activarlas: elija para ello «Nuevo perfil».",
@@ -1580,7 +1615,7 @@
     "showHelp": "Explicación de «{{name}}»",
     "sourceOptions": {
       "title": "Ajustes del archivo de origen",
-      "intro": "Estas opciones de cálculo proceden de un archivo de Primavera P6 (.xer). Se usan en el cálculo, pero no se pueden cambiar aquí.",
+      "intro": "Estas son opciones de cálculo de solo lectura de este proyecto. Al importar un archivo de Primavera P6 (.xer), la aplicación las toma del archivo de origen. Solo tienen efecto cuando se cumplen sus condiciones.",
       "useExpectedFinishDates": "Usar fechas de fin previstas (P6: Use Expected Finish Dates)",
       "useProjectEndDateForFloat": "Calcular la holgura hasta la fecha de fin del proyecto",
       "p6CompletedLateFromRemainingWindow": "Tarea completada: fechas tardías desde la fecha de estado",
@@ -1589,7 +1624,7 @@
     "requires": {
       "xerOrigin": "solo tareas de .xer",
       "hourPlanning": "solo con planificación por horas",
-      "hourPlanningTitle": "Solo funciona con planificación por horas: un calendario con bandas de tiempo de trabajo, una tarea en horas o el calendario de desfase a 24 horas."
+      "hourPlanningTitle": "Solo funciona con planificación por horas en el calendario que usa la regla: un calendario con bandas de horario laboral o una duración de tarea en horas. Para el desfase, también puede aplicar el calendario de desfase de 24 horas."
     },
     "optionsDeviate": {
       "line": "{{field}}: {{current}} (predeterminado: {{standard}})",

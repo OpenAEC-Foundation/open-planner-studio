@@ -1,3 +1,4 @@
+import { isElapsedTask } from '@/engine/scheduler/duration';
 // =================================================================================================
 // MCP-bridge — validatielaag (guards, validaties en relatie-validatie).
 //
@@ -22,9 +23,11 @@ import type { AppState } from './appStore';
 import type { Task } from '@/types/task';
 import {
   applyProgressInvariants, fillMissingActualStart, isActualFinishBeforeStart, isActualPastStatusDate,
+  actualDateSide, normalizeActualDate,
 } from '@/engine/taskMutationRules';
 import { captureProgressWork, settleProgressWork } from '@/engine/work/workRuleApply';
 import { actualStartQuestionFor } from '@/engine/progressEntry';
+import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { clearLevelingGaps } from '@/utils/taskDefaults';
 import { sameValue } from '@/utils/sameValue';
 import { introducedCycle } from '@/engine/scheduler/relationRules';
@@ -184,6 +187,14 @@ export const progress = {
     if ('actualStart' in update) time.actualStart = update.actualStart || undefined;
     if ('actualFinish' in update) time.actualFinish = update.actualFinish || undefined;
 
+    const calendar = resolveCalendar(task.calendarId, draftState.calendars, draftState.calendar);
+    for (const field of ['actualStart', 'actualFinish'] as const) {
+      if (field in update) time[field] = normalizeActualDate(scratch, field, time[field], statusDate, calendar);
+    }
+    // Toets de opgegeven feiten, ook als completion het einde hieronder weer wist.
+    const suppliedActualStart = time.actualStart;
+    const suppliedActualFinish = time.actualFinish;
+
     // (3) completion < 1 ⇒ een verouderd actualFinish wissen — maar ALLEEN wanneer completion
     //     expliciet in DEZE update meekomt (spiegelt setTaskProgress, waar deze clausule bij de
     //     NIEUW gezette completion hoort). Anders zou het zetten van alléén een actualFinish (op een
@@ -195,15 +206,15 @@ export const progress = {
     //     Ná (3), zodat de klem het einde ziet dat overblijft: een afgeleide start valt nooit ná het
     //     (opgegeven of door de invarianten afgeleide) werkelijke einde. Een OPGEGEVEN actualStart
     //     staat er dan al en blijft ongemoeid — die toetst (7) gewoon.
-    if (time.completion > 0) fillMissingActualStart(time, statusDate);
+    if (time.completion > 0) fillMissingActualStart(scratch, statusDate, calendar);
 
     // (5) OPGEGEVEN actual ná de statusdatum ⇒ weigering (spiegel van setActualStart/Finish accepted=false),
     //     met dezelfde vergelijking als store en grid: een date-only statusdatum laat de hele dag toe.
     if (statusDate) {
-      if (update.actualStart && isActualPastStatusDate(update.actualStart, statusDate)) {
+      if (update.actualStart && isActualPastStatusDate(suppliedActualStart!, statusDate, isElapsedTask(task) ? undefined : calendar, actualDateSide(task, 'actualStart'))) {
         return { applied: false, reason: `actualStart ${update.actualStart} lies after the status date ${statusDate}` };
       }
-      if (update.actualFinish && isActualPastStatusDate(update.actualFinish, statusDate)) {
+      if (update.actualFinish && isActualPastStatusDate(suppliedActualFinish!, statusDate, isElapsedTask(task) ? undefined : calendar, actualDateSide(task, 'actualFinish'))) {
         return { applied: false, reason: `actualFinish ${update.actualFinish} lies after the status date ${statusDate}` };
       }
     }
@@ -238,12 +249,12 @@ export const progress = {
     }
 
     // (10) invarianten.
-    applyProgressInvariants(scratch, statusDate);
+    applyProgressInvariants(scratch, statusDate, calendar);
     // (11) Geen verzonnen werkelijke start — de AI geeft hem zelf op.
     const question = actualStartQuestionFor(task, scratch, statusDate, {
       actualStart: !!update.actualStart,
       actualFinish: !!update.actualFinish,
-    });
+    }, isElapsedTask(task) ? undefined : calendar);
     if (question) {
       const planned = scratch.time.earlyStart || scratch.time.scheduleStart;
       return {

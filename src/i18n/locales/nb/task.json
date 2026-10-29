@@ -4,6 +4,7 @@
     "applyShape": "Bruk form:",
     "hoursPerDay": "{{hours}} timer per arbeidsdag",
     "stripHint": "Dra en grense for å gjøre en fase lengre eller kortere. Dra øvre kant for å sette tildelingsenhetene. Dobbeltklikk en dag for å dele en fase.",
+    "partialDayHint": "Starter eller slutter aktiviteten midt i en arbeidsdag, teller den dagen forholdsmessig: timene er tildelingsenheten × delen av dagen. Histogrammet teller på samme måte.",
     "from": "Fra",
     "to": "Til",
     "days": "Dager",
@@ -181,8 +182,8 @@
       "calendar": "Velg en kalender fra listen.",
       "calendarNotFound": "Den valgte kalenderen finnes ikke.",
       "calendarHours": "Kalenderen for denne aktiviteten har ingen arbeidstimer per dag.",
-      "hourPlanningDisabled": "Timeplanlegging er slått av i appens Innstillinger.",
-      "durationConversionNotExact": "Denne varigheten kan ikke regnes nøyaktig om til den andre enheten.",
+      "durationConversionNotExact": "Denne varigheten kan ikke regnes nøyaktig om til den andre enheten på denne kalenderen.",
+      "fixedWorkIsHours": "En aktivitet med fast arbeid bruker alltid timemålet.",
       "milestoneRequired": "Dette feltet gjelder bare for milepæler.",
       "milestoneUnavailable": "En hovedaktivitet med delaktiviteter kan ikke bli en milepæl.",
       "actualAfterStatusDate": "Den faktiske datoen ligger etter statusdatoen.",
@@ -328,11 +329,8 @@
     "unit": "Varighetsenhet",
     "days": "Dager",
     "hours": "Timer",
-    "invalid": "Skriv inn et heltall dager eller timer, for eksempel 2d eller 12t.",
-    "enableHourPlanningFirst": "Slå på timeplanlegging for å redigere denne timebaserte aktiviteten.",
-    "enableHourPlanning": "Slå på timeplanlegging",
-    "requiresWorkBlocks": "Denne kalenderen har ingen gyldige arbeidstider. Kontroller arbeidsdagene og arbeidstidene.",
-    "conversionNotExact": "{{value}} tilsvarer ikke hele dager i denne kalenderen. Enheten er ikke endret.",
+    "invalid": "Skriv inn et antall dager eller timer, for eksempel 2,5d eller 12t.",
+    "conversionNotExact": "{{value}} kan ikke regnes om til den andre enheten på denne kalenderen. Enheten er ikke endret.",
     "unitInfo": "Den valgte enheten gjelder for denne aktiviteten. Dager teller arbeidsdager. Timer teller arbeidstimer i kalenderen. En annen kalender endrer ikke enheten eller den angitte varigheten, men den kan endre sluttdatoen."
   },
   "dialog": {
@@ -375,7 +373,6 @@
       "resourceAddsWork": "En ekstra ressurs legger til arbeid.",
       "resourceSharesWork": "En ekstra ressurs tar over en del av arbeidet; tildelingsenhetene per ressurs synker.",
       "resourceShorter": "En ekstra ressurs gjør aktiviteten kortere.",
-      "resourceShorterWholeDays": "En ekstra ressurs gjør aktiviteten kortere, avrundet til hele dager.",
       "resourceAddsWorkSameDuration": "En ekstra ressurs legger til arbeid; varigheten er uendret."
     },
     "info": "Forklaring av aktivitetstype"
@@ -459,6 +456,7 @@
     "jumpToTask": "Gå til aktivitet {{wbs}}",
     "relationPopoverTitle": "Type avhengighet",
     "driving": "Styrende avhengighet (driving)",
+    "drivingUnknown": "Styrende avhengigheter er ukjente uten en beregning.",
     "lag": "Forsinkelse (f.eks. 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Beregn",
     "assignments": {
@@ -523,6 +521,8 @@
     "type": "Type",
     "lag": "Forsinkelse",
     "driving": "Styrende avhengighet",
+    "drivingUnknown": "Ukjent",
+    "notDriving": "Ikke styrende",
     "freeFloat": "Fri slakk",
     "warnings": "Meldinger",
     "warnTruncatedLead": "Ledetid avkortet ved prosjektstart. Overlappingen blir ikke fullt brukt.",
@@ -648,5 +648,11 @@
     "pieceHours_one": "Del: {{count}} time",
     "pieceHours_other": "Del: {{count}} timer",
     "merged": "Slå sammen"
+  },
+  "dateTimeInput": {
+    "time": "Tid for {{field}}",
+    "timeHint": "Tomt: starten eller slutten av arbeidsdagen. Med et klokkeslett: nøyaktig det tidspunktet.",
+    "later": "Et kvarter senere",
+    "earlier": "Et kvarter tidligere"
   }
 }

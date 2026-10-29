@@ -12,7 +12,8 @@ import {
   computeSplitSegments, enumerateTaskWorkDays, splitDayPattern, splitGapsFromWorkDayBlocks,
 } from '@/engine/scheduler/splitWalk';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
-import type { TaskSplitGap } from '@/types/task';
+import type { Task, TaskSplitGap } from '@/types/task';
+import { splitTotalSpanDays } from '@/engine/scheduler/duration';
 import type { WorkCalendar } from '@/types/calendar';
 import { parseDate, formatDate, parseInstant, formatInstant } from '@/utils/dateUtils';
 
@@ -283,6 +284,47 @@ for (const mpd of [480, 450, 390]) {
 eq('gaten uit blokken, geënumereerd op de taakkalender',
    enumerateTaskWorkDays(splitGapsFromWorkDayBlocks([{ work: 1, gap: 1 }, { work: 2, gap: 0 }], 480), sixDayEng, '2026-06-05', 3),
    ['2026-06-05', '2026-06-08', '2026-06-09']);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// computeSplitSegments in de DAGENMAAT (measure='workdays', alleen uren §3.14)
+// ═══════════════════════════════════════════════════════════════════════════
+// Een dagtaak met een breuk en een start midden op de dag, op een kalender met ongelijke dagen (ma–do
+// 8 u, vr 6 u). Dezelfde taak staat als motorcase `f3-split-dagenmaat-breuk-middag` in
+// cases-hours-blokgrenzen.json: 2,5 d vanaf do 11:00, pauze van 1 d na 0,5 d, einde di 16:00.
+// De urenmaat zou de pauze als 480 werkminuten wandelen (vr 6 u + ma 2 u ⇒ hervat ma 09:00); de oude
+// afronding op hele dagen maakte van 0,5 d werk een hele dag. De dagenmaat telt de vrijdag als één werkdag.
+console.log('-- split-walk: computeSplitSegments in de dagenmaat (breuk, start midden op de dag) --');
+{
+  const wk = [{ start: 420, end: 720 }, { start: 780, end: 960 }];
+  const UNEVEN_CAL: WorkCalendar = {
+    id: 'cal-uneven-split-walk', name: 'ongelijk', description: '', workDays: [1, 2, 3, 4, 5],
+    workStartHour: 7, workEndHour: 16, hoursPerDay: 8, holidays: [],
+    workTime: { byWeekday: { 1: wk, 2: wk, 3: wk, 4: wk, 5: [{ start: 420, end: 720 }, { start: 780, end: 840 }], 6: [], 7: [] } },
+  };
+  const unevenEng = new CalendarEngine(UNEVEN_CAL);
+  const splitGaps: TaskSplitGap[] = [{ afterMinutes: 240, gapMinutes: 480 }];
+  const start = parseInstant('2026-06-04T11:00');
+  // Het einde zoals de motor het rekent (`CPMSolver.addDurationChecked`, dagenmaat-tak).
+  const dayTask = { time: { durationUnit: 'days', scheduleDuration: 2.5 }, splitGaps } as unknown as Task;
+  const motorEnd = unevenEng.addMeasuredWorkdays(start, splitTotalSpanDays(dayTask, unevenEng));
+  eq('motor: einde di 16:00', formatInstant(motorEnd, 'hour'), '2026-06-09T16:00');
+  const segs = computeSplitSegments(splitGaps, start, motorEnd, 'workdays', unevenEng);
+  // Tussengrenzen zijn exclusief: het eerste stuk werkt do 11:00–16:00 en grenst aan vr 07:00.
+  eq('dagenmaat: stukken do 11:00 – vr 07:00 (exclusief) en ma 07:00 – di 16:00',
+     segs.map(x => [formatInstant(x.start, 'hour'), formatInstant(x.end, 'hour')]),
+     [['2026-06-04T11:00', '2026-06-05T07:00'], ['2026-06-08T07:00', '2026-06-09T16:00']]);
+  if (segs.length === 2) {
+    eq('dagenmaat: het laatste stuk is precies de rest van 2 d (zelfde telling als de motor)',
+       formatInstant(unevenEng.addMeasuredWorkdays(segs[1].start, 2), 'hour'), formatInstant(motorEnd, 'hour'));
+  }
+  // Een pauze van een uur in een dagtaak blijft een uur (het oorspronkelijke knownbug-242-scenario).
+  const hourGapSegs = computeSplitSegments(
+    [{ afterMinutes: 120, gapMinutes: 60 }, { afterMinutes: 300, gapMinutes: 60 }],
+    parseInstant('2026-06-01T08:00'), parseInstant('2026-06-01T16:00'), 'workdays', hourEng);
+  eq('dagenmaat: pauzes van een uur blijven een uur',
+     hourGapSegs.map(x => [formatInstant(x.start, 'hour'), formatInstant(x.end, 'hour')]),
+     [['2026-06-01T08:00', '2026-06-01T10:00'], ['2026-06-01T11:00', '2026-06-01T13:00'], ['2026-06-01T14:00', '2026-06-01T16:00']]);
+}
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {

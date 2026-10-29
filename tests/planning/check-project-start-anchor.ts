@@ -1,3 +1,4 @@
+// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 // T7b (plan-§9/O2-vervolg, orkestratorbesluit 2026-08-15 — optie B) + T7-review-fixronde
 // (H3/L3/L4/M4) — headless tegen de ECHTE Zustand-store, zelfde patroon als `check-move-
 // project.ts`/`check-notifications.ts`.
@@ -89,19 +90,19 @@ const undoLenBeforeClamp = S().historyEvents.filter(event => event.state === 'ap
 S().setProject({ startDate: '2026-08-17' }); // maandag, LATER dan alle bovenstaande vroege ankers
 
 eq('01 A (wortel, geen voorganger/constraint) klemt naar de nieuwe startdatum',
-  S().tasks.find(t => t.id === tA)?.time.scheduleStart, '2026-08-17');
-eq('02 A2 klemt eveneens', S().tasks.find(t => t.id === tA2)?.time.scheduleStart, '2026-08-17');
-eq('03 B (heeft een voorganger C) blijft ongemoeid', S().tasks.find(t => t.id === tB)?.time.scheduleStart, '2026-05-01');
-eq('04 C (zelf ook wortel, geen voorganger/constraint) klemt', S().tasks.find(t => t.id === tC)?.time.scheduleStart, '2026-08-17');
+  S().tasks.find(t => t.id === tA)?.time.scheduleStart, "2026-08-17T07:00");
+eq('02 A2 klemt eveneens', S().tasks.find(t => t.id === tA2)?.time.scheduleStart, "2026-08-17T07:00");
+eq('03 B (heeft een voorganger C) blijft ongemoeid', S().tasks.find(t => t.id === tB)?.time.scheduleStart, "2026-05-01T07:00");
+eq('04 C (zelf ook wortel, geen voorganger/constraint) klemt', S().tasks.find(t => t.id === tC)?.time.scheduleStart, "2026-08-17T07:00");
 eq('05 D (expliciete SNET-constraint) blijft ongemoeid ondanks een vroeg eigen anker',
-  S().tasks.find(t => t.id === tD)?.time.scheduleStart, '2026-05-01');
-eq('06 D.constraint zelf blijft ongemoeid', S().tasks.find(t => t.id === tD)?.constraint, { type: 'SNET', date: '2026-05-10' });
-eq('07 E (eigen anker al ná de nieuwe startdatum) blijft ongemoeid', S().tasks.find(t => t.id === tE)?.time.scheduleStart, '2026-09-01');
+  S().tasks.find(t => t.id === tD)?.time.scheduleStart, "2026-05-01T07:00");
+eq('06 D.constraint zelf blijft ongemoeid', S().tasks.find(t => t.id === tD)?.constraint, { type: 'SNET', date: "2026-05-10T07:00" });
+eq('07 E (eigen anker al ná de nieuwe startdatum) blijft ongemoeid', S().tasks.find(t => t.id === tE)?.time.scheduleStart, "2026-09-01T07:00");
 eq('08 project.startDate is de nieuwe datum', S().project.startDate, '2026-08-17');
 eq('09 precies ÉÉN undo-stap voor de hele klem-transactie (klem + startDate samen)', S().historyEvents.filter(event => event.state === 'applied').length, undoLenBeforeClamp + 1);
-eq('L1: dateless ASAP blokkeert de klem niet', S().tasks.find(t => t.id === tAsap)?.time.scheduleStart, '2026-08-17');
+eq('L1: dateless ASAP blokkeert de klem niet', S().tasks.find(t => t.id === tAsap)?.time.scheduleStart, "2026-08-17T07:00");
 eq('L2: de hammock-wortel wordt overgeslagen (eigen scheduleStart blijft ongemoeid)',
-  S().tasks.find(t => t.id === tHammock)?.time.scheduleStart, '2026-05-01');
+  S().tasks.find(t => t.id === tHammock)?.time.scheduleStart, "2026-05-01T07:00");
 
 // H3b — scheduleFinish schuift consistent mee (duurbehoudend, klokbehoudend): NIET blijven staan
 // op de oude waarde (die zou dan vóór scheduleStart liggen — de K7-inconsistentie uit de review).
@@ -127,9 +128,9 @@ truthy('16 H3c: er staat een vers cpmResult (geen undefined ná de klem)', !!S()
 // ═══════════════════════════════════════════════════════════════════════════
 S().undo();
 eq('20 undo herstelt project.startDate', S().project.startDate, '2026-06-01');
-eq('21 undo herstelt het geklemde taakanker A', S().tasks.find(t => t.id === tA)?.time.scheduleStart, '2026-05-01');
-eq('22 undo herstelt het geklemde taakanker A2', S().tasks.find(t => t.id === tA2)?.time.scheduleStart, '2026-05-15');
-eq('23 undo herstelt het geklemde taakanker C', S().tasks.find(t => t.id === tC)?.time.scheduleStart, '2026-05-01');
+eq('21 undo herstelt het geklemde taakanker A', S().tasks.find(t => t.id === tA)?.time.scheduleStart, "2026-05-01T07:00");
+eq('22 undo herstelt het geklemde taakanker A2', S().tasks.find(t => t.id === tA2)?.time.scheduleStart, "2026-05-15T07:00");
+eq('23 undo herstelt het geklemde taakanker C', S().tasks.find(t => t.id === tC)?.time.scheduleStart, "2026-05-01T07:00");
 // L3/L4 (T7-review): de melding zit NIET in het documentcontract (`ui.notifications` staat niet in
 // `DOCUMENT_FIELDS`, zie `documentContract.ts`) — dat is BESTAAND, app-breed meldingenkanaal-gedrag
 // (elke melding overleeft undo/redo, niet iets specifiek voor deze feature; `dedupeKey`/`count`-
@@ -138,7 +139,7 @@ eq('23 undo herstelt het geklemde taakanker C', S().tasks.find(t => t.id === tC)
 // aanname niet stilzwijgend breekt.
 eq('L3: de melding overleeft de undo (app-globaal, geen documentveld)', N().length, 1);
 S().redo();
-eq('24 redo klemt opnieuw', S().tasks.find(t => t.id === tA)?.time.scheduleStart, '2026-08-17');
+eq('24 redo klemt opnieuw', S().tasks.find(t => t.id === tA)?.time.scheduleStart, "2026-08-17T07:00");
 eq('25 redo herstelt project.startDate', S().project.startDate, '2026-08-17');
 
 // L4: een tweede klem met een ANDER aantal op dezelfde dedupeKey vervangt `params` met de LAATSTE
@@ -160,7 +161,7 @@ S().setProject({ startDate: '2026-08-24' }); // opnieuw later ⇒ tweede klem, n
 eq('L4: params vervangt (niet optelt) bij een herhaalde dedupeKey — het aantal van de LAATSTE call',
   N()[0]?.params, { count: 4 });
 eq('L4: de dedupe-badge (count) telt wél de OCCURRENCES op', N()[0]?.count, 2);
-eq('L4-controle: F is ook echt geklemd', S().tasks.find(t => t.id === tF)?.time.scheduleStart, '2026-08-24');
+eq('L4-controle: F is ook echt geklemd', S().tasks.find(t => t.id === tF)?.time.scheduleStart, "2026-08-24T07:00");
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 3) No-op-paden: alleen een ECHTE verzetting naar een LATERE datum klemt
@@ -172,7 +173,7 @@ clearAll();
 
 // 3a — EERDERE datum: geen klem, geen melding.
 S().setProject({ startDate: '2026-06-01' });
-eq('30 een EERDERE startDate klemt niets', S().tasks.find(t => t.id === t3)?.time.scheduleStart, '2026-05-01');
+eq('30 een EERDERE startDate klemt niets', S().tasks.find(t => t.id === t3)?.time.scheduleStart, "2026-05-01T07:00");
 eq('31 geen melding bij een eerdere startDate', N().length, 0);
 eq('32 project.startDate is wél gewoon bijgewerkt', S().project.startDate, '2026-06-01');
 
@@ -191,7 +192,7 @@ const t3c = S().addTask({ name: 'Y', time: createDefaultTaskTime('2026-09-01', 2
 clearAll();
 S().setProject({ startDate: '2026-08-17' });
 eq('35 niets te klemmen => geen melding', N().length, 0);
-eq('36 taak Y blijft op zijn eigen (latere) anker', S().tasks.find(t => t.id === t3c)?.time.scheduleStart, '2026-09-01');
+eq('36 taak Y blijft op zijn eigen (latere) anker', S().tasks.find(t => t.id === t3c)?.time.scheduleStart, "2026-09-01T07:00");
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 4) Geïmporteerde bestanden raken dit pad NIET (kern van het orkestratorbesluit — importgetrouwheid
@@ -215,7 +216,7 @@ S().loadState({
   resources: [],
   assignments: [],
 });
-eq('40 loadState klemt het geïmporteerde taakanker NIET', S().tasks.find(t => t.id === t4)?.time.scheduleStart, '2026-05-01');
+eq('40 loadState klemt het geïmporteerde taakanker NIET', S().tasks.find(t => t.id === t4)?.time.scheduleStart, "2026-05-01T07:00");
 eq('41 loadState vuurt de klem-melding niet af', N().some(n => n.messageKey === 'notifications.projectStartAnchorsClamped'), false);
 eq('42 project.startDate komt wél gewoon over uit het geladen bestand', S().project.startDate, '2026-08-17');
 
@@ -267,7 +268,7 @@ eq('61 scalaire kalender, uurtaak: anker = eerste werkmoment (07:00), geen kale 
 eq('62 klem en solver kiezen hetzelfde moment (anker = door setProject herberekende earlyStart)',
   suAfter.time.earlyStart, suAfter.time.scheduleStart);
 eq('63 scalaire kalender, dagtaak: kale datum zonder tijd (ongewijzigd)',
-  S().tasks.find(t => t.id === tSd)?.time.scheduleStart, '2026-08-17');
+  S().tasks.find(t => t.id === tSd)?.time.scheduleStart, "2026-08-17T07:00");
 eq('64 melding telt beide geklemde ankers', N()[0]?.params, { count: 2 });
 
 // ── Afronding ────────────────────────────────────────────────────────────────────────────────

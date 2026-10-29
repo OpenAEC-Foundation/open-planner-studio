@@ -1,3 +1,4 @@
+// F2: taakdatums worden op D1/D2/D7-momenten vergeleken (§4.2); de echte handeling blijft gelijk.
 // Rekenprofielen in de echte gebruikersflow (spec v3.1 §8; plan taak D6). Een .xer via de ribbonknop
 // Openen en de bestandskiezer; daarna alleen echte klikken. `window.__OPS__` wordt uitsluitend gebruikt
 // om de uitkomst te LEZEN (patroon `recorded-dates.spec.ts`).
@@ -340,7 +341,7 @@ test('rekenprofiel: P6 → OPS → P6 geeft dezelfde datums terug, ook na Bereke
   await expect.poll(m1).toEqual(['2026-03-27T17:00', '2026-03-27T17:00']);
 });
 
-// UI-voorstel conventiegroepen: de 27 conventies staan per thema, met de basiswaarde van het profiel,
+// UI-voorstel conventiegroepen: de 29 conventies staan per thema, met de basiswaarde van het profiel,
 // "terug naar basis" bij een afwijking en een uitklapbare uitleg per regel (het label "per bestand" bij A19
 // is op 2026-09-24 vervallen, eigenaarsbesluit "a": A19 is een gewone P6-conventie). De
 // conventies die in elk ingebouwd profiel uit staan, staan in een eigen laatste groep; de P6-opties die
@@ -356,10 +357,10 @@ test('rekenprofiel: conventies per thema met basiswaarde, terug naar basis en ui
 
   // Het conventiedeel staat standaard dicht; de kop toont het aantal regels.
   await expect(page.locator('[data-ops-convention-row]')).toHaveCount(0);
-  await expect(page.locator('[data-ops-conventions-count]')).toHaveText('(27)');
+  await expect(page.locator('[data-ops-conventions-count]')).toHaveText('(29)');
   await expandConventions(page);
-  // Alle 27 regels staan er, verdeeld over de groepen; A19 onder voortgang, C1 bij "alleen eigen profielen".
-  await expect(page.locator('[data-ops-convention-row]')).toHaveCount(27);
+  // Alle 29 regels staan er (28 plus de dagenmaat uit F3, `workdayDurationMeasure`), verdeeld over de groepen; A19 onder voortgang, C1 bij "alleen eigen profielen".
+  await expect(page.locator('[data-ops-convention-row]')).toHaveCount(29);
   const a19 = page.locator('[data-ops-convention-group="completedWork"] [data-ops-convention-row="p6UseRemainingStartForProgress"]');
   await expect(a19).toHaveCount(1);
   await expect(page.locator('[data-ops-convention-group="ownProfilesOnly"] [data-ops-convention-row="p6CompletedPredecessorAtDataDate"]')).toHaveCount(1);

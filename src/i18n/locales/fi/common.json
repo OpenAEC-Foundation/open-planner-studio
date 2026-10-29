@@ -11,8 +11,9 @@
   },
   "notifications": {
     "dismiss": "Sulje ilmoitus",
-    "taskEditRevertBlocked": "Tekoälyavustajan tai laajennuksen muutos tuli väliin. Sitä edeltävät tehtävämuutokset eivät palautuneet. Ne jäävät tavallisina vaiheina kohtaan Kumoa.",
+    "taskEditRevertBlocked": "Muutos MCP-asiakkaalta tai laajennuksesta tuli väliin. Sitä edeltäneitä tehtävämuutoksia ei palautettu. Ne jäävät tavallisina vaiheina kohtaan Kumoa.",
     "openFailed": "Avaaminen epäonnistui",
+    "csvInvalidDate": "CSV-tiedostoa ei avattu: tunnistamaton päivämäärä ”{{value}}” CSV-rivillä {{row}}, sarake ”{{column}}”. Käytä muotoa vvvv-kk-pp, pp-kk-vvvv tai pp/kk/vvvv.",
     "extGuideCallbackFailed": "Laajennuksen {{name}} vaihe aiheutti virheen. Opastus jatkuu.",
     "extHelpProjectOpenFailed": "Laajennuksen {{name}} projektitiedostoa {{file}} ei voitu avata.",
     "extImportFailed": "Tuonti ohjelmalla {{name}} epäonnistui.",
@@ -76,6 +77,8 @@
     "browserCannotOverwrite": "Tämä selain ei salli sovelluksen kirjoittaa takaisin tiedostoon '{{name}}'. Siksi sovellus kysyy joka kerta tallennettaessa, mihin tiedosto tallennetaan. Chromessa, Edgessä tai työpöytäsovelluksessa tätä ei tapahdu.",
     "browserSavesAsDownload": "Tallennettu latauksena: '{{name}}' on lataukset-kansiossa. Tämä selain ei salli sovelluksen kirjoittaa omaan paikkaansa, joten jokainen tallennus luo uuden latauksen. Chromessa, Edgessä tai työpöytäsovelluksessa Tallenna päivittää saman tiedoston.",
     "autoSaveFailed": "Automaattitallennus epäonnistui",
+    "recoveryManifestBlocked": "Palautustiedoissa on tuntematon versio tai virheellinen rakenne. Tämä sovellus jättää ne koskematta eikä voi lukea tai päivittää tätä palautusjoukkoa. Kokeile sitä sovellusversiota, joka loi kopiot, tai uudempaa versiota. Tallenna uusi työ itse.",
+    "recoveryStorageBlocked": "Palautustallennus on tilapäisesti estetty toisen avoimen yhteyden takia. Olemassa olevat kopiot säilyvät, eikä tämä sivu luo uusia palautuskopioita. Tallenna työ itse, sulje muut välilehdet, joissa tämä sovellus on auki, ja lataa tämä sivu uudelleen yrittääksesi palautusta uudelleen.",
     "recoveryReadFailed": "Palautettua tiedostoa ei voitu lukea",
     "recoveryRestoreFailed": "Palautus epäonnistui",
     "recoveryDocumentsSkipped_one": "{{count}} palautustiedostoa ei voitu ladata ja se ohitettiin.",
@@ -126,13 +129,19 @@
     "dragDatesAreActual": "Tehtävä ”{{name}}” on suoritettu: alkamispäivä ja loppu ovat todellisia päivämääriä eikä niitä siirretä. Muuta ne edistymisen kautta.",
     "referencesClearedOnPaste_one": "{{count}} viittaus ei ollut tässä dokumentissa ja se tyhjennettiin (tehtäväkalenteri, mukautettu työlaji, tehtäväkoodi tai mukautettu kenttä lähdedokumentista).",
     "referencesClearedOnPaste_other": "{{count}} viittausta ei ollut tässä dokumentissa ja ne tyhjennettiin (tehtäväkalenterit, mukautetut työlajit, tehtäväkoodit tai mukautetut kentät lähdedokumentista).",
-    "milestoneRefusedAssignments": "'{{task}}' on resurssikohdistuksia, eikä siitä voi tulla välitavoitetta. Poista ensin resurssikohdistukset.",
-    "milestoneRefusedSummary": "'{{task}}' on yhteenvetotehtävä, jolla on alitehtäviä, eikä siitä voi tulla välitavoitetta.",
+    "milestoneRefusedAssignments": "'{{task}}' on resurssikohdistuksia, eikä sitä voi muuttaa välitavoitteeksi. Poista ensin resurssikohdistukset.",
+    "milestoneRefusedAssignmentsMany_one": "{{count}} tehtävä on saanut resurssikohdistuksia, eikä siitä voi tulla välitavoitetta. Poista ensin resurssikohdistukset.",
+    "milestoneRefusedAssignmentsMany_other": "{{count}} tehtävää on saanut resurssikohdistuksia, eikä niistä voi tulla välitavoitteita. Poista ensin resurssikohdistukset.",
+    "milestoneRefusedSummary": "'{{task}}' on yhteenvetotehtävä, jolla on alitehtäviä, eikä sitä voi muuttaa välitavoitteeksi.",
+    "milestoneRefusedSummaryMany_one": "{{count}} tehtävä on yhteenvetotehtävä alitehtävien kanssa, eikä se voi olla välitavoite.",
+    "milestoneRefusedSummaryMany_other": "{{count}} tehtävää ovat yhteenvetotehtävät alitehtävien kanssa, eivätkä ne voi olla välitavoitteita.",
     "assignmentsMovedToSubtask_one": "Kohdistus siirrettiin alitehtävään '{{child}}'.",
     "assignmentsMovedToSubtask_other": "{{count}} kohdistusta siirrettiin alitehtävään '{{child}}'.",
     "assignmentsMovedToSubtasks_one": "{{count}} tehtävän kohdistukset siirrettiin alitehtävään.",
     "assignmentsMovedToSubtasks_other": "{{count}} tehtävän kohdistukset siirrettiin alitehtäviin.",
     "milestoneClearedOnPhase": "'{{phase}}' ei ole enää välitavoite.",
+    "milestoneClearedOnPhaseMany_one": "{{count}} tehtävä ei ole enää välitavoite.",
+    "milestoneClearedOnPhaseMany_other": "{{count}} tehtävää ei ole enää välitavoitteita.",
     "phaseRefusedNoAssignableChild": "'{{phase}}' ei voi muuttua yhteenvetotehtäväksi: sen resurssikohdistuksille ei ole paikkaa, koska mikään uusista alitehtävistä ei voi kantaa resurssikohdistuksia (välitavoite tai yhteenvetotehtävä). Mitään ei ole muutettu.",
     "phaseRefusedDuplicateResource": "'{{phase}}' ei voi muuttua yhteenvetotehtäväksi: resurssikohdistusta, jonka resurssi on {{resource}}, ei voi siirtää uuteen alitehtävään '{{child}}', koska siinä on jo {{resource}}. Mitään ei ole muutettu.",
     "phaseQuestionOutdated": "Tehtävät tai resurssikohdistukset muuttuivat, kun kysymys oli auki. Mitään ei muutettu; yritä uudelleen.",
@@ -149,7 +158,7 @@
     },
     "xerArchiveUnusable": "XER-lähdearkisto tässä tiedostossa on käyttökelvoton ja jätettiin pois; projekti itsessään avattiin kokonaan.",
     "xerArchiveUnusableLine": "XER-lähdearkisto tässä tiedostossa oli käyttökelvoton ja se on jätetty pois.",
-    "xerArchiveUnusableConsequence": "Aikataulu, laskentaprofiili ja kaikki projektitiedot IFC-tiedostossa ovat täydelliset. Puuttuu: päivämäärät sellaisina kuin Primavera ne tallensi, ja lähteen alkuperä AI:lle ja laajennuksille. Tallentaminen kirjoittaa tiedoston ilman arkistoa; tuo .xer-lähdetiedosto uudelleen, jotta arkisto palautuu.",
+    "xerArchiveUnusableConsequence": "Aikataulu, laskentaprofiili ja kaikki projektitiedot IFC-tiedostosta ovat täydelliset. Puuttuu: päivämäärät sellaisina kuin Primavera ne tallensi, ja lähteen alkuperä MCP-asiakkaille ja laajennuksille. Tallentaminen kirjoittaa tiedoston ilman arkistoa. Tuo alkuperäinen .xer-tiedosto uudelleen, jotta arkisto palautuu.",
     "xerArchiveReasonSchemaVersion": "Syy: arkistolla on tuntematon skeemaversio tai asettelu (uudempi tai muu kirjoittaja).",
     "xerArchiveReasonHashMismatch": "Syy: tarkistussumma ei vastaa lähdetavuja – arkisto on vioittunut.",
     "xerArchiveReasonTruncated": "Syy: arkisto on katkaistu – osa lähdetavuista puuttuu.",
@@ -212,7 +221,10 @@
     "msProjectLostFixedCosts_one": "Kiinteitä kustannuksia ei tuotu {{count}} tehtävältä.",
     "msProjectLostFixedCosts_other": "Kiinteitä kustannuksia ei tuotu {{count}} tehtävältä.",
     "msProjectLostResourceRates_one": "Normaalihintoja ei tuotu {{count}} resurssilta.",
-    "msProjectLostResourceRates_other": "Normaalihintoja ei tuotu {{count}} resurssilta."
+    "msProjectLostResourceRates_other": "Normaalihintoja ei tuotu {{count}} resurssilta.",
+    "minuteModelConverted_one": "{{document}}: {{count}} tehtävällä on muunnoksen jälkeen eri alku tai loppu. Suurin siirtymä on {{days}} työpäivää. Ctrl+Z palauttaa tallennetut päivämäärät.",
+    "minuteModelConverted_other": "{{document}}: {{count}} tehtävällä on muunnoksen jälkeen eri alku tai loppu. Suurin siirtymä on {{days}} työpäivää. Ctrl+Z palauttaa tallennetut päivämäärät.",
+    "minuteModelCalendarRepaired": "Kalenteri ”{{calendar}}” on korjattu: sen loppu tai tauko ei vastannut tallennettua työaikaa."
   },
   "scheduleErrors": {
     "cycle": "Kehäriippuvuus tehtävien välillä: {{path}}",
@@ -313,6 +325,11 @@
     "languageHint": "Sovelluksen näyttökieli, otetaan käyttöön heti.",
     "version": "Versio",
     "versionHint": "Sovelluksen nykyinen versionumero.",
+    "experimentalSection": "Kokeellinen",
+    "experimentalEmpty": "Kokeellisia toimintoja ei ole tällä hetkellä.",
+    "experimentalHide": "Piilota",
+    "demoTopbarAnimation": "Demo: animaatio yläpalkissa",
+    "demoTopbarAnimationHint": "Rauhallinen oranssi kiilto yläpalkin poikki. Näyttää, miten kokeellinen kytkin toimii.",
     "tourHint": "Käy sovelluksen esittelykierros uudelleen.",
     "theme": "Teema",
     "themeHint": "Käyttöliittymän värimaailma.",
@@ -321,21 +338,22 @@
     "themeHighContrast": "Suuri kontrasti",
     "themeFollowSystem": "Seuraa järjestelmän teemaa",
     "themeSystemHint": "Seuraa järjestelmän värimaailmaa (nyt: {{theme}}).",
-    "hourPlanningSection": "Tuntisuunnittelu",
-    "enableHourPlanning": "Ota tuntisuunnittelu käyttöön",
-    "enableHourPlanningHint": "Ottaa käyttöön tunti- ja minuuttiaikataulutuksen: tuntiasteikon, työvuorot työaikakaistoineen ja tarkat tehtäväpalkit. Pois ⇒ sovellus toimii kokonaan päiväkohtaisesti kuten ennen.",
     "showTaskTypes": "Tehtävätyypit käyttöön",
     "showTaskTypesHint": "Valitse tehtävän kohdalla, mikä muuttuu, kun kesto, kuormitusaste tai työ muuttuu, kuten Task Type MS Projectissa ja Duration Type P6:ssa. Pois: kesto ja kuormitusaste pysyvät ennallaan. Tiedosto, joka sisältää tehtävätyyppien asetuksia tai tallennettua työtä, näyttää ne myös silloin, kun tämä on pois päältä.",
     "allowMixedDayHour": "Salli sekoitettu päivä/tuntisuunnittelu",
     "defaultTaskDurationUnit": "Oletusmitta uusille tehtäville",
-    "defaultTaskDurationUnitHint": "Määrittää, alkavatko uudet tehtävät työpäivinä vai työtunteina. Olemassa olevat tehtävät eivät muutu.",
+    "defaultTaskDurationUnitHint": "Päivämitta: kesto lasketaan kalenterin työpäivien mukaan. Tuntimitta: kesto lasketaan työtunteina. Olemassa olevat tehtävät eivät muutu. Tehtävässä, jolla on kiinteä työmäärä, käytetään aina tuntimittaa.",
+    "defaultTaskDurationUnitDays": "Päiväyksikkö",
+    "defaultTaskDurationUnitHours": "Tuntiyksikkö",
+    "defaultTaskDurationUnitLocked": "Profiili {{profile}} laskee keston tunteina. Uudet tehtävät saavat siksi tuntiyksikön.",
     "durationDisplay": "Keston näyttö",
     "durationDisplayHint": "Määrittää, miten tehtävän kesto näytetään, riippumatta yksiköstä, jossa tehtävä on itse tallennettu.",
+    "durationDisplayOpsHint": "OPS-profiilissa jokainen tehtävä näyttää oman yksikkönsä.",
     "durationDisplayAuto": "Automaattinen (oma mitta kullekin tehtävälle)",
     "durationDisplayDays": "Aina päivinä",
     "durationDisplayHours": "Aina tunteina",
     "barSplitMode": "Tehtäväpalkit tauoissa",
-    "barSplitModeHint": "Jaetaanko tehtäväpalkki näkyvästi ei-työpäivien ympäriltä.",
+    "barSplitModeHint": "Vain tuntitehtäville: jaa palkit taukojen ja ei-työajan ympäriltä. Todelliset tehtävän tauot näkyvät aina tästä asetuksesta riippumatta.",
     "barSplitNever": "Älä koskaan jaa",
     "barSplitSelection": "Jaa valinnan yhteydessä",
     "barSplitAlways": "Jaa aina",
@@ -398,11 +416,11 @@
     "fontFamilySerif": "Serif",
     "fontFamilyMono": "Monospace",
     "fontHint": "Verkkosovellukset eivät automaattisesti seuraa järjestelmän fonttiasetusta. Valitse tässä käyttöliittymän fontti ja koko.",
-    "aiModeSection": "AI-tila",
-    "aiMode": "Ota AI-tila käyttöön",
-    "aiModeHint": "Näyttää AI-välilehden MCP-sillan kanssa, jotta tekoälyavustajat voivat työskennellä aikataulun kanssa Model Context Protocol -protokollan avulla. Kun tämä on pois päältä, silta pysähtyy.",
+    "aiModeSection": "MCP-yhteys",
+    "aiMode": "Salli MCP-yhteys",
+    "aiModeHint": "Näyttää MCP-välilehden. Käynnistä siellä MCP-silta, jotta MCP-asiakas voi työskennellä aikataulun kanssa Model Context Protocolin kautta. Asetuksen poistaminen käytöstä pysäyttää sillan.",
     "aiAutostart": "Käynnistä silta automaattisesti",
-    "aiAutostartHint": "Ottaa MCP-sillan heti käyttöön, kun sovellus käynnistyy. Tekoälyasiakas voi silloin kytkeytyä ilman, että AI-välilehteä tarvitsee avata. Vain työpöytäsovelluksessa.",
+    "aiAutostartHint": "Ottaa MCP-sillan käyttöön heti, kun sovellus käynnistyy, jotta MCP-asiakas voi yhdistää ilman, että MCP-välilehteä tarvitsee avata ensin. Vain työpöytäsovelluksessa.",
     "legacySection": "Vanhat toiminnot",
     "classicViewControls": "Näytä klassiset näkymäpainikkeet",
     "classicViewControlsHint": "Palauttaa erilliset painikkeet Sarakkeet, Suodatus, Ryhmittely ja Lajittelu Näytä-välilehdelle. Sarakkeet valitaan nyt taulukon otsikon plusmerkistä tai valikosta Taulukko → Sarakkeet…. Suodatus, ryhmittely ja lajittelu ovat asettelupainikkeissa ja asettelun valintaikkunassa."
@@ -434,9 +452,9 @@
     "configSnippetHint": "Liitä tämä asiakasohjelman MCP-asetuksiin.",
     "tokenWarning": "Tämä token antaa pääsyn avoimeen aikatauluun. Älä jaa sitä muille.",
     "connectPrompt": "Yhdistämiskehote",
-    "connectPromptHint": "Liitä tämä tekoälyagenttiin. Se kytkeytyy itse.",
+    "connectPromptHint": "Liitä tämä MCP-asiakkaaseen. Se yhdistyy itse.",
     "connectPromptText": "Yhdistä MCP-palvelimeen, joka toimii tietokoneellani: nimi {{name}}, kuljetustapa streamable HTTP, URL {{url}}, otsakkeella Authorization: Bearer {{token}}. Lisää se MCP-asetuksiin (esimerkiksi mcpServers-lohkona) ja kytkeydy. Tarkista kytkentä pyytämällä työkalulista: siinä pitäisi näkyä noin {{count}} työkalua, joiden etuliite on {{prefix}}. Tiivistä lyhyesti, mitä tällä palvelimella voi tehdä. Lue ennen mitään muutosta ensin aikataulun opas työkalulla planner_get_planning_guide.",
-    "statusDot": "AI-silta: {{status}}"
+    "statusDot": "MCP-silta: {{status}}"
   },
   "aiSafety": {
     "pause": "Keskeytä",
@@ -446,7 +464,7 @@
     "readOnlyHint": "Kaikki muokkaavat työkalut hylätään, kun tämä on päällä.",
     "autoBackupOn": "Auto-varmuuskopio: päällä",
     "autoBackupOff": "Auto-varmuuskopio: pois",
-    "autoBackupHint": "Tekee asiakirjaa kohden automaattisesti IFC-varmuuskopion ennen ensimmäistä AI-muutosta.",
+    "autoBackupHint": "Tekee automaattisesti IFC-varmuuskopion ennen ensimmäistä MCP-muutosta kussakin asiakirjassa.",
     "backupNow": "Varmuuskopioi nyt",
     "openFolder": "Avaa varmuuskopiokansio",
     "backupOk": "Varmuuskopio luotu: {{name}}",
@@ -454,10 +472,10 @@
     "openErr": "Kansion avaaminen epäonnistui: {{error}}"
   },
   "aiActivity": {
-    "title": "AI-toiminta",
+    "title": "MCP-toiminta",
     "panelButton": "Toimintapaneeli",
     "clear": "Tyhjennä",
-    "empty": "Ei vielä AI-toimintaa. Sillan kutsut näkyvät tässä.",
+    "empty": "Ei vielä MCP-toimintaa. Sillan kutsut näkyvät tässä.",
     "args": "Argumentit",
     "result": "Vastaus"
   },
@@ -473,7 +491,10 @@
     "taskCount_one": "{{count}} tehtävä",
     "taskCount_other": "{{count}} tehtävää",
     "restore": "Palauta",
-    "dontRestore": "Älä palauta"
+    "dontRestore": "Älä palauta",
+    "unreadableOnlyExplanation": "Mitään palautuskopiota ei voi lukea. Säilytä ne myöhempää palautusyritystä varten, tai poista ne vain, jos niitä ei enää tarvita. Poistamista ei voi peruuttaa.",
+    "keepCopies": "Säilytä kopiot",
+    "deleteCopies": "Poista kopiot"
   },
   "window": {
     "minimize": "Pienennä",
@@ -492,7 +513,8 @@
   "project": {
     "untitled": "Uusi aikataulu",
     "imported": "Tuotu projekti",
-    "unassignedResource": "Ei määritetty"
+    "unassignedResource": "Ei määritetty",
+    "ifcBuildingModelUnsupported": "Tämä IFC-tiedosto sisältää rakennusmallin kohteita. Avaaminen on estetty, koska tallennus poistaisi ne. Muokkaa erillistä aikataulutiedostoa ja yhdistä se rakennusmallin kanssa jälkeenpäin."
   },
   "documents": {
     "overviewTitle": "Avoimet projektit",
@@ -587,12 +609,14 @@
     "releaseNotes": "Mitä on uutta",
     "downloadInstall": "Lataa ja asenna",
     "downloading": "Ladataan…",
+    "preparingInstall": "Asennusta valmistellaan…",
     "installing": "Asennetaan…",
     "restarting": "Käynnistetään…",
     "retry": "Yritä uudelleen",
     "error": "Päivityksessä tapahtui virhe",
     "checking": "Tarkistetaan…",
     "snapNotice": "Tämä versio päivittyy automaattisesti Snap Storen kautta — mitään ei tarvitse tehdä.",
+    "packageManagerNotice": "Päivitä pakettienhallinnan kautta (esimerkiksi yay -Syu).",
     "debExplanation": "Asenna uusi versio käsin suorittamalla tämä komento päätteessä tai lataa uusin paketti.",
     "debCommandLabel": "Asennuskomento",
     "copyCommand": "Kopioi komento",
@@ -689,6 +713,7 @@
     "companies": "Kirjastot",
     "addCompany": "Lisää kirjasto",
     "newCompany": "Uusi kirjasto",
+    "defaultCompany": "Oma kirjasto",
     "companyName": "Kirjaston nimi",
     "removeCompany": "Poista kirjasto",
     "cannotRemoveLast": "Viimeistä kirjastoa ei voi poistaa.",
@@ -702,7 +727,7 @@
     "calendars": "Kalenterit",
     "noCalendars": "Allassa ei vielä ole kalentereita.",
     "noResources": "Allassa ei vielä ole resursseja.",
-    "promoteHint": "Siirrä projektin kalenteri tai resurssi kirjastoon yläpuolella olevalla painikkeella “+ Lisää projektista”.",
+    "promoteHint": "Siirrä projektin kalenteri kirjastoon yläpuolella olevalla painikkeella “Lisää projektista”.",
     "promoteFromProject": "Lisää projektista",
     "alreadyLinked": "jo liitetty",
     "editItem": "Muokkaa",
@@ -1095,10 +1120,6 @@
     "month": "kuukausi",
     "year": "vuosi"
   },
-  "hourData": {
-    "notice": "Tämä tiedosto sisältää tuntisuunnittelua.",
-    "enable": "Ota tuntisuunnittelu käyttöön"
-  },
   "recordedDates": {
     "activeCount_one": "Aikataulu näytetään sellaisena kuin Primavera sen tallensi. Kun lasketaan uudelleen, {{count}} tehtävä siirtyisi.",
     "activeCount_other": "Aikataulu näytetään sellaisena kuin Primavera sen tallensi. Kun lasketaan uudelleen, {{count}} tehtävää siirtyisi.",
@@ -1143,7 +1164,7 @@
     "nav": {
       "reportTab": "Avaa raporttivälilehti",
       "switchDocument": "Vaihda asiakirjaa",
-      "scrollToToday": "Siirry tähän päivään",
+      "scrollToToday": "Siirry raportointipäivään tai tähän päivään",
       "help": "Avaa ohje"
     },
     "grid": {
@@ -1315,6 +1336,7 @@
     "overrideDropped": "Rivin {{row}} linkki osoittaa tehtävään, jota ei enää ole. Linkki on jätetty huomiotta.",
     "moreRows": "…ja {{more}} lisää",
     "sheetRowHint": "rivi {{row}} taulukossa",
+    "sheetTaskId": "OPS-tehtävän tunnus: {{id}}",
     "dateOrderTitle": "Päivä vai kuukausi ensin?",
     "dateOrderQuestion": "”{{sample}}” – mikä päivämäärä tämä on?",
     "dateOrderOptionA": "{{date}}",
@@ -1356,7 +1378,7 @@
   "conventions": {
     "preserveActualDatesInBackwardPass": {
       "label": "Toteutuneiden päivämäärien säilytys takaperoisessa laskennassa",
-      "help": "Aloitettu tai tehty tehtävä säilyttää kirjatut päivämääränsä myös myöhäisellä puolella. Tehty seuraaja ei vedä avointa edeltäjää takaisin menneisyyteen."
+      "help": "Raportointipäivän kanssa valmistunut tehtävä säilyttää todellisia päivämääriään myöhäisellä puolella. Valmis seuraaja ei vedä avointa edeltäjää takaisin menneisyyteen. Käynnissä oleva tehtävä säilyttää toteutuneen alkamispäivänsä myöhäisimpänä alkamispäivänä, ellei asetus “Käynnissä oleva tehtävä: varhainen alkamispäivä = jäljellä olevan työn alku” ole päällä. Raportointipisteessä tai -ikkunassa valmis tehtävä voi silti välittää riippuvuuspainetta."
     },
     "clampNegativeFreeFloat": {
       "label": "Vapaa pelivara ei koskaan negatiivinen",
@@ -1364,103 +1386,111 @@
     },
     "p6ZeroDurationUsesPlannedBoundary": {
       "label": "Välitavoite seuraa suunniteltua kalenterin reunaa",
-      "help": "Nollakestoinen välitavoite pysyy kalenterikynnyksellä, jonka tiedosto suunnitteli: päivän alku pysyy aloitusvälitavoitteena, ja työaikalohkon loppu saa osua edeltäjän loppupäivään."
+      "help": "Vain tuntisuunnittelussa. Nollakestoinen välitavoite noudattaa suunniteltua kalenterirajaa: päivän alku pysyy aloitusvälitavoitteena, ja lohkon loppu saa osua edeltäjän loppuun. Myös tavallinen nollakestoinen tehtävä voi saada rajaparin, mutta vain XER-alkuperällä tyypiltään Task Dependent tai Resource Dependent ja suunnitellulla loppupäivällä ennen suunniteltua alkamispäivää."
     },
     "p6UseTaskPlannedStartFloor": {
       "label": "Suunniteltu alkamispäivä lisärajoitteena",
-      "help": "Kun sekä alkamispäivä että loppupäivä ovat yli yhden kalenteripäivän myöhemmin kuin verkosto sallii, tiedoston suunniteltu alkamispäivä toimii alakynnysarvona."
+      "help": "Suunniteltu alkamispäivä toimii alakynnysarvona, kun sekä alkamispäivä että loppupäivä ovat yli yhden kalenteripäivän myöhemmin kuin verkosto sallii. Loppuvälitavoitteessa, jonka suunniteltu loppu on ennen suunniteltua alkua, riittää myöhempi suunniteltu alkamispäivä. Ei koske käynnissä olevaa tehtävää, jos asetus “Suunniteltu alkamispäivä ei ole alakynnysarvo käynnissä olevalle tehtävälle” on päällä. Ei koske myöskään aloittamatonta ALAP-tehtävää, joka sijoitetaan seuraajiensa mukaan. Ei vaadi XER-alkuperää."
     },
     "p6FinishMilestoneBoundaryWindow": {
       "label": "Loppuvälitavoite kynnysikkunana",
-      "help": "Loppuvälitavoite saa olla kahdella vierekkäisellä kalenterikynnyksellä: varhaisin alkamispäivä työaikalohkon alussa, varhaisin valmistumispäivä edellisen lohkon lopussa."
+      "help": "Nollakestoinen loppuvälitavoite saa rajaikkunan vain, jos sen suunniteltu loppu on ennen suunniteltua alkua ja laskettu alku on yhä tuossa suunnitellussa alussa. Loppuvälitavoite, jolla on edeltäjiä eikä seuraajia, saa myös myöhäisiä päivämääriä, jotka ovat samat kuin sen varhaiset päivämäärät, ellei asetus “Pelivara lasketaan projektin päättymispäivään asti” ole päällä. Nähty vain P3-tulosteessa; pois päältä jokaisessa sisäänrakennetussa laskentaprofiilissa."
     },
     "p6PreserveActualInstants": {
       "label": "Todellisten päivämäärien täsmällinen säilytys",
-      "help": "Toteutuneet alkamispäivät ja toteutuneet valmistumispäivät, jotka on kirjattu, eivät siirry työaikalohkon reunaan."
+      "help": "Vain tehtäville, joilla on säilytetty alkuperä .xer-tiedostosta. Kirjattuja toteutuneita alkamispäiviä ja toteutuneita valmistumispäiviä ei siirretä lohkon reunaan."
     },
     "p6UseRemainingStartForProgress": {
       "label": "Käynnissä oleva tehtävä: varhainen alkamispäivä = jäljellä olevan työn alku",
-      "help": "Käynnissä olevan tehtävän varhaisin ja myöhäisin alkamispäivä kuvaavat, mistä jäljellä oleva työ alkaa, eivät historiallista toteutunutta alkamispäivää. Takaperoin laskettaessa alusta alkuun -riippuvuudessa lasketaan vain jäljellä oleva kesto."
+      "help": "Käynnissä olevan tehtävän varhaisin ja myöhäisin alkamispäivä kuvaavat, mistä jäljellä oleva työ alkaa. Takaperoin alusta alkuun -riippuvuuden yli lasketaan vain jäljellä oleva kesto. Tämä koskee vain tuntisuunnittelua, kun toteutunut alkamispäivä on tiedossa, edistyminen on 0–100 %, jäljellä oleva kesto tunnetaan ja on pienempi kuin suunniteltu kesto, eikä kulunut aika tai aikataulun tauot ole mukana. Tämä lisäsääntö jäljellä olevasta kestosta ei koske alusta loppuun -riippuvuuksia."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Rajoitteen tarkka ajankohta välitavoitteessa",
-      "help": "Nollakestoisen välitavoitteen päivämäärä- ja aikarajoite on tarkka hetki, myös työaikalohkon alussa."
+      "help": "Vain tuntisuunnittelussa, myöhäisellä puolella, kun nollakestoisella välitavoitteella on rajoite, jossa on päivämäärä ja kellonaika ja tyyppi SNLT, MSO, FNLT tai MFO. Rajoitehetki pysyy tarkkana, myös lohkon alussa. Eteenpäin laskettaessa se on jo tarkka kaikissa laskentaprofiileissa."
     },
     "resumeFromActualElapsed": {
       "label": "Jäljellä oleva työ jatkuu kuluneen ajan jälkeen",
-      "help": "Käynnissä oleva tehtävä jatkaa jäljellä olevaa työtään toteutuneesta alkamispäivästä lisättynä käytetyllä ajalla, ei raportointipäivästä."
+      "help": "Käynnissä oleva tehtävä jatkaa jäljellä olevaa työtään aikaisintaan toteutuneesta alkamispäivästä lisättynä kuluneen ajan verran. Raportointipäivä ja edeltäjän raja ovat myös alarajoja; näistä kolmesta myöhäisin pätee. Ei koske Progress Override -tilaa, tehtäviä ilman jäljellä olevaa työtä eikä tapauksia, joissa sovellus käyttää tiedostosta kelpaavaa jatkamispäivää (enintään yhdellä resurssikohdistuksella)."
     },
     "unstartedIgnoresStatusDate": {
       "label": "Aloittamattomia tehtäviä ei siirretä raportointipäivään",
-      "help": "Tehtävää, jota ei ole vielä aloitettu, ei siirretä automaattisesti raportointipäivään tai sen jälkeen."
+      "help": "Vain kun raportointipäivä on asetettu, tehtävälle, jolla ei ole edistymistä. Sitä tehtävää ei siirretä automaattisesti raportointipäivään tai sen jälkeen."
     },
     "p6RelationFinishBoundary": {
       "label": "Seuraaja alkaa loppukynnyksellä",
-      "help": "Lopusta alkuun -riippuvuus ilman viivettä: jos tiedosto asettaa seuraajan alkamaan täsmälleen edeltäjän loppupäivänä työaikalohkon lopussa, seuraaja alkaa tuosta loppupäivästä eikä seuraavan lohkon alusta. Tiedosto ei merkitse tätä: sovellus tunnistaa tällaisen riippuvuuden itse, kun .xer-tiedosto avataan. Itse lisättyä riippuvuutta ei tämä koske. Takaperoin laskettaessa seuraaja näyttää myöhäisimmän alkamispäivänsä vain työaikalohkon alkuna."
+      "help": "Vain tuntisuunnittelussa edeltäjän kalenterilla ja riippuvuudelle, jonka sovellus tunnistaa avatessaan .xer-tiedoston. Lopusta alkuun -riippuvuudessa ilman viivettä: jos tiedosto asettaa seuraajan alkamaan täsmälleen edeltäjän lohkon lopussa, seuraaja alkaa siitä lopusta. Itse lisättyä riippuvuutta ei tämä koske. Takaperoin laskettaessa seuraajan myöhäisin alkamispäivä on yhä lohkon alku."
     },
     "p6BackwardLagFinishBoundary": {
       "label": "Viive takaperoin loppukynnykseltä",
-      "help": "Jos takaperoinen laskenta vähentää työaikaviiveen loppukynnykseltä ja osuu täsmälleen työaikalohkon alkuun, se osuu edelliselle loppukynnykselle. Myös riippuvuus lopusta loppuun ilman viivettä: myöhäisin valmistumispäivä lohkon lopussa pysyy tällä loppukynnyksellä."
+      "help": "Vain tuntisuunnittelussa sillä kalenterilla, jolla viive lasketaan. Jos takaperoinen laskenta vähentää positiivisen työaikaviiveen täsmälleen loppurajalta ja osuu päivän ensimmäiseen lohkon alkuun, se osuu edelliseen loppurajaan. Lopusta loppuun -riippuvuudessa ilman viivettä myöhäisin valmistumispäivä lohkon lopussa pysyy tällä loppurajalla. Ei koske kulunut aika -viivettä."
     },
     "p6CompletedDataDateWindow": {
       "label": "Suoritettu tehtävä raportointipäivän ikkunassa",
-      "help": "Suoritettu tehtävä saa varhaiset päivämäärät raportointipäivän ikkunassa, ja sen loppu lasketaan mukaan projektin päättymispäivään."
+      "help": "Vain raportointipäivän kanssa, valmiille lehtitehtävälle .xer-tiedostosta, jolla on säilytetty tavoiteikkuna, edistymistyyppi kesto ja P6-tyyppi Task Dependent tai Resource Dependent kanssa Fixed Duration & Units. Nollakestoisia välitavoitteita ei oteta mukaan. Edellyttää asetuksen “Käynnissä oleva tehtävä: varhainen alkamispäivä = jäljellä olevan työn alku”. Tauko/jatkaminen sallitaan vain Task Dependent -tyypillä, kelvollisella parilla, kun toteutunut valmistumispäivä on suunnitellun loppupäivän ja raportointipäivän välissä, jatkaminen on viimeistään toteutuneessa valmistumispäivässä ja asetus “Toteutuneiden päivämäärien säilytys takaperoisessa laskennassa” on päällä. Tehtävä saa varhaiset päivämäärät raportointipäivän ikkunassa, ja sen loppu lasketaan mukaan projektin päättymispäivään."
     },
     "p6CompletedLoeActualFinish": {
       "label": "Suoritettu LOE toteutuneen loppupäivän kautta",
-      "help": "Suoritettu level-of-effort-tehtävä, jolla on vain alusta alkuun -riippuvuus, seuraa reittiä toteutuneen valmistumispäivän kautta."
+      "help": "Vain raportointipäivän kanssa, valmiille LOE:lle .xer-tiedostosta, jolla on positiivinen kesto, edistymistyyppi kesto ja P6-tyyppi Fixed Duration & Units/Time, täydellinen tavoiteikkuna sekä toteutunut valmistumispäivä suunnitellun loppupäivän ja raportointipäivän välissä. Vaatii vähintään yhden saapuvan riippuvuuden, ja kaikki saapuvat riippuvuudet ovat alusta alkuun -riippuvuuksia. Tehtävällä ei ole seuraajaa eikä tauko/jatkamista. Edellyttää asetuksia “Käynnissä oleva tehtävä: varhainen alkamispäivä = jäljellä olevan työn alku”, “Toteutuneiden päivämäärien säilytys takaperoisessa laskennassa” ja “Todellisten päivämäärien täsmällinen säilytys”. LOE seuraa toteutunutta valmistumispäiväänsä riippumattoreitin sijaan."
     },
     "p6OpenLoeTargetSpan": {
       "label": "Aloittamaton LOE käyttää tavoiteikkunaa",
-      "help": "Level-of-effort-tehtävä, jota ei ole vielä aloitettu, käyttää tavoiteikkunaansa kestonaan."
+      "help": "Vain tuntisuunnittelussa, aloittamattomalle LOE:lle tai riippumatolle .xer-tiedostosta, jonka edistyminen on 0 %, kesto on positiivinen, edistymistyyppi kesto ja P6-tyyppi Fixed Duration & Units. Ei toteutuneita päivämääriä eikä tauko/jatkamista. Vaatii täyden positiivisen tavoiteikkunan, jonka alku on sama kuin riippuvuusraja ja jonka työaika poikkeaa kestosta enintään yhdellä työpäivällä. Tarvitaan vähintään yksi alusta alkuun -sisääntulo ja yksi lopusta loppuun -ulosmeno, vain näitä riippuvuustyyppejä ilman viivettä. LOE käyttää silloin tavoiteikkunaa kestonaan. Heikko todiste: yksi tiedosto."
     },
     "p6CompletedPredecessorAtDataDate": {
       "label": "Suoritettu edeltäjä ei pidättele raportointipäivän jälkeen",
-      "help": "Jos suoritetun edeltäjän toteutunut loppupäivä on raportointipäivän jälkeen, sen seuraajat saavat silti alkaa raportointipäivänä."
+      "help": "Vain tuntisuunnittelussa ja raportointipäivän kanssa, valmiille edeltäjälle, jolla on toteutunut valmistumispäivä. Lopusta alkuun- ja lopusta loppuun -riippuvuudet lasketaan enintään raportointipäivää edeltävästä työrajasta; myöhäisempi toteutunut valmistumispäivä ei pidä seuraajaa kiinni. Alusta alkuun- ja alusta loppuun -riippuvuudet pysyvät toteutuneessa alkamispäivässä. Valmis tehtävä, jolla on oma raportointipäivän piste tai siirretty raportointipäivän ikkuna, seuraa omaa rajaansa."
     },
     "p6FreeFloatOnOwnCalendar": {
       "label": "Vapaa pelivara tehtävän omassa kalenterissa",
-      "help": "Aloittamattoman tehtävän vapaa pelivara lasketaan riippuvuuksittain tehtävän omassa kalenterissa, ei seuraajan kalenterissa: lopusta alkuun, alusta alkuun ja lopusta loppuun, myös kun edeltäjän kalenterissa on viive työaikana. Aloitetulle tehtävälle vain lopusta alkuun ilman viivettä."
+      "help": "Vain tuntisuunnittelussa, ei-valmiille tehtäville ja riippuvuuksille, joilla on laskettu vapaa pelivara. Aloittamattoman tehtävän vapaa pelivara lasketaan tehtävän omassa kalenterissa lopusta alkuun, alusta alkuun ja lopusta loppuun, ilman kellotuntiviivettä tai prosenttiviivettä. Viive, joka ei ole 0, vaatii edeltäjän viivekalenterin. Aloitetulle tehtävälle vain lopusta alkuun ilman viivettä. Riippuvuuden oma vapaa pelivara ja ohjaava merkintä eivät muutu."
     },
     "p6CompletedRemainingLag": {
       "label": "Valmiin edeltäjän käytetty viive ei lasketa",
-      "help": "Myöhäisellä puolella lasketaan mukaan vain valmiin edeltäjän jälkeisen viiveen osa, jota ei ole vielä käytetty raportointipäivään mennessä."
+      "help": "Vain tuntisuunnittelussa viivekalenterilla ja raportointipäivällä. Koskee valmiita edeltäjiä .xer-tiedostosta, joiden toteutunut valmistumispäivä on ennen raportointipäivää, sekä raportointipäivän pistettä tai -ikkunaa. Positiivisesta viiveestä työajalla lasketaan mukaan vain vielä kulumaton osa. Toimii myöhäisellä puolella ja eteenpäin raportointipäivän pisteestä tai siirretystä nollajäännösikkunasta. Tehtävä tavallisilla todellisilla päivämäärillään säilyttää koko viiveen. Ei koske viivettä kellotunteina."
     },
     "p6CompletedOutOfSequenceWindow": {
       "label": "Järjestyksestä poikkeava suoritettu tehtävä odottaa edeltäjiään",
-      "help": "Suoritettu tehtävä, jonka edeltäjää ei ole vielä suoritettu, saa nollaikkunansa edeltäjän jälkeen raportointipäivän sijaan (P6: Retained Logic). Toimii vain, kun myös ”Suoritettu tehtävä raportointipäivän ikkunassa” ja ”Käynnissä oleva tehtävä: varhainen alkamispäivä = jäljellä olevan työn alku” ovat päällä."
+      "help": "Vain tuntisuunnittelussa ja raportointipäivällä, XER-reitillä ”Suoritettu tehtävä raportointipäivän ikkunassa”. Tämän laskentasäännön ja ”Käynnissä oleva tehtävä: varhainen alkamispäivä = jäljellä olevan työn alku” pitää olla päällä. Ei koske tilaa Progress Override. Lopusta alkuun- tai alusta alkuun -riippuvuuksien kautta tehtävä saa myöhemmän arvon raportointipäivän rajasta ja rajasta, joka tulee keskeneräiseltä edeltäjältä tai edeltäjältä, jonka raportointipäivän ikkuna on siirretty. Tavalliset valmiit edeltäjät eivät lasketa mukaan."
     },
     "p6CompletedPhysicalAtDataDate": {
       "label": "Suoritettu fyysisen edistymisen tehtävä on raportointipäivänä",
-      "help": "Suoritettu tehtävä, jolla on fyysinen prosenttia valmiina, näkyy yhtenä pisteenä raportointipäivänä, tai myöhemmin, jos edeltäjä sitä vaatii. Se ei näy toteutuneilla päivämäärillään. Mitattu vain fyysiselle edistymiselle; muille prosenttia valmiina -tyypeille (P6-oletus: kesto) tätä käyttäytymistä ei ole mitattu, joten se pysyy pois päältä."
+      "help": "Vain tuntisuunnittelussa ja raportointipäivällä, valmiille lehtitehtäville ja nollakestoisille välitavoitteille .xer-tiedostosta, tyyppi P6 Task Dependent, Start Milestone tai Finish Milestone. Vaatii säilytetyn tavoiteikkunan, fyysisen prosenttia valmiina, toteutuneen valmistumispäivän viimeistään raportointipäivänä ja ei keskeytystä tai jatkoa. Vaatii myös ”Käynnissä oleva tehtävä: varhainen alkamispäivä = jäljellä olevan työn alku”. Tehtävä on yhdessä pisteessä raportointipäivällä, tai myöhemmin, jos edeltäjä sitä vaatii. Muilla prosenttia valmiina -tyypeillä, myös kestolla, tätä ei ole mitattu, joten se pysyy pois päältä."
     },
     "p6InProgressStartLagElapsed": {
       "label": "Käynnissä olevan edeltäjän käytetty SS-viive ei lasketa",
-      "help": "Alusta alkuun -riippuvuudessa jo aloitetusta tehtävästä lasketaan viiveestä mukaan vain osa, jota ei ole vielä käytetty toteutuneesta alkamispäivästä raportointipäivään mennessä."
+      "help": "Vain tuntisuunnittelussa viivekalenterilla ja raportointipäivällä, alusta alkuun -riippuvuudelle, jolla on positiivinen viive työajalla. Lähtee keskeneräisestä edeltäjästä, jonka toteutunut alkamispäivä on ennen raportointipäivää. Vaatii ”Käynnissä oleva tehtävä: varhainen alkamispäivä = jäljellä olevan työn alku”. Vain viiveen kulumaton osa lasketaan mukaan. Vaihtoehto ”Laske SS-viive käynnissä olevasta edeltäjästä alkaen” valitsee lähtöpisteen. Ei koske kellotunteina laskettua viivettä."
     },
     "p6FinishFinishStartMilestoneLateFinish": {
       "label": "Lopusta loppuun -riippuvuus aloitusvälitavoitteeseen sitoutuu välitavoitteeseen itseensä",
-      "help": "Lopusta loppuun -riippuvuus aloitusvälitavoitteeseen ulottuu itse välitavoitteeseen asti, ei välitavoitteen päivän alkuun: edeltäjän myöhäisin valmistumispäivä saa ulottua välitavoitteen myöhäisimmän valmistumispäivän asti."
+      "help": "Vain tuntisuunnittelussa, molemmilla puolilla lopusta loppuun -riippuvuutta, joka menee nollakestoiseen alkuvälitavoitteeseen. Riippuvuus sitoo välitavoitteeseen itseensä: edeltäjän myöhäisin valmistumispäivä saa ulottua välitavoitteen myöhäisimpään valmistumispäivään. Vapaa pelivara voi myös muuttua. Välitavoitteen varhainen alkamispäivä pysyy ennallaan. Ei koske loppuvälitavoitteita eikä taaksepäin laskettua nollajäännöskestoreittiä."
     },
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "Suunniteltu alkamispäivä ei ole alakynnysarvo käynnissä olevalle tehtävälle",
-      "help": "Aloitetun tehtävän jäljellä oleva työ alkaa raportointipäivästä ja heti edeltäjiensä jälkeen, vaikka sen suunniteltu alkamispäivä olisi myöhemmin."
+      "help": "Vain tehtävälle, jolla on toteutunut alkamispäivä ja alle 100 % edistystä, kun ”Suunniteltu alkamispäivä lisärajoitteena” on päällä. Suunniteltu alkamispäivä ei ole lisäraja jäljellä olevalle työlle. Raportointipäivä ja edeltäjät pysyvät ratkaisevina."
     },
     "p6LateFinishOnOwnCalendar": {
       "label": "Myöhäisin valmistumispäivä tehtävän omassa kalenterissa",
-      "help": "Jos seuraajan asettama myöhäisin valmistumispäivä osuu tehtävän työajan ulkopuolelle, siitä tulee tehtävän oman kalenterin edellisen työjakson loppu."
+      "help": "Vain tuntisuunnittelussa, kun seuraajan raja määrittää myöhäisimmän valmistumispäivän eikä tiukempi rajoite tai tavoitepäivä korvaa sitä. Jos raja osuu tehtävän oman työajan ulkopuolelle, myöhäisin valmistumispäivä on edellisen työjakson loppu tehtävän omalla kalenterilla. Ei koske myöhäistä valmistumispäivää, jonka määrää projektin päättymispäivä."
     },
     "p6ProgressOverrideIgnoresStartedSuccessor": {
       "label": "Progress Override ohittaa aloitetun seuraajan myös takaperoin",
-      "help": "Progress Override -tilassa riippuvuus seuraajaan, joka on jo aloitettu, ei vaikuta edeltäjän myöhäisiin päivämääriin eikä vapaaseen pelivaraan, jos edeltäjä ei ole vielä suoritettu."
+      "help": "Vain Progress Override -tilassa, keskeneräiselle edeltäjälle ja aloitetulle mutta keskeneräiselle seuraajalle (toteutunut alkamispäivä tai edistyminen). Niiden riippuvuus ei vaikuta edeltäjän myöhäisiin päivämääriin eikä vapaaseen pelivaraan."
     },
     "p6FinishNotBeforeFinishFinishBound": {
       "label": "Varhaisin valmistumispäivä ei ole ennen lopusta loppuun -kynnystä",
-      "help": "Riippuvuus lopusta loppuun: seuraajan varhaisin valmistumispäivä ei kellonajassa ole koskaan ennen edeltäjän asettamaa kynnystä. Jos kynnys osuu seuraajan ei-työaikaan, valmistumispäivä on seuraavan työjakson alku."
+      "help": "Päivämäärän korjaus: lopusta loppuun -riippuvuudelle, jossa on viive työajalla, ilman riippumattoja ja tuntisuunnittelussa sekä seuraajan kalenterilla (restityössä edistymiskalenterilla) että viivekalenterilla. Jos riippuvuuden raja on myöhempi kuin varhaisin valmistumispäivä ilman työaikaa niiden välissä, vain valmistumispäivä siirtyy ensimmäiseen työrajaan rajalla tai sen jälkeen. Koskee automaattisesti ajoitettuja, ei-aloitettuja ja käynnissä olevia seuraajia. Ei-aloitetuilla tehtävillä kiinteä loppupin menee edelle. Vapaa pelivara: erikseen, keskeneräinen edeltäjä lasketaan lopusta loppuun -riippuvuudessa ilman viivettä ja ilman prosenttiviivettä, kun riippuvuuden vapaa pelivara on olemassa ja seuraajan varhaisin valmistumispäivä on laskettu. Se lasketaan omasta varhaisimmasta valmistumispäivästään seuraajan varhaisimpaan valmistumispäivään seuraajan omalla tuntikalenterilla. Tämä pätee myös nollaviiveeseen kellotunneissa, ilman lisäehtoa seuraajan tai viivekalenterin tuntisuunnittelusta. Riippumattojen ja manuaalisesti ajoitettujen tehtävien vapaa pelivara on lopulta 0."
     },
     "p6AlapPositionedFromSuccessors": {
       "label": "ALAP-tehtävät mahdollisimman myöhään seuraajien sallimana",
-      "help": "Aloittamaton tehtävä, jolla on rajoite ”mahdollisimman myöhään”, päättyy sinä minuuttina, jona sen seuraajat tarvitsevat sitä. Seuraajat lasketaan ensin, jotta ketju tiivistyy. Tehtävän oma suunniteltu alkamispäivä ei vaikuta; tehtävä ilman edeltäjää ei silloin ala ennen raportointipäivää."
+      "help": "Vain tuntisuunnittelussa, aloittamattomalle ja ei manuaalisesti ajoitetulle tehtävälle, jolla on rajoite ”mahdollisimman myöhään” (ALAP). Seuraajien varhaiset päivämäärät määräävät sen sijainnin minuuttitarkasti; seuraajat lasketaan ensin. Oma suunniteltu alkamispäivä ei vaikuta. Edeltäjät, raportointipäivä ja toinen rajoite pätevät edelleen. Ilman seuraajaa se käyttää omaa myöhäisintä valmistumispäiväänsä. Tavallinen ALAP-vaihe pysyy käytettävissä jokaisessa profiilissa."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Erilliset välitavoitteet työpäivän lopussa",
+      "help": "Erillinen välitavoite tai loppuvälitavoite ilman edeltäjää sijoittuu työpäivänsä loppuun."
+    },
+    "workdayDurationMeasure": {
+      "label": "Kesto työpäivinä",
+      "help": "Kesto, viive tai jäljellä oleva kesto päivinä lasketaan työpäivinä: jokainen työpäivä lasketaan yhdeksi, riippumatta siitä, kuinka pitkä päivä on. Pois käytöstä: päivä lasketaan kalenterin päivittäisten työtuntien määräksi. Prosentteina ilmaistu viive noudattaa edeltäjän yksikköä. Kulunutta aikaa ei lasketa koskaan työpäivinä."
     }
   },
   "profiles": {
@@ -1499,6 +1529,7 @@
       "float": "Pelivara ja myöhäiset päivämäärät",
       "instants": "Päivämäärät ja ajankohdat tiedostosta",
       "msproject": "Edistyminen Microsoft Project -tavalla",
+      "durations": "Kesto ja yksikkö",
       "ownProfilesOnly": "Vain omat profiilit"
     },
     "ownProfilesOnlyNote": "Nämä laskentasäännöt ovat pois päältä jokaisessa sisäänrakennetussa laskentaprofiilissa, myös Primavera P6 -profiilissa. Vain oma laskentaprofiili voi ottaa ne käyttöön: valitse siihen Uusi profiili.",
@@ -1511,7 +1542,7 @@
     "showHelp": "Ohje: ”{{name}}”",
     "sourceOptions": {
       "title": "Lähdetiedoston asetukset",
-      "intro": "Nämä laskentavaihtoehdot tulevat Primavera P6 -tiedostosta (.xer). Ne otetaan huomioon laskennassa, mutta niitä ei voi muuttaa täällä.",
+      "intro": "Nämä ovat tämän projektin vain luku -laskentavaihtoehtoja. Kun tuot Primavera P6 -tiedoston (.xer), sovellus ottaa ne lähdetiedostosta. Ne vaikuttavat vain, kun niiden ehdot täyttyvät.",
       "useExpectedFinishDates": "Käytä odotettuja loppupäivämääriä (P6: Use Expected Finish Dates)",
       "useProjectEndDateForFloat": "Pelivara lasketaan projektin päättymispäivään asti",
       "p6CompletedLateFromRemainingWindow": "Suoritettu tehtävä: myöhäiset päivämäärät alkaen raportointipäivästä",
@@ -1520,7 +1551,7 @@
     "requires": {
       "xerOrigin": "vain .xer-tehtävät",
       "hourPlanning": "vain tuntisuunnittelussa",
-      "hourPlanningTitle": "Toimii vain tuntisuunnittelussa: kalenterissa on työlohkoja, tehtävä on tunneissa tai viivekalenteri on 24 tunnin muodossa."
+      "hourPlanningTitle": "Toimii vain tuntisuunnittelussa laskentasäännön käyttämällä kalenterilla: kalenterissa on lohkot tai tehtävän kesto on tunneissa. Viiveelle voi päteä myös 24 tunnin viivekalenteri."
     },
     "optionsDeviate": {
       "line": "{{field}}: {{current}} (oletus: {{standard}})",

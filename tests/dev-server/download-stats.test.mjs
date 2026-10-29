@@ -59,6 +59,8 @@ test('aggregate telt v2026.9.0 op zoals de API-cijfers van 2026-09-05', () => {
   assert.equal(userDownloads(stats.totals.linux), 19); // 8 deb + 9 AppImage + 2 rpm + 0 snap
   assert.equal(stats.totals.linux.both, 19);
   assert.equal(stats.polls, 73);
+  // Het README-badgecijfer: zonder latest.json, .sig en updater-pakketten.
+  assert.equal(stats.downloads, 43 + 2 + 19);
   assert.deepEqual(stats.unknown, []);
   assert.equal(stats.releases.length, 1);
   assert.equal(stats.schemaVersion, 1);
@@ -79,6 +81,7 @@ test('drafts worden overgeslagen, pre-releases gemarkeerd en niet in de totalen,
   assert.equal(stats.releases[1].polls, 4);
   assert.equal(userDownloads(stats.totals.windows), 1);
   assert.equal(stats.polls, 0);
+  assert.equal(stats.downloads, 1, 'pre-releases tellen niet mee in het badgecijfer');
   assert.equal(stats.releases[1].os.windows.update, 3);
   assert.equal(userDownloads(stats.releases[1].os.macos), 5);
   assert.equal(stats.releases[1].os.macos.update, 2);

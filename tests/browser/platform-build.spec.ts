@@ -144,7 +144,7 @@ test('de bundel: manifest, basispad in index.html, geen catalogus-URL', () => {
   expect(withCatalog, 'JS-bestanden met de catalogus-URL').toEqual([]);
 });
 
-test('de app op het subpad: icoon, leeg document, geen AI-tabblad, geen token', async ({ page }) => {
+test('de app op het subpad: icoon, leeg document, geen MCP-tabblad, geen token', async ({ page }) => {
   const seen = await openApp(page);
 
   // Het icoon laadt via het basispad.
@@ -161,8 +161,8 @@ test('de app op het subpad: icoon, leeg document, geen AI-tabblad, geen token', 
   await expect(page.locator('[data-grid-data-row="true"]').first()).toBeVisible();
   await expect(taskRows(page)).toHaveCount(0);
 
-  // AI-modus uit, ook met een oude `ops-aiMode = true`; er komt geen token in de opslag.
-  await expect(page.locator('.ribbon-tab', { hasText: /^AI$/ })).toHaveCount(0);
+  // MCP-koppeling uit, ook met een oude `ops-aiMode = true`; er komt geen token in de opslag.
+  await expect(page.locator('.ribbon-tab', { hasText: /^MCP$/ })).toHaveCount(0);
   await expect(page.locator('[data-ops-ribbon-tab="ai"]')).toHaveCount(0);
   expect(await page.evaluate(() => localStorage.getItem('ops-mcpToken'))).toBeNull();
 
@@ -171,7 +171,7 @@ test('de app op het subpad: icoon, leeg document, geen AI-tabblad, geen token', 
   expect(seen.pageErrors).toEqual([]);
 });
 
-test('Backstage: geen Extensies, geen extensie-importers, geen AI-instellingen', async ({ page }) => {
+test('Backstage: geen Extensies, geen extensie-importers, geen MCP-instellingen', async ({ page }) => {
   const seen = await openApp(page);
   await openBackstage(page);
 
@@ -185,11 +185,11 @@ test('Backstage: geen Extensies, geen extensie-importers, geen AI-instellingen',
   await expect(page.locator('[data-ops-progress-import-card]')).toBeVisible();
   await expect(page.locator('.backstage-main')).not.toContainText('Extensions');
 
-  // Instellingen → Geavanceerd: Debug-terminal wel, AI-modus niet.
+  // Instellingen → Geavanceerd: Debug-terminal wel, MCP-koppeling niet.
   await navItem(page, 'App settings').click();
   await page.locator('.backstage-main .settings-tab', { hasText: 'Advanced' }).click();
   await expect(page.locator('.backstage-main').getByText('Debug terminal', { exact: true })).toBeVisible();
-  await expect(page.locator('.backstage-main').getByText('AI mode', { exact: true })).toHaveCount(0);
+  await expect(page.locator('.backstage-main').getByText('MCP connection', { exact: true })).toHaveCount(0);
 
   expect(seen.sameOriginOutsideBase).toEqual([]);
   expect(seen.catalogRequests).toEqual([]);

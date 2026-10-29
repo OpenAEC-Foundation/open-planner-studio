@@ -4,6 +4,7 @@
     "applyShape": "Aplicar forma:",
     "hoursPerDay": "{{hours}} horas por dia útil",
     "stripHint": "Arraste um limite para alongar ou encurtar uma fase, a borda superior para definir o esforço; clique duas vezes num dia para dividir uma fase.",
+    "partialDayHint": "Se a tarefa começar ou terminar a meio de um dia útil, esse dia conta proporcionalmente: as horas são as unidades × a parte do dia. O histograma conta da mesma forma.",
     "from": "De",
     "to": "Até",
     "days": "Dias",
@@ -181,8 +182,8 @@
       "calendar": "Escolha um calendário da lista.",
       "calendarNotFound": "O calendário escolhido não existe.",
       "calendarHours": "O calendário desta tarefa não tem horas de trabalho por dia.",
-      "hourPlanningDisabled": "O planeamento por horas está desligado nas Definições.",
-      "durationConversionNotExact": "Esta duração não pode ser convertida exatamente para a outra unidade.",
+      "durationConversionNotExact": "Esta duração não pode ser convertida para a outra unidade neste calendário.",
+      "fixedWorkIsHours": "Uma tarefa com trabalho fixo usa sempre a medida em horas.",
       "milestoneRequired": "Este campo aplica-se apenas a marcos.",
       "milestoneUnavailable": "Uma tarefa de resumo com subtarefas não pode tornar-se um marco.",
       "actualAfterStatusDate": "A data real é posterior à data de estado.",
@@ -332,11 +333,8 @@
     "unit": "Unidade de duração",
     "days": "Dias",
     "hours": "Horas",
-    "invalid": "Introduza um número inteiro de dias ou horas, por exemplo 2d ou 12h.",
-    "enableHourPlanningFirst": "Ative o planeamento por horas para editar esta tarefa horária.",
-    "enableHourPlanning": "Ativar planeamento por horas",
-    "requiresWorkBlocks": "Este calendário não tem horários de trabalho válidos. Verifique os dias e horários de trabalho.",
-    "conversionNotExact": "{{value}} não corresponde a dias completos neste calendário. A unidade não foi alterada.",
+    "invalid": "Introduza um número de dias ou horas, por exemplo 2,5d ou 12h.",
+    "conversionNotExact": "{{value}} não pode ser convertido para a outra unidade neste calendário. A unidade não foi alterada.",
     "unitInfo": "A unidade escolhida pertence a esta tarefa. Os dias contam dias úteis; as horas contam horas de trabalho no calendário. Outro calendário não altera a unidade nem a duração introduzida, mas pode alterar a data de fim."
   },
   "dialog": {
@@ -379,7 +377,6 @@
       "resourceAddsWork": "Um recurso adicional acrescenta trabalho.",
       "resourceSharesWork": "Um recurso adicional assume parte do trabalho; as unidades por recurso diminuem.",
       "resourceShorter": "Um recurso adicional torna a tarefa mais curta.",
-      "resourceShorterWholeDays": "Um recurso adicional torna a tarefa mais curta, arredondada a dias inteiros.",
       "resourceAddsWorkSameDuration": "Um recurso adicional acrescenta trabalho; a duração mantém-se igual."
     },
     "info": "Explicação do tipo de tarefa"
@@ -463,6 +460,7 @@
     "jumpToTask": "Ir para a tarefa {{wbs}}",
     "relationPopoverTitle": "Tipo de relação",
     "driving": "Relação determinante (driving)",
+    "drivingUnknown": "Relações determinantes desconhecidas sem cálculo.",
     "lag": "Atraso (ex.: 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Calcular",
     "assignments": {
@@ -527,6 +525,8 @@
     "type": "Tipo",
     "lag": "Atraso",
     "driving": "Determinante",
+    "drivingUnknown": "Desconhecido",
+    "notDriving": "Não determinante",
     "freeFloat": "Folga livre",
     "warnings": "Avisos",
     "warnTruncatedLead": "Avanço truncado no início do projeto — a sobreposição não é totalmente aproveitada",
@@ -656,5 +656,11 @@
     "pieceHours_many": "Trecho: {{count}} horas",
     "pieceHours_other": "Trecho: {{count}} horas",
     "merged": "Juntar"
+  },
+  "dateTimeInput": {
+    "time": "Hora de {{field}}",
+    "timeHint": "Vazio: o início ou o fim do dia útil. Com hora indicada: exatamente esse momento.",
+    "later": "Um quarto de hora depois",
+    "earlier": "Um quarto de hora antes"
   }
 }

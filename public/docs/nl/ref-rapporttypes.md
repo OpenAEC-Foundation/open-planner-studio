@@ -16,6 +16,8 @@ Open het tabblad *Rapport* (of druk op Ctrl+P). Links staat de kolom *Rapportage
 
 **Afkortingen.** *wd* is werkdagen. *TF* is totale speling, *FF* vrije speling.
 
+**Duur en rest.** De kolommen *Rest* en *Duur* tonen de duur in de maat van de taak, zoals de tabel. In het OPS-profiel staat een dagenmaat-taak in d (*2,5d*) en een urenmaat-taak in u (*40u*). Onder het P6- en het MSP-profiel volgt *Duur* de instelling *Duurweergave*. Een verzameltaak in de WBS-samenvatting toont werkdagen.
+
 ## Papier en oriëntatie
 
 **Papier:** — het papierformaat van de PDF. Keuze uit A4, A3, A2 en A1. Standaard: A3. Effect: de pagina's worden voor dat formaat opgelegd. Er is één keuze voor alle rapporten: wat je bij het ene rapport kiest, geldt ook voor de andere. Op A4 staand wordt een brede tabel klein, want de tabel wordt op de paginabreedte geschaald. Waar: *Instellingen* (Gantt-afdruk en Resourcediagram) of *Rapportopties* (de zeven tabelrapporten). Het Mijlpalen-overzicht en de Variance tonen geen keuzes.
@@ -102,7 +104,7 @@ Wat er in de periode loopt of start: het lijstje voor het weekoverleg. Opties on
 
 **Near-critical ≤ (wd):** — de drempel voor *Near-critical*. Getal van 0 tot 60. Standaard: 5. Effect: een taak met meer dan 0 en hoogstens zoveel werkdagen totale speling telt als near-critical. Bij 0 telt alleen wat de reken-optie *Bijna-kritiek markeren* van het project markeert.
 
-Het blok *Overzicht* telt *Activiteiten*, *Achterstallig*, *In uitvoering*, *Had moeten starten*, *Start*, *Kritiek* en *Near-critical*. De status per rij, altijd ten opzichte van de referentiedag: *Achterstallig* (niet voltooid en het einde ligt vóór de referentiedag), *Had moeten starten* (niet gestart terwijl de start vóór de referentiedag lag), *In uitvoering*, *Start* (nog niet gestart, start in het venster). De kolommen zijn *WBS*, *Naam*, *Start*, *Einde*, *Rest (wd)*, *Volt.*, *TF (wd)*, *Kritiek*, *Resources* en *Status*.
+Het blok *Overzicht* telt *Activiteiten*, *Achterstallig*, *In uitvoering*, *Had moeten starten*, *Start*, *Kritiek* en *Near-critical*. De status per rij, altijd ten opzichte van de referentiedag: *Achterstallig* (niet voltooid en het einde ligt vóór de referentiedag), *Had moeten starten* (niet gestart terwijl de start vóór de referentiedag lag), *In uitvoering*, *Start* (nog niet gestart, start in het venster). De kolommen zijn *WBS*, *Naam*, *Start*, *Einde*, *Rest*, *Volt.*, *TF (wd)*, *Kritiek*, *Resources* en *Status*.
 
 ## Kritiek & near-critical
 
@@ -110,7 +112,7 @@ De activiteiten die het projecteinde bepalen en die daar bijna toe behoren. Opti
 
 **Near-critical ≤ (wd):** — Standaard: 5. Getal van 0 tot 60. Effect en betekenis zoals bij de Look-ahead. De ondertitel meldt de gekozen drempel.
 
-Het rapport bevat de niet-voltooide taken die kritiek zijn (volgens de solver en de kritiek-definitie van het project) of near-critical, gesorteerd op spelingpad, dan op totale speling, dan op start. Het blok *Overzicht* telt *Kritiek*, *Near-critical*, *Kritieke ketens* en *Bladtaken*. De kolommen zijn *WBS*, *Naam*, *Start*, *Einde*, *Rest (wd)*, *TF (wd)*, *FF (wd)*, *Pad* en *Status*. De kolom *Pad* toont het spelingpad als de reken-optie *Meerdere speling-paden* aan staat, anders een streepje.
+Het rapport bevat de niet-voltooide taken die kritiek zijn (volgens de solver en de kritiek-definitie van het project) of near-critical, gesorteerd op spelingpad, dan op totale speling, dan op start. Het blok *Overzicht* telt *Kritiek*, *Near-critical*, *Kritieke ketens* en *Bladtaken*. De kolommen zijn *WBS*, *Naam*, *Start*, *Einde*, *Rest*, *TF (wd)*, *FF (wd)*, *Pad* en *Status*. De kolom *Pad* toont het spelingpad als de reken-optie *Meerdere speling-paden* aan staat, anders een streepje.
 
 ## Voortgangsrapport
 
@@ -120,7 +122,7 @@ Waar het project staat op de statusdatum. Opties onder *Rapportopties*.
 
 **Near-critical ≤ (wd):** — Standaard: 5. Zoals bij de Look-ahead.
 
-Het blok *Overzicht* toont *Statusdatum*, *Periode*, *Vooruitblik t/m*, *Baseline-einde*, *Prognose-einde*, *Δ einde (wd)*, *Gepland* (met *(baseline)* of *(huidige planning)*), *Werkelijk*, de tellingen *Voltooid*, *In uitvoering*, *Niet gestart*, *Achterstallig* en *Kritiek*. Gepland en werkelijk zijn gewogen naar de duur van de taken. Gepland meet tegen de baseline als er een actieve baseline is, anders tegen de huidige planning. De secties zijn *Voltooid in de afgelopen periode*, *In uitvoering*, *Start in de komende periode*, *Achterstallig* en *Kritieke open activiteiten*; een taak kan in meer dan één sectie staan. Elke sectie heeft dezelfde kolommen: *WBS*, *Naam*, *Baseline-einde*, *Prognose-einde*, *Volt.*, *Rest (wd)*, *TF (wd)*, *Kritiek* en *Status*. De status per rij is *Voltooid*, *In uitvoering*, *Niet gestart*, *Had moeten starten* of *Had moeten eindigen*.
+Het blok *Overzicht* toont *Statusdatum*, *Periode*, *Vooruitblik t/m*, *Baseline-einde*, *Prognose-einde*, *Δ einde (wd)*, *Gepland* (met *(baseline)* of *(huidige planning)*), *Werkelijk*, de tellingen *Voltooid*, *In uitvoering*, *Niet gestart*, *Achterstallig* en *Kritiek*. Gepland en werkelijk zijn gewogen naar de duur van de taken. Gepland meet tegen de baseline als er een actieve baseline is, anders tegen de huidige planning. De secties zijn *Voltooid in de afgelopen periode*, *In uitvoering*, *Start in de komende periode*, *Achterstallig* en *Kritieke open activiteiten*; een taak kan in meer dan één sectie staan. Elke sectie heeft dezelfde kolommen: *WBS*, *Naam*, *Baseline-einde*, *Prognose-einde*, *Volt.*, *Rest*, *TF (wd)*, *Kritiek* en *Status*. De status per rij is *Voltooid*, *In uitvoering*, *Niet gestart*, *Had moeten starten* of *Had moeten eindigen*.
 
 ## Planningsgezondheid
 
@@ -177,7 +179,7 @@ Per resource de activiteiten waaraan hij hangt: wat doet deze ploeg of kraan? Op
 
 **Voltooide taken meenemen** — Standaard: uit. Effect: aan neemt ook de toewijzingen van voltooide activiteiten mee.
 
-De rijen staan per resource, en binnen een resource op start. Het blok *Overzicht* telt *Resources*, *Toewijzingen* en *Taken zonder resource*. De kolommen zijn *Resource*, *Type*, *WBS*, *Naam*, *Start*, *Einde*, *Rest (wd)*, *Eenh./dag*, *Volt.*, *Kritiek* en *Status*. *Resource* en *Type* staan alleen op de eerste rij van een resource. De status per rij is dezelfde als bij het Voortgangsrapport: *Voltooid*, *In uitvoering*, *Niet gestart*, *Had moeten starten* of *Had moeten eindigen*.
+De rijen staan per resource, en binnen een resource op start. Het blok *Overzicht* telt *Resources*, *Toewijzingen* en *Taken zonder resource*. De kolommen zijn *Resource*, *Type*, *WBS*, *Naam*, *Start*, *Einde*, *Rest*, *Eenh./dag*, *Volt.*, *Kritiek* en *Status*. *Resource* en *Type* staan alleen op de eerste rij van een resource. De status per rij is dezelfde als bij het Voortgangsrapport: *Voltooid*, *In uitvoering*, *Niet gestart*, *Had moeten starten* of *Had moeten eindigen*.
 
 ## WBS-samenvatting
 
@@ -187,7 +189,7 @@ De planning opgerold per WBS-element: het managementoverzicht. Opties onder *Rap
 
 **Activiteiten tonen** — Standaard: uit. Effect: aan toont onder elk element ook de bladtaken zelf.
 
-De kolommen zijn onder meer *WBS*, *Naam*, *Start*, *Einde*, *Baseline start*, *Baseline einde*, *Duur (wd)*, *Volt.*, *Δ einde (wd)*, *Min. TF*, *Act.* (aantal activiteiten), *Krit.*, *Bezig* en *Klaar*. Start en einde van een verzameltaak komen uit de laatste berekening. De voortgang is duurgewogen over de bladtaken. *Min. TF* en de tellingen gaan over de bladtaken eronder. Het blok *Overzicht* telt *WBS-elementen* en *Activiteiten*.
+De kolommen zijn onder meer *WBS*, *Naam*, *Start*, *Einde*, *Baseline start*, *Baseline einde*, *Duur*, *Volt.*, *Δ einde (wd)*, *Min. TF*, *Act.* (aantal activiteiten), *Krit.*, *Bezig* en *Klaar*. Start en einde van een verzameltaak komen uit de laatste berekening. De voortgang is duurgewogen over de bladtaken. *Min. TF* en de tellingen gaan over de bladtaken eronder. Het blok *Overzicht* telt *WBS-elementen* en *Activiteiten*.
 
 ## Rapportageperiode
 

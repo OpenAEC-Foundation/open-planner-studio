@@ -8,6 +8,7 @@ import { installSiteDialogAskers } from '@/state/siteDialogBridge';
 import { installIfcSchemaAsker } from '@/state/ifcSchemaQuestionBridge';
 import { getGuideView, subscribeGuideView } from '@/extensions/guideRuntime';
 import { EXTENSIONS_ENABLED } from '@/utils/buildFlags';
+import { isTauri } from '@/utils/platform';
 import { TitleBar } from '@/components/layout/TitleBar/TitleBar';
 import '@/components/layout/TitleBar/TitleBar.css';
 import { Ribbon } from '@/components/layout/Ribbon/Ribbon';
@@ -35,11 +36,11 @@ import { useAppCloseGuard } from '@/hooks/useAppCloseGuard';
 import { useRecoveryRestore } from '@/hooks/useRecoveryRestore';
 import { useUpdateCheck } from '@/hooks/useUpdateCheck';
 import { useAiAutostart } from '@/hooks/useAiAutostart';
+import { useMcpDiscovery } from '@/hooks/useMcpDiscovery';
 import { useFullscreenSync } from '@/hooks/useFullscreenSync';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useAppStore } from '@/state/appStore';
 import { UI_FONT_STACKS } from '@/utils/uiFont';
-import { HourDataNotice } from '@/components/layout/HourDataNotice';
 import { StructureLockedNotice } from '@/components/layout/StructureLockedNotice';
 import { DependencyModeNotice } from '@/components/layout/DependencyModeNotice';
 import { SplitModeNotice } from '@/components/layout/SplitModeNotice';
@@ -177,6 +178,14 @@ function AppContent() {
   // Bestand van de host bij de start: na de herstelkeuze, alleen in een leeg document. Zonder site
   // gebeurt er niets.
   useSiteInitialFile(recoveryResolved, recovery);
+  // Dev-link `?open=<pad>` (alleen de browser op de dev-server, docs/dev-link.md): opent na de
+  // herstelkeuze een bestand uit de repo, bijv. `examples/…`, via de gewone openroute. Niet in Tauri-dev. Valt
+  // met de dynamische import uit elke productiebouw, net als de haken in main.tsx.
+  useEffect(() => {
+    if (import.meta.env.DEV && !isTauri() && recoveryResolved && recovery === null) {
+      void import('@/utils/devOpenLink').then(({ openDevLinkOnce }) => openDevLinkOnce());
+    }
+  }, [recoveryResolved, recovery]);
 
   // Bedrijfsbibliotheek laden bij opstarten: zet de opgeslagen bibliotheek in de store en
   // hijst `libraryLoaded`, zodat latere mutaties persisteren (vóór dit punt is persist een no-op).
@@ -272,6 +281,10 @@ function AppContent() {
   // wacht op de asynchrone instellingen-hydratatie en start hoogstens één keer per app-sessie).
   useAiAutostart();
 
+  // Register van open bestanden voor de MCP-plugin (`<appDataDir>/mcp/open-files.json`, Tauri-only,
+  // ook met de MCP-koppeling uit; zie docs/mcp-ontdekking.md).
+  useMcpDiscovery();
+
   // Determine if we should show the gantt canvas or a full-panel view.
   // Een GEDOCKT resource-paneel (`resourcePanelDocked`) sluit `showResourcePanel`
   // NIET in — de Gantt (incl. histogramstrook) blijft dan zichtbaar en de compacte
@@ -313,10 +326,6 @@ function AppContent() {
       <Ribbon />
 
       <div className="contents" inert={questionPending} data-ops-background-controls="notices">
-        {/* Uur-data-melding: niet-blokkerende strook onder het lint wanneer een geladen
-            bestand urenplanning bevat terwijl de hoofdschakelaar uit staat. */}
-        <HourDataNotice />
-
         {/* Structuur-vergrendeld-melding: verschijnt wanneer in-/uitspringen geweigerd
             wordt omdat er gefilterd/gegroepeerd/gesorteerd wordt. */}
         <StructureLockedNotice />

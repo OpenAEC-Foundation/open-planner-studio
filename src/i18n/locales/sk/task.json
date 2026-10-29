@@ -4,6 +4,7 @@
     "applyShape": "Použiť tvar:",
     "hoursPerDay": "{{hours}} h na pracovný deň",
     "stripHint": "Presunutím hranice predĺžite alebo skrátite fázu. Presunutím horného okraja nastavíte jednotky priradenia. Dvojitým kliknutím na deň rozdelíte fázu.",
+    "partialDayHint": "Ak úloha začína alebo končí uprostred pracovného dňa, tento deň sa počíta pomerne: hodiny sú jednotky priradenia × časť dňa. Histogram sa počíta rovnako.",
     "from": "Od",
     "to": "Do",
     "days": "Dni",
@@ -181,8 +182,8 @@
       "calendar": "Vyberte kalendár zo zoznamu.",
       "calendarNotFound": "Vybraný kalendár neexistuje.",
       "calendarHours": "Kalendár tejto úlohy nemá pracovnú dobu za deň.",
-      "hourPlanningDisabled": "V „Nastavenia“ aplikácie je plánovanie v hodinách vypnuté.",
-      "durationConversionNotExact": "Toto trvanie sa nedá presne previesť na druhú jednotku.",
+      "durationConversionNotExact": "Toto trvanie sa v tomto kalendári nedá presne previesť na druhú jednotku.",
+      "fixedWorkIsHours": "Úloha s pevnou prácou má vždy mieru v hodinách.",
       "milestoneRequired": "Toto pole platí iba pre medzníky.",
       "milestoneUnavailable": "Súhrnná úloha, ktorá má čiastkové úlohy, nemôže byť medzníkom.",
       "actualAfterStatusDate": "Skutočný dátum je neskorší ako dátum kontroly stavu.",
@@ -336,11 +337,8 @@
     "unit": "Jednotka trvania",
     "days": "Dni",
     "hours": "Hodiny",
-    "invalid": "Zadajte celé číslo dní alebo hodín, napríklad 2d alebo 12h.",
-    "enableHourPlanningFirst": "Na úpravu hodinovej úlohy zapnite plánovanie v hodinách.",
-    "enableHourPlanning": "Zapnúť plánovanie v hodinách",
-    "requiresWorkBlocks": "Tento kalendár nemá platné pracovné časy. Skontrolujte pracovné dni a pracovné časy.",
-    "conversionNotExact": "{{value}} v tomto kalendári nevychádza na celé dni. Jednotka sa nezmenila.",
+    "invalid": "Zadajte počet dní alebo hodín, napríklad 2,5d alebo 12h.",
+    "conversionNotExact": "{{value}} sa v tomto kalendári nedá presne previesť na druhú jednotku. Jednotka sa nezmenila.",
     "unitInfo": "Zvolená jednotka patrí k tejto úlohe. Dni sa počítajú ako pracovné dni; hodiny sa počítajú ako pracovné hodiny v rámci kalendára. Iný kalendár nemení jednotku ani zadané trvanie, ale môže zmeniť dátum dokončenia."
   },
   "dialog": {
@@ -383,7 +381,6 @@
       "resourceAddsWork": "Ďalší zdroj pridáva prácu.",
       "resourceSharesWork": "Ďalší zdroj preberá časť práce; jednotky priradenia na jeden zdroj klesajú.",
       "resourceShorter": "Ďalší zdroj skráti úlohu.",
-      "resourceShorterWholeDays": "Ďalší zdroj skráti úlohu, zaokrúhlené na celé dni.",
       "resourceAddsWorkSameDuration": "Ďalší zdroj pridáva prácu; trvanie zostáva rovnaké."
     },
     "info": "Vysvetlenie typu úlohy"
@@ -467,6 +464,7 @@
     "jumpToTask": "Prejsť na úlohu {{wbs}}",
     "relationPopoverTitle": "Typ závislosti",
     "driving": "Určujúca závislosť (driving)",
+    "drivingUnknown": "Určujúce závislosti sú bez výpočtu neznáme.",
     "lag": "Oneskorenie (napr. 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Prepočítať",
     "assignments": {
@@ -531,6 +529,8 @@
     "type": "Typ",
     "lag": "Oneskorenie",
     "driving": "Určujúca závislosť",
+    "drivingUnknown": "Neznáme",
+    "notDriving": "Nie je určujúca",
     "freeFloat": "Voľná časová rezerva",
     "warnings": "Upozornenia",
     "warnTruncatedLead": "Predstih je orezaný na začiatku projektu. Prekrytie sa nevyužije úplne.",
@@ -664,5 +664,11 @@
     "pieceHours_many": "Časť: {{count}} hodiny",
     "pieceHours_other": "Časť: {{count}} hodín",
     "merged": "Zlúčiť"
+  },
+  "dateTimeInput": {
+    "time": "Čas: {{field}}",
+    "timeHint": "Prázdne: začiatok alebo koniec pracovného dňa. S časom: presne ten okamih.",
+    "later": "O štvrťhodinu neskôr",
+    "earlier": "O štvrťhodinu skôr"
   }
 }

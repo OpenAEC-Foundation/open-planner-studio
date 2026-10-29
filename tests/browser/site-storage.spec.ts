@@ -13,7 +13,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Frame, Page } from '@playwright/test';
-import { expect, test, waitForOps, waitForWelcomeDialog } from './fixtures/ops';
+import { expect, test, waitForOps, waitForWelcomeCheck } from './fixtures/ops';
 
 const HOST_KEY = 'ops-test-site-host';
 const IFC = readFileSync(resolve(process.cwd(), 'public/examples/showcase-verbouwing-eengezinswoning.ifc'), 'utf8');
@@ -198,21 +198,20 @@ async function recoveryRecords(page: Page): Promise<number> {
 }
 
 /**
- * Na een herlaadbeurt: wacht op het herstelvenster of de welkomst (die komt pas na de herstelcontrole).
- * Een herstelvenster beantwoorden we met "niet herstellen"; daarna gaat de welkomst weg zoals in de
- * fixture.
+ * Na een herlaadbeurt: wacht op het herstelvenster of het einde van de welkomstcontrole (die komt pas
+ * na de herstelcontrole). Een herstelvenster beantwoorden we met "niet herstellen". Met een host draait
+ * de tool ingebed: geen welkomstvenster (#716).
  */
 async function settleAfterReload(page: Page): Promise<void> {
   await waitForOps(page);
   const recovery = page.locator('[data-ops-recovery-dialog]');
-  const welcome = page.locator('[data-ops-welcome-dialog]');
-  await expect(recovery.or(welcome).first()).toBeAttached({ timeout: 15_000 });
+  const welcomeChecked = () => page.evaluate(() => window.__OPS__!.log.snapshot().some((e) => e.channel === 'welkomst'));
+  await expect.poll(async () => await recovery.count() > 0 || await welcomeChecked(), { timeout: 15_000 }).toBe(true);
   if (await recovery.count() > 0) {
     await recovery.getByRole('button', { name: /^(Don't restore|Niet herstellen)$/ }).click();
     await expect(recovery).toHaveCount(0);
   }
-  await waitForWelcomeDialog(page);
-  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showWelcomeDialog: false, showTourOverlay: false }));
+  expect(await waitForWelcomeCheck(page)).toBe('welkomstcontrole: overgeslagen (ingebed)');
 }
 
 const openDialog = (tool: Tool) => tool.locator('[data-ops-site-open-dialog]');
@@ -580,13 +579,40 @@ async function openToolInIframe(page: Page, options: { initialFileId?: string; l
   const frame = page.frames().find((f) => f !== page.mainFrame())!;
   await expect.poll(() => frame.evaluate(() => window.__OPS__ !== undefined), { timeout: 15_000 }).toBe(true);
   expect(await frame.evaluate(() => 'openaecHost' in window)).toBe(false);
-  await frame.locator('[data-ops-welcome-dialog]').waitFor({ state: 'attached', timeout: 15_000 });
-  await frame.evaluate(() => window.__OPS__!.store.getState().setUI({ showWelcomeDialog: false, showTourOverlay: false }));
+  // De host op de parent maakt de tool ook ingebed: geen welkomstvenster (#716). Komt de host pas ná de
+  // welkomstcontrole (`lateMs`), dan staat het venster al open, zoals het contract zegt; sluit het dan.
+  const outcome = await waitForWelcomeCheck(frame);
+  if (options.lateMs === undefined) expect(outcome).toBe('welkomstcontrole: overgeslagen (ingebed)');
+  else await frame.evaluate(() => window.__OPS__!.store.getState().setUI({ showWelcomeDialog: false, showTourOverlay: false }));
   return frame;
 }
 
+/**
+ * Zoals in de SuperCloud-werkplek (issue #582): daar draait de tool in een sandbox-iframe zonder
+ * `allow-same-origin`, en weigert de browser IndexedDB met een `SecurityError`. Alleen in de iframe;
+ * de host op de parent houdt zijn eigen opslag.
+ */
+async function refuseIndexedDbInIframe(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    if (window === window.top) return;
+    Object.defineProperty(IDBFactory.prototype, 'open', {
+      configurable: true,
+      value: () => { throw new DOMException('The user denied permission to access the database.', 'SecurityError'); },
+    });
+  });
+}
+
+/** Meldingen over crashherstel of auto-save in het meldingenkanaal van de tool. */
+const recoveryNotices = (tool: Tool) => tool.evaluate(() => window.__OPS__!.store.getState().ui.notifications
+  .map((n) => n.messageKey).filter((key) => /recovery|autoSave/i.test(key)));
+
 for (const [label, lateMs] of [['meteen', undefined], ['pas na het laden', 3_000]] as const) {
   test(`iframe: host op de parent (${label}) — startbestand, openen en opslaan over twee vensters`, async ({ page }) => {
+    // De iframe weigert IndexedDB, zoals in de werkplek. Crashherstel gaat dan stil uit: één
+    // consoleregel, geen melding; openen en opslaan via de host werken gewoon.
+    const recoveryOff: string[] = [];
+    page.on('console', (message) => { if (message.text().includes('Crashherstel staat uit')) recoveryOff.push(message.text()); });
+    await refuseIndexedDbInIframe(page);
     const frame = await openToolInIframe(page, { initialFileId: 'p1', lateMs });
     // Het startbestand komt van de parent; de inhoud is een Blob uit het venster van de parent.
     await expect.poll(() => doc(frame).then((d) => d.siteFileId), { timeout: 20_000 }).toBe('p1');
@@ -610,6 +636,15 @@ for (const [label, lateMs] of [['meteen', undefined], ['pas na het laden', 3_000
       fn: 'save', id: 'p1', name: 'Planning.ifc', baseVersion: '2', type: 'application/x-step', realm: 'other',
     });
     await expect.poll(() => doc(frame)).toMatchObject({ isDirty: false, siteFileVersion: '3' });
+
+    // De eerste crashherstelronde loopt meteen na de eerste wijziging; de site-opslag hierboven is
+    // pas daarna klaar. Nog een wijziging en nog een opslag: ook die ronde blijft stil.
+    await makeDirty(frame, 'Nog een wijziging');
+    await page.keyboard.press('Control+s');
+    await expect.poll(() => saves(page).then((s) => s.length)).toBe(2);
+    await expect.poll(() => doc(frame)).toMatchObject({ isDirty: false, siteFileVersion: '4' });
+    expect(recoveryOff).toHaveLength(1);
+    expect(await recoveryNotices(frame)).toEqual([]);
   });
 }
 
@@ -618,8 +653,7 @@ async function readyToolFrame(page: Page, previous: Frame | null): Promise<Frame
   await expect.poll(() => page.frames().some((f) => f !== page.mainFrame() && f !== previous && !f.isDetached())).toBe(true);
   const frame = page.frames().find((f) => f !== page.mainFrame() && f !== previous && !f.isDetached())!;
   await expect.poll(() => frame.evaluate(() => window.__OPS__ !== undefined).catch(() => false), { timeout: 15_000 }).toBe(true);
-  await frame.locator('[data-ops-welcome-dialog]').waitFor({ state: 'attached', timeout: 15_000 });
-  await frame.evaluate(() => window.__OPS__!.store.getState().setUI({ showWelcomeDialog: false, showTourOverlay: false }));
+  await waitForWelcomeCheck(frame);
   return frame;
 }
 
@@ -673,6 +707,28 @@ for (const [label, lateMs] of [['meteen', undefined], ['pas na het laden', 3_000
 
 test('zonder site: Ctrl+O en Ctrl+S gaan als vanouds naar bestandskiezer en download', async ({ page, ops: _ops }) => {
   expect(await page.evaluate(() => 'openaecHost' in window)).toBe(false);
+
+  // Firefox/Safari-capabilityroute in Chromium: geen herbruikbare handles of site-host.
+  await page.evaluate(() => {
+    Reflect.deleteProperty(window, 'showOpenFilePicker');
+    Reflect.deleteProperty(window, 'showSaveFilePicker');
+  });
+  expect(await page.evaluate(() => 'showOpenFilePicker' in window)).toBe(false);
+  for (const locale of ['nl', 'en']) {
+    await page.evaluate(async lang => {
+      const localePath = '/src/i18n/config.ts';
+      const { setLocale } = await import(/* @vite-ignore */ localePath);
+      await setLocale(lang);
+    }, locale);
+    await page.locator('.ribbon-tab--file').click();
+    await page.locator('.backstage-nav-item').filter({ hasText: /^Recent$/ }).click();
+    await expect(page.locator('.backstage-title')).toHaveText(locale === 'nl' ? 'Recente projecten' : 'Recent projects');
+    await expect(page.locator('[data-ops-recent-unavailable]')).toHaveText(locale === 'nl'
+      ? 'Deze browser kan eerder geopende lokale bestanden niet opnieuw openen vanuit Recent. Gebruik Openen om je projectbestand opnieuw te kiezen.'
+      : 'This browser cannot reopen local files from Recent. Use Open to choose your project file again.');
+    await expect(page.locator('.backstage-recent-item')).toHaveCount(0);
+    await page.locator('[data-ops-backstage-back]').click();
+  }
 
   const chooser = page.waitForEvent('filechooser');
   await page.keyboard.press('Control+o');

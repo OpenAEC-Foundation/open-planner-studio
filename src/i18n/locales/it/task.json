@@ -4,6 +4,7 @@
     "applyShape": "Applica forma:",
     "hoursPerDay": "{{hours}} ore per giorno lavorativo",
     "stripHint": "Trascina un confine per allungare o accorciare una fase, il bordo superiore per impostare l'impegno; doppio clic su un giorno divide una fase.",
+    "partialDayHint": "Se l'attività inizia o termina a metà di un giorno lavorativo, quel giorno conta in proporzione: le ore sono le unità × la parte del giorno. L'istogramma conta allo stesso modo.",
     "from": "Dal",
     "to": "Al",
     "days": "Giorni",
@@ -181,8 +182,8 @@
       "calendar": "Scegli un calendario dall'elenco.",
       "calendarNotFound": "Il calendario scelto non esiste.",
       "calendarHours": "Il calendario di questa attività non ha ore lavorative al giorno.",
-      "hourPlanningDisabled": "La pianificazione oraria è disattivata nelle Impostazioni dell'app.",
-      "durationConversionNotExact": "Questa durata non può essere convertita esattamente nell'altra unità.",
+      "durationConversionNotExact": "Questa durata non può essere convertita esattamente nell'altra unità in questo calendario.",
+      "fixedWorkIsHours": "Un'attività con lavoro fisso usa sempre la misura in ore.",
       "milestoneRequired": "Questo campo vale solo per i cardini.",
       "milestoneUnavailable": "Un'attività di riepilogo con sottoattività non può diventare un cardine.",
       "actualAfterStatusDate": "La data effettiva è successiva alla data di stato.",
@@ -332,11 +333,8 @@
     "unit": "Unità di durata",
     "days": "Giorni",
     "hours": "Ore",
-    "invalid": "Inserisci un numero intero di giorni o ore, ad esempio 2d o 12h.",
-    "enableHourPlanningFirst": "Attiva la pianificazione oraria per modificare questa attività in ore.",
-    "enableHourPlanning": "Attiva pianificazione oraria",
-    "requiresWorkBlocks": "Questo calendario non ha orari di lavoro validi. Controlla giorni e orari lavorativi.",
-    "conversionNotExact": "{{value}} non corrisponde a giorni interi in questo calendario. L'unità non è cambiata.",
+    "invalid": "Inserisci un numero di giorni o ore, ad esempio 2,5d o 12h.",
+    "conversionNotExact": "{{value}} non può essere convertito nell'altra unità in questo calendario. L'unità non è cambiata.",
     "unitInfo": "L'unità scelta appartiene a questa attività. I giorni contano i giorni lavorativi; le ore contano le ore di lavoro nel calendario. Un altro calendario non cambia l'unità né la durata inserita, ma può cambiare la data di fine."
   },
   "dialog": {
@@ -379,7 +377,6 @@
       "resourceAddsWork": "Una risorsa in più aggiunge lavoro.",
       "resourceSharesWork": "Una risorsa in più prende in carico una parte del lavoro; le unità per risorsa diminuiscono.",
       "resourceShorter": "Una risorsa in più rende l'attività più breve.",
-      "resourceShorterWholeDays": "Una risorsa in più rende l'attività più breve, arrotondata a giorni interi.",
       "resourceAddsWorkSameDuration": "Una risorsa in più aggiunge lavoro; la durata resta uguale."
     },
     "info": "Spiegazione del tipo di attività"
@@ -463,6 +460,7 @@
     "jumpToTask": "Vai all'attività {{wbs}}",
     "relationPopoverTitle": "Tipo di relazione",
     "driving": "Relazione determinante (driving)",
+    "drivingUnknown": "Relazioni determinanti sconosciute senza calcolo.",
     "lag": "Ritardo (es. 2d, 3ed, 2u, 50%, -25e%)",
     "recalculate": "Calcola",
     "assignments": {
@@ -527,6 +525,8 @@
     "type": "Tipo",
     "lag": "Ritardo",
     "driving": "Determinante",
+    "drivingUnknown": "Sconosciuto",
+    "notDriving": "Non determinante",
     "freeFloat": "Margine libero",
     "warnings": "Avvisi",
     "warnTruncatedLead": "Anticipo troncato all'inizio del progetto — la sovrapposizione non è sfruttata del tutto",
@@ -656,5 +656,11 @@
     "pieceHours_many": "Tratto: {{count}} ore",
     "pieceHours_other": "Tratto: {{count}} ore",
     "merged": "Unisci"
+  },
+  "dateTimeInput": {
+    "time": "Orario di {{field}}",
+    "timeHint": "Vuoto: l'inizio o la fine del giorno lavorativo. Con un orario: esattamente quel momento.",
+    "later": "Un quarto d'ora dopo",
+    "earlier": "Un quarto d'ora prima"
   }
 }
