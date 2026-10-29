@@ -8,7 +8,7 @@ import { CalendarEngine } from './CalendarEngine';
 import { LevelingQueue } from './levelingQueue';
 import { resolveCalendar } from './resolveCalendar';
 import {
-  parseDate, formatDate, parseInstant, utcDayStart, MS_PER_DAY, type DateMode,
+  parseDate, formatDate, parseInstant, utcDayStart, MS_PER_DAY,
   formatInstant,
 } from '@/utils/dateUtils';
 import {
@@ -282,6 +282,9 @@ export interface CPMTaskResult {
   /** OPTIONEEL — float-path-nummer. Alleen geschreven bij floatPaths. */
   floatPath?: number;
 }
+
+/** De maat en lengte van een lopende taak; zie `CPMSolver.progressWork`. */
+type ProgressWork = { measure: 'workdays' | 'minutes' | 'elapsed'; total: number; remaining: number };
 
 const TWENTY_FOUR_HOUR_LAG_CALENDAR: WorkCalendar = {
   id: 'ops-p6-24hour-lag',
@@ -660,7 +663,7 @@ export class CPMSolver {
     if (!t.actualStart || t.completion >= 1) return null;
     const lagMinutes = this.resolveLagMinutes(seq, predTask, lagEng);
     if (!(lagMinutes > 0)) return null;
-    const actualStart = this.parseIn(lagEng, t.actualStart);
+    const actualStart = parseInstant(t.actualStart);
     if (Number.isNaN(actualStart.getTime()) || actualStart >= this.dataDate) return null;
     const remaining = Math.max(0, lagMinutes - lagEng.workMinutesBetween(actualStart, this.dataDate));
     return { lagMinutes, remaining };
@@ -848,8 +851,7 @@ export class CPMSolver {
    * in plaats van aan haar dagbegin-anker — terugwaarts de late finish van de mijlpaal, voorwaarts
    * alleen de relatiegrens voor de vrije speling van een NIET-bindende FF (de vroege start van de
    * mijlpaal verandert nooit). Niet in de nulrestduur-voortgangstak van de terugwaartse pass.
-   * Alleen uur-modus aan beide kanten: het insluiten van uur-modus is gemeten, het uitsluiten van
-   * dagmodus niet — de poort is een bewuste beperking, geen gemeten grens. Een eindmijlpaal
+   * Een eindmijlpaal
    * (`milestoneKind: 'FINISH'`) valt er per definitie buiten. Voorwaarts doet C7 onder P6 niets meer
    * sinds C12 dezelfde vrije speling levert (vrije-spelingkant van C12); arm 3 (OPS-basis) van de
    * groep-C-fixture bewaakt hem.
@@ -877,7 +879,7 @@ export class CPMSolver {
     if (!task.time.actualFinish || task.time.completion < 1) return seq;
     const lagMinutes = this.resolveLagMinutes(seq, task, lagEng);
     if (!(lagMinutes > 0)) return seq;
-    const actualFinish = this.parseIn(lagEng, task.time.actualFinish);
+    const actualFinish = parseInstant(task.time.actualFinish);
     if (Number.isNaN(actualFinish.getTime()) || actualFinish >= this.dataDate) return seq;
     const elapsed = lagEng.workMinutesBetween(actualFinish, this.dataDate);
     const remaining = Math.max(0, lagMinutes - elapsed);
@@ -915,16 +917,10 @@ export class CPMSolver {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  //  MODUS-BEWUSTE rekenkern. Elke helper reduceert in DAG-modus tot de
-  //  dag-expressie; alleen een UUR-kalender (`isHourMode`) activeert het
-  //  minuut-native pad.
+  //  Rekenkern op werkblokken. Sinds F6 rekent elke kalender in een solve met
+  //  werkblokken (`prepareSolve` stopt bij een kalender zonder werktijd).
   // ═══════════════════════════════════════════════════════════════════════════
-  /** Parse een datum-string in de kalendermodus: dag ⇒ `parseDate` (middernacht),
-   *  uur ⇒ `parseInstant` (behoudt tijd-van-de-dag). */
-  private parseIn(eng: CalendarEngine, iso: string): Date {
-    return eng.isHourMode ? parseInstant(iso) : parseDate(iso);
-  }
-  /** Snap op-of-ná (voorwaarts): dag ⇒ `nextWorkDay`, uur ⇒ `nextWorkInstant`. Instance-tunnel naar
+  /** Snap op-of-ná (voorwaarts) naar `nextWorkInstant`. Instance-tunnel naar
    *  de top-level, GEDEELDE `snapWorkInstantOnOrAfter`: één definitie voor de solver-interne
    *  aanroepen hier ÉN voor `projectStartAnchorClamp.ts`. */
   private snapOnOrAfter(eng: CalendarEngine, d: Date): Date {
@@ -955,17 +951,17 @@ export class CPMSolver {
     const snapped = this.snapOnOrAfter(eng, d);
     return utcDayStart(snapped).getTime() === utcDayStart(d).getTime() ? snapped : d;
   }
-  /** Snap op-of-vóór (achterwaarts): dag ⇒ `prevWorkDay`, uur ⇒ `prevWorkInstant`. */
+  /** Snap op-of-vóór (achterwaarts) naar `prevWorkInstant`. */
   private snapOnOrBefore(eng: CalendarEngine, d: Date): Date {
-    return eng.isHourMode ? eng.prevWorkInstant(d) : eng.prevWorkDay(d);
+    return eng.prevWorkInstant(d);
   }
-  /** Snap strikt ná: dag ⇒ `nextWorkDayAfter`, uur ⇒ `nextWorkInstantAfter`. */
+  /** Snap strikt ná naar `nextWorkInstantAfter`. */
   private snapStrictAfter(eng: CalendarEngine, d: Date): Date {
-    return eng.isHourMode ? eng.nextWorkInstantAfter(d) : eng.nextWorkDayAfter(d);
+    return eng.nextWorkInstantAfter(d);
   }
-  /** Snap strikt vóór: dag ⇒ `prevWorkDayBefore`, uur ⇒ `prevWorkInstantBefore`. */
+  /** Snap strikt vóór naar `prevWorkInstantBefore`. */
   private snapStrictBefore(eng: CalendarEngine, d: Date): Date {
-    return eng.isHourMode ? eng.prevWorkInstantBefore(d) : eng.prevWorkDayBefore(d);
+    return eng.prevWorkInstantBefore(d);
   }
   /** Voorwaartse her-snap van een OPVOLGER-earlyStart die MSP-pariteit respecteert voor
    *  een EINDmijlpaal: `snapOnOrAfter` normaliseert met `nextWorkInstant` (rand `[start,end)`), dat
@@ -975,8 +971,8 @@ export class CPMSolver {
    *  (voor de "constrained root-taak op middernacht"-situatie) diezelfde dubbele snap op het
    *  volgende niveau. `snapOnOrBefore(...) === d` is de test "`d` is
    *  al een geldige `(start,end]`-instant" (band-interieur of band-eind) — precies de conventie
-   *  waarmee `finishFromStart` een `ef` bouwt; bij een niet-milestone of een dag-kalender reduceert
-   *  dit tot de kale `snapOnOrAfter`. */
+   *  waarmee `finishFromStart` een `ef` bouwt; bij een niet-milestone reduceert dit tot de kale
+   *  `snapOnOrAfter`. */
   private snapSuccessorEarlyStart(
     eng: CalendarEngine,
     d: Date,
@@ -997,14 +993,14 @@ export class CPMSolver {
       this.milestoneConstraintMoment(task, c, eng)?.getTime() === d.getTime())) return d;
     // Een mijlpaal op het eindmoment van zijn FNET blijft daar, ook een START op een blokeinde (P ma,
     // FNET di ⇒ di 16:00, niet wo 07:00).
-    if (eng.isHourMode && isZeroDurationMilestone(task)
+    if (isZeroDurationMilestone(task)
       && this.snapOnOrBefore(eng, d).getTime() === d.getTime()
       && [task.constraint, task.constraint2].some(c =>
         c?.type === 'FNET' && this.forwardBoundOf(task, c, eng)?.getTime() === d.getTime())) return d;
-    if (preserveP6FinishBoundary && eng.isHourMode
+    if (preserveP6FinishBoundary
       && this.snapOnOrBefore(eng, d).getTime() === d.getTime()) return d;
     const p6FinishBoundary = this.p6ZeroDurationUsesFinishBoundary(task, eng);
-    if (eng.isHourMode && isZeroDurationMilestone(task)
+    if (isZeroDurationMilestone(task)
       && (task.milestoneKind === 'FINISH' || p6FinishBoundary
         || (!task.milestoneKind && (this.predecessors.get(task.id) ?? []).some(seq =>
           (seq.type === 'FINISH_FINISH' || seq.type === 'START_FINISH')
@@ -1049,9 +1045,6 @@ export class CPMSolver {
     const clockMs = (plannedFinish.getUTCHours() * 60 + plannedFinish.getUTCMinutes()) * 60_000;
     return new Date(utcDayStart(start).getTime() - MS_PER_DAY + clockMs);
   }
-  private modeOf(eng: CalendarEngine): DateMode {
-    return eng.isHourMode ? 'hour' : 'day';
-  }
 
   /**
    * De `projectStart`-ONDERGRENS: het MAXIMUM van de taak-eigen gesnapte
@@ -1078,8 +1071,8 @@ export class CPMSolver {
    * een constraint: een opgelegde grens is geen relatie-afgeleide instant. */
   private rootFloor(eng: CalendarEngine, scheduleStart: string, elapsedTask: boolean): Date {
     const own = elapsedTask
-      ? this.parseIn(eng, scheduleStart)
-      : this.snapOnOrAfter(eng, this.parseIn(eng, scheduleStart));
+      ? parseInstant(scheduleStart)
+      : this.snapOnOrAfter(eng, parseInstant(scheduleStart));
     if (!this.projectStartRaw) return own;
     const floor = this.snapOnOrAfter(eng, this.projectStartRaw);
     return floor > own ? floor : own;
@@ -1110,29 +1103,28 @@ export class CPMSolver {
    * `cases-advanced-cpm.json` pint dit geval, het band-interieur- en het tussen-band-eind-gedrag.
    *
    * EEN 0-DUURMIJLPAAL SNAPT NOOIT — zelfde regel als bij `forwardBoundOf` — MAAR uitsluitend bij
-   * een ECHT datetime-anker (`scheduleStart` draagt een tijdcomponent) in uur-modus (een
+   * een ECHT datetime-anker (`scheduleStart` draagt een tijdcomponent) (een
    * date-only-anker is dag-verankerd en blijft naar het eerste werk-instant van de dag snappen).
    * `isExactBandEnd`-check hierboven blijft ONVOORWAARDELIJK bestaan voor taken MET duur en voor
    * date-only-geankerde mijlpalen. */
   private ownAnchor(eng: CalendarEngine, scheduleStart: string, task: Task): Date {
-    const raw = this.parseIn(eng, scheduleStart);
+    const raw = parseInstant(scheduleStart);
     // D4: een genormaliseerd daganker op een vrije dag is geen ingevoerd uuranker.
     // Uurkalenders en urentaken behouden hun bestaande vrijheid voor puntmarkeringen.
-    if (isZeroDurationMilestone(task) && eng.isHourMode && scheduleStart.includes('T')
+    if (isZeroDurationMilestone(task) && scheduleStart.includes('T')
       && (eng.hasOwnWorkBlocks || taskDurationUnit(task) === 'hours' || eng.isWorkDay(raw))) return raw;
     if (this.isExactBandEnd(eng, raw)) return raw;
     return this.snapOnOrAfter(eng, raw);
   }
 
-  /** `d` valt EXACT op het LAATSTE band-eind van zijn eigen kalenderdag (uur-modus) — niet zelf een
+  /** `d` valt EXACT op het LAATSTE band-eind van zijn eigen kalenderdag — niet zelf een
    *  werk-instant (`[start,end)`), maar wél al een geldige `(start,end]`-instant, ÉN geen TUSSEN-
    *  band-eind (bv. `12:00` in een 08–12/13–17-dag). De bredere test (`snapOnOrBefore(eng,d)===d`)
    *  zou ook op `12:00` vuren — dan telt `dayFirstBandStart` stil de hele OCHTEND mee bij de
    *  duur-optelling, terwijl het corpusbewijs (`timephased-prorated-cost-resource.mpp`) UITSLUITEND
    *  het LAATSTE band-eind van de dag betreft. Vandaar de expliciete vergelijking met `bands[bands.length-1].end` i.p.v. de kale
-   *  `(start,end]`-test. Dag-modus kent geen bandgrenzen ⇒ altijd `false`. */
+   *  `(start,end]`-test. */
   private isExactBandEnd(eng: CalendarEngine, d: Date): boolean {
-    if (!eng.isHourMode) return false;
     const bands = eng.effectiveBandsOn(d);
     if (bands.length === 0) return false;
     const lastBandEndMs = utcDayStart(d).getTime() + bands[bands.length - 1].end * MS_PER_MIN;
@@ -1226,9 +1218,8 @@ export class CPMSolver {
   };
 
   /** Vroege finish = start ⊕ duur. Mijlpaal ⇒ 0; ELAPSEDTIME ⇒ kale 24/7-klokoptelling
-   *  (zoals `resolveElapsedMinutes`/`relationMath.ts`, GEEN kalenderband-toetsing); uur
-   *  (WORKTIME) ⇒ `addWorkMinutes(durationMinutesOf)`; dag (WORKTIME) ⇒ `addWorkDays(durationDaysOf)`
-   *  (`durationDaysOf` levert op een dag-kalender altijd de integer `scheduleDuration`).
+   *  (zoals `resolveElapsedMinutes`/`relationMath.ts`, GEEN kalenderband-toetsing); dagenmaat
+   *  ⇒ `addMeasuredWorkdaysChecked`; urenmaat (WORKTIME) ⇒ `addWorkMinutes(workMinutesOf)`.
    *
    *  Splits: `task.splitGaps` telt hier mee als EXTRA werkminuten/-dagen bovenop de gewone duur, via
    *  `splitTotalSpanMinutes`/`splitTotalSpanDays` (`duration.ts` — een wandeling over de cumulatieve
@@ -1237,17 +1228,17 @@ export class CPMSolver {
   private addDuration(eng: CalendarEngine, start: Date, task: Task): Date {
     return this.addDurationChecked(eng, start, task).date;
   }
-  /** `addDuration` mét CAP-signaal: identieke datum-uitkomst, plus `capped` uit de dag-modus-
-   *  `addWorkDaysChecked` — een onwerkbaar taakvenster (holiday-blok) dat de earlyFinish tegen de
-   *  MAX_SCAN/MAX_DAYS-grens duwt. Mijlpaal, ELAPSEDTIME en uur-modus cappen hier nooit (`false`):
-   *  een mijlpaal heeft geen duur, ELAPSEDTIME kent geen onwerkbaar-venster-begrip (24/7), en de
-   *  minuut-lussen hebben hun eigen best-effort-terugval buiten dit signaal. */
+  /** `addDuration` mét CAP-signaal: identieke datum-uitkomst, plus `capped` uit
+   *  `addMeasuredWorkdaysChecked` — een onwerkbaar taakvenster (holiday-blok) dat de earlyFinish tegen
+   *  de scangrens duwt. Mijlpaal, ELAPSEDTIME en de urenmaat cappen hier nooit (`false`): een mijlpaal
+   *  heeft geen duur, ELAPSEDTIME kent geen onwerkbaar-venster-begrip (24/7), en de minuut-lussen
+   *  hebben hun eigen best-effort-terugval buiten dit signaal. */
   private addDurationChecked(eng: CalendarEngine, start: Date, task: Task): { date: Date; capped: boolean } {
     if (isZeroDurationMilestone(task)) return { date: new Date(start.getTime()), capped: false };
     if (task.time.durationType === 'ELAPSEDTIME') {
       return { date: addElapsedMinutes(start, elapsedMinutesOf(task, eng)), capped: false };
     }
-    if (eng.isHourMode && this.countsInWorkdays(task)) {
+    if (this.countsInWorkdays(task)) {
       // Alleen uren §3.14: de dagenmaat. Elke werkdag telt 1, binnen een dag het deel van de werktijd
       // van die dag; `splitGaps` tellen mee als extra werkdagen (`splitTotalSpanDays`). Een start op een
       // blokeinde telt vanaf het volgende blokbegin, dus nooit als een lege eerste dag.
@@ -1255,44 +1246,39 @@ export class CPMSolver {
       if (totalDays <= 0) return { date: new Date(start.getTime()), capped: false };
       return eng.addMeasuredWorkdaysChecked(start, totalDays);
     }
-    if (eng.isHourMode) {
-      // De urenmaat: een urentaak, of een dagenmaat-taak in een profiel zonder dagenmaat (§3.2:
-      // `scheduleDuration` × werktijd per dag × 60 minuten).
-      const totalMinutes = splitTotalSpanMinutes(task.splitGaps, this.workMinutesOf(task, eng));
-      if (totalMinutes > 0 && this.p6FinishBoundaryStartTaskIds.has(task.id)
-        && this.isExactBandEnd(eng, start)) {
-        return {
-          date: eng.addWorkMinutes(eng.nextWorkInstantAfter(start), totalMinutes),
-          capped: false,
-        };
-      }
-      // Rauw anker op een band-eind: `start` exact op een band-eind (`ownAnchor` laat zo'n
-      // wortel-anker bewust RAUW) — INVOERBEWIJS (corpusbestand
-      // `timephased-prorated-cost-resource.mpp`, 4 taken, identieke duur/kalender): MSP's eigen
-      // `SCHEDULED_FINISH` is voor ALLE VIER de taken hetzelfde instant (`2026-02-02T17:00`) — óók
-      // voor "No Progress - Actual Cost", die als ENIGE om `17:00` (band-eind) start i.p.v. `08:00`
-      // (band-begin) zoals de andere drie. MSP rekent de ankerdag van die taak dus als VOLLEDIG
-      // verbruikt mee in de duur, ongeacht dat er op klokinstant-niveau nul minuten van die dag
-      // resteren. Reken de duur daarom vanaf de EERSTE band van diezelfde kalenderdag i.p.v. vanaf
-      // het band-eind-instant zelf — de GERAPPORTEERDE `earlyStart` blijft ongewijzigd het rauwe
-      // band-eind-anker, dit raakt uitsluitend het interne rekenpunt voor de
-      // duur-optelling. `totalMinutes > 0`-wacht: anders verlegt dit ook de RETURN van een
-      // NUL-duur, niet-mijlpaal-taak (`isZeroDurationMilestone` vereist óók `task.isMilestone`) van
-      // `addWorkMinutes`'s `minutes ≤ 0`-kortsluiting naar de band-begin-waarde (dataDate-vloer-cases
-      // `msp-06`/`msp-06b`). Band-INTERIEUR/normale starts ⇒ `isExactBandEnd` levert `false`.
-      const walkStart = totalMinutes > 0 && this.isExactBandEnd(eng, start)
-        ? this.dayFirstBandStart(eng, start) ?? start
-        : start;
-      return { date: eng.addWorkMinutes(walkStart, totalMinutes), capped: false };
+    // De urenmaat: een urentaak, of een dagenmaat-taak in een profiel zonder dagenmaat (§3.2:
+    // `scheduleDuration` × werktijd per dag × 60 minuten).
+    const totalMinutes = splitTotalSpanMinutes(task.splitGaps, this.workMinutesOf(task, eng));
+    if (totalMinutes > 0 && this.p6FinishBoundaryStartTaskIds.has(task.id)
+      && this.isExactBandEnd(eng, start)) {
+      return {
+        date: eng.addWorkMinutes(eng.nextWorkInstantAfter(start), totalMinutes),
+        capped: false,
+      };
     }
-    const totalDays = splitTotalSpanDays(task, eng);
-    return eng.addWorkDaysChecked(start, totalDays);
+    // Rauw anker op een band-eind: `start` exact op een band-eind (`ownAnchor` laat zo'n
+    // wortel-anker bewust RAUW) — INVOERBEWIJS (corpusbestand
+    // `timephased-prorated-cost-resource.mpp`, 4 taken, identieke duur/kalender): MSP's eigen
+    // `SCHEDULED_FINISH` is voor ALLE VIER de taken hetzelfde instant (`2026-02-02T17:00`) — óók
+    // voor "No Progress - Actual Cost", die als ENIGE om `17:00` (band-eind) start i.p.v. `08:00`
+    // (band-begin) zoals de andere drie. MSP rekent de ankerdag van die taak dus als VOLLEDIG
+    // verbruikt mee in de duur, ongeacht dat er op klokinstant-niveau nul minuten van die dag
+    // resteren. Reken de duur daarom vanaf de EERSTE band van diezelfde kalenderdag i.p.v. vanaf
+    // het band-eind-instant zelf — de GERAPPORTEERDE `earlyStart` blijft ongewijzigd het rauwe
+    // band-eind-anker, dit raakt uitsluitend het interne rekenpunt voor de
+    // duur-optelling. `totalMinutes > 0`-wacht: anders verlegt dit ook de RETURN van een
+    // NUL-duur, niet-mijlpaal-taak (`isZeroDurationMilestone` vereist óók `task.isMilestone`) van
+    // `addWorkMinutes`'s `minutes ≤ 0`-kortsluiting naar de band-begin-waarde (dataDate-vloer-cases
+    // `msp-06`/`msp-06b`). Band-INTERIEUR/normale starts ⇒ `isExactBandEnd` levert `false`.
+    const walkStart = totalMinutes > 0 && this.isExactBandEnd(eng, start)
+      ? this.dayFirstBandStart(eng, start) ?? start
+      : start;
+    return { date: eng.addWorkMinutes(walkStart, totalMinutes), capped: false };
   }
 
   /** Alleen uren §3.14: telt `task` (en haar rest) in de dagenmaat? De vraag gaat naar de hulpfunctie
    *  `taskCountsInWorkdays`; de conventie `workdayDurationMeasure` komt uit de effectieve opties. Oude data
-   *  zonder `durationUnit` krijgt haar maat van `taskDurationUnit`. Alleen zinvol op een kalender met
-   *  werkblokken (`isHourMode`); de aanroepers toetsen dat zelf. */
+   *  zonder `durationUnit` krijgt haar maat van `taskDurationUnit`. */
   private countsInWorkdays(task: Task): boolean {
     return taskCountsInWorkdays(
       { time: { durationUnit: taskDurationUnit(task), durationType: task.time.durationType } },
@@ -1327,63 +1313,59 @@ export class CPMSolver {
   /** `actualEarlyStart`: de ES die `earlyDates` voor DEZE taak in DIT solve
    *  daadwerkelijk droeg (uit `backwardPass`s eigen `earlyDates`-map, niet `task.time.earlyStart` —
    *  dat veld wordt pas ná `backwardPass` door `computeScheduleResults` geschreven, dus zou hier
-   *  een stale waarde van de VORIGE solve teruggeven). Optioneel/`null` voor de dag-modus-tak en
-   *  voor aanroepers die 'm niet kennen; de band-eind-wacht hieronder gebruikt 'm om te bevestigen
+   *  een stale waarde van de VORIGE solve teruggeven). Optioneel/`null` voor aanroepers die 'm niet
+   *  kennen; de band-eind-wacht hieronder gebruikt 'm om te bevestigen
    *  dat `ownAnchor` de ES ook WERKELIJK leverde (zie die wacht se toelichting). */
   private subDuration(eng: CalendarEngine, end: Date, task: Task, actualEarlyStart: Date | null = null): Date {
     if (isZeroDurationMilestone(task)) return new Date(end.getTime());
     if (task.time.durationType === 'ELAPSEDTIME') {
       return subtractElapsedMinutes(end, elapsedMinutesOf(task, eng));
     }
-    if (eng.isHourMode && this.countsInWorkdays(task)) {
+    if (this.countsInWorkdays(task)) {
       // Spiegel van `addDurationChecked`s dagenmaat (§3.14): dezelfde gaten-bewuste lengte in
       // werkdagen, achteruit geteld. Zo blijft LS−ES gelijk aan LF−EF, ook met een deel van een dag.
       const totalDays = splitTotalSpanDays(task, eng);
       if (totalDays <= 0) return new Date(end.getTime());
       return eng.subtractMeasuredWorkdays(end, totalDays);
     }
-    if (eng.isHourMode) {
-      const totalMinutes = splitTotalSpanMinutes(task.splitGaps, this.workMinutesOf(task, eng));
-      const natural = eng.subtractWorkMinutes(end, totalMinutes);
-      // B1: de late start van een opvolger op een voorgangerfinishgrens-relatie is een gewone
-      // bandSTART (P6: Hotel HCSWB1Z1240 LS 03-04 08:00). De finishgrens voor de voorganger legt de
-      // gewone FS-backward in `relationMath` (`prevWorkInstant` op de voorgangerkalender), niet
-      // `prevWorkInstantBefore(natural)` hier.
-      // Backward-spiegel van `addDurationChecked`s band-eind-wacht: een WORTEL-taak wier `ownAnchor`
-      // het rauwe band-eind-anker behoudt, telt de EIGEN kalenderdag van dat anker als volledig
-      // verbruikt (`dayFirstBandStart`), terwijl `es` het rauwe band-eind blijft. Een kale
-      // duur-aftrek vanaf `end` landt dan vóór `es` (negatieve `tf` zonder oorzaak) of geeft mét
-      // speling een `tf` die één werkdag te klein is (LF−EF ≠ LS−ES) — de fidelity-meting ziet alleen
-      // ES/EF, geen float.
-      //
-      // De wacht toetst of `natural` op een kalenderdag D exact op de EERSTE band landt
-      // (`dayFirstBandStart(natural) === natural`) — wat een "hele-werkdagen"-aftrek altijd doet — en
-      // geeft dan het LAATSTE band-eind van D terug (`dayLastBandEnd`). Zonder speling is D de
-      // ankerdag zelf. Gepind in `cases-advanced-cpm.json` (`z13-root-anchor-band-eind-speling`).
-      //
-      // GATING: `preds.length===0` + `isExactBandEnd(rawOwn)` zijn nodig maar niet voldoende — een
-      // harde pin of bindende SNET/MSO-constraint kan `earlyStart` elders gezet hebben.
-      // `actualEarlyStart === rawOwn` (de ECHTE ES van dit solve) bevestigt dat `ownAnchor` de ES
-      // leverde. Voor élke andere taak is dit `false`.
-      if (
-        totalMinutes > 0
-        && (this.predecessors.get(task.id) ?? []).length === 0
-        && task.time.scheduleStart
-        && actualEarlyStart
-      ) {
-        const rawOwn = this.parseIn(eng, task.time.scheduleStart);
-        if (this.isExactBandEnd(eng, rawOwn) && actualEarlyStart.getTime() === rawOwn.getTime()) {
-          const naturalDayStart = this.dayFirstBandStart(eng, natural);
-          if (naturalDayStart && naturalDayStart.getTime() === natural.getTime()) {
-            const mirrored = this.dayLastBandEnd(eng, natural);
-            if (mirrored) return mirrored;
-          }
+    const totalMinutes = splitTotalSpanMinutes(task.splitGaps, this.workMinutesOf(task, eng));
+    const natural = eng.subtractWorkMinutes(end, totalMinutes);
+    // B1: de late start van een opvolger op een voorgangerfinishgrens-relatie is een gewone
+    // bandSTART (P6: Hotel HCSWB1Z1240 LS 03-04 08:00). De finishgrens voor de voorganger legt de
+    // gewone FS-backward in `relationMath` (`prevWorkInstant` op de voorgangerkalender), niet
+    // `prevWorkInstantBefore(natural)` hier.
+    // Backward-spiegel van `addDurationChecked`s band-eind-wacht: een WORTEL-taak wier `ownAnchor`
+    // het rauwe band-eind-anker behoudt, telt de EIGEN kalenderdag van dat anker als volledig
+    // verbruikt (`dayFirstBandStart`), terwijl `es` het rauwe band-eind blijft. Een kale
+    // duur-aftrek vanaf `end` landt dan vóór `es` (negatieve `tf` zonder oorzaak) of geeft mét
+    // speling een `tf` die één werkdag te klein is (LF−EF ≠ LS−ES) — de fidelity-meting ziet alleen
+    // ES/EF, geen float.
+    //
+    // De wacht toetst of `natural` op een kalenderdag D exact op de EERSTE band landt
+    // (`dayFirstBandStart(natural) === natural`) — wat een "hele-werkdagen"-aftrek altijd doet — en
+    // geeft dan het LAATSTE band-eind van D terug (`dayLastBandEnd`). Zonder speling is D de
+    // ankerdag zelf. Gepind in `cases-advanced-cpm.json` (`z13-root-anchor-band-eind-speling`).
+    //
+    // GATING: `preds.length===0` + `isExactBandEnd(rawOwn)` zijn nodig maar niet voldoende — een
+    // harde pin of bindende SNET/MSO-constraint kan `earlyStart` elders gezet hebben.
+    // `actualEarlyStart === rawOwn` (de ECHTE ES van dit solve) bevestigt dat `ownAnchor` de ES
+    // leverde. Voor élke andere taak is dit `false`.
+    if (
+      totalMinutes > 0
+      && (this.predecessors.get(task.id) ?? []).length === 0
+      && task.time.scheduleStart
+      && actualEarlyStart
+    ) {
+      const rawOwn = parseInstant(task.time.scheduleStart);
+      if (this.isExactBandEnd(eng, rawOwn) && actualEarlyStart.getTime() === rawOwn.getTime()) {
+        const naturalDayStart = this.dayFirstBandStart(eng, natural);
+        if (naturalDayStart && naturalDayStart.getTime() === natural.getTime()) {
+          const mirrored = this.dayLastBandEnd(eng, natural);
+          if (mirrored) return mirrored;
         }
       }
-      return natural;
     }
-    const totalDays = splitTotalSpanDays(task, eng);
-    return eng.subtractWorkDays(end, totalDays);
+    return natural;
   }
 
   /** P6-XER late-passspiegel voor een lopende taak: alleen het resterende werk ligt nog op de
@@ -1397,9 +1379,7 @@ export class CPMSolver {
     }
     const remainingWithGaps = this.remainingWithSplitGaps(task, eng, work);
     if (work.measure === 'workdays') return eng.subtractMeasuredWorkdays(end, remainingWithGaps);
-    return work.measure === 'minutes'
-      ? eng.subtractWorkMinutes(end, remainingWithGaps)
-      : eng.subtractWorkDays(end, remainingWithGaps);
+    return eng.subtractWorkMinutes(end, remainingWithGaps);
   }
 
   /** Alleen uren §3.5 en B3: de lengte en het restwerk van een lopende taak, exact, in de maat waarin
@@ -1408,12 +1388,8 @@ export class CPMSolver {
    *    zonder afronding op hele dagen (B3).
    *  - `minutes`: de urenmaat, in werkminuten. Een urentaak leest `remainingMinutes`; een dagenmaat-taak in
    *    een profiel zonder dagenmaat `remainingTime` × werktijd per dag × 60 (§3.5).
-   *  - `elapsed`: kalendertijd, in de eenheid van de taak (minuten of dagen); zie `elapsedWorkMinutes`.
-   *  - `days`: een kalender zonder werkblokken. Die kan geen deel van een dag plaatsen en houdt de telling
-   *    in hele dagen. */
-  private progressWork(task: Task, eng: CalendarEngine): {
-    measure: 'workdays' | 'minutes' | 'elapsed' | 'days'; total: number; remaining: number;
-  } {
+   *  - `elapsed`: kalendertijd, in de eenheid van de taak (minuten of dagen); zie `elapsedWorkMinutes`. */
+  private progressWork(task: Task, eng: CalendarEngine): ProgressWork {
     const t = task.time;
     const inHours = taskDurationUnit(task) === 'hours';
     if (!isZeroDurationMilestone(task) && t.durationType === 'ELAPSEDTIME') {
@@ -1421,19 +1397,15 @@ export class CPMSolver {
       const fromCompletion = inHours ? Math.round(total * (1 - t.completion)) : total * (1 - t.completion);
       return { measure: 'elapsed', total, remaining: Math.max(0, (inHours ? t.remainingMinutes : t.remainingTime) ?? fromCompletion) };
     }
-    if (eng.isHourMode && this.countsInWorkdays(task)) {
+    if (this.countsInWorkdays(task)) {
       const total = t.scheduleDuration;
       return { measure: 'workdays', total, remaining: Math.max(0, t.remainingTime ?? total * (1 - t.completion)) };
     }
-    if (eng.isHourMode || inHours) {
-      const total = this.workMinutesOf(task, eng);
-      const rest = inHours
-        ? t.remainingMinutes
-        : t.remainingTime !== undefined ? CPMSolver.daysAsWorkMinutes(t.remainingTime, eng) : undefined;
-      return { measure: 'minutes', total, remaining: Math.max(0, rest ?? Math.round(total * (1 - t.completion))) };
-    }
-    const total = t.scheduleDuration;
-    return { measure: 'days', total, remaining: Math.max(0, t.remainingTime ?? Math.round(total * (1 - t.completion))) };
+    const total = this.workMinutesOf(task, eng);
+    const rest = inHours
+      ? t.remainingMinutes
+      : t.remainingTime !== undefined ? CPMSolver.daysAsWorkMinutes(t.remainingTime, eng) : undefined;
+    return { measure: 'minutes', total, remaining: Math.max(0, rest ?? Math.round(total * (1 - t.completion))) };
   }
 
   /** Kalendertijd-rest in klokminuten: een urentaak telt al in minuten, een dagtaak in dagen van 24 uur. */
@@ -1443,10 +1415,8 @@ export class CPMSolver {
 
   /** Het restwerk plus het nog niet verbruikte deel van de splitgaten, in de maat van `work`. Alleen het
    *  venster `[reeds afgewerkt, totale duur)` telt (zie de toelichting in `forwardPass`). De gaten staan in
-   *  werkminuten; de dagenmaat en hele dagen rekenen ze om met de werktijd per dag. */
-  private remainingWithSplitGaps(
-    task: Task, eng: CalendarEngine, work: { measure: 'workdays' | 'minutes' | 'elapsed' | 'days'; total: number; remaining: number },
-  ): number {
+   *  werkminuten; de dagenmaat rekent ze om met de werktijd per dag. */
+  private remainingWithSplitGaps(task: Task, eng: CalendarEngine, work: ProgressWork): number {
     if (work.measure === 'elapsed' || !task.splitGaps || task.splitGaps.length === 0) return work.remaining;
     const perUnit = work.measure === 'minutes' ? 1 : eng.hoursPerDay * 60;
     const totalSpanMinutes = work.total * perUnit;
@@ -1461,28 +1431,12 @@ export class CPMSolver {
    *  elapsed-bewust). `sign=1` (forward, `forwardPass`s eigen early
    *  start van `task` zelf) of `sign=-1` (backward-DOORGIFTE, `backwardPass`s constraint-druk
    *  die `task` als OPVOLGER op haar voorganger legt — zie de toelichting bij de aanroepplek in
-   *  `backwardPass`). Geen delay ingesteld ⇒ `date` ongewijzigd, ongeacht `sign`.
-   *
-   *  VALKUIL: `eng.addWorkingMinutesSigned` is
-   *  een UUR-modus-primitief — `CalendarEngine`'s `bandCache` bestaat uitsluitend wanneer de
-   *  kalender `workTime` draagt (constructor, `this.mode==='hour'`-tak); op een DAG-kalender blijft
-   *  `bandCache` `undefined` en crasht `bandsStartingOn`'s `this.bandCache!`-assertion. `mppReader.ts`
-   *  zet `levelingDelayMinutes` op `raw.levelingDelayRaw !== 0`, ONGEACHT het kalender-type van het
-   *  project — een `.mpp`-bestand met nivelleervertraging op een gewone DAG-kalender bereikt deze
-   *  tak dus. Terugval-conventie: identiek aan `durationDaysOf`s "sub-dag-duur
-   *  bestaat niet op een dag-kalender"-precedent en `resolveEffectiveLagDays`s minuten→dagen-
-   *  omrekening (`Math.sign(raw) * Math.round(Math.abs(raw))`, half rondt van nul af) — reken de
-   *  minuten om naar HELE werkdagen en gebruik `addWorkingDaysSigned` (de dag-modus-tegenhanger). */
+   *  `backwardPass`). Geen delay ingesteld ⇒ `date` ongewijzigd, ongeacht `sign`. */
   private shiftByLevelingDelay(eng: CalendarEngine, task: Task, date: Date, sign: 1 | -1): Date {
     const taskElapsed = isElapsedTask(task);
     if (task.levelingDelayMinutes) {
       if (taskElapsed || task.levelingDelayElapsed) {
         return addElapsedMinutes(date, sign * task.levelingDelayMinutes);
-      }
-      if (!eng.isHourMode) {
-        const raw = task.levelingDelayMinutes / (eng.hoursPerDay * 60);
-        const days = Math.sign(raw) * Math.round(Math.abs(raw));
-        return eng.addWorkingDaysSigned(date, sign * days);
       }
       return eng.addWorkingMinutesSigned(date, sign * task.levelingDelayMinutes);
     }
@@ -1515,69 +1469,59 @@ export class CPMSolver {
   /** Verschuif `base` met de relatie-lag in de meegegeven lag-engine (de parameter heet `predEng`,
    *  maar elke aanroeper geeft `lagEng` uit `relDeps.lagEngine` door — `schedulingOptions.lagCalendar`,
    *  default voorganger).
-   *  Uur-pred ⇒ minuten via `addWorkingMinutesSigned`; dag-pred ⇒ dagen via `addWorkingDaysSigned`
-   *  (dag-lag blijft exact als nu). `sign` = +1 voorwaarts, −1 achterwaarts (spiegel). */
+   *  Urenmaat ⇒ minuten via `addWorkingMinutesSigned`; dagenmaat ⇒ de dagenmaat-lopers. `sign` = +1
+   *  voorwaarts, −1 achterwaarts (spiegel). */
   private shiftLagPred(
     predEng: CalendarEngine, base: Date, seq: Sequence, predTask: Task, sign: 1 | -1,
   ): Date {
-    if (predEng.isHourMode) {
-      // Alleen uren §3.3 en §3.14: een lag in dagenmaat telt in het OPS-profiel met de dagenmaat-lopers
-      // op de lagkalender; een deel van een dag is het deel van de werktijd van die dag. Lag 0 houdt de
-      // gewone normalisatie hieronder (`nextWorkInstant` en de grensregels). Een procentlag telt in de maat
-      // van de voorganger (B7): in de dagenmaat een deel van zijn werkdagen, anders van zijn werkminuten.
-      const lagDays = isFiniteNumber(seq.lagPercent)
-        ? resolveEffectiveLagDays(seq, predTask)
-        : Number.isFinite(seq.lagDays) ? seq.lagDays : 0;
-      const measured = lagDays !== 0 && lagCountsInWorkdays(
-        seq, { workdayDurationMeasure: this.options.schedulingOptions?.workdayDurationMeasure },
-        { time: { durationUnit: taskDurationUnit(predTask), durationType: predTask.time.durationType } },
-      );
-      const minutes = measured ? 0 : this.resolveLagMinutes(seq, predTask, predEng);
-      const amount = measured ? lagDays : minutes;
-      if (measured && sign * lagDays > 0) {
-        return predEng.addMeasuredWorkdays(predEng.nextWorkInstant(base), sign * lagDays);
-      }
-      if (sign < 0 && amount > 0) {
-        const projected = measured
-          ? predEng.subtractMeasuredWorkdays(base, lagDays)
-          : predEng.subtractWorkMinutes(base, minutes);
-        // P6 WORKTIME-lag is een grensafstand. Vanaf een finishgrens moet een aftrek die exact op
-        // een bandstart landt daarom de complementaire vorige finishgrens teruggeven: wo 17:00
-        // min twee werkdagen = ma 17:00, niet di 08:00. Alleen de XER-resultaatprojectie krijgt
-        // deze conventie; duur-aftrek en de generieke kalenderprimitieven blijven fysiek/invers.
-        const projectedDayStart = this.dayFirstBandStart(predEng, projected);
-        if (this.options.schedulingOptions?.p6BackwardLagFinishBoundary === true
-          && this.isExactBandEnd(predEng, base)
-          && projectedDayStart?.getTime() === projected.getTime()) {
-          return predEng.prevWorkInstantBefore(projected);
-        }
-        return projected;
-      }
-      // B2 bij lag 0: een FF-grens op een exact bandeinde blijft die finishgrens; de
-      // generieke normalisatie (`nextWorkInstant`) zou hem naar de volgende bandstart duwen.
-      if (sign < 0 && amount === 0 && seq.type === 'FINISH_FINISH'
-        && this.options.schedulingOptions?.p6BackwardLagFinishBoundary === true
-        && this.isExactBandEnd(predEng, base)) {
-        return new Date(base.getTime());
-      }
-      // Een lead in dagenmaat, vooruit: vanaf het genormaliseerde moment terugtellen, zoals
-      // `addWorkingMinutesSigned` dat met minuten doet. (Achteruit telt een lead vooruit, hierboven.)
-      if (measured) return predEng.subtractMeasuredWorkdays(predEng.nextWorkInstant(base), Math.abs(lagDays));
-      return predEng.addWorkingMinutesSigned(base, sign * minutes);
-    }
-    // Dag-voorganger: WORKTIME-lag in dagen; `hoursPerDay` van de voorganger-kalender vertaalt een
-    // lag die alleen als `lagMinutes` bestaat.
-    return predEng.addWorkingDaysSigned(
-      base, sign * resolveEffectiveLagDays(seq, predTask, predEng.hoursPerDay),
+    // Alleen uren §3.3 en §3.14: een lag in dagenmaat telt in het OPS-profiel met de dagenmaat-lopers
+    // op de lagkalender; een deel van een dag is het deel van de werktijd van die dag. Lag 0 houdt de
+    // gewone normalisatie hieronder (`nextWorkInstant` en de grensregels). Een procentlag telt in de maat
+    // van de voorganger (B7): in de dagenmaat een deel van zijn werkdagen, anders van zijn werkminuten.
+    const lagDays = isFiniteNumber(seq.lagPercent)
+      ? resolveEffectiveLagDays(seq, predTask)
+      : Number.isFinite(seq.lagDays) ? seq.lagDays : 0;
+    const measured = lagDays !== 0 && lagCountsInWorkdays(
+      seq, { workdayDurationMeasure: this.options.schedulingOptions?.workdayDurationMeasure },
+      { time: { durationUnit: taskDurationUnit(predTask), durationType: predTask.time.durationType } },
     );
+    const minutes = measured ? 0 : this.resolveLagMinutes(seq, predTask, predEng);
+    const amount = measured ? lagDays : minutes;
+    if (measured && sign * lagDays > 0) {
+      return predEng.addMeasuredWorkdays(predEng.nextWorkInstant(base), sign * lagDays);
+    }
+    if (sign < 0 && amount > 0) {
+      const projected = measured
+        ? predEng.subtractMeasuredWorkdays(base, lagDays)
+        : predEng.subtractWorkMinutes(base, minutes);
+      // P6 WORKTIME-lag is een grensafstand. Vanaf een finishgrens moet een aftrek die exact op
+      // een bandstart landt daarom de complementaire vorige finishgrens teruggeven: wo 17:00
+      // min twee werkdagen = ma 17:00, niet di 08:00. Alleen de XER-resultaatprojectie krijgt
+      // deze conventie; duur-aftrek en de generieke kalenderprimitieven blijven fysiek/invers.
+      const projectedDayStart = this.dayFirstBandStart(predEng, projected);
+      if (this.options.schedulingOptions?.p6BackwardLagFinishBoundary === true
+        && this.isExactBandEnd(predEng, base)
+        && projectedDayStart?.getTime() === projected.getTime()) {
+        return predEng.prevWorkInstantBefore(projected);
+      }
+      return projected;
+    }
+    // B2 bij lag 0: een FF-grens op een exact bandeinde blijft die finishgrens; de
+    // generieke normalisatie (`nextWorkInstant`) zou hem naar de volgende bandstart duwen.
+    if (sign < 0 && amount === 0 && seq.type === 'FINISH_FINISH'
+      && this.options.schedulingOptions?.p6BackwardLagFinishBoundary === true
+      && this.isExactBandEnd(predEng, base)) {
+      return new Date(base.getTime());
+    }
+    // Een lead in dagenmaat, vooruit: vanaf het genormaliseerde moment terugtellen, zoals
+    // `addWorkingMinutesSigned` dat met minuten doet. (Achteruit telt een lead vooruit, hierboven.)
+    if (measured) return predEng.subtractMeasuredWorkdays(predEng.nextWorkInstant(base), Math.abs(lagDays));
+    return predEng.addWorkingMinutesSigned(base, sign * minutes);
   }
 
-  /** Leid de opvolger-START af uit zijn geëiste FINISH (FF/SF): ELAPSEDTIME ⇒ kale 24/7-
-   *  klokaftrek (vóór de hour/day-splitsing — geen kalenderband-toetsing, dus modus-onafhankelijk);
-   *  uur (WORKTIME) ⇒ `subtractWorkMinutes`; dag (WORKTIME) ⇒ `addWorkingDaysSigned(−(dur−1))` — de
-   *  inclusieve-dag-aftrek. Mijlpaal-afhandeling verschilt per tak: de dag-tak snapt een mijlpaal via `addWorkingDaysSigned(finish, 0)` = `nextWorkDay`, de uur-tak
-   *  geeft de rauwe finish terug ongesnapt — niet symmetrisch, dus niet naar bóven de modus-split
-   *  te hijsen zonder dat gedrag te veranderen).
+  /** Leid de opvolger-START af uit zijn geëiste FINISH (FF/SF): een nulduurmijlpaal ⇒ de rauwe finish,
+   *  ongesnapt; ELAPSEDTIME ⇒ kale 24/7-klokaftrek (geen kalenderband-toetsing); dagenmaat ⇒
+   *  `subtractMeasuredWorkdays`; urenmaat (WORKTIME) ⇒ `subtractWorkMinutes`.
    *
    *  Splits: gebruikt door de FF/SF-armen in `relationMath.ts` en door
    *  `forwardBoundOf`/`backwardBoundOf`/`hardPinStart`/`hardPinFinish` — een gesplitste taak als
@@ -1585,93 +1529,66 @@ export class CPMSolver {
    *  Zelfde as-wandeling/ELAPSEDTIME-uitsluiting als `addDurationChecked` (`splitTotalSpanMinutes`/
    *  `splitTotalSpanDays`, `duration.ts`). */
   private startFromFinish(eng: CalendarEngine, finish: Date, task: Task): Date {
-    if (eng.isHourMode) {
-      if (isZeroDurationMilestone(task)) return new Date(finish.getTime());
-      if (task.time.durationType === 'ELAPSEDTIME') {
-        return subtractElapsedMinutes(finish, elapsedMinutesOf(task, eng));
-      }
-      if (this.countsInWorkdays(task)) {
-        // Dagenmaat (§3.14): een eindmoment op een blokbegin telt als het einde van de werkdag ervoor.
-        const totalDays = splitTotalSpanDays(task, eng);
-        if (totalDays <= 0) return new Date(finish.getTime());
-        return eng.subtractMeasuredWorkdays(finish, totalDays);
-      }
-      const totalMinutes = splitTotalSpanMinutes(task.splitGaps, this.workMinutesOf(task, eng));
-      const natural = eng.subtractWorkMinutes(finish, totalMinutes);
-      if (totalMinutes > 0 && this.p6FinishBoundaryStartTaskIds.has(task.id)) {
-        const naturalDayStart = this.dayFirstBandStart(eng, natural);
-        if (naturalDayStart?.getTime() === natural.getTime()) {
-          return eng.prevWorkInstantBefore(natural);
-        }
-      }
-      return natural;
-    }
-    // `isZeroDurationMilestone` i.p.v. de kale vlag — anders valt een dag-modus mijlpaal-met-duur-ELAPSEDTIME-taak hier stil
-    // terug op de WORKTIME-tak (`addWorkingDaysSigned`, telt werkdagen, slaat weekend over) i.p.v.
-    // de kloktijd-aftrek — exact het patroon dat msp-30 (FF+0 naar zo'n taak) blootlegde.
-    if (isElapsedTask(task)) {
+    if (isZeroDurationMilestone(task)) return new Date(finish.getTime());
+    if (task.time.durationType === 'ELAPSEDTIME') {
       return subtractElapsedMinutes(finish, elapsedMinutesOf(task, eng));
     }
-    // `splitTotalSpanDays` geeft bij `dur===0` zelf al 0 terug (`splitTotalSpanMinutes`s
-    // `workMinutes<=0`-kortsluiting, spiegelt `addWorkMinutes`) — geen aparte `dur>0`-wacht nodig.
-    const totalDur = splitTotalSpanDays(task, eng);
-    return eng.addWorkingDaysSigned(finish, -(totalDur > 0 ? totalDur - 1 : 0));
+    if (this.countsInWorkdays(task)) {
+      // Dagenmaat (§3.14): een eindmoment op een blokbegin telt als het einde van de werkdag ervoor.
+      const totalDays = splitTotalSpanDays(task, eng);
+      if (totalDays <= 0) return new Date(finish.getTime());
+      return eng.subtractMeasuredWorkdays(finish, totalDays);
+    }
+    const totalMinutes = splitTotalSpanMinutes(task.splitGaps, this.workMinutesOf(task, eng));
+    const natural = eng.subtractWorkMinutes(finish, totalMinutes);
+    if (totalMinutes > 0 && this.p6FinishBoundaryStartTaskIds.has(task.id)) {
+      const naturalDayStart = this.dayFirstBandStart(eng, natural);
+      if (naturalDayStart?.getTime() === natural.getTime()) {
+        return eng.prevWorkInstantBefore(natural);
+      }
+    }
+    return natural;
   }
   /** Leid de voorganger-FINISH af uit zijn late START (SS/SF backward, spiegel van
-   *  `startFromFinish`): ELAPSEDTIME ⇒ kale 24/7-klokoptelling; uur (WORKTIME) ⇒ `addWorkMinutes`;
-   *  dag (WORKTIME) ⇒ `addWorkingDaysSigned(dur−1)`. Zelfde mijlpaal-asymmetrie-voorbehoud als
-   *  `startFromFinish` hierboven.
+   *  `startFromFinish`): een nulduurmijlpaal ⇒ de rauwe start; ELAPSEDTIME ⇒ kale 24/7-klokoptelling;
+   *  dagenmaat ⇒ `addMeasuredWorkdays`; urenmaat (WORKTIME) ⇒ `addWorkMinutes`.
    *
    *  Splits — zelfde as-wandeling, spiegel van `startFromFinish` hierboven. */
   private finishFromStart(eng: CalendarEngine, start: Date, task: Task): Date {
-    if (eng.isHourMode) {
-      if (isZeroDurationMilestone(task)) return new Date(start.getTime());
-      if (task.time.durationType === 'ELAPSEDTIME') {
-        return addElapsedMinutes(start, elapsedMinutesOf(task, eng));
-      }
-      if (this.countsInWorkdays(task)) {
-        // Dagenmaat (§3.14), met de splitgaten zoals `addDurationChecked`.
-        const totalDays = splitTotalSpanDays(task, eng);
-        if (totalDays <= 0) return new Date(start.getTime());
-        return eng.addMeasuredWorkdays(start, totalDays);
-      }
-      const totalMinutes = splitTotalSpanMinutes(task.splitGaps, this.workMinutesOf(task, eng));
-      const walkStart = totalMinutes > 0 && this.p6FinishBoundaryStartTaskIds.has(task.id)
-        && this.isExactBandEnd(eng, start)
-        ? eng.nextWorkInstantAfter(start)
-        : start;
-      return eng.addWorkMinutes(walkStart, totalMinutes);
-    }
-    // `isZeroDurationMilestone` — zelfde reden als `startFromFinish` hierboven.
-    if (isElapsedTask(task)) {
+    if (isZeroDurationMilestone(task)) return new Date(start.getTime());
+    if (task.time.durationType === 'ELAPSEDTIME') {
       return addElapsedMinutes(start, elapsedMinutesOf(task, eng));
     }
-    const totalDur = splitTotalSpanDays(task, eng);
-    return eng.addWorkingDaysSigned(start, totalDur > 0 ? totalDur - 1 : 0);
+    if (this.countsInWorkdays(task)) {
+      // Dagenmaat (§3.14), met de splitgaten zoals `addDurationChecked`.
+      const totalDays = splitTotalSpanDays(task, eng);
+      if (totalDays <= 0) return new Date(start.getTime());
+      return eng.addMeasuredWorkdays(start, totalDays);
+    }
+    const totalMinutes = splitTotalSpanMinutes(task.splitGaps, this.workMinutesOf(task, eng));
+    const walkStart = totalMinutes > 0 && this.p6FinishBoundaryStartTaskIds.has(task.id)
+      && this.isExactBandEnd(eng, start)
+      ? eng.nextWorkInstantAfter(start)
+      : start;
+    return eng.addWorkMinutes(walkStart, totalMinutes);
   }
-  /** Getekende float in eigen-kalender-WERKDAGEN: uur ⇒ fractioneel
-   *  `workMinutesBetween / (hoursPerDay × 60)`; dag ⇒ de integer `signedWorkDaysBetween`.
-   *  ELAPSEDTIME (msp-14): `a`/`b` mogen op een niet-werkdag liggen (24/7-taak) —
-   *  `workDaysBetween`/`signedWorkDaysBetween` gaan daar stuk (spook-tf, zie `signedElapsedSpan`'s
-   *  moduleheader in `duration.ts`), dus een ELAPSEDTIME-taak krijgt de kale klok-span i.p.v.
-   *  werkdag-telling. `task` optioneel: afwezig (of WORKTIME) ⇒ de uur-/dagtak. */
+  /** Getekende float in eigen-kalender-WERKDAGEN, fractioneel.
+   *  ELAPSEDTIME (msp-14): `a`/`b` mogen op een niet-werkdag liggen (24/7-taak), dus een
+   *  ELAPSEDTIME-taak krijgt de kale klok-span (`signedElapsedSpan`, `duration.ts`) i.p.v.
+   *  werkdag-telling. `task` optioneel: afwezig ⇒ de urenmaat. */
   private signedFloat(a: Date, b: Date, eng: CalendarEngine, task?: Task): number {
     if (task?.time.durationType === 'ELAPSEDTIME') return signedElapsedSpan(a, b, eng);
-    if (eng.isHourMode) {
-      // Alleen uren §3.4: in de dagenmaat de afstand in werkdagen (met het deel van een dag), anders
-      // werkminuten ÷ (werktijd per dag × 60). Onder P6 en MSP dus altijd de tweede.
-      if (task && this.countsInWorkdays(task)) return eng.measuredWorkdaysBetween(a, b);
-      return eng.workMinutesBetween(a, b) / (eng.hoursPerDay * 60);
-    }
-    return eng.signedWorkDaysBetween(utcDayStart(a), utcDayStart(b));
+    // Alleen uren §3.4: in de dagenmaat de afstand in werkdagen (met het deel van een dag), anders
+    // werkminuten ÷ (werktijd per dag × 60). Onder P6 en MSP dus altijd de tweede.
+    if (task && this.countsInWorkdays(task)) return eng.measuredWorkdaysBetween(a, b);
+    return eng.workMinutesBetween(a, b) / (eng.hoursPerDay * 60);
   }
 
   /** Alleen uren §3.4: de getekende speling in minuten op de kalender van de taak. Werkminuten; bij
-   *  kalendertijd klokminuten; een kalender zonder werkblokken telt hele werkdagen × werktijd per dag. */
+   *  kalendertijd klokminuten. */
   private signedFloatMinutes(a: Date, b: Date, eng: CalendarEngine, task?: Task): number {
     if (task?.time.durationType === 'ELAPSEDTIME') return (b.getTime() - a.getTime()) / MS_PER_MIN;
-    if (eng.isHourMode) return eng.workMinutesBetween(a, b);
-    return eng.signedWorkDaysBetween(utcDayStart(a), utcDayStart(b)) * eng.hoursPerDay * 60;
+    return eng.workMinutesBetween(a, b);
   }
 
   /** Gedeelde voorbereiding van `solve()` en `solveEarlyStarts()`: toestand resetten, de guards
@@ -1766,9 +1683,7 @@ export class CPMSolver {
     }
 
     // Werkdag-gesnapte statusdatum. Ongeldig/afwezig ⇒ null (alle voortgangstakken no-op).
-    // Uur-projectkalender ⇒ instant-snap via `nextWorkInstant`; dag ⇒ `nextWorkDay`.
-    // De UI volgt deze keuze met dezelfde regel (`isHourModeCalendar` op de projectkalender): tijdveld
-    // in het lint en lijn op het tijdstip alleen in uur-modus.
+    // Instant-snap via `nextWorkInstant` op de projectkalender.
     const projectClock = blocksClock(this.projectCal);
     const dd = this.options.dataDate ? parseInstant(dayStartInstant(projectClock, this.options.dataDate) ?? this.options.dataDate) : null;
     this.dataDate = dd && !isNaN(dd.getTime()) ? this.snapOnOrAfter(this.projectEngine, dd) : null;
@@ -1801,7 +1716,7 @@ export class CPMSolver {
     for (const [taskId, early] of earlyDates) {
       const task = this.tasks.get(taskId);
       if (!task) continue;
-      out.set(taskId, formatInstant(early.es, this.modeOf(this.calendarFor(task))));
+      out.set(taskId, formatInstant(early.es, 'hour'));
     }
     return out;
   }
@@ -1855,8 +1770,7 @@ export class CPMSolver {
           for (const seq of this.successors.get(id) ?? []) markChanged(seq.successorId);
         }
         const early = results.get(taskId);
-        const task = this.tasks.get(taskId)!;
-        return early ? formatInstant(early.es, this.modeOf(this.calendarFor(task))) : undefined;
+        return early ? formatInstant(early.es, 'hour') : undefined;
       },
     };
   }
@@ -1896,7 +1810,6 @@ export class CPMSolver {
       snapOnOrAfter: (eng, d) => this.snapOnOrAfter(eng, d),
       snapOnOrBefore: (eng, d) => this.snapOnOrBefore(eng, d),
       milestoneLateMoment: (t, c, eng) => this.milestoneLateMoment(t, c, eng),
-      modeOf: (eng) => this.modeOf(eng),
       backwardFloatTrace: this.backwardFloatTrace,
       completedOutOfSequenceEs: this.completedOutOfSequenceEs,
       completedPhysicalPoints: this.completedPhysicalPoints,
@@ -2043,7 +1956,7 @@ export class CPMSolver {
       // D7 geeft een eindmijlpaal een eindmoment. De projectvloer blijft startachtig (D1),
       // anders duwt het normaliseren van dat einde alle opvolgers een extra werkdag op.
       const anchor = isZeroDurationMilestone(t) && !eng.hasOwnWorkBlocks && taskDurationUnit(t) !== 'hours'
-        ? this.dayFirstBandStart(eng, this.parseIn(eng, t.time.scheduleStart))?.toISOString().slice(0, 16) ?? t.time.scheduleStart
+        ? this.dayFirstBandStart(eng, parseInstant(t.time.scheduleStart))?.toISOString().slice(0, 16) ?? t.time.scheduleStart
         : t.time.scheduleStart;
       const s = this.rootFloor(eng, anchor, isElapsedTask(t));
       if (!projectStart || s < projectStart) projectStart = s;
@@ -2144,8 +2057,8 @@ export class CPMSolver {
       // Spiegelt de VOLTOOID-tak qua vorm: `parseIn` (GEEN snap) + dezelfde ef<es-inversiecorrectie
       // voor een bestand dat een finish vóór de start opslaat.
       if (task.manuallyScheduled) {
-        let es = this.parseIn(cal, task.time.scheduleStart);
-        const ef = this.parseIn(cal, task.time.scheduleFinish);
+        let es = parseInstant(task.time.scheduleStart);
+        const ef = parseInstant(task.time.scheduleFinish);
         if (ef < es) es = ef;
         results.set(taskId, { es, ef });
         continue;
@@ -2209,7 +2122,7 @@ export class CPMSolver {
         // berekening: ELKE wortel-taak met een gedegenereerd band-eind-anker negeert laag 3 volledig
         // (`timephasedAnchor`/`timephasedFinishFloor`); voor élke andere taak (zoals de "Night
         // Shift"-populatie) is dit `false` en houdt `timephasedAnchor` de voorkeur.
-        const rawOwnAnchor = this.parseIn(cal, task.time.scheduleStart);
+        const rawOwnAnchor = parseInstant(task.time.scheduleStart);
         const rootAnchorIsBandEnd = this.isExactBandEnd(cal, rawOwnAnchor);
         const timephasedAnchorIsDegenerateResnap = !!task.timephasedStartAnchor && rootAnchorIsBandEnd;
         const timephasedAnchor = timephasedAnchorIsDegenerateResnap ? undefined : task.timephasedStartAnchor;
@@ -2225,7 +2138,7 @@ export class CPMSolver {
         // onvoorwaardelijk: die controleert `hardPinStart` EERST en retourneert dan meteen, vóór
         // deze waarde ooit gezien wordt.
         earlyStart = rootElapsed
-          ? this.parseIn(cal, task.time.scheduleStart)
+          ? parseInstant(task.time.scheduleStart)
           : timephasedAnchor
             ? parseInstant(timephasedAnchor)
             : this.ownAnchor(cal, task.time.scheduleStart, task);
@@ -2246,12 +2159,10 @@ export class CPMSolver {
         // maken (`snapOnOrAfter` behandelt een band-eind-instant als "niet-werk").
         const constraintMoved = earlyStart.getTime() !== beforeConstraint.getTime();
         // Her-snap ná de constraint — spiegelt de voorganger-tak.
-        // `applyForwardConstraint` levert een DAG-conceptuele grens (`nextWorkDay`/
-        // `addWorkingDaysSigned`), in uur-modus een middernacht-instant die NIET op een
+        // `applyForwardConstraint` kan een middernacht-instant leveren die NIET op een
         // werk-instant valt; zonder her-snap rapporteert een constrained root-taak zijn ES op 00:00
         // i.p.v. de bandstart (de `earlyFinish` rekent al vanaf de bandstart ⇒ interne inconsistentie).
-        // Idempotent in dag-modus (`nextWorkDay` van een werkdag = diezelfde werkdag) en bij een
-        // niet-bindende constraint (ES al gesnapt).
+        // Idempotent bij een niet-bindende constraint (ES al gesnapt).
         // `rootElapsed`/`timephasedAnchor`/`!constraintMoved` slaan deze her-snap over (zelfde
         // MSP-pariteitsgrond als hierboven) — een ONgeconstrainde taak (of een niet-bindende
         // constraint) met zo'n raw anker had hier toch al niets te her-snappen; alleen mét een
@@ -2317,7 +2228,7 @@ export class CPMSolver {
         if (this.options.schedulingOptions?.p6UseTaskPlannedStartFloor === true) {
           const plannedFloor = this.ownAnchor(cal, task.time.scheduleStart, task);
           const networkFinish = this.finishFromStart(cal, earlyStart, task);
-          const plannedFinish = this.parseIn(cal, task.time.scheduleFinish);
+          const plannedFinish = parseInstant(task.time.scheduleFinish);
           const p6InvertedFinishBoundary = isZeroDurationMilestone(task)
             && task.milestoneKind === 'FINISH' && plannedFinish < plannedFloor;
           const plannedWindowIsLater = p6InvertedFinishBoundary
@@ -2423,7 +2334,7 @@ export class CPMSolver {
       if (task.levelingDelay) {
         earlyStart = this.shiftByLevelingDelay(cal, task, earlyStart, 1);
         // N2 geldt ook als een dagenvertraging samen met zijn minutenwaarde is vastgelegd.
-        if (!isElapsedTask(task) && cal.isHourMode) {
+        if (!isElapsedTask(task)) {
           earlyStart = this.snapSuccessorEarlyStart(cal, earlyStart, task);
         }
       } else if (!noPreds && task.levelingDelayMinutes) {
@@ -2440,7 +2351,7 @@ export class CPMSolver {
         const taskElapsedForSnap = isElapsedTask(task);
         if (!taskElapsedForSnap && task.levelingDelayElapsed) {
           earlyStart = this.snapOnOrAfter(cal, earlyStart);
-        } else if (!taskElapsedForSnap && cal.isHourMode) {
+        } else if (!taskElapsedForSnap) {
           // Een WERKTIJD-vertraging telt werkminuten op (`addWorkingMinutesSigned`) en kan exact op
           // een blokeinde landen (di 16:00). Als start is dat het volgende blokbegin (wo 08:00);
           // zonder deze snap gaf `addDurationChecked`s band-eind-wacht (voor een rauw wortel-anker)
@@ -2461,8 +2372,8 @@ export class CPMSolver {
       // als kalenderREFERENTIE — geen gelezen datum, dus geen cirkelmeting) draagt bij precies 1 item de
       // te gebruiken resourcekalender-id. `progressCal` vervangt `cal` voor de VOLLEDIGE tak (niet
       // alleen de eind-`ef`): `remStart`/`actualES`/splits/resume rekenen anders half in de taak- en
-      // half in de resourcekalender. Afwezig/niet-activeerbaar (>1 toewijzing, dag-modus-
-      // resourcekalender, geen echte afwijking) ⇒ `progressCal = cal` — de overgrote meerderheid.
+      // half in de resourcekalender. Afwezig/niet-activeerbaar (>1 toewijzing, resourcekalender
+      // zonder werktijd, geen echte afwijking) ⇒ `progressCal = cal` — de overgrote meerderheid.
       const progressCal = this.progressCalendarFor(task, cal);
       this.recordCompletedOutOfSequenceWindow(task, preds, results, progressCal);
       const physicalPoint = this.recordCompletedPhysicalPoint(task, preds, results, progressCal);
@@ -2484,19 +2395,19 @@ export class CPMSolver {
           // functie se docblock: alleen de dag-regel heeft corpusbewijs, de binnen-dag-snap niet.
           const preserveP6ActualInstants = task.p6ProjectId !== undefined
             && this.options.schedulingOptions?.p6PreserveActualInstants === true;
-          const actualStart = this.parseIn(progressCal, t.actualStart ?? t.actualFinish);
+          const actualStart = parseInstant(t.actualStart ?? t.actualFinish);
           const preserveActualInstants = preserveP6ActualInstants || isElapsedTask(task) || isZeroDurationMilestone(task);
           let es = preserveActualInstants
             ? actualStart
             : this.snapActualForward(progressCal, actualStart);
           // Een voltooide nulduurmijlpaal heeft één moment; kalendertijd rekent zonder werksnap.
-          const actualFinish = this.parseIn(progressCal, t.actualFinish);
+          const actualFinish = parseInstant(t.actualFinish);
           // D3/D7: kalendertijd en een voltooide mijlpaal bewaren het genormaliseerde feit.
           // Een eindmijlpaal op vrijdag 16:00 mag niet naar maandag 07:00 snappen.
           let ef = preserveActualInstants ? actualFinish : this.snapOnOrBefore(progressCal, actualFinish);
           // Behoud de expliciete eindtijd bij een snap binnen dezelfde dag; weekend en bouwvak
           // houden hun bestaande terugwaartse grens. Relatieconventies volgen pas na dit venster.
-          if (progressCal.isHourMode && t.actualFinish.includes('T')
+          if (t.actualFinish.includes('T')
             && utcDayStart(ef).getTime() === utcDayStart(actualFinish).getTime()) ef = actualFinish;
           if (isZeroDurationMilestone(task)) es = ef;
           // Inversie-randgeval: het HELE geregistreerde venster valt in onwerkbare tijd (weekend,
@@ -2536,8 +2447,8 @@ export class CPMSolver {
           const actualES = t.actualStart
             ? task.p6ProjectId !== undefined
                 && this.options.schedulingOptions?.p6PreserveActualInstants === true
-              ? this.parseIn(progressCal, t.actualStart)
-              : this.snapActualForward(progressCal, this.parseIn(progressCal, t.actualStart))
+              ? parseInstant(t.actualStart)
+              : this.snapActualForward(progressCal, parseInstant(t.actualStart))
             : earlyStart;
           // Restwerk volgt de maat waarin de taak in dit profiel telt (`progressWork`), nooit de
           // kalenderidentiteit: dagenmaat ⇒ werkdagen (§3.14); urenmaat ⇒ werkminuten, ook voor een
@@ -2548,9 +2459,9 @@ export class CPMSolver {
           // ELAPSEDTIME-bewust, zoals `addDurationChecked` (`addElapsedMinutes`, GEEN kalenderband-
           // toetsing): anders klapt een ELAPSEDTIME-taak met `completion > 0` stil om naar
           // WORKTIME-semantiek. `totalSpan`/`remaining` staan al in de "eigen eenheid" van de taak
-          // (minuten in uur-modus, dagen in dag-modus — voor ELAPSEDTIME elapsed-klok-consistent gevuld,
-          // zie `mppReader.ts`'s `raw.isElapsedDuration`-tak); alleen de dag→minuut-omrekening voor het
-          // dag-modus-pad komt erbij (`scheduleDuration × 24 × 60`, zoals `elapsedMinutesOf`).
+          // (minuten of dagen — voor ELAPSEDTIME elapsed-klok-consistent gevuld, zie `mppReader.ts`'s
+          // `raw.isElapsedDuration`-tak); `elapsedWorkMinutes` rekent dagen om naar klokminuten
+          // (`scheduleDuration × 24 × 60`, zoals `elapsedMinutesOf`).
           // `isElapsedTask` sluit een ECHTE (0-duur) mijlpaal uit (`isZeroDurationMilestone`, niet de
           // kale vlag).
           const isElapsedTask = work.measure === 'elapsed';
@@ -2593,7 +2504,7 @@ export class CPMSolver {
             // zijn eigen route alleen na de gevalideerde suspend/resume-opt-in.
             const mayUseResume = task.p6ProjectId ? hasValidP6SuspendResume(task) : true;
             const resumeOverride = mayUseResume && t.resume && task.resourceIds.length <= 1
-              ? this.parseIn(progressCal, t.resume)
+              ? parseInstant(t.resume)
               : null;
             if (resumeOverride && !isNaN(resumeOverride.getTime())) {
               remStart = resumeOverride;
@@ -2614,11 +2525,10 @@ export class CPMSolver {
             // Scenario A/B/C; daar zou deze vloer bv. taak B (dur 5, completion 0.4, actualStart ==
             // statusDate) 2 werkdagen later laten landen. Vandaar de conventie (default uit; in het MS
             // Project-profiel aan).
-            // Alleen bij `remaining > 0`: de `elapsed + 1`-telescopie (dag ÉÉN NA het verstreken venster)
-            // klopt alleen als er daarna nog restwerk volgt (dag `elapsed+1` + `(remaining−1)` = dag
-            // `totalSpan`). Bij `remaining === 0` (inconsistente brondata) geven `addWorkDaysChecked(
-            // remStart, 0)`/`addWorkMinutes(remStart, 0)` `remStart` ongewijzigd terug en zou de finish
-            // één werkdag/bandgat VOORBIJ de natuurlijke finish staan; dan blijft `remStart` de gewone
+            // Alleen bij `remaining > 0`: het hervattingspunt ná het verstreken venster klopt alleen als
+            // er daarna nog restwerk volgt. Bij `remaining === 0` (inconsistente brondata) geeft
+            // `addWorkMinutes(remStart, 0)` `remStart` ongewijzigd terug en zou de finish één bandgat
+            // VOORBIJ de natuurlijke finish staan; dan blijft `remStart` de gewone
             // `max(dataDate, voorganger-druk)` (`prog-T9-remaining-nul-hervattingspunt-onaangeroerd`).
             const elapsed = this.options.schedulingOptions?.resumeFromActualElapsed && remaining > 0
               ? Math.max(0, totalSpan - remaining)
@@ -2626,37 +2536,24 @@ export class CPMSolver {
             if (elapsed > 0) {
               // ELAPSEDTIME rekent hier 24/7 in klok-minuten (`addElapsedMinutes`)
               // — GEEN `snapOnOrAfter` (die zou een legitiem weekend-/nachtinstant, precies het punt
-              // van ELAPSEDTIME, alsnog naar de eerstvolgende werkband duwen) en GEEN dag-inclusieve
-              // `+1`-telescopie (die hoort bij `addWorkDaysChecked`s "hoeveelste-werkdag"-conventie,
-              // niet bij een kale klok-optelling). Uur (WORKTIME): `addWorkMinutes` is een echte
-              // klok-optelling (kan exact op een bandgrens landen, bv. vr 17:00) — `snapOnOrAfter`
-              // duwt zo'n grensinstant door naar de eerstvolgende geldige werk-instant (ma 08:00),
-              // precies zoals elders in deze functie (`actualES`) een opgeslagen datum snapt. Dag
-              // (WORKTIME): `addWorkDaysChecked(actualES, N)` is INCLUSIEF (dag 1 = `actualES` zelf,
-              // de "hoeveelste-werkdag-vanaf-hier"-conventie die ook `remaining`/`ef` verderop
-              // gebruikt) — de dag ÉÉN NA de `elapsed`-ste werkdag is dus dag `elapsed + 1`, niet dag
-              // `elapsed` (anders zou elapsed=1 op `actualES` zelf blijven staan i.p.v. doorschuiven
-              // naar de eerstvolgende werkdag — geverifieerd tegen `CalendarEngine.addWorkDaysChecked`:
-              // dag 1 vanaf een vrijdag = die vrijdag zelf, dag 2 = de eerstvolgende maandag).
-              // Dagenmaat (§3.14): dezelfde loper als het restwerk, en net als de urenmaat naar het
-              // eerstvolgende werkmoment gezet (een blokeinde wordt het volgende blokbegin).
+              // van ELAPSEDTIME, alsnog naar de eerstvolgende werkband duwen). Urenmaat (WORKTIME):
+              // `addWorkMinutes` is een echte klok-optelling (kan exact op een bandgrens landen, bv.
+              // vr 17:00) — `snapOnOrAfter` duwt zo'n grensinstant door naar de eerstvolgende geldige
+              // werk-instant (ma 08:00), precies zoals elders in deze functie (`actualES`) een
+              // opgeslagen datum snapt. Dagenmaat (§3.14): dezelfde loper als het restwerk, en net als
+              // de urenmaat naar het eerstvolgende werkmoment gezet (een blokeinde wordt het volgende
+              // blokbegin).
               const elapsedAnchor = isElapsedTask
                 ? addElapsedMinutes(actualES, CPMSolver.elapsedWorkMinutes(elapsed, task))
                 : work.measure === 'minutes'
                   ? this.snapOnOrAfter(progressCal, progressCal.addWorkMinutes(actualES, elapsed))
-                  : work.measure === 'workdays'
-                    ? this.snapOnOrAfter(progressCal, progressCal.addMeasuredWorkdays(actualES, elapsed))
-                    : (() => {
-                        const r = progressCal.addWorkDaysChecked(actualES, elapsed + 1);
-                        if (r.capped) this.cappedTaskIds.push(taskId);
-                        return r.date;
-                      })();
+                  : this.snapOnOrAfter(progressCal, progressCal.addMeasuredWorkdays(actualES, elapsed));
               if (elapsedAnchor > remStart) remStart = elapsedAnchor;
             }
             }
           }
           // SPLITS IN HET RESTWERK: deze IN-PROGRESS-tak heeft haar EIGEN duur-optelling
-          // (`addWorkMinutes`/`addWorkDaysChecked` op `remStart`) en loopt NIET door
+          // (`addWorkMinutes`/`addMeasuredWorkdaysChecked` op `remStart`) en loopt NIET door
           // `addDurationChecked` — de gaten-optelling moet hier dus apart (juist taken MET voortgang
           // dragen `splitGaps` uit MPP's timephased-data, zie `mppTimephased.ts`). Gepind in
           // `cases-advanced-cpm.json` (`z7-split-*`, geval (d)).
@@ -2701,9 +2598,7 @@ export class CPMSolver {
             ef = progressCal.addWorkMinutes(remStart, remainingWithGaps);
           } else {
             // Ook het rest-werk-pad kan tegen de onwerkbaar-venster-cap lopen ⇒ checked-variant.
-            const r = work.measure === 'workdays'
-              ? progressCal.addMeasuredWorkdaysChecked(remStart, remainingWithGaps)
-              : progressCal.addWorkDaysChecked(remStart, remainingWithGaps);
+            const r = progressCal.addMeasuredWorkdaysChecked(remStart, remainingWithGaps);
             ef = r.date;
             if (r.capped) this.cappedTaskIds.push(taskId);
           }
@@ -2719,13 +2614,13 @@ export class CPMSolver {
           // restduurroute.
           if (task.p6ProjectId && this.options.schedulingOptions?.useExpectedFinishDates === true
               && task.p6ExpectedFinish) {
-            const parsedExpected = this.parseIn(progressCal, task.p6ExpectedFinish);
+            const parsedExpected = parseInstant(task.p6ExpectedFinish);
             // Date-only Expected Finish heeft FINISH-dagprecisie, ook wanneer een ander veld de
             // taakkalender naar uurmodus promoveerde. Zoek vanaf de volgende daggrens begrensd
             // terug naar het laatste effectieve band-einde op of vóór de bedoelde kalenderdag.
             // `null` betekent: binnen CalendarEngine.MAX_SCAN bestaat aantoonbaar geen bandpunt;
             // dan blijft de al berekende finish staan i.p.v. een middernachtanker te verzinnen.
-            const expected = progressCal.isHourMode && !task.p6ExpectedFinish.includes('T')
+            const expected = !task.p6ExpectedFinish.includes('T')
               ? progressCal.prevWorkInstantOrNull(new Date(
                 utcDayStart(parsedExpected).getTime() + MS_PER_DAY,
               ))
@@ -2795,7 +2690,7 @@ export class CPMSolver {
       // (verrekend in `timephasedFinish()` zelf). `task.timephasedFinishFloor` afwezig ⇒
       // `tf === null`. De veldnaam ("Floor") dekt het override-gedrag niet; hernoemen raakt
       // Task/mppReader/moveProject/check-ifc-roundtrip.
-      const tf = this.timephasedFinish(task, cal, hardFinishPin, sfFinishFloor, timephasedFinishFloorIsDegenerateResnap);
+      const tf = this.timephasedFinish(task, hardFinishPin, sfFinishFloor, timephasedFinishFloorIsDegenerateResnap);
       if (tf) earlyFinish = tf;
       // Dezelfde EF<ES-inversiewacht als de VOLTOOID- en IN-PROGRESS-tak: `tf` (laag 3, een
       // LETTERLIJK gelezen venster) kan vóór `earlyStart` liggen wanneer een voorganger-push of een
@@ -2811,8 +2706,8 @@ export class CPMSolver {
       // netwerkuitkomst exact op dat geplande startanker staat; latere relatiedruk wint gewoon.
       if (this.options.schedulingOptions?.p6FinishMilestoneBoundaryWindow === true
         && isZeroDurationMilestone(task) && task.milestoneKind === 'FINISH') {
-        const plannedStart = this.parseIn(cal, task.time.scheduleStart);
-        const plannedFinish = this.parseIn(cal, task.time.scheduleFinish);
+        const plannedStart = parseInstant(task.time.scheduleStart);
+        const plannedFinish = parseInstant(task.time.scheduleFinish);
         if (plannedFinish < plannedStart && earlyStart.getTime() === plannedStart.getTime()) {
           earlyFinish = plannedFinish;
         }
@@ -2904,14 +2799,11 @@ export class CPMSolver {
       const pred = this.tasks.get(seq.predecessorId);
       const succ = this.tasks.get(seq.successorId);
       if (!pred || !succ) continue;
-      // Sub-dag-actuals moeten in uur-modus als out-of-sequence tellen ⇒ `parseInstant`;
-      // elke taak in zijn eigen engine. Dag ⇒ `parseDate`.
-      const succEng = this.calendarFor(succ);
-      const predEng = this.calendarFor(pred);
-      const succAS = succ.time.actualStart ? this.parseIn(succEng, succ.time.actualStart) : null;
-      const succAF = succ.time.actualFinish ? this.parseIn(succEng, succ.time.actualFinish) : null;
-      const predAS = pred.time.actualStart ? this.parseIn(predEng, pred.time.actualStart) : null;
-      const predAF = pred.time.actualFinish ? this.parseIn(predEng, pred.time.actualFinish) : null;
+      // Sub-dag-actuals moeten als out-of-sequence tellen ⇒ `parseInstant`.
+      const succAS = succ.time.actualStart ? parseInstant(succ.time.actualStart) : null;
+      const succAF = succ.time.actualFinish ? parseInstant(succ.time.actualFinish) : null;
+      const predAS = pred.time.actualStart ? parseInstant(pred.time.actualStart) : null;
+      const predAF = pred.time.actualFinish ? parseInstant(pred.time.actualFinish) : null;
       const predEF = earlyDates.get(seq.predecessorId)?.ef ?? null;
       switch (seq.type) {
         case 'START_START': {
@@ -2942,25 +2834,24 @@ export class CPMSolver {
     return out;
   }
 
-  /** Constraint-instant in de kalendermodus, of null bij afwezig/onparseerbaar (soft:
-   *  negeren). Dag ⇒ `parseDate` (middernacht); uur ⇒ `parseInstant` (behoudt tijd-
-   *  van-de-dag). Een date-only-string op een uur-taak = middernacht ⇒ dag-verankerd: de instant-
+  /** Constraint-instant, of null bij afwezig/onparseerbaar (soft: negeren). `parseInstant` behoudt
+   *  de tijd-van-de-dag. Een date-only-string = middernacht ⇒ dag-verankerd: de instant-
    *  vinders snappen hem naar de eerste/laatste werk-instant van die dag (S13). Een datetime-string
    *  draagt tijd-van-de-dag en wordt tot de minuut gehonoreerd. */
   private constraintInstant(c: TaskConstraint | undefined, eng: CalendarEngine): Date | null {
     const raw = c?.date;
     if (!raw) return null;
     // D2: een eindbeperking zonder tijd begrenst het laatste werkblok van die dag.
-    if (eng.isHourMode && c && ['FNET', 'FNLT', 'MFO'].includes(c.type) && !raw.includes('T')) {
+    if (c && ['FNET', 'FNLT', 'MFO'].includes(c.type) && !raw.includes('T')) {
       return deadlineBound(raw, eng);
     }
-    const d = this.parseIn(eng, raw);
+    const d = parseInstant(raw);
     return isNaN(d.getTime()) ? null : d;
   }
 
   /** De harde-pin-START, of null als de PRIMAIRE constraint geen harde MSO/MFO-pin is.
-   *  MSO pint de START op de datum; MFO pint de FINISH ⇒ start = finish ⊖ duur. Modus-neutraal
-   *  (dag: bevroren dag-primitieven; uur: instant-vinders + minuut-aftrek via `durationMinutesOf`).
+   *  MSO pint de START op de datum; MFO pint de FINISH ⇒ start = finish ⊖ duur (instant-vinders +
+   *  de aftrek van `startFromFinish`).
    *
    *  ELAPSEDTIME-REIKWIJDTE: alleen de DUUR-terugstap hier (MFO ⇒ `startFromFinish`, MSO ⇒
    *  `addDuration`) is ELAPSEDTIME-bewust. De CONSTRAINT-SNAP zelf (`this.snapOnOrAfter(eng, d)`, en
@@ -2976,7 +2867,7 @@ export class CPMSolver {
     const milestoneMoment = this.milestoneConstraintMoment(task, c, eng);
     if (milestoneMoment) return milestoneMoment;
     // D2/N1: invoer zonder tijd is al genormaliseerd; behoud de geldige eindgrens.
-    const snapped = c.type === 'MFO' && eng.isHourMode
+    const snapped = c.type === 'MFO'
       && this.snapOnOrBefore(eng, d).getTime() === d.getTime()
       ? d : this.snapOnOrAfter(eng, d);
     return c.type === 'MSO' ? snapped : this.startFromFinish(eng, snapped, task);
@@ -2992,7 +2883,7 @@ export class CPMSolver {
     const milestoneMoment = this.milestoneConstraintMoment(task, c, eng);
     if (milestoneMoment) return milestoneMoment;
     // D2/N1: invoer zonder tijd is al genormaliseerd; behoud de geldige eindgrens.
-    const snapped = c.type === 'MFO' && eng.isHourMode
+    const snapped = c.type === 'MFO'
       && this.snapOnOrBefore(eng, d).getTime() === d.getTime()
       ? d : this.snapOnOrAfter(eng, d);
     return c.type === 'MFO' ? snapped : this.addDuration(eng, snapped, task);
@@ -3016,10 +2907,9 @@ export class CPMSolver {
    * cirkelmeting-risico — `task.time.durationMinutes` is een gewoon, edit-live veld. Voor ELK item
    * in de lijst: wandel een duur door de toewijzings-eigen resourcekalender vanaf haar `anchor`, en
    * neem het MAXIMUM over de lijst ("langste toewijzing bepaalt de finish"). Zelfde
-   * `sfFinishFloor`-precedentie als laag 3. Een item wiens resourcekalender NIET naar uur-modus
-   * promoveert (dag-modus-kalender) draagt geen bruikbare `addWorkMinutes` en wordt overgeslagen —
-   * ontbreken ALLE items dan (zeldzaam; `mppReader.ts` activeert laag 4 alleen als er minstens één
-   * structureel afwijkende, dus doorgaans al gepromoveerde, kalender is) ⇒ `null`.
+   * `sfFinishFloor`-precedentie als laag 3. Een item wiens resourcekalender geen geldige werktijd
+   * heeft (`isHourMode` onwaar) draagt geen bruikbare `addWorkMinutes` en wordt overgeslagen —
+   * ontbreken ALLE items dan (zeldzaam) ⇒ `null`.
    *
    * WELKE duur per item — `walk.workMinutes` als die
    * gezet is, anders de VOLLE `task.time.durationMinutes`. `mppReader.ts` zet `workMinutes`
@@ -3039,7 +2929,7 @@ export class CPMSolver {
    * `walk.workMinutes ?? durMin` en nooit de lengte.
    */
   private timephasedFinish(
-    task: Task, cal: CalendarEngine, hardFinishPin: Date | null, sfFinishFloor: Date | null,
+    task: Task, hardFinishPin: Date | null, sfFinishFloor: Date | null,
     finishFloorIsDegenerateResnap = false,
   ): Date | null {
     if (hardFinishPin) return null;
@@ -3047,7 +2937,7 @@ export class CPMSolver {
     // `finishFloorIsDegenerateResnap` (gezet in de `noPreds`-tak, zie de toelichting daar) — sla
     // laag 3 in dat ene band-eind-geval over, zodat `addDurationChecked`s eigen correctie (via
     // `earlyFinishRaw` in `forwardPass`) het laatste woord houdt.
-    if (cal.isHourMode && task.timephasedFinishFloor && !finishFloorIsDegenerateResnap) {
+    if (task.timephasedFinishFloor && !finishFloorIsDegenerateResnap) {
       windowValue = parseInstant(task.timephasedFinishFloor);
     } else if (task.timephasedDurationWalks && task.timephasedDurationWalks.length > 0) {
       const durMin = task.time.durationMinutes;
@@ -3086,21 +2976,20 @@ export class CPMSolver {
       if (!t.actualStart) return false;
       const pin = this.hardPinStart(task, eng);
       if (!pin) return false;
-      const actualES = this.snapOnOrAfter(eng, this.parseIn(eng, t.actualStart));
+      const actualES = this.snapOnOrAfter(eng, parseInstant(t.actualStart));
       return formatDate(actualES) === formatDate(pin);
     }
     // MFO
     if (!t.actualFinish) return false;
     const pinFinish = this.hardPinFinish(task, eng);
     if (!pinFinish) return false;
-    const actualEF = this.snapOnOrAfter(eng, this.parseIn(eng, t.actualFinish));
+    const actualEF = this.snapOnOrAfter(eng, parseInstant(t.actualFinish));
     return formatDate(actualEF) === formatDate(pinFinish);
   }
 
   /** Forward-ondergrens (start) van ÉÉN soft constraint, of null zonder forward-effect.
-   *  SNET/MSO ⇒ start-ondergrens; FNET/MFO ⇒ finish-ondergrens vertaald naar de start. Dag-modus
-   *  reduceert tot `nextWorkDay`/`addWorkingDaysSigned`; uur-modus gebruikt de instant-
-   *  vinders + de minuut-aftrek van `startFromFinish` (via `durationMinutesOf`).
+   *  SNET/MSO ⇒ start-ondergrens; FNET/MFO ⇒ finish-ondergrens vertaald naar de start, via de
+   *  instant-vinders + de aftrek van `startFromFinish`.
    *
    *  EEN 0-DUURMIJLPAAL SNAPT NIET (corpusfeit): een wortelmijlpaal (duur 0) met SNET vóór de eerste
    *  band van haar dag (bv. `…T07:15` op een 08:00–17:00-band) houdt in MSP's eigen
@@ -3120,19 +3009,19 @@ export class CPMSolver {
     const d = this.constraintInstant(c, eng);
     if (!c || !d) return null;
     // Geen snap voor een 0-duurmijlpaal — MAAR uitsluitend bij een ECHT datetime-anker (`c.date`
-    // draagt een tijdcomponent) in uur-modus. Een DATE-ONLY constraint-string is dag-verankerd
+    // draagt een tijdcomponent). Een DATE-ONLY constraint-string is dag-verankerd
     // ("ergens op die dag", `constraintInstant`) en blijft naar het eerste werk-instant van de dag
     // snappen (`rr-fs-pred-startms`-familie in `cases-hours-relations.json`,
-    // `msp-56-z9a-manual-anchor-raw-no-snap`). Dag-modus blijft ongewijzigd.
+    // `msp-56-z9a-manual-anchor-raw-no-snap`).
     //
     // De `noSnap`-guard staat BINNEN de SNET/MSO- en FNET/MFO-takken, niet als vroege `return d`
     // vóór de type-switch: FNLT/SNLT hebben hier GEEN forward-effect (`null`), en een vroege return
     // zou een FNLT-deadline op een mijlpaal een forward-ondergrens geven en de mijlpaal naar de
     // deadline duwen (`z19-milestone-fnlt-no-forward-push` in `cases-hours.json`).
-    const noSnap = isZeroDurationMilestone(task) && eng.isHourMode && c.date?.includes('T');
+    const noSnap = isZeroDurationMilestone(task) && c.date?.includes('T');
     if (c.type === 'SNET' || c.type === 'MSO') return noSnap ? d : this.snapOnOrAfter(eng, d);
     if (c.type === 'FNET' || c.type === 'MFO') {
-      const finish = eng.isHourMode && this.snapOnOrBefore(eng, d).getTime() === d.getTime()
+      const finish = this.snapOnOrBefore(eng, d).getTime() === d.getTime()
         ? d : noSnap ? d : this.snapOnOrAfter(eng, d);
       return this.startFromFinish(eng, finish, task);
     }
@@ -3140,11 +3029,11 @@ export class CPMSolver {
   }
 
   /** Een MSO of MFO op een nulduurmijlpaal legt één moment vast: de vroege grens uit
-   *  `forwardBoundOf` (uur-modus). De late grens, de schendingstoets, B6 en de her-snap gebruiken
+   *  `forwardBoundOf`. De late grens, de schendingstoets, B6 en de her-snap gebruiken
    *  hetzelfde moment. Anders valt een grens op een blokbegin (di 07:00) aan de late kant terug naar
    *  het vorige dageinde (ma 16:00), of schuift een START-mijlpaal van het blokeinde di 16:00 naar wo. */
   private milestoneConstraintMoment(task: Task, c: TaskConstraint | undefined, eng: CalendarEngine): Date | null {
-    if (!eng.isHourMode || !isZeroDurationMilestone(task) || (c?.type !== 'MSO' && c?.type !== 'MFO')) return null;
+    if (!isZeroDurationMilestone(task) || (c?.type !== 'MSO' && c?.type !== 'MFO')) return null;
     return this.forwardBoundOf(task, c, eng);
   }
 
@@ -3152,15 +3041,15 @@ export class CPMSolver {
    *  van een MSO/MFO, en voor een SNLT (startachtig) hetzelfde moment als een SNET op die datum. Anders
    *  wordt SNLT di 07:00 via `snapOnOrBefore` ma 16:00, en meldt de schendingstoets een START op di 07:00. */
   private milestoneLateMoment(task: Task, c: TaskConstraint | undefined, eng: CalendarEngine): Date | null {
-    if (c?.type === 'SNLT' && eng.isHourMode && isZeroDurationMilestone(task)) {
+    if (c?.type === 'SNLT' && isZeroDurationMilestone(task)) {
       return this.forwardBoundOf(task, { ...c, type: 'SNET' }, eng);
     }
     return this.milestoneConstraintMoment(task, c, eng);
   }
 
   /** Backward-bovengrens (late finish) van ÉÉN soft constraint, of null zonder backward-
-   *  effect. FNLT/MFO ⇒ finish-bovengrens direct; SNLT/MSO ⇒ start-bovengrens vertaald naar de finish.
-   *  Dag-modus via `prevWorkDay`/`addWorkingDaysSigned`; uur-modus via de instant-vinders. */
+   *  effect. FNLT/MFO ⇒ finish-bovengrens direct; SNLT/MSO ⇒ start-bovengrens vertaald naar de finish,
+   *  via de instant-vinders. */
   private backwardBoundOf(task: Task, c: TaskConstraint | undefined, eng: CalendarEngine): Date | null {
     const d = this.constraintInstant(c, eng);
     if (!c || !d) return null;
@@ -3173,28 +3062,19 @@ export class CPMSolver {
     if (c.type === 'FNLT' || c.type === 'MFO') return dW;
     if (c.type === 'SNLT' || c.type === 'MSO') {
       // Een afgeleide startgrens op een blokbegin hoort bij die werkdag, ook bij dagenmaat (145).
-      const start = eng.isHourMode && !isElapsedTask(task) && !isZeroDurationMilestone(task)
+      const start = !isElapsedTask(task) && !isZeroDurationMilestone(task)
         ? this.snapOnOrAfter(eng, dW) : dW;
       return this.finishFromStart(eng, start, task);
     }
     return null;
   }
 
-  /** Externe-link-lag in MINUTEN (uur-modus): `lagMinutes` ⇒ bron; anders `lagDays × hoursPerDay ×
+  /** Externe-link-lag in MINUTEN: `lagMinutes` ⇒ bron; anders `lagDays × hoursPerDay ×
    *  60` (naakt getal = werkdagen — dezelfde conventie als de Sequence-lag). */
   private externalLagMinutes(link: ExternalLink, eng: CalendarEngine): number {
     if (isFiniteNumber(link.lagMinutes)) return link.lagMinutes;
     const days = isFiniteNumber(link.lagDays) ? link.lagDays : 0;
     return days * eng.hoursPerDay * 60;
-  }
-  /** Externe-link-lag in DAGEN: minuten blijven de bron, net als in uurmodus.
-   *  Reken via de lokale kalender en rond halve dagen van nul af (symmetrische lead/lag). */
-  private externalLagDays(link: ExternalLink, eng: CalendarEngine): number {
-    if (isFiniteNumber(link.lagMinutes) && eng.hoursPerDay > 0) {
-      const days = link.lagMinutes / (eng.hoursPerDay * 60);
-      return Math.sign(days) * Math.round(Math.abs(days));
-    }
-    return isFiniteNumber(link.lagDays) ? link.lagDays : 0;
   }
 
   /**
@@ -3202,62 +3082,44 @@ export class CPMSolver {
    * `anchorDate` speelt de rol van de driving-datum van de externe taak (de ververs-actie schrijft
    * daar de source-`earlyFinish` bij FS/FF resp. `earlyStart` bij SS/SF in).
    * Het TWEEDE relType-teken bepaalt de zijde: FS/SS ⇒ START-grens, FF/SF ⇒ FINISH-grens (via
-   * `startFromFinish` naar een start terugvertaald). Het EERSTE teken de dag-boundary-overgang:
-   * alleen FS (externe finish → mijn start) krijgt de `nextWorkDayAfter`-+1 (spiegel van
-   * `forwardConstraint` FS); SS/FF/SF ankeren op dezelfde grens (geen +1). In uur-modus valt de
-   * +1 weg (continue tijd) ⇒ `nextWorkInstant`. `sourceMissing` speelt GEEN rol — er wordt altijd op
+   * `startFromFinish` naar een start terugvertaald). De tijd is continu: geen +1 dag na een
+   * finish-anker; de lag telt in werkminuten. `sourceMissing` speelt GEEN rol — er wordt altijd op
    * het anker gerekend (P6 External Dates). Retourneert null voor een successor-link.
    */
   private externalForwardBound(task: Task, link: ExternalLink, eng: CalendarEngine): Date | null {
     if (link.direction !== 'predecessor') return null;
-    const anchor = this.parseIn(eng, link.anchorDate);
+    const anchor = parseInstant(link.anchorDate);
     if (isNaN(anchor.getTime())) return null;
     const rel = link.relType;
     const startSide = rel === 'FS' || rel === 'SS';   // tweede teken S ⇒ mijn start; F ⇒ mijn finish
-    if (eng.isHourMode) {
-      const shifted = eng.addWorkingMinutesSigned(anchor, this.externalLagMinutes(link, eng));
-      const finish = !startSide && taskDurationUnit(task) !== 'hours' && !isElapsedTask(task)
-        && !isZeroDurationMilestone(task) ? eng.prevWorkInstant(shifted) : shifted;
-      return startSide ? shifted : this.startFromFinish(eng, finish, task);
-    }
-    const lag = this.externalLagDays(link, eng);
-    // FS: de werkdag ná het finish-anker (finish→start). Anders: het anker zelf (addWorkingDaysSigned
-    // snapt zelf voorwaarts naar een werkdag). Beide takken tellen daarna `lag` werkdagen bij.
-    const base = rel === 'FS' ? eng.nextWorkDayAfter(anchor) : anchor;
-    const shifted = eng.addWorkingDaysSigned(base, lag);
-    return startSide ? shifted : this.startFromFinish(eng, shifted, task);
+    const shifted = eng.addWorkingMinutesSigned(anchor, this.externalLagMinutes(link, eng));
+    const finish = !startSide && taskDurationUnit(task) !== 'hours' && !isElapsedTask(task)
+      && !isZeroDurationMilestone(task) ? eng.prevWorkInstant(shifted) : shifted;
+    return startSide ? shifted : this.startFromFinish(eng, finish, task);
   }
 
   /**
    * Backward-bovengrens (late finish) van een externe SUCCESSOR-link. Spiegel van
    * `externalForwardBound`: `anchorDate` is de driving-datum van de externe opvolger. Het EERSTE
    * relType-teken bepaalt mijn zijde: FS/FF ⇒ LF-grens direct; SS/SF ⇒ LS-grens (via `finishFromStart`
-   * naar mijn LF vertaald). De dag-boundary-overgang zit alleen op FS (mijn finish → externe start ⇒
-   * `prevWorkDayBefore`, spiegel van de forward-FS); SS/FF/SF ankeren op `prevWorkDay`. Uur-modus:
-   * continue tijd ⇒ geen −1. Retourneert null voor een predecessor-link.
+   * naar mijn LF vertaald). Continue tijd ⇒ geen −1 dag. Retourneert null voor een predecessor-link.
    */
   private externalBackwardBound(task: Task, link: ExternalLink, eng: CalendarEngine): Date | null {
     if (link.direction !== 'successor') return null;
-    const anchor = this.parseIn(eng, link.anchorDate);
+    const anchor = parseInstant(link.anchorDate);
     if (isNaN(anchor.getTime())) return null;
     const rel = link.relType;
     const finishSide = rel === 'FS' || rel === 'FF';   // eerste teken F ⇒ mijn finish; S ⇒ mijn start
-    if (eng.isHourMode) {
-      const shifted = eng.addWorkingMinutesSigned(anchor, -this.externalLagMinutes(link, eng));
-      if (!finishSide) return this.finishFromStart(eng, shifted, task);
-      // FS/FF: de grens is een EINDmoment. `addWorkingMinutesSigned` normaliseert vooruit
-      // (`nextWorkInstant`) en kan op een blokbegin landen (anker wo 08:00 ⇒ late finish wo 08:00).
-      // Als eindmoment is dat het vorige blokeinde (di 16:00): zelfde punt op de tijdas, dus de
-      // speling verandert niet, maar de getoonde late finish en de dag die een dagtaak eruit leest
-      // wel (knownbugs 141 van het ontwerp "alleen uren"). Mijlpaal en ELAPSEDTIME-taak blijven
-      // ongemoeid. `bg141-*` in `cases-hours-blokgrenzen.json`.
-      if (isZeroDurationMilestone(task) || isElapsedTask(task)) return shifted;
-      return this.snapOnOrBefore(eng, shifted);
-    }
-    const lag = this.externalLagDays(link, eng);
-    const base = rel === 'FS' ? eng.prevWorkDayBefore(anchor) : eng.prevWorkDay(anchor);
-    const shifted = eng.addWorkingDaysSigned(base, -lag);
-    return finishSide ? shifted : this.finishFromStart(eng, shifted, task);
+    const shifted = eng.addWorkingMinutesSigned(anchor, -this.externalLagMinutes(link, eng));
+    if (!finishSide) return this.finishFromStart(eng, shifted, task);
+    // FS/FF: de grens is een EINDmoment. `addWorkingMinutesSigned` normaliseert vooruit
+    // (`nextWorkInstant`) en kan op een blokbegin landen (anker wo 08:00 ⇒ late finish wo 08:00).
+    // Als eindmoment is dat het vorige blokeinde (di 16:00): zelfde punt op de tijdas, dus de
+    // speling verandert niet, maar de getoonde late finish en de dag die een dagtaak eruit leest
+    // wel (knownbugs 141 van het ontwerp "alleen uren"). Mijlpaal en ELAPSEDTIME-taak blijven
+    // ongemoeid. `bg141-*` in `cases-hours-blokgrenzen.json`.
+    if (isZeroDurationMilestone(task) || isElapsedTask(task)) return shifted;
+    return this.snapOnOrBefore(eng, shifted);
   }
 
   /**
@@ -3495,7 +3357,7 @@ export class CPMSolver {
     const at = (ef: Date) => ({ es: this.startFromFinish(cal, ef, task), ef });
     let placed = at(finish);
     let updates = this.alapSuccessorBounds(taskId, task, cal, placed, earlyDates);
-    if (!updates && cal.isHourMode) {
+    if (!updates) {
       // Projectie naar de laatste uitvoerbare plek. Later schuiven vraagt nooit minder van een
       // opvolger, dus de uitvoerbare plekken vormen één aaneengesloten stuk vanaf het vroege einde.
       let lo = 0;
@@ -4030,8 +3892,8 @@ export class CPMSolver {
         : computedLateStart;
       if (this.options.schedulingOptions?.p6FinishMilestoneBoundaryWindow === true
         && isZeroDurationMilestone(task) && task.milestoneKind === 'FINISH') {
-        const plannedStart = this.parseIn(predCal, task.time.scheduleStart);
-        const plannedFinish = this.parseIn(predCal, task.time.scheduleFinish);
+        const plannedStart = parseInstant(task.time.scheduleStart);
+        const plannedFinish = parseInstant(task.time.scheduleFinish);
         if (plannedFinish < plannedStart && lateFinish.getTime() === plannedFinish.getTime()) {
           lateStart = plannedStart;
         }
