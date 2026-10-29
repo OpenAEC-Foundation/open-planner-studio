@@ -410,6 +410,12 @@ en noem het in je rapport of PR-tekst.
      baseline-solve op regel 395 dan al (`taskWithoutWorkHours`) en keert de functie terug, dus die takken worden
      niet meer bereikt. Ongeveer tien regels kunnen weg; de kalendertijd- en werkblokkenpaden blijven. Alleen
      opruimen. Gevonden in de review van #733 (Sol, ronde 1, 2026-10-29). — B
+508. **Een kalender met een opgeslagen lege week stopt de berekening niet.** Een kalender met `workTime` maar zonder
+     enig werkblok (vijf werkdagen, zeven lege weekdagen) heeft `isHourMode` waar, dus de wachten van F6
+     (`taskWithoutWorkHours`, `noWorkingHours`) laten hem door. Een taak van 2,5 werkdagen krijgt dan
+     `earlyFinish === earlyStart` en staat in `cappedTaskIds`. Zo was het ook vóór F6; er is geen check voor.
+     Voorstel: de lege week vastleggen in `check-schedule-errors.ts` en kiezen tussen dezelfde melding of de
+     huidige cap. Gevonden in de review van #733 (Sol, ronde 1, 2026-10-29). — B
 
 ## Tabel, invoer en bediening
 
@@ -511,12 +517,6 @@ en noem het in je rapport of PR-tekst.
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden
     altijd gegenereerd. — B
-508. **Een kalender met een opgeslagen lege week stopt de berekening niet.** Een kalender met `workTime` maar zonder
-     enig werkblok (vijf werkdagen, zeven lege weekdagen) heeft `isHourMode` waar, dus de wachten van F6
-     (`taskWithoutWorkHours`, `noWorkingHours`) laten hem door. Een taak van 2,5 werkdagen krijgt dan
-     `earlyFinish === earlyStart` en staat in `cappedTaskIds`. Zo was het ook vóór F6; er is geen check voor.
-     Voorstel: de lege week vastleggen in `check-schedule-errors.ts` en kiezen tussen dezelfde melding of de
-     huidige cap. Gevonden in de review van #733 (Sol, ronde 1, 2026-10-29). — B
 
 ## Bibliotheek, bezetting, extensies, AI
 
