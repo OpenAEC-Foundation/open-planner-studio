@@ -16,7 +16,7 @@ import { taskDurationUnit } from '@/engine/scheduler/duration';
 import { effHoursPerDay } from '@/utils/taskDuration';
 import { createBaselineOldDayCheck } from '@/engine/baselineOldDay';
 import {
-  encodeCustomTaskType, escapeXml, literalCalendarsJson, OPS_DURATION_UNIT_NAME, OPS_LITERAL_CALENDARS_NAME, toXmlDateTime,
+  encodeCustomTaskType, escapeXml, replaceInvalidXmlChars, literalCalendarsJson, OPS_DURATION_UNIT_NAME, OPS_LITERAL_CALENDARS_NAME, toXmlDateTime,
 } from '@/services/xmlInterchange';
 import {
   LagRecordCollector, OPS_DAY_MEASURE_DURATIONS_NAME, OPS_DAY_MEASURE_LAGS_NAME, OPS_EXACT_MINUTES_NAME,
@@ -294,7 +294,13 @@ function writeCalendarBlock(
   lines.push(`${indent(2)}</Calendar>`);
 }
 
-export function writeMSPDI(
+export function writeMSPDI(...args: Parameters<typeof writeMSPDIWithReport>): string {
+  return writeMSPDIWithReport(...args).xml;
+}
+
+/** Als `writeMSPDI`, plus het aantal tekens dat XML 1.0 niet toestaat en dat U+FFFD werd
+ *  (`replaceInvalidXmlChars`; de exportmelding `exportInvalidXmlCharsNotice` gebruikt dit getal). */
+export function writeMSPDIWithReport(
   project: Project,
   calendar: WorkCalendar,
   tasks: Task[],
@@ -305,7 +311,7 @@ export function writeMSPDI(
   baselines: Baseline[] = [],
   activeBaselineId: string | null = null,
   customTaskTypes: readonly CustomTaskType[] = [],
-): string {
+): { xml: string; invalidXmlChars: number } {
   // Elke taakdatum gaat met zijn echte tijd (I8, F5b): een einde 16:00 blijft 16:00, niet het anker 08:00.
   // Een veld zonder tijd krijgt zijn moment volgens D1–D7, zoals de laadgrens; dat geldt ook voor een kale
   // start op een letterlijke kalender (knownbug 256, MSPDI-deel). Welke kalenders letterlijk zijn (T17),
@@ -862,5 +868,6 @@ export function writeMSPDI(
 
   lines.push('</Project>');
 
-  return lines.join('\n');
+  const { xml, replaced } = replaceInvalidXmlChars(lines.join('\n'));
+  return { xml, invalidXmlChars: replaced };
 }

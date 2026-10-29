@@ -47,6 +47,9 @@ export const XER_IMPORT_HELP_ARTICLE_ID = 'howto-xer-openen';
 /** Primavera P6 XML: openingsmelding (leeg bestand, meerdere projecten). */
 export const P6XML_IMPORT_HELP_ARTICLE_ID = 'uitleg-bestanden';
 
+/** De link *Lees meer* bij de verliesmelding na een export van een project zonder XER-herkomst (#554). */
+export const EXPORT_LOSS_HELP_ARTICLE_ID = 'howto-exporteren';
+
 /** "Datums zoals opgeslagen": melding bij openen en de markering in het eigenschappenpaneel. */
 export const RECORDED_DATES_HELP_ARTICLE_ID = 'uitleg-datums-zoals-opgeslagen';
 
